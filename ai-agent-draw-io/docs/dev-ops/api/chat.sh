@@ -1,0 +1,18 @@
+curl 'http://127.0.0.1:8091/api/v1/chat' \
+  -H 'Accept: */*' \
+  -H 'Accept-Language: zh-CN,zh;q=0.9,en;q=0.8' \
+  -H 'Cache-Control: no-cache' \
+  -H 'Connection: keep-alive' \
+  -H 'Content-Type: application/json' \
+  -H 'DNT: 1' \
+  -H 'Origin: http://localhost:63343' \
+  -H 'Pragma: no-cache' \
+  -H 'Referer: http://localhost:63343/' \
+  -H 'Sec-Fetch-Dest: empty' \
+  -H 'Sec-Fetch-Mode: cors' \
+  -H 'Sec-Fetch-Site: cross-site' \
+  -H 'User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36' \
+  -H 'sec-ch-ua: "Google Chrome";v="143", "Chromium";v="143", "Not A(Brand";v="24"' \
+  -H 'sec-ch-ua-mobile: ?0' \
+  -H 'sec-ch-ua-platform: "macOS"' \
+  --data-raw '{"agentId":"100003","userId":"admin","sessionId":"93996af6-38f6-4876-a396-3182b22de30a","message":"1+1"}'
