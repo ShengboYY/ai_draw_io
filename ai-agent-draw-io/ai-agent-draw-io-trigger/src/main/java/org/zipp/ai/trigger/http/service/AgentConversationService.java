@@ -43,6 +43,9 @@ public class AgentConversationService {
     @Resource
     private DrawioStreamResponseWriter streamResponseWriter;
 
+    @Resource
+    private SkillContentProvider skillContentProvider;
+
     public ChatResponseDTO chat(ChatRequestDTO requestDTO) {
         String sessionId = ensureSession(requestDTO);
         CustomApiConfigManager.CustomApiConfig config = buildCustomApiConfig(requestDTO);
@@ -265,6 +268,21 @@ public class AgentConversationService {
                 .build();
     }
 
+    // Inject skill rules only for generative draws; patch_existing stays lean for the fast edit path.
+    private String skillSectionFor(IntentRoutingResult routingResult) {
+        String taskType = StringUtils.defaultString(routingResult.getTaskType());
+        boolean generativeDraw = "create_new".equals(taskType)
+                || "append_existing".equals(taskType)
+                || "optimize_layout".equals(taskType)
+                || "fallback_full_xml".equals(taskType);
+        if (!generativeDraw) {
+            return "";
+        }
+        String section = skillContentProvider.buildSkillSection(routingResult.getSkillName());
+        log.info("[skill-inject] taskType={} skillName={} injectedChars={}", taskType, routingResult.getSkillName(), section.length());
+        return section;
+    }
+
     private String buildRoutedMessage(String originalMessage,
                                       IntentRoutingResult routingResult,
                                       CanvasReviewContext reviewContext,
@@ -286,6 +304,7 @@ public class AgentConversationService {
         String routedMessage = "[Intent Routing Result]\n"
                 + routingJson.toJSONString()
                 + "\n\n"
+                + skillSectionFor(routingResult)
                 + originalMessage;
         if (null == reviewContext) {
             return routedMessage;
