@@ -100,3 +100,6 @@ data/
 .eslintcache
 .turbo/
 .vercel/
+
+# Local agent scratch/runtime state
+.superpowers/
