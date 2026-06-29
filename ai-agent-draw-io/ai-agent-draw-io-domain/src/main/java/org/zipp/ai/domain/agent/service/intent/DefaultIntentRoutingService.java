@@ -21,6 +21,9 @@ public class DefaultIntentRoutingService implements IIntentRoutingService {
     @Resource
     private IChatService chatService;
 
+    @Resource
+    private org.zipp.ai.domain.agent.service.armory.matter.skills.SkillCatalogService skillCatalogService;
+
     // <mxGraphModel>...</mxGraphModel> embedded in the message means an existing canvas is in play.
     private static final java.util.regex.Pattern MXGRAPH_PATTERN =
             java.util.regex.Pattern.compile("<mxGraphModel[\\s\\S]*?</mxGraphModel>");
@@ -56,7 +59,10 @@ public class DefaultIntentRoutingService implements IIntentRoutingService {
                 CustomApiConfigManager.setConfig(sessionId, config);
             }
 
-            List<String> outputs = chatService.handleMessage(INTENT_AGENT_ID, command.getUserId(), sessionId, command.getMessage());
+            // Feed the live skill catalog so the router can pick ANY available skill by description
+            // (including user-added ones), instead of a hardcoded enum.
+            String routerMessage = withAvailableSkills(command.getMessage());
+            List<String> outputs = chatService.handleMessage(INTENT_AGENT_ID, command.getUserId(), sessionId, routerMessage);
             String rawResult = String.join("", outputs);
             IntentRoutingResult result = parseRoutingResult(rawResult);
             return normalize(result);
@@ -125,6 +131,18 @@ public class DefaultIntentRoutingService implements IIntentRoutingService {
             }
         }
         return false;
+    }
+
+    // Prepend the dynamic skill catalog so skill selection is description-driven, not a fixed list.
+    private String withAvailableSkills(String message) {
+        String catalog = skillCatalogService.catalogText();
+        if (null == catalog || catalog.isBlank()) {
+            return message;
+        }
+        return "[Available Skills] (choose skillName from these by matching the request to the description, or \"none\")\n"
+                + catalog
+                + "\n"
+                + message;
     }
 
     private IntentRoutingResult parseRoutingResult(String rawResult) {
