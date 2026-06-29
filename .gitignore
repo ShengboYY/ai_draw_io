@@ -45,11 +45,12 @@ application-test.yaml
 application-prod.yml
 application-prod.yaml
 
-# Agent runtime configs can contain model API keys and private endpoints
+# Agent runtime configs may contain API keys/private endpoints -> keep ignored,
+# EXCEPT the active prompts file agent-draw-io.yml, which reads its secret
+# (BAIDU_SEARCH_API_KEY) from .env so it carries no keys and is version-controlled.
 **/src/main/resources/agent/*.yml
 **/src/main/resources/agent/*.yaml
-!**/src/main/resources/agent/*.example.yml
-!**/src/main/resources/agent/*.example.yaml
+!**/src/main/resources/agent/agent-draw-io.yml
 
 # Local API smoke-test scripts may contain Authorization headers
 **/docs/dev-ops/api/gpt.sh
