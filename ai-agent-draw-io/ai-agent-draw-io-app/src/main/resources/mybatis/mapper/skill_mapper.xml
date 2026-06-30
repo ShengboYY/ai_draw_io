@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.zipp.ai.infrastructure.dao.ISkillMapper">
+
+    <resultMap id="skillMap" type="org.zipp.ai.infrastructure.dao.po.SkillPO">
+        <id column="id" property="id"/>
+        <result column="owner_id" property="ownerId"/>
+        <result column="name" property="name"/>
+        <result column="description" property="description"/>
+        <result column="category" property="category"/>
+        <result column="body" property="body"/>
+        <result column="visibility" property="visibility"/>
+        <result column="version" property="version"/>
+        <result column="enabled" property="enabled"/>
+        <result column="created_at" property="createdAt"/>
+        <result column="updated_at" property="updatedAt"/>
+    </resultMap>
+
+    <sql id="cols">id, owner_id, name, description, category, body, visibility, version, enabled, created_at, updated_at</sql>
+
+    <select id="selectPublic" resultMap="skillMap">
+        SELECT <include refid="cols"/> FROM skill
+        WHERE visibility = 'PUBLIC' AND enabled = 1
+    </select>
+
+    <select id="selectByOwner" resultMap="skillMap">
+        SELECT <include refid="cols"/> FROM skill
+        WHERE owner_id = #{ownerId} AND visibility = 'PRIVATE' AND enabled = 1
+    </select>
+
+    <insert id="upsert" parameterType="org.zipp.ai.infrastructure.dao.po.SkillPO">
+        INSERT INTO skill (owner_id, name, description, category, body, visibility, version, enabled)
+        VALUES (#{ownerId}, #{name}, #{description}, #{category}, #{body}, #{visibility},
+                COALESCE(#{version}, 1), COALESCE(#{enabled}, 1))
+        ON DUPLICATE KEY UPDATE
+            description = VALUES(description),
+            category    = VALUES(category),
+            body        = VALUES(body),
+            visibility  = VALUES(visibility),
+            version     = version + 1,
+            enabled     = VALUES(enabled)
+    </insert>
+
+    <delete id="deleteByOwnerAndName">
+        DELETE FROM skill WHERE owner_id = #{ownerId} AND name = #{name}
+    </delete>
+
+</mapper>

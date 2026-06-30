@@ -60,8 +60,8 @@ public class DefaultIntentRoutingService implements IIntentRoutingService {
             }
 
             // Feed the live skill catalog so the router can pick ANY available skill by description
-            // (including user-added ones), instead of a hardcoded enum.
-            String routerMessage = withAvailableSkills(command.getMessage());
+            // (including the user's own), instead of a hardcoded enum.
+            String routerMessage = withAvailableSkills(command.getMessage(), command.getUserId());
             List<String> outputs = chatService.handleMessage(INTENT_AGENT_ID, command.getUserId(), sessionId, routerMessage);
             String rawResult = String.join("", outputs);
             IntentRoutingResult result = parseRoutingResult(rawResult);
@@ -134,8 +134,8 @@ public class DefaultIntentRoutingService implements IIntentRoutingService {
     }
 
     // Prepend the dynamic skill catalog so skill selection is description-driven, not a fixed list.
-    private String withAvailableSkills(String message) {
-        String catalog = skillCatalogService.catalogText();
+    private String withAvailableSkills(String message, String ownerId) {
+        String catalog = skillCatalogService.catalogText(ownerId);
         if (null == catalog || catalog.isBlank()) {
             return message;
         }

@@ -24,24 +24,24 @@ public class SkillContentProvider {
      * Build the skill-rules section to prepend before the user request, for a given routed skillName.
      * Returns an empty string when there is nothing useful to inject.
      */
-    public String buildSkillSection(String skillName) {
+    public String buildSkillSection(String skillName, String ownerId) {
         StringBuilder section = new StringBuilder();
 
         String selected = StringUtils.trimToNull(skillName);
         if (selected != null
                 && !"none".equalsIgnoreCase(selected)
                 && !SkillCatalogService.SHARED_SKILL.equals(selected)
-                && skillCatalogService.exists(selected)) {
-            appendSkill(section, selected);
+                && skillCatalogService.exists(selected, ownerId)) {
+            appendSkill(section, selected, ownerId);
         }
         // The drawing agent is instructed to always follow the shared visual-design rules.
-        appendSkill(section, SkillCatalogService.SHARED_SKILL);
+        appendSkill(section, SkillCatalogService.SHARED_SKILL, ownerId);
 
         return section.toString();
     }
 
-    private void appendSkill(StringBuilder section, String skillName) {
-        String body = skillCatalogService.body(skillName);
+    private void appendSkill(StringBuilder section, String skillName, String ownerId) {
+        String body = skillCatalogService.body(skillName, ownerId);
         if (StringUtils.isNotBlank(body)) {
             section.append("[Skill Rules: ").append(skillName).append("]\n")
                     .append(body.trim()).append("\n\n");

@@ -39,7 +39,7 @@ public class SkillCatalogServiceTest {
 
         SkillCatalogService service = serviceWithExternalDir(skillsRoot);
 
-        String catalog = service.catalogText();
+        String catalog = service.catalogText(null);
 
         assertTrue(catalog.contains("- custom-architecture: Draw.io custom architecture skill. Use for service topology and gateway diagrams."));
         assertFalse(catalog.contains("- custom-architecture: >"));
@@ -84,7 +84,7 @@ public class SkillCatalogServiceTest {
 
         SkillCatalogService service = serviceWithExternalDir(skillsRoot);
 
-        String catalog = service.catalogText();
+        String catalog = service.catalogText(null);
 
         assertTrue(catalog.contains("- custom-flowchart: Custom draw.io flowchart skill."));
         assertFalse(catalog.contains("- custom-doc:"));
