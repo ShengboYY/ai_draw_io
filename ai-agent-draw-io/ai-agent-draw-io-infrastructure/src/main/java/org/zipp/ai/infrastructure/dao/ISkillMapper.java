@@ -15,5 +15,7 @@ public interface ISkillMapper {
 
     int upsert(SkillPO skill);
 
+    int insertIfAbsent(SkillPO skill);
+
     int deleteByOwnerAndName(@Param("ownerId") String ownerId, @Param("name") String name);
 }

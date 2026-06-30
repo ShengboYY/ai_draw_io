@@ -1,10 +1,8 @@
 package org.zipp.ai.infrastructure.config;
 
-import org.mybatis.spring.annotation.MapperScan;
 import org.springframework.context.annotation.Configuration;
 
-/** Registers the MyBatis mapper interfaces under the infrastructure dao package. */
+/** Reserved for future MyBatis customizations; mapper scanning is declared on the boot application. */
 @Configuration
-@MapperScan("org.zipp.ai.infrastructure.dao")
 public class MyBatisConfig {
 }

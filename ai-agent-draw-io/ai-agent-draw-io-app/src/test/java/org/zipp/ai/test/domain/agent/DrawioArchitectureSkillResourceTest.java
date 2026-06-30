@@ -65,10 +65,12 @@ public class DrawioArchitectureSkillResourceTest {
         assertTrue(agentPrompt.contains("edit_diagram"));
         assertTrue(agentPrompt.contains("optimize_diagram"));
         assertTrue(agentPrompt.contains("drawioCanvasToolCallbackProvider"));
-        assertTrue(agentPrompt.contains("Prefer actual registered tool calls over text output"));
+        assertTrue(agentPrompt.contains("MUST use actual registered tool calls when they are available"));
         assertTrue(agentPrompt.contains("Only output the final drawio_done JSON after validate_diagram returns valid=true"));
         assertTrue(agentPrompt.contains("approved=true, do not call any drawing tool"));
         assertTrue(agentPrompt.contains("patch_existing"));
+        assertTrue(agentPrompt.contains("patch_existing -> patch_cells"));
+        assertFalse(agentPrompt.contains("patch_existing -> edit_diagram;"));
         assertTrue(agentPrompt.contains("drawing tool call -> review/direct repair loop"));
     }
 
@@ -155,6 +157,20 @@ public class DrawioArchitectureSkillResourceTest {
         assertTrue(agentPrompt.contains("Use only those tools"));
         assertTrue(agentPrompt.contains("[Intent Routing Result].maxReviewIterations is the review repair budget"));
         assertTrue(agentPrompt.contains("If it is 0, do the initial drawing action only"));
+    }
+
+    @Test
+    public void shouldHardenDrawerProtocolAgainstProseOnlyOutputs() throws Exception {
+        String agentPrompt = readResource("agent/agent-draw-io.yml");
+        String architectureSkill = readResource("agent/skills/drawio-architecture/SKILL.md");
+        String visualDesignSkill = readResource("agent/skills/drawio-visual-design/SKILL.md");
+
+        assertTrue(agentPrompt.contains("Natural-language drawing output is invalid"));
+        assertTrue(agentPrompt.contains("If you cannot make a registered tool call, your first text character must be `{`"));
+        assertTrue(agentPrompt.contains("Do not output design plans, internal planning notes, status prose, or explanations"));
+        assertTrue(agentPrompt.contains("Protocol Guard"));
+        assertTrue(architectureSkill.contains("never output the blueprint"));
+        assertTrue(visualDesignSkill.contains("never output this workflow"));
     }
 
     @Test

@@ -16,7 +16,7 @@ Use this skill together with the selected diagram skill, such as `drawio-archite
 This skill fixes design principles, not a single fixed visual style. The selected diagram skill still controls domain semantics, node types, and edge meanings.
 
 ## 2. Design Workflow
-Before generating Draw.io XML, silently perform this design workflow:
+Privately perform this design workflow before generating Draw.io XML; never output this workflow:
 1. Identify the diagram type and the main message: hierarchy, process, time order, data model, scope, lifecycle, or relationship network.
 2. Select the diagram subtype from the selected diagram skill, such as architecture view, flow type, sequence scope, UML model scope, ER model scope, use case scope, or state machine scope.
 3. Select one design profile from Section 3.

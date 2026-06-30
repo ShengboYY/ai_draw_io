@@ -97,7 +97,7 @@ Style:
 ## 4.1 General Architecture View Contract
 Use this contract for every `drawio-architecture` subtype. It is inspired by C4/Structurizr-style view discipline and diagram-as-code layout rules: define scope first, then boundaries, then elements, then relationships, then legend.
 
-- First create a visual blueprint in the drawing brief or internal planning step: selected subtype, scope boundary, abstraction level, region map, main reading axis, legend need, connector types, connector gutters, and what to omit.
+- Privately choose a visual blueprint before writing XML: selected subtype, scope boundary, abstraction level, region map, main reading axis, legend need, connector types, connector gutters, and what to omit; never output the blueprint.
 - Keep one focal system or boundary. Put external actors/systems outside it, and put internal elements inside it only when they belong to the selected view.
 - Do not mix abstraction levels. Context diagrams do not show containers; container diagrams do not show classes; deployment diagrams do not show business methods; integration/data diagrams do not show table fields.
 - Use two nested boundary levels at most for normal diagrams. Add a third level only for deployment zones, runtime memory regions, or a user-requested deep zoom.

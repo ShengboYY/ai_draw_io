@@ -221,6 +221,37 @@ export const buildAgentCompletionReply = (view: AgentRunView, userRequest?: stri
     : `Done. I loaded the diagram into the Draw.io canvas with ${metricLabel}.`;
 };
 
+const issueCountFromDetail = (detail?: string) => {
+  if (!detail) return 0;
+  return detail.split(';').map(item => item.trim()).filter(Boolean).length;
+};
+
+export const buildAgentProgressSummary = (view: AgentRunView, isRunning: boolean) => {
+  const hasCanvasMetric = view.metricLabel !== 'Waiting for canvas';
+  const metricSuffix = hasCanvasMetric ? ` (${view.metricLabel})` : '';
+  const latestWarning = [...view.visibleEvents].reverse().find(event => event.status === 'warning');
+  const issueCount = issueCountFromDetail(latestWarning?.detail);
+
+  if (view.statusTone === 'failed') {
+    return `Diagram generation hit a problem${metricSuffix}. Open the details to inspect the tool output.`;
+  }
+  if (view.statusTone === 'warning') {
+    const issueText = issueCount > 1 ? `${issueCount} layout issues` : 'a layout issue';
+    return `Diagram loaded${metricSuffix}; ${issueText} detected and may need another pass.`;
+  }
+  if (isRunning) {
+    if (view.title === 'Reviewing quality') return `Checking diagram quality${metricSuffix}.`;
+    if (view.title === 'Drawing diagram') return `Drawing the diagram${metricSuffix}.`;
+    return `Working on the diagram${metricSuffix}.`;
+  }
+  if (!hasCanvasMetric) {
+    return containsCjk(view.finalContent)
+      ? '没有加载到可绘制的图表。Agent 返回了文字说明，但没有返回 Draw.io XML。'
+      : 'No drawable diagram was loaded. The agent returned text instead of Draw.io XML.';
+  }
+  return `Diagram completed${metricSuffix}.`;
+};
+
 export const shouldShowAgentTyping = ({
   role,
   content,

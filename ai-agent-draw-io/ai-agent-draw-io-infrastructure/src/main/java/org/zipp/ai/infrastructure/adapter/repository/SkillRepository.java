@@ -44,6 +44,19 @@ public class SkillRepository implements SkillStore {
     }
 
     @Override
+    public void seedIfAbsent(StoredSkill skill) {
+        SkillPO po = new SkillPO();
+        po.setOwnerId(skill.ownerId() == null ? "" : skill.ownerId());
+        po.setName(skill.name());
+        po.setDescription(skill.description());
+        po.setCategory(skill.category());
+        po.setBody(skill.body());
+        po.setVisibility(skill.visibility() == null ? Visibility.PUBLIC.name() : skill.visibility().name());
+        po.setEnabled(skill.enabled());
+        skillMapper.insertIfAbsent(po);
+    }
+
+    @Override
     public void delete(String ownerId, String name) {
         skillMapper.deleteByOwnerAndName(ownerId == null ? "" : ownerId, name);
     }

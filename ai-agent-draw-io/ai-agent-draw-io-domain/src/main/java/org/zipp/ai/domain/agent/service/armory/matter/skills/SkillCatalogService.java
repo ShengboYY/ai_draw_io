@@ -274,6 +274,11 @@ public class SkillCatalogService {
         return m.find() ? m.group(1) : null;
     }
 
+    /** Built-in skills bundled in the jar (classpath), used to seed the DB. */
+    public List<SkillInfo> builtInSkills() {
+        return new ArrayList<>(classpathSkills().values());
+    }
+
     /** Skills the given user's router may select: draw.io design skills, excluding the shared skill. */
     public List<SkillInfo> selectableSkills(String ownerId) {
         List<SkillInfo> list = new ArrayList<>();

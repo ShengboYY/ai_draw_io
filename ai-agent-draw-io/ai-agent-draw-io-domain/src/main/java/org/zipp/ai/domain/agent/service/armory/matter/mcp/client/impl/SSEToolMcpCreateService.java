@@ -21,6 +21,17 @@ public class SSEToolMcpCreateService implements TooMcpCreateService {
 
     @Override
     public ToolCallback[] buildToolCallback(AiAgentConfigTableVO.Module.ChatModel.ToolMcp toolMcp) throws Exception {
+        try {
+            return doBuildToolCallback(toolMcp);
+        } catch (Exception e) {
+            String name = null == toolMcp || null == toolMcp.getSse() ? "unknown" : toolMcp.getSse().getName();
+            // Remote MCP tools are optional; keep the core Draw.io agent online if one is misconfigured.
+            log.warn("Skip unavailable SSE MCP tool '{}': {}", name, e.getMessage());
+            return new ToolCallback[0];
+        }
+    }
+
+    private ToolCallback[] doBuildToolCallback(AiAgentConfigTableVO.Module.ChatModel.ToolMcp toolMcp) throws Exception {
         AiAgentConfigTableVO.Module.ChatModel.ToolMcp.SSEServerParameters sseConfig = toolMcp.getSse();
 
         // http://appbuilder.baidu.com/v2/ai_search/mcp/sse?api_key=bce-v3/ALTAK-JFZXXLpfxhAutDQvJ32Ei/4492c1879b8c2f0df4612ef5b4a52df1c1fba9f7

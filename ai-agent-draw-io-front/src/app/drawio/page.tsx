@@ -18,6 +18,7 @@ import {
   AgentRunEventStatus,
   AgentRunEventTone,
   buildAgentCompletionReply,
+  buildAgentProgressSummary,
   buildAgentRunView,
   finishEventsAfterCanvasLoaded,
   finishPreviousPhaseEvents,
@@ -423,31 +424,6 @@ const summarizeEventDetail = (detail?: string) => {
   return normalized.length > 180 ? `${normalized.slice(0, 177).trim()}...` : normalized;
 };
 
-const issueCountFromDetail = (detail?: string) => {
-  if (!detail) return 0;
-  return detail.split(';').map(item => item.trim()).filter(Boolean).length;
-};
-
-const buildProgressSummary = (view: ReturnType<typeof buildAgentRunView>, isRunning: boolean) => {
-  const metricSuffix = view.metricLabel === 'Waiting for canvas' ? '' : ` (${view.metricLabel})`;
-  const latestWarning = [...view.visibleEvents].reverse().find(event => event.status === 'warning');
-  const issueCount = issueCountFromDetail(latestWarning?.detail);
-
-  if (view.statusTone === 'failed') {
-    return `Diagram generation hit a problem${metricSuffix}. Open the details to inspect the tool output.`;
-  }
-  if (view.statusTone === 'warning') {
-    const issueText = issueCount > 1 ? `${issueCount} layout issues` : 'a layout issue';
-    return `Diagram loaded${metricSuffix}; ${issueText} detected and may need another pass.`;
-  }
-  if (isRunning) {
-    if (view.title === 'Reviewing quality') return `Checking diagram quality${metricSuffix}.`;
-    if (view.title === 'Drawing diagram') return `Drawing the diagram${metricSuffix}.`;
-    return `Working on the diagram${metricSuffix}.`;
-  }
-  return `Diagram completed${metricSuffix}.`;
-};
-
 const AgentProgressMessage = ({
   message,
   isRunning,
@@ -460,7 +436,7 @@ const AgentProgressMessage = ({
     content: message.content,
     isRunning,
   });
-  const summary = buildProgressSummary(view, isRunning);
+  const summary = buildAgentProgressSummary(view, isRunning);
 
   return (
     <div className="w-full rounded-2xl rounded-tl-sm border border-slate-200 bg-white px-3.5 py-3 text-sm leading-relaxed text-slate-700 shadow-sm">

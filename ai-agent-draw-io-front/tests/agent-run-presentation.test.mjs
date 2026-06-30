@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 
 import {
   buildAgentRunView,
+  buildAgentProgressSummary,
   buildAgentCompletionReply,
   finishEventsAfterCanvasLoaded,
   finishPreviousPhaseEvents,
@@ -73,6 +74,21 @@ test('buildAgentCompletionReply gives a natural language completion summary', ()
   assert.equal(
     buildAgentCompletionReply(view, '请画一个 AI 绘图系统架构图'),
     '已完成图表，并加载到 Draw.io 画布中。当前图表包含 7 个节点、6 条连线。'
+  );
+});
+
+test('buildAgentProgressSummary does not claim completion when no canvas loaded', () => {
+  const view = buildAgentRunView({
+    isRunning: false,
+    content: '用户请求创建图表，但模型只返回了说明文字。',
+    events: [
+      { id: '1', phase: 'drawing', title: 'Drawing Agent', detail: 'Generating canvas changes', status: 'done', tone: 'drawing' },
+    ],
+  });
+
+  assert.equal(
+    buildAgentProgressSummary(view, false),
+    '没有加载到可绘制的图表。Agent 返回了文字说明，但没有返回 Draw.io XML。'
   );
 });
 

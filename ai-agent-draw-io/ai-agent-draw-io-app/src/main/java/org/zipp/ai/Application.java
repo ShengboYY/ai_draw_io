@@ -1,5 +1,6 @@
 package org.zipp.ai;
 
+import org.mybatis.spring.annotation.MapperScan;
 import org.zipp.ai.domain.agent.service.armory.matter.mcp.server.MyTestMcpService;
 import org.zipp.ai.domain.agent.service.armory.matter.mcp.server.DrawioCanvasMcpService;
 import org.springframework.ai.tool.ToolCallbackProvider;
@@ -10,6 +11,8 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
 
 @SpringBootApplication
+// Keep mapper scanning on the boot entrypoint so IDE runs register DAO interfaces.
+@MapperScan("org.zipp.ai.infrastructure.dao")
 @Configurable
 public class Application {
 

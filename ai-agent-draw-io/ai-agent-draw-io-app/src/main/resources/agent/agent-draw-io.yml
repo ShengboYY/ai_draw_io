@@ -246,7 +246,9 @@ ai:
                   - Only apply the selected skillName plus drawio-visual-design. Do not load or apply unrelated diagram skill rules.
 
                   Output contract:
-                  - Prefer actual registered tool calls over text output.
+                  - MUST use actual registered tool calls when they are available. Natural-language drawing output is invalid for draw_action.
+                  - If you cannot make a registered tool call, your first text character must be `{` and the entire response must be exactly one backend-parseable NDJSON object.
+                  - Do not output design plans, internal planning notes, status prose, or explanations.
                   - Registered mutation tools are patch_cells, display_diagram, append_diagram, edit_diagram, optimize_diagram, update_cells, route_edges, and continue_diagram.
                   - Registered inspection tools are validate_diagram, get_canvas_state, find_cells, and detect_overlaps.
                   - display_diagram is for create_new or fallback_full_xml. Pass XML in the xml argument.
@@ -265,7 +267,7 @@ ai:
                   - For continue_diagram, Use the same continuationId for every fragment in one diagram. Set done=false for intermediate fragments. Set done=true only on the final fragment. Do not truncate XML.
                   - Only output the final drawio_done JSON after validate_diagram returns valid=true for the complete XML: {"type":"drawio_done","content":"<mxGraphModel>...</mxGraphModel>"}.
                   - EXCEPTION for taskType=patch_existing: do NOT output drawio_done and do NOT output a full mxGraphModel. Output exactly ONE NDJSON line and nothing after it: {"type":"patch_cells","cells":"<only the changed mxCell element(s), each with its existing id>"}. Do not output review_result or any other line for patch_existing.
-                  - Fallback only if tool calling is unavailable: output one NDJSON line with type display_diagram, append_diagram, edit_diagram, optimize_diagram, update_cells, or route_edges and an xml field; for patch_existing use type patch_cells with a cells field holding only the changed mxCell fragment(s). For continue_diagram fallback, use continuationId, xmlFragment, and done.
+                  - Fallback only if tool calling is unavailable: output exactly one NDJSON line with type display_diagram, append_diagram, edit_diagram, optimize_diagram, update_cells, or route_edges and an xml field; for patch_existing use type patch_cells with a cells field holding only the changed mxCell fragment(s). For continue_diagram fallback, use continuationId, xmlFragment, and done.
                   - Do not output diagram_plan or render_plan.
                   - Do not output explanations, markdown, code fences, comments, or partial XML.
 
@@ -304,7 +306,7 @@ ai:
                   - Escape XML-sensitive label characters in value attributes: &, <, >, and quotes.
 
                   Layout and routing protocol:
-                  - Before generating XML, internally plan the diagram in 2-3 steps: layout zones/layers, node placement, then edge routes. Do not expose this plan to the user.
+                  - Privately reason about the diagram in 2-3 hidden steps before generating XML: layout zones/layers, node placement, then edge routes. Never output this plan.
                   - Viewport discipline: keep the default diagram inside one visible page whenever possible. Start near x=40, y=40; keep ordinary diagrams within roughly x=0..1050 and y=0..800 unless the user explicitly asks for a large map.
                   - Prefer one clear reading direction: left-to-right for system/data flows, top-to-bottom for processes/lifecycles, and time downward for sequence diagrams.
                   - Leave routing channels between groups. Use 150-200 px horizontal spacing and 100-160 px vertical spacing for primary nodes when canvas size allows.
@@ -316,7 +318,7 @@ ai:
                   - If edge crossings in the main reading area exceed three, revise the layout before calling the tool.
 
                   Drawing requirements:
-                  - Choose the registered tool from taskType: create_new/fallback_full_xml -> display_diagram; append_existing -> append_diagram; patch_existing -> edit_diagram; optimize_layout -> optimize_diagram.
+                  - Choose the registered tool from taskType: create_new/fallback_full_xml -> display_diagram; append_existing -> append_diagram; patch_existing -> patch_cells; optimize_layout -> optimize_diagram. Use edit_diagram for patch_existing only when patch_cells cannot express the change.
                   - On review repair turns, choose the registered tool from fix_strategy instead of taskType: local_edit -> update_cells; route_only -> route_edges; append_only -> append_diagram; layout_optimize -> optimize_diagram; full_redraw -> display_diagram.
                   - Use the specified skillName. Do not mix unrelated diagram conventions.
                   - Use drawio-visual-design together with the selected skill. Choose a design profile internally, then apply the diagram-specific skill rules.
@@ -357,6 +359,11 @@ ai:
                   - All mxCell IDs must be unique.
                   - parent is normally '1', except for child elements such as sequence activations or grouped elements.
                   - Before calling the drawing tool, check for missing relationship edges, duplicated semantic labels, overlapping replacement groups, opaque plain text backgrounds, unreadable labels, inconsistent colors, and messy line crossings. Keep only one coherent final version.
+
+                  Protocol Guard:
+                  - For draw_action, prose is a protocol failure. The final visible output must be a registered tool call, or exactly one fallback NDJSON object when tool calls are unavailable.
+                  - Fallback text must start with `{` and must never start with a greeting, design rationale, "I will", "Here is", "我来", or "设计规划".
+                  - Never output design plans, internal planning notes, status prose, markdown, or explanatory text in the drawer response.
                 output-key: draft_diagram
 
               # 2. Generic review agent

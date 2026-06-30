@@ -41,6 +41,13 @@
             enabled     = VALUES(enabled)
     </insert>
 
+    <insert id="insertIfAbsent" parameterType="org.zipp.ai.infrastructure.dao.po.SkillPO">
+        INSERT INTO skill (owner_id, name, description, category, body, visibility, version, enabled)
+        VALUES (#{ownerId}, #{name}, #{description}, #{category}, #{body}, #{visibility},
+                COALESCE(#{version}, 1), COALESCE(#{enabled}, 1))
+        ON DUPLICATE KEY UPDATE id = id
+    </insert>
+
     <delete id="deleteByOwnerAndName">
         DELETE FROM skill WHERE owner_id = #{ownerId} AND name = #{name}
     </delete>
