@@ -14,6 +14,8 @@ import java.util.concurrent.ConcurrentMap;
 @Service
 public class DrawioCanvasMcpService {
 
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(DrawioCanvasMcpService.class);
+
     private static final int MAX_CONTINUATION_BUFFER_CHARS = 600_000;
 
     private final DrawioCanvasXmlToolkit xmlToolkit = new DrawioCanvasXmlToolkit();
@@ -21,26 +23,31 @@ public class DrawioCanvasMcpService {
 
     @Tool(name = "display_diagram", description = "Create a new Draw.io diagram from mxCell XML fragments or a complete mxGraphModel.")
     public DrawioToolResponse displayDiagram(DrawioXmlRequest request) {
+        logXmlToolCall("display_diagram", request.getReason(), request.getXml());
         return drawioDone(request.getXml());
     }
 
     @Tool(name = "append_diagram", description = "Append new Draw.io cells to the current diagram. Return the complete updated mxGraphModel.")
     public DrawioToolResponse appendDiagram(DrawioXmlRequest request) {
+        logXmlToolCall("append_diagram", request.getReason(), request.getXml());
         return drawioDone(request.getXml());
     }
 
     @Tool(name = "edit_diagram", description = "Apply a localized Draw.io edit. Return the complete updated mxGraphModel with unrelated cells preserved.")
     public DrawioToolResponse editDiagram(DrawioXmlRequest request) {
+        logXmlToolCall("edit_diagram", request.getReason(), request.getXml());
         return drawioDone(request.getXml());
     }
 
     @Tool(name = "optimize_diagram", description = "Optimize Draw.io layout, spacing, readability, or edge routing. Return the complete optimized mxGraphModel.")
     public DrawioToolResponse optimizeDiagram(DrawioXmlRequest request) {
+        logXmlToolCall("optimize_diagram", request.getReason(), request.getXml());
         return drawioDone(request.getXml());
     }
 
     @Tool(name = "validate_diagram", description = "Mechanically validate Draw.io XML for parse errors, duplicate ids, missing geometry, empty diagrams, and broken edge source/target references.")
     public DrawioValidationResponse validateDiagram(DrawioXmlRequest request) {
+        logXmlToolCall("validate_diagram", request.getReason(), request.getXml());
         DrawioCanvasXmlToolkit.CanvasInspection inspection = xmlToolkit.inspect(request.getXml());
         DrawioValidationResponse response = new DrawioValidationResponse();
         response.setType("validation_result");
@@ -53,6 +60,7 @@ public class DrawioCanvasMcpService {
 
     @Tool(name = "get_canvas_state", description = "Summarize the current Draw.io XML as node/edge counts plus searchable cell metadata.")
     public DrawioCanvasStateResponse getCanvasState(DrawioXmlRequest request) {
+        logXmlToolCall("get_canvas_state", request.getReason(), request.getXml());
         DrawioCanvasXmlToolkit.CanvasInspection inspection = xmlToolkit.inspect(request.getXml());
         List<CellMatch> nodes = inspection.getCells().stream()
                 .filter(cell -> "node".equals(cell.getKind()))
@@ -77,6 +85,8 @@ public class DrawioCanvasMcpService {
 
     @Tool(name = "find_cells", description = "Find Draw.io cells by id, label, style, source id, or target id. Use before local edits when the target id is uncertain.")
     public FindCellsResponse findCells(FindCellsRequest request) {
+        log.info("[drawio-tool] name=find_cells query={} xmlChars={}",
+                sanitizeLogValue(request.getQuery()), textLength(request.getXml()));
         List<CellMatch> matches = xmlToolkit.findCells(request.getXml(), request.getQuery())
                 .stream()
                 .map(CellMatch::from)
@@ -91,11 +101,15 @@ public class DrawioCanvasMcpService {
 
     @Tool(name = "update_cells", description = "Replace or append specific mxCell elements by id and return the complete updated mxGraphModel. Use for localized component edits.")
     public DrawioToolResponse updateCells(UpdateCellsRequest request) {
+        log.info("[drawio-tool] name=update_cells reason={} xmlChars={} cellsChars={}",
+                sanitizeLogValue(request.getReason()), textLength(request.getXml()), textLength(request.getCells()));
         return drawioDone(xmlToolkit.replaceCells(request.getXml(), request.getCells()));
     }
 
     @Tool(name = "patch_cells", description = "Minimal local edit for patch_existing (rename, recolor, restyle, move one or a few existing cells). Return ONLY the changed mxCell fragment(s) keyed by their existing ids. Do NOT include unchanged cells and do NOT resend the full mxGraphModel; the backend merges your fragments into the current canvas.")
     public DrawioCellPatchResponse patchCells(PatchCellsRequest request) {
+        log.info("[drawio-tool] name=patch_cells reason={} cellsChars={}",
+                sanitizeLogValue(request.getReason()), textLength(request.getCells()));
         DrawioCellPatchResponse response = new DrawioCellPatchResponse();
         response.setType("cell_patch");
         response.setCells(request.getCells());
@@ -104,6 +118,7 @@ public class DrawioCanvasMcpService {
 
     @Tool(name = "detect_overlaps", description = "Detect overlapping non-text Draw.io node boxes and return the involved cell ids.")
     public OverlapReportResponse detectOverlaps(DrawioXmlRequest request) {
+        logXmlToolCall("detect_overlaps", request.getReason(), request.getXml());
         List<OverlapMatch> overlaps = xmlToolkit.detectOverlaps(request.getXml())
                 .stream()
                 .map(OverlapMatch::from)
@@ -118,11 +133,14 @@ public class DrawioCanvasMcpService {
 
     @Tool(name = "route_edges", description = "Normalize connected Draw.io edges to orthogonal routing with side ports and waypoints. Does not move nodes.")
     public DrawioToolResponse routeEdges(DrawioXmlRequest request) {
+        logXmlToolCall("route_edges", request.getReason(), request.getXml());
         return drawioDone(xmlToolkit.routeEdges(request.getXml()));
     }
 
     @Tool(name = "continue_diagram", description = "Submit long Draw.io XML in ordered fragments. Intermediate fragments buffer only; the final fragment returns a complete mxGraphModel.")
     public DrawioContinuationResponse continueDiagram(ContinueDiagramRequest request) {
+        log.info("[drawio-tool] name=continue_diagram continuationId={} fragmentChars={} done={} reset={}",
+                sanitizeLogValue(request.getContinuationId()), textLength(request.getXmlFragment()), request.isDone(), request.isReset());
         String continuationId = normalizeContinuationId(request.getContinuationId());
         if (request.isReset()) {
             continuationBuffers.remove(continuationId);
@@ -153,6 +171,24 @@ public class DrawioCanvasMcpService {
         response.setType("drawio_done");
         response.setContent(toGraphModel(xml));
         return response;
+    }
+
+    // Keep tool observability compact; raw XML can be very large and may contain user content.
+    private void logXmlToolCall(String toolName, String reason, String xml) {
+        log.info("[drawio-tool] name={} reason={} xmlChars={}",
+                toolName, sanitizeLogValue(reason), textLength(xml));
+    }
+
+    private int textLength(String text) {
+        return text == null ? 0 : text.length();
+    }
+
+    private String sanitizeLogValue(String value) {
+        if (value == null) {
+            return "";
+        }
+        String normalized = value.replaceAll("\\s+", " ").trim();
+        return normalized.length() <= 160 ? normalized : normalized.substring(0, 160) + "...";
     }
 
     private String toGraphModel(String xml) {

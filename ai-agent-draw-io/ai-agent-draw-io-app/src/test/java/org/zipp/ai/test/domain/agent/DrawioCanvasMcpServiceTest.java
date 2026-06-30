@@ -1,9 +1,13 @@
 package org.zipp.ai.test.domain.agent;
 
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
 import org.dom4j.Document;
 import org.dom4j.DocumentHelper;
 import org.dom4j.Element;
 import org.junit.Test;
+import org.slf4j.LoggerFactory;
 import org.zipp.ai.domain.agent.service.armory.matter.mcp.server.DrawioCanvasMcpService;
 
 import static org.junit.Assert.assertEquals;
@@ -165,6 +169,40 @@ public class DrawioCanvasMcpServiceTest {
         assertTrue(response.getContent().contains("exitX=1"));
         assertTrue(response.getContent().contains("entryX=0"));
         assertTrue(response.getContent().contains("<Array as=\"points\">"));
+    }
+
+    @Test
+    public void shouldLogToolInvocationWithoutRawXml() {
+        Logger logger = (Logger) LoggerFactory.getLogger(DrawioCanvasMcpService.class);
+        ListAppender<ILoggingEvent> appender = new ListAppender<>();
+        appender.start();
+        logger.addAppender(appender);
+        try {
+            DrawioCanvasMcpService service = new DrawioCanvasMcpService();
+            DrawioCanvasMcpService.DrawioXmlRequest request = new DrawioCanvasMcpService.DrawioXmlRequest();
+            request.setReason("review requested route repair");
+            request.setXml("""
+                    <mxGraphModel><root><mxCell id='0'/><mxCell id='1' parent='0'/>
+                    <mxCell id='2' value='A' vertex='1' parent='1'><mxGeometry x='100' y='100' width='120' height='60' as='geometry'/></mxCell>
+                    <mxCell id='3' value='B' vertex='1' parent='1'><mxGeometry x='380' y='220' width='120' height='60' as='geometry'/></mxCell>
+                    <mxCell id='4' value='calls' edge='1' parent='1' source='2' target='3'><mxGeometry relative='1' as='geometry'/></mxCell>
+                    </root></mxGraphModel>
+                    """);
+
+            service.routeEdges(request);
+
+            assertTrue("route_edges should emit a compact diagnostic log",
+                    appender.list.stream().anyMatch(event -> {
+                        String message = event.getFormattedMessage();
+                        return message.contains("[drawio-tool] name=route_edges")
+                                && message.contains("xmlChars=")
+                                && message.contains("reason=review requested route repair")
+                                && !message.contains("<mxGraphModel");
+                    }));
+        } finally {
+            logger.detachAppender(appender);
+            appender.stop();
+        }
     }
 
     @Test
