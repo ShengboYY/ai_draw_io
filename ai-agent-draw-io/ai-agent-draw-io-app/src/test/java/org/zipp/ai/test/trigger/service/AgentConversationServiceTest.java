@@ -20,7 +20,7 @@ public class AgentConversationServiceTest {
     public void shouldClampFrontendReviewIterationSetting() throws Exception {
         AgentConversationService service = new AgentConversationService();
 
-        assertEquals(2, normalizeMaxReviewIterations(service, null));
+        assertEquals(1, normalizeMaxReviewIterations(service, null));
         assertEquals(0, normalizeMaxReviewIterations(service, -1));
         assertEquals(0, normalizeMaxReviewIterations(service, 0));
         assertEquals(2, normalizeMaxReviewIterations(service, 2));

@@ -55,7 +55,7 @@ const CANVAS_MIN_WIDTH = 360;
 const SIDEBAR_OPEN_STORAGE_KEY = 'ai_drawio_sidebar_open';
 const DRAWIO_SESSIONS_STORAGE_KEY = 'drawio_sessions';
 const MAX_REVIEW_ITERATIONS_STORAGE_KEY = 'ai_drawio_max_review_iterations';
-const REVIEW_ITERATION_OPTIONS = [0, 1, 2, 3, 4, 5];
+const REVIEW_ITERATION_OPTIONS = [0, 1, 2, 3];
 const EMPTY_DRAWIO_XML = '<mxGraphModel><root><mxCell id="0"/><mxCell id="1" parent="0"/></root></mxGraphModel>';
 const STREAMING_PREVIEW_FRAME_MS = 280;
 
@@ -562,7 +562,7 @@ export default function Home() {
   const [showApiConfig, setShowApiConfig] = useState(false);
   const [customModels, setCustomModels] = useState<CustomModelConfig[]>([]);
   const [selectedCustomModelId, setSelectedCustomModelId] = useState<string>('default');
-  const [maxReviewIterations, setMaxReviewIterations] = useState(2);
+  const [maxReviewIterations, setMaxReviewIterations] = useState(1);
   
   // Temporary state for editing in modal
   const [editingModel, setEditingModel] = useState<CustomModelConfig | null>(null);
@@ -967,9 +967,12 @@ export default function Home() {
     if (savedSelected) {
       setSelectedCustomModelId(savedSelected);
     }
-    const savedMaxReviewIterations = Number(localStorage.getItem(MAX_REVIEW_ITERATIONS_STORAGE_KEY));
-    if (Number.isFinite(savedMaxReviewIterations)) {
-      setMaxReviewIterations(Math.min(Math.max(savedMaxReviewIterations, 0), 5));
+    const savedMaxReviewIterationsRaw = localStorage.getItem(MAX_REVIEW_ITERATIONS_STORAGE_KEY);
+    if (savedMaxReviewIterationsRaw !== null && savedMaxReviewIterationsRaw !== '') {
+      const savedMaxReviewIterations = Number(savedMaxReviewIterationsRaw);
+      if (Number.isFinite(savedMaxReviewIterations)) {
+        setMaxReviewIterations(Math.min(Math.max(savedMaxReviewIterations, 0), 3));
+      }
     }
 
     // Load Agents

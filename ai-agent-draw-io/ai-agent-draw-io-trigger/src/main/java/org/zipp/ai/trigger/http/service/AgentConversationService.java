@@ -28,7 +28,7 @@ import java.util.concurrent.atomic.AtomicReference;
 @Service
 public class AgentConversationService {
 
-    private static final int DEFAULT_MAX_REVIEW_ITERATIONS = 2;
+    private static final int DEFAULT_MAX_REVIEW_ITERATIONS = 1;
     private static final int MAX_REVIEW_ITERATIONS_LIMIT = 3;
 
     @Resource
