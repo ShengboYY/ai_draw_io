@@ -3,8 +3,11 @@ package org.zipp.ai.test.trigger.service;
 import org.junit.Test;
 import org.zipp.ai.api.dto.ChatRequestDTO;
 import org.zipp.ai.domain.agent.model.valobj.intent.IntentRoutingResult;
+import org.zipp.ai.domain.agent.service.canvas.DefaultDrawioCanvasSnapshotService;
 import org.zipp.ai.trigger.http.service.AgentConversationService;
+import org.zipp.ai.trigger.http.service.DrawioPromptContextBuilder;
 
+import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 
 import static org.junit.Assert.assertFalse;
@@ -27,11 +30,16 @@ public class AgentConversationServiceTest {
     @Test
     public void shouldIncludeReviewBudgetAndAllowedToolsInRoutedMessage() throws Exception {
         AgentConversationService service = new AgentConversationService();
+        injectPromptContextBuilder(service);
         IntentRoutingResult routingResult = IntentRoutingResult.fallbackDrawAction("test");
         routingResult.setTaskType("patch_existing");
 
         ChatRequestDTO requestDTO = new ChatRequestDTO();
         requestDTO.setMessage("update the API label");
+        requestDTO.setCanvasXml("<mxGraphModel><root><mxCell id=\"0\"/><mxCell id=\"1\" parent=\"0\"/>"
+                + "<mxCell id=\"api\" value=\"API\" vertex=\"1\" parent=\"1\">"
+                + "<mxGeometry x=\"120\" y=\"80\" width=\"100\" height=\"40\" as=\"geometry\"/>"
+                + "</mxCell></root></mxGraphModel>");
 
         String routedMessage = buildRoutedMessage(service, requestDTO, routingResult, 1);
 
@@ -40,6 +48,9 @@ public class AgentConversationServiceTest {
         assertTrue(routedMessage.contains("find_cells"));
         assertTrue(routedMessage.contains("update_cells"));
         assertTrue(routedMessage.contains("validate_diagram"));
+        assertTrue(routedMessage.contains("[Compact Canvas Snapshot]"));
+        assertTrue(routedMessage.contains("node id=api label=\"API\""));
+        assertFalse(routedMessage.contains("<mxGraphModel"));
         assertFalse(routedMessage.contains("display_diagram\",\"append_diagram"));
     }
 
@@ -110,6 +121,13 @@ public class AgentConversationServiceTest {
         );
         method.setAccessible(true);
         return (String) method.invoke(service, requestDTO, routingResult, null, maxReviewIterations, "alice", null);
+    }
+
+    private void injectPromptContextBuilder(AgentConversationService service) throws Exception {
+        // Keep the production field private while giving this service-level test the real context builder.
+        Field field = AgentConversationService.class.getDeclaredField("promptContextBuilder");
+        field.setAccessible(true);
+        field.set(service, new DrawioPromptContextBuilder(new DefaultDrawioCanvasSnapshotService()));
     }
 
 }

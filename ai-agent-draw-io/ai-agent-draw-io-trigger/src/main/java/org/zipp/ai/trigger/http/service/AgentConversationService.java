@@ -8,7 +8,6 @@ import org.zipp.ai.domain.agent.model.valobj.review.CanvasReviewCommand;
 import org.zipp.ai.domain.agent.model.valobj.review.CanvasReviewContext;
 import org.zipp.ai.domain.agent.service.ICanvasReviewService;
 import org.zipp.ai.domain.agent.service.IChatService;
-import org.zipp.ai.domain.agent.service.IDrawioCanvasSnapshotService;
 import org.zipp.ai.domain.agent.service.IIntentRoutingService;
 import org.zipp.ai.domain.agent.service.chat.CustomApiConfigManager;
 import com.alibaba.fastjson.JSON;
@@ -42,7 +41,7 @@ public class AgentConversationService {
     private ICanvasReviewService canvasReviewService;
 
     @Resource
-    private IDrawioCanvasSnapshotService canvasSnapshotService;
+    private DrawioPromptContextBuilder promptContextBuilder;
 
     @Resource
     private DrawioStreamResponseWriter streamResponseWriter;
@@ -95,7 +94,7 @@ public class AgentConversationService {
             final String routedMessage = buildRoutedMessage(requestDTO, routingResult, reviewContext, maxReviewIterations, requestDTO.getUserId(), requestDTO.getSkills());
             // The current canvas travels in the request; keep it so patch_cells can merge a delta
             // without the model re-emitting the whole diagram.
-            final String currentCanvasXml = resolveCanvasXml(requestDTO);
+            final String currentCanvasXml = contextBuilder().resolveCanvasXml(requestDTO);
             streamResponseWriter.setCurrentCanvas(emitter, currentCanvasXml);
 
             Disposable disposable = chatService.handleMessageStream(requestDTO.getAgentId(), requestDTO.getUserId(), finalSessionId, routedMessage)
@@ -238,12 +237,13 @@ public class AgentConversationService {
     }
 
     private IntentRoutingResult routeIntent(ChatRequestDTO requestDTO, CustomApiConfigManager.CustomApiConfig config) {
-        String canvasXml = resolveCanvasXml(requestDTO);
+        DrawioPromptContextBuilder contextBuilder = contextBuilder();
+        String canvasXml = contextBuilder.resolveCanvasXml(requestDTO);
         return intentRoutingService.route(IntentRoutingCommand.builder()
                 .userId(requestDTO.getUserId())
-                .message(buildIntentMessage(requestDTO))
+                .message(contextBuilder.buildIntentMessage(requestDTO))
                 .canvasXml(canvasXml)
-                .canvasSummary(resolveCanvasSummary(requestDTO, canvasXml))
+                .canvasSummary(contextBuilder.resolveCanvasSummary(requestDTO, canvasXml))
                 .customApiConfig(config)
                 .build());
     }
@@ -269,7 +269,7 @@ public class AgentConversationService {
                                                          IntentRoutingResult routingResult) {
         return CanvasReviewCommand.builder()
                 .userId(requestDTO.getUserId())
-                .message(buildDrawingContextMessage(requestDTO))
+                .message(contextBuilder().buildReviewContextMessage(requestDTO, routingResult))
                 .routingResult(routingResult)
                 .customApiConfig(config)
                 .build();
@@ -319,7 +319,7 @@ public class AgentConversationService {
                 + routingJson.toJSONString()
                 + "\n\n"
                 + skillSectionFor(routingResult, ownerId, userSkills)
-                + buildDrawingContextMessage(requestDTO);
+                + contextBuilder().buildDrawingContextMessage(requestDTO, routingResult);
         if (null == reviewContext) {
             return routedMessage;
         }
@@ -342,81 +342,15 @@ public class AgentConversationService {
     }
 
     private String buildIntentMessage(ChatRequestDTO requestDTO) {
-        String canvasXml = resolveCanvasXml(requestDTO);
-        String canvasSummary = resolveCanvasSummary(requestDTO, canvasXml);
-        // The router only needs lightweight canvas facts; full XML stays out to avoid intent pollution.
-        return "[User Request]\n"
-                + rawUserMessage(requestDTO)
-                + "\n\n[Canvas State]\n"
-                + "hasCanvas=" + hasDrawableCanvas(canvasXml)
-                + "\n\n[Canvas Summary]\n"
-                + canvasSummary;
+        return contextBuilder().buildIntentMessage(requestDTO);
     }
 
     private String buildDrawingContextMessage(ChatRequestDTO requestDTO) {
-        String canvasXml = resolveCanvasXml(requestDTO);
-        String canvasSummary = resolveCanvasSummary(requestDTO, canvasXml);
-        return "[Context: Current Draw.io XML]\n"
-                + "```xml\n"
-                + StringUtils.defaultString(canvasXml)
-                + "\n```\n\n[Canvas Summary]\n"
-                + canvasSummary
-                + "\n\n[User Request]\n"
-                + rawUserMessage(requestDTO);
+        return contextBuilder().buildDrawingContextMessage(requestDTO, null);
     }
 
-    private String rawUserMessage(ChatRequestDTO requestDTO) {
-        return null == requestDTO ? "" : StringUtils.defaultString(requestDTO.getMessage());
-    }
-
-    private String resolveCanvasXml(ChatRequestDTO requestDTO) {
-        if (null == requestDTO) {
-            return "";
-        }
-        if (StringUtils.isNotBlank(requestDTO.getCanvasXml())) {
-            return requestDTO.getCanvasXml();
-        }
-        return extractDrawioXml(requestDTO.getMessage());
-    }
-
-    private String resolveCanvasSummary(ChatRequestDTO requestDTO, String canvasXml) {
-        if (null != requestDTO && StringUtils.isNotBlank(requestDTO.getCanvasSummary())) {
-            return requestDTO.getCanvasSummary();
-        }
-        if (StringUtils.isBlank(canvasXml)) {
-            return "No drawable Draw.io XML was found in the current context.";
-        }
-        if (null == canvasSnapshotService) {
-            return hasDrawableCanvas(canvasXml)
-                    ? "Canvas XML is available, but no compact summary was provided."
-                    : "The current canvas has no drawable nodes.";
-        }
-        return canvasSnapshotService.fromXml(canvasXml, "unknown").getSummary();
-    }
-
-    private boolean hasDrawableCanvas(String canvasXml) {
-        return StringUtils.contains(canvasXml, "vertex=\"1\"")
-                || StringUtils.contains(canvasXml, "vertex='1'")
-                || StringUtils.contains(canvasXml, "edge=\"1\"")
-                || StringUtils.contains(canvasXml, "edge='1'");
-    }
-
-    private String extractDrawioXml(String text) {
-        if (StringUtils.isBlank(text)) {
-            return "";
-        }
-        String normalized = text
-                .replace("```xml", "")
-                .replace("```", "")
-                .replace("\\\"", "\"")
-                .replace("\\n", "")
-                .replace("\\/", "/");
-        int xmlStart = normalized.indexOf("<mxGraphModel");
-        int xmlEnd = normalized.lastIndexOf("</mxGraphModel>");
-        if (xmlStart < 0 || xmlEnd < xmlStart) {
-            return "";
-        }
-        return normalized.substring(xmlStart, xmlEnd + "</mxGraphModel>".length());
+    private DrawioPromptContextBuilder contextBuilder() {
+        return null == promptContextBuilder ? new DrawioPromptContextBuilder() : promptContextBuilder;
     }
 
     private String currentActiveLine(StringBuilder buffer) {
