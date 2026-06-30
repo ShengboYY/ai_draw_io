@@ -24,15 +24,25 @@ public class SkillContentProvider {
      * Build the skill-rules section to prepend before the user request, for a given routed skillName.
      * Returns an empty string when there is nothing useful to inject.
      */
-    public String buildSkillSection(String skillName, String ownerId) {
+    /**
+     * Build the skill-rules section for one or more chosen skills (user-specified or router-selected).
+     * Each is injected only if it is visible to the user; the shared visual-design rules are always added.
+     */
+    public String buildSkillSection(java.util.List<String> skillNames, String ownerId) {
         StringBuilder section = new StringBuilder();
+        java.util.Set<String> added = new java.util.LinkedHashSet<>();
 
-        String selected = StringUtils.trimToNull(skillName);
-        if (selected != null
-                && !"none".equalsIgnoreCase(selected)
-                && !SkillCatalogService.SHARED_SKILL.equals(selected)
-                && skillCatalogService.exists(selected, ownerId)) {
-            appendSkill(section, selected, ownerId);
+        if (skillNames != null) {
+            for (String skillName : skillNames) {
+                String selected = StringUtils.trimToNull(skillName);
+                if (selected != null
+                        && !"none".equalsIgnoreCase(selected)
+                        && !SkillCatalogService.SHARED_SKILL.equals(selected)
+                        && added.add(selected)
+                        && skillCatalogService.exists(selected, ownerId)) {
+                    appendSkill(section, selected, ownerId);
+                }
+            }
         }
         // The drawing agent is instructed to always follow the shared visual-design rules.
         appendSkill(section, SkillCatalogService.SHARED_SKILL, ownerId);

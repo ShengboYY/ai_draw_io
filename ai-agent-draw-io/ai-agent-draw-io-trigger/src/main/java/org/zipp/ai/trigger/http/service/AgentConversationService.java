@@ -61,7 +61,7 @@ public class AgentConversationService {
 
         CanvasReviewContext reviewContext = buildReviewContextIfNeeded(requestDTO, config, routingResult);
         int maxReviewIterations = effectiveMaxReviewIterations(requestDTO, routingResult);
-        String routedMessage = buildRoutedMessage(requestDTO.getMessage(), routingResult, reviewContext, maxReviewIterations, requestDTO.getUserId());
+        String routedMessage = buildRoutedMessage(requestDTO.getMessage(), routingResult, reviewContext, maxReviewIterations, requestDTO.getUserId(), requestDTO.getSkills());
         List<String> messages = chatService.handleMessage(requestDTO.getAgentId(), requestDTO.getUserId(), sessionId, routedMessage);
         return parseChatResponse(messages);
     }
@@ -88,7 +88,7 @@ public class AgentConversationService {
             final AtomicReference<Disposable> disposableRef = new AtomicReference<>();
             final AtomicBoolean manuallyCompleted = new AtomicBoolean(false);
             final CanvasReviewContext reviewContext = buildReviewContextIfNeeded(requestDTO, config, routingResult);
-            final String routedMessage = buildRoutedMessage(requestDTO.getMessage(), routingResult, reviewContext, maxReviewIterations, requestDTO.getUserId());
+            final String routedMessage = buildRoutedMessage(requestDTO.getMessage(), routingResult, reviewContext, maxReviewIterations, requestDTO.getUserId(), requestDTO.getSkills());
             // The current canvas travels in the request; keep it so patch_cells can merge a delta
             // without the model re-emitting the whole diagram.
             final String currentCanvasXml = streamResponseWriter.extractDrawioXml(requestDTO.getMessage());
@@ -269,7 +269,8 @@ public class AgentConversationService {
     }
 
     // Inject skill rules only for generative draws; patch_existing stays lean for the fast edit path.
-    private String skillSectionFor(IntentRoutingResult routingResult, String ownerId) {
+    // User-specified skills (if any) override the router's automatic selection.
+    private String skillSectionFor(IntentRoutingResult routingResult, String ownerId, List<String> userSkills) {
         String taskType = StringUtils.defaultString(routingResult.getTaskType());
         boolean generativeDraw = "create_new".equals(taskType)
                 || "append_existing".equals(taskType)
@@ -278,8 +279,12 @@ public class AgentConversationService {
         if (!generativeDraw) {
             return "";
         }
-        String section = skillContentProvider.buildSkillSection(routingResult.getSkillName(), ownerId);
-        log.info("[skill-inject] taskType={} skillName={} ownerId={} injectedChars={}", taskType, routingResult.getSkillName(), ownerId, section.length());
+        List<String> chosen = (userSkills != null && !userSkills.isEmpty())
+                ? userSkills
+                : List.of(StringUtils.defaultString(routingResult.getSkillName()));
+        String section = skillContentProvider.buildSkillSection(chosen, ownerId);
+        log.info("[skill-inject] taskType={} chosenSkills={} userSpecified={} ownerId={} injectedChars={}",
+                taskType, chosen, userSkills != null && !userSkills.isEmpty(), ownerId, section.length());
         return section;
     }
 
@@ -287,7 +292,8 @@ public class AgentConversationService {
                                       IntentRoutingResult routingResult,
                                       CanvasReviewContext reviewContext,
                                       int maxReviewIterations,
-                                      String ownerId) {
+                                      String ownerId,
+                                      List<String> userSkills) {
         com.alibaba.fastjson.JSONObject routingJson = new com.alibaba.fastjson.JSONObject();
         routingJson.put("intent", routingResult.getIntent());
         routingJson.put("drawMode", routingResult.getDrawMode());
@@ -305,7 +311,7 @@ public class AgentConversationService {
         String routedMessage = "[Intent Routing Result]\n"
                 + routingJson.toJSONString()
                 + "\n\n"
-                + skillSectionFor(routingResult, ownerId)
+                + skillSectionFor(routingResult, ownerId, userSkills)
                 + originalMessage;
         if (null == reviewContext) {
             return routedMessage;

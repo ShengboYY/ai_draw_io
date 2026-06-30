@@ -19,4 +19,7 @@ public class ChatRequestDTO {
     // Draw.io 审查修订循环次数，由前端控制，后端会做上限保护。
     private Integer maxReviewIterations;
 
+    // 用户手动指定要使用的技能(名),覆盖意图路由的自动选择;可多选(组合)。为空则走自动选择。
+    private java.util.List<String> skills;
+
 }
