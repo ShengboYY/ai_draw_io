@@ -45,9 +45,11 @@ public class AgentConversationServiceTest {
 
         assertTrue(routedMessage.contains("\"maxReviewIterations\":1"));
         assertTrue(routedMessage.contains("\"allowedTools\""));
-        assertTrue(routedMessage.contains("find_cells"));
-        assertTrue(routedMessage.contains("update_cells"));
-        assertTrue(routedMessage.contains("validate_diagram"));
+        assertTrue(routedMessage.contains("modify_diagram"));
+        assertTrue(routedMessage.contains("inspect_canvas"));
+        assertFalse(routedMessage.contains("find_cells"));
+        assertFalse(routedMessage.contains("update_cells"));
+        assertFalse(routedMessage.contains("validate_diagram"));
         assertTrue(routedMessage.contains("[Patch Target Cells]"));
         assertTrue(routedMessage.contains("node id=api label=\"API\""));
         assertFalse(routedMessage.contains("<mxGraphModel"));

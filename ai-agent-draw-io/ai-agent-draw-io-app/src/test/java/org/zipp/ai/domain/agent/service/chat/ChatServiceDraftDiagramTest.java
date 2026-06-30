@@ -18,7 +18,7 @@ public class ChatServiceDraftDiagramTest {
         String xml = "<mxGraphModel><root><mxCell id='0'/><mxCell id='1' parent='0'/></root></mxGraphModel>";
         Event event = Event.builder()
                 .author("agent_drawer")
-                .content(Content.fromParts(Part.fromFunctionResponse("display_diagram", Map.of(
+                .content(Content.fromParts(Part.fromFunctionResponse("create_diagram", Map.of(
                         "type", "drawio_done",
                         "content", xml
                 ))))

@@ -4,6 +4,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseBodyEmitter;
+import org.zipp.ai.domain.agent.service.armory.matter.mcp.server.DrawioCanvasToolNames;
 import org.zipp.ai.domain.agent.service.armory.matter.mcp.server.DrawioCanvasXmlToolkit;
 
 import java.util.List;
@@ -92,14 +93,14 @@ public class DrawioStreamResponseWriter {
      */
     private Boolean dispatchTypedJson(ResponseBodyEmitter emitter, String phase, com.alibaba.fastjson.JSONObject json) throws Exception {
         String type = json.getString("type");
-        if ("continue_diagram".equals(type) && json.containsKey("xmlFragment")) {
+        if (DrawioCanvasToolNames.CONTINUE_DIAGRAM.equals(type) && json.containsKey("xmlFragment")) {
             sendFallbackContinuation(emitter, phase, json);
             return false;
         }
 
         // Localized patch: merge the changed fragment into the canvas we hold (text fallback,
         // since this model returns NDJSON instead of real tool calls).
-        if ("patch_cells".equals(type)
+        if (isPatchFallback(json)
                 && sendLocalCellPatch(emitter, phase, currentCanvasByEmitter.get(emitter), json.getString("cells"))) {
             return false;
         }
@@ -159,6 +160,14 @@ public class DrawioStreamResponseWriter {
         return content.contains("<mxCell") && !content.contains("<mxGraphModel");
     }
 
+    private boolean isPatchFallback(com.alibaba.fastjson.JSONObject json) {
+        String type = json.getString("type");
+        return DrawioCanvasToolNames.PATCH_CELLS.equals(type)
+                || (DrawioCanvasToolNames.MODIFY_DIAGRAM.equals(type)
+                && "patch".equals(json.getString("mode"))
+                && StringUtils.isNotBlank(json.getString("cells")));
+    }
+
     /**
      * Merge a model-supplied cell fragment into the canvas the backend already holds, so a localized
      * edit (rename/recolor/move) never requires the model to re-emit the whole diagram. Routed through
@@ -177,7 +186,7 @@ public class DrawioStreamResponseWriter {
         }
         lastPatchByEmitter.put(emitter, merged);
         com.alibaba.fastjson.JSONObject toolJson = new com.alibaba.fastjson.JSONObject();
-        toolJson.put("type", "update_cells");
+        toolJson.put("type", DrawioCanvasToolNames.UPDATE_CELLS);
         toolJson.put("xml", merged);
         return processAndSendLine(emitter, phase, toolJson.toJSONString());
     }
@@ -232,9 +241,9 @@ public class DrawioStreamResponseWriter {
 
     public void sendDrawioStream(ResponseBodyEmitter emitter, String phase, String xml) throws Exception {
         com.alibaba.fastjson.JSONObject toolCall = new com.alibaba.fastjson.JSONObject();
-        toolCall.put("type", "display_diagram");
+        toolCall.put("type", DrawioCanvasToolNames.CREATE_DIAGRAM);
         toolCall.put("xml", xml);
-        sendToolCallResult(emitter, phase, "display_diagram", toolCall);
+        sendToolCallResult(emitter, phase, DrawioCanvasToolNames.CREATE_DIAGRAM, toolCall);
     }
 
     public void flushPendingDiagram(ResponseBodyEmitter emitter, String phase) throws Exception {
@@ -412,10 +421,10 @@ public class DrawioStreamResponseWriter {
         }
 
         com.alibaba.fastjson.JSONObject toolCall = new com.alibaba.fastjson.JSONObject();
-        toolCall.put("type", "continue_diagram");
+        toolCall.put("type", DrawioCanvasToolNames.CONTINUE_DIAGRAM);
         toolCall.put("xml", buffer.toString());
         fallbackContinuationBuffers.remove(continuationId);
-        sendToolCallResult(emitter, phase, "continue_diagram", toolCall);
+        sendToolCallResult(emitter, phase, DrawioCanvasToolNames.CONTINUE_DIAGRAM, toolCall);
     }
 
     private void sendValidationChunk(ResponseBodyEmitter emitter, String phase, String xml) throws Exception {

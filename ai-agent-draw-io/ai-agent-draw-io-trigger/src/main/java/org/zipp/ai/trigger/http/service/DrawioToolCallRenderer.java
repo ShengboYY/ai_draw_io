@@ -3,36 +3,19 @@ package org.zipp.ai.trigger.http.service;
 import com.alibaba.fastjson.JSONObject;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Component;
+import org.zipp.ai.domain.agent.service.armory.matter.mcp.server.DrawioCanvasToolNames;
 import org.zipp.ai.domain.agent.service.armory.matter.mcp.server.DrawioCanvasXmlToolkit;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Set;
 
 @Component
 public class DrawioToolCallRenderer {
 
-    private static final Set<String> DRAWING_TOOL_TYPES = Set.of(
-            "display_diagram",
-            "append_diagram",
-            "edit_diagram",
-            "optimize_diagram",
-            "update_cells",
-            "route_edges",
-            "continue_diagram"
-    );
-
-    // Localized edits can be merged into the live canvas instead of forcing a full iframe reload.
-    private static final Set<String> LOCAL_EDIT_TOOL_TYPES = Set.of(
-            "edit_diagram",
-            "update_cells",
-            "route_edges"
-    );
-
     private final DrawioCanvasXmlToolkit xmlToolkit = new DrawioCanvasXmlToolkit();
 
     public boolean supports(String type) {
-        return DRAWING_TOOL_TYPES.contains(type);
+        return DrawioCanvasToolNames.DRAWING_RESULT_TOOL_NAMES.contains(type);
     }
 
     public List<JSONObject> render(JSONObject toolCall) {
@@ -75,7 +58,7 @@ public class DrawioToolCallRenderer {
         chunks.add(validationChunk(graphModel));
         JSONObject done = chunk("drawio_done", "content", graphModel);
         // "local" lets the frontend merge into the existing canvas; "full" triggers a clean reload.
-        done.put("mode", LOCAL_EDIT_TOOL_TYPES.contains(toolCall.getString("type")) ? "local" : "full");
+        done.put("mode", DrawioCanvasToolNames.LOCAL_EDIT_TOOL_NAMES.contains(toolCall.getString("type")) ? "local" : "full");
         chunks.add(done);
         return chunks;
     }

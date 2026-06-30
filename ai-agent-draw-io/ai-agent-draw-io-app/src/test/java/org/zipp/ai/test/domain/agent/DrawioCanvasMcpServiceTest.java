@@ -8,12 +8,90 @@ import org.dom4j.DocumentHelper;
 import org.dom4j.Element;
 import org.junit.Test;
 import org.slf4j.LoggerFactory;
+import org.springframework.ai.tool.ToolCallback;
+import org.springframework.ai.tool.method.MethodToolCallbackProvider;
 import org.zipp.ai.domain.agent.service.armory.matter.mcp.server.DrawioCanvasMcpService;
 
+import java.util.Arrays;
+import java.util.List;
+import java.util.Set;
+
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 public class DrawioCanvasMcpServiceTest {
+
+    @Test
+    public void shouldExposeOnlyConsolidatedToolsToLlm() {
+        ToolCallback[] callbacks = MethodToolCallbackProvider.builder()
+                .toolObjects(new DrawioCanvasMcpService())
+                .build()
+                .getToolCallbacks();
+
+        List<String> toolNames = Arrays.stream(callbacks)
+                .map(callback -> callback.getToolDefinition().name())
+                .toList();
+
+        assertEquals(Set.of("create_diagram", "modify_diagram", "optimize_diagram", "inspect_canvas"), Set.copyOf(toolNames));
+        assertFalse(toolNames.contains("display_diagram"));
+        assertFalse(toolNames.contains("patch_cells"));
+        assertFalse(toolNames.contains("validate_diagram"));
+        assertFalse(toolNames.contains("route_edges"));
+    }
+
+    @Test
+    public void shouldReturnPatchCellsFromConsolidatedModifyTool() {
+        DrawioCanvasMcpService service = new DrawioCanvasMcpService();
+        DrawioCanvasMcpService.ModifyDiagramRequest request = new DrawioCanvasMcpService.ModifyDiagramRequest();
+        request.setMode("patch");
+        request.setCells("<mxCell id='2' value='Gateway' vertex='1' parent='1'><mxGeometry x='100' y='100' width='140' height='60' as='geometry'/></mxCell>");
+
+        DrawioCanvasMcpService.DrawioMutationResponse response = service.modifyDiagram(request);
+
+        assertEquals("patch_cells", response.getType());
+        assertTrue(response.getCells().contains("Gateway"));
+    }
+
+    @Test
+    public void shouldReplaceCellsFromConsolidatedModifyTool() {
+        DrawioCanvasMcpService service = new DrawioCanvasMcpService();
+        DrawioCanvasMcpService.ModifyDiagramRequest request = new DrawioCanvasMcpService.ModifyDiagramRequest();
+        request.setMode("replace_cells");
+        request.setXml("""
+                <mxGraphModel><root><mxCell id='0'/><mxCell id='1' parent='0'/>
+                <mxCell id='2' value='Old API' vertex='1' parent='1'><mxGeometry x='100' y='100' width='120' height='60' as='geometry'/></mxCell>
+                </root></mxGraphModel>
+                """);
+        request.setCells("<mxCell id='2' value='Gateway' vertex='1' parent='1'><mxGeometry x='100' y='100' width='140' height='60' as='geometry'/></mxCell>");
+
+        DrawioCanvasMcpService.DrawioMutationResponse response = service.modifyDiagram(request);
+
+        assertEquals("drawio_done", response.getType());
+        assertTrue(response.getContent().contains("Gateway"));
+        assertFalse(response.getContent().contains("Old API"));
+    }
+
+    @Test
+    public void shouldInspectCanvasWithStateValidationAndOverlapData() {
+        DrawioCanvasMcpService service = new DrawioCanvasMcpService();
+        DrawioCanvasMcpService.DrawioXmlRequest request = new DrawioCanvasMcpService.DrawioXmlRequest();
+        request.setXml("""
+                <mxGraphModel><root><mxCell id='0'/><mxCell id='1' parent='0'/>
+                <mxCell id='2' value='A' vertex='1' parent='1'><mxGeometry x='100' y='100' width='120' height='60' as='geometry'/></mxCell>
+                <mxCell id='3' value='B' vertex='1' parent='1'><mxGeometry x='150' y='120' width='120' height='60' as='geometry'/></mxCell>
+                </root></mxGraphModel>
+                """);
+
+        DrawioCanvasMcpService.InspectCanvasResponse response = service.inspectCanvas(request);
+
+        assertEquals("canvas_inspection", response.getType());
+        assertEquals(false, response.isValid());
+        assertEquals(2, response.getNodeCount());
+        assertEquals(0, response.getEdgeCount());
+        assertEquals(1, response.getOverlaps().size());
+        assertTrue(response.getIssues().stream().anyMatch(issue -> issue.contains("Overlapping nodes: 2 and 3")));
+    }
 
     @Test
     public void shouldReturnDrawioDoneForCellFragments() {

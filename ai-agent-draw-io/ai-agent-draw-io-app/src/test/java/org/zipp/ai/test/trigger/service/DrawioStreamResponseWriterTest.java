@@ -133,6 +133,26 @@ public class DrawioStreamResponseWriterTest {
     }
 
     @Test
+    public void shouldMergeConsolidatedModifyPatchFallback() throws Exception {
+        DrawioStreamResponseWriter writer = new DrawioStreamResponseWriter(new DrawioToolCallRenderer());
+        CapturingEmitter emitter = new CapturingEmitter();
+        writer.setCurrentCanvas(emitter, """
+                <mxGraphModel><root><mxCell id='0'/><mxCell id='1' parent='0'/>
+                <mxCell id='2' value='API' vertex='1' parent='1'><mxGeometry x='100' y='100' width='120' height='60' as='geometry'/></mxCell>
+                </root></mxGraphModel>
+                """);
+
+        writer.processAndSendLine(emitter, "drawing", """
+                {"type":"modify_diagram","mode":"patch","cells":"<mxCell id='2' value='API v2' vertex='1' parent='1'><mxGeometry x='100' y='100' width='140' height='60' as='geometry'/></mxCell>"}
+                """);
+
+        String output = String.join("\n", emitter.sent);
+        assertTrue(output.contains("\"type\":\"drawio_done\""));
+        assertTrue(output.contains("\"mode\":\"local\""));
+        assertTrue(output.contains("API v2"));
+    }
+
+    @Test
     public void shouldStopStreamAfterFatalValidationParseFailure() throws Exception {
         DrawioStreamResponseWriter writer = new DrawioStreamResponseWriter(new DrawioToolCallRenderer());
         CapturingEmitter emitter = new CapturingEmitter();

@@ -60,16 +60,16 @@ public class DrawioArchitectureSkillResourceTest {
         String agentPrompt = readResource("agent/agent-draw-io.yml");
 
         assertTrue(agentPrompt.contains("taskType"));
-        assertTrue(agentPrompt.contains("display_diagram"));
-        assertTrue(agentPrompt.contains("append_diagram"));
-        assertTrue(agentPrompt.contains("edit_diagram"));
+        assertTrue(agentPrompt.contains("create_diagram"));
+        assertTrue(agentPrompt.contains("modify_diagram"));
         assertTrue(agentPrompt.contains("optimize_diagram"));
+        assertTrue(agentPrompt.contains("inspect_canvas"));
         assertTrue(agentPrompt.contains("drawioCanvasToolCallbackProvider"));
         assertTrue(agentPrompt.contains("MUST use actual registered tool calls when they are available"));
-        assertTrue(agentPrompt.contains("Only output the final drawio_done JSON after validate_diagram returns valid=true"));
+        assertTrue(agentPrompt.contains("Only output the final drawio_done JSON after inspect_canvas returns valid=true"));
         assertTrue(agentPrompt.contains("approved=true, do not call any drawing tool"));
         assertTrue(agentPrompt.contains("patch_existing"));
-        assertTrue(agentPrompt.contains("patch_existing -> patch_cells"));
+        assertTrue(agentPrompt.contains("patch_existing -> modify_diagram mode=patch"));
         assertFalse(agentPrompt.contains("patch_existing -> edit_diagram;"));
         assertTrue(agentPrompt.contains("drawing tool call -> review/direct repair loop"));
     }
@@ -78,7 +78,7 @@ public class DrawioArchitectureSkillResourceTest {
     public void shouldBorrowNextDrawioQualityRulesForToolDrawing() throws Exception {
         String agentPrompt = readResource("agent/agent-draw-io.yml");
 
-        assertTrue(agentPrompt.contains("Generate only mxCell elements for display_diagram"));
+        assertTrue(agentPrompt.contains("Generate only mxCell elements for create_diagram"));
         assertTrue(agentPrompt.contains("All mxCell elements must be siblings"));
         assertTrue(agentPrompt.contains("Viewport discipline"));
         assertTrue(agentPrompt.contains("Always specify exitX, exitY, entryX, and entryY"));
@@ -103,11 +103,11 @@ public class DrawioArchitectureSkillResourceTest {
 
         assertTrue(agentPrompt.contains("\"fix_strategy\":\"local_edit|route_only|append_only|layout_optimize|full_redraw\""));
         assertTrue(agentPrompt.contains("\"suggested_tool\":\"update_cells|edit_diagram|append_diagram|route_edges|optimize_diagram|display_diagram\""));
-        assertTrue(agentPrompt.contains("local_edit -> update_cells"));
-        assertTrue(agentPrompt.contains("route_only -> route_edges"));
-        assertTrue(agentPrompt.contains("append_only -> append_diagram"));
+        assertTrue(agentPrompt.contains("local_edit -> modify_diagram mode=patch or replace_cells"));
+        assertTrue(agentPrompt.contains("route_only -> optimize_diagram"));
+        assertTrue(agentPrompt.contains("append_only -> modify_diagram mode=full_xml"));
         assertTrue(agentPrompt.contains("layout_optimize -> optimize_diagram"));
-        assertTrue(agentPrompt.contains("full_redraw -> display_diagram"));
+        assertTrue(agentPrompt.contains("full_redraw -> create_diagram"));
         assertTrue(agentPrompt.contains("Do not redraw the entire diagram unless fix_strategy=full_redraw"));
         assertTrue(agentPrompt.contains("Prefer local_edit, route_only, append_only, or layout_optimize over full_redraw"));
     }
@@ -116,37 +116,34 @@ public class DrawioArchitectureSkillResourceTest {
     public void shouldExposeP1CanvasToolsInDrawingPrompt() throws Exception {
         String agentPrompt = readResource("agent/agent-draw-io.yml");
 
-        assertTrue(agentPrompt.contains("validate_diagram"));
-        assertTrue(agentPrompt.contains("get_canvas_state"));
-        assertTrue(agentPrompt.contains("find_cells"));
-        assertTrue(agentPrompt.contains("update_cells"));
-        assertTrue(agentPrompt.contains("Before local edits, use find_cells when the target id is uncertain"));
-        assertTrue(agentPrompt.contains("After each drawing mutation, use validate_diagram"));
-        assertTrue(agentPrompt.contains("If validate_diagram returns valid=false"));
+        assertTrue(agentPrompt.contains("inspect_canvas returns validation, canvas state, overlap data"));
+        assertTrue(agentPrompt.contains("modify_diagram is for patch_existing and append_existing"));
+        assertTrue(agentPrompt.contains("After each drawing mutation, use inspect_canvas"));
+        assertTrue(agentPrompt.contains("If inspect_canvas returns valid=false"));
+        assertTrue(agentPrompt.contains("set targetLabel on modify_diagram"));
     }
 
     @Test
     public void shouldExposeP2AndP3LayoutQualityToolsInDrawingPrompt() throws Exception {
         String agentPrompt = readResource("agent/agent-draw-io.yml");
 
-        assertTrue(agentPrompt.contains("detect_overlaps"));
-        assertTrue(agentPrompt.contains("route_edges"));
-        assertTrue(agentPrompt.contains("Use detect_overlaps when validation or review mentions overlapping nodes"));
-        assertTrue(agentPrompt.contains("Use route_edges for route_only feedback"));
+        assertTrue(agentPrompt.contains("inspect_canvas returns validation, canvas state, overlap data"));
+        assertTrue(agentPrompt.contains("optimize_diagram is for optimize_layout and route_only review feedback"));
+        assertTrue(agentPrompt.contains("For route_only, call optimize_diagram"));
         assertTrue(agentPrompt.contains("Do not load or apply unrelated diagram skill rules"));
         assertTrue(agentPrompt.contains("Only apply the selected skillName plus drawio-visual-design"));
     }
 
     @Test
-    public void shouldExposeLongXmlContinuationProtocolInDrawingPrompt() throws Exception {
+    public void shouldExposeConsolidatedFallbackProtocolInDrawingPrompt() throws Exception {
         String agentPrompt = readResource("agent/agent-draw-io.yml");
 
-        assertTrue(agentPrompt.contains("continue_diagram"));
-        assertTrue(agentPrompt.contains("Use continue_diagram when the final XML would be too long"));
-        assertTrue(agentPrompt.contains("Use the same continuationId for every fragment"));
-        assertTrue(agentPrompt.contains("Set done=false for intermediate fragments"));
-        assertTrue(agentPrompt.contains("Set done=true only on the final fragment"));
-        assertTrue(agentPrompt.contains("Do not truncate XML"));
+        assertTrue(agentPrompt.contains("Fallback NDJSON format when registered tool calls are unavailable"));
+        assertTrue(agentPrompt.contains("{\"type\":\"create_diagram\""));
+        assertTrue(agentPrompt.contains("{\"type\":\"modify_diagram\",\"mode\":\"patch\""));
+        assertTrue(agentPrompt.contains("{\"type\":\"modify_diagram\",\"mode\":\"full_xml\""));
+        assertTrue(agentPrompt.contains("{\"type\":\"optimize_diagram\""));
+        assertFalse(agentPrompt.contains("Use continue_diagram when the final XML would be too long"));
     }
 
     @Test

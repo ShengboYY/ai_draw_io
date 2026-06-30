@@ -6,6 +6,7 @@ import org.zipp.ai.domain.agent.model.valobj.AiAgentRegisterVO;
 import org.zipp.ai.domain.agent.model.valobj.properties.AiAgentAutoConfigProperties;
 import org.zipp.ai.domain.agent.service.IChatService;
 import org.zipp.ai.domain.agent.service.armory.factory.DefaultArmoryFactory;
+import org.zipp.ai.domain.agent.service.armory.matter.mcp.server.DrawioCanvasToolNames;
 import org.zipp.ai.types.enums.ResponseCode;
 import org.zipp.ai.types.exception.AppException;
 import com.alibaba.fastjson.JSON;
@@ -24,9 +25,9 @@ import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.Optional;
-import java.util.Set;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 @Slf4j
@@ -35,15 +36,7 @@ public class ChatService implements IChatService {
 
     private static final String DRAFT_DIAGRAM_STATE_KEY = "draft_diagram";
 
-    private static final Set<String> DRAWIO_MUTATION_TOOLS = Set.of(
-            "display_diagram",
-            "append_diagram",
-            "edit_diagram",
-            "optimize_diagram",
-            "update_cells",
-            "route_edges",
-            "continue_diagram"
-    );
+    private static final Set<String> DRAWIO_MUTATION_TOOLS = DrawioCanvasToolNames.DRAWING_RESULT_TOOL_NAMES;
 
     @Resource
     private DefaultArmoryFactory defaultArmoryFactory;

@@ -16,6 +16,7 @@ import reactor.core.publisher.Flux;
 
 import java.util.List;
 
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 public class AgentNodeAdkToolRegistrationTest {
@@ -34,17 +35,21 @@ public class AgentNodeAdkToolRegistrationTest {
         node.applyForTest(commandWithOneAgent(), context);
 
         LlmAgent agent = (LlmAgent) context.getAgentGroup().get("agent_drawer");
-        assertTrue(agent.tools().stream().anyMatch(tool -> "display_diagram".equals(tool.name())));
-        assertTrue(agent.tools().stream().anyMatch(tool -> "route_edges".equals(tool.name())));
+        assertTrue(agent.tools().stream().anyMatch(tool -> "create_diagram".equals(tool.name())));
+        assertTrue(agent.tools().stream().anyMatch(tool -> "modify_diagram".equals(tool.name())));
+        assertTrue(agent.tools().stream().anyMatch(tool -> "optimize_diagram".equals(tool.name())));
+        assertTrue(agent.tools().stream().anyMatch(tool -> "inspect_canvas".equals(tool.name())));
+        assertFalse(agent.tools().stream().anyMatch(tool -> "display_diagram".equals(tool.name())));
+        assertFalse(agent.tools().stream().anyMatch(tool -> "route_edges".equals(tool.name())));
         assertTrue(agent.tools().stream()
-                .filter(tool -> "display_diagram".equals(tool.name()))
+                .filter(tool -> "create_diagram".equals(tool.name()))
                 .findFirst()
                 .flatMap(tool -> tool.declaration())
                 .flatMap(declaration -> declaration.name())
-                .filter("display_diagram"::equals)
+                .filter("create_diagram"::equals)
                 .isPresent());
         assertTrue(agent.tools().stream()
-                .filter(tool -> "display_diagram".equals(tool.name()))
+                .filter(tool -> "create_diagram".equals(tool.name()))
                 .findFirst()
                 .flatMap(tool -> tool.declaration())
                 .flatMap(declaration -> declaration.parameters())

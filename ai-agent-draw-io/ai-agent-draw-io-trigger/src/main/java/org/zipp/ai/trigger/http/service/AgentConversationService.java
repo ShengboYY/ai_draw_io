@@ -9,6 +9,7 @@ import org.zipp.ai.domain.agent.model.valobj.review.CanvasReviewContext;
 import org.zipp.ai.domain.agent.service.ICanvasReviewService;
 import org.zipp.ai.domain.agent.service.IChatService;
 import org.zipp.ai.domain.agent.service.IIntentRoutingService;
+import org.zipp.ai.domain.agent.service.armory.matter.mcp.server.DrawioCanvasToolNames;
 import org.zipp.ai.domain.agent.service.chat.CustomApiConfigManager;
 import com.alibaba.fastjson.JSON;
 import io.reactivex.rxjava3.disposables.Disposable;
@@ -340,12 +341,11 @@ public class AgentConversationService {
     private List<String> allowedToolsFor(IntentRoutingResult routingResult) {
         String taskType = StringUtils.defaultString(routingResult.getTaskType());
         return switch (taskType) {
-            case "create_new", "fallback_full_xml" -> List.of("display_diagram", "validate_diagram", "continue_diagram");
-            case "patch_existing" -> List.of("patch_cells", "find_cells", "get_canvas_state", "update_cells", "edit_diagram", "validate_diagram");
-            case "append_existing" -> List.of("get_canvas_state", "append_diagram", "validate_diagram", "continue_diagram");
-            case "optimize_layout" -> List.of("get_canvas_state", "detect_overlaps", "route_edges", "optimize_diagram", "validate_diagram");
-            case "review_only", "none" -> List.of("get_canvas_state", "validate_diagram", "detect_overlaps");
-            default -> List.of("display_diagram", "append_diagram", "edit_diagram", "optimize_diagram", "update_cells", "route_edges", "validate_diagram");
+            case "create_new", "fallback_full_xml" -> List.of(DrawioCanvasToolNames.CREATE_DIAGRAM, DrawioCanvasToolNames.INSPECT_CANVAS);
+            case "patch_existing", "append_existing" -> List.of(DrawioCanvasToolNames.MODIFY_DIAGRAM, DrawioCanvasToolNames.INSPECT_CANVAS);
+            case "optimize_layout" -> List.of(DrawioCanvasToolNames.INSPECT_CANVAS, DrawioCanvasToolNames.OPTIMIZE_DIAGRAM);
+            case "review_only", "none" -> List.of(DrawioCanvasToolNames.INSPECT_CANVAS);
+            default -> DrawioCanvasToolNames.CONSOLIDATED_TOOL_NAMES;
         };
     }
 
@@ -384,12 +384,14 @@ public class AgentConversationService {
                 continue;
             }
 
-            String functionName = functionResponse.name().orElse("display_diagram");
-            // patch_cells returns only the changed fragment; merge it into the canvas we already hold.
-            if ("patch_cells".equals(functionName)) {
+            String functionName = functionResponse.name().orElse(DrawioCanvasToolNames.CREATE_DIAGRAM);
+            // Local patch responses return only the changed fragment; merge it into the canvas we already hold.
+            if (DrawioCanvasToolNames.PATCH_CELLS.equals(functionName)
+                    || DrawioCanvasToolNames.PATCH_CELLS.equals(json.getString("type"))) {
                 String patchCells = json.getString("cells");
                 boolean patchSent = streamResponseWriter.sendLocalCellPatch(emitter, phase, currentCanvasXml, patchCells);
-                log.info("[diag-patch] patch_cells canvasXmlChars={} cellsChars={} sent={}",
+                log.info("[diag-patch] {} canvasXmlChars={} cellsChars={} sent={}",
+                        functionName,
                         null == currentCanvasXml ? -1 : currentCanvasXml.length(),
                         null == patchCells ? -1 : patchCells.length(),
                         patchSent);
