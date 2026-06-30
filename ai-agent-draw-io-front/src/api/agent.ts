@@ -116,6 +116,20 @@ export const agentApi = {
     },
 
     /**
+     * Selectable skill catalog for the "/" picker (built-in + public + the user's private).
+     * Path: /api/v1/skills/catalog
+     */
+    getSkillCatalog: async (userId: string): Promise<Response<Array<{ name: string; description?: string; category?: string }>>> => {
+        const response = await fetch(`${API_CONFIG.BASE_URL}/skills/catalog?userId=${encodeURIComponent(userId)}`, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+        });
+        return handleResponse<Array<{ name: string; description?: string; category?: string }>>(response);
+    },
+
+    /**
      * Create Session
      * Path: /api/v1/create_session
      */

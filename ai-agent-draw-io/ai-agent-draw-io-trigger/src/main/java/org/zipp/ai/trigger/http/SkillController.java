@@ -33,6 +33,9 @@ public class SkillController {
     @Resource
     private SkillManagementService skillManagementService;
 
+    @Resource
+    private org.zipp.ai.domain.agent.service.armory.matter.skills.SkillCatalogService skillCatalogService;
+
     /** Shared secret required to create PUBLIC (platform-wide) skills. Empty = PUBLIC via API disabled. */
     @Value("${SKILL_ADMIN_TOKEN:}")
     private String skillAdminToken;
@@ -55,6 +58,24 @@ public class SkillController {
         } catch (Exception e) {
             log.error("保存技能失败", e);
             return Response.<Void>builder().code(FAILURE).info("保存技能失败").build();
+        }
+    }
+
+    /** Selectable skill catalog (built-in + public + the user's private) for the slash-command picker. */
+    @GetMapping("skills/catalog")
+    public Response<List<SkillDTO>> skillCatalog(@RequestParam(value = "userId", required = false) String userId) {
+        try {
+            List<SkillDTO> skills = skillCatalogService.selectableSkills(userId).stream().map(info -> {
+                SkillDTO dto = new SkillDTO();
+                dto.setName(info.name());
+                dto.setDescription(info.description());
+                dto.setCategory(info.category());
+                return dto;
+            }).toList();
+            return Response.<List<SkillDTO>>builder().code(SUCCESS).info("成功").data(skills).build();
+        } catch (Exception e) {
+            log.error("查询技能目录失败", e);
+            return Response.<List<SkillDTO>>builder().code(FAILURE).info("查询技能目录失败").build();
         }
     }
 

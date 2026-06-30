@@ -29,6 +29,8 @@ export interface ChatRequestDTO {
   customCompletionsPath?: string;
   customModel?: string;
   maxReviewIterations?: number;
+  /** User-specified skills (via the "/" picker); overrides the router's auto-selection. */
+  skills?: string[];
 }
 
 export interface ChatResponseDTO {

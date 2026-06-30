@@ -532,6 +532,43 @@ export default function Home() {
   const [isSending, setIsSending] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
+  // "/" skill picker
+  const [skillCatalog, setSkillCatalog] = useState<Array<{ name: string; description?: string }>>([]);
+  const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
+  const [slashOpen, setSlashOpen] = useState(false);
+  const [slashQuery, setSlashQuery] = useState('');
+  const [slashIndex, setSlashIndex] = useState(0);
+  const pendingSkillsRef = useRef<string[]>([]);
+
+  // Load the selectable skill catalog for the "/" picker.
+  useEffect(() => {
+    if (!currentUser) return;
+    agentApi.getSkillCatalog(currentUser)
+      .then(res => setSkillCatalog((res?.data || []).map(s => ({ name: s.name, description: s.description }))))
+      .catch(() => { /* skills are optional; ignore */ });
+  }, [currentUser]);
+
+  const filteredSkills = slashOpen
+    ? skillCatalog.filter(s => s.name.toLowerCase().includes(slashQuery.toLowerCase())).slice(0, 8)
+    : [];
+
+  // Update input and detect a trailing "/skill" token to drive the picker.
+  const handleInputChange = (value: string) => {
+    setInputValue(value);
+    const m = value.match(/(?:^|\s)\/([\w-]*)$/);
+    if (m) { setSlashOpen(true); setSlashQuery(m[1]); setSlashIndex(0); }
+    else { setSlashOpen(false); setSlashQuery(''); }
+  };
+
+  // Pick a skill from the menu: drop the "/query" token, add it as a chip.
+  const chooseSkill = (name: string) => {
+    setInputValue(v => v.replace(/(^|\s)\/[\w-]*$/, '$1'));
+    setSelectedSkills(prev => prev.includes(name) ? prev : [...prev, name]);
+    setSlashOpen(false);
+    setSlashQuery('');
+  };
+  const removeSkill = (name: string) => setSelectedSkills(prev => prev.filter(s => s !== name));
+
   // Sidebar State
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
@@ -1326,7 +1363,8 @@ export default function Home() {
           customApiKey: activeModelConfig?.apiKey || undefined,
           customCompletionsPath: activeModelConfig?.completionsPath || undefined,
           customModel: activeModelConfig?.model || undefined,
-          maxReviewIterations
+          maxReviewIterations,
+          skills: pendingSkillsRef.current.length ? pendingSkillsRef.current : undefined
         },
         // onEvent
         (event: StreamEvent) => {
@@ -1783,7 +1821,11 @@ export default function Home() {
 
   const handleSendMessage = async () => {
     const content = inputValue;
+    // Capture user-picked skills for this message, then clear the chips.
+    pendingSkillsRef.current = [...selectedSkills];
     setInputValue('');
+    setSelectedSkills([]);
+    setSlashOpen(false);
     // Reset textarea height
     const textarea = document.querySelector('textarea');
     if (textarea) textarea.style.height = '80px';
@@ -1818,6 +1860,13 @@ export default function Home() {
   }, [lastExportedData]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
+    // When the "/" picker is open, the keyboard drives the menu instead of sending.
+    if (slashOpen && filteredSkills.length > 0) {
+      if (e.key === 'ArrowDown') { e.preventDefault(); setSlashIndex(i => Math.min(i + 1, filteredSkills.length - 1)); return; }
+      if (e.key === 'ArrowUp') { e.preventDefault(); setSlashIndex(i => Math.max(i - 1, 0)); return; }
+      if (e.key === 'Enter' || e.key === 'Tab') { e.preventDefault(); chooseSkill(filteredSkills[Math.min(slashIndex, filteredSkills.length - 1)].name); return; }
+      if (e.key === 'Escape') { e.preventDefault(); setSlashOpen(false); return; }
+    }
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSendMessage();
@@ -2237,11 +2286,38 @@ export default function Home() {
                 </div>
             </div>
 
+            {selectedSkills.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 mb-2">
+                {selectedSkills.map(name => (
+                  <span key={name} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 text-xs border border-indigo-200">
+                    /{name}
+                    <button type="button" onClick={() => removeSkill(name)} className="text-indigo-400 hover:text-indigo-700 leading-none">×</button>
+                  </span>
+                ))}
+              </div>
+            )}
+
             <div className="relative flex items-end gap-2 bg-slate-50 p-2 rounded-2xl border border-slate-200 focus-within:border-indigo-400 focus-within:ring-4 focus-within:ring-indigo-100 focus-within:bg-white transition-all shadow-sm">
+              {slashOpen && filteredSkills.length > 0 && (
+                <div className="absolute bottom-full left-0 mb-2 w-80 max-h-72 overflow-auto rounded-xl border border-slate-200 bg-white shadow-lg z-50 py-1">
+                  {filteredSkills.map((s, i) => (
+                    <button
+                      key={s.name}
+                      type="button"
+                      onMouseDown={(e) => { e.preventDefault(); chooseSkill(s.name); }}
+                      onMouseEnter={() => setSlashIndex(i)}
+                      className={`block w-full text-left px-3 py-2 ${i === slashIndex ? 'bg-slate-100' : ''} hover:bg-slate-100`}
+                    >
+                      <div className="text-sm font-medium text-slate-800">/{s.name}</div>
+                      {s.description && <div className="text-xs text-slate-500 truncate">{s.description}</div>}
+                    </button>
+                  ))}
+                </div>
+              )}
               <textarea
                 value={inputValue}
                 onChange={(e) => {
-                  setInputValue(e.target.value);
+                  handleInputChange(e.target.value);
                   e.target.style.height = 'auto';
                   e.target.style.height = Math.min(e.target.scrollHeight, 300) + 'px';
                 }}
