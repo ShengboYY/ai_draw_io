@@ -47,7 +47,7 @@ public class DefaultIntentRoutingService implements IIntentRoutingService {
 
     @Override
     public IntentRoutingResult route(IntentRoutingCommand command) {
-        IntentRoutingResult fastPath = tryFastPatchRoute(command.getMessage());
+        IntentRoutingResult fastPath = tryFastPatchRoute(command);
         if (null != fastPath) {
             log.info("Intent routing fast path: rule-based patch_existing. userId:{}", command.getUserId());
             return fastPath;
@@ -77,16 +77,16 @@ public class DefaultIntentRoutingService implements IIntentRoutingService {
      * relabel/recolor instruction. Returns null (fall back to the LLM) whenever the request is at
      * all ambiguous, so precision stays high and we never misclassify a create/append/layout request.
      */
-    private IntentRoutingResult tryFastPatchRoute(String message) {
+    private IntentRoutingResult tryFastPatchRoute(IntentRoutingCommand command) {
+        String message = null == command ? "" : command.getMessage();
         if (null == message || message.trim().isEmpty()) {
             return null;
         }
         // An empty canvas still ships an <mxGraphModel> skeleton, so require a real vertex/edge.
-        if (!hasExistingCanvas(message)) {
+        if (!hasExistingCanvas(null == command ? "" : command.getCanvasXml(), message)) {
             return null; // No drawable canvas -> let the router decide (likely create_new).
         }
-        // The frontend wraps the prompt with boilerplate that itself contains words like "create",
-        // "delete", "move" — so match verbs only against the user's own request, not the whole prompt.
+        // Match verbs only against the user's request, not injected canvas or policy text.
         String instruction = extractUserInstruction(message).toLowerCase();
         if (!containsAny(instruction, PATCH_VERBS) || containsAny(instruction, PATCH_BLOCKERS)) {
             return null;
@@ -108,12 +108,13 @@ public class DefaultIntentRoutingService implements IIntentRoutingService {
 
     // The frontend embeds the live canvas as [Context: Current Draw.io XML]; an empty canvas is just
     // the <mxGraphModel> skeleton with cells 0/1, so a real vertex or edge marks an existing canvas.
-    private boolean hasExistingCanvas(String message) {
-        if (!MXGRAPH_PATTERN.matcher(message).find()) {
+    private boolean hasExistingCanvas(String canvasXml, String legacyMessage) {
+        String source = (null != canvasXml && !canvasXml.isBlank()) ? canvasXml : legacyMessage;
+        if (!MXGRAPH_PATTERN.matcher(source).find()) {
             return false;
         }
-        return message.contains("vertex=\"1\"") || message.contains("vertex='1'")
-                || message.contains("edge=\"1\"") || message.contains("edge='1'");
+        return source.contains("vertex=\"1\"") || source.contains("vertex='1'")
+                || source.contains("edge=\"1\"") || source.contains("edge='1'");
     }
 
     // Pull out just the user's request (after the [User Request] marker the frontend appends),

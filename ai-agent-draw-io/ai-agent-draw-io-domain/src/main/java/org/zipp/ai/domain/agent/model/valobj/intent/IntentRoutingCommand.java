@@ -12,6 +12,10 @@ public class IntentRoutingCommand {
 
     private String message;
 
+    private String canvasXml;
+
+    private String canvasSummary;
+
     private CustomApiConfigManager.CustomApiConfig customApiConfig;
 
 }

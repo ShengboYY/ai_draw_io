@@ -24,6 +24,21 @@ export interface ChatRequestDTO {
   userId: string;
   sessionId: string;
   message: string;
+  /** Current Draw.io XML, kept out of message so routers can avoid full-canvas prompt noise. */
+  canvasXml?: string;
+  /** Compact canvas summary for intent routing and answer-only requests. */
+  canvasSummary?: string;
+  canvasSnapshot?: {
+    valid?: boolean;
+    nodeCount?: number;
+    edgeCount?: number;
+    bounds?: { x?: number; y?: number; width?: number; height?: number };
+    labels?: string[];
+  };
+  clientHints?: {
+    maxReviewIterations?: number;
+    skills?: string[];
+  };
   customBaseUrl?: string;
   customApiKey?: string;
   customCompletionsPath?: string;

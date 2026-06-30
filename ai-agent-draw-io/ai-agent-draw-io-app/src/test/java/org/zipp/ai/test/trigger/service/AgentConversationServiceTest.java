@@ -1,6 +1,7 @@
 package org.zipp.ai.test.trigger.service;
 
 import org.junit.Test;
+import org.zipp.ai.api.dto.ChatRequestDTO;
 import org.zipp.ai.domain.agent.model.valobj.intent.IntentRoutingResult;
 import org.zipp.ai.trigger.http.service.AgentConversationService;
 
@@ -29,7 +30,10 @@ public class AgentConversationServiceTest {
         IntentRoutingResult routingResult = IntentRoutingResult.fallbackDrawAction("test");
         routingResult.setTaskType("patch_existing");
 
-        String routedMessage = buildRoutedMessage(service, "update the API label", routingResult, 1);
+        ChatRequestDTO requestDTO = new ChatRequestDTO();
+        requestDTO.setMessage("update the API label");
+
+        String routedMessage = buildRoutedMessage(service, requestDTO, routingResult, 1);
 
         assertTrue(routedMessage.contains("\"maxReviewIterations\":1"));
         assertTrue(routedMessage.contains("\"allowedTools\""));
@@ -39,6 +43,39 @@ public class AgentConversationServiceTest {
         assertFalse(routedMessage.contains("display_diagram\",\"append_diagram"));
     }
 
+    @Test
+    public void shouldKeepFullXmlOutOfIntentMessage() throws Exception {
+        AgentConversationService service = new AgentConversationService();
+        ChatRequestDTO requestDTO = new ChatRequestDTO();
+        requestDTO.setMessage("把 API 改成 Gateway");
+        requestDTO.setCanvasXml("<mxGraphModel><root><mxCell id=\"0\"/><mxCell id=\"1\" parent=\"0\"/><mxCell id=\"2\" value=\"API\" vertex=\"1\" parent=\"1\"/></root></mxGraphModel>");
+        requestDTO.setCanvasSummary("The canvas contains 1 node and 0 edges. Main labels: API.");
+
+        String intentMessage = buildIntentMessage(service, requestDTO);
+
+        assertTrue(intentMessage.contains("[User Request]\n把 API 改成 Gateway"));
+        assertTrue(intentMessage.contains("[Canvas Summary]\nThe canvas contains 1 node and 0 edges. Main labels: API."));
+        assertTrue(intentMessage.contains("hasCanvas=true"));
+        assertFalse(intentMessage.contains("<mxGraphModel"));
+        assertFalse(intentMessage.contains("value=\"API\""));
+    }
+
+    @Test
+    public void shouldIncludeFullXmlInDrawingContextMessage() throws Exception {
+        AgentConversationService service = new AgentConversationService();
+        ChatRequestDTO requestDTO = new ChatRequestDTO();
+        requestDTO.setMessage("把 API 改成 Gateway");
+        requestDTO.setCanvasXml("<mxGraphModel><root><mxCell id=\"0\"/><mxCell id=\"1\" parent=\"0\"/><mxCell id=\"2\" value=\"API\" vertex=\"1\" parent=\"1\"/></root></mxGraphModel>");
+        requestDTO.setCanvasSummary("The canvas contains 1 node and 0 edges. Main labels: API.");
+
+        String drawingContext = buildDrawingContextMessage(service, requestDTO);
+
+        assertTrue(drawingContext.contains("[Context: Current Draw.io XML]"));
+        assertTrue(drawingContext.contains("<mxGraphModel"));
+        assertTrue(drawingContext.contains("value=\"API\""));
+        assertTrue(drawingContext.contains("[User Request]\n把 API 改成 Gateway"));
+    }
+
     private int normalizeMaxReviewIterations(AgentConversationService service, Integer value) throws Exception {
         // Exercise the private normalization boundary without widening production API surface.
         Method method = AgentConversationService.class.getDeclaredMethod("normalizeMaxReviewIterations", Integer.class);
@@ -46,19 +83,33 @@ public class AgentConversationServiceTest {
         return (int) method.invoke(service, value);
     }
 
+    private String buildIntentMessage(AgentConversationService service, ChatRequestDTO requestDTO) throws Exception {
+        Method method = AgentConversationService.class.getDeclaredMethod("buildIntentMessage", ChatRequestDTO.class);
+        method.setAccessible(true);
+        return (String) method.invoke(service, requestDTO);
+    }
+
+    private String buildDrawingContextMessage(AgentConversationService service, ChatRequestDTO requestDTO) throws Exception {
+        Method method = AgentConversationService.class.getDeclaredMethod("buildDrawingContextMessage", ChatRequestDTO.class);
+        method.setAccessible(true);
+        return (String) method.invoke(service, requestDTO);
+    }
+
     private String buildRoutedMessage(AgentConversationService service,
-                                      String message,
+                                      ChatRequestDTO requestDTO,
                                       IntentRoutingResult routingResult,
                                       int maxReviewIterations) throws Exception {
         Method method = AgentConversationService.class.getDeclaredMethod(
                 "buildRoutedMessage",
-                String.class,
+                ChatRequestDTO.class,
                 IntentRoutingResult.class,
                 org.zipp.ai.domain.agent.model.valobj.review.CanvasReviewContext.class,
-                int.class
+                int.class,
+                String.class,
+                java.util.List.class
         );
         method.setAccessible(true);
-        return (String) method.invoke(service, message, routingResult, null, maxReviewIterations);
+        return (String) method.invoke(service, requestDTO, routingResult, null, maxReviewIterations, "alice", null);
     }
 
 }

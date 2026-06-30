@@ -13,6 +13,7 @@ import {
   isValidDrawioCellXml,
   normalizeDrawioLegendSwatches,
 } from './streaming-preview';
+import { buildDrawioChatRequestPayload } from './chat-request-payload';
 import {
   AgentRunEvent,
   AgentRunEventStatus,
@@ -57,6 +58,11 @@ const MAX_REVIEW_ITERATIONS_STORAGE_KEY = 'ai_drawio_max_review_iterations';
 const REVIEW_ITERATION_OPTIONS = [0, 1, 2, 3, 4, 5];
 const EMPTY_DRAWIO_XML = '<mxGraphModel><root><mxCell id="0"/><mxCell id="1" parent="0"/></root></mxGraphModel>';
 const STREAMING_PREVIEW_FRAME_MS = 280;
+
+type StructuredCanvasContext = {
+  canvasXml?: string;
+  canvasSummary?: string;
+};
 
 // Elegant SVG Icons with consistent styling
 const Icons = {
@@ -310,38 +316,14 @@ const chooseUsableCanvasXml = (
   return normalizeDrawioLegendSwatches(exportedXml || storedXml || EMPTY_DRAWIO_XML);
 };
 
-const buildDrawioContextPrompt = (content: string, xml: string) => {
+const buildStructuredCanvasContext = (xml: string): StructuredCanvasContext => {
   const canvasContext = hasDrawableCells(xml) ? xml : EMPTY_DRAWIO_XML;
   const canvasSummary = getCanvasSummary(canvasContext);
 
-  return `[Context: Current Draw.io XML]
-\`\`\`xml
-${canvasContext}
-\`\`\`
-
-[Canvas Summary]
-${canvasSummary}
-
-[Instruction]
-First analyze the existing nodes, edges, and layout on the current canvas, then decide whether the user is truly asking to modify the canvas.
-If the user is only asking, explaining, summarizing, evaluating, comparing, requesting advice, or asking about the current canvas state, answer directly and do not draw.
-If the user is only greeting, checking whether you are online, thanking, saying goodbye, or asking what you can do/how to use the app, answer briefly and guide them toward Draw.io diagramming or canvas analysis.
-If the user only says they want a diagram without a diagram type, topic, or objects, ask for the missing information before drawing.
-Only enter drawing mode when the user explicitly asks to create, redraw, append, delete, move, connect, adjust, or optimize canvas content.
-When drawing, distinguish drawMode: new_diagram means ignore the old diagram and output a new complete Draw.io XML; edit_existing means preserve required existing elements and output the modified complete Draw.io XML.
-When drawing, also distinguish taskType: create_new, patch_existing, append_existing, optimize_layout, review_only, or fallback_full_xml. Small existing-canvas edits should prefer patch_existing; new diagram requests should prefer streaming-capable planning.
-When drawing, choose a diagram-specific design profile instead of applying one fixed style to every diagram.
-Use the shared visual design rules for semantic colors, spacing, grouping, typography, and edge routing while preserving the selected diagram type's conventions.
-For architecture diagrams, choose one subtype such as context, container, component, deployment, dynamic, integration_data, or runtime, and keep the scope boundary, abstraction level, region map, main axis, legend need, connector types, gutters, and omitted details clear.
-For complex architecture diagrams, use layout presets as adaptable skeletons: preserve their slots, proportions, gutters, and legend placement, but do not copy templates exactly or force extra content into crowded areas.
-Runtime internals such as JVM, browser, OS, or language runtime diagrams are architecture diagrams with diagramSubtype=runtime, not a separate diagram type.
-When drawing or optimizing, plain text labels, captions, section hints, and edge annotations must be transparent text with no white fill, no visible border, and no label background.
-When drawing or optimizing, route connectors with stable side ports, orthogonal paths, and outer gutters; reduce or summarize secondary edges when dense lines would cross through the main reading area.
-For all drawing task types, the final drawio_done must represent the final complete canvas, even if preview/node/edge events are streamed earlier.
-The user may write in English, Chinese, or mixed language. Reply in the same language as the user's latest request when possible, while system process labels remain English.
-
-[User Request]
-${content}`;
+  return {
+    canvasXml: canvasContext,
+    canvasSummary,
+  };
 };
 
 const cleanPlainTextFallback = (content: string) => {
@@ -1088,7 +1070,7 @@ export default function Home() {
     }]);
   };
 
-  const performSendMessage = async (displayContent: string, apiContent: string) => {
+  const performSendMessage = async (displayContent: string, canvasContext: StructuredCanvasContext = {}) => {
     if (!selectedAgentId) {
       setMessages(prev => [...prev, {
         id: Date.now().toString(),
@@ -1329,19 +1311,23 @@ export default function Home() {
 
       const activeModelConfig = customModels.find(m => m.id === selectedCustomModelId && m.enabled);
 
-      const controller = await agentApi.chatStream(
-        {
+      const requestPayload = buildDrawioChatRequestPayload({
           agentId: selectedAgentId,
           userId: currentUser,
           sessionId: activeBackendSessionId,
-          message: apiContent,
+          userMessage: displayContent,
+          canvasXml: canvasContext.canvasXml,
+          canvasSummary: canvasContext.canvasSummary,
           customBaseUrl: activeModelConfig?.baseUrl || undefined,
           customApiKey: activeModelConfig?.apiKey || undefined,
           customCompletionsPath: activeModelConfig?.completionsPath || undefined,
           customModel: activeModelConfig?.model || undefined,
           maxReviewIterations,
           skills: pendingSkillsRef.current.length ? pendingSkillsRef.current : undefined
-        },
+      });
+
+      const controller = await agentApi.chatStream(
+        requestPayload,
         // onEvent
         (event: StreamEvent) => {
           const { phase, chunk } = event;
@@ -1788,10 +1774,10 @@ export default function Home() {
              });
         } catch (e) {
             console.error("Export failed", e);
-            performSendMessage(content, content);
+            performSendMessage(content);
         }
     } else {
-        performSendMessage(content, content);
+        performSendMessage(content);
     }
   };
 
@@ -1816,9 +1802,9 @@ export default function Home() {
         const storedXml = sessions.find(session => session.id === currentSessionId)?.drawIoXml;
         const xml = chooseUsableCanvasXml(lastExportedData, storedXml);
         const content = pendingMessageRef.current;
-        const apiContent = buildDrawioContextPrompt(content, xml);
+        const canvasContext = buildStructuredCanvasContext(xml);
         saveCurrentCanvasXml(xml);
-        performSendMessage(content, apiContent);
+        performSendMessage(content, canvasContext);
         return;
     }
     
