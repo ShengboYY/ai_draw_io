@@ -5,11 +5,14 @@ import org.zipp.ai.api.dto.SkillDTO;
 import org.zipp.ai.api.response.Response;
 import org.zipp.ai.domain.agent.service.armory.matter.skills.SkillManagementService;
 import org.zipp.ai.domain.agent.service.armory.matter.skills.SkillStore;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -30,9 +33,18 @@ public class SkillController {
     @Resource
     private SkillManagementService skillManagementService;
 
-    /** Create or update a skill (upsert by owner + name). */
+    /** Shared secret required to create PUBLIC (platform-wide) skills. Empty = PUBLIC via API disabled. */
+    @Value("${SKILL_ADMIN_TOKEN:}")
+    private String skillAdminToken;
+
+    /** Create or update a skill (upsert by owner + name). PUBLIC requires a valid admin token. */
     @PostMapping("skills")
-    public Response<Void> saveSkill(@RequestBody SkillDTO request) {
+    public Response<Void> saveSkill(@RequestBody SkillDTO request,
+                                    @RequestHeader(value = "X-Admin-Token", required = false) String adminToken) {
+        if ("PUBLIC".equalsIgnoreCase(request.getVisibility()) && !isAdmin(adminToken)) {
+            return Response.<Void>builder().code(FAILURE)
+                    .info("creating PUBLIC skills requires a valid admin token").build();
+        }
         try {
             skillManagementService.save(
                     request.getUserId(), request.getName(), request.getDescription(),
@@ -72,6 +84,10 @@ public class SkillController {
             log.error("删除技能失败", e);
             return Response.<Void>builder().code(FAILURE).info("删除技能失败").build();
         }
+    }
+
+    private boolean isAdmin(String adminToken) {
+        return StringUtils.hasText(skillAdminToken) && skillAdminToken.equals(adminToken);
     }
 
     private SkillDTO toDTO(SkillStore.StoredSkill skill) {
