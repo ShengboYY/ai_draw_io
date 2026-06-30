@@ -155,6 +155,7 @@ public class MySpringAI extends BaseLlm {
 
         try {
             Prompt prompt = messageConverter.toLlmPrompt(llmRequest);
+            disableInternalToolExecution(prompt);
             observabilityHandler.logRequest(prompt.toString(), model());
 
             ChatResponse chatResponse = chatModel.call(prompt);
@@ -177,6 +178,22 @@ public class MySpringAI extends BaseLlm {
         }
     }
 
+    /**
+     * Tools are registered as ADK BaseTools (see AgentNode/SpringToolCallbackAdkTool), so ADK must own
+     * tool execution and emit the function-call/response events that stream localized patches (e.g.
+     * patch_cells) back to the canvas. Spring AI would otherwise run the tools inline
+     * (internalToolExecutionEnabled defaults to true) and swallow those events, leaving the frontend
+     * with "no valid response". Disable inline execution so the function call propagates to ADK.
+     */
+    private void disableInternalToolExecution(Prompt prompt) {
+        if (prompt != null
+                && prompt.getOptions() instanceof org.springframework.ai.model.tool.ToolCallingChatOptions toolOptions
+                && toolOptions.getToolCallbacks() != null
+                && !toolOptions.getToolCallbacks().isEmpty()) {
+            toolOptions.setInternalToolExecutionEnabled(false);
+        }
+    }
+
     private Flowable<LlmResponse> generateStreamingContent(LlmRequest llmRequest) {
         SpringAIObservabilityHandler.RequestContext context =
                 observabilityHandler.startRequest(model(), "streaming");
@@ -185,6 +202,7 @@ public class MySpringAI extends BaseLlm {
                 emitter -> {
                     try {
                         Prompt prompt = messageConverter.toLlmPrompt(llmRequest);
+                        disableInternalToolExecution(prompt);
                         observabilityHandler.logRequest(prompt.toString(), model());
 
                         // [diag] confirm whether tools survive into the request

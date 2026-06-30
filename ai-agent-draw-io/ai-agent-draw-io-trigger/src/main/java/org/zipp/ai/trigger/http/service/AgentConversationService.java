@@ -379,7 +379,13 @@ public class AgentConversationService {
             String functionName = functionResponse.name().orElse("display_diagram");
             // patch_cells returns only the changed fragment; merge it into the canvas we already hold.
             if ("patch_cells".equals(functionName)) {
-                if (streamResponseWriter.sendLocalCellPatch(emitter, phase, currentCanvasXml, json.getString("cells"))) {
+                String patchCells = json.getString("cells");
+                boolean patchSent = streamResponseWriter.sendLocalCellPatch(emitter, phase, currentCanvasXml, patchCells);
+                log.info("[diag-patch] patch_cells canvasXmlChars={} cellsChars={} sent={}",
+                        null == currentCanvasXml ? -1 : currentCanvasXml.length(),
+                        null == patchCells ? -1 : patchCells.length(),
+                        patchSent);
+                if (patchSent) {
                     return true;
                 }
                 processed = true;
