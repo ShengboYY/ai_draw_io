@@ -7,6 +7,7 @@ import org.zipp.ai.domain.agent.model.valobj.canvas.CanvasNode;
 import org.zipp.ai.domain.agent.model.valobj.canvas.DrawioCanvasSnapshot;
 import org.zipp.ai.domain.agent.model.valobj.intent.IntentRoutingResult;
 import org.zipp.ai.domain.agent.service.IDrawioCanvasSnapshotService;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import javax.annotation.Resource;
@@ -22,6 +23,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 @Service
+@Slf4j
 public class DrawioPromptContextBuilder {
 
     private static final int MAX_COMPACT_NODES = 24;
@@ -57,11 +59,21 @@ public class DrawioPromptContextBuilder {
     public String buildDrawingContextMessage(ChatRequestDTO requestDTO, IntentRoutingResult routingResult) {
         String canvasXml = resolveCanvasXml(requestDTO);
         String taskType = taskType(routingResult);
-        String canvasContext = switch (taskType) {
+        String contextType = contextType(taskType);
+        String canvasContext = switch (contextType) {
             case "create_new" -> buildCreateNewContext(canvasXml);
-            case "patch_existing" -> buildPatchContext(requestDTO, routingResult, canvasXml);
+            case "patch_targets" -> buildPatchContext(requestDTO, routingResult, canvasXml);
             default -> buildFullXmlContext(requestDTO, canvasXml);
         };
+        // Keep this shape-only so logs stay useful without copying the Draw.io XML or prompt body.
+        log.info("[draw-context] taskType={} contextType={} hasCanvas={} canvasXmlChars={} canvasSummaryChars={} userMessageChars={} contextChars={}",
+                logValue(taskType),
+                logValue(contextType),
+                hasDrawableCanvas(canvasXml),
+                textLength(canvasXml),
+                textLength(null == requestDTO ? "" : requestDTO.getCanvasSummary()),
+                textLength(rawUserMessage(requestDTO)),
+                textLength(canvasContext));
 
         return canvasContext
                 + "\n\n[User Request]\n"
@@ -333,9 +345,17 @@ public class DrawioPromptContextBuilder {
 
     private String taskType(IntentRoutingResult routingResult) {
         if (null == routingResult || StringUtils.isBlank(routingResult.getTaskType())) {
-            return "fallback_full_xml";
+            return "edit_existing";
         }
         return routingResult.getTaskType();
+    }
+
+    private String contextType(String taskType) {
+        return switch (taskType) {
+            case "create_new" -> "create_new";
+            case "patch_existing" -> "patch_targets";
+            default -> "full_xml";
+        };
     }
 
     private String rawUserMessage(ChatRequestDTO requestDTO) {
@@ -416,6 +436,18 @@ public class DrawioPromptContextBuilder {
                 .replace("\n", " ")
                 .replace("\r", " ")
                 .trim();
+    }
+
+    private int textLength(String value) {
+        return null == value ? 0 : value.length();
+    }
+
+    private String logValue(String value) {
+        if (null == value) {
+            return "";
+        }
+        String compact = value.replaceAll("[\\r\\n\\t]+", " ").trim();
+        return compact.length() <= 160 ? compact : compact.substring(0, 160) + "...";
     }
 
     private String number(double value) {

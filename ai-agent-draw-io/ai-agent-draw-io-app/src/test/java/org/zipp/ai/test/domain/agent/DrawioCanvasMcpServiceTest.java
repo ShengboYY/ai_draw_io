@@ -284,6 +284,85 @@ public class DrawioCanvasMcpServiceTest {
     }
 
     @Test
+    public void shouldLogConsolidatedToolResultSummariesWithoutRawXml() {
+        Logger logger = (Logger) LoggerFactory.getLogger(DrawioCanvasMcpService.class);
+        ListAppender<ILoggingEvent> appender = new ListAppender<>();
+        appender.start();
+        logger.addAppender(appender);
+        try {
+            DrawioCanvasMcpService service = new DrawioCanvasMcpService();
+            DrawioCanvasMcpService.DrawioXmlRequest createRequest = new DrawioCanvasMcpService.DrawioXmlRequest();
+            createRequest.setReason("initial draw");
+            createRequest.setXml("<mxCell id='2' value='API' vertex='1' parent='1'><mxGeometry x='100' y='100' width='120' height='60' as='geometry'/></mxCell>");
+            service.createDiagram(createRequest);
+
+            DrawioCanvasMcpService.ModifyDiagramRequest modifyRequest = new DrawioCanvasMcpService.ModifyDiagramRequest();
+            modifyRequest.setMode("replace_cells");
+            modifyRequest.setReason("rename API node");
+            modifyRequest.setTargetId("2");
+            modifyRequest.setXml("""
+                    <mxGraphModel><root><mxCell id='0'/><mxCell id='1' parent='0'/>
+                    <mxCell id='2' value='API' vertex='1' parent='1'><mxGeometry x='100' y='100' width='120' height='60' as='geometry'/></mxCell>
+                    </root></mxGraphModel>
+                    """);
+            modifyRequest.setCells("<mxCell id='2' value='Gateway' vertex='1' parent='1'><mxGeometry x='100' y='100' width='140' height='60' as='geometry'/></mxCell>");
+            service.modifyDiagram(modifyRequest);
+
+            DrawioCanvasMcpService.DrawioXmlRequest optimizeRequest = new DrawioCanvasMcpService.DrawioXmlRequest();
+            optimizeRequest.setReason("route layout");
+            optimizeRequest.setXml("""
+                    <mxGraphModel><root><mxCell id='0'/><mxCell id='1' parent='0'/>
+                    <mxCell id='2' value='A' vertex='1' parent='1'><mxGeometry x='100' y='100' width='120' height='60' as='geometry'/></mxCell>
+                    <mxCell id='3' value='B' vertex='1' parent='1'><mxGeometry x='380' y='220' width='120' height='60' as='geometry'/></mxCell>
+                    <mxCell id='4' value='calls' edge='1' parent='1' source='2' target='3'><mxGeometry relative='1' as='geometry'/></mxCell>
+                    </root></mxGraphModel>
+                    """);
+            service.optimizeDiagram(optimizeRequest);
+
+            DrawioCanvasMcpService.DrawioXmlRequest inspectRequest = new DrawioCanvasMcpService.DrawioXmlRequest();
+            inspectRequest.setReason("post draw validation");
+            inspectRequest.setXml("""
+                    <mxGraphModel><root><mxCell id='0'/><mxCell id='1' parent='0'/>
+                    <mxCell id='2' value='A' vertex='1' parent='1'><mxGeometry x='100' y='100' width='120' height='60' as='geometry'/></mxCell>
+                    <mxCell id='3' value='B' vertex='1' parent='1'><mxGeometry x='150' y='120' width='120' height='60' as='geometry'/></mxCell>
+                    </root></mxGraphModel>
+                    """);
+            service.inspectCanvas(inspectRequest);
+
+            List<String> messages = appender.list.stream()
+                    .map(ILoggingEvent::getFormattedMessage)
+                    .toList();
+
+            assertTrue(messages.stream().anyMatch(message -> message.contains("[drawio-tool] name=create_diagram")
+                    && message.contains("resultType=drawio_done")
+                    && message.contains("inputXmlChars=")
+                    && message.contains("outputXmlChars=")
+                    && message.contains("reason=initial draw")));
+            assertTrue(messages.stream().anyMatch(message -> message.contains("[drawio-tool] name=modify_diagram")
+                    && message.contains("requestedMode=replace_cells")
+                    && message.contains("resolvedMode=replace_cells")
+                    && message.contains("resultType=drawio_done")
+                    && message.contains("targetId=2")));
+            assertTrue(messages.stream().anyMatch(message -> message.contains("[drawio-tool] name=optimize_diagram")
+                    && message.contains("resultType=drawio_done")
+                    && message.contains("inputXmlChars=")
+                    && message.contains("outputXmlChars=")
+                    && message.contains("reason=route layout")));
+            assertTrue(messages.stream().anyMatch(message -> message.contains("[drawio-tool] name=inspect_canvas")
+                    && message.contains("resultType=canvas_inspection")
+                    && message.contains("valid=false")
+                    && message.contains("nodeCount=2")
+                    && message.contains("edgeCount=0")
+                    && message.contains("overlapCount=1")
+                    && message.contains("issueCount=1")));
+            assertTrue(messages.stream().noneMatch(message -> message.contains("<mxGraphModel")));
+        } finally {
+            logger.detachAppender(appender);
+            appender.stop();
+        }
+    }
+
+    @Test
     public void shouldMoveHorizontalEdgeLabelAwayFromBlockingNode() throws Exception {
         DrawioCanvasMcpService service = new DrawioCanvasMcpService();
         DrawioCanvasMcpService.DrawioXmlRequest request = new DrawioCanvasMcpService.DrawioXmlRequest();

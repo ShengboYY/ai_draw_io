@@ -1,6 +1,10 @@
 package org.zipp.ai.test.trigger.service;
 
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
 import org.junit.Test;
+import org.slf4j.LoggerFactory;
 import org.zipp.ai.api.dto.ChatRequestDTO;
 import org.zipp.ai.domain.agent.model.valobj.intent.IntentRoutingResult;
 import org.zipp.ai.domain.agent.service.canvas.DefaultDrawioCanvasSnapshotService;
@@ -27,32 +31,15 @@ public class DrawioPromptContextBuilderTest {
     }
 
     @Test
-    public void shouldUseTargetCellsForPatchTasks() {
+    public void shouldKeepFullXmlForEditExistingTasks() {
         DrawioPromptContextBuilder builder = new DrawioPromptContextBuilder(new DefaultDrawioCanvasSnapshotService());
 
-        String message = builder.buildDrawingContextMessage(request("把 API 改成 Gateway API"), routing("patch_existing"));
+        String message = builder.buildDrawingContextMessage(request("把 API 改成 Gateway API"), routing("edit_existing"));
 
-        assertTrue(message.contains("[Patch Target Cells]"));
-        assertTrue(message.contains("node id=api label=\"API\""));
+        assertTrue(message.contains("[Context: Current Draw.io XML]"));
+        assertTrue(message.contains("<mxGraphModel"));
+        assertTrue(message.contains("value=\"API\""));
         assertTrue(message.contains("[User Request]\n把 API 改成 Gateway API"));
-        assertFalse(message.contains("node id=gateway label=\"Gateway\""));
-        assertFalse(message.contains("edge id=edge1 source=api target=gateway"));
-        assertFalse(message.contains("<mxGraphModel"));
-        assertFalse(message.contains("value=\"API\""));
-    }
-
-    @Test
-    public void shouldFallbackToCompactCanvasSnapshotWhenPatchTargetIsUnclear() {
-        DrawioPromptContextBuilder builder = new DrawioPromptContextBuilder(new DefaultDrawioCanvasSnapshotService());
-
-        String message = builder.buildDrawingContextMessage(request("把入口节点颜色改成蓝色"), routing("patch_existing"));
-
-        assertTrue(message.contains("[Compact Canvas Snapshot]"));
-        assertTrue(message.contains("No patch target cells matched the request; compact snapshot follows."));
-        assertTrue(message.contains("node id=api label=\"API\""));
-        assertTrue(message.contains("node id=gateway label=\"Gateway\""));
-        assertTrue(message.contains("edge id=edge1 source=api target=gateway"));
-        assertFalse(message.contains("<mxGraphModel"));
     }
 
     @Test
@@ -65,6 +52,28 @@ public class DrawioPromptContextBuilderTest {
         assertTrue(message.contains("<mxGraphModel"));
         assertTrue(message.contains("value=\"API\""));
         assertTrue(message.contains("[User Request]\n优化布局"));
+    }
+
+    @Test
+    public void shouldLogDrawingContextShapeWithoutRawXml() {
+        DrawioPromptContextBuilder builder = new DrawioPromptContextBuilder(new DefaultDrawioCanvasSnapshotService());
+        Logger logger = (Logger) LoggerFactory.getLogger(DrawioPromptContextBuilder.class);
+        ListAppender<ILoggingEvent> appender = new ListAppender<>();
+        appender.start();
+        logger.addAppender(appender);
+        try {
+            builder.buildDrawingContextMessage(request("把 API 改成 Gateway API"), routing("edit_existing"));
+
+            assertTrue(appender.list.stream()
+                    .map(ILoggingEvent::getFormattedMessage)
+                    .anyMatch(message -> message.contains("[draw-context]")
+                            && message.contains("taskType=edit_existing")
+                            && message.contains("contextType=full_xml")
+                            && message.contains("hasCanvas=true")
+                            && !message.contains("<mxGraphModel")));
+        } finally {
+            logger.detachAppender(appender);
+        }
     }
 
     private ChatRequestDTO request(String message) {

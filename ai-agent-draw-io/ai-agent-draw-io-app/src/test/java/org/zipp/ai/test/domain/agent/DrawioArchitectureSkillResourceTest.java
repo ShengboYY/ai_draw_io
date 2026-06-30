@@ -68,9 +68,9 @@ public class DrawioArchitectureSkillResourceTest {
         assertTrue(agentPrompt.contains("MUST use actual registered tool calls when they are available"));
         assertTrue(agentPrompt.contains("Only output the final drawio_done JSON after inspect_canvas returns valid=true"));
         assertTrue(agentPrompt.contains("approved=true, do not call any drawing tool"));
-        assertTrue(agentPrompt.contains("patch_existing"));
-        assertTrue(agentPrompt.contains("patch_existing -> modify_diagram mode=patch"));
-        assertFalse(agentPrompt.contains("patch_existing -> edit_diagram;"));
+        assertTrue(agentPrompt.contains("edit_existing"));
+        assertTrue(agentPrompt.contains("edit_existing -> modify_diagram"));
+        assertFalse(agentPrompt.contains("patch_existing -> modify_diagram"));
         assertTrue(agentPrompt.contains("drawing tool call -> review/direct repair loop"));
     }
 
@@ -117,7 +117,7 @@ public class DrawioArchitectureSkillResourceTest {
         String agentPrompt = readResource("agent/agent-draw-io.yml");
 
         assertTrue(agentPrompt.contains("inspect_canvas returns validation, canvas state, overlap data"));
-        assertTrue(agentPrompt.contains("modify_diagram is for patch_existing and append_existing"));
+        assertTrue(agentPrompt.contains("modify_diagram is for edit_existing"));
         assertTrue(agentPrompt.contains("After each drawing mutation, use inspect_canvas"));
         assertTrue(agentPrompt.contains("If inspect_canvas returns valid=false"));
         assertTrue(agentPrompt.contains("set targetLabel on modify_diagram"));
@@ -150,10 +150,11 @@ public class DrawioArchitectureSkillResourceTest {
     public void shouldUseRoutedToolGateAndReviewBudgetInPrompts() throws Exception {
         String agentPrompt = readResource("agent/agent-draw-io.yml");
 
-        assertTrue(agentPrompt.contains("[Intent Routing Result].allowedTools is the per-turn tool gate"));
+        assertTrue(agentPrompt.contains("[Intent Routing Result].allowedTools is the backend-derived per-turn tool gate"));
         assertTrue(agentPrompt.contains("Use only those tools"));
         assertTrue(agentPrompt.contains("[Intent Routing Result].maxReviewIterations is the review repair budget"));
         assertTrue(agentPrompt.contains("If it is 0, do the initial drawing action only"));
+        assertTrue(agentPrompt.contains("The intent router gives high-level direction only"));
     }
 
     @Test

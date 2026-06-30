@@ -1,6 +1,10 @@
 package org.zipp.ai.test.trigger.service;
 
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
 import org.junit.Test;
+import org.slf4j.LoggerFactory;
 import org.zipp.ai.api.dto.ChatRequestDTO;
 import org.zipp.ai.domain.agent.model.valobj.intent.IntentRoutingResult;
 import org.zipp.ai.domain.agent.service.canvas.DefaultDrawioCanvasSnapshotService;
@@ -28,11 +32,12 @@ public class AgentConversationServiceTest {
     }
 
     @Test
-    public void shouldIncludeReviewBudgetAndAllowedToolsInRoutedMessage() throws Exception {
+    public void shouldIncludeReviewBudgetAndHighLevelAllowedToolsInRoutedMessage() throws Exception {
         AgentConversationService service = new AgentConversationService();
         injectPromptContextBuilder(service);
         IntentRoutingResult routingResult = IntentRoutingResult.fallbackDrawAction("test");
-        routingResult.setTaskType("patch_existing");
+        routingResult.setDrawMode("edit_existing");
+        routingResult.setTaskType("edit_existing");
 
         ChatRequestDTO requestDTO = new ChatRequestDTO();
         requestDTO.setMessage("update the API label");
@@ -47,13 +52,49 @@ public class AgentConversationServiceTest {
         assertTrue(routedMessage.contains("\"allowedTools\""));
         assertTrue(routedMessage.contains("modify_diagram"));
         assertTrue(routedMessage.contains("inspect_canvas"));
+        assertFalse(routedMessage.contains("patch_existing"));
+        assertFalse(routedMessage.contains("append_existing"));
+        assertFalse(routedMessage.contains("fallback_full_xml"));
         assertFalse(routedMessage.contains("find_cells"));
         assertFalse(routedMessage.contains("update_cells"));
         assertFalse(routedMessage.contains("validate_diagram"));
-        assertTrue(routedMessage.contains("[Patch Target Cells]"));
-        assertTrue(routedMessage.contains("node id=api label=\"API\""));
-        assertFalse(routedMessage.contains("<mxGraphModel"));
+        assertTrue(routedMessage.contains("[Context: Current Draw.io XML]"));
+        assertTrue(routedMessage.contains("<mxGraphModel"));
+        assertTrue(routedMessage.contains("value=\"API\""));
         assertFalse(routedMessage.contains("display_diagram\",\"append_diagram"));
+    }
+
+    @Test
+    public void shouldLogDerivedToolGateForRoutedMessage() throws Exception {
+        AgentConversationService service = new AgentConversationService();
+        injectPromptContextBuilder(service);
+        IntentRoutingResult routingResult = IntentRoutingResult.fallbackDrawAction("test");
+        routingResult.setDrawMode("edit_existing");
+        routingResult.setTaskType("edit_existing");
+
+        ChatRequestDTO requestDTO = new ChatRequestDTO();
+        requestDTO.setUserId("alice");
+        requestDTO.setMessage("update the API label");
+        requestDTO.setCanvasXml("<mxGraphModel><root><mxCell id=\"0\"/><mxCell id=\"1\" parent=\"0\"/>"
+                + "<mxCell id=\"api\" value=\"API\" vertex=\"1\" parent=\"1\"/>"
+                + "</root></mxGraphModel>");
+
+        Logger logger = (Logger) LoggerFactory.getLogger(AgentConversationService.class);
+        ListAppender<ILoggingEvent> appender = new ListAppender<>();
+        appender.start();
+        logger.addAppender(appender);
+        try {
+            buildRoutedMessage(service, requestDTO, routingResult, 0);
+
+            assertTrue(appender.list.stream()
+                    .map(ILoggingEvent::getFormattedMessage)
+                    .anyMatch(message -> message.contains("[draw-route] userId=alice")
+                            && message.contains("taskType=edit_existing")
+                            && message.contains("allowedTools=[modify_diagram, inspect_canvas]")
+                            && message.contains("maxReviewIterations=0")));
+        } finally {
+            logger.detachAppender(appender);
+        }
     }
 
     @Test

@@ -47,13 +47,14 @@ public class DefaultIntentRoutingService implements IIntentRoutingService {
 
     @Override
     public IntentRoutingResult route(IntentRoutingCommand command) {
+        String userId = null == command ? "" : command.getUserId();
         IntentRoutingResult fastPath = tryFastPatchRoute(command);
         if (null != fastPath) {
-            log.info("Intent routing fast path: rule-based patch_existing. userId:{}", command.getUserId());
+            logRoutingDecision("fast_path", userId, fastPath);
             return fastPath;
         }
         try {
-            String sessionId = chatService.createSession(INTENT_AGENT_ID, command.getUserId());
+            String sessionId = chatService.createSession(INTENT_AGENT_ID, userId);
             CustomApiConfigManager.CustomApiConfig config = command.getCustomApiConfig();
             if (null != config) {
                 CustomApiConfigManager.setConfig(sessionId, config);
@@ -61,21 +62,24 @@ public class DefaultIntentRoutingService implements IIntentRoutingService {
 
             // Feed the live skill catalog so the router can pick ANY available skill by description
             // (including the user's own), instead of a hardcoded enum.
-            String routerMessage = withAvailableSkills(command.getMessage(), command.getUserId());
-            List<String> outputs = chatService.handleMessage(INTENT_AGENT_ID, command.getUserId(), sessionId, routerMessage);
+            String routerMessage = withAvailableSkills(command.getMessage(), userId);
+            List<String> outputs = chatService.handleMessage(INTENT_AGENT_ID, userId, sessionId, routerMessage);
             String rawResult = String.join("", outputs);
-            IntentRoutingResult result = parseRoutingResult(rawResult);
-            return normalize(result);
+            IntentRoutingResult result = normalize(parseRoutingResult(rawResult));
+            logRoutingDecision("llm", userId, result);
+            return result;
         } catch (Exception e) {
-            log.warn("Intent routing failed, fallback to drawing workflow. userId:{}", command.getUserId(), e);
-            return IntentRoutingResult.fallbackDrawAction("Intent routing failed; fallback to drawing workflow.");
+            log.warn("Intent routing failed, fallback to drawing workflow. userId:{}", userId, e);
+            IntentRoutingResult fallback = IntentRoutingResult.fallbackDrawAction("Intent routing failed; fallback to drawing workflow.");
+            logRoutingDecision("fallback", userId, fallback);
+            return fallback;
         }
     }
 
     /**
      * Skip the LLM router for the most common micro-edit: an existing canvas plus a clear
-     * relabel/recolor instruction. Returns null (fall back to the LLM) whenever the request is at
-     * all ambiguous, so precision stays high and we never misclassify a create/append/layout request.
+     * relabel/recolor instruction. The router only returns the high-level edit_existing task; the
+     * drawer chooses the concrete modify_diagram operation later from the current XML and tool schema.
      */
     private IntentRoutingResult tryFastPatchRoute(IntentRoutingCommand command) {
         String message = null == command ? "" : command.getMessage();
@@ -97,7 +101,7 @@ public class DefaultIntentRoutingService implements IIntentRoutingService {
         result.setDrawMode("edit_existing");
         result.setDiagramType("basic");
         result.setSkillName("none");
-        result.setTaskType("patch_existing");
+        result.setTaskType("edit_existing");
         result.setNeedsCanvasQuality(false);
         result.setNeedsSemanticReview(false);
         result.setAnswerMode("none");
@@ -189,13 +193,6 @@ public class DefaultIntentRoutingService implements IIntentRoutingService {
         }
         normalizeTaskType(result);
         normalizeReviewFlags(result);
-        // Localized patches are usually one- or two-cell edits (rename/recolor/move). Running the
-        // quality + semantic review loop for them adds several serial LLM round-trips for no real gain,
-        // so default reviews off for this path. Explicit review requests still route to review_only.
-        if ("patch_existing".equals(result.getTaskType())) {
-            result.setNeedsCanvasQuality(false);
-            result.setNeedsSemanticReview(false);
-        }
         if (null == result.getAnswerMode() || result.getAnswerMode().trim().isEmpty()) {
             result.setAnswerMode("none");
         }
@@ -204,7 +201,9 @@ public class DefaultIntentRoutingService implements IIntentRoutingService {
     }
 
     private void normalizeTaskType(IntentRoutingResult result) {
-        if (null != result.getTaskType() && !result.getTaskType().trim().isEmpty()) {
+        String taskType = normalizeLegacyTaskType(result.getTaskType());
+        if (null != taskType && !taskType.isBlank()) {
+            result.setTaskType(taskType);
             return;
         }
         String drawMode = result.getDrawMode();
@@ -217,11 +216,25 @@ public class DefaultIntentRoutingService implements IIntentRoutingService {
         } else if ("quality_review".equals(answerMode) || "semantic_review".equals(answerMode) || "quality_and_semantic_review".equals(answerMode)) {
             result.setTaskType("review_only");
         } else if ("edit_existing".equals(drawMode)) {
-            // Prefer a local patch path for existing-canvas edits; later planners can escalate to append or full redraw.
-            result.setTaskType("patch_existing");
+            result.setTaskType("edit_existing");
         } else {
-            result.setTaskType("fallback_full_xml");
+            result.setTaskType("create_new");
         }
+    }
+
+    private String normalizeLegacyTaskType(String taskType) {
+        String normalized = null == taskType ? "" : taskType.trim();
+        String mapped = switch (normalized) {
+            case "", "none", "create_new", "edit_existing", "optimize_layout", "review_only" -> normalized;
+            case "patch_existing", "append_existing" -> "edit_existing";
+            case "fallback_full_xml" -> "create_new";
+            default -> "";
+        };
+        if (!normalized.isBlank() && !normalized.equals(mapped)) {
+            log.info("[intent-route] source=legacy_task_type legacyTaskType={} normalizedTaskType={}",
+                    logValue(normalized), logValue(mapped));
+        }
+        return mapped;
     }
 
     private void normalizeReviewFlags(IntentRoutingResult result) {
@@ -274,6 +287,32 @@ public class DefaultIntentRoutingService implements IIntentRoutingService {
         }
 
         return null;
+    }
+
+    private void logRoutingDecision(String source, String userId, IntentRoutingResult result) {
+        if (null == result) {
+            return;
+        }
+        log.info("[intent-route] source={} userId={} intent={} drawMode={} taskType={} diagramType={} skillName={} canvasReview={} semanticReview={} answerMode={} reason={}",
+                logValue(source),
+                logValue(userId),
+                logValue(result.getIntent()),
+                logValue(result.getDrawMode()),
+                logValue(result.getTaskType()),
+                logValue(result.getDiagramType()),
+                logValue(result.getSkillName()),
+                result.getNeedsCanvasQuality(),
+                result.getNeedsSemanticReview(),
+                logValue(result.getAnswerMode()),
+                logValue(result.getReason()));
+    }
+
+    private String logValue(String value) {
+        if (null == value) {
+            return "";
+        }
+        String compact = value.replaceAll("[\\r\\n\\t]+", " ").trim();
+        return compact.length() <= 160 ? compact : compact.substring(0, 160) + "...";
     }
 
 }

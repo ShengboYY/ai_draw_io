@@ -115,7 +115,7 @@ public class AgentConversationService {
 
                                     if (!event.functionResponses().isEmpty()) {
                                         if (processFunctionResponses(emitter, phase, event, currentCanvasXml)) {
-                                            // When review is off (e.g. patch_existing) the rendered tool result
+                                            // When review is off, the rendered tool result
                                             // is the final deliverable, so end the turn instead of paying for an
                                             // extra model round-trip. With review on, fall through so the
                                             // reviewer/repair loop still runs.
@@ -217,10 +217,10 @@ public class AgentConversationService {
     }
 
     private int effectiveMaxReviewIterations(ChatRequestDTO requestDTO, IntentRoutingResult routingResult) {
-        // Localized patches skip the review/revision loop entirely: with 0 iterations the stream
+        // Localized edits skip the review/revision loop entirely: with 0 iterations the stream
         // completes as soon as the edited canvas is flushed, instead of waiting on review rounds.
         if (routingResult != null
-                && "patch_existing".equals(routingResult.getTaskType())
+                && "edit_existing".equals(routingResult.getTaskType())
                 && !routingResult.needsCanvasReview()) {
             return 0;
         }
@@ -284,15 +284,14 @@ public class AgentConversationService {
                 .build();
     }
 
-    // Inject skill rules only for generative draws; patch_existing stays lean for the fast edit path.
+    // Inject skill rules only when the drawer needs diagram-specific semantics; small edits stay lean.
     // User-specified skills (if any) override the router's automatic selection.
     private String skillSectionFor(IntentRoutingResult routingResult, String ownerId, List<String> userSkills) {
         String taskType = StringUtils.defaultString(routingResult.getTaskType());
         boolean generativeDraw = "create_new".equals(taskType)
-                || "append_existing".equals(taskType)
                 || "optimize_layout".equals(taskType)
-                || "fallback_full_xml".equals(taskType);
-        if (!generativeDraw) {
+                || ("edit_existing".equals(taskType) && routingResult.needsCanvasReview());
+        if (!generativeDraw && (userSkills == null || userSkills.isEmpty())) {
             return "";
         }
         List<String> chosen = (userSkills != null && !userSkills.isEmpty())
@@ -321,8 +320,21 @@ public class AgentConversationService {
         routingJson.put("answerMode", routingResult.getAnswerMode());
         routingJson.put("reason", routingResult.getReason());
         routingJson.put("maxReviewIterations", maxReviewIterations);
-        routingJson.put("allowedTools", allowedToolsFor(routingResult));
+        List<String> allowedTools = allowedToolsFor(routingResult);
+        routingJson.put("allowedTools", allowedTools);
         routingJson.put("toolPolicy", "Use only allowedTools for this turn unless a review_result explicitly requires a narrower fix_strategy tool.");
+        // Log derived routing controls only; the routed message below can contain full canvas XML.
+        log.info("[draw-route] userId={} intent={} drawMode={} taskType={} allowedTools={} maxReviewIterations={} canvasReview={} semanticReview={} skillName={} reviewContext={}",
+                logValue(ownerId),
+                logValue(routingResult.getIntent()),
+                logValue(routingResult.getDrawMode()),
+                logValue(routingResult.getTaskType()),
+                allowedTools,
+                maxReviewIterations,
+                routingResult.getNeedsCanvasQuality(),
+                routingResult.getNeedsSemanticReview(),
+                logValue(routingResult.getSkillName()),
+                null != reviewContext);
 
         String routedMessage = "[Intent Routing Result]\n"
                 + routingJson.toJSONString()
@@ -341,8 +353,8 @@ public class AgentConversationService {
     private List<String> allowedToolsFor(IntentRoutingResult routingResult) {
         String taskType = StringUtils.defaultString(routingResult.getTaskType());
         return switch (taskType) {
-            case "create_new", "fallback_full_xml" -> List.of(DrawioCanvasToolNames.CREATE_DIAGRAM, DrawioCanvasToolNames.INSPECT_CANVAS);
-            case "patch_existing", "append_existing" -> List.of(DrawioCanvasToolNames.MODIFY_DIAGRAM, DrawioCanvasToolNames.INSPECT_CANVAS);
+            case "create_new" -> List.of(DrawioCanvasToolNames.CREATE_DIAGRAM, DrawioCanvasToolNames.INSPECT_CANVAS);
+            case "edit_existing" -> List.of(DrawioCanvasToolNames.MODIFY_DIAGRAM, DrawioCanvasToolNames.INSPECT_CANVAS);
             case "optimize_layout" -> List.of(DrawioCanvasToolNames.INSPECT_CANVAS, DrawioCanvasToolNames.OPTIMIZE_DIAGRAM);
             case "review_only", "none" -> List.of(DrawioCanvasToolNames.INSPECT_CANVAS);
             default -> DrawioCanvasToolNames.CONSOLIDATED_TOOL_NAMES;
@@ -527,6 +539,14 @@ public class AgentConversationService {
         if (!disposable.isDisposed()) {
             disposable.dispose();
         }
+    }
+
+    private String logValue(String value) {
+        if (null == value) {
+            return "";
+        }
+        String compact = value.replaceAll("[\\r\\n\\t]+", " ").trim();
+        return compact.length() <= 160 ? compact : compact.substring(0, 160) + "...";
     }
 
 }

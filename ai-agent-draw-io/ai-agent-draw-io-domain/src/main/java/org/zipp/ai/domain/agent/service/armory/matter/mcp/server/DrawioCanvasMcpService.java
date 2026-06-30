@@ -23,8 +23,9 @@ public class DrawioCanvasMcpService {
 
     @Tool(name = DrawioCanvasToolNames.CREATE_DIAGRAM, description = "Create a new Draw.io diagram from mxCell XML fragments or a complete mxGraphModel. The backend wraps, validates, and streams the final canvas.")
     public DrawioToolResponse createDiagram(DrawioXmlRequest request) {
-        logXmlToolCall(DrawioCanvasToolNames.CREATE_DIAGRAM, request.getReason(), request.getXml());
-        return drawioDone(request.getXml());
+        DrawioToolResponse response = drawioDone(request.getXml());
+        logXmlToolResult(DrawioCanvasToolNames.CREATE_DIAGRAM, request.getReason(), request.getXml(), response.getType(), response.getContent());
+        return response;
     }
 
     public DrawioToolResponse displayDiagram(DrawioXmlRequest request) {
@@ -44,14 +45,12 @@ public class DrawioCanvasMcpService {
 
     @Tool(name = DrawioCanvasToolNames.MODIFY_DIAGRAM, description = "Modify the current Draw.io canvas. Use mode=patch for changed mxCell fragments, replace_cells for id-based replacements, or full_xml for a complete updated mxGraphModel.")
     public DrawioMutationResponse modifyDiagram(ModifyDiagramRequest request) {
-        log.info("[drawio-tool] name=modify_diagram mode={} reason={} xmlChars={} cellsChars={}",
-                sanitizeLogValue(request.getMode()), sanitizeLogValue(request.getReason()),
-                textLength(request.getXml()), textLength(request.getCells()));
         String mode = resolveModifyMode(request);
         DrawioMutationResponse response = new DrawioMutationResponse();
         if ("patch".equals(mode)) {
             response.setType(DrawioCanvasToolNames.PATCH_CELLS);
             response.setCells(request.getCells());
+            logModifyToolResult(request, mode, response);
             return response;
         }
 
@@ -60,18 +59,19 @@ public class DrawioCanvasMcpService {
                 : toGraphModel(request.getXml());
         response.setType("drawio_done");
         response.setContent(content);
+        logModifyToolResult(request, mode, response);
         return response;
     }
 
     @Tool(name = DrawioCanvasToolNames.OPTIMIZE_DIAGRAM, description = "Optimize Draw.io layout, spacing, readability, or edge routing. The backend normalizes connected edges before returning the optimized mxGraphModel.")
     public DrawioToolResponse optimizeDiagram(DrawioXmlRequest request) {
-        logXmlToolCall(DrawioCanvasToolNames.OPTIMIZE_DIAGRAM, request.getReason(), request.getXml());
-        return drawioDone(xmlToolkit.routeEdges(request.getXml()));
+        DrawioToolResponse response = drawioDone(xmlToolkit.routeEdges(request.getXml()));
+        logXmlToolResult(DrawioCanvasToolNames.OPTIMIZE_DIAGRAM, request.getReason(), request.getXml(), response.getType(), response.getContent());
+        return response;
     }
 
     @Tool(name = DrawioCanvasToolNames.INSPECT_CANVAS, description = "Inspect Draw.io XML once and return validation, node/edge state, overlap data, and actionable issues.")
     public InspectCanvasResponse inspectCanvas(DrawioXmlRequest request) {
-        logXmlToolCall(DrawioCanvasToolNames.INSPECT_CANVAS, request.getReason(), request.getXml());
         DrawioCanvasXmlToolkit.CanvasInspection inspection = xmlToolkit.inspect(request.getXml());
         List<CellMatch> nodes = inspection.getCells().stream()
                 .filter(cell -> "node".equals(cell.getKind()))
@@ -98,6 +98,7 @@ public class DrawioCanvasMcpService {
         response.setIssues(inspection.getIssues());
         response.setOverlaps(overlaps);
         response.setContent(inspection.isValid() ? "Canvas inspection passed lightweight validation." : String.join("; ", inspection.getIssues()));
+        logInspectToolResult(request, response);
         return response;
     }
 
@@ -236,6 +237,27 @@ public class DrawioCanvasMcpService {
     private void logXmlToolCall(String toolName, String reason, String xml) {
         log.info("[drawio-tool] name={} reason={} xmlChars={}",
                 toolName, sanitizeLogValue(reason), textLength(xml));
+    }
+
+    private void logXmlToolResult(String toolName, String reason, String inputXml, String resultType, String outputXml) {
+        log.info("[drawio-tool] name={} resultType={} reason={} inputXmlChars={} outputXmlChars={}",
+                sanitizeLogValue(toolName), sanitizeLogValue(resultType), sanitizeLogValue(reason),
+                textLength(inputXml), textLength(outputXml));
+    }
+
+    private void logModifyToolResult(ModifyDiagramRequest request, String resolvedMode, DrawioMutationResponse response) {
+        log.info("[drawio-tool] name=modify_diagram requestedMode={} resolvedMode={} resultType={} reason={} inputXmlChars={} cellsChars={} outputXmlChars={} targetId={} targetLabel={}",
+                sanitizeLogValue(request.getMode()), sanitizeLogValue(resolvedMode), sanitizeLogValue(response.getType()),
+                sanitizeLogValue(request.getReason()), textLength(request.getXml()), textLength(request.getCells()),
+                textLength(response.getContent()), sanitizeLogValue(request.getTargetId()), sanitizeLogValue(request.getTargetLabel()));
+    }
+
+    private void logInspectToolResult(DrawioXmlRequest request, InspectCanvasResponse response) {
+        log.info("[drawio-tool] name=inspect_canvas resultType={} reason={} inputXmlChars={} valid={} severity={} nodeCount={} edgeCount={} overlapCount={} issueCount={}",
+                sanitizeLogValue(response.getType()), sanitizeLogValue(request.getReason()), textLength(request.getXml()),
+                response.isValid(), sanitizeLogValue(response.getSeverity()), response.getNodeCount(), response.getEdgeCount(),
+                null == response.getOverlaps() ? 0 : response.getOverlaps().size(),
+                null == response.getIssues() ? 0 : response.getIssues().size());
     }
 
     private int textLength(String text) {

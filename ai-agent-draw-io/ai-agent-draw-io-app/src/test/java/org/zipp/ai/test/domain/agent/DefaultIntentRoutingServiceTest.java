@@ -1,6 +1,10 @@
 package org.zipp.ai.test.domain.agent;
 
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
 import org.junit.Test;
+import org.slf4j.LoggerFactory;
 import org.zipp.ai.domain.agent.model.valobj.intent.IntentRoutingCommand;
 import org.zipp.ai.domain.agent.model.valobj.intent.IntentRoutingResult;
 import org.zipp.ai.domain.agent.service.intent.DefaultIntentRoutingService;
@@ -23,7 +27,7 @@ public class DefaultIntentRoutingServiceTest {
 
         assertEquals("draw_action", result.getIntent());
         assertEquals("edit_existing", result.getDrawMode());
-        assertEquals("patch_existing", result.getTaskType());
+        assertEquals("edit_existing", result.getTaskType());
     }
 
     @Test
@@ -34,6 +38,32 @@ public class DefaultIntentRoutingServiceTest {
                 .build();
 
         assertNull(tryFastPatchRoute(command));
+    }
+
+    @Test
+    public void shouldLogHighLevelFastPathRoutingDecision() {
+        Logger logger = (Logger) LoggerFactory.getLogger(DefaultIntentRoutingService.class);
+        ListAppender<ILoggingEvent> appender = new ListAppender<>();
+        appender.start();
+        logger.addAppender(appender);
+        try {
+            IntentRoutingCommand command = IntentRoutingCommand.builder()
+                    .userId("alice")
+                    .message("把 API 改成 Gateway")
+                    .canvasXml("<mxGraphModel><root><mxCell id=\"0\"/><mxCell id=\"1\" parent=\"0\"/><mxCell id=\"2\" value=\"API\" vertex=\"1\" parent=\"1\"/></root></mxGraphModel>")
+                    .build();
+
+            new DefaultIntentRoutingService().route(command);
+
+            assertEquals(1, appender.list.stream()
+                    .filter(event -> event.getFormattedMessage().contains("[intent-route] source=fast_path"))
+                    .filter(event -> event.getFormattedMessage().contains("userId=alice"))
+                    .filter(event -> event.getFormattedMessage().contains("drawMode=edit_existing"))
+                    .filter(event -> event.getFormattedMessage().contains("taskType=edit_existing"))
+                    .count());
+        } finally {
+            logger.detachAppender(appender);
+        }
     }
 
     private IntentRoutingResult tryFastPatchRoute(IntentRoutingCommand command) throws Exception {
