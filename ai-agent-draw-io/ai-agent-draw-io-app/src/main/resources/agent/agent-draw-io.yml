@@ -65,7 +65,7 @@ ai:
                   3. For "what can be improved", "any issues", "is this diagram good", "review this diagram", or similar answer-only requests, set needsCanvasQuality=true and needsSemanticReview=true, answerMode=quality_and_semantic_review, and keep answer empty so the backend quality answer chain can respond from reports.
                   4. For visual-only questions about overlap, readability, layout, spacing, labels, arrows, or crossings, set needsCanvasQuality=true, needsSemanticReview=false, answerMode=quality_review, and keep answer empty.
                   5. For content-only questions about correctness, missing concepts, wrong relationships, domain accuracy, or professional completeness, set needsCanvasQuality=false, needsSemanticReview=true, answerMode=semantic_review, and keep answer empty.
-                  6. For draw_action requests that modify or optimize the current canvas, set needsCanvasQuality=true and needsSemanticReview=true so the drawing workflow receives review context.
+                  6. For draw_action requests that modify the current canvas, set the review flags by what actually changes, not by keywords: set needsCanvasQuality=true only when the change is visual/layout (spacing, routing, alignment, overlap, readability) AND affects more than a few cells or the overall layout; set needsSemanticReview=true only when content or structure changes (adding, removing, or rewiring concepts, relationships, or correctness). For a localized patch_existing edit, set both false. Never enable semantic review for a pure layout/visual fix that adds no new meaning.
                   7. For new diagrams from scratch, set needsCanvasQuality=false and needsSemanticReview=false unless the user explicitly asks for an optimization/review-driven redraw.
 
                   Draw mode rules:
@@ -76,9 +76,9 @@ ai:
                   Task type rules:
                   - none: no drawing or review workflow is needed.
                   - create_new: create a new diagram from a blank or ignored canvas; the drawing agent should use display_diagram and the backend will stream generated cells.
-                  - patch_existing: make a local change to one or a few existing cells, such as relabeling, adding a short description, color/style tweak, or moving/resizing a small target.
+                  - patch_existing: a change limited to one or a few specific, named cells or edges — relabel, add a short description, color/style tweak, resize, reposition, or fix a localized overlap/spacing/routing issue between a small set of named elements. Scope decides this, not the verb: if the user points at specific elements (e.g. "把这两个之间的重叠挪开", "调整 A 和 B 之间的箭头"), use patch_existing even when the verb is 优化/调整/对齐/优化重叠.
                   - append_existing: add new nodes or edges while preserving most existing layout.
-                  - optimize_layout: improve spacing, routing, alignment, readability, or visual quality of the current canvas.
+                  - optimize_layout: improve spacing, routing, alignment, readability, or visual quality across the whole canvas or a large region. Use it only when the request targets the diagram as a whole (e.g. "优化整张图的布局", "整体重新排版") or names no specific elements. If the fix only touches a few named elements, prefer patch_existing.
                   - review_only: inspect or explain the current canvas without modifying it.
                   - fallback_full_xml: use the legacy full-canvas drawing path when the request is ambiguous, broad, or cannot be safely localized.
 
@@ -376,6 +376,7 @@ ai:
                   - draft_diagram means drawer output as a registered drawing tool response, display_diagram, append_diagram, edit_diagram, optimize_diagram, drawio_done NDJSON, or legacy raw XML.
                   - [Intent Routing Result].maxReviewIterations is the user-selected repair budget. If it is 0, approve the first readable diagram unless it has malformed XML or is empty.
                   - Review only the current diagram result. Do not reinterpret the user request and do not generate a new diagram.
+                  - For edit tasks (taskType is not create_new and not fallback_full_xml), scope the review to the user's current request and the cells it actually changed. Do not open issues about unrelated regions, and do not escalate to layout_optimize or full_redraw for problems the user did not raise. Approve when the requested change is correct and introduces no new overlaps, no broken edges, and no malformed XML.
                   - If input is {"type":"user", ...}, this is not a drawing task and should pass review.
 
                   Output contract:
