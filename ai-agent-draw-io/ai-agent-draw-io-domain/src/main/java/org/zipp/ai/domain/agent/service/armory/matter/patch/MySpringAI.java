@@ -185,6 +185,24 @@ public class MySpringAI extends BaseLlm {
      * (internalToolExecutionEnabled defaults to true) and swallow those events, leaving the frontend
      * with "no valid response". Disable inline execution so the function call propagates to ADK.
      */
+    // [diag] surface the provider's error body (e.g. OpenAI 400 detail), which WebClientResponseException
+    // hides behind a generic "400 Bad Request" message.
+    private void logHttpErrorBody(Throwable error) {
+        try {
+            Throwable cursor = error;
+            while (cursor != null) {
+                if (cursor instanceof org.springframework.web.reactive.function.client.WebClientResponseException web) {
+                    org.slf4j.LoggerFactory.getLogger(MySpringAI.class).error(
+                            "[diag-http] {} body={}", web.getStatusCode(), web.getResponseBodyAsString());
+                    return;
+                }
+                cursor = cursor.getCause();
+            }
+        } catch (Exception ignore) {
+            org.slf4j.LoggerFactory.getLogger(MySpringAI.class).warn("[diag-http] failed: {}", ignore.toString());
+        }
+    }
+
     private void disableInternalToolExecution(Prompt prompt) {
         if (prompt != null
                 && prompt.getOptions() instanceof org.springframework.ai.model.tool.ToolCallingChatOptions toolOptions
@@ -225,6 +243,7 @@ public class MySpringAI extends BaseLlm {
                         responseFlux
                                 .doOnError(
                                         error -> {
+                                            logHttpErrorBody(error);
                                             observabilityHandler.recordError(context, error);
                                             SpringAIErrorMapper.MappedError mappedError =
                                                     SpringAIErrorMapper.mapError(error);

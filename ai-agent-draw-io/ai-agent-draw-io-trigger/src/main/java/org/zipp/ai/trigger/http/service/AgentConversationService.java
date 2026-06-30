@@ -114,6 +114,14 @@ public class AgentConversationService {
 
                                     if (!event.functionResponses().isEmpty()) {
                                         if (processFunctionResponses(emitter, phase, event, currentCanvasXml)) {
+                                            // When review is off (e.g. patch_existing) the rendered tool result
+                                            // is the final deliverable, so end the turn instead of paying for an
+                                            // extra model round-trip. With review on, fall through so the
+                                            // reviewer/repair loop still runs.
+                                            if (maxReviewIterations == 0) {
+                                                flushAuthorBuffers(emitter, authorBuffers);
+                                                completeStream(emitter, manuallyCompleted, disposableRef);
+                                            }
                                             return;
                                         }
                                     }
