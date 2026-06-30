@@ -124,6 +124,8 @@ const getLatestMetric = (events: AgentRunEvent[]) => {
   for (let i = events.length - 1; i >= 0; i--) {
     const event = events[i];
     if (typeof event.nodes === 'number' || typeof event.edges === 'number') {
+      // A zero-zero review metric means no drawable XML reached the canvas.
+      if ((event.nodes || 0) === 0 && (event.edges || 0) === 0) continue;
       return {
         nodes: event.nodes || 0,
         edges: event.edges || 0,

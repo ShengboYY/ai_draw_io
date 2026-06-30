@@ -92,6 +92,23 @@ test('buildAgentProgressSummary does not claim completion when no canvas loaded'
   );
 });
 
+test('buildAgentRunView ignores zero review metrics when no canvas was loaded', () => {
+  const view = buildAgentRunView({
+    isRunning: false,
+    content: 'No changes needed',
+    events: [
+      { id: '1', phase: 'drawing', title: 'Drawing Agent', detail: 'Generating canvas changes', status: 'done', tone: 'drawing' },
+      { id: '2', phase: 'reviewing', title: 'review_result', detail: 'No changes needed', status: 'done', tone: 'review', nodes: 0, edges: 0 },
+    ],
+  });
+
+  assert.equal(view.metricLabel, 'Waiting for canvas');
+  assert.equal(
+    buildAgentProgressSummary(view, false),
+    'No drawable diagram was loaded. The agent returned text instead of Draw.io XML.'
+  );
+});
+
 test('shouldShowAgentTyping hides the idle dots once run events exist', () => {
   assert.equal(shouldShowAgentTyping({
     role: 'agent',
