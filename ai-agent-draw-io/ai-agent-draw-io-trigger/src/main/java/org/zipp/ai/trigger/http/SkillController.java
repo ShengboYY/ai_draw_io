@@ -1,0 +1,87 @@
+package org.zipp.ai.trigger.http;
+
+import lombok.extern.slf4j.Slf4j;
+import org.zipp.ai.api.dto.SkillDTO;
+import org.zipp.ai.api.response.Response;
+import org.zipp.ai.domain.agent.service.armory.matter.skills.SkillManagementService;
+import org.zipp.ai.domain.agent.service.armory.matter.skills.SkillStore;
+import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
+import javax.annotation.Resource;
+import java.util.List;
+
+/** Management API for user/platform skills (create, list, delete). */
+@Slf4j
+@RestController
+@RequestMapping("/api/v1/")
+@CrossOrigin(origins = "*")
+public class SkillController {
+
+    private static final String SUCCESS = "0000";
+    private static final String FAILURE = "0001";
+
+    @Resource
+    private SkillManagementService skillManagementService;
+
+    /** Create or update a skill (upsert by owner + name). */
+    @PostMapping("skills")
+    public Response<Void> saveSkill(@RequestBody SkillDTO request) {
+        try {
+            skillManagementService.save(
+                    request.getUserId(), request.getName(), request.getDescription(),
+                    request.getCategory(), request.getBody(), request.getVisibility());
+            return Response.<Void>builder().code(SUCCESS).info("成功").build();
+        } catch (IllegalArgumentException e) {
+            return Response.<Void>builder().code(FAILURE).info(e.getMessage()).build();
+        } catch (Exception e) {
+            log.error("保存技能失败", e);
+            return Response.<Void>builder().code(FAILURE).info("保存技能失败").build();
+        }
+    }
+
+    /** List skills visible to a user (platform public + the user's private). */
+    @GetMapping("skills")
+    public Response<List<SkillDTO>> listSkills(@RequestParam(value = "userId", required = false) String userId) {
+        try {
+            List<SkillDTO> skills = skillManagementService.list(userId).stream()
+                    .map(this::toDTO).toList();
+            return Response.<List<SkillDTO>>builder().code(SUCCESS).info("成功").data(skills).build();
+        } catch (Exception e) {
+            log.error("查询技能失败", e);
+            return Response.<List<SkillDTO>>builder().code(FAILURE).info("查询技能失败").build();
+        }
+    }
+
+    /** Delete a user's own private skill by name. */
+    @DeleteMapping("skills")
+    public Response<Void> deleteSkill(@RequestParam("userId") String userId,
+                                      @RequestParam("name") String name) {
+        try {
+            skillManagementService.delete(userId, name);
+            return Response.<Void>builder().code(SUCCESS).info("成功").build();
+        } catch (IllegalArgumentException e) {
+            return Response.<Void>builder().code(FAILURE).info(e.getMessage()).build();
+        } catch (Exception e) {
+            log.error("删除技能失败", e);
+            return Response.<Void>builder().code(FAILURE).info("删除技能失败").build();
+        }
+    }
+
+    private SkillDTO toDTO(SkillStore.StoredSkill skill) {
+        SkillDTO dto = new SkillDTO();
+        dto.setUserId(skill.ownerId());
+        dto.setName(skill.name());
+        dto.setDescription(skill.description());
+        dto.setCategory(skill.category());
+        dto.setBody(skill.body());
+        dto.setVisibility(skill.visibility() == null ? null : skill.visibility().name());
+        return dto;
+    }
+}
