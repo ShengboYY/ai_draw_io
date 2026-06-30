@@ -48,7 +48,7 @@ public class AgentConversationServiceTest {
         assertTrue(routedMessage.contains("find_cells"));
         assertTrue(routedMessage.contains("update_cells"));
         assertTrue(routedMessage.contains("validate_diagram"));
-        assertTrue(routedMessage.contains("[Compact Canvas Snapshot]"));
+        assertTrue(routedMessage.contains("[Patch Target Cells]"));
         assertTrue(routedMessage.contains("node id=api label=\"API\""));
         assertFalse(routedMessage.contains("<mxGraphModel"));
         assertFalse(routedMessage.contains("display_diagram\",\"append_diagram"));

@@ -27,17 +27,32 @@ public class DrawioPromptContextBuilderTest {
     }
 
     @Test
-    public void shouldUseCompactCanvasSnapshotForPatchTasks() {
+    public void shouldUseTargetCellsForPatchTasks() {
         DrawioPromptContextBuilder builder = new DrawioPromptContextBuilder(new DefaultDrawioCanvasSnapshotService());
 
         String message = builder.buildDrawingContextMessage(request("把 API 改成 Gateway API"), routing("patch_existing"));
 
-        assertTrue(message.contains("[Compact Canvas Snapshot]"));
+        assertTrue(message.contains("[Patch Target Cells]"));
         assertTrue(message.contains("node id=api label=\"API\""));
-        assertTrue(message.contains("edge id=edge1 source=api target=gateway"));
         assertTrue(message.contains("[User Request]\n把 API 改成 Gateway API"));
+        assertFalse(message.contains("node id=gateway label=\"Gateway\""));
+        assertFalse(message.contains("edge id=edge1 source=api target=gateway"));
         assertFalse(message.contains("<mxGraphModel"));
         assertFalse(message.contains("value=\"API\""));
+    }
+
+    @Test
+    public void shouldFallbackToCompactCanvasSnapshotWhenPatchTargetIsUnclear() {
+        DrawioPromptContextBuilder builder = new DrawioPromptContextBuilder(new DefaultDrawioCanvasSnapshotService());
+
+        String message = builder.buildDrawingContextMessage(request("把入口节点颜色改成蓝色"), routing("patch_existing"));
+
+        assertTrue(message.contains("[Compact Canvas Snapshot]"));
+        assertTrue(message.contains("No patch target cells matched the request; compact snapshot follows."));
+        assertTrue(message.contains("node id=api label=\"API\""));
+        assertTrue(message.contains("node id=gateway label=\"Gateway\""));
+        assertTrue(message.contains("edge id=edge1 source=api target=gateway"));
+        assertFalse(message.contains("<mxGraphModel"));
     }
 
     @Test
