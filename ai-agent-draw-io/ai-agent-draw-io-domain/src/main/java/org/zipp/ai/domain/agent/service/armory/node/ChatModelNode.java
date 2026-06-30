@@ -25,6 +25,8 @@ import java.util.List;
 @Service
 public class ChatModelNode extends AbstractArmorySupport {
 
+    static final String TOOL_CALLBACKS_CONTEXT_KEY = "toolCallbacks";
+
     @Resource
     private AgentNode agentNode;
 
@@ -66,12 +68,14 @@ public class ChatModelNode extends AbstractArmorySupport {
             }
         }
 
+        // Keep callbacks in the armory context so ADK agents own tool calls and emit function events.
+        dynamicContext.setValue(TOOL_CALLBACKS_CONTEXT_KEY, List.copyOf(toolCallbackList));
+
         // 构建对话模型
         ChatModel chatModel = OpenAiChatModel.builder()
                 .openAiApi(openAiApi)
                 .defaultOptions(OpenAiChatOptions.builder()
                         .model(chatModelConfig.getModel())
-                        .toolCallbacks(toolCallbackList)
                         .build())
                 .build();
 

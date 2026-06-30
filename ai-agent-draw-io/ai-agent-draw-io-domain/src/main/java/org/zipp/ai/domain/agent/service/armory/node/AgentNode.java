@@ -6,14 +6,17 @@ import org.zipp.ai.domain.agent.model.valobj.AiAgentRegisterVO;
 import org.zipp.ai.domain.agent.service.armory.AbstractArmorySupport;
 import org.zipp.ai.domain.agent.service.armory.factory.DefaultArmoryFactory;
 import org.zipp.ai.domain.agent.service.armory.matter.patch.MySpringAI;
+import org.zipp.ai.domain.agent.service.armory.matter.tool.SpringToolCallbackAdkTool;
 import cn.bugstack.wrench.design.framework.tree.StrategyHandler;
+import com.google.adk.tools.BaseTool;
 import com.google.adk.agents.LlmAgent;
-import com.google.adk.models.springai.SpringAI;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.model.ChatModel;
+import org.springframework.ai.tool.ToolCallback;
 import org.springframework.stereotype.Service;
 
 import javax.annotation.Resource;
+import java.util.Collections;
 import java.util.List;
 
 @Slf4j
@@ -31,15 +34,19 @@ public class AgentNode extends AbstractArmorySupport {
 
         AiAgentConfigTableVO aiAgentConfigTableVO = requestParameter.getAiAgentConfigTableVO();
         List<AiAgentConfigTableVO.Module.Agent> agents = aiAgentConfigTableVO.getModule().getAgents();
+        List<BaseTool> adkTools = adkTools(dynamicContext);
 
         for (AiAgentConfigTableVO.Module.Agent agentConfig : agents) {
-            LlmAgent llmAgent = LlmAgent.builder()
+            LlmAgent.Builder builder = LlmAgent.builder()
                     .name(agentConfig.getName())
                     .description(agentConfig.getDescription())
                     .model(new MySpringAI(chatModel))
                     .instruction(agentConfig.getInstruction())
-                    .outputKey(agentConfig.getOutputKey())
-                    .build();
+                    .outputKey(agentConfig.getOutputKey());
+            if (!adkTools.isEmpty()) {
+                builder.tools(adkTools);
+            }
+            LlmAgent llmAgent = builder.build();
 
             dynamicContext.getAgentGroup().put(agentConfig.getName(), llmAgent);
         }
@@ -50,6 +57,14 @@ public class AgentNode extends AbstractArmorySupport {
     @Override
     public StrategyHandler<ArmoryCommandEntity, DefaultArmoryFactory.DynamicContext, AiAgentRegisterVO> get(ArmoryCommandEntity requestParameter, DefaultArmoryFactory.DynamicContext dynamicContext) throws Exception {
         return agentWorkflowNode;
+    }
+
+    private List<BaseTool> adkTools(DefaultArmoryFactory.DynamicContext dynamicContext) {
+        List<ToolCallback> callbacks = dynamicContext.getValue(ChatModelNode.TOOL_CALLBACKS_CONTEXT_KEY);
+        if (callbacks == null) {
+            return Collections.emptyList();
+        }
+        return SpringToolCallbackAdkTool.fromCallbacks(callbacks);
     }
 
 }
