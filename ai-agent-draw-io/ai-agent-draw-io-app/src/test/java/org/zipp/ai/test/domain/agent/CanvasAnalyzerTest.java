@@ -135,6 +135,59 @@ public class CanvasAnalyzerTest {
     }
 
     @Test
+    public void shouldFlagRemovableWaypointsWhenDirectRouteIsClear() {
+        DefaultCanvasAnalyzer analyzer = new DefaultCanvasAnalyzer();
+
+        CanvasAnalysis analysis = analyzer.analyze("""
+                <mxGraphModel><root><mxCell id='0'/><mxCell id='1' parent='0'/>
+                <mxCell id='2' value='Source' vertex='1' parent='1'><mxGeometry x='40' y='40' width='80' height='60' as='geometry'/></mxCell>
+                <mxCell id='3' value='Target' vertex='1' parent='1'><mxGeometry x='360' y='40' width='80' height='60' as='geometry'/></mxCell>
+                <mxCell id='5' value='' edge='1' parent='1' source='2' target='3'>
+                    <mxGeometry relative='1' as='geometry'><Array as='points'><mxPoint x='200' y='160'/></Array></mxGeometry>
+                </mxCell>
+                </root></mxGraphModel>
+                """, "architecture");
+
+        assertIssue(analysis.getIssues(), CanvasIssueType.REMOVABLE_WAYPOINT, List.of("5"));
+        assertTrue("an aesthetic-only nit should not invalidate the canvas", analysis.isValid());
+    }
+
+    @Test
+    public void shouldNotFlagRemovableWaypointsWhenTheBendAvoidsANode() {
+        DefaultCanvasAnalyzer analyzer = new DefaultCanvasAnalyzer();
+
+        CanvasAnalysis analysis = analyzer.analyze("""
+                <mxGraphModel><root><mxCell id='0'/><mxCell id='1' parent='0'/>
+                <mxCell id='2' value='Source' vertex='1' parent='1'><mxGeometry x='40' y='120' width='80' height='60' as='geometry'/></mxCell>
+                <mxCell id='3' value='Target' vertex='1' parent='1'><mxGeometry x='360' y='120' width='80' height='60' as='geometry'/></mxCell>
+                <mxCell id='4' value='Blocker' vertex='1' parent='1'><mxGeometry x='210' y='110' width='80' height='80' as='geometry'/></mxCell>
+                <mxCell id='5' value='' edge='1' parent='1' source='2' target='3'>
+                    <mxGeometry relative='1' as='geometry'><Array as='points'><mxPoint x='160' y='60'/><mxPoint x='320' y='60'/></Array></mxGeometry>
+                </mxCell>
+                </root></mxGraphModel>
+                """, "architecture");
+
+        assertNoIssue(analysis.getIssues(), CanvasIssueType.REMOVABLE_WAYPOINT, List.of("5"));
+    }
+
+    @Test
+    public void shouldNotFlagRemovableWaypointsForParallelEdges() {
+        DefaultCanvasAnalyzer analyzer = new DefaultCanvasAnalyzer();
+
+        CanvasAnalysis analysis = analyzer.analyze("""
+                <mxGraphModel><root><mxCell id='0'/><mxCell id='1' parent='0'/>
+                <mxCell id='2' value='A' vertex='1' parent='1'><mxGeometry x='40' y='40' width='80' height='60' as='geometry'/></mxCell>
+                <mxCell id='3' value='B' vertex='1' parent='1'><mxGeometry x='360' y='40' width='80' height='60' as='geometry'/></mxCell>
+                <mxCell id='5' value='' edge='1' parent='1' source='2' target='3'><mxGeometry relative='1' as='geometry'><Array as='points'><mxPoint x='200' y='30'/></Array></mxGeometry></mxCell>
+                <mxCell id='6' value='' edge='1' parent='1' source='3' target='2'><mxGeometry relative='1' as='geometry'><Array as='points'><mxPoint x='200' y='110'/></Array></mxGeometry></mxCell>
+                </root></mxGraphModel>
+                """, "architecture");
+
+        assertNoIssue(analysis.getIssues(), CanvasIssueType.REMOVABLE_WAYPOINT, List.of("5"));
+        assertNoIssue(analysis.getIssues(), CanvasIssueType.REMOVABLE_WAYPOINT, List.of("6"));
+    }
+
+    @Test
     public void shouldNotReportEdgeNodeCrossingWhenWaypointsRouteAroundNode() {
         DefaultCanvasAnalyzer analyzer = new DefaultCanvasAnalyzer();
 

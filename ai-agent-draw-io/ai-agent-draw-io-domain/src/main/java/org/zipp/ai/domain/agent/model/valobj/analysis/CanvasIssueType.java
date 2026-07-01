@@ -7,5 +7,6 @@ public enum CanvasIssueType {
     BROKEN_EDGE,
     NODE_OVERLAP,
     EDGE_NODE_CROSSING,
+    REMOVABLE_WAYPOINT,
     OPAQUE_TEXT_BACKGROUND
 }

@@ -44,7 +44,7 @@ public class DefaultCanvasAnalyzer implements ICanvasAnalyzer {
             normalizeAbsoluteCoordinates(cells);
             List<CanvasAnalysisIssue> issues = analyzeIssues(cells);
             return CanvasAnalysis.builder()
-                    .valid(issues.isEmpty())
+                    .valid(!hasBlockingIssue(issues))
                     .severity(resolveSeverity(issues))
                     .issues(issues)
                     .cells(cells)
@@ -176,6 +176,7 @@ public class DefaultCanvasAnalyzer implements ICanvasAnalyzer {
         validateCells(cells, issues);
         detectNodeOverlaps(cells, issues);
         detectEdgeNodeCrossings(cells, issues);
+        detectRemovableWaypoints(cells, issues);
         detectOpaqueTextBackgrounds(cells, issues);
         return issues;
     }
@@ -277,6 +278,58 @@ public class DefaultCanvasAnalyzer implements ICanvasAnalyzer {
                         "Edge " + edge.getId() + " crosses node body: " + node.getId(), "auto_reroute"));
             }
         }
+    }
+
+    private void detectRemovableWaypoints(List<CanvasCellData> cells, List<CanvasAnalysisIssue> issues) {
+        Map<String, CanvasCellData> cellsById = cells.stream()
+                .filter(cell -> StringUtils.isNotBlank(cell.getId()))
+                .collect(Collectors.toMap(CanvasCellData::getId, cell -> cell, (left, right) -> left));
+        List<CanvasCellData> nodes = cells.stream()
+                .filter(cell -> "node".equals(cell.getKind()))
+                .filter(cell -> cell.getWidth() > 0 && cell.getHeight() > 0)
+                .filter(cell -> !isTextCell(cell))
+                .toList();
+        List<CanvasCellData> edges = cells.stream().filter(cell -> "edge".equals(cell.getKind())).toList();
+
+        for (CanvasCellData edge : edges) {
+            if (edge.getPoints() == null || edge.getPoints().isEmpty()) {
+                continue;
+            }
+            CanvasCellData source = cellsById.get(edge.getSource());
+            CanvasCellData target = cellsById.get(edge.getTarget());
+            if (source == null || target == null) {
+                continue;
+            }
+            // A dogleg may deliberately separate parallel edges onto distinct tracks; leave those alone.
+            if (hasParallelEdge(edge, edges)) {
+                continue;
+            }
+            List<CanvasPointData> directRoute = List.of(
+                    anchorToward(source, edge.getSourcePoint(), center(target)),
+                    anchorToward(target, edge.getTargetPoint(), center(source)));
+            boolean directBlocked = nodes.stream()
+                    .anyMatch(node -> !isCrossingEndpointOrContainer(edge, node) && routeIntersectsNode(directRoute, node));
+            if (!directBlocked) {
+                issues.add(issue(CanvasIssueType.REMOVABLE_WAYPOINT, "readability", "minor", List.of(edge.getId()),
+                        "Edge " + edge.getId() + " has removable waypoints; a direct route is already clear.", "candidate"));
+            }
+        }
+    }
+
+    private boolean hasParallelEdge(CanvasCellData edge, List<CanvasCellData> edges) {
+        for (CanvasCellData other : edges) {
+            if (other == edge) {
+                continue;
+            }
+            boolean sameEndpoints = (StringUtils.equals(other.getSource(), edge.getSource())
+                    && StringUtils.equals(other.getTarget(), edge.getTarget()))
+                    || (StringUtils.equals(other.getSource(), edge.getTarget())
+                    && StringUtils.equals(other.getTarget(), edge.getSource()));
+            if (sameEndpoints) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private boolean isAutoRoutedWithoutWaypoints(CanvasCellData edge) {
@@ -422,15 +475,31 @@ public class DefaultCanvasAnalyzer implements ICanvasAnalyzer {
     }
 
     private String resolveSeverity(List<CanvasAnalysisIssue> issues) {
-        if (issues.isEmpty()) {
-            return "ok";
-        }
+        int rank = 0;
         for (CanvasAnalysisIssue issue : issues) {
-            if ("critical".equals(issue.getSeverity())) {
-                return "critical";
-            }
+            rank = Math.max(rank, severityRank(issue.getSeverity()));
         }
-        return "major";
+        return switch (rank) {
+            case 3 -> "critical";
+            case 2 -> "major";
+            case 1 -> "minor";
+            default -> "ok";
+        };
+    }
+
+    // Only major/critical findings invalidate the canvas; minor aesthetic notes (e.g. removable
+    // waypoints) surface as issues without failing the reviewer's approve check.
+    private boolean hasBlockingIssue(List<CanvasAnalysisIssue> issues) {
+        return issues.stream().anyMatch(issue -> severityRank(issue.getSeverity()) >= 2);
+    }
+
+    private int severityRank(String severity) {
+        return switch (StringUtils.defaultString(severity)) {
+            case "critical" -> 3;
+            case "major" -> 2;
+            case "minor" -> 1;
+            default -> 1;
+        };
     }
 
     private CanvasSummaryData summary(List<CanvasCellData> cells) {
