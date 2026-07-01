@@ -15,6 +15,7 @@ import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @Slf4j
@@ -83,11 +84,11 @@ public class DefaultCanvasReviewService implements ICanvasReviewService {
         try {
             String sessionId = createInternalSession(SEMANTIC_REVIEW_AGENT_ID, command);
             List<String> outputs = chatService.handleMessage(SEMANTIC_REVIEW_AGENT_ID, command.getUserId(), sessionId, prompt);
-            String json = extractFirstJsonObject(String.join("", outputs));
-            if (null == json) {
+            SemanticContentReview review = parseSemanticReview(outputs);
+            if (null == review) {
                 return SemanticContentReview.unavailable("Semantic reviewer did not return valid JSON.");
             }
-            return JSON.parseObject(json, SemanticContentReview.class);
+            return review;
         } catch (Exception e) {
             log.warn("Semantic content review failed. userId:{}", command.getUserId(), e);
             return SemanticContentReview.unavailable("Semantic review failed.");
@@ -125,21 +126,70 @@ public class DefaultCanvasReviewService implements ICanvasReviewService {
                 + "Main recommendations: " + String.join("; ", report.getRecommendations());
     }
 
+    private SemanticContentReview parseSemanticReview(List<String> outputs) {
+        if (null == outputs || outputs.isEmpty()) {
+            return null;
+        }
+        for (int i = outputs.size() - 1; i >= 0; i--) {
+            SemanticContentReview review = parseSemanticReview(outputs.get(i));
+            if (null != review) {
+                return review;
+            }
+        }
+        return null;
+    }
+
+    private SemanticContentReview parseSemanticReview(String raw) {
+        List<String> candidates = extractJsonObjects(raw);
+        for (int i = candidates.size() - 1; i >= 0; i--) {
+            try {
+                JSONObject object = JSON.parseObject(candidates.get(i));
+                if (!isSemanticReviewJson(object)) {
+                    continue;
+                }
+                return object.toJavaObject(SemanticContentReview.class);
+            } catch (Exception ignored) {
+                // Tool-call traces and malformed markdown snippets can contain brace pairs that are
+                // not semantic review JSON. Keep scanning for the final structured review object.
+            }
+        }
+        return null;
+    }
+
+    private boolean isSemanticReviewJson(JSONObject object) {
+        return null != object
+                && object.containsKey("overallRisk")
+                && object.containsKey("summary")
+                && object.containsKey("issues")
+                && object.containsKey("recommendations");
+    }
+
     private String extractFirstJsonObject(String raw) {
+        List<String> objects = extractJsonObjects(raw);
+        return objects.isEmpty() ? null : objects.get(0);
+    }
+
+    private List<String> extractJsonObjects(String raw) {
+        List<String> objects = new ArrayList<>();
         if (null == raw || raw.isEmpty()) {
-            return null;
+            return objects;
         }
 
-        int start = raw.indexOf('{');
-        if (start < 0) {
-            return null;
-        }
-
+        int start = -1;
         boolean inString = false;
         boolean escaped = false;
         int depth = 0;
-        for (int i = start; i < raw.length(); i++) {
+        for (int i = 0; i < raw.length(); i++) {
             char c = raw.charAt(i);
+            if (start < 0) {
+                if ('{' == c) {
+                    start = i;
+                    depth = 1;
+                    inString = false;
+                    escaped = false;
+                }
+                continue;
+            }
             if (escaped) {
                 escaped = false;
                 continue;
@@ -160,12 +210,15 @@ public class DefaultCanvasReviewService implements ICanvasReviewService {
             } else if ('}' == c) {
                 depth--;
                 if (0 == depth) {
-                    return raw.substring(start, i + 1);
+                    objects.add(raw.substring(start, i + 1));
+                    start = -1;
+                    inString = false;
+                    escaped = false;
                 }
             }
         }
 
-        return null;
+        return objects;
     }
 
 }
