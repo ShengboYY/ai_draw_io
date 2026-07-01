@@ -13,4 +13,10 @@ public interface ICanvasStateMapper {
 
     int upsertCanvasState(CanvasStatePO state);
 
+    int updateCanvasStateByVersion(CanvasStatePO state);
+
+    int syncDiagramVersion(@Param("userId") String userId,
+                           @Param("diagramId") String diagramId,
+                           @Param("version") Long version);
+
 }

@@ -57,4 +57,24 @@
             updated_at = CURRENT_TIMESTAMP
     </insert>
 
+    <update id="updateCanvasStateByVersion" parameterType="org.zipp.ai.infrastructure.dao.po.CanvasStatePO">
+        UPDATE diagram_canvas_state
+        SET current_xml = #{currentXml},
+            summary = #{summary},
+            analysis_json = #{analysisJson},
+            version = version + 1,
+            updated_at = CURRENT_TIMESTAMP
+        WHERE diagram_id = #{diagramId}
+          AND user_id = #{userId}
+          AND version = #{version}
+    </update>
+
+    <update id="syncDiagramVersion">
+        UPDATE diagram
+        SET current_version = #{version},
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = #{diagramId}
+          AND user_id = #{userId}
+    </update>
+
 </mapper>

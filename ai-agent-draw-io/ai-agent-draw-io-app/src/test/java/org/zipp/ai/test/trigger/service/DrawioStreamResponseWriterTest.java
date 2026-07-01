@@ -3,6 +3,7 @@ package org.zipp.ai.test.trigger.service;
 import org.junit.Test;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseBodyEmitter;
 import org.zipp.ai.domain.agent.model.valobj.canvas.CanvasState;
+import org.zipp.ai.domain.agent.model.valobj.canvas.CanvasStateVersionConflictException;
 import org.zipp.ai.domain.agent.service.ICanvasStateStore;
 import org.zipp.ai.trigger.http.service.DrawioStreamResponseWriter;
 import org.zipp.ai.trigger.http.service.DrawioToolCallRenderer;
@@ -226,6 +227,50 @@ public class DrawioStreamResponseWriterTest {
     }
 
     @Test
+    public void shouldIncludePersistedCanvasVersionInDrawioDoneChunk() throws Exception {
+        DrawioStreamResponseWriter writer = new DrawioStreamResponseWriter(new DrawioToolCallRenderer());
+        CapturingCanvasStateStore canvasStateStore = new CapturingCanvasStateStore();
+        canvasStateStore.nextVersion = 4L;
+        injectCanvasStateStore(writer, canvasStateStore);
+        CapturingEmitter emitter = new CapturingEmitter();
+        writer.setCanvasStateContext(emitter, "alice", "diagram-1", 3L);
+
+        writer.processAndSendLine(emitter, "drawing", """
+                {"type":"drawio_done","content":"<mxGraphModel><root><mxCell id='0'/><mxCell id='1' parent='0'/><mxCell id='2' value='API v2' vertex='1' parent='1'><mxGeometry x='100' y='100' width='140' height='60' as='geometry'/></mxCell></root></mxGraphModel>"}
+                """);
+
+        String output = String.join("\n", emitter.sent);
+        assertTrue(output.contains("\"type\":\"drawio_done\""));
+        assertTrue(output.contains("\"diagramId\":\"diagram-1\""));
+        assertTrue(output.contains("\"version\":4"));
+    }
+
+    @Test
+    public void shouldEmitVersionConflictWhenPersistingStaleCanvas() throws Exception {
+        DrawioStreamResponseWriter writer = new DrawioStreamResponseWriter(new DrawioToolCallRenderer());
+        CapturingCanvasStateStore canvasStateStore = new CapturingCanvasStateStore();
+        canvasStateStore.conflict = true;
+        injectCanvasStateStore(writer, canvasStateStore);
+        CapturingEmitter emitter = new CapturingEmitter();
+        writer.setCanvasStateContext(emitter, "alice", "diagram-1", 2L);
+        writer.setCurrentCanvas(emitter, """
+                <mxGraphModel><root><mxCell id='0'/><mxCell id='1' parent='0'/>
+                <mxCell id='2' value='API' vertex='1' parent='1'><mxGeometry x='100' y='100' width='120' height='60' as='geometry'/></mxCell>
+                </root></mxGraphModel>
+                """);
+
+        writer.processAndSendLine(emitter, "drawing", """
+                {"type":"patch_cells","cells":"<mxCell id='2' value='API v2' vertex='1' parent='1'><mxGeometry x='100' y='100' width='140' height='60' as='geometry'/></mxCell>"}
+                """);
+
+        String output = String.join("\n", emitter.sent);
+        assertTrue(output.contains("\"type\":\"version_conflict\""));
+        assertTrue(output.contains("\"diagramId\":\"diagram-1\""));
+        assertTrue(output.contains("\"expectedVersion\":2"));
+        assertFalse(output.contains("\"type\":\"drawio_done\""));
+    }
+
+    @Test
     public void shouldStopStreamAfterFatalValidationParseFailure() throws Exception {
         DrawioStreamResponseWriter writer = new DrawioStreamResponseWriter(new DrawioToolCallRenderer());
         CapturingEmitter emitter = new CapturingEmitter();
@@ -268,6 +313,8 @@ public class DrawioStreamResponseWriterTest {
     private static class CapturingCanvasStateStore implements ICanvasStateStore {
 
         private CanvasState saved;
+        private Long nextVersion;
+        private boolean conflict;
 
         @Override
         public Optional<CanvasState> find(String userId, String diagramId) {
@@ -276,7 +323,11 @@ public class DrawioStreamResponseWriterTest {
 
         @Override
         public CanvasState save(CanvasState state) {
+            if (conflict) {
+                throw new CanvasStateVersionConflictException(state.getUserId(), state.getDiagramId(), state.getVersion());
+            }
             this.saved = state;
+            state.setVersion(nextVersion == null ? state.getVersion() : nextVersion);
             return state;
         }
     }

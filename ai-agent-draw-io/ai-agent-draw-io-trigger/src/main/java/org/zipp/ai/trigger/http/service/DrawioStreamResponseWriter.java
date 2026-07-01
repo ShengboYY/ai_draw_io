@@ -5,6 +5,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseBodyEmitter;
 import org.zipp.ai.domain.agent.model.valobj.canvas.CanvasState;
+import org.zipp.ai.domain.agent.model.valobj.canvas.CanvasStateVersionConflictException;
 import org.zipp.ai.domain.agent.service.ICanvasStateStore;
 import org.zipp.ai.domain.agent.service.armory.matter.mcp.server.DrawioCanvasToolNames;
 import org.zipp.ai.domain.agent.service.armory.matter.mcp.server.DrawioCanvasXmlToolkit;
@@ -193,7 +194,6 @@ public class DrawioStreamResponseWriter {
         // those coordinates blind. Give the patch path the same deterministic geometry safety net as full
         // mutations before the merged canvas is streamed.
         merged = xmlToolkit.repairGeometryIfNeeded(merged);
-        currentCanvasByEmitter.put(emitter, merged);
         if (merged.equals(lastPatchByEmitter.get(emitter))) {
             return true; // Already emitted this exact merge for the stream; treat as handled, don't resend.
         }
@@ -314,9 +314,15 @@ public class DrawioStreamResponseWriter {
     }
 
     private void sendDrawioDoneUnchecked(ResponseBodyEmitter emitter, String phase, String xml, String mode) throws Exception {
+        CanvasState savedState = null;
         if (StringUtils.isNotBlank(xml)) {
+            try {
+                savedState = persistCanvasState(emitter, xml);
+            } catch (CanvasStateVersionConflictException e) {
+                sendVersionConflict(emitter, phase, canvasStateContextByEmitter.get(emitter));
+                return;
+            }
             currentCanvasByEmitter.put(emitter, xml);
-            persistCanvasState(emitter, xml);
         }
         com.alibaba.fastjson.JSONObject wrapper = new com.alibaba.fastjson.JSONObject();
         wrapper.put("phase", phase);
@@ -325,26 +331,54 @@ public class DrawioStreamResponseWriter {
         chunk.put("content", xml);
         // Absent/"full" => clean reload; "local" => merge into the live canvas without remounting.
         chunk.put("mode", StringUtils.isNotBlank(mode) ? mode : "full");
+        appendCanvasStateMetadata(chunk, savedState, canvasStateContextByEmitter.get(emitter));
         wrapper.put("chunk", chunk);
         emitter.send(wrapper.toJSONString() + "\n");
     }
 
-    private void persistCanvasState(ResponseBodyEmitter emitter, String xml) {
+    private CanvasState persistCanvasState(ResponseBodyEmitter emitter, String xml) {
         CanvasStateContext context = canvasStateContextByEmitter.get(emitter);
         if (canvasStateStore == null || context == null || StringUtils.isBlank(xml)) {
-            return;
+            return null;
         }
         try {
-            canvasStateStore.save(CanvasState.builder()
+            return canvasStateStore.save(CanvasState.builder()
                     .userId(context.userId())
                     .diagramId(context.diagramId())
                     .currentXml(xml)
                     .version(context.expectedVersion())
                     .build());
+        } catch (CanvasStateVersionConflictException e) {
+            throw e;
         } catch (Exception e) {
             log.warn("Failed to persist canvas state. userId:{} diagramId:{}",
                     logValue(context.userId()), logValue(context.diagramId()), e);
+            return null;
         }
+    }
+
+    private void appendCanvasStateMetadata(com.alibaba.fastjson.JSONObject chunk,
+                                           CanvasState savedState,
+                                           CanvasStateContext context) {
+        if (savedState != null) {
+            chunk.put("diagramId", savedState.getDiagramId());
+            chunk.put("version", savedState.getVersion());
+            return;
+        }
+        if (context != null) {
+            chunk.put("diagramId", context.diagramId());
+        }
+    }
+
+    private void sendVersionConflict(ResponseBodyEmitter emitter, String phase, CanvasStateContext context) throws Exception {
+        com.alibaba.fastjson.JSONObject chunk = new com.alibaba.fastjson.JSONObject();
+        chunk.put("type", "version_conflict");
+        chunk.put("content", "Canvas state version conflict. Refresh the diagram and retry.");
+        if (context != null) {
+            chunk.put("diagramId", context.diagramId());
+            chunk.put("expectedVersion", context.expectedVersion());
+        }
+        sendWrappedChunk(emitter, phase, chunk);
     }
 
     public void sendDone(ResponseBodyEmitter emitter) throws Exception {
