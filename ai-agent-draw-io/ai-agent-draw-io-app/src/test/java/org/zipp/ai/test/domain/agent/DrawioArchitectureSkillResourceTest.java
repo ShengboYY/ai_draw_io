@@ -135,6 +135,7 @@ public class DrawioArchitectureSkillResourceTest {
         assertTrue(agentPrompt.contains("For route_only, call optimize_diagram"));
         assertTrue(agentPrompt.contains("mode=route_only"));
         assertTrue(agentPrompt.contains("For optimize_diagram mode=route_only"));
+        assertTrue(agentPrompt.contains("For optimize_diagram mode=route_only, prefer userId and diagramId from [Canvas State]"));
         assertFalse(agentPrompt.contains("For modify_diagram mode=full_xml and optimize_diagram, pass a complete updated mxGraphModel"));
         assertTrue(agentPrompt.contains("Do not load or apply unrelated diagram skill rules"));
         assertTrue(agentPrompt.contains("Only apply the selected skillName plus drawio-visual-design"));

@@ -12,12 +12,16 @@ import org.springframework.ai.tool.ToolCallback;
 import org.springframework.ai.tool.method.MethodToolCallbackProvider;
 import org.zipp.ai.domain.agent.model.valobj.analysis.CanvasAnalysis;
 import org.zipp.ai.domain.agent.model.valobj.analysis.CanvasIssueType;
+import org.zipp.ai.domain.agent.model.valobj.canvas.CanvasState;
+import org.zipp.ai.domain.agent.service.ICanvasStateStore;
 import org.zipp.ai.domain.agent.service.analysis.DefaultCanvasAnalyzer;
 import org.zipp.ai.domain.agent.service.armory.matter.mcp.server.DrawioCanvasMcpService;
 import org.zipp.ai.domain.agent.service.armory.matter.mcp.server.DrawioCanvasXmlToolkit;
 
+import java.lang.reflect.Field;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 
 import static org.junit.Assert.assertEquals;
@@ -173,6 +177,23 @@ public class DrawioCanvasMcpServiceTest {
         assertTrue(response.getCells().contains("edge='1'") || response.getCells().contains("edge=\"1\""));
         assertFalse(response.getCells().contains("vertex='1'") || response.getCells().contains("vertex=\"1\""));
         assertEquals("validation_result", response.getAnalysis().getType());
+        assertNoAnalyzerIssue(new DrawioCanvasXmlToolkit().replaceCells(edgeCrossingGraphXml(), response.getCells()),
+                CanvasIssueType.EDGE_NODE_CROSSING, List.of("5", "4"));
+    }
+
+    @Test
+    public void shouldOptimizeStoredCanvasWhenXmlIsNotProvided() throws Exception {
+        DrawioCanvasMcpService service = new DrawioCanvasMcpService();
+        injectCanvasStateStore(service, new FixedCanvasStateStore(edgeCrossingGraphXml()));
+        DrawioCanvasMcpService.OptimizeDiagramRequest request = new DrawioCanvasMcpService.OptimizeDiagramRequest();
+        request.setMode("route_only");
+        request.setUserId("alice");
+        request.setDiagramId("diagram-1");
+
+        DrawioCanvasMcpService.DrawioMutationResponse response = service.optimizeDiagram(request);
+
+        assertEquals("patch_cells", response.getType());
+        assertTrue(response.getCells().contains("edge='1'") || response.getCells().contains("edge=\"1\""));
         assertNoAnalyzerIssue(new DrawioCanvasXmlToolkit().replaceCells(edgeCrossingGraphXml(), response.getCells()),
                 CanvasIssueType.EDGE_NODE_CROSSING, List.of("5", "4"));
     }
@@ -662,6 +683,35 @@ public class DrawioCanvasMcpServiceTest {
         assertFalse("Did not expect issue " + type + " with targets " + targetCellIds,
                 analysis.getIssues().stream().anyMatch(issue ->
                         type == issue.getType() && issue.getTargetCellIds().equals(targetCellIds)));
+    }
+
+    private void injectCanvasStateStore(DrawioCanvasMcpService service, ICanvasStateStore canvasStateStore) throws Exception {
+        Field field = DrawioCanvasMcpService.class.getDeclaredField("canvasStateStore");
+        field.setAccessible(true);
+        field.set(service, canvasStateStore);
+    }
+
+    private static class FixedCanvasStateStore implements ICanvasStateStore {
+        private final String currentXml;
+
+        private FixedCanvasStateStore(String currentXml) {
+            this.currentXml = currentXml;
+        }
+
+        @Override
+        public Optional<CanvasState> find(String userId, String diagramId) {
+            return Optional.of(CanvasState.builder()
+                    .userId(userId)
+                    .diagramId(diagramId)
+                    .currentXml(currentXml)
+                    .version(3L)
+                    .build());
+        }
+
+        @Override
+        public CanvasState save(CanvasState state) {
+            return state;
+        }
     }
 
     private String edgeCrossingGraphXml() {

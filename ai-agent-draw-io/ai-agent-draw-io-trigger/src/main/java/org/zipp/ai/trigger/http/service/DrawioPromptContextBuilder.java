@@ -111,13 +111,23 @@ public class DrawioPromptContextBuilder {
 
     private String buildFullXmlContext(ChatRequestDTO requestDTO, String canvasXml) {
         String canvasSummary = resolveCanvasSummary(requestDTO, canvasXml);
-        return "[Context: Current Draw.io XML]\n"
+        return buildCanvasStateContext(requestDTO, canvasXml)
+                + "\n\n[Context: Current Draw.io XML]\n"
                 + "```xml\n"
                 + StringUtils.defaultString(canvasXml)
                 + "\n```\n\n[Canvas Summary]\n"
                 + canvasSummary
                 + "\n\n"
                 + buildCanvasIssuesContext(canvasXml);
+    }
+
+    private String buildCanvasStateContext(ChatRequestDTO requestDTO, String canvasXml) {
+        Long expectedVersion = null == requestDTO ? null : requestDTO.getExpectedVersion();
+        return "[Canvas State]\n"
+                + "hasCanvas=" + hasDrawableCanvas(canvasXml)
+                + "\nuserId=" + StringUtils.defaultString(null == requestDTO ? "" : requestDTO.getUserId())
+                + "\ndiagramId=" + StringUtils.defaultString(null == requestDTO ? "" : requestDTO.getDiagramId())
+                + "\nexpectedVersion=" + (expectedVersion == null ? "" : expectedVersion);
     }
 
     private String buildCanvasIssuesContext(String canvasXml) {

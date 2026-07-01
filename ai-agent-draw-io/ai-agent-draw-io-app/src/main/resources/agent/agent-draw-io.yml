@@ -256,7 +256,7 @@ ai:
                   - Mutation tool responses include analysis for their returned XML when they return drawio_done; this analysis describes the new draft, not the previous canvas.
                   - create_diagram is for create_new. Pass XML in the xml argument.
                   - modify_diagram is for edit_existing. Use mode=patch with only changed mxCell fragments for tiny local edits; use mode=append with only new mxCell fragments for append_only additions; use mode=replace_cells with current xml plus replacement cells for id-based replacements/additions/deletions; use mode=full_xml only when the edit is structural and cannot be safely expressed as changed cells.
-                  - optimize_diagram is for optimize_layout and route_only review feedback. Use mode=route_only for edge-only route repairs so the backend returns patch_cells; use mode=layout_optimize when node layout changes require a complete updated mxGraphModel. Always pass the relevant mxGraphModel in xml after preserving labels and relationships.
+                  - optimize_diagram is for optimize_layout and route_only review feedback. Use mode=route_only for edge-only route repairs so the backend returns patch_cells. For optimize_diagram mode=route_only, prefer userId and diagramId from [Canvas State] so the backend can load the current canvas; pass xml only as a compatibility fallback. Use mode=layout_optimize when node layout changes require a complete updated mxGraphModel.
                   - For taskType=edit_existing, do NOT use create_diagram unless review_result.fix_strategy=full_redraw. Prefer modify_diagram with the smallest mode that can express the change while preserving unrelated ids.
                   - If [Canvas Issues], validation_result, or mutation tool response analysis reports valid=false, repair critical XML/cell errors and major visual issues such as overlaps, opaque labels, or crowded layout before final response while review budget remains.
                   - EXCEPTION for tiny edit_existing label/style/position changes: do NOT output drawio_done and do NOT output a full mxGraphModel. Call modify_diagram mode=patch or, as text fallback, output exactly ONE NDJSON line and nothing after it: {"type":"patch_cells","cells":"<only the changed mxCell element(s), each with its existing id>"}.
@@ -279,7 +279,8 @@ ai:
                   {"type":"modify_diagram","mode":"patch","cells":"<mxCell id='2' value='New label' vertex='1' parent='1'><mxGeometry x='100' y='100' width='160' height='70' as='geometry'/></mxCell>"}
                   {"type":"modify_diagram","mode":"append","cells":"<mxCell id='7' value='New node' vertex='1' parent='1'><mxGeometry x='520' y='100' width='160' height='70' as='geometry'/></mxCell>"}
                   {"type":"modify_diagram","mode":"full_xml","xml":"<mxGraphModel><root><mxCell id='0'/><mxCell id='1' parent='0'/>...complete updated canvas...</root></mxGraphModel>"}
-                  {"type":"optimize_diagram","xml":"<mxGraphModel><root><mxCell id='0'/><mxCell id='1' parent='0'/>...complete optimized canvas...</root></mxGraphModel>"}
+                  {"type":"optimize_diagram","mode":"route_only","userId":"<Canvas State userId>","diagramId":"<Canvas State diagramId>"}
+                  {"type":"optimize_diagram","mode":"layout_optimize","xml":"<mxGraphModel><root><mxCell id='0'/><mxCell id='1' parent='0'/>...complete optimized canvas...</root></mxGraphModel>"}
 
                   Draw.io XML discipline:
                   - Generate only mxCell elements for create_diagram unless there is a strong reason to pass a complete mxGraphModel. The backend adds mxGraphModel/root/root cells automatically.

@@ -11,8 +11,12 @@ import org.zipp.ai.domain.agent.model.valobj.analysis.CanvasAnalysis;
 import org.zipp.ai.domain.agent.model.valobj.analysis.CanvasAnalysisIssue;
 import org.zipp.ai.domain.agent.model.valobj.analysis.CanvasIssueType;
 import org.zipp.ai.domain.agent.model.valobj.analysis.CanvasSummaryData;
+import org.zipp.ai.domain.agent.model.valobj.canvas.CanvasState;
+import org.zipp.ai.domain.agent.service.ICanvasStateStore;
 
+import javax.annotation.Resource;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
@@ -25,6 +29,8 @@ public class DrawioCanvasMcpService {
 
     private final DrawioCanvasXmlToolkit xmlToolkit = new DrawioCanvasXmlToolkit();
     private final ConcurrentMap<String, StringBuilder> continuationBuffers = new ConcurrentHashMap<>();
+    @Resource
+    private ICanvasStateStore canvasStateStore;
 
     @Tool(name = DrawioCanvasToolNames.CREATE_DIAGRAM, description = "Create a new Draw.io diagram from mxCell XML fragments or a complete mxGraphModel. The backend wraps, validates, and streams the final canvas.")
     public DrawioToolResponse createDiagram(DrawioXmlRequest request) {
@@ -80,7 +86,8 @@ public class DrawioCanvasMcpService {
 
     @Tool(name = DrawioCanvasToolNames.OPTIMIZE_DIAGRAM, description = "Optimize Draw.io layout, spacing, readability, or edge routing. Use mode=route_only for edge-only patches or layout_optimize for a complete optimized mxGraphModel.")
     public DrawioMutationResponse optimizeDiagram(OptimizeDiagramRequest request) {
-        String content = xmlToolkit.routeEdges(request.getXml());
+        String sourceXml = resolveOptimizableXml(request);
+        String content = xmlToolkit.routeEdges(sourceXml);
         DrawioMutationResponse response = routeOnlyMode(request)
                 ? edgePatchResponse(xmlToolkit.edgeCells(content), content)
                 : drawioMutationDone(content);
@@ -299,6 +306,30 @@ public class DrawioCanvasMcpService {
         return "route_only".equals(String.valueOf(request.getMode()).trim());
     }
 
+    private String resolveOptimizableXml(OptimizeDiagramRequest request) {
+        if (request == null) {
+            return "";
+        }
+        if (request.getXml() != null && !request.getXml().isBlank()) {
+            return request.getXml();
+        }
+        if (canvasStateStore == null || isBlank(request.getUserId()) || isBlank(request.getDiagramId())) {
+            return "";
+        }
+        try {
+            Optional<CanvasState> stored = canvasStateStore.find(request.getUserId(), request.getDiagramId());
+            return stored.map(CanvasState::getCurrentXml).filter(xml -> !isBlank(xml)).orElse("");
+        } catch (Exception e) {
+            log.warn("Failed to load canvas state for optimize_diagram. userId:{} diagramId:{}",
+                    sanitizeLogValue(request.getUserId()), sanitizeLogValue(request.getDiagramId()), e);
+            return "";
+        }
+    }
+
+    private boolean isBlank(String value) {
+        return value == null || value.isBlank();
+    }
+
     private String resolveModifyMode(ModifyDiagramRequest request) {
         String mode = request.getMode() == null ? "" : request.getMode().trim();
         if ("patch".equals(mode) || "append".equals(mode) || "replace_cells".equals(mode) || "full_xml".equals(mode)) {
@@ -429,6 +460,14 @@ public class DrawioCanvasMcpService {
         @JsonProperty(value = "mode")
         @JsonPropertyDescription("route_only returns edge mxCell patches; layout_optimize returns a complete optimized mxGraphModel.")
         private String mode;
+
+        @JsonProperty(value = "userId")
+        @JsonPropertyDescription("Optional owner id used with diagramId to load the current canvas when xml is omitted.")
+        private String userId;
+
+        @JsonProperty(value = "diagramId")
+        @JsonPropertyDescription("Optional diagram id used with userId to load the current canvas when xml is omitted.")
+        private String diagramId;
     }
 
     @Data

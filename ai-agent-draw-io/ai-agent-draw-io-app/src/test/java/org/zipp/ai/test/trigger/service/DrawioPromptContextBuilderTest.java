@@ -69,6 +69,22 @@ public class DrawioPromptContextBuilderTest {
     }
 
     @Test
+    public void shouldExposeCanvasStateIdsForDrawingTools() {
+        DrawioPromptContextBuilder builder = new DrawioPromptContextBuilder(new DefaultDrawioCanvasSnapshotService());
+        ChatRequestDTO requestDTO = request("整理连线");
+        requestDTO.setUserId("alice");
+        requestDTO.setDiagramId("diagram-1");
+        requestDTO.setExpectedVersion(3L);
+
+        String message = builder.buildDrawingContextMessage(requestDTO, routing("optimize_layout"));
+
+        assertTrue(message.contains("[Canvas State]"));
+        assertTrue(message.contains("userId=alice"));
+        assertTrue(message.contains("diagramId=diagram-1"));
+        assertTrue(message.contains("expectedVersion=3"));
+    }
+
+    @Test
     public void shouldLogDrawingContextShapeWithoutRawXml() {
         DrawioPromptContextBuilder builder = new DrawioPromptContextBuilder(new DefaultDrawioCanvasSnapshotService());
         Logger logger = (Logger) LoggerFactory.getLogger(DrawioPromptContextBuilder.class);
