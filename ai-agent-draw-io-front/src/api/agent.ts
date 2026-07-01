@@ -4,7 +4,9 @@ import {
     AiAgentConfigResponseDTO, 
     CreateSessionResponseDTO, 
     ChatRequestDTO,
-    ChatResponseDTO 
+    ChatResponseDTO,
+    DiagramCanvasStateResponseDTO,
+    DiagramSummaryResponseDTO,
 } from '@/types/api';
 
 const handleResponse = async <T>(response: globalThis.Response): Promise<Response<T>> => {
@@ -151,6 +153,26 @@ export const agentApi = {
             body: JSON.stringify({ agentId, userId }),
         });
         return handleResponse<CreateSessionResponseDTO>(response);
+    },
+
+    listDiagrams: async (userId: string): Promise<Response<DiagramSummaryResponseDTO[]>> => {
+        const response = await fetch(`${API_CONFIG.BASE_URL}/diagrams?userId=${encodeURIComponent(userId)}`, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+        });
+        return handleResponse<DiagramSummaryResponseDTO[]>(response);
+    },
+
+    getDiagram: async (userId: string, diagramId: string): Promise<Response<DiagramCanvasStateResponseDTO | null>> => {
+        const response = await fetch(`${API_CONFIG.BASE_URL}/diagrams/${encodeURIComponent(diagramId)}?userId=${encodeURIComponent(userId)}`, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+        });
+        return handleResponse<DiagramCanvasStateResponseDTO | null>(response);
     },
 
     /**

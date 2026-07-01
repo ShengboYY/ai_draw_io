@@ -2,7 +2,7 @@
 
 import { DrawIoEmbed, DrawIoEmbedRef } from 'react-drawio';
 import { useRef, useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import { getUserInfo } from '@/utils/cookie';
 import { getWorkspaceIdentity } from '@/utils/workspace-identity';
 import { agentApi, StreamEvent } from '@/api/agent';
@@ -21,6 +21,7 @@ import {
   mergeCanvasStateMetadata,
 } from './canvas-state-metadata';
 import { buildCanvasStateConflictMessage } from './canvas-state-conflict';
+import { buildRestoredDiagramState } from './diagram-restore';
 import {
   AgentRunEvent,
   AgentRunEventStatus,
@@ -474,9 +475,11 @@ const AgentProgressMessage = ({
 };
 
 export default function Home() {
-  const router = useRouter();
+  const searchParams = useSearchParams();
+  const restoreDiagramId = searchParams.get('diagramId');
   const [imgData, setImgData] = useState<string | null>(null);
   const drawioRef = useRef<DrawIoEmbedRef>(null);
+  const restoredDiagramIdRef = useRef<string | null>(null);
   
   // User State
   const [currentUser, setCurrentUser] = useState('');
@@ -858,6 +861,73 @@ export default function Home() {
     replaceEditorXml(EMPTY_DRAWIO_XML);
   };
 
+  useEffect(() => {
+    if (!currentUser || !restoreDiagramId || restoredDiagramIdRef.current === restoreDiagramId) return;
+
+    let cancelled = false;
+    restoredDiagramIdRef.current = restoreDiagramId;
+    agentApi.getDiagram(currentUser, restoreDiagramId)
+      .then(res => {
+        if (cancelled) return;
+        const diagram = res.data;
+        if (!diagram?.diagramId) {
+          setMessages(prev => [...prev, {
+            id: `${Date.now()}-restore-missing`,
+            role: 'agent',
+            content: 'Diagram not found.',
+            timestamp: Date.now(),
+          }]);
+          return;
+        }
+
+        const restored = buildRestoredDiagramState(diagram);
+        const restoredSessionId = `restored-${restored.diagramId}`;
+        const restoredMessages: Message[] = [{
+          id: `${Date.now()}-restore-loaded`,
+          role: 'agent',
+          content: `Loaded "${restored.title}".`,
+          timestamp: Date.now(),
+        }];
+        const restoredSession: Session = {
+          id: restoredSessionId,
+          backendSessionId: '',
+          diagramId: restored.diagramId,
+          canvasVersion: restored.canvasVersion,
+          title: restored.title,
+          messages: restoredMessages,
+          drawIoXml: restored.drawIoXml,
+          lastModified: Date.now(),
+        };
+
+        setSessions(prev => {
+          const nextSessions = [
+            restoredSession,
+            ...prev.filter(session => session.id !== restoredSessionId && session.diagramId !== restored.diagramId),
+          ];
+          persistSessions(nextSessions);
+          return nextSessions;
+        });
+        setCurrentSessionId(restoredSessionId);
+        setMessages(restoredMessages);
+        setSessionId('');
+        replaceEditorXml(restored.drawIoXml || EMPTY_DRAWIO_XML);
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setMessages(prev => [...prev, {
+            id: `${Date.now()}-restore-error`,
+            role: 'agent',
+            content: 'Failed to load the diagram.',
+            timestamp: Date.now(),
+          }]);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [currentUser, restoreDiagramId]);
+
   const handleSwitchSession = (targetSessionId: string) => {
     if (targetSessionId === currentSessionId) return;
     loadSession(targetSessionId);
@@ -1014,7 +1084,7 @@ export default function Home() {
       }
     };
     loadAgents();
-  }, [router]);
+  }, []);
 
   const finalizeNewChat = async () => {
     if (!selectedAgentId || !currentUser) return;

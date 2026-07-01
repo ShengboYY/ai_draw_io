@@ -19,6 +19,25 @@ export interface CreateSessionResponseDTO {
     sessionId: string;
 }
 
+export interface DiagramSummaryResponseDTO {
+  diagramId: string;
+  title?: string;
+  diagramType?: string;
+  version?: number;
+  updatedAt?: string;
+}
+
+export interface DiagramCanvasStateResponseDTO {
+  diagramId: string;
+  userId?: string;
+  title?: string;
+  diagramType?: string;
+  currentXml?: string;
+  summary?: string;
+  version?: number;
+  updatedAt?: string;
+}
+
 export interface ChatRequestDTO {
   agentId: string;
   userId: string;
