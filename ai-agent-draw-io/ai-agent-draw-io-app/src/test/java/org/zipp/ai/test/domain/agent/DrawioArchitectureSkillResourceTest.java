@@ -102,7 +102,7 @@ public class DrawioArchitectureSkillResourceTest {
         String agentPrompt = readResource("agent/agent-draw-io.yml");
 
         assertTrue(agentPrompt.contains("\"fix_strategy\":\"local_edit|route_only|append_only|layout_optimize|full_redraw\""));
-        assertTrue(agentPrompt.contains("\"suggested_tool\":\"update_cells|edit_diagram|append_diagram|route_edges|optimize_diagram|display_diagram\""));
+        assertTrue(agentPrompt.contains("\"suggested_tool\":\"modify_diagram|optimize_diagram|create_diagram\""));
         assertTrue(agentPrompt.contains("local_edit -> modify_diagram mode=patch or replace_cells"));
         assertTrue(agentPrompt.contains("route_only -> optimize_diagram"));
         assertTrue(agentPrompt.contains("append_only -> modify_diagram mode=append"));
