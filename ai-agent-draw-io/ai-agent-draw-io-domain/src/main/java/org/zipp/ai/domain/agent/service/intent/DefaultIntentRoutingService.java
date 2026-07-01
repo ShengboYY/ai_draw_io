@@ -11,6 +11,7 @@ import org.springframework.stereotype.Service;
 
 import jakarta.annotation.Resource;
 import java.util.List;
+import java.util.Locale;
 
 @Slf4j
 @Service
@@ -45,6 +46,20 @@ public class DefaultIntentRoutingService implements IIntentRoutingService {
             "add", "delete", "remove", "move", "create", "redraw", "layout", "optimize"
     };
 
+    private static final String[] VISUAL_REVIEW_TERMS = {
+            "线重叠", "重叠", "整理", "布局", "排版", "对齐", "间距", "线", "箭头", "美化",
+            "框", "边框", "容器", "分组", "component 框", "component框",
+            "overlap", "layout", "spacing", "align", "alignment", "edge", "line", "arrow",
+            "frame", "container", "group", "component frame", "visual"
+    };
+
+    private static final String[] SEMANTIC_REVIEW_TERMS = {
+            "新增", "删除", "移除", "业务", "概念", "关系", "依赖", "连接", "连到", "正确",
+            "合理", "专业", "缺少", "模块", "服务", "流程语义", "语义",
+            "business", "concept", "relationship", "dependency", "connect", "correct",
+            "correctness", "missing", "module", "service", "semantic"
+    };
+
     @Override
     public IntentRoutingResult route(IntentRoutingCommand command) {
         String userId = null == command ? "" : command.getUserId();
@@ -65,7 +80,8 @@ public class DefaultIntentRoutingService implements IIntentRoutingService {
             String routerMessage = withAvailableSkills(command.getMessage(), userId);
             List<String> outputs = chatService.handleMessage(INTENT_AGENT_ID, userId, sessionId, routerMessage);
             String rawResult = String.join("", outputs);
-            IntentRoutingResult result = normalize(parseRoutingResult(rawResult));
+            IntentRoutingResult result = normalize(parseRoutingResult(rawResult),
+                    extractUserInstruction(null == command ? "" : command.getMessage()));
             logRoutingDecision("llm", userId, result);
             return result;
         } catch (Exception e) {
@@ -158,7 +174,7 @@ public class DefaultIntentRoutingService implements IIntentRoutingService {
         return JSON.parseObject(json, IntentRoutingResult.class);
     }
 
-    private IntentRoutingResult normalize(IntentRoutingResult result) {
+    private IntentRoutingResult normalize(IntentRoutingResult result, String userInstruction) {
         if (null == result || null == result.getIntent()) {
             return IntentRoutingResult.fallbackDrawAction("Intent router returned an empty decision.");
         }
@@ -168,7 +184,7 @@ public class DefaultIntentRoutingService implements IIntentRoutingService {
             result.setDiagramType("none");
             result.setSkillName("none");
             result.setTaskType("none");
-            normalizeReviewFlags(result);
+            normalizeReviewFlags(result, userInstruction);
             if (null == result.getAnswerMode() || result.getAnswerMode().trim().isEmpty()) {
                 result.setAnswerMode(result.needsCanvasReview() ? "quality_review" : "general");
             }
@@ -192,7 +208,7 @@ public class DefaultIntentRoutingService implements IIntentRoutingService {
             result.setSkillName("none");
         }
         normalizeTaskType(result);
-        normalizeReviewFlags(result);
+        normalizeReviewFlags(result, userInstruction);
         if (null == result.getAnswerMode() || result.getAnswerMode().trim().isEmpty()) {
             result.setAnswerMode("none");
         }
@@ -237,13 +253,31 @@ public class DefaultIntentRoutingService implements IIntentRoutingService {
         return mapped;
     }
 
-    private void normalizeReviewFlags(IntentRoutingResult result) {
+    private void normalizeReviewFlags(IntentRoutingResult result, String userInstruction) {
         if (null == result.getNeedsCanvasQuality()) {
             result.setNeedsCanvasQuality(false);
         }
         if (null == result.getNeedsSemanticReview()) {
             result.setNeedsSemanticReview(false);
         }
+        if (Boolean.TRUE.equals(result.getNeedsSemanticReview())
+                && shouldSuppressSemanticReview(result, userInstruction)) {
+            log.info("[intent-route] semantic_review_suppressed taskType={} reason={} userInstruction={}",
+                    logValue(result.getTaskType()),
+                    logValue(result.getReason()),
+                    logValue(userInstruction));
+            result.setNeedsSemanticReview(false);
+        }
+    }
+
+    private boolean shouldSuppressSemanticReview(IntentRoutingResult result, String userInstruction) {
+        if ("optimize_layout".equals(result.getTaskType())) {
+            return true;
+        }
+
+        String text = (String.valueOf(userInstruction) + " " + String.valueOf(result.getReason()))
+                .toLowerCase(Locale.ROOT);
+        return containsAny(text, VISUAL_REVIEW_TERMS) && !containsAny(text, SEMANTIC_REVIEW_TERMS);
     }
 
     private String extractFirstJsonObject(String raw) {
