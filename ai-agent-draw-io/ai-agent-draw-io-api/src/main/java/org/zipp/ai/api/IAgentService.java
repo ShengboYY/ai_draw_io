@@ -23,6 +23,10 @@ public interface IAgentService {
 
     Response<Boolean> deleteDiagram(String userId, String diagramId);
 
+    Response<List<DiagramConversationMessageDTO>> listDiagramMessages(String userId, String diagramId);
+
+    Response<Boolean> saveDiagramMessages(String diagramId, SaveDiagramMessagesRequestDTO requestDTO);
+
     Response<ChatResponseDTO> chat(ChatRequestDTO requestDTO);
 
     ResponseBodyEmitter chatStream(ChatRequestDTO requestDTO);

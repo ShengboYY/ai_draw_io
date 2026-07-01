@@ -23,6 +23,7 @@ import {
 import { buildCanvasStateConflictMessage } from './canvas-state-conflict';
 import { buildRestoredDiagramState } from './diagram-restore';
 import { buildDiagramTitleFromPrompt } from './diagram-title';
+import { buildRestoredConversationMessages } from './conversation-restore';
 import {
   AgentRunEvent,
   AgentRunEventStatus,
@@ -641,6 +642,26 @@ export default function Home() {
     }
   };
 
+  const persistDiagramMessages = async (diagramId?: string, backendSessionId?: string, messagesToSave: Message[] = []) => {
+    if (!currentUser || !diagramId || messagesToSave.length === 0) return;
+
+    const payload = messagesToSave
+      .filter(message => message.content.trim())
+      .map(message => ({
+        clientMessageId: message.id,
+        sessionId: backendSessionId,
+        role: message.role,
+        content: message.content,
+      }));
+    if (payload.length === 0) return;
+
+    try {
+      await agentApi.saveDiagramMessages(currentUser, diagramId, backendSessionId, payload);
+    } catch (e) {
+      console.warn('Failed to sync diagram messages:', e);
+    }
+  };
+
   const clearStreamingPreviewQueue = () => {
     streamingPreviewQueueRef.current = [];
     pendingFinalDrawioXmlRef.current = '';
@@ -886,8 +907,11 @@ export default function Home() {
 
     let cancelled = false;
     restoredDiagramIdRef.current = restoreDiagramId;
-    agentApi.getDiagram(currentUser, restoreDiagramId)
-      .then(res => {
+    Promise.all([
+      agentApi.getDiagram(currentUser, restoreDiagramId),
+      agentApi.listDiagramMessages(currentUser, restoreDiagramId).catch(() => ({ data: [] })),
+    ])
+      .then(([res, messageRes]) => {
         if (cancelled) return;
         const diagram = res.data;
         if (!diagram?.diagramId) {
@@ -902,15 +926,10 @@ export default function Home() {
 
         const restored = buildRestoredDiagramState(diagram);
         const restoredSessionId = `restored-${restored.diagramId}`;
-        const restoredMessages: Message[] = [{
-          id: `${Date.now()}-restore-loaded`,
-          role: 'agent',
-          content: `Loaded "${restored.title}".`,
-          timestamp: Date.now(),
-        }];
+        const restoredMessages: Message[] = buildRestoredConversationMessages(messageRes.data || [], restored.title);
         const restoredSession: Session = {
           id: restoredSessionId,
-          backendSessionId: '',
+          backendSessionId: messageRes.data?.[0]?.sessionId || '',
           diagramId: restored.diagramId,
           canvasVersion: restored.canvasVersion,
           title: restored.title,
@@ -929,7 +948,7 @@ export default function Home() {
         });
         setCurrentSessionId(restoredSessionId);
         setMessages(restoredMessages);
-        setSessionId('');
+        setSessionId(restoredSession.backendSessionId || '');
         replaceEditorXml(restored.drawIoXml || EMPTY_DRAWIO_XML);
       })
       .catch(() => {
@@ -1428,6 +1447,26 @@ export default function Home() {
         ? activeSession.title
         : buildDiagramTitleFromPrompt(displayContent);
       let diagramTitlePersisted = false;
+      let persistedDiagramId = diagramId;
+      let conversationPersisted = false;
+
+      const persistCurrentTurnConversation = () => {
+        if (conversationPersisted) return;
+        conversationPersisted = true;
+
+        const agentContent = (accumulatedContent || agentTextContent).trim();
+        if (!agentContent) return;
+
+        persistDiagramMessages(persistedDiagramId, activeBackendSessionId, [
+          userMsg,
+          {
+            ...initialAgentMsg,
+            content: agentContent,
+            steps: markStepsDone(initialAgentMsg.steps),
+            timestamp: Date.now(),
+          },
+        ]);
+      };
 
       const requestPayload = buildDrawioChatRequestPayload({
           agentId: selectedAgentId,
@@ -1627,6 +1666,7 @@ export default function Home() {
 	                  diagramId: chunk.diagramId,
 	                  version: chunk.version,
 	                });
+	                persistedDiagramId = chunk.diagramId || persistedDiagramId;
 	                if (!diagramTitlePersisted) {
 	                  diagramTitlePersisted = true;
 	                  persistDiagramTitle(chunk.diagramId || diagramId, diagramTitle);
@@ -1852,6 +1892,7 @@ export default function Home() {
               } else if (!appendCompletionMessage() && !appendEmptyResponseMessage()) {
                 setMessages(prev => prev.map(m => m.id === agentMsgId ? { ...m, steps: [...accumulatedSteps] } : m));
               }
+              persistCurrentTurnConversation();
               setStreamPhase(receivedVersionConflict ? 'error' : 'done');
               break;
             }
@@ -1890,6 +1931,7 @@ export default function Home() {
                   return m;
               }));
           }
+          persistCurrentTurnConversation();
         }
       );
 

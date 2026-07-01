@@ -43,6 +43,20 @@ export interface UpdateDiagramTitleRequestDTO {
   title: string;
 }
 
+export interface DiagramConversationMessageDTO {
+  clientMessageId: string;
+  sessionId?: string;
+  role: 'user' | 'agent';
+  content: string;
+  createdAt?: string;
+}
+
+export interface SaveDiagramMessagesRequestDTO {
+  userId: string;
+  sessionId?: string;
+  messages: DiagramConversationMessageDTO[];
+}
+
 export interface ChatRequestDTO {
   agentId: string;
   userId: string;

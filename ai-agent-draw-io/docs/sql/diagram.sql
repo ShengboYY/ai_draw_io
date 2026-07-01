@@ -42,3 +42,19 @@ CREATE TABLE IF NOT EXISTS diagram_canvas_state (
         FOREIGN KEY (diagram_id) REFERENCES diagram (id)
         ON DELETE CASCADE
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = 'Latest Draw.io canvas state';
+
+CREATE TABLE IF NOT EXISTS diagram_conversation_message (
+    id                BIGINT       NOT NULL AUTO_INCREMENT COMMENT 'Message row id',
+    diagram_id        VARCHAR(64)  NOT NULL COMMENT 'Diagram id',
+    user_id           VARCHAR(64)  NOT NULL COMMENT 'Owner user id',
+    session_id        VARCHAR(128)          DEFAULT NULL COMMENT 'Backend or local session id',
+    client_message_id VARCHAR(128) NOT NULL COMMENT 'Frontend stable message id for idempotent saves',
+    role              VARCHAR(32)  NOT NULL COMMENT 'user or agent',
+    content           LONGTEXT     NOT NULL COMMENT 'Conversation message content',
+    created_at        DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Create time',
+    updated_at        DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT 'Update time',
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_diagram_user_client_message (diagram_id, user_id, client_message_id),
+    KEY idx_diagram_user_created (diagram_id, user_id, created_at),
+    KEY idx_user_updated (user_id, updated_at)
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = 'Diagram conversation messages';

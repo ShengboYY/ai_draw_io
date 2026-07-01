@@ -5,7 +5,9 @@ import org.zipp.ai.api.dto.*;
 import org.zipp.ai.api.response.Response;
 import org.zipp.ai.domain.agent.model.valobj.AiAgentConfigTableVO;
 import org.zipp.ai.domain.agent.model.valobj.canvas.CanvasState;
+import org.zipp.ai.domain.agent.model.valobj.conversation.DiagramConversationMessage;
 import org.zipp.ai.domain.agent.service.ICanvasStateStore;
+import org.zipp.ai.domain.agent.service.IDiagramConversationStore;
 import org.zipp.ai.domain.agent.service.IChatService;
 import org.zipp.ai.trigger.http.service.AgentConversationService;
 import org.zipp.ai.types.enums.ResponseCode;
@@ -32,6 +34,9 @@ public class AgentServiceController implements IAgentService {
 
     @Resource
     private ICanvasStateStore canvasStateStore;
+
+    @Resource
+    private IDiagramConversationStore diagramConversationStore;
 
     @RequestMapping(value = "query_ai_agent_config_list", method = RequestMethod.GET)
     @Override
@@ -193,6 +198,56 @@ public class AgentServiceController implements IAgentService {
         }
     }
 
+    @RequestMapping(value = "diagrams/{diagramId}/messages", method = RequestMethod.GET)
+    @Override
+    public Response<List<DiagramConversationMessageDTO>> listDiagramMessages(@RequestParam("userId") String userId,
+                                                                             @PathVariable("diagramId") String diagramId) {
+        try {
+            List<DiagramConversationMessageDTO> messages = diagramConversationStore.listMessages(userId, diagramId).stream()
+                    .map(this::toDiagramConversationMessageDTO)
+                    .collect(Collectors.toList());
+            return Response.<List<DiagramConversationMessageDTO>>builder()
+                    .code(ResponseCode.SUCCESS.getCode())
+                    .info(ResponseCode.SUCCESS.getInfo())
+                    .data(messages)
+                    .build();
+        } catch (Exception e) {
+            log.error("查询图会话消息失败 userId:{} diagramId:{}", userId, diagramId, e);
+            return Response.<List<DiagramConversationMessageDTO>>builder()
+                    .code(ResponseCode.UN_ERROR.getCode())
+                    .info(ResponseCode.UN_ERROR.getInfo())
+                    .build();
+        }
+    }
+
+    @RequestMapping(value = "diagrams/{diagramId}/messages", method = RequestMethod.POST)
+    @Override
+    public Response<Boolean> saveDiagramMessages(@PathVariable("diagramId") String diagramId,
+                                                 @RequestBody SaveDiagramMessagesRequestDTO requestDTO) {
+        String userId = requestDTO == null ? null : requestDTO.getUserId();
+        try {
+            List<DiagramConversationMessageDTO> requestMessages = requestDTO == null || requestDTO.getMessages() == null
+                    ? List.of()
+                    : requestDTO.getMessages();
+            List<DiagramConversationMessage> messages = requestMessages.stream()
+                    .filter(message -> message != null)
+                    .map(message -> toDiagramConversationMessage(requestDTO, diagramId, message))
+                    .collect(Collectors.toList());
+            diagramConversationStore.saveMessages(messages);
+            return Response.<Boolean>builder()
+                    .code(ResponseCode.SUCCESS.getCode())
+                    .info(ResponseCode.SUCCESS.getInfo())
+                    .data(true)
+                    .build();
+        } catch (Exception e) {
+            log.error("保存图会话消息失败 userId:{} diagramId:{}", userId, diagramId, e);
+            return Response.<Boolean>builder()
+                    .code(ResponseCode.UN_ERROR.getCode())
+                    .info(ResponseCode.UN_ERROR.getInfo())
+                    .build();
+        }
+    }
+
     @RequestMapping(value = "chat", method = RequestMethod.POST)
     @Override
     public Response<ChatResponseDTO> chat(@RequestBody ChatRequestDTO requestDTO) {
@@ -260,6 +315,31 @@ public class AgentServiceController implements IAgentService {
         dto.setVersion(state.getVersion());
         dto.setUpdatedAt(state.getUpdatedAt());
         return dto;
+    }
+
+    private DiagramConversationMessageDTO toDiagramConversationMessageDTO(DiagramConversationMessage message) {
+        DiagramConversationMessageDTO dto = new DiagramConversationMessageDTO();
+        dto.setClientMessageId(message.getClientMessageId());
+        dto.setSessionId(message.getSessionId());
+        dto.setRole(message.getRole());
+        dto.setContent(message.getContent());
+        dto.setCreatedAt(message.getCreatedAt());
+        return dto;
+    }
+
+    private DiagramConversationMessage toDiagramConversationMessage(SaveDiagramMessagesRequestDTO requestDTO,
+                                                                    String diagramId,
+                                                                    DiagramConversationMessageDTO message) {
+        String userId = requestDTO == null ? null : requestDTO.getUserId();
+        String sessionId = requestDTO == null ? null : requestDTO.getSessionId();
+        return DiagramConversationMessage.builder()
+                .userId(userId)
+                .diagramId(diagramId)
+                .sessionId(message.getSessionId() == null ? sessionId : message.getSessionId())
+                .clientMessageId(message.getClientMessageId())
+                .role(message.getRole())
+                .content(message.getContent())
+                .build();
     }
 
 }

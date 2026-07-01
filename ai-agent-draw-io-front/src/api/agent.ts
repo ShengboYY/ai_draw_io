@@ -7,6 +7,8 @@ import {
     ChatResponseDTO,
     DiagramCanvasStateResponseDTO,
     DiagramSummaryResponseDTO,
+    DiagramConversationMessageDTO,
+    SaveDiagramMessagesRequestDTO,
     UpdateDiagramTitleRequestDTO,
 } from '@/types/api';
 
@@ -194,6 +196,33 @@ export const agentApi = {
             headers: {
                 'Content-Type': 'application/json',
             },
+        });
+        return handleResponse<boolean>(response);
+    },
+
+    listDiagramMessages: async (userId: string, diagramId: string): Promise<Response<DiagramConversationMessageDTO[]>> => {
+        const response = await fetch(`${API_CONFIG.BASE_URL}/diagrams/${encodeURIComponent(diagramId)}/messages?userId=${encodeURIComponent(userId)}`, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+        });
+        return handleResponse<DiagramConversationMessageDTO[]>(response);
+    },
+
+    saveDiagramMessages: async (
+        userId: string,
+        diagramId: string,
+        sessionId: string | undefined,
+        messages: DiagramConversationMessageDTO[]
+    ): Promise<Response<boolean>> => {
+        const body: SaveDiagramMessagesRequestDTO = { userId, sessionId, messages };
+        const response = await fetch(`${API_CONFIG.BASE_URL}/diagrams/${encodeURIComponent(diagramId)}/messages`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(body),
         });
         return handleResponse<boolean>(response);
     },
