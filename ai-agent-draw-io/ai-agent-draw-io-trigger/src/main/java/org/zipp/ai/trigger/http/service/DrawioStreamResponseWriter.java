@@ -4,9 +4,12 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseBodyEmitter;
+import org.zipp.ai.domain.agent.model.valobj.canvas.CanvasState;
+import org.zipp.ai.domain.agent.service.ICanvasStateStore;
 import org.zipp.ai.domain.agent.service.armory.matter.mcp.server.DrawioCanvasToolNames;
 import org.zipp.ai.domain.agent.service.armory.matter.mcp.server.DrawioCanvasXmlToolkit;
 
+import javax.annotation.Resource;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -17,12 +20,15 @@ public class DrawioStreamResponseWriter {
 
     private final DrawioToolCallRenderer toolCallRenderer;
     private final DrawioCanvasXmlToolkit xmlToolkit = new DrawioCanvasXmlToolkit();
+    @Resource
+    private ICanvasStateStore canvasStateStore;
     private final ConcurrentMap<String, StringBuilder> fallbackContinuationBuffers = new ConcurrentHashMap<>();
     // Invalid diagrams are held here so the review loop can repair them before final canvas emission.
     private final ConcurrentMap<ResponseBodyEmitter, PendingDiagram> pendingDiagrams = new ConcurrentHashMap<>();
     // Current canvas per in-flight stream, so a localized patch (only the changed cell fragment) can be
     // merged server-side without the model re-sending the whole diagram.
     private final ConcurrentMap<ResponseBodyEmitter, String> currentCanvasByEmitter = new ConcurrentHashMap<>();
+    private final ConcurrentMap<ResponseBodyEmitter, CanvasStateContext> canvasStateContextByEmitter = new ConcurrentHashMap<>();
     // Last localized merge emitted per stream; multiple author buffers can carry the same patch, so skip
     // re-rendering an identical result.
     private final ConcurrentMap<ResponseBodyEmitter, String> lastPatchByEmitter = new ConcurrentHashMap<>();
@@ -271,12 +277,20 @@ public class DrawioStreamResponseWriter {
         pendingDiagrams.remove(emitter);
         currentCanvasByEmitter.remove(emitter);
         lastPatchByEmitter.remove(emitter);
+        canvasStateContextByEmitter.remove(emitter);
     }
 
     public void setCurrentCanvas(ResponseBodyEmitter emitter, String canvasXml) {
         if (StringUtils.isNotBlank(canvasXml)) {
             currentCanvasByEmitter.put(emitter, canvasXml);
         }
+    }
+
+    public void setCanvasStateContext(ResponseBodyEmitter emitter, String userId, String diagramId, Long expectedVersion) {
+        if (emitter == null || StringUtils.isBlank(userId) || StringUtils.isBlank(diagramId)) {
+            return;
+        }
+        canvasStateContextByEmitter.put(emitter, new CanvasStateContext(userId, diagramId, expectedVersion));
     }
 
     private void sendDrawioDone(ResponseBodyEmitter emitter, String phase, String xml, boolean includeValidation, String mode) throws Exception {
@@ -302,6 +316,7 @@ public class DrawioStreamResponseWriter {
     private void sendDrawioDoneUnchecked(ResponseBodyEmitter emitter, String phase, String xml, String mode) throws Exception {
         if (StringUtils.isNotBlank(xml)) {
             currentCanvasByEmitter.put(emitter, xml);
+            persistCanvasState(emitter, xml);
         }
         com.alibaba.fastjson.JSONObject wrapper = new com.alibaba.fastjson.JSONObject();
         wrapper.put("phase", phase);
@@ -312,6 +327,24 @@ public class DrawioStreamResponseWriter {
         chunk.put("mode", StringUtils.isNotBlank(mode) ? mode : "full");
         wrapper.put("chunk", chunk);
         emitter.send(wrapper.toJSONString() + "\n");
+    }
+
+    private void persistCanvasState(ResponseBodyEmitter emitter, String xml) {
+        CanvasStateContext context = canvasStateContextByEmitter.get(emitter);
+        if (canvasStateStore == null || context == null || StringUtils.isBlank(xml)) {
+            return;
+        }
+        try {
+            canvasStateStore.save(CanvasState.builder()
+                    .userId(context.userId())
+                    .diagramId(context.diagramId())
+                    .currentXml(xml)
+                    .version(context.expectedVersion())
+                    .build());
+        } catch (Exception e) {
+            log.warn("Failed to persist canvas state. userId:{} diagramId:{}",
+                    logValue(context.userId()), logValue(context.diagramId()), e);
+        }
     }
 
     public void sendDone(ResponseBodyEmitter emitter) throws Exception {
@@ -696,6 +729,14 @@ public class DrawioStreamResponseWriter {
                 || error.getCause() instanceof java.io.IOException;
     }
 
+    private String logValue(String value) {
+        if (value == null) {
+            return "";
+        }
+        String compact = value.replaceAll("[\\r\\n\\t]+", " ").trim();
+        return compact.length() <= 160 ? compact : compact.substring(0, 160) + "...";
+    }
+
     private static class PendingDiagram {
         private final String xml;
         private final String severity;
@@ -706,6 +747,9 @@ public class DrawioStreamResponseWriter {
             this.severity = severity;
             this.content = content;
         }
+    }
+
+    private record CanvasStateContext(String userId, String diagramId, Long expectedVersion) {
     }
 
 }

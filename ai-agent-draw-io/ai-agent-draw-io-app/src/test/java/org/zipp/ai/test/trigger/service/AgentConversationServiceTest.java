@@ -6,13 +6,16 @@ import ch.qos.logback.core.read.ListAppender;
 import org.junit.Test;
 import org.slf4j.LoggerFactory;
 import org.zipp.ai.api.dto.ChatRequestDTO;
+import org.zipp.ai.domain.agent.model.valobj.canvas.CanvasState;
 import org.zipp.ai.domain.agent.model.valobj.intent.IntentRoutingResult;
+import org.zipp.ai.domain.agent.service.ICanvasStateStore;
 import org.zipp.ai.domain.agent.service.canvas.DefaultDrawioCanvasSnapshotService;
 import org.zipp.ai.trigger.http.service.AgentConversationService;
 import org.zipp.ai.trigger.http.service.DrawioPromptContextBuilder;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.util.Optional;
 
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertEquals;
@@ -130,6 +133,49 @@ public class AgentConversationServiceTest {
         assertTrue(drawingContext.contains("[User Request]\n把 API 改成 Gateway"));
     }
 
+    @Test
+    public void shouldPreferStoredCanvasStateWhenDiagramIdIsPresent() throws Exception {
+        AgentConversationService service = new AgentConversationService();
+        injectPromptContextBuilder(service);
+        injectCanvasStateStore(service, new FixedCanvasStateStore(storedCanvasXml()));
+
+        IntentRoutingResult routingResult = IntentRoutingResult.fallbackDrawAction("test");
+        routingResult.setDrawMode("edit_existing");
+        routingResult.setTaskType("edit_existing");
+
+        ChatRequestDTO requestDTO = new ChatRequestDTO();
+        requestDTO.setUserId("alice");
+        requestDTO.setDiagramId("diagram-1");
+        requestDTO.setMessage("把 API 改成 Gateway");
+        requestDTO.setCanvasXml(requestCanvasXml());
+
+        String routedMessage = buildRoutedMessage(service, requestDTO, routingResult, 1);
+
+        assertTrue(routedMessage.contains("value=\"Stored API\""));
+        assertFalse(routedMessage.contains("value=\"Request API\""));
+    }
+
+    @Test
+    public void shouldFallbackToRequestCanvasXmlWhenStoredCanvasStateIsMissing() throws Exception {
+        AgentConversationService service = new AgentConversationService();
+        injectPromptContextBuilder(service);
+        injectCanvasStateStore(service, new FixedCanvasStateStore(""));
+
+        IntentRoutingResult routingResult = IntentRoutingResult.fallbackDrawAction("test");
+        routingResult.setDrawMode("edit_existing");
+        routingResult.setTaskType("edit_existing");
+
+        ChatRequestDTO requestDTO = new ChatRequestDTO();
+        requestDTO.setUserId("alice");
+        requestDTO.setDiagramId("missing-diagram");
+        requestDTO.setMessage("把 API 改成 Gateway");
+        requestDTO.setCanvasXml(requestCanvasXml());
+
+        String routedMessage = buildRoutedMessage(service, requestDTO, routingResult, 1);
+
+        assertTrue(routedMessage.contains("value=\"Request API\""));
+    }
+
     private int normalizeMaxReviewIterations(AgentConversationService service, Integer value) throws Exception {
         // Exercise the private normalization boundary without widening production API surface.
         Method method = AgentConversationService.class.getDeclaredMethod("normalizeMaxReviewIterations", Integer.class);
@@ -171,6 +217,53 @@ public class AgentConversationServiceTest {
         Field field = AgentConversationService.class.getDeclaredField("promptContextBuilder");
         field.setAccessible(true);
         field.set(service, new DrawioPromptContextBuilder(new DefaultDrawioCanvasSnapshotService()));
+    }
+
+    private void injectCanvasStateStore(AgentConversationService service, ICanvasStateStore canvasStateStore) throws Exception {
+        Field field = AgentConversationService.class.getDeclaredField("canvasStateStore");
+        field.setAccessible(true);
+        field.set(service, canvasStateStore);
+    }
+
+    private String storedCanvasXml() {
+        return "<mxGraphModel><root><mxCell id=\"0\"/><mxCell id=\"1\" parent=\"0\"/>"
+                + "<mxCell id=\"stored\" value=\"Stored API\" vertex=\"1\" parent=\"1\">"
+                + "<mxGeometry x=\"120\" y=\"80\" width=\"100\" height=\"40\" as=\"geometry\"/>"
+                + "</mxCell></root></mxGraphModel>";
+    }
+
+    private String requestCanvasXml() {
+        return "<mxGraphModel><root><mxCell id=\"0\"/><mxCell id=\"1\" parent=\"0\"/>"
+                + "<mxCell id=\"request\" value=\"Request API\" vertex=\"1\" parent=\"1\">"
+                + "<mxGeometry x=\"120\" y=\"80\" width=\"100\" height=\"40\" as=\"geometry\"/>"
+                + "</mxCell></root></mxGraphModel>";
+    }
+
+    private static class FixedCanvasStateStore implements ICanvasStateStore {
+
+        private final String xml;
+
+        private FixedCanvasStateStore(String xml) {
+            this.xml = xml;
+        }
+
+        @Override
+        public Optional<CanvasState> find(String userId, String diagramId) {
+            if (null == xml || xml.isBlank()) {
+                return Optional.empty();
+            }
+            return Optional.of(CanvasState.builder()
+                    .userId(userId)
+                    .diagramId(diagramId)
+                    .currentXml(xml)
+                    .version(3L)
+                    .build());
+        }
+
+        @Override
+        public CanvasState save(CanvasState state) {
+            return state;
+        }
     }
 
 }

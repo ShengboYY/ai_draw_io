@@ -8,6 +8,8 @@ public class ChatRequestDTO {
     private String agentId;
     private String userId;
     private String sessionId;
+    private String diagramId;
+    private Long expectedVersion;
     private String message;
     private String canvasXml;
     private String canvasSummary;

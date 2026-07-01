@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.zipp.ai.infrastructure.dao.ICanvasStateMapper">
+
+    <resultMap id="canvasStateMap" type="org.zipp.ai.infrastructure.dao.po.CanvasStatePO">
+        <id column="diagram_id" property="diagramId"/>
+        <result column="user_id" property="userId"/>
+        <result column="diagram_type" property="diagramType"/>
+        <result column="current_xml" property="currentXml"/>
+        <result column="summary" property="summary"/>
+        <result column="analysis_json" property="analysisJson"/>
+        <result column="version" property="version"/>
+        <result column="created_at" property="createdAt"/>
+        <result column="updated_at" property="updatedAt"/>
+    </resultMap>
+
+    <sql id="cols">
+        c.diagram_id,
+        c.user_id,
+        d.diagram_type,
+        c.current_xml,
+        c.summary,
+        c.analysis_json,
+        c.version,
+        c.created_at,
+        c.updated_at
+    </sql>
+
+    <select id="selectByUserAndDiagram" resultMap="canvasStateMap">
+        SELECT <include refid="cols"/>
+        FROM diagram_canvas_state c
+        INNER JOIN diagram d
+            ON d.id = c.diagram_id
+            AND d.user_id = c.user_id
+        WHERE c.user_id = #{userId}
+          AND c.diagram_id = #{diagramId}
+          AND d.deleted = 0
+    </select>
+
+    <insert id="upsertDiagram" parameterType="org.zipp.ai.infrastructure.dao.po.CanvasStatePO">
+        INSERT INTO diagram (id, user_id, diagram_type, current_version)
+        VALUES (#{diagramId}, #{userId}, COALESCE(#{diagramType}, 'basic'), COALESCE(#{version}, 0) + 1)
+        ON DUPLICATE KEY UPDATE
+            diagram_type = COALESCE(VALUES(diagram_type), diagram_type),
+            current_version = current_version + 1,
+            updated_at = CURRENT_TIMESTAMP
+    </insert>
+
+    <insert id="upsertCanvasState" parameterType="org.zipp.ai.infrastructure.dao.po.CanvasStatePO">
+        INSERT INTO diagram_canvas_state (diagram_id, user_id, current_xml, summary, analysis_json, version)
+        VALUES (#{diagramId}, #{userId}, #{currentXml}, #{summary}, #{analysisJson}, COALESCE(#{version}, 0) + 1)
+        ON DUPLICATE KEY UPDATE
+            current_xml = VALUES(current_xml),
+            summary = VALUES(summary),
+            analysis_json = VALUES(analysis_json),
+            version = version + 1,
+            updated_at = CURRENT_TIMESTAMP
+    </insert>
+
+</mapper>

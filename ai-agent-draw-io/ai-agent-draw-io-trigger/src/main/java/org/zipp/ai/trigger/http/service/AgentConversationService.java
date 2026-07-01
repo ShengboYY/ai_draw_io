@@ -2,11 +2,13 @@ package org.zipp.ai.trigger.http.service;
 
 import org.zipp.ai.api.dto.ChatRequestDTO;
 import org.zipp.ai.api.dto.ChatResponseDTO;
+import org.zipp.ai.domain.agent.model.valobj.canvas.CanvasState;
 import org.zipp.ai.domain.agent.model.valobj.intent.IntentRoutingCommand;
 import org.zipp.ai.domain.agent.model.valobj.intent.IntentRoutingResult;
 import org.zipp.ai.domain.agent.model.valobj.review.CanvasReviewCommand;
 import org.zipp.ai.domain.agent.model.valobj.review.CanvasReviewContext;
 import org.zipp.ai.domain.agent.service.ICanvasReviewService;
+import org.zipp.ai.domain.agent.service.ICanvasStateStore;
 import org.zipp.ai.domain.agent.service.IChatService;
 import org.zipp.ai.domain.agent.service.IIntentRoutingService;
 import org.zipp.ai.domain.agent.service.armory.matter.mcp.server.DrawioCanvasToolNames;
@@ -20,6 +22,7 @@ import org.springframework.web.servlet.mvc.method.annotation.ResponseBodyEmitter
 
 import javax.annotation.Resource;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -42,6 +45,9 @@ public class AgentConversationService {
     private ICanvasReviewService canvasReviewService;
 
     @Resource
+    private ICanvasStateStore canvasStateStore;
+
+    @Resource
     private DrawioPromptContextBuilder promptContextBuilder;
 
     @Resource
@@ -55,6 +61,7 @@ public class AgentConversationService {
         CustomApiConfigManager.CustomApiConfig config = buildCustomApiConfig(requestDTO);
         CustomApiConfigManager.setConfig(sessionId, config);
 
+        requestDTO = requestWithStoredCanvas(requestDTO);
         IntentRoutingResult routingResult = routeIntent(requestDTO, config);
         if (routingResult.isDirectReply()) {
             ChatResponseDTO responseDTO = new ChatResponseDTO();
@@ -78,6 +85,7 @@ public class AgentConversationService {
             CustomApiConfigManager.CustomApiConfig config = buildCustomApiConfig(requestDTO);
             CustomApiConfigManager.setConfig(finalSessionId, config);
 
+            requestDTO = requestWithStoredCanvas(requestDTO);
             IntentRoutingResult routingResult = routeIntent(requestDTO, config);
             if (routingResult.isDirectReply()) {
                 streamResponseWriter.sendDirectReply(emitter, resolveDirectAnswer(requestDTO, config, routingResult));
@@ -97,6 +105,7 @@ public class AgentConversationService {
             // without the model re-emitting the whole diagram.
             final String currentCanvasXml = contextBuilder().resolveCanvasXml(requestDTO);
             streamResponseWriter.setCurrentCanvas(emitter, currentCanvasXml);
+            streamResponseWriter.setCanvasStateContext(emitter, requestDTO.getUserId(), requestDTO.getDiagramId(), requestDTO.getExpectedVersion());
 
             Disposable disposable = chatService.handleMessageStream(requestDTO.getAgentId(), requestDTO.getUserId(), finalSessionId, routedMessage)
                     .subscribe(
@@ -195,6 +204,28 @@ public class AgentConversationService {
         return chatService.ensureSession(requestDTO.getAgentId(), requestDTO.getUserId(), requestDTO.getSessionId());
     }
 
+    private ChatRequestDTO requestWithStoredCanvas(ChatRequestDTO requestDTO) {
+        if (requestDTO == null || canvasStateStore == null || StringUtils.isBlank(requestDTO.getDiagramId())) {
+            return requestDTO;
+        }
+        try {
+            Optional<CanvasState> stored = canvasStateStore.find(requestDTO.getUserId(), requestDTO.getDiagramId());
+            stored.ifPresent(state -> {
+                if (StringUtils.isNotBlank(state.getCurrentXml())) {
+                    requestDTO.setCanvasXml(state.getCurrentXml());
+                }
+                if (requestDTO.getExpectedVersion() == null) {
+                    requestDTO.setExpectedVersion(state.getVersion());
+                }
+            });
+        } catch (Exception e) {
+            // Keep the existing canvasXml path as a compatibility fallback if persistence is unavailable.
+            log.warn("Failed to load stored canvas. userId:{} diagramId:{}",
+                    logValue(requestDTO.getUserId()), logValue(requestDTO.getDiagramId()), e);
+        }
+        return requestDTO;
+    }
+
     private ChatResponseDTO parseChatResponse(List<String> messages) {
         ChatResponseDTO responseDTO = new ChatResponseDTO();
         try {
@@ -246,6 +277,7 @@ public class AgentConversationService {
     }
 
     private IntentRoutingResult routeIntent(ChatRequestDTO requestDTO, CustomApiConfigManager.CustomApiConfig config) {
+        requestDTO = requestWithStoredCanvas(requestDTO);
         DrawioPromptContextBuilder contextBuilder = contextBuilder();
         String canvasXml = contextBuilder.resolveCanvasXml(requestDTO);
         return intentRoutingService.route(IntentRoutingCommand.builder()
@@ -276,6 +308,7 @@ public class AgentConversationService {
     private CanvasReviewCommand buildCanvasReviewCommand(ChatRequestDTO requestDTO,
                                                          CustomApiConfigManager.CustomApiConfig config,
                                                          IntentRoutingResult routingResult) {
+        requestDTO = requestWithStoredCanvas(requestDTO);
         return CanvasReviewCommand.builder()
                 .userId(requestDTO.getUserId())
                 .message(contextBuilder().buildReviewContextMessage(requestDTO, routingResult))
@@ -309,6 +342,7 @@ public class AgentConversationService {
                                       int maxReviewIterations,
                                       String ownerId,
                                       List<String> userSkills) {
+        requestDTO = requestWithStoredCanvas(requestDTO);
         com.alibaba.fastjson.JSONObject routingJson = new com.alibaba.fastjson.JSONObject();
         routingJson.put("intent", routingResult.getIntent());
         routingJson.put("drawMode", routingResult.getDrawMode());
@@ -362,10 +396,12 @@ public class AgentConversationService {
     }
 
     private String buildIntentMessage(ChatRequestDTO requestDTO) {
+        requestDTO = requestWithStoredCanvas(requestDTO);
         return contextBuilder().buildIntentMessage(requestDTO);
     }
 
     private String buildDrawingContextMessage(ChatRequestDTO requestDTO) {
+        requestDTO = requestWithStoredCanvas(requestDTO);
         return contextBuilder().buildDrawingContextMessage(requestDTO, null);
     }
 
