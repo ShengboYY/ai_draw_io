@@ -4,6 +4,7 @@ import { DrawIoEmbed, DrawIoEmbedRef } from 'react-drawio';
 import { useRef, useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { getUserInfo } from '@/utils/cookie';
+import { getWorkspaceIdentity } from '@/utils/workspace-identity';
 import { agentApi, StreamEvent } from '@/api/agent';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -963,14 +964,11 @@ export default function Home() {
     scrollToBottom();
   }, [messages, isChatOpen]);
 
-  // Check Login & Load Agents
+  // Resolve workspace owner and load agents.
   useEffect(() => {
     const userInfo = getUserInfo();
-    if (!userInfo || !userInfo.user) {
-      router.push('/login');
-      return;
-    }
-    setCurrentUser(userInfo.user);
+    const identity = getWorkspaceIdentity(userInfo?.user);
+    setCurrentUser(identity.ownerId);
 
     // Load Custom Models
     const savedModels = localStorage.getItem('ai_agent_custom_models');
