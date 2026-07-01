@@ -22,6 +22,7 @@ import {
 } from './canvas-state-metadata';
 import { buildCanvasStateConflictMessage } from './canvas-state-conflict';
 import { buildRestoredDiagramState } from './diagram-restore';
+import { buildDiagramTitleFromPrompt } from './diagram-title';
 import {
   AgentRunEvent,
   AgentRunEventStatus,
@@ -621,6 +622,25 @@ export default function Home() {
     });
   };
 
+  const persistDiagramTitle = async (diagramId?: string, title?: string) => {
+    if (!currentUser || !diagramId) return;
+
+    const normalizedTitle = buildDiagramTitleFromPrompt(title);
+    try {
+      const res = await agentApi.renameDiagram(currentUser, diagramId, normalizedTitle);
+      const savedTitle = res.data?.title || normalizedTitle;
+      setSessions(prev => {
+        const nextSessions = prev.map(session => (
+          session.diagramId === diagramId ? { ...session, title: savedTitle, lastModified: Date.now() } : session
+        ));
+        persistSessions(nextSessions);
+        return nextSessions;
+      });
+    } catch (e) {
+      console.warn('Failed to sync diagram title:', e);
+    }
+  };
+
   const clearStreamingPreviewQueue = () => {
     streamingPreviewQueueRef.current = [];
     pendingFinalDrawioXmlRef.current = '';
@@ -978,9 +998,13 @@ export default function Home() {
   const handleRenameSave = () => {
     const title = newSessionTitle.trim();
     if (renamingSessionId && title) {
+      const renamedSession = sessions.find(s => s.id === renamingSessionId);
       setSessions(prev => prev.map(s => 
         s.id === renamingSessionId ? { ...s, title } : s
       ));
+      if (renamedSession?.diagramId) {
+        persistDiagramTitle(renamedSession.diagramId, title);
+      }
       handleRenameCancel();
     }
   };
@@ -1400,6 +1424,10 @@ export default function Home() {
       const activeModelConfig = customModels.find(m => m.id === selectedCustomModelId && m.enabled);
       const activeSession = sessions.find(session => session.id === currentSessionId);
       const diagramId = activeSession?.diagramId || (currentSessionId ? makeLocalDiagramId(currentSessionId) : undefined);
+      const diagramTitle = activeSession?.title && activeSession.title !== 'New Chat'
+        ? activeSession.title
+        : buildDiagramTitleFromPrompt(displayContent);
+      let diagramTitlePersisted = false;
 
       const requestPayload = buildDrawioChatRequestPayload({
           agentId: selectedAgentId,
@@ -1599,6 +1627,10 @@ export default function Home() {
 	                  diagramId: chunk.diagramId,
 	                  version: chunk.version,
 	                });
+	                if (!diagramTitlePersisted) {
+	                  diagramTitlePersisted = true;
+	                  persistDiagramTitle(chunk.diagramId || diagramId, diagramTitle);
+	                }
 	              }
               
               break;

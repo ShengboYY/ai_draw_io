@@ -19,6 +19,10 @@ public interface IAgentService {
 
     Response<DiagramCanvasStateResponseDTO> getDiagram(String userId, String diagramId);
 
+    Response<DiagramSummaryResponseDTO> renameDiagram(String diagramId, UpdateDiagramTitleRequestDTO requestDTO);
+
+    Response<Boolean> deleteDiagram(String userId, String diagramId);
+
     Response<ChatResponseDTO> chat(ChatRequestDTO requestDTO);
 
     ResponseBodyEmitter chatStream(ChatRequestDTO requestDTO);

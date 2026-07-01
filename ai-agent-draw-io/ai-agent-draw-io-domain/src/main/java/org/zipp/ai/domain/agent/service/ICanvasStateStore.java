@@ -14,6 +14,14 @@ public interface ICanvasStateStore {
         return Collections.emptyList();
     }
 
+    default Optional<CanvasState> rename(String userId, String diagramId, String title) {
+        return Optional.empty();
+    }
+
+    default boolean softDelete(String userId, String diagramId) {
+        return false;
+    }
+
     CanvasState save(CanvasState state);
 
 }

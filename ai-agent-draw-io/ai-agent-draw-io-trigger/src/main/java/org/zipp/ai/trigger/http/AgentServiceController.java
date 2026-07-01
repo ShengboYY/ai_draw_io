@@ -151,6 +151,48 @@ public class AgentServiceController implements IAgentService {
         }
     }
 
+    @RequestMapping(value = "diagrams/{diagramId}/title", method = RequestMethod.PATCH)
+    @Override
+    public Response<DiagramSummaryResponseDTO> renameDiagram(@PathVariable("diagramId") String diagramId,
+                                                             @RequestBody UpdateDiagramTitleRequestDTO requestDTO) {
+        try {
+            DiagramSummaryResponseDTO diagram = canvasStateStore.rename(requestDTO.getUserId(), diagramId, requestDTO.getTitle())
+                    .map(this::toDiagramSummary)
+                    .orElse(null);
+            return Response.<DiagramSummaryResponseDTO>builder()
+                    .code(ResponseCode.SUCCESS.getCode())
+                    .info(ResponseCode.SUCCESS.getInfo())
+                    .data(diagram)
+                    .build();
+        } catch (Exception e) {
+            log.error("重命名图失败 userId:{} diagramId:{}", requestDTO.getUserId(), diagramId, e);
+            return Response.<DiagramSummaryResponseDTO>builder()
+                    .code(ResponseCode.UN_ERROR.getCode())
+                    .info(ResponseCode.UN_ERROR.getInfo())
+                    .build();
+        }
+    }
+
+    @RequestMapping(value = "diagrams/{diagramId}", method = RequestMethod.DELETE)
+    @Override
+    public Response<Boolean> deleteDiagram(@RequestParam("userId") String userId,
+                                           @PathVariable("diagramId") String diagramId) {
+        try {
+            boolean deleted = canvasStateStore.softDelete(userId, diagramId);
+            return Response.<Boolean>builder()
+                    .code(ResponseCode.SUCCESS.getCode())
+                    .info(ResponseCode.SUCCESS.getInfo())
+                    .data(deleted)
+                    .build();
+        } catch (Exception e) {
+            log.error("删除图失败 userId:{} diagramId:{}", userId, diagramId, e);
+            return Response.<Boolean>builder()
+                    .code(ResponseCode.UN_ERROR.getCode())
+                    .info(ResponseCode.UN_ERROR.getInfo())
+                    .build();
+        }
+    }
+
     @RequestMapping(value = "chat", method = RequestMethod.POST)
     @Override
     public Response<ChatResponseDTO> chat(@RequestBody ChatRequestDTO requestDTO) {

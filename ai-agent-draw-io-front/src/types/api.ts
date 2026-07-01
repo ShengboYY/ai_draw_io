@@ -38,6 +38,11 @@ export interface DiagramCanvasStateResponseDTO {
   updatedAt?: string;
 }
 
+export interface UpdateDiagramTitleRequestDTO {
+  userId: string;
+  title: string;
+}
+
 export interface ChatRequestDTO {
   agentId: string;
   userId: string;

@@ -25,7 +25,7 @@
         c.analysis_json,
         c.version,
         c.created_at,
-        c.updated_at
+        GREATEST(c.updated_at, d.updated_at) AS updated_at
     </sql>
 
     <select id="selectByUserAndDiagram" resultMap="canvasStateMap">
@@ -99,6 +99,24 @@
             updated_at = CURRENT_TIMESTAMP
         WHERE id = #{diagramId}
           AND user_id = #{userId}
+    </update>
+
+    <update id="updateDiagramTitle">
+        UPDATE diagram
+        SET title = #{title},
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = #{diagramId}
+          AND user_id = #{userId}
+          AND deleted = 0
+    </update>
+
+    <update id="softDeleteDiagram">
+        UPDATE diagram
+        SET deleted = 1,
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = #{diagramId}
+          AND user_id = #{userId}
+          AND deleted = 0
     </update>
 
 </mapper>

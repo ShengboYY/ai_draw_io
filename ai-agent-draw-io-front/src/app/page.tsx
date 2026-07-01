@@ -47,6 +47,49 @@ export default function Home() {
     router.push('/drawio');
   };
 
+  const renameDiagram = async (diagram: DiagramSummaryResponseDTO) => {
+    const nextTitle = window.prompt('Rename diagram', diagram.title || 'Untitled Diagram');
+    if (nextTitle === null) return;
+
+    const title = nextTitle.trim();
+    if (!title) return;
+
+    setErrorMessage('');
+    try {
+      const res = await agentApi.renameDiagram(ownerId, diagram.diagramId, title);
+      const updated = res.data;
+      setDiagrams(prev => prev.map(item => (
+        item.diagramId === diagram.diagramId
+          ? {
+              ...item,
+              title: updated?.title || title,
+              diagramType: updated?.diagramType || item.diagramType,
+              version: updated?.version || item.version,
+              updatedAt: updated?.updatedAt || item.updatedAt,
+            }
+          : item
+      )));
+    } catch {
+      setErrorMessage('Failed to rename diagram.');
+    }
+  };
+
+  const deleteDiagram = async (diagram: DiagramSummaryResponseDTO) => {
+    if (!window.confirm(`Delete "${diagram.title || 'Untitled Diagram'}"?`)) return;
+
+    setErrorMessage('');
+    try {
+      const res = await agentApi.deleteDiagram(ownerId, diagram.diagramId);
+      if (!res.data) {
+        setErrorMessage('Diagram was not deleted.');
+        return;
+      }
+      setDiagrams(prev => prev.filter(item => item.diagramId !== diagram.diagramId));
+    } catch {
+      setErrorMessage('Failed to delete diagram.');
+    }
+  };
+
   return (
     <main className="min-h-screen bg-slate-50 text-slate-900">
       <div className="mx-auto flex min-h-screen w-full max-w-6xl flex-col px-6 py-8">
@@ -87,11 +130,9 @@ export default function Home() {
           ) : (
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {diagrams.map(diagram => (
-                <button
+                <article
                   key={diagram.diagramId}
-                  type="button"
-                  onClick={() => openDiagram(diagram.diagramId)}
-                  className="min-h-32 rounded-md border border-slate-200 bg-white p-4 text-left transition hover:border-slate-300 hover:shadow-sm"
+                  className="min-h-32 rounded-md border border-slate-200 bg-white p-4 transition hover:border-slate-300 hover:shadow-sm"
                 >
                   <div className="flex items-start justify-between gap-3">
                     <h2 className="line-clamp-2 text-base font-medium tracking-normal text-slate-900">
@@ -100,8 +141,33 @@ export default function Home() {
                     <span className="shrink-0 rounded bg-slate-100 px-2 py-1 text-xs text-slate-500">v{diagram.version || 1}</span>
                   </div>
                   <div className="mt-3 text-xs uppercase tracking-normal text-slate-400">{diagram.diagramType || 'basic'}</div>
-                  <div className="mt-4 text-xs text-slate-500">{formatUpdatedAt(diagram.updatedAt)}</div>
-                </button>
+                  <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
+                    <span className="text-xs text-slate-500">{formatUpdatedAt(diagram.updatedAt)}</span>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => openDiagram(diagram.diagramId)}
+                        className="h-8 rounded-md border border-slate-300 px-3 text-xs font-medium text-slate-700 transition hover:bg-slate-50"
+                      >
+                        Open
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => renameDiagram(diagram)}
+                        className="h-8 rounded-md border border-slate-300 px-3 text-xs font-medium text-slate-700 transition hover:bg-slate-50"
+                      >
+                        Rename
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => deleteDiagram(diagram)}
+                        className="h-8 rounded-md border border-rose-200 px-3 text-xs font-medium text-rose-600 transition hover:bg-rose-50"
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+                </article>
               ))}
             </div>
           )}

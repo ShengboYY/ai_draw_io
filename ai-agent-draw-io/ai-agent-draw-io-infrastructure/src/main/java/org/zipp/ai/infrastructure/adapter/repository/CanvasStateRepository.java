@@ -17,6 +17,9 @@ import java.util.stream.Collectors;
 @Repository
 public class CanvasStateRepository implements ICanvasStateStore {
 
+    private static final String DEFAULT_DIAGRAM_TITLE = "Untitled Diagram";
+    private static final int MAX_DIAGRAM_TITLE_LENGTH = 120;
+
     @Resource
     private ICanvasStateMapper canvasStateMapper;
 
@@ -37,6 +40,26 @@ public class CanvasStateRepository implements ICanvasStateStore {
         return canvasStateMapper.selectDiagramsByUser(userId).stream()
                 .map(this::toDomain)
                 .collect(Collectors.toList());
+    }
+
+    @Override
+    public Optional<CanvasState> rename(String userId, String diagramId, String title) {
+        if (isBlank(userId) || isBlank(diagramId)) {
+            return Optional.empty();
+        }
+        int updated = canvasStateMapper.updateDiagramTitle(userId, diagramId, normalizeTitle(title));
+        if (updated == 0) {
+            return Optional.empty();
+        }
+        return find(userId, diagramId);
+    }
+
+    @Override
+    public boolean softDelete(String userId, String diagramId) {
+        if (isBlank(userId) || isBlank(diagramId)) {
+            return false;
+        }
+        return canvasStateMapper.softDeleteDiagram(userId, diagramId) > 0;
     }
 
     @Override
@@ -90,5 +113,13 @@ public class CanvasStateRepository implements ICanvasStateStore {
 
     private boolean isBlank(String value) {
         return value == null || value.isBlank();
+    }
+
+    private String normalizeTitle(String title) {
+        String normalized = isBlank(title) ? DEFAULT_DIAGRAM_TITLE : title.trim();
+        if (normalized.length() <= MAX_DIAGRAM_TITLE_LENGTH) {
+            return normalized;
+        }
+        return normalized.substring(0, MAX_DIAGRAM_TITLE_LENGTH);
     }
 }

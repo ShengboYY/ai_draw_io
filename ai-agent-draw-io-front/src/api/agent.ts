@@ -7,6 +7,7 @@ import {
     ChatResponseDTO,
     DiagramCanvasStateResponseDTO,
     DiagramSummaryResponseDTO,
+    UpdateDiagramTitleRequestDTO,
 } from '@/types/api';
 
 const handleResponse = async <T>(response: globalThis.Response): Promise<Response<T>> => {
@@ -173,6 +174,28 @@ export const agentApi = {
             },
         });
         return handleResponse<DiagramCanvasStateResponseDTO | null>(response);
+    },
+
+    renameDiagram: async (userId: string, diagramId: string, title: string): Promise<Response<DiagramSummaryResponseDTO | null>> => {
+        const body: UpdateDiagramTitleRequestDTO = { userId, title };
+        const response = await fetch(`${API_CONFIG.BASE_URL}/diagrams/${encodeURIComponent(diagramId)}/title`, {
+            method: 'PATCH',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(body),
+        });
+        return handleResponse<DiagramSummaryResponseDTO | null>(response);
+    },
+
+    deleteDiagram: async (userId: string, diagramId: string): Promise<Response<boolean>> => {
+        const response = await fetch(`${API_CONFIG.BASE_URL}/diagrams/${encodeURIComponent(diagramId)}?userId=${encodeURIComponent(userId)}`, {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+        });
+        return handleResponse<boolean>(response);
     },
 
     /**

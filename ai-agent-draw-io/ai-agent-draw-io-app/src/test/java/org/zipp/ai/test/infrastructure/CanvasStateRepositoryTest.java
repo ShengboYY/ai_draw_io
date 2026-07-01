@@ -111,6 +111,52 @@ public class CanvasStateRepositoryTest {
         assertFalse(mapper.listCalled);
     }
 
+    @Test
+    public void shouldRenameDiagramTitle() throws Exception {
+        CanvasStateRepository repository = new CanvasStateRepository();
+        FakeCanvasStateMapper mapper = new FakeCanvasStateMapper();
+        injectMapper(repository, mapper);
+
+        CanvasState renamed = repository.rename("alice", "diagram-1", "  New Checkout Flow  ").orElseThrow();
+
+        assertEquals("alice", mapper.renamedUserId);
+        assertEquals("diagram-1", mapper.renamedDiagramId);
+        assertEquals("New Checkout Flow", mapper.renamedTitle);
+        assertEquals("New Checkout Flow", renamed.getTitle());
+    }
+
+    @Test
+    public void shouldUseDefaultTitleWhenRenameTitleIsBlank() throws Exception {
+        CanvasStateRepository repository = new CanvasStateRepository();
+        FakeCanvasStateMapper mapper = new FakeCanvasStateMapper();
+        injectMapper(repository, mapper);
+
+        repository.rename("alice", "diagram-1", " ");
+
+        assertEquals("Untitled Diagram", mapper.renamedTitle);
+    }
+
+    @Test
+    public void shouldSoftDeleteDiagram() throws Exception {
+        CanvasStateRepository repository = new CanvasStateRepository();
+        FakeCanvasStateMapper mapper = new FakeCanvasStateMapper();
+        injectMapper(repository, mapper);
+
+        assertTrue(repository.softDelete("alice", "diagram-1"));
+        assertEquals("alice", mapper.deletedUserId);
+        assertEquals("diagram-1", mapper.deletedDiagramId);
+    }
+
+    @Test
+    public void shouldReturnFalseWhenSoftDeleteInputIsBlank() throws Exception {
+        CanvasStateRepository repository = new CanvasStateRepository();
+        FakeCanvasStateMapper mapper = new FakeCanvasStateMapper();
+        injectMapper(repository, mapper);
+
+        assertFalse(repository.softDelete(" ", "diagram-1"));
+        assertFalse(mapper.deleteCalled);
+    }
+
     private void injectMapper(CanvasStateRepository repository, ICanvasStateMapper mapper) throws Exception {
         Field field = CanvasStateRepository.class.getDeclaredField("canvasStateMapper");
         field.setAccessible(true);
@@ -128,6 +174,12 @@ public class CanvasStateRepositoryTest {
         private boolean updateByVersionCalled;
         private int updateRows = 1;
         private Long syncedVersion;
+        private String renamedUserId;
+        private String renamedDiagramId;
+        private String renamedTitle;
+        private String deletedUserId;
+        private String deletedDiagramId;
+        private boolean deleteCalled;
 
         @Override
         public CanvasStatePO selectByUserAndDiagram(String userId, String diagramId) {
@@ -136,7 +188,7 @@ public class CanvasStateRepositoryTest {
             CanvasStatePO po = new CanvasStatePO();
             po.setUserId(userId);
             po.setDiagramId(diagramId);
-            po.setTitle("Checkout Flow");
+            po.setTitle(renamedTitle == null ? "Checkout Flow" : renamedTitle);
             po.setDiagramType("architecture");
             po.setCurrentXml("<mxGraphModel/>");
             po.setSummary("persisted");
@@ -190,6 +242,22 @@ public class CanvasStateRepositoryTest {
         @Override
         public int syncDiagramVersion(String userId, String diagramId, Long version) {
             this.syncedVersion = version;
+            return 1;
+        }
+
+        @Override
+        public int updateDiagramTitle(String userId, String diagramId, String title) {
+            this.renamedUserId = userId;
+            this.renamedDiagramId = diagramId;
+            this.renamedTitle = title;
+            return 1;
+        }
+
+        @Override
+        public int softDeleteDiagram(String userId, String diagramId) {
+            this.deleteCalled = true;
+            this.deletedUserId = userId;
+            this.deletedDiagramId = diagramId;
             return 1;
         }
     }
