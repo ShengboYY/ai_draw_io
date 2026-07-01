@@ -19,6 +19,7 @@ import {
   makeLocalDiagramId,
   mergeCanvasStateMetadata,
 } from './canvas-state-metadata';
+import { buildCanvasStateConflictMessage } from './canvas-state-conflict';
 import {
   AgentRunEvent,
   AgentRunEventStatus,
@@ -1156,6 +1157,7 @@ export default function Home() {
       let agentTextContent = ''; // For non-drawio user-type responses
       let requestedMoreInfo = false;
       let receivedDrawioDone = false;
+      let receivedVersionConflict = false;
       let completionMessageAdded = false;
       let emptyResponseMessageAdded = false;
       let previewSkeletonXml = '';
@@ -1268,7 +1270,7 @@ export default function Home() {
         setMessages(prev => prev.map(m => m.id === agentMsgId ? { ...m, steps: [...accumulatedSteps] } : m));
       };
 
-      const canShowCompletion = () => !requestedMoreInfo && (nodeCount > 0 || edgeCount > 0 || receivedDrawioDone);
+      const canShowCompletion = () => !requestedMoreInfo && !receivedVersionConflict && (nodeCount > 0 || edgeCount > 0 || receivedDrawioDone);
 
       const loadStreamingPreview = (xml: string) => {
         if (!xml || currentSessionId !== currentSessionRef.current) return;
@@ -1684,6 +1686,24 @@ export default function Home() {
               break;
             }
 
+            case 'version_conflict': {
+              receivedVersionConflict = true;
+              const conflictMessage = buildCanvasStateConflictMessage(chunk);
+              upsertRunEvent('canvas:version_conflict', {
+                phase: 'error',
+                title: 'Canvas version conflict',
+                detail: conflictMessage,
+                status: 'error',
+                tone: 'review',
+              });
+              accumulatedContent += (accumulatedContent ? '\n\n' : '') + `❌ ${conflictMessage}`;
+              setStreamProgress(conflictMessage.substring(0, 50) + '...');
+              setMessages(prev => prev.map(m => (
+                m.id === agentMsgId ? { ...m, content: accumulatedContent, steps: [...accumulatedSteps] } : m
+              )));
+              break;
+            }
+
             case 'token': {
               // Real-time token output
               if (chunk.content) {
@@ -1725,10 +1745,14 @@ export default function Home() {
               // Stream completed explicitly by backend
               accumulatedSteps.forEach(s => { s.status = 'done'; });
               markRunEventsDone();
-              if (!appendCompletionMessage() && !appendEmptyResponseMessage()) {
+              if (receivedVersionConflict) {
+                setMessages(prev => prev.map(m => (
+                  m.id === agentMsgId ? { ...m, steps: [...accumulatedSteps] } : m
+                )));
+              } else if (!appendCompletionMessage() && !appendEmptyResponseMessage()) {
                 setMessages(prev => prev.map(m => m.id === agentMsgId ? { ...m, steps: [...accumulatedSteps] } : m));
               }
-              setStreamPhase('done');
+              setStreamPhase(receivedVersionConflict ? 'error' : 'done');
               break;
             }
           }

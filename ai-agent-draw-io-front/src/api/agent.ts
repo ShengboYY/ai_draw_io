@@ -93,7 +93,14 @@ export interface ValidationResultChunk {
     issues?: Array<{ severity?: string; message?: string; target?: string } | string>;
 }
 
-export type StreamChunk = DrawioPreviewChunk | DrawioNodeChunk | DrawioEdgeChunk | DrawioDoneChunk | DrawioLegacyChunk | StatusChunk | ErrorChunk | UserChunk | DoneChunk | TokenChunk | ReviewResultChunk | ValidationResultChunk;
+export interface VersionConflictChunk {
+    type: 'version_conflict';
+    content?: string;
+    diagramId?: string;
+    expectedVersion?: number;
+}
+
+export type StreamChunk = DrawioPreviewChunk | DrawioNodeChunk | DrawioEdgeChunk | DrawioDoneChunk | DrawioLegacyChunk | StatusChunk | ErrorChunk | UserChunk | DoneChunk | TokenChunk | ReviewResultChunk | ValidationResultChunk | VersionConflictChunk;
 
 export interface StreamEvent {
     phase: 'analyzing' | 'drawing' | 'reviewing' | 'revising' | 'thinking' | 'error' | 'done' | 'generating';
