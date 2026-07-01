@@ -262,6 +262,12 @@ public class DefaultCanvasAnalyzer implements ICanvasAnalyzer {
             if (source == null || target == null) {
                 continue;
             }
+            // Orthogonal edges without explicit waypoints are auto-routed by draw.io around obstacles;
+            // a straight-line approximation would false-positive. Only trust paths we can reconstruct:
+            // edges with waypoints, or genuinely straight (non-orthogonal) edges.
+            if (isAutoRoutedWithoutWaypoints(edge)) {
+                continue;
+            }
             List<CanvasPointData> route = edgeRoute(edge, source, target);
             for (CanvasCellData node : nodes) {
                 if (isCrossingEndpointOrContainer(edge, node) || !routeIntersectsNode(route, node)) {
@@ -271,6 +277,17 @@ public class DefaultCanvasAnalyzer implements ICanvasAnalyzer {
                         "Edge " + edge.getId() + " crosses node body: " + node.getId(), "auto_reroute"));
             }
         }
+    }
+
+    private boolean isAutoRoutedWithoutWaypoints(CanvasCellData edge) {
+        if (edge.getPoints() != null && !edge.getPoints().isEmpty()) {
+            return false;
+        }
+        String style = StringUtils.defaultString(edge.getStyle()).toLowerCase(Locale.ROOT);
+        return style.contains("orthogonaledgestyle")
+                || style.contains("elbowedgestyle")
+                || style.contains("entityrelationedgestyle")
+                || style.contains("isometricedgestyle");
     }
 
     private boolean isCrossingEndpointOrContainer(CanvasCellData edge, CanvasCellData node) {
@@ -465,12 +482,11 @@ public class DefaultCanvasAnalyzer implements ICanvasAnalyzer {
 
     private boolean hasOpaqueTextBackground(CanvasCellData cell) {
         String style = StringUtils.defaultString(cell.getStyle()).toLowerCase(Locale.ROOT);
+        // Only a real fill / label background masks content; a white stroke or border does not.
         return style.contains("fillcolor=#ffffff")
                 || style.contains("fillcolor=white")
                 || style.contains("labelbackgroundcolor=#ffffff")
-                || style.contains("labelbackgroundcolor=white")
-                || style.contains("strokecolor=#ffffff")
-                || style.contains("labelbordercolor=#ffffff");
+                || style.contains("labelbackgroundcolor=white");
     }
 
     private String resolveKind(Element cell) {
