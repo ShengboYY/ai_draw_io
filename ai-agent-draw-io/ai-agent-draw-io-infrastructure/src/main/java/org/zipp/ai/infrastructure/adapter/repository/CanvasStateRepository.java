@@ -9,7 +9,10 @@ import org.zipp.ai.infrastructure.dao.ICanvasStateMapper;
 import org.zipp.ai.infrastructure.dao.po.CanvasStatePO;
 
 import javax.annotation.Resource;
+import java.util.Collections;
+import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Repository
 public class CanvasStateRepository implements ICanvasStateStore {
@@ -24,6 +27,16 @@ public class CanvasStateRepository implements ICanvasStateStore {
         }
         return Optional.ofNullable(canvasStateMapper.selectByUserAndDiagram(userId, diagramId))
                 .map(this::toDomain);
+    }
+
+    @Override
+    public List<CanvasState> list(String userId) {
+        if (isBlank(userId)) {
+            return Collections.emptyList();
+        }
+        return canvasStateMapper.selectDiagramsByUser(userId).stream()
+                .map(this::toDomain)
+                .collect(Collectors.toList());
     }
 
     @Override
@@ -51,11 +64,14 @@ public class CanvasStateRepository implements ICanvasStateStore {
         return CanvasState.builder()
                 .userId(po.getUserId())
                 .diagramId(po.getDiagramId())
+                .title(po.getTitle())
                 .diagramType(po.getDiagramType())
                 .currentXml(po.getCurrentXml())
                 .summary(po.getSummary())
                 .analysisJson(po.getAnalysisJson())
                 .version(po.getVersion())
+                .createdAt(po.getCreatedAt())
+                .updatedAt(po.getUpdatedAt())
                 .build();
     }
 
@@ -63,6 +79,7 @@ public class CanvasStateRepository implements ICanvasStateStore {
         CanvasStatePO po = new CanvasStatePO();
         po.setUserId(state.getUserId());
         po.setDiagramId(state.getDiagramId());
+        po.setTitle(state.getTitle());
         po.setDiagramType(state.getDiagramType());
         po.setCurrentXml(state.getCurrentXml());
         po.setSummary(state.getSummary());

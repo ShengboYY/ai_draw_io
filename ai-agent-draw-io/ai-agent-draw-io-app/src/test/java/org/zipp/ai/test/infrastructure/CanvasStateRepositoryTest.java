@@ -8,8 +8,10 @@ import org.zipp.ai.infrastructure.dao.ICanvasStateMapper;
 import org.zipp.ai.infrastructure.dao.po.CanvasStatePO;
 
 import java.lang.reflect.Field;
+import java.util.List;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 public class CanvasStateRepositoryTest {
@@ -82,6 +84,33 @@ public class CanvasStateRepositoryTest {
         assertEquals("diagram-1", mapper.selectedDiagramId);
     }
 
+    @Test
+    public void shouldListDiagramsByOwner() throws Exception {
+        CanvasStateRepository repository = new CanvasStateRepository();
+        FakeCanvasStateMapper mapper = new FakeCanvasStateMapper();
+        injectMapper(repository, mapper);
+
+        List<CanvasState> diagrams = repository.list("alice");
+
+        assertEquals("alice", mapper.listedUserId);
+        assertEquals(2, diagrams.size());
+        assertEquals("diagram-1", diagrams.get(0).getDiagramId());
+        assertEquals("Checkout Flow", diagrams.get(0).getTitle());
+        assertEquals(Long.valueOf(4L), diagrams.get(0).getVersion());
+    }
+
+    @Test
+    public void shouldReturnEmptyDiagramListForBlankOwner() throws Exception {
+        CanvasStateRepository repository = new CanvasStateRepository();
+        FakeCanvasStateMapper mapper = new FakeCanvasStateMapper();
+        injectMapper(repository, mapper);
+
+        List<CanvasState> diagrams = repository.list(" ");
+
+        assertTrue(diagrams.isEmpty());
+        assertFalse(mapper.listCalled);
+    }
+
     private void injectMapper(CanvasStateRepository repository, ICanvasStateMapper mapper) throws Exception {
         Field field = CanvasStateRepository.class.getDeclaredField("canvasStateMapper");
         field.setAccessible(true);
@@ -93,6 +122,8 @@ public class CanvasStateRepositoryTest {
         private CanvasStatePO saved;
         private String selectedUserId;
         private String selectedDiagramId;
+        private String listedUserId;
+        private boolean listCalled;
         private boolean upsertCanvasStateCalled;
         private boolean updateByVersionCalled;
         private int updateRows = 1;
@@ -105,12 +136,35 @@ public class CanvasStateRepositoryTest {
             CanvasStatePO po = new CanvasStatePO();
             po.setUserId(userId);
             po.setDiagramId(diagramId);
+            po.setTitle("Checkout Flow");
             po.setDiagramType("architecture");
             po.setCurrentXml("<mxGraphModel/>");
             po.setSummary("persisted");
             po.setAnalysisJson("{\"valid\":true}");
             po.setVersion(4L);
             return po;
+        }
+
+        @Override
+        public List<CanvasStatePO> selectDiagramsByUser(String userId) {
+            this.listCalled = true;
+            this.listedUserId = userId;
+
+            CanvasStatePO first = new CanvasStatePO();
+            first.setUserId(userId);
+            first.setDiagramId("diagram-1");
+            first.setTitle("Checkout Flow");
+            first.setDiagramType("architecture");
+            first.setVersion(4L);
+
+            CanvasStatePO second = new CanvasStatePO();
+            second.setUserId(userId);
+            second.setDiagramId("diagram-2");
+            second.setTitle("Inventory Map");
+            second.setDiagramType("basic");
+            second.setVersion(2L);
+
+            return List.of(first, second);
         }
 
         @Override

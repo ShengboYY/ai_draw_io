@@ -4,6 +4,8 @@ import org.zipp.ai.api.IAgentService;
 import org.zipp.ai.api.dto.*;
 import org.zipp.ai.api.response.Response;
 import org.zipp.ai.domain.agent.model.valobj.AiAgentConfigTableVO;
+import org.zipp.ai.domain.agent.model.valobj.canvas.CanvasState;
+import org.zipp.ai.domain.agent.service.ICanvasStateStore;
 import org.zipp.ai.domain.agent.service.IChatService;
 import org.zipp.ai.trigger.http.service.AgentConversationService;
 import org.zipp.ai.types.enums.ResponseCode;
@@ -27,6 +29,9 @@ public class AgentServiceController implements IAgentService {
 
     @Resource
     private AgentConversationService agentConversationService;
+
+    @Resource
+    private ICanvasStateStore canvasStateStore;
 
     @RequestMapping(value = "query_ai_agent_config_list", method = RequestMethod.GET)
     @Override
@@ -103,6 +108,49 @@ public class AgentServiceController implements IAgentService {
         return createSession(requestDTO);
     }
 
+    @RequestMapping(value = "diagrams", method = RequestMethod.GET)
+    @Override
+    public Response<List<DiagramSummaryResponseDTO>> listDiagrams(@RequestParam("userId") String userId) {
+        try {
+            List<DiagramSummaryResponseDTO> diagrams = canvasStateStore.list(userId).stream()
+                    .map(this::toDiagramSummary)
+                    .collect(Collectors.toList());
+            return Response.<List<DiagramSummaryResponseDTO>>builder()
+                    .code(ResponseCode.SUCCESS.getCode())
+                    .info(ResponseCode.SUCCESS.getInfo())
+                    .data(diagrams)
+                    .build();
+        } catch (Exception e) {
+            log.error("查询图列表失败 userId:{}", userId, e);
+            return Response.<List<DiagramSummaryResponseDTO>>builder()
+                    .code(ResponseCode.UN_ERROR.getCode())
+                    .info(ResponseCode.UN_ERROR.getInfo())
+                    .build();
+        }
+    }
+
+    @RequestMapping(value = "diagrams/{diagramId}", method = RequestMethod.GET)
+    @Override
+    public Response<DiagramCanvasStateResponseDTO> getDiagram(@RequestParam("userId") String userId,
+                                                              @PathVariable("diagramId") String diagramId) {
+        try {
+            DiagramCanvasStateResponseDTO diagram = canvasStateStore.find(userId, diagramId)
+                    .map(this::toDiagramCanvasState)
+                    .orElse(null);
+            return Response.<DiagramCanvasStateResponseDTO>builder()
+                    .code(ResponseCode.SUCCESS.getCode())
+                    .info(ResponseCode.SUCCESS.getInfo())
+                    .data(diagram)
+                    .build();
+        } catch (Exception e) {
+            log.error("查询图详情失败 userId:{} diagramId:{}", userId, diagramId, e);
+            return Response.<DiagramCanvasStateResponseDTO>builder()
+                    .code(ResponseCode.UN_ERROR.getCode())
+                    .info(ResponseCode.UN_ERROR.getInfo())
+                    .build();
+        }
+    }
+
     @RequestMapping(value = "chat", method = RequestMethod.POST)
     @Override
     public Response<ChatResponseDTO> chat(@RequestBody ChatRequestDTO requestDTO) {
@@ -147,6 +195,29 @@ public class AgentServiceController implements IAgentService {
             emitter.completeWithError(e);
         }
         return emitter;
+    }
+
+    private DiagramSummaryResponseDTO toDiagramSummary(CanvasState state) {
+        DiagramSummaryResponseDTO dto = new DiagramSummaryResponseDTO();
+        dto.setDiagramId(state.getDiagramId());
+        dto.setTitle(state.getTitle());
+        dto.setDiagramType(state.getDiagramType());
+        dto.setVersion(state.getVersion());
+        dto.setUpdatedAt(state.getUpdatedAt());
+        return dto;
+    }
+
+    private DiagramCanvasStateResponseDTO toDiagramCanvasState(CanvasState state) {
+        DiagramCanvasStateResponseDTO dto = new DiagramCanvasStateResponseDTO();
+        dto.setDiagramId(state.getDiagramId());
+        dto.setUserId(state.getUserId());
+        dto.setTitle(state.getTitle());
+        dto.setDiagramType(state.getDiagramType());
+        dto.setCurrentXml(state.getCurrentXml());
+        dto.setSummary(state.getSummary());
+        dto.setVersion(state.getVersion());
+        dto.setUpdatedAt(state.getUpdatedAt());
+        return dto;
     }
 
 }

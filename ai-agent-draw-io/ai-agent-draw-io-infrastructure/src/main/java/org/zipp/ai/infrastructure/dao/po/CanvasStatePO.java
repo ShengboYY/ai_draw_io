@@ -10,6 +10,7 @@ public class CanvasStatePO {
 
     private String diagramId;
     private String userId;
+    private String title;
     private String diagramType;
     private String currentXml;
     private String summary;

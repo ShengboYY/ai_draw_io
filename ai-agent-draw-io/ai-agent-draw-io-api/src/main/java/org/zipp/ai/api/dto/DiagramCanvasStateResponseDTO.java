@@ -1,23 +1,19 @@
-package org.zipp.ai.domain.agent.model.valobj.canvas;
+package org.zipp.ai.api.dto;
 
-import lombok.Builder;
 import lombok.Data;
 
 import java.util.Date;
 
 @Data
-@Builder
-public class CanvasState {
+public class DiagramCanvasStateResponseDTO {
 
-    private String userId;
     private String diagramId;
+    private String userId;
     private String title;
     private String diagramType;
     private String currentXml;
     private String summary;
-    private String analysisJson;
     private Long version;
-    private Date createdAt;
     private Date updatedAt;
 
 }

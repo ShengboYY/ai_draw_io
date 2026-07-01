@@ -15,6 +15,10 @@ public interface IAgentService {
 
     Response<CreateSessionResponseDTO> createSession(CreateSessionRequestDTO requestDTO);
 
+    Response<List<DiagramSummaryResponseDTO>> listDiagrams(String userId);
+
+    Response<DiagramCanvasStateResponseDTO> getDiagram(String userId, String diagramId);
+
     Response<ChatResponseDTO> chat(ChatRequestDTO requestDTO);
 
     ResponseBodyEmitter chatStream(ChatRequestDTO requestDTO);
