@@ -67,13 +67,13 @@ public class DrawioCanvasMcpService {
             return response;
         }
 
-        String content = "replace_cells".equals(mode)
+        String base = "replace_cells".equals(mode)
                 ? xmlToolkit.replaceCells(request.getXml(), request.getCells())
                 : toGraphModel(request.getXml());
-        content = repairAutoFixableIssues(content);
+        RepairedCanvas repaired = repair(base);
         response.setType("drawio_done");
-        response.setContent(content);
-        response.setAnalysis(analysis(content));
+        response.setContent(repaired.content());
+        response.setAnalysis(CanvasAnalysisResponse.from(repaired.analysis()));
         logModifyToolResult(request, mode, response);
         return response;
     }
@@ -238,14 +238,19 @@ public class DrawioCanvasMcpService {
     }
 
     private DrawioToolResponse repairedDrawioDone(String xml) {
-        return drawioDoneContent(repairAutoFixableIssues(toGraphModel(xml)));
+        RepairedCanvas repaired = repair(toGraphModel(xml));
+        return drawioDoneContent(repaired.content(), repaired.analysis());
     }
 
     private DrawioToolResponse drawioDoneContent(String content) {
+        return drawioDoneContent(content, xmlToolkit.analyze(content));
+    }
+
+    private DrawioToolResponse drawioDoneContent(String content, CanvasAnalysis analysis) {
         DrawioToolResponse response = new DrawioToolResponse();
         response.setType("drawio_done");
         response.setContent(content);
-        response.setAnalysis(analysis(content));
+        response.setAnalysis(CanvasAnalysisResponse.from(analysis));
         return response;
     }
 
@@ -268,15 +273,17 @@ public class DrawioCanvasMcpService {
         return response;
     }
 
-    private String repairAutoFixableIssues(String graphModel) {
-        CanvasAnalysis initial = xmlToolkit.analyze(graphModel);
-        boolean needsReroute = initial.getIssues().stream().anyMatch(this::isAutoRerouteIssue);
-        if (!needsReroute) {
-            return graphModel;
+    // Analyze once; only when an auto-fixable crossing exists do we reroute and re-analyze the repaired canvas.
+    private RepairedCanvas repair(String graphModel) {
+        CanvasAnalysis analysis = xmlToolkit.analyze(graphModel);
+        if (analysis.getIssues().stream().anyMatch(this::isAutoRerouteIssue)) {
+            String rerouted = xmlToolkit.routeEdges(graphModel);
+            return new RepairedCanvas(rerouted, xmlToolkit.analyze(rerouted));
         }
+        return new RepairedCanvas(graphModel, analysis);
+    }
 
-        // routeEdges validates candidate paths and leaves unresolved geometry issues in the returned analysis.
-        return xmlToolkit.routeEdges(graphModel);
+    private record RepairedCanvas(String content, CanvasAnalysis analysis) {
     }
 
     private CanvasAnalysisResponse analysis(String xml) {
