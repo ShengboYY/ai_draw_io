@@ -44,6 +44,8 @@ export interface DrawioPreviewChunk {
 export interface DrawioDoneChunk {
     type: 'drawio_done';
     content: string;
+    diagramId?: string;
+    version?: number;
     // "local": merge into the live canvas without remounting; "full"/absent: clean reload.
     mode?: 'local' | 'full';
 }

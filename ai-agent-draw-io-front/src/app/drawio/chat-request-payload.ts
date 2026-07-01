@@ -3,6 +3,8 @@ type BuildDrawioChatRequestPayloadInput = {
   userId: string;
   sessionId: string;
   userMessage: string;
+  diagramId?: string;
+  expectedVersion?: number;
   canvasXml?: string;
   canvasSummary?: string;
   customBaseUrl?: string;

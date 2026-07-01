@@ -24,6 +24,10 @@ export interface ChatRequestDTO {
   userId: string;
   sessionId: string;
   message: string;
+  /** Stable diagram id used by the backend CanvasStateStore. */
+  diagramId?: string;
+  /** Optimistic-lock version expected by this mutation request. */
+  expectedVersion?: number;
   /** Current Draw.io XML, kept out of message so routers can avoid full-canvas prompt noise. */
   canvasXml?: string;
   /** Compact canvas summary for intent routing and answer-only requests. */

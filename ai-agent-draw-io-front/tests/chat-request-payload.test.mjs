@@ -30,3 +30,17 @@ test('buildDrawioChatRequestPayload keeps user text separate from canvas context
   });
   assert.doesNotMatch(request.message, /Current Draw\.io XML|mxGraphModel|Canvas Summary/);
 });
+
+test('buildDrawioChatRequestPayload includes canvas state version fields', () => {
+  const request = buildDrawioChatRequestPayload({
+    agentId: '300000',
+    userId: 'alice',
+    sessionId: 'session-1',
+    userMessage: '整理一下连线',
+    diagramId: 'diagram-1',
+    expectedVersion: 4,
+  });
+
+  assert.equal(request.diagramId, 'diagram-1');
+  assert.equal(request.expectedVersion, 4);
+});

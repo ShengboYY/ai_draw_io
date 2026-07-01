@@ -15,6 +15,11 @@ import {
 } from './streaming-preview';
 import { buildDrawioChatRequestPayload } from './chat-request-payload';
 import {
+  CanvasStateMetadata,
+  makeLocalDiagramId,
+  mergeCanvasStateMetadata,
+} from './canvas-state-metadata';
+import {
   AgentRunEvent,
   AgentRunEventStatus,
   AgentRunEventTone,
@@ -171,6 +176,8 @@ const Icons = {
 interface Session {
   id: string;
   backendSessionId?: string;
+  diagramId?: string;
+  canvasVersion?: number;
   title: string;
   messages: Message[];
   drawIoXml: string | null;
@@ -580,7 +587,7 @@ export default function Home() {
     }
   };
 
-  const saveCurrentCanvasXml = (xml?: string | null) => {
+  const saveCurrentCanvasXml = (xml?: string | null, canvasState?: CanvasStateMetadata) => {
     const activeSessionId = currentSessionRef.current;
     const normalizedXml = normalizeDrawioLegendSwatches(xml || EMPTY_DRAWIO_XML);
     if (!activeSessionId || !hasDrawableCells(normalizedXml)) return;
@@ -588,8 +595,14 @@ export default function Home() {
     setSessions(prev => {
       const nextSessions = prev.map(session => {
         if (session.id === activeSessionId) {
+          const mergedCanvasState = mergeCanvasStateMetadata(
+            { diagramId: session.diagramId, version: session.canvasVersion },
+            canvasState,
+          );
           return {
             ...session,
+            diagramId: mergedCanvasState.diagramId,
+            canvasVersion: mergedCanvasState.version,
             drawIoXml: normalizedXml,
             lastModified: Date.now()
           };
@@ -820,9 +833,11 @@ export default function Home() {
   }, [messages, currentSessionId, sessionId]);
 
   const createNewSession = (_isInitial = false, backendId = '') => {
+    const localSessionId = Date.now().toString();
     const newSession: Session = {
-      id: Date.now().toString(),
+      id: localSessionId,
       backendSessionId: backendId,
+      diagramId: makeLocalDiagramId(localSessionId),
       title: 'New Chat',
       messages: [{
         id: Date.now().toString(),
@@ -1313,12 +1328,16 @@ export default function Home() {
       };
 
       const activeModelConfig = customModels.find(m => m.id === selectedCustomModelId && m.enabled);
+      const activeSession = sessions.find(session => session.id === currentSessionId);
+      const diagramId = activeSession?.diagramId || (currentSessionId ? makeLocalDiagramId(currentSessionId) : undefined);
 
       const requestPayload = buildDrawioChatRequestPayload({
           agentId: selectedAgentId,
           userId: currentUser,
           sessionId: activeBackendSessionId,
           userMessage: displayContent,
+          diagramId,
+          expectedVersion: activeSession?.canvasVersion,
           canvasXml: canvasContext.canvasXml,
           canvasSummary: canvasContext.canvasSummary,
           customBaseUrl: activeModelConfig?.baseUrl || undefined,
@@ -1506,7 +1525,10 @@ export default function Home() {
 	                  applyFinalDiagramXml(finalXml, chunk.mode);
 	                }
 
-	                saveCurrentCanvasXml(finalXml);
+	                saveCurrentCanvasXml(finalXml, {
+	                  diagramId: chunk.diagramId,
+	                  version: chunk.version,
+	                });
 	              }
               
               break;
