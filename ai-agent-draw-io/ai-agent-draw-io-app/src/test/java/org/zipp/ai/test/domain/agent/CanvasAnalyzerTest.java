@@ -5,11 +5,13 @@ import org.zipp.ai.domain.agent.model.valobj.analysis.CanvasAnalysis;
 import org.zipp.ai.domain.agent.model.valobj.analysis.CanvasAnalysisIssue;
 import org.zipp.ai.domain.agent.model.valobj.analysis.CanvasIssueType;
 import org.zipp.ai.domain.agent.service.analysis.DefaultCanvasAnalyzer;
+import org.zipp.ai.domain.agent.service.armory.matter.mcp.server.DrawioCanvasXmlToolkit;
 
 import java.util.List;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertTrue;
 
 public class CanvasAnalyzerTest {
@@ -104,6 +106,32 @@ public class CanvasAnalyzerTest {
                 """, "architecture");
 
         assertIssue(analysis.getIssues(), CanvasIssueType.EDGE_NODE_CROSSING, List.of("5", "4"));
+    }
+
+    @Test
+    public void repairGeometryIfNeededReroutesOnlyWhenAnEdgeCrossesANode() {
+        DrawioCanvasXmlToolkit toolkit = new DrawioCanvasXmlToolkit();
+
+        String crossing = """
+                <mxGraphModel><root><mxCell id='0'/><mxCell id='1' parent='0'/>
+                <mxCell id='2' value='Source' vertex='1' parent='1'><mxGeometry x='40' y='40' width='80' height='60' as='geometry'/></mxCell>
+                <mxCell id='3' value='Target' vertex='1' parent='1'><mxGeometry x='360' y='40' width='80' height='60' as='geometry'/></mxCell>
+                <mxCell id='4' value='Blocker' vertex='1' parent='1'><mxGeometry x='180' y='160' width='80' height='80' as='geometry'/></mxCell>
+                <mxCell id='5' value='' edge='1' parent='1' source='2' target='3'>
+                    <mxGeometry relative='1' as='geometry'><Array as='points'><mxPoint x='220' y='200'/><mxPoint x='320' y='200'/></Array></mxGeometry>
+                </mxCell>
+                </root></mxGraphModel>
+                """;
+        String clean = """
+                <mxGraphModel><root><mxCell id='0'/><mxCell id='1' parent='0'/>
+                <mxCell id='2' value='Source' vertex='1' parent='1'><mxGeometry x='40' y='120' width='80' height='60' as='geometry'/></mxCell>
+                <mxCell id='3' value='Target' vertex='1' parent='1'><mxGeometry x='360' y='120' width='80' height='60' as='geometry'/></mxCell>
+                <mxCell id='5' value='' edge='1' parent='1' source='2' target='3'><mxGeometry relative='1' as='geometry'/></mxCell>
+                </root></mxGraphModel>
+                """;
+
+        assertNotEquals("a crossing patch should be rerouted", crossing, toolkit.repairGeometryIfNeeded(crossing));
+        assertEquals("a clean patch should pass through untouched", clean, toolkit.repairGeometryIfNeeded(clean));
     }
 
     @Test

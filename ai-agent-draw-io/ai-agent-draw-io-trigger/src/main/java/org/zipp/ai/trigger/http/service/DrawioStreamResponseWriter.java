@@ -183,6 +183,10 @@ public class DrawioStreamResponseWriter {
         if (StringUtils.isBlank(merged)) {
             return false;
         }
+        // A localized patch can move a node or reroute an edge into another node's body; the model authors
+        // those coordinates blind. Give the patch path the same deterministic geometry safety net as full
+        // mutations before the merged canvas is streamed.
+        merged = xmlToolkit.repairGeometryIfNeeded(merged);
         currentCanvasByEmitter.put(emitter, merged);
         if (merged.equals(lastPatchByEmitter.get(emitter))) {
             return true; // Already emitted this exact merge for the stream; treat as handled, don't resend.

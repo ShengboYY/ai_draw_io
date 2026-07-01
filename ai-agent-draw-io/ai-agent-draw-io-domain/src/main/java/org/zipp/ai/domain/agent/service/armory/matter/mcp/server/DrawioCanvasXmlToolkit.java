@@ -194,6 +194,19 @@ public class DrawioCanvasXmlToolkit {
         }
     }
 
+    /**
+     * Deterministically repair auto-fixable geometry (edge/node body crossings) by rerouting edges,
+     * returning the input unchanged when there is nothing to auto-fix. Used by the localized patch merge
+     * path so incremental edits get the same geometry safety net as full-canvas mutations.
+     */
+    public String repairGeometryIfNeeded(String xml) {
+        CanvasAnalysis analysis = analyze(xml);
+        boolean needsReroute = analysis.getIssues().stream()
+                .anyMatch(issue -> CanvasIssueType.EDGE_NODE_CROSSING == issue.getType()
+                        && "auto_reroute".equals(issue.getRepairability()));
+        return needsReroute ? routeEdges(xml) : xml;
+    }
+
     public String edgeCells(String xml) {
         try {
             Document document = DocumentHelper.parseText(toGraphModel(xml));
