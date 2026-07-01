@@ -51,7 +51,7 @@ public class AgentConversationServiceTest {
         assertTrue(routedMessage.contains("\"maxReviewIterations\":1"));
         assertTrue(routedMessage.contains("\"allowedTools\""));
         assertTrue(routedMessage.contains("modify_diagram"));
-        assertTrue(routedMessage.contains("inspect_canvas"));
+        assertFalse(routedMessage.contains("inspect_canvas"));
         assertFalse(routedMessage.contains("patch_existing"));
         assertFalse(routedMessage.contains("append_existing"));
         assertFalse(routedMessage.contains("fallback_full_xml"));
@@ -90,7 +90,7 @@ public class AgentConversationServiceTest {
                     .map(ILoggingEvent::getFormattedMessage)
                     .anyMatch(message -> message.contains("[draw-route] userId=alice")
                             && message.contains("taskType=edit_existing")
-                            && message.contains("allowedTools=[modify_diagram, inspect_canvas]")
+                            && message.contains("allowedTools=[modify_diagram]")
                             && message.contains("maxReviewIterations=0")));
         } finally {
             logger.detachAppender(appender);

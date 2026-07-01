@@ -6,6 +6,12 @@ import org.apache.commons.lang3.StringUtils;
 import org.dom4j.Document;
 import org.dom4j.DocumentHelper;
 import org.dom4j.Element;
+import org.zipp.ai.domain.agent.model.valobj.analysis.CanvasAnalysis;
+import org.zipp.ai.domain.agent.model.valobj.analysis.CanvasAnalysisIssue;
+import org.zipp.ai.domain.agent.model.valobj.analysis.CanvasCellData;
+import org.zipp.ai.domain.agent.model.valobj.analysis.CanvasIssueType;
+import org.zipp.ai.domain.agent.service.analysis.DefaultCanvasAnalyzer;
+import org.zipp.ai.domain.agent.service.analysis.ICanvasAnalyzer;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -21,9 +27,20 @@ public class DrawioCanvasXmlToolkit {
     private static final double LABEL_OFFSET = 22D;
     private static final double[] LABEL_OFFSETS = new double[]{22D, 36D, 50D};
     private static final double NODE_CLEARANCE = 10D;
+    private static final double ROUTE_DOGLEG = 40D;
     private static final double MIN_LABEL_WIDTH = 48D;
     private static final double MAX_LABEL_WIDTH = 180D;
     private static final double LABEL_HEIGHT = 24D;
+
+    private final ICanvasAnalyzer canvasAnalyzer;
+
+    public DrawioCanvasXmlToolkit() {
+        this(new DefaultCanvasAnalyzer());
+    }
+
+    DrawioCanvasXmlToolkit(ICanvasAnalyzer canvasAnalyzer) {
+        this.canvasAnalyzer = canvasAnalyzer;
+    }
 
     public String toGraphModel(String xml) {
         String normalized = normalizeXml(xml);
@@ -38,39 +55,28 @@ public class DrawioCanvasXmlToolkit {
     }
 
     public CanvasInspection inspect(String xml) {
-        List<String> issues = new ArrayList<>();
-        if (StringUtils.isBlank(xml)) {
-            issues.add("No Draw.io XML was provided.");
-            return CanvasInspection.invalid("critical", issues);
-        }
+        CanvasAnalysis analysis = analyze(xml);
+        return CanvasInspection.builder()
+                .valid(analysis.isValid())
+                .severity(analysis.getSeverity())
+                .issues(analysis.getIssues().stream().map(CanvasAnalysisIssue::getMessage).toList())
+                .cells(analysis.getCells().stream().map(this::toCellInfo).toList())
+                .summary(analysis.getSummary().getSummary())
+                .build();
+    }
 
-        try {
-            Document document = DocumentHelper.parseText(toGraphModel(xml));
-            Element root = document.getRootElement().element("root");
-            if (root == null) {
-                issues.add("mxGraphModel is missing a root element.");
-                return CanvasInspection.invalid("critical", issues);
-            }
-
-            List<CellInfo> cells = readCells(root);
-            validateCells(cells, issues);
-            addVisualIssues(cells, issues);
-            String severity = resolveSeverity(issues);
-            return CanvasInspection.builder()
-                    .valid(issues.isEmpty())
-                    .severity(severity)
-                    .issues(issues)
-                    .cells(cells)
-                    .summary(summary(cells))
-                    .build();
-        } catch (Exception e) {
-            issues.add("The Draw.io XML could not be parsed: " + e.getMessage());
-            return CanvasInspection.invalid("critical", issues);
-        }
+    public CanvasAnalysis analyze(String xml) {
+        return canvasAnalyzer.analyze(xml, "unknown");
     }
 
     public List<OverlapInfo> detectOverlaps(String xml) {
-        return findOverlaps(inspect(xml).getCells());
+        CanvasAnalysis analysis = analyze(xml);
+        Map<String, CanvasCellData> cellsById = analysis.getCells().stream()
+                .collect(Collectors.toMap(CanvasCellData::getId, cell -> cell, (left, right) -> left));
+        return analysis.getIssues().stream()
+                .filter(issue -> CanvasIssueType.NODE_OVERLAP == issue.getType())
+                .map(issue -> toOverlapInfo(issue, cellsById))
+                .toList();
     }
 
     public List<CellInfo> findCells(String xml, String query) {
@@ -83,6 +89,41 @@ public class DrawioCanvasXmlToolkit {
         return inspection.getCells().stream()
                 .filter(cell -> StringUtils.isBlank(normalizedQuery) || cell.matches(normalizedQuery))
                 .collect(Collectors.toList());
+    }
+
+    private CellInfo toCellInfo(CanvasCellData cell) {
+        return CellInfo.builder()
+                .id(cell.getId())
+                .label(cell.getLabel())
+                .kind(cell.getKind())
+                .style(cell.getStyle())
+                .parentId(cell.getParentId())
+                .source(cell.getSource())
+                .target(cell.getTarget())
+                .x(cell.getX())
+                .y(cell.getY())
+                .width(cell.getWidth())
+                .height(cell.getHeight())
+                .rawXml(cell.getRawXml())
+                .build();
+    }
+
+    private OverlapInfo toOverlapInfo(CanvasAnalysisIssue issue, Map<String, CanvasCellData> cellsById) {
+        List<String> targets = issue.getTargetCellIds();
+        CanvasCellData left = targets.size() > 0 ? cellsById.get(targets.get(0)) : null;
+        CanvasCellData right = targets.size() > 1 ? cellsById.get(targets.get(1)) : null;
+        double overlapWidth = 0D;
+        double overlapHeight = 0D;
+        if (left != null && right != null) {
+            overlapWidth = Math.min(left.maxX(), right.maxX()) - Math.max(left.getX(), right.getX());
+            overlapHeight = Math.min(left.maxY(), right.maxY()) - Math.max(left.getY(), right.getY());
+        }
+        return OverlapInfo.builder()
+                .sourceId(targets.size() > 0 ? targets.get(0) : "")
+                .targetId(targets.size() > 1 ? targets.get(1) : "")
+                .overlapWidth(overlapWidth)
+                .overlapHeight(overlapHeight)
+                .build();
     }
 
     public String replaceCells(String xml, String replacementCells) {
@@ -130,6 +171,7 @@ public class DrawioCanvasXmlToolkit {
             }
 
             List<CellInfo> cells = readCells(root);
+            normalizeAbsoluteCoordinates(cells);
             Map<String, CellInfo> nodes = cells.stream()
                     .filter(cell -> "node".equals(cell.getKind()))
                     .collect(Collectors.toMap(CellInfo::getId, cell -> cell, (left, right) -> left));
@@ -144,11 +186,32 @@ public class DrawioCanvasXmlToolkit {
                 if (source == null || target == null) {
                     continue;
                 }
-                routeEdge(edge, source, target, cells);
+                routeEdge(document, edge, source, target, cells);
             }
             return document.asXML();
         } catch (Exception ignored) {
             return toGraphModel(xml);
+        }
+    }
+
+    public String edgeCells(String xml) {
+        try {
+            Document document = DocumentHelper.parseText(toGraphModel(xml));
+            Element root = document.getRootElement().element("root");
+            if (root == null) {
+                return "";
+            }
+
+            StringBuilder cells = new StringBuilder();
+            for (Object item : root.elements("mxCell")) {
+                Element cell = (Element) item;
+                if ("1".equals(cell.attributeValue("edge"))) {
+                    cells.append(cell.asXML());
+                }
+            }
+            return cells.toString();
+        } catch (Exception ignored) {
+            return "";
         }
     }
 
@@ -199,85 +262,34 @@ public class DrawioCanvasXmlToolkit {
         return cells;
     }
 
-    private void validateCells(List<CellInfo> cells, List<String> issues) {
-        if (cells.isEmpty()) {
-            issues.add("Diagram has no drawable cells.");
+    private void normalizeAbsoluteCoordinates(List<CellInfo> cells) {
+        Map<String, CellInfo> firstCellById = new HashMap<>();
+        for (CellInfo cell : cells) {
+            firstCellById.putIfAbsent(cell.getId(), cell);
+        }
+
+        Set<String> resolved = new HashSet<>();
+        for (CellInfo cell : cells) {
+            resolvePosition(cell, firstCellById, resolved, new HashSet<>());
+        }
+    }
+
+    private void resolvePosition(CellInfo cell,
+                                 Map<String, CellInfo> cellById,
+                                 Set<String> resolved,
+                                 Set<String> resolving) {
+        if (cell == null || resolved.contains(cell.getId()) || resolving.contains(cell.getId())) {
             return;
         }
-
-        Set<String> seen = new HashSet<>();
-        Set<String> ids = cells.stream()
-                .map(CellInfo::getId)
-                .filter(StringUtils::isNotBlank)
-                .collect(Collectors.toSet());
-
-        for (CellInfo cell : cells) {
-            if (StringUtils.isBlank(cell.getId())) {
-                issues.add("A cell is missing id.");
-            } else if (!seen.add(cell.getId())) {
-                issues.add("Duplicate cell id: " + cell.getId());
-            }
-
-            if ("node".equals(cell.getKind()) && (cell.getWidth() <= 0 || cell.getHeight() <= 0)) {
-                issues.add("Vertex is missing usable geometry: " + cell.getId());
-            }
-
-            if ("edge".equals(cell.getKind())) {
-                if (StringUtils.isNotBlank(cell.getSource()) && !ids.contains(cell.getSource())) {
-                    issues.add("Edge " + cell.getId() + " source id does not exist: " + cell.getSource());
-                }
-                if (StringUtils.isNotBlank(cell.getTarget()) && !ids.contains(cell.getTarget())) {
-                    issues.add("Edge " + cell.getId() + " target id does not exist: " + cell.getTarget());
-                }
-                if (StringUtils.isBlank(cell.getSource()) && StringUtils.isBlank(cell.getTarget())) {
-                    issues.add("Edge " + cell.getId() + " has no source/target ids.");
-                }
-            }
+        resolving.add(cell.getId());
+        CellInfo parent = cellById.get(cell.getParentId());
+        if (parent != null && "node".equals(parent.getKind())) {
+            resolvePosition(parent, cellById, resolved, resolving);
+            cell.setX(parent.getX() + cell.getX());
+            cell.setY(parent.getY() + cell.getY());
         }
-    }
-
-    private void addVisualIssues(List<CellInfo> cells, List<String> issues) {
-        for (OverlapInfo overlap : findOverlaps(cells)) {
-            issues.add("Overlapping nodes: " + overlap.getSourceId() + " and " + overlap.getTargetId());
-        }
-
-        for (CellInfo cell : cells) {
-            if ("node".equals(cell.getKind()) && isTextCell(cell) && hasOpaqueTextBackground(cell)) {
-                issues.add("Text cell has opaque background: " + cell.getId());
-            }
-        }
-    }
-
-    private List<OverlapInfo> findOverlaps(List<CellInfo> cells) {
-        List<CellInfo> nodes = cells.stream()
-                .filter(cell -> "node".equals(cell.getKind()))
-                .filter(cell -> cell.getWidth() > 0 && cell.getHeight() > 0)
-                .filter(cell -> !isTextCell(cell))
-                .toList();
-
-        List<OverlapInfo> overlaps = new ArrayList<>();
-        for (int i = 0; i < nodes.size(); i++) {
-            for (int j = i + 1; j < nodes.size(); j++) {
-                CellInfo left = nodes.get(i);
-                CellInfo right = nodes.get(j);
-                double width = Math.min(left.maxX(), right.maxX()) - Math.max(left.getX(), right.getX());
-                double height = Math.min(left.maxY(), right.maxY()) - Math.max(left.getY(), right.getY());
-                if (width > 8D && height > 8D && !isLikelyParentChild(left, right)) {
-                    overlaps.add(OverlapInfo.builder()
-                            .sourceId(left.getId())
-                            .targetId(right.getId())
-                            .overlapWidth(width)
-                            .overlapHeight(height)
-                            .build());
-                }
-            }
-        }
-        return overlaps;
-    }
-
-    private boolean isLikelyParentChild(CellInfo left, CellInfo right) {
-        return StringUtils.equals(left.getId(), right.getParentId())
-                || StringUtils.equals(right.getId(), left.getParentId());
+        resolving.remove(cell.getId());
+        resolved.add(cell.getId());
     }
 
     private boolean isTextCell(CellInfo cell) {
@@ -285,33 +297,7 @@ public class DrawioCanvasXmlToolkit {
         return style.startsWith("text;") || style.contains("shape=text");
     }
 
-    private boolean hasOpaqueTextBackground(CellInfo cell) {
-        String style = StringUtils.defaultString(cell.getStyle()).toLowerCase(Locale.ROOT);
-        return style.contains("fillcolor=#ffffff")
-                || style.contains("fillcolor=white")
-                || style.contains("labelbackgroundcolor=#ffffff")
-                || style.contains("labelbackgroundcolor=white")
-                || style.contains("strokecolor=#ffffff")
-                || style.contains("labelbordercolor=#ffffff");
-    }
-
-    private String resolveSeverity(List<String> issues) {
-        if (issues.isEmpty()) {
-            return "none";
-        }
-        for (String issue : issues) {
-            if (issue.startsWith("Edge ")
-                    || issue.startsWith("Duplicate")
-                    || issue.startsWith("A cell is missing")
-                    || issue.startsWith("Diagram has no drawable")
-                    || issue.startsWith("Vertex is missing")) {
-                return "critical";
-            }
-        }
-        return "major";
-    }
-
-    private void routeEdge(Element edge, CellInfo source, CellInfo target, List<CellInfo> cells) {
+    private void routeEdge(Document document, Element edge, CellInfo source, CellInfo target, List<CellInfo> cells) {
         boolean horizontal = Math.abs(target.centerX() - source.centerX()) >= Math.abs(target.centerY() - source.centerY());
         boolean forward = horizontal ? target.centerX() >= source.centerX() : target.centerY() >= source.centerY();
         String style = ensureStyleTokens(StringUtils.defaultString(edge.attributeValue("style")), horizontal, forward);
@@ -323,20 +309,166 @@ public class DrawioCanvasXmlToolkit {
             geometry.addAttribute("as", "geometry");
         }
         geometry.addAttribute("relative", "1");
-        if (geometry.element("Array") == null) {
-            Element points = geometry.addElement("Array");
-            points.addAttribute("as", "points");
-            if (horizontal) {
-                double midX = (source.centerX() + target.centerX()) / 2D;
-                addPoint(points, midX, source.centerY());
-                addPoint(points, midX, target.centerY());
-            } else {
-                double midY = (source.centerY() + target.centerY()) / 2D;
-                addPoint(points, source.centerX(), midY);
-                addPoint(points, target.centerX(), midY);
+
+        List<CanvasPoint2D> originalWaypoints = readWaypoints(geometry);
+        List<CanvasPoint2D> baseWaypoints = originalWaypoints.isEmpty()
+                ? defaultWaypoints(source, target, horizontal)
+                : originalWaypoints;
+        replaceWaypoints(geometry, baseWaypoints);
+
+        if (hasEdgeNodeCrossing(document.asXML(), edge.attributeValue("id"))) {
+            List<CanvasPoint2D> best = null;
+            double bestLength = Double.MAX_VALUE;
+            for (List<CanvasPoint2D> candidate : routeCandidates(source, target, cells, horizontal, forward)) {
+                replaceWaypoints(geometry, candidate);
+                if (hasEdgeNodeCrossing(document.asXML(), edge.attributeValue("id"))) {
+                    continue;
+                }
+                double length = routeLength(edgeRoutePoints(geometry, source, target, horizontal, forward));
+                if (length < bestLength) {
+                    best = candidate;
+                    bestLength = length;
+                }
             }
+            replaceWaypoints(geometry, best == null ? originalWaypoints : best);
         }
         positionEdgeLabel(edge, geometry, source, target, cells, horizontal, forward);
+    }
+
+    private boolean hasEdgeNodeCrossing(String xml, String edgeId) {
+        return canvasAnalyzer.analyze(xml, "unknown").getIssues().stream()
+                .anyMatch(issue -> CanvasIssueType.EDGE_NODE_CROSSING == issue.getType()
+                        && !issue.getTargetCellIds().isEmpty()
+                        && StringUtils.equals(edgeId, issue.getTargetCellIds().get(0)));
+    }
+
+    private List<CanvasPoint2D> readWaypoints(Element geometry) {
+        Element waypointArray = waypointArray(geometry);
+        if (waypointArray == null) {
+            return List.of();
+        }
+
+        List<CanvasPoint2D> waypoints = new ArrayList<>();
+        for (Object item : waypointArray.elements("mxPoint")) {
+            Element point = (Element) item;
+            waypoints.add(new CanvasPoint2D(number(point, "x"), number(point, "y")));
+        }
+        return waypoints;
+    }
+
+    private Element waypointArray(Element geometry) {
+        if (geometry == null) {
+            return null;
+        }
+        for (Object item : geometry.elements("Array")) {
+            Element array = (Element) item;
+            if (StringUtils.equals("points", array.attributeValue("as"))) {
+                return array;
+            }
+        }
+        return null;
+    }
+
+    private void replaceWaypoints(Element geometry, List<CanvasPoint2D> waypoints) {
+        for (Element array : new ArrayList<Element>(geometry.elements("Array"))) {
+            if (StringUtils.equals("points", array.attributeValue("as"))) {
+                geometry.remove(array);
+            }
+        }
+        if (waypoints.isEmpty()) {
+            return;
+        }
+
+        Element points = geometry.addElement("Array");
+        points.addAttribute("as", "points");
+        for (CanvasPoint2D waypoint : waypoints) {
+            addPoint(points, waypoint.getX(), waypoint.getY());
+        }
+    }
+
+    private List<CanvasPoint2D> defaultWaypoints(CellInfo source, CellInfo target, boolean horizontal) {
+        if (horizontal) {
+            double midX = (source.centerX() + target.centerX()) / 2D;
+            return List.of(new CanvasPoint2D(midX, source.centerY()), new CanvasPoint2D(midX, target.centerY()));
+        }
+
+        double midY = (source.centerY() + target.centerY()) / 2D;
+        return List.of(new CanvasPoint2D(source.centerX(), midY), new CanvasPoint2D(target.centerX(), midY));
+    }
+
+    private List<List<CanvasPoint2D>> routeCandidates(CellInfo source,
+                                                      CellInfo target,
+                                                      List<CellInfo> cells,
+                                                      boolean horizontal,
+                                                      boolean forward) {
+        List<CellInfo> blockers = cells.stream()
+                .filter(cell -> "node".equals(cell.getKind()))
+                .filter(cell -> !StringUtils.equals(cell.getId(), source.getId()))
+                .filter(cell -> !StringUtils.equals(cell.getId(), target.getId()))
+                .filter(cell -> !isTextCell(cell))
+                .filter(cell -> !isBoundaryCell(cell))
+                .toList();
+        if (blockers.isEmpty()) {
+            return List.of();
+        }
+
+        return horizontal
+                ? horizontalRouteCandidates(source, target, blockers, forward)
+                : verticalRouteCandidates(source, target, blockers, forward);
+    }
+
+    private List<List<CanvasPoint2D>> horizontalRouteCandidates(CellInfo source,
+                                                               CellInfo target,
+                                                               List<CellInfo> blockers,
+                                                               boolean forward) {
+        CanvasPoint2D sourceAnchor = sourceAnchor(source, true, forward);
+        CanvasPoint2D targetAnchor = targetAnchor(target, true, forward);
+        double direction = forward ? 1D : -1D;
+        double startX = sourceAnchor.getX() + ROUTE_DOGLEG * direction;
+        double endX = targetAnchor.getX() - ROUTE_DOGLEG * direction;
+        Set<Double> lanes = new java.util.LinkedHashSet<>();
+        for (CellInfo blocker : blockers) {
+            lanes.add(blocker.getY() - NODE_CLEARANCE);
+            lanes.add(blocker.maxY() + NODE_CLEARANCE);
+        }
+
+        List<List<CanvasPoint2D>> candidates = new ArrayList<>();
+        for (double laneY : lanes) {
+            candidates.add(List.of(
+                    new CanvasPoint2D(startX, sourceAnchor.getY()),
+                    new CanvasPoint2D(startX, laneY),
+                    new CanvasPoint2D(endX, laneY),
+                    new CanvasPoint2D(endX, targetAnchor.getY())
+            ));
+        }
+        return candidates;
+    }
+
+    private List<List<CanvasPoint2D>> verticalRouteCandidates(CellInfo source,
+                                                             CellInfo target,
+                                                             List<CellInfo> blockers,
+                                                             boolean forward) {
+        CanvasPoint2D sourceAnchor = sourceAnchor(source, false, forward);
+        CanvasPoint2D targetAnchor = targetAnchor(target, false, forward);
+        double direction = forward ? 1D : -1D;
+        double startY = sourceAnchor.getY() + ROUTE_DOGLEG * direction;
+        double endY = targetAnchor.getY() - ROUTE_DOGLEG * direction;
+        Set<Double> lanes = new java.util.LinkedHashSet<>();
+        for (CellInfo blocker : blockers) {
+            lanes.add(blocker.getX() - NODE_CLEARANCE);
+            lanes.add(blocker.maxX() + NODE_CLEARANCE);
+        }
+
+        List<List<CanvasPoint2D>> candidates = new ArrayList<>();
+        for (double laneX : lanes) {
+            candidates.add(List.of(
+                    new CanvasPoint2D(sourceAnchor.getX(), startY),
+                    new CanvasPoint2D(laneX, startY),
+                    new CanvasPoint2D(laneX, endY),
+                    new CanvasPoint2D(targetAnchor.getX(), endY)
+            ));
+        }
+        return candidates;
     }
 
     private void positionEdgeLabel(Element edge,
@@ -435,6 +567,10 @@ public class DrawioCanvasXmlToolkit {
             }
         }
         return segments;
+    }
+
+    private double routeLength(List<CanvasPoint2D> points) {
+        return routeSegments(points).stream().mapToDouble(RouteSegment::length).sum();
     }
 
     private LabelCandidate labelCandidate(RouteSegment segment,
@@ -557,17 +693,6 @@ public class DrawioCanvasXmlToolkit {
         Element point = points.addElement("mxPoint");
         point.addAttribute("x", String.valueOf(Math.round(x)));
         point.addAttribute("y", String.valueOf(Math.round(y)));
-    }
-
-    private String summary(List<CellInfo> cells) {
-        long nodeCount = cells.stream().filter(cell -> "node".equals(cell.getKind())).count();
-        long edgeCount = cells.stream().filter(cell -> "edge".equals(cell.getKind())).count();
-        String labels = cells.stream()
-                .map(CellInfo::getLabel)
-                .filter(StringUtils::isNotBlank)
-                .limit(8)
-                .collect(Collectors.joining(", "));
-        return "The canvas contains " + nodeCount + " nodes and " + edgeCount + " edges. Main labels: " + labels + ".";
     }
 
     private String resolveKind(Element cell) {

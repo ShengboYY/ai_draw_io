@@ -43,6 +43,20 @@ public class DrawioPromptContextBuilderTest {
     }
 
     @Test
+    public void shouldInjectCompactCanvasIssuesForEditExistingTasks() {
+        DrawioPromptContextBuilder builder = new DrawioPromptContextBuilder(new DefaultDrawioCanvasSnapshotService());
+
+        String message = builder.buildDrawingContextMessage(overlappingRequest("整理一下重叠节点"), routing("edit_existing"));
+
+        assertTrue(message.contains("[Canvas Issues]"));
+        assertTrue(message.contains("valid=false"));
+        assertTrue(message.contains("severity=major"));
+        assertTrue(message.contains("type=NODE_OVERLAP"));
+        assertTrue(message.contains("targets=api,gateway"));
+        assertTrue(message.contains("repairability=candidate"));
+    }
+
+    @Test
     public void shouldKeepFullXmlForLayoutOptimizationTasks() {
         DrawioPromptContextBuilder builder = new DrawioPromptContextBuilder(new DefaultDrawioCanvasSnapshotService());
 
@@ -90,6 +104,21 @@ public class DrawioPromptContextBuilderTest {
                 + "</mxCell>"
                 + "<mxCell id=\"edge1\" edge=\"1\" parent=\"1\" source=\"api\" target=\"gateway\">"
                 + "<mxGeometry relative=\"1\" as=\"geometry\"/>"
+                + "</mxCell>"
+                + "</root></mxGraphModel>");
+        return requestDTO;
+    }
+
+    private ChatRequestDTO overlappingRequest(String message) {
+        ChatRequestDTO requestDTO = request(message);
+        requestDTO.setCanvasXml("<mxGraphModel><root>"
+                + "<mxCell id=\"0\"/>"
+                + "<mxCell id=\"1\" parent=\"0\"/>"
+                + "<mxCell id=\"api\" value=\"API\" vertex=\"1\" parent=\"1\">"
+                + "<mxGeometry x=\"120\" y=\"80\" width=\"120\" height=\"60\" as=\"geometry\"/>"
+                + "</mxCell>"
+                + "<mxCell id=\"gateway\" value=\"Gateway\" vertex=\"1\" parent=\"1\">"
+                + "<mxGeometry x=\"160\" y=\"100\" width=\"120\" height=\"60\" as=\"geometry\"/>"
                 + "</mxCell>"
                 + "</root></mxGraphModel>");
         return requestDTO;

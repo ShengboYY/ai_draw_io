@@ -10,7 +10,11 @@ import org.junit.Test;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.tool.ToolCallback;
 import org.springframework.ai.tool.method.MethodToolCallbackProvider;
+import org.zipp.ai.domain.agent.model.valobj.analysis.CanvasAnalysis;
+import org.zipp.ai.domain.agent.model.valobj.analysis.CanvasIssueType;
+import org.zipp.ai.domain.agent.service.analysis.DefaultCanvasAnalyzer;
 import org.zipp.ai.domain.agent.service.armory.matter.mcp.server.DrawioCanvasMcpService;
+import org.zipp.ai.domain.agent.service.armory.matter.mcp.server.DrawioCanvasXmlToolkit;
 
 import java.util.Arrays;
 import java.util.List;
@@ -33,7 +37,8 @@ public class DrawioCanvasMcpServiceTest {
                 .map(callback -> callback.getToolDefinition().name())
                 .toList();
 
-        assertEquals(Set.of("create_diagram", "modify_diagram", "optimize_diagram", "inspect_canvas"), Set.copyOf(toolNames));
+        assertEquals(Set.of("create_diagram", "modify_diagram", "optimize_diagram"), Set.copyOf(toolNames));
+        assertFalse(toolNames.contains("inspect_canvas"));
         assertFalse(toolNames.contains("display_diagram"));
         assertFalse(toolNames.contains("patch_cells"));
         assertFalse(toolNames.contains("validate_diagram"));
@@ -51,6 +56,7 @@ public class DrawioCanvasMcpServiceTest {
 
         assertEquals("patch_cells", response.getType());
         assertTrue(response.getCells().contains("Gateway"));
+        assertEquals(null, response.getAnalysis());
     }
 
     @Test
@@ -70,6 +76,134 @@ public class DrawioCanvasMcpServiceTest {
         assertEquals("drawio_done", response.getType());
         assertTrue(response.getContent().contains("Gateway"));
         assertFalse(response.getContent().contains("Old API"));
+    }
+
+    @Test
+    public void shouldReturnPatchCellsForAppendModifyTool() {
+        DrawioCanvasMcpService service = new DrawioCanvasMcpService();
+        DrawioCanvasMcpService.ModifyDiagramRequest request = new DrawioCanvasMcpService.ModifyDiagramRequest();
+        request.setMode("append");
+        request.setXml("""
+                <mxGraphModel><root><mxCell id='0'/><mxCell id='1' parent='0'/>
+                <mxCell id='2' value='API' vertex='1' parent='1'><mxGeometry x='100' y='100' width='120' height='60' as='geometry'/></mxCell>
+                </root></mxGraphModel>
+                """);
+        request.setCells("""
+                <mxCell id='3' value='Worker' vertex='1' parent='1'><mxGeometry x='320' y='100' width='120' height='60' as='geometry'/></mxCell>
+                <mxCell id='4' value='dispatches' edge='1' parent='1' source='2' target='3'><mxGeometry relative='1' as='geometry'/></mxCell>
+                """);
+
+        DrawioCanvasMcpService.DrawioMutationResponse response = service.modifyDiagram(request);
+
+        assertEquals("patch_cells", response.getType());
+        assertEquals(null, response.getContent());
+        assertTrue(response.getCells().contains("Worker"));
+        assertEquals("validation_result", response.getAnalysis().getType());
+        assertEquals(2, response.getAnalysis().getSummary().getNodeCount());
+        assertEquals(1, response.getAnalysis().getSummary().getEdgeCount());
+        String merged = new DrawioCanvasXmlToolkit().replaceCells(request.getXml(), response.getCells());
+        assertTrue(merged.contains("API"));
+        assertTrue(merged.contains("Worker"));
+    }
+
+    @Test
+    public void shouldAttachAnalysisToCreateDiagramOutput() {
+        DrawioCanvasMcpService service = new DrawioCanvasMcpService();
+        DrawioCanvasMcpService.DrawioXmlRequest request = new DrawioCanvasMcpService.DrawioXmlRequest();
+        request.setXml("""
+                <mxCell id='2' value='A' vertex='1' parent='1'><mxGeometry x='100' y='100' width='120' height='60' as='geometry'/></mxCell>
+                <mxCell id='3' value='B' vertex='1' parent='1'><mxGeometry x='150' y='120' width='120' height='60' as='geometry'/></mxCell>
+                """);
+
+        DrawioCanvasMcpService.DrawioToolResponse response = service.createDiagram(request);
+
+        assertEquals("drawio_done", response.getType());
+        assertEquals("validation_result", response.getAnalysis().getType());
+        assertEquals(false, response.getAnalysis().isValid());
+        assertEquals(2, response.getAnalysis().getSummary().getNodeCount());
+        assertTrue(response.getAnalysis().getIssues().stream()
+                .anyMatch(issue -> "NODE_OVERLAP".equals(issue.getType()) && issue.getTargetCellIds().equals(List.of("2", "3"))));
+    }
+
+    @Test
+    public void shouldAttachAnalysisToFullModifyOutput() {
+        DrawioCanvasMcpService service = new DrawioCanvasMcpService();
+        DrawioCanvasMcpService.ModifyDiagramRequest request = new DrawioCanvasMcpService.ModifyDiagramRequest();
+        request.setMode("replace_cells");
+        request.setXml("""
+                <mxGraphModel><root><mxCell id='0'/><mxCell id='1' parent='0'/>
+                <mxCell id='2' value='Old API' vertex='1' parent='1'><mxGeometry x='100' y='100' width='120' height='60' as='geometry'/></mxCell>
+                </root></mxGraphModel>
+                """);
+        request.setCells("<mxCell id='2' value='Gateway' vertex='1' parent='1'><mxGeometry x='100' y='100' width='140' height='60' as='geometry'/></mxCell>");
+
+        DrawioCanvasMcpService.DrawioMutationResponse response = service.modifyDiagram(request);
+
+        assertEquals("drawio_done", response.getType());
+        assertEquals("validation_result", response.getAnalysis().getType());
+        assertEquals(true, response.getAnalysis().isValid());
+        assertEquals(1, response.getAnalysis().getSummary().getNodeCount());
+        assertEquals(0, response.getAnalysis().getSummary().getEdgeCount());
+    }
+
+    @Test
+    public void shouldAttachAnalysisToOptimizedOutputAfterRouting() {
+        DrawioCanvasMcpService service = new DrawioCanvasMcpService();
+        DrawioCanvasMcpService.OptimizeDiagramRequest request = new DrawioCanvasMcpService.OptimizeDiagramRequest();
+        request.setXml(edgeCrossingGraphXml());
+
+        DrawioCanvasMcpService.DrawioMutationResponse response = service.optimizeDiagram(request);
+
+        assertEquals("drawio_done", response.getType());
+        assertEquals("validation_result", response.getAnalysis().getType());
+        assertFalse(response.getAnalysis().getIssues().stream()
+                .anyMatch(issue -> "EDGE_NODE_CROSSING".equals(issue.getType()) && issue.getTargetCellIds().equals(List.of("5", "4"))));
+    }
+
+    @Test
+    public void shouldReturnEdgePatchForRouteOnlyOptimize() {
+        DrawioCanvasMcpService service = new DrawioCanvasMcpService();
+        DrawioCanvasMcpService.OptimizeDiagramRequest request = new DrawioCanvasMcpService.OptimizeDiagramRequest();
+        request.setMode("route_only");
+        request.setXml(edgeCrossingGraphXml());
+
+        DrawioCanvasMcpService.DrawioMutationResponse response = service.optimizeDiagram(request);
+
+        assertEquals("patch_cells", response.getType());
+        assertTrue(response.getCells().contains("edge='1'") || response.getCells().contains("edge=\"1\""));
+        assertFalse(response.getCells().contains("vertex='1'") || response.getCells().contains("vertex=\"1\""));
+        assertEquals("validation_result", response.getAnalysis().getType());
+        assertNoAnalyzerIssue(new DrawioCanvasXmlToolkit().replaceCells(edgeCrossingGraphXml(), response.getCells()),
+                CanvasIssueType.EDGE_NODE_CROSSING, List.of("5", "4"));
+    }
+
+    @Test
+    public void shouldAutoRouteCreateDiagramBeforeReturningAnalysis() {
+        DrawioCanvasMcpService service = new DrawioCanvasMcpService();
+        DrawioCanvasMcpService.DrawioXmlRequest request = new DrawioCanvasMcpService.DrawioXmlRequest();
+        request.setXml(edgeCrossingGraphXml());
+
+        DrawioCanvasMcpService.DrawioToolResponse response = service.createDiagram(request);
+
+        assertEquals("drawio_done", response.getType());
+        assertNoAnalyzerIssue(response.getContent(), CanvasIssueType.EDGE_NODE_CROSSING, List.of("5", "4"));
+        assertFalse(response.getAnalysis().getIssues().stream()
+                .anyMatch(issue -> "EDGE_NODE_CROSSING".equals(issue.getType()) && issue.getTargetCellIds().equals(List.of("5", "4"))));
+    }
+
+    @Test
+    public void shouldAutoRouteFullModifyDiagramBeforeReturningAnalysis() {
+        DrawioCanvasMcpService service = new DrawioCanvasMcpService();
+        DrawioCanvasMcpService.ModifyDiagramRequest request = new DrawioCanvasMcpService.ModifyDiagramRequest();
+        request.setMode("full_xml");
+        request.setXml(edgeCrossingGraphXml());
+
+        DrawioCanvasMcpService.DrawioMutationResponse response = service.modifyDiagram(request);
+
+        assertEquals("drawio_done", response.getType());
+        assertNoAnalyzerIssue(response.getContent(), CanvasIssueType.EDGE_NODE_CROSSING, List.of("5", "4"));
+        assertFalse(response.getAnalysis().getIssues().stream()
+                .anyMatch(issue -> "EDGE_NODE_CROSSING".equals(issue.getType()) && issue.getTargetCellIds().equals(List.of("5", "4"))));
     }
 
     @Test
@@ -308,7 +442,7 @@ public class DrawioCanvasMcpServiceTest {
             modifyRequest.setCells("<mxCell id='2' value='Gateway' vertex='1' parent='1'><mxGeometry x='100' y='100' width='140' height='60' as='geometry'/></mxCell>");
             service.modifyDiagram(modifyRequest);
 
-            DrawioCanvasMcpService.DrawioXmlRequest optimizeRequest = new DrawioCanvasMcpService.DrawioXmlRequest();
+            DrawioCanvasMcpService.OptimizeDiagramRequest optimizeRequest = new DrawioCanvasMcpService.OptimizeDiagramRequest();
             optimizeRequest.setReason("route layout");
             optimizeRequest.setXml("""
                     <mxGraphModel><root><mxCell id='0'/><mxCell id='1' parent='0'/>
@@ -381,6 +515,65 @@ public class DrawioCanvasMcpServiceTest {
         assertTrue("label should be offset away from the edge line", Math.abs(Double.parseDouble(geometry.attributeValue("y"))) > 0);
         assertTrue("label should choose the lower side when the upper side overlaps another node",
                 Double.parseDouble(geometry.attributeValue("y")) > 0);
+    }
+
+    @Test
+    public void shouldRouteEdgeAroundBlockingNode() {
+        DrawioCanvasMcpService service = new DrawioCanvasMcpService();
+        DrawioCanvasMcpService.DrawioXmlRequest request = new DrawioCanvasMcpService.DrawioXmlRequest();
+        request.setXml("""
+                <mxGraphModel><root><mxCell id='0'/><mxCell id='1' parent='0'/>
+                <mxCell id='2' value='Source' vertex='1' parent='1'><mxGeometry x='40' y='120' width='80' height='60' as='geometry'/></mxCell>
+                <mxCell id='3' value='Target' vertex='1' parent='1'><mxGeometry x='360' y='120' width='80' height='60' as='geometry'/></mxCell>
+                <mxCell id='4' value='Blocker' vertex='1' parent='1'><mxGeometry x='210' y='110' width='80' height='80' as='geometry'/></mxCell>
+                <mxCell id='5' value='' edge='1' parent='1' source='2' target='3'><mxGeometry relative='1' as='geometry'/></mxCell>
+                </root></mxGraphModel>
+                """);
+
+        DrawioCanvasMcpService.DrawioToolResponse response = service.routeEdges(request);
+
+        assertNoAnalyzerIssue(response.getContent(), CanvasIssueType.EDGE_NODE_CROSSING, List.of("5", "4"));
+    }
+
+    @Test
+    public void shouldRouteContainerChildEdgeAroundBlockingChildNode() {
+        DrawioCanvasMcpService service = new DrawioCanvasMcpService();
+        DrawioCanvasMcpService.DrawioXmlRequest request = new DrawioCanvasMcpService.DrawioXmlRequest();
+        request.setXml("""
+                <mxGraphModel><root><mxCell id='0'/><mxCell id='1' parent='0'/>
+                <mxCell id='10' value='Container' style='swimlane;html=1;' vertex='1' parent='1'><mxGeometry x='100' y='100' width='400' height='250' as='geometry'/></mxCell>
+                <mxCell id='11' value='Source' vertex='1' parent='10'><mxGeometry x='30' y='80' width='70' height='40' as='geometry'/></mxCell>
+                <mxCell id='12' value='Target' vertex='1' parent='10'><mxGeometry x='300' y='80' width='70' height='40' as='geometry'/></mxCell>
+                <mxCell id='13' value='Blocker' vertex='1' parent='10'><mxGeometry x='160' y='60' width='80' height='80' as='geometry'/></mxCell>
+                <mxCell id='14' value='' edge='1' parent='10' source='11' target='12'><mxGeometry relative='1' as='geometry'/></mxCell>
+                </root></mxGraphModel>
+                """);
+
+        DrawioCanvasMcpService.DrawioToolResponse response = service.routeEdges(request);
+
+        assertNoAnalyzerIssue(response.getContent(), CanvasIssueType.EDGE_NODE_CROSSING, List.of("14", "13"));
+    }
+
+    @Test
+    public void shouldPreserveSafeExistingWaypoints() {
+        DrawioCanvasMcpService service = new DrawioCanvasMcpService();
+        DrawioCanvasMcpService.DrawioXmlRequest request = new DrawioCanvasMcpService.DrawioXmlRequest();
+        request.setXml("""
+                <mxGraphModel><root><mxCell id='0'/><mxCell id='1' parent='0'/>
+                <mxCell id='2' value='Source' vertex='1' parent='1'><mxGeometry x='40' y='120' width='80' height='60' as='geometry'/></mxCell>
+                <mxCell id='3' value='Target' vertex='1' parent='1'><mxGeometry x='360' y='120' width='80' height='60' as='geometry'/></mxCell>
+                <mxCell id='4' value='Blocker' vertex='1' parent='1'><mxGeometry x='210' y='110' width='80' height='80' as='geometry'/></mxCell>
+                <mxCell id='5' value='' edge='1' parent='1' source='2' target='3'>
+                    <mxGeometry relative='1' as='geometry'><Array as='points'><mxPoint x='160' y='60'/><mxPoint x='320' y='60'/></Array></mxGeometry>
+                </mxCell>
+                </root></mxGraphModel>
+                """);
+
+        DrawioCanvasMcpService.DrawioToolResponse response = service.routeEdges(request);
+
+        assertNoAnalyzerIssue(response.getContent(), CanvasIssueType.EDGE_NODE_CROSSING, List.of("5", "4"));
+        assertTrue(response.getContent().contains("x=\"160\" y=\"60\""));
+        assertTrue(response.getContent().contains("x=\"320\" y=\"60\""));
     }
 
     @Test
@@ -462,5 +655,23 @@ public class DrawioCanvasMcpServiceTest {
             }
         }
         throw new AssertionError("Edge not found: " + edgeId);
+    }
+
+    private void assertNoAnalyzerIssue(String xml, CanvasIssueType type, List<String> targetCellIds) {
+        CanvasAnalysis analysis = new DefaultCanvasAnalyzer().analyze(xml, "architecture");
+        assertFalse("Did not expect issue " + type + " with targets " + targetCellIds,
+                analysis.getIssues().stream().anyMatch(issue ->
+                        type == issue.getType() && issue.getTargetCellIds().equals(targetCellIds)));
+    }
+
+    private String edgeCrossingGraphXml() {
+        return """
+                <mxGraphModel><root><mxCell id='0'/><mxCell id='1' parent='0'/>
+                <mxCell id='2' value='Source' vertex='1' parent='1'><mxGeometry x='40' y='120' width='80' height='60' as='geometry'/></mxCell>
+                <mxCell id='3' value='Target' vertex='1' parent='1'><mxGeometry x='360' y='120' width='80' height='60' as='geometry'/></mxCell>
+                <mxCell id='4' value='Blocker' vertex='1' parent='1'><mxGeometry x='210' y='110' width='80' height='80' as='geometry'/></mxCell>
+                <mxCell id='5' value='' edge='1' parent='1' source='2' target='3'><mxGeometry relative='1' as='geometry'/></mxCell>
+                </root></mxGraphModel>
+                """;
     }
 }

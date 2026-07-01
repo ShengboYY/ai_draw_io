@@ -353,10 +353,10 @@ public class AgentConversationService {
     private List<String> allowedToolsFor(IntentRoutingResult routingResult) {
         String taskType = StringUtils.defaultString(routingResult.getTaskType());
         return switch (taskType) {
-            case "create_new" -> List.of(DrawioCanvasToolNames.CREATE_DIAGRAM, DrawioCanvasToolNames.INSPECT_CANVAS);
-            case "edit_existing" -> List.of(DrawioCanvasToolNames.MODIFY_DIAGRAM, DrawioCanvasToolNames.INSPECT_CANVAS);
-            case "optimize_layout" -> List.of(DrawioCanvasToolNames.INSPECT_CANVAS, DrawioCanvasToolNames.OPTIMIZE_DIAGRAM);
-            case "review_only", "none" -> List.of(DrawioCanvasToolNames.INSPECT_CANVAS);
+            case "create_new" -> List.of(DrawioCanvasToolNames.CREATE_DIAGRAM);
+            case "edit_existing" -> List.of(DrawioCanvasToolNames.MODIFY_DIAGRAM);
+            case "optimize_layout" -> List.of(DrawioCanvasToolNames.OPTIMIZE_DIAGRAM);
+            case "review_only", "none" -> List.of();
             default -> DrawioCanvasToolNames.CONSOLIDATED_TOOL_NAMES;
         };
     }

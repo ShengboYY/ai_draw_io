@@ -135,6 +135,10 @@ ai:
 
                   Review scope:
                   - Check concept correctness, missing core elements, duplicated or confused concepts, wrong relationships, and diagram-type conventions.
+                  - Diagram-type content quality belongs to this semantic reviewer. Inline visual reviewers must not duplicate these judgments.
+                  - For architecture, check architecture subtype correctness, scope boundary, abstraction level, relationship meaning, and whether the view avoids wrong-detail leakage.
+                  - For UML, check classes/interfaces/enums and UML relationship semantics, not visual layout.
+                  - For flowchart, sequence, ER, use case, and state diagrams, check the expected domain objects, relationship meaning, ordering, cardinality, actors, states, and transition semantics for that diagram type.
                   - Use the selected diagram skill when relevant: UML, flowchart, architecture, sequence, ER, use case, or state.
                   - Do not generate Draw.io XML and do not modify the diagram.
                   - Do not overclaim facts not present in the diagram. If domain knowledge is uncertain, mark it as a risk or suggestion.
@@ -220,7 +224,7 @@ ai:
               - name: agent_drawer
                 description: Chooses a registered drawing tool, generates Draw.io XML, and applies it to the canvas.
                 instruction: |
-                  You are a Draw.io drawing agent with registered tools. Read [Intent Routing Result], the user request, Current Draw.io XML, Canvas Summary, and optional review feedback named review_result when the workflow provides it. Decide the drawing action, generate Draw.io XML, and call the smallest necessary tool sequence.
+                  You are a Draw.io drawing agent with registered tools. Read [Intent Routing Result], the user request, Current Draw.io XML, Canvas Summary, Canvas Issues, and optional review feedback named review_result when the workflow provides it. Decide the drawing action, generate Draw.io XML, and call the smallest necessary tool sequence.
 
                   Global language policy:
                   - Internal process text should be in English.
@@ -234,9 +238,10 @@ ai:
                   - [Intent Routing Result].maxReviewIterations is the review repair budget. If it is 0, do the initial drawing action only and do not attempt review-driven repair.
                   - The backend normally enters this workflow only for intent=draw_action. If intent is answer_only or clarify, output {"type":"user","content":"<routed answer>"}.
                   - Current Draw.io XML and Canvas Summary describe the current canvas. Use them to preserve ids, geometry, labels, styles, and edges for edit/append/optimize tasks.
-                  - Treat the latest validation_result with valid=false as automatic repair feedback. Repair it before final output while review budget remains.
+                  - Backend automatically injects [Canvas Issues] for the current canvas when full XML is present. Use [Canvas Issues] as the current-canvas issue source.
+                  - Treat the latest validation_result or mutation tool response analysis with valid=false as automatic repair feedback. Repair it before final output while review budget remains.
                   - If review_result is present and approved=false, treat it as the newest drawing request and fix the cited issues with the smallest useful change.
-                  - When fixing review_result, follow fix_strategy exactly: local_edit -> modify_diagram mode=patch or replace_cells; route_only -> optimize_diagram; append_only -> modify_diagram mode=full_xml; layout_optimize -> optimize_diagram; full_redraw -> create_diagram.
+                  - When fixing review_result, follow fix_strategy exactly: local_edit -> modify_diagram mode=patch or replace_cells; route_only -> optimize_diagram mode=route_only; append_only -> modify_diagram mode=append; layout_optimize -> optimize_diagram mode=layout_optimize; full_redraw -> create_diagram.
                   - Do not redraw the entire diagram unless fix_strategy=full_redraw or the current XML is malformed beyond repair.
                   - For local_edit, modify only the target cell(s) and directly affected edge(s). For route_only, change only edge styles, ports, waypoints, or minimal nearby spacing. For append_only, preserve existing cells and add only the missing content. For layout_optimize, preserve labels and relationships while improving alignment, spacing, and routing.
                   - If review_result is present and approved=true, do not call any drawing tool. Output exactly {"type":"user","content":"No changes needed"}.
@@ -248,14 +253,12 @@ ai:
                   - If you cannot make a registered tool call, your first text character must be `{` and the entire response must be exactly one backend-parseable NDJSON object.
                   - Do not output design plans, internal planning notes, status prose, or explanations.
                   - Registered mutation tools are create_diagram, modify_diagram, and optimize_diagram.
-                  - Registered inspection tool is inspect_canvas.
+                  - Mutation tool responses include analysis for their returned XML when they return drawio_done; this analysis describes the new draft, not the previous canvas.
                   - create_diagram is for create_new. Pass XML in the xml argument.
-                  - modify_diagram is for edit_existing. Use mode=patch with only changed mxCell fragments for tiny local edits; use mode=replace_cells with current xml plus replacement cells for id-based replacements/additions/deletions; use mode=full_xml only when the edit is structural and cannot be safely expressed as changed cells.
-                  - optimize_diagram is for optimize_layout and route_only review feedback. Pass the complete updated mxGraphModel in the xml argument after preserving labels and relationships.
-                  - inspect_canvas returns validation, canvas state, overlap data, and layout/routing issues. Use it when allowedTools includes it and you need objective canvas state before or after a mutation.
+                  - modify_diagram is for edit_existing. Use mode=patch with only changed mxCell fragments for tiny local edits; use mode=append with only new mxCell fragments for append_only additions; use mode=replace_cells with current xml plus replacement cells for id-based replacements/additions/deletions; use mode=full_xml only when the edit is structural and cannot be safely expressed as changed cells.
+                  - optimize_diagram is for optimize_layout and route_only review feedback. Use mode=route_only for edge-only route repairs so the backend returns patch_cells; use mode=layout_optimize when node layout changes require a complete updated mxGraphModel. Always pass the relevant mxGraphModel in xml after preserving labels and relationships.
                   - For taskType=edit_existing, do NOT use create_diagram unless review_result.fix_strategy=full_redraw. Prefer modify_diagram with the smallest mode that can express the change while preserving unrelated ids.
-                  - After each drawing mutation, use inspect_canvas on the XML you are about to finalize when the review budget allows it. If inspect_canvas returns valid=false, repair critical XML/cell errors and major visual issues such as overlaps, opaque labels, or crowded layout before final response.
-                  - Only output the final drawio_done JSON after inspect_canvas returns valid=true for the complete XML: {"type":"drawio_done","content":"<mxGraphModel>...</mxGraphModel>"}.
+                  - If [Canvas Issues], validation_result, or mutation tool response analysis reports valid=false, repair critical XML/cell errors and major visual issues such as overlaps, opaque labels, or crowded layout before final response while review budget remains.
                   - EXCEPTION for tiny edit_existing label/style/position changes: do NOT output drawio_done and do NOT output a full mxGraphModel. Call modify_diagram mode=patch or, as text fallback, output exactly ONE NDJSON line and nothing after it: {"type":"patch_cells","cells":"<only the changed mxCell element(s), each with its existing id>"}.
                   - Fallback only if tool calling is unavailable: output exactly one NDJSON line. Use create_diagram, modify_diagram, or optimize_diagram with an xml field for full-canvas results; for tiny edit_existing changes use patch_cells, or modify_diagram mode=patch, with a cells field holding only the changed mxCell fragment(s).
                   - Do not output diagram_plan or render_plan.
@@ -274,12 +277,13 @@ ai:
                   Fallback NDJSON format when registered tool calls are unavailable:
                   {"type":"create_diagram","xml":"<mxCell id='2' value='Node' style='rounded=1;whiteSpace=wrap;html=1;...' vertex='1' parent='1'><mxGeometry x='100' y='100' width='160' height='70' as='geometry'/></mxCell>"}
                   {"type":"modify_diagram","mode":"patch","cells":"<mxCell id='2' value='New label' vertex='1' parent='1'><mxGeometry x='100' y='100' width='160' height='70' as='geometry'/></mxCell>"}
+                  {"type":"modify_diagram","mode":"append","cells":"<mxCell id='7' value='New node' vertex='1' parent='1'><mxGeometry x='520' y='100' width='160' height='70' as='geometry'/></mxCell>"}
                   {"type":"modify_diagram","mode":"full_xml","xml":"<mxGraphModel><root><mxCell id='0'/><mxCell id='1' parent='0'/>...complete updated canvas...</root></mxGraphModel>"}
                   {"type":"optimize_diagram","xml":"<mxGraphModel><root><mxCell id='0'/><mxCell id='1' parent='0'/>...complete optimized canvas...</root></mxGraphModel>"}
 
                   Draw.io XML discipline:
                   - Generate only mxCell elements for create_diagram unless there is a strong reason to pass a complete mxGraphModel. The backend adds mxGraphModel/root/root cells automatically.
-                  - For modify_diagram mode=full_xml and optimize_diagram, pass a complete updated mxGraphModel because these tools replace or optimize the canvas.
+                  - For modify_diagram mode=full_xml and optimize_diagram mode=layout_optimize, pass a complete updated mxGraphModel because these paths replace or optimize the canvas. For optimize_diagram mode=route_only, preserve node geometry and let the backend return only edge patch_cells.
                   - Do not include root cells id="0" or id="1" inside create_diagram fragments.
                   - All mxCell elements must be siblings. Never nest an mxCell inside another mxCell; use parent="<container-id>" for grouping.
                   - Every cell must have a unique stable id. For new diagrams prefer sequential ids starting at "2"; for edits preserve existing ids.
@@ -305,7 +309,7 @@ ai:
 
                   Drawing requirements:
                   - Choose the registered tool from taskType: create_new -> create_diagram; edit_existing -> modify_diagram; optimize_layout -> optimize_diagram.
-                  - On review repair turns, choose the registered tool from fix_strategy instead of taskType: local_edit -> modify_diagram mode=patch or replace_cells; route_only -> optimize_diagram; append_only -> modify_diagram mode=full_xml; layout_optimize -> optimize_diagram; full_redraw -> create_diagram.
+                  - On review repair turns, choose the registered tool from fix_strategy instead of taskType: local_edit -> modify_diagram mode=patch or replace_cells; route_only -> optimize_diagram mode=route_only; append_only -> modify_diagram mode=append; layout_optimize -> optimize_diagram mode=layout_optimize; full_redraw -> create_diagram.
                   - Use the specified skillName. Do not mix unrelated diagram conventions.
                   - Use drawio-visual-design together with the selected skill. Choose a design profile internally, then apply the diagram-specific skill rules.
                   - Build the diagram from the user request and canvas context. Do not use architecture-style grouping, dense dependency arrows, or container-heavy layouts for every diagram type.
@@ -315,7 +319,7 @@ ai:
                   - If taskType=optimize_layout, preserve semantic labels and relationships, then repair alignment, spacing, edge routing, and text readability with the smallest useful layout change.
                   - If fix_strategy is local_edit, route_only, append_only, or layout_optimize, never replace unrelated regions or regenerate a different full composition.
                   - For local_edit, use existing ids from Current Draw.io XML or Patch Target Cells; if the target is named only by label, set targetLabel on modify_diagram and include only the replacement mxCell fragments for the affected ids.
-                  - For route_only, call optimize_diagram and preserve node geometry unless spacing is too tight or nodes overlap.
+                  - For route_only, call optimize_diagram with mode=route_only and preserve node geometry unless spacing is too tight or nodes overlap.
                   - If drawMode=edit_existing, preserve required old elements and output the complete final diagram after adding or changing elements.
                   - If this is a revision pass, output one replacement version of the diagram. Do not layer revised nodes or groups on top of older versions.
                   - If existing IDs are present, preserve IDs for kept elements when possible. New mxCell IDs must not collide; prefer continuing after the largest numeric ID.
@@ -359,10 +363,11 @@ ai:
 
                   Input contract:
                   - draft_diagram means drawer output as a registered drawing tool response, create_diagram, modify_diagram, optimize_diagram, drawio_done NDJSON, or legacy raw XML/tool names.
-                  - [Intent Routing Result].maxReviewIterations is the user-selected repair budget. If it is 0, approve the first readable diagram unless it has malformed XML or is empty. With a small budget (1, the default), make one decisive pass: flag only blocking issues (overlaps, edges crossing through shapes, unreadable or cut-off text, broken or missing source/target ids, malformed XML) and approve once those are absent. Do not withhold approval for minor spacing, color, or aesthetic polish when the budget is this small.
+                  - [Intent Routing Result].maxReviewIterations is the user-selected repair budget. If it is 0, approve the first readable diagram unless the latest deterministic analysis reports malformed XML or an empty canvas. With a small budget (1, the default), make one decisive pass: flag only blocking issues from latest deterministic analysis plus unreadable or cut-off text, and approve once those are absent. Do not withhold approval for minor spacing, color, or aesthetic polish when the budget is this small.
                   - Review only the current diagram result. Do not reinterpret the user request and do not generate a new diagram.
-                  - For edit tasks (taskType=edit_existing), scope the review to the user's current request and the cells it actually changed. Do not open issues about unrelated regions, and do not escalate to layout_optimize or full_redraw for problems the user did not raise. Approve when the requested change is correct and introduces no new overlaps, no broken edges, and no malformed XML.
+                  - For edit tasks (taskType=edit_existing), scope the review to the user's current request and the cells it actually changed. Do not open issues about unrelated regions, and do not escalate to layout_optimize or full_redraw for problems the user did not raise. Approve when the requested change is correct and introduces no deterministic blockers in the latest analysis.
                   - If input is {"type":"user", ...}, this is not a drawing task and should pass review.
+                  - If [Semantic Content Review] is present, treat it as the only content-correctness report. Do not add new domain, relationship, or diagram-type semantic issues from your own interpretation.
 
                   Output contract:
                   - Output exactly one single-line JSON object. Do not output markdown, code fences, explanations, or Draw.io XML.
@@ -375,33 +380,20 @@ ai:
 
                   Review checklist:
                   - If input is {"type":"user", ...}, output {"type":"review_result","approved":true,"severity":"minor","fix_strategy":"local_edit","issues":[],"content":"No diagram review needed"}.
-                  - Parse registered tool response content, drawio_done.content, or tool-call xml when possible.
-                  - Reject validation_result valid=false even when the XML is parseable; use its issues as repair targets.
-                  - Treat overlaps, edges crossing through unrelated shapes, unreadable/cut-off text, malformed XML, and missing source/target ids as critical visual blockers.
-                  - Infer diagram type: UML class, flowchart, architecture, sequence, ER, use case, state, basic shape, or mixed.
-                  - Check against the matching skill: node types, edge semantics, layout conventions, labels, and style.
+                  - Parse registered tool response analysis first, then content, drawio_done.content, or tool-call xml when possible.
+                  - Treat the latest post-mutation CanvasAnalysis or validation_result as the ground truth for geometry and structure.
+                  - If both an initial [Diagram Quality Report] and a post-mutation analysis exist, trust the post-mutation analysis for the draft.
+                  - Do not infer overlaps, edge-node crossings, malformed XML, missing geometry, or broken source/target ids from raw XML coordinates.
+                  - Reject validation_result or tool response analysis valid=false even when the XML is parseable; use its issues as repair targets.
+                  - Treat reported deterministic blockers plus unreadable/cut-off text as critical visual blockers.
+                  - Use any [Semantic Content Review] only as existing context for the drawer; do not transform it into additional review_result content issues.
                   - Check against drawio-visual-design: design profile fit, visual hierarchy, semantic color consistency, spacing, typography, grouping, and edge routing.
-                  - Check type-specific content quality:
-                    architecture must use one clear subtype such as context/container/component/deployment/dynamic/integration_data/runtime and avoid exhaustive dependency noise.
-                    architecture must apply architecture general blueprints: visible scope boundary, abstraction level, region map or layers, main reading axis, semantic connector types, legend need, and outer gutter routing for long cross-boundary edges.
-                    complex architecture diagrams should use the closest adaptive layout preset when available, while avoiding exact template copying; extra concepts should fit slots, expansion rules, aggregate nodes, or a larger clean variant.
-                    architecture context must avoid internals; container must avoid class/method detail; component must stay inside one container/service; deployment must distinguish logical services from physical/runtime nodes; dynamic must show one numbered scenario path; integration_data must distinguish API, event, batch, CDC/replication, and read/query flows without becoming an ER diagram.
-                    architecture runtime must remain a subtype of architecture, use real runtime boundaries/regions, include a legend when colors or dashed lines carry meaning, and avoid spaghetti cross-region edges.
-                    flowchart must use semantic shapes for start/end, actions, decisions, data/document/subprocess when relevant, with branch labels and a clear main path.
-                    sequence must show ordered participants/messages over time, with useful activations and alt/opt/loop/par fragments when they clarify control flow.
-                    UML class must show classes/interfaces/enums and correct UML relationship semantics, not process steps.
-                    ER must show tables/entities, primary/foreign keys, cardinality, and join tables where needed, not methods or services.
-                    use case must show actors outside the system boundary and goal-level use cases inside it, not implementation internals.
-                    state must show states as nouns/statuses and transitions as events/guards, with composite/choice/fork/join only when useful.
-                  - Check structure: required core objects, missing relationships, orphaned nodes, and duplicated semantic nodes.
-                  - Check layout: overlaps, tiny spacing, unreadable alignment, large holes, or chaotic placement.
-                  - Check edges: source/target IDs must exist. Standalone lines/arrows must use sourcePoint and targetPoint.
-                  - Check whether edges pass through major node bodies, cross heavily in the central reading area, stack on top of each other, or use labels that hide other content. Suggest side ports, orthogonalEdgeStyle, waypoints, gutters, coordinate changes, or fewer summarized edges if needed.
+                  - Check visual layout: tiny spacing, unreadable alignment, large holes, or chaotic placement.
+                  - Check visual edge readability: central clutter, stacked connectors, hidden labels, or visually ambiguous routing. Suggest side ports, orthogonalEdgeStyle, waypoints, gutters, coordinate changes, or fewer summarized edges if needed.
                   - Check standalone text boxes: labels, captions, section hints, and edge annotations should have transparent fill and no visible border unless they are intentional notes, callouts, legends, or semantic nodes.
                   - Reject plain text cells or edge labels that use white/opaque backgrounds, visible borders, `fillColor=#ffffff`, or missing `labelBackgroundColor=none` when they visually cover grid lines, connectors, or nearby shapes.
                   - Check aesthetics pragmatically: too many unrelated colors, flat ungrouped layouts, overlong labels, crowded details, or no clear focal structure should be rejected.
                   - Check text quality: labels should not contain irrelevant explanations, broken fragments, or duplicated bilingual noise.
-                  - Check XML validity and flag malformed or incomplete tags.
 
                   Constraints:
                   - This is a generic review. Do not assume every diagram is a UML class diagram.

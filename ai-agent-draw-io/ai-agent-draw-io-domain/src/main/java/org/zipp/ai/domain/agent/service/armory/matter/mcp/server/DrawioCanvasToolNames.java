@@ -8,7 +8,6 @@ public final class DrawioCanvasToolNames {
     public static final String CREATE_DIAGRAM = "create_diagram";
     public static final String MODIFY_DIAGRAM = "modify_diagram";
     public static final String OPTIMIZE_DIAGRAM = "optimize_diagram";
-    public static final String INSPECT_CANVAS = "inspect_canvas";
     public static final String PATCH_CELLS = "patch_cells";
 
     public static final String DISPLAY_DIAGRAM = "display_diagram";
@@ -21,8 +20,7 @@ public final class DrawioCanvasToolNames {
     public static final List<String> CONSOLIDATED_TOOL_NAMES = List.of(
             CREATE_DIAGRAM,
             MODIFY_DIAGRAM,
-            OPTIMIZE_DIAGRAM,
-            INSPECT_CANVAS
+            OPTIMIZE_DIAGRAM
     );
 
     public static final Set<String> DRAWING_RESULT_TOOL_NAMES = Set.of(

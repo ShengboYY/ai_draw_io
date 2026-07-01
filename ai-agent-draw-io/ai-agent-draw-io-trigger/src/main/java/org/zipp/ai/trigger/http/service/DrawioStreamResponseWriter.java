@@ -162,9 +162,10 @@ public class DrawioStreamResponseWriter {
 
     private boolean isPatchFallback(com.alibaba.fastjson.JSONObject json) {
         String type = json.getString("type");
+        String mode = json.getString("mode");
         return DrawioCanvasToolNames.PATCH_CELLS.equals(type)
                 || (DrawioCanvasToolNames.MODIFY_DIAGRAM.equals(type)
-                && "patch".equals(json.getString("mode"))
+                && ("patch".equals(mode) || "append".equals(mode))
                 && StringUtils.isNotBlank(json.getString("cells")));
     }
 
@@ -174,13 +175,15 @@ public class DrawioStreamResponseWriter {
      * the update_cells renderer path, which tags the result mode=local for in-place frontend merge.
      */
     public boolean sendLocalCellPatch(ResponseBodyEmitter emitter, String phase, String currentCanvasXml, String cells) throws Exception {
-        if (StringUtils.isBlank(cells) || StringUtils.isBlank(currentCanvasXml)) {
+        String baseCanvasXml = StringUtils.defaultIfBlank(currentCanvasByEmitter.get(emitter), currentCanvasXml);
+        if (StringUtils.isBlank(cells) || StringUtils.isBlank(baseCanvasXml)) {
             return false;
         }
-        String merged = xmlToolkit.replaceCells(currentCanvasXml, cells);
+        String merged = xmlToolkit.replaceCells(baseCanvasXml, cells);
         if (StringUtils.isBlank(merged)) {
             return false;
         }
+        currentCanvasByEmitter.put(emitter, merged);
         if (merged.equals(lastPatchByEmitter.get(emitter))) {
             return true; // Already emitted this exact merge for the stream; treat as handled, don't resend.
         }
@@ -293,6 +296,9 @@ public class DrawioStreamResponseWriter {
     }
 
     private void sendDrawioDoneUnchecked(ResponseBodyEmitter emitter, String phase, String xml, String mode) throws Exception {
+        if (StringUtils.isNotBlank(xml)) {
+            currentCanvasByEmitter.put(emitter, xml);
+        }
         com.alibaba.fastjson.JSONObject wrapper = new com.alibaba.fastjson.JSONObject();
         wrapper.put("phase", phase);
         com.alibaba.fastjson.JSONObject chunk = new com.alibaba.fastjson.JSONObject();

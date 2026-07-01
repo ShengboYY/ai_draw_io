@@ -3,10 +3,15 @@ package org.zipp.ai.domain.agent.service.quality;
 import org.zipp.ai.domain.agent.model.valobj.canvas.CanvasEdge;
 import org.zipp.ai.domain.agent.model.valobj.canvas.CanvasNode;
 import org.zipp.ai.domain.agent.model.valobj.canvas.DrawioCanvasSnapshot;
+import org.zipp.ai.domain.agent.model.valobj.analysis.CanvasAnalysis;
+import org.zipp.ai.domain.agent.model.valobj.analysis.CanvasAnalysisIssue;
+import org.zipp.ai.domain.agent.model.valobj.analysis.CanvasIssueType;
 import org.zipp.ai.domain.agent.model.valobj.quality.DiagramQualityReport;
 import org.zipp.ai.domain.agent.model.valobj.quality.QualityIssue;
 import org.zipp.ai.domain.agent.service.IDiagramQualityInspector;
 import org.zipp.ai.domain.agent.service.IDrawioCanvasSnapshotService;
+import org.zipp.ai.domain.agent.service.analysis.DefaultCanvasAnalyzer;
+import org.zipp.ai.domain.agent.service.analysis.ICanvasAnalyzer;
 import org.zipp.ai.domain.agent.service.canvas.DefaultDrawioCanvasSnapshotService;
 import jakarta.annotation.Resource;
 import org.apache.commons.lang3.StringUtils;
@@ -29,6 +34,9 @@ public class DefaultDiagramQualityInspector implements IDiagramQualityInspector 
 
     @Resource
     private IDrawioCanvasSnapshotService canvasSnapshotService;
+
+    @Resource
+    private ICanvasAnalyzer canvasAnalyzer;
 
     public DefaultDiagramQualityInspector() {
     }
@@ -58,6 +66,7 @@ public class DefaultDiagramQualityInspector implements IDiagramQualityInspector 
 
         List<CanvasNode> nodes = snapshot.getNodes();
         List<CanvasEdge> edges = snapshot.getEdges();
+        addAnalyzerIssues(snapshot, layoutIssues, edgeIssues, semanticHints, recommendations);
         inspectLayout(nodes, layoutIssues, recommendations);
         inspectReadability(nodes, readabilityIssues, recommendations);
         inspectEdges(nodes, edges, edgeIssues, recommendations);
@@ -74,6 +83,55 @@ public class DefaultDiagramQualityInspector implements IDiagramQualityInspector 
         return canvasSnapshotService;
     }
 
+    private ICanvasAnalyzer analyzer() {
+        if (null == canvasAnalyzer) {
+            canvasAnalyzer = new DefaultCanvasAnalyzer();
+        }
+        return canvasAnalyzer;
+    }
+
+    private void addAnalyzerIssues(DrawioCanvasSnapshot snapshot,
+                                   List<QualityIssue> layoutIssues,
+                                   List<QualityIssue> edgeIssues,
+                                   List<QualityIssue> semanticHints,
+                                   List<String> recommendations) {
+        // Structural and geometry findings come from the shared analyzer; local checks keep readability heuristics.
+        CanvasAnalysis analysis = analyzer().analyze(snapshot.getRawXml(), snapshot.getDiagramType());
+        boolean mapped = false;
+        for (CanvasAnalysisIssue analyzerIssue : analysis.getIssues()) {
+            CanvasIssueType type = analyzerIssue.getType();
+            if (CanvasIssueType.NODE_OVERLAP == type) {
+                layoutIssues.add(issue("layout", "node_overlap", "high", analyzerIssue.getMessage(), firstTarget(analyzerIssue)));
+                mapped = true;
+            } else if (CanvasIssueType.MISSING_GEOMETRY == type) {
+                layoutIssues.add(issue("layout", "missing_geometry", "high", analyzerIssue.getMessage(), firstTarget(analyzerIssue)));
+                mapped = true;
+            } else if (CanvasIssueType.BROKEN_EDGE == type) {
+                edgeIssues.add(issue("edges", "broken_edge", "high", analyzerIssue.getMessage(), firstTarget(analyzerIssue)));
+                mapped = true;
+            } else if (CanvasIssueType.EDGE_NODE_CROSSING == type) {
+                edgeIssues.add(issue("edges", "edge_node_crossing", "medium", analyzerIssue.getMessage(), firstTarget(analyzerIssue)));
+                mapped = true;
+            } else if (CanvasIssueType.DUP_ID == type) {
+                semanticHints.add(issue("structure", "dup_id", "high", analyzerIssue.getMessage(), firstTarget(analyzerIssue)));
+                mapped = true;
+            } else if (CanvasIssueType.INVALID_XML == type) {
+                semanticHints.add(issue("structure", "invalid_xml", "high", analyzerIssue.getMessage(), firstTarget(analyzerIssue)));
+                mapped = true;
+            }
+        }
+        if (mapped) {
+            recommendations.add("Repair structural and geometry issues using the deterministic canvas analysis targets before relying on visual review.");
+        }
+    }
+
+    private String firstTarget(CanvasAnalysisIssue issue) {
+        if (issue.getTargetCellIds() == null || issue.getTargetCellIds().isEmpty()) {
+            return null;
+        }
+        return issue.getTargetCellIds().get(0);
+    }
+
     private void inspectLayout(List<CanvasNode> nodes, List<QualityIssue> issues, List<String> recommendations) {
         for (int i = 0; i < nodes.size(); i++) {
             CanvasNode a = nodes.get(i);
@@ -83,7 +141,7 @@ public class DefaultDiagramQualityInspector implements IDiagramQualityInspector 
                     continue;
                 }
                 if (intersects(a, b)) {
-                    issues.add(issue("layout", "node_overlap", "high", "Two node boxes overlap or visually cover each other: " + labelPair(a, b), a.getId()));
+                    continue;
                 } else if (isTooClose(a, b)) {
                     issues.add(issue("layout", "tight_spacing", "medium", "Two nearby nodes have very tight spacing: " + labelPair(a, b), a.getId()));
                 }
@@ -204,7 +262,6 @@ public class DefaultDiagramQualityInspector implements IDiagramQualityInspector 
                 issues.add(issue("edges", "self_loop", "low", "An edge loops back to the same node; verify whether this is intentional.", edge.getId()));
             }
             if (null == source || null == target) {
-                issues.add(issue("edges", "invalid_endpoint", "high", "An edge references a missing source or target node.", edge.getId()));
                 continue;
             }
 
@@ -212,16 +269,6 @@ public class DefaultDiagramQualityInspector implements IDiagramQualityInspector 
             connectedNodeIds.add(target.getId());
             if (estimatedTextWidth(edge.getLabel()) > 180D) {
                 issues.add(issue("edges", "long_edge_label", "low", "An edge label may be too long and hard to scan: " + edge.getLabel(), edge.getId()));
-            }
-
-            for (CanvasNode node : nodes) {
-                if (node.isContainer() || node.getId().equals(source.getId()) || node.getId().equals(target.getId())) {
-                    continue;
-                }
-                if (lineIntersectsRect(source.centerX(), source.centerY(), target.centerX(), target.centerY(), node)) {
-                    issues.add(issue("edges", "edge_through_node_risk", "medium", "An edge may pass through a node body near: " + node.getLabel(), edge.getId()));
-                    break;
-                }
             }
         }
 
@@ -488,13 +535,6 @@ public class DefaultDiagramQualityInspector implements IDiagramQualityInspector 
             }
         }
         return false;
-    }
-
-    private boolean lineIntersectsRect(double x1, double y1, double x2, double y2, CanvasNode rect) {
-        return lineIntersectsLine(x1, y1, x2, y2, rect.getX(), rect.getY(), rect.maxX(), rect.getY())
-                || lineIntersectsLine(x1, y1, x2, y2, rect.maxX(), rect.getY(), rect.maxX(), rect.maxY())
-                || lineIntersectsLine(x1, y1, x2, y2, rect.maxX(), rect.maxY(), rect.getX(), rect.maxY())
-                || lineIntersectsLine(x1, y1, x2, y2, rect.getX(), rect.maxY(), rect.getX(), rect.getY());
     }
 
     private boolean lineIntersectsLine(double x1, double y1, double x2, double y2, double x3, double y3, double x4, double y4) {

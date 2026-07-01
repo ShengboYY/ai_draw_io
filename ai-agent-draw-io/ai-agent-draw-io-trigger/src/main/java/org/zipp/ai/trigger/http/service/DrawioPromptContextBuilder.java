@@ -2,19 +2,27 @@ package org.zipp.ai.trigger.http.service;
 
 import org.apache.commons.lang3.StringUtils;
 import org.zipp.ai.api.dto.ChatRequestDTO;
+import org.zipp.ai.domain.agent.model.valobj.analysis.CanvasAnalysis;
+import org.zipp.ai.domain.agent.model.valobj.analysis.CanvasAnalysisIssue;
 import org.zipp.ai.domain.agent.model.valobj.intent.IntentRoutingResult;
 import org.zipp.ai.domain.agent.service.IDrawioCanvasSnapshotService;
+import org.zipp.ai.domain.agent.service.armory.matter.mcp.server.DrawioCanvasXmlToolkit;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import javax.annotation.Resource;
+import java.util.List;
 
 @Service
 @Slf4j
 public class DrawioPromptContextBuilder {
 
+    private static final int MAX_CANVAS_ISSUES = 8;
+
     @Resource
     private IDrawioCanvasSnapshotService canvasSnapshotService;
+
+    private final DrawioCanvasXmlToolkit canvasXmlToolkit = new DrawioCanvasXmlToolkit();
 
     public DrawioPromptContextBuilder() {
     }
@@ -107,7 +115,46 @@ public class DrawioPromptContextBuilder {
                 + "```xml\n"
                 + StringUtils.defaultString(canvasXml)
                 + "\n```\n\n[Canvas Summary]\n"
-                + canvasSummary;
+                + canvasSummary
+                + "\n\n"
+                + buildCanvasIssuesContext(canvasXml);
+    }
+
+    private String buildCanvasIssuesContext(String canvasXml) {
+        if (StringUtils.isBlank(canvasXml)) {
+            return "[Canvas Issues]\nNo drawable Draw.io XML was provided.";
+        }
+
+        CanvasAnalysis analysis = canvasXmlToolkit.analyze(canvasXml);
+        StringBuilder builder = new StringBuilder("[Canvas Issues]\n")
+                .append("valid=").append(analysis.isValid()).append('\n')
+                .append("severity=").append(analysis.getSeverity()).append('\n')
+                .append("summary=").append(StringUtils.defaultString(analysis.getSummary().getSummary())).append('\n');
+        List<CanvasAnalysisIssue> issues = analysis.getIssues();
+        if (issues.isEmpty()) {
+            return builder.append("issues=none").toString();
+        }
+
+        int limit = Math.min(MAX_CANVAS_ISSUES, issues.size());
+        for (int i = 0; i < limit; i++) {
+            CanvasAnalysisIssue issue = issues.get(i);
+            builder.append("- type=").append(issue.getType())
+                    .append(" severity=").append(issue.getSeverity())
+                    .append(" targets=").append(String.join(",", issue.getTargetCellIds()))
+                    .append(" repairability=").append(issue.getRepairability())
+                    .append(" message=").append(compactIssueMessage(issue.getMessage()))
+                    .append('\n');
+        }
+        if (issues.size() > MAX_CANVAS_ISSUES) {
+            builder.append("- truncatedIssueCount=").append(issues.size() - MAX_CANVAS_ISSUES);
+        }
+        return builder.toString().trim();
+    }
+
+    private String compactIssueMessage(String message) {
+        return StringUtils.defaultString(message)
+                .replaceAll("[\\r\\n\\t]+", " ")
+                .trim();
     }
 
     private String taskType(IntentRoutingResult routingResult) {

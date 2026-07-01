@@ -38,7 +38,7 @@ public class AgentNodeAdkToolRegistrationTest {
         assertTrue(agent.tools().stream().anyMatch(tool -> "create_diagram".equals(tool.name())));
         assertTrue(agent.tools().stream().anyMatch(tool -> "modify_diagram".equals(tool.name())));
         assertTrue(agent.tools().stream().anyMatch(tool -> "optimize_diagram".equals(tool.name())));
-        assertTrue(agent.tools().stream().anyMatch(tool -> "inspect_canvas".equals(tool.name())));
+        assertFalse(agent.tools().stream().anyMatch(tool -> "inspect_canvas".equals(tool.name())));
         assertFalse(agent.tools().stream().anyMatch(tool -> "display_diagram".equals(tool.name())));
         assertFalse(agent.tools().stream().anyMatch(tool -> "route_edges".equals(tool.name())));
         assertTrue(agent.tools().stream()

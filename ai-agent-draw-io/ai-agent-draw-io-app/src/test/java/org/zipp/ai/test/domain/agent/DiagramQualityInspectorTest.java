@@ -79,4 +79,34 @@ public class DiagramQualityInspectorTest {
         assertFalse(report.getSemanticHints().isEmpty());
     }
 
+    @Test
+    public void shouldSurfaceAnalyzerStructuralIssues() {
+        DefaultDiagramQualityInspector inspector = new DefaultDiagramQualityInspector(new DefaultDrawioCanvasSnapshotService());
+        String xml = "<mxGraphModel><root>"
+                + "<mxCell id='0'/><mxCell id='1' parent='0'/>"
+                + "<mxCell id='2' value='API' vertex='1' parent='1'><mxGeometry x='100' y='100' width='120' height='60' as='geometry'/></mxCell>"
+                + "<mxCell id='2' value='Duplicate API' vertex='1' parent='1'><mxGeometry x='260' y='100' width='120' height='60' as='geometry'/></mxCell>"
+                + "</root></mxGraphModel>";
+
+        DiagramQualityReport report = inspector.inspect(xml, "architecture");
+
+        assertTrue(report.getSemanticHints().stream().anyMatch(issue -> "dup_id".equals(issue.getType())));
+    }
+
+    @Test
+    public void shouldSurfaceAnalyzerEdgeNodeCrossingIssues() {
+        DefaultDiagramQualityInspector inspector = new DefaultDiagramQualityInspector(new DefaultDrawioCanvasSnapshotService());
+        String xml = "<mxGraphModel><root>"
+                + "<mxCell id='0'/><mxCell id='1' parent='0'/>"
+                + "<mxCell id='2' value='Source' vertex='1' parent='1'><mxGeometry x='40' y='120' width='80' height='60' as='geometry'/></mxCell>"
+                + "<mxCell id='3' value='Target' vertex='1' parent='1'><mxGeometry x='360' y='120' width='80' height='60' as='geometry'/></mxCell>"
+                + "<mxCell id='4' value='Blocker' vertex='1' parent='1'><mxGeometry x='210' y='110' width='80' height='80' as='geometry'/></mxCell>"
+                + "<mxCell id='5' edge='1' parent='1' source='2' target='3'><mxGeometry relative='1' as='geometry'/></mxCell>"
+                + "</root></mxGraphModel>";
+
+        DiagramQualityReport report = inspector.inspect(xml, "architecture");
+
+        assertTrue(report.getEdgeIssues().stream().anyMatch(issue -> "edge_node_crossing".equals(issue.getType())));
+    }
+
 }

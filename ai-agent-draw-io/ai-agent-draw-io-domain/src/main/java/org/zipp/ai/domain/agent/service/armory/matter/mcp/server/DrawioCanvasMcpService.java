@@ -4,8 +4,13 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.stereotype.Service;
+import org.zipp.ai.domain.agent.model.valobj.analysis.CanvasAnalysis;
+import org.zipp.ai.domain.agent.model.valobj.analysis.CanvasAnalysisIssue;
+import org.zipp.ai.domain.agent.model.valobj.analysis.CanvasIssueType;
+import org.zipp.ai.domain.agent.model.valobj.analysis.CanvasSummaryData;
 
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
@@ -23,7 +28,7 @@ public class DrawioCanvasMcpService {
 
     @Tool(name = DrawioCanvasToolNames.CREATE_DIAGRAM, description = "Create a new Draw.io diagram from mxCell XML fragments or a complete mxGraphModel. The backend wraps, validates, and streams the final canvas.")
     public DrawioToolResponse createDiagram(DrawioXmlRequest request) {
-        DrawioToolResponse response = drawioDone(request.getXml());
+        DrawioToolResponse response = repairedDrawioDone(request.getXml());
         logXmlToolResult(DrawioCanvasToolNames.CREATE_DIAGRAM, request.getReason(), request.getXml(), response.getType(), response.getContent());
         return response;
     }
@@ -53,24 +58,37 @@ public class DrawioCanvasMcpService {
             logModifyToolResult(request, mode, response);
             return response;
         }
+        if ("append".equals(mode)) {
+            String merged = xmlToolkit.replaceCells(request.getXml(), request.getCells());
+            response.setType(DrawioCanvasToolNames.PATCH_CELLS);
+            response.setCells(request.getCells());
+            response.setAnalysis(analysis(merged));
+            logModifyToolResult(request, mode, response);
+            return response;
+        }
 
         String content = "replace_cells".equals(mode)
                 ? xmlToolkit.replaceCells(request.getXml(), request.getCells())
                 : toGraphModel(request.getXml());
+        content = repairAutoFixableIssues(content);
         response.setType("drawio_done");
         response.setContent(content);
+        response.setAnalysis(analysis(content));
         logModifyToolResult(request, mode, response);
         return response;
     }
 
-    @Tool(name = DrawioCanvasToolNames.OPTIMIZE_DIAGRAM, description = "Optimize Draw.io layout, spacing, readability, or edge routing. The backend normalizes connected edges before returning the optimized mxGraphModel.")
-    public DrawioToolResponse optimizeDiagram(DrawioXmlRequest request) {
-        DrawioToolResponse response = drawioDone(xmlToolkit.routeEdges(request.getXml()));
-        logXmlToolResult(DrawioCanvasToolNames.OPTIMIZE_DIAGRAM, request.getReason(), request.getXml(), response.getType(), response.getContent());
+    @Tool(name = DrawioCanvasToolNames.OPTIMIZE_DIAGRAM, description = "Optimize Draw.io layout, spacing, readability, or edge routing. Use mode=route_only for edge-only patches or layout_optimize for a complete optimized mxGraphModel.")
+    public DrawioMutationResponse optimizeDiagram(OptimizeDiagramRequest request) {
+        String content = xmlToolkit.routeEdges(request.getXml());
+        DrawioMutationResponse response = routeOnlyMode(request)
+                ? edgePatchResponse(xmlToolkit.edgeCells(content), content)
+                : drawioMutationDone(content);
+        logOptimizeToolResult(request, response);
         return response;
     }
 
-    @Tool(name = DrawioCanvasToolNames.INSPECT_CANVAS, description = "Inspect Draw.io XML once and return validation, node/edge state, overlap data, and actionable issues.")
+    // Internal analysis entry point; drawer prompts receive Canvas Issues automatically.
     public InspectCanvasResponse inspectCanvas(DrawioXmlRequest request) {
         DrawioCanvasXmlToolkit.CanvasInspection inspection = xmlToolkit.inspect(request.getXml());
         List<CellMatch> nodes = inspection.getCells().stream()
@@ -216,15 +234,67 @@ public class DrawioCanvasMcpService {
     }
 
     private DrawioToolResponse drawioDone(String xml) {
+        return drawioDoneContent(toGraphModel(xml));
+    }
+
+    private DrawioToolResponse repairedDrawioDone(String xml) {
+        return drawioDoneContent(repairAutoFixableIssues(toGraphModel(xml)));
+    }
+
+    private DrawioToolResponse drawioDoneContent(String content) {
         DrawioToolResponse response = new DrawioToolResponse();
         response.setType("drawio_done");
-        response.setContent(toGraphModel(xml));
+        response.setContent(content);
+        response.setAnalysis(analysis(content));
         return response;
+    }
+
+    private DrawioMutationResponse drawioMutationDone(String content) {
+        DrawioMutationResponse response = new DrawioMutationResponse();
+        response.setType("drawio_done");
+        response.setContent(content);
+        response.setAnalysis(analysis(content));
+        return response;
+    }
+
+    private DrawioMutationResponse edgePatchResponse(String cells, String mergedContent) {
+        if (cells == null || cells.isBlank()) {
+            return drawioMutationDone(mergedContent);
+        }
+        DrawioMutationResponse response = new DrawioMutationResponse();
+        response.setType(DrawioCanvasToolNames.PATCH_CELLS);
+        response.setCells(cells);
+        response.setAnalysis(analysis(mergedContent));
+        return response;
+    }
+
+    private String repairAutoFixableIssues(String graphModel) {
+        CanvasAnalysis initial = xmlToolkit.analyze(graphModel);
+        boolean needsReroute = initial.getIssues().stream().anyMatch(this::isAutoRerouteIssue);
+        if (!needsReroute) {
+            return graphModel;
+        }
+
+        // routeEdges validates candidate paths and leaves unresolved geometry issues in the returned analysis.
+        return xmlToolkit.routeEdges(graphModel);
+    }
+
+    private CanvasAnalysisResponse analysis(String xml) {
+        return CanvasAnalysisResponse.from(xmlToolkit.analyze(xml));
+    }
+
+    private boolean isAutoRerouteIssue(CanvasAnalysisIssue issue) {
+        return CanvasIssueType.EDGE_NODE_CROSSING == issue.getType()
+                && "auto_reroute".equals(issue.getRepairability());
+    }
+
+    private boolean routeOnlyMode(OptimizeDiagramRequest request) {
+        return "route_only".equals(String.valueOf(request.getMode()).trim());
     }
 
     private String resolveModifyMode(ModifyDiagramRequest request) {
         String mode = request.getMode() == null ? "" : request.getMode().trim();
-        if ("patch".equals(mode) || "replace_cells".equals(mode) || "full_xml".equals(mode)) {
+        if ("patch".equals(mode) || "append".equals(mode) || "replace_cells".equals(mode) || "full_xml".equals(mode)) {
             return mode;
         }
         if (request.getCells() != null && !request.getCells().isBlank()) {
@@ -250,6 +320,12 @@ public class DrawioCanvasMcpService {
                 sanitizeLogValue(request.getMode()), sanitizeLogValue(resolvedMode), sanitizeLogValue(response.getType()),
                 sanitizeLogValue(request.getReason()), textLength(request.getXml()), textLength(request.getCells()),
                 textLength(response.getContent()), sanitizeLogValue(request.getTargetId()), sanitizeLogValue(request.getTargetLabel()));
+    }
+
+    private void logOptimizeToolResult(OptimizeDiagramRequest request, DrawioMutationResponse response) {
+        log.info("[drawio-tool] name=optimize_diagram mode={} resultType={} reason={} inputXmlChars={} cellsChars={} outputXmlChars={}",
+                sanitizeLogValue(request.getMode()), sanitizeLogValue(response.getType()), sanitizeLogValue(request.getReason()),
+                textLength(request.getXml()), textLength(response.getCells()), textLength(response.getContent()));
     }
 
     private void logInspectToolResult(DrawioXmlRequest request, InspectCanvasResponse response) {
@@ -315,7 +391,7 @@ public class DrawioCanvasMcpService {
     @JsonInclude(JsonInclude.Include.NON_NULL)
     public static class ModifyDiagramRequest {
         @JsonProperty(value = "mode")
-        @JsonPropertyDescription("patch for changed mxCell fragments, replace_cells to merge cells into current xml, or full_xml for a complete updated mxGraphModel.")
+        @JsonPropertyDescription("patch for changed mxCell fragments, append for new cell fragments, replace_cells to merge cells into current xml, or full_xml for a complete updated mxGraphModel.")
         private String mode;
 
         @JsonProperty(value = "xml")
@@ -340,6 +416,15 @@ public class DrawioCanvasMcpService {
     }
 
     @Data
+    @EqualsAndHashCode(callSuper = true)
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    public static class OptimizeDiagramRequest extends DrawioXmlRequest {
+        @JsonProperty(value = "mode")
+        @JsonPropertyDescription("route_only returns edge mxCell patches; layout_optimize returns a complete optimized mxGraphModel.")
+        private String mode;
+    }
+
+    @Data
     @JsonInclude(JsonInclude.Include.NON_NULL)
     public static class DrawioToolResponse {
         @JsonProperty(required = true, value = "type")
@@ -349,6 +434,10 @@ public class DrawioCanvasMcpService {
         @JsonProperty(required = true, value = "content")
         @JsonPropertyDescription("Complete Draw.io mxGraphModel XML ready for the frontend.")
         private String content;
+
+        @JsonProperty(value = "analysis")
+        @JsonPropertyDescription("Validation result for this exact returned content, without raw cell XML.")
+        private CanvasAnalysisResponse analysis;
     }
 
     @Data
@@ -365,6 +454,10 @@ public class DrawioCanvasMcpService {
         @JsonProperty(value = "cells")
         @JsonPropertyDescription("Changed mxCell fragment(s) when type=patch_cells.")
         private String cells;
+
+        @JsonProperty(value = "analysis")
+        @JsonPropertyDescription("Validation result for the returned complete content, or for the merged canvas represented by patch_cells.")
+        private CanvasAnalysisResponse analysis;
     }
 
     @Data
@@ -618,6 +711,81 @@ public class DrawioCanvasMcpService {
             match.setOverlapWidth(overlap.getOverlapWidth());
             match.setOverlapHeight(overlap.getOverlapHeight());
             return match;
+        }
+    }
+
+    @Data
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    public static class CanvasAnalysisResponse {
+        @JsonProperty(required = true, value = "type")
+        private String type;
+
+        @JsonProperty(required = true, value = "valid")
+        private boolean valid;
+
+        @JsonProperty(required = true, value = "severity")
+        private String severity;
+
+        @JsonProperty(required = true, value = "issues")
+        private List<CanvasIssueResponse> issues;
+
+        @JsonProperty(required = true, value = "summary")
+        private CanvasSummaryResponse summary;
+
+        static CanvasAnalysisResponse from(CanvasAnalysis analysis) {
+            CanvasAnalysisResponse response = new CanvasAnalysisResponse();
+            response.setType("validation_result");
+            response.setValid(analysis.isValid());
+            response.setSeverity(analysis.getSeverity());
+            response.setIssues(analysis.getIssues().stream().map(CanvasIssueResponse::from).toList());
+            response.setSummary(CanvasSummaryResponse.from(analysis.getSummary()));
+            return response;
+        }
+    }
+
+    @Data
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    public static class CanvasIssueResponse {
+        private String type;
+        private String category;
+        private String severity;
+        private List<String> targetCellIds;
+        private String message;
+        private String repairability;
+
+        static CanvasIssueResponse from(CanvasAnalysisIssue issue) {
+            CanvasIssueResponse response = new CanvasIssueResponse();
+            response.setType(issue.getType().name());
+            response.setCategory(issue.getCategory());
+            response.setSeverity(issue.getSeverity());
+            response.setTargetCellIds(issue.getTargetCellIds());
+            response.setMessage(issue.getMessage());
+            response.setRepairability(issue.getRepairability());
+            return response;
+        }
+    }
+
+    @Data
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    public static class CanvasSummaryResponse {
+        private int nodeCount;
+        private int edgeCount;
+        private double x;
+        private double y;
+        private double width;
+        private double height;
+        private String summary;
+
+        static CanvasSummaryResponse from(CanvasSummaryData summary) {
+            CanvasSummaryResponse response = new CanvasSummaryResponse();
+            response.setNodeCount(summary.getNodeCount());
+            response.setEdgeCount(summary.getEdgeCount());
+            response.setX(summary.getX());
+            response.setY(summary.getY());
+            response.setWidth(summary.getWidth());
+            response.setHeight(summary.getHeight());
+            response.setSummary(summary.getSummary());
+            return response;
         }
     }
 }

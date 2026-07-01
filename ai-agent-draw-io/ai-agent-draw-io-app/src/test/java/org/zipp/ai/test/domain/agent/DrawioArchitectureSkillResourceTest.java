@@ -63,10 +63,10 @@ public class DrawioArchitectureSkillResourceTest {
         assertTrue(agentPrompt.contains("create_diagram"));
         assertTrue(agentPrompt.contains("modify_diagram"));
         assertTrue(agentPrompt.contains("optimize_diagram"));
-        assertTrue(agentPrompt.contains("inspect_canvas"));
+        assertFalse(agentPrompt.contains("inspect_canvas"));
         assertTrue(agentPrompt.contains("drawioCanvasToolCallbackProvider"));
         assertTrue(agentPrompt.contains("MUST use actual registered tool calls when they are available"));
-        assertTrue(agentPrompt.contains("Only output the final drawio_done JSON after inspect_canvas returns valid=true"));
+        assertTrue(agentPrompt.contains("Backend automatically injects [Canvas Issues]"));
         assertTrue(agentPrompt.contains("approved=true, do not call any drawing tool"));
         assertTrue(agentPrompt.contains("edit_existing"));
         assertTrue(agentPrompt.contains("edit_existing -> modify_diagram"));
@@ -105,8 +105,10 @@ public class DrawioArchitectureSkillResourceTest {
         assertTrue(agentPrompt.contains("\"suggested_tool\":\"update_cells|edit_diagram|append_diagram|route_edges|optimize_diagram|display_diagram\""));
         assertTrue(agentPrompt.contains("local_edit -> modify_diagram mode=patch or replace_cells"));
         assertTrue(agentPrompt.contains("route_only -> optimize_diagram"));
-        assertTrue(agentPrompt.contains("append_only -> modify_diagram mode=full_xml"));
+        assertTrue(agentPrompt.contains("append_only -> modify_diagram mode=append"));
+        assertFalse(agentPrompt.contains("append_only -> modify_diagram mode=full_xml"));
         assertTrue(agentPrompt.contains("layout_optimize -> optimize_diagram"));
+        assertTrue(agentPrompt.contains("{\"type\":\"modify_diagram\",\"mode\":\"append\""));
         assertTrue(agentPrompt.contains("full_redraw -> create_diagram"));
         assertTrue(agentPrompt.contains("Do not redraw the entire diagram unless fix_strategy=full_redraw"));
         assertTrue(agentPrompt.contains("Prefer local_edit, route_only, append_only, or layout_optimize over full_redraw"));
@@ -116,10 +118,11 @@ public class DrawioArchitectureSkillResourceTest {
     public void shouldExposeP1CanvasToolsInDrawingPrompt() throws Exception {
         String agentPrompt = readResource("agent/agent-draw-io.yml");
 
-        assertTrue(agentPrompt.contains("inspect_canvas returns validation, canvas state, overlap data"));
+        assertTrue(agentPrompt.contains("Backend automatically injects [Canvas Issues]"));
         assertTrue(agentPrompt.contains("modify_diagram is for edit_existing"));
-        assertTrue(agentPrompt.contains("After each drawing mutation, use inspect_canvas"));
-        assertTrue(agentPrompt.contains("If inspect_canvas returns valid=false"));
+        assertFalse(agentPrompt.contains("inspect_canvas"));
+        assertFalse(agentPrompt.contains("After each drawing mutation, use inspect_canvas"));
+        assertFalse(agentPrompt.contains("Only output the final drawio_done JSON after inspect_canvas returns valid=true"));
         assertTrue(agentPrompt.contains("set targetLabel on modify_diagram"));
     }
 
@@ -127,9 +130,12 @@ public class DrawioArchitectureSkillResourceTest {
     public void shouldExposeP2AndP3LayoutQualityToolsInDrawingPrompt() throws Exception {
         String agentPrompt = readResource("agent/agent-draw-io.yml");
 
-        assertTrue(agentPrompt.contains("inspect_canvas returns validation, canvas state, overlap data"));
+        assertFalse(agentPrompt.contains("inspect_canvas"));
         assertTrue(agentPrompt.contains("optimize_diagram is for optimize_layout and route_only review feedback"));
         assertTrue(agentPrompt.contains("For route_only, call optimize_diagram"));
+        assertTrue(agentPrompt.contains("mode=route_only"));
+        assertTrue(agentPrompt.contains("For optimize_diagram mode=route_only"));
+        assertFalse(agentPrompt.contains("For modify_diagram mode=full_xml and optimize_diagram, pass a complete updated mxGraphModel"));
         assertTrue(agentPrompt.contains("Do not load or apply unrelated diagram skill rules"));
         assertTrue(agentPrompt.contains("Only apply the selected skillName plus drawio-visual-design"));
     }
@@ -175,9 +181,39 @@ public class DrawioArchitectureSkillResourceTest {
     public void shouldTreatValidationFailuresAsReviewRepairSignals() throws Exception {
         String agentPrompt = readResource("agent/agent-draw-io.yml");
 
-        assertTrue(agentPrompt.contains("Treat the latest validation_result with valid=false as automatic repair feedback"));
-        assertTrue(agentPrompt.contains("Reject validation_result valid=false even when the XML is parseable"));
+        assertTrue(agentPrompt.contains("validation_result or mutation tool response analysis with valid=false"));
+        assertTrue(agentPrompt.contains("analysis describes the new draft, not the previous canvas"));
+        assertTrue(agentPrompt.contains("Parse registered tool response analysis first"));
+        assertTrue(agentPrompt.contains("Reject validation_result or tool response analysis valid=false"));
         assertTrue(agentPrompt.contains("major visual issues such as overlaps, opaque labels, or crowded layout"));
+    }
+
+    @Test
+    public void shouldMakeReviewerTrustDeterministicGeometryReports() throws Exception {
+        String agentPrompt = readResource("agent/agent-draw-io.yml");
+
+        // Item 3: geometry and XML structure come from the deterministic engine, not reviewer re-analysis.
+        assertTrue(agentPrompt.contains("Treat the latest post-mutation CanvasAnalysis or validation_result as the ground truth for geometry and structure"));
+        assertTrue(agentPrompt.contains("Do not infer overlaps, edge-node crossings, malformed XML, missing geometry, or broken source/target ids from raw XML coordinates"));
+        assertTrue(agentPrompt.contains("If both an initial [Diagram Quality Report] and a post-mutation analysis exist, trust the post-mutation analysis for the draft"));
+        assertFalse(agentPrompt.contains("Check edges: source/target IDs must exist. Standalone lines/arrows must use sourcePoint and targetPoint."));
+        assertFalse(agentPrompt.contains("Check XML validity and flag malformed or incomplete tags."));
+    }
+
+    @Test
+    public void shouldKeepSemanticContentQualityOnlyInSemanticReviewer() throws Exception {
+        String agentPrompt = readResource("agent/agent-draw-io.yml");
+        String semanticReviewer = section(agentPrompt, "- name: agent_semantic_reviewer", "output-key: semantic_review");
+        String inlineReviewer = section(agentPrompt, "- name: agent_reviewer", "output-key: review_result");
+
+        // Item 5: 300011 owns content correctness; 300000 should not duplicate diagram-type semantic review.
+        assertTrue(semanticReviewer.contains("Diagram-type content quality belongs to this semantic reviewer"));
+        assertTrue(semanticReviewer.contains("architecture subtype correctness"));
+        assertTrue(semanticReviewer.contains("UML relationship semantics"));
+        assertFalse(inlineReviewer.contains("Check type-specific content quality"));
+        assertFalse(inlineReviewer.contains("architecture must use one clear subtype"));
+        assertFalse(inlineReviewer.contains("UML class must show classes/interfaces/enums"));
+        assertFalse(inlineReviewer.contains("Check structure: required core objects, missing relationships, orphaned nodes, and duplicated semantic nodes."));
     }
 
     @Test
@@ -198,6 +234,18 @@ public class DrawioArchitectureSkillResourceTest {
             }
             return new String(inputStream.readAllBytes(), StandardCharsets.UTF_8);
         }
+    }
+
+    private String section(String text, String startMarker, String endMarker) {
+        int start = text.indexOf(startMarker);
+        if (start < 0) {
+            throw new AssertionError("Missing section start: " + startMarker);
+        }
+        int end = text.indexOf(endMarker, start);
+        if (end < 0) {
+            throw new AssertionError("Missing section end: " + endMarker);
+        }
+        return text.substring(start, end);
     }
 
 }
