@@ -1,5 +1,6 @@
 package org.zipp.ai.domain.account.service;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.zipp.ai.domain.account.adapter.port.IEmailSender;
@@ -44,6 +45,7 @@ public class DefaultAccountService implements IAccountService {
     private final String verificationBaseUrl;
     private final Clock clock;
 
+    @Autowired
     public DefaultAccountService(IUserAccountStore userAccountStore,
                                  IAccountTokenStore accountTokenStore,
                                  IPasswordHasher passwordHasher,
