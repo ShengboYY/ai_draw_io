@@ -9,8 +9,12 @@ import org.junit.Test;
 import org.slf4j.LoggerFactory;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseBodyEmitter;
 import org.zipp.ai.api.dto.ChatRequestDTO;
+import org.zipp.ai.domain.account.model.valobj.CreateModelCredentialCommand;
+import org.zipp.ai.domain.account.model.valobj.ModelCredentialSecret;
+import org.zipp.ai.domain.account.model.valobj.ModelCredentialSummary;
 import org.zipp.ai.domain.account.service.AnonymousDemoQuotaExceededException;
 import org.zipp.ai.domain.account.service.AnonymousDemoQuotaService;
+import org.zipp.ai.domain.account.service.IModelCredentialService;
 import org.zipp.ai.domain.account.service.PlatformDailyQuotaExceededException;
 import org.zipp.ai.domain.account.service.VerifiedUserPlatformQuotaService;
 import org.zipp.ai.domain.agent.model.entity.ChatCommandEntity;
@@ -28,6 +32,7 @@ import org.zipp.ai.trigger.http.service.DrawioStreamResponseWriter;
 import org.zipp.ai.trigger.http.service.DrawioToolCallRenderer;
 import org.zipp.ai.trigger.http.service.SkillContentProvider;
 import org.zipp.ai.types.enums.ResponseCode;
+import org.zipp.ai.types.exception.AppException;
 
 import java.io.IOException;
 import java.lang.reflect.Field;
@@ -241,21 +246,20 @@ public class AgentConversationServiceTest {
     }
 
     @Test
-    public void shouldAllowAnonymousCustomKeyRequestsAfterDemoQuotaIsExhausted() throws Exception {
+    public void shouldRejectAnonymousRawCustomKeyRequestsBeforeModelWork() throws Exception {
         AgentConversationService service = quotaAwareService();
         CountingChatService chatService = new CountingChatService();
         CountingIntentRoutingService intentRoutingService = new CountingIntentRoutingService();
         injectField(service, "chatService", chatService);
         injectField(service, "intentRoutingService", intentRoutingService);
 
-        for (int i = 0; i < 6; i++) {
-            ChatRequestDTO requestDTO = platformRequest();
-            requestDTO.setCustomApiKey("sk-user-owned");
-            service.chat(requestDTO);
-        }
+        ChatRequestDTO requestDTO = platformRequest();
+        requestDTO.setCustomApiKey("sk-user-owned");
+        AppException error = assertAppException(() -> service.chat(requestDTO));
 
-        assertEquals(6, intentRoutingService.calls);
-        assertEquals(6, chatService.handleMessageCalls);
+        assertEquals(ResponseCode.ILLEGAL_PARAMETER.getCode(), error.getCode());
+        assertEquals(0, intentRoutingService.calls);
+        assertEquals(0, chatService.handleMessageCalls);
     }
 
     @Test
@@ -304,21 +308,68 @@ public class AgentConversationServiceTest {
     }
 
     @Test
-    public void shouldAllowVerifiedCustomKeyRequestsAfterDailyQuotaIsExhausted() throws Exception {
+    public void shouldRejectVerifiedRawCustomKeyRequestsBeforeModelWork() throws Exception {
         AgentConversationService service = quotaAwareService();
         CountingChatService chatService = new CountingChatService();
         CountingIntentRoutingService intentRoutingService = new CountingIntentRoutingService();
         injectField(service, "chatService", chatService);
         injectField(service, "intentRoutingService", intentRoutingService);
 
-        for (int i = 0; i < 21; i++) {
-            ChatRequestDTO requestDTO = verifiedPlatformRequest();
-            requestDTO.setCustomApiKey("sk-user-owned");
-            service.chat(requestDTO);
-        }
+        ChatRequestDTO requestDTO = verifiedPlatformRequest();
+        requestDTO.setCustomApiKey("sk-user-owned");
+        AppException error = assertAppException(() -> service.chat(requestDTO));
 
-        assertEquals(21, intentRoutingService.calls);
-        assertEquals(21, chatService.handleMessageCalls);
+        assertEquals(ResponseCode.ILLEGAL_PARAMETER.getCode(), error.getCode());
+        assertEquals(0, intentRoutingService.calls);
+        assertEquals(0, chatService.handleMessageCalls);
+    }
+
+    @Test
+    public void shouldResolveSavedCredentialForChatAndSkipVerifiedPlatformQuota() throws Exception {
+        VerifiedUserPlatformQuotaService quotaService = new VerifiedUserPlatformQuotaService();
+        AgentConversationService service = quotaAwareService(quotaService);
+        CountingChatService chatService = new CountingChatService();
+        CountingIntentRoutingService intentRoutingService = new CountingIntentRoutingService();
+        FakeModelCredentialService credentialService = new FakeModelCredentialService();
+        injectField(service, "chatService", chatService);
+        injectField(service, "intentRoutingService", intentRoutingService);
+        injectField(service, "modelCredentialService", credentialService);
+
+        ChatRequestDTO requestDTO = verifiedPlatformRequest();
+        requestDTO.setModelCredentialId("mcr_alice");
+        service.chat(requestDTO);
+
+        assertEquals("usr_alice", credentialService.resolvedUserId);
+        assertEquals("mcr_alice", credentialService.resolvedCredentialId);
+        assertEquals(1, intentRoutingService.calls);
+        assertEquals(1, chatService.handleMessageCalls);
+        assertEquals(0, quotaService.snapshot("usr_alice").getUsed());
+        assertEquals("https://api.openai.com/v1", intentRoutingService.lastCommand.getCustomApiConfig().getBaseUrl());
+        assertEquals("decrypted-api-key", intentRoutingService.lastCommand.getCustomApiConfig().getApiKey());
+        assertEquals("/chat/completions", intentRoutingService.lastCommand.getCustomApiConfig().getCompletionsPath());
+        assertEquals("gpt-4o", intentRoutingService.lastCommand.getCustomApiConfig().getModel());
+    }
+
+    @Test
+    public void shouldRejectCrossUserCredentialBeforeModelWork() throws Exception {
+        AgentConversationService service = quotaAwareService();
+        CountingChatService chatService = new CountingChatService();
+        CountingIntentRoutingService intentRoutingService = new CountingIntentRoutingService();
+        FakeModelCredentialService credentialService = new FakeModelCredentialService();
+        injectField(service, "chatService", chatService);
+        injectField(service, "intentRoutingService", intentRoutingService);
+        injectField(service, "modelCredentialService", credentialService);
+
+        ChatRequestDTO requestDTO = verifiedPlatformRequest();
+        requestDTO.setUserId("usr_bob");
+        requestDTO.setModelCredentialId("mcr_alice");
+        AppException error = assertAppException(() -> service.chat(requestDTO));
+
+        assertEquals(ResponseCode.ILLEGAL_PARAMETER.getCode(), error.getCode());
+        assertEquals("usr_bob", credentialService.resolvedUserId);
+        assertEquals("mcr_alice", credentialService.resolvedCredentialId);
+        assertEquals(0, intentRoutingService.calls);
+        assertEquals(0, chatService.handleMessageCalls);
     }
 
     @Test
@@ -399,12 +450,16 @@ public class AgentConversationServiceTest {
     }
 
     private AgentConversationService quotaAwareService() throws Exception {
+        return quotaAwareService(new VerifiedUserPlatformQuotaService());
+    }
+
+    private AgentConversationService quotaAwareService(VerifiedUserPlatformQuotaService quotaService) throws Exception {
         AgentConversationService service = new AgentConversationService();
         injectPromptContextBuilder(service);
         injectSkillContentProvider(service);
         injectField(service, "streamResponseWriter", new DrawioStreamResponseWriter(new DrawioToolCallRenderer()));
         injectField(service, "anonymousDemoQuotaService", new AnonymousDemoQuotaService());
-        injectField(service, "verifiedUserPlatformQuotaService", new VerifiedUserPlatformQuotaService());
+        injectField(service, "verifiedUserPlatformQuotaService", quotaService);
         return service;
     }
 
@@ -427,6 +482,15 @@ public class AgentConversationServiceTest {
         Field field = target.getClass().getDeclaredField(fieldName);
         field.setAccessible(true);
         field.set(target, value);
+    }
+
+    private AppException assertAppException(Runnable action) {
+        try {
+            action.run();
+        } catch (AppException expected) {
+            return expected;
+        }
+        throw new AssertionError("expected AppException");
     }
 
     private String storedCanvasXml() {
@@ -479,11 +543,54 @@ public class AgentConversationServiceTest {
 
     private static class CountingIntentRoutingService implements IIntentRoutingService {
         private int calls;
+        private IntentRoutingCommand lastCommand;
 
         @Override
         public IntentRoutingResult route(IntentRoutingCommand command) {
             calls++;
+            lastCommand = command;
             return IntentRoutingResult.fallbackDrawAction("test");
+        }
+    }
+
+    private static class FakeModelCredentialService implements IModelCredentialService {
+        private String resolvedUserId;
+        private String resolvedCredentialId;
+
+        @Override
+        public ModelCredentialSummary create(CreateModelCredentialCommand command) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public List<ModelCredentialSummary> list(String userId) {
+            return List.of();
+        }
+
+        @Override
+        public ModelCredentialSecret resolveForChat(String userId, String credentialId) {
+            resolvedUserId = userId;
+            resolvedCredentialId = credentialId;
+            if (!"usr_alice".equals(userId) || !"mcr_alice".equals(credentialId)) {
+                throw new IllegalArgumentException("model credential not found");
+            }
+            return ModelCredentialSecret.builder()
+                    .id("mcr_alice")
+                    .baseUrl("https://api.openai.com/v1")
+                    .apiKey("decrypted-api-key")
+                    .completionPath("/chat/completions")
+                    .model("gpt-4o")
+                    .build();
+        }
+
+        @Override
+        public boolean disable(String userId, String credentialId) {
+            return false;
+        }
+
+        @Override
+        public boolean delete(String userId, String credentialId) {
+            return false;
         }
     }
 

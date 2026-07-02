@@ -7,6 +7,7 @@ import org.zipp.ai.domain.account.model.entity.UserAccount;
 import org.zipp.ai.domain.account.model.valobj.AccountStatus;
 import org.zipp.ai.domain.account.model.valobj.CreateModelCredentialCommand;
 import org.zipp.ai.domain.account.model.valobj.EncryptedModelCredentialSecret;
+import org.zipp.ai.domain.account.model.valobj.ModelCredentialSecret;
 import org.zipp.ai.domain.account.model.valobj.ModelCredentialStatus;
 import org.zipp.ai.domain.account.model.valobj.ModelCredentialSummary;
 import org.zipp.ai.domain.account.service.DefaultModelCredentialService;
@@ -101,6 +102,23 @@ public class ModelCredentialServiceTest {
         assertTrue(service.delete("usr_alice", alice.getId()));
         assertEquals(0, service.list("usr_alice").size());
         assertEquals(1, service.list("usr_bob").size());
+    }
+
+    @Test
+    public void resolveForChatVerifiesOwnershipBeforeDecryptingTheCredential() {
+        ModelCredentialSummary alice = service.create(command("usr_alice", "sk-alice-1234"));
+        cipher.resetDecryptions();
+
+        assertIllegalArgument(() -> service.resolveForChat("usr_bob", alice.getId()));
+        assertEquals("cross-user lookup must not decrypt ciphertext", 0, cipher.decryptCalls);
+
+        ModelCredentialSecret resolved = service.resolveForChat("usr_alice", alice.getId());
+
+        assertEquals("https://api.openai.com/v1", resolved.getBaseUrl());
+        assertEquals("/chat/completions", resolved.getCompletionPath());
+        assertEquals("gpt-4o", resolved.getModel());
+        assertEquals("decrypted-api-key", resolved.getApiKey());
+        assertEquals(1, cipher.decryptCalls);
     }
 
     @Test
@@ -208,6 +226,15 @@ public class ModelCredentialServiceTest {
         }
 
         @Override
+        public Optional<ModelCredential> findByUserIdAndId(String userId, String credentialId) {
+            ModelCredential credential = byId.get(credentialId);
+            if (credential == null || !credential.getUserId().equals(userId) || credential.getDeletedAt() != null) {
+                return Optional.empty();
+            }
+            return Optional.of(credential);
+        }
+
+        @Override
         public boolean disable(String userId, String credentialId, Instant disabledAt) {
             ModelCredential credential = byId.get(credentialId);
             if (credential == null || !credential.getUserId().equals(userId) || credential.getDeletedAt() != null) {
@@ -239,6 +266,7 @@ public class ModelCredentialServiceTest {
     private static final class RecordingCipher implements IModelCredentialSecretCipher {
         private String lastPlaintext;
         private int counter;
+        private int decryptCalls;
 
         @Override
         public EncryptedModelCredentialSecret encrypt(String plaintext) {
@@ -254,7 +282,12 @@ public class ModelCredentialServiceTest {
 
         @Override
         public String decrypt(EncryptedModelCredentialSecret secret) {
-            return "decrypted";
+            decryptCalls++;
+            return "decrypted-api-key";
+        }
+
+        private void resetDecryptions() {
+            decryptCalls = 0;
         }
     }
 }

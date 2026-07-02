@@ -1,12 +1,12 @@
 'use client';
 
 import { DrawIoEmbed, DrawIoEmbedRef } from 'react-drawio';
-import { Suspense, useRef, useState, useEffect } from 'react';
+import { Suspense, useRef, useState, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { getUserInfo } from '@/utils/cookie';
 import { getWorkspaceIdentity } from '@/utils/workspace-identity';
 import { agentApi, StreamEvent } from '@/api/agent';
-import type { CurrentAccountResponseDTO } from '@/types/api';
+import type { CurrentAccountResponseDTO, ModelCredentialResponseDTO } from '@/types/api';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { buildStepSummary } from './execution-step-summary';
@@ -200,13 +200,19 @@ interface Session {
 
 export interface CustomModelConfig {
   id: string;
+  modelCredentialId: string;
   name: string;
   baseUrl: string;
-  apiKey: string;
   model: string;
   completionsPath: string;
+  maskedApiKey?: string;
   enabled: boolean;
 }
+
+type EditingModelConfig = CustomModelConfig & {
+  apiKey: string;
+  provider: string;
+};
 
 const normalizeCjkText = (text: string) => {
   let normalized = text;
@@ -504,7 +510,7 @@ function DrawioPageContent() {
   const [currentUser, setCurrentUser] = useState('');
   const [currentAccount, setCurrentAccount] = useState<CurrentAccountResponseDTO | null>(null);
 
-  const loadCurrentAccount = async (ownerId: string) => {
+  const loadCurrentAccount = useCallback(async (ownerId: string) => {
     if (!ownerId) return;
     try {
       const res = await agentApi.currentAccount(ownerId);
@@ -512,7 +518,7 @@ function DrawioPageContent() {
     } catch (error) {
       console.warn('Failed to load account status:', error);
     }
-  };
+  }, []);
 
   const refreshCurrentAccount = async (ownerId = currentUser) => {
     await loadCurrentAccount(ownerId);
@@ -616,7 +622,52 @@ function DrawioPageContent() {
   });
   
   // Temporary state for editing in modal
-  const [editingModel, setEditingModel] = useState<CustomModelConfig | null>(null);
+  const [editingModel, setEditingModel] = useState<EditingModelConfig | null>(null);
+
+  const credentialToCustomModel = useCallback((credential: ModelCredentialResponseDTO): CustomModelConfig => ({
+    id: credential.id,
+    modelCredentialId: credential.id,
+    name: credential.displayName || credential.model,
+    baseUrl: credential.baseUrl,
+    model: credential.model,
+    completionsPath: credential.completionPath,
+    maskedApiKey: credential.maskedApiKey,
+    enabled: credential.status !== 'DISABLED',
+  }), []);
+
+  const persistCustomModelMetadata = useCallback((models: CustomModelConfig[]) => {
+    const metadataOnly = models.map(model => ({
+      id: model.id,
+      modelCredentialId: model.modelCredentialId,
+      name: model.name,
+      baseUrl: model.baseUrl,
+      model: model.model,
+      completionsPath: model.completionsPath,
+      maskedApiKey: model.maskedApiKey,
+      enabled: model.enabled,
+    }));
+    setCustomModels(metadataOnly);
+    localStorage.setItem('ai_agent_custom_models', JSON.stringify(metadataOnly));
+  }, []);
+
+  const loadModelCredentials = useCallback(async () => {
+    try {
+      const res = await agentApi.listModelCredentials();
+      const models = (res.data || []).map(credentialToCustomModel);
+      persistCustomModelMetadata(models);
+      setSelectedCustomModelId(prev => {
+        if (prev !== 'default' && models.some(model => model.id === prev && model.enabled)) {
+          return prev;
+        }
+        localStorage.setItem('ai_agent_selected_model', 'default');
+        return 'default';
+      });
+    } catch (error) {
+      setCustomModels([]);
+      localStorage.removeItem('ai_agent_custom_models');
+      console.warn('Failed to load saved model credentials:', error);
+    }
+  }, [credentialToCustomModel, persistCustomModelMetadata]);
 
   // Session Management State
   const [sessions, setSessions] = useState<Session[]>([]);
@@ -1066,38 +1117,56 @@ function DrawioPageContent() {
   };
 
   const saveCustomModels = (models: CustomModelConfig[]) => {
-    setCustomModels(models);
-    localStorage.setItem('ai_agent_custom_models', JSON.stringify(models));
+    persistCustomModelMetadata(models);
   };
 
   const handleAddNewModel = () => {
     setEditingModel({
-      id: Date.now().toString(),
+      id: `draft-${Date.now()}`,
+      modelCredentialId: '',
       name: 'New Model',
-      baseUrl: 'https://api.openai.com',
+      baseUrl: 'https://api.openai.com/v1',
       apiKey: '',
+      provider: 'openai',
       model: 'gpt-4o',
-      completionsPath: 'v1/chat/completions',
+      completionsPath: '/chat/completions',
       enabled: true
     });
   };
 
-  const handleSaveEditingModel = () => {
+  const handleSaveEditingModel = async () => {
     if (!editingModel) return;
-    const exists = customModels.some(m => m.id === editingModel.id);
-    let newModels;
-    if (exists) {
-      newModels = customModels.map(m => m.id === editingModel.id ? editingModel : m);
-    } else {
-      newModels = [...customModels, editingModel];
+    const apiKey = editingModel.apiKey.trim();
+    if (!apiKey) return;
+    try {
+      const response = await agentApi.createModelCredential({
+        provider: editingModel.provider || 'openai',
+        baseUrl: editingModel.baseUrl,
+        model: editingModel.model,
+        completionPath: editingModel.completionsPath,
+        displayName: editingModel.name,
+        apiKey,
+      });
+      const savedModel = credentialToCustomModel(response.data);
+      const newModels = [
+        ...customModels.filter(model => model.id !== editingModel.id && model.id !== savedModel.id),
+        savedModel,
+      ];
+      saveCustomModels(newModels);
+      setSelectedCustomModelId(savedModel.id);
+      localStorage.setItem('ai_agent_selected_model', savedModel.id);
+      setEditingModel(null);
+    } catch (error) {
+      console.error('Failed to save model credential:', error);
     }
-    saveCustomModels(newModels);
-    setSelectedCustomModelId(editingModel.id);
-    localStorage.setItem('ai_agent_selected_model', editingModel.id);
-    setEditingModel(null);
   };
 
-  const handleDeleteModel = (id: string) => {
+  const handleDeleteModel = async (id: string) => {
+    try {
+      await agentApi.deleteModelCredential(id);
+    } catch (error) {
+      console.warn('Failed to delete model credential:', error);
+    }
     const newModels = customModels.filter(m => m.id !== id);
     saveCustomModels(newModels);
     if (selectedCustomModelId === id) {
@@ -1121,17 +1190,11 @@ function DrawioPageContent() {
     setCurrentUser(identity.ownerId);
     void loadCurrentAccount(identity.ownerId);
 
-    // Load Custom Models
-    const savedModels = localStorage.getItem('ai_agent_custom_models');
-    if (savedModels) {
-      try {
-        setCustomModels(JSON.parse(savedModels));
-      } catch (e) {}
-    }
     const savedSelected = localStorage.getItem('ai_agent_selected_model');
     if (savedSelected) {
       setSelectedCustomModelId(savedSelected);
     }
+    void loadModelCredentials();
     const savedMaxReviewIterationsRaw = localStorage.getItem(MAX_REVIEW_ITERATIONS_STORAGE_KEY);
     if (savedMaxReviewIterationsRaw !== null && savedMaxReviewIterationsRaw !== '') {
       const savedMaxReviewIterations = Number(savedMaxReviewIterationsRaw);
@@ -1165,7 +1228,7 @@ function DrawioPageContent() {
       }
     };
     loadAgents();
-  }, []);
+  }, [loadCurrentAccount, loadModelCredentials]);
 
   const finalizeNewChat = async () => {
     if (!selectedAgentId || !currentUser) return;
@@ -1515,10 +1578,7 @@ function DrawioPageContent() {
           expectedVersion: activeSession?.canvasVersion,
           canvasXml: canvasContext.canvasXml,
           canvasSummary: canvasContext.canvasSummary,
-          customBaseUrl: activeModelConfig?.baseUrl || undefined,
-          customApiKey: activeModelConfig?.apiKey || undefined,
-          customCompletionsPath: activeModelConfig?.completionsPath || undefined,
-          customModel: activeModelConfig?.model || undefined,
+          modelCredentialId: activeModelConfig?.modelCredentialId || undefined,
           maxReviewIterations,
           skills: pendingSkillsRef.current.length ? pendingSkillsRef.current : undefined
       });
@@ -2755,7 +2815,7 @@ function DrawioPageContent() {
                             {customModels.map(model => (
                                 <div 
                                     key={model.id}
-                                    onClick={() => setEditingModel(model)}
+                                    onClick={() => setEditingModel({ ...model, apiKey: '', provider: 'openai' })}
                                     className={`p-3 rounded-xl border cursor-pointer transition-all ${editingModel?.id === model.id ? 'bg-indigo-50 border-indigo-200 shadow-sm ring-1 ring-indigo-100' : 'bg-white border-slate-200 hover:border-indigo-100 hover:shadow-sm'}`}
                                 >
                                     <div className="flex items-center justify-between mb-1">
@@ -2769,18 +2829,19 @@ function DrawioPageContent() {
                                                     saveCustomModels(newModels);
                                                     if (!(!model.enabled) && selectedCustomModelId === model.id) {
                                                         setSelectedCustomModelId('default');
+                                                        localStorage.setItem('ai_agent_selected_model', 'default');
                                                     }
                                                 }}
                                                 className={`relative inline-flex h-4 w-7 items-center rounded-full transition-colors focus:outline-none ${model.enabled ? 'bg-indigo-500' : 'bg-slate-300'}`}
                                             >
                                                 <span className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${model.enabled ? 'translate-x-3.5' : 'translate-x-0.5'}`} />
                                             </button>
-                                            <button onClick={(e) => { e.stopPropagation(); handleDeleteModel(model.id); }} className="text-slate-400 hover:text-red-500 ml-1">
+                                            <button onClick={(e) => { e.stopPropagation(); void handleDeleteModel(model.id); }} className="text-slate-400 hover:text-red-500 ml-1">
                                                 <Icons.Trash className="w-3.5 h-3.5" />
                                             </button>
                                         </div>
                                     </div>
-                                    <div className="text-[10px] text-slate-500 truncate">{model.model}</div>
+                                    <div className="text-[10px] text-slate-500 truncate">{model.model}{model.maskedApiKey ? ` · ${model.maskedApiKey}` : ''}</div>
                                 </div>
                             ))}
                             {customModels.length === 0 && (
@@ -2813,10 +2874,10 @@ function DrawioPageContent() {
                                 </div>
                                 <div>
                                     <label className="block text-xs font-medium text-slate-700 mb-1">Completions Path (optional)</label>
-                                    <input type="text" value={editingModel.completionsPath} onChange={e => setEditingModel({...editingModel, completionsPath: e.target.value})} className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all" placeholder="Default: v1/chat/completions" />
+                                    <input type="text" value={editingModel.completionsPath} onChange={e => setEditingModel({...editingModel, completionsPath: e.target.value})} className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all" placeholder="Default: /chat/completions" />
                                 </div>
                                 <div className="pt-2 flex justify-end">
-                                    <button onClick={handleSaveEditingModel} className="px-6 py-2 bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700 shadow-sm transition-all text-sm">
+                                    <button onClick={handleSaveEditingModel} disabled={!editingModel.apiKey.trim()} className="px-6 py-2 bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700 shadow-sm transition-all text-sm disabled:opacity-50 disabled:cursor-not-allowed">
                                         Save Settings
                                     </button>
                                 </div>

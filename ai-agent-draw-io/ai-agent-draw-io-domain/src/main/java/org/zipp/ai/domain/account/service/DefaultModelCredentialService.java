@@ -6,6 +6,7 @@ import org.zipp.ai.domain.account.model.entity.ModelCredential;
 import org.zipp.ai.domain.account.model.entity.UserAccount;
 import org.zipp.ai.domain.account.model.valobj.CreateModelCredentialCommand;
 import org.zipp.ai.domain.account.model.valobj.EncryptedModelCredentialSecret;
+import org.zipp.ai.domain.account.model.valobj.ModelCredentialSecret;
 import org.zipp.ai.domain.account.model.valobj.ModelCredentialStatus;
 import org.zipp.ai.domain.account.model.valobj.ModelCredentialSummary;
 
@@ -98,6 +99,30 @@ public class DefaultModelCredentialService implements IModelCredentialService {
     }
 
     @Override
+    public ModelCredentialSecret resolveForChat(String userId, String credentialId) {
+        String verifiedUserId = requireVerifiedUser(userId);
+        String id = requireText(credentialId, "credentialId", 64);
+        ModelCredential credential = modelCredentialStore.findByUserIdAndId(verifiedUserId, id)
+                .filter(this::isUsableForChat)
+                .orElseThrow(() -> new IllegalArgumentException("model credential not found."));
+
+        // Decrypt only after the store has proven the credential belongs to this verified user.
+        String apiKey = secretCipher.decrypt(EncryptedModelCredentialSecret.builder()
+                .ciphertext(credential.getEncryptedApiKey())
+                .encryptionProvider(credential.getEncryptionProvider())
+                .encryptionKeyId(credential.getEncryptionKeyId())
+                .nonce(credential.getEncryptionNonce())
+                .build());
+        return ModelCredentialSecret.builder()
+                .id(credential.getId())
+                .baseUrl(credential.getBaseUrl())
+                .apiKey(apiKey)
+                .completionPath(credential.getCompletionPath())
+                .model(credential.getModel())
+                .build();
+    }
+
+    @Override
     public boolean disable(String userId, String credentialId) {
         String verifiedUserId = requireVerifiedUser(userId);
         String id = requireText(credentialId, "credentialId", 64);
@@ -137,6 +162,13 @@ public class DefaultModelCredentialService implements IModelCredentialService {
                 .updatedAt(credential.getUpdatedAt())
                 .disabledAt(credential.getDisabledAt())
                 .build();
+    }
+
+    private boolean isUsableForChat(ModelCredential credential) {
+        return credential != null
+                && credential.getDeletedAt() == null
+                && credential.getDisabledAt() == null
+                && ModelCredentialStatus.ACTIVE == credential.getStatus();
     }
 
     private String normalizeSafeBaseUrl(String rawBaseUrl) {

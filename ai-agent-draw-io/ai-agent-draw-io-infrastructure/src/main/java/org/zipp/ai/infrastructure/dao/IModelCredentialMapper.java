@@ -14,6 +14,9 @@ public interface IModelCredentialMapper {
 
     List<ModelCredentialPO> selectByUserId(@Param("userId") String userId);
 
+    ModelCredentialPO selectByUserIdAndId(@Param("userId") String userId,
+                                          @Param("id") String id);
+
     int disable(@Param("userId") String userId,
                 @Param("id") String id,
                 @Param("disabledAt") Date disabledAt);

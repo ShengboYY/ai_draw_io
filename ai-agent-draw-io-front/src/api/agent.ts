@@ -21,6 +21,8 @@ import {
     RegisterAccountResponseDTO,
     ResendVerificationRequestDTO,
     VerifyEmailResponseDTO,
+    CreateModelCredentialRequestDTO,
+    ModelCredentialResponseDTO,
 } from '@/types/api';
 
 export class ApiResponseError extends Error {
@@ -178,6 +180,36 @@ export const agentApi = {
             credentials: 'include',
         });
         return handleResponse<CurrentAccountResponseDTO>(response);
+    },
+
+    listModelCredentials: async (): Promise<Response<ModelCredentialResponseDTO[]>> => {
+        const response = await fetch(`${API_CONFIG.BASE_URL}/model-credentials`, {
+            method: 'GET',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+        });
+        return handleResponse<ModelCredentialResponseDTO[]>(response);
+    },
+
+    createModelCredential: async (
+        payload: CreateModelCredentialRequestDTO,
+    ): Promise<Response<ModelCredentialResponseDTO>> => {
+        const response = await fetch(`${API_CONFIG.BASE_URL}/model-credentials`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+            credentials: 'include',
+        });
+        return handleResponse<ModelCredentialResponseDTO>(response);
+    },
+
+    deleteModelCredential: async (credentialId: string): Promise<Response<null>> => {
+        const response = await fetch(`${API_CONFIG.BASE_URL}/model-credentials/${encodeURIComponent(credentialId)}`, {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+        });
+        return handleResponse<null>(response);
     },
 
     registerAccount: async (payload: RegisterAccountRequestDTO): Promise<Response<RegisterAccountResponseDTO>> => {

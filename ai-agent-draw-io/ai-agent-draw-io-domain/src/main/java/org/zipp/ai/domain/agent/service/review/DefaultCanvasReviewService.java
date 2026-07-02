@@ -64,14 +64,17 @@ public class DefaultCanvasReviewService implements ICanvasReviewService {
                 + "\n\n"
                 + context.getSerializedContext();
 
+        String sessionId = null;
         try {
-            String sessionId = createInternalSession(QUALITY_ANSWER_AGENT_ID, command);
+            sessionId = createInternalSession(QUALITY_ANSWER_AGENT_ID, command);
             List<String> outputs = chatService.handleMessage(QUALITY_ANSWER_AGENT_ID, command.getUserId(), sessionId, prompt);
             return parseUserAnswer(String.join("", outputs));
         } catch (Exception e) {
             log.warn("Canvas quality answer failed, fallback to deterministic report summary. userId:{}",
                     SecretLogSanitizer.maskCapability(command.getUserId()), e);
             return fallbackAnswer(context);
+        } finally {
+            CustomApiConfigManager.clearConfig(sessionId);
         }
     }
 
@@ -83,8 +86,9 @@ public class DefaultCanvasReviewService implements ICanvasReviewService {
                 + "\n\n[Diagram Quality Report]\n"
                 + JSON.toJSONString(qualityReport);
 
+        String sessionId = null;
         try {
-            String sessionId = createInternalSession(SEMANTIC_REVIEW_AGENT_ID, command);
+            sessionId = createInternalSession(SEMANTIC_REVIEW_AGENT_ID, command);
             List<String> outputs = chatService.handleMessage(SEMANTIC_REVIEW_AGENT_ID, command.getUserId(), sessionId, prompt);
             SemanticContentReview review = parseSemanticReview(outputs);
             if (null == review) {
@@ -95,6 +99,8 @@ public class DefaultCanvasReviewService implements ICanvasReviewService {
             log.warn("Semantic content review failed. userId:{}",
                     SecretLogSanitizer.maskCapability(command.getUserId()), e);
             return SemanticContentReview.unavailable("Semantic review failed.");
+        } finally {
+            CustomApiConfigManager.clearConfig(sessionId);
         }
     }
 

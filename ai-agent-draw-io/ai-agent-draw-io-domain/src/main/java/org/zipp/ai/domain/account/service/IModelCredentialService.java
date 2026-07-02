@@ -1,6 +1,7 @@
 package org.zipp.ai.domain.account.service;
 
 import org.zipp.ai.domain.account.model.valobj.CreateModelCredentialCommand;
+import org.zipp.ai.domain.account.model.valobj.ModelCredentialSecret;
 import org.zipp.ai.domain.account.model.valobj.ModelCredentialSummary;
 
 import java.util.List;
@@ -10,6 +11,8 @@ public interface IModelCredentialService {
     ModelCredentialSummary create(CreateModelCredentialCommand command);
 
     List<ModelCredentialSummary> list(String userId);
+
+    ModelCredentialSecret resolveForChat(String userId, String credentialId);
 
     boolean disable(String userId, String credentialId);
 

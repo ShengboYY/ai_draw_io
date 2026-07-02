@@ -16,7 +16,10 @@ public class ChatRequestDTO {
     private CanvasSnapshotDTO canvasSnapshot;
     private ClientHintsDTO clientHints;
 
-    // 自定义配置
+    // 已保存的模型凭证；chat 只接受凭证 ID，不接受请求体里的原始 API key。
+    private String modelCredentialId;
+
+    // 旧版自定义配置字段只用于拒绝兼容期 raw-key 请求，不能再作为模型调用来源。
     private String customBaseUrl;
     private String customApiKey;
     private String customCompletionsPath;

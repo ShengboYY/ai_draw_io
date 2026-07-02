@@ -16,6 +16,7 @@ import org.zipp.ai.domain.account.model.valobj.CreateModelCredentialCommand;
 import org.zipp.ai.domain.account.model.valobj.EmailVerificationResult;
 import org.zipp.ai.domain.account.model.valobj.LoginAccountCommand;
 import org.zipp.ai.domain.account.model.valobj.LoginResult;
+import org.zipp.ai.domain.account.model.valobj.ModelCredentialSecret;
 import org.zipp.ai.domain.account.model.valobj.ModelCredentialStatus;
 import org.zipp.ai.domain.account.model.valobj.ModelCredentialSummary;
 import org.zipp.ai.domain.account.model.valobj.PasswordResetResult;
@@ -170,6 +171,11 @@ public class ModelCredentialControllerTest {
         public List<ModelCredentialSummary> list(String userId) {
             listedUserId = userId;
             return List.of(summary());
+        }
+
+        @Override
+        public ModelCredentialSecret resolveForChat(String userId, String credentialId) {
+            return ModelCredentialSecret.builder().id(credentialId).build();
         }
 
         @Override

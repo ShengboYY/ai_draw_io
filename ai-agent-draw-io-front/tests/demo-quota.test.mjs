@@ -32,7 +32,7 @@ test('buildDemoQuotaState shows anonymous default-model quota', () => {
   assert.equal(state.label, '3 demo AI requests left');
 });
 
-test('buildDemoQuotaState hides quota when an anonymous user selects their own key', () => {
+test('buildDemoQuotaState keeps anonymous quota visible for legacy raw-key models', () => {
   const state = buildDemoQuotaState({
     account: {
       ownerId: 'anon_123',
@@ -49,8 +49,8 @@ test('buildDemoQuotaState hides quota when an anonymous user selects their own k
     customModels: [{ id: 'own-key', enabled: true, apiKey: 'sk-user' }],
   });
 
-  assert.equal(state.visible, false);
-  assert.equal(state.exhausted, false);
+  assert.equal(state.visible, true);
+  assert.equal(state.exhausted, true);
 });
 
 test('buildDemoQuotaState shows verified user daily platform quota', () => {
@@ -91,7 +91,7 @@ test('buildDemoQuotaState hides verified user quota when using own key', () => {
       platformDailyQuotaExhausted: true,
     },
     selectedCustomModelId: 'own-key',
-    customModels: [{ id: 'own-key', enabled: true, apiKey: 'sk-user' }],
+    customModels: [{ id: 'own-key', enabled: true, modelCredentialId: 'mcr_alice' }],
   });
 
   assert.equal(state.visible, false);

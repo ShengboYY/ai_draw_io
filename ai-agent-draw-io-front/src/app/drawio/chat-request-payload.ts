@@ -7,6 +7,7 @@ type BuildDrawioChatRequestPayloadInput = {
   expectedVersion?: number;
   canvasXml?: string;
   canvasSummary?: string;
+  modelCredentialId?: string;
   customBaseUrl?: string;
   customApiKey?: string;
   customCompletionsPath?: string;
@@ -16,12 +17,17 @@ type BuildDrawioChatRequestPayloadInput = {
 };
 
 export const buildDrawioChatRequestPayload = ({
+  agentId,
+  userId,
+  sessionId,
+  diagramId,
+  expectedVersion,
+  modelCredentialId,
   userMessage,
   canvasXml,
   canvasSummary,
   maxReviewIterations,
   skills,
-  ...base
 }: BuildDrawioChatRequestPayloadInput) => {
   const clientHints =
     maxReviewIterations !== undefined || (skills && skills.length > 0)
@@ -32,11 +38,17 @@ export const buildDrawioChatRequestPayload = ({
       : undefined;
 
   return {
-    ...base,
+    agentId,
+    userId,
+    sessionId,
+    ...(diagramId && { diagramId }),
+    ...(expectedVersion !== undefined && { expectedVersion }),
+    ...(modelCredentialId && { modelCredentialId }),
     // Keep message as the raw user request; canvas context travels in structured fields.
     message: userMessage,
     ...(canvasXml && { canvasXml }),
     ...(canvasSummary && { canvasSummary }),
+    // Legacy raw custom fields are intentionally dropped; chat accepts saved credential ids only.
     ...(maxReviewIterations !== undefined && { maxReviewIterations }),
     ...(skills && skills.length > 0 && { skills }),
     ...(clientHints && { clientHints }),

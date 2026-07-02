@@ -2,8 +2,10 @@ package org.zipp.ai.trigger.http.service;
 
 import org.zipp.ai.api.dto.ChatRequestDTO;
 import org.zipp.ai.api.dto.ChatResponseDTO;
+import org.zipp.ai.domain.account.model.valobj.ModelCredentialSecret;
 import org.zipp.ai.domain.account.service.AnonymousDemoQuotaExceededException;
 import org.zipp.ai.domain.account.service.AnonymousDemoQuotaService;
+import org.zipp.ai.domain.account.service.IModelCredentialService;
 import org.zipp.ai.domain.account.service.PlatformDailyQuotaExceededException;
 import org.zipp.ai.domain.account.service.VerifiedUserPlatformQuotaService;
 import org.zipp.ai.domain.agent.model.valobj.canvas.CanvasState;
@@ -17,6 +19,8 @@ import org.zipp.ai.domain.agent.service.IChatService;
 import org.zipp.ai.domain.agent.service.IIntentRoutingService;
 import org.zipp.ai.domain.agent.service.armory.matter.mcp.server.DrawioCanvasToolNames;
 import org.zipp.ai.domain.agent.service.chat.CustomApiConfigManager;
+import org.zipp.ai.types.enums.ResponseCode;
+import org.zipp.ai.types.exception.AppException;
 import org.zipp.ai.types.util.SecretLogSanitizer;
 import com.alibaba.fastjson.JSON;
 import io.reactivex.rxjava3.disposables.Disposable;
@@ -62,48 +66,59 @@ public class AgentConversationService {
     private SkillContentProvider skillContentProvider;
 
     @Resource
+    private IModelCredentialService modelCredentialService;
+
+    @Resource
     private AnonymousDemoQuotaService anonymousDemoQuotaService = new AnonymousDemoQuotaService();
 
     @Resource
     private VerifiedUserPlatformQuotaService verifiedUserPlatformQuotaService = new VerifiedUserPlatformQuotaService();
 
     public ChatResponseDTO chat(ChatRequestDTO requestDTO) {
-        String sessionId = ensureSession(requestDTO);
         CustomApiConfigManager.CustomApiConfig config = buildCustomApiConfig(requestDTO);
-        CustomApiConfigManager.setConfig(sessionId, config);
         consumeAnonymousDemoQuota(requestDTO, config);
         consumeVerifiedUserPlatformQuota(requestDTO, config);
+        String sessionId = ensureSession(requestDTO);
 
-        requestDTO = requestWithStoredCanvas(requestDTO);
-        IntentRoutingResult routingResult = routeIntent(requestDTO, config);
-        if (routingResult.isDirectReply()) {
-            ChatResponseDTO responseDTO = new ChatResponseDTO();
-            responseDTO.setType("user");
-            responseDTO.setContent(resolveDirectAnswer(requestDTO, config, routingResult));
-            return responseDTO;
+        try {
+            CustomApiConfigManager.setConfig(sessionId, config);
+            requestDTO = requestWithStoredCanvas(requestDTO);
+            IntentRoutingResult routingResult = routeIntent(requestDTO, config);
+            if (routingResult.isDirectReply()) {
+                ChatResponseDTO responseDTO = new ChatResponseDTO();
+                responseDTO.setType("user");
+                responseDTO.setContent(resolveDirectAnswer(requestDTO, config, routingResult));
+                return responseDTO;
+            }
+
+            CanvasReviewContext reviewContext = buildReviewContextIfNeeded(requestDTO, config, routingResult);
+            int maxReviewIterations = effectiveMaxReviewIterations(requestDTO, routingResult);
+            String routedMessage = buildRoutedMessage(requestDTO, routingResult, reviewContext, maxReviewIterations, requestDTO.getUserId(), requestDTO.getSkills());
+            List<String> messages = chatService.handleMessage(requestDTO.getAgentId(), requestDTO.getUserId(), sessionId, routedMessage);
+            return parseChatResponse(messages);
+        } finally {
+            CustomApiConfigManager.clearConfig(sessionId);
         }
-
-        CanvasReviewContext reviewContext = buildReviewContextIfNeeded(requestDTO, config, routingResult);
-        int maxReviewIterations = effectiveMaxReviewIterations(requestDTO, routingResult);
-        String routedMessage = buildRoutedMessage(requestDTO, routingResult, reviewContext, maxReviewIterations, requestDTO.getUserId(), requestDTO.getSkills());
-        List<String> messages = chatService.handleMessage(requestDTO.getAgentId(), requestDTO.getUserId(), sessionId, routedMessage);
-        return parseChatResponse(messages);
     }
 
     public void stream(ChatRequestDTO requestDTO, ResponseBodyEmitter emitter) {
+        String sessionId = null;
         try {
-            String sessionId = ensureSession(requestDTO);
-            final String finalSessionId = sessionId;
-
             CustomApiConfigManager.CustomApiConfig config = buildCustomApiConfig(requestDTO);
-            CustomApiConfigManager.setConfig(finalSessionId, config);
             consumeAnonymousDemoQuota(requestDTO, config);
             consumeVerifiedUserPlatformQuota(requestDTO, config);
+            sessionId = ensureSession(requestDTO);
+            final String finalSessionId = sessionId;
+            CustomApiConfigManager.setConfig(finalSessionId, config);
 
             requestDTO = requestWithStoredCanvas(requestDTO);
             IntentRoutingResult routingResult = routeIntent(requestDTO, config);
             if (routingResult.isDirectReply()) {
-                streamResponseWriter.sendDirectReply(emitter, resolveDirectAnswer(requestDTO, config, routingResult));
+                try {
+                    streamResponseWriter.sendDirectReply(emitter, resolveDirectAnswer(requestDTO, config, routingResult));
+                } finally {
+                    clearSessionConfig(finalSessionId);
+                }
                 return;
             }
 
@@ -133,7 +148,7 @@ public class AgentConversationService {
                                         // line carries no <mxGraphModel> to flush mid-stream). Emit it before
                                         // we stop, otherwise a localized edit would be silently dropped.
                                         flushAuthorBuffers(emitter, authorBuffers);
-                                        completeStream(emitter, manuallyCompleted, disposableRef);
+                                        completeStream(emitter, manuallyCompleted, disposableRef, finalSessionId);
                                         return;
                                     }
 
@@ -145,7 +160,7 @@ public class AgentConversationService {
                                             // reviewer/repair loop still runs.
                                             if (maxReviewIterations == 0) {
                                                 flushAuthorBuffers(emitter, authorBuffers);
-                                                completeStream(emitter, manuallyCompleted, disposableRef);
+                                                completeStream(emitter, manuallyCompleted, disposableRef, finalSessionId);
                                             }
                                             return;
                                         }
@@ -182,13 +197,16 @@ public class AgentConversationService {
                                         return;
                                     }
 
-                                    flushCompleteLines(emitter, phase, isPartial, buffer, accumulated, manuallyCompleted, disposableRef);
+                                    flushCompleteLines(emitter, phase, isPartial, buffer, accumulated, manuallyCompleted, disposableRef, finalSessionId);
                                 } catch (Exception e) {
                                     throw new RuntimeException(e);
                                 }
                             },
-                            error -> streamResponseWriter.handleStreamError(emitter, manuallyCompleted.get(), error),
-                            () -> handleStreamComplete(emitter, authorBuffers, manuallyCompleted)
+                            error -> {
+                                clearSessionConfig(finalSessionId);
+                                streamResponseWriter.handleStreamError(emitter, manuallyCompleted.get(), error);
+                            },
+                            () -> handleStreamComplete(emitter, authorBuffers, manuallyCompleted, finalSessionId)
                     );
             disposableRef.set(disposable);
             if (manuallyCompleted.get() && !disposable.isDisposed()) {
@@ -196,18 +214,22 @@ public class AgentConversationService {
             }
 
             emitter.onCompletion(() -> {
+                clearSessionConfig(finalSessionId);
                 streamResponseWriter.clearPendingDiagram(emitter);
                 disposeStream(finalSessionId, "emitter.onCompletion", disposable);
             });
             emitter.onTimeout(() -> {
+                clearSessionConfig(finalSessionId);
                 streamResponseWriter.clearPendingDiagram(emitter);
                 disposeStream(finalSessionId, "emitter.onTimeout", disposable);
             });
             emitter.onError(e -> {
+                clearSessionConfig(finalSessionId);
                 streamResponseWriter.clearPendingDiagram(emitter);
                 disposeStream(finalSessionId, "emitter.onError", disposable);
             });
         } catch (AnonymousDemoQuotaExceededException e) {
+            clearSessionConfig(sessionId);
             log.info("Anonymous demo quota exhausted for userId:{}", SecretLogSanitizer.maskCapability(requestDTO.getUserId()));
             try {
                 streamResponseWriter.sendTypedError(emitter, e.getCode(), e.getInfo());
@@ -216,6 +238,7 @@ public class AgentConversationService {
             }
             emitter.complete();
         } catch (PlatformDailyQuotaExceededException e) {
+            clearSessionConfig(sessionId);
             log.info("Verified user daily platform quota exhausted for userId:{}", SecretLogSanitizer.maskCapability(requestDTO.getUserId()));
             try {
                 streamResponseWriter.sendTypedError(emitter, e.getCode(), e.getInfo());
@@ -223,7 +246,18 @@ public class AgentConversationService {
             } catch (Exception ignored) {
             }
             emitter.complete();
+        } catch (AppException e) {
+            clearSessionConfig(sessionId);
+            log.info("Stream request rejected for userId:{} code:{}",
+                    SecretLogSanitizer.maskCapability(requestDTO.getUserId()), e.getCode());
+            try {
+                streamResponseWriter.sendTypedError(emitter, e.getCode(), e.getInfo());
+                streamResponseWriter.sendDone(emitter);
+            } catch (Exception ignored) {
+            }
+            emitter.complete();
         } catch (Exception e) {
+            clearSessionConfig(sessionId);
             log.error("流式对话失败", e);
             emitter.completeWithError(e);
         }
@@ -298,13 +332,35 @@ public class AgentConversationService {
     }
 
     private CustomApiConfigManager.CustomApiConfig buildCustomApiConfig(ChatRequestDTO requestDTO) {
+        if (StringUtils.isNotBlank(requestDTO.getModelCredentialId())) {
+            rejectRawCustomConfig(requestDTO, "Saved credential chat requests must not include raw custom model fields.");
+            try {
+                ModelCredentialSecret credential = modelCredentialService.resolveForChat(
+                        requestDTO.getUserId(), requestDTO.getModelCredentialId());
+                return CustomApiConfigManager.CustomApiConfig.builder()
+                        .baseUrl(credential.getBaseUrl())
+                        .apiKey(credential.getApiKey())
+                        .completionsPath(credential.getCompletionPath())
+                        .model(credential.getModel())
+                        .customModelSelected(true)
+                        .build();
+            } catch (IllegalArgumentException e) {
+                throw new AppException(ResponseCode.ILLEGAL_PARAMETER.getCode(), e.getMessage());
+            }
+        }
+        rejectRawCustomConfig(requestDTO, "Custom model credentials must be saved before chat.");
         return CustomApiConfigManager.CustomApiConfig.builder()
-                .baseUrl(requestDTO.getCustomBaseUrl())
-                .apiKey(requestDTO.getCustomApiKey())
-                .completionsPath(requestDTO.getCustomCompletionsPath())
-                .model(requestDTO.getCustomModel())
-                .customModelSelected(StringUtils.isNotBlank(requestDTO.getCustomModel()))
+                .customModelSelected(false)
                 .build();
+    }
+
+    private void rejectRawCustomConfig(ChatRequestDTO requestDTO, String message) {
+        if (StringUtils.isNotBlank(requestDTO.getCustomBaseUrl())
+                || StringUtils.isNotBlank(requestDTO.getCustomApiKey())
+                || StringUtils.isNotBlank(requestDTO.getCustomCompletionsPath())
+                || StringUtils.isNotBlank(requestDTO.getCustomModel())) {
+            throw new AppException(ResponseCode.ILLEGAL_PARAMETER.getCode(), message);
+        }
     }
 
     private void consumeAnonymousDemoQuota(ChatRequestDTO requestDTO, CustomApiConfigManager.CustomApiConfig config) {
@@ -523,7 +579,8 @@ public class AgentConversationService {
                                     StringBuilder buffer,
                                     String accumulated,
                                     AtomicBoolean manuallyCompleted,
-                                    AtomicReference<Disposable> disposableRef) throws Exception {
+                                    AtomicReference<Disposable> disposableRef,
+                                    String sessionId) throws Exception {
         if (!isPartial || accumulated.contains("\n")) {
             String[] lines = accumulated.split("\n", -1);
             String remaining = lines[lines.length - 1];
@@ -540,7 +597,7 @@ public class AgentConversationService {
                     continue;
                 }
                 if (streamResponseWriter.processAndSendLine(emitter, phase, line)) {
-                    completeStream(emitter, manuallyCompleted, disposableRef);
+                    completeStream(emitter, manuallyCompleted, disposableRef, sessionId);
                     return;
                 }
             }
@@ -550,7 +607,7 @@ public class AgentConversationService {
             String remaining = buffer.toString().trim();
             buffer.setLength(0);
             if (!remaining.isEmpty() && streamResponseWriter.processAndSendLine(emitter, phase, remaining)) {
-                completeStream(emitter, manuallyCompleted, disposableRef);
+                completeStream(emitter, manuallyCompleted, disposableRef, sessionId);
             }
         }
     }
@@ -568,10 +625,12 @@ public class AgentConversationService {
 
     private void completeStream(ResponseBodyEmitter emitter,
                                 AtomicBoolean manuallyCompleted,
-                                AtomicReference<Disposable> disposableRef) {
+                                AtomicReference<Disposable> disposableRef,
+                                String sessionId) {
         if (!manuallyCompleted.compareAndSet(false, true)) {
             return;
         }
+        clearSessionConfig(sessionId);
         try {
             streamResponseWriter.flushPendingDiagram(emitter, "done");
         } catch (Exception ignored) {
@@ -593,10 +652,12 @@ public class AgentConversationService {
 
     private void handleStreamComplete(ResponseBodyEmitter emitter,
                                       ConcurrentHashMap<String, StringBuilder> authorBuffers,
-                                      AtomicBoolean manuallyCompleted) {
+                                      AtomicBoolean manuallyCompleted,
+                                      String sessionId) {
         if (manuallyCompleted.get()) {
             return;
         }
+        clearSessionConfig(sessionId);
         flushAuthorBuffers(emitter, authorBuffers);
         try {
             streamResponseWriter.flushPendingDiagram(emitter, "done");
@@ -604,6 +665,10 @@ public class AgentConversationService {
         } catch (Exception ignored) {
         }
         emitter.complete();
+    }
+
+    private void clearSessionConfig(String sessionId) {
+        CustomApiConfigManager.clearConfig(sessionId);
     }
 
     // Emit any buffered author output (non-XML lines such as patch_cells are only complete at flush time).

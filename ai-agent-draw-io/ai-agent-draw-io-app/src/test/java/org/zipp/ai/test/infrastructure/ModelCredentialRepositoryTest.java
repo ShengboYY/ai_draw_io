@@ -67,6 +67,20 @@ public class ModelCredentialRepositoryTest {
     }
 
     @Test
+    public void shouldFindCredentialByOwnerBeforeChatResolution() throws Exception {
+        ModelCredentialRepository repository = new ModelCredentialRepository();
+        FakeModelCredentialMapper mapper = new FakeModelCredentialMapper();
+        injectMapper(repository, mapper);
+
+        ModelCredential credential = repository.findByUserIdAndId("usr_alice", "mcr_1").orElseThrow();
+
+        assertEquals("usr_alice", mapper.selectedUserId);
+        assertEquals("mcr_1", mapper.selectedId);
+        assertEquals("usr_alice", credential.getUserId());
+        assertEquals("mcr_1", credential.getId());
+    }
+
+    @Test
     public void shouldDisableAndDeleteWithOwnerConstraint() throws Exception {
         ModelCredentialRepository repository = new ModelCredentialRepository();
         FakeModelCredentialMapper mapper = new FakeModelCredentialMapper();
@@ -90,6 +104,7 @@ public class ModelCredentialRepositoryTest {
 
         assertTrue(mapperXml.contains("encrypted_api_key"));
         assertTrue(mapperXml.contains("key_last_four"));
+        assertTrue(mapperXml.contains("WHERE user_id = #{userId} AND id = #{id} AND deleted_at IS NULL"));
         assertTrue(mapperXml.contains("WHERE id = #{id} AND user_id = #{userId} AND deleted_at IS NULL"));
     }
 
@@ -106,6 +121,8 @@ public class ModelCredentialRepositoryTest {
         private String disabledId;
         private String deletedUserId;
         private String deletedId;
+        private String selectedUserId;
+        private String selectedId;
 
         @Override
         public int insert(ModelCredentialPO credential) {
@@ -134,6 +151,16 @@ public class ModelCredentialRepositoryTest {
             po.setUpdatedAt(Date.from(Instant.parse("2026-07-02T10:00:00Z")));
             po.setDisabledAt(Date.from(Instant.parse("2026-07-02T10:05:00Z")));
             return List.of(po);
+        }
+
+        @Override
+        public ModelCredentialPO selectByUserIdAndId(String userId, String id) {
+            selectedUserId = userId;
+            selectedId = id;
+            return selectByUserId(userId).stream()
+                    .filter(po -> po.getId().equals(id))
+                    .findFirst()
+                    .orElse(null);
         }
 
         @Override

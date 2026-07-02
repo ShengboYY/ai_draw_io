@@ -71,20 +71,24 @@ public class DefaultIntentRoutingService implements IIntentRoutingService {
         }
         try {
             String sessionId = chatService.createSession(INTENT_AGENT_ID, userId);
-            CustomApiConfigManager.CustomApiConfig config = command.getCustomApiConfig();
-            if (null != config) {
-                CustomApiConfigManager.setConfig(sessionId, config);
-            }
+            try {
+                CustomApiConfigManager.CustomApiConfig config = command.getCustomApiConfig();
+                if (null != config) {
+                    CustomApiConfigManager.setConfig(sessionId, config);
+                }
 
-            // Feed the live skill catalog so the router can pick ANY available skill by description
-            // (including the user's own), instead of a hardcoded enum.
-            String routerMessage = withAvailableSkills(command.getMessage(), userId);
-            List<String> outputs = chatService.handleMessage(INTENT_AGENT_ID, userId, sessionId, routerMessage);
-            String rawResult = String.join("", outputs);
-            IntentRoutingResult result = normalize(parseRoutingResult(rawResult),
-                    extractUserInstruction(null == command ? "" : command.getMessage()));
-            logRoutingDecision("llm", userId, result);
-            return result;
+                // Feed the live skill catalog so the router can pick ANY available skill by description
+                // (including the user's own), instead of a hardcoded enum.
+                String routerMessage = withAvailableSkills(command.getMessage(), userId);
+                List<String> outputs = chatService.handleMessage(INTENT_AGENT_ID, userId, sessionId, routerMessage);
+                String rawResult = String.join("", outputs);
+                IntentRoutingResult result = normalize(parseRoutingResult(rawResult),
+                        extractUserInstruction(null == command ? "" : command.getMessage()));
+                logRoutingDecision("llm", userId, result);
+                return result;
+            } finally {
+                CustomApiConfigManager.clearConfig(sessionId);
+            }
         } catch (Exception e) {
             log.warn("Intent routing failed, fallback to drawing workflow. userId:{}",
                     SecretLogSanitizer.maskCapability(userId), e);

@@ -100,6 +100,7 @@ export interface ChatRequestDTO {
     maxReviewIterations?: number;
     skills?: string[];
   };
+  modelCredentialId?: string;
   customBaseUrl?: string;
   customApiKey?: string;
   customCompletionsPath?: string;
@@ -166,4 +167,30 @@ export type PasswordResetStatus = 'SUCCESS' | 'EXPIRED' | 'ALREADY_USED' | 'INVA
 
 export interface PasswordResetConfirmResponseDTO {
   status: PasswordResetStatus;
+}
+
+export interface CreateModelCredentialRequestDTO {
+  provider: string;
+  baseUrl: string;
+  model: string;
+  completionPath: string;
+  displayName: string;
+  apiKey: string;
+}
+
+export interface ModelCredentialResponseDTO {
+  id: string;
+  provider: string;
+  baseUrl: string;
+  model: string;
+  completionPath: string;
+  displayName: string;
+  maskedApiKey: string;
+  encryptionProvider?: string;
+  encryptionKeyId?: string;
+  keyLastFour?: string;
+  status?: string;
+  createdAt?: string;
+  updatedAt?: string;
+  disabledAt?: string;
 }

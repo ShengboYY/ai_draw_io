@@ -12,6 +12,7 @@ import java.time.Instant;
 import java.util.Collections;
 import java.util.Date;
 import java.util.List;
+import java.util.Optional;
 
 /** DB-backed model credential store. Raw API keys never enter this adapter. */
 @Repository
@@ -33,6 +34,15 @@ public class ModelCredentialRepository implements IModelCredentialStore {
         return modelCredentialMapper.selectByUserId(userId).stream()
                 .map(this::toDomain)
                 .toList();
+    }
+
+    @Override
+    public Optional<ModelCredential> findByUserIdAndId(String userId, String credentialId) {
+        if (isBlank(userId) || isBlank(credentialId)) {
+            return Optional.empty();
+        }
+        return Optional.ofNullable(modelCredentialMapper.selectByUserIdAndId(userId, credentialId))
+                .map(this::toDomain);
     }
 
     @Override

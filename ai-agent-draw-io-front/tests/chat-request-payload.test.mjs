@@ -13,7 +13,7 @@ test('buildDrawioChatRequestPayload keeps user text separate from canvas context
     userMessage: '把 API 改成 Gateway',
     canvasXml: xml,
     canvasSummary: 'The canvas contains 1 node and 0 edges. Main labels: API.',
-    customModel: 'gpt-5.5',
+    modelCredentialId: 'mcr_gpt55',
     maxReviewIterations: 2,
     skills: ['drawio-architecture'],
   });
@@ -21,7 +21,7 @@ test('buildDrawioChatRequestPayload keeps user text separate from canvas context
   assert.equal(request.message, '把 API 改成 Gateway');
   assert.equal(request.canvasXml, xml);
   assert.equal(request.canvasSummary, 'The canvas contains 1 node and 0 edges. Main labels: API.');
-  assert.equal(request.customModel, 'gpt-5.5');
+  assert.equal(request.modelCredentialId, 'mcr_gpt55');
   assert.equal(request.maxReviewIterations, 2);
   assert.deepEqual(request.skills, ['drawio-architecture']);
   assert.deepEqual(request.clientHints, {
@@ -43,4 +43,24 @@ test('buildDrawioChatRequestPayload includes canvas state version fields', () =>
 
   assert.equal(request.diagramId, 'diagram-1');
   assert.equal(request.expectedVersion, 4);
+});
+
+test('buildDrawioChatRequestPayload sends saved credential id without raw custom key fields', () => {
+  const request = buildDrawioChatRequestPayload({
+    agentId: '300000',
+    userId: 'usr_alice',
+    sessionId: 'session-1',
+    userMessage: 'draw it',
+    modelCredentialId: 'mcr_alice',
+    customBaseUrl: 'https://api.openai.com/v1',
+    customApiKey: 'sk-raw-secret',
+    customCompletionsPath: '/chat/completions',
+    customModel: 'gpt-4o',
+  });
+
+  assert.equal(request.modelCredentialId, 'mcr_alice');
+  assert.equal('customBaseUrl' in request, false);
+  assert.equal('customApiKey' in request, false);
+  assert.equal('customCompletionsPath' in request, false);
+  assert.equal('customModel' in request, false);
 });

@@ -23,6 +23,7 @@ export type DemoQuotaAccount = {
 export type DemoQuotaModel = {
   id: string;
   enabled?: boolean;
+  modelCredentialId?: string;
   apiKey?: string;
 };
 
@@ -59,7 +60,7 @@ export const usesPlatformModel = (
   customModels: DemoQuotaModel[] = [],
 ) => {
   const activeCustomModel = customModels.find(model => model.id === selectedCustomModelId && model.enabled);
-  return !activeCustomModel?.apiKey?.trim();
+  return !activeCustomModel?.modelCredentialId?.trim();
 };
 
 export const buildDemoQuotaState = ({
