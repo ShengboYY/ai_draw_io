@@ -1,7 +1,11 @@
 package org.zipp.ai.test.trigger.http;
 
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
 import org.junit.After;
 import org.junit.Test;
+import org.slf4j.LoggerFactory;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
@@ -40,6 +44,30 @@ public class AgentServiceControllerWorkspaceTest {
 
         assertEquals(ResponseCode.ILLEGAL_PARAMETER.getCode(), response.getCode());
         assertFalse(store.listCalled);
+    }
+
+    @Test
+    public void shouldLogMigrationHintWhenLegacyWorkspaceIdIsIgnored() throws Exception {
+        AgentServiceController controller = new AgentServiceController();
+        FakeCanvasStateStore store = new FakeCanvasStateStore();
+        inject(controller, "canvasStateStore", store);
+        RequestContextHolder.setRequestAttributes(new ServletRequestAttributes(new MockHttpServletRequest()));
+        Logger logger = (Logger) LoggerFactory.getLogger("org.zipp.ai.trigger.http.WorkspaceIds");
+        ListAppender<ILoggingEvent> appender = new ListAppender<>();
+        appender.start();
+        logger.addAppender(appender);
+
+        try {
+            controller.listDiagrams("admin");
+
+            assertTrue(appender.list.stream()
+                    .map(ILoggingEvent::getFormattedMessage)
+                    .anyMatch(message -> message.contains("Workspace id header missing")
+                            && message.contains("X-Workspace-Id")
+                            && !message.contains("admin")));
+        } finally {
+            logger.detachAppender(appender);
+        }
     }
 
     @Test

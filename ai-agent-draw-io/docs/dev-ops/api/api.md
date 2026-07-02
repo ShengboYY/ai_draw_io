@@ -3,7 +3,7 @@
 
 接口；create_session
 用途；创建会话ID，每次新的对话，要创建一个新的Session
+说明；GET/POST 都必须携带 X-Workspace-Id header，仅传 ?userId=xxx 或请求体 userId 会返回 400
 
 接口；chat
 用途；agent 对话，需要传入必要的参数。
-

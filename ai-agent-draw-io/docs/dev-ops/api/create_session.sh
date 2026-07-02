@@ -1,3 +1,5 @@
+# GET/POST create_session now requires X-Workspace-Id.
+# Legacy userId in query/body without this header is rejected with 400.
 curl 'http://127.0.0.1:8091/api/v1/create_session' \
   -H 'Accept: */*' \
   -H 'Accept-Language: zh-CN,zh;q=0.9,en;q=0.8' \
@@ -8,6 +10,7 @@ curl 'http://127.0.0.1:8091/api/v1/create_session' \
   -H 'Origin: http://localhost:63343' \
   -H 'Pragma: no-cache' \
   -H 'Referer: http://localhost:63343/' \
+  -H 'X-Workspace-Id: anon_123e4567-e89b-42d3-a456-426614174000' \
   -H 'Sec-Fetch-Dest: empty' \
   -H 'Sec-Fetch-Mode: cors' \
   -H 'Sec-Fetch-Site: cross-site' \
@@ -15,4 +18,4 @@ curl 'http://127.0.0.1:8091/api/v1/create_session' \
   -H 'sec-ch-ua: "Google Chrome";v="143", "Chromium";v="143", "Not A(Brand";v="24"' \
   -H 'sec-ch-ua-mobile: ?0' \
   -H 'sec-ch-ua-platform: "macOS"' \
-  --data-raw '{"agentId":"100003","userId":"admin"}'
+  --data-raw '{"agentId":"100003"}'
