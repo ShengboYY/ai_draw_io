@@ -11,7 +11,9 @@ import org.zipp.ai.infrastructure.dao.po.UserAccountPO;
 import javax.annotation.Resource;
 import java.time.Instant;
 import java.util.Date;
+import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 /** DB-backed {@link IUserAccountStore} (MyBatis). */
 @Slf4j
@@ -29,6 +31,13 @@ public class UserAccountRepository implements IUserAccountStore {
     @Override
     public Optional<UserAccount> findById(String id) {
         return Optional.ofNullable(userAccountMapper.selectById(id)).map(this::toDomain);
+    }
+
+    @Override
+    public List<UserAccount> listAll() {
+        return userAccountMapper.selectAll().stream()
+                .map(this::toDomain)
+                .collect(Collectors.toList());
     }
 
     @Override
@@ -55,6 +64,11 @@ public class UserAccountRepository implements IUserAccountStore {
     public boolean updatePasswordHashAndIncrementSessionVersion(String userId, String passwordHash, Instant updatedAt) {
         return userAccountMapper.updatePasswordHashAndIncrementSessionVersion(
                 userId, passwordHash, toDate(updatedAt)) == 1;
+    }
+
+    @Override
+    public boolean disableAndIncrementSessionVersion(String userId, Instant updatedAt) {
+        return userAccountMapper.disableAndIncrementSessionVersion(userId, toDate(updatedAt)) == 1;
     }
 
     private UserAccount toDomain(UserAccountPO po) {

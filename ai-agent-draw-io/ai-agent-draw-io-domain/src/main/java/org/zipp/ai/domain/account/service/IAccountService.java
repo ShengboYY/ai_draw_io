@@ -8,6 +8,7 @@ import org.zipp.ai.domain.account.model.valobj.PasswordResetResult;
 import org.zipp.ai.domain.account.model.valobj.RegisterAccountCommand;
 import org.zipp.ai.domain.account.model.valobj.RegistrationResult;
 
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -42,5 +43,11 @@ public interface IAccountService {
 
     /** Rehydrate an authenticated principal after a session cookie is presented. */
     Optional<UserAccount> findById(String userId);
+
+    /** Metadata-only user listing for admin operations. */
+    List<UserAccount> listUsers();
+
+    /** Disable a user and bump session_version so existing sessions become stale. */
+    Optional<UserAccount> disableUser(String userId);
 
 }

@@ -22,6 +22,11 @@ account:
   password-reset:
     base-url: ${ACCOUNT_PASSWORD_RESET_BASE_URL:http://localhost:3000/reset-password/confirm}
 
+# Comma/space separated normalized by the server. Empty means no admin access.
+admin:
+  emails: ${ADMIN_EMAILS:}
+  allowed-origins: ${ADMIN_ALLOWED_ORIGINS:}
+
 # MyBatis mapper 全量列表放这里，避免每份 profile 重复维护；profile 里可再叠加自定义。
 mybatis:
   mapper-locations:
@@ -31,4 +36,6 @@ mybatis:
     - classpath:/mybatis/mapper/user_account_mapper.xml
     - classpath:/mybatis/mapper/account_token_mapper.xml
     - classpath:/mybatis/mapper/model_credential_mapper.xml
+    - classpath:/mybatis/mapper/agent_usage_telemetry_mapper.xml
+    - classpath:/mybatis/mapper/admin_audit_log_mapper.xml
   config-location: classpath:/mybatis/config/mybatis-config.xml

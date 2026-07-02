@@ -3,6 +3,7 @@ package org.zipp.ai.domain.account.service;
 import org.zipp.ai.domain.account.model.entity.UserAccount;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -15,6 +16,8 @@ public interface IUserAccountStore {
 
     Optional<UserAccount> findById(String id);
 
+    List<UserAccount> listAll();
+
     /** Insert a new user. */
     void insert(UserAccount account);
 
@@ -23,5 +26,8 @@ public interface IUserAccountStore {
 
     /** Replace the password hash and bump session_version so existing sessions become stale. */
     boolean updatePasswordHashAndIncrementSessionVersion(String userId, String passwordHash, Instant updatedAt);
+
+    /** Disable an account and bump session_version so existing sessions become stale. */
+    boolean disableAndIncrementSessionVersion(String userId, Instant updatedAt);
 
 }

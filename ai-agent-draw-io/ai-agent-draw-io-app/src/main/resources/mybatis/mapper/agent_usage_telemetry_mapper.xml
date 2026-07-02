@@ -2,6 +2,65 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="org.zipp.ai.infrastructure.dao.IAgentUsageTelemetryMapper">
 
+    <resultMap id="runMap" type="org.zipp.ai.infrastructure.dao.po.AgentRunTelemetryPO">
+        <id column="id" property="id"/>
+        <result column="user_id" property="userId"/>
+        <result column="agent_id" property="agentId"/>
+        <result column="session_id" property="sessionId"/>
+        <result column="request_type" property="requestType"/>
+        <result column="credential_source" property="credentialSource"/>
+        <result column="model_credential_id" property="modelCredentialId"/>
+        <result column="status" property="status"/>
+        <result column="error_class" property="errorClass"/>
+        <result column="started_at" property="startedAt"/>
+        <result column="completed_at" property="completedAt"/>
+        <result column="latency_ms" property="latencyMs"/>
+    </resultMap>
+
+    <resultMap id="stepMap" type="org.zipp.ai.infrastructure.dao.po.AgentRunStepTelemetryPO">
+        <id column="id" property="id"/>
+        <result column="run_id" property="runId"/>
+        <result column="user_id" property="userId"/>
+        <result column="phase" property="phase"/>
+        <result column="status" property="status"/>
+        <result column="error_class" property="errorClass"/>
+        <result column="started_at" property="startedAt"/>
+        <result column="completed_at" property="completedAt"/>
+        <result column="latency_ms" property="latencyMs"/>
+    </resultMap>
+
+    <resultMap id="llmCallMap" type="org.zipp.ai.infrastructure.dao.po.LlmCallTelemetryPO">
+        <id column="id" property="id"/>
+        <result column="run_id" property="runId"/>
+        <result column="user_id" property="userId"/>
+        <result column="phase" property="phase"/>
+        <result column="provider" property="provider"/>
+        <result column="model" property="model"/>
+        <result column="credential_source" property="credentialSource"/>
+        <result column="model_credential_id" property="modelCredentialId"/>
+        <result column="prompt_tokens" property="promptTokens"/>
+        <result column="completion_tokens" property="completionTokens"/>
+        <result column="total_tokens" property="totalTokens"/>
+        <result column="status" property="status"/>
+        <result column="error_class" property="errorClass"/>
+        <result column="started_at" property="startedAt"/>
+        <result column="completed_at" property="completedAt"/>
+        <result column="latency_ms" property="latencyMs"/>
+    </resultMap>
+
+    <resultMap id="toolCallMap" type="org.zipp.ai.infrastructure.dao.po.ToolCallTelemetryPO">
+        <id column="id" property="id"/>
+        <result column="run_id" property="runId"/>
+        <result column="user_id" property="userId"/>
+        <result column="phase" property="phase"/>
+        <result column="tool_name" property="toolName"/>
+        <result column="status" property="status"/>
+        <result column="error_class" property="errorClass"/>
+        <result column="started_at" property="startedAt"/>
+        <result column="completed_at" property="completedAt"/>
+        <result column="latency_ms" property="latencyMs"/>
+    </resultMap>
+
     <insert id="insertRun" parameterType="org.zipp.ai.infrastructure.dao.po.AgentRunTelemetryPO">
         INSERT INTO agent_run (
             id, user_id, agent_id, session_id, request_type, credential_source, model_credential_id,
@@ -86,6 +145,76 @@
             ) AS unknownTokenLlmCallCount
         FROM agent_run r
         WHERE r.user_id = #{userId}
+    </select>
+
+    <select id="summarizeGlobal" resultType="org.zipp.ai.infrastructure.dao.po.AdminUsageSummaryPO">
+        SELECT
+            (SELECT COALESCE(COUNT(*), 0) FROM agent_run) AS requestCount,
+            (SELECT COALESCE(SUM(CASE WHEN status = 'SUCCESS' THEN 1 ELSE 0 END), 0) FROM agent_run) AS successfulRequestCount,
+            (SELECT COALESCE(SUM(CASE WHEN status = 'FAILED' THEN 1 ELSE 0 END), 0) FROM agent_run) AS failedRequestCount,
+            (SELECT COALESCE(SUM(CASE WHEN status = 'RUNNING' THEN 1 ELSE 0 END), 0) FROM agent_run) AS runningRequestCount,
+            (SELECT COALESCE(COUNT(*), 0) FROM agent_llm_call) AS llmCallCount,
+            (SELECT COALESCE(SUM(CASE WHEN status = 'SUCCESS' THEN 1 ELSE 0 END), 0) FROM agent_llm_call) AS successfulLlmCallCount,
+            (SELECT COALESCE(SUM(CASE WHEN status = 'FAILED' THEN 1 ELSE 0 END), 0) FROM agent_llm_call) AS failedLlmCallCount,
+            (SELECT COALESCE(COUNT(*), 0) FROM agent_tool_call) AS toolCallCount,
+            (SELECT COALESCE(SUM(CASE WHEN status = 'SUCCESS' THEN 1 ELSE 0 END), 0) FROM agent_tool_call) AS successfulToolCallCount,
+            (SELECT COALESCE(SUM(CASE WHEN status = 'FAILED' THEN 1 ELSE 0 END), 0) FROM agent_tool_call) AS failedToolCallCount,
+            (SELECT COALESCE(SUM(prompt_tokens), 0) FROM agent_llm_call) AS promptTokens,
+            (SELECT COALESCE(SUM(completion_tokens), 0) FROM agent_llm_call) AS completionTokens,
+            (SELECT COALESCE(SUM(total_tokens), 0) FROM agent_llm_call) AS totalTokens,
+            (SELECT COALESCE(SUM(CASE WHEN total_tokens IS NULL THEN 1 ELSE 0 END), 0) FROM agent_llm_call) AS unknownTokenLlmCallCount,
+            (SELECT COALESCE(ROUND(AVG(latency_ms)), 0) FROM agent_run WHERE latency_ms IS NOT NULL) AS averageRunLatencyMs,
+            (SELECT COALESCE(MAX(latency_ms), 0) FROM agent_run WHERE latency_ms IS NOT NULL) AS maxRunLatencyMs
+    </select>
+
+    <select id="summarizeByProviderModelCredentialSource" resultType="org.zipp.ai.infrastructure.dao.po.UsageDimensionSummaryPO">
+        SELECT
+            provider AS provider,
+            model AS model,
+            credential_source AS credentialSource,
+            COALESCE(COUNT(*), 0) AS llmCallCount,
+            COALESCE(SUM(CASE WHEN status = 'SUCCESS' THEN 1 ELSE 0 END), 0) AS successfulCallCount,
+            COALESCE(SUM(CASE WHEN status = 'FAILED' THEN 1 ELSE 0 END), 0) AS failedCallCount,
+            COALESCE(SUM(prompt_tokens), 0) AS promptTokens,
+            COALESCE(SUM(completion_tokens), 0) AS completionTokens,
+            COALESCE(SUM(total_tokens), 0) AS totalTokens,
+            COALESCE(SUM(CASE WHEN total_tokens IS NULL THEN 1 ELSE 0 END), 0) AS unknownTokenCallCount,
+            COALESCE(ROUND(AVG(latency_ms)), 0) AS averageLatencyMs
+        FROM agent_llm_call
+        GROUP BY provider, model, credential_source
+        ORDER BY llmCallCount DESC, provider ASC, model ASC, credentialSource ASC
+    </select>
+
+    <select id="selectRunById" resultMap="runMap">
+        SELECT
+            id, user_id, agent_id, session_id, request_type, credential_source, model_credential_id,
+            status, error_class, started_at, completed_at, latency_ms
+        FROM agent_run
+        WHERE id = #{runId}
+    </select>
+
+    <select id="selectStepsByRunId" resultMap="stepMap">
+        SELECT id, run_id, user_id, phase, status, error_class, started_at, completed_at, latency_ms
+        FROM agent_run_step
+        WHERE run_id = #{runId}
+        ORDER BY started_at ASC, id ASC
+    </select>
+
+    <select id="selectLlmCallsByRunId" resultMap="llmCallMap">
+        SELECT
+            id, run_id, user_id, phase, provider, model, credential_source, model_credential_id,
+            prompt_tokens, completion_tokens, total_tokens, status, error_class,
+            started_at, completed_at, latency_ms
+        FROM agent_llm_call
+        WHERE run_id = #{runId}
+        ORDER BY started_at ASC, id ASC
+    </select>
+
+    <select id="selectToolCallsByRunId" resultMap="toolCallMap">
+        SELECT id, run_id, user_id, phase, tool_name, status, error_class, started_at, completed_at, latency_ms
+        FROM agent_tool_call
+        WHERE run_id = #{runId}
+        ORDER BY started_at ASC, id ASC
     </select>
 
 </mapper>

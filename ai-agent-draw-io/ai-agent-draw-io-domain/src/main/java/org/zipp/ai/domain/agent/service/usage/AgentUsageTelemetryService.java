@@ -1,17 +1,22 @@
 package org.zipp.ai.domain.agent.service.usage;
 
 import org.apache.commons.lang3.StringUtils;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.zipp.ai.domain.agent.model.valobj.usage.AgentRunStepTelemetry;
 import org.zipp.ai.domain.agent.model.valobj.usage.AgentRunTelemetry;
+import org.zipp.ai.domain.agent.model.valobj.usage.AdminUsageSummary;
+import org.zipp.ai.domain.agent.model.valobj.usage.AgentRunDetail;
 import org.zipp.ai.domain.agent.model.valobj.usage.AgentUsageSummary;
 import org.zipp.ai.domain.agent.model.valobj.usage.LlmCallTelemetry;
 import org.zipp.ai.domain.agent.model.valobj.usage.ToolCallTelemetry;
+import org.zipp.ai.domain.agent.model.valobj.usage.UsageDimensionSummary;
 import org.zipp.ai.types.util.SecretLogSanitizer;
 
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.Callable;
@@ -28,6 +33,7 @@ public class AgentUsageTelemetryService {
     private final IAgentUsageTelemetryStore telemetryStore;
     private final Clock clock;
 
+    @Autowired
     public AgentUsageTelemetryService(IAgentUsageTelemetryStore telemetryStore) {
         this(telemetryStore, Clock.systemUTC());
     }
@@ -213,6 +219,27 @@ public class AgentUsageTelemetryService {
             return AgentUsageSummary.empty();
         }
         return telemetryStore.summarizeForUser(userId);
+    }
+
+    public AdminUsageSummary summarizeGlobal() {
+        if (telemetryStore == null) {
+            return AdminUsageSummary.empty();
+        }
+        return telemetryStore.summarizeGlobal();
+    }
+
+    public List<UsageDimensionSummary> summarizeByProviderModelCredentialSource() {
+        if (telemetryStore == null) {
+            return List.of();
+        }
+        return telemetryStore.summarizeByProviderModelCredentialSource();
+    }
+
+    public Optional<AgentRunDetail> findRunDetail(String runId) {
+        if (telemetryStore == null || StringUtils.isBlank(runId)) {
+            return Optional.empty();
+        }
+        return telemetryStore.findRunDetail(runId);
     }
 
     private void safeStore(Runnable operation, String userId) {

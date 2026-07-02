@@ -188,6 +188,11 @@ public class ModelCredentialServiceTest {
         }
 
         @Override
+        public List<UserAccount> listAll() {
+            return new ArrayList<>(byId.values());
+        }
+
+        @Override
         public void insert(UserAccount account) {
             byId.put(account.getId(), account);
         }
@@ -203,6 +208,11 @@ public class ModelCredentialServiceTest {
 
         @Override
         public boolean updatePasswordHashAndIncrementSessionVersion(String userId, String passwordHash, Instant updatedAt) {
+            return false;
+        }
+
+        @Override
+        public boolean disableAndIncrementSessionVersion(String userId, Instant updatedAt) {
             return false;
         }
     }

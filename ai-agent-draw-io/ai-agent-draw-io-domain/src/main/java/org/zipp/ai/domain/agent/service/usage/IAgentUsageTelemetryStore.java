@@ -2,11 +2,16 @@ package org.zipp.ai.domain.agent.service.usage;
 
 import org.zipp.ai.domain.agent.model.valobj.usage.AgentRunStepTelemetry;
 import org.zipp.ai.domain.agent.model.valobj.usage.AgentRunTelemetry;
+import org.zipp.ai.domain.agent.model.valobj.usage.AdminUsageSummary;
+import org.zipp.ai.domain.agent.model.valobj.usage.AgentRunDetail;
 import org.zipp.ai.domain.agent.model.valobj.usage.AgentUsageSummary;
 import org.zipp.ai.domain.agent.model.valobj.usage.LlmCallTelemetry;
 import org.zipp.ai.domain.agent.model.valobj.usage.ToolCallTelemetry;
+import org.zipp.ai.domain.agent.model.valobj.usage.UsageDimensionSummary;
 
 import java.time.Instant;
+import java.util.List;
+import java.util.Optional;
 
 public interface IAgentUsageTelemetryStore {
 
@@ -21,4 +26,10 @@ public interface IAgentUsageTelemetryStore {
     void insertToolCall(ToolCallTelemetry call);
 
     AgentUsageSummary summarizeForUser(String userId);
+
+    AdminUsageSummary summarizeGlobal();
+
+    List<UsageDimensionSummary> summarizeByProviderModelCredentialSource();
+
+    Optional<AgentRunDetail> findRunDetail(String runId);
 }

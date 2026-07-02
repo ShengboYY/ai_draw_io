@@ -148,6 +148,27 @@ public class AuthControllerLoginTest {
     }
 
     @Test
+    public void disabledUserCannotContinueAuthenticatedUse() {
+        registerAndVerify("disabled-session@example.com", "password123");
+        MockHttpServletRequest loginRequest = new MockHttpServletRequest();
+        MockHttpServletResponse loginResponse = new MockHttpServletResponse();
+        controller.login(loginRequest("disabled-session@example.com", "password123"), loginRequest, loginResponse);
+        HttpSession oldSession = loginRequest.getSession(false);
+        assertNotNull(oldSession);
+        UserAccount user = users.findByEmailNormalized("disabled-session@example.com").orElseThrow();
+        users.disableAndIncrementSessionVersion(user.getId(), clock.instant());
+
+        MockHttpServletRequest staleRequest = new MockHttpServletRequest();
+        staleRequest.setSession(oldSession);
+        SecurityContext staleContext = contextRepository.loadContext(
+                new HttpRequestResponseHolder(staleRequest, new MockHttpServletResponse()));
+        SecurityContextHolder.setContext(staleContext);
+        Response<LoginResponseDTO> me = controller.me(staleRequest);
+
+        assertEquals("ANONYMOUS", me.getData().getStatus());
+    }
+
+    @Test
     public void loginRejectsUnknownEmailWithGenericInvalidCredentials() {
         MockHttpServletRequest request = new MockHttpServletRequest();
         MockHttpServletResponse response = new MockHttpServletResponse();
@@ -395,6 +416,7 @@ public class AuthControllerLoginTest {
             return byId.values().stream().filter(u -> u.getEmailNormalized().equals(emailNormalized)).findFirst();
         }
         @Override public Optional<UserAccount> findById(String id) { return Optional.ofNullable(byId.get(id)); }
+        @Override public List<UserAccount> listAll() { return new ArrayList<>(byId.values()); }
         @Override public void insert(UserAccount account) { byId.put(account.getId(), account); }
         @Override public void markVerified(String userId, java.time.Instant verifiedAt) {
             UserAccount user = byId.get(userId);
@@ -408,6 +430,14 @@ public class AuthControllerLoginTest {
             UserAccount user = byId.get(userId);
             if (user == null) return false;
             user.setPasswordHash(passwordHash);
+            user.setSessionVersion(user.getSessionVersion() + 1);
+            user.setUpdatedAt(updatedAt);
+            return true;
+        }
+        @Override public boolean disableAndIncrementSessionVersion(String userId, java.time.Instant updatedAt) {
+            UserAccount user = byId.get(userId);
+            if (user == null || user.getStatus() == AccountStatus.DISABLED || user.getStatus() == AccountStatus.DELETED) return false;
+            user.setStatus(AccountStatus.DISABLED);
             user.setSessionVersion(user.getSessionVersion() + 1);
             user.setUpdatedAt(updatedAt);
             return true;

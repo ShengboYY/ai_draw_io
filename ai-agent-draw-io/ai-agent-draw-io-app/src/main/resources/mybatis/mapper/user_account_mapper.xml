@@ -26,6 +26,12 @@
         SELECT <include refid="cols"/> FROM app_user WHERE id = #{id}
     </select>
 
+    <select id="selectAll" resultMap="userMap">
+        SELECT <include refid="cols"/> FROM app_user
+        WHERE deleted_at IS NULL
+        ORDER BY created_at DESC, id DESC
+    </select>
+
     <insert id="insert" parameterType="org.zipp.ai.infrastructure.dao.po.UserAccountPO">
         INSERT INTO app_user (id, email, email_normalized, password_hash, status, session_version, created_at, updated_at, verified_at)
         VALUES (#{id}, #{email}, #{emailNormalized}, #{passwordHash}, #{status},
@@ -44,6 +50,17 @@
             session_version = session_version + 1,
             updated_at = #{updatedAt}
         WHERE id = #{id} AND status = 'ACTIVE' AND deleted_at IS NULL
+    </update>
+
+    <update id="disableAndIncrementSessionVersion">
+        UPDATE app_user
+        SET status = 'DISABLED',
+            session_version = session_version + 1,
+            updated_at = #{updatedAt}
+        WHERE id = #{id}
+          AND status != 'DISABLED'
+          AND status != 'DELETED'
+          AND deleted_at IS NULL
     </update>
 
 </mapper>

@@ -19,6 +19,7 @@ import org.zipp.ai.domain.account.model.valobj.TokenPurpose;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -236,6 +237,20 @@ public class DefaultAccountService implements IAccountService {
             return Optional.empty();
         }
         return userAccountStore.findById(userId);
+    }
+
+    @Override
+    public List<UserAccount> listUsers() {
+        return userAccountStore.listAll();
+    }
+
+    @Override
+    public Optional<UserAccount> disableUser(String userId) {
+        if (userId == null || userId.isBlank()) {
+            return Optional.empty();
+        }
+        boolean disabled = userAccountStore.disableAndIncrementSessionVersion(userId, clock.instant());
+        return disabled ? userAccountStore.findById(userId) : Optional.empty();
     }
 
     @Override

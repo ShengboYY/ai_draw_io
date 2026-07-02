@@ -391,6 +391,20 @@ public class DefaultAccountServiceTest {
         assertNull(service.findById("usr_unknown").orElse(null));
     }
 
+    @Test
+    public void disableUserMarksAccountDisabledAndInvalidatesSessions() {
+        registerAndVerify("disabled-by-admin@example.com", "password123");
+        UserAccount before = users.findByEmailNormalized("disabled-by-admin@example.com").orElseThrow();
+        int previousSessionVersion = before.getSessionVersion();
+
+        UserAccount after = service.disableUser(before.getId()).orElseThrow();
+
+        assertEquals(AccountStatus.DISABLED, after.getStatus());
+        assertEquals(previousSessionVersion + 1, after.getSessionVersion());
+        assertEquals(LoginResult.Outcome.DISABLED, service.login(LoginAccountCommand.builder()
+                .email("disabled-by-admin@example.com").rawPassword("password123").build()).getOutcome());
+    }
+
     private void registerAndVerify(String email, String password) {
         service.register(RegisterAccountCommand.builder().email(email).rawPassword(password).build());
         service.verifyEmail(emailSender.lastToken());
@@ -421,6 +435,11 @@ public class DefaultAccountServiceTest {
         }
 
         @Override
+        public List<UserAccount> listAll() {
+            return new ArrayList<>(byId.values());
+        }
+
+        @Override
         public void insert(UserAccount account) {
             byId.put(account.getId(), account);
         }
@@ -442,6 +461,18 @@ public class DefaultAccountServiceTest {
                 return false;
             }
             user.setPasswordHash(passwordHash);
+            user.setSessionVersion(user.getSessionVersion() + 1);
+            user.setUpdatedAt(updatedAt);
+            return true;
+        }
+
+        @Override
+        public boolean disableAndIncrementSessionVersion(String userId, Instant updatedAt) {
+            UserAccount user = byId.get(userId);
+            if (user == null || user.getStatus() == AccountStatus.DISABLED || user.getStatus() == AccountStatus.DELETED) {
+                return false;
+            }
+            user.setStatus(AccountStatus.DISABLED);
             user.setSessionVersion(user.getSessionVersion() + 1);
             user.setUpdatedAt(updatedAt);
             return true;

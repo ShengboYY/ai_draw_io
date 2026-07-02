@@ -227,5 +227,15 @@ public class ModelCredentialControllerTest {
                     .sessionVersion(0)
                     .build());
         }
+
+        @Override
+        public List<UserAccount> listUsers() {
+            return List.of();
+        }
+
+        @Override
+        public Optional<UserAccount> disableUser(String userId) {
+            return Optional.empty();
+        }
     }
 }

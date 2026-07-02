@@ -9,6 +9,7 @@ public enum ResponseCode {
     UN_ERROR("0001", "未知失败"),
     ILLEGAL_PARAMETER("0002", "非法参数"),
     NOT_FOUND_METHOD("0003", "不存在的方法"),
+    AUTH_FORBIDDEN("AUTH_FORBIDDEN", "Admin access required."),
     AUTH_RATE_LIMITED("AUTH_RATE_LIMITED", "Too many attempts. Please try again later."),
     DEMO_QUOTA_EXHAUSTED("DEMO_QUOTA_EXHAUSTED", "Demo quota exhausted. Sign up or add your own API key to continue."),
     PLATFORM_QUOTA_EXHAUSTED("PLATFORM_QUOTA_EXHAUSTED", "Daily free AI quota exhausted. Use your own API key or try again tomorrow."),
