@@ -310,6 +310,44 @@ public class DrawioStreamResponseWriterTest {
         field.set(writer, canvasStateStore);
     }
 
+    @Test
+    public void shouldAdvanceExpectedVersionAcrossMultipleFlushesInOneStream() throws Exception {
+        DrawioStreamResponseWriter writer = new DrawioStreamResponseWriter(new DrawioToolCallRenderer());
+        List<Long> savedInputVersions = new ArrayList<>();
+        injectCanvasStateStore(writer, new ICanvasStateStore() {
+            @Override
+            public Optional<CanvasState> find(String userId, String diagramId) {
+                return Optional.empty();
+            }
+
+            @Override
+            public CanvasState save(CanvasState state) {
+                savedInputVersions.add(state.getVersion());
+                state.setVersion((state.getVersion() == null ? 0L : state.getVersion()) + 1L);
+                return state;
+            }
+        });
+        CapturingEmitter emitter = new CapturingEmitter();
+        writer.setCanvasStateContext(emitter, "alice", "diagram-1", 3L);
+        writer.setCurrentCanvas(emitter, """
+                <mxGraphModel><root><mxCell id='0'/><mxCell id='1' parent='0'/>
+                <mxCell id='2' value='API' vertex='1' parent='1'><mxGeometry x='100' y='100' width='120' height='60' as='geometry'/></mxCell>
+                </root></mxGraphModel>
+                """);
+
+        writer.processAndSendLine(emitter, "drawing", """
+                {"type":"patch_cells","cells":"<mxCell id='2' value='API v2' vertex='1' parent='1'><mxGeometry x='100' y='100' width='140' height='60' as='geometry'/></mxCell>"}
+                """);
+        writer.processAndSendLine(emitter, "drawing", """
+                {"type":"patch_cells","cells":"<mxCell id='2' value='API v3' vertex='1' parent='1'><mxGeometry x='100' y='100' width='160' height='60' as='geometry'/></mxCell>"}
+                """);
+
+        // First flush locks against 3 and persists 4; the second must lock against 4, not the stale 3.
+        assertEquals(List.of(3L, 4L), savedInputVersions);
+        assertFalse("no spurious version conflict for a single stream's own edits",
+                String.join("\n", emitter.sent).contains("version_conflict"));
+    }
+
     private static class CapturingCanvasStateStore implements ICanvasStateStore {
 
         private CanvasState saved;

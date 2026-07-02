@@ -342,12 +342,19 @@ public class DrawioStreamResponseWriter {
             return null;
         }
         try {
-            return canvasStateStore.save(CanvasState.builder()
+            CanvasState saved = canvasStateStore.save(CanvasState.builder()
                     .userId(context.userId())
                     .diagramId(context.diagramId())
                     .currentXml(xml)
                     .version(context.expectedVersion())
                     .build());
+            // Advance the expected version so a later flush in the same stream (e.g. a review-repair
+            // pass) locks against the freshly persisted version instead of the stale original.
+            if (saved != null && saved.getVersion() != null) {
+                canvasStateContextByEmitter.put(emitter,
+                        new CanvasStateContext(context.userId(), context.diagramId(), saved.getVersion()));
+            }
+            return saved;
         } catch (CanvasStateVersionConflictException e) {
             throw e;
         } catch (Exception e) {
