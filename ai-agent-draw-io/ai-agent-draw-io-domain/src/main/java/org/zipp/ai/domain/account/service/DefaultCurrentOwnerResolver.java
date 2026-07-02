@@ -16,12 +16,26 @@ public class DefaultCurrentOwnerResolver implements ICurrentOwnerResolver {
 
     @Override
     public Optional<ResolvedOwner> resolve(OwnerResolutionCommand command) {
+        if (command != null) {
+            String authenticatedUserId = trim(command.getAuthenticatedUserId());
+            if (authenticatedUserId != null) {
+                // Session identity always wins so that a stray legacy header cannot demote a real user.
+                return Optional.of(ResolvedOwner.authenticated(authenticatedUserId));
+            }
+        }
         String ownerId = normalize(command == null ? null : command.getWorkspaceId());
         if (ownerId == null) {
             return Optional.empty();
         }
-        // Issue #1 only supports anonymous owners; authenticated users plug into this seam later.
         return Optional.of(ResolvedOwner.anonymous(ownerId));
+    }
+
+    private String trim(String value) {
+        if (value == null) {
+            return null;
+        }
+        String trimmed = value.trim();
+        return trimmed.isEmpty() ? null : trimmed;
     }
 
     private String normalize(String workspaceId) {

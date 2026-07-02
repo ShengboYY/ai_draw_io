@@ -103,6 +103,25 @@ export interface ChatResponseDTO {
     type: string;
 }
 
+export type LoginStatus =
+  | 'SUCCESS'
+  | 'INVALID_CREDENTIALS'
+  | 'NOT_VERIFIED'
+  | 'DISABLED'
+  | 'ANONYMOUS';
+
+export interface LoginRequestDTO {
+  email: string;
+  password: string;
+}
+
+export interface LoginResponseDTO {
+  status: LoginStatus;
+  userId?: string;
+  email?: string;
+  accountStatus?: 'ANONYMOUS' | 'PENDING_VERIFICATION' | 'ACTIVE' | 'DISABLED' | 'DELETED';
+}
+
 export interface RegisterAccountRequestDTO {
   email: string;
   password: string;

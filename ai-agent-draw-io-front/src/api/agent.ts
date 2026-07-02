@@ -11,6 +11,8 @@ import {
     DiagramConversationMessageDTO,
     SaveDiagramMessagesRequestDTO,
     UpdateDiagramTitleRequestDTO,
+    LoginRequestDTO,
+    LoginResponseDTO,
     RegisterAccountRequestDTO,
     RegisterAccountResponseDTO,
     ResendVerificationRequestDTO,
@@ -147,6 +149,7 @@ export const agentApi = {
         const response = await fetch(`${API_CONFIG.BASE_URL}/skills/catalog`, {
             method: 'GET',
             headers: workspaceHeaders(userId),
+            credentials: 'include',
         });
         return handleResponse<Array<{ name: string; description?: string; category?: string }>>(response);
     },
@@ -155,6 +158,7 @@ export const agentApi = {
         const response = await fetch(`${API_CONFIG.BASE_URL}/account/me`, {
             method: 'GET',
             headers: workspaceHeaders(userId),
+            credentials: 'include',
         });
         return handleResponse<CurrentAccountResponseDTO>(response);
     },
@@ -186,6 +190,38 @@ export const agentApi = {
     },
 
     /**
+     * Log in with email + password. On SUCCESS the response sets a session cookie; every
+     * follow-up API call needs {@code credentials: 'include'} so the browser sends it back.
+     */
+    login: async (payload: LoginRequestDTO): Promise<Response<LoginResponseDTO>> => {
+        const response = await fetch(`${API_CONFIG.BASE_URL}/auth/login`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+            credentials: 'include',
+        });
+        return handleResponse<LoginResponseDTO>(response);
+    },
+
+    logout: async (): Promise<Response<null>> => {
+        const response = await fetch(`${API_CONFIG.BASE_URL}/auth/logout`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+        });
+        return handleResponse<null>(response);
+    },
+
+    me: async (): Promise<Response<LoginResponseDTO>> => {
+        const response = await fetch(`${API_CONFIG.BASE_URL}/auth/me`, {
+            method: 'GET',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+        });
+        return handleResponse<LoginResponseDTO>(response);
+    },
+
+    /**
      * Create Session
      * Path: /api/v1/create_session
      */
@@ -202,6 +238,7 @@ export const agentApi = {
         const response = await fetch(`${API_CONFIG.BASE_URL}/diagrams`, {
             method: 'GET',
             headers: workspaceHeaders(userId),
+            credentials: 'include',
         });
         return handleResponse<DiagramSummaryResponseDTO[]>(response);
     },
@@ -210,6 +247,7 @@ export const agentApi = {
         const response = await fetch(`${API_CONFIG.BASE_URL}/diagrams/${encodeURIComponent(diagramId)}`, {
             method: 'GET',
             headers: workspaceHeaders(userId),
+            credentials: 'include',
         });
         return handleResponse<DiagramCanvasStateResponseDTO | null>(response);
     },
@@ -220,6 +258,7 @@ export const agentApi = {
             method: 'PATCH',
             headers: workspaceHeaders(userId),
             body: JSON.stringify(body),
+            credentials: 'include',
         });
         return handleResponse<DiagramSummaryResponseDTO | null>(response);
     },
@@ -228,6 +267,7 @@ export const agentApi = {
         const response = await fetch(`${API_CONFIG.BASE_URL}/diagrams/${encodeURIComponent(diagramId)}`, {
             method: 'DELETE',
             headers: workspaceHeaders(userId),
+            credentials: 'include',
         });
         return handleResponse<boolean>(response);
     },
@@ -236,6 +276,7 @@ export const agentApi = {
         const response = await fetch(`${API_CONFIG.BASE_URL}/diagrams/${encodeURIComponent(diagramId)}/messages`, {
             method: 'GET',
             headers: workspaceHeaders(userId),
+            credentials: 'include',
         });
         return handleResponse<DiagramConversationMessageDTO[]>(response);
     },
@@ -251,6 +292,7 @@ export const agentApi = {
             method: 'POST',
             headers: workspaceHeaders(userId),
             body: JSON.stringify(body),
+            credentials: 'include',
         });
         return handleResponse<boolean>(response);
     },
@@ -264,6 +306,7 @@ export const agentApi = {
             method: 'POST',
             headers: workspaceHeaders(data.userId),
             body: JSON.stringify(data),
+            credentials: 'include',
         });
         return handleResponse<ChatResponseDTO>(response);
     },
@@ -288,6 +331,7 @@ export const agentApi = {
                 headers: workspaceHeaders(data.userId),
                 body: JSON.stringify(data),
                 signal: controller.signal,
+                credentials: 'include',
             });
 
             if (!response.ok) {

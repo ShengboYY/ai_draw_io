@@ -22,4 +22,18 @@ public class ResolvedOwner {
                 .accountStatus(AccountStatus.ANONYMOUS)
                 .build();
     }
+
+    /**
+     * Authenticated session owner. Only produced for {@link AccountStatus#ACTIVE} users; pending,
+     * disabled, or deleted accounts must never surface here.
+     */
+    public static ResolvedOwner authenticated(String userId) {
+        return ResolvedOwner.builder()
+                .ownerId(userId)
+                .ownerType(OwnerType.USER)
+                .authenticated(true)
+                .emailVerified(true)
+                .accountStatus(AccountStatus.ACTIVE)
+                .build();
+    }
 }

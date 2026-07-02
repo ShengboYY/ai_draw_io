@@ -7,6 +7,10 @@ import org.junit.After;
 import org.junit.Test;
 import org.slf4j.LoggerFactory;
 import org.springframework.mock.web.MockHttpServletRequest;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.context.SecurityContext;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 import org.zipp.ai.api.dto.CurrentAccountResponseDTO;
@@ -34,6 +38,7 @@ public class AgentServiceControllerWorkspaceTest {
     @After
     public void clearRequestContext() {
         RequestContextHolder.resetRequestAttributes();
+        SecurityContextHolder.clearContext();
     }
 
     @Test
@@ -138,6 +143,38 @@ public class AgentServiceControllerWorkspaceTest {
     }
 
     @Test
+    public void shouldPreferAuthenticatedSessionOverAnonymousWorkspaceHeader() throws Exception {
+        AgentServiceController controller = new AgentServiceController();
+        FakeCanvasStateStore store = new FakeCanvasStateStore();
+        inject(controller, "canvasStateStore", store);
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.addHeader("X-Workspace-Id", VALID_WORKSPACE_ID);
+        RequestContextHolder.setRequestAttributes(new ServletRequestAttributes(request));
+        authenticate("usr_session-owner");
+
+        controller.listDiagrams(null);
+
+        assertEquals("usr_session-owner", store.listedUserId);
+    }
+
+    @Test
+    public void shouldExposeAuthenticatedOwnerViaCurrentAccountEndpoint() {
+        AgentServiceController controller = new AgentServiceController();
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        RequestContextHolder.setRequestAttributes(new ServletRequestAttributes(request));
+        authenticate("usr_alice");
+
+        Response<CurrentAccountResponseDTO> response = controller.currentAccount();
+
+        assertEquals(ResponseCode.SUCCESS.getCode(), response.getCode());
+        assertEquals("usr_alice", response.getData().getOwnerId());
+        assertEquals(OwnerType.USER.name(), response.getData().getOwnerType());
+        assertEquals(AccountStatus.ACTIVE.name(), response.getData().getAccountStatus());
+        assertTrue(response.getData().isAuthenticated());
+        assertTrue(response.getData().isEmailVerified());
+    }
+
+    @Test
     public void shouldRejectCurrentAccountStatusWhenWorkspaceHeaderIsInvalid() {
         AgentServiceController controller = new AgentServiceController();
         MockHttpServletRequest request = new MockHttpServletRequest();
@@ -147,6 +184,14 @@ public class AgentServiceControllerWorkspaceTest {
         Response<CurrentAccountResponseDTO> response = controller.currentAccount();
 
         assertEquals(ResponseCode.ILLEGAL_PARAMETER.getCode(), response.getCode());
+    }
+
+    private static void authenticate(String userId) {
+        UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
+                userId, null, List.of(new SimpleGrantedAuthority("ROLE_USER")));
+        SecurityContext context = SecurityContextHolder.createEmptyContext();
+        context.setAuthentication(authentication);
+        SecurityContextHolder.setContext(context);
     }
 
     private void inject(Object target, String fieldName, Object value) throws Exception {

@@ -51,4 +51,31 @@ public class DefaultCurrentOwnerResolverTest {
 
         assertFalse(owner.isPresent());
     }
+
+    @Test
+    public void shouldPreferAuthenticatedUserOverWorkspaceHeader() {
+        Optional<ResolvedOwner> owner = resolver.resolve(OwnerResolutionCommand.builder()
+                .authenticatedUserId(" usr_abc-123 ")
+                .workspaceId(VALID_WORKSPACE_ID)
+                .build());
+
+        assertTrue(owner.isPresent());
+        assertEquals("usr_abc-123", owner.get().getOwnerId());
+        assertEquals(OwnerType.USER, owner.get().getOwnerType());
+        assertEquals(AccountStatus.ACTIVE, owner.get().getAccountStatus());
+        assertTrue(owner.get().isAuthenticated());
+        assertTrue(owner.get().isEmailVerified());
+    }
+
+    @Test
+    public void shouldFallBackToAnonymousWhenAuthenticatedUserIsBlank() {
+        Optional<ResolvedOwner> owner = resolver.resolve(OwnerResolutionCommand.builder()
+                .authenticatedUserId("   ")
+                .workspaceId(VALID_WORKSPACE_ID)
+                .build());
+
+        assertTrue(owner.isPresent());
+        assertEquals(OwnerType.ANONYMOUS, owner.get().getOwnerType());
+        assertFalse(owner.get().isAuthenticated());
+    }
 }

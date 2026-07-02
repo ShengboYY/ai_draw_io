@@ -7,6 +7,8 @@ import org.zipp.ai.domain.account.model.entity.AccountToken;
 import org.zipp.ai.domain.account.model.entity.UserAccount;
 import org.zipp.ai.domain.account.model.valobj.AccountStatus;
 import org.zipp.ai.domain.account.model.valobj.EmailVerificationResult;
+import org.zipp.ai.domain.account.model.valobj.LoginAccountCommand;
+import org.zipp.ai.domain.account.model.valobj.LoginResult;
 import org.zipp.ai.domain.account.model.valobj.RegisterAccountCommand;
 import org.zipp.ai.domain.account.model.valobj.RegistrationResult;
 import org.zipp.ai.domain.account.model.valobj.TokenPurpose;
@@ -140,6 +142,87 @@ public class DefaultAccountServiceTest {
     public void verifyEmailRejectsUnknownToken() {
         assertEquals(EmailVerificationResult.INVALID, service.verifyEmail("does-not-exist"));
         assertEquals(EmailVerificationResult.INVALID, service.verifyEmail(""));
+    }
+
+    @Test
+    public void loginSucceedsForVerifiedActiveUser() {
+        registerAndVerify("gina@example.com", "password123");
+
+        LoginResult result = service.login(LoginAccountCommand.builder()
+                .email("  Gina@Example.COM ").rawPassword("password123").build());
+
+        assertEquals(LoginResult.Outcome.SUCCESS, result.getOutcome());
+        assertNotNull(result.getUser());
+        assertEquals(AccountStatus.ACTIVE, result.getUser().getStatus());
+        assertEquals("gina@example.com", result.getUser().getEmailNormalized());
+    }
+
+    @Test
+    public void loginRejectsUnverifiedUserWithNotVerified() {
+        service.register(RegisterAccountCommand.builder()
+                .email("henri@example.com").rawPassword("password123").build());
+
+        LoginResult result = service.login(LoginAccountCommand.builder()
+                .email("henri@example.com").rawPassword("password123").build());
+
+        assertEquals(LoginResult.Outcome.NOT_VERIFIED, result.getOutcome());
+        assertNull("no user aggregate is returned for pending accounts", result.getUser());
+    }
+
+    @Test
+    public void loginRejectsDisabledUser() {
+        registerAndVerify("ivan@example.com", "password123");
+        users.findByEmailNormalized("ivan@example.com").orElseThrow().setStatus(AccountStatus.DISABLED);
+
+        LoginResult result = service.login(LoginAccountCommand.builder()
+                .email("ivan@example.com").rawPassword("password123").build());
+
+        assertEquals(LoginResult.Outcome.DISABLED, result.getOutcome());
+    }
+
+    @Test
+    public void loginRejectsDeletedUser() {
+        registerAndVerify("juno@example.com", "password123");
+        users.findByEmailNormalized("juno@example.com").orElseThrow().setStatus(AccountStatus.DELETED);
+
+        LoginResult result = service.login(LoginAccountCommand.builder()
+                .email("juno@example.com").rawPassword("password123").build());
+
+        assertEquals(LoginResult.Outcome.DISABLED, result.getOutcome());
+    }
+
+    @Test
+    public void loginRejectsUnknownUserWithSameOutcomeAsWrongPassword() {
+        registerAndVerify("kate@example.com", "password123");
+
+        LoginResult unknown = service.login(LoginAccountCommand.builder()
+                .email("noone@example.com").rawPassword("password123").build());
+        LoginResult wrongPassword = service.login(LoginAccountCommand.builder()
+                .email("kate@example.com").rawPassword("wrongwrong").build());
+
+        assertEquals(LoginResult.Outcome.INVALID_CREDENTIALS, unknown.getOutcome());
+        assertEquals(LoginResult.Outcome.INVALID_CREDENTIALS, wrongPassword.getOutcome());
+    }
+
+    @Test
+    public void loginRejectsBlankInputAsInvalidCredentials() {
+        assertEquals(LoginResult.Outcome.INVALID_CREDENTIALS,
+                service.login(LoginAccountCommand.builder().email(null).rawPassword("x").build()).getOutcome());
+        assertEquals(LoginResult.Outcome.INVALID_CREDENTIALS,
+                service.login(LoginAccountCommand.builder().email("kate@example.com").rawPassword("").build()).getOutcome());
+    }
+
+    @Test
+    public void findByIdReturnsExistingUser() {
+        RegistrationResult reg = service.register(RegisterAccountCommand.builder()
+                .email("lola@example.com").rawPassword("password123").build());
+        assertNotNull(service.findById(reg.getUserId()).orElse(null));
+        assertNull(service.findById("usr_unknown").orElse(null));
+    }
+
+    private void registerAndVerify(String email, String password) {
+        service.register(RegisterAccountCommand.builder().email(email).rawPassword(password).build());
+        service.verifyEmail(emailSender.lastToken());
     }
 
     // ---- Fakes -------------------------------------------------------------

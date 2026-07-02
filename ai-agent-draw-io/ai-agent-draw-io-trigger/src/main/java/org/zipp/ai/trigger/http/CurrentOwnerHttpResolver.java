@@ -10,6 +10,7 @@ import org.zipp.ai.domain.account.model.valobj.OwnerResolutionCommand;
 import org.zipp.ai.domain.account.model.valobj.ResolvedOwner;
 import org.zipp.ai.domain.account.service.DefaultCurrentOwnerResolver;
 import org.zipp.ai.domain.account.service.ICurrentOwnerResolver;
+import org.zipp.ai.trigger.http.service.AuthenticatedUserPrincipal;
 import org.zipp.ai.types.util.SecretLogSanitizer;
 
 import javax.annotation.Resource;
@@ -27,13 +28,18 @@ public class CurrentOwnerHttpResolver {
     public Optional<ResolvedOwner> resolve(String legacyOwnerId) {
         ServletRequestAttributes attributes = currentRequest();
         String workspaceId = attributes == null ? legacyOwnerId : attributes.getRequest().getHeader(WORKSPACE_HEADER);
-        if (attributes != null && StringUtils.isBlank(workspaceId) && StringUtils.isNotBlank(legacyOwnerId)) {
+        String authenticatedUserId = AuthenticatedUserPrincipal.currentUserId();
+        // A live session identity supersedes the header — the migration warning is only relevant to
+        // anonymous callers who still send a legacy body ownerId.
+        if (attributes != null && authenticatedUserId == null
+                && StringUtils.isBlank(workspaceId) && StringUtils.isNotBlank(legacyOwnerId)) {
             // Keep legacy values out of logs; this only flags clients that still need header migration.
             log.warn("Workspace id header missing; ignoring legacy userId parameter. Add {} header to migrate old clients.",
                     WORKSPACE_HEADER);
         }
         return resolver().resolve(OwnerResolutionCommand.builder()
                 .workspaceId(workspaceId)
+                .authenticatedUserId(authenticatedUserId)
                 .build());
     }
 

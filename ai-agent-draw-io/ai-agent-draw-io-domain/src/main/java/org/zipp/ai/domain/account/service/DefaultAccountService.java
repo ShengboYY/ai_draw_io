@@ -9,6 +9,8 @@ import org.zipp.ai.domain.account.model.entity.UserAccount;
 import org.zipp.ai.domain.account.model.valobj.AccountStatus;
 import org.zipp.ai.domain.account.model.valobj.EmailNormalizer;
 import org.zipp.ai.domain.account.model.valobj.EmailVerificationResult;
+import org.zipp.ai.domain.account.model.valobj.LoginAccountCommand;
+import org.zipp.ai.domain.account.model.valobj.LoginResult;
 import org.zipp.ai.domain.account.model.valobj.RegisterAccountCommand;
 import org.zipp.ai.domain.account.model.valobj.RegistrationResult;
 import org.zipp.ai.domain.account.model.valobj.TokenPurpose;
@@ -150,6 +152,39 @@ public class DefaultAccountService implements IAccountService {
         }
         userAccountStore.markVerified(token.getUserId(), now);
         return EmailVerificationResult.SUCCESS;
+    }
+
+    @Override
+    public LoginResult login(LoginAccountCommand command) {
+        String normalized = EmailNormalizer.normalize(command == null ? null : command.getEmail());
+        String rawPassword = command == null ? null : command.getRawPassword();
+        if (normalized == null || rawPassword == null || rawPassword.isEmpty()) {
+            return LoginResult.of(LoginResult.Outcome.INVALID_CREDENTIALS);
+        }
+        Optional<UserAccount> match = userAccountStore.findByEmailNormalized(normalized);
+        if (match.isEmpty()) {
+            return LoginResult.of(LoginResult.Outcome.INVALID_CREDENTIALS);
+        }
+        UserAccount user = match.get();
+        AccountStatus status = user.getStatus();
+        if (status == AccountStatus.PENDING_VERIFICATION) {
+            return LoginResult.of(LoginResult.Outcome.NOT_VERIFIED);
+        }
+        if (status == AccountStatus.DISABLED || status == AccountStatus.DELETED) {
+            return LoginResult.of(LoginResult.Outcome.DISABLED);
+        }
+        if (!passwordHasher.matches(rawPassword, user.getPasswordHash())) {
+            return LoginResult.of(LoginResult.Outcome.INVALID_CREDENTIALS);
+        }
+        return LoginResult.success(user);
+    }
+
+    @Override
+    public Optional<UserAccount> findById(String userId) {
+        if (userId == null || userId.isBlank()) {
+            return Optional.empty();
+        }
+        return userAccountStore.findById(userId);
     }
 
     @Override
