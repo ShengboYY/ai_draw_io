@@ -3,6 +3,7 @@ package org.zipp.ai.trigger.http;
 import org.zipp.ai.api.IAgentService;
 import org.zipp.ai.api.dto.*;
 import org.zipp.ai.api.response.Response;
+import org.zipp.ai.domain.account.model.valobj.ResolvedOwner;
 import org.zipp.ai.domain.agent.model.valobj.AiAgentConfigTableVO;
 import org.zipp.ai.domain.agent.model.valobj.canvas.CanvasState;
 import org.zipp.ai.domain.agent.model.valobj.conversation.DiagramConversationMessage;
@@ -38,6 +39,9 @@ public class AgentServiceController implements IAgentService {
 
     @Resource
     private IDiagramConversationStore diagramConversationStore;
+
+    @Resource
+    private CurrentOwnerHttpResolver currentOwnerHttpResolver;
 
     @RequestMapping(value = "query_ai_agent_config_list", method = RequestMethod.GET)
     @Override
@@ -79,13 +83,13 @@ public class AgentServiceController implements IAgentService {
     @RequestMapping(value = "create_session", method = RequestMethod.POST)
     @Override
     public Response<CreateSessionResponseDTO> createSession(@RequestBody CreateSessionRequestDTO requestDTO) {
-        String workspaceId = WorkspaceIds.resolve(requestDTO == null ? null : requestDTO.getUserId());
+        String workspaceId = resolveOwnerId(requestDTO == null ? null : requestDTO.getUserId());
         if (StringUtils.isBlank(workspaceId)) {
             return illegalWorkspaceResponse();
         }
         requestDTO.setUserId(workspaceId);
         try {
-            log.info("创建会话 agentId:{} userId:{}", requestDTO.getAgentId(), WorkspaceIds.mask(requestDTO.getUserId()));
+            log.info("创建会话 agentId:{} userId:{}", requestDTO.getAgentId(), CurrentOwnerHttpResolver.mask(requestDTO.getUserId()));
             String sessionId = chatService.createSession(requestDTO.getAgentId(), requestDTO.getUserId());
 
             CreateSessionResponseDTO responseDTO = new CreateSessionResponseDTO();
@@ -103,7 +107,7 @@ public class AgentServiceController implements IAgentService {
                     .info(e.getInfo())
                     .build();
         } catch (Exception e) {
-            log.error("创建会话失败 agentId:{} userId:{}", requestDTO.getAgentId(), WorkspaceIds.mask(requestDTO.getUserId()), e);
+            log.error("创建会话失败 agentId:{} userId:{}", requestDTO.getAgentId(), CurrentOwnerHttpResolver.mask(requestDTO.getUserId()), e);
             return Response.<CreateSessionResponseDTO>builder()
                     .code(ResponseCode.UN_ERROR.getCode())
                     .info(ResponseCode.UN_ERROR.getInfo())
@@ -123,7 +127,7 @@ public class AgentServiceController implements IAgentService {
     @RequestMapping(value = "diagrams", method = RequestMethod.GET)
     @Override
     public Response<List<DiagramSummaryResponseDTO>> listDiagrams(@RequestParam(value = "userId", required = false) String userId) {
-        String workspaceId = WorkspaceIds.resolve(userId);
+        String workspaceId = resolveOwnerId(userId);
         if (StringUtils.isBlank(workspaceId)) {
             return illegalWorkspaceResponse();
         }
@@ -137,7 +141,7 @@ public class AgentServiceController implements IAgentService {
                     .data(diagrams)
                     .build();
         } catch (Exception e) {
-            log.error("查询图列表失败 userId:{}", WorkspaceIds.mask(workspaceId), e);
+            log.error("查询图列表失败 userId:{}", CurrentOwnerHttpResolver.mask(workspaceId), e);
             return Response.<List<DiagramSummaryResponseDTO>>builder()
                     .code(ResponseCode.UN_ERROR.getCode())
                     .info(ResponseCode.UN_ERROR.getInfo())
@@ -149,7 +153,7 @@ public class AgentServiceController implements IAgentService {
     @Override
     public Response<DiagramCanvasStateResponseDTO> getDiagram(@RequestParam(value = "userId", required = false) String userId,
                                                               @PathVariable("diagramId") String diagramId) {
-        String workspaceId = WorkspaceIds.resolve(userId);
+        String workspaceId = resolveOwnerId(userId);
         if (StringUtils.isBlank(workspaceId)) {
             return illegalWorkspaceResponse();
         }
@@ -163,7 +167,7 @@ public class AgentServiceController implements IAgentService {
                     .data(diagram)
                     .build();
         } catch (Exception e) {
-            log.error("查询图详情失败 userId:{} diagramId:{}", WorkspaceIds.mask(workspaceId), diagramId, e);
+            log.error("查询图详情失败 userId:{} diagramId:{}", CurrentOwnerHttpResolver.mask(workspaceId), diagramId, e);
             return Response.<DiagramCanvasStateResponseDTO>builder()
                     .code(ResponseCode.UN_ERROR.getCode())
                     .info(ResponseCode.UN_ERROR.getInfo())
@@ -175,7 +179,7 @@ public class AgentServiceController implements IAgentService {
     @Override
     public Response<DiagramSummaryResponseDTO> renameDiagram(@PathVariable("diagramId") String diagramId,
                                                              @RequestBody UpdateDiagramTitleRequestDTO requestDTO) {
-        String workspaceId = WorkspaceIds.resolve(requestDTO == null ? null : requestDTO.getUserId());
+        String workspaceId = resolveOwnerId(requestDTO == null ? null : requestDTO.getUserId());
         if (StringUtils.isBlank(workspaceId)) {
             return illegalWorkspaceResponse();
         }
@@ -189,7 +193,7 @@ public class AgentServiceController implements IAgentService {
                     .data(diagram)
                     .build();
         } catch (Exception e) {
-            log.error("重命名图失败 userId:{} diagramId:{}", WorkspaceIds.mask(workspaceId), diagramId, e);
+            log.error("重命名图失败 userId:{} diagramId:{}", CurrentOwnerHttpResolver.mask(workspaceId), diagramId, e);
             return Response.<DiagramSummaryResponseDTO>builder()
                     .code(ResponseCode.UN_ERROR.getCode())
                     .info(ResponseCode.UN_ERROR.getInfo())
@@ -201,7 +205,7 @@ public class AgentServiceController implements IAgentService {
     @Override
     public Response<Boolean> deleteDiagram(@RequestParam(value = "userId", required = false) String userId,
                                            @PathVariable("diagramId") String diagramId) {
-        String workspaceId = WorkspaceIds.resolve(userId);
+        String workspaceId = resolveOwnerId(userId);
         if (StringUtils.isBlank(workspaceId)) {
             return illegalWorkspaceResponse();
         }
@@ -213,7 +217,7 @@ public class AgentServiceController implements IAgentService {
                     .data(deleted)
                     .build();
         } catch (Exception e) {
-            log.error("删除图失败 userId:{} diagramId:{}", WorkspaceIds.mask(workspaceId), diagramId, e);
+            log.error("删除图失败 userId:{} diagramId:{}", CurrentOwnerHttpResolver.mask(workspaceId), diagramId, e);
             return Response.<Boolean>builder()
                     .code(ResponseCode.UN_ERROR.getCode())
                     .info(ResponseCode.UN_ERROR.getInfo())
@@ -225,7 +229,7 @@ public class AgentServiceController implements IAgentService {
     @Override
     public Response<List<DiagramConversationMessageDTO>> listDiagramMessages(@RequestParam(value = "userId", required = false) String userId,
                                                                              @PathVariable("diagramId") String diagramId) {
-        String workspaceId = WorkspaceIds.resolve(userId);
+        String workspaceId = resolveOwnerId(userId);
         if (StringUtils.isBlank(workspaceId)) {
             return illegalWorkspaceResponse();
         }
@@ -239,7 +243,7 @@ public class AgentServiceController implements IAgentService {
                     .data(messages)
                     .build();
         } catch (Exception e) {
-            log.error("查询图会话消息失败 userId:{} diagramId:{}", WorkspaceIds.mask(workspaceId), diagramId, e);
+            log.error("查询图会话消息失败 userId:{} diagramId:{}", CurrentOwnerHttpResolver.mask(workspaceId), diagramId, e);
             return Response.<List<DiagramConversationMessageDTO>>builder()
                     .code(ResponseCode.UN_ERROR.getCode())
                     .info(ResponseCode.UN_ERROR.getInfo())
@@ -251,7 +255,7 @@ public class AgentServiceController implements IAgentService {
     @Override
     public Response<Boolean> saveDiagramMessages(@PathVariable("diagramId") String diagramId,
                                                  @RequestBody SaveDiagramMessagesRequestDTO requestDTO) {
-        String userId = WorkspaceIds.resolve(requestDTO == null ? null : requestDTO.getUserId());
+        String userId = resolveOwnerId(requestDTO == null ? null : requestDTO.getUserId());
         if (StringUtils.isBlank(userId)) {
             return illegalWorkspaceResponse();
         }
@@ -273,7 +277,7 @@ public class AgentServiceController implements IAgentService {
                     .data(true)
                     .build();
         } catch (Exception e) {
-            log.error("保存图会话消息失败 userId:{} diagramId:{}", WorkspaceIds.mask(userId), diagramId, e);
+            log.error("保存图会话消息失败 userId:{} diagramId:{}", CurrentOwnerHttpResolver.mask(userId), diagramId, e);
             return Response.<Boolean>builder()
                     .code(ResponseCode.UN_ERROR.getCode())
                     .info(ResponseCode.UN_ERROR.getInfo())
@@ -284,13 +288,13 @@ public class AgentServiceController implements IAgentService {
     @RequestMapping(value = "chat", method = RequestMethod.POST)
     @Override
     public Response<ChatResponseDTO> chat(@RequestBody ChatRequestDTO requestDTO) {
-        String workspaceId = WorkspaceIds.resolve(requestDTO == null ? null : requestDTO.getUserId());
+        String workspaceId = resolveOwnerId(requestDTO == null ? null : requestDTO.getUserId());
         if (StringUtils.isBlank(workspaceId)) {
             return illegalWorkspaceResponse();
         }
         requestDTO.setUserId(workspaceId);
         try {
-            log.info("智能体对话 agentId:{} userId:{}", requestDTO.getAgentId(), WorkspaceIds.mask(requestDTO.getUserId()));
+            log.info("智能体对话 agentId:{} userId:{}", requestDTO.getAgentId(), CurrentOwnerHttpResolver.mask(requestDTO.getUserId()));
             ChatResponseDTO responseDTO = agentConversationService.chat(requestDTO);
 
             return Response.<ChatResponseDTO>builder()
@@ -305,7 +309,7 @@ public class AgentServiceController implements IAgentService {
                     .info(e.getInfo())
                     .build();
         } catch (Exception e) {
-            log.error("智能体对话败 agentId:{} userId:{}", requestDTO.getAgentId(), WorkspaceIds.mask(requestDTO.getUserId()), e);
+            log.error("智能体对话败 agentId:{} userId:{}", requestDTO.getAgentId(), CurrentOwnerHttpResolver.mask(requestDTO.getUserId()), e);
             return Response.<ChatResponseDTO>builder()
                     .code(ResponseCode.UN_ERROR.getCode())
                     .info(ResponseCode.UN_ERROR.getInfo())
@@ -322,20 +326,31 @@ public class AgentServiceController implements IAgentService {
                 outputMessage.getHeaders().set("Content-Type", "application/x-ndjson");
             }
         };
-        String workspaceId = WorkspaceIds.resolve(requestDTO == null ? null : requestDTO.getUserId());
+        String workspaceId = resolveOwnerId(requestDTO == null ? null : requestDTO.getUserId());
         if (StringUtils.isBlank(workspaceId)) {
             emitter.completeWithError(new AppException(ResponseCode.ILLEGAL_PARAMETER.getCode(), "Missing or invalid workspace id"));
             return emitter;
         }
         requestDTO.setUserId(workspaceId);
         try {
-            log.info("流式对话 agentId:{} userId:{} sessionId:{} message:{}", requestDTO.getAgentId(), WorkspaceIds.mask(requestDTO.getUserId()), requestDTO.getSessionId(), requestDTO.getMessage());
+            log.info("流式对话 agentId:{} userId:{} sessionId:{} message:{}", requestDTO.getAgentId(), CurrentOwnerHttpResolver.mask(requestDTO.getUserId()), requestDTO.getSessionId(), requestDTO.getMessage());
             agentConversationService.stream(requestDTO, emitter);
         } catch (Exception e) {
             log.error("流式对话失败", e);
             emitter.completeWithError(e);
         }
         return emitter;
+    }
+
+    @RequestMapping(value = "account/me", method = RequestMethod.GET)
+    public Response<CurrentAccountResponseDTO> currentAccount() {
+        return ownerHttpResolver().resolve(null)
+                .map(owner -> Response.<CurrentAccountResponseDTO>builder()
+                        .code(ResponseCode.SUCCESS.getCode())
+                        .info(ResponseCode.SUCCESS.getInfo())
+                        .data(toCurrentAccountResponse(owner))
+                        .build())
+                .orElseGet(this::illegalWorkspaceResponse);
     }
 
     private DiagramSummaryResponseDTO toDiagramSummary(CanvasState state) {
@@ -384,6 +399,24 @@ public class AgentServiceController implements IAgentService {
                 .role(message.getRole())
                 .content(message.getContent())
                 .build();
+    }
+
+    private CurrentAccountResponseDTO toCurrentAccountResponse(ResolvedOwner owner) {
+        CurrentAccountResponseDTO dto = new CurrentAccountResponseDTO();
+        dto.setOwnerId(owner.getOwnerId());
+        dto.setOwnerType(owner.getOwnerType().name());
+        dto.setAuthenticated(owner.isAuthenticated());
+        dto.setEmailVerified(owner.isEmailVerified());
+        dto.setAccountStatus(owner.getAccountStatus().name());
+        return dto;
+    }
+
+    private String resolveOwnerId(String legacyOwnerId) {
+        return ownerHttpResolver().resolveOwnerId(legacyOwnerId).orElse(null);
+    }
+
+    private CurrentOwnerHttpResolver ownerHttpResolver() {
+        return currentOwnerHttpResolver == null ? new CurrentOwnerHttpResolver() : currentOwnerHttpResolver;
     }
 
     private <T> Response<T> illegalWorkspaceResponse() {

@@ -19,6 +19,14 @@ export interface CreateSessionResponseDTO {
     sessionId: string;
 }
 
+export interface CurrentAccountResponseDTO {
+  ownerId: string;
+  ownerType: 'ANONYMOUS' | 'USER';
+  authenticated: boolean;
+  emailVerified: boolean;
+  accountStatus: 'ANONYMOUS' | 'PENDING_VERIFICATION' | 'ACTIVE' | 'DISABLED' | 'DELETED';
+}
+
 export interface DiagramSummaryResponseDTO {
   diagramId: string;
   title?: string;

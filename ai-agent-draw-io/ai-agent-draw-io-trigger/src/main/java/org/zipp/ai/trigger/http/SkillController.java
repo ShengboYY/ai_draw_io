@@ -36,6 +36,9 @@ public class SkillController {
     @Resource
     private org.zipp.ai.domain.agent.service.armory.matter.skills.SkillCatalogService skillCatalogService;
 
+    @Resource
+    private CurrentOwnerHttpResolver currentOwnerHttpResolver;
+
     /** Shared secret required to create PUBLIC (platform-wide) skills. Empty = PUBLIC via API disabled. */
     @Value("${SKILL_ADMIN_TOKEN:}")
     private String skillAdminToken;
@@ -44,7 +47,7 @@ public class SkillController {
     @PostMapping("skills")
     public Response<Void> saveSkill(@RequestBody SkillDTO request,
                                     @RequestHeader(value = "X-Admin-Token", required = false) String adminToken) {
-        String ownerId = WorkspaceIds.resolve(request == null ? null : request.getUserId());
+        String ownerId = resolveOwnerId(request == null ? null : request.getUserId());
         if ("PUBLIC".equalsIgnoreCase(request.getVisibility()) && !isAdmin(adminToken)) {
             return Response.<Void>builder().code(FAILURE)
                     .info("creating PUBLIC skills requires a valid admin token").build();
@@ -66,7 +69,7 @@ public class SkillController {
     @GetMapping("skills/catalog")
     public Response<List<SkillDTO>> skillCatalog(@RequestParam(value = "userId", required = false) String userId) {
         try {
-            String ownerId = WorkspaceIds.resolve(userId);
+            String ownerId = resolveOwnerId(userId);
             List<SkillDTO> skills = skillCatalogService.selectableSkills(ownerId).stream().map(info -> {
                 SkillDTO dto = new SkillDTO();
                 dto.setName(info.name());
@@ -85,7 +88,7 @@ public class SkillController {
     @GetMapping("skills")
     public Response<List<SkillDTO>> listSkills(@RequestParam(value = "userId", required = false) String userId) {
         try {
-            String ownerId = WorkspaceIds.resolve(userId);
+            String ownerId = resolveOwnerId(userId);
             List<SkillDTO> skills = skillManagementService.list(ownerId).stream()
                     .map(this::toDTO).toList();
             return Response.<List<SkillDTO>>builder().code(SUCCESS).info("成功").data(skills).build();
@@ -100,7 +103,7 @@ public class SkillController {
     public Response<Void> deleteSkill(@RequestParam(value = "userId", required = false) String userId,
                                       @RequestParam("name") String name) {
         try {
-            String ownerId = WorkspaceIds.resolve(userId);
+            String ownerId = resolveOwnerId(userId);
             skillManagementService.delete(ownerId, name);
             return Response.<Void>builder().code(SUCCESS).info("成功").build();
         } catch (IllegalArgumentException e) {
@@ -113,6 +116,11 @@ public class SkillController {
 
     private boolean isAdmin(String adminToken) {
         return StringUtils.hasText(skillAdminToken) && skillAdminToken.equals(adminToken);
+    }
+
+    private String resolveOwnerId(String legacyOwnerId) {
+        CurrentOwnerHttpResolver resolver = currentOwnerHttpResolver == null ? new CurrentOwnerHttpResolver() : currentOwnerHttpResolver;
+        return resolver.resolveOwnerId(legacyOwnerId).orElse(null);
     }
 
     private SkillDTO toDTO(SkillStore.StoredSkill skill) {

@@ -4,8 +4,9 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { agentApi } from '@/api/agent';
 import { getUserInfo } from '@/utils/cookie';
+import { workspaceLabelFromAccount } from '@/utils/current-account';
 import { getWorkspaceIdentity } from '@/utils/workspace-identity';
-import { DiagramSummaryResponseDTO } from '@/types/api';
+import { CurrentAccountResponseDTO, DiagramSummaryResponseDTO } from '@/types/api';
 
 const formatUpdatedAt = (value?: string) => {
   if (!value) return 'No updates yet';
@@ -17,12 +18,21 @@ const formatUpdatedAt = (value?: string) => {
 export default function Home() {
   const router = useRouter();
   const [ownerId] = useState(() => getWorkspaceIdentity(getUserInfo()?.user).ownerId);
+  const [currentAccount, setCurrentAccount] = useState<CurrentAccountResponseDTO | null>(null);
   const [diagrams, setDiagrams] = useState<DiagramSummaryResponseDTO[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState('');
 
   useEffect(() => {
     let cancelled = false;
+    agentApi.currentAccount(ownerId)
+      .then(res => {
+        if (!cancelled) setCurrentAccount(res.data || null);
+      })
+      .catch(() => {
+        if (!cancelled) setCurrentAccount(null);
+      });
+
     agentApi.listDiagrams(ownerId)
       .then(res => {
         if (!cancelled) setDiagrams(res.data || []);
@@ -96,7 +106,7 @@ export default function Home() {
         <header className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-200 pb-5">
           <div>
             <h1 className="text-2xl font-semibold tracking-normal">My diagrams</h1>
-            <p className="mt-1 text-sm text-slate-500">{ownerId.startsWith('anon_') ? 'Local workspace' : 'Signed-in workspace'}</p>
+            <p className="mt-1 text-sm text-slate-500">{workspaceLabelFromAccount(currentAccount, ownerId)}</p>
           </div>
           <button
             type="button"

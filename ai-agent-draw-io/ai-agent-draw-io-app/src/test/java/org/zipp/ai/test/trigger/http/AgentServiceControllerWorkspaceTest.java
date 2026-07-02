@@ -9,9 +9,12 @@ import org.slf4j.LoggerFactory;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
+import org.zipp.ai.api.dto.CurrentAccountResponseDTO;
 import org.zipp.ai.api.dto.DiagramSummaryResponseDTO;
 import org.zipp.ai.api.dto.UpdateDiagramTitleRequestDTO;
 import org.zipp.ai.api.response.Response;
+import org.zipp.ai.domain.account.model.valobj.AccountStatus;
+import org.zipp.ai.domain.account.model.valobj.OwnerType;
 import org.zipp.ai.domain.agent.model.valobj.canvas.CanvasState;
 import org.zipp.ai.domain.agent.service.ICanvasStateStore;
 import org.zipp.ai.trigger.http.AgentServiceController;
@@ -52,7 +55,7 @@ public class AgentServiceControllerWorkspaceTest {
         FakeCanvasStateStore store = new FakeCanvasStateStore();
         inject(controller, "canvasStateStore", store);
         RequestContextHolder.setRequestAttributes(new ServletRequestAttributes(new MockHttpServletRequest()));
-        Logger logger = (Logger) LoggerFactory.getLogger("org.zipp.ai.trigger.http.WorkspaceIds");
+        Logger logger = (Logger) LoggerFactory.getLogger("org.zipp.ai.trigger.http.CurrentOwnerHttpResolver");
         ListAppender<ILoggingEvent> appender = new ListAppender<>();
         appender.start();
         logger.addAppender(appender);
@@ -115,6 +118,35 @@ public class AgentServiceControllerWorkspaceTest {
 
         assertEquals(ResponseCode.ILLEGAL_PARAMETER.getCode(), response.getCode());
         assertFalse(store.renameCalled);
+    }
+
+    @Test
+    public void shouldReturnAnonymousCurrentAccountStatus() {
+        AgentServiceController controller = new AgentServiceController();
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.addHeader("X-Workspace-Id", VALID_WORKSPACE_ID);
+        RequestContextHolder.setRequestAttributes(new ServletRequestAttributes(request));
+
+        Response<CurrentAccountResponseDTO> response = controller.currentAccount();
+
+        assertEquals(ResponseCode.SUCCESS.getCode(), response.getCode());
+        assertEquals(VALID_WORKSPACE_ID, response.getData().getOwnerId());
+        assertEquals(OwnerType.ANONYMOUS.name(), response.getData().getOwnerType());
+        assertEquals(AccountStatus.ANONYMOUS.name(), response.getData().getAccountStatus());
+        assertFalse(response.getData().isAuthenticated());
+        assertFalse(response.getData().isEmailVerified());
+    }
+
+    @Test
+    public void shouldRejectCurrentAccountStatusWhenWorkspaceHeaderIsInvalid() {
+        AgentServiceController controller = new AgentServiceController();
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.addHeader("X-Workspace-Id", "admin");
+        RequestContextHolder.setRequestAttributes(new ServletRequestAttributes(request));
+
+        Response<CurrentAccountResponseDTO> response = controller.currentAccount();
+
+        assertEquals(ResponseCode.ILLEGAL_PARAMETER.getCode(), response.getCode());
     }
 
     private void inject(Object target, String fieldName, Object value) throws Exception {

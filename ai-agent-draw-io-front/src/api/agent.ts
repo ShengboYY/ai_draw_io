@@ -5,6 +5,7 @@ import {
     CreateSessionResponseDTO, 
     ChatRequestDTO,
     ChatResponseDTO,
+    CurrentAccountResponseDTO,
     DiagramCanvasStateResponseDTO,
     DiagramSummaryResponseDTO,
     DiagramConversationMessageDTO,
@@ -144,6 +145,14 @@ export const agentApi = {
             headers: workspaceHeaders(userId),
         });
         return handleResponse<Array<{ name: string; description?: string; category?: string }>>(response);
+    },
+
+    currentAccount: async (userId: string): Promise<Response<CurrentAccountResponseDTO>> => {
+        const response = await fetch(`${API_CONFIG.BASE_URL}/account/me`, {
+            method: 'GET',
+            headers: workspaceHeaders(userId),
+        });
+        return handleResponse<CurrentAccountResponseDTO>(response);
     },
 
     /**
