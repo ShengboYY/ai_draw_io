@@ -8,6 +8,7 @@ import org.zipp.ai.infrastructure.dao.ICanvasStateMapper;
 import org.zipp.ai.infrastructure.dao.po.CanvasStatePO;
 
 import java.lang.reflect.Field;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 import static org.junit.Assert.assertEquals;
@@ -20,6 +21,7 @@ public class CanvasStateRepositoryTest {
     public void shouldSaveCurrentCanvasStateAndReturnLatestRow() throws Exception {
         CanvasStateRepository repository = new CanvasStateRepository();
         FakeCanvasStateMapper mapper = new FakeCanvasStateMapper();
+        mapper.canvasStateExists = false;
         injectMapper(repository, mapper);
 
         CanvasState saved = repository.save(CanvasState.builder()
@@ -34,7 +36,7 @@ public class CanvasStateRepositoryTest {
         assertEquals("alice", mapper.saved.getUserId());
         assertEquals("diagram-1", mapper.saved.getDiagramId());
         assertEquals("<mxGraphModel/>", mapper.saved.getCurrentXml());
-        assertTrue(mapper.upsertCanvasStateCalled);
+        assertTrue(mapper.insertCanvasStateCalled);
         assertEquals(Long.valueOf(4L), saved.getVersion());
         assertEquals("persisted", saved.getSummary());
     }
@@ -54,7 +56,6 @@ public class CanvasStateRepositoryTest {
 
         assertTrue(mapper.updateByVersionCalled);
         assertEquals(Long.valueOf(3L), mapper.saved.getVersion());
-        assertEquals(Long.valueOf(4L), mapper.syncedVersion);
         assertEquals(Long.valueOf(4L), saved.getVersion());
     }
 
@@ -71,6 +72,50 @@ public class CanvasStateRepositoryTest {
                 .currentXml("<mxGraphModel/>")
                 .version(3L)
                 .build());
+    }
+
+    @Test(expected = CanvasStateVersionConflictException.class)
+    public void shouldRejectNullVersionSaveWhenCanvasStateAlreadyExists() throws Exception {
+        CanvasStateRepository repository = new CanvasStateRepository();
+        FakeCanvasStateMapper mapper = new FakeCanvasStateMapper();
+        mapper.canvasStateExists = true;
+        injectMapper(repository, mapper);
+
+        try {
+            repository.save(CanvasState.builder()
+                    .userId("alice")
+                    .diagramId("diagram-1")
+                    .currentXml("<mxGraphModel/>")
+                    .build());
+        } finally {
+            assertFalse(mapper.insertCanvasStateCalled);
+        }
+    }
+
+    @Test(expected = CanvasStateVersionConflictException.class)
+    public void shouldRejectNullVersionSaveWhenConcurrentCreateAlreadyInsertedCanvasState() throws Exception {
+        CanvasStateRepository repository = new CanvasStateRepository();
+        FakeCanvasStateMapper mapper = new FakeCanvasStateMapper();
+        mapper.canvasStateExists = false;
+        mapper.insertCanvasStateRows = 0;
+        injectMapper(repository, mapper);
+
+        repository.save(CanvasState.builder()
+                .userId("alice")
+                .diagramId("diagram-1")
+                .currentXml("<mxGraphModel/>")
+                .build());
+    }
+
+    @Test
+    public void shouldUseCanvasStateVersionAsDiagramListVersionSource() throws Exception {
+        String mapperXml = new String(getClass()
+                .getResourceAsStream("/mybatis/mapper/canvas_state_mapper.xml")
+                .readAllBytes(), StandardCharsets.UTF_8).replaceAll("\\s+", " ");
+
+        assertTrue(mapperXml.contains("c.version AS version"));
+        assertFalse(mapperXml.contains("d.current_version AS version"));
+        assertFalse(mapperXml.contains("syncDiagramVersion"));
     }
 
     @Test
@@ -170,10 +215,11 @@ public class CanvasStateRepositoryTest {
         private String selectedDiagramId;
         private String listedUserId;
         private boolean listCalled;
-        private boolean upsertCanvasStateCalled;
+        private boolean insertCanvasStateCalled;
         private boolean updateByVersionCalled;
         private int updateRows = 1;
-        private Long syncedVersion;
+        private boolean canvasStateExists = true;
+        private int insertCanvasStateRows = 1;
         private String renamedUserId;
         private String renamedDiagramId;
         private String renamedTitle;
@@ -185,6 +231,9 @@ public class CanvasStateRepositoryTest {
         public CanvasStatePO selectByUserAndDiagram(String userId, String diagramId) {
             this.selectedUserId = userId;
             this.selectedDiagramId = diagramId;
+            if (!canvasStateExists && !insertCanvasStateCalled && !updateByVersionCalled) {
+                return null;
+            }
             CanvasStatePO po = new CanvasStatePO();
             po.setUserId(userId);
             po.setDiagramId(diagramId);
@@ -226,10 +275,10 @@ public class CanvasStateRepositoryTest {
         }
 
         @Override
-        public int upsertCanvasState(CanvasStatePO state) {
+        public int insertCanvasState(CanvasStatePO state) {
             this.saved = state;
-            this.upsertCanvasStateCalled = true;
-            return 1;
+            this.insertCanvasStateCalled = true;
+            return insertCanvasStateRows;
         }
 
         @Override
@@ -240,9 +289,8 @@ public class CanvasStateRepositoryTest {
         }
 
         @Override
-        public int syncDiagramVersion(String userId, String diagramId, Long version) {
-            this.syncedVersion = version;
-            return 1;
+        public int countCanvasState(String userId, String diagramId) {
+            return canvasStateExists ? 1 : 0;
         }
 
         @Override

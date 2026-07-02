@@ -18,7 +18,6 @@ CREATE TABLE IF NOT EXISTS diagram (
     title           VARCHAR(255) NOT NULL DEFAULT 'Untitled Diagram' COMMENT 'Display title for the future diagram list',
     diagram_type    VARCHAR(64)  NOT NULL DEFAULT 'basic' COMMENT 'basic, architecture, uml_class, flowchart, etc.',
     thumbnail_url   VARCHAR(512)          DEFAULT NULL COMMENT 'Future homepage thumbnail URL',
-    current_version BIGINT       NOT NULL DEFAULT 1 COMMENT 'Latest canvas version',
     deleted         TINYINT(1)   NOT NULL DEFAULT 0 COMMENT 'Soft delete flag',
     created_at      DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Create time',
     updated_at      DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT 'Update time',
@@ -26,6 +25,10 @@ CREATE TABLE IF NOT EXISTS diagram (
     KEY idx_user_updated (user_id, updated_at),
     KEY idx_user_deleted_updated (user_id, deleted, updated_at)
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = 'User diagrams';
+
+-- Existing databases created before diagram.current_version was removed should run:
+-- docs/sql/migrations/2026-07-02-drop-diagram-current-version.sql
+-- ALTER TABLE diagram DROP COLUMN current_version;
 
 CREATE TABLE IF NOT EXISTS diagram_canvas_state (
     diagram_id    VARCHAR(64) NOT NULL COMMENT 'Diagram id',

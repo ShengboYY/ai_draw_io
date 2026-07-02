@@ -75,12 +75,17 @@ public class CanvasStateRepository implements ICanvasStateStore {
                 throw new CanvasStateVersionConflictException(state.getUserId(), state.getDiagramId(), state.getVersion());
             }
         } else {
+            // Null-version saves are create-only; existing canvas rows must use optimistic locking.
+            if (canvasStateMapper.countCanvasState(state.getUserId(), state.getDiagramId()) > 0) {
+                throw new CanvasStateVersionConflictException(state.getUserId(), state.getDiagramId(), null);
+            }
             canvasStateMapper.upsertDiagram(po);
-            canvasStateMapper.upsertCanvasState(po);
+            int inserted = canvasStateMapper.insertCanvasState(po);
+            if (inserted == 0) {
+                throw new CanvasStateVersionConflictException(state.getUserId(), state.getDiagramId(), null);
+            }
         }
-        CanvasState saved = find(state.getUserId(), state.getDiagramId()).orElse(state);
-        canvasStateMapper.syncDiagramVersion(saved.getUserId(), saved.getDiagramId(), saved.getVersion());
-        return saved;
+        return find(state.getUserId(), state.getDiagramId()).orElse(state);
     }
 
     private CanvasState toDomain(CanvasStatePO po) {

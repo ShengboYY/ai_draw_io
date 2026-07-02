@@ -249,6 +249,9 @@ ai:
                   - If review_result is present and approved=false, treat it as the newest drawing request and fix the cited issues with the smallest useful change.
                   - When fixing review_result, follow fix_strategy exactly: local_edit -> modify_diagram mode=patch or replace_cells; route_only -> optimize_diagram mode=route_only; append_only -> modify_diagram mode=append; layout_optimize -> optimize_diagram mode=layout_optimize; full_redraw -> create_diagram.
                   - Do not redraw the entire diagram unless fix_strategy=full_redraw or the current XML is malformed beyond repair.
+                  - For create_new review repair, preserve the first draft composition whenever the latest result is drawable.
+                  - Do not choose full_redraw for create_new review repair when validation issues can be fixed by route_only, local_edit, or layout_optimize.
+                  - Edge routing, label placement, spacing, overlap, and opaque text fixes are not reasons to replace the whole diagram.
                   - For local_edit, modify only the target cell(s) and directly affected edge(s). For route_only, change only edge styles, ports, waypoints, or minimal nearby spacing. For append_only, preserve existing cells and add only the missing content. For layout_optimize, preserve labels and relationships while improving alignment, spacing, and routing.
                   - If review_result is present and approved=true, do not call any drawing tool. Output exactly {"type":"user","content":"No changes needed"}.
                   - Follow the selected diagram skill when skillName is not none. Always follow drawio-visual-design for color semantics, spacing, typography, grouping, and edge routing.
@@ -327,6 +330,7 @@ ai:
                   - If taskType=edit_existing, preserve unrelated ids, geometry, labels, and styles. For tiny local changes, change only named target cell(s) or directly affected edge(s). For additions, keep existing ids and geometry stable, add new ids after the largest existing numeric id when possible, and resize only containers that must hold new content.
                   - If taskType=optimize_layout, preserve semantic labels and relationships, then repair alignment, spacing, edge routing, and text readability with the smallest useful layout change.
                   - If fix_strategy is local_edit, route_only, append_only, or layout_optimize, never replace unrelated regions or regenerate a different full composition.
+                  - If the first create_new draft is drawable, treat review repair as a patch/route/layout pass on that draft, not as permission to create a different diagram.
                   - For local_edit, use existing ids from Current Draw.io XML or Patch Target Cells; if the target is named only by label, set targetLabel on modify_diagram and include only the replacement mxCell fragments for the affected ids.
                   - For route_only, call optimize_diagram with mode=route_only and preserve node geometry unless spacing is too tight or nodes overlap.
                   - If drawMode=edit_existing, preserve required old elements and output the complete final diagram after adding or changing elements.
@@ -378,6 +382,9 @@ ai:
                   - content must be concise and executable. Each issue must name a concrete target, problem, suggested_tool, operation, and reason.
                   - Use fix_strategy according to the smallest useful repair: local_edit for one/few cells; route_only for edge crossings, ports, labels, or waypoints; append_only for missing components, legend, or descriptions; layout_optimize for crowded overall layout; full_redraw only when the diagram type, structure, or XML is fundamentally wrong.
                   - Prefer local_edit, route_only, append_only, or layout_optimize over full_redraw whenever the existing diagram can be preserved.
+                  - For create_new review repair, preserve the first draft composition whenever the latest result is drawable.
+                  - Do not choose full_redraw for create_new review repair when validation issues can be fixed by route_only, local_edit, or layout_optimize.
+                  - Edge routing, label placement, spacing, overlap, and opaque text fixes are not reasons to replace the whole diagram.
 
                   Review checklist:
                   - If input is {"type":"user", ...}, output {"type":"review_result","approved":true,"severity":"minor","fix_strategy":"local_edit","issues":[],"content":"No diagram review needed"}.

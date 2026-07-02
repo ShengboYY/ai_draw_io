@@ -108,6 +108,15 @@ public class DrawioArchitectureSkillResourceTest {
     }
 
     @Test
+    public void shouldPreventCreateNewReviewRepairFromFullRedrawingLocalFixes() throws Exception {
+        String agentPrompt = readResource("agent/agent-draw-io.yml");
+
+        assertTrue(agentPrompt.contains("For create_new review repair, preserve the first draft composition whenever the latest result is drawable."));
+        assertTrue(agentPrompt.contains("Do not choose full_redraw for create_new review repair when validation issues can be fixed by route_only, local_edit, or layout_optimize."));
+        assertTrue(agentPrompt.contains("Edge routing, label placement, spacing, overlap, and opaque text fixes are not reasons to replace the whole diagram."));
+    }
+
+    @Test
     public void shouldExposeP1CanvasToolsInDrawingPrompt() throws Exception {
         String agentPrompt = readResource("agent/agent-draw-io.yml");
 
