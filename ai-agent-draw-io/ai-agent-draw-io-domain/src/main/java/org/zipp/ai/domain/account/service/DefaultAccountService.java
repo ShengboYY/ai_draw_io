@@ -38,6 +38,13 @@ public class DefaultAccountService implements IAccountService {
     /** Verification and reset tokens expire after 30 minutes (design decision). */
     static final Duration VERIFICATION_TTL = Duration.ofMinutes(30);
     private static final int MIN_PASSWORD_LENGTH = 8;
+    private static final String VERIFICATION_EMAIL_BUCKET = "auth.verification-email";
+    private static final String PASSWORD_RESET_EMAIL_BUCKET = "auth.password-reset-email";
+    private static final String LOGIN_FAILURE_BUCKET = "auth.login-failure";
+    private static final UsageLimitRule EMAIL_COOLDOWN = UsageLimitRule.of(1, Duration.ofSeconds(60));
+    private static final UsageLimitRule EMAIL_DAILY = UsageLimitRule.of(5, Duration.ofDays(1));
+    private static final int MAX_CONSECUTIVE_LOGIN_FAILURES = 5;
+    private static final Duration LOGIN_FAILURE_LOCK = Duration.ofMinutes(15);
 
     private final IUserAccountStore userAccountStore;
     private final IAccountTokenStore accountTokenStore;
@@ -45,6 +52,7 @@ public class DefaultAccountService implements IAccountService {
     private final ITokenHasher tokenHasher;
     private final ISecureTokenFactory tokenFactory;
     private final IEmailSender emailSender;
+    private final UsageCounterRateLimiter usageCounterRateLimiter;
     private final String verificationBaseUrl;
     private final String passwordResetBaseUrl;
     private final Clock clock;
@@ -59,9 +67,10 @@ public class DefaultAccountService implements IAccountService {
                                  @Value("${account.verification.base-url:http://localhost:3000/verify-email}")
                                  String verificationBaseUrl,
                                  @Value("${account.password-reset.base-url:http://localhost:3000/reset-password/confirm}")
-                                 String passwordResetBaseUrl) {
+                                 String passwordResetBaseUrl,
+                                 UsageCounterRateLimiter usageCounterRateLimiter) {
         this(userAccountStore, accountTokenStore, passwordHasher, tokenHasher, tokenFactory, emailSender,
-                verificationBaseUrl, passwordResetBaseUrl, Clock.systemUTC());
+                verificationBaseUrl, passwordResetBaseUrl, Clock.systemUTC(), usageCounterRateLimiter);
     }
 
     public DefaultAccountService(IUserAccountStore userAccountStore,
@@ -86,12 +95,28 @@ public class DefaultAccountService implements IAccountService {
                                  String verificationBaseUrl,
                                  String passwordResetBaseUrl,
                                  Clock clock) {
+        this(userAccountStore, accountTokenStore, passwordHasher, tokenHasher, tokenFactory, emailSender,
+                verificationBaseUrl, passwordResetBaseUrl, clock, new UsageCounterRateLimiter(clock));
+    }
+
+    public DefaultAccountService(IUserAccountStore userAccountStore,
+                                 IAccountTokenStore accountTokenStore,
+                                 IPasswordHasher passwordHasher,
+                                 ITokenHasher tokenHasher,
+                                 ISecureTokenFactory tokenFactory,
+                                 IEmailSender emailSender,
+                                 String verificationBaseUrl,
+                                 String passwordResetBaseUrl,
+                                 Clock clock,
+                                 UsageCounterRateLimiter usageCounterRateLimiter) {
         this.userAccountStore = userAccountStore;
         this.accountTokenStore = accountTokenStore;
         this.passwordHasher = passwordHasher;
         this.tokenHasher = tokenHasher;
         this.tokenFactory = tokenFactory;
         this.emailSender = emailSender;
+        this.usageCounterRateLimiter = usageCounterRateLimiter == null
+                ? new UsageCounterRateLimiter(clock) : usageCounterRateLimiter;
         this.verificationBaseUrl = verificationBaseUrl;
         this.passwordResetBaseUrl = passwordResetBaseUrl;
         this.clock = clock;
@@ -107,6 +132,7 @@ public class DefaultAccountService implements IAccountService {
         if (rawPassword == null || rawPassword.length() < MIN_PASSWORD_LENGTH) {
             throw new IllegalArgumentException("Password must be at least " + MIN_PASSWORD_LENGTH + " characters.");
         }
+        enforceVerificationEmailLimit(normalized);
 
         Optional<UserAccount> existing = userAccountStore.findByEmailNormalized(normalized);
         if (existing.isPresent()) {
@@ -176,12 +202,18 @@ public class DefaultAccountService implements IAccountService {
     public LoginResult login(LoginAccountCommand command) {
         String normalized = EmailNormalizer.normalize(command == null ? null : command.getEmail());
         String rawPassword = command == null ? null : command.getRawPassword();
-        if (normalized == null || rawPassword == null || rawPassword.isEmpty()) {
+        if (normalized == null) {
             return LoginResult.of(LoginResult.Outcome.INVALID_CREDENTIALS);
+        }
+        if (usageCounterRateLimiter.isLocked(LOGIN_FAILURE_BUCKET, normalized)) {
+            return LoginResult.of(LoginResult.Outcome.LOCKED);
+        }
+        if (rawPassword == null || rawPassword.isEmpty()) {
+            return invalidCredentials(normalized);
         }
         Optional<UserAccount> match = userAccountStore.findByEmailNormalized(normalized);
         if (match.isEmpty()) {
-            return LoginResult.of(LoginResult.Outcome.INVALID_CREDENTIALS);
+            return invalidCredentials(normalized);
         }
         UserAccount user = match.get();
         AccountStatus status = user.getStatus();
@@ -192,8 +224,9 @@ public class DefaultAccountService implements IAccountService {
             return LoginResult.of(LoginResult.Outcome.DISABLED);
         }
         if (!passwordHasher.matches(rawPassword, user.getPasswordHash())) {
-            return LoginResult.of(LoginResult.Outcome.INVALID_CREDENTIALS);
+            return invalidCredentials(normalized);
         }
+        usageCounterRateLimiter.clearFailures(LOGIN_FAILURE_BUCKET, normalized);
         return LoginResult.success(user);
     }
 
@@ -211,6 +244,7 @@ public class DefaultAccountService implements IAccountService {
         if (normalized == null) {
             return; // Fail safely / generically for invalid input.
         }
+        enforceVerificationEmailLimit(normalized);
         userAccountStore.findByEmailNormalized(normalized)
                 .filter(UserAccount::isPendingVerification)
                 .ifPresent(user -> issueVerificationToken(user.getId(), email.trim()));
@@ -222,6 +256,7 @@ public class DefaultAccountService implements IAccountService {
         if (normalized == null) {
             return; // Generic no-op for invalid/unknown emails.
         }
+        enforcePasswordResetEmailLimit(normalized);
         userAccountStore.findByEmailNormalized(normalized)
                 .filter(UserAccount::isActive)
                 .ifPresent(user -> issuePasswordResetToken(user.getId(), user.getEmail()));
@@ -289,6 +324,30 @@ public class DefaultAccountService implements IAccountService {
                 .build();
         accountTokenStore.insert(token);
         emailSender.sendPasswordResetEmail(email, buildPasswordResetUrl(rawToken));
+    }
+
+    private LoginResult invalidCredentials(String normalizedEmail) {
+        usageCounterRateLimiter.recordFailure(
+                LOGIN_FAILURE_BUCKET, normalizedEmail, MAX_CONSECUTIVE_LOGIN_FAILURES, LOGIN_FAILURE_LOCK);
+        return LoginResult.of(LoginResult.Outcome.INVALID_CREDENTIALS);
+    }
+
+    private void enforceVerificationEmailLimit(String normalizedEmail) {
+        usageCounterRateLimiter.consume(
+                VERIFICATION_EMAIL_BUCKET,
+                normalizedEmail,
+                "Too many verification email requests. Please wait before requesting another link.",
+                EMAIL_COOLDOWN,
+                EMAIL_DAILY);
+    }
+
+    private void enforcePasswordResetEmailLimit(String normalizedEmail) {
+        usageCounterRateLimiter.consume(
+                PASSWORD_RESET_EMAIL_BUCKET,
+                normalizedEmail,
+                "Too many password-reset email requests. Please wait before requesting another link.",
+                EMAIL_COOLDOWN,
+                EMAIL_DAILY);
     }
 
     private String buildVerificationUrl(String rawToken) {

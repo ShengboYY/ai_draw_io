@@ -8,6 +8,7 @@ import org.zipp.ai.domain.account.model.entity.UserAccount;
  * Outcome of a login attempt. INVALID_CREDENTIALS is the generic bucket for both unknown emails and
  * wrong passwords so an attacker cannot enumerate accounts. NOT_VERIFIED and DISABLED are reported
  * distinctly because the frontend surfaces actionable hints (resend link / contact support).
+ * LOCKED is a temporary brute-force guard after repeated invalid credentials for one email.
  */
 @Data
 @Builder
@@ -17,7 +18,8 @@ public class LoginResult {
         SUCCESS,
         INVALID_CREDENTIALS,
         NOT_VERIFIED,
-        DISABLED
+        DISABLED,
+        LOCKED
     }
 
     private Outcome outcome;

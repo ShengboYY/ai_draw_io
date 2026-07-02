@@ -36,6 +36,13 @@ test('loginStatusDisplay maps INVALID_CREDENTIALS to a generic error', () => {
   assert.equal(display.offerResend, false);
 });
 
+test('loginStatusDisplay maps LOCKED to a cooldown error', () => {
+  const display = loginStatusDisplay('LOCKED');
+  assert.equal(display.variant, 'error');
+  assert.match(display.message, /15 minutes/i);
+  assert.equal(display.offerResend, false);
+});
+
 test('loginStatusDisplay maps ANONYMOUS to an info hint', () => {
   const display = loginStatusDisplay('ANONYMOUS');
   assert.equal(display.variant, 'info');

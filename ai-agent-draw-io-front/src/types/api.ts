@@ -4,6 +4,8 @@ export interface Response<T> {
     data: T;
 }
 
+export type ApiErrorCode = 'AUTH_RATE_LIMITED' | (string & {});
+
 export interface AiAgentConfigResponseDTO {
     agentId: string;
     agentName: string;
@@ -108,6 +110,7 @@ export type LoginStatus =
   | 'INVALID_CREDENTIALS'
   | 'NOT_VERIFIED'
   | 'DISABLED'
+  | 'LOCKED'
   | 'ANONYMOUS';
 
 export interface LoginRequestDTO {

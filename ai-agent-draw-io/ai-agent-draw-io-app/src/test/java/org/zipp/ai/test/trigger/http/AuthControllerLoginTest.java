@@ -18,6 +18,8 @@ import org.zipp.ai.api.dto.PasswordResetConfirmRequestDTO;
 import org.zipp.ai.api.dto.PasswordResetConfirmResponseDTO;
 import org.zipp.ai.api.dto.PasswordResetRequestDTO;
 import org.zipp.ai.api.dto.RegisterAccountRequestDTO;
+import org.zipp.ai.api.dto.RegisterAccountResponseDTO;
+import org.zipp.ai.api.dto.ResendVerificationRequestDTO;
 import org.zipp.ai.api.response.Response;
 import org.zipp.ai.domain.account.adapter.port.IEmailSender;
 import org.zipp.ai.domain.account.model.entity.AccountToken;
@@ -33,10 +35,15 @@ import org.zipp.ai.domain.account.service.IPasswordHasher;
 import org.zipp.ai.domain.account.service.ISecureTokenFactory;
 import org.zipp.ai.domain.account.service.ITokenHasher;
 import org.zipp.ai.domain.account.service.IUserAccountStore;
+import org.zipp.ai.domain.account.service.UsageCounterRateLimiter;
 import org.zipp.ai.trigger.http.AuthController;
 
 import java.lang.reflect.Field;
 import java.time.Clock;
+import java.time.Duration;
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
@@ -61,12 +68,15 @@ public class AuthControllerLoginTest {
     private FakeEmailSender emailSender;
     private AuthController controller;
     private SecurityContextRepository contextRepository;
+    private MutableClock clock;
 
     @Before
     public void setUp() throws Exception {
         users = new FakeUserAccountStore();
         tokens = new FakeAccountTokenStore();
         emailSender = new FakeEmailSender();
+        clock = new MutableClock(Instant.parse("2026-07-02T10:00:00Z"));
+        UsageCounterRateLimiter usageCounterRateLimiter = new UsageCounterRateLimiter(clock);
         IAccountService service = new DefaultAccountService(
                 users, tokens,
                 new FakePasswordHasher(),
@@ -74,11 +84,14 @@ public class AuthControllerLoginTest {
                 new SequentialTokenFactory(),
                 emailSender,
                 "http://localhost:3000/verify-email",
-                Clock.systemUTC());
+                "http://localhost:3000/reset-password/confirm",
+                clock,
+                usageCounterRateLimiter);
         contextRepository = new HttpSessionSecurityContextRepository();
         controller = new AuthController();
         inject(controller, "accountService", service);
         inject(controller, "securityContextRepository", contextRepository);
+        inject(controller, "usageCounterRateLimiter", usageCounterRateLimiter);
     }
 
     @After
@@ -209,6 +222,68 @@ public class AuthControllerLoginTest {
     }
 
     @Test
+    public void registrationAndVerificationSendAttemptsShareIpHourlyLimit() {
+        String ip = "203.0.113.10";
+        for (int i = 0; i < 10; i++) {
+            controller.register(registerRequest("reg-hour-" + i + "@example.com", "short"), requestFrom(ip));
+        }
+        for (int i = 0; i < 10; i++) {
+            controller.resendVerification(resendRequest("verify-hour-" + i + "@example.com"), requestFrom(ip));
+        }
+
+        Response<RegisterAccountResponseDTO> denied =
+                controller.register(registerRequest("reg-hour-final@example.com", "password123"), requestFrom(ip));
+
+        assertEquals("AUTH_RATE_LIMITED", denied.getCode());
+    }
+
+    @Test
+    public void registrationAndVerificationSendAttemptsShareIpDailyLimit() {
+        String ip = "203.0.113.11";
+        for (int i = 0; i < 100; i++) {
+            controller.register(registerRequest("reg-day-" + i + "@example.com", "short"), requestFrom(ip));
+            clock.advance(Duration.ofMinutes(12));
+        }
+
+        Response<RegisterAccountResponseDTO> denied =
+                controller.register(registerRequest("reg-day-final@example.com", "password123"), requestFrom(ip));
+        assertEquals("AUTH_RATE_LIMITED", denied.getCode());
+
+        clock.advance(Duration.ofDays(1));
+        Response<RegisterAccountResponseDTO> allowed =
+                controller.register(registerRequest("reg-day-reset@example.com", "short"), requestFrom(ip));
+        assertEquals("0001", allowed.getCode());
+    }
+
+    @Test
+    public void passwordResetAttemptsAreLimitedByIpPerHour() {
+        String ip = "203.0.113.12";
+        for (int i = 0; i < 20; i++) {
+            controller.requestPasswordReset(resetRequest("reset-hour-" + i + "@example.com"), requestFrom(ip));
+        }
+
+        Response<Void> denied = controller.requestPasswordReset(
+                resetRequest("reset-hour-final@example.com"), requestFrom(ip));
+
+        assertEquals("AUTH_RATE_LIMITED", denied.getCode());
+    }
+
+    @Test
+    public void loginAttemptsAreLimitedByIpPerHour() {
+        registerAndVerify("login-hour@example.com", "password123");
+        String ip = "203.0.113.13";
+        for (int i = 0; i < 30; i++) {
+            controller.login(loginRequest("login-hour@example.com", "wrong-password"), requestFrom(ip),
+                    new MockHttpServletResponse());
+        }
+
+        Response<LoginResponseDTO> denied = controller.login(
+                loginRequest("login-hour@example.com", "password123"), requestFrom(ip), new MockHttpServletResponse());
+
+        assertEquals("AUTH_RATE_LIMITED", denied.getCode());
+    }
+
+    @Test
     public void resetPasswordConfirmReturnsStatusAndInvalidatesExistingSession() {
         registerAndVerify("gail@example.com", "password123");
         MockHttpServletRequest loginRequest = new MockHttpServletRequest();
@@ -252,6 +327,31 @@ public class AuthControllerLoginTest {
         return dto;
     }
 
+    private RegisterAccountRequestDTO registerRequest(String email, String password) {
+        RegisterAccountRequestDTO dto = new RegisterAccountRequestDTO();
+        dto.setEmail(email);
+        dto.setPassword(password);
+        return dto;
+    }
+
+    private ResendVerificationRequestDTO resendRequest(String email) {
+        ResendVerificationRequestDTO dto = new ResendVerificationRequestDTO();
+        dto.setEmail(email);
+        return dto;
+    }
+
+    private PasswordResetRequestDTO resetRequest(String email) {
+        PasswordResetRequestDTO dto = new PasswordResetRequestDTO();
+        dto.setEmail(email);
+        return dto;
+    }
+
+    private MockHttpServletRequest requestFrom(String ip) {
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.setRemoteAddr(ip);
+        return request;
+    }
+
     private void registerOnly(String email, String password) {
         RegisterAccountRequestDTO dto = new RegisterAccountRequestDTO();
         dto.setEmail(email);
@@ -268,6 +368,22 @@ public class AuthControllerLoginTest {
         Field field = target.getClass().getDeclaredField(fieldName);
         field.setAccessible(true);
         field.set(target, value);
+    }
+
+    private static final class MutableClock extends Clock {
+        private Instant now;
+
+        MutableClock(Instant now) {
+            this.now = now;
+        }
+
+        void advance(Duration duration) {
+            now = now.plus(duration);
+        }
+
+        @Override public ZoneId getZone() { return ZoneOffset.UTC; }
+        @Override public Clock withZone(ZoneId zone) { return this; }
+        @Override public Instant instant() { return now; }
     }
 
     // ---- Fakes (mirroring DefaultAccountServiceTest so the two test files stay self-contained) ----

@@ -1,6 +1,7 @@
 import { API_CONFIG } from '@/config/api-config';
 import {
     Response,
+    ApiErrorCode,
     AiAgentConfigResponseDTO,
     CreateSessionResponseDTO,
     ChatRequestDTO,
@@ -22,6 +23,18 @@ import {
     VerifyEmailResponseDTO,
 } from '@/types/api';
 
+export class ApiResponseError extends Error {
+    readonly code: ApiErrorCode;
+    readonly info: string;
+
+    constructor(code: ApiErrorCode, info: string) {
+        super(info);
+        this.name = 'ApiResponseError';
+        this.code = code;
+        this.info = info;
+    }
+}
+
 const handleResponse = async <T>(response: globalThis.Response): Promise<Response<T>> => {
     if (!response.ok) {
         const errorText = await response.text();
@@ -29,7 +42,7 @@ const handleResponse = async <T>(response: globalThis.Response): Promise<Respons
     }
     const data = await response.json();
     if (data.code !== "0000") {
-        throw new Error(data.info || 'Unknown API error');
+        throw new ApiResponseError(data.code, data.info || 'Unknown API error');
     }
     return data;
 };

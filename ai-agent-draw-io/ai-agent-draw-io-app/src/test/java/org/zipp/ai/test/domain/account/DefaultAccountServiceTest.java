@@ -20,6 +20,7 @@ import org.zipp.ai.domain.account.service.IPasswordHasher;
 import org.zipp.ai.domain.account.service.ISecureTokenFactory;
 import org.zipp.ai.domain.account.service.ITokenHasher;
 import org.zipp.ai.domain.account.service.IUserAccountStore;
+import org.zipp.ai.domain.account.service.RateLimitExceededException;
 
 import java.time.Clock;
 import java.time.Duration;
@@ -80,6 +81,7 @@ public class DefaultAccountServiceTest {
     public void registerNormalizesEmailBeforeUniquenessCheck() {
         service.register(RegisterAccountCommand.builder()
                 .email("Bob@Example.com").rawPassword("password123").build());
+        clock.advance(Duration.ofSeconds(61));
         RegistrationResult second = service.register(RegisterAccountCommand.builder()
                 .email("  bob@example.COM ").rawPassword("password123").build());
 
@@ -144,6 +146,38 @@ public class DefaultAccountServiceTest {
     public void verifyEmailRejectsUnknownToken() {
         assertEquals(EmailVerificationResult.INVALID, service.verifyEmail("does-not-exist"));
         assertEquals(EmailVerificationResult.INVALID, service.verifyEmail(""));
+    }
+
+    @Test
+    public void verificationEmailSendLimitIsSharedByRegistrationAndResend() {
+        service.register(RegisterAccountCommand.builder()
+                .email("send-limit@example.com").rawPassword("password123").build());
+
+        assertRateLimited(() -> service.resendVerification("send-limit@example.com"));
+        assertEquals(1, emailSender.verificationEmails.size());
+
+        clock.advance(Duration.ofSeconds(61));
+        service.resendVerification("Send-Limit@Example.com");
+        assertEquals(2, emailSender.verificationEmails.size());
+    }
+
+    @Test
+    public void verificationEmailDailyLimitResetsAfterRollingDay() {
+        service.register(RegisterAccountCommand.builder()
+                .email("daily-verify@example.com").rawPassword("password123").build());
+
+        for (int i = 0; i < 4; i++) {
+            clock.advance(Duration.ofSeconds(61));
+            service.resendVerification("daily-verify@example.com");
+        }
+
+        assertEquals(5, emailSender.verificationEmails.size());
+        clock.advance(Duration.ofSeconds(61));
+        assertRateLimited(() -> service.resendVerification("daily-verify@example.com"));
+
+        clock.advance(Duration.ofDays(1));
+        service.resendVerification("daily-verify@example.com");
+        assertEquals(6, emailSender.verificationEmails.size());
     }
 
     @Test
@@ -215,6 +249,45 @@ public class DefaultAccountServiceTest {
     }
 
     @Test
+    public void fiveConsecutiveLoginFailuresLockFurtherAttemptsForFifteenMinutes() {
+        registerAndVerify("locked@example.com", "password123");
+
+        for (int i = 0; i < 5; i++) {
+            LoginResult failure = service.login(LoginAccountCommand.builder()
+                    .email("locked@example.com").rawPassword("wrong-password").build());
+            assertEquals(LoginResult.Outcome.INVALID_CREDENTIALS, failure.getOutcome());
+        }
+
+        LoginResult locked = service.login(LoginAccountCommand.builder()
+                .email("locked@example.com").rawPassword("password123").build());
+        assertEquals(LoginResult.Outcome.LOCKED, locked.getOutcome());
+
+        clock.advance(Duration.ofMinutes(15));
+        LoginResult success = service.login(LoginAccountCommand.builder()
+                .email("locked@example.com").rawPassword("password123").build());
+        assertEquals(LoginResult.Outcome.SUCCESS, success.getOutcome());
+    }
+
+    @Test
+    public void successfulLoginClearsConsecutiveFailureCount() {
+        registerAndVerify("clear-failures@example.com", "password123");
+
+        for (int i = 0; i < 4; i++) {
+            service.login(LoginAccountCommand.builder()
+                    .email("clear-failures@example.com").rawPassword("wrong-password").build());
+        }
+        assertEquals(LoginResult.Outcome.SUCCESS, service.login(LoginAccountCommand.builder()
+                .email("clear-failures@example.com").rawPassword("password123").build()).getOutcome());
+
+        for (int i = 0; i < 4; i++) {
+            service.login(LoginAccountCommand.builder()
+                    .email("clear-failures@example.com").rawPassword("wrong-password").build());
+        }
+        assertEquals(LoginResult.Outcome.SUCCESS, service.login(LoginAccountCommand.builder()
+                .email("clear-failures@example.com").rawPassword("password123").build()).getOutcome());
+    }
+
+    @Test
     public void requestPasswordResetUsesGenericResponseAndOnlyEmailsActiveUsers() {
         registerAndVerify("maya@example.com", "old-password");
 
@@ -223,6 +296,27 @@ public class DefaultAccountServiceTest {
 
         assertEquals(1, emailSender.passwordResetEmails.size());
         assertEquals("maya@example.com", emailSender.passwordResetEmails.get(0).email);
+    }
+
+    @Test
+    public void passwordResetEmailSendLimitRequiresCooldownAndResetsAfterRollingDay() {
+        registerAndVerify("reset-limit@example.com", "old-password");
+
+        service.requestPasswordReset("reset-limit@example.com");
+        assertRateLimited(() -> service.requestPasswordReset("reset-limit@example.com"));
+
+        for (int i = 0; i < 4; i++) {
+            clock.advance(Duration.ofSeconds(61));
+            service.requestPasswordReset("reset-limit@example.com");
+        }
+
+        assertEquals(5, emailSender.passwordResetEmails.size());
+        clock.advance(Duration.ofSeconds(61));
+        assertRateLimited(() -> service.requestPasswordReset("reset-limit@example.com"));
+
+        clock.advance(Duration.ofDays(1));
+        service.requestPasswordReset("reset-limit@example.com");
+        assertEquals(6, emailSender.passwordResetEmails.size());
     }
 
     @Test
@@ -300,6 +394,15 @@ public class DefaultAccountServiceTest {
     private void registerAndVerify(String email, String password) {
         service.register(RegisterAccountCommand.builder().email(email).rawPassword(password).build());
         service.verifyEmail(emailSender.lastToken());
+    }
+
+    private void assertRateLimited(Runnable action) {
+        try {
+            action.run();
+        } catch (RateLimitExceededException expected) {
+            return;
+        }
+        throw new AssertionError("expected rate limit denial");
     }
 
     // ---- Fakes -------------------------------------------------------------

@@ -63,6 +63,12 @@ export const loginStatusDisplay = (status: LoginStatus | null): LoginStatusDispl
         variant: 'error',
         offerResend: false,
       };
+    case 'LOCKED':
+      return {
+        message: 'Too many failed sign-in attempts. Try again in 15 minutes.',
+        variant: 'error',
+        offerResend: false,
+      };
     case 'ANONYMOUS':
       return {
         message: 'Please sign in to continue.',
