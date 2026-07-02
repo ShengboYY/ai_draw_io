@@ -25,6 +25,8 @@ import org.springframework.web.servlet.mvc.method.annotation.ResponseBodyEmitter
 
 import javax.annotation.Resource;
 import java.util.List;
+import java.util.Locale;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -32,6 +34,9 @@ import java.util.stream.Collectors;
 @RequestMapping("/api/v1/")
 @CrossOrigin(origins = "*")
 public class AgentServiceController implements IAgentService {
+
+    private static final Pattern ANONYMOUS_WORKSPACE_ID = Pattern.compile(
+            "^anon_[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$");
 
     @Resource
     private IChatService chatService;
@@ -364,6 +369,44 @@ public class AgentServiceController implements IAgentService {
                 .orElseGet(this::illegalWorkspaceResponse);
     }
 
+    @RequestMapping(value = "workspaces/anonymous/import", method = RequestMethod.POST)
+    public Response<ImportAnonymousWorkspaceResponseDTO> importAnonymousWorkspace(
+            @RequestBody ImportAnonymousWorkspaceRequestDTO requestDTO) {
+        ResolvedOwner owner = ownerHttpResolver().resolve(null).orElse(null);
+        if (owner == null || OwnerType.USER != owner.getOwnerType() || !owner.isAuthenticated()) {
+            return illegalWorkspaceResponse();
+        }
+
+        String anonymousWorkspaceId = normalizeAnonymousWorkspaceId(
+                requestDTO == null ? null : requestDTO.getAnonymousWorkspaceId());
+        if (StringUtils.isBlank(anonymousWorkspaceId)) {
+            return illegalWorkspaceResponse();
+        }
+
+        try {
+            List<CanvasState> imported = canvasStateStore.importAnonymousWorkspace(
+                    anonymousWorkspaceId, owner.getOwnerId());
+            ImportAnonymousWorkspaceResponseDTO responseDTO = new ImportAnonymousWorkspaceResponseDTO();
+            responseDTO.setImportedCount(imported.size());
+            responseDTO.setDiagrams(imported.stream()
+                    .map(this::toDiagramSummary)
+                    .collect(Collectors.toList()));
+            return Response.<ImportAnonymousWorkspaceResponseDTO>builder()
+                    .code(ResponseCode.SUCCESS.getCode())
+                    .info(ResponseCode.SUCCESS.getInfo())
+                    .data(responseDTO)
+                    .build();
+        } catch (Exception e) {
+            log.error("导入匿名工作区失败 sourceOwnerId:{} targetOwnerId:{}",
+                    CurrentOwnerHttpResolver.mask(anonymousWorkspaceId),
+                    CurrentOwnerHttpResolver.mask(owner.getOwnerId()), e);
+            return Response.<ImportAnonymousWorkspaceResponseDTO>builder()
+                    .code(ResponseCode.UN_ERROR.getCode())
+                    .info(ResponseCode.UN_ERROR.getInfo())
+                    .build();
+        }
+    }
+
     private DiagramSummaryResponseDTO toDiagramSummary(CanvasState state) {
         DiagramSummaryResponseDTO dto = new DiagramSummaryResponseDTO();
         dto.setDiagramId(state.getDiagramId());
@@ -438,6 +481,15 @@ public class AgentServiceController implements IAgentService {
 
     private String resolveOwnerId(String legacyOwnerId) {
         return ownerHttpResolver().resolveOwnerId(legacyOwnerId).orElse(null);
+    }
+
+    private String normalizeAnonymousWorkspaceId(String workspaceId) {
+        if (StringUtils.isBlank(workspaceId)) {
+            return null;
+        }
+        String normalized = workspaceId.trim().toLowerCase(Locale.ROOT);
+        // Import moves data between owners; only browser-generated anonymous workspace ids are accepted.
+        return ANONYMOUS_WORKSPACE_ID.matcher(normalized).matches() ? normalized : null;
     }
 
     private CurrentOwnerHttpResolver ownerHttpResolver() {

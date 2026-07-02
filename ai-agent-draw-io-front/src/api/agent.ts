@@ -10,6 +10,8 @@ import {
     DiagramCanvasStateResponseDTO,
     DiagramSummaryResponseDTO,
     DiagramConversationMessageDTO,
+    ImportAnonymousWorkspaceRequestDTO,
+    ImportAnonymousWorkspaceResponseDTO,
     SaveDiagramMessagesRequestDTO,
     UpdateDiagramTitleRequestDTO,
     LoginRequestDTO,
@@ -311,6 +313,18 @@ export const agentApi = {
             credentials: 'include',
         });
         return handleResponse<DiagramSummaryResponseDTO[]>(response);
+    },
+
+    importAnonymousWorkspace: async (
+        payload: ImportAnonymousWorkspaceRequestDTO,
+    ): Promise<Response<ImportAnonymousWorkspaceResponseDTO>> => {
+        const response = await fetch(`${API_CONFIG.BASE_URL}/workspaces/anonymous/import`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+            credentials: 'include',
+        });
+        return handleResponse<ImportAnonymousWorkspaceResponseDTO>(response);
     },
 
     getDiagram: async (userId: string, diagramId: string): Promise<Response<DiagramCanvasStateResponseDTO | null>> => {

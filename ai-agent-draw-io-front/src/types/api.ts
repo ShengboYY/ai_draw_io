@@ -76,6 +76,15 @@ export interface SaveDiagramMessagesRequestDTO {
   messages: DiagramConversationMessageDTO[];
 }
 
+export interface ImportAnonymousWorkspaceRequestDTO {
+  anonymousWorkspaceId: string;
+}
+
+export interface ImportAnonymousWorkspaceResponseDTO {
+  importedCount: number;
+  diagrams: DiagramSummaryResponseDTO[];
+}
+
 export interface ChatRequestDTO {
   agentId: string;
   userId: string;

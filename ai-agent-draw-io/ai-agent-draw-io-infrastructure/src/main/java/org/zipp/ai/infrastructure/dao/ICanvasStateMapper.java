@@ -13,6 +13,8 @@ public interface ICanvasStateMapper {
 
     List<CanvasStatePO> selectDiagramsByUser(@Param("userId") String userId);
 
+    List<CanvasStatePO> selectImportableDiagrams(@Param("userId") String userId);
+
     int upsertDiagram(CanvasStatePO state);
 
     int insertCanvasState(CanvasStatePO state);
@@ -28,5 +30,22 @@ public interface ICanvasStateMapper {
 
     int softDeleteDiagram(@Param("userId") String userId,
                           @Param("diagramId") String diagramId);
+
+    int countDiagramById(@Param("diagramId") String diagramId);
+
+    int insertImportedDiagram(@Param("sourceUserId") String sourceUserId,
+                              @Param("sourceDiagramId") String sourceDiagramId,
+                              @Param("targetUserId") String targetUserId,
+                              @Param("targetDiagramId") String targetDiagramId);
+
+    int insertImportedCanvasState(@Param("sourceUserId") String sourceUserId,
+                                  @Param("sourceDiagramId") String sourceDiagramId,
+                                  @Param("targetUserId") String targetUserId,
+                                  @Param("targetDiagramId") String targetDiagramId);
+
+    int insertImportedConversationMessages(@Param("sourceUserId") String sourceUserId,
+                                           @Param("sourceDiagramId") String sourceDiagramId,
+                                           @Param("targetUserId") String targetUserId,
+                                           @Param("targetDiagramId") String targetDiagramId);
 
 }

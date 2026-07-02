@@ -9,9 +9,14 @@ import org.zipp.ai.infrastructure.dao.ICanvasStateMapper;
 import org.zipp.ai.infrastructure.dao.po.CanvasStatePO;
 
 import javax.annotation.Resource;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
+import java.util.UUID;
+import java.util.function.Supplier;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 @Repository
@@ -19,9 +24,13 @@ public class CanvasStateRepository implements ICanvasStateStore {
 
     private static final String DEFAULT_DIAGRAM_TITLE = "Untitled Diagram";
     private static final int MAX_DIAGRAM_TITLE_LENGTH = 120;
+    private static final int MAX_IMPORT_ID_ATTEMPTS = 10;
+    private static final Pattern ANONYMOUS_OWNER_ID = Pattern.compile(
+            "^anon_[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$");
 
     @Resource
     private ICanvasStateMapper canvasStateMapper;
+    private Supplier<String> importedDiagramIdSupplier = () -> "diagram_" + UUID.randomUUID();
 
     @Override
     public Optional<CanvasState> find(String userId, String diagramId) {
@@ -64,6 +73,35 @@ public class CanvasStateRepository implements ICanvasStateStore {
 
     @Override
     @Transactional
+    public List<CanvasState> importAnonymousWorkspace(String anonymousOwnerId, String targetOwnerId) {
+        String sourceOwnerId = normalizeAnonymousOwnerId(anonymousOwnerId);
+        String ownerId = trimToNull(targetOwnerId);
+        if (sourceOwnerId == null || ownerId == null) {
+            return Collections.emptyList();
+        }
+
+        List<CanvasStatePO> sources = canvasStateMapper.selectImportableDiagrams(sourceOwnerId);
+        if (sources == null || sources.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        List<CanvasState> imported = new ArrayList<>();
+        for (CanvasStatePO source : sources) {
+            if (source == null || isBlank(source.getDiagramId())) {
+                continue;
+            }
+            String targetDiagramId = nextAvailableImportedDiagramId();
+            copyDiagramOrThrow(sourceOwnerId, source.getDiagramId(), ownerId, targetDiagramId);
+            canvasStateMapper.insertImportedConversationMessages(sourceOwnerId, source.getDiagramId(), ownerId, targetDiagramId);
+            softDeleteSourceOrThrow(sourceOwnerId, source.getDiagramId());
+            imported.add(find(ownerId, targetDiagramId)
+                    .orElseGet(() -> toImportedDomain(source, ownerId, targetDiagramId)));
+        }
+        return imported;
+    }
+
+    @Override
+    @Transactional
     public CanvasState save(CanvasState state) {
         if (state == null) {
             return null;
@@ -88,6 +126,34 @@ public class CanvasStateRepository implements ICanvasStateStore {
         return find(state.getUserId(), state.getDiagramId()).orElse(state);
     }
 
+    private void copyDiagramOrThrow(String sourceOwnerId, String sourceDiagramId, String targetOwnerId, String targetDiagramId) {
+        int diagramRows = canvasStateMapper.insertImportedDiagram(sourceOwnerId, sourceDiagramId, targetOwnerId, targetDiagramId);
+        if (diagramRows == 0) {
+            throw new IllegalStateException("Anonymous diagram import failed before canvas copy");
+        }
+        int canvasRows = canvasStateMapper.insertImportedCanvasState(sourceOwnerId, sourceDiagramId, targetOwnerId, targetDiagramId);
+        if (canvasRows == 0) {
+            throw new IllegalStateException("Anonymous diagram import failed during canvas copy");
+        }
+    }
+
+    private void softDeleteSourceOrThrow(String sourceOwnerId, String sourceDiagramId) {
+        int deletedRows = canvasStateMapper.softDeleteDiagram(sourceOwnerId, sourceDiagramId);
+        if (deletedRows == 0) {
+            throw new IllegalStateException("Anonymous diagram import failed during source cleanup");
+        }
+    }
+
+    private String nextAvailableImportedDiagramId() {
+        for (int attempt = 0; attempt < MAX_IMPORT_ID_ATTEMPTS; attempt++) {
+            String candidate = trimToNull(importedDiagramIdSupplier.get());
+            if (candidate != null && candidate.length() <= 64 && canvasStateMapper.countDiagramById(candidate) == 0) {
+                return candidate;
+            }
+        }
+        throw new IllegalStateException("Could not allocate a safe imported diagram id");
+    }
+
     private CanvasState toDomain(CanvasStatePO po) {
         return CanvasState.builder()
                 .userId(po.getUserId())
@@ -100,6 +166,21 @@ public class CanvasStateRepository implements ICanvasStateStore {
                 .version(po.getVersion())
                 .createdAt(po.getCreatedAt())
                 .updatedAt(po.getUpdatedAt())
+                .build();
+    }
+
+    private CanvasState toImportedDomain(CanvasStatePO source, String targetOwnerId, String targetDiagramId) {
+        return CanvasState.builder()
+                .userId(targetOwnerId)
+                .diagramId(targetDiagramId)
+                .title(source.getTitle())
+                .diagramType(source.getDiagramType())
+                .currentXml(source.getCurrentXml())
+                .summary(source.getSummary())
+                .analysisJson(source.getAnalysisJson())
+                .version(source.getVersion())
+                .createdAt(source.getCreatedAt())
+                .updatedAt(source.getUpdatedAt())
                 .build();
     }
 
@@ -118,6 +199,24 @@ public class CanvasStateRepository implements ICanvasStateStore {
 
     private boolean isBlank(String value) {
         return value == null || value.isBlank();
+    }
+
+    private String trimToNull(String value) {
+        if (value == null) {
+            return null;
+        }
+        String trimmed = value.trim();
+        return trimmed.isEmpty() ? null : trimmed;
+    }
+
+    private String normalizeAnonymousOwnerId(String ownerId) {
+        String normalized = trimToNull(ownerId);
+        if (normalized == null) {
+            return null;
+        }
+        normalized = normalized.toLowerCase(Locale.ROOT);
+        // Ownership migration is sensitive, so never import from arbitrary caller-supplied ids.
+        return ANONYMOUS_OWNER_ID.matcher(normalized).matches() ? normalized : null;
     }
 
     private String normalizeTitle(String title) {

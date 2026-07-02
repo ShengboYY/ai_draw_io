@@ -61,6 +61,17 @@
         LIMIT 100
     </select>
 
+    <select id="selectImportableDiagrams" resultMap="canvasStateMap">
+        SELECT <include refid="cols"/>
+        FROM diagram d
+        INNER JOIN diagram_canvas_state c
+            ON c.diagram_id = d.id
+            AND c.user_id = d.user_id
+        WHERE d.user_id = #{userId}
+          AND d.deleted = 0
+        ORDER BY GREATEST(c.updated_at, d.updated_at) ASC
+    </select>
+
     <insert id="upsertDiagram" parameterType="org.zipp.ai.infrastructure.dao.po.CanvasStatePO">
         INSERT INTO diagram (id, user_id, diagram_type)
         VALUES (#{diagramId}, #{userId}, COALESCE(#{diagramType}, 'basic'))
@@ -93,6 +104,12 @@
           AND user_id = #{userId}
     </select>
 
+    <select id="countDiagramById" resultType="int">
+        SELECT COUNT(1)
+        FROM diagram
+        WHERE id = #{diagramId}
+    </select>
+
     <update id="updateDiagramTitle">
         UPDATE diagram
         SET title = #{title},
@@ -110,5 +127,64 @@
           AND user_id = #{userId}
           AND deleted = 0
     </update>
+
+    <insert id="insertImportedDiagram">
+        INSERT INTO diagram (id, user_id, title, diagram_type, thumbnail_url, deleted)
+        SELECT
+            #{targetDiagramId},
+            #{targetUserId},
+            d.title,
+            d.diagram_type,
+            d.thumbnail_url,
+            0
+        FROM diagram d
+        WHERE d.id = #{sourceDiagramId}
+          AND d.user_id = #{sourceUserId}
+          AND d.deleted = 0
+          AND NOT EXISTS (
+              SELECT 1
+              FROM diagram existing
+              WHERE existing.id = #{targetDiagramId}
+          )
+    </insert>
+
+    <insert id="insertImportedCanvasState">
+        INSERT INTO diagram_canvas_state (diagram_id, user_id, current_xml, summary, analysis_json, version)
+        SELECT
+            #{targetDiagramId},
+            #{targetUserId},
+            c.current_xml,
+            c.summary,
+            c.analysis_json,
+            c.version
+        FROM diagram_canvas_state c
+        INNER JOIN diagram d
+            ON d.id = c.diagram_id
+            AND d.user_id = c.user_id
+        WHERE c.diagram_id = #{sourceDiagramId}
+          AND c.user_id = #{sourceUserId}
+          AND d.deleted = 0
+    </insert>
+
+    <insert id="insertImportedConversationMessages">
+        INSERT INTO diagram_conversation_message
+            (diagram_id, user_id, session_id, client_message_id, role, content, created_at, updated_at)
+        SELECT
+            #{targetDiagramId},
+            #{targetUserId},
+            m.session_id,
+            m.client_message_id,
+            m.role,
+            m.content,
+            m.created_at,
+            m.updated_at
+        FROM diagram_conversation_message m
+        INNER JOIN diagram d
+            ON d.id = m.diagram_id
+            AND d.user_id = m.user_id
+        WHERE m.diagram_id = #{sourceDiagramId}
+          AND m.user_id = #{sourceUserId}
+          AND d.deleted = 0
+    </insert>
 
 </mapper>

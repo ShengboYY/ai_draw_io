@@ -1,11 +1,15 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
 import { agentApi } from '@/api/agent';
 import type { LoginStatus } from '@/types/api';
+import {
+  clearImportedAnonymousWorkspace,
+  shouldPromptAnonymousWorkspaceImport,
+} from '@/utils/anonymous-workspace-import';
 import { setUserInfo, clearUserInfo } from '@/utils/cookie';
 import {
   hasLoginErrors,
@@ -26,21 +30,51 @@ export default function Login() {
   const [phase, setPhase] = useState<Phase>('idle');
   const [serverError, setServerError] = useState('');
 
+  const maybeImportAnonymousWorkspace = useCallback(async () => {
+    const storage = typeof window === 'undefined' ? null : window.localStorage;
+    const decision = shouldPromptAnonymousWorkspaceImport({
+      loginStatus: 'SUCCESS',
+      storage,
+    });
+    if (!decision.shouldPrompt) return true;
+
+    const confirmed = window.confirm(
+      "Import diagrams from this browser's local workspace into your signed-in account?",
+    );
+    if (!confirmed) return true;
+
+    try {
+      await agentApi.importAnonymousWorkspace({
+        anonymousWorkspaceId: decision.anonymousWorkspaceId,
+      });
+      clearImportedAnonymousWorkspace(storage, decision.anonymousWorkspaceId);
+      return true;
+    } catch (err: unknown) {
+      setServerError(err instanceof Error ? err.message : 'Could not import the local workspace.');
+      return false;
+    }
+  }, []);
+
   useEffect(() => {
     // Recover an existing session so a returning user does not have to sign in twice.
     let cancelled = false;
     agentApi.me().then(({ data }) => {
       if (cancelled) return;
       if (data.status === 'SUCCESS' && data.email) {
-        setSignedInAs(data.email);
-        setUserInfo(data.email);
-        router.push('/drawio');
+        const signedInEmail = data.email;
+        void (async () => {
+          setSignedInAs(signedInEmail);
+          setUserInfo(signedInEmail);
+          if (await maybeImportAnonymousWorkspace()) {
+            router.push('/drawio');
+          }
+        })();
       }
     }).catch(() => {
       // Silent — treat as no session; nothing to persist.
     });
     return () => { cancelled = true; };
-  }, [router]);
+  }, [maybeImportAnonymousWorkspace, router]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -56,6 +90,9 @@ export default function Login() {
       if (data.status === 'SUCCESS' && data.email) {
         setUserInfo(data.email);
         setSignedInAs(data.email);
+        if (!await maybeImportAnonymousWorkspace()) {
+          return;
+        }
         setTimeout(() => router.push('/drawio'), 400);
         return;
       }

@@ -9,7 +9,11 @@ import org.zipp.ai.infrastructure.dao.po.CanvasStatePO;
 
 import java.lang.reflect.Field;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
+import java.util.function.Supplier;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -202,10 +206,74 @@ public class CanvasStateRepositoryTest {
         assertFalse(mapper.deleteCalled);
     }
 
+    @Test
+    public void shouldImportAnonymousWorkspaceWithSafeIdsAndSoftDeleteSource() throws Exception {
+        CanvasStateRepository repository = new CanvasStateRepository();
+        FakeCanvasStateMapper mapper = new FakeCanvasStateMapper();
+        mapper.existingDiagramIds.add("diagram-collision");
+        injectMapper(repository, mapper);
+        setImportIdSupplier(repository, new Supplier<>() {
+            private int callCount;
+
+            @Override
+            public String get() {
+                return callCount++ == 0 ? "diagram-collision" : "diagram-safe";
+            }
+        });
+
+        List<CanvasState> imported = repository.importAnonymousWorkspace(
+                "anon_123e4567-e89b-42d3-a456-426614174000",
+                "usr_alice");
+
+        assertEquals(List.of("diagram-collision", "diagram-safe"), mapper.checkedDiagramIds);
+        assertEquals("anon_123e4567-e89b-42d3-a456-426614174000", mapper.importSourceUserId);
+        assertEquals("diagram-1", mapper.importSourceDiagramId);
+        assertEquals("usr_alice", mapper.importTargetUserId);
+        assertEquals("diagram-safe", mapper.importTargetDiagramId);
+        assertEquals("diagram-safe", mapper.copiedCanvasTargetDiagramId);
+        assertEquals("diagram-safe", mapper.copiedMessagesTargetDiagramId);
+        assertEquals("diagram-1", mapper.deletedDiagramId);
+        assertEquals(1, imported.size());
+        assertEquals("diagram-safe", imported.get(0).getDiagramId());
+        assertEquals("usr_alice", imported.get(0).getUserId());
+    }
+
+    @Test
+    public void shouldRejectAnonymousWorkspaceImportForInvalidSourceOwner() throws Exception {
+        CanvasStateRepository repository = new CanvasStateRepository();
+        FakeCanvasStateMapper mapper = new FakeCanvasStateMapper();
+        injectMapper(repository, mapper);
+
+        List<CanvasState> imported = repository.importAnonymousWorkspace("admin", "usr_alice");
+
+        assertTrue(imported.isEmpty());
+        assertFalse(mapper.importListCalled);
+    }
+
+    @Test
+    public void shouldDefineAnonymousWorkspaceImportMapperStatements() throws Exception {
+        String mapperXml = new String(getClass()
+                .getResourceAsStream("/mybatis/mapper/canvas_state_mapper.xml")
+                .readAllBytes(), StandardCharsets.UTF_8).replaceAll("\\s+", " ");
+
+        assertTrue(mapperXml.contains("selectImportableDiagrams"));
+        assertTrue(mapperXml.contains("insertImportedDiagram"));
+        assertTrue(mapperXml.contains("insertImportedCanvasState"));
+        assertTrue(mapperXml.contains("insertImportedConversationMessages"));
+        assertTrue(mapperXml.contains("NOT EXISTS"));
+        assertTrue(mapperXml.contains("d.deleted = 0"));
+    }
+
     private void injectMapper(CanvasStateRepository repository, ICanvasStateMapper mapper) throws Exception {
         Field field = CanvasStateRepository.class.getDeclaredField("canvasStateMapper");
         field.setAccessible(true);
         field.set(repository, mapper);
+    }
+
+    private void setImportIdSupplier(CanvasStateRepository repository, Supplier<String> supplier) throws Exception {
+        Field field = CanvasStateRepository.class.getDeclaredField("importedDiagramIdSupplier");
+        field.setAccessible(true);
+        field.set(repository, supplier);
     }
 
     private static class FakeCanvasStateMapper implements ICanvasStateMapper {
@@ -226,6 +294,15 @@ public class CanvasStateRepositoryTest {
         private String deletedUserId;
         private String deletedDiagramId;
         private boolean deleteCalled;
+        private final Set<String> existingDiagramIds = new HashSet<>();
+        private final List<String> checkedDiagramIds = new ArrayList<>();
+        private boolean importListCalled;
+        private String importSourceUserId;
+        private String importSourceDiagramId;
+        private String importTargetUserId;
+        private String importTargetDiagramId;
+        private String copiedCanvasTargetDiagramId;
+        private String copiedMessagesTargetDiagramId;
 
         @Override
         public CanvasStatePO selectByUserAndDiagram(String userId, String diagramId) {
@@ -307,6 +384,49 @@ public class CanvasStateRepositoryTest {
             this.deletedUserId = userId;
             this.deletedDiagramId = diagramId;
             return 1;
+        }
+
+        @Override
+        public List<CanvasStatePO> selectImportableDiagrams(String userId) {
+            this.importListCalled = true;
+
+            CanvasStatePO source = new CanvasStatePO();
+            source.setUserId(userId);
+            source.setDiagramId("diagram-1");
+            source.setTitle("Anonymous checkout");
+            source.setDiagramType("flowchart");
+            source.setCurrentXml("<mxGraphModel/>");
+            source.setSummary("anonymous canvas");
+            source.setAnalysisJson("{\"nodeCount\":1}");
+            source.setVersion(7L);
+            return List.of(source);
+        }
+
+        @Override
+        public int countDiagramById(String diagramId) {
+            this.checkedDiagramIds.add(diagramId);
+            return existingDiagramIds.contains(diagramId) ? 1 : 0;
+        }
+
+        @Override
+        public int insertImportedDiagram(String sourceUserId, String sourceDiagramId, String targetUserId, String targetDiagramId) {
+            this.importSourceUserId = sourceUserId;
+            this.importSourceDiagramId = sourceDiagramId;
+            this.importTargetUserId = targetUserId;
+            this.importTargetDiagramId = targetDiagramId;
+            return 1;
+        }
+
+        @Override
+        public int insertImportedCanvasState(String sourceUserId, String sourceDiagramId, String targetUserId, String targetDiagramId) {
+            this.copiedCanvasTargetDiagramId = targetDiagramId;
+            return 1;
+        }
+
+        @Override
+        public int insertImportedConversationMessages(String sourceUserId, String sourceDiagramId, String targetUserId, String targetDiagramId) {
+            this.copiedMessagesTargetDiagramId = targetDiagramId;
+            return 2;
         }
     }
 }

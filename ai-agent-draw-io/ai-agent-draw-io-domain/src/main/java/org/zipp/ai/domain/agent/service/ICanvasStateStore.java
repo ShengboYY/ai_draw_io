@@ -22,6 +22,10 @@ public interface ICanvasStateStore {
         return false;
     }
 
+    default List<CanvasState> importAnonymousWorkspace(String anonymousOwnerId, String targetOwnerId) {
+        return Collections.emptyList();
+    }
+
     CanvasState save(CanvasState state);
 
 }

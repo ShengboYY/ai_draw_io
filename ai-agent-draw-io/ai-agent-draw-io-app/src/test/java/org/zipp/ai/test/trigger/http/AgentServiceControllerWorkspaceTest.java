@@ -15,6 +15,8 @@ import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 import org.zipp.ai.api.dto.CurrentAccountResponseDTO;
 import org.zipp.ai.api.dto.DiagramSummaryResponseDTO;
+import org.zipp.ai.api.dto.ImportAnonymousWorkspaceRequestDTO;
+import org.zipp.ai.api.dto.ImportAnonymousWorkspaceResponseDTO;
 import org.zipp.ai.api.dto.UpdateDiagramTitleRequestDTO;
 import org.zipp.ai.api.response.Response;
 import org.zipp.ai.domain.account.model.valobj.AccountStatus;
@@ -231,6 +233,57 @@ public class AgentServiceControllerWorkspaceTest {
         assertEquals(ResponseCode.ILLEGAL_PARAMETER.getCode(), response.getCode());
     }
 
+    @Test
+    public void shouldRejectAnonymousWorkspaceImportWhenSessionIsMissing() throws Exception {
+        AgentServiceController controller = new AgentServiceController();
+        FakeCanvasStateStore store = new FakeCanvasStateStore();
+        inject(controller, "canvasStateStore", store);
+        RequestContextHolder.setRequestAttributes(new ServletRequestAttributes(new MockHttpServletRequest()));
+        ImportAnonymousWorkspaceRequestDTO requestDTO = new ImportAnonymousWorkspaceRequestDTO();
+        requestDTO.setAnonymousWorkspaceId(VALID_WORKSPACE_ID);
+
+        Response<ImportAnonymousWorkspaceResponseDTO> response = controller.importAnonymousWorkspace(requestDTO);
+
+        assertEquals(ResponseCode.ILLEGAL_PARAMETER.getCode(), response.getCode());
+        assertFalse(store.importCalled);
+    }
+
+    @Test
+    public void shouldRejectAnonymousWorkspaceImportWhenWorkspaceIdIsInvalid() throws Exception {
+        AgentServiceController controller = new AgentServiceController();
+        FakeCanvasStateStore store = new FakeCanvasStateStore();
+        inject(controller, "canvasStateStore", store);
+        RequestContextHolder.setRequestAttributes(new ServletRequestAttributes(new MockHttpServletRequest()));
+        authenticate("usr_alice");
+        ImportAnonymousWorkspaceRequestDTO requestDTO = new ImportAnonymousWorkspaceRequestDTO();
+        requestDTO.setAnonymousWorkspaceId("admin");
+
+        Response<ImportAnonymousWorkspaceResponseDTO> response = controller.importAnonymousWorkspace(requestDTO);
+
+        assertEquals(ResponseCode.ILLEGAL_PARAMETER.getCode(), response.getCode());
+        assertFalse(store.importCalled);
+    }
+
+    @Test
+    public void shouldImportAnonymousWorkspaceIntoAuthenticatedOwner() throws Exception {
+        AgentServiceController controller = new AgentServiceController();
+        FakeCanvasStateStore store = new FakeCanvasStateStore();
+        inject(controller, "canvasStateStore", store);
+        RequestContextHolder.setRequestAttributes(new ServletRequestAttributes(new MockHttpServletRequest()));
+        authenticate("usr_alice");
+        ImportAnonymousWorkspaceRequestDTO requestDTO = new ImportAnonymousWorkspaceRequestDTO();
+        requestDTO.setAnonymousWorkspaceId(VALID_WORKSPACE_ID);
+
+        Response<ImportAnonymousWorkspaceResponseDTO> response = controller.importAnonymousWorkspace(requestDTO);
+
+        assertEquals(ResponseCode.SUCCESS.getCode(), response.getCode());
+        assertTrue(store.importCalled);
+        assertEquals(VALID_WORKSPACE_ID, store.importedAnonymousOwnerId);
+        assertEquals("usr_alice", store.importedTargetOwnerId);
+        assertEquals(1, response.getData().getImportedCount());
+        assertEquals("imported-diagram-1", response.getData().getDiagrams().get(0).getDiagramId());
+    }
+
     private static void authenticate(String userId) {
         UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
                 userId, null, List.of(new SimpleGrantedAuthority("ROLE_USER")));
@@ -250,6 +303,9 @@ public class AgentServiceControllerWorkspaceTest {
         private boolean listCalled;
         private String listedUserId;
         private boolean renameCalled;
+        private boolean importCalled;
+        private String importedAnonymousOwnerId;
+        private String importedTargetOwnerId;
 
         @Override
         public CanvasState save(CanvasState state) {
@@ -279,6 +335,18 @@ public class AgentServiceControllerWorkspaceTest {
                     .userId(userId)
                     .diagramId(diagramId)
                     .title(title)
+                    .build());
+        }
+
+        @Override
+        public List<CanvasState> importAnonymousWorkspace(String anonymousOwnerId, String targetOwnerId) {
+            this.importCalled = true;
+            this.importedAnonymousOwnerId = anonymousOwnerId;
+            this.importedTargetOwnerId = targetOwnerId;
+            return List.of(CanvasState.builder()
+                    .userId(targetOwnerId)
+                    .diagramId("imported-diagram-1")
+                    .title("Imported checkout")
                     .build());
         }
     }
