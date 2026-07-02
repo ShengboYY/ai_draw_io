@@ -12,6 +12,7 @@ import org.zipp.ai.domain.agent.service.ICanvasStateStore;
 import org.zipp.ai.domain.agent.service.canvas.DefaultDrawioCanvasSnapshotService;
 import org.zipp.ai.trigger.http.service.AgentConversationService;
 import org.zipp.ai.trigger.http.service.DrawioPromptContextBuilder;
+import org.zipp.ai.trigger.http.service.SkillContentProvider;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
@@ -65,6 +66,27 @@ public class AgentConversationServiceTest {
         assertTrue(routedMessage.contains("<mxGraphModel"));
         assertTrue(routedMessage.contains("value=\"API\""));
         assertFalse(routedMessage.contains("display_diagram\",\"append_diagram"));
+    }
+
+    @Test
+    public void shouldPermitReviewStrategyToolsAfterCreateNewDraft() throws Exception {
+        AgentConversationService service = new AgentConversationService();
+        injectPromptContextBuilder(service);
+        injectSkillContentProvider(service);
+        IntentRoutingResult routingResult = IntentRoutingResult.fallbackDrawAction("test");
+        routingResult.setDrawMode("new_diagram");
+        routingResult.setTaskType("create_new");
+
+        ChatRequestDTO requestDTO = new ChatRequestDTO();
+        requestDTO.setMessage("draw a flowchart");
+
+        String routedMessage = buildRoutedMessage(service, requestDTO, routingResult, 1);
+
+        assertTrue(routedMessage.contains("\"allowedTools\""));
+        assertTrue(routedMessage.contains("create_diagram"));
+        assertTrue(routedMessage.contains("modify_diagram"));
+        assertTrue(routedMessage.contains("optimize_diagram"));
+        assertTrue(routedMessage.contains("Review repair turns may use the fix_strategy tool even after create_new"));
     }
 
     @Test
@@ -225,6 +247,12 @@ public class AgentConversationServiceTest {
         field.set(service, canvasStateStore);
     }
 
+    private void injectSkillContentProvider(AgentConversationService service) throws Exception {
+        Field field = AgentConversationService.class.getDeclaredField("skillContentProvider");
+        field.setAccessible(true);
+        field.set(service, new EmptySkillContentProvider());
+    }
+
     private String storedCanvasXml() {
         return "<mxGraphModel><root><mxCell id=\"0\"/><mxCell id=\"1\" parent=\"0\"/>"
                 + "<mxCell id=\"stored\" value=\"Stored API\" vertex=\"1\" parent=\"1\">"
@@ -263,6 +291,13 @@ public class AgentConversationServiceTest {
         @Override
         public CanvasState save(CanvasState state) {
             return state;
+        }
+    }
+
+    private static class EmptySkillContentProvider extends SkillContentProvider {
+        @Override
+        public String buildSkillSection(java.util.List<String> skillNames, String ownerId) {
+            return "";
         }
     }
 

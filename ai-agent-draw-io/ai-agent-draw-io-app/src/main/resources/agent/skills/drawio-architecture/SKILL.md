@@ -13,6 +13,8 @@ metadata:
 ## 0. Companion Visual Design Skill
 Always use this skill together with `drawio-visual-design`.
 
+Shared visual/XML/layout contract: use `drawio-visual-design` for colors, typography, grouping, spacing rhythm, connector routing, ports, waypoints, transparent labels, XML snippets, and container parent rules. Do not repeat generic connector routing, spacing, transparent label, waypoint, or container-parent XML rules here.
+
 For architecture diagrams, use `architecture_profile`: build clear regions first, then layers, then components, then dependency edges. Do not force architecture diagrams into a plain flowchart style.
 Runtime internals are an architecture subtype, not a separate diagram category. Keep JVM, browser, OS, and language runtime internals inside this skill with `diagramSubtype=runtime`.
 
@@ -95,8 +97,9 @@ Style:
 - Observability layer if needed: Logging, Metrics, Tracing, CI/CD.
 
 ## 4.1 General Architecture View Contract
-Use this contract for every `drawio-architecture` subtype. It is inspired by C4/Structurizr-style view discipline and diagram-as-code layout rules: define scope first, then boundaries, then elements, then relationships, then legend.
+Use this contract for every `drawio-architecture` subtype. It is inspired by C4/Structurizr-style view discipline: define scope first, then boundaries, then elements, then relationships, then legend.
 
+- The shared Global Draw.io Layout Contract owns general spacing, ports, waypoints, text, and routing hygiene. This architecture contract owns architecture scope, abstraction level, boundary semantics, region maps, connector grammar, and architecture-specific presets.
 - Privately choose a visual blueprint before writing XML: selected subtype, scope boundary, abstraction level, region map, main reading axis, legend need, connector types, connector gutters, and what to omit; never output the blueprint.
 - Keep one focal system or boundary. Put external actors/systems outside it, and put internal elements inside it only when they belong to the selected view.
 - Do not mix abstraction levels. Context diagrams do not show containers; container diagrams do not show classes; deployment diagrams do not show business methods; integration/data diagrams do not show table fields.
@@ -243,11 +246,11 @@ Use this pattern when `diagramSubtype=runtime`. It is inspired by C4-style bound
 
 ## 5. Edge Semantics
 - Synchronous request: solid arrow, label with protocol or purpose.
-  `endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;strokeWidth=2;strokeColor=#666666;labelBackgroundColor=none;labelBorderColor=none;`
+  Use the shared standard connector pattern with a solid arrow and the architecture stroke role for requests.
 - Asynchronous event: dashed arrow, label with event name.
-  `endArrow=classic;html=1;dashed=1;edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;strokeColor=#9673a6;labelBackgroundColor=none;labelBorderColor=none;`
+  Use the shared standard connector pattern with a dashed line and the event stroke role.
 - Data read/write: orange or brown arrow, label with `read`, `write`, or `query`.
-  `endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;strokeColor=#d79b00;labelBackgroundColor=none;labelBorderColor=none;`
+  Use the shared standard connector pattern with the data stroke role.
 
 ## 6. Layout Rules
 - Arrange layers from top to bottom or left to right.
@@ -257,10 +260,8 @@ Use this pattern when `diagramSubtype=runtime`. It is inspired by C4-style bound
 - Draw large boundaries first, then place child components inside them.
 - Keep service nodes the same size when possible.
 - Use special shapes for databases and queues instead of all-rectangle diagrams.
-- Keep horizontal spacing >= 180 and vertical spacing >= 140.
 - For runtime diagrams, place major regions in clear columns or rows, then route cross-region dependencies through outer gutters.
 - Do not draw every low-level dependency when it creates spaghetti lines; summarize repeated relationships with one labeled edge or bus.
-- Use side ports and waypoints for long edges so arrows bend around containers and node bodies.
 - For runtime diagrams, reserve a vertical connector gutter between the central runtime data region and the execution engine.
 - Keep edge labels outside node bodies and outside region titles; put labels near turns or along gutter segments.
 

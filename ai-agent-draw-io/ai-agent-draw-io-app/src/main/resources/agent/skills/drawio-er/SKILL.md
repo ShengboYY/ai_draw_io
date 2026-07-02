@@ -13,6 +13,8 @@ metadata:
 ## 0. Companion Visual Design Skill
 Always use this skill together with `drawio-visual-design`.
 
+Shared visual/XML/layout contract: use `drawio-visual-design` for colors, typography, grouping, spacing rhythm, connector routing, ports, waypoints, transparent labels, XML snippets, and container parent rules. Do not repeat generic connector routing, spacing, transparent label, waypoint, or container-parent XML rules here.
+
 For ER diagrams, use `model_profile`: prioritize readable table fields, primary/foreign-key alignment, and cardinality clarity. Do not use many unrelated colors for individual tables.
 
 ## 1. When To Use
@@ -65,16 +67,13 @@ Rules:
 - Optionality should be represented when relevant: `0..1`, `1`, `0..*`, `1..*`.
 - Relationship labels should be verbs or role names, for example `places`, `contains`, or `belongs to`.
 - Do not connect a foreign key to a non-primary or non-unique field unless the user explicitly asks.
-
-Suggested style:
-`endArrow=ERmany;startArrow=ERone;html=1;edgeStyle=orthogonalEdgeStyle;`
+- Use the shared standard connector pattern and select ER arrowheads or labels that express the relationship cardinality.
 
 ## 5. Layout Rules
 - Put core business tables in the center, such as `orders` or `users`.
 - Put detail tables below or to the right, such as `order_items`.
 - Put lookup/category tables on the left or top.
 - Put payment, shipment, inventory, and log tables on the right.
-- Keep horizontal spacing >= 230 and vertical spacing >= 170.
 
 ## 6. Quality Checklist
 - Every entity has a primary key.

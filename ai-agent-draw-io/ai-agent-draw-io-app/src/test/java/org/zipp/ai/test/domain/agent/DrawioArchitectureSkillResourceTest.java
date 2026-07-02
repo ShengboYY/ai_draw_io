@@ -13,21 +13,17 @@ public class DrawioArchitectureSkillResourceTest {
     @Test
     public void shouldKeepRuntimeAsArchitectureSubtypeWithLayoutPattern() throws Exception {
         String architectureSkill = readResource("agent/skills/drawio-architecture/SKILL.md");
-        String agentPrompt = readResource("agent/agent-draw-io.yml");
 
         assertTrue(architectureSkill.contains("Runtime Architecture Pattern"));
         assertTrue(architectureSkill.contains("thread-private"));
         assertTrue(architectureSkill.contains("execution engine"));
         assertTrue(architectureSkill.contains("legend"));
-        assertTrue(agentPrompt.contains("runtime stays inside architecture"));
+        assertTrue(architectureSkill.contains("Keep `runtime` inside `drawio-architecture`"));
     }
 
     @Test
     public void shouldDescribeArchitectureGeneralAndSubtypePatterns() throws Exception {
         String architectureSkill = readResource("agent/skills/drawio-architecture/SKILL.md");
-        String visualDesignSkill = readResource("agent/skills/drawio-visual-design/SKILL.md");
-        String agentPrompt = readResource("agent/agent-draw-io.yml");
-
         assertTrue(architectureSkill.contains("General Architecture View Contract"));
         assertTrue(architectureSkill.contains("Context Architecture Pattern"));
         assertTrue(architectureSkill.contains("Container Architecture Pattern"));
@@ -35,24 +31,21 @@ public class DrawioArchitectureSkillResourceTest {
         assertTrue(architectureSkill.contains("Deployment Architecture Pattern"));
         assertTrue(architectureSkill.contains("Dynamic Architecture Pattern"));
         assertTrue(architectureSkill.contains("Integration And Data Architecture Pattern"));
-        assertTrue(visualDesignSkill.contains("architecture view contract"));
-        assertTrue(agentPrompt.contains("architecture general blueprints"));
+        assertTrue(architectureSkill.contains("C4"));
+        assertTrue(architectureSkill.contains("abstraction level"));
     }
 
     @Test
     public void shouldUseAdaptiveLayoutPresetsInsteadOfExactTemplateCopies() throws Exception {
         String architectureSkill = readResource("agent/skills/drawio-architecture/SKILL.md");
         String visualDesignSkill = readResource("agent/skills/drawio-visual-design/SKILL.md");
-        String agentPrompt = readResource("agent/agent-draw-io.yml");
 
         assertTrue(architectureSkill.contains("Adaptive Layout Presets"));
         assertTrue(architectureSkill.contains("Do not copy templates exactly"));
         assertTrue(architectureSkill.contains("JVM Runtime Adaptive Preset"));
         assertTrue(architectureSkill.contains("slots"));
         assertTrue(architectureSkill.contains("Expansion rules"));
-        assertTrue(visualDesignSkill.contains("layout presets are adaptable skeletons"));
-        assertTrue(agentPrompt.contains("closest adaptive layout preset"));
-        assertTrue(agentPrompt.contains("Do not copy templates exactly"));
+        assertFalse(visualDesignSkill.contains("layout presets are adaptable skeletons"));
     }
 
     @Test
@@ -157,8 +150,9 @@ public class DrawioArchitectureSkillResourceTest {
     public void shouldUseRoutedToolGateAndReviewBudgetInPrompts() throws Exception {
         String agentPrompt = readResource("agent/agent-draw-io.yml");
 
-        assertTrue(agentPrompt.contains("[Intent Routing Result].allowedTools is the backend-derived per-turn tool gate"));
-        assertTrue(agentPrompt.contains("Use only those tools"));
+        assertTrue(agentPrompt.contains("[Intent Routing Result].allowedTools is the backend-derived initial-draft tool gate"));
+        assertTrue(agentPrompt.contains("[Intent Routing Result].reviewRepairTools lists mutation tools"));
+        assertTrue(agentPrompt.contains("Use only those tools for the first drawing action"));
         assertTrue(agentPrompt.contains("[Intent Routing Result].maxReviewIterations is the review repair budget"));
         assertTrue(agentPrompt.contains("If it is 0, do the initial drawing action only"));
         assertTrue(agentPrompt.contains("The intent router gives high-level direction only"));

@@ -13,6 +13,8 @@ metadata:
 ## 0. Companion Visual Design Skill
 Always use this skill together with `drawio-visual-design`.
 
+Shared visual/XML/layout contract: use `drawio-visual-design` for colors, typography, grouping, spacing rhythm, connector routing, ports, waypoints, transparent labels, XML snippets, and container parent rules. Do not repeat generic connector routing, spacing, transparent label, waypoint, or container-parent XML rules here.
+
 For use case diagrams, use `scope_profile`: make the system boundary the main visual anchor, keep actors outside it, and place use cases inside with consistent ellipse sizes.
 
 ## 1. When To Use
@@ -72,11 +74,9 @@ Use case labels should be verb-object phrases, for example `Place Order`, `Manag
 
 ## 4. Edge Rules
 - Actor to use case: association line.
-  `endArrow=none;html=1;edgeStyle=orthogonalEdgeStyle;`
 - Include: dashed open arrow labeled `<<include>>`, pointing to the included use case.
-  `endArrow=open;dashed=1;html=1;edgeStyle=orthogonalEdgeStyle;`
 - Extend: dashed open arrow labeled `<<extend>>`, pointing to the extended use case.
-  `endArrow=open;dashed=1;html=1;edgeStyle=orthogonalEdgeStyle;`
+- Use the shared standard connector pattern and select association, dashed include, or dashed extend styling by relationship meaning.
 
 ## 5. Layout Rules
 - Place the system boundary in the center.

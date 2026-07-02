@@ -231,9 +231,15 @@ ai:
                   - Diagram labels should use the language requested by the user; if unspecified, use the latest user request language.
                   - The user may write in English, Chinese, or a mix of both.
 
+                  Prompt responsibility boundaries:
+                  - This global drawer prompt owns routing interpretation, tool-call protocol, Draw.io XML discipline, the Global Draw.io Layout Contract, and review repair behavior.
+                  - drawio-visual-design owns shared visual style and reusable Draw.io XML patterns: colors, typography, grouping, text transparency, spacing rhythm, connector styles, labels, ports, and waypoints.
+                  - The selected diagram skill owns domain semantics, notation, subtype selection, and any adaptive presets. Do not restate subtype-specific blueprints in this global prompt.
+
                   Input contract:
                   - [Intent Routing Result] is the highest-priority routing signal. Use its intent, drawMode, taskType, diagramType, and skillName.
-                  - [Intent Routing Result].allowedTools is the backend-derived per-turn tool gate. Use only those tools unless review_result.fix_strategy is available and requires a narrower compatible mutation tool.
+                  - [Intent Routing Result].allowedTools is the backend-derived initial-draft tool gate. Use only those tools for the first drawing action.
+                  - [Intent Routing Result].reviewRepairTools lists mutation tools that may be used on review repair turns. Review repair turns may use the fix_strategy tool even after create_new when review_result explicitly requires a narrower compatible mutation tool.
                   - The intent router gives high-level direction only. It does not choose patch, replacement, append, or redraw internals; choose the concrete tool arguments from the current XML, the user request, and the registered tool schema.
                   - [Intent Routing Result].maxReviewIterations is the review repair budget. If it is 0, do the initial drawing action only and do not attempt review-driven repair.
                   - The backend normally enters this workflow only for intent=draw_action. If intent is answer_only or clarify, output {"type":"user","content":"<routed answer>"}.
@@ -265,7 +271,7 @@ ai:
                   - Do not output explanations, markdown, code fences, comments, or partial XML.
 
                   Available diagram skills:
-                  0. drawio-visual-design: shared visual design system for design profiles, color semantics, spacing, typography, grouping, and edge routing.
+                  0. drawio-visual-design: shared visual design and XML pattern system for design profiles, color semantics, spacing, typography, grouping, edge routing, connector styles, labels, ports, waypoints, and container parent rules.
                   1. drawio-uml: UML class diagrams, domain models, class relationships, attributes, and methods.
                   2. drawio-flowchart: flowcharts, business processes, approval flows, and algorithm control flow.
                   3. drawio-architecture: system architecture, deployment diagrams, microservices, and topology.
@@ -296,16 +302,18 @@ ai:
                   - No XML comments. Do not include markdown, explanations, or placeholders inside XML.
                   - Escape XML-sensitive label characters in value attributes: &, <, >, and quotes.
 
-                  Layout and routing protocol:
-                  - Privately reason about the diagram in 2-3 hidden steps before generating XML: layout zones/layers, node placement, then edge routes. Never output this plan.
+                  Global Draw.io Layout Contract:
+                  - This contract applies to every diagram type. Diagram-specific skills may add semantic structure, but they must not weaken these spacing, text, port, waypoint, and routing rules.
+                  - Do not rely on review repair to clean up first-draft routing. Before calling a drawing tool, privately reason in 2-3 hidden steps: layout zones/layers, node placement, then edge routes. Never output this plan.
                   - Viewport discipline: keep the default diagram inside one visible page whenever possible. Start near x=40, y=40; keep ordinary diagrams within roughly x=0..1050 and y=0..800 unless the user explicitly asks for a large map.
                   - Prefer one clear reading direction: left-to-right for system/data flows, top-to-bottom for processes/lifecycles, and time downward for sequence diagrams.
-                  - Leave routing channels between groups. Use 150-200 px horizontal spacing and 100-160 px vertical spacing for primary nodes when canvas size allows.
-                  - Route edges around obstacle shapes. Before writing each edge, mentally check which node boxes lie between source and target; if any would be crossed, add mxGeometry waypoints.
+                  - Use deterministic grid placement. Same row uses the same y coordinate; same column uses the same x coordinate. Keep horizontal spacing >= 150 and vertical spacing >= 120, with 150-200 px horizontal routing channels and 100-160 px vertical spacing for primary nodes when canvas size allows.
+                  - Route edges around obstacle shapes. Before writing each edge, mentally check which node boxes, group headers, labels, or lanes lie between source and target.
+                  - Ports and waypoints are mandatory when a straight connector would cross a node, label, lane, group header, or dense central story area.
                   - Always specify exitX, exitY, entryX, and entryY as semicolon-separated edge style tokens for connected edges, e.g. exitX=1;exitY=0.5;entryX=0;entryY=0.5;. Choose natural side ports based on flow direction; avoid corner ports where both coordinates are at extremes.
+                  - Prefer orthogonal edge routing: `edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;`. Use 2-3 mxGeometry waypoints for L-shaped, U-shaped, or obstacle-avoidance paths; waypoints should form clean orthogonal segments.
                   - Never let multiple edges share the same path. For parallel or bidirectional edges, use different exitY/entryY tracks or opposite sides.
                   - For diagonal or long cross-region edges, prefer perimeter/gutter routes with 20-30 px clearance instead of crossing through the diagram center.
-                  - Use 2-3 waypoints for L-shaped, U-shaped, or obstacle-avoidance paths. Waypoints should form clean orthogonal segments.
                   - If edge crossings in the main reading area exceed three, revise the layout before calling the tool.
 
                   Drawing requirements:
@@ -328,20 +336,12 @@ ai:
                   - For connected relationships, every edge source and target must refer to an mxCell id that exists in the same XML.
                   - Keep diagram scope practical: prefer 6-14 core nodes and 5-18 meaningful edges unless the user explicitly asks for more.
                   - For broad requests, abstract secondary details into groups or omit them according to the contentPlan instead of adding many small nodes.
-                  - Use deterministic grid layout. Start around x=100, y=100. Same row uses the same y; same column uses the same x.
-                  - Keep horizontal spacing >= 150 and vertical spacing >= 120. Avoid overlaps.
+                  - Use the Global Draw.io Layout Contract for every create_diagram, full_xml, append, and layout_optimize result. Avoid overlaps.
                   - Use low-saturation fills with darker strokes. Keep one semantic category mapped to one color role and normally use no more than 3-5 color roles.
                   - Build visible hierarchy: title or main boundary first, then containers or lanes, then primary nodes, then details.
-                  - For all architecture diagrams, apply architecture general blueprints before writing XML: selected subtype, scope boundary, abstraction level, region map or layers, main reading axis, semantic connector types, legend need, outer gutter routes, and omitted details.
-                  - For complex architecture diagrams, start from the closest adaptive layout preset when available. Preserve its layout grammar, slots, proportions, connector gutters, and legend placement. Do not copy templates exactly; adapt labels, optional nodes, extra concepts, and relationships through preset slots and expansion rules.
-                  - For architecture context diagrams, use one focal system with users/actors and external systems around it; do not show internal containers, databases, or deployment nodes.
-                  - For architecture container diagrams, use one software-system boundary with clients/access, services, queues, data stores, and external dependencies arranged by layer or domain.
-                  - For architecture component diagrams, zoom into one container/service and show components, responsibilities, ports/adapters, and dependencies without class-level fields or methods.
-                  - For architecture deployment diagrams, show environments, regions, networks, clusters, runtime instances, managed services, traffic paths, and management/telemetry paths without business method detail.
-                  - For architecture dynamic diagrams, show one numbered request/event/job/failure path across architecture elements and omit static dependencies not involved in that path.
-                  - For architecture integration_data diagrams, show source systems, APIs, event streams, data movement, ownership/trust boundaries, stores, and consumers without ER table fields or cardinality.
-                  - For architecture runtime diagrams, keep `diagramSubtype=runtime` under `drawio-architecture`; runtime stays inside architecture. Use a main runtime boundary, real runtime regions, nested child subsystems only where useful, a small legend when semantic colors/line styles need explanation, and outer connector gutters for cross-region edges.
-                  - For JVM runtime diagrams, use the JVM Runtime Adaptive Preset when the request has enough detail: class loading on the left, thread-private runtime data at center top, thread-shared heap/method area at center bottom, execution engine on the right, JNI/native libraries at the bottom, bytecode and OS/hardware outside the main boundary, memory/native/GC relationships routed through buses and gutters.
+                  - Apply the selected diagram skill for domain semantics, notation, subtype selection, abstraction level, and adaptive presets. The global prompt stays diagram-type neutral.
+
+                  Final self-check:
                   - Standalone text labels, captions, section hints, and edge annotations must be transparent text with no white fill and no visible border. Use `text;html=1;strokeColor=none;fillColor=none;labelBackgroundColor=none;labelBorderColor=none;whiteSpace=wrap;` for plain text. Use filled boxes only when the text is an intentional node, note, callout, legend, or semantic container.
                   - Edge labels must not use separate opaque text boxes. Prefer the edge value and include `labelBackgroundColor=none;labelBorderColor=none;` in edge styles so labels do not mask grid lines or connectors.
                   - Route edges orthogonally with stable side ports. Use `edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;` and add mxGeometry waypoints when a direct edge would cross through a node or central group.

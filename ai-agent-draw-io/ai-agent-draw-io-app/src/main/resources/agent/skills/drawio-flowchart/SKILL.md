@@ -13,6 +13,8 @@ metadata:
 ## 0. Companion Visual Design Skill
 Always use this skill together with `drawio-visual-design`.
 
+Shared visual/XML/layout contract: use `drawio-visual-design` for colors, typography, grouping, spacing rhythm, connector routing, ports, waypoints, transparent labels, XML snippets, and container parent rules. Do not repeat generic connector routing, spacing, transparent label, waypoint, or container-parent XML rules here.
+
 For flowcharts, use `flow_profile`: keep the main path visually dominant, push side branches away from the main axis, and avoid using decorative containers unless they represent real phases or swimlanes.
 
 ## 1. When To Use
@@ -93,23 +95,41 @@ Use a document shape for reports, receipts, forms, or generated documents.
 Style:
 `shape=document;whiteSpace=wrap;html=1;boundedLbl=1;fillColor=#f8cecc;strokeColor=#b85450;`
 
-## 5. Edge Rules
-- Default process edge: single-direction arrow.
-- Use orthogonal routing for readability:
-  `edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;`
+## 5. Flow Structure Rules
+
+### 5.1 Main Flow Rules
+- Main flow should usually move top-to-bottom; use left-to-right only for short pipelines.
+- Keep the main path on one clear axis from start to terminal outcome.
+- Process nodes should use action phrases, not static nouns or component names.
+- Merge branches only when the story actually rejoins.
+
+### 5.2 Branch Rules
 - Decision branches must have labels such as `Yes`, `No`, `Approved`, `Rejected`, `Success`, or `Failure`.
+- Branch labels belong on outgoing edges, not inside the decision node.
+- Keep branch destinations visually distinct from the main path while preserving reading order.
+
+### 5.3 Loop Rules
+- Loops should route back on the side and must have a clear condition.
+- Retry loops should return to the smallest meaningful earlier step, not to the global start unless that is the real behavior.
+- Avoid multiple nested loops in one small flowchart; summarize or split if necessary.
+
+### 5.4 Exception Path Rules
 - Exception branches should move to one side and either end or merge back into the main flow.
+- Failure, cancellation, timeout, or manual-rework paths should not obscure the normal path.
+- Use weaker visual emphasis for rare exception paths unless the user asks to highlight them.
 
-## 6. Layout Rules
-- Main flow should usually move top-to-bottom.
-- Keep the main path centered at a fixed x coordinate, for example x=300.
-- Increase y by 120-150 for each main step.
-- Put branch nodes at least 220px away from the main path.
+## 6. Edge Semantics
+- Default process edge: single-direction arrow.
+- Use the shared standard connector pattern for normal process flow.
+- Use labels to distinguish branch outcomes and loop conditions.
+
+## 7. Layout Rules
+- Keep the main path centered on a fixed visual axis.
+- Put branch nodes far enough from the main path that branch meaning is clear.
 - Keep nodes aligned by row and column.
-- Use orthogonal edges instead of diagonal lines through nodes.
-- Node width should usually be 140-180 and height 60-80.
+- Keep same-role nodes similarly sized unless labels require more room.
 
-## 7. Quality Checklist
+## 8. Quality Checklist
 - A complete flow should have a clear Start and End.
 - Each decision has at least two outgoing branches.
 - Decision branch labels are present and meaningful.

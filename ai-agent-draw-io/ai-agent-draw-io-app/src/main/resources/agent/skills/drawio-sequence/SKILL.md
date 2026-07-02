@@ -13,6 +13,8 @@ metadata:
 ## 0. Companion Visual Design Skill
 Always use this skill together with `drawio-visual-design`.
 
+Shared visual/XML/layout contract: use `drawio-visual-design` for colors, typography, grouping, spacing rhythm, connector routing, ports, waypoints, transparent labels, XML snippets, and container parent rules. Do not repeat generic connector routing, spacing, transparent label, waypoint, or container-parent XML rules here.
+
 For sequence diagrams, use `sequence_profile`: prioritize lifeline alignment and downward message order over rich coloring. Keep the style restrained so temporal order remains easy to scan.
 
 ## 1. When To Use
@@ -79,21 +81,15 @@ Use activation bars as child elements of lifelines when needed.
 
 ### 5.1 Synchronous Message
 Use solid filled arrows when the caller waits for a response.
-
-Style:
-`html=1;verticalAlign=bottom;endArrow=block;edgeStyle=elbowEdgeStyle;elbow=vertical;`
+Use the shared sequence message connector pattern and choose a solid filled arrow.
 
 ### 5.2 Asynchronous Message
 Use open arrows when the caller does not wait.
-
-Style:
-`html=1;verticalAlign=bottom;endArrow=open;endSize=8;edgeStyle=elbowEdgeStyle;elbow=vertical;`
+Use the shared sequence message connector pattern and choose an open arrow.
 
 ### 5.3 Return Message
 Use dashed open arrows.
-
-Style:
-`html=1;verticalAlign=bottom;endArrow=open;dashed=1;endSize=8;edgeStyle=elbowEdgeStyle;elbow=vertical;`
+Use the shared sequence message connector pattern and choose dashed open styling.
 
 ### 5.4 Self Call
 Use a looped edge when a participant calls itself for validation, retry, or internal state update.

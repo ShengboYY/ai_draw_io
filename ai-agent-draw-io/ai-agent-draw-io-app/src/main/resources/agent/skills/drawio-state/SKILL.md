@@ -13,6 +13,8 @@ metadata:
 ## 0. Companion Visual Design Skill
 Always use this skill together with `drawio-visual-design`.
 
+Shared visual/XML/layout contract: use `drawio-visual-design` for colors, typography, grouping, spacing rhythm, connector routing, ports, waypoints, transparent labels, XML snippets, and container parent rules. Do not repeat generic connector routing, spacing, transparent label, waypoint, or container-parent XML rules here.
+
 For state diagrams, use `lifecycle_profile`: make the happy-path lifecycle easy to follow, and place cancellation, failure, retry, or rollback states on separate side paths.
 
 ## 1. When To Use
@@ -79,9 +81,7 @@ Style:
 - Initial transition is normally unlabeled unless an initialization action is important.
 - Internal actions may be shown inside a state as `entry / action`, `exit / action`, or `event / action` when they clarify lifecycle behavior.
 - Composite states should contain nested states inside a clearly labeled container.
-
-Transition style:
-`endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;`
+- Use the shared standard connector pattern for transitions and choose arrow/line styling by state-machine meaning.
 
 ## 5. Layout Rules
 - Put the initial state on the left or top.
@@ -89,7 +89,7 @@ Transition style:
 - Main lifecycle should move left-to-right or top-to-bottom.
 - Put error, cancel, or failure states below the main path.
 - Put retry or rollback loops above or to the side.
-- Keep state node width 130-170 and height 60-80.
+- Keep same-level states similarly sized unless labels require more room.
 
 ## 6. Quality Checklist
 - Include an initial state.

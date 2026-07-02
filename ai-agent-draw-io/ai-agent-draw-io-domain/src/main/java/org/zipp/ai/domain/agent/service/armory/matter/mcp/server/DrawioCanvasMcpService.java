@@ -32,7 +32,7 @@ public class DrawioCanvasMcpService {
     @Resource
     private ICanvasStateStore canvasStateStore;
 
-    @Tool(name = DrawioCanvasToolNames.CREATE_DIAGRAM, description = "Create a new Draw.io diagram from mxCell XML fragments or a complete mxGraphModel. The backend wraps, validates, and streams the final canvas.")
+    @Tool(name = DrawioCanvasToolNames.CREATE_DIAGRAM, description = "Create a new Draw.io diagram from mxCell XML fragments or a complete mxGraphModel. Follow the Global Draw.io Layout Contract: plan layout zones before XML, keep nodes on a stable grid, use explicit exit/entry ports on connected edges, prefer orthogonal routing, add waypoints around obstacles, and avoid relying on later review repair for first-draft readability. The backend wraps, validates, and streams the final canvas.")
     public DrawioToolResponse createDiagram(DrawioXmlRequest request) {
         DrawioToolResponse response = repairedDrawioDone(request.getXml());
         logXmlToolResult(DrawioCanvasToolNames.CREATE_DIAGRAM, request.getReason(), request.getXml(), response.getType(), response.getContent());
@@ -54,7 +54,7 @@ public class DrawioCanvasMcpService {
         return drawioDone(request.getXml());
     }
 
-    @Tool(name = DrawioCanvasToolNames.MODIFY_DIAGRAM, description = "Modify the current Draw.io canvas. Use mode=patch for changed mxCell fragments, replace_cells for id-based replacements, or full_xml for a complete updated mxGraphModel.")
+    @Tool(name = DrawioCanvasToolNames.MODIFY_DIAGRAM, description = "Modify the current Draw.io canvas. Follow the Global Draw.io Layout Contract for any changed cells: preserve stable ids and unrelated geometry, keep node spacing readable, use explicit exit/entry ports for changed connected edges, prefer orthogonal routing, and add waypoints when edits would create crossings. Use mode=patch for changed mxCell fragments, append for additions, replace_cells for id-based replacements, or full_xml for a complete updated mxGraphModel.")
     public DrawioMutationResponse modifyDiagram(ModifyDiagramRequest request) {
         String mode = resolveModifyMode(request);
         DrawioMutationResponse response = new DrawioMutationResponse();
@@ -84,7 +84,7 @@ public class DrawioCanvasMcpService {
         return response;
     }
 
-    @Tool(name = DrawioCanvasToolNames.OPTIMIZE_DIAGRAM, description = "Optimize Draw.io layout, spacing, readability, or edge routing. Use mode=route_only for edge-only patches or layout_optimize for a complete optimized mxGraphModel.")
+    @Tool(name = DrawioCanvasToolNames.OPTIMIZE_DIAGRAM, description = "Optimize Draw.io layout, spacing, readability, or edge routing under the Global Draw.io Layout Contract. Use explicit exit/entry ports, orthogonal routing, distinct tracks for parallel edges, and waypoints/gutters around obstacles. Use mode=route_only for edge-only patches or layout_optimize for a complete optimized mxGraphModel.")
     public DrawioMutationResponse optimizeDiagram(OptimizeDiagramRequest request) {
         String sourceXml = resolveOptimizableXml(request);
         String content = xmlToolkit.routeEdges(sourceXml);

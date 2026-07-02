@@ -13,6 +13,8 @@ metadata:
 ## 0. Companion Visual Design Skill
 Always use this skill together with `drawio-visual-design`.
 
+Shared visual/XML/layout contract: use `drawio-visual-design` for colors, typography, grouping, spacing rhythm, connector routing, ports, waypoints, transparent labels, XML snippets, and container parent rules. Do not repeat generic connector routing, spacing, transparent label, waypoint, or container-parent XML rules here.
+
 For UML class diagrams, use `model_profile`: align class blocks on a stable grid, keep compartments readable, and use color only to distinguish meaningful categories such as interfaces, abstract classes, and core domain classes.
 
 ## 1. When To Use
@@ -80,39 +82,27 @@ Label example:
 
 ### 4.1 Association
 Use for references or normal relationships.
-
-Style:
-`endArrow=none;html=1;edgeStyle=orthogonalEdgeStyle;`
+Use the shared standard connector pattern with no arrow unless direction matters.
 
 ### 4.2 Generalization
 Use for inheritance. The arrow points to the parent class.
-
-Style:
-`endArrow=block;html=1;endFill=0;edgeStyle=orthogonalEdgeStyle;`
+Use a hollow triangle arrow pointing to the parent class.
 
 ### 4.3 Realization
 Use when a class implements an interface. The arrow points to the interface.
-
-Style:
-`endArrow=block;dashed=1;html=1;endFill=0;edgeStyle=orthogonalEdgeStyle;`
+Use a dashed line with a hollow triangle arrow pointing to the interface.
 
 ### 4.4 Aggregation
 Use when one object owns or groups another but the child can exist independently.
-
-Style:
-`endArrow=diamondThin;endFill=0;html=1;edgeStyle=orthogonalEdgeStyle;`
+Use a hollow diamond on the aggregate/whole side.
 
 ### 4.5 Composition
 Use when the child is strongly owned by the whole.
-
-Style:
-`endArrow=diamondThin;endFill=1;html=1;edgeStyle=orthogonalEdgeStyle;`
+Use a filled diamond on the whole/owner side.
 
 ### 4.6 Dependency
 Use when one class temporarily uses another.
-
-Style:
-`endArrow=open;dashed=1;html=1;endSize=8;edgeStyle=orthogonalEdgeStyle;`
+Use a dashed dependency arrow pointing to the supplier that is used.
 
 ## 5. Relationship Rules
 - "A owns many B" usually means composition from A to B.
@@ -132,8 +122,6 @@ Style:
 - Put orders, tasks, or transactions in the center.
 - Put details, items, payments, products, and logs on the right or below.
 - Put parent classes above child classes.
-- Keep horizontal spacing >= 220 and vertical spacing >= 160.
-- Use orthogonal edges to reduce crossings.
 - Node width should usually be 180-220; increase height based on fields and methods.
 
 ## 7. Quality Checklist
