@@ -24,4 +24,8 @@ public interface IModelCredentialMapper {
     int delete(@Param("userId") String userId,
                @Param("id") String id,
                @Param("deletedAt") Date deletedAt);
+
+    int deleteAllForUser(@Param("userId") String userId,
+                         @Param("anonymizedUserId") String anonymizedUserId,
+                         @Param("deletedAt") Date deletedAt);
 }

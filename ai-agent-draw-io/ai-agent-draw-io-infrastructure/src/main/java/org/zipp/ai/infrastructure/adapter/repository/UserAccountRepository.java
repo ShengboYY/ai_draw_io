@@ -71,6 +71,12 @@ public class UserAccountRepository implements IUserAccountStore {
         return userAccountMapper.disableAndIncrementSessionVersion(userId, toDate(updatedAt)) == 1;
     }
 
+    @Override
+    public boolean deleteAndRedact(String userId, String anonymizedUserId, String deletedEmail, Instant deletedAt) {
+        return userAccountMapper.deleteAndRedact(
+                userId, anonymizedUserId, deletedEmail, toDate(deletedAt)) == 1;
+    }
+
     private UserAccount toDomain(UserAccountPO po) {
         return UserAccount.builder()
                 .id(po.getId())

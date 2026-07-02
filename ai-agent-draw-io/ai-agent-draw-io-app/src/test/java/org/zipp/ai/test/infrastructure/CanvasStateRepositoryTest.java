@@ -428,5 +428,15 @@ public class CanvasStateRepositoryTest {
             this.copiedMessagesTargetDiagramId = targetDiagramId;
             return 2;
         }
+
+        @Override
+        public int redactCanvasStateForUser(String userId, String anonymizedUserId) {
+            return 1;
+        }
+
+        @Override
+        public int softDeleteAndAnonymizeUserDiagrams(String userId, String anonymizedUserId) {
+            return 1;
+        }
     }
 }

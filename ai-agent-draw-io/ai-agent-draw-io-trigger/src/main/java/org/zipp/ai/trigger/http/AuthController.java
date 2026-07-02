@@ -4,6 +4,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContext;
@@ -32,6 +33,7 @@ import org.zipp.ai.domain.account.model.valobj.LoginResult;
 import org.zipp.ai.domain.account.model.valobj.PasswordResetResult;
 import org.zipp.ai.domain.account.model.valobj.RegisterAccountCommand;
 import org.zipp.ai.domain.account.service.IAccountService;
+import org.zipp.ai.domain.account.service.IAccountDeletionService;
 import org.zipp.ai.domain.account.service.RateLimitExceededException;
 import org.zipp.ai.domain.account.service.UsageCounterRateLimiter;
 import org.zipp.ai.domain.account.service.UsageLimitRule;
@@ -67,6 +69,9 @@ public class AuthController {
 
     @Resource
     private IAccountService accountService;
+
+    @Resource
+    private IAccountDeletionService accountDeletionService;
 
     @Resource
     private SecurityContextRepository securityContextRepository;
@@ -216,6 +221,24 @@ public class AuthController {
         }
         SecurityContextHolder.clearContext();
         return Response.<Void>builder().code(SUCCESS).info("成功").build();
+    }
+
+    @DeleteMapping("/account")
+    public Response<Void> deleteCurrentAccount(HttpServletRequest servletRequest) {
+        Optional<UserAccount> currentUser = currentSessionUser(servletRequest);
+        if (currentUser.isEmpty()) {
+            return Response.<Void>builder().code(FAILURE).info("verified login required").build();
+        }
+        try {
+            if (accountDeletionService == null || accountDeletionService.deleteAccount(currentUser.get().getId()).isEmpty()) {
+                return Response.<Void>builder().code(FAILURE).info("account deletion failed").build();
+            }
+            logout(servletRequest);
+            return Response.<Void>builder().code(SUCCESS).info("成功").build();
+        } catch (Exception e) {
+            log.error("account deletion failed", e);
+            return Response.<Void>builder().code(FAILURE).info("account deletion failed").build();
+        }
     }
 
     public Response<LoginResponseDTO> me() {

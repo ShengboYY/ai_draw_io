@@ -9,4 +9,8 @@ public interface IAdminAuditLogStore {
     void insert(AdminAuditLog log);
 
     List<AdminAuditLog> listRecent(int limit);
+
+    default int redactDeletedUser(String userId, String redactedUserId) {
+        return 0;
+    }
 }

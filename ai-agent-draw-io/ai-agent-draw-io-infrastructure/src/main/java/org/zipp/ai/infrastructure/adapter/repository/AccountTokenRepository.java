@@ -45,6 +45,11 @@ public class AccountTokenRepository implements IAccountTokenStore {
         return accountTokenMapper.markUsed(tokenId, toDate(usedAt)) == 1;
     }
 
+    @Override
+    public int deleteByUserId(String userId) {
+        return accountTokenMapper.deleteByUserId(userId);
+    }
+
     private AccountToken toDomain(AccountTokenPO po) {
         return AccountToken.builder()
                 .id(po.getId())

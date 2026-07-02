@@ -47,4 +47,9 @@
             updated_at = CURRENT_TIMESTAMP
     </insert>
 
+    <delete id="deleteByUserId">
+        DELETE FROM diagram_conversation_message
+        WHERE user_id = #{userId}
+    </delete>
+
 </mapper>

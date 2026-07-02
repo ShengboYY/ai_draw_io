@@ -24,12 +24,14 @@ import org.zipp.ai.api.response.Response;
 import org.zipp.ai.domain.account.adapter.port.IEmailSender;
 import org.zipp.ai.domain.account.model.entity.AccountToken;
 import org.zipp.ai.domain.account.model.entity.UserAccount;
+import org.zipp.ai.domain.account.model.valobj.AccountDeletionResult;
 import org.zipp.ai.domain.account.model.valobj.AccountStatus;
 import org.zipp.ai.domain.account.model.valobj.LoginResult;
 import org.zipp.ai.domain.account.model.valobj.PasswordResetResult;
 import org.zipp.ai.domain.account.model.valobj.TokenPurpose;
 import org.zipp.ai.domain.account.service.DefaultAccountService;
 import org.zipp.ai.domain.account.service.IAccountService;
+import org.zipp.ai.domain.account.service.IAccountDeletionService;
 import org.zipp.ai.domain.account.service.IAccountTokenStore;
 import org.zipp.ai.domain.account.service.IPasswordHasher;
 import org.zipp.ai.domain.account.service.ISecureTokenFactory;
@@ -201,6 +203,32 @@ public class AuthControllerLoginTest {
             assertNull(SecurityContextHolder.getContext().getAuthentication());
         } catch (IllegalStateException expected) {
             // Servlet spec throws when reading attributes on an invalidated session.
+        }
+    }
+
+    @Test
+    public void deleteCurrentAccountDelegatesDeletionAndInvalidatesSession() throws Exception {
+        registerAndVerify("delete-me@example.com", "password123");
+        MockHttpServletRequest loginRequest = new MockHttpServletRequest();
+        MockHttpServletResponse loginResponse = new MockHttpServletResponse();
+        controller.login(loginRequest("delete-me@example.com", "password123"), loginRequest, loginResponse);
+        HttpSession session = loginRequest.getSession(false);
+        assertNotNull(session);
+        FakeAccountDeletionService deletionService = new FakeAccountDeletionService();
+        inject(controller, "accountDeletionService", deletionService);
+
+        Response<Void> deleted = controller.deleteCurrentAccount(loginRequest);
+
+        assertEquals("0000", deleted.getCode());
+        assertNotNull(deletionService.deletedUserId);
+        MockHttpServletRequest staleRequest = new MockHttpServletRequest();
+        staleRequest.setSession(session);
+        try {
+            contextRepository.loadContext(new HttpRequestResponseHolder(staleRequest, new MockHttpServletResponse()));
+            Response<LoginResponseDTO> me = controller.me(staleRequest);
+            assertEquals("ANONYMOUS", me.getData().getStatus());
+        } catch (IllegalStateException expected) {
+            // Invalidated sessions can throw when Spring attempts to read attributes.
         }
     }
 
@@ -489,5 +517,18 @@ public class AuthControllerLoginTest {
         }
         String lastToken() { return tokens.get(tokens.size() - 1); }
         String lastPasswordResetToken() { return passwordResetTokens.get(passwordResetTokens.size() - 1); }
+    }
+
+    private static final class FakeAccountDeletionService implements IAccountDeletionService {
+        private String deletedUserId;
+
+        @Override
+        public Optional<AccountDeletionResult> deleteAccount(String userId) {
+            deletedUserId = userId;
+            return Optional.of(AccountDeletionResult.builder()
+                    .anonymizedUserId("deleted_usr_test")
+                    .deletedAt(Instant.parse("2026-07-02T10:00:00Z"))
+                    .build());
+        }
     }
 }

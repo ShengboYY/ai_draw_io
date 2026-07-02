@@ -72,6 +72,16 @@ public class CanvasStateRepository implements ICanvasStateStore {
     }
 
     @Override
+    public int deleteUserData(String userId, String anonymizedUserId) {
+        if (isBlank(userId) || isBlank(anonymizedUserId)) {
+            return 0;
+        }
+        int canvasRows = canvasStateMapper.redactCanvasStateForUser(userId, anonymizedUserId);
+        int diagramRows = canvasStateMapper.softDeleteAndAnonymizeUserDiagrams(userId, anonymizedUserId);
+        return canvasRows + diagramRows;
+    }
+
+    @Override
     @Transactional
     public List<CanvasState> importAnonymousWorkspace(String anonymousOwnerId, String targetOwnerId) {
         String sourceOwnerId = normalizeAnonymousOwnerId(anonymousOwnerId);

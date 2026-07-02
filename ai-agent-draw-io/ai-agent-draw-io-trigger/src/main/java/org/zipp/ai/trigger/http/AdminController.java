@@ -5,10 +5,14 @@ import org.apache.commons.lang3.StringUtils;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.zipp.ai.api.dto.AdminAuditLogDTO;
+import org.zipp.ai.api.dto.AdminDebugTraceControlDTO;
+import org.zipp.ai.api.dto.AdminDebugTraceControlRequestDTO;
+import org.zipp.ai.api.dto.AdminDebugTraceRetentionRequestDTO;
 import org.zipp.ai.api.dto.AdminLlmCallDTO;
 import org.zipp.ai.api.dto.AdminRunDetailDTO;
 import org.zipp.ai.api.dto.AdminRunMetadataDTO;
@@ -22,6 +26,7 @@ import org.zipp.ai.domain.account.model.entity.UserAccount;
 import org.zipp.ai.domain.account.service.IAccountService;
 import org.zipp.ai.domain.admin.model.entity.AdminAuditLog;
 import org.zipp.ai.domain.admin.service.AdminAuditLogService;
+import org.zipp.ai.domain.agent.model.valobj.debugtrace.DebugTraceControl;
 import org.zipp.ai.domain.agent.model.valobj.usage.AdminUsageSummary;
 import org.zipp.ai.domain.agent.model.valobj.usage.AgentRunDetail;
 import org.zipp.ai.domain.agent.model.valobj.usage.AgentRunStepTelemetry;
@@ -29,6 +34,7 @@ import org.zipp.ai.domain.agent.model.valobj.usage.AgentRunTelemetry;
 import org.zipp.ai.domain.agent.model.valobj.usage.LlmCallTelemetry;
 import org.zipp.ai.domain.agent.model.valobj.usage.ToolCallTelemetry;
 import org.zipp.ai.domain.agent.model.valobj.usage.UsageDimensionSummary;
+import org.zipp.ai.domain.agent.service.debugtrace.AgentDebugTraceService;
 import org.zipp.ai.domain.agent.service.usage.AgentUsageTelemetryService;
 import org.zipp.ai.trigger.http.service.AdminAuthorizationService;
 import org.zipp.ai.types.enums.ResponseCode;
@@ -50,6 +56,9 @@ public class AdminController {
 
     @Resource
     private AdminAuditLogService adminAuditLogService;
+
+    @Resource
+    private AgentDebugTraceService agentDebugTraceService;
 
     @Resource
     private AdminAuthorizationService adminAuthorizationService;
@@ -125,6 +134,57 @@ public class AdminController {
         return success(adminAuditLogService.listRecent(limit).stream()
                 .map(this::toAuditLogDto)
                 .collect(Collectors.toList()));
+    }
+
+    @PostMapping("/debug-traces/controls")
+    public Response<AdminDebugTraceControlDTO> enableDebugTrace(@RequestBody AdminDebugTraceControlRequestDTO body,
+                                                               HttpServletRequest request) {
+        Optional<UserAccount> admin = requireAdmin(request);
+        if (admin.isEmpty()) {
+            return forbidden();
+        }
+        try {
+            DebugTraceControl control = agentDebugTraceService.enableControl(
+                    admin.get().getId(),
+                    body == null ? null : body.getUserId(),
+                    body == null ? null : body.getRunId(),
+                    body == null ? null : body.getStartsAt(),
+                    body == null ? null : body.getEndsAt());
+            audit(admin.get(), "ENABLE_DEBUG_TRACE", "DEBUG_TRACE_CONTROL", control.getId(), "SUCCESS", request);
+            return success(toDebugTraceControlDto(control));
+        } catch (IllegalArgumentException e) {
+            audit(admin.get(), "ENABLE_DEBUG_TRACE", "DEBUG_TRACE_CONTROL", null, "REJECTED", request);
+            return failure(e.getMessage());
+        }
+    }
+
+    @PostMapping("/debug-traces/runs/{runId}/retention")
+    public Response<Integer> extendDebugTraceRetention(@PathVariable("runId") String runId,
+                                                       @RequestBody AdminDebugTraceRetentionRequestDTO body,
+                                                       HttpServletRequest request) {
+        Optional<UserAccount> admin = requireAdmin(request);
+        if (admin.isEmpty()) {
+            return forbidden();
+        }
+        try {
+            int extended = agentDebugTraceService.extendRetentionForRun(
+                    admin.get().getId(), runId, body == null ? null : body.getExpiresAt(),
+                    clientIp(request), userAgent(request));
+            return success(extended);
+        } catch (IllegalArgumentException e) {
+            return failure(e.getMessage());
+        }
+    }
+
+    @PostMapping("/debug-traces/cleanup")
+    public Response<Integer> cleanupDebugTraceContent(HttpServletRequest request) {
+        Optional<UserAccount> admin = requireAdmin(request);
+        if (admin.isEmpty()) {
+            return forbidden();
+        }
+        int cleaned = agentDebugTraceService.cleanupExpiredContent();
+        audit(admin.get(), "CLEANUP_DEBUG_TRACE", "DEBUG_TRACE", null, "SUCCESS", request);
+        return success(cleaned);
     }
 
     private Optional<UserAccount> requireAdmin(HttpServletRequest request) {
@@ -325,6 +385,18 @@ public class AdminController {
         dto.setIpAddress(log.getIpAddress());
         dto.setUserAgent(log.getUserAgent());
         dto.setCreatedAt(log.getCreatedAt());
+        return dto;
+    }
+
+    private AdminDebugTraceControlDTO toDebugTraceControlDto(DebugTraceControl control) {
+        AdminDebugTraceControlDTO dto = new AdminDebugTraceControlDTO();
+        dto.setId(control.getId());
+        dto.setScopeUserId(control.getScopeUserId());
+        dto.setScopeRunId(control.getScopeRunId());
+        dto.setScopeStartsAt(control.getScopeStartsAt());
+        dto.setScopeEndsAt(control.getScopeEndsAt());
+        dto.setEnabled(control.isEnabled());
+        dto.setCreatedAt(control.getCreatedAt());
         return dto;
     }
 }

@@ -63,4 +63,19 @@
           AND deleted_at IS NULL
     </update>
 
+    <update id="deleteAndRedact">
+        UPDATE app_user
+        SET id = #{anonymizedUserId},
+            email = #{deletedEmail},
+            email_normalized = #{deletedEmail},
+            password_hash = '{deleted}',
+            status = 'DELETED',
+            session_version = session_version + 1,
+            updated_at = #{deletedAt},
+            deleted_at = #{deletedAt}
+        WHERE id = #{id}
+          AND status != 'DELETED'
+          AND deleted_at IS NULL
+    </update>
+
 </mapper>

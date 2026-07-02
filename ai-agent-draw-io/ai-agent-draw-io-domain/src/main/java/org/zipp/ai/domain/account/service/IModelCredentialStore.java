@@ -18,4 +18,8 @@ public interface IModelCredentialStore {
     boolean disable(String userId, String credentialId, Instant disabledAt);
 
     boolean delete(String userId, String credentialId, Instant deletedAt);
+
+    default int deleteAllForUser(String userId, String anonymizedUserId, Instant deletedAt) {
+        return 0;
+    }
 }

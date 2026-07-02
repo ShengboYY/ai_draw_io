@@ -217,4 +217,30 @@
         ORDER BY started_at ASC, id ASC
     </select>
 
+    <update id="anonymizeRuns">
+        UPDATE agent_run
+        SET user_id = #{anonymizedUserId},
+            model_credential_id = NULL
+        WHERE user_id = #{userId}
+    </update>
+
+    <update id="anonymizeSteps">
+        UPDATE agent_run_step
+        SET user_id = #{anonymizedUserId}
+        WHERE user_id = #{userId}
+    </update>
+
+    <update id="anonymizeLlmCalls">
+        UPDATE agent_llm_call
+        SET user_id = #{anonymizedUserId},
+            model_credential_id = NULL
+        WHERE user_id = #{userId}
+    </update>
+
+    <update id="anonymizeToolCalls">
+        UPDATE agent_tool_call
+        SET user_id = #{anonymizedUserId}
+        WHERE user_id = #{userId}
+    </update>
+
 </mapper>

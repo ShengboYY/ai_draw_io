@@ -8,6 +8,8 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.zipp.ai.api.dto.AdminDebugTraceControlDTO;
+import org.zipp.ai.api.dto.AdminDebugTraceControlRequestDTO;
 import org.zipp.ai.api.dto.AdminLlmCallDTO;
 import org.zipp.ai.api.dto.AdminRunDetailDTO;
 import org.zipp.ai.api.dto.AdminUsageDashboardDTO;
@@ -25,8 +27,12 @@ import org.zipp.ai.domain.account.service.IAccountService;
 import org.zipp.ai.domain.admin.model.entity.AdminAuditLog;
 import org.zipp.ai.domain.admin.service.AdminAuditLogService;
 import org.zipp.ai.domain.admin.service.IAdminAuditLogStore;
+import org.zipp.ai.domain.agent.model.valobj.debugtrace.DebugTraceCapture;
+import org.zipp.ai.domain.agent.model.valobj.debugtrace.DebugTraceControl;
 import org.zipp.ai.domain.agent.model.valobj.usage.AgentRunTelemetry;
 import org.zipp.ai.domain.agent.model.valobj.usage.LlmCallTelemetry;
+import org.zipp.ai.domain.agent.service.debugtrace.AgentDebugTraceService;
+import org.zipp.ai.domain.agent.service.debugtrace.IAgentDebugTraceStore;
 import org.zipp.ai.domain.agent.service.usage.AgentUsageTelemetryService;
 import org.zipp.ai.test.domain.agent.FakeAgentUsageTelemetryStore;
 import org.zipp.ai.trigger.http.AdminController;
@@ -52,6 +58,7 @@ public class AdminControllerTest {
     private FakeAccountService accounts;
     private FakeAgentUsageTelemetryStore telemetryStore;
     private FakeAdminAuditLogStore auditLogs;
+    private FakeDebugTraceStore debugTraceStore;
     private AdminController controller;
 
     @Before
@@ -59,6 +66,7 @@ public class AdminControllerTest {
         accounts = new FakeAccountService();
         telemetryStore = new FakeAgentUsageTelemetryStore();
         auditLogs = new FakeAdminAuditLogStore();
+        debugTraceStore = new FakeDebugTraceStore();
         AdminAuditLogService auditService = new AdminAuditLogService(
                 auditLogs, Clock.fixed(Instant.parse("2026-07-03T10:00:00Z"), ZoneOffset.UTC));
         AdminAuthorizationService authorizationService = new AdminAuthorizationService();
@@ -69,6 +77,8 @@ public class AdminControllerTest {
         inject(controller, "accountService", accounts);
         inject(controller, "agentUsageTelemetryService", new AgentUsageTelemetryService(telemetryStore));
         inject(controller, "adminAuditLogService", auditService);
+        inject(controller, "agentDebugTraceService", new AgentDebugTraceService(
+                debugTraceStore, auditService, Clock.fixed(Instant.parse("2026-07-03T10:00:00Z"), ZoneOffset.UTC)));
         inject(controller, "adminAuthorizationService", authorizationService);
 
         accounts.put(activeUser("usr_admin", "admin@example.com"));
@@ -116,6 +126,35 @@ public class AdminControllerTest {
         assertEquals(1, auditLogs.logs.size());
         assertEquals("DISABLE_USER", auditLogs.logs.get(0).getAction());
         assertEquals("usr_user", auditLogs.logs.get(0).getTargetId());
+    }
+
+    @Test
+    public void nonAdminCannotEnableDebugTrace() {
+        authenticate("usr_user", 0);
+        AdminDebugTraceControlRequestDTO dto = new AdminDebugTraceControlRequestDTO();
+        dto.setUserId("usr_user");
+
+        Response<AdminDebugTraceControlDTO> response = controller.enableDebugTrace(dto, request());
+
+        assertEquals("AUTH_FORBIDDEN", response.getCode());
+        assertTrue(debugTraceStore.controls.isEmpty());
+        assertTrue(auditLogs.logs.isEmpty());
+    }
+
+    @Test
+    public void adminCanEnableUserScopedDebugTraceAndWritesAuditLog() {
+        authenticate("usr_admin", 0);
+        AdminDebugTraceControlRequestDTO dto = new AdminDebugTraceControlRequestDTO();
+        dto.setUserId("usr_user");
+
+        Response<AdminDebugTraceControlDTO> response = controller.enableDebugTrace(dto, request());
+
+        assertEquals("0000", response.getCode());
+        assertEquals("usr_user", response.getData().getScopeUserId());
+        assertEquals(1, debugTraceStore.controls.size());
+        assertEquals(1, auditLogs.logs.size());
+        assertEquals("ENABLE_DEBUG_TRACE", auditLogs.logs.get(0).getAction());
+        assertEquals(response.getData().getId(), auditLogs.logs.get(0).getTargetId());
     }
 
     @Test
@@ -254,6 +293,34 @@ public class AdminControllerTest {
         @Override
         public List<AdminAuditLog> listRecent(int limit) {
             return logs.stream().limit(limit).toList();
+        }
+    }
+
+    private static final class FakeDebugTraceStore implements IAgentDebugTraceStore {
+        private final List<DebugTraceControl> controls = new ArrayList<>();
+
+        @Override
+        public void insertControl(DebugTraceControl control) {
+            controls.add(control);
+        }
+
+        @Override
+        public List<DebugTraceControl> listEnabledControls() {
+            return controls;
+        }
+
+        @Override
+        public void insertCapture(DebugTraceCapture capture) {
+        }
+
+        @Override
+        public int deleteExpiredContent(Instant now) {
+            return 0;
+        }
+
+        @Override
+        public int extendRunContentExpiry(String runId, Instant expiresAt) {
+            return 0;
         }
     }
 }

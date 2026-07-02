@@ -187,4 +187,24 @@
           AND d.deleted = 0
     </insert>
 
+    <update id="redactCanvasStateForUser">
+        UPDATE diagram_canvas_state
+        SET user_id = #{anonymizedUserId},
+            current_xml = '',
+            summary = NULL,
+            analysis_json = NULL,
+            updated_at = CURRENT_TIMESTAMP
+        WHERE user_id = #{userId}
+    </update>
+
+    <update id="softDeleteAndAnonymizeUserDiagrams">
+        UPDATE diagram
+        SET user_id = #{anonymizedUserId},
+            title = 'Deleted diagram',
+            thumbnail_url = NULL,
+            deleted = 1,
+            updated_at = CURRENT_TIMESTAMP
+        WHERE user_id = #{userId}
+    </update>
+
 </mapper>

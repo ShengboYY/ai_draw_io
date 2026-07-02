@@ -106,6 +106,10 @@ public class ModelCredentialRepositoryTest {
         assertTrue(mapperXml.contains("key_last_four"));
         assertTrue(mapperXml.contains("WHERE user_id = #{userId} AND id = #{id} AND deleted_at IS NULL"));
         assertTrue(mapperXml.contains("WHERE id = #{id} AND user_id = #{userId} AND deleted_at IS NULL"));
+        assertTrue(mapperXml.contains("encrypted_api_key = ''"));
+        assertTrue(mapperXml.contains("user_id = #{anonymizedUserId}"));
+        assertTrue(mapperXml.contains("deleted_at = COALESCE(deleted_at, #{deletedAt})"));
+        assertTrue(mapperXml.contains("updated_at = #{deletedAt} WHERE user_id = #{userId}"));
     }
 
     private void injectMapper(ModelCredentialRepository repository, IModelCredentialMapper mapper) throws Exception {
@@ -174,6 +178,12 @@ public class ModelCredentialRepositoryTest {
         public int delete(String userId, String id, Date deletedAt) {
             deletedUserId = userId;
             deletedId = id;
+            return 1;
+        }
+
+        @Override
+        public int deleteAllForUser(String userId, String anonymizedUserId, Date deletedAt) {
+            deletedUserId = userId;
             return 1;
         }
     }

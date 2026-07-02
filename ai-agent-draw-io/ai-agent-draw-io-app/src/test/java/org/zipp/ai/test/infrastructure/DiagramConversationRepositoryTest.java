@@ -122,5 +122,10 @@ public class DiagramConversationRepositoryTest {
 
             return List.of(first, second);
         }
+
+        @Override
+        public int deleteByUserId(String userId) {
+            return 1;
+        }
     }
 }

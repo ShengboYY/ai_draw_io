@@ -32,4 +32,8 @@ public interface IAgentUsageTelemetryStore {
     List<UsageDimensionSummary> summarizeByProviderModelCredentialSource();
 
     Optional<AgentRunDetail> findRunDetail(String runId);
+
+    default int anonymizeUser(String userId, String anonymizedUserId) {
+        return 0;
+    }
 }

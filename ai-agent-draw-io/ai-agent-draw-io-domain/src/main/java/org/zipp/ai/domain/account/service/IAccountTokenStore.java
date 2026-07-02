@@ -20,4 +20,8 @@ public interface IAccountTokenStore {
     /** Mark a token consumed. Returns true only if this call was the one that consumed it. */
     boolean markUsed(String tokenId, Instant usedAt);
 
+    default int deleteByUserId(String userId) {
+        return 0;
+    }
+
 }

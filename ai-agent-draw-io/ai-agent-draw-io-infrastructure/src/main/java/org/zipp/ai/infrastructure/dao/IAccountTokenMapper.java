@@ -18,4 +18,6 @@ public interface IAccountTokenMapper {
     int markUsed(@Param("id") String id,
                  @Param("usedAt") Date usedAt);
 
+    int deleteByUserId(@Param("userId") String userId);
+
 }

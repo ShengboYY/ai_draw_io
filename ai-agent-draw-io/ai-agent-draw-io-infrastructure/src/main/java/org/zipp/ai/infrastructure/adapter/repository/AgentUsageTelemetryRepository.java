@@ -131,6 +131,17 @@ public class AgentUsageTelemetryRepository implements IAgentUsageTelemetryStore 
                 .build());
     }
 
+    @Override
+    public int anonymizeUser(String userId, String anonymizedUserId) {
+        if (StringUtils.isBlank(userId) || StringUtils.isBlank(anonymizedUserId)) {
+            return 0;
+        }
+        return agentUsageTelemetryMapper.anonymizeRuns(userId, anonymizedUserId)
+                + agentUsageTelemetryMapper.anonymizeSteps(userId, anonymizedUserId)
+                + agentUsageTelemetryMapper.anonymizeLlmCalls(userId, anonymizedUserId)
+                + agentUsageTelemetryMapper.anonymizeToolCalls(userId, anonymizedUserId);
+    }
+
     private AgentRunTelemetryPO toPo(AgentRunTelemetry run) {
         AgentRunTelemetryPO po = new AgentRunTelemetryPO();
         po.setId(run.getId());

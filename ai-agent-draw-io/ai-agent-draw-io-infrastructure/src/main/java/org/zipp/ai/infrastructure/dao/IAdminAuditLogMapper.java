@@ -12,4 +12,7 @@ public interface IAdminAuditLogMapper {
     int insert(AdminAuditLogPO log);
 
     List<AdminAuditLogPO> listRecent(@Param("limit") int limit);
+
+    int redactDeletedUser(@Param("userId") String userId,
+                          @Param("redactedUserId") String redactedUserId);
 }

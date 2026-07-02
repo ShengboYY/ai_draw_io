@@ -29,4 +29,9 @@
         WHERE id = #{id} AND used_at IS NULL
     </update>
 
+    <delete id="deleteByUserId">
+        DELETE FROM account_token
+        WHERE user_id = #{userId}
+    </delete>
+
 </mapper>

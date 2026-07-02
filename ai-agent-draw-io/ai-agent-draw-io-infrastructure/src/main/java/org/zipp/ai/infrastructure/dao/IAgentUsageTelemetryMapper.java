@@ -43,4 +43,16 @@ public interface IAgentUsageTelemetryMapper {
     List<LlmCallTelemetryPO> selectLlmCallsByRunId(@Param("runId") String runId);
 
     List<ToolCallTelemetryPO> selectToolCallsByRunId(@Param("runId") String runId);
+
+    int anonymizeRuns(@Param("userId") String userId,
+                      @Param("anonymizedUserId") String anonymizedUserId);
+
+    int anonymizeSteps(@Param("userId") String userId,
+                       @Param("anonymizedUserId") String anonymizedUserId);
+
+    int anonymizeLlmCalls(@Param("userId") String userId,
+                          @Param("anonymizedUserId") String anonymizedUserId);
+
+    int anonymizeToolCalls(@Param("userId") String userId,
+                           @Param("anonymizedUserId") String anonymizedUserId);
 }

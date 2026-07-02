@@ -14,4 +14,8 @@ public interface IDiagramConversationStore {
     default void saveMessages(List<DiagramConversationMessage> messages) {
     }
 
+    default int deleteUserMessages(String userId) {
+        return 0;
+    }
+
 }

@@ -48,4 +48,10 @@ public interface ICanvasStateMapper {
                                            @Param("targetUserId") String targetUserId,
                                            @Param("targetDiagramId") String targetDiagramId);
 
+    int redactCanvasStateForUser(@Param("userId") String userId,
+                                 @Param("anonymizedUserId") String anonymizedUserId);
+
+    int softDeleteAndAnonymizeUserDiagrams(@Param("userId") String userId,
+                                           @Param("anonymizedUserId") String anonymizedUserId);
+
 }

@@ -30,4 +30,12 @@ public interface IUserAccountStore {
     /** Disable an account and bump session_version so existing sessions become stale. */
     boolean disableAndIncrementSessionVersion(String userId, Instant updatedAt);
 
+    /**
+     * Soft-delete and redact profile data while replacing the stable identifier with an irreversible
+     * deletion id. Existing sessions become stale through the session_version bump.
+     */
+    default boolean deleteAndRedact(String userId, String anonymizedUserId, String deletedEmail, Instant deletedAt) {
+        return false;
+    }
+
 }

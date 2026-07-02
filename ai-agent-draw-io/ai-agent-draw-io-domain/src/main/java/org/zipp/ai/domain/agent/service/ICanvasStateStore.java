@@ -26,6 +26,10 @@ public interface ICanvasStateStore {
         return Collections.emptyList();
     }
 
+    default int deleteUserData(String userId, String anonymizedUserId) {
+        return 0;
+    }
+
     CanvasState save(CanvasState state);
 
 }

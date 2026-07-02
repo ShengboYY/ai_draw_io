@@ -28,4 +28,9 @@ public interface IUserAccountMapper {
     int disableAndIncrementSessionVersion(@Param("id") String id,
                                           @Param("updatedAt") Date updatedAt);
 
+    int deleteAndRedact(@Param("id") String id,
+                        @Param("anonymizedUserId") String anonymizedUserId,
+                        @Param("deletedEmail") String deletedEmail,
+                        @Param("deletedAt") Date deletedAt);
+
 }

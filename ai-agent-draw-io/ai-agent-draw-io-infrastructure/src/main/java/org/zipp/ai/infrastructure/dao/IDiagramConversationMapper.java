@@ -14,4 +14,6 @@ public interface IDiagramConversationMapper {
 
     int upsertMessage(DiagramConversationMessagePO message);
 
+    int deleteByUserId(@Param("userId") String userId);
+
 }

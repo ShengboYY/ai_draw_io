@@ -32,4 +32,18 @@
         LIMIT #{limit}
     </select>
 
+    <update id="redactDeletedUser">
+        UPDATE admin_audit_log
+        SET actor_user_id = CASE
+                WHEN actor_user_id = #{userId} THEN #{redactedUserId}
+                ELSE actor_user_id
+            END,
+            target_id = CASE
+                WHEN target_type = 'USER' AND target_id = #{userId} THEN #{redactedUserId}
+                ELSE target_id
+            END
+        WHERE actor_user_id = #{userId}
+           OR (target_type = 'USER' AND target_id = #{userId})
+    </update>
+
 </mapper>

@@ -30,6 +30,11 @@ public class AdminAuditLogRepository implements IAdminAuditLogStore {
                 .collect(Collectors.toList());
     }
 
+    @Override
+    public int redactDeletedUser(String userId, String redactedUserId) {
+        return adminAuditLogMapper.redactDeletedUser(userId, redactedUserId);
+    }
+
     private AdminAuditLogPO toPo(AdminAuditLog log) {
         AdminAuditLogPO po = new AdminAuditLogPO();
         po.setId(log.getId());

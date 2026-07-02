@@ -19,6 +19,7 @@ import org.zipp.ai.domain.agent.service.IChatService;
 import org.zipp.ai.domain.agent.service.IIntentRoutingService;
 import org.zipp.ai.domain.agent.service.armory.matter.mcp.server.DrawioCanvasToolNames;
 import org.zipp.ai.domain.agent.service.chat.CustomApiConfigManager;
+import org.zipp.ai.domain.agent.service.debugtrace.AgentDebugTraceService;
 import org.zipp.ai.domain.agent.service.usage.AgentUsageTelemetryContext;
 import org.zipp.ai.domain.agent.service.usage.AgentUsageTelemetryService;
 import org.zipp.ai.types.enums.ResponseCode;
@@ -79,6 +80,9 @@ public class AgentConversationService {
     @Resource
     private AgentUsageTelemetryService agentUsageTelemetryService;
 
+    @Resource
+    private AgentDebugTraceService agentDebugTraceService;
+
     public ChatResponseDTO chat(ChatRequestDTO requestDTO) {
         AgentUsageTelemetryService.RunScope runScope = telemetryService().startRun(
                 requestDTO.getUserId(), requestDTO.getAgentId(), requestDTO.getSessionId(), "chat",
@@ -88,6 +92,7 @@ public class AgentConversationService {
         Throwable runError = null;
         String sessionId = null;
         try {
+            captureDebugTrace(runScope, "CHAT_REQUEST", requestDTO.getMessage());
             CustomApiConfigManager.CustomApiConfig config = buildCustomApiConfig(requestDTO);
             runScope = telemetryService().withProviderModel(runScope, config.getProvider(), config.getModel());
             configuredScope = AgentUsageTelemetryContext.bind(runScope.getContext());
@@ -105,6 +110,7 @@ public class AgentConversationService {
                 responseDTO.setType("user");
                 responseDTO.setContent(telemetryService().recordStep(
                         "direct_answer", () -> resolveDirectAnswer(currentRequest, config, routingResult)));
+                captureDebugTrace(runScope, "CHAT_RESPONSE", responseDTO.getContent());
                 return responseDTO;
             }
 
@@ -113,12 +119,15 @@ public class AgentConversationService {
                     : null;
             int maxReviewIterations = effectiveMaxReviewIterations(currentRequest, routingResult);
             String routedMessage = buildRoutedMessage(currentRequest, routingResult, reviewContext, maxReviewIterations, currentRequest.getUserId(), currentRequest.getSkills());
+            captureDebugTrace(runScope, "ROUTED_MESSAGE", routedMessage);
             final String finalSessionId = sessionId;
-            return telemetryService().recordStep("drawing", () -> {
+            ChatResponseDTO response = telemetryService().recordStep("drawing", () -> {
                 List<String> messages = chatService.handleMessage(
                         currentRequest.getAgentId(), currentRequest.getUserId(), finalSessionId, routedMessage);
                 return parseChatResponse(messages);
             });
+            captureDebugTrace(runScope, "CHAT_RESPONSE", response.getContent());
+            return response;
         } catch (Exception e) {
             runError = e;
             if (e instanceof RuntimeException runtimeException) {
@@ -146,6 +155,7 @@ public class AgentConversationService {
         AtomicBoolean streamTelemetryCompleted = new AtomicBoolean(false);
         String sessionId = null;
         try {
+            captureDebugTrace(runScope, "CHAT_REQUEST", requestDTO.getMessage());
             CustomApiConfigManager.CustomApiConfig config = buildCustomApiConfig(requestDTO);
             runScope = telemetryService().withProviderModel(runScope, config.getProvider(), config.getModel());
             configuredScope = AgentUsageTelemetryContext.bind(runScope.getContext());
@@ -185,6 +195,7 @@ public class AgentConversationService {
                     ? telemetryService().recordStep("review", () -> buildReviewContextIfNeeded(currentRequest, config, routingResult))
                     : null;
             final String routedMessage = buildRoutedMessage(currentRequest, routingResult, reviewContext, maxReviewIterations, currentRequest.getUserId(), currentRequest.getSkills());
+            captureDebugTrace(runScope, "ROUTED_MESSAGE", routedMessage);
             // The current canvas travels in the request; keep it so patch_cells can merge a delta
             // without the model re-emitting the whole diagram.
             final String currentCanvasXml = contextBuilder().resolveCanvasXml(currentRequest);
@@ -472,6 +483,20 @@ public class AgentConversationService {
 
     private AgentUsageTelemetryService telemetryService() {
         return agentUsageTelemetryService == null ? new AgentUsageTelemetryService(null) : agentUsageTelemetryService;
+    }
+
+    private void captureDebugTrace(AgentUsageTelemetryService.RunScope runScope, String eventType, String content) {
+        if (agentDebugTraceService == null || runScope == null || runScope.getContext() == null) {
+            return;
+        }
+        try {
+            agentDebugTraceService.capture(
+                    runScope.getContext().userId(), runScope.getContext().runId(), eventType, content);
+        } catch (Exception e) {
+            // Debug capture must never alter the user-visible chat path.
+            log.warn("Debug trace capture failed. userId:{} runId:{}",
+                    SecretLogSanitizer.maskCapability(runScope.getContext().userId()), runScope.getContext().runId(), e);
+        }
     }
 
     private String credentialSource(ChatRequestDTO requestDTO) {

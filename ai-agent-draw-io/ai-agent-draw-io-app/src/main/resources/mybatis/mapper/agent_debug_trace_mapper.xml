@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.zipp.ai.infrastructure.dao.IAgentDebugTraceMapper">
+
+    <resultMap id="debugTraceControlMap" type="org.zipp.ai.infrastructure.dao.po.DebugTraceControlPO">
+        <id column="id" property="id"/>
+        <result column="created_by_user_id" property="createdByUserId"/>
+        <result column="scope_user_id" property="scopeUserId"/>
+        <result column="scope_run_id" property="scopeRunId"/>
+        <result column="scope_starts_at" property="scopeStartsAt"/>
+        <result column="scope_ends_at" property="scopeEndsAt"/>
+        <result column="enabled" property="enabled"/>
+        <result column="created_at" property="createdAt"/>
+        <result column="disabled_at" property="disabledAt"/>
+    </resultMap>
+
+    <insert id="insertControl" parameterType="org.zipp.ai.infrastructure.dao.po.DebugTraceControlPO">
+        INSERT INTO agent_debug_trace_control (
+            id, created_by_user_id, scope_user_id, scope_run_id, scope_starts_at, scope_ends_at,
+            enabled, created_at, disabled_at
+        )
+        VALUES (
+            #{id}, #{createdByUserId}, #{scopeUserId}, #{scopeRunId}, #{scopeStartsAt}, #{scopeEndsAt},
+            #{enabled}, #{createdAt}, #{disabledAt}
+        )
+    </insert>
+
+    <select id="listEnabledControls" resultMap="debugTraceControlMap">
+        SELECT
+            id, created_by_user_id, scope_user_id, scope_run_id, scope_starts_at, scope_ends_at,
+            enabled, created_at, disabled_at
+        FROM agent_debug_trace_control
+        WHERE enabled = 1
+          AND disabled_at IS NULL
+        ORDER BY created_at DESC, id DESC
+        LIMIT 200
+    </select>
+
+    <insert id="insertCapture" parameterType="org.zipp.ai.infrastructure.dao.po.DebugTraceCapturePO">
+        INSERT INTO agent_debug_trace_capture (
+            id, control_id, user_id, run_id, event_type, content, content_sha256,
+            content_expires_at, content_deleted_at, created_at
+        )
+        VALUES (
+            #{id}, #{controlId}, #{userId}, #{runId}, #{eventType}, #{content}, #{contentSha256},
+            #{contentExpiresAt}, #{contentDeletedAt}, #{createdAt}
+        )
+    </insert>
+
+    <update id="deleteExpiredContent">
+        UPDATE agent_debug_trace_capture
+        SET content = NULL,
+            content_deleted_at = #{now}
+        WHERE content IS NOT NULL
+          AND content_expires_at &lt;= #{now}
+    </update>
+
+    <update id="extendRunContentExpiry">
+        UPDATE agent_debug_trace_capture
+        SET content_expires_at = #{expiresAt}
+        WHERE run_id = #{runId}
+          AND content IS NOT NULL
+    </update>
+
+    <update id="deleteContentForUser">
+        UPDATE agent_debug_trace_capture
+        SET user_id = #{anonymizedUserId},
+            content = NULL,
+            content_deleted_at = CASE
+                WHEN content IS NOT NULL THEN #{deletedAt}
+                ELSE content_deleted_at
+            END
+        WHERE user_id = #{userId}
+    </update>
+
+    <update id="redactControlsForUser">
+        UPDATE agent_debug_trace_control
+        SET scope_user_id = #{anonymizedUserId},
+            enabled = 0,
+            disabled_at = COALESCE(disabled_at, #{deletedAt})
+        WHERE scope_user_id = #{userId}
+    </update>
+
+</mapper>

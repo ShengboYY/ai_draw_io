@@ -41,6 +41,14 @@ public class DiagramConversationRepository implements IDiagramConversationStore 
                 .forEach(diagramConversationMapper::upsertMessage);
     }
 
+    @Override
+    public int deleteUserMessages(String userId) {
+        if (isBlank(userId)) {
+            return 0;
+        }
+        return diagramConversationMapper.deleteByUserId(userId);
+    }
+
     private boolean isValid(DiagramConversationMessage message) {
         return message != null
                 && !isBlank(message.getUserId())

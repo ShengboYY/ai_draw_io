@@ -38,4 +38,5 @@ mybatis:
     - classpath:/mybatis/mapper/model_credential_mapper.xml
     - classpath:/mybatis/mapper/agent_usage_telemetry_mapper.xml
     - classpath:/mybatis/mapper/admin_audit_log_mapper.xml
+    - classpath:/mybatis/mapper/agent_debug_trace_mapper.xml
   config-location: classpath:/mybatis/config/mybatis-config.xml

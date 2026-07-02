@@ -61,6 +61,14 @@ public class ModelCredentialRepository implements IModelCredentialStore {
         return modelCredentialMapper.delete(userId, credentialId, toDate(deletedAt)) > 0;
     }
 
+    @Override
+    public int deleteAllForUser(String userId, String anonymizedUserId, Instant deletedAt) {
+        if (isBlank(userId) || isBlank(anonymizedUserId)) {
+            return 0;
+        }
+        return modelCredentialMapper.deleteAllForUser(userId, anonymizedUserId, toDate(deletedAt));
+    }
+
     private ModelCredential toDomain(ModelCredentialPO po) {
         return ModelCredential.builder()
                 .id(po.getId())
