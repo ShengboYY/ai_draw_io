@@ -21,4 +21,7 @@ public interface IUserAccountStore {
     /** Transition a pending user to ACTIVE and stamp verified_at. */
     void markVerified(String userId, Instant verifiedAt);
 
+    /** Replace the password hash and bump session_version so existing sessions become stale. */
+    boolean updatePasswordHashAndIncrementSessionVersion(String userId, String passwordHash, Instant updatedAt);
+
 }

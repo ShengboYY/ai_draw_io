@@ -158,6 +158,9 @@ export default function Login() {
                   >
                     {phase === 'submitting' ? 'Signing in…' : 'Sign in'}
                   </button>
+                  <Link href="/reset-password" className="text-xs text-[rgba(255,255,255,0.72)] underline">
+                    Forgot password?
+                  </Link>
                 </div>
               </form>
             ) : (

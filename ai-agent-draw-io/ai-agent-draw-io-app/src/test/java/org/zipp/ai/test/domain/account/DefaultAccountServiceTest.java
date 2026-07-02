@@ -9,6 +9,7 @@ import org.zipp.ai.domain.account.model.valobj.AccountStatus;
 import org.zipp.ai.domain.account.model.valobj.EmailVerificationResult;
 import org.zipp.ai.domain.account.model.valobj.LoginAccountCommand;
 import org.zipp.ai.domain.account.model.valobj.LoginResult;
+import org.zipp.ai.domain.account.model.valobj.PasswordResetResult;
 import org.zipp.ai.domain.account.model.valobj.RegisterAccountCommand;
 import org.zipp.ai.domain.account.model.valobj.RegistrationResult;
 import org.zipp.ai.domain.account.model.valobj.TokenPurpose;
@@ -39,6 +40,7 @@ import static org.junit.Assert.assertTrue;
 public class DefaultAccountServiceTest {
 
     private static final String BASE_URL = "http://localhost:3000/verify-email";
+    private static final String RESET_BASE_URL = "http://localhost:3000/reset-password/confirm";
 
     private FakeUserAccountStore users;
     private FakeAccountTokenStore tokens;
@@ -55,7 +57,7 @@ public class DefaultAccountServiceTest {
         emailSender = new FakeEmailSender();
         clock = new MutableClock(Instant.parse("2026-07-02T10:00:00Z"));
         service = new DefaultAccountService(users, tokens, passwordHasher,
-                new PrefixTokenHasher(), new SequentialTokenFactory(), emailSender, BASE_URL, clock);
+                new PrefixTokenHasher(), new SequentialTokenFactory(), emailSender, BASE_URL, RESET_BASE_URL, clock);
     }
 
     @Test
@@ -213,6 +215,81 @@ public class DefaultAccountServiceTest {
     }
 
     @Test
+    public void requestPasswordResetUsesGenericResponseAndOnlyEmailsActiveUsers() {
+        registerAndVerify("maya@example.com", "old-password");
+
+        service.requestPasswordReset("maya@example.com");
+        service.requestPasswordReset("unknown@example.com");
+
+        assertEquals(1, emailSender.passwordResetEmails.size());
+        assertEquals("maya@example.com", emailSender.passwordResetEmails.get(0).email);
+    }
+
+    @Test
+    public void passwordResetTokenIsStoredHashedWithThirtyMinuteExpiry() {
+        registerAndVerify("nora@example.com", "old-password");
+
+        service.requestPasswordReset("nora@example.com");
+
+        AccountToken token = tokens.last();
+        String rawToken = emailSender.lastPasswordResetToken();
+        assertEquals(TokenPurpose.PASSWORD_RESET, token.getPurpose());
+        // Only the hash is stored, never the raw reset token.
+        assertFalse(rawToken.equals(token.getTokenHash()));
+        assertEquals(new PrefixTokenHasher().hash(rawToken), token.getTokenHash());
+        assertEquals(clock.instant().plus(Duration.ofMinutes(30)), token.getExpiresAt());
+        assertNull(token.getUsedAt());
+    }
+
+    @Test
+    public void resetPasswordUpdatesHashConsumesTokenAndIncrementsSessionVersion() {
+        registerAndVerify("opal@example.com", "old-password");
+        UserAccount before = users.findByEmailNormalized("opal@example.com").orElseThrow();
+        int previousSessionVersion = before.getSessionVersion();
+        service.requestPasswordReset("opal@example.com");
+        String rawToken = emailSender.lastPasswordResetToken();
+
+        PasswordResetResult result = service.resetPassword(rawToken, "new-password");
+
+        assertEquals(PasswordResetResult.SUCCESS, result);
+        UserAccount after = users.findById(before.getId()).orElseThrow();
+        assertTrue(passwordHasher.matches("new-password", after.getPasswordHash()));
+        assertFalse(passwordHasher.matches("old-password", after.getPasswordHash()));
+        assertEquals(previousSessionVersion + 1, after.getSessionVersion());
+        assertNotNull(tokens.last().getUsedAt());
+    }
+
+    @Test
+    public void resetPasswordRejectsExpiredToken() {
+        registerAndVerify("quinn@example.com", "old-password");
+        service.requestPasswordReset("quinn@example.com");
+        String rawToken = emailSender.lastPasswordResetToken();
+
+        clock.advance(Duration.ofMinutes(31));
+        PasswordResetResult result = service.resetPassword(rawToken, "new-password");
+
+        assertEquals(PasswordResetResult.EXPIRED, result);
+        assertTrue(passwordHasher.matches("old-password",
+                users.findByEmailNormalized("quinn@example.com").orElseThrow().getPasswordHash()));
+    }
+
+    @Test
+    public void resetPasswordRejectsReusedToken() {
+        registerAndVerify("rhea@example.com", "old-password");
+        service.requestPasswordReset("rhea@example.com");
+        String rawToken = emailSender.lastPasswordResetToken();
+
+        assertEquals(PasswordResetResult.SUCCESS, service.resetPassword(rawToken, "new-password"));
+        assertEquals(PasswordResetResult.ALREADY_USED, service.resetPassword(rawToken, "another-password"));
+    }
+
+    @Test
+    public void resetPasswordRejectsUnknownToken() {
+        assertEquals(PasswordResetResult.INVALID, service.resetPassword("does-not-exist", "new-password"));
+        assertEquals(PasswordResetResult.INVALID, service.resetPassword("", "new-password"));
+    }
+
+    @Test
     public void findByIdReturnsExistingUser() {
         RegistrationResult reg = service.register(RegisterAccountCommand.builder()
                 .email("lola@example.com").rawPassword("password123").build());
@@ -255,6 +332,18 @@ public class DefaultAccountServiceTest {
             }
         }
 
+        @Override
+        public boolean updatePasswordHashAndIncrementSessionVersion(String userId, String passwordHash, Instant updatedAt) {
+            UserAccount user = byId.get(userId);
+            if (user == null) {
+                return false;
+            }
+            user.setPasswordHash(passwordHash);
+            user.setSessionVersion(user.getSessionVersion() + 1);
+            user.setUpdatedAt(updatedAt);
+            return true;
+        }
+
         int count() {
             return byId.size();
         }
@@ -293,6 +382,10 @@ public class DefaultAccountServiceTest {
             assertEquals(1, all.size());
             return all.get(0);
         }
+
+        AccountToken last() {
+            return all.get(all.size() - 1);
+        }
     }
 
     private static final class FakePasswordHasher implements IPasswordHasher {
@@ -326,6 +419,7 @@ public class DefaultAccountServiceTest {
 
     private static final class FakeEmailSender implements IEmailSender {
         private final List<SentEmail> verificationEmails = new ArrayList<>();
+        private final List<SentEmail> passwordResetEmails = new ArrayList<>();
 
         @Override
         public void sendVerificationEmail(String email, String verificationUrl) {
@@ -334,10 +428,17 @@ public class DefaultAccountServiceTest {
 
         @Override
         public void sendPasswordResetEmail(String email, String resetUrl) {
+            passwordResetEmails.add(new SentEmail(email, resetUrl));
         }
 
         String lastToken() {
             String url = verificationEmails.get(verificationEmails.size() - 1).url;
+            int idx = url.indexOf("token=");
+            return url.substring(idx + "token=".length());
+        }
+
+        String lastPasswordResetToken() {
+            String url = passwordResetEmails.get(passwordResetEmails.size() - 1).url;
             int idx = url.indexOf("token=");
             return url.substring(idx + "token=".length());
         }

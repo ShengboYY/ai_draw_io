@@ -51,6 +51,12 @@ public class UserAccountRepository implements IUserAccountStore {
         userAccountMapper.markVerified(userId, toDate(verifiedAt));
     }
 
+    @Override
+    public boolean updatePasswordHashAndIncrementSessionVersion(String userId, String passwordHash, Instant updatedAt) {
+        return userAccountMapper.updatePasswordHashAndIncrementSessionVersion(
+                userId, passwordHash, toDate(updatedAt)) == 1;
+    }
+
     private UserAccount toDomain(UserAccountPO po) {
         return UserAccount.builder()
                 .id(po.getId())

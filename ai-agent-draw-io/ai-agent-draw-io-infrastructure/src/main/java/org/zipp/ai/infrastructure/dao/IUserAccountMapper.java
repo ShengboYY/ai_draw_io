@@ -18,4 +18,8 @@ public interface IUserAccountMapper {
     int markVerified(@Param("id") String id,
                      @Param("verifiedAt") Date verifiedAt);
 
+    int updatePasswordHashAndIncrementSessionVersion(@Param("id") String id,
+                                                     @Param("passwordHash") String passwordHash,
+                                                     @Param("updatedAt") Date updatedAt);
+
 }

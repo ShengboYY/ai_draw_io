@@ -4,6 +4,7 @@ import org.zipp.ai.domain.account.model.entity.UserAccount;
 import org.zipp.ai.domain.account.model.valobj.EmailVerificationResult;
 import org.zipp.ai.domain.account.model.valobj.LoginAccountCommand;
 import org.zipp.ai.domain.account.model.valobj.LoginResult;
+import org.zipp.ai.domain.account.model.valobj.PasswordResetResult;
 import org.zipp.ai.domain.account.model.valobj.RegisterAccountCommand;
 import org.zipp.ai.domain.account.model.valobj.RegistrationResult;
 
@@ -25,6 +26,12 @@ public interface IAccountService {
 
     /** Re-issue a verification email for a pending account. Always safe/generic for unknown emails. */
     void resendVerification(String email);
+
+    /** Request a password-reset email. Always returns generically so email existence is not leaked. */
+    void requestPasswordReset(String email);
+
+    /** Consume a password-reset token and replace the password hash on success. */
+    PasswordResetResult resetPassword(String rawToken, String rawPassword);
 
     /**
      * Authenticate an email/password pair. Verified-and-active users get {@link LoginResult.Outcome#SUCCESS};

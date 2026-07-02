@@ -13,6 +13,9 @@ import {
     UpdateDiagramTitleRequestDTO,
     LoginRequestDTO,
     LoginResponseDTO,
+    PasswordResetConfirmRequestDTO,
+    PasswordResetConfirmResponseDTO,
+    PasswordResetRequestDTO,
     RegisterAccountRequestDTO,
     RegisterAccountResponseDTO,
     ResendVerificationRequestDTO,
@@ -187,6 +190,27 @@ export const agentApi = {
             body: JSON.stringify(payload),
         });
         return handleResponse<null>(response);
+    },
+
+    requestPasswordReset: async (payload: PasswordResetRequestDTO): Promise<Response<null>> => {
+        const response = await fetch(`${API_CONFIG.BASE_URL}/auth/password-reset/request`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+        });
+        return handleResponse<null>(response);
+    },
+
+    confirmPasswordReset: async (
+        payload: PasswordResetConfirmRequestDTO,
+    ): Promise<Response<PasswordResetConfirmResponseDTO>> => {
+        const response = await fetch(`${API_CONFIG.BASE_URL}/auth/password-reset/confirm`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+            credentials: 'include',
+        });
+        return handleResponse<PasswordResetConfirmResponseDTO>(response);
     },
 
     /**

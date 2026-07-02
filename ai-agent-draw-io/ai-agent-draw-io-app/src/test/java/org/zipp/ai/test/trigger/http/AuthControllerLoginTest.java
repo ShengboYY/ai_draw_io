@@ -14,6 +14,9 @@ import org.springframework.security.web.context.HttpSessionSecurityContextReposi
 import org.springframework.security.web.context.SecurityContextRepository;
 import org.zipp.ai.api.dto.LoginRequestDTO;
 import org.zipp.ai.api.dto.LoginResponseDTO;
+import org.zipp.ai.api.dto.PasswordResetConfirmRequestDTO;
+import org.zipp.ai.api.dto.PasswordResetConfirmResponseDTO;
+import org.zipp.ai.api.dto.PasswordResetRequestDTO;
 import org.zipp.ai.api.dto.RegisterAccountRequestDTO;
 import org.zipp.ai.api.response.Response;
 import org.zipp.ai.domain.account.adapter.port.IEmailSender;
@@ -21,6 +24,7 @@ import org.zipp.ai.domain.account.model.entity.AccountToken;
 import org.zipp.ai.domain.account.model.entity.UserAccount;
 import org.zipp.ai.domain.account.model.valobj.AccountStatus;
 import org.zipp.ai.domain.account.model.valobj.LoginResult;
+import org.zipp.ai.domain.account.model.valobj.PasswordResetResult;
 import org.zipp.ai.domain.account.model.valobj.TokenPurpose;
 import org.zipp.ai.domain.account.service.DefaultAccountService;
 import org.zipp.ai.domain.account.service.IAccountService;
@@ -188,6 +192,59 @@ public class AuthControllerLoginTest {
         assertNull(me.getData().getUserId());
     }
 
+    @Test
+    public void passwordResetRequestUsesGenericResponseForKnownAndUnknownEmails() {
+        registerAndVerify("fran@example.com", "password123");
+        PasswordResetRequestDTO known = new PasswordResetRequestDTO();
+        known.setEmail("fran@example.com");
+        PasswordResetRequestDTO unknown = new PasswordResetRequestDTO();
+        unknown.setEmail("unknown@example.com");
+
+        Response<Void> knownResponse = controller.requestPasswordReset(known);
+        Response<Void> unknownResponse = controller.requestPasswordReset(unknown);
+
+        assertEquals("0000", knownResponse.getCode());
+        assertEquals("0000", unknownResponse.getCode());
+        assertEquals(1, emailSender.passwordResetTokens.size());
+    }
+
+    @Test
+    public void resetPasswordConfirmReturnsStatusAndInvalidatesExistingSession() {
+        registerAndVerify("gail@example.com", "password123");
+        MockHttpServletRequest loginRequest = new MockHttpServletRequest();
+        MockHttpServletResponse loginResponse = new MockHttpServletResponse();
+        controller.login(loginRequest("gail@example.com", "password123"), loginRequest, loginResponse);
+        HttpSession oldSession = loginRequest.getSession(false);
+        assertNotNull(oldSession);
+        PasswordResetRequestDTO resetRequest = new PasswordResetRequestDTO();
+        resetRequest.setEmail("gail@example.com");
+        controller.requestPasswordReset(resetRequest);
+        PasswordResetConfirmRequestDTO confirm = new PasswordResetConfirmRequestDTO();
+        confirm.setToken(emailSender.lastPasswordResetToken());
+        confirm.setPassword("new-password");
+
+        Response<PasswordResetConfirmResponseDTO> reset = controller.confirmPasswordReset(confirm);
+
+        assertEquals("0000", reset.getCode());
+        assertEquals(PasswordResetResult.SUCCESS.name(), reset.getData().getStatus());
+        MockHttpServletRequest staleRequest = new MockHttpServletRequest();
+        staleRequest.setSession(oldSession);
+        SecurityContext staleContext = contextRepository.loadContext(
+                new HttpRequestResponseHolder(staleRequest, new MockHttpServletResponse()));
+        SecurityContextHolder.setContext(staleContext);
+        Response<LoginResponseDTO> me = controller.me(staleRequest);
+
+        assertEquals("ANONYMOUS", me.getData().getStatus());
+        try {
+            oldSession.getId();
+            oldSession.getAttributeNames();
+        } catch (IllegalStateException expected) {
+            return;
+        }
+        assertNull("stale session should not retain an authenticated principal",
+                SecurityContextHolder.getContext().getAuthentication());
+    }
+
     private LoginRequestDTO loginRequest(String email, String password) {
         LoginRequestDTO dto = new LoginRequestDTO();
         dto.setEmail(email);
@@ -231,6 +288,14 @@ public class AuthControllerLoginTest {
                 user.setUpdatedAt(verifiedAt);
             }
         }
+        @Override public boolean updatePasswordHashAndIncrementSessionVersion(String userId, String passwordHash, java.time.Instant updatedAt) {
+            UserAccount user = byId.get(userId);
+            if (user == null) return false;
+            user.setPasswordHash(passwordHash);
+            user.setSessionVersion(user.getSessionVersion() + 1);
+            user.setUpdatedAt(updatedAt);
+            return true;
+        }
     }
 
     private static final class FakeAccountTokenStore implements IAccountTokenStore {
@@ -267,11 +332,16 @@ public class AuthControllerLoginTest {
 
     private static final class FakeEmailSender implements IEmailSender {
         private final List<String> tokens = new ArrayList<>();
+        private final List<String> passwordResetTokens = new ArrayList<>();
         @Override public void sendVerificationEmail(String email, String verificationUrl) {
             int idx = verificationUrl.indexOf("token=");
             tokens.add(verificationUrl.substring(idx + "token=".length()));
         }
-        @Override public void sendPasswordResetEmail(String email, String resetUrl) {}
+        @Override public void sendPasswordResetEmail(String email, String resetUrl) {
+            int idx = resetUrl.indexOf("token=");
+            passwordResetTokens.add(resetUrl.substring(idx + "token=".length()));
+        }
         String lastToken() { return tokens.get(tokens.size() - 1); }
+        String lastPasswordResetToken() { return passwordResetTokens.get(passwordResetTokens.size() - 1); }
     }
 }

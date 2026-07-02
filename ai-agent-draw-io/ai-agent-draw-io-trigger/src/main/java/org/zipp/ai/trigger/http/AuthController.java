@@ -17,6 +17,9 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.zipp.ai.api.dto.LoginRequestDTO;
 import org.zipp.ai.api.dto.LoginResponseDTO;
+import org.zipp.ai.api.dto.PasswordResetConfirmRequestDTO;
+import org.zipp.ai.api.dto.PasswordResetConfirmResponseDTO;
+import org.zipp.ai.api.dto.PasswordResetRequestDTO;
 import org.zipp.ai.api.dto.RegisterAccountRequestDTO;
 import org.zipp.ai.api.dto.RegisterAccountResponseDTO;
 import org.zipp.ai.api.dto.ResendVerificationRequestDTO;
@@ -26,11 +29,15 @@ import org.zipp.ai.domain.account.model.entity.UserAccount;
 import org.zipp.ai.domain.account.model.valobj.EmailVerificationResult;
 import org.zipp.ai.domain.account.model.valobj.LoginAccountCommand;
 import org.zipp.ai.domain.account.model.valobj.LoginResult;
+import org.zipp.ai.domain.account.model.valobj.PasswordResetResult;
 import org.zipp.ai.domain.account.model.valobj.RegisterAccountCommand;
 import org.zipp.ai.domain.account.service.IAccountService;
+import org.zipp.ai.trigger.http.service.AuthenticatedSessionUser;
+import org.zipp.ai.trigger.http.service.AuthenticatedUserPrincipal;
 
 import javax.annotation.Resource;
 import java.util.List;
+import java.util.Optional;
 
 /**
  * Registration, email verification, and password login/logout endpoints. Login writes a real Spring
@@ -102,6 +109,38 @@ public class AuthController {
         }
     }
 
+    @PostMapping("/password-reset/request")
+    public Response<Void> requestPasswordReset(@RequestBody PasswordResetRequestDTO request) {
+        try {
+            accountService.requestPasswordReset(request == null ? null : request.getEmail());
+        } catch (Exception e) {
+            log.error("password-reset request failed", e);
+        }
+        // Generic success for every input so the endpoint is not an email-enumeration oracle.
+        return Response.<Void>builder().code(SUCCESS).info("成功").build();
+    }
+
+    @PostMapping("/password-reset/confirm")
+    public Response<PasswordResetConfirmResponseDTO> confirmPasswordReset(
+            @RequestBody PasswordResetConfirmRequestDTO request) {
+        try {
+            PasswordResetResult result = accountService.resetPassword(
+                    request == null ? null : request.getToken(),
+                    request == null ? null : request.getPassword());
+            return Response.<PasswordResetConfirmResponseDTO>builder()
+                    .code(SUCCESS).info("成功")
+                    .data(PasswordResetConfirmResponseDTO.builder().status(result.name()).build())
+                    .build();
+        } catch (IllegalArgumentException e) {
+            return Response.<PasswordResetConfirmResponseDTO>builder()
+                    .code(FAILURE).info(e.getMessage()).build();
+        } catch (Exception e) {
+            log.error("password-reset confirm failed", e);
+            return Response.<PasswordResetConfirmResponseDTO>builder()
+                    .code(FAILURE).info("password reset failed").build();
+        }
+    }
+
     @PostMapping("/login")
     public Response<LoginResponseDTO> login(@RequestBody LoginRequestDTO request,
                                             HttpServletRequest servletRequest,
@@ -137,37 +176,61 @@ public class AuthController {
         return Response.<Void>builder().code(SUCCESS).info("成功").build();
     }
 
-    @GetMapping("/me")
     public Response<LoginResponseDTO> me() {
-        String userId = org.zipp.ai.trigger.http.service.AuthenticatedUserPrincipal.currentUserId();
-        if (userId == null) {
+        return me(null);
+    }
+
+    @GetMapping("/me")
+    public Response<LoginResponseDTO> me(HttpServletRequest servletRequest) {
+        Optional<UserAccount> currentUser = currentSessionUser(servletRequest);
+        if (currentUser.isEmpty()) {
             return Response.<LoginResponseDTO>builder()
                     .code(SUCCESS).info("成功")
                     .data(LoginResponseDTO.builder().status("ANONYMOUS").build())
                     .build();
         }
-        return accountService.findById(userId)
-                .map(user -> Response.<LoginResponseDTO>builder()
-                        .code(SUCCESS).info("成功")
-                        .data(LoginResponseDTO.builder()
-                                .status(LoginResult.Outcome.SUCCESS.name())
-                                .userId(user.getId())
-                                .email(user.getEmail())
-                                .accountStatus(user.getStatus().name())
-                                .build())
+        UserAccount user = currentUser.get();
+        return Response.<LoginResponseDTO>builder()
+                .code(SUCCESS).info("成功")
+                .data(LoginResponseDTO.builder()
+                        .status(LoginResult.Outcome.SUCCESS.name())
+                        .userId(user.getId())
+                        .email(user.getEmail())
+                        .accountStatus(user.getStatus().name())
                         .build())
-                .orElseGet(() -> Response.<LoginResponseDTO>builder()
-                        .code(SUCCESS).info("成功")
-                        .data(LoginResponseDTO.builder().status("ANONYMOUS").build())
-                        .build());
+                .build();
     }
 
     private void establishSession(UserAccount user, HttpServletRequest request, HttpServletResponse response) {
         UsernamePasswordAuthenticationToken authentication =
-                new UsernamePasswordAuthenticationToken(user.getId(), null, List.of(ROLE_USER));
+                new UsernamePasswordAuthenticationToken(
+                        new AuthenticatedSessionUser(user.getId(), user.getSessionVersion()), null, List.of(ROLE_USER));
         SecurityContext context = SecurityContextHolder.createEmptyContext();
         context.setAuthentication(authentication);
         SecurityContextHolder.setContext(context);
         securityContextRepository.saveContext(context, request, response);
+    }
+
+    private Optional<UserAccount> currentSessionUser(HttpServletRequest servletRequest) {
+        String userId = AuthenticatedUserPrincipal.currentUserId();
+        Integer sessionVersion = AuthenticatedUserPrincipal.currentSessionVersion();
+        if (userId == null) {
+            return Optional.empty();
+        }
+        Optional<UserAccount> user = accountService.findById(userId);
+        if (user.isPresent() && user.get().isActive()
+                && sessionVersion != null && sessionVersion == user.get().getSessionVersion()) {
+            return user;
+        }
+        clearStaleSession(servletRequest);
+        return Optional.empty();
+    }
+
+    private void clearStaleSession(HttpServletRequest servletRequest) {
+        HttpSession session = servletRequest == null ? null : servletRequest.getSession(false);
+        if (session != null) {
+            session.invalidate();
+        }
+        SecurityContextHolder.clearContext();
     }
 }

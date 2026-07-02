@@ -11,6 +11,7 @@ import org.zipp.ai.domain.account.model.valobj.EmailNormalizer;
 import org.zipp.ai.domain.account.model.valobj.EmailVerificationResult;
 import org.zipp.ai.domain.account.model.valobj.LoginAccountCommand;
 import org.zipp.ai.domain.account.model.valobj.LoginResult;
+import org.zipp.ai.domain.account.model.valobj.PasswordResetResult;
 import org.zipp.ai.domain.account.model.valobj.RegisterAccountCommand;
 import org.zipp.ai.domain.account.model.valobj.RegistrationResult;
 import org.zipp.ai.domain.account.model.valobj.TokenPurpose;
@@ -45,6 +46,7 @@ public class DefaultAccountService implements IAccountService {
     private final ISecureTokenFactory tokenFactory;
     private final IEmailSender emailSender;
     private final String verificationBaseUrl;
+    private final String passwordResetBaseUrl;
     private final Clock clock;
 
     @Autowired
@@ -55,9 +57,23 @@ public class DefaultAccountService implements IAccountService {
                                  ISecureTokenFactory tokenFactory,
                                  IEmailSender emailSender,
                                  @Value("${account.verification.base-url:http://localhost:3000/verify-email}")
-                                 String verificationBaseUrl) {
+                                 String verificationBaseUrl,
+                                 @Value("${account.password-reset.base-url:http://localhost:3000/reset-password/confirm}")
+                                 String passwordResetBaseUrl) {
         this(userAccountStore, accountTokenStore, passwordHasher, tokenHasher, tokenFactory, emailSender,
-                verificationBaseUrl, Clock.systemUTC());
+                verificationBaseUrl, passwordResetBaseUrl, Clock.systemUTC());
+    }
+
+    public DefaultAccountService(IUserAccountStore userAccountStore,
+                                 IAccountTokenStore accountTokenStore,
+                                 IPasswordHasher passwordHasher,
+                                 ITokenHasher tokenHasher,
+                                 ISecureTokenFactory tokenFactory,
+                                 IEmailSender emailSender,
+                                 String verificationBaseUrl,
+                                 Clock clock) {
+        this(userAccountStore, accountTokenStore, passwordHasher, tokenHasher, tokenFactory, emailSender,
+                verificationBaseUrl, "http://localhost:3000/reset-password/confirm", clock);
     }
 
     /** Test seam: inject a fixed {@link Clock} to exercise token expiry deterministically. */
@@ -68,6 +84,7 @@ public class DefaultAccountService implements IAccountService {
                                  ISecureTokenFactory tokenFactory,
                                  IEmailSender emailSender,
                                  String verificationBaseUrl,
+                                 String passwordResetBaseUrl,
                                  Clock clock) {
         this.userAccountStore = userAccountStore;
         this.accountTokenStore = accountTokenStore;
@@ -76,6 +93,7 @@ public class DefaultAccountService implements IAccountService {
         this.tokenFactory = tokenFactory;
         this.emailSender = emailSender;
         this.verificationBaseUrl = verificationBaseUrl;
+        this.passwordResetBaseUrl = passwordResetBaseUrl;
         this.clock = clock;
     }
 
@@ -198,6 +216,51 @@ public class DefaultAccountService implements IAccountService {
                 .ifPresent(user -> issueVerificationToken(user.getId(), email.trim()));
     }
 
+    @Override
+    public void requestPasswordReset(String email) {
+        String normalized = EmailNormalizer.normalize(email);
+        if (normalized == null) {
+            return; // Generic no-op for invalid/unknown emails.
+        }
+        userAccountStore.findByEmailNormalized(normalized)
+                .filter(UserAccount::isActive)
+                .ifPresent(user -> issuePasswordResetToken(user.getId(), user.getEmail()));
+    }
+
+    @Override
+    public PasswordResetResult resetPassword(String rawToken, String rawPassword) {
+        if (rawPassword == null || rawPassword.length() < MIN_PASSWORD_LENGTH) {
+            throw new IllegalArgumentException("Password must be at least " + MIN_PASSWORD_LENGTH + " characters.");
+        }
+        if (rawToken == null || rawToken.isBlank()) {
+            return PasswordResetResult.INVALID;
+        }
+        Optional<AccountToken> match = accountTokenStore
+                .findByHashAndPurpose(tokenHasher.hash(rawToken), TokenPurpose.PASSWORD_RESET);
+        if (match.isEmpty()) {
+            return PasswordResetResult.INVALID;
+        }
+        AccountToken token = match.get();
+        if (token.isUsed()) {
+            return PasswordResetResult.ALREADY_USED;
+        }
+        Instant now = clock.instant();
+        if (token.isExpiredAt(now)) {
+            return PasswordResetResult.EXPIRED;
+        }
+        Optional<UserAccount> user = userAccountStore.findById(token.getUserId());
+        if (user.isEmpty() || !user.get().isActive()) {
+            return PasswordResetResult.INVALID;
+        }
+        // Consume before changing the password so concurrent clicks keep the token one-time-use.
+        if (!accountTokenStore.markUsed(token.getId(), now)) {
+            return PasswordResetResult.ALREADY_USED;
+        }
+        boolean updated = userAccountStore.updatePasswordHashAndIncrementSessionVersion(
+                token.getUserId(), passwordHasher.hash(rawPassword), now);
+        return updated ? PasswordResetResult.SUCCESS : PasswordResetResult.INVALID;
+    }
+
     private void issueVerificationToken(String userId, String email) {
         Instant now = clock.instant();
         String rawToken = tokenFactory.newToken();
@@ -213,8 +276,28 @@ public class DefaultAccountService implements IAccountService {
         emailSender.sendVerificationEmail(email, buildVerificationUrl(rawToken));
     }
 
+    private void issuePasswordResetToken(String userId, String email) {
+        Instant now = clock.instant();
+        String rawToken = tokenFactory.newToken();
+        AccountToken token = AccountToken.builder()
+                .id("atk_" + UUID.randomUUID())
+                .userId(userId)
+                .purpose(TokenPurpose.PASSWORD_RESET)
+                .tokenHash(tokenHasher.hash(rawToken))
+                .expiresAt(now.plus(VERIFICATION_TTL))
+                .createdAt(now)
+                .build();
+        accountTokenStore.insert(token);
+        emailSender.sendPasswordResetEmail(email, buildPasswordResetUrl(rawToken));
+    }
+
     private String buildVerificationUrl(String rawToken) {
         String separator = verificationBaseUrl.contains("?") ? "&" : "?";
         return verificationBaseUrl + separator + "token=" + rawToken;
+    }
+
+    private String buildPasswordResetUrl(String rawToken) {
+        String separator = passwordResetBaseUrl.contains("?") ? "&" : "?";
+        return passwordResetBaseUrl + separator + "token=" + rawToken;
     }
 }

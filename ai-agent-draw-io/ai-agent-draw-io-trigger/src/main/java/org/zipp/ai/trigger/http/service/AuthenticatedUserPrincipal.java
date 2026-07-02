@@ -15,6 +15,26 @@ public final class AuthenticatedUserPrincipal {
 
     /** @return session user id, or {@code null} when the caller is anonymous. */
     public static String currentUserId() {
+        Object principal = currentPrincipal();
+        if (principal instanceof AuthenticatedSessionUser sessionUser) {
+            return blankToNull(sessionUser.getUserId());
+        }
+        if (principal == null) {
+            return null;
+        }
+        String value = principal.toString();
+        return value.isBlank() || "anonymousUser".equals(value) ? null : value;
+    }
+
+    /** @return session_version captured at login, or {@code null} for legacy string principals. */
+    public static Integer currentSessionVersion() {
+        Object principal = currentPrincipal();
+        return principal instanceof AuthenticatedSessionUser sessionUser
+                ? sessionUser.getSessionVersion()
+                : null;
+    }
+
+    private static Object currentPrincipal() {
         SecurityContext context = SecurityContextHolder.getContext();
         if (context == null) {
             return null;
@@ -27,7 +47,10 @@ public final class AuthenticatedUserPrincipal {
         if (principal == null) {
             return null;
         }
-        String value = principal.toString();
-        return value.isBlank() || "anonymousUser".equals(value) ? null : value;
+        return principal;
+    }
+
+    private static String blankToNull(String value) {
+        return value == null || value.isBlank() || "anonymousUser".equals(value) ? null : value;
     }
 }

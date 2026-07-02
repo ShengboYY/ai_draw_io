@@ -38,4 +38,12 @@
         WHERE id = #{id} AND status = 'PENDING_VERIFICATION'
     </update>
 
+    <update id="updatePasswordHashAndIncrementSessionVersion">
+        UPDATE app_user
+        SET password_hash = #{passwordHash},
+            session_version = session_version + 1,
+            updated_at = #{updatedAt}
+        WHERE id = #{id} AND status = 'ACTIVE' AND deleted_at IS NULL
+    </update>
+
 </mapper>

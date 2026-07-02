@@ -140,3 +140,18 @@ export type EmailVerificationStatus = 'SUCCESS' | 'EXPIRED' | 'ALREADY_USED' | '
 export interface VerifyEmailResponseDTO {
   status: EmailVerificationStatus;
 }
+
+export interface PasswordResetRequestDTO {
+  email: string;
+}
+
+export interface PasswordResetConfirmRequestDTO {
+  token: string;
+  password: string;
+}
+
+export type PasswordResetStatus = 'SUCCESS' | 'EXPIRED' | 'ALREADY_USED' | 'INVALID';
+
+export interface PasswordResetConfirmResponseDTO {
+  status: PasswordResetStatus;
+}
