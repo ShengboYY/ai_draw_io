@@ -19,6 +19,8 @@ import org.zipp.ai.domain.agent.service.IChatService;
 import org.zipp.ai.domain.agent.service.IIntentRoutingService;
 import org.zipp.ai.domain.agent.service.armory.matter.mcp.server.DrawioCanvasToolNames;
 import org.zipp.ai.domain.agent.service.chat.CustomApiConfigManager;
+import org.zipp.ai.domain.agent.service.usage.AgentUsageTelemetryContext;
+import org.zipp.ai.domain.agent.service.usage.AgentUsageTelemetryService;
 import org.zipp.ai.types.enums.ResponseCode;
 import org.zipp.ai.types.exception.AppException;
 import org.zipp.ai.types.util.SecretLogSanitizer;
@@ -74,50 +76,99 @@ public class AgentConversationService {
     @Resource
     private VerifiedUserPlatformQuotaService verifiedUserPlatformQuotaService = new VerifiedUserPlatformQuotaService();
 
-    public ChatResponseDTO chat(ChatRequestDTO requestDTO) {
-        CustomApiConfigManager.CustomApiConfig config = buildCustomApiConfig(requestDTO);
-        consumeAnonymousDemoQuota(requestDTO, config);
-        consumeVerifiedUserPlatformQuota(requestDTO, config);
-        String sessionId = ensureSession(requestDTO);
+    @Resource
+    private AgentUsageTelemetryService agentUsageTelemetryService;
 
+    public ChatResponseDTO chat(ChatRequestDTO requestDTO) {
+        AgentUsageTelemetryService.RunScope runScope = telemetryService().startRun(
+                requestDTO.getUserId(), requestDTO.getAgentId(), requestDTO.getSessionId(), "chat",
+                credentialSource(requestDTO), requestDTO.getModelCredentialId(), "openai", "unknown");
+        AgentUsageTelemetryContext.Scope initialScope = AgentUsageTelemetryContext.bind(runScope.getContext());
+        AgentUsageTelemetryContext.Scope configuredScope = null;
+        Throwable runError = null;
+        String sessionId = null;
         try {
+            CustomApiConfigManager.CustomApiConfig config = buildCustomApiConfig(requestDTO);
+            runScope = telemetryService().withProviderModel(runScope, config.getProvider(), config.getModel());
+            configuredScope = AgentUsageTelemetryContext.bind(runScope.getContext());
+            consumeAnonymousDemoQuota(requestDTO, config);
+            consumeVerifiedUserPlatformQuota(requestDTO, config);
+            sessionId = ensureSession(requestDTO);
+            telemetryService().bindSession(sessionId, runScope);
             CustomApiConfigManager.setConfig(sessionId, config);
             requestDTO = requestWithStoredCanvas(requestDTO);
-            IntentRoutingResult routingResult = routeIntent(requestDTO, config);
+            final ChatRequestDTO currentRequest = requestDTO;
+            IntentRoutingResult routingResult = telemetryService().recordStep(
+                    "routing", () -> routeIntent(currentRequest, config));
             if (routingResult.isDirectReply()) {
                 ChatResponseDTO responseDTO = new ChatResponseDTO();
                 responseDTO.setType("user");
-                responseDTO.setContent(resolveDirectAnswer(requestDTO, config, routingResult));
+                responseDTO.setContent(telemetryService().recordStep(
+                        "direct_answer", () -> resolveDirectAnswer(currentRequest, config, routingResult)));
                 return responseDTO;
             }
 
-            CanvasReviewContext reviewContext = buildReviewContextIfNeeded(requestDTO, config, routingResult);
-            int maxReviewIterations = effectiveMaxReviewIterations(requestDTO, routingResult);
-            String routedMessage = buildRoutedMessage(requestDTO, routingResult, reviewContext, maxReviewIterations, requestDTO.getUserId(), requestDTO.getSkills());
-            List<String> messages = chatService.handleMessage(requestDTO.getAgentId(), requestDTO.getUserId(), sessionId, routedMessage);
-            return parseChatResponse(messages);
+            CanvasReviewContext reviewContext = routingResult.needsCanvasReview()
+                    ? telemetryService().recordStep("review", () -> buildReviewContextIfNeeded(currentRequest, config, routingResult))
+                    : null;
+            int maxReviewIterations = effectiveMaxReviewIterations(currentRequest, routingResult);
+            String routedMessage = buildRoutedMessage(currentRequest, routingResult, reviewContext, maxReviewIterations, currentRequest.getUserId(), currentRequest.getSkills());
+            final String finalSessionId = sessionId;
+            return telemetryService().recordStep("drawing", () -> {
+                List<String> messages = chatService.handleMessage(
+                        currentRequest.getAgentId(), currentRequest.getUserId(), finalSessionId, routedMessage);
+                return parseChatResponse(messages);
+            });
+        } catch (Exception e) {
+            runError = e;
+            if (e instanceof RuntimeException runtimeException) {
+                throw runtimeException;
+            }
+            throw new RuntimeException(e);
         } finally {
+            telemetryService().completeRun(runScope, runError);
             CustomApiConfigManager.clearConfig(sessionId);
+            AgentUsageTelemetryContext.clearSession(sessionId);
+            if (configuredScope != null) {
+                configuredScope.close();
+            }
+            initialScope.close();
         }
     }
 
     public void stream(ChatRequestDTO requestDTO, ResponseBodyEmitter emitter) {
+        AgentUsageTelemetryService.RunScope runScope = telemetryService().startRun(
+                requestDTO.getUserId(), requestDTO.getAgentId(), requestDTO.getSessionId(), "chat_stream",
+                credentialSource(requestDTO), requestDTO.getModelCredentialId(), "openai", "unknown");
+        AgentUsageTelemetryContext.Scope initialScope = AgentUsageTelemetryContext.bind(runScope.getContext());
+        AgentUsageTelemetryContext.Scope configuredScope = null;
+        AgentUsageTelemetryService.StepScope drawingStep = null;
+        AtomicBoolean streamTelemetryCompleted = new AtomicBoolean(false);
         String sessionId = null;
         try {
             CustomApiConfigManager.CustomApiConfig config = buildCustomApiConfig(requestDTO);
+            runScope = telemetryService().withProviderModel(runScope, config.getProvider(), config.getModel());
+            configuredScope = AgentUsageTelemetryContext.bind(runScope.getContext());
             consumeAnonymousDemoQuota(requestDTO, config);
             consumeVerifiedUserPlatformQuota(requestDTO, config);
             sessionId = ensureSession(requestDTO);
             final String finalSessionId = sessionId;
+            telemetryService().bindSession(finalSessionId, runScope);
             CustomApiConfigManager.setConfig(finalSessionId, config);
 
             requestDTO = requestWithStoredCanvas(requestDTO);
-            IntentRoutingResult routingResult = routeIntent(requestDTO, config);
+            final ChatRequestDTO currentRequest = requestDTO;
+            IntentRoutingResult routingResult = telemetryService().recordStep(
+                    "routing", () -> routeIntent(currentRequest, config));
             if (routingResult.isDirectReply()) {
                 try {
-                    streamResponseWriter.sendDirectReply(emitter, resolveDirectAnswer(requestDTO, config, routingResult));
+                    String answer = telemetryService().recordStep(
+                            "direct_answer", () -> resolveDirectAnswer(currentRequest, config, routingResult));
+                    streamResponseWriter.sendDirectReply(emitter, answer);
+                    completeStreamTelemetry(streamTelemetryCompleted, null, runScope, null);
                 } finally {
                     clearSessionConfig(finalSessionId);
+                    AgentUsageTelemetryContext.clearSession(finalSessionId);
                 }
                 return;
             }
@@ -129,15 +180,22 @@ public class AgentConversationService {
             final AtomicReference<String> lastPhaseRef = new AtomicReference<>("");
             final AtomicReference<Disposable> disposableRef = new AtomicReference<>();
             final AtomicBoolean manuallyCompleted = new AtomicBoolean(false);
-            final CanvasReviewContext reviewContext = buildReviewContextIfNeeded(requestDTO, config, routingResult);
-            final String routedMessage = buildRoutedMessage(requestDTO, routingResult, reviewContext, maxReviewIterations, requestDTO.getUserId(), requestDTO.getSkills());
+            final AtomicBoolean finalStreamTelemetryCompleted = streamTelemetryCompleted;
+            final CanvasReviewContext reviewContext = routingResult.needsCanvasReview()
+                    ? telemetryService().recordStep("review", () -> buildReviewContextIfNeeded(currentRequest, config, routingResult))
+                    : null;
+            final String routedMessage = buildRoutedMessage(currentRequest, routingResult, reviewContext, maxReviewIterations, currentRequest.getUserId(), currentRequest.getSkills());
             // The current canvas travels in the request; keep it so patch_cells can merge a delta
             // without the model re-emitting the whole diagram.
-            final String currentCanvasXml = contextBuilder().resolveCanvasXml(requestDTO);
+            final String currentCanvasXml = contextBuilder().resolveCanvasXml(currentRequest);
             streamResponseWriter.setCurrentCanvas(emitter, currentCanvasXml);
-            streamResponseWriter.setCanvasStateContext(emitter, requestDTO.getUserId(), requestDTO.getDiagramId(), requestDTO.getExpectedVersion());
+            streamResponseWriter.setCanvasStateContext(emitter, currentRequest.getUserId(), currentRequest.getDiagramId(), currentRequest.getExpectedVersion());
+            drawingStep = telemetryService().startStep("drawing");
+            AgentUsageTelemetryContext.bindSession(finalSessionId, runScope.getContext().withPhase("drawing"));
+            final AgentUsageTelemetryService.RunScope finalRunScope = runScope;
+            final AgentUsageTelemetryService.StepScope finalDrawingStep = drawingStep;
 
-            Disposable disposable = chatService.handleMessageStream(requestDTO.getAgentId(), requestDTO.getUserId(), finalSessionId, routedMessage)
+            Disposable disposable = chatService.handleMessageStream(currentRequest.getAgentId(), currentRequest.getUserId(), finalSessionId, routedMessage)
                     .subscribe(
                             event -> {
                                 try {
@@ -148,7 +206,8 @@ public class AgentConversationService {
                                         // line carries no <mxGraphModel> to flush mid-stream). Emit it before
                                         // we stop, otherwise a localized edit would be silently dropped.
                                         flushAuthorBuffers(emitter, authorBuffers);
-                                        completeStream(emitter, manuallyCompleted, disposableRef, finalSessionId);
+                                        completeStream(emitter, manuallyCompleted, disposableRef, finalSessionId,
+                                                finalDrawingStep, finalRunScope, finalStreamTelemetryCompleted);
                                         return;
                                     }
 
@@ -160,7 +219,8 @@ public class AgentConversationService {
                                             // reviewer/repair loop still runs.
                                             if (maxReviewIterations == 0) {
                                                 flushAuthorBuffers(emitter, authorBuffers);
-                                                completeStream(emitter, manuallyCompleted, disposableRef, finalSessionId);
+                                                completeStream(emitter, manuallyCompleted, disposableRef, finalSessionId,
+                                                        finalDrawingStep, finalRunScope, finalStreamTelemetryCompleted);
                                             }
                                             return;
                                         }
@@ -197,16 +257,22 @@ public class AgentConversationService {
                                         return;
                                     }
 
-                                    flushCompleteLines(emitter, phase, isPartial, buffer, accumulated, manuallyCompleted, disposableRef, finalSessionId);
+                                    flushCompleteLines(emitter, phase, isPartial, buffer, accumulated, manuallyCompleted,
+                                            disposableRef, finalSessionId, finalDrawingStep, finalRunScope, finalStreamTelemetryCompleted);
                                 } catch (Exception e) {
                                     throw new RuntimeException(e);
                                 }
                             },
                             error -> {
                                 clearSessionConfig(finalSessionId);
+                                completeStreamTelemetry(finalStreamTelemetryCompleted, finalDrawingStep, finalRunScope, error);
+                                AgentUsageTelemetryContext.clearSession(finalSessionId);
                                 streamResponseWriter.handleStreamError(emitter, manuallyCompleted.get(), error);
                             },
-                            () -> handleStreamComplete(emitter, authorBuffers, manuallyCompleted, finalSessionId)
+                            () -> {
+                                completeStreamTelemetry(finalStreamTelemetryCompleted, finalDrawingStep, finalRunScope, null);
+                                handleStreamComplete(emitter, authorBuffers, manuallyCompleted, finalSessionId);
+                            }
                     );
             disposableRef.set(disposable);
             if (manuallyCompleted.get() && !disposable.isDisposed()) {
@@ -215,21 +281,30 @@ public class AgentConversationService {
 
             emitter.onCompletion(() -> {
                 clearSessionConfig(finalSessionId);
+                completeStreamTelemetry(finalStreamTelemetryCompleted, finalDrawingStep, finalRunScope, null);
+                AgentUsageTelemetryContext.clearSession(finalSessionId);
                 streamResponseWriter.clearPendingDiagram(emitter);
                 disposeStream(finalSessionId, "emitter.onCompletion", disposable);
             });
             emitter.onTimeout(() -> {
                 clearSessionConfig(finalSessionId);
+                completeStreamTelemetry(finalStreamTelemetryCompleted, finalDrawingStep, finalRunScope,
+                        new IllegalStateException("stream_timeout"));
+                AgentUsageTelemetryContext.clearSession(finalSessionId);
                 streamResponseWriter.clearPendingDiagram(emitter);
                 disposeStream(finalSessionId, "emitter.onTimeout", disposable);
             });
             emitter.onError(e -> {
                 clearSessionConfig(finalSessionId);
+                completeStreamTelemetry(finalStreamTelemetryCompleted, finalDrawingStep, finalRunScope, e);
+                AgentUsageTelemetryContext.clearSession(finalSessionId);
                 streamResponseWriter.clearPendingDiagram(emitter);
                 disposeStream(finalSessionId, "emitter.onError", disposable);
             });
         } catch (AnonymousDemoQuotaExceededException e) {
             clearSessionConfig(sessionId);
+            completeStreamTelemetry(streamTelemetryCompleted, drawingStep, runScope, e);
+            AgentUsageTelemetryContext.clearSession(sessionId);
             log.info("Anonymous demo quota exhausted for userId:{}", SecretLogSanitizer.maskCapability(requestDTO.getUserId()));
             try {
                 streamResponseWriter.sendTypedError(emitter, e.getCode(), e.getInfo());
@@ -239,6 +314,8 @@ public class AgentConversationService {
             emitter.complete();
         } catch (PlatformDailyQuotaExceededException e) {
             clearSessionConfig(sessionId);
+            completeStreamTelemetry(streamTelemetryCompleted, drawingStep, runScope, e);
+            AgentUsageTelemetryContext.clearSession(sessionId);
             log.info("Verified user daily platform quota exhausted for userId:{}", SecretLogSanitizer.maskCapability(requestDTO.getUserId()));
             try {
                 streamResponseWriter.sendTypedError(emitter, e.getCode(), e.getInfo());
@@ -248,6 +325,8 @@ public class AgentConversationService {
             emitter.complete();
         } catch (AppException e) {
             clearSessionConfig(sessionId);
+            completeStreamTelemetry(streamTelemetryCompleted, drawingStep, runScope, e);
+            AgentUsageTelemetryContext.clearSession(sessionId);
             log.info("Stream request rejected for userId:{} code:{}",
                     SecretLogSanitizer.maskCapability(requestDTO.getUserId()), e.getCode());
             try {
@@ -258,8 +337,15 @@ public class AgentConversationService {
             emitter.complete();
         } catch (Exception e) {
             clearSessionConfig(sessionId);
+            completeStreamTelemetry(streamTelemetryCompleted, drawingStep, runScope, e);
+            AgentUsageTelemetryContext.clearSession(sessionId);
             log.error("流式对话失败", e);
             emitter.completeWithError(e);
+        } finally {
+            if (configuredScope != null) {
+                configuredScope.close();
+            }
+            initialScope.close();
         }
     }
 
@@ -338,10 +424,12 @@ public class AgentConversationService {
                 ModelCredentialSecret credential = modelCredentialService.resolveForChat(
                         requestDTO.getUserId(), requestDTO.getModelCredentialId());
                 return CustomApiConfigManager.CustomApiConfig.builder()
+                        .provider(credential.getProvider())
                         .baseUrl(credential.getBaseUrl())
                         .apiKey(credential.getApiKey())
                         .completionsPath(credential.getCompletionPath())
                         .model(credential.getModel())
+                        .modelCredentialId(credential.getId())
                         .customModelSelected(true)
                         .build();
             } catch (IllegalArgumentException e) {
@@ -350,6 +438,7 @@ public class AgentConversationService {
         }
         rejectRawCustomConfig(requestDTO, "Custom model credentials must be saved before chat.");
         return CustomApiConfigManager.CustomApiConfig.builder()
+                .provider("openai")
                 .customModelSelected(false)
                 .build();
     }
@@ -379,6 +468,16 @@ public class AgentConversationService {
 
     private VerifiedUserPlatformQuotaService platformQuotaService() {
         return verifiedUserPlatformQuotaService == null ? new VerifiedUserPlatformQuotaService() : verifiedUserPlatformQuotaService;
+    }
+
+    private AgentUsageTelemetryService telemetryService() {
+        return agentUsageTelemetryService == null ? new AgentUsageTelemetryService(null) : agentUsageTelemetryService;
+    }
+
+    private String credentialSource(ChatRequestDTO requestDTO) {
+        return requestDTO != null && StringUtils.isNotBlank(requestDTO.getModelCredentialId())
+                ? AgentUsageTelemetryService.USER_KEY
+                : AgentUsageTelemetryService.PLATFORM;
     }
 
     private IntentRoutingResult routeIntent(ChatRequestDTO requestDTO, CustomApiConfigManager.CustomApiConfig config) {
@@ -580,7 +679,10 @@ public class AgentConversationService {
                                     String accumulated,
                                     AtomicBoolean manuallyCompleted,
                                     AtomicReference<Disposable> disposableRef,
-                                    String sessionId) throws Exception {
+                                    String sessionId,
+                                    AgentUsageTelemetryService.StepScope drawingStep,
+                                    AgentUsageTelemetryService.RunScope runScope,
+                                    AtomicBoolean streamTelemetryCompleted) throws Exception {
         if (!isPartial || accumulated.contains("\n")) {
             String[] lines = accumulated.split("\n", -1);
             String remaining = lines[lines.length - 1];
@@ -597,7 +699,8 @@ public class AgentConversationService {
                     continue;
                 }
                 if (streamResponseWriter.processAndSendLine(emitter, phase, line)) {
-                    completeStream(emitter, manuallyCompleted, disposableRef, sessionId);
+                    completeStream(emitter, manuallyCompleted, disposableRef, sessionId,
+                            drawingStep, runScope, streamTelemetryCompleted);
                     return;
                 }
             }
@@ -607,7 +710,8 @@ public class AgentConversationService {
             String remaining = buffer.toString().trim();
             buffer.setLength(0);
             if (!remaining.isEmpty() && streamResponseWriter.processAndSendLine(emitter, phase, remaining)) {
-                completeStream(emitter, manuallyCompleted, disposableRef, sessionId);
+                completeStream(emitter, manuallyCompleted, disposableRef, sessionId,
+                        drawingStep, runScope, streamTelemetryCompleted);
             }
         }
     }
@@ -626,11 +730,15 @@ public class AgentConversationService {
     private void completeStream(ResponseBodyEmitter emitter,
                                 AtomicBoolean manuallyCompleted,
                                 AtomicReference<Disposable> disposableRef,
-                                String sessionId) {
+                                String sessionId,
+                                AgentUsageTelemetryService.StepScope drawingStep,
+                                AgentUsageTelemetryService.RunScope runScope,
+                                AtomicBoolean streamTelemetryCompleted) {
         if (!manuallyCompleted.compareAndSet(false, true)) {
             return;
         }
         clearSessionConfig(sessionId);
+        completeStreamTelemetry(streamTelemetryCompleted, drawingStep, runScope, null);
         try {
             streamResponseWriter.flushPendingDiagram(emitter, "done");
         } catch (Exception ignored) {
@@ -648,6 +756,18 @@ public class AgentConversationService {
         if (disposable != null && !disposable.isDisposed()) {
             disposable.dispose();
         }
+    }
+
+    private void completeStreamTelemetry(AtomicBoolean completed,
+                                         AgentUsageTelemetryService.StepScope drawingStep,
+                                         AgentUsageTelemetryService.RunScope runScope,
+                                         Throwable error) {
+        // Stream callbacks can race; telemetry should close each run exactly once.
+        if (completed != null && !completed.compareAndSet(false, true)) {
+            return;
+        }
+        telemetryService().completeStep(drawingStep, error);
+        telemetryService().completeRun(runScope, error);
     }
 
     private void handleStreamComplete(ResponseBodyEmitter emitter,

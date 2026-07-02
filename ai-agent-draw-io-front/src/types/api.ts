@@ -36,6 +36,13 @@ export interface CurrentAccountResponseDTO {
   platformDailyQuotaRemaining?: number;
   platformDailyQuotaExhausted?: boolean;
   platformDailyQuotaDate?: string;
+  platformRunCount?: number;
+  userKeyRunCount?: number;
+  platformLlmCallCount?: number;
+  userKeyLlmCallCount?: number;
+  toolCallCount?: number;
+  knownTotalTokens?: number;
+  unknownTokenLlmCallCount?: number;
 }
 
 export interface DiagramSummaryResponseDTO {

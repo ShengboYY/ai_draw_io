@@ -9,6 +9,7 @@ import org.zipp.ai.domain.agent.service.ICanvasReviewService;
 import org.zipp.ai.domain.agent.service.IChatService;
 import org.zipp.ai.domain.agent.service.IDiagramQualityInspector;
 import org.zipp.ai.domain.agent.service.chat.CustomApiConfigManager;
+import org.zipp.ai.domain.agent.service.usage.AgentUsageTelemetryContext;
 import org.zipp.ai.types.util.SecretLogSanitizer;
 import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONObject;
@@ -75,6 +76,7 @@ public class DefaultCanvasReviewService implements ICanvasReviewService {
             return fallbackAnswer(context);
         } finally {
             CustomApiConfigManager.clearConfig(sessionId);
+            AgentUsageTelemetryContext.clearSession(sessionId);
         }
     }
 
@@ -101,11 +103,13 @@ public class DefaultCanvasReviewService implements ICanvasReviewService {
             return SemanticContentReview.unavailable("Semantic review failed.");
         } finally {
             CustomApiConfigManager.clearConfig(sessionId);
+            AgentUsageTelemetryContext.clearSession(sessionId);
         }
     }
 
     private String createInternalSession(String agentId, CanvasReviewCommand command) {
         String sessionId = chatService.createSession(agentId, command.getUserId());
+        AgentUsageTelemetryContext.inheritCurrentToSession(sessionId);
         CustomApiConfigManager.CustomApiConfig config = command.getCustomApiConfig();
         if (null != config) {
             CustomApiConfigManager.setConfig(sessionId, config);

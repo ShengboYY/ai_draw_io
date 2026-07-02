@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.zipp.ai.infrastructure.dao.IAgentUsageTelemetryMapper">
+
+    <insert id="insertRun" parameterType="org.zipp.ai.infrastructure.dao.po.AgentRunTelemetryPO">
+        INSERT INTO agent_run (
+            id, user_id, agent_id, session_id, request_type, credential_source, model_credential_id,
+            status, error_class, started_at, completed_at, latency_ms
+        )
+        VALUES (
+            #{id}, #{userId}, #{agentId}, #{sessionId}, #{requestType}, #{credentialSource}, #{modelCredentialId},
+            #{status}, #{errorClass}, #{startedAt}, #{completedAt}, #{latencyMs}
+        )
+    </insert>
+
+    <update id="completeRun">
+        UPDATE agent_run
+        SET status = #{status},
+            error_class = #{errorClass},
+            completed_at = #{completedAt},
+            latency_ms = #{latencyMs}
+        WHERE id = #{id}
+    </update>
+
+    <insert id="insertStep" parameterType="org.zipp.ai.infrastructure.dao.po.AgentRunStepTelemetryPO">
+        INSERT INTO agent_run_step (
+            id, run_id, user_id, phase, status, error_class, started_at, completed_at, latency_ms
+        )
+        VALUES (
+            #{id}, #{runId}, #{userId}, #{phase}, #{status}, #{errorClass},
+            #{startedAt}, #{completedAt}, #{latencyMs}
+        )
+    </insert>
+
+    <insert id="insertLlmCall" parameterType="org.zipp.ai.infrastructure.dao.po.LlmCallTelemetryPO">
+        INSERT INTO agent_llm_call (
+            id, run_id, user_id, phase, provider, model, credential_source, model_credential_id,
+            prompt_tokens, completion_tokens, total_tokens, status, error_class, started_at, completed_at, latency_ms
+        )
+        VALUES (
+            #{id}, #{runId}, #{userId}, #{phase}, #{provider}, #{model}, #{credentialSource}, #{modelCredentialId},
+            #{promptTokens}, #{completionTokens}, #{totalTokens}, #{status}, #{errorClass},
+            #{startedAt}, #{completedAt}, #{latencyMs}
+        )
+    </insert>
+
+    <insert id="insertToolCall" parameterType="org.zipp.ai.infrastructure.dao.po.ToolCallTelemetryPO">
+        INSERT INTO agent_tool_call (
+            id, run_id, user_id, phase, tool_name, status, error_class, started_at, completed_at, latency_ms
+        )
+        VALUES (
+            #{id}, #{runId}, #{userId}, #{phase}, #{toolName}, #{status}, #{errorClass},
+            #{startedAt}, #{completedAt}, #{latencyMs}
+        )
+    </insert>
+
+    <select id="summarizeByUserId" resultType="org.zipp.ai.infrastructure.dao.po.AgentUsageSummaryPO">
+        SELECT
+            COALESCE(SUM(CASE WHEN r.credential_source = 'PLATFORM' THEN 1 ELSE 0 END), 0) AS platformRunCount,
+            COALESCE(SUM(CASE WHEN r.credential_source = 'USER_KEY' THEN 1 ELSE 0 END), 0) AS userKeyRunCount,
+            (
+                SELECT COALESCE(SUM(CASE WHEN c.credential_source = 'PLATFORM' THEN 1 ELSE 0 END), 0)
+                FROM agent_llm_call c
+                WHERE c.user_id = #{userId}
+            ) AS platformLlmCallCount,
+            (
+                SELECT COALESCE(SUM(CASE WHEN c.credential_source = 'USER_KEY' THEN 1 ELSE 0 END), 0)
+                FROM agent_llm_call c
+                WHERE c.user_id = #{userId}
+            ) AS userKeyLlmCallCount,
+            (
+                SELECT COALESCE(COUNT(*), 0)
+                FROM agent_tool_call t
+                WHERE t.user_id = #{userId}
+            ) AS toolCallCount,
+            (
+                SELECT COALESCE(SUM(c.total_tokens), 0)
+                FROM agent_llm_call c
+                WHERE c.user_id = #{userId}
+            ) AS knownTotalTokens,
+            (
+                SELECT COALESCE(COUNT(*), 0)
+                FROM agent_llm_call c
+                WHERE c.user_id = #{userId}
+                  AND c.total_tokens IS NULL
+            ) AS unknownTokenLlmCallCount
+        FROM agent_run r
+        WHERE r.user_id = #{userId}
+    </select>
+
+</mapper>

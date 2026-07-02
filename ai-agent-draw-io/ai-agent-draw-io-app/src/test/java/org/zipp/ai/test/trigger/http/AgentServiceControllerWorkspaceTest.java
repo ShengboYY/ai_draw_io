@@ -25,6 +25,8 @@ import org.zipp.ai.domain.account.service.AnonymousDemoQuotaService;
 import org.zipp.ai.domain.account.service.VerifiedUserPlatformQuotaService;
 import org.zipp.ai.domain.agent.model.valobj.canvas.CanvasState;
 import org.zipp.ai.domain.agent.service.ICanvasStateStore;
+import org.zipp.ai.domain.agent.service.usage.AgentUsageTelemetryService;
+import org.zipp.ai.test.domain.agent.FakeAgentUsageTelemetryStore;
 import org.zipp.ai.trigger.http.AgentServiceController;
 import org.zipp.ai.types.enums.ResponseCode;
 
@@ -219,6 +221,30 @@ public class AgentServiceControllerWorkspaceTest {
         assertEquals(Integer.valueOf(18), response.getData().getPlatformDailyQuotaRemaining());
         assertFalse(response.getData().getPlatformDailyQuotaExhausted());
         assertEquals("2026-07-02", response.getData().getPlatformDailyQuotaDate());
+    }
+
+    @Test
+    public void shouldExposeOnlyCurrentUsersUsageSummaryOnCurrentAccountEndpoint() throws Exception {
+        AgentServiceController controller = new AgentServiceController();
+        FakeAgentUsageTelemetryStore telemetryStore = new FakeAgentUsageTelemetryStore();
+        AgentUsageTelemetryService telemetryService = new AgentUsageTelemetryService(
+                telemetryStore,
+                Clock.fixed(Instant.parse("2026-07-02T12:00:00Z"), ZoneOffset.UTC));
+        telemetryService.startRun("usr_alice", "300000", "session-1", "chat",
+                AgentUsageTelemetryService.PLATFORM, null, "openai", "gpt-5.5");
+        telemetryService.startRun("usr_alice", "300000", "session-2", "chat",
+                AgentUsageTelemetryService.USER_KEY, "mcr_alice", "openai", "gpt-4o");
+        telemetryService.startRun("usr_bob", "300000", "session-3", "chat",
+                AgentUsageTelemetryService.USER_KEY, "mcr_bob", "openai", "gpt-4o");
+        inject(controller, "agentUsageTelemetryService", telemetryService);
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        RequestContextHolder.setRequestAttributes(new ServletRequestAttributes(request));
+        authenticate("usr_alice");
+
+        Response<CurrentAccountResponseDTO> response = controller.currentAccount();
+
+        assertEquals(Long.valueOf(1), response.getData().getPlatformRunCount());
+        assertEquals(Long.valueOf(1), response.getData().getUserKeyRunCount());
     }
 
     @Test

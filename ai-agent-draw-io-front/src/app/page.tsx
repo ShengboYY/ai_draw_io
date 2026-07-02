@@ -15,6 +15,8 @@ const formatUpdatedAt = (value?: string) => {
   return date.toLocaleString();
 };
 
+const usageNumber = (value?: number) => Number.isFinite(value) ? Math.max(0, value || 0) : 0;
+
 export default function Home() {
   const router = useRouter();
   const [ownerId] = useState(() => getWorkspaceIdentity(getUserInfo()?.user).ownerId);
@@ -116,6 +118,33 @@ export default function Home() {
             New diagram
           </button>
         </header>
+
+        {currentAccount?.ownerType === 'USER' && (
+          <section className="mt-5 grid gap-3 md:grid-cols-3">
+            <div className="rounded-md border border-slate-200 bg-white p-4">
+              <div className="text-xs font-medium uppercase tracking-normal text-slate-400">Platform quota</div>
+              <div className="mt-2 text-xl font-semibold text-slate-900">
+                {usageNumber(currentAccount.platformDailyQuotaRemaining)} / {usageNumber(currentAccount.platformDailyQuotaLimit)}
+              </div>
+              <div className="mt-1 text-xs text-slate-500">remaining today</div>
+            </div>
+            <div className="rounded-md border border-slate-200 bg-white p-4">
+              <div className="text-xs font-medium uppercase tracking-normal text-slate-400">Platform runs</div>
+              <div className="mt-2 text-xl font-semibold text-slate-900">{usageNumber(currentAccount.platformRunCount)}</div>
+              <div className="mt-1 text-xs text-slate-500">requests using the shared key</div>
+            </div>
+            <div className="rounded-md border border-slate-200 bg-white p-4">
+              <div className="text-xs font-medium uppercase tracking-normal text-slate-400">Own-key runs</div>
+              <div className="mt-2 text-xl font-semibold text-slate-900">{usageNumber(currentAccount.userKeyRunCount)}</div>
+              <div className="mt-1 text-xs text-slate-500">
+                {usageNumber(currentAccount.knownTotalTokens)} known tokens
+                {usageNumber(currentAccount.unknownTokenLlmCallCount) > 0
+                  ? `, ${usageNumber(currentAccount.unknownTokenLlmCallCount)} calls unknown`
+                  : ''}
+              </div>
+            </div>
+          </section>
+        )}
 
         {errorMessage && (
           <div className="mt-6 rounded-md border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">

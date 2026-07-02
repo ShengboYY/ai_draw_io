@@ -5,6 +5,7 @@ import org.zipp.ai.domain.agent.model.valobj.AiAgentConfigTableVO;
 import org.zipp.ai.domain.agent.model.valobj.AiAgentRegisterVO;
 import org.zipp.ai.domain.agent.service.armory.AbstractArmorySupport;
 import org.zipp.ai.domain.agent.service.armory.factory.DefaultArmoryFactory;
+import org.zipp.ai.domain.agent.service.armory.matter.plugin.AgentUsageTelemetryPlugin;
 import org.zipp.ai.types.enums.ResponseCode;
 import org.zipp.ai.types.exception.AppException;
 import cn.bugstack.wrench.design.framework.tree.StrategyHandler;
@@ -27,6 +28,8 @@ import java.util.List;
 @Slf4j
 @Service
 public class RunnerNode extends AbstractArmorySupport {
+
+    private static final String TELEMETRY_PLUGIN_NAME = "agentUsageTelemetryPlugin";
 
     protected AiAgentRegisterVO doApply(ArmoryCommandEntity requestParameter, DefaultArmoryFactory.DynamicContext dynamicContext) throws Exception {
         log.info("Ai Agent 装配操作 - RunnerNode");
@@ -74,10 +77,22 @@ public class RunnerNode extends AbstractArmorySupport {
                 plugins.add(plugin);
             }
         } else {
-            plugins = ImmutableList.of();
+            plugins = new ArrayList<>();
         }
+        appendTelemetryPlugin(plugins);
 
-        return new InMemoryRunner(baseAgent, appName, plugins);
+        return new InMemoryRunner(baseAgent, appName, ImmutableList.copyOf(plugins));
+    }
+
+    private void appendTelemetryPlugin(List<BasePlugin> plugins) {
+        boolean alreadyConfigured = plugins.stream()
+                .anyMatch(plugin -> plugin instanceof AgentUsageTelemetryPlugin
+                        || "AgentUsageTelemetryPlugin".equals(plugin.getName()));
+        if (alreadyConfigured || !applicationContext.containsBean(TELEMETRY_PLUGIN_NAME)) {
+            return;
+        }
+        // Telemetry is metadata-only and should observe every model/tool call without requiring YAML edits.
+        plugins.add(getBean(TELEMETRY_PLUGIN_NAME));
     }
 
     @Override

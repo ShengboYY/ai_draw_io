@@ -9,12 +9,14 @@ import org.zipp.ai.domain.account.model.valobj.DemoQuotaSnapshot;
 import org.zipp.ai.domain.account.model.valobj.PlatformDailyQuotaSnapshot;
 import org.zipp.ai.domain.account.service.AnonymousDemoQuotaService;
 import org.zipp.ai.domain.account.service.VerifiedUserPlatformQuotaService;
+import org.zipp.ai.domain.agent.model.valobj.usage.AgentUsageSummary;
 import org.zipp.ai.domain.agent.model.valobj.AiAgentConfigTableVO;
 import org.zipp.ai.domain.agent.model.valobj.canvas.CanvasState;
 import org.zipp.ai.domain.agent.model.valobj.conversation.DiagramConversationMessage;
 import org.zipp.ai.domain.agent.service.ICanvasStateStore;
 import org.zipp.ai.domain.agent.service.IDiagramConversationStore;
 import org.zipp.ai.domain.agent.service.IChatService;
+import org.zipp.ai.domain.agent.service.usage.AgentUsageTelemetryService;
 import org.zipp.ai.trigger.http.service.AgentConversationService;
 import org.zipp.ai.types.enums.ResponseCode;
 import org.zipp.ai.types.exception.AppException;
@@ -58,6 +60,9 @@ public class AgentServiceController implements IAgentService {
 
     @Resource
     private VerifiedUserPlatformQuotaService verifiedUserPlatformQuotaService;
+
+    @Resource
+    private AgentUsageTelemetryService agentUsageTelemetryService;
 
     @RequestMapping(value = "query_ai_agent_config_list", method = RequestMethod.GET)
     @Override
@@ -476,6 +481,14 @@ public class AgentServiceController implements IAgentService {
             dto.setPlatformDailyQuotaExhausted(quota.isExhausted());
             dto.setPlatformDailyQuotaDate(quota.getQuotaDate());
         }
+        AgentUsageSummary usage = telemetryService().summarizeForUser(owner.getOwnerId());
+        dto.setPlatformRunCount(usage.getPlatformRunCount());
+        dto.setUserKeyRunCount(usage.getUserKeyRunCount());
+        dto.setPlatformLlmCallCount(usage.getPlatformLlmCallCount());
+        dto.setUserKeyLlmCallCount(usage.getUserKeyLlmCallCount());
+        dto.setToolCallCount(usage.getToolCallCount());
+        dto.setKnownTotalTokens(usage.getKnownTotalTokens());
+        dto.setUnknownTokenLlmCallCount(usage.getUnknownTokenLlmCallCount());
         return dto;
     }
 
@@ -502,6 +515,10 @@ public class AgentServiceController implements IAgentService {
 
     private VerifiedUserPlatformQuotaService platformQuotaService() {
         return verifiedUserPlatformQuotaService == null ? new VerifiedUserPlatformQuotaService() : verifiedUserPlatformQuotaService;
+    }
+
+    private AgentUsageTelemetryService telemetryService() {
+        return agentUsageTelemetryService == null ? new AgentUsageTelemetryService(null) : agentUsageTelemetryService;
     }
 
     private <T> Response<T> illegalWorkspaceResponse() {

@@ -115,6 +115,7 @@ public class DefaultModelCredentialService implements IModelCredentialService {
                 .build());
         return ModelCredentialSecret.builder()
                 .id(credential.getId())
+                .provider(credential.getProvider())
                 .baseUrl(credential.getBaseUrl())
                 .apiKey(apiKey)
                 .completionPath(credential.getCompletionPath())

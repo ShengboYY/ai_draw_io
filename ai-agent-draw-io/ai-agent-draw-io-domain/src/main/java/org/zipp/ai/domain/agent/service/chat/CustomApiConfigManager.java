@@ -28,17 +28,21 @@ public class CustomApiConfigManager {
     }
 
     public static class CustomApiConfig {
+        private String provider;
         private String baseUrl;
         private String apiKey;
         private String completionsPath;
         private String model;
+        private String modelCredentialId;
         /** 是否为用户主动选择的自定义模型（区别于默认模型） */
         private boolean customModelSelected;
 
+        public String getProvider() { return provider; }
         public String getBaseUrl() { return baseUrl; }
         public String getApiKey() { return apiKey; }
         public String getCompletionsPath() { return completionsPath; }
         public String getModel() { return model; }
+        public String getModelCredentialId() { return modelCredentialId; }
         public boolean isCustomModelSelected() { return customModelSelected; }
 
         public static Builder builder() {
@@ -46,24 +50,30 @@ public class CustomApiConfigManager {
         }
 
         public static class Builder {
+            private String provider;
             private String baseUrl;
             private String apiKey;
             private String completionsPath;
             private String model;
+            private String modelCredentialId;
             private boolean customModelSelected;
 
+            public Builder provider(String provider) { this.provider = provider; return this; }
             public Builder baseUrl(String baseUrl) { this.baseUrl = baseUrl; return this; }
             public Builder apiKey(String apiKey) { this.apiKey = apiKey; return this; }
             public Builder completionsPath(String completionsPath) { this.completionsPath = completionsPath; return this; }
             public Builder model(String model) { this.model = model; return this; }
+            public Builder modelCredentialId(String modelCredentialId) { this.modelCredentialId = modelCredentialId; return this; }
             public Builder customModelSelected(boolean customModelSelected) { this.customModelSelected = customModelSelected; return this; }
 
             public CustomApiConfig build() {
                 CustomApiConfig config = new CustomApiConfig();
+                config.provider = this.provider;
                 config.baseUrl = this.baseUrl;
                 config.apiKey = this.apiKey;
                 config.completionsPath = this.completionsPath;
                 config.model = this.model;
+                config.modelCredentialId = this.modelCredentialId;
                 config.customModelSelected = this.customModelSelected;
                 return config;
             }

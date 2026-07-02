@@ -19,5 +19,12 @@ public class CurrentAccountResponseDTO {
     private Integer platformDailyQuotaRemaining;
     private Boolean platformDailyQuotaExhausted;
     private String platformDailyQuotaDate;
+    private Long platformRunCount;
+    private Long userKeyRunCount;
+    private Long platformLlmCallCount;
+    private Long userKeyLlmCallCount;
+    private Long toolCallCount;
+    private Long knownTotalTokens;
+    private Long unknownTokenLlmCallCount;
 
 }

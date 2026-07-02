@@ -26,6 +26,8 @@ import org.zipp.ai.domain.agent.service.ICanvasStateStore;
 import org.zipp.ai.domain.agent.service.IChatService;
 import org.zipp.ai.domain.agent.service.IIntentRoutingService;
 import org.zipp.ai.domain.agent.service.canvas.DefaultDrawioCanvasSnapshotService;
+import org.zipp.ai.domain.agent.service.usage.AgentUsageTelemetryService;
+import org.zipp.ai.test.domain.agent.FakeAgentUsageTelemetryStore;
 import org.zipp.ai.trigger.http.service.AgentConversationService;
 import org.zipp.ai.trigger.http.service.DrawioPromptContextBuilder;
 import org.zipp.ai.trigger.http.service.DrawioStreamResponseWriter;
@@ -37,6 +39,9 @@ import org.zipp.ai.types.exception.AppException;
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.time.Clock;
+import java.time.Instant;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Optional;
 
@@ -394,6 +399,50 @@ public class AgentConversationServiceTest {
         assertEquals(20, chatService.handleMessageStreamCalls);
     }
 
+    @Test
+    public void shouldRecordSuccessfulRunTelemetryWithoutSensitiveContent() throws Exception {
+        FakeAgentUsageTelemetryStore telemetryStore = new FakeAgentUsageTelemetryStore();
+        AgentConversationService service = quotaAwareService();
+        injectField(service, "agentUsageTelemetryService", fixedTelemetryService(telemetryStore));
+        injectField(service, "chatService", new CountingChatService());
+        injectField(service, "intentRoutingService", new CountingIntentRoutingService());
+
+        ChatRequestDTO requestDTO = platformRequest();
+        requestDTO.setMessage("draw checkout flow sk-live-secret <mxGraphModel><root/></mxGraphModel>");
+
+        service.chat(requestDTO);
+
+        assertEquals(1, telemetryStore.runs.size());
+        assertEquals("SUCCESS", telemetryStore.runs.get(0).getStatus());
+        assertTrue(telemetryStore.steps.stream().anyMatch(step -> "routing".equals(step.getPhase())));
+        assertTrue(telemetryStore.steps.stream().anyMatch(step -> "drawing".equals(step.getPhase())));
+        assertFalse(telemetryStore.serializedRecords().contains("sk-live-secret"));
+        assertFalse(telemetryStore.serializedRecords().contains("<mxGraphModel"));
+    }
+
+    @Test
+    public void shouldRecordFailedRunTelemetryWithoutPersistingErrorMessageContent() throws Exception {
+        FakeAgentUsageTelemetryStore telemetryStore = new FakeAgentUsageTelemetryStore();
+        AgentConversationService service = quotaAwareService();
+        injectField(service, "agentUsageTelemetryService", fixedTelemetryService(telemetryStore));
+        injectField(service, "chatService", new CountingChatService());
+        injectField(service, "intentRoutingService", new FailingIntentRoutingService());
+
+        try {
+            service.chat(platformRequest());
+        } catch (IllegalStateException expected) {
+            assertEquals(1, telemetryStore.runs.size());
+            assertEquals("FAILED", telemetryStore.runs.get(0).getStatus());
+            assertEquals("IllegalStateException", telemetryStore.runs.get(0).getErrorClass());
+            assertTrue(telemetryStore.steps.stream().anyMatch(step ->
+                    "routing".equals(step.getPhase()) && "FAILED".equals(step.getStatus())));
+            assertFalse(telemetryStore.serializedRecords().contains("sk-live-secret"));
+            assertFalse(telemetryStore.serializedRecords().contains("<mxGraphModel"));
+            return;
+        }
+        throw new AssertionError("expected routing failure");
+    }
+
     private int normalizeMaxReviewIterations(AgentConversationService service, Integer value) throws Exception {
         // Exercise the private normalization boundary without widening production API surface.
         Method method = AgentConversationService.class.getDeclaredMethod("normalizeMaxReviewIterations", Integer.class);
@@ -461,6 +510,12 @@ public class AgentConversationServiceTest {
         injectField(service, "anonymousDemoQuotaService", new AnonymousDemoQuotaService());
         injectField(service, "verifiedUserPlatformQuotaService", quotaService);
         return service;
+    }
+
+    private AgentUsageTelemetryService fixedTelemetryService(FakeAgentUsageTelemetryStore telemetryStore) {
+        return new AgentUsageTelemetryService(
+                telemetryStore,
+                Clock.fixed(Instant.parse("2026-07-02T12:00:00Z"), ZoneOffset.UTC));
     }
 
     private ChatRequestDTO platformRequest() {
@@ -550,6 +605,13 @@ public class AgentConversationServiceTest {
             calls++;
             lastCommand = command;
             return IntentRoutingResult.fallbackDrawAction("test");
+        }
+    }
+
+    private static class FailingIntentRoutingService implements IIntentRoutingService {
+        @Override
+        public IntentRoutingResult route(IntentRoutingCommand command) {
+            throw new IllegalStateException("boom sk-live-secret <mxGraphModel><root/></mxGraphModel>");
         }
     }
 

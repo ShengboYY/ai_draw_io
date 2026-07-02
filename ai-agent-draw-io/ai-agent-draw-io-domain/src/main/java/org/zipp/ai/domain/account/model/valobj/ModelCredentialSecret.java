@@ -12,6 +12,7 @@ import lombok.Data;
 public class ModelCredentialSecret {
 
     private String id;
+    private String provider;
     private String baseUrl;
     private String apiKey;
     private String completionPath;

@@ -5,6 +5,7 @@ import org.zipp.ai.domain.agent.model.valobj.intent.IntentRoutingResult;
 import org.zipp.ai.domain.agent.service.IChatService;
 import org.zipp.ai.domain.agent.service.IIntentRoutingService;
 import org.zipp.ai.domain.agent.service.chat.CustomApiConfigManager;
+import org.zipp.ai.domain.agent.service.usage.AgentUsageTelemetryContext;
 import org.zipp.ai.types.util.SecretLogSanitizer;
 import com.alibaba.fastjson.JSON;
 import lombok.extern.slf4j.Slf4j;
@@ -71,6 +72,7 @@ public class DefaultIntentRoutingService implements IIntentRoutingService {
         }
         try {
             String sessionId = chatService.createSession(INTENT_AGENT_ID, userId);
+            AgentUsageTelemetryContext.inheritCurrentToSession(sessionId);
             try {
                 CustomApiConfigManager.CustomApiConfig config = command.getCustomApiConfig();
                 if (null != config) {
@@ -88,6 +90,7 @@ public class DefaultIntentRoutingService implements IIntentRoutingService {
                 return result;
             } finally {
                 CustomApiConfigManager.clearConfig(sessionId);
+                AgentUsageTelemetryContext.clearSession(sessionId);
             }
         } catch (Exception e) {
             log.warn("Intent routing failed, fallback to drawing workflow. userId:{}",
