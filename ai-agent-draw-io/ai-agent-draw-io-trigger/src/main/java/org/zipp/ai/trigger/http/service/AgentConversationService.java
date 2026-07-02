@@ -4,6 +4,8 @@ import org.zipp.ai.api.dto.ChatRequestDTO;
 import org.zipp.ai.api.dto.ChatResponseDTO;
 import org.zipp.ai.domain.account.service.AnonymousDemoQuotaExceededException;
 import org.zipp.ai.domain.account.service.AnonymousDemoQuotaService;
+import org.zipp.ai.domain.account.service.PlatformDailyQuotaExceededException;
+import org.zipp.ai.domain.account.service.VerifiedUserPlatformQuotaService;
 import org.zipp.ai.domain.agent.model.valobj.canvas.CanvasState;
 import org.zipp.ai.domain.agent.model.valobj.intent.IntentRoutingCommand;
 import org.zipp.ai.domain.agent.model.valobj.intent.IntentRoutingResult;
@@ -62,11 +64,15 @@ public class AgentConversationService {
     @Resource
     private AnonymousDemoQuotaService anonymousDemoQuotaService = new AnonymousDemoQuotaService();
 
+    @Resource
+    private VerifiedUserPlatformQuotaService verifiedUserPlatformQuotaService = new VerifiedUserPlatformQuotaService();
+
     public ChatResponseDTO chat(ChatRequestDTO requestDTO) {
         String sessionId = ensureSession(requestDTO);
         CustomApiConfigManager.CustomApiConfig config = buildCustomApiConfig(requestDTO);
         CustomApiConfigManager.setConfig(sessionId, config);
         consumeAnonymousDemoQuota(requestDTO, config);
+        consumeVerifiedUserPlatformQuota(requestDTO, config);
 
         requestDTO = requestWithStoredCanvas(requestDTO);
         IntentRoutingResult routingResult = routeIntent(requestDTO, config);
@@ -92,6 +98,7 @@ public class AgentConversationService {
             CustomApiConfigManager.CustomApiConfig config = buildCustomApiConfig(requestDTO);
             CustomApiConfigManager.setConfig(finalSessionId, config);
             consumeAnonymousDemoQuota(requestDTO, config);
+            consumeVerifiedUserPlatformQuota(requestDTO, config);
 
             requestDTO = requestWithStoredCanvas(requestDTO);
             IntentRoutingResult routingResult = routeIntent(requestDTO, config);
@@ -208,6 +215,14 @@ public class AgentConversationService {
             } catch (Exception ignored) {
             }
             emitter.complete();
+        } catch (PlatformDailyQuotaExceededException e) {
+            log.info("Verified user daily platform quota exhausted for userId:{}", SecretLogSanitizer.maskCapability(requestDTO.getUserId()));
+            try {
+                streamResponseWriter.sendTypedError(emitter, e.getCode(), e.getInfo());
+                streamResponseWriter.sendDone(emitter);
+            } catch (Exception ignored) {
+            }
+            emitter.complete();
         } catch (Exception e) {
             log.error("流式对话失败", e);
             emitter.completeWithError(e);
@@ -297,8 +312,17 @@ public class AgentConversationService {
         demoQuotaService().consumeIfNeeded(requestDTO.getUserId(), config == null ? null : config.getApiKey());
     }
 
+    private void consumeVerifiedUserPlatformQuota(ChatRequestDTO requestDTO, CustomApiConfigManager.CustomApiConfig config) {
+        // User-owned API keys skip platform quota; blank custom keys still use the platform key.
+        platformQuotaService().consumeIfNeeded(requestDTO.getUserId(), config == null ? null : config.getApiKey());
+    }
+
     private AnonymousDemoQuotaService demoQuotaService() {
         return anonymousDemoQuotaService == null ? new AnonymousDemoQuotaService() : anonymousDemoQuotaService;
+    }
+
+    private VerifiedUserPlatformQuotaService platformQuotaService() {
+        return verifiedUserPlatformQuotaService == null ? new VerifiedUserPlatformQuotaService() : verifiedUserPlatformQuotaService;
     }
 
     private IntentRoutingResult routeIntent(ChatRequestDTO requestDTO, CustomApiConfigManager.CustomApiConfig config) {

@@ -20,12 +20,16 @@ import org.zipp.ai.api.response.Response;
 import org.zipp.ai.domain.account.model.valobj.AccountStatus;
 import org.zipp.ai.domain.account.model.valobj.OwnerType;
 import org.zipp.ai.domain.account.service.AnonymousDemoQuotaService;
+import org.zipp.ai.domain.account.service.VerifiedUserPlatformQuotaService;
 import org.zipp.ai.domain.agent.model.valobj.canvas.CanvasState;
 import org.zipp.ai.domain.agent.service.ICanvasStateStore;
 import org.zipp.ai.trigger.http.AgentServiceController;
 import org.zipp.ai.types.enums.ResponseCode;
 
 import java.lang.reflect.Field;
+import java.time.Clock;
+import java.time.Instant;
+import java.time.ZoneOffset;
 import java.util.List;
 
 import static org.junit.Assert.assertEquals;
@@ -192,6 +196,27 @@ public class AgentServiceControllerWorkspaceTest {
         assertEquals(AccountStatus.ACTIVE.name(), response.getData().getAccountStatus());
         assertTrue(response.getData().isAuthenticated());
         assertTrue(response.getData().isEmailVerified());
+    }
+
+    @Test
+    public void shouldExposeVerifiedUserDailyPlatformQuotaOnCurrentAccountEndpoint() throws Exception {
+        AgentServiceController controller = new AgentServiceController();
+        VerifiedUserPlatformQuotaService quotaService = new VerifiedUserPlatformQuotaService(
+                Clock.fixed(Instant.parse("2026-07-02T12:00:00Z"), ZoneOffset.UTC));
+        quotaService.consume("usr_alice");
+        quotaService.consume("usr_alice");
+        inject(controller, "verifiedUserPlatformQuotaService", quotaService);
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        RequestContextHolder.setRequestAttributes(new ServletRequestAttributes(request));
+        authenticate("usr_alice");
+
+        Response<CurrentAccountResponseDTO> response = controller.currentAccount();
+
+        assertEquals(Integer.valueOf(20), response.getData().getPlatformDailyQuotaLimit());
+        assertEquals(Integer.valueOf(2), response.getData().getPlatformDailyQuotaUsed());
+        assertEquals(Integer.valueOf(18), response.getData().getPlatformDailyQuotaRemaining());
+        assertFalse(response.getData().getPlatformDailyQuotaExhausted());
+        assertEquals("2026-07-02", response.getData().getPlatformDailyQuotaDate());
     }
 
     @Test

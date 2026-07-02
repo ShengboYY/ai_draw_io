@@ -11,6 +11,7 @@ public enum ResponseCode {
     NOT_FOUND_METHOD("0003", "不存在的方法"),
     AUTH_RATE_LIMITED("AUTH_RATE_LIMITED", "Too many attempts. Please try again later."),
     DEMO_QUOTA_EXHAUSTED("DEMO_QUOTA_EXHAUSTED", "Demo quota exhausted. Sign up or add your own API key to continue."),
+    PLATFORM_QUOTA_EXHAUSTED("PLATFORM_QUOTA_EXHAUSTED", "Daily free AI quota exhausted. Use your own API key or try again tomorrow."),
 
     E0001("E0001", "智能体ID不存在"),
     E0002("E0002", "智能体MCP配置不在可加载范围");

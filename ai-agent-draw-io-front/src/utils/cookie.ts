@@ -7,11 +7,13 @@ export interface UserInfo {
 }
 
 export const setCookie = (name: string, value: string, days: number) => {
+  if (typeof document === "undefined") return;
   const maxAge = Math.max(0, Math.floor(days * 86400));
   document.cookie = `${name}=${encodeURIComponent(value)}; Max-Age=${maxAge}; Path=/; SameSite=Lax`;
 };
 
 export const getCookie = (name: string): string | null => {
+  if (typeof document === "undefined") return null;
   const cookies = document.cookie ? document.cookie.split("; ") : [];
   for (const item of cookies) {
     const eqIndex = item.indexOf("=");
@@ -23,6 +25,7 @@ export const getCookie = (name: string): string | null => {
 };
 
 export const deleteCookie = (name: string) => {
+  if (typeof document === "undefined") return;
   document.cookie = `${name}=; Max-Age=0; Path=/; SameSite=Lax`;
 };
 

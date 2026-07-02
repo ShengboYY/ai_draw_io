@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { Suspense, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 
@@ -11,6 +11,24 @@ import { verificationDisplay } from '@/utils/register-form';
 type Phase = 'verifying' | 'done' | 'error';
 
 export default function VerifyEmail() {
+  return (
+    <Suspense fallback={<VerifyEmailLoading />}>
+      <VerifyEmailContent />
+    </Suspense>
+  );
+}
+
+function VerifyEmailLoading() {
+  return (
+    <main className="min-h-screen flex justify-center items-center p-7 theme-bg-gradient">
+      <section className="theme-card rounded-[16px] p-6 w-full max-w-[480px] flex flex-col gap-3">
+        <h1 className="m-0 text-xl font-bold text-[rgba(255,255,255,0.92)]">Verifying...</h1>
+      </section>
+    </main>
+  );
+}
+
+function VerifyEmailContent() {
   const searchParams = useSearchParams();
   const token = searchParams.get('token') ?? '';
 

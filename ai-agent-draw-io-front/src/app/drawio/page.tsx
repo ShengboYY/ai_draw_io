@@ -1,7 +1,7 @@
 'use client';
 
 import { DrawIoEmbed, DrawIoEmbedRef } from 'react-drawio';
-import { useRef, useState, useEffect } from 'react';
+import { Suspense, useRef, useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { getUserInfo } from '@/utils/cookie';
 import { getWorkspaceIdentity } from '@/utils/workspace-identity';
@@ -31,6 +31,7 @@ import {
   demoQuotaExhaustedMessage,
   isDemoQuotaErrorCode,
   markDemoQuotaExhausted,
+  quotaExhaustedMessageForCode,
 } from './demo-quota';
 import {
   AgentRunEvent,
@@ -485,6 +486,14 @@ const AgentProgressMessage = ({
 };
 
 export default function Home() {
+  return (
+    <Suspense fallback={<main className="flex min-h-screen items-center justify-center bg-slate-50 text-sm text-slate-500">Loading...</main>}>
+      <DrawioPageContent />
+    </Suspense>
+  );
+}
+
+function DrawioPageContent() {
   const searchParams = useSearchParams();
   const restoreDiagramId = searchParams.get('diagramId');
   const [imgData, setImgData] = useState<string | null>(null);
@@ -1903,15 +1912,15 @@ export default function Home() {
             }
 
             case 'error': {
-              const isDemoQuotaError = isDemoQuotaErrorCode(chunk.code);
-              const errorContent = isDemoQuotaError ? demoQuotaExhaustedMessage : chunk.content;
-              if (isDemoQuotaError) {
+              const isQuotaError = isDemoQuotaErrorCode(chunk.code);
+              const errorContent = isQuotaError ? quotaExhaustedMessageForCode(chunk.code) : chunk.content;
+              if (isQuotaError) {
                 setCurrentAccount(prev => markDemoQuotaExhausted(prev));
                 void refreshCurrentAccount();
               }
               upsertRunEvent('stream:error', {
                 phase: 'error',
-                title: isDemoQuotaError ? 'Demo quota exhausted' : 'Stream error',
+                title: isQuotaError ? 'Quota exhausted' : 'Stream error',
                 detail: errorContent,
                 status: 'error',
                 tone: 'review',
@@ -2000,7 +2009,7 @@ export default function Home() {
       setMessages(prev => [...prev, {
         id: Date.now().toString(),
         role: 'agent',
-        content: demoQuotaExhaustedMessage,
+        content: demoQuotaState.exhaustedMessage || demoQuotaExhaustedMessage,
         timestamp: Date.now()
       }]);
       return;
@@ -2514,13 +2523,15 @@ export default function Home() {
                     >
                       Add key
                     </button>
-                    <button
-                      type="button"
-                      onClick={() => { window.location.href = '/login'; }}
-                      className="rounded-lg bg-rose-600 px-2 py-1 font-medium text-white hover:bg-rose-700"
-                    >
-                      Sign up
-                    </button>
+                    {demoQuotaState.kind === 'anonymous' && (
+                      <button
+                        type="button"
+                        onClick={() => { window.location.href = '/login'; }}
+                        className="rounded-lg bg-rose-600 px-2 py-1 font-medium text-white hover:bg-rose-700"
+                      >
+                        Sign up
+                      </button>
+                    )}
                   </span>
                 )}
               </div>
@@ -2562,7 +2573,7 @@ export default function Home() {
                   e.target.style.height = Math.min(e.target.scrollHeight, 300) + 'px';
                 }}
                 onKeyDown={handleKeyDown}
-                placeholder={isSending ? "AI is generating..." : demoQuotaState.exhausted ? "Demo quota exhausted. Sign up or add your own API key." : "Ask a question or describe your diagram request..."}
+                placeholder={isSending ? "AI is generating..." : demoQuotaState.exhausted ? demoQuotaState.exhaustedMessage : "Ask a question or describe your diagram request..."}
                 disabled={isSending || demoQuotaState.exhausted}
                 className="flex-1 px-4 py-3 bg-transparent border-none focus:ring-0 text-[15px] text-slate-800 placeholder:text-slate-400 resize-none max-h-[300px] min-h-[80px] scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent disabled:opacity-50 disabled:cursor-not-allowed leading-relaxed"
                 rows={1}

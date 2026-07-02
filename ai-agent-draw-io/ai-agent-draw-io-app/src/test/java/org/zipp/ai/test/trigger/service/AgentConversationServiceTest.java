@@ -11,6 +11,8 @@ import org.springframework.web.servlet.mvc.method.annotation.ResponseBodyEmitter
 import org.zipp.ai.api.dto.ChatRequestDTO;
 import org.zipp.ai.domain.account.service.AnonymousDemoQuotaExceededException;
 import org.zipp.ai.domain.account.service.AnonymousDemoQuotaService;
+import org.zipp.ai.domain.account.service.PlatformDailyQuotaExceededException;
+import org.zipp.ai.domain.account.service.VerifiedUserPlatformQuotaService;
 import org.zipp.ai.domain.agent.model.entity.ChatCommandEntity;
 import org.zipp.ai.domain.agent.model.valobj.AiAgentConfigTableVO;
 import org.zipp.ai.domain.agent.model.valobj.canvas.CanvasState;
@@ -278,6 +280,69 @@ public class AgentConversationServiceTest {
         assertEquals(5, chatService.handleMessageStreamCalls);
     }
 
+    @Test
+    public void shouldRejectTwentyFirstVerifiedPlatformBlockingRequestBeforeModelWork() throws Exception {
+        AgentConversationService service = quotaAwareService();
+        CountingChatService chatService = new CountingChatService();
+        CountingIntentRoutingService intentRoutingService = new CountingIntentRoutingService();
+        injectField(service, "chatService", chatService);
+        injectField(service, "intentRoutingService", intentRoutingService);
+
+        for (int i = 0; i < 20; i++) {
+            service.chat(verifiedPlatformRequest());
+        }
+
+        try {
+            service.chat(verifiedPlatformRequest());
+        } catch (PlatformDailyQuotaExceededException expected) {
+            assertEquals(ResponseCode.PLATFORM_QUOTA_EXHAUSTED.getCode(), expected.getCode());
+            assertEquals(20, intentRoutingService.calls);
+            assertEquals(20, chatService.handleMessageCalls);
+            return;
+        }
+        throw new AssertionError("expected verified user daily quota denial");
+    }
+
+    @Test
+    public void shouldAllowVerifiedCustomKeyRequestsAfterDailyQuotaIsExhausted() throws Exception {
+        AgentConversationService service = quotaAwareService();
+        CountingChatService chatService = new CountingChatService();
+        CountingIntentRoutingService intentRoutingService = new CountingIntentRoutingService();
+        injectField(service, "chatService", chatService);
+        injectField(service, "intentRoutingService", intentRoutingService);
+
+        for (int i = 0; i < 21; i++) {
+            ChatRequestDTO requestDTO = verifiedPlatformRequest();
+            requestDTO.setCustomApiKey("sk-user-owned");
+            service.chat(requestDTO);
+        }
+
+        assertEquals(21, intentRoutingService.calls);
+        assertEquals(21, chatService.handleMessageCalls);
+    }
+
+    @Test
+    public void shouldReturnTypedStreamErrorBeforeModelWorkWhenVerifiedDailyQuotaIsExhausted() throws Exception {
+        AgentConversationService service = quotaAwareService();
+        CountingChatService chatService = new CountingChatService();
+        CountingIntentRoutingService intentRoutingService = new CountingIntentRoutingService();
+        injectField(service, "chatService", chatService);
+        injectField(service, "intentRoutingService", intentRoutingService);
+
+        for (int i = 0; i < 20; i++) {
+            service.stream(verifiedPlatformRequest(), new CapturingEmitter());
+        }
+
+        CapturingEmitter deniedEmitter = new CapturingEmitter();
+        service.stream(verifiedPlatformRequest(), deniedEmitter);
+
+        String output = String.join("\n", deniedEmitter.sent);
+        assertTrue(output.contains("\"type\":\"error\""));
+        assertTrue(output.contains(ResponseCode.PLATFORM_QUOTA_EXHAUSTED.getCode()));
+        assertEquals(20, intentRoutingService.calls);
+        assertEquals(20, chatService.handleMessageStreamCalls);
+    }
+
     private int normalizeMaxReviewIterations(AgentConversationService service, Integer value) throws Exception {
         // Exercise the private normalization boundary without widening production API surface.
         Method method = AgentConversationService.class.getDeclaredMethod("normalizeMaxReviewIterations", Integer.class);
@@ -339,6 +404,7 @@ public class AgentConversationServiceTest {
         injectSkillContentProvider(service);
         injectField(service, "streamResponseWriter", new DrawioStreamResponseWriter(new DrawioToolCallRenderer()));
         injectField(service, "anonymousDemoQuotaService", new AnonymousDemoQuotaService());
+        injectField(service, "verifiedUserPlatformQuotaService", new VerifiedUserPlatformQuotaService());
         return service;
     }
 
@@ -348,6 +414,12 @@ public class AgentConversationServiceTest {
         requestDTO.setUserId("anon_123e4567-e89b-42d3-a456-426614174000");
         requestDTO.setSessionId("session-1");
         requestDTO.setMessage("draw a flowchart");
+        return requestDTO;
+    }
+
+    private ChatRequestDTO verifiedPlatformRequest() {
+        ChatRequestDTO requestDTO = platformRequest();
+        requestDTO.setUserId("usr_alice");
         return requestDTO;
     }
 

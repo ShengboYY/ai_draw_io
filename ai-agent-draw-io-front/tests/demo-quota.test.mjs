@@ -6,6 +6,7 @@ import {
   buildDemoQuotaState,
   demoQuotaExhaustedMessage,
   isDemoQuotaErrorCode,
+  platformDailyQuotaExhaustedMessage,
 } from '../src/app/drawio/demo-quota.ts';
 
 test('buildDemoQuotaState shows anonymous default-model quota', () => {
@@ -52,6 +53,51 @@ test('buildDemoQuotaState hides quota when an anonymous user selects their own k
   assert.equal(state.exhausted, false);
 });
 
+test('buildDemoQuotaState shows verified user daily platform quota', () => {
+  const state = buildDemoQuotaState({
+    account: {
+      ownerId: 'usr_alice',
+      ownerType: 'USER',
+      authenticated: true,
+      emailVerified: true,
+      accountStatus: 'ACTIVE',
+      platformDailyQuotaLimit: 20,
+      platformDailyQuotaUsed: 7,
+      platformDailyQuotaRemaining: 13,
+      platformDailyQuotaExhausted: false,
+    },
+    selectedCustomModelId: 'default',
+    customModels: [],
+  });
+
+  assert.equal(state.visible, true);
+  assert.equal(state.kind, 'user');
+  assert.equal(state.remaining, 13);
+  assert.equal(state.exhausted, false);
+  assert.equal(state.label, '13 free AI requests left today');
+});
+
+test('buildDemoQuotaState hides verified user quota when using own key', () => {
+  const state = buildDemoQuotaState({
+    account: {
+      ownerId: 'usr_alice',
+      ownerType: 'USER',
+      authenticated: true,
+      emailVerified: true,
+      accountStatus: 'ACTIVE',
+      platformDailyQuotaLimit: 20,
+      platformDailyQuotaUsed: 20,
+      platformDailyQuotaRemaining: 0,
+      platformDailyQuotaExhausted: true,
+    },
+    selectedCustomModelId: 'own-key',
+    customModels: [{ id: 'own-key', enabled: true, apiKey: 'sk-user' }],
+  });
+
+  assert.equal(state.visible, false);
+  assert.equal(state.exhausted, false);
+});
+
 test('applyDemoQuotaConsumption marks the last anonymous demo request exhausted', () => {
   const nextAccount = applyDemoQuotaConsumption({
     ownerId: 'anon_123',
@@ -70,8 +116,28 @@ test('applyDemoQuotaConsumption marks the last anonymous demo request exhausted'
   assert.equal(nextAccount.demoQuotaExhausted, true);
 });
 
+test('applyDemoQuotaConsumption updates verified user daily platform quota', () => {
+  const nextAccount = applyDemoQuotaConsumption({
+    ownerId: 'usr_alice',
+    ownerType: 'USER',
+    authenticated: true,
+    emailVerified: true,
+    accountStatus: 'ACTIVE',
+    platformDailyQuotaLimit: 20,
+    platformDailyQuotaUsed: 19,
+    platformDailyQuotaRemaining: 1,
+    platformDailyQuotaExhausted: false,
+  });
+
+  assert.equal(nextAccount.platformDailyQuotaUsed, 20);
+  assert.equal(nextAccount.platformDailyQuotaRemaining, 0);
+  assert.equal(nextAccount.platformDailyQuotaExhausted, true);
+});
+
 test('demo quota errors are recognized by typed code', () => {
   assert.equal(isDemoQuotaErrorCode('DEMO_QUOTA_EXHAUSTED'), true);
+  assert.equal(isDemoQuotaErrorCode('PLATFORM_QUOTA_EXHAUSTED'), true);
   assert.equal(isDemoQuotaErrorCode('AUTH_RATE_LIMITED'), false);
   assert.match(demoQuotaExhaustedMessage, /Sign up|add your own API key/);
+  assert.match(platformDailyQuotaExhaustedMessage, /daily free AI quota|own API key/);
 });

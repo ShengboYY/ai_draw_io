@@ -14,5 +14,10 @@ public class CurrentAccountResponseDTO {
     private Integer demoQuotaUsed;
     private Integer demoQuotaRemaining;
     private Boolean demoQuotaExhausted;
+    private Integer platformDailyQuotaLimit;
+    private Integer platformDailyQuotaUsed;
+    private Integer platformDailyQuotaRemaining;
+    private Boolean platformDailyQuotaExhausted;
+    private String platformDailyQuotaDate;
 
 }

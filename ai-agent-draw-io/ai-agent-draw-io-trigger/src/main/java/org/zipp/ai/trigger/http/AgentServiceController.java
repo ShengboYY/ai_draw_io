@@ -6,7 +6,9 @@ import org.zipp.ai.api.response.Response;
 import org.zipp.ai.domain.account.model.valobj.ResolvedOwner;
 import org.zipp.ai.domain.account.model.valobj.OwnerType;
 import org.zipp.ai.domain.account.model.valobj.DemoQuotaSnapshot;
+import org.zipp.ai.domain.account.model.valobj.PlatformDailyQuotaSnapshot;
 import org.zipp.ai.domain.account.service.AnonymousDemoQuotaService;
+import org.zipp.ai.domain.account.service.VerifiedUserPlatformQuotaService;
 import org.zipp.ai.domain.agent.model.valobj.AiAgentConfigTableVO;
 import org.zipp.ai.domain.agent.model.valobj.canvas.CanvasState;
 import org.zipp.ai.domain.agent.model.valobj.conversation.DiagramConversationMessage;
@@ -48,6 +50,9 @@ public class AgentServiceController implements IAgentService {
 
     @Resource
     private AnonymousDemoQuotaService anonymousDemoQuotaService;
+
+    @Resource
+    private VerifiedUserPlatformQuotaService verifiedUserPlatformQuotaService;
 
     @RequestMapping(value = "query_ai_agent_config_list", method = RequestMethod.GET)
     @Override
@@ -420,6 +425,13 @@ public class AgentServiceController implements IAgentService {
             dto.setDemoQuotaUsed(quota.getUsed());
             dto.setDemoQuotaRemaining(quota.getRemaining());
             dto.setDemoQuotaExhausted(quota.isExhausted());
+        } else if (OwnerType.USER == owner.getOwnerType()) {
+            PlatformDailyQuotaSnapshot quota = platformQuotaService().snapshot(owner.getOwnerId());
+            dto.setPlatformDailyQuotaLimit(quota.getLimit());
+            dto.setPlatformDailyQuotaUsed(quota.getUsed());
+            dto.setPlatformDailyQuotaRemaining(quota.getRemaining());
+            dto.setPlatformDailyQuotaExhausted(quota.isExhausted());
+            dto.setPlatformDailyQuotaDate(quota.getQuotaDate());
         }
         return dto;
     }
@@ -434,6 +446,10 @@ public class AgentServiceController implements IAgentService {
 
     private AnonymousDemoQuotaService demoQuotaService() {
         return anonymousDemoQuotaService == null ? new AnonymousDemoQuotaService() : anonymousDemoQuotaService;
+    }
+
+    private VerifiedUserPlatformQuotaService platformQuotaService() {
+        return verifiedUserPlatformQuotaService == null ? new VerifiedUserPlatformQuotaService() : verifiedUserPlatformQuotaService;
     }
 
     private <T> Response<T> illegalWorkspaceResponse() {
