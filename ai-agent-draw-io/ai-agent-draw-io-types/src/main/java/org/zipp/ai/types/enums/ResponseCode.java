@@ -10,6 +10,7 @@ public enum ResponseCode {
     ILLEGAL_PARAMETER("0002", "非法参数"),
     NOT_FOUND_METHOD("0003", "不存在的方法"),
     AUTH_RATE_LIMITED("AUTH_RATE_LIMITED", "Too many attempts. Please try again later."),
+    DEMO_QUOTA_EXHAUSTED("DEMO_QUOTA_EXHAUSTED", "Demo quota exhausted. Sign up or add your own API key to continue."),
 
     E0001("E0001", "智能体ID不存在"),
     E0002("E0002", "智能体MCP配置不在可加载范围");

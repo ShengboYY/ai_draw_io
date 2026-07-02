@@ -10,5 +10,9 @@ public class CurrentAccountResponseDTO {
     private boolean authenticated;
     private boolean emailVerified;
     private String accountStatus;
+    private Integer demoQuotaLimit;
+    private Integer demoQuotaUsed;
+    private Integer demoQuotaRemaining;
+    private Boolean demoQuotaExhausted;
 
 }

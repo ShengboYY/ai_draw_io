@@ -19,6 +19,7 @@ import org.zipp.ai.api.dto.UpdateDiagramTitleRequestDTO;
 import org.zipp.ai.api.response.Response;
 import org.zipp.ai.domain.account.model.valobj.AccountStatus;
 import org.zipp.ai.domain.account.model.valobj.OwnerType;
+import org.zipp.ai.domain.account.service.AnonymousDemoQuotaService;
 import org.zipp.ai.domain.agent.model.valobj.canvas.CanvasState;
 import org.zipp.ai.domain.agent.service.ICanvasStateStore;
 import org.zipp.ai.trigger.http.AgentServiceController;
@@ -140,6 +141,25 @@ public class AgentServiceControllerWorkspaceTest {
         assertEquals(AccountStatus.ANONYMOUS.name(), response.getData().getAccountStatus());
         assertFalse(response.getData().isAuthenticated());
         assertFalse(response.getData().isEmailVerified());
+    }
+
+    @Test
+    public void shouldExposeAnonymousDemoQuotaOnCurrentAccountStatus() throws Exception {
+        AgentServiceController controller = new AgentServiceController();
+        AnonymousDemoQuotaService quotaService = new AnonymousDemoQuotaService();
+        quotaService.consume(VALID_WORKSPACE_ID);
+        quotaService.consume(VALID_WORKSPACE_ID);
+        inject(controller, "anonymousDemoQuotaService", quotaService);
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.addHeader("X-Workspace-Id", VALID_WORKSPACE_ID);
+        RequestContextHolder.setRequestAttributes(new ServletRequestAttributes(request));
+
+        Response<CurrentAccountResponseDTO> response = controller.currentAccount();
+
+        assertEquals(Integer.valueOf(5), response.getData().getDemoQuotaLimit());
+        assertEquals(Integer.valueOf(2), response.getData().getDemoQuotaUsed());
+        assertEquals(Integer.valueOf(3), response.getData().getDemoQuotaRemaining());
+        assertFalse(response.getData().getDemoQuotaExhausted());
     }
 
     @Test

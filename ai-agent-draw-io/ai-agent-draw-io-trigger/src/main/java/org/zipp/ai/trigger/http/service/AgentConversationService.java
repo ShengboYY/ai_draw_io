@@ -2,6 +2,8 @@ package org.zipp.ai.trigger.http.service;
 
 import org.zipp.ai.api.dto.ChatRequestDTO;
 import org.zipp.ai.api.dto.ChatResponseDTO;
+import org.zipp.ai.domain.account.service.AnonymousDemoQuotaExceededException;
+import org.zipp.ai.domain.account.service.AnonymousDemoQuotaService;
 import org.zipp.ai.domain.agent.model.valobj.canvas.CanvasState;
 import org.zipp.ai.domain.agent.model.valobj.intent.IntentRoutingCommand;
 import org.zipp.ai.domain.agent.model.valobj.intent.IntentRoutingResult;
@@ -57,10 +59,14 @@ public class AgentConversationService {
     @Resource
     private SkillContentProvider skillContentProvider;
 
+    @Resource
+    private AnonymousDemoQuotaService anonymousDemoQuotaService = new AnonymousDemoQuotaService();
+
     public ChatResponseDTO chat(ChatRequestDTO requestDTO) {
         String sessionId = ensureSession(requestDTO);
         CustomApiConfigManager.CustomApiConfig config = buildCustomApiConfig(requestDTO);
         CustomApiConfigManager.setConfig(sessionId, config);
+        consumeAnonymousDemoQuota(requestDTO, config);
 
         requestDTO = requestWithStoredCanvas(requestDTO);
         IntentRoutingResult routingResult = routeIntent(requestDTO, config);
@@ -85,6 +91,7 @@ public class AgentConversationService {
 
             CustomApiConfigManager.CustomApiConfig config = buildCustomApiConfig(requestDTO);
             CustomApiConfigManager.setConfig(finalSessionId, config);
+            consumeAnonymousDemoQuota(requestDTO, config);
 
             requestDTO = requestWithStoredCanvas(requestDTO);
             IntentRoutingResult routingResult = routeIntent(requestDTO, config);
@@ -193,6 +200,14 @@ public class AgentConversationService {
                 streamResponseWriter.clearPendingDiagram(emitter);
                 disposeStream(finalSessionId, "emitter.onError", disposable);
             });
+        } catch (AnonymousDemoQuotaExceededException e) {
+            log.info("Anonymous demo quota exhausted for userId:{}", SecretLogSanitizer.maskCapability(requestDTO.getUserId()));
+            try {
+                streamResponseWriter.sendTypedError(emitter, e.getCode(), e.getInfo());
+                streamResponseWriter.sendDone(emitter);
+            } catch (Exception ignored) {
+            }
+            emitter.complete();
         } catch (Exception e) {
             log.error("流式对话失败", e);
             emitter.completeWithError(e);
@@ -275,6 +290,15 @@ public class AgentConversationService {
                 .model(requestDTO.getCustomModel())
                 .customModelSelected(StringUtils.isNotBlank(requestDTO.getCustomModel()))
                 .build();
+    }
+
+    private void consumeAnonymousDemoQuota(ChatRequestDTO requestDTO, CustomApiConfigManager.CustomApiConfig config) {
+        // Quota is consumed before intent routing because routing is already model work.
+        demoQuotaService().consumeIfNeeded(requestDTO.getUserId(), config == null ? null : config.getApiKey());
+    }
+
+    private AnonymousDemoQuotaService demoQuotaService() {
+        return anonymousDemoQuotaService == null ? new AnonymousDemoQuotaService() : anonymousDemoQuotaService;
     }
 
     private IntentRoutingResult routeIntent(ChatRequestDTO requestDTO, CustomApiConfigManager.CustomApiConfig config) {

@@ -3,19 +3,34 @@ package org.zipp.ai.test.trigger.service;
 import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.read.ListAppender;
+import com.google.adk.events.Event;
+import io.reactivex.rxjava3.core.Flowable;
 import org.junit.Test;
 import org.slf4j.LoggerFactory;
+import org.springframework.web.servlet.mvc.method.annotation.ResponseBodyEmitter;
 import org.zipp.ai.api.dto.ChatRequestDTO;
+import org.zipp.ai.domain.account.service.AnonymousDemoQuotaExceededException;
+import org.zipp.ai.domain.account.service.AnonymousDemoQuotaService;
+import org.zipp.ai.domain.agent.model.entity.ChatCommandEntity;
+import org.zipp.ai.domain.agent.model.valobj.AiAgentConfigTableVO;
 import org.zipp.ai.domain.agent.model.valobj.canvas.CanvasState;
+import org.zipp.ai.domain.agent.model.valobj.intent.IntentRoutingCommand;
 import org.zipp.ai.domain.agent.model.valobj.intent.IntentRoutingResult;
 import org.zipp.ai.domain.agent.service.ICanvasStateStore;
+import org.zipp.ai.domain.agent.service.IChatService;
+import org.zipp.ai.domain.agent.service.IIntentRoutingService;
 import org.zipp.ai.domain.agent.service.canvas.DefaultDrawioCanvasSnapshotService;
 import org.zipp.ai.trigger.http.service.AgentConversationService;
 import org.zipp.ai.trigger.http.service.DrawioPromptContextBuilder;
+import org.zipp.ai.trigger.http.service.DrawioStreamResponseWriter;
+import org.zipp.ai.trigger.http.service.DrawioToolCallRenderer;
 import org.zipp.ai.trigger.http.service.SkillContentProvider;
+import org.zipp.ai.types.enums.ResponseCode;
 
+import java.io.IOException;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.util.List;
 import java.util.Optional;
 
 import static org.junit.Assert.assertFalse;
@@ -200,6 +215,69 @@ public class AgentConversationServiceTest {
         assertTrue(routedMessage.contains("value=\"Request API\""));
     }
 
+    @Test
+    public void shouldRejectSixthAnonymousPlatformBlockingRequestBeforeModelWork() throws Exception {
+        AgentConversationService service = quotaAwareService();
+        CountingChatService chatService = new CountingChatService();
+        CountingIntentRoutingService intentRoutingService = new CountingIntentRoutingService();
+        injectField(service, "chatService", chatService);
+        injectField(service, "intentRoutingService", intentRoutingService);
+
+        for (int i = 0; i < 5; i++) {
+            service.chat(platformRequest());
+        }
+
+        try {
+            service.chat(platformRequest());
+        } catch (AnonymousDemoQuotaExceededException expected) {
+            assertEquals(ResponseCode.DEMO_QUOTA_EXHAUSTED.getCode(), expected.getCode());
+            assertEquals(5, intentRoutingService.calls);
+            assertEquals(5, chatService.handleMessageCalls);
+            return;
+        }
+        throw new AssertionError("expected anonymous demo quota denial");
+    }
+
+    @Test
+    public void shouldAllowAnonymousCustomKeyRequestsAfterDemoQuotaIsExhausted() throws Exception {
+        AgentConversationService service = quotaAwareService();
+        CountingChatService chatService = new CountingChatService();
+        CountingIntentRoutingService intentRoutingService = new CountingIntentRoutingService();
+        injectField(service, "chatService", chatService);
+        injectField(service, "intentRoutingService", intentRoutingService);
+
+        for (int i = 0; i < 6; i++) {
+            ChatRequestDTO requestDTO = platformRequest();
+            requestDTO.setCustomApiKey("sk-user-owned");
+            service.chat(requestDTO);
+        }
+
+        assertEquals(6, intentRoutingService.calls);
+        assertEquals(6, chatService.handleMessageCalls);
+    }
+
+    @Test
+    public void shouldReturnTypedStreamErrorBeforeModelWorkWhenDemoQuotaIsExhausted() throws Exception {
+        AgentConversationService service = quotaAwareService();
+        CountingChatService chatService = new CountingChatService();
+        CountingIntentRoutingService intentRoutingService = new CountingIntentRoutingService();
+        injectField(service, "chatService", chatService);
+        injectField(service, "intentRoutingService", intentRoutingService);
+
+        for (int i = 0; i < 5; i++) {
+            service.stream(platformRequest(), new CapturingEmitter());
+        }
+
+        CapturingEmitter deniedEmitter = new CapturingEmitter();
+        service.stream(platformRequest(), deniedEmitter);
+
+        String output = String.join("\n", deniedEmitter.sent);
+        assertTrue(output.contains("\"type\":\"error\""));
+        assertTrue(output.contains(ResponseCode.DEMO_QUOTA_EXHAUSTED.getCode()));
+        assertEquals(5, intentRoutingService.calls);
+        assertEquals(5, chatService.handleMessageStreamCalls);
+    }
+
     private int normalizeMaxReviewIterations(AgentConversationService service, Integer value) throws Exception {
         // Exercise the private normalization boundary without widening production API surface.
         Method method = AgentConversationService.class.getDeclaredMethod("normalizeMaxReviewIterations", Integer.class);
@@ -255,6 +333,30 @@ public class AgentConversationServiceTest {
         field.set(service, new EmptySkillContentProvider());
     }
 
+    private AgentConversationService quotaAwareService() throws Exception {
+        AgentConversationService service = new AgentConversationService();
+        injectPromptContextBuilder(service);
+        injectSkillContentProvider(service);
+        injectField(service, "streamResponseWriter", new DrawioStreamResponseWriter(new DrawioToolCallRenderer()));
+        injectField(service, "anonymousDemoQuotaService", new AnonymousDemoQuotaService());
+        return service;
+    }
+
+    private ChatRequestDTO platformRequest() {
+        ChatRequestDTO requestDTO = new ChatRequestDTO();
+        requestDTO.setAgentId("300000");
+        requestDTO.setUserId("anon_123e4567-e89b-42d3-a456-426614174000");
+        requestDTO.setSessionId("session-1");
+        requestDTO.setMessage("draw a flowchart");
+        return requestDTO;
+    }
+
+    private void injectField(Object target, String fieldName, Object value) throws Exception {
+        Field field = target.getClass().getDeclaredField(fieldName);
+        field.setAccessible(true);
+        field.set(target, value);
+    }
+
     private String storedCanvasXml() {
         return "<mxGraphModel><root><mxCell id=\"0\"/><mxCell id=\"1\" parent=\"0\"/>"
                 + "<mxCell id=\"stored\" value=\"Stored API\" vertex=\"1\" parent=\"1\">"
@@ -300,6 +402,73 @@ public class AgentConversationServiceTest {
         @Override
         public String buildSkillSection(java.util.List<String> skillNames, String ownerId) {
             return "";
+        }
+    }
+
+    private static class CountingIntentRoutingService implements IIntentRoutingService {
+        private int calls;
+
+        @Override
+        public IntentRoutingResult route(IntentRoutingCommand command) {
+            calls++;
+            return IntentRoutingResult.fallbackDrawAction("test");
+        }
+    }
+
+    private static class CountingChatService implements IChatService {
+        private int handleMessageCalls;
+        private int handleMessageStreamCalls;
+
+        @Override
+        public List<AiAgentConfigTableVO.Agent> queryAiAgentConfigList() {
+            return List.of();
+        }
+
+        @Override
+        public String createSession(String agentId, String userId) {
+            return "session-1";
+        }
+
+        @Override
+        public String ensureSession(String agentId, String userId, String sessionId) {
+            return sessionId == null || sessionId.isBlank() ? "session-1" : sessionId;
+        }
+
+        @Override
+        public List<String> handleMessage(String agentId, String userId, String message) {
+            return handleMessage(agentId, userId, "session-1", message);
+        }
+
+        @Override
+        public List<String> handleMessage(String agentId, String userId, String sessionId, String message) {
+            handleMessageCalls++;
+            return List.of("{\"type\":\"user\",\"content\":\"ok\"}");
+        }
+
+        @Override
+        public Flowable<Event> handleMessageStream(String agentId, String userId, String sessionId, String message) {
+            handleMessageStreamCalls++;
+            return Flowable.empty();
+        }
+
+        @Override
+        public List<String> handleMessage(ChatCommandEntity chatCommandEntity) {
+            return List.of("{\"type\":\"user\",\"content\":\"ok\"}");
+        }
+    }
+
+    private static class CapturingEmitter extends ResponseBodyEmitter {
+        private final java.util.List<String> sent = new java.util.ArrayList<>();
+        private boolean completed;
+
+        @Override
+        public void send(Object object) throws IOException {
+            sent.add(String.valueOf(object));
+        }
+
+        @Override
+        public void complete() {
+            completed = true;
         }
     }
 

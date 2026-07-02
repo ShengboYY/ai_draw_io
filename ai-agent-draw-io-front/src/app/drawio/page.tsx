@@ -6,6 +6,7 @@ import { useSearchParams } from 'next/navigation';
 import { getUserInfo } from '@/utils/cookie';
 import { getWorkspaceIdentity } from '@/utils/workspace-identity';
 import { agentApi, StreamEvent } from '@/api/agent';
+import type { CurrentAccountResponseDTO } from '@/types/api';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { buildStepSummary } from './execution-step-summary';
@@ -24,6 +25,13 @@ import { buildCanvasStateConflictMessage } from './canvas-state-conflict';
 import { buildRestoredDiagramState } from './diagram-restore';
 import { buildDiagramTitleFromPrompt } from './diagram-title';
 import { buildRestoredConversationMessages } from './conversation-restore';
+import {
+  applyDemoQuotaConsumption,
+  buildDemoQuotaState,
+  demoQuotaExhaustedMessage,
+  isDemoQuotaErrorCode,
+  markDemoQuotaExhausted,
+} from './demo-quota';
 import {
   AgentRunEvent,
   AgentRunEventStatus,
@@ -485,6 +493,21 @@ export default function Home() {
   
   // User State
   const [currentUser, setCurrentUser] = useState('');
+  const [currentAccount, setCurrentAccount] = useState<CurrentAccountResponseDTO | null>(null);
+
+  const loadCurrentAccount = async (ownerId: string) => {
+    if (!ownerId) return;
+    try {
+      const res = await agentApi.currentAccount(ownerId);
+      setCurrentAccount(res.data || null);
+    } catch (error) {
+      console.warn('Failed to load account status:', error);
+    }
+  };
+
+  const refreshCurrentAccount = async (ownerId = currentUser) => {
+    await loadCurrentAccount(ownerId);
+  };
 
   // Chat State
   const [isChatOpen, setIsChatOpen] = useState(true);
@@ -577,6 +600,11 @@ export default function Home() {
   const [customModels, setCustomModels] = useState<CustomModelConfig[]>([]);
   const [selectedCustomModelId, setSelectedCustomModelId] = useState<string>('default');
   const [maxReviewIterations, setMaxReviewIterations] = useState(1);
+  const demoQuotaState = buildDemoQuotaState({
+    account: currentAccount,
+    selectedCustomModelId,
+    customModels,
+  });
   
   // Temporary state for editing in modal
   const [editingModel, setEditingModel] = useState<CustomModelConfig | null>(null);
@@ -1082,6 +1110,7 @@ export default function Home() {
     const userInfo = getUserInfo();
     const identity = getWorkspaceIdentity(userInfo?.user);
     setCurrentUser(identity.ownerId);
+    void loadCurrentAccount(identity.ownerId);
 
     // Load Custom Models
     const savedModels = localStorage.getItem('ai_agent_custom_models');
@@ -1485,6 +1514,11 @@ export default function Home() {
           skills: pendingSkillsRef.current.length ? pendingSkillsRef.current : undefined
       });
 
+      if (demoQuotaState.visible) {
+        // Keep the visible counter in step with the backend; the refresh below reconciles failures.
+        setCurrentAccount(prev => applyDemoQuotaConsumption(prev));
+      }
+
       const controller = await agentApi.chatStream(
         requestPayload,
         // onEvent
@@ -1869,14 +1903,20 @@ export default function Home() {
             }
 
             case 'error': {
+              const isDemoQuotaError = isDemoQuotaErrorCode(chunk.code);
+              const errorContent = isDemoQuotaError ? demoQuotaExhaustedMessage : chunk.content;
+              if (isDemoQuotaError) {
+                setCurrentAccount(prev => markDemoQuotaExhausted(prev));
+                void refreshCurrentAccount();
+              }
               upsertRunEvent('stream:error', {
                 phase: 'error',
-                title: 'Stream error',
-                detail: chunk.content,
+                title: isDemoQuotaError ? 'Demo quota exhausted' : 'Stream error',
+                detail: errorContent,
                 status: 'error',
                 tone: 'review',
               });
-              accumulatedContent += (accumulatedContent ? '\n\n' : '') + `❌ ${chunk.content}`;
+              accumulatedContent += (accumulatedContent ? '\n\n' : '') + `❌ ${errorContent}`;
               setMessages(prev => prev.map(m => m.id === agentMsgId ? { ...m, content: accumulatedContent, steps: [...accumulatedSteps] } : m));
               break;
             }
@@ -1915,12 +1955,14 @@ export default function Home() {
           setIsSending(false);
           setStreamPhase('');
           setStreamProgress('');
+          void refreshCurrentAccount();
         },
         // onComplete
         () => {
           setIsSending(false);
           setStreamPhase('');
           setStreamProgress('');
+          void refreshCurrentAccount();
           markRunEventsDone();
           
           if (!appendCompletionMessage() && !appendEmptyResponseMessage()) {
@@ -1939,6 +1981,7 @@ export default function Home() {
 
     } catch (error) {
       console.error('Chat error:', error);
+      void refreshCurrentAccount();
       setMessages(prev => [...prev, {
         id: Date.now().toString(),
         role: 'agent',
@@ -1953,6 +1996,15 @@ export default function Home() {
 
   const sendContent = async (content: string) => {
     if (!content.trim() || isSending) return;
+    if (demoQuotaState.exhausted) {
+      setMessages(prev => [...prev, {
+        id: Date.now().toString(),
+        role: 'agent',
+        content: demoQuotaExhaustedMessage,
+        timestamp: Date.now()
+      }]);
+      return;
+    }
 
     setIsSending(true);
 
@@ -2382,7 +2434,12 @@ export default function Home() {
                     onClick={() => {
                       sendContent(action.text);
                     }}
-                    className="text-xs px-3 py-1.5 bg-indigo-50 text-indigo-600 rounded-full hover:bg-indigo-100 transition-colors border border-indigo-100 font-medium shadow-sm"
+                    disabled={demoQuotaState.exhausted}
+                    className={`text-xs px-3 py-1.5 rounded-full transition-colors border font-medium shadow-sm ${
+                      demoQuotaState.exhausted
+                        ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed'
+                        : 'bg-indigo-50 text-indigo-600 hover:bg-indigo-100 border-indigo-100'
+                    }`}
                   >
                     {action.label}
                   </button>
@@ -2439,6 +2496,36 @@ export default function Home() {
                 </div>
             </div>
 
+            {demoQuotaState.visible && (
+              <div className={`mb-2 flex flex-wrap items-center justify-between gap-2 rounded-xl border px-3 py-2 text-xs ${
+                demoQuotaState.exhausted
+                  ? 'border-rose-200 bg-rose-50 text-rose-700'
+                  : demoQuotaState.remaining <= 1
+                    ? 'border-amber-200 bg-amber-50 text-amber-700'
+                    : 'border-emerald-200 bg-emerald-50 text-emerald-700'
+              }`}>
+                <span className="font-medium">{demoQuotaState.label}</span>
+                {demoQuotaState.exhausted && (
+                  <span className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setShowApiConfig(true)}
+                      className="rounded-lg border border-rose-200 bg-white px-2 py-1 font-medium text-rose-700 hover:bg-rose-100"
+                    >
+                      Add key
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { window.location.href = '/login'; }}
+                      className="rounded-lg bg-rose-600 px-2 py-1 font-medium text-white hover:bg-rose-700"
+                    >
+                      Sign up
+                    </button>
+                  </span>
+                )}
+              </div>
+            )}
+
             {selectedSkills.length > 0 && (
               <div className="flex flex-wrap gap-1.5 mb-2">
                 {selectedSkills.map(name => (
@@ -2475,8 +2562,8 @@ export default function Home() {
                   e.target.style.height = Math.min(e.target.scrollHeight, 300) + 'px';
                 }}
                 onKeyDown={handleKeyDown}
-                placeholder={isSending ? "AI is generating..." : "Ask a question or describe your diagram request..."}
-                disabled={isSending}
+                placeholder={isSending ? "AI is generating..." : demoQuotaState.exhausted ? "Demo quota exhausted. Sign up or add your own API key." : "Ask a question or describe your diagram request..."}
+                disabled={isSending || demoQuotaState.exhausted}
                 className="flex-1 px-4 py-3 bg-transparent border-none focus:ring-0 text-[15px] text-slate-800 placeholder:text-slate-400 resize-none max-h-[300px] min-h-[80px] scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent disabled:opacity-50 disabled:cursor-not-allowed leading-relaxed"
                 rows={1}
                 style={{ height: 'auto', minHeight: '80px' }}
@@ -2493,10 +2580,10 @@ export default function Home() {
                   ) : (
                     <button
                       onClick={handleSendMessage}
-                      disabled={!inputValue.trim()}
+                      disabled={!inputValue.trim() || demoQuotaState.exhausted}
                       className={`
                         p-2.5 rounded-lg transition-all duration-200 flex items-center justify-center
-                        ${inputValue.trim()
+                        ${inputValue.trim() && !demoQuotaState.exhausted
                           ? 'bg-indigo-600 text-white shadow-md shadow-indigo-200 hover:bg-indigo-700 hover:scale-105 active:scale-95' 
                           : 'bg-slate-200 text-slate-400 cursor-not-allowed'
                         }

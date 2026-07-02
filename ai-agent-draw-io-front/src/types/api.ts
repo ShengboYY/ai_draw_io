@@ -4,7 +4,7 @@ export interface Response<T> {
     data: T;
 }
 
-export type ApiErrorCode = 'AUTH_RATE_LIMITED' | (string & {});
+export type ApiErrorCode = 'AUTH_RATE_LIMITED' | 'DEMO_QUOTA_EXHAUSTED' | (string & {});
 
 export interface AiAgentConfigResponseDTO {
     agentId: string;
@@ -27,6 +27,10 @@ export interface CurrentAccountResponseDTO {
   authenticated: boolean;
   emailVerified: boolean;
   accountStatus: 'ANONYMOUS' | 'PENDING_VERIFICATION' | 'ACTIVE' | 'DISABLED' | 'DELETED';
+  demoQuotaLimit?: number;
+  demoQuotaUsed?: number;
+  demoQuotaRemaining?: number;
+  demoQuotaExhausted?: boolean;
 }
 
 export interface DiagramSummaryResponseDTO {

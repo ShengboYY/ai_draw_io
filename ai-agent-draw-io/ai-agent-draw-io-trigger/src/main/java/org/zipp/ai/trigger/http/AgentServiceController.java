@@ -4,6 +4,9 @@ import org.zipp.ai.api.IAgentService;
 import org.zipp.ai.api.dto.*;
 import org.zipp.ai.api.response.Response;
 import org.zipp.ai.domain.account.model.valobj.ResolvedOwner;
+import org.zipp.ai.domain.account.model.valobj.OwnerType;
+import org.zipp.ai.domain.account.model.valobj.DemoQuotaSnapshot;
+import org.zipp.ai.domain.account.service.AnonymousDemoQuotaService;
 import org.zipp.ai.domain.agent.model.valobj.AiAgentConfigTableVO;
 import org.zipp.ai.domain.agent.model.valobj.canvas.CanvasState;
 import org.zipp.ai.domain.agent.model.valobj.conversation.DiagramConversationMessage;
@@ -42,6 +45,9 @@ public class AgentServiceController implements IAgentService {
 
     @Resource
     private CurrentOwnerHttpResolver currentOwnerHttpResolver;
+
+    @Resource
+    private AnonymousDemoQuotaService anonymousDemoQuotaService;
 
     @RequestMapping(value = "query_ai_agent_config_list", method = RequestMethod.GET)
     @Override
@@ -408,6 +414,13 @@ public class AgentServiceController implements IAgentService {
         dto.setAuthenticated(owner.isAuthenticated());
         dto.setEmailVerified(owner.isEmailVerified());
         dto.setAccountStatus(owner.getAccountStatus().name());
+        if (OwnerType.ANONYMOUS == owner.getOwnerType()) {
+            DemoQuotaSnapshot quota = demoQuotaService().snapshot(owner.getOwnerId());
+            dto.setDemoQuotaLimit(quota.getLimit());
+            dto.setDemoQuotaUsed(quota.getUsed());
+            dto.setDemoQuotaRemaining(quota.getRemaining());
+            dto.setDemoQuotaExhausted(quota.isExhausted());
+        }
         return dto;
     }
 
@@ -417,6 +430,10 @@ public class AgentServiceController implements IAgentService {
 
     private CurrentOwnerHttpResolver ownerHttpResolver() {
         return currentOwnerHttpResolver == null ? new CurrentOwnerHttpResolver() : currentOwnerHttpResolver;
+    }
+
+    private AnonymousDemoQuotaService demoQuotaService() {
+        return anonymousDemoQuotaService == null ? new AnonymousDemoQuotaService() : anonymousDemoQuotaService;
     }
 
     private <T> Response<T> illegalWorkspaceResponse() {

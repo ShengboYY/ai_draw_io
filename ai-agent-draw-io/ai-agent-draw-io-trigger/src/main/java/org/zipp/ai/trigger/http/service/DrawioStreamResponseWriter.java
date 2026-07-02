@@ -45,6 +45,10 @@ public class DrawioStreamResponseWriter {
         emitter.complete();
     }
 
+    public void sendTypedError(ResponseBodyEmitter emitter, String code, String content) throws Exception {
+        sendError(emitter, "error", code, content);
+    }
+
     /**
      * Process a single line: try to parse as Draw.io JSON, otherwise send as status text.
      */
@@ -590,10 +594,17 @@ public class DrawioStreamResponseWriter {
     }
 
     private void sendError(ResponseBodyEmitter emitter, String phase, String content) throws Exception {
+        sendError(emitter, phase, null, content);
+    }
+
+    private void sendError(ResponseBodyEmitter emitter, String phase, String code, String content) throws Exception {
         com.alibaba.fastjson.JSONObject wrapper = new com.alibaba.fastjson.JSONObject();
         wrapper.put("phase", phase);
         com.alibaba.fastjson.JSONObject chunk = new com.alibaba.fastjson.JSONObject();
         chunk.put("type", "error");
+        if (StringUtils.isNotBlank(code)) {
+            chunk.put("code", code);
+        }
         chunk.put("content", content);
         wrapper.put("chunk", chunk);
         emitter.send(wrapper.toJSONString() + "\n");

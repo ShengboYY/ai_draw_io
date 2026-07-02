@@ -95,6 +95,7 @@ export interface StatusChunk {
 
 export interface ErrorChunk {
     type: 'error';
+    code?: ApiErrorCode;
     content: string;
 }
 
