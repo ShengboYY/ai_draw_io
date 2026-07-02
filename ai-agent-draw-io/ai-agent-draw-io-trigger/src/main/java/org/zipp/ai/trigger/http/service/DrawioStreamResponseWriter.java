@@ -86,6 +86,10 @@ public class DrawioStreamResponseWriter {
 
         String extractedDrawioXml = extractDrawioXml(line);
         if (StringUtils.isNotBlank(extractedDrawioXml)) {
+            if (isReviewRepairPhase(phase)) {
+                sendError(emitter, phase, "Review repair cannot replace the whole diagram. Use modify_diagram or optimize_diagram.");
+                return true;
+            }
             sendDrawioStream(emitter, phase, extractedDrawioXml);
             return false;
         }
@@ -101,6 +105,10 @@ public class DrawioStreamResponseWriter {
      */
     private Boolean dispatchTypedJson(ResponseBodyEmitter emitter, String phase, com.alibaba.fastjson.JSONObject json) throws Exception {
         String type = json.getString("type");
+        if (isReviewRepairPhase(phase) && DrawioCanvasToolNames.CREATE_DIAGRAM.equals(type)) {
+            sendError(emitter, phase, "Review repair cannot call create_diagram. Use modify_diagram or optimize_diagram.");
+            return true;
+        }
         if (DrawioCanvasToolNames.CONTINUE_DIAGRAM.equals(type) && json.containsKey("xmlFragment")) {
             sendFallbackContinuation(emitter, phase, json);
             return false;
@@ -408,6 +416,9 @@ public class DrawioStreamResponseWriter {
         }
 
         String normalizedAuthor = author.toLowerCase();
+        if (normalizedAuthor.contains("repair")) {
+            return "revising";
+        }
         if (normalizedAuthor.contains("review") || normalizedAuthor.contains("critic") || normalizedAuthor.contains("check")) {
             return "reviewing";
         }
@@ -422,6 +433,10 @@ public class DrawioStreamResponseWriter {
         }
 
         return "thinking";
+    }
+
+    private boolean isReviewRepairPhase(String phase) {
+        return "revising".equals(phase);
     }
 
     public void handleStreamError(ResponseBodyEmitter emitter, boolean manuallyCompleted, Throwable error) {

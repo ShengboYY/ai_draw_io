@@ -118,6 +118,45 @@ public class DrawioStreamResponseWriterTest {
     }
 
     @Test
+    public void shouldResolveRepairDrawerAsRevisingPhase() {
+        DrawioStreamResponseWriter writer = new DrawioStreamResponseWriter(new DrawioToolCallRenderer());
+
+        assertEquals("revising", writer.resolvePhase("agent_repair_drawer"));
+    }
+
+    @Test
+    public void shouldRejectCreateDiagramFallbackDuringReviewRepair() throws Exception {
+        DrawioStreamResponseWriter writer = new DrawioStreamResponseWriter(new DrawioToolCallRenderer());
+        CapturingEmitter emitter = new CapturingEmitter();
+
+        boolean shouldComplete = writer.processAndSendLine(emitter, "revising", """
+                {"type":"create_diagram","xml":"<mxCell id='2' value='Replacement' vertex='1' parent='1'><mxGeometry x='100' y='100' width='120' height='60' as='geometry'/></mxCell>"}
+                """);
+
+        String output = String.join("\n", emitter.sent);
+        assertTrue(shouldComplete);
+        assertTrue(output.contains("\"type\":\"error\""));
+        assertTrue(output.contains("Review repair cannot call create_diagram"));
+        assertFalse(output.contains("\"type\":\"drawio_done\""));
+    }
+
+    @Test
+    public void shouldRejectRawXmlReplacementDuringReviewRepair() throws Exception {
+        DrawioStreamResponseWriter writer = new DrawioStreamResponseWriter(new DrawioToolCallRenderer());
+        CapturingEmitter emitter = new CapturingEmitter();
+
+        boolean shouldComplete = writer.processAndSendLine(emitter, "revising", """
+                <mxGraphModel><root><mxCell id='0'/><mxCell id='1' parent='0'/><mxCell id='2' value='Replacement' vertex='1' parent='1'><mxGeometry x='100' y='100' width='120' height='60' as='geometry'/></mxCell></root></mxGraphModel>
+                """);
+
+        String output = String.join("\n", emitter.sent);
+        assertTrue(shouldComplete);
+        assertTrue(output.contains("\"type\":\"error\""));
+        assertTrue(output.contains("Review repair cannot replace the whole diagram"));
+        assertFalse(output.contains("\"type\":\"drawio_done\""));
+    }
+
+    @Test
     public void shouldBufferFallbackContinueDiagramLines() throws Exception {
         DrawioStreamResponseWriter writer = new DrawioStreamResponseWriter(new DrawioToolCallRenderer());
         CapturingEmitter emitter = new CapturingEmitter();

@@ -17,7 +17,9 @@ import org.springframework.stereotype.Service;
 
 import javax.annotation.Resource;
 import java.util.Collections;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 
 @Slf4j
 @Service
@@ -43,8 +45,9 @@ public class AgentNode extends AbstractArmorySupport {
                     .model(new MySpringAI(chatModel))
                     .instruction(agentConfig.getInstruction())
                     .outputKey(agentConfig.getOutputKey());
-            if (!adkTools.isEmpty()) {
-                builder.tools(adkTools);
+            List<BaseTool> agentTools = adkToolsFor(agentConfig, adkTools);
+            if (!agentTools.isEmpty()) {
+                builder.tools(agentTools);
             }
             LlmAgent llmAgent = builder.build();
 
@@ -65,6 +68,22 @@ public class AgentNode extends AbstractArmorySupport {
             return Collections.emptyList();
         }
         return SpringToolCallbackAdkTool.fromCallbacks(callbacks);
+    }
+
+    private List<BaseTool> adkToolsFor(AiAgentConfigTableVO.Module.Agent agentConfig, List<BaseTool> adkTools) {
+        List<String> allowedTools = agentConfig.getAllowedTools();
+        if (allowedTools == null) {
+            return adkTools;
+        }
+        if (allowedTools.isEmpty() || adkTools.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        // Agent-level allowlists physically remove tools from that ADK agent's declarations.
+        Set<String> allowed = new LinkedHashSet<>(allowedTools);
+        return adkTools.stream()
+                .filter(tool -> allowed.contains(tool.name()))
+                .toList();
     }
 
 }

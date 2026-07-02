@@ -15,7 +15,10 @@ import org.zipp.ai.domain.agent.service.armory.matter.mcp.server.DrawioCanvasMcp
 import reactor.core.publisher.Flux;
 
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
@@ -56,6 +59,27 @@ public class AgentNodeAdkToolRegistrationTest {
                 .isPresent());
     }
 
+    @Test
+    public void shouldFilterAdkToolsPerAgentAllowedTools() throws Exception {
+        ToolCallback[] callbacks = MethodToolCallbackProvider.builder()
+                .toolObjects(new DrawioCanvasMcpService())
+                .build()
+                .getToolCallbacks();
+        DefaultArmoryFactory.DynamicContext context = new DefaultArmoryFactory.DynamicContext();
+        context.setChatModel(new FakeChatModel());
+        context.setValue(ChatModelNode.TOOL_CALLBACKS_CONTEXT_KEY, List.of(callbacks));
+
+        TestableAgentNode node = new TestableAgentNode();
+        node.applyForTest(commandWithRepairAgentToolGate(), context);
+
+        LlmAgent draftAgent = (LlmAgent) context.getAgentGroup().get("agent_drawer");
+        assertEquals(Set.of("create_diagram", "modify_diagram", "optimize_diagram"), toolNames(draftAgent));
+
+        LlmAgent repairAgent = (LlmAgent) context.getAgentGroup().get("agent_repair_drawer");
+        assertEquals(Set.of("modify_diagram", "optimize_diagram"), toolNames(repairAgent));
+        assertFalse(repairAgent.tools().stream().anyMatch(tool -> "create_diagram".equals(tool.name())));
+    }
+
     private ArmoryCommandEntity commandWithOneAgent() {
         AiAgentConfigTableVO config = new AiAgentConfigTableVO();
         AiAgentConfigTableVO.Module module = new AiAgentConfigTableVO.Module();
@@ -67,6 +91,32 @@ public class AgentNodeAdkToolRegistrationTest {
         module.setAgents(List.of(agent));
         config.setModule(module);
         return ArmoryCommandEntity.builder().aiAgentConfigTableVO(config).build();
+    }
+
+    private ArmoryCommandEntity commandWithRepairAgentToolGate() {
+        AiAgentConfigTableVO config = new AiAgentConfigTableVO();
+        AiAgentConfigTableVO.Module module = new AiAgentConfigTableVO.Module();
+        AiAgentConfigTableVO.Module.Agent draftAgent = new AiAgentConfigTableVO.Module.Agent();
+        draftAgent.setName("agent_drawer");
+        draftAgent.setDescription("Draws diagrams");
+        draftAgent.setInstruction("Use all draw.io tools");
+        draftAgent.setOutputKey("draft_diagram");
+        draftAgent.setAllowedTools(List.of("create_diagram", "modify_diagram", "optimize_diagram"));
+
+        AiAgentConfigTableVO.Module.Agent repairAgent = new AiAgentConfigTableVO.Module.Agent();
+        repairAgent.setName("agent_repair_drawer");
+        repairAgent.setDescription("Repairs reviewed diagrams");
+        repairAgent.setInstruction("Use review repair tools only");
+        repairAgent.setOutputKey("draft_diagram");
+        repairAgent.setAllowedTools(List.of("modify_diagram", "optimize_diagram"));
+
+        module.setAgents(List.of(draftAgent, repairAgent));
+        config.setModule(module);
+        return ArmoryCommandEntity.builder().aiAgentConfigTableVO(config).build();
+    }
+
+    private Set<String> toolNames(LlmAgent agent) {
+        return agent.tools().stream().map(tool -> tool.name()).collect(Collectors.toSet());
     }
 
     private static class TestableAgentNode extends AgentNode {

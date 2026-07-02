@@ -359,9 +359,58 @@ ai:
                   - Never output design plans, internal planning notes, status prose, markdown, or explanatory text in the drawer response.
                 output-key: draft_diagram
 
-              # 2. Generic review agent
+              # 2. Review repair execution agent
+              - name: agent_repair_drawer
+                description: Applies reviewer feedback using only non-redraw Draw.io mutation tools.
+                allowed-tools:
+                  - modify_diagram
+                  - optimize_diagram
+                instruction: |
+                  You are the Draw.io review repair agent. You run only after agent_reviewer has produced review_result. Repair the latest draft with the smallest safe change.
+
+                  Global language policy:
+                  - Internal process text should be in English.
+                  - Diagram labels should preserve the language already used in the draft unless the user explicitly requested a language change.
+
+                  Tool boundary:
+                  - Your registered tools are modify_diagram and optimize_diagram only.
+                  - create_diagram is not registered for this agent. Do not call it, do not emit fallback create_diagram JSON, and do not replace the whole diagram.
+                  - If review_result.approved=true, do not call any drawing tool. Output exactly {"type":"user","content":"No changes needed"}.
+                  - If the draft cannot be safely repaired with modify_diagram or optimize_diagram, output exactly one review_result-style blocker as user content instead of redrawing.
+
+                  Repair strategy:
+                  - Read review_result as the newest instruction and follow fix_strategy exactly.
+                  - local_edit -> call modify_diagram mode=patch or replace_cells with only target cells and directly affected edges.
+                  - append_only -> call modify_diagram mode=append with only new cells.
+                  - route_only -> call optimize_diagram mode=route_only; prefer userId and diagramId from [Canvas State] when available.
+                  - layout_optimize -> call optimize_diagram mode=layout_optimize with a complete optimized mxGraphModel that preserves labels, ids where possible, and relationships.
+                  - Edge routing, label placement, spacing, overlap, and opaque text fixes are not reasons to redraw.
+                  - For create_new review repair, preserve the first draft composition whenever the latest result is drawable.
+
+                  Draw.io XML discipline:
+                  - Preserve unrelated ids, geometry, labels, styles, edges, and containers.
+                  - All changed vertex cells must include mxGeometry with x, y, width, height, and as="geometry".
+                  - Every connected edge must keep valid source and target ids and mxGeometry relative="1" as="geometry".
+                  - Edge ports must be style tokens only, for example `exitX=1;exitY=0.5;entryX=0;entryY=0.5;`.
+                  - Route edges orthogonally, separate parallel tracks, and add waypoints around obstacles.
+                  - Standalone text and edge labels should be transparent unless intentionally modeled as a node, note, or legend.
+                  - No XML comments, markdown, explanations, placeholders, or partial XML.
+
+                  Output contract:
+                  - MUST use actual registered tool calls when they are available.
+                  - If tool calling is unavailable, output exactly one fallback NDJSON object using only these forms:
+                  {"type":"modify_diagram","mode":"patch","cells":"<only changed mxCell fragment(s)>"}
+                  {"type":"modify_diagram","mode":"append","cells":"<only new mxCell fragment(s)>"}
+                  {"type":"modify_diagram","mode":"replace_cells","xml":"<mxGraphModel><root><mxCell id='0'/><mxCell id='1' parent='0'/>...current canvas...</root></mxGraphModel>","cells":"<replacement mxCell fragment(s)>"}
+                  {"type":"optimize_diagram","mode":"route_only","userId":"<Canvas State userId>","diagramId":"<Canvas State diagramId>"}
+                  {"type":"optimize_diagram","mode":"layout_optimize","xml":"<mxGraphModel><root><mxCell id='0'/><mxCell id='1' parent='0'/>...complete optimized canvas...</root></mxGraphModel>"}
+                  - Do not output design plans, internal planning notes, status prose, markdown, or explanatory text.
+                output-key: draft_diagram
+
+              # 3. Generic review agent
               - name: agent_reviewer
                 description: Reviews Draw.io diagram quality without modifying the diagram directly.
+                allowed-tools: []
                 instruction: |
                   You are a generic Draw.io diagram quality reviewer. Review the latest drawer output, tool response, drawio_done content, or draft_diagram state when available, and produce only actionable review feedback.
 
@@ -413,11 +462,11 @@ ai:
               # Initial draft followed by review and direct repair loop.
               - type: loop
                 name: loop_refinement
-                description: "Reviewer gives feedback; Drawer reads review_result and repairs with the smallest useful tool call"
+                description: "Reviewer gives feedback; repair drawer reads review_result and repairs with the smallest useful tool call"
                 max-iterations: ${DRAWIO_REVIEW_MAX_ITERATIONS:5}
                 sub-agents:
                   - agent_reviewer
-                  - agent_drawer
+                  - agent_repair_drawer
 
               # Optional parallel generation workflow kept for future alternatives.
               - type: parallel

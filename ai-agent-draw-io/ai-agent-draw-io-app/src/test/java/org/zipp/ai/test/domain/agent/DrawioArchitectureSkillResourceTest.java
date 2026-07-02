@@ -116,6 +116,20 @@ public class DrawioArchitectureSkillResourceTest {
     }
 
     @Test
+    public void shouldPhysicallyLimitReviewRepairAgentTools() throws Exception {
+        String agentPrompt = readResource("agent/agent-draw-io.yml");
+        String repairDrawer = section(agentPrompt, "- name: agent_repair_drawer", "# 3. Generic review agent");
+
+        assertTrue(repairDrawer.contains("allowed-tools:"));
+        assertTrue(repairDrawer.contains("- modify_diagram"));
+        assertTrue(repairDrawer.contains("- optimize_diagram"));
+        assertTrue(repairDrawer.contains("create_diagram is not registered for this agent"));
+        assertFalse(repairDrawer.contains("{\"type\":\"create_diagram\""));
+        assertTrue(agentPrompt.contains("- agent_repair_drawer"));
+        assertTrue(agentPrompt.contains("allowed-tools: []"));
+    }
+
+    @Test
     public void shouldExposeP1CanvasToolsInDrawingPrompt() throws Exception {
         String agentPrompt = readResource("agent/agent-draw-io.yml");
 

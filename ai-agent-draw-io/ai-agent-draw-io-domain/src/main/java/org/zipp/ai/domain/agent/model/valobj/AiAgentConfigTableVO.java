@@ -140,6 +140,11 @@ public class AiAgentConfigTableVO {
             private String instruction;
             private String description;
             private String outputKey;
+            /**
+             * Optional per-agent tool allowlist. Null keeps legacy behavior (all configured tools);
+             * an empty list intentionally registers no tools for that agent.
+             */
+            private List<String> allowedTools;
 
         }
 
