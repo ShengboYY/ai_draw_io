@@ -199,7 +199,7 @@ public class DrawioCanvasMcpServiceTest {
     }
 
     @Test
-    public void shouldAutoRouteCreateDiagramBeforeReturningAnalysis() {
+    public void shouldNotAutoRouteCreateDiagramBeforeReturningAnalysis() {
         DrawioCanvasMcpService service = new DrawioCanvasMcpService();
         DrawioCanvasMcpService.DrawioXmlRequest request = new DrawioCanvasMcpService.DrawioXmlRequest();
         request.setXml(edgeCrossingGraphXml());
@@ -207,13 +207,13 @@ public class DrawioCanvasMcpServiceTest {
         DrawioCanvasMcpService.DrawioToolResponse response = service.createDiagram(request);
 
         assertEquals("drawio_done", response.getType());
-        assertNoAnalyzerIssue(response.getContent(), CanvasIssueType.EDGE_NODE_CROSSING, List.of("5", "4"));
-        assertFalse(response.getAnalysis().getIssues().stream()
+        assertAnalyzerIssue(response.getContent(), CanvasIssueType.EDGE_NODE_CROSSING, List.of("5", "4"));
+        assertTrue(response.getAnalysis().getIssues().stream()
                 .anyMatch(issue -> "EDGE_NODE_CROSSING".equals(issue.getType()) && issue.getTargetCellIds().equals(List.of("5", "4"))));
     }
 
     @Test
-    public void shouldAutoRouteFullModifyDiagramBeforeReturningAnalysis() {
+    public void shouldRejectFullXmlModifyDiagram() {
         DrawioCanvasMcpService service = new DrawioCanvasMcpService();
         DrawioCanvasMcpService.ModifyDiagramRequest request = new DrawioCanvasMcpService.ModifyDiagramRequest();
         request.setMode("full_xml");
@@ -221,10 +221,18 @@ public class DrawioCanvasMcpServiceTest {
 
         DrawioCanvasMcpService.DrawioMutationResponse response = service.modifyDiagram(request);
 
-        assertEquals("drawio_done", response.getType());
-        assertNoAnalyzerIssue(response.getContent(), CanvasIssueType.EDGE_NODE_CROSSING, List.of("5", "4"));
-        assertFalse(response.getAnalysis().getIssues().stream()
-                .anyMatch(issue -> "EDGE_NODE_CROSSING".equals(issue.getType()) && issue.getTargetCellIds().equals(List.of("5", "4"))));
+        assertModifyRejected(response);
+    }
+
+    @Test
+    public void shouldRejectXmlOnlyModifyDiagramInsteadOfDefaultingToFullXml() {
+        DrawioCanvasMcpService service = new DrawioCanvasMcpService();
+        DrawioCanvasMcpService.ModifyDiagramRequest request = new DrawioCanvasMcpService.ModifyDiagramRequest();
+        request.setXml(edgeCrossingGraphXml());
+
+        DrawioCanvasMcpService.DrawioMutationResponse response = service.modifyDiagram(request);
+
+        assertModifyRejected(response);
     }
 
     @Test
@@ -683,6 +691,21 @@ public class DrawioCanvasMcpServiceTest {
         assertFalse("Did not expect issue " + type + " with targets " + targetCellIds,
                 analysis.getIssues().stream().anyMatch(issue ->
                         type == issue.getType() && issue.getTargetCellIds().equals(targetCellIds)));
+    }
+
+    private void assertAnalyzerIssue(String xml, CanvasIssueType type, List<String> targetCellIds) {
+        CanvasAnalysis analysis = new DefaultCanvasAnalyzer().analyze(xml, "architecture");
+        assertTrue("Expected issue " + type + " with targets " + targetCellIds,
+                analysis.getIssues().stream().anyMatch(issue ->
+                        type == issue.getType() && issue.getTargetCellIds().equals(targetCellIds)));
+    }
+
+    private void assertModifyRejected(DrawioCanvasMcpService.DrawioMutationResponse response) {
+        assertEquals("tool_error", response.getType());
+        assertEquals(null, response.getContent());
+        assertEquals(null, response.getCells());
+        assertEquals(null, response.getAnalysis());
+        assertTrue(response.getMessage().contains("Use create_diagram"));
     }
 
     private void injectCanvasStateStore(DrawioCanvasMcpService service, ICanvasStateStore canvasStateStore) throws Exception {

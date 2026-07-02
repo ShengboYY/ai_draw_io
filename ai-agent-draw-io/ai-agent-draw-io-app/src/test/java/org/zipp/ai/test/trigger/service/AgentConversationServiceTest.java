@@ -69,7 +69,7 @@ public class AgentConversationServiceTest {
     }
 
     @Test
-    public void shouldPermitReviewStrategyToolsAfterCreateNewDraft() throws Exception {
+    public void shouldPermitNonRedrawReviewStrategyToolsAfterCreateNewDraft() throws Exception {
         AgentConversationService service = new AgentConversationService();
         injectPromptContextBuilder(service);
         injectSkillContentProvider(service);
@@ -86,7 +86,8 @@ public class AgentConversationServiceTest {
         assertTrue(routedMessage.contains("create_diagram"));
         assertTrue(routedMessage.contains("modify_diagram"));
         assertTrue(routedMessage.contains("optimize_diagram"));
-        assertTrue(routedMessage.contains("Review repair turns may use the fix_strategy tool even after create_new"));
+        assertTrue(routedMessage.contains("\"reviewRepairTools\":[\"modify_diagram\",\"optimize_diagram\"]"));
+        assertTrue(routedMessage.contains("Review repair turns may use only reviewRepairTools"));
     }
 
     @Test

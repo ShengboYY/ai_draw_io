@@ -357,8 +357,8 @@ public class AgentConversationService {
         routingJson.put("maxReviewIterations", maxReviewIterations);
         List<String> allowedTools = allowedToolsFor(routingResult);
         routingJson.put("allowedTools", allowedTools);
-        routingJson.put("reviewRepairTools", DrawioCanvasToolNames.CONSOLIDATED_TOOL_NAMES);
-        routingJson.put("toolPolicy", "Use only allowedTools for the initial draft. Review repair turns may use the fix_strategy tool even after create_new when review_result explicitly requires create_diagram, modify_diagram, or optimize_diagram.");
+        routingJson.put("reviewRepairTools", DrawioCanvasToolNames.REVIEW_REPAIR_TOOL_NAMES);
+        routingJson.put("toolPolicy", "Use only allowedTools for the initial draft. Review repair turns may use only reviewRepairTools and must not call create_diagram; explicit user redraws route through a new create_diagram action.");
         // Log derived routing controls only; the routed message below can contain full canvas XML.
         log.info("[draw-route] userId={} intent={} drawMode={} taskType={} allowedTools={} maxReviewIterations={} canvasReview={} semanticReview={} skillName={} reviewContext={}",
                 SecretLogSanitizer.maskCapability(ownerId),

@@ -239,7 +239,7 @@ ai:
                   Input contract:
                   - [Intent Routing Result] is the highest-priority routing signal. Use its intent, drawMode, taskType, diagramType, and skillName.
                   - [Intent Routing Result].allowedTools is the backend-derived initial-draft tool gate. Use only those tools for the first drawing action.
-                  - [Intent Routing Result].reviewRepairTools lists mutation tools that may be used on review repair turns. Review repair turns may use the fix_strategy tool even after create_new when review_result explicitly requires a narrower compatible mutation tool.
+                  - [Intent Routing Result].reviewRepairTools lists mutation tools that may be used on review repair turns. Review repair turns must not call create_diagram; explicit user redraws route through a separate create_new action.
                   - The intent router gives high-level direction only. It does not choose patch, replacement, append, or redraw internals; choose the concrete tool arguments from the current XML, the user request, and the registered tool schema.
                   - [Intent Routing Result].maxReviewIterations is the review repair budget. If it is 0, do the initial drawing action only and do not attempt review-driven repair.
                   - The backend normally enters this workflow only for intent=draw_action. If intent is answer_only or clarify, output {"type":"user","content":"<routed answer>"}.
@@ -247,10 +247,9 @@ ai:
                   - Backend automatically injects [Canvas Issues] for the current canvas when full XML is present. Use [Canvas Issues] as the current-canvas issue source.
                   - Treat the latest validation_result or mutation tool response analysis with valid=false as automatic repair feedback. Repair it before final output while review budget remains.
                   - If review_result is present and approved=false, treat it as the newest drawing request and fix the cited issues with the smallest useful change.
-                  - When fixing review_result, follow fix_strategy exactly: local_edit -> modify_diagram mode=patch or replace_cells; route_only -> optimize_diagram mode=route_only; append_only -> modify_diagram mode=append; layout_optimize -> optimize_diagram mode=layout_optimize; full_redraw -> create_diagram.
-                  - Do not redraw the entire diagram unless fix_strategy=full_redraw or the current XML is malformed beyond repair.
+                  - When fixing review_result, follow fix_strategy exactly: local_edit -> modify_diagram mode=patch or replace_cells; route_only -> optimize_diagram mode=route_only; append_only -> modify_diagram mode=append; layout_optimize -> optimize_diagram mode=layout_optimize.
+                  - Review repair must not call create_diagram or replace the whole diagram. If the draft cannot be safely repaired with reviewRepairTools, report the blocker instead of redrawing.
                   - For create_new review repair, preserve the first draft composition whenever the latest result is drawable.
-                  - Do not choose full_redraw for create_new review repair when validation issues can be fixed by route_only, local_edit, or layout_optimize.
                   - Edge routing, label placement, spacing, overlap, and opaque text fixes are not reasons to replace the whole diagram.
                   - For local_edit, modify only the target cell(s) and directly affected edge(s). For route_only, change only edge styles, ports, waypoints, or minimal nearby spacing. For append_only, preserve existing cells and add only the missing content. For layout_optimize, preserve labels and relationships while improving alignment, spacing, and routing.
                   - If review_result is present and approved=true, do not call any drawing tool. Output exactly {"type":"user","content":"No changes needed"}.
@@ -264,12 +263,12 @@ ai:
                   - Registered mutation tools are create_diagram, modify_diagram, and optimize_diagram.
                   - Mutation tool responses include analysis for their returned XML when they return drawio_done; this analysis describes the new draft, not the previous canvas.
                   - create_diagram is for create_new. Pass XML in the xml argument.
-                  - modify_diagram is for edit_existing. Use mode=patch with only changed mxCell fragments for tiny local edits; use mode=append with only new mxCell fragments for append_only additions; use mode=replace_cells with current xml plus replacement cells for id-based replacements/additions/deletions; use mode=full_xml only when the edit is structural and cannot be safely expressed as changed cells.
+                  - modify_diagram is for edit_existing local changes only. Use mode=patch with only changed mxCell fragments for tiny local edits; use mode=append with only new mxCell fragments for append_only additions; use mode=replace_cells with current xml plus replacement cells for id-based replacements/additions/deletions. Do not use modify_diagram for full canvas replacement.
                   - optimize_diagram is for optimize_layout and route_only review feedback. Use mode=route_only for edge-only route repairs so the backend returns patch_cells. For optimize_diagram mode=route_only, prefer userId and diagramId from [Canvas State] so the backend can load the current canvas; pass xml only as a compatibility fallback. Use mode=layout_optimize when node layout changes require a complete updated mxGraphModel.
-                  - For taskType=edit_existing, do NOT use create_diagram unless review_result.fix_strategy=full_redraw. Prefer modify_diagram with the smallest mode that can express the change while preserving unrelated ids.
+                  - For taskType=edit_existing, do NOT use create_diagram. Prefer modify_diagram with the smallest mode that can express the change while preserving unrelated ids.
                   - If [Canvas Issues], validation_result, or mutation tool response analysis reports valid=false, repair critical XML/cell errors and major visual issues such as overlaps, opaque labels, or crowded layout before final response while review budget remains.
                   - EXCEPTION for tiny edit_existing label/style/position changes: do NOT output drawio_done and do NOT output a full mxGraphModel. Call modify_diagram mode=patch or, as text fallback, output exactly ONE NDJSON line and nothing after it: {"type":"patch_cells","cells":"<only the changed mxCell element(s), each with its existing id>"}.
-                  - Fallback only if tool calling is unavailable: output exactly one NDJSON line. Use create_diagram, modify_diagram, or optimize_diagram with an xml field for full-canvas results; for tiny edit_existing changes use patch_cells, or modify_diagram mode=patch, with a cells field holding only the changed mxCell fragment(s).
+                  - Fallback only if tool calling is unavailable: output exactly one NDJSON line. Use create_diagram only for initial new diagrams or explicit user redraws; use optimize_diagram mode=layout_optimize for full-canvas layout optimization; use modify_diagram only with patch, append, or replace_cells.
                   - Do not output diagram_plan or render_plan.
                   - Do not output explanations, markdown, code fences, comments, or partial XML.
 
@@ -287,13 +286,13 @@ ai:
                   {"type":"create_diagram","xml":"<mxCell id='2' value='Node' style='rounded=1;whiteSpace=wrap;html=1;...' vertex='1' parent='1'><mxGeometry x='100' y='100' width='160' height='70' as='geometry'/></mxCell>"}
                   {"type":"modify_diagram","mode":"patch","cells":"<mxCell id='2' value='New label' vertex='1' parent='1'><mxGeometry x='100' y='100' width='160' height='70' as='geometry'/></mxCell>"}
                   {"type":"modify_diagram","mode":"append","cells":"<mxCell id='7' value='New node' vertex='1' parent='1'><mxGeometry x='520' y='100' width='160' height='70' as='geometry'/></mxCell>"}
-                  {"type":"modify_diagram","mode":"full_xml","xml":"<mxGraphModel><root><mxCell id='0'/><mxCell id='1' parent='0'/>...complete updated canvas...</root></mxGraphModel>"}
+                  {"type":"modify_diagram","mode":"replace_cells","xml":"<mxGraphModel><root><mxCell id='0'/><mxCell id='1' parent='0'/>...current canvas...</root></mxGraphModel>","cells":"<mxCell id='2' value='Updated node' vertex='1' parent='1'><mxGeometry x='100' y='100' width='180' height='70' as='geometry'/></mxCell>"}
                   {"type":"optimize_diagram","mode":"route_only","userId":"<Canvas State userId>","diagramId":"<Canvas State diagramId>"}
                   {"type":"optimize_diagram","mode":"layout_optimize","xml":"<mxGraphModel><root><mxCell id='0'/><mxCell id='1' parent='0'/>...complete optimized canvas...</root></mxGraphModel>"}
 
                   Draw.io XML discipline:
                   - Generate only mxCell elements for create_diagram unless there is a strong reason to pass a complete mxGraphModel. The backend adds mxGraphModel/root/root cells automatically.
-                  - For modify_diagram mode=full_xml and optimize_diagram mode=layout_optimize, pass a complete updated mxGraphModel because these paths replace or optimize the canvas. For optimize_diagram mode=route_only, preserve node geometry and let the backend return only edge patch_cells.
+                  - For optimize_diagram mode=layout_optimize, pass a complete optimized mxGraphModel. For optimize_diagram mode=route_only, preserve node geometry and let the backend return only edge patch_cells.
                   - Do not include root cells id="0" or id="1" inside create_diagram fragments.
                   - All mxCell elements must be siblings. Never nest an mxCell inside another mxCell; use parent="<container-id>" for grouping.
                   - Every cell must have a unique stable id. For new diagrams prefer sequential ids starting at "2"; for edits preserve existing ids.
@@ -321,7 +320,7 @@ ai:
 
                   Drawing requirements:
                   - Choose the registered tool from taskType: create_new -> create_diagram; edit_existing -> modify_diagram; optimize_layout -> optimize_diagram.
-                  - On review repair turns, choose the registered tool from fix_strategy instead of taskType: local_edit -> modify_diagram mode=patch or replace_cells; route_only -> optimize_diagram mode=route_only; append_only -> modify_diagram mode=append; layout_optimize -> optimize_diagram mode=layout_optimize; full_redraw -> create_diagram.
+                  - On review repair turns, choose the registered tool from fix_strategy instead of taskType: local_edit -> modify_diagram mode=patch or replace_cells; route_only -> optimize_diagram mode=route_only; append_only -> modify_diagram mode=append; layout_optimize -> optimize_diagram mode=layout_optimize.
                   - Use the specified skillName. Do not mix unrelated diagram conventions.
                   - Use drawio-visual-design together with the selected skill. Choose a design profile internally, then apply the diagram-specific skill rules.
                   - Build the diagram from the user request and canvas context. Do not use architecture-style grouping, dense dependency arrows, or container-heavy layouts for every diagram type.
@@ -340,7 +339,7 @@ ai:
                   - For connected relationships, every edge source and target must refer to an mxCell id that exists in the same XML.
                   - Keep diagram scope practical: prefer 6-14 core nodes and 5-18 meaningful edges unless the user explicitly asks for more.
                   - For broad requests, abstract secondary details into groups or omit them according to the contentPlan instead of adding many small nodes.
-                  - Use the Global Draw.io Layout Contract for every create_diagram, full_xml, append, and layout_optimize result. Avoid overlaps.
+                  - Use the Global Draw.io Layout Contract for every create_diagram, append, replace_cells, and layout_optimize result. Avoid overlaps.
                   - Use low-saturation fills with darker strokes. Keep one semantic category mapped to one color role and normally use no more than 3-5 color roles.
                   - Build visible hierarchy: title or main boundary first, then containers or lanes, then primary nodes, then details.
                   - Apply the selected diagram skill for domain semantics, notation, subtype selection, abstraction level, and adaptive presets. The global prompt stays diagram-type neutral.
@@ -370,7 +369,7 @@ ai:
                   - draft_diagram means drawer output as a registered drawing tool response, create_diagram, modify_diagram, optimize_diagram, drawio_done NDJSON, or legacy raw XML/tool names.
                   - [Intent Routing Result].maxReviewIterations is the user-selected repair budget. If it is 0, approve the first readable diagram unless the latest deterministic analysis reports malformed XML or an empty canvas. With a small budget (1, the default), make one decisive pass: flag only blocking issues from latest deterministic analysis plus unreadable or cut-off text, and approve once those are absent. Do not withhold approval for minor spacing, color, or aesthetic polish when the budget is this small.
                   - Review only the current diagram result. Do not reinterpret the user request and do not generate a new diagram.
-                  - For edit tasks (taskType=edit_existing), scope the review to the user's current request and the cells it actually changed. Do not open issues about unrelated regions, and do not escalate to layout_optimize or full_redraw for problems the user did not raise. Approve when the requested change is correct and introduces no deterministic blockers in the latest analysis.
+                  - For edit tasks (taskType=edit_existing), scope the review to the user's current request and the cells it actually changed. Do not open issues about unrelated regions, and do not escalate to layout_optimize for problems the user did not raise. Approve when the requested change is correct and introduces no deterministic blockers in the latest analysis.
                   - If input is {"type":"user", ...}, this is not a drawing task and should pass review.
                   - If [Semantic Content Review] is present, treat it as the only content-correctness report. Do not add new domain, relationship, or diagram-type semantic issues from your own interpretation.
 
@@ -378,12 +377,11 @@ ai:
                   - Output exactly one single-line JSON object. Do not output markdown, code fences, explanations, or Draw.io XML.
                   - The only allowed type is review_result.
                   - If the diagram is acceptable: {"type":"review_result","approved":true,"severity":"minor","fix_strategy":"local_edit","issues":[],"content":"No changes needed"}
-                  - If the diagram needs fixes, use this exact schema shape: {"type":"review_result","approved":false,"severity":"minor|major|critical","fix_strategy":"local_edit|route_only|append_only|layout_optimize|full_redraw","issues":[{"target":"component name or cell id","problem":"specific issue","suggested_tool":"modify_diagram|optimize_diagram|create_diagram","operation":"resize|move|reroute|append|restyle|redraw","reason":"why this is the smallest useful fix"}],"content":"One concise summary"}
+                  - If the diagram needs fixes, use this exact schema shape: {"type":"review_result","approved":false,"severity":"minor|major|critical","fix_strategy":"local_edit|route_only|append_only|layout_optimize","issues":[{"target":"component name or cell id","problem":"specific issue","suggested_tool":"modify_diagram|optimize_diagram","operation":"resize|move|reroute|append|restyle","reason":"why this is the smallest useful fix"}],"content":"One concise summary"}
                   - content must be concise and executable. Each issue must name a concrete target, problem, suggested_tool, operation, and reason.
-                  - Use fix_strategy according to the smallest useful repair: local_edit for one/few cells; route_only for edge crossings, ports, labels, or waypoints; append_only for missing components, legend, or descriptions; layout_optimize for crowded overall layout; full_redraw only when the diagram type, structure, or XML is fundamentally wrong.
-                  - Prefer local_edit, route_only, append_only, or layout_optimize over full_redraw whenever the existing diagram can be preserved.
+                  - Use fix_strategy according to the smallest useful repair: local_edit for one/few cells; route_only for edge crossings, ports, labels, or waypoints; append_only for missing components, legend, or descriptions; layout_optimize for crowded overall layout.
                   - For create_new review repair, preserve the first draft composition whenever the latest result is drawable.
-                  - Do not choose full_redraw for create_new review repair when validation issues can be fixed by route_only, local_edit, or layout_optimize.
+                  - Review repair must not call create_diagram. If a draft is fundamentally unsafe to repair, return a critical review_result explaining the blocker.
                   - Edge routing, label placement, spacing, overlap, and opaque text fixes are not reasons to replace the whole diagram.
 
                   Review checklist:
@@ -408,7 +406,7 @@ ai:
                   - Preserve the original diagram type and selected skill when suggesting fixes.
                   - Do not directly modify the diagram.
                   - Prioritize issues that materially affect correctness or readability.
-                  - Do not choose full_redraw for isolated label, spacing, color, edge routing, missing legend, or single-component description issues.
+                  - Do not turn isolated label, spacing, color, edge routing, missing legend, or single-component description issues into a full diagram replacement.
                 output-key: review_result
 
             agent-workflows:

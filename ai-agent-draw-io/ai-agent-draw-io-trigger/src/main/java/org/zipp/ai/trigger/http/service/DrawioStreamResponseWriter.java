@@ -109,7 +109,7 @@ public class DrawioStreamResponseWriter {
         // Localized patch: merge the changed fragment into the canvas we hold (text fallback,
         // since this model returns NDJSON instead of real tool calls).
         if (isPatchFallback(json)
-                && sendLocalCellPatch(emitter, phase, currentCanvasByEmitter.get(emitter), json.getString("cells"))) {
+                && sendLocalCellPatch(emitter, phase, patchFallbackBaseCanvas(emitter, json), json.getString("cells"))) {
             return false;
         }
 
@@ -173,8 +173,12 @@ public class DrawioStreamResponseWriter {
         String mode = json.getString("mode");
         return DrawioCanvasToolNames.PATCH_CELLS.equals(type)
                 || (DrawioCanvasToolNames.MODIFY_DIAGRAM.equals(type)
-                && ("patch".equals(mode) || "append".equals(mode))
+                && ("patch".equals(mode) || "append".equals(mode) || "replace_cells".equals(mode))
                 && StringUtils.isNotBlank(json.getString("cells")));
+    }
+
+    private String patchFallbackBaseCanvas(ResponseBodyEmitter emitter, com.alibaba.fastjson.JSONObject json) {
+        return StringUtils.defaultIfBlank(currentCanvasByEmitter.get(emitter), json.getString("xml"));
     }
 
     /**

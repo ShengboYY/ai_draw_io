@@ -94,25 +94,24 @@ public class DrawioArchitectureSkillResourceTest {
     public void shouldRequireExecutableReviewStrategyAndMinimalRepairPrompts() throws Exception {
         String agentPrompt = readResource("agent/agent-draw-io.yml");
 
-        assertTrue(agentPrompt.contains("\"fix_strategy\":\"local_edit|route_only|append_only|layout_optimize|full_redraw\""));
-        assertTrue(agentPrompt.contains("\"suggested_tool\":\"modify_diagram|optimize_diagram|create_diagram\""));
+        assertTrue(agentPrompt.contains("\"fix_strategy\":\"local_edit|route_only|append_only|layout_optimize\""));
+        assertTrue(agentPrompt.contains("\"suggested_tool\":\"modify_diagram|optimize_diagram\""));
         assertTrue(agentPrompt.contains("local_edit -> modify_diagram mode=patch or replace_cells"));
         assertTrue(agentPrompt.contains("route_only -> optimize_diagram"));
         assertTrue(agentPrompt.contains("append_only -> modify_diagram mode=append"));
         assertFalse(agentPrompt.contains("append_only -> modify_diagram mode=full_xml"));
         assertTrue(agentPrompt.contains("layout_optimize -> optimize_diagram"));
         assertTrue(agentPrompt.contains("{\"type\":\"modify_diagram\",\"mode\":\"append\""));
-        assertTrue(agentPrompt.contains("full_redraw -> create_diagram"));
-        assertTrue(agentPrompt.contains("Do not redraw the entire diagram unless fix_strategy=full_redraw"));
-        assertTrue(agentPrompt.contains("Prefer local_edit, route_only, append_only, or layout_optimize over full_redraw"));
+        assertFalse(agentPrompt.contains("full_redraw"));
+        assertFalse(agentPrompt.contains("review_result explicitly requires create_diagram"));
     }
 
     @Test
-    public void shouldPreventCreateNewReviewRepairFromFullRedrawingLocalFixes() throws Exception {
+    public void shouldPreventReviewRepairFromRedrawingDrafts() throws Exception {
         String agentPrompt = readResource("agent/agent-draw-io.yml");
 
         assertTrue(agentPrompt.contains("For create_new review repair, preserve the first draft composition whenever the latest result is drawable."));
-        assertTrue(agentPrompt.contains("Do not choose full_redraw for create_new review repair when validation issues can be fixed by route_only, local_edit, or layout_optimize."));
+        assertTrue(agentPrompt.contains("Review repair must not call create_diagram"));
         assertTrue(agentPrompt.contains("Edge routing, label placement, spacing, overlap, and opaque text fixes are not reasons to replace the whole diagram."));
     }
 
@@ -150,7 +149,7 @@ public class DrawioArchitectureSkillResourceTest {
         assertTrue(agentPrompt.contains("Fallback NDJSON format when registered tool calls are unavailable"));
         assertTrue(agentPrompt.contains("{\"type\":\"create_diagram\""));
         assertTrue(agentPrompt.contains("{\"type\":\"modify_diagram\",\"mode\":\"patch\""));
-        assertTrue(agentPrompt.contains("{\"type\":\"modify_diagram\",\"mode\":\"full_xml\""));
+        assertFalse(agentPrompt.contains("{\"type\":\"modify_diagram\",\"mode\":\"full_xml\""));
         assertTrue(agentPrompt.contains("{\"type\":\"optimize_diagram\""));
         assertFalse(agentPrompt.contains("Use continue_diagram when the final XML would be too long"));
     }

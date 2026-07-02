@@ -179,6 +179,29 @@ public class DrawioStreamResponseWriterTest {
     }
 
     @Test
+    public void shouldMergeConsolidatedModifyReplaceCellsFallback() throws Exception {
+        DrawioStreamResponseWriter writer = new DrawioStreamResponseWriter(new DrawioToolCallRenderer());
+        CapturingEmitter emitter = new CapturingEmitter();
+        writer.setCurrentCanvas(emitter, """
+                <mxGraphModel><root><mxCell id='0'/><mxCell id='1' parent='0'/>
+                <mxCell id='2' value='API' vertex='1' parent='1'><mxGeometry x='100' y='100' width='120' height='60' as='geometry'/></mxCell>
+                <mxCell id='3' value='Service' vertex='1' parent='1'><mxGeometry x='300' y='100' width='120' height='60' as='geometry'/></mxCell>
+                </root></mxGraphModel>
+                """);
+
+        writer.processAndSendLine(emitter, "drawing", """
+                {"type":"modify_diagram","mode":"replace_cells","cells":"<mxCell id='2' value='Gateway' vertex='1' parent='1'><mxGeometry x='100' y='100' width='160' height='60' as='geometry'/></mxCell>"}
+                """);
+
+        String output = String.join("\n", emitter.sent);
+        assertTrue(output.contains("\"type\":\"drawio_done\""));
+        assertTrue(output.contains("\"mode\":\"local\""));
+        assertTrue(output.contains("Gateway"));
+        assertTrue(output.contains("Service"));
+        assertFalse(output.contains("API"));
+    }
+
+    @Test
     public void shouldAdvanceCurrentCanvasAfterLocalPatchMerge() throws Exception {
         DrawioStreamResponseWriter writer = new DrawioStreamResponseWriter(new DrawioToolCallRenderer());
         CapturingEmitter emitter = new CapturingEmitter();

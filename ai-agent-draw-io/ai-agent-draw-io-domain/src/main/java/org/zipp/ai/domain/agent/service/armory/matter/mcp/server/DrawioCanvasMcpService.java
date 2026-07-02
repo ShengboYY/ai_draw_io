@@ -9,7 +9,6 @@ import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.stereotype.Service;
 import org.zipp.ai.domain.agent.model.valobj.analysis.CanvasAnalysis;
 import org.zipp.ai.domain.agent.model.valobj.analysis.CanvasAnalysisIssue;
-import org.zipp.ai.domain.agent.model.valobj.analysis.CanvasIssueType;
 import org.zipp.ai.domain.agent.model.valobj.analysis.CanvasSummaryData;
 import org.zipp.ai.domain.agent.model.valobj.canvas.CanvasState;
 import org.zipp.ai.domain.agent.service.ICanvasStateStore;
@@ -35,7 +34,8 @@ public class DrawioCanvasMcpService {
 
     @Tool(name = DrawioCanvasToolNames.CREATE_DIAGRAM, description = "Create a new Draw.io diagram from mxCell XML fragments or a complete mxGraphModel. Follow the Global Draw.io Layout Contract: plan layout zones before XML, keep nodes on a stable grid, use explicit exit/entry ports on connected edges, prefer orthogonal routing, add waypoints around obstacles, and avoid relying on later review repair for first-draft readability. The backend wraps, validates, and streams the final canvas.")
     public DrawioToolResponse createDiagram(DrawioXmlRequest request) {
-        DrawioToolResponse response = repairedDrawioDone(request.getXml());
+        // Preserve the model's original routing so auto-reroute can be tested independently.
+        DrawioToolResponse response = drawioDone(request.getXml());
         logXmlToolResult(DrawioCanvasToolNames.CREATE_DIAGRAM, request.getReason(), request.getXml(), response.getType(), response.getContent());
         return response;
     }
@@ -55,10 +55,15 @@ public class DrawioCanvasMcpService {
         return drawioDone(request.getXml());
     }
 
-    @Tool(name = DrawioCanvasToolNames.MODIFY_DIAGRAM, description = "Modify the current Draw.io canvas. Follow the Global Draw.io Layout Contract for any changed cells: preserve stable ids and unrelated geometry, keep node spacing readable, use explicit exit/entry ports for changed connected edges, prefer orthogonal routing, and add waypoints when edits would create crossings. Use mode=patch for changed mxCell fragments, append for additions, replace_cells for id-based replacements, or full_xml for a complete updated mxGraphModel.")
+    @Tool(name = DrawioCanvasToolNames.MODIFY_DIAGRAM, description = "Modify the current Draw.io canvas with local cell changes only. Follow the Global Draw.io Layout Contract for changed cells: preserve stable ids and unrelated geometry, keep node spacing readable, use explicit exit/entry ports for changed connected edges, prefer orthogonal routing, and add waypoints when edits would create crossings. Use mode=patch for changed mxCell fragments, append for additions, or replace_cells for id-based replacements. Use create_diagram for full redraws or full canvas replacement.")
     public DrawioMutationResponse modifyDiagram(ModifyDiagramRequest request) {
         String mode = resolveModifyMode(request);
         DrawioMutationResponse response = new DrawioMutationResponse();
+        if ("unsupported".equals(mode)) {
+            response = rejectedModifyResponse();
+            logModifyToolResult(request, mode, response);
+            return response;
+        }
         if ("patch".equals(mode)) {
             response.setType(DrawioCanvasToolNames.PATCH_CELLS);
             response.setCells(request.getCells());
@@ -74,13 +79,10 @@ public class DrawioCanvasMcpService {
             return response;
         }
 
-        String base = "replace_cells".equals(mode)
-                ? xmlToolkit.replaceCells(request.getXml(), request.getCells())
-                : toGraphModel(request.getXml());
-        RepairedCanvas repaired = repair(base);
+        String base = xmlToolkit.replaceCells(request.getXml(), request.getCells());
         response.setType("drawio_done");
-        response.setContent(repaired.content());
-        response.setAnalysis(CanvasAnalysisResponse.from(repaired.analysis()));
+        response.setContent(base);
+        response.setAnalysis(CanvasAnalysisResponse.from(xmlToolkit.analyze(base)));
         logModifyToolResult(request, mode, response);
         return response;
     }
@@ -245,11 +247,6 @@ public class DrawioCanvasMcpService {
         return drawioDoneContent(toGraphModel(xml));
     }
 
-    private DrawioToolResponse repairedDrawioDone(String xml) {
-        RepairedCanvas repaired = repair(toGraphModel(xml));
-        return drawioDoneContent(repaired.content(), repaired.analysis());
-    }
-
     private DrawioToolResponse drawioDoneContent(String content) {
         return drawioDoneContent(content, xmlToolkit.analyze(content));
     }
@@ -281,26 +278,8 @@ public class DrawioCanvasMcpService {
         return response;
     }
 
-    // Analyze once; only when an auto-fixable crossing exists do we reroute and re-analyze the repaired canvas.
-    private RepairedCanvas repair(String graphModel) {
-        CanvasAnalysis analysis = xmlToolkit.analyze(graphModel);
-        if (analysis.getIssues().stream().anyMatch(this::isAutoRerouteIssue)) {
-            String rerouted = xmlToolkit.routeEdges(graphModel);
-            return new RepairedCanvas(rerouted, xmlToolkit.analyze(rerouted));
-        }
-        return new RepairedCanvas(graphModel, analysis);
-    }
-
-    private record RepairedCanvas(String content, CanvasAnalysis analysis) {
-    }
-
     private CanvasAnalysisResponse analysis(String xml) {
         return CanvasAnalysisResponse.from(xmlToolkit.analyze(xml));
-    }
-
-    private boolean isAutoRerouteIssue(CanvasAnalysisIssue issue) {
-        return CanvasIssueType.EDGE_NODE_CROSSING == issue.getType()
-                && "auto_reroute".equals(issue.getRepairability());
     }
 
     private boolean routeOnlyMode(OptimizeDiagramRequest request) {
@@ -333,13 +312,21 @@ public class DrawioCanvasMcpService {
 
     private String resolveModifyMode(ModifyDiagramRequest request) {
         String mode = request.getMode() == null ? "" : request.getMode().trim();
-        if ("patch".equals(mode) || "append".equals(mode) || "replace_cells".equals(mode) || "full_xml".equals(mode)) {
+        if ("patch".equals(mode) || "append".equals(mode) || "replace_cells".equals(mode)) {
             return mode;
         }
-        if (request.getCells() != null && !request.getCells().isBlank()) {
+        if (mode.isEmpty() && request.getCells() != null && !request.getCells().isBlank()) {
             return request.getXml() == null || request.getXml().isBlank() ? "patch" : "replace_cells";
         }
-        return "full_xml";
+        return "unsupported";
+    }
+
+    private DrawioMutationResponse rejectedModifyResponse() {
+        DrawioMutationResponse response = new DrawioMutationResponse();
+        response.setType("tool_error");
+        // Keep full-canvas replacement out of the modify path; redraw intent belongs to create_diagram.
+        response.setMessage("modify_diagram only supports patch, append, and replace_cells. Use create_diagram for full redraws or full canvas replacement.");
+        return response;
     }
 
     // Keep tool observability compact; raw XML can be very large and may contain user content.
@@ -430,11 +417,11 @@ public class DrawioCanvasMcpService {
     @JsonInclude(JsonInclude.Include.NON_NULL)
     public static class ModifyDiagramRequest {
         @JsonProperty(value = "mode")
-        @JsonPropertyDescription("patch for changed mxCell fragments, append for new cell fragments, replace_cells to merge cells into current xml, or full_xml for a complete updated mxGraphModel.")
+        @JsonPropertyDescription("patch for changed mxCell fragments, append for new cell fragments, or replace_cells to merge cells into current xml. Use create_diagram for full redraws.")
         private String mode;
 
         @JsonProperty(value = "xml")
-        @JsonPropertyDescription("Current or complete Draw.io mxGraphModel XML. Required for replace_cells and full_xml modes.")
+        @JsonPropertyDescription("Current Draw.io mxGraphModel XML. Required for replace_cells and append analysis.")
         private String xml;
 
         @JsonProperty(value = "cells")
@@ -505,6 +492,10 @@ public class DrawioCanvasMcpService {
         @JsonProperty(value = "analysis")
         @JsonPropertyDescription("Validation result for the returned complete content, or for the merged canvas represented by patch_cells.")
         private CanvasAnalysisResponse analysis;
+
+        @JsonProperty(value = "message")
+        @JsonPropertyDescription("Tool error guidance when type=tool_error.")
+        private String message;
     }
 
     @Data
