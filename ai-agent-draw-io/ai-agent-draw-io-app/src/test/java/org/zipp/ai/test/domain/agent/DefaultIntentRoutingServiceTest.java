@@ -58,7 +58,7 @@ public class DefaultIntentRoutingServiceTest {
         logger.addAppender(appender);
         try {
             IntentRoutingCommand command = IntentRoutingCommand.builder()
-                    .userId("alice")
+                    .userId("anon_123e4567-e89b-42d3-a456-426614174000")
                     .message("把 API 改成 Gateway")
                     .canvasXml("<mxGraphModel><root><mxCell id=\"0\"/><mxCell id=\"1\" parent=\"0\"/><mxCell id=\"2\" value=\"API\" vertex=\"1\" parent=\"1\"/></root></mxGraphModel>")
                     .build();
@@ -67,7 +67,8 @@ public class DefaultIntentRoutingServiceTest {
 
             assertEquals(1, appender.list.stream()
                     .filter(event -> event.getFormattedMessage().contains("[intent-route] source=fast_path"))
-                    .filter(event -> event.getFormattedMessage().contains("userId=alice"))
+                    .filter(event -> event.getFormattedMessage().contains("userId=anon***00"))
+                    .filter(event -> !event.getFormattedMessage().contains("123e4567-e89b-42d3-a456-426614174000"))
                     .filter(event -> event.getFormattedMessage().contains("drawMode=edit_existing"))
                     .filter(event -> event.getFormattedMessage().contains("taskType=edit_existing"))
                     .count());

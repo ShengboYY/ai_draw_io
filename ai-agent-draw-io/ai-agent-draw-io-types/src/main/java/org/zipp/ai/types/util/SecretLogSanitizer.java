@@ -7,17 +7,17 @@ public final class SecretLogSanitizer {
     private static final String MASK = "***";
 
     private static final Pattern JSON_SECRET_FIELD = Pattern.compile(
-            "(\"(?:apiKey|customApiKey|api[_-]?key|authorization)\"\\s*:\\s*\")([^\"]*)(\")",
+            "(\"(?:apiKey|customApiKey|api[_-]?key|authorization|userId|workspaceId)\"\\s*:\\s*\")([^\"]*)(\")",
             Pattern.CASE_INSENSITIVE);
     private static final Pattern QUERY_SECRET = Pattern.compile(
-            "([?&](?:api[_-]?key|apikey|access[_-]?token|token)=)[^&\\s\"\\]]+",
+            "([?&](?:api[_-]?key|apikey|access[_-]?token|token|userId|workspaceId)=)[^&\\s\"\\]]+",
             Pattern.CASE_INSENSITIVE);
     private static final Pattern BEARER_TOKEN = Pattern.compile(
             "(Bearer\\s+)[A-Za-z0-9._~+\\-/=]+",
             Pattern.CASE_INSENSITIVE);
     private static final Pattern SK_TOKEN = Pattern.compile("sk-[A-Za-z0-9_-]+");
     private static final Pattern KEY_VALUE_SECRET = Pattern.compile(
-            "\\b(apiKey|customApiKey|api[_-]?key)\\s*=\\s*([^,\\s\\]\"}]+)",
+            "\\b(apiKey|customApiKey|api[_-]?key|userId|workspaceId)\\s*=\\s*([^,\\s\\]\"}]+)",
             Pattern.CASE_INSENSITIVE);
 
     private SecretLogSanitizer() {
@@ -38,6 +38,17 @@ public final class SecretLogSanitizer {
 
     public static String maskSecret(String secret) {
         return isBlank(secret) ? "(none)" : MASK;
+    }
+
+    public static String maskCapability(String capability) {
+        if (isBlank(capability)) {
+            return "";
+        }
+        String value = capability.trim();
+        if (value.length() <= 6) {
+            return MASK;
+        }
+        return value.substring(0, 4) + MASK + value.substring(value.length() - 2);
     }
 
     public static String maskAuthorization(String apiKey) {

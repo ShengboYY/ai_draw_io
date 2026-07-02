@@ -13,6 +13,7 @@ import org.zipp.ai.domain.agent.service.IChatService;
 import org.zipp.ai.domain.agent.service.IIntentRoutingService;
 import org.zipp.ai.domain.agent.service.armory.matter.mcp.server.DrawioCanvasToolNames;
 import org.zipp.ai.domain.agent.service.chat.CustomApiConfigManager;
+import org.zipp.ai.types.util.SecretLogSanitizer;
 import com.alibaba.fastjson.JSON;
 import io.reactivex.rxjava3.disposables.Disposable;
 import lombok.extern.slf4j.Slf4j;
@@ -221,7 +222,7 @@ public class AgentConversationService {
         } catch (Exception e) {
             // Keep the existing canvasXml path as a compatibility fallback if persistence is unavailable.
             log.warn("Failed to load stored canvas. userId:{} diagramId:{}",
-                    logValue(requestDTO.getUserId()), logValue(requestDTO.getDiagramId()), e);
+                    SecretLogSanitizer.maskCapability(requestDTO.getUserId()), logValue(requestDTO.getDiagramId()), e);
         }
         return requestDTO;
     }
@@ -360,7 +361,7 @@ public class AgentConversationService {
         routingJson.put("toolPolicy", "Use only allowedTools for the initial draft. Review repair turns may use the fix_strategy tool even after create_new when review_result explicitly requires create_diagram, modify_diagram, or optimize_diagram.");
         // Log derived routing controls only; the routed message below can contain full canvas XML.
         log.info("[draw-route] userId={} intent={} drawMode={} taskType={} allowedTools={} maxReviewIterations={} canvasReview={} semanticReview={} skillName={} reviewContext={}",
-                logValue(ownerId),
+                SecretLogSanitizer.maskCapability(ownerId),
                 logValue(routingResult.getIntent()),
                 logValue(routingResult.getDrawMode()),
                 logValue(routingResult.getTaskType()),

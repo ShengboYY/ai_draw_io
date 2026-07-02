@@ -5,6 +5,7 @@ import org.zipp.ai.domain.agent.model.valobj.intent.IntentRoutingResult;
 import org.zipp.ai.domain.agent.service.IChatService;
 import org.zipp.ai.domain.agent.service.IIntentRoutingService;
 import org.zipp.ai.domain.agent.service.chat.CustomApiConfigManager;
+import org.zipp.ai.types.util.SecretLogSanitizer;
 import com.alibaba.fastjson.JSON;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -85,7 +86,8 @@ public class DefaultIntentRoutingService implements IIntentRoutingService {
             logRoutingDecision("llm", userId, result);
             return result;
         } catch (Exception e) {
-            log.warn("Intent routing failed, fallback to drawing workflow. userId:{}", userId, e);
+            log.warn("Intent routing failed, fallback to drawing workflow. userId:{}",
+                    SecretLogSanitizer.maskCapability(userId), e);
             IntentRoutingResult fallback = IntentRoutingResult.fallbackDrawAction("Intent routing failed; fallback to drawing workflow.");
             logRoutingDecision("fallback", userId, fallback);
             return fallback;
@@ -329,7 +331,7 @@ public class DefaultIntentRoutingService implements IIntentRoutingService {
         }
         log.info("[intent-route] source={} userId={} intent={} drawMode={} taskType={} diagramType={} skillName={} canvasReview={} semanticReview={} answerMode={} reason={}",
                 logValue(source),
-                logValue(userId),
+                SecretLogSanitizer.maskCapability(userId),
                 logValue(result.getIntent()),
                 logValue(result.getDrawMode()),
                 logValue(result.getTaskType()),

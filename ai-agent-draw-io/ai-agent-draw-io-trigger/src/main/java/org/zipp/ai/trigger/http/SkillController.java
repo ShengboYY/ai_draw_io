@@ -44,13 +44,14 @@ public class SkillController {
     @PostMapping("skills")
     public Response<Void> saveSkill(@RequestBody SkillDTO request,
                                     @RequestHeader(value = "X-Admin-Token", required = false) String adminToken) {
+        String ownerId = WorkspaceIds.resolve(request == null ? null : request.getUserId());
         if ("PUBLIC".equalsIgnoreCase(request.getVisibility()) && !isAdmin(adminToken)) {
             return Response.<Void>builder().code(FAILURE)
                     .info("creating PUBLIC skills requires a valid admin token").build();
         }
         try {
             skillManagementService.save(
-                    request.getUserId(), request.getName(), request.getDescription(),
+                    ownerId, request.getName(), request.getDescription(),
                     request.getCategory(), request.getBody(), request.getVisibility());
             return Response.<Void>builder().code(SUCCESS).info("成功").build();
         } catch (IllegalArgumentException e) {
@@ -65,7 +66,8 @@ public class SkillController {
     @GetMapping("skills/catalog")
     public Response<List<SkillDTO>> skillCatalog(@RequestParam(value = "userId", required = false) String userId) {
         try {
-            List<SkillDTO> skills = skillCatalogService.selectableSkills(userId).stream().map(info -> {
+            String ownerId = WorkspaceIds.resolve(userId);
+            List<SkillDTO> skills = skillCatalogService.selectableSkills(ownerId).stream().map(info -> {
                 SkillDTO dto = new SkillDTO();
                 dto.setName(info.name());
                 dto.setDescription(info.description());
@@ -83,7 +85,8 @@ public class SkillController {
     @GetMapping("skills")
     public Response<List<SkillDTO>> listSkills(@RequestParam(value = "userId", required = false) String userId) {
         try {
-            List<SkillDTO> skills = skillManagementService.list(userId).stream()
+            String ownerId = WorkspaceIds.resolve(userId);
+            List<SkillDTO> skills = skillManagementService.list(ownerId).stream()
                     .map(this::toDTO).toList();
             return Response.<List<SkillDTO>>builder().code(SUCCESS).info("成功").data(skills).build();
         } catch (Exception e) {
@@ -94,10 +97,11 @@ public class SkillController {
 
     /** Delete a user's own private skill by name. */
     @DeleteMapping("skills")
-    public Response<Void> deleteSkill(@RequestParam("userId") String userId,
+    public Response<Void> deleteSkill(@RequestParam(value = "userId", required = false) String userId,
                                       @RequestParam("name") String name) {
         try {
-            skillManagementService.delete(userId, name);
+            String ownerId = WorkspaceIds.resolve(userId);
+            skillManagementService.delete(ownerId, name);
             return Response.<Void>builder().code(SUCCESS).info("成功").build();
         } catch (IllegalArgumentException e) {
             return Response.<Void>builder().code(FAILURE).info(e.getMessage()).build();

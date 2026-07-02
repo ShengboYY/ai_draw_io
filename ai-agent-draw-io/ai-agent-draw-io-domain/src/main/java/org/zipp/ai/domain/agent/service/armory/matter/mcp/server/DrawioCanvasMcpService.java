@@ -13,6 +13,7 @@ import org.zipp.ai.domain.agent.model.valobj.analysis.CanvasIssueType;
 import org.zipp.ai.domain.agent.model.valobj.analysis.CanvasSummaryData;
 import org.zipp.ai.domain.agent.model.valobj.canvas.CanvasState;
 import org.zipp.ai.domain.agent.service.ICanvasStateStore;
+import org.zipp.ai.types.util.SecretLogSanitizer;
 
 import javax.annotation.Resource;
 import java.util.List;
@@ -321,7 +322,7 @@ public class DrawioCanvasMcpService {
             return stored.map(CanvasState::getCurrentXml).filter(xml -> !isBlank(xml)).orElse("");
         } catch (Exception e) {
             log.warn("Failed to load canvas state for optimize_diagram. userId:{} diagramId:{}",
-                    sanitizeLogValue(request.getUserId()), sanitizeLogValue(request.getDiagramId()), e);
+                    SecretLogSanitizer.maskCapability(request.getUserId()), sanitizeLogValue(request.getDiagramId()), e);
             return "";
         }
     }

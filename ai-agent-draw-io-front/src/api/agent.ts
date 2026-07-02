@@ -24,6 +24,11 @@ const handleResponse = async <T>(response: globalThis.Response): Promise<Respons
     return data;
 };
 
+const workspaceHeaders = (userId: string) => ({
+    'Content-Type': 'application/json',
+    'X-Workspace-Id': userId,
+});
+
 // Types for streaming drawio events
 export interface DrawioNodeChunk {
     type: 'drawio_node';
@@ -134,11 +139,9 @@ export const agentApi = {
      * Path: /api/v1/skills/catalog
      */
     getSkillCatalog: async (userId: string): Promise<Response<Array<{ name: string; description?: string; category?: string }>>> => {
-        const response = await fetch(`${API_CONFIG.BASE_URL}/skills/catalog?userId=${encodeURIComponent(userId)}`, {
+        const response = await fetch(`${API_CONFIG.BASE_URL}/skills/catalog`, {
             method: 'GET',
-            headers: {
-                'Content-Type': 'application/json',
-            },
+            headers: workspaceHeaders(userId),
         });
         return handleResponse<Array<{ name: string; description?: string; category?: string }>>(response);
     },
@@ -150,62 +153,50 @@ export const agentApi = {
     createSession: async (agentId: string, userId: string): Promise<Response<CreateSessionResponseDTO>> => {
         const response = await fetch(`${API_CONFIG.BASE_URL}/create_session`, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ agentId, userId }),
+            headers: workspaceHeaders(userId),
+            body: JSON.stringify({ agentId }),
         });
         return handleResponse<CreateSessionResponseDTO>(response);
     },
 
     listDiagrams: async (userId: string): Promise<Response<DiagramSummaryResponseDTO[]>> => {
-        const response = await fetch(`${API_CONFIG.BASE_URL}/diagrams?userId=${encodeURIComponent(userId)}`, {
+        const response = await fetch(`${API_CONFIG.BASE_URL}/diagrams`, {
             method: 'GET',
-            headers: {
-                'Content-Type': 'application/json',
-            },
+            headers: workspaceHeaders(userId),
         });
         return handleResponse<DiagramSummaryResponseDTO[]>(response);
     },
 
     getDiagram: async (userId: string, diagramId: string): Promise<Response<DiagramCanvasStateResponseDTO | null>> => {
-        const response = await fetch(`${API_CONFIG.BASE_URL}/diagrams/${encodeURIComponent(diagramId)}?userId=${encodeURIComponent(userId)}`, {
+        const response = await fetch(`${API_CONFIG.BASE_URL}/diagrams/${encodeURIComponent(diagramId)}`, {
             method: 'GET',
-            headers: {
-                'Content-Type': 'application/json',
-            },
+            headers: workspaceHeaders(userId),
         });
         return handleResponse<DiagramCanvasStateResponseDTO | null>(response);
     },
 
     renameDiagram: async (userId: string, diagramId: string, title: string): Promise<Response<DiagramSummaryResponseDTO | null>> => {
-        const body: UpdateDiagramTitleRequestDTO = { userId, title };
+        const body: UpdateDiagramTitleRequestDTO = { title };
         const response = await fetch(`${API_CONFIG.BASE_URL}/diagrams/${encodeURIComponent(diagramId)}/title`, {
             method: 'PATCH',
-            headers: {
-                'Content-Type': 'application/json',
-            },
+            headers: workspaceHeaders(userId),
             body: JSON.stringify(body),
         });
         return handleResponse<DiagramSummaryResponseDTO | null>(response);
     },
 
     deleteDiagram: async (userId: string, diagramId: string): Promise<Response<boolean>> => {
-        const response = await fetch(`${API_CONFIG.BASE_URL}/diagrams/${encodeURIComponent(diagramId)}?userId=${encodeURIComponent(userId)}`, {
+        const response = await fetch(`${API_CONFIG.BASE_URL}/diagrams/${encodeURIComponent(diagramId)}`, {
             method: 'DELETE',
-            headers: {
-                'Content-Type': 'application/json',
-            },
+            headers: workspaceHeaders(userId),
         });
         return handleResponse<boolean>(response);
     },
 
     listDiagramMessages: async (userId: string, diagramId: string): Promise<Response<DiagramConversationMessageDTO[]>> => {
-        const response = await fetch(`${API_CONFIG.BASE_URL}/diagrams/${encodeURIComponent(diagramId)}/messages?userId=${encodeURIComponent(userId)}`, {
+        const response = await fetch(`${API_CONFIG.BASE_URL}/diagrams/${encodeURIComponent(diagramId)}/messages`, {
             method: 'GET',
-            headers: {
-                'Content-Type': 'application/json',
-            },
+            headers: workspaceHeaders(userId),
         });
         return handleResponse<DiagramConversationMessageDTO[]>(response);
     },
@@ -216,12 +207,10 @@ export const agentApi = {
         sessionId: string | undefined,
         messages: DiagramConversationMessageDTO[]
     ): Promise<Response<boolean>> => {
-        const body: SaveDiagramMessagesRequestDTO = { userId, sessionId, messages };
+        const body: SaveDiagramMessagesRequestDTO = { sessionId, messages };
         const response = await fetch(`${API_CONFIG.BASE_URL}/diagrams/${encodeURIComponent(diagramId)}/messages`, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
+            headers: workspaceHeaders(userId),
             body: JSON.stringify(body),
         });
         return handleResponse<boolean>(response);
@@ -234,9 +223,7 @@ export const agentApi = {
     chat: async (data: ChatRequestDTO): Promise<Response<ChatResponseDTO>> => {
         const response = await fetch(`${API_CONFIG.BASE_URL}/chat`, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
+            headers: workspaceHeaders(data.userId),
             body: JSON.stringify(data),
         });
         return handleResponse<ChatResponseDTO>(response);
@@ -259,9 +246,7 @@ export const agentApi = {
         try {
             const response = await fetch(`${API_CONFIG.BASE_URL}/chat_stream`, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
+                headers: workspaceHeaders(data.userId),
                 body: JSON.stringify(data),
                 signal: controller.signal,
             });

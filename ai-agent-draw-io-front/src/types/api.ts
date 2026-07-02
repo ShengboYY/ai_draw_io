@@ -12,7 +12,7 @@ export interface AiAgentConfigResponseDTO {
 
 export interface CreateSessionRequestDTO {
     agentId: string;
-    userId: string;
+    userId?: string;
 }
 
 export interface CreateSessionResponseDTO {
@@ -39,7 +39,7 @@ export interface DiagramCanvasStateResponseDTO {
 }
 
 export interface UpdateDiagramTitleRequestDTO {
-  userId: string;
+  userId?: string;
   title: string;
 }
 
@@ -52,7 +52,7 @@ export interface DiagramConversationMessageDTO {
 }
 
 export interface SaveDiagramMessagesRequestDTO {
-  userId: string;
+  userId?: string;
   sessionId?: string;
   messages: DiagramConversationMessageDTO[];
 }

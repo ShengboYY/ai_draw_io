@@ -69,17 +69,18 @@ public class DrawioPromptContextBuilderTest {
     }
 
     @Test
-    public void shouldExposeCanvasStateIdsForDrawingTools() {
+    public void shouldExposeCanvasStateMetadataWithoutWorkspaceToken() {
         DrawioPromptContextBuilder builder = new DrawioPromptContextBuilder(new DefaultDrawioCanvasSnapshotService());
         ChatRequestDTO requestDTO = request("整理连线");
-        requestDTO.setUserId("alice");
+        requestDTO.setUserId("anon_123e4567-e89b-42d3-a456-426614174000");
         requestDTO.setDiagramId("diagram-1");
         requestDTO.setExpectedVersion(3L);
 
         String message = builder.buildDrawingContextMessage(requestDTO, routing("optimize_layout"));
 
         assertTrue(message.contains("[Canvas State]"));
-        assertTrue(message.contains("userId=alice"));
+        assertTrue(message.contains("workspaceIdPresent=true"));
+        assertFalse(message.contains("anon_123e4567-e89b-42d3-a456-426614174000"));
         assertTrue(message.contains("diagramId=diagram-1"));
         assertTrue(message.contains("expectedVersion=3"));
     }

@@ -125,7 +125,7 @@ public class DrawioPromptContextBuilder {
         Long expectedVersion = null == requestDTO ? null : requestDTO.getExpectedVersion();
         return "[Canvas State]\n"
                 + "hasCanvas=" + hasDrawableCanvas(canvasXml)
-                + "\nuserId=" + StringUtils.defaultString(null == requestDTO ? "" : requestDTO.getUserId())
+                + "\nworkspaceIdPresent=" + StringUtils.isNotBlank(null == requestDTO ? "" : requestDTO.getUserId())
                 + "\ndiagramId=" + StringUtils.defaultString(null == requestDTO ? "" : requestDTO.getDiagramId())
                 + "\nexpectedVersion=" + (expectedVersion == null ? "" : expectedVersion);
     }

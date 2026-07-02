@@ -12,23 +12,23 @@ const createStorage = (initial = {}) => {
   };
 };
 
-test('resolveWorkspaceIdentity prefers the login cookie user', () => {
+test('resolveWorkspaceIdentity ignores login cookie users until real auth exists', () => {
   const storage = createStorage({ [ANONYMOUS_WORKSPACE_KEY]: 'anon_saved' });
 
   const identity = resolveWorkspaceIdentity({
-    loginUser: ' alice ',
+    loginUser: ' admin ',
     storage,
-    generateId: () => 'ignored',
+    generateId: () => '123e4567-e89b-42d3-a456-426614174000',
   });
 
   assert.deepEqual(identity, {
-    kind: 'authenticated',
-    ownerId: 'alice',
+    kind: 'anonymous',
+    ownerId: 'anon_123e4567-e89b-42d3-a456-426614174000',
   });
 });
 
-test('resolveWorkspaceIdentity reuses an existing anonymous owner id', () => {
-  const storage = createStorage({ [ANONYMOUS_WORKSPACE_KEY]: 'anon_saved' });
+test('resolveWorkspaceIdentity reuses an existing strong anonymous owner id', () => {
+  const storage = createStorage({ [ANONYMOUS_WORKSPACE_KEY]: 'anon_123e4567-e89b-42d3-a456-426614174000' });
 
   const identity = resolveWorkspaceIdentity({
     storage,
@@ -37,7 +37,7 @@ test('resolveWorkspaceIdentity reuses an existing anonymous owner id', () => {
 
   assert.deepEqual(identity, {
     kind: 'anonymous',
-    ownerId: 'anon_saved',
+    ownerId: 'anon_123e4567-e89b-42d3-a456-426614174000',
   });
 });
 
@@ -46,23 +46,25 @@ test('resolveWorkspaceIdentity creates and stores an anonymous owner id', () => 
 
   const identity = resolveWorkspaceIdentity({
     storage,
-    generateId: () => 'abc-123',
+    generateId: () => '123e4567-e89b-42d3-a456-426614174000',
   });
 
   assert.deepEqual(identity, {
     kind: 'anonymous',
-    ownerId: 'anon_abc-123',
+    ownerId: 'anon_123e4567-e89b-42d3-a456-426614174000',
   });
-  assert.equal(storage.value(ANONYMOUS_WORKSPACE_KEY), 'anon_abc-123');
+  assert.equal(storage.value(ANONYMOUS_WORKSPACE_KEY), 'anon_123e4567-e89b-42d3-a456-426614174000');
 });
 
-test('resolveWorkspaceIdentity never returns a blank anonymous owner id', () => {
+test('resolveWorkspaceIdentity replaces weak stored anonymous owner ids', () => {
+  const storage = createStorage({ [ANONYMOUS_WORKSPACE_KEY]: 'anon_saved' });
+
   const identity = resolveWorkspaceIdentity({
-    storage: null,
-    generateId: () => '',
+    storage,
+    generateId: () => '123e4567-e89b-42d3-a456-426614174000',
   });
 
   assert.equal(identity.kind, 'anonymous');
-  assert.match(identity.ownerId, /^anon_/);
-  assert.ok(identity.ownerId.length > 'anon_'.length);
+  assert.equal(identity.ownerId, 'anon_123e4567-e89b-42d3-a456-426614174000');
+  assert.equal(storage.value(ANONYMOUS_WORKSPACE_KEY), 'anon_123e4567-e89b-42d3-a456-426614174000');
 });

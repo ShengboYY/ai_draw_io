@@ -9,6 +9,7 @@ import org.zipp.ai.domain.agent.service.ICanvasReviewService;
 import org.zipp.ai.domain.agent.service.IChatService;
 import org.zipp.ai.domain.agent.service.IDiagramQualityInspector;
 import org.zipp.ai.domain.agent.service.chat.CustomApiConfigManager;
+import org.zipp.ai.types.util.SecretLogSanitizer;
 import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONObject;
 import jakarta.annotation.Resource;
@@ -68,7 +69,8 @@ public class DefaultCanvasReviewService implements ICanvasReviewService {
             List<String> outputs = chatService.handleMessage(QUALITY_ANSWER_AGENT_ID, command.getUserId(), sessionId, prompt);
             return parseUserAnswer(String.join("", outputs));
         } catch (Exception e) {
-            log.warn("Canvas quality answer failed, fallback to deterministic report summary. userId:{}", command.getUserId(), e);
+            log.warn("Canvas quality answer failed, fallback to deterministic report summary. userId:{}",
+                    SecretLogSanitizer.maskCapability(command.getUserId()), e);
             return fallbackAnswer(context);
         }
     }
@@ -90,7 +92,8 @@ public class DefaultCanvasReviewService implements ICanvasReviewService {
             }
             return review;
         } catch (Exception e) {
-            log.warn("Semantic content review failed. userId:{}", command.getUserId(), e);
+            log.warn("Semantic content review failed. userId:{}",
+                    SecretLogSanitizer.maskCapability(command.getUserId()), e);
             return SemanticContentReview.unavailable("Semantic review failed.");
         }
     }

@@ -98,7 +98,7 @@ public class AgentConversationServiceTest {
         routingResult.setTaskType("edit_existing");
 
         ChatRequestDTO requestDTO = new ChatRequestDTO();
-        requestDTO.setUserId("alice");
+        requestDTO.setUserId("anon_123e4567-e89b-42d3-a456-426614174000");
         requestDTO.setMessage("update the API label");
         requestDTO.setCanvasXml("<mxGraphModel><root><mxCell id=\"0\"/><mxCell id=\"1\" parent=\"0\"/>"
                 + "<mxCell id=\"api\" value=\"API\" vertex=\"1\" parent=\"1\"/>"
@@ -113,7 +113,8 @@ public class AgentConversationServiceTest {
 
             assertTrue(appender.list.stream()
                     .map(ILoggingEvent::getFormattedMessage)
-                    .anyMatch(message -> message.contains("[draw-route] userId=alice")
+                    .anyMatch(message -> message.contains("[draw-route] userId=anon***00")
+                            && !message.contains("123e4567-e89b-42d3-a456-426614174000")
                             && message.contains("taskType=edit_existing")
                             && message.contains("allowedTools=[modify_diagram]")
                             && message.contains("maxReviewIterations=0")));
@@ -231,7 +232,7 @@ public class AgentConversationServiceTest {
                 java.util.List.class
         );
         method.setAccessible(true);
-        return (String) method.invoke(service, requestDTO, routingResult, null, maxReviewIterations, "alice", null);
+        return (String) method.invoke(service, requestDTO, routingResult, null, maxReviewIterations, requestDTO.getUserId(), null);
     }
 
     private void injectPromptContextBuilder(AgentConversationService service) throws Exception {

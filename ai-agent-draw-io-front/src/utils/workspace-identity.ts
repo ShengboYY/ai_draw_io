@@ -16,31 +16,36 @@ type ResolveWorkspaceIdentityInput = {
   generateId?: () => string;
 };
 
+const ANONYMOUS_WORKSPACE_PATTERN = /^anon_[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+
 const defaultGenerateId = () => {
   const cryptoId = globalThis.crypto?.randomUUID?.();
   if (cryptoId) return cryptoId;
-  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+  const bytes = new Uint8Array(16);
+  globalThis.crypto?.getRandomValues?.(bytes);
+  if (bytes.some(byte => byte !== 0)) {
+    // Build a UUID v4 from cryptographically secure random bytes.
+    bytes[6] = (bytes[6] & 0x0f) | 0x40;
+    bytes[8] = (bytes[8] & 0x3f) | 0x80;
+    const hex = Array.from(bytes, byte => byte.toString(16).padStart(2, '0'));
+    return `${hex.slice(0, 4).join('')}-${hex.slice(4, 6).join('')}-${hex.slice(6, 8).join('')}-${hex.slice(8, 10).join('')}-${hex.slice(10).join('')}`;
+  }
+  throw new Error('Secure random workspace id is unavailable.');
 };
 
 const normalizeAnonymousOwnerId = (rawId: string) => {
-  const cleanId = rawId.trim() || defaultGenerateId();
-  return cleanId.startsWith('anon_') ? cleanId : `anon_${cleanId}`;
+  const cleanId = rawId.trim().toLowerCase();
+  if (!cleanId) return '';
+  const ownerId = cleanId.startsWith('anon_') ? cleanId : `anon_${cleanId}`;
+  return ANONYMOUS_WORKSPACE_PATTERN.test(ownerId) ? ownerId : '';
 };
 
 export const resolveWorkspaceIdentity = ({
-  loginUser,
   storage,
   generateId = defaultGenerateId,
 }: ResolveWorkspaceIdentityInput = {}): WorkspaceIdentity => {
-  const authenticatedUser = loginUser?.trim();
-  if (authenticatedUser) {
-    return {
-      kind: 'authenticated',
-      ownerId: authenticatedUser,
-    };
-  }
-
-  const storedOwnerId = storage?.getItem(ANONYMOUS_WORKSPACE_KEY)?.trim();
+  // There is no real auth system yet, so login cookie names are not authority.
+  const storedOwnerId = normalizeAnonymousOwnerId(storage?.getItem(ANONYMOUS_WORKSPACE_KEY) || '');
   if (storedOwnerId) {
     return {
       kind: 'anonymous',
@@ -48,7 +53,7 @@ export const resolveWorkspaceIdentity = ({
     };
   }
 
-  const ownerId = normalizeAnonymousOwnerId(generateId());
+  const ownerId = normalizeAnonymousOwnerId(generateId()) || normalizeAnonymousOwnerId(defaultGenerateId());
   try {
     storage?.setItem(ANONYMOUS_WORKSPACE_KEY, ownerId);
   } catch {

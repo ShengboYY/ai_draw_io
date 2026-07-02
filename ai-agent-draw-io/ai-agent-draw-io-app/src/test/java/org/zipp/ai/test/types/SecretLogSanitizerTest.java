@@ -29,4 +29,23 @@ public class SecretLogSanitizerTest {
         assertEquals("(none)", SecretLogSanitizer.maskAuthorization(""));
         assertEquals("Bearer ***", SecretLogSanitizer.maskAuthorization("sk-live-secret"));
     }
+
+    @Test
+    public void shouldRedactWorkspaceIdsFromRawLogText() {
+        String rawLog = "{\"userId\":\"anon_123e4567-e89b-42d3-a456-426614174000\"} "
+                + "/diagrams?userId=anon_123e4567-e89b-42d3-a456-426614174000 "
+                + "workspaceId=anon_123e4567-e89b-42d3-a456-426614174000";
+
+        String sanitized = SecretLogSanitizer.sanitize(rawLog);
+
+        assertFalse(sanitized.contains("123e4567-e89b-42d3-a456-426614174000"));
+        assertEquals("{\"userId\":\"***\"} /diagrams?userId=*** workspaceId=***", sanitized);
+    }
+
+    @Test
+    public void shouldMaskCapabilityTokenWithoutDroppingCorrelation() {
+        assertEquals("", SecretLogSanitizer.maskCapability(null));
+        assertEquals("***", SecretLogSanitizer.maskCapability("admin"));
+        assertEquals("anon***00", SecretLogSanitizer.maskCapability("anon_123e4567-e89b-42d3-a456-426614174000"));
+    }
 }

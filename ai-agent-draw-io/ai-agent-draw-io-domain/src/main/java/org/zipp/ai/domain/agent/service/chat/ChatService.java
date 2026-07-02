@@ -9,6 +9,7 @@ import org.zipp.ai.domain.agent.service.armory.factory.DefaultArmoryFactory;
 import org.zipp.ai.domain.agent.service.armory.matter.mcp.server.DrawioCanvasToolNames;
 import org.zipp.ai.types.enums.ResponseCode;
 import org.zipp.ai.types.exception.AppException;
+import org.zipp.ai.types.util.SecretLogSanitizer;
 import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONObject;
 import com.google.adk.agents.RunConfig;
@@ -112,7 +113,8 @@ public class ChatService implements IChatService {
 
         // Session is gone (e.g. client kept a sessionId across a backend restart). Start fresh
         // instead of letting runAsync fail with "Session not found".
-        log.warn("Session not found, creating a new one. appName:{} userId:{} staleSessionId:{}", appName, userId, sessionId);
+        log.warn("Session not found, creating a new one. appName:{} userId:{} staleSessionId:{}",
+                appName, SecretLogSanitizer.maskCapability(userId), sessionId);
         return createSession(agentId, userId);
     }
 
@@ -261,7 +263,7 @@ public class ChatService implements IChatService {
                 }
             } catch (Exception e) {
                 log.warn("Failed to persist draft diagram state for review. appName:{} userId:{} sessionId:{}",
-                        appName, userId, sessionId, e);
+                        appName, SecretLogSanitizer.maskCapability(userId), sessionId, e);
             }
         });
     }

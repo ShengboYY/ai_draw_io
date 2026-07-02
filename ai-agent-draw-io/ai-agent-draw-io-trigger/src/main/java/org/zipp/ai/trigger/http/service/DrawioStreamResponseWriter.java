@@ -9,6 +9,7 @@ import org.zipp.ai.domain.agent.model.valobj.canvas.CanvasStateVersionConflictEx
 import org.zipp.ai.domain.agent.service.ICanvasStateStore;
 import org.zipp.ai.domain.agent.service.armory.matter.mcp.server.DrawioCanvasToolNames;
 import org.zipp.ai.domain.agent.service.armory.matter.mcp.server.DrawioCanvasXmlToolkit;
+import org.zipp.ai.types.util.SecretLogSanitizer;
 
 import javax.annotation.Resource;
 import java.util.List;
@@ -359,7 +360,7 @@ public class DrawioStreamResponseWriter {
             throw e;
         } catch (Exception e) {
             log.warn("Failed to persist canvas state. userId:{} diagramId:{}",
-                    logValue(context.userId()), logValue(context.diagramId()), e);
+                    SecretLogSanitizer.maskCapability(context.userId()), logValue(context.diagramId()), e);
             return null;
         }
     }
