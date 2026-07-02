@@ -1,8 +1,8 @@
 import { API_CONFIG } from '@/config/api-config';
-import { 
-    Response, 
-    AiAgentConfigResponseDTO, 
-    CreateSessionResponseDTO, 
+import {
+    Response,
+    AiAgentConfigResponseDTO,
+    CreateSessionResponseDTO,
     ChatRequestDTO,
     ChatResponseDTO,
     CurrentAccountResponseDTO,
@@ -11,6 +11,10 @@ import {
     DiagramConversationMessageDTO,
     SaveDiagramMessagesRequestDTO,
     UpdateDiagramTitleRequestDTO,
+    RegisterAccountRequestDTO,
+    RegisterAccountResponseDTO,
+    ResendVerificationRequestDTO,
+    VerifyEmailResponseDTO,
 } from '@/types/api';
 
 const handleResponse = async <T>(response: globalThis.Response): Promise<Response<T>> => {
@@ -153,6 +157,32 @@ export const agentApi = {
             headers: workspaceHeaders(userId),
         });
         return handleResponse<CurrentAccountResponseDTO>(response);
+    },
+
+    registerAccount: async (payload: RegisterAccountRequestDTO): Promise<Response<RegisterAccountResponseDTO>> => {
+        const response = await fetch(`${API_CONFIG.BASE_URL}/auth/register`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+        });
+        return handleResponse<RegisterAccountResponseDTO>(response);
+    },
+
+    verifyEmail: async (token: string): Promise<Response<VerifyEmailResponseDTO>> => {
+        const response = await fetch(`${API_CONFIG.BASE_URL}/auth/verify-email?token=${encodeURIComponent(token)}`, {
+            method: 'GET',
+            headers: { 'Content-Type': 'application/json' },
+        });
+        return handleResponse<VerifyEmailResponseDTO>(response);
+    },
+
+    resendVerification: async (payload: ResendVerificationRequestDTO): Promise<Response<null>> => {
+        const response = await fetch(`${API_CONFIG.BASE_URL}/auth/resend-verification`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+        });
+        return handleResponse<null>(response);
     },
 
     /**

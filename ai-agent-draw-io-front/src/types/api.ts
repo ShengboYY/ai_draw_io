@@ -102,3 +102,22 @@ export interface ChatResponseDTO {
     content: string;
     type: string;
 }
+
+export interface RegisterAccountRequestDTO {
+  email: string;
+  password: string;
+}
+
+export interface RegisterAccountResponseDTO {
+  submitted: boolean;
+}
+
+export interface ResendVerificationRequestDTO {
+  email: string;
+}
+
+export type EmailVerificationStatus = 'SUCCESS' | 'EXPIRED' | 'ALREADY_USED' | 'INVALID';
+
+export interface VerifyEmailResponseDTO {
+  status: EmailVerificationStatus;
+}

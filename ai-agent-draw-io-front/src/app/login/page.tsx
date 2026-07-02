@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { setUserInfo, getUserInfo, clearUserInfo } from '@/utils/cookie';
 
@@ -163,6 +164,11 @@ export default function Login() {
             <div className={`min-h-[18px] text-xs mt-2 ${msg.type === 'error' ? 'text-[#ff5a7a]' : 'text-[rgba(255,255,255,0.56)]'}`}>
               {msg.text}
             </div>
+          </div>
+
+          <div className="text-xs text-[rgba(255,255,255,0.56)] text-center">
+            No account yet?{' '}
+            <Link href="/register" className="underline text-[rgba(255,255,255,0.72)]">Create one</Link>
           </div>
 
           <div className="mt-[14px] text-[rgba(255,255,255,0.35)] text-xs text-center">

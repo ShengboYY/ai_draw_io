@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.zipp.ai.infrastructure.dao.IUserAccountMapper">
+
+    <resultMap id="userMap" type="org.zipp.ai.infrastructure.dao.po.UserAccountPO">
+        <id column="id" property="id"/>
+        <result column="email" property="email"/>
+        <result column="email_normalized" property="emailNormalized"/>
+        <result column="password_hash" property="passwordHash"/>
+        <result column="status" property="status"/>
+        <result column="session_version" property="sessionVersion"/>
+        <result column="created_at" property="createdAt"/>
+        <result column="updated_at" property="updatedAt"/>
+        <result column="verified_at" property="verifiedAt"/>
+        <result column="deleted_at" property="deletedAt"/>
+    </resultMap>
+
+    <sql id="cols">id, email, email_normalized, password_hash, status, session_version, created_at, updated_at, verified_at, deleted_at</sql>
+
+    <select id="selectByEmailNormalized" resultMap="userMap">
+        SELECT <include refid="cols"/> FROM app_user
+        WHERE email_normalized = #{emailNormalized} AND deleted_at IS NULL
+    </select>
+
+    <select id="selectById" resultMap="userMap">
+        SELECT <include refid="cols"/> FROM app_user WHERE id = #{id}
+    </select>
+
+    <insert id="insert" parameterType="org.zipp.ai.infrastructure.dao.po.UserAccountPO">
+        INSERT INTO app_user (id, email, email_normalized, password_hash, status, session_version, created_at, updated_at, verified_at)
+        VALUES (#{id}, #{email}, #{emailNormalized}, #{passwordHash}, #{status},
+                COALESCE(#{sessionVersion}, 0), #{createdAt}, #{updatedAt}, #{verifiedAt})
+    </insert>
+
+    <update id="markVerified">
+        UPDATE app_user
+        SET status = 'ACTIVE', verified_at = #{verifiedAt}, updated_at = #{verifiedAt}
+        WHERE id = #{id} AND status = 'PENDING_VERIFICATION'
+    </update>
+
+</mapper>

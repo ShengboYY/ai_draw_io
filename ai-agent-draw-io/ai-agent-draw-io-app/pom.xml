@@ -11,6 +11,14 @@
 
     <packaging>jar</packaging>
 
+    <!--
+      测试默认跳过是历史行为（很多 @SpringBootTest 需要真实 MySQL / 模型 key，本地/CI 通常没有）。
+      设为 property 后可通过 -DskipTests=false 显式打开；纯单元测试通过 -Dtest=<Class> 精确运行。
+    -->
+    <properties>
+        <skipTests>true</skipTests>
+    </properties>
+
     <dependencies>
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -159,7 +167,7 @@
                 <artifactId>maven-surefire-plugin</artifactId>
                 <version>2.6</version>
                 <configuration>
-                    <skipTests>true</skipTests>
+                    <skipTests>${skipTests}</skipTests>
                     <testFailureIgnore>false</testFailureIgnore>
                     <includes>
                         <include>**/*Test.java</include>
