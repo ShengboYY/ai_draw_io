@@ -32,7 +32,7 @@ public class DrawioToolCallRenderer {
             return List.of();
         }
 
-        String graphModel = toGraphModel(xml);
+        String graphModel = xmlToolkit.toGraphModel(xml);
         List<String> cells = extractRootCells(graphModel);
 
         List<JSONObject> chunks = new ArrayList<>();
@@ -71,37 +71,6 @@ public class DrawioToolCallRenderer {
         validation.put("severity", inspection.getSeverity());
         validation.put("issues", inspection.getIssues());
         return validation;
-    }
-
-    private String toGraphModel(String xml) {
-        String normalized = normalizeXml(xml);
-        String graphModel = extractGraphModel(normalized);
-        if (StringUtils.isNotBlank(graphModel)) {
-            return graphModel;
-        }
-
-        return "<mxGraphModel><root><mxCell id=\"0\"/><mxCell id=\"1\" parent=\"0\"/>"
-                + normalized
-                + "</root></mxGraphModel>";
-    }
-
-    private String normalizeXml(String xml) {
-        return StringUtils.trimToEmpty(xml)
-                .replace("```xml", "")
-                .replace("```", "")
-                .replace("\\\"", "\"")
-                .replace("\\n", "")
-                .replace("\\/", "/")
-                .trim();
-    }
-
-    private String extractGraphModel(String xml) {
-        int xmlStart = xml.indexOf("<mxGraphModel");
-        int xmlEnd = xml.lastIndexOf("</mxGraphModel>");
-        if (xmlStart < 0 || xmlEnd < xmlStart) {
-            return "";
-        }
-        return xml.substring(xmlStart, xmlEnd + "</mxGraphModel>".length());
     }
 
     private List<String> extractRootCells(String graphModel) {

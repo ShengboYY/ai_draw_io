@@ -41,6 +41,24 @@ public class DrawioToolCallRendererTest {
     }
 
     @Test
+    public void shouldSanitizeRawLabelCharactersBeforeStreamingValidation() {
+        DrawioToolCallRenderer renderer = new DrawioToolCallRenderer();
+        JSONObject toolCall = JSON.parseObject("""
+                {
+                  "type": "display_diagram",
+                  "xml": "<mxCell id='2' value='<heap & metaspace>' vertex='1' parent='1'><mxGeometry x='100' y='100' width='180' height='70' as='geometry'/></mxCell>"
+                }
+                """);
+
+        List<JSONObject> chunks = renderer.render(toolCall);
+
+        assertEquals("validation_result", chunks.get(2).getString("type"));
+        assertEquals(true, chunks.get(2).getBooleanValue("valid"));
+        assertEquals("drawio_done", chunks.get(3).getString("type"));
+        assertTrue(chunks.get(3).getString("content").contains("value='&lt;heap &amp; metaspace&gt;'"));
+    }
+
+    @Test
     public void shouldStreamCompleteGraphModelFromEditTool() {
         DrawioToolCallRenderer renderer = new DrawioToolCallRenderer();
         JSONObject toolCall = JSON.parseObject("""

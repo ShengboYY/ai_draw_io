@@ -42,6 +42,7 @@ public class SkillCatalogService {
 
     /** Always-applied shared design rules; excluded from the selectable catalog. */
     public static final String SHARED_SKILL = "drawio-visual-design";
+    public static final String SHARED_XML_GUIDE_SKILL = "drawio-xml-guide";
 
     private static final String ROUTER_SKILL_CATEGORY = "drawio-design";
     private static final String CLASSPATH_LOCATION = "classpath*:agent/skills/*/SKILL.md";
@@ -279,11 +280,12 @@ public class SkillCatalogService {
         return new ArrayList<>(classpathSkills().values());
     }
 
-    /** Skills the given user's router may select: draw.io design skills, excluding the shared skill. */
+    /** Skills the given user's router may select: draw.io design skills, excluding shared skills. */
     public List<SkillInfo> selectableSkills(String ownerId) {
         List<SkillInfo> list = new ArrayList<>();
         for (SkillInfo info : catalog(ownerId).values()) {
             if (!SHARED_SKILL.equals(info.name())
+                    && !SHARED_XML_GUIDE_SKILL.equals(info.name())
                     && info.selectable()
                     && ROUTER_SKILL_CATEGORY.equals(info.category())) {
                 list.add(info);

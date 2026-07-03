@@ -89,6 +89,7 @@ public class SkillCatalogServiceTest {
         assertTrue(catalog.contains("- custom-flowchart: Custom draw.io flowchart skill."));
         assertFalse(catalog.contains("- custom-doc:"));
         assertFalse(catalog.contains("- hidden-drawio:"));
+        assertFalse(catalog.contains("- drawio-xml-guide:"));
         assertFalse(catalog.contains("- pdf:"));
         assertFalse(catalog.contains("- battle-plan:"));
     }

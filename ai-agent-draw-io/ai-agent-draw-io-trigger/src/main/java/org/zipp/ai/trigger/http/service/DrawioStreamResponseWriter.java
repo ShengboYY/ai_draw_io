@@ -69,7 +69,7 @@ public class DrawioStreamResponseWriter {
             // Not a single JSON line; it may be several objects concatenated without newlines.
         }
 
-        // Dispatch every embedded object by type (handles concatenated JSON like patch_cells + review_result).
+        // Dispatch every embedded object by type (handles concatenated JSON like patch_cells + user).
         boolean handledAny = false;
         for (com.alibaba.fastjson.JSONObject embedded : extractAllJsonObjects(line)) {
             if (embedded.containsKey("type")) {
@@ -90,10 +90,6 @@ public class DrawioStreamResponseWriter {
 
         String extractedDrawioXml = extractDrawioXml(line);
         if (StringUtils.isNotBlank(extractedDrawioXml)) {
-            if (isReviewRepairPhase(phase)) {
-                sendError(emitter, phase, "Review repair cannot replace the whole diagram. Use modify_diagram or optimize_diagram.");
-                return true;
-            }
             sendDrawioStream(emitter, phase, extractedDrawioXml);
             return false;
         }
@@ -109,10 +105,6 @@ public class DrawioStreamResponseWriter {
      */
     private Boolean dispatchTypedJson(ResponseBodyEmitter emitter, String phase, com.alibaba.fastjson.JSONObject json) throws Exception {
         String type = json.getString("type");
-        if (isReviewRepairPhase(phase) && DrawioCanvasToolNames.CREATE_DIAGRAM.equals(type)) {
-            sendError(emitter, phase, "Review repair cannot call create_diagram. Use modify_diagram or optimize_diagram.");
-            return true;
-        }
         if (DrawioCanvasToolNames.CONTINUE_DIAGRAM.equals(type) && json.containsKey("xmlFragment")) {
             sendFallbackContinuation(emitter, phase, json);
             return false;
@@ -155,14 +147,6 @@ public class DrawioStreamResponseWriter {
             }
 
             return "user".equals(type);
-        }
-
-        if ("review_result".equals(type)) {
-            com.alibaba.fastjson.JSONObject wrapper = new com.alibaba.fastjson.JSONObject();
-            wrapper.put("phase", phase);
-            wrapper.put("chunk", json);
-            emitter.send(wrapper.toJSONString() + "\n");
-            return "reviewing".equals(phase) && json.getBooleanValue("approved");
         }
 
         return null;
@@ -208,9 +192,9 @@ public class DrawioStreamResponseWriter {
             return false;
         }
         // A localized patch can move a node or reroute an edge into another node's body; the model authors
-        // those coordinates blind. Give the patch path the same deterministic geometry safety net as full
-        // mutations before the merged canvas is streamed.
-        merged = xmlToolkit.repairGeometryIfNeeded(merged);
+        // those coordinates blind. Give the patch path the same deterministic structure and geometry
+        // safety net as full mutations before the merged canvas is streamed.
+        merged = xmlToolkit.repairGeometryIfNeeded(xmlToolkit.autoRepair(merged));
         if (merged.equals(lastPatchByEmitter.get(emitter))) {
             return true; // Already emitted this exact merge for the stream; treat as handled, don't resend.
         }
@@ -218,7 +202,8 @@ public class DrawioStreamResponseWriter {
         com.alibaba.fastjson.JSONObject toolJson = new com.alibaba.fastjson.JSONObject();
         toolJson.put("type", DrawioCanvasToolNames.UPDATE_CELLS);
         toolJson.put("xml", merged);
-        return processAndSendLine(emitter, phase, toolJson.toJSONString());
+        processAndSendLine(emitter, phase, toolJson.toJSONString());
+        return true;
     }
 
     public String extractDrawioXml(String text) {
@@ -311,7 +296,13 @@ public class DrawioStreamResponseWriter {
     }
 
     private void sendDrawioDone(ResponseBodyEmitter emitter, String phase, String xml, boolean includeValidation, String mode) throws Exception {
-        DrawioCanvasXmlToolkit.CanvasInspection inspection = xmlToolkit.inspect(xml);
+        // Deterministically repair mechanical XML mistakes and colliding edge routes/labels first;
+        // a draft is only held back when it stays unrenderable (unparseable or empty) after repair.
+        String repaired = xmlToolkit.repairGeometryIfNeeded(xmlToolkit.autoRepair(xml));
+        DrawioCanvasXmlToolkit.CanvasInspection inspection = xmlToolkit.inspect(repaired);
+        if (inspection.isValid() || !isCriticalSeverity(inspection.getSeverity())) {
+            xml = repaired;
+        }
         if (includeValidation) {
             sendValidationChunk(emitter, phase, inspection);
         }
@@ -420,15 +411,6 @@ public class DrawioStreamResponseWriter {
         }
 
         String normalizedAuthor = author.toLowerCase();
-        if (normalizedAuthor.contains("repair")) {
-            return "revising";
-        }
-        if (normalizedAuthor.contains("review") || normalizedAuthor.contains("critic") || normalizedAuthor.contains("check")) {
-            return "reviewing";
-        }
-        if (normalizedAuthor.contains("revision") || normalizedAuthor.contains("revise") || normalizedAuthor.contains("planner")) {
-            return "revising";
-        }
         if (normalizedAuthor.contains("draw") || normalizedAuthor.contains("generator") || normalizedAuthor.contains("render")) {
             return "drawing";
         }
@@ -437,10 +419,6 @@ public class DrawioStreamResponseWriter {
         }
 
         return "thinking";
-    }
-
-    private boolean isReviewRepairPhase(String phase) {
-        return "revising".equals(phase);
     }
 
     public void handleStreamError(ResponseBodyEmitter emitter, boolean manuallyCompleted, Throwable error) {
@@ -733,8 +711,8 @@ public class DrawioStreamResponseWriter {
         return null;
     }
 
-    // Some models emit several JSON objects back-to-back with no newline (e.g. patch_cells followed by
-    // review_result). Pull out every balanced top-level object so each can be dispatched by type.
+    // Some models emit several JSON objects back-to-back with no newline (e.g. patch_cells followed
+    // by a user message). Pull out every balanced top-level object so each can be dispatched by type.
     private java.util.List<com.alibaba.fastjson.JSONObject> extractAllJsonObjects(String text) {
         java.util.List<com.alibaba.fastjson.JSONObject> objects = new java.util.ArrayList<>();
         if (StringUtils.isBlank(text)) {

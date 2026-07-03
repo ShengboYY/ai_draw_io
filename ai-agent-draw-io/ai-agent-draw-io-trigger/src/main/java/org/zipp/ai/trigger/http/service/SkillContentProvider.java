@@ -38,13 +38,15 @@ public class SkillContentProvider {
                 if (selected != null
                         && !"none".equalsIgnoreCase(selected)
                         && !SkillCatalogService.SHARED_SKILL.equals(selected)
+                        && !SkillCatalogService.SHARED_XML_GUIDE_SKILL.equals(selected)
                         && added.add(selected)
                         && skillCatalogService.exists(selected, ownerId)) {
                     appendSkill(section, selected, ownerId);
                 }
             }
         }
-        // The drawing agent is instructed to always follow the shared visual-design rules.
+        // The drawing agent is instructed to always follow shared XML and visual-design rules.
+        appendSkill(section, SkillCatalogService.SHARED_XML_GUIDE_SKILL, ownerId);
         appendSkill(section, SkillCatalogService.SHARED_SKILL, ownerId);
 
         return section.toString();

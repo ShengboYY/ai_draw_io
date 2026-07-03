@@ -1,192 +1,78 @@
 ---
 name: drawio-visual-design
-description: Shared Draw.io visual design and XML pattern system. Use with every Draw.io diagram skill to choose a design profile, semantic colors, spacing, typography, grouping, edge routing, and reusable Draw.io XML patterns without forcing every diagram to look the same.
+description: Draw.io house style baseline and canonical example. Always applied with every drawing action. Owns the color palette, typography, boundary/legend patterns, and the golden example that defines what a finished diagram looks like.
 license: Apache-2.0
 metadata:
   author: ai-draw-io
-  version: "1.0.0"
+  version: "2.0.0"
   category: drawio-design
 ---
 
-# Draw.io Visual Design And XML Pattern Skill
+# Draw.io House Style
 
-## 1. Purpose
-Use this skill together with the selected diagram skill, such as `drawio-architecture`, `drawio-flowchart`, or `drawio-sequence`.
+`drawio-xml-guide` owns structure/layout. This skill owns the finished look; imitate the Golden Example.
 
-This skill fixes design principles and reusable Draw.io XML patterns, not a single fixed visual style. The selected diagram skill still controls domain semantics, node types, and edge meanings.
+## Palette
+Low-saturation fills with darker strokes. One color = one semantic role. Default to 3-4 semantic colors; complex diagrams may use 5-6 named role colors when roles are real and the legend explains them. Gray boundaries, white/transparent fills, and text colors do not count. Beyond 6 roles, group details into regions, line styles, icons, or lanes.
 
-Shared scope: these rules apply to every Draw.io diagram type. Do not duplicate this shared contract or the XML patterns inside diagram-specific skills; those skills should add domain semantics, presets, and notation rules only.
+| Role | fillColor | strokeColor | Typical use |
+| --- | --- | --- | --- |
+| blue | #dae8fc | #6c8ebf | primary services, main process steps |
+| green | #d5e8d4 | #82b366 | entry points, actors, success states |
+| orange | #ffe6cc | #d79b00 | data stores, storage, persistence |
+| purple | #e1d5e7 | #9673a6 | AI/ML, middleware, queues, special systems |
+| yellow | #fff2cc | #d6b656 | notes, legend, highlights |
+| red | #f8cecc | #b85450 | errors, alerts, termination |
+| gray | #f5f5f5 | #666666 | boundaries, neutral groups |
 
-## 2. Design Workflow
-Privately perform this design workflow before generating Draw.io XML; never output this workflow:
-1. Identify the diagram type and the main message: hierarchy, process, time order, data model, scope, lifecycle, or relationship network.
-2. Select the diagram subtype from the selected diagram skill, such as architecture view, flow type, sequence scope, UML model scope, ER model scope, use case scope, or state machine scope.
-3. Select one design profile from Section 3.
-4. Apply the selected diagram skill's domain rules, then use Section 4 to map that domain intent onto the shared visual profiles.
-5. Choose a semantic color role for each group or node category.
-6. Create a visual blueprint before writing XML: main boundary, regions or lanes, focal nodes, legend need, and connector gutters.
-7. Place containers, lanes, lifelines, or main axes first when the selected profile requires them.
-8. Place child nodes, then route edges.
-9. Check for overlaps, line crossings, line labels covering nodes, and inconsistent styles.
+## Typography And Shapes
+- Diagram title: transparent text cell, fontSize=18, bold, centered above the diagram.
+- Container/boundary label: 13, bold. Node label: 12. Secondary detail line: 10–11 via `&lt;br&gt;` inside the value.
+- The hierarchy must be visible: the largest font (title) is at least 1.5× the smallest (detail). A diagram where everything is 11–12pt has no hierarchy.
+- Stroke ladder — exactly three levels, never more: region/boundary borders `strokeWidth=2`; ordinary nodes and edges default 1px; at most one emphasized main-path edge may use `strokeWidth=2`.
+- Process/service nodes: `rounded=1;whiteSpace=wrap;html=1;` + role fill. Storage: `shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;` + orange.
+- Standalone text (titles, captions, edge annotations) is always transparent: `text;html=1;strokeColor=none;fillColor=none;labelBackgroundColor=none;whiteSpace=wrap;`. Filled boxes are only for real nodes, notes, and the legend.
+- No shadows by default; in the Modern Product profile only, one focal node or boundary may use a subtle `shadow=1` if it clarifies hierarchy. Consistent corner rounding within the same tier.
 
-## 3. Design Profiles
+## Modern Product Profile
+- Use this for product/system architecture unless the user asks for stricter notation: quiet SaaS UI, low-saturation fills, slate text/edges, clean spacing, no decoration.
+- Primary request/data edges stay solid and orthogonal with `rounded=0;strokeColor=#334155;`. Return, async, callback, and secondary edges are dashed, softer slate (`strokeColor=#64748b`), and may use `rounded=1;arcSize=10` while keeping orthogonal ports.
+- Opposite request/return pairs must not share the center line. Put the request on the upper/left track (`0.3`) and the return on the lower/right track (`0.7`) so arrow direction is visually obvious.
 
-### 3.1 Architecture Profile
-Use for system architecture, deployment, infrastructure, and topology.
-- Prioritize region grouping, layer separation, and dependency direction.
-- Use large visual regions only when they represent real boundaries.
-- Use soft filled regions and stronger inner node borders.
+## House Patterns
+- System boundary: a dashed transparent rectangle drawn first, behind content: `rounded=0;whiteSpace=wrap;html=1;fillColor=none;dashed=1;strokeColor=#666666;verticalAlign=top;fontStyle=1;fontSize=13;align=left;spacingLeft=8;`. All content nodes keep `parent="1"` with absolute coordinates. Use a real container (`swimlane`) only for role/lane semantics.
+- Main-path edges carry numbered labels: `1. submit request`, `2. call model`, … in the edge `value` with `labelBackgroundColor=none;fontSize=11;`.
+- Return/async/secondary edges are dashed (`dashed=1`) and placed on separate tracks; requests stay solid.
+- Legend: small yellow box in an empty corner, with standalone sample lines (sourcePoint/targetPoint, no source/target) and small transparent labels. Add it only when line styles or colors carry meaning that isn't obvious.
 
-### 3.2 Flow Profile
-Use for flowcharts, approval flows, algorithms, and business processes.
-- Prioritize the main path and branch readability.
-- Use one dominant direction chosen by the flowchart skill.
-- Keep the main path aligned on one axis.
-
-### 3.3 Sequence Profile
-Use for sequence diagrams and time-ordered interactions.
-- Prioritize time moving downward.
-- Keep participant columns stable.
-- Use a restrained palette because message order matters more than decoration.
-
-### 3.4 Model Profile
-Use for UML class diagrams and ER diagrams.
-- Prioritize entity grouping, stable row/column alignment, and readable table/class content.
-- Use fewer colors than architecture diagrams; color should distinguish categories, not every entity.
-
-### 3.5 Scope Profile
-Use for use case diagrams and actor-function boundary diagrams.
-- Prioritize the system boundary and actor placement.
-
-### 3.6 Lifecycle Profile
-Use for state diagrams and status transitions.
-- Prioritize the main lifecycle path.
-
-### 3.7 Concept Profile
-Use when the request is a general concept map or basic diagram and no specialized skill applies.
-- Prioritize visual clusters and central topic prominence.
-- Use the center for the main concept and place related clusters around it.
-- Keep edges sparse; summarize dense relationships into group labels.
-
-## 4. Shared Profile Handoff
-This shared skill chooses visual profiles and reusable XML patterns only. The selected diagram skill owns domain semantics, notation, subtype choice, and any preset-specific layout rules.
-
-- Use the selected diagram skill to decide what objects, relationships, labels, and omissions belong in the diagram.
-- Use the matching profile in Section 3 to decide the broad visual rhythm, not the domain semantics.
-- Use Sections 5-8 for shared color, typography, spacing, routing, text transparency, container, waypoint, and XML hygiene.
-- If a domain skill conflicts with a shared visual rule, preserve the domain meaning and adapt the visual treatment without duplicating XML snippets in the domain skill.
-- For custom user skills, keep any new domain-specific rules in that custom skill and keep generic Draw.io XML/routing patterns here.
-
-## 5. Visual System Rules
-- Use low-saturation fills with darker strokes. Do not use highly saturated fills as large backgrounds.
-- Keep one semantic category mapped to one color role across the whole diagram.
-- Prefer 3-5 color roles total. If more categories exist, group or abstract them.
-- Use consistent rounded corners within the same semantic level.
-- Use title text only when it improves orientation; keep it clearly separated from nodes.
-- Hard rule for non-node text: standalone labels, captions, section hints, and edge annotations must be transparent and must not hide grid lines, connectors, or nearby shapes.
-- For standalone text, use styles like `text;html=1;strokeColor=none;fillColor=none;labelBackgroundColor=none;labelBorderColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;`.
-- Do not use `fillColor=#ffffff`, `fillColor=#FFFFFF`, `strokeColor=#ffffff`, or a visible border on plain text cells unless the element is an intentional note, callout, legend, or semantic node.
-- For edge labels, prefer the edge `value` with `labelBackgroundColor=none;labelBorderColor=none;` instead of a separate white text box.
-- Only use a filled text container when it is a real semantic node, callout, note, legend, or grouping element.
-- Use font sizes by hierarchy: title 18-24, container title 13-16, node title 12-14, small detail 10-12.
-- Use `whiteSpace=wrap;html=1;` on text nodes so labels remain readable.
-- Use shadows sparingly. If used, apply them consistently only to primary nodes, not to large containers.
-- Do not create nested decorative cards. Use containers only when they represent real grouping.
-
-## 6. Layout Rules
-- Apply the Global Draw.io Layout Contract from the drawer prompt before any diagram-specific preset.
-- Use a predictable grid. Same row uses the same y coordinate; same column uses the same x coordinate.
-- Keep outer margins at least 60px and leave enough whitespace around group boundaries and connector gutters.
-- Keep sibling node sizes consistent unless content length requires a larger box.
-- Containers must be drawn behind child nodes and must be large enough to include padding of at least 30px.
-- Avoid large empty holes inside a main container unless they intentionally separate layers.
-- Prefer abstraction over crowding. If a diagram would exceed about 16 core nodes, group similar nodes or create summarized submodules unless the user explicitly asks for detail.
-- First drafts should already be readable. Review repair is a safety net, not the primary layout mechanism.
-
-## 7. Edge Routing Rules
-- Prefer orthogonal routing for most diagrams: `edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;`.
-- Avoid diagonal lines through node bodies.
-- Connect from stable sides of nodes: left-to-right flows use east/west ports; top-to-bottom flows use north/south ports.
-- Use explicit exit/entry ports or waypoints when a direct connector would cross a node, container title, lane, group header, or important label.
-- Reserve connector gutters outside dense node groups; long cross-group edges should run around the group perimeter instead of through the middle.
-- Separate parallel or opposite-direction edges by distinct horizontal/vertical tracks so they do not stack on top of each other.
-- Keep edge labels short, transparent, and offset from node text. Do not place labels on top of nodes, container headers, or crossing points.
-- Use color for edge semantics only when it adds meaning, such as sync request, async event, data read/write, error path, or inheritance.
-- If more than three crossings appear in a central area, change layout before outputting XML.
-- For dense diagrams, use grouping and fewer edges instead of drawing every possible dependency.
-
-## 8. Draw.io XML Patterns
-Use these snippets as shared XML patterns. The selected diagram skill may choose arrowheads, colors, and labels, but it should keep the structure and style hygiene below.
-
-### 8.1 Standard Orthogonal Connector
-Use this for most connected relationships. Put ports inside the `style` string, never as mxCell attributes.
+## Golden Example
+Canonical output shape — a request flow with boundary, numbered edges, distinct tracks for the request/return pair, and a legend:
 
 ```xml
-<mxCell id="edge-1" value="calls" edge="1" parent="1" source="source-id" target="target-id"
-  style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;exitX=1;exitY=0.5;entryX=0;entryY=0.5;labelBackgroundColor=none;labelBorderColor=none;">
-  <mxGeometry relative="1" as="geometry"/>
-</mxCell>
+<mxCell id="2" value="AI Diagram System" style="text;html=1;strokeColor=none;fillColor=none;align=center;fontSize=18;fontStyle=1;whiteSpace=wrap;" vertex="1" parent="1"><mxGeometry x="340" y="20" width="380" height="30" as="geometry"/></mxCell>
+<mxCell id="3" value="AI Diagram Service" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;dashed=1;strokeColor=#666666;verticalAlign=top;fontStyle=1;fontSize=13;align=left;spacingLeft=8;" vertex="1" parent="1"><mxGeometry x="300" y="70" width="660" height="480" as="geometry"/></mxCell>
+<mxCell id="4" value="Web Frontend" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=12;" vertex="1" parent="1"><mxGeometry x="60" y="230" width="160" height="60" as="geometry"/></mxCell>
+<mxCell id="5" value="Backend API&lt;br&gt;&lt;font style=&quot;font-size:10px&quot;&gt;auth / routing&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=12;" vertex="1" parent="1"><mxGeometry x="380" y="230" width="160" height="70" as="geometry"/></mxCell>
+<mxCell id="6" value="AI Service&lt;br&gt;&lt;font style=&quot;font-size:10px&quot;&gt;generates draw.io XML&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=12;" vertex="1" parent="1"><mxGeometry x="700" y="120" width="180" height="70" as="geometry"/></mxCell>
+<mxCell id="7" value="User History DB" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=15;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=12;" vertex="1" parent="1"><mxGeometry x="720" y="380" width="140" height="80" as="geometry"/></mxCell>
+<mxCell id="8" value="1. draw request" style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;exitX=1;exitY=0.3;entryX=0;entryY=0.3;labelBackgroundColor=none;fontSize=11;" edge="1" parent="1" source="4" target="5"><mxGeometry relative="1" as="geometry"/></mxCell>
+<mxCell id="9" value="2. call model" style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;exitX=1;exitY=0.3;entryX=0;entryY=0.5;labelBackgroundColor=none;fontSize=11;" edge="1" parent="1" source="5" target="6"><mxGeometry relative="1" as="geometry"/></mxCell>
+<mxCell id="10" value="3. return XML" style="endArrow=classic;html=1;dashed=1;edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;exitX=0;exitY=0.8;entryX=1;entryY=0.6;labelBackgroundColor=none;fontSize=11;" edge="1" parent="1" source="6" target="5"><mxGeometry relative="1" as="geometry"/></mxCell>
+<mxCell id="11" value="4. save history" style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;exitX=1;exitY=0.8;entryX=0;entryY=0.5;labelBackgroundColor=none;fontSize=11;" edge="1" parent="1" source="5" target="7"><mxGeometry relative="1" as="geometry"/></mxCell>
+<mxCell id="12" value="5. render diagram" style="endArrow=classic;html=1;dashed=1;edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;exitX=0;exitY=0.7;entryX=1;entryY=0.7;labelBackgroundColor=none;fontSize=11;" edge="1" parent="1" source="5" target="4"><mxGeometry relative="1" as="geometry"/></mxCell>
+<mxCell id="13" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="1"><mxGeometry x="60" y="420" width="200" height="90" as="geometry"/></mxCell>
+<mxCell id="14" value="Legend" style="text;html=1;strokeColor=none;fillColor=none;fontSize=11;fontStyle=1;align=left;whiteSpace=wrap;" vertex="1" parent="1"><mxGeometry x="72" y="428" width="80" height="18" as="geometry"/></mxCell>
+<mxCell id="15" value="" style="endArrow=classic;html=1;" edge="1" parent="1"><mxGeometry relative="1" as="geometry"><mxPoint x="75" y="470" as="sourcePoint"/><mxPoint x="120" y="470" as="targetPoint"/></mxGeometry></mxCell>
+<mxCell id="16" value="request / write" style="text;html=1;strokeColor=none;fillColor=none;fontSize=10;align=left;whiteSpace=wrap;" vertex="1" parent="1"><mxGeometry x="128" y="460" width="120" height="18" as="geometry"/></mxCell>
+<mxCell id="17" value="" style="endArrow=classic;html=1;dashed=1;" edge="1" parent="1"><mxGeometry relative="1" as="geometry"><mxPoint x="75" y="495" as="sourcePoint"/><mxPoint x="120" y="495" as="targetPoint"/></mxGeometry></mxCell>
+<mxCell id="18" value="return / async" style="text;html=1;strokeColor=none;fillColor=none;fontSize=10;align=left;whiteSpace=wrap;" vertex="1" parent="1"><mxGeometry x="128" y="485" width="120" height="18" as="geometry"/></mxCell>
 ```
 
-### 8.2 Obstacle-Avoidance Waypoints
-Use waypoints when a direct connector would cross a node, label, group header, lane, or central story area.
+Read from the example: numbered solid request path, dashed returns on separate tracks, boundary behind content, storage cylinder, point-anchored legend lines, and clear routing channels.
 
-```xml
-<mxCell id="edge-2" value="async event" edge="1" parent="1" source="source-id" target="target-id"
-  style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;exitX=1;exitY=0.5;entryX=0;entryY=0.5;labelBackgroundColor=none;labelBorderColor=none;">
-  <mxGeometry relative="1" as="geometry">
-    <Array as="points">
-      <mxPoint x="360" y="140"/>
-      <mxPoint x="360" y="260"/>
-    </Array>
-  </mxGeometry>
-</mxCell>
-```
-
-### 8.3 Sequence Message Connector
-Use elbow connectors for sequence-message rows where time moves downward and lifelines stay fixed.
-
-```xml
-<mxCell id="edge-3" value="request()" edge="1" parent="1" source="client" target="service"
-  style="html=1;verticalAlign=bottom;endArrow=block;edgeStyle=elbowEdgeStyle;elbow=vertical;labelBackgroundColor=none;labelBorderColor=none;">
-  <mxGeometry relative="1" as="geometry"/>
-</mxCell>
-```
-
-### 8.4 Unavoidable Crossing Marker
-Prefer layout changes, side ports, gutters, or waypoints first. Use `jumpStyle=arc;jumpSize=10` only when a remaining crossing is unavoidable and marking it improves readability.
-
-```xml
-<mxCell id="edge-4" value="secondary" edge="1" parent="1" source="source-id" target="target-id"
-  style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;jumpStyle=arc;jumpSize=10;exitX=0.5;exitY=1;entryX=0.5;entryY=0;labelBackgroundColor=none;labelBorderColor=none;">
-  <mxGeometry relative="1" as="geometry"/>
-</mxCell>
-```
-
-### 8.5 Containers And Children
-Containers should be sibling mxCells under `parent="1"`. Child nodes reference the container id through `parent="<container-id>"`; never nest an mxCell element inside another mxCell element.
-
-```xml
-<mxCell id="group-1" value="Subsystem" vertex="1" parent="1"
-  style="rounded=1;whiteSpace=wrap;html=1;container=1;collapsible=0;recursiveResize=0;fillColor=#f5f5f5;strokeColor=#666666;">
-  <mxGeometry x="80" y="80" width="360" height="220" as="geometry"/>
-</mxCell>
-<mxCell id="node-1" value="Worker" vertex="1" parent="<container-id>"
-  style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;">
-  <mxGeometry x="40" y="60" width="140" height="60" as="geometry"/>
-</mxCell>
-```
-
-## 9. Output Self-Check
-Before outputting the final `drawio_done`, check:
-- The selected design profile matches the requested diagram type.
-- The content matches the selected diagram type, not just the visual style.
-- The diagram has a visible hierarchy: title, containers or lanes, nodes, then details.
-- Same-level nodes are aligned and similarly sized.
-- No node overlaps another node or container title.
-- No edge label sits on top of node text.
-- No plain `text` mxCell uses an opaque fill, white background, or visible border unless it is an intentional callout, note, legend, or semantic node.
-- Edge labels and standalone labels include `labelBackgroundColor=none` and do not visually mask connectors.
-- Connectors use stable ports, clear gutters, and minimal crossings instead of running through the center of unrelated groups.
-- The diagram has one coherent style system and not a random mix of colors.
-- The result is readable at normal Draw.io zoom without requiring the user to inspect tiny text.
+## Final Self-Check
+- First principle: every shape, color, and arrow carries meaning. If removing an element loses no information, do not draw it — no decorative boxes, filler nodes, or unlabeled color blocks.
+- One coherent style: consistent palette roles, aligned tiers, equal node sizes, no random colors. Complex diagrams may use 5-6 semantic colors, but every extra color needs a named role.
+- No node overlaps another node; no edge label sits on a node label; no opaque white text boxes over content.
+- Boundaries render behind content; legend is small and out of the way.
+- Labels are short; details go to a second smaller line, not a longer box.

@@ -185,16 +185,16 @@ public class AgentConversationService {
 
             // Each author has its own buffer because the ADK stream can interleave partial chunks.
             final ConcurrentHashMap<String, StringBuilder> authorBuffers = new ConcurrentHashMap<>();
-            final int maxReviewIterations = effectiveMaxReviewIterations(requestDTO, routingResult);
-            final AtomicInteger reviewIterationCounter = new AtomicInteger(0);
-            final AtomicReference<String> lastPhaseRef = new AtomicReference<>("");
+            // Drawing-loop budget: one first draw plus N self-repair mutations (frontend Max Loops).
+            final int maxRepairRounds = effectiveMaxReviewIterations(requestDTO, routingResult);
+            final AtomicInteger mutationRounds = new AtomicInteger(0);
             final AtomicReference<Disposable> disposableRef = new AtomicReference<>();
             final AtomicBoolean manuallyCompleted = new AtomicBoolean(false);
             final AtomicBoolean finalStreamTelemetryCompleted = streamTelemetryCompleted;
             final CanvasReviewContext reviewContext = routingResult.needsCanvasReview()
                     ? telemetryService().recordStep("review", () -> buildReviewContextIfNeeded(currentRequest, config, routingResult))
                     : null;
-            final String routedMessage = buildRoutedMessage(currentRequest, routingResult, reviewContext, maxReviewIterations, currentRequest.getUserId(), currentRequest.getSkills());
+            final String routedMessage = buildRoutedMessage(currentRequest, routingResult, reviewContext, maxRepairRounds, currentRequest.getUserId(), currentRequest.getSkills());
             captureDebugTrace(runScope, "ROUTED_MESSAGE", routedMessage);
             // The current canvas travels in the request; keep it so patch_cells can merge a delta
             // without the model re-emitting the whole diagram.
@@ -212,26 +212,23 @@ public class AgentConversationService {
                                 try {
                                     String author = event.author();
                                     String phase = streamResponseWriter.resolvePhase(author);
-                                    if (shouldStopForReviewLimit(phase, lastPhaseRef, reviewIterationCounter, maxReviewIterations)) {
-                                        // The drawer's final output may still be buffered (e.g. a patch_cells
-                                        // line carries no <mxGraphModel> to flush mid-stream). Emit it before
-                                        // we stop, otherwise a localized edit would be silently dropped.
-                                        flushAuthorBuffers(emitter, authorBuffers);
-                                        completeStream(emitter, manuallyCompleted, disposableRef, finalSessionId,
-                                                finalDrawingStep, finalRunScope, finalStreamTelemetryCompleted);
-                                        return;
-                                    }
 
                                     if (!event.functionResponses().isEmpty()) {
                                         if (processFunctionResponses(emitter, phase, event, currentCanvasXml)) {
-                                            // When review is off, the rendered tool result
-                                            // is the final deliverable, so end the turn instead of paying for an
-                                            // extra model round-trip. With review on, fall through so the
-                                            // reviewer/repair loop still runs.
-                                            if (maxReviewIterations == 0) {
-                                                flushAuthorBuffers(emitter, authorBuffers);
-                                                completeStream(emitter, manuallyCompleted, disposableRef, finalSessionId,
-                                                        finalDrawingStep, finalRunScope, finalStreamTelemetryCompleted);
+                                            // Drawing loop control: the drawer self-repairs by reading each
+                                            // mutation response's repairBrief in its own context. The stream
+                                            // ends as soon as the canvas is clean or the mutation budget
+                                            // (first draw + maxRepairRounds) is spent; otherwise ADK loops
+                                            // and the model may call a repair tool again.
+                                            MutationOutcome outcome = mutationOutcome(event);
+                                            if (outcome != MutationOutcome.NONE) {
+                                                int rounds = mutationRounds.incrementAndGet();
+                                                boolean budgetSpent = rounds >= maxRepairRounds + 1;
+                                                if (outcome == MutationOutcome.CLEAN || budgetSpent || maxRepairRounds == 0) {
+                                                    flushAuthorBuffers(emitter, authorBuffers);
+                                                    completeStream(emitter, manuallyCompleted, disposableRef, finalSessionId,
+                                                            finalDrawingStep, finalRunScope, finalStreamTelemetryCompleted);
+                                                }
                                             }
                                             return;
                                         }
@@ -582,13 +579,12 @@ public class AgentConversationService {
         routingJson.put("needsSemanticReview", routingResult.getNeedsSemanticReview());
         routingJson.put("answerMode", routingResult.getAnswerMode());
         routingJson.put("reason", routingResult.getReason());
-        routingJson.put("maxReviewIterations", maxReviewIterations);
+        routingJson.put("maxRepairRounds", maxReviewIterations);
         List<String> allowedTools = allowedToolsFor(routingResult);
         routingJson.put("allowedTools", allowedTools);
-        routingJson.put("reviewRepairTools", DrawioCanvasToolNames.REVIEW_REPAIR_TOOL_NAMES);
-        routingJson.put("toolPolicy", "Use only allowedTools for the initial draft. Review repair turns may use only reviewRepairTools and must not call create_diagram; explicit user redraws route through a new create_diagram action.");
+        routingJson.put("toolPolicy", "Use only allowedTools for the initial draft. Self-repair rounds use modify_diagram or optimize_diagram(mode=route_only) and must not call create_diagram; explicit user redraws route through a new create_diagram action.");
         // Log derived routing controls only; the routed message below can contain full canvas XML.
-        log.info("[draw-route] userId={} intent={} drawMode={} taskType={} allowedTools={} maxReviewIterations={} canvasReview={} semanticReview={} skillName={} reviewContext={}",
+        log.info("[draw-route] userId={} intent={} drawMode={} taskType={} allowedTools={} maxRepairRounds={} canvasReview={} semanticReview={} skillName={} reviewContext={}",
                 SecretLogSanitizer.maskCapability(ownerId),
                 logValue(routingResult.getIntent()),
                 logValue(routingResult.getDrawMode()),
@@ -741,15 +737,50 @@ public class AgentConversationService {
         }
     }
 
-    private boolean shouldStopForReviewLimit(String phase,
-                                             AtomicReference<String> lastPhaseRef,
-                                             AtomicInteger reviewIterationCounter,
-                                             int maxReviewIterations) {
-        String previousPhase = lastPhaseRef.getAndSet(phase);
-        // Each reviewing phase means a new review/revision round has started.
-        return "reviewing".equals(phase)
-                && !"reviewing".equals(previousPhase)
-                && reviewIterationCounter.incrementAndGet() > maxReviewIterations;
+    /** Outcome of the mutation tool response(s) in one ADK event, for drawing-loop control. */
+    private enum MutationOutcome {
+        /** No drawing mutation in this event (e.g. a search tool response). */
+        NONE,
+        /** Canvas mutated and the deterministic analysis reports no blocking issues. */
+        CLEAN,
+        /** Canvas mutated but critical/major issues remain; the loop may continue. */
+        NEEDS_REPAIR
+    }
+
+    private MutationOutcome mutationOutcome(com.google.adk.events.Event event) {
+        MutationOutcome outcome = MutationOutcome.NONE;
+        for (com.google.genai.types.FunctionResponse functionResponse : event.functionResponses()) {
+            if (functionResponse.response().isEmpty()) {
+                continue;
+            }
+            Object responseJson = com.alibaba.fastjson.JSON.toJSON(functionResponse.response().get());
+            if (!(responseJson instanceof com.alibaba.fastjson.JSONObject json)) {
+                continue;
+            }
+            String type = json.getString("type");
+            if ("tool_error".equals(type)) {
+                // A rejected mutation applied nothing; let the model retry without burning budget.
+                continue;
+            }
+            String name = functionResponse.name().orElse("");
+            boolean mutation = DrawioCanvasToolNames.DRAWING_RESULT_TOOL_NAMES.contains(name)
+                    || "drawio_done".equals(type)
+                    || DrawioCanvasToolNames.PATCH_CELLS.equals(type);
+            if (!mutation) {
+                continue;
+            }
+            com.alibaba.fastjson.JSONObject analysis = json.getJSONObject("analysis");
+            boolean clean = analysis == null
+                    ? isFinishBrief(json.getString("repairBrief"))
+                    : analysis.getBooleanValue("valid");
+            outcome = clean ? MutationOutcome.CLEAN : MutationOutcome.NEEDS_REPAIR;
+        }
+        return outcome;
+    }
+
+    private boolean isFinishBrief(String repairBrief) {
+        // Legacy/blank responses count as clean so a tiny patch never forces an extra model round.
+        return repairBrief == null || repairBrief.startsWith("APPLIED. No blocking issues");
     }
 
     private void completeStream(ResponseBodyEmitter emitter,

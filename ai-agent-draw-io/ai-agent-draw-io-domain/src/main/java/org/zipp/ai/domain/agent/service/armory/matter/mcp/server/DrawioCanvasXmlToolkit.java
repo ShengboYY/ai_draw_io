@@ -21,6 +21,8 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class DrawioCanvasXmlToolkit {
 
@@ -31,6 +33,8 @@ public class DrawioCanvasXmlToolkit {
     private static final double MIN_LABEL_WIDTH = 48D;
     private static final double MAX_LABEL_WIDTH = 180D;
     private static final double LABEL_HEIGHT = 24D;
+    private static final Pattern VALUE_ATTRIBUTE_PATTERN =
+            Pattern.compile("(?<![A-Za-z0-9_.:-])(value\\s*=\\s*)(['\"])(.*?)\\2", Pattern.DOTALL);
 
     private final ICanvasAnalyzer canvasAnalyzer;
 
@@ -44,6 +48,7 @@ public class DrawioCanvasXmlToolkit {
 
     public String toGraphModel(String xml) {
         String normalized = normalizeXml(xml);
+        normalized = sanitizeValueAttributes(normalized);
         String graphModel = extractGraphModel(normalized);
         if (StringUtils.isNotBlank(graphModel)) {
             return graphModel;
@@ -202,9 +207,274 @@ public class DrawioCanvasXmlToolkit {
     public String repairGeometryIfNeeded(String xml) {
         CanvasAnalysis analysis = analyze(xml);
         boolean needsReroute = analysis.getIssues().stream()
-                .anyMatch(issue -> CanvasIssueType.EDGE_NODE_CROSSING == issue.getType()
+                .anyMatch(issue -> (CanvasIssueType.EDGE_NODE_CROSSING == issue.getType()
+                        || CanvasIssueType.EDGE_LABEL_COLLISION == issue.getType()
+                        || CanvasIssueType.PORT_DIRECTION_MISMATCH == issue.getType()
+                        || CanvasIssueType.PARALLEL_EDGE_OVERLAP == issue.getType())
                         && "auto_reroute".equals(issue.getRepairability()));
         return needsReroute ? routeEdges(xml) : xml;
+    }
+
+    /**
+     * Deterministic structural repair for model-authored XML. Fixes only what code can fix
+     * reliably — nested cells, duplicate ids, port attributes outside the style string, missing
+     * geometry, and dangling edge references — so a draft is never discarded for a mechanical
+     * mistake. Visual quality issues stay with the analyzer and the drawing loop.
+     */
+    public String autoRepair(String xml) {
+        String wrapped = toGraphModel(xml);
+        try {
+            Document document = DocumentHelper.parseText(wrapped);
+            Element root = document.getRootElement().element("root");
+            if (root == null) {
+                return wrapped;
+            }
+            boolean changed = flattenNestedCells(root);
+            changed |= deduplicateCellIds(root);
+            changed |= movePortAttributesIntoStyle(root);
+            changed |= ensureGeometry(root);
+            changed |= repairEdgeEndpoints(root);
+            // Preserve the caller's original text when nothing needed fixing; re-serialization
+            // would needlessly normalize quotes and formatting.
+            return changed ? document.getRootElement().asXML() : wrapped;
+        } catch (Exception ignored) {
+            // Unparseable even after normalization; return the wrapped input so the caller's
+            // inspection reports the parse failure instead of this repair pass masking it.
+            return wrapped;
+        }
+    }
+
+    private boolean flattenNestedCells(Element root) {
+        // Draw.io ignores mxCell elements nested inside another mxCell; hoist them to root
+        // siblings and keep the intended grouping through the parent attribute.
+        boolean changed = false;
+        boolean moved = true;
+        while (moved) {
+            moved = false;
+            for (Element cell : new ArrayList<Element>(root.elements("mxCell"))) {
+                for (Element nested : new ArrayList<Element>(cell.elements("mxCell"))) {
+                    if (StringUtils.isBlank(nested.attributeValue("parent"))
+                            && StringUtils.isNotBlank(cell.attributeValue("id"))) {
+                        nested.addAttribute("parent", cell.attributeValue("id"));
+                    }
+                    nested.detach();
+                    root.add(nested);
+                    moved = true;
+                    changed = true;
+                }
+            }
+        }
+        return changed;
+    }
+
+    private boolean deduplicateCellIds(Element root) {
+        boolean changed = false;
+        Set<String> seen = new HashSet<>();
+        for (Element cell : new ArrayList<Element>(root.elements("mxCell"))) {
+            String id = cell.attributeValue("id");
+            if (StringUtils.isBlank(id) || "0".equals(id) || "1".equals(id)) {
+                continue;
+            }
+            if (!seen.add(id)) {
+                // References keep resolving to the first occurrence; the later duplicate gets a
+                // fresh id so both cells stay visible instead of one silently replacing the other.
+                int suffix = 2;
+                String candidate = id + "-r" + suffix;
+                while (seen.contains(candidate)) {
+                    candidate = id + "-r" + (++suffix);
+                }
+                cell.addAttribute("id", candidate);
+                seen.add(candidate);
+                changed = true;
+            }
+        }
+        return changed;
+    }
+
+    private static final String[] PORT_ATTRIBUTES = {"exitX", "exitY", "entryX", "entryY", "exitDx", "exitDy", "entryDx", "entryDy"};
+
+    private boolean movePortAttributesIntoStyle(Element root) {
+        boolean anyChanged = false;
+        for (Element cell : new ArrayList<Element>(root.elements("mxCell"))) {
+            String style = StringUtils.defaultString(cell.attributeValue("style"));
+            boolean changed = false;
+            for (String name : PORT_ATTRIBUTES) {
+                String value = cell.attributeValue(name);
+                if (StringUtils.isNotBlank(value)) {
+                    if (!style.contains(name + "=")) {
+                        style = StringUtils.appendIfMissing(StringUtils.isBlank(style) ? "" : style, ";");
+                        style = style + name + "=" + value + ";";
+                    }
+                    cell.remove(cell.attribute(name));
+                    changed = true;
+                }
+                for (Element strayTag : new ArrayList<Element>(cell.elements(name))) {
+                    cell.remove(strayTag);
+                    changed = true;
+                }
+            }
+            if (changed) {
+                cell.addAttribute("style", style);
+                anyChanged = true;
+            }
+        }
+        return anyChanged;
+    }
+
+    private boolean ensureGeometry(Element root) {
+        boolean changed = false;
+        double stagingY = 40D;
+        for (Object item : root.elements("mxCell")) {
+            Element cell = (Element) item;
+            Element geometry = cell.element("mxGeometry");
+            if (geometry != null && geometry.attributeValue("y") != null) {
+                double bottom = parseDouble(geometry.attributeValue("y")) + parseDouble(geometry.attributeValue("height"));
+                stagingY = Math.max(stagingY, bottom + 40D);
+            }
+        }
+        for (Element cell : new ArrayList<Element>(root.elements("mxCell"))) {
+            String id = cell.attributeValue("id");
+            if ("0".equals(id) || "1".equals(id)) {
+                continue;
+            }
+            boolean isEdge = "1".equals(cell.attributeValue("edge"));
+            Element geometry = cell.element("mxGeometry");
+            if (isEdge) {
+                if (geometry == null) {
+                    geometry = cell.addElement("mxGeometry");
+                    geometry.addAttribute("as", "geometry");
+                    changed = true;
+                }
+                if (StringUtils.isBlank(geometry.attributeValue("relative"))) {
+                    geometry.addAttribute("relative", "1");
+                    changed = true;
+                }
+                continue;
+            }
+            if (!"1".equals(cell.attributeValue("vertex"))) {
+                continue;
+            }
+            if (geometry == null) {
+                geometry = cell.addElement("mxGeometry");
+                geometry.addAttribute("as", "geometry");
+                changed = true;
+            }
+            if (parseDouble(geometry.attributeValue("width")) <= 0) {
+                geometry.addAttribute("width", "160");
+                changed = true;
+            }
+            if (parseDouble(geometry.attributeValue("height")) <= 0) {
+                geometry.addAttribute("height", "60");
+                changed = true;
+            }
+            if (geometry.attributeValue("x") == null && geometry.attributeValue("y") == null) {
+                // Stage repaired vertices in a visible column below existing content instead of
+                // stacking them at the origin.
+                geometry.addAttribute("x", "40");
+                geometry.addAttribute("y", trimNumber(stagingY));
+                stagingY += 90D;
+                changed = true;
+            }
+        }
+        return changed;
+    }
+
+    private boolean repairEdgeEndpoints(Element root) {
+        boolean changed = false;
+        Set<String> ids = new HashSet<>();
+        Map<String, Element> cellsById = new HashMap<>();
+        for (Object item : root.elements("mxCell")) {
+            Element cell = (Element) item;
+            if (StringUtils.isNotBlank(cell.attributeValue("id"))) {
+                ids.add(cell.attributeValue("id"));
+                cellsById.putIfAbsent(cell.attributeValue("id"), cell);
+            }
+        }
+
+        for (Element edge : new ArrayList<Element>(root.elements("mxCell"))) {
+            if (!"1".equals(edge.attributeValue("edge"))) {
+                continue;
+            }
+            String source = edge.attributeValue("source");
+            String target = edge.attributeValue("target");
+            boolean sourceBroken = StringUtils.isNotBlank(source) && !ids.contains(source);
+            boolean targetBroken = StringUtils.isNotBlank(target) && !ids.contains(target);
+            if (sourceBroken && targetBroken) {
+                // Neither endpoint resolves; the edge carries no usable information.
+                root.remove(edge);
+                changed = true;
+                continue;
+            }
+            if (sourceBroken) {
+                edge.remove(edge.attribute("source"));
+                anchorDanglingEndpoint(edge, cellsById.get(target), "sourcePoint");
+                changed = true;
+            }
+            if (targetBroken) {
+                edge.remove(edge.attribute("target"));
+                anchorDanglingEndpoint(edge, cellsById.get(source), "targetPoint");
+                changed = true;
+            }
+
+            boolean hasSource = StringUtils.isNotBlank(edge.attributeValue("source"));
+            boolean hasTarget = StringUtils.isNotBlank(edge.attributeValue("target"));
+            if (!hasSource && !hasTarget && namedPoint(edge, "sourcePoint") == null && namedPoint(edge, "targetPoint") == null) {
+                root.remove(edge);
+                changed = true;
+            }
+        }
+        return changed;
+    }
+
+    private void anchorDanglingEndpoint(Element edge, Element remainingNode, String pointName) {
+        if (namedPoint(edge, pointName) != null) {
+            return;
+        }
+        Element geometry = edge.element("mxGeometry");
+        if (geometry == null) {
+            geometry = edge.addElement("mxGeometry");
+            geometry.addAttribute("relative", "1");
+            geometry.addAttribute("as", "geometry");
+        }
+        double x = 40D;
+        double y = 40D;
+        Element remainingGeometry = remainingNode == null ? null : remainingNode.element("mxGeometry");
+        if (remainingGeometry != null) {
+            double nodeX = parseDouble(remainingGeometry.attributeValue("x"));
+            double nodeY = parseDouble(remainingGeometry.attributeValue("y"));
+            double nodeH = parseDouble(remainingGeometry.attributeValue("height"));
+            x = "sourcePoint".equals(pointName) ? Math.max(0, nodeX - 120D) : nodeX + 200D;
+            y = nodeY + Math.max(nodeH / 2D, 20D);
+        }
+        Element point = geometry.addElement("mxPoint");
+        point.addAttribute("x", trimNumber(x));
+        point.addAttribute("y", trimNumber(y));
+        point.addAttribute("as", pointName);
+    }
+
+    private Element namedPoint(Element edge, String pointName) {
+        Element geometry = edge.element("mxGeometry");
+        if (geometry == null) {
+            return null;
+        }
+        for (Object item : geometry.elements("mxPoint")) {
+            Element point = (Element) item;
+            if (StringUtils.equals(pointName, point.attributeValue("as"))) {
+                return point;
+            }
+        }
+        return null;
+    }
+
+    private double parseDouble(String raw) {
+        if (StringUtils.isBlank(raw)) {
+            return 0D;
+        }
+        try {
+            return Double.parseDouble(raw);
+        } catch (Exception ignored) {
+            return 0D;
+        }
     }
 
     public String edgeCells(String xml) {
@@ -313,7 +583,9 @@ public class DrawioCanvasXmlToolkit {
     private void routeEdge(Document document, Element edge, CellInfo source, CellInfo target, List<CellInfo> cells) {
         boolean horizontal = Math.abs(target.centerX() - source.centerX()) >= Math.abs(target.centerY() - source.centerY());
         boolean forward = horizontal ? target.centerX() >= source.centerX() : target.centerY() >= source.centerY();
-        String style = ensureStyleTokens(StringUtils.defaultString(edge.attributeValue("style")), horizontal, forward);
+        EdgeRouteStyle routeStyle = resolveRouteStyle(edge, source, target, cells, horizontal, forward);
+        String style = ensureStyleTokens(StringUtils.defaultString(edge.attributeValue("style")),
+                horizontal, forward, routeStyle.getTrackFraction(), routeStyle.isAuxiliary());
         edge.addAttribute("style", style);
 
         Element geometry = edge.element("mxGeometry");
@@ -325,19 +597,21 @@ public class DrawioCanvasXmlToolkit {
 
         List<CanvasPoint2D> originalWaypoints = readWaypoints(geometry);
         List<CanvasPoint2D> baseWaypoints = originalWaypoints.isEmpty()
-                ? defaultWaypoints(source, target, horizontal)
+                ? defaultWaypoints(source, target, horizontal, routeStyle.getTrackFraction())
                 : originalWaypoints;
         replaceWaypoints(geometry, baseWaypoints);
 
         if (hasEdgeNodeCrossing(document.asXML(), edge.attributeValue("id"))) {
             List<CanvasPoint2D> best = null;
             double bestLength = Double.MAX_VALUE;
-            for (List<CanvasPoint2D> candidate : routeCandidates(source, target, cells, horizontal, forward)) {
+            for (List<CanvasPoint2D> candidate : routeCandidates(source, target, cells, horizontal, forward,
+                    routeStyle.getTrackFraction())) {
                 replaceWaypoints(geometry, candidate);
                 if (hasEdgeNodeCrossing(document.asXML(), edge.attributeValue("id"))) {
                     continue;
                 }
-                double length = routeLength(edgeRoutePoints(geometry, source, target, horizontal, forward));
+                double length = routeLength(edgeRoutePoints(geometry, source, target, horizontal, forward,
+                        routeStyle.getTrackFraction()));
                 if (length < bestLength) {
                     best = candidate;
                     bestLength = length;
@@ -345,7 +619,7 @@ public class DrawioCanvasXmlToolkit {
             }
             replaceWaypoints(geometry, best == null ? originalWaypoints : best);
         }
-        positionEdgeLabel(edge, geometry, source, target, cells, horizontal, forward);
+        positionEdgeLabel(edge, geometry, source, target, cells, horizontal, forward, routeStyle.getTrackFraction());
     }
 
     private boolean hasEdgeNodeCrossing(String xml, String edgeId) {
@@ -399,21 +673,24 @@ public class DrawioCanvasXmlToolkit {
         }
     }
 
-    private List<CanvasPoint2D> defaultWaypoints(CellInfo source, CellInfo target, boolean horizontal) {
+    private List<CanvasPoint2D> defaultWaypoints(CellInfo source, CellInfo target, boolean horizontal, double trackFraction) {
         if (horizontal) {
             double midX = (source.centerX() + target.centerX()) / 2D;
-            return List.of(new CanvasPoint2D(midX, source.centerY()), new CanvasPoint2D(midX, target.centerY()));
+            return List.of(new CanvasPoint2D(midX, source.trackY(trackFraction)),
+                    new CanvasPoint2D(midX, target.trackY(trackFraction)));
         }
 
         double midY = (source.centerY() + target.centerY()) / 2D;
-        return List.of(new CanvasPoint2D(source.centerX(), midY), new CanvasPoint2D(target.centerX(), midY));
+        return List.of(new CanvasPoint2D(source.trackX(trackFraction), midY),
+                new CanvasPoint2D(target.trackX(trackFraction), midY));
     }
 
     private List<List<CanvasPoint2D>> routeCandidates(CellInfo source,
                                                       CellInfo target,
                                                       List<CellInfo> cells,
                                                       boolean horizontal,
-                                                      boolean forward) {
+                                                      boolean forward,
+                                                      double trackFraction) {
         List<CellInfo> blockers = cells.stream()
                 .filter(cell -> "node".equals(cell.getKind()))
                 .filter(cell -> !StringUtils.equals(cell.getId(), source.getId()))
@@ -426,16 +703,17 @@ public class DrawioCanvasXmlToolkit {
         }
 
         return horizontal
-                ? horizontalRouteCandidates(source, target, blockers, forward)
-                : verticalRouteCandidates(source, target, blockers, forward);
+                ? horizontalRouteCandidates(source, target, blockers, forward, trackFraction)
+                : verticalRouteCandidates(source, target, blockers, forward, trackFraction);
     }
 
     private List<List<CanvasPoint2D>> horizontalRouteCandidates(CellInfo source,
                                                                CellInfo target,
                                                                List<CellInfo> blockers,
-                                                               boolean forward) {
-        CanvasPoint2D sourceAnchor = sourceAnchor(source, true, forward);
-        CanvasPoint2D targetAnchor = targetAnchor(target, true, forward);
+                                                               boolean forward,
+                                                               double trackFraction) {
+        CanvasPoint2D sourceAnchor = sourceAnchor(source, true, forward, trackFraction);
+        CanvasPoint2D targetAnchor = targetAnchor(target, true, forward, trackFraction);
         double direction = forward ? 1D : -1D;
         double startX = sourceAnchor.getX() + ROUTE_DOGLEG * direction;
         double endX = targetAnchor.getX() - ROUTE_DOGLEG * direction;
@@ -460,9 +738,10 @@ public class DrawioCanvasXmlToolkit {
     private List<List<CanvasPoint2D>> verticalRouteCandidates(CellInfo source,
                                                              CellInfo target,
                                                              List<CellInfo> blockers,
-                                                             boolean forward) {
-        CanvasPoint2D sourceAnchor = sourceAnchor(source, false, forward);
-        CanvasPoint2D targetAnchor = targetAnchor(target, false, forward);
+                                                             boolean forward,
+                                                             double trackFraction) {
+        CanvasPoint2D sourceAnchor = sourceAnchor(source, false, forward, trackFraction);
+        CanvasPoint2D targetAnchor = targetAnchor(target, false, forward, trackFraction);
         double direction = forward ? 1D : -1D;
         double startY = sourceAnchor.getY() + ROUTE_DOGLEG * direction;
         double endY = targetAnchor.getY() - ROUTE_DOGLEG * direction;
@@ -490,13 +769,14 @@ public class DrawioCanvasXmlToolkit {
                                    CellInfo target,
                                    List<CellInfo> cells,
                                    boolean horizontal,
-                                   boolean forward) {
+                                   boolean forward,
+                                   double trackFraction) {
         String label = cleanLabel(edge.attributeValue("value"));
         if (StringUtils.isBlank(label)) {
             return;
         }
 
-        List<CanvasPoint2D> route = edgeRoutePoints(geometry, source, target, horizontal, forward);
+        List<CanvasPoint2D> route = edgeRoutePoints(geometry, source, target, horizontal, forward, trackFraction);
         List<RouteSegment> segments = routeSegments(route);
         if (segments.isEmpty()) {
             return;
@@ -541,9 +821,10 @@ public class DrawioCanvasXmlToolkit {
                                                 CellInfo source,
                                                 CellInfo target,
                                                 boolean horizontal,
-                                                boolean forward) {
+                                                boolean forward,
+                                                double trackFraction) {
         List<CanvasPoint2D> points = new ArrayList<>();
-        points.add(sourceAnchor(source, horizontal, forward));
+        points.add(sourceAnchor(source, horizontal, forward, trackFraction));
 
         Element waypointArray = geometry.element("Array");
         if (waypointArray != null) {
@@ -553,22 +834,22 @@ public class DrawioCanvasXmlToolkit {
             }
         }
 
-        points.add(targetAnchor(target, horizontal, forward));
+        points.add(targetAnchor(target, horizontal, forward, trackFraction));
         return points;
     }
 
-    private CanvasPoint2D sourceAnchor(CellInfo source, boolean horizontal, boolean forward) {
+    private CanvasPoint2D sourceAnchor(CellInfo source, boolean horizontal, boolean forward, double trackFraction) {
         if (horizontal) {
-            return new CanvasPoint2D(forward ? source.maxX() : source.getX(), source.centerY());
+            return new CanvasPoint2D(forward ? source.maxX() : source.getX(), source.trackY(trackFraction));
         }
-        return new CanvasPoint2D(source.centerX(), forward ? source.maxY() : source.getY());
+        return new CanvasPoint2D(source.trackX(trackFraction), forward ? source.maxY() : source.getY());
     }
 
-    private CanvasPoint2D targetAnchor(CellInfo target, boolean horizontal, boolean forward) {
+    private CanvasPoint2D targetAnchor(CellInfo target, boolean horizontal, boolean forward, double trackFraction) {
         if (horizontal) {
-            return new CanvasPoint2D(forward ? target.getX() : target.maxX(), target.centerY());
+            return new CanvasPoint2D(forward ? target.getX() : target.maxX(), target.trackY(trackFraction));
         }
-        return new CanvasPoint2D(target.centerX(), forward ? target.getY() : target.maxY());
+        return new CanvasPoint2D(target.trackX(trackFraction), forward ? target.getY() : target.maxY());
     }
 
     private List<RouteSegment> routeSegments(List<CanvasPoint2D> points) {
@@ -670,20 +951,102 @@ public class DrawioCanvasXmlToolkit {
         return Math.max(min, Math.min(max, value));
     }
 
-    private String ensureStyleTokens(String style, boolean horizontal, boolean forward) {
+    private EdgeRouteStyle resolveRouteStyle(Element edge,
+                                             CellInfo source,
+                                             CellInfo target,
+                                             List<CellInfo> cells,
+                                             boolean horizontal,
+                                             boolean forward) {
+        boolean auxiliary = isAuxiliaryEdge(edge);
+        List<CellInfo> relatedEdges = cells.stream()
+                .filter(cell -> "edge".equals(cell.getKind()))
+                .filter(cell -> sameEndpointPair(cell, source, target))
+                .sorted(java.util.Comparator.comparing(CellInfo::getId))
+                .toList();
+        if (relatedEdges.size() < 2) {
+            return new EdgeRouteStyle(0.5D, auxiliary);
+        }
+
+        String edgeId = StringUtils.defaultString(edge.attributeValue("id"));
+        int index = 0;
+        for (int i = 0; i < relatedEdges.size(); i++) {
+            if (StringUtils.equals(edgeId, relatedEdges.get(i).getId())) {
+                index = i;
+                break;
+            }
+        }
+        boolean hasOppositeDirection = relatedEdges.stream()
+                .anyMatch(related -> StringUtils.equals(related.getSource(), target.getId())
+                        && StringUtils.equals(related.getTarget(), source.getId()));
+        double trackFraction = hasOppositeDirection && relatedEdges.size() == 2
+                ? (forward ? 0.3D : 0.7D)
+                : distributedTrack(index, relatedEdges.size());
+        return new EdgeRouteStyle(trackFraction, auxiliary);
+    }
+
+    private boolean sameEndpointPair(CellInfo edge, CellInfo source, CellInfo target) {
+        return (StringUtils.equals(edge.getSource(), source.getId()) && StringUtils.equals(edge.getTarget(), target.getId()))
+                || (StringUtils.equals(edge.getSource(), target.getId()) && StringUtils.equals(edge.getTarget(), source.getId()));
+    }
+
+    private double distributedTrack(int index, int count) {
+        if (count <= 1) {
+            return 0.5D;
+        }
+        return 0.25D + (0.5D * Math.max(0, Math.min(index, count - 1)) / (count - 1));
+    }
+
+    private boolean isAuxiliaryEdge(Element edge) {
+        String style = StringUtils.defaultString(edge.attributeValue("style")).toLowerCase(Locale.ROOT);
+        String label = cleanLabel(edge.attributeValue("value")).toLowerCase(Locale.ROOT);
+        return style.contains("dashed=1")
+                || label.contains("return")
+                || label.contains("response")
+                || label.contains("async")
+                || label.contains("callback")
+                || label.contains("返回")
+                || label.contains("响应")
+                || label.contains("异步")
+                || label.contains("回调");
+    }
+
+    private String ensureStyleTokens(String style,
+                                     boolean horizontal,
+                                     boolean forward,
+                                     double trackFraction,
+                                     boolean auxiliary) {
         Map<String, String> tokens = parseStyle(style);
         tokens.put("edgeStyle", "orthogonalEdgeStyle");
-        tokens.put("rounded", "0");
+        tokens.put("rounded", auxiliary ? "1" : "0");
         tokens.put("orthogonalLoop", "1");
         tokens.put("jettySize", "auto");
         tokens.put("html", "1");
-        tokens.put("exitX", horizontal ? (forward ? "1" : "0") : "0.5");
-        tokens.put("exitY", horizontal ? "0.5" : (forward ? "1" : "0"));
-        tokens.put("entryX", horizontal ? (forward ? "0" : "1") : "0.5");
-        tokens.put("entryY", horizontal ? "0.5" : (forward ? "0" : "1"));
+        tokens.putIfAbsent("endArrow", "classic");
+        if (auxiliary) {
+            tokens.putIfAbsent("arcSize", "10");
+            tokens.putIfAbsent("strokeColor", "#64748b");
+        } else {
+            tokens.putIfAbsent("strokeColor", "#334155");
+        }
+        String track = trimStyleNumber(trackFraction);
+        tokens.put("exitX", horizontal ? (forward ? "1" : "0") : track);
+        tokens.put("exitY", horizontal ? track : (forward ? "1" : "0"));
+        tokens.put("entryX", horizontal ? (forward ? "0" : "1") : track);
+        tokens.put("entryY", horizontal ? track : (forward ? "0" : "1"));
         return tokens.entrySet().stream()
                 .map(entry -> entry.getKey() + "=" + entry.getValue())
                 .collect(Collectors.joining(";")) + ";";
+    }
+
+    private String trimStyleNumber(double value) {
+        String raw = trimNumber(value);
+        if (!raw.contains(".")) {
+            return raw;
+        }
+        while (raw.endsWith("0")) {
+            raw = raw.substring(0, raw.length() - 1);
+        }
+        return raw.endsWith(".") ? raw.substring(0, raw.length() - 1) : raw;
     }
 
     private Map<String, String> parseStyle(String style) {
@@ -726,6 +1089,53 @@ public class DrawioCanvasXmlToolkit {
                 .replace("\\n", "")
                 .replace("\\/", "/")
                 .trim();
+    }
+
+    private String sanitizeValueAttributes(String xml) {
+        // Model-generated labels often use raw JVM notation like <heap>; keep it as text.
+        Matcher matcher = VALUE_ATTRIBUTE_PATTERN.matcher(xml);
+        StringBuffer sanitized = new StringBuffer(xml.length());
+        while (matcher.find()) {
+            String replacement = matcher.group(1)
+                    + matcher.group(2)
+                    + escapeLabelValue(matcher.group(3))
+                    + matcher.group(2);
+            matcher.appendReplacement(sanitized, Matcher.quoteReplacement(replacement));
+        }
+        matcher.appendTail(sanitized);
+        return sanitized.toString();
+    }
+
+    private String escapeLabelValue(String label) {
+        StringBuilder escaped = new StringBuilder(label.length());
+        for (int index = 0; index < label.length(); index++) {
+            char current = label.charAt(index);
+            if (current == '&' && isEntityReference(label, index)) {
+                int semicolon = label.indexOf(';', index);
+                escaped.append(label, index, semicolon + 1);
+                index = semicolon;
+                continue;
+            }
+            if (current == '&') {
+                escaped.append("&amp;");
+            } else if (current == '<') {
+                escaped.append("&lt;");
+            } else if (current == '>') {
+                escaped.append("&gt;");
+            } else {
+                escaped.append(current);
+            }
+        }
+        return escaped.toString();
+    }
+
+    private boolean isEntityReference(String text, int ampersandIndex) {
+        int semicolon = text.indexOf(';', ampersandIndex);
+        if (semicolon < 0 || semicolon - ampersandIndex > 12) {
+            return false;
+        }
+        String entity = text.substring(ampersandIndex + 1, semicolon);
+        return entity.matches("#[0-9]+|#x[0-9a-fA-F]+|amp|lt|gt|quot|apos");
     }
 
     private String extractGraphModel(String xml) {
@@ -808,6 +1218,14 @@ public class DrawioCanvasXmlToolkit {
             return y + height / 2D;
         }
 
+        double trackX(double fraction) {
+            return x + width * fraction;
+        }
+
+        double trackY(double fraction) {
+            return y + height * fraction;
+        }
+
         double maxX() {
             return x + width;
         }
@@ -826,6 +1244,24 @@ public class DrawioCanvasXmlToolkit {
 
         private boolean contains(String value, String query) {
             return StringUtils.defaultString(value).toLowerCase(Locale.ROOT).contains(query);
+        }
+    }
+
+    private static class EdgeRouteStyle {
+        private final double trackFraction;
+        private final boolean auxiliary;
+
+        private EdgeRouteStyle(double trackFraction, boolean auxiliary) {
+            this.trackFraction = trackFraction;
+            this.auxiliary = auxiliary;
+        }
+
+        private double getTrackFraction() {
+            return trackFraction;
+        }
+
+        private boolean isAuxiliary() {
+            return auxiliary;
         }
     }
 

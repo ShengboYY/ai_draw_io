@@ -63,7 +63,7 @@ public class AgentConversationServiceTest {
     }
 
     @Test
-    public void shouldIncludeReviewBudgetAndHighLevelAllowedToolsInRoutedMessage() throws Exception {
+    public void shouldIncludeRepairBudgetAndHighLevelAllowedToolsInRoutedMessage() throws Exception {
         AgentConversationService service = new AgentConversationService();
         injectPromptContextBuilder(service);
         IntentRoutingResult routingResult = IntentRoutingResult.fallbackDrawAction("test");
@@ -79,7 +79,7 @@ public class AgentConversationServiceTest {
 
         String routedMessage = buildRoutedMessage(service, requestDTO, routingResult, 1);
 
-        assertTrue(routedMessage.contains("\"maxReviewIterations\":1"));
+        assertTrue(routedMessage.contains("\"maxRepairRounds\":1"));
         assertTrue(routedMessage.contains("\"allowedTools\""));
         assertTrue(routedMessage.contains("modify_diagram"));
         assertFalse(routedMessage.contains("inspect_canvas"));
@@ -96,7 +96,7 @@ public class AgentConversationServiceTest {
     }
 
     @Test
-    public void shouldPermitNonRedrawReviewStrategyToolsAfterCreateNewDraft() throws Exception {
+    public void shouldDescribeSelfRepairToolPolicyForCreateNewDraft() throws Exception {
         AgentConversationService service = new AgentConversationService();
         injectPromptContextBuilder(service);
         injectSkillContentProvider(service);
@@ -113,8 +113,8 @@ public class AgentConversationServiceTest {
         assertTrue(routedMessage.contains("create_diagram"));
         assertTrue(routedMessage.contains("modify_diagram"));
         assertTrue(routedMessage.contains("optimize_diagram"));
-        assertTrue(routedMessage.contains("\"reviewRepairTools\":[\"modify_diagram\",\"optimize_diagram\"]"));
-        assertTrue(routedMessage.contains("Review repair turns may use only reviewRepairTools"));
+        assertTrue(routedMessage.contains("Self-repair rounds use modify_diagram or optimize_diagram(mode=route_only)"));
+        assertFalse(routedMessage.contains("reviewRepairTools"));
     }
 
     @Test
@@ -145,7 +145,7 @@ public class AgentConversationServiceTest {
                             && !message.contains("123e4567-e89b-42d3-a456-426614174000")
                             && message.contains("taskType=edit_existing")
                             && message.contains("allowedTools=[modify_diagram]")
-                            && message.contains("maxReviewIterations=0")));
+                            && message.contains("maxRepairRounds=0")));
         } finally {
             logger.detachAppender(appender);
         }

@@ -4,133 +4,48 @@ description: Draw.io UML class diagram skill. Use for UML class diagrams, domain
 license: Apache-2.0
 metadata:
   author: ai-draw-io
-  version: "1.0.0"
+  version: "2.0.0"
   category: drawio-design
 ---
 
 # Draw.io UML Class Diagram Skill
 
-## 0. Companion Visual Design Skill
-Always use this skill together with `drawio-visual-design`.
+Use for: UML class diagrams, domain models, inheritance/implementation/association/aggregation/composition.
+Prefer `drawio-er` for database tables and PK/FK, `drawio-usecase` for actors and functions, `drawio-sequence` for interactions.
 
-Shared visual/XML/layout contract: use `drawio-visual-design` for colors, typography, grouping, spacing rhythm, connector routing, ports, waypoints, transparent labels, XML snippets, and container parent rules. Do not repeat generic connector routing, spacing, transparent label, waypoint, or container-parent XML rules here.
+## Rules
+1. Class block format inside `value` (html): `&lt;b&gt;Name&lt;/b&gt;&lt;hr&gt;` + attributes (`+ field: Type` per `&lt;br&gt;` line) + `&lt;hr&gt;` + methods (`+ method(): Return`). Style: `rounded=0;whiteSpace=wrap;html=1;align=left;verticalAlign=top;spacing=5;` + role fill. Width 180–220; height grows with content.
+2. Stereotypes when they clarify: `&lt;i&gt;&amp;lt;&amp;lt;interface&amp;gt;&amp;gt;&lt;/i&gt;` line above the name (green fill); same pattern for `&lt;&lt;abstract&gt;&gt;` and `&lt;&lt;enum&gt;&gt;`.
+3. Attributes only for a domain model; methods only when behavior matters — never invent long method lists.
+4. Edge notation (drawio styles):
+   - association: `endArrow=none` (or `endArrow=open` if directed)
+   - generalization (is-a): `endArrow=block;endFill=0` pointing at the parent
+   - realization (implements): `dashed=1;endArrow=block;endFill=0` pointing at the interface
+   - composition (strong ownership): `startArrow=diamondThin;startFill=1;endArrow=none`, diamond on the whole
+   - aggregation (weak grouping): `startArrow=diamondThin;startFill=0;endArrow=none`, diamond on the whole
+   - dependency (uses): `dashed=1;endArrow=open` pointing at the supplier
+5. Multiplicity labels (`1`, `0..1`, `1..*`, `0..*`) on the edge near each end when cardinality matters.
+6. Layout: parents/interfaces above children; core aggregate in the center; actors/owners left, details right or below.
+7. Relationships express structure, not workflow — no numbered process arrows between classes.
+8. No duplicate semantic classes; every edge endpoint exists.
 
-For UML class diagrams, use `model_profile`: align class blocks on a stable grid, keep compartments readable, and use color only to distinguish meaningful categories such as interfaces, abstract classes, and core domain classes.
-
-## 1. When To Use
-Use this skill when the user asks for:
-- UML class diagrams.
-- Domain models or object models.
-- Classes with attributes and methods.
-- Inheritance, implementation, association, aggregation, or composition.
-- Static object-oriented structure.
-
-Prefer another skill when:
-- Database tables and primary/foreign keys are the main concern: use `drawio-er`.
-- Actors and system functions are the main concern: use `drawio-usecase`.
-- Time-ordered interactions are the main concern: use `drawio-sequence`.
-- Business steps and decisions are the main concern: use `drawio-flowchart`.
-
-## 2. UML Model Scope
-Choose one model scope before drawing.
-
-- `domain_model`: show business concepts, attributes, and associations. Methods are usually omitted or kept minimal.
-- `design_class`: show implementation-oriented classes, interfaces, attributes, methods, and dependencies.
-- `interface_model`: emphasize interfaces, implementations, adapters, ports, and external dependencies.
-- `inheritance_model`: emphasize abstract classes, base types, subclasses, and realizations.
-
-Rules:
-- Do not mix database table notation with UML class notation unless the user explicitly asks for a hybrid.
-- Use methods only when behavior is important to the request; avoid inventing large method lists.
-- Use stereotypes such as `<<interface>>`, `<<abstract>>`, or `<<enum>>` when they clarify semantics.
-- Relationship semantics matter more than edge quantity.
-
-## 3. Node Styles
-
-### 3.1 Class Node
-Use a rectangular UML-style class block with class name, attributes, and methods.
+## Golden Example
 
 ```xml
-<mxCell id="2" value="&lt;b&gt;User&lt;/b&gt;&lt;hr&gt;+ userId: Long&lt;br&gt;+ username: String&lt;br&gt;+ email: String&lt;hr&gt;+ login(): boolean&lt;br&gt;+ logout(): void" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;align=left;verticalAlign=top;spacing=5;" vertex="1" parent="1">
-  <mxGeometry x="100" y="100" width="190" height="150" as="geometry"/>
-</mxCell>
+<mxCell id="2" value="&lt;i&gt;&amp;lt;&amp;lt;interface&amp;gt;&amp;gt;&lt;/i&gt;&lt;br&gt;&lt;b&gt;PaymentProvider&lt;/b&gt;&lt;hr&gt;+ pay(order: Order): Receipt" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;align=left;verticalAlign=top;spacing=5;fontSize=12;" vertex="1" parent="1"><mxGeometry x="460" y="60" width="210" height="90" as="geometry"/></mxCell>
+<mxCell id="3" value="&lt;b&gt;AlipayProvider&lt;/b&gt;&lt;hr&gt;+ pay(order: Order): Receipt" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;align=left;verticalAlign=top;spacing=5;fontSize=12;" vertex="1" parent="1"><mxGeometry x="790" y="60" width="210" height="90" as="geometry"/></mxCell>
+<mxCell id="4" value="&lt;b&gt;User&lt;/b&gt;&lt;hr&gt;+ userId: Long&lt;br&gt;+ username: String&lt;br&gt;+ email: String" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;align=left;verticalAlign=top;spacing=5;fontSize=12;" vertex="1" parent="1"><mxGeometry x="80" y="300" width="200" height="120" as="geometry"/></mxCell>
+<mxCell id="5" value="&lt;b&gt;Order&lt;/b&gt;&lt;hr&gt;+ orderId: Long&lt;br&gt;+ status: OrderStatus&lt;br&gt;+ total: BigDecimal&lt;hr&gt;+ checkout(): void" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;align=left;verticalAlign=top;spacing=5;fontSize=12;" vertex="1" parent="1"><mxGeometry x="460" y="280" width="210" height="150" as="geometry"/></mxCell>
+<mxCell id="6" value="&lt;b&gt;OrderItem&lt;/b&gt;&lt;hr&gt;+ sku: String&lt;br&gt;+ quantity: int&lt;br&gt;+ price: BigDecimal" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;align=left;verticalAlign=top;spacing=5;fontSize=12;" vertex="1" parent="1"><mxGeometry x="790" y="300" width="200" height="120" as="geometry"/></mxCell>
+<mxCell id="7" value="places" style="endArrow=open;html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;exitX=1;exitY=0.5;entryX=0;entryY=0.5;labelBackgroundColor=none;fontSize=11;" edge="1" parent="1" source="4" target="5"><mxGeometry relative="1" as="geometry"/></mxCell>
+<mxCell id="8" value="1..*" style="startArrow=diamondThin;startFill=1;endArrow=none;html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;exitX=1;exitY=0.5;entryX=0;entryY=0.5;labelBackgroundColor=none;fontSize=11;" edge="1" parent="1" source="5" target="6"><mxGeometry relative="1" as="geometry"/></mxCell>
+<mxCell id="9" value="" style="dashed=1;endArrow=block;endFill=0;html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;exitX=0;exitY=0.5;entryX=1;entryY=0.5;labelBackgroundColor=none;fontSize=11;" edge="1" parent="1" source="3" target="2"><mxGeometry relative="1" as="geometry"/></mxCell>
+<mxCell id="10" value="uses" style="dashed=1;endArrow=open;html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;exitX=0.5;exitY=0;entryX=0.5;entryY=1;labelBackgroundColor=none;fontSize=11;" edge="1" parent="1" source="5" target="2"><mxGeometry relative="1" as="geometry"/></mxCell>
 ```
 
-Rules:
-- Class name must be concise and stable.
-- If the user writes in Chinese, diagram labels may follow the user's language, but avoid unnecessary duplicate bilingual labels.
-- Attribute format: `+ fieldName: Type`.
-- Method format: `+ methodName(): ReturnType`.
-- Do not put explanations or workflow steps inside the attribute or method area.
+Note the pattern: interface above its implementor and its consumer, realization dashed with hollow triangle, composition diamond on the whole (`Order`), classes aligned on two rows with wide routing channels.
 
-### 3.2 Interface Node
-Use a class-like block with an interface stereotype.
-
-Style:
-`rounded=0;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;align=left;verticalAlign=top;spacing=5;`
-
-Label example:
-`&lt;i&gt;&lt;&lt;interface&gt;&gt;&lt;/i&gt;&lt;br&gt;&lt;b&gt;PaymentProvider&lt;/b&gt;&lt;hr&gt;+ pay(): PaymentResult`
-
-### 3.3 Enum Node
-Use a class-like block with an enum stereotype.
-
-Label example:
-`&lt;i&gt;&lt;&lt;enum&gt;&gt;&lt;/i&gt;&lt;br&gt;&lt;b&gt;OrderStatus&lt;/b&gt;&lt;hr&gt;CREATED&lt;br&gt;PAID&lt;br&gt;SHIPPED&lt;br&gt;CANCELLED`
-
-## 4. Edge Semantics
-
-### 4.1 Association
-Use for references or normal relationships.
-Use the shared standard connector pattern with no arrow unless direction matters.
-
-### 4.2 Generalization
-Use for inheritance. The arrow points to the parent class.
-Use a hollow triangle arrow pointing to the parent class.
-
-### 4.3 Realization
-Use when a class implements an interface. The arrow points to the interface.
-Use a dashed line with a hollow triangle arrow pointing to the interface.
-
-### 4.4 Aggregation
-Use when one object owns or groups another but the child can exist independently.
-Use a hollow diamond on the aggregate/whole side.
-
-### 4.5 Composition
-Use when the child is strongly owned by the whole.
-Use a filled diamond on the whole/owner side.
-
-### 4.6 Dependency
-Use when one class temporarily uses another.
-Use a dashed dependency arrow pointing to the supplier that is used.
-
-## 5. Relationship Rules
-- "A owns many B" usually means composition from A to B.
-- "A has a B" may be aggregation or association depending on strength.
-- "A is a kind of B" means generalization.
-- "A implements B" means realization.
-- Multiplicity labels should use `1`, `0..1`, `1..*`, or `0..*`.
-- Do not draw UML class relationships as process arrows.
-- Generalization and realization arrows point to the parent class or interface.
-- Composition uses a filled diamond on the whole/owner side.
-- Aggregation uses a hollow diamond on the aggregate/whole side.
-- Dependency is dashed and points to the supplier that is used.
-
-## 6. Layout Rules
-- Put the core aggregate or central business class in the middle.
-- Put users, accounts, and organizations on the left.
-- Put orders, tasks, or transactions in the center.
-- Put details, items, payments, products, and logs on the right or below.
-- Put parent classes above child classes.
-- Node width should usually be 180-220; increase height based on fields and methods.
-
-## 7. Quality Checklist
-- Every class has a class name.
-- Important classes have meaningful attributes.
-- Methods are optional; do not invent too many if the user did not ask.
-- No duplicate semantic nodes, such as both `OrderItem` and another identical item class.
-- Every edge source and target points to an existing node.
-- Relationships match UML semantics, not workflow semantics.
-- Parent abstractions are above or visually upstream of child classes.
-- Interfaces and implementations are distinguishable.
-- Multiplicity is present when cardinality is important to the request.
+## Checklist
+- Every class named; arrows match UML semantics (triangle → parent, diamond → whole, dashed → dependency/realization).
+- Interfaces visually distinct; multiplicity present where cardinality matters.
+- No workflow arrows, no database column notation.

@@ -4,95 +4,42 @@ description: Draw.io use case diagram skill. Use for actors, use cases, system b
 license: Apache-2.0
 metadata:
   author: ai-draw-io
-  version: "1.0.0"
+  version: "2.0.0"
   category: drawio-design
 ---
 
 # Draw.io Use Case Diagram Skill
 
-## 0. Companion Visual Design Skill
-Always use this skill together with `drawio-visual-design`.
+Use for: use case diagrams, actors and system functions, requirement scope, include/extend.
+Prefer `drawio-uml` for internal classes, `drawio-flowchart` for operation steps, `drawio-er` for tables.
 
-Shared visual/XML/layout contract: use `drawio-visual-design` for colors, typography, grouping, spacing rhythm, connector routing, ports, waypoints, transparent labels, XML snippets, and container parent rules. Do not repeat generic connector routing, spacing, transparent label, waypoint, or container-parent XML rules here.
+## Rules
+1. The system boundary is the visual anchor: one labeled transparent rectangle in the center (`rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#666666;verticalAlign=top;fontStyle=1;fontSize=13;`). Use cases inside, actors outside — no exceptions.
+2. Actors are `shape=umlActor;verticalLabelPosition=bottom;verticalAlign=top;html=1;outlineConnect=0;` sized ~40×80. Primary human actors left, external systems / secondary actors right. Actor names are roles or external systems, never components.
+3. Use cases are same-sized ellipses (`ellipse;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;` ~160×70) named as verb-object goals (`Place Order`) — never UI buttons, tables, or endpoints.
+4. Actor→use case: plain association line (`endArrow=none`).
+5. `&lt;&lt;include&gt;&gt;`: dashed open arrow pointing at the included (mandatory, reused) use case, labeled. `&lt;&lt;extend&gt;&gt;`: dashed open arrow pointing at the base use case, labeled. Use each only when the semantics are real.
+6. Actors never connect to actors; use cases never connect to actors' internals.
+7. Core use cases center, supporting ones below/right; keep association lines short and uncrossed.
 
-For use case diagrams, use `scope_profile`: make the system boundary the main visual anchor, keep actors outside it, and place use cases inside with consistent ellipse sizes.
-
-## 1. When To Use
-Use this skill when the user asks for:
-- Use case diagrams.
-- Actors and system functions.
-- Requirement scope diagrams.
-- Include and extend relationships.
-- Functional boundaries of a system.
-
-Prefer another skill when:
-- The user asks for internal classes: use `drawio-uml`.
-- The user asks for detailed operation steps: use `drawio-flowchart`.
-- The user asks for database tables: use `drawio-er`.
-
-## 2. Use Case Scope
-Choose one scope before drawing.
-
-- `system_scope`: one system boundary with primary and secondary actors.
-- `subsystem_scope`: a named module or subsystem boundary with only relevant use cases.
-- `actor_goal_map`: emphasizes actor goals and relationships. Use when the user asks about roles or permissions.
-
-Rules:
-- Use cases must be goal-level capabilities, not UI buttons, database tables, REST endpoints, or internal services.
-- Actor names are roles, people, or external systems.
-- Primary actors usually go on the left; supporting/external systems usually go on the right.
-- Use `<<include>>` only for mandatory reused behavior.
-- Use `<<extend>>` only for optional or conditional behavior extending a base use case.
-
-## 3. Node Styles
-
-### 3.1 Actor
-Use UML actor shapes. Actors must stay outside the system boundary.
+## Golden Example
 
 ```xml
-<mxCell id="2" value="Customer" style="shape=umlActor;verticalLabelPosition=bottom;verticalAlign=top;html=1;outlineConnect=0;fillColor=#f8cecc;strokeColor=#b85450;" vertex="1" parent="1">
-  <mxGeometry x="80" y="160" width="40" height="80" as="geometry"/>
-</mxCell>
+<mxCell id="2" value="E-Commerce System" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#666666;verticalAlign=top;fontStyle=1;fontSize=13;" vertex="1" parent="1"><mxGeometry x="260" y="80" width="620" height="400" as="geometry"/></mxCell>
+<mxCell id="3" value="Customer" style="shape=umlActor;verticalLabelPosition=bottom;verticalAlign=top;html=1;outlineConnect=0;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=12;" vertex="1" parent="1"><mxGeometry x="80" y="220" width="40" height="80" as="geometry"/></mxCell>
+<mxCell id="4" value="Payment Gateway" style="shape=umlActor;verticalLabelPosition=bottom;verticalAlign=top;html=1;outlineConnect=0;fillColor=#f5f5f5;strokeColor=#666666;fontSize=12;" vertex="1" parent="1"><mxGeometry x="980" y="220" width="40" height="80" as="geometry"/></mxCell>
+<mxCell id="5" value="Place Order" style="ellipse;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=12;" vertex="1" parent="1"><mxGeometry x="340" y="140" width="160" height="70" as="geometry"/></mxCell>
+<mxCell id="6" value="Pay Order" style="ellipse;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=12;" vertex="1" parent="1"><mxGeometry x="640" y="240" width="160" height="70" as="geometry"/></mxCell>
+<mxCell id="7" value="Track Shipment" style="ellipse;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=12;" vertex="1" parent="1"><mxGeometry x="340" y="360" width="160" height="70" as="geometry"/></mxCell>
+<mxCell id="8" value="" style="endArrow=none;html=1;labelBackgroundColor=none;fontSize=11;" edge="1" parent="1" source="3" target="5"><mxGeometry relative="1" as="geometry"/></mxCell>
+<mxCell id="9" value="" style="endArrow=none;html=1;labelBackgroundColor=none;fontSize=11;" edge="1" parent="1" source="3" target="7"><mxGeometry relative="1" as="geometry"/></mxCell>
+<mxCell id="10" value="&amp;lt;&amp;lt;include&amp;gt;&amp;gt;" style="dashed=1;endArrow=open;html=1;labelBackgroundColor=none;fontSize=11;" edge="1" parent="1" source="5" target="6"><mxGeometry relative="1" as="geometry"/></mxCell>
+<mxCell id="11" value="" style="endArrow=none;html=1;labelBackgroundColor=none;fontSize=11;" edge="1" parent="1" source="4" target="6"><mxGeometry relative="1" as="geometry"/></mxCell>
 ```
 
-### 3.2 System Boundary
-Use a large rectangle or swimlane for the target system.
+Note the pattern: actors flank the boundary (human left, external system right), goals as uniform ellipses inside, include labeled and pointing at the included use case.
 
-```xml
-<mxCell id="3" value="E-Commerce System" style="swimlane;whiteSpace=wrap;html=1;startSize=30;fillColor=#f5f5f5;strokeColor=#666666;" vertex="1" parent="1">
-  <mxGeometry x="220" y="80" width="540" height="430" as="geometry"/>
-</mxCell>
-```
-
-### 3.3 Use Case
-Use ellipses inside the system boundary.
-
-Style:
-`ellipse;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;`
-
-Use case labels should be verb-object phrases, for example `Place Order`, `Manage Products`, or `Track Shipment`.
-
-## 4. Edge Rules
-- Actor to use case: association line.
-- Include: dashed open arrow labeled `<<include>>`, pointing to the included use case.
-- Extend: dashed open arrow labeled `<<extend>>`, pointing to the extended use case.
-- Use the shared standard connector pattern and select association, dashed include, or dashed extend styling by relationship meaning.
-
-## 5. Layout Rules
-- Place the system boundary in the center.
-- Put primary human actors on the left.
-- Put external systems or secondary actors on the right.
-- Put core use cases in the center.
-- Put supporting use cases below or to the right.
-- Keep use cases uniformly sized and avoid line crossings.
-
-## 6. Quality Checklist
-- Actors are outside the system boundary.
-- Use cases are inside the system boundary.
-- Actors do not connect directly to actors.
-- Use cases should not be database tables or internal classes.
-- Include and extend relationships must be labeled.
-- Avoid button-level use cases unless the user explicitly asks for that detail.
-- Use cases are named as user goals with verb-object phrases.
-- Include and extend arrows point to the correct target use case.
-- The diagram remains at requirements scope and avoids implementation detail.
+## Checklist
+- Actors outside, use cases inside; verb-object goal names.
+- include/extend labeled and pointing the right way.
+- Requirements scope only — no implementation detail.

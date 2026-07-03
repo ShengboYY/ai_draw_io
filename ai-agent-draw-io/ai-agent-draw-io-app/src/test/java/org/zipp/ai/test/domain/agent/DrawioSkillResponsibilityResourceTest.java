@@ -9,6 +9,10 @@ import java.util.List;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
+/**
+ * Locks the slim skill architecture: two always-injected shared skills own structure and style,
+ * each domain skill is compact (short rules + a golden example), and nobody re-bloats.
+ */
 public class DrawioSkillResponsibilityResourceTest {
 
     private static final List<String> DOMAIN_SKILLS = List.of(
@@ -21,59 +25,69 @@ public class DrawioSkillResponsibilityResourceTest {
             "drawio-state"
     );
 
+    /**
+     * Guard against prompt re-bloat: rewritten skills stay well below the old 13-17K prose files.
+     * Golden example XML is the one thing worth spending budget on (architecture carries a full
+     * runtime-view example), rule prose is not.
+     */
+    private static final int MAX_DOMAIN_SKILL_CHARS = 12000;
+    private static final int MAX_SHARED_SKILL_CHARS = 10000;
+
     @Test
-    public void shouldKeepReusableVisualAndXmlRulesInSharedSkill() throws Exception {
-        String visualDesignSkill = readSkill("drawio-visual-design");
+    public void sharedSkillsOwnStructureAndStyle() throws Exception {
+        String xmlGuide = readSkill("drawio-xml-guide");
+        String visualDesign = readSkill("drawio-visual-design");
 
-        assertTrue(visualDesignSkill.contains("## 4. Shared Profile Handoff"));
-        assertTrue(visualDesignSkill.contains("Draw.io XML Patterns"));
-        assertTrue(visualDesignSkill.contains("edgeStyle=orthogonalEdgeStyle"));
-        assertTrue(visualDesignSkill.contains("edgeStyle=elbowEdgeStyle;elbow=vertical"));
-        assertTrue(visualDesignSkill.contains("jumpStyle=arc;jumpSize=10"));
-        assertTrue(visualDesignSkill.contains("<Array as=\"points\">"));
-        assertTrue(visualDesignSkill.contains("labelBackgroundColor=none;labelBorderColor=none"));
-        assertTrue(visualDesignSkill.contains("parent=\"<container-id>\""));
+        assertTrue(xmlGuide.contains("selectable: false"));
+        assertTrue(xmlGuide.contains("## Output Scope"));
+        assertTrue(xmlGuide.contains("## XML Rules"));
+        assertTrue(xmlGuide.contains("Global Draw.io Layout Contract"));
+        assertTrue(xmlGuide.contains("## Pre-flight Check"));
+        assertTrue(xmlGuide.contains("All mxCell elements are siblings"));
+        assertTrue(xmlGuide.contains("sourcePoint"));
+        assertTrue(xmlGuide.contains("Hybrid routing"));
+        assertTrue(xmlGuide.contains("Never stack opposite arrows"));
 
-        assertFalse(visualDesignSkill.contains("### 4.1 Architecture Diagrams"));
-        assertFalse(visualDesignSkill.contains("### 4.2 Flowcharts"));
-        assertFalse(visualDesignSkill.contains("### 4.3 Sequence Diagrams"));
-        assertFalse(visualDesignSkill.contains("JVM Runtime Adaptive Preset"));
+        assertTrue(visualDesign.contains("## Palette"));
+        assertTrue(visualDesign.contains("#dae8fc"));
+        assertTrue(visualDesign.contains("Modern Product Profile"));
+        assertTrue(visualDesign.contains("complex diagrams may use 5-6"));
+        assertTrue(visualDesign.contains("## House Patterns"));
+        assertTrue(visualDesign.contains("## Golden Example"));
+        assertTrue(visualDesign.contains("labelBackgroundColor=none"));
+        assertTrue(visualDesign.contains("fillColor=none;dashed=1"));
+
+        assertTrue(xmlGuide.length() <= MAX_SHARED_SKILL_CHARS);
+        assertTrue(visualDesign.length() <= MAX_SHARED_SKILL_CHARS);
     }
 
     @Test
-    public void shouldMakeEveryDomainSkillReferenceSharedContractInsteadOfRestatingXmlRoutingRules() throws Exception {
+    public void everyDomainSkillIsCompactWithGoldenExampleAndChecklist() throws Exception {
         for (String skillName : DOMAIN_SKILLS) {
             String skill = readSkill(skillName);
 
-            assertTrue(skillName + " should reference the shared visual design skill",
-                    skill.contains("Always use this skill together with `drawio-visual-design`."));
-            assertTrue(skillName + " should declare its responsibility boundary",
-                    skill.contains("Shared visual/XML/layout contract: use `drawio-visual-design`"));
-            assertTrue(skillName + " should point generic routing and spacing to the shared skill",
-                    skill.contains("Do not repeat generic connector routing, spacing, transparent label, waypoint, or container-parent XML rules here."));
+            assertTrue(skillName + " must include a golden example section", skill.contains("## Golden Example"));
+            assertTrue(skillName + " must embed example XML", skill.contains("```xml"));
+            assertTrue(skillName + " must include a checklist", skill.contains("## Checklist"));
+            assertTrue(skillName + " must stay compact (" + skill.length() + " chars)",
+                    skill.length() <= MAX_DOMAIN_SKILL_CHARS);
 
-            assertFalse(skillName + " should not duplicate the full orthogonal connector recipe",
-                    skill.contains("edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto"));
-            assertFalse(skillName + " should not duplicate transparent edge label XML",
-                    skill.contains("labelBackgroundColor=none;labelBorderColor=none"));
-            assertFalse(skillName + " should not duplicate jump marker XML",
-                    skill.contains("jumpStyle=arc"));
-            assertFalse(skillName + " should not duplicate waypoint XML",
-                    skill.contains("<Array as=\"points\">"));
-            assertFalse(skillName + " should not carry hard-coded generic spacing thresholds",
-                    skill.matches("(?s).*Keep horizontal spacing >= \\d+.*"));
+            assertFalse(skillName + " must not restate the shared-responsibility meta prose",
+                    skill.contains("Companion Shared Skills"));
+            assertFalse(skillName + " must not restate shared output-scope rules",
+                    skill.contains("## Output Scope"));
         }
     }
 
     @Test
-    public void shouldPreserveDomainSpecificResponsibilitiesInEachSkill() throws Exception {
-        assertSkillContains("drawio-architecture", "C4", "deployment", "Runtime Architecture Pattern", "JVM Runtime Adaptive Preset");
-        assertSkillContains("drawio-flowchart", "Main Flow Rules", "Branch Rules", "Loop Rules", "Exception Path Rules");
-        assertSkillContains("drawio-sequence", "lifelines", "messages", "Activation", "Combined Fragments");
-        assertSkillContains("drawio-er", "primary keys", "foreign keys", "cardinality", "join tables");
-        assertSkillContains("drawio-uml", "attributes", "methods", "inheritance", "composition");
-        assertSkillContains("drawio-usecase", "actors", "system boundary", "<<include>>", "<<extend>>");
-        assertSkillContains("drawio-state", "stable conditions", "events", "guards", "initial state", "final state");
+    public void domainSkillsKeepTheirNotationResponsibilities() throws Exception {
+        assertSkillContains("drawio-architecture", "View Selection", "context", "deployment", "runtime", "cylinder");
+        assertSkillContains("drawio-flowchart", "Decision", "rhombus", "swimlane", "exception");
+        assertSkillContains("drawio-sequence", "umlLifeline", "lifeline", "dashed", "return");
+        assertSkillContains("drawio-er", "PK", "FK", "cardinality", "join table");
+        assertSkillContains("drawio-uml", "generalization", "realization", "composition", "aggregation", "diamondThin");
+        assertSkillContains("drawio-usecase", "umlActor", "include", "extend", "boundary");
+        assertSkillContains("drawio-state", "Initial state", "Final state", "event [guard] / action");
     }
 
     private void assertSkillContains(String skillName, String... tokens) throws Exception {

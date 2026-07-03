@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 import lombok.Data;
+import org.apache.commons.lang3.StringUtils;
 import lombok.EqualsAndHashCode;
 import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.stereotype.Service;
@@ -67,22 +68,37 @@ public class DrawioCanvasMcpService {
         if ("patch".equals(mode)) {
             response.setType(DrawioCanvasToolNames.PATCH_CELLS);
             response.setCells(request.getCells());
+            // Feedback needs the merged canvas; without the current xml the backend merges
+            // stream-side and the loop gets a plain applied/finish signal.
+            if (StringUtils.isNotBlank(request.getXml())) {
+                CanvasAnalysis mergedAnalysis = xmlToolkit.analyze(
+                        xmlToolkit.replaceCells(request.getXml(), request.getCells()));
+                response.setAnalysis(CanvasAnalysisResponse.from(mergedAnalysis));
+                response.setRepairBrief(DrawioRepairBriefComposer.compose(mergedAnalysis));
+            } else {
+                response.setRepairBrief(DrawioRepairBriefComposer.FINISH_SIGNAL);
+            }
             logModifyToolResult(request, mode, response);
             return response;
         }
         if ("append".equals(mode)) {
             String merged = xmlToolkit.replaceCells(request.getXml(), request.getCells());
+            CanvasAnalysis mergedAnalysis = xmlToolkit.analyze(merged);
             response.setType(DrawioCanvasToolNames.PATCH_CELLS);
             response.setCells(request.getCells());
-            response.setAnalysis(analysis(merged));
+            response.setAnalysis(CanvasAnalysisResponse.from(mergedAnalysis));
+            response.setRepairBrief(DrawioRepairBriefComposer.compose(mergedAnalysis));
             logModifyToolResult(request, mode, response);
             return response;
         }
 
-        String base = xmlToolkit.replaceCells(request.getXml(), request.getCells());
+        String base = xmlToolkit.repairGeometryIfNeeded(
+                xmlToolkit.autoRepair(xmlToolkit.replaceCells(request.getXml(), request.getCells())));
+        CanvasAnalysis baseAnalysis = xmlToolkit.analyze(base);
         response.setType("drawio_done");
         response.setContent(base);
-        response.setAnalysis(CanvasAnalysisResponse.from(xmlToolkit.analyze(base)));
+        response.setAnalysis(CanvasAnalysisResponse.from(baseAnalysis));
+        response.setRepairBrief(DrawioRepairBriefComposer.compose(baseAnalysis));
         logModifyToolResult(request, mode, response);
         return response;
     }
@@ -244,7 +260,10 @@ public class DrawioCanvasMcpService {
     }
 
     private DrawioToolResponse drawioDone(String xml) {
-        return drawioDoneContent(toGraphModel(xml));
+        // Repair mechanical mistakes (dangling refs, duplicate ids, missing geometry) and
+        // deterministically reroute edges whose paths/labels collide with nodes, so the draft
+        // is streamed, analyzed, and fed back to the drawing loop in its best deterministic form.
+        return drawioDoneContent(xmlToolkit.repairGeometryIfNeeded(xmlToolkit.autoRepair(xml)));
     }
 
     private DrawioToolResponse drawioDoneContent(String content) {
@@ -256,14 +275,17 @@ public class DrawioCanvasMcpService {
         response.setType("drawio_done");
         response.setContent(content);
         response.setAnalysis(CanvasAnalysisResponse.from(analysis));
+        response.setRepairBrief(DrawioRepairBriefComposer.compose(analysis));
         return response;
     }
 
     private DrawioMutationResponse drawioMutationDone(String content) {
+        CanvasAnalysis analysis = xmlToolkit.analyze(content);
         DrawioMutationResponse response = new DrawioMutationResponse();
         response.setType("drawio_done");
         response.setContent(content);
-        response.setAnalysis(analysis(content));
+        response.setAnalysis(CanvasAnalysisResponse.from(analysis));
+        response.setRepairBrief(DrawioRepairBriefComposer.compose(analysis));
         return response;
     }
 
@@ -271,10 +293,12 @@ public class DrawioCanvasMcpService {
         if (cells == null || cells.isBlank()) {
             return drawioMutationDone(mergedContent);
         }
+        CanvasAnalysis analysis = xmlToolkit.analyze(mergedContent);
         DrawioMutationResponse response = new DrawioMutationResponse();
         response.setType(DrawioCanvasToolNames.PATCH_CELLS);
         response.setCells(cells);
-        response.setAnalysis(analysis(mergedContent));
+        response.setAnalysis(CanvasAnalysisResponse.from(analysis));
+        response.setRepairBrief(DrawioRepairBriefComposer.compose(analysis));
         return response;
     }
 
@@ -472,6 +496,10 @@ public class DrawioCanvasMcpService {
         @JsonProperty(value = "analysis")
         @JsonPropertyDescription("Validation result for this exact returned content, without raw cell XML.")
         private CanvasAnalysisResponse analysis;
+
+        @JsonProperty(value = "repairBrief")
+        @JsonPropertyDescription("Next-step instruction for the drawing loop: numbered repair directives for remaining blocking issues, or the finish signal.")
+        private String repairBrief;
     }
 
     @Data
@@ -492,6 +520,10 @@ public class DrawioCanvasMcpService {
         @JsonProperty(value = "analysis")
         @JsonPropertyDescription("Validation result for the returned complete content, or for the merged canvas represented by patch_cells.")
         private CanvasAnalysisResponse analysis;
+
+        @JsonProperty(value = "repairBrief")
+        @JsonPropertyDescription("Next-step instruction for the drawing loop: numbered repair directives for remaining blocking issues, or the finish signal.")
+        private String repairBrief;
 
         @JsonProperty(value = "message")
         @JsonPropertyDescription("Tool error guidance when type=tool_error.")

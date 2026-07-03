@@ -13,6 +13,7 @@ import org.zipp.ai.domain.agent.model.valobj.analysis.CanvasPointData;
 import org.zipp.ai.domain.agent.model.valobj.analysis.CanvasSummaryData;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -176,9 +177,430 @@ public class DefaultCanvasAnalyzer implements ICanvasAnalyzer {
         validateCells(cells, issues);
         detectNodeOverlaps(cells, issues);
         detectEdgeNodeCrossings(cells, issues);
+        detectPortDirectionMismatches(cells, issues);
+        detectParallelEdgeTrackOverlaps(cells, issues);
         detectRemovableWaypoints(cells, issues);
         detectOpaqueTextBackgrounds(cells, issues);
+        // Perceptual quality that is computable from geometry alone (no rendering needed).
+        detectTextOverflow(cells, issues);
+        detectOversizedRegions(cells, issues);
+        detectPaletteIncoherence(cells, issues);
+        detectUnevenSpacing(cells, issues);
+        detectEdgeLabelCollisions(cells, issues);
         return issues;
+    }
+
+    private void detectPortDirectionMismatches(List<CanvasCellData> cells, List<CanvasAnalysisIssue> issues) {
+        Map<String, CanvasCellData> cellsById = cells.stream()
+                .filter(cell -> StringUtils.isNotBlank(cell.getId()))
+                .collect(Collectors.toMap(CanvasCellData::getId, cell -> cell, (left, right) -> left));
+
+        for (CanvasCellData edge : cells) {
+            if (!"edge".equals(edge.getKind())) {
+                continue;
+            }
+            if (edge.getPoints() != null && !edge.getPoints().isEmpty()) {
+                continue;
+            }
+            CanvasCellData source = cellsById.get(edge.getSource());
+            CanvasCellData target = cellsById.get(edge.getTarget());
+            if (source == null || target == null || StringUtils.equals(source.getId(), target.getId())) {
+                continue;
+            }
+            // Sequence lifelines use center-line message ports by design; ordinary side-port
+            // direction rules would incorrectly mark valid sequence messages as backwards.
+            if (isUmlLifeline(source) || isUmlLifeline(target)) {
+                continue;
+            }
+            PortSet ports = readPorts(edge.getStyle());
+            if (!ports.complete()) {
+                continue;
+            }
+
+            double dx = target.centerX() - source.centerX();
+            double dy = target.centerY() - source.centerY();
+            if (Math.abs(dx) < GEOMETRY_EPSILON && Math.abs(dy) < GEOMETRY_EPSILON) {
+                continue;
+            }
+
+            boolean horizontal = Math.abs(dx) >= Math.abs(dy);
+            boolean forward = horizontal ? dx >= 0D : dy >= 0D;
+            boolean matches = horizontal
+                    ? near(ports.exitX(), forward ? 1D : 0D) && near(ports.entryX(), forward ? 0D : 1D)
+                    : near(ports.exitY(), forward ? 1D : 0D) && near(ports.entryY(), forward ? 0D : 1D);
+            if (!matches) {
+                issues.add(issue(CanvasIssueType.PORT_DIRECTION_MISMATCH, "geometry", "major", List.of(edge.getId()),
+                        "Edge " + edge.getId() + " exits or enters from the side opposite to its visual flow.",
+                        "auto_reroute"));
+            }
+        }
+    }
+
+    private void detectParallelEdgeTrackOverlaps(List<CanvasCellData> cells, List<CanvasAnalysisIssue> issues) {
+        Map<String, CanvasCellData> cellsById = cells.stream()
+                .filter(cell -> StringUtils.isNotBlank(cell.getId()))
+                .collect(Collectors.toMap(CanvasCellData::getId, cell -> cell, (left, right) -> left));
+        Map<String, List<CanvasCellData>> edgesByPair = new HashMap<>();
+        for (CanvasCellData edge : cells) {
+            if (!"edge".equals(edge.getKind()) || StringUtils.isBlank(edge.getSource()) || StringUtils.isBlank(edge.getTarget())) {
+                continue;
+            }
+            if (!cellsById.containsKey(edge.getSource()) || !cellsById.containsKey(edge.getTarget())) {
+                continue;
+            }
+            edgesByPair.computeIfAbsent(unorderedEndpointKey(edge), ignored -> new ArrayList<>()).add(edge);
+        }
+
+        for (List<CanvasCellData> relatedEdges : edgesByPair.values()) {
+            if (relatedEdges.size() < 2) {
+                continue;
+            }
+            for (int i = 0; i < relatedEdges.size(); i++) {
+                CanvasCellData left = relatedEdges.get(i);
+                CanvasCellData leftSource = cellsById.get(left.getSource());
+                CanvasCellData leftTarget = cellsById.get(left.getTarget());
+                Double leftTrack = renderedTrack(left, leftSource, leftTarget);
+                if (leftTrack == null) {
+                    continue;
+                }
+                for (int j = i + 1; j < relatedEdges.size(); j++) {
+                    CanvasCellData right = relatedEdges.get(j);
+                    CanvasCellData rightSource = cellsById.get(right.getSource());
+                    CanvasCellData rightTarget = cellsById.get(right.getTarget());
+                    Double rightTrack = renderedTrack(right, rightSource, rightTarget);
+                    if (rightTrack == null) {
+                        continue;
+                    }
+                    if (Math.abs(leftTrack - rightTrack) <= 8D) {
+                        issues.add(issue(CanvasIssueType.PARALLEL_EDGE_OVERLAP, "geometry", "major",
+                                List.of(left.getId(), right.getId()),
+                                "Edges " + left.getId() + " and " + right.getId()
+                                        + " share the same visual track; separate request/return or parallel paths.",
+                                "auto_reroute"));
+                    }
+                }
+            }
+        }
+    }
+
+    private Double renderedTrack(CanvasCellData edge, CanvasCellData source, CanvasCellData target) {
+        if (source == null || target == null) {
+            return null;
+        }
+        List<CanvasPointData> route = reconstructRoute(edge, source, target);
+        if (route == null || route.size() < 2) {
+            return null;
+        }
+        boolean horizontal = Math.abs(target.centerX() - source.centerX()) >= Math.abs(target.centerY() - source.centerY());
+        CanvasPointData first = route.get(0);
+        CanvasPointData last = route.get(route.size() - 1);
+        return horizontal ? (first.getY() + last.getY()) / 2D : (first.getX() + last.getX()) / 2D;
+    }
+
+    private String unorderedEndpointKey(CanvasCellData edge) {
+        String source = StringUtils.defaultString(edge.getSource());
+        String target = StringUtils.defaultString(edge.getTarget());
+        return source.compareTo(target) <= 0 ? source + "::" + target : target + "::" + source;
+    }
+
+    private PortSet readPorts(String style) {
+        return new PortSet(
+                styleFraction(style, "exitX"),
+                styleFraction(style, "exitY"),
+                styleFraction(style, "entryX"),
+                styleFraction(style, "entryY")
+        );
+    }
+
+    private boolean near(Double value, double expected) {
+        return value != null && Math.abs(value - expected) <= 0.12D;
+    }
+
+    /**
+     * Draw.io renders an edge label at the midpoint of its path; estimate that box and flag
+     * labels that land on a node body or on another edge's label. Repairable deterministically
+     * by the route-only optimizer, which re-scores label positions.
+     */
+    private void detectEdgeLabelCollisions(List<CanvasCellData> cells, List<CanvasAnalysisIssue> issues) {
+        Map<String, CanvasCellData> cellsById = cells.stream()
+                .filter(cell -> StringUtils.isNotBlank(cell.getId()))
+                .collect(Collectors.toMap(CanvasCellData::getId, cell -> cell, (left, right) -> left));
+        List<CanvasCellData> obstacles = cells.stream()
+                .filter(cell -> "node".equals(cell.getKind()))
+                .filter(cell -> cell.getWidth() > 0 && cell.getHeight() > 0)
+                .filter(cell -> !isTextCell(cell) && !isBoundaryLike(cell))
+                .toList();
+
+        List<CanvasCellData> labelBoxes = new ArrayList<>();
+        List<CanvasCellData> labelEdges = new ArrayList<>();
+        for (CanvasCellData edge : cells) {
+            if (!"edge".equals(edge.getKind()) || StringUtils.isBlank(edge.getLabel())) {
+                continue;
+            }
+            CanvasCellData source = cellsById.get(edge.getSource());
+            CanvasCellData target = cellsById.get(edge.getTarget());
+            if (source == null || target == null) {
+                continue;
+            }
+            List<CanvasPointData> route = reconstructRoute(edge, source, target);
+            if (route == null || route.size() < 2) {
+                continue;
+            }
+            CanvasPointData mid = midpointByLength(route);
+            double fontSize = fontSize(edge.getStyle());
+            double charFactor = cjkRatio(edge.getLabel()) > 0.3D ? CJK_CHAR_WIDTH_FACTOR : LATIN_CHAR_WIDTH_FACTOR;
+            double width = clamp(edge.getLabel().length() * fontSize * charFactor, 36D, 200D);
+            double height = fontSize * LINE_HEIGHT_FACTOR;
+            CanvasCellData labelBox = CanvasCellData.builder()
+                    .id(edge.getId())
+                    .x(mid.getX() - width / 2D)
+                    .y(mid.getY() - height / 2D)
+                    .width(width)
+                    .height(height)
+                    .build();
+
+            for (CanvasCellData node : obstacles) {
+                if (isCrossingEndpointOrContainer(edge, node)) {
+                    continue;
+                }
+                if (rectsOverlap(labelBox, node)) {
+                    issues.add(issue(CanvasIssueType.EDGE_LABEL_COLLISION, "readability", "major",
+                            List.of(edge.getId(), node.getId()),
+                            "Label of edge " + edge.getId() + " likely sits on node " + node.getId() + ".",
+                            "auto_reroute"));
+                    break;
+                }
+            }
+            for (int i = 0; i < labelBoxes.size(); i++) {
+                if (rectsOverlap(labelBox, labelBoxes.get(i))) {
+                    issues.add(issue(CanvasIssueType.EDGE_LABEL_COLLISION, "readability", "major",
+                            List.of(edge.getId(), labelEdges.get(i).getId()),
+                            "Labels of edges " + edge.getId() + " and " + labelEdges.get(i).getId()
+                                    + " likely overlap each other.", "auto_reroute"));
+                    break;
+                }
+            }
+            labelBoxes.add(labelBox);
+            labelEdges.add(edge);
+        }
+    }
+
+    private CanvasPointData midpointByLength(List<CanvasPointData> route) {
+        double total = 0D;
+        for (int i = 0; i + 1 < route.size(); i++) {
+            total += distance(route.get(i), route.get(i + 1));
+        }
+        double remaining = total / 2D;
+        for (int i = 0; i + 1 < route.size(); i++) {
+            double segment = distance(route.get(i), route.get(i + 1));
+            if (segment >= remaining && segment > 0D) {
+                double ratio = remaining / segment;
+                return CanvasPointData.builder()
+                        .x(route.get(i).getX() + (route.get(i + 1).getX() - route.get(i).getX()) * ratio)
+                        .y(route.get(i).getY() + (route.get(i + 1).getY() - route.get(i).getY()) * ratio)
+                        .build();
+            }
+            remaining -= segment;
+        }
+        return route.get(route.size() / 2);
+    }
+
+    private double distance(CanvasPointData a, CanvasPointData b) {
+        double dx = b.getX() - a.getX();
+        double dy = b.getY() - a.getY();
+        return Math.sqrt(dx * dx + dy * dy);
+    }
+
+    private boolean rectsOverlap(CanvasCellData left, CanvasCellData right) {
+        double width = Math.min(left.maxX(), right.maxX()) - Math.max(left.getX(), right.getX());
+        double height = Math.min(left.maxY(), right.maxY()) - Math.max(left.getY(), right.getY());
+        return width > 0D && height > 0D;
+    }
+
+    private double clamp(double value, double min, double max) {
+        return Math.max(min, Math.min(max, value));
+    }
+
+    // ---- Static visual-quality heuristics (adapted from drawio-diagram-builder-skill's
+    // pre-flight checker). Thresholds are deliberately conservative: majors must be
+    // near-certain defects because they drive the self-repair loop.
+
+    private static final double LATIN_CHAR_WIDTH_FACTOR = 0.55D;
+    private static final double CJK_CHAR_WIDTH_FACTOR = 0.9D;
+    private static final double LINE_HEIGHT_FACTOR = 1.35D;
+    private static final double TEXT_OVERFLOW_RATIO = 1.6D;
+    private static final double REGION_UNUSED_MIN_PX = 220D;
+    private static final int MAX_FILL_COLORS = 6;
+    private static final double SPACING_CV_LIMIT = 0.6D;
+
+    /** Estimate wrapped label height against the shape box; flag near-certain overflow. */
+    private void detectTextOverflow(List<CanvasCellData> cells, List<CanvasAnalysisIssue> issues) {
+        for (CanvasCellData cell : cells) {
+            if (!"node".equals(cell.getKind()) || cell.getWidth() <= 0 || cell.getHeight() <= 0
+                    || StringUtils.isBlank(cell.getLabel())) {
+                continue;
+            }
+            String label = cell.getLabel();
+            double fontSize = fontSize(cell.getStyle());
+            double charFactor = cjkRatio(label) > 0.3D ? CJK_CHAR_WIDTH_FACTOR : LATIN_CHAR_WIDTH_FACTOR;
+            double textWidth = label.length() * fontSize * charFactor;
+            double usableWidth = Math.max(cell.getWidth() - 10D, 1D);
+            double lines = Math.ceil(textWidth / usableWidth);
+            double estimatedHeight = lines * fontSize * LINE_HEIGHT_FACTOR;
+            if (estimatedHeight > cell.getHeight() * TEXT_OVERFLOW_RATIO) {
+                issues.add(issue(CanvasIssueType.TEXT_OVERFLOW, "readability", "major", List.of(cell.getId()),
+                        "Label of " + cell.getId() + " likely overflows its box (~" + Math.round(estimatedHeight)
+                                + "px of text vs " + Math.round(cell.getHeight()) + "px height).", "candidate"));
+            }
+        }
+    }
+
+    /** A region container much larger than its content reads as an unfinished layout. */
+    private void detectOversizedRegions(List<CanvasCellData> cells, List<CanvasAnalysisIssue> issues) {
+        Map<String, List<CanvasCellData>> childrenByParent = new HashMap<>();
+        for (CanvasCellData cell : cells) {
+            if ("node".equals(cell.getKind()) && StringUtils.isNotBlank(cell.getParentId())) {
+                childrenByParent.computeIfAbsent(cell.getParentId(), key -> new ArrayList<>()).add(cell);
+            }
+        }
+        for (CanvasCellData region : cells) {
+            if (!"node".equals(region.getKind()) || region.getWidth() <= 0 || region.getHeight() <= 0) {
+                continue;
+            }
+            // Lifelines and swimlanes are intentionally long; skip them.
+            String style = StringUtils.defaultString(region.getStyle()).toLowerCase(Locale.ROOT);
+            if (isUmlLifeline(region) || style.startsWith("swimlane")) {
+                continue;
+            }
+            List<CanvasCellData> children = childrenByParent.get(region.getId());
+            if (children == null || children.isEmpty()) {
+                continue;
+            }
+            double minX = Double.MAX_VALUE, minY = Double.MAX_VALUE, maxX = -Double.MAX_VALUE, maxY = -Double.MAX_VALUE;
+            for (CanvasCellData child : children) {
+                minX = Math.min(minX, child.getX());
+                minY = Math.min(minY, child.getY());
+                maxX = Math.max(maxX, child.maxX());
+                maxY = Math.max(maxY, child.maxY());
+            }
+            double contentWidth = Math.max(maxX - minX, 1D);
+            double contentHeight = Math.max(maxY - minY, 1D);
+            double unusedWidth = region.getWidth() - contentWidth;
+            double unusedHeight = region.getHeight() - contentHeight;
+            boolean widthBloated = unusedWidth > REGION_UNUSED_MIN_PX && unusedWidth > 1.2D * contentWidth;
+            boolean heightBloated = unusedHeight > REGION_UNUSED_MIN_PX && unusedHeight > 1.2D * contentHeight;
+            if (widthBloated || heightBloated) {
+                issues.add(issue(CanvasIssueType.OVERSIZED_REGION, "layout", "major", List.of(region.getId()),
+                        "Region " + region.getId() + " is much larger than its content ("
+                                + Math.round(region.getWidth()) + "x" + Math.round(region.getHeight())
+                                + " vs content " + Math.round(contentWidth) + "x" + Math.round(contentHeight) + ").",
+                        "candidate"));
+            }
+        }
+    }
+
+    /** More than a handful of fill colors reads as noise instead of semantics. */
+    private void detectPaletteIncoherence(List<CanvasCellData> cells, List<CanvasAnalysisIssue> issues) {
+        Set<String> fills = new HashSet<>();
+        for (CanvasCellData cell : cells) {
+            if (!"node".equals(cell.getKind()) || isTextCell(cell)) {
+                continue;
+            }
+            String style = StringUtils.defaultString(cell.getStyle()).toLowerCase(Locale.ROOT);
+            int index = style.indexOf("fillcolor=#");
+            if (index < 0) {
+                continue;
+            }
+            String hex = style.substring(index + "fillcolor=".length(),
+                    Math.min(style.length(), index + "fillcolor=".length() + 7));
+            if (!"#ffffff".equals(hex)) {
+                fills.add(hex);
+            }
+        }
+        if (fills.size() > MAX_FILL_COLORS) {
+            issues.add(issue(CanvasIssueType.PALETTE_INCOHERENT, "style", "minor", List.of(),
+                    "Diagram uses " + fills.size() + " distinct fill colors; consolidate to at most "
+                            + MAX_FILL_COLORS + " semantic color roles.", "candidate"));
+        }
+    }
+
+    /** Same-parent rows/columns with wildly irregular gaps lack visual rhythm. */
+    private void detectUnevenSpacing(List<CanvasCellData> cells, List<CanvasAnalysisIssue> issues) {
+        List<CanvasCellData> nodes = cells.stream()
+                .filter(cell -> "node".equals(cell.getKind()))
+                .filter(cell -> cell.getWidth() > 0 && cell.getHeight() > 0)
+                .filter(cell -> !isTextCell(cell) && !isBoundaryLike(cell))
+                .toList();
+        Map<String, List<CanvasCellData>> byParent = new HashMap<>();
+        for (CanvasCellData node : nodes) {
+            byParent.computeIfAbsent(StringUtils.defaultString(node.getParentId()), key -> new ArrayList<>()).add(node);
+        }
+        for (List<CanvasCellData> siblings : byParent.values()) {
+            checkAxisRhythm(siblings, true, issues);
+            checkAxisRhythm(siblings, false, issues);
+        }
+    }
+
+    private void checkAxisRhythm(List<CanvasCellData> siblings, boolean horizontal, List<CanvasAnalysisIssue> issues) {
+        // Group siblings sharing the same cross-axis coordinate (a visual row or column).
+        Map<Long, List<CanvasCellData>> groups = new HashMap<>();
+        for (CanvasCellData node : siblings) {
+            long key = Math.round((horizontal ? node.getY() : node.getX()) / 10D);
+            groups.computeIfAbsent(key, ignored -> new ArrayList<>()).add(node);
+        }
+        for (List<CanvasCellData> group : groups.values()) {
+            if (group.size() < 3) {
+                continue;
+            }
+            List<CanvasCellData> sorted = group.stream()
+                    .sorted(Comparator.comparingDouble(cell -> horizontal ? cell.getX() : cell.getY()))
+                    .toList();
+            List<Double> gaps = new ArrayList<>();
+            for (int i = 0; i + 1 < sorted.size(); i++) {
+                double gap = horizontal
+                        ? sorted.get(i + 1).getX() - sorted.get(i).maxX()
+                        : sorted.get(i + 1).getY() - sorted.get(i).maxY();
+                gaps.add(Math.max(gap, 0D));
+            }
+            double mean = gaps.stream().mapToDouble(Double::doubleValue).average().orElse(0D);
+            if (mean <= 0D) {
+                continue;
+            }
+            double variance = gaps.stream().mapToDouble(gap -> (gap - mean) * (gap - mean)).average().orElse(0D);
+            double coefficientOfVariation = Math.sqrt(variance) / mean;
+            if (coefficientOfVariation > SPACING_CV_LIMIT) {
+                issues.add(issue(CanvasIssueType.UNEVEN_SPACING, "layout", "minor",
+                        sorted.stream().map(CanvasCellData::getId).toList(),
+                        (horizontal ? "Row" : "Column") + " of " + sorted.size()
+                                + " nodes has irregular gaps; align them to one uniform spacing.", "candidate"));
+            }
+        }
+    }
+
+    private double fontSize(String style) {
+        String normalized = StringUtils.defaultString(style);
+        int index = normalized.indexOf("fontSize=");
+        if (index < 0) {
+            return 12D;
+        }
+        int start = index + "fontSize=".length();
+        int end = start;
+        while (end < normalized.length() && (Character.isDigit(normalized.charAt(end)) || normalized.charAt(end) == '.')) {
+            end++;
+        }
+        try {
+            return Double.parseDouble(normalized.substring(start, end));
+        } catch (Exception ignored) {
+            return 12D;
+        }
+    }
+
+    private double cjkRatio(String text) {
+        if (StringUtils.isBlank(text)) {
+            return 0D;
+        }
+        long cjk = text.chars().filter(ch -> ch >= 0x2E80).count();
+        return (double) cjk / text.length();
     }
 
     private void validateCells(List<CanvasCellData> cells, List<CanvasAnalysisIssue> issues) {
@@ -217,13 +639,22 @@ public class DefaultCanvasAnalyzer implements ICanvasAnalyzer {
             issues.add(issue(CanvasIssueType.BROKEN_EDGE, "structure", "critical", List.of(edge.getId(), edge.getTarget()),
                     "Edge " + edge.getId() + " target id does not exist: " + edge.getTarget(), "none"));
         }
-        if (StringUtils.isBlank(edge.getSource()) && StringUtils.isBlank(edge.getTarget())) {
+        // Standalone lines (legend samples, annotations) legitimately carry no source/target
+        // and are anchored by sourcePoint/targetPoint geometry instead.
+        if (StringUtils.isBlank(edge.getSource()) && StringUtils.isBlank(edge.getTarget())
+                && edge.getSourcePoint() == null && edge.getTargetPoint() == null) {
             issues.add(issue(CanvasIssueType.BROKEN_EDGE, "structure", "critical", List.of(edge.getId()),
                     "Edge " + edge.getId() + " has no source/target ids.", "none"));
         }
     }
 
     private void detectNodeOverlaps(List<CanvasCellData> cells, List<CanvasAnalysisIssue> issues) {
+        Map<String, CanvasCellData> cellById = new HashMap<>();
+        for (CanvasCellData cell : cells) {
+            if (StringUtils.isNotBlank(cell.getId())) {
+                cellById.putIfAbsent(cell.getId(), cell);
+            }
+        }
         List<CanvasCellData> nodes = cells.stream()
                 .filter(cell -> "node".equals(cell.getKind()))
                 .filter(cell -> cell.getWidth() > 0 && cell.getHeight() > 0)
@@ -236,12 +667,44 @@ public class DefaultCanvasAnalyzer implements ICanvasAnalyzer {
                 CanvasCellData right = nodes.get(j);
                 double width = Math.min(left.maxX(), right.maxX()) - Math.max(left.getX(), right.getX());
                 double height = Math.min(left.maxY(), right.maxY()) - Math.max(left.getY(), right.getY());
-                if (width > OVERLAP_TOLERANCE && height > OVERLAP_TOLERANCE && !isLikelyParentChild(left, right)) {
+                if (width > OVERLAP_TOLERANCE && height > OVERLAP_TOLERANCE
+                        && !isRelatedByAncestry(left, right, cellById)
+                        && !isBoundaryLike(left) && !isBoundaryLike(right)) {
                     issues.add(issue(CanvasIssueType.NODE_OVERLAP, "geometry", "major", List.of(left.getId(), right.getId()),
                             "Overlapping nodes: " + left.getId() + " and " + right.getId(), "candidate"));
                 }
             }
         }
+    }
+
+    /** True when one cell is an ancestor container of the other, at any nesting depth. */
+    private boolean isRelatedByAncestry(CanvasCellData left, CanvasCellData right, Map<String, CanvasCellData> cellById) {
+        return isAncestorOf(left, right, cellById) || isAncestorOf(right, left, cellById);
+    }
+
+    private boolean isAncestorOf(CanvasCellData ancestor, CanvasCellData descendant, Map<String, CanvasCellData> cellById) {
+        String parentId = descendant.getParentId();
+        int depth = 0;
+        while (StringUtils.isNotBlank(parentId) && depth++ < 32) {
+            if (StringUtils.equals(parentId, ancestor.getId())) {
+                return true;
+            }
+            CanvasCellData parent = cellById.get(parentId);
+            parentId = parent == null ? null : parent.getParentId();
+        }
+        return false;
+    }
+
+    /**
+     * Boundary/region cells are visual backgrounds that intentionally sit under other nodes;
+     * flagging them as overlaps floods reviews with false positives.
+     */
+    private boolean isBoundaryLike(CanvasCellData cell) {
+        String style = StringUtils.defaultString(cell.getStyle()).toLowerCase(Locale.ROOT);
+        return style.contains("container=1")
+                || style.startsWith("group")
+                || style.startsWith("swimlane")
+                || (style.contains("fillcolor=none") && !style.startsWith("text"));
     }
 
     private void detectEdgeNodeCrossings(List<CanvasCellData> cells, List<CanvasAnalysisIssue> issues) {
@@ -252,6 +715,9 @@ public class DefaultCanvasAnalyzer implements ICanvasAnalyzer {
                 .filter(cell -> "node".equals(cell.getKind()))
                 .filter(cell -> cell.getWidth() > 0 && cell.getHeight() > 0)
                 .filter(cell -> !isTextCell(cell))
+                // Transparent boundaries and containers legitimately have edges running across
+                // their body; only solid content nodes are routing obstacles.
+                .filter(cell -> !isBoundaryLike(cell))
                 .toList();
 
         for (CanvasCellData edge : cells) {
@@ -263,13 +729,13 @@ public class DefaultCanvasAnalyzer implements ICanvasAnalyzer {
             if (source == null || target == null) {
                 continue;
             }
-            // Orthogonal edges without explicit waypoints are auto-routed by draw.io around obstacles;
-            // a straight-line approximation would false-positive. Only trust paths we can reconstruct:
-            // edges with waypoints, or genuinely straight (non-orthogonal) edges.
-            if (isAutoRoutedWithoutWaypoints(edge)) {
+            // Draw.io's orthogonal router does NOT avoid unrelated nodes; when the edge declares
+            // explicit exit/entry ports we can reconstruct its probable path and check it.
+            // Only port-less auto-routed edges stay unverifiable and are skipped.
+            List<CanvasPointData> route = reconstructRoute(edge, source, target);
+            if (route == null) {
                 continue;
             }
-            List<CanvasPointData> route = edgeRoute(edge, source, target);
             for (CanvasCellData node : nodes) {
                 if (isCrossingEndpointOrContainer(edge, node) || !routeIntersectsNode(route, node)) {
                     continue;
@@ -288,6 +754,7 @@ public class DefaultCanvasAnalyzer implements ICanvasAnalyzer {
                 .filter(cell -> "node".equals(cell.getKind()))
                 .filter(cell -> cell.getWidth() > 0 && cell.getHeight() > 0)
                 .filter(cell -> !isTextCell(cell))
+                .filter(cell -> !isBoundaryLike(cell))
                 .toList();
         List<CanvasCellData> edges = cells.stream().filter(cell -> "edge".equals(cell.getKind())).toList();
 
@@ -332,6 +799,83 @@ public class DefaultCanvasAnalyzer implements ICanvasAnalyzer {
         return false;
     }
 
+    /**
+     * Best reconstruction of the rendered edge path: explicit waypoints win; otherwise explicit
+     * exit/entry ports give exact endpoints (with an L/Z jog for orthogonal styles, a straight
+     * segment for plain edges); a port-less straight edge falls back to anchor estimation.
+     * Returns null only for port-less auto-routed edges, whose path is genuinely unknowable.
+     */
+    private List<CanvasPointData> reconstructRoute(CanvasCellData edge, CanvasCellData source, CanvasCellData target) {
+        if (edge.getPoints() != null && !edge.getPoints().isEmpty()) {
+            return edgeRoute(edge, source, target);
+        }
+        List<CanvasPointData> portRoute = portBasedRoute(edge, source, target);
+        if (portRoute != null) {
+            return portRoute;
+        }
+        return isAutoRoutedWithoutWaypoints(edge) ? null : edgeRoute(edge, source, target);
+    }
+
+    private List<CanvasPointData> portBasedRoute(CanvasCellData edge, CanvasCellData source, CanvasCellData target) {
+        String style = StringUtils.defaultString(edge.getStyle());
+        Double exitX = styleFraction(style, "exitX");
+        Double exitY = styleFraction(style, "exitY");
+        Double entryX = styleFraction(style, "entryX");
+        Double entryY = styleFraction(style, "entryY");
+        if (exitX == null || exitY == null || entryX == null || entryY == null) {
+            return null;
+        }
+        CanvasPointData exitPoint = CanvasPointData.builder()
+                .x(source.getX() + exitX * source.getWidth())
+                .y(source.getY() + exitY * source.getHeight())
+                .build();
+        CanvasPointData entryPoint = CanvasPointData.builder()
+                .x(target.getX() + entryX * target.getWidth())
+                .y(target.getY() + entryY * target.getHeight())
+                .build();
+
+        List<CanvasPointData> route = new ArrayList<>();
+        route.add(exitPoint);
+        String lower = style.toLowerCase(Locale.ROOT);
+        boolean orthogonal = lower.contains("orthogonaledgestyle") || lower.contains("elbowedgestyle");
+        if (orthogonal) {
+            boolean exitHorizontal = exitX == 0D || exitX == 1D || (exitY != 0D && exitY != 1D);
+            boolean entryHorizontal = entryX == 0D || entryX == 1D || (entryY != 0D && entryY != 1D);
+            if (exitHorizontal && entryHorizontal) {
+                double midX = (exitPoint.getX() + entryPoint.getX()) / 2D;
+                route.add(CanvasPointData.builder().x(midX).y(exitPoint.getY()).build());
+                route.add(CanvasPointData.builder().x(midX).y(entryPoint.getY()).build());
+            } else if (!exitHorizontal && !entryHorizontal) {
+                double midY = (exitPoint.getY() + entryPoint.getY()) / 2D;
+                route.add(CanvasPointData.builder().x(exitPoint.getX()).y(midY).build());
+                route.add(CanvasPointData.builder().x(entryPoint.getX()).y(midY).build());
+            } else if (exitHorizontal) {
+                route.add(CanvasPointData.builder().x(entryPoint.getX()).y(exitPoint.getY()).build());
+            } else {
+                route.add(CanvasPointData.builder().x(exitPoint.getX()).y(entryPoint.getY()).build());
+            }
+        }
+        route.add(entryPoint);
+        return route;
+    }
+
+    private Double styleFraction(String style, String token) {
+        int index = style.indexOf(token + "=");
+        if (index < 0) {
+            return null;
+        }
+        int start = index + token.length() + 1;
+        int end = start;
+        while (end < style.length() && (Character.isDigit(style.charAt(end)) || style.charAt(end) == '.')) {
+            end++;
+        }
+        try {
+            return Double.parseDouble(style.substring(start, end));
+        } catch (Exception ignored) {
+            return null;
+        }
+    }
+
     private boolean isAutoRoutedWithoutWaypoints(CanvasCellData edge) {
         if (edge.getPoints() != null && !edge.getPoints().isEmpty()) {
             return false;
@@ -354,10 +898,30 @@ public class DefaultCanvasAnalyzer implements ICanvasAnalyzer {
         List<CanvasPointData> route = new ArrayList<>();
         CanvasPointData firstDirection = waypoints.isEmpty() ? center(target) : waypoints.get(0);
         CanvasPointData lastDirection = waypoints.isEmpty() ? center(source) : waypoints.get(waypoints.size() - 1);
-        route.add(anchorToward(source, edge.getSourcePoint(), firstDirection));
+        route.add(edgeEndpoint(edge, source, true, firstDirection));
         route.addAll(waypoints);
-        route.add(anchorToward(target, edge.getTargetPoint(), lastDirection));
+        route.add(edgeEndpoint(edge, target, false, lastDirection));
         return route;
+    }
+
+    private CanvasPointData edgeEndpoint(CanvasCellData edge,
+                                         CanvasCellData node,
+                                         boolean sourceEndpoint,
+                                         CanvasPointData fallbackDirection) {
+        CanvasPointData explicitPoint = sourceEndpoint ? edge.getSourcePoint() : edge.getTargetPoint();
+        if (explicitPoint != null) {
+            return explicitPoint;
+        }
+        String style = StringUtils.defaultString(edge.getStyle());
+        Double xFraction = styleFraction(style, sourceEndpoint ? "exitX" : "entryX");
+        Double yFraction = styleFraction(style, sourceEndpoint ? "exitY" : "entryY");
+        if (xFraction != null && yFraction != null) {
+            return CanvasPointData.builder()
+                    .x(node.getX() + xFraction * node.getWidth())
+                    .y(node.getY() + yFraction * node.getHeight())
+                    .build();
+        }
+        return anchorToward(node, null, fallbackDirection);
     }
 
     private CanvasPointData anchorToward(CanvasCellData node, CanvasPointData explicitPoint, CanvasPointData direction) {
@@ -539,14 +1103,14 @@ public class DefaultCanvasAnalyzer implements ICanvasAnalyzer {
         return new Bounds(minX, minY, Math.max(0D, maxX - minX), Math.max(0D, maxY - minY));
     }
 
-    private boolean isLikelyParentChild(CanvasCellData left, CanvasCellData right) {
-        return StringUtils.equals(left.getId(), right.getParentId())
-                || StringUtils.equals(right.getId(), left.getParentId());
-    }
-
     private boolean isTextCell(CanvasCellData cell) {
         String style = StringUtils.defaultString(cell.getStyle()).toLowerCase(Locale.ROOT);
         return style.startsWith("text;") || style.contains("shape=text");
+    }
+
+    private boolean isUmlLifeline(CanvasCellData cell) {
+        String style = StringUtils.defaultString(cell.getStyle()).toLowerCase(Locale.ROOT);
+        return style.contains("umllifeline");
     }
 
     private boolean hasOpaqueTextBackground(CanvasCellData cell) {
@@ -622,6 +1186,12 @@ public class DefaultCanvasAnalyzer implements ICanvasAnalyzer {
             return Double.parseDouble(raw);
         } catch (Exception ignored) {
             return 0D;
+        }
+    }
+
+    private record PortSet(Double exitX, Double exitY, Double entryX, Double entryY) {
+        private boolean complete() {
+            return exitX != null && exitY != null && entryX != null && entryY != null;
         }
     }
 

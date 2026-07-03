@@ -4,110 +4,43 @@ description: Draw.io sequence diagram skill. Use for sequence diagrams, interact
 license: Apache-2.0
 metadata:
   author: ai-draw-io
-  version: "1.0.0"
+  version: "2.0.0"
   category: drawio-design
 ---
 
 # Draw.io Sequence Diagram Skill
 
-## 0. Companion Visual Design Skill
-Always use this skill together with `drawio-visual-design`.
+Use for: sequence diagrams, API call order, request–response chains, time-ordered interactions.
+Prefer `drawio-architecture` for static structure, `drawio-flowchart` for steps without participants, `drawio-state` for status transitions.
 
-Shared visual/XML/layout contract: use `drawio-visual-design` for colors, typography, grouping, spacing rhythm, connector routing, ports, waypoints, transparent labels, XML snippets, and container parent rules. Do not repeat generic connector routing, spacing, transparent label, waypoint, or container-parent XML rules here.
+## Rules
+1. Participants are `shape=umlLifeline` shapes, all sharing the same y, evenly spaced x (e.g. 80, 320, 560, 800), width 120. Order left-to-right by call direction: initiator → gateway → services → storage/external.
+2. 3–6 participants; merge similar ones beyond that. Restrained coloring — temporal order matters more than decoration.
+3. Messages connect lifelines with `exitX=0.5;exitY=<f>;entryX=0.5;entryY=<f>` where the fraction f = (message y − lifeline y) / lifeline height. Fractions strictly increase down the page; keep ≥0.08 between consecutive messages.
+4. Message styles: synchronous call `endArrow=block;endFill=1`, async event `endArrow=open`, return `dashed=1;endArrow=open` placed below the call it answers. All with `html=1;verticalAlign=bottom;labelBackgroundColor=none;`.
+5. Number the labels: `1. submitOrder()`, `2. createOrder()`, returns as values (`5. orderId`).
+6. Lifeline height covers the last message plus margin; no lifeline without messages.
+7. Activation bars are optional children of a lifeline (`parent="<lifeline-id>"`, x centered, relative y) — add them only when nesting depth matters.
+8. Combined fragments (`alt`/`opt`/`loop`/`par`) are transparent dashed rectangles spanning the involved lifelines and time range, label top-left — only when they clarify real control logic.
+9. A sequence diagram is not a flowchart: no diamonds, no free-floating boxes.
 
-For sequence diagrams, use `sequence_profile`: prioritize lifeline alignment and downward message order over rich coloring. Keep the style restrained so temporal order remains easy to scan.
-
-## 1. When To Use
-Use this skill when the user asks for:
-- Sequence diagrams.
-- Interaction diagrams.
-- API call order.
-- Request-response chains.
-- Time-ordered communication between actors, services, databases, and external systems.
-
-Prefer another skill when:
-- The user describes static module relationships: use `drawio-architecture`.
-- The user describes business steps without participants: use `drawio-flowchart`.
-- The user describes object state changes: use `drawio-state`.
-
-## 2. Interaction Scope
-Choose one scope and keep the diagram focused.
-
-- `system_sequence`: actors interact with the system as a black box. Use when the request is about a use case scenario.
-- `service_sequence`: services, gateways, databases, and external systems exchange calls/events. Use for API flows and distributed systems.
-- `object_sequence`: objects/classes collaborate. Use only when the request is object-design oriented.
-
-## 3. Combined Fragments
-Use framed fragment containers when they clarify control logic:
-
-- `alt`: mutually exclusive paths. Use one fragment with an `else` divider label.
-- `opt`: optional path with no else branch.
-- `loop`: repeated messages with a loop condition label.
-- `par`: parallel interactions split into lanes.
-- `critical`: critical section or non-interleavable operation.
-
-Rules:
-- Do not use fragments for every small condition; add them only when they clarify the scenario.
-- Fragment frames must span the relevant lifelines and the relevant vertical time range.
-- Return messages should be dashed and placed below the call they answer.
-- Activation bars should start at the incoming call and end after the return or last nested call.
-
-## 4. Node Styles
-
-### 4.1 Lifeline
-Use UML lifelines for participants.
+## Golden Example
 
 ```xml
-<mxCell id="2" value="Client" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;collapsible=0;recursiveResize=0;outlineConnect=0;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
-  <mxGeometry x="100" y="50" width="110" height="420" as="geometry"/>
-</mxCell>
+<mxCell id="2" value="Client" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;collapsible=0;recursiveResize=0;outlineConnect=0;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=12;" vertex="1" parent="1"><mxGeometry x="80" y="60" width="120" height="420" as="geometry"/></mxCell>
+<mxCell id="3" value="API Gateway" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;collapsible=0;recursiveResize=0;outlineConnect=0;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=12;" vertex="1" parent="1"><mxGeometry x="320" y="60" width="120" height="420" as="geometry"/></mxCell>
+<mxCell id="4" value="Order Service" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;collapsible=0;recursiveResize=0;outlineConnect=0;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=12;" vertex="1" parent="1"><mxGeometry x="560" y="60" width="120" height="420" as="geometry"/></mxCell>
+<mxCell id="5" value="Database" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;collapsible=0;recursiveResize=0;outlineConnect=0;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=12;" vertex="1" parent="1"><mxGeometry x="800" y="60" width="120" height="420" as="geometry"/></mxCell>
+<mxCell id="6" value="1. submitOrder()" style="html=1;verticalAlign=bottom;endArrow=block;endFill=1;exitX=0.5;exitY=0.2;entryX=0.5;entryY=0.2;labelBackgroundColor=none;fontSize=11;" edge="1" parent="1" source="2" target="3"><mxGeometry relative="1" as="geometry"/></mxCell>
+<mxCell id="7" value="2. createOrder()" style="html=1;verticalAlign=bottom;endArrow=block;endFill=1;exitX=0.5;exitY=0.32;entryX=0.5;entryY=0.32;labelBackgroundColor=none;fontSize=11;" edge="1" parent="1" source="3" target="4"><mxGeometry relative="1" as="geometry"/></mxCell>
+<mxCell id="8" value="3. INSERT order" style="html=1;verticalAlign=bottom;endArrow=block;endFill=1;exitX=0.5;exitY=0.45;entryX=0.5;entryY=0.45;labelBackgroundColor=none;fontSize=11;" edge="1" parent="1" source="4" target="5"><mxGeometry relative="1" as="geometry"/></mxCell>
+<mxCell id="9" value="4. ok" style="html=1;verticalAlign=bottom;dashed=1;endArrow=open;exitX=0.5;exitY=0.57;entryX=0.5;entryY=0.57;labelBackgroundColor=none;fontSize=11;" edge="1" parent="1" source="5" target="4"><mxGeometry relative="1" as="geometry"/></mxCell>
+<mxCell id="10" value="5. orderId" style="html=1;verticalAlign=bottom;dashed=1;endArrow=open;exitX=0.5;exitY=0.72;entryX=0.5;entryY=0.72;labelBackgroundColor=none;fontSize=11;" edge="1" parent="1" source="3" target="2"><mxGeometry relative="1" as="geometry"/></mxCell>
 ```
 
-Rules:
-- Participants should be ordered by call direction: initiator -> gateway -> business services -> storage/external systems.
-- Keep participant count around 3-6. If there are more, merge similar participants.
-- Common names: `User`, `Web`, `API Gateway`, `OrderService`, `PaymentService`, `Database`.
+Note the pattern: fixed lifeline columns, message fractions strictly increasing (0.2 → 0.32 → 0.45 → 0.57 → 0.72), solid filled arrows for calls, dashed open arrows for returns below their calls.
 
-### 4.2 Activation
-Use activation bars as child elements of lifelines when needed.
-
-```xml
-<mxCell id="3" value="" style="html=1;points=[];perimeter=orthogonalPerimeter;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="2">
-  <mxGeometry x="50" y="80" width="10" height="120" as="geometry"/>
-</mxCell>
-```
-
-## 5. Message Edge Styles
-
-### 5.1 Synchronous Message
-Use solid filled arrows when the caller waits for a response.
-Use the shared sequence message connector pattern and choose a solid filled arrow.
-
-### 5.2 Asynchronous Message
-Use open arrows when the caller does not wait.
-Use the shared sequence message connector pattern and choose an open arrow.
-
-### 5.3 Return Message
-Use dashed open arrows.
-Use the shared sequence message connector pattern and choose dashed open styling.
-
-### 5.4 Self Call
-Use a looped edge when a participant calls itself for validation, retry, or internal state update.
-
-## 6. Layout Rules
-- Lifeline x coordinates should be fixed, for example x=100, 320, 540, 760.
-- All lifelines share the same y coordinate.
-- Message y coordinates must increase over time, for example y=120, 170, 220.
-- Return messages must appear below their corresponding calls.
-- Activation bars cover only actual processing time.
-- Use numbered labels such as `1. submitOrder()`, `1.1 validate()`, and `2. paymentUrl`.
-
-## 7. Quality Checklist
-- Every message has a source and target.
-- Message order moves downward over time.
-- Lifelines are not drawn without messages.
-- Combined fragments are used for meaningful alt/opt/loop/par/critical logic, not as decoration.
-- Activation bars align with the actual processing interval.
-- Return messages are below their corresponding calls and use dashed open arrows.
-- Do not draw a sequence diagram as a flowchart.
-- Labels are actions or returned values, not just object names.
+## Checklist
+- Time flows strictly downward; every message has source and target lifelines.
+- Returns dashed and below their calls; labels numbered.
+- No unused participants, no flowchart shapes.

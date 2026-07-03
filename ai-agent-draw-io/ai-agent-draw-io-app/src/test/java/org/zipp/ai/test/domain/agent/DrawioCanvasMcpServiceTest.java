@@ -130,6 +130,21 @@ public class DrawioCanvasMcpServiceTest {
     }
 
     @Test
+    public void shouldSanitizeRawLabelCharactersWhenCreatingDiagram() {
+        DrawioCanvasMcpService service = new DrawioCanvasMcpService();
+        DrawioCanvasMcpService.DrawioXmlRequest request = new DrawioCanvasMcpService.DrawioXmlRequest();
+        request.setXml("""
+                <mxCell id='2' value='<heap & metaspace>' vertex='1' parent='1'><mxGeometry x='100' y='100' width='180' height='70' as='geometry'/></mxCell>
+                """);
+
+        DrawioCanvasMcpService.DrawioToolResponse response = service.createDiagram(request);
+
+        assertEquals("drawio_done", response.getType());
+        assertEquals(true, response.getAnalysis().isValid());
+        assertTrue(response.getContent().contains("value='&lt;heap &amp; metaspace&gt;'"));
+    }
+
+    @Test
     public void shouldAttachAnalysisToFullModifyOutput() {
         DrawioCanvasMcpService service = new DrawioCanvasMcpService();
         DrawioCanvasMcpService.ModifyDiagramRequest request = new DrawioCanvasMcpService.ModifyDiagramRequest();
@@ -199,17 +214,18 @@ public class DrawioCanvasMcpServiceTest {
     }
 
     @Test
-    public void shouldNotAutoRouteCreateDiagramBeforeReturningAnalysis() {
+    public void shouldAutoRouteCreateDiagramCrossingsBeforeReturningAnalysis() {
         DrawioCanvasMcpService service = new DrawioCanvasMcpService();
         DrawioCanvasMcpService.DrawioXmlRequest request = new DrawioCanvasMcpService.DrawioXmlRequest();
         request.setXml(edgeCrossingGraphXml());
 
         DrawioCanvasMcpService.DrawioToolResponse response = service.createDiagram(request);
 
+        // Deterministic problems get deterministic fixes: the crossing is rerouted before the
+        // draft is analyzed and streamed, so neither the loop nor the user ever sees it.
         assertEquals("drawio_done", response.getType());
-        assertAnalyzerIssue(response.getContent(), CanvasIssueType.EDGE_NODE_CROSSING, List.of("5", "4"));
         assertTrue(response.getAnalysis().getIssues().stream()
-                .anyMatch(issue -> "EDGE_NODE_CROSSING".equals(issue.getType()) && issue.getTargetCellIds().equals(List.of("5", "4"))));
+                .noneMatch(issue -> "EDGE_NODE_CROSSING".equals(issue.getType())));
     }
 
     @Test
@@ -410,6 +426,28 @@ public class DrawioCanvasMcpServiceTest {
         assertTrue(response.getContent().contains("exitX=1"));
         assertTrue(response.getContent().contains("entryX=0"));
         assertTrue(response.getContent().contains("<Array as=\"points\">"));
+    }
+
+    @Test
+    public void shouldRouteOppositeEdgesOnDistinctTracks() {
+        DrawioCanvasMcpService service = new DrawioCanvasMcpService();
+        DrawioCanvasMcpService.DrawioXmlRequest request = new DrawioCanvasMcpService.DrawioXmlRequest();
+        request.setXml("""
+                <mxGraphModel><root><mxCell id='0'/><mxCell id='1' parent='0'/>
+                <mxCell id='2' value='Frontend' vertex='1' parent='1'><mxGeometry x='100' y='100' width='120' height='60' as='geometry'/></mxCell>
+                <mxCell id='3' value='Backend' vertex='1' parent='1'><mxGeometry x='380' y='100' width='120' height='60' as='geometry'/></mxCell>
+                <mxCell id='4' value='1. request' edge='1' parent='1' source='2' target='3'><mxGeometry relative='1' as='geometry'/></mxCell>
+                <mxCell id='5' value='2. return' style='dashed=1;' edge='1' parent='1' source='3' target='2'><mxGeometry relative='1' as='geometry'/></mxCell>
+                </root></mxGraphModel>
+                """);
+
+        DrawioCanvasMcpService.DrawioToolResponse response = service.routeEdges(request);
+
+        assertTrue(response.getContent().contains("exitY=0.3"));
+        assertTrue(response.getContent().contains("entryY=0.3"));
+        assertTrue(response.getContent().contains("exitY=0.7"));
+        assertTrue(response.getContent().contains("entryY=0.7"));
+        assertNoAnalyzerIssue(response.getContent(), CanvasIssueType.PARALLEL_EDGE_OVERLAP, List.of("4", "5"));
     }
 
     @Test

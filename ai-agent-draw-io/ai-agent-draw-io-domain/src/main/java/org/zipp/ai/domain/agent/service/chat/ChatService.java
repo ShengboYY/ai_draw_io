@@ -7,6 +7,7 @@ import org.zipp.ai.domain.agent.model.valobj.properties.AiAgentAutoConfigPropert
 import org.zipp.ai.domain.agent.service.IChatService;
 import org.zipp.ai.domain.agent.service.armory.factory.DefaultArmoryFactory;
 import org.zipp.ai.domain.agent.service.armory.matter.mcp.server.DrawioCanvasToolNames;
+import org.zipp.ai.domain.agent.service.armory.matter.mcp.server.DrawioCanvasXmlToolkit;
 import org.zipp.ai.types.enums.ResponseCode;
 import org.zipp.ai.types.exception.AppException;
 import org.zipp.ai.types.util.SecretLogSanitizer;
@@ -38,6 +39,7 @@ public class ChatService implements IChatService {
     private static final String DRAFT_DIAGRAM_STATE_KEY = "draft_diagram";
 
     private static final Set<String> DRAWIO_MUTATION_TOOLS = DrawioCanvasToolNames.DRAWING_RESULT_TOOL_NAMES;
+    private static final DrawioCanvasXmlToolkit XML_TOOLKIT = new DrawioCanvasXmlToolkit();
 
     @Resource
     private DefaultArmoryFactory defaultArmoryFactory;
@@ -46,6 +48,7 @@ public class ChatService implements IChatService {
     private AiAgentAutoConfigProperties aiAgentAutoConfigProperties;
 
     private final Map<String, String> userSessions = new ConcurrentHashMap<>();
+    private final Map<String, String> draftDiagramSnapshots = new ConcurrentHashMap<>();
 
     @Override
     public List<AiAgentConfigTableVO.Agent> queryAiAgentConfigList() {
@@ -252,23 +255,44 @@ public class ChatService implements IChatService {
     }
 
     private void persistDraftDiagramState(InMemoryRunner runner, String appName, String userId, String sessionId, Event event) {
-        extractDraftDiagram(event).ifPresent(xml -> {
-            try {
-                Session session = runner.sessionService()
-                        .getSession(appName, userId, sessionId, Optional.empty())
-                        .blockingGet();
-                if (session != null) {
-                    // Keep reviewer input deterministic even when the drawer primarily returns XML via tool responses.
-                    session.state().put(DRAFT_DIAGRAM_STATE_KEY, xml);
-                }
-            } catch (Exception e) {
-                log.warn("Failed to persist draft diagram state for review. appName:{} userId:{} sessionId:{}",
-                        appName, SecretLogSanitizer.maskCapability(userId), sessionId, e);
+        try {
+            Session session = runner.sessionService()
+                    .getSession(appName, userId, sessionId, Optional.empty())
+                    .blockingGet();
+            if (session == null) {
+                return;
             }
-        });
+
+            String snapshotKey = draftSnapshotKey(appName, userId, sessionId);
+            String currentDraft = firstNonBlank(
+                    draftDiagramSnapshots.get(snapshotKey),
+                    stateString(session.state().get(DRAFT_DIAGRAM_STATE_KEY)));
+
+            Optional<String> draftDiagram = extractDraftDiagram(event, currentDraft);
+            if (draftDiagram.isPresent()) {
+                // Keep reviewer input deterministic even when the drawer returns only a local patch.
+                String xml = draftDiagram.get();
+                session.state().put(DRAFT_DIAGRAM_STATE_KEY, xml);
+                draftDiagramSnapshots.put(snapshotKey, xml);
+                return;
+            }
+
+            // Tool-only ADK turns can apply output-key="" after the function response; restore the last
+            // real draft so the next reviewer pass does not inspect an empty canvas.
+            if (isBlank(stateString(session.state().get(DRAFT_DIAGRAM_STATE_KEY))) && !isBlank(currentDraft)) {
+                session.state().put(DRAFT_DIAGRAM_STATE_KEY, currentDraft);
+            }
+        } catch (Exception e) {
+            log.warn("Failed to persist draft diagram state for review. appName:{} userId:{} sessionId:{}",
+                    appName, SecretLogSanitizer.maskCapability(userId), sessionId, e);
+        }
     }
 
     static Optional<String> extractDraftDiagram(Event event) {
+        return extractDraftDiagram(event, "");
+    }
+
+    static Optional<String> extractDraftDiagram(Event event, String currentDraftXml) {
         for (FunctionResponse functionResponse : event.functionResponses()) {
             if (functionResponse.response().isEmpty()) {
                 continue;
@@ -284,10 +308,14 @@ public class ChatService implements IChatService {
             if (toolContent != null && !toolContent.isBlank() && DRAWIO_MUTATION_TOOLS.contains(functionName)) {
                 return Optional.of(toolContent);
             }
+            Optional<String> patchedDraft = mergePatchCells(json, currentDraftXml);
+            if (patchedDraft.isPresent()) {
+                return patchedDraft;
+            }
         }
 
         String content = event.stringifyContent();
-        if (content == null || content.isBlank() || !content.contains("drawio_done")) {
+        if (content == null || content.isBlank()) {
             return Optional.empty();
         }
 
@@ -299,11 +327,50 @@ public class ChatService implements IChatService {
                     return Optional.of(drawioContent);
                 }
             }
+            return mergePatchCells(json, currentDraftXml);
         } catch (Exception ignored) {
             // Some streaming chunks are partial text. They are not safe draft sources.
         }
 
         return Optional.empty();
+    }
+
+    private static Optional<String> mergePatchCells(JSONObject json, String currentDraftXml) {
+        if (json == null || isBlank(currentDraftXml)) {
+            return Optional.empty();
+        }
+        String type = json.getString("type");
+        String mode = json.getString("mode");
+        String cells = json.getString("cells");
+        boolean localCellMutation = DrawioCanvasToolNames.PATCH_CELLS.equals(type)
+                || (DrawioCanvasToolNames.MODIFY_DIAGRAM.equals(type)
+                && List.of("patch", "append", "replace_cells").contains(mode));
+        if (!localCellMutation || isBlank(cells)) {
+            return Optional.empty();
+        }
+        String merged = XML_TOOLKIT.replaceCells(currentDraftXml, cells);
+        return isBlank(merged) ? Optional.empty() : Optional.of(merged);
+    }
+
+    private static String draftSnapshotKey(String appName, String userId, String sessionId) {
+        return appName + ":" + userId + ":" + sessionId;
+    }
+
+    private static String stateString(Object value) {
+        return value instanceof String text ? text : "";
+    }
+
+    private static String firstNonBlank(String... values) {
+        for (String value : values) {
+            if (!isBlank(value)) {
+                return value;
+            }
+        }
+        return "";
+    }
+
+    private static boolean isBlank(String value) {
+        return value == null || value.isBlank();
     }
 
 }

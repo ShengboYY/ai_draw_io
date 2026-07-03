@@ -23,11 +23,6 @@ public final class DrawioCanvasToolNames {
             OPTIMIZE_DIAGRAM
     );
 
-    public static final List<String> REVIEW_REPAIR_TOOL_NAMES = List.of(
-            MODIFY_DIAGRAM,
-            OPTIMIZE_DIAGRAM
-    );
-
     public static final Set<String> DRAWING_RESULT_TOOL_NAMES = Set.of(
             CREATE_DIAGRAM,
             MODIFY_DIAGRAM,

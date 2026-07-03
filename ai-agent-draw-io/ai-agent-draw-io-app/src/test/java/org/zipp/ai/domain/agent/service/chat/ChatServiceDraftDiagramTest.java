@@ -9,6 +9,7 @@ import java.util.Map;
 import java.util.Optional;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 public class ChatServiceDraftDiagramTest {
@@ -42,6 +43,28 @@ public class ChatServiceDraftDiagramTest {
 
         assertTrue(draftDiagram.isPresent());
         assertEquals(xml, draftDiagram.get());
+    }
+
+    @Test
+    public void shouldMergePatchCellsIntoCurrentDraftDiagram() {
+        String currentXml = """
+                <mxGraphModel><root><mxCell id='0'/><mxCell id='1' parent='0'/>
+                <mxCell id='2' value='API' vertex='1' parent='1'><mxGeometry x='100' y='100' width='120' height='60' as='geometry'/></mxCell>
+                </root></mxGraphModel>
+                """;
+        Event event = Event.builder()
+                .author("agent_repair_drawer")
+                .content(Content.fromParts(Part.fromFunctionResponse("modify_diagram", Map.of(
+                        "type", "patch_cells",
+                        "cells", "<mxCell id='2' value='API v2' vertex='1' parent='1'><mxGeometry x='100' y='100' width='140' height='60' as='geometry'/></mxCell>"
+                ))))
+                .build();
+
+        Optional<String> draftDiagram = ChatService.extractDraftDiagram(event, currentXml);
+
+        assertTrue(draftDiagram.isPresent());
+        assertTrue(draftDiagram.get().contains("API v2"));
+        assertFalse(draftDiagram.get().contains("value='API'"));
     }
 
     @Test

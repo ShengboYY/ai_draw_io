@@ -33,7 +33,7 @@ public interface SkillStore {
     /** Insert or update a skill by (ownerId, name). For the future management/CRUD entry point. */
     void upsert(StoredSkill skill);
 
-    /** Insert a skill only if (ownerId, name) is absent; never overwrites. Used for built-in seeding. */
+    /** Insert a skill only if (ownerId, name) is absent; never overwrites. */
     void seedIfAbsent(StoredSkill skill);
 
     /** Remove a user's private skill by name. */
