@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.zipp.ai.infrastructure.dao.IUsageCounterMapper">
+
+    <resultMap id="usageCounterMap" type="org.zipp.ai.infrastructure.dao.po.UsageCounterPO">
+        <id column="counter_key_hash" property="counterKeyHash"/>
+        <result column="counter_key_preview" property="counterKeyPreview"/>
+        <result column="counter_type" property="counterType"/>
+        <result column="count_value" property="countValue"/>
+        <result column="expires_at" property="expiresAt"/>
+        <result column="locked_until" property="lockedUntil"/>
+        <result column="created_at" property="createdAt"/>
+        <result column="updated_at" property="updatedAt"/>
+    </resultMap>
+
+    <sql id="cols">
+        counter_key_hash, counter_key_preview, counter_type, count_value,
+        expires_at, locked_until, created_at, updated_at
+    </sql>
+
+    <insert id="insertEmptyIfAbsent">
+        INSERT IGNORE INTO usage_counter (
+            counter_key_hash, counter_key_preview, counter_type, count_value,
+            expires_at, locked_until, created_at, updated_at
+        )
+        VALUES (
+            #{counterKeyHash}, #{counterKeyPreview}, #{counterType}, 0,
+            #{expiresAt}, NULL, #{now}, #{now}
+        )
+    </insert>
+
+    <select id="selectByKeyHash" resultMap="usageCounterMap">
+        SELECT <include refid="cols"/>
+        FROM usage_counter
+        WHERE counter_key_hash = #{counterKeyHash}
+    </select>
+
+    <select id="selectByKeyHashForUpdate" resultMap="usageCounterMap">
+        SELECT <include refid="cols"/>
+        FROM usage_counter
+        WHERE counter_key_hash = #{counterKeyHash}
+        FOR UPDATE
+    </select>
+
+    <update id="updateCounter" parameterType="org.zipp.ai.infrastructure.dao.po.UsageCounterPO">
+        UPDATE usage_counter
+        SET counter_type = #{counterType},
+            count_value = #{countValue},
+            expires_at = #{expiresAt},
+            locked_until = #{lockedUntil},
+            updated_at = #{updatedAt}
+        WHERE counter_key_hash = #{counterKeyHash}
+    </update>
+
+    <delete id="deleteByKeyHash">
+        DELETE FROM usage_counter
+        WHERE counter_key_hash = #{counterKeyHash}
+    </delete>
+
+</mapper>

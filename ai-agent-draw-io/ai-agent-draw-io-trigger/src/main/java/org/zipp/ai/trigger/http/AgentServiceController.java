@@ -34,7 +34,6 @@ import java.util.stream.Collectors;
 @Slf4j
 @RestController
 @RequestMapping("/api/v1/")
-@CrossOrigin(origins = "*")
 public class AgentServiceController implements IAgentService {
 
     private static final Pattern ANONYMOUS_WORKSPACE_ID = Pattern.compile(

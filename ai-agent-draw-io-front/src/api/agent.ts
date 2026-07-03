@@ -56,6 +56,43 @@ const workspaceHeaders = (userId: string) => ({
     'X-Workspace-Id': userId,
 });
 
+type HeaderMap = Record<string, string>;
+
+interface CsrfTokenResponseDTO {
+    headerName?: string;
+    token?: string;
+}
+
+let csrfHeaderPromise: Promise<HeaderMap> | null = null;
+
+const readCookie = (name: string): string | null => {
+    if (typeof document === 'undefined') return null;
+    const prefix = `${name}=`;
+    const cookie = document.cookie.split('; ').find(part => part.startsWith(prefix));
+    return cookie ? decodeURIComponent(cookie.slice(prefix.length)) : null;
+};
+
+const loadCsrfHeaders = async (): Promise<HeaderMap> => {
+    const cookieToken = readCookie('XSRF-TOKEN');
+    if (cookieToken) return { 'X-XSRF-TOKEN': cookieToken };
+
+    const response = await fetch(`${API_CONFIG.BASE_URL}/auth/csrf`, {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+    });
+    const tokenResponse = await handleResponse<CsrfTokenResponseDTO>(response);
+    const token = tokenResponse.data?.token;
+    if (!token) return {};
+    return { [tokenResponse.data.headerName || 'X-XSRF-TOKEN']: token };
+};
+
+const csrfHeaders = async (headers: HeaderMap): Promise<HeaderMap> => {
+    // Reuse one in-flight request so parallel UI actions do not stampede /auth/csrf.
+    csrfHeaderPromise = csrfHeaderPromise || loadCsrfHeaders();
+    return { ...headers, ...(await csrfHeaderPromise) };
+};
+
 // Types for streaming drawio events
 export interface DrawioNodeChunk {
     type: 'drawio_node';
@@ -198,7 +235,7 @@ export const agentApi = {
     ): Promise<Response<ModelCredentialResponseDTO>> => {
         const response = await fetch(`${API_CONFIG.BASE_URL}/model-credentials`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: await csrfHeaders({ 'Content-Type': 'application/json' }),
             body: JSON.stringify(payload),
             credentials: 'include',
         });
@@ -208,7 +245,7 @@ export const agentApi = {
     deleteModelCredential: async (credentialId: string): Promise<Response<null>> => {
         const response = await fetch(`${API_CONFIG.BASE_URL}/model-credentials/${encodeURIComponent(credentialId)}`, {
             method: 'DELETE',
-            headers: { 'Content-Type': 'application/json' },
+            headers: await csrfHeaders({ 'Content-Type': 'application/json' }),
             credentials: 'include',
         });
         return handleResponse<null>(response);
@@ -278,7 +315,7 @@ export const agentApi = {
     logout: async (): Promise<Response<null>> => {
         const response = await fetch(`${API_CONFIG.BASE_URL}/auth/logout`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: await csrfHeaders({ 'Content-Type': 'application/json' }),
             credentials: 'include',
         });
         return handleResponse<null>(response);
@@ -300,8 +337,9 @@ export const agentApi = {
     createSession: async (agentId: string, userId: string): Promise<Response<CreateSessionResponseDTO>> => {
         const response = await fetch(`${API_CONFIG.BASE_URL}/create_session`, {
             method: 'POST',
-            headers: workspaceHeaders(userId),
+            headers: await csrfHeaders(workspaceHeaders(userId)),
             body: JSON.stringify({ agentId }),
+            credentials: 'include',
         });
         return handleResponse<CreateSessionResponseDTO>(response);
     },
@@ -320,7 +358,7 @@ export const agentApi = {
     ): Promise<Response<ImportAnonymousWorkspaceResponseDTO>> => {
         const response = await fetch(`${API_CONFIG.BASE_URL}/workspaces/anonymous/import`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: await csrfHeaders({ 'Content-Type': 'application/json' }),
             body: JSON.stringify(payload),
             credentials: 'include',
         });
@@ -340,7 +378,7 @@ export const agentApi = {
         const body: UpdateDiagramTitleRequestDTO = { title };
         const response = await fetch(`${API_CONFIG.BASE_URL}/diagrams/${encodeURIComponent(diagramId)}/title`, {
             method: 'PATCH',
-            headers: workspaceHeaders(userId),
+            headers: await csrfHeaders(workspaceHeaders(userId)),
             body: JSON.stringify(body),
             credentials: 'include',
         });
@@ -350,7 +388,7 @@ export const agentApi = {
     deleteDiagram: async (userId: string, diagramId: string): Promise<Response<boolean>> => {
         const response = await fetch(`${API_CONFIG.BASE_URL}/diagrams/${encodeURIComponent(diagramId)}`, {
             method: 'DELETE',
-            headers: workspaceHeaders(userId),
+            headers: await csrfHeaders(workspaceHeaders(userId)),
             credentials: 'include',
         });
         return handleResponse<boolean>(response);
@@ -374,7 +412,7 @@ export const agentApi = {
         const body: SaveDiagramMessagesRequestDTO = { sessionId, messages };
         const response = await fetch(`${API_CONFIG.BASE_URL}/diagrams/${encodeURIComponent(diagramId)}/messages`, {
             method: 'POST',
-            headers: workspaceHeaders(userId),
+            headers: await csrfHeaders(workspaceHeaders(userId)),
             body: JSON.stringify(body),
             credentials: 'include',
         });
@@ -388,7 +426,7 @@ export const agentApi = {
     chat: async (data: ChatRequestDTO): Promise<Response<ChatResponseDTO>> => {
         const response = await fetch(`${API_CONFIG.BASE_URL}/chat`, {
             method: 'POST',
-            headers: workspaceHeaders(data.userId),
+            headers: await csrfHeaders(workspaceHeaders(data.userId)),
             body: JSON.stringify(data),
             credentials: 'include',
         });
@@ -412,7 +450,7 @@ export const agentApi = {
         try {
             const response = await fetch(`${API_CONFIG.BASE_URL}/chat_stream`, {
                 method: 'POST',
-                headers: workspaceHeaders(data.userId),
+                headers: await csrfHeaders(workspaceHeaders(data.userId)),
                 body: JSON.stringify(data),
                 signal: controller.signal,
                 credentials: 'include',

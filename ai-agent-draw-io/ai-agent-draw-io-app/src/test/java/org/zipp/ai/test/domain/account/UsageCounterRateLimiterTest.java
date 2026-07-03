@@ -2,8 +2,10 @@ package org.zipp.ai.test.domain.account;
 
 import org.junit.Before;
 import org.junit.Test;
+import org.zipp.ai.domain.account.service.InMemoryUsageCounterStore;
 import org.zipp.ai.domain.account.service.RateLimitExceededException;
 import org.zipp.ai.domain.account.service.UsageCounterRateLimiter;
+import org.zipp.ai.domain.account.service.UsageCounterStore;
 import org.zipp.ai.domain.account.service.UsageLimitRule;
 
 import java.time.Clock;
@@ -51,6 +53,19 @@ public class UsageCounterRateLimiterTest {
     }
 
     @Test
+    public void consumePersistsCountersAcrossLimiterInstances() {
+        UsageCounterStore store = new InMemoryUsageCounterStore();
+        UsageCounterRateLimiter firstInstance = new UsageCounterRateLimiter(clock, store);
+        UsageCounterRateLimiter secondInstance = new UsageCounterRateLimiter(clock, store);
+        UsageLimitRule oncePerMinute = UsageLimitRule.of(1, Duration.ofSeconds(60));
+
+        firstInstance.consume("email", "alice@example.com", "Too many emails.", oncePerMinute);
+
+        assertRateLimited(() ->
+                secondInstance.consume("email", "alice@example.com", "Too many emails.", oncePerMinute));
+    }
+
+    @Test
     public void consecutiveFailuresLockAndThenResetAfterDuration() {
         for (int i = 0; i < 5; i++) {
             assertFalse(limiter.isLocked("login-failures", "alice@example.com"));
@@ -72,6 +87,19 @@ public class UsageCounterRateLimiterTest {
         limiter.recordFailure("login-failures", "alice@example.com", 5, Duration.ofMinutes(15));
 
         assertFalse(limiter.isLocked("login-failures", "alice@example.com"));
+    }
+
+    @Test
+    public void failureLocksPersistAcrossLimiterInstances() {
+        UsageCounterStore store = new InMemoryUsageCounterStore();
+        UsageCounterRateLimiter firstInstance = new UsageCounterRateLimiter(clock, store);
+        UsageCounterRateLimiter secondInstance = new UsageCounterRateLimiter(clock, store);
+
+        for (int i = 0; i < 5; i++) {
+            firstInstance.recordFailure("login-failures", "alice@example.com", 5, Duration.ofMinutes(15));
+        }
+
+        assertTrue(secondInstance.isLocked("login-failures", "alice@example.com"));
     }
 
     private void assertRateLimited(Runnable action) {

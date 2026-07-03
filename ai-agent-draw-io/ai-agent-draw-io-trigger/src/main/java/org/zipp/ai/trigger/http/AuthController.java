@@ -10,6 +10,7 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.context.SecurityContextRepository;
+import org.springframework.security.web.csrf.CsrfToken;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -44,6 +45,7 @@ import org.zipp.ai.types.enums.ResponseCode;
 import javax.annotation.Resource;
 import java.time.Duration;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -78,6 +80,17 @@ public class AuthController {
 
     @Resource
     private UsageCounterRateLimiter usageCounterRateLimiter = new UsageCounterRateLimiter();
+
+    @GetMapping("/csrf")
+    public Response<Map<String, String>> csrf(CsrfToken token) {
+        return Response.<Map<String, String>>builder()
+                .code(SUCCESS).info("成功")
+                .data(Map.of(
+                        "headerName", token.getHeaderName(),
+                        "parameterName", token.getParameterName(),
+                        "token", token.getToken()))
+                .build();
+    }
 
     @PostMapping("/register")
     public Response<RegisterAccountResponseDTO> register(@RequestBody RegisterAccountRequestDTO request,

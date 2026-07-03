@@ -1,14 +1,14 @@
 package org.zipp.ai.domain.account.service;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.zipp.ai.domain.account.model.valobj.PlatformDailyQuotaSnapshot;
 
 import java.time.Clock;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.util.Locale;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicInteger;
 
 @Service
 public class VerifiedUserPlatformQuotaService {
@@ -17,22 +17,32 @@ public class VerifiedUserPlatformQuotaService {
 
     private final int dailyLimit;
     private final Clock clock;
-    private final ConcurrentHashMap<String, AtomicInteger> counters = new ConcurrentHashMap<>();
+    private final UsageCounterStore store;
 
     public VerifiedUserPlatformQuotaService() {
-        this(DEFAULT_DAILY_LIMIT, Clock.systemUTC());
+        this(DEFAULT_DAILY_LIMIT, Clock.systemUTC(), new InMemoryUsageCounterStore());
+    }
+
+    @Autowired
+    public VerifiedUserPlatformQuotaService(UsageCounterStore store) {
+        this(DEFAULT_DAILY_LIMIT, Clock.systemUTC(), store);
     }
 
     public VerifiedUserPlatformQuotaService(Clock clock) {
-        this(DEFAULT_DAILY_LIMIT, clock);
+        this(DEFAULT_DAILY_LIMIT, clock, new InMemoryUsageCounterStore());
     }
 
     public VerifiedUserPlatformQuotaService(int dailyLimit, Clock clock) {
+        this(dailyLimit, clock, new InMemoryUsageCounterStore());
+    }
+
+    public VerifiedUserPlatformQuotaService(int dailyLimit, Clock clock, UsageCounterStore store) {
         if (dailyLimit <= 0) {
             throw new IllegalArgumentException("dailyLimit must be positive");
         }
         this.dailyLimit = dailyLimit;
         this.clock = clock == null ? Clock.systemUTC() : clock.withZone(ZoneOffset.UTC);
+        this.store = store == null ? new InMemoryUsageCounterStore() : store;
     }
 
     public boolean applies(String ownerId, String customApiKey) {
@@ -48,16 +58,13 @@ public class VerifiedUserPlatformQuotaService {
 
     public PlatformDailyQuotaSnapshot consume(String ownerId) {
         LocalDate today = todayUtc();
-        AtomicInteger counter = counters.computeIfAbsent(scopedKey(ownerId, today), ignored -> new AtomicInteger(0));
-        while (true) {
-            int used = counter.get();
-            if (used >= dailyLimit) {
-                throw new PlatformDailyQuotaExceededException(PlatformDailyQuotaSnapshot.of(dailyLimit, used, today));
-            }
-            if (counter.compareAndSet(used, used + 1)) {
-                return PlatformDailyQuotaSnapshot.of(dailyLimit, used + 1, today);
-            }
+        UsageCounterConsumeResult result = store.consume(
+                platformQuotaKey(ownerId, today), dailyLimit, startOfNextDay(today), clock.instant());
+        if (!result.isConsumed()) {
+            throw new PlatformDailyQuotaExceededException(
+                    PlatformDailyQuotaSnapshot.of(dailyLimit, result.getCount(), today));
         }
+        return PlatformDailyQuotaSnapshot.of(dailyLimit, result.getCount(), today);
     }
 
     public PlatformDailyQuotaSnapshot snapshot(String ownerId) {
@@ -65,8 +72,8 @@ public class VerifiedUserPlatformQuotaService {
         if (!isVerifiedUserOwner(ownerId)) {
             return PlatformDailyQuotaSnapshot.of(dailyLimit, 0, today);
         }
-        AtomicInteger counter = counters.get(scopedKey(ownerId, today));
-        return PlatformDailyQuotaSnapshot.of(dailyLimit, counter == null ? 0 : counter.get(), today);
+        int used = store.count(platformQuotaKey(ownerId, today), clock.instant());
+        return PlatformDailyQuotaSnapshot.of(dailyLimit, used, today);
     }
 
     private LocalDate todayUtc() {
@@ -81,9 +88,9 @@ public class VerifiedUserPlatformQuotaService {
         return value == null || value.trim().isEmpty();
     }
 
-    private String scopedKey(String ownerId, LocalDate quotaDate) {
+    private String platformQuotaKey(String ownerId, LocalDate quotaDate) {
         // UTC date is part of the key so a new day starts with a fresh counter.
-        return normalize(ownerId) + ":" + quotaDate;
+        return "quota:verified-platform:" + normalize(ownerId) + ":" + quotaDate;
     }
 
     private String normalize(String value) {
@@ -91,5 +98,9 @@ public class VerifiedUserPlatformQuotaService {
             return "unknown";
         }
         return value.trim().toLowerCase(Locale.ROOT);
+    }
+
+    private Instant startOfNextDay(LocalDate quotaDate) {
+        return quotaDate.plusDays(1).atStartOfDay(ZoneOffset.UTC).toInstant();
     }
 }

@@ -7,7 +7,6 @@ import org.zipp.ai.domain.agent.service.armory.matter.skills.SkillManagementServ
 import org.zipp.ai.domain.agent.service.armory.matter.skills.SkillStore;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.util.StringUtils;
-import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -24,7 +23,6 @@ import java.util.List;
 @Slf4j
 @RestController
 @RequestMapping("/api/v1/")
-@CrossOrigin(origins = "*")
 public class SkillController {
 
     private static final String SUCCESS = "0000";

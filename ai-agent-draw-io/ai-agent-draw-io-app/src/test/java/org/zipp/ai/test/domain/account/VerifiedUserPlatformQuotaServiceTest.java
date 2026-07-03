@@ -2,7 +2,9 @@ package org.zipp.ai.test.domain.account;
 
 import org.junit.Test;
 import org.zipp.ai.domain.account.model.valobj.PlatformDailyQuotaSnapshot;
+import org.zipp.ai.domain.account.service.InMemoryUsageCounterStore;
 import org.zipp.ai.domain.account.service.PlatformDailyQuotaExceededException;
+import org.zipp.ai.domain.account.service.UsageCounterStore;
 import org.zipp.ai.domain.account.service.VerifiedUserPlatformQuotaService;
 
 import java.time.Clock;
@@ -48,12 +50,30 @@ public class VerifiedUserPlatformQuotaServiceTest {
         assertEquals("2026-07-03", snapshot.getQuotaDate());
     }
 
+    @Test
+    public void shouldPersistDailyQuotaAcrossServiceInstances() {
+        UsageCounterStore store = new InMemoryUsageCounterStore();
+        Clock fixedClock = Clock.fixed(Instant.parse("2026-07-02T23:30:00Z"), ZoneOffset.UTC);
+        VerifiedUserPlatformQuotaService firstInstance = new VerifiedUserPlatformQuotaService(2, fixedClock, store);
+        VerifiedUserPlatformQuotaService secondInstance = new VerifiedUserPlatformQuotaService(2, fixedClock, store);
+
+        firstInstance.consume("usr_alice");
+        PlatformDailyQuotaSnapshot snapshot = secondInstance.consume("usr_alice");
+
+        assertEquals(2, snapshot.getUsed());
+        assertQuotaExceeded(() -> secondInstance.consume("usr_alice"), 2);
+    }
+
     private void assertQuotaExceeded(Runnable action) {
+        assertQuotaExceeded(action, 20);
+    }
+
+    private void assertQuotaExceeded(Runnable action, int limit) {
         try {
             action.run();
         } catch (PlatformDailyQuotaExceededException expected) {
-            assertEquals(20, expected.getQuota().getLimit());
-            assertEquals(20, expected.getQuota().getUsed());
+            assertEquals(limit, expected.getQuota().getLimit());
+            assertEquals(limit, expected.getQuota().getUsed());
             return;
         }
         throw new AssertionError("expected daily platform quota denial");

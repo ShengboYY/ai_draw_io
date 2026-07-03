@@ -1,29 +1,40 @@
 package org.zipp.ai.domain.account.service;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.zipp.ai.domain.account.model.valobj.DemoQuotaSnapshot;
 
+import java.time.Instant;
 import java.util.Locale;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicInteger;
 
 @Service
 public class AnonymousDemoQuotaService {
 
     public static final int DEFAULT_LIMIT = 5;
+    private static final Instant NEVER_EXPIRES = Instant.parse("9999-12-31T23:59:59Z");
 
     private final int limit;
-    private final ConcurrentHashMap<String, AtomicInteger> counters = new ConcurrentHashMap<>();
+    private final UsageCounterStore store;
 
     public AnonymousDemoQuotaService() {
-        this(DEFAULT_LIMIT);
+        this(DEFAULT_LIMIT, new InMemoryUsageCounterStore());
+    }
+
+    @Autowired
+    public AnonymousDemoQuotaService(UsageCounterStore store) {
+        this(DEFAULT_LIMIT, store);
     }
 
     public AnonymousDemoQuotaService(int limit) {
+        this(limit, new InMemoryUsageCounterStore());
+    }
+
+    public AnonymousDemoQuotaService(int limit, UsageCounterStore store) {
         if (limit <= 0) {
             throw new IllegalArgumentException("limit must be positive");
         }
         this.limit = limit;
+        this.store = store == null ? new InMemoryUsageCounterStore() : store;
     }
 
     public boolean applies(String ownerId, String customApiKey) {
@@ -38,25 +49,18 @@ public class AnonymousDemoQuotaService {
     }
 
     public DemoQuotaSnapshot consume(String ownerId) {
-        String key = normalize(ownerId);
-        AtomicInteger counter = counters.computeIfAbsent(key, ignored -> new AtomicInteger(0));
-        while (true) {
-            int used = counter.get();
-            if (used >= limit) {
-                throw new AnonymousDemoQuotaExceededException(DemoQuotaSnapshot.of(limit, used));
-            }
-            if (counter.compareAndSet(used, used + 1)) {
-                return DemoQuotaSnapshot.of(limit, used + 1);
-            }
+        UsageCounterConsumeResult result = store.consume(demoQuotaKey(ownerId), limit, NEVER_EXPIRES, Instant.now());
+        if (!result.isConsumed()) {
+            throw new AnonymousDemoQuotaExceededException(DemoQuotaSnapshot.of(limit, result.getCount()));
         }
+        return DemoQuotaSnapshot.of(limit, result.getCount());
     }
 
     public DemoQuotaSnapshot snapshot(String ownerId) {
         if (!isAnonymousOwner(ownerId)) {
             return DemoQuotaSnapshot.of(limit, 0);
         }
-        AtomicInteger counter = counters.get(normalize(ownerId));
-        return DemoQuotaSnapshot.of(limit, counter == null ? 0 : counter.get());
+        return DemoQuotaSnapshot.of(limit, store.count(demoQuotaKey(ownerId), Instant.now()));
     }
 
     private boolean isAnonymousOwner(String ownerId) {
@@ -72,5 +76,9 @@ public class AnonymousDemoQuotaService {
             return "unknown";
         }
         return value.trim().toLowerCase(Locale.ROOT);
+    }
+
+    private String demoQuotaKey(String ownerId) {
+        return "quota:anonymous-demo:" + normalize(ownerId);
     }
 }
