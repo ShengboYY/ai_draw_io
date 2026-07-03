@@ -84,7 +84,7 @@ Ecosystem onion — two concentric zones, purple hub, white inner ring (4 cardin
 
 Read from the example: zones first and behind everything, hub dead-center, ring nodes from the placement table, straight port-less spokes, dashed inflows crossing the permeable boundary, and a curved arc with one outward waypoint.
 
-## Final Self-Check
+## Checklist
 - Every connected edge omits exit/entry ports and uses `edgeStyle=none` or `curved=1`.
 - Zones render before (behind) all content; no content node is parented to a zone.
 - No chord passes through the hub; ring neighbors keep ≥ 40 px clearance.

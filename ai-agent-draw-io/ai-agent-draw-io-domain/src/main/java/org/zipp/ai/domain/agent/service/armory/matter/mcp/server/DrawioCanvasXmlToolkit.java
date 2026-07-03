@@ -188,6 +188,11 @@ public class DrawioCanvasXmlToolkit {
                 if (!"1".equals(edge.attributeValue("edge"))) {
                     continue;
                 }
+                // Deliberately free-routed edges (radial spokes, cycle arcs, curved flows)
+                // opted out of orthogonal routing; straightening them destroys the layout.
+                if (isFreeRoutedEdge(edge.attributeValue("style"))) {
+                    continue;
+                }
                 CellInfo source = nodes.get(edge.attributeValue("source"));
                 CellInfo target = nodes.get(edge.attributeValue("target"));
                 if (source == null || target == null) {
@@ -1145,6 +1150,15 @@ public class DrawioCanvasXmlToolkit {
 
     private boolean isAuxiliaryEdge(Element edge) {
         return isAuxiliaryEdge(edge.attributeValue("style"), edge.attributeValue("value"));
+    }
+
+    /**
+     * Mirrors DefaultCanvasAnalyzer#isFreeRoutedEdge: an explicit edgeStyle=none or curved=1
+     * token marks an edge that must keep its straight/curved path (radial and cycle layouts).
+     */
+    private boolean isFreeRoutedEdge(String rawStyle) {
+        String style = StringUtils.defaultString(rawStyle).toLowerCase(Locale.ROOT);
+        return style.contains("edgestyle=none") || style.contains("curved=1");
     }
 
     private boolean isAuxiliaryEdge(String rawStyle, String rawLabel) {

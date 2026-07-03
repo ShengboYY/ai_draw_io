@@ -29,7 +29,8 @@ public class DrawioGoldenExampleValidationTest {
             "drawio-sequence",
             "drawio-er",
             "drawio-usecase",
-            "drawio-state"
+            "drawio-state",
+            "drawio-concept"
     );
 
     private static final Pattern XML_BLOCK = Pattern.compile("```xml\\n(.*?)```", Pattern.DOTALL);

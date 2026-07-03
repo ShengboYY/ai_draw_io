@@ -51,6 +51,7 @@ public class DefaultCanvasAnalyzer implements ICanvasAnalyzer {
             return CanvasAnalysis.builder()
                     .valid(!hasBlockingIssue(issues))
                     .severity(resolveSeverity(issues))
+                    .layoutMode(resolveLayoutMode(cells))
                     .issues(issues)
                     .cells(cells)
                     .summary(summary(cells))
@@ -185,21 +186,88 @@ public class DefaultCanvasAnalyzer implements ICanvasAnalyzer {
             // "repairs" here, so structural validity is the whole contract.
             return issues;
         }
-        detectNodeOverlaps(cells, issues);
-        detectEdgeNodeCrossings(cells, issues);
+        // Ellipse zone backgrounds (rings, halos) legitimately sit under nodes and edges;
+        // computing them once keeps overlap/crossing checks honest for radial layouts.
+        Set<String> zoneIds = detectZoneCells(cells);
+        detectNodeOverlaps(cells, zoneIds, issues);
+        detectEdgeNodeCrossings(cells, zoneIds, issues);
         detectPortDirectionMismatches(cells, issues);
         detectPortCornerProximity(cells, issues);
         detectParallelEdgeTrackOverlaps(cells, issues);
         detectNodeSidePortCrowding(cells, issues);
-        detectRemovableWaypoints(cells, issues);
+        detectRemovableWaypoints(cells, zoneIds, issues);
         detectOpaqueTextBackgrounds(cells, issues);
         // Perceptual quality that is computable from geometry alone (no rendering needed).
         detectTextOverflow(cells, issues);
         detectOversizedRegions(cells, issues);
         detectPaletteIncoherence(cells, issues);
-        detectUnevenSpacing(cells, issues);
-        detectEdgeLabelCollisions(cells, issues);
+        detectUnevenSpacing(cells, zoneIds, issues);
+        detectEdgeLabelCollisions(cells, zoneIds, issues);
         return issues;
+    }
+
+    /**
+     * Zone cells are large ellipse backgrounds (onion rings, ecosystem boundaries, cycle
+     * halos) that other nodes intentionally sit on top of. An ellipse qualifies when it
+     * fully contains at least one much smaller non-text node — grid nodes never contain
+     * each other, so this never masks an accidental node-on-node overlap.
+     */
+    private Set<String> detectZoneCells(List<CanvasCellData> cells) {
+        List<CanvasCellData> nodes = cells.stream()
+                .filter(cell -> "node".equals(cell.getKind()))
+                .filter(cell -> cell.getWidth() > 0 && cell.getHeight() > 0)
+                .filter(cell -> !isTextCell(cell))
+                .toList();
+        Set<String> zoneIds = new HashSet<>();
+        for (CanvasCellData candidate : nodes) {
+            String style = StringUtils.defaultString(candidate.getStyle()).toLowerCase(Locale.ROOT);
+            if (!style.contains("ellipse")) {
+                continue;
+            }
+            double candidateArea = candidate.getWidth() * candidate.getHeight();
+            for (CanvasCellData other : nodes) {
+                if (other == candidate || StringUtils.equals(other.getId(), candidate.getId())) {
+                    continue;
+                }
+                boolean contains = other.getX() >= candidate.getX() && other.getY() >= candidate.getY()
+                        && other.maxX() <= candidate.maxX() && other.maxY() <= candidate.maxY();
+                if (contains && candidateArea >= 3D * other.getWidth() * other.getHeight()) {
+                    zoneIds.add(candidate.getId());
+                    break;
+                }
+            }
+        }
+        return zoneIds;
+    }
+
+    /**
+     * Free-routed edges opt out of orthogonal routing explicitly (radial spokes, cycle arcs,
+     * curved secondary flows). They are never auto-rerouted onto orthogonal tracks — issues on
+     * them go back to the model as candidates instead.
+     */
+    private boolean isFreeRoutedEdge(CanvasCellData edge) {
+        String style = StringUtils.defaultString(edge.getStyle()).toLowerCase(Locale.ROOT);
+        return style.contains("edgestyle=none") || style.contains("curved=1");
+    }
+
+    /**
+     * Grid diagrams read along rows/columns; radial diagrams read from a center outwards.
+     * Radial is recognized by its structural signature: ellipse zone backgrounds, or a
+     * majority of deliberately free-routed connected edges.
+     */
+    private String resolveLayoutMode(List<CanvasCellData> cells) {
+        if (isFreeformIllustration(cells)) {
+            return "illustration";
+        }
+        if (!detectZoneCells(cells).isEmpty()) {
+            return "radial";
+        }
+        List<CanvasCellData> connectedEdges = cells.stream()
+                .filter(cell -> "edge".equals(cell.getKind()))
+                .filter(edge -> StringUtils.isNotBlank(edge.getSource()) && StringUtils.isNotBlank(edge.getTarget()))
+                .toList();
+        long freeRouted = connectedEdges.stream().filter(this::isFreeRoutedEdge).count();
+        return connectedEdges.size() >= 3 && freeRouted * 2 > connectedEdges.size() ? "radial" : "grid";
     }
 
     /**
@@ -503,14 +571,14 @@ public class DefaultCanvasAnalyzer implements ICanvasAnalyzer {
      * labels that land on a node body or on another edge's label. Repairable deterministically
      * by the route-only optimizer, which re-scores label positions.
      */
-    private void detectEdgeLabelCollisions(List<CanvasCellData> cells, List<CanvasAnalysisIssue> issues) {
+    private void detectEdgeLabelCollisions(List<CanvasCellData> cells, Set<String> zoneIds, List<CanvasAnalysisIssue> issues) {
         Map<String, CanvasCellData> cellsById = cells.stream()
                 .filter(cell -> StringUtils.isNotBlank(cell.getId()))
                 .collect(Collectors.toMap(CanvasCellData::getId, cell -> cell, (left, right) -> left));
         List<CanvasCellData> obstacles = cells.stream()
                 .filter(cell -> "node".equals(cell.getKind()))
                 .filter(cell -> cell.getWidth() > 0 && cell.getHeight() > 0)
-                .filter(cell -> !isTextCell(cell) && !isBoundaryLike(cell))
+                .filter(cell -> !isTextCell(cell) && !isBoundaryLike(cell) && !zoneIds.contains(cell.getId()))
                 .toList();
 
         List<CanvasCellData> labelBoxes = new ArrayList<>();
@@ -528,11 +596,12 @@ public class DefaultCanvasAnalyzer implements ICanvasAnalyzer {
             if (route == null || route.size() < 2) {
                 continue;
             }
+            String repairability = isFreeRoutedEdge(edge) ? "candidate" : "auto_reroute";
             if (Math.abs(edge.getY()) < MIN_LABEL_LINE_OFFSET) {
                 issues.add(issue(CanvasIssueType.EDGE_LABEL_COLLISION, "readability", "minor",
                         List.of(edge.getId()),
                         "Label of edge " + edge.getId() + " sits too close to the edge line; move it above or below the line.",
-                        "auto_reroute"));
+                        repairability));
             }
             CanvasPointData mid = midpointByLength(route);
             double fontSize = fontSize(edge.getStyle());
@@ -555,7 +624,7 @@ public class DefaultCanvasAnalyzer implements ICanvasAnalyzer {
                     issues.add(issue(CanvasIssueType.EDGE_LABEL_COLLISION, "readability", "major",
                             List.of(edge.getId(), node.getId()),
                             "Label of edge " + edge.getId() + " likely sits on node " + node.getId() + ".",
-                            "auto_reroute"));
+                            repairability));
                     break;
                 }
             }
@@ -564,7 +633,7 @@ public class DefaultCanvasAnalyzer implements ICanvasAnalyzer {
                     issues.add(issue(CanvasIssueType.EDGE_LABEL_COLLISION, "readability", "major",
                             List.of(edge.getId(), labelEdges.get(i).getId()),
                             "Labels of edges " + edge.getId() + " and " + labelEdges.get(i).getId()
-                                    + " likely overlap each other.", "auto_reroute"));
+                                    + " likely overlap each other.", repairability));
                     break;
                 }
             }
@@ -713,11 +782,11 @@ public class DefaultCanvasAnalyzer implements ICanvasAnalyzer {
     }
 
     /** Same-parent rows/columns with wildly irregular gaps lack visual rhythm. */
-    private void detectUnevenSpacing(List<CanvasCellData> cells, List<CanvasAnalysisIssue> issues) {
+    private void detectUnevenSpacing(List<CanvasCellData> cells, Set<String> zoneIds, List<CanvasAnalysisIssue> issues) {
         List<CanvasCellData> nodes = cells.stream()
                 .filter(cell -> "node".equals(cell.getKind()))
                 .filter(cell -> cell.getWidth() > 0 && cell.getHeight() > 0)
-                .filter(cell -> !isTextCell(cell) && !isBoundaryLike(cell))
+                .filter(cell -> !isTextCell(cell) && !isBoundaryLike(cell) && !zoneIds.contains(cell.getId()))
                 .toList();
         Map<String, List<CanvasCellData>> byParent = new HashMap<>();
         for (CanvasCellData node : nodes) {
@@ -836,7 +905,7 @@ public class DefaultCanvasAnalyzer implements ICanvasAnalyzer {
         }
     }
 
-    private void detectNodeOverlaps(List<CanvasCellData> cells, List<CanvasAnalysisIssue> issues) {
+    private void detectNodeOverlaps(List<CanvasCellData> cells, Set<String> zoneIds, List<CanvasAnalysisIssue> issues) {
         Map<String, CanvasCellData> cellById = new HashMap<>();
         for (CanvasCellData cell : cells) {
             if (StringUtils.isNotBlank(cell.getId())) {
@@ -857,6 +926,7 @@ public class DefaultCanvasAnalyzer implements ICanvasAnalyzer {
                 double height = Math.min(left.maxY(), right.maxY()) - Math.max(left.getY(), right.getY());
                 if (width > OVERLAP_TOLERANCE && height > OVERLAP_TOLERANCE
                         && !isRelatedByAncestry(left, right, cellById)
+                        && !zoneIds.contains(left.getId()) && !zoneIds.contains(right.getId())
                         && !isBoundaryLike(left) && !isBoundaryLike(right)) {
                     issues.add(issue(CanvasIssueType.NODE_OVERLAP, "geometry", "major", List.of(left.getId(), right.getId()),
                             "Overlapping nodes: " + left.getId() + " and " + right.getId(), "candidate"));
@@ -895,7 +965,7 @@ public class DefaultCanvasAnalyzer implements ICanvasAnalyzer {
                 || (style.contains("fillcolor=none") && !style.startsWith("text"));
     }
 
-    private void detectEdgeNodeCrossings(List<CanvasCellData> cells, List<CanvasAnalysisIssue> issues) {
+    private void detectEdgeNodeCrossings(List<CanvasCellData> cells, Set<String> zoneIds, List<CanvasAnalysisIssue> issues) {
         Map<String, CanvasCellData> cellsById = cells.stream()
                 .filter(cell -> StringUtils.isNotBlank(cell.getId()))
                 .collect(Collectors.toMap(CanvasCellData::getId, cell -> cell, (left, right) -> left));
@@ -903,9 +973,9 @@ public class DefaultCanvasAnalyzer implements ICanvasAnalyzer {
                 .filter(cell -> "node".equals(cell.getKind()))
                 .filter(cell -> cell.getWidth() > 0 && cell.getHeight() > 0)
                 .filter(cell -> !isTextCell(cell))
-                // Transparent boundaries and containers legitimately have edges running across
-                // their body; only solid content nodes are routing obstacles.
-                .filter(cell -> !isBoundaryLike(cell))
+                // Transparent boundaries, containers, and zone backgrounds legitimately have
+                // edges running across their body; only solid content nodes are routing obstacles.
+                .filter(cell -> !isBoundaryLike(cell) && !zoneIds.contains(cell.getId()))
                 .toList();
 
         for (CanvasCellData edge : cells) {
@@ -924,17 +994,20 @@ public class DefaultCanvasAnalyzer implements ICanvasAnalyzer {
             if (route == null) {
                 continue;
             }
+            // Free-routed edges must never be straightened onto orthogonal tracks; hand
+            // their crossings back to the model instead of the deterministic rerouter.
+            String repairability = isFreeRoutedEdge(edge) ? "candidate" : "auto_reroute";
             for (CanvasCellData node : nodes) {
                 if (isCrossingEndpointOrContainer(edge, node) || !routeIntersectsNode(route, node)) {
                     continue;
                 }
                 issues.add(issue(CanvasIssueType.EDGE_NODE_CROSSING, "geometry", "major", List.of(edge.getId(), node.getId()),
-                        "Edge " + edge.getId() + " crosses node body: " + node.getId(), "auto_reroute"));
+                        "Edge " + edge.getId() + " crosses node body: " + node.getId(), repairability));
             }
         }
     }
 
-    private void detectRemovableWaypoints(List<CanvasCellData> cells, List<CanvasAnalysisIssue> issues) {
+    private void detectRemovableWaypoints(List<CanvasCellData> cells, Set<String> zoneIds, List<CanvasAnalysisIssue> issues) {
         Map<String, CanvasCellData> cellsById = cells.stream()
                 .filter(cell -> StringUtils.isNotBlank(cell.getId()))
                 .collect(Collectors.toMap(CanvasCellData::getId, cell -> cell, (left, right) -> left));
@@ -942,12 +1015,16 @@ public class DefaultCanvasAnalyzer implements ICanvasAnalyzer {
                 .filter(cell -> "node".equals(cell.getKind()))
                 .filter(cell -> cell.getWidth() > 0 && cell.getHeight() > 0)
                 .filter(cell -> !isTextCell(cell))
-                .filter(cell -> !isBoundaryLike(cell))
+                .filter(cell -> !isBoundaryLike(cell) && !zoneIds.contains(cell.getId()))
                 .toList();
         List<CanvasCellData> edges = cells.stream().filter(cell -> "edge".equals(cell.getKind())).toList();
 
         for (CanvasCellData edge : edges) {
             if (edge.getPoints() == null || edge.getPoints().isEmpty()) {
+                continue;
+            }
+            // Curved/free edges shape their arc with waypoints on purpose.
+            if (isFreeRoutedEdge(edge)) {
                 continue;
             }
             CanvasCellData source = cellsById.get(edge.getSource());

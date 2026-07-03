@@ -22,7 +22,8 @@ public class DrawioSkillResponsibilityResourceTest {
             "drawio-er",
             "drawio-uml",
             "drawio-usecase",
-            "drawio-state"
+            "drawio-state",
+            "drawio-concept"
     );
 
     /**

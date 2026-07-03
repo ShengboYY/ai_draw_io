@@ -39,7 +39,7 @@ ai:
                   - JSON fields must include intent, drawMode, diagramType, skillName, taskType, needsCanvasQuality, needsSemanticReview, answerMode, answer, and reason.
                   - intent must be answer_only, draw_action, or clarify.
                   - drawMode must be none, new_diagram, or edit_existing.
-                  - diagramType must be none, basic, uml_class, flowchart, architecture, sequence, er, usecase, or state.
+                  - diagramType must be none, basic, uml_class, flowchart, architecture, sequence, er, usecase, state, or concept.
                   - skillName must be "none" or exactly one of the skill names listed in [Available Skills]. Choose the skill whose description best matches the request; if none fit, use "none". Do not invent skill names.
                   - taskType must be none, create_new, edit_existing, optimize_layout, or review_only.
                   - needsCanvasQuality must be true when layout, readability, spacing, edge routing, overlap, or visual quality should be inspected.
@@ -88,6 +88,7 @@ ai:
                   - ER diagram, database schema, table relationship -> er / drawio-er.
                   - Use case, actors, system function boundary -> usecase / drawio-usecase.
                   - State diagram, state machine, lifecycle transition -> state / drawio-state.
+                  - Onion/ring model, concentric layers, ecosystem or stakeholder map, hub-and-spoke, cycle/loop (PDCA, flywheel), mind map, or any model organized around a center -> concept / drawio-concept.
                   - Standalone line, arrow, rectangle, circle, or simple annotation -> basic / none.
                   - No drawing needed -> none / none.
 
@@ -98,7 +99,7 @@ ai:
                   - For unrelated general questions, answer briefly and gently redirect to Draw.io work. Do not invent real-time facts.
 
                   Output exactly this single-line JSON shape:
-                  {"intent":"answer_only|draw_action|clarify","drawMode":"none|new_diagram|edit_existing","diagramType":"none|basic|uml_class|flowchart|architecture|sequence|er|usecase|state","skillName":"none or one of the [Available Skills] names","taskType":"none|create_new|edit_existing|optimize_layout|review_only","needsCanvasQuality":true|false,"needsSemanticReview":true|false,"answerMode":"none|general|capability|canvas_summary|quality_review|semantic_review|quality_and_semantic_review","answer":"Direct reply for simple answer_only or clarify; empty string when backend quality/semantic reports are needed or for draw_action","reason":"One short sentence explaining the decision"}
+                  {"intent":"answer_only|draw_action|clarify","drawMode":"none|new_diagram|edit_existing","diagramType":"none|basic|uml_class|flowchart|architecture|sequence|er|usecase|state|concept","skillName":"none or one of the [Available Skills] names","taskType":"none|create_new|edit_existing|optimize_layout|review_only","needsCanvasQuality":true|false,"needsSemanticReview":true|false,"answerMode":"none|general|capability|canvas_summary|quality_review|semantic_review|quality_and_semantic_review","answer":"Direct reply for simple answer_only or clarify; empty string when backend quality/semantic reports are needed or for draw_action","reason":"One short sentence explaining the decision"}
                 output-key: intent_result
             runner:
               agent-name: agent_intent
@@ -233,7 +234,7 @@ ai:
                   - drawio-xml-guide: XML grammar, tool output scope, and the Global Draw.io Layout Contract (layout hard constraints, edge routing, pre-flight check).
                   - drawio-visual-design: palette, typography, house patterns, and the golden example that defines what finished output looks like.
                   - The selected diagram skill from skillName: domain notation plus a golden example for that diagram type. Do not apply unrelated diagram skills.
-                  Design privately before writing XML: reading direction, rows/columns, node slots, then edge routes. Never output the plan. The first draft must already satisfy the layout contract; the repair loop is a safety net, not the layout mechanism.
+                  Design privately before writing XML: first the layout mode (grid-flow or radial per the layout contract), then its skeleton — reading direction and rows/columns for grid-flow, center/rings/spokes for radial — then node slots, then edge routes. Never output the plan. The first draft must already satisfy the layout contract; the repair loop is a safety net, not the layout mechanism.
                   First principle: every shape, color, and arrow must carry meaning. If removing an element would lose no information, do not draw it — no decorative boxes, filler nodes, or unlabeled color blocks.
 
                   Input contract:
@@ -266,7 +267,7 @@ ai:
                   {"type":"optimize_diagram","mode":"layout_optimize","xml":"<mxGraphModel><root>...complete optimized canvas...</root></mxGraphModel>"}
                   - Never output diagram_plan, render_plan, design notes, status prose, or greetings; fallback text never starts with "I will", "Here is", or "我来".
 
-                  Available diagram skills: drawio-uml (class diagrams, domain models), drawio-flowchart (processes, approvals, algorithms), drawio-architecture (systems, deployment, microservices, runtime internals), drawio-sequence (interactions, call order), drawio-er (schemas, tables), drawio-usecase (actors, goals, boundaries), drawio-state (lifecycles, transitions).
+                  Available diagram skills: drawio-uml (class diagrams, domain models), drawio-flowchart (processes, approvals, algorithms), drawio-architecture (systems, deployment, microservices, runtime internals), drawio-sequence (interactions, call order), drawio-er (schemas, tables), drawio-usecase (actors, goals, boundaries), drawio-state (lifecycles, transitions), drawio-concept (onion/ring models, ecosystem maps, hub-and-spoke, cycles, mind maps — radial layout).
                 output-key: draft_diagram
 
             agent-workflows:

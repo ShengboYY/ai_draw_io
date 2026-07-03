@@ -28,6 +28,13 @@ public class DrawioGlobalLayoutContractTest {
         assertTrue(xmlGuide.contains("Never corner ports"));
         assertTrue(xmlGuide.contains("## Pre-flight Check"));
 
+        // The contract offers two first-class layout modes: the model picks radial from the
+        // content shape (no user command needed), and the free-routed edge marker is spelled out.
+        assertTrue(xmlGuide.contains("grid-flow"));
+        assertTrue(xmlGuide.contains("radial"));
+        assertTrue(xmlGuide.contains("edgeStyle=none"));
+        assertTrue(xmlGuide.contains("curved=1"));
+
         // The drawer prompt references the contract but no longer duplicates its rules.
         assertTrue(agentPrompt.contains("Global Draw.io Layout Contract"));
         assertFalse(agentPrompt.contains("Use deterministic grid placement"));
@@ -55,6 +62,17 @@ public class DrawioGlobalLayoutContractTest {
         assertTrue(agentPrompt.contains("drawio-xml-guide"));
         assertTrue(agentPrompt.contains("drawio-visual-design"));
         assertTrue(agentPrompt.contains("golden example"));
+    }
+
+    @Test
+    public void routerAndDrawerKnowTheRadialConceptSkill() throws Exception {
+        String agentPrompt = readResource("agent/agent-draw-io.yml");
+
+        // The router can reach radial layouts without the user asking for "circular":
+        // concept is a routable diagram type mapped to the drawio-concept skill.
+        assertTrue(agentPrompt.contains("concept / drawio-concept"));
+        assertTrue(agentPrompt.contains("usecase|state|concept"));
+        assertTrue(agentPrompt.contains("drawio-concept (onion/ring models"));
     }
 
     private String readResource(String path) throws Exception {

@@ -14,6 +14,13 @@ public class CanvasAnalysis {
 
     private String severity;
 
+    /**
+     * How the diagram is laid out: "grid" (directional flow on rows/columns), "radial"
+     * (rings / hub-and-spoke / cycles with free-routed edges), or "illustration"
+     * (freeform art). Consumers relax grid-only heuristics for non-grid modes.
+     */
+    private String layoutMode;
+
     private List<CanvasAnalysisIssue> issues;
 
     private List<CanvasCellData> cells;
@@ -24,6 +31,7 @@ public class CanvasAnalysis {
         return CanvasAnalysis.builder()
                 .valid(false)
                 .severity(severity)
+                .layoutMode("grid")
                 .issues(Collections.singletonList(issue))
                 .cells(Collections.emptyList())
                 .summary(CanvasSummaryData.builder().nodeCount(0).edgeCount(0).summary("Canvas analysis failed.").build())

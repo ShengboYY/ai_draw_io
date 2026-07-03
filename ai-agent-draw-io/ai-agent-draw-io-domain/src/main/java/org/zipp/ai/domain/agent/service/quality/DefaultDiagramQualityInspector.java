@@ -66,8 +66,8 @@ public class DefaultDiagramQualityInspector implements IDiagramQualityInspector 
 
         List<CanvasNode> nodes = snapshot.getNodes();
         List<CanvasEdge> edges = snapshot.getEdges();
-        addAnalyzerIssues(snapshot, layoutIssues, edgeIssues, semanticHints, recommendations);
-        inspectLayout(nodes, layoutIssues, recommendations);
+        String layoutMode = addAnalyzerIssues(snapshot, layoutIssues, edgeIssues, semanticHints, recommendations);
+        inspectLayout(nodes, "grid".equals(layoutMode), layoutIssues, recommendations);
         inspectReadability(nodes, readabilityIssues, recommendations);
         inspectEdges(nodes, edges, edgeIssues, recommendations);
         inspectSemantics(nodes, edges, snapshot.getDiagramType(), semanticHints, recommendations);
@@ -90,11 +90,12 @@ public class DefaultDiagramQualityInspector implements IDiagramQualityInspector 
         return canvasAnalyzer;
     }
 
-    private void addAnalyzerIssues(DrawioCanvasSnapshot snapshot,
-                                   List<QualityIssue> layoutIssues,
-                                   List<QualityIssue> edgeIssues,
-                                   List<QualityIssue> semanticHints,
-                                   List<String> recommendations) {
+    /** Returns the analyzer's layout mode so grid-only local heuristics can stand down. */
+    private String addAnalyzerIssues(DrawioCanvasSnapshot snapshot,
+                                     List<QualityIssue> layoutIssues,
+                                     List<QualityIssue> edgeIssues,
+                                     List<QualityIssue> semanticHints,
+                                     List<String> recommendations) {
         // Structural and geometry findings come from the shared analyzer; local checks keep readability heuristics.
         CanvasAnalysis analysis = analyzer().analyze(snapshot.getRawXml(), snapshot.getDiagramType());
         boolean mapped = false;
@@ -135,6 +136,7 @@ public class DefaultDiagramQualityInspector implements IDiagramQualityInspector 
         if (mapped) {
             recommendations.add("Repair structural and geometry issues using the deterministic canvas analysis targets before relying on visual review.");
         }
+        return StringUtils.defaultIfBlank(analysis.getLayoutMode(), "grid");
     }
 
     private String firstTarget(CanvasAnalysisIssue issue) {
@@ -144,7 +146,7 @@ public class DefaultDiagramQualityInspector implements IDiagramQualityInspector 
         return issue.getTargetCellIds().get(0);
     }
 
-    private void inspectLayout(List<CanvasNode> nodes, List<QualityIssue> issues, List<String> recommendations) {
+    private void inspectLayout(List<CanvasNode> nodes, boolean gridLayout, List<QualityIssue> issues, List<String> recommendations) {
         for (int i = 0; i < nodes.size(); i++) {
             CanvasNode a = nodes.get(i);
             for (int j = i + 1; j < nodes.size(); j++) {
@@ -161,8 +163,12 @@ public class DefaultDiagramQualityInspector implements IDiagramQualityInspector 
         }
 
         inspectContainerOverflow(nodes, issues);
-        inspectAlignment(nodes, issues);
-        inspectDensity(nodes, issues);
+        // Row/column alignment and rectangular density only describe grid layouts;
+        // radial rings and freeform sketches are laid out on circles by design.
+        if (gridLayout) {
+            inspectAlignment(nodes, issues);
+            inspectDensity(nodes, issues);
+        }
 
         if (!issues.isEmpty()) {
             recommendations.add("Improve layout by increasing spacing, aligning peer elements, and keeping child elements inside their containers.");

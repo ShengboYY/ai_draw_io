@@ -262,6 +262,72 @@ public class CanvasAnalyzerTest {
         assertNoIssue(analysis.getIssues(), CanvasIssueType.EDGE_NODE_CROSSING, List.of("5", "4"));
     }
 
+    @Test
+    public void shouldTreatEllipseZonesAsBackgroundsAndDetectRadialLayout() {
+        DefaultCanvasAnalyzer analyzer = new DefaultCanvasAnalyzer();
+
+        // Onion model: two concentric ellipse zones, a hub in the core, a ring node in the
+        // outer band, and a straight port-less spoke — the canonical radial shape.
+        CanvasAnalysis analysis = analyzer.analyze("""
+                <mxGraphModel><root><mxCell id='0'/><mxCell id='1' parent='0'/>
+                <mxCell id='2' value='Environment' style='ellipse;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;' vertex='1' parent='1'><mxGeometry x='40' y='40' width='700' height='500' as='geometry'/></mxCell>
+                <mxCell id='3' value='Core' style='ellipse;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;dashed=1;' vertex='1' parent='1'><mxGeometry x='240' y='170' width='300' height='240' as='geometry'/></mxCell>
+                <mxCell id='4' value='Hub' style='rounded=1;whiteSpace=wrap;html=1;' vertex='1' parent='1'><mxGeometry x='310' y='260' width='160' height='60' as='geometry'/></mxCell>
+                <mxCell id='5' value='Partner' style='rounded=1;whiteSpace=wrap;html=1;' vertex='1' parent='1'><mxGeometry x='580' y='260' width='120' height='50' as='geometry'/></mxCell>
+                <mxCell id='6' value='' style='endArrow=classic;html=1;edgeStyle=none;' edge='1' parent='1' source='4' target='5'><mxGeometry relative='1' as='geometry'/></mxCell>
+                </root></mxGraphModel>
+                """, "concept");
+
+        assertEquals("radial", analysis.getLayoutMode());
+        // Nodes sitting on their ring/zone backgrounds are the layout, not a defect.
+        assertNoIssue(analysis.getIssues(), CanvasIssueType.NODE_OVERLAP, List.of("2", "3"));
+        assertNoIssue(analysis.getIssues(), CanvasIssueType.NODE_OVERLAP, List.of("3", "4"));
+        assertNoIssue(analysis.getIssues(), CanvasIssueType.NODE_OVERLAP, List.of("2", "5"));
+        // The spoke exits the core zone but crosses no real node.
+        assertTrue("radial onion should be a valid first draft but got: " + analysis.getIssues(),
+                analysis.isValid());
+    }
+
+    @Test
+    public void shouldKeepGridLayoutModeForOrthogonalDiagrams() {
+        DefaultCanvasAnalyzer analyzer = new DefaultCanvasAnalyzer();
+
+        CanvasAnalysis analysis = analyzer.analyze("""
+                <mxGraphModel><root><mxCell id='0'/><mxCell id='1' parent='0'/>
+                <mxCell id='2' value='A' vertex='1' parent='1'><mxGeometry x='40' y='40' width='120' height='60' as='geometry'/></mxCell>
+                <mxCell id='3' value='B' vertex='1' parent='1'><mxGeometry x='300' y='40' width='120' height='60' as='geometry'/></mxCell>
+                <mxCell id='4' value='' style='edgeStyle=orthogonalEdgeStyle;html=1;exitX=1;exitY=0.5;entryX=0;entryY=0.5;' edge='1' parent='1' source='2' target='3'><mxGeometry relative='1' as='geometry'/></mxCell>
+                </root></mxGraphModel>
+                """, "architecture");
+
+        assertEquals("grid", analysis.getLayoutMode());
+    }
+
+    @Test
+    public void shouldHandFreeRoutedEdgeIssuesBackToTheModelInsteadOfAutoRerouting() {
+        DefaultCanvasAnalyzer analyzer = new DefaultCanvasAnalyzer();
+        DrawioCanvasXmlToolkit toolkit = new DrawioCanvasXmlToolkit();
+
+        String xml = """
+                <mxGraphModel><root><mxCell id='0'/><mxCell id='1' parent='0'/>
+                <mxCell id='2' value='A' vertex='1' parent='1'><mxGeometry x='40' y='200' width='120' height='60' as='geometry'/></mxCell>
+                <mxCell id='3' value='B' vertex='1' parent='1'><mxGeometry x='600' y='200' width='120' height='60' as='geometry'/></mxCell>
+                <mxCell id='4' value='Blocker' vertex='1' parent='1'><mxGeometry x='330' y='200' width='120' height='60' as='geometry'/></mxCell>
+                <mxCell id='5' value='' style='endArrow=classic;html=1;edgeStyle=none;' edge='1' parent='1' source='2' target='3'><mxGeometry relative='1' as='geometry'/></mxCell>
+                </root></mxGraphModel>
+                """;
+
+        CanvasAnalysis analysis = analyzer.analyze(xml, "concept");
+        CanvasAnalysisIssue crossing = issue(analysis.getIssues(), CanvasIssueType.EDGE_NODE_CROSSING, List.of("5", "4"));
+        assertEquals("free-routed edges are repaired by the model, never straightened",
+                "candidate", crossing.getRepairability());
+
+        // Neither the crossing-triggered repair nor a direct route pass may orthogonalize it.
+        assertEquals("no auto_reroute issue -> repair pass leaves the input untouched",
+                xml, toolkit.repairGeometryIfNeeded(xml));
+        assertFalse(toolkit.routeEdges(xml).contains("orthogonalEdgeStyle"));
+    }
+
     private void assertIssue(List<CanvasAnalysisIssue> issues, CanvasIssueType type, List<String> targetCellIds) {
         assertTrue("Expected issue " + type + " with targets " + targetCellIds,
                 issues.stream().anyMatch(issue ->
