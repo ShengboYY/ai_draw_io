@@ -36,22 +36,23 @@ export default function Login() {
       loginStatus: 'SUCCESS',
       storage,
     });
-    if (!decision.shouldPrompt) return true;
+    if (!decision.shouldPrompt) return;
 
     const confirmed = window.confirm(
-      "Import diagrams from this browser's local workspace into your signed-in account?",
+      'Import diagrams saved in this browser into your signed-in account?',
     );
-    if (!confirmed) return true;
+    if (!confirmed) return;
 
     try {
       await agentApi.importAnonymousWorkspace({
         anonymousWorkspaceId: decision.anonymousWorkspaceId,
       });
       clearImportedAnonymousWorkspace(storage, decision.anonymousWorkspaceId);
-      return true;
     } catch (err: unknown) {
-      setServerError(err instanceof Error ? err.message : 'Could not import the local workspace.');
-      return false;
+      // The user is already signed in, so never strand them on the login page.
+      // The import marker stays in localStorage, so the next sign-in prompts again.
+      const message = err instanceof Error ? err.message : 'Could not import diagrams from this browser.';
+      window.alert(`${message} Your local diagrams stay in this browser; sign in again later to retry the import.`);
     }
   }, []);
 
@@ -65,9 +66,8 @@ export default function Login() {
         void (async () => {
           setSignedInAs(signedInEmail);
           setUserInfo(signedInEmail);
-          if (await maybeImportAnonymousWorkspace()) {
-            router.push('/drawio');
-          }
+          await maybeImportAnonymousWorkspace();
+          router.push('/');
         })();
       }
     }).catch(() => {
@@ -90,10 +90,8 @@ export default function Login() {
       if (data.status === 'SUCCESS' && data.email) {
         setUserInfo(data.email);
         setSignedInAs(data.email);
-        if (!await maybeImportAnonymousWorkspace()) {
-          return;
-        }
-        setTimeout(() => router.push('/drawio'), 400);
+        await maybeImportAnonymousWorkspace();
+        setTimeout(() => router.push('/'), 400);
         return;
       }
     } catch (err: unknown) {
@@ -132,29 +130,29 @@ export default function Login() {
         <section className="codex-card relative flex flex-col gap-5 overflow-hidden p-7">
           <div className="flex items-center gap-3">
             <div className="grid h-11 w-11 place-items-center rounded-lg bg-zinc-700 text-lg font-bold text-white shadow-sm">
-              AI
+              FD
             </div>
             <div className="flex flex-col gap-1">
               <strong className="text-base leading-[1.1] text-zinc-800">
-                AI Agent Workspace</strong>
-              <span className="text-xs text-zinc-500">Build faster · Run reliably · Operate clearly</span>
+                free draw</strong>
+              <span className="text-xs text-zinc-500">Sketch freely · Shape with AI · Save your diagrams</span>
             </div>
           </div>
 
           <h1 className="mt-2 max-w-[14ch] text-[32px] font-semibold leading-[1.12] tracking-normal text-zinc-800">
-            An AI workspace for getting diagrams done
+            Draw diagrams freely with AI
           </h1>
           <p className="m-0 max-w-[52ch] text-sm leading-7 text-zinc-600">
-            Sign in with the email and password from your verified account. Sessions last seven days on
-            this browser; you can sign out any time.
+            Sign in to keep your free draw workspace, diagrams, and AI conversations available on this
+            browser. You can sign out any time.
           </p>
         </section>
 
         <section className="flex flex-col justify-center gap-4">
           <div className="codex-card p-5">
-            <h2 className="m-0 mb-1.5 text-lg font-semibold text-zinc-800">Sign in</h2>
+            <h2 className="m-0 mb-1.5 text-lg font-semibold text-zinc-800">Sign in to free draw</h2>
             <p className="m-0 mb-5 text-xs leading-5 text-zinc-500">
-              Use your registered email. New here? Create an account below.
+              Use your registered email to save and continue your diagrams.
             </p>
 
             {!signedInAs ? (
@@ -204,7 +202,7 @@ export default function Login() {
               <div className="mt-3 flex items-center justify-between gap-3 rounded-lg border border-dashed border-stone-300 bg-stone-50 p-3">
                 <div>
                   <strong className="block text-[13px] text-zinc-800">Signed in as {signedInAs}</strong>
-                  <span className="mt-0.5 block text-xs text-zinc-500">Session cookie active</span>
+                  <span className="mt-0.5 block text-xs text-zinc-500">free draw session active</span>
                 </div>
                 <button onClick={handleLogout} className="theme-btn-secondary cursor-pointer rounded-lg px-3 py-2 text-xs font-semibold">
                   Sign out
@@ -238,12 +236,12 @@ export default function Login() {
           </div>
 
           <div className="text-center text-xs text-zinc-500">
-            No account yet?{' '}
+            New to free draw?{' '}
             <Link href="/register" className="codex-link">Create one</Link>
           </div>
 
           <div className="mt-2 text-center text-xs text-zinc-400">
-            © AI Draw.io Builder · Next.js demo page
+            © free draw
           </div>
         </section>
       </div>

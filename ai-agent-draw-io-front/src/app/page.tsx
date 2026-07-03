@@ -5,7 +5,6 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { agentApi } from '@/api/agent';
 import { clearUserInfo, getUserInfo, setUserInfo as persistUserInfo, type UserInfo } from '@/utils/cookie';
-import { workspaceLabelFromAccount } from '@/utils/current-account';
 import { getWorkspaceIdentity } from '@/utils/workspace-identity';
 import { CurrentAccountResponseDTO, DiagramSummaryResponseDTO } from '@/types/api';
 import { isAccountMenuTarget, isDiagramActionMenuTarget } from './home-menu-click-away';
@@ -54,7 +53,6 @@ export default function Home() {
 
   const userDisplayName = displayNameFromUser(userInfo?.user);
   const userInitials = initialsFromUser(userInfo?.user);
-  const workspaceLabel = ownerId ? workspaceLabelFromAccount(currentAccount, ownerId) : 'Loading workspace';
   const isSignedInWorkspace = Boolean(
     currentAccount?.authenticated || currentAccount?.ownerType === 'USER' || (ownerId && !ownerId.startsWith('anon_')),
   );
@@ -260,7 +258,6 @@ export default function Home() {
                   >
                     <span className="hidden min-w-0 text-right sm:block">
                       <span className="block truncate text-sm font-medium text-zinc-700">{userDisplayName}</span>
-                      <span className="block truncate text-xs text-zinc-500">{workspaceLabel}</span>
                     </span>
                     <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-zinc-700 text-sm font-semibold text-white shadow-sm transition">
                       {userInitials}
@@ -309,7 +306,7 @@ export default function Home() {
             <div>
               <h2 className="whitespace-nowrap text-base font-medium tracking-normal text-zinc-700">Recent diagrams</h2>
               <p className="mt-1 whitespace-nowrap text-sm text-zinc-500">
-                {isLoading ? 'Loading your workspace...' : `${diagrams.length} saved ${diagrams.length === 1 ? 'diagram' : 'diagrams'}`}
+                {isLoading ? 'Loading your diagrams...' : `${diagrams.length} saved ${diagrams.length === 1 ? 'diagram' : 'diagrams'}`}
               </p>
             </div>
           </div>

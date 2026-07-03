@@ -179,6 +179,12 @@ public class DefaultCanvasAnalyzer implements ICanvasAnalyzer {
         }
 
         validateCells(cells, issues);
+        if (isFreeformIllustration(cells)) {
+            // Freeform art (mascots, scenes) is built from intentionally overlapping,
+            // unlabeled shapes; diagram layout heuristics only produce destructive
+            // "repairs" here, so structural validity is the whole contract.
+            return issues;
+        }
         detectNodeOverlaps(cells, issues);
         detectEdgeNodeCrossings(cells, issues);
         detectPortDirectionMismatches(cells, issues);
@@ -194,6 +200,35 @@ public class DefaultCanvasAnalyzer implements ICanvasAnalyzer {
         detectUnevenSpacing(cells, issues);
         detectEdgeLabelCollisions(cells, issues);
         return issues;
+    }
+
+    /**
+     * A canvas is treated as a freeform illustration when its shapes are mostly
+     * unlabeled and nothing is wired together through source/target edges. Diagrams
+     * (flowcharts, UML, ER, ...) always label their nodes and connect them; drawings
+     * compose bare shapes — with at most a minority of annotation labels — and,
+     * at most, standalone point-anchored curves.
+     */
+    private boolean isFreeformIllustration(List<CanvasCellData> cells) {
+        List<CanvasCellData> shapes = cells.stream()
+                .filter(cell -> "node".equals(cell.getKind()))
+                .filter(cell -> !isTextCell(cell))
+                .toList();
+        if (shapes.size() < 4) {
+            return false;
+        }
+        boolean hasConnectedEdge = cells.stream()
+                .filter(cell -> "edge".equals(cell.getKind()))
+                .anyMatch(edge -> StringUtils.isNotBlank(edge.getSource()) || StringUtils.isNotBlank(edge.getTarget()));
+        if (hasConnectedEdge) {
+            return false;
+        }
+        long labeledShapes = shapes.stream()
+                .filter(cell -> StringUtils.isNotBlank(cell.getLabel()))
+                .count();
+        // Up to 40% annotation labels still reads as a sketch; a fully labeled but
+        // unconnected layout (e.g. a kanban of boxes) keeps the diagram heuristics.
+        return labeledShapes <= Math.max(1, shapes.size() * 2 / 5);
     }
 
     private void detectPortDirectionMismatches(List<CanvasCellData> cells, List<CanvasAnalysisIssue> issues) {

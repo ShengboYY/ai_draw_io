@@ -31,19 +31,36 @@ Applies to every drawing action, together with `drawio-visual-design` (style bas
 9. Emit in render order: boundaries/containers first, then nodes, then edges, then floating labels and legend.
 10. Text-bearing shapes use `whiteSpace=wrap;html=1;`.
 
-## Layout Hard Constraints (Global Draw.io Layout Contract)
+## Layout Modes (Global Draw.io Layout Contract)
+
+Pick ONE layout mode before writing any XML. Choose it from the shape of the content — the user does not need to ask for a layout:
+- `grid-flow` (default): anything with a reading direction — system/data flows, processes, lifecycles, sequences, schemas, class models.
+- `radial`: anything organized around a center or in concentric layers — onion/ring models, ecosystem maps, hub-and-spoke, cycles/loops, mind maps. Choose it whenever the concept is "layers around a core", "actors around a hub", or "a repeating cycle", even if the user never says "circular".
+
+Constraints shared by both modes:
 - Viewport: start near x=40, y=40; keep the diagram inside x 0–1100, y 0–800 unless the user asks for a large map.
-- One reading direction per diagram: left-to-right for systems/data flows, top-to-bottom for processes/lifecycles, time downward for sequences.
-- Grid placement: nodes in the same row share y; same column shares x. Leave a clear channel between neighboring nodes: ≥ 120 px horizontal, ≥ 60 px vertical — wider when an edge label must fit inside the channel.
 - Same-tier nodes share the same size (default 160×60; storage cylinders 140×80). Do not resize a node just to fit a long label — shorten the label.
 - Scope: prefer 6–14 nodes and 5–18 edges. Aggregate secondary detail into one grouped node instead of crowding.
+
+### grid-flow mode
+- One reading direction per diagram: left-to-right for systems/data flows, top-to-bottom for processes/lifecycles, time downward for sequences.
+- Grid placement: nodes in the same row share y; same column shares x. Leave a clear channel between neighboring nodes: ≥ 120 px horizontal, ≥ 60 px vertical — wider when an edge label must fit inside the channel.
 - Hybrid routing: primary request/data edges are orthogonal with `edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;` and all four ports explicit. Return, async, callback, and secondary edges may be dashed with `rounded=1;arcSize=10`, but they still use orthogonal ports and waypoints.
 - Ports follow flow direction: left-to-right uses `exitX=1` → `entryX=0`; top-to-bottom uses `exitY=1` → `entryY=0`. Never corner ports (both coordinates extreme).
 - Two edges between the same pair, or a request/return pair, take different tracks: `exitY=0.3` vs `exitY=0.7`, or opposite sides. Never stack opposite arrows on the same center track.
 - If a node sits on an edge's straight path, add 2–3 orthogonal waypoints with 20–30 px clearance, or route along the outer perimeter. Long cross-region edges always take the perimeter, not the center.
 
+### radial mode
+- Concentric zones are large background ellipses drawn first (render order rule), biggest first; label each zone with `verticalAlign=top;fontStyle=1;fontSize=13;` inside its top edge. Zones are backgrounds — content nodes keep `parent="1"` with absolute coordinates.
+- Place N ring nodes by circle math: node center = `(cx + rx·cos θ, cy + ry·sin θ)`, then subtract half the node size for x/y. Use the precomputed tables in the `drawio-concept` skill instead of doing trigonometry ad hoc.
+- Edges never use `orthogonalEdgeStyle` in radial mode. Spokes (hub ↔ ring) are straight: `edgeStyle=none;html=1;`. Arcs along a ring or cycle edges are curved: `curved=1;html=1;`.
+- Omit ALL exit/entry port tokens on radial edges — draw.io then anchors each end on the node perimeter facing the other endpoint, which is exactly right for spokes at any angle. (The grid-flow port rules, including the corner-port ban, do not apply here.)
+- Keep ≥ 40 px clearance between neighboring ring nodes. Never route a chord through the hub node — curve it around (`curved=1` plus one waypoint offset from the center).
+- The backend treats `curved=1` and `edgeStyle=none` edges as intentionally freeform and will not re-route them; an `orthogonalEdgeStyle` edge inside a radial diagram will be snapped back to grid rules, so do not mix the two on the same relationship.
+
 ## Pre-flight Check (before every tool call)
 - Every edge `source`/`target` id exists; every id is unique.
-- No two sibling nodes overlap; every child is inside its region with ≥ 30 px container padding.
+- No two sibling nodes overlap; every child is inside its region with ≥ 30 px container padding. (Radial: background zone ellipses legitimately sit under their ring nodes.)
 - Mentally trace each edge: no node body on its path, no label sitting on a node or another label.
 - More than 3 crossings in the central reading area → rearrange nodes before emitting, don't rely on repair.
+- Radial: confirm every connected edge omits exit/entry ports and uses `edgeStyle=none` or `curved=1`.

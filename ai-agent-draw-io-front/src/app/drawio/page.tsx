@@ -513,10 +513,14 @@ function DrawioPageContent() {
   const [imgData, setImgData] = useState<string | null>(null);
   const drawioRef = useRef<DrawIoEmbedRef>(null);
   const restoredDiagramIdRef = useRef<string | null>(null);
+  const hasInitializedSessionsRef = useRef(false);
   
   // User State
   const [currentUser, setCurrentUser] = useState('');
   const [currentAccount, setCurrentAccount] = useState<CurrentAccountResponseDTO | null>(null);
+  const [accountDisplayName, setAccountDisplayName] = useState('');
+  const [isAccountPopoverOpen, setIsAccountPopoverOpen] = useState(false);
+  const accountPopoverRef = useRef<HTMLDivElement>(null);
 
   const loadCurrentAccount = useCallback(async (ownerId: string) => {
     if (!ownerId) return;
@@ -531,6 +535,26 @@ function DrawioPageContent() {
   const refreshCurrentAccount = async (ownerId = currentUser) => {
     await loadCurrentAccount(ownerId);
   };
+
+  const accountQuotaRemaining = currentAccount?.ownerType === 'USER'
+    ? currentAccount.platformDailyQuotaRemaining
+    : currentAccount?.demoQuotaRemaining;
+  const accountQuotaLabel = Number.isFinite(accountQuotaRemaining)
+    ? `${accountQuotaRemaining} free AI requests left today`
+    : 'Usage details loading';
+
+  useEffect(() => {
+    if (!isAccountPopoverOpen) return;
+
+    const handleDocumentPointerDown = (event: PointerEvent) => {
+      // Clicks inside the account popover should keep it open; outside clicks close it.
+      if (accountPopoverRef.current?.contains(event.target as Node)) return;
+      setIsAccountPopoverOpen(false);
+    };
+
+    document.addEventListener('pointerdown', handleDocumentPointerDown);
+    return () => document.removeEventListener('pointerdown', handleDocumentPointerDown);
+  }, [isAccountPopoverOpen]);
 
   // Chat State
   const [isChatOpen, setIsChatOpen] = useState(true);
@@ -1043,32 +1067,36 @@ function DrawioPageContent() {
 
   // Load sessions from localStorage
   useEffect(() => {
+    // Guard against StrictMode double-mount: the first run strips ?new=1 from the URL,
+    // so a second run would fall into the restore branch and overwrite the fresh canvas.
+    if (hasInitializedSessionsRef.current) return;
+    hasInitializedSessionsRef.current = true;
+
+    let savedSessions: Session[] = [];
+    try {
+      savedSessions = JSON.parse(localStorage.getItem(DRAWIO_SESSIONS_STORAGE_KEY) || '[]');
+    } catch (e) {
+      console.error('Failed to parse sessions:', e);
+    }
+
     const shouldCreateFreshDiagram = new URLSearchParams(window.location.search).get('new') === '1';
     if (shouldCreateFreshDiagram) {
-      // Homepage "New diagram" must bypass the cached local session that normal /drawio restores.
+      // Homepage "New diagram" must bypass the cached local session that normal /drawio
+      // restores, while keeping the saved sessions so the history sidebar (and the
+      // persistence effect) does not lose them.
+      setSessions(savedSessions);
       createNewSession(true);
       window.history.replaceState(null, '', window.location.pathname);
       return;
     }
 
-    const savedSessions = localStorage.getItem(DRAWIO_SESSIONS_STORAGE_KEY);
-    if (savedSessions) {
-      try {
-        const parsed = JSON.parse(savedSessions);
-        setSessions(parsed);
-        if (parsed.length > 0) {
-          // Load the most recent session (first one if sorted by lastModified desc)
-          const mostRecent = parsed.sort((a: Session, b: Session) => b.lastModified - a.lastModified)[0];
-          setCurrentSessionId(mostRecent.id);
-          setMessages(mostRecent.messages);
-          replaceEditorXml(mostRecent.drawIoXml || EMPTY_DRAWIO_XML);
-        } else {
-            createNewSession(true);
-        }
-      } catch (e) {
-        console.error('Failed to parse sessions:', e);
-        createNewSession(true);
-      }
+    if (savedSessions.length > 0) {
+      setSessions(savedSessions);
+      // Load the most recent session (first one if sorted by lastModified desc)
+      const mostRecent = [...savedSessions].sort((a, b) => b.lastModified - a.lastModified)[0];
+      setCurrentSessionId(mostRecent.id);
+      setMessages(mostRecent.messages);
+      replaceEditorXml(mostRecent.drawIoXml || EMPTY_DRAWIO_XML);
     } else {
       createNewSession(true);
     }
@@ -1344,13 +1372,17 @@ function DrawioPageContent() {
         if (account?.status === 'SUCCESS' && account.userId) {
           // Spring session identity wins over browser-local anonymous workspace identity.
           ownerId = account.userId;
-          if (account.email) persistUserInfo(account.email);
+          if (account.email) {
+            setAccountDisplayName(account.email);
+            persistUserInfo(account.email);
+          }
         }
       } catch {
         // Anonymous local work still needs to open when the auth endpoint is unavailable in dev.
       }
 
       if (!ownerId) {
+        setAccountDisplayName('');
         ownerId = getWorkspaceIdentity(userInfo?.user).ownerId;
       }
 
@@ -2396,14 +2428,75 @@ function DrawioPageContent() {
           <Icons.Sparkles className="h-5 w-5" />
         </button>
         <div className="flex-1" />
-        <button
-          type="button"
-          onClick={() => { window.location.href = '/login'; }}
-          className="grid h-9 w-9 place-items-center rounded-lg text-zinc-500 transition hover:bg-white hover:text-zinc-800 hover:shadow-sm"
-          title="Account"
+        <div
+          ref={accountPopoverRef}
+          className="relative"
         >
-          <Icons.User className="h-5 w-5" />
-        </button>
+          {/* Keep the avatar local to the canvas; click toggles account actions instead of navigating away. */}
+          <button
+            type="button"
+            onClick={() => setIsAccountPopoverOpen(prev => !prev)}
+            className="grid h-9 w-9 place-items-center rounded-lg text-zinc-500 transition hover:bg-white hover:text-zinc-800 hover:shadow-sm"
+            title="Account"
+            aria-haspopup="dialog"
+            aria-expanded={isAccountPopoverOpen}
+          >
+            <Icons.User className="h-5 w-5" />
+          </button>
+          {isAccountPopoverOpen && (
+            <div
+              role="dialog"
+              aria-label="Account details"
+              className="absolute bottom-0 left-11 z-50 w-64 overflow-hidden rounded-lg border border-stone-200 bg-white text-left text-zinc-700 shadow-2xl shadow-zinc-700/15"
+            >
+              <div className="border-b border-stone-100 p-3">
+                <div className="flex items-start gap-2">
+                  <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-zinc-700 text-white">
+                    <Icons.User className="h-4 w-4" />
+                  </span>
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-zinc-800">Account</p>
+                    <p className="truncate text-xs text-zinc-500">
+                      {accountDisplayName || (currentAccount?.authenticated ? 'Signed in' : 'Not signed in')}
+                    </p>
+                  </div>
+                </div>
+                <div className="mt-3 rounded-lg bg-stone-50 p-2 text-xs">
+                  <p className="font-medium text-emerald-700">{accountQuotaLabel}</p>
+                </div>
+              </div>
+              <div className="p-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsAccountPopoverOpen(false);
+                    setShowApiConfig(true);
+                  }}
+                  className="flex w-full items-center gap-2 rounded-md px-2 py-2 text-left transition hover:bg-stone-50"
+                >
+                  <Icons.Sparkles className="h-4 w-4 text-zinc-500" />
+                  <span className="min-w-0">
+                    <span className="block text-sm font-medium text-zinc-800">Settings</span>
+                    <span className="block truncate text-xs text-zinc-500">Models and API keys</span>
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { window.location.href = '/login'; }}
+                  className="flex w-full items-center gap-2 rounded-md px-2 py-2 text-left transition hover:bg-stone-50"
+                >
+                  <Icons.User className="h-4 w-4 text-zinc-500" />
+                  <span className="min-w-0">
+                    <span className="block text-sm font-medium text-zinc-800">Account</span>
+                    <span className="block truncate text-xs text-zinc-500">
+                      {currentAccount?.authenticated ? 'Manage sign-in' : 'Sign in or create account'}
+                    </span>
+                  </span>
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
       </aside>
 
       {isSidebarOpen && (

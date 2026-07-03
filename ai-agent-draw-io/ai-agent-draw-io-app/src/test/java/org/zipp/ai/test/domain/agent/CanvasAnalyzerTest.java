@@ -55,6 +55,63 @@ public class CanvasAnalyzerTest {
     }
 
     @Test
+    public void shouldSkipLayoutHeuristicsForFreeformIllustrations() {
+        DefaultCanvasAnalyzer analyzer = new DefaultCanvasAnalyzer();
+
+        // A cartoon face: unlabeled overlapping ellipses, one title text, one standalone curve.
+        CanvasAnalysis analysis = analyzer.analyze("""
+                <mxGraphModel><root><mxCell id='0'/><mxCell id='1' parent='0'/>
+                <mxCell id='title' value='Cute Dog' style='text;html=1;' vertex='1' parent='1'><mxGeometry x='200' y='10' width='120' height='30' as='geometry'/></mxCell>
+                <mxCell id='head' style='ellipse;fillColor=#C9A26B;' vertex='1' parent='1'><mxGeometry x='100' y='60' width='300' height='240' as='geometry'/></mxCell>
+                <mxCell id='earL' style='ellipse;fillColor=#7B4F28;' vertex='1' parent='1'><mxGeometry x='60' y='80' width='110' height='170' as='geometry'/></mxCell>
+                <mxCell id='earR' style='ellipse;fillColor=#7B4F28;' vertex='1' parent='1'><mxGeometry x='330' y='80' width='110' height='170' as='geometry'/></mxCell>
+                <mxCell id='eyeL' style='ellipse;fillColor=#FFFFFF;' vertex='1' parent='1'><mxGeometry x='170' y='130' width='50' height='50' as='geometry'/></mxCell>
+                <mxCell id='eyeR' style='ellipse;fillColor=#FFFFFF;' vertex='1' parent='1'><mxGeometry x='280' y='130' width='50' height='50' as='geometry'/></mxCell>
+                <mxCell id='tail' style='curved=1;endArrow=none;' edge='1' parent='1'><mxGeometry relative='1' as='geometry'><mxPoint x='430' y='250' as='sourcePoint'/><mxPoint x='520' y='180' as='targetPoint'/></mxGeometry></mxCell>
+                </root></mxGraphModel>
+                """, "unknown");
+
+        assertTrue(analysis.isValid());
+        assertTrue(analysis.getIssues().isEmpty());
+    }
+
+    @Test
+    public void shouldTreatLightlyAnnotatedSketchAsFreeformIllustration() {
+        DefaultCanvasAnalyzer analyzer = new DefaultCanvasAnalyzer();
+
+        // 2 of 5 overlapping shapes carry annotation labels (40%) and nothing is connected.
+        CanvasAnalysis analysis = analyzer.analyze("""
+                <mxGraphModel><root><mxCell id='0'/><mxCell id='1' parent='0'/>
+                <mxCell id='body' style='ellipse;' vertex='1' parent='1'><mxGeometry x='100' y='60' width='300' height='240' as='geometry'/></mxCell>
+                <mxCell id='earL' value='Ear' style='ellipse;' vertex='1' parent='1'><mxGeometry x='60' y='80' width='110' height='170' as='geometry'/></mxCell>
+                <mxCell id='earR' style='ellipse;' vertex='1' parent='1'><mxGeometry x='330' y='80' width='110' height='170' as='geometry'/></mxCell>
+                <mxCell id='eyeL' value='Eye' style='ellipse;' vertex='1' parent='1'><mxGeometry x='170' y='130' width='50' height='50' as='geometry'/></mxCell>
+                <mxCell id='eyeR' style='ellipse;' vertex='1' parent='1'><mxGeometry x='280' y='130' width='50' height='50' as='geometry'/></mxCell>
+                </root></mxGraphModel>
+                """, "unknown");
+
+        assertTrue(analysis.isValid());
+        assertTrue(analysis.getIssues().isEmpty());
+    }
+
+    @Test
+    public void shouldStillReportStructuralIssuesForFreeformIllustrations() {
+        DefaultCanvasAnalyzer analyzer = new DefaultCanvasAnalyzer();
+
+        CanvasAnalysis analysis = analyzer.analyze("""
+                <mxGraphModel><root><mxCell id='0'/><mxCell id='1' parent='0'/>
+                <mxCell id='head' style='ellipse;' vertex='1' parent='1'><mxGeometry x='100' y='60' width='300' height='240' as='geometry'/></mxCell>
+                <mxCell id='earL' style='ellipse;' vertex='1' parent='1'><mxGeometry x='60' y='80' width='110' height='170' as='geometry'/></mxCell>
+                <mxCell id='earR' style='ellipse;' vertex='1' parent='1'><mxGeometry x='330' y='80' width='110' height='170' as='geometry'/></mxCell>
+                <mxCell id='nose' style='ellipse;' vertex='1' parent='1'><mxGeometry x='230' y='200' width='0' height='0' as='geometry'/></mxCell>
+                </root></mxGraphModel>
+                """, "unknown");
+
+        assertFalse(analysis.isValid());
+        assertIssue(analysis.getIssues(), CanvasIssueType.MISSING_GEOMETRY, List.of("nose"));
+    }
+
+    @Test
     public void shouldDetectEdgeNodeCrossing() {
         DefaultCanvasAnalyzer analyzer = new DefaultCanvasAnalyzer();
 
