@@ -39,10 +39,11 @@ test('isAccountMenuTarget treats clicks inside the account menu controls as inte
   assert.equal(isAccountMenuTarget(target), true);
 });
 
-test('home account menu opens from hover on the account area', () => {
+test('home account menu opens from hover and stays reachable after leaving the trigger', () => {
   const pagePath = fileURLToPath(new URL('../src/app/page.tsx', import.meta.url));
   const pageSource = readFileSync(pagePath, 'utf8');
 
   assert.match(pageSource, /onMouseEnter=\{openAccountMenu\}/);
-  assert.match(pageSource, /onMouseLeave=\{closeAccountMenu\}/);
+  assert.match(pageSource, /document\.addEventListener\('pointerdown', closeMenuOnOutsidePointerDown\)/);
+  assert.doesNotMatch(pageSource, /onMouseLeave=\{closeAccountMenu\}/);
 });

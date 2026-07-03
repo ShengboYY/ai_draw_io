@@ -145,13 +145,9 @@ export default function Home() {
   };
 
   const openAccountMenu = () => {
-    // Hover opens the account menu; click still keeps touch devices usable.
+    // Keep closing on outside pointerdown so users can move from the trigger into the detached menu.
     setOpenMenuId(null);
     setIsAccountMenuOpen(true);
-  };
-
-  const closeAccountMenu = () => {
-    setIsAccountMenuOpen(false);
   };
 
   const logout = async () => {
@@ -243,7 +239,6 @@ export default function Home() {
               className="relative flex min-w-0 items-center gap-2"
               data-account-menu
               onMouseEnter={openAccountMenu}
-              onMouseLeave={closeAccountMenu}
             >
               {isSignedInWorkspace ? (
                 <>
