@@ -118,6 +118,12 @@ public class DefaultDiagramQualityInspector implements IDiagramQualityInspector 
             } else if (CanvasIssueType.PARALLEL_EDGE_OVERLAP == type) {
                 edgeIssues.add(issue("edges", "parallel_edge_overlap", "medium", analyzerIssue.getMessage(), firstTarget(analyzerIssue)));
                 mapped = true;
+            } else if (CanvasIssueType.NODE_SIDE_PORT_CROWDING == type) {
+                edgeIssues.add(issue("edges", "node_side_port_crowding", "medium", analyzerIssue.getMessage(), firstTarget(analyzerIssue)));
+                mapped = true;
+            } else if (CanvasIssueType.PORT_CORNER_PROXIMITY == type) {
+                edgeIssues.add(issue("edges", "port_corner_proximity", "medium", analyzerIssue.getMessage(), firstTarget(analyzerIssue)));
+                mapped = true;
             } else if (CanvasIssueType.DUP_ID == type) {
                 semanticHints.add(issue("structure", "dup_id", "high", analyzerIssue.getMessage(), firstTarget(analyzerIssue)));
                 mapped = true;

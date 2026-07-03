@@ -18,6 +18,10 @@ public interface ICanvasStateStore {
         return Optional.empty();
     }
 
+    default Optional<CanvasState> updateThumbnail(String userId, String diagramId, String thumbnailUrl) {
+        return Optional.empty();
+    }
+
     default boolean softDelete(String userId, String diagramId) {
         return false;
     }

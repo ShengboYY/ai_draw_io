@@ -10,6 +10,7 @@ public class DiagramSummaryResponseDTO {
     private String diagramId;
     private String title;
     private String diagramType;
+    private String thumbnailUrl;
     private Long version;
     private Date updatedAt;
 

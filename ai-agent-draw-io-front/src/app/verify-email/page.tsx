@@ -20,9 +20,9 @@ export default function VerifyEmail() {
 
 function VerifyEmailLoading() {
   return (
-    <main className="min-h-screen flex justify-center items-center p-7 theme-bg-gradient">
-      <section className="theme-card rounded-[16px] p-6 w-full max-w-[480px] flex flex-col gap-3">
-        <h1 className="m-0 text-xl font-bold text-[rgba(255,255,255,0.92)]">Verifying...</h1>
+    <main className="app-page theme-bg-gradient flex items-center justify-center p-6">
+      <section className="codex-card flex w-full max-w-[480px] flex-col gap-3 p-6">
+        <h1 className="m-0 text-xl font-semibold text-zinc-800">Verifying...</h1>
       </section>
     </main>
   );
@@ -79,36 +79,36 @@ function VerifyEmailContent() {
   };
 
   return (
-    <main className="min-h-screen flex justify-center items-center p-7 theme-bg-gradient">
-      <section className="theme-card rounded-[16px] p-6 w-full max-w-[480px] flex flex-col gap-3">
+    <main className="app-page theme-bg-gradient flex items-center justify-center p-6">
+      <section className="codex-card flex w-full max-w-[480px] flex-col gap-3 p-6">
         {phase === 'verifying' ? (
           <>
-            <h1 className="m-0 text-xl font-bold text-[rgba(255,255,255,0.92)]">Verifying…</h1>
-            <p className="m-0 text-sm text-[rgba(255,255,255,0.72)]">
+            <h1 className="m-0 text-xl font-semibold text-zinc-800">Verifying…</h1>
+            <p className="m-0 text-sm text-zinc-600">
               Hang tight while we check your verification link.
             </p>
           </>
         ) : (
           <>
             <h1
-              className={`m-0 text-xl font-bold ${
+              className={`m-0 text-xl font-semibold ${
                 display.variant === 'success'
-                  ? 'text-[#62f6c7]'
+                  ? 'text-emerald-700'
                   : display.variant === 'warning'
-                  ? 'text-[#ffb85a]'
-                  : 'text-[#ff5a7a]'
+                  ? 'text-amber-700'
+                  : 'text-rose-700'
               }`}
             >
               {display.title}
             </h1>
-            <p className="m-0 text-sm text-[rgba(255,255,255,0.72)] leading-[1.6]">
+            <p className="m-0 text-sm leading-6 text-zinc-600">
               {display.message}
             </p>
 
             {display.variant === 'success' && (
               <Link
                 href="/login"
-                className="theme-btn rounded-[12px] p-[10px_14px] font-bold text-sm text-center mt-2"
+                className="theme-btn mt-2 rounded-lg px-4 py-2.5 text-center text-sm font-semibold"
               >
                 Go to sign in
               </Link>
@@ -116,23 +116,23 @@ function VerifyEmailContent() {
 
             {display.canResend && (
               <div className="mt-2 flex flex-col gap-2">
-                <label className="text-xs text-[rgba(255,255,255,0.72)]">Resend verification email</label>
+                <label className="text-xs font-medium text-zinc-600">Resend verification email</label>
                 <input
                   type="email"
                   value={resendEmail}
                   onChange={(e) => setResendEmail(e.target.value)}
                   placeholder="you@example.com"
                   autoComplete="email"
-                  className="rounded-[12px] theme-input p-3 outline-none text-sm"
+                  className="theme-input rounded-lg p-3 text-sm"
                 />
                 <button
                   type="button"
                   onClick={handleResend}
-                  className="theme-btn-secondary rounded-[12px] p-[10px_14px] font-semibold text-sm"
+                  className="theme-btn-secondary rounded-lg px-4 py-2.5 text-sm font-semibold"
                 >
                   Send new link
                 </button>
-                {resendMsg && <p className="m-0 text-xs text-[rgba(255,255,255,0.72)]">{resendMsg}</p>}
+                {resendMsg && <p className="m-0 text-xs text-zinc-600">{resendMsg}</p>}
               </div>
             )}
           </>

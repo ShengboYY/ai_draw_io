@@ -27,6 +27,10 @@ public class DefaultCanvasAnalyzer implements ICanvasAnalyzer {
 
     private static final double OVERLAP_TOLERANCE = 8D;
     private static final double GEOMETRY_EPSILON = 0.0001D;
+    private static final double PORT_CROWDING_TRACK_TOLERANCE = 0.08D;
+    private static final double PORT_SAFE_MIN = 0.25D;
+    private static final double PORT_SAFE_MAX = 0.75D;
+    private static final double MIN_LABEL_LINE_OFFSET = 30D;
 
     @Override
     public CanvasAnalysis analyze(String mxGraphModelXml, String diagramType) {
@@ -178,7 +182,9 @@ public class DefaultCanvasAnalyzer implements ICanvasAnalyzer {
         detectNodeOverlaps(cells, issues);
         detectEdgeNodeCrossings(cells, issues);
         detectPortDirectionMismatches(cells, issues);
+        detectPortCornerProximity(cells, issues);
         detectParallelEdgeTrackOverlaps(cells, issues);
+        detectNodeSidePortCrowding(cells, issues);
         detectRemovableWaypoints(cells, issues);
         detectOpaqueTextBackgrounds(cells, issues);
         // Perceptual quality that is computable from geometry alone (no rendering needed).
@@ -234,6 +240,53 @@ public class DefaultCanvasAnalyzer implements ICanvasAnalyzer {
                         "auto_reroute"));
             }
         }
+    }
+
+    private void detectPortCornerProximity(List<CanvasCellData> cells, List<CanvasAnalysisIssue> issues) {
+        Map<String, CanvasCellData> cellsById = cells.stream()
+                .filter(cell -> StringUtils.isNotBlank(cell.getId()))
+                .collect(Collectors.toMap(CanvasCellData::getId, cell -> cell, (left, right) -> left));
+
+        for (CanvasCellData edge : cells) {
+            if (!"edge".equals(edge.getKind()) || StringUtils.isBlank(edge.getSource()) || StringUtils.isBlank(edge.getTarget())) {
+                continue;
+            }
+            CanvasCellData source = cellsById.get(edge.getSource());
+            CanvasCellData target = cellsById.get(edge.getTarget());
+            if (source == null || target == null) {
+                continue;
+            }
+            PortSet ports = readPorts(edge.getStyle());
+            if (!ports.complete()) {
+                continue;
+            }
+
+            addCornerProximityIssue(edge, source, ports.exitX(), ports.exitY(), issues);
+            addCornerProximityIssue(edge, target, ports.entryX(), ports.entryY(), issues);
+        }
+    }
+
+    private void addCornerProximityIssue(CanvasCellData edge,
+                                         CanvasCellData node,
+                                         Double xFraction,
+                                         Double yFraction,
+                                         List<CanvasAnalysisIssue> issues) {
+        if (!isRoundedNode(node)) {
+            return;
+        }
+        PortSide side = portSide(xFraction, yFraction);
+        if (side == null) {
+            return;
+        }
+        Double track = side.track(xFraction, yFraction);
+        if (track == null || (track >= PORT_SAFE_MIN && track <= PORT_SAFE_MAX)) {
+            return;
+        }
+        issues.add(issue(CanvasIssueType.PORT_CORNER_PROXIMITY, "geometry", "major",
+                List.of(edge.getId(), node.getId()),
+                "Edge " + edge.getId() + " attaches too close to a rounded corner of node " + node.getId()
+                        + "; move the side port into the safe middle band.",
+                "auto_reroute"));
     }
 
     private void detectParallelEdgeTrackOverlaps(List<CanvasCellData> cells, List<CanvasAnalysisIssue> issues) {
@@ -297,6 +350,100 @@ public class DefaultCanvasAnalyzer implements ICanvasAnalyzer {
         return horizontal ? (first.getY() + last.getY()) / 2D : (first.getX() + last.getX()) / 2D;
     }
 
+    private void detectNodeSidePortCrowding(List<CanvasCellData> cells, List<CanvasAnalysisIssue> issues) {
+        Map<String, CanvasCellData> nodesById = cells.stream()
+                .filter(cell -> "node".equals(cell.getKind()))
+                .filter(cell -> StringUtils.isNotBlank(cell.getId()))
+                .collect(Collectors.toMap(CanvasCellData::getId, cell -> cell, (left, right) -> left));
+        Map<String, List<EndpointPortBinding>> bindingsByNodeSide = new HashMap<>();
+
+        for (CanvasCellData edge : cells) {
+            if (!"edge".equals(edge.getKind()) || StringUtils.isBlank(edge.getSource()) || StringUtils.isBlank(edge.getTarget())) {
+                continue;
+            }
+            CanvasCellData source = nodesById.get(edge.getSource());
+            CanvasCellData target = nodesById.get(edge.getTarget());
+            if (source == null || target == null) {
+                continue;
+            }
+            PortSet ports = readPorts(edge.getStyle());
+            if (!ports.complete()) {
+                continue;
+            }
+
+            addEndpointPortBinding(bindingsByNodeSide, edge.getId(), source.getId(), ports.exitX(), ports.exitY());
+            addEndpointPortBinding(bindingsByNodeSide, edge.getId(), target.getId(), ports.entryX(), ports.entryY());
+        }
+
+        for (List<EndpointPortBinding> bindings : bindingsByNodeSide.values()) {
+            if (bindings.size() < 3) {
+                continue;
+            }
+            List<EndpointPortBinding> sorted = bindings.stream()
+                    .sorted(Comparator.comparingDouble(EndpointPortBinding::track)
+                            .thenComparing(EndpointPortBinding::edgeId))
+                    .toList();
+            List<String> crowdedEdgeIds = new ArrayList<>();
+            for (int i = 0; i + 1 < sorted.size(); i++) {
+                EndpointPortBinding left = sorted.get(i);
+                EndpointPortBinding right = sorted.get(i + 1);
+                if (Math.abs(left.track() - right.track()) <= PORT_CROWDING_TRACK_TOLERANCE) {
+                    addUnique(crowdedEdgeIds, left.edgeId());
+                    addUnique(crowdedEdgeIds, right.edgeId());
+                }
+            }
+            if (!crowdedEdgeIds.isEmpty()) {
+                EndpointPortBinding first = sorted.get(0);
+                issues.add(issue(CanvasIssueType.NODE_SIDE_PORT_CROWDING, "geometry", "major",
+                        crowdedEdgeIds,
+                        "Node " + first.nodeId() + " has multiple edges stacked on its "
+                                + first.side().label() + " port tracks; spread same-side connector ports.",
+                        "auto_reroute"));
+            }
+        }
+    }
+
+    private void addEndpointPortBinding(Map<String, List<EndpointPortBinding>> bindingsByNodeSide,
+                                        String edgeId,
+                                        String nodeId,
+                                        Double xFraction,
+                                        Double yFraction) {
+        PortSide side = portSide(xFraction, yFraction);
+        if (side == null) {
+            return;
+        }
+        Double track = side.track(xFraction, yFraction);
+        if (track == null) {
+            return;
+        }
+        // The track is the normalized position along a side; duplicate tracks stack arrowheads.
+        bindingsByNodeSide
+                .computeIfAbsent(nodeId + "::" + side.name(), ignored -> new ArrayList<>())
+                .add(new EndpointPortBinding(edgeId, nodeId, side, track));
+    }
+
+    private PortSide portSide(Double xFraction, Double yFraction) {
+        if (near(xFraction, 0D)) {
+            return PortSide.LEFT;
+        }
+        if (near(xFraction, 1D)) {
+            return PortSide.RIGHT;
+        }
+        if (near(yFraction, 0D)) {
+            return PortSide.TOP;
+        }
+        if (near(yFraction, 1D)) {
+            return PortSide.BOTTOM;
+        }
+        return null;
+    }
+
+    private void addUnique(List<String> values, String value) {
+        if (!values.contains(value)) {
+            values.add(value);
+        }
+    }
+
     private String unorderedEndpointKey(CanvasCellData edge) {
         String source = StringUtils.defaultString(edge.getSource());
         String target = StringUtils.defaultString(edge.getTarget());
@@ -345,6 +492,12 @@ public class DefaultCanvasAnalyzer implements ICanvasAnalyzer {
             List<CanvasPointData> route = reconstructRoute(edge, source, target);
             if (route == null || route.size() < 2) {
                 continue;
+            }
+            if (Math.abs(edge.getY()) < MIN_LABEL_LINE_OFFSET) {
+                issues.add(issue(CanvasIssueType.EDGE_LABEL_COLLISION, "readability", "minor",
+                        List.of(edge.getId()),
+                        "Label of edge " + edge.getId() + " sits too close to the edge line; move it above or below the line.",
+                        "auto_reroute"));
             }
             CanvasPointData mid = midpointByLength(route);
             double fontSize = fontSize(edge.getStyle());
@@ -1113,6 +1266,11 @@ public class DefaultCanvasAnalyzer implements ICanvasAnalyzer {
         return style.contains("umllifeline");
     }
 
+    private boolean isRoundedNode(CanvasCellData cell) {
+        String style = StringUtils.defaultString(cell.getStyle()).toLowerCase(Locale.ROOT);
+        return style.contains("rounded=1") || style.contains("arcsize=");
+    }
+
     private boolean hasOpaqueTextBackground(CanvasCellData cell) {
         String style = StringUtils.defaultString(cell.getStyle()).toLowerCase(Locale.ROOT);
         // Only a real fill / label background masks content; a white stroke or border does not.
@@ -1192,6 +1350,30 @@ public class DefaultCanvasAnalyzer implements ICanvasAnalyzer {
     private record PortSet(Double exitX, Double exitY, Double entryX, Double entryY) {
         private boolean complete() {
             return exitX != null && exitY != null && entryX != null && entryY != null;
+        }
+    }
+
+    private record EndpointPortBinding(String edgeId, String nodeId, PortSide side, double track) {
+    }
+
+    private enum PortSide {
+        LEFT("left"),
+        RIGHT("right"),
+        TOP("top"),
+        BOTTOM("bottom");
+
+        private final String label;
+
+        PortSide(String label) {
+            this.label = label;
+        }
+
+        private String label() {
+            return label;
+        }
+
+        private Double track(Double xFraction, Double yFraction) {
+            return this == LEFT || this == RIGHT ? yFraction : xFraction;
         }
     }
 

@@ -318,6 +318,53 @@ public class DrawioStreamResponseWriterTest {
     }
 
     @Test
+    public void shouldSkipCellReplayWhenEditingExistingCanvas() throws Exception {
+        DrawioStreamResponseWriter writer = new DrawioStreamResponseWriter(new DrawioToolCallRenderer());
+        CapturingEmitter emitter = new CapturingEmitter();
+        writer.setCurrentCanvas(emitter, """
+                <mxGraphModel><root><mxCell id='0'/><mxCell id='1' parent='0'/>
+                <mxCell id='2' value='API' vertex='1' parent='1'><mxGeometry x='100' y='100' width='120' height='60' as='geometry'/></mxCell>
+                </root></mxGraphModel>
+                """);
+
+        writer.processAndSendLine(emitter, "drawing", """
+                {"type":"modify_diagram","xml":"<mxGraphModel><root><mxCell id='0'/><mxCell id='1' parent='0'/><mxCell id='2' value='API v2' vertex='1' parent='1'><mxGeometry x='100' y='100' width='140' height='60' as='geometry'/></mxCell></root></mxGraphModel>"}
+                """);
+
+        String output = String.join("\n", emitter.sent);
+        assertFalse(output.contains("\"type\":\"drawio_preview\""));
+        assertFalse(output.contains("\"type\":\"drawio_node\""));
+        assertTrue(output.contains("\"type\":\"validation_result\""));
+        assertTrue(output.contains("\"type\":\"drawio_done\""));
+        assertTrue(output.contains("\"mode\":\"local\""));
+        assertTrue(output.contains("API v2"));
+    }
+
+    @Test
+    public void shouldAnimateFirstDrawButNotRepairPassesInTheSameStream() throws Exception {
+        DrawioStreamResponseWriter writer = new DrawioStreamResponseWriter(new DrawioToolCallRenderer());
+        CapturingEmitter emitter = new CapturingEmitter();
+
+        // First draw on a blank canvas keeps the cell-by-cell animation.
+        writer.processAndSendLine(emitter, "drawing", """
+                {"type":"create_diagram","xml":"<mxGraphModel><root><mxCell id='0'/><mxCell id='1' parent='0'/><mxCell id='2' value='A' vertex='1' parent='1'><mxGeometry x='100' y='100' width='120' height='60' as='geometry'/></mxCell><mxCell id='3' value='B' vertex='1' parent='1'><mxGeometry x='320' y='100' width='120' height='60' as='geometry'/></mxCell></root></mxGraphModel>"}
+                """);
+        String firstDraw = String.join("\n", emitter.sent);
+        assertEquals(2, countOccurrences(firstDraw, "\"type\":\"drawio_node\""));
+        assertEquals(1, countOccurrences(firstDraw, "\"type\":\"drawio_done\""));
+
+        // A repair pass must not replay cells over the finished canvas; it merges in place.
+        writer.processAndSendLine(emitter, "drawing", """
+                {"type":"optimize_diagram","xml":"<mxGraphModel><root><mxCell id='0'/><mxCell id='1' parent='0'/><mxCell id='2' value='A' vertex='1' parent='1'><mxGeometry x='100' y='100' width='120' height='60' as='geometry'/></mxCell><mxCell id='3' value='B' vertex='1' parent='1'><mxGeometry x='320' y='200' width='120' height='60' as='geometry'/></mxCell></root></mxGraphModel>"}
+                """);
+
+        String output = String.join("\n", emitter.sent);
+        assertEquals(2, countOccurrences(output, "\"type\":\"drawio_node\""));
+        assertEquals(2, countOccurrences(output, "\"type\":\"drawio_done\""));
+        assertEquals(1, countOccurrences(output, "\"mode\":\"local\""));
+    }
+
+    @Test
     public void shouldStopStreamAfterFatalValidationParseFailure() throws Exception {
         DrawioStreamResponseWriter writer = new DrawioStreamResponseWriter(new DrawioToolCallRenderer());
         CapturingEmitter emitter = new CapturingEmitter();

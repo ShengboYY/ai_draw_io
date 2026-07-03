@@ -22,5 +22,9 @@ public enum CanvasIssueType {
     /** An edge exits or enters from the side opposite to its visual flow. */
     PORT_DIRECTION_MISMATCH,
     /** Parallel or opposite edges share the same visual track and look stacked. */
-    PARALLEL_EDGE_OVERLAP
+    PARALLEL_EDGE_OVERLAP,
+    /** Multiple unrelated edges reuse the same port track on one node side. */
+    NODE_SIDE_PORT_CROWDING,
+    /** A side port sits too close to a rounded node corner for a clean arrow head. */
+    PORT_CORNER_PROXIMITY
 }

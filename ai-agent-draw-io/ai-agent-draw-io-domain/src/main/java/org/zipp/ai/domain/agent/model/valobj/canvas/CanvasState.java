@@ -13,6 +13,7 @@ public class CanvasState {
     private String diagramId;
     private String title;
     private String diagramType;
+    private String thumbnailUrl;
     private String currentXml;
     private String summary;
     private String analysisJson;

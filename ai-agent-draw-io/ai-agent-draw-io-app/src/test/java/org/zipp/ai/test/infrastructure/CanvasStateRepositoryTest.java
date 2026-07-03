@@ -146,6 +146,7 @@ public class CanvasStateRepositoryTest {
         assertEquals("diagram-1", diagrams.get(0).getDiagramId());
         assertEquals("Checkout Flow", diagrams.get(0).getTitle());
         assertEquals(Long.valueOf(4L), diagrams.get(0).getVersion());
+        assertEquals("data:image/png;base64,diagram1", diagrams.get(0).getThumbnailUrl());
     }
 
     @Test
@@ -183,6 +184,23 @@ public class CanvasStateRepositoryTest {
         repository.rename("alice", "diagram-1", " ");
 
         assertEquals("Untitled Diagram", mapper.renamedTitle);
+    }
+
+    @Test
+    public void shouldUpdateDiagramThumbnailUrl() throws Exception {
+        CanvasStateRepository repository = new CanvasStateRepository();
+        FakeCanvasStateMapper mapper = new FakeCanvasStateMapper();
+        injectMapper(repository, mapper);
+
+        CanvasState updated = repository.updateThumbnail(
+                "alice",
+                "diagram-1",
+                "data:image/png;base64,thumb").orElseThrow();
+
+        assertEquals("alice", mapper.thumbnailUserId);
+        assertEquals("diagram-1", mapper.thumbnailDiagramId);
+        assertEquals("data:image/png;base64,thumb", mapper.thumbnailUrl);
+        assertEquals("data:image/png;base64,thumb", updated.getThumbnailUrl());
     }
 
     @Test
@@ -291,6 +309,9 @@ public class CanvasStateRepositoryTest {
         private String renamedUserId;
         private String renamedDiagramId;
         private String renamedTitle;
+        private String thumbnailUserId;
+        private String thumbnailDiagramId;
+        private String thumbnailUrl;
         private String deletedUserId;
         private String deletedDiagramId;
         private boolean deleteCalled;
@@ -320,6 +341,7 @@ public class CanvasStateRepositoryTest {
             po.setSummary("persisted");
             po.setAnalysisJson("{\"valid\":true}");
             po.setVersion(4L);
+            po.setThumbnailUrl(thumbnailUrl == null ? "data:image/png;base64,diagram1" : thumbnailUrl);
             return po;
         }
 
@@ -334,6 +356,7 @@ public class CanvasStateRepositoryTest {
             first.setTitle("Checkout Flow");
             first.setDiagramType("architecture");
             first.setVersion(4L);
+            first.setThumbnailUrl("data:image/png;base64,diagram1");
 
             CanvasStatePO second = new CanvasStatePO();
             second.setUserId(userId);
@@ -375,6 +398,14 @@ public class CanvasStateRepositoryTest {
             this.renamedUserId = userId;
             this.renamedDiagramId = diagramId;
             this.renamedTitle = title;
+            return 1;
+        }
+
+        @Override
+        public int updateDiagramThumbnail(String userId, String diagramId, String thumbnailUrl) {
+            this.thumbnailUserId = userId;
+            this.thumbnailDiagramId = diagramId;
+            this.thumbnailUrl = thumbnailUrl;
             return 1;
         }
 

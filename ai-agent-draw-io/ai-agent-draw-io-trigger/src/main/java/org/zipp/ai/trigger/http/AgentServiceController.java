@@ -26,6 +26,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseBodyEmitter;
 
 import javax.annotation.Resource;
+import java.util.Base64;
 import java.util.List;
 import java.util.Locale;
 import java.util.regex.Pattern;
@@ -38,6 +39,9 @@ public class AgentServiceController implements IAgentService {
 
     private static final Pattern ANONYMOUS_WORKSPACE_ID = Pattern.compile(
             "^anon_[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$");
+    private static final String PNG_DATA_URL_PREFIX = "data:image/png;base64,";
+    private static final int MAX_THUMBNAIL_BYTES = 512 * 1024;
+    private static final int MAX_THUMBNAIL_DATA_URL_LENGTH = 750 * 1024;
 
     @Resource
     private IChatService chatService;
@@ -214,6 +218,34 @@ public class AgentServiceController implements IAgentService {
                     .build();
         } catch (Exception e) {
             log.error("重命名图失败 userId:{} diagramId:{}", CurrentOwnerHttpResolver.mask(workspaceId), diagramId, e);
+            return Response.<DiagramSummaryResponseDTO>builder()
+                    .code(ResponseCode.UN_ERROR.getCode())
+                    .info(ResponseCode.UN_ERROR.getInfo())
+                    .build();
+        }
+    }
+
+    @RequestMapping(value = "diagrams/{diagramId}/thumbnail", method = RequestMethod.PATCH)
+    @Override
+    public Response<DiagramSummaryResponseDTO> updateDiagramThumbnail(
+            @PathVariable("diagramId") String diagramId,
+            @RequestBody UpdateDiagramThumbnailRequestDTO requestDTO) {
+        String workspaceId = resolveOwnerId(requestDTO == null ? null : requestDTO.getUserId());
+        String thumbnailDataUrl = normalizeThumbnailDataUrl(requestDTO == null ? null : requestDTO.getThumbnailDataUrl());
+        if (StringUtils.isBlank(workspaceId) || StringUtils.isBlank(diagramId) || thumbnailDataUrl == null) {
+            return illegalWorkspaceResponse();
+        }
+        try {
+            DiagramSummaryResponseDTO diagram = canvasStateStore.updateThumbnail(workspaceId, diagramId, thumbnailDataUrl)
+                    .map(this::toDiagramSummary)
+                    .orElse(null);
+            return Response.<DiagramSummaryResponseDTO>builder()
+                    .code(ResponseCode.SUCCESS.getCode())
+                    .info(ResponseCode.SUCCESS.getInfo())
+                    .data(diagram)
+                    .build();
+        } catch (Exception e) {
+            log.error("保存图缩略图失败 userId:{} diagramId:{}", CurrentOwnerHttpResolver.mask(workspaceId), diagramId, e);
             return Response.<DiagramSummaryResponseDTO>builder()
                     .code(ResponseCode.UN_ERROR.getCode())
                     .info(ResponseCode.UN_ERROR.getInfo())
@@ -416,6 +448,7 @@ public class AgentServiceController implements IAgentService {
         dto.setDiagramId(state.getDiagramId());
         dto.setTitle(state.getTitle());
         dto.setDiagramType(state.getDiagramType());
+        dto.setThumbnailUrl(state.getThumbnailUrl());
         dto.setVersion(state.getVersion());
         dto.setUpdatedAt(state.getUpdatedAt());
         return dto;
@@ -427,6 +460,7 @@ public class AgentServiceController implements IAgentService {
         dto.setUserId(state.getUserId());
         dto.setTitle(state.getTitle());
         dto.setDiagramType(state.getDiagramType());
+        dto.setThumbnailUrl(state.getThumbnailUrl());
         dto.setCurrentXml(state.getCurrentXml());
         dto.setSummary(state.getSummary());
         dto.setVersion(state.getVersion());
@@ -502,6 +536,38 @@ public class AgentServiceController implements IAgentService {
         String normalized = workspaceId.trim().toLowerCase(Locale.ROOT);
         // Import moves data between owners; only browser-generated anonymous workspace ids are accepted.
         return ANONYMOUS_WORKSPACE_ID.matcher(normalized).matches() ? normalized : null;
+    }
+
+    private String normalizeThumbnailDataUrl(String value) {
+        if (StringUtils.isBlank(value)) {
+            return null;
+        }
+        String trimmed = value.trim();
+        if (trimmed.length() > MAX_THUMBNAIL_DATA_URL_LENGTH || !trimmed.startsWith(PNG_DATA_URL_PREFIX)) {
+            return null;
+        }
+        try {
+            byte[] bytes = Base64.getDecoder().decode(trimmed.substring(PNG_DATA_URL_PREFIX.length()));
+            if (bytes.length == 0 || bytes.length > MAX_THUMBNAIL_BYTES || !hasPngSignature(bytes)) {
+                return null;
+            }
+            return trimmed;
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
+    }
+
+    private boolean hasPngSignature(byte[] bytes) {
+        byte[] signature = new byte[] {(byte) 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A};
+        if (bytes.length < signature.length) {
+            return false;
+        }
+        for (int index = 0; index < signature.length; index++) {
+            if (bytes[index] != signature[index]) {
+                return false;
+            }
+        }
+        return true;
     }
 
     private CurrentOwnerHttpResolver ownerHttpResolver() {

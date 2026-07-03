@@ -27,3 +27,22 @@ test('buildRestoredDiagramState falls back to a readable title', () => {
 
   assert.equal(restored.title, 'Restored Diagram');
 });
+
+test('buildRestoredDiagramState extracts xml from legacy restore payloads', () => {
+  const xml = '<mxGraphModel><root><mxCell id="0"/></root></mxGraphModel>';
+
+  assert.equal(
+    buildRestoredDiagramState({
+      diagramId: 'diagram-object',
+      currentXml: { xml },
+    }).drawIoXml,
+    xml
+  );
+  assert.equal(
+    buildRestoredDiagramState({
+      diagramId: 'diagram-json',
+      currentXml: JSON.stringify({ xml }),
+    }).drawIoXml,
+    xml
+  );
+});

@@ -37,10 +37,10 @@ export default function ResetPasswordRequest() {
 
   if (phase === 'submitted') {
     return (
-      <main className="min-h-screen flex justify-center items-center p-7 theme-bg-gradient">
-        <section className="theme-card rounded-[16px] p-6 w-full max-w-[480px] flex flex-col gap-3">
-          <h1 className="m-0 text-xl font-bold text-[rgba(255,255,255,0.92)]">Check your email</h1>
-          <p className="m-0 text-sm text-[rgba(255,255,255,0.72)] leading-[1.6]">
+      <main className="app-page theme-bg-gradient flex items-center justify-center p-6">
+        <section className="codex-card flex w-full max-w-[480px] flex-col gap-3 p-6">
+          <h1 className="m-0 text-xl font-semibold text-zinc-800">Check your email</h1>
+          <p className="m-0 text-sm leading-6 text-zinc-600">
             If an active account exists for <b>{email}</b>, a password-reset link has been sent.
             It expires in 30 minutes.
           </p>
@@ -48,11 +48,11 @@ export default function ResetPasswordRequest() {
             <button
               type="button"
               onClick={() => setPhase('idle')}
-              className="theme-btn-secondary rounded-[12px] p-[10px_14px] font-semibold text-sm"
+              className="theme-btn-secondary rounded-lg px-4 py-2.5 text-sm font-semibold"
             >
               Send another
             </button>
-            <Link href="/login" className="text-sm text-[rgba(255,255,255,0.72)] self-center underline">
+            <Link href="/login" className="codex-link self-center text-sm">
               Back to login
             </Link>
           </div>
@@ -62,41 +62,41 @@ export default function ResetPasswordRequest() {
   }
 
   return (
-    <main className="min-h-screen flex justify-center items-center p-7 theme-bg-gradient">
-      <section className="theme-card rounded-[16px] p-6 w-full max-w-[480px] flex flex-col gap-3">
-        <h1 className="m-0 text-xl font-bold text-[rgba(255,255,255,0.92)]">Reset your password</h1>
-        <p className="m-0 text-xs text-[rgba(255,255,255,0.56)]">
+    <main className="app-page theme-bg-gradient flex items-center justify-center p-6">
+      <section className="codex-card flex w-full max-w-[480px] flex-col gap-3 p-6">
+        <h1 className="m-0 text-xl font-semibold text-zinc-800">Reset your password</h1>
+        <p className="m-0 text-xs text-zinc-500">
           Enter your verified account email and we&apos;ll send a reset link.
         </p>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-3 mt-2">
-          <label className="flex flex-col gap-2 text-xs text-[rgba(255,255,255,0.72)]">
+          <label className="flex flex-col gap-2 text-xs font-medium text-zinc-600">
             Email
             <input
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               autoComplete="email"
-              className="rounded-[12px] theme-input p-3 outline-none text-sm"
+              className="theme-input rounded-lg p-3 text-sm font-normal"
             />
-            {errors.email && <span className="text-[#ff5a7a] text-xs">{errors.email}</span>}
+            {errors.email && <span className="text-xs font-normal text-rose-700">{errors.email}</span>}
           </label>
 
           <button
             type="submit"
             disabled={phase === 'submitting'}
-            className="theme-btn rounded-[12px] p-[11px_14px] font-bold text-sm disabled:opacity-60 mt-2"
+            className="theme-btn mt-2 rounded-lg px-4 py-2.5 text-sm font-semibold disabled:opacity-60"
           >
             {phase === 'submitting' ? 'Sending...' : 'Send reset link'}
           </button>
 
           {serverError && (
-            <p className="m-0 text-xs text-[#ff5a7a]">{serverError}</p>
+            <p className="m-0 text-xs text-rose-700">{serverError}</p>
           )}
 
-          <div className="text-xs text-[rgba(255,255,255,0.56)] mt-2">
+          <div className="mt-2 text-xs text-zinc-500">
             Remembered your password?{' '}
-            <Link href="/login" className="underline text-[rgba(255,255,255,0.72)]">Sign in</Link>
+            <Link href="/login" className="codex-link">Sign in</Link>
           </div>
         </form>
       </section>

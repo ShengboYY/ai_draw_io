@@ -157,6 +157,23 @@ public class DrawioToolCallRendererTest {
     }
 
     @Test
+    public void shouldTagOptimizeDiagramResultForInPlaceMerge() {
+        DrawioToolCallRenderer renderer = new DrawioToolCallRenderer();
+        JSONObject toolCall = JSON.parseObject("""
+                {
+                  "type": "optimize_diagram",
+                  "xml": "<mxGraphModel><root><mxCell id='0'/><mxCell id='1' parent='0'/><mxCell id='2' value='A' vertex='1' parent='1'><mxGeometry x='100' y='100' width='120' height='60' as='geometry'/></mxCell></root></mxGraphModel>"
+                }
+                """);
+
+        List<JSONObject> chunks = renderer.render(toolCall);
+
+        JSONObject done = chunks.get(chunks.size() - 1);
+        assertEquals("drawio_done", done.getString("type"));
+        assertEquals("local", done.getString("mode"));
+    }
+
+    @Test
     public void shouldIgnoreUnsupportedToolType() {
         DrawioToolCallRenderer renderer = new DrawioToolCallRenderer();
         JSONObject toolCall = JSON.parseObject("""

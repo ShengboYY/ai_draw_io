@@ -3,7 +3,7 @@
 import { DrawIoEmbed, DrawIoEmbedRef } from 'react-drawio';
 import { Suspense, useRef, useState, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { getUserInfo } from '@/utils/cookie';
+import { getUserInfo, setUserInfo as persistUserInfo } from '@/utils/cookie';
 import { getWorkspaceIdentity } from '@/utils/workspace-identity';
 import { agentApi, StreamEvent } from '@/api/agent';
 import type { CurrentAccountResponseDTO, ModelCredentialResponseDTO } from '@/types/api';
@@ -14,6 +14,7 @@ import {
   buildStreamingPreviewXml,
   isValidDrawioCellXml,
   normalizeDrawioLegendSwatches,
+  planFinalDiagramDelivery,
 } from './streaming-preview';
 import { buildDrawioChatRequestPayload } from './chat-request-payload';
 import {
@@ -22,7 +23,7 @@ import {
   mergeCanvasStateMetadata,
 } from './canvas-state-metadata';
 import { buildCanvasStateConflictMessage } from './canvas-state-conflict';
-import { buildRestoredDiagramState } from './diagram-restore';
+import { buildRestoredDiagramState, normalizeRestoredDrawioXml } from './diagram-restore';
 import { buildDiagramTitleFromPrompt } from './diagram-title';
 import { buildRestoredConversationMessages } from './conversation-restore';
 import {
@@ -46,6 +47,12 @@ import {
   shouldShowAgentProgressCard,
   shouldShowAgentTyping,
 } from './agent-run-presentation';
+import {
+  buildThumbnailExportRequest,
+  isThumbnailExportResult,
+  planThumbnailExport,
+  shouldPersistThumbnail,
+} from './thumbnail-export';
 
 // Message type definition
 type MessageStep = {
@@ -335,12 +342,13 @@ const getCanvasSummary = (xml?: string | null) => {
 
 const chooseUsableCanvasXml = (
   exportedPayload: { data?: string; xml?: string } | null,
-  storedXml?: string | null
+  storedXml?: unknown
 ) => {
   const exportedXml = extractDrawioXml(exportedPayload);
+  const storedDrawioXml = normalizeRestoredDrawioXml(storedXml);
   if (hasDrawableCells(exportedXml)) return normalizeDrawioLegendSwatches(exportedXml);
-  if (hasDrawableCells(storedXml)) return normalizeDrawioLegendSwatches(storedXml || EMPTY_DRAWIO_XML);
-  return normalizeDrawioLegendSwatches(exportedXml || storedXml || EMPTY_DRAWIO_XML);
+  if (hasDrawableCells(storedDrawioXml)) return normalizeDrawioLegendSwatches(storedDrawioXml || EMPTY_DRAWIO_XML);
+  return normalizeDrawioLegendSwatches(exportedXml || storedDrawioXml || EMPTY_DRAWIO_XML);
 };
 
 const buildStructuredCanvasContext = (xml: string): StructuredCanvasContext => {
@@ -448,25 +456,25 @@ const AgentProgressMessage = ({
   const summary = buildAgentProgressSummary(view, isRunning);
 
   return (
-    <div className="w-full rounded-2xl rounded-tl-sm border border-slate-200 bg-white px-3.5 py-3 text-sm leading-relaxed text-slate-700 shadow-sm">
+    <div className="w-full rounded-lg border border-stone-200 bg-white px-3.5 py-3 text-sm leading-relaxed text-zinc-700 shadow-sm">
       <p className="m-0">{summary}</p>
 
       {view.finalContent && (
-        <div className="mt-2 prose prose-sm prose-slate max-w-none prose-p:my-1.5 prose-ol:my-2 prose-ul:my-2 prose-li:my-1">
+        <div className="mt-2 prose prose-sm prose-zinc max-w-none prose-p:my-1.5 prose-ol:my-2 prose-ul:my-2 prose-li:my-1">
           <ReactMarkdown remarkPlugins={[remarkGfm]}>{view.finalContent}</ReactMarkdown>
         </div>
       )}
 
       {view.visibleEvents.length > 0 && (
-        <details className="group/details mt-3 border-t border-slate-100 pt-2">
-          <summary className="inline-flex cursor-pointer items-center gap-1.5 text-xs font-medium text-slate-500 transition-colors hover:text-slate-700">
-            <Icons.Sparkles className="h-3.5 w-3.5 text-indigo-400" />
+        <details className="group/details mt-3 border-t border-stone-100 pt-2">
+          <summary className="inline-flex cursor-pointer items-center gap-1.5 text-xs font-medium text-zinc-500 transition-colors hover:text-zinc-700">
+            <Icons.Sparkles className="h-3.5 w-3.5 text-zinc-500" />
             <span className="group-open/details:hidden">View tool and validation details</span>
             <span className="hidden group-open/details:inline">Hide tool and validation details</span>
           </summary>
-          <div className="mt-2 space-y-2 rounded-xl bg-slate-50/70 p-3 text-xs text-slate-600">
+          <div className="mt-2 space-y-2 rounded-lg bg-stone-50 p-3 text-xs text-zinc-600">
             <div>
-              <span className="font-medium text-slate-700">Actions:</span> {view.toolLabel}
+              <span className="font-medium text-zinc-700">Actions:</span> {view.toolLabel}
             </div>
             {view.visibleEvents.map(event => (
               <div key={event.id} className="flex gap-2">
@@ -475,11 +483,11 @@ const AgentProgressMessage = ({
                 </span>
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-1.5">
-                    <span className="font-medium text-slate-700">{event.title}</span>
+                    <span className="font-medium text-zinc-700">{event.title}</span>
                     <span className={eventTextClasses[event.status]}>{event.statusLabel}</span>
                   </div>
                   {event.detail && (
-                    <div className="mt-0.5 break-words text-slate-500">{summarizeEventDetail(event.detail)}</div>
+                    <div className="mt-0.5 break-words text-zinc-500">{summarizeEventDetail(event.detail)}</div>
                   )}
                 </div>
               </div>
@@ -493,7 +501,7 @@ const AgentProgressMessage = ({
 
 export default function Home() {
   return (
-    <Suspense fallback={<main className="flex min-h-screen items-center justify-center bg-slate-50 text-sm text-slate-500">Loading...</main>}>
+    <Suspense fallback={<main className="flex min-h-screen items-center justify-center bg-[var(--app-bg)] text-sm text-zinc-500">Loading...</main>}>
       <DrawioPageContent />
     </Suspense>
   );
@@ -580,7 +588,7 @@ function DrawioPageContent() {
   const removeSkill = (name: string) => setSelectedSkills(prev => prev.filter(s => s !== name));
 
   // Sidebar State
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   // Stream State
   const [streamPhase, setStreamPhase] = useState<string>('');
@@ -588,9 +596,12 @@ function DrawioPageContent() {
   const streamAbortRef = useRef<AbortController | null>(null);
 
   // Context State
-  const [lastExportedData, setLastExportedData] = useState<{data: string, xml?: string, timestamp: number} | null>(null);
+  const [lastExportedData, setLastExportedData] = useState<{data: string, xml?: string, format?: string, timestamp: number} | null>(null);
   const isExportingForChatRef = useRef(false);
   const isAutosaveRef = useRef(false);
+  const isExportingThumbnailRef = useRef(false);
+  const pendingThumbnailDiagramIdRef = useRef('');
+  const pendingThumbnailExportRef = useRef<{ diagramId: string; xml: string } | null>(null);
   const pendingMessageRef = useRef('');
   const [isDrawIoReady, setIsDrawIoReady] = useState(false);
   const isDrawIoReadyRef = useRef(false);
@@ -600,6 +611,10 @@ function DrawioPageContent() {
   const pendingFinalDrawioXmlRef = useRef('');
   const [editorXml, setEditorXml] = useState(EMPTY_DRAWIO_XML);
   const [editorInstanceKey, setEditorInstanceKey] = useState(0);
+  const forceBlankEditorLoadRef = useRef(false);
+  const confirmingBlankEditorLoadRef = useRef(false);
+  const ignoreAutosaveForBlankEditorRef = useRef(false);
+  const blankEditorGuardTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Agent State
   const [selectedAgentId, setSelectedAgentId] = useState('');
@@ -750,6 +765,17 @@ function DrawioPageContent() {
     }
   };
 
+  const persistDiagramThumbnail = async (diagramId?: string, thumbnailDataUrl?: string) => {
+    const normalizedDiagramId = diagramId?.trim();
+    if (!currentUser || !normalizedDiagramId || !shouldPersistThumbnail({ diagramId: normalizedDiagramId, dataUrl: thumbnailDataUrl })) return;
+
+    try {
+      await agentApi.updateDiagramThumbnail(currentUser, normalizedDiagramId, thumbnailDataUrl || '');
+    } catch (e) {
+      console.warn('Failed to sync diagram thumbnail:', e);
+    }
+  };
+
   const clearStreamingPreviewQueue = () => {
     streamingPreviewQueueRef.current = [];
     pendingFinalDrawioXmlRef.current = '';
@@ -759,11 +785,12 @@ function DrawioPageContent() {
     }
   };
 
-  const replaceEditorXml = (xml?: string | null) => {
+  const replaceEditorXml = (xml?: unknown) => {
     clearStreamingPreviewQueue();
     isDrawIoReadyRef.current = false;
     setIsDrawIoReady(false);
-    setEditorXml(normalizeDrawioLegendSwatches(xml && xml.trim() ? xml : EMPTY_DRAWIO_XML));
+    const safeXml = normalizeRestoredDrawioXml(xml) || EMPTY_DRAWIO_XML;
+    setEditorXml(normalizeDrawioLegendSwatches(safeXml) || EMPTY_DRAWIO_XML);
     setEditorInstanceKey(prev => prev + 1);
   };
 
@@ -815,8 +842,20 @@ function DrawioPageContent() {
     const normalizedXml = normalizeDrawioLegendSwatches(xml);
     if (!normalizedXml) return;
 
-    pendingFinalDrawioXmlRef.current = normalizedXml;
-    queueStreamingPreviewXml(normalizedXml);
+    const deliveryPlan = planFinalDiagramDelivery({
+      finalXml: normalizedXml,
+      previewQueueLength: streamingPreviewQueueRef.current.length,
+      previewTimerActive: Boolean(streamingPreviewTimerRef.current),
+    });
+
+    pendingFinalDrawioXmlRef.current = deliveryPlan.pendingFinalXml;
+    if (deliveryPlan.replaceImmediately) {
+      replaceEditorXml(normalizedXml);
+      return;
+    }
+    if (deliveryPlan.scheduleDrain) {
+      scheduleStreamingPreviewDrain();
+    }
   };
 
   // Localized edits (rename/recolor/route) merge into the live iframe to keep zoom/scroll/selection
@@ -832,7 +871,94 @@ function DrawioPageContent() {
     }
     queueFinalDiagramXml(xml);
   };
+
+  const requestDiagramThumbnailExport = (diagramId: string) => {
+    if (!drawioRef.current) return;
+
+    pendingThumbnailDiagramIdRef.current = diagramId;
+    isExportingThumbnailRef.current = true;
+    try {
+      drawioRef.current.exportDiagram(buildThumbnailExportRequest());
+    } catch (e) {
+      isExportingThumbnailRef.current = false;
+      pendingThumbnailDiagramIdRef.current = '';
+      console.warn('Thumbnail export failed:', e);
+    }
+  };
+
+  const queueDiagramThumbnailExport = (diagramId?: string, xml?: unknown) => {
+    const normalizedDiagramId = diagramId?.trim();
+    const normalizedXml = normalizeRestoredDrawioXml(xml) || '';
+    const plan = planThumbnailExport({
+      diagramId: normalizedDiagramId,
+      hasDrawableContent: hasDrawableCells(normalizedXml),
+      editorReady: Boolean(drawioRef.current && isDrawIoReadyRef.current),
+    });
+
+    if (plan === 'skip') return;
+    if (plan === 'defer') {
+      pendingThumbnailExportRef.current = {
+        diagramId: normalizedDiagramId || '',
+        xml: normalizedXml,
+      };
+      return;
+    }
+
+    pendingThumbnailExportRef.current = null;
+    requestDiagramThumbnailExport(normalizedDiagramId || '');
+  };
+
+  const flushPendingThumbnailExport = () => {
+    const pending = pendingThumbnailExportRef.current;
+    if (!pending || !drawioRef.current || !isDrawIoReadyRef.current) return;
+
+    pendingThumbnailExportRef.current = null;
+    requestDiagramThumbnailExport(pending.diagramId);
+  };
   scheduleStreamingPreviewDrainRef.current = scheduleStreamingPreviewDrain;
+
+  const clearBlankEditorGuard = () => {
+    forceBlankEditorLoadRef.current = false;
+    confirmingBlankEditorLoadRef.current = false;
+    ignoreAutosaveForBlankEditorRef.current = false;
+    if (blankEditorGuardTimerRef.current) {
+      clearTimeout(blankEditorGuardTimerRef.current);
+      blankEditorGuardTimerRef.current = null;
+    }
+  };
+
+  const armBlankEditorGuard = () => {
+    forceBlankEditorLoadRef.current = true;
+    confirmingBlankEditorLoadRef.current = false;
+    ignoreAutosaveForBlankEditorRef.current = true;
+    if (blankEditorGuardTimerRef.current) {
+      clearTimeout(blankEditorGuardTimerRef.current);
+    }
+    // Fallback in case draw.io does not emit a second load event after the explicit blank load.
+    blankEditorGuardTimerRef.current = setTimeout(clearBlankEditorGuard, 2500);
+  };
+
+  const finishBlankEditorGuardSoon = () => {
+    if (blankEditorGuardTimerRef.current) {
+      clearTimeout(blankEditorGuardTimerRef.current);
+    }
+    blankEditorGuardTimerRef.current = setTimeout(clearBlankEditorGuard, 100);
+  };
+
+  const handleDrawioLoad = () => {
+    isDrawIoReadyRef.current = true;
+    setIsDrawIoReady(true);
+    if (forceBlankEditorLoadRef.current && drawioRef.current) {
+      forceBlankEditorLoadRef.current = false;
+      confirmingBlankEditorLoadRef.current = true;
+      drawioRef.current.load({ xml: EMPTY_DRAWIO_XML, autosave: true });
+      return;
+    }
+    if (confirmingBlankEditorLoadRef.current) {
+      finishBlankEditorGuardSoon();
+    }
+    flushPendingThumbnailExport();
+  };
 
   const clampChatWidth = (width: number) => {
     const availableWidth = typeof window === 'undefined'
@@ -864,6 +990,7 @@ function DrawioPageContent() {
 
   useEffect(() => () => {
     clearStreamingPreviewQueue();
+    clearBlankEditorGuard();
   }, []);
 
   useEffect(() => {
@@ -874,8 +1001,8 @@ function DrawioPageContent() {
     }
 
     const savedSidebarOpen = localStorage.getItem(SIDEBAR_OPEN_STORAGE_KEY);
-    if (savedSidebarOpen === 'false') {
-      setIsSidebarOpen(false);
+    if (savedSidebarOpen === 'true') {
+      setIsSidebarOpen(true);
     }
   }, []);
 
@@ -916,6 +1043,14 @@ function DrawioPageContent() {
 
   // Load sessions from localStorage
   useEffect(() => {
+    const shouldCreateFreshDiagram = new URLSearchParams(window.location.search).get('new') === '1';
+    if (shouldCreateFreshDiagram) {
+      // Homepage "New diagram" must bypass the cached local session that normal /drawio restores.
+      createNewSession(true);
+      window.history.replaceState(null, '', window.location.pathname);
+      return;
+    }
+
     const savedSessions = localStorage.getItem(DRAWIO_SESSIONS_STORAGE_KEY);
     if (savedSessions) {
       try {
@@ -967,6 +1102,8 @@ function DrawioPageContent() {
   }, [messages, currentSessionId, sessionId]);
 
   const createNewSession = (_isInitial = false, backendId = '') => {
+    pendingThumbnailExportRef.current = null;
+    armBlankEditorGuard();
     const localSessionId = Date.now().toString();
     const newSession: Session = {
       id: localSessionId,
@@ -984,6 +1121,7 @@ function DrawioPageContent() {
     };
 
     setSessions(prev => [newSession, ...prev]);
+    currentSessionRef.current = newSession.id;
     setCurrentSessionId(newSession.id);
     setMessages(newSession.messages);
     setSessionId(backendId);
@@ -1034,10 +1172,16 @@ function DrawioPageContent() {
           persistSessions(nextSessions);
           return nextSessions;
         });
+        pendingThumbnailExportRef.current = null;
+        clearBlankEditorGuard();
+        currentSessionRef.current = restoredSessionId;
         setCurrentSessionId(restoredSessionId);
         setMessages(restoredMessages);
         setSessionId(restoredSession.backendSessionId || '');
         replaceEditorXml(restored.drawIoXml || EMPTY_DRAWIO_XML);
+        if (!diagram.thumbnailUrl) {
+          queueDiagramThumbnailExport(restored.diagramId, restored.drawIoXml);
+        }
       })
       .catch(() => {
         if (!cancelled) {
@@ -1063,6 +1207,9 @@ function DrawioPageContent() {
   const loadSession = (targetSessionId: string) => {
     const session = sessions.find(s => s.id === targetSessionId);
     if (session) {
+	        pendingThumbnailExportRef.current = null;
+	        clearBlankEditorGuard();
+	        currentSessionRef.current = targetSessionId;
 	        setCurrentSessionId(targetSessionId);
 	        setMessages(session.messages);
 	        // Do not reuse old backend sessions when switching local conversations.
@@ -1185,49 +1332,75 @@ function DrawioPageContent() {
 
   // Resolve workspace owner and load agents.
   useEffect(() => {
-    const userInfo = getUserInfo();
-    const identity = getWorkspaceIdentity(userInfo?.user);
-    setCurrentUser(identity.ownerId);
-    void loadCurrentAccount(identity.ownerId);
+    let cancelled = false;
 
-    const savedSelected = localStorage.getItem('ai_agent_selected_model');
-    if (savedSelected) {
-      setSelectedCustomModelId(savedSelected);
-    }
-    void loadModelCredentials();
-    const savedMaxReviewIterationsRaw = localStorage.getItem(MAX_REVIEW_ITERATIONS_STORAGE_KEY);
-    if (savedMaxReviewIterationsRaw !== null && savedMaxReviewIterationsRaw !== '') {
-      const savedMaxReviewIterations = Number(savedMaxReviewIterationsRaw);
-      if (Number.isFinite(savedMaxReviewIterations)) {
-        setMaxReviewIterations(Math.min(Math.max(savedMaxReviewIterations, 0), 3));
-      }
-    }
+    const initializeWorkspace = async () => {
+      const userInfo = getUserInfo();
+      let ownerId = '';
 
-    // Load Agents
-    const loadAgents = async () => {
       try {
-        const res = await agentApi.queryAiAgentConfigList();
-        const agentList = res.data || [];
-        if (agentList.length > 0) {
-          // Draw.io page should always use the drawing agent.
+        const res = await agentApi.me();
+        const account = res.data;
+        if (account?.status === 'SUCCESS' && account.userId) {
+          // Spring session identity wins over browser-local anonymous workspace identity.
+          ownerId = account.userId;
+          if (account.email) persistUserInfo(account.email);
+        }
+      } catch {
+        // Anonymous local work still needs to open when the auth endpoint is unavailable in dev.
+      }
+
+      if (!ownerId) {
+        ownerId = getWorkspaceIdentity(userInfo?.user).ownerId;
+      }
+
+      if (cancelled) return;
+      setCurrentUser(ownerId);
+      void loadCurrentAccount(ownerId);
+
+      const savedSelected = localStorage.getItem('ai_agent_selected_model');
+      if (savedSelected) {
+        setSelectedCustomModelId(savedSelected);
+      }
+      void loadModelCredentials();
+      const savedMaxReviewIterationsRaw = localStorage.getItem(MAX_REVIEW_ITERATIONS_STORAGE_KEY);
+      if (savedMaxReviewIterationsRaw !== null && savedMaxReviewIterationsRaw !== '') {
+        const savedMaxReviewIterations = Number(savedMaxReviewIterationsRaw);
+        if (Number.isFinite(savedMaxReviewIterations)) {
+          setMaxReviewIterations(Math.min(Math.max(savedMaxReviewIterations, 0), 3));
+        }
+      }
+
+      // Load Agents
+      try {
+          const res = await agentApi.queryAiAgentConfigList();
+          if (cancelled) return;
+          const agentList = res.data || [];
+          if (agentList.length > 0) {
+            // Draw.io page should always use the drawing agent.
 	          const drawIoAgent = agentList.find(agent => agent.agentId === '300000')
 	            || agentList.find(agent => agent.agentName.toLowerCase().includes('draw'))
 	            || agentList[0];
 	          setSelectedAgentId(drawIoAgent.agentId);
 	          setSessionId('');
 	          localStorage.setItem('ai_agent_last_agent', drawIoAgent.agentId);
-	        }
-      } catch (error) {
-        console.error('Failed to load agents:', error);
-        setMessages(prev => [...prev, {
-          id: Date.now().toString(),
-          role: 'agent',
-          content: 'Failed to load the agent list. Please check whether the backend service is running.',
-          timestamp: Date.now()
-        }]);
-      }
+          }
+        } catch (error) {
+          if (cancelled) return;
+          console.error('Failed to load agents:', error);
+          setMessages(prev => [...prev, {
+            id: Date.now().toString(),
+            role: 'agent',
+            content: 'Failed to load the agent list. Please check whether the backend service is running.',
+            timestamp: Date.now()
+          }]);
+        }
     };
-    loadAgents();
+
+    void initializeWorkspace();
+    return () => {
+      cancelled = true;
+    };
   }, [loadCurrentAccount, loadModelCredentials]);
 
   const finalizeNewChat = async () => {
@@ -1375,6 +1548,10 @@ function DrawioPageContent() {
       let previewSkeletonXml = '';
       let accumulatedNodes: string[] = []; // To hold incrementally added nodes
       let accumulatedEdges: string[] = []; // To hold incrementally added edges
+      // Step-by-step canvas replay is only for drawing onto a blank canvas. When the canvas already
+      // shows content (editing an existing diagram, or a review/repair pass after the first draw),
+      // keep the last good diagram on screen and apply only the final drawio_done result.
+      let suppressPreviewReplay = hasDrawableCells(canvasContext.canvasXml);
       let plainTextFallbackContent = ''; // Collect non-JSON model text in case no structured chunk arrives.
       
       let accumulatedContent = '';
@@ -1652,7 +1829,11 @@ function DrawioPageContent() {
               });
               setStreamProgress('Loaded preview skeleton...');
               publishSteps();
-              loadStreamingPreview(previewSkeletonXml);
+              // A preview arriving after drawio_done opens a new draw pass; never replay it over
+              // the finished canvas.
+              if (!receivedDrawioDone && !suppressPreviewReplay) {
+                loadStreamingPreview(previewSkeletonXml);
+              }
               break;
             }
 
@@ -1661,6 +1842,8 @@ function DrawioPageContent() {
 
               if (receivedDrawioDone) {
                 // Each drawer pass streams a full canvas draft, so a new pass replaces the previous draft.
+                // The finished canvas stays on screen; the repair pass applies once at its drawio_done.
+                suppressPreviewReplay = true;
                 accumulatedNodes = [];
                 accumulatedEdges = [];
                 previewSkeletonXml = '';
@@ -1686,7 +1869,9 @@ function DrawioPageContent() {
                   });
                   setStreamProgress(`Added node #${nodeCount}: ${chunk.label}`);
                   publishSteps();
-                  loadStreamingPreview(buildStreamingPreviewXml(accumulatedNodes, accumulatedEdges, previewSkeletonXml));
+                  if (!suppressPreviewReplay) {
+                    loadStreamingPreview(buildStreamingPreviewXml(accumulatedNodes, accumulatedEdges, previewSkeletonXml));
+                  }
               } else {
                   break;
               }
@@ -1698,6 +1883,7 @@ function DrawioPageContent() {
               if (requestedMoreInfo) break;
 
               if (receivedDrawioDone) {
+                suppressPreviewReplay = true;
                 accumulatedNodes = [];
                 accumulatedEdges = [];
                 previewSkeletonXml = '';
@@ -1722,7 +1908,9 @@ function DrawioPageContent() {
                   });
                   setStreamProgress(`Added edge #${edgeCount}: ${chunk.label || chunk.source + '→' + chunk.target}`);
                   publishSteps();
-                  loadStreamingPreview(buildStreamingPreviewXml(accumulatedNodes, accumulatedEdges, previewSkeletonXml));
+                  if (!suppressPreviewReplay) {
+                    loadStreamingPreview(buildStreamingPreviewXml(accumulatedNodes, accumulatedEdges, previewSkeletonXml));
+                  }
               } else {
                   break;
               }
@@ -1770,6 +1958,7 @@ function DrawioPageContent() {
 	                  version: chunk.version,
 	                });
 	                persistedDiagramId = chunk.diagramId || persistedDiagramId;
+	                queueDiagramThumbnailExport(persistedDiagramId, finalXml);
 	                if (!diagramTitlePersisted) {
 	                  diagramTitlePersisted = true;
 	                  persistDiagramTitle(chunk.diagramId || diagramId, diagramTitle);
@@ -1810,6 +1999,7 @@ function DrawioPageContent() {
                   }
 
                   saveCurrentCanvasXml(finalXml);
+                  queueDiagramThumbnailExport(diagramId, finalXml);
               }
               
               break;
@@ -2108,6 +2298,15 @@ function DrawioPageContent() {
 
   useEffect(() => {
     if (!lastExportedData) return;
+
+    // Thumbnail export can overlap with xmlsvg exports; only a png result consumes this request.
+    if (isExportingThumbnailRef.current && isThumbnailExportResult(lastExportedData)) {
+        isExportingThumbnailRef.current = false;
+        const diagramId = pendingThumbnailDiagramIdRef.current;
+        pendingThumbnailDiagramIdRef.current = '';
+        persistDiagramThumbnail(diagramId, lastExportedData.data);
+        return;
+    }
     
     if (isExportingForChatRef.current) {
         isExportingForChatRef.current = false;
@@ -2124,8 +2323,10 @@ function DrawioPageContent() {
     if (isAutosaveRef.current) {
         isAutosaveRef.current = false;
         const storedXml = sessions.find(session => session.id === currentSessionId)?.drawIoXml;
+        const diagramId = sessions.find(session => session.id === currentSessionId)?.diagramId;
         const xml = chooseUsableCanvasXml(lastExportedData, storedXml);
         saveCurrentCanvasXml(xml);
+        queueDiagramThumbnailExport(diagramId, xml);
         return;
     }
 
@@ -2155,142 +2356,132 @@ function DrawioPageContent() {
   ];
 
   return (
-    <div className="flex h-screen w-full overflow-hidden bg-slate-50 text-slate-900 font-sans">
-      {/* Sessions Sidebar */}
-      <div
-        className={`
-          bg-white text-slate-600 flex flex-col border-r border-slate-100/60 shrink-0 z-30
-          transition-[width] duration-300 ease-[cubic-bezier(0.25,0.1,0.25,1)]
-          ${isSidebarOpen ? 'w-64' : 'w-14'}
-        `}
-      >
-          <div className={`h-14 bg-white border-b border-slate-100/60 flex items-center shrink-0 ${isSidebarOpen ? 'px-4 justify-between' : 'px-2 justify-center'}`}>
-            <button
-              onClick={() => setIsSidebarOpen(true)}
-              className={`flex items-center gap-3 rounded-lg transition-colors ${isSidebarOpen ? 'cursor-default' : 'hover:bg-indigo-50 p-1'}`}
-              title={isSidebarOpen ? 'ai + draw.io' : 'Expand sidebar'}
-            >
-              <div className="bg-indigo-600 p-1.5 rounded-lg shadow-sm shadow-indigo-200">
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                   <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
-                   <circle cx="8.5" cy="8.5" r="1.5"></circle>
-                   <polyline points="21 15 16 10 5 21"></polyline>
-                </svg>
-              </div>
-              {isSidebarOpen && <h1 className="text-lg font-bold text-slate-800 tracking-tight">ai + draw.io</h1>}
-            </button>
-            {isSidebarOpen && (
-              <button
-                onClick={() => setIsSidebarOpen(false)}
-                className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-md transition-all"
-                title="Collapse sidebar"
-              >
-                <Icons.ChevronLeft className="w-4 h-4" />
-              </button>
-            )}
-          </div>
-          {isSidebarOpen ? (
-            <>
-              <div className="h-14 px-4 flex items-center justify-between border-b border-slate-100 shrink-0">
-                 <span className="font-semibold text-slate-800 flex items-center gap-2">
-                    <Icons.MessageSquare className="w-4 h-4 text-indigo-600" />
-                    Diagram History
-                 </span>
-                 <button
-                    onClick={handleNewChat}
-                    className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-md transition-all"
-                    title="New Chat"
-                 >
-                    <Icons.Plus className="w-5 h-5" />
-                 </button>
-              </div>
-              <div className="flex-1 overflow-y-auto p-2 space-y-1 scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent">
-                 {[...sessions].sort((a, b) => b.lastModified - a.lastModified).map(session => (
-                    <div
-                      key={session.id}
-                      onClick={() => handleSwitchSession(session.id)}
-                      onDoubleClick={(e) => { e.stopPropagation(); handleDoubleClickSession(session); }}
-                      className={`
-                        group flex items-center gap-3 px-3 py-3 rounded-lg cursor-pointer transition-all border border-transparent
-                        ${currentSessionId === session.id
-                          ? 'bg-indigo-50 text-indigo-700 border-indigo-100 shadow-sm'
-                          : 'hover:bg-slate-50 text-slate-600 hover:text-slate-900'
-                        }
-                      `}
-                    >
-                      <div className="flex-1 min-w-0">
-                         <div className={`text-sm font-medium truncate ${currentSessionId === session.id ? 'text-indigo-700' : 'text-slate-700 group-hover:text-slate-900'}`}>
-                            {session.title}
-                         </div>
-                         <div className={`text-[10px] mt-0.5 ${currentSessionId === session.id ? 'text-indigo-400' : 'text-slate-400'}`}>
-                            {new Date(session.lastModified).toLocaleDateString()} {new Date(session.lastModified).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
-                         </div>
-                      </div>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          openRenameSession(session);
-                        }}
-                        className={`
-                          p-1.5 rounded-md transition-all opacity-0 group-hover:opacity-100
-                          ${currentSessionId === session.id
-                            ? 'hover:bg-indigo-100 text-indigo-400 hover:text-indigo-700'
-                            : 'hover:bg-slate-100 text-slate-400 hover:text-slate-600'
-                          }
-                        `}
-                        title="Rename"
-                      >
-                        <Icons.Edit className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={(e) => handleDeleteSession(e, session.id)}
-                        className={`
-                          p-1.5 rounded-md transition-all opacity-0 group-hover:opacity-100
-                          ${currentSessionId === session.id
-                            ? 'hover:bg-indigo-100 text-indigo-400 hover:text-indigo-700'
-                            : 'hover:bg-red-50 text-slate-400 hover:text-red-500'
-                          }
-                        `}
-                        title="Delete"
-                      >
-                        <Icons.Trash className="w-4 h-4" />
-                      </button>
-                    </div>
-                 ))}
-                 {sessions.length === 0 && (
-                    <div className="text-center py-10 text-xs text-slate-400">
-                        No history yet
-                    </div>
-                 )}
-              </div>
-            </>
-          ) : (
-            <div className="flex-1 flex flex-col items-center gap-2 py-3">
-              {/* Keep essential sidebar actions reachable while the full history list is hidden. */}
-              <button
-                onClick={() => setIsSidebarOpen(true)}
-                className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all"
-                title="Expand sidebar"
-              >
-                <Icons.ChevronRight className="w-5 h-5" />
-              </button>
+    <div className="relative flex h-screen w-full overflow-hidden bg-[var(--app-bg)] font-sans text-zinc-800">
+      {/* Narrow rail keeps workspace navigation available without crowding the canvas. */}
+      <aside className="z-30 flex w-14 shrink-0 flex-col items-center gap-2 border-r border-stone-200 bg-[var(--app-bg)] px-2 py-3 text-zinc-500">
+        <button
+          type="button"
+          onClick={() => { window.location.href = '/'; }}
+          className="grid h-9 w-9 place-items-center rounded-lg bg-zinc-700 text-xs font-bold text-white shadow-sm"
+          title="Diagram home"
+        >
+          AI
+        </button>
+        <button
+          type="button"
+          onClick={handleNewChat}
+          className="grid h-9 w-9 place-items-center rounded-lg text-zinc-500 transition hover:bg-white hover:text-zinc-800 hover:shadow-sm"
+          title="New diagram"
+        >
+          <Icons.Plus className="h-5 w-5" />
+        </button>
+        <button
+          type="button"
+          onClick={() => setIsSidebarOpen(prev => !prev)}
+          className={`grid h-9 w-9 place-items-center rounded-lg border transition ${
+            isSidebarOpen
+              ? 'border-stone-300 bg-white text-zinc-800 shadow-sm'
+              : 'border-transparent text-zinc-500 hover:bg-white hover:text-zinc-800 hover:shadow-sm'
+          }`}
+          title="Diagram history"
+        >
+          <Icons.MessageSquare className="h-5 w-5" />
+        </button>
+        <button
+          type="button"
+          onClick={() => setShowApiConfig(true)}
+          className="grid h-9 w-9 place-items-center rounded-lg text-zinc-500 transition hover:bg-white hover:text-zinc-800 hover:shadow-sm"
+          title="Model settings"
+        >
+          <Icons.Sparkles className="h-5 w-5" />
+        </button>
+        <div className="flex-1" />
+        <button
+          type="button"
+          onClick={() => { window.location.href = '/login'; }}
+          className="grid h-9 w-9 place-items-center rounded-lg text-zinc-500 transition hover:bg-white hover:text-zinc-800 hover:shadow-sm"
+          title="Account"
+        >
+          <Icons.User className="h-5 w-5" />
+        </button>
+      </aside>
+
+      {isSidebarOpen && (
+        <div className="absolute bottom-3 left-16 top-3 z-40 flex w-80 flex-col overflow-hidden rounded-lg border border-stone-200 bg-white shadow-2xl shadow-zinc-700/10">
+          <div className="flex h-12 shrink-0 items-center justify-between border-b border-stone-100 px-4">
+            <span className="flex items-center gap-2 text-sm font-semibold text-zinc-800">
+              <Icons.MessageSquare className="h-4 w-4 text-zinc-500" />
+              Diagram History
+            </span>
+            <div className="flex items-center gap-1">
               <button
                 onClick={handleNewChat}
-                className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all"
-                title="New Chat"
+                className="rounded-md p-1.5 text-zinc-500 transition hover:bg-stone-100 hover:text-zinc-800"
+                title="New diagram"
               >
-                <Icons.Plus className="w-5 h-5" />
+                <Icons.Plus className="h-4 w-4" />
               </button>
               <button
-                onClick={() => setIsSidebarOpen(true)}
-                className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all"
-                title="Diagram History"
+                onClick={() => setIsSidebarOpen(false)}
+                className="rounded-md p-1.5 text-zinc-500 transition hover:bg-stone-100 hover:text-zinc-800"
+                title="Close history"
               >
-                <Icons.MessageSquare className="w-5 h-5" />
+                <Icons.Close className="h-4 w-4" />
               </button>
             </div>
-          )}
+          </div>
+          <div className="flex-1 space-y-1 overflow-y-auto p-2">
+            {[...sessions].sort((a, b) => b.lastModified - a.lastModified).map(session => (
+              <div
+                key={session.id}
+                onClick={() => {
+                  handleSwitchSession(session.id);
+                  setIsSidebarOpen(false);
+                }}
+                onDoubleClick={(e) => { e.stopPropagation(); handleDoubleClickSession(session); }}
+                className={`
+                  group flex cursor-pointer items-center gap-3 rounded-lg border px-3 py-3 transition
+                  ${currentSessionId === session.id
+                    ? 'border-stone-300 bg-stone-50 text-zinc-800'
+                    : 'border-transparent text-zinc-600 hover:bg-stone-50 hover:text-zinc-800'
+                  }
+                `}
+              >
+                <div className="min-w-0 flex-1">
+                  <div className="truncate text-sm font-medium">
+                    {session.title}
+                  </div>
+                  <div className="mt-0.5 text-[10px] text-zinc-400">
+                    {new Date(session.lastModified).toLocaleDateString()} {new Date(session.lastModified).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                  </div>
+                </div>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    openRenameSession(session);
+                  }}
+                  className="rounded-md p-1.5 text-zinc-400 opacity-0 transition hover:bg-white hover:text-zinc-700 group-hover:opacity-100"
+                  title="Rename"
+                >
+                  <Icons.Edit className="h-4 w-4" />
+                </button>
+                <button
+                  onClick={(e) => handleDeleteSession(e, session.id)}
+                  className="rounded-md p-1.5 text-zinc-400 opacity-0 transition hover:bg-rose-50 hover:text-rose-600 group-hover:opacity-100"
+                  title="Delete"
+                >
+                  <Icons.Trash className="h-4 w-4" />
+                </button>
+              </div>
+            ))}
+            {sessions.length === 0 && (
+              <div className="py-10 text-center text-xs text-zinc-400">
+                No history yet
+              </div>
+            )}
+          </div>
         </div>
+      )}
 
       {/* Main Layout */}
       <div className="flex flex-1 min-w-0 h-full overflow-hidden relative">
@@ -2302,7 +2493,7 @@ function DrawioPageContent() {
         {!isChatOpen && (
           <button
             onClick={() => setIsChatOpen(true)}
-            className="absolute top-3 right-3 z-40 p-2 text-indigo-600 bg-white hover:bg-indigo-50 rounded-lg transition-colors border border-indigo-100 shadow-sm"
+            className="absolute right-3 top-3 z-40 rounded-lg border border-stone-200 bg-white p-2 text-zinc-700 shadow-sm transition-colors hover:bg-stone-50"
             title="Open Assistant"
           >
             <Icons.Chat />
@@ -2310,30 +2501,34 @@ function DrawioPageContent() {
         )}
 
         {/* Draw.io Canvas Area */}
-        <div className="flex-1 min-w-0 relative bg-slate-50 h-full flex flex-col">
-          <div className="flex-1 m-2 rounded-2xl overflow-hidden border border-slate-200 shadow-sm bg-white ring-1 ring-slate-100">
+        <div className="relative flex h-full min-w-0 flex-1 flex-col bg-[var(--app-bg)]">
+          <div className="m-2 flex-1 overflow-hidden rounded-lg border border-stone-200 bg-white shadow-sm">
             <DrawIoEmbed 
               key={editorInstanceKey}
               ref={drawioRef}
               xml={editorXml}
               autosave={true}
               onAutoSave={(data) => {
-                if (currentSessionId && isDrawIoReady && !isExportingForChatRef.current) {
+                if (ignoreAutosaveForBlankEditorRef.current) return;
+                if (currentSessionId && isDrawIoReady && !isExportingForChatRef.current && !isExportingThumbnailRef.current) {
+                   const diagramId = sessions.find(session => session.id === currentSessionId)?.diagramId;
                    // Prefer using the XML directly from the autosave event if available
                    if (data && typeof data === 'object' && 'xml' in data) {
                        const xmlContent = typeof data.xml === 'string' ? data.xml : '';
                        saveCurrentCanvasXml(xmlContent);
+                       queueDiagramThumbnailExport(diagramId, xmlContent);
                    } else {
                        // Fallback to export if no XML provided in event
                         isAutosaveRef.current = true;
                         drawioRef.current?.exportDiagram({ format: 'xmlsvg' });
-                    }
+                  }
                 }
               }}
-              onLoad={() => setIsDrawIoReady(true)}
-              onExport={(data) => setLastExportedData({ data: data.data, xml: data.xml, timestamp: Date.now() })}
+              onLoad={handleDrawioLoad}
+              onExport={(data) => setLastExportedData({ data: data.data, xml: data.xml, format: data.format, timestamp: Date.now() })}
               urlParameters={{
-                ui: 'atlas', // More modern UI theme for draw.io
+                // The minimal draw.io shell keeps the app chrome closer to the Codex-style workspace.
+                ui: 'min',
                 spin: true,
                 libraries: true,
                 saveAndExit: false,
@@ -2347,21 +2542,21 @@ function DrawioPageContent() {
         {isChatOpen && (
           <div
             onPointerDown={handleChatResizeStart}
-            className="group relative z-30 w-2 shrink-0 cursor-col-resize bg-slate-50 hover:bg-indigo-50 transition-colors"
+            className="group relative z-30 w-2 shrink-0 cursor-col-resize bg-[var(--app-bg)] transition-colors hover:bg-stone-100"
             title="Drag to resize the assistant panel"
           >
-            <div className="absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-slate-200 group-hover:bg-indigo-300 transition-colors" />
-            <div className="absolute top-1/2 left-1/2 h-10 w-1 -translate-x-1/2 -translate-y-1/2 rounded-full bg-slate-300 opacity-0 group-hover:opacity-100 transition-opacity" />
+            <div className="absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-stone-200 transition-colors group-hover:bg-stone-300" />
+            <div className="absolute left-1/2 top-1/2 h-10 w-1 -translate-x-1/2 -translate-y-1/2 rounded-full bg-stone-300 opacity-0 transition-opacity group-hover:opacity-100" />
           </div>
         )}
 
-        {/* Chat Sidebar - Modern & Elegant */}
+        {/* Chat Sidebar */}
         <div 
           className={`
-            relative border-l border-slate-100/60 bg-white flex flex-col ease-[cubic-bezier(0.25,0.1,0.25,1)]
+            relative flex flex-col border-l border-stone-200 bg-white ease-[cubic-bezier(0.25,0.1,0.25,1)]
             ${isResizingChat ? 'transition-none' : 'transition-all duration-300'}
             ${isChatOpen ? 'translate-x-0' : 'translate-x-full opacity-0 overflow-hidden'}
-            shadow-xl z-20
+            z-20 shadow-lg shadow-zinc-700/5
           `}
           style={{
             width: isChatOpen ? chatWidth : 0,
@@ -2372,14 +2567,14 @@ function DrawioPageContent() {
           {/* Keep only the collapse control; the title block is removed to give the chat more vertical space. */}
           <button 
             onClick={() => setIsChatOpen(false)}
-            className="absolute top-3 right-3 z-10 p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-md transition-all shrink-0"
+            className="absolute right-3 top-3 z-10 shrink-0 rounded-md p-1.5 text-zinc-400 transition-all hover:bg-stone-100 hover:text-zinc-700"
             title="Collapse assistant"
           >
             <Icons.Close className="w-5 h-5" />
           </button>
 
           {/* Messages Area */}
-          <div className="flex-1 overflow-y-auto p-5 pr-14 space-y-6 bg-slate-50/50 scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent">
+          <div className="flex-1 space-y-6 overflow-y-auto bg-[var(--app-bg)] p-5 pr-14 scrollbar-thin scrollbar-track-transparent scrollbar-thumb-stone-300">
             {messages.map((msg, index) => {
               const hasAgentRunEvents = msg.role === 'agent' && !!msg.events && msg.events.length > 0;
               const isLatestRunningAgent = index === messages.length - 1 && isSending;
@@ -2397,16 +2592,16 @@ function DrawioPageContent() {
                 >
                   <div className={`
                     shrink-0 w-8 h-8 rounded-full flex items-center justify-center shadow-sm mt-1 ring-2 ring-white
-                    ${msg.role === 'user' 
-                      ? 'bg-indigo-100 text-indigo-600' 
-                      : 'bg-white text-indigo-500 border border-slate-100'
+                    ${msg.role === 'user'
+                      ? 'bg-zinc-700 text-white'
+                      : 'border border-stone-200 bg-white text-zinc-600'
                     }
                   `}>
                     {msg.role === 'user' ? <Icons.User className="w-5 h-5" /> : <Icons.Bot className="w-5 h-5" />}
                   </div>
                   
                   <div className="flex flex-col max-w-[85%] w-full">
-                      <span className={`text-[10px] mb-1.5 font-medium ${msg.role === 'user' ? 'text-right text-slate-400' : 'text-left text-slate-400'}`}>
+                      <span className={`mb-1.5 text-[10px] font-medium ${msg.role === 'user' ? 'text-right text-zinc-400' : 'text-left text-zinc-400'}`}>
                           {msg.role === 'user' ? 'You' : 'Agent'}
                       </span>
                       
@@ -2419,28 +2614,28 @@ function DrawioPageContent() {
                         {msg.role === 'agent' && (visibleExecutionSteps.length > 0 || (isLatestRunningAgent && msg.reasoning)) && (
                           <div className="w-full max-w-full">
                             <details className="w-full group/details open:pb-2" open={index === messages.length - 1 && isSending}>
-                              <summary className="inline-flex items-center gap-2 cursor-pointer text-xs text-slate-500 hover:text-slate-700 font-medium select-none bg-white border border-slate-200 px-3 py-1.5 rounded-lg shadow-sm transition-all hover:border-slate-300">
-                                 <Icons.Sparkles className="w-3.5 h-3.5 text-indigo-400" />
+                              <summary className="inline-flex cursor-pointer select-none items-center gap-2 rounded-lg border border-stone-200 bg-white px-3 py-1.5 text-xs font-medium text-zinc-500 shadow-sm transition-all hover:border-stone-300 hover:text-zinc-700">
+                                 <Icons.Sparkles className="w-3.5 h-3.5 text-zinc-500" />
                                  <span className="group-open/details:hidden">Show execution steps</span>
                                  <span className="hidden group-open/details:inline">Hide execution steps</span>
                               </summary>
-                              <div className="mt-2 flex flex-col gap-2 p-3 bg-slate-50/50 border border-slate-200 rounded-xl shadow-sm text-sm text-slate-600 max-w-none overflow-x-auto">
+                              <div className="mt-2 flex max-w-none flex-col gap-2 overflow-x-auto rounded-lg border border-stone-200 bg-stone-50 p-3 text-sm text-zinc-600 shadow-sm">
                                  {visibleExecutionSteps.length > 0 ? (
                                    visibleExecutionSteps.map((step, idx) => (
-                                     <div key={idx} className="flex flex-col gap-1.5 p-2 bg-white rounded-lg border border-slate-100 shadow-sm">
-                                         <div className="flex items-center gap-2 font-medium text-slate-700">
-                                             <Icons.Loader className="w-3.5 h-3.5 text-indigo-500" />
+                                     <div key={idx} className="flex flex-col gap-1.5 rounded-lg border border-stone-100 bg-white p-2 shadow-sm">
+                                         <div className="flex items-center gap-2 font-medium text-zinc-700">
+                                             <Icons.Loader className="w-3.5 h-3.5 text-zinc-500" />
                                              <span>{step.label}</span>
                                          </div>
                                          {step.content && (
-                                             <div className="text-xs text-slate-500 pl-6 border-l-2 border-slate-100 ml-1.5 prose prose-sm prose-slate max-w-none prose-p:my-1 prose-pre:my-2 prose-pre:bg-slate-100 prose-pre:text-slate-700">
+                                             <div className="ml-1.5 border-l-2 border-stone-100 pl-6 text-xs text-zinc-500 prose prose-sm prose-zinc max-w-none prose-p:my-1 prose-pre:my-2 prose-pre:bg-stone-100 prose-pre:text-zinc-700">
                                                <ReactMarkdown remarkPlugins={[remarkGfm]}>{formatStepContent(step.content, step.phase)}</ReactMarkdown>
                                            </div>
                                          )}
                                      </div>
                                    ))
                                  ) : (
-                                   <div className="p-2 bg-white rounded-lg border border-slate-100 shadow-sm prose prose-sm prose-slate max-w-none prose-p:my-1 prose-pre:my-2 prose-pre:bg-slate-100 prose-pre:text-slate-700">
+                                   <div className="rounded-lg border border-stone-100 bg-white p-2 shadow-sm prose prose-sm prose-zinc max-w-none prose-p:my-1 prose-pre:my-2 prose-pre:bg-stone-100 prose-pre:text-zinc-700">
                                      <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.reasoning || ''}</ReactMarkdown>
                                    </div>
                                  )}
@@ -2454,9 +2649,9 @@ function DrawioPageContent() {
                           <div 
                             className={`
                                 p-3.5 text-sm leading-relaxed shadow-sm w-fit
-                                ${msg.role === 'user' 
-                                ? 'bg-indigo-600 text-white rounded-2xl rounded-tr-sm shadow-indigo-200 whitespace-pre-wrap' 
-                                : 'bg-white border border-slate-200 text-slate-700 rounded-2xl rounded-tl-sm shadow-sm prose prose-sm prose-slate max-w-none overflow-x-auto prose-p:my-1.5 prose-ol:my-2 prose-ul:my-2 prose-li:my-1 prose-pre:my-2 prose-pre:bg-slate-100 prose-pre:text-slate-700'
+                                ${msg.role === 'user'
+                                ? 'rounded-lg bg-zinc-700 text-white shadow-sm whitespace-pre-wrap'
+                                : 'rounded-lg border border-stone-200 bg-white text-zinc-700 shadow-sm prose prose-sm prose-zinc max-w-none overflow-x-auto prose-p:my-1.5 prose-ol:my-2 prose-ul:my-2 prose-li:my-1 prose-pre:my-2 prose-pre:bg-stone-100 prose-pre:text-zinc-700'
                                 }
                             `}
                           >
@@ -2477,10 +2672,10 @@ function DrawioPageContent() {
                           stepCount: msg.steps?.length || 0,
                           isLatestRunningAgent,
                         }) && (
-                           <div className="flex gap-1 items-center px-4 py-3 text-sm shadow-sm bg-white border border-indigo-100 text-indigo-600 rounded-2xl rounded-tl-sm">
-                             <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-bounce" style={{ animationDelay: '0ms' }}></span>
-                             <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-bounce" style={{ animationDelay: '150ms' }}></span>
-                             <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-bounce" style={{ animationDelay: '300ms' }}></span>
+                           <div className="flex items-center gap-1 rounded-lg border border-stone-200 bg-white px-4 py-3 text-sm text-zinc-600 shadow-sm">
+                             <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-zinc-500" style={{ animationDelay: '0ms' }}></span>
+                             <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-zinc-500" style={{ animationDelay: '150ms' }}></span>
+                             <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-zinc-500" style={{ animationDelay: '300ms' }}></span>
                            </div>
                         )}
                       </div>
@@ -2493,7 +2688,7 @@ function DrawioPageContent() {
           </div>
 
           {/* Input Area */}
-          <div className="p-4 bg-white border-t border-slate-100 shrink-0 relative z-20 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.02)]">
+          <div className="relative z-20 shrink-0 border-t border-stone-200 bg-white p-4 shadow-[0_-4px_12px_rgba(24,24,27,0.03)]">
             {/* Quick Actions - Only show when chat is empty (just greeting) */}
             {messages.length <= 1 && (
               <div className="flex flex-wrap gap-2 mb-3 px-1 animate-in fade-in slide-in-from-bottom-2 duration-300">
@@ -2506,8 +2701,8 @@ function DrawioPageContent() {
                     disabled={demoQuotaState.exhausted}
                     className={`text-xs px-3 py-1.5 rounded-full transition-colors border font-medium shadow-sm ${
                       demoQuotaState.exhausted
-                        ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed'
-                        : 'bg-indigo-50 text-indigo-600 hover:bg-indigo-100 border-indigo-100'
+                        ? 'cursor-not-allowed border-stone-200 bg-stone-100 text-zinc-400'
+                        : 'border-stone-200 bg-white text-zinc-700 hover:bg-stone-50'
                     }`}
                   >
                     {action.label}
@@ -2518,8 +2713,8 @@ function DrawioPageContent() {
 
             {/* Model and loop controls */}
             <div className="flex flex-wrap items-center gap-2 mb-2 px-1">
-                <div className="relative flex items-center bg-white border border-slate-200 rounded-full shadow-sm hover:border-slate-300 transition-colors">
-                    <Icons.Sparkles className={`w-3 h-3 ml-2 ${selectedCustomModelId !== 'default' ? 'text-indigo-500' : 'text-slate-400'}`} />
+                <div className="relative flex items-center rounded-full border border-stone-200 bg-white shadow-sm transition-colors hover:border-stone-300">
+                    <Icons.Sparkles className={`ml-2 h-3 w-3 ${selectedCustomModelId !== 'default' ? 'text-zinc-700' : 'text-zinc-400'}`} />
                     <select
                         value={selectedCustomModelId}
                         onChange={(e) => {
@@ -2531,7 +2726,7 @@ function DrawioPageContent() {
                                 localStorage.setItem('ai_agent_selected_model', e.target.value);
                             }
                         }}
-                        className="appearance-none bg-transparent border-none text-[11px] font-medium text-slate-600 focus:ring-0 py-1 pl-1 pr-5 cursor-pointer outline-none"
+                        className="cursor-pointer appearance-none border-none bg-transparent py-1 pl-1 pr-5 text-[11px] font-medium text-zinc-600 outline-none focus:ring-0"
                     >
                         <option value="default">Default Model</option>
                         {customModels.filter(m => m.enabled).map(m => (
@@ -2540,12 +2735,12 @@ function DrawioPageContent() {
                         <option disabled>──────────</option>
                         <option value="add_new">+ Manage Models</option>
                     </select>
-                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-1.5 text-slate-400">
+                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-1.5 text-zinc-400">
                         <svg className="fill-current h-3 w-3" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/></svg>
                     </div>
                 </div>
-                <div className="relative flex items-center bg-white border border-slate-200 rounded-full shadow-sm hover:border-slate-300 transition-colors">
-                    <span className="text-[11px] font-medium text-slate-500 pl-3">Max Loops</span>
+                <div className="relative flex items-center rounded-full border border-stone-200 bg-white shadow-sm transition-colors hover:border-stone-300">
+                    <span className="pl-3 text-[11px] font-medium text-zinc-500">Max Loops</span>
                     <select
                         value={maxReviewIterations}
                         onChange={(e) => {
@@ -2553,13 +2748,13 @@ function DrawioPageContent() {
                             setMaxReviewIterations(nextValue);
                             localStorage.setItem(MAX_REVIEW_ITERATIONS_STORAGE_KEY, String(nextValue));
                         }}
-                        className="appearance-none bg-transparent border-none text-[11px] font-medium text-slate-600 focus:ring-0 py-1 pl-1 pr-5 cursor-pointer outline-none"
+                        className="cursor-pointer appearance-none border-none bg-transparent py-1 pl-1 pr-5 text-[11px] font-medium text-zinc-600 outline-none focus:ring-0"
                     >
                         {REVIEW_ITERATION_OPTIONS.map(count => (
                             <option key={count} value={count}>{count}x</option>
                         ))}
                     </select>
-                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-1.5 text-slate-400">
+                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-1.5 text-zinc-400">
                         <svg className="fill-current h-3 w-3" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/></svg>
                     </div>
                 </div>
@@ -2600,27 +2795,27 @@ function DrawioPageContent() {
             {selectedSkills.length > 0 && (
               <div className="flex flex-wrap gap-1.5 mb-2">
                 {selectedSkills.map(name => (
-                  <span key={name} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 text-xs border border-indigo-200">
+                  <span key={name} className="inline-flex items-center gap-1 rounded-full border border-stone-200 bg-stone-50 px-2 py-0.5 text-xs text-zinc-700">
                     /{name}
-                    <button type="button" onClick={() => removeSkill(name)} className="text-indigo-400 hover:text-indigo-700 leading-none">×</button>
+                    <button type="button" onClick={() => removeSkill(name)} className="leading-none text-zinc-400 hover:text-zinc-700">×</button>
                   </span>
                 ))}
               </div>
             )}
 
-            <div className="relative flex items-end gap-2 bg-slate-50 p-2 rounded-2xl border border-slate-200 focus-within:border-indigo-400 focus-within:ring-4 focus-within:ring-indigo-100 focus-within:bg-white transition-all shadow-sm">
+            <div className="relative flex items-end gap-2 rounded-lg border border-stone-300 bg-stone-50 p-2 shadow-sm transition-all focus-within:border-zinc-600 focus-within:bg-white focus-within:ring-4 focus-within:ring-zinc-700/5">
               {slashOpen && filteredSkills.length > 0 && (
-                <div className="absolute bottom-full left-0 mb-2 w-80 max-h-72 overflow-auto rounded-xl border border-slate-200 bg-white shadow-lg z-50 py-1">
+                <div className="absolute bottom-full left-0 z-50 mb-2 max-h-72 w-80 overflow-auto rounded-lg border border-stone-200 bg-white py-1 shadow-lg">
                   {filteredSkills.map((s, i) => (
                     <button
                       key={s.name}
                       type="button"
                       onMouseDown={(e) => { e.preventDefault(); chooseSkill(s.name); }}
                       onMouseEnter={() => setSlashIndex(i)}
-                      className={`block w-full text-left px-3 py-2 ${i === slashIndex ? 'bg-slate-100' : ''} hover:bg-slate-100`}
+                      className={`block w-full px-3 py-2 text-left ${i === slashIndex ? 'bg-stone-100' : ''} hover:bg-stone-100`}
                     >
-                      <div className="text-sm font-medium text-slate-800">/{s.name}</div>
-                      {s.description && <div className="text-xs text-slate-500 truncate">{s.description}</div>}
+                      <div className="text-sm font-medium text-zinc-800">/{s.name}</div>
+                      {s.description && <div className="truncate text-xs text-zinc-500">{s.description}</div>}
                     </button>
                   ))}
                 </div>
@@ -2635,7 +2830,7 @@ function DrawioPageContent() {
                 onKeyDown={handleKeyDown}
                 placeholder={isSending ? "AI is generating..." : demoQuotaState.exhausted ? demoQuotaState.exhaustedMessage : "Ask a question or describe your diagram request..."}
                 disabled={isSending || demoQuotaState.exhausted}
-                className="flex-1 px-4 py-3 bg-transparent border-none focus:ring-0 text-[15px] text-slate-800 placeholder:text-slate-400 resize-none max-h-[300px] min-h-[80px] scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent disabled:opacity-50 disabled:cursor-not-allowed leading-relaxed"
+                className="max-h-[300px] min-h-[80px] flex-1 resize-none border-none bg-transparent px-4 py-3 text-[15px] leading-relaxed text-zinc-800 placeholder:text-zinc-400 focus:ring-0 disabled:cursor-not-allowed disabled:opacity-50 scrollbar-thin scrollbar-track-transparent scrollbar-thumb-stone-300"
                 rows={1}
                 style={{ height: 'auto', minHeight: '80px' }}
               />
@@ -2655,8 +2850,8 @@ function DrawioPageContent() {
                       className={`
                         p-2.5 rounded-lg transition-all duration-200 flex items-center justify-center
                         ${inputValue.trim() && !demoQuotaState.exhausted
-                          ? 'bg-indigo-600 text-white shadow-md shadow-indigo-200 hover:bg-indigo-700 hover:scale-105 active:scale-95' 
-                          : 'bg-slate-200 text-slate-400 cursor-not-allowed'
+                          ? 'bg-zinc-700 text-white shadow-md shadow-zinc-700/10 hover:bg-zinc-600 hover:scale-105 active:scale-95'
+                          : 'cursor-not-allowed bg-stone-200 text-zinc-400'
                         }
                       `}
                       title="Send message"
@@ -2667,7 +2862,7 @@ function DrawioPageContent() {
                   <button
                     onClick={handleRestartSession}
                     disabled={isSending}
-                    className="p-2.5 rounded-lg bg-white text-slate-400 hover:bg-slate-50 hover:text-indigo-600 transition-all duration-200 border border-slate-200 hover:border-indigo-100 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="rounded-lg border border-stone-200 bg-white p-2.5 text-zinc-400 shadow-sm transition-all duration-200 hover:bg-stone-50 hover:text-zinc-700 disabled:cursor-not-allowed disabled:opacity-50"
                     title="Restart conversation"
                   >
                     <Icons.Plus className="w-4 h-4" />
@@ -2681,43 +2876,43 @@ function DrawioPageContent() {
 
       {/* Export Modal - Polished */}
       {imgData && (
-        <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-6 animate-in fade-in duration-200">
-            <div className="bg-white p-0 rounded-2xl shadow-2xl max-h-[90vh] flex flex-col w-full max-w-4xl overflow-hidden animate-in zoom-in-95 duration-200 border border-white/20">
-                <div className="flex justify-between items-center px-6 py-4 border-b border-slate-100 bg-slate-50/50">
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-zinc-700/35 p-6 backdrop-blur-sm animate-in fade-in duration-200">
+            <div className="flex max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-lg border border-stone-200 bg-white p-0 shadow-2xl shadow-zinc-700/20 animate-in zoom-in-95 duration-200">
+                <div className="flex items-center justify-between border-b border-stone-200 bg-stone-50 px-6 py-4">
                     <div className="flex items-center gap-3">
-                        <div className="p-2 bg-green-100 text-green-600 rounded-lg">
+                        <div className="rounded-lg bg-emerald-50 p-2 text-emerald-700">
                             <Icons.Download className="w-5 h-5" />
                         </div>
                         <div>
-                            <h2 className="text-lg font-bold text-slate-800">Export Ready</h2>
-                            <p className="text-xs text-slate-500">Your diagram has been successfully converted</p>
+                            <h2 className="text-lg font-semibold text-zinc-800">Export Ready</h2>
+                            <p className="text-xs text-zinc-500">Your diagram has been successfully converted</p>
                         </div>
                     </div>
                     <button 
                         onClick={() => setImgData(null)}
-                        className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors"
+                        className="rounded-lg p-2 text-zinc-400 transition-colors hover:bg-stone-100 hover:text-zinc-700"
                     >
                         <Icons.Close className="w-5 h-5" />
                     </button>
                 </div>
                 
-                <div className="flex-1 overflow-auto bg-slate-50/50 p-8 flex items-center justify-center min-h-[400px]">
-                    <div className="bg-white p-2 rounded shadow-sm border border-slate-200">
+                <div className="flex min-h-[400px] flex-1 items-center justify-center overflow-auto bg-[var(--app-bg)] p-8">
+                    <div className="rounded border border-stone-200 bg-white p-2 shadow-sm">
                         <img src={imgData} alt="Exported diagram" className="max-w-full h-auto object-contain" />
                     </div>
                 </div>
                 
-                <div className="px-6 py-4 border-t border-slate-100 bg-white flex justify-end gap-3">
+                <div className="flex justify-end gap-3 border-t border-stone-200 bg-white px-6 py-4">
                    <button 
                         onClick={() => setImgData(null)}
-                        className="px-5 py-2.5 text-slate-600 font-medium hover:bg-slate-100 rounded-lg transition-colors text-sm"
+                        className="rounded-lg px-5 py-2.5 text-sm font-medium text-zinc-600 transition-colors hover:bg-stone-100"
                     >
                         Close Preview
                     </button>
                     <a 
                         href={imgData} 
                         download="diagram.svg"
-                        className="px-5 py-2.5 bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700 shadow-lg shadow-indigo-200 hover:shadow-indigo-300 transition-all text-sm flex items-center gap-2"
+                        className="flex items-center gap-2 rounded-lg bg-zinc-700 px-5 py-2.5 text-sm font-medium text-white shadow-lg shadow-zinc-700/10 transition-all hover:bg-zinc-600"
                     >
                         <Icons.Download className="w-4 h-4" />
                         Download File
@@ -2729,13 +2924,13 @@ function DrawioPageContent() {
 
       {/* Rename Modal */}
       {isRenameModalOpen && (
-        <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-6 animate-in fade-in duration-200">
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200 border border-white/20">
-                <div className="px-6 py-4 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
-                    <h2 className="text-lg font-bold text-slate-800">Rename Session</h2>
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-zinc-700/35 p-6 backdrop-blur-sm animate-in fade-in duration-200">
+            <div className="w-full max-w-md overflow-hidden rounded-lg border border-stone-200 bg-white shadow-2xl shadow-zinc-700/20 animate-in zoom-in-95 duration-200">
+                <div className="flex items-center justify-between border-b border-stone-200 bg-stone-50 px-6 py-4">
+                    <h2 className="text-lg font-semibold text-zinc-800">Rename Session</h2>
                     <button 
                         onClick={handleRenameCancel}
-                        className="p-1 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors"
+                        className="rounded-lg p-1 text-zinc-400 transition-colors hover:bg-stone-100 hover:text-zinc-700"
                         title="Close"
                     >
                         <Icons.Close className="w-5 h-5" />
@@ -2743,7 +2938,7 @@ function DrawioPageContent() {
                 </div>
                 
                 <div className="p-6">
-                    <label className="block text-sm font-medium text-slate-700 mb-2">
+                    <label className="mb-2 block text-sm font-medium text-zinc-700">
                         Session Name
                     </label>
                     <input 
@@ -2754,23 +2949,23 @@ function DrawioPageContent() {
                           if (e.key === 'Enter') handleRenameSave();
                           if (e.key === 'Escape') handleRenameCancel();
                         }}
-                        className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all"
+                        className="w-full rounded-lg border border-stone-300 px-4 py-2 outline-none transition-all focus:border-zinc-600 focus:ring-4 focus:ring-zinc-700/5"
                         placeholder="Enter a new session name"
                         autoFocus
                     />
                 </div>
                 
-                <div className="px-6 py-4 border-t border-slate-100 bg-slate-50/50 flex justify-end gap-3">
+                <div className="flex justify-end gap-3 border-t border-stone-200 bg-stone-50 px-6 py-4">
                    <button 
                         onClick={handleRenameCancel}
-                        className="px-4 py-2 text-slate-600 font-medium hover:bg-slate-100 rounded-lg transition-colors text-sm"
+                        className="rounded-lg px-4 py-2 text-sm font-medium text-zinc-600 transition-colors hover:bg-stone-100"
                     >
                         Cancel
                     </button>
                     <button 
                         onClick={handleRenameSave}
                         disabled={!newSessionTitle.trim()}
-                        className="px-4 py-2 bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700 shadow-lg shadow-indigo-200 hover:shadow-indigo-300 transition-all text-sm disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-indigo-600"
+                        className="rounded-lg bg-zinc-700 px-4 py-2 text-sm font-medium text-white shadow-lg shadow-zinc-700/10 transition-all hover:bg-zinc-600 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-zinc-700"
                     >
                         Save
                     </button>
@@ -2780,21 +2975,21 @@ function DrawioPageContent() {
       )}
       {/* Custom Models Settings Modal */}
       {showApiConfig && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-6 animate-in fade-in duration-200">
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden animate-in zoom-in-95 duration-200 border border-white/20 flex flex-col max-h-[90vh]">
-                <div className="px-6 py-4 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center shrink-0">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-700/35 p-6 backdrop-blur-sm animate-in fade-in duration-200">
+            <div className="flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-lg border border-stone-200 bg-white shadow-2xl shadow-zinc-700/20 animate-in zoom-in-95 duration-200">
+                <div className="flex shrink-0 items-center justify-between border-b border-stone-200 bg-stone-50 px-6 py-4">
                     <div className="flex items-center gap-2.5">
-                      <div className="p-1.5 bg-indigo-50 rounded-lg">
-                        <Icons.Sparkles className="w-4 h-4 text-indigo-500" />
+                      <div className="rounded-lg bg-white p-1.5 text-zinc-700 shadow-sm">
+                        <Icons.Sparkles className="h-4 w-4" />
                       </div>
-                      <h2 className="text-base font-bold text-slate-800">Custom Model Settings</h2>
+                      <h2 className="text-base font-semibold text-zinc-800">Custom Model Settings</h2>
                     </div>
                     <button
                         onClick={() => {
                           setShowApiConfig(false);
                           setEditingModel(null);
                         }}
-                        className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+                        className="rounded-lg p-1.5 text-zinc-400 transition-colors hover:bg-stone-100 hover:text-zinc-700"
                     >
                         <Icons.Close className="w-4 h-4" />
                     </button>
@@ -2802,11 +2997,11 @@ function DrawioPageContent() {
                 
                 <div className="flex flex-1 overflow-hidden">
                     {/* List of Models */}
-                    <div className="w-1/3 border-r border-slate-100 bg-slate-50 flex flex-col">
+                    <div className="flex w-1/3 flex-col border-r border-stone-200 bg-stone-50">
                         <div className="p-3">
                             <button 
                                 onClick={handleAddNewModel}
-                                className="w-full flex items-center justify-center gap-2 py-2 bg-white border border-indigo-200 text-indigo-600 rounded-lg hover:bg-indigo-50 transition-colors shadow-sm text-sm font-medium"
+                                className="flex w-full items-center justify-center gap-2 rounded-lg border border-stone-200 bg-white py-2 text-sm font-medium text-zinc-700 shadow-sm transition-colors hover:bg-stone-100"
                             >
                                 <Icons.Plus className="w-4 h-4" /> Add Model
                             </button>
@@ -2816,10 +3011,10 @@ function DrawioPageContent() {
                                 <div 
                                     key={model.id}
                                     onClick={() => setEditingModel({ ...model, apiKey: '', provider: 'openai' })}
-                                    className={`p-3 rounded-xl border cursor-pointer transition-all ${editingModel?.id === model.id ? 'bg-indigo-50 border-indigo-200 shadow-sm ring-1 ring-indigo-100' : 'bg-white border-slate-200 hover:border-indigo-100 hover:shadow-sm'}`}
+                                    className={`cursor-pointer rounded-lg border p-3 transition-all ${editingModel?.id === model.id ? 'border-stone-300 bg-white shadow-sm ring-1 ring-stone-200' : 'border-stone-200 bg-white hover:border-stone-300 hover:shadow-sm'}`}
                                 >
                                     <div className="flex items-center justify-between mb-1">
-                                        <div className="font-semibold text-sm text-slate-800 truncate pr-2">{model.name}</div>
+                                        <div className="truncate pr-2 text-sm font-semibold text-zinc-800">{model.name}</div>
                                         <div className="flex items-center gap-1 shrink-0">
                                             {/* Toggle Switch */}
                                             <button 
@@ -2832,20 +3027,20 @@ function DrawioPageContent() {
                                                         localStorage.setItem('ai_agent_selected_model', 'default');
                                                     }
                                                 }}
-                                                className={`relative inline-flex h-4 w-7 items-center rounded-full transition-colors focus:outline-none ${model.enabled ? 'bg-indigo-500' : 'bg-slate-300'}`}
+                                                className={`relative inline-flex h-4 w-7 items-center rounded-full transition-colors focus:outline-none ${model.enabled ? 'bg-zinc-700' : 'bg-stone-300'}`}
                                             >
                                                 <span className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${model.enabled ? 'translate-x-3.5' : 'translate-x-0.5'}`} />
                                             </button>
-                                            <button onClick={(e) => { e.stopPropagation(); void handleDeleteModel(model.id); }} className="text-slate-400 hover:text-red-500 ml-1">
+                                            <button onClick={(e) => { e.stopPropagation(); void handleDeleteModel(model.id); }} className="ml-1 text-zinc-400 hover:text-rose-600">
                                                 <Icons.Trash className="w-3.5 h-3.5" />
                                             </button>
                                         </div>
                                     </div>
-                                    <div className="text-[10px] text-slate-500 truncate">{model.model}{model.maskedApiKey ? ` · ${model.maskedApiKey}` : ''}</div>
+                                    <div className="truncate text-[10px] text-zinc-500">{model.model}{model.maskedApiKey ? ` · ${model.maskedApiKey}` : ''}</div>
                                 </div>
                             ))}
                             {customModels.length === 0 && (
-                                <div className="text-center text-xs text-slate-400 py-6">
+                                <div className="py-6 text-center text-xs text-zinc-400">
                                     No custom models yet<br/>Click the button above to add one
                                 </div>
                             )}
@@ -2857,33 +3052,33 @@ function DrawioPageContent() {
                         {editingModel ? (
                             <div className="space-y-4 animate-in fade-in duration-200">
                                 <div>
-                                    <label className="block text-xs font-medium text-slate-700 mb-1">Display Name</label>
-                                    <input type="text" value={editingModel.name} onChange={e => setEditingModel({...editingModel, name: e.target.value})} className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all" placeholder="Example: My GPT-4o" />
+                                    <label className="mb-1 block text-xs font-medium text-zinc-700">Display Name</label>
+                                    <input type="text" value={editingModel.name} onChange={e => setEditingModel({...editingModel, name: e.target.value})} className="w-full rounded-lg border border-stone-300 px-3 py-2 text-sm outline-none transition-all focus:border-zinc-600 focus:ring-4 focus:ring-zinc-700/5" placeholder="Example: My GPT-4o" />
                                 </div>
                                 <div>
-                                    <label className="block text-xs font-medium text-slate-700 mb-1">Model Name</label>
-                                    <input type="text" value={editingModel.model} onChange={e => setEditingModel({...editingModel, model: e.target.value})} className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all" placeholder="Example: gpt-4o" />
+                                    <label className="mb-1 block text-xs font-medium text-zinc-700">Model Name</label>
+                                    <input type="text" value={editingModel.model} onChange={e => setEditingModel({...editingModel, model: e.target.value})} className="w-full rounded-lg border border-stone-300 px-3 py-2 text-sm outline-none transition-all focus:border-zinc-600 focus:ring-4 focus:ring-zinc-700/5" placeholder="Example: gpt-4o" />
                                 </div>
                                 <div>
-                                    <label className="block text-xs font-medium text-slate-700 mb-1">Base URL</label>
-                                    <input type="text" value={editingModel.baseUrl} onChange={e => setEditingModel({...editingModel, baseUrl: e.target.value})} className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all" placeholder="Example: https://api.openai.com" />
+                                    <label className="mb-1 block text-xs font-medium text-zinc-700">Base URL</label>
+                                    <input type="text" value={editingModel.baseUrl} onChange={e => setEditingModel({...editingModel, baseUrl: e.target.value})} className="w-full rounded-lg border border-stone-300 px-3 py-2 text-sm outline-none transition-all focus:border-zinc-600 focus:ring-4 focus:ring-zinc-700/5" placeholder="Example: https://api.openai.com" />
                                 </div>
                                 <div>
-                                    <label className="block text-xs font-medium text-slate-700 mb-1">API Key</label>
-                                    <input type="password" value={editingModel.apiKey} onChange={e => setEditingModel({...editingModel, apiKey: e.target.value})} className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all" placeholder="sk-..." />
+                                    <label className="mb-1 block text-xs font-medium text-zinc-700">API Key</label>
+                                    <input type="password" value={editingModel.apiKey} onChange={e => setEditingModel({...editingModel, apiKey: e.target.value})} className="w-full rounded-lg border border-stone-300 px-3 py-2 text-sm outline-none transition-all focus:border-zinc-600 focus:ring-4 focus:ring-zinc-700/5" placeholder="sk-..." />
                                 </div>
                                 <div>
-                                    <label className="block text-xs font-medium text-slate-700 mb-1">Completions Path (optional)</label>
-                                    <input type="text" value={editingModel.completionsPath} onChange={e => setEditingModel({...editingModel, completionsPath: e.target.value})} className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all" placeholder="Default: /chat/completions" />
+                                    <label className="mb-1 block text-xs font-medium text-zinc-700">Completions Path (optional)</label>
+                                    <input type="text" value={editingModel.completionsPath} onChange={e => setEditingModel({...editingModel, completionsPath: e.target.value})} className="w-full rounded-lg border border-stone-300 px-3 py-2 text-sm outline-none transition-all focus:border-zinc-600 focus:ring-4 focus:ring-zinc-700/5" placeholder="Default: /chat/completions" />
                                 </div>
                                 <div className="pt-2 flex justify-end">
-                                    <button onClick={handleSaveEditingModel} disabled={!editingModel.apiKey.trim()} className="px-6 py-2 bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700 shadow-sm transition-all text-sm disabled:opacity-50 disabled:cursor-not-allowed">
+                                    <button onClick={handleSaveEditingModel} disabled={!editingModel.apiKey.trim()} className="rounded-lg bg-zinc-700 px-6 py-2 text-sm font-medium text-white shadow-sm transition-all hover:bg-zinc-600 disabled:cursor-not-allowed disabled:opacity-50">
                                         Save Settings
                                     </button>
                                 </div>
                             </div>
                         ) : (
-                            <div className="h-full flex flex-col items-center justify-center text-slate-400">
+                            <div className="flex h-full flex-col items-center justify-center text-zinc-400">
                                 <Icons.Sparkles className="w-12 h-12 mb-3 opacity-20" />
                                 <p className="text-sm">Select a model on the left to edit, or click Add Model.</p>
                             </div>

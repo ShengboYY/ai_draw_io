@@ -5,6 +5,7 @@ import {
   buildStreamingPreviewXml,
   isValidDrawioCellXml,
   normalizeDrawioLegendSwatches,
+  planFinalDiagramDelivery,
 } from '../src/app/drawio/streaming-preview.ts';
 
 test('buildStreamingPreviewXml wraps streamed node and edge cells into a drawio model', () => {
@@ -56,4 +57,28 @@ test('normalizeDrawioLegendSwatches replaces color-name prefixes with swatches',
   assert.match(normalizedXml, /background-color:#16A34A/);
   assert.match(normalizedXml, /class lifecycle/);
   assert.match(normalizedXml, /memory\/runtime data/);
+});
+
+test('planFinalDiagramDelivery waits for queued preview work before replacing the editor', () => {
+  const plan = planFinalDiagramDelivery({
+    finalXml: '<mxGraphModel><root></root></mxGraphModel>',
+    previewQueueLength: 2,
+    previewTimerActive: false,
+  });
+
+  assert.equal(plan.pendingFinalXml, '<mxGraphModel><root></root></mxGraphModel>');
+  assert.equal(plan.replaceImmediately, false);
+  assert.equal(plan.scheduleDrain, true);
+});
+
+test('planFinalDiagramDelivery replaces immediately when there is no preview work', () => {
+  const plan = planFinalDiagramDelivery({
+    finalXml: '<mxGraphModel><root></root></mxGraphModel>',
+    previewQueueLength: 0,
+    previewTimerActive: false,
+  });
+
+  assert.equal(plan.pendingFinalXml, '');
+  assert.equal(plan.replaceImmediately, true);
+  assert.equal(plan.scheduleDrain, false);
 });

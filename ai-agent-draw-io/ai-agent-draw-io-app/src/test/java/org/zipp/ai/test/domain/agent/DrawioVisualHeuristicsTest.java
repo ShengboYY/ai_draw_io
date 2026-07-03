@@ -160,14 +160,28 @@ public class DrawioVisualHeuristicsTest {
     }
 
     @Test
+    public void centeredEdgeLabelOnLineIsDetectedAsAutoReroutable() {
+        String xml = "<mxCell id='2' value='A' vertex='1' parent='1'><mxGeometry x='40' y='40' width='120' height='60' as='geometry'/></mxCell>"
+                + "<mxCell id='3' value='B' vertex='1' parent='1'><mxGeometry x='400' y='40' width='120' height='60' as='geometry'/></mxCell>"
+                + "<mxCell id='4' value='1. request' style='endArrow=classic;strokeWidth=5;exitX=1;exitY=0.5;entryX=0;entryY=0.5;' edge='1' parent='1' source='2' target='3'>"
+                + "<mxGeometry relative='1' as='geometry'/></mxCell>";
+
+        CanvasAnalysis analysis = analyze(xml);
+
+        assertTrue(hasIssue(analysis, CanvasIssueType.EDGE_LABEL_COLLISION));
+        assertTrue("label-on-line is repairable but should not block a finished diagram",
+                analysis.isValid());
+    }
+
+    @Test
     public void wellSeparatedLabelsAreNotFlagged() {
         String xml = "<mxCell id='2' value='A' vertex='1' parent='1'><mxGeometry x='40' y='40' width='120' height='60' as='geometry'/></mxCell>"
                 + "<mxCell id='3' value='B' vertex='1' parent='1'><mxGeometry x='400' y='40' width='120' height='60' as='geometry'/></mxCell>"
                 + "<mxCell id='4' value='C' vertex='1' parent='1'><mxGeometry x='40' y='300' width='120' height='60' as='geometry'/></mxCell>"
                 + "<mxCell id='5' value='top' style='endArrow=classic;exitX=1;exitY=0.5;entryX=0;entryY=0.5;' edge='1' parent='1' source='2' target='3'>"
-                + "<mxGeometry relative='1' as='geometry'/></mxCell>"
+                + "<mxGeometry x='0' y='-36' relative='1' as='geometry'/></mxCell>"
                 + "<mxCell id='6' value='down' style='endArrow=classic;exitX=0.5;exitY=1;entryX=0.5;entryY=0;' edge='1' parent='1' source='2' target='4'>"
-                + "<mxGeometry relative='1' as='geometry'/></mxCell>";
+                + "<mxGeometry x='0' y='36' relative='1' as='geometry'/></mxCell>";
 
         assertFalse(hasIssue(analyze(xml), CanvasIssueType.EDGE_LABEL_COLLISION));
     }
@@ -210,6 +224,52 @@ public class DrawioVisualHeuristicsTest {
                 + "<mxGeometry relative='1' as='geometry'/></mxCell>";
 
         assertFalse(hasIssue(analyze(xml), CanvasIssueType.PARALLEL_EDGE_OVERLAP));
+    }
+
+    @Test
+    public void crowdedNodeSidePortsAreDetected() {
+        String xml = "<mxCell id='2' value='Backend' vertex='1' parent='1'><mxGeometry x='360' y='180' width='120' height='60' as='geometry'/></mxCell>"
+                + "<mxCell id='3' value='AI' vertex='1' parent='1'><mxGeometry x='640' y='60' width='120' height='60' as='geometry'/></mxCell>"
+                + "<mxCell id='4' value='DB' vertex='1' parent='1'><mxGeometry x='640' y='300' width='120' height='60' as='geometry'/></mxCell>"
+                + "<mxCell id='5' value='call' style='endArrow=classic;edgeStyle=orthogonalEdgeStyle;exitX=1;exitY=0.3;entryX=0;entryY=0.3;' edge='1' parent='1' source='2' target='3'>"
+                + "<mxGeometry relative='1' as='geometry'/></mxCell>"
+                + "<mxCell id='6' value='return' style='endArrow=classic;dashed=1;edgeStyle=orthogonalEdgeStyle;exitX=0;exitY=0.7;entryX=1;entryY=0.7;' edge='1' parent='1' source='3' target='2'>"
+                + "<mxGeometry relative='1' as='geometry'/></mxCell>"
+                + "<mxCell id='7' value='save' style='endArrow=classic;edgeStyle=orthogonalEdgeStyle;exitX=1;exitY=0.3;entryX=0;entryY=0.3;' edge='1' parent='1' source='2' target='4'>"
+                + "<mxGeometry relative='1' as='geometry'/></mxCell>"
+                + "<mxCell id='8' value='read' style='endArrow=classic;dashed=1;edgeStyle=orthogonalEdgeStyle;exitX=0;exitY=0.7;entryX=1;entryY=0.7;' edge='1' parent='1' source='4' target='2'>"
+                + "<mxGeometry relative='1' as='geometry'/></mxCell>";
+
+        CanvasAnalysis analysis = analyze(xml);
+
+        assertTrue(hasIssue(analysis, CanvasIssueType.NODE_SIDE_PORT_CROWDING));
+        assertFalse("crowded same-side ports should trigger the repair loop", analysis.isValid());
+    }
+
+    @Test
+    public void cornerAdjacentPortsAreDetected() {
+        String xml = "<mxCell id='2' value='Frontend' style='rounded=1;' vertex='1' parent='1'><mxGeometry x='100' y='100' width='220' height='120' as='geometry'/></mxCell>"
+                + "<mxCell id='3' value='Backend' style='rounded=1;' vertex='1' parent='1'><mxGeometry x='560' y='100' width='180' height='120' as='geometry'/></mxCell>"
+                + "<mxCell id='4' value='request' style='endArrow=classic;edgeStyle=orthogonalEdgeStyle;exitX=1;exitY=0.1;entryX=0;entryY=0.1;' edge='1' parent='1' source='2' target='3'>"
+                + "<mxGeometry relative='1' as='geometry'/></mxCell>";
+
+        CanvasAnalysis analysis = analyze(xml);
+
+        assertTrue(hasIssue(analysis, CanvasIssueType.PORT_CORNER_PROXIMITY));
+        assertFalse("corner-adjacent ports should trigger the repair loop", analysis.isValid());
+    }
+
+    @Test
+    public void verticalCornerAdjacentPortsAreDetected() {
+        String xml = "<mxCell id='2' value='Client' style='rounded=1;' vertex='1' parent='1'><mxGeometry x='100' y='100' width='240' height='100' as='geometry'/></mxCell>"
+                + "<mxCell id='3' value='Worker' style='rounded=1;' vertex='1' parent='1'><mxGeometry x='110' y='420' width='160' height='100' as='geometry'/></mxCell>"
+                + "<mxCell id='4' value='submit' style='endArrow=classic;edgeStyle=orthogonalEdgeStyle;exitX=0.1;exitY=1;entryX=0.1;entryY=0;' edge='1' parent='1' source='2' target='3'>"
+                + "<mxGeometry relative='1' as='geometry'/></mxCell>";
+
+        CanvasAnalysis analysis = analyze(xml);
+
+        assertTrue(hasIssue(analysis, CanvasIssueType.PORT_CORNER_PROXIMITY));
+        assertFalse("vertical corner-adjacent ports should trigger the repair loop", analysis.isValid());
     }
 
     @Test

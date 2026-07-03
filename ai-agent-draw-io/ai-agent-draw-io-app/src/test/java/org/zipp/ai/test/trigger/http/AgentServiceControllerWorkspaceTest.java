@@ -17,6 +17,7 @@ import org.zipp.ai.api.dto.CurrentAccountResponseDTO;
 import org.zipp.ai.api.dto.DiagramSummaryResponseDTO;
 import org.zipp.ai.api.dto.ImportAnonymousWorkspaceRequestDTO;
 import org.zipp.ai.api.dto.ImportAnonymousWorkspaceResponseDTO;
+import org.zipp.ai.api.dto.UpdateDiagramThumbnailRequestDTO;
 import org.zipp.ai.api.dto.UpdateDiagramTitleRequestDTO;
 import org.zipp.ai.api.response.Response;
 import org.zipp.ai.domain.account.model.valobj.AccountStatus;
@@ -43,6 +44,8 @@ import static org.junit.Assert.assertTrue;
 public class AgentServiceControllerWorkspaceTest {
 
     private static final String VALID_WORKSPACE_ID = "anon_123e4567-e89b-42d3-a456-426614174000";
+    private static final String VALID_PNG_DATA_URL = "data:image/png;base64,"
+            + "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=";
 
     @After
     public void clearRequestContext() {
@@ -132,6 +135,44 @@ public class AgentServiceControllerWorkspaceTest {
 
         assertEquals(ResponseCode.ILLEGAL_PARAMETER.getCode(), response.getCode());
         assertFalse(store.renameCalled);
+    }
+
+    @Test
+    public void shouldUpdateDiagramThumbnailFromWorkspaceHeader() throws Exception {
+        AgentServiceController controller = new AgentServiceController();
+        FakeCanvasStateStore store = new FakeCanvasStateStore();
+        inject(controller, "canvasStateStore", store);
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.addHeader("X-Workspace-Id", VALID_WORKSPACE_ID);
+        RequestContextHolder.setRequestAttributes(new ServletRequestAttributes(request));
+        UpdateDiagramThumbnailRequestDTO requestDTO = new UpdateDiagramThumbnailRequestDTO();
+        requestDTO.setThumbnailDataUrl(VALID_PNG_DATA_URL);
+
+        Response<DiagramSummaryResponseDTO> response = controller.updateDiagramThumbnail("diagram-1", requestDTO);
+
+        assertEquals(ResponseCode.SUCCESS.getCode(), response.getCode());
+        assertTrue(store.thumbnailCalled);
+        assertEquals(VALID_WORKSPACE_ID, store.thumbnailUserId);
+        assertEquals("diagram-1", store.thumbnailDiagramId);
+        assertEquals(VALID_PNG_DATA_URL, store.thumbnailUrl);
+        assertEquals(VALID_PNG_DATA_URL, response.getData().getThumbnailUrl());
+    }
+
+    @Test
+    public void shouldRejectInvalidDiagramThumbnailDataUrl() throws Exception {
+        AgentServiceController controller = new AgentServiceController();
+        FakeCanvasStateStore store = new FakeCanvasStateStore();
+        inject(controller, "canvasStateStore", store);
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.addHeader("X-Workspace-Id", VALID_WORKSPACE_ID);
+        RequestContextHolder.setRequestAttributes(new ServletRequestAttributes(request));
+        UpdateDiagramThumbnailRequestDTO requestDTO = new UpdateDiagramThumbnailRequestDTO();
+        requestDTO.setThumbnailDataUrl("data:text/plain;base64,SGVsbG8=");
+
+        Response<DiagramSummaryResponseDTO> response = controller.updateDiagramThumbnail("diagram-1", requestDTO);
+
+        assertEquals(ResponseCode.ILLEGAL_PARAMETER.getCode(), response.getCode());
+        assertFalse(store.thumbnailCalled);
     }
 
     @Test
@@ -330,8 +371,12 @@ public class AgentServiceControllerWorkspaceTest {
         private String listedUserId;
         private boolean renameCalled;
         private boolean importCalled;
+        private boolean thumbnailCalled;
         private String importedAnonymousOwnerId;
         private String importedTargetOwnerId;
+        private String thumbnailUserId;
+        private String thumbnailDiagramId;
+        private String thumbnailUrl;
 
         @Override
         public CanvasState save(CanvasState state) {
@@ -361,6 +406,20 @@ public class AgentServiceControllerWorkspaceTest {
                     .userId(userId)
                     .diagramId(diagramId)
                     .title(title)
+                    .build());
+        }
+
+        @Override
+        public java.util.Optional<CanvasState> updateThumbnail(String userId, String diagramId, String thumbnailUrl) {
+            this.thumbnailCalled = true;
+            this.thumbnailUserId = userId;
+            this.thumbnailDiagramId = diagramId;
+            this.thumbnailUrl = thumbnailUrl;
+            return java.util.Optional.of(CanvasState.builder()
+                    .userId(userId)
+                    .diagramId(diagramId)
+                    .title("Checkout Flow")
+                    .thumbnailUrl(thumbnailUrl)
                     .build());
         }
 

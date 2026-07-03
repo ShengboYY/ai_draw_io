@@ -64,6 +64,18 @@ public class CanvasStateRepository implements ICanvasStateStore {
     }
 
     @Override
+    public Optional<CanvasState> updateThumbnail(String userId, String diagramId, String thumbnailUrl) {
+        if (isBlank(userId) || isBlank(diagramId) || isBlank(thumbnailUrl)) {
+            return Optional.empty();
+        }
+        int updated = canvasStateMapper.updateDiagramThumbnail(userId, diagramId, thumbnailUrl.trim());
+        if (updated == 0) {
+            return Optional.empty();
+        }
+        return find(userId, diagramId);
+    }
+
+    @Override
     public boolean softDelete(String userId, String diagramId) {
         if (isBlank(userId) || isBlank(diagramId)) {
             return false;
@@ -170,6 +182,7 @@ public class CanvasStateRepository implements ICanvasStateStore {
                 .diagramId(po.getDiagramId())
                 .title(po.getTitle())
                 .diagramType(po.getDiagramType())
+                .thumbnailUrl(po.getThumbnailUrl())
                 .currentXml(po.getCurrentXml())
                 .summary(po.getSummary())
                 .analysisJson(po.getAnalysisJson())
@@ -185,6 +198,7 @@ public class CanvasStateRepository implements ICanvasStateStore {
                 .diagramId(targetDiagramId)
                 .title(source.getTitle())
                 .diagramType(source.getDiagramType())
+                .thumbnailUrl(source.getThumbnailUrl())
                 .currentXml(source.getCurrentXml())
                 .summary(source.getSummary())
                 .analysisJson(source.getAnalysisJson())
@@ -200,6 +214,7 @@ public class CanvasStateRepository implements ICanvasStateStore {
         po.setDiagramId(state.getDiagramId());
         po.setTitle(state.getTitle());
         po.setDiagramType(state.getDiagramType());
+        po.setThumbnailUrl(state.getThumbnailUrl());
         po.setCurrentXml(state.getCurrentXml());
         po.setSummary(state.getSummary());
         po.setAnalysisJson(state.getAnalysisJson());

@@ -13,6 +13,7 @@ import {
     ImportAnonymousWorkspaceRequestDTO,
     ImportAnonymousWorkspaceResponseDTO,
     SaveDiagramMessagesRequestDTO,
+    UpdateDiagramThumbnailRequestDTO,
     UpdateDiagramTitleRequestDTO,
     LoginRequestDTO,
     LoginResponseDTO,
@@ -377,6 +378,21 @@ export const agentApi = {
     renameDiagram: async (userId: string, diagramId: string, title: string): Promise<Response<DiagramSummaryResponseDTO | null>> => {
         const body: UpdateDiagramTitleRequestDTO = { title };
         const response = await fetch(`${API_CONFIG.BASE_URL}/diagrams/${encodeURIComponent(diagramId)}/title`, {
+            method: 'PATCH',
+            headers: await csrfHeaders(workspaceHeaders(userId)),
+            body: JSON.stringify(body),
+            credentials: 'include',
+        });
+        return handleResponse<DiagramSummaryResponseDTO | null>(response);
+    },
+
+    updateDiagramThumbnail: async (
+        userId: string,
+        diagramId: string,
+        thumbnailDataUrl: string
+    ): Promise<Response<DiagramSummaryResponseDTO | null>> => {
+        const body: UpdateDiagramThumbnailRequestDTO = { thumbnailDataUrl };
+        const response = await fetch(`${API_CONFIG.BASE_URL}/diagrams/${encodeURIComponent(diagramId)}/thumbnail`, {
             method: 'PATCH',
             headers: await csrfHeaders(workspaceHeaders(userId)),
             body: JSON.stringify(body),

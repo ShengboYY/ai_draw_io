@@ -39,7 +39,8 @@ public final class DrawioCanvasToolNames {
             MODIFY_DIAGRAM,
             EDIT_DIAGRAM,
             UPDATE_CELLS,
-            ROUTE_EDGES
+            ROUTE_EDGES,
+            OPTIMIZE_DIAGRAM
     );
 
     private DrawioCanvasToolNames() {

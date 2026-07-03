@@ -49,6 +49,7 @@ export interface DiagramSummaryResponseDTO {
   diagramId: string;
   title?: string;
   diagramType?: string;
+  thumbnailUrl?: string;
   version?: number;
   updatedAt?: string;
 }
@@ -58,6 +59,7 @@ export interface DiagramCanvasStateResponseDTO {
   userId?: string;
   title?: string;
   diagramType?: string;
+  thumbnailUrl?: string;
   currentXml?: string;
   summary?: string;
   version?: number;
@@ -67,6 +69,11 @@ export interface DiagramCanvasStateResponseDTO {
 export interface UpdateDiagramTitleRequestDTO {
   userId?: string;
   title: string;
+}
+
+export interface UpdateDiagramThumbnailRequestDTO {
+  userId?: string;
+  thumbnailDataUrl: string;
 }
 
 export interface DiagramConversationMessageDTO {

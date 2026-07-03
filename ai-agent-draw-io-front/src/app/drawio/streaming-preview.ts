@@ -97,3 +97,21 @@ export const buildStreamingPreviewXml = (
 
   return normalizeDrawioLegendSwatches(`${ROOT_OPEN}${cells.join('')}${ROOT_CLOSE}`);
 };
+
+export const planFinalDiagramDelivery = ({
+  finalXml,
+  previewQueueLength,
+  previewTimerActive,
+}: {
+  finalXml: string;
+  previewQueueLength: number;
+  previewTimerActive: boolean;
+}) => {
+  const hasPreviewWork = previewQueueLength > 0 || previewTimerActive;
+
+  return {
+    pendingFinalXml: hasPreviewWork ? finalXml : '',
+    replaceImmediately: !hasPreviewWork,
+    scheduleDrain: previewQueueLength > 0 && !previewTimerActive,
+  };
+};

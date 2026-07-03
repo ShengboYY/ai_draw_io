@@ -26,13 +26,15 @@ import java.util.regex.Pattern;
 
 public class DrawioCanvasXmlToolkit {
 
-    private static final double LABEL_OFFSET = 22D;
-    private static final double[] LABEL_OFFSETS = new double[]{22D, 36D, 50D};
+    private static final double LABEL_OFFSET = 32D;
+    private static final double[] LABEL_OFFSETS = new double[]{32D, 44D, 56D};
     private static final double NODE_CLEARANCE = 10D;
     private static final double ROUTE_DOGLEG = 40D;
     private static final double MIN_LABEL_WIDTH = 48D;
     private static final double MAX_LABEL_WIDTH = 180D;
     private static final double LABEL_HEIGHT = 24D;
+    private static final double PORT_SAFE_MIN = 0.25D;
+    private static final double PORT_SAFE_MAX = 0.75D;
     private static final Pattern VALUE_ATTRIBUTE_PATTERN =
             Pattern.compile("(?<![A-Za-z0-9_.:-])(value\\s*=\\s*)(['\"])(.*?)\\2", Pattern.DOTALL);
 
@@ -210,7 +212,9 @@ public class DrawioCanvasXmlToolkit {
                 .anyMatch(issue -> (CanvasIssueType.EDGE_NODE_CROSSING == issue.getType()
                         || CanvasIssueType.EDGE_LABEL_COLLISION == issue.getType()
                         || CanvasIssueType.PORT_DIRECTION_MISMATCH == issue.getType()
-                        || CanvasIssueType.PARALLEL_EDGE_OVERLAP == issue.getType())
+                        || CanvasIssueType.PARALLEL_EDGE_OVERLAP == issue.getType()
+                        || CanvasIssueType.NODE_SIDE_PORT_CROWDING == issue.getType()
+                        || CanvasIssueType.PORT_CORNER_PROXIMITY == issue.getType())
                         && "auto_reroute".equals(issue.getRepairability()));
         return needsReroute ? routeEdges(xml) : xml;
     }
@@ -585,7 +589,8 @@ public class DrawioCanvasXmlToolkit {
         boolean forward = horizontal ? target.centerX() >= source.centerX() : target.centerY() >= source.centerY();
         EdgeRouteStyle routeStyle = resolveRouteStyle(edge, source, target, cells, horizontal, forward);
         String style = ensureStyleTokens(StringUtils.defaultString(edge.attributeValue("style")),
-                horizontal, forward, routeStyle.getTrackFraction(), routeStyle.isAuxiliary());
+                horizontal, forward, routeStyle.getSourceTrackFraction(), routeStyle.getTargetTrackFraction(),
+                routeStyle.isAuxiliary());
         edge.addAttribute("style", style);
 
         Element geometry = edge.element("mxGeometry");
@@ -597,7 +602,7 @@ public class DrawioCanvasXmlToolkit {
 
         List<CanvasPoint2D> originalWaypoints = readWaypoints(geometry);
         List<CanvasPoint2D> baseWaypoints = originalWaypoints.isEmpty()
-                ? defaultWaypoints(source, target, horizontal, routeStyle.getTrackFraction())
+                ? defaultWaypoints(source, target, horizontal, routeStyle)
                 : originalWaypoints;
         replaceWaypoints(geometry, baseWaypoints);
 
@@ -605,13 +610,12 @@ public class DrawioCanvasXmlToolkit {
             List<CanvasPoint2D> best = null;
             double bestLength = Double.MAX_VALUE;
             for (List<CanvasPoint2D> candidate : routeCandidates(source, target, cells, horizontal, forward,
-                    routeStyle.getTrackFraction())) {
+                    routeStyle)) {
                 replaceWaypoints(geometry, candidate);
                 if (hasEdgeNodeCrossing(document.asXML(), edge.attributeValue("id"))) {
                     continue;
                 }
-                double length = routeLength(edgeRoutePoints(geometry, source, target, horizontal, forward,
-                        routeStyle.getTrackFraction()));
+                double length = routeLength(edgeRoutePoints(geometry, source, target, horizontal, forward, routeStyle));
                 if (length < bestLength) {
                     best = candidate;
                     bestLength = length;
@@ -619,7 +623,7 @@ public class DrawioCanvasXmlToolkit {
             }
             replaceWaypoints(geometry, best == null ? originalWaypoints : best);
         }
-        positionEdgeLabel(edge, geometry, source, target, cells, horizontal, forward, routeStyle.getTrackFraction());
+        positionEdgeLabel(edge, geometry, source, target, cells, horizontal, forward, routeStyle);
     }
 
     private boolean hasEdgeNodeCrossing(String xml, String edgeId) {
@@ -673,16 +677,16 @@ public class DrawioCanvasXmlToolkit {
         }
     }
 
-    private List<CanvasPoint2D> defaultWaypoints(CellInfo source, CellInfo target, boolean horizontal, double trackFraction) {
+    private List<CanvasPoint2D> defaultWaypoints(CellInfo source, CellInfo target, boolean horizontal, EdgeRouteStyle routeStyle) {
         if (horizontal) {
             double midX = (source.centerX() + target.centerX()) / 2D;
-            return List.of(new CanvasPoint2D(midX, source.trackY(trackFraction)),
-                    new CanvasPoint2D(midX, target.trackY(trackFraction)));
+            return List.of(new CanvasPoint2D(midX, source.trackY(routeStyle.getSourceTrackFraction())),
+                    new CanvasPoint2D(midX, target.trackY(routeStyle.getTargetTrackFraction())));
         }
 
         double midY = (source.centerY() + target.centerY()) / 2D;
-        return List.of(new CanvasPoint2D(source.trackX(trackFraction), midY),
-                new CanvasPoint2D(target.trackX(trackFraction), midY));
+        return List.of(new CanvasPoint2D(source.trackX(routeStyle.getSourceTrackFraction()), midY),
+                new CanvasPoint2D(target.trackX(routeStyle.getTargetTrackFraction()), midY));
     }
 
     private List<List<CanvasPoint2D>> routeCandidates(CellInfo source,
@@ -690,7 +694,7 @@ public class DrawioCanvasXmlToolkit {
                                                       List<CellInfo> cells,
                                                       boolean horizontal,
                                                       boolean forward,
-                                                      double trackFraction) {
+                                                      EdgeRouteStyle routeStyle) {
         List<CellInfo> blockers = cells.stream()
                 .filter(cell -> "node".equals(cell.getKind()))
                 .filter(cell -> !StringUtils.equals(cell.getId(), source.getId()))
@@ -703,17 +707,17 @@ public class DrawioCanvasXmlToolkit {
         }
 
         return horizontal
-                ? horizontalRouteCandidates(source, target, blockers, forward, trackFraction)
-                : verticalRouteCandidates(source, target, blockers, forward, trackFraction);
+                ? horizontalRouteCandidates(source, target, blockers, forward, routeStyle)
+                : verticalRouteCandidates(source, target, blockers, forward, routeStyle);
     }
 
     private List<List<CanvasPoint2D>> horizontalRouteCandidates(CellInfo source,
                                                                CellInfo target,
                                                                List<CellInfo> blockers,
                                                                boolean forward,
-                                                               double trackFraction) {
-        CanvasPoint2D sourceAnchor = sourceAnchor(source, true, forward, trackFraction);
-        CanvasPoint2D targetAnchor = targetAnchor(target, true, forward, trackFraction);
+                                                               EdgeRouteStyle routeStyle) {
+        CanvasPoint2D sourceAnchor = sourceAnchor(source, true, forward, routeStyle);
+        CanvasPoint2D targetAnchor = targetAnchor(target, true, forward, routeStyle);
         double direction = forward ? 1D : -1D;
         double startX = sourceAnchor.getX() + ROUTE_DOGLEG * direction;
         double endX = targetAnchor.getX() - ROUTE_DOGLEG * direction;
@@ -739,9 +743,9 @@ public class DrawioCanvasXmlToolkit {
                                                              CellInfo target,
                                                              List<CellInfo> blockers,
                                                              boolean forward,
-                                                             double trackFraction) {
-        CanvasPoint2D sourceAnchor = sourceAnchor(source, false, forward, trackFraction);
-        CanvasPoint2D targetAnchor = targetAnchor(target, false, forward, trackFraction);
+                                                             EdgeRouteStyle routeStyle) {
+        CanvasPoint2D sourceAnchor = sourceAnchor(source, false, forward, routeStyle);
+        CanvasPoint2D targetAnchor = targetAnchor(target, false, forward, routeStyle);
         double direction = forward ? 1D : -1D;
         double startY = sourceAnchor.getY() + ROUTE_DOGLEG * direction;
         double endY = targetAnchor.getY() - ROUTE_DOGLEG * direction;
@@ -770,13 +774,13 @@ public class DrawioCanvasXmlToolkit {
                                    List<CellInfo> cells,
                                    boolean horizontal,
                                    boolean forward,
-                                   double trackFraction) {
+                                   EdgeRouteStyle routeStyle) {
         String label = cleanLabel(edge.attributeValue("value"));
         if (StringUtils.isBlank(label)) {
             return;
         }
 
-        List<CanvasPoint2D> route = edgeRoutePoints(geometry, source, target, horizontal, forward, trackFraction);
+        List<CanvasPoint2D> route = edgeRoutePoints(geometry, source, target, horizontal, forward, routeStyle);
         List<RouteSegment> segments = routeSegments(route);
         if (segments.isEmpty()) {
             return;
@@ -822,9 +826,9 @@ public class DrawioCanvasXmlToolkit {
                                                 CellInfo target,
                                                 boolean horizontal,
                                                 boolean forward,
-                                                double trackFraction) {
+                                                EdgeRouteStyle routeStyle) {
         List<CanvasPoint2D> points = new ArrayList<>();
-        points.add(sourceAnchor(source, horizontal, forward, trackFraction));
+        points.add(sourceAnchor(source, horizontal, forward, routeStyle));
 
         Element waypointArray = geometry.element("Array");
         if (waypointArray != null) {
@@ -834,22 +838,26 @@ public class DrawioCanvasXmlToolkit {
             }
         }
 
-        points.add(targetAnchor(target, horizontal, forward, trackFraction));
+        points.add(targetAnchor(target, horizontal, forward, routeStyle));
         return points;
     }
 
-    private CanvasPoint2D sourceAnchor(CellInfo source, boolean horizontal, boolean forward, double trackFraction) {
+    private CanvasPoint2D sourceAnchor(CellInfo source, boolean horizontal, boolean forward, EdgeRouteStyle routeStyle) {
         if (horizontal) {
-            return new CanvasPoint2D(forward ? source.maxX() : source.getX(), source.trackY(trackFraction));
+            return new CanvasPoint2D(forward ? source.maxX() : source.getX(),
+                    source.trackY(routeStyle.getSourceTrackFraction()));
         }
-        return new CanvasPoint2D(source.trackX(trackFraction), forward ? source.maxY() : source.getY());
+        return new CanvasPoint2D(source.trackX(routeStyle.getSourceTrackFraction()),
+                forward ? source.maxY() : source.getY());
     }
 
-    private CanvasPoint2D targetAnchor(CellInfo target, boolean horizontal, boolean forward, double trackFraction) {
+    private CanvasPoint2D targetAnchor(CellInfo target, boolean horizontal, boolean forward, EdgeRouteStyle routeStyle) {
         if (horizontal) {
-            return new CanvasPoint2D(forward ? target.getX() : target.maxX(), target.trackY(trackFraction));
+            return new CanvasPoint2D(forward ? target.getX() : target.maxX(),
+                    target.trackY(routeStyle.getTargetTrackFraction()));
         }
-        return new CanvasPoint2D(target.trackX(trackFraction), forward ? target.getY() : target.maxY());
+        return new CanvasPoint2D(target.trackX(routeStyle.getTargetTrackFraction()),
+                forward ? target.getY() : target.maxY());
     }
 
     private List<RouteSegment> routeSegments(List<CanvasPoint2D> points) {
@@ -964,7 +972,7 @@ public class DrawioCanvasXmlToolkit {
                 .sorted(java.util.Comparator.comparing(CellInfo::getId))
                 .toList();
         if (relatedEdges.size() < 2) {
-            return new EdgeRouteStyle(0.5D, auxiliary);
+            return alignedRouteStyle(source, target, horizontal, 0.5D, 0.5D, auxiliary);
         }
 
         String edgeId = StringUtils.defaultString(edge.attributeValue("id"));
@@ -981,7 +989,145 @@ public class DrawioCanvasXmlToolkit {
         double trackFraction = hasOppositeDirection && relatedEdges.size() == 2
                 ? (forward ? 0.3D : 0.7D)
                 : distributedTrack(index, relatedEdges.size());
-        return new EdgeRouteStyle(trackFraction, auxiliary);
+        double sourceTrackFraction = nodeSideTrack(edge, source, target, true, cells, trackFraction);
+        double targetTrackFraction = nodeSideTrack(edge, target, source, false, cells, trackFraction);
+        return alignedRouteStyle(source, target, horizontal, sourceTrackFraction, targetTrackFraction, auxiliary);
+    }
+
+    private EdgeRouteStyle alignedRouteStyle(CellInfo source,
+                                             CellInfo target,
+                                             boolean horizontal,
+                                             double sourceTrackFraction,
+                                             double targetTrackFraction,
+                                             boolean auxiliary) {
+        if (horizontal) {
+            Double laneY = sharedSafeLane(source.getY(), source.getHeight(), sourceTrackFraction,
+                    target.getY(), target.getHeight());
+            if (laneY != null) {
+                return new EdgeRouteStyle(
+                        trackFractionForLane(laneY, source.getY(), source.getHeight()),
+                        trackFractionForLane(laneY, target.getY(), target.getHeight()),
+                        auxiliary);
+            }
+        } else {
+            Double laneX = sharedSafeLane(source.getX(), source.getWidth(), sourceTrackFraction,
+                    target.getX(), target.getWidth());
+            if (laneX != null) {
+                return new EdgeRouteStyle(
+                        trackFractionForLane(laneX, source.getX(), source.getWidth()),
+                        trackFractionForLane(laneX, target.getX(), target.getWidth()),
+                        auxiliary);
+            }
+        }
+        return new EdgeRouteStyle(safePortTrack(sourceTrackFraction), safePortTrack(targetTrackFraction), auxiliary);
+    }
+
+    private Double sharedSafeLane(double sourceStart,
+                                  double sourceSize,
+                                  double sourceTrackFraction,
+                                  double targetStart,
+                                  double targetSize) {
+        if (sourceSize <= 0D || targetSize <= 0D) {
+            return null;
+        }
+        double min = Math.max(sourceStart + sourceSize * PORT_SAFE_MIN, targetStart + targetSize * PORT_SAFE_MIN);
+        double max = Math.min(sourceStart + sourceSize * PORT_SAFE_MAX, targetStart + targetSize * PORT_SAFE_MAX);
+        if (min > max) {
+            return null;
+        }
+        // Preserve the source-side route role, but snap both endpoints to one pixel lane.
+        double preferred = sourceStart + sourceSize * safePortTrack(sourceTrackFraction);
+        return clamp(preferred, min, max);
+    }
+
+    private double trackFractionForLane(double lane, double start, double size) {
+        if (size <= 0D) {
+            return 0.5D;
+        }
+        return safePortTrack((lane - start) / size);
+    }
+
+    private double safePortTrack(double trackFraction) {
+        return clamp(trackFraction, PORT_SAFE_MIN, PORT_SAFE_MAX);
+    }
+
+    private double nodeSideTrack(Element currentEdge,
+                                 CellInfo endpoint,
+                                 CellInfo otherEndpoint,
+                                 boolean sourceEndpoint,
+                                 List<CellInfo> cells,
+                                 double fallbackTrackFraction) {
+        Map<String, CellInfo> nodesById = cells.stream()
+                .filter(cell -> "node".equals(cell.getKind()))
+                .filter(cell -> StringUtils.isNotBlank(cell.getId()))
+                .collect(Collectors.toMap(CellInfo::getId, cell -> cell, (left, right) -> left));
+        NodeSide side = nodeSideFacing(endpoint, otherEndpoint);
+        List<EndpointBinding> bindings = new ArrayList<>();
+        for (CellInfo edge : cells) {
+            if (!"edge".equals(edge.getKind())) {
+                continue;
+            }
+            addEndpointBinding(bindings, edge, nodesById, endpoint, side, true);
+            addEndpointBinding(bindings, edge, nodesById, endpoint, side, false);
+        }
+        if (bindings.size() <= 2) {
+            return fallbackTrackFraction;
+        }
+
+        bindings.sort(java.util.Comparator
+                .comparingDouble(EndpointBinding::sortCoordinate)
+                .thenComparing(EndpointBinding::auxiliary)
+                .thenComparing(EndpointBinding::edgeId));
+        String currentEdgeId = StringUtils.defaultString(currentEdge.attributeValue("id"));
+        for (int i = 0; i < bindings.size(); i++) {
+            EndpointBinding binding = bindings.get(i);
+            if (StringUtils.equals(currentEdgeId, binding.edgeId())
+                    && sourceEndpoint == binding.sourceEndpoint()) {
+                return distributedNodeSideTrack(i, bindings.size());
+            }
+        }
+        return fallbackTrackFraction;
+    }
+
+    private void addEndpointBinding(List<EndpointBinding> bindings,
+                                    CellInfo edge,
+                                    Map<String, CellInfo> nodesById,
+                                    CellInfo endpoint,
+                                    NodeSide side,
+                                    boolean sourceEndpoint) {
+        String endpointId = sourceEndpoint ? edge.getSource() : edge.getTarget();
+        if (!StringUtils.equals(endpoint.getId(), endpointId)) {
+            return;
+        }
+        String otherId = sourceEndpoint ? edge.getTarget() : edge.getSource();
+        CellInfo other = nodesById.get(otherId);
+        if (other == null || StringUtils.equals(endpoint.getId(), other.getId())
+                || nodeSideFacing(endpoint, other) != side) {
+            return;
+        }
+        bindings.add(new EndpointBinding(
+                edge.getId(),
+                sourceEndpoint,
+                isAuxiliaryEdge(edge.getStyle(), edge.getLabel()),
+                (side == NodeSide.LEFT || side == NodeSide.RIGHT) ? other.centerY() : other.centerX()
+        ));
+    }
+
+    private NodeSide nodeSideFacing(CellInfo endpoint, CellInfo otherEndpoint) {
+        double dx = otherEndpoint.centerX() - endpoint.centerX();
+        double dy = otherEndpoint.centerY() - endpoint.centerY();
+        if (Math.abs(dx) >= Math.abs(dy)) {
+            return dx >= 0D ? NodeSide.RIGHT : NodeSide.LEFT;
+        }
+        return dy >= 0D ? NodeSide.BOTTOM : NodeSide.TOP;
+    }
+
+    private double distributedNodeSideTrack(int index, int count) {
+        if (count <= 1) {
+            return 0.5D;
+        }
+        return PORT_SAFE_MIN + ((PORT_SAFE_MAX - PORT_SAFE_MIN)
+                * Math.max(0, Math.min(index, count - 1)) / (count - 1));
     }
 
     private boolean sameEndpointPair(CellInfo edge, CellInfo source, CellInfo target) {
@@ -993,12 +1139,17 @@ public class DrawioCanvasXmlToolkit {
         if (count <= 1) {
             return 0.5D;
         }
-        return 0.25D + (0.5D * Math.max(0, Math.min(index, count - 1)) / (count - 1));
+        return PORT_SAFE_MIN + ((PORT_SAFE_MAX - PORT_SAFE_MIN)
+                * Math.max(0, Math.min(index, count - 1)) / (count - 1));
     }
 
     private boolean isAuxiliaryEdge(Element edge) {
-        String style = StringUtils.defaultString(edge.attributeValue("style")).toLowerCase(Locale.ROOT);
-        String label = cleanLabel(edge.attributeValue("value")).toLowerCase(Locale.ROOT);
+        return isAuxiliaryEdge(edge.attributeValue("style"), edge.attributeValue("value"));
+    }
+
+    private boolean isAuxiliaryEdge(String rawStyle, String rawLabel) {
+        String style = StringUtils.defaultString(rawStyle).toLowerCase(Locale.ROOT);
+        String label = cleanLabel(rawLabel).toLowerCase(Locale.ROOT);
         return style.contains("dashed=1")
                 || label.contains("return")
                 || label.contains("response")
@@ -1013,7 +1164,8 @@ public class DrawioCanvasXmlToolkit {
     private String ensureStyleTokens(String style,
                                      boolean horizontal,
                                      boolean forward,
-                                     double trackFraction,
+                                     double sourceTrackFraction,
+                                     double targetTrackFraction,
                                      boolean auxiliary) {
         Map<String, String> tokens = parseStyle(style);
         tokens.put("edgeStyle", "orthogonalEdgeStyle");
@@ -1028,11 +1180,12 @@ public class DrawioCanvasXmlToolkit {
         } else {
             tokens.putIfAbsent("strokeColor", "#334155");
         }
-        String track = trimStyleNumber(trackFraction);
-        tokens.put("exitX", horizontal ? (forward ? "1" : "0") : track);
-        tokens.put("exitY", horizontal ? track : (forward ? "1" : "0"));
-        tokens.put("entryX", horizontal ? (forward ? "0" : "1") : track);
-        tokens.put("entryY", horizontal ? track : (forward ? "0" : "1"));
+        String sourceTrack = trimStyleNumber(sourceTrackFraction);
+        String targetTrack = trimStyleNumber(targetTrackFraction);
+        tokens.put("exitX", horizontal ? (forward ? "1" : "0") : sourceTrack);
+        tokens.put("exitY", horizontal ? sourceTrack : (forward ? "1" : "0"));
+        tokens.put("entryX", horizontal ? (forward ? "0" : "1") : targetTrack);
+        tokens.put("entryY", horizontal ? targetTrack : (forward ? "0" : "1"));
         return tokens.entrySet().stream()
                 .map(entry -> entry.getKey() + "=" + entry.getValue())
                 .collect(Collectors.joining(";")) + ";";
@@ -1248,21 +1401,44 @@ public class DrawioCanvasXmlToolkit {
     }
 
     private static class EdgeRouteStyle {
-        private final double trackFraction;
+        private final double sourceTrackFraction;
+        private final double targetTrackFraction;
         private final boolean auxiliary;
 
         private EdgeRouteStyle(double trackFraction, boolean auxiliary) {
-            this.trackFraction = trackFraction;
+            this(trackFraction, trackFraction, auxiliary);
+        }
+
+        private EdgeRouteStyle(double sourceTrackFraction, double targetTrackFraction, boolean auxiliary) {
+            this.sourceTrackFraction = sourceTrackFraction;
+            this.targetTrackFraction = targetTrackFraction;
             this.auxiliary = auxiliary;
         }
 
-        private double getTrackFraction() {
-            return trackFraction;
+        private double getSourceTrackFraction() {
+            return sourceTrackFraction;
+        }
+
+        private double getTargetTrackFraction() {
+            return targetTrackFraction;
         }
 
         private boolean isAuxiliary() {
             return auxiliary;
         }
+    }
+
+    private enum NodeSide {
+        LEFT,
+        RIGHT,
+        TOP,
+        BOTTOM
+    }
+
+    private record EndpointBinding(String edgeId,
+                                   boolean sourceEndpoint,
+                                   boolean auxiliary,
+                                   double sortCoordinate) {
     }
 
     @Data

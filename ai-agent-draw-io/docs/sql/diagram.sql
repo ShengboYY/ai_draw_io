@@ -17,7 +17,7 @@ CREATE TABLE IF NOT EXISTS diagram (
     user_id         VARCHAR(64)  NOT NULL COMMENT 'Owner user id',
     title           VARCHAR(255) NOT NULL DEFAULT 'Untitled Diagram' COMMENT 'Display title for the future diagram list',
     diagram_type    VARCHAR(64)  NOT NULL DEFAULT 'basic' COMMENT 'basic, architecture, uml_class, flowchart, etc.',
-    thumbnail_url   VARCHAR(512)          DEFAULT NULL COMMENT 'Future homepage thumbnail URL',
+    thumbnail_url   MEDIUMTEXT            COMMENT 'Homepage thumbnail data URL',
     deleted         TINYINT(1)   NOT NULL DEFAULT 0 COMMENT 'Soft delete flag',
     created_at      DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Create time',
     updated_at      DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT 'Update time',

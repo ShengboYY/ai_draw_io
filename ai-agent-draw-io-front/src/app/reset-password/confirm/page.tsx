@@ -25,9 +25,9 @@ export default function ResetPasswordConfirmPage() {
 
 function ResetPasswordConfirmLoading() {
   return (
-    <main className="min-h-screen flex justify-center items-center p-7 theme-bg-gradient">
-      <section className="theme-card rounded-[16px] p-6 w-full max-w-[480px] flex flex-col gap-3">
-        <h1 className="m-0 text-xl font-bold text-[rgba(255,255,255,0.92)]">Loading reset link...</h1>
+    <main className="app-page theme-bg-gradient flex items-center justify-center p-6">
+      <section className="codex-card flex w-full max-w-[480px] flex-col gap-3 p-6">
+        <h1 className="m-0 text-xl font-semibold text-zinc-800">Loading reset link...</h1>
       </section>
     </main>
   );
@@ -65,33 +65,33 @@ function ResetPasswordConfirm() {
 
   if (phase === 'done') {
     return (
-      <main className="min-h-screen flex justify-center items-center p-7 theme-bg-gradient">
-        <section className="theme-card rounded-[16px] p-6 w-full max-w-[480px] flex flex-col gap-3">
+      <main className="app-page theme-bg-gradient flex items-center justify-center p-6">
+        <section className="codex-card flex w-full max-w-[480px] flex-col gap-3 p-6">
           <h1
-            className={`m-0 text-xl font-bold ${
+            className={`m-0 text-xl font-semibold ${
               display.variant === 'success'
-                ? 'text-[#62f6c7]'
+                ? 'text-emerald-700'
                 : display.variant === 'warning'
-                  ? 'text-[#ffb85a]'
-                  : 'text-[#ff5a7a]'
+                  ? 'text-amber-700'
+                  : 'text-rose-700'
             }`}
           >
             {display.title}
           </h1>
-          <p className="m-0 text-sm text-[rgba(255,255,255,0.72)] leading-[1.6]">
+          <p className="m-0 text-sm leading-6 text-zinc-600">
             {display.message}
           </p>
           <div className="flex gap-3 mt-2">
             {display.canSignIn && (
               <Link
                 href="/login"
-                className="theme-btn rounded-[12px] p-[10px_14px] font-bold text-sm text-center"
+                className="theme-btn rounded-lg px-4 py-2.5 text-center text-sm font-semibold"
               >
                 Go to sign in
               </Link>
             )}
             {display.canRequestNew && (
-              <Link href="/reset-password" className="text-sm text-[rgba(255,255,255,0.72)] self-center underline">
+              <Link href="/reset-password" className="codex-link self-center text-sm">
                 Request new link
               </Link>
             )}
@@ -102,50 +102,50 @@ function ResetPasswordConfirm() {
   }
 
   return (
-    <main className="min-h-screen flex justify-center items-center p-7 theme-bg-gradient">
-      <section className="theme-card rounded-[16px] p-6 w-full max-w-[480px] flex flex-col gap-3">
-        <h1 className="m-0 text-xl font-bold text-[rgba(255,255,255,0.92)]">Set a new password</h1>
-        <p className="m-0 text-xs text-[rgba(255,255,255,0.56)]">
+    <main className="app-page theme-bg-gradient flex items-center justify-center p-6">
+      <section className="codex-card flex w-full max-w-[480px] flex-col gap-3 p-6">
+        <h1 className="m-0 text-xl font-semibold text-zinc-800">Set a new password</h1>
+        <p className="m-0 text-xs text-zinc-500">
           This reset link can be used once and expires after 30 minutes.
         </p>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-3 mt-2">
-          <label className="flex flex-col gap-2 text-xs text-[rgba(255,255,255,0.72)]">
+          <label className="flex flex-col gap-2 text-xs font-medium text-zinc-600">
             New password
             <input
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               autoComplete="new-password"
-              className="rounded-[12px] theme-input p-3 outline-none text-sm"
+              className="theme-input rounded-lg p-3 text-sm font-normal"
             />
-            {errors.password && <span className="text-[#ff5a7a] text-xs">{errors.password}</span>}
+            {errors.password && <span className="text-xs font-normal text-rose-700">{errors.password}</span>}
           </label>
 
-          <label className="flex flex-col gap-2 text-xs text-[rgba(255,255,255,0.72)]">
+          <label className="flex flex-col gap-2 text-xs font-medium text-zinc-600">
             Confirm password
             <input
               type="password"
               value={confirm}
               onChange={(e) => setConfirm(e.target.value)}
               autoComplete="new-password"
-              className="rounded-[12px] theme-input p-3 outline-none text-sm"
+              className="theme-input rounded-lg p-3 text-sm font-normal"
             />
-            {errors.confirm && <span className="text-[#ff5a7a] text-xs">{errors.confirm}</span>}
+            {errors.confirm && <span className="text-xs font-normal text-rose-700">{errors.confirm}</span>}
           </label>
 
-          {errors.token && <p className="m-0 text-xs text-[#ff5a7a]">{errors.token}</p>}
+          {errors.token && <p className="m-0 text-xs text-rose-700">{errors.token}</p>}
 
           <button
             type="submit"
             disabled={phase === 'submitting'}
-            className="theme-btn rounded-[12px] p-[11px_14px] font-bold text-sm disabled:opacity-60 mt-2"
+            className="theme-btn mt-2 rounded-lg px-4 py-2.5 text-sm font-semibold disabled:opacity-60"
           >
             {phase === 'submitting' ? 'Updating...' : 'Update password'}
           </button>
 
           {serverError && (
-            <p className="m-0 text-xs text-[#ff5a7a]">{serverError}</p>
+            <p className="m-0 text-xs text-rose-700">{serverError}</p>
           )}
         </form>
       </section>

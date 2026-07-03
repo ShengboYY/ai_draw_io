@@ -137,7 +137,10 @@ public class DrawioStreamResponseWriter {
             wrapper.put("chunk", json);
             emitter.send(wrapper.toJSONString() + "\n");
 
-            if ("drawio_node".equals(type) || "drawio_edge".equals(type)) {
+            // Pacing exists to make the first-draw animation readable; on a canvas that already
+            // has content the frontend doesn't animate these, so pacing would only add latency.
+            if (("drawio_node".equals(type) || "drawio_edge".equals(type))
+                    && !hasDrawableCanvas(currentCanvasByEmitter.get(emitter))) {
                 Thread.sleep(250);
             }
 
@@ -468,20 +471,43 @@ public class DrawioStreamResponseWriter {
         }
 
         pendingDiagrams.remove(emitter);
+        // Cell-by-cell replay is a first-draw animation. Once the stream already holds a drawable
+        // canvas (an existing diagram being edited, or an earlier draw pass in this run), replaying
+        // would wipe the frontend canvas and redraw it from blank — deliver only validation + done.
+        boolean replayCells = !hasDrawableCanvas(currentCanvasByEmitter.get(emitter));
         for (com.alibaba.fastjson.JSONObject chunk : chunks) {
-            if ("drawio_done".equals(chunk.getString("type"))) {
+            String chunkType = chunk.getString("type");
+            if ("drawio_done".equals(chunkType)) {
                 sendDrawioDone(emitter, phase, chunk.getString("content"), false, chunk.getString("mode"));
+                continue;
+            }
+            if (!replayCells && isCellReplayChunk(chunkType)) {
                 continue;
             }
             com.alibaba.fastjson.JSONObject wrapper = new com.alibaba.fastjson.JSONObject();
             wrapper.put("phase", phase);
             wrapper.put("chunk", chunk);
             emitter.send(wrapper.toJSONString() + "\n");
-            if ("drawio_node".equals(chunk.getString("type")) || "drawio_edge".equals(chunk.getString("type"))) {
+            if ("drawio_node".equals(chunkType) || "drawio_edge".equals(chunkType)) {
                 Thread.sleep(90);
             }
         }
         return true;
+    }
+
+    private boolean isCellReplayChunk(String chunkType) {
+        return "drawio_preview".equals(chunkType)
+                || "drawio_node".equals(chunkType)
+                || "drawio_edge".equals(chunkType);
+    }
+
+    // Blank canvases and the empty skeleton (cells 0/1 only) don't count; only real content does.
+    private boolean hasDrawableCanvas(String xml) {
+        if (StringUtils.isBlank(xml)) {
+            return false;
+        }
+        return xml.contains("vertex=\"1\"") || xml.contains("vertex='1'")
+                || xml.contains("edge=\"1\"") || xml.contains("edge='1'");
     }
 
     private void sendFallbackContinuation(ResponseBodyEmitter emitter,

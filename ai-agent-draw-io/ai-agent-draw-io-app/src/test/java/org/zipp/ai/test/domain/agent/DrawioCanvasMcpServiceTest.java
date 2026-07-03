@@ -451,6 +451,144 @@ public class DrawioCanvasMcpServiceTest {
     }
 
     @Test
+    public void shouldSpreadMultipleEdgesOnTheSameNodeSide() throws Exception {
+        DrawioCanvasMcpService service = new DrawioCanvasMcpService();
+        DrawioCanvasMcpService.DrawioXmlRequest request = new DrawioCanvasMcpService.DrawioXmlRequest();
+        request.setXml("""
+                <mxGraphModel><root><mxCell id='0'/><mxCell id='1' parent='0'/>
+                <mxCell id='2' value='Frontend' vertex='1' parent='1'><mxGeometry x='80' y='260' width='160' height='70' as='geometry'/></mxCell>
+                <mxCell id='3' value='Backend API' vertex='1' parent='1'><mxGeometry x='420' y='260' width='160' height='70' as='geometry'/></mxCell>
+                <mxCell id='4' value='AI Service' vertex='1' parent='1'><mxGeometry x='780' y='120' width='180' height='80' as='geometry'/></mxCell>
+                <mxCell id='5' value='History DB' vertex='1' parent='1'><mxGeometry x='780' y='440' width='180' height='80' as='geometry'/></mxCell>
+                <mxCell id='6' value='2. call model' edge='1' parent='1' source='3' target='4'><mxGeometry relative='1' as='geometry'/></mxCell>
+                <mxCell id='7' value='3. return XML' style='dashed=1;' edge='1' parent='1' source='4' target='3'><mxGeometry relative='1' as='geometry'/></mxCell>
+                <mxCell id='8' value='4. save history' edge='1' parent='1' source='3' target='5'><mxGeometry relative='1' as='geometry'/></mxCell>
+                <mxCell id='9' value='5. read history' style='dashed=1;' edge='1' parent='1' source='5' target='3'><mxGeometry relative='1' as='geometry'/></mxCell>
+                </root></mxGraphModel>
+                """);
+
+        DrawioCanvasMcpService.DrawioToolResponse response = service.routeEdges(request);
+
+        // Backend API's right side carries four connectors in this shape; each needs its own
+        // y-track so arrow heads and source anchors do not collapse into two crowded points.
+        List<Double> backendRightTracks = List.of(
+                styleFraction(response.getContent(), "6", "exitY"),
+                styleFraction(response.getContent(), "7", "entryY"),
+                styleFraction(response.getContent(), "8", "exitY"),
+                styleFraction(response.getContent(), "9", "entryY")
+        );
+        assertEquals(4, backendRightTracks.stream().distinct().count());
+        for (Double track : backendRightTracks) {
+            assertTrue("tracks should stay away from rounded-corner hit zones: " + backendRightTracks,
+                    track >= 0.25D && track <= 0.75D);
+        }
+        for (int i = 0; i < backendRightTracks.size(); i++) {
+            for (int j = i + 1; j < backendRightTracks.size(); j++) {
+                assertTrue("tracks should have visible separation: " + backendRightTracks,
+                        Math.abs(backendRightTracks.get(i) - backendRightTracks.get(j)) >= 0.12D);
+            }
+        }
+    }
+
+    @Test
+    public void shouldAlignHorizontalLanesBetweenDifferentHeightNodes() throws Exception {
+        DrawioCanvasMcpService service = new DrawioCanvasMcpService();
+        DrawioCanvasMcpService.DrawioXmlRequest request = new DrawioCanvasMcpService.DrawioXmlRequest();
+        request.setXml("""
+                <mxGraphModel><root><mxCell id='0'/><mxCell id='1' parent='0'/>
+                <mxCell id='2' value='Frontend' vertex='1' parent='1'><mxGeometry x='100' y='100' width='220' height='140' as='geometry'/></mxCell>
+                <mxCell id='3' value='Backend API' vertex='1' parent='1'><mxGeometry x='560' y='130' width='180' height='90' as='geometry'/></mxCell>
+                <mxCell id='4' value='1. request' edge='1' parent='1' source='2' target='3'><mxGeometry relative='1' as='geometry'/></mxCell>
+                <mxCell id='5' value='2. return' style='dashed=1;' edge='1' parent='1' source='3' target='2'><mxGeometry relative='1' as='geometry'/></mxCell>
+                </root></mxGraphModel>
+                """);
+
+        DrawioCanvasMcpService.DrawioToolResponse response = service.routeEdges(request);
+
+        // Same numeric fractions do not mean the same pixel lane when node heights differ.
+        // The router should pick one absolute lane per horizontal edge and derive both ports.
+        assertEquals(
+                100D + 140D * styleFraction(response.getContent(), "4", "exitY"),
+                130D + 90D * styleFraction(response.getContent(), "4", "entryY"),
+                0.1D
+        );
+        assertEquals(
+                130D + 90D * styleFraction(response.getContent(), "5", "exitY"),
+                100D + 140D * styleFraction(response.getContent(), "5", "entryY"),
+                0.1D
+        );
+    }
+
+    @Test
+    public void shouldAlignVerticalLanesBetweenDifferentWidthNodes() throws Exception {
+        DrawioCanvasMcpService service = new DrawioCanvasMcpService();
+        DrawioCanvasMcpService.DrawioXmlRequest request = new DrawioCanvasMcpService.DrawioXmlRequest();
+        request.setXml("""
+                <mxGraphModel><root><mxCell id='0'/><mxCell id='1' parent='0'/>
+                <mxCell id='2' value='Client' vertex='1' parent='1'><mxGeometry x='100' y='100' width='240' height='100' as='geometry'/></mxCell>
+                <mxCell id='3' value='Worker' vertex='1' parent='1'><mxGeometry x='140' y='420' width='120' height='90' as='geometry'/></mxCell>
+                <mxCell id='4' value='1. submit' edge='1' parent='1' source='2' target='3'><mxGeometry relative='1' as='geometry'/></mxCell>
+                <mxCell id='5' value='2. done' style='dashed=1;' edge='1' parent='1' source='3' target='2'><mxGeometry relative='1' as='geometry'/></mxCell>
+                </root></mxGraphModel>
+                """);
+
+        DrawioCanvasMcpService.DrawioToolResponse response = service.routeEdges(request);
+
+        // For vertical diagrams, matching fractions are not enough when node widths differ.
+        // The router should derive exitX/entryX from one absolute x-lane per edge.
+        assertEquals(
+                100D + 240D * styleFraction(response.getContent(), "4", "exitX"),
+                140D + 120D * styleFraction(response.getContent(), "4", "entryX"),
+                0.1D
+        );
+        assertEquals(
+                140D + 120D * styleFraction(response.getContent(), "5", "exitX"),
+                100D + 240D * styleFraction(response.getContent(), "5", "entryX"),
+                0.1D
+        );
+    }
+
+    @Test
+    public void shouldRerouteCornerAdjacentPortsBeforeReturningDiagram() throws Exception {
+        DrawioCanvasMcpService service = new DrawioCanvasMcpService();
+        DrawioCanvasMcpService.DrawioXmlRequest request = new DrawioCanvasMcpService.DrawioXmlRequest();
+        request.setXml("""
+                <mxGraphModel><root><mxCell id='0'/><mxCell id='1' parent='0'/>
+                <mxCell id='2' value='Frontend' style='rounded=1;' vertex='1' parent='1'><mxGeometry x='100' y='100' width='220' height='120' as='geometry'/></mxCell>
+                <mxCell id='3' value='Backend API' style='rounded=1;' vertex='1' parent='1'><mxGeometry x='560' y='100' width='180' height='120' as='geometry'/></mxCell>
+                <mxCell id='4' value='request' style='endArrow=classic;edgeStyle=orthogonalEdgeStyle;exitX=1;exitY=0.1;entryX=0;entryY=0.1;' edge='1' parent='1' source='2' target='3'>
+                <mxGeometry relative='1' as='geometry'/></mxCell>
+                </root></mxGraphModel>
+                """);
+
+        DrawioCanvasMcpService.DrawioToolResponse response = service.createDiagram(request);
+
+        assertTrue(styleFraction(response.getContent(), "4", "exitY") >= 0.25D);
+        assertTrue(styleFraction(response.getContent(), "4", "entryY") >= 0.25D);
+    }
+
+    @Test
+    public void shouldRerouteVerticalCornerAdjacentPortsBeforeReturningDiagram() throws Exception {
+        DrawioCanvasMcpService service = new DrawioCanvasMcpService();
+        DrawioCanvasMcpService.DrawioXmlRequest request = new DrawioCanvasMcpService.DrawioXmlRequest();
+        request.setXml("""
+                <mxGraphModel><root><mxCell id='0'/><mxCell id='1' parent='0'/>
+                <mxCell id='2' value='Client' style='rounded=1;' vertex='1' parent='1'><mxGeometry x='100' y='100' width='240' height='100' as='geometry'/></mxCell>
+                <mxCell id='3' value='Worker' style='rounded=1;' vertex='1' parent='1'><mxGeometry x='110' y='420' width='160' height='100' as='geometry'/></mxCell>
+                <mxCell id='4' value='submit' style='endArrow=classic;edgeStyle=orthogonalEdgeStyle;exitX=0.1;exitY=1;entryX=0.1;entryY=0;' edge='1' parent='1' source='2' target='3'>
+                <mxGeometry relative='1' as='geometry'/></mxCell>
+                </root></mxGraphModel>
+                """);
+
+        DrawioCanvasMcpService.DrawioToolResponse response = service.createDiagram(request);
+
+        assertTrue(styleFraction(response.getContent(), "4", "exitX") >= 0.25D);
+        assertTrue(styleFraction(response.getContent(), "4", "entryX") >= 0.25D);
+        assertTrue(styleFraction(response.getContent(), "4", "exitX") <= 0.75D);
+        assertTrue(styleFraction(response.getContent(), "4", "entryX") <= 0.75D);
+    }
+
+    @Test
     public void shouldLogToolInvocationWithoutRawXml() {
         Logger logger = (Logger) LoggerFactory.getLogger(DrawioCanvasMcpService.class);
         ListAppender<ILoggingEvent> appender = new ListAppender<>();
@@ -582,6 +720,28 @@ public class DrawioCanvasMcpServiceTest {
         assertTrue("label should be offset away from the edge line", Math.abs(Double.parseDouble(geometry.attributeValue("y"))) > 0);
         assertTrue("label should choose the lower side when the upper side overlaps another node",
                 Double.parseDouble(geometry.attributeValue("y")) > 0);
+    }
+
+    @Test
+    public void shouldMoveCenteredHorizontalEdgeLabelAboveLineOnCreate() throws Exception {
+        DrawioCanvasMcpService service = new DrawioCanvasMcpService();
+        DrawioCanvasMcpService.DrawioXmlRequest request = new DrawioCanvasMcpService.DrawioXmlRequest();
+        request.setXml("""
+                <mxGraphModel><root><mxCell id='0'/><mxCell id='1' parent='0'/>
+                <mxCell id='2' value='Frontend' vertex='1' parent='1'><mxGeometry x='60' y='100' width='160' height='100' as='geometry'/></mxCell>
+                <mxCell id='3' value='Backend' vertex='1' parent='1'><mxGeometry x='560' y='100' width='160' height='100' as='geometry'/></mxCell>
+                <mxCell id='4' value='1. draw request' style='endArrow=classic;strokeWidth=5;edgeStyle=orthogonalEdgeStyle;exitX=1;exitY=0.5;entryX=0;entryY=0.5;' edge='1' parent='1' source='2' target='3'>
+                <mxGeometry relative='1' as='geometry'/></mxCell>
+                </root></mxGraphModel>
+                """);
+
+        DrawioCanvasMcpService.DrawioToolResponse response = service.createDiagram(request);
+
+        Element geometry = edgeGeometry(response.getContent(), "4");
+        assertTrue("horizontal edge labels should move above the line by default",
+                Double.parseDouble(geometry.attributeValue("y")) < 0D);
+        assertTrue("label offset should clear thick strokes instead of barely leaving the line",
+                Math.abs(Double.parseDouble(geometry.attributeValue("y"))) >= 30D);
     }
 
     @Test
@@ -719,6 +879,31 @@ public class DrawioCanvasMcpServiceTest {
             Element cell = (Element) item;
             if (edgeId.equals(cell.attributeValue("id"))) {
                 return cell.element("mxGeometry");
+            }
+        }
+        throw new AssertionError("Edge not found: " + edgeId);
+    }
+
+    private double styleFraction(String xml, String edgeId, String token) throws Exception {
+        String style = edgeStyle(xml, edgeId);
+        int start = style.indexOf(token + "=");
+        if (start < 0) {
+            throw new AssertionError("Missing style token " + token + " on edge " + edgeId + ": " + style);
+        }
+        start += token.length() + 1;
+        int end = start;
+        while (end < style.length() && (Character.isDigit(style.charAt(end)) || style.charAt(end) == '.')) {
+            end++;
+        }
+        return Double.parseDouble(style.substring(start, end));
+    }
+
+    private String edgeStyle(String xml, String edgeId) throws Exception {
+        Document document = DocumentHelper.parseText(xml);
+        for (Object item : document.getRootElement().element("root").elements("mxCell")) {
+            Element cell = (Element) item;
+            if (edgeId.equals(cell.attributeValue("id"))) {
+                return cell.attributeValue("style");
             }
         }
         throw new AssertionError("Edge not found: " + edgeId);

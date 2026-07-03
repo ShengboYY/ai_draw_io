@@ -7,6 +7,7 @@
         <result column="user_id" property="userId"/>
         <result column="title" property="title"/>
         <result column="diagram_type" property="diagramType"/>
+        <result column="thumbnail_url" property="thumbnailUrl"/>
         <result column="current_xml" property="currentXml"/>
         <result column="summary" property="summary"/>
         <result column="analysis_json" property="analysisJson"/>
@@ -20,6 +21,7 @@
         c.user_id,
         d.title,
         d.diagram_type,
+        d.thumbnail_url,
         c.current_xml,
         c.summary,
         c.analysis_json,
@@ -45,6 +47,7 @@
             d.user_id,
             d.title,
             d.diagram_type,
+            d.thumbnail_url,
             NULL AS current_xml,
             c.summary,
             c.analysis_json,
@@ -113,6 +116,15 @@
     <update id="updateDiagramTitle">
         UPDATE diagram
         SET title = #{title},
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = #{diagramId}
+          AND user_id = #{userId}
+          AND deleted = 0
+    </update>
+
+    <update id="updateDiagramThumbnail">
+        UPDATE diagram
+        SET thumbnail_url = #{thumbnailUrl},
             updated_at = CURRENT_TIMESTAMP
         WHERE id = #{diagramId}
           AND user_id = #{userId}

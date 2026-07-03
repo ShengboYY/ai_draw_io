@@ -104,6 +104,10 @@ final class DrawioRepairBriefComposer {
                     + " to the side that matches its visual flow, then keep the route orthogonal";
             case PARALLEL_EDGE_OVERLAP -> "separate the parallel edges touching " + first
                     + " with distinct waypoints or route one edge through an outer gutter";
+            case NODE_SIDE_PORT_CROWDING -> "spread same-side connector ports for edges " + ids
+                    + " so arrowheads do not stack on one node side";
+            case PORT_CORNER_PROXIMITY -> "move edge " + first
+                    + " away from rounded corners by using side-port tracks between 0.25 and 0.75";
         };
     }
 }

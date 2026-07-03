@@ -28,6 +28,10 @@ public interface ICanvasStateMapper {
                            @Param("diagramId") String diagramId,
                            @Param("title") String title);
 
+    int updateDiagramThumbnail(@Param("userId") String userId,
+                               @Param("diagramId") String diagramId,
+                               @Param("thumbnailUrl") String thumbnailUrl);
+
     int softDeleteDiagram(@Param("userId") String userId,
                           @Param("diagramId") String diagramId);
 

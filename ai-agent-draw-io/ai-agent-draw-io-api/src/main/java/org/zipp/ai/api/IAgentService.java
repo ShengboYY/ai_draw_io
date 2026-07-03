@@ -21,6 +21,8 @@ public interface IAgentService {
 
     Response<DiagramSummaryResponseDTO> renameDiagram(String diagramId, UpdateDiagramTitleRequestDTO requestDTO);
 
+    Response<DiagramSummaryResponseDTO> updateDiagramThumbnail(String diagramId, UpdateDiagramThumbnailRequestDTO requestDTO);
+
     Response<Boolean> deleteDiagram(String userId, String diagramId);
 
     Response<List<DiagramConversationMessageDTO>> listDiagramMessages(String userId, String diagramId);
