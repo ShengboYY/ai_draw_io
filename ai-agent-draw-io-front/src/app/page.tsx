@@ -219,15 +219,6 @@ export default function Home() {
         <div className="flex h-16 items-center justify-between gap-4 px-4 sm:px-6">
           <h1 className="shrink-0 text-xl font-medium tracking-normal text-zinc-800 sm:text-2xl">My diagrams</h1>
           <div className="flex min-w-0 items-center gap-3">
-            <button
-              type="button"
-              onClick={startNewDiagram}
-              className="theme-btn flex h-10 w-10 items-center justify-center rounded-lg px-0 text-sm font-medium transition sm:w-auto sm:px-4"
-              aria-label="New diagram"
-            >
-              <span className="text-lg leading-none sm:hidden">+</span>
-              <span className="hidden whitespace-nowrap sm:inline">New diagram</span>
-            </button>
             {!isSignedInWorkspace && (
               <Link
                 href="/login"
@@ -318,20 +309,27 @@ export default function Home() {
                 </div>
               ))}
             </div>
-          ) : diagrams.length === 0 ? (
-            <div className="rounded-lg border border-dashed border-stone-300 bg-white px-5 py-8">
-              <h2 className="text-base font-medium tracking-normal text-zinc-800">No diagrams yet</h2>
-              <p className="mt-2 text-sm text-zinc-500">Create your first diagram and it will appear here.</p>
-              <button
-                type="button"
-                onClick={startNewDiagram}
-                className="theme-btn mt-4 h-10 rounded-lg px-4 text-sm font-medium transition"
-              >
-                New diagram
-              </button>
-            </div>
           ) : (
             <div className="grid gap-x-5 gap-y-7 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5">
+              {/* Place creation inside Recent diagrams so it reads as a distinct first document tile. */}
+              <article className="group relative min-w-0 rounded-lg bg-stone-50 p-3 ring-1 ring-stone-200 transition hover:bg-stone-100">
+                <button
+                  type="button"
+                  onClick={startNewDiagram}
+                  className="block w-full text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-700/20"
+                  aria-label="Create new diagram"
+                >
+                  <div className={`${DRAWIO_CANVAS_PREVIEW_ASPECT_CLASS} flex items-center justify-center rounded-lg border border-stone-300 bg-white shadow-sm transition group-hover:border-zinc-400 group-hover:shadow-md`}>
+                    <span className="relative block h-10 w-10" aria-hidden="true">
+                      <span className="absolute left-1/2 top-1/2 h-1.5 w-7 -translate-x-1/2 -translate-y-1/2 bg-zinc-700" />
+                      <span className="absolute left-1/2 top-1/2 h-7 w-1.5 -translate-x-1/2 -translate-y-1/2 bg-zinc-700" />
+                    </span>
+                  </div>
+                  <div className="mt-4 text-lg font-semibold leading-6 tracking-normal text-zinc-800">
+                    Create New Diagram
+                  </div>
+                </button>
+              </article>
               {diagrams.map(diagram => (
                 <article
                   key={diagram.diagramId}

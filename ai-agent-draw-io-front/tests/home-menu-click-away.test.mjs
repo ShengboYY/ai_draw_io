@@ -47,3 +47,19 @@ test('home account menu opens from hover and stays reachable after leaving the t
   assert.match(pageSource, /document\.addEventListener\('pointerdown', closeMenuOnOutsidePointerDown\)/);
   assert.doesNotMatch(pageSource, /onMouseLeave=\{closeAccountMenu\}/);
 });
+
+test('home places the new diagram action as the first recent diagram card', () => {
+  const pagePath = fileURLToPath(new URL('../src/app/page.tsx', import.meta.url));
+  const pageSource = readFileSync(pagePath, 'utf8');
+  const headerSource = pageSource.slice(pageSource.indexOf('<header'), pageSource.indexOf('</header>'));
+
+  assert.doesNotMatch(headerSource, /New diagram/);
+  assert.match(pageSource, /aria-label="Create new diagram"/);
+  assert.match(pageSource, /Create New Diagram/);
+  assert.match(pageSource, /h-1\.5 w-7/);
+  assert.match(pageSource, /h-7 w-1\.5/);
+  assert.match(pageSource, /text-lg font-semibold/);
+  assert.match(pageSource, /bg-zinc-700/);
+  assert.doesNotMatch(pageSource, /#fbbc04|#4285f4|#ea4335|#34a853/);
+  assert.ok(pageSource.indexOf('aria-label="Create new diagram"') < pageSource.indexOf('{diagrams.map'));
+});
