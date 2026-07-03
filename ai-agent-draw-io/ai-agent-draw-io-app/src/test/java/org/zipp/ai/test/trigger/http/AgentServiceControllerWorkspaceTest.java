@@ -17,6 +17,7 @@ import org.zipp.ai.api.dto.CurrentAccountResponseDTO;
 import org.zipp.ai.api.dto.DiagramSummaryResponseDTO;
 import org.zipp.ai.api.dto.ImportAnonymousWorkspaceRequestDTO;
 import org.zipp.ai.api.dto.ImportAnonymousWorkspaceResponseDTO;
+import org.zipp.ai.api.dto.SaveDiagramCanvasStateRequestDTO;
 import org.zipp.ai.api.dto.UpdateDiagramThumbnailRequestDTO;
 import org.zipp.ai.api.dto.UpdateDiagramTitleRequestDTO;
 import org.zipp.ai.api.response.Response;
@@ -25,6 +26,7 @@ import org.zipp.ai.domain.account.model.valobj.OwnerType;
 import org.zipp.ai.domain.account.service.AnonymousDemoQuotaService;
 import org.zipp.ai.domain.account.service.VerifiedUserPlatformQuotaService;
 import org.zipp.ai.domain.agent.model.valobj.canvas.CanvasState;
+import org.zipp.ai.domain.agent.model.valobj.canvas.CanvasStateVersionConflictException;
 import org.zipp.ai.domain.agent.service.ICanvasStateStore;
 import org.zipp.ai.domain.agent.service.usage.AgentUsageTelemetryService;
 import org.zipp.ai.test.domain.agent.FakeAgentUsageTelemetryStore;
@@ -156,6 +158,68 @@ public class AgentServiceControllerWorkspaceTest {
         assertEquals("diagram-1", store.thumbnailDiagramId);
         assertEquals(VALID_PNG_DATA_URL, store.thumbnailUrl);
         assertEquals(VALID_PNG_DATA_URL, response.getData().getThumbnailUrl());
+    }
+
+    @Test
+    public void shouldSaveManualDiagramCanvasFromWorkspaceHeader() throws Exception {
+        AgentServiceController controller = new AgentServiceController();
+        FakeCanvasStateStore store = new FakeCanvasStateStore();
+        inject(controller, "canvasStateStore", store);
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.addHeader("X-Workspace-Id", VALID_WORKSPACE_ID);
+        RequestContextHolder.setRequestAttributes(new ServletRequestAttributes(request));
+        SaveDiagramCanvasStateRequestDTO requestDTO = new SaveDiagramCanvasStateRequestDTO();
+        requestDTO.setCanvasXml("<mxGraphModel><root><mxCell id=\"0\"/><mxCell id=\"1\" parent=\"0\"/><mxCell id=\"2\" vertex=\"1\" parent=\"1\"/></root></mxGraphModel>");
+        requestDTO.setExpectedVersion(3L);
+
+        Response<?> response = controller.saveDiagramCanvasState("diagram-1", requestDTO);
+
+        assertEquals(ResponseCode.SUCCESS.getCode(), response.getCode());
+        assertTrue(store.saveCalled);
+        assertEquals(VALID_WORKSPACE_ID, store.savedState.getUserId());
+        assertEquals("diagram-1", store.savedState.getDiagramId());
+        assertEquals(Long.valueOf(3L), store.savedState.getVersion());
+        assertEquals(requestDTO.getCanvasXml(), store.savedState.getCurrentXml());
+    }
+
+    @Test
+    public void shouldReturnConflictWhenManualCanvasSaveVersionIsStale() throws Exception {
+        AgentServiceController controller = new AgentServiceController();
+        FakeCanvasStateStore store = new FakeCanvasStateStore();
+        store.conflictOnSave = true;
+        inject(controller, "canvasStateStore", store);
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.addHeader("X-Workspace-Id", VALID_WORKSPACE_ID);
+        RequestContextHolder.setRequestAttributes(new ServletRequestAttributes(request));
+        SaveDiagramCanvasStateRequestDTO requestDTO = new SaveDiagramCanvasStateRequestDTO();
+        requestDTO.setCanvasXml("<mxGraphModel><root><mxCell id=\"0\"/></root></mxGraphModel>");
+        requestDTO.setExpectedVersion(1L);
+
+        Response<?> response = controller.saveDiagramCanvasState("diagram-1", requestDTO);
+
+        assertEquals(ResponseCode.CANVAS_VERSION_CONFLICT.getCode(), response.getCode());
+    }
+
+    @Test
+    public void shouldRejectBlankOrOversizedManualCanvasXml() throws Exception {
+        AgentServiceController controller = new AgentServiceController();
+        FakeCanvasStateStore store = new FakeCanvasStateStore();
+        inject(controller, "canvasStateStore", store);
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.addHeader("X-Workspace-Id", VALID_WORKSPACE_ID);
+        RequestContextHolder.setRequestAttributes(new ServletRequestAttributes(request));
+
+        SaveDiagramCanvasStateRequestDTO blankRequest = new SaveDiagramCanvasStateRequestDTO();
+        blankRequest.setCanvasXml("   ");
+        Response<?> blankResponse = controller.saveDiagramCanvasState("diagram-1", blankRequest);
+        assertEquals(ResponseCode.INVALID_CANVAS_XML.getCode(), blankResponse.getCode());
+
+        SaveDiagramCanvasStateRequestDTO oversizedRequest = new SaveDiagramCanvasStateRequestDTO();
+        oversizedRequest.setCanvasXml(new String(new char[2 * 1024 * 1024 + 1]).replace('\0', 'x'));
+        Response<?> oversizedResponse = controller.saveDiagramCanvasState("diagram-1", oversizedRequest);
+        assertEquals(ResponseCode.INVALID_CANVAS_XML.getCode(), oversizedResponse.getCode());
+
+        assertFalse(store.saveCalled);
     }
 
     @Test
@@ -372,15 +436,28 @@ public class AgentServiceControllerWorkspaceTest {
         private boolean renameCalled;
         private boolean importCalled;
         private boolean thumbnailCalled;
+        private boolean saveCalled;
+        private boolean conflictOnSave;
         private String importedAnonymousOwnerId;
         private String importedTargetOwnerId;
         private String thumbnailUserId;
         private String thumbnailDiagramId;
         private String thumbnailUrl;
+        private CanvasState savedState;
 
         @Override
         public CanvasState save(CanvasState state) {
-            return state;
+            if (conflictOnSave) {
+                throw new CanvasStateVersionConflictException(state.getUserId(), state.getDiagramId(), state.getVersion());
+            }
+            this.saveCalled = true;
+            this.savedState = state;
+            return CanvasState.builder()
+                    .userId(state.getUserId())
+                    .diagramId(state.getDiagramId())
+                    .currentXml(state.getCurrentXml())
+                    .version(state.getVersion() == null ? 1L : state.getVersion() + 1)
+                    .build();
         }
 
         @Override

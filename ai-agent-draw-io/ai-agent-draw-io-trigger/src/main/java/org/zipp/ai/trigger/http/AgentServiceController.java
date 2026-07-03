@@ -12,6 +12,7 @@ import org.zipp.ai.domain.account.service.VerifiedUserPlatformQuotaService;
 import org.zipp.ai.domain.agent.model.valobj.usage.AgentUsageSummary;
 import org.zipp.ai.domain.agent.model.valobj.AiAgentConfigTableVO;
 import org.zipp.ai.domain.agent.model.valobj.canvas.CanvasState;
+import org.zipp.ai.domain.agent.model.valobj.canvas.CanvasStateVersionConflictException;
 import org.zipp.ai.domain.agent.model.valobj.conversation.DiagramConversationMessage;
 import org.zipp.ai.domain.agent.service.ICanvasStateStore;
 import org.zipp.ai.domain.agent.service.IDiagramConversationStore;
@@ -42,6 +43,7 @@ public class AgentServiceController implements IAgentService {
     private static final String PNG_DATA_URL_PREFIX = "data:image/png;base64,";
     private static final int MAX_THUMBNAIL_BYTES = 512 * 1024;
     private static final int MAX_THUMBNAIL_DATA_URL_LENGTH = 750 * 1024;
+    private static final int MAX_CANVAS_XML_LENGTH = 2 * 1024 * 1024;
 
     @Resource
     private IChatService chatService;
@@ -247,6 +249,50 @@ public class AgentServiceController implements IAgentService {
         } catch (Exception e) {
             log.error("保存图缩略图失败 userId:{} diagramId:{}", CurrentOwnerHttpResolver.mask(workspaceId), diagramId, e);
             return Response.<DiagramSummaryResponseDTO>builder()
+                    .code(ResponseCode.UN_ERROR.getCode())
+                    .info(ResponseCode.UN_ERROR.getInfo())
+                    .build();
+        }
+    }
+
+    @RequestMapping(value = "diagrams/{diagramId}/canvas", method = RequestMethod.PATCH)
+    @Override
+    public Response<DiagramCanvasStateResponseDTO> saveDiagramCanvasState(
+            @PathVariable("diagramId") String diagramId,
+            @RequestBody SaveDiagramCanvasStateRequestDTO requestDTO) {
+        String workspaceId = resolveOwnerId(requestDTO == null ? null : requestDTO.getUserId());
+        String canvasXml = requestDTO == null ? null : requestDTO.getCanvasXml();
+        if (StringUtils.isBlank(workspaceId) || StringUtils.isBlank(diagramId)) {
+            return illegalWorkspaceResponse();
+        }
+        if (StringUtils.isBlank(canvasXml) || canvasXml.length() > MAX_CANVAS_XML_LENGTH) {
+            return Response.<DiagramCanvasStateResponseDTO>builder()
+                    .code(ResponseCode.INVALID_CANVAS_XML.getCode())
+                    .info(ResponseCode.INVALID_CANVAS_XML.getInfo())
+                    .build();
+        }
+        try {
+            CanvasState saved = canvasStateStore.save(CanvasState.builder()
+                    .userId(workspaceId)
+                    .diagramId(diagramId)
+                    .currentXml(canvasXml)
+                    .version(requestDTO.getExpectedVersion())
+                    .build());
+            return Response.<DiagramCanvasStateResponseDTO>builder()
+                    .code(ResponseCode.SUCCESS.getCode())
+                    .info(ResponseCode.SUCCESS.getInfo())
+                    .data(toDiagramCanvasState(saved))
+                    .build();
+        } catch (CanvasStateVersionConflictException e) {
+            log.warn("保存图画布版本冲突 userId:{} diagramId:{}",
+                    CurrentOwnerHttpResolver.mask(workspaceId), diagramId);
+            return Response.<DiagramCanvasStateResponseDTO>builder()
+                    .code(ResponseCode.CANVAS_VERSION_CONFLICT.getCode())
+                    .info(ResponseCode.CANVAS_VERSION_CONFLICT.getInfo())
+                    .build();
+        } catch (Exception e) {
+            log.error("保存图画布失败 userId:{} diagramId:{}", CurrentOwnerHttpResolver.mask(workspaceId), diagramId, e);
+            return Response.<DiagramCanvasStateResponseDTO>builder()
                     .code(ResponseCode.UN_ERROR.getCode())
                     .info(ResponseCode.UN_ERROR.getInfo())
                     .build();

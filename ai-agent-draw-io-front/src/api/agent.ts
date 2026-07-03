@@ -12,6 +12,7 @@ import {
     DiagramConversationMessageDTO,
     ImportAnonymousWorkspaceRequestDTO,
     ImportAnonymousWorkspaceResponseDTO,
+    SaveDiagramCanvasStateRequestDTO,
     SaveDiagramMessagesRequestDTO,
     UpdateDiagramThumbnailRequestDTO,
     UpdateDiagramTitleRequestDTO,
@@ -399,6 +400,29 @@ export const agentApi = {
             credentials: 'include',
         });
         return handleResponse<DiagramSummaryResponseDTO | null>(response);
+    },
+
+    saveDiagramCanvasState: async (
+        userId: string,
+        diagramId: string,
+        canvasXml: string,
+        expectedVersion?: number,
+        options?: { keepalive?: boolean }
+    ): Promise<Response<DiagramCanvasStateResponseDTO | null>> => {
+        const body: SaveDiagramCanvasStateRequestDTO = {
+            canvasXml,
+            ...(Number.isFinite(expectedVersion) && { expectedVersion }),
+        };
+        const response = await fetch(`${API_CONFIG.BASE_URL}/diagrams/${encodeURIComponent(diagramId)}/canvas`, {
+            method: 'PATCH',
+            headers: await csrfHeaders(workspaceHeaders(userId)),
+            body: JSON.stringify(body),
+            credentials: 'include',
+            // keepalive lets the browser finish the save after the page is gone; note browsers
+            // reject keepalive bodies over ~64KB, so callers must treat this as best effort.
+            ...(options?.keepalive && { keepalive: true }),
+        });
+        return handleResponse<DiagramCanvasStateResponseDTO | null>(response);
     },
 
     deleteDiagram: async (userId: string, diagramId: string): Promise<Response<boolean>> => {

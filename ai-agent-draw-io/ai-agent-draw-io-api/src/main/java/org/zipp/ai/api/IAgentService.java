@@ -23,6 +23,8 @@ public interface IAgentService {
 
     Response<DiagramSummaryResponseDTO> updateDiagramThumbnail(String diagramId, UpdateDiagramThumbnailRequestDTO requestDTO);
 
+    Response<DiagramCanvasStateResponseDTO> saveDiagramCanvasState(String diagramId, SaveDiagramCanvasStateRequestDTO requestDTO);
+
     Response<Boolean> deleteDiagram(String userId, String diagramId);
 
     Response<List<DiagramConversationMessageDTO>> listDiagramMessages(String userId, String diagramId);

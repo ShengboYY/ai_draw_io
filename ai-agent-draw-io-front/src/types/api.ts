@@ -76,6 +76,12 @@ export interface UpdateDiagramThumbnailRequestDTO {
   thumbnailDataUrl: string;
 }
 
+export interface SaveDiagramCanvasStateRequestDTO {
+  userId?: string;
+  expectedVersion?: number;
+  canvasXml: string;
+}
+
 export interface DiagramConversationMessageDTO {
   clientMessageId: string;
   sessionId?: string;

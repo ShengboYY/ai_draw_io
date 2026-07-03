@@ -5,7 +5,7 @@ import { Suspense, useRef, useState, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { getUserInfo, setUserInfo as persistUserInfo } from '@/utils/cookie';
 import { getWorkspaceIdentity } from '@/utils/workspace-identity';
-import { agentApi, StreamEvent } from '@/api/agent';
+import { agentApi, ApiResponseError, StreamEvent } from '@/api/agent';
 import type { CurrentAccountResponseDTO, ModelCredentialResponseDTO } from '@/types/api';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -22,6 +22,11 @@ import {
   makeLocalDiagramId,
   mergeCanvasStateMetadata,
 } from './canvas-state-metadata';
+import {
+  buildManualCanvasSaveRequest,
+  latestCanvasVersion,
+  type ManualCanvasSaveRequest,
+} from './manual-canvas-save';
 import { buildCanvasStateConflictMessage } from './canvas-state-conflict';
 import { buildRestoredDiagramState, normalizeRestoredDrawioXml } from './diagram-restore';
 import { buildDiagramTitleFromPrompt } from './diagram-title';
@@ -639,6 +644,12 @@ function DrawioPageContent() {
   const confirmingBlankEditorLoadRef = useRef(false);
   const ignoreAutosaveForBlankEditorRef = useRef(false);
   const blankEditorGuardTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const manualCanvasSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const manualCanvasSaveInFlightRef = useRef(false);
+  const pendingManualCanvasSaveRef = useRef<ManualCanvasSaveRequest | null>(null);
+  // Authoritative latest-known canvas version per diagram; React session state can lag
+  // behind while a save is in flight, so version locks must never be read from it alone.
+  const manualCanvasVersionsRef = useRef(new Map<string, number>());
 
   // Agent State
   const [selectedAgentId, setSelectedAgentId] = useState('');
@@ -721,14 +732,17 @@ function DrawioPageContent() {
     }
   };
 
-  const saveCurrentCanvasXml = (xml?: string | null, canvasState?: CanvasStateMetadata) => {
-    const activeSessionId = currentSessionRef.current;
+  const saveCanvasXmlForSession = (
+    targetSessionId?: string | null,
+    xml?: string | null,
+    canvasState?: CanvasStateMetadata,
+  ) => {
     const normalizedXml = normalizeDrawioLegendSwatches(xml || EMPTY_DRAWIO_XML);
-    if (!activeSessionId || !hasDrawableCells(normalizedXml)) return;
+    if (!targetSessionId || !hasDrawableCells(normalizedXml)) return;
 
     setSessions(prev => {
       const nextSessions = prev.map(session => {
-        if (session.id === activeSessionId) {
+        if (session.id === targetSessionId) {
           const mergedCanvasState = mergeCanvasStateMetadata(
             { diagramId: session.diagramId, version: session.canvasVersion },
             canvasState,
@@ -748,6 +762,131 @@ function DrawioPageContent() {
       persistSessions(nextSessions);
       return nextSessions;
     });
+  };
+
+  const saveCurrentCanvasXml = (xml?: string | null, canvasState?: CanvasStateMetadata) => {
+    saveCanvasXmlForSession(currentSessionRef.current, xml, canvasState);
+  };
+
+  const rememberManualCanvasVersion = (sessionId: string, diagramId: string, version?: number) => {
+    if (!Number.isFinite(version)) return;
+    manualCanvasVersionsRef.current.set(diagramId, version as number);
+    setSessions(prev => {
+      const nextSessions = prev.map(session => (
+        session.id === sessionId ? { ...session, canvasVersion: version } : session
+      ));
+      persistSessions(nextSessions);
+      return nextSessions;
+    });
+  };
+
+  const fetchLatestCanvasVersion = async (userId: string, diagramId: string): Promise<number | undefined> => {
+    try {
+      const response = await agentApi.getDiagram(userId, diagramId);
+      const version = response.data?.version;
+      return Number.isFinite(version) ? version : undefined;
+    } catch (error) {
+      console.warn('Failed to load the latest canvas version after a save conflict:', error);
+      return undefined;
+    }
+  };
+
+  const performManualCanvasSave = async (request: ManualCanvasSaveRequest, retryOnConflict: boolean) => {
+    try {
+      const response = await agentApi.saveDiagramCanvasState(
+        request.userId,
+        request.diagramId,
+        request.canvasXml,
+        request.expectedVersion,
+      );
+      // Only sync the version; the local canvas may already be newer than the XML just saved,
+      // so writing the response XML back would briefly roll the session state backwards.
+      rememberManualCanvasVersion(request.sessionId, request.diagramId, response.data?.version);
+    } catch (error) {
+      if (error instanceof ApiResponseError && error.code === 'CANVAS_VERSION_CONFLICT' && retryOnConflict) {
+        const latestVersion = await fetchLatestCanvasVersion(request.userId, request.diagramId);
+        if (Number.isFinite(latestVersion)) {
+          rememberManualCanvasVersion(request.sessionId, request.diagramId, latestVersion);
+          // Manual edits treat the local canvas as the source of truth, so save over the fresh version.
+          await performManualCanvasSave({ ...request, expectedVersion: latestVersion }, false);
+          return;
+        }
+        console.warn('Manual canvas autosave conflicted and the latest backend version could not be loaded.');
+      } else {
+        console.warn('Failed to sync manual canvas autosave:', error);
+      }
+    }
+  };
+
+  const takePendingManualCanvasSave = (): ManualCanvasSaveRequest | null => {
+    if (manualCanvasSaveTimerRef.current) {
+      clearTimeout(manualCanvasSaveTimerRef.current);
+      manualCanvasSaveTimerRef.current = null;
+    }
+    const request = pendingManualCanvasSaveRef.current;
+    if (!request) return null;
+    pendingManualCanvasSaveRef.current = null;
+    return {
+      ...request,
+      expectedVersion: latestCanvasVersion(
+        manualCanvasVersionsRef.current.get(request.diagramId),
+        request.expectedVersion,
+      ),
+    };
+  };
+
+  const flushManualCanvasStateSave = async () => {
+    if (manualCanvasSaveInFlightRef.current) return;
+    const request = takePendingManualCanvasSave();
+    if (!request) return;
+    manualCanvasSaveInFlightRef.current = true;
+    try {
+      await performManualCanvasSave(request, true);
+    } finally {
+      manualCanvasSaveInFlightRef.current = false;
+      if (pendingManualCanvasSaveRef.current) {
+        void flushManualCanvasStateSave();
+      }
+    }
+  };
+
+  const flushManualCanvasSaveOnPageHide = () => {
+    const request = takePendingManualCanvasSave();
+    if (!request) return;
+    // Best effort: keepalive keeps the request alive past unload but rejects bodies over
+    // ~64KB; a failure here is recovered by the next autosave when the diagram is reopened.
+    agentApi
+      .saveDiagramCanvasState(request.userId, request.diagramId, request.canvasXml, request.expectedVersion, {
+        keepalive: true,
+      })
+      .then(response => {
+        const version = response.data?.version;
+        if (Number.isFinite(version)) {
+          manualCanvasVersionsRef.current.set(request.diagramId, version as number);
+        }
+      })
+      .catch(() => {});
+  };
+
+  const queueManualCanvasStateSave = (xml?: string | null, session?: Session) => {
+    const request = buildManualCanvasSaveRequest({
+      userId: currentUser,
+      sessionId: session?.id || currentSessionRef.current,
+      diagramId: session?.diagramId,
+      canvasVersion: session?.canvasVersion,
+      canvasXml: xml,
+    });
+    // Blank canvases intentionally stay local: an accidental clear (or a glitchy empty
+    // autosave event) must never wipe the server copy of the diagram.
+    if (!request || !hasDrawableCells(request.canvasXml)) return;
+
+    pendingManualCanvasSaveRef.current = request;
+    if (manualCanvasSaveTimerRef.current) {
+      clearTimeout(manualCanvasSaveTimerRef.current);
+    }
+    manualCanvasSaveTimerRef.current = setTimeout(() => {
+      void flushManualCanvasStateSave();
+    }, 750);
   };
 
   const persistDiagramTitle = async (diagramId?: string, title?: string) => {
@@ -1015,6 +1154,25 @@ function DrawioPageContent() {
   useEffect(() => () => {
     clearStreamingPreviewQueue();
     clearBlankEditorGuard();
+    if (manualCanvasSaveTimerRef.current) {
+      clearTimeout(manualCanvasSaveTimerRef.current);
+    }
+  }, []);
+
+  useEffect(() => {
+    // Flush the debounced manual save when the page goes away so the last ~750ms of
+    // drawing is not lost on tab close / navigation; hidden tabs flush early too.
+    const onPageHide = () => flushManualCanvasSaveOnPageHide();
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') flushManualCanvasSaveOnPageHide();
+    };
+    window.addEventListener('pagehide', onPageHide);
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    return () => {
+      window.removeEventListener('pagehide', onPageHide);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- handler only touches stable refs
   }, []);
 
   useEffect(() => {
@@ -1784,7 +1942,10 @@ function DrawioPageContent() {
           sessionId: activeBackendSessionId,
           userMessage: displayContent,
           diagramId,
-          expectedVersion: activeSession?.canvasVersion,
+          expectedVersion: latestCanvasVersion(
+            diagramId ? manualCanvasVersionsRef.current.get(diagramId) : undefined,
+            activeSession?.canvasVersion,
+          ),
           canvasXml: canvasContext.canvasXml,
           canvasSummary: canvasContext.canvasSummary,
           modelCredentialId: activeModelConfig?.modelCredentialId || undefined,
@@ -2354,10 +2515,12 @@ function DrawioPageContent() {
     // Autosave handling
     if (isAutosaveRef.current) {
         isAutosaveRef.current = false;
-        const storedXml = sessions.find(session => session.id === currentSessionId)?.drawIoXml;
-        const diagramId = sessions.find(session => session.id === currentSessionId)?.diagramId;
+        const activeSession = sessions.find(session => session.id === currentSessionId);
+        const storedXml = activeSession?.drawIoXml;
+        const diagramId = activeSession?.diagramId;
         const xml = chooseUsableCanvasXml(lastExportedData, storedXml);
         saveCurrentCanvasXml(xml);
+        queueManualCanvasStateSave(xml, activeSession);
         queueDiagramThumbnailExport(diagramId, xml);
         return;
     }
@@ -2604,11 +2767,13 @@ function DrawioPageContent() {
               onAutoSave={(data) => {
                 if (ignoreAutosaveForBlankEditorRef.current) return;
                 if (currentSessionId && isDrawIoReady && !isExportingForChatRef.current && !isExportingThumbnailRef.current) {
-                   const diagramId = sessions.find(session => session.id === currentSessionId)?.diagramId;
+                   const activeSession = sessions.find(session => session.id === currentSessionId);
+                   const diagramId = activeSession?.diagramId;
                    // Prefer using the XML directly from the autosave event if available
                    if (data && typeof data === 'object' && 'xml' in data) {
                        const xmlContent = typeof data.xml === 'string' ? data.xml : '';
                        saveCurrentCanvasXml(xmlContent);
+                       queueManualCanvasStateSave(xmlContent, activeSession);
                        queueDiagramThumbnailExport(diagramId, xmlContent);
                    } else {
                        // Fallback to export if no XML provided in event
