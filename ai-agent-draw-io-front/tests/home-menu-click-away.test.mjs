@@ -59,7 +59,30 @@ test('home places the new diagram action as the first recent diagram card', () =
   assert.match(pageSource, /h-1\.5 w-7/);
   assert.match(pageSource, /h-7 w-1\.5/);
   assert.match(pageSource, /text-lg font-semibold/);
+  assert.match(pageSource, /cursor-pointer/);
   assert.match(pageSource, /bg-zinc-700/);
   assert.doesNotMatch(pageSource, /#fbbc04|#4285f4|#ea4335|#34a853/);
   assert.ok(pageSource.indexOf('aria-label="Create new diagram"') < pageSource.indexOf('{diagrams.map'));
+});
+
+test('home diagram card metadata only shows the updated date', () => {
+  const pagePath = fileURLToPath(new URL('../src/app/page.tsx', import.meta.url));
+  const pageSource = readFileSync(pagePath, 'utf8');
+  const metadataStart = pageSource.indexOf('Keep card metadata focused');
+  const metadataSource = pageSource.slice(
+    metadataStart,
+    pageSource.indexOf('</article>', metadataStart),
+  );
+
+  assert.match(metadataSource, /formatUpdatedAt\(diagram\.updatedAt\)/);
+  assert.doesNotMatch(metadataSource, /diagram\.diagramType|diagram\.version|basic|v\{/);
+});
+
+test('home diagram cards use pointer cursors and stronger preview shadows', () => {
+  const pagePath = fileURLToPath(new URL('../src/app/page.tsx', import.meta.url));
+  const pageSource = readFileSync(pagePath, 'utf8');
+  const diagramListSource = pageSource.slice(pageSource.indexOf('{diagrams.map'), pageSource.indexOf('{openMenuId === diagram.diagramId'));
+
+  assert.match(diagramListSource, /cursor-pointer[^"]*shadow-md[^"]*hover:shadow-lg/);
+  assert.match(diagramListSource, /line-clamp-2[^"]*cursor-pointer/);
 });

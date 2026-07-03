@@ -312,11 +312,11 @@ export default function Home() {
           ) : (
             <div className="grid gap-x-5 gap-y-7 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5">
               {/* Place creation inside Recent diagrams so it reads as a distinct first document tile. */}
-              <article className="group relative min-w-0 rounded-lg bg-stone-50 p-3 ring-1 ring-stone-200 transition hover:bg-stone-100">
+              <article className="group relative min-w-0 rounded-lg bg-stone-50 ring-1 ring-stone-200 transition hover:bg-stone-100">
                 <button
                   type="button"
                   onClick={startNewDiagram}
-                  className="block w-full text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-700/20"
+                  className="block w-full cursor-pointer p-3 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-700/20"
                   aria-label="Create new diagram"
                 >
                   <div className={`${DRAWIO_CANVAS_PREVIEW_ASPECT_CLASS} flex items-center justify-center rounded-lg border border-stone-300 bg-white shadow-sm transition group-hover:border-zinc-400 group-hover:shadow-md`}>
@@ -338,7 +338,7 @@ export default function Home() {
                   <button
                     type="button"
                     onClick={() => openDiagram(diagram.diagramId)}
-                    className="block w-full overflow-hidden rounded-lg border border-stone-200 bg-white text-left shadow-sm transition hover:border-stone-300 hover:shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-700/20"
+                    className="block w-full cursor-pointer overflow-hidden rounded-lg border border-stone-200 bg-white text-left shadow-md transition hover:border-stone-300 hover:shadow-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-700/20"
                     aria-label={`Open ${diagramTitle(diagram)}`}
                   >
                     <div className={`${DRAWIO_CANVAS_PREVIEW_ASPECT_CLASS} bg-white`}>
@@ -372,7 +372,7 @@ export default function Home() {
                     <button
                       type="button"
                       onClick={() => openDiagram(diagram.diagramId)}
-                      className="line-clamp-2 min-w-0 text-left text-sm font-medium leading-5 tracking-normal text-zinc-800 hover:text-zinc-600"
+                      className="line-clamp-2 min-w-0 cursor-pointer text-left text-sm font-medium leading-5 tracking-normal text-zinc-800 hover:text-zinc-600"
                     >
                       {diagramTitle(diagram)}
                     </button>
@@ -380,7 +380,7 @@ export default function Home() {
                       <button
                         type="button"
                         onClick={() => setOpenMenuId(prev => prev === diagram.diagramId ? null : diagram.diagramId)}
-                        className="flex h-8 w-8 items-center justify-center rounded-lg text-sm font-semibold text-zinc-500 transition hover:bg-stone-100 hover:text-zinc-700"
+                        className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg text-sm font-semibold text-zinc-500 transition hover:bg-stone-100 hover:text-zinc-700"
                         aria-label={`More actions for ${diagramTitle(diagram)}`}
                       >
                         ...
@@ -405,11 +405,9 @@ export default function Home() {
                       )}
                     </div>
                   </div>
-                  <div className="mt-1 flex min-w-0 items-center gap-2 text-xs text-zinc-500">
-                    <span className="truncate">{diagram.diagramType || 'basic'}</span>
-                    <span className="text-zinc-300">/</span>
-                    <span className="truncate">{formatUpdatedAt(diagram.updatedAt)}</span>
-                    <span className="ml-auto shrink-0 text-zinc-400">v{diagram.version || 1}</span>
+                  {/* Keep card metadata focused on the user-facing updated date. */}
+                  <div className="mt-1 min-w-0 text-xs text-zinc-500">
+                    <span className="block truncate">{formatUpdatedAt(diagram.updatedAt)}</span>
                   </div>
                 </article>
               ))}
