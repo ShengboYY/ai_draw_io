@@ -1182,10 +1182,8 @@ function DrawioPageContent() {
       setChatWidth(clampChatWidth(parsedWidth));
     }
 
-    const savedSidebarOpen = localStorage.getItem(SIDEBAR_OPEN_STORAGE_KEY);
-    if (savedSidebarOpen === 'true') {
-      setIsSidebarOpen(true);
-    }
+    // History is a per-visit panel; clear the legacy persisted flag so diagrams reopen clean.
+    localStorage.removeItem(SIDEBAR_OPEN_STORAGE_KEY);
   }, []);
 
   useEffect(() => {
@@ -1218,10 +1216,6 @@ function DrawioPageContent() {
       localStorage.setItem(CHAT_WIDTH_STORAGE_KEY, String(chatWidth));
     }
   }, [chatWidth, isResizingChat]);
-
-  useEffect(() => {
-    localStorage.setItem(SIDEBAR_OPEN_STORAGE_KEY, String(isSidebarOpen));
-  }, [isSidebarOpen]);
 
   // Load sessions from localStorage
   useEffect(() => {
