@@ -229,10 +229,11 @@ public class DefaultIntentRoutingService implements IIntentRoutingService {
         if (normalized.isEmpty() || "basic".equals(normalized)) {
             return diagramTypeClassifier.classify(userInstruction);
         }
+        // Keep legacy "diagram" routing events under the current generic category token.
         return switch (normalized) {
             case "uml_class" -> "uml";
             case "concept" -> "mindmap";
-            case "others" -> "diagram";
+            case "diagram" -> "others";
             default -> normalized;
         };
     }

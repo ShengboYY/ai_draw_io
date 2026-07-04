@@ -36,9 +36,9 @@ public class DiagramTypeClassifierTest {
     }
 
     @Test
-    public void shouldFallbackToGenericDiagram() {
-        assertEquals("diagram", classifier.classify("帮我画一下这个想法"));
-        assertEquals("diagram", classifier.classify(null));
+    public void shouldFallbackToOthers() {
+        assertEquals("others", classifier.classify("帮我画一下这个想法"));
+        assertEquals("others", classifier.classify(null));
     }
 
 }

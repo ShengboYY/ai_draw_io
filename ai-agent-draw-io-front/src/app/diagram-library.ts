@@ -29,7 +29,7 @@ export type DiagramCategoryToken =
   | 'mindmap'
   | 'illustration'
   | 'blank'
-  | 'diagram';
+  | 'others';
 
 export const CATEGORY_LABELS: Record<DiagramCategoryToken, string> = {
   flowchart: 'flowchart',
@@ -42,7 +42,7 @@ export const CATEGORY_LABELS: Record<DiagramCategoryToken, string> = {
   mindmap: 'mindmap',
   illustration: 'illustration',
   blank: 'blank',
-  diagram: 'diagram',
+  others: 'others',
 };
 
 const KNOWN_CATEGORIES = new Set<DiagramCategoryToken>(Object.keys(CATEGORY_LABELS) as DiagramCategoryToken[]);
@@ -86,14 +86,14 @@ const normalizeRawCategory = (diagramType?: string): DiagramCategoryToken | null
   if (!raw || raw === 'none') return 'blank';
   if (raw === 'uml_class') return 'uml';
   if (raw === 'concept') return 'mindmap';
-  if (raw === 'others') return 'diagram';
+  if (raw === 'diagram') return 'others';
   if (raw === 'basic') return null;
   return KNOWN_CATEGORIES.has(raw as DiagramCategoryToken) ? (raw as DiagramCategoryToken) : null;
 };
 
 export const inferCategoryFromTitle = (title?: string): DiagramCategoryToken => {
   const normalized = (title || '').trim().toLowerCase();
-  if (!normalized) return 'diagram';
+  if (!normalized) return 'others';
   if (normalized.includes('空画布') || normalized.includes('空白') || normalized.includes('blank')) return 'blank';
 
   for (const rule of STRUCTURED_CATEGORY_KEYWORDS) {
@@ -107,7 +107,7 @@ export const inferCategoryFromTitle = (title?: string): DiagramCategoryToken => 
     return 'illustration';
   }
 
-  return 'diagram';
+  return 'others';
 };
 
 // The backend leaves diagramType empty (or "none") for a fresh, still-blank canvas.

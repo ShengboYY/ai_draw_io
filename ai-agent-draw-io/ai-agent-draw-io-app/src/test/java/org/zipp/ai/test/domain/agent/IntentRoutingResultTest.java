@@ -13,7 +13,7 @@ public class IntentRoutingResultTest {
 
         assertEquals("draw_action", result.getIntent());
         assertEquals("new_diagram", result.getDrawMode());
-        assertEquals("diagram", result.getDiagramType());
+        assertEquals("others", result.getDiagramType());
         assertEquals("create_new", result.getTaskType());
     }
 

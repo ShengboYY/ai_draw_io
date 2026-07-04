@@ -26,7 +26,7 @@ public class DiagramTypeClassifier {
     public String classify(String userInstruction) {
         String text = normalize(userInstruction);
         if (text.isEmpty()) {
-            return "diagram";
+            return "others";
         }
         if (containsAny(text, BLANK_KEYWORDS)) {
             return "blank";
@@ -40,7 +40,7 @@ public class DiagramTypeClassifier {
         if (containsAny(text, ILLUSTRATION_KEYWORDS)) {
             return "illustration";
         }
-        return "diagram";
+        return "others";
     }
 
     private String normalize(String value) {

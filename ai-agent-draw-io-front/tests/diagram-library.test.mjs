@@ -36,7 +36,8 @@ test('categoryLabel infers old basic diagrams from the title', () => {
 
 test('categoryLabel infers unknown diagram types from the title', () => {
   assert.equal(categoryLabel(diagram({ title: '订单审批流程', diagramType: 'custom' })), 'flowchart');
-  assert.equal(categoryLabel(diagram({ title: '未命名灵感', diagramType: 'custom' })), 'diagram');
+  assert.equal(categoryLabel(diagram({ title: '未命名灵感', diagramType: 'custom' })), 'others');
+  assert.equal(categoryLabel(diagram({ title: 'legacy generic', diagramType: 'diagram' })), 'others');
 });
 
 test('categoryLabel keeps known diagram types instead of title inference', () => {
@@ -46,7 +47,7 @@ test('categoryLabel keeps known diagram types instead of title inference', () =>
 test('CATEGORY_LABELS exposes English display names for known category tokens', () => {
   assert.equal(CATEGORY_LABELS.architecture, 'architecture');
   assert.equal(CATEGORY_LABELS.illustration, 'illustration');
-  assert.equal(CATEGORY_LABELS.diagram, 'diagram');
+  assert.equal(CATEGORY_LABELS.others, 'others');
 });
 
 test('isIllustration only matches the illustration category', () => {
