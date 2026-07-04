@@ -55,14 +55,14 @@ test('home places the new diagram action as the first recent diagram card', () =
 
   assert.doesNotMatch(headerSource, /New diagram/);
   assert.match(pageSource, /aria-label="Create new diagram"/);
-  assert.match(pageSource, /Create New Diagram/);
-  assert.match(pageSource, /h-1\.5 w-7/);
-  assert.match(pageSource, /h-7 w-1\.5/);
-  assert.match(pageSource, /text-lg font-semibold/);
+  assert.match(pageSource, /Create new/);
+  assert.match(pageSource, /Start blank or ask AI/);
+  assert.match(pageSource, /Match saved-card height while keeping the create content centered over the full tile/);
+  assert.match(pageSource, /absolute inset-0 flex flex-col items-center justify-center/);
   assert.match(pageSource, /cursor-pointer/);
-  assert.match(pageSource, /bg-zinc-700/);
+  assert.match(pageSource, /bg-zinc-800/);
   assert.doesNotMatch(pageSource, /#fbbc04|#4285f4|#ea4335|#34a853/);
-  assert.ok(pageSource.indexOf('aria-label="Create new diagram"') < pageSource.indexOf('{diagrams.map'));
+  assert.ok(pageSource.indexOf('aria-label="Create new diagram"') < pageSource.indexOf('{visibleDiagrams.map'));
 });
 
 test('home diagram card metadata only shows the updated date', () => {
@@ -81,8 +81,17 @@ test('home diagram card metadata only shows the updated date', () => {
 test('home diagram cards use pointer cursors and stronger preview shadows', () => {
   const pagePath = fileURLToPath(new URL('../src/app/page.tsx', import.meta.url));
   const pageSource = readFileSync(pagePath, 'utf8');
-  const diagramListSource = pageSource.slice(pageSource.indexOf('{diagrams.map'), pageSource.indexOf('{openMenuId === diagram.diagramId'));
+  const diagramListSource = pageSource.slice(pageSource.indexOf('{visibleDiagrams.map'), pageSource.indexOf('{openMenuId === diagram.diagramId'));
 
   assert.match(diagramListSource, /cursor-pointer[^"]*shadow-md[^"]*hover:shadow-lg/);
   assert.match(diagramListSource, /line-clamp-2[^"]*cursor-pointer/);
+});
+
+test('home diagram cards leave missing thumbnails blank', () => {
+  const pagePath = fileURLToPath(new URL('../src/app/page.tsx', import.meta.url));
+  const pageSource = readFileSync(pagePath, 'utf8');
+  const diagramListSource = pageSource.slice(pageSource.indexOf('{visibleDiagrams.map'), pageSource.indexOf('{openMenuId === diagram.diagramId'));
+
+  assert.match(diagramListSource, /Missing thumbnails intentionally render as an empty white preview/);
+  assert.doesNotMatch(diagramListSource, /h-12 w-16|rounded-full bg-zinc-200|grid grid-cols-2 gap-2/);
 });

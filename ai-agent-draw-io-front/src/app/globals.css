@@ -28,14 +28,26 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  /* Public Sans body / Space Grotesk display / JetBrains Mono technical labels. */
+  --font-sans: var(--font-public-sans), "Public Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+  --font-display: var(--font-space-grotesk), "Space Grotesk", var(--font-public-sans), sans-serif;
+  --font-mono: var(--font-jetbrains-mono), "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 
 body {
   background: var(--app-bg);
   color: var(--app-text);
-  font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+  font-family: var(--font-public-sans), "Public Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+}
+
+/* Give headings, the product wordmark, and buttons the Space Grotesk personality app-wide. */
+h1, h2, h3, h4, h5, h6, button, .font-display {
+  font-family: var(--font-space-grotesk), "Space Grotesk", var(--font-public-sans), sans-serif;
+}
+
+/* Inputs stay neutral Public Sans even though browsers default them to system fonts. */
+input, textarea, select {
+  font-family: inherit;
 }
 
 button:focus-visible,

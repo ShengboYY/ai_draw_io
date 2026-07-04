@@ -4,6 +4,8 @@ import assert from 'node:assert/strict';
 import {
   buildManualCanvasSaveRequest,
   latestCanvasVersion,
+  shouldHandleManualAutosave,
+  shouldCreateConversationDiagramShell,
 } from '../src/app/drawio/manual-canvas-save.ts';
 
 test('buildManualCanvasSaveRequest keeps the current canvas version for autosave', () => {
@@ -56,4 +58,55 @@ test('latestCanvasVersion returns undefined when no version is known', () => {
   assert.equal(latestCanvasVersion(), undefined);
   assert.equal(latestCanvasVersion(undefined, undefined), undefined);
   assert.equal(latestCanvasVersion(Number.NaN), undefined);
+});
+
+test('shouldHandleManualAutosave accepts XML events before editor ready state catches up', () => {
+  assert.equal(shouldHandleManualAutosave({
+    currentSessionId: 'session-1',
+    editorReady: false,
+    exportingForChat: false,
+    exportingThumbnail: false,
+    hasInlineXml: true,
+  }), true);
+});
+
+test('shouldHandleManualAutosave only needs editor readiness for export fallback events', () => {
+  assert.equal(shouldHandleManualAutosave({
+    currentSessionId: 'session-1',
+    editorReady: false,
+    exportingForChat: false,
+    exportingThumbnail: false,
+    hasInlineXml: false,
+  }), false);
+  assert.equal(shouldHandleManualAutosave({
+    currentSessionId: 'session-1',
+    editorReady: true,
+    exportingForChat: false,
+    exportingThumbnail: false,
+    hasInlineXml: false,
+  }), true);
+});
+
+test('shouldCreateConversationDiagramShell saves a chat-only empty diagram', () => {
+  assert.equal(shouldCreateConversationDiagramShell({
+    diagramId: 'diagram-1',
+    canvasVersion: undefined,
+    hasDrawableContent: false,
+    hasConversationMessages: true,
+  }), true);
+});
+
+test('shouldCreateConversationDiagramShell skips drawable or already-saved diagrams', () => {
+  assert.equal(shouldCreateConversationDiagramShell({
+    diagramId: 'diagram-1',
+    canvasVersion: undefined,
+    hasDrawableContent: true,
+    hasConversationMessages: true,
+  }), false);
+  assert.equal(shouldCreateConversationDiagramShell({
+    diagramId: 'diagram-1',
+    canvasVersion: 1,
+    hasDrawableContent: false,
+    hasConversationMessages: true,
+  }), false);
 });

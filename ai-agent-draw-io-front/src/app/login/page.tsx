@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
 import { agentApi } from '@/api/agent';
+import { AuthBrandMark, EnvelopeIcon, LockIcon } from '@/app/auth-visuals';
 import type { LoginStatus } from '@/types/api';
 import {
   clearImportedAnonymousWorkspace,
@@ -125,105 +126,112 @@ export default function Login() {
   const statusDisplay = status ? loginStatusDisplay(status) : null;
 
   return (
-    <div className="app-page theme-bg-gradient flex items-center justify-center p-6">
-      <div className="grid w-full max-w-[1040px] grid-cols-1 gap-4 lg:grid-cols-[1.1fr_0.9fr]">
-        <section className="codex-card relative flex flex-col gap-5 overflow-hidden p-7">
+    <main className="app-page flex items-center justify-center bg-[#faf9f7] px-4 py-8 text-[#202024] sm:px-6">
+      <section className="grid w-full max-w-[880px] overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-[0_18px_44px_rgba(24,24,27,0.08)] lg:grid-cols-[1.02fr_1fr]">
+        <div className="flex flex-col justify-between gap-10 bg-[#fbfaf8] px-8 py-9 lg:px-10 lg:py-11">
           <div className="flex items-center gap-3">
-            <div className="grid h-11 w-11 place-items-center rounded-lg bg-zinc-700 text-lg font-bold text-white shadow-sm">
-              FD
-            </div>
-            <div className="flex flex-col gap-1">
-              <strong className="text-base leading-[1.1] text-zinc-800">
-                free draw</strong>
-              <span className="text-xs text-zinc-500">Sketch freely · Shape with AI · Save your diagrams</span>
-            </div>
+            <AuthBrandMark className="h-10 w-10 rounded-xl" iconClassName="h-5 w-5" />
+            <strong className="font-display text-lg font-semibold tracking-tight text-[#242329]">FreeDraw</strong>
           </div>
 
-          <h1 className="mt-2 max-w-[14ch] text-[32px] font-semibold leading-[1.12] tracking-normal text-zinc-800">
-            Draw diagrams freely with AI
-          </h1>
-          <p className="m-0 max-w-[52ch] text-sm leading-7 text-zinc-600">
-            Sign in to keep your free draw workspace, diagrams, and AI conversations available on this
-            browser. You can sign out any time.
-          </p>
-        </section>
+          <div className="max-w-[360px]">
+            <h1 className="m-0 text-2xl font-semibold leading-[1.15] tracking-tight text-[#202024] sm:text-[28px]">
+              The full draw.io editor, with AI built in.
+            </h1>
+            <p className="m-0 mt-4 text-sm leading-relaxed text-[#85817b]">
+              Every draw.io shape and tool you know, plus a copilot that draws and edits for you.
+            </p>
+          </div>
+        </div>
 
-        <section className="flex flex-col justify-center gap-4">
-          <div className="codex-card p-5">
-            <h2 className="m-0 mb-1.5 text-lg font-semibold text-zinc-800">Sign in to free draw</h2>
-            <p className="m-0 mb-5 text-xs leading-5 text-zinc-500">
-              Use your registered email to save and continue your diagrams.
+        <div className="flex items-center border-t border-stone-200 px-8 py-9 lg:border-l lg:border-t-0 lg:px-10 lg:py-11">
+          <div className="mx-auto w-full max-w-[340px]">
+            <h2 className="m-0 text-2xl font-semibold leading-tight tracking-tight text-[#202024]">
+              Welcome back
+            </h2>
+            <p className="m-0 mt-1.5 text-sm text-[#85817b]">
+              Sign in to continue your diagrams.
             </p>
 
             {!signedInAs ? (
-              <form onSubmit={handleLogin} autoComplete="on">
-                <div className="flex flex-col gap-2 mb-3">
-                  <label htmlFor="email" className="text-xs font-medium text-zinc-600">Email</label>
-                  <input
-                    id="email"
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="you@example.com"
-                    autoComplete="email"
-                    className="theme-input w-full rounded-lg p-3 text-sm transition-all duration-150"
-                  />
+              <form onSubmit={handleLogin} autoComplete="on" className="mt-6 flex flex-col gap-4">
+                <div className="flex flex-col gap-1.5">
+                  <label htmlFor="email" className="text-sm font-medium text-[#4c4a50]">Email</label>
+                  <div className="relative">
+                    <EnvelopeIcon className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#aaa79f]" />
+                    <input
+                      id="email"
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="you@company.com"
+                      autoComplete="email"
+                      className="h-11 w-full rounded-xl border border-[#e1dfdc] bg-white pl-10 pr-4 text-sm text-[#39373d] outline-none transition focus:border-[#34333d] focus:ring-4 focus:ring-[#34333d]/10"
+                    />
+                  </div>
                   {errors.email && <span className="text-xs text-rose-700">{errors.email}</span>}
                 </div>
 
-                <div className="flex flex-col gap-2 mb-3">
-                  <label htmlFor="password" className="text-xs font-medium text-zinc-600">Password</label>
-                  <input
-                    id="password"
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="Your password"
-                    autoComplete="current-password"
-                    className="theme-input w-full rounded-lg p-3 text-sm transition-all duration-150"
-                  />
+                <div className="flex flex-col gap-1.5">
+                  <div className="flex items-center justify-between gap-4">
+                    <label htmlFor="password" className="text-sm font-medium text-[#4c4a50]">Password</label>
+                    <Link href="/reset-password" className="text-sm font-medium text-[#34333d] transition hover:text-[#55525f]">
+                      Forgot?
+                    </Link>
+                  </div>
+                  <div className="relative">
+                    <LockIcon className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#aaa79f]" />
+                    <input
+                      id="password"
+                      type="password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="Your password"
+                      autoComplete="current-password"
+                      className="h-11 w-full rounded-xl border border-[#e1dfdc] bg-white pl-10 pr-4 text-sm text-[#39373d] outline-none transition placeholder:text-[#85817b] focus:border-[#34333d] focus:ring-4 focus:ring-[#34333d]/10"
+                    />
+                  </div>
                   {errors.password && <span className="text-xs text-rose-700">{errors.password}</span>}
                 </div>
 
-                <div className="flex gap-[10px] items-center justify-between mt-[6px]">
-                  <button
-                    type="submit"
-                    disabled={phase === 'submitting'}
-                    className="theme-btn cursor-pointer rounded-lg border-0 px-4 py-2.5 text-sm font-semibold transition-transform active:translate-y-px disabled:opacity-60"
-                  >
-                    {phase === 'submitting' ? 'Signing in…' : 'Sign in'}
-                  </button>
-                  <Link href="/reset-password" className="codex-link text-xs">
-                    Forgot password?
-                  </Link>
-                </div>
+                <button
+                  type="submit"
+                  disabled={phase === 'submitting'}
+                  className="mt-1 h-11 cursor-pointer rounded-xl border-0 bg-[#34333d] px-5 text-sm font-semibold text-white shadow-[0_10px_18px_rgba(52,51,61,0.16)] transition hover:bg-[#474553] active:translate-y-px disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {phase === 'submitting' ? 'Signing in...' : 'Sign in'}
+                </button>
               </form>
             ) : (
-              <div className="mt-3 flex items-center justify-between gap-3 rounded-lg border border-dashed border-stone-300 bg-stone-50 p-3">
+              <div className="mt-6 flex flex-col gap-3 rounded-xl border border-dashed border-stone-300 bg-stone-50 p-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                  <strong className="block text-[13px] text-zinc-800">Signed in as {signedInAs}</strong>
-                  <span className="mt-0.5 block text-xs text-zinc-500">free draw session active</span>
+                  <strong className="block text-sm font-semibold text-[#202024]">Signed in as {signedInAs}</strong>
+                  <span className="mt-0.5 block text-xs text-[#85817b]">FreeDraw session active</span>
                 </div>
-                <button onClick={handleLogout} className="theme-btn-secondary cursor-pointer rounded-lg px-3 py-2 text-xs font-semibold">
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  className="cursor-pointer rounded-lg border border-stone-300 bg-white px-3.5 py-2 text-sm font-semibold text-[#34333d] transition hover:bg-stone-50"
+                >
                   Sign out
                 </button>
               </div>
             )}
 
             {statusDisplay && (
-              <div className={`min-h-[18px] text-xs mt-3 ${
+              <div className={`mt-4 min-h-[20px] text-sm ${
                 statusDisplay.variant === 'error'
                   ? 'text-rose-700'
                   : statusDisplay.variant === 'warning'
                     ? 'text-amber-700'
-                    : 'text-zinc-600'
+                    : 'text-[#6f6b65]'
               }`}>
                 {statusDisplay.message}
                 {statusDisplay.offerResend && (
                   <button
                     type="button"
                     onClick={handleResend}
-                    className="ml-2 underline text-zinc-700"
+                    className="ml-2 font-semibold underline text-[#34333d]"
                   >
                     Resend verification email
                   </button>
@@ -231,20 +239,18 @@ export default function Login() {
               </div>
             )}
             {serverError && (
-              <div className="mt-2 text-xs text-rose-700">{serverError}</div>
+              <div className="mt-3 text-sm text-rose-700">{serverError}</div>
             )}
-          </div>
 
-          <div className="text-center text-xs text-zinc-500">
-            New to free draw?{' '}
-            <Link href="/register" className="codex-link">Create one</Link>
+            <div className="mt-6 text-center text-sm text-[#969189]">
+              New here?{' '}
+              <Link href="/register" className="font-semibold text-[#34333d] transition hover:text-[#55525f]">
+                Create an account
+              </Link>
+            </div>
           </div>
-
-          <div className="mt-2 text-center text-xs text-zinc-400">
-            © free draw
-          </div>
-        </section>
-      </div>
-    </div>
+        </div>
+      </section>
+    </main>
   );
 }

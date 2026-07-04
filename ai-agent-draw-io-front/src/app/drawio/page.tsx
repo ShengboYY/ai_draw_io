@@ -1,12 +1,13 @@
 'use client';
 
 import { DrawIoEmbed, DrawIoEmbedRef } from 'react-drawio';
+import Image from 'next/image';
 import { Suspense, useRef, useState, useEffect, useCallback } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { getUserInfo, setUserInfo as persistUserInfo } from '@/utils/cookie';
 import { getWorkspaceIdentity } from '@/utils/workspace-identity';
 import { agentApi, ApiResponseError, StreamEvent } from '@/api/agent';
-import type { CurrentAccountResponseDTO, ModelCredentialResponseDTO } from '@/types/api';
+import type { CurrentAccountResponseDTO, DiagramSummaryResponseDTO, ModelCredentialResponseDTO } from '@/types/api';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { buildStepSummary } from './execution-step-summary';
@@ -25,11 +26,14 @@ import {
 import {
   buildManualCanvasSaveRequest,
   latestCanvasVersion,
+  shouldCreateConversationDiagramShell,
+  shouldHandleManualAutosave,
   type ManualCanvasSaveRequest,
 } from './manual-canvas-save';
 import { buildCanvasStateConflictMessage } from './canvas-state-conflict';
+import { buildDiagramHistoryEntries } from './diagram-history';
 import { buildRestoredDiagramState, normalizeRestoredDrawioXml } from './diagram-restore';
-import { buildDiagramTitleFromPrompt } from './diagram-title';
+import { buildDiagramTitleFromPrompt, DEFAULT_DIAGRAM_TITLE } from './diagram-title';
 import { buildRestoredConversationMessages } from './conversation-restore';
 import {
   applyDemoQuotaConsumption,
@@ -112,6 +116,12 @@ const Icons = {
     <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
       <line x1="22" y1="2" x2="11" y2="13"></line>
       <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+    </svg>
+  ),
+  ArrowRight: ({ className }: { className?: string }) => (
+    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <line x1="5" y1="12" x2="19" y2="12"></line>
+      <polyline points="12 5 19 12 12 19"></polyline>
     </svg>
   ),
   User: ({ className }: { className?: string }) => (
@@ -513,6 +523,7 @@ export default function Home() {
 }
 
 function DrawioPageContent() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const restoreDiagramId = searchParams.get('diagramId');
   const [imgData, setImgData] = useState<string | null>(null);
@@ -522,6 +533,9 @@ function DrawioPageContent() {
   
   // User State
   const [currentUser, setCurrentUser] = useState('');
+  // DrawIoEmbed keeps its first message handler, so iframe callbacks read mutable refs
+  // for state that is initialized after the iframe mounts.
+  const currentUserRef = useRef('');
   const [currentAccount, setCurrentAccount] = useState<CurrentAccountResponseDTO | null>(null);
   const [accountDisplayName, setAccountDisplayName] = useState('');
   const [isAccountPopoverOpen, setIsAccountPopoverOpen] = useState(false);
@@ -571,11 +585,12 @@ function DrawioPageContent() {
     {
       id: '1',
       role: 'agent',
-      content: 'Hi! Tell me what Draw.io diagram you want to create, such as a flowchart, architecture diagram, UML class diagram, sequence diagram, ER diagram, use case diagram, or state diagram.',
+      content: 'Hi! Tell me what diagram you want — a flowchart, architecture, UML class, sequence, ER, or state diagram. I can also edit the one on your canvas.',
       timestamp: Date.now()
     }
   ]);
   const [inputValue, setInputValue] = useState('');
+  const promptInputRef = useRef<HTMLTextAreaElement | null>(null);
   const [isSending, setIsSending] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -605,6 +620,22 @@ function DrawioPageContent() {
     const m = value.match(/(?:^|\s)\/([\w-]*)$/);
     if (m) { setSlashOpen(true); setSlashQuery(m[1]); setSlashIndex(0); }
     else { setSlashOpen(false); setSlashQuery(''); }
+  };
+
+  const focusPromptInput = () => {
+    const textarea = promptInputRef.current;
+    if (!textarea) return;
+    textarea.focus();
+    textarea.style.height = 'auto';
+    textarea.style.height = Math.min(textarea.scrollHeight, 300) + 'px';
+  };
+
+  const handleTemplatePrompt = (prompt: string) => {
+    // Template chips draft prompt text so users can edit before sending.
+    setInputValue(prompt);
+    setSlashOpen(false);
+    setSlashQuery('');
+    requestAnimationFrame(focusPromptInput);
   };
 
   // Pick a skill from the menu: drop the "/query" token, add it as a chip.
@@ -657,7 +688,7 @@ function DrawioPageContent() {
 
   // Rename State
   const [isRenameModalOpen, setIsRenameModalOpen] = useState(false);
-  const [renamingSessionId, setRenamingSessionId] = useState<string | null>(null);
+  const [renamingDiagramId, setRenamingDiagramId] = useState<string | null>(null);
   const [newSessionTitle, setNewSessionTitle] = useState('');
 
   // Custom API Config State
@@ -721,16 +752,37 @@ function DrawioPageContent() {
 
   // Session Management State
   const [sessions, setSessions] = useState<Session[]>([]);
+  const sessionsRef = useRef<Session[]>([]);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   const currentSessionRef = useRef(currentSessionId);
+  const [historyDiagrams, setHistoryDiagrams] = useState<DiagramSummaryResponseDTO[]>([]);
+  const [isHistoryLoading, setIsHistoryLoading] = useState(false);
+  const [historyError, setHistoryError] = useState('');
 
   const persistSessions = (nextSessions: Session[]) => {
+    sessionsRef.current = nextSessions;
     try {
       localStorage.setItem(DRAWIO_SESSIONS_STORAGE_KEY, JSON.stringify(nextSessions));
     } catch (e) {
       console.error('Failed to save sessions to localStorage:', e);
     }
   };
+
+  const refreshHistoryDiagrams = useCallback(async (ownerId = currentUserRef.current || currentUser) => {
+    if (!ownerId) return;
+
+    setIsHistoryLoading(true);
+    setHistoryError('');
+    try {
+      const response = await agentApi.listDiagrams(ownerId);
+      setHistoryDiagrams(response.data || []);
+    } catch (error) {
+      console.warn('Failed to load diagram history:', error);
+      setHistoryError('Failed to load history.');
+    } finally {
+      setIsHistoryLoading(false);
+    }
+  }, [currentUser]);
 
   const saveCanvasXmlForSession = (
     targetSessionId?: string | null,
@@ -869,11 +921,12 @@ function DrawioPageContent() {
   };
 
   const queueManualCanvasStateSave = (xml?: string | null, session?: Session) => {
+    const activeSession = session || sessionsRef.current.find(item => item.id === currentSessionRef.current);
     const request = buildManualCanvasSaveRequest({
-      userId: currentUser,
-      sessionId: session?.id || currentSessionRef.current,
-      diagramId: session?.diagramId,
-      canvasVersion: session?.canvasVersion,
+      userId: currentUserRef.current,
+      sessionId: activeSession?.id || currentSessionRef.current,
+      diagramId: activeSession?.diagramId,
+      canvasVersion: activeSession?.canvasVersion,
       canvasXml: xml,
     });
     // Blank canvases intentionally stay local: an accidental clear (or a glitchy empty
@@ -890,12 +943,29 @@ function DrawioPageContent() {
   };
 
   const persistDiagramTitle = async (diagramId?: string, title?: string) => {
-    if (!currentUser || !diagramId) return;
+    const ownerId = currentUserRef.current || currentUser;
+    if (!ownerId || !diagramId) return;
 
     const normalizedTitle = buildDiagramTitleFromPrompt(title);
     try {
-      const res = await agentApi.renameDiagram(currentUser, diagramId, normalizedTitle);
+      const res = await agentApi.renameDiagram(ownerId, diagramId, normalizedTitle);
       const savedTitle = res.data?.title || normalizedTitle;
+      const savedDiagram: DiagramSummaryResponseDTO = {
+        diagramId,
+        title: savedTitle,
+        diagramType: res.data?.diagramType,
+        thumbnailUrl: res.data?.thumbnailUrl,
+        version: res.data?.version,
+        updatedAt: res.data?.updatedAt || new Date().toISOString(),
+      };
+      setHistoryDiagrams(prev => {
+        const nextDiagrams = prev.map(diagram => (
+          diagram.diagramId === diagramId ? { ...diagram, ...savedDiagram } : diagram
+        ));
+        return nextDiagrams.some(diagram => diagram.diagramId === diagramId)
+          ? nextDiagrams
+          : [savedDiagram, ...nextDiagrams];
+      });
       setSessions(prev => {
         const nextSessions = prev.map(session => (
           session.diagramId === diagramId ? { ...session, title: savedTitle, lastModified: Date.now() } : session
@@ -909,7 +979,8 @@ function DrawioPageContent() {
   };
 
   const persistDiagramMessages = async (diagramId?: string, backendSessionId?: string, messagesToSave: Message[] = []) => {
-    if (!currentUser || !diagramId || messagesToSave.length === 0) return;
+    const ownerId = currentUserRef.current || currentUser;
+    if (!ownerId || !diagramId || messagesToSave.length === 0) return;
 
     const payload = messagesToSave
       .filter(message => message.content.trim())
@@ -922,9 +993,51 @@ function DrawioPageContent() {
     if (payload.length === 0) return;
 
     try {
-      await agentApi.saveDiagramMessages(currentUser, diagramId, backendSessionId, payload);
+      await agentApi.saveDiagramMessages(ownerId, diagramId, backendSessionId, payload);
     } catch (e) {
       console.warn('Failed to sync diagram messages:', e);
+    }
+  };
+
+  const ensureConversationDiagramShell = async ({
+    diagramId,
+    title,
+    canvasXml,
+    canvasVersion,
+    hasConversationMessages,
+  }: {
+    diagramId?: string;
+    title?: string;
+    canvasXml?: string;
+    canvasVersion?: number;
+    hasConversationMessages: boolean;
+  }) => {
+    const ownerId = currentUserRef.current || currentUser;
+    const normalizedDiagramId = diagramId?.trim();
+    if (!ownerId || !shouldCreateConversationDiagramShell({
+      diagramId: normalizedDiagramId,
+      canvasVersion,
+      hasDrawableContent: hasDrawableCells(canvasXml),
+      hasConversationMessages,
+    })) return;
+
+    try {
+      // Chat-only diagrams still need a canvas row so the history list can restore them later.
+      const response = await agentApi.saveDiagramCanvasState(ownerId, normalizedDiagramId || '', EMPTY_DRAWIO_XML);
+      const version = response.data?.version;
+      if (Number.isFinite(version) && currentSessionRef.current) {
+        rememberManualCanvasVersion(currentSessionRef.current, normalizedDiagramId || '', version as number);
+      }
+      await persistDiagramTitle(normalizedDiagramId, title);
+    } catch (error) {
+      if (error instanceof ApiResponseError && error.code === 'CANVAS_VERSION_CONFLICT') {
+        const latestVersion = await fetchLatestCanvasVersion(ownerId, normalizedDiagramId || '');
+        if (Number.isFinite(latestVersion) && currentSessionRef.current) {
+          rememberManualCanvasVersion(currentSessionRef.current, normalizedDiagramId || '', latestVersion);
+        }
+        return;
+      }
+      console.warn('Failed to create chat-only diagram shell:', error);
     }
   };
 
@@ -1145,6 +1258,19 @@ function DrawioPageContent() {
   }, [currentSessionId]);
 
   useEffect(() => {
+    currentUserRef.current = currentUser;
+  }, [currentUser]);
+
+  useEffect(() => {
+    sessionsRef.current = sessions;
+  }, [sessions]);
+
+  useEffect(() => {
+    if (!isSidebarOpen || !currentUser) return;
+    void refreshHistoryDiagrams(currentUser);
+  }, [currentUser, isSidebarOpen, refreshHistoryDiagrams]);
+
+  useEffect(() => {
     isDrawIoReadyRef.current = isDrawIoReady;
     if (isDrawIoReady) {
       scheduleStreamingPreviewDrainRef.current();
@@ -1270,9 +1396,9 @@ function DrawioPageContent() {
             ...session,
             messages,
             backendSessionId: sessionId,
-            // Update title if it's the default "New Chat" and we have a user message
-            title: session.title === 'New Chat' && messages.find(m => m.role === 'user') 
-              ? (messages.find(m => m.role === 'user')?.content.slice(0, 20) || 'New Chat')
+            // Update title if it is still the default and we have a user message.
+            title: session.title === DEFAULT_DIAGRAM_TITLE && messages.find(m => m.role === 'user')
+              ? (messages.find(m => m.role === 'user')?.content.slice(0, 20) || DEFAULT_DIAGRAM_TITLE)
               : session.title
           };
         }
@@ -1289,11 +1415,11 @@ function DrawioPageContent() {
       id: localSessionId,
       backendSessionId: backendId,
       diagramId: makeLocalDiagramId(localSessionId),
-      title: 'New Chat',
+      title: DEFAULT_DIAGRAM_TITLE,
       messages: [{
         id: Date.now().toString(),
         role: 'agent',
-        content: 'Hi! Tell me what Draw.io diagram you want to create, such as a flowchart, architecture diagram, UML class diagram, sequence diagram, ER diagram, use case diagram, or state diagram.',
+        content: 'Hi! Tell me what diagram you want — a flowchart, architecture, UML class, sequence, ER, or state diagram. I can also edit the one on your canvas.',
         timestamp: Date.now()
       }],
       drawIoXml: null,
@@ -1379,65 +1505,89 @@ function DrawioPageContent() {
     };
   }, [currentUser, restoreDiagramId]);
 
-  const handleSwitchSession = (targetSessionId: string) => {
-    if (targetSessionId === currentSessionId) return;
-    loadSession(targetSessionId);
+  const openHistoryDiagram = (diagramId: string) => {
+    setIsSidebarOpen(false);
+    router.push(`/drawio?diagramId=${encodeURIComponent(diagramId)}`);
   };
 
-  const loadSession = (targetSessionId: string) => {
-    const session = sessions.find(s => s.id === targetSessionId);
-    if (session) {
-	        pendingThumbnailExportRef.current = null;
-	        clearBlankEditorGuard();
-	        currentSessionRef.current = targetSessionId;
-	        setCurrentSessionId(targetSessionId);
-	        setMessages(session.messages);
-	        // Do not reuse old backend sessions when switching local conversations.
-	        setSessionId('');
-	        replaceEditorXml(session.drawIoXml || EMPTY_DRAWIO_XML);
-    }
+  const removeLocalSessionsForDiagram = (diagramId: string) => {
+    const nextSessions = sessionsRef.current.filter(session => session.diagramId !== diagramId);
+    setSessions(nextSessions);
+    persistSessions(nextSessions);
+    return nextSessions;
   };
 
-  const handleDeleteSession = (e: React.MouseEvent, sessionIdToDelete: string) => {
+  const handleDeleteHistoryDiagram = async (
+    e: React.MouseEvent,
+    diagramId: string,
+    title: string,
+  ) => {
     e.stopPropagation();
-    const newSessions = sessions.filter(s => s.id !== sessionIdToDelete);
-    setSessions(newSessions);
-    persistSessions(newSessions);
+    if (!currentUser || !window.confirm(`Delete "${title}"?`)) return;
 
-    if (currentSessionId === sessionIdToDelete) {
-        if (newSessions.length > 0) {
-            loadSession(newSessions[0].id);
-        } else {
-            createNewSession();
-        }
+    setHistoryError('');
+    try {
+      const response = await agentApi.deleteDiagram(currentUser, diagramId);
+      if (!response.data) {
+        setHistoryError('Diagram was not deleted.');
+        return;
+      }
+
+      const deletedCurrentDiagram = sessionsRef.current.find(
+        session => session.id === currentSessionRef.current,
+      )?.diagramId === diagramId;
+      setHistoryDiagrams(prev => prev.filter(diagram => diagram.diagramId !== diagramId));
+      removeLocalSessionsForDiagram(diagramId);
+      if (deletedCurrentDiagram) {
+        window.history.replaceState(null, '', window.location.pathname);
+        createNewSession();
+      }
+    } catch (error) {
+      console.warn('Failed to delete diagram from history:', error);
+      setHistoryError('Failed to delete diagram.');
     }
   };
 
-  const openRenameSession = (session: Session) => {
-    setRenamingSessionId(session.id);
-    setNewSessionTitle(session.title);
+  const openRenameHistoryDiagram = (diagramId: string, title: string) => {
+    setRenamingDiagramId(diagramId);
+    setNewSessionTitle(title);
     setIsRenameModalOpen(true);
-  };
-
-  const handleDoubleClickSession = (session: Session) => {
-    openRenameSession(session);
   };
 
   const handleRenameCancel = () => {
     setIsRenameModalOpen(false);
-    setRenamingSessionId(null);
+    setRenamingDiagramId(null);
     setNewSessionTitle('');
   };
 
-  const handleRenameSave = () => {
+  const handleRenameSave = async () => {
     const title = newSessionTitle.trim();
-    if (renamingSessionId && title) {
-      const renamedSession = sessions.find(s => s.id === renamingSessionId);
-      setSessions(prev => prev.map(s => 
-        s.id === renamingSessionId ? { ...s, title } : s
-      ));
-      if (renamedSession?.diagramId) {
-        persistDiagramTitle(renamedSession.diagramId, title);
+    if (renamingDiagramId && title && currentUser) {
+      try {
+        const response = await agentApi.renameDiagram(currentUser, renamingDiagramId, title);
+        const updated = response.data;
+        setHistoryDiagrams(prev => prev.map(diagram => (
+          diagram.diagramId === renamingDiagramId
+            ? {
+                ...diagram,
+                title: updated?.title || title,
+                diagramType: updated?.diagramType || diagram.diagramType,
+                thumbnailUrl: updated?.thumbnailUrl || diagram.thumbnailUrl,
+                version: updated?.version || diagram.version,
+                updatedAt: updated?.updatedAt || diagram.updatedAt,
+              }
+            : diagram
+        )));
+        setSessions(prev => {
+          const nextSessions = prev.map(session => (
+            session.diagramId === renamingDiagramId ? { ...session, title, lastModified: Date.now() } : session
+          ));
+          persistSessions(nextSessions);
+          return nextSessions;
+        });
+      } catch (error) {
+        console.warn('Failed to rename diagram from history:', error);
+        setHistoryError('Failed to rename diagram.');
       }
       handleRenameCancel();
     }
@@ -1539,6 +1689,7 @@ function DrawioPageContent() {
       }
 
       if (cancelled) return;
+      currentUserRef.current = ownerId;
       setCurrentUser(ownerId);
       void loadCurrentAccount(ownerId);
 
@@ -1618,7 +1769,7 @@ function DrawioPageContent() {
         const initialMsg: Message = {
           id: Date.now().toString(),
           role: 'agent',
-          content: 'Hi! Tell me what Draw.io diagram you want to create, such as a flowchart, architecture diagram, UML class diagram, sequence diagram, ER diagram, use case diagram, or state diagram.',
+          content: 'Hi! Tell me what diagram you want — a flowchart, architecture, UML class, sequence, ER, or state diagram. I can also edit the one on your canvas.',
           timestamp: Date.now()
         };
 
@@ -1905,7 +2056,7 @@ function DrawioPageContent() {
       const activeModelConfig = customModels.find(m => m.id === selectedCustomModelId && m.enabled);
       const activeSession = sessions.find(session => session.id === currentSessionId);
       const diagramId = activeSession?.diagramId || (currentSessionId ? makeLocalDiagramId(currentSessionId) : undefined);
-      const diagramTitle = activeSession?.title && activeSession.title !== 'New Chat'
+      const diagramTitle = activeSession?.title && activeSession.title !== DEFAULT_DIAGRAM_TITLE
         ? activeSession.title
         : buildDiagramTitleFromPrompt(displayContent);
       let diagramTitlePersisted = false;
@@ -1919,7 +2070,7 @@ function DrawioPageContent() {
         const agentContent = (accumulatedContent || agentTextContent).trim();
         if (!agentContent) return;
 
-        persistDiagramMessages(persistedDiagramId, activeBackendSessionId, [
+        const messagesToPersist = [
           userMsg,
           {
             ...initialAgentMsg,
@@ -1927,7 +2078,21 @@ function DrawioPageContent() {
             steps: markStepsDone(initialAgentMsg.steps),
             timestamp: Date.now(),
           },
-        ]);
+        ];
+
+        void (async () => {
+          await ensureConversationDiagramShell({
+            diagramId: persistedDiagramId,
+            title: diagramTitle,
+            canvasXml: canvasContext.canvasXml,
+            canvasVersion: latestCanvasVersion(
+              persistedDiagramId ? manualCanvasVersionsRef.current.get(persistedDiagramId) : undefined,
+              activeSession?.canvasVersion,
+            ),
+            hasConversationMessages: messagesToPersist.some(message => Boolean(message.content.trim())),
+          });
+          await persistDiagramMessages(persistedDiagramId, activeBackendSessionId, messagesToPersist);
+        })();
       };
 
       const requestPayload = buildDrawioChatRequestPayload({
@@ -2478,7 +2643,7 @@ function DrawioPageContent() {
     setSelectedSkills([]);
     setSlashOpen(false);
     // Reset textarea height
-    const textarea = document.querySelector('textarea');
+    const textarea = promptInputRef.current;
     if (textarea) textarea.style.height = '80px';
     sendContent(content);
   };
@@ -2538,11 +2703,17 @@ function DrawioPageContent() {
   };
 
   const quickActions = [
-    { label: 'UML Class', text: 'Please draw a UML class diagram for an e-commerce system, including User, Order, Product, and related classes.' },
-    { label: 'Sequence', text: 'Please draw a sequence diagram for user login and registration, including Client, Gateway, Auth Service, and Database.' },
-    { label: 'Architecture', text: 'Please draw a microservice architecture diagram with access layer, business service layer, and data layer.' },
-    { label: 'Flowchart', text: 'Please draw an e-commerce shopping flowchart covering product browsing, cart, order creation, payment, and shipment.' }
+    { label: 'UML Class', text: 'Create a UML class diagram' },
+    { label: 'Sequence', text: 'Create a sequence diagram' },
+    { label: 'Architecture', text: 'Create an architecture diagram' },
+    { label: 'Flowchart', text: 'Create a flowchart' }
   ];
+  const historyEntries = buildDiagramHistoryEntries(historyDiagrams);
+  const currentDiagramId = sessions.find(session => session.id === currentSessionId)?.diagramId;
+  const formatHistoryUpdatedAt = (updatedAtMs: number) => {
+    if (!updatedAtMs) return 'No updates yet';
+    return `${new Date(updatedAtMs).toLocaleDateString()} ${new Date(updatedAtMs).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`;
+  };
 
   return (
     <div className="relative flex h-screen w-full overflow-hidden bg-[var(--app-bg)] font-sans text-zinc-800">
@@ -2551,10 +2722,11 @@ function DrawioPageContent() {
         <button
           type="button"
           onClick={() => { window.location.href = '/'; }}
-          className="grid h-9 w-9 place-items-center rounded-lg bg-zinc-700 text-xs font-bold text-white shadow-sm"
+          className="relative grid h-9 w-9 place-items-center overflow-hidden rounded-lg bg-zinc-700 shadow-sm"
           title="Diagram home"
         >
-          AI
+          {/* Match the shared app logo used on the home and auth pages. */}
+          <Image src="/brand/freedraw-logo-dark.png" alt="" fill sizes="36px" className="object-cover" priority />
         </button>
         <button
           type="button"
@@ -2681,17 +2853,29 @@ function DrawioPageContent() {
             </div>
           </div>
           <div className="flex-1 space-y-1 overflow-y-auto p-2">
-            {[...sessions].sort((a, b) => b.lastModified - a.lastModified).map(session => (
+            {historyError && (
+              <div className="rounded-lg border border-rose-100 bg-rose-50 px-3 py-2 text-xs text-rose-700">
+                {historyError}
+              </div>
+            )}
+            {isHistoryLoading && (
+              <div className="py-10 text-center text-xs text-zinc-400">
+                Loading history...
+              </div>
+            )}
+            {!isHistoryLoading && historyEntries.map(entry => (
               <div
-                key={session.id}
+                key={entry.diagramId}
                 onClick={() => {
-                  handleSwitchSession(session.id);
-                  setIsSidebarOpen(false);
+                  openHistoryDiagram(entry.diagramId);
                 }}
-                onDoubleClick={(e) => { e.stopPropagation(); handleDoubleClickSession(session); }}
+                onDoubleClick={(e) => {
+                  e.stopPropagation();
+                  openRenameHistoryDiagram(entry.diagramId, entry.title);
+                }}
                 className={`
                   group flex cursor-pointer items-center gap-3 rounded-lg border px-3 py-3 transition
-                  ${currentSessionId === session.id
+                  ${currentDiagramId === entry.diagramId
                     ? 'border-stone-300 bg-stone-50 text-zinc-800'
                     : 'border-transparent text-zinc-600 hover:bg-stone-50 hover:text-zinc-800'
                   }
@@ -2699,16 +2883,16 @@ function DrawioPageContent() {
               >
                 <div className="min-w-0 flex-1">
                   <div className="truncate text-sm font-medium">
-                    {session.title}
+                    {entry.title}
                   </div>
                   <div className="mt-0.5 text-[10px] text-zinc-400">
-                    {new Date(session.lastModified).toLocaleDateString()} {new Date(session.lastModified).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                    {formatHistoryUpdatedAt(entry.updatedAtMs)}
                   </div>
                 </div>
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
-                    openRenameSession(session);
+                    openRenameHistoryDiagram(entry.diagramId, entry.title);
                   }}
                   className="rounded-md p-1.5 text-zinc-400 opacity-0 transition hover:bg-white hover:text-zinc-700 group-hover:opacity-100"
                   title="Rename"
@@ -2716,7 +2900,7 @@ function DrawioPageContent() {
                   <Icons.Edit className="h-4 w-4" />
                 </button>
                 <button
-                  onClick={(e) => handleDeleteSession(e, session.id)}
+                  onClick={(e) => handleDeleteHistoryDiagram(e, entry.diagramId, entry.title)}
                   className="rounded-md p-1.5 text-zinc-400 opacity-0 transition hover:bg-rose-50 hover:text-rose-600 group-hover:opacity-100"
                   title="Delete"
                 >
@@ -2724,7 +2908,7 @@ function DrawioPageContent() {
                 </button>
               </div>
             ))}
-            {sessions.length === 0 && (
+            {!isHistoryLoading && historyEntries.length === 0 && (
               <div className="py-10 text-center text-xs text-zinc-400">
                 No history yet
               </div>
@@ -2760,11 +2944,19 @@ function DrawioPageContent() {
               autosave={true}
               onAutoSave={(data) => {
                 if (ignoreAutosaveForBlankEditorRef.current) return;
-                if (currentSessionId && isDrawIoReady && !isExportingForChatRef.current && !isExportingThumbnailRef.current) {
-                   const activeSession = sessions.find(session => session.id === currentSessionId);
+                const activeSessionId = currentSessionRef.current || currentSessionId;
+                const hasInlineXml = Boolean(data && typeof data === 'object' && 'xml' in data);
+                if (shouldHandleManualAutosave({
+                  currentSessionId: activeSessionId,
+                  editorReady: isDrawIoReadyRef.current,
+                  exportingForChat: isExportingForChatRef.current,
+                  exportingThumbnail: isExportingThumbnailRef.current,
+                  hasInlineXml,
+                })) {
+                   const activeSession = sessionsRef.current.find(session => session.id === activeSessionId);
                    const diagramId = activeSession?.diagramId;
                    // Prefer using the XML directly from the autosave event if available
-                   if (data && typeof data === 'object' && 'xml' in data) {
+                   if (hasInlineXml) {
                        const xmlContent = typeof data.xml === 'string' ? data.xml : '';
                        saveCurrentCanvasXml(xmlContent);
                        queueManualCanvasStateSave(xmlContent, activeSession);
@@ -2843,20 +3035,16 @@ function DrawioPageContent() {
                   className={`flex gap-3 ${msg.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}
                 >
                   <div className={`
-                    shrink-0 w-8 h-8 rounded-full flex items-center justify-center shadow-sm mt-1 ring-2 ring-white
+                    shrink-0 w-8 h-8 flex items-center justify-center shadow-sm mt-1
                     ${msg.role === 'user'
-                      ? 'bg-zinc-700 text-white'
-                      : 'border border-stone-200 bg-white text-zinc-600'
+                      ? 'rounded-full bg-zinc-700 text-white ring-2 ring-white'
+                      : 'rounded-xl bg-zinc-900 text-white'
                     }
                   `}>
-                    {msg.role === 'user' ? <Icons.User className="w-5 h-5" /> : <Icons.Bot className="w-5 h-5" />}
+                    {msg.role === 'user' ? <Icons.User className="w-5 h-5" /> : <Icons.Sparkles className="w-4 h-4" />}
                   </div>
-                  
+
                   <div className="flex flex-col max-w-[85%] w-full">
-                      <span className={`mb-1.5 text-[10px] font-medium ${msg.role === 'user' ? 'text-right text-zinc-400' : 'text-left text-zinc-400'}`}>
-                          {msg.role === 'user' ? 'You' : 'Agent'}
-                      </span>
-                      
                       <div className={`flex flex-col gap-2 ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
                         {showAgentProgressCard && (
                           <AgentProgressMessage message={msg} isRunning={isLatestRunningAgent} />
@@ -2936,33 +3124,37 @@ function DrawioPageContent() {
               );
             })}
 
+            {/* Template starters live right under the greeting while the chat is empty. */}
+            {messages.length <= 1 && (
+              <div className="pl-11 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                <p className="mb-3 font-mono text-[11px] uppercase tracking-[0.14em] text-zinc-400">Try a template</p>
+                <div className="flex flex-wrap gap-2.5">
+                  {quickActions.map((action, idx) => (
+                    <button
+                      key={idx}
+                      onClick={() => {
+                        handleTemplatePrompt(action.text);
+                      }}
+                      disabled={demoQuotaState.exhausted}
+                      className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-medium shadow-sm transition-colors ${
+                        demoQuotaState.exhausted
+                          ? 'cursor-not-allowed border-stone-200 bg-stone-100 text-zinc-400'
+                          : 'border-stone-200 bg-white text-zinc-700 hover:border-stone-300 hover:bg-stone-50'
+                      }`}
+                    >
+                      <span className={`h-1.5 w-1.5 rounded-full ${demoQuotaState.exhausted ? 'bg-zinc-300' : 'bg-zinc-800'}`} aria-hidden="true" />
+                      {action.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
             <div ref={messagesEndRef} />
           </div>
 
           {/* Input Area */}
           <div className="relative z-20 shrink-0 border-t border-stone-200 bg-white p-4 shadow-[0_-4px_12px_rgba(24,24,27,0.03)]">
-            {/* Quick Actions - Only show when chat is empty (just greeting) */}
-            {messages.length <= 1 && (
-              <div className="flex flex-wrap gap-2 mb-3 px-1 animate-in fade-in slide-in-from-bottom-2 duration-300">
-                {quickActions.map((action, idx) => (
-                  <button
-                    key={idx}
-                    onClick={() => {
-                      sendContent(action.text);
-                    }}
-                    disabled={demoQuotaState.exhausted}
-                    className={`text-xs px-3 py-1.5 rounded-full transition-colors border font-medium shadow-sm ${
-                      demoQuotaState.exhausted
-                        ? 'cursor-not-allowed border-stone-200 bg-stone-100 text-zinc-400'
-                        : 'border-stone-200 bg-white text-zinc-700 hover:bg-stone-50'
-                    }`}
-                  >
-                    {action.label}
-                  </button>
-                ))}
-              </div>
-            )}
-
             {/* Model and loop controls */}
             <div className="flex flex-wrap items-center gap-2 mb-2 px-1">
                 <div className="relative flex items-center rounded-full border border-stone-200 bg-white shadow-sm transition-colors hover:border-stone-300">
@@ -3010,16 +3202,18 @@ function DrawioPageContent() {
                         <svg className="fill-current h-3 w-3" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/></svg>
                     </div>
                 </div>
+
+                {/* Compact remaining-quota indicator, mirroring the mockup's "N left". */}
+                {demoQuotaState.visible && !demoQuotaState.exhausted && (
+                    <span className="ml-auto flex items-center gap-1.5 pr-1 font-mono text-[11px] font-medium text-zinc-500" title={demoQuotaState.label}>
+                        <span className={`h-1.5 w-1.5 rounded-full ${demoQuotaState.remaining <= 1 ? 'bg-amber-500' : 'bg-emerald-500'}`} aria-hidden="true" />
+                        {demoQuotaState.remaining} left
+                    </span>
+                )}
             </div>
 
-            {demoQuotaState.visible && (
-              <div className={`mb-2 flex flex-wrap items-center justify-between gap-2 rounded-xl border px-3 py-2 text-xs ${
-                demoQuotaState.exhausted
-                  ? 'border-rose-200 bg-rose-50 text-rose-700'
-                  : demoQuotaState.remaining <= 1
-                    ? 'border-amber-200 bg-amber-50 text-amber-700'
-                    : 'border-emerald-200 bg-emerald-50 text-emerald-700'
-              }`}>
+            {demoQuotaState.visible && demoQuotaState.exhausted && (
+              <div className="mb-2 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700">
                 <span className="font-medium">{demoQuotaState.label}</span>
                 {demoQuotaState.exhausted && (
                   <span className="flex items-center gap-2">
@@ -3055,7 +3249,7 @@ function DrawioPageContent() {
               </div>
             )}
 
-            <div className="relative flex items-end gap-2 rounded-lg border border-stone-300 bg-stone-50 p-2 shadow-sm transition-all focus-within:border-zinc-600 focus-within:bg-white focus-within:ring-4 focus-within:ring-zinc-700/5">
+            <div className="relative flex items-end gap-2 rounded-2xl border border-stone-300 bg-stone-50 p-2 shadow-sm transition-all focus-within:border-zinc-600 focus-within:bg-white focus-within:ring-4 focus-within:ring-zinc-700/5">
               {slashOpen && filteredSkills.length > 0 && (
                 <div className="absolute bottom-full left-0 z-50 mb-2 max-h-72 w-80 overflow-auto rounded-lg border border-stone-200 bg-white py-1 shadow-lg">
                   {filteredSkills.map((s, i) => (
@@ -3073,6 +3267,7 @@ function DrawioPageContent() {
                 </div>
               )}
               <textarea
+                ref={promptInputRef}
                 value={inputValue}
                 onChange={(e) => {
                   handleInputChange(e.target.value);
@@ -3080,7 +3275,7 @@ function DrawioPageContent() {
                   e.target.style.height = Math.min(e.target.scrollHeight, 300) + 'px';
                 }}
                 onKeyDown={handleKeyDown}
-                placeholder={isSending ? "AI is generating..." : demoQuotaState.exhausted ? demoQuotaState.exhaustedMessage : "Ask a question or describe your diagram request..."}
+                placeholder={isSending ? "AI is generating..." : demoQuotaState.exhausted ? demoQuotaState.exhaustedMessage : "Describe a diagram, or ask to edit this one…"}
                 disabled={isSending || demoQuotaState.exhausted}
                 className="max-h-[300px] min-h-[80px] flex-1 resize-none border-none bg-transparent px-4 py-3 text-[15px] leading-relaxed text-zinc-800 placeholder:text-zinc-400 focus:ring-0 disabled:cursor-not-allowed disabled:opacity-50 scrollbar-thin scrollbar-track-transparent scrollbar-thumb-stone-300"
                 rows={1}
@@ -3090,7 +3285,7 @@ function DrawioPageContent() {
                   {isSending ? (
                     <button
                       onClick={handleStopStream}
-                      className="p-2.5 rounded-lg transition-all duration-200 flex items-center justify-center bg-red-100 text-red-600 hover:bg-red-200 shadow-sm"
+                      className="p-2.5 rounded-full transition-all duration-200 flex items-center justify-center bg-red-100 text-red-600 hover:bg-red-200 shadow-sm"
                       title="Stop generation"
                     >
                       <Icons.Square className="w-4 h-4" />
@@ -3100,21 +3295,21 @@ function DrawioPageContent() {
                       onClick={handleSendMessage}
                       disabled={!inputValue.trim() || demoQuotaState.exhausted}
                       className={`
-                        p-2.5 rounded-lg transition-all duration-200 flex items-center justify-center
+                        p-2.5 rounded-full transition-all duration-200 flex items-center justify-center
                         ${inputValue.trim() && !demoQuotaState.exhausted
-                          ? 'bg-zinc-700 text-white shadow-md shadow-zinc-700/10 hover:bg-zinc-600 hover:scale-105 active:scale-95'
+                          ? 'bg-zinc-800 text-white shadow-md shadow-zinc-700/10 hover:bg-zinc-700 hover:scale-105 active:scale-95'
                           : 'cursor-not-allowed bg-stone-200 text-zinc-400'
                         }
                       `}
                       title="Send message"
                     >
-                      <Icons.Send className="w-4 h-4" />
+                      <Icons.ArrowRight className="w-4 h-4" />
                     </button>
                   )}
                   <button
                     onClick={handleRestartSession}
                     disabled={isSending}
-                    className="rounded-lg border border-stone-200 bg-white p-2.5 text-zinc-400 shadow-sm transition-all duration-200 hover:bg-stone-50 hover:text-zinc-700 disabled:cursor-not-allowed disabled:opacity-50"
+                    className="rounded-full border border-stone-200 bg-white p-2.5 text-zinc-400 shadow-sm transition-all duration-200 hover:bg-stone-50 hover:text-zinc-700 disabled:cursor-not-allowed disabled:opacity-50"
                     title="Restart conversation"
                   >
                     <Icons.Plus className="w-4 h-4" />
@@ -3179,7 +3374,7 @@ function DrawioPageContent() {
         <div className="absolute inset-0 z-50 flex items-center justify-center bg-zinc-700/35 p-6 backdrop-blur-sm animate-in fade-in duration-200">
             <div className="w-full max-w-md overflow-hidden rounded-lg border border-stone-200 bg-white shadow-2xl shadow-zinc-700/20 animate-in zoom-in-95 duration-200">
                 <div className="flex items-center justify-between border-b border-stone-200 bg-stone-50 px-6 py-4">
-                    <h2 className="text-lg font-semibold text-zinc-800">Rename Session</h2>
+                    <h2 className="text-lg font-semibold text-zinc-800">Rename Diagram</h2>
                     <button 
                         onClick={handleRenameCancel}
                         className="rounded-lg p-1 text-zinc-400 transition-colors hover:bg-stone-100 hover:text-zinc-700"
@@ -3191,7 +3386,7 @@ function DrawioPageContent() {
                 
                 <div className="p-6">
                     <label className="mb-2 block text-sm font-medium text-zinc-700">
-                        Session Name
+                        Diagram Name
                     </label>
                     <input 
                         type="text" 

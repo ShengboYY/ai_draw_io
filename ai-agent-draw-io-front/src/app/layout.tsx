@@ -1,19 +1,30 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Space_Grotesk, Public_Sans, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+// Space Grotesk carries the "personality" — headings, the FreeDraw wordmark, buttons.
+const displayFont = Space_Grotesk({
+  variable: "--font-space-grotesk",
   subsets: ["latin"],
+  display: "swap",
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+// Public Sans is the neutral workhorse for body copy, labels, and inputs.
+const bodyFont = Public_Sans({
+  variable: "--font-public-sans",
   subsets: ["latin"],
+  display: "swap",
+});
+
+// JetBrains Mono is reserved for technical micro-labels (dates, ⌘K, percentages).
+const monoFont = JetBrains_Mono({
+  variable: "--font-jetbrains-mono",
+  subsets: ["latin"],
+  display: "swap",
 });
 
 export const metadata: Metadata = {
-  title: "Agent-Draw-IO",
+  title: "FreeDraw",
   description: "Interactive AI diagramming",
 };
 
@@ -30,7 +41,7 @@ export default function RootLayout({
         <Script src="/env-config.js" strategy="beforeInteractive" />
       </head>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={`${displayFont.variable} ${bodyFont.variable} ${monoFont.variable} antialiased`}
         // Browser extensions can inject attributes before React hydrates the body.
         suppressHydrationWarning
       >

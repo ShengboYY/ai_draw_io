@@ -14,6 +14,21 @@ export type ManualCanvasSaveRequest = {
   canvasXml: string;
 };
 
+export type ManualAutosaveGuardInput = {
+  currentSessionId?: string | null;
+  editorReady: boolean;
+  exportingForChat: boolean;
+  exportingThumbnail: boolean;
+  hasInlineXml: boolean;
+};
+
+export type ConversationDiagramShellInput = {
+  diagramId?: string;
+  canvasVersion?: number;
+  hasDrawableContent: boolean;
+  hasConversationMessages: boolean;
+};
+
 export const buildManualCanvasSaveRequest = ({
   userId,
   sessionId,
@@ -44,3 +59,26 @@ export const latestCanvasVersion = (
   const versions = candidates.filter((value): value is number => Number.isFinite(value));
   return versions.length ? Math.max(...versions) : undefined;
 };
+
+export const shouldHandleManualAutosave = ({
+  currentSessionId,
+  editorReady,
+  exportingForChat,
+  exportingThumbnail,
+  hasInlineXml,
+}: ManualAutosaveGuardInput): boolean => {
+  if (!currentSessionId || exportingForChat || exportingThumbnail) return false;
+  return hasInlineXml || editorReady;
+};
+
+export const shouldCreateConversationDiagramShell = ({
+  diagramId,
+  canvasVersion,
+  hasDrawableContent,
+  hasConversationMessages,
+}: ConversationDiagramShellInput): boolean => (
+  Boolean(diagramId?.trim())
+  && hasConversationMessages
+  && !hasDrawableContent
+  && !Number.isFinite(canvasVersion)
+);

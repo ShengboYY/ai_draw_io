@@ -1,4 +1,4 @@
-const DEFAULT_DIAGRAM_TITLE = 'Untitled Diagram';
+export const DEFAULT_DIAGRAM_TITLE = 'Untitled Diagram';
 const MAX_DIAGRAM_TITLE_LENGTH = 60;
 
 export const buildDiagramTitleFromPrompt = (prompt?: string | null) => {

@@ -15,3 +15,20 @@ test('drawio history sidebar does not reopen from persisted browser state', () =
   assert.equal(writesPersistedHistory, false, 'history sidebar should not persist to localStorage');
   assert.equal(clearsLegacyPersistedHistory, true, 'legacy persisted history sidebar state should be cleared');
 });
+
+test('drawio history sidebar renders database diagrams instead of local sessions', () => {
+  const pagePath = fileURLToPath(new URL('../src/app/drawio/page.tsx', import.meta.url));
+  const pageSource = readFileSync(pagePath, 'utf8');
+  const sidebarSource = pageSource.slice(
+    pageSource.indexOf('{isSidebarOpen && ('),
+    pageSource.indexOf('{/* Main Layout */}'),
+  );
+
+  const loadsDatabaseDiagrams = /agentApi\.listDiagrams/.test(pageSource);
+  const rendersHistoryEntries = /historyEntries\.map/.test(sidebarSource);
+  const rendersLocalSessions = /\[\.\.\.sessions\]\.sort/.test(sidebarSource);
+
+  assert.equal(loadsDatabaseDiagrams, true, 'history sidebar should load diagrams from the API');
+  assert.equal(rendersHistoryEntries, true, 'history sidebar should render database history entries');
+  assert.equal(rendersLocalSessions, false, 'history sidebar should not render local sessions');
+});
