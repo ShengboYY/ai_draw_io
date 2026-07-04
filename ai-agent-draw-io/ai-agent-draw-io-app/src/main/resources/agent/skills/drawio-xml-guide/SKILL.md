@@ -49,6 +49,7 @@ Constraints shared by both modes:
 - Ports follow flow direction: left-to-right uses `exitX=1` → `entryX=0`; top-to-bottom uses `exitY=1` → `entryY=0`. Never corner ports (both coordinates extreme).
 - Two edges between the same pair, or a request/return pair, take different tracks: `exitY=0.3` vs `exitY=0.7`, or opposite sides. Never stack opposite arrows on the same center track.
 - If a node sits on an edge's straight path, add 2–3 orthogonal waypoints with 20–30 px clearance, or route along the outer perimeter. Long cross-region edges always take the perimeter, not the center.
+- Waypoints must agree with the ports: the FIRST waypoint sits on the exit side (past `exitX=0` → to the left of the source; `exitY=0` → above it; `exitX=1`/`exitY=1` → right/below), and the LAST waypoint sits on the entry side of the target. Never place the first waypoint back across the source, or a hook forms. When unsure, emit NO waypoints on a return/loop-back edge and let routing lay the channel — a bare `<mxGeometry relative="1" as="geometry"/>` is safer than contradictory points.
 
 ### radial mode
 - Concentric zones are large background ellipses drawn first (render order rule), biggest first; label each zone with `verticalAlign=top;fontStyle=1;fontSize=13;` inside its top edge. Zones are backgrounds — content nodes keep `parent="1"` with absolute coordinates.

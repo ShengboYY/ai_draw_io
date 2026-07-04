@@ -1357,13 +1357,21 @@ function DrawioPageContent() {
       console.error('Failed to parse sessions:', e);
     }
 
-    const shouldCreateFreshDiagram = new URLSearchParams(window.location.search).get('new') === '1';
+    const freshParams = new URLSearchParams(window.location.search);
+    const shouldCreateFreshDiagram = freshParams.get('new') === '1';
     if (shouldCreateFreshDiagram) {
       // Homepage "New diagram" must bypass the cached local session that normal /drawio
       // restores, while keeping the saved sessions so the history sidebar (and the
       // persistence effect) does not lose them.
       setSessions(savedSessions);
       createNewSession(true);
+      // Landing page hands off the typed prompt via ?prompt=…; draft it into the
+      // composer (focused, ready to send) rather than auto-sending on mount.
+      const initialPrompt = freshParams.get('prompt');
+      if (initialPrompt && initialPrompt.trim()) {
+        setInputValue(initialPrompt);
+        requestAnimationFrame(focusPromptInput);
+      }
       window.history.replaceState(null, '', window.location.pathname);
       return;
     }
@@ -2721,7 +2729,7 @@ function DrawioPageContent() {
       <aside className="z-30 flex w-14 shrink-0 flex-col items-center gap-2 border-r border-stone-200 bg-[var(--app-bg)] px-2 py-3 text-zinc-500">
         <button
           type="button"
-          onClick={() => { window.location.href = '/'; }}
+          onClick={() => { window.location.href = '/diagrams'; }}
           className="relative grid h-9 w-9 place-items-center overflow-hidden rounded-lg bg-zinc-700 shadow-sm"
           title="Diagram home"
         >

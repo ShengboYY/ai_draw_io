@@ -9,6 +9,8 @@ import { AuthBrandMark, EnvelopeIcon, LockIcon } from '@/app/auth-visuals';
 import type { LoginStatus } from '@/types/api';
 import {
   clearImportedAnonymousWorkspace,
+  rememberAnonymousWorkspaceImportDeclined,
+  rememberAnonymousWorkspaceImportResult,
   shouldPromptAnonymousWorkspaceImport,
 } from '@/utils/anonymous-workspace-import';
 import { setUserInfo, clearUserInfo } from '@/utils/cookie';
@@ -20,6 +22,11 @@ import {
 } from '@/utils/login-form';
 
 type Phase = 'idle' | 'submitting';
+type PendingImportPrompt = {
+  anonymousWorkspaceId: string;
+  targetUserId: string | null;
+  onFinish: () => void;
+};
 
 export default function Login() {
   const router = useRouter();
@@ -30,32 +37,72 @@ export default function Login() {
   const [signedInAs, setSignedInAs] = useState<string | null>(null);
   const [phase, setPhase] = useState<Phase>('idle');
   const [serverError, setServerError] = useState('');
+  const [pendingImportPrompt, setPendingImportPrompt] = useState<PendingImportPrompt | null>(null);
+  const [importingWorkspace, setImportingWorkspace] = useState(false);
+  const [importError, setImportError] = useState('');
 
-  const maybeImportAnonymousWorkspace = useCallback(async () => {
+  const finishPendingImportPrompt = useCallback(() => {
+    const next = pendingImportPrompt?.onFinish;
+    setPendingImportPrompt(null);
+    setImportError('');
+    setImportingWorkspace(false);
+    next?.();
+  }, [pendingImportPrompt]);
+
+  const openAnonymousWorkspaceImportPrompt = useCallback((
+    targetUserId: string | null | undefined,
+    onFinish: () => void,
+  ) => {
     const storage = typeof window === 'undefined' ? null : window.localStorage;
     const decision = shouldPromptAnonymousWorkspaceImport({
       loginStatus: 'SUCCESS',
       storage,
+      targetUserId,
     });
-    if (!decision.shouldPrompt) return;
-
-    const confirmed = window.confirm(
-      'Import diagrams saved in this browser into your signed-in account?',
-    );
-    if (!confirmed) return;
-
-    try {
-      await agentApi.importAnonymousWorkspace({
-        anonymousWorkspaceId: decision.anonymousWorkspaceId,
-      });
-      clearImportedAnonymousWorkspace(storage, decision.anonymousWorkspaceId);
-    } catch (err: unknown) {
-      // The user is already signed in, so never strand them on the login page.
-      // The import marker stays in localStorage, so the next sign-in prompts again.
-      const message = err instanceof Error ? err.message : 'Could not import diagrams from this browser.';
-      window.alert(`${message} Your local diagrams stay in this browser; sign in again later to retry the import.`);
+    if (!decision.shouldPrompt) {
+      onFinish();
+      return;
     }
+
+    setImportError('');
+    setPendingImportPrompt({
+      anonymousWorkspaceId: decision.anonymousWorkspaceId,
+      targetUserId: targetUserId || null,
+      onFinish,
+    });
   }, []);
+
+  const handleDeclineImport = () => {
+    if (!pendingImportPrompt) return;
+    const storage = typeof window === 'undefined' ? null : window.localStorage;
+    rememberAnonymousWorkspaceImportDeclined(
+      storage,
+      pendingImportPrompt.anonymousWorkspaceId,
+      pendingImportPrompt.targetUserId,
+    );
+    finishPendingImportPrompt();
+  };
+
+  const handleConfirmImport = async () => {
+    if (!pendingImportPrompt) return;
+    const storage = typeof window === 'undefined' ? null : window.localStorage;
+    const sessionStorage = typeof window === 'undefined' ? null : window.sessionStorage;
+    setImportingWorkspace(true);
+    setImportError('');
+    try {
+      const response = await agentApi.importAnonymousWorkspace({
+        anonymousWorkspaceId: pendingImportPrompt.anonymousWorkspaceId,
+      });
+      clearImportedAnonymousWorkspace(storage, pendingImportPrompt.anonymousWorkspaceId);
+      rememberAnonymousWorkspaceImportResult(sessionStorage, response.data?.importedCount);
+      finishPendingImportPrompt();
+    } catch (err: unknown) {
+      // Keep the prompt open so the user can retry or explicitly choose No.
+      const message = err instanceof Error ? err.message : 'Could not import diagrams from this browser.';
+      setImportError(`${message} Your local diagrams stay in this browser.`);
+      setImportingWorkspace(false);
+    }
+  };
 
   useEffect(() => {
     // Recover an existing session so a returning user does not have to sign in twice.
@@ -67,15 +114,14 @@ export default function Login() {
         void (async () => {
           setSignedInAs(signedInEmail);
           setUserInfo(signedInEmail);
-          await maybeImportAnonymousWorkspace();
-          router.push('/');
+          openAnonymousWorkspaceImportPrompt(data.userId, () => router.push('/diagrams'));
         })();
       }
     }).catch(() => {
       // Silent — treat as no session; nothing to persist.
     });
     return () => { cancelled = true; };
-  }, [maybeImportAnonymousWorkspace, router]);
+  }, [openAnonymousWorkspaceImportPrompt, router]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -91,8 +137,7 @@ export default function Login() {
       if (data.status === 'SUCCESS' && data.email) {
         setUserInfo(data.email);
         setSignedInAs(data.email);
-        await maybeImportAnonymousWorkspace();
-        setTimeout(() => router.push('/'), 400);
+        openAnonymousWorkspaceImportPrompt(data.userId, () => setTimeout(() => router.push('/diagrams'), 400));
         return;
       }
     } catch (err: unknown) {
@@ -251,6 +296,67 @@ export default function Login() {
           </div>
         </div>
       </section>
+
+      {pendingImportPrompt && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-[#202024]/35 px-4 py-6 backdrop-blur-sm"
+          role="presentation"
+        >
+          <section
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="anonymous-import-title"
+            aria-describedby="anonymous-import-description anonymous-import-risk"
+            className="w-full max-w-[460px] rounded-2xl border border-stone-200 bg-white p-6 text-[#202024] shadow-[0_22px_70px_rgba(24,24,27,0.22)]"
+          >
+            <div className="flex items-start gap-3">
+              <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-amber-50 text-base font-semibold text-amber-700">
+                !
+              </div>
+              <div>
+                <h3 id="anonymous-import-title" className="m-0 text-lg font-semibold leading-tight tracking-tight">
+                  Import local diagrams?
+                </h3>
+                <p id="anonymous-import-description" className="m-0 mt-2 font-sans text-sm leading-6 text-[#6f6b65]">
+                  This browser may have diagrams saved before sign-in. Importing will attach any matching local diagrams, canvas state, and conversation history to your account.
+                </p>
+              </div>
+            </div>
+
+            <div
+              id="anonymous-import-risk"
+              className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 font-sans text-sm leading-6 text-amber-900"
+            >
+              On a public or shared computer, these diagrams may belong to someone else. Choose No unless you are sure they are yours.
+            </div>
+
+            {importError && (
+              <div className="mt-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 font-sans text-sm leading-6 text-rose-700">
+                {importError}
+              </div>
+            )}
+
+            <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+              <button
+                type="button"
+                onClick={handleDeclineImport}
+                disabled={importingWorkspace}
+                className="h-11 cursor-pointer rounded-xl border border-stone-300 bg-white px-5 text-sm font-semibold text-[#34333d] transition hover:bg-stone-50 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                No
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmImport}
+                disabled={importingWorkspace}
+                className="h-11 cursor-pointer rounded-xl border-0 bg-[#34333d] px-5 text-sm font-semibold text-white shadow-[0_10px_18px_rgba(52,51,61,0.16)] transition hover:bg-[#474553] active:translate-y-px disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {importingWorkspace ? 'Importing...' : 'Import'}
+              </button>
+            </div>
+          </section>
+        </div>
+      )}
     </main>
   );
 }

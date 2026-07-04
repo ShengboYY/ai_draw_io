@@ -40,7 +40,7 @@ test('isAccountMenuTarget treats clicks inside the account menu controls as inte
 });
 
 test('home account menu opens from hover and stays reachable after leaving the trigger', () => {
-  const pagePath = fileURLToPath(new URL('../src/app/page.tsx', import.meta.url));
+  const pagePath = fileURLToPath(new URL('../src/app/diagrams/page.tsx', import.meta.url));
   const pageSource = readFileSync(pagePath, 'utf8');
 
   assert.match(pageSource, /onMouseEnter=\{openAccountMenu\}/);
@@ -49,7 +49,7 @@ test('home account menu opens from hover and stays reachable after leaving the t
 });
 
 test('home places the new diagram action as the first recent diagram card', () => {
-  const pagePath = fileURLToPath(new URL('../src/app/page.tsx', import.meta.url));
+  const pagePath = fileURLToPath(new URL('../src/app/diagrams/page.tsx', import.meta.url));
   const pageSource = readFileSync(pagePath, 'utf8');
   const headerSource = pageSource.slice(pageSource.indexOf('<header'), pageSource.indexOf('</header>'));
 
@@ -66,7 +66,7 @@ test('home places the new diagram action as the first recent diagram card', () =
 });
 
 test('home diagram card metadata only shows the updated date', () => {
-  const pagePath = fileURLToPath(new URL('../src/app/page.tsx', import.meta.url));
+  const pagePath = fileURLToPath(new URL('../src/app/diagrams/page.tsx', import.meta.url));
   const pageSource = readFileSync(pagePath, 'utf8');
   const metadataStart = pageSource.indexOf('Keep card metadata focused');
   const metadataSource = pageSource.slice(
@@ -79,7 +79,7 @@ test('home diagram card metadata only shows the updated date', () => {
 });
 
 test('home diagram cards use pointer cursors and stronger preview shadows', () => {
-  const pagePath = fileURLToPath(new URL('../src/app/page.tsx', import.meta.url));
+  const pagePath = fileURLToPath(new URL('../src/app/diagrams/page.tsx', import.meta.url));
   const pageSource = readFileSync(pagePath, 'utf8');
   const diagramListSource = pageSource.slice(pageSource.indexOf('{visibleDiagrams.map'), pageSource.indexOf('{openMenuId === diagram.diagramId'));
 
@@ -88,7 +88,7 @@ test('home diagram cards use pointer cursors and stronger preview shadows', () =
 });
 
 test('home diagram cards leave missing thumbnails blank', () => {
-  const pagePath = fileURLToPath(new URL('../src/app/page.tsx', import.meta.url));
+  const pagePath = fileURLToPath(new URL('../src/app/diagrams/page.tsx', import.meta.url));
   const pageSource = readFileSync(pagePath, 'utf8');
   const diagramListSource = pageSource.slice(pageSource.indexOf('{visibleDiagrams.map'), pageSource.indexOf('{openMenuId === diagram.diagramId'));
 

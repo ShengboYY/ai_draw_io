@@ -35,6 +35,9 @@ public class DrawioCanvasXmlToolkit {
     private static final double LABEL_HEIGHT = 24D;
     private static final double PORT_SAFE_MIN = 0.25D;
     private static final double PORT_SAFE_MAX = 0.75D;
+    // A model waypoint is only trusted when it stays on the exit/entry side that routing forces.
+    // Small slack absorbs rounding so a waypoint sitting exactly on the node boundary still counts.
+    private static final double PORT_SIDE_TOLERANCE = 1D;
     private static final Pattern VALUE_ATTRIBUTE_PATTERN =
             Pattern.compile("(?<![A-Za-z0-9_.:-])(value\\s*=\\s*)(['\"])(.*?)\\2", Pattern.DOTALL);
 
@@ -606,9 +609,15 @@ public class DrawioCanvasXmlToolkit {
         geometry.addAttribute("relative", "1");
 
         List<CanvasPoint2D> originalWaypoints = readWaypoints(geometry);
-        List<CanvasPoint2D> baseWaypoints = originalWaypoints.isEmpty()
-                ? defaultWaypoints(source, target, horizontal, routeStyle)
-                : originalWaypoints;
+        // ensureStyleTokens has just forced the exit/entry ports to the center-derived
+        // horizontal/forward direction. Model waypoints that contradict those ports (e.g. a
+        // "leave from the left" edge whose first waypoint sits to the right) render as a tangled
+        // hook, so discard them and let routing lay a clean channel instead of trusting them.
+        boolean trustModelWaypoints = !originalWaypoints.isEmpty()
+                && waypointsHonorPorts(originalWaypoints, source, target, horizontal, forward);
+        List<CanvasPoint2D> baseWaypoints = trustModelWaypoints
+                ? originalWaypoints
+                : defaultWaypoints(source, target, horizontal, routeStyle);
         replaceWaypoints(geometry, baseWaypoints);
 
         if (hasEdgeNodeCrossing(document.asXML(), edge.attributeValue("id"))) {
@@ -626,7 +635,7 @@ public class DrawioCanvasXmlToolkit {
                     bestLength = length;
                 }
             }
-            replaceWaypoints(geometry, best == null ? originalWaypoints : best);
+            replaceWaypoints(geometry, best == null ? baseWaypoints : best);
         }
         positionEdgeLabel(edge, geometry, source, target, cells, horizontal, forward, routeStyle);
     }
@@ -692,6 +701,44 @@ public class DrawioCanvasXmlToolkit {
         double midY = (source.centerY() + target.centerY()) / 2D;
         return List.of(new CanvasPoint2D(source.trackX(routeStyle.getSourceTrackFraction()), midY),
                 new CanvasPoint2D(target.trackX(routeStyle.getTargetTrackFraction()), midY));
+    }
+
+    /**
+     * True when the first waypoint leaves the source on the same side routing exits from, and the
+     * last waypoint reaches the target from the side routing enters. A back-edge that declares one
+     * side but bends the other way fails here so its manual route is dropped for a clean channel.
+     */
+    private boolean waypointsHonorPorts(List<CanvasPoint2D> waypoints,
+                                        CellInfo source,
+                                        CellInfo target,
+                                        boolean horizontal,
+                                        boolean forward) {
+        CanvasPoint2D first = waypoints.get(0);
+        CanvasPoint2D last = waypoints.get(waypoints.size() - 1);
+        return exitSideHonored(first, source, horizontal, forward)
+                && entrySideHonored(last, target, horizontal, forward);
+    }
+
+    private boolean exitSideHonored(CanvasPoint2D point, CellInfo source, boolean horizontal, boolean forward) {
+        if (horizontal) {
+            return forward
+                    ? point.getX() >= source.maxX() - PORT_SIDE_TOLERANCE
+                    : point.getX() <= source.getX() + PORT_SIDE_TOLERANCE;
+        }
+        return forward
+                ? point.getY() >= source.maxY() - PORT_SIDE_TOLERANCE
+                : point.getY() <= source.getY() + PORT_SIDE_TOLERANCE;
+    }
+
+    private boolean entrySideHonored(CanvasPoint2D point, CellInfo target, boolean horizontal, boolean forward) {
+        if (horizontal) {
+            return forward
+                    ? point.getX() <= target.getX() + PORT_SIDE_TOLERANCE
+                    : point.getX() >= target.maxX() - PORT_SIDE_TOLERANCE;
+        }
+        return forward
+                ? point.getY() <= target.getY() + PORT_SIDE_TOLERANCE
+                : point.getY() >= target.maxY() - PORT_SIDE_TOLERANCE;
     }
 
     private List<List<CanvasPoint2D>> routeCandidates(CellInfo source,

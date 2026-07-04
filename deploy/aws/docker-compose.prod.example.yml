@@ -1,0 +1,89 @@
+name: ai-drawio-prod-like
+
+services:
+  db:
+    image: mysql:8.4
+    environment:
+      MYSQL_DATABASE: ai_draw_io
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-change-me-local-only}
+      TZ: UTC
+    ports:
+      - "3307:3306"
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --default-time-zone=+00:00
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p$${MYSQL_ROOT_PASSWORD} --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  db-init:
+    image: mysql:8.4
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-change-me-local-only}
+    volumes:
+      - ../../ai-agent-draw-io/docs/sql:/sql:ro
+    entrypoint: ["sh", "-c"]
+    command:
+      - |
+        set -eu
+        mysql -h db -uroot -p"$${MYSQL_ROOT_PASSWORD}" < /sql/account.sql
+        mysql -h db -uroot -p"$${MYSQL_ROOT_PASSWORD}" < /sql/skill.sql
+        mysql -h db -uroot -p"$${MYSQL_ROOT_PASSWORD}" < /sql/diagram.sql
+        mysql -h db -uroot -p"$${MYSQL_ROOT_PASSWORD}" < /sql/usage-counter.sql
+        mysql -h db -uroot -p"$${MYSQL_ROOT_PASSWORD}" < /sql/usage-telemetry.sql
+        mysql -h db -uroot -p"$${MYSQL_ROOT_PASSWORD}" < /sql/admin.sql
+        mysql -h db -uroot -p"$${MYSQL_ROOT_PASSWORD}" < /sql/debug-trace.sql
+        mysql -h db -uroot -p"$${MYSQL_ROOT_PASSWORD}" ai_draw_io < /sql/migrations/2026-07-02-create-model-credential.sql
+        mysql -h db -uroot -p"$${MYSQL_ROOT_PASSWORD}" ai_draw_io < /sql/migrations/2026-07-03-create-usage-counter.sql
+        mysql -h db -uroot -p"$${MYSQL_ROOT_PASSWORD}" ai_draw_io < /sql/migrations/2026-07-03-debug-trace-retention.sql
+        mysql -h db -uroot -p"$${MYSQL_ROOT_PASSWORD}" < /sql/migrations/2026-07-03-expand-diagram-thumbnail-url.sql
+    restart: "no"
+
+  backend:
+    build:
+      context: ../../ai-agent-draw-io
+    depends_on:
+      db:
+        condition: service_healthy
+      db-init:
+        condition: service_completed_successfully
+    env_file:
+      - ./env/backend.env.example
+    environment:
+      APP_SECURITY_ALLOWED_ORIGINS: http://localhost:3000
+      ADMIN_ALLOWED_ORIGINS: http://localhost:3000
+      ACCOUNT_VERIFICATION_BASE_URL: http://localhost:3000/verify-email
+      ACCOUNT_PASSWORD_RESET_BASE_URL: http://localhost:3000/reset-password/confirm
+      MYSQL_HOST: db
+      MYSQL_PORT: 3306
+      MYSQL_USER: root
+      MYSQL_PASSWORD: ${MYSQL_ROOT_PASSWORD:-change-me-local-only}
+      MODEL_CREDENTIAL_ENCRYPTION_KEY: ${MODEL_CREDENTIAL_ENCRYPTION_KEY:-base64:MTIzNDU2Nzg5MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTI=}
+      LOG_PATH: /tmp/ai-drawio-logs
+      SPRING_DATASOURCE_URL: jdbc:mysql://db:3306/ai_draw_io?useUnicode=true&characterEncoding=utf8&autoReconnect=true&zeroDateTimeBehavior=convertToNull&serverTimezone=UTC&sslMode=DISABLED&allowPublicKeyRetrieval=true
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: ${MYSQL_ROOT_PASSWORD:-change-me-local-only}
+    ports:
+      - "8091:8091"
+
+  frontend:
+    build:
+      context: ../../ai-agent-draw-io-front
+    depends_on:
+      - backend
+    environment:
+      NEXT_PUBLIC_API_BASE_URL: http://localhost:8091/api/v1
+    ports:
+      - "3000:3000"
+
+volumes:
+  mysql_data:

@@ -87,7 +87,7 @@ export default function Register() {
           Create your account
         </h1>
         <p className="m-0 mt-1.5 text-center text-sm text-[#8c8983]">
-          Free to start - no card required.
+          Quick to start
         </p>
 
         <div className="mt-6 w-full rounded-2xl border border-stone-200 bg-white px-6 py-7 shadow-[0_18px_44px_rgba(24,24,27,0.08)] sm:px-8">

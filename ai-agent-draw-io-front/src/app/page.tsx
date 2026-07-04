@@ -1,591 +1,436 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
-import Link from 'next/link';
-import Image from 'next/image';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { agentApi } from '@/api/agent';
-import { clearUserInfo, getUserInfo, setUserInfo as persistUserInfo, type UserInfo } from '@/utils/cookie';
-import { getWorkspaceIdentity } from '@/utils/workspace-identity';
-import { CurrentAccountResponseDTO, DiagramSummaryResponseDTO } from '@/types/api';
-import { isAccountMenuTarget, isDiagramActionMenuTarget, isSortMenuTarget } from './home-menu-click-away';
-import {
-  applyDiagramLibraryView,
-  categoryDisplayLabel,
-  countByFilter,
-  DIAGRAM_FILTERS,
-  DIAGRAM_SORTS,
-  type DiagramFilter,
-  type DiagramSortMode,
-} from './diagram-library';
+import { getUserInfo } from '@/utils/cookie';
 
-const formatUpdatedAt = (value?: string) => {
-  if (!value) return 'No updates yet';
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return 'No updates yet';
-  return new Intl.DateTimeFormat(undefined, {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-  }).format(date);
+// Brand accent from the Free Draw Redesign spec.
+const ACCENT = '#34333b';
+const DISPLAY = 'var(--font-display)';
+const MONO = 'var(--font-mono)';
+
+// Palette used by the product-preview canvas art (mirrors the design's PAL).
+const PAL = {
+  blue: '#e3e5e9',
+  green: '#edefee',
+  purple: '#dcdce0',
+  amber: '#f1efeb',
+  red: '#e9e7e6',
 };
 
-const displayNameFromUser = (value?: string | null) => {
-  if (!value) return 'Anonymous';
-  const cleanValue = value.trim();
-  if (!cleanValue) return 'Anonymous';
-  return cleanValue.includes('@') ? cleanValue.split('@')[0] : cleanValue;
-};
+const HERO_EXAMPLES = [
+  { label: 'User login flowchart', prompt: 'Please help me draw a user login flowchart' },
+  { label: 'Microservices architecture', prompt: 'Draw a microservices system architecture' },
+  { label: 'Login sequence diagram', prompt: 'Draw a sequence diagram for login' },
+  { label: 'Database ER diagram', prompt: 'Draw an ER diagram for e-commerce orders' },
+];
 
-const initialsFromUser = (value?: string | null) => {
-  const displayName = displayNameFromUser(value);
-  const initials = displayName
-    .split(/[\s._-]+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map(part => part[0])
-    .join('');
-  return initials.toUpperCase() || 'A';
-};
+// Public labels for the diagram shapes currently covered by built-in drawio-* skills.
+const DIAGRAM_TYPES = ['Flowchart', 'Architecture', 'UML Class', 'Sequence', 'ER Diagram', 'Use Case', 'State', 'Concept Map'];
 
-const diagramTitle = (diagram: DiagramSummaryResponseDTO) => diagram.title || 'Untitled Diagram';
-// Keep list preview frames aligned with the landscape Draw.io canvas shape.
-const DRAWIO_CANVAS_PREVIEW_ASPECT_CLASS = 'aspect-[4/3]';
+const FEATURES = [
+  {
+    title: 'Natural-language generation',
+    body: 'Describe the diagram you want in plain words — the Agent lays it out, connects and styles it in seconds.',
+    icon: (
+      <svg viewBox="0 0 24 24" width={22} height={22} fill="none">
+        <path d="M4 6h16M4 12h10M4 18h13" stroke="currentColor" strokeWidth={2} strokeLinecap="round" />
+      </svg>
+    ),
+  },
+  {
+    title: 'The full draw.io',
+    body: 'Not a stripped-down clone — every draw.io shape and tool you know is here, ready for manual fine-tuning.',
+    icon: (
+      <svg viewBox="0 0 24 24" width={22} height={22} fill="none">
+        <rect x={4} y={4} width={7} height={7} rx={1.5} stroke="currentColor" strokeWidth={2} />
+        <rect x={13} y={13} width={7} height={7} rx={1.5} stroke="currentColor" strokeWidth={2} />
+        <path d="M11 7h4v6" stroke="currentColor" strokeWidth={2} />
+      </svg>
+    ),
+  },
+  {
+    title: 'Diagram-specific skill evolution',
+    body: 'Flowcharts, UML, ER, sequence and other diagram types each get focused skills that keep improving as new drawing patterns are explored.',
+    icon: (
+      <svg viewBox="0 0 24 24" width={22} height={22} fill="none">
+        <rect x={4} y={5} width={6} height={5} rx={1.2} stroke="currentColor" strokeWidth={2} />
+        <rect x={14} y={14} width={6} height={5} rx={1.2} stroke="currentColor" strokeWidth={2} />
+        <path d="M10 7.5h4.5v4.5M7 10v3.5h7" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+        <path d="M17 4l.55 1.55L19 6.1l-1.45.55L17 8.2l-.55-1.55L15 6.1l1.45-.55z" fill="currentColor" />
+      </svg>
+    ),
+  },
+];
+
+// FreeDraw pencil mark, reused across the nav, CTA and intro.
+function PencilMark({ size = 17 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <path d="M4 20 L14 6 M14 6 L20 12 M14 6 L11 4" stroke="#fff" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" />
+      <circle cx={6} cy={18} r={2.4} fill="#fff" />
+    </svg>
+  );
+}
+
+function CanvasArt() {
+  // Keep the homepage sample centered and readable inside the preview canvas.
+  const processNode = (x: number, y: number, w: number, h: number, c: string, label: string) => (
+    <g key={`nd${x}${y}`}>
+      <rect x={x} y={y} width={w} height={h} rx={8} fill={c} stroke="rgba(0,0,0,.14)" strokeWidth={1.5} />
+      <text x={x + w / 2} y={y + h / 2 + 4} textAnchor="middle" fontFamily="var(--font-sans)" fontSize={13} fontWeight={600} fill="#3a3a40">
+        {label}
+      </text>
+    </g>
+  );
+  const terminalNode = (x: number, y: number, w: number, h: number, label: string) => (
+    <g key={`tm${x}${y}`}>
+      <rect x={x} y={y} width={w} height={h} rx={h / 2} fill={PAL.green} stroke="rgba(78,118,60,.26)" strokeWidth={1.6} />
+      <text x={x + w / 2} y={y + h / 2 + 4} textAnchor="middle" fontFamily="var(--font-sans)" fontSize={13} fontWeight={700} fill="#2e3a2e">
+        {label}
+      </text>
+    </g>
+  );
+  const decisionNode = (cx: number, cy: number, w: number, h: number, label: string) => (
+    <g key={`dc${cx}${cy}`}>
+      <path d={`M${cx} ${cy - h / 2} L${cx + w / 2} ${cy} L${cx} ${cy + h / 2} L${cx - w / 2} ${cy} Z`} fill={PAL.amber} stroke="rgba(170,126,22,.35)" strokeWidth={1.5} />
+      <text x={cx} y={cy + 4} textAnchor="middle" fontFamily="var(--font-sans)" fontSize={13} fontWeight={700} fill="#3a3a40">
+        {label}
+      </text>
+    </g>
+  );
+  const edge = (x1: number, y1: number, x2: number, y2: number) => (
+    <line key={`eg${x1}${y1}`} x1={x1} y1={y1} x2={x2} y2={y2} stroke="#a8b0be" strokeWidth={2} markerEnd="url(#fd-ar)" />
+  );
+  const elbowEdge = (points: string) => <polyline key={points} points={points} fill="none" stroke="#a8b0be" strokeWidth={2} markerEnd="url(#fd-ar)" />;
+  return (
+    <svg width={700} height={480} viewBox="0 0 700 480" style={{ display: 'block', maxWidth: '100%', height: 'auto' }}>
+      <defs>
+        <marker id="fd-ar" markerWidth={9} markerHeight={9} refX={7} refY={3.5} orient="auto">
+          <path d="M0 0 L7 3.5 L0 7" fill="none" stroke="#a8b0be" strokeWidth={1.7} />
+        </marker>
+      </defs>
+      <text x={350} y={28} textAnchor="middle" fontFamily={DISPLAY} fontSize={17} fontWeight={600} fill="#2a2a2e">
+        User Login Flow
+      </text>
+      {terminalNode(150, 52, 170, 32, 'Start')}
+      {processNode(155, 122, 160, 32, PAL.blue, 'Open App')}
+      {decisionNode(235, 225, 270, 76, 'Logged In?')}
+      {processNode(155, 310, 160, 32, PAL.blue, 'Browse Content')}
+      {processNode(155, 377, 160, 32, PAL.blue, 'Perform Action')}
+      {terminalNode(150, 444, 170, 32, 'End')}
+      {processNode(470, 200, 170, 50, PAL.red, 'Sign Up / Log In')}
+      {edge(235, 84, 235, 122)}
+      {edge(235, 154, 235, 187)}
+      {edge(235, 263, 235, 310)}
+      {edge(235, 342, 235, 377)}
+      {edge(235, 409, 235, 444)}
+      {edge(370, 225, 470, 225)}
+      {elbowEdge('555 250 555 326 315 326')}
+      <text x={188} y={303} textAnchor="middle" fontFamily="var(--font-sans)" fontSize={12} fontWeight={700} fill="#585858">
+        Yes
+      </text>
+      <text x={420} y={216} textAnchor="middle" fontFamily="var(--font-sans)" fontSize={12} fontWeight={700} fill="#585858">
+        No
+      </text>
+      <text x={430} y={318} textAnchor="middle" fontFamily="var(--font-sans)" fontSize={12} fontWeight={700} fill="#585858">
+        Login Successful
+      </text>
+    </svg>
+  );
+}
 
 export default function Home() {
   const router = useRouter();
-  const [userInfo, setUserInfo] = useState<UserInfo | null>(null);
-  const [ownerId, setOwnerId] = useState('');
-  const [currentAccount, setCurrentAccount] = useState<CurrentAccountResponseDTO | null>(null);
-  const [diagrams, setDiagrams] = useState<DiagramSummaryResponseDTO[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [errorMessage, setErrorMessage] = useState('');
-  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
-  const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [activeFilter, setActiveFilter] = useState<DiagramFilter>('all');
-  const [sortMode, setSortMode] = useState<DiagramSortMode>('recent');
-  const [isSortMenuOpen, setIsSortMenuOpen] = useState(false);
-  const searchInputRef = useRef<HTMLInputElement>(null);
+  const [landingInput, setLandingInput] = useState('');
+  const [landingFocus, setLandingFocus] = useState(false);
 
-  const visibleDiagrams = useMemo(
-    () => applyDiagramLibraryView(diagrams, { query: searchQuery, filter: activeFilter, sort: sortMode }),
-    [diagrams, searchQuery, activeFilter, sortMode],
-  );
-  const filterCounts = useMemo(
-    () => Object.fromEntries(DIAGRAM_FILTERS.map(({ id }) => [id, countByFilter(diagrams, id)])) as Record<DiagramFilter, number>,
-    [diagrams],
-  );
-  const activeSortLabel = DIAGRAM_SORTS.find(sort => sort.id === sortMode)?.label ?? 'recent';
-  const hasSearch = searchQuery.trim().length > 0;
-
-  const userDisplayName = displayNameFromUser(userInfo?.user);
-  const userInitials = initialsFromUser(userInfo?.user);
-  const isSignedInWorkspace = Boolean(
-    currentAccount?.authenticated || currentAccount?.ownerType === 'USER' || (ownerId && !ownerId.startsWith('anon_')),
-  );
-
+  // Detect a signed-in user (7-day login cookie, then the authoritative session
+  // check) and take them straight to their diagrams instead of the marketing page.
   useEffect(() => {
     let cancelled = false;
-    const resolveInitialIdentity = async () => {
-      // The server session is authoritative; the legacy cookie is only a UI label fallback.
-      const browserUserInfo = getUserInfo();
-      setUserInfo(browserUserInfo);
-
-      try {
-        const res = await agentApi.me();
-        const account = res.data;
-        if (!cancelled && account?.status === 'SUCCESS' && account.userId) {
-          const displayUser = account.email || browserUserInfo?.user || account.userId;
-          setUserInfo({ user: displayUser, ts: Date.now() });
-          if (account.email) persistUserInfo(account.email);
-          setOwnerId(account.userId);
-          return;
+    if (getUserInfo()) {
+      router.replace('/diagrams');
+      return;
+    }
+    agentApi
+      .me()
+      .then(({ data }) => {
+        if (!cancelled && data?.status === 'SUCCESS' && data.userId) {
+          router.replace('/diagrams');
         }
-      } catch {
-        // Fall back to the browser-local anonymous workspace when the backend is unavailable.
-      }
-
-      if (!cancelled) {
-        setOwnerId(getWorkspaceIdentity(browserUserInfo?.user).ownerId);
-      }
-    };
-
-    void resolveInitialIdentity();
+      })
+      .catch(() => {
+        // No session — stay on the landing page.
+      });
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [router]);
 
-  useEffect(() => {
-    if (!ownerId) return;
-
-    let cancelled = false;
-    agentApi.currentAccount(ownerId)
-      .then(res => {
-        if (!cancelled) setCurrentAccount(res.data || null);
-      })
-      .catch(() => {
-        if (!cancelled) setCurrentAccount(null);
-      });
-
-    agentApi.listDiagrams(ownerId)
-      .then(res => {
-        if (!cancelled) setDiagrams(res.data || []);
-      })
-      .catch(() => {
-        if (!cancelled) setErrorMessage('Failed to load diagrams.');
-      })
-      .finally(() => {
-        if (!cancelled) setIsLoading(false);
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [ownerId]);
-
-  useEffect(() => {
-    // ⌘K / Ctrl+K jumps focus to the diagram search box from anywhere on the page.
-    const focusSearchOnShortcut = (event: KeyboardEvent) => {
-      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
-        event.preventDefault();
-        searchInputRef.current?.focus();
-        searchInputRef.current?.select();
-      }
-    };
-    window.addEventListener('keydown', focusSearchOnShortcut);
-    return () => window.removeEventListener('keydown', focusSearchOnShortcut);
-  }, []);
-
-  useEffect(() => {
-    if (!openMenuId && !isAccountMenuOpen && !isSortMenuOpen) return;
-
-    const closeMenuOnOutsidePointerDown = (event: PointerEvent) => {
-      // Keep menu actions clickable while allowing the rest of the page to dismiss open menus.
-      if (!isDiagramActionMenuTarget(event.target)) setOpenMenuId(null);
-      if (!isAccountMenuTarget(event.target)) setIsAccountMenuOpen(false);
-      if (!isSortMenuTarget(event.target)) setIsSortMenuOpen(false);
-    };
-
-    document.addEventListener('pointerdown', closeMenuOnOutsidePointerDown);
-    return () => {
-      document.removeEventListener('pointerdown', closeMenuOnOutsidePointerDown);
-    };
-  }, [openMenuId, isAccountMenuOpen, isSortMenuOpen]);
-
-  const openDiagram = (diagramId: string) => {
-    setOpenMenuId(null);
-    setIsAccountMenuOpen(false);
-    router.push(`/drawio?diagramId=${encodeURIComponent(diagramId)}`);
+  const goSignin = () => router.push('/login');
+  const goSignup = () => router.push('/register');
+  // Carry the typed prompt into a fresh editor session so the composer opens pre-filled.
+  const goEditor = () => {
+    const prompt = landingInput.trim();
+    router.push(prompt ? `/drawio?new=1&prompt=${encodeURIComponent(prompt)}` : '/drawio?new=1');
   };
 
-  const startNewDiagram = () => {
-    setOpenMenuId(null);
-    setIsAccountMenuOpen(false);
-    router.push('/drawio?new=1');
-  };
-
-  const openAccountMenu = () => {
-    // Keep closing on outside pointerdown so users can move from the trigger into the detached menu.
-    setOpenMenuId(null);
-    setIsSortMenuOpen(false);
-    setIsAccountMenuOpen(true);
-  };
-
-  const chooseSort = (mode: DiagramSortMode) => {
-    setSortMode(mode);
-    setIsSortMenuOpen(false);
-  };
-
-  const logout = async () => {
-    setOpenMenuId(null);
-    setIsAccountMenuOpen(false);
-    setErrorMessage('');
-    try {
-      await agentApi.logout();
-    } catch {
-      // Best-effort logout keeps local UI usable if the server session is already gone.
-    }
-    clearUserInfo();
-    setUserInfo(null);
-    setCurrentAccount(null);
-    setIsLoading(true);
-    setOwnerId(getWorkspaceIdentity(null).ownerId);
-  };
-
-  const renameDiagram = async (diagram: DiagramSummaryResponseDTO) => {
-    setOpenMenuId(null);
-    const nextTitle = window.prompt('Rename diagram', diagramTitle(diagram));
-    if (nextTitle === null) return;
-
-    const title = nextTitle.trim();
-    if (!title) return;
-
-    setErrorMessage('');
-    try {
-      const res = await agentApi.renameDiagram(ownerId, diagram.diagramId, title);
-      const updated = res.data;
-      setDiagrams(prev => prev.map(item => (
-        item.diagramId === diagram.diagramId
-          ? {
-              ...item,
-              title: updated?.title || title,
-              diagramType: updated?.diagramType || item.diagramType,
-              version: updated?.version || item.version,
-              updatedAt: updated?.updatedAt || item.updatedAt,
-            }
-          : item
-      )));
-    } catch {
-      setErrorMessage('Failed to rename diagram.');
-    }
-  };
-
-  const deleteDiagram = async (diagram: DiagramSummaryResponseDTO) => {
-    setOpenMenuId(null);
-    if (!window.confirm(`Delete "${diagramTitle(diagram)}"?`)) return;
-
-    setErrorMessage('');
-    try {
-      const res = await agentApi.deleteDiagram(ownerId, diagram.diagramId);
-      if (!res.data) {
-        setErrorMessage('Diagram was not deleted.');
-        return;
-      }
-      setDiagrams(prev => prev.filter(item => item.diagramId !== diagram.diagramId));
-    } catch {
-      setErrorMessage('Failed to delete diagram.');
-    }
-  };
+  const landingBorder = landingFocus ? ACCENT : 'rgba(0,0,0,.1)';
 
   return (
-    <main className="app-page text-zinc-800">
-      <header className="sticky top-0 z-20 border-b border-stone-200 bg-white/95 backdrop-blur">
-        <div className="flex h-16 items-center gap-4 px-4 sm:px-6">
-          <Link href="/" className="flex shrink-0 items-center gap-2.5" aria-label="FreeDraw home">
-            <span className="relative block h-9 w-9 overflow-hidden rounded-xl shadow-sm" aria-hidden="true">
-              <Image src="/brand/freedraw-logo-dark.png" alt="" fill sizes="36px" className="object-cover" priority />
-            </span>
-            <span className="font-display text-lg font-semibold tracking-tight text-zinc-800">FreeDraw</span>
-          </Link>
+    <div style={{ minHeight: '100vh', ['--accent' as string]: ACCENT }}>
+      <style>{`
+        @keyframes fdDraw{to{stroke-dashoffset:0}}
+        @keyframes fdDot{0%{opacity:0;transform:scale(0)}60%{opacity:1;transform:scale(1.4)}100%{opacity:1;transform:scale(1)}}
+        @keyframes fdBoxFill{to{fill-opacity:1}}
+        @keyframes fdMarkWhite{to{stroke:#fff}}
+        @keyframes fdBlobWhite{to{fill:#fff}}
+        @keyframes fdSettle{0%{transform:scale(1)}45%{transform:scale(1.07)}100%{transform:scale(1)}}
+        @keyframes fdLift{0%{transform:translateY(0) scale(1);opacity:1}100%{transform:translateY(-52px) scale(.3);opacity:0}}
+        @keyframes fdVeil{0%{opacity:1;visibility:visible}100%{opacity:0;visibility:hidden}}
+        @keyframes fdRiseLine{0%{transform:translateY(112%)}100%{transform:translateY(0)}}
+        @keyframes fdRise{0%{opacity:0;transform:translateY(18px)}100%{opacity:1;transform:none}}
+        .fd-scroll::-webkit-scrollbar{width:9px;height:9px}
+        .fd-scroll::-webkit-scrollbar-thumb{background:rgba(0,0,0,.14);border-radius:9px;border:2px solid transparent;background-clip:padding-box}
+        .fd-scroll::-webkit-scrollbar-track{background:transparent}
+        .fd-veil{position:fixed;inset:0;z-index:60;background:#f5f5f4;display:flex;align-items:center;justify-content:center;animation:fdVeil .6s ease 3.2s forwards;pointer-events:none}
+        .fd-scene{transform-origin:center;animation:fdSettle .5s ease 2.5s,fdLift .7s cubic-bezier(.6,0,.25,1) 3s forwards}
+        .fd-box{fill:#34333b;fill-opacity:0;stroke-dasharray:100;stroke-dashoffset:100;animation:fdDraw 1.15s cubic-bezier(.6,0,.4,1) .15s forwards,fdBoxFill .28s ease 2.48s forwards}
+        .fd-mark{stroke-dasharray:100;stroke-dashoffset:100;animation:fdDraw 1.2s cubic-bezier(.55,0,.45,1) 1.3s forwards,fdMarkWhite .4s ease 2.5s forwards}
+        .fd-blob{opacity:0;transform-box:fill-box;transform-origin:center;animation:fdDot .34s ease 1.15s forwards,fdBlobWhite .4s ease 2.5s forwards}
+        .fd-h-line{display:block;overflow:hidden}
+        .fd-h-line>span{display:inline-block;transform:translateY(112%);animation:fdRiseLine .75s cubic-bezier(.5,0,.15,1) forwards}
+        .fd-in{opacity:0;animation:fdRise .7s cubic-bezier(.4,0,.2,1) forwards}
+        .fd-nav-signin:hover{background:rgba(0,0,0,.05)}
+        .fd-btn-accent:hover{filter:brightness(1.12)}
+        .fd-chip:hover{border-color:#bdbbb4;color:#17171a}
+        .fd-cta-ghost:hover{background:#faf9f7}
+      `}</style>
 
-          {/* Client-side search over the fully-loaded workspace list — instant, no round trips. */}
-          <div className="relative mx-auto flex w-full max-w-xl items-center">
-            <svg
-              viewBox="0 0 24 24"
-              className="pointer-events-none absolute left-3.5 h-4 w-4 text-zinc-400"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth={2}
+      <div
+        className="fd-scroll"
+        style={{
+          minHeight: '100vh',
+          background:
+            'radial-gradient(900px 460px at 50% -8%,rgba(0,0,0,.045),transparent 60%),#f5f5f4',
+        }}
+      >
+        {/* intro veil: draws the FreeDraw app icon, then it settles and lifts away */}
+        <div className="fd-veil">
+          <svg className="fd-scene" width={172} height={172} viewBox="0 0 24 24" fill="none">
+            <path
+              className="fd-box"
+              pathLength={100}
+              d="M12 22 L8 22 Q2 22 2 16 L2 8 Q2 2 8 2 L16 2 Q22 2 22 8 L22 16 Q22 22 16 22 L12 22 Z"
+              stroke="#34333b"
+              strokeWidth={1.1}
               strokeLinecap="round"
               strokeLinejoin="round"
-              aria-hidden="true"
-            >
-              <circle cx="11" cy="11" r="7" />
-              <path d="m20 20-3.5-3.5" />
-            </svg>
-            <input
-              ref={searchInputRef}
-              type="search"
-              value={searchQuery}
-              onChange={event => setSearchQuery(event.target.value)}
-              placeholder="Search diagrams"
-              aria-label="Search diagrams"
-              className="h-11 w-full rounded-xl border border-stone-200 bg-stone-50 pl-10 pr-14 text-sm text-zinc-800 placeholder:text-zinc-400 transition focus:border-zinc-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-zinc-700/10"
             />
-            <kbd className="pointer-events-none absolute right-3 hidden items-center rounded-md border border-stone-200 bg-white px-1.5 py-0.5 font-mono text-xs text-zinc-400 sm:inline-flex">
-              ⌘K
-            </kbd>
-          </div>
+            <path
+              className="fd-mark"
+              pathLength={100}
+              d="M4.6 19 L14 6 L11 4 L14 6 L19.4 12"
+              stroke="#34333b"
+              strokeWidth={1.5}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+            <circle className="fd-blob" cx={6.3} cy={17.4} r={1.5} fill="#34333b" />
+          </svg>
+        </div>
 
-          <div className="flex min-w-0 shrink-0 items-center gap-3">
-            {!isSignedInWorkspace && (
-              <Link
-                href="/login"
-                className="theme-btn-secondary hidden h-10 items-center rounded-lg px-3 text-sm font-medium transition sm:inline-flex"
-                title="Admin accounts use the same sign-in page."
-              >
-                Sign in
-              </Link>
-            )}
-            <div
-              className="relative flex min-w-0 items-center gap-2"
-              data-account-menu
-              onMouseEnter={openAccountMenu}
+        {/* nav */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 20, maxWidth: 1140, margin: '0 auto', padding: '22px 32px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div style={{ width: 32, height: 32, borderRadius: 9, background: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <PencilMark size={17} />
+            </div>
+            <span style={{ fontFamily: DISPLAY, fontWeight: 700, fontSize: 19, letterSpacing: '-.02em' }}>FreeDraw</span>
+          </div>
+          <div style={{ flex: 1 }} />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <button
+              className="fd-nav-signin"
+              onClick={goSignin}
+              style={{ height: 38, padding: '0 16px', background: 'transparent', border: 'none', borderRadius: 10, fontSize: 13.5, fontWeight: 600, color: '#4a4a4a', cursor: 'pointer' }}
             >
-              {isSignedInWorkspace ? (
-                <>
-                  <button
-                    type="button"
-                    onClick={openAccountMenu}
-                    aria-label={`${userDisplayName} account menu`}
-                    aria-haspopup="menu"
-                    aria-expanded={isAccountMenuOpen}
-                    className="flex min-w-0 items-center gap-2 rounded-lg transition hover:bg-stone-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-700/20"
-                    title={userDisplayName}
-                  >
-                    <span className="hidden min-w-0 text-right sm:block">
-                      <span className="block truncate text-sm font-medium text-zinc-700">{userDisplayName}</span>
-                    </span>
-                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-zinc-700 text-sm font-semibold text-white shadow-sm transition">
-                      {userInitials}
-                    </span>
-                  </button>
-                  {isAccountMenuOpen && (
-                    <div
-                      role="menu"
-                      className="absolute right-0 top-12 z-30 w-36 overflow-hidden rounded-lg border border-stone-200 bg-white py-1 text-sm shadow-lg"
-                    >
-                      <button
-                        type="button"
-                        onClick={logout}
-                        role="menuitem"
-                        className="block w-full px-3 py-2 text-left text-zinc-700 transition hover:bg-stone-50"
-                      >
-                        Sign out
-                      </button>
-                    </div>
-                  )}
-                </>
-              ) : (
-                <Link
-                  href="/login"
-                  aria-label="Sign in"
-                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-zinc-700 text-sm font-semibold text-white shadow-sm transition hover:bg-zinc-600"
-                  title="Sign in"
+              Sign in
+            </button>
+            <button
+              className="fd-btn-accent"
+              onClick={goSignup}
+              style={{ height: 38, padding: '0 17px', background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: 10, fontSize: 13.5, fontWeight: 600, cursor: 'pointer', boxShadow: '0 2px 6px rgba(50,48,45,.15)' }}
+            >
+              Sign up
+            </button>
+          </div>
+        </div>
+
+        {/* hero */}
+        <div style={{ maxWidth: 800, margin: '0 auto', padding: '56px 32px 0', textAlign: 'center' }}>
+          <h1 style={{ fontFamily: DISPLAY, fontWeight: 600, fontSize: 56, lineHeight: 1.05, letterSpacing: '-.03em', color: '#17171a', margin: '48px 0 20px' }}>
+            <span className="fd-h-line">
+              <span style={{ animationDelay: '3.3s' }}>Describe it.</span>
+            </span>
+            <span className="fd-h-line" style={{ position: 'relative', display: 'inline-block' }}>
+              <span style={{ animationDelay: '3.47s' }}>Watch it draw.</span>
+            </span>
+          </h1>
+          <p className="fd-in" style={{ fontSize: 17, lineHeight: 1.6, color: '#6f6c64', maxWidth: 500, margin: '0 auto 34px', animationDelay: '3.7s' }}>
+            Describe any diagram in plain words and watch it take shape — inside the full draw.io editor, with an AI copilot that edits right alongside you.
+          </p>
+
+          {/* prompt bar (main visual) */}
+          <div className="fd-in" style={{ maxWidth: 600, margin: '0 auto', animationDelay: '3.85s' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: '#fff', border: `1.5px solid ${landingBorder}`, borderRadius: 16, padding: '9px 9px 9px 18px', boxShadow: '0 10px 34px rgba(40,38,36,.09)', transition: 'border-color .15s' }}>
+              <svg width={19} height={19} viewBox="0 0 24 24" fill="none" style={{ flex: 'none', color: '#9a968c' }}>
+                <path d="M12 3l2.1 6.3L20.5 11l-6.4 1.7L12 19l-2.1-6.3L3.5 11l6.4-1.7z" stroke="currentColor" strokeWidth={1.6} strokeLinejoin="round" />
+              </svg>
+              <input
+                value={landingInput}
+                onChange={e => setLandingInput(e.target.value)}
+                onFocus={() => setLandingFocus(true)}
+                onBlur={() => setLandingFocus(false)}
+                onKeyDown={e => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    goEditor();
+                  }
+                }}
+                placeholder="Please help me draw a user login flowchart…"
+                style={{ flex: 1, border: 'none', background: 'transparent', fontSize: 15.5, color: '#1a1a1a', height: 38 }}
+              />
+              <button
+                className="fd-btn-accent"
+                onClick={goEditor}
+                style={{ flex: 'none', display: 'flex', alignItems: 'center', gap: 7, height: 44, padding: '0 20px', background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: 11, fontSize: 14.5, fontWeight: 600, cursor: 'pointer' }}
+              >
+                Draw
+                <svg width={16} height={16} viewBox="0 0 24 24" fill="none">
+                  <path d="M5 12h13M13 6l6 6-6 6" stroke="#fff" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </button>
+            </div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: 8, marginTop: 16 }}>
+              <span style={{ fontSize: 12.5, color: '#a5a29a', alignSelf: 'center' }}>Try:</span>
+              {HERO_EXAMPLES.map(ex => (
+                <button
+                  key={ex.label}
+                  className="fd-chip"
+                  onClick={() => setLandingInput(ex.prompt)}
+                  style={{ height: 30, padding: '0 13px', background: '#fff', border: '1px solid rgba(0,0,0,.09)', borderRadius: 20, fontSize: 12.5, fontWeight: 500, color: '#4f4f55', cursor: 'pointer' }}
                 >
-                  {userInitials}
-                </Link>
-              )}
+                  {ex.label}
+                </button>
+              ))}
             </div>
           </div>
         </div>
-      </header>
 
-      <div className="mx-auto flex w-full max-w-7xl flex-col px-4 py-7 sm:px-6 lg:px-8">
-        {errorMessage && (
-          <div className="mb-6 rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
-            {errorMessage}
-          </div>
-        )}
-
-        <section className="flex-1">
-          <h1 className="text-3xl font-bold tracking-tight text-zinc-900 sm:text-4xl">My diagrams</h1>
-
-          <div className="mt-7 flex flex-wrap items-center justify-between gap-4 border-b border-stone-200 pb-4">
-            {/* Category filter tabs — instant client-side filtering by diagram kind. */}
-            <div className="flex items-center gap-2" role="tablist" aria-label="Filter diagrams by category">
-              {DIAGRAM_FILTERS.map(filter => {
-                const isActive = activeFilter === filter.id;
-                return (
-                  <button
-                    key={filter.id}
-                    type="button"
-                    role="tab"
-                    aria-selected={isActive}
-                    onClick={() => setActiveFilter(filter.id)}
-                    className={`rounded-lg px-3.5 py-1.5 text-sm font-semibold transition ${
-                      isActive
-                        ? 'bg-zinc-800 text-white shadow-sm'
-                        : 'text-zinc-500 hover:bg-stone-100 hover:text-zinc-700'
-                    }`}
-                  >
-                    {filter.label}
-                    {!isLoading && (
-                      <span className={`ml-1.5 text-xs font-medium ${isActive ? 'text-zinc-300' : 'text-zinc-400'}`}>
-                        {filterCounts[filter.id] ?? 0}
-                      </span>
-                    )}
-                  </button>
-                );
-              })}
+        {/* product preview */}
+        <div style={{ maxWidth: 1000, margin: '56px auto 0', padding: '0 32px' }}>
+          <div style={{ borderRadius: '16px 16px 0 0', border: '1px solid rgba(0,0,0,.1)', borderBottom: 'none', background: '#fff', overflow: 'hidden', boxShadow: '0 -1px 0 rgba(255,255,255,.6),0 24px 60px rgba(40,38,36,.12)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 7, height: 38, padding: '0 15px', background: '#fafafa', borderBottom: '1px solid #ececec' }}>
+              <span style={{ width: 11, height: 11, borderRadius: '50%', background: '#e0ded9' }} />
+              <span style={{ width: 11, height: 11, borderRadius: '50%', background: '#e0ded9' }} />
+              <span style={{ width: 11, height: 11, borderRadius: '50%', background: '#e0ded9' }} />
+              <span style={{ marginLeft: 12, fontSize: 12, color: '#a5a29a', fontFamily: MONO }}>FreeDraw — user-login-flow.drawio</span>
             </div>
+            <div style={{ display: 'flex', height: 500 }}>
+              <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', background: '#fff', backgroundImage: 'linear-gradient(rgba(0,0,0,.045) 1px,transparent 1px),linear-gradient(90deg,rgba(0,0,0,.045) 1px,transparent 1px)', backgroundSize: '15px 15px', overflow: 'hidden' }}>
+                <CanvasArt />
+              </div>
+              <div style={{ width: 270, flex: 'none', borderLeft: '1px solid #ededed', display: 'flex', flexDirection: 'column', background: '#fff' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '13px 14px', borderBottom: '1px solid #f0f0f0' }}>
+                  <div style={{ width: 28, height: 28, borderRadius: 8, background: 'linear-gradient(145deg,#2a2933,#151419)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <svg width={14} height={14} viewBox="0 0 24 24" fill="#fff">
+                      <path d="M12 2.5l1.9 5.6 5.6 1.9-5.6 1.9L12 17.5l-1.9-5.6-5.6-1.9 5.6-1.9L12 2.5z" />
+                    </svg>
+                  </div>
+                  <div style={{ fontFamily: DISPLAY, fontWeight: 600, fontSize: 14 }}>Agent</div>
+                </div>
+                <div style={{ flex: 1, padding: 14, display: 'flex', flexDirection: 'column', gap: 11 }}>
+                  <div style={{ alignSelf: 'flex-end', maxWidth: 240, background: 'var(--accent)', color: '#fff', borderRadius: '12px 12px 3px 12px', padding: '8px 11px', fontSize: 12.5, lineHeight: 1.45 }}>
+                    Please help me draw a user login flowchart
+                  </div>
+                  <div style={{ alignSelf: 'flex-start', maxWidth: 245, background: '#faf9f7', border: '1px solid rgba(0,0,0,.06)', borderRadius: '3px 12px 12px 12px', padding: '8px 11px', fontSize: 12.5, lineHeight: 1.45, color: '#33333a' }}>
+                    Diagram completed (7 nodes · 7 edges). Want me to adjust the layout?
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
 
-            {/* Sort control — reorders the loaded list without a server round trip. */}
-            <div className="relative" data-sort-menu>
+        {/* diagram types */}
+        <div style={{ maxWidth: 1000, margin: '60px auto 0', padding: '0 32px', textAlign: 'center' }}>
+          <div style={{ fontFamily: MONO, fontSize: 11.5, letterSpacing: '.08em', color: '#a5a29a', textTransform: 'uppercase', marginBottom: 20 }}>
+            Built-in skill coverage
+          </div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: 10 }}>
+            {DIAGRAM_TYPES.map(d => (
+              <div key={d} style={{ height: 38, padding: '0 18px', display: 'flex', alignItems: 'center', background: '#fff', border: '1px solid rgba(0,0,0,.08)', borderRadius: 10, fontSize: 13.5, fontWeight: 500, color: '#3f3f45' }}>
+                {d}
+              </div>
+            ))}
+          </div>
+          <div style={{ fontSize: 13, color: '#a5a29a', marginTop: 16 }}>
+            Our built-in skills currently cover these diagram types, and we&apos;re exploring more.
+          </div>
+        </div>
+
+        {/* features */}
+        <div style={{ maxWidth: 1000, margin: '64px auto 0', padding: '0 32px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 18 }}>
+            {FEATURES.map(f => (
+              <div key={f.title} style={{ background: '#fff', border: '1px solid rgba(0,0,0,.08)', borderRadius: 16, padding: '24px 22px' }}>
+                <div style={{ width: 42, height: 42, borderRadius: 11, background: '#f4f3f1', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#34333b', marginBottom: 16 }}>
+                  {f.icon}
+                </div>
+                <div style={{ fontFamily: DISPLAY, fontWeight: 600, fontSize: 16.5, color: '#1c1c20', marginBottom: 7 }}>{f.title}</div>
+                <div style={{ fontSize: 13.5, lineHeight: 1.6, color: '#7a776f' }}>{f.body}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* closing CTA */}
+        <div style={{ maxWidth: 1000, margin: '64px auto 0', padding: '0 32px 80px' }}>
+          <div style={{ position: 'relative', overflow: 'hidden', background: '#fff', border: '1px solid rgba(0,0,0,.09)', borderRadius: 22, padding: '52px 40px', textAlign: 'center', boxShadow: '0 12px 40px rgba(40,38,36,.07)' }}>
+            <div style={{ position: 'absolute', inset: 0, backgroundImage: 'linear-gradient(rgba(0,0,0,.028) 1px,transparent 1px),linear-gradient(90deg,rgba(0,0,0,.028) 1px,transparent 1px)', backgroundSize: '22px 22px', WebkitMaskImage: 'radial-gradient(circle at 50% 40%,#000,transparent 72%)', maskImage: 'radial-gradient(circle at 50% 40%,#000,transparent 72%)' }} />
+            <div style={{ position: 'relative', width: 52, height: 52, margin: '0 auto 20px', borderRadius: 14, background: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 14px rgba(50,48,45,.22)' }}>
+              <PencilMark size={26} />
+            </div>
+            <h2 style={{ position: 'relative', fontFamily: DISPLAY, fontWeight: 600, fontSize: 32, letterSpacing: '-.02em', color: '#17171a', margin: '0 0 12px' }}>
+              Start your first diagram
+              <br />
+              from a single sentence
+            </h2>
+            <p style={{ position: 'relative', fontSize: 15, color: '#7a776f', margin: '0 0 28px' }}>
+              Free tokens to start — or bring your own LLM API provider.
+            </p>
+            <div style={{ position: 'relative', display: 'flex', justifyContent: 'center', gap: 10 }}>
               <button
-                type="button"
-                onClick={() => setIsSortMenuOpen(open => !open)}
-                aria-haspopup="menu"
-                aria-expanded={isSortMenuOpen}
-                className="flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-sm text-zinc-500 transition hover:text-zinc-700"
+                className="fd-btn-accent"
+                onClick={goSignup}
+                style={{ height: 48, padding: '0 26px', background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: 12, fontSize: 15, fontWeight: 600, cursor: 'pointer', boxShadow: '0 3px 10px rgba(50,48,45,.18)' }}
               >
-                <span>sorted by <span className="font-semibold text-zinc-700">{activeSortLabel}</span></span>
-                <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                  <path d="m6 9 6 6 6-6" />
-                </svg>
+                Create free account
               </button>
-              {isSortMenuOpen && (
-                <div
-                  role="menu"
-                  className="absolute right-0 top-10 z-30 w-40 overflow-hidden rounded-lg border border-stone-200 bg-white py-1 text-sm shadow-lg"
-                >
-                  {DIAGRAM_SORTS.map(sort => (
-                    <button
-                      key={sort.id}
-                      type="button"
-                      role="menuitemradio"
-                      aria-checked={sortMode === sort.id}
-                      onClick={() => chooseSort(sort.id)}
-                      className={`flex w-full items-center justify-between px-3 py-2 text-left transition hover:bg-stone-50 ${
-                        sortMode === sort.id ? 'font-semibold text-zinc-800' : 'text-zinc-600'
-                      }`}
-                    >
-                      <span>by {sort.label}</span>
-                      {sortMode === sort.id && (
-                        <svg viewBox="0 0 24 24" className="h-4 w-4 text-zinc-700" fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                          <path d="M20 6 9 17l-5-5" />
-                        </svg>
-                      )}
-                    </button>
-                  ))}
-                </div>
-              )}
+              <button
+                className="fd-cta-ghost"
+                onClick={goEditor}
+                style={{ height: 48, padding: '0 22px', background: '#fff', color: '#3a3a3a', border: '1px solid rgba(0,0,0,.12)', borderRadius: 12, fontSize: 15, fontWeight: 600, cursor: 'pointer' }}
+              >
+                Try the editor
+              </button>
             </div>
           </div>
-
-          <p className="mt-4 text-sm text-zinc-500">
-            {isLoading
-              ? 'Loading your diagrams...'
-              : hasSearch
-                ? `${visibleDiagrams.length} ${visibleDiagrams.length === 1 ? 'result' : 'results'} for “${searchQuery.trim()}”`
-                : `${diagrams.length} saved ${diagrams.length === 1 ? 'diagram' : 'diagrams'}`}
-          </p>
-
-          <div className="mt-5">
-          {isLoading ? (
-            <div className="grid gap-x-5 gap-y-7 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5">
-              {Array.from({ length: 5 }).map((_, index) => (
-                <div key={index} className="animate-pulse">
-                  <div className={`${DRAWIO_CANVAS_PREVIEW_ASPECT_CLASS} rounded-lg border border-stone-200 bg-white shadow-sm`} />
-                  <div className="mt-3 h-4 w-3/4 rounded-full bg-zinc-200" />
-                  <div className="mt-2 h-3 w-1/2 rounded-full bg-stone-100" />
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="grid gap-x-5 gap-y-8 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-              {/* Hide the create tile while searching so results read as a clean set. */}
-              {!hasSearch && (
-                <article className="group relative min-w-0">
-                  <button
-                    type="button"
-                    onClick={startNewDiagram}
-                    className="block w-full cursor-pointer text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-700/20"
-                    aria-label="Create new diagram"
-                  >
-                    <div className="relative overflow-hidden rounded-xl border-2 border-dashed border-stone-300 bg-stone-50 text-center transition group-hover:border-zinc-400 group-hover:bg-stone-100">
-                      {/* Match saved-card height while keeping the create content centered over the full tile. */}
-                      <div className="flex items-center justify-between px-4 pt-3 opacity-0" aria-hidden="true">
-                        <span className="font-mono text-xs lowercase tracking-wide">basic</span>
-                      </div>
-                      <div className={DRAWIO_CANVAS_PREVIEW_ASPECT_CLASS} aria-hidden="true" />
-                      <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 p-6">
-                        <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-zinc-800 text-white shadow-sm transition group-hover:bg-zinc-700" aria-hidden="true">
-                          <span className="relative block h-6 w-6">
-                            <span className="absolute left-1/2 top-1/2 h-0.5 w-5 -translate-x-1/2 -translate-y-1/2 rounded bg-white" />
-                            <span className="absolute left-1/2 top-1/2 h-5 w-0.5 -translate-x-1/2 -translate-y-1/2 rounded bg-white" />
-                          </span>
-                        </span>
-                        <span className="text-base font-semibold leading-5 tracking-normal text-zinc-800">Create new</span>
-                        <span className="text-sm text-zinc-500">Start blank or ask AI</span>
-                      </div>
-                    </div>
-                  </button>
-                </article>
-              )}
-              {visibleDiagrams.map(diagram => (
-                <article
-                  key={diagram.diagramId}
-                  className="group relative min-w-0"
-                >
-                  <button
-                    type="button"
-                    onClick={() => openDiagram(diagram.diagramId)}
-                    className="block w-full cursor-pointer overflow-hidden rounded-xl border border-stone-200 bg-white text-left shadow-md transition hover:border-stone-300 hover:shadow-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-700/20"
-                    aria-label={`Open ${diagramTitle(diagram)}`}
-                  >
-                    {/* Category badge uses the normalized token so old and new diagrams share labels. */}
-                    <div className="flex items-center justify-between px-4 pt-3">
-                      <span className="text-xs font-medium tracking-normal text-zinc-400">{categoryDisplayLabel(diagram)}</span>
-                    </div>
-                    <div className={`${DRAWIO_CANVAS_PREVIEW_ASPECT_CLASS} bg-white`}>
-                      {diagram.thumbnailUrl ? (
-                        // Data URL thumbnails are generated by the canvas, so Next image optimization is unnecessary.
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          src={diagram.thumbnailUrl}
-                          alt={`${diagramTitle(diagram)} thumbnail`}
-                          className="h-full w-full object-contain p-3"
-                        />
-                      ) : (
-                        // Missing thumbnails intentionally render as an empty white preview.
-                        null
-                      )}
-                    </div>
-                  </button>
-
-                  <div className="mt-3 flex min-w-0 items-start justify-between gap-2">
-                    <button
-                      type="button"
-                      onClick={() => openDiagram(diagram.diagramId)}
-                      className="line-clamp-2 min-w-0 cursor-pointer text-left text-sm font-medium leading-5 tracking-normal text-zinc-800 hover:text-zinc-600"
-                    >
-                      {diagramTitle(diagram)}
-                    </button>
-                    <div className="relative shrink-0" data-diagram-action-menu>
-                      <button
-                        type="button"
-                        onClick={() => setOpenMenuId(prev => prev === diagram.diagramId ? null : diagram.diagramId)}
-                        className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg text-sm font-semibold text-zinc-500 transition hover:bg-stone-100 hover:text-zinc-700"
-                        aria-label={`More actions for ${diagramTitle(diagram)}`}
-                      >
-                        ...
-                      </button>
-                      {openMenuId === diagram.diagramId && (
-                        <div className="absolute right-0 top-9 z-10 w-32 overflow-hidden rounded-lg border border-stone-200 bg-white py-1 text-sm shadow-lg">
-                          <button
-                            type="button"
-                            onClick={() => renameDiagram(diagram)}
-                            className="block w-full px-3 py-2 text-left text-zinc-700 transition hover:bg-stone-50"
-                          >
-                            Rename
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => deleteDiagram(diagram)}
-                            className="block w-full px-3 py-2 text-left text-rose-700 transition hover:bg-rose-50"
-                          >
-                            Delete
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                  {/* Keep card metadata focused on the user-facing updated date. */}
-                  <div className="mt-1 min-w-0 text-xs text-zinc-500">
-                    <span className="block truncate font-mono">{formatUpdatedAt(diagram.updatedAt)}</span>
-                  </div>
-                </article>
-              ))}
-              {visibleDiagrams.length === 0 && (
-                <div className="col-span-full rounded-xl border border-dashed border-stone-300 bg-stone-50 px-6 py-16 text-center">
-                  <p className="text-sm font-medium text-zinc-600">
-                    {hasSearch
-                      ? `No diagrams match “${searchQuery.trim()}”.`
-                      : activeFilter === 'illustrations'
-                        ? 'No illustrations yet.'
-                        : 'No diagrams here yet.'}
-                  </p>
-                  <p className="mt-1 text-sm text-zinc-400">Try a different search or category.</p>
-                </div>
-              )}
-            </div>
-          )}
-          </div>
-        </section>
+        </div>
       </div>
-    </main>
+    </div>
   );
 }

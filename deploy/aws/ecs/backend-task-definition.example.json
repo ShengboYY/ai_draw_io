@@ -1,0 +1,181 @@
+{
+  "family": "ai-drawio-backend-prod",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": ["FARGATE"],
+  "cpu": "1024",
+  "memory": "2048",
+  "executionRoleArn": "arn:aws:iam::123456789012:role/ecsTaskExecutionRole",
+  "taskRoleArn": "arn:aws:iam::123456789012:role/ai-drawio-backend-task-role",
+  "runtimePlatform": {
+    "cpuArchitecture": "X86_64",
+    "operatingSystemFamily": "LINUX"
+  },
+  "volumes": [
+    {
+      "name": "tmp"
+    }
+  ],
+  "containerDefinitions": [
+    {
+      "name": "backend",
+      "image": "123456789012.dkr.ecr.ap-southeast-2.amazonaws.com/ai-drawio-backend:replace-with-git-sha",
+      "essential": true,
+      "portMappings": [
+        {
+          "containerPort": 8091,
+          "hostPort": 8091,
+          "protocol": "tcp"
+        }
+      ],
+      "environment": [
+        {
+          "name": "SPRING_PROFILES_ACTIVE",
+          "value": "prod"
+        },
+        {
+          "name": "SPRING_CONFIG_IMPORT",
+          "value": "optional:file:.env[.properties],classpath:agent/agent-draw-io.yml"
+        },
+        {
+          "name": "SERVER_FORWARD_HEADERS_STRATEGY",
+          "value": "framework"
+        },
+        {
+          "name": "SERVER_SERVLET_SESSION_COOKIE_SECURE",
+          "value": "true"
+        },
+        {
+          "name": "APP_SECURITY_ALLOWED_ORIGINS",
+          "value": "https://draw.example.com"
+        },
+        {
+          "name": "ADMIN_ALLOWED_ORIGINS",
+          "value": "https://draw.example.com"
+        },
+        {
+          "name": "ADMIN_EMAILS",
+          "value": "admin@example.com"
+        },
+        {
+          "name": "ACCOUNT_VERIFICATION_BASE_URL",
+          "value": "https://draw.example.com/verify-email"
+        },
+        {
+          "name": "ACCOUNT_PASSWORD_RESET_BASE_URL",
+          "value": "https://draw.example.com/reset-password/confirm"
+        },
+        {
+          "name": "MYSQL_HOST",
+          "value": "ai-drawio-prod.cluster-abcdefghijkl.ap-southeast-2.rds.amazonaws.com"
+        },
+        {
+          "name": "MYSQL_PORT",
+          "value": "3306"
+        },
+        {
+          "name": "MYSQL_DATABASE",
+          "value": "ai_draw_io"
+        },
+        {
+          "name": "MYSQL_USER",
+          "value": "ai_drawio_app"
+        },
+        {
+          "name": "MYSQL_TZ",
+          "value": "UTC"
+        },
+        {
+          "name": "SPRING_DATASOURCE_URL",
+          "value": "jdbc:mysql://ai-drawio-prod.cluster-abcdefghijkl.ap-southeast-2.rds.amazonaws.com:3306/ai_draw_io?useUnicode=true&characterEncoding=utf8&autoReconnect=true&zeroDateTimeBehavior=convertToNull&serverTimezone=UTC&sslMode=REQUIRED&allowPublicKeyRetrieval=false"
+        },
+        {
+          "name": "SPRING_DATASOURCE_USERNAME",
+          "value": "ai_drawio_app"
+        },
+        {
+          "name": "SPRING_DATASOURCE_HIKARI_MINIMUM_IDLE",
+          "value": "5"
+        },
+        {
+          "name": "SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE",
+          "value": "20"
+        },
+        {
+          "name": "LLM_BASE_URL",
+          "value": "https://api.openai.com"
+        },
+        {
+          "name": "LLM_COMPLETIONS_PATH",
+          "value": "v1/chat/completions"
+        },
+        {
+          "name": "LLM_EMBEDDINGS_PATH",
+          "value": "v1/embeddings"
+        },
+        {
+          "name": "LLM_LANGCHAIN_BASE_URL",
+          "value": "https://api.openai.com/v1"
+        },
+        {
+          "name": "LLM_MODEL",
+          "value": "replace-with-approved-model"
+        },
+        {
+          "name": "DRAWIO_REVIEW_MAX_ITERATIONS",
+          "value": "5"
+        },
+        {
+          "name": "LOG_PATH",
+          "value": "/tmp/ai-drawio-logs"
+        }
+      ],
+      "secrets": [
+        {
+          "name": "MYSQL_PASSWORD",
+          "valueFrom": "arn:aws:secretsmanager:ap-southeast-2:123456789012:secret:ai-drawio/prod-AbCdEf:MYSQL_PASSWORD::"
+        },
+        {
+          "name": "SPRING_DATASOURCE_PASSWORD",
+          "valueFrom": "arn:aws:secretsmanager:ap-southeast-2:123456789012:secret:ai-drawio/prod-AbCdEf:MYSQL_PASSWORD::"
+        },
+        {
+          "name": "LLM_API_KEY",
+          "valueFrom": "arn:aws:secretsmanager:ap-southeast-2:123456789012:secret:ai-drawio/prod-AbCdEf:LLM_API_KEY::"
+        },
+        {
+          "name": "MODEL_CREDENTIAL_ENCRYPTION_KEY",
+          "valueFrom": "arn:aws:secretsmanager:ap-southeast-2:123456789012:secret:ai-drawio/prod-AbCdEf:MODEL_CREDENTIAL_ENCRYPTION_KEY::"
+        },
+        {
+          "name": "BAIDU_SEARCH_API_KEY",
+          "valueFrom": "arn:aws:secretsmanager:ap-southeast-2:123456789012:secret:ai-drawio/prod-AbCdEf:BAIDU_SEARCH_API_KEY::"
+        },
+        {
+          "name": "SKILL_ADMIN_TOKEN",
+          "valueFrom": "arn:aws:secretsmanager:ap-southeast-2:123456789012:secret:ai-drawio/prod-AbCdEf:SKILL_ADMIN_TOKEN::"
+        }
+      ],
+      "mountPoints": [
+        {
+          "sourceVolume": "tmp",
+          "containerPath": "/tmp",
+          "readOnly": false
+        }
+      ],
+      "readonlyRootFilesystem": true,
+      "linuxParameters": {
+        "capabilities": {
+          "drop": ["ALL"]
+        }
+      },
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/ai-drawio/backend",
+          "awslogs-region": "ap-southeast-2",
+          "awslogs-stream-prefix": "ecs"
+        }
+      }
+    }
+  ]
+}

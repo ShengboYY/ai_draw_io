@@ -1,0 +1,10 @@
+.git
+.idea
+.env
+.env.*
+!.env.example
+target
+*/target
+logs
+*.log
+.DS_Store

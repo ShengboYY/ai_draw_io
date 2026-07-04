@@ -192,6 +192,54 @@ public class CanvasAnalyzerTest {
     }
 
     @Test
+    public void routeEdgesDropsWaypointsThatContradictTheirExitPort() {
+        DrawioCanvasXmlToolkit toolkit = new DrawioCanvasXmlToolkit();
+
+        // A loop-back edge: source sits lower-right, target upper-left (backward horizontal), so
+        // routing exits the source's left side. The model authored a first waypoint at x=560 -- to
+        // the RIGHT of the source -- which draw.io renders as a tangled hook. The bad waypoint must
+        // be dropped in favour of a clean routed channel.
+        String tangled = """
+                <mxGraphModel><root><mxCell id='0'/><mxCell id='1' parent='0'/>
+                <mxCell id='2' value='Src' vertex='1' parent='1'><mxGeometry x='400' y='300' width='100' height='60' as='geometry'/></mxCell>
+                <mxCell id='3' value='Dst' vertex='1' parent='1'><mxGeometry x='80' y='280' width='100' height='60' as='geometry'/></mxCell>
+                <mxCell id='4' value='retry' edge='1' parent='1' source='2' target='3' style='edgeStyle=orthogonalEdgeStyle;exitX=0;exitY=0.5;entryX=1;entryY=0.5;'>
+                    <mxGeometry relative='1' as='geometry'><Array as='points'><mxPoint x='560' y='330'/><mxPoint x='560' y='310'/></Array></mxGeometry>
+                </mxCell>
+                </root></mxGraphModel>
+                """;
+
+        String routed = toolkit.routeEdges(tangled);
+
+        assertNotEquals("the contradicting back-edge should be rerouted", tangled, routed);
+        assertFalse("the tangled waypoint on the wrong side of the exit must be gone",
+                routed.contains("560"));
+    }
+
+    @Test
+    public void routeEdgesKeepsBackEdgeWaypointsThatHonorTheirPorts() {
+        DrawioCanvasXmlToolkit toolkit = new DrawioCanvasXmlToolkit();
+
+        // Same loop-back geometry, but here the model's first waypoint (x=360) already sits to the
+        // LEFT of the source, honouring the left exit. A consistent manual route must be preserved,
+        // not second-guessed into a different channel.
+        String honored = """
+                <mxGraphModel><root><mxCell id='0'/><mxCell id='1' parent='0'/>
+                <mxCell id='2' value='Src' vertex='1' parent='1'><mxGeometry x='400' y='300' width='100' height='60' as='geometry'/></mxCell>
+                <mxCell id='3' value='Dst' vertex='1' parent='1'><mxGeometry x='80' y='280' width='100' height='60' as='geometry'/></mxCell>
+                <mxCell id='4' value='retry' edge='1' parent='1' source='2' target='3' style='edgeStyle=orthogonalEdgeStyle;exitX=0;exitY=0.5;entryX=1;entryY=0.5;'>
+                    <mxGeometry relative='1' as='geometry'><Array as='points'><mxPoint x='360' y='330'/><mxPoint x='360' y='310'/></Array></mxGeometry>
+                </mxCell>
+                </root></mxGraphModel>
+                """;
+
+        String routed = toolkit.routeEdges(honored);
+
+        assertTrue("a back-edge whose waypoints honour the exit port should keep them",
+                routed.contains("360"));
+    }
+
+    @Test
     public void shouldFlagRemovableWaypointsWhenDirectRouteIsClear() {
         DefaultCanvasAnalyzer analyzer = new DefaultCanvasAnalyzer();
 
