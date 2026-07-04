@@ -32,17 +32,17 @@ export type DiagramCategoryToken =
   | 'diagram';
 
 export const CATEGORY_LABELS: Record<DiagramCategoryToken, string> = {
-  flowchart: '流程图',
-  architecture: '架构图',
-  uml: '类图',
-  sequence: '时序图',
-  er: 'ER图',
-  usecase: '用例图',
-  state: '状态图',
-  mindmap: '思维导图',
-  illustration: '插画',
-  blank: '空白',
-  diagram: '通用图',
+  flowchart: 'flowchart',
+  architecture: 'architecture',
+  uml: 'uml',
+  sequence: 'sequence',
+  er: 'er',
+  usecase: 'usecase',
+  state: 'state',
+  mindmap: 'mindmap',
+  illustration: 'illustration',
+  blank: 'blank',
+  diagram: 'diagram',
 };
 
 const KNOWN_CATEGORIES = new Set<DiagramCategoryToken>(Object.keys(CATEGORY_LABELS) as DiagramCategoryToken[]);

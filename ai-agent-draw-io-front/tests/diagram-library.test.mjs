@@ -43,10 +43,10 @@ test('categoryLabel keeps known diagram types instead of title inference', () =>
   assert.equal(categoryLabel(diagram({ title: '猫狗头像', diagramType: 'architecture' })), 'architecture');
 });
 
-test('CATEGORY_LABELS exposes Chinese display names for known category tokens', () => {
-  assert.equal(CATEGORY_LABELS.architecture, '架构图');
-  assert.equal(CATEGORY_LABELS.illustration, '插画');
-  assert.equal(CATEGORY_LABELS.diagram, '通用图');
+test('CATEGORY_LABELS exposes English display names for known category tokens', () => {
+  assert.equal(CATEGORY_LABELS.architecture, 'architecture');
+  assert.equal(CATEGORY_LABELS.illustration, 'illustration');
+  assert.equal(CATEGORY_LABELS.diagram, 'diagram');
 });
 
 test('isIllustration only matches the illustration category', () => {
