@@ -20,6 +20,7 @@ import java.util.Locale;
 public class DefaultIntentRoutingService implements IIntentRoutingService {
 
     private static final String INTENT_AGENT_ID = "300010";
+    private final DiagramTypeClassifier diagramTypeClassifier = new DiagramTypeClassifier();
 
     @Resource
     private IChatService chatService;
@@ -124,7 +125,7 @@ public class DefaultIntentRoutingService implements IIntentRoutingService {
         IntentRoutingResult result = new IntentRoutingResult();
         result.setIntent("draw_action");
         result.setDrawMode("edit_existing");
-        result.setDiagramType("basic");
+        result.setDiagramType("none");
         result.setSkillName("none");
         result.setTaskType("edit_existing");
         result.setNeedsCanvasQuality(false);
@@ -210,9 +211,7 @@ public class DefaultIntentRoutingService implements IIntentRoutingService {
         if (null == result.getDrawMode() || result.getDrawMode().trim().isEmpty()) {
             result.setDrawMode("new_diagram");
         }
-        if (null == result.getDiagramType() || result.getDiagramType().trim().isEmpty()) {
-            result.setDiagramType("basic");
-        }
+        result.setDiagramType(normalizeDiagramType(result.getDiagramType(), userInstruction));
         if (null == result.getSkillName() || result.getSkillName().trim().isEmpty()) {
             result.setSkillName("none");
         }
@@ -223,6 +222,19 @@ public class DefaultIntentRoutingService implements IIntentRoutingService {
         }
         result.setAnswer("");
         return result;
+    }
+
+    private String normalizeDiagramType(String diagramType, String userInstruction) {
+        String normalized = null == diagramType ? "" : diagramType.trim().toLowerCase(Locale.ROOT);
+        if (normalized.isEmpty() || "basic".equals(normalized)) {
+            return diagramTypeClassifier.classify(userInstruction);
+        }
+        return switch (normalized) {
+            case "uml_class" -> "uml";
+            case "concept" -> "mindmap";
+            case "others" -> "diagram";
+            default -> normalized;
+        };
     }
 
     private void normalizeTaskType(IntentRoutingResult result) {

@@ -41,7 +41,7 @@ public class IntentRoutingResult {
         IntentRoutingResult result = new IntentRoutingResult();
         result.setIntent("draw_action");
         result.setDrawMode("new_diagram");
-        result.setDiagramType("basic");
+        result.setDiagramType("diagram");
         result.setSkillName("none");
         result.setTaskType("create_new");
         result.setNeedsCanvasQuality(false);

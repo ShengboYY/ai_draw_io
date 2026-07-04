@@ -37,6 +37,7 @@ public class DefaultIntentRoutingServiceTest {
 
         assertEquals("draw_action", result.getIntent());
         assertEquals("edit_existing", result.getDrawMode());
+        assertEquals("none", result.getDiagramType());
         assertEquals("edit_existing", result.getTaskType());
     }
 
@@ -88,6 +89,28 @@ public class DefaultIntentRoutingServiceTest {
         assertEquals("optimize_layout", result.getTaskType());
         assertTrue(result.getNeedsCanvasQuality());
         assertFalse(result.getNeedsSemanticReview());
+    }
+
+    @Test
+    public void shouldInferDiagramTypeWhenRouterOmitsIt() throws Exception {
+        IntentRoutingResult result = routeWithStubbedLlm(
+                "请画一个 jvm 架构图",
+                "{\"intent\":\"draw_action\",\"drawMode\":\"new_diagram\",\"diagramType\":\"\",\"skillName\":\"none\","
+                        + "\"taskType\":\"create_new\",\"needsCanvasQuality\":false,\"needsSemanticReview\":false,"
+                        + "\"answerMode\":\"none\",\"answer\":\"\",\"reason\":\"new diagram\"}");
+
+        assertEquals("architecture", result.getDiagramType());
+    }
+
+    @Test
+    public void shouldRespectRouterDiagramTypeWhenProvided() throws Exception {
+        IntentRoutingResult result = routeWithStubbedLlm(
+                "请画一个 jvm 架构图",
+                "{\"intent\":\"draw_action\",\"drawMode\":\"new_diagram\",\"diagramType\":\"Flowchart\",\"skillName\":\"none\","
+                        + "\"taskType\":\"create_new\",\"needsCanvasQuality\":false,\"needsSemanticReview\":false,"
+                        + "\"answerMode\":\"none\",\"answer\":\"\",\"reason\":\"router chose flowchart\"}");
+
+        assertEquals("flowchart", result.getDiagramType());
     }
 
     @Test
