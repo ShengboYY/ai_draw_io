@@ -62,7 +62,7 @@ public class DrawioStreamResponseWriter {
                 }
             }
 
-            if (processIntentJson(emitter, phase, json)) {
+            if (processRouteJson(emitter, phase, json)) {
                 return true;
             }
         } catch (Exception parseEx) {
@@ -80,7 +80,7 @@ public class DrawioStreamResponseWriter {
                 if (handled != null) {
                     handledAny = true;
                 }
-            } else if (processIntentJson(emitter, phase, embedded)) {
+            } else if (processRouteJson(emitter, phase, embedded)) {
                 return true;
             }
         }
@@ -100,7 +100,7 @@ public class DrawioStreamResponseWriter {
 
     /**
      * Dispatch one typed JSON object emitted by the model. Returns null when the type is not recognized
-     * (caller may treat it as intent/text), TRUE when handled and the stream should complete, FALSE when
+     * (caller may treat it as route/text), TRUE when handled and the stream should complete, FALSE when
      * handled and the stream should continue.
      */
     private Boolean dispatchTypedJson(ResponseBodyEmitter emitter, String phase, com.alibaba.fastjson.JSONObject json) throws Exception {
@@ -669,13 +669,13 @@ public class DrawioStreamResponseWriter {
         emitter.send(wrapper.toJSONString() + "\n");
     }
 
-    private boolean processIntentJson(ResponseBodyEmitter emitter, String phase, com.alibaba.fastjson.JSONObject json) throws Exception {
-        if (json == null || !json.containsKey("intent")) {
+    private boolean processRouteJson(ResponseBodyEmitter emitter, String phase, com.alibaba.fastjson.JSONObject json) throws Exception {
+        if (json == null || !json.containsKey("routeType")) {
             return false;
         }
 
-        String intent = json.getString("intent");
-        if (!"answer_only".equals(intent) && !"clarify".equals(intent)) {
+        String routeType = json.getString("routeType");
+        if (!"answer_only".equals(routeType) && !"clarify".equals(routeType) && !"review_only".equals(routeType)) {
             return false;
         }
 

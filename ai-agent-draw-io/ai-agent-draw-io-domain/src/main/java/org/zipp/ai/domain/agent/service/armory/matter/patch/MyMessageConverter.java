@@ -13,6 +13,8 @@ import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.ai.chat.prompt.ChatOptions;
 import org.springframework.ai.model.tool.ToolCallingChatOptions;
 import org.springframework.ai.openai.OpenAiChatOptions;
+import org.springframework.ai.openai.api.ResponseFormat;
+import org.zipp.ai.domain.agent.service.chat.StructuredOutputSchemas;
 import org.springframework.ai.content.Media;
 import org.springframework.ai.tool.ToolCallback;
 import org.springframework.util.MimeType;
@@ -88,97 +90,119 @@ public class MyMessageConverter extends MessageConverter {
             llmPrompt = new Prompt(repaired, llmPrompt.getOptions());
         }
 
-        // 判断是否有自定义配置（通过 CustomConfigPlugin 传递的 headers 和 model）
-        // hasCustomHeaders：检查是否有 X-Custom-Base-Url / X-Custom-Api-Key / X-Custom-Completions-Path
-        // hasCustomModel：检查 X-Custom-Model-Selected header，这是 CustomConfigPlugin 在用户主动选择自定义模型时设置的标记
-        //   不使用 llmRequest.model().isPresent() 判断，因为无法区分「ADK 内部设置的 model」和「用户自定义的 model」
-        boolean hasCustomHeaders = llmRequest.config().isPresent() &&
-                llmRequest.config().get().httpOptions().isPresent() &&
-                llmRequest.config().get().httpOptions().get().headers().isPresent() &&
-                (llmRequest.config().get().httpOptions().get().headers().get().containsKey("X-Custom-Base-Url") ||
-                 llmRequest.config().get().httpOptions().get().headers().get().containsKey("X-Custom-Api-Key") ||
-                 llmRequest.config().get().httpOptions().get().headers().get().containsKey("X-Custom-Completions-Path"));
+        // CustomConfigPlugin 通过 llmRequest 的 httpOptions headers 传递三类信号：
+        //  - X-Custom-*            自定义 base-url / api-key / completions-path
+        //  - X-Custom-Model-Selected  用户主动选择的自定义模型
+        //  - X-Structured-Output   结构化输出档位(json_object|json_schema)，仅无 tool 的 agent 生效
+        Map<String, String> reqHeaders = extractRequestHeaders(llmRequest);
+        boolean hasCustomHeaders = reqHeaders.containsKey("X-Custom-Base-Url")
+                || reqHeaders.containsKey("X-Custom-Api-Key")
+                || reqHeaders.containsKey("X-Custom-Completions-Path");
+        boolean hasCustomModel = "true".equalsIgnoreCase(reqHeaders.get("X-Custom-Model-Selected"));
+        String structuredMode = reqHeaders.get("X-Structured-Output");
+        boolean wantStructuredOutput = StringUtils.isNotBlank(structuredMode);
 
-        boolean hasCustomModel = llmRequest.config().isPresent() &&
-                llmRequest.config().get().httpOptions().isPresent() &&
-                llmRequest.config().get().httpOptions().get().headers().isPresent() &&
-                "true".equalsIgnoreCase(llmRequest.config().get().httpOptions().get().headers().get().get("X-Custom-Model-Selected"));
-
-        if (hasCustomModel || hasCustomHeaders) {
-            ChatOptions options = llmPrompt.getOptions();
-            OpenAiChatOptions openAiOptions;
-
-            if (options instanceof OpenAiChatOptions) {
-                // 已经是 OpenAiChatOptions，直接使用
-                openAiOptions = (OpenAiChatOptions) options;
-            } else if (options instanceof ToolCallingChatOptions) {
-                // 从 ToolCallingChatOptions 转换为 OpenAiChatOptions，保留 tools
-                OpenAiChatOptions.Builder builder = OpenAiChatOptions.builder();
-                ToolCallingChatOptions toolCallingChatOptions = (ToolCallingChatOptions) options;
-
-                // 复制 toolCallbacks 和 toolNames，避免 tools 丢失
-                List<ToolCallback> toolCallbacks = toolCallingChatOptions.getToolCallbacks();
-                if (toolCallbacks != null && !toolCallbacks.isEmpty()) {
-                    builder.toolCallbacks(toolCallbacks);
-                }
-                java.util.Set<String> toolNames = toolCallingChatOptions.getToolNames();
-                if (toolNames != null && !toolNames.isEmpty()) {
-                    builder.toolNames(toolNames);
-                }
-
-                // 复制其他参数
-                if (toolCallingChatOptions.getTemperature() != null) {
-                    builder.temperature(toolCallingChatOptions.getTemperature());
-                }
-                if (toolCallingChatOptions.getMaxTokens() != null) {
-                    builder.maxTokens(toolCallingChatOptions.getMaxTokens());
-                }
-                if (toolCallingChatOptions.getTopP() != null) {
-                    builder.topP(toolCallingChatOptions.getTopP());
-                }
-                if (toolCallingChatOptions.getModel() != null) {
-                    builder.model(toolCallingChatOptions.getModel());
-                }
-
-                openAiOptions = builder.build();
-            } else {
-                openAiOptions = OpenAiChatOptions.builder().build();
-            }
-
-            // 处理自定义 HTTP Headers
-            if (hasCustomHeaders) {
-                Map<String, String> customHeaders = llmRequest.config().get().httpOptions().get().headers().get();
-                Map<String, String> existingHeaders = openAiOptions.getHttpHeaders();
-                if (existingHeaders == null) {
-                    existingHeaders = new HashMap<>();
-                } else {
-                    existingHeaders = new HashMap<>(existingHeaders);
-                }
-
-                if (customHeaders.containsKey("X-Custom-Base-Url")) {
-                    existingHeaders.put("X-Custom-Base-Url", customHeaders.get("X-Custom-Base-Url"));
-                }
-                if (customHeaders.containsKey("X-Custom-Api-Key")) {
-                    existingHeaders.put("X-Custom-Api-Key", customHeaders.get("X-Custom-Api-Key"));
-                }
-                if (customHeaders.containsKey("X-Custom-Completions-Path")) {
-                    existingHeaders.put("X-Custom-Completions-Path", customHeaders.get("X-Custom-Completions-Path"));
-                }
-
-                openAiOptions.setHttpHeaders(existingHeaders);
-            }
-
-            // 处理自定义模型：用户配置的模型优先级高于 ChatModelNode 中配置的默认模型
-            if (hasCustomModel) {
-                String customModel = llmRequest.model().get();
-                openAiOptions.setModel(customModel);
-            }
-
-            // 返回一个新的 Prompt 以包含更新后的 options
-            return new Prompt(llmPrompt.getInstructions(), openAiOptions);
+        if (!hasCustomModel && !hasCustomHeaders && !wantStructuredOutput) {
+            return llmPrompt;
         }
 
-        return llmPrompt;
+        ChatOptions options = llmPrompt.getOptions();
+        // The drawer owns tool execution; forcing response_format would suppress its tool_calls.
+        boolean hasTools = options instanceof ToolCallingChatOptions tco
+                && tco.getToolCallbacks() != null && !tco.getToolCallbacks().isEmpty();
+        // Copy (never mutate) so a shared default-options instance can't leak state across requests.
+        OpenAiChatOptions openAiOptions = toOpenAiOptions(options);
+
+        if (hasCustomHeaders) {
+            Map<String, String> existingHeaders = openAiOptions.getHttpHeaders() == null
+                    ? new HashMap<>() : new HashMap<>(openAiOptions.getHttpHeaders());
+            copyIfPresent(reqHeaders, existingHeaders, "X-Custom-Base-Url");
+            copyIfPresent(reqHeaders, existingHeaders, "X-Custom-Api-Key");
+            copyIfPresent(reqHeaders, existingHeaders, "X-Custom-Completions-Path");
+            openAiOptions.setHttpHeaders(existingHeaders);
+        }
+
+        // 处理自定义模型：用户配置的模型优先级高于 ChatModelNode 中配置的默认模型
+        if (hasCustomModel && llmRequest.model().isPresent()) {
+            openAiOptions.setModel(llmRequest.model().get());
+        }
+
+        if (wantStructuredOutput && !hasTools) {
+            openAiOptions.setResponseFormat(
+                    buildResponseFormat(structuredMode, reqHeaders.get("X-Structured-Output-Schema")));
+            // Carry the provider so MySpringAI can demote it if the endpoint rejects response_format.
+            String providerId = reqHeaders.get("X-Provider");
+            if (StringUtils.isNotBlank(providerId)) {
+                Map<String, String> h = openAiOptions.getHttpHeaders() == null
+                        ? new HashMap<>() : new HashMap<>(openAiOptions.getHttpHeaders());
+                h.put("X-Provider", providerId);
+                openAiOptions.setHttpHeaders(h);
+            }
+        }
+
+        return new Prompt(llmPrompt.getInstructions(), openAiOptions);
+    }
+
+    private Map<String, String> extractRequestHeaders(LlmRequest llmRequest) {
+        if (llmRequest.config().isPresent()
+                && llmRequest.config().get().httpOptions().isPresent()
+                && llmRequest.config().get().httpOptions().get().headers().isPresent()) {
+            return llmRequest.config().get().httpOptions().get().headers().get();
+        }
+        return Map.of();
+    }
+
+    private void copyIfPresent(Map<String, String> from, Map<String, String> to, String key) {
+        if (from.containsKey(key)) {
+            to.put(key, from.get(key));
+        }
+    }
+
+    /** Convert to a fresh OpenAiChatOptions (copying, so shared defaults are never mutated). */
+    private OpenAiChatOptions toOpenAiOptions(ChatOptions options) {
+        if (options instanceof OpenAiChatOptions oa) {
+            return oa.copy();
+        }
+        if (options instanceof ToolCallingChatOptions tc) {
+            OpenAiChatOptions.Builder builder = OpenAiChatOptions.builder();
+            List<ToolCallback> toolCallbacks = tc.getToolCallbacks();
+            if (toolCallbacks != null && !toolCallbacks.isEmpty()) {
+                builder.toolCallbacks(toolCallbacks);
+            }
+            java.util.Set<String> toolNames = tc.getToolNames();
+            if (toolNames != null && !toolNames.isEmpty()) {
+                builder.toolNames(toolNames);
+            }
+            if (tc.getTemperature() != null) {
+                builder.temperature(tc.getTemperature());
+            }
+            if (tc.getMaxTokens() != null) {
+                builder.maxTokens(tc.getMaxTokens());
+            }
+            if (tc.getTopP() != null) {
+                builder.topP(tc.getTopP());
+            }
+            if (tc.getModel() != null) {
+                builder.model(tc.getModel());
+            }
+            return builder.build();
+        }
+        return OpenAiChatOptions.builder().build();
+    }
+
+    private ResponseFormat buildResponseFormat(String mode, String schemaId) {
+        if ("json_schema".equals(mode)) {
+            String schema = StructuredOutputSchemas.get(schemaId);
+            if (StringUtils.isNotBlank(schema)) {
+                return ResponseFormat.builder()
+                        .type(ResponseFormat.Type.JSON_SCHEMA)
+                        .jsonSchema(ResponseFormat.JsonSchema.builder()
+                                .name(schemaId).schema(schema).strict(true).build())
+                        .build();
+            }
+            // Schema not registered -> degrade to json_object rather than fail the request.
+        }
+        return ResponseFormat.builder().type(ResponseFormat.Type.JSON_OBJECT).build();
     }
 
     /**

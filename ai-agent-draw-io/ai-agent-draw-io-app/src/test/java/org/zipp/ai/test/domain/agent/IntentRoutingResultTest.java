@@ -8,13 +8,11 @@ import static org.junit.Assert.assertEquals;
 public class IntentRoutingResultTest {
 
     @Test
-    public void shouldDefaultFallbackDrawActionToCreateNewTaskType() {
+    public void shouldDefaultFallbackDrawActionToCreateNewRouteType() {
         IntentRoutingResult result = IntentRoutingResult.fallbackDrawAction("fallback");
 
-        assertEquals("draw_action", result.getIntent());
-        assertEquals("new_diagram", result.getDrawMode());
+        assertEquals("create_new", result.getRouteType());
         assertEquals("others", result.getDiagramType());
-        assertEquals("create_new", result.getTaskType());
     }
 
 }

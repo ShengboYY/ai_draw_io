@@ -15,6 +15,8 @@ import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.chat.model.StreamingChatModel;
 import org.springframework.ai.chat.prompt.Prompt;
+import org.springframework.ai.openai.OpenAiChatOptions;
+import org.zipp.ai.domain.agent.service.chat.ProviderCatalog;
 import reactor.core.publisher.Flux;
 
 import java.util.Objects;
@@ -153,29 +155,80 @@ public class MySpringAI extends BaseLlm {
         SpringAIObservabilityHandler.RequestContext context =
                 observabilityHandler.startRequest(model(), "chat");
 
+        Prompt prompt = messageConverter.toLlmPrompt(llmRequest);
+        disableInternalToolExecution(prompt);
+        observabilityHandler.logRequest(prompt.toString(), model());
+
+        Throwable failure;
         try {
-            Prompt prompt = messageConverter.toLlmPrompt(llmRequest);
-            disableInternalToolExecution(prompt);
-            observabilityHandler.logRequest(prompt.toString(), model());
-
-            ChatResponse chatResponse = chatModel.call(prompt);
-            LlmResponse llmResponse = messageConverter.toLlmResponse(chatResponse);
-
-            observabilityHandler.logResponse(extractTextFromResponse(llmResponse), model());
-
-            // Extract token counts if available
-            int totalTokens = extractTokenCount(chatResponse);
-            int inputTokens = extractInputTokenCount(chatResponse);
-            int outputTokens = extractOutputTokenCount(chatResponse);
-
-            observabilityHandler.recordSuccess(context, totalTokens, inputTokens, outputTokens);
-            return Flowable.just(llmResponse);
+            return emitSuccess(context, chatModel.call(prompt));
         } catch (Exception e) {
-            observabilityHandler.recordError(context, e);
-            SpringAIErrorMapper.MappedError mappedError = SpringAIErrorMapper.mapError(e);
-
-            return Flowable.error(new RuntimeException(mappedError.getNormalizedMessage(), e));
+            // B3 self-heal: if the endpoint rejected response_format (400), retry once without it and
+            // demote only this request's credential/endpoint scope.
+            Prompt retryPrompt = structuredOutputRetryPrompt(prompt, e);
+            if (retryPrompt != null) {
+                disableInternalToolExecution(retryPrompt);
+                try {
+                    return emitSuccess(context, chatModel.call(retryPrompt));
+                } catch (Exception retryError) {
+                    failure = retryError;
+                }
+            } else {
+                failure = e;
+            }
         }
+
+        observabilityHandler.recordError(context, failure);
+        SpringAIErrorMapper.MappedError mappedError = SpringAIErrorMapper.mapError(failure);
+        return Flowable.error(new RuntimeException(mappedError.getNormalizedMessage(), failure));
+    }
+
+    private Flowable<LlmResponse> emitSuccess(SpringAIObservabilityHandler.RequestContext context,
+                                              ChatResponse chatResponse) {
+        LlmResponse llmResponse = messageConverter.toLlmResponse(chatResponse);
+        observabilityHandler.logResponse(extractTextFromResponse(llmResponse), model());
+        observabilityHandler.recordSuccess(context,
+                extractTokenCount(chatResponse),
+                extractInputTokenCount(chatResponse),
+                extractOutputTokenCount(chatResponse));
+        return Flowable.just(llmResponse);
+    }
+
+    /**
+     * If {@code response_format} was set and the provider replied 400, return a copy of the prompt
+     * with {@code response_format} stripped. When the prompt carries a scope, demote only that concrete
+     * credential/endpoint so a bad custom endpoint does not poison every credential for the provider.
+     * Returns {@code null} when there is nothing to heal, so the original error propagates unchanged.
+     */
+    private Prompt structuredOutputRetryPrompt(Prompt prompt, Throwable error) {
+        if (prompt == null
+                || !(prompt.getOptions() instanceof OpenAiChatOptions options)
+                || options.getResponseFormat() == null
+                || !isBadRequest(error)) {
+            return null;
+        }
+        String provider = options.getHttpHeaders() == null ? null : options.getHttpHeaders().get("X-Provider");
+        String scope = options.getHttpHeaders() == null ? null : options.getHttpHeaders().get("X-Structured-Output-Scope");
+        org.slf4j.LoggerFactory.getLogger(MySpringAI.class).warn(
+                "[structured-output] provider={} scope={} rejected response_format (400); retrying without it.",
+                provider, scope);
+        if (provider != null && scope != null) {
+            ProviderCatalog.downgrade(provider, scope);
+        }
+        OpenAiChatOptions retryOptions = options.copy();
+        retryOptions.setResponseFormat(null);
+        return new Prompt(prompt.getInstructions(), retryOptions);
+    }
+
+    private boolean isBadRequest(Throwable error) {
+        Throwable cursor = error;
+        while (cursor != null) {
+            if (cursor instanceof org.springframework.web.reactive.function.client.WebClientResponseException web) {
+                return web.getStatusCode().value() == 400;
+            }
+            cursor = cursor.getCause();
+        }
+        return false;
     }
 
     /**

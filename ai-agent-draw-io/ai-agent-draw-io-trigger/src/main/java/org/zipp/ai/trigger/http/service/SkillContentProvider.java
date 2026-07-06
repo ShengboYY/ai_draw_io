@@ -33,6 +33,10 @@ public class SkillContentProvider {
         java.util.Set<String> added = new java.util.LinkedHashSet<>();
 
         if (skillNames != null) {
+            // Only skills actually selectable for this user may be injected. Fetched once, and it must
+            // be the selectable whitelist (not exists()/full catalog) so a user-supplied name cannot
+            // force in a hidden / non-drawio / shared skill body.
+            java.util.Set<String> selectable = skillCatalogService.selectableSkillNames(ownerId);
             for (String skillName : skillNames) {
                 String selected = StringUtils.trimToNull(skillName);
                 if (selected != null
@@ -40,7 +44,7 @@ public class SkillContentProvider {
                         && !SkillCatalogService.SHARED_SKILL.equals(selected)
                         && !SkillCatalogService.SHARED_XML_GUIDE_SKILL.equals(selected)
                         && added.add(selected)
-                        && skillCatalogService.exists(selected, ownerId)) {
+                        && selectable.contains(selected)) {
                     appendSkill(section, selected, ownerId);
                 }
             }

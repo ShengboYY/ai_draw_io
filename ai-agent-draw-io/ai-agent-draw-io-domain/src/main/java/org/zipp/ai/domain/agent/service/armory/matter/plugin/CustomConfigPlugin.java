@@ -1,6 +1,9 @@
 package org.zipp.ai.domain.agent.service.armory.matter.plugin;
 
 import org.zipp.ai.domain.agent.service.chat.CustomApiConfigManager;
+import org.zipp.ai.domain.agent.service.chat.ProviderCatalog;
+import org.zipp.ai.domain.agent.service.chat.StructuredOutputTier;
+import org.zipp.ai.domain.agent.service.intent.IntentRoutingContract;
 import com.google.adk.agents.CallbackContext;
 import com.google.adk.models.LlmRequest;
 import com.google.adk.models.LlmResponse;
@@ -72,11 +75,59 @@ public class CustomConfigPlugin extends BasePlugin {
                 headers.put("X-Custom-Model-Selected", "true");
             }
 
+            // Structured-output signalling: pick the strongest response_format this provider supports,
+            // and (for the intent router only) point at its json_schema. The converter still gates on
+            // "no tools present" so the drawer is never forced into JSON. See ProviderCatalog tiers.
+            applyStructuredOutputHeaders(context, config, headers);
+
             httpOptionsBuilder.headers(headers);
             configBuilder.httpOptions(httpOptionsBuilder.build());
             requestBuilder.config(configBuilder.build());
         }
 
         return super.beforeModelCallback(context, requestBuilder);
+    }
+
+    // Agents that own tool execution (the drawer) must keep the content channel free for tool_calls,
+    // so they are never given a response_format. Only the JSON-emitting agents are.
+    private static final String DRAWER_AGENT = "agent_drawer";
+    private static final String INTENT_ROUTER_AGENT = "agent_intent";
+    private static final String STRUCTURED_OUTPUT_SCOPE_HEADER = "X-Structured-Output-Scope";
+
+    private void applyStructuredOutputHeaders(CallbackContext context,
+                                              CustomApiConfigManager.CustomApiConfig config,
+                                              Map<String, String> headers) {
+        String agentName = context == null ? null : context.agentName();
+        if (DRAWER_AGENT.equals(agentName)) {
+            return; // drawer uses tool calling; never force JSON output.
+        }
+        String scope = structuredOutputScope(config);
+        StructuredOutputTier tier = ProviderCatalog.tierFor(config.getProvider(), scope);
+        if (tier == StructuredOutputTier.NONE) {
+            return; // provider can't enforce it (or unknown) -> rely on parser + validation.
+        }
+        if (INTENT_ROUTER_AGENT.equals(agentName) && tier.atLeast(StructuredOutputTier.JSON_SCHEMA)) {
+            headers.put("X-Structured-Output", "json_schema");
+            headers.put("X-Structured-Output-Schema", IntentRoutingContract.routerSchemaId());
+        } else {
+            headers.put("X-Structured-Output", "json_object");
+        }
+        // Carried so MySpringAI can demote only this credential/endpoint if it rejects response_format.
+        headers.put(STRUCTURED_OUTPUT_SCOPE_HEADER, scope);
+        if (StringUtils.isNotBlank(config.getProvider())) {
+            headers.put("X-Provider", config.getProvider());
+        }
+    }
+
+    // Do not include secrets. Prefer credential id; otherwise use endpoint; finally platform default.
+    private String structuredOutputScope(CustomApiConfigManager.CustomApiConfig config) {
+        if (StringUtils.isNotBlank(config.getModelCredentialId())) {
+            return "credential:" + config.getModelCredentialId().trim();
+        }
+        if (StringUtils.isNotBlank(config.getBaseUrl()) || StringUtils.isNotBlank(config.getCompletionsPath())) {
+            return "endpoint:" + StringUtils.defaultString(config.getBaseUrl()).trim()
+                    + "|" + StringUtils.defaultString(config.getCompletionsPath()).trim();
+        }
+        return "provider:" + StringUtils.defaultString(config.getProvider()).trim();
     }
 }

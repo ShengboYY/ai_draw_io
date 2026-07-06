@@ -17,8 +17,10 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
@@ -294,13 +296,61 @@ public class SkillCatalogService {
         return list;
     }
 
+    /**
+     * The router's selectable skills fetched once, as both the prompt menu and the whitelist of
+     * offered names. The router uses the whitelist to validate the returned skillName in-memory,
+     * instead of hitting the catalog (DB) a second time.
+     */
+    public RouterCatalog routerCatalog(String ownerId) {
+        StringBuilder sb = new StringBuilder();
+        Set<String> names = new LinkedHashSet<>();
+        for (SkillInfo info : selectableSkills(ownerId)) {
+            sb.append("- ").append(sanitizeForPrompt(info.name(), 64))
+              .append(": ").append(sanitizeForPrompt(info.description(), 200)).append('\n');
+            names.add(info.name());
+        }
+        return new RouterCatalog(sb.toString(), names);
+    }
+
+    /** Router prompt menu paired with the set of skill names actually offered to the router. */
+    public record RouterCatalog(String promptText, Set<String> skillNames) {
+    }
+
+    /**
+     * Names of the skills selectable for this user (draw.io design skills, excluding shared/hidden).
+     * This is the whitelist for BOTH router selection and drawer injection — never use {@code exists}
+     * (full catalog) for those, or a caller could force a hidden/non-selectable skill's body in.
+     */
+    public Set<String> selectableSkillNames(String ownerId) {
+        Set<String> names = new LinkedHashSet<>();
+        for (SkillInfo info : selectableSkills(ownerId)) {
+            names.add(info.name());
+        }
+        return names;
+    }
+
     /** A compact menu (name + description) for prompting the router for a given user. */
     public String catalogText(String ownerId) {
-        StringBuilder sb = new StringBuilder();
-        for (SkillInfo info : selectableSkills(ownerId)) {
-            sb.append("- ").append(info.name()).append(": ").append(info.description()).append('\n');
+        return routerCatalog(ownerId).promptText();
+    }
+
+    // Skill names/descriptions are user/platform-authored data that gets injected into the router
+    // prompt. Treat them as untrusted: collapse to a single line, cap length, and defang common
+    // prompt-injection framing so a description cannot issue instructions to the router.
+    private String sanitizeForPrompt(String value, int maxLen) {
+        if (value == null) {
+            return "";
         }
-        return sb.toString();
+        String oneLine = value.replaceAll("[\\r\\n\\t]+", " ").trim();
+        oneLine = oneLine.replaceAll(
+                "(?i)(ignore|disregard|override|forget)\\s+(all\\s+|the\\s+|previous\\s+|above\\s+)*"
+                        + "(instruction|prompt|rule|context)s?",
+                "[filtered]");
+        oneLine = oneLine.replaceAll("(?i)\\b(system prompt|you are now|assistant:|user:|system:)\\b", "[filtered]");
+        if (oneLine.length() > maxLen) {
+            oneLine = oneLine.substring(0, maxLen) + "…";
+        }
+        return oneLine;
     }
 
     public boolean exists(String name, String ownerId) {

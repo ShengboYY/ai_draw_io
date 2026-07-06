@@ -23,7 +23,7 @@ public class DrawioPromptContextBuilderTest {
 
         String message = builder.buildDrawingContextMessage(requestDTO, routing("create_new"));
 
-        assertTrue(message.contains("[Canvas Context]\nExisting canvas omitted because taskType=create_new."));
+        assertTrue(message.contains("[Canvas Context]\nExisting canvas omitted because routeType=create_new."));
         assertTrue(message.contains("[User Request]\n重新画一个登录流程图"));
         assertFalse(message.contains("<mxGraphModel"));
         assertFalse(message.contains("value=\"API\""));
@@ -98,7 +98,7 @@ public class DrawioPromptContextBuilderTest {
             assertTrue(appender.list.stream()
                     .map(ILoggingEvent::getFormattedMessage)
                     .anyMatch(message -> message.contains("[draw-context]")
-                            && message.contains("taskType=edit_existing")
+                            && message.contains("routeType=edit_existing")
                             && message.contains("contextType=full_xml")
                             && message.contains("hasCanvas=true")
                             && !message.contains("<mxGraphModel")));
@@ -141,9 +141,9 @@ public class DrawioPromptContextBuilderTest {
         return requestDTO;
     }
 
-    private IntentRoutingResult routing(String taskType) {
+    private IntentRoutingResult routing(String routeType) {
         IntentRoutingResult result = IntentRoutingResult.fallbackDrawAction("test");
-        result.setTaskType(taskType);
+        result.setRouteType(routeType);
         return result;
     }
 

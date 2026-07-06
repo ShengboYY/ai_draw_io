@@ -5,15 +5,11 @@ import lombok.Data;
 @Data
 public class IntentRoutingResult {
 
-    private String intent;
-
-    private String drawMode;
+    private String routeType;
 
     private String diagramType;
 
     private String skillName;
-
-    private String taskType;
 
     private Boolean needsCanvasQuality;
 
@@ -26,28 +22,50 @@ public class IntentRoutingResult {
     private String reason;
 
     public boolean isDirectReply() {
-        return "answer_only".equals(intent) || "clarify".equals(intent);
+        return "answer_only".equals(routeType)
+                || "clarify".equals(routeType)
+                || "review_only".equals(routeType);
     }
 
     public boolean isDrawAction() {
-        return "draw_action".equals(intent);
+        return "create_new".equals(routeType)
+                || "edit_existing".equals(routeType)
+                || "optimize_layout".equals(routeType);
     }
 
     public boolean needsCanvasReview() {
         return Boolean.TRUE.equals(needsCanvasQuality) || Boolean.TRUE.equals(needsSemanticReview);
     }
 
+    /**
+     * A plain "draw a new diagram" result. This is a generic default factory - do NOT use it as
+     * the fallback for routing failures; routing failures must fail-closed via {@link #clarifyFallback}
+     * so a failed route can never overwrite an existing canvas.
+     */
     public static IntentRoutingResult fallbackDrawAction(String reason) {
         IntentRoutingResult result = new IntentRoutingResult();
-        result.setIntent("draw_action");
-        result.setDrawMode("new_diagram");
+        result.setRouteType("create_new");
         result.setDiagramType("others");
         result.setSkillName("none");
-        result.setTaskType("create_new");
         result.setNeedsCanvasQuality(false);
         result.setNeedsSemanticReview(false);
         result.setAnswerMode("none");
         result.setAnswer("");
+        result.setReason(reason);
+        return result;
+    }
+
+    public static IntentRoutingResult clarifyFallback(String reason) {
+        // Fail closed: malformed or untrusted routing output must never mutate the user's canvas.
+        IntentRoutingResult result = new IntentRoutingResult();
+        result.setRouteType("clarify");
+        result.setDiagramType("none");
+        result.setSkillName("none");
+        result.setNeedsCanvasQuality(false);
+        result.setNeedsSemanticReview(false);
+        result.setAnswerMode("general");
+        result.setAnswer("抱歉，我没能理解这次请求。请再说清楚一点你想对 Draw.io 画布做什么（新建 / 修改 / 查看）。\n"
+                + "Sorry, I couldn't parse that request - please clarify what you'd like to do with the Draw.io canvas (create / edit / review).");
         result.setReason(reason);
         return result;
     }

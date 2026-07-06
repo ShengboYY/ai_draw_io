@@ -67,8 +67,7 @@ public class AgentConversationServiceTest {
         AgentConversationService service = new AgentConversationService();
         injectPromptContextBuilder(service);
         IntentRoutingResult routingResult = IntentRoutingResult.fallbackDrawAction("test");
-        routingResult.setDrawMode("edit_existing");
-        routingResult.setTaskType("edit_existing");
+        routingResult.setRouteType("edit_existing");
 
         ChatRequestDTO requestDTO = new ChatRequestDTO();
         requestDTO.setMessage("update the API label");
@@ -80,6 +79,10 @@ public class AgentConversationServiceTest {
         String routedMessage = buildRoutedMessage(service, requestDTO, routingResult, 1);
 
         assertTrue(routedMessage.contains("\"maxRepairRounds\":1"));
+        assertTrue(routedMessage.contains("\"routeType\":\"edit_existing\""));
+        assertFalse(routedMessage.contains("\"intent\""));
+        assertFalse(routedMessage.contains("\"drawMode\""));
+        assertFalse(routedMessage.contains("\"taskType\""));
         assertTrue(routedMessage.contains("\"allowedTools\""));
         assertTrue(routedMessage.contains("modify_diagram"));
         assertFalse(routedMessage.contains("inspect_canvas"));
@@ -101,8 +104,6 @@ public class AgentConversationServiceTest {
         injectPromptContextBuilder(service);
         injectSkillContentProvider(service);
         IntentRoutingResult routingResult = IntentRoutingResult.fallbackDrawAction("test");
-        routingResult.setDrawMode("new_diagram");
-        routingResult.setTaskType("create_new");
 
         ChatRequestDTO requestDTO = new ChatRequestDTO();
         requestDTO.setMessage("draw a flowchart");
@@ -122,8 +123,7 @@ public class AgentConversationServiceTest {
         AgentConversationService service = new AgentConversationService();
         injectPromptContextBuilder(service);
         IntentRoutingResult routingResult = IntentRoutingResult.fallbackDrawAction("test");
-        routingResult.setDrawMode("edit_existing");
-        routingResult.setTaskType("edit_existing");
+        routingResult.setRouteType("edit_existing");
 
         ChatRequestDTO requestDTO = new ChatRequestDTO();
         requestDTO.setUserId("anon_123e4567-e89b-42d3-a456-426614174000");
@@ -143,7 +143,7 @@ public class AgentConversationServiceTest {
                     .map(ILoggingEvent::getFormattedMessage)
                     .anyMatch(message -> message.contains("[draw-route] userId=anon***00")
                             && !message.contains("123e4567-e89b-42d3-a456-426614174000")
-                            && message.contains("taskType=edit_existing")
+                            && message.contains("routeType=edit_existing")
                             && message.contains("allowedTools=[modify_diagram]")
                             && message.contains("maxRepairRounds=0")));
         } finally {
@@ -191,8 +191,7 @@ public class AgentConversationServiceTest {
         injectCanvasStateStore(service, new FixedCanvasStateStore(storedCanvasXml()));
 
         IntentRoutingResult routingResult = IntentRoutingResult.fallbackDrawAction("test");
-        routingResult.setDrawMode("edit_existing");
-        routingResult.setTaskType("edit_existing");
+        routingResult.setRouteType("edit_existing");
 
         ChatRequestDTO requestDTO = new ChatRequestDTO();
         requestDTO.setUserId("alice");
@@ -213,8 +212,7 @@ public class AgentConversationServiceTest {
         injectCanvasStateStore(service, new FixedCanvasStateStore(""));
 
         IntentRoutingResult routingResult = IntentRoutingResult.fallbackDrawAction("test");
-        routingResult.setDrawMode("edit_existing");
-        routingResult.setTaskType("edit_existing");
+        routingResult.setRouteType("edit_existing");
 
         ChatRequestDTO requestDTO = new ChatRequestDTO();
         requestDTO.setUserId("alice");

@@ -45,16 +45,16 @@ public class DrawioPromptContextBuilder {
 
     public String buildDrawingContextMessage(ChatRequestDTO requestDTO, IntentRoutingResult routingResult) {
         String canvasXml = resolveCanvasXml(requestDTO);
-        String taskType = taskType(routingResult);
-        String contextType = contextType(taskType);
+        String routeType = routeType(routingResult);
+        String contextType = contextType(routeType);
         // create_new starts from a blank slate; every other task hands the drawer the full current XML
         // so it can choose the concrete modify_diagram mode itself.
         String canvasContext = "create_new".equals(contextType)
                 ? buildCreateNewContext(canvasXml)
                 : buildFullXmlContext(requestDTO, canvasXml);
         // Keep this shape-only so logs stay useful without copying the Draw.io XML or prompt body.
-        log.info("[draw-context] taskType={} contextType={} hasCanvas={} canvasXmlChars={} canvasSummaryChars={} userMessageChars={} contextChars={}",
-                logValue(taskType),
+        log.info("[draw-context] routeType={} contextType={} hasCanvas={} canvasXmlChars={} canvasSummaryChars={} userMessageChars={} contextChars={}",
+                logValue(routeType),
                 logValue(contextType),
                 hasDrawableCanvas(canvasXml),
                 textLength(canvasXml),
@@ -103,7 +103,7 @@ public class DrawioPromptContextBuilder {
         if (hasDrawableCanvas(canvasXml)) {
             // A replacement diagram should not inherit labels or geometry from the old canvas.
             return "[Canvas Context]\n"
-                    + "Existing canvas omitted because taskType=create_new.";
+                    + "Existing canvas omitted because routeType=create_new.";
         }
         return "[Canvas Context]\n"
                 + "No existing drawable canvas was provided.";
@@ -167,15 +167,15 @@ public class DrawioPromptContextBuilder {
                 .trim();
     }
 
-    private String taskType(IntentRoutingResult routingResult) {
-        if (null == routingResult || StringUtils.isBlank(routingResult.getTaskType())) {
+    private String routeType(IntentRoutingResult routingResult) {
+        if (null == routingResult || StringUtils.isBlank(routingResult.getRouteType())) {
             return "edit_existing";
         }
-        return routingResult.getTaskType();
+        return routingResult.getRouteType();
     }
 
-    private String contextType(String taskType) {
-        return "create_new".equals(taskType) ? "create_new" : "full_xml";
+    private String contextType(String routeType) {
+        return "create_new".equals(routeType) ? "create_new" : "full_xml";
     }
 
     private String rawUserMessage(ChatRequestDTO requestDTO) {

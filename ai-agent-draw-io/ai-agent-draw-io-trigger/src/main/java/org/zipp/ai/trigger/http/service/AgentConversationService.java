@@ -410,7 +410,7 @@ public class AgentConversationService {
         // Localized edits skip the review/revision loop entirely: with 0 iterations the stream
         // completes as soon as the edited canvas is flushed, instead of waiting on review rounds.
         if (routingResult != null
-                && "edit_existing".equals(routingResult.getTaskType())
+                && "edit_existing".equals(routingResult.getRouteType())
                 && !routingResult.needsCanvasReview()) {
             return 0;
         }
@@ -546,10 +546,10 @@ public class AgentConversationService {
     // Inject skill rules only when the drawer needs diagram-specific semantics; small edits stay lean.
     // User-specified skills (if any) override the router's automatic selection.
     private String skillSectionFor(IntentRoutingResult routingResult, String ownerId, List<String> userSkills) {
-        String taskType = StringUtils.defaultString(routingResult.getTaskType());
-        boolean generativeDraw = "create_new".equals(taskType)
-                || "optimize_layout".equals(taskType)
-                || ("edit_existing".equals(taskType) && routingResult.needsCanvasReview());
+        String routeType = StringUtils.defaultString(routingResult.getRouteType());
+        boolean generativeDraw = "create_new".equals(routeType)
+                || "optimize_layout".equals(routeType)
+                || ("edit_existing".equals(routeType) && routingResult.needsCanvasReview());
         if (!generativeDraw && (userSkills == null || userSkills.isEmpty())) {
             return "";
         }
@@ -557,8 +557,8 @@ public class AgentConversationService {
                 ? userSkills
                 : List.of(StringUtils.defaultString(routingResult.getSkillName()));
         String section = skillContentProvider.buildSkillSection(chosen, ownerId);
-        log.info("[skill-inject] taskType={} chosenSkills={} userSpecified={} ownerId={} injectedChars={}",
-                taskType, chosen, userSkills != null && !userSkills.isEmpty(), ownerId, section.length());
+        log.info("[skill-inject] routeType={} chosenSkills={} userSpecified={} ownerId={} injectedChars={}",
+                routeType, chosen, userSkills != null && !userSkills.isEmpty(), ownerId, section.length());
         return section;
     }
 
@@ -570,11 +570,9 @@ public class AgentConversationService {
                                       List<String> userSkills) {
         requestDTO = requestWithStoredCanvas(requestDTO);
         com.alibaba.fastjson.JSONObject routingJson = new com.alibaba.fastjson.JSONObject();
-        routingJson.put("intent", routingResult.getIntent());
-        routingJson.put("drawMode", routingResult.getDrawMode());
+        routingJson.put("routeType", routingResult.getRouteType());
         routingJson.put("diagramType", routingResult.getDiagramType());
         routingJson.put("skillName", routingResult.getSkillName());
-        routingJson.put("taskType", routingResult.getTaskType());
         routingJson.put("needsCanvasQuality", routingResult.getNeedsCanvasQuality());
         routingJson.put("needsSemanticReview", routingResult.getNeedsSemanticReview());
         routingJson.put("answerMode", routingResult.getAnswerMode());
@@ -584,11 +582,9 @@ public class AgentConversationService {
         routingJson.put("allowedTools", allowedTools);
         routingJson.put("toolPolicy", "Use only allowedTools for the initial draft. Self-repair rounds use modify_diagram or optimize_diagram(mode=route_only) and must not call create_diagram; explicit user redraws route through a new create_diagram action.");
         // Log derived routing controls only; the routed message below can contain full canvas XML.
-        log.info("[draw-route] userId={} intent={} drawMode={} taskType={} allowedTools={} maxRepairRounds={} canvasReview={} semanticReview={} skillName={} reviewContext={}",
+        log.info("[draw-route] userId={} routeType={} allowedTools={} maxRepairRounds={} canvasReview={} semanticReview={} skillName={} reviewContext={}",
                 SecretLogSanitizer.maskCapability(ownerId),
-                logValue(routingResult.getIntent()),
-                logValue(routingResult.getDrawMode()),
-                logValue(routingResult.getTaskType()),
+                logValue(routingResult.getRouteType()),
                 allowedTools,
                 maxReviewIterations,
                 routingResult.getNeedsCanvasQuality(),
@@ -611,12 +607,12 @@ public class AgentConversationService {
     }
 
     private List<String> allowedToolsFor(IntentRoutingResult routingResult) {
-        String taskType = StringUtils.defaultString(routingResult.getTaskType());
-        return switch (taskType) {
+        String routeType = StringUtils.defaultString(routingResult.getRouteType());
+        return switch (routeType) {
             case "create_new" -> List.of(DrawioCanvasToolNames.CREATE_DIAGRAM);
             case "edit_existing" -> List.of(DrawioCanvasToolNames.MODIFY_DIAGRAM);
             case "optimize_layout" -> List.of(DrawioCanvasToolNames.OPTIMIZE_DIAGRAM);
-            case "review_only", "none" -> List.of();
+            case "review_only", "answer_only", "clarify" -> List.of();
             default -> DrawioCanvasToolNames.CONSOLIDATED_TOOL_NAMES;
         };
     }

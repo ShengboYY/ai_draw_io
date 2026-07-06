@@ -30,12 +30,12 @@ public class DrawioArchitectureSkillResourceTest {
     }
 
     @Test
-    public void drawerPromptMapsTaskTypesToRegisteredTools() throws Exception {
+    public void drawerPromptMapsRouteTypesToRegisteredTools() throws Exception {
         String agentPrompt = readResource("agent/agent-draw-io.yml");
 
-        assertTrue(agentPrompt.contains("taskType=create_new -> create_diagram"));
-        assertTrue(agentPrompt.contains("taskType=edit_existing -> modify_diagram only"));
-        assertTrue(agentPrompt.contains("taskType=optimize_layout -> optimize_diagram"));
+        assertTrue(agentPrompt.contains("routeType=create_new -> create_diagram"));
+        assertTrue(agentPrompt.contains("routeType=edit_existing -> modify_diagram only"));
+        assertTrue(agentPrompt.contains("routeType=optimize_layout -> optimize_diagram"));
         assertTrue(agentPrompt.contains("drawioCanvasToolCallbackProvider"));
         assertTrue(agentPrompt.contains("MUST use registered tool calls when they are available"));
         assertTrue(agentPrompt.contains("set targetLabel"));
