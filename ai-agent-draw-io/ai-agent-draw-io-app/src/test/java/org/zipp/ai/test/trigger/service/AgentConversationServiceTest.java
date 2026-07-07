@@ -83,6 +83,8 @@ public class AgentConversationServiceTest {
         assertFalse(routedMessage.contains("\"drawMode\""));
         assertFalse(routedMessage.contains("\"taskType\""));
         assertTrue(routedMessage.contains("\"allowedTools\""));
+        assertTrue(routedMessage.contains("\"skillTools\""));
+        assertTrue(routedMessage.contains("get_drawio_skill"));
         assertTrue(routedMessage.contains("modify_diagram"));
         assertFalse(routedMessage.contains("inspect_canvas"));
         assertFalse(routedMessage.contains("patch_existing"));
@@ -113,6 +115,7 @@ public class AgentConversationServiceTest {
         assertTrue(routedMessage.contains("create_diagram"));
         assertTrue(routedMessage.contains("modify_diagram"));
         assertTrue(routedMessage.contains("optimize_diagram"));
+        assertTrue(routedMessage.contains("get_drawio_skill"));
         assertTrue(routedMessage.contains("Self-repair rounds use modify_diagram or optimize_diagram(mode=route_only)"));
         assertFalse(routedMessage.contains("reviewRepairTools"));
     }

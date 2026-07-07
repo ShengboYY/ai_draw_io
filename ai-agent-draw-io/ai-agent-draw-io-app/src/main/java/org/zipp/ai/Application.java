@@ -3,6 +3,7 @@ package org.zipp.ai;
 import org.mybatis.spring.annotation.MapperScan;
 import org.zipp.ai.domain.agent.service.armory.matter.mcp.server.MyTestMcpService;
 import org.zipp.ai.domain.agent.service.armory.matter.mcp.server.DrawioCanvasMcpService;
+import org.zipp.ai.domain.agent.service.armory.matter.mcp.server.DrawioSkillMcpService;
 import org.springframework.ai.tool.ToolCallbackProvider;
 import org.springframework.ai.tool.method.MethodToolCallbackProvider;
 import org.springframework.beans.factory.annotation.Configurable;
@@ -28,6 +29,11 @@ public class Application {
     @Bean("drawioCanvasToolCallbackProvider")
     public ToolCallbackProvider drawioCanvasTools(DrawioCanvasMcpService drawioCanvasMcpService) {
         return MethodToolCallbackProvider.builder().toolObjects(drawioCanvasMcpService).build();
+    }
+
+    @Bean("drawioSkillToolCallbackProvider")
+    public ToolCallbackProvider drawioSkillTools(DrawioSkillMcpService drawioSkillMcpService) {
+        return MethodToolCallbackProvider.builder().toolObjects(drawioSkillMcpService).build();
     }
 
 }

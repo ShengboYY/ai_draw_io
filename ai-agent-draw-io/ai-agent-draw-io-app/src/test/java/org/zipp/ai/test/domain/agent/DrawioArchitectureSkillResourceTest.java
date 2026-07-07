@@ -37,9 +37,12 @@ public class DrawioArchitectureSkillResourceTest {
         assertTrue(agentPrompt.contains("routeType=edit_existing -> modify_diagram only"));
         assertTrue(agentPrompt.contains("routeType=optimize_layout -> optimize_diagram"));
         assertTrue(agentPrompt.contains("drawioCanvasToolCallbackProvider"));
+        assertTrue(agentPrompt.contains("drawioSkillToolCallbackProvider"));
+        assertTrue(agentPrompt.contains("get_drawio_skill"));
         assertTrue(agentPrompt.contains("MUST use registered tool calls when they are available"));
         assertTrue(agentPrompt.contains("set targetLabel"));
         assertFalse(agentPrompt.contains("inspect_canvas"));
+        assertFalse(agentPrompt.contains("Skill stack (injected below"));
     }
 
     @Test

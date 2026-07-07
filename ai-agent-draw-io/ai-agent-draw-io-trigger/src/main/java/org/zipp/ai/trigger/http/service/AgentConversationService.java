@@ -18,6 +18,7 @@ import org.zipp.ai.domain.agent.service.ICanvasStateStore;
 import org.zipp.ai.domain.agent.service.IChatService;
 import org.zipp.ai.domain.agent.service.IIntentRoutingService;
 import org.zipp.ai.domain.agent.service.armory.matter.mcp.server.DrawioCanvasToolNames;
+import org.zipp.ai.domain.agent.service.armory.matter.mcp.server.DrawioSkillToolNames;
 import org.zipp.ai.domain.agent.service.chat.CustomApiConfigManager;
 import org.zipp.ai.domain.agent.service.debugtrace.AgentDebugTraceService;
 import org.zipp.ai.domain.agent.service.usage.AgentUsageTelemetryContext;
@@ -557,7 +558,7 @@ public class AgentConversationService {
                 ? userSkills
                 : List.of(StringUtils.defaultString(routingResult.getSkillName()));
         String section = skillContentProvider.buildSkillSection(chosen, ownerId);
-        log.info("[skill-inject] routeType={} chosenSkills={} userSpecified={} ownerId={} injectedChars={}",
+        log.info("[skill-tools] routeType={} chosenSkills={} userSpecified={} ownerId={} sectionChars={}",
                 routeType, chosen, userSkills != null && !userSkills.isEmpty(), ownerId, section.length());
         return section;
     }
@@ -580,7 +581,8 @@ public class AgentConversationService {
         routingJson.put("maxRepairRounds", maxReviewIterations);
         List<String> allowedTools = allowedToolsFor(routingResult);
         routingJson.put("allowedTools", allowedTools);
-        routingJson.put("toolPolicy", "Use only allowedTools for the initial draft. Self-repair rounds use modify_diagram or optimize_diagram(mode=route_only) and must not call create_diagram; explicit user redraws route through a new create_diagram action.");
+        routingJson.put("skillTools", DrawioSkillToolNames.SKILL_LOOKUP_TOOL_NAMES);
+        routingJson.put("toolPolicy", "Use skillTools to load required skill rules before the initial draft. Use only allowedTools for canvas mutation. Self-repair rounds use modify_diagram or optimize_diagram(mode=route_only) and must not call create_diagram; explicit user redraws route through a new create_diagram action.");
         // Log derived routing controls only; the routed message below can contain full canvas XML.
         log.info("[draw-route] userId={} routeType={} allowedTools={} maxRepairRounds={} canvasReview={} semanticReview={} skillName={} reviewContext={}",
                 SecretLogSanitizer.maskCapability(ownerId),

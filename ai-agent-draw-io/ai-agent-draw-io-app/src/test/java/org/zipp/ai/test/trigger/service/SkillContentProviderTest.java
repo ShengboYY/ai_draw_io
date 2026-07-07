@@ -8,23 +8,26 @@ import org.zipp.ai.trigger.http.service.SkillContentProvider;
 import java.util.List;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 public class SkillContentProviderTest {
 
     @Test
-    public void shouldInjectSharedXmlGuideAndVisualDesignOnce() {
+    public void shouldAskDrawerToLoadSharedSkillsThroughToolCallsOnce() {
         SkillContentProvider provider = new SkillContentProvider();
         ReflectionTestUtils.setField(provider, "skillCatalogService", new SkillCatalogService());
 
         String section = provider.buildSkillSection(List.of("drawio-xml-guide", "drawio-visual-design"), null);
 
-        assertTrue(section.contains("[Skill Rules: drawio-xml-guide]"));
-        assertTrue(section.contains("[Skill Rules: drawio-visual-design]"));
-        assertTrue(section.contains("XML Rules"));
-        assertTrue(section.contains("House Style"));
-        assertEquals(1, count(section, "[Skill Rules: drawio-xml-guide]"));
-        assertEquals(1, count(section, "[Skill Rules: drawio-visual-design]"));
+        assertTrue(section.contains("[Required Skill Tool Calls]"));
+        assertTrue(section.contains("get_drawio_skill"));
+        assertTrue(section.contains("- drawio-xml-guide"));
+        assertTrue(section.contains("- drawio-visual-design"));
+        assertFalse(section.contains("XML Rules"));
+        assertFalse(section.contains("House Style"));
+        assertEquals(1, count(section, "- drawio-xml-guide"));
+        assertEquals(1, count(section, "- drawio-visual-design"));
     }
 
     private int count(String text, String needle) {
