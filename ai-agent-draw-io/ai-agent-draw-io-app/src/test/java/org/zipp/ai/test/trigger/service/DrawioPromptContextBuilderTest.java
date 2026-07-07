@@ -142,8 +142,15 @@ public class DrawioPromptContextBuilderTest {
     }
 
     private IntentRoutingResult routing(String routeType) {
-        IntentRoutingResult result = IntentRoutingResult.fallbackDrawAction("test");
+        IntentRoutingResult result = new IntentRoutingResult();
         result.setRouteType(routeType);
+        result.setDiagramType("others");
+        result.setSkillName("none");
+        result.setNeedsCanvasQuality(false);
+        result.setNeedsSemanticReview(false);
+        result.setAnswerMode("none");
+        result.setAnswer("");
+        result.setReason("test");
         return result;
     }
 

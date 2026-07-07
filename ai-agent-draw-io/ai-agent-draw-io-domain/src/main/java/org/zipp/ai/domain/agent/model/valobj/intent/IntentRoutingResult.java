@@ -37,24 +37,6 @@ public class IntentRoutingResult {
         return Boolean.TRUE.equals(needsCanvasQuality) || Boolean.TRUE.equals(needsSemanticReview);
     }
 
-    /**
-     * A plain "draw a new diagram" result. This is a generic default factory - do NOT use it as
-     * the fallback for routing failures; routing failures must fail-closed via {@link #clarifyFallback}
-     * so a failed route can never overwrite an existing canvas.
-     */
-    public static IntentRoutingResult fallbackDrawAction(String reason) {
-        IntentRoutingResult result = new IntentRoutingResult();
-        result.setRouteType("create_new");
-        result.setDiagramType("others");
-        result.setSkillName("none");
-        result.setNeedsCanvasQuality(false);
-        result.setNeedsSemanticReview(false);
-        result.setAnswerMode("none");
-        result.setAnswer("");
-        result.setReason(reason);
-        return result;
-    }
-
     public static IntentRoutingResult clarifyFallback(String reason) {
         // Fail closed: malformed or untrusted routing output must never mutate the user's canvas.
         IntentRoutingResult result = new IntentRoutingResult();

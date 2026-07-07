@@ -1,5 +1,8 @@
 package org.zipp.ai.test.domain.agent;
 
+import com.alibaba.fastjson.JSON;
+import com.alibaba.fastjson.JSONArray;
+import com.alibaba.fastjson.JSONObject;
 import org.junit.Test;
 import org.zipp.ai.domain.agent.service.chat.ProviderCatalog;
 import org.zipp.ai.domain.agent.service.chat.StructuredOutputSchemas;
@@ -65,8 +68,16 @@ public class StructuredOutputContractTest {
 
     @Test
     public void schemaEnumsStayInSyncWithValidationSets() {
-        // Same source drives both, so every validated routeType must appear in the schema.
+        // Same source drives both validation and schema. Preserve order too so schema snapshots,
+        // hashes, and diffs stay stable across JVM starts.
         String schema = IntentRoutingContract.routerJsonSchema();
+        JSONObject properties = JSON.parseObject(schema).getJSONObject("properties");
+        JSONArray routeTypeEnum = properties.getJSONObject("routeType").getJSONArray("enum");
+        JSONArray answerModeEnum = properties.getJSONObject("answerMode").getJSONArray("enum");
+
+        assertEquals(IntentRoutingContract.ROUTE_TYPES, routeTypeEnum.toJavaList(String.class));
+        assertEquals(IntentRoutingContract.ANSWER_MODES, answerModeEnum.toJavaList(String.class));
+
         for (String routeType : IntentRoutingContract.ROUTE_TYPES) {
             assertTrue("schema missing routeType " + routeType, schema.contains(routeType));
         }

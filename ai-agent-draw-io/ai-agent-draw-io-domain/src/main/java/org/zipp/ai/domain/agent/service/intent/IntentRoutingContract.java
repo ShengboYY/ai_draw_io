@@ -29,9 +29,9 @@ public final class IntentRoutingContract {
     private IntentRoutingContract() {
     }
 
-    public static final Set<String> ROUTE_TYPES =
-            Set.of("answer_only", "clarify", "create_new", "edit_existing", "optimize_layout", "review_only");
-    public static final Set<String> ANSWER_MODES = Set.of(
+    public static final List<String> ROUTE_TYPES =
+            List.of("answer_only", "clarify", "create_new", "edit_existing", "optimize_layout", "review_only");
+    public static final List<String> ANSWER_MODES = List.of(
             "none", "general", "capability", "canvas_summary",
             "quality_review", "semantic_review", "quality_and_semantic_review");
 

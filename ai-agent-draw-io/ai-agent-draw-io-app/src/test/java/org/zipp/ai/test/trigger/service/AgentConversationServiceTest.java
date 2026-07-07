@@ -66,8 +66,7 @@ public class AgentConversationServiceTest {
     public void shouldIncludeRepairBudgetAndHighLevelAllowedToolsInRoutedMessage() throws Exception {
         AgentConversationService service = new AgentConversationService();
         injectPromptContextBuilder(service);
-        IntentRoutingResult routingResult = IntentRoutingResult.fallbackDrawAction("test");
-        routingResult.setRouteType("edit_existing");
+        IntentRoutingResult routingResult = drawRoutingResult("edit_existing");
 
         ChatRequestDTO requestDTO = new ChatRequestDTO();
         requestDTO.setMessage("update the API label");
@@ -103,7 +102,7 @@ public class AgentConversationServiceTest {
         AgentConversationService service = new AgentConversationService();
         injectPromptContextBuilder(service);
         injectSkillContentProvider(service);
-        IntentRoutingResult routingResult = IntentRoutingResult.fallbackDrawAction("test");
+        IntentRoutingResult routingResult = drawRoutingResult("create_new");
 
         ChatRequestDTO requestDTO = new ChatRequestDTO();
         requestDTO.setMessage("draw a flowchart");
@@ -122,8 +121,7 @@ public class AgentConversationServiceTest {
     public void shouldLogDerivedToolGateForRoutedMessage() throws Exception {
         AgentConversationService service = new AgentConversationService();
         injectPromptContextBuilder(service);
-        IntentRoutingResult routingResult = IntentRoutingResult.fallbackDrawAction("test");
-        routingResult.setRouteType("edit_existing");
+        IntentRoutingResult routingResult = drawRoutingResult("edit_existing");
 
         ChatRequestDTO requestDTO = new ChatRequestDTO();
         requestDTO.setUserId("anon_123e4567-e89b-42d3-a456-426614174000");
@@ -190,8 +188,7 @@ public class AgentConversationServiceTest {
         injectPromptContextBuilder(service);
         injectCanvasStateStore(service, new FixedCanvasStateStore(storedCanvasXml()));
 
-        IntentRoutingResult routingResult = IntentRoutingResult.fallbackDrawAction("test");
-        routingResult.setRouteType("edit_existing");
+        IntentRoutingResult routingResult = drawRoutingResult("edit_existing");
 
         ChatRequestDTO requestDTO = new ChatRequestDTO();
         requestDTO.setUserId("alice");
@@ -211,8 +208,7 @@ public class AgentConversationServiceTest {
         injectPromptContextBuilder(service);
         injectCanvasStateStore(service, new FixedCanvasStateStore(""));
 
-        IntentRoutingResult routingResult = IntentRoutingResult.fallbackDrawAction("test");
-        routingResult.setRouteType("edit_existing");
+        IntentRoutingResult routingResult = drawRoutingResult("edit_existing");
 
         ChatRequestDTO requestDTO = new ChatRequestDTO();
         requestDTO.setUserId("alice");
@@ -531,6 +527,19 @@ public class AgentConversationServiceTest {
         return requestDTO;
     }
 
+    private static IntentRoutingResult drawRoutingResult(String routeType) {
+        IntentRoutingResult result = new IntentRoutingResult();
+        result.setRouteType(routeType);
+        result.setDiagramType("others");
+        result.setSkillName("none");
+        result.setNeedsCanvasQuality(false);
+        result.setNeedsSemanticReview(false);
+        result.setAnswerMode("none");
+        result.setAnswer("");
+        result.setReason("test");
+        return result;
+    }
+
     private void injectField(Object target, String fieldName, Object value) throws Exception {
         Field field = target.getClass().getDeclaredField(fieldName);
         field.setAccessible(true);
@@ -602,7 +611,7 @@ public class AgentConversationServiceTest {
         public IntentRoutingResult route(IntentRoutingCommand command) {
             calls++;
             lastCommand = command;
-            return IntentRoutingResult.fallbackDrawAction("test");
+            return drawRoutingResult("create_new");
         }
     }
 

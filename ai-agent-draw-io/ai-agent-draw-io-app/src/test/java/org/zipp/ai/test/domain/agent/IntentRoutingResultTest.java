@@ -8,11 +8,15 @@ import static org.junit.Assert.assertEquals;
 public class IntentRoutingResultTest {
 
     @Test
-    public void shouldDefaultFallbackDrawActionToCreateNewRouteType() {
-        IntentRoutingResult result = IntentRoutingResult.fallbackDrawAction("fallback");
+    public void shouldFailClosedToClarifyWithoutCanvasMutation() {
+        IntentRoutingResult result = IntentRoutingResult.clarifyFallback("fallback");
 
-        assertEquals("create_new", result.getRouteType());
-        assertEquals("others", result.getDiagramType());
+        assertEquals("clarify", result.getRouteType());
+        assertEquals("none", result.getDiagramType());
+        assertEquals("none", result.getSkillName());
+        assertEquals(Boolean.FALSE, result.getNeedsCanvasQuality());
+        assertEquals(Boolean.FALSE, result.getNeedsSemanticReview());
+        assertEquals("general", result.getAnswerMode());
     }
 
 }

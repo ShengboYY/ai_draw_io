@@ -42,9 +42,15 @@ public class DefaultCanvasReviewServiceTest {
     }
 
     private IntentRoutingResult routingResult() {
-        IntentRoutingResult result = IntentRoutingResult.fallbackDrawAction("test");
+        IntentRoutingResult result = new IntentRoutingResult();
+        result.setRouteType("review_only");
         result.setDiagramType("architecture");
+        result.setSkillName("none");
+        result.setNeedsCanvasQuality(false);
         result.setNeedsSemanticReview(true);
+        result.setAnswerMode("semantic_review");
+        result.setAnswer("");
+        result.setReason("test");
         return result;
     }
 

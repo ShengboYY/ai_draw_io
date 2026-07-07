@@ -65,18 +65,30 @@ public class DefaultIntentRoutingService implements IIntentRoutingService {
             "correctness", "missing", "module", "service", "semantic"
     };
 
-    // Pure greetings / small talk that never need a model call or a canvas mutation.
-    private static final String[] GREETING_TERMS = {
+    private static final String[] THANKS_TERMS = {
+            "谢谢", "多谢", "感谢", "辛苦了", "thanks", "thank you", "thx"
+    };
+
+    private static final String[] ACK_TERMS = {
+            "好的", "收到", "明白", "ok", "okay"
+    };
+
+    private static final String[] FAREWELL_TERMS = {
+            "再见", "拜拜", "bye", "goodbye"
+    };
+
+    // Pure small talk that never needs a model call or a canvas mutation.
+    private static final String[] SMALL_TALK_TERMS = {
             "你好", "您好", "嗨", "哈喽", "早上好", "中午好", "下午好", "晚上好", "在吗", "在么",
             "谢谢", "多谢", "感谢", "辛苦了", "好的", "收到", "明白", "再见", "拜拜",
-            "hi", "hello", "hey", "yo", "thanks", "thank you", "thx", "ok", "okay", "bye", "goodbye"
+            "thank you", "goodbye", "hello", "thanks", "okay", "hey", "thx", "bye", "hi", "yo", "ok"
     };
 
     // Closed-set contracts sourced from IntentRoutingContract so the runtime validation below and the
     // json_schema handed to capable providers can never drift apart. Any router output outside these
     // is coerced to a safe default, so a hallucinated / injected token cannot leak into the drawer.
-    private static final Set<String> ALLOWED_ROUTE_TYPES = IntentRoutingContract.ROUTE_TYPES;
-    private static final Set<String> ALLOWED_ANSWER_MODES = IntentRoutingContract.ANSWER_MODES;
+    private static final Set<String> ALLOWED_ROUTE_TYPES = Set.copyOf(IntentRoutingContract.ROUTE_TYPES);
+    private static final Set<String> ALLOWED_ANSWER_MODES = Set.copyOf(IntentRoutingContract.ANSWER_MODES);
     // Canonical diagram types seen downstream. Router-friendly aliases (uml_class, concept, diagram,
     // basic) are mapped into this set by normalizeDiagramType; nothing else is allowed.
     private static final Set<String> CANONICAL_DIAGRAM_TYPES = IntentRoutingContract.CANONICAL_DIAGRAM_TYPES;
@@ -175,7 +187,7 @@ public class DefaultIntentRoutingService implements IIntentRoutingService {
         }
         // Strip greeting tokens and punctuation; anything left means there is a real request.
         String residual = instruction;
-        for (String greeting : GREETING_TERMS) {
+        for (String greeting : SMALL_TALK_TERMS) {
             residual = residual.replace(greeting, " ");
         }
         residual = residual.replaceAll("[\\s\\p{Punct}，。！？、~·—…]+", "");
@@ -195,10 +207,26 @@ public class DefaultIntentRoutingService implements IIntentRoutingService {
         result.setNeedsCanvasQuality(false);
         result.setNeedsSemanticReview(false);
         result.setAnswerMode("general");
-        result.setAnswer("你好！我可以帮你在 Draw.io 画布上新建、修改或点评各类图表，告诉我你想画什么或想改哪里就行。\n"
-                + "Hi! I can help you create, edit, or review Draw.io diagrams - tell me what you'd like to draw or change.");
+        result.setAnswer(smallTalkAnswer(instruction));
         result.setReason("Rule-based fast path: greeting/small talk with no canvas task.");
         return result;
+    }
+
+    private String smallTalkAnswer(String instruction) {
+        if (containsAny(instruction, FAREWELL_TERMS)) {
+            return "好的，随时回来继续处理 Draw.io 图就行。\n"
+                    + "Sure - come back anytime when you want to continue with a Draw.io diagram.";
+        }
+        if (containsAny(instruction, THANKS_TERMS)) {
+            return "不客气！需要继续新建、修改或点评 Draw.io 图时，直接告诉我就行。\n"
+                    + "You're welcome - tell me whenever you want to create, edit, or review a Draw.io diagram.";
+        }
+        if (containsAny(instruction, ACK_TERMS)) {
+            return "收到，我会等你的下一步 Draw.io 需求。\n"
+                    + "Got it - send the next Draw.io request whenever you're ready.";
+        }
+        return "你好！我可以帮你在 Draw.io 画布上新建、修改或点评各类图表，告诉我你想画什么或想改哪里就行。\n"
+                + "Hi! I can help you create, edit, or review Draw.io diagrams - tell me what you'd like to draw or change.";
     }
 
     // The frontend embeds the live canvas as [Context: Current Draw.io XML]; an empty canvas is just
@@ -283,6 +311,7 @@ public class DefaultIntentRoutingService implements IIntentRoutingService {
             }
             result.setSkillName("none");
             normalizeReviewFlags(result, userInstruction);
+            ensureReviewOnlyHasReviewSignal(result);
             if (null == result.getAnswerMode() || result.getAnswerMode().trim().isEmpty()) {
                 result.setAnswerMode(result.needsCanvasReview() ? "quality_review" : "general");
             }
@@ -370,6 +399,16 @@ public class DefaultIntentRoutingService implements IIntentRoutingService {
                     logValue(userInstruction));
             result.setNeedsSemanticReview(false);
         }
+    }
+
+    private void ensureReviewOnlyHasReviewSignal(IntentRoutingResult result) {
+        if (!"review_only".equals(result.getRouteType()) || result.needsCanvasReview()) {
+            return;
+        }
+        // json_schema cannot express cross-field invariants, so enforce review_only => review work here.
+        log.info("[intent-route] review_only_without_review_flags -> needsCanvasQuality=true");
+        result.setNeedsCanvasQuality(true);
+        result.setAnswerMode("quality_review");
     }
 
     private boolean shouldSuppressSemanticReview(IntentRoutingResult result, String userInstruction) {

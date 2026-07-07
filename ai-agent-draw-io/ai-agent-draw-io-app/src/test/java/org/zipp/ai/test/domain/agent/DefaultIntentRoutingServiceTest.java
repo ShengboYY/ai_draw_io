@@ -146,6 +146,22 @@ public class DefaultIntentRoutingServiceTest {
     }
 
     @Test
+    public void shouldForceQualityReviewWhenReviewOnlyHasNoReviewFlags() throws Exception {
+        // Strict json_schema cannot express "review_only requires at least one review flag", so
+        // normalize defensively before AgentConversationService decides whether to run canvas review.
+        IntentRoutingResult result = routeWithStubbedLlm(
+                "帮我评审一下这张图",
+                "{\"routeType\":\"review_only\",\"diagramType\":\"architecture\",\"skillName\":\"none\","
+                        + "\"needsCanvasQuality\":false,\"needsSemanticReview\":false,"
+                        + "\"answerMode\":\"none\",\"answer\":\"\",\"reason\":\"review requested\"}");
+
+        assertEquals("review_only", result.getRouteType());
+        assertTrue(result.getNeedsCanvasQuality());
+        assertFalse(result.getNeedsSemanticReview());
+        assertEquals("quality_review", result.getAnswerMode());
+    }
+
+    @Test
     public void shouldDropSkillNameNotOfferedToRouter() throws Exception {
         // EmptySkillCatalogService offers no skills, so an unoffered/hallucinated skillName -> none,
         // validated against the offered-name set (no second catalog lookup).
@@ -170,6 +186,30 @@ public class DefaultIntentRoutingServiceTest {
 
         assertEquals("answer_only", result.getRouteType());
         assertTrue(result.getReason().toLowerCase().contains("greeting"));
+    }
+
+    @Test
+    public void smallTalkFastPathUsesContextualReplyCopy() throws Exception {
+        IntentRoutingResult thanks = routeWithStubbedLlm("谢谢",
+                "{\"routeType\":\"create_new\",\"diagramType\":\"flowchart\",\"skillName\":\"none\","
+                        + "\"needsCanvasQuality\":false,\"needsSemanticReview\":false,"
+                        + "\"answerMode\":\"none\",\"answer\":\"\",\"reason\":\"should never be reached\"}");
+        IntentRoutingResult farewell = routeWithStubbedLlm("goodbye",
+                "{\"routeType\":\"create_new\",\"diagramType\":\"flowchart\",\"skillName\":\"none\","
+                        + "\"needsCanvasQuality\":false,\"needsSemanticReview\":false,"
+                        + "\"answerMode\":\"none\",\"answer\":\"\",\"reason\":\"should never be reached\"}");
+        IntentRoutingResult ack = routeWithStubbedLlm("okay",
+                "{\"routeType\":\"create_new\",\"diagramType\":\"flowchart\",\"skillName\":\"none\","
+                        + "\"needsCanvasQuality\":false,\"needsSemanticReview\":false,"
+                        + "\"answerMode\":\"none\",\"answer\":\"\",\"reason\":\"should never be reached\"}");
+
+        assertEquals("answer_only", thanks.getRouteType());
+        assertTrue(thanks.getAnswer().contains("不客气"));
+        assertFalse(thanks.getAnswer().contains("你好！"));
+        assertEquals("answer_only", farewell.getRouteType());
+        assertTrue(farewell.getAnswer().contains("随时回来"));
+        assertEquals("answer_only", ack.getRouteType());
+        assertTrue(ack.getAnswer().contains("收到"));
     }
 
     @Test
