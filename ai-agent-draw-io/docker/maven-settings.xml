@@ -1,0 +1,13 @@
+<settings xmlns="http://maven.apache.org/SETTINGS/1.2.0"
+          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:schemaLocation="http://maven.apache.org/SETTINGS/1.2.0 https://maven.apache.org/xsd/settings-1.2.0.xsd">
+  <mirrors>
+    <!-- Docker builds run outside the developer's local Maven cache; Maven Central is faster and avoids slow Aliyun BOM resolution here. -->
+    <mirror>
+      <id>docker-maven-central</id>
+      <name>Maven Central for Docker builds</name>
+      <url>https://repo.maven.apache.org/maven2</url>
+      <mirrorOf>nexus-aliyun</mirrorOf>
+    </mirror>
+  </mirrors>
+</settings>

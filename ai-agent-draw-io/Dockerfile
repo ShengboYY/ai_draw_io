@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1.7
 # Build the Spring Boot app from the Maven multi-module project.
 FROM maven:3.9.9-eclipse-temurin-17 AS build
 
@@ -5,16 +6,17 @@ WORKDIR /workspace
 
 # Copy POMs first so Docker can cache dependency resolution between source edits.
 COPY pom.xml .
+COPY docker/maven-settings.xml docker/maven-settings.xml
 COPY ai-agent-draw-io-api/pom.xml ai-agent-draw-io-api/pom.xml
 COPY ai-agent-draw-io-app/pom.xml ai-agent-draw-io-app/pom.xml
 COPY ai-agent-draw-io-domain/pom.xml ai-agent-draw-io-domain/pom.xml
 COPY ai-agent-draw-io-infrastructure/pom.xml ai-agent-draw-io-infrastructure/pom.xml
 COPY ai-agent-draw-io-trigger/pom.xml ai-agent-draw-io-trigger/pom.xml
 COPY ai-agent-draw-io-types/pom.xml ai-agent-draw-io-types/pom.xml
-RUN mvn -B -pl ai-agent-draw-io-app -am dependency:go-offline
 
 COPY . .
-RUN mvn -B -pl ai-agent-draw-io-app -am package -DskipTests
+RUN --mount=type=cache,target=/root/.m2 \
+    mvn -B -s docker/maven-settings.xml -pl ai-agent-draw-io-app -am package -Dmaven.test.skip=true
 
 FROM eclipse-temurin:17-jre-jammy
 
