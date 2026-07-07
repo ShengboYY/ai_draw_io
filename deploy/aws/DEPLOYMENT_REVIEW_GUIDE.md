@@ -787,6 +787,79 @@ docker push "$AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/ai-drawio-backend
 
 不要让运行时应用用户长期持有 DBA 权限。
 
+#### 数据库变更发布和用户数据保护
+
+上线后不要用“删除数据库再重建”的方式发布 schema 变更。生产数据库里有真实用户数据，部署时应该只做**向前迁移**，也就是在现有数据库上执行可控的 migration。
+
+本项目现在已经有手写 SQL migration，例如：
+
+- `docs/sql/migrations/2026-07-02-create-model-credential.sql`
+- `docs/sql/migrations/2026-07-03-create-usage-counter.sql`
+- `docs/sql/migrations/2026-07-03-debug-trace-retention.sql`
+- `docs/sql/migrations/2026-07-03-expand-diagram-thumbnail-url.sql`
+
+这说明当前项目已经具备“用 SQL 文件演进数据库”的雏形。后面更成熟的方式是引入 Flyway 或 Liquibase，让应用/部署流程自动记录哪些 migration 已经执行过，避免重复执行或漏执行。
+
+一次安全的数据库变更发布流程：
+
+1. 在本地或 staging 数据库验证 migration。
+2. 在生产 RDS 创建 snapshot，确认自动备份开启。
+3. 确认 migration 只修改 schema，不会误删用户数据。
+4. 先执行兼容旧代码和新代码的 migration。
+5. 再发布新版本 ECS backend。
+6. 做 smoke test，例如注册、登录、读取 diagram、发送验证邮件。
+7. 观察 CloudWatch logs、RDS metrics、ALB target health。
+
+推荐使用“expand and contract”策略：
+
+1. **Expand**：先加新表、新列、新索引，保留旧字段。
+2. **Deploy**：发布能同时兼容新旧结构的代码。
+3. **Backfill**：如果需要，把旧数据补到新结构里。
+4. **Switch**：代码开始使用新结构。
+5. **Contract**：确认稳定后，再删除旧列/旧表。
+
+不要在同一次发布里同时做这些高风险动作：
+
+- 删除表。
+- 删除列。
+- 重命名列。
+- 修改字段类型导致旧数据无法转换。
+- 清空数据。
+- 更换 `MODEL_CREDENTIAL_ENCRYPTION_KEY`。
+- 直接把生产 RDS 删除后重新初始化。
+
+更安全的例子：
+
+```sql
+-- 安全：新增 nullable 字段，旧代码通常不受影响。
+ALTER TABLE user_account ADD COLUMN last_login_at DATETIME NULL;
+
+-- 更谨慎：先加新字段，不马上删除旧字段。
+ALTER TABLE diagram ADD COLUMN thumbnail_url_v2 VARCHAR(1024) NULL;
+```
+
+高风险例子：
+
+```sql
+-- 危险：直接删列可能导致旧代码报错，也会丢数据。
+ALTER TABLE diagram DROP COLUMN thumbnail_url;
+
+-- 危险：没有 WHERE 的 DELETE 会清空业务数据。
+DELETE FROM diagram;
+```
+
+如果数据库变更失败：
+
+- 不要立刻删除数据库。
+- 先停止继续发布。
+- 查看 migration 执行到哪一步。
+- 如果还没有破坏数据，修正 SQL 后继续。
+- 如果已经破坏数据，从 RDS snapshot 或 point-in-time restore 恢复到新 DB instance，再切换连接。
+
+面试里可以这样说：
+
+> I would never recreate the production database during deployment. Database schema changes should be handled through versioned migrations. Before applying a migration, I would test it in staging and take an RDS snapshot or rely on point-in-time recovery. I prefer backward-compatible migrations using an expand-and-contract approach, so the old and new application versions can both work during deployment. Destructive changes such as dropping columns are delayed until the new version is stable and data has been verified.
+
 ### Step 4. 创建 Secrets Manager secret
 
 创建 `ai-drawio/prod`，内容类似：
