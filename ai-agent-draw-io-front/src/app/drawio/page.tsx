@@ -7,7 +7,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { getUserInfo, setUserInfo as persistUserInfo } from '@/utils/cookie';
 import { getWorkspaceIdentity } from '@/utils/workspace-identity';
 import { agentApi, ApiResponseError, StreamEvent } from '@/api/agent';
-import type { CurrentAccountResponseDTO, DiagramSummaryResponseDTO, ModelCredentialResponseDTO } from '@/types/api';
+import type { CurrentAccountResponseDTO, DiagramSummaryResponseDTO, ModelCredentialResponseDTO, ProviderPresetDTO } from '@/types/api';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { buildStepSummary } from './execution-step-summary';
@@ -87,6 +87,8 @@ const CHAT_DEFAULT_WIDTH = 380;
 const CHAT_MIN_WIDTH = 320;
 const CHAT_MAX_WIDTH = 720;
 const CANVAS_MIN_WIDTH = 360;
+// Keep this aligned with Tailwind's sm breakpoint for phone overlay behavior.
+const DRAWIO_MOBILE_BREAKPOINT = 640;
 const SIDEBAR_OPEN_STORAGE_KEY = 'ai_drawio_sidebar_open';
 const DRAWIO_SESSIONS_STORAGE_KEY = 'drawio_sessions';
 const MAX_REVIEW_ITERATIONS_STORAGE_KEY = 'ai_drawio_max_review_iterations';
@@ -224,6 +226,7 @@ export interface CustomModelConfig {
   id: string;
   modelCredentialId: string;
   name: string;
+  provider: string;
   baseUrl: string;
   model: string;
   completionsPath: string;
@@ -576,7 +579,10 @@ function DrawioPageContent() {
   }, [isAccountPopoverOpen]);
 
   // Chat State
-  const [isChatOpen, setIsChatOpen] = useState(true);
+  const [isChatOpen, setIsChatOpen] = useState(() => {
+    if (typeof window === 'undefined') return true;
+    return window.innerWidth >= DRAWIO_MOBILE_BREAKPOINT;
+  });
   const [chatWidth, setChatWidth] = useState(CHAT_DEFAULT_WIDTH);
   const [isResizingChat, setIsResizingChat] = useState(false);
   const resizeStartXRef = useRef(0);
@@ -704,11 +710,38 @@ function DrawioPageContent() {
   
   // Temporary state for editing in modal
   const [editingModel, setEditingModel] = useState<EditingModelConfig | null>(null);
+  const [providerPresets, setProviderPresets] = useState<ProviderPresetDTO[]>([]);
+
+  // Provider presets power the dropdown that prefills endpoint/model fields when adding a credential.
+  useEffect(() => {
+    let cancelled = false;
+    void agentApi.listProviderPresets()
+      .then(res => { if (!cancelled && res?.data) setProviderPresets(res.data); })
+      .catch(err => console.warn('Failed to load provider presets:', err));
+    return () => { cancelled = true; };
+  }, []);
+
+  // Apply a preset to the edit form: fill endpoint + a default model, keep the user's key/name.
+  const applyProviderPreset = (presetId: string) => {
+    setEditingModel(prev => {
+      if (!prev) return prev;
+      const preset = providerPresets.find(p => p.id === presetId);
+      if (!preset) return { ...prev, provider: presetId };
+      return {
+        ...prev,
+        provider: preset.id,
+        baseUrl: preset.baseUrl || prev.baseUrl,
+        completionsPath: preset.completionsPath || prev.completionsPath,
+        model: preset.models[0] || prev.model,
+      };
+    });
+  };
 
   const credentialToCustomModel = useCallback((credential: ModelCredentialResponseDTO): CustomModelConfig => ({
     id: credential.id,
     modelCredentialId: credential.id,
     name: credential.displayName || credential.model,
+    provider: credential.provider || 'openai',
     baseUrl: credential.baseUrl,
     model: credential.model,
     completionsPath: credential.completionPath,
@@ -721,6 +754,7 @@ function DrawioPageContent() {
       id: model.id,
       modelCredentialId: model.modelCredentialId,
       name: model.name,
+      provider: model.provider,
       baseUrl: model.baseUrl,
       model: model.model,
       completionsPath: model.completionsPath,
@@ -2724,13 +2758,13 @@ function DrawioPageContent() {
   };
 
   return (
-    <div className="relative flex h-screen w-full overflow-hidden bg-[var(--app-bg)] font-sans text-zinc-800">
+    <div className="relative flex h-[100dvh] w-full overflow-hidden bg-[var(--app-bg)] pb-14 font-sans text-zinc-800 sm:h-screen sm:pb-0">
       {/* Narrow rail keeps workspace navigation available without crowding the canvas. */}
-      <aside className="z-30 flex w-14 shrink-0 flex-col items-center gap-2 border-r border-stone-200 bg-[var(--app-bg)] px-2 py-3 text-zinc-500">
+      <aside className="fixed inset-x-0 bottom-0 z-50 flex h-14 w-full shrink-0 flex-row items-center justify-around gap-2 border-t border-stone-200 bg-[var(--app-bg)] px-3 py-2 text-zinc-500 sm:relative sm:inset-auto sm:z-30 sm:h-auto sm:w-14 sm:flex-col sm:justify-start sm:border-r sm:border-t-0 sm:px-2 sm:py-3">
         <button
           type="button"
           onClick={() => { window.location.href = '/diagrams'; }}
-          className="relative grid h-9 w-9 place-items-center overflow-hidden rounded-lg bg-zinc-700 shadow-sm"
+          className="relative grid h-10 w-10 place-items-center overflow-hidden rounded-lg bg-zinc-700 shadow-sm sm:h-9 sm:w-9"
           title="Diagram home"
         >
           {/* Match the shared app logo used on the home and auth pages. */}
@@ -2739,7 +2773,7 @@ function DrawioPageContent() {
         <button
           type="button"
           onClick={handleNewChat}
-          className="grid h-9 w-9 place-items-center rounded-lg text-zinc-500 transition hover:bg-white hover:text-zinc-800 hover:shadow-sm"
+          className="grid h-10 w-10 place-items-center rounded-lg text-zinc-500 transition hover:bg-white hover:text-zinc-800 hover:shadow-sm sm:h-9 sm:w-9"
           title="New diagram"
         >
           <Icons.Plus className="h-5 w-5" />
@@ -2747,7 +2781,7 @@ function DrawioPageContent() {
         <button
           type="button"
           onClick={() => setIsSidebarOpen(prev => !prev)}
-          className={`grid h-9 w-9 place-items-center rounded-lg border transition ${
+          className={`grid h-10 w-10 place-items-center rounded-lg border transition sm:h-9 sm:w-9 ${
             isSidebarOpen
               ? 'border-stone-300 bg-white text-zinc-800 shadow-sm'
               : 'border-transparent text-zinc-500 hover:bg-white hover:text-zinc-800 hover:shadow-sm'
@@ -2759,12 +2793,12 @@ function DrawioPageContent() {
         <button
           type="button"
           onClick={() => setShowApiConfig(true)}
-          className="grid h-9 w-9 place-items-center rounded-lg text-zinc-500 transition hover:bg-white hover:text-zinc-800 hover:shadow-sm"
+          className="grid h-10 w-10 place-items-center rounded-lg text-zinc-500 transition hover:bg-white hover:text-zinc-800 hover:shadow-sm sm:h-9 sm:w-9"
           title="Model settings"
         >
           <Icons.Sparkles className="h-5 w-5" />
         </button>
-        <div className="flex-1" />
+        <div className="hidden flex-1 sm:block" />
         <div
           ref={accountPopoverRef}
           className="relative"
@@ -2773,7 +2807,7 @@ function DrawioPageContent() {
           <button
             type="button"
             onClick={() => setIsAccountPopoverOpen(prev => !prev)}
-            className="grid h-9 w-9 place-items-center rounded-lg text-zinc-500 transition hover:bg-white hover:text-zinc-800 hover:shadow-sm"
+            className="grid h-10 w-10 place-items-center rounded-lg text-zinc-500 transition hover:bg-white hover:text-zinc-800 hover:shadow-sm sm:h-9 sm:w-9"
             title="Account"
             aria-haspopup="dialog"
             aria-expanded={isAccountPopoverOpen}
@@ -2784,7 +2818,7 @@ function DrawioPageContent() {
             <div
               role="dialog"
               aria-label="Account details"
-              className="absolute bottom-0 left-11 z-50 w-64 overflow-hidden rounded-lg border border-stone-200 bg-white text-left text-zinc-700 shadow-2xl shadow-zinc-700/15"
+              className="fixed bottom-16 right-3 z-50 w-[calc(100vw-1.5rem)] max-w-64 overflow-hidden rounded-lg border border-stone-200 bg-white text-left text-zinc-700 shadow-2xl shadow-zinc-700/15 sm:absolute sm:bottom-0 sm:left-11 sm:right-auto sm:w-64"
             >
               <div className="border-b border-stone-100 p-3">
                 <div className="flex items-start gap-2">
@@ -2837,7 +2871,7 @@ function DrawioPageContent() {
       </aside>
 
       {isSidebarOpen && (
-        <div className="absolute bottom-3 left-16 top-3 z-40 flex w-80 flex-col overflow-hidden rounded-lg border border-stone-200 bg-white shadow-2xl shadow-zinc-700/10">
+        <div className="drawio-history-panel fixed inset-x-3 bottom-16 top-3 z-40 flex w-auto flex-col overflow-hidden rounded-lg border border-stone-200 bg-white shadow-2xl shadow-zinc-700/10 sm:absolute sm:bottom-3 sm:left-16 sm:top-3 sm:w-80">
           <div className="flex h-12 shrink-0 items-center justify-between border-b border-stone-100 px-4">
             <span className="flex items-center gap-2 text-sm font-semibold text-zinc-800">
               <Icons.MessageSquare className="h-4 w-4 text-zinc-500" />
@@ -2944,7 +2978,7 @@ function DrawioPageContent() {
 
         {/* Draw.io Canvas Area */}
         <div className="relative flex h-full min-w-0 flex-1 flex-col bg-[var(--app-bg)]">
-          <div className="m-2 flex-1 overflow-hidden rounded-lg border border-stone-200 bg-white shadow-sm">
+          <div className="m-0 flex-1 overflow-hidden rounded-none border border-stone-200 bg-white shadow-sm sm:m-2 sm:rounded-lg">
             <DrawIoEmbed 
               key={editorInstanceKey}
               ref={drawioRef}
@@ -2994,7 +3028,7 @@ function DrawioPageContent() {
         {isChatOpen && (
           <div
             onPointerDown={handleChatResizeStart}
-            className="group relative z-30 w-2 shrink-0 cursor-col-resize bg-[var(--app-bg)] transition-colors hover:bg-stone-100"
+            className="drawio-chat-resizer group relative z-30 w-2 shrink-0 cursor-col-resize bg-[var(--app-bg)] transition-colors hover:bg-stone-100"
             title="Drag to resize the assistant panel"
           >
             <div className="absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-stone-200 transition-colors group-hover:bg-stone-300" />
@@ -3005,7 +3039,7 @@ function DrawioPageContent() {
         {/* Chat Sidebar */}
         <div 
           className={`
-            relative flex flex-col border-l border-stone-200 bg-white ease-[cubic-bezier(0.25,0.1,0.25,1)]
+            drawio-chat-panel relative flex flex-col border-l border-stone-200 bg-white ease-[cubic-bezier(0.25,0.1,0.25,1)]
             ${isResizingChat ? 'transition-none' : 'transition-all duration-300'}
             ${isChatOpen ? 'translate-x-0' : 'translate-x-full opacity-0 overflow-hidden'}
             z-20 shadow-lg shadow-zinc-700/5
@@ -3465,7 +3499,7 @@ function DrawioPageContent() {
                             {customModels.map(model => (
                                 <div 
                                     key={model.id}
-                                    onClick={() => setEditingModel({ ...model, apiKey: '', provider: 'openai' })}
+                                    onClick={() => setEditingModel({ ...model, apiKey: '', provider: model.provider || 'openai' })}
                                     className={`cursor-pointer rounded-lg border p-3 transition-all ${editingModel?.id === model.id ? 'border-stone-300 bg-white shadow-sm ring-1 ring-stone-200' : 'border-stone-200 bg-white hover:border-stone-300 hover:shadow-sm'}`}
                                 >
                                     <div className="flex items-center justify-between mb-1">
@@ -3506,6 +3540,22 @@ function DrawioPageContent() {
                     <div className="flex-1 p-6 overflow-y-auto bg-white">
                         {editingModel ? (
                             <div className="space-y-4 animate-in fade-in duration-200">
+                                <div>
+                                    <label className="mb-1 block text-xs font-medium text-zinc-700">Provider</label>
+                                    <select
+                                        value={editingModel.provider || 'custom'}
+                                        onChange={e => applyProviderPreset(e.target.value)}
+                                        className="w-full rounded-lg border border-stone-300 px-3 py-2 text-sm outline-none transition-all focus:border-zinc-600 focus:ring-4 focus:ring-zinc-700/5"
+                                    >
+                                        {providerPresets.length === 0 && (
+                                            <option value={editingModel.provider || 'openai'}>{editingModel.provider || 'openai'}</option>
+                                        )}
+                                        {providerPresets.map(preset => (
+                                            <option key={preset.id} value={preset.id}>{preset.displayName}</option>
+                                        ))}
+                                    </select>
+                                    <p className="mt-1 text-[10px] text-zinc-400">Selecting a provider fills in the endpoint and a default model. Structured JSON output is enabled automatically where the provider supports it.</p>
+                                </div>
                                 <div>
                                     <label className="mb-1 block text-xs font-medium text-zinc-700">Display Name</label>
                                     <input type="text" value={editingModel.name} onChange={e => setEditingModel({...editingModel, name: e.target.value})} className="w-full rounded-lg border border-stone-300 px-3 py-2 text-sm outline-none transition-all focus:border-zinc-600 focus:ring-4 focus:ring-zinc-700/5" placeholder="Example: My GPT-4o" />

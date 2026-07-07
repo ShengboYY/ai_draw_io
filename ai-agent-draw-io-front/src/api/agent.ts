@@ -27,6 +27,7 @@ import {
     VerifyEmailResponseDTO,
     CreateModelCredentialRequestDTO,
     ModelCredentialResponseDTO,
+    ProviderPresetDTO,
 } from '@/types/api';
 
 export class ApiResponseError extends Error {
@@ -230,6 +231,15 @@ export const agentApi = {
             credentials: 'include',
         });
         return handleResponse<ModelCredentialResponseDTO[]>(response);
+    },
+
+    listProviderPresets: async (): Promise<Response<ProviderPresetDTO[]>> => {
+        const response = await fetch(`${API_CONFIG.BASE_URL}/model-credentials/providers`, {
+            method: 'GET',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+        });
+        return handleResponse<ProviderPresetDTO[]>(response);
     },
 
     createModelCredential: async (

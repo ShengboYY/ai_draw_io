@@ -55,7 +55,7 @@ const initialsFromUser = (value?: string | null) => {
 
 const diagramTitle = (diagram: DiagramSummaryResponseDTO) => diagram.title || 'Untitled Diagram';
 // Keep list preview frames aligned with the landscape Draw.io canvas shape.
-const DRAWIO_CANVAS_PREVIEW_ASPECT_CLASS = 'aspect-[4/3]';
+const DRAWIO_CANVAS_PREVIEW_ASPECT_CLASS = 'aspect-[16/9] sm:aspect-[4/3]';
 
 export default function Home() {
   const router = useRouter();
@@ -283,8 +283,8 @@ export default function Home() {
   return (
     <main className="app-page text-zinc-800">
       <header className="sticky top-0 z-20 border-b border-stone-200 bg-white/95 backdrop-blur">
-        <div className="flex h-16 items-center gap-4 px-4 sm:px-6">
-          <Link href="/diagrams" className="flex shrink-0 items-center gap-2.5" aria-label="FreeDraw home">
+        <div className="flex h-auto flex-wrap items-center gap-3 px-4 py-3 sm:h-16 sm:flex-nowrap sm:gap-4 sm:px-6 sm:py-0">
+          <Link href="/diagrams" className="order-1 flex shrink-0 items-center gap-2.5 sm:order-none" aria-label="FreeDraw home">
             <span className="relative block h-9 w-9 overflow-hidden rounded-xl shadow-sm" aria-hidden="true">
               <Image src="/brand/freedraw-logo-dark.png" alt="" fill sizes="36px" className="object-cover" priority />
             </span>
@@ -292,7 +292,7 @@ export default function Home() {
           </Link>
 
           {/* Client-side search over the fully-loaded workspace list — instant, no round trips. */}
-          <div className="relative mx-auto flex w-full max-w-xl items-center">
+          <div className="order-3 relative mx-0 flex w-full max-w-none basis-full items-center sm:order-none sm:mx-auto sm:max-w-xl sm:basis-auto">
             <svg
               viewBox="0 0 24 24"
               className="pointer-events-none absolute left-3.5 h-4 w-4 text-zinc-400"
@@ -320,7 +320,7 @@ export default function Home() {
             </kbd>
           </div>
 
-          <div className="flex min-w-0 shrink-0 items-center gap-3">
+          <div className="order-2 ml-auto flex min-w-0 shrink-0 items-center gap-3 sm:order-none sm:ml-0">
             {!isSignedInWorkspace && (
               <Link
                 href="/login"
@@ -384,7 +384,7 @@ export default function Home() {
         </div>
       </header>
 
-      <div className="mx-auto flex w-full max-w-7xl flex-col px-4 py-7 sm:px-6 lg:px-8">
+      <div className="mx-auto flex w-full max-w-7xl flex-col px-4 py-5 sm:px-6 sm:py-7 lg:px-8">
         {errorMessage && (
           <div className="mb-6 rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
             {errorMessage}
@@ -392,7 +392,7 @@ export default function Home() {
         )}
 
         <section className="flex-1">
-          <h1 className="text-3xl font-bold tracking-tight text-zinc-900 sm:text-4xl">My diagrams</h1>
+          <h1 className="text-2xl font-bold tracking-tight text-zinc-900 sm:text-4xl">My diagrams</h1>
 
           {importNotice && (
             <div className="mx-auto mt-4 flex max-w-max items-center gap-3 rounded-lg bg-stone-200/80 px-4 py-2.5 font-sans text-sm font-medium text-zinc-900">
@@ -408,9 +408,9 @@ export default function Home() {
             </div>
           )}
 
-          <div className={`${importNotice ? 'mt-6' : 'mt-7'} flex flex-wrap items-center justify-between gap-4 border-b border-stone-200 pb-4`}>
+          <div className={`${importNotice ? 'mt-6' : 'mt-7'} flex flex-col items-stretch gap-3 border-b border-stone-200 pb-4 sm:flex-row sm:items-center sm:justify-between sm:gap-4`}>
             {/* Category filter tabs — instant client-side filtering by diagram kind. */}
-            <div className="flex items-center gap-2" role="tablist" aria-label="Filter diagrams by category">
+            <div className="flex max-w-full items-center gap-2 overflow-x-auto pb-1" role="tablist" aria-label="Filter diagrams by category">
               {DIAGRAM_FILTERS.map(filter => {
                 const isActive = activeFilter === filter.id;
                 return (
@@ -490,7 +490,7 @@ export default function Home() {
 
           <div className="mt-5">
           {isLoading ? (
-            <div className="grid gap-x-5 gap-y-7 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5">
+            <div className="grid gap-x-5 gap-y-6 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5">
               {Array.from({ length: 5 }).map((_, index) => (
                 <div key={index} className="animate-pulse">
                   <div className={`${DRAWIO_CANVAS_PREVIEW_ASPECT_CLASS} rounded-lg border border-stone-200 bg-white shadow-sm`} />
@@ -500,7 +500,7 @@ export default function Home() {
               ))}
             </div>
           ) : (
-            <div className="grid gap-x-5 gap-y-8 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            <div className="grid gap-x-5 gap-y-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
               {/* Hide the create tile while searching so results read as a clean set. */}
               {!hasSearch && (
                 <article className="group relative min-w-0">

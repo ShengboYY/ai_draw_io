@@ -8,6 +8,7 @@ import org.zipp.ai.domain.account.model.valobj.CreateModelCredentialCommand;
 import org.zipp.ai.domain.account.model.valobj.ModelCredentialSummary;
 import org.zipp.ai.domain.account.model.valobj.ResolvedOwner;
 import org.zipp.ai.domain.account.service.IModelCredentialService;
+import org.zipp.ai.domain.agent.service.chat.ProviderCatalog;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -110,6 +111,24 @@ public class ModelCredentialController {
             log.error("delete model credential failed", e);
             return Response.<Void>builder().code(FAILURE).info("delete model credential failed").build();
         }
+    }
+
+    /** Provider presets for the frontend dropdown (endpoint/model hints). Not user-specific. */
+    @GetMapping("/providers")
+    public Response<List<ProviderPresetDTO>> providers() {
+        List<ProviderPresetDTO> presets = ProviderCatalog.presets().stream()
+                .map(p -> new ProviderPresetDTO(
+                        p.id(), p.displayName(), p.baseUrl(), p.completionsPath(), p.models()))
+                .toList();
+        return Response.<List<ProviderPresetDTO>>builder().code(SUCCESS).info("成功").data(presets).build();
+    }
+
+    /** Frontend-facing provider preset. Structured-output tier stays server-side. */
+    public record ProviderPresetDTO(String id,
+                                    String displayName,
+                                    String baseUrl,
+                                    String completionsPath,
+                                    List<String> models) {
     }
 
     private Optional<String> currentVerifiedUserId() {

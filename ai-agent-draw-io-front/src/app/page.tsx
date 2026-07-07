@@ -207,6 +207,40 @@ export default function Home() {
         .fd-btn-accent:hover{filter:brightness(1.12)}
         .fd-chip:hover{border-color:#bdbbb4;color:#17171a}
         .fd-cta-ghost:hover{background:#faf9f7}
+        @media (max-width: 767px) {
+          .fd-nav{padding:16px 18px!important;gap:12px!important}
+          .fd-nav-actions{gap:6px!important}
+          .fd-nav-signin,.fd-nav-actions .fd-btn-accent{height:36px!important;padding:0 12px!important;font-size:13px!important}
+          .fd-hero{max-width:100%!important;padding:30px 18px 0!important}
+          .fd-hero-title{font-size:40px!important;line-height:1.04!important;margin:28px 0 16px!important}
+          .fd-hero-copy{font-size:15px!important;margin-bottom:24px!important}
+          .fd-prompt-shell{max-width:100%!important}
+          .fd-prompt-bar{align-items:stretch!important;flex-direction:column!important;gap:8px!important;padding:12px!important;border-radius:14px!important}
+          .fd-prompt-input{width:100%!important;height:42px!important;font-size:15px!important}
+          .fd-draw-btn{width:100%!important;height:42px!important;justify-content:center!important}
+          .fd-example-row{flex-wrap:wrap!important;justify-content:center!important;overflow-x:visible!important;padding-bottom:0!important}
+          .fd-chip{flex:0 0 auto!important}
+          .fd-preview-section{margin-top:36px!important;padding:0 14px!important}
+          .fd-browser-preview{border-radius:14px 14px 0 0!important}
+          .fd-preview-body{height:auto!important;flex-direction:column!important}
+          .fd-canvas-pane{min-height:260px!important;padding:10px!important}
+          .fd-canvas-pane svg{width:100%!important;min-width:320px}
+          .fd-agent-preview{width:100%!important;min-height:170px!important;border-left:0!important;border-top:1px solid #ededed!important}
+          .fd-types-section,.fd-features-section,.fd-cta-section{margin-top:42px!important;padding:0 18px!important}
+          .fd-type-grid{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:8px!important}
+          .fd-type-chip{height:36px!important;justify-content:center!important;padding:0 10px!important;font-size:12.5px!important}
+          .fd-feature-grid{grid-template-columns:1fr!important;gap:12px!important}
+          .fd-feature-card{padding:18px!important}
+          .fd-cta-card{padding:32px 20px!important;border-radius:18px!important}
+          .fd-cta-title{font-size:26px!important}
+          .fd-cta-actions{flex-direction:column!important}
+          .fd-cta-actions button{width:100%!important}
+        }
+        @media (min-width: 768px) and (max-width: 1023px) {
+          .fd-feature-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+          .fd-agent-preview{width:240px!important}
+          .fd-preview-body{height:440px!important}
+        }
       `}</style>
 
       <div
@@ -243,7 +277,7 @@ export default function Home() {
         </div>
 
         {/* nav */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 20, maxWidth: 1140, margin: '0 auto', padding: '22px 32px' }}>
+        <div className="fd-nav" style={{ display: 'flex', alignItems: 'center', gap: 20, maxWidth: 1140, margin: '0 auto', padding: '22px 32px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <div style={{ width: 32, height: 32, borderRadius: 9, background: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <PencilMark size={17} />
@@ -251,7 +285,7 @@ export default function Home() {
             <span style={{ fontFamily: DISPLAY, fontWeight: 700, fontSize: 19, letterSpacing: '-.02em' }}>FreeDraw</span>
           </div>
           <div style={{ flex: 1 }} />
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div className="fd-nav-actions" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <button
               className="fd-nav-signin"
               onClick={goSignin}
@@ -270,8 +304,8 @@ export default function Home() {
         </div>
 
         {/* hero */}
-        <div style={{ maxWidth: 800, margin: '0 auto', padding: '56px 32px 0', textAlign: 'center' }}>
-          <h1 style={{ fontFamily: DISPLAY, fontWeight: 600, fontSize: 56, lineHeight: 1.05, letterSpacing: '-.03em', color: '#17171a', margin: '48px 0 20px' }}>
+        <div className="fd-hero" style={{ maxWidth: 800, margin: '0 auto', padding: '56px 32px 0', textAlign: 'center' }}>
+          <h1 className="fd-hero-title" style={{ fontFamily: DISPLAY, fontWeight: 600, fontSize: 56, lineHeight: 1.05, letterSpacing: '-.03em', color: '#17171a', margin: '48px 0 20px' }}>
             <span className="fd-h-line">
               <span style={{ animationDelay: '3.3s' }}>Describe it.</span>
             </span>
@@ -279,17 +313,18 @@ export default function Home() {
               <span style={{ animationDelay: '3.47s' }}>Watch it draw.</span>
             </span>
           </h1>
-          <p className="fd-in" style={{ fontSize: 17, lineHeight: 1.6, color: '#6f6c64', maxWidth: 500, margin: '0 auto 34px', animationDelay: '3.7s' }}>
+          <p className="fd-in fd-hero-copy" style={{ fontSize: 17, lineHeight: 1.6, color: '#6f6c64', maxWidth: 500, margin: '0 auto 34px', animationDelay: '3.7s' }}>
             Describe any diagram in plain words and watch it take shape — inside the full draw.io editor, with an AI copilot that edits right alongside you.
           </p>
 
           {/* prompt bar (main visual) */}
-          <div className="fd-in" style={{ maxWidth: 600, margin: '0 auto', animationDelay: '3.85s' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: '#fff', border: `1.5px solid ${landingBorder}`, borderRadius: 16, padding: '9px 9px 9px 18px', boxShadow: '0 10px 34px rgba(40,38,36,.09)', transition: 'border-color .15s' }}>
+          <div className="fd-in fd-prompt-shell" style={{ maxWidth: 600, margin: '0 auto', animationDelay: '3.85s' }}>
+            <div className="fd-prompt-bar" style={{ display: 'flex', alignItems: 'center', gap: 10, background: '#fff', border: `1.5px solid ${landingBorder}`, borderRadius: 16, padding: '9px 9px 9px 18px', boxShadow: '0 10px 34px rgba(40,38,36,.09)', transition: 'border-color .15s' }}>
               <svg width={19} height={19} viewBox="0 0 24 24" fill="none" style={{ flex: 'none', color: '#9a968c' }}>
                 <path d="M12 3l2.1 6.3L20.5 11l-6.4 1.7L12 19l-2.1-6.3L3.5 11l6.4-1.7z" stroke="currentColor" strokeWidth={1.6} strokeLinejoin="round" />
               </svg>
               <input
+                className="fd-prompt-input"
                 value={landingInput}
                 onChange={e => setLandingInput(e.target.value)}
                 onFocus={() => setLandingFocus(true)}
@@ -304,7 +339,7 @@ export default function Home() {
                 style={{ flex: 1, border: 'none', background: 'transparent', fontSize: 15.5, color: '#1a1a1a', height: 38 }}
               />
               <button
-                className="fd-btn-accent"
+                className="fd-btn-accent fd-draw-btn"
                 onClick={goEditor}
                 style={{ flex: 'none', display: 'flex', alignItems: 'center', gap: 7, height: 44, padding: '0 20px', background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: 11, fontSize: 14.5, fontWeight: 600, cursor: 'pointer' }}
               >
@@ -314,7 +349,7 @@ export default function Home() {
                 </svg>
               </button>
             </div>
-            <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: 8, marginTop: 16 }}>
+            <div className="fd-example-row" style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: 8, marginTop: 16 }}>
               <span style={{ fontSize: 12.5, color: '#a5a29a', alignSelf: 'center' }}>Try:</span>
               {HERO_EXAMPLES.map(ex => (
                 <button
@@ -331,19 +366,19 @@ export default function Home() {
         </div>
 
         {/* product preview */}
-        <div style={{ maxWidth: 1000, margin: '56px auto 0', padding: '0 32px' }}>
-          <div style={{ borderRadius: '16px 16px 0 0', border: '1px solid rgba(0,0,0,.1)', borderBottom: 'none', background: '#fff', overflow: 'hidden', boxShadow: '0 -1px 0 rgba(255,255,255,.6),0 24px 60px rgba(40,38,36,.12)' }}>
+        <div className="fd-preview-section" style={{ maxWidth: 1000, margin: '56px auto 0', padding: '0 32px' }}>
+          <div className="fd-browser-preview" style={{ borderRadius: '16px 16px 0 0', border: '1px solid rgba(0,0,0,.1)', borderBottom: 'none', background: '#fff', overflow: 'hidden', boxShadow: '0 -1px 0 rgba(255,255,255,.6),0 24px 60px rgba(40,38,36,.12)' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 7, height: 38, padding: '0 15px', background: '#fafafa', borderBottom: '1px solid #ececec' }}>
               <span style={{ width: 11, height: 11, borderRadius: '50%', background: '#e0ded9' }} />
               <span style={{ width: 11, height: 11, borderRadius: '50%', background: '#e0ded9' }} />
               <span style={{ width: 11, height: 11, borderRadius: '50%', background: '#e0ded9' }} />
               <span style={{ marginLeft: 12, fontSize: 12, color: '#a5a29a', fontFamily: MONO }}>FreeDraw — user-login-flow.drawio</span>
             </div>
-            <div style={{ display: 'flex', height: 500 }}>
-              <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', background: '#fff', backgroundImage: 'linear-gradient(rgba(0,0,0,.045) 1px,transparent 1px),linear-gradient(90deg,rgba(0,0,0,.045) 1px,transparent 1px)', backgroundSize: '15px 15px', overflow: 'hidden' }}>
+            <div className="fd-preview-body" style={{ display: 'flex', height: 500 }}>
+              <div className="fd-canvas-pane" style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', background: '#fff', backgroundImage: 'linear-gradient(rgba(0,0,0,.045) 1px,transparent 1px),linear-gradient(90deg,rgba(0,0,0,.045) 1px,transparent 1px)', backgroundSize: '15px 15px', overflow: 'hidden' }}>
                 <CanvasArt />
               </div>
-              <div style={{ width: 270, flex: 'none', borderLeft: '1px solid #ededed', display: 'flex', flexDirection: 'column', background: '#fff' }}>
+              <div className="fd-agent-preview" style={{ width: 270, flex: 'none', borderLeft: '1px solid #ededed', display: 'flex', flexDirection: 'column', background: '#fff' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '13px 14px', borderBottom: '1px solid #f0f0f0' }}>
                   <div style={{ width: 28, height: 28, borderRadius: 8, background: 'linear-gradient(145deg,#2a2933,#151419)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                     <svg width={14} height={14} viewBox="0 0 24 24" fill="#fff">
@@ -366,13 +401,13 @@ export default function Home() {
         </div>
 
         {/* diagram types */}
-        <div style={{ maxWidth: 1000, margin: '60px auto 0', padding: '0 32px', textAlign: 'center' }}>
+        <div className="fd-types-section" style={{ maxWidth: 1000, margin: '60px auto 0', padding: '0 32px', textAlign: 'center' }}>
           <div style={{ fontFamily: MONO, fontSize: 11.5, letterSpacing: '.08em', color: '#a5a29a', textTransform: 'uppercase', marginBottom: 20 }}>
             Built-in skill coverage
           </div>
-          <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: 10 }}>
+          <div className="fd-type-grid" style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: 10 }}>
             {DIAGRAM_TYPES.map(d => (
-              <div key={d} style={{ height: 38, padding: '0 18px', display: 'flex', alignItems: 'center', background: '#fff', border: '1px solid rgba(0,0,0,.08)', borderRadius: 10, fontSize: 13.5, fontWeight: 500, color: '#3f3f45' }}>
+              <div key={d} className="fd-type-chip" style={{ height: 38, padding: '0 18px', display: 'flex', alignItems: 'center', background: '#fff', border: '1px solid rgba(0,0,0,.08)', borderRadius: 10, fontSize: 13.5, fontWeight: 500, color: '#3f3f45' }}>
                 {d}
               </div>
             ))}
@@ -383,10 +418,10 @@ export default function Home() {
         </div>
 
         {/* features */}
-        <div style={{ maxWidth: 1000, margin: '64px auto 0', padding: '0 32px' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 18 }}>
+        <div className="fd-features-section" style={{ maxWidth: 1000, margin: '64px auto 0', padding: '0 32px' }}>
+          <div className="fd-feature-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 18 }}>
             {FEATURES.map(f => (
-              <div key={f.title} style={{ background: '#fff', border: '1px solid rgba(0,0,0,.08)', borderRadius: 16, padding: '24px 22px' }}>
+              <div key={f.title} className="fd-feature-card" style={{ background: '#fff', border: '1px solid rgba(0,0,0,.08)', borderRadius: 16, padding: '24px 22px' }}>
                 <div style={{ width: 42, height: 42, borderRadius: 11, background: '#f4f3f1', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#34333b', marginBottom: 16 }}>
                   {f.icon}
                 </div>
@@ -398,13 +433,13 @@ export default function Home() {
         </div>
 
         {/* closing CTA */}
-        <div style={{ maxWidth: 1000, margin: '64px auto 0', padding: '0 32px 80px' }}>
-          <div style={{ position: 'relative', overflow: 'hidden', background: '#fff', border: '1px solid rgba(0,0,0,.09)', borderRadius: 22, padding: '52px 40px', textAlign: 'center', boxShadow: '0 12px 40px rgba(40,38,36,.07)' }}>
+        <div className="fd-cta-section" style={{ maxWidth: 1000, margin: '64px auto 0', padding: '0 32px 80px' }}>
+          <div className="fd-cta-card" style={{ position: 'relative', overflow: 'hidden', background: '#fff', border: '1px solid rgba(0,0,0,.09)', borderRadius: 22, padding: '52px 40px', textAlign: 'center', boxShadow: '0 12px 40px rgba(40,38,36,.07)' }}>
             <div style={{ position: 'absolute', inset: 0, backgroundImage: 'linear-gradient(rgba(0,0,0,.028) 1px,transparent 1px),linear-gradient(90deg,rgba(0,0,0,.028) 1px,transparent 1px)', backgroundSize: '22px 22px', WebkitMaskImage: 'radial-gradient(circle at 50% 40%,#000,transparent 72%)', maskImage: 'radial-gradient(circle at 50% 40%,#000,transparent 72%)' }} />
             <div style={{ position: 'relative', width: 52, height: 52, margin: '0 auto 20px', borderRadius: 14, background: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 14px rgba(50,48,45,.22)' }}>
               <PencilMark size={26} />
             </div>
-            <h2 style={{ position: 'relative', fontFamily: DISPLAY, fontWeight: 600, fontSize: 32, letterSpacing: '-.02em', color: '#17171a', margin: '0 0 12px' }}>
+            <h2 className="fd-cta-title" style={{ position: 'relative', fontFamily: DISPLAY, fontWeight: 600, fontSize: 32, letterSpacing: '-.02em', color: '#17171a', margin: '0 0 12px' }}>
               Start your first diagram
               <br />
               from a single sentence
@@ -412,7 +447,7 @@ export default function Home() {
             <p style={{ position: 'relative', fontSize: 15, color: '#7a776f', margin: '0 0 28px' }}>
               Free tokens to start — or bring your own LLM API provider.
             </p>
-            <div style={{ position: 'relative', display: 'flex', justifyContent: 'center', gap: 10 }}>
+            <div className="fd-cta-actions" style={{ position: 'relative', display: 'flex', justifyContent: 'center', gap: 10 }}>
               <button
                 className="fd-btn-accent"
                 onClick={goSignup}

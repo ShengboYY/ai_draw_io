@@ -207,6 +207,14 @@ export interface CreateModelCredentialRequestDTO {
   apiKey: string;
 }
 
+export interface ProviderPresetDTO {
+  id: string;
+  displayName: string;
+  baseUrl: string;
+  completionsPath: string;
+  models: string[];
+}
+
 export interface ModelCredentialResponseDTO {
   id: string;
   provider: string;
