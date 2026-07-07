@@ -1,19 +1,22 @@
 ---
 name: drawio-flowchart
 description: Draw.io flowchart skill. Use for flowcharts, business processes, approval flows, algorithm steps, decisions, branches, and process outcomes.
+schemaVersion: 1
+category: drawio-design
+diagramType: flowchart
 license: Apache-2.0
 metadata:
   author: ai-draw-io
   version: "2.0.0"
-  category: drawio-design
 ---
 
 # Draw.io Flowchart Skill
 
+## When To Use [P0]
 Use for: flowcharts, business processes, approval flows, algorithm control flow.
 Prefer `drawio-architecture` for static components, `drawio-sequence` for time-ordered service calls, `drawio-state` for object status transitions.
 
-## Shape Vocabulary
+## Shape Vocabulary [P0]
 | Meaning | Shape | Style |
 | --- | --- | --- |
 | Start / End | pill | `rounded=1;whiteSpace=wrap;html=1;arcSize=50;fillColor=#d5e8d4;strokeColor=#82b366;fontStyle=1;` |
@@ -24,7 +27,7 @@ Prefer `drawio-architecture` for static components, `drawio-sequence` for time-o
 
 Use 4–6 shape types at most in one flowchart.
 
-## Rules
+## Rules [P0]
 1. Main path runs top-to-bottom on one fixed x axis, from Start to the terminal outcome. Left-to-right only for short pipelines.
 2. Step labels are action phrases (`Validate order`), never nouns or component names. Decision labels are questions (`Stock available?`).
 3. Every decision has ≥2 outgoing edges, each labeled on the edge (`Yes`/`No`/`Approved`/`Rejected`) — never inside the diamond.
@@ -33,7 +36,7 @@ Use 4–6 shape types at most in one flowchart.
 6. Use swimlanes only when the user mentions roles/owners; steps then get `parent="<lane-id>"` with lane-relative coordinates.
 7. No orphan steps; merge branches only where the story actually rejoins.
 
-## Golden Example
+## Golden Example [P0]
 
 ```xml
 <mxCell id="2" value="Start" style="rounded=1;whiteSpace=wrap;html=1;arcSize=50;fillColor=#d5e8d4;strokeColor=#82b366;fontStyle=1;fontSize=12;" vertex="1" parent="1"><mxGeometry x="420" y="40" width="140" height="50" as="geometry"/></mxCell>
@@ -54,7 +57,7 @@ Use 4–6 shape types at most in one flowchart.
 
 Note the pattern: main path on one axis (x=490 center), exception branch pushed right, branch labels on edges, exception path rejoining End via a side waypoint instead of crossing the main path.
 
-## Checklist
+## Checklist [P1]
 - Clear Start and End; main path obvious before reading branches.
 - Every decision edge labeled; loops and exceptions don't obscure the main axis.
 - Shapes follow the vocabulary table; steps are actions.

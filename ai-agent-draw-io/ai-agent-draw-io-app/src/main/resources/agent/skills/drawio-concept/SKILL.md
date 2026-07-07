@@ -1,21 +1,24 @@
 ---
 name: drawio-concept
 description: Draw.io radial concept skill. Use for onion/ring models, ecosystem maps, hub-and-spoke views, circular cycles/loops, mind maps, and any model organized around a center or in concentric layers rather than a reading direction.
+schemaVersion: 1
+category: drawio-design
+diagramType: concept
 license: Apache-2.0
 metadata:
   author: ai-draw-io
   version: "1.0.0"
-  category: drawio-design
 ---
 
 # Draw.io Radial Concept Skill
 
+## When To Use [P0]
 Use for: onion models (concentric layers around a core), ecosystem/stakeholder maps, hub-and-spoke views, circular cycles (PDCA, flywheels), mind maps.
 Prefer `drawio-flowchart` when the content is a step-by-step process with a start and end, `drawio-architecture` for component/deployment structure.
 
 This skill works in the **radial mode** of the Global Draw.io Layout Contract: no `orthogonalEdgeStyle`, no exit/entry ports, no grid rows.
 
-## Layout Recipes
+## Layout Recipes [P0]
 
 ### Onion / ecosystem (concentric zones)
 1. Pick a center `(cx, cy)` ≈ (530, 415). Draw zone ellipses first, biggest first, so they render behind content: outer zone ≈ 980×670, inner zone ≈ 600×420, both centered on `(cx, cy)`.
@@ -48,14 +51,14 @@ Verify after placement: every node stays ≥ 30 px inside its own zone's boundin
 2. Spokes are straight: `edgeStyle=none;html=1;` — with NO exit/entry ports, so draw.io anchors both ends on the facing perimeters at any angle.
 3. Second-level leaves fan outward from their topic on a short local ring (rx≈150, ry≈100 around the topic), never back toward the center.
 
-## Edge Rules
+## Edge Rules [P0]
 - Spokes and cross-ring links: `edgeStyle=none;html=1;endArrow=classic;` solid for primary structure, `dashed=1;strokeColor=#64748b;` for inflows/feedback/secondary.
 - Ring arcs and cycle edges: `curved=1;html=1;` (+ one outward waypoint as above).
 - Never set exitX/exitY/entryX/entryY in radial mode; never use `edgeStyle=orthogonalEdgeStyle` — the backend snaps orthogonal edges back to grid rules and would destroy the radial shape.
 - A chord between two ring nodes must not pass through the hub: use `curved=1` with one waypoint offset ≥ 60 px from the center.
 - Label only edges whose meaning is not obvious; keep labels ≤ 3 words with `labelBackgroundColor=none;fontSize=11;`.
 
-## Golden Example
+## Golden Example [P0]
 Ecosystem onion — two concentric zones, purple hub, white inner ring (4 cardinal), green outer ring (4 diagonal), dashed inflows, one curved arc:
 
 ```xml
@@ -84,7 +87,7 @@ Ecosystem onion — two concentric zones, purple hub, white inner ring (4 cardin
 
 Read from the example: zones first and behind everything, hub dead-center, ring nodes from the placement table, straight port-less spokes, dashed inflows crossing the permeable boundary, and a curved arc with one outward waypoint.
 
-## Checklist
+## Checklist [P1]
 - Every connected edge omits exit/entry ports and uses `edgeStyle=none` or `curved=1`.
 - Zones render before (behind) all content; no content node is parented to a zone.
 - No chord passes through the hub; ring neighbors keep ≥ 40 px clearance.

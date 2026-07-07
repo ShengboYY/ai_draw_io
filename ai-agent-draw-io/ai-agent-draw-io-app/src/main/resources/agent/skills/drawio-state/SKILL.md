@@ -1,19 +1,22 @@
 ---
 name: drawio-state
 description: Draw.io state diagram skill. Use for state diagrams, state machines, lifecycle transitions, status flows, events, guards, and final states.
+schemaVersion: 1
+category: drawio-design
+diagramType: state
 license: Apache-2.0
 metadata:
   author: ai-draw-io
   version: "2.0.0"
-  category: drawio-design
 ---
 
 # Draw.io State Diagram Skill
 
+## When To Use [P0]
 Use for: state machines, lifecycle transitions, status flows (orders, tasks, tickets, jobs).
 Prefer `drawio-flowchart` for business steps, `drawio-sequence` for service calls, `drawio-usecase` for actors/functions.
 
-## Rules
+## Rules [P0]
 1. States are stable conditions named as nouns/status phrases (`Draft`, `Pending Payment`) — never actions. Style: `rounded=1;whiteSpace=wrap;html=1;arcSize=20;fontStyle=1;` + blue fill; ~150×70, same size per tier.
 2. Initial state: small filled black circle (`ellipse;html=1;fillColor=#000000;strokeColor=#000000;` 24×24). Final state: gray terminal circle (`ellipse;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontStyle=1;` 40×40) — include it whenever the lifecycle completes.
 3. Every transition is a single-direction arrow labeled `event [guard] / action` (e.g. `paymentSuccess`, `timeout / cancel`). The initial transition may be unlabeled.
@@ -22,7 +25,7 @@ Prefer `drawio-flowchart` for business steps, `drawio-sequence` for service call
 6. Choice diamonds, fork/join bars, and composite (nested) states only when the lifecycle really needs them; composite states are labeled containers with substates parented inside.
 7. No orphan states; a state diagram is not a step-by-step flowchart.
 
-## Golden Example
+## Golden Example [P0]
 
 ```xml
 <mxCell id="2" value="" style="ellipse;html=1;fillColor=#000000;strokeColor=#000000;" vertex="1" parent="1"><mxGeometry x="80" y="133" width="24" height="24" as="geometry"/></mxCell>
@@ -41,7 +44,7 @@ Prefer `drawio-flowchart` for business steps, `drawio-sequence` for service call
 
 Note the pattern: happy path on one row ending in a terminal circle, cancellation on a lower row rejoining the terminal via a side waypoint, every transition labeled with its event.
 
-## Checklist
+## Checklist [P1]
 - Initial state present; final state present when the lifecycle completes.
 - Labels are events/conditions on edges; states are nouns.
 - Failure/cancel paths separated below the happy path.

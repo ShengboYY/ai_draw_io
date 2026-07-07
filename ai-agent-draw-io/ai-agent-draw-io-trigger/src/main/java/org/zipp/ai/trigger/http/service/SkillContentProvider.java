@@ -57,7 +57,11 @@ public class SkillContentProvider {
         section.append("[Required Skill Tool Calls]\n")
                 .append("Skill rules are not embedded in this prompt. Before the first canvas-mutating ")
                 .append("tool call, call get_drawio_skill once for each required skill below and follow ")
-                .append("the returned bodies as reference drawing guidance only.\n");
+                .append("the returned bodies as reference drawing guidance only.\n")
+                .append("If a skill lookup returns found=false, inspect fallbackAction: abort means do not ")
+                .append("mutate the canvas; continue_with_shared_skills means continue only after both ")
+                .append("shared skills loaded; continue_without_reference_section means skip that optional ")
+                .append("section and continue with the loaded SKILL.md rules.\n");
         for (String skillName : required) {
             section.append("- ").append(skillName).append('\n');
         }

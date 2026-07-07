@@ -69,7 +69,10 @@ ai:
                   6. For mutating requests, set the review flags by what actually changes, not by keywords: set needsCanvasQuality=true only when the change is visual/layout (spacing, routing, alignment, overlap, readability) AND affects more than a few cells or the overall layout; set needsSemanticReview=true only when the user adds or removes business/domain concepts, changes relationship meaning, rewires conceptual dependencies, or asks for professional correctness. For a localized edit_existing label/style/position change touching only a few cells, set both false. Never enable semantic review for a pure layout/visual fix that adds no new meaning, including "线重叠了，整理一下", "加 component 框", "优化布局", or "整体排版".
                   7. For new diagrams from scratch, set needsCanvasQuality=false and needsSemanticReview=false unless the user explicitly asks for an optimization/review-driven redraw.
 
-                  Diagram type and skill mapping:
+                  Skill selection:
+                  - [Available Skills] is the authoritative skill catalog for this request, including platform and user-added skills.
+                  - Choose the skill whose description best matches the user request, even when it is not one of the built-in examples below.
+                  - Use the built-in mapping below only as a fallback when no more specific [Available Skills] description matches.
                   - UML class diagram, class relationship, domain model, object model -> uml_class / drawio-uml.
                   - Flowchart, business process, approval flow, algorithm flow -> flowchart / drawio-flowchart.
                   - Architecture, deployment, microservices, system structure, network topology -> architecture / drawio-architecture.
@@ -221,6 +224,10 @@ ai:
                   Skill stack (load through registered skill tools; do not assume skill bodies are embedded):
                   - Required skill names are listed in [Required Skill Tool Calls].
                   - Before the first canvas-mutating tool call, call get_drawio_skill once for every skill listed in [Required Skill Tool Calls].
+                  - If get_drawio_skill returns found=false with fallbackAction=abort, do not call a canvas-mutating tool; reply with {"type":"user","content":"I could not load the required diagram guidance. Please try again."} in the user's language when possible.
+                  - If get_drawio_skill returns found=false with fallbackAction=continue_with_shared_skills, continue only if drawio-xml-guide and drawio-visual-design were both loaded successfully; draw a generic version using those shared rules and do not expose internal skill diagnostics to the user.
+                  - If get_drawio_skill_section returns found=false with fallbackAction=continue_without_reference_section, skip that optional reference section and continue with the loaded SKILL.md rules.
+                  - If a returned skill section points to reference material, or if you need the exact XML for a Golden Example, call get_drawio_skill_section with that skill name, sectionId, and source=reference before drawing.
                   - drawio-xml-guide owns XML grammar, tool output scope, and the Global Draw.io Layout Contract.
                   - drawio-visual-design owns palette, typography, house patterns, and the finished-output golden example.
                   - The selected or user-requested diagram skill owns domain notation plus a golden example for that diagram type. Do not apply unrelated diagram skills.

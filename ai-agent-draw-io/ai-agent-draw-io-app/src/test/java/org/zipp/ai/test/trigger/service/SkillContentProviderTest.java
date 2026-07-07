@@ -22,6 +22,7 @@ public class SkillContentProviderTest {
 
         assertTrue(section.contains("[Required Skill Tool Calls]"));
         assertTrue(section.contains("get_drawio_skill"));
+        assertTrue(section.contains("fallbackAction"));
         assertTrue(section.contains("- drawio-xml-guide"));
         assertTrue(section.contains("- drawio-visual-design"));
         assertFalse(section.contains("XML Rules"));

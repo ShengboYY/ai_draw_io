@@ -1,19 +1,22 @@
 ---
 name: drawio-architecture
 description: Draw.io architecture diagram skill. Use for system architecture, deployment diagrams, microservices, infrastructure, network topology, gateways, services, storage, middleware, and external integrations.
+schemaVersion: 1
+category: drawio-design
+diagramType: architecture
 license: Apache-2.0
 metadata:
   author: ai-draw-io
   version: "2.0.0"
-  category: drawio-design
 ---
 
 # Draw.io Architecture Diagram Skill
 
+## When To Use [P0]
 Use for: system architecture, deployment, microservices, infrastructure, topology, runtime internals (JVM/browser/OS).
 Prefer `drawio-uml` for class relationships, `drawio-flowchart` for operation steps, `drawio-sequence` for time-ordered call chains.
 
-## View Selection
+## View Selection [P0]
 Pick exactly one view and keep every element at that abstraction level. Never mix levels (a context view shows no databases; a container view shows no classes; a deployment view shows no business methods).
 
 | View | When | Show |
@@ -25,7 +28,7 @@ Pick exactly one view and keep every element at that abstraction level. Never mi
 | dynamic | "what happens when X", one request/event path | only participating elements, numbered steps along the path |
 | runtime | JVM/browser/OS internals | one runtime boundary, real regions (loading left, memory center, execution right, native bottom) |
 
-## Rules
+## Rules [P0]
 1. One focal boundary; actors and external systems stay outside it. At most two nested boundary levels (three only for deployment zones or runtime regions).
 2. 6–14 core nodes; summarize the rest into aggregate nodes ("Other services") instead of crowding.
 3. Layer order: clients top/left → gateway/access → services → middleware/AI → data stores bottom; external systems right.
@@ -41,11 +44,11 @@ Pick exactly one view and keep every element at that abstraction level. Never mi
     - Size each region to its content with ~30px padding: no oversized regions around one node, no empty bands between child rows.
     - At most 7 cross-region edges. Each takes its own gutter x-track (never stack two edges on one track); put the label near the source turn, not floating mid-channel. Dashed for GC/management/native paths.
 
-## Container View Example
+## Container View Example [P1]
 
 The golden example in `drawio-visual-design` is the canonical container-view shape: dashed transparent boundary behind content, clients outside left, external systems dashed-stroke outside right, storage as cylinders directly below their owning service (clear vertical drop, no crossings), and parallel edges into one node on distinct tracks (entryY 0.3 / 0.7). Follow it for context/container/component/deployment views.
 
-## Golden Example (runtime view — JVM)
+## Golden Example (runtime view — JVM) [P0]
 
 ```xml
 <mxCell id="2" value="JVM Runtime" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;dashed=1;strokeColor=#666666;verticalAlign=top;fontStyle=1;fontSize=13;align=left;spacingLeft=8;" vertex="1" parent="1"><mxGeometry x="40" y="60" width="1060" height="580" as="geometry"/></mxCell>
@@ -75,7 +78,7 @@ The golden example in `drawio-visual-design` is the canonical container-view sha
 
 Note the runtime pattern: pastel region containers sized to their content with children parented inside (region-relative coordinates), memory areas as plain rounded rectangles (no cylinders), only 7 cross-region edges, and each long edge on its own gutter track (x=750 / x=760 / x=1055) with dashed styling for GC and native paths.
 
-## Checklist
+## Checklist [P1]
 - Single abstraction level; boundary semantics are real (system/zone), not decoration.
 - Main request path readable at a glance; no edge crosses a service body; storage under its owning service.
 - Every edge labeled with protocol or purpose; async paths dashed.

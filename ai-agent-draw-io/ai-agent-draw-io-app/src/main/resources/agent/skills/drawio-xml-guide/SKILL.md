@@ -1,25 +1,27 @@
 ---
 name: drawio-xml-guide
 description: Core Draw.io contract for XML structure and layout. Always applied with every drawing action. Owns output scope, mxCell grammar, geometry, ids, ports, and the layout hard constraints that make a first draft readable.
+schemaVersion: 1
+category: drawio-design
+diagramType: shared
+selectable: false
 license: Apache-2.0
 metadata:
   author: ai-draw-io
   version: "2.0.0"
-  category: drawio-design
-  selectable: false
 ---
 
 # Draw.io Core Contract
 
 Applies to every drawing action, together with `drawio-visual-design` (style baseline + canonical example) and the selected diagram skill (domain notation only).
 
-## Output Scope
+## Output Scope [P0]
 - `create_diagram` / `modify_diagram mode=patch|append`: mxCell fragments only. No `mxfile`, `mxGraphModel`, `root`, or cells `id="0"`/`id="1"` — the backend wraps them.
 - `modify_diagram mode=replace_cells`: current full XML in `xml` plus only the replacement cells in `cells`.
 - `optimize_diagram mode=layout_optimize`: one complete optimized `mxGraphModel`.
 - Never include markdown fences, XML comments, prose, or placeholders inside tool arguments.
 
-## XML Rules
+## XML Rules [P0]
 1. Vertex: unique `id`, `vertex="1"`, valid `parent`, `style`, and `mxGeometry` with `x`, `y`, `width`, `height`, `as="geometry"`.
 2. Connected edge: `edge="1"`, `parent="1"`, `source` and `target` referencing ids that exist in the same XML, `mxGeometry relative="1" as="geometry"`.
 3. Standalone line (legend sample, divider, annotation arrow): no `source`/`target`; use `mxPoint as="sourcePoint"` and `as="targetPoint"` inside the geometry instead.
@@ -31,7 +33,7 @@ Applies to every drawing action, together with `drawio-visual-design` (style bas
 9. Emit in render order: boundaries/containers first, then nodes, then edges, then floating labels and legend.
 10. Text-bearing shapes use `whiteSpace=wrap;html=1;`.
 
-## Layout Modes (Global Draw.io Layout Contract)
+## Layout Modes (Global Draw.io Layout Contract) [P0]
 
 Pick ONE layout mode before writing any XML. Choose it from the shape of the content — the user does not need to ask for a layout:
 - `grid-flow` (default): anything with a reading direction — system/data flows, processes, lifecycles, sequences, schemas, class models.
@@ -59,7 +61,7 @@ Constraints shared by both modes:
 - Keep ≥ 40 px clearance between neighboring ring nodes. Never route a chord through the hub node — curve it around (`curved=1` plus one waypoint offset from the center).
 - The backend treats `curved=1` and `edgeStyle=none` edges as intentionally freeform and will not re-route them; an `orthogonalEdgeStyle` edge inside a radial diagram will be snapped back to grid rules, so do not mix the two on the same relationship.
 
-## Pre-flight Check (before every tool call)
+## Pre-flight Check (before every tool call) [P1]
 - Every edge `source`/`target` id exists; every id is unique.
 - No two sibling nodes overlap; every child is inside its region with ≥ 30 px container padding. (Radial: background zone ellipses legitimately sit under their ring nodes.)
 - Mentally trace each edge: no node body on its path, no label sitting on a node or another label.

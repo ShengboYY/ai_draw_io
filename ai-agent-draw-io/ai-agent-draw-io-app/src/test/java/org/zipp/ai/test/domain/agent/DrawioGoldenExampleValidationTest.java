@@ -40,7 +40,7 @@ public class DrawioGoldenExampleValidationTest {
     @Test
     public void everySkillGoldenExampleMustPassDeterministicAnalysis() throws Exception {
         for (String skillName : SKILLS_WITH_EXAMPLES) {
-            String body = readSkill(skillName);
+            String body = readSkill(skillName) + "\n" + readOptionalReference(skillName);
             List<String> examples = extractXmlBlocks(body);
             assertFalse(skillName + " must embed at least one ```xml golden example", examples.isEmpty());
 
@@ -73,6 +73,13 @@ public class DrawioGoldenExampleValidationTest {
                 throw new IllegalStateException("Missing test resource: " + path);
             }
             return new String(is.readAllBytes(), StandardCharsets.UTF_8);
+        }
+    }
+
+    private String readOptionalReference(String skillName) throws Exception {
+        String path = "agent/skills/" + skillName + "/reference.md";
+        try (InputStream is = Thread.currentThread().getContextClassLoader().getResourceAsStream(path)) {
+            return is == null ? "" : new String(is.readAllBytes(), StandardCharsets.UTF_8);
         }
     }
 }

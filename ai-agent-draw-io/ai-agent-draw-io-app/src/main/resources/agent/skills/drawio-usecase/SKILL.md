@@ -1,19 +1,22 @@
 ---
 name: drawio-usecase
 description: Draw.io use case diagram skill. Use for actors, use cases, system boundaries, actor-function relationships, include relationships, extend relationships, and requirement scope diagrams.
+schemaVersion: 1
+category: drawio-design
+diagramType: usecase
 license: Apache-2.0
 metadata:
   author: ai-draw-io
   version: "2.0.0"
-  category: drawio-design
 ---
 
 # Draw.io Use Case Diagram Skill
 
+## When To Use [P0]
 Use for: use case diagrams, actors and system functions, requirement scope, include/extend.
 Prefer `drawio-uml` for internal classes, `drawio-flowchart` for operation steps, `drawio-er` for tables.
 
-## Rules
+## Rules [P0]
 1. The system boundary is the visual anchor: one labeled transparent rectangle in the center (`rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#666666;verticalAlign=top;fontStyle=1;fontSize=13;`). Use cases inside, actors outside — no exceptions.
 2. Actors are `shape=umlActor;verticalLabelPosition=bottom;verticalAlign=top;html=1;outlineConnect=0;` sized ~40×80. Primary human actors left, external systems / secondary actors right. Actor names are roles or external systems, never components.
 3. Use cases are same-sized ellipses (`ellipse;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;` ~160×70) named as verb-object goals (`Place Order`) — never UI buttons, tables, or endpoints.
@@ -22,7 +25,7 @@ Prefer `drawio-uml` for internal classes, `drawio-flowchart` for operation steps
 6. Actors never connect to actors; use cases never connect to actors' internals.
 7. Core use cases center, supporting ones below/right; keep association lines short and uncrossed.
 
-## Golden Example
+## Golden Example [P0]
 
 ```xml
 <mxCell id="2" value="E-Commerce System" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#666666;verticalAlign=top;fontStyle=1;fontSize=13;" vertex="1" parent="1"><mxGeometry x="260" y="80" width="620" height="400" as="geometry"/></mxCell>
@@ -39,7 +42,7 @@ Prefer `drawio-uml` for internal classes, `drawio-flowchart` for operation steps
 
 Note the pattern: actors flank the boundary (human left, external system right), goals as uniform ellipses inside, include labeled and pointing at the included use case.
 
-## Checklist
+## Checklist [P1]
 - Actors outside, use cases inside; verb-object goal names.
 - include/extend labeled and pointing the right way.
 - Requirements scope only — no implementation detail.

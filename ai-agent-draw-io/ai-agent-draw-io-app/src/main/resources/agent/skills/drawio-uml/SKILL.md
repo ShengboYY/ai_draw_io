@@ -1,19 +1,22 @@
 ---
 name: drawio-uml
 description: Draw.io UML class diagram skill. Use for UML class diagrams, domain models, object models, attributes, methods, inheritance, implementation, aggregation, composition, association, and dependency relationships.
+schemaVersion: 1
+category: drawio-design
+diagramType: uml_class
 license: Apache-2.0
 metadata:
   author: ai-draw-io
   version: "2.0.0"
-  category: drawio-design
 ---
 
 # Draw.io UML Class Diagram Skill
 
+## When To Use [P0]
 Use for: UML class diagrams, domain models, inheritance/implementation/association/aggregation/composition.
 Prefer `drawio-er` for database tables and PK/FK, `drawio-usecase` for actors and functions, `drawio-sequence` for interactions.
 
-## Rules
+## Rules [P0]
 1. Class block format inside `value` (html): `&lt;b&gt;Name&lt;/b&gt;&lt;hr&gt;` + attributes (`+ field: Type` per `&lt;br&gt;` line) + `&lt;hr&gt;` + methods (`+ method(): Return`). Style: `rounded=0;whiteSpace=wrap;html=1;align=left;verticalAlign=top;spacing=5;` + role fill. Width 180–220; height grows with content.
 2. Stereotypes when they clarify: `&lt;i&gt;&amp;lt;&amp;lt;interface&amp;gt;&amp;gt;&lt;/i&gt;` line above the name (green fill); same pattern for `&lt;&lt;abstract&gt;&gt;` and `&lt;&lt;enum&gt;&gt;`.
 3. Attributes only for a domain model; methods only when behavior matters — never invent long method lists.
@@ -29,7 +32,7 @@ Prefer `drawio-er` for database tables and PK/FK, `drawio-usecase` for actors an
 7. Relationships express structure, not workflow — no numbered process arrows between classes.
 8. No duplicate semantic classes; every edge endpoint exists.
 
-## Golden Example
+## Golden Example [P0]
 
 ```xml
 <mxCell id="2" value="&lt;i&gt;&amp;lt;&amp;lt;interface&amp;gt;&amp;gt;&lt;/i&gt;&lt;br&gt;&lt;b&gt;PaymentProvider&lt;/b&gt;&lt;hr&gt;+ pay(order: Order): Receipt" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;align=left;verticalAlign=top;spacing=5;fontSize=12;" vertex="1" parent="1"><mxGeometry x="460" y="60" width="210" height="90" as="geometry"/></mxCell>
@@ -45,7 +48,7 @@ Prefer `drawio-er` for database tables and PK/FK, `drawio-usecase` for actors an
 
 Note the pattern: interface above its implementor and its consumer, realization dashed with hollow triangle, composition diamond on the whole (`Order`), classes aligned on two rows with wide routing channels.
 
-## Checklist
+## Checklist [P1]
 - Every class named; arrows match UML semantics (triangle → parent, diamond → whole, dashed → dependency/realization).
 - Interfaces visually distinct; multiplicity present where cardinality matters.
 - No workflow arrows, no database column notation.

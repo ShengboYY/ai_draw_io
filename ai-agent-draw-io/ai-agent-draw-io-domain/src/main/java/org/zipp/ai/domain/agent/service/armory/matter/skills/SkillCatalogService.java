@@ -48,10 +48,27 @@ public class SkillCatalogService {
 
     private static final String ROUTER_SKILL_CATEGORY = "drawio-design";
     private static final String CLASSPATH_LOCATION = "classpath*:agent/skills/*/SKILL.md";
+    private static final String REFERENCE_FILE = "reference.md";
     private static final Pattern FRONTMATTER = Pattern.compile("^\\s*---\\s*\\n(.*?)\\n---\\s*\\n?", Pattern.DOTALL);
     private static final Pattern FOLDER = Pattern.compile(".*/skills/([^/]+)/SKILL\\.md$");
+    private static final Pattern H2 = Pattern.compile("(?m)^##\\s+(.+)$");
+    private static final Pattern H2_PRIORITY = Pattern.compile("\\[(P0|P1)]\\s*$");
     private static final long REFRESH_THROTTLE_MS = 2000;
     private static final ObjectMapper YAML = new ObjectMapper(new YAMLFactory());
+    private static final Set<String> KNOWN_DIAGRAM_TYPES = Set.of(
+            "architecture", "flowchart", "sequence", "er", "uml_class", "usecase",
+            "state", "concept", "shared");
+    private static final Map<String, String> KNOWN_DRAWIO_DIAGRAM_TYPES = Map.ofEntries(
+            Map.entry("drawio-architecture", "architecture"),
+            Map.entry("drawio-flowchart", "flowchart"),
+            Map.entry("drawio-sequence", "sequence"),
+            Map.entry("drawio-er", "er"),
+            Map.entry("drawio-uml", "uml_class"),
+            Map.entry("drawio-usecase", "usecase"),
+            Map.entry("drawio-state", "state"),
+            Map.entry("drawio-concept", "concept"),
+            Map.entry(SHARED_SKILL, "shared"),
+            Map.entry(SHARED_XML_GUIDE_SKILL, "shared"));
 
     /** Optional writable external skills dir; empty = built-in + DB only. */
     @Value("${DRAWIO_SKILLS_DIR:}")
@@ -61,7 +78,41 @@ public class SkillCatalogService {
     @Autowired(required = false)
     private SkillStore skillStore;
 
-    public record SkillInfo(String name, String description, String body, String category, boolean selectable) {
+    public enum SkillSource {
+        BUILT_IN,
+        EXTERNAL_DIR,
+        DB_PUBLIC,
+        DB_PRIVATE
+    }
+
+    public record SkillInfo(String name,
+                            String description,
+                            String body,
+                            String referenceBody,
+                            String category,
+                            String diagramType,
+                            int schemaVersion,
+                            boolean selectable,
+                            SkillSource source,
+                            List<String> validationErrors) {
+        public SkillInfo {
+            name = name == null ? "" : name.trim();
+            description = description == null ? "" : description.trim();
+            body = body == null ? "" : body.trim();
+            referenceBody = referenceBody == null ? "" : referenceBody.trim();
+            category = category == null ? "" : category.trim();
+            diagramType = diagramType == null ? "" : diagramType.trim();
+            source = source == null ? SkillSource.BUILT_IN : source;
+            validationErrors = validationErrors == null ? List.of() : List.copyOf(validationErrors);
+        }
+
+        public SkillInfo(String name, String description, String body, String category, boolean selectable) {
+            this(name, description, body, "", category, "", 0, selectable, SkillSource.BUILT_IN, List.of());
+        }
+
+        public boolean valid() {
+            return validationErrors.isEmpty();
+        }
     }
 
     private volatile Map<String, SkillInfo> classpathSkills; // immutable at runtime, scanned once
@@ -84,8 +135,12 @@ public class SkillCatalogService {
             merged.putAll(scanExternal());
             merged.putAll(publicDbSkills());
             base = merged;
-            log.info("Skill catalog base loaded: {} skills (built-in {}) {}",
-                    merged.size(), classpathSkills().size(), merged.keySet());
+            long invalidDrawioSkills = merged.values().stream()
+                    .filter(info -> ROUTER_SKILL_CATEGORY.equals(info.category()))
+                    .filter(info -> !info.valid())
+                    .count();
+            log.info("Skill catalog base loaded: {} skills (built-in {}) invalidDrawioSkills={} {}",
+                    merged.size(), classpathSkills().size(), invalidDrawioSkills, merged.keySet());
             return base;
         }
     }
@@ -99,6 +154,7 @@ public class SkillCatalogService {
                     SkillInfo info = toInfo(skill);
                     if (info != null) {
                         merged.put(info.name(), info);
+                        logValidationWarnings(info);
                     }
                 }
             } catch (Exception e) {
@@ -118,6 +174,7 @@ public class SkillCatalogService {
                 SkillInfo info = toInfo(skill);
                 if (info != null) {
                     result.put(info.name(), info);
+                    logValidationWarnings(info);
                 }
             }
         } catch (Exception e) {
@@ -131,10 +188,12 @@ public class SkillCatalogService {
             return null;
         }
         String category = skill.category() == null ? "" : skill.category().trim();
-        return new SkillInfo(skill.name().trim(),
-                skill.description() == null ? "" : skill.description().trim(),
-                skill.body() == null ? "" : skill.body().trim(),
-                category, skill.enabled());
+        boolean selectable = skill.enabled() && !isSharedSkillName(skill.name());
+        SkillSource source = skill.visibility() == SkillStore.Visibility.PUBLIC
+                ? SkillSource.DB_PUBLIC
+                : SkillSource.DB_PRIVATE;
+        return parse(skill.body(), skill.name(), "",
+                skill.description(), category, selectable, source);
     }
 
     private Map<String, SkillInfo> classpathSkills() {
@@ -157,9 +216,12 @@ public class SkillCatalogService {
             for (Resource resource : resources) {
                 try {
                     String raw = StreamUtils.copyToString(resource.getInputStream(), StandardCharsets.UTF_8);
-                    SkillInfo info = parse(raw, folderName(resource.getURL().toString()));
+                    String referenceRaw = readOptionalRelative(resource, REFERENCE_FILE);
+                    SkillInfo info = parse(raw, folderName(resource.getURL().toString()), referenceRaw,
+                            "", "", true, SkillSource.BUILT_IN);
                     if (info != null) {
                         discovered.put(info.name(), info);
+                        logValidationWarnings(info);
                     }
                 } catch (Exception e) {
                     log.warn("Skipping unreadable built-in skill {}: {}", resource, e.toString());
@@ -186,9 +248,12 @@ public class SkillCatalogService {
                 if (Files.isRegularFile(md)) {
                     try {
                         String raw = Files.readString(md, StandardCharsets.UTF_8);
-                        SkillInfo info = parse(raw, dir.getFileName().toString());
+                        String referenceRaw = readOptionalFile(dir.resolve(REFERENCE_FILE));
+                        SkillInfo info = parse(raw, dir.getFileName().toString(), referenceRaw,
+                                "", "", true, SkillSource.EXTERNAL_DIR);
                         if (info != null) {
                             discovered.put(info.name(), info);
+                            logValidationWarnings(info);
                         }
                     } catch (Exception e) {
                         log.warn("Skipping unreadable external skill {}: {}", md, e.toString());
@@ -205,17 +270,27 @@ public class SkillCatalogService {
         return externalSkillsDir != null && !externalSkillsDir.isBlank();
     }
 
-    private SkillInfo parse(String raw, String folder) {
+    private SkillInfo parse(String raw,
+                            String folder,
+                            String referenceRaw,
+                            String fallbackDescription,
+                            String fallbackCategory,
+                            boolean fallbackSelectable,
+                            SkillSource source) {
+        String safeRaw = raw == null ? "" : raw;
         String name = folder;
-        String description = "";
-        String body = raw;
-        String category = "";
-        boolean selectable = true;
+        String description = fallbackDescription == null ? "" : fallbackDescription.trim();
+        String body = safeRaw;
+        String referenceBody = referenceRaw == null ? "" : referenceRaw.trim();
+        String category = fallbackCategory == null ? "" : fallbackCategory.trim();
+        String diagramType = "";
+        int schemaVersion = 0;
+        boolean selectable = fallbackSelectable;
 
-        Matcher m = FRONTMATTER.matcher(raw);
+        Matcher m = FRONTMATTER.matcher(safeRaw);
         if (m.find()) {
             String front = m.group(1);
-            body = raw.substring(m.end());
+            body = safeRaw.substring(m.end());
             Map<String, Object> metadata = frontmatter(front);
             String fmName = stringValue(metadata.get("name"));
             if (fmName != null && !fmName.isBlank()) {
@@ -226,14 +301,119 @@ public class SkillCatalogService {
                 description = fmDesc.trim();
             }
             Map<String, Object> nestedMetadata = mapValue(metadata.get("metadata"));
-            category = stringValue(nestedMetadata.get("category"));
-            selectable = booleanValue(nestedMetadata.get("selectable"), true);
+            // Prefer the normalized top-level fields, but keep reading legacy metadata.* skills.
+            category = firstNonBlank(stringValue(metadata.get("category")),
+                    stringValue(nestedMetadata.get("category")),
+                    fallbackCategory);
+            diagramType = firstNonBlank(stringValue(metadata.get("diagramType")),
+                    stringValue(nestedMetadata.get("diagramType")));
+            schemaVersion = intValue(metadata.get("schemaVersion"),
+                    intValue(nestedMetadata.get("schemaVersion"), 0));
+            selectable = booleanValue(metadata.get("selectable"),
+                    booleanValue(nestedMetadata.get("selectable"), fallbackSelectable));
         }
 
         if (name == null || name.isBlank()) {
             return null;
         }
-        return new SkillInfo(name, description, body.trim(), category == null ? "" : category.trim(), selectable);
+        String normalizedName = name.trim();
+        if (schemaVersion == 0 && isKnownDrawioSkill(normalizedName, category)) {
+            schemaVersion = 1;
+        }
+        if ((diagramType == null || diagramType.isBlank()) && ROUTER_SKILL_CATEGORY.equals(category)) {
+            diagramType = knownDiagramType(normalizedName);
+        }
+
+        List<String> validationErrors = validateSkill(
+                normalizedName,
+                body,
+                referenceBody,
+                category,
+                diagramType,
+                schemaVersion);
+        return new SkillInfo(normalizedName, description, body.trim(), referenceBody,
+                category == null ? "" : category.trim(), diagramType, schemaVersion,
+                selectable, source, validationErrors);
+    }
+
+    private List<String> validateSkill(String name,
+                                       String body,
+                                       String referenceBody,
+                                       String category,
+                                       String diagramType,
+                                       int schemaVersion) {
+        if (!ROUTER_SKILL_CATEGORY.equals(category)) {
+            return List.of();
+        }
+
+        List<String> errors = new ArrayList<>();
+        if (schemaVersion < 1) {
+            errors.add("schemaVersion must be >= 1");
+        }
+        if (diagramType == null || diagramType.isBlank()) {
+            errors.add("diagramType is required");
+        } else if (!KNOWN_DIAGRAM_TYPES.contains(diagramType.trim())) {
+            errors.add("diagramType is not supported: " + diagramType.trim());
+        }
+        validatePrioritizedSections("SKILL.md", body, errors);
+        if (referenceBody != null && !referenceBody.isBlank()) {
+            validatePrioritizedSections(REFERENCE_FILE, referenceBody, errors);
+        }
+        return errors;
+    }
+
+    private void validatePrioritizedSections(String label, String body, List<String> errors) {
+        Matcher matcher = H2.matcher(body == null ? "" : body);
+        int count = 0;
+        while (matcher.find()) {
+            count++;
+            String title = matcher.group(1).trim();
+            if (!H2_PRIORITY.matcher(title).find()) {
+                errors.add(label + " H2 section must end with [P0] or [P1]: " + title);
+            }
+        }
+        if (count == 0) {
+            errors.add(label + " must define at least one ## section");
+        }
+    }
+
+    private boolean isKnownDrawioSkill(String name, String category) {
+        return ROUTER_SKILL_CATEGORY.equals(category) && KNOWN_DRAWIO_DIAGRAM_TYPES.containsKey(name);
+    }
+
+    private String knownDiagramType(String name) {
+        return KNOWN_DRAWIO_DIAGRAM_TYPES.getOrDefault(name, "");
+    }
+
+    private boolean isSharedSkillName(String name) {
+        return SHARED_SKILL.equals(name) || SHARED_XML_GUIDE_SKILL.equals(name);
+    }
+
+    private String readOptionalRelative(Resource resource, String path) {
+        try {
+            Resource relative = resource.createRelative(path);
+            if (relative.exists() && relative.isReadable()) {
+                return StreamUtils.copyToString(relative.getInputStream(), StandardCharsets.UTF_8);
+            }
+        } catch (Exception ignored) {
+            return "";
+        }
+        return "";
+    }
+
+    private String readOptionalFile(Path path) {
+        try {
+            return Files.isRegularFile(path) ? Files.readString(path, StandardCharsets.UTF_8) : "";
+        } catch (Exception ignored) {
+            return "";
+        }
+    }
+
+    private void logValidationWarnings(SkillInfo info) {
+        if (info != null && ROUTER_SKILL_CATEGORY.equals(info.category()) && !info.valid()) {
+            log.warn("Skill catalog loaded invalid drawio skill: name={} source={} selectable={} errors={}",
+                    info.name(), info.source(), info.selectable(), info.validationErrors());
+        }
     }
 
     private Map<String, Object> frontmatter(String frontmatter) {
@@ -272,6 +452,32 @@ public class SkillCatalogService {
         return Boolean.parseBoolean(String.valueOf(value));
     }
 
+    private int intValue(Object value, int defaultValue) {
+        if (value == null) {
+            return defaultValue;
+        }
+        if (value instanceof Number number) {
+            return number.intValue();
+        }
+        try {
+            return Integer.parseInt(String.valueOf(value).trim());
+        } catch (Exception ignored) {
+            return defaultValue;
+        }
+    }
+
+    private String firstNonBlank(String... values) {
+        if (values == null) {
+            return "";
+        }
+        for (String value : values) {
+            if (value != null && !value.isBlank()) {
+                return value.trim();
+            }
+        }
+        return "";
+    }
+
     private String folderName(String url) {
         Matcher m = FOLDER.matcher(url);
         return m.find() ? m.group(1) : null;
@@ -289,6 +495,7 @@ public class SkillCatalogService {
             if (!SHARED_SKILL.equals(info.name())
                     && !SHARED_XML_GUIDE_SKILL.equals(info.name())
                     && info.selectable()
+                    && info.valid()
                     && ROUTER_SKILL_CATEGORY.equals(info.category())) {
                 list.add(info);
             }
@@ -357,12 +564,23 @@ public class SkillCatalogService {
         return name != null && catalog(ownerId).containsKey(name.trim());
     }
 
+    /** Full parsed metadata for diagnostics and tests, or null when the skill is not visible. */
+    public SkillInfo info(String name, String ownerId) {
+        if (name == null) {
+            return null;
+        }
+        return catalog(ownerId).get(name.trim());
+    }
+
     /** SKILL.md body (frontmatter stripped) for a discovered skill visible to the user, or empty. */
     public String body(String name, String ownerId) {
-        if (name == null) {
-            return "";
-        }
-        SkillInfo info = catalog(ownerId).get(name.trim());
+        SkillInfo info = info(name, ownerId);
         return info == null ? "" : info.body();
+    }
+
+    /** Optional reference.md body for a discovered skill visible to the user, or empty. */
+    public String referenceBody(String name, String ownerId) {
+        SkillInfo info = info(name, ownerId);
+        return info == null ? "" : info.referenceBody();
     }
 }

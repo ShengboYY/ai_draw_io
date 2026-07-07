@@ -39,6 +39,7 @@ public final class DrawioSkillAccessContext {
     }
 
     public static Optional<SkillAccess> resolve(String sessionId) {
+        // Prefer the active tool-call thread context; session access is only a fallback for async hops.
         SkillAccess current = CURRENT.get();
         if (current != null) {
             return Optional.of(current);

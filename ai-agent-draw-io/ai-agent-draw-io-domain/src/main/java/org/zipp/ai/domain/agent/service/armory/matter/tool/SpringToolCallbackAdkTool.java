@@ -12,6 +12,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.springframework.ai.tool.ToolCallback;
 import org.springframework.ai.tool.definition.ToolDefinition;
 import org.zipp.ai.domain.agent.service.armory.matter.skills.DrawioSkillAccessContext;
+import org.zipp.ai.domain.agent.service.armory.matter.skills.SkillToolTraceContext;
 import org.zipp.ai.domain.agent.service.usage.AgentUsageTelemetryContext;
 
 import java.util.ArrayList;
@@ -66,17 +67,29 @@ public class SpringToolCallbackAdkTool extends BaseTool {
         return Single.fromCallable(() -> {
             AgentUsageTelemetryContext.RunContext runContext = resolveRunContext(toolContext).orElse(null);
             DrawioSkillAccessContext.SkillAccess skillAccess = resolveSkillAccess(toolContext).orElse(null);
-            AgentUsageTelemetryContext.Scope runScope = runContext == null
-                    ? () -> { }
-                    : AgentUsageTelemetryContext.bind(runContext);
-            DrawioSkillAccessContext.Scope skillScope = skillAccess == null
-                    ? () -> { }
-                    : DrawioSkillAccessContext.bind(skillAccess);
-            try (runScope; skillScope) {
+            try (AgentUsageTelemetryContext.Scope runScope = bindRunContext(runContext);
+                 DrawioSkillAccessContext.Scope skillScope = bindSkillAccess(skillAccess);
+                 SkillToolTraceContext.Scope traceScope = bindSkillTrace(runContext, toolContext)) {
                 String response = toolCallback.call(OBJECT_MAPPER.writeValueAsString(args == null ? Map.of() : args));
                 return parseToolResponse(response);
             }
         });
+    }
+
+    private AgentUsageTelemetryContext.Scope bindRunContext(AgentUsageTelemetryContext.RunContext runContext) {
+        return runContext == null ? () -> { } : AgentUsageTelemetryContext.bind(runContext);
+    }
+
+    private DrawioSkillAccessContext.Scope bindSkillAccess(DrawioSkillAccessContext.SkillAccess skillAccess) {
+        return skillAccess == null ? () -> { } : DrawioSkillAccessContext.bind(skillAccess);
+    }
+
+    private SkillToolTraceContext.Scope bindSkillTrace(AgentUsageTelemetryContext.RunContext runContext,
+                                                       ToolContext toolContext) {
+        String traceId = runContext == null ? "" : runContext.runId();
+        String sessionId = toolContext == null ? "" : toolContext.sessionId();
+        String invocationId = toolContext == null ? "" : toolContext.functionCallId().orElse("");
+        return SkillToolTraceContext.bind(traceId, sessionId, invocationId);
     }
 
     private Optional<AgentUsageTelemetryContext.RunContext> resolveRunContext(ToolContext toolContext) {

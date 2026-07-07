@@ -46,6 +46,16 @@ public class DrawioArchitectureSkillResourceTest {
     }
 
     @Test
+    public void intentRouterTreatsAvailableSkillsAsAuthoritativeDynamicCatalog() throws Exception {
+        String agentPrompt = readResource("agent/agent-draw-io.yml");
+
+        assertTrue(agentPrompt.contains("[Available Skills] is the authoritative skill catalog"));
+        assertTrue(agentPrompt.contains("including platform and user-added skills"));
+        assertTrue(agentPrompt.contains("even when it is not one of the built-in examples below"));
+        assertTrue(agentPrompt.contains("built-in mapping below only as a fallback"));
+    }
+
+    @Test
     public void drawerPromptDefinesSelfRepairLoopProtocol() throws Exception {
         String agentPrompt = readResource("agent/agent-draw-io.yml");
 
