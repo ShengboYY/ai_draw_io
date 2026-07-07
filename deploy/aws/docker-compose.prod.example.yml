@@ -46,6 +46,7 @@ services:
         mysql -h db -uroot -p"$${MYSQL_ROOT_PASSWORD}" ai_draw_io < /sql/migrations/2026-07-03-create-usage-counter.sql
         mysql -h db -uroot -p"$${MYSQL_ROOT_PASSWORD}" ai_draw_io < /sql/migrations/2026-07-03-debug-trace-retention.sql
         mysql -h db -uroot -p"$${MYSQL_ROOT_PASSWORD}" < /sql/migrations/2026-07-03-expand-diagram-thumbnail-url.sql
+        mysql -h db -uroot -p"$${MYSQL_ROOT_PASSWORD}" ai_draw_io < /sql/migrations/2026-07-07-add-canvas-content-hash.sql
     restart: "no"
 
   backend:

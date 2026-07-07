@@ -153,6 +153,7 @@ mysql -h "$RDS_ENDPOINT" -u "$RDS_ADMIN" -p ai_draw_io < ../../ai-agent-draw-io/
 mysql -h "$RDS_ENDPOINT" -u "$RDS_ADMIN" -p ai_draw_io < ../../ai-agent-draw-io/docs/sql/migrations/2026-07-03-create-usage-counter.sql
 mysql -h "$RDS_ENDPOINT" -u "$RDS_ADMIN" -p ai_draw_io < ../../ai-agent-draw-io/docs/sql/migrations/2026-07-03-debug-trace-retention.sql
 mysql -h "$RDS_ENDPOINT" -u "$RDS_ADMIN" -p < ../../ai-agent-draw-io/docs/sql/migrations/2026-07-03-expand-diagram-thumbnail-url.sql
+mysql -h "$RDS_ENDPOINT" -u "$RDS_ADMIN" -p ai_draw_io < ../../ai-agent-draw-io/docs/sql/migrations/2026-07-07-add-canvas-content-hash.sql
 ```
 
 不要在全新库执行 `2026-07-02-drop-diagram-current-version.sql`。它只给旧库迁移使用。

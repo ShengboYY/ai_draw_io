@@ -797,6 +797,7 @@ docker push "$AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/ai-drawio-backend
 - `docs/sql/migrations/2026-07-03-create-usage-counter.sql`
 - `docs/sql/migrations/2026-07-03-debug-trace-retention.sql`
 - `docs/sql/migrations/2026-07-03-expand-diagram-thumbnail-url.sql`
+- `docs/sql/migrations/2026-07-07-add-canvas-content-hash.sql`
 
 这说明当前项目已经具备“用 SQL 文件演进数据库”的雏形。后面更成熟的方式是引入 Flyway 或 Liquibase，让应用/部署流程自动记录哪些 migration 已经执行过，避免重复执行或漏执行。
 
