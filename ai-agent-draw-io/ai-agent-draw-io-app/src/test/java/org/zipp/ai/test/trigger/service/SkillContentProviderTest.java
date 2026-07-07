@@ -30,6 +30,19 @@ public class SkillContentProviderTest {
         assertEquals(1, count(section, "- drawio-visual-design"));
     }
 
+    @Test
+    public void shouldReturnRequiredSkillNamesForRunScopedToolAllowlist() {
+        SkillContentProvider provider = new SkillContentProvider();
+        ReflectionTestUtils.setField(provider, "skillCatalogService", new SkillCatalogService());
+
+        SkillContentProvider.SkillSection section = provider.buildSkillSectionWithMetadata(List.of("drawio-flowchart"), null);
+
+        assertTrue(section.requiredSkillNames().contains("drawio-xml-guide"));
+        assertTrue(section.requiredSkillNames().contains("drawio-visual-design"));
+        assertTrue(section.requiredSkillNames().contains("drawio-flowchart"));
+        assertFalse(section.requiredSkillNames().contains("drawio-er"));
+    }
+
     private int count(String text, String needle) {
         int count = 0;
         int index = 0;

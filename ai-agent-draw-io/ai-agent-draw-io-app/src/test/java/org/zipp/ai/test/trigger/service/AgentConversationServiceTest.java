@@ -604,6 +604,11 @@ public class AgentConversationServiceTest {
         public String buildSkillSection(java.util.List<String> skillNames, String ownerId) {
             return "";
         }
+
+        @Override
+        public SkillSection buildSkillSectionWithMetadata(java.util.List<String> skillNames, String ownerId) {
+            return SkillSection.empty();
+        }
     }
 
     private static class CountingIntentRoutingService implements IIntentRoutingService {

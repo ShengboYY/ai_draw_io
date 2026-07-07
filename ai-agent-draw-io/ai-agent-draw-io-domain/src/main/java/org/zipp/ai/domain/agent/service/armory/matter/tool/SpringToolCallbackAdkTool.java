@@ -11,6 +11,7 @@ import io.reactivex.rxjava3.core.Single;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.ai.tool.ToolCallback;
 import org.springframework.ai.tool.definition.ToolDefinition;
+import org.zipp.ai.domain.agent.service.armory.matter.skills.DrawioSkillAccessContext;
 import org.zipp.ai.domain.agent.service.usage.AgentUsageTelemetryContext;
 
 import java.util.ArrayList;
@@ -64,11 +65,14 @@ public class SpringToolCallbackAdkTool extends BaseTool {
     public Single<Map<String, Object>> runAsync(Map<String, Object> args, ToolContext toolContext) {
         return Single.fromCallable(() -> {
             AgentUsageTelemetryContext.RunContext runContext = resolveRunContext(toolContext).orElse(null);
-            if (runContext == null) {
-                String response = toolCallback.call(OBJECT_MAPPER.writeValueAsString(args == null ? Map.of() : args));
-                return parseToolResponse(response);
-            }
-            try (AgentUsageTelemetryContext.Scope ignored = AgentUsageTelemetryContext.bind(runContext)) {
+            DrawioSkillAccessContext.SkillAccess skillAccess = resolveSkillAccess(toolContext).orElse(null);
+            AgentUsageTelemetryContext.Scope runScope = runContext == null
+                    ? () -> { }
+                    : AgentUsageTelemetryContext.bind(runContext);
+            DrawioSkillAccessContext.Scope skillScope = skillAccess == null
+                    ? () -> { }
+                    : DrawioSkillAccessContext.bind(skillAccess);
+            try (runScope; skillScope) {
                 String response = toolCallback.call(OBJECT_MAPPER.writeValueAsString(args == null ? Map.of() : args));
                 return parseToolResponse(response);
             }
@@ -79,6 +83,12 @@ public class SpringToolCallbackAdkTool extends BaseTool {
         return toolContext == null
                 ? AgentUsageTelemetryContext.current()
                 : AgentUsageTelemetryContext.resolve(toolContext.sessionId());
+    }
+
+    private Optional<DrawioSkillAccessContext.SkillAccess> resolveSkillAccess(ToolContext toolContext) {
+        return toolContext == null
+                ? DrawioSkillAccessContext.current()
+                : DrawioSkillAccessContext.resolve(toolContext.sessionId());
     }
 
     private FunctionDeclaration buildDeclaration(ToolDefinition definition) {

@@ -19,6 +19,7 @@ import org.zipp.ai.domain.agent.service.IChatService;
 import org.zipp.ai.domain.agent.service.IIntentRoutingService;
 import org.zipp.ai.domain.agent.service.armory.matter.mcp.server.DrawioCanvasToolNames;
 import org.zipp.ai.domain.agent.service.armory.matter.mcp.server.DrawioSkillToolNames;
+import org.zipp.ai.domain.agent.service.armory.matter.skills.DrawioSkillAccessContext;
 import org.zipp.ai.domain.agent.service.chat.CustomApiConfigManager;
 import org.zipp.ai.domain.agent.service.debugtrace.AgentDebugTraceService;
 import org.zipp.ai.domain.agent.service.usage.AgentUsageTelemetryContext;
@@ -119,12 +120,13 @@ public class AgentConversationService {
                     ? telemetryService().recordStep("review", () -> buildReviewContextIfNeeded(currentRequest, config, routingResult))
                     : null;
             int maxReviewIterations = effectiveMaxReviewIterations(currentRequest, routingResult);
-            String routedMessage = buildRoutedMessage(currentRequest, routingResult, reviewContext, maxReviewIterations, currentRequest.getUserId(), currentRequest.getSkills());
-            captureDebugTrace(runScope, "ROUTED_MESSAGE", routedMessage);
+            RoutedDrawMessage routedMessage = buildRoutedDrawMessage(currentRequest, routingResult, reviewContext, maxReviewIterations, currentRequest.getUserId(), currentRequest.getSkills());
+            captureDebugTrace(runScope, "ROUTED_MESSAGE", routedMessage.message());
             final String finalSessionId = sessionId;
+            DrawioSkillAccessContext.bindSession(finalSessionId, routedMessage.allowedSkillNames());
             ChatResponseDTO response = telemetryService().recordStep("drawing", () -> {
                 List<String> messages = chatService.handleMessage(
-                        currentRequest.getAgentId(), currentRequest.getUserId(), finalSessionId, routedMessage);
+                        currentRequest.getAgentId(), currentRequest.getUserId(), finalSessionId, routedMessage.message());
                 return parseChatResponse(messages);
             });
             captureDebugTrace(runScope, "CHAT_RESPONSE", response.getContent());
@@ -137,7 +139,7 @@ public class AgentConversationService {
             throw new RuntimeException(e);
         } finally {
             telemetryService().completeRun(runScope, runError);
-            CustomApiConfigManager.clearConfig(sessionId);
+            clearSessionConfig(sessionId);
             AgentUsageTelemetryContext.clearSession(sessionId);
             if (configuredScope != null) {
                 configuredScope.close();
@@ -195,8 +197,8 @@ public class AgentConversationService {
             final CanvasReviewContext reviewContext = routingResult.needsCanvasReview()
                     ? telemetryService().recordStep("review", () -> buildReviewContextIfNeeded(currentRequest, config, routingResult))
                     : null;
-            final String routedMessage = buildRoutedMessage(currentRequest, routingResult, reviewContext, maxRepairRounds, currentRequest.getUserId(), currentRequest.getSkills());
-            captureDebugTrace(runScope, "ROUTED_MESSAGE", routedMessage);
+            final RoutedDrawMessage routedMessage = buildRoutedDrawMessage(currentRequest, routingResult, reviewContext, maxRepairRounds, currentRequest.getUserId(), currentRequest.getSkills());
+            captureDebugTrace(runScope, "ROUTED_MESSAGE", routedMessage.message());
             // The current canvas travels in the request; keep it so patch_cells can merge a delta
             // without the model re-emitting the whole diagram.
             final String currentCanvasXml = contextBuilder().resolveCanvasXml(currentRequest);
@@ -204,10 +206,11 @@ public class AgentConversationService {
             streamResponseWriter.setCanvasStateContext(emitter, currentRequest.getUserId(), currentRequest.getDiagramId(), currentRequest.getExpectedVersion());
             drawingStep = telemetryService().startStep("drawing");
             AgentUsageTelemetryContext.bindSession(finalSessionId, runScope.getContext().withPhase("drawing"));
+            DrawioSkillAccessContext.bindSession(finalSessionId, routedMessage.allowedSkillNames());
             final AgentUsageTelemetryService.RunScope finalRunScope = runScope;
             final AgentUsageTelemetryService.StepScope finalDrawingStep = drawingStep;
 
-            Disposable disposable = chatService.handleMessageStream(currentRequest.getAgentId(), currentRequest.getUserId(), finalSessionId, routedMessage)
+            Disposable disposable = chatService.handleMessageStream(currentRequest.getAgentId(), currentRequest.getUserId(), finalSessionId, routedMessage.message())
                     .subscribe(
                             event -> {
                                 try {
@@ -546,20 +549,21 @@ public class AgentConversationService {
 
     // Inject skill rules only when the drawer needs diagram-specific semantics; small edits stay lean.
     // User-specified skills (if any) override the router's automatic selection.
-    private String skillSectionFor(IntentRoutingResult routingResult, String ownerId, List<String> userSkills) {
+    private SkillContentProvider.SkillSection skillSectionFor(IntentRoutingResult routingResult, String ownerId, List<String> userSkills) {
         String routeType = StringUtils.defaultString(routingResult.getRouteType());
         boolean generativeDraw = "create_new".equals(routeType)
                 || "optimize_layout".equals(routeType)
                 || ("edit_existing".equals(routeType) && routingResult.needsCanvasReview());
         if (!generativeDraw && (userSkills == null || userSkills.isEmpty())) {
-            return "";
+            return SkillContentProvider.SkillSection.empty();
         }
         List<String> chosen = (userSkills != null && !userSkills.isEmpty())
                 ? userSkills
                 : List.of(StringUtils.defaultString(routingResult.getSkillName()));
-        String section = skillContentProvider.buildSkillSection(chosen, ownerId);
-        log.info("[skill-tools] routeType={} chosenSkills={} userSpecified={} ownerId={} sectionChars={}",
-                routeType, chosen, userSkills != null && !userSkills.isEmpty(), ownerId, section.length());
+        SkillContentProvider.SkillSection section = skillContentProvider.buildSkillSectionWithMetadata(chosen, ownerId);
+        log.info("[skill-tools] routeType={} chosenSkills={} allowedSkillNames={} userSpecified={} ownerId={} sectionChars={}",
+                routeType, chosen, section.requiredSkillNames(), userSkills != null && !userSkills.isEmpty(),
+                SecretLogSanitizer.maskCapability(ownerId), section.text().length());
         return section;
     }
 
@@ -569,6 +573,15 @@ public class AgentConversationService {
                                       int maxReviewIterations,
                                       String ownerId,
                                       List<String> userSkills) {
+        return buildRoutedDrawMessage(requestDTO, routingResult, reviewContext, maxReviewIterations, ownerId, userSkills).message();
+    }
+
+    private RoutedDrawMessage buildRoutedDrawMessage(ChatRequestDTO requestDTO,
+                                                     IntentRoutingResult routingResult,
+                                                     CanvasReviewContext reviewContext,
+                                                     int maxReviewIterations,
+                                                     String ownerId,
+                                                     List<String> userSkills) {
         requestDTO = requestWithStoredCanvas(requestDTO);
         com.alibaba.fastjson.JSONObject routingJson = new com.alibaba.fastjson.JSONObject();
         routingJson.put("routeType", routingResult.getRouteType());
@@ -594,18 +607,22 @@ public class AgentConversationService {
                 logValue(routingResult.getSkillName()),
                 null != reviewContext);
 
+        SkillContentProvider.SkillSection skillSection = skillSectionFor(routingResult, ownerId, userSkills);
         String routedMessage = "[Intent Routing Result]\n"
                 + routingJson.toJSONString()
                 + "\n\n"
-                + skillSectionFor(routingResult, ownerId, userSkills)
+                + skillSection.text()
                 + contextBuilder().buildDrawingContextMessage(requestDTO, routingResult);
         if (null == reviewContext) {
-            return routedMessage;
+            return new RoutedDrawMessage(routedMessage, skillSection.requiredSkillNames());
         }
 
-        return routedMessage
+        return new RoutedDrawMessage(routedMessage
                 + "\n\n"
-                + reviewContext.getSerializedContext();
+                + reviewContext.getSerializedContext(), skillSection.requiredSkillNames());
+    }
+
+    private record RoutedDrawMessage(String message, java.util.Set<String> allowedSkillNames) {
     }
 
     private List<String> allowedToolsFor(IntentRoutingResult routingResult) {
@@ -843,6 +860,7 @@ public class AgentConversationService {
 
     private void clearSessionConfig(String sessionId) {
         CustomApiConfigManager.clearConfig(sessionId);
+        DrawioSkillAccessContext.clearSession(sessionId);
     }
 
     // Emit any buffered author output (non-XML lines such as patch_cells are only complete at flush time).

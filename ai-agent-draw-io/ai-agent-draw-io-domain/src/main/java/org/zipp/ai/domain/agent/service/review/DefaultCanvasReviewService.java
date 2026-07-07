@@ -8,6 +8,8 @@ import org.zipp.ai.domain.agent.model.valobj.review.SemanticContentReview;
 import org.zipp.ai.domain.agent.service.ICanvasReviewService;
 import org.zipp.ai.domain.agent.service.IChatService;
 import org.zipp.ai.domain.agent.service.IDiagramQualityInspector;
+import org.zipp.ai.domain.agent.service.armory.matter.skills.DrawioSkillAccessContext;
+import org.zipp.ai.domain.agent.service.armory.matter.skills.SkillCatalogService;
 import org.zipp.ai.domain.agent.service.chat.CustomApiConfigManager;
 import org.zipp.ai.domain.agent.service.usage.AgentUsageTelemetryContext;
 import org.zipp.ai.types.util.SecretLogSanitizer;
@@ -76,6 +78,7 @@ public class DefaultCanvasReviewService implements ICanvasReviewService {
             return fallbackAnswer(context);
         } finally {
             CustomApiConfigManager.clearConfig(sessionId);
+            DrawioSkillAccessContext.clearSession(sessionId);
             AgentUsageTelemetryContext.clearSession(sessionId);
         }
     }
@@ -103,6 +106,7 @@ public class DefaultCanvasReviewService implements ICanvasReviewService {
             return SemanticContentReview.unavailable("Semantic review failed.");
         } finally {
             CustomApiConfigManager.clearConfig(sessionId);
+            DrawioSkillAccessContext.clearSession(sessionId);
             AgentUsageTelemetryContext.clearSession(sessionId);
         }
     }
@@ -110,11 +114,25 @@ public class DefaultCanvasReviewService implements ICanvasReviewService {
     private String createInternalSession(String agentId, CanvasReviewCommand command) {
         String sessionId = chatService.createSession(agentId, command.getUserId());
         AgentUsageTelemetryContext.inheritCurrentToSession(sessionId);
+        if (SEMANTIC_REVIEW_AGENT_ID.equals(agentId)) {
+            DrawioSkillAccessContext.bindSession(sessionId, semanticReviewSkillNames(command.getRoutingResult()));
+        }
         CustomApiConfigManager.CustomApiConfig config = command.getCustomApiConfig();
         if (null != config) {
             CustomApiConfigManager.setConfig(sessionId, config);
         }
         return sessionId;
+    }
+
+    private List<String> semanticReviewSkillNames(IntentRoutingResult routingResult) {
+        List<String> skillNames = new ArrayList<>();
+        skillNames.add(SkillCatalogService.SHARED_XML_GUIDE_SKILL);
+        skillNames.add(SkillCatalogService.SHARED_SKILL);
+        String selected = routingResult == null ? null : routingResult.getSkillName();
+        if (selected != null && !selected.isBlank() && !"none".equalsIgnoreCase(selected.trim())) {
+            skillNames.add(selected.trim());
+        }
+        return skillNames;
     }
 
     private String parseUserAnswer(String raw) {
