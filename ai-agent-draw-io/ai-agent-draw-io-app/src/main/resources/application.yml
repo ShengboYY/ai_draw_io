@@ -19,6 +19,13 @@ server:
 
 # Account links rendered by the console email adapter in local development.
 account:
+  email:
+    sender: ${ACCOUNT_EMAIL_SENDER:console}
+    from: ${ACCOUNT_EMAIL_FROM:}
+    reply-to: ${ACCOUNT_EMAIL_REPLY_TO:}
+    region: ${ACCOUNT_EMAIL_REGION:${AWS_REGION:ap-southeast-2}}
+  verification:
+    base-url: ${ACCOUNT_VERIFICATION_BASE_URL:http://localhost:3000/verify-email}
   password-reset:
     base-url: ${ACCOUNT_PASSWORD_RESET_BASE_URL:http://localhost:3000/reset-password/confirm}
 
