@@ -7,6 +7,9 @@ import {
   shouldHandleManualAutosave,
   shouldCreateConversationDiagramShell,
 } from '../src/app/drawio/manual-canvas-save.ts';
+import {
+  shouldRetryManualCanvasSaveConflict,
+} from '../src/app/drawio/canvas-persistence-coordinator.ts';
 
 test('buildManualCanvasSaveRequest keeps the current canvas version for autosave', () => {
   const request = buildManualCanvasSaveRequest({
@@ -58,6 +61,30 @@ test('latestCanvasVersion returns undefined when no version is known', () => {
   assert.equal(latestCanvasVersion(), undefined);
   assert.equal(latestCanvasVersion(undefined, undefined), undefined);
   assert.equal(latestCanvasVersion(Number.NaN), undefined);
+});
+
+test('shouldRetryManualCanvasSaveConflict retries only when the queued XML is still current', () => {
+  assert.equal(shouldRetryManualCanvasSaveConflict({
+    queuedCanvasXml: '<mxGraphModel><root><mxCell id="2" value="old"/></root></mxGraphModel>',
+    currentCanvasXml: '<mxGraphModel><root><mxCell id="2" value="old"/></root></mxGraphModel>',
+    aiMutationInFlight: false,
+  }), true);
+});
+
+test('shouldRetryManualCanvasSaveConflict drops stale autosave after AI updates the canvas', () => {
+  assert.equal(shouldRetryManualCanvasSaveConflict({
+    queuedCanvasXml: '<mxGraphModel><root><mxCell id="2" value="old"/></root></mxGraphModel>',
+    currentCanvasXml: '<mxGraphModel><root><mxCell id="2" value="new"/></root></mxGraphModel>',
+    aiMutationInFlight: false,
+  }), false);
+});
+
+test('shouldRetryManualCanvasSaveConflict does not retry while an AI mutation owns the diagram', () => {
+  assert.equal(shouldRetryManualCanvasSaveConflict({
+    queuedCanvasXml: '<mxGraphModel><root><mxCell id="2" value="old"/></root></mxGraphModel>',
+    currentCanvasXml: '<mxGraphModel><root><mxCell id="2" value="old"/></root></mxGraphModel>',
+    aiMutationInFlight: true,
+  }), false);
 });
 
 test('shouldHandleManualAutosave accepts XML events before editor ready state catches up', () => {

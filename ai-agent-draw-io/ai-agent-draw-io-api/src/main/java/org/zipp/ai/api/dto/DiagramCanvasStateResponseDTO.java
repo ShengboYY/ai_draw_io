@@ -13,6 +13,8 @@ public class DiagramCanvasStateResponseDTO {
     private String diagramType;
     private String thumbnailUrl;
     private String currentXml;
+    private String contentHash;
+    private String saveStatus;
     private String summary;
     private Long version;
     private Date updatedAt;

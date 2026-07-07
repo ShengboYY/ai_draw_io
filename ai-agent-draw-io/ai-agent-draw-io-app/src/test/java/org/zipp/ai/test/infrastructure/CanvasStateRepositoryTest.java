@@ -2,6 +2,8 @@ package org.zipp.ai.test.infrastructure;
 
 import org.junit.Test;
 import org.zipp.ai.domain.agent.model.valobj.canvas.CanvasState;
+import org.zipp.ai.domain.agent.model.valobj.canvas.CanvasStateSaveResult;
+import org.zipp.ai.domain.agent.model.valobj.canvas.CanvasStateSaveStatus;
 import org.zipp.ai.domain.agent.model.valobj.canvas.CanvasStateVersionConflictException;
 import org.zipp.ai.infrastructure.adapter.repository.CanvasStateRepository;
 import org.zipp.ai.infrastructure.dao.ICanvasStateMapper;
@@ -28,7 +30,7 @@ public class CanvasStateRepositoryTest {
         mapper.canvasStateExists = false;
         injectMapper(repository, mapper);
 
-        CanvasState saved = repository.save(CanvasState.builder()
+        CanvasStateSaveResult result = repository.saveWithResult(CanvasState.builder()
                 .userId("alice")
                 .diagramId("diagram-1")
                 .diagramType("architecture")
@@ -36,10 +38,13 @@ public class CanvasStateRepositoryTest {
                 .summary("1 node")
                 .analysisJson("{\"valid\":true}")
                 .build());
+        CanvasState saved = result.getState();
 
+        assertEquals(CanvasStateSaveStatus.CREATED, result.getStatus());
         assertEquals("alice", mapper.saved.getUserId());
         assertEquals("diagram-1", mapper.saved.getDiagramId());
         assertEquals("<mxGraphModel/>", mapper.saved.getCurrentXml());
+        assertTrue(mapper.saved.getContentHash() != null && !mapper.saved.getContentHash().isBlank());
         assertTrue(mapper.insertCanvasStateCalled);
         assertEquals(Long.valueOf(4L), saved.getVersion());
         assertEquals("persisted", saved.getSummary());
@@ -51,13 +56,15 @@ public class CanvasStateRepositoryTest {
         FakeCanvasStateMapper mapper = new FakeCanvasStateMapper();
         injectMapper(repository, mapper);
 
-        CanvasState saved = repository.save(CanvasState.builder()
+        CanvasStateSaveResult result = repository.saveWithResult(CanvasState.builder()
                 .userId("alice")
                 .diagramId("diagram-1")
                 .currentXml("<mxGraphModel/>")
                 .version(3L)
                 .build());
+        CanvasState saved = result.getState();
 
+        assertEquals(CanvasStateSaveStatus.UPDATED, result.getStatus());
         assertTrue(mapper.updateByVersionCalled);
         assertEquals(Long.valueOf(3L), mapper.saved.getVersion());
         assertEquals(Long.valueOf(4L), saved.getVersion());
@@ -68,6 +75,7 @@ public class CanvasStateRepositoryTest {
         CanvasStateRepository repository = new CanvasStateRepository();
         FakeCanvasStateMapper mapper = new FakeCanvasStateMapper();
         mapper.updateRows = 0;
+        mapper.currentXml = "<mxGraphModel><root><mxCell id=\"0\"/></root></mxGraphModel>";
         injectMapper(repository, mapper);
 
         repository.save(CanvasState.builder()
@@ -76,6 +84,30 @@ public class CanvasStateRepositoryTest {
                 .currentXml("<mxGraphModel/>")
                 .version(3L)
                 .build());
+    }
+
+    @Test
+    public void shouldTreatStaleExpectedVersionAsNoopWhenCanonicalCanvasHashAlreadyMatches() throws Exception {
+        CanvasStateRepository repository = new CanvasStateRepository();
+        FakeCanvasStateMapper mapper = new FakeCanvasStateMapper();
+        mapper.updateRows = 0;
+        mapper.currentXml = "<mxGraphModel><root><mxCell id=\"2\" value=\"Order\" vertex=\"1\" parent=\"1\"/></root></mxGraphModel>";
+        injectMapper(repository, mapper);
+
+        CanvasStateSaveResult result = repository.saveWithResult(CanvasState.builder()
+                .userId("alice")
+                .diagramId("diagram-1")
+                .currentXml("<mxGraphModel>\n  <root>\n    <mxCell parent=\"1\" vertex=\"1\" value=\"Order\" id=\"2\"></mxCell>\n  </root>\n</mxGraphModel>")
+                .version(3L)
+                .build());
+        CanvasState saved = result.getState();
+
+        assertEquals(CanvasStateSaveStatus.NOOP, result.getStatus());
+        assertTrue(mapper.updateByVersionCalled);
+        assertFalse(mapper.insertCanvasStateCalled);
+        assertEquals(Long.valueOf(4L), saved.getVersion());
+        assertEquals(mapper.currentXml, saved.getCurrentXml());
+        assertEquals(saved.getContentHash(), mapper.saved.getContentHash());
     }
 
     @Test(expected = CanvasStateVersionConflictException.class)
@@ -324,6 +356,7 @@ public class CanvasStateRepositoryTest {
         private String importTargetDiagramId;
         private String copiedCanvasTargetDiagramId;
         private String copiedMessagesTargetDiagramId;
+        private String currentXml = "<mxGraphModel/>";
 
         @Override
         public CanvasStatePO selectByUserAndDiagram(String userId, String diagramId) {
@@ -337,7 +370,7 @@ public class CanvasStateRepositoryTest {
             po.setDiagramId(diagramId);
             po.setTitle(renamedTitle == null ? "Checkout Flow" : renamedTitle);
             po.setDiagramType("architecture");
-            po.setCurrentXml("<mxGraphModel/>");
+            po.setCurrentXml(currentXml);
             po.setSummary("persisted");
             po.setAnalysisJson("{\"valid\":true}");
             po.setVersion(4L);

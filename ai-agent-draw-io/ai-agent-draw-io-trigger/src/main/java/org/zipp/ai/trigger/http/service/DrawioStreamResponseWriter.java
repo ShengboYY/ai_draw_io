@@ -5,6 +5,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseBodyEmitter;
 import org.zipp.ai.domain.agent.model.valobj.canvas.CanvasState;
+import org.zipp.ai.domain.agent.model.valobj.canvas.CanvasStateSaveResult;
 import org.zipp.ai.domain.agent.model.valobj.canvas.CanvasStateVersionConflictException;
 import org.zipp.ai.domain.agent.service.ICanvasStateStore;
 import org.zipp.ai.domain.agent.service.armory.matter.mcp.server.DrawioCanvasToolNames;
@@ -325,10 +326,10 @@ public class DrawioStreamResponseWriter {
     }
 
     private void sendDrawioDoneUnchecked(ResponseBodyEmitter emitter, String phase, String xml, String mode) throws Exception {
-        CanvasState savedState = null;
+        CanvasStateSaveResult saveResult = null;
         if (StringUtils.isNotBlank(xml)) {
             try {
-                savedState = persistCanvasState(emitter, xml);
+                saveResult = persistCanvasState(emitter, xml);
             } catch (CanvasStateVersionConflictException e) {
                 sendVersionConflict(emitter, phase, canvasStateContextByEmitter.get(emitter));
                 return;
@@ -342,18 +343,18 @@ public class DrawioStreamResponseWriter {
         chunk.put("content", xml);
         // Absent/"full" => clean reload; "local" => merge into the live canvas without remounting.
         chunk.put("mode", StringUtils.isNotBlank(mode) ? mode : "full");
-        appendCanvasStateMetadata(chunk, savedState, canvasStateContextByEmitter.get(emitter));
+        appendCanvasStateMetadata(chunk, saveResult, canvasStateContextByEmitter.get(emitter));
         wrapper.put("chunk", chunk);
         emitter.send(wrapper.toJSONString() + "\n");
     }
 
-    private CanvasState persistCanvasState(ResponseBodyEmitter emitter, String xml) {
+    private CanvasStateSaveResult persistCanvasState(ResponseBodyEmitter emitter, String xml) {
         CanvasStateContext context = canvasStateContextByEmitter.get(emitter);
         if (canvasStateStore == null || context == null || StringUtils.isBlank(xml)) {
             return null;
         }
         try {
-            CanvasState saved = canvasStateStore.save(CanvasState.builder()
+            CanvasStateSaveResult result = canvasStateStore.saveWithResult(CanvasState.builder()
                     .userId(context.userId())
                     .diagramId(context.diagramId())
                     .currentXml(xml)
@@ -361,11 +362,12 @@ public class DrawioStreamResponseWriter {
                     .build());
             // Advance the expected version so a later flush in the same stream (e.g. a review-repair
             // pass) locks against the freshly persisted version instead of the stale original.
+            CanvasState saved = result == null ? null : result.getState();
             if (saved != null && saved.getVersion() != null) {
                 canvasStateContextByEmitter.put(emitter,
                         new CanvasStateContext(context.userId(), context.diagramId(), saved.getVersion()));
             }
-            return saved;
+            return result;
         } catch (CanvasStateVersionConflictException e) {
             throw e;
         } catch (Exception e) {
@@ -376,11 +378,16 @@ public class DrawioStreamResponseWriter {
     }
 
     private void appendCanvasStateMetadata(com.alibaba.fastjson.JSONObject chunk,
-                                           CanvasState savedState,
+                                           CanvasStateSaveResult saveResult,
                                            CanvasStateContext context) {
+        CanvasState savedState = saveResult == null ? null : saveResult.getState();
         if (savedState != null) {
             chunk.put("diagramId", savedState.getDiagramId());
             chunk.put("version", savedState.getVersion());
+            chunk.put("contentHash", savedState.getContentHash());
+            if (saveResult.getStatus() != null) {
+                chunk.put("saveStatus", saveResult.getStatus().name());
+            }
             return;
         }
         if (context != null) {
@@ -395,8 +402,24 @@ public class DrawioStreamResponseWriter {
         if (context != null) {
             chunk.put("diagramId", context.diagramId());
             chunk.put("expectedVersion", context.expectedVersion());
+            appendCurrentCanvasState(chunk, context);
         }
         sendWrappedChunk(emitter, phase, chunk);
+    }
+
+    private void appendCurrentCanvasState(com.alibaba.fastjson.JSONObject chunk, CanvasStateContext context) {
+        if (canvasStateStore == null || context == null) {
+            return;
+        }
+        try {
+            canvasStateStore.find(context.userId(), context.diagramId()).ifPresent(current -> {
+                chunk.put("currentVersion", current.getVersion());
+                chunk.put("currentContentHash", current.getContentHash());
+            });
+        } catch (Exception e) {
+            log.warn("Failed to load current canvas state after conflict. userId:{} diagramId:{}",
+                    SecretLogSanitizer.maskCapability(context.userId()), logValue(context.diagramId()), e);
+        }
     }
 
     public void sendDone(ResponseBodyEmitter emitter) throws Exception {

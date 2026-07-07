@@ -3,6 +3,7 @@ type RestorableDiagram = {
   title?: string;
   currentXml?: unknown;
   version?: number;
+  contentHash?: string;
 };
 
 const DRAWIO_XML_KEYS = ['xml', 'currentXml', 'drawIoXml', 'content', 'data'];
@@ -68,4 +69,5 @@ export const buildRestoredDiagramState = (diagram: RestorableDiagram) => ({
   title: diagram.title?.trim() || 'Restored Diagram',
   drawIoXml: normalizeRestoredDrawioXml(diagram.currentXml),
   canvasVersion: diagram.version,
+  ...(diagram.contentHash?.trim() && { canvasContentHash: diagram.contentHash.trim() }),
 });

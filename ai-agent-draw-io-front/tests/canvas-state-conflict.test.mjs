@@ -14,10 +14,11 @@ test('buildCanvasStateConflictMessage keeps backend detail and version hint', ()
   const message = buildCanvasStateConflictMessage({
     content: 'Canvas state version conflict. Refresh the diagram and retry.',
     expectedVersion: 7,
+    currentVersion: 9,
   });
 
   assert.equal(
     message,
-    'Canvas state version conflict. Refresh the diagram and retry. Expected version: 7.'
+    'Canvas state version conflict. Refresh the diagram and retry. Expected version: 7. Current version: 9.'
   );
 });

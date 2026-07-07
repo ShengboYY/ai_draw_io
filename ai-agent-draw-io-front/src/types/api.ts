@@ -61,6 +61,8 @@ export interface DiagramCanvasStateResponseDTO {
   diagramType?: string;
   thumbnailUrl?: string;
   currentXml?: string;
+  contentHash?: string;
+  saveStatus?: 'CREATED' | 'UPDATED' | 'NOOP' | string;
   summary?: string;
   version?: number;
   updatedAt?: string;

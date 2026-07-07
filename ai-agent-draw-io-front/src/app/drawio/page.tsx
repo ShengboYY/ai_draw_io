@@ -7,7 +7,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { getUserInfo, setUserInfo as persistUserInfo } from '@/utils/cookie';
 import { getWorkspaceIdentity } from '@/utils/workspace-identity';
 import { agentApi, ApiResponseError, StreamEvent } from '@/api/agent';
-import type { CurrentAccountResponseDTO, DiagramSummaryResponseDTO, ModelCredentialResponseDTO, ProviderPresetDTO } from '@/types/api';
+import type { CurrentAccountResponseDTO, DiagramCanvasStateResponseDTO, DiagramSummaryResponseDTO, ModelCredentialResponseDTO, ProviderPresetDTO } from '@/types/api';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { buildStepSummary } from './execution-step-summary';
@@ -30,6 +30,12 @@ import {
   shouldHandleManualAutosave,
   type ManualCanvasSaveRequest,
 } from './manual-canvas-save';
+import {
+  beginAiCanvasMutation,
+  createCanvasPersistenceState,
+  finishAiCanvasMutation,
+  shouldRetryManualCanvasSaveConflict,
+} from './canvas-persistence-coordinator';
 import { buildCanvasStateConflictMessage } from './canvas-state-conflict';
 import { buildDiagramHistoryEntries } from './diagram-history';
 import { buildRestoredDiagramState, normalizeRestoredDrawioXml } from './diagram-restore';
@@ -216,6 +222,7 @@ interface Session {
   backendSessionId?: string;
   diagramId?: string;
   canvasVersion?: number;
+  canvasContentHash?: string;
   title: string;
   messages: Message[];
   drawIoXml: string | null;
@@ -687,6 +694,7 @@ function DrawioPageContent() {
   // Authoritative latest-known canvas version per diagram; React session state can lag
   // behind while a save is in flight, so version locks must never be read from it alone.
   const manualCanvasVersionsRef = useRef(new Map<string, number>());
+  const aiCanvasMutationDiagramIdsRef = useRef(new Set<string>());
 
   // Agent State
   const [selectedAgentId, setSelectedAgentId] = useState('');
@@ -830,13 +838,14 @@ function DrawioPageContent() {
       const nextSessions = prev.map(session => {
         if (session.id === targetSessionId) {
           const mergedCanvasState = mergeCanvasStateMetadata(
-            { diagramId: session.diagramId, version: session.canvasVersion },
+            { diagramId: session.diagramId, version: session.canvasVersion, contentHash: session.canvasContentHash },
             canvasState,
           );
           return {
             ...session,
             diagramId: mergedCanvasState.diagramId,
             canvasVersion: mergedCanvasState.version,
+            canvasContentHash: mergedCanvasState.contentHash,
             drawIoXml: normalizedXml,
             lastModified: Date.now()
           };
@@ -854,12 +863,21 @@ function DrawioPageContent() {
     saveCanvasXmlForSession(currentSessionRef.current, xml, canvasState);
   };
 
-  const rememberManualCanvasVersion = (sessionId: string, diagramId: string, version?: number) => {
-    if (!Number.isFinite(version)) return;
-    manualCanvasVersionsRef.current.set(diagramId, version as number);
+  const rememberManualCanvasVersion = (sessionId: string, diagramId: string, version?: number, contentHash?: string) => {
+    const normalizedContentHash = contentHash?.trim();
+    if (!Number.isFinite(version) && !normalizedContentHash) return;
+    if (Number.isFinite(version)) {
+      manualCanvasVersionsRef.current.set(diagramId, version as number);
+    }
     setSessions(prev => {
       const nextSessions = prev.map(session => (
-        session.id === sessionId ? { ...session, canvasVersion: version } : session
+        session.id === sessionId
+          ? {
+              ...session,
+              ...(Number.isFinite(version) && { canvasVersion: version }),
+              ...(normalizedContentHash && { canvasContentHash: normalizedContentHash }),
+            }
+          : session
       ));
       persistSessions(nextSessions);
       return nextSessions;
@@ -877,6 +895,40 @@ function DrawioPageContent() {
     }
   };
 
+  const currentCanvasXmlForDiagram = (diagramId: string): string | undefined => (
+    sessionsRef.current.find(session => session.diagramId === diagramId)?.drawIoXml || undefined
+  );
+
+  const canvasPersistenceState = () => createCanvasPersistenceState<ManualCanvasSaveRequest>({
+    aiCanvasMutationDiagramIds: aiCanvasMutationDiagramIdsRef.current,
+    pendingManualCanvasSave: pendingManualCanvasSaveRef.current,
+  });
+
+  const beginAiCanvasMutationForDiagram = (diagramId?: string | null) => {
+    const state = canvasPersistenceState();
+    const result = beginAiCanvasMutation(state, diagramId);
+    pendingManualCanvasSaveRef.current = state.pendingManualCanvasSave;
+    if (result.droppedPendingManualCanvasSave && manualCanvasSaveTimerRef.current) {
+      clearTimeout(manualCanvasSaveTimerRef.current);
+      manualCanvasSaveTimerRef.current = null;
+    }
+    return result.started;
+  };
+
+  const finishAiCanvasMutationForDiagram = (diagramId?: string | null) => {
+    finishAiCanvasMutation(canvasPersistenceState(), diagramId);
+  };
+
+  const currentVersionFromConflict = (error: ApiResponseError): number | undefined => {
+    const conflictState = error.data as DiagramCanvasStateResponseDTO | null | undefined;
+    return Number.isFinite(conflictState?.version) ? conflictState?.version : undefined;
+  };
+
+  const currentContentHashFromConflict = (error: ApiResponseError): string | undefined => {
+    const conflictState = error.data as DiagramCanvasStateResponseDTO | null | undefined;
+    return conflictState?.contentHash?.trim() || undefined;
+  };
+
   const performManualCanvasSave = async (request: ManualCanvasSaveRequest, retryOnConflict: boolean) => {
     try {
       const response = await agentApi.saveDiagramCanvasState(
@@ -887,10 +939,23 @@ function DrawioPageContent() {
       );
       // Only sync the version; the local canvas may already be newer than the XML just saved,
       // so writing the response XML back would briefly roll the session state backwards.
-      rememberManualCanvasVersion(request.sessionId, request.diagramId, response.data?.version);
+      rememberManualCanvasVersion(request.sessionId, request.diagramId, response.data?.version, response.data?.contentHash);
     } catch (error) {
       if (error instanceof ApiResponseError && error.code === 'CANVAS_VERSION_CONFLICT' && retryOnConflict) {
-        const latestVersion = await fetchLatestCanvasVersion(request.userId, request.diagramId);
+        const knownConflictVersion = currentVersionFromConflict(error);
+        const knownConflictContentHash = currentContentHashFromConflict(error);
+        const canRetry = shouldRetryManualCanvasSaveConflict({
+          queuedCanvasXml: request.canvasXml,
+          currentCanvasXml: currentCanvasXmlForDiagram(request.diagramId),
+          aiMutationInFlight: aiCanvasMutationDiagramIdsRef.current.has(request.diagramId),
+        });
+        if (!canRetry) {
+          // The queued autosave no longer represents the active canvas, so retrying would be a stale write.
+          rememberManualCanvasVersion(request.sessionId, request.diagramId, knownConflictVersion, knownConflictContentHash);
+          return;
+        }
+
+        const latestVersion = knownConflictVersion ?? await fetchLatestCanvasVersion(request.userId, request.diagramId);
         if (Number.isFinite(latestVersion)) {
           rememberManualCanvasVersion(request.sessionId, request.diagramId, latestVersion);
           // Manual edits treat the local canvas as the source of truth, so save over the fresh version.
@@ -1059,8 +1124,8 @@ function DrawioPageContent() {
       // Chat-only diagrams still need a canvas row so the history list can restore them later.
       const response = await agentApi.saveDiagramCanvasState(ownerId, normalizedDiagramId || '', EMPTY_DRAWIO_XML);
       const version = response.data?.version;
-      if (Number.isFinite(version) && currentSessionRef.current) {
-        rememberManualCanvasVersion(currentSessionRef.current, normalizedDiagramId || '', version as number);
+      if ((Number.isFinite(version) || response.data?.contentHash) && currentSessionRef.current) {
+        rememberManualCanvasVersion(currentSessionRef.current, normalizedDiagramId || '', version as number, response.data?.contentHash);
       }
       await persistDiagramTitle(normalizedDiagramId, title);
     } catch (error) {
@@ -1506,6 +1571,7 @@ function DrawioPageContent() {
           backendSessionId: messageRes.data?.[0]?.sessionId || '',
           diagramId: restored.diagramId,
           canvasVersion: restored.canvasVersion,
+          canvasContentHash: restored.canvasContentHash,
           title: restored.title,
           messages: restoredMessages,
           drawIoXml: restored.drawIoXml,
@@ -1840,6 +1906,7 @@ function DrawioPageContent() {
       streamAbortRef.current.abort();
       streamAbortRef.current = null;
     }
+    aiCanvasMutationDiagramIdsRef.current.clear();
     setIsSending(false);
     setStreamPhase('');
     setStreamProgress('');
@@ -1884,6 +1951,7 @@ function DrawioPageContent() {
     };
 
     setMessages(prev => [...prev, userMsg, initialAgentMsg]);
+    let activeAiMutationDiagramId: string | undefined;
 
     try {
       // 1. Ensure Session
@@ -2098,6 +2166,10 @@ function DrawioPageContent() {
       const activeModelConfig = customModels.find(m => m.id === selectedCustomModelId && m.enabled);
       const activeSession = sessions.find(session => session.id === currentSessionId);
       const diagramId = activeSession?.diagramId || (currentSessionId ? makeLocalDiagramId(currentSessionId) : undefined);
+      if (diagramId) {
+        activeAiMutationDiagramId = diagramId;
+        beginAiCanvasMutationForDiagram(diagramId);
+      }
       const diagramTitle = activeSession?.title && activeSession.title !== DEFAULT_DIAGRAM_TITLE
         ? activeSession.title
         : buildDiagramTitleFromPrompt(displayContent);
@@ -2350,6 +2422,7 @@ function DrawioPageContent() {
 	                saveCurrentCanvasXml(finalXml, {
 	                  diagramId: chunk.diagramId,
 	                  version: chunk.version,
+                    contentHash: chunk.contentHash,
 	                });
 	                persistedDiagramId = chunk.diagramId || persistedDiagramId;
 	                queueDiagramThumbnailExport(persistedDiagramId, finalXml);
@@ -2515,6 +2588,15 @@ function DrawioPageContent() {
 
             case 'version_conflict': {
               receivedVersionConflict = true;
+              const conflictSessionId = activeSession?.id || currentSessionId;
+              if (conflictSessionId && chunk.diagramId && (Number.isFinite(chunk.currentVersion) || chunk.currentContentHash)) {
+                rememberManualCanvasVersion(
+                  conflictSessionId,
+                  chunk.diagramId,
+                  chunk.currentVersion,
+                  chunk.currentContentHash,
+                );
+              }
               const conflictMessage = buildCanvasStateConflictMessage(chunk);
               upsertRunEvent('canvas:version_conflict', {
                 phase: 'error',
@@ -2593,6 +2675,9 @@ function DrawioPageContent() {
         },
         // onError
         (error: Error) => {
+          if (activeAiMutationDiagramId) {
+            finishAiCanvasMutationForDiagram(activeAiMutationDiagramId);
+          }
           console.error('Stream error:', error);
           markRunEventsDone();
           
@@ -2612,6 +2697,9 @@ function DrawioPageContent() {
         },
         // onComplete
         () => {
+          if (activeAiMutationDiagramId) {
+            finishAiCanvasMutationForDiagram(activeAiMutationDiagramId);
+          }
           setIsSending(false);
           setStreamPhase('');
           setStreamProgress('');
@@ -2633,6 +2721,9 @@ function DrawioPageContent() {
       streamAbortRef.current = controller;
 
     } catch (error) {
+      if (activeAiMutationDiagramId) {
+        finishAiCanvasMutationForDiagram(activeAiMutationDiagramId);
+      }
       console.error('Chat error:', error);
       void refreshCurrentAccount();
       setMessages(prev => [...prev, {

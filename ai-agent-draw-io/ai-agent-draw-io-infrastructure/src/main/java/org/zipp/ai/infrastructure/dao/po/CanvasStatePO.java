@@ -14,6 +14,7 @@ public class CanvasStatePO {
     private String diagramType;
     private String thumbnailUrl;
     private String currentXml;
+    private String contentHash;
     private String summary;
     private String analysisJson;
     private Long version;

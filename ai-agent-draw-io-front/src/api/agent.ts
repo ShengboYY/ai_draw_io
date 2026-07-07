@@ -33,12 +33,14 @@ import {
 export class ApiResponseError extends Error {
     readonly code: ApiErrorCode;
     readonly info: string;
+    readonly data?: unknown;
 
-    constructor(code: ApiErrorCode, info: string) {
+    constructor(code: ApiErrorCode, info: string, data?: unknown) {
         super(info);
         this.name = 'ApiResponseError';
         this.code = code;
         this.info = info;
+        this.data = data;
     }
 }
 
@@ -49,7 +51,7 @@ const handleResponse = async <T>(response: globalThis.Response): Promise<Respons
     }
     const data = await response.json();
     if (data.code !== "0000") {
-        throw new ApiResponseError(data.code, data.info || 'Unknown API error');
+        throw new ApiResponseError(data.code, data.info || 'Unknown API error', data.data);
     }
     return data;
 };
@@ -123,6 +125,8 @@ export interface DrawioDoneChunk {
     content: string;
     diagramId?: string;
     version?: number;
+    contentHash?: string;
+    saveStatus?: 'CREATED' | 'UPDATED' | 'NOOP' | string;
     // "local": merge into the live canvas without remounting; "full"/absent: clean reload.
     mode?: 'local' | 'full';
 }
@@ -176,6 +180,8 @@ export interface VersionConflictChunk {
     content?: string;
     diagramId?: string;
     expectedVersion?: number;
+    currentVersion?: number;
+    currentContentHash?: string;
 }
 
 export type StreamChunk = DrawioPreviewChunk | DrawioNodeChunk | DrawioEdgeChunk | DrawioDoneChunk | DrawioLegacyChunk | StatusChunk | ErrorChunk | UserChunk | DoneChunk | TokenChunk | ReviewResultChunk | ValidationResultChunk | VersionConflictChunk;

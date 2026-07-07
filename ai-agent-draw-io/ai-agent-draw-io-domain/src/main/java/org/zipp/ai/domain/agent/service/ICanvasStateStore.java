@@ -1,6 +1,7 @@
 package org.zipp.ai.domain.agent.service;
 
 import org.zipp.ai.domain.agent.model.valobj.canvas.CanvasState;
+import org.zipp.ai.domain.agent.model.valobj.canvas.CanvasStateSaveResult;
 
 import java.util.Collections;
 import java.util.List;
@@ -35,5 +36,9 @@ public interface ICanvasStateStore {
     }
 
     CanvasState save(CanvasState state);
+
+    default CanvasStateSaveResult saveWithResult(CanvasState state) {
+        return CanvasStateSaveResult.updated(save(state));
+    }
 
 }

@@ -12,18 +12,18 @@ test('makeLocalDiagramId creates a stable diagram id from the local session id',
 
 test('mergeCanvasStateMetadata applies server diagram version without dropping existing id', () => {
   const merged = mergeCanvasStateMetadata(
-    { diagramId: 'diagram-1', version: 3 },
-    { version: 4 }
+    { diagramId: 'diagram-1', version: 3, contentHash: 'old-hash' },
+    { version: 4, contentHash: 'new-hash' }
   );
 
-  assert.deepEqual(merged, { diagramId: 'diagram-1', version: 4 });
+  assert.deepEqual(merged, { diagramId: 'diagram-1', version: 4, contentHash: 'new-hash' });
 });
 
 test('mergeCanvasStateMetadata ignores empty server metadata', () => {
   const merged = mergeCanvasStateMetadata(
-    { diagramId: 'diagram-1', version: 3 },
-    { diagramId: '', version: Number.NaN }
+    { diagramId: 'diagram-1', version: 3, contentHash: 'known-hash' },
+    { diagramId: '', version: Number.NaN, contentHash: '' }
   );
 
-  assert.deepEqual(merged, { diagramId: 'diagram-1', version: 3 });
+  assert.deepEqual(merged, { diagramId: 'diagram-1', version: 3, contentHash: 'known-hash' });
 });

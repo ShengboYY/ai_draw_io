@@ -9,6 +9,7 @@
         <result column="diagram_type" property="diagramType"/>
         <result column="thumbnail_url" property="thumbnailUrl"/>
         <result column="current_xml" property="currentXml"/>
+        <result column="content_hash" property="contentHash"/>
         <result column="summary" property="summary"/>
         <result column="analysis_json" property="analysisJson"/>
         <result column="version" property="version"/>
@@ -23,6 +24,7 @@
         d.diagram_type,
         d.thumbnail_url,
         c.current_xml,
+        c.content_hash,
         c.summary,
         c.analysis_json,
         c.version,
@@ -49,6 +51,7 @@
             d.diagram_type,
             d.thumbnail_url,
             NULL AS current_xml,
+            c.content_hash AS content_hash,
             c.summary,
             c.analysis_json,
             c.version AS version,
@@ -84,13 +87,14 @@
     </insert>
 
     <insert id="insertCanvasState" parameterType="org.zipp.ai.infrastructure.dao.po.CanvasStatePO">
-        INSERT IGNORE INTO diagram_canvas_state (diagram_id, user_id, current_xml, summary, analysis_json, version)
-        VALUES (#{diagramId}, #{userId}, #{currentXml}, #{summary}, #{analysisJson}, COALESCE(#{version}, 0) + 1)
+        INSERT IGNORE INTO diagram_canvas_state (diagram_id, user_id, current_xml, content_hash, summary, analysis_json, version)
+        VALUES (#{diagramId}, #{userId}, #{currentXml}, #{contentHash}, #{summary}, #{analysisJson}, COALESCE(#{version}, 0) + 1)
     </insert>
 
     <update id="updateCanvasStateByVersion" parameterType="org.zipp.ai.infrastructure.dao.po.CanvasStatePO">
         UPDATE diagram_canvas_state
         SET current_xml = #{currentXml},
+            content_hash = #{contentHash},
             summary = #{summary},
             analysis_json = #{analysisJson},
             version = version + 1,
@@ -161,11 +165,12 @@
     </insert>
 
     <insert id="insertImportedCanvasState">
-        INSERT INTO diagram_canvas_state (diagram_id, user_id, current_xml, summary, analysis_json, version)
+        INSERT INTO diagram_canvas_state (diagram_id, user_id, current_xml, content_hash, summary, analysis_json, version)
         SELECT
             #{targetDiagramId},
             #{targetUserId},
             c.current_xml,
+            c.content_hash,
             c.summary,
             c.analysis_json,
             c.version
@@ -203,6 +208,7 @@
         UPDATE diagram_canvas_state
         SET user_id = #{anonymizedUserId},
             current_xml = '',
+            content_hash = NULL,
             summary = NULL,
             analysis_json = NULL,
             updated_at = CURRENT_TIMESTAMP

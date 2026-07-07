@@ -290,6 +290,8 @@ public class DrawioStreamResponseWriterTest {
         assertTrue(output.contains("\"type\":\"drawio_done\""));
         assertTrue(output.contains("\"diagramId\":\"diagram-1\""));
         assertTrue(output.contains("\"version\":4"));
+        assertTrue(output.contains("\"contentHash\":\"sha256:saved\""));
+        assertTrue(output.contains("\"saveStatus\":\"UPDATED\""));
     }
 
     @Test
@@ -297,6 +299,12 @@ public class DrawioStreamResponseWriterTest {
         DrawioStreamResponseWriter writer = new DrawioStreamResponseWriter(new DrawioToolCallRenderer());
         CapturingCanvasStateStore canvasStateStore = new CapturingCanvasStateStore();
         canvasStateStore.conflict = true;
+        canvasStateStore.currentState = CanvasState.builder()
+                .userId("alice")
+                .diagramId("diagram-1")
+                .version(5L)
+                .contentHash("sha256:current")
+                .build();
         injectCanvasStateStore(writer, canvasStateStore);
         CapturingEmitter emitter = new CapturingEmitter();
         writer.setCanvasStateContext(emitter, "alice", "diagram-1", 2L);
@@ -314,6 +322,8 @@ public class DrawioStreamResponseWriterTest {
         assertTrue(output.contains("\"type\":\"version_conflict\""));
         assertTrue(output.contains("\"diagramId\":\"diagram-1\""));
         assertTrue(output.contains("\"expectedVersion\":2"));
+        assertTrue(output.contains("\"currentVersion\":5"));
+        assertTrue(output.contains("\"currentContentHash\":\"sha256:current\""));
         assertFalse(output.contains("\"type\":\"drawio_done\""));
     }
 
@@ -445,12 +455,13 @@ public class DrawioStreamResponseWriterTest {
     private static class CapturingCanvasStateStore implements ICanvasStateStore {
 
         private CanvasState saved;
+        private CanvasState currentState;
         private Long nextVersion;
         private boolean conflict;
 
         @Override
         public Optional<CanvasState> find(String userId, String diagramId) {
-            return Optional.empty();
+            return Optional.ofNullable(currentState);
         }
 
         @Override
@@ -460,6 +471,7 @@ public class DrawioStreamResponseWriterTest {
             }
             this.saved = state;
             state.setVersion(nextVersion == null ? state.getVersion() : nextVersion);
+            state.setContentHash("sha256:saved");
             return state;
         }
     }

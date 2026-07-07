@@ -3,8 +3,10 @@ package org.zipp.ai.infrastructure.adapter.repository;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 import org.zipp.ai.domain.agent.model.valobj.canvas.CanvasState;
+import org.zipp.ai.domain.agent.model.valobj.canvas.CanvasStateSaveResult;
 import org.zipp.ai.domain.agent.model.valobj.canvas.CanvasStateVersionConflictException;
 import org.zipp.ai.domain.agent.service.ICanvasStateStore;
+import org.zipp.ai.domain.agent.service.canvas.CanvasXmlContentHasher;
 import org.zipp.ai.infrastructure.dao.ICanvasStateMapper;
 import org.zipp.ai.infrastructure.dao.po.CanvasStatePO;
 
@@ -13,6 +15,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Supplier;
@@ -27,6 +30,8 @@ public class CanvasStateRepository implements ICanvasStateStore {
     private static final int MAX_IMPORT_ID_ATTEMPTS = 10;
     private static final Pattern ANONYMOUS_OWNER_ID = Pattern.compile(
             "^anon_[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$");
+
+    private final CanvasXmlContentHasher canvasXmlContentHasher = new CanvasXmlContentHasher();
 
     @Resource
     private ICanvasStateMapper canvasStateMapper;
@@ -125,15 +130,28 @@ public class CanvasStateRepository implements ICanvasStateStore {
     @Override
     @Transactional
     public CanvasState save(CanvasState state) {
+        CanvasStateSaveResult result = saveWithResult(state);
+        return result == null ? null : result.getState();
+    }
+
+    @Override
+    @Transactional
+    public CanvasStateSaveResult saveWithResult(CanvasState state) {
         if (state == null) {
-            return null;
+            return CanvasStateSaveResult.noop(null);
         }
         CanvasStatePO po = toPo(state);
         if (state.getVersion() != null) {
             int updated = canvasStateMapper.updateCanvasStateByVersion(po);
             if (updated == 0) {
+                Optional<CanvasState> current = find(state.getUserId(), state.getDiagramId());
+                // A stale autosave can arrive after another writer already persisted the same canvas.
+                if (current.isPresent() && hasSameContentHash(current.get(), po.getContentHash())) {
+                    return CanvasStateSaveResult.noop(current.get());
+                }
                 throw new CanvasStateVersionConflictException(state.getUserId(), state.getDiagramId(), state.getVersion());
             }
+            return CanvasStateSaveResult.updated(find(state.getUserId(), state.getDiagramId()).orElse(state));
         } else {
             // Null-version saves are create-only; existing canvas rows must use optimistic locking.
             if (canvasStateMapper.countCanvasState(state.getUserId(), state.getDiagramId()) > 0) {
@@ -144,8 +162,8 @@ public class CanvasStateRepository implements ICanvasStateStore {
             if (inserted == 0) {
                 throw new CanvasStateVersionConflictException(state.getUserId(), state.getDiagramId(), null);
             }
+            return CanvasStateSaveResult.created(find(state.getUserId(), state.getDiagramId()).orElse(state));
         }
-        return find(state.getUserId(), state.getDiagramId()).orElse(state);
     }
 
     private void copyDiagramOrThrow(String sourceOwnerId, String sourceDiagramId, String targetOwnerId, String targetDiagramId) {
@@ -184,6 +202,7 @@ public class CanvasStateRepository implements ICanvasStateStore {
                 .diagramType(po.getDiagramType())
                 .thumbnailUrl(po.getThumbnailUrl())
                 .currentXml(po.getCurrentXml())
+                .contentHash(contentHashFor(po.getCurrentXml(), po.getContentHash()))
                 .summary(po.getSummary())
                 .analysisJson(po.getAnalysisJson())
                 .version(po.getVersion())
@@ -200,6 +219,7 @@ public class CanvasStateRepository implements ICanvasStateStore {
                 .diagramType(source.getDiagramType())
                 .thumbnailUrl(source.getThumbnailUrl())
                 .currentXml(source.getCurrentXml())
+                .contentHash(contentHashFor(source.getCurrentXml(), source.getContentHash()))
                 .summary(source.getSummary())
                 .analysisJson(source.getAnalysisJson())
                 .version(source.getVersion())
@@ -216,10 +236,23 @@ public class CanvasStateRepository implements ICanvasStateStore {
         po.setDiagramType(state.getDiagramType());
         po.setThumbnailUrl(state.getThumbnailUrl());
         po.setCurrentXml(state.getCurrentXml());
+        po.setContentHash(contentHashFor(state.getCurrentXml(), state.getContentHash()));
         po.setSummary(state.getSummary());
         po.setAnalysisJson(state.getAnalysisJson());
         po.setVersion(state.getVersion());
         return po;
+    }
+
+    private boolean hasSameContentHash(CanvasState current, String incomingContentHash) {
+        return Objects.equals(contentHashFor(current.getCurrentXml(), current.getContentHash()), incomingContentHash);
+    }
+
+    private String contentHashFor(String currentXml, String existingContentHash) {
+        String normalizedHash = trimToNull(existingContentHash);
+        if (normalizedHash != null) {
+            return normalizedHash;
+        }
+        return isBlank(currentXml) ? null : canvasXmlContentHasher.hash(currentXml);
     }
 
     private boolean isBlank(String value) {

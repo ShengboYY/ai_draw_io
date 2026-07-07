@@ -12,6 +12,7 @@ import org.zipp.ai.domain.account.service.VerifiedUserPlatformQuotaService;
 import org.zipp.ai.domain.agent.model.valobj.usage.AgentUsageSummary;
 import org.zipp.ai.domain.agent.model.valobj.AiAgentConfigTableVO;
 import org.zipp.ai.domain.agent.model.valobj.canvas.CanvasState;
+import org.zipp.ai.domain.agent.model.valobj.canvas.CanvasStateSaveResult;
 import org.zipp.ai.domain.agent.model.valobj.canvas.CanvasStateVersionConflictException;
 import org.zipp.ai.domain.agent.model.valobj.conversation.DiagramConversationMessage;
 import org.zipp.ai.domain.agent.service.ICanvasStateStore;
@@ -272,7 +273,7 @@ public class AgentServiceController implements IAgentService {
                     .build();
         }
         try {
-            CanvasState saved = canvasStateStore.save(CanvasState.builder()
+            CanvasStateSaveResult saved = canvasStateStore.saveWithResult(CanvasState.builder()
                     .userId(workspaceId)
                     .diagramId(diagramId)
                     .currentXml(canvasXml)
@@ -286,9 +287,13 @@ public class AgentServiceController implements IAgentService {
         } catch (CanvasStateVersionConflictException e) {
             log.warn("保存图画布版本冲突 userId:{} diagramId:{}",
                     CurrentOwnerHttpResolver.mask(workspaceId), diagramId);
+            DiagramCanvasStateResponseDTO currentState = canvasStateStore.find(workspaceId, diagramId)
+                    .map(this::toDiagramCanvasState)
+                    .orElse(null);
             return Response.<DiagramCanvasStateResponseDTO>builder()
                     .code(ResponseCode.CANVAS_VERSION_CONFLICT.getCode())
                     .info(ResponseCode.CANVAS_VERSION_CONFLICT.getInfo())
+                    .data(currentState)
                     .build();
         } catch (Exception e) {
             log.error("保存图画布失败 userId:{} diagramId:{}", CurrentOwnerHttpResolver.mask(workspaceId), diagramId, e);
@@ -501,6 +506,20 @@ public class AgentServiceController implements IAgentService {
     }
 
     private DiagramCanvasStateResponseDTO toDiagramCanvasState(CanvasState state) {
+        return toDiagramCanvasState(state, null);
+    }
+
+    private DiagramCanvasStateResponseDTO toDiagramCanvasState(CanvasStateSaveResult result) {
+        if (result == null) {
+            return null;
+        }
+        return toDiagramCanvasState(result.getState(), result.getStatus() == null ? null : result.getStatus().name());
+    }
+
+    private DiagramCanvasStateResponseDTO toDiagramCanvasState(CanvasState state, String saveStatus) {
+        if (state == null) {
+            return null;
+        }
         DiagramCanvasStateResponseDTO dto = new DiagramCanvasStateResponseDTO();
         dto.setDiagramId(state.getDiagramId());
         dto.setUserId(state.getUserId());
@@ -508,6 +527,8 @@ public class AgentServiceController implements IAgentService {
         dto.setDiagramType(state.getDiagramType());
         dto.setThumbnailUrl(state.getThumbnailUrl());
         dto.setCurrentXml(state.getCurrentXml());
+        dto.setContentHash(state.getContentHash());
+        dto.setSaveStatus(saveStatus);
         dto.setSummary(state.getSummary());
         dto.setVersion(state.getVersion());
         dto.setUpdatedAt(state.getUpdatedAt());

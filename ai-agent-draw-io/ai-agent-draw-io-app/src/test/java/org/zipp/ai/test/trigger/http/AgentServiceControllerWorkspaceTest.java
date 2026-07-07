@@ -14,6 +14,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 import org.zipp.ai.api.dto.CurrentAccountResponseDTO;
+import org.zipp.ai.api.dto.DiagramCanvasStateResponseDTO;
 import org.zipp.ai.api.dto.DiagramSummaryResponseDTO;
 import org.zipp.ai.api.dto.ImportAnonymousWorkspaceRequestDTO;
 import org.zipp.ai.api.dto.ImportAnonymousWorkspaceResponseDTO;
@@ -175,6 +176,8 @@ public class AgentServiceControllerWorkspaceTest {
         Response<?> response = controller.saveDiagramCanvasState("diagram-1", requestDTO);
 
         assertEquals(ResponseCode.SUCCESS.getCode(), response.getCode());
+        DiagramCanvasStateResponseDTO savedState = (DiagramCanvasStateResponseDTO) response.getData();
+        assertEquals("UPDATED", savedState.getSaveStatus());
         assertTrue(store.saveCalled);
         assertEquals(VALID_WORKSPACE_ID, store.savedState.getUserId());
         assertEquals("diagram-1", store.savedState.getDiagramId());
@@ -187,6 +190,13 @@ public class AgentServiceControllerWorkspaceTest {
         AgentServiceController controller = new AgentServiceController();
         FakeCanvasStateStore store = new FakeCanvasStateStore();
         store.conflictOnSave = true;
+        store.currentState = CanvasState.builder()
+                .userId(VALID_WORKSPACE_ID)
+                .diagramId("diagram-1")
+                .currentXml("<mxGraphModel><root><mxCell id=\"0\"/><mxCell id=\"1\" parent=\"0\"/></root></mxGraphModel>")
+                .contentHash("sha256:current")
+                .version(4L)
+                .build();
         inject(controller, "canvasStateStore", store);
         MockHttpServletRequest request = new MockHttpServletRequest();
         request.addHeader("X-Workspace-Id", VALID_WORKSPACE_ID);
@@ -198,6 +208,10 @@ public class AgentServiceControllerWorkspaceTest {
         Response<?> response = controller.saveDiagramCanvasState("diagram-1", requestDTO);
 
         assertEquals(ResponseCode.CANVAS_VERSION_CONFLICT.getCode(), response.getCode());
+        DiagramCanvasStateResponseDTO conflictState = (DiagramCanvasStateResponseDTO) response.getData();
+        assertEquals(Long.valueOf(4L), conflictState.getVersion());
+        assertEquals("diagram-1", conflictState.getDiagramId());
+        assertEquals("sha256:current", conflictState.getContentHash());
     }
 
     @Test
@@ -444,6 +458,7 @@ public class AgentServiceControllerWorkspaceTest {
         private String thumbnailDiagramId;
         private String thumbnailUrl;
         private CanvasState savedState;
+        private CanvasState currentState;
 
         @Override
         public CanvasState save(CanvasState state) {
@@ -462,7 +477,7 @@ public class AgentServiceControllerWorkspaceTest {
 
         @Override
         public java.util.Optional<CanvasState> find(String userId, String diagramId) {
-            return java.util.Optional.empty();
+            return java.util.Optional.ofNullable(currentState);
         }
 
         @Override

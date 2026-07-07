@@ -34,6 +34,7 @@ CREATE TABLE IF NOT EXISTS diagram_canvas_state (
     diagram_id    VARCHAR(64) NOT NULL COMMENT 'Diagram id',
     user_id       VARCHAR(64) NOT NULL COMMENT 'Owner user id',
     current_xml   LONGTEXT    NOT NULL COMMENT 'Latest complete Draw.io mxGraphModel XML',
+    content_hash  VARCHAR(80)          DEFAULT NULL COMMENT 'Canonical SHA-256 hash of latest canvas XML',
     summary       TEXT                 COMMENT 'Compact canvas summary for prompt context',
     analysis_json MEDIUMTEXT           COMMENT 'Latest deterministic analysis JSON',
     version       BIGINT      NOT NULL DEFAULT 1 COMMENT 'Latest canvas version',
