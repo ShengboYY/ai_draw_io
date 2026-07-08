@@ -2223,7 +2223,8 @@ function DrawioPageContent() {
           canvasSummary: canvasContext.canvasSummary,
           modelCredentialId: activeModelConfig?.modelCredentialId || undefined,
           maxReviewIterations,
-          skills: pendingSkillsRef.current.length ? pendingSkillsRef.current : undefined
+          skills: pendingSkillsRef.current.length ? pendingSkillsRef.current : undefined,
+          conversationMessages: messages,
       });
 
       if (demoQuotaState.visible) {

@@ -91,6 +91,135 @@ public class DrawioSkillResponsibilityResourceTest {
         assertSkillContains("drawio-state", "Initial state", "Final state", "event [guard] / action");
     }
 
+    @Test
+    public void umlSkillUsesDrawioLibraryClassCellsAndStraightConnectors() throws Exception {
+        String skill = readSkill("drawio-uml");
+
+        assertTrue(skill.contains("swimlane;fontStyle=0;childLayout=stackLayout"));
+        assertTrue(skill.contains("resizeParent=1"));
+        assertTrue(skill.contains("portConstraint=eastwest"));
+        assertTrue(skill.contains("edgeStyle=none"));
+        // Native UML classes use stacked child rows, not one rectangle with HTML rules.
+        assertFalse(skill.contains("&lt;hr&gt;"));
+    }
+
+    @Test
+    public void umlSkillShapesModelsBeforeRoutingRelationships() throws Exception {
+        String skill = readSkill("drawio-uml");
+
+        assertTrue(skill.contains("Model shaping before routing"));
+        assertTrue(skill.contains("Pick one intent"));
+        assertTrue(skill.contains("5-9 core classes"));
+        assertTrue(skill.contains("bounded context/package"));
+        assertTrue(skill.contains("database field checklist"));
+        assertTrue(skill.contains("verb-only"));
+        assertTrue(skill.contains("type-only dependency"));
+        assertTrue(skill.contains("subclasses directly below"));
+        assertTrue(skill.contains("organization/support classes"));
+        assertTrue(skill.contains("long diagonal"));
+    }
+
+    @Test
+    public void umlSkillAvoidsInventedSupportRelationsAndInheritanceCrowding() throws Exception {
+        String skill = readSkill("drawio-uml");
+
+        assertTrue(skill.contains("Do not invent support/admin relationships"));
+        assertTrue(skill.contains("Diamonds are only for part-whole"));
+        assertTrue(skill.contains("plain associations for manages/employs/borrows/issues"));
+        assertTrue(skill.contains("Reserve a clear inheritance row"));
+        assertTrue(skill.contains("Keep non-subclass classes out of the subclass row"));
+        assertTrue(skill.contains("section heights must fit their text"));
+        assertTrue(skill.contains("leave bottom padding"));
+        assertTrue(skill.contains("inheritance arrows attach to the class border"));
+    }
+
+    @Test
+    public void umlSkillKeepsRelationshipLabelsReadable() throws Exception {
+        String skill = readSkill("drawio-uml");
+
+        assertTrue(skill.contains("Labeled relationships need readable edge length"));
+        assertTrue(skill.contains("80-120 px of clear line"));
+        assertTrue(skill.contains("move classes farther apart"));
+        assertTrue(skill.contains("label collides with nodes"));
+        assertTrue(skill.contains("omit weak labels"));
+    }
+
+    @Test
+    public void umlSkillBalancesReadableLabelsWithCompactClusters() throws Exception {
+        String skill = readSkill("drawio-uml");
+
+        assertTrue(skill.contains("Readable labels must not create an over-wide diagram"));
+        assertTrue(skill.contains("keep related class gaps compact"));
+        assertTrue(skill.contains("160-260 px border-to-border"));
+        assertTrue(skill.contains("local clusters"));
+        assertTrue(skill.contains("Shorten verbose labels"));
+        assertTrue(skill.contains("exact cardinality near endpoints"));
+    }
+
+    @Test
+    public void erSkillUsesDrawioTableRowsAndCrowFootConnectors() throws Exception {
+        String skill = readSkill("drawio-er");
+
+        assertTrue(skill.contains("Entity Relation table/list"));
+        assertTrue(skill.contains("swimlane;childLayout=stackLayout"));
+        assertTrue(skill.contains("points=[[0,0.5],[1,0.5]]"));
+        assertTrue(skill.contains("portConstraint=eastwest"));
+        assertTrue(skill.contains("ERone"));
+        assertTrue(skill.contains("ERmany"));
+        assertTrue(skill.contains("edgeStyle=none"));
+        // ER tables should be structured rows, not one rectangle with HTML rules.
+        assertFalse(skill.contains("&lt;hr&gt;"));
+    }
+
+    @Test
+    public void routingGuidanceChoosesLineShapeByRelationshipSemantics() throws Exception {
+        String xmlGuide = readSkill("drawio-xml-guide");
+        String architecture = readSkill("drawio-architecture");
+        String flowchart = readSkill("drawio-flowchart");
+
+        assertTrue(xmlGuide.contains("relationship/layout semantics"));
+        assertTrue(xmlGuide.contains("hierarchy"));
+        assertTrue(xmlGuide.contains("fan-out"));
+        assertTrue(xmlGuide.contains("straight"));
+        assertTrue(xmlGuide.contains("edgeStyle=none"));
+        assertTrue(xmlGuide.contains("dense routing"));
+        assertTrue(xmlGuide.contains("network wiring"));
+        assertTrue(xmlGuide.contains("swimlane traffic"));
+        assertTrue(xmlGuide.contains("Never reuse the same node-side anchor"));
+        assertTrue(xmlGuide.contains("spread them to distinct tracks"));
+        assertTrue(xmlGuide.contains("Do not solve anchor conflicts by adding long detours"));
+
+        assertTrue(architecture.contains("hierarchy/fan-out"));
+        assertTrue(architecture.contains("edgeStyle=none"));
+        assertTrue(architecture.contains("cloud/Kubernetes/network"));
+
+        assertTrue(flowchart.contains("top-down"));
+        assertTrue(flowchart.contains("decision tree"));
+        assertTrue(flowchart.contains("orthogonal"));
+    }
+
+    @Test
+    public void stateSkillSpellsOutSpecialStateShapes() throws Exception {
+        String skill = readSkill("drawio-state");
+
+        assertTrue(skill.contains("Choice diamond"));
+        assertTrue(skill.contains("rhombus"));
+        assertTrue(skill.contains("Fork/join bars"));
+        assertTrue(skill.contains("fillColor=#666666;strokeColor=#666666"));
+        assertTrue(skill.contains("Composite states"));
+        assertTrue(skill.contains("container=1;collapsible=0"));
+    }
+
+    @Test
+    public void flowchartSkillKeepsRetryBranchesLocal() throws Exception {
+        String skill = readSkill("drawio-flowchart");
+
+        assertTrue(skill.contains("Retry/correction branches"));
+        assertTrue(skill.contains("nearest input/action"));
+        assertTrue(skill.contains("Do not centralize unrelated failures"));
+        assertTrue(skill.contains("duplicate a small correction step"));
+    }
+
     private void assertSkillContains(String skillName, String... tokens) throws Exception {
         String skill = readSkill(skillName);
         for (String token : tokens) {

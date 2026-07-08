@@ -247,6 +247,22 @@ public class DrawioVisualHeuristicsTest {
     }
 
     @Test
+    public void twoEdgesMustNotReuseTheSameNodeSidePortTrack() {
+        String xml = "<mxCell id='2' value='Gateway' vertex='1' parent='1'><mxGeometry x='360' y='180' width='160' height='70' as='geometry'/></mxCell>"
+                + "<mxCell id='3' value='Client' vertex='1' parent='1'><mxGeometry x='80' y='180' width='120' height='60' as='geometry'/></mxCell>"
+                + "<mxCell id='4' value='Service' vertex='1' parent='1'><mxGeometry x='80' y='320' width='120' height='60' as='geometry'/></mxCell>"
+                + "<mxCell id='5' value='request' style='endArrow=classic;edgeStyle=orthogonalEdgeStyle;exitX=1;exitY=0.5;entryX=0;entryY=0.5;' edge='1' parent='1' source='3' target='2'>"
+                + "<mxGeometry relative='1' as='geometry'/></mxCell>"
+                + "<mxCell id='6' value='return' style='endArrow=classic;dashed=1;edgeStyle=orthogonalEdgeStyle;exitX=0;exitY=0.5;entryX=1;entryY=0.5;' edge='1' parent='1' source='2' target='4'>"
+                + "<mxGeometry relative='1' as='geometry'/></mxCell>";
+
+        CanvasAnalysis analysis = analyze(xml);
+
+        assertTrue(hasIssue(analysis, CanvasIssueType.NODE_SIDE_PORT_CROWDING));
+        assertFalse("two connectors must not share one node-side anchor point", analysis.isValid());
+    }
+
+    @Test
     public void cornerAdjacentPortsAreDetected() {
         String xml = "<mxCell id='2' value='Frontend' style='rounded=1;' vertex='1' parent='1'><mxGeometry x='100' y='100' width='220' height='120' as='geometry'/></mxCell>"
                 + "<mxCell id='3' value='Backend' style='rounded=1;' vertex='1' parent='1'><mxGeometry x='560' y='100' width='180' height='120' as='geometry'/></mxCell>"

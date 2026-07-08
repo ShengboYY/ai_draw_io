@@ -12,11 +12,14 @@ import org.zipp.ai.domain.agent.model.valobj.review.CanvasReviewContext;
 import org.zipp.ai.domain.agent.service.IChatService;
 import org.zipp.ai.domain.agent.service.IDiagramQualityInspector;
 import org.zipp.ai.domain.agent.service.review.DefaultCanvasReviewService;
+import org.zipp.ai.domain.agent.service.armory.matter.skills.DrawioSkillAccessContext;
+import org.zipp.ai.domain.agent.service.armory.matter.skills.SkillCatalogService;
 
 import java.lang.reflect.Field;
 import java.util.List;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 public class DefaultCanvasReviewServiceTest {
 
@@ -39,6 +42,30 @@ public class DefaultCanvasReviewServiceTest {
         assertEquals("final semantic review", context.getSemanticReview().getSummary());
         assertEquals("none", context.getSemanticReview().getIssues());
         assertEquals("keep it", context.getSemanticReview().getRecommendations());
+    }
+
+    @Test
+    public void shouldBindSemanticReviewSkillsFromManualSelectionAndDiagramType() throws Exception {
+        CapturingChatService chatService = new CapturingChatService(List.of(
+                "{\"overallRisk\":\"low\",\"summary\":\"ok\",\"issues\":\"none\",\"recommendations\":\"none\"}"
+        ));
+        DefaultCanvasReviewService service = new DefaultCanvasReviewService();
+        inject(service, "diagramQualityInspector", (IDiagramQualityInspector) (message, diagramType) -> qualityReport());
+        inject(service, "chatService", chatService);
+
+        CanvasReviewCommand command = CanvasReviewCommand.builder()
+                .userId("alice")
+                .message("review this architecture diagram")
+                .routingResult(routingResult())
+                .selectedSkillNames(List.of("custom-architecture"))
+                .build();
+
+        service.buildReviewContext(command);
+
+        assertTrue(chatService.allowedSkillNames.contains(SkillCatalogService.SHARED_XML_GUIDE_SKILL));
+        assertTrue(chatService.allowedSkillNames.contains(SkillCatalogService.SHARED_SKILL));
+        assertTrue(chatService.allowedSkillNames.contains("drawio-architecture"));
+        assertTrue(chatService.allowedSkillNames.contains("custom-architecture"));
     }
 
     private IntentRoutingResult routingResult() {
@@ -79,7 +106,7 @@ public class DefaultCanvasReviewServiceTest {
 
         private final List<String> outputs;
 
-        private StubChatService(List<String> outputs) {
+        protected StubChatService(List<String> outputs) {
             this.outputs = outputs;
         }
 
@@ -116,6 +143,22 @@ public class DefaultCanvasReviewServiceTest {
         @Override
         public List<String> handleMessage(ChatCommandEntity chatCommandEntity) {
             return outputs;
+        }
+    }
+
+    private static class CapturingChatService extends StubChatService {
+        private List<String> allowedSkillNames;
+
+        private CapturingChatService(List<String> outputs) {
+            super(outputs);
+        }
+
+        @Override
+        public List<String> handleMessage(String agentId, String userId, String sessionId, String message) {
+            allowedSkillNames = DrawioSkillAccessContext.resolve(sessionId)
+                    .map(access -> access.allowedSkillNames().stream().toList())
+                    .orElse(List.of());
+            return super.handleMessage(agentId, userId, sessionId, message);
         }
     }
 }

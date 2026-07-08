@@ -36,7 +36,7 @@ Applies to every drawing action, together with `drawio-visual-design` (style bas
 ## Layout Modes (Global Draw.io Layout Contract) [P0]
 
 Pick ONE layout mode before writing any XML. Choose it from the shape of the content — the user does not need to ask for a layout:
-- `grid-flow` (default): anything with a reading direction — system/data flows, processes, lifecycles, sequences, schemas, class models.
+- `grid-flow` (default): anything with a reading direction — system/data flows, processes, lifecycles, sequences, schemas, class models. Grid placement does not imply every edge is orthogonal.
 - `radial`: anything organized around a center or in concentric layers — onion/ring models, ecosystem maps, hub-and-spoke, cycles/loops, mind maps. Choose it whenever the concept is "layers around a core", "actors around a hub", or "a repeating cycle", even if the user never says "circular".
 
 Constraints shared by both modes:
@@ -47,10 +47,12 @@ Constraints shared by both modes:
 ### grid-flow mode
 - One reading direction per diagram: left-to-right for systems/data flows, top-to-bottom for processes/lifecycles, time downward for sequences.
 - Grid placement: nodes in the same row share y; same column shares x. Leave a clear channel between neighboring nodes: ≥ 120 px horizontal, ≥ 60 px vertical — wider when an edge label must fit inside the channel.
-- Hybrid routing: primary request/data edges are orthogonal with `edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;` and all four ports explicit. Return, async, callback, and secondary edges may be dashed with `rounded=1;arcSize=10`, but they still use orthogonal ports and waypoints.
-- Ports follow flow direction: left-to-right uses `exitX=1` → `entryX=0`; top-to-bottom uses `exitY=1` → `entryY=0`. Never corner ports (both coordinates extreme).
-- Two edges between the same pair, or a request/return pair, take different tracks: `exitY=0.3` vs `exitY=0.7`, or opposite sides. Never stack opposite arrows on the same center track.
-- If a node sits on an edge's straight path, add 2–3 orthogonal waypoints with 20–30 px clearance, or route along the outer perimeter. Long cross-region edges always take the perimeter, not the center.
+- Hybrid routing by relationship/layout semantics: hierarchy, dependency, ownership, association, and fan-out edges prefer straight `edgeStyle=none;html=1;rounded=0;` with no waypoints. Workflow, dense routing, network wiring, and swimlane traffic prefer `edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;`.
+- Orthogonal ports follow flow direction: left-to-right uses `exitX=1` → `entryX=0`; top-to-bottom uses `exitY=1` → `entryY=0`. Never corner ports (both coordinates extreme).
+- Never reuse the same node-side anchor for multiple connectors. If two or more edges enter/exit the same side of a node, spread them to distinct tracks such as `0.3` and `0.7`; do not let one line enter at `0.5` and another leave from that same `0.5` point.
+- Do not solve anchor conflicts by adding long detours. Move the target/source node, use a nearer side, or duplicate a local correction node before adding more bends.
+- Two orthogonal edges between the same pair, or a request/return pair, take different tracks: `exitY=0.3` vs `exitY=0.7`, or opposite sides. Never stack opposite arrows on the same center track.
+- If a node sits on an orthogonal edge's path, add 2–3 waypoints with 20–30 px clearance, or route along the outer perimeter. Long cross-region edges always take the perimeter, not the center.
 - Waypoints must agree with the ports: the FIRST waypoint sits on the exit side (past `exitX=0` → to the left of the source; `exitY=0` → above it; `exitX=1`/`exitY=1` → right/below), and the LAST waypoint sits on the entry side of the target. Never place the first waypoint back across the source, or a hook forms. When unsure, emit NO waypoints on a return/loop-back edge and let routing lay the channel — a bare `<mxGeometry relative="1" as="geometry"/>` is safer than contradictory points.
 
 ### radial mode

@@ -6,9 +6,12 @@ import ch.qos.logback.core.read.ListAppender;
 import org.junit.Test;
 import org.slf4j.LoggerFactory;
 import org.zipp.ai.api.dto.ChatRequestDTO;
+import org.zipp.ai.api.dto.DiagramConversationMessageDTO;
 import org.zipp.ai.domain.agent.model.valobj.intent.IntentRoutingResult;
 import org.zipp.ai.domain.agent.service.canvas.DefaultDrawioCanvasSnapshotService;
 import org.zipp.ai.trigger.http.service.DrawioPromptContextBuilder;
+
+import java.util.List;
 
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
@@ -86,6 +89,27 @@ public class DrawioPromptContextBuilderTest {
     }
 
     @Test
+    public void shouldIncludeCompactConversationContextForIntentRouting() {
+        DrawioPromptContextBuilder builder = new DrawioPromptContextBuilder(new DefaultDrawioCanvasSnapshotService());
+        ChatRequestDTO requestDTO = request("restaurant order system");
+        requestDTO.setConversationMessages(List.of(
+                conversationMessage("user", "Create a UML class diagram"),
+                conversationMessage("agent", "Please provide the topic/domain and main classes. "
+                        + "<mxGraphModel><root><mxCell value=\"hidden\" vertex=\"1\"/></root></mxGraphModel>")
+        ));
+
+        String message = builder.buildIntentMessage(requestDTO);
+
+        assertTrue(message.contains("[User Request]\nrestaurant order system"));
+        assertTrue(message.contains("[Conversation Context]"));
+        assertTrue(message.contains("user: Create a UML class diagram"));
+        assertTrue(message.contains("assistant: Please provide the topic/domain and main classes."));
+        assertTrue(message.contains("keep the previous diagram type"));
+        assertFalse(message.contains("<mxGraphModel"));
+        assertFalse(message.contains("hidden"));
+    }
+
+    @Test
     public void shouldLogDrawingContextShapeWithoutRawXml() {
         DrawioPromptContextBuilder builder = new DrawioPromptContextBuilder(new DefaultDrawioCanvasSnapshotService());
         Logger logger = (Logger) LoggerFactory.getLogger(DrawioPromptContextBuilder.class);
@@ -124,6 +148,13 @@ public class DrawioPromptContextBuilderTest {
                 + "</mxCell>"
                 + "</root></mxGraphModel>");
         return requestDTO;
+    }
+
+    private DiagramConversationMessageDTO conversationMessage(String role, String content) {
+        DiagramConversationMessageDTO message = new DiagramConversationMessageDTO();
+        message.setRole(role);
+        message.setContent(content);
+        return message;
     }
 
     private ChatRequestDTO overlappingRequest(String message) {

@@ -45,6 +45,43 @@ test('buildDrawioChatRequestPayload includes canvas state version fields', () =>
   assert.equal(request.expectedVersion, 4);
 });
 
+test('buildDrawioChatRequestPayload includes compact conversation context', () => {
+  const request = buildDrawioChatRequestPayload({
+    agentId: '300000',
+    userId: 'alice',
+    sessionId: 'session-1',
+    userMessage: 'restaurant order system',
+    conversationMessages: [
+      {
+        id: 'msg-1',
+        role: 'user',
+        content: 'Create a UML class diagram',
+        steps: [{ label: 'ignored' }],
+      },
+      {
+        id: 'msg-2',
+        role: 'agent',
+        content: 'Please provide the topic/domain. <mxGraphModel><root><mxCell value="hidden" vertex="1"/></root></mxGraphModel>',
+        events: [{ title: 'ignored' }],
+      },
+    ],
+  });
+
+  assert.deepEqual(request.conversationMessages, [
+    {
+      clientMessageId: 'msg-1',
+      role: 'user',
+      content: 'Create a UML class diagram',
+    },
+    {
+      clientMessageId: 'msg-2',
+      role: 'agent',
+      content: 'Please provide the topic/domain.',
+    },
+  ]);
+  assert.doesNotMatch(JSON.stringify(request.conversationMessages), /mxGraphModel|hidden|ignored/);
+});
+
 test('buildDrawioChatRequestPayload sends saved credential id without raw custom key fields', () => {
   const request = buildDrawioChatRequestPayload({
     agentId: '300000',

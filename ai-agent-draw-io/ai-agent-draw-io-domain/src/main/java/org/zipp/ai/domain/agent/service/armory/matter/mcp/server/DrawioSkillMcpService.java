@@ -263,7 +263,6 @@ public class DrawioSkillMcpService {
     private AssembledSkillBody assembleSectionAware(SkillDocumentParser.SkillDocument document) {
         StringBuilder builder = new StringBuilder();
         Map<Integer, SectionBuildResult> results = new HashMap<>();
-        appendIntro(document.intro(), builder);
 
         List<SkillDocumentParser.SkillSection> p0 = document.sections().stream()
                 .filter(section -> "P0".equals(section.priority()))
@@ -273,6 +272,7 @@ public class DrawioSkillMcpService {
                 .toList();
 
         appendSections(p0, builder, results, true);
+        appendIntro(document.intro(), builder);
         appendSections(p1, builder, results, false);
 
         List<SkillSectionSummary> returnedSections = new ArrayList<>();
@@ -298,10 +298,17 @@ public class DrawioSkillMcpService {
         if (StringUtils.isBlank(intro)) {
             return;
         }
-        String block = intro.length() <= MAX_BODY_CHARS
-                ? intro
-                : safeTruncate(intro, MAX_BODY_CHARS, BODY_TRUNCATED_MARKER);
-        builder.append(block);
+        int remaining = MAX_BODY_CHARS - builder.length();
+        if (remaining <= BODY_TRUNCATED_MARKER.trim().length()) {
+            return;
+        }
+        String block = withSeparator(builder, intro);
+        String returned = block.length() <= remaining
+                ? block
+                : safeTruncate(block, remaining, BODY_TRUNCATED_MARKER);
+        if (StringUtils.isNotBlank(returned)) {
+            builder.append(returned);
+        }
     }
 
     private void appendSections(List<SkillDocumentParser.SkillSection> sections,

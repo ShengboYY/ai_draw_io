@@ -24,6 +24,9 @@ public class SkillManagementService {
     @Autowired(required = false)
     private SkillStore skillStore;
 
+    @Autowired
+    private SkillCatalogService skillCatalogService;
+
     /** Insert or update a skill (keyed by owner + name). Throws IllegalArgumentException on invalid input. */
     public void save(String ownerId, String name, String description, String category, String body, String visibility) {
         requireStore();
@@ -48,11 +51,17 @@ public class SkillManagementService {
             throw new IllegalArgumentException("ownerId is required for a private skill");
         }
         String cat = (category == null || category.isBlank()) ? DEFAULT_CATEGORY : category.trim();
+        List<String> validationErrors = skillCatalogService.validateManagedSkill(
+                trimmedName, description == null ? "" : description.trim(), cat, body);
+        if (!validationErrors.isEmpty()) {
+            throw new IllegalArgumentException("invalid skill: " + String.join("; ", validationErrors));
+        }
 
         skillStore.upsert(new SkillStore.StoredSkill(
                 owner, trimmedName,
                 description == null ? "" : description.trim(),
                 cat, body, vis, true));
+        skillCatalogService.invalidateCache();
     }
 
     /** Skills visible to a user for management: platform public + that user's private. */

@@ -20,7 +20,10 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 @Slf4j
 @Service
@@ -28,6 +31,15 @@ public class DefaultCanvasReviewService implements ICanvasReviewService {
 
     private static final String SEMANTIC_REVIEW_AGENT_ID = "300011";
     private static final String QUALITY_ANSWER_AGENT_ID = "300012";
+    private static final Map<String, String> DIAGRAM_SKILLS = Map.of(
+            "architecture", "drawio-architecture",
+            "flowchart", "drawio-flowchart",
+            "sequence", "drawio-sequence",
+            "er", "drawio-er",
+            "uml_class", "drawio-uml",
+            "usecase", "drawio-usecase",
+            "state", "drawio-state",
+            "concept", "drawio-concept");
 
     @Resource
     private IDiagramQualityInspector diagramQualityInspector;
@@ -115,7 +127,7 @@ public class DefaultCanvasReviewService implements ICanvasReviewService {
         String sessionId = chatService.createSession(agentId, command.getUserId());
         AgentUsageTelemetryContext.inheritCurrentToSession(sessionId);
         if (SEMANTIC_REVIEW_AGENT_ID.equals(agentId)) {
-            DrawioSkillAccessContext.bindSession(sessionId, semanticReviewSkillNames(command.getRoutingResult()));
+            DrawioSkillAccessContext.bindSession(sessionId, semanticReviewSkillNames(command));
         }
         CustomApiConfigManager.CustomApiConfig config = command.getCustomApiConfig();
         if (null != config) {
@@ -124,15 +136,34 @@ public class DefaultCanvasReviewService implements ICanvasReviewService {
         return sessionId;
     }
 
-    private List<String> semanticReviewSkillNames(IntentRoutingResult routingResult) {
-        List<String> skillNames = new ArrayList<>();
+    private List<String> semanticReviewSkillNames(CanvasReviewCommand command) {
+        Set<String> skillNames = new LinkedHashSet<>();
         skillNames.add(SkillCatalogService.SHARED_XML_GUIDE_SKILL);
         skillNames.add(SkillCatalogService.SHARED_SKILL);
+        IntentRoutingResult routingResult = command == null ? null : command.getRoutingResult();
         String selected = routingResult == null ? null : routingResult.getSkillName();
         if (selected != null && !selected.isBlank() && !"none".equalsIgnoreCase(selected.trim())) {
             skillNames.add(selected.trim());
         }
-        return skillNames;
+        String diagramSkill = diagramSkillName(routingResult == null ? null : routingResult.getDiagramType());
+        if (diagramSkill != null) {
+            skillNames.add(diagramSkill);
+        }
+        if (command != null && command.getSelectedSkillNames() != null) {
+            for (String skillName : command.getSelectedSkillNames()) {
+                if (skillName != null && !skillName.isBlank() && !"none".equalsIgnoreCase(skillName.trim())) {
+                    skillNames.add(skillName.trim());
+                }
+            }
+        }
+        return new ArrayList<>(skillNames);
+    }
+
+    private String diagramSkillName(String diagramType) {
+        if (diagramType == null || diagramType.isBlank()) {
+            return null;
+        }
+        return DIAGRAM_SKILLS.get(diagramType.trim());
     }
 
     private String parseUserAnswer(String raw) {

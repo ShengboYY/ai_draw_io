@@ -16,6 +16,9 @@ public class ChatRequestDTO {
     private CanvasSnapshotDTO canvasSnapshot;
     private ClientHintsDTO clientHints;
 
+    // 最近可见聊天轮次；只供意图路由补全上下文，不作为画布编辑内容。
+    private java.util.List<DiagramConversationMessageDTO> conversationMessages;
+
     // 已保存的模型凭证；chat 只接受凭证 ID，不接受请求体里的原始 API key。
     private String modelCredentialId;
 

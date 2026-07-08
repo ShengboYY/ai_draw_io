@@ -196,6 +196,25 @@ public class SkillCatalogService {
                 skill.description(), category, selectable, source);
     }
 
+    /** Validate one dynamic skill exactly as it would enter the runtime catalog after saving. */
+    public List<String> validateManagedSkill(String name, String description, String category, String body) {
+        SkillInfo info = parse(body, name, "", description, category, true, SkillSource.DB_PRIVATE);
+        if (info == null) {
+            return List.of("name is required");
+        }
+        List<String> errors = new ArrayList<>(info.validationErrors());
+        if (name != null && !name.isBlank() && !info.name().equals(name.trim())) {
+            errors.add("frontmatter name must match requested name: " + name.trim());
+        }
+        return errors;
+    }
+
+    /** Force the shared base catalog to reload after runtime skill management writes. */
+    public void invalidateCache() {
+        base = null;
+        lastBaseAt = 0L;
+    }
+
     private Map<String, SkillInfo> classpathSkills() {
         Map<String, SkillInfo> local = classpathSkills;
         if (local != null) {

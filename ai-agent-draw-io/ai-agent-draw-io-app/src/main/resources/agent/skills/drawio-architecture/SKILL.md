@@ -32,13 +32,14 @@ Pick exactly one view and keep every element at that abstraction level. Never mi
 1. One focal boundary; actors and external systems stay outside it. At most two nested boundary levels (three only for deployment zones or runtime regions).
 2. 6–14 core nodes; summarize the rest into aggregate nodes ("Other services") instead of crowding.
 3. Layer order: clients top/left → gateway/access → services → middleware/AI → data stores bottom; external systems right.
-4. Databases and caches are cylinders, never plain rectangles; queues/brokers use `shape=process`; human actors use `shape=umlActor`.
+4. Databases and caches are cylinders, never plain rectangles; queues/brokers use `shape=process`; human actors use `shape=umlActor`. For cloud/Kubernetes/network deployment views, use named Draw.io library shapes/stencils when known instead of generic rounded rectangles.
 5. Each edge has one semantic type: request (solid), async event (dashed), data read/write (to storage). Label with protocol or purpose, not sentences.
-6. Don't draw every dependency: one summarized edge per repeated relationship; keep the main request path visually dominant; route secondary edges through outer gutters.
-7. External/third-party systems use a dashed stroke.
-8. Add a small legend only when ≥3 edge colors or dashed meanings aren't obvious.
-9. Technology names go on a second smaller label line, not the primary name.
-10. For runtime views (JVM/browser/OS internals):
+6. Routing follows relationship shape: hierarchy/fan-out/dependency edges use straight `edgeStyle=none` with no waypoints; network wiring, cross-zone traffic, dense workflow, and runtime gutter paths use orthogonal tracks.
+7. Don't draw every dependency: one summarized edge per repeated relationship; keep the main request path visually dominant; route secondary edges through outer gutters.
+8. External/third-party systems use a dashed stroke.
+9. Add a small legend only when ≥3 edge colors or dashed meanings aren't obvious.
+10. Technology names go on a second smaller label line, not the primary name.
+11. For runtime views (JVM/browser/OS internals):
     - Regions are real containers (`container=1`) with pastel fills and top-left bold labels; children are parented to the region with region-relative coordinates.
     - Memory areas and runtime modules are rounded rectangles — NEVER cylinders. Cylinders are reserved for external data stores in container/deployment views.
     - Size each region to its content with ~30px padding: no oversized regions around one node, no empty bands between child rows.

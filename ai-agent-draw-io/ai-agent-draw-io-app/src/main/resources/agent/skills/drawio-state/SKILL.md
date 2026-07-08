@@ -22,7 +22,7 @@ Prefer `drawio-flowchart` for business steps, `drawio-sequence` for service call
 3. Every transition is a single-direction arrow labeled `event [guard] / action` (e.g. `paymentSuccess`, `timeout / cancel`). The initial transition may be unlabeled.
 4. Happy path runs left-to-right on one row; cancel/failure states sit on a row below; retry/rollback loops route back along the side with a condition.
 5. Error/cancel states use the red role; success/terminal states gray or green.
-6. Choice diamonds, fork/join bars, and composite (nested) states only when the lifecycle really needs them; composite states are labeled containers with substates parented inside.
+6. Choice diamond: `rhombus;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;` around 60×50. Fork/join bars: thin filled rectangles, `rounded=0;whiteSpace=wrap;html=1;fillColor=#666666;strokeColor=#666666;`, horizontal 90×8 or vertical 8×90. Composite states: `rounded=1;container=1;collapsible=0;recursiveResize=0;whiteSpace=wrap;html=1;verticalAlign=top;fontStyle=1;` with substates parented inside.
 7. No orphan states; a state diagram is not a step-by-step flowchart.
 
 ## Golden Example [P0]

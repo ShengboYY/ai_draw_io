@@ -22,6 +22,7 @@ import org.zipp.ai.domain.agent.model.valobj.AiAgentConfigTableVO;
 import org.zipp.ai.domain.agent.model.valobj.canvas.CanvasState;
 import org.zipp.ai.domain.agent.model.valobj.intent.IntentRoutingCommand;
 import org.zipp.ai.domain.agent.model.valobj.intent.IntentRoutingResult;
+import org.zipp.ai.domain.agent.model.valobj.review.CanvasReviewCommand;
 import org.zipp.ai.domain.agent.service.ICanvasStateStore;
 import org.zipp.ai.domain.agent.service.IChatService;
 import org.zipp.ai.domain.agent.service.IIntentRoutingService;
@@ -167,6 +168,22 @@ public class AgentConversationServiceTest {
         assertTrue(intentMessage.contains("hasCanvas=true"));
         assertFalse(intentMessage.contains("<mxGraphModel"));
         assertFalse(intentMessage.contains("value=\"API\""));
+    }
+
+    @Test
+    public void shouldCarryUserSelectedSkillsIntoCanvasReviewCommand() throws Exception {
+        AgentConversationService service = new AgentConversationService();
+        ChatRequestDTO requestDTO = new ChatRequestDTO();
+        requestDTO.setUserId("alice");
+        requestDTO.setMessage("review this architecture diagram");
+        requestDTO.setSkills(List.of("custom-architecture"));
+        IntentRoutingResult routingResult = drawRoutingResult("review_only");
+        routingResult.setDiagramType("architecture");
+        routingResult.setNeedsSemanticReview(true);
+
+        CanvasReviewCommand command = buildCanvasReviewCommand(service, requestDTO, routingResult);
+
+        assertEquals(List.of("custom-architecture"), command.getSelectedSkillNames());
     }
 
     @Test
@@ -474,6 +491,19 @@ public class AgentConversationServiceTest {
         );
         method.setAccessible(true);
         return (String) method.invoke(service, requestDTO, routingResult, null, maxReviewIterations, requestDTO.getUserId(), null);
+    }
+
+    private CanvasReviewCommand buildCanvasReviewCommand(AgentConversationService service,
+                                                         ChatRequestDTO requestDTO,
+                                                         IntentRoutingResult routingResult) throws Exception {
+        Method method = AgentConversationService.class.getDeclaredMethod(
+                "buildCanvasReviewCommand",
+                ChatRequestDTO.class,
+                org.zipp.ai.domain.agent.service.chat.CustomApiConfigManager.CustomApiConfig.class,
+                IntentRoutingResult.class
+        );
+        method.setAccessible(true);
+        return (CanvasReviewCommand) method.invoke(service, requestDTO, null, routingResult);
     }
 
     private void injectPromptContextBuilder(AgentConversationService service) throws Exception {

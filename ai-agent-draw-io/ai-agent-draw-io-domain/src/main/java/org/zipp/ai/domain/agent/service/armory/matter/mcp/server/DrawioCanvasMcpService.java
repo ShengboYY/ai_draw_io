@@ -33,7 +33,7 @@ public class DrawioCanvasMcpService {
     @Resource
     private ICanvasStateStore canvasStateStore;
 
-    @Tool(name = DrawioCanvasToolNames.CREATE_DIAGRAM, description = "Create a new Draw.io diagram from mxCell XML fragments or a complete mxGraphModel. Follow the Global Draw.io Layout Contract for the layout mode you chose: in grid-flow mode keep nodes on a stable grid, use explicit exit/entry ports on connected edges, prefer orthogonal routing, and add waypoints around obstacles; in radial mode place nodes on ring coordinates and keep spokes as port-less edgeStyle=none straight lines. Avoid relying on later review repair for first-draft readability. The backend wraps, validates, and streams the final canvas.")
+    @Tool(name = DrawioCanvasToolNames.CREATE_DIAGRAM, description = "Create a new Draw.io diagram from mxCell XML fragments or a complete mxGraphModel. Follow the Global Draw.io Layout Contract for the layout mode you chose: in grid-flow mode keep nodes on a stable grid and choose edge routing by relationship/layout semantics — straight edgeStyle=none for hierarchy/dependency/fan-out, orthogonal routing with explicit exit/entry ports and waypoints for dense workflow/network wiring; never reuse the same node-side anchor for multiple connectors. In radial mode place nodes on ring coordinates and keep spokes as port-less edgeStyle=none straight lines. Avoid relying on later review repair for first-draft readability. The backend wraps, validates, and streams the final canvas.")
     public DrawioToolResponse createDiagram(DrawioXmlRequest request) {
         // Preserve the model's original routing so auto-reroute can be tested independently.
         DrawioToolResponse response = drawioDone(request.getXml());
@@ -56,7 +56,7 @@ public class DrawioCanvasMcpService {
         return drawioDone(request.getXml());
     }
 
-    @Tool(name = DrawioCanvasToolNames.MODIFY_DIAGRAM, description = "Modify the current Draw.io canvas with local cell changes only. Follow the Global Draw.io Layout Contract for changed cells: preserve stable ids and unrelated geometry, keep node spacing readable, and match the diagram's existing layout mode — in grid-flow layouts use explicit exit/entry ports for changed connected edges, prefer orthogonal routing, and add waypoints when edits would create crossings; in radial layouts keep spokes as port-less edgeStyle=none lines on ring coordinates. Use mode=patch for changed mxCell fragments, append for additions, or replace_cells for id-based replacements. Use create_diagram for full redraws or full canvas replacement.")
+    @Tool(name = DrawioCanvasToolNames.MODIFY_DIAGRAM, description = "Modify the current Draw.io canvas with local cell changes only. Follow the Global Draw.io Layout Contract for changed cells: preserve stable ids and unrelated geometry, keep node spacing readable, and match the diagram's existing layout mode — in grid-flow layouts choose routing by relationship/layout semantics, using straight edgeStyle=none for hierarchy/dependency/fan-out and orthogonal routing with explicit exit/entry ports plus waypoints for dense workflow/network wiring; never reuse the same node-side anchor for multiple connectors. In radial layouts keep spokes as port-less edgeStyle=none lines on ring coordinates. Use mode=patch for changed mxCell fragments, append for additions, or replace_cells for id-based replacements. Use create_diagram for full redraws or full canvas replacement.")
     public DrawioMutationResponse modifyDiagram(ModifyDiagramRequest request) {
         String mode = resolveModifyMode(request);
         DrawioMutationResponse response = new DrawioMutationResponse();
@@ -103,7 +103,7 @@ public class DrawioCanvasMcpService {
         return response;
     }
 
-    @Tool(name = DrawioCanvasToolNames.OPTIMIZE_DIAGRAM, description = "Optimize Draw.io layout, spacing, readability, or edge routing under the Global Draw.io Layout Contract, preserving the diagram's layout mode. In grid-flow layouts use explicit exit/entry ports, orthogonal routing, distinct tracks for parallel edges, and waypoints/gutters around obstacles; in radial layouts even out ring spacing instead and never straighten edgeStyle=none/curved spokes. Use mode=route_only for edge-only patches or layout_optimize for a complete optimized mxGraphModel.")
+    @Tool(name = DrawioCanvasToolNames.OPTIMIZE_DIAGRAM, description = "Optimize Draw.io layout, spacing, readability, or edge routing under the Global Draw.io Layout Contract, preserving the diagram's layout mode and relationship/layout semantics. In grid-flow layouts keep straight edgeStyle=none relationships straight, never reuse the same node-side anchor, and use orthogonal routing with explicit exit/entry ports, distinct tracks, and waypoints only for dense workflow/network wiring or obstacle avoidance; in radial layouts even out ring spacing instead and never straighten edgeStyle=none/curved spokes. Use mode=route_only for edge-only patches or layout_optimize for a complete optimized mxGraphModel.")
     public DrawioMutationResponse optimizeDiagram(OptimizeDiagramRequest request) {
         String sourceXml = resolveOptimizableXml(request);
         String content = xmlToolkit.routeEdges(sourceXml);

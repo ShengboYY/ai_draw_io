@@ -543,6 +543,7 @@ public class AgentConversationService {
                 .userId(requestDTO.getUserId())
                 .message(contextBuilder().buildReviewContextMessage(requestDTO, routingResult))
                 .routingResult(routingResult)
+                .selectedSkillNames(requestDTO.getSkills())
                 .customApiConfig(config)
                 .build();
     }

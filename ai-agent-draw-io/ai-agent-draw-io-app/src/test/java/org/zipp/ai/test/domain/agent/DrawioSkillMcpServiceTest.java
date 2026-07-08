@@ -364,6 +364,27 @@ public class DrawioSkillMcpServiceTest {
     }
 
     @Test
+    public void shouldPreferP0SectionsOverLongIntroWhenStructuredBodyExceedsBudget() {
+        DrawioSkillMcpService service = serviceWithSingleSkill("intro-heavy-skill", """
+                # Intro Heavy Skill
+                %s
+
+                ## Rules [P0]
+                Must keep the priority rules.
+                """.formatted("intro ".repeat(3_000)));
+
+        try (DrawioSkillAccessContext.Scope ignored = DrawioSkillAccessContext.bind(Set.of("intro-heavy-skill"))) {
+            DrawioSkillMcpService.GetSkillResponse response = service.getDrawioSkill(request("intro-heavy-skill"));
+
+            assertTrue(response.isFound());
+            assertTrue(response.getTruncated());
+            assertTrue(response.getBody().contains("Must keep the priority rules."));
+            assertEquals(1, response.getSections().size());
+            assertEquals("rules", response.getSections().get(0).getId());
+        }
+    }
+
+    @Test
     public void shouldNotReturnHalfOpenCodeFenceWhenTruncatingPrioritySection() {
         DrawioSkillMcpService service = serviceWithSingleSkill("fenced-skill", """
                 # Fenced Skill

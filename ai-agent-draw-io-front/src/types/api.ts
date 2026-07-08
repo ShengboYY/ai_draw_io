@@ -131,6 +131,8 @@ export interface ChatRequestDTO {
     maxReviewIterations?: number;
     skills?: string[];
   };
+  /** Recent visible chat turns for intent routing context only. */
+  conversationMessages?: DiagramConversationMessageDTO[];
   modelCredentialId?: string;
   customBaseUrl?: string;
   customApiKey?: string;

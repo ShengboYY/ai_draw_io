@@ -31,6 +31,7 @@ ai:
 
                   Input contract:
                   - The raw user request is in [User Request]. It has the highest priority.
+                  - Conversation Context contains recent visible turns. Use it only to resolve follow-up answers or missing details; if the current user supplies a short phrase after a clarification question, preserve the prior requested diagram type.
                   - Canvas State tells whether a drawable canvas exists.
                   - Canvas Summary is a compact description of current nodes, edges, labels, and relationships.
 

@@ -479,7 +479,7 @@ public class DefaultCanvasAnalyzer implements ICanvasAnalyzer {
         }
 
         for (List<EndpointPortBinding> bindings : bindingsByNodeSide.values()) {
-            if (bindings.size() < 3) {
+            if (bindings.size() < 2) {
                 continue;
             }
             List<EndpointPortBinding> sorted = bindings.stream()

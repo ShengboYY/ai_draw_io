@@ -29,12 +29,14 @@ Use 4–6 shape types at most in one flowchart.
 
 ## Rules [P0]
 1. Main path runs top-to-bottom on one fixed x axis, from Start to the terminal outcome. Left-to-right only for short pipelines.
-2. Step labels are action phrases (`Validate order`), never nouns or component names. Decision labels are questions (`Stock available?`).
-3. Every decision has ≥2 outgoing edges, each labeled on the edge (`Yes`/`No`/`Approved`/`Rejected`) — never inside the diamond.
-4. Branches and exceptions move to the side (usually right), visually weaker than the main path, and either terminate or merge back cleanly.
-5. Loops route back along the side with a clear condition label; retry loops return to the smallest meaningful earlier step.
-6. Use swimlanes only when the user mentions roles/owners; steps then get `parent="<lane-id>"` with lane-relative coordinates.
-7. No orphan steps; merge branches only where the story actually rejoins.
+2. Routing: simple top-down paths, short pipelines, and decision tree/fan-out flows may use straight `edgeStyle=none`; complex branches, swimlanes, loops, and rejoin paths use orthogonal routing.
+3. Step labels are action phrases (`Validate order`), never nouns or component names. Decision labels are questions (`Stock available?`).
+4. Every decision has ≥2 outgoing edges, each labeled on the edge (`Yes`/`No`/`Approved`/`Rejected`) — never inside the diamond.
+5. Branches and exceptions move to the side (usually right), visually weaker than the main path, and either terminate or merge back cleanly.
+6. Retry/correction branches stay local: return to the nearest input/action by the nearest side gutter. Do not centralize unrelated failures in one distant error box; duplicate a small correction step when it keeps edges short and readable.
+7. Loops route back along the side with a clear condition label; retry loops return to the smallest meaningful earlier step.
+8. Use swimlanes only when the user mentions roles/owners; steps then get `parent="<lane-id>"` with lane-relative coordinates.
+9. No orphan steps; merge branches only where the story actually rejoins.
 
 ## Golden Example [P0]
 

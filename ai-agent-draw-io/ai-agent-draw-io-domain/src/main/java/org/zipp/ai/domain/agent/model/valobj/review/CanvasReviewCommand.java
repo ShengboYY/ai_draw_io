@@ -5,6 +5,8 @@ import org.zipp.ai.domain.agent.service.chat.CustomApiConfigManager;
 import lombok.Builder;
 import lombok.Data;
 
+import java.util.List;
+
 @Data
 @Builder
 public class CanvasReviewCommand {
@@ -14,6 +16,8 @@ public class CanvasReviewCommand {
     private String message;
 
     private IntentRoutingResult routingResult;
+
+    private List<String> selectedSkillNames;
 
     private CustomApiConfigManager.CustomApiConfig customApiConfig;
 

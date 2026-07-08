@@ -2,6 +2,7 @@ package org.zipp.ai.trigger.http.service;
 
 import org.apache.commons.lang3.StringUtils;
 import org.zipp.ai.api.dto.ChatRequestDTO;
+import org.zipp.ai.api.dto.DiagramConversationMessageDTO;
 import org.zipp.ai.domain.agent.model.valobj.analysis.CanvasAnalysis;
 import org.zipp.ai.domain.agent.model.valobj.analysis.CanvasAnalysisIssue;
 import org.zipp.ai.domain.agent.model.valobj.intent.IntentRoutingResult;
@@ -18,6 +19,10 @@ import java.util.List;
 public class DrawioPromptContextBuilder {
 
     private static final int MAX_CANVAS_ISSUES = 8;
+    private static final int MAX_CONVERSATION_CONTEXT_MESSAGES = 6;
+    private static final int MAX_CONVERSATION_CONTEXT_CHARS = 800;
+    private static final java.util.regex.Pattern MXGRAPH_PATTERN =
+            java.util.regex.Pattern.compile("<mxGraphModel[\\s\\S]*?</mxGraphModel>");
 
     @Resource
     private IDrawioCanvasSnapshotService canvasSnapshotService;
@@ -37,6 +42,8 @@ public class DrawioPromptContextBuilder {
         // The router only needs lightweight canvas facts; full XML stays out to avoid intent pollution.
         return "[User Request]\n"
                 + rawUserMessage(requestDTO)
+                + "\n\n"
+                + buildConversationContext(requestDTO)
                 + "\n\n[Canvas State]\n"
                 + "hasCanvas=" + hasDrawableCanvas(canvasXml)
                 + "\n\n[Canvas Summary]\n"
@@ -180,6 +187,44 @@ public class DrawioPromptContextBuilder {
 
     private String rawUserMessage(ChatRequestDTO requestDTO) {
         return null == requestDTO ? "" : StringUtils.defaultString(requestDTO.getMessage());
+    }
+
+    private String buildConversationContext(ChatRequestDTO requestDTO) {
+        if (requestDTO == null || requestDTO.getConversationMessages() == null
+                || requestDTO.getConversationMessages().isEmpty()) {
+            return "[Conversation Context]\nNo prior visible chat turns were provided.";
+        }
+
+        java.util.List<DiagramConversationMessageDTO> messages = requestDTO.getConversationMessages();
+        int start = Math.max(0, messages.size() - MAX_CONVERSATION_CONTEXT_MESSAGES);
+        StringBuilder builder = new StringBuilder("[Conversation Context]\n")
+                .append("Use these prior visible turns only to resolve follow-up answers and missing slots. ")
+                .append("If the previous assistant asked for a topic/domain/requirement and the current user ")
+                .append("provides a short phrase, keep the previous diagram type and treat the phrase as the missing detail.\n");
+        for (int i = start; i < messages.size(); i++) {
+            DiagramConversationMessageDTO message = messages.get(i);
+            if (message == null || StringUtils.isBlank(message.getContent())) {
+                continue;
+            }
+            String role = "agent".equals(message.getRole()) ? "assistant" : "user";
+            String content = compactConversationText(message.getContent());
+            if (StringUtils.isBlank(content)) {
+                continue;
+            }
+            builder.append(role).append(": ").append(content).append('\n');
+        }
+        return builder.toString().trim();
+    }
+
+    private String compactConversationText(String content) {
+        // Strip pasted or leaked Draw.io XML before it can pollute intent routing.
+        String compact = MXGRAPH_PATTERN.matcher(StringUtils.defaultString(content)).replaceAll(" ")
+                .replaceAll("[\\r\\n\\t]+", " ")
+                .replaceAll("\\s+", " ")
+                .trim();
+        return compact.length() <= MAX_CONVERSATION_CONTEXT_CHARS
+                ? compact
+                : compact.substring(0, MAX_CONVERSATION_CONTEXT_CHARS) + "...";
     }
 
     private boolean hasDrawableCanvas(String canvasXml) {

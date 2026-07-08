@@ -26,6 +26,7 @@ public class DrawioGlobalLayoutContractTest {
         assertTrue(xmlGuide.contains("One reading direction per diagram"));
         assertTrue(xmlGuide.contains("orthogonalEdgeStyle"));
         assertTrue(xmlGuide.contains("Never corner ports"));
+        assertTrue(xmlGuide.contains("relationship/layout semantics"));
         assertTrue(xmlGuide.contains("## Pre-flight Check"));
 
         // The contract offers two first-class layout modes: the model picks radial from the
@@ -88,6 +89,9 @@ public class DrawioGlobalLayoutContractTest {
         Tool tool = DrawioCanvasMcpService.class.getMethod(methodName, requestType).getAnnotation(Tool.class);
 
         assertTrue(tool.description().contains("Global Draw.io Layout Contract"));
+        assertTrue(tool.description().contains("relationship/layout semantics"));
+        assertTrue(tool.description().contains("edgeStyle=none"));
+        assertTrue(tool.description().contains("same node-side anchor"));
         assertTrue(tool.description().contains("explicit exit/entry ports"));
         assertTrue(tool.description().contains("orthogonal routing"));
     }
