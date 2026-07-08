@@ -2237,6 +2237,10 @@ function DrawioPageContent() {
         // onEvent
         (event: StreamEvent) => {
           const { phase, chunk } = event;
+          if (chunk.type === 'meta') {
+            // Correlation metadata is for diagnostics and should not create a visible run step.
+            return;
+          }
 
           // Update phase display
           const phaseLabel: Record<string, string> = {

@@ -8,6 +8,9 @@ public class ChatRequestDTO {
     private String agentId;
     private String userId;
     private String sessionId;
+    private String requestId;
+    // Server-owned correlation id; controllers overwrite any client-provided value before use.
+    private String runId;
     private String diagramId;
     private Long expectedVersion;
     private String message;

@@ -1,12 +1,15 @@
 package org.zipp.ai.domain.agent.service.armory.matter.plugin;
 
 import com.google.adk.agents.CallbackContext;
+import com.google.adk.agents.InvocationContext;
 import com.google.adk.models.LlmRequest;
 import com.google.adk.models.LlmResponse;
 import com.google.adk.plugins.BasePlugin;
 import com.google.adk.tools.BaseTool;
 import com.google.adk.tools.ToolContext;
 import com.google.genai.types.GenerateContentResponseUsageMetadata;
+import com.google.genai.types.Content;
+import io.reactivex.rxjava3.core.Completable;
 import io.reactivex.rxjava3.core.Maybe;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Service;
@@ -30,6 +33,24 @@ public class AgentUsageTelemetryPlugin extends BasePlugin {
 
     public AgentUsageTelemetryPlugin() {
         super("AgentUsageTelemetryPlugin");
+    }
+
+    @Override
+    public Maybe<Content> beforeRunCallback(InvocationContext invocationContext) {
+        if (invocationContext != null && invocationContext.session() != null) {
+            AgentUsageTelemetryContext.registerInvocation(
+                    invocationContext.invocationId(),
+                    invocationContext.session().state());
+        }
+        return super.beforeRunCallback(invocationContext);
+    }
+
+    @Override
+    public Completable afterRunCallback(InvocationContext invocationContext) {
+        if (invocationContext != null) {
+            AgentUsageTelemetryContext.clearInvocation(invocationContext.invocationId());
+        }
+        return super.afterRunCallback(invocationContext);
     }
 
     @Override
@@ -137,7 +158,9 @@ public class AgentUsageTelemetryPlugin extends BasePlugin {
     }
 
     private Optional<AgentUsageTelemetryContext.RunContext> resolveContext(CallbackContext context) {
-        return context == null ? AgentUsageTelemetryContext.current() : AgentUsageTelemetryContext.resolve(context.sessionId());
+        return context == null
+                ? AgentUsageTelemetryContext.current()
+                : AgentUsageTelemetryContext.resolveInvocation(context.invocationId());
     }
 
     private LlmCallStart pollLlmStart(String invocationId) {
@@ -147,9 +170,9 @@ public class AgentUsageTelemetryPlugin extends BasePlugin {
 
     private String toolKey(BaseTool tool, ToolContext toolContext) {
         String callId = toolContext == null ? "" : toolContext.functionCallId().orElse("");
-        String sessionId = toolContext == null ? "" : toolContext.sessionId();
+        String invocationId = toolContext == null ? "" : toolContext.invocationId();
         String toolName = tool == null ? "unknown" : tool.name();
-        return sessionId + ":" + callId + ":" + toolName;
+        return invocationId + ":" + callId + ":" + toolName;
     }
 
     private String modelFromRequest(LlmRequest.Builder requestBuilder, String fallback) {

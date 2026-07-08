@@ -28,6 +28,7 @@ import org.zipp.ai.domain.agent.service.IChatService;
 import org.zipp.ai.domain.agent.service.IIntentRoutingService;
 import org.zipp.ai.domain.agent.service.canvas.DefaultDrawioCanvasSnapshotService;
 import org.zipp.ai.domain.agent.service.usage.AgentUsageTelemetryService;
+import org.zipp.ai.domain.agent.service.usage.AgentUsageTelemetryContext;
 import org.zipp.ai.test.domain.agent.FakeAgentUsageTelemetryStore;
 import org.zipp.ai.trigger.http.service.AgentConversationService;
 import org.zipp.ai.trigger.http.service.DrawioPromptContextBuilder;
@@ -435,6 +436,53 @@ public class AgentConversationServiceTest {
     }
 
     @Test
+    public void shouldAttachRequestAndRunIdsToBlockingChatResponseAndAdkRunContext() throws Exception {
+        FakeAgentUsageTelemetryStore telemetryStore = new FakeAgentUsageTelemetryStore();
+        AgentConversationService service = quotaAwareService();
+        CountingChatService chatService = new CountingChatService();
+        injectField(service, "agentUsageTelemetryService", fixedTelemetryService(telemetryStore));
+        injectField(service, "chatService", chatService);
+        injectField(service, "intentRoutingService", new CountingIntentRoutingService());
+
+        ChatRequestDTO requestDTO = platformRequest();
+        requestDTO.setRequestId("req-test-123");
+        requestDTO.setRunId("aru_test_run_1");
+
+        org.zipp.ai.api.dto.ChatResponseDTO response = service.chat(requestDTO);
+
+        assertEquals("req-test-123", response.getRequestId());
+        assertEquals("aru_test_run_1", response.getRunId());
+        assertEquals("aru_test_run_1", telemetryStore.runs.get(0).getId());
+        assertEquals("req-test-123", chatService.lastRunContext.requestId());
+        assertEquals("aru_test_run_1", chatService.lastRunContext.runId());
+    }
+
+    @Test
+    public void shouldSendStreamMetaEventAndPassRunContextToAdkStream() throws Exception {
+        FakeAgentUsageTelemetryStore telemetryStore = new FakeAgentUsageTelemetryStore();
+        AgentConversationService service = quotaAwareService();
+        CountingChatService chatService = new CountingChatService();
+        injectField(service, "agentUsageTelemetryService", fixedTelemetryService(telemetryStore));
+        injectField(service, "chatService", chatService);
+        injectField(service, "intentRoutingService", new CountingIntentRoutingService());
+
+        ChatRequestDTO requestDTO = platformRequest();
+        requestDTO.setRequestId("req-stream-123");
+        requestDTO.setRunId("aru_stream_run_1");
+        CapturingEmitter emitter = new CapturingEmitter();
+
+        service.stream(requestDTO, emitter);
+
+        String output = String.join("\n", emitter.sent);
+        assertTrue(output.contains("\"type\":\"meta\""));
+        assertTrue(output.contains("\"requestId\":\"req-stream-123\""));
+        assertTrue(output.contains("\"runId\":\"aru_stream_run_1\""));
+        assertEquals("aru_stream_run_1", telemetryStore.runs.get(0).getId());
+        assertEquals("req-stream-123", chatService.lastStreamRunContext.requestId());
+        assertEquals("aru_stream_run_1", chatService.lastStreamRunContext.runId());
+    }
+
+    @Test
     public void shouldRecordFailedRunTelemetryWithoutPersistingErrorMessageContent() throws Exception {
         FakeAgentUsageTelemetryStore telemetryStore = new FakeAgentUsageTelemetryStore();
         AgentConversationService service = quotaAwareService();
@@ -704,6 +752,8 @@ public class AgentConversationServiceTest {
     private static class CountingChatService implements IChatService {
         private int handleMessageCalls;
         private int handleMessageStreamCalls;
+        private AgentUsageTelemetryContext.RunContext lastRunContext;
+        private AgentUsageTelemetryContext.RunContext lastStreamRunContext;
 
         @Override
         public List<AiAgentConfigTableVO.Agent> queryAiAgentConfigList() {
@@ -732,9 +782,29 @@ public class AgentConversationServiceTest {
         }
 
         @Override
+        public List<String> handleMessage(String agentId,
+                                          String userId,
+                                          String sessionId,
+                                          String message,
+                                          AgentUsageTelemetryContext.RunContext runContext) {
+            lastRunContext = runContext;
+            return handleMessage(agentId, userId, sessionId, message);
+        }
+
+        @Override
         public Flowable<Event> handleMessageStream(String agentId, String userId, String sessionId, String message) {
             handleMessageStreamCalls++;
             return Flowable.empty();
+        }
+
+        @Override
+        public Flowable<Event> handleMessageStream(String agentId,
+                                                   String userId,
+                                                   String sessionId,
+                                                   String message,
+                                                   AgentUsageTelemetryContext.RunContext runContext) {
+            lastStreamRunContext = runContext;
+            return handleMessageStream(agentId, userId, sessionId, message);
         }
 
         @Override

@@ -28,6 +28,14 @@ type BuildDrawioChatRequestPayloadInput = {
 const MAX_CONVERSATION_CONTEXT_MESSAGES = 6;
 const MAX_CONVERSATION_CONTEXT_CHARS = 800;
 
+const newRequestId = () => {
+  // Keep this human-copyable for support tickets while still unique enough per browser request.
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return `req-${crypto.randomUUID()}`;
+  }
+  return `req-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}`;
+};
+
 const sanitizeConversationContent = (content?: string) => {
   const compact = (content || '')
     .replace(/<mxGraphModel[\s\S]*?<\/mxGraphModel>/g, ' ')
@@ -81,6 +89,7 @@ export const buildDrawioChatRequestPayload = ({
     agentId,
     userId,
     sessionId,
+    requestId: newRequestId(),
     ...(diagramId && { diagramId }),
     ...(expectedVersion !== undefined && { expectedVersion }),
     ...(modelCredentialId && { modelCredentialId }),

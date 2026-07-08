@@ -82,7 +82,12 @@ public class DefaultCanvasReviewService implements ICanvasReviewService {
         String sessionId = null;
         try {
             sessionId = createInternalSession(QUALITY_ANSWER_AGENT_ID, command);
-            List<String> outputs = chatService.handleMessage(QUALITY_ANSWER_AGENT_ID, command.getUserId(), sessionId, prompt);
+            List<String> outputs = chatService.handleMessage(
+                    QUALITY_ANSWER_AGENT_ID,
+                    command.getUserId(),
+                    sessionId,
+                    prompt,
+                    AgentUsageTelemetryContext.current().orElse(null));
             return parseUserAnswer(String.join("", outputs));
         } catch (Exception e) {
             log.warn("Canvas quality answer failed, fallback to deterministic report summary. userId:{}",
@@ -91,7 +96,6 @@ public class DefaultCanvasReviewService implements ICanvasReviewService {
         } finally {
             CustomApiConfigManager.clearConfig(sessionId);
             DrawioSkillAccessContext.clearSession(sessionId);
-            AgentUsageTelemetryContext.clearSession(sessionId);
         }
     }
 
@@ -106,7 +110,12 @@ public class DefaultCanvasReviewService implements ICanvasReviewService {
         String sessionId = null;
         try {
             sessionId = createInternalSession(SEMANTIC_REVIEW_AGENT_ID, command);
-            List<String> outputs = chatService.handleMessage(SEMANTIC_REVIEW_AGENT_ID, command.getUserId(), sessionId, prompt);
+            List<String> outputs = chatService.handleMessage(
+                    SEMANTIC_REVIEW_AGENT_ID,
+                    command.getUserId(),
+                    sessionId,
+                    prompt,
+                    AgentUsageTelemetryContext.current().orElse(null));
             SemanticContentReview review = parseSemanticReview(outputs);
             if (null == review) {
                 return SemanticContentReview.unavailable("Semantic reviewer did not return valid JSON.");
@@ -119,13 +128,11 @@ public class DefaultCanvasReviewService implements ICanvasReviewService {
         } finally {
             CustomApiConfigManager.clearConfig(sessionId);
             DrawioSkillAccessContext.clearSession(sessionId);
-            AgentUsageTelemetryContext.clearSession(sessionId);
         }
     }
 
     private String createInternalSession(String agentId, CanvasReviewCommand command) {
         String sessionId = chatService.createSession(agentId, command.getUserId());
-        AgentUsageTelemetryContext.inheritCurrentToSession(sessionId);
         if (SEMANTIC_REVIEW_AGENT_ID.equals(agentId)) {
             DrawioSkillAccessContext.bindSession(sessionId, semanticReviewSkillNames(command));
         }

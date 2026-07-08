@@ -112,6 +112,10 @@ export interface ChatRequestDTO {
   userId: string;
   sessionId: string;
   message: string;
+  /** Client-generated id used to correlate browser request, backend logs, and stream metadata. */
+  requestId?: string;
+  /** Server-owned run id; clients only read it from responses. */
+  runId?: string;
   /** Stable diagram id used by the backend CanvasStateStore. */
   diagramId?: string;
   /** Optimistic-lock version expected by this mutation request. */
@@ -146,6 +150,8 @@ export interface ChatRequestDTO {
 export interface ChatResponseDTO {
     content: string;
     type: string;
+    requestId?: string;
+    runId?: string;
 }
 
 export type LoginStatus =

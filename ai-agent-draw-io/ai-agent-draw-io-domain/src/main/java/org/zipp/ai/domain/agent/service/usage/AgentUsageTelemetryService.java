@@ -51,10 +51,25 @@ public class AgentUsageTelemetryService {
                              String modelCredentialId,
                              String provider,
                              String model) {
-        String runId = "aru_" + UUID.randomUUID();
+        return startRun(null, null, userId, agentId, sessionId, requestType,
+                credentialSource, modelCredentialId, provider, model);
+    }
+
+    public RunScope startRun(String runId,
+                             String requestId,
+                             String userId,
+                             String agentId,
+                             String sessionId,
+                             String requestType,
+                             String credentialSource,
+                             String modelCredentialId,
+                             String provider,
+                             String model) {
+        String resolvedRunId = normalizeRunId(runId);
         Instant startedAt = clock.instant();
         AgentUsageTelemetryContext.RunContext context = new AgentUsageTelemetryContext.RunContext(
-                runId,
+                resolvedRunId,
+                blankToNull(requestId),
                 userId,
                 agentId,
                 requestType,
@@ -65,7 +80,7 @@ public class AgentUsageTelemetryService {
                 "request"
         );
         safeStore(() -> telemetryStore.insertRun(AgentRunTelemetry.builder()
-                .id(runId)
+                .id(resolvedRunId)
                 .userId(userId)
                 .agentId(agentId)
                 .sessionId(blankToNull(sessionId))
@@ -76,6 +91,10 @@ public class AgentUsageTelemetryService {
                 .startedAt(startedAt)
                 .build()), userId);
         return new RunScope(context, startedAt);
+    }
+
+    public String newRunId() {
+        return "aru_" + UUID.randomUUID();
     }
 
     public RunScope withProviderModel(RunScope runScope, String provider, String model) {
@@ -269,6 +288,14 @@ public class AgentUsageTelemetryService {
 
     private String blankToNull(String value) {
         return StringUtils.isBlank(value) ? null : value;
+    }
+
+    private String normalizeRunId(String value) {
+        String trimmed = StringUtils.trimToNull(value);
+        if (trimmed == null || trimmed.length() > 64 || !trimmed.startsWith("aru_")) {
+            return newRunId();
+        }
+        return trimmed;
     }
 
     public static class RunScope {

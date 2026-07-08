@@ -46,6 +46,18 @@ public class DrawioStreamResponseWriter {
         emitter.complete();
     }
 
+    public void sendMeta(ResponseBodyEmitter emitter, String requestId, String runId) throws Exception {
+        // Meta is emitted once per stream so clients can correlate support tickets without per-chunk DB writes.
+        com.alibaba.fastjson.JSONObject envelope = new com.alibaba.fastjson.JSONObject();
+        envelope.put("phase", "thinking");
+        com.alibaba.fastjson.JSONObject chunk = new com.alibaba.fastjson.JSONObject();
+        chunk.put("type", "meta");
+        chunk.put("requestId", requestId);
+        chunk.put("runId", runId);
+        envelope.put("chunk", chunk);
+        emitter.send(envelope.toJSONString() + "\n");
+    }
+
     public void sendTypedError(ResponseBodyEmitter emitter, String code, String content) throws Exception {
         sendError(emitter, "error", code, content);
     }

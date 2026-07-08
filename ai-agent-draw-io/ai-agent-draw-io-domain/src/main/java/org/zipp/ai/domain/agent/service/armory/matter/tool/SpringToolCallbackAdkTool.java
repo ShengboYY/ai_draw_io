@@ -88,14 +88,14 @@ public class SpringToolCallbackAdkTool extends BaseTool {
                                                        ToolContext toolContext) {
         String traceId = runContext == null ? "" : runContext.runId();
         String sessionId = toolContext == null ? "" : toolContext.sessionId();
-        String invocationId = toolContext == null ? "" : toolContext.functionCallId().orElse("");
+        String invocationId = toolContext == null ? "" : toolContext.invocationId();
         return SkillToolTraceContext.bind(traceId, sessionId, invocationId);
     }
 
     private Optional<AgentUsageTelemetryContext.RunContext> resolveRunContext(ToolContext toolContext) {
         return toolContext == null
                 ? AgentUsageTelemetryContext.current()
-                : AgentUsageTelemetryContext.resolve(toolContext.sessionId());
+                : AgentUsageTelemetryContext.resolveInvocation(toolContext.invocationId());
     }
 
     private Optional<DrawioSkillAccessContext.SkillAccess> resolveSkillAccess(ToolContext toolContext) {

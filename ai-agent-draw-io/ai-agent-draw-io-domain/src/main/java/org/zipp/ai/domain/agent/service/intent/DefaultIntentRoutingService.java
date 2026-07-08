@@ -108,7 +108,6 @@ public class DefaultIntentRoutingService implements IIntentRoutingService {
         }
         try {
             String sessionId = chatService.createSession(INTENT_AGENT_ID, userId);
-            AgentUsageTelemetryContext.inheritCurrentToSession(sessionId);
             try {
                 CustomApiConfigManager.CustomApiConfig config = command.getCustomApiConfig();
                 if (null != config) {
@@ -120,7 +119,12 @@ public class DefaultIntentRoutingService implements IIntentRoutingService {
                 // offered-name set to validate the reply, avoiding a second catalog (DB) round-trip.
                 SkillCatalogService.RouterCatalog routerCatalog = skillCatalogService.routerCatalog(userId);
                 String routerMessage = withAvailableSkills(command.getMessage(), routerCatalog.promptText());
-                List<String> outputs = chatService.handleMessage(INTENT_AGENT_ID, userId, sessionId, routerMessage);
+                List<String> outputs = chatService.handleMessage(
+                        INTENT_AGENT_ID,
+                        userId,
+                        sessionId,
+                        routerMessage,
+                        AgentUsageTelemetryContext.current().orElse(null));
                 String rawResult = String.join("", outputs);
                 IntentRoutingResult result = normalize(parseRoutingResult(rawResult),
                         extractUserInstruction(null == command ? "" : command.getMessage()), routerCatalog.skillNames());
@@ -128,7 +132,6 @@ public class DefaultIntentRoutingService implements IIntentRoutingService {
                 return result;
             } finally {
                 CustomApiConfigManager.clearConfig(sessionId);
-                AgentUsageTelemetryContext.clearSession(sessionId);
             }
         } catch (Exception e) {
             log.warn("Intent routing failed, fail-closed to clarify (no canvas mutation). userId:{}",

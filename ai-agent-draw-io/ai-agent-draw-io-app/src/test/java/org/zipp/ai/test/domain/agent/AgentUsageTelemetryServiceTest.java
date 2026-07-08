@@ -9,6 +9,7 @@ import java.time.Instant;
 import java.time.ZoneOffset;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.assertNull;
 
 public class AgentUsageTelemetryServiceTest {
@@ -45,6 +46,40 @@ public class AgentUsageTelemetryServiceTest {
 
         assertEquals(Long.valueOf(1), store.summarizeForUser("usr_alice").getPlatformRunCount());
         assertEquals(Long.valueOf(1), store.summarizeForUser("usr_alice").getUserKeyRunCount());
+    }
+
+    @Test
+    public void shouldResolveRunContextByInvocationIdInsteadOfSessionId() {
+        AgentUsageTelemetryService service = service(new FakeAgentUsageTelemetryStore());
+        AgentUsageTelemetryService.RunScope first = service.startRun(
+                "aru_first", "req-first", "usr_alice", "300000", "session-shared", "chat_stream",
+                "PLATFORM", null, "openai", "gpt-5.5");
+        AgentUsageTelemetryService.RunScope second = service.startRun(
+                "aru_second", "req-second", "usr_alice", "300000", "session-shared", "chat_stream",
+                "PLATFORM", null, "openai", "gpt-5.5");
+
+        AgentUsageTelemetryContext.InvocationState firstState = AgentUsageTelemetryContext.newInvocationState(first.getContext());
+        AgentUsageTelemetryContext.InvocationState secondState = AgentUsageTelemetryContext.newInvocationState(second.getContext());
+        AgentUsageTelemetryContext.registerInvocation("invocation-a", firstState.stateDelta());
+        AgentUsageTelemetryContext.registerInvocation("invocation-b", secondState.stateDelta());
+
+        assertEquals("aru_first", AgentUsageTelemetryContext.resolveInvocation("invocation-a").orElseThrow().runId());
+        assertEquals("aru_second", AgentUsageTelemetryContext.resolveInvocation("invocation-b").orElseThrow().runId());
+
+        AgentUsageTelemetryContext.clearInvocation("invocation-a");
+        firstState.close();
+
+        assertTrue(AgentUsageTelemetryContext.resolveInvocation("invocation-a").isEmpty());
+        assertEquals("aru_second", AgentUsageTelemetryContext.resolveInvocation("invocation-b").orElseThrow().runId());
+
+        AgentUsageTelemetryContext.clearInvocation("invocation-b");
+        secondState.close();
+
+        AgentUsageTelemetryContext.InvocationState orphanState = AgentUsageTelemetryContext.newInvocationState(first.getContext());
+        AgentUsageTelemetryContext.registerInvocation("invocation-orphan", orphanState.stateDelta());
+        orphanState.close();
+
+        assertTrue(AgentUsageTelemetryContext.resolveInvocation("invocation-orphan").isEmpty());
     }
 
     private AgentUsageTelemetryService service(FakeAgentUsageTelemetryStore store) {

@@ -56,9 +56,10 @@ const handleResponse = async <T>(response: globalThis.Response): Promise<Respons
     return data;
 };
 
-const workspaceHeaders = (userId: string) => ({
+const workspaceHeaders = (userId: string, requestId?: string) => ({
     'Content-Type': 'application/json',
     'X-Workspace-Id': userId,
+    ...(requestId && { 'X-Request-Id': requestId }),
 });
 
 type HeaderMap = Record<string, string>;
@@ -161,6 +162,12 @@ export interface TokenChunk {
     content: string;
 }
 
+export interface MetaChunk {
+    type: 'meta';
+    requestId?: string;
+    runId?: string;
+}
+
 export interface ReviewResultChunk {
     type: 'review_result';
     approved: boolean;
@@ -184,7 +191,7 @@ export interface VersionConflictChunk {
     currentContentHash?: string;
 }
 
-export type StreamChunk = DrawioPreviewChunk | DrawioNodeChunk | DrawioEdgeChunk | DrawioDoneChunk | DrawioLegacyChunk | StatusChunk | ErrorChunk | UserChunk | DoneChunk | TokenChunk | ReviewResultChunk | ValidationResultChunk | VersionConflictChunk;
+export type StreamChunk = DrawioPreviewChunk | DrawioNodeChunk | DrawioEdgeChunk | DrawioDoneChunk | DrawioLegacyChunk | StatusChunk | ErrorChunk | UserChunk | DoneChunk | TokenChunk | MetaChunk | ReviewResultChunk | ValidationResultChunk | VersionConflictChunk;
 
 export interface StreamEvent {
     phase: 'analyzing' | 'drawing' | 'reviewing' | 'revising' | 'thinking' | 'error' | 'done' | 'generating';
@@ -482,7 +489,7 @@ export const agentApi = {
     chat: async (data: ChatRequestDTO): Promise<Response<ChatResponseDTO>> => {
         const response = await fetch(`${API_CONFIG.BASE_URL}/chat`, {
             method: 'POST',
-            headers: await csrfHeaders(workspaceHeaders(data.userId)),
+            headers: await csrfHeaders(workspaceHeaders(data.userId, data.requestId)),
             body: JSON.stringify(data),
             credentials: 'include',
         });
@@ -506,7 +513,7 @@ export const agentApi = {
         try {
             const response = await fetch(`${API_CONFIG.BASE_URL}/chat_stream`, {
                 method: 'POST',
-                headers: await csrfHeaders(workspaceHeaders(data.userId)),
+                headers: await csrfHeaders(workspaceHeaders(data.userId, data.requestId)),
                 body: JSON.stringify(data),
                 signal: controller.signal,
                 credentials: 'include',

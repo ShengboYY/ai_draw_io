@@ -2,6 +2,7 @@ package org.zipp.ai.domain.agent.service;
 
 import org.zipp.ai.domain.agent.model.entity.ChatCommandEntity;
 import org.zipp.ai.domain.agent.model.valobj.AiAgentConfigTableVO;
+import org.zipp.ai.domain.agent.service.usage.AgentUsageTelemetryContext;
 import com.google.adk.events.Event;
 import io.reactivex.rxjava3.core.Flowable;
 
@@ -27,7 +28,23 @@ public interface IChatService {
 
     List<String> handleMessage(String agentId, String userId, String sessionId, String message);
 
+    default List<String> handleMessage(String agentId,
+                                       String userId,
+                                       String sessionId,
+                                       String message,
+                                       AgentUsageTelemetryContext.RunContext runContext) {
+        return handleMessage(agentId, userId, sessionId, message);
+    }
+
     Flowable<Event> handleMessageStream(String agentId, String userId, String sessionId, String message);
+
+    default Flowable<Event> handleMessageStream(String agentId,
+                                                String userId,
+                                                String sessionId,
+                                                String message,
+                                                AgentUsageTelemetryContext.RunContext runContext) {
+        return handleMessageStream(agentId, userId, sessionId, message);
+    }
 
     List<String> handleMessage(ChatCommandEntity chatCommandEntity);
 

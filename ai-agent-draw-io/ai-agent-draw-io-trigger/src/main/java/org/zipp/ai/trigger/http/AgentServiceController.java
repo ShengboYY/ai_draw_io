@@ -22,15 +22,20 @@ import org.zipp.ai.domain.agent.service.usage.AgentUsageTelemetryService;
 import org.zipp.ai.trigger.http.service.AgentConversationService;
 import org.zipp.ai.types.enums.ResponseCode;
 import org.zipp.ai.types.exception.AppException;
+import org.zipp.ai.types.util.SecretLogSanitizer;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
+import org.slf4j.MDC;
+import org.springframework.http.server.ServerHttpResponse;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseBodyEmitter;
 
+import jakarta.servlet.http.HttpServletResponse;
 import javax.annotation.Resource;
 import java.util.Base64;
 import java.util.List;
 import java.util.Locale;
+import java.util.UUID;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
@@ -45,6 +50,9 @@ public class AgentServiceController implements IAgentService {
     private static final int MAX_THUMBNAIL_BYTES = 512 * 1024;
     private static final int MAX_THUMBNAIL_DATA_URL_LENGTH = 750 * 1024;
     private static final int MAX_CANVAS_XML_LENGTH = 2 * 1024 * 1024;
+    private static final String REQUEST_ID_HEADER = "X-Request-Id";
+    private static final String RUN_ID_HEADER = "X-Agent-Run-Id";
+    private static final Pattern CORRELATION_ID = Pattern.compile("^[A-Za-z0-9._:-]{8,128}$");
 
     @Resource
     private IChatService chatService;
@@ -388,17 +396,41 @@ public class AgentServiceController implements IAgentService {
         }
     }
 
-    @RequestMapping(value = "chat", method = RequestMethod.POST)
     @Override
-    public Response<ChatResponseDTO> chat(@RequestBody ChatRequestDTO requestDTO) {
+    public Response<ChatResponseDTO> chat(ChatRequestDTO requestDTO) {
+        return chatWithCorrelation(requestDTO, null, null);
+    }
+
+    @RequestMapping(value = "chat", method = RequestMethod.POST)
+    public Response<ChatResponseDTO> chat(@RequestBody ChatRequestDTO requestDTO,
+                                          @RequestHeader(value = REQUEST_ID_HEADER, required = false) String requestId,
+                                          HttpServletResponse httpResponse) {
+        return chatWithCorrelation(requestDTO, requestId, httpResponse);
+    }
+
+    private Response<ChatResponseDTO> chatWithCorrelation(ChatRequestDTO requestDTO,
+                                                          String requestIdHeader,
+                                                          HttpServletResponse httpResponse) {
+        String requestId = resolveRequestId(requestIdHeader, requestDTO);
+        String runId = newRunId();
+        writeCorrelationHeaders(httpResponse, requestId, runId);
         String workspaceId = resolveOwnerId(requestDTO == null ? null : requestDTO.getUserId());
         if (StringUtils.isBlank(workspaceId)) {
             return illegalWorkspaceResponse();
         }
         requestDTO.setUserId(workspaceId);
-        try {
-            log.info("智能体对话 agentId:{} userId:{}", requestDTO.getAgentId(), CurrentOwnerHttpResolver.mask(requestDTO.getUserId()));
+        applyCorrelation(requestDTO, requestId, runId);
+        try (MDC.MDCCloseable ignoredRequestId = MDC.putCloseable("requestId", requestId);
+             MDC.MDCCloseable ignoredRunId = MDC.putCloseable("runId", runId)) {
+            log.info("智能体对话 agentId:{} userId:{} sessionId:{} requestId:{} runId:{} messageChars:{}",
+                    requestDTO.getAgentId(),
+                    SecretLogSanitizer.maskCapability(requestDTO.getUserId()),
+                    requestDTO.getSessionId(),
+                    requestId,
+                    runId,
+                    safeLength(requestDTO.getMessage()));
             ChatResponseDTO responseDTO = agentConversationService.chat(requestDTO);
+            writeCorrelationHeaders(httpResponse, requestId, responseDTO == null ? runId : responseDTO.getRunId());
 
             return Response.<ChatResponseDTO>builder()
                     .code(ResponseCode.SUCCESS.getCode())
@@ -406,13 +438,14 @@ public class AgentServiceController implements IAgentService {
                     .data(responseDTO)
                     .build();
         } catch (AppException e) {
-            log.error("智能体对话异常", e);
+            log.error("智能体对话异常 requestId:{} runId:{}", requestId, runId, e);
             return Response.<ChatResponseDTO>builder()
                     .code(e.getCode())
                     .info(e.getInfo())
                     .build();
         } catch (Exception e) {
-            log.error("智能体对话败 agentId:{} userId:{}", requestDTO.getAgentId(), CurrentOwnerHttpResolver.mask(requestDTO.getUserId()), e);
+            log.error("智能体对话败 agentId:{} userId:{} requestId:{} runId:{}",
+                    requestDTO.getAgentId(), CurrentOwnerHttpResolver.mask(requestDTO.getUserId()), requestId, runId, e);
             return Response.<ChatResponseDTO>builder()
                     .code(ResponseCode.UN_ERROR.getCode())
                     .info(ResponseCode.UN_ERROR.getInfo())
@@ -420,13 +453,25 @@ public class AgentServiceController implements IAgentService {
         }
     }
 
-    @RequestMapping(value = "chat_stream", method = RequestMethod.POST)
     @Override
-    public ResponseBodyEmitter chatStream(@RequestBody ChatRequestDTO requestDTO) {
+    public ResponseBodyEmitter chatStream(ChatRequestDTO requestDTO) {
+        return chatStreamWithCorrelation(requestDTO, null);
+    }
+
+    @RequestMapping(value = "chat_stream", method = RequestMethod.POST)
+    public ResponseBodyEmitter chatStream(@RequestBody ChatRequestDTO requestDTO,
+                                          @RequestHeader(value = REQUEST_ID_HEADER, required = false) String requestId) {
+        return chatStreamWithCorrelation(requestDTO, requestId);
+    }
+
+    private ResponseBodyEmitter chatStreamWithCorrelation(ChatRequestDTO requestDTO, String requestIdHeader) {
+        String requestId = resolveRequestId(requestIdHeader, requestDTO);
+        String runId = newRunId();
         ResponseBodyEmitter emitter = new ResponseBodyEmitter(10 * 60 * 1000L) {
             @Override
-            protected void extendResponse(org.springframework.http.server.ServerHttpResponse outputMessage) {
+            protected void extendResponse(ServerHttpResponse outputMessage) {
                 outputMessage.getHeaders().set("Content-Type", "application/x-ndjson");
+                writeCorrelationHeaders(outputMessage, requestId, runId);
             }
         };
         String workspaceId = resolveOwnerId(requestDTO == null ? null : requestDTO.getUserId());
@@ -435,11 +480,19 @@ public class AgentServiceController implements IAgentService {
             return emitter;
         }
         requestDTO.setUserId(workspaceId);
-        try {
-            log.info("流式对话 agentId:{} userId:{} sessionId:{} message:{}", requestDTO.getAgentId(), CurrentOwnerHttpResolver.mask(requestDTO.getUserId()), requestDTO.getSessionId(), requestDTO.getMessage());
+        applyCorrelation(requestDTO, requestId, runId);
+        try (MDC.MDCCloseable ignoredRequestId = MDC.putCloseable("requestId", requestId);
+             MDC.MDCCloseable ignoredRunId = MDC.putCloseable("runId", runId)) {
+            log.info("流式对话 agentId:{} userId:{} sessionId:{} requestId:{} runId:{} messageChars:{}",
+                    requestDTO.getAgentId(),
+                    SecretLogSanitizer.maskCapability(requestDTO.getUserId()),
+                    requestDTO.getSessionId(),
+                    requestId,
+                    runId,
+                    safeLength(requestDTO.getMessage()));
             agentConversationService.stream(requestDTO, emitter);
         } catch (Exception e) {
-            log.error("流式对话失败", e);
+            log.error("流式对话失败 requestId:{} runId:{}", requestId, runId, e);
             emitter.completeWithError(e);
         }
         return emitter;
@@ -635,6 +688,46 @@ public class AgentServiceController implements IAgentService {
             }
         }
         return true;
+    }
+
+    private String resolveRequestId(String requestIdHeader, ChatRequestDTO requestDTO) {
+        String candidate = StringUtils.defaultIfBlank(requestIdHeader, requestDTO == null ? null : requestDTO.getRequestId());
+        String trimmed = StringUtils.trimToNull(candidate);
+        return trimmed != null && CORRELATION_ID.matcher(trimmed).matches()
+                ? trimmed
+                : "req-" + UUID.randomUUID();
+    }
+
+    private String newRunId() {
+        return telemetryService().newRunId();
+    }
+
+    private void applyCorrelation(ChatRequestDTO requestDTO, String requestId, String runId) {
+        if (requestDTO == null) {
+            return;
+        }
+        requestDTO.setRequestId(requestId);
+        requestDTO.setRunId(runId);
+    }
+
+    private void writeCorrelationHeaders(HttpServletResponse response, String requestId, String runId) {
+        if (response == null) {
+            return;
+        }
+        response.setHeader(REQUEST_ID_HEADER, requestId);
+        response.setHeader(RUN_ID_HEADER, StringUtils.defaultIfBlank(runId, ""));
+    }
+
+    private void writeCorrelationHeaders(ServerHttpResponse response, String requestId, String runId) {
+        if (response == null) {
+            return;
+        }
+        response.getHeaders().set(REQUEST_ID_HEADER, requestId);
+        response.getHeaders().set(RUN_ID_HEADER, StringUtils.defaultIfBlank(runId, ""));
+    }
+
+    private int safeLength(String value) {
+        return value == null ? 0 : value.length();
     }
 
     private CurrentOwnerHttpResolver ownerHttpResolver() {

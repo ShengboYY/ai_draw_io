@@ -8,6 +8,7 @@ import org.zipp.ai.domain.agent.service.IChatService;
 import org.zipp.ai.domain.agent.service.armory.factory.DefaultArmoryFactory;
 import org.zipp.ai.domain.agent.service.armory.matter.mcp.server.DrawioCanvasToolNames;
 import org.zipp.ai.domain.agent.service.armory.matter.mcp.server.DrawioCanvasXmlToolkit;
+import org.zipp.ai.domain.agent.service.usage.AgentUsageTelemetryContext;
 import org.zipp.ai.types.enums.ResponseCode;
 import org.zipp.ai.types.exception.AppException;
 import org.zipp.ai.types.util.SecretLogSanitizer;
@@ -141,6 +142,15 @@ public class ChatService implements IChatService {
 
     @Override
     public List<String> handleMessage(String agentId, String userId, String sessionId, String message) {
+        return handleMessage(agentId, userId, sessionId, message, null);
+    }
+
+    @Override
+    public List<String> handleMessage(String agentId,
+                                      String userId,
+                                      String sessionId,
+                                      String message,
+                                      AgentUsageTelemetryContext.RunContext runContext) {
 
         AiAgentRegisterVO aiAgentRegisterVO = defaultArmoryFactory.getAiAgentRegisterVO(agentId);
 
@@ -152,17 +162,29 @@ public class ChatService implements IChatService {
         InMemoryRunner runner = aiAgentRegisterVO.getRunner();
 
         Content userMsg = Content.fromParts(Part.fromText(message));
-        Flowable<Event> events = runner.runAsync(userId, sessionId, userMsg)
+        AgentUsageTelemetryContext.InvocationState invocationState = AgentUsageTelemetryContext.newInvocationState(runContext);
+        Flowable<Event> events = runner.runAsync(userId, sessionId, userMsg,
+                        RunConfig.builder().build(), invocationState.stateDelta())
                 .doOnNext(event -> persistDraftDiagramState(runner, appName, userId, sessionId, event));
 
         List<String> outputs = new ArrayList<>();
-        events.blockingForEach(event -> collectEventOutput(outputs, event));
+        events.doFinally(invocationState::close)
+                .blockingForEach(event -> collectEventOutput(outputs, event));
 
         return outputs;
     }
 
     @Override
     public Flowable<Event> handleMessageStream(String agentId, String userId, String sessionId, String message) {
+        return handleMessageStream(agentId, userId, sessionId, message, null);
+    }
+
+    @Override
+    public Flowable<Event> handleMessageStream(String agentId,
+                                               String userId,
+                                               String sessionId,
+                                               String message,
+                                               AgentUsageTelemetryContext.RunContext runContext) {
         AiAgentRegisterVO aiAgentRegisterVO = defaultArmoryFactory.getAiAgentRegisterVO(agentId);
 
         if (null == aiAgentRegisterVO) {
@@ -175,8 +197,10 @@ public class ChatService implements IChatService {
         Content userMsg = Content.fromParts(Part.fromText(message));
         // Enable SSE streaming mode so LLM produces partial events (per-token)
         RunConfig runConfig = RunConfig.builder().setStreamingMode(RunConfig.StreamingMode.SSE).build();
-        return runner.runAsync(userId, sessionId, userMsg, runConfig)
-                .doOnNext(event -> persistDraftDiagramState(runner, appName, userId, sessionId, event));
+        AgentUsageTelemetryContext.InvocationState invocationState = AgentUsageTelemetryContext.newInvocationState(runContext);
+        return runner.runAsync(userId, sessionId, userMsg, runConfig, invocationState.stateDelta())
+                .doOnNext(event -> persistDraftDiagramState(runner, appName, userId, sessionId, event))
+                .doFinally(invocationState::close);
     }
 
     @Override

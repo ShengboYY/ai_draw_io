@@ -87,8 +87,10 @@ public class AgentConversationService {
 
     public ChatResponseDTO chat(ChatRequestDTO requestDTO) {
         AgentUsageTelemetryService.RunScope runScope = telemetryService().startRun(
+                requestDTO.getRunId(), requestDTO.getRequestId(),
                 requestDTO.getUserId(), requestDTO.getAgentId(), requestDTO.getSessionId(), "chat",
                 credentialSource(requestDTO), requestDTO.getModelCredentialId(), "openai", "unknown");
+        requestDTO.setRunId(runScope.getContext().runId());
         AgentUsageTelemetryContext.Scope initialScope = AgentUsageTelemetryContext.bind(runScope.getContext());
         AgentUsageTelemetryContext.Scope configuredScope = null;
         Throwable runError = null;
@@ -101,7 +103,6 @@ public class AgentConversationService {
             consumeAnonymousDemoQuota(requestDTO, config);
             consumeVerifiedUserPlatformQuota(requestDTO, config);
             sessionId = ensureSession(requestDTO);
-            telemetryService().bindSession(sessionId, runScope);
             CustomApiConfigManager.setConfig(sessionId, config);
             requestDTO = requestWithStoredCanvas(requestDTO);
             final ChatRequestDTO currentRequest = requestDTO;
@@ -112,6 +113,7 @@ public class AgentConversationService {
                 responseDTO.setType("user");
                 responseDTO.setContent(telemetryService().recordStep(
                         "direct_answer", () -> resolveDirectAnswer(currentRequest, config, routingResult)));
+                attachCorrelation(responseDTO, runScope);
                 captureDebugTrace(runScope, "CHAT_RESPONSE", responseDTO.getContent());
                 return responseDTO;
             }
@@ -126,9 +128,14 @@ public class AgentConversationService {
             DrawioSkillAccessContext.bindSession(finalSessionId, routedMessage.allowedSkillNames());
             ChatResponseDTO response = telemetryService().recordStep("drawing", () -> {
                 List<String> messages = chatService.handleMessage(
-                        currentRequest.getAgentId(), currentRequest.getUserId(), finalSessionId, routedMessage.message());
+                        currentRequest.getAgentId(),
+                        currentRequest.getUserId(),
+                        finalSessionId,
+                        routedMessage.message(),
+                        AgentUsageTelemetryContext.current().orElse(null));
                 return parseChatResponse(messages);
             });
+            attachCorrelation(response, runScope);
             captureDebugTrace(runScope, "CHAT_RESPONSE", response.getContent());
             return response;
         } catch (Exception e) {
@@ -140,7 +147,6 @@ public class AgentConversationService {
         } finally {
             telemetryService().completeRun(runScope, runError);
             clearSessionConfig(sessionId);
-            AgentUsageTelemetryContext.clearSession(sessionId);
             if (configuredScope != null) {
                 configuredScope.close();
             }
@@ -150,14 +156,17 @@ public class AgentConversationService {
 
     public void stream(ChatRequestDTO requestDTO, ResponseBodyEmitter emitter) {
         AgentUsageTelemetryService.RunScope runScope = telemetryService().startRun(
+                requestDTO.getRunId(), requestDTO.getRequestId(),
                 requestDTO.getUserId(), requestDTO.getAgentId(), requestDTO.getSessionId(), "chat_stream",
                 credentialSource(requestDTO), requestDTO.getModelCredentialId(), "openai", "unknown");
+        requestDTO.setRunId(runScope.getContext().runId());
         AgentUsageTelemetryContext.Scope initialScope = AgentUsageTelemetryContext.bind(runScope.getContext());
         AgentUsageTelemetryContext.Scope configuredScope = null;
         AgentUsageTelemetryService.StepScope drawingStep = null;
         AtomicBoolean streamTelemetryCompleted = new AtomicBoolean(false);
         String sessionId = null;
         try {
+            streamResponseWriter.sendMeta(emitter, runScope.getContext().requestId(), runScope.getContext().runId());
             captureDebugTrace(runScope, "CHAT_REQUEST", requestDTO.getMessage());
             CustomApiConfigManager.CustomApiConfig config = buildCustomApiConfig(requestDTO);
             runScope = telemetryService().withProviderModel(runScope, config.getProvider(), config.getModel());
@@ -166,7 +175,6 @@ public class AgentConversationService {
             consumeVerifiedUserPlatformQuota(requestDTO, config);
             sessionId = ensureSession(requestDTO);
             final String finalSessionId = sessionId;
-            telemetryService().bindSession(finalSessionId, runScope);
             CustomApiConfigManager.setConfig(finalSessionId, config);
 
             requestDTO = requestWithStoredCanvas(requestDTO);
@@ -181,7 +189,6 @@ public class AgentConversationService {
                     completeStreamTelemetry(streamTelemetryCompleted, null, runScope, null);
                 } finally {
                     clearSessionConfig(finalSessionId);
-                    AgentUsageTelemetryContext.clearSession(finalSessionId);
                 }
                 return;
             }
@@ -205,12 +212,16 @@ public class AgentConversationService {
             streamResponseWriter.setCurrentCanvas(emitter, currentCanvasXml);
             streamResponseWriter.setCanvasStateContext(emitter, currentRequest.getUserId(), currentRequest.getDiagramId(), currentRequest.getExpectedVersion());
             drawingStep = telemetryService().startStep("drawing");
-            AgentUsageTelemetryContext.bindSession(finalSessionId, runScope.getContext().withPhase("drawing"));
             DrawioSkillAccessContext.bindSession(finalSessionId, routedMessage.allowedSkillNames());
             final AgentUsageTelemetryService.RunScope finalRunScope = runScope;
             final AgentUsageTelemetryService.StepScope finalDrawingStep = drawingStep;
 
-            Disposable disposable = chatService.handleMessageStream(currentRequest.getAgentId(), currentRequest.getUserId(), finalSessionId, routedMessage.message())
+            Disposable disposable = chatService.handleMessageStream(
+                            currentRequest.getAgentId(),
+                            currentRequest.getUserId(),
+                            finalSessionId,
+                            routedMessage.message(),
+                            runScope.getContext().withPhase("drawing"))
                     .subscribe(
                             event -> {
                                 try {
@@ -278,7 +289,6 @@ public class AgentConversationService {
                             error -> {
                                 clearSessionConfig(finalSessionId);
                                 completeStreamTelemetry(finalStreamTelemetryCompleted, finalDrawingStep, finalRunScope, error);
-                                AgentUsageTelemetryContext.clearSession(finalSessionId);
                                 streamResponseWriter.handleStreamError(emitter, manuallyCompleted.get(), error);
                             },
                             () -> {
@@ -294,7 +304,6 @@ public class AgentConversationService {
             emitter.onCompletion(() -> {
                 clearSessionConfig(finalSessionId);
                 completeStreamTelemetry(finalStreamTelemetryCompleted, finalDrawingStep, finalRunScope, null);
-                AgentUsageTelemetryContext.clearSession(finalSessionId);
                 streamResponseWriter.clearPendingDiagram(emitter);
                 disposeStream(finalSessionId, "emitter.onCompletion", disposable);
             });
@@ -302,21 +311,18 @@ public class AgentConversationService {
                 clearSessionConfig(finalSessionId);
                 completeStreamTelemetry(finalStreamTelemetryCompleted, finalDrawingStep, finalRunScope,
                         new IllegalStateException("stream_timeout"));
-                AgentUsageTelemetryContext.clearSession(finalSessionId);
                 streamResponseWriter.clearPendingDiagram(emitter);
                 disposeStream(finalSessionId, "emitter.onTimeout", disposable);
             });
             emitter.onError(e -> {
                 clearSessionConfig(finalSessionId);
                 completeStreamTelemetry(finalStreamTelemetryCompleted, finalDrawingStep, finalRunScope, e);
-                AgentUsageTelemetryContext.clearSession(finalSessionId);
                 streamResponseWriter.clearPendingDiagram(emitter);
                 disposeStream(finalSessionId, "emitter.onError", disposable);
             });
         } catch (AnonymousDemoQuotaExceededException e) {
             clearSessionConfig(sessionId);
             completeStreamTelemetry(streamTelemetryCompleted, drawingStep, runScope, e);
-            AgentUsageTelemetryContext.clearSession(sessionId);
             log.info("Anonymous demo quota exhausted for userId:{}", SecretLogSanitizer.maskCapability(requestDTO.getUserId()));
             try {
                 streamResponseWriter.sendTypedError(emitter, e.getCode(), e.getInfo());
@@ -327,7 +333,6 @@ public class AgentConversationService {
         } catch (PlatformDailyQuotaExceededException e) {
             clearSessionConfig(sessionId);
             completeStreamTelemetry(streamTelemetryCompleted, drawingStep, runScope, e);
-            AgentUsageTelemetryContext.clearSession(sessionId);
             log.info("Verified user daily platform quota exhausted for userId:{}", SecretLogSanitizer.maskCapability(requestDTO.getUserId()));
             try {
                 streamResponseWriter.sendTypedError(emitter, e.getCode(), e.getInfo());
@@ -338,7 +343,6 @@ public class AgentConversationService {
         } catch (AppException e) {
             clearSessionConfig(sessionId);
             completeStreamTelemetry(streamTelemetryCompleted, drawingStep, runScope, e);
-            AgentUsageTelemetryContext.clearSession(sessionId);
             log.info("Stream request rejected for userId:{} code:{}",
                     SecretLogSanitizer.maskCapability(requestDTO.getUserId()), e.getCode());
             try {
@@ -350,7 +354,6 @@ public class AgentConversationService {
         } catch (Exception e) {
             clearSessionConfig(sessionId);
             completeStreamTelemetry(streamTelemetryCompleted, drawingStep, runScope, e);
-            AgentUsageTelemetryContext.clearSession(sessionId);
             log.error("流式对话失败", e);
             emitter.completeWithError(e);
         } finally {
@@ -498,6 +501,14 @@ public class AgentConversationService {
             log.warn("Debug trace capture failed. userId:{} runId:{}",
                     SecretLogSanitizer.maskCapability(runScope.getContext().userId()), runScope.getContext().runId(), e);
         }
+    }
+
+    private void attachCorrelation(ChatResponseDTO responseDTO, AgentUsageTelemetryService.RunScope runScope) {
+        if (responseDTO == null || runScope == null || runScope.getContext() == null) {
+            return;
+        }
+        responseDTO.setRequestId(runScope.getContext().requestId());
+        responseDTO.setRunId(runScope.getContext().runId());
     }
 
     private String credentialSource(ChatRequestDTO requestDTO) {
