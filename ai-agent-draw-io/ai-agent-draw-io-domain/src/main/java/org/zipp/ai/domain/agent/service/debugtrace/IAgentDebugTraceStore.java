@@ -15,6 +15,10 @@ public interface IAgentDebugTraceStore {
 
     void insertCapture(DebugTraceCapture capture);
 
+    default List<DebugTraceCapture> listCapturesByRunId(String runId) {
+        return List.of();
+    }
+
     int deleteExpiredContent(Instant now);
 
     int extendRunContentExpiry(String runId, Instant expiresAt);

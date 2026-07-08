@@ -8,6 +8,7 @@ import java.util.Date;
 public class AgentRunTelemetryPO {
 
     private String id;
+    private String requestId;
     private String userId;
     private String agentId;
     private String sessionId;

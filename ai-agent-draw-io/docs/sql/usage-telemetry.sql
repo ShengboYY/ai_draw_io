@@ -12,6 +12,7 @@ USE ai_draw_io;
 
 CREATE TABLE IF NOT EXISTS agent_run (
     id                  VARCHAR(64) NOT NULL COMMENT '主键; aru_<uuid>',
+    request_id          VARCHAR(128) NULL COMMENT '入口请求相关 ID;前端/响应头/SSE 共用',
     user_id             VARCHAR(64) NOT NULL COMMENT '请求所属 owner/user',
     agent_id            VARCHAR(64) NOT NULL COMMENT '用户可见 agent id',
     session_id          VARCHAR(128) NULL COMMENT 'ADK session id;非敏感能力标识',
@@ -24,9 +25,29 @@ CREATE TABLE IF NOT EXISTS agent_run (
     completed_at        DATETIME NULL COMMENT '结束时间',
     latency_ms          BIGINT NULL COMMENT '总耗时',
     PRIMARY KEY (id),
+    KEY idx_agent_run_request (request_id),
+    KEY idx_agent_run_completed (completed_at),
     KEY idx_agent_run_user_started (user_id, started_at),
     KEY idx_agent_run_user_source (user_id, credential_source, started_at)
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = '用户可见 agent 请求元数据';
+
+CREATE TABLE IF NOT EXISTS agent_trace_event (
+    id            VARCHAR(64) NOT NULL COMMENT '主键; ate_<uuid>',
+    run_id        VARCHAR(64) NOT NULL COMMENT 'agent_run.id',
+    request_id    VARCHAR(128) NULL COMMENT '入口请求相关 ID',
+    user_id       VARCHAR(64) NOT NULL COMMENT '冗余 owner/user,便于匿名化和排查',
+    sequence_no   BIGINT NOT NULL COMMENT 'run 内单调序号;由 RunContext 生成',
+    event_type    VARCHAR(64) NOT NULL COMMENT 'HTTP_REQUEST_RECEIVED | STREAM_META_SENT | ROUTING_DECIDED | STREAM_DONE 等',
+    phase         VARCHAR(32) NOT NULL COMMENT 'request | stream | routing | review | drawing',
+    status        VARCHAR(24) NOT NULL COMMENT 'SUCCESS | FAILED',
+    metadata_json VARCHAR(2000) NULL COMMENT '脱敏后的结构化元数据;不存 prompt/canvas/raw key',
+    occurred_at   DATETIME NOT NULL COMMENT '发生时间',
+    PRIMARY KEY (id),
+    KEY idx_agent_trace_event_run (run_id, sequence_no),
+    KEY idx_agent_trace_event_request (request_id),
+    KEY idx_agent_trace_event_user_time (user_id, occurred_at),
+    KEY idx_agent_trace_event_time (occurred_at)
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = 'agent 横切生命周期 trace 元数据';
 
 CREATE TABLE IF NOT EXISTS agent_run_step (
     id           VARCHAR(64) NOT NULL COMMENT '主键; ars_<uuid>',

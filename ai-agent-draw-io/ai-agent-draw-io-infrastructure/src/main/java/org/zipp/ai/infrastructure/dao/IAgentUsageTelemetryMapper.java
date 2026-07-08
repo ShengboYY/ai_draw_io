@@ -4,6 +4,7 @@ import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import org.zipp.ai.infrastructure.dao.po.AgentRunStepTelemetryPO;
 import org.zipp.ai.infrastructure.dao.po.AgentRunTelemetryPO;
+import org.zipp.ai.infrastructure.dao.po.AgentTraceEventPO;
 import org.zipp.ai.infrastructure.dao.po.AgentUsageSummaryPO;
 import org.zipp.ai.infrastructure.dao.po.AdminUsageSummaryPO;
 import org.zipp.ai.infrastructure.dao.po.LlmCallTelemetryPO;
@@ -30,6 +31,8 @@ public interface IAgentUsageTelemetryMapper {
 
     int insertToolCall(ToolCallTelemetryPO call);
 
+    int insertTraceEvent(AgentTraceEventPO event);
+
     AgentUsageSummaryPO summarizeByUserId(@Param("userId") String userId);
 
     AdminUsageSummaryPO summarizeGlobal();
@@ -44,6 +47,8 @@ public interface IAgentUsageTelemetryMapper {
 
     List<ToolCallTelemetryPO> selectToolCallsByRunId(@Param("runId") String runId);
 
+    List<AgentTraceEventPO> selectTraceEventsByRunId(@Param("runId") String runId);
+
     int anonymizeRuns(@Param("userId") String userId,
                       @Param("anonymizedUserId") String anonymizedUserId);
 
@@ -55,4 +60,17 @@ public interface IAgentUsageTelemetryMapper {
 
     int anonymizeToolCalls(@Param("userId") String userId,
                            @Param("anonymizedUserId") String anonymizedUserId);
+
+    int anonymizeTraceEvents(@Param("userId") String userId,
+                             @Param("anonymizedUserId") String anonymizedUserId);
+
+    int deleteTraceEventsBefore(@Param("cutoff") Date cutoff);
+
+    int deleteToolCallsBefore(@Param("cutoff") Date cutoff);
+
+    int deleteLlmCallsBefore(@Param("cutoff") Date cutoff);
+
+    int deleteStepsBefore(@Param("cutoff") Date cutoff);
+
+    int deleteRunsBefore(@Param("cutoff") Date cutoff);
 }

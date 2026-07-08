@@ -5,6 +5,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.zipp.ai.domain.agent.model.valobj.usage.AgentRunStepTelemetry;
 import org.zipp.ai.domain.agent.model.valobj.usage.AgentRunTelemetry;
+import org.zipp.ai.domain.agent.model.valobj.usage.AgentTraceEvent;
 import org.zipp.ai.domain.agent.model.valobj.usage.AdminUsageSummary;
 import org.zipp.ai.domain.agent.model.valobj.usage.AgentRunDetail;
 import org.zipp.ai.domain.agent.model.valobj.usage.AgentUsageSummary;
@@ -16,10 +17,20 @@ import org.zipp.ai.types.util.SecretLogSanitizer;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Map;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
+import jakarta.annotation.PreDestroy;
+import com.alibaba.fastjson.JSON;
 
 @Service
 public class AgentUsageTelemetryService {
@@ -29,18 +40,29 @@ public class AgentUsageTelemetryService {
     private static final String RUNNING = "RUNNING";
     private static final String SUCCESS = "SUCCESS";
     private static final String FAILED = "FAILED";
+    private static final int MAX_METADATA_JSON_LENGTH = 2_000;
+    private static final int TELEMETRY_QUEUE_CAPACITY = 10_000;
 
     private final IAgentUsageTelemetryStore telemetryStore;
     private final Clock clock;
+    private final TelemetryWriteExecutor writeExecutor;
+    private final AtomicLong droppedTelemetryWrites = new AtomicLong();
 
     @Autowired
     public AgentUsageTelemetryService(IAgentUsageTelemetryStore telemetryStore) {
-        this(telemetryStore, Clock.systemUTC());
+        this(telemetryStore, Clock.systemUTC(), TelemetryWriteExecutor.async(TELEMETRY_QUEUE_CAPACITY));
     }
 
     public AgentUsageTelemetryService(IAgentUsageTelemetryStore telemetryStore, Clock clock) {
+        this(telemetryStore, clock, TelemetryWriteExecutor.direct());
+    }
+
+    public AgentUsageTelemetryService(IAgentUsageTelemetryStore telemetryStore,
+                                      Clock clock,
+                                      TelemetryWriteExecutor writeExecutor) {
         this.telemetryStore = telemetryStore;
         this.clock = clock == null ? Clock.systemUTC() : clock;
+        this.writeExecutor = writeExecutor == null ? TelemetryWriteExecutor.direct() : writeExecutor;
     }
 
     public RunScope startRun(String userId,
@@ -81,6 +103,7 @@ public class AgentUsageTelemetryService {
         );
         safeStore(() -> telemetryStore.insertRun(AgentRunTelemetry.builder()
                 .id(resolvedRunId)
+                .requestId(context.requestId())
                 .userId(userId)
                 .agentId(agentId)
                 .sessionId(blankToNull(sessionId))
@@ -161,6 +184,36 @@ public class AgentUsageTelemetryService {
                 .completedAt(completedAt)
                 .latencyMs(latencyMs(stepScope.startedAt, completedAt))
                 .build()), stepScope.context.userId());
+    }
+
+    public void recordTraceEvent(String eventType, String phase, String status, Map<String, ?> metadata) {
+        AgentUsageTelemetryContext.current().ifPresent(context ->
+                recordTraceEvent(context, eventType, phase, status, metadata));
+    }
+
+    public void recordTraceEvent(AgentUsageTelemetryContext.RunContext context,
+                                 String eventType,
+                                 String phase,
+                                 String status,
+                                 Map<String, ?> metadata) {
+        if (context == null || StringUtils.isBlank(eventType)) {
+            return;
+        }
+        Instant occurredAt = clock.instant();
+        long sequenceNo = context.nextSequenceNo();
+        String metadataJson = sanitizedMetadataJson(metadata);
+        safeStore(() -> telemetryStore.insertTraceEvent(AgentTraceEvent.builder()
+                .id("ate_" + UUID.randomUUID())
+                .runId(context.runId())
+                .requestId(context.requestId())
+                .userId(context.userId())
+                .sequenceNo(sequenceNo)
+                .eventType(StringUtils.left(eventType, 64))
+                .phase(StringUtils.defaultIfBlank(StringUtils.left(phase, 32), context.phase()))
+                .status(StringUtils.defaultIfBlank(StringUtils.left(status, 24), SUCCESS))
+                .metadataJson(metadataJson)
+                .occurredAt(occurredAt)
+                .build()), context.userId());
     }
 
     public void recordLlmCall(String phase,
@@ -261,10 +314,28 @@ public class AgentUsageTelemetryService {
         return telemetryStore.findRunDetail(runId);
     }
 
+    public int deleteTelemetryBefore(Instant cutoff) {
+        if (telemetryStore == null || cutoff == null) {
+            return 0;
+        }
+        return telemetryStore.deleteTelemetryBefore(cutoff);
+    }
+
     private void safeStore(Runnable operation, String userId) {
         if (telemetryStore == null || operation == null) {
             return;
         }
+        try {
+            writeExecutor.execute(() -> executeStoreOperation(operation, userId));
+        } catch (RejectedExecutionException e) {
+            long dropped = droppedTelemetryWrites.incrementAndGet();
+            org.slf4j.LoggerFactory.getLogger(AgentUsageTelemetryService.class)
+                    .warn("Agent usage telemetry queue full; dropped write count:{} userId:{}",
+                            dropped, SecretLogSanitizer.maskCapability(userId));
+        }
+    }
+
+    private void executeStoreOperation(Runnable operation, String userId) {
         try {
             operation.run();
         } catch (Exception e) {
@@ -272,6 +343,11 @@ public class AgentUsageTelemetryService {
             org.slf4j.LoggerFactory.getLogger(AgentUsageTelemetryService.class)
                     .warn("Agent usage telemetry write failed. userId:{}", SecretLogSanitizer.maskCapability(userId), e);
         }
+    }
+
+    @PreDestroy
+    public void shutdown() {
+        writeExecutor.shutdown();
     }
 
     private String normalizeCredentialSource(String credentialSource) {
@@ -298,6 +374,14 @@ public class AgentUsageTelemetryService {
         return trimmed;
     }
 
+    private String sanitizedMetadataJson(Map<String, ?> metadata) {
+        if (metadata == null || metadata.isEmpty()) {
+            return null;
+        }
+        String json = JSON.toJSONString(metadata);
+        return StringUtils.left(SecretLogSanitizer.sanitize(json), MAX_METADATA_JSON_LENGTH);
+    }
+
     public static class RunScope {
         private final AgentUsageTelemetryContext.RunContext context;
         private final Instant startedAt;
@@ -321,6 +405,34 @@ public class AgentUsageTelemetryService {
             this.context = context;
             this.phase = phase;
             this.startedAt = startedAt;
+        }
+    }
+
+    public interface TelemetryWriteExecutor {
+        void execute(Runnable operation);
+        void shutdown();
+
+        static TelemetryWriteExecutor direct() {
+            return new TelemetryWriteExecutor() {
+                @Override public void execute(Runnable operation) { operation.run(); }
+                @Override public void shutdown() { }
+            };
+        }
+
+        static TelemetryWriteExecutor async(int capacity) {
+            LinkedBlockingQueue<Runnable> queue = new LinkedBlockingQueue<>(Math.max(1, capacity));
+            ThreadFactory threadFactory = runnable -> {
+                Thread thread = new Thread(runnable, "agent-usage-telemetry-writer");
+                thread.setDaemon(true);
+                return thread;
+            };
+            ExecutorService executor = new ThreadPoolExecutor(
+                    1, 1, 0L, TimeUnit.MILLISECONDS, queue, threadFactory,
+                    new ThreadPoolExecutor.AbortPolicy());
+            return new TelemetryWriteExecutor() {
+                @Override public void execute(Runnable operation) { executor.execute(operation); }
+                @Override public void shutdown() { executor.shutdown(); }
+            };
         }
     }
 }

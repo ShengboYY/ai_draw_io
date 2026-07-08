@@ -17,4 +17,6 @@ public class AgentRunDetail {
     private List<LlmCallTelemetry> llmCalls = List.of();
     @Builder.Default
     private List<ToolCallTelemetry> toolCalls = List.of();
+    @Builder.Default
+    private List<AgentTraceEvent> traceEvents = List.of();
 }

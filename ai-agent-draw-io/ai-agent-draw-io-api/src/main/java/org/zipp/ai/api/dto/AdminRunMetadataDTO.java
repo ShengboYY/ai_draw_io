@@ -8,6 +8,7 @@ import java.time.Instant;
 public class AdminRunMetadataDTO {
 
     private String id;
+    private String requestId;
     private String userId;
     private String agentId;
     private String sessionId;

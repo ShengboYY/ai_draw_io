@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.zipp.ai.api.dto.AdminAuditLogDTO;
+import org.zipp.ai.api.dto.AdminDebugTraceCaptureDTO;
 import org.zipp.ai.api.dto.AdminDebugTraceControlDTO;
 import org.zipp.ai.api.dto.AdminDebugTraceControlRequestDTO;
 import org.zipp.ai.api.dto.AdminDebugTraceRetentionRequestDTO;
@@ -17,7 +18,9 @@ import org.zipp.ai.api.dto.AdminLlmCallDTO;
 import org.zipp.ai.api.dto.AdminRunDetailDTO;
 import org.zipp.ai.api.dto.AdminRunMetadataDTO;
 import org.zipp.ai.api.dto.AdminRunStepDTO;
+import org.zipp.ai.api.dto.AdminRunTimelineEventDTO;
 import org.zipp.ai.api.dto.AdminToolCallDTO;
+import org.zipp.ai.api.dto.AdminTraceEventDTO;
 import org.zipp.ai.api.dto.AdminUsageDashboardDTO;
 import org.zipp.ai.api.dto.AdminUsageDimensionDTO;
 import org.zipp.ai.api.dto.AdminUserDTO;
@@ -26,11 +29,13 @@ import org.zipp.ai.domain.account.model.entity.UserAccount;
 import org.zipp.ai.domain.account.service.IAccountService;
 import org.zipp.ai.domain.admin.model.entity.AdminAuditLog;
 import org.zipp.ai.domain.admin.service.AdminAuditLogService;
+import org.zipp.ai.domain.agent.model.valobj.debugtrace.DebugTraceCapture;
 import org.zipp.ai.domain.agent.model.valobj.debugtrace.DebugTraceControl;
 import org.zipp.ai.domain.agent.model.valobj.usage.AdminUsageSummary;
 import org.zipp.ai.domain.agent.model.valobj.usage.AgentRunDetail;
 import org.zipp.ai.domain.agent.model.valobj.usage.AgentRunStepTelemetry;
 import org.zipp.ai.domain.agent.model.valobj.usage.AgentRunTelemetry;
+import org.zipp.ai.domain.agent.model.valobj.usage.AgentTraceEvent;
 import org.zipp.ai.domain.agent.model.valobj.usage.LlmCallTelemetry;
 import org.zipp.ai.domain.agent.model.valobj.usage.ToolCallTelemetry;
 import org.zipp.ai.domain.agent.model.valobj.usage.UsageDimensionSummary;
@@ -40,6 +45,9 @@ import org.zipp.ai.trigger.http.service.AdminAuthorizationService;
 import org.zipp.ai.types.enums.ResponseCode;
 
 import javax.annotation.Resource;
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -121,6 +129,24 @@ public class AdminController {
         }
         audit(admin.get(), "VIEW_RUN", "RUN", runId, "SUCCESS", request);
         return success(toRunDetailDto(detail.get()));
+    }
+
+    @GetMapping("/debug-traces/runs/{runId}/captures")
+    public Response<List<AdminDebugTraceCaptureDTO>> viewDebugTraceCaptures(@PathVariable("runId") String runId,
+                                                                           HttpServletRequest request) {
+        Optional<UserAccount> admin = requireAdmin(request);
+        if (admin.isEmpty()) {
+            return forbidden();
+        }
+        try {
+            List<DebugTraceCapture> captures = agentDebugTraceService.viewCapturesForRun(
+                    admin.get().getId(), runId, clientIp(request), userAgent(request));
+            return success(captures.stream()
+                    .map(this::toDebugTraceCaptureDto)
+                    .collect(Collectors.toList()));
+        } catch (IllegalArgumentException e) {
+            return failure(e.getMessage());
+        }
     }
 
     @GetMapping("/audit-logs")
@@ -301,15 +327,18 @@ public class AdminController {
     private AdminRunDetailDTO toRunDetailDto(AgentRunDetail detail) {
         AdminRunDetailDTO dto = new AdminRunDetailDTO();
         dto.setRun(toRunMetadataDto(detail.getRun()));
-        dto.setSteps(detail.getSteps().stream().map(this::toRunStepDto).collect(Collectors.toList()));
-        dto.setLlmCalls(detail.getLlmCalls().stream().map(this::toLlmCallDto).collect(Collectors.toList()));
-        dto.setToolCalls(detail.getToolCalls().stream().map(this::toToolCallDto).collect(Collectors.toList()));
+        dto.setSteps(safeList(detail.getSteps()).stream().map(this::toRunStepDto).collect(Collectors.toList()));
+        dto.setLlmCalls(safeList(detail.getLlmCalls()).stream().map(this::toLlmCallDto).collect(Collectors.toList()));
+        dto.setToolCalls(safeList(detail.getToolCalls()).stream().map(this::toToolCallDto).collect(Collectors.toList()));
+        dto.setTraceEvents(safeList(detail.getTraceEvents()).stream().map(this::toTraceEventDto).collect(Collectors.toList()));
+        dto.setTimeline(toTimeline(detail));
         return dto;
     }
 
     private AdminRunMetadataDTO toRunMetadataDto(AgentRunTelemetry run) {
         AdminRunMetadataDTO dto = new AdminRunMetadataDTO();
         dto.setId(run.getId());
+        dto.setRequestId(run.getRequestId());
         dto.setUserId(run.getUserId());
         dto.setAgentId(run.getAgentId());
         dto.setSessionId(run.getSessionId());
@@ -322,6 +351,110 @@ public class AdminController {
         dto.setCompletedAt(run.getCompletedAt());
         dto.setLatencyMs(run.getLatencyMs());
         return dto;
+    }
+
+    private AdminTraceEventDTO toTraceEventDto(AgentTraceEvent event) {
+        AdminTraceEventDTO dto = new AdminTraceEventDTO();
+        dto.setId(event.getId());
+        dto.setRunId(event.getRunId());
+        dto.setRequestId(event.getRequestId());
+        dto.setUserId(event.getUserId());
+        dto.setSequenceNo(event.getSequenceNo());
+        dto.setEventType(event.getEventType());
+        dto.setPhase(event.getPhase());
+        dto.setStatus(event.getStatus());
+        dto.setMetadataJson(event.getMetadataJson());
+        dto.setOccurredAt(event.getOccurredAt());
+        return dto;
+    }
+
+    private List<AdminRunTimelineEventDTO> toTimeline(AgentRunDetail detail) {
+        List<AdminRunTimelineEventDTO> timeline = new ArrayList<>();
+        String requestId = detail.getRun() == null ? null : detail.getRun().getRequestId();
+        safeList(detail.getTraceEvents()).forEach(event -> timeline.add(timelineEvent(event)));
+        safeList(detail.getSteps()).forEach(step -> timeline.add(timelineEvent(step, requestId)));
+        safeList(detail.getLlmCalls()).forEach(call -> timeline.add(timelineEvent(call, requestId)));
+        safeList(detail.getToolCalls()).forEach(call -> timeline.add(timelineEvent(call, requestId)));
+        timeline.sort(Comparator
+                .comparing(AdminRunTimelineEventDTO::getOccurredAt, Comparator.nullsLast(Comparator.naturalOrder()))
+                .thenComparing(event -> event.getSequenceNo() == null ? Long.MAX_VALUE : event.getSequenceNo())
+                .thenComparing(event -> sourceRank(event.getSource()))
+                .thenComparing(AdminRunTimelineEventDTO::getId, Comparator.nullsLast(String::compareTo)));
+        return timeline;
+    }
+
+    private AdminRunTimelineEventDTO timelineEvent(AgentTraceEvent event) {
+        AdminRunTimelineEventDTO dto = baseTimelineEvent(
+                event.getId(), "trace_event", event.getRunId(), event.getRequestId(), event.getUserId(),
+                event.getSequenceNo(), event.getEventType(), event.getPhase(), event.getStatus(), event.getOccurredAt());
+        dto.setDetail(event.getEventType());
+        dto.setMetadataJson(event.getMetadataJson());
+        return dto;
+    }
+
+    private AdminRunTimelineEventDTO timelineEvent(AgentRunStepTelemetry step, String requestId) {
+        AdminRunTimelineEventDTO dto = baseTimelineEvent(
+                step.getId(), "step", step.getRunId(), requestId, step.getUserId(),
+                null, "STEP", step.getPhase(), step.getStatus(), step.getStartedAt());
+        dto.setDetail(step.getPhase());
+        dto.setLatencyMs(step.getLatencyMs());
+        return dto;
+    }
+
+    private AdminRunTimelineEventDTO timelineEvent(LlmCallTelemetry call, String requestId) {
+        AdminRunTimelineEventDTO dto = baseTimelineEvent(
+                call.getId(), "llm_call", call.getRunId(), requestId, call.getUserId(),
+                null, "LLM_CALL", call.getPhase(), call.getStatus(), call.getStartedAt());
+        dto.setDetail(StringUtils.defaultString(call.getProvider()) + "/" + StringUtils.defaultString(call.getModel()));
+        dto.setLatencyMs(call.getLatencyMs());
+        return dto;
+    }
+
+    private AdminRunTimelineEventDTO timelineEvent(ToolCallTelemetry call, String requestId) {
+        AdminRunTimelineEventDTO dto = baseTimelineEvent(
+                call.getId(), "tool_call", call.getRunId(), requestId, call.getUserId(),
+                null, "TOOL_CALL", call.getPhase(), call.getStatus(), call.getStartedAt());
+        dto.setDetail(call.getToolName());
+        dto.setLatencyMs(call.getLatencyMs());
+        return dto;
+    }
+
+    private AdminRunTimelineEventDTO baseTimelineEvent(String id,
+                                                       String source,
+                                                       String runId,
+                                                       String requestId,
+                                                       String userId,
+                                                       Long sequenceNo,
+                                                       String eventType,
+                                                       String phase,
+                                                       String status,
+                                                       Instant occurredAt) {
+        AdminRunTimelineEventDTO dto = new AdminRunTimelineEventDTO();
+        dto.setId(id);
+        dto.setSource(source);
+        dto.setRunId(runId);
+        dto.setRequestId(requestId);
+        dto.setUserId(userId);
+        dto.setSequenceNo(sequenceNo);
+        dto.setEventType(eventType);
+        dto.setPhase(phase);
+        dto.setStatus(status);
+        dto.setOccurredAt(occurredAt);
+        return dto;
+    }
+
+    private int sourceRank(String source) {
+        return switch (StringUtils.defaultString(source)) {
+            case "trace_event" -> 0;
+            case "step" -> 1;
+            case "llm_call" -> 2;
+            case "tool_call" -> 3;
+            default -> 9;
+        };
+    }
+
+    private <T> List<T> safeList(List<T> values) {
+        return values == null ? List.of() : values;
     }
 
     private AdminRunStepDTO toRunStepDto(AgentRunStepTelemetry step) {
@@ -397,6 +530,21 @@ public class AdminController {
         dto.setScopeEndsAt(control.getScopeEndsAt());
         dto.setEnabled(control.isEnabled());
         dto.setCreatedAt(control.getCreatedAt());
+        return dto;
+    }
+
+    private AdminDebugTraceCaptureDTO toDebugTraceCaptureDto(DebugTraceCapture capture) {
+        AdminDebugTraceCaptureDTO dto = new AdminDebugTraceCaptureDTO();
+        dto.setId(capture.getId());
+        dto.setControlId(capture.getControlId());
+        dto.setUserId(capture.getUserId());
+        dto.setRunId(capture.getRunId());
+        dto.setEventType(capture.getEventType());
+        dto.setContent(capture.getContent());
+        dto.setContentSha256(capture.getContentSha256());
+        dto.setContentExpiresAt(capture.getContentExpiresAt());
+        dto.setContentDeletedAt(capture.getContentDeletedAt());
+        dto.setCreatedAt(capture.getCreatedAt());
         return dto;
     }
 }

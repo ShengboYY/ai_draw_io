@@ -11,6 +11,7 @@ import java.time.Instant;
 public class AgentRunTelemetry {
 
     private String id;
+    private String requestId;
     private String userId;
     private String agentId;
     private String sessionId;

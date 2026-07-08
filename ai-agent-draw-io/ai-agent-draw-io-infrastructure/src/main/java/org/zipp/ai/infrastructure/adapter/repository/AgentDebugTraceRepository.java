@@ -37,6 +37,13 @@ public class AgentDebugTraceRepository implements IAgentDebugTraceStore {
     }
 
     @Override
+    public List<DebugTraceCapture> listCapturesByRunId(String runId) {
+        return agentDebugTraceMapper.listCapturesByRunId(runId).stream()
+                .map(this::toDomain)
+                .toList();
+    }
+
+    @Override
     public int deleteExpiredContent(Instant now) {
         return agentDebugTraceMapper.deleteExpiredContent(toDate(now));
     }
@@ -92,6 +99,21 @@ public class AgentDebugTraceRepository implements IAgentDebugTraceStore {
                 .enabled(Boolean.TRUE.equals(po.getEnabled()))
                 .createdAt(toInstant(po.getCreatedAt()))
                 .disabledAt(toInstant(po.getDisabledAt()))
+                .build();
+    }
+
+    private DebugTraceCapture toDomain(DebugTraceCapturePO po) {
+        return DebugTraceCapture.builder()
+                .id(po.getId())
+                .controlId(po.getControlId())
+                .userId(po.getUserId())
+                .runId(po.getRunId())
+                .eventType(po.getEventType())
+                .content(po.getContent())
+                .contentSha256(po.getContentSha256())
+                .contentExpiresAt(toInstant(po.getContentExpiresAt()))
+                .contentDeletedAt(toInstant(po.getContentDeletedAt()))
+                .createdAt(toInstant(po.getCreatedAt()))
                 .build();
     }
 

@@ -4,6 +4,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Repository;
 import org.zipp.ai.domain.agent.model.valobj.usage.AgentRunStepTelemetry;
 import org.zipp.ai.domain.agent.model.valobj.usage.AgentRunTelemetry;
+import org.zipp.ai.domain.agent.model.valobj.usage.AgentTraceEvent;
 import org.zipp.ai.domain.agent.model.valobj.usage.AdminUsageSummary;
 import org.zipp.ai.domain.agent.model.valobj.usage.AgentRunDetail;
 import org.zipp.ai.domain.agent.model.valobj.usage.AgentUsageSummary;
@@ -14,6 +15,7 @@ import org.zipp.ai.domain.agent.service.usage.IAgentUsageTelemetryStore;
 import org.zipp.ai.infrastructure.dao.IAgentUsageTelemetryMapper;
 import org.zipp.ai.infrastructure.dao.po.AgentRunStepTelemetryPO;
 import org.zipp.ai.infrastructure.dao.po.AgentRunTelemetryPO;
+import org.zipp.ai.infrastructure.dao.po.AgentTraceEventPO;
 import org.zipp.ai.infrastructure.dao.po.AgentUsageSummaryPO;
 import org.zipp.ai.infrastructure.dao.po.AdminUsageSummaryPO;
 import org.zipp.ai.infrastructure.dao.po.LlmCallTelemetryPO;
@@ -56,6 +58,11 @@ public class AgentUsageTelemetryRepository implements IAgentUsageTelemetryStore 
     @Override
     public void insertToolCall(ToolCallTelemetry call) {
         agentUsageTelemetryMapper.insertToolCall(toPo(call));
+    }
+
+    @Override
+    public void insertTraceEvent(AgentTraceEvent event) {
+        agentUsageTelemetryMapper.insertTraceEvent(toPo(event));
     }
 
     @Override
@@ -128,6 +135,9 @@ public class AgentUsageTelemetryRepository implements IAgentUsageTelemetryStore 
                 .toolCalls(agentUsageTelemetryMapper.selectToolCallsByRunId(runId).stream()
                         .map(this::toDomain)
                         .collect(Collectors.toList()))
+                .traceEvents(agentUsageTelemetryMapper.selectTraceEventsByRunId(runId).stream()
+                        .map(this::toDomain)
+                        .collect(Collectors.toList()))
                 .build());
     }
 
@@ -139,12 +149,27 @@ public class AgentUsageTelemetryRepository implements IAgentUsageTelemetryStore 
         return agentUsageTelemetryMapper.anonymizeRuns(userId, anonymizedUserId)
                 + agentUsageTelemetryMapper.anonymizeSteps(userId, anonymizedUserId)
                 + agentUsageTelemetryMapper.anonymizeLlmCalls(userId, anonymizedUserId)
-                + agentUsageTelemetryMapper.anonymizeToolCalls(userId, anonymizedUserId);
+                + agentUsageTelemetryMapper.anonymizeToolCalls(userId, anonymizedUserId)
+                + agentUsageTelemetryMapper.anonymizeTraceEvents(userId, anonymizedUserId);
+    }
+
+    @Override
+    public int deleteTelemetryBefore(Instant cutoff) {
+        if (cutoff == null) {
+            return 0;
+        }
+        Date cutoffDate = toDate(cutoff);
+        return agentUsageTelemetryMapper.deleteTraceEventsBefore(cutoffDate)
+                + agentUsageTelemetryMapper.deleteToolCallsBefore(cutoffDate)
+                + agentUsageTelemetryMapper.deleteLlmCallsBefore(cutoffDate)
+                + agentUsageTelemetryMapper.deleteStepsBefore(cutoffDate)
+                + agentUsageTelemetryMapper.deleteRunsBefore(cutoffDate);
     }
 
     private AgentRunTelemetryPO toPo(AgentRunTelemetry run) {
         AgentRunTelemetryPO po = new AgentRunTelemetryPO();
         po.setId(run.getId());
+        po.setRequestId(run.getRequestId());
         po.setUserId(run.getUserId());
         po.setAgentId(run.getAgentId());
         po.setSessionId(run.getSessionId());
@@ -156,6 +181,21 @@ public class AgentUsageTelemetryRepository implements IAgentUsageTelemetryStore 
         po.setStartedAt(toDate(run.getStartedAt()));
         po.setCompletedAt(toDate(run.getCompletedAt()));
         po.setLatencyMs(run.getLatencyMs());
+        return po;
+    }
+
+    private AgentTraceEventPO toPo(AgentTraceEvent event) {
+        AgentTraceEventPO po = new AgentTraceEventPO();
+        po.setId(event.getId());
+        po.setRunId(event.getRunId());
+        po.setRequestId(event.getRequestId());
+        po.setUserId(event.getUserId());
+        po.setSequenceNo(event.getSequenceNo());
+        po.setEventType(event.getEventType());
+        po.setPhase(event.getPhase());
+        po.setStatus(event.getStatus());
+        po.setMetadataJson(event.getMetadataJson());
+        po.setOccurredAt(toDate(event.getOccurredAt()));
         return po;
     }
 
@@ -212,6 +252,7 @@ public class AgentUsageTelemetryRepository implements IAgentUsageTelemetryStore 
     private AgentRunTelemetry toDomain(AgentRunTelemetryPO po) {
         return AgentRunTelemetry.builder()
                 .id(po.getId())
+                .requestId(po.getRequestId())
                 .userId(po.getUserId())
                 .agentId(po.getAgentId())
                 .sessionId(po.getSessionId())
@@ -223,6 +264,21 @@ public class AgentUsageTelemetryRepository implements IAgentUsageTelemetryStore 
                 .startedAt(toInstant(po.getStartedAt()))
                 .completedAt(toInstant(po.getCompletedAt()))
                 .latencyMs(po.getLatencyMs())
+                .build();
+    }
+
+    private AgentTraceEvent toDomain(AgentTraceEventPO po) {
+        return AgentTraceEvent.builder()
+                .id(po.getId())
+                .runId(po.getRunId())
+                .requestId(po.getRequestId())
+                .userId(po.getUserId())
+                .sequenceNo(po.getSequenceNo())
+                .eventType(po.getEventType())
+                .phase(po.getPhase())
+                .status(po.getStatus())
+                .metadataJson(po.getMetadataJson())
+                .occurredAt(toInstant(po.getOccurredAt()))
                 .build();
     }
 

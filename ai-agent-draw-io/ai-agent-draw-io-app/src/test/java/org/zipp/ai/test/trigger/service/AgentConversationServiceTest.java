@@ -431,6 +431,8 @@ public class AgentConversationServiceTest {
         assertEquals("SUCCESS", telemetryStore.runs.get(0).getStatus());
         assertTrue(telemetryStore.steps.stream().anyMatch(step -> "routing".equals(step.getPhase())));
         assertTrue(telemetryStore.steps.stream().anyMatch(step -> "drawing".equals(step.getPhase())));
+        assertTrue(telemetryStore.traceEvents.stream().anyMatch(event -> "HTTP_REQUEST_RECEIVED".equals(event.getEventType())));
+        assertTrue(telemetryStore.traceEvents.stream().anyMatch(event -> "ROUTING_DECIDED".equals(event.getEventType())));
         assertFalse(telemetryStore.serializedRecords().contains("sk-live-secret"));
         assertFalse(telemetryStore.serializedRecords().contains("<mxGraphModel"));
     }
@@ -480,6 +482,8 @@ public class AgentConversationServiceTest {
         assertEquals("aru_stream_run_1", telemetryStore.runs.get(0).getId());
         assertEquals("req-stream-123", chatService.lastStreamRunContext.requestId());
         assertEquals("aru_stream_run_1", chatService.lastStreamRunContext.runId());
+        assertTrue(telemetryStore.traceEvents.stream().anyMatch(event -> "STREAM_META_SENT".equals(event.getEventType())));
+        assertTrue(telemetryStore.traceEvents.stream().anyMatch(event -> "STREAM_DONE".equals(event.getEventType())));
     }
 
     @Test

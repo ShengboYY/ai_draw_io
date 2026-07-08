@@ -133,6 +133,23 @@ public class AgentDebugTraceServiceTest {
     }
 
     @Test
+    public void viewingCapturedDebugTraceContentIsAudited() {
+        service.enableControl("usr_admin", null, "aru_view", null, null);
+        service.capture("usr_alice", "aru_view", "CHAT_REQUEST", "prompt with canvas").orElseThrow();
+
+        List<DebugTraceCapture> captures = service.viewCapturesForRun(
+                "usr_admin", "aru_view", "203.0.113.20", "JUnit");
+
+        assertEquals(1, captures.size());
+        assertEquals("prompt with canvas", captures.get(0).getContent());
+        assertEquals(1, auditStore.logs.size());
+        assertEquals("VIEW_DEBUG_TRACE_CAPTURE", auditStore.logs.get(0).getAction());
+        assertEquals("RUN", auditStore.logs.get(0).getTargetType());
+        assertEquals("aru_view", auditStore.logs.get(0).getTargetId());
+        assertEquals("SUCCESS", auditStore.logs.get(0).getOutcome());
+    }
+
+    @Test
     public void mapperXmlAnonymizesTraceMetadataAfterContentWasAlreadyDeleted() throws Exception {
         String mapperXml = new String(getClass()
                 .getResourceAsStream("/mybatis/mapper/agent_debug_trace_mapper.xml")
@@ -204,6 +221,13 @@ public class AgentDebugTraceServiceTest {
                 }
             }
             return count;
+        }
+
+        @Override
+        public List<DebugTraceCapture> listCapturesByRunId(String runId) {
+            return captures.stream()
+                    .filter(capture -> runId.equals(capture.getRunId()))
+                    .toList();
         }
     }
 

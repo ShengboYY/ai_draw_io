@@ -11,4 +11,6 @@ public class AdminRunDetailDTO {
     private List<AdminRunStepDTO> steps;
     private List<AdminLlmCallDTO> llmCalls;
     private List<AdminToolCallDTO> toolCalls;
+    private List<AdminTraceEventDTO> traceEvents;
+    private List<AdminRunTimelineEventDTO> timeline;
 }

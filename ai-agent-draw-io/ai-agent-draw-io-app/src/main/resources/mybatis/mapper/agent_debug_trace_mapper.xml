@@ -14,6 +14,19 @@
         <result column="disabled_at" property="disabledAt"/>
     </resultMap>
 
+    <resultMap id="debugTraceCaptureMap" type="org.zipp.ai.infrastructure.dao.po.DebugTraceCapturePO">
+        <id column="id" property="id"/>
+        <result column="control_id" property="controlId"/>
+        <result column="user_id" property="userId"/>
+        <result column="run_id" property="runId"/>
+        <result column="event_type" property="eventType"/>
+        <result column="content" property="content"/>
+        <result column="content_sha256" property="contentSha256"/>
+        <result column="content_expires_at" property="contentExpiresAt"/>
+        <result column="content_deleted_at" property="contentDeletedAt"/>
+        <result column="created_at" property="createdAt"/>
+    </resultMap>
+
     <insert id="insertControl" parameterType="org.zipp.ai.infrastructure.dao.po.DebugTraceControlPO">
         INSERT INTO agent_debug_trace_control (
             id, created_by_user_id, scope_user_id, scope_run_id, scope_starts_at, scope_ends_at,
@@ -46,6 +59,15 @@
             #{contentExpiresAt}, #{contentDeletedAt}, #{createdAt}
         )
     </insert>
+
+    <select id="listCapturesByRunId" resultMap="debugTraceCaptureMap">
+        SELECT
+            id, control_id, user_id, run_id, event_type, content, content_sha256,
+            content_expires_at, content_deleted_at, created_at
+        FROM agent_debug_trace_capture
+        WHERE run_id = #{runId}
+        ORDER BY created_at ASC, id ASC
+    </select>
 
     <update id="deleteExpiredContent">
         UPDATE agent_debug_trace_capture

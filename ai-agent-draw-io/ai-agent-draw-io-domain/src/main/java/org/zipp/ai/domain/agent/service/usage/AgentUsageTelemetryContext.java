@@ -6,6 +6,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.UUID;
 
 public final class AgentUsageTelemetryContext {
@@ -121,16 +122,35 @@ public final class AgentUsageTelemetryContext {
             String modelCredentialId,
             String provider,
             String model,
-            String phase
+            String phase,
+            AtomicLong sequence
     ) {
+        public RunContext(String runId,
+                          String requestId,
+                          String userId,
+                          String agentId,
+                          String requestType,
+                          String credentialSource,
+                          String modelCredentialId,
+                          String provider,
+                          String model,
+                          String phase) {
+            this(runId, requestId, userId, agentId, requestType, credentialSource,
+                    modelCredentialId, provider, model, phase, new AtomicLong());
+        }
+
         public RunContext withPhase(String nextPhase) {
             return new RunContext(runId, requestId, userId, agentId, requestType, credentialSource,
-                    modelCredentialId, provider, model, nextPhase);
+                    modelCredentialId, provider, model, nextPhase, sequence);
         }
 
         public RunContext withProviderModel(String nextProvider, String nextModel) {
             return new RunContext(runId, requestId, userId, agentId, requestType, credentialSource,
-                    modelCredentialId, nextProvider, nextModel, phase);
+                    modelCredentialId, nextProvider, nextModel, phase, sequence);
+        }
+
+        public long nextSequenceNo() {
+            return sequence.incrementAndGet();
         }
     }
 

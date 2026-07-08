@@ -100,6 +100,23 @@ public class AgentDebugTraceService {
         return debugTraceStore == null ? 0 : debugTraceStore.deleteExpiredContent(clock.instant());
     }
 
+    public List<DebugTraceCapture> viewCapturesForRun(String actorUserId,
+                                                      String runId,
+                                                      String ipAddress,
+                                                      String userAgent) {
+        String actor = requireText(actorUserId, "actorUserId", 64);
+        String run = requireText(runId, "runId", 64);
+        List<DebugTraceCapture> captures = debugTraceStore == null
+                ? List.of()
+                : debugTraceStore.listCapturesByRunId(run);
+        List<DebugTraceCapture> safeCaptures = captures == null ? List.of() : captures;
+        if (auditLogService != null) {
+            auditLogService.record(actor, "VIEW_DEBUG_TRACE_CAPTURE", "RUN", run,
+                    safeCaptures.isEmpty() ? "NOT_FOUND" : "SUCCESS", ipAddress, userAgent);
+        }
+        return safeCaptures;
+    }
+
     public int extendRetentionForRun(String actorUserId,
                                      String runId,
                                      Instant expiresAt,

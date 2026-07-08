@@ -35,7 +35,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseBodyEmitter;
 
 import javax.annotation.Resource;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -96,6 +98,8 @@ public class AgentConversationService {
         Throwable runError = null;
         String sessionId = null;
         try {
+            recordLifecycleEvent(runScope, "HTTP_REQUEST_RECEIVED", "request", "SUCCESS",
+                    requestMetadata(requestDTO, false));
             captureDebugTrace(runScope, "CHAT_REQUEST", requestDTO.getMessage());
             CustomApiConfigManager.CustomApiConfig config = buildCustomApiConfig(requestDTO);
             runScope = telemetryService().withProviderModel(runScope, config.getProvider(), config.getModel());
@@ -108,6 +112,7 @@ public class AgentConversationService {
             final ChatRequestDTO currentRequest = requestDTO;
             IntentRoutingResult routingResult = telemetryService().recordStep(
                     "routing", () -> routeIntent(currentRequest, config));
+            recordRoutingDecision(runScope, routingResult);
             if (routingResult.isDirectReply()) {
                 ChatResponseDTO responseDTO = new ChatResponseDTO();
                 responseDTO.setType("user");
@@ -166,7 +171,11 @@ public class AgentConversationService {
         AtomicBoolean streamTelemetryCompleted = new AtomicBoolean(false);
         String sessionId = null;
         try {
+            recordLifecycleEvent(runScope, "HTTP_REQUEST_RECEIVED", "request", "SUCCESS",
+                    requestMetadata(requestDTO, true));
             streamResponseWriter.sendMeta(emitter, runScope.getContext().requestId(), runScope.getContext().runId());
+            recordLifecycleEvent(runScope, "STREAM_META_SENT", "stream", "SUCCESS",
+                    Map.of("metaOnly", true));
             captureDebugTrace(runScope, "CHAT_REQUEST", requestDTO.getMessage());
             CustomApiConfigManager.CustomApiConfig config = buildCustomApiConfig(requestDTO);
             runScope = telemetryService().withProviderModel(runScope, config.getProvider(), config.getModel());
@@ -181,6 +190,7 @@ public class AgentConversationService {
             final ChatRequestDTO currentRequest = requestDTO;
             IntentRoutingResult routingResult = telemetryService().recordStep(
                     "routing", () -> routeIntent(currentRequest, config));
+            recordRoutingDecision(runScope, routingResult);
             if (routingResult.isDirectReply()) {
                 try {
                     String answer = telemetryService().recordStep(
@@ -487,6 +497,61 @@ public class AgentConversationService {
 
     private AgentUsageTelemetryService telemetryService() {
         return agentUsageTelemetryService == null ? new AgentUsageTelemetryService(null) : agentUsageTelemetryService;
+    }
+
+    private void recordRoutingDecision(AgentUsageTelemetryService.RunScope runScope, IntentRoutingResult routingResult) {
+        if (routingResult == null) {
+            return;
+        }
+        Map<String, Object> metadata = new LinkedHashMap<>();
+        metadata.put("routeType", StringUtils.defaultString(routingResult.getRouteType()));
+        metadata.put("diagramType", StringUtils.defaultString(routingResult.getDiagramType()));
+        metadata.put("answerMode", StringUtils.defaultString(routingResult.getAnswerMode()));
+        metadata.put("needsCanvasQuality", Boolean.TRUE.equals(routingResult.getNeedsCanvasQuality()));
+        metadata.put("needsSemanticReview", Boolean.TRUE.equals(routingResult.getNeedsSemanticReview()));
+        metadata.put("hasSkill", StringUtils.isNotBlank(routingResult.getSkillName()));
+        recordLifecycleEvent(runScope, "ROUTING_DECIDED", "routing", "SUCCESS", metadata);
+    }
+
+    private Map<String, Object> requestMetadata(ChatRequestDTO requestDTO, boolean stream) {
+        Map<String, Object> metadata = new LinkedHashMap<>();
+        metadata.put("stream", stream);
+        metadata.put("messageChars", textLength(requestDTO == null ? null : requestDTO.getMessage()));
+        metadata.put("hasCanvasXml", StringUtils.isNotBlank(requestDTO == null ? null : requestDTO.getCanvasXml()));
+        metadata.put("hasDiagramId", StringUtils.isNotBlank(requestDTO == null ? null : requestDTO.getDiagramId()));
+        metadata.put("hasSavedCredential", StringUtils.isNotBlank(requestDTO == null ? null : requestDTO.getModelCredentialId()));
+        return metadata;
+    }
+
+    private void recordStreamDone(AgentUsageTelemetryService.RunScope runScope, Throwable error) {
+        Map<String, Object> metadata = new LinkedHashMap<>();
+        metadata.put("error", error != null);
+        if (error != null) {
+            metadata.put("errorClass", error.getClass().getSimpleName());
+        }
+        recordLifecycleEvent(runScope, "STREAM_DONE", "stream", error == null ? "SUCCESS" : "FAILED", metadata);
+    }
+
+    private void recordLifecycleEvent(AgentUsageTelemetryService.RunScope runScope,
+                                      String eventType,
+                                      String phase,
+                                      String status,
+                                      Map<String, ?> metadata) {
+        if (runScope == null || runScope.getContext() == null) {
+            return;
+        }
+        try {
+            telemetryService().recordTraceEvent(runScope.getContext(), eventType, phase, status, metadata);
+        } catch (Exception e) {
+            // Trace lifecycle metadata is best-effort and must not change chat behavior.
+            log.warn("Trace lifecycle event failed. userId:{} runId:{} eventType:{}",
+                    SecretLogSanitizer.maskCapability(runScope.getContext().userId()),
+                    runScope.getContext().runId(), eventType, e);
+        }
+    }
+
+    private int textLength(String text) {
+        return text == null ? 0 : text.length();
     }
 
     private void captureDebugTrace(AgentUsageTelemetryService.RunScope runScope, String eventType, String content) {
@@ -849,6 +914,7 @@ public class AgentConversationService {
         if (completed != null && !completed.compareAndSet(false, true)) {
             return;
         }
+        recordStreamDone(runScope, error);
         telemetryService().completeStep(drawingStep, error);
         telemetryService().completeRun(runScope, error);
     }

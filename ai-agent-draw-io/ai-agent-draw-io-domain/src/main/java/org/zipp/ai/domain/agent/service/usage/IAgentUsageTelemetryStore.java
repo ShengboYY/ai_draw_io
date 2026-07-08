@@ -2,6 +2,7 @@ package org.zipp.ai.domain.agent.service.usage;
 
 import org.zipp.ai.domain.agent.model.valobj.usage.AgentRunStepTelemetry;
 import org.zipp.ai.domain.agent.model.valobj.usage.AgentRunTelemetry;
+import org.zipp.ai.domain.agent.model.valobj.usage.AgentTraceEvent;
 import org.zipp.ai.domain.agent.model.valobj.usage.AdminUsageSummary;
 import org.zipp.ai.domain.agent.model.valobj.usage.AgentRunDetail;
 import org.zipp.ai.domain.agent.model.valobj.usage.AgentUsageSummary;
@@ -25,6 +26,9 @@ public interface IAgentUsageTelemetryStore {
 
     void insertToolCall(ToolCallTelemetry call);
 
+    default void insertTraceEvent(AgentTraceEvent event) {
+    }
+
     AgentUsageSummary summarizeForUser(String userId);
 
     AdminUsageSummary summarizeGlobal();
@@ -34,6 +38,10 @@ public interface IAgentUsageTelemetryStore {
     Optional<AgentRunDetail> findRunDetail(String runId);
 
     default int anonymizeUser(String userId, String anonymizedUserId) {
+        return 0;
+    }
+
+    default int deleteTelemetryBefore(Instant cutoff) {
         return 0;
     }
 }

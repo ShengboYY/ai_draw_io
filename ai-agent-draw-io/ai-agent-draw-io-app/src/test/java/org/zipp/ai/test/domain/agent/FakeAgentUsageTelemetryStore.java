@@ -2,6 +2,7 @@ package org.zipp.ai.test.domain.agent;
 
 import org.zipp.ai.domain.agent.model.valobj.usage.AgentRunStepTelemetry;
 import org.zipp.ai.domain.agent.model.valobj.usage.AgentRunTelemetry;
+import org.zipp.ai.domain.agent.model.valobj.usage.AgentTraceEvent;
 import org.zipp.ai.domain.agent.model.valobj.usage.AdminUsageSummary;
 import org.zipp.ai.domain.agent.model.valobj.usage.AgentRunDetail;
 import org.zipp.ai.domain.agent.model.valobj.usage.AgentUsageSummary;
@@ -24,6 +25,9 @@ public class FakeAgentUsageTelemetryStore implements IAgentUsageTelemetryStore {
     public final List<AgentRunStepTelemetry> steps = new ArrayList<>();
     public final List<LlmCallTelemetry> llmCalls = new ArrayList<>();
     public final List<ToolCallTelemetry> toolCalls = new ArrayList<>();
+    public final List<AgentTraceEvent> traceEvents = new ArrayList<>();
+    public Instant deletedBeforeCutoff;
+    public int deletedBeforeCount;
 
     @Override
     public void insertRun(AgentRunTelemetry run) {
@@ -56,6 +60,11 @@ public class FakeAgentUsageTelemetryStore implements IAgentUsageTelemetryStore {
     @Override
     public void insertToolCall(ToolCallTelemetry call) {
         toolCalls.add(call);
+    }
+
+    @Override
+    public void insertTraceEvent(AgentTraceEvent event) {
+        traceEvents.add(event);
     }
 
     @Override
@@ -167,10 +176,17 @@ public class FakeAgentUsageTelemetryStore implements IAgentUsageTelemetryStore {
                         .steps(steps.stream().filter(step -> runId.equals(step.getRunId())).collect(Collectors.toList()))
                         .llmCalls(llmCalls.stream().filter(call -> runId.equals(call.getRunId())).collect(Collectors.toList()))
                         .toolCalls(toolCalls.stream().filter(call -> runId.equals(call.getRunId())).collect(Collectors.toList()))
+                        .traceEvents(traceEvents.stream().filter(event -> runId.equals(event.getRunId())).collect(Collectors.toList()))
                         .build());
     }
 
+    @Override
+    public int deleteTelemetryBefore(Instant cutoff) {
+        deletedBeforeCutoff = cutoff;
+        return deletedBeforeCount;
+    }
+
     public String serializedRecords() {
-        return String.valueOf(runs) + steps + llmCalls + toolCalls;
+        return String.valueOf(runs) + steps + llmCalls + toolCalls + traceEvents;
     }
 }
