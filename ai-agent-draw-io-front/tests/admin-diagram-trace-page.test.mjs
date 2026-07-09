@@ -33,3 +33,10 @@ test('admin run detail shows P2 diagram effect evidence on selected spans', () =
   assert.match(pageSource, /XML changed/);
   assert.match(pageSource, /Thumbnail changed/);
 });
+
+test('admin run detail shows P3 runtime findings and can jump to related spans', () => {
+  assert.match(pageSource, /Trace Findings/);
+  assert.match(pageSource, /trace\?\.findings/);
+  assert.match(pageSource, /finding\.spanId/);
+  assert.match(pageSource, /setSelectedId\(finding\.spanId\)/);
+});

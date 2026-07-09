@@ -15,6 +15,7 @@ import org.zipp.ai.api.dto.AdminDebugTraceControlDTO;
 import org.zipp.ai.api.dto.AdminDebugTraceControlRequestDTO;
 import org.zipp.ai.api.dto.AdminDebugTraceRetentionRequestDTO;
 import org.zipp.ai.api.dto.AdminDiagramEffectDTO;
+import org.zipp.ai.api.dto.AdminDiagramFindingDTO;
 import org.zipp.ai.api.dto.AdminDiagramTraceDTO;
 import org.zipp.ai.api.dto.AdminDiagramTraceSpanDTO;
 import org.zipp.ai.api.dto.AdminDiagramTraceSummaryDTO;
@@ -63,6 +64,9 @@ import java.util.stream.Collectors;
 @RestController
 @RequestMapping("/api/v1/admin")
 public class AdminController {
+
+    private static final long SLOW_SPAN_THRESHOLD_MS = 60_000L;
+    private static final double HIGH_COST_THRESHOLD_USD = 0.05D;
 
     @Resource
     private IAccountService accountService;
@@ -405,12 +409,14 @@ public class AdminController {
 
     private AdminDiagramTraceDTO toDiagramTraceDto(AgentRunDetail detail) {
         CanvasState diagramState = currentCanvasState(detail).orElse(null);
+        List<AdminDiagramTraceSpanDTO> spans = toDiagramTraceSpans(detail, diagramState);
+        AdminDiagramTraceSummaryDTO summary = toDiagramTraceSummary(detail, spans);
         AdminDiagramTraceDTO dto = new AdminDiagramTraceDTO();
         dto.setRun(toRunMetadataDto(detail.getRun()));
-        dto.setSpans(toDiagramTraceSpans(detail, diagramState));
-        dto.setSummary(toDiagramTraceSummary(detail, dto.getSpans()));
+        dto.setSpans(spans);
+        dto.setSummary(summary);
         dto.setSnapshots(List.of());
-        dto.setFindings(List.of());
+        dto.setFindings(toDiagramTraceFindings(detail, spans, diagramState, summary));
         dto.setPayloadAvailability(toPayloadAvailability());
         return dto;
     }
@@ -609,6 +615,163 @@ public class AdminController {
             return "XML_AVAILABLE";
         }
         return "NO_RENDER_EVIDENCE";
+    }
+
+    private List<AdminDiagramFindingDTO> toDiagramTraceFindings(AgentRunDetail detail,
+                                                                List<AdminDiagramTraceSpanDTO> spans,
+                                                                CanvasState diagramState,
+                                                                AdminDiagramTraceSummaryDTO summary) {
+        List<AdminDiagramFindingDTO> findings = new ArrayList<>();
+        AgentRunTelemetry run = detail.getRun();
+        String diagramId = run == null ? null : run.getDiagramId();
+        if (run == null) {
+            return findings;
+        }
+
+        if (StringUtils.isBlank(diagramId) && isSuccessStatus(run.getStatus())) {
+            findings.add(finding("ERROR", "RUN_SUCCESS_BUT_NO_DIAGRAM",
+                    "Run succeeded without a diagram",
+                    "The request completed successfully, but no diagram id was linked to the run.",
+                    run.getId(), null,
+                    "Inspect create_diagram / modify_diagram tool output and run metadata persistence."));
+        } else if (StringUtils.isNotBlank(diagramId) && diagramState == null) {
+            findings.add(finding("WARNING", "DIAGRAM_NOT_LINKED",
+                    "Linked diagram state was not found",
+                    "The run has a diagram id, but the current canvas state store could not find it.",
+                    run.getId(), diagramId,
+                    "Verify the run owner id, diagram id, and canvas state persistence path."));
+        }
+
+        if (diagramState != null) {
+            if (StringUtils.isBlank(diagramState.getCurrentXml())) {
+                findings.add(finding("ERROR", "EMPTY_CANVAS",
+                        "Canvas XML is empty",
+                        "The linked diagram exists, but the saved canvas XML is empty.",
+                        run.getId(), diagramId,
+                        "Open the diagram save path and check whether the tool returned usable draw.io XML."));
+            } else if (!looksLikeDrawioXml(diagramState.getCurrentXml())) {
+                findings.add(finding("ERROR", "INVALID_XML",
+                        "Canvas XML does not look like draw.io XML",
+                        "The saved canvas payload is present, but it is not an mxfile or mxGraphModel document.",
+                        run.getId(), diagramId,
+                        "Inspect the final tool result and XML validation before saving the canvas."));
+            }
+            if (StringUtils.isBlank(diagramState.getThumbnailUrl())) {
+                findings.add(finding("WARNING", "THUMBNAIL_MISSING",
+                        "Thumbnail is missing",
+                        "The diagram has saved canvas XML, but no thumbnail URL is available for preview.",
+                        run.getId(), diagramId,
+                        "Run or inspect thumbnail rendering after canvas save."));
+            }
+        }
+
+        for (AdminDiagramTraceSpanDTO span : safeList(spans)) {
+            if ("LLM".equals(span.getKind()) && isFailureStatus(span.getStatus())) {
+                findings.add(finding("ERROR", "LLM_FAILED",
+                        "LLM call failed",
+                        "An LLM span ended with a failed status.",
+                        span.getId(), spanDiagramId(span, diagramId),
+                        "Open the selected span and inspect provider/model, latency, and error class."));
+            }
+            if ("TOOL".equals(span.getKind()) && isFailureStatus(span.getStatus())) {
+                findings.add(finding("ERROR", "TOOL_FAILED",
+                        "Tool call failed",
+                        "A tool span ended with a failed status.",
+                        span.getId(), spanDiagramId(span, diagramId),
+                        "Inspect tool arguments/results in payload evidence when capture is available."));
+            }
+            if (span.getLatencyMs() != null && span.getLatencyMs() > SLOW_SPAN_THRESHOLD_MS) {
+                findings.add(finding("WARNING", "SLOW_SPAN",
+                        "Slow trace span",
+                        "This span exceeded the slow-span threshold of 60 seconds.",
+                        span.getId(), spanDiagramId(span, diagramId),
+                        "Check whether the delay came from provider latency, tool execution, or downstream rendering."));
+            }
+            if (hasNoCanvasChange(span.getDiagramEffect())) {
+                findings.add(finding("WARNING", "NO_CANVAS_CHANGE",
+                        "Diagram mutation did not change the canvas",
+                        "A diagram-related span reported the same canvas hash before and after execution.",
+                        span.getId(), spanDiagramId(span, diagramId),
+                        "Inspect the tool result and XML patch output for a no-op mutation."));
+            }
+        }
+
+        if (summary != null && summary.getEstimatedCost() != null
+                && summary.getEstimatedCost() > HIGH_COST_THRESHOLD_USD) {
+            findings.add(finding("WARNING", "HIGH_COST",
+                    "Estimated cost is high",
+                    "The estimated model cost for this run is above the trace warning threshold.",
+                    run.getId(), diagramId,
+                    "Inspect high-token LLM spans and consider prompt trimming or cheaper routing."));
+        }
+
+        safeList(detail.getToolCalls()).stream()
+                .filter(call -> StringUtils.equalsIgnoreCase(call.getToolName(), "modify_diagram"))
+                .filter(call -> isSuccessStatus(call.getStatus()))
+                .filter(call -> !hasSaveEvent(detail))
+                .findFirst()
+                .ifPresent(call -> findings.add(finding("WARNING", "MODIFY_WITHOUT_SAVE",
+                        "Modify tool finished without a save event",
+                        "modify_diagram succeeded, but no canvas save event was recorded for the run.",
+                        call.getId(), diagramId,
+                        "Verify that successful modifications emit CANVAS_SAVED / diagram persistence telemetry.")));
+        return findings;
+    }
+
+    private boolean looksLikeDrawioXml(String xml) {
+        String value = StringUtils.defaultString(xml).toLowerCase();
+        return value.contains("<mxfile") || value.contains("<mxgraphmodel");
+    }
+
+    private boolean isFailureStatus(String status) {
+        return StringUtils.equalsIgnoreCase(status, "FAILED")
+                || StringUtils.equalsIgnoreCase(status, "ERROR");
+    }
+
+    private boolean isSuccessStatus(String status) {
+        return StringUtils.equalsIgnoreCase(status, "SUCCESS");
+    }
+
+    private boolean hasNoCanvasChange(AdminDiagramEffectDTO effect) {
+        return effect != null
+                && StringUtils.isNotBlank(effect.getBeforeHash())
+                && StringUtils.equals(effect.getBeforeHash(), effect.getAfterHash());
+    }
+
+    private boolean hasSaveEvent(AgentRunDetail detail) {
+        return safeList(detail.getTraceEvents()).stream()
+                .map(AgentTraceEvent::getEventType)
+                .filter(StringUtils::isNotBlank)
+                .map(String::toLowerCase)
+                .anyMatch(eventType -> eventType.contains("canvas_saved")
+                        || eventType.contains("diagram_saved")
+                        || eventType.contains("thumbnail_rendered"));
+    }
+
+    private String spanDiagramId(AdminDiagramTraceSpanDTO span, String fallback) {
+        AdminDiagramEffectDTO effect = span.getDiagramEffect();
+        if (effect != null && StringUtils.isNotBlank(effect.getDiagramId())) {
+            return effect.getDiagramId();
+        }
+        return fallback;
+    }
+
+    private AdminDiagramFindingDTO finding(String severity,
+                                           String code,
+                                           String title,
+                                           String description,
+                                           String spanId,
+                                           String diagramId,
+                                           String suggestion) {
+        AdminDiagramFindingDTO dto = new AdminDiagramFindingDTO();
+        dto.setSeverity(severity);
+        dto.setCode(code);
+        dto.setTitle(title);
+        dto.setDescription(description);
+        dto.setSpanId(spanId);
+        dto.setDiagramId(diagramId);
+        dto.setSuggestion(suggestion);
+        return dto;
     }
 
     private AdminDiagramTraceSpanDTO baseTraceSpan(String id,

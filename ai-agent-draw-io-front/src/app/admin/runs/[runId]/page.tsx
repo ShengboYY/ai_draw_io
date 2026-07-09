@@ -6,6 +6,7 @@ import { useParams, usePathname, useRouter } from 'next/navigation';
 import { agentApi, ApiResponseError } from '@/api/agent';
 import type {
   AdminDiagramEffectDTO,
+  AdminDiagramFindingDTO,
   AdminDiagramTraceDTO,
   AdminDiagramTraceSpanDTO,
   AdminDebugTraceCaptureDTO,
@@ -133,6 +134,7 @@ export default function AdminRunDetailPage() {
   }, [trace?.run?.diagramId, runId]);
 
   const spans = useMemo(() => trace?.spans || [], [trace]);
+  const findings = useMemo(() => trace?.findings || [], [trace]);
   const rows = useMemo(() => buildWaterfall(spans), [spans]);
 
   const selected: AdminDiagramTraceSpanDTO | undefined = useMemo(
@@ -281,12 +283,13 @@ export default function AdminRunDetailPage() {
               />
             </div>
 
-            <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-6">
+            <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-7">
               <Stat label="Latency" value={formatMs(run.latencyMs)} />
               <Stat label="LLM calls" value={formatNumber(trace?.summary?.llmCallCount ?? spans.filter((span) => span.kind === 'LLM').length)} />
               <Stat label="Tool calls" value={formatNumber(trace?.summary?.toolCallCount ?? spans.filter((span) => span.kind === 'TOOL').length)} />
               <Stat label="Tokens" value={formatNumber(totalTokens)} />
               <Stat label="Est. cost" value={formatCost(totalCost)} />
+              <Stat label="Findings" value={formatNumber(findings.length)} bad={findings.some(isErrorFinding)} />
               <Stat label="Error" value={run.errorClass || '—'} bad={isFailed(run.status)} />
             </div>
           </div>
@@ -417,6 +420,8 @@ export default function AdminRunDetailPage() {
             </div>
           </div>
 
+          <TraceFindingsPanel findings={findings} setSelectedId={setSelectedId} />
+
           {/* Captured payload evidence remains retention-gated and loaded only on demand. */}
           <div className="mt-4 rounded-xl border border-neutral-200 p-4">
             <div className="mb-2 flex items-center justify-between">
@@ -516,6 +521,81 @@ function formatEffectVersion(effect: AdminDiagramEffectDTO): string | undefined 
 function formatEffectBoolean(value?: boolean): string {
   if (value == null) return 'unknown';
   return value ? 'yes' : 'no';
+}
+
+function TraceFindingsPanel({
+  findings,
+  setSelectedId,
+}: {
+  findings: AdminDiagramFindingDTO[];
+  setSelectedId: (spanId: string) => void;
+}) {
+  return (
+    <div className="mt-4 rounded-xl border border-neutral-200 p-4">
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <h2 className="text-sm font-medium text-neutral-700">Trace Findings</h2>
+        <span className="text-xs text-neutral-400">{formatNumber(findings.length)}</span>
+      </div>
+
+      {findings.length === 0 ? (
+        <div className="py-6 text-center text-sm text-neutral-400">No findings.</div>
+      ) : (
+        <div className="space-y-2">
+          {findings.map((finding, index) => (
+            <div
+              key={`${finding.code || 'finding'}-${finding.spanId || index}`}
+              className="rounded-lg border border-neutral-100 px-3 py-2"
+            >
+              <div className="flex flex-wrap items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className={`rounded-md border px-2 py-0.5 text-[11px] ${findingSeverityClass(finding.severity)}`}>
+                      {finding.severity || 'INFO'}
+                    </span>
+                    <span className="font-mono text-xs text-neutral-400">{finding.code || 'FINDING'}</span>
+                  </div>
+                  <div className="mt-1 text-sm font-medium text-neutral-900">
+                    {finding.title || finding.code || 'Trace finding'}
+                  </div>
+                </div>
+                {finding.spanId && (
+                  <button
+                    type="button"
+                    onClick={() => finding.spanId && setSelectedId(finding.spanId)}
+                    className="shrink-0 rounded-md border border-neutral-200 px-2 py-1 text-xs text-neutral-600 hover:bg-neutral-50"
+                  >
+                    Go to span
+                  </button>
+                )}
+              </div>
+              {finding.description && (
+                <p className="mt-1 text-sm text-neutral-600">{finding.description}</p>
+              )}
+              {finding.suggestion && (
+                <p className="mt-1 text-xs text-neutral-400">{finding.suggestion}</p>
+              )}
+              {(finding.spanId || finding.diagramId) && (
+                <div className="mt-2 flex flex-wrap gap-2 font-mono text-[11px] text-neutral-400">
+                  {finding.spanId && <span>span {finding.spanId}</span>}
+                  {finding.diagramId && <span>diagram {finding.diagramId}</span>}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function isErrorFinding(finding: AdminDiagramFindingDTO): boolean {
+  return finding.severity === 'ERROR';
+}
+
+function findingSeverityClass(severity?: string): string {
+  if (severity === 'ERROR') return 'border-red-200 bg-red-50 text-red-700';
+  if (severity === 'WARNING') return 'border-amber-200 bg-amber-50 text-amber-700';
+  return 'border-blue-200 bg-blue-50 text-blue-700';
 }
 
 function DiagramSnapshotPanel({

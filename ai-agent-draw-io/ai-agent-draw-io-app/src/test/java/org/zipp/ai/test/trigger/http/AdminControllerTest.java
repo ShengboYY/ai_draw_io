@@ -11,6 +11,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.zipp.ai.api.dto.AdminDebugTraceControlDTO;
 import org.zipp.ai.api.dto.AdminDebugTraceControlRequestDTO;
 import org.zipp.ai.api.dto.AdminDebugTraceCaptureDTO;
+import org.zipp.ai.api.dto.AdminDiagramFindingDTO;
 import org.zipp.ai.api.dto.AdminDiagramTraceDTO;
 import org.zipp.ai.api.dto.AdminDiagramTraceSpanDTO;
 import org.zipp.ai.api.dto.AdminLlmCallDTO;
@@ -445,6 +446,77 @@ public class AdminControllerTest {
                 .orElseThrow();
         assertEquals("diag_trace", canvasEvent.getDiagramEffect().getDiagramId());
         assertEquals("ON_DEMAND", response.getData().getPayloadAvailability().getStatus());
+    }
+
+    @Test
+    public void diagramTraceComputesRuntimeFindings() {
+        authenticate("usr_admin", 0);
+        telemetryStore.runs.add(AgentRunTelemetry.builder()
+                .id("aru_findings")
+                .requestId("req-findings")
+                .diagramId("diag_findings")
+                .userId("usr_user")
+                .agentId("drawio")
+                .requestType("chat_stream")
+                .status("SUCCESS")
+                .startedAt(Instant.parse("2026-07-03T09:00:00Z"))
+                .latencyMs(75_000L)
+                .knownTotalTokens(40_000L)
+                .build());
+        telemetryStore.llmCalls.add(LlmCallTelemetry.builder()
+                .id("alc_fail")
+                .runId("aru_findings")
+                .userId("usr_user")
+                .phase("drawing")
+                .provider("openai")
+                .model("gpt-4o-test")
+                .promptTokens(20_000)
+                .completionTokens(20_000)
+                .totalTokens(40_000)
+                .status("FAILED")
+                .errorClass("ProviderTimeout")
+                .latencyMs(70_000L)
+                .startedAt(Instant.parse("2026-07-03T09:00:01Z"))
+                .build());
+        telemetryStore.toolCalls.add(ToolCallTelemetry.builder()
+                .id("atc_fail")
+                .runId("aru_findings")
+                .userId("usr_user")
+                .phase("drawing")
+                .toolName("modify_diagram")
+                .status("FAILED")
+                .errorClass("DrawioToolError")
+                .latencyMs(65_000L)
+                .startedAt(Instant.parse("2026-07-03T09:00:05Z"))
+                .build());
+        canvasStateStore.state = CanvasState.builder()
+                .userId("usr_user")
+                .diagramId("diag_findings")
+                .currentXml("<diagram/>")
+                .contentHash("hash-invalid")
+                .version(2L)
+                .updatedAt(java.util.Date.from(Instant.parse("2026-07-03T09:00:07Z")))
+                .build();
+
+        Response<AdminDiagramTraceDTO> response = controller.diagramTrace("aru_findings", request());
+
+        assertEquals("0000", response.getCode());
+        List<AdminDiagramFindingDTO> findings = response.getData().getFindings();
+        List<String> codes = findings.stream().map(AdminDiagramFindingDTO::getCode).toList();
+        assertTrue(codes.contains("INVALID_XML"));
+        assertTrue(codes.contains("THUMBNAIL_MISSING"));
+        assertTrue(codes.contains("LLM_FAILED"));
+        assertTrue(codes.contains("TOOL_FAILED"));
+        assertTrue(codes.contains("HIGH_COST"));
+        assertTrue(codes.contains("SLOW_SPAN"));
+
+        AdminDiagramFindingDTO toolFailed = findings.stream()
+                .filter(finding -> "TOOL_FAILED".equals(finding.getCode()))
+                .findFirst()
+                .orElseThrow();
+        assertEquals("ERROR", toolFailed.getSeverity());
+        assertEquals("atc_fail", toolFailed.getSpanId());
+        assertEquals("diag_findings", toolFailed.getDiagramId());
     }
 
     @Test
