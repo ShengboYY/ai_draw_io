@@ -3,6 +3,8 @@ package org.zipp.ai.domain.agent.service.usage;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.zipp.ai.domain.agent.model.valobj.canvas.CanvasState;
+import org.zipp.ai.domain.agent.model.valobj.usage.AgentDiagramTraceSnapshot;
 import org.zipp.ai.domain.agent.model.valobj.usage.AgentRunStepTelemetry;
 import org.zipp.ai.domain.agent.model.valobj.usage.AgentRunTelemetry;
 import org.zipp.ai.domain.agent.model.valobj.usage.AgentTraceEvent;
@@ -258,6 +260,27 @@ public class AgentUsageTelemetryService {
                 .build()), context.userId());
     }
 
+    public void recordDiagramSnapshot(String runId,
+                                      String spanId,
+                                      CanvasState state,
+                                      String summary) {
+        if (state == null || StringUtils.isAnyBlank(runId, state.getDiagramId())) {
+            return;
+        }
+        Instant createdAt = clock.instant();
+        safeStore(() -> telemetryStore.insertDiagramSnapshot(AgentDiagramTraceSnapshot.builder()
+                .id("ads_" + UUID.randomUUID())
+                .runId(runId)
+                .spanId(blankToNull(spanId))
+                .diagramId(state.getDiagramId())
+                .version(state.getVersion())
+                .canvasHash(state.getContentHash())
+                .thumbnailUrl(state.getThumbnailUrl())
+                .summary(StringUtils.left(StringUtils.defaultIfBlank(summary, state.getSummary()), 512))
+                .createdAt(createdAt)
+                .build()), state.getUserId());
+    }
+
     public void recordLlmCall(String phase,
                               String provider,
                               String model,
@@ -371,6 +394,13 @@ public class AgentUsageTelemetryService {
             return Optional.empty();
         }
         return telemetryStore.findRunDetail(runId);
+    }
+
+    public List<AgentDiagramTraceSnapshot> listDiagramSnapshots(String runId) {
+        if (telemetryStore == null || StringUtils.isBlank(runId)) {
+            return List.of();
+        }
+        return telemetryStore.listDiagramSnapshots(runId);
     }
 
     public List<AgentRunTelemetry> listRuns(String status, String userId, String agentId, Integer limit, Integer offset) {

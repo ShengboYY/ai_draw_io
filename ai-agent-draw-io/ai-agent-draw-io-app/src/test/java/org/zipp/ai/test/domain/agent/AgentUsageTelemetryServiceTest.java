@@ -3,6 +3,8 @@ package org.zipp.ai.test.domain.agent;
 import io.micrometer.core.instrument.Meter;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.Test;
+import org.zipp.ai.domain.agent.model.valobj.canvas.CanvasState;
+import org.zipp.ai.domain.agent.model.valobj.usage.AgentDiagramTraceSnapshot;
 import org.zipp.ai.domain.agent.model.valobj.usage.AgentTraceEvent;
 import org.zipp.ai.domain.agent.service.usage.AgentTelemetryMetrics;
 import org.zipp.ai.domain.agent.service.usage.AgentUsageTelemetryContext;
@@ -66,6 +68,38 @@ public class AgentUsageTelemetryServiceTest {
 
         assertEquals("diag_123", run.getContext().diagramId());
         assertEquals("diag_123", store.runs.get(0).getDiagramId());
+    }
+
+    @Test
+    public void shouldRecordDiagramTraceSnapshotMetadataOnly() {
+        FakeAgentUsageTelemetryStore store = new FakeAgentUsageTelemetryStore();
+        AgentUsageTelemetryService service = service(store);
+        AgentUsageTelemetryService.RunScope run = service.startRun(
+                "aru_snapshot", "req-snapshot", "usr_alice", "300000", "session-1", "chat_stream",
+                "diag_snapshot", "PLATFORM", null, "openai", "gpt-5.5");
+        CanvasState state = CanvasState.builder()
+                .userId("usr_alice")
+                .diagramId("diag_snapshot")
+                .currentXml("<mxfile>raw xml must not be copied</mxfile>")
+                .contentHash("hash-snapshot")
+                .thumbnailUrl("data:image/png;base64,snapshot")
+                .summary("UPDATED")
+                .version(5L)
+                .build();
+
+        service.recordDiagramSnapshot(run.getContext().runId(), run.getContext().spanId(), state, "UPDATED");
+
+        assertEquals(1, store.diagramSnapshots.size());
+        AgentDiagramTraceSnapshot snapshot = store.diagramSnapshots.get(0);
+        assertEquals("aru_snapshot", snapshot.getRunId());
+        assertEquals("aru_snapshot", snapshot.getSpanId());
+        assertEquals("diag_snapshot", snapshot.getDiagramId());
+        assertEquals(Long.valueOf(5L), snapshot.getVersion());
+        assertEquals("hash-snapshot", snapshot.getCanvasHash());
+        assertEquals("data:image/png;base64,snapshot", snapshot.getThumbnailUrl());
+        assertEquals("UPDATED", snapshot.getSummary());
+        assertEquals(Instant.parse("2026-07-02T12:00:00Z"), snapshot.getCreatedAt());
+        assertFalse(store.serializedRecords().contains("raw xml must not be copied"));
     }
 
     @Test

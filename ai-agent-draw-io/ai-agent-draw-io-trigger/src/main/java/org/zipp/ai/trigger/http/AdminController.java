@@ -16,6 +16,7 @@ import org.zipp.ai.api.dto.AdminDebugTraceControlRequestDTO;
 import org.zipp.ai.api.dto.AdminDebugTraceRetentionRequestDTO;
 import org.zipp.ai.api.dto.AdminDiagramEffectDTO;
 import org.zipp.ai.api.dto.AdminDiagramFindingDTO;
+import org.zipp.ai.api.dto.AdminDiagramSnapshotDTO;
 import org.zipp.ai.api.dto.AdminDiagramTraceDTO;
 import org.zipp.ai.api.dto.AdminDiagramTraceSpanDTO;
 import org.zipp.ai.api.dto.AdminDiagramTraceSummaryDTO;
@@ -40,6 +41,7 @@ import org.zipp.ai.domain.agent.model.valobj.canvas.CanvasState;
 import org.zipp.ai.domain.agent.model.valobj.debugtrace.DebugTraceCapture;
 import org.zipp.ai.domain.agent.model.valobj.debugtrace.DebugTraceControl;
 import org.zipp.ai.domain.agent.model.valobj.usage.AdminUsageSummary;
+import org.zipp.ai.domain.agent.model.valobj.usage.AgentDiagramTraceSnapshot;
 import org.zipp.ai.domain.agent.model.valobj.usage.AgentRunDetail;
 import org.zipp.ai.domain.agent.model.valobj.usage.AgentRunStepTelemetry;
 import org.zipp.ai.domain.agent.model.valobj.usage.AgentRunTelemetry;
@@ -57,6 +59,7 @@ import javax.annotation.Resource;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.Date;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -415,7 +418,8 @@ public class AdminController {
         dto.setRun(toRunMetadataDto(detail.getRun()));
         dto.setSpans(spans);
         dto.setSummary(summary);
-        dto.setSnapshots(List.of());
+        List<AdminDiagramSnapshotDTO> snapshots = toPersistedDiagramSnapshots(summary == null ? null : summary.getRunId());
+        dto.setSnapshots(snapshots.isEmpty() ? toDiagramSnapshots(detail, spans, diagramState) : snapshots);
         dto.setFindings(toDiagramTraceFindings(detail, spans, diagramState, summary));
         dto.setPayloadAvailability(toPayloadAvailability());
         return dto;
@@ -615,6 +619,83 @@ public class AdminController {
             return "XML_AVAILABLE";
         }
         return "NO_RENDER_EVIDENCE";
+    }
+
+    private List<AdminDiagramSnapshotDTO> toDiagramSnapshots(AgentRunDetail detail,
+                                                             List<AdminDiagramTraceSpanDTO> spans,
+                                                             CanvasState diagramState) {
+        AgentRunTelemetry run = detail.getRun();
+        if (run == null || diagramState == null) {
+            return List.of();
+        }
+        AdminDiagramSnapshotDTO dto = new AdminDiagramSnapshotDTO();
+        dto.setId(currentSnapshotId(run, diagramState));
+        dto.setRunId(run.getId());
+        dto.setSpanId(latestDiagramSpanId(spans));
+        dto.setDiagramId(StringUtils.defaultIfBlank(diagramState.getDiagramId(), run.getDiagramId()));
+        dto.setVersion(diagramState.getVersion());
+        dto.setCanvasHash(diagramState.getContentHash());
+        dto.setThumbnailUrl(diagramState.getThumbnailUrl());
+        dto.setSummary(diagramState.getSummary());
+        dto.setCreatedAt(snapshotCreatedAt(diagramState, run));
+        return List.of(dto);
+    }
+
+    private List<AdminDiagramSnapshotDTO> toPersistedDiagramSnapshots(String runId) {
+        if (StringUtils.isBlank(runId) || agentUsageTelemetryService == null) {
+            return List.of();
+        }
+        return agentUsageTelemetryService.listDiagramSnapshots(runId).stream()
+                .map(this::toDiagramSnapshotDto)
+                .collect(Collectors.toList());
+    }
+
+    private AdminDiagramSnapshotDTO toDiagramSnapshotDto(AgentDiagramTraceSnapshot snapshot) {
+        AdminDiagramSnapshotDTO dto = new AdminDiagramSnapshotDTO();
+        dto.setId(snapshot.getId());
+        dto.setRunId(snapshot.getRunId());
+        dto.setSpanId(snapshot.getSpanId());
+        dto.setDiagramId(snapshot.getDiagramId());
+        dto.setVersion(snapshot.getVersion());
+        dto.setCanvasHash(snapshot.getCanvasHash());
+        dto.setThumbnailUrl(snapshot.getThumbnailUrl());
+        dto.setSummary(snapshot.getSummary());
+        dto.setCreatedAt(snapshot.getCreatedAt());
+        return dto;
+    }
+
+    private String currentSnapshotId(AgentRunTelemetry run, CanvasState diagramState) {
+        String diagramId = StringUtils.defaultIfBlank(diagramState.getDiagramId(), run.getDiagramId());
+        String version = diagramState.getVersion() == null ? "current" : "v" + diagramState.getVersion();
+        return "ads_current_" + StringUtils.defaultString(run.getId()) + "_" + StringUtils.defaultString(diagramId) + "_" + version;
+    }
+
+    private String latestDiagramSpanId(List<AdminDiagramTraceSpanDTO> spans) {
+        return safeList(spans).stream()
+                .filter(span -> span.getDiagramEffect() != null)
+                .max(Comparator.comparing(this::spanSnapshotTime, Comparator.nullsFirst(Comparator.naturalOrder())))
+                .map(AdminDiagramTraceSpanDTO::getId)
+                .orElse(null);
+    }
+
+    private Instant spanSnapshotTime(AdminDiagramTraceSpanDTO span) {
+        return span.getCompletedAt() == null ? span.getStartedAt() : span.getCompletedAt();
+    }
+
+    private Instant snapshotCreatedAt(CanvasState diagramState, AgentRunTelemetry run) {
+        Instant fromUpdatedAt = toInstant(diagramState.getUpdatedAt());
+        if (fromUpdatedAt != null) {
+            return fromUpdatedAt;
+        }
+        Instant fromCreatedAt = toInstant(diagramState.getCreatedAt());
+        if (fromCreatedAt != null) {
+            return fromCreatedAt;
+        }
+        return run.getCompletedAt() == null ? run.getStartedAt() : run.getCompletedAt();
+    }
+
+    private Instant toInstant(Date date) {
+        return date == null ? null : date.toInstant();
     }
 
     private List<AdminDiagramFindingDTO> toDiagramTraceFindings(AgentRunDetail detail,

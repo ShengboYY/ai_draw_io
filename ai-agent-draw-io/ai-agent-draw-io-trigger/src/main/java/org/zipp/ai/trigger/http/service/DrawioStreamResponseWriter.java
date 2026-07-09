@@ -10,6 +10,7 @@ import org.zipp.ai.domain.agent.model.valobj.canvas.CanvasStateVersionConflictEx
 import org.zipp.ai.domain.agent.service.ICanvasStateStore;
 import org.zipp.ai.domain.agent.service.armory.matter.mcp.server.DrawioCanvasToolNames;
 import org.zipp.ai.domain.agent.service.armory.matter.mcp.server.DrawioCanvasXmlToolkit;
+import org.zipp.ai.domain.agent.service.usage.AgentUsageTelemetryService;
 import org.zipp.ai.types.util.SecretLogSanitizer;
 
 import javax.annotation.Resource;
@@ -25,6 +26,8 @@ public class DrawioStreamResponseWriter {
     private final DrawioCanvasXmlToolkit xmlToolkit = new DrawioCanvasXmlToolkit();
     @Resource
     private ICanvasStateStore canvasStateStore;
+    @Resource
+    private AgentUsageTelemetryService agentUsageTelemetryService;
     private final ConcurrentMap<String, StringBuilder> fallbackContinuationBuffers = new ConcurrentHashMap<>();
     // Invalid diagrams are held here so the review loop can repair them before final canvas emission.
     private final ConcurrentMap<ResponseBodyEmitter, PendingDiagram> pendingDiagrams = new ConcurrentHashMap<>();
@@ -305,10 +308,19 @@ public class DrawioStreamResponseWriter {
     }
 
     public void setCanvasStateContext(ResponseBodyEmitter emitter, String userId, String diagramId, Long expectedVersion) {
+        setCanvasStateContext(emitter, userId, diagramId, expectedVersion, null, null);
+    }
+
+    public void setCanvasStateContext(ResponseBodyEmitter emitter,
+                                      String userId,
+                                      String diagramId,
+                                      Long expectedVersion,
+                                      String runId,
+                                      String spanId) {
         if (emitter == null || StringUtils.isBlank(userId) || StringUtils.isBlank(diagramId)) {
             return;
         }
-        canvasStateContextByEmitter.put(emitter, new CanvasStateContext(userId, diagramId, expectedVersion));
+        canvasStateContextByEmitter.put(emitter, new CanvasStateContext(userId, diagramId, expectedVersion, runId, spanId));
     }
 
     private void sendDrawioDone(ResponseBodyEmitter emitter, String phase, String xml, boolean includeValidation, String mode) throws Exception {
@@ -377,8 +389,9 @@ public class DrawioStreamResponseWriter {
             CanvasState saved = result == null ? null : result.getState();
             if (saved != null && saved.getVersion() != null) {
                 canvasStateContextByEmitter.put(emitter,
-                        new CanvasStateContext(context.userId(), context.diagramId(), saved.getVersion()));
+                        new CanvasStateContext(context.userId(), context.diagramId(), saved.getVersion(), context.runId(), context.spanId()));
             }
+            recordDiagramSnapshot(context, result);
             return result;
         } catch (CanvasStateVersionConflictException e) {
             throw e;
@@ -387,6 +400,15 @@ public class DrawioStreamResponseWriter {
                     SecretLogSanitizer.maskCapability(context.userId()), logValue(context.diagramId()), e);
             return null;
         }
+    }
+
+    private void recordDiagramSnapshot(CanvasStateContext context, CanvasStateSaveResult result) {
+        CanvasState saved = result == null ? null : result.getState();
+        if (agentUsageTelemetryService == null || context == null || saved == null || StringUtils.isBlank(context.runId())) {
+            return;
+        }
+        String summary = result.getStatus() == null ? null : result.getStatus().name();
+        agentUsageTelemetryService.recordDiagramSnapshot(context.runId(), context.spanId(), saved, summary);
     }
 
     private void appendCanvasStateMetadata(com.alibaba.fastjson.JSONObject chunk,
@@ -860,7 +882,7 @@ public class DrawioStreamResponseWriter {
         }
     }
 
-    private record CanvasStateContext(String userId, String diagramId, Long expectedVersion) {
+    private record CanvasStateContext(String userId, String diagramId, Long expectedVersion, String runId, String spanId) {
     }
 
 }

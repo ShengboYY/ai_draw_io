@@ -2,6 +2,7 @@ package org.zipp.ai.domain.agent.service.usage;
 
 import org.zipp.ai.domain.agent.model.valobj.usage.AgentRunStepTelemetry;
 import org.zipp.ai.domain.agent.model.valobj.usage.AgentRunTelemetry;
+import org.zipp.ai.domain.agent.model.valobj.usage.AgentDiagramTraceSnapshot;
 import org.zipp.ai.domain.agent.model.valobj.usage.AgentTraceEvent;
 import org.zipp.ai.domain.agent.model.valobj.usage.AdminUsageSummary;
 import org.zipp.ai.domain.agent.model.valobj.usage.AgentRunDetail;
@@ -29,6 +30,9 @@ public interface IAgentUsageTelemetryStore {
     default void insertTraceEvent(AgentTraceEvent event) {
     }
 
+    default void insertDiagramSnapshot(AgentDiagramTraceSnapshot snapshot) {
+    }
+
     AgentUsageSummary summarizeForUser(String userId);
 
     AdminUsageSummary summarizeGlobal();
@@ -36,6 +40,10 @@ public interface IAgentUsageTelemetryStore {
     List<UsageDimensionSummary> summarizeByProviderModelCredentialSource();
 
     Optional<AgentRunDetail> findRunDetail(String runId);
+
+    default List<AgentDiagramTraceSnapshot> listDiagramSnapshots(String runId) {
+        return List.of();
+    }
 
     default List<AgentRunTelemetry> listRuns(String status, String userId, String agentId, int limit, int offset) {
         return List.of();

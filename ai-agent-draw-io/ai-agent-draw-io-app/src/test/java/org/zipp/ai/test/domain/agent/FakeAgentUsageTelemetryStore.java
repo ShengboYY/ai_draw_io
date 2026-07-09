@@ -2,6 +2,7 @@ package org.zipp.ai.test.domain.agent;
 
 import org.zipp.ai.domain.agent.model.valobj.usage.AgentRunStepTelemetry;
 import org.zipp.ai.domain.agent.model.valobj.usage.AgentRunTelemetry;
+import org.zipp.ai.domain.agent.model.valobj.usage.AgentDiagramTraceSnapshot;
 import org.zipp.ai.domain.agent.model.valobj.usage.AgentTraceEvent;
 import org.zipp.ai.domain.agent.model.valobj.usage.AdminUsageSummary;
 import org.zipp.ai.domain.agent.model.valobj.usage.AgentRunDetail;
@@ -26,6 +27,7 @@ public class FakeAgentUsageTelemetryStore implements IAgentUsageTelemetryStore {
     public final List<LlmCallTelemetry> llmCalls = new ArrayList<>();
     public final List<ToolCallTelemetry> toolCalls = new ArrayList<>();
     public final List<AgentTraceEvent> traceEvents = new ArrayList<>();
+    public final List<AgentDiagramTraceSnapshot> diagramSnapshots = new ArrayList<>();
     public Instant deletedBeforeCutoff;
     public int deletedBeforeCount;
 
@@ -65,6 +67,11 @@ public class FakeAgentUsageTelemetryStore implements IAgentUsageTelemetryStore {
     @Override
     public void insertTraceEvent(AgentTraceEvent event) {
         traceEvents.add(event);
+    }
+
+    @Override
+    public void insertDiagramSnapshot(AgentDiagramTraceSnapshot snapshot) {
+        diagramSnapshots.add(snapshot);
     }
 
     @Override
@@ -181,12 +188,19 @@ public class FakeAgentUsageTelemetryStore implements IAgentUsageTelemetryStore {
     }
 
     @Override
+    public List<AgentDiagramTraceSnapshot> listDiagramSnapshots(String runId) {
+        return diagramSnapshots.stream()
+                .filter(snapshot -> runId.equals(snapshot.getRunId()))
+                .collect(Collectors.toList());
+    }
+
+    @Override
     public int deleteTelemetryBefore(Instant cutoff) {
         deletedBeforeCutoff = cutoff;
         return deletedBeforeCount;
     }
 
     public String serializedRecords() {
-        return String.valueOf(runs) + steps + llmCalls + toolCalls + traceEvents;
+        return String.valueOf(runs) + steps + llmCalls + toolCalls + traceEvents + diagramSnapshots;
     }
 }

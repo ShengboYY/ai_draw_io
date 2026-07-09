@@ -7,6 +7,7 @@ import { agentApi, ApiResponseError } from '@/api/agent';
 import type {
   AdminDiagramEffectDTO,
   AdminDiagramFindingDTO,
+  AdminDiagramSnapshotDTO,
   AdminDiagramTraceDTO,
   AdminDiagramTraceSpanDTO,
   AdminDebugTraceCaptureDTO,
@@ -135,6 +136,7 @@ export default function AdminRunDetailPage() {
 
   const spans = useMemo(() => trace?.spans || [], [trace]);
   const findings = useMemo(() => trace?.findings || [], [trace]);
+  const snapshots = useMemo(() => trace?.snapshots || [], [trace]);
   const rows = useMemo(() => buildWaterfall(spans), [spans]);
 
   const selected: AdminDiagramTraceSpanDTO | undefined = useMemo(
@@ -357,6 +359,8 @@ export default function AdminRunDetailPage() {
                 loading={currentDiagramLoading}
                 note={currentDiagramNote}
               />
+
+              <EvolutionFilmstrip snapshots={snapshots} setSelectedId={setSelectedId} />
 
               {/* Span detail panel */}
               <div className="rounded-xl border border-neutral-200 p-4">
@@ -596,6 +600,63 @@ function findingSeverityClass(severity?: string): string {
   if (severity === 'ERROR') return 'border-red-200 bg-red-50 text-red-700';
   if (severity === 'WARNING') return 'border-amber-200 bg-amber-50 text-amber-700';
   return 'border-blue-200 bg-blue-50 text-blue-700';
+}
+
+function EvolutionFilmstrip({
+  snapshots,
+  setSelectedId,
+}: {
+  snapshots: AdminDiagramSnapshotDTO[];
+  setSelectedId: (spanId: string) => void;
+}) {
+  return (
+    <div className="rounded-xl border border-neutral-200 p-4">
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <h2 className="text-sm font-medium text-neutral-700">Evolution Filmstrip</h2>
+        <span className="text-xs text-neutral-400">{formatNumber(snapshots.length)}</span>
+      </div>
+
+      {snapshots.length === 0 ? (
+        <div className="py-6 text-center text-sm text-neutral-400">No diagram snapshots.</div>
+      ) : (
+        <div className="flex gap-2 overflow-x-auto pb-1">
+          {snapshots.map((snapshot, index) => (
+            <button
+              key={snapshot.id || `${snapshot.diagramId || 'snapshot'}-${index}`}
+              type="button"
+              onClick={() => snapshot.spanId && setSelectedId(snapshot.spanId)}
+              className="min-w-44 rounded-lg border border-neutral-100 bg-neutral-50 p-2 text-left hover:border-neutral-200 hover:bg-white"
+            >
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-xs font-medium text-neutral-700">
+                  {snapshot.version != null ? `v${snapshot.version}` : `#${index + 1}`}
+                </span>
+                <span className="text-[11px] text-neutral-400">{formatTime(snapshot.createdAt)}</span>
+              </div>
+              {snapshot.thumbnailUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={snapshot.thumbnailUrl}
+                  alt={snapshot.summary || snapshot.diagramId || 'diagram snapshot'}
+                  className="mt-2 h-20 w-full rounded-md bg-white object-contain"
+                />
+              ) : (
+                <div className="mt-2 flex h-20 items-center justify-center rounded-md bg-white text-xs text-neutral-300">
+                  XML
+                </div>
+              )}
+              <div className="mt-2 truncate font-mono text-[11px] text-neutral-400" title={snapshot.canvasHash}>
+                {snapshot.canvasHash || 'no hash'}
+              </div>
+              <div className="mt-1 truncate text-xs text-neutral-500" title={snapshot.summary || snapshot.diagramId}>
+                {snapshot.summary || snapshot.diagramId || 'snapshot'}
+              </div>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }
 
 function DiagramSnapshotPanel({

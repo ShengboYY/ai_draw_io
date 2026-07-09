@@ -7,6 +7,7 @@ import org.zipp.ai.infrastructure.dao.po.AgentRunTelemetryPO;
 import org.zipp.ai.infrastructure.dao.po.AgentTraceEventPO;
 import org.zipp.ai.infrastructure.dao.po.AgentUsageSummaryPO;
 import org.zipp.ai.infrastructure.dao.po.AdminUsageSummaryPO;
+import org.zipp.ai.infrastructure.dao.po.DiagramTraceSnapshotPO;
 import org.zipp.ai.infrastructure.dao.po.LlmCallTelemetryPO;
 import org.zipp.ai.infrastructure.dao.po.ToolCallTelemetryPO;
 import org.zipp.ai.infrastructure.dao.po.UsageDimensionSummaryPO;
@@ -33,6 +34,8 @@ public interface IAgentUsageTelemetryMapper {
 
     int insertTraceEvent(AgentTraceEventPO event);
 
+    int insertDiagramSnapshot(DiagramTraceSnapshotPO snapshot);
+
     AgentUsageSummaryPO summarizeByUserId(@Param("userId") String userId);
 
     AdminUsageSummaryPO summarizeGlobal();
@@ -55,6 +58,8 @@ public interface IAgentUsageTelemetryMapper {
 
     List<AgentTraceEventPO> selectTraceEventsByRunId(@Param("runId") String runId);
 
+    List<DiagramTraceSnapshotPO> selectDiagramSnapshotsByRunId(@Param("runId") String runId);
+
     int anonymizeRuns(@Param("userId") String userId,
                       @Param("anonymizedUserId") String anonymizedUserId);
 
@@ -74,6 +79,8 @@ public interface IAgentUsageTelemetryMapper {
                                      @Param("limit") int limit);
 
     int deleteTraceEventsByRunIds(@Param("runIds") List<String> runIds);
+
+    int deleteDiagramSnapshotsByRunIds(@Param("runIds") List<String> runIds);
 
     int deleteToolCallsByRunIds(@Param("runIds") List<String> runIds);
 

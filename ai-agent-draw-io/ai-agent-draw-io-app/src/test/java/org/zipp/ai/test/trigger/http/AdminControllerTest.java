@@ -35,6 +35,7 @@ import org.zipp.ai.domain.admin.service.IAdminAuditLogStore;
 import org.zipp.ai.domain.agent.model.valobj.debugtrace.DebugTraceCapture;
 import org.zipp.ai.domain.agent.model.valobj.debugtrace.DebugTraceControl;
 import org.zipp.ai.domain.agent.model.valobj.canvas.CanvasState;
+import org.zipp.ai.domain.agent.model.valobj.usage.AgentDiagramTraceSnapshot;
 import org.zipp.ai.domain.agent.model.valobj.usage.AgentRunStepTelemetry;
 import org.zipp.ai.domain.agent.model.valobj.usage.AgentRunTelemetry;
 import org.zipp.ai.domain.agent.model.valobj.usage.AgentTraceEvent;
@@ -517,6 +518,109 @@ public class AdminControllerTest {
         assertEquals("ERROR", toolFailed.getSeverity());
         assertEquals("atc_fail", toolFailed.getSpanId());
         assertEquals("diag_findings", toolFailed.getDiagramId());
+    }
+
+    @Test
+    public void diagramTraceReturnsCurrentDiagramSnapshot() {
+        authenticate("usr_admin", 0);
+        telemetryStore.runs.add(AgentRunTelemetry.builder()
+                .id("aru_snapshot")
+                .requestId("req-snapshot")
+                .diagramId("diag_snapshot")
+                .userId("usr_user")
+                .agentId("drawio")
+                .requestType("chat_stream")
+                .status("SUCCESS")
+                .startedAt(Instant.parse("2026-07-03T09:00:00Z"))
+                .build());
+        telemetryStore.toolCalls.add(ToolCallTelemetry.builder()
+                .id("atc_snapshot")
+                .runId("aru_snapshot")
+                .userId("usr_user")
+                .phase("drawing")
+                .toolName("create_diagram")
+                .status("SUCCESS")
+                .startedAt(Instant.parse("2026-07-03T09:00:03Z"))
+                .completedAt(Instant.parse("2026-07-03T09:00:05Z"))
+                .latencyMs(2_000L)
+                .build());
+        canvasStateStore.state = CanvasState.builder()
+                .userId("usr_user")
+                .diagramId("diag_snapshot")
+                .currentXml("<mxfile/>")
+                .contentHash("hash-snapshot")
+                .thumbnailUrl("data:image/png;base64,snapshot")
+                .summary("Final saved diagram")
+                .version(4L)
+                .updatedAt(java.util.Date.from(Instant.parse("2026-07-03T09:00:06Z")))
+                .build();
+
+        Response<AdminDiagramTraceDTO> response = controller.diagramTrace("aru_snapshot", request());
+
+        assertEquals("0000", response.getCode());
+        assertEquals(1, response.getData().getSnapshots().size());
+        assertEquals("aru_snapshot", response.getData().getSnapshots().get(0).getRunId());
+        assertEquals("atc_snapshot", response.getData().getSnapshots().get(0).getSpanId());
+        assertEquals("diag_snapshot", response.getData().getSnapshots().get(0).getDiagramId());
+        assertEquals(Long.valueOf(4L), response.getData().getSnapshots().get(0).getVersion());
+        assertEquals("hash-snapshot", response.getData().getSnapshots().get(0).getCanvasHash());
+        assertEquals("data:image/png;base64,snapshot", response.getData().getSnapshots().get(0).getThumbnailUrl());
+        assertEquals("Final saved diagram", response.getData().getSnapshots().get(0).getSummary());
+        assertEquals(Instant.parse("2026-07-03T09:00:06Z"), response.getData().getSnapshots().get(0).getCreatedAt());
+    }
+
+    @Test
+    public void diagramTraceReturnsPersistedSnapshotsBeforeFallback() {
+        authenticate("usr_admin", 0);
+        telemetryStore.runs.add(AgentRunTelemetry.builder()
+                .id("aru_persisted_snapshot")
+                .requestId("req-persisted-snapshot")
+                .diagramId("diag_persisted")
+                .userId("usr_user")
+                .agentId("drawio")
+                .requestType("chat_stream")
+                .status("SUCCESS")
+                .startedAt(Instant.parse("2026-07-03T09:00:00Z"))
+                .build());
+        telemetryStore.diagramSnapshots.add(AgentDiagramTraceSnapshot.builder()
+                .id("ads_1")
+                .runId("aru_persisted_snapshot")
+                .spanId("ars_drawing")
+                .diagramId("diag_persisted")
+                .version(1L)
+                .canvasHash("hash-v1")
+                .thumbnailUrl("data:image/png;base64,v1")
+                .summary("CREATED")
+                .createdAt(Instant.parse("2026-07-03T09:00:05Z"))
+                .build());
+        telemetryStore.diagramSnapshots.add(AgentDiagramTraceSnapshot.builder()
+                .id("ads_2")
+                .runId("aru_persisted_snapshot")
+                .spanId("ars_drawing")
+                .diagramId("diag_persisted")
+                .version(2L)
+                .canvasHash("hash-v2")
+                .thumbnailUrl("data:image/png;base64,v2")
+                .summary("UPDATED")
+                .createdAt(Instant.parse("2026-07-03T09:00:08Z"))
+                .build());
+        canvasStateStore.state = CanvasState.builder()
+                .userId("usr_user")
+                .diagramId("diag_persisted")
+                .currentXml("<mxfile/>")
+                .contentHash("hash-current")
+                .version(3L)
+                .updatedAt(java.util.Date.from(Instant.parse("2026-07-03T09:00:10Z")))
+                .build();
+
+        Response<AdminDiagramTraceDTO> response = controller.diagramTrace("aru_persisted_snapshot", request());
+
+        assertEquals("0000", response.getCode());
+        assertEquals(2, response.getData().getSnapshots().size());
+        assertEquals("ads_1", response.getData().getSnapshots().get(0).getId());
+        assertEquals("hash-v1", response.getData().getSnapshots().get(0).getCanvasHash());
+        assertEquals("ads_2", response.getData().getSnapshots().get(1).getId());
+        assertEquals("hash-v2", response.getData().getSnapshots().get(1).getCanvasHash());
     }
 
     @Test

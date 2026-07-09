@@ -220,8 +220,14 @@ public class AgentConversationService {
             // without the model re-emitting the whole diagram.
             final String currentCanvasXml = contextBuilder().resolveCanvasXml(currentRequest);
             streamResponseWriter.setCurrentCanvas(emitter, currentCanvasXml);
-            streamResponseWriter.setCanvasStateContext(emitter, currentRequest.getUserId(), currentRequest.getDiagramId(), currentRequest.getExpectedVersion());
             drawingStep = telemetryService().startStep("drawing");
+            streamResponseWriter.setCanvasStateContext(
+                    emitter,
+                    currentRequest.getUserId(),
+                    currentRequest.getDiagramId(),
+                    currentRequest.getExpectedVersion(),
+                    runScope.getContext().runId(),
+                    drawingStep == null ? runScope.getContext().runId() : drawingStep.getStepContext().spanId());
             DrawioSkillAccessContext.bindSession(finalSessionId, routedMessage.allowedSkillNames());
             final AgentUsageTelemetryService.RunScope finalRunScope = runScope;
             final AgentUsageTelemetryService.StepScope finalDrawingStep = drawingStep;

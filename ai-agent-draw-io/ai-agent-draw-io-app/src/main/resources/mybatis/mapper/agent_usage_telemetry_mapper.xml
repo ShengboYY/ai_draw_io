@@ -85,6 +85,18 @@
         <result column="occurred_at" property="occurredAt"/>
     </resultMap>
 
+    <resultMap id="diagramSnapshotMap" type="org.zipp.ai.infrastructure.dao.po.DiagramTraceSnapshotPO">
+        <id column="id" property="id"/>
+        <result column="run_id" property="runId"/>
+        <result column="span_id" property="spanId"/>
+        <result column="diagram_id" property="diagramId"/>
+        <result column="version" property="version"/>
+        <result column="canvas_hash" property="canvasHash"/>
+        <result column="thumbnail_url" property="thumbnailUrl"/>
+        <result column="summary" property="summary"/>
+        <result column="created_at" property="createdAt"/>
+    </resultMap>
+
     <insert id="insertRun" parameterType="org.zipp.ai.infrastructure.dao.po.AgentRunTelemetryPO">
         INSERT INTO agent_run (
             id, request_id, diagram_id, user_id, agent_id, session_id, request_type, credential_source, model_credential_id,
@@ -144,6 +156,15 @@
         VALUES (
             #{id}, #{runId}, #{parentId}, #{requestId}, #{userId}, #{sequenceNo}, #{eventType}, #{phase}, #{status},
             #{metadataJson}, #{occurredAt}
+        )
+    </insert>
+
+    <insert id="insertDiagramSnapshot" parameterType="org.zipp.ai.infrastructure.dao.po.DiagramTraceSnapshotPO">
+        INSERT INTO agent_diagram_trace_snapshot (
+            id, run_id, span_id, diagram_id, version, canvas_hash, thumbnail_url, summary, created_at
+        )
+        VALUES (
+            #{id}, #{runId}, #{spanId}, #{diagramId}, #{version}, #{canvasHash}, #{thumbnailUrl}, #{summary}, #{createdAt}
         )
     </insert>
 
@@ -284,6 +305,14 @@
         ORDER BY occurred_at ASC, sequence_no ASC, id ASC
     </select>
 
+    <select id="selectDiagramSnapshotsByRunId" resultMap="diagramSnapshotMap">
+        SELECT
+            id, run_id, span_id, diagram_id, version, canvas_hash, thumbnail_url, summary, created_at
+        FROM agent_diagram_trace_snapshot
+        WHERE run_id = #{runId}
+        ORDER BY created_at ASC, id ASC
+    </select>
+
     <update id="anonymizeRuns">
         UPDATE agent_run
         SET user_id = #{anonymizedUserId},
@@ -327,6 +356,14 @@
 
     <delete id="deleteTraceEventsByRunIds">
         DELETE FROM agent_trace_event
+        WHERE run_id IN
+        <foreach collection="runIds" item="runId" open="(" separator="," close=")">
+            #{runId}
+        </foreach>
+    </delete>
+
+    <delete id="deleteDiagramSnapshotsByRunIds">
+        DELETE FROM agent_diagram_trace_snapshot
         WHERE run_id IN
         <foreach collection="runIds" item="runId" open="(" separator="," close=")">
             #{runId}

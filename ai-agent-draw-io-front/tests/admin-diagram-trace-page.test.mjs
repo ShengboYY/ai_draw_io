@@ -40,3 +40,10 @@ test('admin run detail shows P3 runtime findings and can jump to related spans',
   assert.match(pageSource, /finding\.spanId/);
   assert.match(pageSource, /setSelectedId\(finding\.spanId\)/);
 });
+
+test('admin run detail shows P4 diagram snapshot filmstrip', () => {
+  assert.match(pageSource, /Evolution Filmstrip/);
+  assert.match(pageSource, /trace\?\.snapshots/);
+  assert.match(pageSource, /snapshot\.spanId/);
+  assert.match(pageSource, /snapshot\.canvasHash/);
+});

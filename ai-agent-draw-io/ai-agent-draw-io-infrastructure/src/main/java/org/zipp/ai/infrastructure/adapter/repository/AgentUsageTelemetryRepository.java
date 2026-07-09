@@ -3,6 +3,7 @@ package org.zipp.ai.infrastructure.adapter.repository;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Repository;
+import org.zipp.ai.domain.agent.model.valobj.usage.AgentDiagramTraceSnapshot;
 import org.zipp.ai.domain.agent.model.valobj.usage.AgentRunStepTelemetry;
 import org.zipp.ai.domain.agent.model.valobj.usage.AgentRunTelemetry;
 import org.zipp.ai.domain.agent.model.valobj.usage.AgentTraceEvent;
@@ -19,6 +20,7 @@ import org.zipp.ai.infrastructure.dao.po.AgentRunTelemetryPO;
 import org.zipp.ai.infrastructure.dao.po.AgentTraceEventPO;
 import org.zipp.ai.infrastructure.dao.po.AgentUsageSummaryPO;
 import org.zipp.ai.infrastructure.dao.po.AdminUsageSummaryPO;
+import org.zipp.ai.infrastructure.dao.po.DiagramTraceSnapshotPO;
 import org.zipp.ai.infrastructure.dao.po.LlmCallTelemetryPO;
 import org.zipp.ai.infrastructure.dao.po.ToolCallTelemetryPO;
 import org.zipp.ai.infrastructure.dao.po.UsageDimensionSummaryPO;
@@ -67,6 +69,11 @@ public class AgentUsageTelemetryRepository implements IAgentUsageTelemetryStore 
     @Override
     public void insertTraceEvent(AgentTraceEvent event) {
         agentUsageTelemetryMapper.insertTraceEvent(toPo(event));
+    }
+
+    @Override
+    public void insertDiagramSnapshot(AgentDiagramTraceSnapshot snapshot) {
+        agentUsageTelemetryMapper.insertDiagramSnapshot(toPo(snapshot));
     }
 
     @Override
@@ -153,6 +160,13 @@ public class AgentUsageTelemetryRepository implements IAgentUsageTelemetryStore 
     }
 
     @Override
+    public List<AgentDiagramTraceSnapshot> listDiagramSnapshots(String runId) {
+        return agentUsageTelemetryMapper.selectDiagramSnapshotsByRunId(runId).stream()
+                .map(this::toDomain)
+                .collect(Collectors.toList());
+    }
+
+    @Override
     public int anonymizeUser(String userId, String anonymizedUserId) {
         if (StringUtils.isBlank(userId) || StringUtils.isBlank(anonymizedUserId)) {
             return 0;
@@ -178,6 +192,7 @@ public class AgentUsageTelemetryRepository implements IAgentUsageTelemetryStore 
                 return deleted;
             }
             int batchDeleted = agentUsageTelemetryMapper.deleteTraceEventsByRunIds(runIds)
+                    + agentUsageTelemetryMapper.deleteDiagramSnapshotsByRunIds(runIds)
                     + agentUsageTelemetryMapper.deleteToolCallsByRunIds(runIds)
                     + agentUsageTelemetryMapper.deleteLlmCallsByRunIds(runIds)
                     + agentUsageTelemetryMapper.deleteStepsByRunIds(runIds)
@@ -210,6 +225,20 @@ public class AgentUsageTelemetryRepository implements IAgentUsageTelemetryStore 
         po.setToolCallCount(run.getToolCallCount());
         po.setTraceEventCount(run.getTraceEventCount());
         po.setKnownTotalTokens(run.getKnownTotalTokens());
+        return po;
+    }
+
+    private DiagramTraceSnapshotPO toPo(AgentDiagramTraceSnapshot snapshot) {
+        DiagramTraceSnapshotPO po = new DiagramTraceSnapshotPO();
+        po.setId(snapshot.getId());
+        po.setRunId(snapshot.getRunId());
+        po.setSpanId(snapshot.getSpanId());
+        po.setDiagramId(snapshot.getDiagramId());
+        po.setVersion(snapshot.getVersion());
+        po.setCanvasHash(snapshot.getCanvasHash());
+        po.setThumbnailUrl(snapshot.getThumbnailUrl());
+        po.setSummary(snapshot.getSummary());
+        po.setCreatedAt(toDate(snapshot.getCreatedAt()));
         return po;
     }
 
@@ -372,6 +401,20 @@ public class AgentUsageTelemetryRepository implements IAgentUsageTelemetryStore 
                 .startedAt(toInstant(po.getStartedAt()))
                 .completedAt(toInstant(po.getCompletedAt()))
                 .latencyMs(po.getLatencyMs())
+                .build();
+    }
+
+    private AgentDiagramTraceSnapshot toDomain(DiagramTraceSnapshotPO po) {
+        return AgentDiagramTraceSnapshot.builder()
+                .id(po.getId())
+                .runId(po.getRunId())
+                .spanId(po.getSpanId())
+                .diagramId(po.getDiagramId())
+                .version(po.getVersion())
+                .canvasHash(po.getCanvasHash())
+                .thumbnailUrl(po.getThumbnailUrl())
+                .summary(po.getSummary())
+                .createdAt(toInstant(po.getCreatedAt()))
                 .build();
     }
 
