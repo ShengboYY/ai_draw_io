@@ -1,7 +1,10 @@
 package org.zipp.ai.test.domain.agent;
 
+import io.micrometer.core.instrument.Meter;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.Test;
 import org.zipp.ai.domain.agent.model.valobj.usage.AgentTraceEvent;
+import org.zipp.ai.domain.agent.service.usage.AgentTelemetryMetrics;
 import org.zipp.ai.domain.agent.service.usage.AgentUsageTelemetryContext;
 import org.zipp.ai.domain.agent.service.usage.AgentUsageTelemetryService;
 
@@ -128,18 +131,73 @@ public class AgentUsageTelemetryServiceTest {
     @Test
     public void shouldNotFailRequestWhenTelemetryQueueIsFull() {
         FakeAgentUsageTelemetryStore store = new FakeAgentUsageTelemetryStore();
+        SimpleMeterRegistry registry = new SimpleMeterRegistry();
         AgentUsageTelemetryService service = new AgentUsageTelemetryService(
                 store,
                 Clock.fixed(Instant.parse("2026-07-02T12:00:00Z"), ZoneOffset.UTC),
                 new AgentUsageTelemetryService.TelemetryWriteExecutor() {
                     @Override public void execute(Runnable operation) { throw new RejectedExecutionException("full"); }
                     @Override public void shutdown() { }
-                });
+                },
+                new AgentTelemetryMetrics(registry));
 
         service.startRun("usr_alice", "300000", "session-1", "chat",
                 "PLATFORM", null, "openai", "gpt-5.5");
 
         assertTrue(store.runs.isEmpty());
+        assertEquals(1D, registry.get("ai.agent.telemetry.write.dropped").counter().count(), 0.001D);
+    }
+
+    @Test
+    public void shouldPublishUsageMetricsWithoutHighCardinalityLabels() {
+        FakeAgentUsageTelemetryStore store = new FakeAgentUsageTelemetryStore();
+        SimpleMeterRegistry registry = new SimpleMeterRegistry();
+        AgentUsageTelemetryService service = new AgentUsageTelemetryService(
+                store,
+                Clock.fixed(Instant.parse("2026-07-02T12:00:00Z"), ZoneOffset.UTC),
+                AgentUsageTelemetryService.TelemetryWriteExecutor.direct(),
+                new AgentTelemetryMetrics(registry));
+        AgentUsageTelemetryService.RunScope run = service.startRun(
+                "aru_metric", "req-secret", "usr_alice", "300000", "session-1", "chat_stream",
+                "USER_KEY", "mcr_secret", "openai", "gpt-5.5");
+
+        try (AgentUsageTelemetryContext.Scope ignored = AgentUsageTelemetryContext.bind(run.getContext())) {
+            service.recordLlmCall("routing", "openai", "gpt-5.5", 50L, 10, 20, 30, null);
+            service.recordToolCall(run.getContext(), "drawing", "draw_canvas", 25L, new IllegalStateException("bad tool"));
+        }
+        service.completeRun(run, null);
+
+        assertEquals(1D, registry.get("ai.agent.run")
+                .tag("request_type", "chat_stream")
+                .tag("credential_source", "user_key")
+                .tag("status", "success")
+                .counter().count(), 0.001D);
+        assertEquals(1L, registry.get("ai.agent.run.latency").timer().count());
+        assertEquals(1D, registry.get("ai.agent.llm.call")
+                .tag("phase", "routing")
+                .tag("status", "success")
+                .counter().count(), 0.001D);
+        assertEquals(30D, registry.get("ai.agent.llm.tokens")
+                .tag("token_type", "total")
+                .counter().count(), 0.001D);
+        assertEquals(1D, registry.get("ai.agent.tool.call")
+                .tag("tool_name", "draw_canvas")
+                .tag("status", "failed")
+                .counter().count(), 0.001D);
+
+        for (Meter meter : registry.getMeters()) {
+            meter.getId().getTags().forEach(tag -> {
+                assertFalse(tag.getKey().equals("user_id"));
+                assertFalse(tag.getKey().equals("run_id"));
+                assertFalse(tag.getKey().equals("request_id"));
+                assertFalse(tag.getKey().equals("session_id"));
+                assertFalse(tag.getKey().equals("model_credential_id"));
+                assertFalse(tag.getValue().contains("usr_alice"));
+                assertFalse(tag.getValue().contains("aru_metric"));
+                assertFalse(tag.getValue().contains("req-secret"));
+                assertFalse(tag.getValue().contains("mcr_secret"));
+            });
+        }
     }
 
     private AgentUsageTelemetryService service(FakeAgentUsageTelemetryStore store) {

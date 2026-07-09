@@ -1,5 +1,6 @@
 package org.zipp.ai.test.domain.agent;
 
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.Before;
 import org.junit.Test;
 import org.zipp.ai.domain.admin.model.entity.AdminAuditLog;
@@ -9,6 +10,7 @@ import org.zipp.ai.domain.agent.model.valobj.debugtrace.DebugTraceCapture;
 import org.zipp.ai.domain.agent.model.valobj.debugtrace.DebugTraceControl;
 import org.zipp.ai.domain.agent.service.debugtrace.AgentDebugTraceService;
 import org.zipp.ai.domain.agent.service.debugtrace.IAgentDebugTraceStore;
+import org.zipp.ai.domain.agent.service.usage.AgentTelemetryMetrics;
 
 import java.nio.charset.StandardCharsets;
 import java.time.Clock;
@@ -30,6 +32,7 @@ public class AgentDebugTraceServiceTest {
     private MutableClock clock;
     private FakeDebugTraceStore traceStore;
     private FakeAdminAuditLogStore auditStore;
+    private SimpleMeterRegistry registry;
     private AgentDebugTraceService service;
 
     @Before
@@ -37,10 +40,12 @@ public class AgentDebugTraceServiceTest {
         clock = new MutableClock(Instant.parse("2026-07-03T10:00:00Z"));
         traceStore = new FakeDebugTraceStore();
         auditStore = new FakeAdminAuditLogStore();
+        registry = new SimpleMeterRegistry();
         service = new AgentDebugTraceService(
                 traceStore,
                 new AdminAuditLogService(auditStore, clock),
-                clock);
+                clock,
+                new AgentTelemetryMetrics(registry));
     }
 
     @Test
@@ -147,6 +152,12 @@ public class AgentDebugTraceServiceTest {
         assertEquals("RUN", auditStore.logs.get(0).getTargetType());
         assertEquals("aru_view", auditStore.logs.get(0).getTargetId());
         assertEquals("SUCCESS", auditStore.logs.get(0).getOutcome());
+        assertEquals(1D, registry.get("ai.agent.debug.trace.capture")
+                .tag("event_type", "chat_request")
+                .counter().count(), 0.001D);
+        assertEquals(1D, registry.get("ai.agent.debug.trace.view")
+                .tag("outcome", "success")
+                .counter().count(), 0.001D);
     }
 
     @Test

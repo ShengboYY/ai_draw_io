@@ -46,23 +46,38 @@ public class AgentUsageTelemetryService {
     private final IAgentUsageTelemetryStore telemetryStore;
     private final Clock clock;
     private final TelemetryWriteExecutor writeExecutor;
+    private final AgentTelemetryMetrics metrics;
     private final AtomicLong droppedTelemetryWrites = new AtomicLong();
 
     @Autowired
+    public AgentUsageTelemetryService(IAgentUsageTelemetryStore telemetryStore,
+                                      AgentTelemetryMetrics metrics) {
+        this(telemetryStore, Clock.systemUTC(), TelemetryWriteExecutor.async(TELEMETRY_QUEUE_CAPACITY), metrics);
+    }
+
     public AgentUsageTelemetryService(IAgentUsageTelemetryStore telemetryStore) {
-        this(telemetryStore, Clock.systemUTC(), TelemetryWriteExecutor.async(TELEMETRY_QUEUE_CAPACITY));
+        this(telemetryStore, Clock.systemUTC(), TelemetryWriteExecutor.async(TELEMETRY_QUEUE_CAPACITY), AgentTelemetryMetrics.noop());
     }
 
     public AgentUsageTelemetryService(IAgentUsageTelemetryStore telemetryStore, Clock clock) {
-        this(telemetryStore, clock, TelemetryWriteExecutor.direct());
+        this(telemetryStore, clock, TelemetryWriteExecutor.direct(), AgentTelemetryMetrics.noop());
     }
 
     public AgentUsageTelemetryService(IAgentUsageTelemetryStore telemetryStore,
                                       Clock clock,
                                       TelemetryWriteExecutor writeExecutor) {
+        this(telemetryStore, clock, writeExecutor, AgentTelemetryMetrics.noop());
+    }
+
+    public AgentUsageTelemetryService(IAgentUsageTelemetryStore telemetryStore,
+                                      Clock clock,
+                                      TelemetryWriteExecutor writeExecutor,
+                                      AgentTelemetryMetrics metrics) {
         this.telemetryStore = telemetryStore;
         this.clock = clock == null ? Clock.systemUTC() : clock;
         this.writeExecutor = writeExecutor == null ? TelemetryWriteExecutor.direct() : writeExecutor;
+        this.metrics = metrics == null ? AgentTelemetryMetrics.noop() : metrics;
+        this.metrics.registerTelemetryWriter(this.writeExecutor);
     }
 
     public RunScope startRun(String userId,
@@ -140,12 +155,17 @@ public class AgentUsageTelemetryService {
             return;
         }
         Instant completedAt = clock.instant();
+        long latencyMs = latencyMs(runScope.startedAt, completedAt);
         safeStore(() -> telemetryStore.completeRun(
                 runScope.context.runId(),
                 error == null ? SUCCESS : FAILED,
                 errorClass(error),
                 completedAt,
-                latencyMs(runScope.startedAt, completedAt)), runScope.context.userId());
+                latencyMs), runScope.context.userId());
+        metrics.recordRun(runScope.context.requestType(),
+                runScope.context.credentialSource(),
+                error == null ? SUCCESS : FAILED,
+                latencyMs);
     }
 
     public <T> T recordStep(String phase, Callable<T> action) throws Exception {
@@ -260,6 +280,16 @@ public class AgentUsageTelemetryService {
                 .completedAt(completedAt)
                 .latencyMs(latencyMs)
                 .build()), context.userId());
+        metrics.recordLlmCall(
+                StringUtils.defaultIfBlank(phase, context.phase()),
+                StringUtils.defaultIfBlank(provider, context.provider()),
+                StringUtils.defaultIfBlank(model, context.model()),
+                context.credentialSource(),
+                error == null ? SUCCESS : FAILED,
+                latencyMs,
+                promptTokens,
+                completionTokens,
+                totalTokens);
     }
 
     public void recordToolCall(AgentUsageTelemetryContext.RunContext context,
@@ -284,6 +314,11 @@ public class AgentUsageTelemetryService {
                 .completedAt(completedAt)
                 .latencyMs(latencyMs)
                 .build()), context.userId());
+        metrics.recordToolCall(
+                StringUtils.defaultIfBlank(phase, context.phase()),
+                toolName,
+                error == null ? SUCCESS : FAILED,
+                latencyMs);
     }
 
     public AgentUsageSummary summarizeForUser(String userId) {
@@ -329,6 +364,7 @@ public class AgentUsageTelemetryService {
             writeExecutor.execute(() -> executeStoreOperation(operation, userId));
         } catch (RejectedExecutionException e) {
             long dropped = droppedTelemetryWrites.incrementAndGet();
+            metrics.recordTelemetryWriteDropped();
             org.slf4j.LoggerFactory.getLogger(AgentUsageTelemetryService.class)
                     .warn("Agent usage telemetry queue full; dropped write count:{} userId:{}",
                             dropped, SecretLogSanitizer.maskCapability(userId));
@@ -340,6 +376,7 @@ public class AgentUsageTelemetryService {
             operation.run();
         } catch (Exception e) {
             // Telemetry must never break the user-visible request path.
+            metrics.recordTelemetryWriteDropped();
             org.slf4j.LoggerFactory.getLogger(AgentUsageTelemetryService.class)
                     .warn("Agent usage telemetry write failed. userId:{}", SecretLogSanitizer.maskCapability(userId), e);
         }
@@ -411,6 +448,8 @@ public class AgentUsageTelemetryService {
     public interface TelemetryWriteExecutor {
         void execute(Runnable operation);
         void shutdown();
+        default int queueSize() { return 0; }
+        default int queueRemainingCapacity() { return Integer.MAX_VALUE; }
 
         static TelemetryWriteExecutor direct() {
             return new TelemetryWriteExecutor() {
@@ -432,6 +471,8 @@ public class AgentUsageTelemetryService {
             return new TelemetryWriteExecutor() {
                 @Override public void execute(Runnable operation) { executor.execute(operation); }
                 @Override public void shutdown() { executor.shutdown(); }
+                @Override public int queueSize() { return queue.size(); }
+                @Override public int queueRemainingCapacity() { return queue.remainingCapacity(); }
             };
         }
     }

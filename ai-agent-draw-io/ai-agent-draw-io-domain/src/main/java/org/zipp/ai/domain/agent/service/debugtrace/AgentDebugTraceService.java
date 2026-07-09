@@ -6,6 +6,7 @@ import org.springframework.stereotype.Service;
 import org.zipp.ai.domain.admin.service.AdminAuditLogService;
 import org.zipp.ai.domain.agent.model.valobj.debugtrace.DebugTraceCapture;
 import org.zipp.ai.domain.agent.model.valobj.debugtrace.DebugTraceControl;
+import org.zipp.ai.domain.agent.service.usage.AgentTelemetryMetrics;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -27,19 +28,34 @@ public class AgentDebugTraceService {
     private final IAgentDebugTraceStore debugTraceStore;
     private final AdminAuditLogService auditLogService;
     private final Clock clock;
+    private final AgentTelemetryMetrics metrics;
 
     @Autowired
     public AgentDebugTraceService(IAgentDebugTraceStore debugTraceStore,
+                                  AdminAuditLogService auditLogService,
+                                  AgentTelemetryMetrics metrics) {
+        this(debugTraceStore, auditLogService, Clock.systemUTC(), metrics);
+    }
+
+    public AgentDebugTraceService(IAgentDebugTraceStore debugTraceStore,
                                   AdminAuditLogService auditLogService) {
-        this(debugTraceStore, auditLogService, Clock.systemUTC());
+        this(debugTraceStore, auditLogService, Clock.systemUTC(), AgentTelemetryMetrics.noop());
     }
 
     public AgentDebugTraceService(IAgentDebugTraceStore debugTraceStore,
                                   AdminAuditLogService auditLogService,
                                   Clock clock) {
+        this(debugTraceStore, auditLogService, clock, AgentTelemetryMetrics.noop());
+    }
+
+    public AgentDebugTraceService(IAgentDebugTraceStore debugTraceStore,
+                                  AdminAuditLogService auditLogService,
+                                  Clock clock,
+                                  AgentTelemetryMetrics metrics) {
         this.debugTraceStore = debugTraceStore;
         this.auditLogService = auditLogService;
         this.clock = clock == null ? Clock.systemUTC() : clock;
+        this.metrics = metrics == null ? AgentTelemetryMetrics.noop() : metrics;
     }
 
     public DebugTraceControl enableControl(String actorUserId,
@@ -93,6 +109,7 @@ public class AgentDebugTraceService {
                 .createdAt(now)
                 .build();
         debugTraceStore.insertCapture(capture);
+        metrics.recordDebugTraceCapture(type);
         return Optional.of(capture);
     }
 
@@ -114,6 +131,7 @@ public class AgentDebugTraceService {
             auditLogService.record(actor, "VIEW_DEBUG_TRACE_CAPTURE", "RUN", run,
                     safeCaptures.isEmpty() ? "NOT_FOUND" : "SUCCESS", ipAddress, userAgent);
         }
+        metrics.recordDebugTraceView(safeCaptures.isEmpty() ? "NOT_FOUND" : "SUCCESS");
         return safeCaptures;
     }
 
