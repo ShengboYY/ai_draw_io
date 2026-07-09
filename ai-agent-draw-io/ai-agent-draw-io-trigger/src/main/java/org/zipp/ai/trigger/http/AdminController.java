@@ -115,6 +115,22 @@ public class AdminController {
         return success(toUsageDashboard(summary, groups));
     }
 
+    @GetMapping("/runs")
+    public Response<List<AdminRunMetadataDTO>> listRuns(@RequestParam(value = "status", required = false) String status,
+                                                        @RequestParam(value = "userId", required = false) String userId,
+                                                        @RequestParam(value = "agentId", required = false) String agentId,
+                                                        @RequestParam(value = "limit", required = false) Integer limit,
+                                                        @RequestParam(value = "offset", required = false) Integer offset,
+                                                        HttpServletRequest request) {
+        Optional<UserAccount> admin = requireAdmin(request);
+        if (admin.isEmpty()) {
+            return forbidden();
+        }
+        List<AgentRunTelemetry> runs = agentUsageTelemetryService.listRuns(status, userId, agentId, limit, offset);
+        audit(admin.get(), "LIST_RUNS", "RUN", null, "SUCCESS", request);
+        return success(runs.stream().map(this::toRunMetadataDto).collect(Collectors.toList()));
+    }
+
     @GetMapping("/runs/{runId}")
     public Response<AdminRunDetailDTO> runDetail(@PathVariable("runId") String runId,
                                                  HttpServletRequest request) {
@@ -357,6 +373,7 @@ public class AdminController {
         AdminTraceEventDTO dto = new AdminTraceEventDTO();
         dto.setId(event.getId());
         dto.setRunId(event.getRunId());
+        dto.setParentId(event.getParentId());
         dto.setRequestId(event.getRequestId());
         dto.setUserId(event.getUserId());
         dto.setSequenceNo(event.getSequenceNo());
@@ -387,6 +404,7 @@ public class AdminController {
         AdminRunTimelineEventDTO dto = baseTimelineEvent(
                 event.getId(), "trace_event", event.getRunId(), event.getRequestId(), event.getUserId(),
                 event.getSequenceNo(), event.getEventType(), event.getPhase(), event.getStatus(), event.getOccurredAt());
+        dto.setParentId(event.getParentId());
         dto.setDetail(event.getEventType());
         dto.setMetadataJson(event.getMetadataJson());
         return dto;
@@ -396,6 +414,7 @@ public class AdminController {
         AdminRunTimelineEventDTO dto = baseTimelineEvent(
                 step.getId(), "step", step.getRunId(), requestId, step.getUserId(),
                 null, "STEP", step.getPhase(), step.getStatus(), step.getStartedAt());
+        dto.setParentId(step.getParentId());
         dto.setDetail(step.getPhase());
         dto.setLatencyMs(step.getLatencyMs());
         return dto;
@@ -405,6 +424,7 @@ public class AdminController {
         AdminRunTimelineEventDTO dto = baseTimelineEvent(
                 call.getId(), "llm_call", call.getRunId(), requestId, call.getUserId(),
                 null, "LLM_CALL", call.getPhase(), call.getStatus(), call.getStartedAt());
+        dto.setParentId(call.getParentId());
         dto.setDetail(StringUtils.defaultString(call.getProvider()) + "/" + StringUtils.defaultString(call.getModel()));
         dto.setLatencyMs(call.getLatencyMs());
         return dto;
@@ -414,6 +434,7 @@ public class AdminController {
         AdminRunTimelineEventDTO dto = baseTimelineEvent(
                 call.getId(), "tool_call", call.getRunId(), requestId, call.getUserId(),
                 null, "TOOL_CALL", call.getPhase(), call.getStatus(), call.getStartedAt());
+        dto.setParentId(call.getParentId());
         dto.setDetail(call.getToolName());
         dto.setLatencyMs(call.getLatencyMs());
         return dto;
@@ -461,6 +482,7 @@ public class AdminController {
         AdminRunStepDTO dto = new AdminRunStepDTO();
         dto.setId(step.getId());
         dto.setRunId(step.getRunId());
+        dto.setParentId(step.getParentId());
         dto.setUserId(step.getUserId());
         dto.setPhase(step.getPhase());
         dto.setStatus(step.getStatus());
@@ -475,6 +497,7 @@ public class AdminController {
         AdminLlmCallDTO dto = new AdminLlmCallDTO();
         dto.setId(call.getId());
         dto.setRunId(call.getRunId());
+        dto.setParentId(call.getParentId());
         dto.setUserId(call.getUserId());
         dto.setPhase(call.getPhase());
         dto.setProvider(call.getProvider());
@@ -496,6 +519,7 @@ public class AdminController {
         AdminToolCallDTO dto = new AdminToolCallDTO();
         dto.setId(call.getId());
         dto.setRunId(call.getRunId());
+        dto.setParentId(call.getParentId());
         dto.setUserId(call.getUserId());
         dto.setPhase(call.getPhase());
         dto.setToolName(call.getToolName());

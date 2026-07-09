@@ -15,8 +15,11 @@ import {
 } from '@/utils/anonymous-workspace-import';
 import { setUserInfo, clearUserInfo } from '@/utils/cookie';
 import {
+  DEFAULT_POST_LOGIN_REDIRECT,
   hasLoginErrors,
+  LOGIN_RETURN_TO_PARAM,
   loginStatusDisplay,
+  resolvePostLoginRedirect,
   validateLoginForm,
   type LoginFormErrors,
 } from '@/utils/login-form';
@@ -30,6 +33,9 @@ type PendingImportPrompt = {
 
 export default function Login() {
   const router = useRouter();
+  const postLoginRedirect = typeof window === 'undefined'
+    ? DEFAULT_POST_LOGIN_REDIRECT
+    : resolvePostLoginRedirect(new URLSearchParams(window.location.search).get(LOGIN_RETURN_TO_PARAM));
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [errors, setErrors] = useState<LoginFormErrors>({});
@@ -71,6 +77,10 @@ export default function Login() {
       onFinish,
     });
   }, []);
+
+  const goToPostLoginDestination = useCallback(() => {
+    router.push(postLoginRedirect);
+  }, [postLoginRedirect, router]);
 
   const handleDeclineImport = () => {
     if (!pendingImportPrompt) return;
@@ -114,14 +124,14 @@ export default function Login() {
         void (async () => {
           setSignedInAs(signedInEmail);
           setUserInfo(signedInEmail);
-          openAnonymousWorkspaceImportPrompt(data.userId, () => router.push('/diagrams'));
+          openAnonymousWorkspaceImportPrompt(data.userId, goToPostLoginDestination);
         })();
       }
     }).catch(() => {
       // Silent — treat as no session; nothing to persist.
     });
     return () => { cancelled = true; };
-  }, [openAnonymousWorkspaceImportPrompt, router]);
+  }, [goToPostLoginDestination, openAnonymousWorkspaceImportPrompt]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -137,7 +147,7 @@ export default function Login() {
       if (data.status === 'SUCCESS' && data.email) {
         setUserInfo(data.email);
         setSignedInAs(data.email);
-        openAnonymousWorkspaceImportPrompt(data.userId, () => setTimeout(() => router.push('/diagrams'), 400));
+        openAnonymousWorkspaceImportPrompt(data.userId, () => setTimeout(goToPostLoginDestination, 400));
         return;
       }
     } catch (err: unknown) {

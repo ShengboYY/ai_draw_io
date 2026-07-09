@@ -41,6 +41,12 @@ public interface IAgentUsageTelemetryMapper {
 
     AgentRunTelemetryPO selectRunById(@Param("runId") String runId);
 
+    List<AgentRunTelemetryPO> selectRuns(@Param("status") String status,
+                                         @Param("userId") String userId,
+                                         @Param("agentId") String agentId,
+                                         @Param("limit") int limit,
+                                         @Param("offset") int offset);
+
     List<AgentRunStepTelemetryPO> selectStepsByRunId(@Param("runId") String runId);
 
     List<LlmCallTelemetryPO> selectLlmCallsByRunId(@Param("runId") String runId);

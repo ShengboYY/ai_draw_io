@@ -123,6 +123,13 @@ public class AgentUsageTelemetryRepository implements IAgentUsageTelemetryStore 
     }
 
     @Override
+    public List<AgentRunTelemetry> listRuns(String status, String userId, String agentId, int limit, int offset) {
+        return agentUsageTelemetryMapper.selectRuns(status, userId, agentId, limit, offset).stream()
+                .map(this::toDomain)
+                .collect(Collectors.toList());
+    }
+
+    @Override
     public Optional<AgentRunDetail> findRunDetail(String runId) {
         AgentRunTelemetryPO run = agentUsageTelemetryMapper.selectRunById(runId);
         if (run == null) {
@@ -204,6 +211,7 @@ public class AgentUsageTelemetryRepository implements IAgentUsageTelemetryStore 
         AgentTraceEventPO po = new AgentTraceEventPO();
         po.setId(event.getId());
         po.setRunId(event.getRunId());
+        po.setParentId(event.getParentId());
         po.setRequestId(event.getRequestId());
         po.setUserId(event.getUserId());
         po.setSequenceNo(event.getSequenceNo());
@@ -219,6 +227,7 @@ public class AgentUsageTelemetryRepository implements IAgentUsageTelemetryStore 
         AgentRunStepTelemetryPO po = new AgentRunStepTelemetryPO();
         po.setId(step.getId());
         po.setRunId(step.getRunId());
+        po.setParentId(step.getParentId());
         po.setUserId(step.getUserId());
         po.setPhase(step.getPhase());
         po.setStatus(step.getStatus());
@@ -233,6 +242,7 @@ public class AgentUsageTelemetryRepository implements IAgentUsageTelemetryStore 
         LlmCallTelemetryPO po = new LlmCallTelemetryPO();
         po.setId(call.getId());
         po.setRunId(call.getRunId());
+        po.setParentId(call.getParentId());
         po.setUserId(call.getUserId());
         po.setPhase(call.getPhase());
         po.setProvider(call.getProvider());
@@ -254,6 +264,7 @@ public class AgentUsageTelemetryRepository implements IAgentUsageTelemetryStore 
         ToolCallTelemetryPO po = new ToolCallTelemetryPO();
         po.setId(call.getId());
         po.setRunId(call.getRunId());
+        po.setParentId(call.getParentId());
         po.setUserId(call.getUserId());
         po.setPhase(call.getPhase());
         po.setToolName(call.getToolName());
@@ -287,6 +298,7 @@ public class AgentUsageTelemetryRepository implements IAgentUsageTelemetryStore 
         return AgentTraceEvent.builder()
                 .id(po.getId())
                 .runId(po.getRunId())
+                .parentId(po.getParentId())
                 .requestId(po.getRequestId())
                 .userId(po.getUserId())
                 .sequenceNo(po.getSequenceNo())
@@ -302,6 +314,7 @@ public class AgentUsageTelemetryRepository implements IAgentUsageTelemetryStore 
         return AgentRunStepTelemetry.builder()
                 .id(po.getId())
                 .runId(po.getRunId())
+                .parentId(po.getParentId())
                 .userId(po.getUserId())
                 .phase(po.getPhase())
                 .status(po.getStatus())
@@ -316,6 +329,7 @@ public class AgentUsageTelemetryRepository implements IAgentUsageTelemetryStore 
         return LlmCallTelemetry.builder()
                 .id(po.getId())
                 .runId(po.getRunId())
+                .parentId(po.getParentId())
                 .userId(po.getUserId())
                 .phase(po.getPhase())
                 .provider(po.getProvider())
@@ -337,6 +351,7 @@ public class AgentUsageTelemetryRepository implements IAgentUsageTelemetryStore 
         return ToolCallTelemetry.builder()
                 .id(po.getId())
                 .runId(po.getRunId())
+                .parentId(po.getParentId())
                 .userId(po.getUserId())
                 .phase(po.getPhase())
                 .toolName(po.getToolName())

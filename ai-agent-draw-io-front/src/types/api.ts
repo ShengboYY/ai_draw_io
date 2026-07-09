@@ -241,3 +241,176 @@ export interface ModelCredentialResponseDTO {
   updatedAt?: string;
   disabledAt?: string;
 }
+
+// ── Admin telemetry / trace visualization ──────────────────────────────────
+
+export interface AdminUsageDimensionDTO {
+  provider?: string;
+  model?: string;
+  credentialSource?: string;
+  llmCallCount?: number;
+  successfulCallCount?: number;
+  failedCallCount?: number;
+  promptTokens?: number;
+  completionTokens?: number;
+  totalTokens?: number;
+  unknownTokenCallCount?: number;
+  averageLatencyMs?: number;
+}
+
+export interface AdminUsageDashboardDTO {
+  requestCount?: number;
+  successfulRequestCount?: number;
+  failedRequestCount?: number;
+  runningRequestCount?: number;
+  requestSuccessRate?: number;
+  requestFailureRate?: number;
+  llmCallCount?: number;
+  successfulLlmCallCount?: number;
+  failedLlmCallCount?: number;
+  toolCallCount?: number;
+  successfulToolCallCount?: number;
+  failedToolCallCount?: number;
+  promptTokens?: number;
+  completionTokens?: number;
+  totalTokens?: number;
+  unknownTokenLlmCallCount?: number;
+  averageRunLatencyMs?: number;
+  maxRunLatencyMs?: number;
+  groups?: AdminUsageDimensionDTO[];
+}
+
+export interface AdminRunMetadataDTO {
+  id: string;
+  requestId?: string;
+  userId?: string;
+  agentId?: string;
+  sessionId?: string;
+  requestType?: string;
+  credentialSource?: string;
+  modelCredentialId?: string;
+  status?: string;
+  errorClass?: string;
+  startedAt?: string;
+  completedAt?: string;
+  latencyMs?: number;
+}
+
+export interface AdminRunStepDTO {
+  id: string;
+  runId?: string;
+  parentId?: string;
+  userId?: string;
+  phase?: string;
+  status?: string;
+  errorClass?: string;
+  startedAt?: string;
+  completedAt?: string;
+  latencyMs?: number;
+}
+
+export interface AdminLlmCallDTO {
+  id: string;
+  runId?: string;
+  parentId?: string;
+  userId?: string;
+  phase?: string;
+  provider?: string;
+  model?: string;
+  credentialSource?: string;
+  modelCredentialId?: string;
+  promptTokens?: number;
+  completionTokens?: number;
+  totalTokens?: number;
+  status?: string;
+  errorClass?: string;
+  startedAt?: string;
+  completedAt?: string;
+  latencyMs?: number;
+}
+
+export interface AdminToolCallDTO {
+  id: string;
+  runId?: string;
+  parentId?: string;
+  userId?: string;
+  phase?: string;
+  toolName?: string;
+  status?: string;
+  errorClass?: string;
+  startedAt?: string;
+  completedAt?: string;
+  latencyMs?: number;
+}
+
+export interface AdminTraceEventDTO {
+  id: string;
+  runId?: string;
+  parentId?: string;
+  requestId?: string;
+  userId?: string;
+  sequenceNo?: number;
+  eventType?: string;
+  phase?: string;
+  status?: string;
+  metadataJson?: string;
+  occurredAt?: string;
+}
+
+export type AdminTimelineSource = 'trace_event' | 'step' | 'llm_call' | 'tool_call';
+
+export interface AdminRunTimelineEventDTO {
+  id: string;
+  source?: AdminTimelineSource;
+  runId?: string;
+  parentId?: string;
+  requestId?: string;
+  userId?: string;
+  sequenceNo?: number;
+  eventType?: string;
+  phase?: string;
+  status?: string;
+  detail?: string;
+  metadataJson?: string;
+  occurredAt?: string;
+  latencyMs?: number;
+}
+
+export interface AdminRunDetailDTO {
+  run: AdminRunMetadataDTO;
+  steps?: AdminRunStepDTO[];
+  llmCalls?: AdminLlmCallDTO[];
+  toolCalls?: AdminToolCallDTO[];
+  traceEvents?: AdminTraceEventDTO[];
+  timeline?: AdminRunTimelineEventDTO[];
+}
+
+export interface AdminDebugTraceCaptureDTO {
+  id: string;
+  controlId?: string;
+  userId?: string;
+  runId?: string;
+  eventType?: string;
+  content?: string;
+  contentSha256?: string;
+  contentExpiresAt?: string;
+  contentDeletedAt?: string;
+  createdAt?: string;
+}
+
+export interface AdminDebugTraceControlDTO {
+  id: string;
+  scopeUserId?: string;
+  scopeRunId?: string;
+  scopeStartsAt?: string;
+  scopeEndsAt?: string;
+  enabled?: boolean;
+  createdAt?: string;
+}
+
+export interface AdminDebugTraceControlRequestDTO {
+  userId?: string;
+  runId?: string;
+  startsAt?: string;
+  endsAt?: string;
+}

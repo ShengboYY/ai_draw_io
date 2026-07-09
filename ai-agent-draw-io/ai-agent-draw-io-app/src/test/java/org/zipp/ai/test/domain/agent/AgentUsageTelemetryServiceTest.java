@@ -116,6 +116,43 @@ public class AgentUsageTelemetryServiceTest {
     }
 
     @Test
+    public void shouldLinkStepsToRunAndCallsToTheEnclosingStep() throws Exception {
+        FakeAgentUsageTelemetryStore store = new FakeAgentUsageTelemetryStore();
+        AgentUsageTelemetryService service = service(store);
+        AgentUsageTelemetryService.RunScope run = service.startRun(
+                "aru_tree", "req-tree", "usr_alice", "300000", "session-1", "chat",
+                "PLATFORM", null, "openai", "gpt-5.5");
+
+        try (AgentUsageTelemetryContext.Scope ignored = AgentUsageTelemetryContext.bind(run.getContext())) {
+            // A run-level lifecycle event hangs directly under the run.
+            service.recordTraceEvent("HTTP_REQUEST_RECEIVED", "request", "SUCCESS", Map.of("k", "v"));
+            // Calls made inside a step parent onto that step, not onto the run.
+            service.recordStep("drawing", () -> {
+                AgentUsageTelemetryContext.RunContext stepCtx =
+                        AgentUsageTelemetryContext.current().orElseThrow();
+                service.recordLlmCall("drawing", "openai", "gpt-5.5", 12L, 1, 2, 3, null);
+                service.recordToolCall(stepCtx, "drawing", "draw_canvas", 5L, null);
+                return null;
+            });
+        }
+
+        assertEquals(1, store.steps.size());
+        assertEquals(1, store.llmCalls.size());
+        assertEquals(1, store.toolCalls.size());
+        assertEquals(1, store.traceEvents.size());
+
+        String stepId = store.steps.get(0).getId();
+        assertTrue(stepId.startsWith("ars_"));
+        // Step -> run
+        assertEquals("aru_tree", store.steps.get(0).getParentId());
+        // LLM call / tool call -> enclosing step
+        assertEquals(stepId, store.llmCalls.get(0).getParentId());
+        assertEquals(stepId, store.toolCalls.get(0).getParentId());
+        // Run-level trace event -> run
+        assertEquals("aru_tree", store.traceEvents.get(0).getParentId());
+    }
+
+    @Test
     public void shouldDelegateTelemetryRetentionCleanupToStore() {
         FakeAgentUsageTelemetryStore store = new FakeAgentUsageTelemetryStore();
         AgentUsageTelemetryService service = service(store);

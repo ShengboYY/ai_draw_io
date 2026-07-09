@@ -7,9 +7,37 @@
 import type { LoginStatus } from '@/types/api';
 
 const BASIC_EMAIL = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
+export const LOGIN_RETURN_TO_PARAM = 'returnTo';
+export const DEFAULT_POST_LOGIN_REDIRECT = '/diagrams';
 
 const isEmailLike = (email: string | null | undefined) =>
   email != null && BASIC_EMAIL.test(email.trim());
+
+export const resolvePostLoginRedirect = (returnTo: string | null | undefined): string => {
+  const target = returnTo?.trim();
+  if (!target) return DEFAULT_POST_LOGIN_REDIRECT;
+  if (!target.startsWith('/') || target.startsWith('//') || target.includes('\\')) {
+    return DEFAULT_POST_LOGIN_REDIRECT;
+  }
+
+  try {
+    // Parse against a fixed same-origin base so only app-relative paths survive.
+    const url = new URL(target, 'https://freedraw.local');
+    if (url.origin !== 'https://freedraw.local') return DEFAULT_POST_LOGIN_REDIRECT;
+    if (url.pathname === '/login' || url.pathname.startsWith('/login/')) {
+      return DEFAULT_POST_LOGIN_REDIRECT;
+    }
+    return `${url.pathname}${url.search}${url.hash}`;
+  } catch {
+    return DEFAULT_POST_LOGIN_REDIRECT;
+  }
+};
+
+export const buildLoginHref = (returnTo: string | null | undefined): string => {
+  const target = resolvePostLoginRedirect(returnTo);
+  if (target !== returnTo?.trim()) return '/login';
+  return `/login?${LOGIN_RETURN_TO_PARAM}=${encodeURIComponent(target)}`;
+};
 
 export interface LoginFormErrors {
   email?: string;

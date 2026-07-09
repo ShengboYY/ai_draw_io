@@ -231,7 +231,9 @@ public class AgentConversationService {
                             currentRequest.getUserId(),
                             finalSessionId,
                             routedMessage.message(),
-                            runScope.getContext().withPhase("drawing"))
+                            finalDrawingStep != null
+                                    ? finalDrawingStep.getStepContext()
+                                    : runScope.getContext().withPhase("drawing"))
                     .subscribe(
                             event -> {
                                 try {

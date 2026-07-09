@@ -164,7 +164,13 @@ public class AgentUsageTelemetryService {
 
     public <T> T recordStep(String phase, Callable<T> action) throws Exception {
         StepScope step = startStep(phase);
-        try (AgentUsageTelemetryContext.Scope ignored = AgentUsageTelemetryContext.enterPhase(phase)) {
+        // Bind the step-scoped context (spanId = step id) so LLM/tool calls made inside the
+        // step parent onto it. When there is no active run context, fall back to a phase-only
+        // scope so the action still runs.
+        AgentUsageTelemetryContext.Scope scope = step == null
+                ? AgentUsageTelemetryContext.enterPhase(phase)
+                : AgentUsageTelemetryContext.bind(step.stepContext);
+        try (AgentUsageTelemetryContext.Scope ignored = scope) {
             T result = action.call();
             completeStep(step, null);
             return result;
@@ -179,7 +185,10 @@ public class AgentUsageTelemetryService {
         if (current.isEmpty()) {
             return null;
         }
-        return new StepScope(current.get(), phase, clock.instant());
+        AgentUsageTelemetryContext.RunContext parent = current.get();
+        String stepId = "ars_" + UUID.randomUUID();
+        AgentUsageTelemetryContext.RunContext stepContext = parent.withPhase(phase).withSpan(stepId);
+        return new StepScope(parent, stepContext, stepId, phase, clock.instant());
     }
 
     public void completeStep(StepScope stepScope, Throwable error) {
@@ -188,8 +197,9 @@ public class AgentUsageTelemetryService {
         }
         Instant completedAt = clock.instant();
         safeStore(() -> telemetryStore.insertStep(AgentRunStepTelemetry.builder()
-                .id("ars_" + UUID.randomUUID())
+                .id(stepScope.stepId)
                 .runId(stepScope.context.runId())
+                .parentId(stepScope.context.spanId())
                 .userId(stepScope.context.userId())
                 .phase(stepScope.phase)
                 .status(error == null ? SUCCESS : FAILED)
@@ -219,6 +229,7 @@ public class AgentUsageTelemetryService {
         safeStore(() -> telemetryStore.insertTraceEvent(AgentTraceEvent.builder()
                 .id("ate_" + UUID.randomUUID())
                 .runId(context.runId())
+                .parentId(parentSpanId(context))
                 .requestId(context.requestId())
                 .userId(context.userId())
                 .sequenceNo(sequenceNo)
@@ -259,6 +270,7 @@ public class AgentUsageTelemetryService {
         safeStore(() -> telemetryStore.insertLlmCall(LlmCallTelemetry.builder()
                 .id("alc_" + UUID.randomUUID())
                 .runId(context.runId())
+                .parentId(parentSpanId(context))
                 .userId(context.userId())
                 .phase(StringUtils.defaultIfBlank(phase, context.phase()))
                 .provider(StringUtils.defaultIfBlank(provider, context.provider()))
@@ -299,6 +311,7 @@ public class AgentUsageTelemetryService {
         safeStore(() -> telemetryStore.insertToolCall(ToolCallTelemetry.builder()
                 .id("atc_" + UUID.randomUUID())
                 .runId(context.runId())
+                .parentId(parentSpanId(context))
                 .userId(context.userId())
                 .phase(StringUtils.defaultIfBlank(phase, context.phase()))
                 .toolName(toolName)
@@ -341,6 +354,20 @@ public class AgentUsageTelemetryService {
             return Optional.empty();
         }
         return telemetryStore.findRunDetail(runId);
+    }
+
+    public List<AgentRunTelemetry> listRuns(String status, String userId, String agentId, Integer limit, Integer offset) {
+        if (telemetryStore == null) {
+            return List.of();
+        }
+        int boundedLimit = limit == null ? 50 : Math.max(1, Math.min(limit, 200));
+        int boundedOffset = offset == null ? 0 : Math.max(0, offset);
+        return telemetryStore.listRuns(
+                StringUtils.trimToNull(status),
+                StringUtils.trimToNull(userId),
+                StringUtils.trimToNull(agentId),
+                boundedLimit,
+                boundedOffset);
     }
 
     public int deleteTelemetryBefore(Instant cutoff) {
@@ -389,6 +416,11 @@ public class AgentUsageTelemetryService {
         return error == null ? null : error.getClass().getSimpleName();
     }
 
+    /** Parent span for a call: the active span (a step), or the run root when no step is in scope. */
+    private String parentSpanId(AgentUsageTelemetryContext.RunContext context) {
+        return StringUtils.defaultIfBlank(context.spanId(), context.runId());
+    }
+
     private long latencyMs(Instant startedAt, Instant completedAt) {
         return Math.max(0, Duration.between(startedAt, completedAt).toMillis());
     }
@@ -429,13 +461,26 @@ public class AgentUsageTelemetryService {
 
     public static class StepScope {
         private final AgentUsageTelemetryContext.RunContext context;
+        private final AgentUsageTelemetryContext.RunContext stepContext;
+        private final String stepId;
         private final String phase;
         private final Instant startedAt;
 
-        private StepScope(AgentUsageTelemetryContext.RunContext context, String phase, Instant startedAt) {
+        private StepScope(AgentUsageTelemetryContext.RunContext context,
+                          AgentUsageTelemetryContext.RunContext stepContext,
+                          String stepId,
+                          String phase,
+                          Instant startedAt) {
             this.context = context;
+            this.stepContext = stepContext;
+            this.stepId = stepId;
             this.phase = phase;
             this.startedAt = startedAt;
+        }
+
+        /** Context bound while the step runs; its spanId is the step id so child calls parent onto it. */
+        public AgentUsageTelemetryContext.RunContext getStepContext() {
+            return stepContext;
         }
     }
 

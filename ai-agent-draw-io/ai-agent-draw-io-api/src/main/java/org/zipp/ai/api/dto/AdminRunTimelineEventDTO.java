@@ -10,6 +10,7 @@ public class AdminRunTimelineEventDTO {
     private String id;
     private String source;
     private String runId;
+    private String parentId;
     private String requestId;
     private String userId;
     private Long sequenceNo;

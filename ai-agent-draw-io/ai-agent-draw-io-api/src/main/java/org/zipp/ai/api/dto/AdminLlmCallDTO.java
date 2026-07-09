@@ -9,6 +9,7 @@ public class AdminLlmCallDTO {
 
     private String id;
     private String runId;
+    private String parentId;
     private String userId;
     private String phase;
     private String provider;

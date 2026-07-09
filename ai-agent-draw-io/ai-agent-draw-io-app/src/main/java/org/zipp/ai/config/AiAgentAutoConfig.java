@@ -27,9 +27,14 @@ public class AiAgentAutoConfig implements ApplicationListener<ApplicationReadyEv
     @Override
     public void onApplicationEvent(ApplicationReadyEvent event) {
         try {
-            log.info("Ai Agent 智能体装配 {}", SecretLogSanitizer.sanitize(JSON.toJSONString(aiAgentAutoConfigProperties.getTables().values())));
+            var agentConfigs = aiAgentAutoConfigProperties.getTables().values();
+            log.info("Ai Agent 智能体装配: loaded {} agents", agentConfigs.size());
+            if (log.isDebugEnabled()) {
+                // Full agent instructions are useful for deep debugging, but too noisy and sensitive for normal startup logs.
+                log.debug("Ai Agent 智能体装配详情 {}", SecretLogSanitizer.sanitize(JSON.toJSONString(agentConfigs)));
+            }
 
-            armoryService.acceptArmoryAgents(new ArrayList<>(aiAgentAutoConfigProperties.getTables().values()));
+            armoryService.acceptArmoryAgents(new ArrayList<>(agentConfigs));
         } catch (Exception e) {
             throw new RuntimeException(e);
         }

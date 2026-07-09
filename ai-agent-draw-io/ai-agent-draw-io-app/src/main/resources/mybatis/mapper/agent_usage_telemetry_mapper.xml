@@ -21,6 +21,7 @@
     <resultMap id="stepMap" type="org.zipp.ai.infrastructure.dao.po.AgentRunStepTelemetryPO">
         <id column="id" property="id"/>
         <result column="run_id" property="runId"/>
+        <result column="parent_id" property="parentId"/>
         <result column="user_id" property="userId"/>
         <result column="phase" property="phase"/>
         <result column="status" property="status"/>
@@ -33,6 +34,7 @@
     <resultMap id="llmCallMap" type="org.zipp.ai.infrastructure.dao.po.LlmCallTelemetryPO">
         <id column="id" property="id"/>
         <result column="run_id" property="runId"/>
+        <result column="parent_id" property="parentId"/>
         <result column="user_id" property="userId"/>
         <result column="phase" property="phase"/>
         <result column="provider" property="provider"/>
@@ -52,6 +54,7 @@
     <resultMap id="toolCallMap" type="org.zipp.ai.infrastructure.dao.po.ToolCallTelemetryPO">
         <id column="id" property="id"/>
         <result column="run_id" property="runId"/>
+        <result column="parent_id" property="parentId"/>
         <result column="user_id" property="userId"/>
         <result column="phase" property="phase"/>
         <result column="tool_name" property="toolName"/>
@@ -65,6 +68,7 @@
     <resultMap id="traceEventMap" type="org.zipp.ai.infrastructure.dao.po.AgentTraceEventPO">
         <id column="id" property="id"/>
         <result column="run_id" property="runId"/>
+        <result column="parent_id" property="parentId"/>
         <result column="request_id" property="requestId"/>
         <result column="user_id" property="userId"/>
         <result column="sequence_no" property="sequenceNo"/>
@@ -97,21 +101,21 @@
 
     <insert id="insertStep" parameterType="org.zipp.ai.infrastructure.dao.po.AgentRunStepTelemetryPO">
         INSERT INTO agent_run_step (
-            id, run_id, user_id, phase, status, error_class, started_at, completed_at, latency_ms
+            id, run_id, parent_id, user_id, phase, status, error_class, started_at, completed_at, latency_ms
         )
         VALUES (
-            #{id}, #{runId}, #{userId}, #{phase}, #{status}, #{errorClass},
+            #{id}, #{runId}, #{parentId}, #{userId}, #{phase}, #{status}, #{errorClass},
             #{startedAt}, #{completedAt}, #{latencyMs}
         )
     </insert>
 
     <insert id="insertLlmCall" parameterType="org.zipp.ai.infrastructure.dao.po.LlmCallTelemetryPO">
         INSERT INTO agent_llm_call (
-            id, run_id, user_id, phase, provider, model, credential_source, model_credential_id,
+            id, run_id, parent_id, user_id, phase, provider, model, credential_source, model_credential_id,
             prompt_tokens, completion_tokens, total_tokens, status, error_class, started_at, completed_at, latency_ms
         )
         VALUES (
-            #{id}, #{runId}, #{userId}, #{phase}, #{provider}, #{model}, #{credentialSource}, #{modelCredentialId},
+            #{id}, #{runId}, #{parentId}, #{userId}, #{phase}, #{provider}, #{model}, #{credentialSource}, #{modelCredentialId},
             #{promptTokens}, #{completionTokens}, #{totalTokens}, #{status}, #{errorClass},
             #{startedAt}, #{completedAt}, #{latencyMs}
         )
@@ -119,20 +123,20 @@
 
     <insert id="insertToolCall" parameterType="org.zipp.ai.infrastructure.dao.po.ToolCallTelemetryPO">
         INSERT INTO agent_tool_call (
-            id, run_id, user_id, phase, tool_name, status, error_class, started_at, completed_at, latency_ms
+            id, run_id, parent_id, user_id, phase, tool_name, status, error_class, started_at, completed_at, latency_ms
         )
         VALUES (
-            #{id}, #{runId}, #{userId}, #{phase}, #{toolName}, #{status}, #{errorClass},
+            #{id}, #{runId}, #{parentId}, #{userId}, #{phase}, #{toolName}, #{status}, #{errorClass},
             #{startedAt}, #{completedAt}, #{latencyMs}
         )
     </insert>
 
     <insert id="insertTraceEvent" parameterType="org.zipp.ai.infrastructure.dao.po.AgentTraceEventPO">
         INSERT INTO agent_trace_event (
-            id, run_id, request_id, user_id, sequence_no, event_type, phase, status, metadata_json, occurred_at
+            id, run_id, parent_id, request_id, user_id, sequence_no, event_type, phase, status, metadata_json, occurred_at
         )
         VALUES (
-            #{id}, #{runId}, #{requestId}, #{userId}, #{sequenceNo}, #{eventType}, #{phase}, #{status},
+            #{id}, #{runId}, #{parentId}, #{requestId}, #{userId}, #{sequenceNo}, #{eventType}, #{phase}, #{status},
             #{metadataJson}, #{occurredAt}
         )
     </insert>
@@ -217,8 +221,22 @@
         WHERE id = #{runId}
     </select>
 
+    <select id="selectRuns" resultMap="runMap">
+        SELECT
+            id, request_id, user_id, agent_id, session_id, request_type, credential_source, model_credential_id,
+            status, error_class, started_at, completed_at, latency_ms
+        FROM agent_run
+        <where>
+            <if test="status != null and status != ''">AND status = #{status}</if>
+            <if test="userId != null and userId != ''">AND user_id = #{userId}</if>
+            <if test="agentId != null and agentId != ''">AND agent_id = #{agentId}</if>
+        </where>
+        ORDER BY started_at DESC, id DESC
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+
     <select id="selectStepsByRunId" resultMap="stepMap">
-        SELECT id, run_id, user_id, phase, status, error_class, started_at, completed_at, latency_ms
+        SELECT id, run_id, parent_id, user_id, phase, status, error_class, started_at, completed_at, latency_ms
         FROM agent_run_step
         WHERE run_id = #{runId}
         ORDER BY started_at ASC, id ASC
@@ -226,7 +244,7 @@
 
     <select id="selectLlmCallsByRunId" resultMap="llmCallMap">
         SELECT
-            id, run_id, user_id, phase, provider, model, credential_source, model_credential_id,
+            id, run_id, parent_id, user_id, phase, provider, model, credential_source, model_credential_id,
             prompt_tokens, completion_tokens, total_tokens, status, error_class,
             started_at, completed_at, latency_ms
         FROM agent_llm_call
@@ -235,7 +253,7 @@
     </select>
 
     <select id="selectToolCallsByRunId" resultMap="toolCallMap">
-        SELECT id, run_id, user_id, phase, tool_name, status, error_class, started_at, completed_at, latency_ms
+        SELECT id, run_id, parent_id, user_id, phase, tool_name, status, error_class, started_at, completed_at, latency_ms
         FROM agent_tool_call
         WHERE run_id = #{runId}
         ORDER BY started_at ASC, id ASC
@@ -243,7 +261,7 @@
 
     <select id="selectTraceEventsByRunId" resultMap="traceEventMap">
         SELECT
-            id, run_id, request_id, user_id, sequence_no, event_type, phase, status, metadata_json, occurred_at
+            id, run_id, parent_id, request_id, user_id, sequence_no, event_type, phase, status, metadata_json, occurred_at
         FROM agent_trace_event
         WHERE run_id = #{runId}
         ORDER BY occurred_at ASC, sequence_no ASC, id ASC

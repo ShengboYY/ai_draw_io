@@ -2,8 +2,10 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
+  buildLoginHref,
   hasLoginErrors,
   loginStatusDisplay,
+  resolvePostLoginRedirect,
   validateLoginForm,
 } from '../src/utils/login-form.ts';
 
@@ -51,4 +53,22 @@ test('loginStatusDisplay maps ANONYMOUS to an info hint', () => {
 test('loginStatusDisplay falls back to a generic error when status is null', () => {
   const display = loginStatusDisplay(null);
   assert.equal(display.variant, 'error');
+});
+
+test('resolvePostLoginRedirect returns the requested admin page after sign-in', () => {
+  assert.equal(resolvePostLoginRedirect('/admin'), '/admin');
+  assert.equal(resolvePostLoginRedirect('/admin/runs?status=FAILED'), '/admin/runs?status=FAILED');
+});
+
+test('resolvePostLoginRedirect falls back for unsafe or looping targets', () => {
+  assert.equal(resolvePostLoginRedirect(null), '/diagrams');
+  assert.equal(resolvePostLoginRedirect('https://evil.example/admin'), '/diagrams');
+  assert.equal(resolvePostLoginRedirect('//evil.example/admin'), '/diagrams');
+  assert.equal(resolvePostLoginRedirect('/login?returnTo=/admin'), '/diagrams');
+});
+
+test('buildLoginHref carries safe return targets into the login URL', () => {
+  assert.equal(buildLoginHref('/admin'), '/login?returnTo=%2Fadmin');
+  assert.equal(buildLoginHref('/admin/runs?status=FAILED'), '/login?returnTo=%2Fadmin%2Fruns%3Fstatus%3DFAILED');
+  assert.equal(buildLoginHref('https://evil.example/admin'), '/login');
 });

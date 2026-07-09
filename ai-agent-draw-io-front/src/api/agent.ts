@@ -28,6 +28,12 @@ import {
     CreateModelCredentialRequestDTO,
     ModelCredentialResponseDTO,
     ProviderPresetDTO,
+    AdminUsageDashboardDTO,
+    AdminRunMetadataDTO,
+    AdminRunDetailDTO,
+    AdminDebugTraceCaptureDTO,
+    AdminDebugTraceControlDTO,
+    AdminDebugTraceControlRequestDTO,
 } from '@/types/api';
 
 export class ApiResponseError extends Error {
@@ -235,6 +241,71 @@ export const agentApi = {
             credentials: 'include',
         });
         return handleResponse<CurrentAccountResponseDTO>(response);
+    },
+
+    // ── Admin telemetry / trace visualization (session cookie must belong to an admin) ──
+    adminUsage: async (): Promise<Response<AdminUsageDashboardDTO>> => {
+        const response = await fetch(`${API_CONFIG.BASE_URL}/admin/usage`, {
+            method: 'GET',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+        });
+        return handleResponse<AdminUsageDashboardDTO>(response);
+    },
+
+    adminListRuns: async (params?: {
+        status?: string;
+        userId?: string;
+        agentId?: string;
+        limit?: number;
+        offset?: number;
+    }): Promise<Response<AdminRunMetadataDTO[]>> => {
+        const query = new URLSearchParams();
+        if (params?.status) query.set('status', params.status);
+        if (params?.userId) query.set('userId', params.userId);
+        if (params?.agentId) query.set('agentId', params.agentId);
+        if (params?.limit != null) query.set('limit', String(params.limit));
+        if (params?.offset != null) query.set('offset', String(params.offset));
+        const qs = query.toString();
+        const response = await fetch(`${API_CONFIG.BASE_URL}/admin/runs${qs ? `?${qs}` : ''}`, {
+            method: 'GET',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+        });
+        return handleResponse<AdminRunMetadataDTO[]>(response);
+    },
+
+    adminRunDetail: async (runId: string): Promise<Response<AdminRunDetailDTO>> => {
+        const response = await fetch(`${API_CONFIG.BASE_URL}/admin/runs/${encodeURIComponent(runId)}`, {
+            method: 'GET',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+        });
+        return handleResponse<AdminRunDetailDTO>(response);
+    },
+
+    adminRunCaptures: async (runId: string): Promise<Response<AdminDebugTraceCaptureDTO[]>> => {
+        const response = await fetch(
+            `${API_CONFIG.BASE_URL}/admin/debug-traces/runs/${encodeURIComponent(runId)}/captures`,
+            {
+                method: 'GET',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+            },
+        );
+        return handleResponse<AdminDebugTraceCaptureDTO[]>(response);
+    },
+
+    adminEnableCapture: async (
+        payload: AdminDebugTraceControlRequestDTO,
+    ): Promise<Response<AdminDebugTraceControlDTO>> => {
+        const response = await fetch(`${API_CONFIG.BASE_URL}/admin/debug-traces/controls`, {
+            method: 'POST',
+            headers: await csrfHeaders({ 'Content-Type': 'application/json' }),
+            body: JSON.stringify(payload),
+            credentials: 'include',
+        });
+        return handleResponse<AdminDebugTraceControlDTO>(response);
     },
 
     listModelCredentials: async (): Promise<Response<ModelCredentialResponseDTO[]>> => {

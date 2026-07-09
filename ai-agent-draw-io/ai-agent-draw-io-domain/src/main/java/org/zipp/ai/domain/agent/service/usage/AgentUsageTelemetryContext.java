@@ -127,6 +127,7 @@ public final class AgentUsageTelemetryContext {
             String provider,
             String model,
             String phase,
+            String spanId,
             AtomicLong sequence
     ) {
         public RunContext(String runId,
@@ -139,18 +140,25 @@ public final class AgentUsageTelemetryContext {
                           String provider,
                           String model,
                           String phase) {
+            // The run is its own root span, so the initial spanId is the runId. Child spans
+            // (steps) re-bind via withSpan so their children parent onto them instead of the run.
             this(runId, requestId, userId, agentId, requestType, credentialSource,
-                    modelCredentialId, provider, model, phase, new AtomicLong());
+                    modelCredentialId, provider, model, phase, runId, new AtomicLong());
         }
 
         public RunContext withPhase(String nextPhase) {
             return new RunContext(runId, requestId, userId, agentId, requestType, credentialSource,
-                    modelCredentialId, provider, model, nextPhase, sequence);
+                    modelCredentialId, provider, model, nextPhase, spanId, sequence);
         }
 
         public RunContext withProviderModel(String nextProvider, String nextModel) {
             return new RunContext(runId, requestId, userId, agentId, requestType, credentialSource,
-                    modelCredentialId, nextProvider, nextModel, phase, sequence);
+                    modelCredentialId, nextProvider, nextModel, phase, spanId, sequence);
+        }
+
+        public RunContext withSpan(String nextSpanId) {
+            return new RunContext(runId, requestId, userId, agentId, requestType, credentialSource,
+                    modelCredentialId, provider, model, phase, nextSpanId, sequence);
         }
 
         public long nextSequenceNo() {

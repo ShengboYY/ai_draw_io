@@ -37,6 +37,10 @@ public interface IAgentUsageTelemetryStore {
 
     Optional<AgentRunDetail> findRunDetail(String runId);
 
+    default List<AgentRunTelemetry> listRuns(String status, String userId, String agentId, int limit, int offset) {
+        return List.of();
+    }
+
     default int anonymizeUser(String userId, String anonymizedUserId) {
         return 0;
     }
