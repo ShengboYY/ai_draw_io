@@ -64,6 +64,14 @@ management:
         ai.agent.llm.call.latency: true
         ai.agent.tool.call.latency: true
 
+zipp:
+  telemetry:
+    # Enable this on exactly one app instance, or run cleanup from a dedicated scheduler.
+    cleanup-enabled: ${ZIPP_TELEMETRY_CLEANUP_ENABLED:false}
+    retention-days: ${ZIPP_TELEMETRY_RETENTION_DAYS:30}
+    cleanup-cron: "${ZIPP_TELEMETRY_CLEANUP_CRON:0 30 3 * * *}"
+    delete-batch-size: ${ZIPP_TELEMETRY_DELETE_BATCH_SIZE:500}
+
 # MyBatis mapper 全量列表放这里，避免每份 profile 重复维护；profile 里可再叠加自定义。
 mybatis:
   mapper-locations:

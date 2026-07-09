@@ -38,9 +38,16 @@ public class AgentUsageTelemetryPlugin extends BasePlugin {
     @Override
     public Maybe<Content> beforeRunCallback(InvocationContext invocationContext) {
         if (invocationContext != null && invocationContext.session() != null) {
-            AgentUsageTelemetryContext.registerInvocation(
-                    invocationContext.invocationId(),
-                    invocationContext.session().state());
+            java.util.Map<String, Object> state = invocationContext.session().state();
+            AgentUsageTelemetryContext.registerInvocation(invocationContext.invocationId(), state);
+            // Read-once: the invocation is now keyed in our own registry, so drop the correlation
+            // token from ADK session state. Left in place it would linger for the whole conversation
+            // (and be persisted verbatim by any non-in-memory SessionService). A "temp:" prefix is
+            // not an option — ADK filters temp: keys out of session.state(), the very map we read
+            // the token back from, which would break correlation entirely.
+            if (state != null) {
+                state.remove(AgentUsageTelemetryContext.INVOCATION_STATE_TOKEN_KEY);
+            }
         }
         return super.beforeRunCallback(invocationContext);
     }

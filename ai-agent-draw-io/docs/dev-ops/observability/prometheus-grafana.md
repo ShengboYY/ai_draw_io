@@ -120,3 +120,21 @@ sum(rate(ai_agent_debug_trace_view_total[5m])) by (outcome)
 6. Add Prometheus as a Grafana data source.
 7. Create dashboard panels from the PromQL above.
 8. Configure alert routing, such as Slack, email, PagerDuty, or webhook.
+
+## Retention Cleanup
+
+Telemetry cleanup is disabled by default so multi-instance deployments do not all run the same
+database purge at once. Enable it on exactly one app instance, or run it from a dedicated scheduler:
+
+```bash
+ZIPP_TELEMETRY_CLEANUP_ENABLED=true
+```
+
+Useful knobs:
+
+- `ZIPP_TELEMETRY_RETENTION_DAYS`: default `30`
+- `ZIPP_TELEMETRY_CLEANUP_CRON`: default `0 30 3 * * *`
+- `ZIPP_TELEMETRY_DELETE_BATCH_SIZE`: default `500`
+
+The cleanup deletes expired telemetry by batches of run IDs. This avoids one large `DELETE` over all
+old rows and keeps database lock/log pressure bounded.

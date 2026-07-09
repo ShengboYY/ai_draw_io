@@ -64,13 +64,16 @@ public interface IAgentUsageTelemetryMapper {
     int anonymizeTraceEvents(@Param("userId") String userId,
                              @Param("anonymizedUserId") String anonymizedUserId);
 
-    int deleteTraceEventsBefore(@Param("cutoff") Date cutoff);
+    List<String> selectExpiredRunIds(@Param("cutoff") Date cutoff,
+                                     @Param("limit") int limit);
 
-    int deleteToolCallsBefore(@Param("cutoff") Date cutoff);
+    int deleteTraceEventsByRunIds(@Param("runIds") List<String> runIds);
 
-    int deleteLlmCallsBefore(@Param("cutoff") Date cutoff);
+    int deleteToolCallsByRunIds(@Param("runIds") List<String> runIds);
 
-    int deleteStepsBefore(@Param("cutoff") Date cutoff);
+    int deleteLlmCallsByRunIds(@Param("runIds") List<String> runIds);
 
-    int deleteRunsBefore(@Param("cutoff") Date cutoff);
+    int deleteStepsByRunIds(@Param("runIds") List<String> runIds);
+
+    int deleteRunsByIds(@Param("runIds") List<String> runIds);
 }

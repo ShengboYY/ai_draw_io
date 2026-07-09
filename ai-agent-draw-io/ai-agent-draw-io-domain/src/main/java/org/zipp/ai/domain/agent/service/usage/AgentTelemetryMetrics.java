@@ -67,10 +67,11 @@ public class AgentTelemetryMetrics {
                               Integer promptTokens,
                               Integer completionTokens,
                               Integer totalTokens) {
+        String modelTag = modelTag(credentialSource, model);
         Tags callTags = Tags.of(
                 "phase", lowCardinalityTag(phase),
                 "provider", lowCardinalityTag(provider),
-                "model", lowCardinalityTag(model),
+                "model", modelTag,
                 "credential_source", lowCardinalityTag(credentialSource),
                 "status", lowCardinalityTag(status));
         increment("ai.agent.llm.call", callTags, 1D);
@@ -80,7 +81,7 @@ public class AgentTelemetryMetrics {
 
         Tags tokenTags = Tags.of(
                 "provider", lowCardinalityTag(provider),
-                "model", lowCardinalityTag(model),
+                "model", modelTag,
                 "credential_source", lowCardinalityTag(credentialSource));
         incrementTokens(tokenTags, "prompt", promptTokens);
         incrementTokens(tokenTags, "completion", completionTokens);
@@ -138,6 +139,17 @@ public class AgentTelemetryMetrics {
                 .publishPercentileHistogram()
                 .register(registry)
                 .record(Duration.ofMillis(Math.max(0L, latencyMs)));
+    }
+
+    private String modelTag(String credentialSource, String model) {
+        // User-supplied credentials can name an arbitrary model string per request; using it as a raw
+        // tag would grow Prometheus series without bound. Platform models are operator-controlled and
+        // bounded, so keep those and collapse every user-keyed model into a single "custom" bucket.
+        // The exact model still lives in the DB telemetry, where cardinality is free.
+        if (AgentUsageTelemetryService.USER_KEY.equalsIgnoreCase(StringUtils.trimToEmpty(credentialSource))) {
+            return "custom";
+        }
+        return lowCardinalityTag(model);
     }
 
     private String lowCardinalityTag(String value) {

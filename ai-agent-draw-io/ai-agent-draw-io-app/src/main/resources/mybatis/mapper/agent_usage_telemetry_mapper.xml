@@ -281,46 +281,53 @@
         WHERE user_id = #{userId}
     </update>
 
-    <delete id="deleteTraceEventsBefore">
-        DELETE FROM agent_trace_event
-        WHERE run_id IN (
-            SELECT id FROM agent_run
-            WHERE completed_at IS NOT NULL
-              AND completed_at &lt; #{cutoff}
-        )
-    </delete>
-
-    <delete id="deleteToolCallsBefore">
-        DELETE FROM agent_tool_call
-        WHERE run_id IN (
-            SELECT id FROM agent_run
-            WHERE completed_at IS NOT NULL
-              AND completed_at &lt; #{cutoff}
-        )
-    </delete>
-
-    <delete id="deleteLlmCallsBefore">
-        DELETE FROM agent_llm_call
-        WHERE run_id IN (
-            SELECT id FROM agent_run
-            WHERE completed_at IS NOT NULL
-              AND completed_at &lt; #{cutoff}
-        )
-    </delete>
-
-    <delete id="deleteStepsBefore">
-        DELETE FROM agent_run_step
-        WHERE run_id IN (
-            SELECT id FROM agent_run
-            WHERE completed_at IS NOT NULL
-              AND completed_at &lt; #{cutoff}
-        )
-    </delete>
-
-    <delete id="deleteRunsBefore">
-        DELETE FROM agent_run
+    <select id="selectExpiredRunIds" resultType="java.lang.String">
+        SELECT id
+        FROM agent_run
         WHERE completed_at IS NOT NULL
           AND completed_at &lt; #{cutoff}
+        ORDER BY completed_at ASC, id ASC
+        LIMIT #{limit}
+    </select>
+
+    <delete id="deleteTraceEventsByRunIds">
+        DELETE FROM agent_trace_event
+        WHERE run_id IN
+        <foreach collection="runIds" item="runId" open="(" separator="," close=")">
+            #{runId}
+        </foreach>
+    </delete>
+
+    <delete id="deleteToolCallsByRunIds">
+        DELETE FROM agent_tool_call
+        WHERE run_id IN
+        <foreach collection="runIds" item="runId" open="(" separator="," close=")">
+            #{runId}
+        </foreach>
+    </delete>
+
+    <delete id="deleteLlmCallsByRunIds">
+        DELETE FROM agent_llm_call
+        WHERE run_id IN
+        <foreach collection="runIds" item="runId" open="(" separator="," close=")">
+            #{runId}
+        </foreach>
+    </delete>
+
+    <delete id="deleteStepsByRunIds">
+        DELETE FROM agent_run_step
+        WHERE run_id IN
+        <foreach collection="runIds" item="runId" open="(" separator="," close=")">
+            #{runId}
+        </foreach>
+    </delete>
+
+    <delete id="deleteRunsByIds">
+        DELETE FROM agent_run
+        WHERE id IN
+        <foreach collection="runIds" item="runId" open="(" separator="," close=")">
+            #{runId}
+        </foreach>
     </delete>
 
 </mapper>

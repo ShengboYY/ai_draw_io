@@ -144,12 +144,6 @@ public class AgentUsageTelemetryService {
                 StringUtils.defaultIfBlank(model, runScope.context.model())), runScope.startedAt);
     }
 
-    public void bindSession(String sessionId, RunScope runScope) {
-        if (runScope != null) {
-            AgentUsageTelemetryContext.bindSession(sessionId, runScope.context);
-        }
-    }
-
     public void completeRun(RunScope runScope, Throwable error) {
         if (runScope == null) {
             return;

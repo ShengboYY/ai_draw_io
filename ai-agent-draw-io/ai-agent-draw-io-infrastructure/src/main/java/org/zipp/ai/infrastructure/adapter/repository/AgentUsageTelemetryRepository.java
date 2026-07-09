@@ -1,6 +1,7 @@
 package org.zipp.ai.infrastructure.adapter.repository;
 
 import org.apache.commons.lang3.StringUtils;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Repository;
 import org.zipp.ai.domain.agent.model.valobj.usage.AgentRunStepTelemetry;
 import org.zipp.ai.domain.agent.model.valobj.usage.AgentRunTelemetry;
@@ -34,6 +35,9 @@ public class AgentUsageTelemetryRepository implements IAgentUsageTelemetryStore 
 
     @Resource
     private IAgentUsageTelemetryMapper agentUsageTelemetryMapper;
+
+    @Value("${zipp.telemetry.delete-batch-size:500}")
+    private int deleteBatchSize;
 
     @Override
     public void insertRun(AgentRunTelemetry run) {
@@ -159,11 +163,23 @@ public class AgentUsageTelemetryRepository implements IAgentUsageTelemetryStore 
             return 0;
         }
         Date cutoffDate = toDate(cutoff);
-        return agentUsageTelemetryMapper.deleteTraceEventsBefore(cutoffDate)
-                + agentUsageTelemetryMapper.deleteToolCallsBefore(cutoffDate)
-                + agentUsageTelemetryMapper.deleteLlmCallsBefore(cutoffDate)
-                + agentUsageTelemetryMapper.deleteStepsBefore(cutoffDate)
-                + agentUsageTelemetryMapper.deleteRunsBefore(cutoffDate);
+        int batchSize = Math.max(1, deleteBatchSize);
+        int deleted = 0;
+        while (true) {
+            List<String> runIds = agentUsageTelemetryMapper.selectExpiredRunIds(cutoffDate, batchSize);
+            if (runIds == null || runIds.isEmpty()) {
+                return deleted;
+            }
+            int batchDeleted = agentUsageTelemetryMapper.deleteTraceEventsByRunIds(runIds)
+                    + agentUsageTelemetryMapper.deleteToolCallsByRunIds(runIds)
+                    + agentUsageTelemetryMapper.deleteLlmCallsByRunIds(runIds)
+                    + agentUsageTelemetryMapper.deleteStepsByRunIds(runIds)
+                    + agentUsageTelemetryMapper.deleteRunsByIds(runIds);
+            deleted += batchDeleted;
+            if (runIds.size() < batchSize || batchDeleted == 0) {
+                return deleted;
+            }
+        }
     }
 
     private AgentRunTelemetryPO toPo(AgentRunTelemetry run) {

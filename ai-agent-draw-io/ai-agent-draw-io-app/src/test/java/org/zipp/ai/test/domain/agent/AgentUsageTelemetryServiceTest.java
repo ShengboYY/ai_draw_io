@@ -200,6 +200,49 @@ public class AgentUsageTelemetryServiceTest {
         }
     }
 
+    @Test
+    public void shouldBucketUserSuppliedModelToCustomButKeepPlatformModel() {
+        FakeAgentUsageTelemetryStore store = new FakeAgentUsageTelemetryStore();
+        SimpleMeterRegistry registry = new SimpleMeterRegistry();
+        AgentUsageTelemetryService service = new AgentUsageTelemetryService(
+                store,
+                Clock.fixed(Instant.parse("2026-07-02T12:00:00Z"), ZoneOffset.UTC),
+                AgentUsageTelemetryService.TelemetryWriteExecutor.direct(),
+                new AgentTelemetryMetrics(registry));
+
+        // User-supplied credential: an arbitrary per-request model string must collapse to "custom"
+        // so it cannot blow up Prometheus series cardinality.
+        AgentUsageTelemetryService.RunScope userRun = service.startRun(
+                "aru_user", "req-1", "usr_alice", "300000", "session-user", "chat_stream",
+                "USER_KEY", "mcr_secret", "openai", "some-random-user-model");
+        try (AgentUsageTelemetryContext.Scope ignored = AgentUsageTelemetryContext.bind(userRun.getContext())) {
+            service.recordLlmCall("routing", "openai", "some-random-user-model", 50L, 10, 20, 30, null);
+        }
+
+        // Platform credential: operator-controlled and bounded, so the real model is preserved.
+        AgentUsageTelemetryService.RunScope platformRun = service.startRun(
+                "aru_plat", "req-2", "usr_bob", "300000", "session-plat", "chat_stream",
+                "PLATFORM", null, "openai", "gpt-5.5");
+        try (AgentUsageTelemetryContext.Scope ignored = AgentUsageTelemetryContext.bind(platformRun.getContext())) {
+            service.recordLlmCall("routing", "openai", "gpt-5.5", 50L, 10, 20, 30, null);
+        }
+
+        assertEquals(1D, registry.get("ai.agent.llm.call")
+                .tag("credential_source", "user_key")
+                .tag("model", "custom")
+                .counter().count(), 0.001D);
+        assertEquals(1D, registry.get("ai.agent.llm.call")
+                .tag("credential_source", "platform")
+                .tag("model", "gpt-5.5")
+                .counter().count(), 0.001D);
+
+        // The arbitrary user model string must never surface as a metric tag value.
+        for (Meter meter : registry.getMeters()) {
+            meter.getId().getTags().forEach(tag ->
+                    assertFalse(tag.getValue().contains("some-random-user-model")));
+        }
+    }
+
     private AgentUsageTelemetryService service(FakeAgentUsageTelemetryStore store) {
         return new AgentUsageTelemetryService(
                 store,

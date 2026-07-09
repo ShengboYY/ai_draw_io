@@ -2,6 +2,7 @@ package org.zipp.ai.domain.agent.service.usage;
 
 import org.apache.commons.lang3.StringUtils;
 
+import java.time.Duration;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
@@ -13,8 +14,14 @@ public final class AgentUsageTelemetryContext {
 
     private static final ThreadLocal<RunContext> CURRENT = new ThreadLocal<>();
     public static final String INVOCATION_STATE_TOKEN_KEY = "zipp.telemetry.runContextToken";
-    private static final ConcurrentMap<String, RunContext> TOKEN_CONTEXTS = new ConcurrentHashMap<>();
+    private static final ConcurrentMap<String, TokenEntry> TOKEN_CONTEXTS = new ConcurrentHashMap<>();
     private static final ConcurrentMap<String, InvocationBinding> INVOCATION_CONTEXTS = new ConcurrentHashMap<>();
+    // Defensive backstop. These maps are cleared per run (clearInvocation on afterRunCallback plus
+    // InvocationState.close on the ADK flow's doFinally). A future caller that mints an invocation
+    // state but never subscribes/terminates the flow could otherwise leak entries forever, so once
+    // either map grows past a soft threshold we drop entries older than any plausible run.
+    private static final int SWEEP_THRESHOLD = 1_024;
+    private static final long MAX_AGE_NANOS = Duration.ofMinutes(30).toNanos();
 
     private AgentUsageTelemetryContext() {
     }
@@ -43,25 +50,13 @@ public final class AgentUsageTelemetryContext {
         return Optional.ofNullable(CURRENT.get());
     }
 
-    public static Optional<RunContext> resolve(String sessionId) {
-        return Optional.empty();
-    }
-
-    public static void bindSession(String sessionId, RunContext context) {
-    }
-
-    public static void inheritCurrentToSession(String sessionId) {
-    }
-
-    public static void clearSession(String sessionId) {
-    }
-
     public static InvocationState newInvocationState(RunContext context) {
         if (context == null) {
             return InvocationState.empty();
         }
+        sweepStaleEntries();
         String token = "ait_" + UUID.randomUUID();
-        TOKEN_CONTEXTS.put(token, context);
+        TOKEN_CONTEXTS.put(token, new TokenEntry(context, System.nanoTime()));
         return new InvocationState(token, Map.of(INVOCATION_STATE_TOKEN_KEY, token));
     }
 
@@ -72,10 +67,19 @@ public final class AgentUsageTelemetryContext {
         if (id == null || token == null) {
             return;
         }
-        RunContext context = TOKEN_CONTEXTS.get(token);
-        if (context != null) {
-            INVOCATION_CONTEXTS.put(id, new InvocationBinding(token, context));
+        TokenEntry entry = TOKEN_CONTEXTS.get(token);
+        if (entry != null) {
+            INVOCATION_CONTEXTS.put(id, new InvocationBinding(token, entry.context(), System.nanoTime()));
         }
+    }
+
+    private static void sweepStaleEntries() {
+        if (TOKEN_CONTEXTS.size() < SWEEP_THRESHOLD && INVOCATION_CONTEXTS.size() < SWEEP_THRESHOLD) {
+            return;
+        }
+        long now = System.nanoTime();
+        TOKEN_CONTEXTS.entrySet().removeIf(entry -> now - entry.getValue().createdNanos() > MAX_AGE_NANOS);
+        INVOCATION_CONTEXTS.entrySet().removeIf(entry -> now - entry.getValue().createdNanos() > MAX_AGE_NANOS);
     }
 
     public static Optional<RunContext> resolveInvocation(String invocationId) {
@@ -154,7 +158,10 @@ public final class AgentUsageTelemetryContext {
         }
     }
 
-    private record InvocationBinding(String token, RunContext context) {
+    private record TokenEntry(RunContext context, long createdNanos) {
+    }
+
+    private record InvocationBinding(String token, RunContext context, long createdNanos) {
     }
 
     public record InvocationState(String token, Map<String, Object> stateDelta) implements AutoCloseable {
