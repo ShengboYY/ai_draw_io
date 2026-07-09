@@ -17,7 +17,6 @@ import { buildLoginHref } from '@/utils/login-form';
 import {
   barColor,
   buildWaterfall,
-  diagramPreviewHasImage,
   diagramPreviewMeta,
   diagramPreviewTitle,
   formatCost,
@@ -66,6 +65,8 @@ export default function AdminRunDetailPage() {
 
   const [trace, setTrace] = useState<AdminDiagramTraceDTO | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedSnapshotId, setSelectedSnapshotId] = useState<string | null>(null);
+  const [playingReplay, setPlayingReplay] = useState(false);
   const [loading, setLoading] = useState(true);
   const [forbidden, setForbidden] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -137,12 +138,43 @@ export default function AdminRunDetailPage() {
   const spans = useMemo(() => trace?.spans || [], [trace]);
   const findings = useMemo(() => trace?.findings || [], [trace]);
   const snapshots = useMemo(() => trace?.snapshots || [], [trace]);
+  const replayActive = playingReplay && snapshots.length > 0;
   const rows = useMemo(() => buildWaterfall(spans), [spans]);
 
   const selected: AdminDiagramTraceSpanDTO | undefined = useMemo(
     () => spans.find((e) => e.id === selectedId),
     [spans, selectedId],
   );
+
+  const activeSnapshot: AdminDiagramSnapshotDTO | undefined = useMemo(() => {
+    if (selectedSnapshotId) {
+      const snapshot = snapshots.find((item) => item.id === selectedSnapshotId);
+      if (snapshot) return snapshot;
+    }
+    if (selected?.id) {
+      return snapshots.find((snapshot) => snapshot.spanId === selected.id);
+    }
+    return undefined;
+  }, [selected, selectedSnapshotId, snapshots]);
+
+  useEffect(() => {
+    if (!replayActive) {
+      return;
+    }
+    // Replay advances the selected snapshot and keeps the span inspector in sync.
+    const timer = window.setInterval(() => {
+      setSelectedSnapshotId((currentId) => {
+        const currentIndex = snapshots.findIndex((snapshot) => snapshot.id === currentId);
+        const nextIndex = currentIndex >= 0 ? (currentIndex + 1) % snapshots.length : 0;
+        const next = snapshots[nextIndex];
+        if (next?.spanId) {
+          setSelectedId(next.spanId);
+        }
+        return next?.id || null;
+      });
+    }, 1200);
+    return () => window.clearInterval(timer);
+  }, [replayActive, snapshots]);
 
   const totalTokens = useMemo(
     () => trace?.summary?.totalTokens ?? spans.reduce((sum, c) => sum + (c.totalTokens || 0), 0),
@@ -170,6 +202,16 @@ export default function AdminRunDetailPage() {
       })
       .catch((e) => setCaptureNote(e instanceof Error ? e.message : 'Failed to load payloads'))
       .finally(() => setCapturesLoading(false));
+  };
+
+  const selectTraceSpan = (spanId: string) => {
+    setSelectedId(spanId);
+    const snapshot = snapshots.find((item) => item.spanId === spanId);
+    if (snapshot?.id) {
+      setSelectedSnapshotId(snapshot.id);
+    } else {
+      setSelectedSnapshotId(null);
+    }
   };
 
   const enableCapture = () => {
@@ -314,7 +356,7 @@ export default function AdminRunDetailPage() {
                     return (
                       <button
                         key={event.id}
-                        onClick={() => setSelectedId(event.id)}
+                        onClick={() => selectTraceSpan(event.id)}
                         className={`flex items-center gap-2 rounded px-1 text-left text-xs ${
                           isSel ? 'bg-neutral-100' : 'hover:bg-neutral-50'
                         } ${rowView.compact ? 'py-0' : 'py-0.5'} ${
@@ -356,11 +398,20 @@ export default function AdminRunDetailPage() {
               <DiagramSnapshotPanel
                 linkedDiagramId={run.diagramId}
                 diagram={currentDiagram}
+                snapshot={activeSnapshot || null}
                 loading={currentDiagramLoading}
                 note={currentDiagramNote}
+                onClearSnapshot={() => setSelectedSnapshotId(null)}
               />
 
-              <EvolutionFilmstrip snapshots={snapshots} setSelectedId={setSelectedId} />
+              <EvolutionFilmstrip
+                snapshots={snapshots}
+                activeSnapshotId={activeSnapshot?.id}
+                playingReplay={replayActive}
+                setPlayingReplay={setPlayingReplay}
+                setSelectedId={setSelectedId}
+                setSelectedSnapshotId={setSelectedSnapshotId}
+              />
 
               {/* Span detail panel */}
               <div className="rounded-xl border border-neutral-200 p-4">
@@ -604,16 +655,34 @@ function findingSeverityClass(severity?: string): string {
 
 function EvolutionFilmstrip({
   snapshots,
+  activeSnapshotId,
+  playingReplay,
+  setPlayingReplay,
   setSelectedId,
+  setSelectedSnapshotId,
 }: {
   snapshots: AdminDiagramSnapshotDTO[];
+  activeSnapshotId?: string;
+  playingReplay: boolean;
+  setPlayingReplay: (playing: boolean) => void;
   setSelectedId: (spanId: string) => void;
+  setSelectedSnapshotId: (snapshotId: string | null) => void;
 }) {
   return (
     <div className="rounded-xl border border-neutral-200 p-4">
       <div className="mb-3 flex items-center justify-between gap-3">
         <h2 className="text-sm font-medium text-neutral-700">Evolution Filmstrip</h2>
-        <span className="text-xs text-neutral-400">{formatNumber(snapshots.length)}</span>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setPlayingReplay(!playingReplay)}
+            disabled={snapshots.length === 0}
+            className="rounded-md border border-neutral-200 px-2 py-1 text-xs text-neutral-600 hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            {playingReplay ? 'Pause' : 'Play'}
+          </button>
+          <span className="text-xs text-neutral-400">{formatNumber(snapshots.length)}</span>
+        </div>
       </div>
 
       {snapshots.length === 0 ? (
@@ -624,8 +693,19 @@ function EvolutionFilmstrip({
             <button
               key={snapshot.id || `${snapshot.diagramId || 'snapshot'}-${index}`}
               type="button"
-              onClick={() => snapshot.spanId && setSelectedId(snapshot.spanId)}
-              className="min-w-44 rounded-lg border border-neutral-100 bg-neutral-50 p-2 text-left hover:border-neutral-200 hover:bg-white"
+              onClick={() => {
+                if (snapshot.id) {
+                  setSelectedSnapshotId(snapshot.id);
+                }
+                if (snapshot.spanId) {
+                  setSelectedId(snapshot.spanId);
+                }
+              }}
+              className={`min-w-44 rounded-lg border p-2 text-left hover:border-neutral-300 hover:bg-white ${
+                snapshot.id && snapshot.id === activeSnapshotId
+                  ? 'border-blue-200 bg-blue-50'
+                  : 'border-neutral-100 bg-neutral-50'
+              }`}
             >
               <div className="flex items-center justify-between gap-2">
                 <span className="text-xs font-medium text-neutral-700">
@@ -662,29 +742,52 @@ function EvolutionFilmstrip({
 function DiagramSnapshotPanel({
   linkedDiagramId,
   diagram,
+  snapshot,
   loading,
   note,
+  onClearSnapshot,
 }: {
   linkedDiagramId?: string;
   diagram: DiagramCanvasStateResponseDTO | null;
+  snapshot?: AdminDiagramSnapshotDTO | null;
   loading: boolean;
   note: string | null;
+  onClearSnapshot?: () => void;
 }) {
-  const previewText = diagram?.currentXml || diagram?.summary || '';
+  const previewText = snapshot
+    ? snapshot.summary || snapshot.canvasHash || ''
+    : diagram?.currentXml || diagram?.summary || '';
   const [zoomOpen, setZoomOpen] = useState(false);
-  const thumbnailUrl = diagram?.thumbnailUrl?.trim() || '';
-  const canZoom = diagramPreviewHasImage(diagram);
-  const title = diagram ? diagramPreviewTitle(diagram) : linkedDiagramId || 'No linked diagram';
-  const meta = diagram ? diagramPreviewMeta(diagram) : linkedDiagramId || '—';
+  const thumbnailUrl = snapshot ? snapshot.thumbnailUrl?.trim() || '' : diagram?.thumbnailUrl?.trim() || '';
+  const canZoom = Boolean(thumbnailUrl);
+  const title = snapshot
+    ? snapshotPreviewTitle(snapshot)
+    : diagram
+      ? diagramPreviewTitle(diagram)
+      : linkedDiagramId || 'No linked diagram';
+  const meta = snapshot
+    ? snapshotPreviewMeta(snapshot)
+    : diagram
+      ? diagramPreviewMeta(diagram)
+      : linkedDiagramId || '—';
 
   return (
     <div className="rounded-xl border border-neutral-200 p-4">
       <div className="mb-3 flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <div className="text-xs text-neutral-400">Diagram Outcome</div>
+          <div className="text-xs text-neutral-400">{snapshot ? 'Diagram Replay' : 'Diagram Outcome'}</div>
           <div className="mt-0.5 truncate text-base font-medium text-neutral-900">{title}</div>
           <div className="mt-0.5 font-mono text-xs text-neutral-400">{meta}</div>
         </div>
+        {snapshot && onClearSnapshot && (
+          <button
+            type="button"
+            onClick={onClearSnapshot}
+            className="shrink-0 rounded-md border border-neutral-200 px-2 py-1 text-xs text-neutral-600 hover:bg-neutral-50"
+          >
+            Current
+          </button>
+        )}
       </div>
 
       {loading && <div className="py-8 text-center text-sm text-neutral-400">Loading diagram…</div>}
@@ -710,7 +813,7 @@ function DiagramSnapshotPanel({
         </button>
       )}
 
-      {!loading && diagram && !diagram.thumbnailUrl && (
+      {!loading && (snapshot || diagram) && !thumbnailUrl && (
         <pre className="max-h-56 overflow-auto whitespace-pre-wrap break-words rounded-lg bg-neutral-50 p-2 text-xs text-neutral-600">
           {previewText || 'No canvas XML.'}
         </pre>
@@ -758,6 +861,20 @@ function DiagramSnapshotPanel({
       )}
     </div>
   );
+}
+
+function snapshotPreviewTitle(snapshot: AdminDiagramSnapshotDTO): string {
+  if (snapshot.version != null) return `Snapshot v${snapshot.version}`;
+  return snapshot.diagramId || 'Diagram snapshot';
+}
+
+function snapshotPreviewMeta(snapshot: AdminDiagramSnapshotDTO): string {
+  const parts = [
+    snapshot.diagramId,
+    snapshot.canvasHash ? `hash ${snapshot.canvasHash}` : undefined,
+    snapshot.createdAt ? formatTime(snapshot.createdAt) : undefined,
+  ].filter(Boolean);
+  return parts.join(' · ') || 'snapshot';
 }
 
 function prettyJson(raw: string): string {

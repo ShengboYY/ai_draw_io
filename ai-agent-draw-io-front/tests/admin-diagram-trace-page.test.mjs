@@ -47,3 +47,11 @@ test('admin run detail shows P4 diagram snapshot filmstrip', () => {
   assert.match(pageSource, /snapshot\.spanId/);
   assert.match(pageSource, /snapshot\.canvasHash/);
 });
+
+test('admin run detail supports P5 snapshot replay in the diagram preview', () => {
+  assert.match(pageSource, /selectedSnapshotId/);
+  assert.match(pageSource, /playingReplay/);
+  assert.match(pageSource, /activeSnapshot/);
+  assert.match(pageSource, /setSelectedSnapshotId\(snapshot\.id/);
+  assert.match(pageSource, /setPlayingReplay/);
+});
