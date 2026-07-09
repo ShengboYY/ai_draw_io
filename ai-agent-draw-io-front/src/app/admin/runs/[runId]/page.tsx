@@ -41,6 +41,20 @@ function Stat({ label, value, bad }: { label: string; value: string; bad?: boole
   );
 }
 
+function SummaryCard({ label, value, meta }: { label: string; value: string; meta: string }) {
+  return (
+    <div className="rounded-lg border border-neutral-200 bg-white px-4 py-3">
+      <div className="text-xs text-neutral-400">{label}</div>
+      <div className="mt-1 truncate text-sm font-medium text-neutral-900" title={value}>
+        {value}
+      </div>
+      <div className="mt-1 truncate font-mono text-xs text-neutral-400" title={meta}>
+        {meta}
+      </div>
+    </div>
+  );
+}
+
 export default function AdminRunDetailPage() {
   const params = useParams<{ runId: string }>();
   const pathname = usePathname();
@@ -198,6 +212,19 @@ export default function AdminRunDetailPage() {
   const currentDiagram = currentDiagramResult?.diagram || null;
   const currentDiagramNote = currentDiagramResult?.note || null;
   const currentDiagramLoading = Boolean(run?.diagramId && !currentDiagramResult);
+  const diagramOutcomeTitle = currentDiagram
+    ? diagramPreviewTitle(currentDiagram)
+    : run?.diagramId || 'No linked diagram';
+  const diagramOutcomeMeta = currentDiagram
+    ? diagramPreviewMeta(currentDiagram)
+    : currentDiagramLoading
+      ? 'Loading snapshot'
+      : run?.diagramId
+        ? 'Linked diagram'
+        : 'No saved canvas snapshot';
+  const routeMeta = `${formatNumber(run?.stepCount ?? detail?.steps?.length)} steps · ${formatNumber(
+    run?.llmCallCount ?? detail?.llmCalls?.length,
+  )} llm · ${formatNumber(run?.toolCallCount ?? detail?.toolCalls?.length)} tools`;
 
   return (
     <div className="mx-auto max-w-6xl px-6 py-8">
@@ -212,41 +239,78 @@ export default function AdminRunDetailPage() {
 
       {run && !loading && (
         <>
-          <div className="mb-3 flex flex-wrap items-center gap-2">
-            <span className="font-mono text-sm text-neutral-500">{run.id}</span>
-            <span className={`rounded-md border px-2 py-0.5 text-xs ${statusPill(run.status)}`}>
-              {(run.status || '—').toLowerCase()}
-            </span>
-            {run.agentId && (
-              <span className="rounded-md border border-blue-200 bg-blue-50 px-2 py-0.5 text-xs text-blue-700">
-                {run.agentId}
-              </span>
-            )}
-            {run.requestType && (
-              <span className="text-xs text-neutral-400">{run.requestType}</span>
-            )}
-            {run.diagramId && (
-              <span className="rounded-md border border-neutral-200 bg-neutral-50 px-2 py-0.5 font-mono text-xs text-neutral-500">
-                {run.diagramId}
-              </span>
-            )}
-          </div>
+          <div className="mb-6">
+            <div className="flex flex-wrap items-end justify-between gap-4">
+              <div className="min-w-0">
+                <div className="text-xs font-medium text-neutral-400">Admin observability</div>
+                <h1 className="mt-1 text-2xl font-semibold text-neutral-950">Diagram Trace</h1>
+                <div className="mt-3 flex flex-wrap items-center gap-2">
+                  <span className="font-mono text-sm text-neutral-500">{run.id}</span>
+                  <span className={`rounded-md border px-2 py-0.5 text-xs ${statusPill(run.status)}`}>
+                    {(run.status || '—').toLowerCase()}
+                  </span>
+                  {run.agentId && (
+                    <span className="rounded-md border border-blue-200 bg-blue-50 px-2 py-0.5 text-xs text-blue-700">
+                      {run.agentId}
+                    </span>
+                  )}
+                  {run.requestType && (
+                    <span className="rounded-md border border-neutral-200 bg-neutral-50 px-2 py-0.5 text-xs text-neutral-500">
+                      {run.requestType}
+                    </span>
+                  )}
+                  {run.diagramId && (
+                    <span className="rounded-md border border-neutral-200 bg-neutral-50 px-2 py-0.5 font-mono text-xs text-neutral-500">
+                      {run.diagramId}
+                    </span>
+                  )}
+                </div>
+              </div>
+              <div className="text-left text-xs text-neutral-400 sm:text-right">
+                <div>Started</div>
+                <div className="mt-1 font-mono text-neutral-500">{formatTime(run.startedAt)}</div>
+              </div>
+            </div>
 
-          <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-6">
-            <Stat label="Latency" value={formatMs(run.latencyMs)} />
-            <Stat label="LLM calls" value={formatNumber(detail?.llmCalls?.length)} />
-            <Stat label="Tool calls" value={formatNumber(detail?.toolCalls?.length)} />
-            <Stat label="Tokens" value={formatNumber(totalTokens)} />
-            <Stat label="Est. cost" value={formatCost(totalCost)} />
-            <Stat label="Error" value={run.errorClass || '—'} bad={isFailed(run.status)} />
+            {/* P0 frames the existing run data as a diagram-specific trace without changing telemetry semantics. */}
+            <div className="mt-5 flex flex-wrap items-center justify-between gap-2">
+              <h2 className="text-sm font-medium text-neutral-700">Trace Summary</h2>
+              <span className="text-xs text-neutral-400">Request → Agent route → Diagram outcome</span>
+            </div>
+            <div className="mt-2 grid grid-cols-1 gap-3 md:grid-cols-3">
+              <SummaryCard
+                label="Request"
+                value={run.requestType || 'Unknown request'}
+                meta={run.requestId ? `request ${run.requestId}` : 'No request id'}
+              />
+              <SummaryCard
+                label="Agent route"
+                value={run.agentId || 'Unknown agent'}
+                meta={routeMeta}
+              />
+              <SummaryCard
+                label="Diagram outcome"
+                value={diagramOutcomeTitle}
+                meta={diagramOutcomeMeta}
+              />
+            </div>
+
+            <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-6">
+              <Stat label="Latency" value={formatMs(run.latencyMs)} />
+              <Stat label="LLM calls" value={formatNumber(detail?.llmCalls?.length)} />
+              <Stat label="Tool calls" value={formatNumber(detail?.toolCalls?.length)} />
+              <Stat label="Tokens" value={formatNumber(totalTokens)} />
+              <Stat label="Est. cost" value={formatCost(totalCost)} />
+              <Stat label="Error" value={run.errorClass || '—'} bad={isFailed(run.status)} />
+            </div>
           </div>
 
           <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1.45fr_1fr]">
             {/* Waterfall */}
             <div className="rounded-xl border border-neutral-200 p-3">
-              <div className="mb-2 flex items-center justify-between text-xs text-neutral-400">
-                <span>timeline (waterfall)</span>
-                <span>{formatMs(run.latencyMs)} total</span>
+              <div className="mb-2 flex items-center justify-between gap-3">
+                <h2 className="text-sm font-medium text-neutral-700">Diagram Trace Timeline</h2>
+                <span className="text-xs text-neutral-400">{formatMs(run.latencyMs)} total</span>
               </div>
               {rows.length === 0 ? (
                 <div className="py-8 text-center text-sm text-neutral-400">No spans recorded.</div>
@@ -307,9 +371,10 @@ export default function AdminRunDetailPage() {
 
               {/* Span detail panel */}
               <div className="rounded-xl border border-neutral-200 p-4">
+                <h2 className="mb-3 text-sm font-medium text-neutral-700">Trace Inspector</h2>
                 {!selected ? (
                   <div className="py-8 text-center text-sm text-neutral-400">
-                    Select a span to inspect it.
+                    Select a trace item to inspect it.
                   </div>
                 ) : (
                   <div className="text-sm">
@@ -365,10 +430,10 @@ export default function AdminRunDetailPage() {
             </div>
           </div>
 
-          {/* Captured payloads (opt-in, retention-gated) */}
+          {/* Captured payload evidence remains retention-gated and loaded only on demand. */}
           <div className="mt-4 rounded-xl border border-neutral-200 p-4">
             <div className="mb-2 flex items-center justify-between">
-              <h2 className="text-sm font-medium text-neutral-700">Captured payloads</h2>
+              <h2 className="text-sm font-medium text-neutral-700">Payload Evidence</h2>
               {captures === null && (
                 <button
                   onClick={loadCaptures}
@@ -457,7 +522,7 @@ function DiagramSnapshotPanel({
     <div className="rounded-xl border border-neutral-200 p-4">
       <div className="mb-3 flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <div className="text-xs text-neutral-400">diagram</div>
+          <div className="text-xs text-neutral-400">Diagram Outcome</div>
           <div className="mt-0.5 truncate text-base font-medium text-neutral-900">{title}</div>
           <div className="mt-0.5 font-mono text-xs text-neutral-400">{meta}</div>
         </div>
