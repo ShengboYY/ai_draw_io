@@ -5,11 +5,9 @@ import Link from 'next/link';
 import { useParams, usePathname, useRouter } from 'next/navigation';
 import { agentApi, ApiResponseError } from '@/api/agent';
 import type {
+  AdminDiagramTraceDTO,
+  AdminDiagramTraceSpanDTO,
   AdminDebugTraceCaptureDTO,
-  AdminLlmCallDTO,
-  AdminRunDetailDTO,
-  AdminRunTimelineEventDTO,
-  AdminToolCallDTO,
   DiagramCanvasStateResponseDTO,
 } from '@/types/api';
 import { buildLoginHref } from '@/utils/login-form';
@@ -19,7 +17,6 @@ import {
   diagramPreviewHasImage,
   diagramPreviewMeta,
   diagramPreviewTitle,
-  estCostUsd,
   formatCost,
   formatMs,
   formatNumber,
@@ -27,6 +24,8 @@ import {
   isFailed,
   sourceLabel,
   statusPill,
+  traceDisplayName,
+  traceKind,
   waterfallRowView,
 } from '../../admin-shared';
 
@@ -62,7 +61,7 @@ export default function AdminRunDetailPage() {
   const returnTo = pathname;
   const runId = decodeURIComponent(params.runId);
 
-  const [detail, setDetail] = useState<AdminRunDetailDTO | null>(null);
+  const [trace, setTrace] = useState<AdminDiagramTraceDTO | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [forbidden, setForbidden] = useState(false);
@@ -89,8 +88,8 @@ export default function AdminRunDetailPage() {
       });
     };
     agentApi
-      .adminRunDetail(runId)
-      .then((res) => alive && setDetail(res.data))
+      .adminDiagramTrace(runId)
+      .then((res) => alive && setTrace(res.data))
       .catch((e) => {
         if (!alive) return;
         if (e instanceof ApiResponseError && e.code === 'AUTH_FORBIDDEN') handleForbidden();
@@ -103,7 +102,7 @@ export default function AdminRunDetailPage() {
   }, [returnTo, router, runId]);
 
   useEffect(() => {
-    const diagramId = detail?.run?.diagramId;
+    const diagramId = trace?.run?.diagramId;
     if (!diagramId) {
       return;
     }
@@ -130,38 +129,24 @@ export default function AdminRunDetailPage() {
     return () => {
       alive = false;
     };
-  }, [detail?.run?.diagramId, runId]);
+  }, [trace?.run?.diagramId, runId]);
 
-  const rows = useMemo(() => buildWaterfall(detail?.timeline || []), [detail]);
+  const spans = useMemo(() => trace?.spans || [], [trace]);
+  const rows = useMemo(() => buildWaterfall(spans), [spans]);
 
-  const llmById = useMemo(() => {
-    const m = new Map<string, AdminLlmCallDTO>();
-    (detail?.llmCalls || []).forEach((c) => m.set(c.id, c));
-    return m;
-  }, [detail]);
-  const toolById = useMemo(() => {
-    const m = new Map<string, AdminToolCallDTO>();
-    (detail?.toolCalls || []).forEach((c) => m.set(c.id, c));
-    return m;
-  }, [detail]);
-
-  const selected: AdminRunTimelineEventDTO | undefined = useMemo(
-    () => (detail?.timeline || []).find((e) => e.id === selectedId),
-    [detail, selectedId],
+  const selected: AdminDiagramTraceSpanDTO | undefined = useMemo(
+    () => spans.find((e) => e.id === selectedId),
+    [spans, selectedId],
   );
 
   const totalTokens = useMemo(
-    () => (detail?.llmCalls || []).reduce((sum, c) => sum + (c.totalTokens || 0), 0),
-    [detail],
+    () => trace?.summary?.totalTokens ?? spans.reduce((sum, c) => sum + (c.totalTokens || 0), 0),
+    [spans, trace],
   );
 
   const totalCost = useMemo(
-    () =>
-      (detail?.llmCalls || []).reduce(
-        (sum, c) => sum + estCostUsd(c.promptTokens, c.completionTokens, c.model),
-        0,
-      ),
-    [detail],
+    () => trace?.summary?.estimatedCost ?? spans.reduce((sum, c) => sum + (c.estimatedCost || 0), 0),
+    [spans, trace],
   );
 
   const loadCaptures = () => {
@@ -183,7 +168,7 @@ export default function AdminRunDetailPage() {
   };
 
   const enableCapture = () => {
-    const uid = detail?.run?.userId;
+    const uid = trace?.run?.userId;
     if (!uid) return;
     setCaptureNote('Enabling…');
     agentApi
@@ -207,7 +192,7 @@ export default function AdminRunDetailPage() {
     );
   }
 
-  const run = detail?.run;
+  const run = trace?.run;
   const currentDiagramResult = diagramResult?.runId === runId ? diagramResult : null;
   const currentDiagram = currentDiagramResult?.diagram || null;
   const currentDiagramNote = currentDiagramResult?.note || null;
@@ -222,9 +207,9 @@ export default function AdminRunDetailPage() {
       : run?.diagramId
         ? 'Linked diagram'
         : 'No saved canvas snapshot';
-  const routeMeta = `${formatNumber(run?.stepCount ?? detail?.steps?.length)} steps · ${formatNumber(
-    run?.llmCallCount ?? detail?.llmCalls?.length,
-  )} llm · ${formatNumber(run?.toolCallCount ?? detail?.toolCalls?.length)} tools`;
+  const routeMeta = `${formatNumber(run?.stepCount ?? spans.filter((span) => span.kind === 'STEP').length)} steps · ${formatNumber(
+    run?.llmCallCount ?? spans.filter((span) => span.kind === 'LLM').length,
+  )} llm · ${formatNumber(run?.toolCallCount ?? spans.filter((span) => span.kind === 'TOOL').length)} tools`;
 
   return (
     <div className="mx-auto max-w-6xl px-6 py-8">
@@ -272,7 +257,7 @@ export default function AdminRunDetailPage() {
               </div>
             </div>
 
-            {/* P0 frames the existing run data as a diagram-specific trace without changing telemetry semantics. */}
+            {/* This summary frames the unified span model as a diagram-specific trace. */}
             <div className="mt-5 flex flex-wrap items-center justify-between gap-2">
               <h2 className="text-sm font-medium text-neutral-700">Trace Summary</h2>
               <span className="text-xs text-neutral-400">Request → Agent route → Diagram outcome</span>
@@ -297,8 +282,8 @@ export default function AdminRunDetailPage() {
 
             <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-6">
               <Stat label="Latency" value={formatMs(run.latencyMs)} />
-              <Stat label="LLM calls" value={formatNumber(detail?.llmCalls?.length)} />
-              <Stat label="Tool calls" value={formatNumber(detail?.toolCalls?.length)} />
+              <Stat label="LLM calls" value={formatNumber(trace?.summary?.llmCallCount ?? spans.filter((span) => span.kind === 'LLM').length)} />
+              <Stat label="Tool calls" value={formatNumber(trace?.summary?.toolCallCount ?? spans.filter((span) => span.kind === 'TOOL').length)} />
               <Stat label="Tokens" value={formatNumber(totalTokens)} />
               <Stat label="Est. cost" value={formatCost(totalCost)} />
               <Stat label="Error" value={run.errorClass || '—'} bad={isFailed(run.status)} />
@@ -335,10 +320,10 @@ export default function AdminRunDetailPage() {
                             failed ? 'text-red-600' : 'text-neutral-600'
                           }`}
                           style={{ paddingLeft: `${rowView.visualDepth * 14}px` }}
-                          title={`${sourceLabel(event.source)} · ${event.detail || event.eventType || ''}`}
+                          title={`${sourceLabel(traceKind(event))} · ${traceDisplayName(event)}`}
                         >
-                          <span className="text-neutral-400">{sourceLabel(event.source)} </span>
-                          {event.detail || event.eventType || '—'}
+                          <span className="text-neutral-400">{sourceLabel(traceKind(event))} </span>
+                          {traceDisplayName(event)}
                         </span>
                         <span className="relative h-4 flex-1 rounded bg-neutral-100">
                           <span
@@ -347,7 +332,7 @@ export default function AdminRunDetailPage() {
                               left: `${leftPct}%`,
                               width: `${widthPct}%`,
                               minWidth: isPoint ? '3px' : '2px',
-                              background: barColor(event.source, event.status),
+                              background: barColor(traceKind(event), event.status),
                             }}
                           />
                         </span>
@@ -378,9 +363,9 @@ export default function AdminRunDetailPage() {
                   </div>
                 ) : (
                   <div className="text-sm">
-                    <div className="text-xs text-neutral-400">{sourceLabel(selected.source)}</div>
+                    <div className="text-xs text-neutral-400">{sourceLabel(traceKind(selected))}</div>
                     <div className="mt-0.5 text-base font-medium text-neutral-900">
-                      {selected.detail || selected.eventType || '—'}
+                      {traceDisplayName(selected)}
                     </div>
                     <div
                       className={`mt-0.5 font-mono text-xs ${
@@ -392,28 +377,35 @@ export default function AdminRunDetailPage() {
                     </div>
 
                     <dl className="mt-4 space-y-2">
+                      <Row k="Kind" v={selected.kind} />
                       <Row k="Phase" v={selected.phase} />
-                      <Row k="Started" v={formatTime(selected.occurredAt)} />
-                      {(() => {
-                        const llm = llmById.get(selected.id);
-                        const tool = toolById.get(selected.id);
-                        return (
-                          <>
-                            {llm && <Row k="Provider / model" v={`${llm.provider || '—'} / ${llm.model || '—'}`} />}
-                            {llm && (
-                              <Row
-                                k="Tokens (p/c/t)"
-                                v={`${formatNumber(llm.promptTokens)} / ${formatNumber(
-                                  llm.completionTokens,
-                                )} / ${formatNumber(llm.totalTokens)}`}
-                              />
-                            )}
-                            {(llm?.errorClass || tool?.errorClass) && (
-                              <Row k="Error" v={llm?.errorClass || tool?.errorClass} bad />
-                            )}
-                          </>
-                        );
-                      })()}
+                      <Row k="Parent" v={selected.parentId} />
+                      <Row k="Started" v={formatTime(selected.startedAt)} />
+                      <Row k="Completed" v={formatTime(selected.completedAt)} />
+                      {selected.kind === 'LLM' && (
+                        <Row k="Provider / model" v={`${selected.provider || '—'} / ${selected.model || '—'}`} />
+                      )}
+                      {selected.kind === 'LLM' && (
+                        <Row
+                          k="Tokens (p/c/t)"
+                          v={`${formatNumber(selected.promptTokens)} / ${formatNumber(
+                            selected.completionTokens,
+                          )} / ${formatNumber(selected.totalTokens)}`}
+                        />
+                      )}
+                      {selected.kind === 'LLM' && <Row k="Est. cost" v={formatCost(selected.estimatedCost)} />}
+                      {selected.kind === 'TOOL' && <Row k="Tool" v={selected.toolName} />}
+                      {selected.errorClass && <Row k="Error" v={selected.errorClass} bad />}
+                      {selected.diagramEffect && (
+                        <Row
+                          k="Diagram"
+                          v={`${selected.diagramEffect.diagramId || '—'}${
+                            selected.diagramEffect.afterVersion != null
+                              ? ` · v${selected.diagramEffect.afterVersion}`
+                              : ''
+                          }`}
+                        />
+                      )}
                     </dl>
 
                     {selected.metadataJson && (
@@ -473,7 +465,7 @@ export default function AdminRunDetailPage() {
             {captureNote && (
               <div className="rounded-lg bg-neutral-50 px-3 py-3 text-xs text-neutral-500">
                 <p>{captureNote}</p>
-                {captures && captures.length === 0 && detail?.run?.userId && (
+                {captures && captures.length === 0 && trace?.run?.userId && (
                   <button
                     onClick={enableCapture}
                     className="mt-2 rounded-lg border border-neutral-200 px-3 py-1 text-neutral-600 hover:bg-white"

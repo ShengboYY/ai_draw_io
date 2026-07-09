@@ -31,6 +31,7 @@ import {
     AdminUsageDashboardDTO,
     AdminRunMetadataDTO,
     AdminRunDetailDTO,
+    AdminDiagramTraceDTO,
     AdminDebugTraceCaptureDTO,
     AdminDebugTraceControlDTO,
     AdminDebugTraceControlRequestDTO,
@@ -282,6 +283,15 @@ export const agentApi = {
             credentials: 'include',
         });
         return handleResponse<AdminRunDetailDTO>(response);
+    },
+
+    adminDiagramTrace: async (runId: string): Promise<Response<AdminDiagramTraceDTO>> => {
+        const response = await fetch(`${API_CONFIG.BASE_URL}/admin/runs/${encodeURIComponent(runId)}/diagram-trace`, {
+            method: 'GET',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+        });
+        return handleResponse<AdminDiagramTraceDTO>(response);
     },
 
     adminRunDiagram: async (runId: string): Promise<Response<DiagramCanvasStateResponseDTO | null>> => {

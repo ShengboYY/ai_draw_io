@@ -11,6 +11,8 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.zipp.ai.api.dto.AdminDebugTraceControlDTO;
 import org.zipp.ai.api.dto.AdminDebugTraceControlRequestDTO;
 import org.zipp.ai.api.dto.AdminDebugTraceCaptureDTO;
+import org.zipp.ai.api.dto.AdminDiagramTraceDTO;
+import org.zipp.ai.api.dto.AdminDiagramTraceSpanDTO;
 import org.zipp.ai.api.dto.AdminLlmCallDTO;
 import org.zipp.ai.api.dto.AdminRunDetailDTO;
 import org.zipp.ai.api.dto.AdminUsageDashboardDTO;
@@ -311,6 +313,105 @@ public class AdminControllerTest {
         assertEquals("HTTP_REQUEST_RECEIVED", detail.getData().getTimeline().get(0).getEventType());
         assertEquals("llm_call", detail.getData().getTimeline().get(2).getSource());
         assertEquals("tool_call", detail.getData().getTimeline().get(3).getSource());
+    }
+
+    @Test
+    public void diagramTraceReturnsUnifiedSpanModel() {
+        authenticate("usr_admin", 0);
+        telemetryStore.runs.add(AgentRunTelemetry.builder()
+                .id("aru_trace")
+                .requestId("req-trace")
+                .diagramId("diag_trace")
+                .userId("usr_user")
+                .agentId("drawio")
+                .requestType("chat_stream")
+                .status("SUCCESS")
+                .startedAt(Instant.parse("2026-07-03T09:00:00Z"))
+                .completedAt(Instant.parse("2026-07-03T09:00:10Z"))
+                .latencyMs(10_000L)
+                .stepCount(1L)
+                .llmCallCount(1L)
+                .toolCallCount(1L)
+                .traceEventCount(1L)
+                .knownTotalTokens(3_000L)
+                .build());
+        telemetryStore.traceEvents.add(AgentTraceEvent.builder()
+                .id("ate_trace")
+                .runId("aru_trace")
+                .requestId("req-trace")
+                .userId("usr_user")
+                .sequenceNo(1L)
+                .eventType("HTTP_REQUEST_RECEIVED")
+                .phase("request")
+                .status("SUCCESS")
+                .occurredAt(Instant.parse("2026-07-03T09:00:00Z"))
+                .build());
+        telemetryStore.steps.add(AgentRunStepTelemetry.builder()
+                .id("ars_trace")
+                .runId("aru_trace")
+                .userId("usr_user")
+                .phase("drawing")
+                .status("SUCCESS")
+                .startedAt(Instant.parse("2026-07-03T09:00:01Z"))
+                .completedAt(Instant.parse("2026-07-03T09:00:08Z"))
+                .latencyMs(7_000L)
+                .build());
+        telemetryStore.llmCalls.add(LlmCallTelemetry.builder()
+                .id("alc_trace")
+                .runId("aru_trace")
+                .parentId("ars_trace")
+                .userId("usr_user")
+                .phase("drawing")
+                .provider("openai")
+                .model("gpt-4o-test")
+                .promptTokens(1000)
+                .completionTokens(2000)
+                .totalTokens(3000)
+                .status("SUCCESS")
+                .startedAt(Instant.parse("2026-07-03T09:00:02Z"))
+                .completedAt(Instant.parse("2026-07-03T09:00:04Z"))
+                .latencyMs(2_000L)
+                .build());
+        telemetryStore.toolCalls.add(ToolCallTelemetry.builder()
+                .id("atc_trace")
+                .runId("aru_trace")
+                .parentId("ars_trace")
+                .userId("usr_user")
+                .phase("drawing")
+                .toolName("create_diagram")
+                .status("SUCCESS")
+                .startedAt(Instant.parse("2026-07-03T09:00:05Z"))
+                .completedAt(Instant.parse("2026-07-03T09:00:06Z"))
+                .latencyMs(1_000L)
+                .build());
+
+        Response<AdminDiagramTraceDTO> response = controller.diagramTrace("aru_trace", request());
+
+        assertEquals("0000", response.getCode());
+        assertEquals("aru_trace", response.getData().getRun().getId());
+        assertEquals("DIAGRAM_CREATED", response.getData().getSummary().getOutcome());
+        assertEquals(Long.valueOf(5), response.getData().getSummary().getSpanCount());
+        assertEquals(5, response.getData().getSpans().size());
+        assertEquals("RUN", response.getData().getSpans().get(0).getKind());
+        assertEquals("EVENT", response.getData().getSpans().get(1).getKind());
+        assertEquals("aru_trace", response.getData().getSpans().get(2).getParentId());
+
+        AdminDiagramTraceSpanDTO llm = response.getData().getSpans().stream()
+                .filter(span -> "LLM".equals(span.getKind()))
+                .findFirst()
+                .orElseThrow();
+        assertEquals("openai", llm.getProvider());
+        assertEquals("gpt-4o-test", llm.getModel());
+        assertEquals(Integer.valueOf(3000), llm.getTotalTokens());
+        assertTrue(llm.getEstimatedCost() > 0D);
+
+        AdminDiagramTraceSpanDTO tool = response.getData().getSpans().stream()
+                .filter(span -> "TOOL".equals(span.getKind()))
+                .findFirst()
+                .orElseThrow();
+        assertEquals("create_diagram", tool.getToolName());
+        assertEquals("ars_trace", tool.getParentId());
+        assertEquals("ON_DEMAND", response.getData().getPayloadAvailability().getStatus());
     }
 
     @Test

@@ -1,4 +1,9 @@
-import type { AdminRunTimelineEventDTO, AdminTimelineSource } from '@/types/api';
+import type {
+  AdminDiagramTraceKind,
+  AdminDiagramTraceSpanDTO,
+  AdminRunTimelineEventDTO,
+  AdminTimelineSource,
+} from '@/types/api';
 
 export const formatMs = (ms?: number | null): string => {
   if (ms == null) return '—';
@@ -108,38 +113,79 @@ export const statusPill = (status?: string): string => {
   return 'bg-neutral-100 text-neutral-600 border-neutral-200';
 };
 
-// Bar fill color per timeline source (failed always wins → red).
-export const barColor = (source?: AdminTimelineSource, status?: string): string => {
+export type TraceKindLike = AdminTimelineSource | AdminDiagramTraceKind | string;
+
+export interface TraceWaterfallEvent {
+  id: string;
+  parentId?: string;
+  source?: AdminTimelineSource;
+  kind?: AdminDiagramTraceKind;
+  phase?: string;
+  status?: string;
+  detail?: string;
+  name?: string;
+  eventType?: string;
+  occurredAt?: string;
+  startedAt?: string;
+  latencyMs?: number;
+}
+
+export type TraceEventLike = AdminRunTimelineEventDTO | AdminDiagramTraceSpanDTO;
+
+export const traceKind = (event?: TraceWaterfallEvent | null): TraceKindLike | undefined =>
+  event?.kind || event?.source;
+
+export const traceDisplayName = (event?: TraceWaterfallEvent | null): string =>
+  event?.name || event?.detail || event?.eventType || '—';
+
+const normalizedKind = (source?: TraceKindLike): string =>
+  (source || '').toLowerCase();
+
+// Bar fill color per timeline source/kind (failed always wins → red).
+export const barColor = (source?: TraceKindLike, status?: string): string => {
   if (isFailed(status)) return '#e24b4a';
-  switch (source) {
+  switch (normalizedKind(source)) {
     case 'step':
       return '#378add';
+    case 'llm':
     case 'llm_call':
       return '#7f77dd';
+    case 'tool':
     case 'tool_call':
       return '#ef9f27';
+    case 'run':
+      return '#58595d';
     default:
       return '#b4b2a9';
   }
 };
 
-export const sourceLabel = (source?: AdminTimelineSource): string => {
-  switch (source) {
+export const sourceLabel = (source?: TraceKindLike): string => {
+  switch (normalizedKind(source)) {
     case 'step':
       return 'step';
+    case 'llm':
     case 'llm_call':
       return 'llm';
+    case 'tool':
     case 'tool_call':
       return 'tool';
+    case 'event':
     case 'trace_event':
       return 'event';
+    case 'run':
+      return 'run';
+    case 'diagram':
+      return 'diagram';
+    case 'quality':
+      return 'quality';
     default:
       return source || '';
   }
 };
 
-export interface WaterfallRow {
-  event: AdminRunTimelineEventDTO;
+export interface WaterfallRow<T extends TraceWaterfallEvent = TraceEventLike> {
+  event: T;
   depth: number;
   leftPct: number;
   widthPct: number;
@@ -153,8 +199,8 @@ export interface WaterfallRowView {
   visualDepth: number;
 }
 
-const startMs = (e: AdminRunTimelineEventDTO): number => {
-  const t = e.occurredAt ? new Date(e.occurredAt).getTime() : NaN;
+const startMs = (e: TraceWaterfallEvent): number => {
+  const t = e.startedAt || e.occurredAt ? new Date(e.startedAt || e.occurredAt || '').getTime() : NaN;
   return Number.isNaN(t) ? 0 : t;
 };
 
@@ -165,10 +211,10 @@ const startMs = (e: AdminRunTimelineEventDTO): number => {
  * id is rendered as its child. Events whose parentId is the run (or missing)
  * are top-level. Bars are positioned proportionally across the run's span.
  */
-export const buildWaterfall = (timeline: AdminRunTimelineEventDTO[]): WaterfallRow[] => {
+export const buildWaterfall = <T extends TraceWaterfallEvent>(timeline: T[]): WaterfallRow<T>[] => {
   if (!timeline || timeline.length === 0) return [];
 
-  const byId = new Map<string, AdminRunTimelineEventDTO>();
+  const byId = new Map<string, T>();
   timeline.forEach((e) => byId.set(e.id, e));
 
   // Time window across the whole run.
@@ -183,8 +229,8 @@ export const buildWaterfall = (timeline: AdminRunTimelineEventDTO[]): WaterfallR
   const total = Math.max(1, runEnd - runStart);
 
   // Children preserve timeline (time-sorted) order.
-  const children = new Map<string, AdminRunTimelineEventDTO[]>();
-  const roots: AdminRunTimelineEventDTO[] = [];
+  const children = new Map<string, T[]>();
+  const roots: T[] = [];
   timeline.forEach((e) => {
     const parent = e.parentId && byId.has(e.parentId) ? e.parentId : null;
     if (parent) {
@@ -196,8 +242,8 @@ export const buildWaterfall = (timeline: AdminRunTimelineEventDTO[]): WaterfallR
     }
   });
 
-  const rows: WaterfallRow[] = [];
-  const visit = (e: AdminRunTimelineEventDTO, depth: number) => {
+  const rows: WaterfallRow<T>[] = [];
+  const visit = (e: T, depth: number) => {
     const s = startMs(e);
     const latency = e.latencyMs || 0;
     const isPoint = !e.latencyMs;
@@ -216,11 +262,14 @@ export const buildWaterfall = (timeline: AdminRunTimelineEventDTO[]): WaterfallR
   return rows;
 };
 
-export const waterfallRowView = (rows: WaterfallRow[], index: number): WaterfallRowView => {
+export const waterfallRowView = <T extends TraceWaterfallEvent>(
+  rows: WaterfallRow<T>[],
+  index: number,
+): WaterfallRowView => {
   const row = rows[index];
   if (!row) return { isStep: false, compact: false, startsStepGroup: false, visualDepth: 0 };
 
-  const isStep = row.event.source === 'step';
+  const isStep = normalizedKind(traceKind(row.event)) === 'step';
   let visualDepth = row.depth;
   let implicitStepChild = false;
 
@@ -228,7 +277,7 @@ export const waterfallRowView = (rows: WaterfallRow[], index: number): Waterfall
   if (!isStep && row.depth === 0) {
     for (let i = index - 1; i >= 0; i -= 1) {
       const candidate = rows[i];
-      if (candidate.event.source !== 'step') continue;
+      if (normalizedKind(traceKind(candidate.event)) !== 'step') continue;
       if (!row.event.phase || !candidate.event.phase || row.event.phase === candidate.event.phase) {
         visualDepth = candidate.depth + 1;
         implicitStepChild = true;

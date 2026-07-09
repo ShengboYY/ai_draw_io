@@ -7,7 +7,7 @@ const pagePath = fileURLToPath(new URL('../src/app/admin/runs/[runId]/page.tsx',
 const pageSource = readFileSync(pagePath, 'utf8');
 
 test('admin run detail is framed as a Diagram Trace workspace', () => {
-  // P0 should keep the same telemetry panels while changing the page information architecture.
+  // The page keeps the telemetry panels while framing them as diagram-specific trace work.
   assert.match(pageSource, /Diagram Trace/);
   assert.match(pageSource, /Trace Summary/);
   assert.match(pageSource, /Request → Agent route → Diagram outcome/);
@@ -15,4 +15,12 @@ test('admin run detail is framed as a Diagram Trace workspace', () => {
   assert.match(pageSource, /Diagram Outcome/);
   assert.match(pageSource, /Trace Inspector/);
   assert.match(pageSource, /Payload Evidence/);
+});
+
+test('admin run detail consumes the P1 unified diagram trace span model', () => {
+  assert.match(pageSource, /AdminDiagramTraceDTO/);
+  assert.match(pageSource, /adminDiagramTrace\(runId\)/);
+  assert.match(pageSource, /trace\?\.spans/);
+  assert.match(pageSource, /traceKind\(event\)/);
+  assert.match(pageSource, /traceDisplayName\(selected\)/);
 });

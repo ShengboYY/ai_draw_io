@@ -14,7 +14,11 @@ import org.zipp.ai.api.dto.AdminDebugTraceCaptureDTO;
 import org.zipp.ai.api.dto.AdminDebugTraceControlDTO;
 import org.zipp.ai.api.dto.AdminDebugTraceControlRequestDTO;
 import org.zipp.ai.api.dto.AdminDebugTraceRetentionRequestDTO;
+import org.zipp.ai.api.dto.AdminDiagramTraceDTO;
+import org.zipp.ai.api.dto.AdminDiagramTraceSpanDTO;
+import org.zipp.ai.api.dto.AdminDiagramTraceSummaryDTO;
 import org.zipp.ai.api.dto.AdminLlmCallDTO;
+import org.zipp.ai.api.dto.AdminPayloadAvailabilityDTO;
 import org.zipp.ai.api.dto.AdminRunDetailDTO;
 import org.zipp.ai.api.dto.AdminRunMetadataDTO;
 import org.zipp.ai.api.dto.AdminRunStepDTO;
@@ -151,6 +155,22 @@ public class AdminController {
         }
         audit(admin.get(), "VIEW_RUN", "RUN", runId, "SUCCESS", request);
         return success(toRunDetailDto(detail.get()));
+    }
+
+    @GetMapping("/runs/{runId}/diagram-trace")
+    public Response<AdminDiagramTraceDTO> diagramTrace(@PathVariable("runId") String runId,
+                                                       HttpServletRequest request) {
+        Optional<UserAccount> admin = requireAdmin(request);
+        if (admin.isEmpty()) {
+            return forbidden();
+        }
+        Optional<AgentRunDetail> detail = agentUsageTelemetryService.findRunDetail(runId);
+        if (detail.isEmpty()) {
+            audit(admin.get(), "VIEW_DIAGRAM_TRACE", "RUN", runId, "NOT_FOUND", request);
+            return failure("run not found");
+        }
+        audit(admin.get(), "VIEW_DIAGRAM_TRACE", "RUN", runId, "SUCCESS", request);
+        return success(toDiagramTraceDto(detail.get()));
     }
 
     @GetMapping("/runs/{runId}/diagram")
@@ -379,6 +399,244 @@ public class AdminController {
         dto.setToolCalls(safeList(detail.getToolCalls()).stream().map(this::toToolCallDto).collect(Collectors.toList()));
         dto.setTraceEvents(safeList(detail.getTraceEvents()).stream().map(this::toTraceEventDto).collect(Collectors.toList()));
         dto.setTimeline(toTimeline(detail));
+        return dto;
+    }
+
+    private AdminDiagramTraceDTO toDiagramTraceDto(AgentRunDetail detail) {
+        AdminDiagramTraceDTO dto = new AdminDiagramTraceDTO();
+        dto.setRun(toRunMetadataDto(detail.getRun()));
+        dto.setSpans(toDiagramTraceSpans(detail));
+        dto.setSummary(toDiagramTraceSummary(detail, dto.getSpans()));
+        dto.setSnapshots(List.of());
+        dto.setFindings(List.of());
+        dto.setPayloadAvailability(toPayloadAvailability());
+        return dto;
+    }
+
+    private AdminDiagramTraceSummaryDTO toDiagramTraceSummary(AgentRunDetail detail,
+                                                             List<AdminDiagramTraceSpanDTO> spans) {
+        AgentRunTelemetry run = detail.getRun();
+        AdminDiagramTraceSummaryDTO dto = new AdminDiagramTraceSummaryDTO();
+        if (run == null) {
+            return dto;
+        }
+        dto.setStatus(run.getStatus());
+        dto.setOutcome(diagramOutcome(detail));
+        dto.setRunId(run.getId());
+        dto.setRequestId(run.getRequestId());
+        dto.setUserId(run.getUserId());
+        dto.setSessionId(run.getSessionId());
+        dto.setDiagramId(run.getDiagramId());
+        dto.setAgentId(run.getAgentId());
+        dto.setRequestType(run.getRequestType());
+        dto.setLatencyMs(run.getLatencyMs());
+        dto.setLlmCallCount(run.getLlmCallCount());
+        dto.setToolCallCount(run.getToolCallCount());
+        dto.setEventCount(run.getTraceEventCount());
+        dto.setSpanCount((long) safeList(spans).size());
+        dto.setTotalTokens(run.getKnownTotalTokens());
+        dto.setEstimatedCost(safeList(detail.getLlmCalls()).stream()
+                .mapToDouble(call -> estimateCostUsd(call.getPromptTokens(), call.getCompletionTokens(), call.getModel()))
+                .sum());
+        return dto;
+    }
+
+    private String diagramOutcome(AgentRunDetail detail) {
+        AgentRunTelemetry run = detail.getRun();
+        if (run == null) {
+            return "NO_DIAGRAM";
+        }
+        boolean drawToolUsed = safeList(detail.getToolCalls()).stream()
+                .map(ToolCallTelemetry::getToolName)
+                .filter(StringUtils::isNotBlank)
+                .anyMatch(this::isDiagramMutationTool);
+        if (StringUtils.equalsIgnoreCase(run.getStatus(), "FAILED")) {
+            return drawToolUsed || StringUtils.isNotBlank(run.getDiagramId())
+                    ? "FAILED_AFTER_DRAWING"
+                    : "FAILED_BEFORE_DRAWING";
+        }
+        if (StringUtils.isBlank(run.getDiagramId())) {
+            return "NO_DIAGRAM";
+        }
+        boolean modified = safeList(detail.getToolCalls()).stream()
+                .map(ToolCallTelemetry::getToolName)
+                .anyMatch(name -> StringUtils.equalsIgnoreCase(name, "modify_diagram"));
+        return modified ? "DIAGRAM_MODIFIED" : "DIAGRAM_CREATED";
+    }
+
+    private boolean isDiagramMutationTool(String toolName) {
+        return StringUtils.equalsIgnoreCase(toolName, "create_diagram")
+                || StringUtils.equalsIgnoreCase(toolName, "modify_diagram");
+    }
+
+    private List<AdminDiagramTraceSpanDTO> toDiagramTraceSpans(AgentRunDetail detail) {
+        List<AdminDiagramTraceSpanDTO> spans = new ArrayList<>();
+        AgentRunTelemetry run = detail.getRun();
+        String runId = run == null ? null : run.getId();
+        String requestId = run == null ? null : run.getRequestId();
+        if (run != null) {
+            spans.add(runSpan(run));
+        }
+        safeList(detail.getTraceEvents()).forEach(event -> spans.add(traceSpan(event, runId)));
+        safeList(detail.getSteps()).forEach(step -> spans.add(traceSpan(step, runId, requestId)));
+        safeList(detail.getLlmCalls()).forEach(call -> spans.add(traceSpan(call, runId, requestId)));
+        safeList(detail.getToolCalls()).forEach(call -> spans.add(traceSpan(call, runId, requestId)));
+        spans.sort(Comparator
+                .comparing(AdminDiagramTraceSpanDTO::getStartedAt, Comparator.nullsLast(Comparator.naturalOrder()))
+                .thenComparing(span -> spanKindRank(span.getKind()))
+                .thenComparing(span -> span.getSequenceNo() == null ? Long.MAX_VALUE : span.getSequenceNo())
+                .thenComparing(AdminDiagramTraceSpanDTO::getId, Comparator.nullsLast(String::compareTo)));
+        return spans;
+    }
+
+    private AdminDiagramTraceSpanDTO runSpan(AgentRunTelemetry run) {
+        AdminDiagramTraceSpanDTO dto = new AdminDiagramTraceSpanDTO();
+        dto.setId(run.getId());
+        dto.setKind("RUN");
+        dto.setName(StringUtils.defaultIfBlank(run.getRequestType(), "run"));
+        dto.setRunId(run.getId());
+        dto.setRequestId(run.getRequestId());
+        dto.setUserId(run.getUserId());
+        dto.setPhase("request");
+        dto.setStatus(run.getStatus());
+        dto.setStartedAt(run.getStartedAt());
+        dto.setCompletedAt(run.getCompletedAt());
+        dto.setLatencyMs(run.getLatencyMs());
+        dto.setErrorClass(run.getErrorClass());
+        return dto;
+    }
+
+    private AdminDiagramTraceSpanDTO traceSpan(AgentTraceEvent event, String runId) {
+        AdminDiagramTraceSpanDTO dto = baseTraceSpan(
+                event.getId(), normalizedParentId(event.getParentId(), runId), "EVENT",
+                StringUtils.defaultIfBlank(event.getEventType(), "event"), event.getRunId(), event.getRequestId(),
+                event.getUserId(), event.getSequenceNo(), event.getEventType(), event.getPhase(), event.getStatus(),
+                event.getOccurredAt(), event.getOccurredAt(), null);
+        dto.setMetadataJson(event.getMetadataJson());
+        return dto;
+    }
+
+    private AdminDiagramTraceSpanDTO traceSpan(AgentRunStepTelemetry step, String runId, String requestId) {
+        AdminDiagramTraceSpanDTO dto = baseTraceSpan(
+                step.getId(), normalizedParentId(step.getParentId(), runId), "STEP",
+                StringUtils.defaultIfBlank(step.getPhase(), "step"), step.getRunId(), requestId,
+                step.getUserId(), null, "STEP", step.getPhase(), step.getStatus(),
+                step.getStartedAt(), step.getCompletedAt(), step.getLatencyMs());
+        dto.setErrorClass(step.getErrorClass());
+        return dto;
+    }
+
+    private AdminDiagramTraceSpanDTO traceSpan(LlmCallTelemetry call, String runId, String requestId) {
+        String providerModel = StringUtils.defaultString(call.getProvider()) + "/" + StringUtils.defaultString(call.getModel());
+        AdminDiagramTraceSpanDTO dto = baseTraceSpan(
+                call.getId(), normalizedParentId(call.getParentId(), runId), "LLM",
+                providerModel, call.getRunId(), requestId, call.getUserId(), null, "LLM_CALL",
+                call.getPhase(), call.getStatus(), call.getStartedAt(), call.getCompletedAt(), call.getLatencyMs());
+        dto.setProvider(call.getProvider());
+        dto.setModel(call.getModel());
+        dto.setPromptTokens(call.getPromptTokens());
+        dto.setCompletionTokens(call.getCompletionTokens());
+        dto.setTotalTokens(call.getTotalTokens());
+        dto.setEstimatedCost(estimateCostUsd(call.getPromptTokens(), call.getCompletionTokens(), call.getModel()));
+        dto.setErrorClass(call.getErrorClass());
+        return dto;
+    }
+
+    private AdminDiagramTraceSpanDTO traceSpan(ToolCallTelemetry call, String runId, String requestId) {
+        AdminDiagramTraceSpanDTO dto = baseTraceSpan(
+                call.getId(), normalizedParentId(call.getParentId(), runId), "TOOL",
+                StringUtils.defaultIfBlank(call.getToolName(), "tool"), call.getRunId(), requestId,
+                call.getUserId(), null, "TOOL_CALL", call.getPhase(), call.getStatus(),
+                call.getStartedAt(), call.getCompletedAt(), call.getLatencyMs());
+        dto.setToolName(call.getToolName());
+        dto.setErrorClass(call.getErrorClass());
+        return dto;
+    }
+
+    private AdminDiagramTraceSpanDTO baseTraceSpan(String id,
+                                                  String parentId,
+                                                  String kind,
+                                                  String name,
+                                                  String runId,
+                                                  String requestId,
+                                                  String userId,
+                                                  Long sequenceNo,
+                                                  String eventType,
+                                                  String phase,
+                                                  String status,
+                                                  Instant startedAt,
+                                                  Instant completedAt,
+                                                  Long latencyMs) {
+        AdminDiagramTraceSpanDTO dto = new AdminDiagramTraceSpanDTO();
+        dto.setId(id);
+        dto.setParentId(parentId);
+        dto.setKind(kind);
+        dto.setName(name);
+        dto.setRunId(runId);
+        dto.setRequestId(requestId);
+        dto.setUserId(userId);
+        dto.setSequenceNo(sequenceNo);
+        dto.setEventType(eventType);
+        dto.setPhase(phase);
+        dto.setStatus(status);
+        dto.setStartedAt(startedAt);
+        dto.setCompletedAt(completedAt);
+        dto.setLatencyMs(latencyMs);
+        return dto;
+    }
+
+    private String normalizedParentId(String parentId, String runId) {
+        return StringUtils.defaultIfBlank(parentId, runId);
+    }
+
+    private int spanKindRank(String kind) {
+        return switch (StringUtils.defaultString(kind)) {
+            case "RUN" -> 0;
+            case "EVENT" -> 1;
+            case "STEP" -> 2;
+            case "LLM" -> 3;
+            case "TOOL" -> 4;
+            case "DIAGRAM" -> 5;
+            case "QUALITY" -> 6;
+            default -> 9;
+        };
+    }
+
+    private double estimateCostUsd(Integer promptTokens, Integer completionTokens, String model) {
+        double[] price = pricePerMillion(model);
+        double promptCost = ((promptTokens == null ? 0 : promptTokens) / 1_000_000D) * price[0];
+        double completionCost = ((completionTokens == null ? 0 : completionTokens) / 1_000_000D) * price[1];
+        return promptCost + completionCost;
+    }
+
+    private double[] pricePerMillion(String model) {
+        String m = StringUtils.defaultString(model).toLowerCase();
+        if (m.contains("gpt-5") || m.contains("gpt5")) {
+            return new double[]{1.25D, 10D};
+        }
+        if (m.contains("gpt-4o") || m.contains("4o-mini")) {
+            return new double[]{2.5D, 10D};
+        }
+        if (m.contains("opus")) {
+            return new double[]{15D, 75D};
+        }
+        if (m.contains("sonnet")) {
+            return new double[]{3D, 15D};
+        }
+        if (m.contains("haiku")) {
+            return new double[]{0.8D, 4D};
+        }
+        if (m.contains("gemini")) {
+            return new double[]{1.25D, 5D};
+        }
+        return new double[]{2D, 8D};
+    }
+
+    private AdminPayloadAvailabilityDTO toPayloadAvailability() {
+        AdminPayloadAvailabilityDTO dto = new AdminPayloadAvailabilityDTO();
+        dto.setOnDemand(true);
+        dto.setStatus("ON_DEMAND");
+        dto.setNote("Payloads are loaded separately and remain retention-gated.");
         return dto;
     }
 

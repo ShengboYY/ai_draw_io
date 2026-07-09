@@ -391,6 +391,103 @@ export interface AdminRunDetailDTO {
   timeline?: AdminRunTimelineEventDTO[];
 }
 
+export type AdminDiagramTraceKind = 'RUN' | 'STEP' | 'LLM' | 'TOOL' | 'EVENT' | 'DIAGRAM' | 'QUALITY';
+
+export interface AdminDiagramEffectDTO {
+  diagramId?: string;
+  beforeVersion?: number;
+  afterVersion?: number;
+  beforeHash?: string;
+  afterHash?: string;
+  xmlChanged?: boolean;
+  thumbnailChanged?: boolean;
+  renderStatus?: string;
+  thumbnailUrl?: string;
+}
+
+export interface AdminDiagramTraceSpanDTO {
+  id: string;
+  parentId?: string;
+  kind?: AdminDiagramTraceKind;
+  name?: string;
+  runId?: string;
+  requestId?: string;
+  userId?: string;
+  sequenceNo?: number;
+  eventType?: string;
+  phase?: string;
+  status?: string;
+  startedAt?: string;
+  completedAt?: string;
+  latencyMs?: number;
+  provider?: string;
+  model?: string;
+  promptTokens?: number;
+  completionTokens?: number;
+  totalTokens?: number;
+  estimatedCost?: number;
+  toolName?: string;
+  metadataJson?: string;
+  errorClass?: string;
+  diagramEffect?: AdminDiagramEffectDTO;
+}
+
+export interface AdminDiagramTraceSummaryDTO {
+  status?: string;
+  outcome?: string;
+  runId?: string;
+  requestId?: string;
+  userId?: string;
+  sessionId?: string;
+  diagramId?: string;
+  agentId?: string;
+  requestType?: string;
+  latencyMs?: number;
+  llmCallCount?: number;
+  toolCallCount?: number;
+  eventCount?: number;
+  spanCount?: number;
+  totalTokens?: number;
+  estimatedCost?: number;
+}
+
+export interface AdminDiagramSnapshotDTO {
+  id?: string;
+  runId?: string;
+  spanId?: string;
+  diagramId?: string;
+  version?: number;
+  canvasHash?: string;
+  thumbnailUrl?: string;
+  summary?: string;
+  createdAt?: string;
+}
+
+export interface AdminDiagramFindingDTO {
+  severity?: 'INFO' | 'WARNING' | 'ERROR' | string;
+  code?: string;
+  title?: string;
+  description?: string;
+  spanId?: string;
+  diagramId?: string;
+  suggestion?: string;
+}
+
+export interface AdminPayloadAvailabilityDTO {
+  onDemand?: boolean;
+  status?: string;
+  note?: string;
+}
+
+export interface AdminDiagramTraceDTO {
+  run: AdminRunMetadataDTO;
+  summary?: AdminDiagramTraceSummaryDTO;
+  spans?: AdminDiagramTraceSpanDTO[];
+  snapshots?: AdminDiagramSnapshotDTO[];
+  findings?: AdminDiagramFindingDTO[];
+  payloadAvailability?: AdminPayloadAvailabilityDTO;
+}
+
 export interface AdminDebugTraceCaptureDTO {
   id: string;
   controlId?: string;
