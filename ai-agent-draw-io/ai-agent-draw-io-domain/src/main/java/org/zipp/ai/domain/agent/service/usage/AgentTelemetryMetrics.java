@@ -6,6 +6,7 @@ import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Tags;
 import io.micrometer.core.instrument.Timer;
 import org.apache.commons.lang3.StringUtils;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
 
@@ -23,6 +24,8 @@ public class AgentTelemetryMetrics {
     private final MeterRegistry registry;
     private final AtomicBoolean telemetryWriterGaugesRegistered = new AtomicBoolean(false);
 
+    // Spring needs the provider constructor because the MeterRegistry constructor is kept for tests and noop instances.
+    @Autowired
     public AgentTelemetryMetrics(ObjectProvider<MeterRegistry> registryProvider) {
         this(registryProvider == null ? null : registryProvider.getIfAvailable());
     }
