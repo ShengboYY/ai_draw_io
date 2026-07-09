@@ -284,6 +284,15 @@ export const agentApi = {
         return handleResponse<AdminRunDetailDTO>(response);
     },
 
+    adminRunDiagram: async (runId: string): Promise<Response<DiagramCanvasStateResponseDTO | null>> => {
+        const response = await fetch(`${API_CONFIG.BASE_URL}/admin/runs/${encodeURIComponent(runId)}/diagram`, {
+            method: 'GET',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+        });
+        return handleResponse<DiagramCanvasStateResponseDTO | null>(response);
+    },
+
     adminRunCaptures: async (runId: string): Promise<Response<AdminDebugTraceCaptureDTO[]>> => {
         const response = await fetch(
             `${API_CONFIG.BASE_URL}/admin/debug-traces/runs/${encodeURIComponent(runId)}/captures`,

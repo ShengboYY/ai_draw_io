@@ -88,7 +88,7 @@ public class AgentUsageTelemetryService {
                              String modelCredentialId,
                              String provider,
                              String model) {
-        return startRun(null, null, userId, agentId, sessionId, requestType,
+        return startRun(null, null, userId, agentId, sessionId, requestType, null,
                 credentialSource, modelCredentialId, provider, model);
     }
 
@@ -102,11 +102,27 @@ public class AgentUsageTelemetryService {
                              String modelCredentialId,
                              String provider,
                              String model) {
+        return startRun(runId, requestId, userId, agentId, sessionId, requestType, null,
+                credentialSource, modelCredentialId, provider, model);
+    }
+
+    public RunScope startRun(String runId,
+                             String requestId,
+                             String userId,
+                             String agentId,
+                             String sessionId,
+                             String requestType,
+                             String diagramId,
+                             String credentialSource,
+                             String modelCredentialId,
+                             String provider,
+                             String model) {
         String resolvedRunId = normalizeRunId(runId);
         Instant startedAt = clock.instant();
         AgentUsageTelemetryContext.RunContext context = new AgentUsageTelemetryContext.RunContext(
                 resolvedRunId,
                 blankToNull(requestId),
+                blankToNull(diagramId),
                 userId,
                 agentId,
                 requestType,
@@ -119,6 +135,7 @@ public class AgentUsageTelemetryService {
         safeStore(() -> telemetryStore.insertRun(AgentRunTelemetry.builder()
                 .id(resolvedRunId)
                 .requestId(context.requestId())
+                .diagramId(context.diagramId())
                 .userId(userId)
                 .agentId(agentId)
                 .sessionId(blankToNull(sessionId))

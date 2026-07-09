@@ -283,6 +283,7 @@ export interface AdminUsageDashboardDTO {
 export interface AdminRunMetadataDTO {
   id: string;
   requestId?: string;
+  diagramId?: string;
   userId?: string;
   agentId?: string;
   sessionId?: string;
@@ -294,6 +295,11 @@ export interface AdminRunMetadataDTO {
   startedAt?: string;
   completedAt?: string;
   latencyMs?: number;
+  stepCount?: number;
+  llmCallCount?: number;
+  toolCallCount?: number;
+  traceEventCount?: number;
+  knownTotalTokens?: number;
 }
 
 export interface AdminRunStepDTO {

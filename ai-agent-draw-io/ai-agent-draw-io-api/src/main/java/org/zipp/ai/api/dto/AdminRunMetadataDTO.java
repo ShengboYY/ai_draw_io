@@ -9,6 +9,7 @@ public class AdminRunMetadataDTO {
 
     private String id;
     private String requestId;
+    private String diagramId;
     private String userId;
     private String agentId;
     private String sessionId;
@@ -20,4 +21,9 @@ public class AdminRunMetadataDTO {
     private Instant startedAt;
     private Instant completedAt;
     private Long latencyMs;
+    private Long stepCount;
+    private Long llmCallCount;
+    private Long toolCallCount;
+    private Long traceEventCount;
+    private Long knownTotalTokens;
 }

@@ -15,6 +15,7 @@ import org.zipp.ai.api.dto.AdminLlmCallDTO;
 import org.zipp.ai.api.dto.AdminRunDetailDTO;
 import org.zipp.ai.api.dto.AdminUsageDashboardDTO;
 import org.zipp.ai.api.dto.AdminUserDTO;
+import org.zipp.ai.api.dto.DiagramCanvasStateResponseDTO;
 import org.zipp.ai.api.response.Response;
 import org.zipp.ai.domain.account.model.entity.UserAccount;
 import org.zipp.ai.domain.account.model.valobj.AccountStatus;
@@ -30,6 +31,7 @@ import org.zipp.ai.domain.admin.service.AdminAuditLogService;
 import org.zipp.ai.domain.admin.service.IAdminAuditLogStore;
 import org.zipp.ai.domain.agent.model.valobj.debugtrace.DebugTraceCapture;
 import org.zipp.ai.domain.agent.model.valobj.debugtrace.DebugTraceControl;
+import org.zipp.ai.domain.agent.model.valobj.canvas.CanvasState;
 import org.zipp.ai.domain.agent.model.valobj.usage.AgentRunStepTelemetry;
 import org.zipp.ai.domain.agent.model.valobj.usage.AgentRunTelemetry;
 import org.zipp.ai.domain.agent.model.valobj.usage.AgentTraceEvent;
@@ -37,6 +39,7 @@ import org.zipp.ai.domain.agent.model.valobj.usage.LlmCallTelemetry;
 import org.zipp.ai.domain.agent.model.valobj.usage.ToolCallTelemetry;
 import org.zipp.ai.domain.agent.service.debugtrace.AgentDebugTraceService;
 import org.zipp.ai.domain.agent.service.debugtrace.IAgentDebugTraceStore;
+import org.zipp.ai.domain.agent.service.ICanvasStateStore;
 import org.zipp.ai.domain.agent.service.usage.AgentUsageTelemetryService;
 import org.zipp.ai.test.domain.agent.FakeAgentUsageTelemetryStore;
 import org.zipp.ai.trigger.http.AdminController;
@@ -63,6 +66,7 @@ public class AdminControllerTest {
     private FakeAgentUsageTelemetryStore telemetryStore;
     private FakeAdminAuditLogStore auditLogs;
     private FakeDebugTraceStore debugTraceStore;
+    private FakeCanvasStateStore canvasStateStore;
     private AdminController controller;
 
     @Before
@@ -71,6 +75,7 @@ public class AdminControllerTest {
         telemetryStore = new FakeAgentUsageTelemetryStore();
         auditLogs = new FakeAdminAuditLogStore();
         debugTraceStore = new FakeDebugTraceStore();
+        canvasStateStore = new FakeCanvasStateStore();
         AdminAuditLogService auditService = new AdminAuditLogService(
                 auditLogs, Clock.fixed(Instant.parse("2026-07-03T10:00:00Z"), ZoneOffset.UTC));
         AdminAuthorizationService authorizationService = new AdminAuthorizationService();
@@ -84,6 +89,7 @@ public class AdminControllerTest {
         inject(controller, "agentDebugTraceService", new AgentDebugTraceService(
                 debugTraceStore, auditService, Clock.fixed(Instant.parse("2026-07-03T10:00:00Z"), ZoneOffset.UTC)));
         inject(controller, "adminAuthorizationService", authorizationService);
+        inject(controller, "canvasStateStore", canvasStateStore);
 
         accounts.put(activeUser("usr_admin", "admin@example.com"));
         accounts.put(activeUser("usr_user", "user@example.com"));
@@ -190,6 +196,7 @@ public class AdminControllerTest {
         authenticate("usr_admin", 0);
         telemetryStore.runs.add(AgentRunTelemetry.builder()
                 .id("aru_1")
+                .diagramId("diag_admin_1")
                 .userId("usr_user")
                 .agentId("drawio")
                 .requestType("chat")
@@ -197,6 +204,11 @@ public class AdminControllerTest {
                 .modelCredentialId("mcr_1")
                 .status("SUCCESS")
                 .latencyMs(120L)
+                .stepCount(2L)
+                .llmCallCount(1L)
+                .toolCallCount(3L)
+                .traceEventCount(4L)
+                .knownTotalTokens(25L)
                 .startedAt(Instant.parse("2026-07-03T09:00:00Z"))
                 .build());
         telemetryStore.llmCalls.add(LlmCallTelemetry.builder()
@@ -224,6 +236,12 @@ public class AdminControllerTest {
         assertEquals("openai", usage.getData().getGroups().get(0).getProvider());
         assertEquals("0000", detail.getCode());
         assertEquals("mcr_1", detail.getData().getRun().getModelCredentialId());
+        assertEquals("diag_admin_1", detail.getData().getRun().getDiagramId());
+        assertEquals(Long.valueOf(2), detail.getData().getRun().getStepCount());
+        assertEquals(Long.valueOf(1), detail.getData().getRun().getLlmCallCount());
+        assertEquals(Long.valueOf(3), detail.getData().getRun().getToolCallCount());
+        assertEquals(Long.valueOf(4), detail.getData().getRun().getTraceEventCount());
+        assertEquals(Long.valueOf(25), detail.getData().getRun().getKnownTotalTokens());
         assertNoRawKeyFields(AdminLlmCallDTO.class);
         assertFalse(detail.getData().toString().contains("sk-live-secret"));
     }
@@ -293,6 +311,37 @@ public class AdminControllerTest {
         assertEquals("HTTP_REQUEST_RECEIVED", detail.getData().getTimeline().get(0).getEventType());
         assertEquals("llm_call", detail.getData().getTimeline().get(2).getSource());
         assertEquals("tool_call", detail.getData().getTimeline().get(3).getSource());
+    }
+
+    @Test
+    public void adminCanViewRunDiagramUsingRunOwnerAndDiagramId() {
+        authenticate("usr_admin", 0);
+        telemetryStore.runs.add(AgentRunTelemetry.builder()
+                .id("aru_diagram")
+                .diagramId("diag_123")
+                .userId("usr_user")
+                .agentId("drawio")
+                .requestType("chat_stream")
+                .credentialSource("PLATFORM")
+                .status("SUCCESS")
+                .startedAt(Instant.parse("2026-07-03T09:00:00Z"))
+                .build());
+        canvasStateStore.state = CanvasState.builder()
+                .userId("usr_user")
+                .diagramId("diag_123")
+                .title("Checkout flow")
+                .currentXml("<mxfile/>")
+                .version(4L)
+                .updatedAt(java.util.Date.from(Instant.parse("2026-07-03T09:05:00Z")))
+                .build();
+
+        Response<DiagramCanvasStateResponseDTO> response = controller.runDiagram("aru_diagram", request());
+
+        assertEquals("0000", response.getCode());
+        assertEquals("usr_user", canvasStateStore.requestedUserId);
+        assertEquals("diag_123", canvasStateStore.requestedDiagramId);
+        assertEquals("diag_123", response.getData().getDiagramId());
+        assertEquals("<mxfile/>", response.getData().getCurrentXml());
     }
 
     private void assertNoRawKeyFields(Class<?> type) {
@@ -388,6 +437,28 @@ public class AdminControllerTest {
         @Override
         public List<AdminAuditLog> listRecent(int limit) {
             return logs.stream().limit(limit).toList();
+        }
+    }
+
+    private static final class FakeCanvasStateStore implements ICanvasStateStore {
+        private CanvasState state;
+        private String requestedUserId;
+        private String requestedDiagramId;
+
+        @Override
+        public Optional<CanvasState> find(String userId, String diagramId) {
+            requestedUserId = userId;
+            requestedDiagramId = diagramId;
+            if (state == null || !userId.equals(state.getUserId()) || !diagramId.equals(state.getDiagramId())) {
+                return Optional.empty();
+            }
+            return Optional.of(state);
+        }
+
+        @Override
+        public CanvasState save(CanvasState state) {
+            this.state = state;
+            return state;
         }
     }
 

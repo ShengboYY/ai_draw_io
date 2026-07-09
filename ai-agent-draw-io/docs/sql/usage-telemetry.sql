@@ -13,6 +13,7 @@ USE ai_draw_io;
 CREATE TABLE IF NOT EXISTS agent_run (
     id                  VARCHAR(64) NOT NULL COMMENT '主键; aru_<uuid>',
     request_id          VARCHAR(128) NULL COMMENT '入口请求相关 ID;前端/响应头/SSE 共用',
+    diagram_id          VARCHAR(64) NULL COMMENT '关联 diagram.id;为空表示旧 run 或无持久图',
     trace_id            VARCHAR(64) NULL COMMENT '预留;未来 OTel traceId 对齐用',
     user_id             VARCHAR(64) NOT NULL COMMENT '请求所属 owner/user',
     agent_id            VARCHAR(64) NOT NULL COMMENT '用户可见 agent id',
@@ -27,6 +28,7 @@ CREATE TABLE IF NOT EXISTS agent_run (
     latency_ms          BIGINT NULL COMMENT '总耗时',
     PRIMARY KEY (id),
     KEY idx_agent_run_request (request_id),
+    KEY idx_agent_run_diagram (diagram_id, started_at),
     KEY idx_agent_run_completed (completed_at),
     KEY idx_agent_run_user_started (user_id, started_at),
     KEY idx_agent_run_user_source (user_id, credential_source, started_at)

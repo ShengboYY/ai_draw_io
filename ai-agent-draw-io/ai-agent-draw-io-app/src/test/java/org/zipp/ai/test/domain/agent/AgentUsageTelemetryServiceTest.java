@@ -56,6 +56,19 @@ public class AgentUsageTelemetryServiceTest {
     }
 
     @Test
+    public void shouldStoreDiagramIdOnRunContextAndRunMetadata() {
+        FakeAgentUsageTelemetryStore store = new FakeAgentUsageTelemetryStore();
+        AgentUsageTelemetryService service = service(store);
+
+        AgentUsageTelemetryService.RunScope run = service.startRun(
+                "aru_diagram", "req-diagram", "usr_alice", "300000", "session-1", "chat_stream",
+                "diag_123", "PLATFORM", null, "openai", "gpt-5.5");
+
+        assertEquals("diag_123", run.getContext().diagramId());
+        assertEquals("diag_123", store.runs.get(0).getDiagramId());
+    }
+
+    @Test
     public void shouldResolveRunContextByInvocationIdInsteadOfSessionId() {
         AgentUsageTelemetryService service = service(new FakeAgentUsageTelemetryStore());
         AgentUsageTelemetryService.RunScope first = service.startRun(

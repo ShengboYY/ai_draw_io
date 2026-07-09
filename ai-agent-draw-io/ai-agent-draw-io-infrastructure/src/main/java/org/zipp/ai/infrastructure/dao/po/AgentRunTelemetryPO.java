@@ -9,6 +9,7 @@ public class AgentRunTelemetryPO {
 
     private String id;
     private String requestId;
+    private String diagramId;
     private String userId;
     private String agentId;
     private String sessionId;
@@ -20,4 +21,9 @@ public class AgentRunTelemetryPO {
     private Date startedAt;
     private Date completedAt;
     private Long latencyMs;
+    private Long stepCount;
+    private Long llmCallCount;
+    private Long toolCallCount;
+    private Long traceEventCount;
+    private Long knownTotalTokens;
 }

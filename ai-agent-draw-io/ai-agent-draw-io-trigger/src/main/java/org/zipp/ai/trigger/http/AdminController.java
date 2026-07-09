@@ -24,11 +24,13 @@ import org.zipp.ai.api.dto.AdminTraceEventDTO;
 import org.zipp.ai.api.dto.AdminUsageDashboardDTO;
 import org.zipp.ai.api.dto.AdminUsageDimensionDTO;
 import org.zipp.ai.api.dto.AdminUserDTO;
+import org.zipp.ai.api.dto.DiagramCanvasStateResponseDTO;
 import org.zipp.ai.api.response.Response;
 import org.zipp.ai.domain.account.model.entity.UserAccount;
 import org.zipp.ai.domain.account.service.IAccountService;
 import org.zipp.ai.domain.admin.model.entity.AdminAuditLog;
 import org.zipp.ai.domain.admin.service.AdminAuditLogService;
+import org.zipp.ai.domain.agent.model.valobj.canvas.CanvasState;
 import org.zipp.ai.domain.agent.model.valobj.debugtrace.DebugTraceCapture;
 import org.zipp.ai.domain.agent.model.valobj.debugtrace.DebugTraceControl;
 import org.zipp.ai.domain.agent.model.valobj.usage.AdminUsageSummary;
@@ -39,6 +41,7 @@ import org.zipp.ai.domain.agent.model.valobj.usage.AgentTraceEvent;
 import org.zipp.ai.domain.agent.model.valobj.usage.LlmCallTelemetry;
 import org.zipp.ai.domain.agent.model.valobj.usage.ToolCallTelemetry;
 import org.zipp.ai.domain.agent.model.valobj.usage.UsageDimensionSummary;
+import org.zipp.ai.domain.agent.service.ICanvasStateStore;
 import org.zipp.ai.domain.agent.service.debugtrace.AgentDebugTraceService;
 import org.zipp.ai.domain.agent.service.usage.AgentUsageTelemetryService;
 import org.zipp.ai.trigger.http.service.AdminAuthorizationService;
@@ -70,6 +73,9 @@ public class AdminController {
 
     @Resource
     private AdminAuthorizationService adminAuthorizationService;
+
+    @Resource
+    private ICanvasStateStore canvasStateStore;
 
     @GetMapping("/users")
     public Response<List<AdminUserDTO>> listUsers(HttpServletRequest request) {
@@ -145,6 +151,31 @@ public class AdminController {
         }
         audit(admin.get(), "VIEW_RUN", "RUN", runId, "SUCCESS", request);
         return success(toRunDetailDto(detail.get()));
+    }
+
+    @GetMapping("/runs/{runId}/diagram")
+    public Response<DiagramCanvasStateResponseDTO> runDiagram(@PathVariable("runId") String runId,
+                                                              HttpServletRequest request) {
+        Optional<UserAccount> admin = requireAdmin(request);
+        if (admin.isEmpty()) {
+            return forbidden();
+        }
+        Optional<AgentRunDetail> detail = agentUsageTelemetryService.findRunDetail(runId);
+        if (detail.isEmpty()) {
+            audit(admin.get(), "VIEW_RUN_DIAGRAM", "RUN", runId, "NOT_FOUND", request);
+            return failure("run not found");
+        }
+        AgentRunTelemetry run = detail.get().getRun();
+        if (run == null || StringUtils.isAnyBlank(run.getUserId(), run.getDiagramId()) || canvasStateStore == null) {
+            audit(admin.get(), "VIEW_RUN_DIAGRAM", "RUN", runId, "EMPTY", request);
+            return success(null);
+        }
+        DiagramCanvasStateResponseDTO diagram = canvasStateStore.find(run.getUserId(), run.getDiagramId())
+                .map(this::toDiagramCanvasState)
+                .orElse(null);
+        audit(admin.get(), "VIEW_RUN_DIAGRAM", "DIAGRAM", run.getDiagramId(),
+                diagram == null ? "NOT_FOUND" : "SUCCESS", request);
+        return success(diagram);
     }
 
     @GetMapping("/debug-traces/runs/{runId}/captures")
@@ -351,10 +382,29 @@ public class AdminController {
         return dto;
     }
 
+    private DiagramCanvasStateResponseDTO toDiagramCanvasState(CanvasState state) {
+        if (state == null) {
+            return null;
+        }
+        DiagramCanvasStateResponseDTO dto = new DiagramCanvasStateResponseDTO();
+        dto.setDiagramId(state.getDiagramId());
+        dto.setUserId(state.getUserId());
+        dto.setTitle(state.getTitle());
+        dto.setDiagramType(state.getDiagramType());
+        dto.setThumbnailUrl(state.getThumbnailUrl());
+        dto.setCurrentXml(state.getCurrentXml());
+        dto.setContentHash(state.getContentHash());
+        dto.setSummary(state.getSummary());
+        dto.setVersion(state.getVersion());
+        dto.setUpdatedAt(state.getUpdatedAt());
+        return dto;
+    }
+
     private AdminRunMetadataDTO toRunMetadataDto(AgentRunTelemetry run) {
         AdminRunMetadataDTO dto = new AdminRunMetadataDTO();
         dto.setId(run.getId());
         dto.setRequestId(run.getRequestId());
+        dto.setDiagramId(run.getDiagramId());
         dto.setUserId(run.getUserId());
         dto.setAgentId(run.getAgentId());
         dto.setSessionId(run.getSessionId());
@@ -366,6 +416,11 @@ public class AdminController {
         dto.setStartedAt(run.getStartedAt());
         dto.setCompletedAt(run.getCompletedAt());
         dto.setLatencyMs(run.getLatencyMs());
+        dto.setStepCount(run.getStepCount());
+        dto.setLlmCallCount(run.getLlmCallCount());
+        dto.setToolCallCount(run.getToolCallCount());
+        dto.setTraceEventCount(run.getTraceEventCount());
+        dto.setKnownTotalTokens(run.getKnownTotalTokens());
         return dto;
     }
 

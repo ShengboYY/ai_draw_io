@@ -91,7 +91,7 @@ public class AgentConversationService {
         AgentUsageTelemetryService.RunScope runScope = telemetryService().startRun(
                 requestDTO.getRunId(), requestDTO.getRequestId(),
                 requestDTO.getUserId(), requestDTO.getAgentId(), requestDTO.getSessionId(), "chat",
-                credentialSource(requestDTO), requestDTO.getModelCredentialId(), "openai", "unknown");
+                requestDTO.getDiagramId(), credentialSource(requestDTO), requestDTO.getModelCredentialId(), "openai", "unknown");
         requestDTO.setRunId(runScope.getContext().runId());
         AgentUsageTelemetryContext.Scope initialScope = AgentUsageTelemetryContext.bind(runScope.getContext());
         AgentUsageTelemetryContext.Scope configuredScope = null;
@@ -163,7 +163,7 @@ public class AgentConversationService {
         AgentUsageTelemetryService.RunScope runScope = telemetryService().startRun(
                 requestDTO.getRunId(), requestDTO.getRequestId(),
                 requestDTO.getUserId(), requestDTO.getAgentId(), requestDTO.getSessionId(), "chat_stream",
-                credentialSource(requestDTO), requestDTO.getModelCredentialId(), "openai", "unknown");
+                requestDTO.getDiagramId(), credentialSource(requestDTO), requestDTO.getModelCredentialId(), "openai", "unknown");
         requestDTO.setRunId(runScope.getContext().runId());
         AgentUsageTelemetryContext.Scope initialScope = AgentUsageTelemetryContext.bind(runScope.getContext());
         AgentUsageTelemetryContext.Scope configuredScope = null;

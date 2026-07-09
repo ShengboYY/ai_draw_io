@@ -59,6 +59,8 @@ DEALLOCATE PREPARE add_agent_run_completed_index_stmt;
 CREATE TABLE IF NOT EXISTS agent_trace_event (
     id            VARCHAR(64) NOT NULL COMMENT '主键; ate_<uuid>',
     run_id        VARCHAR(64) NOT NULL COMMENT 'agent_run.id',
+    parent_id     VARCHAR(64) NULL COMMENT '父 span id;通常 = agent_run.id',
+    trace_id      VARCHAR(64) NULL COMMENT '预留;未来 OTel traceId 对齐用',
     request_id    VARCHAR(128) NULL COMMENT '入口请求相关 ID',
     user_id       VARCHAR(64) NOT NULL COMMENT '冗余 owner/user,便于匿名化和排查',
     sequence_no   BIGINT NOT NULL COMMENT 'run 内单调序号;由 RunContext 生成',
@@ -69,6 +71,7 @@ CREATE TABLE IF NOT EXISTS agent_trace_event (
     occurred_at   DATETIME NOT NULL COMMENT '发生时间',
     PRIMARY KEY (id),
     KEY idx_agent_trace_event_run (run_id, sequence_no),
+    KEY idx_agent_trace_event_parent (parent_id),
     KEY idx_agent_trace_event_request (request_id),
     KEY idx_agent_trace_event_user_time (user_id, occurred_at),
     KEY idx_agent_trace_event_time (occurred_at)

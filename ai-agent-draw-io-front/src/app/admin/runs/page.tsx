@@ -6,7 +6,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { agentApi, ApiResponseError } from '@/api/agent';
 import type { AdminRunMetadataDTO } from '@/types/api';
 import { buildLoginHref } from '@/utils/login-form';
-import { formatMs, formatRelative, statusPill } from '../admin-shared';
+import { formatMs, formatNumber, formatRelative, statusPill } from '../admin-shared';
 
 const PAGE_SIZE = 50;
 const STATUS_FILTERS: { label: string; value?: string }[] = [
@@ -124,6 +124,7 @@ export default function AdminRunsPage() {
               <th className="px-3 py-2 font-medium">Run</th>
               <th className="px-3 py-2 font-medium">Agent</th>
               <th className="px-3 py-2 font-medium">Type</th>
+              <th className="px-3 py-2 font-medium">Counts</th>
               <th className="px-3 py-2 font-medium">Error</th>
               <th className="px-3 py-2 text-right font-medium">Latency</th>
               <th className="px-3 py-2 text-right font-medium">Started</th>
@@ -146,9 +147,23 @@ export default function AdminRunsPage() {
                   >
                     {r.id.replace(/^aru_/, '').slice(0, 12)}…
                   </Link>
+                  {r.diagramId && (
+                    <div className="mt-1 max-w-40 truncate font-mono text-[11px] text-neutral-400">
+                      {r.diagramId}
+                    </div>
+                  )}
                 </td>
                 <td className="px-3 py-2 text-neutral-700">{r.agentId || '—'}</td>
                 <td className="px-3 py-2 text-neutral-500">{r.requestType || '—'}</td>
+                <td className="px-3 py-2">
+                  <div className="flex flex-wrap gap-1">
+                    <CountBadge label="ev" value={r.traceEventCount} />
+                    <CountBadge label="st" value={r.stepCount} />
+                    <CountBadge label="llm" value={r.llmCallCount} />
+                    <CountBadge label="tool" value={r.toolCallCount} />
+                    <CountBadge label="tok" value={r.knownTotalTokens} />
+                  </div>
+                </td>
                 <td className="px-3 py-2 text-red-600">{r.errorClass || ''}</td>
                 <td className="px-3 py-2 text-right">{formatMs(r.latencyMs)}</td>
                 <td className="px-3 py-2 text-right text-neutral-500">{formatRelative(r.startedAt)}</td>
@@ -156,7 +171,7 @@ export default function AdminRunsPage() {
             ))}
             {runs.length === 0 && !loading && (
               <tr>
-                <td colSpan={7} className="px-3 py-10 text-center text-sm text-neutral-400">
+                <td colSpan={8} className="px-3 py-10 text-center text-sm text-neutral-400">
                   No runs found.
                 </td>
               </tr>
@@ -185,5 +200,13 @@ export default function AdminRunsPage() {
         ) : null}
       </div>
     </div>
+  );
+}
+
+function CountBadge({ label, value }: { label: string; value?: number | null }) {
+  return (
+    <span className="rounded border border-neutral-200 bg-neutral-50 px-1.5 py-0.5 font-mono text-[11px] text-neutral-500">
+      {label}:{formatNumber(value)}
+    </span>
   );
 }

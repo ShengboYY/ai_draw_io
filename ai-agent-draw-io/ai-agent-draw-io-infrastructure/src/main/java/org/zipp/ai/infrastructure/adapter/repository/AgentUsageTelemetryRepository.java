@@ -193,6 +193,7 @@ public class AgentUsageTelemetryRepository implements IAgentUsageTelemetryStore 
         AgentRunTelemetryPO po = new AgentRunTelemetryPO();
         po.setId(run.getId());
         po.setRequestId(run.getRequestId());
+        po.setDiagramId(run.getDiagramId());
         po.setUserId(run.getUserId());
         po.setAgentId(run.getAgentId());
         po.setSessionId(run.getSessionId());
@@ -204,6 +205,11 @@ public class AgentUsageTelemetryRepository implements IAgentUsageTelemetryStore 
         po.setStartedAt(toDate(run.getStartedAt()));
         po.setCompletedAt(toDate(run.getCompletedAt()));
         po.setLatencyMs(run.getLatencyMs());
+        po.setStepCount(run.getStepCount());
+        po.setLlmCallCount(run.getLlmCallCount());
+        po.setToolCallCount(run.getToolCallCount());
+        po.setTraceEventCount(run.getTraceEventCount());
+        po.setKnownTotalTokens(run.getKnownTotalTokens());
         return po;
     }
 
@@ -280,6 +286,7 @@ public class AgentUsageTelemetryRepository implements IAgentUsageTelemetryStore 
         return AgentRunTelemetry.builder()
                 .id(po.getId())
                 .requestId(po.getRequestId())
+                .diagramId(po.getDiagramId())
                 .userId(po.getUserId())
                 .agentId(po.getAgentId())
                 .sessionId(po.getSessionId())
@@ -291,6 +298,11 @@ public class AgentUsageTelemetryRepository implements IAgentUsageTelemetryStore 
                 .startedAt(toInstant(po.getStartedAt()))
                 .completedAt(toInstant(po.getCompletedAt()))
                 .latencyMs(po.getLatencyMs())
+                .stepCount(defaultLong(po.getStepCount()))
+                .llmCallCount(defaultLong(po.getLlmCallCount()))
+                .toolCallCount(defaultLong(po.getToolCallCount()))
+                .traceEventCount(defaultLong(po.getTraceEventCount()))
+                .knownTotalTokens(defaultLong(po.getKnownTotalTokens()))
                 .build();
     }
 

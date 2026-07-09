@@ -5,6 +5,7 @@
     <resultMap id="runMap" type="org.zipp.ai.infrastructure.dao.po.AgentRunTelemetryPO">
         <id column="id" property="id"/>
         <result column="request_id" property="requestId"/>
+        <result column="diagram_id" property="diagramId"/>
         <result column="user_id" property="userId"/>
         <result column="agent_id" property="agentId"/>
         <result column="session_id" property="sessionId"/>
@@ -16,6 +17,11 @@
         <result column="started_at" property="startedAt"/>
         <result column="completed_at" property="completedAt"/>
         <result column="latency_ms" property="latencyMs"/>
+        <result column="step_count" property="stepCount"/>
+        <result column="llm_call_count" property="llmCallCount"/>
+        <result column="tool_call_count" property="toolCallCount"/>
+        <result column="trace_event_count" property="traceEventCount"/>
+        <result column="known_total_tokens" property="knownTotalTokens"/>
     </resultMap>
 
     <resultMap id="stepMap" type="org.zipp.ai.infrastructure.dao.po.AgentRunStepTelemetryPO">
@@ -81,11 +87,11 @@
 
     <insert id="insertRun" parameterType="org.zipp.ai.infrastructure.dao.po.AgentRunTelemetryPO">
         INSERT INTO agent_run (
-            id, request_id, user_id, agent_id, session_id, request_type, credential_source, model_credential_id,
+            id, request_id, diagram_id, user_id, agent_id, session_id, request_type, credential_source, model_credential_id,
             status, error_class, started_at, completed_at, latency_ms
         )
         VALUES (
-            #{id}, #{requestId}, #{userId}, #{agentId}, #{sessionId}, #{requestType}, #{credentialSource}, #{modelCredentialId},
+            #{id}, #{requestId}, #{diagramId}, #{userId}, #{agentId}, #{sessionId}, #{requestType}, #{credentialSource}, #{modelCredentialId},
             #{status}, #{errorClass}, #{startedAt}, #{completedAt}, #{latencyMs}
         )
     </insert>
@@ -215,23 +221,34 @@
 
     <select id="selectRunById" resultMap="runMap">
         SELECT
-            id, request_id, user_id, agent_id, session_id, request_type, credential_source, model_credential_id,
-            status, error_class, started_at, completed_at, latency_ms
+            id, request_id, diagram_id, user_id, agent_id, session_id, request_type, credential_source, model_credential_id,
+            status, error_class, started_at, completed_at, latency_ms,
+            (SELECT COALESCE(COUNT(*), 0) FROM agent_run_step s WHERE s.run_id = agent_run.id) AS step_count,
+            (SELECT COALESCE(COUNT(*), 0) FROM agent_llm_call c WHERE c.run_id = agent_run.id) AS llm_call_count,
+            (SELECT COALESCE(COUNT(*), 0) FROM agent_tool_call t WHERE t.run_id = agent_run.id) AS tool_call_count,
+            (SELECT COALESCE(COUNT(*), 0) FROM agent_trace_event e WHERE e.run_id = agent_run.id) AS trace_event_count,
+            (SELECT COALESCE(SUM(c.total_tokens), 0) FROM agent_llm_call c WHERE c.run_id = agent_run.id) AS known_total_tokens
         FROM agent_run
         WHERE id = #{runId}
     </select>
 
     <select id="selectRuns" resultMap="runMap">
         SELECT
-            id, request_id, user_id, agent_id, session_id, request_type, credential_source, model_credential_id,
-            status, error_class, started_at, completed_at, latency_ms
-        FROM agent_run
+            r.id, r.request_id, r.diagram_id, r.user_id, r.agent_id, r.session_id, r.request_type,
+            r.credential_source, r.model_credential_id, r.status, r.error_class, r.started_at,
+            r.completed_at, r.latency_ms,
+            (SELECT COALESCE(COUNT(*), 0) FROM agent_run_step s WHERE s.run_id = r.id) AS step_count,
+            (SELECT COALESCE(COUNT(*), 0) FROM agent_llm_call c WHERE c.run_id = r.id) AS llm_call_count,
+            (SELECT COALESCE(COUNT(*), 0) FROM agent_tool_call t WHERE t.run_id = r.id) AS tool_call_count,
+            (SELECT COALESCE(COUNT(*), 0) FROM agent_trace_event e WHERE e.run_id = r.id) AS trace_event_count,
+            (SELECT COALESCE(SUM(c.total_tokens), 0) FROM agent_llm_call c WHERE c.run_id = r.id) AS known_total_tokens
+        FROM agent_run r
         <where>
-            <if test="status != null and status != ''">AND status = #{status}</if>
-            <if test="userId != null and userId != ''">AND user_id = #{userId}</if>
-            <if test="agentId != null and agentId != ''">AND agent_id = #{agentId}</if>
+            <if test="status != null and status != ''">AND r.status = #{status}</if>
+            <if test="userId != null and userId != ''">AND r.user_id = #{userId}</if>
+            <if test="agentId != null and agentId != ''">AND r.agent_id = #{agentId}</if>
         </where>
-        ORDER BY started_at DESC, id DESC
+        ORDER BY r.started_at DESC, r.id DESC
         LIMIT #{limit} OFFSET #{offset}
     </select>
 

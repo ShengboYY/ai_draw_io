@@ -59,6 +59,40 @@ export const formatRelative = (iso?: string): string => {
   return `${Math.round(h / 24)}d ago`;
 };
 
+export interface DiagramPreviewSource {
+  diagramId?: string;
+  title?: string;
+  version?: number | null;
+  updatedAt?: string;
+  thumbnailUrl?: string | null;
+}
+
+export const diagramPreviewTitle = (diagram?: DiagramPreviewSource | null): string => {
+  const title = diagram?.title?.trim();
+  if (title) return title;
+  const id = diagram?.diagramId?.trim();
+  if (!id) return 'No linked diagram';
+  return id.length > 11 ? `${id.slice(0, 11)}…` : id;
+};
+
+export const diagramPreviewMeta = (diagram?: DiagramPreviewSource | null): string => {
+  const parts: string[] = [];
+  if (typeof diagram?.version === 'number' && Number.isFinite(diagram.version)) {
+    parts.push(`v${diagram.version}`);
+  }
+  if (diagram?.updatedAt) {
+    const updatedAt = new Date(diagram.updatedAt);
+    if (!Number.isNaN(updatedAt.getTime())) {
+      // Keep admin snapshots stable across operator time zones.
+      parts.push(`${updatedAt.toISOString().slice(0, 16).replace('T', ' ')} UTC`);
+    }
+  }
+  return parts.length > 0 ? parts.join(' · ') : 'No saved canvas snapshot';
+};
+
+export const diagramPreviewHasImage = (diagram?: DiagramPreviewSource | null): boolean =>
+  Boolean(diagram?.thumbnailUrl?.trim());
+
 export const isFailed = (status?: string): boolean =>
   (status || '').toUpperCase() === 'FAILED';
 
@@ -110,6 +144,13 @@ export interface WaterfallRow {
   leftPct: number;
   widthPct: number;
   isPoint: boolean;
+}
+
+export interface WaterfallRowView {
+  isStep: boolean;
+  compact: boolean;
+  startsStepGroup: boolean;
+  visualDepth: number;
 }
 
 const startMs = (e: AdminRunTimelineEventDTO): number => {
@@ -173,4 +214,33 @@ export const buildWaterfall = (timeline: AdminRunTimelineEventDTO[]): WaterfallR
   };
   roots.forEach((r) => visit(r, 0));
   return rows;
+};
+
+export const waterfallRowView = (rows: WaterfallRow[], index: number): WaterfallRowView => {
+  const row = rows[index];
+  if (!row) return { isStep: false, compact: false, startsStepGroup: false, visualDepth: 0 };
+
+  const isStep = row.event.source === 'step';
+  let visualDepth = row.depth;
+  let implicitStepChild = false;
+
+  // Legacy rows may not have parentId; tuck same-phase spans under the nearest preceding step.
+  if (!isStep && row.depth === 0) {
+    for (let i = index - 1; i >= 0; i -= 1) {
+      const candidate = rows[i];
+      if (candidate.event.source !== 'step') continue;
+      if (!row.event.phase || !candidate.event.phase || row.event.phase === candidate.event.phase) {
+        visualDepth = candidate.depth + 1;
+        implicitStepChild = true;
+      }
+      break;
+    }
+  }
+
+  return {
+    isStep,
+    compact: !isStep && (row.depth > 0 || implicitStepChild),
+    startsStepGroup: isStep && index > 0,
+    visualDepth,
+  };
 };
