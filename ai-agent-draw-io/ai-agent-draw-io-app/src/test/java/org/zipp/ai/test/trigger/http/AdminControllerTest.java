@@ -332,7 +332,7 @@ public class AdminControllerTest {
                 .stepCount(1L)
                 .llmCallCount(1L)
                 .toolCallCount(1L)
-                .traceEventCount(1L)
+                .traceEventCount(2L)
                 .knownTotalTokens(3_000L)
                 .build());
         telemetryStore.traceEvents.add(AgentTraceEvent.builder()
@@ -345,6 +345,17 @@ public class AdminControllerTest {
                 .phase("request")
                 .status("SUCCESS")
                 .occurredAt(Instant.parse("2026-07-03T09:00:00Z"))
+                .build());
+        telemetryStore.traceEvents.add(AgentTraceEvent.builder()
+                .id("ate_canvas")
+                .runId("aru_trace")
+                .requestId("req-trace")
+                .userId("usr_user")
+                .sequenceNo(2L)
+                .eventType("CANVAS_SAVED")
+                .phase("diagram")
+                .status("SUCCESS")
+                .occurredAt(Instant.parse("2026-07-03T09:00:06Z"))
                 .build());
         telemetryStore.steps.add(AgentRunStepTelemetry.builder()
                 .id("ars_trace")
@@ -384,17 +395,28 @@ public class AdminControllerTest {
                 .completedAt(Instant.parse("2026-07-03T09:00:06Z"))
                 .latencyMs(1_000L)
                 .build());
+        canvasStateStore.state = CanvasState.builder()
+                .userId("usr_user")
+                .diagramId("diag_trace")
+                .currentXml("<mxfile/>")
+                .contentHash("hash-final")
+                .thumbnailUrl("data:image/png;base64,abc")
+                .version(3L)
+                .updatedAt(java.util.Date.from(Instant.parse("2026-07-03T09:00:07Z")))
+                .build();
 
         Response<AdminDiagramTraceDTO> response = controller.diagramTrace("aru_trace", request());
 
         assertEquals("0000", response.getCode());
         assertEquals("aru_trace", response.getData().getRun().getId());
         assertEquals("DIAGRAM_CREATED", response.getData().getSummary().getOutcome());
-        assertEquals(Long.valueOf(5), response.getData().getSummary().getSpanCount());
-        assertEquals(5, response.getData().getSpans().size());
+        assertEquals(Long.valueOf(6), response.getData().getSummary().getSpanCount());
+        assertEquals(6, response.getData().getSpans().size());
         assertEquals("RUN", response.getData().getSpans().get(0).getKind());
         assertEquals("EVENT", response.getData().getSpans().get(1).getKind());
         assertEquals("aru_trace", response.getData().getSpans().get(2).getParentId());
+        assertEquals("usr_user", canvasStateStore.requestedUserId);
+        assertEquals("diag_trace", canvasStateStore.requestedDiagramId);
 
         AdminDiagramTraceSpanDTO llm = response.getData().getSpans().stream()
                 .filter(span -> "LLM".equals(span.getKind()))
@@ -411,6 +433,17 @@ public class AdminControllerTest {
                 .orElseThrow();
         assertEquals("create_diagram", tool.getToolName());
         assertEquals("ars_trace", tool.getParentId());
+        assertEquals("diag_trace", tool.getDiagramEffect().getDiagramId());
+        assertEquals(Long.valueOf(3L), tool.getDiagramEffect().getAfterVersion());
+        assertEquals("hash-final", tool.getDiagramEffect().getAfterHash());
+        assertEquals("THUMBNAIL_RENDERED", tool.getDiagramEffect().getRenderStatus());
+        assertEquals("data:image/png;base64,abc", tool.getDiagramEffect().getThumbnailUrl());
+
+        AdminDiagramTraceSpanDTO canvasEvent = response.getData().getSpans().stream()
+                .filter(span -> "CANVAS_SAVED".equals(span.getEventType()))
+                .findFirst()
+                .orElseThrow();
+        assertEquals("diag_trace", canvasEvent.getDiagramEffect().getDiagramId());
         assertEquals("ON_DEMAND", response.getData().getPayloadAvailability().getStatus());
     }
 

@@ -24,3 +24,12 @@ test('admin run detail consumes the P1 unified diagram trace span model', () => 
   assert.match(pageSource, /traceKind\(event\)/);
   assert.match(pageSource, /traceDisplayName\(selected\)/);
 });
+
+test('admin run detail shows P2 diagram effect evidence on selected spans', () => {
+  assert.match(pageSource, /Diagram Effect/);
+  assert.match(pageSource, /Diagram ID/);
+  assert.match(pageSource, /Canvas hash/);
+  assert.match(pageSource, /Render status/);
+  assert.match(pageSource, /XML changed/);
+  assert.match(pageSource, /Thumbnail changed/);
+});

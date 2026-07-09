@@ -14,6 +14,7 @@ import org.zipp.ai.api.dto.AdminDebugTraceCaptureDTO;
 import org.zipp.ai.api.dto.AdminDebugTraceControlDTO;
 import org.zipp.ai.api.dto.AdminDebugTraceControlRequestDTO;
 import org.zipp.ai.api.dto.AdminDebugTraceRetentionRequestDTO;
+import org.zipp.ai.api.dto.AdminDiagramEffectDTO;
 import org.zipp.ai.api.dto.AdminDiagramTraceDTO;
 import org.zipp.ai.api.dto.AdminDiagramTraceSpanDTO;
 import org.zipp.ai.api.dto.AdminDiagramTraceSummaryDTO;
@@ -403,9 +404,10 @@ public class AdminController {
     }
 
     private AdminDiagramTraceDTO toDiagramTraceDto(AgentRunDetail detail) {
+        CanvasState diagramState = currentCanvasState(detail).orElse(null);
         AdminDiagramTraceDTO dto = new AdminDiagramTraceDTO();
         dto.setRun(toRunMetadataDto(detail.getRun()));
-        dto.setSpans(toDiagramTraceSpans(detail));
+        dto.setSpans(toDiagramTraceSpans(detail, diagramState));
         dto.setSummary(toDiagramTraceSummary(detail, dto.getSpans()));
         dto.setSnapshots(List.of());
         dto.setFindings(List.of());
@@ -469,7 +471,7 @@ public class AdminController {
                 || StringUtils.equalsIgnoreCase(toolName, "modify_diagram");
     }
 
-    private List<AdminDiagramTraceSpanDTO> toDiagramTraceSpans(AgentRunDetail detail) {
+    private List<AdminDiagramTraceSpanDTO> toDiagramTraceSpans(AgentRunDetail detail, CanvasState diagramState) {
         List<AdminDiagramTraceSpanDTO> spans = new ArrayList<>();
         AgentRunTelemetry run = detail.getRun();
         String runId = run == null ? null : run.getId();
@@ -477,10 +479,10 @@ public class AdminController {
         if (run != null) {
             spans.add(runSpan(run));
         }
-        safeList(detail.getTraceEvents()).forEach(event -> spans.add(traceSpan(event, runId)));
+        safeList(detail.getTraceEvents()).forEach(event -> spans.add(traceSpan(event, run, diagramState)));
         safeList(detail.getSteps()).forEach(step -> spans.add(traceSpan(step, runId, requestId)));
         safeList(detail.getLlmCalls()).forEach(call -> spans.add(traceSpan(call, runId, requestId)));
-        safeList(detail.getToolCalls()).forEach(call -> spans.add(traceSpan(call, runId, requestId)));
+        safeList(detail.getToolCalls()).forEach(call -> spans.add(traceSpan(call, run, diagramState)));
         spans.sort(Comparator
                 .comparing(AdminDiagramTraceSpanDTO::getStartedAt, Comparator.nullsLast(Comparator.naturalOrder()))
                 .thenComparing(span -> spanKindRank(span.getKind()))
@@ -506,13 +508,17 @@ public class AdminController {
         return dto;
     }
 
-    private AdminDiagramTraceSpanDTO traceSpan(AgentTraceEvent event, String runId) {
+    private AdminDiagramTraceSpanDTO traceSpan(AgentTraceEvent event, AgentRunTelemetry run, CanvasState diagramState) {
+        String runId = run == null ? null : run.getId();
         AdminDiagramTraceSpanDTO dto = baseTraceSpan(
                 event.getId(), normalizedParentId(event.getParentId(), runId), "EVENT",
                 StringUtils.defaultIfBlank(event.getEventType(), "event"), event.getRunId(), event.getRequestId(),
                 event.getUserId(), event.getSequenceNo(), event.getEventType(), event.getPhase(), event.getStatus(),
                 event.getOccurredAt(), event.getOccurredAt(), null);
         dto.setMetadataJson(event.getMetadataJson());
+        if (isDiagramEvent(event.getEventType())) {
+            dto.setDiagramEffect(diagramEffect(run, diagramState));
+        }
         return dto;
     }
 
@@ -542,7 +548,9 @@ public class AdminController {
         return dto;
     }
 
-    private AdminDiagramTraceSpanDTO traceSpan(ToolCallTelemetry call, String runId, String requestId) {
+    private AdminDiagramTraceSpanDTO traceSpan(ToolCallTelemetry call, AgentRunTelemetry run, CanvasState diagramState) {
+        String runId = run == null ? null : run.getId();
+        String requestId = run == null ? null : run.getRequestId();
         AdminDiagramTraceSpanDTO dto = baseTraceSpan(
                 call.getId(), normalizedParentId(call.getParentId(), runId), "TOOL",
                 StringUtils.defaultIfBlank(call.getToolName(), "tool"), call.getRunId(), requestId,
@@ -550,7 +558,57 @@ public class AdminController {
                 call.getStartedAt(), call.getCompletedAt(), call.getLatencyMs());
         dto.setToolName(call.getToolName());
         dto.setErrorClass(call.getErrorClass());
+        if (isDiagramMutationTool(call.getToolName())) {
+            dto.setDiagramEffect(diagramEffect(run, diagramState));
+        }
         return dto;
+    }
+
+    private boolean isDiagramEvent(String eventType) {
+        String value = StringUtils.defaultString(eventType).toLowerCase();
+        return value.contains("diagram")
+                || value.contains("canvas")
+                || value.contains("thumbnail")
+                || value.contains("render")
+                || value.contains("xml");
+    }
+
+    private Optional<CanvasState> currentCanvasState(AgentRunDetail detail) {
+        AgentRunTelemetry run = detail.getRun();
+        if (run == null || canvasStateStore == null || StringUtils.isAnyBlank(run.getUserId(), run.getDiagramId())) {
+            return Optional.empty();
+        }
+        return canvasStateStore.find(run.getUserId(), run.getDiagramId());
+    }
+
+    private AdminDiagramEffectDTO diagramEffect(AgentRunTelemetry run, CanvasState state) {
+        if (run == null || StringUtils.isBlank(run.getDiagramId())) {
+            return null;
+        }
+        AdminDiagramEffectDTO dto = new AdminDiagramEffectDTO();
+        dto.setDiagramId(run.getDiagramId());
+        if (state == null) {
+            dto.setRenderStatus("DIAGRAM_NOT_FOUND");
+            return dto;
+        }
+        dto.setAfterVersion(state.getVersion());
+        dto.setAfterHash(state.getContentHash());
+        dto.setThumbnailUrl(state.getThumbnailUrl());
+        dto.setRenderStatus(diagramRenderStatus(state));
+        return dto;
+    }
+
+    private String diagramRenderStatus(CanvasState state) {
+        if (state == null) {
+            return "DIAGRAM_NOT_FOUND";
+        }
+        if (StringUtils.isNotBlank(state.getThumbnailUrl())) {
+            return "THUMBNAIL_RENDERED";
+        }
+        if (StringUtils.isNotBlank(state.getCurrentXml())) {
+            return "XML_AVAILABLE";
+        }
+        return "NO_RENDER_EVIDENCE";
     }
 
     private AdminDiagramTraceSpanDTO baseTraceSpan(String id,

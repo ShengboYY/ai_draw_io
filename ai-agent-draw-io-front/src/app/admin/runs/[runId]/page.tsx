@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useParams, usePathname, useRouter } from 'next/navigation';
 import { agentApi, ApiResponseError } from '@/api/agent';
 import type {
+  AdminDiagramEffectDTO,
   AdminDiagramTraceDTO,
   AdminDiagramTraceSpanDTO,
   AdminDebugTraceCaptureDTO,
@@ -396,17 +397,11 @@ export default function AdminRunDetailPage() {
                       {selected.kind === 'LLM' && <Row k="Est. cost" v={formatCost(selected.estimatedCost)} />}
                       {selected.kind === 'TOOL' && <Row k="Tool" v={selected.toolName} />}
                       {selected.errorClass && <Row k="Error" v={selected.errorClass} bad />}
-                      {selected.diagramEffect && (
-                        <Row
-                          k="Diagram"
-                          v={`${selected.diagramEffect.diagramId || '—'}${
-                            selected.diagramEffect.afterVersion != null
-                              ? ` · v${selected.diagramEffect.afterVersion}`
-                              : ''
-                          }`}
-                        />
-                      )}
                     </dl>
+
+                    {selected.diagramEffect && (
+                      <DiagramEffectPanel effect={selected.diagramEffect} />
+                    )}
 
                     {selected.metadataJson && (
                       <div className="mt-4">
@@ -486,10 +481,41 @@ function Row({ k, v, bad }: { k: string; v?: string; bad?: boolean }) {
   if (!v) return null;
   return (
     <div className="flex justify-between gap-3">
-      <dt className="text-neutral-400">{k}</dt>
-      <dd className={`text-right ${bad ? 'text-red-600' : 'text-neutral-700'}`}>{v}</dd>
+      <dt className="shrink-0 text-neutral-400">{k}</dt>
+      <dd className={`min-w-0 break-all text-right ${bad ? 'text-red-600' : 'text-neutral-700'}`}>{v}</dd>
     </div>
   );
+}
+
+function DiagramEffectPanel({ effect }: { effect: AdminDiagramEffectDTO }) {
+  return (
+    <div className="mt-4 rounded-lg bg-neutral-50 p-3">
+      <div className="mb-2 text-xs font-medium text-neutral-500">Diagram Effect</div>
+      <dl className="space-y-2">
+        <Row k="Diagram ID" v={effect.diagramId} />
+        <Row k="Version" v={formatEffectVersion(effect)} />
+        <Row k="Canvas hash" v={effect.afterHash || effect.beforeHash} />
+        <Row k="Render status" v={effect.renderStatus} />
+        <Row k="Thumbnail" v={effect.thumbnailUrl ? 'present' : 'missing'} />
+        <Row k="XML changed" v={formatEffectBoolean(effect.xmlChanged)} />
+        <Row k="Thumbnail changed" v={formatEffectBoolean(effect.thumbnailChanged)} />
+      </dl>
+    </div>
+  );
+}
+
+function formatEffectVersion(effect: AdminDiagramEffectDTO): string | undefined {
+  if (effect.beforeVersion != null && effect.afterVersion != null) {
+    return `v${effect.beforeVersion} -> v${effect.afterVersion}`;
+  }
+  if (effect.afterVersion != null) return `v${effect.afterVersion}`;
+  if (effect.beforeVersion != null) return `v${effect.beforeVersion}`;
+  return undefined;
+}
+
+function formatEffectBoolean(value?: boolean): string {
+  if (value == null) return 'unknown';
+  return value ? 'yes' : 'no';
 }
 
 function DiagramSnapshotPanel({
