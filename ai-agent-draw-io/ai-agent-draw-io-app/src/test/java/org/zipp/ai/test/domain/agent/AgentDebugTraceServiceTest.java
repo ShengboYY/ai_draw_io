@@ -8,6 +8,7 @@ import org.zipp.ai.domain.admin.service.AdminAuditLogService;
 import org.zipp.ai.domain.admin.service.IAdminAuditLogStore;
 import org.zipp.ai.domain.agent.model.valobj.debugtrace.DebugTraceCapture;
 import org.zipp.ai.domain.agent.model.valobj.debugtrace.DebugTraceControl;
+import org.zipp.ai.domain.agent.model.valobj.debugtrace.DebugTracePayloadKind;
 import org.zipp.ai.domain.agent.service.debugtrace.AgentDebugTraceService;
 import org.zipp.ai.domain.agent.service.debugtrace.IAgentDebugTraceStore;
 import org.zipp.ai.domain.agent.service.usage.AgentTelemetryMetrics;
@@ -95,16 +96,67 @@ public class AgentDebugTraceServiceTest {
                 "usr_alice",
                 "aru_span",
                 "alc_1",
-                "LLM_OUTPUT",
+                DebugTracePayloadKind.OUTPUT,
                 "application/json",
                 oversizedJson).orElseThrow();
 
         assertEquals("alc_1", capture.getSpanId());
-        assertEquals("LLM_OUTPUT", capture.getPayloadKind());
+        assertEquals("OUTPUT", capture.getPayloadKind());
         assertEquals("application/json", capture.getContentType());
-        assertEquals(Integer.valueOf(64_010), capture.getOriginalLength());
+        assertEquals(Long.valueOf(64_010), capture.getOriginalLength());
         assertTrue(capture.isTruncated());
         assertEquals(64_000, capture.getContent().length());
+    }
+
+    @Test
+    public void spanPayloadAcceptsTheTrueOriginalLengthOfABoundedUpstreamCapture() {
+        service.enableControl("usr_admin", null, "aru_bounded", null, null);
+
+        DebugTraceCapture capture = service.captureSpanPayload(
+                "usr_alice", "aru_bounded", "alc_bounded", DebugTracePayloadKind.OUTPUT, "application/json",
+                "retained prefix", 125_000L).orElseThrow();
+
+        assertEquals(Long.valueOf(125_000), capture.getOriginalLength());
+        assertTrue(capture.isTruncated());
+        assertEquals("retained prefix", capture.getContent());
+    }
+
+    @Test
+    public void captureRedactsJsonSecretsAndHiddenThoughtPartsBeforePersistence() {
+        service.enableControl("usr_admin", null, "aru_redact", null, null);
+        String payload = """
+                {"authorization":"Bearer secret-token","apiKey":"sk-live-123","thoughtsTokenCount":42,
+                 "parts":[{"thought":true,"text":"private chain of thought"},{"text":"safe answer"}]}
+                """;
+
+        DebugTraceCapture capture = service.captureSpanPayload(
+                "usr_alice", "aru_redact", "alc_redact", DebugTracePayloadKind.OUTPUT, "application/json", payload)
+                .orElseThrow();
+
+        assertFalse(capture.getContent().contains("secret-token"));
+        assertFalse(capture.getContent().contains("sk-live-123"));
+        assertFalse(capture.getContent().contains("private chain of thought"));
+        assertTrue(capture.getContent().contains("[REDACTED]"));
+        assertTrue(capture.getContent().contains("thoughtsTokenCount"));
+        assertTrue(capture.getContent().contains("safe answer"));
+    }
+
+    @Test
+    public void captureRedactsSecretsEmbeddedInsideNestedTextValues() {
+        service.enableControl("usr_admin", null, "aru_nested_secret", null, null);
+        String payload = """
+                {"error":{"message":"provider rejected Authorization: Bearer bearer-secret-123"},
+                 "content":{"parts":[{"text":"do not retain sk-live-secret-123456"}]}}
+                """;
+
+        DebugTraceCapture capture = service.captureSpanPayload(
+                "usr_alice", "aru_nested_secret", "alc_nested", DebugTracePayloadKind.ERROR,
+                "application/json", payload).orElseThrow();
+
+        assertFalse(capture.getContent().contains("bearer-secret-123"));
+        assertFalse(capture.getContent().contains("sk-live-secret-123456"));
+        assertTrue(capture.getContent().contains("provider rejected"));
+        assertTrue(capture.getContent().contains("do not retain"));
     }
 
     @Test

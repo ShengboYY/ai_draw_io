@@ -238,6 +238,7 @@ public class AgentUsageTelemetryRepository implements IAgentUsageTelemetryStore 
         po.setCanvasHash(snapshot.getCanvasHash());
         po.setThumbnailUrl(snapshot.getThumbnailUrl());
         po.setSummary(snapshot.getSummary());
+        po.setChangedCellCount(snapshot.getChangedCellCount());
         po.setCreatedAt(toDate(snapshot.getCreatedAt()));
         return po;
     }
@@ -287,6 +288,11 @@ public class AgentUsageTelemetryRepository implements IAgentUsageTelemetryStore 
         po.setPromptTokens(call.getPromptTokens());
         po.setCompletionTokens(call.getCompletionTokens());
         po.setTotalTokens(call.getTotalTokens());
+        po.setProviderRequestId(call.getProviderRequestId());
+        po.setProviderResponseId(call.getProviderResponseId());
+        po.setTtftMs(call.getTtftMs());
+        po.setAttemptCount(call.getAttemptCount());
+        po.setRetryCount(call.getRetryCount());
         po.setStatus(call.getStatus());
         po.setErrorClass(call.getErrorClass());
         po.setStartedAt(toDate(call.getStartedAt()));
@@ -380,6 +386,11 @@ public class AgentUsageTelemetryRepository implements IAgentUsageTelemetryStore 
                 .promptTokens(po.getPromptTokens())
                 .completionTokens(po.getCompletionTokens())
                 .totalTokens(po.getTotalTokens())
+                .providerRequestId(po.getProviderRequestId())
+                .providerResponseId(po.getProviderResponseId())
+                .ttftMs(po.getTtftMs())
+                .attemptCount(po.getAttemptCount())
+                .retryCount(po.getRetryCount())
                 .status(po.getStatus())
                 .errorClass(po.getErrorClass())
                 .startedAt(toInstant(po.getStartedAt()))
@@ -414,6 +425,7 @@ public class AgentUsageTelemetryRepository implements IAgentUsageTelemetryStore 
                 .canvasHash(po.getCanvasHash())
                 .thumbnailUrl(po.getThumbnailUrl())
                 .summary(po.getSummary())
+                .changedCellCount(po.getChangedCellCount())
                 .createdAt(toInstant(po.getCreatedAt()))
                 .build();
     }

@@ -5,6 +5,8 @@ import org.springframework.web.servlet.mvc.method.annotation.ResponseBodyEmitter
 import org.zipp.ai.domain.agent.model.valobj.canvas.CanvasState;
 import org.zipp.ai.domain.agent.model.valobj.canvas.CanvasStateVersionConflictException;
 import org.zipp.ai.domain.agent.service.ICanvasStateStore;
+import org.zipp.ai.domain.agent.service.usage.AgentUsageTelemetryService;
+import org.zipp.ai.test.domain.agent.FakeAgentUsageTelemetryStore;
 import org.zipp.ai.trigger.http.service.DrawioStreamResponseWriter;
 import org.zipp.ai.trigger.http.service.DrawioToolCallRenderer;
 
@@ -13,6 +15,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.time.Clock;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -274,6 +277,29 @@ public class DrawioStreamResponseWriterTest {
     }
 
     @Test
+    public void shouldRecordTheNumberOfCellsChangedByAPersistedMutation() throws Exception {
+        DrawioStreamResponseWriter writer = new DrawioStreamResponseWriter(new DrawioToolCallRenderer());
+        CapturingCanvasStateStore canvasStateStore = new CapturingCanvasStateStore();
+        FakeAgentUsageTelemetryStore telemetryStore = new FakeAgentUsageTelemetryStore();
+        injectCanvasStateStore(writer, canvasStateStore);
+        injectTelemetryService(writer, new AgentUsageTelemetryService(telemetryStore, Clock.systemUTC()));
+        CapturingEmitter emitter = new CapturingEmitter();
+        writer.setCanvasStateContext(emitter, "alice", "diagram-1", 3L, "aru_cells", "ars_drawing");
+        writer.setCurrentCanvas(emitter, """
+                <mxGraphModel><root><mxCell id='0'/><mxCell id='1' parent='0'/>
+                <mxCell id='2' value='API' vertex='1' parent='1'><mxGeometry x='100' y='100' width='120' height='60' as='geometry'/></mxCell>
+                </root></mxGraphModel>
+                """);
+
+        writer.processAndSendLine(emitter, "drawing", """
+                {"type":"drawio_done","content":"<mxGraphModel><root><mxCell id='0'/><mxCell id='1' parent='0'/><mxCell id='2' value='API v2' vertex='1' parent='1'><mxGeometry x='100' y='100' width='140' height='60' as='geometry'/></mxCell><mxCell id='3' value='Worker' vertex='1' parent='1'><mxGeometry x='320' y='100' width='120' height='60' as='geometry'/></mxCell></root></mxGraphModel>"}
+                """);
+
+        assertEquals(1, telemetryStore.diagramSnapshots.size());
+        assertEquals(Integer.valueOf(2), telemetryStore.diagramSnapshots.get(0).getChangedCellCount());
+    }
+
+    @Test
     public void shouldIncludePersistedCanvasVersionInDrawioDoneChunk() throws Exception {
         DrawioStreamResponseWriter writer = new DrawioStreamResponseWriter(new DrawioToolCallRenderer());
         CapturingCanvasStateStore canvasStateStore = new CapturingCanvasStateStore();
@@ -412,6 +438,13 @@ public class DrawioStreamResponseWriterTest {
         Field field = DrawioStreamResponseWriter.class.getDeclaredField("canvasStateStore");
         field.setAccessible(true);
         field.set(writer, canvasStateStore);
+    }
+
+    private void injectTelemetryService(DrawioStreamResponseWriter writer,
+                                        AgentUsageTelemetryService telemetryService) throws Exception {
+        Field field = DrawioStreamResponseWriter.class.getDeclaredField("agentUsageTelemetryService");
+        field.setAccessible(true);
+        field.set(writer, telemetryService);
     }
 
     @Test

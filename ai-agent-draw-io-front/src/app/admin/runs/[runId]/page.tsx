@@ -30,13 +30,15 @@ import {
   traceKind,
   waterfallRowView,
 } from '../../admin-shared';
+import { AdminPageHeading, AdminShell } from '../../admin-shell';
 import { TracePayloadPanel } from './trace-payload-panel';
+import { TraceWorkbench } from './trace-workbench';
 
 function Stat({ label, value, bad }: { label: string; value: string; bad?: boolean }) {
   return (
-    <div className="rounded-lg bg-neutral-50 px-3 py-2">
-      <div className="text-xs text-neutral-500">{label}</div>
-      <div className={`mt-0.5 text-lg font-medium ${bad ? 'text-red-600' : 'text-neutral-900'}`}>
+    <div className="border-l border-stone-200 px-3 py-1 first:border-l-0">
+      <div className="text-xs font-medium text-zinc-500">{label}</div>
+      <div className={`mt-1 font-display text-lg font-semibold ${bad ? 'text-rose-700' : 'text-zinc-900'}`}>
         {value}
       </div>
     </div>
@@ -45,12 +47,12 @@ function Stat({ label, value, bad }: { label: string; value: string; bad?: boole
 
 function SummaryCard({ label, value, meta }: { label: string; value: string; meta: string }) {
   return (
-    <div className="rounded-lg border border-neutral-200 bg-white px-4 py-3">
-      <div className="text-xs text-neutral-400">{label}</div>
-      <div className="mt-1 truncate text-sm font-medium text-neutral-900" title={value}>
+    <div className="rounded-lg border border-stone-200 bg-white px-4 py-3 shadow-sm">
+      <div className="font-mono text-[11px] uppercase tracking-wide text-zinc-400">{label}</div>
+      <div className="mt-1 truncate text-sm font-medium text-zinc-900" title={value}>
         {value}
       </div>
-      <div className="mt-1 truncate font-mono text-xs text-neutral-400" title={meta}>
+      <div className="mt-1 truncate font-mono text-[11px] text-zinc-400" title={meta}>
         {meta}
       </div>
     </div>
@@ -208,10 +210,17 @@ export default function AdminRunDetailPage() {
       if (snapshot) return snapshot;
     }
     if (selected?.id) {
-      return snapshots.find((snapshot) => snapshot.spanId === selected.id);
+      const matching = snapshots.filter((snapshot) => snapshot.spanId === selected.id);
+      return matching[matching.length - 1];
     }
     return undefined;
   }, [selected, selectedSnapshotId, snapshots]);
+
+  const activeSnapshotIndex = activeSnapshot
+    ? snapshots.findIndex((snapshot) => snapshot.id === activeSnapshot.id)
+    : -1;
+  const beforeSnapshot = activeSnapshotIndex > 0 ? snapshots[activeSnapshotIndex - 1] : undefined;
+  const showDiagramPreview = isDiagramRelatedSpan(selected, snapshots);
 
   useEffect(() => {
     if (!replayActive) {
@@ -286,12 +295,14 @@ export default function AdminRunDetailPage() {
 
   if (forbidden) {
     return (
-      <div className="mx-auto max-w-md px-6 py-24 text-center">
-        <h1 className="text-lg font-medium text-neutral-900">Admin access required</h1>
-        <Link href={buildLoginHref(returnTo)} className="mt-4 inline-block text-sm text-blue-600 hover:underline">
-          Go to sign in
-        </Link>
-      </div>
+      <AdminShell active="runs">
+        <div className="mx-auto max-w-md py-20 text-center">
+          <h1 className="font-display text-2xl font-semibold text-zinc-900">Admin access required</h1>
+          <Link href={buildLoginHref(returnTo)} className="mt-5 inline-block text-sm font-medium text-zinc-700 hover:underline">
+            Go to sign in
+          </Link>
+        </div>
+      </AdminShell>
     );
   }
 
@@ -315,55 +326,59 @@ export default function AdminRunDetailPage() {
   )} llm · ${formatNumber(run?.toolCallCount ?? spans.filter((span) => span.kind === 'TOOL').length)} tools`;
 
   return (
-    <div className="mx-auto max-w-6xl px-6 py-8">
-      <div className="mb-4 flex items-center justify-between">
-        <Link href="/admin/runs" className="text-sm text-neutral-500 hover:text-neutral-800">
-          ← Runs
-        </Link>
-      </div>
+    <AdminShell active="runs">
+      <AdminPageHeading
+        eyebrow="Run inspection"
+        title="Diagram trace"
+        description="Follow the agent route, inspect the timing waterfall, and review the resulting canvas."
+        action={
+          <Link href="/admin/runs" className="text-sm font-medium text-zinc-500 transition hover:text-zinc-800">
+            Back to runs
+          </Link>
+        }
+      />
 
-      {loading && <div className="py-16 text-center text-sm text-neutral-400">Loading…</div>}
-      {error && <div className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
+      {loading && <div className="py-20 text-center text-sm text-zinc-400">Loading trace…</div>}
+      {error && <div className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{error}</div>}
 
       {run && !loading && (
         <>
-          <div className="mb-6">
+          <div className="mb-7">
             <div className="flex flex-wrap items-end justify-between gap-4">
               <div className="min-w-0">
-                <div className="text-xs font-medium text-neutral-400">Admin observability</div>
-                <h1 className="mt-1 text-2xl font-semibold text-neutral-950">Diagram Trace</h1>
+                <div className="font-mono text-[11px] font-medium uppercase tracking-[0.12em] text-zinc-400">Trace ID</div>
+                <h2 className="mt-1 font-mono text-sm text-zinc-600">{run.id}</h2>
                 <div className="mt-3 flex flex-wrap items-center gap-2">
-                  <span className="font-mono text-sm text-neutral-500">{run.id}</span>
                   <span className={`rounded-md border px-2 py-0.5 text-xs ${statusPill(run.status)}`}>
                     {(run.status || '—').toLowerCase()}
                   </span>
                   {run.agentId && (
-                    <span className="rounded-md border border-blue-200 bg-blue-50 px-2 py-0.5 text-xs text-blue-700">
+                    <span className="rounded-md border border-sky-200 bg-sky-50 px-2 py-0.5 text-xs text-sky-700">
                       {run.agentId}
                     </span>
                   )}
                   {run.requestType && (
-                    <span className="rounded-md border border-neutral-200 bg-neutral-50 px-2 py-0.5 text-xs text-neutral-500">
+                    <span className="rounded-md border border-stone-200 bg-stone-50 px-2 py-0.5 text-xs text-zinc-500">
                       {run.requestType}
                     </span>
                   )}
                   {run.diagramId && (
-                    <span className="rounded-md border border-neutral-200 bg-neutral-50 px-2 py-0.5 font-mono text-xs text-neutral-500">
+                    <span className="rounded-md border border-stone-200 bg-stone-50 px-2 py-0.5 font-mono text-xs text-zinc-500">
                       {run.diagramId}
                     </span>
                   )}
                 </div>
               </div>
-              <div className="text-left text-xs text-neutral-400 sm:text-right">
+              <div className="text-left text-xs text-zinc-400 sm:text-right">
                 <div>Started</div>
-                <div className="mt-1 font-mono text-neutral-500">{formatTime(run.startedAt)}</div>
+                <div className="mt-1 font-mono text-zinc-500">{formatTime(run.startedAt)}</div>
               </div>
             </div>
 
-            {/* This summary frames the unified span model as a diagram-specific trace. */}
-            <div className="mt-5 flex flex-wrap items-center justify-between gap-2">
-              <h2 className="text-sm font-medium text-neutral-700">Trace Summary</h2>
-              <span className="text-xs text-neutral-400">Request → Agent route → Diagram outcome</span>
+            {/* Trace progression keeps request, execution, and diagram result readable at a glance. */}
+            <div className="mt-6 flex flex-wrap items-center justify-between gap-2">
+              <h2 className="font-display text-base font-semibold text-zinc-800">Trace progression</h2>
+              <span className="font-mono text-[11px] uppercase tracking-wide text-zinc-400">Request · Route · Outcome</span>
             </div>
             <div className="mt-2 grid grid-cols-1 gap-3 md:grid-cols-3">
               <SummaryCard
@@ -383,7 +398,7 @@ export default function AdminRunDetailPage() {
               />
             </div>
 
-            <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-7">
+            <div className="mt-5 grid grid-cols-2 rounded-lg border border-stone-200 bg-white px-1 py-3 shadow-sm sm:grid-cols-4 lg:grid-cols-7">
               <Stat label="Latency" value={formatMs(run.latencyMs)} />
               <Stat label="LLM calls" value={formatNumber(trace?.summary?.llmCallCount ?? spans.filter((span) => span.kind === 'LLM').length)} />
               <Stat label="Tool calls" value={formatNumber(trace?.summary?.toolCallCount ?? spans.filter((span) => span.kind === 'TOOL').length)} />
@@ -394,19 +409,22 @@ export default function AdminRunDetailPage() {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1.45fr_1fr]">
+          <TraceWorkbench showDiagramPreview={showDiagramPreview}>
             {/* Tree and timeline share one selection so the inspector stays in sync. */}
-            <div className="rounded-xl border border-neutral-200 p-3">
-              <div className="mb-2 flex items-center justify-between gap-3">
-                <h2 className="text-sm font-medium text-neutral-700">Diagram Trace</h2>
-                <div className="flex items-center gap-1 rounded-md bg-neutral-100 p-1 text-[11px]">
+            <div className="rounded-lg border border-stone-200 bg-white p-4 shadow-sm">
+              <div className="mb-4 flex items-center justify-between gap-3 border-b border-stone-100 pb-3">
+                <div>
+                  <h2 className="font-display text-base font-semibold text-zinc-800">Trace execution</h2>
+                  <p className="mt-1 text-xs text-zinc-500">Select a span to inspect its input, output and canvas effect.</p>
+                </div>
+                <div className="flex items-center gap-1 rounded-md bg-stone-100 p-1 text-[11px]">
                   {(['tree', 'timeline'] as const).map((mode) => (
                     <button
                       key={mode}
                       type="button"
                       onClick={() => setTraceViewMode(mode)}
                       className={`rounded px-2 py-1 font-medium capitalize ${
-                        traceViewMode === mode ? 'bg-white text-neutral-800 shadow-sm' : 'text-neutral-500'
+                        traceViewMode === mode ? 'bg-white text-zinc-800 shadow-sm' : 'text-zinc-500'
                       }`}
                     >
                       {mode}
@@ -415,7 +433,7 @@ export default function AdminRunDetailPage() {
                 </div>
               </div>
               {rows.length === 0 ? (
-                <div className="py-8 text-center text-sm text-neutral-400">No spans recorded.</div>
+                <div className="py-12 text-center text-sm text-zinc-400">No spans recorded.</div>
               ) : (
                 <div className="flex flex-col">
                   {rows.map(({ event, leftPct, widthPct, isPoint }, index) => {
@@ -427,23 +445,23 @@ export default function AdminRunDetailPage() {
                         key={event.id}
                         onClick={() => selectTraceSpan(event.id)}
                         className={`flex items-center gap-2 rounded px-1 text-left text-xs ${
-                          isSel ? 'bg-neutral-100' : 'hover:bg-neutral-50'
+                          isSel ? 'bg-stone-100' : 'hover:bg-stone-50'
                         } ${rowView.compact ? 'py-0' : 'py-0.5'} ${
                           rowView.startsStepGroup ? 'mt-2' : index === 0 ? '' : rowView.compact ? 'mt-0.5' : 'mt-1'
                         }`}
                       >
                         <span
                           className={`${traceViewMode === 'tree' ? 'flex-1' : 'w-40 shrink-0'} truncate ${
-                            failed ? 'text-red-600' : 'text-neutral-600'
+                            failed ? 'text-rose-700' : 'text-zinc-700'
                           }`}
                           style={{ paddingLeft: `${rowView.visualDepth * 14}px` }}
                           title={`${sourceLabel(traceKind(event))} · ${traceDisplayName(event)}`}
                         >
-                          <span className="text-neutral-400">{sourceLabel(traceKind(event))} </span>
+                          <span className="text-zinc-400">{sourceLabel(traceKind(event))} </span>
                           {traceDisplayName(event)}
                         </span>
                         {traceViewMode === 'timeline' && (
-                          <span className="relative h-4 flex-1 rounded bg-neutral-100">
+                          <span className="relative h-4 flex-1 rounded bg-stone-100">
                             <span
                               className="absolute top-0 bottom-0 rounded"
                               style={{
@@ -455,7 +473,7 @@ export default function AdminRunDetailPage() {
                             />
                           </span>
                         )}
-                        <span className="w-12 shrink-0 text-right text-neutral-400">
+                        <span className="w-12 shrink-0 text-right font-mono text-[11px] text-zinc-400">
                           {event.latencyMs != null ? formatMs(event.latencyMs) : ''}
                         </span>
                       </button>
@@ -465,48 +483,43 @@ export default function AdminRunDetailPage() {
               )}
             </div>
 
-            <div className="space-y-4">
-              <DiagramSnapshotPanel
-                linkedDiagramId={run.diagramId}
-                diagram={currentDiagram}
-                snapshot={activeSnapshot || null}
-                loading={currentDiagramLoading}
-                note={currentDiagramNote}
-                onClearSnapshot={() => setSelectedSnapshotId(null)}
-              />
-
-              <EvolutionFilmstrip
-                snapshots={snapshots}
-                activeSnapshotId={activeSnapshot?.id}
-                playingReplay={replayActive}
-                setPlayingReplay={setPlayingReplay}
-                setSelectedId={setSelectedId}
-                setSelectedSnapshotId={setSelectedSnapshotId}
-              />
-
-              {/* Span detail panel */}
-              <div className="rounded-xl border border-neutral-200 p-4">
-                <h2 className="mb-3 text-sm font-medium text-neutral-700">Trace Inspector</h2>
+            {/* Input and output are the primary reading surface for the selected span. */}
+            <div className="min-w-0 rounded-lg border border-stone-200 bg-white p-4 shadow-sm">
+                <div className="mb-3 border-b border-stone-100 pb-3">
+                  <h2 className="font-display text-base font-semibold text-zinc-800">Trace inspector</h2>
+                  <p className="mt-1 text-xs text-zinc-500">Selected span details</p>
+                </div>
                 {!selected ? (
-                  <div className="py-8 text-center text-sm text-neutral-400">
+                  <div className="py-10 text-center text-sm text-zinc-400">
                     Select a trace item to inspect it.
                   </div>
                 ) : (
                   <div className="text-sm">
-                    <div className="text-xs text-neutral-400">{sourceLabel(traceKind(selected))}</div>
-                    <div className="mt-0.5 text-base font-medium text-neutral-900">
+                    <div className="font-mono text-[11px] uppercase tracking-wide text-zinc-400">{sourceLabel(traceKind(selected))}</div>
+                    <div className="mt-1 text-base font-medium text-zinc-900">
                       {traceDisplayName(selected)}
                     </div>
                     <div
                       className={`mt-0.5 font-mono text-xs ${
-                        isFailed(selected.status) ? 'text-red-600' : 'text-neutral-500'
+                        isFailed(selected.status) ? 'text-rose-700' : 'text-zinc-500'
                       }`}
                     >
                       {(selected.status || '').toLowerCase()}
                       {selected.latencyMs != null ? ` · ${formatMs(selected.latencyMs)}` : ''}
                     </div>
 
-                    <dl className="mt-4 space-y-2">
+                    <TracePayloadPanel
+                      payloads={spanPayloads[selected.id]}
+                      loading={!Object.prototype.hasOwnProperty.call(spanPayloads, selected.id)
+                        && !spanPayloadErrors[selected.id]}
+                      error={spanPayloadErrors[selected.id]}
+                    />
+
+                    <div className="mt-5 border-t border-stone-100 pt-4">
+                      <div className="mb-3 font-mono text-[10px] font-semibold uppercase tracking-wide text-zinc-400">
+                        Metadata
+                      </div>
+                      <dl className="space-y-2">
                       <Row k="Kind" v={selected.kind} />
                       <Row k="Phase" v={selected.phase} />
                       <Row k="Parent" v={selected.parentId} />
@@ -524,19 +537,22 @@ export default function AdminRunDetailPage() {
                         />
                       )}
                       {selected.kind === 'LLM' && <Row k="Est. cost" v={formatCost(selected.estimatedCost)} />}
+                      {selected.kind === 'LLM' && <Row k="Provider request ID" v={selected.providerRequestId} />}
+                      {selected.kind === 'LLM' && <Row k="Provider response ID" v={selected.providerResponseId} />}
+                      {selected.kind === 'LLM' && <Row k="TTFT" v={formatOptionalMs(selected.ttftMs)} />}
+                      {selected.kind === 'LLM' && (
+                        <Row
+                          k="Attempt / retry"
+                          v={`${formatOptionalNumber(selected.attemptCount)} / ${formatOptionalNumber(selected.retryCount)}`}
+                        />
+                      )}
                       {selected.kind === 'TOOL' && <Row k="Tool" v={selected.toolName} />}
-                      <Row k="TTFT" v={formatOptionalMs(selectedMetadata?.ttftMs)} />
-                      <Row k="Retry" v={formatOptionalNumber(selectedMetadata?.retryCount)} />
+                      {selected.kind !== 'LLM' && <Row k="TTFT" v={formatOptionalMs(selectedMetadata?.ttftMs)} />}
+                      {selected.kind !== 'LLM' && <Row k="Retry" v={formatOptionalNumber(selectedMetadata?.retryCount)} />}
                       <Row k="Outcome" v={stringValue(selectedMetadata?.outcome)} />
                       {selected.errorClass && <Row k="Error" v={selected.errorClass} bad />}
-                    </dl>
-
-                    <TracePayloadPanel
-                      payloads={spanPayloads[selected.id]}
-                      loading={!Object.prototype.hasOwnProperty.call(spanPayloads, selected.id)
-                        && !spanPayloadErrors[selected.id]}
-                      error={spanPayloadErrors[selected.id]}
-                    />
+                      </dl>
+                    </div>
 
                     {selected.diagramEffect && (
                       <DiagramEffectPanel effect={selected.diagramEffect} />
@@ -544,29 +560,61 @@ export default function AdminRunDetailPage() {
 
                     {selected.metadataJson && (
                       <div className="mt-4">
-                        <div className="mb-1 text-xs text-neutral-400">metadata</div>
-                        <pre className="max-h-48 overflow-auto rounded-lg bg-neutral-50 p-2 text-xs text-neutral-700">
+                        <div className="mb-1 text-xs text-zinc-400">metadata</div>
+                        <pre className="max-h-48 overflow-auto rounded-lg bg-stone-50 p-2 text-xs text-zinc-700">
                           {prettyJson(selected.metadataJson)}
                         </pre>
                       </div>
                     )}
                   </div>
                 )}
-              </div>
             </div>
-          </div>
+
+            {showDiagramPreview && (
+              <aside className="min-w-0 space-y-4" aria-label="Diagram Preview">
+                <DiagramSnapshotPanel
+                  linkedDiagramId={run.diagramId}
+                  diagram={currentDiagram}
+                  snapshot={activeSnapshot || null}
+                  beforeSnapshot={beforeSnapshot || null}
+                  effect={selected?.diagramEffect}
+                  loading={currentDiagramLoading}
+                  note={currentDiagramNote}
+                  onClearSnapshot={() => setSelectedSnapshotId(null)}
+                />
+
+                <EvolutionFilmstrip
+                  snapshots={snapshots}
+                  activeSnapshotId={activeSnapshot?.id}
+                  playingReplay={replayActive}
+                  setPlayingReplay={setPlayingReplay}
+                  setSelectedId={setSelectedId}
+                  setSelectedSnapshotId={setSelectedSnapshotId}
+                />
+
+                <DiagramValidationPanel
+                  effect={selected?.diagramEffect}
+                  findings={findings.filter((finding) => finding.spanId === selected?.id
+                    || (finding.diagramId && finding.diagramId === selected?.diagramEffect?.diagramId))}
+                />
+              </aside>
+            )}
+          </TraceWorkbench>
 
           <TraceFindingsPanel findings={findings} setSelectedId={setSelectedId} />
 
           {/* Captured payload evidence remains retention-gated and loaded only on demand. */}
-          <div className="mt-4 rounded-xl border border-neutral-200 p-4">
-            <div className="mb-2 flex items-center justify-between">
-              <h2 className="text-sm font-medium text-neutral-700">Payload Evidence</h2>
+          <div className="mt-4 rounded-lg border border-stone-200 bg-white p-4 shadow-sm">
+            <div className="mb-3 flex items-center justify-between border-b border-stone-100 pb-3">
+              <div>
+                <h2 className="font-display text-base font-semibold text-zinc-800">Payload evidence</h2>
+                <p className="mt-1 text-xs text-zinc-500">Content is available only when capture was enabled for the run.</p>
+              </div>
               {captures === null && (
                 <button
                   onClick={loadCaptures}
                   disabled={capturesLoading}
-                  className="rounded-lg border border-neutral-200 px-3 py-1 text-sm text-neutral-600 hover:bg-neutral-50 disabled:opacity-50"
+                  className="theme-btn-secondary inline-flex h-9 shrink-0 items-center rounded-lg px-3 text-sm font-medium transition disabled:opacity-50"
                 >
                   {capturesLoading ? 'Loading…' : 'Load payloads'}
                 </button>
@@ -576,19 +624,19 @@ export default function AdminRunDetailPage() {
             {captures && captures.length > 0 && (
               <div className="space-y-3">
                 {captures.map((c) => {
-                  const deleted = Boolean(c.contentDeletedAt);
+                  const expired = isCaptureExpired(c);
                   return (
-                    <div key={c.id} className="rounded-lg border border-neutral-100">
-                      <div className="flex items-center justify-between border-b border-neutral-100 px-3 py-1.5 text-xs">
-                        <span className="font-medium text-neutral-600">{c.eventType || 'payload'}</span>
-                        <span className="text-neutral-400">{formatTime(c.createdAt)}</span>
+                    <div key={c.id} className="rounded-lg border border-stone-200">
+                      <div className="flex items-center justify-between border-b border-stone-100 px-3 py-2 text-xs">
+                        <span className="font-medium text-zinc-700">{c.eventType || 'payload'}</span>
+                        <span className="font-mono text-[11px] text-zinc-400">{formatTime(c.createdAt)}</span>
                       </div>
-                      {deleted ? (
-                        <div className="px-3 py-3 text-xs text-neutral-400">
+                      {expired ? (
+                        <div className="px-3 py-3 text-xs text-zinc-400">
                           Content expired and was cleaned up{c.contentDeletedAt ? ` (${formatTime(c.contentDeletedAt)})` : ''}.
                         </div>
                       ) : (
-                        <pre className="max-h-64 overflow-auto whitespace-pre-wrap break-words px-3 py-2 text-xs text-neutral-700">
+                        <pre className="max-h-64 overflow-auto whitespace-pre-wrap break-words px-3 py-2 text-xs text-zinc-700">
                           {c.content || '(empty)'}
                         </pre>
                       )}
@@ -599,12 +647,12 @@ export default function AdminRunDetailPage() {
             )}
 
             {captureNote && (
-              <div className="rounded-lg bg-neutral-50 px-3 py-3 text-xs text-neutral-500">
+              <div className="rounded-lg bg-stone-50 px-3 py-3 text-xs text-zinc-500">
                 <p>{captureNote}</p>
                 {captures && captures.length === 0 && trace?.run?.userId && (
                   <button
                     onClick={enableCapture}
-                    className="mt-2 rounded-lg border border-neutral-200 px-3 py-1 text-neutral-600 hover:bg-white"
+                    className="theme-btn-secondary mt-2 inline-flex h-8 items-center rounded-lg px-3 text-xs font-medium transition"
                   >
                     Enable capture for this user
                   </button>
@@ -614,7 +662,7 @@ export default function AdminRunDetailPage() {
           </div>
         </>
       )}
-    </div>
+    </AdminShell>
   );
 }
 
@@ -622,22 +670,23 @@ function Row({ k, v, bad }: { k: string; v?: string; bad?: boolean }) {
   if (!v) return null;
   return (
     <div className="flex justify-between gap-3">
-      <dt className="shrink-0 text-neutral-400">{k}</dt>
-      <dd className={`min-w-0 break-all text-right ${bad ? 'text-red-600' : 'text-neutral-700'}`}>{v}</dd>
+      <dt className="shrink-0 text-zinc-400">{k}</dt>
+      <dd className={`min-w-0 break-all text-right ${bad ? 'text-rose-700' : 'text-zinc-700'}`}>{v}</dd>
     </div>
   );
 }
 
 function DiagramEffectPanel({ effect }: { effect: AdminDiagramEffectDTO }) {
   return (
-    <div className="mt-4 rounded-lg bg-neutral-50 p-3">
-      <div className="mb-2 text-xs font-medium text-neutral-500">Diagram Effect</div>
+    <div className="mt-4 rounded-lg bg-stone-50 p-3">
+      <div className="mb-2 text-xs font-medium text-zinc-500">Diagram effect</div>
       <dl className="space-y-2">
         <Row k="Diagram ID" v={effect.diagramId} />
         <Row k="Version" v={formatEffectVersion(effect)} />
         <Row k="Before hash" v={effect.beforeHash} />
         <Row k="After hash" v={effect.afterHash} />
         <Row k="Change" v={formatDiagramChange(effect)} />
+        <Row k="Changed cells" v={formatOptionalNumber(effect.changedCellCount)} />
         <Row k="Render status" v={effect.renderStatus} />
         <Row k="Thumbnail" v={effect.thumbnailUrl ? 'present' : 'missing'} />
         <Row k="XML changed" v={formatEffectBoolean(effect.xmlChanged)} />
@@ -678,6 +727,13 @@ function stringValue(value: unknown): string | undefined {
   return typeof value === 'string' && value ? value : undefined;
 }
 
+function isCaptureExpired(capture: AdminDebugTraceCaptureDTO): boolean {
+  if (capture.contentDeletedAt) return true;
+  if (capture.content != null || !capture.contentExpiresAt) return false;
+  const expiresAt = new Date(capture.contentExpiresAt).getTime();
+  return Number.isFinite(expiresAt) && expiresAt <= Date.now();
+}
+
 function formatEffectVersion(effect: AdminDiagramEffectDTO): string | undefined {
   if (effect.beforeVersion != null && effect.afterVersion != null) {
     return `v${effect.beforeVersion} -> v${effect.afterVersion}`;
@@ -692,6 +748,63 @@ function formatEffectBoolean(value?: boolean): string {
   return value ? 'yes' : 'no';
 }
 
+function formatBooleanChange(value?: boolean): string {
+  if (value == null) return 'unknown';
+  return value ? 'changed' : 'unchanged';
+}
+
+function isDiagramRelatedSpan(
+  span: AdminDiagramTraceSpanDTO | undefined,
+  snapshots: AdminDiagramSnapshotDTO[],
+): boolean {
+  if (!span) return false;
+  if (span.diagramEffect || snapshots.some((snapshot) => snapshot.spanId === span.id)) return true;
+  const name = `${span.toolName || ''} ${span.eventType || ''}`.toLowerCase();
+  if (span.kind === 'TOOL' || span.kind === 'EVENT') {
+    return name.includes('diagram') || name.includes('canvas') || name.includes('render');
+  }
+  // A drawing STEP owns persisted snapshots; ordinary LLM spans keep the wider two-column inspector.
+  return span.kind === 'STEP' && `${span.phase || ''}`.toLowerCase().includes('drawing');
+}
+
+function DiagramValidationPanel({
+  effect,
+  findings,
+}: {
+  effect?: AdminDiagramEffectDTO;
+  findings: AdminDiagramFindingDTO[];
+}) {
+  return (
+    <div className="rounded-lg border border-stone-200 bg-white p-4 shadow-sm">
+      <div className="border-b border-stone-100 pb-3">
+        <h2 className="font-display text-base font-semibold text-zinc-800">Validation</h2>
+        <p className="mt-1 text-xs text-zinc-500">Selected canvas effect and related findings.</p>
+      </div>
+      <dl className="mt-3 space-y-2 text-xs">
+        <Row k="Render status" v={effect?.renderStatus || 'No render evidence'} />
+        <Row k="XML" v={formatBooleanChange(effect?.xmlChanged)} />
+        <Row k="Thumbnail" v={formatBooleanChange(effect?.thumbnailChanged)} />
+      </dl>
+      <div className="mt-3 space-y-2 border-t border-stone-100 pt-3">
+        {findings.length === 0 ? (
+          <div className="text-xs text-zinc-400">No findings for this diagram span.</div>
+        ) : findings.map((finding, index) => (
+          <div key={`${finding.code || 'finding'}-${index}`} className="rounded-md bg-stone-50 px-2.5 py-2">
+            <div className="flex items-center gap-2">
+              <span className={`rounded border px-1.5 py-0.5 text-[10px] ${findingSeverityClass(finding.severity)}`}>
+                {finding.severity || 'INFO'}
+              </span>
+              <span className="truncate text-xs font-medium text-zinc-700">
+                {finding.title || finding.code || 'Finding'}
+              </span>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function TraceFindingsPanel({
   findings,
   setSelectedId,
@@ -700,20 +813,23 @@ function TraceFindingsPanel({
   setSelectedId: (spanId: string) => void;
 }) {
   return (
-    <div className="mt-4 rounded-xl border border-neutral-200 p-4">
-      <div className="mb-3 flex items-center justify-between gap-3">
-        <h2 className="text-sm font-medium text-neutral-700">Trace Findings</h2>
-        <span className="text-xs text-neutral-400">{formatNumber(findings.length)}</span>
+    <div className="mt-4 rounded-lg border border-stone-200 bg-white p-4 shadow-sm">
+      <div className="mb-3 flex items-center justify-between gap-3 border-b border-stone-100 pb-3">
+        <div>
+          <h2 className="font-display text-base font-semibold text-zinc-800">Trace findings</h2>
+          <p className="mt-1 text-xs text-zinc-500">Automated checks surfaced during this run.</p>
+        </div>
+        <span className="font-mono text-xs text-zinc-400">{formatNumber(findings.length)}</span>
       </div>
 
       {findings.length === 0 ? (
-        <div className="py-6 text-center text-sm text-neutral-400">No findings.</div>
+        <div className="py-8 text-center text-sm text-zinc-400">No findings.</div>
       ) : (
         <div className="space-y-2">
           {findings.map((finding, index) => (
             <div
               key={`${finding.code || 'finding'}-${finding.spanId || index}`}
-              className="rounded-lg border border-neutral-100 px-3 py-2"
+              className="rounded-lg border border-stone-200 px-3 py-3"
             >
               <div className="flex flex-wrap items-start justify-between gap-2">
                 <div className="min-w-0">
@@ -721,9 +837,9 @@ function TraceFindingsPanel({
                     <span className={`rounded-md border px-2 py-0.5 text-[11px] ${findingSeverityClass(finding.severity)}`}>
                       {finding.severity || 'INFO'}
                     </span>
-                    <span className="font-mono text-xs text-neutral-400">{finding.code || 'FINDING'}</span>
+                    <span className="font-mono text-xs text-zinc-400">{finding.code || 'FINDING'}</span>
                   </div>
-                  <div className="mt-1 text-sm font-medium text-neutral-900">
+                  <div className="mt-1 text-sm font-medium text-zinc-900">
                     {finding.title || finding.code || 'Trace finding'}
                   </div>
                 </div>
@@ -731,20 +847,20 @@ function TraceFindingsPanel({
                   <button
                     type="button"
                     onClick={() => finding.spanId && setSelectedId(finding.spanId)}
-                    className="shrink-0 rounded-md border border-neutral-200 px-2 py-1 text-xs text-neutral-600 hover:bg-neutral-50"
+                    className="theme-btn-secondary shrink-0 rounded-md px-2 py-1 text-xs font-medium transition"
                   >
                     Go to span
                   </button>
                 )}
               </div>
               {finding.description && (
-                <p className="mt-1 text-sm text-neutral-600">{finding.description}</p>
+                <p className="mt-1 text-sm text-zinc-600">{finding.description}</p>
               )}
               {finding.suggestion && (
-                <p className="mt-1 text-xs text-neutral-400">{finding.suggestion}</p>
+                <p className="mt-1 text-xs text-zinc-400">{finding.suggestion}</p>
               )}
               {(finding.spanId || finding.diagramId) && (
-                <div className="mt-2 flex flex-wrap gap-2 font-mono text-[11px] text-neutral-400">
+                <div className="mt-2 flex flex-wrap gap-2 font-mono text-[11px] text-zinc-400">
                   {finding.spanId && <span>span {finding.spanId}</span>}
                   {finding.diagramId && <span>diagram {finding.diagramId}</span>}
                 </div>
@@ -762,9 +878,9 @@ function isErrorFinding(finding: AdminDiagramFindingDTO): boolean {
 }
 
 function findingSeverityClass(severity?: string): string {
-  if (severity === 'ERROR') return 'border-red-200 bg-red-50 text-red-700';
+  if (severity === 'ERROR') return 'border-rose-200 bg-rose-50 text-rose-700';
   if (severity === 'WARNING') return 'border-amber-200 bg-amber-50 text-amber-700';
-  return 'border-blue-200 bg-blue-50 text-blue-700';
+  return 'border-sky-200 bg-sky-50 text-sky-700';
 }
 
 function EvolutionFilmstrip({
@@ -783,24 +899,27 @@ function EvolutionFilmstrip({
   setSelectedSnapshotId: (snapshotId: string | null) => void;
 }) {
   return (
-    <div className="rounded-xl border border-neutral-200 p-4">
-      <div className="mb-3 flex items-center justify-between gap-3">
-        <h2 className="text-sm font-medium text-neutral-700">Evolution Filmstrip</h2>
+    <div className="rounded-lg border border-stone-200 bg-white p-4 shadow-sm">
+      <div className="mb-3 flex items-center justify-between gap-3 border-b border-stone-100 pb-3">
+        <div>
+          <h2 className="font-display text-base font-semibold text-zinc-800">Diagram evolution</h2>
+          <p className="mt-1 text-xs text-zinc-500">Canvas snapshots captured through the run.</p>
+        </div>
         <div className="flex items-center gap-2">
           <button
             type="button"
             onClick={() => setPlayingReplay(!playingReplay)}
             disabled={snapshots.length === 0}
-            className="rounded-md border border-neutral-200 px-2 py-1 text-xs text-neutral-600 hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-40"
+            className="theme-btn-secondary rounded-md px-2 py-1 text-xs font-medium transition disabled:cursor-not-allowed disabled:opacity-40"
           >
             {playingReplay ? 'Pause' : 'Play'}
           </button>
-          <span className="text-xs text-neutral-400">{formatNumber(snapshots.length)}</span>
+          <span className="font-mono text-xs text-zinc-400">{formatNumber(snapshots.length)}</span>
         </div>
       </div>
 
       {snapshots.length === 0 ? (
-        <div className="py-6 text-center text-sm text-neutral-400">No diagram snapshots.</div>
+        <div className="py-8 text-center text-sm text-zinc-400">No diagram snapshots.</div>
       ) : (
         <div className="flex gap-2 overflow-x-auto pb-1">
           {snapshots.map((snapshot, index) => (
@@ -815,17 +934,17 @@ function EvolutionFilmstrip({
                   setSelectedId(snapshot.spanId);
                 }
               }}
-              className={`min-w-44 rounded-lg border p-2 text-left hover:border-neutral-300 hover:bg-white ${
+              className={`min-w-44 rounded-lg border p-2 text-left transition hover:border-stone-300 hover:bg-white ${
                 snapshot.id && snapshot.id === activeSnapshotId
-                  ? 'border-blue-200 bg-blue-50'
-                  : 'border-neutral-100 bg-neutral-50'
+                  ? 'border-zinc-400 bg-stone-50'
+                  : 'border-stone-200 bg-stone-50'
               }`}
             >
               <div className="flex items-center justify-between gap-2">
-                <span className="text-xs font-medium text-neutral-700">
+                <span className="text-xs font-medium text-zinc-700">
                   {snapshot.version != null ? `v${snapshot.version}` : `#${index + 1}`}
                 </span>
-                <span className="text-[11px] text-neutral-400">{formatTime(snapshot.createdAt)}</span>
+                <span className="text-[11px] text-zinc-400">{formatTime(snapshot.createdAt)}</span>
               </div>
               {snapshot.thumbnailUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
@@ -835,14 +954,14 @@ function EvolutionFilmstrip({
                   className="mt-2 h-20 w-full rounded-md bg-white object-contain"
                 />
               ) : (
-                <div className="mt-2 flex h-20 items-center justify-center rounded-md bg-white text-xs text-neutral-300">
+                <div className="mt-2 flex h-20 items-center justify-center rounded-md bg-white text-xs text-zinc-300">
                   XML
                 </div>
               )}
-              <div className="mt-2 truncate font-mono text-[11px] text-neutral-400" title={snapshot.canvasHash}>
+              <div className="mt-2 truncate font-mono text-[11px] text-zinc-400" title={snapshot.canvasHash}>
                 {snapshot.canvasHash || 'no hash'}
               </div>
-              <div className="mt-1 truncate text-xs text-neutral-500" title={snapshot.summary || snapshot.diagramId}>
+              <div className="mt-1 truncate text-xs text-zinc-500" title={snapshot.summary || snapshot.diagramId}>
                 {snapshot.summary || snapshot.diagramId || 'snapshot'}
               </div>
             </button>
@@ -857,6 +976,8 @@ function DiagramSnapshotPanel({
   linkedDiagramId,
   diagram,
   snapshot,
+  beforeSnapshot,
+  effect,
   loading,
   note,
   onClearSnapshot,
@@ -864,6 +985,8 @@ function DiagramSnapshotPanel({
   linkedDiagramId?: string;
   diagram: DiagramCanvasStateResponseDTO | null;
   snapshot?: AdminDiagramSnapshotDTO | null;
+  beforeSnapshot?: AdminDiagramSnapshotDTO | null;
+  effect?: AdminDiagramEffectDTO;
   loading: boolean;
   note: string | null;
   onClearSnapshot?: () => void;
@@ -873,6 +996,7 @@ function DiagramSnapshotPanel({
     : diagram?.currentXml || diagram?.summary || '';
   const [zoomOpen, setZoomOpen] = useState(false);
   const thumbnailUrl = snapshot ? snapshot.thumbnailUrl?.trim() || '' : diagram?.thumbnailUrl?.trim() || '';
+  const beforeThumbnailUrl = beforeSnapshot?.thumbnailUrl?.trim() || '';
   const canZoom = Boolean(thumbnailUrl);
   const title = snapshot
     ? snapshotPreviewTitle(snapshot)
@@ -886,55 +1010,69 @@ function DiagramSnapshotPanel({
       : linkedDiagramId || '—';
 
   return (
-    <div className="rounded-xl border border-neutral-200 p-4">
+    <div className="rounded-lg border border-stone-200 bg-white p-4 shadow-sm">
       <div className="mb-3 flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <div className="text-xs text-neutral-400">{snapshot ? 'Diagram Replay' : 'Diagram Outcome'}</div>
-          <div className="mt-0.5 truncate text-base font-medium text-neutral-900">{title}</div>
-          <div className="mt-0.5 font-mono text-xs text-neutral-400">{meta}</div>
+          <h2 className="font-display text-base font-semibold text-zinc-800">Diagram Preview</h2>
+          <div className="mt-1 truncate text-xs text-zinc-500">{title}</div>
+          <div className="mt-1 font-mono text-[10px] text-zinc-400">{meta}</div>
         </div>
         {snapshot && onClearSnapshot && (
           <button
             type="button"
             onClick={onClearSnapshot}
-            className="shrink-0 rounded-md border border-neutral-200 px-2 py-1 text-xs text-neutral-600 hover:bg-neutral-50"
+            className="theme-btn-secondary shrink-0 rounded-md px-2 py-1 text-xs font-medium transition"
           >
             Current
           </button>
         )}
       </div>
 
-      {loading && <div className="py-8 text-center text-sm text-neutral-400">Loading diagram…</div>}
-
-      {!loading && thumbnailUrl && (
-        <button
-          type="button"
-          onClick={() => setZoomOpen(true)}
-          className="group relative block w-full overflow-hidden rounded-lg border border-neutral-100 bg-neutral-50 text-left"
-          aria-label={`View larger diagram: ${title}`}
-        >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={thumbnailUrl}
-            alt={title}
-            className="max-h-64 w-full object-contain"
-          />
-          {canZoom && (
-            <span className="pointer-events-none absolute right-2 top-2 rounded-md bg-white/90 px-2 py-1 text-[11px] font-medium text-neutral-600 opacity-0 shadow-sm transition-opacity group-hover:opacity-100">
-              View larger
-            </span>
-          )}
-        </button>
+      {effect && (
+        <div className="mb-3 flex flex-wrap gap-1.5 border-y border-stone-100 py-2">
+          <span className="rounded bg-stone-100 px-1.5 py-1 font-mono text-[10px] text-zinc-600">
+            {formatEffectVersion(effect) || 'version unavailable'}
+          </span>
+          <span className="rounded bg-stone-100 px-1.5 py-1 font-mono text-[10px] text-zinc-600">
+            XML {formatBooleanChange(effect.xmlChanged)}
+          </span>
+          <span className="rounded bg-stone-100 px-1.5 py-1 font-mono text-[10px] text-zinc-600">
+            thumbnail {formatBooleanChange(effect.thumbnailChanged)}
+          </span>
+        </div>
       )}
 
-      {!loading && (snapshot || diagram) && !thumbnailUrl && (
-        <pre className="max-h-56 overflow-auto whitespace-pre-wrap break-words rounded-lg bg-neutral-50 p-2 text-xs text-neutral-600">
+      {loading && <div className="py-10 text-center text-sm text-zinc-400">Loading diagram…</div>}
+
+      {!loading && snapshot && (
+        <div className="grid grid-cols-2 gap-2">
+          <SnapshotPreviewFrame label="Before" snapshot={beforeSnapshot} thumbnailUrl={beforeThumbnailUrl} />
+          <SnapshotPreviewFrame
+            label="After"
+            snapshot={snapshot}
+            thumbnailUrl={thumbnailUrl}
+            onOpen={canZoom ? () => setZoomOpen(true) : undefined}
+          />
+        </div>
+      )}
+
+      {!loading && !snapshot && thumbnailUrl && (
+        <SnapshotPreviewFrame
+          label="Current"
+          title={title}
+          thumbnailUrl={thumbnailUrl}
+          onOpen={canZoom ? () => setZoomOpen(true) : undefined}
+        />
+      )}
+
+      {!loading && !snapshot && diagram && !thumbnailUrl && (
+        <pre className="max-h-56 overflow-auto whitespace-pre-wrap break-words rounded-lg bg-stone-50 p-2 text-xs text-zinc-600">
           {previewText || 'No canvas XML.'}
         </pre>
       )}
 
       {!loading && note && (
-        <div className="rounded-lg bg-neutral-50 px-3 py-3 text-xs text-neutral-500">{note}</div>
+        <div className="rounded-lg bg-stone-50 px-3 py-3 text-xs text-zinc-500">{note}</div>
       )}
 
       {canZoom && zoomOpen && (
@@ -949,20 +1087,20 @@ function DiagramSnapshotPanel({
             className="flex max-h-[92vh] w-full max-w-6xl flex-col overflow-hidden rounded-lg bg-white shadow-2xl"
             onClick={(event) => event.stopPropagation()}
           >
-            <div className="flex items-start justify-between gap-3 border-b border-neutral-200 px-4 py-3">
+            <div className="flex items-start justify-between gap-3 border-b border-stone-200 px-4 py-3">
               <div className="min-w-0">
-                <div className="truncate text-sm font-medium text-neutral-900">{title}</div>
-                <div className="mt-0.5 font-mono text-xs text-neutral-400">{meta}</div>
+                <div className="truncate text-sm font-medium text-zinc-900">{title}</div>
+                <div className="mt-0.5 font-mono text-xs text-zinc-400">{meta}</div>
               </div>
               <button
                 type="button"
                 onClick={() => setZoomOpen(false)}
-                className="shrink-0 rounded-md border border-neutral-200 px-2 py-1 text-xs text-neutral-600 hover:bg-neutral-50"
+                className="theme-btn-secondary shrink-0 rounded-md px-2 py-1 text-xs font-medium transition"
               >
                 Close
               </button>
             </div>
-            <div className="flex min-h-0 flex-1 items-center justify-center overflow-auto bg-neutral-50 p-4">
+            <div className="flex min-h-0 flex-1 items-center justify-center overflow-auto bg-stone-50 p-4">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={thumbnailUrl}
@@ -973,6 +1111,48 @@ function DiagramSnapshotPanel({
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+function SnapshotPreviewFrame({
+  label,
+  snapshot,
+  thumbnailUrl,
+  title,
+  onOpen,
+}: {
+  label: string;
+  snapshot?: AdminDiagramSnapshotDTO | null;
+  thumbnailUrl: string;
+  title?: string;
+  onOpen?: () => void;
+}) {
+  const content = thumbnailUrl ? (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={thumbnailUrl}
+      alt={title || snapshot?.summary || `${label} diagram snapshot`}
+      className="h-36 w-full object-contain"
+    />
+  ) : (
+    <div className="flex h-36 items-center justify-center px-3 text-center text-xs text-zinc-400">
+      {snapshot ? snapshot.summary || 'Snapshot image unavailable' : 'No previous snapshot'}
+    </div>
+  );
+  return (
+    <div className="min-w-0 overflow-hidden rounded-lg border border-stone-200 bg-stone-50">
+      <div className="flex items-center justify-between gap-2 border-b border-stone-200 px-2 py-1.5">
+        <span className="text-[10px] font-semibold uppercase tracking-wide text-zinc-500">{label}</span>
+        <span className="truncate font-mono text-[10px] text-zinc-400">
+          {snapshot?.version != null ? `v${snapshot.version}` : ''}
+        </span>
+      </div>
+      {onOpen ? (
+        <button type="button" onClick={onOpen} className="block w-full bg-white" aria-label={`View larger ${label.toLowerCase()} diagram`}>
+          {content}
+        </button>
+      ) : content}
     </div>
   );
 }

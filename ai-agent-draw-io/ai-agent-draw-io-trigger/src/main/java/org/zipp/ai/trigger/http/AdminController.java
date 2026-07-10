@@ -575,6 +575,11 @@ public class AdminController {
         dto.setPromptTokens(call.getPromptTokens());
         dto.setCompletionTokens(call.getCompletionTokens());
         dto.setTotalTokens(call.getTotalTokens());
+        dto.setProviderRequestId(call.getProviderRequestId());
+        dto.setProviderResponseId(call.getProviderResponseId());
+        dto.setTtftMs(call.getTtftMs());
+        dto.setAttemptCount(call.getAttemptCount());
+        dto.setRetryCount(call.getRetryCount());
         dto.setEstimatedCost(estimateCostUsd(call.getPromptTokens(), call.getCompletionTokens(), call.getModel()));
         dto.setErrorClass(call.getErrorClass());
         return dto;
@@ -696,6 +701,7 @@ public class AdminController {
             effect.setDiagramId(after.getDiagramId());
             effect.setAfterVersion(after.getVersion());
             effect.setAfterHash(after.getCanvasHash());
+            effect.setChangedCellCount(after.getChangedCellCount());
             effect.setThumbnailUrl(after.getThumbnailUrl());
             effect.setRenderStatus(StringUtils.isNotBlank(after.getThumbnailUrl())
                     ? "THUMBNAIL_RENDERED"
@@ -730,6 +736,7 @@ public class AdminController {
         dto.setCanvasHash(snapshot.getCanvasHash());
         dto.setThumbnailUrl(snapshot.getThumbnailUrl());
         dto.setSummary(snapshot.getSummary());
+        dto.setChangedCellCount(snapshot.getChangedCellCount());
         dto.setCreatedAt(snapshot.getCreatedAt());
         return dto;
     }
@@ -1192,6 +1199,11 @@ public class AdminController {
         dto.setPromptTokens(call.getPromptTokens());
         dto.setCompletionTokens(call.getCompletionTokens());
         dto.setTotalTokens(call.getTotalTokens());
+        dto.setProviderRequestId(call.getProviderRequestId());
+        dto.setProviderResponseId(call.getProviderResponseId());
+        dto.setTtftMs(call.getTtftMs());
+        dto.setAttemptCount(call.getAttemptCount());
+        dto.setRetryCount(call.getRetryCount());
         dto.setStatus(call.getStatus());
         dto.setErrorClass(call.getErrorClass());
         dto.setStartedAt(call.getStartedAt());

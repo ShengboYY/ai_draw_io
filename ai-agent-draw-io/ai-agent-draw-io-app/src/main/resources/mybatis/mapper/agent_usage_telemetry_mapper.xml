@@ -50,6 +50,11 @@
         <result column="prompt_tokens" property="promptTokens"/>
         <result column="completion_tokens" property="completionTokens"/>
         <result column="total_tokens" property="totalTokens"/>
+        <result column="provider_request_id" property="providerRequestId"/>
+        <result column="provider_response_id" property="providerResponseId"/>
+        <result column="ttft_ms" property="ttftMs"/>
+        <result column="attempt_count" property="attemptCount"/>
+        <result column="retry_count" property="retryCount"/>
         <result column="status" property="status"/>
         <result column="error_class" property="errorClass"/>
         <result column="started_at" property="startedAt"/>
@@ -94,6 +99,7 @@
         <result column="canvas_hash" property="canvasHash"/>
         <result column="thumbnail_url" property="thumbnailUrl"/>
         <result column="summary" property="summary"/>
+        <result column="changed_cell_count" property="changedCellCount"/>
         <result column="created_at" property="createdAt"/>
     </resultMap>
 
@@ -130,11 +136,13 @@
     <insert id="insertLlmCall" parameterType="org.zipp.ai.infrastructure.dao.po.LlmCallTelemetryPO">
         INSERT INTO agent_llm_call (
             id, run_id, parent_id, user_id, phase, provider, model, credential_source, model_credential_id,
-            prompt_tokens, completion_tokens, total_tokens, status, error_class, started_at, completed_at, latency_ms
+            prompt_tokens, completion_tokens, total_tokens, provider_request_id, provider_response_id,
+            ttft_ms, attempt_count, retry_count, status, error_class, started_at, completed_at, latency_ms
         )
         VALUES (
             #{id}, #{runId}, #{parentId}, #{userId}, #{phase}, #{provider}, #{model}, #{credentialSource}, #{modelCredentialId},
-            #{promptTokens}, #{completionTokens}, #{totalTokens}, #{status}, #{errorClass},
+            #{promptTokens}, #{completionTokens}, #{totalTokens}, #{providerRequestId}, #{providerResponseId},
+            #{ttftMs}, #{attemptCount}, #{retryCount}, #{status}, #{errorClass},
             #{startedAt}, #{completedAt}, #{latencyMs}
         )
     </insert>
@@ -161,10 +169,11 @@
 
     <insert id="insertDiagramSnapshot" parameterType="org.zipp.ai.infrastructure.dao.po.DiagramTraceSnapshotPO">
         INSERT INTO agent_diagram_trace_snapshot (
-            id, run_id, span_id, diagram_id, version, canvas_hash, thumbnail_url, summary, created_at
+            id, run_id, span_id, diagram_id, version, canvas_hash, thumbnail_url, summary, changed_cell_count, created_at
         )
         VALUES (
-            #{id}, #{runId}, #{spanId}, #{diagramId}, #{version}, #{canvasHash}, #{thumbnailUrl}, #{summary}, #{createdAt}
+            #{id}, #{runId}, #{spanId}, #{diagramId}, #{version}, #{canvasHash}, #{thumbnailUrl}, #{summary},
+            #{changedCellCount}, #{createdAt}
         )
     </insert>
 
@@ -283,7 +292,8 @@
     <select id="selectLlmCallsByRunId" resultMap="llmCallMap">
         SELECT
             id, run_id, parent_id, user_id, phase, provider, model, credential_source, model_credential_id,
-            prompt_tokens, completion_tokens, total_tokens, status, error_class,
+            prompt_tokens, completion_tokens, total_tokens, provider_request_id, provider_response_id,
+            ttft_ms, attempt_count, retry_count, status, error_class,
             started_at, completed_at, latency_ms
         FROM agent_llm_call
         WHERE run_id = #{runId}
@@ -307,7 +317,7 @@
 
     <select id="selectDiagramSnapshotsByRunId" resultMap="diagramSnapshotMap">
         SELECT
-            id, run_id, span_id, diagram_id, version, canvas_hash, thumbnail_url, summary, created_at
+            id, run_id, span_id, diagram_id, version, canvas_hash, thumbnail_url, summary, changed_cell_count, created_at
         FROM agent_diagram_trace_snapshot
         WHERE run_id = #{runId}
         ORDER BY created_at ASC, id ASC

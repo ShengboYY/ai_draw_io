@@ -19,6 +19,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.regex.Matcher;
@@ -99,6 +100,34 @@ public class DrawioCanvasXmlToolkit {
         return inspection.getCells().stream()
                 .filter(cell -> StringUtils.isBlank(normalizedQuery) || cell.matches(normalizedQuery))
                 .collect(Collectors.toList());
+    }
+
+    public Integer countChangedCells(String beforeXml, String afterXml) {
+        if (StringUtils.isBlank(afterXml)) {
+            return null;
+        }
+        try {
+            Map<String, CellInfo> before = cellsById(beforeXml);
+            Map<String, CellInfo> after = cellsById(afterXml);
+            Set<String> ids = new HashSet<>(before.keySet());
+            ids.addAll(after.keySet());
+            return (int) ids.stream()
+                    .filter(id -> !Objects.equals(before.get(id), after.get(id)))
+                    .count();
+        } catch (Exception ignored) {
+            // A saved snapshot remains useful even when a malformed legacy canvas cannot be diffed.
+            return null;
+        }
+    }
+
+    private Map<String, CellInfo> cellsById(String xml) {
+        if (StringUtils.isBlank(xml)) {
+            return Map.of();
+        }
+        return inspect(xml).getCells().stream()
+                .filter(cell -> StringUtils.isNotBlank(cell.getId()))
+                .filter(cell -> !"0".equals(cell.getId()) && !"1".equals(cell.getId()))
+                .collect(Collectors.toMap(CellInfo::getId, cell -> cell, (left, right) -> right));
     }
 
     private CellInfo toCellInfo(CanvasCellData cell) {

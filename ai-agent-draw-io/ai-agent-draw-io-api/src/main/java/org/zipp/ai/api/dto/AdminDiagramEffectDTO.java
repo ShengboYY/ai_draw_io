@@ -12,6 +12,7 @@ public class AdminDiagramEffectDTO {
     private String afterHash;
     private Boolean xmlChanged;
     private Boolean thumbnailChanged;
+    private Integer changedCellCount;
     private String renderStatus;
     private String thumbnailUrl;
 }

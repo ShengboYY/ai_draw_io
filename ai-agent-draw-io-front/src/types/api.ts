@@ -328,6 +328,11 @@ export interface AdminLlmCallDTO {
   promptTokens?: number;
   completionTokens?: number;
   totalTokens?: number;
+  providerRequestId?: string;
+  providerResponseId?: string;
+  ttftMs?: number;
+  attemptCount?: number;
+  retryCount?: number;
   status?: string;
   errorClass?: string;
   startedAt?: string;
@@ -401,6 +406,7 @@ export interface AdminDiagramEffectDTO {
   afterHash?: string;
   xmlChanged?: boolean;
   thumbnailChanged?: boolean;
+  changedCellCount?: number;
   renderStatus?: string;
   thumbnailUrl?: string;
 }
@@ -425,6 +431,11 @@ export interface AdminDiagramTraceSpanDTO {
   promptTokens?: number;
   completionTokens?: number;
   totalTokens?: number;
+  providerRequestId?: string;
+  providerResponseId?: string;
+  ttftMs?: number;
+  attemptCount?: number;
+  retryCount?: number;
   estimatedCost?: number;
   toolName?: string;
   metadataJson?: string;
@@ -460,6 +471,7 @@ export interface AdminDiagramSnapshotDTO {
   canvasHash?: string;
   thumbnailUrl?: string;
   summary?: string;
+  changedCellCount?: number;
   createdAt?: string;
 }
 

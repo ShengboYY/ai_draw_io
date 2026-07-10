@@ -264,6 +264,14 @@ public class AgentUsageTelemetryService {
                                       String spanId,
                                       CanvasState state,
                                       String summary) {
+        recordDiagramSnapshot(runId, spanId, state, summary, null);
+    }
+
+    public void recordDiagramSnapshot(String runId,
+                                      String spanId,
+                                      CanvasState state,
+                                      String summary,
+                                      Integer changedCellCount) {
         if (state == null || StringUtils.isAnyBlank(runId, state.getDiagramId())) {
             return;
         }
@@ -277,6 +285,7 @@ public class AgentUsageTelemetryService {
                 .canvasHash(state.getContentHash())
                 .thumbnailUrl(state.getThumbnailUrl())
                 .summary(StringUtils.left(StringUtils.defaultIfBlank(summary, state.getSummary()), 512))
+                .changedCellCount(changedCellCount)
                 .createdAt(createdAt)
                 .build()), state.getUserId());
     }
@@ -316,6 +325,26 @@ public class AgentUsageTelemetryService {
                               Integer completionTokens,
                               Integer totalTokens,
                               Throwable error) {
+        recordLlmCall(callId, context, phase, provider, model, latencyMs,
+                null, 1, 0, null, null,
+                promptTokens, completionTokens, totalTokens, error);
+    }
+
+    public void recordLlmCall(String callId,
+                              AgentUsageTelemetryContext.RunContext context,
+                              String phase,
+                              String provider,
+                              String model,
+                              Long latencyMs,
+                              Long ttftMs,
+                              Integer attemptCount,
+                              Integer retryCount,
+                              String providerRequestId,
+                              String providerResponseId,
+                              Integer promptTokens,
+                              Integer completionTokens,
+                              Integer totalTokens,
+                              Throwable error) {
         if (context == null) {
             return;
         }
@@ -334,6 +363,11 @@ public class AgentUsageTelemetryService {
                 .promptTokens(promptTokens)
                 .completionTokens(completionTokens)
                 .totalTokens(totalTokens)
+                .providerRequestId(providerRequestId)
+                .providerResponseId(providerResponseId)
+                .ttftMs(ttftMs)
+                .attemptCount(attemptCount)
+                .retryCount(retryCount)
                 .status(error == null ? SUCCESS : FAILED)
                 .errorClass(errorClass(error))
                 .startedAt(startedAt)

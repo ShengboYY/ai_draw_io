@@ -17,7 +17,7 @@ public class AdminDebugTraceCaptureDTO {
     private String contentType;
     private String content;
     private String contentSha256;
-    private Integer originalLength;
+    private Long originalLength;
     private boolean truncated;
     private Instant contentExpiresAt;
     private Instant contentDeletedAt;

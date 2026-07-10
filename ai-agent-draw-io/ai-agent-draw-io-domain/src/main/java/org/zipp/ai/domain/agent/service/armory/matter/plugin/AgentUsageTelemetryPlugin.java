@@ -19,6 +19,7 @@ import org.springframework.stereotype.Service;
 import org.zipp.ai.domain.agent.service.usage.AgentUsageTelemetryContext;
 import org.zipp.ai.domain.agent.service.usage.AgentUsageTelemetryService;
 import org.zipp.ai.domain.agent.service.debugtrace.AgentDebugTraceService;
+import org.zipp.ai.domain.agent.model.valobj.debugtrace.DebugTracePayloadKind;
 import org.zipp.ai.types.util.SecretLogSanitizer;
 
 import javax.annotation.Resource;
@@ -91,8 +92,9 @@ public class AgentUsageTelemetryPlugin extends BasePlugin {
                             runContext,
                             phaseFromAgent(context.agentName(), runContext.phase()),
                             request == null ? runContext.model() : request.model().orElse(runContext.model()),
+                            providerIdentifier(request, "requestId", "request_id", "id"),
                             new LlmResponseAccumulator()));
-            captureSpanPayload(runContext, callId, "LLM_INPUT", "application/json", toJson(request));
+            captureSpanPayload(runContext, callId, DebugTracePayloadKind.INPUT, "application/json", toJson(request));
         });
         return super.beforeModelCallback(context, requestBuilder);
     }
@@ -102,7 +104,7 @@ public class AgentUsageTelemetryPlugin extends BasePlugin {
         LlmCallStart start = peekLlmStart(context.invocationId());
         if (start != null) {
             if (response != null) {
-                start.responses().add(response);
+                start.responses().add(response, elapsedMs(start.startedNanos()));
             }
             if (!isTerminalResponse(response)) {
                 return super.afterModelCallback(context, response);
@@ -121,13 +123,21 @@ public class AgentUsageTelemetryPlugin extends BasePlugin {
                             finalResponse == null ? null : finalResponse.modelVersion().orElse(null),
                             start.model()),
                     elapsedMs(start.startedNanos()),
+                    start.responses().ttftMs(),
+                    1,
+                    0,
+                    start.providerRequestId(),
+                    providerIdentifier(finalResponse, "responseId", "response_id", "id"),
                     usage == null ? null : usage.promptTokenCount().orElse(null),
                     usage == null ? null : usage.candidatesTokenCount().orElse(null),
                     usage == null ? null : usage.totalTokenCount().orElse(null),
                     finalResponse != null && finalResponse.errorMessage().isPresent()
                             ? new IllegalStateException("model_error")
                             : null);
-            captureSpanPayload(start.runContext(), start.callId(), "LLM_OUTPUT", "application/json",
+            captureSpanPayload(start.runContext(), start.callId(),
+                    finalResponse != null && finalResponse.errorMessage().isPresent()
+                            ? DebugTracePayloadKind.ERROR : DebugTracePayloadKind.OUTPUT,
+                    "application/json",
                     toJson(start.responses()));
         }
         return super.afterModelCallback(context, response);
@@ -151,10 +161,17 @@ public class AgentUsageTelemetryPlugin extends BasePlugin {
                     start == null ? modelFromRequest(requestBuilder, runContext.model()) : start.model(),
                     start == null ? null : elapsedMs(start.startedNanos()),
                     null,
+                    1,
+                    0,
+                    start == null
+                            ? providerIdentifier(buildRequest(requestBuilder), "requestId", "request_id", "id")
+                            : start.providerRequestId(),
+                    null,
+                    null,
                     null,
                     null,
                     error);
-            captureSpanPayload(runContext, callId, "LLM_OUTPUT", "application/json", errorJson(error));
+            captureSpanPayload(runContext, callId, DebugTracePayloadKind.ERROR, "application/json", errorJson(error));
         }
         return super.onModelErrorCallback(context, requestBuilder, error);
     }
@@ -169,7 +186,7 @@ public class AgentUsageTelemetryPlugin extends BasePlugin {
                     toolKey(tool, toolContext),
                     new ToolCallStart(callId, System.nanoTime(), runContext,
                             phaseFromAgent(toolContext.agentName(), runContext.phase())));
-            captureSpanPayload(runContext, callId, "TOOL_INPUT", "application/json", mapJson(args));
+            captureSpanPayload(runContext, callId, DebugTracePayloadKind.TOOL_ARGS, "application/json", mapJson(args));
         });
         return super.beforeToolCallback(tool, args, toolContext);
     }
@@ -211,7 +228,9 @@ public class AgentUsageTelemetryPlugin extends BasePlugin {
                 tool.name(),
                 start == null ? null : elapsedMs(start.startedNanos()),
                 error);
-        captureSpanPayload(runContext, callId, "TOOL_OUTPUT", "application/json",
+        captureSpanPayload(runContext, callId,
+                error == null ? DebugTracePayloadKind.TOOL_RESULT : DebugTracePayloadKind.ERROR,
+                "application/json",
                 error == null ? mapJson(result) : errorJson(error));
     }
 
@@ -292,6 +311,26 @@ public class AgentUsageTelemetryPlugin extends BasePlugin {
         }
     }
 
+    private String providerIdentifier(JsonBaseModel value, String... keys) {
+        String json = toJson(value);
+        if (StringUtils.isBlank(json)) {
+            return null;
+        }
+        try {
+            @SuppressWarnings("unchecked")
+            Map<String, Object> fields = JsonBaseModel.getMapper().readValue(json, Map.class);
+            for (String key : keys) {
+                Object identifier = fields.get(key);
+                if (identifier != null && StringUtils.isNotBlank(String.valueOf(identifier))) {
+                    return String.valueOf(identifier);
+                }
+            }
+        } catch (Exception ignored) {
+            // Some ADK adapters intentionally expose only normalized fields; provider IDs then stay unknown.
+        }
+        return null;
+    }
+
     private String toJson(LlmResponseAccumulator accumulator) {
         if (accumulator == null) {
             return null;
@@ -357,7 +396,7 @@ public class AgentUsageTelemetryPlugin extends BasePlugin {
 
     private void captureSpanPayload(AgentUsageTelemetryContext.RunContext context,
                                     String spanId,
-                                    String payloadKind,
+                                    DebugTracePayloadKind payloadKind,
                                     String contentType,
                                     String content) {
         if (agentDebugTraceService == null || context == null) {
@@ -408,6 +447,7 @@ public class AgentUsageTelemetryPlugin extends BasePlugin {
             AgentUsageTelemetryContext.RunContext runContext,
             String phase,
             String model,
+            String providerRequestId,
             LlmResponseAccumulator responses
     ) {
     }
@@ -415,11 +455,15 @@ public class AgentUsageTelemetryPlugin extends BasePlugin {
     private static final class LlmResponseAccumulator {
         private final ConcurrentLinkedDeque<LlmResponse> responses = new ConcurrentLinkedDeque<>();
         private final StringBuilder combinedText = new StringBuilder();
+        private Long ttftMs;
         private int droppedChunkCount;
 
-        private synchronized void add(LlmResponse response) {
+        private synchronized void add(LlmResponse response, Long responseLatencyMs) {
             if (response == null) {
                 return;
+            }
+            if (ttftMs == null) {
+                ttftMs = responseLatencyMs;
             }
             responses.addLast(response);
             while (responses.size() > MAX_STREAM_RESPONSE_CHUNKS) {
@@ -452,6 +496,10 @@ public class AgentUsageTelemetryPlugin extends BasePlugin {
 
         private synchronized int droppedChunkCount() {
             return droppedChunkCount;
+        }
+
+        private synchronized Long ttftMs() {
+            return ttftMs;
         }
     }
 

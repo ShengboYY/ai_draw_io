@@ -15,5 +15,6 @@ public class AdminDiagramSnapshotDTO {
     private String canvasHash;
     private String thumbnailUrl;
     private String summary;
+    private Integer changedCellCount;
     private Instant createdAt;
 }

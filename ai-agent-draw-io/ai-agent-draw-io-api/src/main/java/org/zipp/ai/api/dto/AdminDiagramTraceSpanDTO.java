@@ -26,6 +26,11 @@ public class AdminDiagramTraceSpanDTO {
     private Integer promptTokens;
     private Integer completionTokens;
     private Integer totalTokens;
+    private String providerRequestId;
+    private String providerResponseId;
+    private Long ttftMs;
+    private Integer attemptCount;
+    private Integer retryCount;
     private Double estimatedCost;
     private String toolName;
     private String metadataJson;

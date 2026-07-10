@@ -107,7 +107,11 @@ function PayloadCard({ item }: { item: AdminDebugTraceCaptureDTO }) {
               ))}
             </div>
           )}
-          <SmartPayload content={item.content || ''} contentType={item.contentType} />
+          <SmartPayload
+            content={item.content || ''}
+            contentType={item.contentType}
+            payloadLabel={item.payloadKind || item.eventType || 'Payload'}
+          />
         </>
       )}
     </div>
@@ -120,67 +124,222 @@ function isExpired(expiresAt?: string): boolean {
   return Number.isFinite(expiry) && expiry <= Date.now();
 }
 
-function SmartPayload({ content, contentType }: { content: string; contentType?: string }) {
+function SmartPayload({
+  content,
+  contentType,
+  payloadLabel,
+}: {
+  content: string;
+  contentType?: string;
+  payloadLabel: string;
+}) {
   const parsed = parseJson(content);
   const xml = Boolean(contentType?.includes('xml') || content.trim().startsWith('<'));
-  const [raw, setRaw] = useState(false);
+  const [view, setView] = useState<'rendered' | 'raw'>('rendered');
+  const [query, setQuery] = useState('');
+  const [expanded, setExpanded] = useState(true);
+  const [fullscreen, setFullscreen] = useState(false);
+  const [copyStatus, setCopyStatus] = useState<'idle' | 'copied' | 'failed'>('idle');
   const supportsRenderedView = parsed != null || xml;
+  const renderedText = parsed != null ? JSON.stringify(parsed, null, 2) : xml ? formatXml(content) : content;
+  const matchCount = countMatches(view === 'raw' ? content : renderedText, query);
+
+  const copyContent = async () => {
+    try {
+      // Copy is deliberately user-triggered; no payload content leaves the local browser.
+      await navigator.clipboard.writeText(content);
+      setCopyStatus('copied');
+      window.setTimeout(() => setCopyStatus('idle'), 1200);
+    } catch {
+      setCopyStatus('failed');
+    }
+  };
 
   return (
     <div>
-      {supportsRenderedView && (
-        <div className="flex justify-end border-b border-stone-100 px-2 py-1">
-          <button
-            type="button"
-            onClick={() => setRaw((value) => !value)}
-            className="rounded px-2 py-1 text-[10px] font-medium text-zinc-500 hover:bg-white hover:text-zinc-800"
-          >
-            {raw ? 'Rendered' : 'Raw'}
-          </button>
+      <div className="flex flex-wrap items-center gap-1.5 border-b border-stone-100 px-2 py-1.5">
+        {supportsRenderedView && (
+          <div className="flex rounded bg-stone-100 p-0.5">
+            {(['rendered', 'raw'] as const).map((mode) => (
+              <button
+                key={mode}
+                type="button"
+                onClick={() => setView(mode)}
+                className={`rounded px-2 py-1 text-[10px] font-medium capitalize ${
+                  view === mode ? 'bg-white text-zinc-800 shadow-sm' : 'text-zinc-500'
+                }`}
+              >
+                {mode}
+              </button>
+            ))}
+          </div>
+        )}
+        <label className="ml-auto flex min-w-36 flex-1 items-center rounded border border-stone-200 bg-white px-2 py-1 sm:max-w-52">
+          <span className="sr-only">Search {payloadLabel}</span>
+          <input
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Search payload"
+            className="min-w-0 flex-1 bg-transparent text-[10px] text-zinc-700 outline-none placeholder:text-zinc-400"
+          />
+          {query && <span className="font-mono text-[9px] text-zinc-400">{matchCount}</span>}
+        </label>
+        <button type="button" onClick={copyContent} className="rounded px-2 py-1 text-[10px] font-medium text-zinc-500 hover:bg-white hover:text-zinc-800">
+          {copyStatus === 'copied' ? 'Copied' : copyStatus === 'failed' ? 'Copy failed' : 'Copy'}
+        </button>
+        <button type="button" onClick={() => setFullscreen(true)} className="rounded px-2 py-1 text-[10px] font-medium text-zinc-500 hover:bg-white hover:text-zinc-800">
+          Fullscreen
+        </button>
+        <button type="button" onClick={() => setExpanded((value) => !value)} className="rounded px-2 py-1 text-[10px] font-medium text-zinc-500 hover:bg-white hover:text-zinc-800">
+          {expanded ? 'Collapse' : 'Expand'}
+        </button>
+      </div>
+
+      {expanded && <PayloadBody content={content} parsed={parsed} xml={xml} view={view} query={query} />}
+
+      {fullscreen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" role="dialog" aria-modal="true" aria-label={`${payloadLabel} fullscreen payload`}>
+          <div className="flex max-h-[92vh] w-full max-w-6xl flex-col overflow-hidden rounded-xl bg-white shadow-2xl">
+            <div className="flex items-center justify-between gap-3 border-b border-stone-200 px-4 py-3">
+              <div>
+                <div className="text-sm font-semibold text-zinc-900">{payloadLabel}</div>
+                <div className="mt-0.5 font-mono text-[10px] text-zinc-400">{view} · {matchCount} search matches</div>
+              </div>
+              <button type="button" onClick={() => setFullscreen(false)} className="rounded-md border border-stone-200 px-3 py-1.5 text-xs font-medium text-zinc-600 hover:bg-stone-50">
+                Close
+              </button>
+            </div>
+            <div className="min-h-0 flex-1 overflow-auto">
+              <PayloadBody content={content} parsed={parsed} xml={xml} view={view} query={query} fullscreen />
+            </div>
+          </div>
         </div>
-      )}
-      {!raw && parsed != null ? (
-        <JsonPayload value={parsed} />
-      ) : !raw && xml ? (
-        <pre className="max-h-72 overflow-auto whitespace-pre-wrap break-words p-3 font-mono text-[11px] leading-relaxed text-emerald-800">
-          {formatXml(content)}
-        </pre>
-      ) : (
-        <pre className="max-h-72 overflow-auto whitespace-pre-wrap break-words p-3 font-mono text-[11px] leading-relaxed text-zinc-700">
-          {raw ? content : content || '(empty)'}
-        </pre>
       )}
     </div>
   );
 }
 
-function JsonPayload({ value }: { value: unknown }) {
+function PayloadBody({
+  content,
+  parsed,
+  xml,
+  view,
+  query,
+  fullscreen = false,
+}: {
+  content: string;
+  parsed: unknown | null;
+  xml: boolean;
+  view: 'rendered' | 'raw';
+  query: string;
+  fullscreen?: boolean;
+}) {
+  const maxHeight = fullscreen ? 'max-h-none' : 'max-h-72';
+  if (view === 'rendered' && parsed != null) {
+    return <JsonPayload value={parsed} query={query} maxHeight={maxHeight} />;
+  }
+  const displayed = view === 'rendered' && xml ? formatXml(content) : content || '(empty)';
+  return (
+    <HighlightedPre
+      text={displayed}
+      query={query}
+      className={`${maxHeight} overflow-auto whitespace-pre-wrap break-words p-3 font-mono text-[11px] leading-relaxed ${
+        view === 'rendered' && xml ? 'text-emerald-800' : 'text-zinc-700'
+      }`}
+    />
+  );
+}
+
+function JsonPayload({ value, query, maxHeight }: { value: unknown; query: string; maxHeight: string }) {
   const messages = extractMessages(value);
   if (messages.length > 0) {
     return (
-      <div className="max-h-72 space-y-2 overflow-auto p-2">
+      <div className={`${maxHeight} space-y-2 overflow-auto p-2`}>
         {messages.map((message, index) => (
           <div key={`${message.role}-${index}`} className="rounded border border-stone-200 bg-white px-2.5 py-2">
             <div className="mb-1 font-mono text-[10px] font-semibold uppercase text-zinc-400">{message.role}</div>
-            <pre className="whitespace-pre-wrap break-words font-mono text-[11px] leading-relaxed text-zinc-700">{message.body}</pre>
+            <HighlightedPre text={message.body} query={query} className="whitespace-pre-wrap break-words font-mono text-[11px] leading-relaxed text-zinc-700" />
           </div>
         ))}
       </div>
     );
   }
   return (
-    <pre className="max-h-72 overflow-auto whitespace-pre-wrap break-words p-3 font-mono text-[11px] leading-relaxed text-zinc-700">
-      {JSON.stringify(value, null, 2)}
-    </pre>
+    <div className={`${maxHeight} overflow-auto p-3 font-mono text-[11px] leading-relaxed text-zinc-700`}>
+      <JsonTree value={value} query={query} />
+    </div>
   );
+}
+
+function JsonTree({ value, query, label }: { value: unknown; query: string; label?: string }) {
+  if (value == null || typeof value !== 'object') {
+    return (
+      <div className="pl-3">
+        {label != null && <span className="text-sky-700">{label}: </span>}
+        <HighlightedText text={JSON.stringify(value) ?? String(value)} query={query} />
+      </div>
+    );
+  }
+  const entries = Array.isArray(value)
+    ? value.map((item, index) => [String(index), item] as const)
+    : Object.entries(value as Record<string, unknown>);
+  return (
+    <details open className="pl-2">
+      <summary className="cursor-pointer text-zinc-500">
+        {label != null && <span className="text-sky-700">{label} </span>}
+        <span>{Array.isArray(value) ? `[${entries.length}]` : `{${entries.length}}`}</span>
+      </summary>
+      <div className="border-l border-stone-200 pl-2">
+        {entries.map(([key, item]) => <JsonTree key={key} value={item} label={key} query={query} />)}
+      </div>
+    </details>
+  );
+}
+
+function HighlightedPre({ text, query, className }: { text: string; query: string; className: string }) {
+  return <pre className={className}><HighlightedText text={text} query={query} /></pre>;
+}
+
+function HighlightedText({ text, query }: { text: string; query: string }) {
+  if (!query.trim()) return text;
+  const needle = query.toLowerCase();
+  const lowerText = text.toLowerCase();
+  const parts: Array<{ text: string; match: boolean }> = [];
+  let cursor = 0;
+  while (cursor < text.length) {
+    const index = lowerText.indexOf(needle, cursor);
+    if (index < 0) {
+      parts.push({ text: text.slice(cursor), match: false });
+      break;
+    }
+    if (index > cursor) parts.push({ text: text.slice(cursor, index), match: false });
+    parts.push({ text: text.slice(index, index + needle.length), match: true });
+    cursor = index + needle.length;
+  }
+  return parts.map((part, index) => part.match
+    ? <mark key={index} className="rounded bg-amber-200 px-0.5 text-inherit">{part.text}</mark>
+    : <span key={index}>{part.text}</span>);
+}
+
+function countMatches(text: string, query: string): number {
+  const needle = query.trim().toLowerCase();
+  if (!needle) return 0;
+  let count = 0;
+  let cursor = 0;
+  const haystack = text.toLowerCase();
+  while ((cursor = haystack.indexOf(needle, cursor)) >= 0) {
+    count++;
+    cursor += needle.length;
+  }
+  return count;
 }
 
 function groupPayloads(items: AdminDebugTraceCaptureDTO[]): Record<PayloadBucket, AdminDebugTraceCaptureDTO[]> {
   const grouped: Record<PayloadBucket, AdminDebugTraceCaptureDTO[]> = { input: [], output: [], other: [] };
   items.forEach((item) => {
     const kind = `${item.payloadKind || ''} ${item.eventType || ''}`.toUpperCase();
-    if (kind.includes('INPUT') || kind.includes('REQUEST') || kind.includes('ROUTED_MESSAGE')) grouped.input.push(item);
-    else if (kind.includes('OUTPUT') || kind.includes('RESPONSE')) grouped.output.push(item);
+    if (kind.includes('INPUT') || kind.includes('TOOL_ARGS') || kind.includes('REQUEST') || kind.includes('ROUTED_MESSAGE')) grouped.input.push(item);
+    else if (kind.includes('OUTPUT') || kind.includes('TOOL_RESULT') || kind.includes('RESPONSE')) grouped.output.push(item);
     else grouped.other.push(item);
   });
   return grouped;

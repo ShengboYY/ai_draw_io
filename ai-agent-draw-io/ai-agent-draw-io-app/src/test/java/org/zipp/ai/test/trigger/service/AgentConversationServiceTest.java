@@ -54,6 +54,7 @@ import java.util.ArrayList;
 
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 public class AgentConversationServiceTest {
@@ -443,6 +444,105 @@ public class AgentConversationServiceTest {
     }
 
     @Test
+    public void shouldCaptureRoutingStepInputAndOutputAgainstTheStepSpan() throws Exception {
+        FakeAgentUsageTelemetryStore telemetryStore = new FakeAgentUsageTelemetryStore();
+        FakeDebugTraceStore debugStore = new FakeDebugTraceStore();
+        AgentDebugTraceService debugService = new AgentDebugTraceService(debugStore, null);
+        debugService.enableControl("usr_admin", null, "aru_step_payload", null, null);
+        AgentConversationService service = quotaAwareService();
+        injectField(service, "agentUsageTelemetryService", fixedTelemetryService(telemetryStore));
+        injectField(service, "agentDebugTraceService", debugService);
+        injectField(service, "chatService", new CountingChatService());
+        injectField(service, "intentRoutingService", new CountingIntentRoutingService());
+        ChatRequestDTO requestDTO = platformRequest();
+        requestDTO.setRunId("aru_step_payload");
+        requestDTO.setMessage("draw a checkout flow");
+
+        service.chat(requestDTO);
+
+        String routingSpanId = telemetryStore.steps.stream()
+                .filter(step -> "routing".equals(step.getPhase()))
+                .findFirst()
+                .orElseThrow()
+                .getId();
+        DebugTraceCapture input = debugStore.captures.stream()
+                .filter(capture -> routingSpanId.equals(capture.getSpanId()))
+                .filter(capture -> "INPUT".equals(capture.getPayloadKind()))
+                .findFirst()
+                .orElseThrow();
+        DebugTraceCapture output = debugStore.captures.stream()
+                .filter(capture -> routingSpanId.equals(capture.getSpanId()))
+                .filter(capture -> "OUTPUT".equals(capture.getPayloadKind()))
+                .findFirst()
+                .orElseThrow();
+        assertTrue(input.getContent().contains("draw a checkout flow"));
+        assertTrue(output.getContent().contains("routeType"));
+    }
+
+    @Test
+    public void shouldCaptureStructuredRunOutputWithFinalDiagramId() throws Exception {
+        FakeAgentUsageTelemetryStore telemetryStore = new FakeAgentUsageTelemetryStore();
+        FakeDebugTraceStore debugStore = new FakeDebugTraceStore();
+        AgentDebugTraceService debugService = new AgentDebugTraceService(debugStore, null);
+        debugService.enableControl("usr_admin", null, "aru_run_output", null, null);
+        AgentConversationService service = quotaAwareService();
+        injectField(service, "agentUsageTelemetryService", fixedTelemetryService(telemetryStore));
+        injectField(service, "agentDebugTraceService", debugService);
+        injectField(service, "chatService", new CountingChatService());
+        injectField(service, "intentRoutingService", new CountingIntentRoutingService());
+        ChatRequestDTO requestDTO = platformRequest();
+        requestDTO.setRunId("aru_run_output");
+        requestDTO.setRequestId("req_run_output");
+        requestDTO.setDiagramId("diagram-final");
+
+        service.chat(requestDTO);
+
+        DebugTraceCapture output = debugStore.captures.stream()
+                .filter(capture -> "OUTPUT".equals(capture.getPayloadKind()))
+                .filter(capture -> "aru_run_output".equals(capture.getSpanId()))
+                .findFirst()
+                .orElseThrow();
+        com.alibaba.fastjson.JSONObject content = com.alibaba.fastjson.JSON.parseObject(output.getContent());
+        assertEquals("application/json", output.getContentType());
+        assertEquals("user", content.getString("type"));
+        assertEquals("ok", content.getString("content"));
+        assertEquals("diagram-final", content.getString("diagramId"));
+        assertEquals("req_run_output", content.getString("requestId"));
+        assertEquals("aru_run_output", content.getString("runId"));
+    }
+
+    @Test
+    public void shouldNotFailWhenDirectAnswerResolvesToNull() throws Exception {
+        FakeAgentUsageTelemetryStore telemetryStore = new FakeAgentUsageTelemetryStore();
+        FakeDebugTraceStore debugStore = new FakeDebugTraceStore();
+        AgentDebugTraceService debugService = new AgentDebugTraceService(debugStore, null);
+        debugService.enableControl("usr_admin", null, "aru_null_answer", null, null);
+        AgentConversationService service = quotaAwareService();
+        injectField(service, "agentUsageTelemetryService", fixedTelemetryService(telemetryStore));
+        injectField(service, "agentDebugTraceService", debugService);
+        injectField(service, "chatService", new CountingChatService());
+        injectField(service, "intentRoutingService", new NullDirectAnswerRoutingService());
+        ChatRequestDTO requestDTO = platformRequest();
+        requestDTO.setRunId("aru_null_answer");
+
+        // A null direct answer must not raise (Map.of would NPE and flip the run to FAILED).
+        org.zipp.ai.api.dto.ChatResponseDTO response = service.chat(requestDTO);
+
+        assertEquals("user", response.getType());
+        assertNull(response.getContent());
+        String directAnswerSpanId = telemetryStore.steps.stream()
+                .filter(step -> "direct_answer".equals(step.getPhase()))
+                .findFirst()
+                .orElseThrow()
+                .getId();
+        // The step must complete as OUTPUT, never be flipped to an ERROR span by a serialization NPE.
+        assertTrue(debugStore.captures.stream().noneMatch(capture ->
+                directAnswerSpanId.equals(capture.getSpanId()) && "ERROR".equals(capture.getPayloadKind())));
+        assertTrue(debugStore.captures.stream().anyMatch(capture ->
+                directAnswerSpanId.equals(capture.getSpanId()) && "OUTPUT".equals(capture.getPayloadKind())));
+    }
+
+    @Test
     public void shouldAttachRequestAndRunIdsToBlockingChatResponseAndAdkRunContext() throws Exception {
         FakeAgentUsageTelemetryStore telemetryStore = new FakeAgentUsageTelemetryStore();
         AgentConversationService service = quotaAwareService();
@@ -508,11 +608,39 @@ public class AgentConversationServiceTest {
         service.stream(requestDTO, new CapturingEmitter());
 
         DebugTraceCapture output = debugStore.captures.stream()
-                .filter(capture -> "RUN_OUTPUT".equals(capture.getPayloadKind()))
+                .filter(capture -> "OUTPUT".equals(capture.getPayloadKind()))
+                .filter(capture -> "aru_stream_payload".equals(capture.getSpanId()))
                 .findFirst()
                 .orElseThrow();
         assertEquals("aru_stream_payload", output.getSpanId());
         assertTrue(output.getContent().contains("streamed answer"));
+    }
+
+    @Test
+    public void shouldKeepTheTrueLengthWhenStreamCaptureRetainsOnlyAPrefix() throws Exception {
+        FakeDebugTraceStore debugStore = new FakeDebugTraceStore();
+        AgentDebugTraceService debugService = new AgentDebugTraceService(debugStore, null);
+        debugService.enableControl("usr_admin", null, "aru_long_stream", null, null);
+        AgentConversationService service = quotaAwareService();
+        injectField(service, "agentDebugTraceService", debugService);
+        injectField(service, "chatService", new LongStreamingContentChatService());
+        injectField(service, "intentRoutingService", new CountingIntentRoutingService());
+        ChatRequestDTO requestDTO = platformRequest();
+        requestDTO.setRunId("aru_long_stream");
+
+        service.stream(requestDTO, new CapturingEmitter());
+
+        DebugTraceCapture output = debugStore.captures.stream()
+                .filter(capture -> "OUTPUT".equals(capture.getPayloadKind()))
+                .filter(capture -> "aru_long_stream".equals(capture.getSpanId()))
+                .findFirst()
+                .orElseThrow();
+        assertEquals(Long.valueOf(70_000), output.getOriginalLength());
+        assertTrue(output.isTruncated());
+        assertTrue(output.getContent().length() < output.getOriginalLength());
+        com.alibaba.fastjson.JSONObject structured = com.alibaba.fastjson.JSON.parseObject(output.getContent());
+        assertTrue(structured.getString("content").startsWith("x"));
+        assertEquals("aru_long_stream", structured.getString("runId"));
     }
 
     @Test
@@ -757,6 +885,23 @@ public class AgentConversationServiceTest {
         }
     }
 
+    private static class NullDirectAnswerRoutingService implements IIntentRoutingService {
+        @Override
+        public IntentRoutingResult route(IntentRoutingCommand command) {
+            // A direct reply whose answer resolves to null: the router chose answer_only but has no text.
+            IntentRoutingResult result = new IntentRoutingResult();
+            result.setRouteType("answer_only");
+            result.setDiagramType("none");
+            result.setSkillName("none");
+            result.setNeedsCanvasQuality(false);
+            result.setNeedsSemanticReview(false);
+            result.setAnswerMode("general");
+            result.setAnswer(null);
+            result.setReason("test");
+            return result;
+        }
+    }
+
     private static class FailingIntentRoutingService implements IIntentRoutingService {
         @Override
         public IntentRoutingResult route(IntentRoutingCommand command) {
@@ -879,6 +1024,23 @@ public class AgentConversationServiceTest {
                     .content(com.google.genai.types.Content.builder()
                             .role("model")
                             .parts(List.of(com.google.genai.types.Part.fromText("streamed answer")))
+                            .build())
+                    .partial(false)
+                    .build();
+            return Flowable.just(event);
+        }
+    }
+
+    private static final class LongStreamingContentChatService extends CountingChatService {
+        @Override
+        public Flowable<Event> handleMessageStream(String agentId, String userId, String sessionId, String message) {
+            Event event = Event.builder()
+                    .id("evt_long_stream_output")
+                    .invocationId("inv_long_stream_output")
+                    .author("drawing_agent")
+                    .content(com.google.genai.types.Content.builder()
+                            .role("model")
+                            .parts(List.of(com.google.genai.types.Part.fromText("x".repeat(70_000))))
                             .build())
                     .partial(false)
                     .build();

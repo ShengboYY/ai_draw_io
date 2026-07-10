@@ -22,6 +22,11 @@ public class LlmCallTelemetry {
     private Integer promptTokens;
     private Integer completionTokens;
     private Integer totalTokens;
+    private String providerRequestId;
+    private String providerResponseId;
+    private Long ttftMs;
+    private Integer attemptCount;
+    private Integer retryCount;
     private String status;
     private String errorClass;
     private Instant startedAt;

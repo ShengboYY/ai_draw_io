@@ -15,5 +15,6 @@ public class DiagramTraceSnapshotPO {
     private String canvasHash;
     private String thumbnailUrl;
     private String summary;
+    private Integer changedCellCount;
     private Date createdAt;
 }

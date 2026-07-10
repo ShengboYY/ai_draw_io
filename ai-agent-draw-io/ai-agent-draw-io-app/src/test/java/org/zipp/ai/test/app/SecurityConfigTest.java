@@ -23,6 +23,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.hamcrest.Matchers.containsString;
 
 public class SecurityConfigTest {
 
@@ -46,6 +47,17 @@ public class SecurityConfigTest {
                 .andExpect(status().isOk())
                 .andExpect(header().string("Access-Control-Allow-Origin", "http://localhost:3000"))
                 .andExpect(header().string("Access-Control-Allow-Credentials", "true"));
+    }
+
+    @Test
+    public void corsAllowsChatStreamTraceRequestHeader() throws Exception {
+        perform(options("/api/v1/test/mutate")
+                .header("Origin", "http://localhost:3000")
+                .header("Access-Control-Request-Method", "POST")
+                // Chat streaming correlates the client request with the trace run.
+                .header("Access-Control-Request-Headers", "content-type,x-xsrf-token,x-workspace-id,x-request-id"))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Access-Control-Allow-Headers", containsString("x-request-id")));
     }
 
     @Test

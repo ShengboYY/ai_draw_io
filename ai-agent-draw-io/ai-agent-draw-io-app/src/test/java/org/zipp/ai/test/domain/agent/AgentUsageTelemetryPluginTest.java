@@ -76,14 +76,19 @@ public class AgentUsageTelemetryPluginTest {
         plugin.afterModelCallback(callback, response);
 
         assertEquals(1, telemetryStore.llmCalls.size());
-        String spanId = telemetryStore.llmCalls.get(0).getId();
+        org.zipp.ai.domain.agent.model.valobj.usage.LlmCallTelemetry call = telemetryStore.llmCalls.get(0);
+        String spanId = call.getId();
         assertTrue(spanId.startsWith("alc_"));
+        assertEquals("google", call.getProvider());
+        assertTrue(call.getTtftMs() != null && call.getTtftMs() >= 0);
+        assertEquals(Integer.valueOf(1), call.getAttemptCount());
+        assertEquals(Integer.valueOf(0), call.getRetryCount());
         assertEquals(2, debugStore.captures.size());
         assertEquals(spanId, debugStore.captures.get(0).getSpanId());
-        assertEquals("LLM_INPUT", debugStore.captures.get(0).getPayloadKind());
+        assertEquals("INPUT", debugStore.captures.get(0).getPayloadKind());
         assertTrue(debugStore.captures.get(0).getContent().contains("draw a sequence diagram"));
         assertEquals(spanId, debugStore.captures.get(1).getSpanId());
-        assertEquals("LLM_OUTPUT", debugStore.captures.get(1).getPayloadKind());
+        assertEquals("OUTPUT", debugStore.captures.get(1).getPayloadKind());
         assertTrue(debugStore.captures.get(1).getContent().contains("diagram ready"));
     }
 
@@ -114,10 +119,10 @@ public class AgentUsageTelemetryPluginTest {
         assertTrue(spanId.startsWith("atc_"));
         assertEquals(2, debugStore.captures.size());
         assertEquals(spanId, debugStore.captures.get(0).getSpanId());
-        assertEquals("TOOL_INPUT", debugStore.captures.get(0).getPayloadKind());
+        assertEquals("TOOL_ARGS", debugStore.captures.get(0).getPayloadKind());
         assertTrue(debugStore.captures.get(0).getContent().contains("dia_1"));
         assertEquals(spanId, debugStore.captures.get(1).getSpanId());
-        assertEquals("TOOL_OUTPUT", debugStore.captures.get(1).getPayloadKind());
+        assertEquals("TOOL_RESULT", debugStore.captures.get(1).getPayloadKind());
         assertTrue(debugStore.captures.get(1).getContent().contains("found"));
     }
 

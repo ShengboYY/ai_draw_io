@@ -6,6 +6,7 @@ import org.springframework.stereotype.Service;
 import org.zipp.ai.domain.admin.service.AdminAuditLogService;
 import org.zipp.ai.domain.agent.model.valobj.debugtrace.DebugTraceCapture;
 import org.zipp.ai.domain.agent.model.valobj.debugtrace.DebugTraceControl;
+import org.zipp.ai.domain.agent.model.valobj.debugtrace.DebugTracePayloadKind;
 import org.zipp.ai.domain.agent.service.usage.AgentTelemetryMetrics;
 
 import java.nio.charset.StandardCharsets;
@@ -82,16 +83,32 @@ public class AgentDebugTraceService {
     }
 
     public Optional<DebugTraceCapture> capture(String userId, String runId, String eventType, String content) {
-        return capturePayload(userId, runId, null, eventType, eventType, "text/plain", content);
+        return capturePayload(userId, runId, null, eventType, eventType, "text/plain", content,
+                content == null ? 0L : content.length());
     }
 
     public Optional<DebugTraceCapture> captureSpanPayload(String userId,
                                                           String runId,
                                                           String spanId,
-                                                          String payloadKind,
+                                                          DebugTracePayloadKind payloadKind,
                                                           String contentType,
                                                           String content) {
-        return capturePayload(userId, runId, spanId, payloadKind, payloadKind, contentType, content);
+        return captureSpanPayload(userId, runId, spanId, payloadKind, contentType, content,
+                content == null ? 0L : content.length());
+    }
+
+    public Optional<DebugTraceCapture> captureSpanPayload(String userId,
+                                                          String runId,
+                                                          String spanId,
+                                                          DebugTracePayloadKind payloadKind,
+                                                          String contentType,
+                                                          String content,
+                                                          long originalLength) {
+        if (payloadKind == null) {
+            return Optional.empty();
+        }
+        return capturePayload(userId, runId, spanId, payloadKind.name(), payloadKind.name(),
+                contentType, content, originalLength);
     }
 
     private Optional<DebugTraceCapture> capturePayload(String userId,
@@ -100,7 +117,8 @@ public class AgentDebugTraceService {
                                                        String eventType,
                                                        String payloadKind,
                                                        String contentType,
-                                                       String content) {
+                                                       String content,
+                                                       long originalLength) {
         if (debugTraceStore == null || StringUtils.isBlank(content)) {
             return Optional.empty();
         }
@@ -119,8 +137,9 @@ public class AgentDebugTraceService {
             return Optional.empty();
         }
         // Keep truncation evidence so the inspector never presents a partial payload as complete.
-        int originalLength = content.length();
-        String storedContent = StringUtils.left(content, MAX_CONTENT_LENGTH);
+        long effectiveOriginalLength = Math.max(content.length(), originalLength);
+        String redactedContent = DebugTraceContentRedactor.redact(content, mediaType);
+        String storedContent = StringUtils.left(redactedContent, MAX_CONTENT_LENGTH);
         DebugTraceCapture capture = DebugTraceCapture.builder()
                 .id("adt_" + UUID.randomUUID())
                 .controlId(control.get().getId())
@@ -132,8 +151,10 @@ public class AgentDebugTraceService {
                 .contentType(StringUtils.defaultIfBlank(mediaType, "text/plain"))
                 .content(storedContent)
                 .contentSha256(sha256(storedContent))
-                .originalLength(originalLength)
-                .truncated(originalLength > storedContent.length())
+                .originalLength(effectiveOriginalLength)
+                .truncated(effectiveOriginalLength > content.length()
+                        || content.length() > MAX_CONTENT_LENGTH
+                        || redactedContent.length() > storedContent.length())
                 .contentExpiresAt(now.plus(DEFAULT_CONTENT_TTL))
                 .createdAt(now)
                 .build();

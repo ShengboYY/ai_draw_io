@@ -204,12 +204,12 @@ public class AdminControllerTest {
                 .userId("usr_user")
                 .runId("aru_1")
                 .spanId("alc_1")
-                .eventType("LLM_INPUT")
-                .payloadKind("LLM_INPUT")
+                .eventType("INPUT")
+                .payloadKind("INPUT")
                 .contentType("application/json")
                 .content("{\"messages\":[]}")
                 .contentSha256("sha")
-                .originalLength(15)
+                .originalLength(15L)
                 .truncated(false)
                 .contentExpiresAt(Instant.parse("2026-07-10T10:00:00Z"))
                 .createdAt(Instant.parse("2026-07-03T10:00:00Z"))
@@ -218,7 +218,7 @@ public class AdminControllerTest {
                 .id("adt_other")
                 .runId("aru_1")
                 .spanId("atc_2")
-                .payloadKind("TOOL_OUTPUT")
+                .payloadKind("TOOL_RESULT")
                 .content("other")
                 .build());
 
@@ -228,7 +228,7 @@ public class AdminControllerTest {
         assertEquals("0000", response.getCode());
         assertEquals(1, response.getData().size());
         assertEquals("alc_1", response.getData().get(0).getSpanId());
-        assertEquals("LLM_INPUT", response.getData().get(0).getPayloadKind());
+        assertEquals("INPUT", response.getData().get(0).getPayloadKind());
         assertEquals("application/json", response.getData().get(0).getContentType());
         assertFalse(response.getData().get(0).isTruncated());
     }
@@ -717,6 +717,7 @@ public class AdminControllerTest {
                 .version(2L)
                 .canvasHash("hash-after")
                 .thumbnailUrl("thumb-after")
+                .changedCellCount(2)
                 .createdAt(Instant.parse("2026-07-03T09:00:06Z"))
                 .build());
         canvasStateStore.state = CanvasState.builder()
@@ -740,6 +741,7 @@ public class AdminControllerTest {
         assertEquals("hash-after", drawingStep.getDiagramEffect().getAfterHash());
         assertEquals(Boolean.TRUE, drawingStep.getDiagramEffect().getXmlChanged());
         assertEquals(Boolean.TRUE, drawingStep.getDiagramEffect().getThumbnailChanged());
+        assertEquals(Integer.valueOf(2), drawingStep.getDiagramEffect().getChangedCellCount());
         assertEquals("thumb-after", drawingStep.getDiagramEffect().getThumbnailUrl());
     }
 

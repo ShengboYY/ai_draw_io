@@ -356,8 +356,18 @@ export default function Home() {
                   {isAccountMenuOpen && (
                     <div
                       role="menu"
-                      className="absolute right-0 top-12 z-30 w-36 overflow-hidden rounded-lg border border-stone-200 bg-white py-1 text-sm shadow-lg"
+                      className="absolute right-0 top-12 z-30 w-48 overflow-hidden rounded-lg border border-stone-200 bg-white py-1 text-sm shadow-lg"
                     >
+                      {/* Admin authorization remains server-enforced; expired sessions retain /admin as the login return target. */}
+                      <Link
+                        href="/admin"
+                        role="menuitem"
+                        onClick={() => setIsAccountMenuOpen(false)}
+                        className="block w-full px-3 py-2 text-left font-medium text-zinc-700 transition hover:bg-stone-50"
+                      >
+                        Admin dashboard
+                      </Link>
+                      <div className="my-1 border-t border-stone-100" role="separator" />
                       <button
                         type="button"
                         onClick={logout}

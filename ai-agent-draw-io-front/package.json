@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "check:trace-ui": "node --test scripts/trace-workbench.component.test.mjs",
     "start": "next start",
     "lint": "eslint"
   },

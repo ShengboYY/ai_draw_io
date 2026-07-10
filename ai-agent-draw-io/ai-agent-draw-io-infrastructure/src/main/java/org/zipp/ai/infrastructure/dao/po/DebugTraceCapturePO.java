@@ -18,7 +18,7 @@ public class DebugTraceCapturePO {
     private String contentType;
     private String content;
     private String contentSha256;
-    private Integer originalLength;
+    private Long originalLength;
     private Boolean truncated;
     private Date contentExpiresAt;
     private Date contentDeletedAt;

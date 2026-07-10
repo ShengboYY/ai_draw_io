@@ -353,7 +353,8 @@ public class DrawioStreamResponseWriter {
         CanvasStateSaveResult saveResult = null;
         if (StringUtils.isNotBlank(xml)) {
             try {
-                saveResult = persistCanvasState(emitter, xml);
+                String previousXml = currentCanvasByEmitter.get(emitter);
+                saveResult = persistCanvasState(emitter, xml, previousXml);
             } catch (CanvasStateVersionConflictException e) {
                 sendVersionConflict(emitter, phase, canvasStateContextByEmitter.get(emitter));
                 return;
@@ -372,7 +373,9 @@ public class DrawioStreamResponseWriter {
         emitter.send(wrapper.toJSONString() + "\n");
     }
 
-    private CanvasStateSaveResult persistCanvasState(ResponseBodyEmitter emitter, String xml) {
+    private CanvasStateSaveResult persistCanvasState(ResponseBodyEmitter emitter,
+                                                      String xml,
+                                                      String previousXml) {
         CanvasStateContext context = canvasStateContextByEmitter.get(emitter);
         if (canvasStateStore == null || context == null || StringUtils.isBlank(xml)) {
             return null;
@@ -391,7 +394,7 @@ public class DrawioStreamResponseWriter {
                 canvasStateContextByEmitter.put(emitter,
                         new CanvasStateContext(context.userId(), context.diagramId(), saved.getVersion(), context.runId(), context.spanId()));
             }
-            recordDiagramSnapshot(context, result);
+            recordDiagramSnapshot(context, result, xmlToolkit.countChangedCells(previousXml, xml));
             return result;
         } catch (CanvasStateVersionConflictException e) {
             throw e;
@@ -402,13 +405,16 @@ public class DrawioStreamResponseWriter {
         }
     }
 
-    private void recordDiagramSnapshot(CanvasStateContext context, CanvasStateSaveResult result) {
+    private void recordDiagramSnapshot(CanvasStateContext context,
+                                       CanvasStateSaveResult result,
+                                       Integer changedCellCount) {
         CanvasState saved = result == null ? null : result.getState();
         if (agentUsageTelemetryService == null || context == null || saved == null || StringUtils.isBlank(context.runId())) {
             return;
         }
         String summary = result.getStatus() == null ? null : result.getStatus().name();
-        agentUsageTelemetryService.recordDiagramSnapshot(context.runId(), context.spanId(), saved, summary);
+        agentUsageTelemetryService.recordDiagramSnapshot(
+                context.runId(), context.spanId(), saved, summary, changedCellCount);
     }
 
     private void appendCanvasStateMetadata(com.alibaba.fastjson.JSONObject chunk,

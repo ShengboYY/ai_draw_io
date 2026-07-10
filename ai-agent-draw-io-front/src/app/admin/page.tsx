@@ -7,16 +7,17 @@ import { agentApi, ApiResponseError } from '@/api/agent';
 import type { AdminUsageDashboardDTO } from '@/types/api';
 import { buildLoginHref } from '@/utils/login-form';
 import { formatMs, formatNumber } from './admin-shared';
+import { AdminPageHeading, AdminShell } from './admin-shell';
 
 const pct = (v?: number) => (v == null ? '—' : `${Math.round(v * 100)}%`);
 
 function Metric({ label, value, tone }: { label: string; value: string; tone?: 'ok' | 'bad' }) {
   return (
-    <div className="rounded-xl bg-neutral-50 px-4 py-3">
-      <div className="text-xs text-neutral-500">{label}</div>
+    <div className="rounded-lg border border-stone-200 bg-white px-4 py-4 shadow-sm">
+      <div className="text-xs font-medium text-zinc-500">{label}</div>
       <div
-        className={`mt-1 text-2xl font-medium ${
-          tone === 'bad' ? 'text-red-600' : tone === 'ok' ? 'text-emerald-600' : 'text-neutral-900'
+        className={`mt-2 font-display text-2xl font-semibold ${
+          tone === 'bad' ? 'text-rose-700' : tone === 'ok' ? 'text-emerald-700' : 'text-zinc-900'
         }`}
       >
         {value}
@@ -63,90 +64,101 @@ export default function AdminOverviewPage() {
 
   if (forbidden) {
     return (
-      <div className="mx-auto max-w-md px-6 py-24 text-center">
-        <h1 className="text-lg font-medium text-neutral-900">Admin access required</h1>
-        <p className="mt-2 text-sm text-neutral-500">
-          Sign in with an admin account to view telemetry.
-        </p>
-        <Link href={buildLoginHref(returnTo)} className="mt-4 inline-block text-sm text-blue-600 hover:underline">
-          Go to sign in
-        </Link>
-      </div>
+      <AdminShell active="overview">
+        <div className="mx-auto max-w-md py-20 text-center">
+          <h1 className="font-display text-2xl font-semibold text-zinc-900">Admin access required</h1>
+          <p className="mt-2 text-sm text-zinc-500">Sign in with an admin account to view telemetry.</p>
+          <Link href={buildLoginHref(returnTo)} className="mt-5 inline-block text-sm font-medium text-zinc-700 hover:underline">
+            Go to sign in
+          </Link>
+        </div>
+      </AdminShell>
     );
   }
 
   return (
-    <div className="mx-auto max-w-5xl px-6 py-8">
-      <div className="mb-6 flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-medium text-neutral-900">Agent telemetry</h1>
-          <p className="mt-0.5 text-sm text-neutral-500">Global usage across all runs.</p>
-        </div>
-        <Link
-          href="/admin/runs"
-          className="rounded-lg border border-neutral-200 px-3 py-1.5 text-sm text-neutral-700 hover:bg-neutral-50"
-        >
-          Browse runs →
-        </Link>
-      </div>
+    <AdminShell active="overview">
+      <AdminPageHeading
+        eyebrow="Observability"
+        title="Agent telemetry"
+        description="Usage and reliability across every agent run."
+        action={
+          <Link href="/admin/runs" className="theme-btn inline-flex h-10 items-center rounded-lg px-4 text-sm font-medium transition">
+            View runs
+          </Link>
+        }
+      />
 
-      {loading && <div className="py-16 text-center text-sm text-neutral-400">Loading…</div>}
-      {error && <div className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
+      {loading && <div className="py-20 text-center text-sm text-zinc-400">Loading telemetry…</div>}
+      {error && <div className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{error}</div>}
 
       {data && !loading && (
         <>
-          <section className="mb-6">
-            <h2 className="mb-2 text-sm font-medium text-neutral-500">Requests</h2>
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <section className="mb-8">
+            <div className="mb-3 flex items-center justify-between">
+              <h2 className="font-display text-base font-semibold text-zinc-800">Run health</h2>
+              <span className="font-mono text-[11px] uppercase tracking-wide text-zinc-400">All time</span>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               <Metric label="Total runs" value={formatNumber(data.requestCount)} />
               <Metric label="Success rate" value={pct(data.requestSuccessRate)} tone="ok" />
+              <Metric label="Average latency" value={formatMs(data.averageRunLatencyMs)} />
               <Metric label="Failed" value={formatNumber(data.failedRequestCount)} tone="bad" />
               <Metric label="Running" value={formatNumber(data.runningRequestCount)} />
-              <Metric label="Avg latency" value={formatMs(data.averageRunLatencyMs)} />
-              <Metric label="Max latency" value={formatMs(data.maxRunLatencyMs)} />
+              <Metric label="Longest run" value={formatMs(data.maxRunLatencyMs)} />
             </div>
           </section>
 
-          <section className="mb-6">
-            <h2 className="mb-2 text-sm font-medium text-neutral-500">LLM &amp; tools</h2>
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-              <Metric label="LLM calls" value={formatNumber(data.llmCallCount)} />
-              <Metric label="Failed LLM" value={formatNumber(data.failedLlmCallCount)} tone="bad" />
-              <Metric label="Tool calls" value={formatNumber(data.toolCallCount)} />
-              <Metric label="Failed tools" value={formatNumber(data.failedToolCallCount)} tone="bad" />
-              <Metric label="Prompt tokens" value={formatNumber(data.promptTokens)} />
-              <Metric label="Completion tokens" value={formatNumber(data.completionTokens)} />
-              <Metric label="Total tokens" value={formatNumber(data.totalTokens)} />
-              <Metric label="Unknown-token calls" value={formatNumber(data.unknownTokenLlmCallCount)} />
-            </div>
+          <section className="mb-8 grid gap-4 lg:grid-cols-2">
+            <UsageBreakdown
+              title="Model activity"
+              rows={[
+                ['LLM calls', formatNumber(data.llmCallCount)],
+                ['Failed LLM calls', formatNumber(data.failedLlmCallCount), 'bad'],
+                ['Tool calls', formatNumber(data.toolCallCount)],
+                ['Failed tool calls', formatNumber(data.failedToolCallCount), 'bad'],
+              ]}
+            />
+            <UsageBreakdown
+              title="Token usage"
+              rows={[
+                ['Total tokens', formatNumber(data.totalTokens)],
+                ['Prompt tokens', formatNumber(data.promptTokens)],
+                ['Completion tokens', formatNumber(data.completionTokens)],
+                ['Unknown-token calls', formatNumber(data.unknownTokenLlmCallCount)],
+              ]}
+            />
           </section>
 
           {data.groups && data.groups.length > 0 && (
             <section>
-              <h2 className="mb-2 text-sm font-medium text-neutral-500">By provider / model</h2>
-              <div className="overflow-x-auto rounded-xl border border-neutral-200">
-                <table className="w-full text-sm">
-                  <thead className="bg-neutral-50 text-left text-xs text-neutral-500">
+              <div className="mb-3 flex items-center justify-between">
+                <h2 className="font-display text-base font-semibold text-zinc-800">Provider and model</h2>
+                <span className="font-mono text-[11px] uppercase tracking-wide text-zinc-400">LLM calls</span>
+              </div>
+              <div className="overflow-x-auto rounded-lg border border-stone-200 bg-white shadow-sm">
+                <table className="w-full min-w-[680px] text-sm">
+                  <thead className="border-b border-stone-200 bg-stone-50 text-left text-xs font-medium text-zinc-500">
                     <tr>
-                      <th className="px-3 py-2 font-medium">Provider</th>
-                      <th className="px-3 py-2 font-medium">Model</th>
-                      <th className="px-3 py-2 font-medium">Source</th>
-                      <th className="px-3 py-2 text-right font-medium">Calls</th>
-                      <th className="px-3 py-2 text-right font-medium">Failed</th>
-                      <th className="px-3 py-2 text-right font-medium">Tokens</th>
-                      <th className="px-3 py-2 text-right font-medium">Avg latency</th>
+                      <th className="px-4 py-3 font-medium">Provider</th>
+                      <th className="px-4 py-3 font-medium">Model</th>
+                      <th className="px-4 py-3 font-medium">Source</th>
+                      <th className="px-4 py-3 text-right font-medium">Calls</th>
+                      <th className="px-4 py-3 text-right font-medium">Failed</th>
+                      <th className="px-4 py-3 text-right font-medium">Tokens</th>
+                      <th className="px-4 py-3 text-right font-medium">Avg latency</th>
                     </tr>
                   </thead>
                   <tbody>
                     {data.groups.map((g, i) => (
-                      <tr key={i} className="border-t border-neutral-100">
-                        <td className="px-3 py-2">{g.provider || '—'}</td>
-                        <td className="px-3 py-2">{g.model || '—'}</td>
-                        <td className="px-3 py-2 text-neutral-500">{g.credentialSource || '—'}</td>
-                        <td className="px-3 py-2 text-right">{formatNumber(g.llmCallCount)}</td>
-                        <td className="px-3 py-2 text-right text-red-600">{formatNumber(g.failedCallCount)}</td>
-                        <td className="px-3 py-2 text-right">{formatNumber(g.totalTokens)}</td>
-                        <td className="px-3 py-2 text-right">{formatMs(g.averageLatencyMs)}</td>
+                      <tr key={i} className="border-t border-stone-100 text-zinc-700 transition hover:bg-stone-50/70">
+                        <td className="px-4 py-3 font-medium">{g.provider || '—'}</td>
+                        <td className="px-4 py-3">{g.model || '—'}</td>
+                        <td className="px-4 py-3 text-zinc-500">{g.credentialSource || '—'}</td>
+                        <td className="px-4 py-3 text-right font-mono text-xs">{formatNumber(g.llmCallCount)}</td>
+                        <td className="px-4 py-3 text-right font-mono text-xs text-rose-700">{formatNumber(g.failedCallCount)}</td>
+                        <td className="px-4 py-3 text-right font-mono text-xs">{formatNumber(g.totalTokens)}</td>
+                        <td className="px-4 py-3 text-right font-mono text-xs">{formatMs(g.averageLatencyMs)}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -156,6 +168,22 @@ export default function AdminOverviewPage() {
           )}
         </>
       )}
-    </div>
+    </AdminShell>
+  );
+}
+
+function UsageBreakdown({ title, rows }: { title: string; rows: [string, string, 'bad'?][] }) {
+  return (
+    <section className="rounded-lg border border-stone-200 bg-white px-5 py-4 shadow-sm">
+      <h2 className="font-display text-base font-semibold text-zinc-800">{title}</h2>
+      <dl className="mt-3 divide-y divide-stone-100 border-t border-stone-100">
+        {rows.map(([label, value, tone]) => (
+          <div key={label} className="flex items-center justify-between gap-4 py-2.5">
+            <dt className="text-sm text-zinc-500">{label}</dt>
+            <dd className={`font-mono text-sm ${tone === 'bad' ? 'text-rose-700' : 'text-zinc-800'}`}>{value}</dd>
+          </div>
+        ))}
+      </dl>
+    </section>
   );
 }

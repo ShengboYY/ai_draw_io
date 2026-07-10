@@ -74,6 +74,8 @@ public class SecurityConfig {
                 "Content-Type",
                 "X-Admin-Token",
                 "X-Requested-With",
+                // The streaming client uses this ID to correlate browser requests with trace runs.
+                "X-Request-Id",
                 "X-Workspace-Id",
                 "X-XSRF-TOKEN"));
         cfg.setExposedHeaders(List.of("X-CSRF-TOKEN"));

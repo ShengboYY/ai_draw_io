@@ -22,6 +22,7 @@ import org.zipp.ai.domain.agent.service.armory.matter.mcp.server.DrawioSkillTool
 import org.zipp.ai.domain.agent.service.armory.matter.skills.DrawioSkillAccessContext;
 import org.zipp.ai.domain.agent.service.chat.CustomApiConfigManager;
 import org.zipp.ai.domain.agent.service.debugtrace.AgentDebugTraceService;
+import org.zipp.ai.domain.agent.model.valobj.debugtrace.DebugTracePayloadKind;
 import org.zipp.ai.domain.agent.service.usage.AgentUsageTelemetryContext;
 import org.zipp.ai.domain.agent.service.usage.AgentUsageTelemetryService;
 import org.zipp.ai.types.enums.ResponseCode;
@@ -39,10 +40,12 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Function;
 
 @Slf4j
 @Service
@@ -50,9 +53,7 @@ public class AgentConversationService {
 
     private static final int DEFAULT_MAX_REVIEW_ITERATIONS = 1;
     private static final int MAX_REVIEW_ITERATIONS_LIMIT = 3;
-    private static final int MAX_BUFFERED_STREAM_CAPTURE_CHARS = 64_001;
-
-    private final Map<String, StringBuilder> streamOutputCaptures = new ConcurrentHashMap<>();
+    private static final int MAX_BUFFERED_STREAM_CAPTURE_CHARS = 64_000;
 
     @Resource
     private IChatService chatService;
@@ -103,7 +104,7 @@ public class AgentConversationService {
         try {
             recordLifecycleEvent(runScope, "HTTP_REQUEST_RECEIVED", "request", "SUCCESS",
                     requestMetadata(requestDTO, false));
-            captureRunPayload(runScope, "RUN_INPUT", requestDTO.getMessage());
+            captureRunPayload(runScope, DebugTracePayloadKind.INPUT, requestDTO.getMessage());
             CustomApiConfigManager.CustomApiConfig config = buildCustomApiConfig(requestDTO);
             runScope = telemetryService().withProviderModel(runScope, config.getProvider(), config.getModel());
             configuredScope = AgentUsageTelemetryContext.bind(runScope.getContext());
@@ -113,28 +114,31 @@ public class AgentConversationService {
             CustomApiConfigManager.setConfig(sessionId, config);
             requestDTO = requestWithStoredCanvas(requestDTO);
             final ChatRequestDTO currentRequest = requestDTO;
-            IntentRoutingResult routingResult = telemetryService().recordStep(
-                    "routing", () -> routeIntent(currentRequest, config));
+            IntentRoutingResult routingResult = recordCapturedStep(
+                    "routing", requestStepInput(currentRequest), AgentConversationService::routingStepOutput,
+                    () -> routeIntent(currentRequest, config));
             recordRoutingDecision(runScope, routingResult);
             if (routingResult.isDirectReply()) {
                 ChatResponseDTO responseDTO = new ChatResponseDTO();
                 responseDTO.setType("user");
-                responseDTO.setContent(telemetryService().recordStep(
-                        "direct_answer", () -> resolveDirectAnswer(currentRequest, config, routingResult)));
+                responseDTO.setContent(recordCapturedStep(
+                        "direct_answer", routingStepOutput(routingResult), value -> traceField("answer", value),
+                        () -> resolveDirectAnswer(currentRequest, config, routingResult)));
                 attachCorrelation(responseDTO, runScope);
-                captureRunPayload(runScope, "RUN_OUTPUT", responseDTO.getContent());
+                captureRunOutput(runScope, responseDTO, currentRequest.getDiagramId());
                 return responseDTO;
             }
 
             CanvasReviewContext reviewContext = routingResult.needsCanvasReview()
-                    ? telemetryService().recordStep("review", () -> buildReviewContextIfNeeded(currentRequest, config, routingResult))
+                    ? recordCapturedStep("review", requestStepInput(currentRequest), value -> value,
+                    () -> buildReviewContextIfNeeded(currentRequest, config, routingResult))
                     : null;
             int maxReviewIterations = effectiveMaxReviewIterations(currentRequest, routingResult);
             RoutedDrawMessage routedMessage = buildRoutedDrawMessage(currentRequest, routingResult, reviewContext, maxReviewIterations, currentRequest.getUserId(), currentRequest.getSkills());
             captureDebugTrace(runScope, "ROUTED_MESSAGE", routedMessage.message());
             final String finalSessionId = sessionId;
             DrawioSkillAccessContext.bindSession(finalSessionId, routedMessage.allowedSkillNames());
-            ChatResponseDTO response = telemetryService().recordStep("drawing", () -> {
+            ChatResponseDTO response = recordCapturedStep("drawing", traceField("message", routedMessage.message()), value -> value, () -> {
                 List<String> messages = chatService.handleMessage(
                         currentRequest.getAgentId(),
                         currentRequest.getUserId(),
@@ -144,7 +148,7 @@ public class AgentConversationService {
                 return parseChatResponse(messages);
             });
             attachCorrelation(response, runScope);
-            captureRunPayload(runScope, "RUN_OUTPUT", response.getContent());
+            captureRunOutput(runScope, response, currentRequest.getDiagramId());
             return response;
         } catch (Exception e) {
             runError = e;
@@ -168,7 +172,7 @@ public class AgentConversationService {
                 requestDTO.getUserId(), requestDTO.getAgentId(), requestDTO.getSessionId(), "chat_stream",
                 requestDTO.getDiagramId(), credentialSource(requestDTO), requestDTO.getModelCredentialId(), "openai", "unknown");
         requestDTO.setRunId(runScope.getContext().runId());
-        streamOutputCaptures.put(runScope.getContext().runId(), new StringBuilder());
+        BoundedTextCapture streamOutputCapture = new BoundedTextCapture(MAX_BUFFERED_STREAM_CAPTURE_CHARS);
         AgentUsageTelemetryContext.Scope initialScope = AgentUsageTelemetryContext.bind(runScope.getContext());
         AgentUsageTelemetryContext.Scope configuredScope = null;
         AgentUsageTelemetryService.StepScope drawingStep = null;
@@ -182,7 +186,7 @@ public class AgentConversationService {
             streamResponseWriter.sendMeta(emitter, runScope.getContext().requestId(), runScope.getContext().runId());
             recordLifecycleEvent(runScope, "STREAM_META_SENT", "stream", "SUCCESS",
                     Map.of("metaOnly", true));
-            captureRunPayload(runScope, "RUN_INPUT", requestDTO.getMessage());
+            captureRunPayload(runScope, DebugTracePayloadKind.INPUT, requestDTO.getMessage());
             CustomApiConfigManager.CustomApiConfig config = buildCustomApiConfig(requestDTO);
             runScope = telemetryService().withProviderModel(runScope, config.getProvider(), config.getModel());
             configuredScope = AgentUsageTelemetryContext.bind(runScope.getContext());
@@ -194,15 +198,16 @@ public class AgentConversationService {
 
             requestDTO = requestWithStoredCanvas(requestDTO);
             final ChatRequestDTO currentRequest = requestDTO;
-            IntentRoutingResult routingResult = telemetryService().recordStep(
-                    "routing", () -> routeIntent(currentRequest, config));
+            IntentRoutingResult routingResult = recordCapturedStep(
+                    "routing", requestStepInput(currentRequest), AgentConversationService::routingStepOutput,
+                    () -> routeIntent(currentRequest, config));
             recordRoutingDecision(runScope, routingResult);
             if (routingResult.isDirectReply()) {
                 try {
-                    String answer = telemetryService().recordStep(
-                            "direct_answer", () -> resolveDirectAnswer(currentRequest, config, routingResult));
-                    captureRunPayload(runScope, "RUN_OUTPUT", answer);
-                    streamOutputCaptures.remove(runScope.getContext().runId());
+                    String answer = recordCapturedStep(
+                            "direct_answer", routingStepOutput(routingResult), value -> traceField("answer", value),
+                            () -> resolveDirectAnswer(currentRequest, config, routingResult));
+                    captureRunOutput(runScope, "user", answer, currentRequest.getDiagramId());
                     streamResponseWriter.sendDirectReply(emitter, answer);
                     completeStreamTelemetry(streamTelemetryCompleted, null, runScope, null);
                 } finally {
@@ -220,9 +225,11 @@ public class AgentConversationService {
             final AtomicBoolean manuallyCompleted = new AtomicBoolean(false);
             final AtomicBoolean finalStreamTelemetryCompleted = streamTelemetryCompleted;
             final AtomicBoolean finalFirstStreamOutputRecorded = firstStreamOutputRecorded;
+            final BoundedTextCapture finalStreamOutputCapture = streamOutputCapture;
             final long finalStreamStartedNanos = streamStartedNanos;
             final CanvasReviewContext reviewContext = routingResult.needsCanvasReview()
-                    ? telemetryService().recordStep("review", () -> buildReviewContextIfNeeded(currentRequest, config, routingResult))
+                    ? recordCapturedStep("review", requestStepInput(currentRequest), value -> value,
+                    () -> buildReviewContextIfNeeded(currentRequest, config, routingResult))
                     : null;
             final RoutedDrawMessage routedMessage = buildRoutedDrawMessage(currentRequest, routingResult, reviewContext, maxRepairRounds, currentRequest.getUserId(), currentRequest.getSkills());
             captureDebugTrace(runScope, "ROUTED_MESSAGE", routedMessage.message());
@@ -231,6 +238,7 @@ public class AgentConversationService {
             final String currentCanvasXml = contextBuilder().resolveCanvasXml(currentRequest);
             streamResponseWriter.setCurrentCanvas(emitter, currentCanvasXml);
             drawingStep = telemetryService().startStep("drawing");
+            captureStepPayload(drawingStep, DebugTracePayloadKind.INPUT, traceField("message", routedMessage.message()));
             streamResponseWriter.setCanvasStateContext(
                     emitter,
                     currentRequest.getUserId(),
@@ -275,7 +283,8 @@ public class AgentConversationService {
                                                 if (outcome == MutationOutcome.CLEAN || budgetSpent || maxRepairRounds == 0) {
                                                     flushAuthorBuffers(emitter, authorBuffers);
                                                     completeStream(emitter, manuallyCompleted, disposableRef, finalSessionId,
-                                                            finalDrawingStep, finalRunScope, finalStreamTelemetryCompleted);
+                                                            finalDrawingStep, finalRunScope, finalStreamTelemetryCompleted,
+                                                            finalStreamOutputCapture);
                                                 }
                                             }
                                             return;
@@ -290,7 +299,7 @@ public class AgentConversationService {
                                     if (content == null || content.isEmpty()) {
                                         return;
                                     }
-                                    appendStreamOutput(finalRunScope, content);
+                                    appendStreamOutput(finalStreamOutputCapture, content);
                                     if (finalFirstStreamOutputRecorded.compareAndSet(false, true)) {
                                         recordLifecycleEvent(finalRunScope, "STREAM_FIRST_OUTPUT", "stream", "SUCCESS",
                                                 Map.of("ttftMs", Math.max(0,
@@ -320,19 +329,19 @@ public class AgentConversationService {
                                     }
 
                                     flushCompleteLines(emitter, phase, isPartial, buffer, accumulated, manuallyCompleted,
-                                            disposableRef, finalSessionId, finalDrawingStep, finalRunScope, finalStreamTelemetryCompleted);
+                                            disposableRef, finalSessionId, finalDrawingStep, finalRunScope,
+                                            finalStreamTelemetryCompleted, finalStreamOutputCapture);
                                 } catch (Exception e) {
                                     throw new RuntimeException(e);
                                 }
                             },
                             error -> {
                                 clearSessionConfig(finalSessionId);
-                                streamOutputCaptures.remove(finalRunScope.getContext().runId());
                                 completeStreamTelemetry(finalStreamTelemetryCompleted, finalDrawingStep, finalRunScope, error);
                                 streamResponseWriter.handleStreamError(emitter, manuallyCompleted.get(), error);
                             },
                             () -> {
-                                captureBufferedStreamOutput(finalRunScope);
+                                captureBufferedStreamOutput(finalRunScope, finalStreamOutputCapture);
                                 completeStreamTelemetry(finalStreamTelemetryCompleted, finalDrawingStep, finalRunScope, null);
                                 handleStreamComplete(emitter, authorBuffers, manuallyCompleted, finalSessionId);
                             }
@@ -344,14 +353,13 @@ public class AgentConversationService {
 
             emitter.onCompletion(() -> {
                 clearSessionConfig(finalSessionId);
-                captureBufferedStreamOutput(finalRunScope);
+                captureBufferedStreamOutput(finalRunScope, finalStreamOutputCapture);
                 completeStreamTelemetry(finalStreamTelemetryCompleted, finalDrawingStep, finalRunScope, null);
                 streamResponseWriter.clearPendingDiagram(emitter);
                 disposeStream(finalSessionId, "emitter.onCompletion", disposable);
             });
             emitter.onTimeout(() -> {
                 clearSessionConfig(finalSessionId);
-                streamOutputCaptures.remove(finalRunScope.getContext().runId());
                 completeStreamTelemetry(finalStreamTelemetryCompleted, finalDrawingStep, finalRunScope,
                         new IllegalStateException("stream_timeout"));
                 streamResponseWriter.clearPendingDiagram(emitter);
@@ -359,13 +367,11 @@ public class AgentConversationService {
             });
             emitter.onError(e -> {
                 clearSessionConfig(finalSessionId);
-                streamOutputCaptures.remove(finalRunScope.getContext().runId());
                 completeStreamTelemetry(finalStreamTelemetryCompleted, finalDrawingStep, finalRunScope, e);
                 streamResponseWriter.clearPendingDiagram(emitter);
                 disposeStream(finalSessionId, "emitter.onError", disposable);
             });
         } catch (AnonymousDemoQuotaExceededException e) {
-            streamOutputCaptures.remove(runScope.getContext().runId());
             clearSessionConfig(sessionId);
             completeStreamTelemetry(streamTelemetryCompleted, drawingStep, runScope, e);
             log.info("Anonymous demo quota exhausted for userId:{}", SecretLogSanitizer.maskCapability(requestDTO.getUserId()));
@@ -376,7 +382,6 @@ public class AgentConversationService {
             }
             emitter.complete();
         } catch (PlatformDailyQuotaExceededException e) {
-            streamOutputCaptures.remove(runScope.getContext().runId());
             clearSessionConfig(sessionId);
             completeStreamTelemetry(streamTelemetryCompleted, drawingStep, runScope, e);
             log.info("Verified user daily platform quota exhausted for userId:{}", SecretLogSanitizer.maskCapability(requestDTO.getUserId()));
@@ -387,7 +392,6 @@ public class AgentConversationService {
             }
             emitter.complete();
         } catch (AppException e) {
-            streamOutputCaptures.remove(runScope.getContext().runId());
             clearSessionConfig(sessionId);
             completeStreamTelemetry(streamTelemetryCompleted, drawingStep, runScope, e);
             log.info("Stream request rejected for userId:{} code:{}",
@@ -399,7 +403,6 @@ public class AgentConversationService {
             }
             emitter.complete();
         } catch (Exception e) {
-            streamOutputCaptures.remove(runScope.getContext().runId());
             clearSessionConfig(sessionId);
             completeStreamTelemetry(streamTelemetryCompleted, drawingStep, runScope, e);
             log.error("流式对话失败", e);
@@ -606,29 +609,102 @@ public class AgentConversationService {
         }
     }
 
-    private void appendStreamOutput(AgentUsageTelemetryService.RunScope runScope, String content) {
-        if (runScope == null || runScope.getContext() == null || StringUtils.isEmpty(content)) {
+    private void appendStreamOutput(BoundedTextCapture capture, String content) {
+        if (capture == null || StringUtils.isEmpty(content)) {
             return;
         }
-        StringBuilder buffer = streamOutputCaptures.get(runScope.getContext().runId());
-        if (buffer == null || buffer.length() >= MAX_BUFFERED_STREAM_CAPTURE_CHARS) {
-            return;
-        }
-        int remaining = MAX_BUFFERED_STREAM_CAPTURE_CHARS - buffer.length();
-        buffer.append(StringUtils.left(content, remaining));
+        capture.append(content);
     }
 
-    private void captureBufferedStreamOutput(AgentUsageTelemetryService.RunScope runScope) {
+    private void captureBufferedStreamOutput(AgentUsageTelemetryService.RunScope runScope,
+                                             BoundedTextCapture capture) {
         if (runScope == null || runScope.getContext() == null) {
             return;
         }
-        StringBuilder buffer = streamOutputCaptures.remove(runScope.getContext().runId());
-        captureRunPayload(runScope, "RUN_OUTPUT", buffer == null ? null : buffer.toString());
+        BoundedTextSnapshot snapshot = capture == null ? null : capture.finish();
+        if (snapshot != null) {
+            captureRunOutput(runScope, "user", snapshot.content(), runScope.getContext().diagramId(),
+                    snapshot.originalLength());
+        }
+    }
+
+    private void captureRunOutput(AgentUsageTelemetryService.RunScope runScope,
+                                  ChatResponseDTO response,
+                                  String diagramId) {
+        captureRunOutput(runScope,
+                response == null ? null : response.getType(),
+                response == null ? null : response.getContent(),
+                diagramId);
+    }
+
+    private void captureRunOutput(AgentUsageTelemetryService.RunScope runScope,
+                                  String type,
+                                  String content,
+                                  String diagramId) {
+        captureRunOutput(runScope, type, content, diagramId, null);
+    }
+
+    private void captureRunOutput(AgentUsageTelemetryService.RunScope runScope,
+                                  String type,
+                                  String content,
+                                  String diagramId,
+                                  Long originalLength) {
+        if (runScope == null || runScope.getContext() == null) {
+            return;
+        }
+        // Keep the user-visible result and its final canvas correlation together for replay/audit views.
+        Map<String, Object> output = new LinkedHashMap<>();
+        output.put("type", StringUtils.defaultIfBlank(type, "user"));
+        output.put("content", content);
+        output.put("diagramId", diagramId);
+        output.put("requestId", runScope.getContext().requestId());
+        output.put("runId", runScope.getContext().runId());
+        String outputJson = serializeRunOutputWithinCaptureLimit(output, content);
+        captureRunPayload(runScope, DebugTracePayloadKind.OUTPUT, "application/json", outputJson,
+                originalLength == null ? outputJson.length() : originalLength);
+    }
+
+    private String serializeRunOutputWithinCaptureLimit(Map<String, Object> output, String content) {
+        String json = JSON.toJSONString(output);
+        if (json.length() <= MAX_BUFFERED_STREAM_CAPTURE_CHARS || content == null) {
+            return json;
+        }
+        // Trim only the user-visible content field so retained structured output always remains valid JSON.
+        int low = 0;
+        int high = content.length();
+        String best = JSON.toJSONString(Map.of());
+        while (low <= high) {
+            int middle = low + (high - low) / 2;
+            output.put("content", content.substring(0, middle));
+            String candidate = JSON.toJSONString(output);
+            if (candidate.length() <= MAX_BUFFERED_STREAM_CAPTURE_CHARS) {
+                best = candidate;
+                low = middle + 1;
+            } else {
+                high = middle - 1;
+            }
+        }
+        return best;
     }
 
     private void captureRunPayload(AgentUsageTelemetryService.RunScope runScope,
-                                   String payloadKind,
+                                   DebugTracePayloadKind payloadKind,
                                    String content) {
+        captureRunPayload(runScope, payloadKind, "text/plain", content);
+    }
+
+    private void captureRunPayload(AgentUsageTelemetryService.RunScope runScope,
+                                   DebugTracePayloadKind payloadKind,
+                                   String contentType,
+                                   String content) {
+        captureRunPayload(runScope, payloadKind, contentType, content, content == null ? 0L : content.length());
+    }
+
+    private void captureRunPayload(AgentUsageTelemetryService.RunScope runScope,
+                                   DebugTracePayloadKind payloadKind,
+                                   String contentType,
+                                   String content,
+                                   long originalLength) {
         if (agentDebugTraceService == null || runScope == null || runScope.getContext() == null) {
             return;
         }
@@ -639,14 +715,85 @@ public class AgentConversationService {
                     runScope.getContext().runId(),
                     runScope.getContext().runId(),
                     payloadKind,
-                    "text/plain",
-                    content);
+                    contentType,
+                    content,
+                    originalLength);
         } catch (Exception e) {
             // Debug capture must never alter the user-visible chat path.
             log.warn("Debug span payload capture failed. userId:{} runId:{} payloadKind:{}",
                     SecretLogSanitizer.maskCapability(runScope.getContext().userId()),
                     runScope.getContext().runId(), payloadKind, e);
         }
+    }
+
+    private <T> T recordCapturedStep(String phase,
+                                     Object input,
+                                     Function<T, Object> outputMapper,
+                                     Callable<T> action) throws Exception {
+        AgentUsageTelemetryService.StepScope step = telemetryService().startStep(phase);
+        AgentUsageTelemetryContext.Scope scope = step == null
+                ? AgentUsageTelemetryContext.enterPhase(phase)
+                : AgentUsageTelemetryContext.bind(step.getStepContext());
+        captureStepPayload(step, DebugTracePayloadKind.INPUT, input);
+        try (AgentUsageTelemetryContext.Scope ignored = scope) {
+            T result = action.call();
+            captureStepPayload(step, DebugTracePayloadKind.OUTPUT, outputMapper == null ? result : outputMapper.apply(result));
+            telemetryService().completeStep(step, null);
+            return result;
+        } catch (Exception e) {
+            captureStepPayload(step, DebugTracePayloadKind.ERROR, Map.of(
+                    "status", "FAILED",
+                    "errorClass", e.getClass().getSimpleName(),
+                    "message", StringUtils.defaultString(e.getMessage())));
+            telemetryService().completeStep(step, e);
+            throw e;
+        }
+    }
+
+    private void captureStepPayload(AgentUsageTelemetryService.StepScope step,
+                                    DebugTracePayloadKind payloadKind,
+                                    Object payload) {
+        if (agentDebugTraceService == null || step == null || step.getStepContext() == null || payload == null) {
+            return;
+        }
+        AgentUsageTelemetryContext.RunContext context = step.getStepContext();
+        try {
+            // Step payloads use the telemetry step id so the inspector can lazy-load the same span.
+            agentDebugTraceService.captureSpanPayload(
+                    context.userId(), context.runId(), context.spanId(), payloadKind,
+                    "application/json", JSON.toJSONString(payload));
+        } catch (Exception e) {
+            log.warn("Debug step payload capture failed. userId:{} runId:{} spanId:{}",
+                    SecretLogSanitizer.maskCapability(context.userId()), context.runId(), context.spanId(), e);
+        }
+    }
+
+    // Trace payload maps may carry null values (e.g. an empty direct answer); Map.of would throw and
+    // wrongly flip a successful step into a FAILED span, so use a null-tolerant single-field map.
+    private static Map<String, Object> traceField(String key, Object value) {
+        Map<String, Object> field = new LinkedHashMap<>();
+        field.put(key, value);
+        return field;
+    }
+
+    private Map<String, Object> requestStepInput(ChatRequestDTO requestDTO) {
+        Map<String, Object> input = new LinkedHashMap<>();
+        input.put("message", requestDTO == null ? null : requestDTO.getMessage());
+        input.put("diagramId", requestDTO == null ? null : requestDTO.getDiagramId());
+        input.put("canvasSummary", requestDTO == null ? null : requestDTO.getCanvasSummary());
+        input.put("hasCanvasXml", requestDTO != null && StringUtils.isNotBlank(requestDTO.getCanvasXml()));
+        return input;
+    }
+
+    private static Map<String, Object> routingStepOutput(IntentRoutingResult result) {
+        Map<String, Object> output = new LinkedHashMap<>();
+        output.put("routeType", result == null ? null : result.getRouteType());
+        output.put("diagramType", result == null ? null : result.getDiagramType());
+        output.put("answerMode", result == null ? null : result.getAnswerMode());
+        output.put("needsCanvasQuality", result != null && Boolean.TRUE.equals(result.getNeedsCanvasQuality()));
+        output.put("needsSemanticReview", result != null && Boolean.TRUE.equals(result.getNeedsSemanticReview()));
+        output.put("skillName", result == null ? null : result.getSkillName());
+        return output;
     }
 
     private void attachCorrelation(ChatResponseDTO responseDTO, AgentUsageTelemetryService.RunScope runScope) {
@@ -876,7 +1023,8 @@ public class AgentConversationService {
                                     String sessionId,
                                     AgentUsageTelemetryService.StepScope drawingStep,
                                     AgentUsageTelemetryService.RunScope runScope,
-                                    AtomicBoolean streamTelemetryCompleted) throws Exception {
+                                    AtomicBoolean streamTelemetryCompleted,
+                                    BoundedTextCapture streamOutputCapture) throws Exception {
         if (!isPartial || accumulated.contains("\n")) {
             String[] lines = accumulated.split("\n", -1);
             String remaining = lines[lines.length - 1];
@@ -894,7 +1042,7 @@ public class AgentConversationService {
                 }
                 if (streamResponseWriter.processAndSendLine(emitter, phase, line)) {
                     completeStream(emitter, manuallyCompleted, disposableRef, sessionId,
-                            drawingStep, runScope, streamTelemetryCompleted);
+                            drawingStep, runScope, streamTelemetryCompleted, streamOutputCapture);
                     return;
                 }
             }
@@ -905,9 +1053,43 @@ public class AgentConversationService {
             buffer.setLength(0);
             if (!remaining.isEmpty() && streamResponseWriter.processAndSendLine(emitter, phase, remaining)) {
                 completeStream(emitter, manuallyCompleted, disposableRef, sessionId,
-                        drawingStep, runScope, streamTelemetryCompleted);
+                        drawingStep, runScope, streamTelemetryCompleted, streamOutputCapture);
             }
         }
+    }
+
+    /** Request-local stream capture that retains a prefix while counting every emitted character. */
+    private static final class BoundedTextCapture {
+        private final int limit;
+        private final StringBuilder retained = new StringBuilder();
+        private long originalLength;
+        private boolean finished;
+
+        private BoundedTextCapture(int limit) {
+            this.limit = Math.max(0, limit);
+        }
+
+        private synchronized void append(String text) {
+            if (finished || text == null) {
+                return;
+            }
+            originalLength += text.length();
+            int remaining = limit - retained.length();
+            if (remaining > 0) {
+                retained.append(text, 0, Math.min(text.length(), remaining));
+            }
+        }
+
+        private synchronized BoundedTextSnapshot finish() {
+            if (finished) {
+                return null;
+            }
+            finished = true;
+            return new BoundedTextSnapshot(retained.toString(), originalLength);
+        }
+    }
+
+    private record BoundedTextSnapshot(String content, long originalLength) {
     }
 
     /** Outcome of the mutation tool response(s) in one ADK event, for drawing-loop control. */
@@ -962,12 +1144,13 @@ public class AgentConversationService {
                                 String sessionId,
                                 AgentUsageTelemetryService.StepScope drawingStep,
                                 AgentUsageTelemetryService.RunScope runScope,
-                                AtomicBoolean streamTelemetryCompleted) {
+                                AtomicBoolean streamTelemetryCompleted,
+                                BoundedTextCapture streamOutputCapture) {
         if (!manuallyCompleted.compareAndSet(false, true)) {
             return;
         }
         clearSessionConfig(sessionId);
-        captureBufferedStreamOutput(runScope);
+        captureBufferedStreamOutput(runScope, streamOutputCapture);
         completeStreamTelemetry(streamTelemetryCompleted, drawingStep, runScope, null);
         try {
             streamResponseWriter.flushPendingDiagram(emitter, "done");
@@ -997,6 +1180,11 @@ public class AgentConversationService {
             return;
         }
         recordStreamDone(runScope, error);
+        captureStepPayload(drawingStep,
+                error == null ? DebugTracePayloadKind.OUTPUT : DebugTracePayloadKind.ERROR,
+                Map.of(
+                        "status", error == null ? "SUCCESS" : "FAILED",
+                        "errorClass", error == null ? "" : error.getClass().getSimpleName()));
         telemetryService().completeStep(drawingStep, error);
         telemetryService().completeRun(runScope, error);
     }
