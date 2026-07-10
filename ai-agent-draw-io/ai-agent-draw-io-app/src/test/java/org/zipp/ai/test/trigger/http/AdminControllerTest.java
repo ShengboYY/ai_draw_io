@@ -196,6 +196,44 @@ public class AdminControllerTest {
     }
 
     @Test
+    public void adminCanLoadPayloadsForOneSelectedSpan() {
+        authenticate("usr_admin", 0);
+        debugTraceStore.captures.add(DebugTraceCapture.builder()
+                .id("adt_input")
+                .controlId("dtc_1")
+                .userId("usr_user")
+                .runId("aru_1")
+                .spanId("alc_1")
+                .eventType("LLM_INPUT")
+                .payloadKind("LLM_INPUT")
+                .contentType("application/json")
+                .content("{\"messages\":[]}")
+                .contentSha256("sha")
+                .originalLength(15)
+                .truncated(false)
+                .contentExpiresAt(Instant.parse("2026-07-10T10:00:00Z"))
+                .createdAt(Instant.parse("2026-07-03T10:00:00Z"))
+                .build());
+        debugTraceStore.captures.add(DebugTraceCapture.builder()
+                .id("adt_other")
+                .runId("aru_1")
+                .spanId("atc_2")
+                .payloadKind("TOOL_OUTPUT")
+                .content("other")
+                .build());
+
+        Response<List<AdminDebugTraceCaptureDTO>> response = controller.viewSpanPayloads(
+                "aru_1", "alc_1", request());
+
+        assertEquals("0000", response.getCode());
+        assertEquals(1, response.getData().size());
+        assertEquals("alc_1", response.getData().get(0).getSpanId());
+        assertEquals("LLM_INPUT", response.getData().get(0).getPayloadKind());
+        assertEquals("application/json", response.getData().get(0).getContentType());
+        assertFalse(response.getData().get(0).isTruncated());
+    }
+
+    @Test
     public void adminUsageAndRunDetailExposeOnlyMetadata() {
         authenticate("usr_admin", 0);
         telemetryStore.runs.add(AgentRunTelemetry.builder()
@@ -621,6 +659,88 @@ public class AdminControllerTest {
         assertEquals("hash-v1", response.getData().getSnapshots().get(0).getCanvasHash());
         assertEquals("ads_2", response.getData().getSnapshots().get(1).getId());
         assertEquals("hash-v2", response.getData().getSnapshots().get(1).getCanvasHash());
+    }
+
+    @Test
+    public void diagramTraceAttachesBeforeAndAfterSnapshotDiffToMutationSpan() {
+        authenticate("usr_admin", 0);
+        telemetryStore.runs.add(AgentRunTelemetry.builder()
+                .id("aru_snapshot_diff")
+                .requestId("req-snapshot-diff")
+                .diagramId("diag_diff")
+                .userId("usr_user")
+                .agentId("drawio")
+                .requestType("chat_stream")
+                .status("SUCCESS")
+                .startedAt(Instant.parse("2026-07-03T09:00:00Z"))
+                .build());
+        telemetryStore.toolCalls.add(ToolCallTelemetry.builder()
+                .id("atc_create_diff")
+                .runId("aru_snapshot_diff")
+                .userId("usr_user")
+                .toolName("create_diagram")
+                .status("SUCCESS")
+                .startedAt(Instant.parse("2026-07-03T09:00:02Z"))
+                .build());
+        telemetryStore.toolCalls.add(ToolCallTelemetry.builder()
+                .id("atc_modify_diff")
+                .runId("aru_snapshot_diff")
+                .userId("usr_user")
+                .toolName("modify_diagram")
+                .status("SUCCESS")
+                .startedAt(Instant.parse("2026-07-03T09:00:05Z"))
+                .build());
+        telemetryStore.steps.add(AgentRunStepTelemetry.builder()
+                .id("ars_drawing_diff")
+                .runId("aru_snapshot_diff")
+                .userId("usr_user")
+                .phase("drawing")
+                .status("SUCCESS")
+                .startedAt(Instant.parse("2026-07-03T09:00:01Z"))
+                .completedAt(Instant.parse("2026-07-03T09:00:07Z"))
+                .build());
+        telemetryStore.diagramSnapshots.add(AgentDiagramTraceSnapshot.builder()
+                .id("ads_diff_1")
+                .runId("aru_snapshot_diff")
+                .spanId("ars_drawing_diff")
+                .diagramId("diag_diff")
+                .version(1L)
+                .canvasHash("hash-before")
+                .thumbnailUrl("thumb-before")
+                .createdAt(Instant.parse("2026-07-03T09:00:03Z"))
+                .build());
+        telemetryStore.diagramSnapshots.add(AgentDiagramTraceSnapshot.builder()
+                .id("ads_diff_2")
+                .runId("aru_snapshot_diff")
+                .spanId("ars_drawing_diff")
+                .diagramId("diag_diff")
+                .version(2L)
+                .canvasHash("hash-after")
+                .thumbnailUrl("thumb-after")
+                .createdAt(Instant.parse("2026-07-03T09:00:06Z"))
+                .build());
+        canvasStateStore.state = CanvasState.builder()
+                .userId("usr_user")
+                .diagramId("diag_diff")
+                .currentXml("<mxfile/>")
+                .contentHash("hash-current")
+                .version(3L)
+                .build();
+
+        Response<AdminDiagramTraceDTO> response = controller.diagramTrace("aru_snapshot_diff", request());
+
+        AdminDiagramTraceSpanDTO drawingStep = response.getData().getSpans().stream()
+                .filter(span -> "ars_drawing_diff".equals(span.getId()))
+                .findFirst()
+                .orElseThrow();
+        assertEquals("diag_diff", drawingStep.getDiagramEffect().getDiagramId());
+        assertEquals(Long.valueOf(1L), drawingStep.getDiagramEffect().getBeforeVersion());
+        assertEquals(Long.valueOf(2L), drawingStep.getDiagramEffect().getAfterVersion());
+        assertEquals("hash-before", drawingStep.getDiagramEffect().getBeforeHash());
+        assertEquals("hash-after", drawingStep.getDiagramEffect().getAfterHash());
+        assertEquals(Boolean.TRUE, drawingStep.getDiagramEffect().getXmlChanged());
+        assertEquals(Boolean.TRUE, drawingStep.getDiagramEffect().getThumbnailChanged());
+        assertEquals("thumb-after", drawingStep.getDiagramEffect().getThumbnailUrl());
     }
 
     @Test

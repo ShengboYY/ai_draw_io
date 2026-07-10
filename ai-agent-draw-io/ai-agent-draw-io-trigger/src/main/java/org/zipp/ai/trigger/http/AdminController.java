@@ -61,6 +61,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.Date;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
@@ -219,6 +220,23 @@ public class AdminController {
             return success(captures.stream()
                     .map(this::toDebugTraceCaptureDto)
                     .collect(Collectors.toList()));
+        } catch (IllegalArgumentException e) {
+            return failure(e.getMessage());
+        }
+    }
+
+    @GetMapping("/debug-traces/runs/{runId}/spans/{spanId}/payloads")
+    public Response<List<AdminDebugTraceCaptureDTO>> viewSpanPayloads(@PathVariable("runId") String runId,
+                                                                     @PathVariable("spanId") String spanId,
+                                                                     HttpServletRequest request) {
+        Optional<UserAccount> admin = requireAdmin(request);
+        if (admin.isEmpty()) {
+            return forbidden();
+        }
+        try {
+            List<DebugTraceCapture> captures = agentDebugTraceService.viewCapturesForSpan(
+                    admin.get().getId(), runId, spanId, clientIp(request), userAgent(request));
+            return success(captures.stream().map(this::toDebugTraceCaptureDto).collect(Collectors.toList()));
         } catch (IllegalArgumentException e) {
             return failure(e.getMessage());
         }
@@ -419,7 +437,11 @@ public class AdminController {
         dto.setSpans(spans);
         dto.setSummary(summary);
         List<AdminDiagramSnapshotDTO> snapshots = toPersistedDiagramSnapshots(summary == null ? null : summary.getRunId());
-        dto.setSnapshots(snapshots.isEmpty() ? toDiagramSnapshots(detail, spans, diagramState) : snapshots);
+        List<AdminDiagramSnapshotDTO> visibleSnapshots = snapshots.isEmpty()
+                ? toDiagramSnapshots(detail, spans, diagramState)
+                : snapshots;
+        attachDiagramSnapshotDiffs(spans, visibleSnapshots);
+        dto.setSnapshots(visibleSnapshots);
         dto.setFindings(toDiagramTraceFindings(detail, spans, diagramState, summary));
         dto.setPayloadAvailability(toPayloadAvailability());
         return dto;
@@ -648,6 +670,54 @@ public class AdminController {
         return agentUsageTelemetryService.listDiagramSnapshots(runId).stream()
                 .map(this::toDiagramSnapshotDto)
                 .collect(Collectors.toList());
+    }
+
+    private void attachDiagramSnapshotDiffs(List<AdminDiagramTraceSpanDTO> spans,
+                                            List<AdminDiagramSnapshotDTO> snapshots) {
+        if (spans == null || spans.isEmpty() || snapshots == null || snapshots.isEmpty()) {
+            return;
+        }
+        List<AdminDiagramSnapshotDTO> ordered = new ArrayList<>(snapshots);
+        ordered.sort(Comparator
+                .comparing(AdminDiagramSnapshotDTO::getCreatedAt, Comparator.nullsLast(Comparator.naturalOrder()))
+                .thenComparing(AdminDiagramSnapshotDTO::getVersion, Comparator.nullsLast(Comparator.naturalOrder()))
+                .thenComparing(AdminDiagramSnapshotDTO::getId, Comparator.nullsLast(String::compareTo)));
+        for (AdminDiagramTraceSpanDTO span : spans) {
+            int afterIndex = lastSnapshotIndexForSpan(ordered, span.getId());
+            if (afterIndex < 0) {
+                continue;
+            }
+            AdminDiagramSnapshotDTO after = ordered.get(afterIndex);
+            AdminDiagramSnapshotDTO before = afterIndex == 0 ? null : ordered.get(afterIndex - 1);
+            AdminDiagramEffectDTO effect = span.getDiagramEffect() == null
+                    ? new AdminDiagramEffectDTO()
+                    : span.getDiagramEffect();
+            // Production snapshots are linked to the drawing STEP, so snapshot evidence can create the effect itself.
+            effect.setDiagramId(after.getDiagramId());
+            effect.setAfterVersion(after.getVersion());
+            effect.setAfterHash(after.getCanvasHash());
+            effect.setThumbnailUrl(after.getThumbnailUrl());
+            effect.setRenderStatus(StringUtils.isNotBlank(after.getThumbnailUrl())
+                    ? "THUMBNAIL_RENDERED"
+                    : StringUtils.isNotBlank(after.getCanvasHash()) ? "XML_AVAILABLE" : "NO_RENDER_EVIDENCE");
+            if (before != null) {
+                effect.setBeforeVersion(before.getVersion());
+                effect.setBeforeHash(before.getCanvasHash());
+                // Snapshot hashes are the persisted evidence for XML changes; raw XML stays in the protected payload path.
+                effect.setXmlChanged(!Objects.equals(before.getCanvasHash(), after.getCanvasHash()));
+                effect.setThumbnailChanged(!Objects.equals(before.getThumbnailUrl(), after.getThumbnailUrl()));
+            }
+            span.setDiagramEffect(effect);
+        }
+    }
+
+    private int lastSnapshotIndexForSpan(List<AdminDiagramSnapshotDTO> snapshots, String spanId) {
+        for (int index = snapshots.size() - 1; index >= 0; index--) {
+            if (StringUtils.equals(spanId, snapshots.get(index).getSpanId())) {
+                return index;
+            }
+        }
+        return -1;
     }
 
     private AdminDiagramSnapshotDTO toDiagramSnapshotDto(AgentDiagramTraceSnapshot snapshot) {
@@ -1178,9 +1248,14 @@ public class AdminController {
         dto.setControlId(capture.getControlId());
         dto.setUserId(capture.getUserId());
         dto.setRunId(capture.getRunId());
+        dto.setSpanId(capture.getSpanId());
         dto.setEventType(capture.getEventType());
+        dto.setPayloadKind(capture.getPayloadKind());
+        dto.setContentType(capture.getContentType());
         dto.setContent(capture.getContent());
         dto.setContentSha256(capture.getContentSha256());
+        dto.setOriginalLength(capture.getOriginalLength());
+        dto.setTruncated(capture.isTruncated());
         dto.setContentExpiresAt(capture.getContentExpiresAt());
         dto.setContentDeletedAt(capture.getContentDeletedAt());
         dto.setCreatedAt(capture.getCreatedAt());

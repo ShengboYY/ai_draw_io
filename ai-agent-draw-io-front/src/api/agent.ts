@@ -315,6 +315,21 @@ export const agentApi = {
         return handleResponse<AdminDebugTraceCaptureDTO[]>(response);
     },
 
+    adminSpanPayloads: async (
+        runId: string,
+        spanId: string,
+    ): Promise<Response<AdminDebugTraceCaptureDTO[]>> => {
+        const response = await fetch(
+            `${API_CONFIG.BASE_URL}/admin/debug-traces/runs/${encodeURIComponent(runId)}/spans/${encodeURIComponent(spanId)}/payloads`,
+            {
+                method: 'GET',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+            },
+        );
+        return handleResponse<AdminDebugTraceCaptureDTO[]>(response);
+    },
+
     adminEnableCapture: async (
         payload: AdminDebugTraceControlRequestDTO,
     ): Promise<Response<AdminDebugTraceControlDTO>> => {

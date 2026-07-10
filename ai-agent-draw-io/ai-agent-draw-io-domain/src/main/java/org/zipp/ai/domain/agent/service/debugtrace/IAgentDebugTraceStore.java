@@ -19,6 +19,12 @@ public interface IAgentDebugTraceStore {
         return List.of();
     }
 
+    default List<DebugTraceCapture> listCapturesByRunAndSpanId(String runId, String spanId) {
+        return listCapturesByRunId(runId).stream()
+                .filter(capture -> spanId.equals(capture.getSpanId()))
+                .toList();
+    }
+
     int deleteExpiredContent(Instant now);
 
     int extendRunContentExpiry(String runId, Instant expiresAt);

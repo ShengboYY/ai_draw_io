@@ -20,6 +20,8 @@ import org.zipp.ai.domain.account.service.VerifiedUserPlatformQuotaService;
 import org.zipp.ai.domain.agent.model.entity.ChatCommandEntity;
 import org.zipp.ai.domain.agent.model.valobj.AiAgentConfigTableVO;
 import org.zipp.ai.domain.agent.model.valobj.canvas.CanvasState;
+import org.zipp.ai.domain.agent.model.valobj.debugtrace.DebugTraceCapture;
+import org.zipp.ai.domain.agent.model.valobj.debugtrace.DebugTraceControl;
 import org.zipp.ai.domain.agent.model.valobj.intent.IntentRoutingCommand;
 import org.zipp.ai.domain.agent.model.valobj.intent.IntentRoutingResult;
 import org.zipp.ai.domain.agent.model.valobj.review.CanvasReviewCommand;
@@ -27,6 +29,8 @@ import org.zipp.ai.domain.agent.service.ICanvasStateStore;
 import org.zipp.ai.domain.agent.service.IChatService;
 import org.zipp.ai.domain.agent.service.IIntentRoutingService;
 import org.zipp.ai.domain.agent.service.canvas.DefaultDrawioCanvasSnapshotService;
+import org.zipp.ai.domain.agent.service.debugtrace.AgentDebugTraceService;
+import org.zipp.ai.domain.agent.service.debugtrace.IAgentDebugTraceStore;
 import org.zipp.ai.domain.agent.service.usage.AgentUsageTelemetryService;
 import org.zipp.ai.domain.agent.service.usage.AgentUsageTelemetryContext;
 import org.zipp.ai.test.domain.agent.FakeAgentUsageTelemetryStore;
@@ -46,6 +50,7 @@ import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Optional;
+import java.util.ArrayList;
 
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertEquals;
@@ -487,6 +492,53 @@ public class AgentConversationServiceTest {
     }
 
     @Test
+    public void shouldCaptureAggregatedStreamOutputAgainstTheRunSpan() throws Exception {
+        FakeAgentUsageTelemetryStore telemetryStore = new FakeAgentUsageTelemetryStore();
+        FakeDebugTraceStore debugStore = new FakeDebugTraceStore();
+        AgentDebugTraceService debugService = new AgentDebugTraceService(debugStore, null);
+        debugService.enableControl("usr_admin", null, "aru_stream_payload", null, null);
+        AgentConversationService service = quotaAwareService();
+        injectField(service, "agentUsageTelemetryService", fixedTelemetryService(telemetryStore));
+        injectField(service, "agentDebugTraceService", debugService);
+        injectField(service, "chatService", new StreamingContentChatService());
+        injectField(service, "intentRoutingService", new CountingIntentRoutingService());
+        ChatRequestDTO requestDTO = platformRequest();
+        requestDTO.setRunId("aru_stream_payload");
+
+        service.stream(requestDTO, new CapturingEmitter());
+
+        DebugTraceCapture output = debugStore.captures.stream()
+                .filter(capture -> "RUN_OUTPUT".equals(capture.getPayloadKind()))
+                .findFirst()
+                .orElseThrow();
+        assertEquals("aru_stream_payload", output.getSpanId());
+        assertTrue(output.getContent().contains("streamed answer"));
+    }
+
+    @Test
+    public void debugCaptureFailureDoesNotAbortStreamingReply() throws Exception {
+        FakeAgentUsageTelemetryStore telemetryStore = new FakeAgentUsageTelemetryStore();
+        FakeDebugTraceStore debugStore = new FakeDebugTraceStore();
+        AgentDebugTraceService debugService = new AgentDebugTraceService(debugStore, null);
+        debugService.enableControl("usr_admin", null, "aru_stream_capture_failure", null, null);
+        debugStore.failCaptures = true;
+        AgentConversationService service = quotaAwareService();
+        injectField(service, "agentUsageTelemetryService", fixedTelemetryService(telemetryStore));
+        injectField(service, "agentDebugTraceService", debugService);
+        injectField(service, "chatService", new StreamingContentChatService());
+        injectField(service, "intentRoutingService", new CountingIntentRoutingService());
+        ChatRequestDTO requestDTO = platformRequest();
+        requestDTO.setRunId("aru_stream_capture_failure");
+        CapturingEmitter emitter = new CapturingEmitter();
+
+        service.stream(requestDTO, emitter);
+
+        assertTrue(emitter.completed);
+        assertTrue(emitter.sent.stream().anyMatch(value -> value.contains("streamed answer")));
+        assertEquals("SUCCESS", telemetryStore.runs.get(0).getStatus());
+    }
+
+    @Test
     public void shouldRecordFailedRunTelemetryWithoutPersistingErrorMessageContent() throws Exception {
         FakeAgentUsageTelemetryStore telemetryStore = new FakeAgentUsageTelemetryStore();
         AgentConversationService service = quotaAwareService();
@@ -815,6 +867,38 @@ public class AgentConversationServiceTest {
         public List<String> handleMessage(ChatCommandEntity chatCommandEntity) {
             return List.of("{\"type\":\"user\",\"content\":\"ok\"}");
         }
+    }
+
+    private static final class StreamingContentChatService extends CountingChatService {
+        @Override
+        public Flowable<Event> handleMessageStream(String agentId, String userId, String sessionId, String message) {
+            Event event = Event.builder()
+                    .id("evt_stream_output")
+                    .invocationId("inv_stream_output")
+                    .author("drawing_agent")
+                    .content(com.google.genai.types.Content.builder()
+                            .role("model")
+                            .parts(List.of(com.google.genai.types.Part.fromText("streamed answer")))
+                            .build())
+                    .partial(false)
+                    .build();
+            return Flowable.just(event);
+        }
+    }
+
+    private static final class FakeDebugTraceStore implements IAgentDebugTraceStore {
+        private final List<DebugTraceControl> controls = new ArrayList<>();
+        private final List<DebugTraceCapture> captures = new ArrayList<>();
+        private boolean failCaptures;
+
+        @Override public void insertControl(DebugTraceControl control) { controls.add(control); }
+        @Override public List<DebugTraceControl> listEnabledControls() { return controls; }
+        @Override public void insertCapture(DebugTraceCapture capture) {
+            if (failCaptures) throw new IllegalStateException("capture unavailable");
+            captures.add(capture);
+        }
+        @Override public int deleteExpiredContent(Instant now) { return 0; }
+        @Override public int extendRunContentExpiry(String runId, Instant expiresAt) { return 0; }
     }
 
     private static class CapturingEmitter extends ResponseBodyEmitter {

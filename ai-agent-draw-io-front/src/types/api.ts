@@ -493,9 +493,14 @@ export interface AdminDebugTraceCaptureDTO {
   controlId?: string;
   userId?: string;
   runId?: string;
+  spanId?: string;
   eventType?: string;
+  payloadKind?: string;
+  contentType?: string;
   content?: string;
   contentSha256?: string;
+  originalLength?: number;
+  truncated?: boolean;
   contentExpiresAt?: string;
   contentDeletedAt?: string;
   createdAt?: string;

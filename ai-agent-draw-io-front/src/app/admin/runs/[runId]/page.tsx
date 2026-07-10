@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useParams, usePathname, useRouter } from 'next/navigation';
 import { agentApi, ApiResponseError } from '@/api/agent';
@@ -30,6 +30,7 @@ import {
   traceKind,
   waterfallRowView,
 } from '../../admin-shared';
+import { TracePayloadPanel } from './trace-payload-panel';
 
 function Stat({ label, value, bad }: { label: string; value: string; bad?: boolean }) {
   return (
@@ -67,6 +68,7 @@ export default function AdminRunDetailPage() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectedSnapshotId, setSelectedSnapshotId] = useState<string | null>(null);
   const [playingReplay, setPlayingReplay] = useState(false);
+  const [traceViewMode, setTraceViewMode] = useState<'tree' | 'timeline'>('tree');
   const [loading, setLoading] = useState(true);
   const [forbidden, setForbidden] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -79,6 +81,9 @@ export default function AdminRunDetailPage() {
   const [captures, setCaptures] = useState<AdminDebugTraceCaptureDTO[] | null>(null);
   const [capturesLoading, setCapturesLoading] = useState(false);
   const [captureNote, setCaptureNote] = useState<string | null>(null);
+  const [spanPayloads, setSpanPayloads] = useState<Record<string, AdminDebugTraceCaptureDTO[]>>({});
+  const [spanPayloadErrors, setSpanPayloadErrors] = useState<Record<string, string>>({});
+  const spanPayloadRequests = useRef(new Set<string>());
 
   useEffect(() => {
     let alive = true;
@@ -93,7 +98,18 @@ export default function AdminRunDetailPage() {
     };
     agentApi
       .adminDiagramTrace(runId)
-      .then((res) => alive && setTrace(res.data))
+      .then((res) => {
+        if (!alive) return;
+        setTrace(res.data);
+        // Dynamic run routes can reuse this component, so never carry span caches across runs.
+        setSelectedId(res.data.spans?.find((span) => span.kind === 'RUN')?.id
+          || res.data.spans?.[0]?.id
+          || null);
+        setSpanPayloads({});
+        setSpanPayloadErrors({});
+        setCaptures(null);
+        spanPayloadRequests.current.clear();
+      })
       .catch((e) => {
         if (!alive) return;
         if (e instanceof ApiResponseError && e.code === 'AUTH_FORBIDDEN') handleForbidden();
@@ -145,6 +161,46 @@ export default function AdminRunDetailPage() {
     () => spans.find((e) => e.id === selectedId),
     [spans, selectedId],
   );
+  const selectedMetadata = useMemo(() => parseJsonRecord(selected?.metadataJson), [selected?.metadataJson]);
+
+  useEffect(() => {
+    if (!selected?.id
+      || Object.prototype.hasOwnProperty.call(spanPayloads, selected.id)
+      || Boolean(spanPayloadErrors[selected.id])
+      || spanPayloadRequests.current.has(selected.id)) {
+      return;
+    }
+    let alive = true;
+    const selectedSpanId = selected.id;
+    spanPayloadRequests.current.add(selectedSpanId);
+    const request = selected.kind === 'RUN'
+      ? agentApi.adminRunCaptures(runId)
+      : agentApi.adminSpanPayloads(runId, selectedSpanId);
+    request
+      .then((response) => {
+        if (!alive) return;
+        const items = response.data || [];
+        // The legacy run endpoint returns every capture; keep root-span I/O scoped in the inspector.
+        const inspectorItems = selected.kind === 'RUN'
+          ? items.filter((item) => !item.spanId || item.spanId === selectedSpanId)
+          : items;
+        setSpanPayloads((current) => ({ ...current, [selectedSpanId]: inspectorItems }));
+        if (selected.kind === 'RUN') setCaptures(items);
+      })
+      .catch((reason) => {
+        if (!alive) return;
+        setSpanPayloadErrors((current) => ({
+          ...current,
+          [selectedSpanId]: reason instanceof Error ? reason.message : 'Failed to load span I/O',
+        }));
+      })
+      .finally(() => {
+        spanPayloadRequests.current.delete(selectedSpanId);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [runId, selected, spanPayloadErrors, spanPayloads]);
 
   const activeSnapshot: AdminDiagramSnapshotDTO | undefined = useMemo(() => {
     if (selectedSnapshotId) {
@@ -339,11 +395,24 @@ export default function AdminRunDetailPage() {
           </div>
 
           <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1.45fr_1fr]">
-            {/* Waterfall */}
+            {/* Tree and timeline share one selection so the inspector stays in sync. */}
             <div className="rounded-xl border border-neutral-200 p-3">
               <div className="mb-2 flex items-center justify-between gap-3">
-                <h2 className="text-sm font-medium text-neutral-700">Diagram Trace Timeline</h2>
-                <span className="text-xs text-neutral-400">{formatMs(run.latencyMs)} total</span>
+                <h2 className="text-sm font-medium text-neutral-700">Diagram Trace</h2>
+                <div className="flex items-center gap-1 rounded-md bg-neutral-100 p-1 text-[11px]">
+                  {(['tree', 'timeline'] as const).map((mode) => (
+                    <button
+                      key={mode}
+                      type="button"
+                      onClick={() => setTraceViewMode(mode)}
+                      className={`rounded px-2 py-1 font-medium capitalize ${
+                        traceViewMode === mode ? 'bg-white text-neutral-800 shadow-sm' : 'text-neutral-500'
+                      }`}
+                    >
+                      {mode}
+                    </button>
+                  ))}
+                </div>
               </div>
               {rows.length === 0 ? (
                 <div className="py-8 text-center text-sm text-neutral-400">No spans recorded.</div>
@@ -364,7 +433,7 @@ export default function AdminRunDetailPage() {
                         }`}
                       >
                         <span
-                          className={`w-40 shrink-0 truncate ${
+                          className={`${traceViewMode === 'tree' ? 'flex-1' : 'w-40 shrink-0'} truncate ${
                             failed ? 'text-red-600' : 'text-neutral-600'
                           }`}
                           style={{ paddingLeft: `${rowView.visualDepth * 14}px` }}
@@ -373,17 +442,19 @@ export default function AdminRunDetailPage() {
                           <span className="text-neutral-400">{sourceLabel(traceKind(event))} </span>
                           {traceDisplayName(event)}
                         </span>
-                        <span className="relative h-4 flex-1 rounded bg-neutral-100">
-                          <span
-                            className="absolute top-0 bottom-0 rounded"
-                            style={{
-                              left: `${leftPct}%`,
-                              width: `${widthPct}%`,
-                              minWidth: isPoint ? '3px' : '2px',
-                              background: barColor(traceKind(event), event.status),
-                            }}
-                          />
-                        </span>
+                        {traceViewMode === 'timeline' && (
+                          <span className="relative h-4 flex-1 rounded bg-neutral-100">
+                            <span
+                              className="absolute top-0 bottom-0 rounded"
+                              style={{
+                                left: `${leftPct}%`,
+                                width: `${widthPct}%`,
+                                minWidth: isPoint ? '3px' : '2px',
+                                background: barColor(traceKind(event), event.status),
+                              }}
+                            />
+                          </span>
+                        )}
                         <span className="w-12 shrink-0 text-right text-neutral-400">
                           {event.latencyMs != null ? formatMs(event.latencyMs) : ''}
                         </span>
@@ -454,8 +525,18 @@ export default function AdminRunDetailPage() {
                       )}
                       {selected.kind === 'LLM' && <Row k="Est. cost" v={formatCost(selected.estimatedCost)} />}
                       {selected.kind === 'TOOL' && <Row k="Tool" v={selected.toolName} />}
+                      <Row k="TTFT" v={formatOptionalMs(selectedMetadata?.ttftMs)} />
+                      <Row k="Retry" v={formatOptionalNumber(selectedMetadata?.retryCount)} />
+                      <Row k="Outcome" v={stringValue(selectedMetadata?.outcome)} />
                       {selected.errorClass && <Row k="Error" v={selected.errorClass} bad />}
                     </dl>
+
+                    <TracePayloadPanel
+                      payloads={spanPayloads[selected.id]}
+                      loading={!Object.prototype.hasOwnProperty.call(spanPayloads, selected.id)
+                        && !spanPayloadErrors[selected.id]}
+                      error={spanPayloadErrors[selected.id]}
+                    />
 
                     {selected.diagramEffect && (
                       <DiagramEffectPanel effect={selected.diagramEffect} />
@@ -554,7 +635,9 @@ function DiagramEffectPanel({ effect }: { effect: AdminDiagramEffectDTO }) {
       <dl className="space-y-2">
         <Row k="Diagram ID" v={effect.diagramId} />
         <Row k="Version" v={formatEffectVersion(effect)} />
-        <Row k="Canvas hash" v={effect.afterHash || effect.beforeHash} />
+        <Row k="Before hash" v={effect.beforeHash} />
+        <Row k="After hash" v={effect.afterHash} />
+        <Row k="Change" v={formatDiagramChange(effect)} />
         <Row k="Render status" v={effect.renderStatus} />
         <Row k="Thumbnail" v={effect.thumbnailUrl ? 'present' : 'missing'} />
         <Row k="XML changed" v={formatEffectBoolean(effect.xmlChanged)} />
@@ -562,6 +645,37 @@ function DiagramEffectPanel({ effect }: { effect: AdminDiagramEffectDTO }) {
       </dl>
     </div>
   );
+}
+
+function formatDiagramChange(effect: AdminDiagramEffectDTO): string {
+  if (effect.beforeHash && effect.afterHash) {
+    return effect.beforeHash === effect.afterHash ? 'unchanged' : 'updated';
+  }
+  return effect.afterHash ? 'created' : effect.beforeHash ? 'removed' : 'unknown';
+}
+
+function parseJsonRecord(value?: string): Record<string, unknown> | undefined {
+  if (!value) return undefined;
+  try {
+    const parsed = JSON.parse(value);
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed)
+      ? parsed as Record<string, unknown>
+      : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function formatOptionalMs(value: unknown): string | undefined {
+  return typeof value === 'number' && Number.isFinite(value) ? formatMs(value) : undefined;
+}
+
+function formatOptionalNumber(value: unknown): string | undefined {
+  return typeof value === 'number' && Number.isFinite(value) ? formatNumber(value) : undefined;
+}
+
+function stringValue(value: unknown): string | undefined {
+  return typeof value === 'string' && value ? value : undefined;
 }
 
 function formatEffectVersion(effect: AdminDiagramEffectDTO): string | undefined {

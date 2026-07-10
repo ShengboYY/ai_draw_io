@@ -44,6 +44,13 @@ public class AgentDebugTraceRepository implements IAgentDebugTraceStore {
     }
 
     @Override
+    public List<DebugTraceCapture> listCapturesByRunAndSpanId(String runId, String spanId) {
+        return agentDebugTraceMapper.listCapturesByRunAndSpanId(runId, spanId).stream()
+                .map(this::toDomain)
+                .toList();
+    }
+
+    @Override
     public int deleteExpiredContent(Instant now) {
         return agentDebugTraceMapper.deleteExpiredContent(toDate(now));
     }
@@ -79,9 +86,14 @@ public class AgentDebugTraceRepository implements IAgentDebugTraceStore {
         po.setControlId(capture.getControlId());
         po.setUserId(capture.getUserId());
         po.setRunId(capture.getRunId());
+        po.setSpanId(capture.getSpanId());
         po.setEventType(capture.getEventType());
+        po.setPayloadKind(capture.getPayloadKind());
+        po.setContentType(capture.getContentType());
         po.setContent(capture.getContent());
         po.setContentSha256(capture.getContentSha256());
+        po.setOriginalLength(capture.getOriginalLength());
+        po.setTruncated(capture.isTruncated());
         po.setContentExpiresAt(toDate(capture.getContentExpiresAt()));
         po.setContentDeletedAt(toDate(capture.getContentDeletedAt()));
         po.setCreatedAt(toDate(capture.getCreatedAt()));
@@ -108,9 +120,14 @@ public class AgentDebugTraceRepository implements IAgentDebugTraceStore {
                 .controlId(po.getControlId())
                 .userId(po.getUserId())
                 .runId(po.getRunId())
+                .spanId(po.getSpanId())
                 .eventType(po.getEventType())
+                .payloadKind(po.getPayloadKind())
+                .contentType(po.getContentType())
                 .content(po.getContent())
                 .contentSha256(po.getContentSha256())
+                .originalLength(po.getOriginalLength())
+                .truncated(Boolean.TRUE.equals(po.getTruncated()))
                 .contentExpiresAt(toInstant(po.getContentExpiresAt()))
                 .contentDeletedAt(toInstant(po.getContentDeletedAt()))
                 .createdAt(toInstant(po.getCreatedAt()))

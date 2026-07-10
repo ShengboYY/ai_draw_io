@@ -302,13 +302,27 @@ public class AgentUsageTelemetryService {
                               Integer completionTokens,
                               Integer totalTokens,
                               Throwable error) {
+        recordLlmCall(newLlmCallId(), context, phase, provider, model, latencyMs,
+                promptTokens, completionTokens, totalTokens, error);
+    }
+
+    public void recordLlmCall(String callId,
+                              AgentUsageTelemetryContext.RunContext context,
+                              String phase,
+                              String provider,
+                              String model,
+                              Long latencyMs,
+                              Integer promptTokens,
+                              Integer completionTokens,
+                              Integer totalTokens,
+                              Throwable error) {
         if (context == null) {
             return;
         }
         Instant completedAt = clock.instant();
         Instant startedAt = latencyMs == null ? completedAt : completedAt.minusMillis(Math.max(0, latencyMs));
         safeStore(() -> telemetryStore.insertLlmCall(LlmCallTelemetry.builder()
-                .id("alc_" + UUID.randomUUID())
+                .id(StringUtils.defaultIfBlank(callId, newLlmCallId()))
                 .runId(context.runId())
                 .parentId(parentSpanId(context))
                 .userId(context.userId())
@@ -338,7 +352,20 @@ public class AgentUsageTelemetryService {
                 totalTokens);
     }
 
+    public String newLlmCallId() {
+        return "alc_" + UUID.randomUUID();
+    }
+
     public void recordToolCall(AgentUsageTelemetryContext.RunContext context,
+                               String phase,
+                               String toolName,
+                               Long latencyMs,
+                               Throwable error) {
+        recordToolCall(newToolCallId(), context, phase, toolName, latencyMs, error);
+    }
+
+    public void recordToolCall(String callId,
+                               AgentUsageTelemetryContext.RunContext context,
                                String phase,
                                String toolName,
                                Long latencyMs,
@@ -349,7 +376,7 @@ public class AgentUsageTelemetryService {
         Instant completedAt = clock.instant();
         Instant startedAt = latencyMs == null ? completedAt : completedAt.minusMillis(Math.max(0, latencyMs));
         safeStore(() -> telemetryStore.insertToolCall(ToolCallTelemetry.builder()
-                .id("atc_" + UUID.randomUUID())
+                .id(StringUtils.defaultIfBlank(callId, newToolCallId()))
                 .runId(context.runId())
                 .parentId(parentSpanId(context))
                 .userId(context.userId())
@@ -366,6 +393,10 @@ public class AgentUsageTelemetryService {
                 toolName,
                 error == null ? SUCCESS : FAILED,
                 latencyMs);
+    }
+
+    public String newToolCallId() {
+        return "atc_" + UUID.randomUUID();
     }
 
     public AgentUsageSummary summarizeForUser(String userId) {

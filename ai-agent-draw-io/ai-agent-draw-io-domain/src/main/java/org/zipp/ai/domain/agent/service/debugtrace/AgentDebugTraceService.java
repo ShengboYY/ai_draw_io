@@ -82,13 +82,35 @@ public class AgentDebugTraceService {
     }
 
     public Optional<DebugTraceCapture> capture(String userId, String runId, String eventType, String content) {
+        return capturePayload(userId, runId, null, eventType, eventType, "text/plain", content);
+    }
+
+    public Optional<DebugTraceCapture> captureSpanPayload(String userId,
+                                                          String runId,
+                                                          String spanId,
+                                                          String payloadKind,
+                                                          String contentType,
+                                                          String content) {
+        return capturePayload(userId, runId, spanId, payloadKind, payloadKind, contentType, content);
+    }
+
+    private Optional<DebugTraceCapture> capturePayload(String userId,
+                                                       String runId,
+                                                       String spanId,
+                                                       String eventType,
+                                                       String payloadKind,
+                                                       String contentType,
+                                                       String content) {
         if (debugTraceStore == null || StringUtils.isBlank(content)) {
             return Optional.empty();
         }
         String owner = trimToNull(userId, 64);
         String run = trimToNull(runId, 64);
+        String span = trimToNull(spanId, 64);
         String type = trimToNull(eventType, MAX_EVENT_TYPE_LENGTH);
-        if (owner == null || run == null || type == null) {
+        String kind = trimToNull(payloadKind, MAX_EVENT_TYPE_LENGTH);
+        String mediaType = trimToNull(contentType, 64);
+        if (owner == null || run == null || type == null || kind == null) {
             return Optional.empty();
         }
         Instant now = clock.instant();
@@ -96,15 +118,22 @@ public class AgentDebugTraceService {
         if (control.isEmpty()) {
             return Optional.empty();
         }
+        // Keep truncation evidence so the inspector never presents a partial payload as complete.
+        int originalLength = content.length();
         String storedContent = StringUtils.left(content, MAX_CONTENT_LENGTH);
         DebugTraceCapture capture = DebugTraceCapture.builder()
                 .id("adt_" + UUID.randomUUID())
                 .controlId(control.get().getId())
                 .userId(owner)
                 .runId(run)
+                .spanId(span)
                 .eventType(type)
+                .payloadKind(kind)
+                .contentType(StringUtils.defaultIfBlank(mediaType, "text/plain"))
                 .content(storedContent)
                 .contentSha256(sha256(storedContent))
+                .originalLength(originalLength)
+                .truncated(originalLength > storedContent.length())
                 .contentExpiresAt(now.plus(DEFAULT_CONTENT_TTL))
                 .createdAt(now)
                 .build();
@@ -126,13 +155,48 @@ public class AgentDebugTraceService {
         List<DebugTraceCapture> captures = debugTraceStore == null
                 ? List.of()
                 : debugTraceStore.listCapturesByRunId(run);
-        List<DebugTraceCapture> safeCaptures = captures == null ? List.of() : captures;
+        List<DebugTraceCapture> safeCaptures = hideExpiredContent(captures);
         if (auditLogService != null) {
             auditLogService.record(actor, "VIEW_DEBUG_TRACE_CAPTURE", "RUN", run,
                     safeCaptures.isEmpty() ? "NOT_FOUND" : "SUCCESS", ipAddress, userAgent);
         }
         metrics.recordDebugTraceView(safeCaptures.isEmpty() ? "NOT_FOUND" : "SUCCESS");
         return safeCaptures;
+    }
+
+    public List<DebugTraceCapture> viewCapturesForSpan(String actorUserId,
+                                                       String runId,
+                                                       String spanId,
+                                                       String ipAddress,
+                                                       String userAgent) {
+        String actor = requireText(actorUserId, "actorUserId", 64);
+        String run = requireText(runId, "runId", 64);
+        String span = requireText(spanId, "spanId", 64);
+        List<DebugTraceCapture> captures = debugTraceStore == null
+                ? List.of()
+                : debugTraceStore.listCapturesByRunAndSpanId(run, span);
+        List<DebugTraceCapture> safeCaptures = hideExpiredContent(captures);
+        if (auditLogService != null) {
+            auditLogService.record(actor, "VIEW_DEBUG_TRACE_SPAN_PAYLOAD", "SPAN", span,
+                    safeCaptures.isEmpty() ? "NOT_FOUND" : "SUCCESS", ipAddress, userAgent);
+        }
+        metrics.recordDebugTraceView(safeCaptures.isEmpty() ? "NOT_FOUND" : "SUCCESS");
+        return safeCaptures;
+    }
+
+    private List<DebugTraceCapture> hideExpiredContent(List<DebugTraceCapture> captures) {
+        if (captures == null || captures.isEmpty()) {
+            return List.of();
+        }
+        Instant now = clock.instant();
+        captures.forEach(capture -> {
+            // Enforce retention at read time even if the scheduled cleanup has not run yet.
+            if (capture != null && capture.getContentExpiresAt() != null
+                    && !capture.getContentExpiresAt().isAfter(now)) {
+                capture.setContent(null);
+            }
+        });
+        return captures;
     }
 
     public int extendRetentionForRun(String actorUserId,

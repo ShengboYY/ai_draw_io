@@ -12,9 +12,14 @@ public class DebugTraceCapturePO {
     private String controlId;
     private String userId;
     private String runId;
+    private String spanId;
     private String eventType;
+    private String payloadKind;
+    private String contentType;
     private String content;
     private String contentSha256;
+    private Integer originalLength;
+    private Boolean truncated;
     private Date contentExpiresAt;
     private Date contentDeletedAt;
     private Date createdAt;

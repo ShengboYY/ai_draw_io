@@ -19,6 +19,9 @@ public interface IAgentDebugTraceMapper {
 
     List<DebugTraceCapturePO> listCapturesByRunId(@Param("runId") String runId);
 
+    List<DebugTraceCapturePO> listCapturesByRunAndSpanId(@Param("runId") String runId,
+                                                        @Param("spanId") String spanId);
+
     int deleteExpiredContent(@Param("now") Date now);
 
     int extendRunContentExpiry(@Param("runId") String runId,

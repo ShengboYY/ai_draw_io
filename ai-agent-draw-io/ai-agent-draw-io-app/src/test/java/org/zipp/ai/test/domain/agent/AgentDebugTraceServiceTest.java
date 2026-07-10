@@ -87,6 +87,27 @@ public class AgentDebugTraceServiceTest {
     }
 
     @Test
+    public void spanPayloadKeepsItsSpanKindAndTruncationEvidence() {
+        service.enableControl("usr_admin", null, "aru_span", null, null);
+        String oversizedJson = "x".repeat(64_010);
+
+        DebugTraceCapture capture = service.captureSpanPayload(
+                "usr_alice",
+                "aru_span",
+                "alc_1",
+                "LLM_OUTPUT",
+                "application/json",
+                oversizedJson).orElseThrow();
+
+        assertEquals("alc_1", capture.getSpanId());
+        assertEquals("LLM_OUTPUT", capture.getPayloadKind());
+        assertEquals("application/json", capture.getContentType());
+        assertEquals(Integer.valueOf(64_010), capture.getOriginalLength());
+        assertTrue(capture.isTruncated());
+        assertEquals(64_000, capture.getContent().length());
+    }
+
+    @Test
     public void runAndTimeWindowScopesMustBothMatch() {
         service.enableControl(
                 "usr_admin",
@@ -117,6 +138,20 @@ public class AgentDebugTraceServiceTest {
         assertEquals("CHAT_REQUEST", capture.getEventType());
         assertEquals(null, capture.getContent());
         assertEquals(clock.instant(), capture.getContentDeletedAt());
+    }
+
+    @Test
+    public void viewingExpiredContentHidesItBeforeScheduledCleanupRuns() {
+        service.enableControl("usr_admin", null, "aru_expired", null, null);
+        service.capture("usr_alice", "aru_expired", "CHAT_REQUEST", "expired secret").orElseThrow();
+        clock.advance(Duration.ofDays(8));
+
+        List<DebugTraceCapture> captures = service.viewCapturesForRun(
+                "usr_admin", "aru_expired", "203.0.113.20", "JUnit");
+
+        assertEquals(1, captures.size());
+        assertEquals(null, captures.get(0).getContent());
+        assertEquals(null, captures.get(0).getContentDeletedAt());
     }
 
     @Test

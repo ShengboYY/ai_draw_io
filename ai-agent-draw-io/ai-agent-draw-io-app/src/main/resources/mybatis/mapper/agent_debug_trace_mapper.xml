@@ -19,9 +19,14 @@
         <result column="control_id" property="controlId"/>
         <result column="user_id" property="userId"/>
         <result column="run_id" property="runId"/>
+        <result column="span_id" property="spanId"/>
         <result column="event_type" property="eventType"/>
+        <result column="payload_kind" property="payloadKind"/>
+        <result column="content_type" property="contentType"/>
         <result column="content" property="content"/>
         <result column="content_sha256" property="contentSha256"/>
+        <result column="original_length" property="originalLength"/>
+        <result column="truncated" property="truncated"/>
         <result column="content_expires_at" property="contentExpiresAt"/>
         <result column="content_deleted_at" property="contentDeletedAt"/>
         <result column="created_at" property="createdAt"/>
@@ -51,21 +56,35 @@
 
     <insert id="insertCapture" parameterType="org.zipp.ai.infrastructure.dao.po.DebugTraceCapturePO">
         INSERT INTO agent_debug_trace_capture (
-            id, control_id, user_id, run_id, event_type, content, content_sha256,
+            id, control_id, user_id, run_id, span_id, event_type, payload_kind, content_type,
+            content, content_sha256, original_length, truncated,
             content_expires_at, content_deleted_at, created_at
         )
         VALUES (
-            #{id}, #{controlId}, #{userId}, #{runId}, #{eventType}, #{content}, #{contentSha256},
+            #{id}, #{controlId}, #{userId}, #{runId}, #{spanId}, #{eventType}, #{payloadKind}, #{contentType},
+            #{content}, #{contentSha256}, #{originalLength}, #{truncated},
             #{contentExpiresAt}, #{contentDeletedAt}, #{createdAt}
         )
     </insert>
 
     <select id="listCapturesByRunId" resultMap="debugTraceCaptureMap">
         SELECT
-            id, control_id, user_id, run_id, event_type, content, content_sha256,
+            id, control_id, user_id, run_id, span_id, event_type, payload_kind, content_type,
+            content, content_sha256, original_length, truncated,
             content_expires_at, content_deleted_at, created_at
         FROM agent_debug_trace_capture
         WHERE run_id = #{runId}
+        ORDER BY created_at ASC, id ASC
+    </select>
+
+    <select id="listCapturesByRunAndSpanId" resultMap="debugTraceCaptureMap">
+        SELECT
+            id, control_id, user_id, run_id, span_id, event_type, payload_kind, content_type,
+            content, content_sha256, original_length, truncated,
+            content_expires_at, content_deleted_at, created_at
+        FROM agent_debug_trace_capture
+        WHERE run_id = #{runId}
+          AND span_id = #{spanId}
         ORDER BY created_at ASC, id ASC
     </select>
 
