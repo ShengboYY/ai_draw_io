@@ -52,6 +52,9 @@ import org.zipp.ai.domain.agent.model.valobj.usage.UsageDimensionSummary;
 import org.zipp.ai.domain.agent.service.ICanvasStateStore;
 import org.zipp.ai.domain.agent.service.debugtrace.AgentDebugTraceService;
 import org.zipp.ai.domain.agent.service.usage.AgentUsageTelemetryService;
+import org.zipp.ai.domain.agent.service.evaluation.intake.TraceToEvalIntakeService;
+import org.zipp.ai.domain.agent.model.valobj.evaluation.intake.EvalCaseCandidate;
+import org.zipp.ai.domain.agent.model.valobj.evaluation.intake.EvalCaseLineage;
 import org.zipp.ai.trigger.http.service.AdminAuthorizationService;
 import org.zipp.ai.types.enums.ResponseCode;
 
@@ -61,6 +64,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.Date;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -89,6 +93,51 @@ public class AdminController {
 
     @Resource
     private ICanvasStateStore canvasStateStore;
+
+    @Resource
+    private TraceToEvalIntakeService traceToEvalIntakeService;
+
+    /** P0 manual entry: metadata-only candidate creation; it neither reads debug payloads nor invokes an LLM. */
+    @PostMapping("/runs/{runId}/eval-candidates")
+    public Response<EvalCaseCandidate> createEvalCandidate(@PathVariable("runId") String runId,
+                                                           HttpServletRequest request) {
+        Optional<UserAccount> admin = requireAdmin(request);
+        if (admin.isEmpty()) return forbidden();
+        try {
+            EvalCaseCandidate candidate = traceToEvalIntakeService.createManualCandidate(runId, admin.get().getId());
+            audit(admin.get(), "CREATE_EVAL_CANDIDATE", "RUN", runId, "SUCCESS", request);
+            return success(candidate);
+        } catch (IllegalArgumentException e) {
+            audit(admin.get(), "CREATE_EVAL_CANDIDATE", "RUN", runId, "REJECTED", request);
+            return failure(e.getMessage());
+        }
+    }
+
+    @PostMapping("/eval-candidates/{candidateId}/review")
+    public Response<EvalCaseCandidate> reviewEvalCandidate(@PathVariable("candidateId") String candidateId,
+                                                           @RequestBody Map<String, String> body, HttpServletRequest request) {
+        Optional<UserAccount> admin = requireAdmin(request);
+        if (admin.isEmpty()) return forbidden();
+        try {
+            EvalCaseCandidate candidate = traceToEvalIntakeService.review(candidateId, body == null ? null : body.get("decision"),
+                    admin.get().getId(), body == null ? null : body.get("reason"));
+            audit(admin.get(), "REVIEW_EVAL_CANDIDATE", "EVAL_CANDIDATE", candidateId, "SUCCESS", request);
+            return success(candidate);
+        } catch (IllegalArgumentException | IllegalStateException e) { return failure(e.getMessage()); }
+    }
+
+    @PostMapping("/eval-candidates/{candidateId}/publication")
+    public Response<EvalCaseLineage> recordEvalPublication(@PathVariable("candidateId") String candidateId,
+                                                           @RequestBody Map<String, String> body, HttpServletRequest request) {
+        Optional<UserAccount> admin = requireAdmin(request);
+        if (admin.isEmpty()) return forbidden();
+        try {
+            EvalCaseLineage lineage = traceToEvalIntakeService.recordPublication(candidateId, body == null ? null : body.get("caseId"),
+                    body == null ? null : body.get("datasetVersion"), body == null ? null : body.get("sanitizerVersion"), admin.get().getId());
+            audit(admin.get(), "PUBLISH_EVAL_CASE", "EVAL_CASE", lineage.getCaseId(), "SUCCESS", request);
+            return success(lineage);
+        } catch (IllegalArgumentException | IllegalStateException e) { return failure(e.getMessage()); }
+    }
 
     @GetMapping("/users")
     public Response<List<AdminUserDTO>> listUsers(HttpServletRequest request) {
