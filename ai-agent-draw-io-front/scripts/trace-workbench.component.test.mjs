@@ -84,3 +84,35 @@ test('renders real span input/output controls and retention states', () => {
   assert.match(html, /finish:\s*STOP/);
   assert.match(html, /120,000 chars/);
 });
+
+test('renders drawio XML and long text bodies as readable blocks, not escaped blobs', () => {
+  const body = 'Draw.io Core Contract\nApplies to every drawing action.\nNever include markdown fences or prose inside tool arguments.';
+  const xml = '<mxCell id="2" value="A&lt;br&gt;B"><mxGeometry x="10"/></mxCell>';
+  const payloads = [
+    {
+      id: 'skill',
+      payloadKind: 'INPUT',
+      contentType: 'application/json',
+      content: JSON.stringify({ type: 'drawio_skill', name: 'drawio-xml-guide', found: true, body }),
+    },
+    {
+      id: 'toolargs',
+      payloadKind: 'TOOL_ARGS',
+      contentType: 'application/json',
+      content: JSON.stringify({ request: { reason: 'r', xml } }),
+    },
+  ];
+  const html = renderToStaticMarkup(React.createElement(TracePayloadPanel, {
+    payloads,
+    loading: false,
+  }));
+
+  // Long body keeps real newlines instead of literal \n escapes.
+  assert.ok(html.includes('Draw.io Core Contract\nApplies to every drawing action.'), 'body should keep real newlines');
+  assert.ok(!html.includes('Draw.io Core Contract\\nApplies'), 'body should not show escaped \\n');
+
+  // XML is indented by depth and entity-decoded (<br> inside the label), not double-escaped.
+  assert.ok(html.includes('\n  &lt;mxGeometry'), 'nested tag should be indented');
+  assert.ok(html.includes('A&lt;br&gt;B'), 'label entities should be decoded');
+  assert.ok(!html.includes('&amp;lt;br'), 'XML should not remain double-escaped');
+});

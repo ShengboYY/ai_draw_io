@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import Link from 'next/link';
 import { useParams, usePathname, useRouter } from 'next/navigation';
 import { agentApi, ApiResponseError } from '@/api/agent';
@@ -25,12 +25,12 @@ import {
   formatTime,
   isFailed,
   sourceLabel,
-  statusPill,
   traceDisplayName,
   traceKind,
   waterfallRowView,
+  type TraceKindLike,
 } from '../../admin-shared';
-import { AdminPageHeading, AdminShell } from '../../admin-shell';
+import { AdminShell } from '../../admin-shell';
 import { TracePayloadPanel } from './trace-payload-panel';
 import { TraceWorkbench } from './trace-workbench';
 
@@ -65,6 +65,7 @@ export default function AdminRunDetailPage() {
   const router = useRouter();
   const returnTo = pathname;
   const runId = decodeURIComponent(params.runId);
+  const traceHref = `/admin/runs/${encodeURIComponent(runId)}`;
 
   const [trace, setTrace] = useState<AdminDiagramTraceDTO | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -293,9 +294,11 @@ export default function AdminRunDetailPage() {
       .catch((e) => setCaptureNote(e instanceof Error ? e.message : 'Failed to enable capture'));
   };
 
+  const run = trace?.run;
+
   if (forbidden) {
     return (
-      <AdminShell active="runs">
+      <AdminShell active="trace" traceHref={traceHref}>
         <div className="mx-auto max-w-md py-20 text-center">
           <h1 className="font-display text-2xl font-semibold text-zinc-900">Admin access required</h1>
           <Link href={buildLoginHref(returnTo)} className="mt-5 inline-block text-sm font-medium text-zinc-700 hover:underline">
@@ -306,7 +309,6 @@ export default function AdminRunDetailPage() {
     );
   }
 
-  const run = trace?.run;
   const currentDiagramResult = diagramResult?.runId === runId ? diagramResult : null;
   const currentDiagram = currentDiagramResult?.diagram || null;
   const currentDiagramNote = currentDiagramResult?.note || null;
@@ -326,17 +328,20 @@ export default function AdminRunDetailPage() {
   )} llm · ${formatNumber(run?.toolCallCount ?? spans.filter((span) => span.kind === 'TOOL').length)} tools`;
 
   return (
-    <AdminShell active="runs">
-      <AdminPageHeading
-        eyebrow="Run inspection"
-        title="Diagram trace"
-        description="Follow the agent route, inspect the timing waterfall, and review the resulting canvas."
-        action={
-          <Link href="/admin/runs" className="text-sm font-medium text-zinc-500 transition hover:text-zinc-800">
-            Back to runs
-          </Link>
-        }
-      />
+    <AdminShell active="trace" traceHref={traceHref}>
+      <div className="mb-7 border-b border-stone-200 pb-5">
+        <div className="min-w-0">
+          <h1 className="font-display text-3xl font-semibold text-zinc-900 sm:text-4xl">Diagram trace</h1>
+          {run && (
+            // Keep the identifiers and start time with the page title rather than competing with the trace summary.
+            <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 font-mono text-xs text-zinc-500">
+              <span className="min-w-0 truncate">ID: {run.id}</span>
+              {run.diagramId && <span className="min-w-0 truncate">Diagram ID: {run.diagramId}</span>}
+              <span>Started: {formatTime(run.startedAt)}</span>
+            </div>
+          )}
+        </div>
+      </div>
 
       {loading && <div className="py-20 text-center text-sm text-zinc-400">Loading trace…</div>}
       {error && <div className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{error}</div>}
@@ -344,41 +349,9 @@ export default function AdminRunDetailPage() {
       {run && !loading && (
         <>
           <div className="mb-7">
-            <div className="flex flex-wrap items-end justify-between gap-4">
-              <div className="min-w-0">
-                <div className="font-mono text-[11px] font-medium uppercase tracking-[0.12em] text-zinc-400">Trace ID</div>
-                <h2 className="mt-1 font-mono text-sm text-zinc-600">{run.id}</h2>
-                <div className="mt-3 flex flex-wrap items-center gap-2">
-                  <span className={`rounded-md border px-2 py-0.5 text-xs ${statusPill(run.status)}`}>
-                    {(run.status || '—').toLowerCase()}
-                  </span>
-                  {run.agentId && (
-                    <span className="rounded-md border border-sky-200 bg-sky-50 px-2 py-0.5 text-xs text-sky-700">
-                      {run.agentId}
-                    </span>
-                  )}
-                  {run.requestType && (
-                    <span className="rounded-md border border-stone-200 bg-stone-50 px-2 py-0.5 text-xs text-zinc-500">
-                      {run.requestType}
-                    </span>
-                  )}
-                  {run.diagramId && (
-                    <span className="rounded-md border border-stone-200 bg-stone-50 px-2 py-0.5 font-mono text-xs text-zinc-500">
-                      {run.diagramId}
-                    </span>
-                  )}
-                </div>
-              </div>
-              <div className="text-left text-xs text-zinc-400 sm:text-right">
-                <div>Started</div>
-                <div className="mt-1 font-mono text-zinc-500">{formatTime(run.startedAt)}</div>
-              </div>
-            </div>
-
             {/* Trace progression keeps request, execution, and diagram result readable at a glance. */}
-            <div className="mt-6 flex flex-wrap items-center justify-between gap-2">
+            <div>
               <h2 className="font-display text-base font-semibold text-zinc-800">Trace progression</h2>
-              <span className="font-mono text-[11px] uppercase tracking-wide text-zinc-400">Request · Route · Outcome</span>
             </div>
             <div className="mt-2 grid grid-cols-1 gap-3 md:grid-cols-3">
               <SummaryCard
@@ -440,42 +413,64 @@ export default function AdminRunDetailPage() {
                     const failed = isFailed(event.status);
                     const isSel = event.id === selectedId;
                     const rowView = waterfallRowView(rows, index);
+                    const kind = traceKind(event);
+                    const isTree = traceViewMode === 'tree';
+                    const isRoot = event.kind === 'RUN';
                     return (
                       <button
                         key={event.id}
                         onClick={() => selectTraceSpan(event.id)}
-                        className={`flex items-center gap-2 rounded px-1 text-left text-xs ${
-                          isSel ? 'bg-stone-100' : 'hover:bg-stone-50'
-                        } ${rowView.compact ? 'py-0' : 'py-0.5'} ${
-                          rowView.startsStepGroup ? 'mt-2' : index === 0 ? '' : rowView.compact ? 'mt-0.5' : 'mt-1'
-                        }`}
+                        className={`group flex items-center gap-2 rounded-md px-1.5 text-left text-xs transition ${
+                          isSel
+                            ? 'bg-indigo-50 ring-1 ring-inset ring-indigo-100'
+                            : 'hover:bg-stone-50'
+                        } py-1 ${rowView.startsStepGroup ? 'mt-1.5' : index === 0 ? '' : 'mt-px'}`}
                       >
+                        {isTree && rowView.visualDepth > 0 && (
+                          <span className="flex shrink-0 self-stretch" aria-hidden>
+                            {Array.from({ length: rowView.visualDepth }).map((_, depth) => (
+                              <span key={depth} className="w-4 self-stretch border-l border-stone-200/80" />
+                            ))}
+                          </span>
+                        )}
+                        <TraceRowIcon kind={kind} failed={failed} />
                         <span
-                          className={`${traceViewMode === 'tree' ? 'flex-1' : 'w-40 shrink-0'} truncate ${
-                            failed ? 'text-rose-700' : 'text-zinc-700'
-                          }`}
-                          style={{ paddingLeft: `${rowView.visualDepth * 14}px` }}
-                          title={`${sourceLabel(traceKind(event))} · ${traceDisplayName(event)}`}
+                          className={`min-w-0 truncate ${isTree ? '' : 'w-32 shrink-0'} ${
+                            isRoot ? 'font-semibold' : 'font-medium'
+                          } ${failed ? 'text-rose-700' : 'text-zinc-800'}`}
+                          title={`${sourceLabel(kind)} · ${traceDisplayName(event)}`}
                         >
-                          <span className="text-zinc-400">{sourceLabel(traceKind(event))} </span>
                           {traceDisplayName(event)}
                         </span>
-                        {traceViewMode === 'timeline' && (
-                          <span className="relative h-4 flex-1 rounded bg-stone-100">
+                        {event.latencyMs != null && (
+                          <span className="shrink-0 font-mono text-[11px] text-zinc-400">
+                            {formatMs(event.latencyMs)}
+                          </span>
+                        )}
+                        {failed && (
+                          <span className="shrink-0 rounded bg-rose-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-rose-600">
+                            Error
+                          </span>
+                        )}
+                        {isTree ? (
+                          isRoot && (
+                            <span className="ml-auto shrink-0 font-mono text-[11px] text-zinc-400">
+                              {formatCompact(totalTokens)} · {formatCost(totalCost)}
+                            </span>
+                          )
+                        ) : (
+                          <span className="relative ml-1 h-4 flex-1 rounded bg-stone-100">
                             <span
                               className="absolute top-0 bottom-0 rounded"
                               style={{
                                 left: `${leftPct}%`,
                                 width: `${widthPct}%`,
                                 minWidth: isPoint ? '3px' : '2px',
-                                background: barColor(traceKind(event), event.status),
+                                background: barColor(kind, event.status),
                               }}
                             />
                           </span>
                         )}
-                        <span className="w-12 shrink-0 text-right font-mono text-[11px] text-zinc-400">
-                          {event.latencyMs != null ? formatMs(event.latencyMs) : ''}
-                        </span>
                       </button>
                     );
                   })}
@@ -1177,4 +1172,91 @@ function prettyJson(raw: string): string {
   } catch {
     return raw;
   }
+}
+
+// Compact token/count formatting for the tree root summary (e.g. 116900 -> "116.9K").
+function formatCompact(n?: number | null): string {
+  if (n == null) return '—';
+  if (Math.abs(n) < 1000) return `${n}`;
+  if (Math.abs(n) < 1_000_000) return `${(n / 1000).toFixed(1)}K`;
+  return `${(n / 1_000_000).toFixed(1)}M`;
+}
+
+// Type glyph for a trace row, matching the trace-viewer visual language:
+// boxed icons for agent/tool spans, bare accent icons for LLM/event spans.
+function TraceRowIcon({ kind, failed }: { kind?: TraceKindLike; failed?: boolean }) {
+  const bucket = sourceLabel(kind);
+  const boxed = (tone: string, glyph: ReactNode) => (
+    <span
+      className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md ${
+        failed ? 'bg-rose-100 text-rose-600' : tone
+      }`}
+    >
+      {glyph}
+    </span>
+  );
+  const bare = (tone: string, glyph: ReactNode) => (
+    <span className={`flex h-5 w-5 shrink-0 items-center justify-center ${failed ? 'text-rose-500' : tone}`}>
+      {glyph}
+    </span>
+  );
+
+  if (bucket === 'run' || bucket === 'step') return boxed('bg-indigo-100 text-indigo-600', <BotGlyph />);
+  if (bucket === 'tool') return boxed('bg-amber-100 text-amber-600', <WrenchGlyph />);
+  if (bucket === 'diagram') return boxed('bg-teal-100 text-teal-600', <SquareGlyph />);
+  if (bucket === 'quality') return boxed('bg-emerald-100 text-emerald-600', <CheckGlyph />);
+  if (bucket === 'llm') return bare('text-violet-500', <SparkleGlyph />);
+  return bare('text-zinc-400', <DiamondGlyph />);
+}
+
+function BotGlyph() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-3.5 w-3.5">
+      <rect x="4" y="8" width="16" height="11" rx="3" />
+      <path d="M12 4v4" strokeLinecap="round" />
+      <circle cx="12" cy="3.2" r="1.3" fill="currentColor" stroke="none" />
+      <circle cx="9.5" cy="13.5" r="1.1" fill="currentColor" stroke="none" />
+      <circle cx="14.5" cy="13.5" r="1.1" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
+
+function WrenchGlyph() {
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor" className="h-3.5 w-3.5">
+      <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" />
+    </svg>
+  );
+}
+
+function SparkleGlyph() {
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor" className="h-4 w-4">
+      <path d="M12 3c.6 4.8 3.6 7.8 8.4 8.4-4.8.6-7.8 3.6-8.4 8.4-.6-4.8-3.6-7.8-8.4-8.4C8.4 10.8 11.4 7.8 12 3z" />
+    </svg>
+  );
+}
+
+function DiamondGlyph() {
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor" className="h-2.5 w-2.5">
+      <path d="M12 3l9 9-9 9-9-9z" />
+    </svg>
+  );
+}
+
+function SquareGlyph() {
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor" className="h-3 w-3">
+      <rect x="4" y="4" width="16" height="16" rx="3" />
+    </svg>
+  );
+}
+
+function CheckGlyph() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" className="h-3.5 w-3.5">
+      <path d="M5 12.5l4.5 4.5L19 7" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
 }

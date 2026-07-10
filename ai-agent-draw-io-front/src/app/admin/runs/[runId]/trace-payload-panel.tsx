@@ -273,12 +273,7 @@ function JsonPayload({ value, query, maxHeight }: { value: unknown; query: strin
 
 function JsonTree({ value, query, label }: { value: unknown; query: string; label?: string }) {
   if (value == null || typeof value !== 'object') {
-    return (
-      <div className="pl-3">
-        {label != null && <span className="text-sky-700">{label}: </span>}
-        <HighlightedText text={JSON.stringify(value) ?? String(value)} query={query} />
-      </div>
-    );
+    return <JsonLeaf value={value} label={label} query={query} />;
   }
   const entries = Array.isArray(value)
     ? value.map((item, index) => [String(index), item] as const)
@@ -286,14 +281,60 @@ function JsonTree({ value, query, label }: { value: unknown; query: string; labe
   return (
     <details open className="pl-2">
       <summary className="cursor-pointer text-zinc-500">
-        {label != null && <span className="text-sky-700">{label} </span>}
-        <span>{Array.isArray(value) ? `[${entries.length}]` : `{${entries.length}}`}</span>
+        {label != null && <span className="text-sky-700">{label}</span>}
       </summary>
       <div className="border-l border-stone-200 pl-2">
         {entries.map(([key, item]) => <JsonTree key={key} value={item} label={key} query={query} />)}
       </div>
     </details>
   );
+}
+
+// Renders a scalar leaf. Long or multi-line strings — drawio XML, skill bodies,
+// prompts — are shown as a formatted block instead of a re-escaped JSON.stringify
+// blob, so real newlines and quotes survive and XML is indented + entity-decoded.
+function JsonLeaf({ value, label, query }: { value: unknown; label?: string; query: string }) {
+  if (typeof value === 'string' && isBlockString(value)) {
+    const xml = looksLikeXml(value);
+    const text = xml ? formatXml(value) : value;
+    return (
+      <div className="py-0.5 pl-3">
+        {label != null && <span className="text-sky-700">{label}:</span>}
+        <HighlightedPre
+          text={text}
+          query={query}
+          className={`mt-1 max-h-64 overflow-auto whitespace-pre-wrap break-words rounded border border-stone-200 bg-white p-2 font-mono text-[11px] leading-relaxed ${
+            xml ? 'text-emerald-800' : 'text-zinc-700'
+          }`}
+        />
+      </div>
+    );
+  }
+  const inline = typeof value === 'string' ? value : JSON.stringify(value) ?? String(value);
+  return (
+    <div className="pl-3">
+      {label != null && <span className="text-sky-700">{label}: </span>}
+      <HighlightedText text={inline} query={query} />
+    </div>
+  );
+}
+
+function isBlockString(value: string): boolean {
+  return value.includes('\n') || value.length > 120 || looksLikeXml(value);
+}
+
+function looksLikeXml(value: string): boolean {
+  const trimmed = value.trim();
+  return trimmed.startsWith('<') && (trimmed.includes('<mxCell') || trimmed.includes('<mxGraphModel') || /<\w[\w-]*[\s/>]/.test(trimmed));
+}
+
+function decodeEntities(value: string): string {
+  return value
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&amp;/g, '&');
 }
 
 function HighlightedPre({ text, query, className }: { text: string; query: string; className: string }) {
@@ -412,6 +453,23 @@ function renderMessageBody(parts: unknown): string {
 }
 
 function formatXml(content: string): string {
-  // A lightweight formatter is sufficient for trace inspection and preserves the exact raw tab.
-  return content.replace(/>\s*</g, '>\n<');
+  // Split on tag boundaries first (labels stay inside their own token, so <br>
+  // markup in a value attribute never triggers a false split), indent by nesting
+  // depth, then entity-decode per line for readability.
+  const tokens = content.replace(/>\s*</g, '><').replace(/></g, '>\n<').split('\n');
+  let depth = 0;
+  return tokens
+    .map((raw) => {
+      const token = raw.trim();
+      if (!token) return '';
+      const closing = token.startsWith('</');
+      const selfContained = token.endsWith('/>') || /^<[^>]+>.*<\/[^>]+>$/.test(token);
+      const opening = token.startsWith('<') && !closing && !selfContained;
+      if (closing) depth = Math.max(0, depth - 1);
+      const line = '  '.repeat(depth) + decodeEntities(token);
+      if (opening) depth += 1;
+      return line;
+    })
+    .filter(Boolean)
+    .join('\n');
 }

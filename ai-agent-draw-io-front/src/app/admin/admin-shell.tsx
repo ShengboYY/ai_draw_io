@@ -1,12 +1,15 @@
-import type { ReactNode } from 'react';
+'use client';
+
+import { useEffect, useState, type ReactNode } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { AdminAccountMenu } from './admin-account-menu';
 
-type AdminSection = 'overview' | 'runs';
+type AdminSection = 'overview' | 'runs' | 'trace';
 
 interface AdminShellProps {
   active: AdminSection;
+  traceHref?: string;
   children: ReactNode;
 }
 
@@ -17,17 +20,27 @@ interface AdminPageHeadingProps {
   action?: ReactNode;
 }
 
-const navItems: { id: AdminSection; href: string; label: string }[] = [
+const primaryNavItems: { id: Exclude<AdminSection, 'trace'>; href: string; label: string }[] = [
   { id: 'overview', href: '/admin', label: 'Overview' },
   { id: 'runs', href: '/admin/runs', label: 'Runs' },
 ];
 
 // Keep observability pages in the same visual frame as the diagram workspace.
-export function AdminShell({ active, children }: AdminShellProps) {
+export function AdminShell({ active, traceHref, children }: AdminShellProps) {
+  const navItems = traceHref
+    ? [...primaryNavItems, { id: 'trace' as const, href: traceHref, label: 'Trace' }]
+    : primaryNavItems;
+  const [visualActive, setVisualActive] = useState(active);
+  const visualIndex = Math.max(0, navItems.findIndex((item) => item.id === visualActive));
+
+  useEffect(() => {
+    setVisualActive(active);
+  }, [active]);
+
   return (
     <main className="app-page min-h-screen text-zinc-800">
       <header className="sticky top-0 z-20 border-b border-stone-200 bg-white/95 backdrop-blur">
-        <div className="flex h-16 items-center gap-3 px-4 sm:gap-4 sm:px-6 lg:px-8">
+        <div className="relative flex h-16 items-center gap-3 px-4 sm:gap-4 sm:px-6 lg:px-8">
           <Link href="/diagrams" className="flex shrink-0 items-center gap-2.5" aria-label="FreeDraw workspace">
             <span className="relative block h-9 w-9 overflow-hidden rounded-xl shadow-sm" aria-hidden="true">
               <Image src="/brand/freedraw-logo-dark.png" alt="" fill sizes="36px" className="object-cover" priority />
@@ -38,18 +51,33 @@ export function AdminShell({ active, children }: AdminShellProps) {
           <span className="hidden h-5 w-px bg-stone-200 sm:block" aria-hidden="true" />
           <span className="hidden text-sm font-medium text-zinc-500 sm:block">Admin Dashboard</span>
 
-          <nav className="ml-auto flex h-full items-center gap-0.5 sm:gap-1" aria-label="Admin sections">
+          <nav
+            className="relative ml-auto grid h-10 items-center rounded-xl border border-stone-200 bg-stone-100/90 p-1 shadow-sm sm:absolute sm:left-1/2 sm:ml-0 sm:-translate-x-1/2"
+            aria-label="Admin sections"
+            style={{ gridTemplateColumns: `repeat(${navItems.length}, minmax(0, 1fr))` }}
+          >
+            {/* The shared background slides between the two routes while the links remain independently accessible. */}
+            <span
+              aria-hidden="true"
+              className="absolute inset-y-1 left-1 rounded-lg bg-zinc-800 shadow-sm transition-transform duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform"
+              style={{
+                width: `calc((100% - 0.5rem) / ${navItems.length})`,
+                transform: `translateX(${visualIndex * 100}%)`,
+              }}
+            />
             {navItems.map((item) => {
               const isActive = item.id === active;
+              const isVisuallyActive = item.id === visualActive;
               return (
                 <Link
                   key={item.id}
                   href={item.href}
                   aria-current={isActive ? 'page' : undefined}
-                  className={`flex h-9 items-center rounded-lg px-2 text-sm font-medium transition sm:px-3 ${
-                    isActive
-                      ? 'bg-zinc-800 text-white shadow-sm'
-                      : 'text-zinc-500 hover:bg-stone-100 hover:text-zinc-800'
+                  onClick={() => setVisualActive(item.id)}
+                  className={`relative z-10 flex h-8 items-center justify-center rounded-lg px-2 text-sm font-medium transition-colors sm:px-3 ${
+                    isVisuallyActive
+                      ? 'text-white'
+                      : 'text-zinc-500 hover:text-zinc-800'
                   }`}
                 >
                   {item.label}
@@ -58,7 +86,9 @@ export function AdminShell({ active, children }: AdminShellProps) {
             })}
           </nav>
 
-          <AdminAccountMenu />
+          <div className="sm:ml-auto">
+            <AdminAccountMenu />
+          </div>
         </div>
       </header>
 
