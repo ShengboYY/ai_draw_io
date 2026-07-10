@@ -11,6 +11,13 @@ privacy:
   sanitizerVersion: null
 input:
   user: "Rename API to Gateway"
+replay:
+  initialCanvasXml: "<mxGraphModel><root><mxCell id='0'/><mxCell id='1' parent='0'/><mxCell id='2' value='API' vertex='1' parent='1'><mxGeometry x='100' y='100' width='140' height='60' as='geometry'/></mxCell></root></mxGraphModel>"
+  routerReply: '{"routeType":"edit_existing","diagramType":"architecture","skillName":"none","needsCanvasQuality":false,"needsSemanticReview":false,"answerMode":"none","answer":"","reason":"rename API"}'
+  toolName: modify_diagram
+  mutationMode: replace_cells
+  mutationCells: "<mxCell id='2' value='Gateway' vertex='1' parent='1'><mxGeometry x='100' y='100' width='140' height='60' as='geometry'/></mxCell>"
+  taskOutcome: FULFILLED
 expected:
   routeType: edit_existing
   taskOutcome: FULFILLED

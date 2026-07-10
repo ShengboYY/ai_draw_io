@@ -123,7 +123,7 @@ public class AdminController {
                     admin.get().getId(), body == null ? null : body.get("reason"));
             audit(admin.get(), "REVIEW_EVAL_CANDIDATE", "EVAL_CANDIDATE", candidateId, "SUCCESS", request);
             return success(candidate);
-        } catch (IllegalArgumentException | IllegalStateException e) { return failure(e.getMessage()); }
+        } catch (IllegalArgumentException | IllegalStateException e) { audit(admin.get(), "REVIEW_EVAL_CANDIDATE", "EVAL_CANDIDATE", candidateId, "REJECTED", request); return failure(e.getMessage()); }
     }
 
     @PostMapping("/eval-candidates/{candidateId}/publication")
@@ -136,7 +136,7 @@ public class AdminController {
                     body == null ? null : body.get("datasetVersion"), body == null ? null : body.get("sanitizerVersion"), admin.get().getId());
             audit(admin.get(), "PUBLISH_EVAL_CASE", "EVAL_CASE", lineage.getCaseId(), "SUCCESS", request);
             return success(lineage);
-        } catch (IllegalArgumentException | IllegalStateException e) { return failure(e.getMessage()); }
+        } catch (IllegalArgumentException | IllegalStateException e) { audit(admin.get(), "PUBLISH_EVAL_CASE", "EVAL_CANDIDATE", candidateId, "REJECTED", request); return failure(e.getMessage()); }
     }
 
     @GetMapping("/users")

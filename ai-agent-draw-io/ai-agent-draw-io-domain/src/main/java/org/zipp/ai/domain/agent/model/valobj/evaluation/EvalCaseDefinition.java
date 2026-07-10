@@ -36,6 +36,9 @@ public class EvalCaseDefinition {
     @Builder.Default
     private Expected expected = new Expected();
 
+    @Builder.Default
+    private Replay replay = new Replay();
+
     @Data
     @Builder
     @NoArgsConstructor
@@ -62,5 +65,19 @@ public class EvalCaseDefinition {
         private Boolean requireCanvasChange;
         private Integer maxCriticalIssues;
         private Integer maxMajorIssues;
+    }
+
+    /** Recorded deterministic inputs for Mode B; production cases must not share a global replay script. */
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class Replay {
+        private String initialCanvasXml;
+        private String routerReply;
+        private String toolName;
+        private String mutationMode;
+        private String mutationCells;
+        private EvalTrace.TaskOutcome taskOutcome;
     }
 }

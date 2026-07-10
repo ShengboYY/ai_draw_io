@@ -416,6 +416,10 @@ Harness 支持三种明确分离的执行模式：
 
 Mode B 不评测 prompt/模型质量；它的目标 bug 类别是路由后处理、工具策略、XML 完整性、patch/merge、画布分析与 repair。prompt/模型质量 bug 不能要求在 P1 通过 stub 回放证明修复，必须等 Mode C 运行。
 
+Mode B 的录制输入属于**每个 case 自己的版本化 fixture**，不能由全局测试脚本硬编码。当前单回合契约使用 `input.user`（后续多轮使用 `input.turns`）以及 `replay.initialCanvasXml`、`replay.routerReply`、`replay.toolName`、`replay.mutationMode`、`replay.mutationCells` 和 `replay.taskOutcome`。ExecutionFactory 必须只根据当前 case 构造执行；新增 route 或 tool 时通过扩展 factory 的显式 dispatch 支持，不能复用与 case 无关的固定产物。
+
+P1 中的 `taskOutcome` 是录制 trajectory 的观察标签，不是 Grader 从 Agent 自述中独立推导出的事实。Mode B 使用 case 自带的 `replay.taskOutcome`；Mode C 则必须由最终回复、mutation 是否提交、canvas/artifact 状态和错误信号共同投影，语义/体验仍需 Judge 或人工确认。报告必须标明其来源，不能把它当成独立 hard gate 的唯一证据。
+
 ### 8.2 隔离执行
 
 Harness 使用测试 workspace、固定模型配置和 fixture canvas，禁止写入真实用户图或生产会话。每次运行产出：

@@ -15,6 +15,9 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
+import org.dom4j.Document;
+import org.dom4j.DocumentHelper;
+import org.dom4j.Element;
 
 /**
  * Phase 1 deterministic harness. It grades a normalized EvalTrace and final XML only.
@@ -36,6 +39,7 @@ public class DefaultEvalHarness {
     }
 
     public EvalHarnessResult evaluate(EvalExecution execution) {
+        long startedAt = System.nanoTime();
         Objects.requireNonNull(execution, "execution");
         Objects.requireNonNull(execution.getEvalCase(), "execution.evalCase");
         Objects.requireNonNull(execution.getTrace(), "execution.trace");
@@ -44,13 +48,15 @@ public class DefaultEvalHarness {
                 execution.getFinalCanvasXml(), execution.getEvalCase().getDiagramType());
         List<EvalGraderResult> graders = List.of(
                 gradeRouteAndToolPolicy(execution),
-                gradeXmlIntegrity(analysis),
+                gradeXmlIntegrity(execution.getFinalCanvasXml()),
                 gradeVisualQuality(execution.getEvalCase().getExpected(), analysis));
         boolean passed = graders.stream().allMatch(EvalGraderResult::isPassed);
         return EvalHarnessResult.builder()
                 .caseId(execution.getEvalCase().getCaseId())
                 .caseVersion(execution.getEvalCase().getDatasetVersion())
                 .gitSha(execution.getGitSha())
+                .latencyMs((System.nanoTime() - startedAt) / 1_000_000)
+                .status(passed ? EvalHarnessResult.Status.PASS : EvalHarnessResult.Status.FAIL)
                 .passed(passed)
                 .graders(graders)
                 .build();
@@ -95,13 +101,16 @@ public class DefaultEvalHarness {
         return grader("route_tool_policy", ROUTE_TOOL_GRADER_VERSION, evidence);
     }
 
-    private EvalGraderResult gradeXmlIntegrity(CanvasAnalysis analysis) {
+    private EvalGraderResult gradeXmlIntegrity(String xml) {
         List<String> evidence = new ArrayList<>();
-        for (CanvasAnalysisIssue issue : safeIssues(analysis)) {
-            if ("critical".equals(issue.getSeverity())) {
-                evidence.add("Critical XML issue: " + issue.getType() + ".");
+        try {
+            Document document = DocumentHelper.parseText(xml); Element root = document.getRootElement().element("root");
+            if (root == null) evidence.add("mxGraphModel is missing a root element.");
+            else { Set<String> ids = new HashSet<>(); List<Element> edges = new ArrayList<>();
+                for (Object item : root.elements("mxCell")) { Element cell = (Element) item; String id = cell.attributeValue("id"); if (id == null || id.isBlank() || !ids.add(id)) evidence.add("Cell id is missing or duplicated: " + id + "."); if ("1".equals(cell.attributeValue("edge"))) edges.add(cell); }
+                for (Element edge : edges) { String source = edge.attributeValue("source"), target = edge.attributeValue("target"); if (source != null && !ids.contains(source)) evidence.add("Edge source does not exist: " + source + "."); if (target != null && !ids.contains(target)) evidence.add("Edge target does not exist: " + target + "."); }
             }
-        }
+        } catch (Exception e) { evidence.add("XML is not parseable."); }
         return grader("xml_integrity", XML_GRADER_VERSION, evidence);
     }
 

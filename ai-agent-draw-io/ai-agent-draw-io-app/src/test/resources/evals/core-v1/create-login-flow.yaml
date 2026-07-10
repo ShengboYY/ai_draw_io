@@ -1,0 +1,29 @@
+caseId: create-login-flow-001
+datasetVersion: core-v1
+origin: specification-derived
+risk: medium
+diagramType: flowchart
+tags:
+  - create_new
+  - heterogeneous_replay
+privacy:
+  classification: synthetic
+  sanitizerVersion: null
+input:
+  user: "Create a login flow"
+replay:
+  initialCanvasXml: "<mxGraphModel><root><mxCell id='0'/><mxCell id='1' parent='0'/></root></mxGraphModel>"
+  routerReply: '{"routeType":"create_new","diagramType":"flowchart","skillName":"none","needsCanvasQuality":false,"needsSemanticReview":false,"answerMode":"none","answer":"","reason":"create login flow"}'
+  toolName: create_diagram
+  mutationCells: "<mxCell id='2' value='Enter credentials' vertex='1' parent='1'><mxGeometry x='100' y='100' width='160' height='60' as='geometry'/></mxCell><mxCell id='3' value='Authenticated' vertex='1' parent='1'><mxGeometry x='380' y='100' width='160' height='60' as='geometry'/></mxCell><mxCell id='4' value='valid' edge='1' parent='1' source='2' target='3'><mxGeometry relative='1' as='geometry'/></mxCell>"
+  taskOutcome: FULFILLED
+expected:
+  routeType: create_new
+  taskOutcome: FULFILLED
+  requiredToolNamesBeforeMutation:
+    - get_drawio_skill
+  allowedMutationTools:
+    - create_diagram
+  requireCanvasChange: true
+  maxCriticalIssues: 0
+  maxMajorIssues: 0

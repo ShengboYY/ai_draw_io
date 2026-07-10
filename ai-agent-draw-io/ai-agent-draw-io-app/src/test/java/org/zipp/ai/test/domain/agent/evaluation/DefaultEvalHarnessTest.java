@@ -80,10 +80,11 @@ public class DefaultEvalHarnessTest {
         EvalHarnessResult result = new DefaultEvalHarness().evaluate(execution);
 
         assertFalse(result.isPassed());
-        assertNotNull(result.getGraders().stream()
+        assertTrue(result.getGraders().stream()
                 .filter(grader -> "xml_integrity".equals(grader.getGraderName()))
                 .findFirst()
-                .orElse(null));
+                .orElseThrow()
+                .isPassed() == false);
     }
 
     private EvalExecution validExecution() {
