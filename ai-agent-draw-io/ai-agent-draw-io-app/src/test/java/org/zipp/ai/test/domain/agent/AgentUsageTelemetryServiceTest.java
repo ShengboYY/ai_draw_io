@@ -103,6 +103,48 @@ public class AgentUsageTelemetryServiceTest {
     }
 
     @Test
+    public void shouldBackfillThumbnailOnlyForTheSnapshotWhoseCanvasHashMatches() {
+        FakeAgentUsageTelemetryStore store = new FakeAgentUsageTelemetryStore();
+        AgentUsageTelemetryService service = service(store);
+        service.recordDiagramSnapshot("aru_a", "span_a", canvasState("hash-A", null), "CREATED");
+        service.recordDiagramSnapshot("aru_b", "span_b", canvasState("hash-B", null), "UPDATED");
+
+        service.backfillDiagramSnapshotThumbnail("usr_alice", "diag_snapshot", "hash-A",
+                "data:image/png;base64,exported");
+
+        AgentDiagramTraceSnapshot matched = store.diagramSnapshots.stream()
+                .filter(snapshot -> "hash-A".equals(snapshot.getCanvasHash())).findFirst().orElseThrow();
+        AgentDiagramTraceSnapshot other = store.diagramSnapshots.stream()
+                .filter(snapshot -> "hash-B".equals(snapshot.getCanvasHash())).findFirst().orElseThrow();
+        assertEquals("data:image/png;base64,exported", matched.getThumbnailUrl());
+        assertNull(other.getThumbnailUrl());
+    }
+
+    @Test
+    public void shouldNotOverwriteAnExistingSnapshotThumbnailOnBackfill() {
+        FakeAgentUsageTelemetryStore store = new FakeAgentUsageTelemetryStore();
+        AgentUsageTelemetryService service = service(store);
+        service.recordDiagramSnapshot("aru_a", "span_a",
+                canvasState("hash-A", "data:image/png;base64,original"), "CREATED");
+
+        service.backfillDiagramSnapshotThumbnail("usr_alice", "diag_snapshot", "hash-A",
+                "data:image/png;base64,exported");
+
+        assertEquals("data:image/png;base64,original", store.diagramSnapshots.get(0).getThumbnailUrl());
+    }
+
+    private CanvasState canvasState(String contentHash, String thumbnailUrl) {
+        return CanvasState.builder()
+                .userId("usr_alice")
+                .diagramId("diag_snapshot")
+                .currentXml("<mxfile>raw</mxfile>")
+                .contentHash(contentHash)
+                .thumbnailUrl(thumbnailUrl)
+                .version(1L)
+                .build();
+    }
+
+    @Test
     public void shouldResolveRunContextByInvocationIdInsteadOfSessionId() {
         AgentUsageTelemetryService service = service(new FakeAgentUsageTelemetryStore());
         AgentUsageTelemetryService.RunScope first = service.startRun(

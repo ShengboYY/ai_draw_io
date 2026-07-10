@@ -75,6 +75,20 @@ public class FakeAgentUsageTelemetryStore implements IAgentUsageTelemetryStore {
     }
 
     @Override
+    public int backfillDiagramSnapshotThumbnail(String diagramId, String canvasHash, String thumbnailUrl) {
+        int updated = 0;
+        for (AgentDiagramTraceSnapshot snapshot : diagramSnapshots) {
+            if (diagramId.equals(snapshot.getDiagramId())
+                    && canvasHash.equals(snapshot.getCanvasHash())
+                    && snapshot.getThumbnailUrl() == null) {
+                snapshot.setThumbnailUrl(thumbnailUrl);
+                updated++;
+            }
+        }
+        return updated;
+    }
+
+    @Override
     public AgentUsageSummary summarizeForUser(String userId) {
         long platformRuns = runs.stream()
                 .filter(run -> userId.equals(run.getUserId()) && "PLATFORM".equals(run.getCredentialSource()))

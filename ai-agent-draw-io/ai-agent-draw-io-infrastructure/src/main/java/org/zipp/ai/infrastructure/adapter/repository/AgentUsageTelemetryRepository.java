@@ -77,6 +77,11 @@ public class AgentUsageTelemetryRepository implements IAgentUsageTelemetryStore 
     }
 
     @Override
+    public int backfillDiagramSnapshotThumbnail(String diagramId, String canvasHash, String thumbnailUrl) {
+        return agentUsageTelemetryMapper.backfillDiagramSnapshotThumbnail(diagramId, canvasHash, thumbnailUrl);
+    }
+
+    @Override
     public AgentUsageSummary summarizeForUser(String userId) {
         if (StringUtils.isBlank(userId)) {
             return AgentUsageSummary.empty();

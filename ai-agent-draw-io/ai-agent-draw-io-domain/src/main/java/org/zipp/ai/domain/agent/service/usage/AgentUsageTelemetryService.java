@@ -290,6 +290,18 @@ public class AgentUsageTelemetryService {
                 .build()), state.getUserId());
     }
 
+    /**
+     * Backfills the thumbnail on trace snapshots once the client exports and persists it. The agent-stream
+     * save writes only XML+version, so snapshots are captured without a thumbnail; matching on the canvas
+     * hash guarantees the image is attached only to the snapshot whose XML it actually depicts.
+     */
+    public void backfillDiagramSnapshotThumbnail(String userId, String diagramId, String canvasHash, String thumbnailUrl) {
+        if (StringUtils.isAnyBlank(diagramId, canvasHash, thumbnailUrl)) {
+            return;
+        }
+        safeStore(() -> telemetryStore.backfillDiagramSnapshotThumbnail(diagramId, canvasHash, thumbnailUrl), userId);
+    }
+
     public void recordLlmCall(String phase,
                               String provider,
                               String model,
@@ -404,6 +416,21 @@ public class AgentUsageTelemetryService {
                                String toolName,
                                Long latencyMs,
                                Throwable error) {
+        recordToolCall(callId, context, phase, toolName, latencyMs, error, null);
+    }
+
+    /**
+     * @param parentSpanIdOverride when non-blank, parents the tool span onto the LLM call that
+     *                             emitted its function call instead of the enclosing step, so the
+     *                             trace tree shows tools nested under the turn that produced them.
+     */
+    public void recordToolCall(String callId,
+                               AgentUsageTelemetryContext.RunContext context,
+                               String phase,
+                               String toolName,
+                               Long latencyMs,
+                               Throwable error,
+                               String parentSpanIdOverride) {
         if (context == null || StringUtils.isBlank(toolName)) {
             return;
         }
@@ -412,7 +439,7 @@ public class AgentUsageTelemetryService {
         safeStore(() -> telemetryStore.insertToolCall(ToolCallTelemetry.builder()
                 .id(StringUtils.defaultIfBlank(callId, newToolCallId()))
                 .runId(context.runId())
-                .parentId(parentSpanId(context))
+                .parentId(StringUtils.defaultIfBlank(parentSpanIdOverride, parentSpanId(context)))
                 .userId(context.userId())
                 .phase(StringUtils.defaultIfBlank(phase, context.phase()))
                 .toolName(toolName)

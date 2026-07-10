@@ -323,6 +323,14 @@
         ORDER BY created_at ASC, id ASC
     </select>
 
+    <update id="backfillDiagramSnapshotThumbnail">
+        UPDATE agent_diagram_trace_snapshot
+        SET thumbnail_url = #{thumbnailUrl}
+        WHERE diagram_id = #{diagramId}
+          AND canvas_hash = #{canvasHash}
+          AND thumbnail_url IS NULL
+    </update>
+
     <update id="anonymizeRuns">
         UPDATE agent_run
         SET user_id = #{anonymizedUserId},

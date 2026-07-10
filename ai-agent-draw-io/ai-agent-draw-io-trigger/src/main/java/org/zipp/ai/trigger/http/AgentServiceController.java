@@ -247,9 +247,13 @@ public class AgentServiceController implements IAgentService {
             return illegalWorkspaceResponse();
         }
         try {
-            DiagramSummaryResponseDTO diagram = canvasStateStore.updateThumbnail(workspaceId, diagramId, thumbnailDataUrl)
-                    .map(this::toDiagramSummary)
-                    .orElse(null);
+            CanvasState state = canvasStateStore.updateThumbnail(workspaceId, diagramId, thumbnailDataUrl).orElse(null);
+            if (state != null) {
+                // Attach the freshly exported thumbnail to the trace snapshot whose canvas it depicts.
+                telemetryService().backfillDiagramSnapshotThumbnail(
+                        workspaceId, diagramId, state.getContentHash(), state.getThumbnailUrl());
+            }
+            DiagramSummaryResponseDTO diagram = state == null ? null : toDiagramSummary(state);
             return Response.<DiagramSummaryResponseDTO>builder()
                     .code(ResponseCode.SUCCESS.getCode())
                     .info(ResponseCode.SUCCESS.getInfo())

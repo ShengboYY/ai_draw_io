@@ -127,6 +127,65 @@ public class AgentUsageTelemetryPluginTest {
     }
 
     @Test
+    public void toolSpanParentsOntoTheLlmTurnThatEmittedItsFunctionCall() throws Exception {
+        FakeAgentUsageTelemetryStore telemetryStore = new FakeAgentUsageTelemetryStore();
+        AgentUsageTelemetryPlugin plugin = new AgentUsageTelemetryPlugin();
+        inject(plugin, "agentUsageTelemetryService", new AgentUsageTelemetryService(telemetryStore, Clock.systemUTC()));
+        InvocationContext invocation = invocationContext("inv_link", "drawing_agent");
+        CallbackContext callback = new CallbackContext(invocation, new EventActions());
+        registerInvocation("inv_link");
+
+        LlmResponse response = LlmResponse.builder()
+                .content(Content.builder()
+                        .role("model")
+                        .parts(List.of(Part.builder()
+                                .functionCall(com.google.genai.types.FunctionCall.builder()
+                                        .id("function_1")
+                                        .name("lookup_diagram")
+                                        .args(Map.of("diagramId", "dia_1"))
+                                        .build())
+                                .build()))
+                        .build())
+                .modelVersion("gemini-test-001")
+                .build();
+        plugin.beforeModelCallback(callback, LlmRequest.builder().model("gemini-test"));
+        plugin.afterModelCallback(callback, response);
+        String llmSpanId = telemetryStore.llmCalls.get(0).getId();
+
+        ToolContext toolContext = ToolContext.builder(invocation)
+                .actions(new EventActions())
+                .functionCallId("function_1")
+                .build();
+        BaseTool tool = new BaseTool("lookup_diagram", "test tool") { };
+        plugin.beforeToolCallback(tool, Map.of("diagramId", "dia_1"), toolContext);
+        plugin.afterToolCallback(tool, Map.of("diagramId", "dia_1"), toolContext, Map.of("result", "found"));
+
+        assertEquals(1, telemetryStore.toolCalls.size());
+        assertEquals(llmSpanId, telemetryStore.toolCalls.get(0).getParentId());
+    }
+
+    @Test
+    public void toolSpanFallsBackToStepParentWithoutAMatchingFunctionCall() throws Exception {
+        FakeAgentUsageTelemetryStore telemetryStore = new FakeAgentUsageTelemetryStore();
+        AgentUsageTelemetryPlugin plugin = new AgentUsageTelemetryPlugin();
+        inject(plugin, "agentUsageTelemetryService", new AgentUsageTelemetryService(telemetryStore, Clock.systemUTC()));
+        InvocationContext invocation = invocationContext("inv_nolink", "drawing_agent");
+        registerInvocation("inv_nolink");
+
+        ToolContext toolContext = ToolContext.builder(invocation)
+                .actions(new EventActions())
+                .functionCallId("orphan_call")
+                .build();
+        BaseTool tool = new BaseTool("lookup_diagram", "test tool") { };
+        plugin.beforeToolCallback(tool, Map.of("diagramId", "dia_1"), toolContext);
+        plugin.afterToolCallback(tool, Map.of("diagramId", "dia_1"), toolContext, Map.of("result", "found"));
+
+        assertEquals(1, telemetryStore.toolCalls.size());
+        // No LLM turn claimed this function call, so the tool span keeps the run-scoped default parent.
+        assertEquals("aru_1", telemetryStore.toolCalls.get(0).getParentId());
+    }
+
+    @Test
     public void debugCaptureFailureDoesNotAbortModelTelemetry() throws Exception {
         FakeAgentUsageTelemetryStore telemetryStore = new FakeAgentUsageTelemetryStore();
         FakeDebugTraceStore debugStore = new FakeDebugTraceStore();

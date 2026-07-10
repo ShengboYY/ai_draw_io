@@ -40,6 +40,9 @@ public class AgentUsageTelemetryPlugin extends BasePlugin {
     private static final Logger log = LoggerFactory.getLogger(AgentUsageTelemetryPlugin.class);
     private final ConcurrentMap<String, ConcurrentLinkedDeque<LlmCallStart>> pendingLlmCalls = new ConcurrentHashMap<>();
     private final ConcurrentMap<String, ToolCallStart> pendingToolCalls = new ConcurrentHashMap<>();
+    // functionCallId -> the LLM span that emitted it, so a tool span can parent onto its
+    // originating turn instead of the enclosing step. Keyed by "invocationId:functionCallId".
+    private final ConcurrentMap<String, String> functionCallSpans = new ConcurrentHashMap<>();
 
     @Resource
     private AgentUsageTelemetryService agentUsageTelemetryService;
@@ -75,6 +78,7 @@ public class AgentUsageTelemetryPlugin extends BasePlugin {
             // A provider may terminate without a final model/tool callback; never retain partial streams past the run.
             pendingLlmCalls.remove(invocationId);
             pendingToolCalls.keySet().removeIf(key -> key.startsWith(invocationId + ":"));
+            functionCallSpans.keySet().removeIf(key -> key.startsWith(invocationId + ":"));
             AgentUsageTelemetryContext.clearInvocation(invocationContext.invocationId());
         }
         return super.afterRunCallback(invocationContext);
@@ -139,6 +143,9 @@ public class AgentUsageTelemetryPlugin extends BasePlugin {
                             ? DebugTracePayloadKind.ERROR : DebugTracePayloadKind.OUTPUT,
                     "application/json",
                     toJson(start.responses()));
+            // Remember which function calls this turn emitted so their tool spans can parent onto it.
+            functionCallIds(start.responses()).forEach(functionCallId ->
+                    functionCallSpans.put(context.invocationId() + ":" + functionCallId, start.callId()));
         }
         return super.afterModelCallback(context, response);
     }
@@ -185,7 +192,8 @@ public class AgentUsageTelemetryPlugin extends BasePlugin {
             pendingToolCalls.put(
                     toolKey(tool, toolContext),
                     new ToolCallStart(callId, System.nanoTime(), runContext,
-                            phaseFromAgent(toolContext.agentName(), runContext.phase())));
+                            phaseFromAgent(toolContext.agentName(), runContext.phase()),
+                            originatingLlmSpan(toolContext)));
             captureSpanPayload(runContext, callId, DebugTracePayloadKind.TOOL_ARGS, "application/json", mapJson(args));
         });
         return super.beforeToolCallback(tool, args, toolContext);
@@ -227,7 +235,8 @@ public class AgentUsageTelemetryPlugin extends BasePlugin {
                 start == null ? phaseFromAgent(toolContext.agentName(), runContext.phase()) : start.phase(),
                 tool.name(),
                 start == null ? null : elapsedMs(start.startedNanos()),
-                error);
+                error,
+                start == null ? originatingLlmSpan(toolContext) : start.parentSpanId());
         captureSpanPayload(runContext, callId,
                 error == null ? DebugTracePayloadKind.TOOL_RESULT : DebugTracePayloadKind.ERROR,
                 "application/json",
@@ -273,6 +282,29 @@ public class AgentUsageTelemetryPlugin extends BasePlugin {
         return responses.snapshot().stream()
                 .filter(item -> item.usageMetadata().isPresent())
                 .reduce((first, second) -> second);
+    }
+
+    // The LLM span that emitted this tool's function call, or null when the provider gives no
+    // function-call id (linkage then degrades gracefully to the step parent).
+    private String originatingLlmSpan(ToolContext toolContext) {
+        if (toolContext == null) {
+            return null;
+        }
+        return toolContext.functionCallId()
+                .map(functionCallId -> functionCallSpans.get(toolContext.invocationId() + ":" + functionCallId))
+                .orElse(null);
+    }
+
+    private List<String> functionCallIds(LlmResponseAccumulator responses) {
+        if (responses == null) {
+            return List.of();
+        }
+        List<String> ids = new ArrayList<>();
+        for (LlmResponse response : responses.snapshot()) {
+            response.content().flatMap(Content::parts).ifPresent(parts -> parts.forEach(part ->
+                    part.functionCall().flatMap(functionCall -> functionCall.id()).ifPresent(ids::add)));
+        }
+        return ids;
     }
 
     private String toolKey(BaseTool tool, ToolContext toolContext) {
@@ -507,7 +539,8 @@ public class AgentUsageTelemetryPlugin extends BasePlugin {
             String callId,
             long startedNanos,
             AgentUsageTelemetryContext.RunContext runContext,
-            String phase
+            String phase,
+            String parentSpanId
     ) {
     }
 }

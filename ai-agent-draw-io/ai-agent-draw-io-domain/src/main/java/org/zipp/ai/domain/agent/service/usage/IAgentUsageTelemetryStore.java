@@ -33,6 +33,11 @@ public interface IAgentUsageTelemetryStore {
     default void insertDiagramSnapshot(AgentDiagramTraceSnapshot snapshot) {
     }
 
+    /** Backfills the thumbnail on snapshots whose canvas matches, once the client exports and persists it. */
+    default int backfillDiagramSnapshotThumbnail(String diagramId, String canvasHash, String thumbnailUrl) {
+        return 0;
+    }
+
     AgentUsageSummary summarizeForUser(String userId);
 
     AdminUsageSummary summarizeGlobal();

@@ -36,6 +36,10 @@ public interface IAgentUsageTelemetryMapper {
 
     int insertDiagramSnapshot(DiagramTraceSnapshotPO snapshot);
 
+    int backfillDiagramSnapshotThumbnail(@Param("diagramId") String diagramId,
+                                         @Param("canvasHash") String canvasHash,
+                                         @Param("thumbnailUrl") String thumbnailUrl);
+
     AgentUsageSummaryPO summarizeByUserId(@Param("userId") String userId);
 
     AdminUsageSummaryPO summarizeGlobal();
