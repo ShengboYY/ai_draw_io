@@ -1,0 +1,23 @@
+caseId: edit-api-gateway-001
+datasetVersion: core-v1
+origin: specification-derived
+risk: high
+diagramType: architecture
+tags:
+  - edit_existing
+  - tool_policy
+privacy:
+  classification: synthetic
+  sanitizerVersion: null
+input:
+  user: "Rename API to Gateway"
+expected:
+  routeType: edit_existing
+  taskOutcome: FULFILLED
+  requiredToolNamesBeforeMutation:
+    - get_drawio_skill
+  allowedMutationTools:
+    - modify_diagram
+  requireCanvasChange: true
+  maxCriticalIssues: 0
+  maxMajorIssues: 0

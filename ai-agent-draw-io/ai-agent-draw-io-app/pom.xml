@@ -12,11 +12,11 @@
     <packaging>jar</packaging>
 
     <!--
-      测试默认跳过是历史行为（很多 @SpringBootTest 需要真实 MySQL / 模型 key，本地/CI 通常没有）。
-      设为 property 后可通过 -DskipTests=false 显式打开；纯单元测试通过 -Dtest=<Class> 精确运行。
+      大多数历史测试需要真实 MySQL / 模型 key，仍不在默认生命周期执行。
+      Phase 1 evaluation 是纯确定性回放，作为唯一默认 app 测试纳入普通 mvn test；其余测试可通过 -Dtest=<Class> 精确运行。
     -->
     <properties>
-        <skipTests>true</skipTests>
+        <skipTests>false</skipTests>
     </properties>
 
     <dependencies>
@@ -187,7 +187,7 @@
                     <skipTests>${skipTests}</skipTests>
                     <testFailureIgnore>false</testFailureIgnore>
                     <includes>
-                        <include>**/*Test.java</include>
+                        <include>**/evaluation/**/*Test.java</include>
                     </includes>
                 </configuration>
             </plugin>
