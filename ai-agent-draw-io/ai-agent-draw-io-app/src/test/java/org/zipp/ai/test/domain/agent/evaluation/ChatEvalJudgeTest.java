@@ -21,7 +21,7 @@ public class ChatEvalJudgeTest {
 
     @Test
     public void shouldCallDedicatedJudgeAndParseTheStrictSchema() {
-        RecordingChat chat = new RecordingChat("{\"task_fulfilled\":true,\"semantic_score\":4,\"visual_score\":5,"
+        RecordingChat chat = new RecordingChat("{\"task_fulfilled\":true,\"helpfulness_score\":4,"
                 + "\"unexpected_side_effect\":false,\"severity\":\"none\",\"evidence\":[\"Gateway is connected\"],"
                 + "\"recommended_human_review\":false}");
         ChatEvalJudge judge = new ChatEvalJudge(chat, "judge-agent", "judge-model-v1", 0D);
@@ -33,7 +33,7 @@ public class ChatEvalJudgeTest {
 
         assertTrue(result.isAvailable());
         assertTrue(result.isPassed());
-        assertEquals(4.5D, result.getScore(), 0.001D);
+        assertEquals(4D, result.getScore(), 0.001D);
         assertEquals(judge.version(input), result.getJudgeVersion());
         assertTrue(result.getJudgeVersion().contains("judge-model=judge-model-v1"));
         assertTrue(chat.prompt.contains("final_graph"));
@@ -62,6 +62,18 @@ public class ChatEvalJudgeTest {
         assertFalse(result.isAvailable());
         assertNull(chat.prompt);
         assertTrue(result.getEvidence().contains("judge_unavailable:visual_judge_not_implemented"));
+    }
+
+    @Test
+    public void unconfiguredJudgeModelVersionMustFailClosed() {
+        RecordingChat chat = new RecordingChat("unused");
+
+        EvalJudgeResult result = new ChatEvalJudge(chat, "judge-agent", "unconfigured", 0D).judge(
+                input("none", new DrawioGraphNormalizer.Graph(Set.of(), Set.of(), Map.of())));
+
+        assertFalse(result.isAvailable());
+        assertNull(chat.prompt);
+        assertTrue(result.getEvidence().contains("judge_unavailable:judge_model_version_unconfigured"));
     }
 
     private IEvalJudge.JudgeInput input(String diagramType, DrawioGraphNormalizer.Graph graph) {

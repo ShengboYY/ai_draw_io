@@ -20,11 +20,11 @@ import java.util.Set;
 @Service
 @Slf4j
 public class ChatEvalJudge implements IEvalJudge {
-    private static final String PROMPT_VERSION = "eval-judge-prompt-v1";
-    private static final String RUBRIC_VERSION = "eval-judge-rubric-v1";
-    private static final String SCHEMA_VERSION = "eval-judge-schema-v1";
+    private static final String PROMPT_VERSION = "eval-answer-judge-prompt-v2";
+    private static final String RUBRIC_VERSION = "eval-answer-judge-rubric-v1";
+    private static final String SCHEMA_VERSION = "eval-answer-judge-schema-v2";
     private static final Set<String> ROOT_FIELDS = Set.of(
-            "task_fulfilled", "semantic_score", "visual_score", "unexpected_side_effect",
+            "task_fulfilled", "helpfulness_score", "unexpected_side_effect",
             "severity", "evidence", "recommended_human_review");
     private static final Set<String> SEVERITIES = Set.of("none", "minor", "major", "critical");
 
@@ -47,6 +47,9 @@ public class ChatEvalJudge implements IEvalJudge {
     @Override
     public EvalJudgeResult judge(JudgeInput input) {
         if (input == null) return unavailable("input_missing", null);
+        if (StringUtils.isBlank(judgeModelVersion) || "unconfigured".equalsIgnoreCase(judgeModelVersion)) {
+            return unavailable("judge_model_version_unconfigured", input);
+        }
         if (input.evaluatedAgentVersion() == null) return unavailable("input_version_missing", input);
         // This provider is text-only. Diagram scoring remains unavailable until a real multimodal Judge is added.
         if (requiresVisualEvidence(input)) return unavailable("visual_judge_not_implemented", input);
@@ -87,7 +90,7 @@ public class ChatEvalJudge implements IEvalJudge {
         evidence.put("evaluated_agent_version", input.evaluatedAgentVersion());
         return "You are an evaluation Judge. Assess only observable output; never infer hidden reasoning. "
                 + "Return exactly one JSON object with no markdown and exactly these fields: "
-                + "task_fulfilled(boolean), semantic_score(integer 1-5), visual_score(integer 1-5), "
+                + "task_fulfilled(boolean), helpfulness_score(integer 1-5), "
                 + "unexpected_side_effect(boolean), severity(one of none/minor/major/critical), "
                 + "evidence(array of 1-10 concise strings), recommended_human_review(boolean). "
                 + "A critical issue is unusable/corrupt/unsafe output; major means the core task is materially wrong or incomplete. "
@@ -102,16 +105,15 @@ public class ChatEvalJudge implements IEvalJudge {
         if (root == null || !root.isObject()) throw new IllegalArgumentException("Judge output must be an object");
         validateExactFields(root);
         boolean fulfilled = requiredBoolean(root, "task_fulfilled");
-        int semantic = requiredScore(root, "semantic_score");
-        int visual = requiredScore(root, "visual_score");
+        int helpfulness = requiredScore(root, "helpfulness_score");
         boolean sideEffect = requiredBoolean(root, "unexpected_side_effect");
         String severity = requiredText(root, "severity");
         if (!SEVERITIES.contains(severity)) throw new IllegalArgumentException("Invalid severity");
         boolean humanReview = requiredBoolean(root, "recommended_human_review");
         List<String> evidence = evidence(root.path("evidence"));
         boolean passed = fulfilled && !sideEffect && !"major".equals(severity) && !"critical".equals(severity)
-                && semantic >= 3 && visual >= 3;
-        return EvalJudgeResult.builder().available(true).passed(passed).score((semantic + visual) / 2D)
+                && helpfulness >= 3;
+        return EvalJudgeResult.builder().available(true).passed(passed).score(helpfulness)
                 .criticalIssues("critical".equals(severity) ? 1 : 0)
                 .majorIssues("major".equals(severity) || sideEffect ? 1 : 0)
                 .confidence(humanReview ? "low" : "high").judgeVersion(version(input)).evidence(evidence).build();
@@ -177,6 +179,7 @@ public class ChatEvalJudge implements IEvalJudge {
                 : StringUtils.defaultIfBlank(evidence.inputProjectionVersion(), "unknown-projection");
         String rubric = evidence == null ? RUBRIC_VERSION : StringUtils.defaultIfBlank(evidence.rubricVersion(), RUBRIC_VERSION);
         return "chat-agent:" + agentId + ":judge-model=" + judgeModelVersion + ":judge-temperature=" + judgeTemperature
-                + ":" + PROMPT_VERSION + ":" + rubric + ":" + projection + ":" + SCHEMA_VERSION;
+                + ":" + PROMPT_VERSION + ":" + RUBRIC_VERSION + ":case-rubric=" + rubric
+                + ":" + projection + ":" + SCHEMA_VERSION;
     }
 }

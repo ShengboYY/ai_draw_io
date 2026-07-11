@@ -67,9 +67,11 @@ public class LiveEvalRunner {
         List<String> tools = execution.getTrace().getToolCalls().stream()
                 .map(call -> call.getName() + ":" + call.getStatus()).toList();
         EvalCaseDefinition.ExecutionProfile profile = evalCase.getExecutionProfile();
+        String rubric = evalCase.getDiagramType() == null || "none".equalsIgnoreCase(evalCase.getDiagramType())
+                ? "answer-rubric-v1" : "diagram-rubric-v1:" + evalCase.getDiagramType();
         IEvalJudge.EvaluatedAgentVersion version = new IEvalJudge.EvaluatedAgentVersion(
                 profile == null ? null : profile.getModel(), profile == null ? null : profile.getTemperature(),
-                "judge-input-v2", "diagram-rubric-v1:" + String.valueOf(evalCase.getDiagramType()));
+                "judge-input-v2", rubric);
         return new IEvalJudge.JudgeInput(evalCase.getCaseId(), evalCase.getDiagramType(), String.valueOf(user),
                 initialGraph, finalGraph, execution.getResponseText(), issues, tools, version);
     }
