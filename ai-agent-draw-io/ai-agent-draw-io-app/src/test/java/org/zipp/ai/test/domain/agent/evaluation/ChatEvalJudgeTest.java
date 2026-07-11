@@ -28,14 +28,17 @@ public class ChatEvalJudgeTest {
         DrawioGraphNormalizer.Graph graph = new DrawioGraphNormalizer.Graph(
                 Set.of("gateway"), Set.of(), Map.of("gateway", 1));
 
-        EvalJudgeResult result = judge.judge(new IEvalJudge.JudgeInput(
-                "case-1", "architecture", "Add a gateway", graph, "Done"));
+        IEvalJudge.JudgeInput input = input("architecture", graph, true);
+        EvalJudgeResult result = judge.judge(input);
 
         assertTrue(result.isAvailable());
         assertTrue(result.isPassed());
         assertEquals(4.5D, result.getScore(), 0.001D);
-        assertEquals(judge.version(), result.getJudgeVersion());
-        assertTrue(chat.prompt.contains("normalized_graph"));
+        assertEquals(judge.version(input), result.getJudgeVersion());
+        assertTrue(result.getJudgeVersion().contains("model=judge-model-v1"));
+        assertTrue(chat.prompt.contains("final_graph"));
+        assertTrue(chat.prompt.contains("deterministic_issues"));
+        assertTrue(chat.prompt.contains("render_evidence"));
         assertFalse(chat.prompt.contains("<mxGraphModel"));
     }
 
@@ -44,10 +47,29 @@ public class ChatEvalJudgeTest {
         RecordingChat chat = new RecordingChat("```json\n{\"task_fulfilled\":true}\n```");
 
         EvalJudgeResult result = new ChatEvalJudge(chat, "judge-agent").judge(
-                new IEvalJudge.JudgeInput("case-1", "flowchart", "task", null, "response"));
+                input("flowchart", new DrawioGraphNormalizer.Graph(Set.of(), Set.of(), Map.of()), true));
 
         assertFalse(result.isAvailable());
         assertFalse(result.isPassed());
+    }
+
+    @Test
+    public void diagramJudgeWithoutRenderedEvidenceMustBeUnavailableWithoutCallingTheModel() {
+        RecordingChat chat = new RecordingChat("unused");
+
+        EvalJudgeResult result = new ChatEvalJudge(chat, "judge-agent").judge(
+                input("architecture", new DrawioGraphNormalizer.Graph(Set.of("gateway"), Set.of(), Map.of()), false));
+
+        assertFalse(result.isAvailable());
+        assertNull(chat.prompt);
+        assertTrue(result.getEvidence().contains("judge_unavailable:visual_evidence_unavailable"));
+    }
+
+    private IEvalJudge.JudgeInput input(String diagramType, DrawioGraphNormalizer.Graph graph, boolean rendered) {
+        IEvalJudge.RenderEvidence images = rendered ? new IEvalJudge.RenderEvidence("before-image", "after-image") : null;
+        return new IEvalJudge.JudgeInput("case-1", diagramType, "Add a gateway", graph, graph, "Done",
+                List.of("no deterministic issues"), List.of("modify_diagram:SUCCESS"),
+                new IEvalJudge.EvidenceVersion("judge-model-v1", 0D, "renderer-v1", "architecture-rubric-v1"), images);
     }
 
     private static final class RecordingChat implements IChatService {

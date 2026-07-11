@@ -34,9 +34,9 @@ public class LiveEvalRunner {
                 EvalHarnessResult.Status status = deterministic.getStatus();
                 boolean passed = deterministic.isPassed();
                 if (Boolean.TRUE.equals(evalCase.getExpected().getJudgeRequired())) {
-                    if (judge == null) return sample(evalCase, repetition, EvalHarnessResult.Status.UNAVAILABLE,
+                    if (judge == null || !judge.isCalibrated()) return sample(evalCase, repetition, EvalHarnessResult.Status.UNAVAILABLE,
                             false, execution, started, "JudgeUnavailable");
-                    EvalJudgeResult judged = judge.judge(judgeInput(evalCase, execution));
+                    EvalJudgeResult judged = judge.judge(judgeInput(evalCase, execution, deterministic));
                     if (judged == null || !judged.isAvailable()) return sample(evalCase, repetition,
                             EvalHarnessResult.Status.UNAVAILABLE, false, execution, started, "JudgeUnavailable");
                     if (!judged.isPassed() || judged.getCriticalIssues() > 0) {
@@ -55,11 +55,24 @@ public class LiveEvalRunner {
         throw new IllegalStateException("unreachable");
     }
 
-    private IEvalJudge.JudgeInput judgeInput(EvalCaseDefinition evalCase, EvalExecution execution) {
+    private IEvalJudge.JudgeInput judgeInput(EvalCaseDefinition evalCase, EvalExecution execution,
+                                             EvalHarnessResult deterministic) {
         Object user = evalCase.getInput().getOrDefault("user", evalCase.getInput().get("turns"));
-        DrawioGraphNormalizer.Graph graph = new DrawioGraphNormalizer().normalize(execution.getFinalCanvasXml(),
-                evalCase.getExpected().getGraph() == null ? java.util.Map.of() : evalCase.getExpected().getGraph().getAliases());
-        return new IEvalJudge.JudgeInput(evalCase.getCaseId(), evalCase.getDiagramType(), String.valueOf(user), graph, execution.getResponseText());
+        java.util.Map<String, String> aliases = evalCase.getExpected().getGraph() == null
+                ? java.util.Map.of() : evalCase.getExpected().getGraph().getAliases();
+        DrawioGraphNormalizer normalizer = new DrawioGraphNormalizer();
+        DrawioGraphNormalizer.Graph initialGraph = normalizer.normalize(execution.getInitialCanvasXml(), aliases);
+        DrawioGraphNormalizer.Graph finalGraph = normalizer.normalize(execution.getFinalCanvasXml(), aliases);
+        List<String> issues = deterministic.getGraders().stream().flatMap(result -> result.getEvidence().stream()).toList();
+        List<String> tools = execution.getTrace().getToolCalls().stream()
+                .map(call -> call.getName() + ":" + call.getStatus()).toList();
+        EvalCaseDefinition.ExecutionProfile profile = evalCase.getExecutionProfile();
+        IEvalJudge.EvidenceVersion version = new IEvalJudge.EvidenceVersion(
+                profile == null ? null : profile.getModel(), profile == null ? null : profile.getTemperature(),
+                "judge-input-v2", "diagram-rubric-v1:" + String.valueOf(evalCase.getDiagramType()));
+        // A renderer/VLM adapter must populate RenderEvidence before diagram visual scoring can become available.
+        return new IEvalJudge.JudgeInput(evalCase.getCaseId(), evalCase.getDiagramType(), String.valueOf(user),
+                initialGraph, finalGraph, execution.getResponseText(), issues, tools, version, null);
     }
 
     private EvalSampleResult sample(EvalCaseDefinition evalCase, int repetition, EvalHarnessResult.Status status,

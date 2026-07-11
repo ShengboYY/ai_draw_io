@@ -17,8 +17,10 @@ public class LiveEvalStatisticsTest {
     public void shouldRetryOnlyInfrastructureErrorsAndRunRequiredJudge() {
         EvalCaseDefinition evalCase = caseDefinition("case-1", true);
         AtomicInteger calls = new AtomicInteger();
-        IEvalJudge judge = input -> EvalJudgeResult.builder().available(true).passed(true).criticalIssues(0)
+        IEvalJudge rawJudge = input -> EvalJudgeResult.builder().available(true).passed(true).criticalIssues(0)
                 .judgeVersion("judge-v1").build();
+        IEvalJudge judge = new CalibratedEvalJudge(rawJudge,
+                JudgeCalibrationService.Report.builder().approved(true).judgeVersion("judge-v1").build());
 
         List<EvalSampleResult> samples = new LiveEvalRunner().run(List.of(evalCase), 1, ignored -> {
             if (calls.incrementAndGet() < 3) throw new EvalInfrastructureException("429");
@@ -90,6 +92,18 @@ public class LiveEvalStatisticsTest {
         EvalJudgeResult result = judge.judge(null);
 
         assertFalse(result.isAvailable());
+    }
+
+    @Test
+    public void rawJudgeMustNotBeAcceptedByTheLiveRunner() {
+        EvalCaseDefinition evalCase = caseDefinition("case-raw-judge", true);
+        IEvalJudge rawJudge = input -> EvalJudgeResult.builder().available(true).passed(true)
+                .judgeVersion("raw-v1").build();
+
+        List<EvalSampleResult> samples = new LiveEvalRunner().run(
+                List.of(evalCase), 1, ignored -> execution(evalCase), rawJudge);
+
+        assertEquals(EvalHarnessResult.Status.UNAVAILABLE, samples.get(0).getStatus());
     }
 
     private EvalSampleResult sample(String id, boolean passed, EvalHarnessResult.Status status) {

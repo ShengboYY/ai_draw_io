@@ -27,4 +27,9 @@ public class CalibratedEvalJudge implements IEvalJudge {
         }
         return result;
     }
+
+    @Override
+    public boolean isCalibrated() {
+        return calibration != null && calibration.isApproved();
+    }
 }
