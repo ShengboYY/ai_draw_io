@@ -5,6 +5,7 @@ origin: specification-derived
 risk: low
 diagramType: none
 fixtureVersion: fixture-v1
+xmlContractVersion: drawio-v1
 tags: [answer_only, no_mutation]
 privacy: {classification: synthetic, sanitizerVersion: null}
 provenance: {sourceTraceRetained: false, reviewer: eval-team, approvedAt: "2026-07-11T00:00:00Z"}

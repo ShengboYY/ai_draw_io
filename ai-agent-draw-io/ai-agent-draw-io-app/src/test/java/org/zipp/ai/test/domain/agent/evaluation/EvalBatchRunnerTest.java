@@ -27,6 +27,7 @@ public class EvalBatchRunnerTest {
         assertTrue(markdown.contains("latency:"));
         assertTrue(markdown.contains("execution profile:"));
         assertTrue(markdown.contains("tool policy: tool-policy-v1"));
+        assertTrue(markdown.contains("artifact: semantic nodes added:"));
     }
 
     @Test

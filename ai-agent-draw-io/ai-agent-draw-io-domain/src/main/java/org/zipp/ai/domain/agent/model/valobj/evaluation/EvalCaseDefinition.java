@@ -25,6 +25,7 @@ public class EvalCaseDefinition {
     private String risk;
     private String diagramType;
     private String fixtureVersion;
+    private String xmlContractVersion;
 
     @Builder.Default
     private List<String> tags = new ArrayList<>();
@@ -78,6 +79,44 @@ public class EvalCaseDefinition {
         private Boolean requireCanvasChange;
         private Integer maxCriticalIssues;
         private Integer maxMajorIssues;
+        private GraphAssertions graph;
+
+        @Builder.Default
+        private List<String> protectedNodes = new ArrayList<>();
+
+        @Builder.Default
+        private List<TurnExpected> turns = new ArrayList<>();
+    }
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class TurnExpected {
+        private String routeType;
+        private Boolean requireCanvasChange;
+    }
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class GraphAssertions {
+        private String aliasMapVersion;
+        @Builder.Default private Map<String, String> aliases = Map.of();
+        @Builder.Default private List<String> requiredNodes = new ArrayList<>();
+        @Builder.Default private List<String> forbiddenNodes = new ArrayList<>();
+        @Builder.Default private List<EdgeAssertion> requiredEdges = new ArrayList<>();
+    }
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class EdgeAssertion {
+        private String source;
+        private String target;
+        private String label;
     }
 
     /** Recorded deterministic inputs for Mode B; production cases must not share a global replay script. */
@@ -92,6 +131,19 @@ public class EvalCaseDefinition {
 
         @Builder.Default
         private List<ReplayToolCall> toolCalls = new ArrayList<>();
+
+        @Builder.Default
+        private List<ReplayTurn> turns = new ArrayList<>();
+    }
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class ReplayTurn {
+        private String routerReply;
+        private EvalTrace.TaskOutcome taskOutcome;
+        @Builder.Default private List<ReplayToolCall> toolCalls = new ArrayList<>();
     }
 
     @Data

@@ -68,6 +68,9 @@ public class EvalBatchRunner {
                 report.append("- error: ").append(result.getErrorClass()).append(": ")
                         .append(result.getErrorMessage()).append("\n");
             }
+            for (String artifact : result.getArtifactEvidence()) {
+                report.append("- artifact: ").append(artifact).append("\n");
+            }
             for (var grader : result.getGraders()) {
                 report.append("- grader ").append(grader.getGraderName()).append("@")
                         .append(grader.getGraderVersion()).append(": ")

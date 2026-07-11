@@ -5,6 +5,7 @@ origin: specification-derived
 risk: high
 diagramType: architecture
 fixtureVersion: fixture-v1
+xmlContractVersion: drawio-v1
 tags:
   - edit_existing
   - tool_policy

@@ -5,6 +5,7 @@ origin: specification-derived
 risk: medium
 diagramType: architecture
 fixtureVersion: fixture-v1
+xmlContractVersion: drawio-v1
 tags: [edit_existing, fast_path, style_edit]
 privacy: {classification: synthetic, sanitizerVersion: null}
 provenance: {sourceTraceRetained: false, reviewer: eval-team, approvedAt: "2026-07-11T00:00:00Z"}

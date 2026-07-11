@@ -27,6 +27,9 @@ public class DefaultEvalHarness {
     private static final String ROUTE_TOOL_GRADER_VERSION = "route-tool-v1";
     private static final String XML_GRADER_VERSION = "xml-integrity-v1";
     private static final String VISUAL_GRADER_VERSION = "visual-quality-v1";
+    private static final String GRAPH_GRADER_VERSION = "graph-assertion-v1";
+    private static final String PRESERVATION_GRADER_VERSION = "semantic-preservation-v1";
+    private static final String MULTI_TURN_GRADER_VERSION = "multi-turn-state-v1";
 
     private final DefaultCanvasAnalyzer canvasAnalyzer;
 
@@ -46,10 +49,13 @@ public class DefaultEvalHarness {
 
         CanvasAnalysis analysis = canvasAnalyzer.analyze(
                 execution.getFinalCanvasXml(), execution.getEvalCase().getDiagramType());
-        List<EvalGraderResult> graders = List.of(
+        List<EvalGraderResult> graders = new ArrayList<>(List.of(
                 gradeRouteAndToolPolicy(execution),
                 gradeXmlIntegrity(execution.getFinalCanvasXml()),
-                gradeVisualQuality(execution.getEvalCase().getExpected(), analysis));
+                gradeVisualQuality(execution.getEvalCase().getExpected(), analysis)));
+        if (execution.getEvalCase().getExpected().getGraph() != null) graders.add(gradeGraph(execution));
+        if (!safeList(execution.getEvalCase().getExpected().getProtectedNodes()).isEmpty()) graders.add(gradePreservation(execution));
+        if (!execution.getEvalCase().getExpected().getTurns().isEmpty()) graders.add(gradeMultiTurn(execution));
         boolean passed = graders.stream().allMatch(EvalGraderResult::isPassed);
         return EvalHarnessResult.builder()
                 .caseId(execution.getEvalCase().getCaseId())
@@ -63,7 +69,98 @@ public class DefaultEvalHarness {
                 .status(passed ? EvalHarnessResult.Status.PASS : EvalHarnessResult.Status.FAIL)
                 .passed(passed)
                 .graders(graders)
+                .artifactEvidence(semanticDiffEvidence(execution))
                 .build();
+    }
+
+    private List<String> semanticDiffEvidence(EvalExecution execution) {
+        if (!notBlank(execution.getInitialCanvasXml()) || !notBlank(execution.getFinalCanvasXml())) return List.of();
+        EvalCaseDefinition.GraphAssertions expected = execution.getEvalCase().getExpected().getGraph();
+        java.util.Map<String, String> aliases = expected == null ? java.util.Map.of() : expected.getAliases();
+        DrawioGraphNormalizer normalizer = new DrawioGraphNormalizer();
+        Set<String> before = normalizer.normalize(execution.getInitialCanvasXml(), aliases).nodes();
+        Set<String> after = normalizer.normalize(execution.getFinalCanvasXml(), aliases).nodes();
+        Set<String> added = new java.util.LinkedHashSet<>(after);
+        added.removeAll(before);
+        Set<String> removed = new java.util.LinkedHashSet<>(before);
+        removed.removeAll(after);
+        return List.of("semantic nodes added: " + added, "semantic nodes removed: " + removed);
+    }
+
+    private EvalGraderResult gradeMultiTurn(EvalExecution execution) {
+        List<EvalCaseDefinition.TurnExpected> expectedTurns = execution.getEvalCase().getExpected().getTurns();
+        List<EvalExecution.TurnExecution> actualTurns = execution.getTurns() == null ? List.of() : execution.getTurns();
+        List<String> evidence = new ArrayList<>();
+        if (expectedTurns.size() != actualTurns.size()) {
+            evidence.add("Expected " + expectedTurns.size() + " turns but got " + actualTurns.size() + ".");
+        }
+        int count = Math.min(expectedTurns.size(), actualTurns.size());
+        for (int index = 0; index < count; index++) {
+            EvalCaseDefinition.TurnExpected expected = expectedTurns.get(index);
+            EvalExecution.TurnExecution actual = actualTurns.get(index);
+            String route = actual.getTrace() == null || actual.getTrace().getRouting() == null ? null
+                    : actual.getTrace().getRouting().getRouteType();
+            if (notBlank(expected.getRouteType()) && !Objects.equals(expected.getRouteType(), route)) {
+                evidence.add("Turn " + index + " expected route " + expected.getRouteType() + " but got " + route + ".");
+            }
+            boolean changed = !Objects.equals(actual.getBeforeCanvasXml(), actual.getAfterCanvasXml());
+            if (expected.getRequireCanvasChange() != null && expected.getRequireCanvasChange() != changed) {
+                evidence.add("Turn " + index + " canvas change expected=" + expected.getRequireCanvasChange() + " actual=" + changed + ".");
+            }
+            if (index > 0 && !Objects.equals(actualTurns.get(index - 1).getAfterCanvasXml(), actual.getBeforeCanvasXml())) {
+                evidence.add("Turn " + index + " did not receive the prior turn canvas state.");
+            }
+        }
+        return grader("multi_turn_state", MULTI_TURN_GRADER_VERSION, evidence);
+    }
+
+    private EvalGraderResult gradeGraph(EvalExecution execution) {
+        EvalCaseDefinition.GraphAssertions expected = execution.getEvalCase().getExpected().getGraph();
+        DrawioGraphNormalizer normalizer = new DrawioGraphNormalizer();
+        DrawioGraphNormalizer.Graph graph = normalizer.normalize(execution.getFinalCanvasXml(), expected.getAliases());
+        List<String> evidence = new ArrayList<>();
+        for (String node : safeList(expected.getRequiredNodes())) {
+            String canonical = normalizer.canonical(node, canonicalAliases(expected));
+            if (!graph.nodes().contains(canonical)) evidence.add("Required node is missing: " + node + ".");
+        }
+        for (String node : safeList(expected.getForbiddenNodes())) {
+            String canonical = normalizer.canonical(node, canonicalAliases(expected));
+            if (graph.nodes().contains(canonical)) evidence.add("Forbidden node is present: " + node + ".");
+        }
+        for (EvalCaseDefinition.EdgeAssertion edge : expected.getRequiredEdges() == null ? List.<EvalCaseDefinition.EdgeAssertion>of() : expected.getRequiredEdges()) {
+            String source = normalizer.canonical(edge.getSource(), canonicalAliases(expected));
+            String target = normalizer.canonical(edge.getTarget(), canonicalAliases(expected));
+            String label = normalizer.canonical(edge.getLabel(), canonicalAliases(expected));
+            boolean found = graph.edges().stream().anyMatch(actual -> Objects.equals(source, actual.source())
+                    && Objects.equals(target, actual.target()) && (!notBlank(label) || Objects.equals(label, actual.label())));
+            if (!found) evidence.add("Required edge is missing: " + edge.getSource() + " -> " + edge.getTarget() + ".");
+        }
+        return grader("graph_assertion", GRAPH_GRADER_VERSION, evidence);
+    }
+
+    private EvalGraderResult gradePreservation(EvalExecution execution) {
+        EvalCaseDefinition.GraphAssertions graphExpected = execution.getEvalCase().getExpected().getGraph();
+        java.util.Map<String, String> aliases = graphExpected == null ? java.util.Map.of() : graphExpected.getAliases();
+        DrawioGraphNormalizer normalizer = new DrawioGraphNormalizer();
+        DrawioGraphNormalizer.Graph before = normalizer.normalize(execution.getInitialCanvasXml(), aliases);
+        DrawioGraphNormalizer.Graph after = normalizer.normalize(execution.getFinalCanvasXml(), aliases);
+        List<String> evidence = new ArrayList<>();
+        for (String protectedNode : safeList(execution.getEvalCase().getExpected().getProtectedNodes())) {
+            String canonical = normalizer.canonical(protectedNode, canonicalAliases(graphExpected));
+            int initialMatches = before.nodeCounts().getOrDefault(canonical, 0);
+            if (initialMatches == 0) evidence.add("Protected node is absent from initial canvas: " + protectedNode + ".");
+            else if (initialMatches > 1) evidence.add("Protected node identity is ambiguous in initial canvas: " + protectedNode + ".");
+            else if (!after.nodes().contains(canonical)) evidence.add("Protected node was not preserved: " + protectedNode + ".");
+        }
+        return grader("preservation", PRESERVATION_GRADER_VERSION, evidence);
+    }
+
+    private java.util.Map<String, String> canonicalAliases(EvalCaseDefinition.GraphAssertions expected) {
+        if (expected == null || expected.getAliases() == null) return java.util.Map.of();
+        DrawioGraphNormalizer normalizer = new DrawioGraphNormalizer();
+        java.util.Map<String, String> result = new java.util.LinkedHashMap<>();
+        expected.getAliases().forEach((key, value) -> result.put(normalizer.canonical(key, java.util.Map.of()), normalizer.canonical(value, java.util.Map.of())));
+        return result;
     }
 
     private EvalGraderResult gradeRouteAndToolPolicy(EvalExecution execution) {

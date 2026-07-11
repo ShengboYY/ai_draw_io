@@ -33,6 +33,9 @@ public class EvalHarnessResult {
     @Builder.Default
     private List<EvalGraderResult> graders = new ArrayList<>();
 
+    @Builder.Default
+    private List<String> artifactEvidence = new ArrayList<>();
+
     public enum Status {
         PASS,
         FAIL,

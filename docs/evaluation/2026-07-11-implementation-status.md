@@ -142,10 +142,42 @@ npm run build
 
 当前聚焦结果：25 个后端测试、1 个 Candidate Queue 页面测试通过；production build 通过；lint 为 0 error、8 个既有 warning。
 
+## Phase 4：Graph、保留度与多轮 Evaluation
+
+**状态：完成**
+
+| 方案要求 | 实现证据 | 结果 |
+| --- | --- | --- |
+| 确定性 Graph normalizer | `DrawioGraphNormalizer` 将 XML 投影为 canonical node/edge set，不依赖 embedding 或 LLM | 完成 |
+| 版本化 alias map | graph assertion 必须声明 `aliasMapVersion`；只允许 case 内显式 alias，未知/拼写近似不模糊通过 | 完成 |
+| Graph assertion grader | 支持 required/forbidden nodes 与 required directed edges/optional label，输出独立 grader version/evidence | 完成 |
+| 语义身份 preservation | protected node 按 canonical label 匹配，cell id 合法变化不会误报 deletion | 完成 |
+| 多轮 schema | 固定 `input.turns[]` 与等长 `replay.turns[]`；每回合有 router reply、outcome、tool sequence 和 expected route/change | 完成 |
+| canvas state 累积 | 每回合 before XML 必须等于上一回合 after XML；无 mutation 回合保持不变 | 完成 |
+| 多轮真实确定性组件 | 每回合运行真实 router 后处理和真实 canvas tool/patch/analyzer，最终再执行 graph/preservation/visual | 完成 |
+| fixture contract | 所有 case 固定 `fixture-v1` + `drawio-v1`；loader fail closed，迁移规则禁止运行时静默改写 | 完成 |
+| 可审阅 diff 证据 | JSON/Markdown report 独立记录 semantic nodes added/removed，不把正向证据混入失败 evidence | 完成 |
+| 磁盘闭环 | `clarify-then-edit` 两回合 case 经 batch 验证 clarify 不改图、edit 承接 canvas、Gateway 保留且 Worker 出现 | 完成 |
+
+### Phase 4 边界
+
+- canonical matching 是 exact normalized label + reviewed alias map；模糊候选只能进入 Judge/人工输入，绝不作为 CI hard pass。
+- 当前 preservation hard gate 保护声明的节点语义身份；更细的 style/geometry/edge preservation 可按 case assertion 后续扩展。
+- Mode B 使用录制 router reply，验证固定 turns 与 canvas state 传递；真实模型会话历史及自主澄清行为属于 Phase 6 Mode C。
+- fixture migration 流程和兼容版本已固定；当前没有历史 contract 需要实际迁移，因此没有伪造空 migration 脚本。
+
+验证命令：
+
+```text
+mvn -pl ai-agent-draw-io-app -am -Dtest=DefaultEvalHarnessTest,ModeBReplayExecutionFactoryTest,EvalBatchRunnerTest -Dsurefire.failIfNoSpecifiedTests=false test
+mvn clean test
+```
+
+当前结果：24 个 evaluation 测试和 2 个 infrastructure 测试通过；11 个磁盘 case（含多轮）全部通过 batch。
+
 ## 后续顺序
 
-1. 实现 Phase 4：Graph、保留度和多轮 Evaluation；
-2. 实现 Phase 5：受控 LLM 草拟；
-3. 实现 Phase 6：Live-model、Judge 与统计；
-4. 实现 Phase 7：Release Gate 与封存集；
-5. 实现 Phase 8：Canary、case health 和持续运营。
+1. 实现 Phase 5：受控 LLM 草拟；
+2. 实现 Phase 6：Live-model、Judge 与统计；
+3. 实现 Phase 7：Release Gate 与封存集；
+4. 实现 Phase 8：Canary、case health 和持续运营。

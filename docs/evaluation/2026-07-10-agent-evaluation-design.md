@@ -416,7 +416,7 @@ Harness 支持三种明确分离的执行模式：
 
 Mode B 不评测 prompt/模型质量；它的目标 bug 类别是路由后处理、工具策略、XML 完整性、patch/merge、画布分析与 repair。prompt/模型质量 bug 不能要求在 P1 通过 stub 回放证明修复，必须等 Mode C 运行。
 
-Mode B 的录制输入属于**每个 case 自己的版本化 fixture**，不能由全局测试脚本硬编码。当前单回合契约使用 `input.user`（后续多轮使用 `input.turns`），以及 `replay.initialCanvasXml`、`replay.routerReply`、`replay.toolCalls[]` 和 `replay.taskOutcome`。每个 `toolCalls[]` 元素记录 `name`、`mode`、`xml/cells`，并可用 `expectedRepairContains` 对生产工具返回的 repair feedback 做确定性断言。ExecutionFactory 必须只根据当前 case 构造执行；新增 route 或 tool 时通过扩展 factory 的显式 dispatch 支持，不能复用与 case 无关的固定产物。
+Mode B 的录制输入属于**每个 case 自己的版本化 fixture**，不能由全局测试脚本硬编码。单回合契约使用 `input.user`，以及 `replay.initialCanvasXml`、`replay.routerReply`、`replay.toolCalls[]` 和 `replay.taskOutcome`；多回合使用固定 `input.turns[]` 与等长的 `replay.turns[]`，每回合分别记录 router reply、task outcome 和 tool calls。每个 `toolCalls[]` 元素记录 `name`、`mode`、`xml/cells`，并可用 `expectedRepairContains` 对生产工具返回的 repair feedback 做确定性断言。ExecutionFactory 必须只根据当前 case 构造执行；新增 route 或 tool 时通过扩展 factory 的显式 dispatch 支持，不能复用与 case 无关的固定产物。
 
 Phase 1 的“repair loop”是**录制轨迹的确定性重放**：多个工具调用按 case 中的顺序执行，每一步都使用真实 XML toolkit、patch/merge、Analyzer 和 repair feedback，但不会让真实 LLM 根据 feedback 临场决定下一步。后者属于 Mode C/live-model E2E，不能由 stub replay 冒充。
 

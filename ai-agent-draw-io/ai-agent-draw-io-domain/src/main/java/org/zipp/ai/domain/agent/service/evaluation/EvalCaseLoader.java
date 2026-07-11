@@ -14,6 +14,7 @@ import java.util.Objects;
 public class EvalCaseLoader {
 
     private static final String SUPPORTED_FIXTURE_VERSION = "fixture-v1";
+    private static final String SUPPORTED_XML_CONTRACT_VERSION = "drawio-v1";
     private final ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
 
     public EvalCaseDefinition load(InputStream input) throws IOException {
@@ -32,6 +33,13 @@ public class EvalCaseLoader {
         }
         if (!SUPPORTED_FIXTURE_VERSION.equals(result.getFixtureVersion())) {
             throw new IllegalArgumentException("Unsupported fixtureVersion: " + result.getFixtureVersion());
+        }
+        if (!SUPPORTED_XML_CONTRACT_VERSION.equals(result.getXmlContractVersion())) {
+            throw new IllegalArgumentException("Unsupported xmlContractVersion: " + result.getXmlContractVersion());
+        }
+        if (result.getExpected().getGraph() != null
+                && isBlank(result.getExpected().getGraph().getAliasMapVersion())) {
+            throw new IllegalArgumentException("Graph assertions must include aliasMapVersion.");
         }
         if ("trace-derived-synthetic".equals(result.getOrigin())
                 && (result.getProvenance() == null || isBlank(result.getProvenance().getReviewer()))) {
