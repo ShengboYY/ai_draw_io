@@ -247,7 +247,37 @@ mvn clean test
 
 当前平台结果：6 个 live/statistics/Judge 测试通过；真实 Mode C 调用需显式凭据和受控运行环境。
 
+## Phase 7：Release Gate 与封存集
+
+**状态：代码实现完成；封存数据未挂载时强制 NO_DECISION**
+
+| 方案要求 | 实现证据 | 结果 |
+| --- | --- | --- |
+| 三态 release 结论 | `EvalReleaseGateService` 只返回 PASS/BLOCK/NO_DECISION | 完成 |
+| 确定性 hard gate | 任一明确 `FAIL` 立即 BLOCK，并列出 case/risk；不等待统计平均掩盖 | 完成 |
+| 基础设施隔离 | ERROR/UNAVAILABLE 只导致 NO_DECISION，不误报 Agent regression | 完成 |
+| 相对统计 gate | paired comparison 只有已 READY 且 `blocked=true` 才 BLOCK；CI 不足 NO_DECISION | 完成 |
+| Judge calibration gate | required Judge 未校准或版本未批准时 NO_DECISION | 完成 |
+| 外置封存集 | `SequesteredEvalCaseLoader` 只允许 repository 外受控路径，解析同一 ApprovedEvalCase schema | 完成 |
+| 封存集最小量 | 少于批准数量时 NO_DECISION；默认要求 20，可由部署配置 | 完成 |
+| 防泄漏报告 | release report 只写 outcome/reasons，不写封存 case 内容、fixture、prompt/XML | 完成 |
+| JSON/Markdown gate artifact | `release-gate.json/md` 可供 CI/人工评审读取 | 完成 |
+
+### Phase 7 当前外部状态
+
+- `ZIPP_EVAL_SEQUESTERED_ROOT` 默认空，且必须指向产品仓库外的受控挂载；当前仓库不包含任何封存 case。
+- 由于 Phase 6 的 case 数与 Judge 校准仍未达到运营门槛，当前真实 release run 应得到 `NO_DECISION`，不是 PASS。
+- 本阶段提供可被 CI 调用的 gate/service/report；具体 CI/CD 平台命令需在部署仓库按其发布系统接线。
+
+验证命令：
+
+```text
+mvn -pl ai-agent-draw-io-app -am -Dtest=EvalReleaseGateServiceTest -Dsurefire.failIfNoSpecifiedTests=false test
+mvn clean test
+```
+
+当前结果：5 个 Release Gate/封存 loader 测试通过。
+
 ## 后续顺序
 
-1. 实现 Phase 7：Release Gate 与封存集；
-2. 实现 Phase 8：Canary、case health 和持续运营。
+1. 实现 Phase 8：Canary、case health 和持续运营。

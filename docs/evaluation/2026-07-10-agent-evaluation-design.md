@@ -540,6 +540,8 @@ Harness 使用测试 workspace、固定模型配置和 fixture canvas，禁止�
 - **dev/core**：位于仓库，开发者可见，可用于开发、PR 和 nightly 回归；
 - **sequestered/release**：不提交到产品仓库，只能由受控 RC evaluator 读取；其 case、fixture、精确断言和失败样本不暴露给 prompt/skill 开发者。
 
+实现约束：封存集通过 `ZIPP_EVAL_SEQUESTERED_ROOT` 外置挂载，loader 拒绝产品仓库内路径。未挂载、低于最小 case 数或与统一 schema 不兼容时，Release Gate 必须 `NO_DECISION`；release report 不输出封存 case 的精确内容。
+
 开发只能以 dev/core 优化；release gate 必须同时报告封存集表现。每季度轮换一部分封存 case，并把成熟但不再敏感的 case 降级到 dev/core。任何因线上失败新增的 case，先进入封存集还是 dev/core 应由 case owner 决定并记录，避免所有修复都只是在公开题库上刷分。
 
 ## 10. Trace-to-Eval 交接与线上验证
