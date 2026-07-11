@@ -278,6 +278,37 @@ mvn clean test
 
 当前结果：5 个 Release Gate/封存 loader 测试通过。
 
+## Phase 8：Canary、Case Health 与持续运营
+
+**状态：代码实现完成；真实 canary/新增用户信号需部署与隐私审批**
+
+| 方案要求 | 实现证据 | 结果 |
+| --- | --- | --- |
+| canary 三态决策 | `EvalCanaryService` 输出 CONTINUE/HALT_RECOMMENDED/NO_DECISION | 完成 |
+| 安全信号优先 | canary 出现 critical finding 立即 HALT_RECOMMENDED，不被 infrastructure error 掩盖 | 完成 |
+| 相对线上阈值 | 比较 failure-rate increase、P95 latency ratio、average cost ratio | 完成 |
+| 基础设施隔离 | 请求量不足或 infrastructure error rate 超阈值返回 NO_DECISION | 完成 |
+| 不越权部署 | service 只给 recommendation，不执行 rollout、rollback 或外部发布动作 | 完成 |
+| case health | 按 eligible samples 标记 HEALTHY、FLAKY、ALWAYS_PASS_REVIEW、UNSCORABLE、STALE_REVIEW、BROKEN_BASELINE | 完成 |
+| 非敏感反馈回写 | `eval_case_health` 只保存 case/version、baseline reproduced、health/summary/time，无 run/user/payload | 完成 |
+| 运营报告 | 输出 `canary-decision.json` 与 `case-health.json`，时间显式 ISO 序列化 | 完成 |
+
+### Phase 8 外部状态与授权边界
+
+- 当前没有正在进行的真实 canary rollout，因此没有生成线上 CONTINUE/HALT 结论；服务等待部署平台传入窗口指标。
+- Undo、低评分、立即重试和人工大改尚未获得本任务中的隐私审批，也没有相应前端事件契约，因此没有擅自新增采集。
+- 若后续批准这些信号，应先完成事件目的说明、retention/deletion 契约和 telemetry schema，再作为 Candidate signal；不得直接当 TSR 或失败标签。
+- case health 应由 nightly/RC 结果周期性运行；`ALWAYS_PASS_REVIEW` 是审查/去重提示，不代表自动删除 case。
+
+验证命令：
+
+```text
+mvn -pl ai-agent-draw-io-app -am -Dtest=EvalOperationsServiceTest -Dsurefire.failIfNoSpecifiedTests=false test
+mvn clean test
+```
+
+当前结果：4 个 Canary/Case Health 测试通过。
+
 ## 后续顺序
 
-1. 实现 Phase 8：Canary、case health 和持续运营。
+代码阶段 0–8 已按顺序完成。进入真实工业运行前仍需完成 Phase 6/7 记录的运营前置：扩充 curated case、人工 Judge 校准、外置封存集、真实 provider baseline 和部署平台接线。

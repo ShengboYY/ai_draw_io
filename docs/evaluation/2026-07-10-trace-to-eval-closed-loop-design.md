@@ -296,6 +296,9 @@ Selector 默认关闭，通过 `ZIPP_EVAL_CANDIDATE_SELECTOR_ENABLED=true` 在�
 
 ### P3：扩展信号与封存集
 
+- Canary 与 case-health 只回写 case/version、baseline reproduced 和健康摘要；不得回写 source run、用户或原始 payload。
+- Undo、低评分、立即重试和人工大改必须先获得隐私审批并定义 retention/deletion，再进入普通 telemetry Selector；它们仍只是候选信号，不是自动失败标签。
+
 - 在得到隐私审批后接入 Undo、反馈、重试和人工大改信号；
 - 将成熟的 case 发布到封存 release 集的受控工作流；
 - 仅在高价值 Finding 上增加只读 RCA，关联 git SHA、prompt/skill version，不自动修改代码或创建 PR。
