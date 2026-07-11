@@ -41,9 +41,15 @@ import org.zipp.ai.domain.agent.model.valobj.usage.AgentRunTelemetry;
 import org.zipp.ai.domain.agent.model.valobj.usage.AgentTraceEvent;
 import org.zipp.ai.domain.agent.model.valobj.usage.LlmCallTelemetry;
 import org.zipp.ai.domain.agent.model.valobj.usage.ToolCallTelemetry;
+import org.zipp.ai.domain.agent.model.valobj.evaluation.intake.EvalCaseCandidate;
+import org.zipp.ai.domain.agent.model.valobj.evaluation.intake.EvalCaseLineage;
+import org.zipp.ai.domain.agent.model.valobj.evaluation.intake.EvalCaseReview;
+import org.zipp.ai.domain.agent.model.valobj.evaluation.intake.EvalCandidateStatus;
 import org.zipp.ai.domain.agent.service.debugtrace.AgentDebugTraceService;
 import org.zipp.ai.domain.agent.service.debugtrace.IAgentDebugTraceStore;
 import org.zipp.ai.domain.agent.service.ICanvasStateStore;
+import org.zipp.ai.domain.agent.service.evaluation.intake.ITraceToEvalStore;
+import org.zipp.ai.domain.agent.service.evaluation.intake.TraceToEvalIntakeService;
 import org.zipp.ai.domain.agent.service.usage.AgentUsageTelemetryService;
 import org.zipp.ai.test.domain.agent.FakeAgentUsageTelemetryStore;
 import org.zipp.ai.trigger.http.AdminController;
@@ -58,6 +64,8 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 import static org.junit.Assert.assertEquals;
@@ -71,6 +79,7 @@ public class AdminControllerTest {
     private FakeAdminAuditLogStore auditLogs;
     private FakeDebugTraceStore debugTraceStore;
     private FakeCanvasStateStore canvasStateStore;
+    private FakeTraceToEvalStore traceToEvalStore;
     private AdminController controller;
 
     @Before
@@ -80,6 +89,7 @@ public class AdminControllerTest {
         auditLogs = new FakeAdminAuditLogStore();
         debugTraceStore = new FakeDebugTraceStore();
         canvasStateStore = new FakeCanvasStateStore();
+        traceToEvalStore = new FakeTraceToEvalStore();
         AdminAuditLogService auditService = new AdminAuditLogService(
                 auditLogs, Clock.fixed(Instant.parse("2026-07-03T10:00:00Z"), ZoneOffset.UTC));
         AdminAuthorizationService authorizationService = new AdminAuthorizationService();
@@ -94,6 +104,7 @@ public class AdminControllerTest {
                 debugTraceStore, auditService, Clock.fixed(Instant.parse("2026-07-03T10:00:00Z"), ZoneOffset.UTC)));
         inject(controller, "adminAuthorizationService", authorizationService);
         inject(controller, "canvasStateStore", canvasStateStore);
+        inject(controller, "traceToEvalIntakeService", new TraceToEvalIntakeService(telemetryStore, traceToEvalStore));
 
         accounts.put(activeUser("usr_admin", "admin@example.com"));
         accounts.put(activeUser("usr_user", "user@example.com"));
@@ -112,6 +123,37 @@ public class AdminControllerTest {
 
         assertEquals("AUTH_FORBIDDEN", response.getCode());
         assertTrue(auditLogs.logs.isEmpty());
+    }
+
+    @Test
+    public void adminCanCreateMetadataOnlyEvalCandidateAndWritesAuditLog() {
+        authenticate("usr_admin", 0);
+        telemetryStore.runs.add(AgentRunTelemetry.builder()
+                .id("aru_eval")
+                .agentId("drawing-agent")
+                .status("SUCCESS")
+                .build());
+
+        Response<EvalCaseCandidate> response = controller.createEvalCandidate("aru_eval", request());
+
+        assertEquals("0000", response.getCode());
+        assertEquals("aru_eval", response.getData().getSourceRunId());
+        assertEquals(EvalCandidateStatus.DETECTED, response.getData().getStatus());
+        assertEquals(1, traceToEvalStore.candidates.size());
+        assertEquals(0, debugTraceStore.listCaptureRequests);
+        assertEquals("CREATE_EVAL_CANDIDATE", auditLogs.logs.get(0).getAction());
+    }
+
+    @Test
+    public void evalCandidateInfrastructureFailureIsAuditedWithoutLeakingDetails() {
+        authenticate("usr_admin", 0);
+        telemetryStore.runs.add(AgentRunTelemetry.builder().id("aru_eval").status("SUCCESS").build());
+        traceToEvalStore.failInsertCandidate = true;
+
+        Response<EvalCaseCandidate> response = controller.createEvalCandidate("aru_eval", request());
+
+        assertEquals("failed to create Eval Candidate", response.getInfo());
+        assertEquals("ERROR", auditLogs.logs.get(0).getOutcome());
     }
 
     @Test
@@ -897,6 +939,7 @@ public class AdminControllerTest {
     private static final class FakeDebugTraceStore implements IAgentDebugTraceStore {
         private final List<DebugTraceControl> controls = new ArrayList<>();
         private final List<DebugTraceCapture> captures = new ArrayList<>();
+        private int listCaptureRequests;
 
         @Override
         public void insertControl(DebugTraceControl control) {
@@ -924,9 +967,33 @@ public class AdminControllerTest {
 
         @Override
         public List<DebugTraceCapture> listCapturesByRunId(String runId) {
+            listCaptureRequests++;
             return captures.stream()
                     .filter(capture -> runId.equals(capture.getRunId()))
                     .toList();
         }
+    }
+
+    private static final class FakeTraceToEvalStore implements ITraceToEvalStore {
+        private final Map<String, EvalCaseCandidate> candidates = new HashMap<>();
+        private boolean failInsertCandidate;
+
+        @Override public Optional<EvalCaseCandidate> findCandidate(String candidateId) {
+            return Optional.ofNullable(candidates.get(candidateId));
+        }
+        @Override public Optional<EvalCaseCandidate> findCandidateBySourceRunAndFailureFamily(String runId, String family) {
+            return candidates.values().stream()
+                    .filter(candidate -> runId.equals(candidate.getSourceRunId()) && family.equals(candidate.getFailureFamily()))
+                    .findFirst();
+        }
+        @Override public void insertCandidate(EvalCaseCandidate candidate) {
+            if (failInsertCandidate) throw new IllegalStateException("database details");
+            candidates.put(candidate.getId(), candidate);
+        }
+        @Override public void updateCandidateStatus(String candidateId, EvalCandidateStatus status) {
+            candidates.get(candidateId).setStatus(status);
+        }
+        @Override public void insertReview(EvalCaseReview review) { }
+        @Override public void insertLineage(EvalCaseLineage lineage) { }
     }
 }

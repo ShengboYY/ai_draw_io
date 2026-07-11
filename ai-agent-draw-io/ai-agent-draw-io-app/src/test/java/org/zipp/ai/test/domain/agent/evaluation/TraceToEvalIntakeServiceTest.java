@@ -15,6 +15,7 @@ import java.util.Optional;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertSame;
 
 public class TraceToEvalIntakeServiceTest {
     @Test
@@ -33,6 +34,31 @@ public class TraceToEvalIntakeServiceTest {
         assertEquals("trace-derived-synthetic", lineage.getOrigin());
         assertFalse(java.util.Arrays.stream(EvalCaseLineage.class.getDeclaredFields())
                 .anyMatch(field -> field.getName().contains("sourceRun") || field.getName().contains("candidate")));
+    }
+
+    @Test
+    public void shouldReturnTheExistingCandidateForTheSameManualRun() {
+        FakeAgentUsageTelemetryStore telemetry = new FakeAgentUsageTelemetryStore();
+        telemetry.runs.add(AgentRunTelemetry.builder().id("run-1").agentId("drawing-agent").status("SUCCESS").build());
+        MemoryStore store = new MemoryStore();
+        TraceToEvalIntakeService service = new TraceToEvalIntakeService(telemetry, store);
+
+        EvalCaseCandidate first = service.createManualCandidate("run-1", "reviewer-a");
+        EvalCaseCandidate duplicate = service.createManualCandidate("run-1", "reviewer-b");
+
+        assertSame(first, duplicate);
+        assertEquals(1, store.candidates.size());
+        assertEquals("Manual review of run status=SUCCESS", first.getEvidenceSummary());
+    }
+
+    @Test(expected = IllegalStateException.class)
+    public void shouldNotPublishBeforeHumanApproval() {
+        FakeAgentUsageTelemetryStore telemetry = new FakeAgentUsageTelemetryStore();
+        telemetry.runs.add(AgentRunTelemetry.builder().id("run-1").agentId("drawing-agent").status("SUCCESS").build());
+        TraceToEvalIntakeService service = new TraceToEvalIntakeService(telemetry, new MemoryStore());
+
+        EvalCaseCandidate candidate = service.createManualCandidate("run-1", "reviewer-a");
+        service.recordPublication(candidate.getId(), "case-1", "core-v1", "manual-synthesis", "reviewer-a");
     }
 
     private static class MemoryStore implements ITraceToEvalStore {

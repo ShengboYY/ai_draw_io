@@ -35,6 +35,7 @@ import {
     AdminDebugTraceCaptureDTO,
     AdminDebugTraceControlDTO,
     AdminDebugTraceControlRequestDTO,
+    EvalCaseCandidateDTO,
 } from '@/types/api';
 
 export class ApiResponseError extends Error {
@@ -301,6 +302,15 @@ export const agentApi = {
             credentials: 'include',
         });
         return handleResponse<DiagramCanvasStateResponseDTO | null>(response);
+    },
+
+    adminCreateEvalCandidate: async (runId: string): Promise<Response<EvalCaseCandidateDTO>> => {
+        const response = await fetch(`${API_CONFIG.BASE_URL}/admin/runs/${encodeURIComponent(runId)}/eval-candidates`, {
+            method: 'POST',
+            headers: await csrfHeaders({ 'Content-Type': 'application/json' }),
+            credentials: 'include',
+        });
+        return handleResponse<EvalCaseCandidateDTO>(response);
     },
 
     adminRunCaptures: async (runId: string): Promise<Response<AdminDebugTraceCaptureDTO[]>> => {

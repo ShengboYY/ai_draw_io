@@ -500,6 +500,22 @@ export interface AdminDiagramTraceDTO {
   payloadAvailability?: AdminPayloadAvailabilityDTO;
 }
 
+export interface EvalCaseCandidateDTO {
+  id: string;
+  sourceRunId: string;
+  sourceSpanId?: string;
+  sourcePhase?: string;
+  sourceAgentId?: string;
+  failureFamily: string;
+  ruleId: string;
+  evidenceSummary: string;
+  risk: string;
+  discoveredAt?: string;
+  policyVersion: string;
+  status: string;
+  createdBy: string;
+}
+
 export interface AdminDebugTraceCaptureDTO {
   id: string;
   controlId?: string;

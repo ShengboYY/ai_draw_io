@@ -55,3 +55,10 @@ test('admin run detail supports P5 snapshot replay in the diagram preview', () =
   assert.match(pageSource, /setSelectedSnapshotId\(snapshot\.id/);
   assert.match(pageSource, /setPlayingReplay/);
 });
+
+test('admin run detail provides the metadata-only Trace-to-Eval manual entry', () => {
+  assert.match(pageSource, /Create Eval Candidate/);
+  assert.match(pageSource, /adminCreateEvalCandidate\(runId\)/);
+  assert.match(pageSource, /evalCandidate\.status/);
+  assert.match(pageSource, /P0 deliberately sends only the run id/);
+});

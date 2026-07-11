@@ -272,6 +272,8 @@ provenance:
 - 发布的 case 必须使用离线 Evaluation 方案 §5.2 的最终 `ApprovedEvalCase` schema，不能有 P0 专属格式；
 - 使用现有 Harness 手动验证 baseline 与 candidate。
 
+P0 的“发布”是人工工作流：审核者将合成 case 以统一 `ApprovedEvalCase` schema 加入受控数据集，运行 Harness 验证后，再由 publication API 记录不可回链 lineage。P0 服务端不自动写工作区或 Git，也不把 source run/candidate/promotion id 写入 case 文件。
+
 ### P1：确定性候选队列
 
 - 定时运行 CandidateSelectorAdapter；

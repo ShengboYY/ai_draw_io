@@ -2,6 +2,7 @@ package org.zipp.ai.domain.agent.service.evaluation.intake;
 
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.zipp.ai.domain.agent.model.valobj.evaluation.intake.EvalCaseCandidate;
 import org.zipp.ai.domain.agent.model.valobj.evaluation.intake.EvalCaseLineage;
 import org.zipp.ai.domain.agent.model.valobj.evaluation.intake.EvalCaseReview;
@@ -55,6 +56,7 @@ public class TraceToEvalIntakeService {
         return candidate;
     }
 
+    @Transactional
     public EvalCaseCandidate review(String candidateId, String decision, String actor, String reason) {
         require(candidateId, "candidateId"); require(actor, "actor");
         String normalized = StringUtils.upperCase(StringUtils.trimToEmpty(decision));
@@ -68,6 +70,7 @@ public class TraceToEvalIntakeService {
         intakeStore.updateCandidateStatus(candidateId, next); candidate.setStatus(next); return candidate;
     }
 
+    @Transactional
     public EvalCaseLineage recordPublication(String candidateId, String caseId, String datasetVersion, String sanitizerVersion, String actor) {
         require(candidateId, "candidateId"); require(caseId, "caseId"); require(datasetVersion, "datasetVersion"); require(actor, "actor");
         EvalCaseCandidate candidate = intakeStore.findCandidate(candidateId).orElseThrow(() -> new IllegalArgumentException("candidate not found"));

@@ -70,12 +70,46 @@ mvn clean test
 
 当前结果：13 个 evaluation 测试、2 个 infrastructure 测试通过；10 个磁盘 case 全部通过 Mode B batch。
 
+## Phase 2：Trace-to-Eval 人工入口
+
+**状态：完成**
+
+| 方案要求 | 实现证据 | 结果 |
+| --- | --- | --- |
+| run 详情人工入口 | 管理端 `Diagram trace` 页面提供 `Create Eval Candidate`，显示 candidate id/status 和人工重建提示 | 完成 |
+| metadata-only 创建 | 前端只提交 run id；`TraceToEvalIntakeService` 只读取 run/step metadata，不调用 Debug Trace 或 LLM | 完成 |
+| 管理员权限与 CSRF | 入口复用 admin authorization；前端 POST 使用统一 CSRF header | 完成 |
+| candidate/review/lineage 持久化 | migration、MyBatis mapper、repository 和 service 已覆盖三层记录；candidate 允许短期 source run，review/lineage 不保存 payload | 完成 |
+| 人工为唯一批准门槛 | 只有 `APPROVED` candidate 可记录 publication；未批准发布由状态机拒绝 | 完成 |
+| 不可回链 lineage | `EvalCaseLineage` 无 source run/candidate 字段，并有反射测试；Git case 不写 candidate/promotion id | 完成 |
+| 幂等人工创建 | 同一 `(source_run_id, manual_review)` 重复操作返回原 candidate；service 与数据库唯一键双层保护 | 完成 |
+| 审计和错误隔离 | 创建、审核、发布的成功、拒绝和运行时错误均写审计；运行时错误不向 UI 泄漏数据库细节 | 完成 |
+| review/publication 原子性 | 两个跨表状态迁移使用事务边界，避免 review/lineage 写入与 candidate 状态半成功 | 完成 |
+| 统一 Eval Case 交接 | 人工合成 YAML 使用 Phase 1 的同一 `EvalCaseDefinition`/loader，经 batch 验证后才记录 lineage；服务端不自动写 Git | 完成 |
+
+### Phase 2 边界
+
+- P0 管理端只提供 run → candidate 的人工入口；候选列表、筛选、批量去重与完整状态迁移 UI 属于 Phase 3。
+- P0 不读取 debug payload、不脱敏、不调用 LLM；受控内容访问和 LLM Draft 属于 Phase 5。
+- 当前人工审核 API 将 `DETECTED` 直接变为 `APPROVED/REJECTED`；枚举已保留完整状态，Phase 3 接队列时再启用 TRIAGED/UNDER_REVIEW 等迁移。
+- publication endpoint 只记录已由人工添加并经 Harness 验证的 case reference，不是自动 `CasePublisherAdapter`，也不会写工作区或 Git。
+
+验证命令：
+
+```text
+mvn -pl ai-agent-draw-io-app -am -Dtest=TraceToEvalIntakeServiceTest,AdminControllerTest -Dsurefire.failIfNoSpecifiedTests=false test
+node --test --test-name-pattern='metadata-only Trace-to-Eval' tests/admin-diagram-trace-page.test.mjs
+npm run lint
+npm run build
+```
+
+当前聚焦结果：20 个后端测试通过；前端入口测试与 production build 通过；lint 为 0 error、8 个本阶段前已存在的 drawio page warning。
+
 ## 后续顺序
 
-1. 审查并收口 Phase 2：Trace-to-Eval 人工入口；
-2. 实现 Phase 3：确定性 Candidate Queue；
-3. 实现 Phase 4：Graph、保留度和多轮 Evaluation；
-4. 实现 Phase 5：受控 LLM 草拟；
-5. 实现 Phase 6：Live-model、Judge 与统计；
-6. 实现 Phase 7：Release Gate 与封存集；
-7. 实现 Phase 8：Canary、case health 和持续运营。
+1. 实现 Phase 3：确定性 Candidate Queue；
+2. 实现 Phase 4：Graph、保留度和多轮 Evaluation；
+3. 实现 Phase 5：受控 LLM 草拟；
+4. 实现 Phase 6：Live-model、Judge 与统计；
+5. 实现 Phase 7：Release Gate 与封存集；
+6. 实现 Phase 8：Canary、case health 和持续运营。

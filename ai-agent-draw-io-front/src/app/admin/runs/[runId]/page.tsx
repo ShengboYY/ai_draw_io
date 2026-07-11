@@ -12,6 +12,7 @@ import type {
   AdminDiagramTraceSpanDTO,
   AdminDebugTraceCaptureDTO,
   DiagramCanvasStateResponseDTO,
+  EvalCaseCandidateDTO,
 } from '@/types/api';
 import { buildLoginHref } from '@/utils/login-form';
 import {
@@ -75,6 +76,9 @@ export default function AdminRunDetailPage() {
   const [loading, setLoading] = useState(true);
   const [forbidden, setForbidden] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [evalCandidate, setEvalCandidate] = useState<EvalCaseCandidateDTO | null>(null);
+  const [evalCandidateLoading, setEvalCandidateLoading] = useState(false);
+  const [evalCandidateNote, setEvalCandidateNote] = useState<string | null>(null);
   const [diagramResult, setDiagramResult] = useState<{
     runId: string;
     diagram: DiagramCanvasStateResponseDTO | null;
@@ -111,6 +115,8 @@ export default function AdminRunDetailPage() {
         setSpanPayloads({});
         setSpanPayloadErrors({});
         setCaptures(null);
+        setEvalCandidate(null);
+        setEvalCandidateNote(null);
         spanPayloadRequests.current.clear();
       })
       .catch((e) => {
@@ -294,6 +300,21 @@ export default function AdminRunDetailPage() {
       .catch((e) => setCaptureNote(e instanceof Error ? e.message : 'Failed to enable capture'));
   };
 
+  const createEvalCandidate = () => {
+    setEvalCandidateLoading(true);
+    setEvalCandidateNote(null);
+    // P0 deliberately sends only the run id; debug payloads remain behind their separate access path.
+    agentApi.adminCreateEvalCandidate(runId)
+      .then((response) => {
+        setEvalCandidate(response.data);
+        setEvalCandidateNote('Candidate is ready for manual reconstruction and review.');
+      })
+      .catch((reason) => {
+        setEvalCandidateNote(reason instanceof Error ? reason.message : 'Failed to create Eval Candidate');
+      })
+      .finally(() => setEvalCandidateLoading(false));
+  };
+
   const run = trace?.run;
 
   if (forbidden) {
@@ -329,7 +350,7 @@ export default function AdminRunDetailPage() {
 
   return (
     <AdminShell active="trace" traceHref={traceHref}>
-      <div className="mb-7 border-b border-stone-200 pb-5">
+      <div className="mb-7 border-b border-stone-200 pb-5 sm:flex sm:items-start sm:justify-between sm:gap-5">
         <div className="min-w-0">
           <h1 className="font-display text-3xl font-semibold text-zinc-900 sm:text-4xl">Diagram trace</h1>
           {run && (
@@ -340,6 +361,22 @@ export default function AdminRunDetailPage() {
               <span>Started: {formatTime(run.startedAt)}</span>
             </div>
           )}
+        </div>
+        <div className="mt-4 shrink-0 sm:mt-0 sm:text-right">
+          <button
+            type="button"
+            onClick={createEvalCandidate}
+            disabled={!run || evalCandidateLoading}
+            className="rounded-md bg-zinc-900 px-3 py-2 text-sm font-medium text-white hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {evalCandidateLoading ? 'Creating…' : 'Create Eval Candidate'}
+          </button>
+          {evalCandidate && (
+            <div className="mt-2 font-mono text-[11px] text-zinc-500">
+              {evalCandidate.id} · <span className="font-semibold text-zinc-700">{evalCandidate.status}</span>
+            </div>
+          )}
+          {evalCandidateNote && <div className="mt-1 max-w-xs text-xs text-zinc-500">{evalCandidateNote}</div>}
         </div>
       </div>
 
