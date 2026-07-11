@@ -24,21 +24,20 @@ public class ChatEvalJudgeTest {
         RecordingChat chat = new RecordingChat("{\"task_fulfilled\":true,\"semantic_score\":4,\"visual_score\":5,"
                 + "\"unexpected_side_effect\":false,\"severity\":\"none\",\"evidence\":[\"Gateway is connected\"],"
                 + "\"recommended_human_review\":false}");
-        ChatEvalJudge judge = new ChatEvalJudge(chat, "judge-agent");
+        ChatEvalJudge judge = new ChatEvalJudge(chat, "judge-agent", "judge-model-v1", 0D);
         DrawioGraphNormalizer.Graph graph = new DrawioGraphNormalizer.Graph(
                 Set.of("gateway"), Set.of(), Map.of("gateway", 1));
 
-        IEvalJudge.JudgeInput input = input("architecture", graph, true);
+        IEvalJudge.JudgeInput input = input("none", graph);
         EvalJudgeResult result = judge.judge(input);
 
         assertTrue(result.isAvailable());
         assertTrue(result.isPassed());
         assertEquals(4.5D, result.getScore(), 0.001D);
         assertEquals(judge.version(input), result.getJudgeVersion());
-        assertTrue(result.getJudgeVersion().contains("model=judge-model-v1"));
+        assertTrue(result.getJudgeVersion().contains("judge-model=judge-model-v1"));
         assertTrue(chat.prompt.contains("final_graph"));
         assertTrue(chat.prompt.contains("deterministic_issues"));
-        assertTrue(chat.prompt.contains("render_evidence"));
         assertFalse(chat.prompt.contains("<mxGraphModel"));
     }
 
@@ -46,30 +45,29 @@ public class ChatEvalJudgeTest {
     public void invalidOrMarkdownWrappedOutputMustBeUnavailable() {
         RecordingChat chat = new RecordingChat("```json\n{\"task_fulfilled\":true}\n```");
 
-        EvalJudgeResult result = new ChatEvalJudge(chat, "judge-agent").judge(
-                input("flowchart", new DrawioGraphNormalizer.Graph(Set.of(), Set.of(), Map.of()), true));
+        EvalJudgeResult result = new ChatEvalJudge(chat, "judge-agent", "judge-model-v1", 0D).judge(
+                input("none", new DrawioGraphNormalizer.Graph(Set.of(), Set.of(), Map.of())));
 
         assertFalse(result.isAvailable());
         assertFalse(result.isPassed());
     }
 
     @Test
-    public void diagramJudgeWithoutRenderedEvidenceMustBeUnavailableWithoutCallingTheModel() {
+    public void textOnlyJudgeMustRejectEveryDiagramCaseWithoutCallingTheModel() {
         RecordingChat chat = new RecordingChat("unused");
 
-        EvalJudgeResult result = new ChatEvalJudge(chat, "judge-agent").judge(
-                input("architecture", new DrawioGraphNormalizer.Graph(Set.of("gateway"), Set.of(), Map.of()), false));
+        EvalJudgeResult result = new ChatEvalJudge(chat, "judge-agent", "judge-model-v1", 0D).judge(
+                input("architecture", new DrawioGraphNormalizer.Graph(Set.of("gateway"), Set.of(), Map.of())));
 
         assertFalse(result.isAvailable());
         assertNull(chat.prompt);
-        assertTrue(result.getEvidence().contains("judge_unavailable:visual_evidence_unavailable"));
+        assertTrue(result.getEvidence().contains("judge_unavailable:visual_judge_not_implemented"));
     }
 
-    private IEvalJudge.JudgeInput input(String diagramType, DrawioGraphNormalizer.Graph graph, boolean rendered) {
-        IEvalJudge.RenderEvidence images = rendered ? new IEvalJudge.RenderEvidence("before-image", "after-image") : null;
+    private IEvalJudge.JudgeInput input(String diagramType, DrawioGraphNormalizer.Graph graph) {
         return new IEvalJudge.JudgeInput("case-1", diagramType, "Add a gateway", graph, graph, "Done",
                 List.of("no deterministic issues"), List.of("modify_diagram:SUCCESS"),
-                new IEvalJudge.EvidenceVersion("judge-model-v1", 0D, "renderer-v1", "architecture-rubric-v1"), images);
+                new IEvalJudge.EvaluatedAgentVersion("candidate-model-v1", 0D, "projection-v1", "architecture-rubric-v1"));
     }
 
     private static final class RecordingChat implements IChatService {

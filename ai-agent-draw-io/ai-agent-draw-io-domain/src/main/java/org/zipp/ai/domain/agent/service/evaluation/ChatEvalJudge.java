@@ -30,21 +30,26 @@ public class ChatEvalJudge implements IEvalJudge {
 
     private final IChatService chatService;
     private final String agentId;
+    private final String judgeModelVersion;
+    private final double judgeTemperature;
     private final ObjectMapper mapper = new ObjectMapper();
 
     public ChatEvalJudge(IChatService chatService,
-                         @Value("${zipp.evaluation.judge-agent-id:300014}") String agentId) {
+                         @Value("${zipp.evaluation.judge-agent-id:300014}") String agentId,
+                         @Value("${zipp.evaluation.judge-model-version:unconfigured}") String judgeModelVersion,
+                         @Value("${zipp.evaluation.judge-temperature:0}") double judgeTemperature) {
         this.chatService = chatService;
         this.agentId = agentId;
+        this.judgeModelVersion = judgeModelVersion;
+        this.judgeTemperature = judgeTemperature;
     }
 
     @Override
     public EvalJudgeResult judge(JudgeInput input) {
         if (input == null) return unavailable("input_missing", null);
-        if (input.evidenceVersion() == null) return unavailable("input_version_missing", input);
-        if (requiresVisualEvidence(input) && (input.renderEvidence() == null || !input.renderEvidence().isComplete())) {
-            return unavailable("visual_evidence_unavailable", input);
-        }
+        if (input.evaluatedAgentVersion() == null) return unavailable("input_version_missing", input);
+        // This provider is text-only. Diagram scoring remains unavailable until a real multimodal Judge is added.
+        if (requiresVisualEvidence(input)) return unavailable("visual_judge_not_implemented", input);
         String prompt;
         try {
             prompt = prompt(input);
@@ -79,16 +84,16 @@ public class ChatEvalJudge implements IEvalJudge {
         evidence.put("assistant_response", input.responseText());
         evidence.put("deterministic_issues", input.deterministicIssues());
         evidence.put("tool_trace_summary", input.toolTraceSummary());
-        evidence.put("render_evidence", input.renderEvidence());
-        evidence.put("evidence_version", input.evidenceVersion());
+        evidence.put("evaluated_agent_version", input.evaluatedAgentVersion());
         return "You are an evaluation Judge. Assess only observable output; never infer hidden reasoning. "
                 + "Return exactly one JSON object with no markdown and exactly these fields: "
                 + "task_fulfilled(boolean), semantic_score(integer 1-5), visual_score(integer 1-5), "
                 + "unexpected_side_effect(boolean), severity(one of none/minor/major/critical), "
                 + "evidence(array of 1-10 concise strings), recommended_human_review(boolean). "
                 + "A critical issue is unusable/corrupt/unsafe output; major means the core task is materially wrong or incomplete. "
-                + "Prompt=" + PROMPT_VERSION + ", rubric=" + input.evidenceVersion().rubricVersion()
-                + ", renderer=" + input.evidenceVersion().inputRendererVersion() + ", schema=" + SCHEMA_VERSION + ".\n"
+                + "Prompt=" + PROMPT_VERSION + ", rubric=" + input.evaluatedAgentVersion().rubricVersion()
+                + ", inputProjection=" + input.evaluatedAgentVersion().inputProjectionVersion()
+                + ", schema=" + SCHEMA_VERSION + ".\n"
                 + mapper.writeValueAsString(evidence);
     }
 
@@ -167,12 +172,11 @@ public class ChatEvalJudge implements IEvalJudge {
     }
 
     public String version(JudgeInput input) {
-        EvidenceVersion evidence = input == null ? null : input.evidenceVersion();
-        String model = evidence == null ? "unknown-model" : StringUtils.defaultIfBlank(evidence.model(), "unknown-model");
-        String temperature = evidence == null || evidence.temperature() == null ? "unknown-temperature" : evidence.temperature().toString();
-        String renderer = evidence == null ? "unknown-renderer" : StringUtils.defaultIfBlank(evidence.inputRendererVersion(), "unknown-renderer");
+        EvaluatedAgentVersion evidence = input == null ? null : input.evaluatedAgentVersion();
+        String projection = evidence == null ? "unknown-projection"
+                : StringUtils.defaultIfBlank(evidence.inputProjectionVersion(), "unknown-projection");
         String rubric = evidence == null ? RUBRIC_VERSION : StringUtils.defaultIfBlank(evidence.rubricVersion(), RUBRIC_VERSION);
-        return "chat-agent:" + agentId + ":model=" + model + ":temperature=" + temperature
-                + ":" + PROMPT_VERSION + ":" + rubric + ":" + renderer + ":" + SCHEMA_VERSION;
+        return "chat-agent:" + agentId + ":judge-model=" + judgeModelVersion + ":judge-temperature=" + judgeTemperature
+                + ":" + PROMPT_VERSION + ":" + rubric + ":" + projection + ":" + SCHEMA_VERSION;
     }
 }

@@ -17,16 +17,8 @@ public interface IEvalJudge {
                       String responseText,
                       List<String> deterministicIssues,
                       List<String> toolTraceSummary,
-                      EvidenceVersion evidenceVersion,
-                      RenderEvidence renderEvidence) { }
+                      EvaluatedAgentVersion evaluatedAgentVersion) { }
 
-    record EvidenceVersion(String model, Double temperature, String inputRendererVersion, String rubricVersion) { }
-
-    /** Image references must be supplied through a Judge model adapter that can actually consume them. */
-    record RenderEvidence(String beforeImageRef, String afterImageRef) {
-        public boolean isComplete() {
-            return beforeImageRef != null && !beforeImageRef.isBlank()
-                    && afterImageRef != null && !afterImageRef.isBlank();
-        }
-    }
+    /** Version of the evaluated Agent evidence, kept separate from the Judge provider's own model version. */
+    record EvaluatedAgentVersion(String model, Double temperature, String inputProjectionVersion, String rubricVersion) { }
 }

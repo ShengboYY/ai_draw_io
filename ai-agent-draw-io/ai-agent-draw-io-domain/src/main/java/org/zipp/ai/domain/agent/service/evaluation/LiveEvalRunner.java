@@ -67,12 +67,11 @@ public class LiveEvalRunner {
         List<String> tools = execution.getTrace().getToolCalls().stream()
                 .map(call -> call.getName() + ":" + call.getStatus()).toList();
         EvalCaseDefinition.ExecutionProfile profile = evalCase.getExecutionProfile();
-        IEvalJudge.EvidenceVersion version = new IEvalJudge.EvidenceVersion(
+        IEvalJudge.EvaluatedAgentVersion version = new IEvalJudge.EvaluatedAgentVersion(
                 profile == null ? null : profile.getModel(), profile == null ? null : profile.getTemperature(),
                 "judge-input-v2", "diagram-rubric-v1:" + String.valueOf(evalCase.getDiagramType()));
-        // A renderer/VLM adapter must populate RenderEvidence before diagram visual scoring can become available.
         return new IEvalJudge.JudgeInput(evalCase.getCaseId(), evalCase.getDiagramType(), String.valueOf(user),
-                initialGraph, finalGraph, execution.getResponseText(), issues, tools, version, null);
+                initialGraph, finalGraph, execution.getResponseText(), issues, tools, version);
     }
 
     private EvalSampleResult sample(EvalCaseDefinition evalCase, int repetition, EvalHarnessResult.Status status,

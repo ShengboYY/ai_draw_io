@@ -231,8 +231,8 @@ mvn clean test
 | 相对 gate 统计 | baseline/candidate 按 case 配对，只有 CI 上界越过负向阈值才 block | 完成 |
 | 成本/时长模型 | 汇总 input/output tokens、execution-profile 单价、estimated cost、总 latency 与 availability | 完成 |
 | 可观察 task outcome | mutation case 使用 canonical XML SHA-256 判断实际变化后才记为 `FULFILLED`；无最终持久化画布记为基础设施错误，不能用 run success 自证完成 | 完成 |
-| Judge provider | `ChatEvalJudge` 使用专用 Agent 调用模型，只接受固定 JSON schema；agent/model/temperature/prompt/rubric/input-renderer/schema 全部进入 `judgeVersion`，provider/serialization/schema 故障分类为安全 UNAVAILABLE | 完成 |
-| Judge 输入证据 | 输入含 initial/final graph、deterministic issues、tool 摘要和版本对象；diagram case 没有完整 render evidence 时 fail closed 为 UNAVAILABLE，不允许凭 XML 文本臆测 visual score | 完成 |
+| Judge provider | `ChatEvalJudge` 使用专用 Agent 调用模型，只接受固定 JSON schema；Judge agent/model/temperature 与 prompt/rubric/input-projection/schema 全部进入 `judgeVersion`，被测 Agent 版本作为独立 evidence；provider/serialization/schema 故障分类为安全 UNAVAILABLE | 完成 |
+| Judge 输入证据 | 输入含 initial/final graph、deterministic issues、tool 摘要和被测 Agent 版本对象；当前 provider 是 text-only，因此所有 diagram case 无条件 UNAVAILABLE，不允许用字符串图片引用或 XML 文本臆测 visual score | 完成 |
 | Judge 边界与校准 | `LiveEvalRunner` 拒绝所有 raw `IEvalJudge`；只有批准的 `CalibratedEvalJudge` 才能评分，版本不符仍强制 UNAVAILABLE | 完成 |
 | JSON/Markdown 报告 | 输出 TSR、CI、样本数、error/availability、token/cost/latency | 完成 |
 
@@ -240,7 +240,7 @@ mvn clean test
 
 - 当前仓库只有 12 个 core case，尚未达到设计目标 250–350；统计服务会因 `minimumCases` 返回 `NO_DECISION`。
 - 尚未收集 60–80 个双人标注 Judge 校准 case；生产 `ChatEvalJudge` 已实现，但在 `CalibratedEvalJudge` 获得批准前仍返回 `UNAVAILABLE`，不能进入 release score。
-- diagram Judge 的 render/VLM adapter 尚未接入；在它能真实消费 before/after render evidence 前，图任务 Judge 会明确 `UNAVAILABLE`，当前可用范围仅是无需视觉证据的答问类 case。
+- diagram Judge 的 render/VLM adapter 尚未接入；未来必须以能真实接收 before/after 像素的 multimodal provider 替换 text-only `ChatEvalJudge`。在此之前图任务 Judge 无条件 `UNAVAILABLE`，当前可用范围仅是无需视觉证据的答问类 case。
 - 默认 Mode C adapter 当前支持 `input.user` 单回合；多回合真实 session adapter 尚未接入时会成为 ERROR 并触发 NO_DECISION，不会回退为 Mode B 冒充。
 - 本地/CI 未提供真实 provider credential，因此本阶段没有产生虚假的成本或 baseline 数值；部署时由 execution profile 提供 credential 与价格。
 
