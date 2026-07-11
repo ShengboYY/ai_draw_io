@@ -229,20 +229,21 @@ mvn clean test
 | 相对 gate 统计 | baseline/candidate 按 case 配对，只有 CI 上界越过负向阈值才 block | 完成 |
 | 成本/时长模型 | 汇总 input/output tokens、execution-profile 单价、estimated cost、总 latency 与 availability | 完成 |
 | 可观察 task outcome | mutation case 只有画布 hash 实际变化才记为 `FULFILLED`；无最终持久化画布记为基础设施错误，不能用 run success 自证完成 | 完成 |
-| Judge 边界与校准 | versioned `IEvalJudge`、人工参考 accuracy/critical precision/recall；未批准或版本不符强制 UNAVAILABLE | 骨架完成，生产 Judge provider 见下一提交 |
+| Judge provider | `ChatEvalJudge` 使用专用 Agent 调用模型，只接受固定 JSON schema；prompt/rubric/schema/agent 全部进入 `judgeVersion`，调用或解析失败返回 UNAVAILABLE | 完成 |
+| Judge 边界与校准 | versioned `IEvalJudge`、人工参考 accuracy/critical precision/recall；`ChatEvalJudge` 必须再由 `CalibratedEvalJudge` 包装，未批准或版本不符强制 UNAVAILABLE | 完成 |
 | JSON/Markdown 报告 | 输出 TSR、CI、样本数、error/availability、token/cost/latency | 完成 |
 
 ### 尚未伪造为“已完成”的运营前置
 
 - 当前仓库只有 11 个 core case，尚未达到设计目标 250–350；统计服务会因 `minimumCases` 返回 `NO_DECISION`。
-- 尚未收集 60–80 个双人标注 Judge 校准 case；`CalibratedEvalJudge` 在 calibration 未批准时返回 `UNAVAILABLE`。
+- 尚未收集 60–80 个双人标注 Judge 校准 case；生产 `ChatEvalJudge` 已实现，但在 `CalibratedEvalJudge` 获得批准前仍返回 `UNAVAILABLE`，不能进入 release score。
 - 默认 Mode C adapter 当前支持 `input.user` 单回合；多回合真实 session adapter 尚未接入时会成为 ERROR 并触发 NO_DECISION，不会回退为 Mode B 冒充。
 - 本地/CI 未提供真实 provider credential，因此本阶段没有产生虚假的成本或 baseline 数值；部署时由 execution profile 提供 credential 与价格。
 
 验证命令：
 
 ```text
-mvn -pl ai-agent-draw-io-app -am -Dtest=ProductionLiveEvalAdapterTest,LiveEvalStatisticsTest -Dsurefire.failIfNoSpecifiedTests=false test
+mvn -pl ai-agent-draw-io-app -am -Dtest=ProductionLiveEvalAdapterTest,ChatEvalJudgeTest,LiveEvalStatisticsTest -Dsurefire.failIfNoSpecifiedTests=false test
 mvn clean test
 ```
 
