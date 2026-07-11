@@ -21,7 +21,8 @@ public class TraceToEvalDraftServiceTest {
         store.candidate = candidate();
         RecordingModel model = new RecordingModel(validDraftJson());
         TraceToEvalDraftService service = new TraceToEvalDraftService(store,
-                debugService("Contact alice@example.com at https://internal.example and token=sk-secret12345"), model);
+                debugService("Contact alice@example.com at https://internal.example and token=sk-secret12345\n"
+                        + "Authorization: Bearer eyJ-real-credential\nCookie: session=private-cookie"), model);
 
         TraceToEvalDraftService.Preparation result = service.prepare("candidate-1", "admin-1", true, "ip", "ua");
 
@@ -31,6 +32,10 @@ public class TraceToEvalDraftServiceTest {
         assertFalse(model.prompt.contains("alice@example.com"));
         assertFalse(model.prompt.contains("internal.example"));
         assertFalse(model.prompt.contains("sk-secret"));
+        assertFalse(model.prompt.contains("eyJ-real-credential"));
+        assertFalse(model.prompt.contains("private-cookie"));
+        assertTrue(model.prompt.contains("[AUTHORIZATION]"));
+        assertTrue(model.prompt.contains("[COOKIE]"));
         assertFalse(model.prompt.contains("run-private"));
         assertEquals(1, store.drafts.size());
     }
@@ -71,7 +76,8 @@ public class TraceToEvalDraftServiceTest {
         store.candidate.setEvidenceSummary("Company: Acme Corp reported a mutation failure");
         RecordingModel model = new RecordingModel(validDraftJson());
         TraceToEvalDraftService service = new TraceToEvalDraftService(store,
-                debugService("Customer: Northwind Corp, Product: LedgerPro and Service: BillingEdge. Customer: Northwind Corp."), model);
+                debugService("Customer: Northwind Corp, Product: LedgerPro and Service: BillingEdge. Customer: Northwind Corp. "
+                        + "客户：北风，Tailspin Ltd."), model);
 
         TraceToEvalDraftService.Preparation result = service.prepare("candidate-1", "admin-1", true, "ip", "ua");
 
@@ -81,6 +87,8 @@ public class TraceToEvalDraftServiceTest {
         assertTrue(model.prompt.contains("[PRODUCT-1]"));
         assertTrue(model.prompt.contains("[INTERNAL-SERVICE-1]"));
         assertEquals(2, occurrences(model.prompt, "[CUSTOMER-1]"));
+        assertTrue(model.prompt.contains("[CUSTOMER-2]"));
+        assertTrue(model.prompt.contains("[COMPANY-2]"));
         assertFalse(model.prompt.contains("Acme Corp"));
         assertFalse(model.prompt.contains("Northwind Corp"));
         assertFalse(model.prompt.contains("LedgerPro"));

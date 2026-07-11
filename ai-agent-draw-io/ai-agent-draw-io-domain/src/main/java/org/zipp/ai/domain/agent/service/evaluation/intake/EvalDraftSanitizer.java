@@ -15,6 +15,8 @@ public class EvalDraftSanitizer {
     private static final Pattern EMAIL = Pattern.compile("(?i)\\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,}\\b");
     private static final Pattern PHONE = Pattern.compile("(?<!\\d)(?:\\+?\\d[\\d ()-]{7,}\\d)(?!\\d)");
     private static final Pattern URL = Pattern.compile("(?i)https?://[^\\s\\\"]+");
+    private static final Pattern AUTHORIZATION = Pattern.compile("(?i)\\bAuthorization\\s*:\\s*(?:(?:Bearer|Basic|Token)\\s+)?[^\\r\\n,;]+");
+    private static final Pattern COOKIE = Pattern.compile("(?i)\\b(?:Cookie|Set-Cookie)\\s*:\\s*[^\\r\\n]+");
     private static final Pattern SECRET = Pattern.compile("(?i)(authorization|api[_-]?key|token|password|secret)\\s*[:=]\\s*[^\\s,;]+|\\b(?:sk|api)[-_][A-Za-z0-9_-]{8,}\\b");
     private static final Pattern LABELED_ENTITY = Pattern.compile(
             "(?iu)\\b(customer|client|company|organization|organisation|project|product|service|person|user|account|tenant|workspace)"
@@ -35,29 +37,29 @@ public class EvalDraftSanitizer {
             return new Result(false, null, List.of("diagram_xml_requires_manual_synthesis"));
         }
         List<String> removed = new ArrayList<>();
-        String sanitized = replace(SECRET, joined, "[SECRET]", "secret", removed);
+        String sanitized = replace(AUTHORIZATION, joined, "[AUTHORIZATION]", "authorization", removed);
+        sanitized = replace(COOKIE, sanitized, "[COOKIE]", "cookie", removed);
+        sanitized = replace(SECRET, sanitized, "[SECRET]", "secret", removed);
         sanitized = replace(EMAIL, sanitized, "[EMAIL]", "email", removed);
         sanitized = replace(PHONE, sanitized, "[PHONE]", "phone", removed);
         sanitized = replace(URL, sanitized, "[URL]", "url", removed);
-        sanitized = replaceLabeledEntities(sanitized, LABELED_ENTITY, removed);
-        sanitized = replaceLabeledEntities(sanitized, CHINESE_LABELED_ENTITY, removed);
-        sanitized = replaceCompanies(sanitized, removed);
+        EntityRegistry entities = new EntityRegistry();
+        sanitized = replaceLabeledEntities(sanitized, LABELED_ENTITY, removed, entities);
+        sanitized = replaceLabeledEntities(sanitized, CHINESE_LABELED_ENTITY, removed, entities);
+        sanitized = replaceCompanies(sanitized, removed, entities);
         if (UNSAFE_UNSTRUCTURED.matcher(sanitized).find()) {
             return new Result(false, null, appendCategory(removed, "unclassified_sensitive_text"));
         }
         return new Result(StringUtils.isNotBlank(sanitized), sanitized, removed);
     }
 
-    private String replaceLabeledEntities(String value, Pattern pattern, List<String> removed) {
+    private String replaceLabeledEntities(String value, Pattern pattern, List<String> removed, EntityRegistry entities) {
         java.util.regex.Matcher matcher = pattern.matcher(value);
         StringBuffer result = new StringBuffer();
-        Map<String, String> placeholders = new LinkedHashMap<>();
-        Map<String, Integer> counters = new LinkedHashMap<>();
         while (matcher.find()) {
             String category = category(matcher.group(1));
             String identity = category + ":" + matcher.group(2).trim().toLowerCase(Locale.ROOT);
-            String placeholder = placeholders.computeIfAbsent(identity,
-                    ignored -> "[" + category + "-" + counters.merge(category, 1, Integer::sum) + "]");
+            String placeholder = entities.placeholder(category, identity);
             matcher.appendReplacement(result, java.util.regex.Matcher.quoteReplacement(placeholder));
             if (!removed.contains("business_entity")) removed.add("business_entity");
         }
@@ -65,13 +67,12 @@ public class EvalDraftSanitizer {
         return result.toString();
     }
 
-    private String replaceCompanies(String value, List<String> removed) {
+    private String replaceCompanies(String value, List<String> removed, EntityRegistry entities) {
         java.util.regex.Matcher matcher = COMPANY_SUFFIX.matcher(value);
         StringBuffer result = new StringBuffer();
-        Map<String, String> placeholders = new LinkedHashMap<>();
         while (matcher.find()) {
-            String key = matcher.group(1).toLowerCase(Locale.ROOT);
-            String placeholder = placeholders.computeIfAbsent(key, ignored -> "[COMPANY-" + (placeholders.size() + 1) + "]");
+            String key = "COMPANY:" + matcher.group(1).toLowerCase(Locale.ROOT);
+            String placeholder = entities.placeholder("COMPANY", key);
             matcher.appendReplacement(result, java.util.regex.Matcher.quoteReplacement(placeholder));
             if (!removed.contains("business_entity")) removed.add("business_entity");
         }
@@ -94,6 +95,17 @@ public class EvalDraftSanitizer {
     private List<String> appendCategory(List<String> values, String category) {
         if (!values.contains(category)) values.add(category);
         return values;
+    }
+
+    /** One registry per sanitization keeps identities stable across every language and matching strategy. */
+    private static final class EntityRegistry {
+        private final Map<String, String> placeholders = new LinkedHashMap<>();
+        private final Map<String, Integer> counters = new LinkedHashMap<>();
+
+        private String placeholder(String category, String identity) {
+            return placeholders.computeIfAbsent(identity,
+                    ignored -> "[" + category + "-" + counters.merge(category, 1, Integer::sum) + "]");
+        }
     }
 
     private String replace(Pattern pattern, String value, String replacement, String category, List<String> removed) {
