@@ -25,6 +25,10 @@ public class EvalExecution {
     private String promptConfigHash;
     private String skillCatalogHash;
     private String toolPolicyVersion;
+    private long inputTokens;
+    private long outputTokens;
+    private double estimatedCost;
+    private String responseText;
 
     @Builder.Default
     private List<TurnExecution> turns = new ArrayList<>();

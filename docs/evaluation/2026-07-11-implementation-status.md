@@ -212,8 +212,42 @@ mvn clean test
 
 当前聚焦结果：27 个后端测试通过；Candidate UI 测试、production build 通过；lint 0 error、8 个既有 warning。
 
+## Phase 6：Live-model、Judge 与统计
+
+**状态：平台实现完成；真实 baseline/校准数据待运营准备**
+
+| 方案要求 | 实现证据 | 结果 |
+| --- | --- | --- |
+| production Mode C adapter | `ProductionLiveEvalAdapter` 显式调用真实 `AgentConversationService.chat`，再从普通 telemetry 投影统一 EvalTrace | 完成 |
+| 隔离运行 | 使用 `eval-system` 与独立 session/request id；bean 初始化不调用模型，PR/default test 零模型成本 | 完成 |
+| 生产 execution profile | 记录 model credential、temperature、prompt/skill/tool-policy version、review iterations 和 token 单价 | 完成 |
+| 重复 @1 采样 | `LiveEvalRunner` 每个 case 独立运行 N 次，不做 best-of-N | 完成 |
+| ERROR 重跑 | 只有显式 `EvalInfrastructureException` 整 episode 最多重跑 2 次；FAIL 不重跑 | 完成 |
+| ERROR/UNAVAILABLE 隔离 | ERROR、Judge 不可用不进入 TSR 分子/分母；有效 case/error rate 不足返回 NO_DECISION | 完成 |
+| TSR@1 估计量 | 先计算每 case `p̂_i`，再对 case 等权求均值，符合产品 @1 与度量估计量区分 | 完成 |
+| cluster bootstrap CI | 对 case-level success probability 重采样 2,000 次，输出确定性 95% CI | 完成 |
+| 相对 gate 统计 | baseline/candidate 按 case 配对，只有 CI 上界越过负向阈值才 block | 完成 |
+| 成本/时长模型 | 汇总 input/output tokens、execution-profile 单价、estimated cost、总 latency 与 availability | 完成 |
+| Judge 边界与校准 | versioned `IEvalJudge`、人工参考 accuracy/critical precision/recall；未批准或版本不符强制 UNAVAILABLE | 完成 |
+| JSON/Markdown 报告 | 输出 TSR、CI、样本数、error/availability、token/cost/latency | 完成 |
+
+### 尚未伪造为“已完成”的运营前置
+
+- 当前仓库只有 11 个 core case，尚未达到设计目标 250–350；统计服务会因 `minimumCases` 返回 `NO_DECISION`。
+- 尚未收集 60–80 个双人标注 Judge 校准 case；`CalibratedEvalJudge` 在 calibration 未批准时返回 `UNAVAILABLE`。
+- 默认 Mode C adapter 当前支持 `input.user` 单回合；多回合真实 session adapter 尚未接入时会成为 ERROR 并触发 NO_DECISION，不会回退为 Mode B 冒充。
+- 本地/CI 未提供真实 provider credential，因此本阶段没有产生虚假的成本或 baseline 数值；部署时由 execution profile 提供 credential 与价格。
+
+验证命令：
+
+```text
+mvn -pl ai-agent-draw-io-app -am -Dtest=LiveEvalStatisticsTest -Dsurefire.failIfNoSpecifiedTests=false test
+mvn clean test
+```
+
+当前平台结果：6 个 live/statistics/Judge 测试通过；真实 Mode C 调用需显式凭据和受控运行环境。
+
 ## 后续顺序
 
-1. 实现 Phase 6：Live-model、Judge 与统计；
-2. 实现 Phase 7：Release Gate 与封存集；
-3. 实现 Phase 8：Canary、case health 和持续运营。
+1. 实现 Phase 7：Release Gate 与封存集；
+2. 实现 Phase 8：Canary、case health 和持续运营。

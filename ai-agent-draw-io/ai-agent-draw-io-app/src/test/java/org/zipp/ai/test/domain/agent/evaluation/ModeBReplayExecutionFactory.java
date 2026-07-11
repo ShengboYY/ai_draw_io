@@ -226,7 +226,8 @@ public class ModeBReplayExecutionFactory implements EvalBatchRunner.ExecutionFac
     private String profileHash(EvalCaseDefinition.ExecutionProfile profile) {
         return profile == null ? null : Integer.toHexString((profile.getProfileId() + "|" + profile.getModel()
                 + "|" + profile.getPromptConfigHash() + "|" + profile.getSkillCatalogHash()
-                + "|" + profile.getToolPolicyVersion()).hashCode());
+                + "|" + profile.getToolPolicyVersion() + "|" + profile.getTemperature()
+                + "|" + profile.getInputPricePerMillion() + "|" + profile.getOutputPricePerMillion()).hashCode());
     }
 
     private void assertRepairSignal(EvalCaseDefinition.ReplayToolCall call, String repairBrief) {

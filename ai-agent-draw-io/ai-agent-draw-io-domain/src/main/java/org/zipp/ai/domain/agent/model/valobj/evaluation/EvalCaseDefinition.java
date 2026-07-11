@@ -79,6 +79,7 @@ public class EvalCaseDefinition {
         private Boolean requireCanvasChange;
         private Integer maxCriticalIssues;
         private Integer maxMajorIssues;
+        private Boolean judgeRequired;
         private GraphAssertions graph;
 
         @Builder.Default
@@ -178,6 +179,11 @@ public class EvalCaseDefinition {
         private String promptConfigHash;
         private String skillCatalogHash;
         private String toolPolicyVersion;
+        private Double temperature;
+        private String modelCredentialId;
+        private Integer maxReviewIterations;
+        private Double inputPricePerMillion;
+        private Double outputPricePerMillion;
     }
 
     @Data

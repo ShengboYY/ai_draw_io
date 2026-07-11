@@ -592,6 +592,8 @@ Harness 接收 case 时必须验证：
 - 建立 60–80 case 人工校准集并完成首次 Judge 校准；
 - 产出 baseline-vs-candidate 对比报告。
 
+实现状态说明：Mode C adapter、采样/统计/Judge 校准门槛已落地；case 扩充与人工校准属于必须真实执行的数据运营工作，不能由代码生成假标签替代。在达到最小 case 数且 calibration 获批前，平台结论固定为 `NO_DECISION/UNAVAILABLE`。
+
 ### Phase 3：发布与线上闭环（持续）
 
 - 将 hard gate 与相对 gate 接入 release 流程；
