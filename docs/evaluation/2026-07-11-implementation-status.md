@@ -218,8 +218,8 @@ mvn clean test
 
 | 方案要求 | 实现证据 | 结果 |
 | --- | --- | --- |
-| production Mode C adapter | `ProductionLiveEvalAdapter` 显式调用真实 `AgentConversationService.chat`，再从普通 telemetry 投影统一 EvalTrace | 完成 |
-| 隔离运行 | 使用 `eval-system` 与独立 session/request id；bean 初始化不调用模型，PR/default test 零模型成本 | 完成 |
+| production Mode C adapter | `ProductionLiveEvalAdapter` 运行真实 stream 链路；用隔离 `diagramId` 预置 fixture，完成后从 `ICanvasStateStore` 读取真实持久化画布，而不是把助手文本当 XML | 完成 |
+| 隔离运行 | 使用 `eval-system` 与独立 diagram/session/request/run id；bean 初始化不调用模型，PR/default test 零模型成本 | 完成 |
 | 生产 execution profile | 记录 model credential、temperature、prompt/skill/tool-policy version、review iterations 和 token 单价 | 完成 |
 | 重复 @1 采样 | `LiveEvalRunner` 每个 case 独立运行 N 次，不做 best-of-N | 完成 |
 | ERROR 重跑 | 只有显式 `EvalInfrastructureException` 整 episode 最多重跑 2 次；FAIL 不重跑 | 完成 |
@@ -228,7 +228,8 @@ mvn clean test
 | cluster bootstrap CI | 对 case-level success probability 重采样 2,000 次，输出确定性 95% CI | 完成 |
 | 相对 gate 统计 | baseline/candidate 按 case 配对，只有 CI 上界越过负向阈值才 block | 完成 |
 | 成本/时长模型 | 汇总 input/output tokens、execution-profile 单价、estimated cost、总 latency 与 availability | 完成 |
-| Judge 边界与校准 | versioned `IEvalJudge`、人工参考 accuracy/critical precision/recall；未批准或版本不符强制 UNAVAILABLE | 完成 |
+| 可观察 task outcome | mutation case 只有画布 hash 实际变化才记为 `FULFILLED`；无最终持久化画布记为基础设施错误，不能用 run success 自证完成 | 完成 |
+| Judge 边界与校准 | versioned `IEvalJudge`、人工参考 accuracy/critical precision/recall；未批准或版本不符强制 UNAVAILABLE | 骨架完成，生产 Judge provider 见下一提交 |
 | JSON/Markdown 报告 | 输出 TSR、CI、样本数、error/availability、token/cost/latency | 完成 |
 
 ### 尚未伪造为“已完成”的运营前置
@@ -241,7 +242,7 @@ mvn clean test
 验证命令：
 
 ```text
-mvn -pl ai-agent-draw-io-app -am -Dtest=LiveEvalStatisticsTest -Dsurefire.failIfNoSpecifiedTests=false test
+mvn -pl ai-agent-draw-io-app -am -Dtest=ProductionLiveEvalAdapterTest,LiveEvalStatisticsTest -Dsurefire.failIfNoSpecifiedTests=false test
 mvn clean test
 ```
 
