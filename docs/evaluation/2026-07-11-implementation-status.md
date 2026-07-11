@@ -50,7 +50,8 @@ mvn clean test
 | repair 序列可观察 | `edit-add-worker` 执行两次真实 mutation，并分别断言存在 blocking issue、修复后无 blocking issue | 完成 |
 | 三类确定性 Grader | trajectory policy、独立 XML integrity、visual quality 均输出独立 version/evidence | 完成 |
 | XML hard gate | 检查可解析性、`mxGraphModel/root`、基础节点、唯一 id、vertex/edge/geometry、parent/source/target 引用和序列化回读 | 完成 |
-| 磁盘 batch 与异构 case | 10 个 `core-v1` YAML 全部由 `EvalBatchRunner` 经真实 Mode B 执行，覆盖 answer/clarify/review/create/edit 及 architecture/flowchart/ER/sequence | 完成 |
+| 磁盘 batch 与异构 case | 12 个 `core-v1` YAML 全部由 `EvalBatchRunner` 经真实 Mode B 执行，覆盖 answer/clarify/review/create/edit 及 architecture/flowchart/ER/sequence | 完成 |
+| 历史 bug tracer bullet | `regression-edit-success-unchanged-canvas-001` 固定 `c49f0a68` 的“trace/tool SUCCESS 但未提交画布”症状，测试明确断言 baseline FAIL、修复执行 PASS | 完成 |
 | 报告与运行 manifest | JSON/Markdown 包含 case/grader version、git SHA、execution profile、prompt/skill/tool-policy hash、状态与耗时 | 完成 |
 | PR 默认门禁 | 无真实模型依赖，纳入普通 Maven test；坏 case 逐 case 记 `ERROR` 后继续 | 完成 |
 
@@ -59,7 +60,7 @@ mvn clean test
 - `taskOutcome` 仍是录制 trajectory 标签，不能单独证明真实用户任务成功；Mode C 必须从回复、mutation、artifact 和错误信号投影。
 - 当前 repair loop 是录制多工具序列对生产确定性组件的重放；真实 LLM 依据 repair feedback 自主再规划属于 Phase 6。
 - graph semantic assertion、语义身份 preservation、fixture migration 和完整多轮 canvas state 属于 Phase 4。
-- 10 个 case 用于证明 harness 能运行异构数据，不满足最终 250–350 case 的统计覆盖目标。
+- 12 个 case 用于证明 harness 能运行异构数据和历史回归，不满足最终 250–350 case 的统计覆盖目标。
 
 验证命令：
 
@@ -68,7 +69,7 @@ mvn -pl ai-agent-draw-io-app -am -Dtest=ModeBReplayExecutionFactoryTest,EvalBatc
 mvn clean test
 ```
 
-当前结果：13 个 evaluation 测试、2 个 infrastructure 测试通过；10 个磁盘 case 全部通过 Mode B batch。
+当前结果：12 个磁盘 case 全部通过 Mode B batch；历史 artifact false-success case 额外验证 baseline FAIL → candidate PASS。
 
 ## Phase 2：Trace-to-Eval 人工入口
 
@@ -173,7 +174,7 @@ mvn -pl ai-agent-draw-io-app -am -Dtest=DefaultEvalHarnessTest,ModeBReplayExecut
 mvn clean test
 ```
 
-当前结果：24 个 evaluation 测试和 2 个 infrastructure 测试通过；11 个磁盘 case（含多轮）全部通过 batch。
+当前结果：12 个磁盘 case（含多轮与历史回归）全部通过 batch。
 
 ## Phase 5：受控 LLM 草拟
 
@@ -236,7 +237,7 @@ mvn clean test
 
 ### 尚未伪造为“已完成”的运营前置
 
-- 当前仓库只有 11 个 core case，尚未达到设计目标 250–350；统计服务会因 `minimumCases` 返回 `NO_DECISION`。
+- 当前仓库只有 12 个 core case，尚未达到设计目标 250–350；统计服务会因 `minimumCases` 返回 `NO_DECISION`。
 - 尚未收集 60–80 个双人标注 Judge 校准 case；生产 `ChatEvalJudge` 已实现，但在 `CalibratedEvalJudge` 获得批准前仍返回 `UNAVAILABLE`，不能进入 release score。
 - 默认 Mode C adapter 当前支持 `input.user` 单回合；多回合真实 session adapter 尚未接入时会成为 ERROR 并触发 NO_DECISION，不会回退为 Mode B 冒充。
 - 本地/CI 未提供真实 provider credential，因此本阶段没有产生虚假的成本或 baseline 数值；部署时由 execution profile 提供 credential 与价格。
