@@ -292,7 +292,7 @@ Selector 默认关闭，通过 `ZIPP_EVAL_CANDIDATE_SELECTOR_ENABLED=true` 在�
 - 增加脱敏测试、权限测试和 LLM 输出泄漏测试；
 - 保持人工批准为唯一 Publish 门槛。
 
-实现约束：只有 `TRIAGED` candidate 且管理员显式确认 Evaluation 草拟用途时才读取短期 capture。完整 Draw.io XML 直接 fail closed 为 `NEEDS_MANUAL_RECONSTRUCTION`；其余内容先经 `eval-sanitizer-v1` 清理 secret、email、phone 和 URL，再送入专用 Draft Agent。模型输出必须通过严格字段白名单、枚举、`needs_human_review=true` 和生产 ID/PII/secret 泄漏检查后才可持久化为 `DRAFT_READY`。任何读取、模型或 schema 失败都不得自动批准。
+实现约束：只有 `TRIAGED` candidate 且管理员显式确认 Evaluation 草拟用途时才读取短期 capture。完整 Draw.io XML 直接 fail closed 为 `NEEDS_MANUAL_RECONSTRUCTION`；其余内容先经 `eval-sanitizer-v2` 清理 secret、Authorization/Cookie、email、phone、URL，并以单次运行共享的 registry 将带上下文标签的业务实体替换为稳定占位符，再送入专用 Draft Agent。模型输出必须通过严格字段白名单、枚举、`needs_human_review=true` 和生产 ID/PII/secret/业务实体泄漏检查后才可持久化为 `DRAFT_READY`。任何读取、模型或 schema 失败都不得自动批准。
 
 ### P3：扩展信号与封存集
 

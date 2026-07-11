@@ -51,7 +51,7 @@ mvn clean test
 | 三类确定性 Grader | trajectory policy、独立 XML integrity、visual quality 均输出独立 version/evidence | 完成 |
 | XML hard gate | 检查可解析性、`mxGraphModel/root`、基础节点、唯一 id、vertex/edge/geometry、parent/source/target 引用和序列化回读 | 完成 |
 | 磁盘 batch 与异构 case | 12 个 `core-v1` YAML 全部由 `EvalBatchRunner` 经真实 Mode B 执行，覆盖 answer/clarify/review/create/edit 及 architecture/flowchart/ER/sequence | 完成 |
-| 历史 bug tracer bullet | `regression-edit-success-unchanged-canvas-001` 固定 `c49f0a68` 的“trace/tool SUCCESS 但未提交画布”症状，测试明确断言 baseline FAIL、修复执行 PASS | 完成 |
+| 历史 bug tracer bullet | `regression-edit-success-unchanged-canvas-001` 固定 `c49f0a68` 的已脱敏症状回放并断言 FAIL；独立 `ProductionLiveEvalAdapterTest` 驱动真实 adapter seam，断言候选从持久化 artifact 得到 PASS。它不声称在测试中启动旧 SHA | 完成 |
 | 报告与运行 manifest | JSON/Markdown 包含 case/grader version、git SHA、execution profile、prompt/skill/tool-policy hash、状态与耗时 | 完成 |
 | PR 默认门禁 | 无真实模型依赖，纳入普通 Maven test；坏 case 逐 case 记 `ERROR` 后继续 | 完成 |
 
@@ -184,7 +184,7 @@ mvn clean test
 | --- | --- | --- |
 | 显式用途与权限 | 仅 admin endpoint 可触发，body 必须 `purposeConfirmed=true`，POST 使用 CSRF | 完成 |
 | 受控 Debug 读取 | 通过现有 `AgentDebugTraceService.viewCapturesForRun` 读取，继承 TTL、scope 和读取审计 | 完成 |
-| 脱敏先于模型 | `eval-sanitizer-v2` 在 model port 前清理 secret/email/phone/URL，并将带上下文标签的客户、公司、产品、服务、人员、账号、项目等实体稳定替换为分类占位符 | 完成 |
+| 脱敏先于模型 | `eval-sanitizer-v2` 在 model port 前清理 secret/Authorization/Cookie/email/phone/URL，并用单次 sanitize 共享 registry 将客户、公司、产品、服务、人员、账号、项目等实体稳定替换为无碰撞分类占位符 | 完成 |
 | XML fail closed | capture 含 mxGraphModel/mxfile 时不调用模型，转 `NEEDS_MANUAL_RECONSTRUCTION` | 完成 |
 | 专用模型边界 | `IEvalDraftModel` 可测试替换；生产 `ChatEvalDraftModel` 使用独立可配置 Draft Agent | 完成 |
 | 严格 Draft schema | 只允许 failure summary/family、synthetic turns、fixture hint、route、assertions、confidence、human review 字段；未知字段拒绝 | 完成 |
@@ -220,7 +220,7 @@ mvn clean test
 
 | 方案要求 | 实现证据 | 结果 |
 | --- | --- | --- |
-| production Mode C adapter | `ProductionLiveEvalAdapter` 运行真实 stream 链路；用隔离 `diagramId` 预置 fixture，完成后从 `ICanvasStateStore` 读取真实持久化画布，而不是把助手文本当 XML | 完成 |
+| production Mode C adapter | `ProductionLiveEvalAdapter` 运行真实 stream 链路；用隔离 `diagramId` 预置 fixture，完成后从 `ICanvasStateStore` 读取真实持久化画布，而不是把助手文本当 XML；episode 结束后软删除临时画布 | 完成 |
 | 隔离运行 | 使用 `eval-system` 与独立 diagram/session/request/run id；bean 初始化不调用模型，PR/default test 零模型成本 | 完成 |
 | 生产 execution profile | 记录 model credential、temperature、prompt/skill/tool-policy version、review iterations 和 token 单价 | 完成 |
 | 重复 @1 采样 | `LiveEvalRunner` 每个 case 独立运行 N 次，不做 best-of-N | 完成 |
@@ -230,15 +230,17 @@ mvn clean test
 | cluster bootstrap CI | 对 case-level success probability 重采样 2,000 次，输出确定性 95% CI | 完成 |
 | 相对 gate 统计 | baseline/candidate 按 case 配对，只有 CI 上界越过负向阈值才 block | 完成 |
 | 成本/时长模型 | 汇总 input/output tokens、execution-profile 单价、estimated cost、总 latency 与 availability | 完成 |
-| 可观察 task outcome | mutation case 只有画布 hash 实际变化才记为 `FULFILLED`；无最终持久化画布记为基础设施错误，不能用 run success 自证完成 | 完成 |
-| Judge provider | `ChatEvalJudge` 使用专用 Agent 调用模型，只接受固定 JSON schema；prompt/rubric/schema/agent 全部进入 `judgeVersion`，调用或解析失败返回 UNAVAILABLE | 完成 |
-| Judge 边界与校准 | versioned `IEvalJudge`、人工参考 accuracy/critical precision/recall；`ChatEvalJudge` 必须再由 `CalibratedEvalJudge` 包装，未批准或版本不符强制 UNAVAILABLE | 完成 |
+| 可观察 task outcome | mutation case 使用 canonical XML SHA-256 判断实际变化后才记为 `FULFILLED`；无最终持久化画布记为基础设施错误，不能用 run success 自证完成 | 完成 |
+| Judge provider | `ChatEvalJudge` 使用专用 Agent 调用模型，只接受固定 JSON schema；agent/model/temperature/prompt/rubric/input-renderer/schema 全部进入 `judgeVersion`，provider/serialization/schema 故障分类为安全 UNAVAILABLE | 完成 |
+| Judge 输入证据 | 输入含 initial/final graph、deterministic issues、tool 摘要和版本对象；diagram case 没有完整 render evidence 时 fail closed 为 UNAVAILABLE，不允许凭 XML 文本臆测 visual score | 完成 |
+| Judge 边界与校准 | `LiveEvalRunner` 拒绝所有 raw `IEvalJudge`；只有批准的 `CalibratedEvalJudge` 才能评分，版本不符仍强制 UNAVAILABLE | 完成 |
 | JSON/Markdown 报告 | 输出 TSR、CI、样本数、error/availability、token/cost/latency | 完成 |
 
 ### 尚未伪造为“已完成”的运营前置
 
 - 当前仓库只有 12 个 core case，尚未达到设计目标 250–350；统计服务会因 `minimumCases` 返回 `NO_DECISION`。
 - 尚未收集 60–80 个双人标注 Judge 校准 case；生产 `ChatEvalJudge` 已实现，但在 `CalibratedEvalJudge` 获得批准前仍返回 `UNAVAILABLE`，不能进入 release score。
+- diagram Judge 的 render/VLM adapter 尚未接入；在它能真实消费 before/after render evidence 前，图任务 Judge 会明确 `UNAVAILABLE`，当前可用范围仅是无需视觉证据的答问类 case。
 - 默认 Mode C adapter 当前支持 `input.user` 单回合；多回合真实 session adapter 尚未接入时会成为 ERROR 并触发 NO_DECISION，不会回退为 Mode B 冒充。
 - 本地/CI 未提供真实 provider credential，因此本阶段没有产生虚假的成本或 baseline 数值；部署时由 execution profile 提供 credential 与价格。
 
