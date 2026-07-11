@@ -21,6 +21,7 @@ export default function AdminEvalCandidatesPage() {
   const [loading, setLoading] = useState(true);
   const [forbidden, setForbidden] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [draftNotes, setDraftNotes] = useState<Record<string, string>>({});
 
   useEffect(() => {
     let alive = true;
@@ -50,6 +51,22 @@ export default function AdminEvalCandidatesPage() {
         .map((item) => item.id === data.id ? data : item)
         .filter((item) => !status || item.status === status)))
       .catch((failure) => setError(failure instanceof Error ? failure.message : 'Transition failed'));
+  };
+
+  const prepareDraft = (candidate: EvalCaseCandidateDTO) => {
+    if (!window.confirm('Use this run\'s short-lived debug capture to create a sanitized synthetic Eval Draft?')) return;
+    setError(null);
+    agentApi.adminPrepareEvalDraft(candidate.id)
+      .then(({ data }) => {
+        setCandidates((current) => current.map((item) => item.id === candidate.id ? { ...item, status: data.status } : item));
+        setDraftNotes((current) => ({
+          ...current,
+          [candidate.id]: data.draft
+            ? `${data.draft.failureSummary} · human review required`
+            : `Manual reconstruction required · ${data.sanitizerEvidence.join(', ')}`,
+        }));
+      })
+      .catch((failure) => setError(failure instanceof Error ? failure.message : 'Draft preparation failed'));
   };
 
   if (forbidden) {
@@ -89,6 +106,7 @@ export default function AdminEvalCandidatesPage() {
                 </div>
                 <div className="mt-3 text-sm font-medium text-zinc-800">{candidate.ruleId}</div>
                 <p className="mt-1 text-sm text-zinc-600">{candidate.evidenceSummary}</p>
+                {draftNotes[candidate.id] && <p className="mt-2 rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-800">{draftNotes[candidate.id]}</p>}
                 <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 font-mono text-[11px] text-zinc-400">
                   <Link className="text-zinc-600 hover:underline" href={`/admin/runs/${encodeURIComponent(candidate.sourceRunId)}`}>Open source trace</Link>
                   <span>{candidate.sourcePhase || 'unknown phase'} · {candidate.sourceAgentId || 'unknown agent'}</span>
@@ -98,6 +116,7 @@ export default function AdminEvalCandidatesPage() {
               </div>
               <div className="flex shrink-0 flex-wrap gap-2">
                 {candidate.status === 'DETECTED' && <Action onClick={() => transition(candidate, 'TRIAGED')}>Triage</Action>}
+                {candidate.status === 'TRIAGED' && <Action onClick={() => prepareDraft(candidate)}>Prepare draft</Action>}
                 {['TRIAGED', 'NEEDS_MANUAL_RECONSTRUCTION', 'DRAFT_READY'].includes(candidate.status)
                   && <Action onClick={() => transition(candidate, 'UNDER_REVIEW')}>Start review</Action>}
                 {!['APPROVED', 'REJECTED', 'PUBLISHED', 'EXPIRED', 'PURGED'].includes(candidate.status)

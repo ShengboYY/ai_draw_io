@@ -13,5 +13,7 @@ test('candidate queue exposes deterministic evidence, filters, trace links, and 
   assert.match(page, /TRIAGED/);
   assert.match(page, /UNDER_REVIEW/);
   assert.match(page, /REJECTED/);
-  assert.doesNotMatch(page, /debug-trace|adminRunCaptures|LLM/i);
+  assert.match(page, /adminPrepareEvalDraft/);
+  assert.match(page, /human review required/);
+  assert.doesNotMatch(page, /adminRunCaptures|Approve draft|Publish draft/i);
 });

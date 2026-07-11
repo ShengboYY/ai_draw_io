@@ -11,4 +11,5 @@ public interface ITraceToEvalMapper {
                                                @Param("limit") int limit, @Param("offset") int offset);
     int insertCandidate(EvalCaseCandidatePO candidate); int updateCandidateStatus(@Param("candidateId") String candidateId, @Param("status") String status);
     int insertReview(EvalCaseReviewPO review); int insertLineage(EvalCaseLineagePO lineage);
+    int insertDraft(EvalCaseDraftPO draft);
 }

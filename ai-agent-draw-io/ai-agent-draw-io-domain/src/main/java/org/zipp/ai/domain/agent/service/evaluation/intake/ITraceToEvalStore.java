@@ -4,6 +4,7 @@ import org.zipp.ai.domain.agent.model.valobj.evaluation.intake.EvalCaseCandidate
 import org.zipp.ai.domain.agent.model.valobj.evaluation.intake.EvalCaseLineage;
 import org.zipp.ai.domain.agent.model.valobj.evaluation.intake.EvalCaseReview;
 import org.zipp.ai.domain.agent.model.valobj.evaluation.intake.EvalCandidateStatus;
+import org.zipp.ai.domain.agent.model.valobj.evaluation.intake.EvalCaseDraft;
 
 import java.util.Optional;
 import java.util.List;
@@ -18,5 +19,6 @@ public interface ITraceToEvalStore {
     void insertCandidate(EvalCaseCandidate candidate);
     void updateCandidateStatus(String candidateId, EvalCandidateStatus status);
     void insertReview(EvalCaseReview review);
+    default void insertDraft(EvalCaseDraft draft) { }
     void insertLineage(EvalCaseLineage lineage);
 }

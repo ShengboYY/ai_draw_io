@@ -175,9 +175,45 @@ mvn clean test
 
 当前结果：24 个 evaluation 测试和 2 个 infrastructure 测试通过；11 个磁盘 case（含多轮）全部通过 batch。
 
+## Phase 5：受控 LLM 草拟
+
+**状态：完成**
+
+| 方案要求 | 实现证据 | 结果 |
+| --- | --- | --- |
+| 显式用途与权限 | 仅 admin endpoint 可触发，body 必须 `purposeConfirmed=true`，POST 使用 CSRF | 完成 |
+| 受控 Debug 读取 | 通过现有 `AgentDebugTraceService.viewCapturesForRun` 读取，继承 TTL、scope 和读取审计 | 完成 |
+| 脱敏先于模型 | `EvalDraftSanitizer` 在 model port 前清理 secret/email/phone/URL，测试断言原值未进入 prompt | 完成 |
+| XML fail closed | capture 含 mxGraphModel/mxfile 时不调用模型，转 `NEEDS_MANUAL_RECONSTRUCTION` | 完成 |
+| 专用模型边界 | `IEvalDraftModel` 可测试替换；生产 `ChatEvalDraftModel` 使用独立可配置 Draft Agent | 完成 |
+| 严格 Draft schema | 只允许 failure summary/family、synthetic turns、fixture hint、route、assertions、confidence、human review 字段；未知字段拒绝 | 完成 |
+| 输出泄漏防护 | 模型输出再次执行 secret/PII/XML 检查，并拒绝 run/user/candidate/debug capture ID | 完成 |
+| Draft 持久化 | `eval_case_draft` 只保存 schema-validated synthetic suggestion、sanitizer/model version 和 candidate reference | 完成 |
+| 人工门槛 | 成功仅转 `DRAFT_READY` 且强制 `needsHumanReview=true`；UI 无 Approve/Publish draft 操作 | 完成 |
+| 失败降级 | 无 capture、XML、模型异常或 schema 不合法均保留 candidate 并转人工重建，不覆盖为成功 | 完成 |
+| 管理端入口 | TRIAGED card 显示 `Prepare draft`，二次确认后只展示摘要或人工重建原因 | 完成 |
+
+### Phase 5 边界
+
+- Draft 是建议，不是 `ApprovedEvalCase`；审核者仍需合成 fixture、校验断言并走 review/publication。
+- sanitizer 对完整业务图选择拒绝而非“智能脱敏”，避免把真实架构长期写入 dataset。
+- Draft Agent id 默认 `300013`，部署必须配置对应 schema-only Agent；未配置/不可用会安全降级为人工重建。
+- 本阶段不做 Judge，也不让 Draft model 参与 release gate。
+
+验证命令：
+
+```text
+mvn -pl ai-agent-draw-io-app -am -Dtest=TraceToEvalDraftServiceTest,TraceToEvalIntakeServiceTest,AdminControllerTest -Dsurefire.failIfNoSpecifiedTests=false test
+node --test tests/admin-eval-candidates-page.test.mjs
+npm run lint
+npm run build
+mvn clean test
+```
+
+当前聚焦结果：27 个后端测试通过；Candidate UI 测试、production build 通过；lint 0 error、8 个既有 warning。
+
 ## 后续顺序
 
-1. 实现 Phase 5：受控 LLM 草拟；
-2. 实现 Phase 6：Live-model、Judge 与统计；
-3. 实现 Phase 7：Release Gate 与封存集；
-4. 实现 Phase 8：Canary、case health 和持续运营。
+1. 实现 Phase 6：Live-model、Judge 与统计；
+2. 实现 Phase 7：Release Gate 与封存集；
+3. 实现 Phase 8：Canary、case health 和持续运营。

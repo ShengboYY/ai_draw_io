@@ -53,6 +53,7 @@ import org.zipp.ai.domain.agent.service.ICanvasStateStore;
 import org.zipp.ai.domain.agent.service.debugtrace.AgentDebugTraceService;
 import org.zipp.ai.domain.agent.service.usage.AgentUsageTelemetryService;
 import org.zipp.ai.domain.agent.service.evaluation.intake.TraceToEvalIntakeService;
+import org.zipp.ai.domain.agent.service.evaluation.intake.TraceToEvalDraftService;
 import org.zipp.ai.domain.agent.model.valobj.evaluation.intake.EvalCaseCandidate;
 import org.zipp.ai.domain.agent.model.valobj.evaluation.intake.EvalCaseLineage;
 import org.zipp.ai.trigger.http.service.AdminAuthorizationService;
@@ -96,6 +97,9 @@ public class AdminController {
 
     @Resource
     private TraceToEvalIntakeService traceToEvalIntakeService;
+
+    @Resource
+    private TraceToEvalDraftService traceToEvalDraftService;
 
     /** P0 manual entry: metadata-only candidate creation; it neither reads debug payloads nor invokes an LLM. */
     @PostMapping("/runs/{runId}/eval-candidates")
@@ -156,6 +160,27 @@ public class AdminController {
         } catch (RuntimeException e) {
             audit(admin.get(), "TRANSITION_EVAL_CANDIDATE", "EVAL_CANDIDATE", candidateId, "ERROR", request);
             return failure("failed to transition Eval Candidate");
+        }
+    }
+
+    @PostMapping("/eval-candidates/{candidateId}/draft")
+    public Response<TraceToEvalDraftService.Preparation> prepareEvalDraft(@PathVariable("candidateId") String candidateId,
+                                                                         @RequestBody Map<String, Object> body,
+                                                                         HttpServletRequest request) {
+        Optional<UserAccount> admin = requireAdmin(request);
+        if (admin.isEmpty()) return forbidden();
+        try {
+            boolean confirmed = body != null && Boolean.TRUE.equals(body.get("purposeConfirmed"));
+            TraceToEvalDraftService.Preparation result = traceToEvalDraftService.prepare(candidateId,
+                    admin.get().getId(), confirmed, clientIp(request), userAgent(request));
+            audit(admin.get(), "PREPARE_EVAL_DRAFT", "EVAL_CANDIDATE", candidateId, result.status().name(), request);
+            return success(result);
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            audit(admin.get(), "PREPARE_EVAL_DRAFT", "EVAL_CANDIDATE", candidateId, "REJECTED", request);
+            return failure(e.getMessage());
+        } catch (RuntimeException e) {
+            audit(admin.get(), "PREPARE_EVAL_DRAFT", "EVAL_CANDIDATE", candidateId, "ERROR", request);
+            return failure("failed to prepare Eval Draft");
         }
     }
 

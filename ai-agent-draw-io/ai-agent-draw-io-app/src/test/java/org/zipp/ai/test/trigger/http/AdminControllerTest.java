@@ -50,6 +50,8 @@ import org.zipp.ai.domain.agent.service.debugtrace.IAgentDebugTraceStore;
 import org.zipp.ai.domain.agent.service.ICanvasStateStore;
 import org.zipp.ai.domain.agent.service.evaluation.intake.ITraceToEvalStore;
 import org.zipp.ai.domain.agent.service.evaluation.intake.TraceToEvalIntakeService;
+import org.zipp.ai.domain.agent.service.evaluation.intake.TraceToEvalDraftService;
+import org.zipp.ai.domain.agent.service.evaluation.intake.IEvalDraftModel;
 import org.zipp.ai.domain.agent.service.usage.AgentUsageTelemetryService;
 import org.zipp.ai.test.domain.agent.FakeAgentUsageTelemetryStore;
 import org.zipp.ai.trigger.http.AdminController;
@@ -77,6 +79,7 @@ public class AdminControllerTest {
     private FakeAccountService accounts;
     private FakeAgentUsageTelemetryStore telemetryStore;
     private FakeAdminAuditLogStore auditLogs;
+    private AdminAuditLogService auditService;
     private FakeDebugTraceStore debugTraceStore;
     private FakeCanvasStateStore canvasStateStore;
     private FakeTraceToEvalStore traceToEvalStore;
@@ -90,7 +93,7 @@ public class AdminControllerTest {
         debugTraceStore = new FakeDebugTraceStore();
         canvasStateStore = new FakeCanvasStateStore();
         traceToEvalStore = new FakeTraceToEvalStore();
-        AdminAuditLogService auditService = new AdminAuditLogService(
+        auditService = new AdminAuditLogService(
                 auditLogs, Clock.fixed(Instant.parse("2026-07-03T10:00:00Z"), ZoneOffset.UTC));
         AdminAuthorizationService authorizationService = new AdminAuthorizationService();
         inject(authorizationService, "accountService", accounts);
@@ -169,6 +172,31 @@ public class AdminControllerTest {
         assertEquals(EvalCandidateStatus.TRIAGED, transitioned.getData().getStatus());
         assertEquals(1, listed.getData().size());
         assertEquals("LIST_EVAL_CANDIDATES", auditLogs.logs.get(2).getAction());
+    }
+
+    @Test
+    public void adminMustExplicitlyConfirmAndReceivesOnlyASyntheticDraft() throws Exception {
+        authenticate("usr_admin", 0);
+        telemetryStore.runs.add(AgentRunTelemetry.builder().id("aru_eval").status("FAILED").build());
+        EvalCaseCandidate candidate = controller.createEvalCandidate("aru_eval", request()).getData();
+        controller.transitionEvalCandidate(candidate.getId(), Map.of("status", "TRIAGED"), request());
+        debugTraceStore.captures.add(DebugTraceCapture.builder().id("capture").runId("aru_eval")
+                .content("User requested a worker; email alice@example.com")
+                .contentExpiresAt(Instant.parse("2026-07-10T10:00:00Z")).build());
+        IEvalDraftModel model = new IEvalDraftModel() {
+            public String generate(String prompt) { return "{\"failure_summary\":\"Mutation failed\",\"suspected_failure_family\":\"artifact\",\"suggested_case\":{\"user_turns\":[\"Add worker\"],\"initial_fixture_hint\":\"synthetic\",\"expected_route\":\"edit_existing\",\"suggested_assertions\":[\"worker exists\"]},\"confidence\":\"medium\",\"needs_human_review\":true}"; }
+            public String version() { return "fake-v1"; }
+        };
+        inject(controller, "traceToEvalDraftService", new TraceToEvalDraftService(traceToEvalStore,
+                new AgentDebugTraceService(debugTraceStore, auditService,
+                        Clock.fixed(Instant.parse("2026-07-03T10:00:00Z"), ZoneOffset.UTC)), model));
+
+        Response<TraceToEvalDraftService.Preparation> response = controller.prepareEvalDraft(candidate.getId(),
+                Map.of("purposeConfirmed", true), request());
+
+        assertEquals(EvalCandidateStatus.DRAFT_READY, response.getData().status());
+        assertTrue(response.getData().draft().isNeedsHumanReview());
+        assertEquals("PREPARE_EVAL_DRAFT", auditLogs.logs.get(auditLogs.logs.size() - 1).getAction());
     }
 
     @Test

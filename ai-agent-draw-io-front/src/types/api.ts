@@ -516,6 +516,26 @@ export interface EvalCaseCandidateDTO {
   createdBy: string;
 }
 
+export interface EvalCaseDraftDTO {
+  id: string;
+  failureSummary: string;
+  suspectedFailureFamily: string;
+  userTurns: string[];
+  initialFixtureHint: string;
+  expectedRoute: string;
+  suggestedAssertions: string[];
+  confidence: string;
+  needsHumanReview: boolean;
+  sanitizerVersion: string;
+  modelVersion: string;
+}
+
+export interface EvalDraftPreparationDTO {
+  status: string;
+  draft?: EvalCaseDraftDTO;
+  sanitizerEvidence: string[];
+}
+
 export interface AdminDebugTraceCaptureDTO {
   id: string;
   controlId?: string;

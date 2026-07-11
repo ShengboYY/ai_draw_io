@@ -15,5 +15,6 @@
   <insert id="insertCandidate">insert into eval_case_candidate (id,source_run_id,source_span_id,source_phase,source_agent_id,failure_family,rule_id,evidence_summary,risk,discovered_at,policy_version,status,created_by) values (#{id},#{sourceRunId},#{sourceSpanId},#{sourcePhase},#{sourceAgentId},#{failureFamily},#{ruleId},#{evidenceSummary},#{risk},#{discoveredAt},#{policyVersion},#{status},#{createdBy})</insert>
   <update id="updateCandidateStatus">update eval_case_candidate set status=#{status} where id=#{candidateId}</update>
   <insert id="insertReview">insert into eval_case_review (id,candidate_id,reviewer,decision,reason,reviewed_at) values (#{id},#{candidateId},#{reviewer},#{decision},#{reason},#{reviewedAt})</insert>
+  <insert id="insertDraft">insert into eval_case_draft (id,candidate_id,draft_json,sanitizer_version,model_version,created_at) values (#{id},#{candidateId},#{draftJson},#{sanitizerVersion},#{modelVersion},#{createdAt})</insert>
   <insert id="insertLineage">insert into eval_case_lineage (promotion_id,case_id,dataset_version,reviewer,approved_at,sanitizer_version,origin) values (#{promotionId},#{caseId},#{datasetVersion},#{reviewer},#{approvedAt},#{sanitizerVersion},#{origin})</insert>
 </mapper>

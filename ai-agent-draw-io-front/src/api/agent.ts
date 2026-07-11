@@ -36,6 +36,7 @@ import {
     AdminDebugTraceControlDTO,
     AdminDebugTraceControlRequestDTO,
     EvalCaseCandidateDTO,
+    EvalDraftPreparationDTO,
 } from '@/types/api';
 
 export class ApiResponseError extends Error {
@@ -344,6 +345,16 @@ export const agentApi = {
             credentials: 'include',
         });
         return handleResponse<EvalCaseCandidateDTO>(response);
+    },
+
+    adminPrepareEvalDraft: async (candidateId: string): Promise<Response<EvalDraftPreparationDTO>> => {
+        const response = await fetch(`${API_CONFIG.BASE_URL}/admin/eval-candidates/${encodeURIComponent(candidateId)}/draft`, {
+            method: 'POST',
+            headers: await csrfHeaders({ 'Content-Type': 'application/json' }),
+            body: JSON.stringify({ purposeConfirmed: true }),
+            credentials: 'include',
+        });
+        return handleResponse<EvalDraftPreparationDTO>(response);
     },
 
     adminRunCaptures: async (runId: string): Promise<Response<AdminDebugTraceCaptureDTO[]>> => {
