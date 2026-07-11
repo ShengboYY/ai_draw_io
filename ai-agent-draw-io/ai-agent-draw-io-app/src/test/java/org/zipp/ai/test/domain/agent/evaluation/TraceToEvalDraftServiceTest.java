@@ -64,6 +64,60 @@ public class TraceToEvalDraftServiceTest {
         assertTrue(store.drafts.isEmpty());
     }
 
+    @Test
+    public void shouldReplaceBusinessEntitiesWithStablePlaceholdersBeforeTheModel() {
+        MemoryStore store = new MemoryStore();
+        store.candidate = candidate();
+        store.candidate.setEvidenceSummary("Company: Acme Corp reported a mutation failure");
+        RecordingModel model = new RecordingModel(validDraftJson());
+        TraceToEvalDraftService service = new TraceToEvalDraftService(store,
+                debugService("Customer: Northwind Corp, Product: LedgerPro and Service: BillingEdge. Customer: Northwind Corp."), model);
+
+        TraceToEvalDraftService.Preparation result = service.prepare("candidate-1", "admin-1", true, "ip", "ua");
+
+        assertEquals(EvalCandidateStatus.DRAFT_READY, result.status());
+        assertTrue(model.prompt.contains("[COMPANY-1]"));
+        assertTrue(model.prompt.contains("[CUSTOMER-1]"));
+        assertTrue(model.prompt.contains("[PRODUCT-1]"));
+        assertTrue(model.prompt.contains("[INTERNAL-SERVICE-1]"));
+        assertEquals(2, occurrences(model.prompt, "[CUSTOMER-1]"));
+        assertFalse(model.prompt.contains("Acme Corp"));
+        assertFalse(model.prompt.contains("Northwind Corp"));
+        assertFalse(model.prompt.contains("LedgerPro"));
+        assertFalse(model.prompt.contains("BillingEdge"));
+    }
+
+    @Test
+    public void shouldRejectModelOutputThatReintroducesABusinessEntity() {
+        MemoryStore store = new MemoryStore();
+        store.candidate = candidate();
+        RecordingModel model = new RecordingModel(validDraftJson().replace("Mutation failed", "Customer: Northwind Corp"));
+        TraceToEvalDraftService service = new TraceToEvalDraftService(store, debugService("Safe synthetic evidence"), model);
+
+        TraceToEvalDraftService.Preparation result = service.prepare("candidate-1", "admin-1", true, "ip", "ua");
+
+        assertEquals(EvalCandidateStatus.NEEDS_MANUAL_RECONSTRUCTION, result.status());
+        assertTrue(store.drafts.isEmpty());
+    }
+
+    @Test
+    public void unstructuredConfidentialTextMustFailClosedWithoutCallingTheModel() {
+        MemoryStore store = new MemoryStore();
+        store.candidate = candidate();
+        RecordingModel model = new RecordingModel(validDraftJson());
+        TraceToEvalDraftService service = new TraceToEvalDraftService(store,
+                debugService("Contains unredacted confidential architecture notes"), model);
+
+        TraceToEvalDraftService.Preparation result = service.prepare("candidate-1", "admin-1", true, "ip", "ua");
+
+        assertEquals(EvalCandidateStatus.NEEDS_MANUAL_RECONSTRUCTION, result.status());
+        assertNull(model.prompt);
+    }
+
+    private int occurrences(String value, String needle) {
+        return (value.length() - value.replace(needle, "").length()) / needle.length();
+    }
+
     private EvalCaseCandidate candidate() {
         return EvalCaseCandidate.builder().id("candidate-1").sourceRunId("run-private")
                 .failureFamily("artifact").evidenceSummary("Canvas mutation failed")

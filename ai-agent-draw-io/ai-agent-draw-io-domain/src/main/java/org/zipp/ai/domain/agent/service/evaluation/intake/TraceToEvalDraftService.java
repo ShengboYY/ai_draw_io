@@ -48,7 +48,10 @@ public class TraceToEvalDraftService {
         }
         List<DebugTraceCapture> captures = debugTraceService.viewCapturesForRun(
                 actor, candidate.getSourceRunId(), ipAddress, userAgent);
-        List<String> content = captures.stream().map(DebugTraceCapture::getContent).filter(StringUtils::isNotBlank).toList();
+        List<String> content = new java.util.ArrayList<>();
+        // Candidate summaries are operator-authored metadata and must cross the same sanitizer boundary as captures.
+        if (StringUtils.isNotBlank(candidate.getEvidenceSummary())) content.add(candidate.getEvidenceSummary());
+        content.addAll(captures.stream().map(DebugTraceCapture::getContent).filter(StringUtils::isNotBlank).toList());
         EvalDraftSanitizer.Result sanitized = sanitizer.sanitize(content);
         if (!sanitized.safeForModel()) return manual(candidate, String.join(",", sanitized.removedCategories()));
         try {
@@ -73,8 +76,7 @@ public class TraceToEvalDraftService {
         return "Return JSON only with keys failure_summary, suspected_failure_family, suggested_case"
                 + "{user_turns,initial_fixture_hint,expected_route,suggested_assertions},confidence,needs_human_review. "
                 + "Never include production ids, identities, URLs, secrets, raw payloads, XML, or approval fields.\n"
-                + "Failure family hint: " + candidate.getFailureFamily() + "\nEvidence hint: "
-                + candidate.getEvidenceSummary() + "\nSanitized evidence:\n" + sanitizedContent;
+                + "Failure family hint: " + candidate.getFailureFamily() + "\nSanitized evidence:\n" + sanitizedContent;
     }
 
     private EvalCaseDraft parse(EvalCaseCandidate candidate, String output) {
