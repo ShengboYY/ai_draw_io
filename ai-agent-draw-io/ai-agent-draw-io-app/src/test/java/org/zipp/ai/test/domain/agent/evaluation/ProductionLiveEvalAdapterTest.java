@@ -67,6 +67,8 @@ public class ProductionLiveEvalAdapterTest {
         assertEquals("Diagram updated", execution.getResponseText());
         assertEquals(EvalTrace.TaskOutcome.FULFILLED, execution.getTrace().getTaskOutcome());
         assertNotEquals(execution.getTrace().getBeforeCanvasHash(), execution.getTrace().getAfterCanvasHash());
+        assertTrue(execution.getTrace().getBeforeCanvasHash().startsWith("sha256:"));
+        assertTrue(canvases.deleted);
     }
 
     private EvalCaseDefinition editCase() {
@@ -86,6 +88,7 @@ public class ProductionLiveEvalAdapterTest {
 
     private static final class MemoryCanvasStore implements ICanvasStateStore {
         private final Map<String, CanvasState> values = new HashMap<>();
+        private boolean deleted;
 
         @Override public Optional<CanvasState> find(String userId, String diagramId) {
             return Optional.ofNullable(values.get(userId + ":" + diagramId));
@@ -99,6 +102,11 @@ public class ProductionLiveEvalAdapterTest {
                     .title(state.getTitle()).currentXml(state.getCurrentXml()).version(version).build();
             values.put(key, saved);
             return saved;
+        }
+
+        @Override public boolean softDelete(String userId, String diagramId) {
+            deleted = values.remove(userId + ":" + diagramId) != null;
+            return deleted;
         }
     }
 

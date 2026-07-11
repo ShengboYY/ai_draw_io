@@ -2,6 +2,7 @@ package org.zipp.ai.trigger.evaluation;
 
 import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONObject;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -12,6 +13,7 @@ import org.zipp.ai.domain.agent.model.valobj.evaluation.*;
 import org.zipp.ai.domain.agent.model.valobj.usage.AgentRunDetail;
 import org.zipp.ai.domain.agent.model.valobj.usage.AgentTraceEvent;
 import org.zipp.ai.domain.agent.service.ICanvasStateStore;
+import org.zipp.ai.domain.agent.service.canvas.CanvasXmlContentHasher;
 import org.zipp.ai.domain.agent.service.evaluation.EvalInfrastructureException;
 import org.zipp.ai.domain.agent.service.evaluation.LiveEvalRunner;
 import org.zipp.ai.domain.agent.service.usage.IAgentUsageTelemetryStore;
@@ -27,6 +29,7 @@ import java.util.concurrent.atomic.AtomicReference;
 
 /** Explicit Mode C adapter. Creating this bean is safe; model calls occur only when execute is invoked. */
 @Component
+@Slf4j
 public class ProductionLiveEvalAdapter implements LiveEvalRunner.LiveExecutionFactory {
     private final AgentConversationService conversationService;
     private final IAgentUsageTelemetryStore telemetryStore;
@@ -34,6 +37,7 @@ public class ProductionLiveEvalAdapter implements LiveEvalRunner.LiveExecutionFa
     private final String agentId;
     private final String gitSha;
     private final long timeoutMs;
+    private final CanvasXmlContentHasher contentHasher = new CanvasXmlContentHasher();
 
     public ProductionLiveEvalAdapter(AgentConversationService conversationService,
                                      IAgentUsageTelemetryStore telemetryStore,
@@ -56,15 +60,15 @@ public class ProductionLiveEvalAdapter implements LiveEvalRunner.LiveExecutionFa
         EvalCaseDefinition.ExecutionProfile profile = profile(evalCase);
         String userId = "eval-system";
         String diagramId = "eval-diagram-" + UUID.randomUUID();
-        CanvasState seeded = seedInitialCanvas(userId, diagramId, initialXml);
-        ChatRequestDTO request = new ChatRequestDTO();
-        request.setAgentId(agentId); request.setUserId(userId); request.setDiagramId(diagramId);
-        request.setSessionId("eval-session-" + UUID.randomUUID()); request.setRequestId("eval-request-" + UUID.randomUUID());
-        request.setRunId("eval-run-" + UUID.randomUUID());
-        request.setMessage(message); request.setCanvasXml(initialXml); request.setMaxReviewIterations(profile.getMaxReviewIterations());
-        request.setExpectedVersion(seeded == null ? null : seeded.getVersion());
-        request.setModelCredentialId(profile.getModelCredentialId());
         try {
+            CanvasState seeded = seedInitialCanvas(userId, diagramId, initialXml);
+            ChatRequestDTO request = new ChatRequestDTO();
+            request.setAgentId(agentId); request.setUserId(userId); request.setDiagramId(diagramId);
+            request.setSessionId("eval-session-" + UUID.randomUUID()); request.setRequestId("eval-request-" + UUID.randomUUID());
+            request.setRunId("eval-run-" + UUID.randomUUID());
+            request.setMessage(message); request.setCanvasXml(initialXml); request.setMaxReviewIterations(profile.getMaxReviewIterations());
+            request.setExpectedVersion(seeded == null ? null : seeded.getVersion());
+            request.setModelCredentialId(profile.getModelCredentialId());
             CapturingEmitter emitter = new CapturingEmitter(timeoutMs);
             conversationService.stream(request, emitter);
             emitter.awaitCompletion();
@@ -87,6 +91,8 @@ public class ProductionLiveEvalAdapter implements LiveEvalRunner.LiveExecutionFa
         } catch (RuntimeException e) {
             if (isTransient(e)) throw new EvalInfrastructureException("transient live-model failure", e);
             throw e;
+        } finally {
+            cleanupCanvas(userId, diagramId);
         }
     }
 
@@ -142,7 +148,15 @@ public class ProductionLiveEvalAdapter implements LiveEvalRunner.LiveExecutionFa
         return evalCase.getExecutionProfile() == null ? new EvalCaseDefinition.ExecutionProfile() : evalCase.getExecutionProfile();
     }
     private boolean failed(String status) { return "FAILED".equalsIgnoreCase(status) || "ERROR".equalsIgnoreCase(status); }
-    private String hash(String value) { return value == null ? null : Integer.toHexString(value.hashCode()); }
+    private String hash(String value) { return value == null ? null : contentHasher.hash(value); }
+    private void cleanupCanvas(String userId, String diagramId) {
+        try {
+            canvasStateStore.softDelete(userId, diagramId);
+        } catch (RuntimeException e) {
+            // Cleanup failure must be visible without replacing the evaluation verdict.
+            log.warn("[live-eval] temporary canvas cleanup failed errorClass={}", e.getClass().getSimpleName());
+        }
+    }
     private double estimatedCost(EvalCaseDefinition.ExecutionProfile profile, long inputTokens, long outputTokens) {
         double inputPrice = profile.getInputPricePerMillion() == null ? 0D : profile.getInputPricePerMillion();
         double outputPrice = profile.getOutputPricePerMillion() == null ? 0D : profile.getOutputPricePerMillion();

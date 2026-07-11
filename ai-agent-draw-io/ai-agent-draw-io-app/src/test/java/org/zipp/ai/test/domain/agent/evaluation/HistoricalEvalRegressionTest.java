@@ -15,7 +15,7 @@ import static org.junit.Assert.*;
 public class HistoricalEvalRegressionTest {
 
     @Test
-    public void recordedFalseSuccessMustFailAtBaselineAndPassAfterArtifactFix() throws Exception {
+    public void sanitizedFalseSuccessSymptomMustFailWhileCorrectedReplayPasses() throws Exception {
         EvalCaseDefinition evalCase;
         try (InputStream input = getClass().getResourceAsStream(
                 "/evals/core-v1/regression-edit-success-with-unchanged-canvas.yaml")) {
@@ -28,7 +28,7 @@ public class HistoricalEvalRegressionTest {
         EvalHarnessResult candidateResult = new DefaultEvalHarness().evaluate(candidate);
         assertEquals(EvalHarnessResult.Status.PASS, candidateResult.getStatus());
 
-        // Reproduce the historical symptom: the run and tool call say SUCCESS, but no edited artifact was committed.
+        // Reconstruct the sanitized historical symptom; ProductionLiveEvalAdapterTest separately drives the fixed seam.
         candidate.setGitSha(evalCase.getRegression().getExpectedBaseline().getGitSha());
         candidate.setFinalCanvasXml(candidate.getInitialCanvasXml());
         candidate.getTrace().setAfterCanvasHash(candidate.getTrace().getBeforeCanvasHash());
