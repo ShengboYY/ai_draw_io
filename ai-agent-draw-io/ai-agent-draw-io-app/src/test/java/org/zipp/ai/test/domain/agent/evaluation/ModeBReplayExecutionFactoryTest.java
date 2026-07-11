@@ -1,0 +1,28 @@
+package org.zipp.ai.test.domain.agent.evaluation;
+
+import org.junit.Test;
+import org.zipp.ai.domain.agent.model.valobj.evaluation.EvalCaseDefinition;
+import org.zipp.ai.domain.agent.model.valobj.evaluation.EvalExecution;
+import org.zipp.ai.domain.agent.service.evaluation.DefaultEvalHarness;
+import org.zipp.ai.domain.agent.service.evaluation.EvalCaseLoader;
+
+import java.io.InputStream;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+
+public class ModeBReplayExecutionFactoryTest {
+
+    @Test
+    public void shouldApplyEveryRecordedRepairToolCallInOrder() throws Exception {
+        try (InputStream input = getClass().getResourceAsStream("/evals/core-v1/edit-add-worker.yaml")) {
+            EvalCaseDefinition evalCase = new EvalCaseLoader().load(input);
+
+            EvalExecution execution = new ModeBReplayExecutionFactory("phase1-test-sha").create(evalCase);
+
+            assertEquals(3, execution.getTrace().getToolCalls().size());
+            assertTrue(execution.getFinalCanvasXml().contains("x=\"380\""));
+            assertTrue(new DefaultEvalHarness().evaluate(execution).isPassed());
+        }
+    }
+}

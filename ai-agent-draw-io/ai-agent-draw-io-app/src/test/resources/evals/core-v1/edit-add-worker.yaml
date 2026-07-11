@@ -1,0 +1,38 @@
+caseId: edit-add-worker-001
+caseVersion: "1"
+datasetVersion: core-v1
+origin: specification-derived
+risk: high
+diagramType: architecture
+fixtureVersion: fixture-v1
+tags: [edit_existing, structural_edit]
+privacy: {classification: synthetic, sanitizerVersion: null}
+provenance: {sourceTraceRetained: false, reviewer: eval-team, approvedAt: "2026-07-11T00:00:00Z"}
+executionProfile: {profileId: phase1-mode-b, model: stubbed, promptConfigHash: prompt-v1, skillCatalogHash: skills-v1, toolPolicyVersion: tool-policy-v1}
+input: {user: "Add a Worker service and connect it to API"}
+replay:
+  initialCanvasXml: "<mxGraphModel><root><mxCell id='0'/><mxCell id='1' parent='0'/><mxCell id='2' value='API' vertex='1' parent='1'><mxGeometry x='100' y='100' width='140' height='60' as='geometry'/></mxCell></root></mxGraphModel>"
+  routerReply: '{"routeType":"edit_existing","diagramType":"architecture","skillName":"none","needsCanvasQuality":true,"needsSemanticReview":true,"answerMode":"none","answer":"","reason":"add worker"}'
+  taskOutcome: FULFILLED
+  toolCalls:
+    - name: modify_diagram
+      mode: append
+      cells: "<mxCell id='3' value='Worker' vertex='1' parent='1'><mxGeometry x='120' y='110' width='140' height='60' as='geometry'/></mxCell><mxCell id='4' value='dispatches' edge='1' parent='1' source='2' target='3'><mxGeometry relative='1' as='geometry'/></mxCell>"
+      expectedRepairContains: "blocking issue"
+    - name: modify_diagram
+      mode: replace_cells
+      cells: "<mxCell id='3' value='Worker' vertex='1' parent='1'><mxGeometry x='380' y='100' width='140' height='60' as='geometry'/></mxCell>"
+      expectedRepairContains: "No blocking issues"
+expected:
+  routeType: edit_existing
+  routeDiagramType: architecture
+  skillName: none
+  needsCanvasQuality: true
+  needsSemanticReview: true
+  answerMode: none
+  taskOutcome: FULFILLED
+  requiredToolNamesBeforeMutation: [get_drawio_skill]
+  allowedMutationTools: [modify_diagram]
+  requireCanvasChange: true
+  maxCriticalIssues: 0
+  maxMajorIssues: 0

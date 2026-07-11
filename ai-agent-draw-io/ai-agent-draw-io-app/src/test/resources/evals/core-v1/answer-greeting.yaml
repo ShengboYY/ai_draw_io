@@ -1,0 +1,29 @@
+caseId: answer-greeting-001
+caseVersion: "1"
+datasetVersion: core-v1
+origin: specification-derived
+risk: low
+diagramType: none
+fixtureVersion: fixture-v1
+tags: [answer_only, no_mutation]
+privacy: {classification: synthetic, sanitizerVersion: null}
+provenance: {sourceTraceRetained: false, reviewer: eval-team, approvedAt: "2026-07-11T00:00:00Z"}
+executionProfile: {profileId: phase1-mode-b, model: stubbed, promptConfigHash: prompt-v1, skillCatalogHash: skills-v1, toolPolicyVersion: tool-policy-v1}
+input: {user: "Hello"}
+replay:
+  initialCanvasXml: "<mxGraphModel><root><mxCell id='0'/><mxCell id='1' parent='0'/></root></mxGraphModel>"
+  routerReply: '{"routeType":"create_new","diagramType":"flowchart","skillName":"none","needsCanvasQuality":false,"needsSemanticReview":false,"answerMode":"none","answer":"","reason":"unused greeting stub"}'
+  taskOutcome: FULFILLED
+  toolCalls: []
+expected:
+  routeType: answer_only
+  routeDiagramType: none
+  skillName: none
+  needsCanvasQuality: false
+  needsSemanticReview: false
+  answerMode: general
+  taskOutcome: FULFILLED
+  allowedMutationTools: []
+  requireCanvasChange: false
+  maxCriticalIssues: 0
+  maxMajorIssues: 0

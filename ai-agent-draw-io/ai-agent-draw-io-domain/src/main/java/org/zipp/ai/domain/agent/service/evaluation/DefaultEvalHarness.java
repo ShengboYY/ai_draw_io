@@ -53,8 +53,12 @@ public class DefaultEvalHarness {
         boolean passed = graders.stream().allMatch(EvalGraderResult::isPassed);
         return EvalHarnessResult.builder()
                 .caseId(execution.getEvalCase().getCaseId())
-                .caseVersion(execution.getEvalCase().getDatasetVersion())
+                .caseVersion(execution.getEvalCase().getCaseVersion())
                 .gitSha(execution.getGitSha())
+                .executionProfileHash(execution.getExecutionProfileHash())
+                .promptConfigHash(execution.getPromptConfigHash())
+                .skillCatalogHash(execution.getSkillCatalogHash())
+                .toolPolicyVersion(execution.getToolPolicyVersion())
                 .latencyMs((System.nanoTime() - startedAt) / 1_000_000)
                 .status(passed ? EvalHarnessResult.Status.PASS : EvalHarnessResult.Status.FAIL)
                 .passed(passed)
@@ -67,10 +71,20 @@ public class DefaultEvalHarness {
         EvalTrace trace = execution.getTrace();
         List<String> evidence = new ArrayList<>();
 
-        String actualRoute = trace.getRouting() == null ? null : trace.getRouting().getRouteType();
+        EvalTrace.Routing routing = trace.getRouting();
+        String actualRoute = routing == null ? null : routing.getRouteType();
         if (notBlank(expected.getRouteType()) && !Objects.equals(expected.getRouteType(), actualRoute)) {
             evidence.add("Expected route " + expected.getRouteType() + " but got " + actualRoute + ".");
         }
+        compare("route diagram type", expected.getRouteDiagramType(),
+                routing == null ? null : routing.getDiagramType(), evidence);
+        compare("skill", expected.getSkillName(), routing == null ? null : routing.getSkillName(), evidence);
+        compare("needsCanvasQuality", expected.getNeedsCanvasQuality(),
+                routing == null ? null : routing.getNeedsCanvasQuality(), evidence);
+        compare("needsSemanticReview", expected.getNeedsSemanticReview(),
+                routing == null ? null : routing.getNeedsSemanticReview(), evidence);
+        compare("answer mode", expected.getAnswerMode(),
+                routing == null ? null : routing.getAnswerMode(), evidence);
         if (expected.getTaskOutcome() != null && expected.getTaskOutcome() != trace.getTaskOutcome()) {
             evidence.add("Expected task outcome " + expected.getTaskOutcome() + " but got " + trace.getTaskOutcome() + ".");
         }
@@ -104,14 +118,63 @@ public class DefaultEvalHarness {
     private EvalGraderResult gradeXmlIntegrity(String xml) {
         List<String> evidence = new ArrayList<>();
         try {
-            Document document = DocumentHelper.parseText(xml); Element root = document.getRootElement().element("root");
-            if (root == null) evidence.add("mxGraphModel is missing a root element.");
-            else { Set<String> ids = new HashSet<>(); List<Element> edges = new ArrayList<>();
-                for (Object item : root.elements("mxCell")) { Element cell = (Element) item; String id = cell.attributeValue("id"); if (id == null || id.isBlank() || !ids.add(id)) evidence.add("Cell id is missing or duplicated: " + id + "."); if ("1".equals(cell.attributeValue("edge"))) edges.add(cell); }
-                for (Element edge : edges) { String source = edge.attributeValue("source"), target = edge.attributeValue("target"); if (source != null && !ids.contains(source)) evidence.add("Edge source does not exist: " + source + "."); if (target != null && !ids.contains(target)) evidence.add("Edge target does not exist: " + target + "."); }
+            Document document = DocumentHelper.parseText(xml);
+            if (!"mxGraphModel".equals(document.getRootElement().getName())) {
+                evidence.add("Root element must be mxGraphModel.");
+                return grader("xml_integrity", XML_GRADER_VERSION, evidence);
             }
-        } catch (Exception e) { evidence.add("XML is not parseable."); }
+            Element root = document.getRootElement().element("root");
+            if (root == null) {
+                evidence.add("mxGraphModel is missing a root element.");
+            } else {
+                Set<String> ids = new HashSet<>();
+                List<Element> cells = root.elements("mxCell");
+                for (Element cell : cells) {
+                    String id = cell.attributeValue("id");
+                    if (id == null || id.isBlank() || !ids.add(id)) {
+                        evidence.add("Cell id is missing or duplicated: " + id + ".");
+                    }
+                    boolean vertex = "1".equals(cell.attributeValue("vertex"));
+                    boolean edge = "1".equals(cell.attributeValue("edge"));
+                    if (vertex && edge) {
+                        evidence.add("Cell cannot be both vertex and edge: " + id + ".");
+                    }
+                    if ((vertex || edge) && cell.element("mxGeometry") == null) {
+                        evidence.add("Drawable cell is missing mxGeometry: " + id + ".");
+                    }
+                }
+                if (!ids.contains("0") || !ids.contains("1")) {
+                    evidence.add("Canvas must contain base cells 0 and 1.");
+                }
+                for (Element cell : cells) {
+                    validateReference("parent", cell.attributeValue("parent"), cell.attributeValue("id"), ids, evidence);
+                    if ("1".equals(cell.attributeValue("edge"))) {
+                        validateRequiredReference("source", cell.attributeValue("source"), cell.attributeValue("id"), ids, evidence);
+                        validateRequiredReference("target", cell.attributeValue("target"), cell.attributeValue("id"), ids, evidence);
+                    }
+                }
+                DocumentHelper.parseText(document.asXML());
+            }
+        } catch (Exception e) {
+            evidence.add("XML is not parseable.");
+        }
         return grader("xml_integrity", XML_GRADER_VERSION, evidence);
+    }
+
+    private void validateReference(String field, String reference, String cellId,
+                                   Set<String> ids, List<String> evidence) {
+        if (reference != null && !reference.isBlank() && !ids.contains(reference)) {
+            evidence.add("Cell " + cellId + " has missing " + field + " reference: " + reference + ".");
+        }
+    }
+
+    private void validateRequiredReference(String field, String reference, String cellId,
+                                           Set<String> ids, List<String> evidence) {
+        if (reference == null || reference.isBlank()) {
+            evidence.add("Edge " + cellId + " is missing " + field + ".");
+        } else {
+            validateReference(field, reference, cellId, ids, evidence);
+        }
     }
 
     private EvalGraderResult gradeVisualQuality(EvalCaseDefinition.Expected expected, CanvasAnalysis analysis) {
@@ -179,5 +242,11 @@ public class DefaultEvalHarness {
 
     private boolean notBlank(String value) {
         return value != null && !value.isBlank();
+    }
+
+    private void compare(String field, Object expected, Object actual, List<String> evidence) {
+        if (expected != null && !Objects.equals(expected, actual)) {
+            evidence.add("Expected " + field + " " + expected + " but got " + actual + ".");
+        }
     }
 }

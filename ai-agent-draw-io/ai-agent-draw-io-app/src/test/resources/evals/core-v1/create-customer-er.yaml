@@ -1,0 +1,32 @@
+caseId: create-customer-er-001
+caseVersion: "1"
+datasetVersion: core-v1
+origin: specification-derived
+risk: medium
+diagramType: er
+fixtureVersion: fixture-v1
+tags: [create_new, er]
+privacy: {classification: synthetic, sanitizerVersion: null}
+provenance: {sourceTraceRetained: false, reviewer: eval-team, approvedAt: "2026-07-11T00:00:00Z"}
+executionProfile: {profileId: phase1-mode-b, model: stubbed, promptConfigHash: prompt-v1, skillCatalogHash: skills-v1, toolPolicyVersion: tool-policy-v1}
+input: {user: "Create an ER diagram for Customer and Order"}
+replay:
+  initialCanvasXml: "<mxGraphModel><root><mxCell id='0'/><mxCell id='1' parent='0'/></root></mxGraphModel>"
+  routerReply: '{"routeType":"create_new","diagramType":"er","skillName":"none","needsCanvasQuality":false,"needsSemanticReview":false,"answerMode":"none","answer":"","reason":"create ER"}'
+  taskOutcome: FULFILLED
+  toolCalls:
+    - name: create_diagram
+      cells: "<mxCell id='2' value='Customer' vertex='1' parent='1'><mxGeometry x='80' y='100' width='160' height='80' as='geometry'/></mxCell><mxCell id='3' value='Order' vertex='1' parent='1'><mxGeometry x='380' y='100' width='160' height='80' as='geometry'/></mxCell><mxCell id='4' value='places' edge='1' parent='1' source='2' target='3'><mxGeometry relative='1' as='geometry'/></mxCell>"
+expected:
+  routeType: create_new
+  routeDiagramType: er
+  skillName: none
+  needsCanvasQuality: false
+  needsSemanticReview: false
+  answerMode: none
+  taskOutcome: FULFILLED
+  requiredToolNamesBeforeMutation: [get_drawio_skill]
+  allowedMutationTools: [create_diagram]
+  requireCanvasChange: true
+  maxCriticalIssues: 0
+  maxMajorIssues: 0

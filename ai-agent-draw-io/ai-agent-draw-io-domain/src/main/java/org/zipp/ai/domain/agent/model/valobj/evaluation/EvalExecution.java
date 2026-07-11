@@ -18,4 +18,8 @@ public class EvalExecution {
     private EvalTrace trace;
     private String finalCanvasXml;
     private String gitSha;
+    private String executionProfileHash;
+    private String promptConfigHash;
+    private String skillCatalogHash;
+    private String toolPolicyVersion;
 }

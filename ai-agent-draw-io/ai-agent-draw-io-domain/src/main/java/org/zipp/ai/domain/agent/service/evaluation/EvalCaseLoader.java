@@ -13,16 +13,29 @@ import java.util.Objects;
  */
 public class EvalCaseLoader {
 
+    private static final String SUPPORTED_FIXTURE_VERSION = "fixture-v1";
     private final ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
 
     public EvalCaseDefinition load(InputStream input) throws IOException {
         Objects.requireNonNull(input, "input");
         EvalCaseDefinition result = mapper.readValue(input, EvalCaseDefinition.class);
-        if (result == null || isBlank(result.getCaseId()) || isBlank(result.getDatasetVersion())) {
-            throw new IllegalArgumentException("Eval case must include caseId and datasetVersion.");
+        if (result == null || isBlank(result.getCaseId()) || isBlank(result.getCaseVersion())
+                || isBlank(result.getDatasetVersion())) {
+            throw new IllegalArgumentException("Eval case must include caseId, caseVersion, and datasetVersion.");
         }
         if (result.getPrivacy() == null || !"synthetic".equals(result.getPrivacy().getClassification())) {
             throw new IllegalArgumentException("Eval case privacy.classification must be synthetic.");
+        }
+        if (isBlank(result.getOrigin()) || isBlank(result.getRisk()) || result.getExpected() == null
+                || result.getInput() == null) {
+            throw new IllegalArgumentException("Eval case must include origin, risk, input, and expected.");
+        }
+        if (!SUPPORTED_FIXTURE_VERSION.equals(result.getFixtureVersion())) {
+            throw new IllegalArgumentException("Unsupported fixtureVersion: " + result.getFixtureVersion());
+        }
+        if ("trace-derived-synthetic".equals(result.getOrigin())
+                && (result.getProvenance() == null || isBlank(result.getProvenance().getReviewer()))) {
+            throw new IllegalArgumentException("Trace-derived case must include reviewed provenance.");
         }
         return result;
     }

@@ -19,10 +19,12 @@ import java.util.Map;
 public class EvalCaseDefinition {
 
     private String caseId;
+    private String caseVersion;
     private String datasetVersion;
     private String origin;
     private String risk;
     private String diagramType;
+    private String fixtureVersion;
 
     @Builder.Default
     private List<String> tags = new ArrayList<>();
@@ -39,6 +41,12 @@ public class EvalCaseDefinition {
     @Builder.Default
     private Replay replay = new Replay();
 
+    @Builder.Default
+    private Provenance provenance = new Provenance();
+
+    private ExecutionProfile executionProfile;
+    private Regression regression;
+
     @Data
     @Builder
     @NoArgsConstructor
@@ -54,6 +62,11 @@ public class EvalCaseDefinition {
     @AllArgsConstructor
     public static class Expected {
         private String routeType;
+        private String routeDiagramType;
+        private String skillName;
+        private Boolean needsCanvasQuality;
+        private Boolean needsSemanticReview;
+        private String answerMode;
         private EvalTrace.TaskOutcome taskOutcome;
 
         @Builder.Default
@@ -75,9 +88,61 @@ public class EvalCaseDefinition {
     public static class Replay {
         private String initialCanvasXml;
         private String routerReply;
-        private String toolName;
-        private String mutationMode;
-        private String mutationCells;
         private EvalTrace.TaskOutcome taskOutcome;
+
+        @Builder.Default
+        private List<ReplayToolCall> toolCalls = new ArrayList<>();
+    }
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class ReplayToolCall {
+        private String name;
+        private String mode;
+        private String xml;
+        private String cells;
+        private String expectedRepairContains;
+    }
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class Provenance {
+        private Boolean sourceTraceRetained;
+        private String reviewer;
+        private String approvedAt;
+    }
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class ExecutionProfile {
+        private String profileId;
+        private String model;
+        private String promptConfigHash;
+        private String skillCatalogHash;
+        private String toolPolicyVersion;
+    }
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class Regression {
+        private ExpectedBaseline expectedBaseline;
+        private String failureFamily;
+    }
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class ExpectedBaseline {
+        private String gitSha;
+        private String outcome;
     }
 }

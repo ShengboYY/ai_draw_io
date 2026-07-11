@@ -20,6 +20,10 @@ public class EvalHarnessResult {
     private String caseId;
     private String caseVersion;
     private String gitSha;
+    private String executionProfileHash;
+    private String promptConfigHash;
+    private String skillCatalogHash;
+    private String toolPolicyVersion;
     private long latencyMs;
     private Status status;
     private String errorClass;

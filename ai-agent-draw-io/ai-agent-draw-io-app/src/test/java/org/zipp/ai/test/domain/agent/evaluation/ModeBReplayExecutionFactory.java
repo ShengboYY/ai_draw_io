@@ -24,21 +24,34 @@ import java.util.List;
 /** Builds one deterministic execution solely from the replay data owned by that eval case. */
 public class ModeBReplayExecutionFactory implements EvalBatchRunner.ExecutionFactory {
 
+    private final String gitSha;
+
+    public ModeBReplayExecutionFactory() {
+        this(System.getProperty("eval.gitSha", "test-fixture-sha"));
+    }
+
+    public ModeBReplayExecutionFactory(String gitSha) {
+        this.gitSha = gitSha;
+    }
+
     @Override
     public EvalExecution create(EvalCaseDefinition evalCase) throws Exception {
         EvalCaseDefinition.Replay replay = requireReplay(evalCase);
         String initialXml = require(replay.getInitialCanvasXml(), "replay.initialCanvasXml");
-        String toolName = require(replay.getToolName(), "replay.toolName");
         IntentRoutingResult routing = route(evalCase, initialXml, require(replay.getRouterReply(), "replay.routerReply"));
-        String finalXml = executeTool(toolName, initialXml, replay);
 
         List<EvalTrace.ToolCall> toolCalls = new ArrayList<>();
         for (String required : evalCase.getExpected().getRequiredToolNamesBeforeMutation()) {
             toolCalls.add(successfulCall(required));
         }
-        toolCalls.add(successfulCall(toolName));
+        String finalXml = initialXml;
+        for (EvalCaseDefinition.ReplayToolCall call : replay.getToolCalls()) {
+            finalXml = executeTool(call, finalXml);
+            toolCalls.add(successfulCall(call.getName()));
+        }
         EvalTrace.TaskOutcome outcome = replay.getTaskOutcome() == null
                 ? EvalTrace.TaskOutcome.UNKNOWN : replay.getTaskOutcome();
+        EvalCaseDefinition.ExecutionProfile profile = evalCase.getExecutionProfile();
         return EvalExecution.builder()
                 .evalCase(evalCase)
                 .trace(EvalTrace.builder()
@@ -48,13 +61,25 @@ public class ModeBReplayExecutionFactory implements EvalBatchRunner.ExecutionFac
                                 .routeType(routing.getRouteType())
                                 .diagramType(routing.getDiagramType())
                                 .skillName(routing.getSkillName())
+                                .needsCanvasQuality(routing.getNeedsCanvasQuality())
+                                .needsSemanticReview(routing.getNeedsSemanticReview())
+                                .answerMode(routing.getAnswerMode())
                                 .build())
+                        .steps(List.of(
+                                EvalTrace.Step.builder().phase("routing").agentId("300010")
+                                        .status(EvalTrace.RunStatus.SUCCESS).build(),
+                                EvalTrace.Step.builder().phase("drawing").agentId("300000")
+                                        .status(EvalTrace.RunStatus.SUCCESS).build()))
                         .toolCalls(toolCalls)
                         .beforeCanvasHash(Integer.toHexString(initialXml.hashCode()))
                         .afterCanvasHash(Integer.toHexString(finalXml.hashCode()))
                         .build())
                 .finalCanvasXml(finalXml)
-                .gitSha("stubbed-replay")
+                .gitSha(gitSha)
+                .executionProfileHash(profileHash(profile))
+                .promptConfigHash(profile == null ? null : profile.getPromptConfigHash())
+                .skillCatalogHash(profile == null ? null : profile.getSkillCatalogHash())
+                .toolPolicyVersion(profile == null ? null : profile.getToolPolicyVersion())
                 .build();
     }
 
@@ -69,14 +94,16 @@ public class ModeBReplayExecutionFactory implements EvalBatchRunner.ExecutionFac
                 .build());
     }
 
-    private String executeTool(String toolName, String initialXml, EvalCaseDefinition.Replay replay) {
+    private String executeTool(EvalCaseDefinition.ReplayToolCall call, String initialXml) {
         DrawioCanvasMcpService service = new DrawioCanvasMcpService();
+        String toolName = require(call.getName(), "replay.toolCalls[].name");
         if (DrawioCanvasToolNames.MODIFY_DIAGRAM.equals(toolName)) {
             DrawioCanvasMcpService.ModifyDiagramRequest request = new DrawioCanvasMcpService.ModifyDiagramRequest();
-            request.setMode(require(replay.getMutationMode(), "replay.mutationMode"));
-            request.setXml(initialXml);
-            request.setCells(require(replay.getMutationCells(), "replay.mutationCells"));
+            request.setMode(require(call.getMode(), "replay.toolCalls[].mode"));
+            request.setXml(call.getXml() == null ? initialXml : call.getXml());
+            request.setCells(require(call.getCells(), "replay.toolCalls[].cells"));
             DrawioCanvasMcpService.DrawioMutationResponse response = service.modifyDiagram(request);
+            assertRepairSignal(call, response.getRepairBrief());
             if (response.getContent() != null) {
                 return response.getContent();
             }
@@ -87,7 +114,8 @@ public class ModeBReplayExecutionFactory implements EvalBatchRunner.ExecutionFac
         }
         if (DrawioCanvasToolNames.CREATE_DIAGRAM.equals(toolName)) {
             DrawioCanvasMcpService.DrawioXmlRequest request = new DrawioCanvasMcpService.DrawioXmlRequest();
-            request.setXml(require(replay.getMutationCells(), "replay.mutationCells"));
+            request.setXml(require(call.getXml() == null ? call.getCells() : call.getXml(),
+                    "replay.toolCalls[].xml or cells"));
             return service.createDiagram(request).getContent();
         }
         throw new IllegalArgumentException("Unsupported replay tool: " + toolName);
@@ -121,6 +149,19 @@ public class ModeBReplayExecutionFactory implements EvalBatchRunner.ExecutionFac
 
     private EvalTrace.ToolCall successfulCall(String name) {
         return EvalTrace.ToolCall.builder().name(name).status(EvalTrace.RunStatus.SUCCESS).build();
+    }
+
+    private String profileHash(EvalCaseDefinition.ExecutionProfile profile) {
+        return profile == null ? null : Integer.toHexString((profile.getProfileId() + "|" + profile.getModel()
+                + "|" + profile.getPromptConfigHash() + "|" + profile.getSkillCatalogHash()
+                + "|" + profile.getToolPolicyVersion()).hashCode());
+    }
+
+    private void assertRepairSignal(EvalCaseDefinition.ReplayToolCall call, String repairBrief) {
+        String expected = call.getExpectedRepairContains();
+        if (expected != null && (repairBrief == null || !repairBrief.contains(expected))) {
+            throw new IllegalStateException("Expected repair signal containing: " + expected);
+        }
     }
 
     private void inject(Object target, String fieldName, Object value) throws Exception {

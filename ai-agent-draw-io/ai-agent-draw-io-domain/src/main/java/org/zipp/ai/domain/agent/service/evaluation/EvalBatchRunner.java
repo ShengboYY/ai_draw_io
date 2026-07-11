@@ -59,6 +59,10 @@ public class EvalBatchRunner {
             report.append("## ").append(result.getCaseId()).append(" — ").append(result.getStatus()).append("\n\n")
                     .append("- case version: ").append(result.getCaseVersion()).append("\n")
                     .append("- git SHA: ").append(result.getGitSha()).append("\n")
+                    .append("- execution profile: ").append(result.getExecutionProfileHash()).append("\n")
+                    .append("- prompt config: ").append(result.getPromptConfigHash()).append("\n")
+                    .append("- skill catalog: ").append(result.getSkillCatalogHash()).append("\n")
+                    .append("- tool policy: ").append(result.getToolPolicyVersion()).append("\n")
                     .append("- latency: ").append(result.getLatencyMs()).append(" ms\n");
             if (result.getErrorClass() != null) {
                 report.append("- error: ").append(result.getErrorClass()).append(": ")

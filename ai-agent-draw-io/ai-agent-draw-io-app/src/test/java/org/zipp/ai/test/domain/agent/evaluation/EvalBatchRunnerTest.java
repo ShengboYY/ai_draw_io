@@ -25,6 +25,8 @@ public class EvalBatchRunnerTest {
         String markdown = Files.readString(report.resolve("eval-report.md"));
         assertTrue(markdown.contains("grader xml_integrity@xml-integrity-v1: PASS"));
         assertTrue(markdown.contains("latency:"));
+        assertTrue(markdown.contains("execution profile:"));
+        assertTrue(markdown.contains("tool policy: tool-policy-v1"));
     }
 
     @Test

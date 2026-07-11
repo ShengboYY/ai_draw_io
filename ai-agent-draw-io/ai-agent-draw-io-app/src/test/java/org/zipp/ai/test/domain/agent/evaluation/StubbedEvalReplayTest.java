@@ -20,10 +20,17 @@ public class StubbedEvalReplayTest {
     public void shouldReplayTheCaseOwnedRouterReplyAndCanvasToolInput() throws Exception {
         EvalCaseDefinition evalCase = EvalCaseDefinition.builder()
                 .caseId("edit-payment-service-stubbed-001")
+                .caseVersion("1")
                 .datasetVersion("core-v1")
                 .diagramType("architecture")
+                .origin("specification-derived")
+                .risk("high")
+                .fixtureVersion("fixture-v1")
                 .input(Map.of("user", "Add Payment Service and connect it to Order Service"))
                 .privacy(new EvalCaseDefinition.Privacy("synthetic", "none"))
+                .provenance(EvalCaseDefinition.Provenance.builder().sourceTraceRetained(false)
+                        .reviewer("eval-team").approvedAt("2026-07-11T00:00:00Z").build())
+                .executionProfile(profile())
                 .expected(expected())
                 .replay(replay())
                 .build();
@@ -37,6 +44,11 @@ public class StubbedEvalReplayTest {
     private EvalCaseDefinition.Expected expected() {
         EvalCaseDefinition.Expected expected = new EvalCaseDefinition.Expected();
         expected.setRouteType("edit_existing");
+        expected.setRouteDiagramType("architecture");
+        expected.setSkillName("none");
+        expected.setNeedsCanvasQuality(true);
+        expected.setNeedsSemanticReview(true);
+        expected.setAnswerMode("none");
         expected.setTaskOutcome(EvalTrace.TaskOutcome.FULFILLED);
         expected.setRequiredToolNamesBeforeMutation(List.of(DrawioSkillToolNames.GET_DRAWIO_SKILL));
         expected.setAllowedMutationTools(List.of(DrawioCanvasToolNames.MODIFY_DIAGRAM));
@@ -55,13 +67,25 @@ public class StubbedEvalReplayTest {
                 .routerReply("{\"routeType\":\"edit_existing\",\"diagramType\":\"architecture\","
                         + "\"skillName\":\"none\",\"needsCanvasQuality\":true,\"needsSemanticReview\":true,"
                         + "\"answerMode\":\"none\",\"answer\":\"\",\"reason\":\"add payment service\"}")
-                .toolName(DrawioCanvasToolNames.MODIFY_DIAGRAM)
-                .mutationMode("append")
-                .mutationCells("<mxCell id='3' value='Payment Service' vertex='1' parent='1'>"
-                        + "<mxGeometry x='340' y='100' width='140' height='60' as='geometry'/></mxCell>"
-                        + "<mxCell id='4' value='charges' edge='1' parent='1' source='2' target='3'>"
-                        + "<mxGeometry relative='1' as='geometry'/></mxCell>")
+                .toolCalls(List.of(EvalCaseDefinition.ReplayToolCall.builder()
+                        .name(DrawioCanvasToolNames.MODIFY_DIAGRAM)
+                        .mode("append")
+                        .cells("<mxCell id='3' value='Payment Service' vertex='1' parent='1'>"
+                                + "<mxGeometry x='340' y='100' width='140' height='60' as='geometry'/></mxCell>"
+                                + "<mxCell id='4' value='charges' edge='1' parent='1' source='2' target='3'>"
+                                + "<mxGeometry relative='1' as='geometry'/></mxCell>")
+                        .build()))
                 .taskOutcome(EvalTrace.TaskOutcome.FULFILLED)
+                .build();
+    }
+
+    private EvalCaseDefinition.ExecutionProfile profile() {
+        return EvalCaseDefinition.ExecutionProfile.builder()
+                .profileId("phase1-mode-b")
+                .model("stubbed")
+                .promptConfigHash("prompt-v1")
+                .skillCatalogHash("skills-v1")
+                .toolPolicyVersion("tool-policy-v1")
                 .build();
     }
 }
