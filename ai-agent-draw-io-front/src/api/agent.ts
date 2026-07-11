@@ -313,6 +313,39 @@ export const agentApi = {
         return handleResponse<EvalCaseCandidateDTO>(response);
     },
 
+    adminListEvalCandidates: async (params?: {
+        status?: string;
+        risk?: string;
+        limit?: number;
+        offset?: number;
+    }): Promise<Response<EvalCaseCandidateDTO[]>> => {
+        const query = new URLSearchParams();
+        if (params?.status) query.set('status', params.status);
+        if (params?.risk) query.set('risk', params.risk);
+        if (params?.limit != null) query.set('limit', String(params.limit));
+        if (params?.offset != null) query.set('offset', String(params.offset));
+        const qs = query.toString();
+        const response = await fetch(`${API_CONFIG.BASE_URL}/admin/eval-candidates${qs ? `?${qs}` : ''}`, {
+            method: 'GET',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+        });
+        return handleResponse<EvalCaseCandidateDTO[]>(response);
+    },
+
+    adminTransitionEvalCandidate: async (
+        candidateId: string,
+        payload: { status: string; reason?: string },
+    ): Promise<Response<EvalCaseCandidateDTO>> => {
+        const response = await fetch(`${API_CONFIG.BASE_URL}/admin/eval-candidates/${encodeURIComponent(candidateId)}/status`, {
+            method: 'POST',
+            headers: await csrfHeaders({ 'Content-Type': 'application/json' }),
+            body: JSON.stringify(payload),
+            credentials: 'include',
+        });
+        return handleResponse<EvalCaseCandidateDTO>(response);
+    },
+
     adminRunCaptures: async (runId: string): Promise<Response<AdminDebugTraceCaptureDTO[]>> => {
         const response = await fetch(
             `${API_CONFIG.BASE_URL}/admin/debug-traces/runs/${encodeURIComponent(runId)}/captures`,

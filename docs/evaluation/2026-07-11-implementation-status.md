@@ -105,11 +105,47 @@ npm run build
 
 当前聚焦结果：20 个后端测试通过；前端入口测试与 production build 通过；lint 为 0 error、8 个本阶段前已存在的 drawio page warning。
 
+## Phase 3：确定性 Candidate Queue
+
+**状态：完成**
+
+| 方案要求 | 实现证据 | 结果 |
+| --- | --- | --- |
+| 异步确定性 Selector | `EvalCandidateSelectorJob` 按配置定时调用 selector，默认关闭且不进入用户请求链路 | 完成 |
+| metadata-only 规则 | 只读取 run/step/LLM/tool status、routing/mutation event metadata 和 canvas hash snapshot | 完成 |
+| 执行失败规则 | run、step、LLM、tool 的 FAILED/ERROR 合并为 execution candidate | 完成 |
+| mutation 失败规则 | create/modify/optimize tool failure 形成 artifact evidence | 完成 |
+| repair/质量规则 | retryCount 达预算形成 medium evidence；`NEEDS_REPAIR` 形成 high blocking-quality evidence | 完成 |
+| canvas 无变化规则 | mutating route 且至少两个有序 snapshot 的首尾 hash 相同形成 artifact evidence | 完成 |
+| 终态与幂等 | 跳过 RUNNING run；同一 `(source_run_id, failure_family)` 合并 rule/evidence，service 查询与 DB unique key 防重复 | 完成 |
+| 队列查询性能 | status/risk/discovered_at 复合索引；API 支持 status/risk/limit/offset | 完成 |
+| 管理端队列 | `Candidates` 页面展示 risk/family/rules/evidence、源 trace 链接，并提供筛选 | 完成 |
+| 受约束状态迁移 | 支持 TRIAGED、NEEDS_MANUAL_RECONSTRUCTION、UNDER_REVIEW、REJECTED/EXPIRED/PURGED；通用接口禁止跳到 APPROVED/PUBLISHED | 完成 |
+| 权限与审计 | 列表和迁移复用 admin authorization；迁移使用 CSRF；成功/拒绝/运行时错误均审计 | 完成 |
+| Debug/LLM 隔离 | selector、job、queue API 和 UI 均不读取 Debug Trace、不调用 LLM | 完成 |
+
+### Phase 3 边界
+
+- 普通 telemetry 尚无 Analyzer 逐 issue 类型/count；当前只用 `NEEDS_REPAIR` 表示阻塞问题残留，不能精确归因 critical/major 类别。
+- canvas no-change 只有在至少两个 snapshot 提供可比 hash 时判定；缺 hash 不推断失败，避免假阳性。
+- Undo、评分、立即重试和人工大改尚未采集，按方案留到 Phase 8 的隐私审批后扩展信号。
+- queue 不生成 Draft、不读取 payload；这些能力属于 Phase 5。
+
+验证命令：
+
+```text
+mvn -pl ai-agent-draw-io-app -am -Dtest=DeterministicCandidateSelectorServiceTest,TraceToEvalIntakeServiceTest,AdminControllerTest -Dsurefire.failIfNoSpecifiedTests=false test
+node --test tests/admin-eval-candidates-page.test.mjs
+npm run lint
+npm run build
+```
+
+当前聚焦结果：25 个后端测试、1 个 Candidate Queue 页面测试通过；production build 通过；lint 为 0 error、8 个既有 warning。
+
 ## 后续顺序
 
-1. 实现 Phase 3：确定性 Candidate Queue；
-2. 实现 Phase 4：Graph、保留度和多轮 Evaluation；
-3. 实现 Phase 5：受控 LLM 草拟；
-4. 实现 Phase 6：Live-model、Judge 与统计；
-5. 实现 Phase 7：Release Gate 与封存集；
-6. 实现 Phase 8：Canary、case health 和持续运营。
+1. 实现 Phase 4：Graph、保留度和多轮 Evaluation；
+2. 实现 Phase 5：受控 LLM 草拟；
+3. 实现 Phase 6：Live-model、Judge 与统计；
+4. 实现 Phase 7：Release Gate 与封存集；
+5. 实现 Phase 8：Canary、case health 和持续运营。

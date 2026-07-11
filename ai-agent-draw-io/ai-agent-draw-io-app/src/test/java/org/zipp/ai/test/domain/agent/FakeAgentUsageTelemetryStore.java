@@ -209,6 +209,17 @@ public class FakeAgentUsageTelemetryStore implements IAgentUsageTelemetryStore {
     }
 
     @Override
+    public List<AgentRunTelemetry> listRuns(String status, String userId, String agentId, int limit, int offset) {
+        return runs.stream()
+                .filter(run -> status == null || status.equals(run.getStatus()))
+                .filter(run -> userId == null || userId.equals(run.getUserId()))
+                .filter(run -> agentId == null || agentId.equals(run.getAgentId()))
+                .skip(offset)
+                .limit(limit)
+                .toList();
+    }
+
+    @Override
     public int deleteTelemetryBefore(Instant cutoff) {
         deletedBeforeCutoff = cutoff;
         return deletedBeforeCount;

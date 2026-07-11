@@ -113,6 +113,8 @@ Interface 不接受原始 prompt/XML 作为参数，也不允许调用方绕过�
 
 `Undo`、低评分、立即重试、人工大改等属于第二版信号：只有前端先显式记录事件并说明隐私目的后才能进入 Selector。
 
+首版实现只在 run 进入终态后扫描，避免对 RUNNING run 的局部证据提前建立幂等记录。当前普通 telemetry 没有 Analyzer 的逐 issue 明细；因此首版以 `DRAWING_MUTATION.outcome=NEEDS_REPAIR` 表示“阻塞质量问题仍残留”，不能把它解释为精确的 critical/major issue type。待普通 telemetry 增加非敏感 issue count/type 后，再细分该规则，仍不得为此读取 XML 或 debug payload。
+
 ### 5.2 Candidate 不是失败事实
 
 每个 candidate 只陈述“为什么值得审核”，不能断言 Agent 一定失败。Selector 的输出至少包括：
@@ -280,6 +282,8 @@ P0 的“发布”是人工工作流：审核者将合成 case 以统一 `Approv
 - 接入 run/tool failure、repair 预算、Analyzer 问题和 canvas hash 规则；
 - 管理端提供筛选、去重、状态迁移和审计记录；
 - 仍不自动读取 debug trace 或调用 LLM。
+
+Selector 默认关闭，通过 `ZIPP_EVAL_CANDIDATE_SELECTOR_ENABLED=true` 在一个 scheduler 实例启用；默认每 5 分钟扫描最近 200 个终态 run。部署多个启用实例不会产生重复 case（数据库幂等键兜底），但会制造无效竞争，因此生产只启用一个实例。
 
 ### P2：受控 LLM 草拟
 

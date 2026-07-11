@@ -157,6 +157,21 @@ public class AdminControllerTest {
     }
 
     @Test
+    public void adminCanFilterAndTriageTheEvalCandidateQueue() {
+        authenticate("usr_admin", 0);
+        telemetryStore.runs.add(AgentRunTelemetry.builder().id("aru_eval").status("FAILED").build());
+        EvalCaseCandidate candidate = controller.createEvalCandidate("aru_eval", request()).getData();
+
+        Response<EvalCaseCandidate> transitioned = controller.transitionEvalCandidate(candidate.getId(),
+                Map.of("status", "TRIAGED", "reason", "high-value regression"), request());
+        Response<List<EvalCaseCandidate>> listed = controller.listEvalCandidates("TRIAGED", "high", 50, 0, request());
+
+        assertEquals(EvalCandidateStatus.TRIAGED, transitioned.getData().getStatus());
+        assertEquals(1, listed.getData().size());
+        assertEquals("LIST_EVAL_CANDIDATES", auditLogs.logs.get(2).getAction());
+    }
+
+    @Test
     public void adminRequestFromUntrustedOriginIsRejected() {
         authenticate("usr_admin", 0);
         MockHttpServletRequest request = request();
@@ -985,6 +1000,12 @@ public class AdminControllerTest {
             return candidates.values().stream()
                     .filter(candidate -> runId.equals(candidate.getSourceRunId()) && family.equals(candidate.getFailureFamily()))
                     .findFirst();
+        }
+        @Override public List<EvalCaseCandidate> listCandidates(EvalCandidateStatus status, String risk, int limit, int offset) {
+            return candidates.values().stream()
+                    .filter(candidate -> status == null || status == candidate.getStatus())
+                    .filter(candidate -> risk == null || risk.equals(candidate.getRisk()))
+                    .skip(offset).limit(limit).toList();
         }
         @Override public void insertCandidate(EvalCaseCandidate candidate) {
             if (failInsertCandidate) throw new IllegalStateException("database details");

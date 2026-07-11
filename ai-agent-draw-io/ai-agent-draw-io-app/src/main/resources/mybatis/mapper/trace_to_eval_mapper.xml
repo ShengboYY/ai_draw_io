@@ -4,6 +4,14 @@
   <resultMap id="candidate" type="org.zipp.ai.infrastructure.dao.po.evaluation.EvalCaseCandidatePO"><id property="id" column="id"/><result property="sourceRunId" column="source_run_id"/><result property="sourceSpanId" column="source_span_id"/><result property="sourcePhase" column="source_phase"/><result property="sourceAgentId" column="source_agent_id"/><result property="failureFamily" column="failure_family"/><result property="ruleId" column="rule_id"/><result property="evidenceSummary" column="evidence_summary"/><result property="risk" column="risk"/><result property="discoveredAt" column="discovered_at"/><result property="policyVersion" column="policy_version"/><result property="status" column="status"/><result property="createdBy" column="created_by"/></resultMap>
   <select id="selectCandidate" resultMap="candidate">select * from eval_case_candidate where id=#{candidateId}</select>
   <select id="selectCandidateBySource" resultMap="candidate">select * from eval_case_candidate where source_run_id=#{sourceRunId} and failure_family=#{failureFamily}</select>
+  <select id="selectCandidates" resultMap="candidate">
+    select * from eval_case_candidate
+    <where>
+      <if test="status != null and status != ''">and status=#{status}</if>
+      <if test="risk != null and risk != ''">and risk=#{risk}</if>
+    </where>
+    order by discovered_at desc limit #{limit} offset #{offset}
+  </select>
   <insert id="insertCandidate">insert into eval_case_candidate (id,source_run_id,source_span_id,source_phase,source_agent_id,failure_family,rule_id,evidence_summary,risk,discovered_at,policy_version,status,created_by) values (#{id},#{sourceRunId},#{sourceSpanId},#{sourcePhase},#{sourceAgentId},#{failureFamily},#{ruleId},#{evidenceSummary},#{risk},#{discoveredAt},#{policyVersion},#{status},#{createdBy})</insert>
   <update id="updateCandidateStatus">update eval_case_candidate set status=#{status} where id=#{candidateId}</update>
   <insert id="insertReview">insert into eval_case_review (id,candidate_id,reviewer,decision,reason,reviewed_at) values (#{id},#{candidateId},#{reviewer},#{decision},#{reason},#{reviewedAt})</insert>

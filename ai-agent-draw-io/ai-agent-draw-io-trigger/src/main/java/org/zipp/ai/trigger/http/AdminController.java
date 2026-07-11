@@ -116,6 +116,49 @@ public class AdminController {
         }
     }
 
+    @GetMapping("/eval-candidates")
+    public Response<List<EvalCaseCandidate>> listEvalCandidates(
+            @RequestParam(value = "status", required = false) String status,
+            @RequestParam(value = "risk", required = false) String risk,
+            @RequestParam(value = "limit", defaultValue = "50") int limit,
+            @RequestParam(value = "offset", defaultValue = "0") int offset,
+            HttpServletRequest request) {
+        Optional<UserAccount> admin = requireAdmin(request);
+        if (admin.isEmpty()) return forbidden();
+        try {
+            List<EvalCaseCandidate> candidates = traceToEvalIntakeService.listCandidates(status, risk, limit, offset);
+            audit(admin.get(), "LIST_EVAL_CANDIDATES", "EVAL_CANDIDATE", null, "SUCCESS", request);
+            return success(candidates);
+        } catch (IllegalArgumentException e) {
+            audit(admin.get(), "LIST_EVAL_CANDIDATES", "EVAL_CANDIDATE", null, "REJECTED", request);
+            return failure(e.getMessage());
+        } catch (RuntimeException e) {
+            audit(admin.get(), "LIST_EVAL_CANDIDATES", "EVAL_CANDIDATE", null, "ERROR", request);
+            return failure("failed to list Eval Candidates");
+        }
+    }
+
+    @PostMapping("/eval-candidates/{candidateId}/status")
+    public Response<EvalCaseCandidate> transitionEvalCandidate(@PathVariable("candidateId") String candidateId,
+                                                               @RequestBody Map<String, String> body,
+                                                               HttpServletRequest request) {
+        Optional<UserAccount> admin = requireAdmin(request);
+        if (admin.isEmpty()) return forbidden();
+        try {
+            EvalCaseCandidate candidate = traceToEvalIntakeService.transition(candidateId,
+                    body == null ? null : body.get("status"), admin.get().getId(),
+                    body == null ? null : body.get("reason"));
+            audit(admin.get(), "TRANSITION_EVAL_CANDIDATE", "EVAL_CANDIDATE", candidateId, "SUCCESS", request);
+            return success(candidate);
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            audit(admin.get(), "TRANSITION_EVAL_CANDIDATE", "EVAL_CANDIDATE", candidateId, "REJECTED", request);
+            return failure(e.getMessage());
+        } catch (RuntimeException e) {
+            audit(admin.get(), "TRANSITION_EVAL_CANDIDATE", "EVAL_CANDIDATE", candidateId, "ERROR", request);
+            return failure("failed to transition Eval Candidate");
+        }
+    }
+
     @PostMapping("/eval-candidates/{candidateId}/review")
     public Response<EvalCaseCandidate> reviewEvalCandidate(@PathVariable("candidateId") String candidateId,
                                                            @RequestBody Map<String, String> body, HttpServletRequest request) {

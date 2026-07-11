@@ -5,6 +5,7 @@ public enum EvalCandidateStatus {
     DETECTED,
     TRIAGED,
     DRAFT_READY,
+    NEEDS_MANUAL_RECONSTRUCTION,
     UNDER_REVIEW,
     APPROVED,
     REJECTED,

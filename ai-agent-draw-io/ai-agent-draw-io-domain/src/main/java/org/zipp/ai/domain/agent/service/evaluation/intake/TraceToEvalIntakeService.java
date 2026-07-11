@@ -14,6 +14,8 @@ import org.zipp.ai.domain.agent.service.usage.IAgentUsageTelemetryStore;
 
 import java.time.Clock;
 import java.util.Comparator;
+import java.util.List;
+import java.util.Set;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -56,6 +58,37 @@ public class TraceToEvalIntakeService {
         return candidate;
     }
 
+    public List<EvalCaseCandidate> listCandidates(String status, String risk, int requestedLimit, int requestedOffset) {
+        EvalCandidateStatus parsedStatus = StringUtils.isBlank(status) ? null : parseStatus(status);
+        String parsedRisk = StringUtils.trimToNull(StringUtils.lowerCase(risk));
+        if (parsedRisk != null && !Set.of("critical", "high", "medium", "low").contains(parsedRisk)) {
+            throw new IllegalArgumentException("unsupported risk");
+        }
+        int limit = Math.max(1, Math.min(requestedLimit, 200));
+        int offset = Math.max(0, requestedOffset);
+        return intakeStore.listCandidates(parsedStatus, parsedRisk, limit, offset);
+    }
+
+    @Transactional
+    public EvalCaseCandidate transition(String candidateId, String requestedStatus, String actor, String reason) {
+        require(candidateId, "candidateId"); require(actor, "actor");
+        EvalCandidateStatus target = parseStatus(requestedStatus);
+        if (target == EvalCandidateStatus.PUBLISHED || target == EvalCandidateStatus.APPROVED) {
+            throw new IllegalArgumentException("approval and publication require their dedicated review flow");
+        }
+        EvalCaseCandidate candidate = intakeStore.findCandidate(candidateId)
+                .orElseThrow(() -> new IllegalArgumentException("candidate not found"));
+        if (!allowedTransition(candidate.getStatus(), target)) {
+            throw new IllegalStateException("invalid candidate transition: " + candidate.getStatus() + " -> " + target);
+        }
+        intakeStore.insertReview(EvalCaseReview.builder().id("ecr_" + UUID.randomUUID()).candidateId(candidateId)
+                .reviewer(actor).decision(target.name()).reason(StringUtils.left(StringUtils.trimToEmpty(reason), 1024))
+                .reviewedAt(clock.instant()).build());
+        intakeStore.updateCandidateStatus(candidateId, target);
+        candidate.setStatus(target);
+        return candidate;
+    }
+
     @Transactional
     public EvalCaseCandidate review(String candidateId, String decision, String actor, String reason) {
         require(candidateId, "candidateId"); require(actor, "actor");
@@ -82,4 +115,27 @@ public class TraceToEvalIntakeService {
     }
 
     private void require(String value, String field) { if (StringUtils.isBlank(value)) throw new IllegalArgumentException(field + " is required"); }
+
+    private EvalCandidateStatus parseStatus(String status) {
+        try {
+            return EvalCandidateStatus.valueOf(StringUtils.upperCase(StringUtils.trimToEmpty(status)));
+        } catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException("unsupported candidate status");
+        }
+    }
+
+    private boolean allowedTransition(EvalCandidateStatus current, EvalCandidateStatus target) {
+        if (current == null || current == target) return false;
+        if (Set.of(EvalCandidateStatus.REJECTED, EvalCandidateStatus.EXPIRED, EvalCandidateStatus.PURGED).contains(target)) {
+            return !Set.of(EvalCandidateStatus.PUBLISHED, EvalCandidateStatus.REJECTED,
+                    EvalCandidateStatus.EXPIRED, EvalCandidateStatus.PURGED).contains(current);
+        }
+        return switch (current) {
+            case DETECTED -> target == EvalCandidateStatus.TRIAGED;
+            case TRIAGED -> target == EvalCandidateStatus.NEEDS_MANUAL_RECONSTRUCTION
+                    || target == EvalCandidateStatus.UNDER_REVIEW;
+            case DRAFT_READY, NEEDS_MANUAL_RECONSTRUCTION -> target == EvalCandidateStatus.UNDER_REVIEW;
+            default -> false;
+        };
+    }
 }

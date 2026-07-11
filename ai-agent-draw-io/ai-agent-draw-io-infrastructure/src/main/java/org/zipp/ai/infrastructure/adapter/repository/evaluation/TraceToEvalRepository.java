@@ -6,11 +6,13 @@ import org.zipp.ai.infrastructure.dao.ITraceToEvalMapper;
 import org.zipp.ai.infrastructure.dao.po.evaluation.*;
 import javax.annotation.Resource;
 import java.util.Optional;
+import java.util.List;
 @Repository
 public class TraceToEvalRepository implements ITraceToEvalStore {
  @Resource private ITraceToEvalMapper mapper;
  public Optional<EvalCaseCandidate> findCandidate(String id){return Optional.ofNullable(mapper.selectCandidate(id)).map(this::candidate);}
  public Optional<EvalCaseCandidate> findCandidateBySourceRunAndFailureFamily(String r,String f){return Optional.ofNullable(mapper.selectCandidateBySource(r,f)).map(this::candidate);}
+ public List<EvalCaseCandidate> listCandidates(EvalCandidateStatus s,String risk,int limit,int offset){return mapper.selectCandidates(s==null?null:s.name(),risk,limit,offset).stream().map(this::candidate).toList();}
  public void insertCandidate(EvalCaseCandidate v){mapper.insertCandidate(candidatePo(v));} public void updateCandidateStatus(String id,EvalCandidateStatus s){mapper.updateCandidateStatus(id,s.name());}
  public void insertReview(EvalCaseReview v){EvalCaseReviewPO p=new EvalCaseReviewPO();p.setId(v.getId());p.setCandidateId(v.getCandidateId());p.setReviewer(v.getReviewer());p.setDecision(v.getDecision());p.setReason(v.getReason());p.setReviewedAt(java.util.Date.from(v.getReviewedAt()));mapper.insertReview(p);}
  public void insertLineage(EvalCaseLineage v){EvalCaseLineagePO p=new EvalCaseLineagePO();p.setPromotionId(v.getPromotionId());p.setCaseId(v.getCaseId());p.setDatasetVersion(v.getDatasetVersion());p.setReviewer(v.getReviewer());p.setApprovedAt(java.util.Date.from(v.getApprovedAt()));p.setSanitizerVersion(v.getSanitizerVersion());p.setOrigin(v.getOrigin());mapper.insertLineage(p);}
