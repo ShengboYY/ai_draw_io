@@ -63,6 +63,22 @@ public class TraceAnalysisJobServiceTest {
     }
 
     @Test
+    public void nonRetryableAnalyzerFailureStopsAfterOneAttempt() {
+        FakeAgentUsageTelemetryStore telemetry = telemetry("run-invalid", "SUCCESS", 10L);
+        MemoryJobStore jobs = new MemoryJobStore();
+        StubSemantic semantic = new StubSemantic();
+        TraceAnalysisJobService service = service(jobs, telemetry, new CandidateStore(), semantic, new StubVisual());
+
+        TraceAnalysisJobView result = service.startBatch("LLM", "TARGETED", 1, null,
+                "admin", true, null, null);
+
+        assertEquals("FAILED", result.job().getStatus());
+        assertEquals(1, result.items().get(0).getAttempt());
+        assertEquals("IllegalArgumentException", result.items().get(0).getErrorClass());
+        assertEquals(1, semantic.calls);
+    }
+
+    @Test
     public void batchSnapshotExcludesTracesCreatedAfterTheSnapshot() {
         FakeAgentUsageTelemetryStore telemetry = telemetry("run-old", "SUCCESS", 10L);
         telemetry.runs.add(AgentRunTelemetry.builder().id("run-completed-after-snapshot").status("SUCCESS").latencyMs(10L)
@@ -143,6 +159,7 @@ public class TraceAnalysisJobServiceTest {
         @Override public AnalysisResult analyzeRun(String run, String actor, boolean confirmed, String ip, String ua) {
             calls++;
             if (run.contains("timeout")) throw new IllegalStateException("provider timeout");
+            if (run.contains("invalid")) throw new IllegalArgumentException("invalid analyzer input");
             return new AnalysisResult("NO_FINDING", null, null, 0.01D);
         }
         @Override public String analyzerVersion() { return "stub"; }
