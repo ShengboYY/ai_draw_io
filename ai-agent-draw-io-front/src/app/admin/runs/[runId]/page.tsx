@@ -32,6 +32,7 @@ import {
   type TraceKindLike,
 } from '../../admin-shared';
 import { AdminShell } from '../../admin-shell';
+import { TraceAnalysisWorkspace } from '../../trace-analysis-workspace';
 import { TracePayloadPanel } from './trace-payload-panel';
 import { TraceWorkbench } from './trace-workbench';
 
@@ -306,10 +307,10 @@ export default function AdminRunDetailPage() {
     agentApi.adminCreateEvalCandidate(runId)
       .then((response) => {
         setEvalCandidate(response.data);
-        setEvalCandidateNote('Candidate is ready for manual reconstruction and review.');
+        setEvalCandidateNote('Finding is ready for manual reconstruction and review.');
       })
       .catch((reason) => {
-        setEvalCandidateNote(reason instanceof Error ? reason.message : 'Failed to create Eval Candidate');
+        setEvalCandidateNote(reason instanceof Error ? reason.message : 'Failed to create Finding');
       })
       .finally(() => setEvalCandidateLoading(false));
   };
@@ -349,6 +350,7 @@ export default function AdminRunDetailPage() {
 
   return (
     <AdminShell active="trace">
+      <TraceAnalysisWorkspace active="runs" />
       <div className="mb-7 border-b border-stone-200 pb-5 sm:flex sm:items-start sm:justify-between sm:gap-5">
         <div className="min-w-0">
           <h1 className="font-display text-3xl font-semibold text-zinc-900 sm:text-4xl">Diagram trace</h1>
@@ -368,7 +370,7 @@ export default function AdminRunDetailPage() {
             disabled={!run || evalCandidateLoading}
             className="rounded-md bg-zinc-900 px-3 py-2 text-sm font-medium text-white hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {evalCandidateLoading ? 'Creating…' : 'Create Eval Candidate'}
+            {evalCandidateLoading ? 'Creating…' : 'Create Finding'}
           </button>
           {evalCandidate && (
             <div className="mt-2 font-mono text-[11px] text-zinc-500">

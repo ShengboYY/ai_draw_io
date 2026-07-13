@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { AdminAccountMenu } from './admin-account-menu';
 import { primaryNavIdFor, primaryNavItems } from './admin-navigation.mjs';
 
-type AdminSection = 'overview' | 'runs' | 'evalRuns' | 'operations' | 'candidates' | 'cases' | 'datasets' | 'trace';
+type AdminSection = 'overview' | 'runs' | 'evalOverview' | 'evalRuns' | 'operations' | 'candidates' | 'cases' | 'datasets' | 'trace';
 
 interface AdminShellProps {
   active: AdminSection;

@@ -19,7 +19,7 @@ test('operations page exposes the non-sensitive Case Health queue and feedback l
   assert.match(page, /adminRefreshEvalCaseHealth/);
   assert.match(page, /Case Health queue/);
   assert.match(page, /Regression feedback loop/);
-  assert.match(page, /\/admin\/eval-candidates/);
+  assert.match(page, /\/admin\/trace-findings/);
   assert.match(page, /\/admin\/eval-cases/);
   assert.match(page, /\/admin\/eval-runs/);
 });

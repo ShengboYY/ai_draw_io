@@ -7,8 +7,8 @@ import { agentApi, ApiResponseError } from '@/api/agent';
 import type { EvalCaseCandidateDTO, SemanticMinerRunDTO } from '@/types/api';
 import { buildLoginHref } from '@/utils/login-form';
 import { formatTime } from '../admin-shared';
-import { AdminPageHeading, AdminShell } from '../admin-shell';
-import { EvaluationWorkspace } from '../evaluation-workspace';
+import { AdminShell } from '../admin-shell';
+import { TraceAnalysisWorkspace } from '../trace-analysis-workspace';
 import { acceptCandidateForDraft, hasActiveSemanticDiscovery } from './candidate-review-workflow';
 
 const STATUS_FILTERS = ['', 'DETECTED', 'TRIAGED', 'DRAFT_READY', 'NEEDS_MANUAL_RECONSTRUCTION', 'UNDER_REVIEW', 'APPROVED', 'REJECTED', 'PUBLISHED'];
@@ -47,7 +47,7 @@ export default function AdminEvalCandidatesPage() {
             ? setForbidden(true)
             : router.replace(buildLoginHref(pathname)));
         } else {
-          setError(reason instanceof Error ? reason.message : 'Failed to load Eval Candidates');
+          setError(reason instanceof Error ? reason.message : 'Failed to load Findings');
         }
       })
       .finally(() => {
@@ -95,7 +95,7 @@ export default function AdminEvalCandidatesPage() {
     setVisualMining(true); setError(null);
     // Keep purpose confirmation explicit at the API boundary; the server also rejects false.
     agentApi.adminAnalyzeVisualRun(visualRunId.trim(), true)
-      .then(({ data }) => { window.alert(data.status === 'CANDIDATE_CREATED' ? `Visual Candidate created: ${data.candidateId}` : `${data.status}${data.reason ? ` · ${data.reason}` : ''}`); window.location.reload(); })
+      .then(({ data }) => { window.alert(data.status === 'CANDIDATE_CREATED' ? `Visual Finding created: ${data.candidateId}` : `${data.status}${data.reason ? ` · ${data.reason}` : ''}`); window.location.reload(); })
       .catch((failure) => setError(failure instanceof Error ? failure.message : 'Visual discovery failed'))
       .finally(() => setVisualMining(false));
   };
@@ -115,7 +115,7 @@ export default function AdminEvalCandidatesPage() {
           : `Manual reconstruction required · ${data.sanitizerEvidence.join(', ')}`,
       }));
     } catch (failure) {
-      setError(failure instanceof Error ? failure.message : 'Failed to accept Candidate and prepare Draft');
+      setError(failure instanceof Error ? failure.message : 'Failed to accept Finding and prepare Draft');
       await refreshCandidates();
     } finally {
       setBusyCandidateId(null);
@@ -123,7 +123,7 @@ export default function AdminEvalCandidatesPage() {
   };
 
   const dismissCandidate = async (candidate: EvalCaseCandidateDTO) => {
-    if (busyCandidateId || !window.confirm('Dismiss this Candidate from the review inbox?')) return;
+    if (busyCandidateId || !window.confirm('Dismiss this Finding from the review inbox?')) return;
     setBusyCandidateId(candidate.id); setError(null);
     try {
       const { data } = await agentApi.adminTransitionEvalCandidate(candidate.id, {
@@ -133,7 +133,7 @@ export default function AdminEvalCandidatesPage() {
         .map((item) => item.id === data.id ? data : item)
         .filter((item) => !status || item.status === status));
     } catch (failure) {
-      setError(failure instanceof Error ? failure.message : 'Failed to dismiss Candidate');
+      setError(failure instanceof Error ? failure.message : 'Failed to dismiss Finding');
     } finally {
       setBusyCandidateId(null);
     }
@@ -163,12 +163,11 @@ export default function AdminEvalCandidatesPage() {
 
   return (
     <AdminShell active="candidates">
-      <AdminPageHeading
-        eyebrow="Evaluation · Step 4"
-        title="Discover issues from Traces"
-        description="Screen development Traces with deterministic rules or an LLM, then review every finding before it becomes a regression Case."
+      <TraceAnalysisWorkspace
+        active="findings"
+        title="Findings"
+        description="Screen development Traces with deterministic rules, an LLM or a VLM, then review the evidence before optionally promoting a sanitized regression Draft."
       />
-      <EvaluationWorkspace active="discover" />
 
       <section className="mb-5 grid gap-3 sm:grid-cols-3" aria-label="Trace discovery boundaries">
         <Boundary title="Input" text="Sanitized Trace projections—not raw production payloads." />
@@ -186,7 +185,7 @@ export default function AdminEvalCandidatesPage() {
             <button type="button" onClick={() => { void refreshMinerRuns(); void refreshCandidates(); }} className="text-xs text-zinc-500 hover:underline">Refresh</button>
           </div>
         </div>
-        {hasActiveDiscovery && <div className="mt-3 rounded-md bg-blue-50 px-3 py-2 text-xs text-blue-700">Discovery is running. Progress and new Candidates refresh automatically.</div>}
+        {hasActiveDiscovery && <div className="mt-3 rounded-md bg-blue-50 px-3 py-2 text-xs text-blue-700">Discovery is running. Progress and new Findings refresh automatically.</div>}
         {minerRuns.length > 0 && <div className="mt-3 grid gap-2 sm:grid-cols-2">{minerRuns.slice(0, 4).map((run) => <div key={run.id} className="rounded-md bg-stone-50 px-3 py-2 text-xs text-zinc-600"><span className="font-mono">{run.id}</span> · <strong>{run.status}</strong> · {run.candidateCount} candidates / {run.analyzedCount} analyzed · {run.errorCount} isolated errors · ${run.estimatedCostUsd.toFixed(4)}{run.availabilityReason && <div className="mt-1 text-amber-700">{run.availabilityReason}</div>}</div>)}</div>}
       </section>
 
@@ -195,7 +194,7 @@ export default function AdminEvalCandidatesPage() {
       </section>
 
       <div className="mb-5 flex flex-col gap-3 border-b border-stone-200 pb-4 sm:flex-row sm:items-end sm:justify-between">
-        <div><h2 className="text-lg font-semibold text-zinc-900">Review Inbox</h2><p className="mt-1 text-xs text-zinc-500">A Candidate is a model or rule finding, not a confirmed Agent failure. Accepting it creates only a reviewable Draft.</p></div>
+        <div><h2 className="text-lg font-semibold text-zinc-900">Review Findings</h2><p className="mt-1 text-xs text-zinc-500">A Finding is a model or rule signal, not a confirmed Agent failure. Accepting it creates only a reviewable Draft.</p></div>
         <div className="flex flex-wrap gap-3"><Filter label="Status" value={status} options={STATUS_FILTERS} onChange={(value) => {
             setLoading(true); setError(null); setStatus(value);
           }} formatOption={candidateStatusLabel} />
@@ -204,8 +203,8 @@ export default function AdminEvalCandidatesPage() {
           }} /></div>
       </div>
       {error && <div className="mb-4 rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{error}</div>}
-      {loading && <div className="py-16 text-center text-sm text-zinc-400">Loading candidates…</div>}
-      {!loading && !error && candidates.length === 0 && <div className="rounded-xl border border-dashed border-stone-300 bg-stone-50 px-5 py-12 text-center"><p className="text-sm font-medium text-zinc-700">Your Trace Inbox is clear</p><p className="mx-auto mt-1 max-w-lg text-xs leading-5 text-zinc-500">Run the Agent during development, then start a bounded discovery scan above. You can also skip Trace discovery and create a synthetic Case manually.</p><Link href="/admin/eval-cases/new" className="mt-4 inline-flex text-sm font-semibold text-zinc-700 hover:underline">Create a Case instead →</Link></div>}
+      {loading && <div className="py-16 text-center text-sm text-zinc-400">Loading findings…</div>}
+      {!loading && !error && candidates.length === 0 && <div className="rounded-xl border border-dashed border-stone-300 bg-stone-50 px-5 py-12 text-center"><p className="text-sm font-medium text-zinc-700">No Findings need review</p><p className="mx-auto mt-1 max-w-lg text-xs leading-5 text-zinc-500">Run the Agent during development, then start a bounded discovery scan above. You can also skip Trace discovery and create a synthetic Case manually.</p><Link href="/admin/eval-cases/new" className="mt-4 inline-flex text-sm font-semibold text-zinc-700 hover:underline">Create a Case instead →</Link></div>}
 
       <div className="space-y-3">
         {candidates.map((candidate) => (

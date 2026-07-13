@@ -7,7 +7,8 @@ import { agentApi, ApiResponseError } from '@/api/agent';
 import type { AdminRunMetadataDTO } from '@/types/api';
 import { buildLoginHref } from '@/utils/login-form';
 import { formatMs, formatNumber, formatRelative, statusPill } from '../admin-shared';
-import { AdminPageHeading, AdminShell } from '../admin-shell';
+import { AdminShell } from '../admin-shell';
+import { TraceAnalysisWorkspace } from '../trace-analysis-workspace';
 
 const PAGE_SIZE = 50;
 const STATUS_FILTERS: { label: string; value?: string }[] = [
@@ -83,10 +84,10 @@ export default function AdminRunsPage() {
 
   return (
     <AdminShell active="runs">
-      <AdminPageHeading
-        eyebrow="Observability"
-        title="Agent runs"
-        description="Browse recent execution traces and open any run for the full event timeline."
+      <TraceAnalysisWorkspace
+        active="runs"
+        title="Trace Runs"
+        description="Browse recent Agent executions, inspect their timeline and send suspicious evidence to the Findings workspace."
       />
 
       <div className="mb-5 flex flex-wrap items-center gap-2 border-b border-stone-200 pb-4" role="tablist" aria-label="Filter runs by status">

@@ -7,55 +7,80 @@ const read = (path) => readFileSync(fileURLToPath(new URL(path, import.meta.url)
 
 const shell = read('../src/app/admin/admin-shell.tsx');
 const navigation = await import('../src/app/admin/admin-navigation.mjs');
-const workspace = read('../src/app/admin/evaluation-workspace.tsx');
-const overview = read('../src/app/admin/evaluations/page.tsx');
-const candidates = read('../src/app/admin/eval-candidates/page.tsx');
+const evaluationWorkspace = read('../src/app/admin/evaluation-workspace.tsx');
+const traceWorkspace = read('../src/app/admin/trace-analysis-workspace.tsx');
+const evaluationOverview = read('../src/app/admin/evaluations/page.tsx');
+const legacyCandidates = read('../src/app/admin/eval-candidates/page.tsx');
+const canonicalFindings = read('../src/app/admin/trace-findings/page.tsx');
+const traceRuns = read('../src/app/admin/runs/page.tsx');
+const traceDetail = read('../src/app/admin/runs/[runId]/page.tsx');
+const evalRunDetail = read('../src/app/admin/eval-runs/[evalRunId]/page.tsx');
+const operations = read('../src/app/admin/eval-operations/page.tsx');
 const cases = read('../src/app/admin/eval-cases/page.tsx');
 const datasets = read('../src/app/admin/eval-datasets/page.tsx');
-const runs = read('../src/app/admin/eval-runs/page.tsx');
-const runDetail = read('../src/app/admin/eval-runs/[evalRunId]/page.tsx');
+const evalRuns = read('../src/app/admin/eval-runs/page.tsx');
 
-test('admin navigation separates telemetry from the evaluation workspace', () => {
-  assert.deepEqual(navigation.primaryNavItems.map((item) => item.label), ['Overview', 'Traces', 'Evaluation', 'Operations']);
+test('primary navigation separates Evaluation from Trace Analysis', () => {
+  assert.deepEqual(
+    navigation.primaryNavItems.map((item) => item.label),
+    ['Overview', 'Evaluation', 'Trace Analysis', 'Operations'],
+  );
+  assert.equal(navigation.primaryNavItems.find((item) => item.id === 'evaluation').href, '/admin/evaluations');
+  assert.equal(navigation.primaryNavItems.find((item) => item.id === 'traceAnalysis').href, '/admin/runs');
+  assert.equal(navigation.primaryNavIdFor('evalRuns'), 'evaluation');
+  assert.equal(navigation.primaryNavIdFor('cases'), 'evaluation');
+  assert.equal(navigation.primaryNavIdFor('runs'), 'traceAnalysis');
+  assert.equal(navigation.primaryNavIdFor('trace'), 'traceAnalysis');
+  assert.equal(navigation.primaryNavIdFor('candidates'), 'traceAnalysis');
+});
+
+test('admin navigation remains usable on desktop and mobile widths', () => {
   assert.match(shell, /flex-wrap/);
   assert.match(shell, /order-3 grid h-10 w-full/);
-  assert.equal(navigation.primaryNavItems.some((item) => item.label === 'Candidates'), false);
-  assert.equal(navigation.primaryNavItems.some((item) => item.label === 'Cases'), false);
-  assert.equal(navigation.primaryNavItems.some((item) => item.label === 'Datasets'), false);
-  assert.equal(navigation.primaryNavIdFor('trace'), 'traces');
-  assert.equal(navigation.primaryNavIdFor('candidates'), 'evaluation');
-  assert.equal(navigation.primaryNavIdFor('datasets'), 'evaluation');
+  assert.match(shell, /sm:absolute sm:left-1\/2/);
+  assert.match(shell, /gridTemplateColumns/);
 });
 
-test('evaluation workspace presents one complete and repeatable workflow', () => {
-  assert.match(workspace, /Discover/);
-  assert.match(workspace, /Build Cases/);
-  assert.match(workspace, /Curate Dataset/);
-  assert.match(workspace, /Run & Inspect/);
-  assert.match(workspace, /improve &amp; repeat/i);
-  assert.match(workspace, /aria-current/);
-  assert.ok(workspace.indexOf('Build Cases') < workspace.indexOf('Discover & Repeat'));
+test('Evaluation has an overview and contains no Trace Inbox navigation', () => {
+  assert.match(evaluationOverview, /EvaluationWorkspace/);
+  assert.match(evaluationOverview, /active="overview"/);
+  assert.match(evaluationOverview, /No production traffic required/);
+  assert.doesNotMatch(evaluationOverview, /redirect\(/);
+  assert.match(evaluationWorkspace, /Overview/);
+  assert.match(evaluationWorkspace, /Cases/);
+  assert.match(evaluationWorkspace, /Datasets/);
+  assert.match(evaluationWorkspace, /Runs/);
+  assert.doesNotMatch(evaluationWorkspace, /Trace Inbox|eval-candidates/);
 });
 
-test('evaluation landing page prioritizes offline evaluation and trace feedback', () => {
-  assert.match(overview, /Start with offline evaluation/);
-  assert.match(overview, /No production traffic required/);
-  assert.match(overview, /Turn development traces into regression Cases/);
-  assert.match(overview, /Recorded-model replay/);
-  assert.ok(overview.includes('/admin/eval-cases/new'));
-  assert.ok(overview.includes('/admin/eval-candidates'));
+test('Trace Analysis owns runs, findings and miner entry points', () => {
+  assert.match(traceWorkspace, /Trace Runs/);
+  assert.match(traceWorkspace, /Findings/);
+  assert.match(traceWorkspace, /\/admin\/trace-findings/);
+  assert.match(traceWorkspace, /Findings are evidence, not Evaluation failures/);
+  assert.match(traceRuns, /TraceAnalysisWorkspace/);
+  assert.match(traceRuns, /active="runs"/);
+  assert.match(traceDetail, /TraceAnalysisWorkspace active="runs"/);
+  assert.match(legacyCandidates, /TraceAnalysisWorkspace active="findings"/);
+  assert.match(legacyCandidates, /Autonomous LLM discovery/);
+  assert.match(legacyCandidates, /Visual anomaly discovery/);
 });
 
-test('every core evaluation page is connected to the shared workflow', () => {
-  assert.match(candidates, /EvaluationWorkspace active="discover"/);
+test('the new Findings URL and legacy Candidate deep link use one implementation', () => {
+  assert.match(canonicalFindings, /eval-candidates\/page/);
+  assert.match(legacyCandidates, /export default function AdminEvalCandidatesPage/);
+  assert.match(evalRunDetail, /href="\/admin\/trace-findings"/);
+  assert.match(operations, /href="\/admin\/trace-findings"/);
+});
+
+test('both workspaces provide honest empty states', () => {
+  assert.match(traceRuns, /No runs found/);
+  assert.match(legacyCandidates, /No Findings need review/);
+  assert.match(evaluationOverview, /Create Case/);
+});
+
+test('existing Evaluation pages remain connected to the Evaluation workspace', () => {
   assert.match(cases, /EvaluationWorkspace active="cases"/);
   assert.match(datasets, /EvaluationWorkspace active="datasets"/);
-  assert.match(runs, /EvaluationWorkspace active="runs"/);
-  assert.match(runs, /Recorded-model replay/);
-  assert.match(datasets, /adminListPublishedEvalCases/);
-  assert.match(datasets, /Published Case to add/);
-  assert.match(runs, /adminListEvalDatasets/);
-  assert.match(runs, /adminListEvalDatasetVersions/);
-  assert.match(runDetail, /Close the feedback loop/);
-  assert.match(runDetail, /Trace Inbox/);
+  assert.match(evalRuns, /EvaluationWorkspace active="runs"/);
 });

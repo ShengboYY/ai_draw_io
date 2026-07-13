@@ -68,8 +68,8 @@ export default function AdminEvalOperationsPage() {
 
     <section className="rounded-xl border border-stone-200 bg-stone-50 p-5">
       <h2 className="font-display text-xl font-semibold text-zinc-900">Regression feedback loop</h2>
-      <p className="mt-1 text-sm text-zinc-500">Production identity stops at the reviewed Candidate boundary. Published Cases retain sanitized provenance, then fixes are verified through immutable Eval Runs.</p>
-      <div className="mt-4 grid gap-3 md:grid-cols-3"><FlowStep number="1" title="Candidate" href="/admin/eval-candidates" text="Review deterministic, semantic or visual findings." /><FlowStep number="2" title="Case & Dataset" href="/admin/eval-cases" text="Sanitize, dry-run, approve and publish a regression Case." /><FlowStep number="3" title="Fix & rerun" href="/admin/eval-runs" text="Compare candidate and baseline, evaluate Gate, then observe Canary." /></div>
+      <p className="mt-1 text-sm text-zinc-500">Production identity stops at the reviewed Finding boundary. Published Cases retain sanitized provenance, then fixes are verified through immutable Eval Runs.</p>
+      <div className="mt-4 grid gap-3 md:grid-cols-3"><FlowStep number="1" title="Finding" href="/admin/trace-findings" text="Review deterministic, semantic or visual findings." /><FlowStep number="2" title="Case & Dataset" href="/admin/eval-cases" text="Sanitize, dry-run, approve and publish a regression Case." /><FlowStep number="3" title="Fix & rerun" href="/admin/eval-runs" text="Compare candidate and baseline, evaluate Gate, then observe Canary." /></div>
     </section>
   </AdminShell>;
 }

@@ -356,6 +356,33 @@ mvn -pl ai-agent-draw-io-app -am -Dtest=EvalControlPlaneContractsTest -Dsurefire
 
 当前结果：6 个契约测试通过。下一阶段 R1 只重构两个工作台的导航和页面组合，不接入 Target/Profile 持久化。
 
+## Evaluation/Trace Workspace R1：前端工作台分离
+
+**状态：完成**
+
+R1 只调整管理员的信息架构和页面组合，不修改 Candidate、Eval Run、Miner 或 Trace 的后端行为。
+
+| R1 要求 | 实现证据 | 结果 |
+| --- | --- | --- |
+| 一级导航分离 | `admin-navigation.mjs` 固定 `Overview / Evaluation / Trace Analysis / Operations`；Candidate 不再映射到 Evaluation | 完成 |
+| Evaluation 恢复 Overview | `/admin/evaluations` 展示 Cases → Datasets → Runs 的离线测评入口，不再重定向 Cases | 完成 |
+| Evaluation 移除 Trace Inbox | `EvaluationWorkspace` 只包含 Overview、Cases、Datasets、Runs | 完成 |
+| Trace Analysis 工作台 | `TraceAnalysisWorkspace` 统一 Trace Runs 与 Findings，明确 Finding 不是 Eval FAIL | 完成 |
+| Candidate/Miner 迁移 | Candidate 页面在 Trace Analysis 下展示 deterministic/LLM/VLM 入口；canonical URL 为 `/admin/trace-findings` | 完成 |
+| 旧深链接兼容 | `/admin/eval-candidates` 保留原实现；新 Findings URL 复用同一组件和 Candidate 写模型 | 完成 |
+| 桌面/移动端 | 一级导航继续使用响应式 full-width/grid → centered desktop 布局 | 完成 |
+| 空状态 | Evaluation Overview、Trace Runs 与 Findings 都提供无数据起步说明，不渲染伪指标 | 完成 |
+
+验证命令：
+
+```text
+node --test tests/admin-evaluation-workspace.test.mjs
+npm run lint
+npm run build
+```
+
+当前结果：24 个相关 Admin/响应式测试通过（其中 7 个为工作台契约测试）；ESLint 无 error；Next.js production build 通过并生成 `/admin/evaluations`、`/admin/runs`、`/admin/trace-findings` 和旧兼容路由。
+
 ## Control Plane CP0：契约与边界
 
 **状态：完成**

@@ -1,12 +1,12 @@
-/** @typedef {'overview' | 'runs' | 'evalRuns' | 'operations' | 'candidates' | 'cases' | 'datasets' | 'trace'} AdminSection */
-/** @typedef {'overview' | 'traces' | 'evaluation' | 'operations'} PrimaryNavId */
+/** @typedef {'overview' | 'runs' | 'evalOverview' | 'evalRuns' | 'operations' | 'candidates' | 'cases' | 'datasets' | 'trace'} AdminSection */
+/** @typedef {'overview' | 'evaluation' | 'traceAnalysis' | 'operations'} PrimaryNavId */
 /** @typedef {{ id: PrimaryNavId; href: string; label: string; sections: AdminSection[] }} PrimaryNavItem */
 
 /** @type {PrimaryNavItem[]} */
 export const primaryNavItems = [
   { id: 'overview', href: '/admin', label: 'Overview', sections: ['overview'] },
-  { id: 'traces', href: '/admin/runs', label: 'Traces', sections: ['runs', 'trace'] },
-  { id: 'evaluation', href: '/admin/evaluations', label: 'Evaluation', sections: ['evalRuns', 'candidates', 'cases', 'datasets'] },
+  { id: 'evaluation', href: '/admin/evaluations', label: 'Evaluation', sections: ['evalOverview', 'evalRuns', 'cases', 'datasets'] },
+  { id: 'traceAnalysis', href: '/admin/runs', label: 'Trace Analysis', sections: ['runs', 'trace', 'candidates'] },
   { id: 'operations', href: '/admin/eval-operations', label: 'Operations', sections: ['operations'] },
 ];
 
