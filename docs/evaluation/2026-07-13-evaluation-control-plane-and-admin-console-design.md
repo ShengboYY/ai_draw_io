@@ -317,7 +317,7 @@ Validate 检查 schema、synthetic classification、secret/PII/production ID/XML
 
 Dry Run 必须按当前 working copy 的 input、fixture、replay 和 expected 真实运行 Mode B，输出 trace、canvas diff、grader evidence 和报告，不得使用跨 Case 共享硬编码脚本。
 
-Draft 可编辑；Review 展示完整 diff、隐私检查和 Dry Run 证据；高风险/core/sequestered 使用 four-eyes；Published Case 不可 update，修改时 Clone 新版本。
+Draft 可编辑；Review 展示完整 diff、隐私检查和 Dry Run 证据。当前单管理员阶段允许具备 Reviewer/Admin/Release Owner 角色的创建者自审，仍要求明确审核理由和审计记录；多人运营后再启用可配置的 four-eyes。Published Case 不可 update，修改时 Clone 新版本。
 
 ## 8. Case、Dataset 与 Health 契约
 

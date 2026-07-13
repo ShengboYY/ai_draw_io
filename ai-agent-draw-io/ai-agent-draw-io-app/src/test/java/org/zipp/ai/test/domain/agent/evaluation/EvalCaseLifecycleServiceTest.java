@@ -69,19 +69,17 @@ public class EvalCaseLifecycleServiceTest {
     }
 
     @Test
-    public void highRiskCaseRequiresAFourEyesReview() throws Exception {
-        EvalCaseWorkingCopy workingCopy = workingService.createImportedYaml(validYaml(), "editor-1", EvalAdminRole.EDITOR);
-        validationService.validate(workingCopy.getId(), "editor-1", EvalAdminRole.EDITOR);
-        dryRunService.run(workingCopy.getId(), "editor-1", EvalAdminRole.EDITOR);
-        reviewService.submit(workingCopy.getId(), "editor-1", EvalAdminRole.EDITOR);
-
-        assertThrows(SecurityException.class, () -> reviewService.decide(workingCopy.getId(), "APPROVE",
-                "self approval", "editor-1", EvalAdminRole.ADMIN));
+    public void highRiskCaseCanBeSelfApprovedInSingleAdminMode() throws Exception {
+        EvalCaseWorkingCopy workingCopy = workingService.createImportedYaml(validYaml(), "admin-1", EvalAdminRole.ADMIN);
+        validationService.validate(workingCopy.getId(), "admin-1", EvalAdminRole.ADMIN);
+        dryRunService.run(workingCopy.getId(), "admin-1", EvalAdminRole.ADMIN);
+        reviewService.submit(workingCopy.getId(), "admin-1", EvalAdminRole.ADMIN);
 
         EvalCaseWorkingCopy approved = reviewService.decide(workingCopy.getId(), "APPROVE",
-                "verified assertions", "reviewer-2", EvalAdminRole.REVIEWER);
+                "verified assertions", "admin-1", EvalAdminRole.ADMIN);
         assertEquals(EvalCaseWorkingCopyStatus.APPROVED, approved.getStatus());
         assertEquals("APPROVE", reviewStore.values.get(0).getDecision());
+        assertEquals("admin-1", reviewStore.values.get(0).getReviewerUserId());
     }
 
     @Test

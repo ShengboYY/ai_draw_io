@@ -214,7 +214,7 @@ feat(eval): expose case working copy admin api
 - 工作副本转临时 `EvalCaseDefinition`；
 - Dry Run result 持久化或短期记录；
 - Submit Review、Approve、Reject；
-- 高风险 four-eyes policy。
+- 单管理员阶段允许创建者审批自己的 Case；仍要求 Reviewer/Admin/Release Owner 角色、审核理由和审计记录。
 
 CP2 到 `APPROVED` 为止；`publish` 依赖 CP3 的不可变 Case Artifact Store 和 Dataset Version，因此在 CP3 实现。
 
@@ -255,7 +255,7 @@ POST /admin/eval-case-working-copies/{id}/reject
 - Case Studio 创建的 Case 经真实 Mode B 执行；
 - Dry Run 输入来自该 working copy，不使用共享硬编码脚本；
 - 未 Validate/Dry Run 不能 Submit Review；
-- 创建者不能审批受保护 Case；
+- 具备 Reviewer/Admin/Release Owner 角色的创建者可以完成审批，满足当前单管理员运行模式；
 - UI 明确区分 validation failure、eval FAIL 和 infrastructure ERROR。
 
 ### Milestone

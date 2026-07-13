@@ -9,7 +9,7 @@ import java.time.Clock;
 import java.util.Locale;
 import java.util.UUID;
 
-/** Enforces review eligibility and four-eyes approval for high-risk cases. */
+/** Enforces review eligibility and records an explicit human decision. */
 @Service
 public class EvalCaseReviewService {
     private final EvalCaseWorkingCopyService workingCopies;
@@ -41,10 +41,6 @@ public class EvalCaseReviewService {
         if (current.getStatus() != EvalCaseWorkingCopyStatus.UNDER_REVIEW) {
             throw new IllegalStateException("working copy is not under review");
         }
-        if ("APPROVE".equals(decision) && highRisk(current)
-                && actor.equals(current.getOwnerUserId())) {
-            throw new SecurityException("high-risk case requires a different reviewer");
-        }
         if (StringUtils.isBlank(reason)) throw new IllegalArgumentException("review reason is required");
         reviewStore.insert(EvalCaseWorkingCopyReview.builder().id("ecwr_" + UUID.randomUUID())
                 .workingCopyId(id).workingCopyRevision(current.getRevision()).reviewerUserId(actor)
@@ -52,11 +48,6 @@ public class EvalCaseReviewService {
         return workingCopies.transition(id,
                 "APPROVE".equals(decision) ? EvalCaseWorkingCopyStatus.APPROVED : EvalCaseWorkingCopyStatus.REJECTED,
                 actor, role);
-    }
-
-    private boolean highRisk(EvalCaseWorkingCopy value) {
-        String risk = value.getDefinition() == null ? null : value.getDefinition().getRisk();
-        return "high".equalsIgnoreCase(risk) || "critical".equalsIgnoreCase(risk);
     }
 
     private void requireReviewer(EvalAdminRole role) {

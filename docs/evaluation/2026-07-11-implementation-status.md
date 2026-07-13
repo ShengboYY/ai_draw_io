@@ -381,7 +381,7 @@ CP1 不执行 schema/privacy/fixture Validate，也不批准或发布 Case；这
 | Case 自有 Mode B replay | `ModeBReplayExecutionFactory` 已移到 production domain；从每个 Working Copy 的 input/replay 构造真实 router/tool/XML 执行，不共享硬编码场景 | 完成 |
 | Dry Run 证据 | `EvalCaseDryRunService` 返回 PASS/FAIL/ERROR、grader、trace、before/after XML，并写不可变 `eval_case_evidence` | 完成 |
 | 状态机 | Working Copy 严格执行 VALIDATING、VALIDATED、DRY_RUNNING、DRY_RUN_PASSED/FAILED、UNDER_REVIEW、APPROVED/REJECTED | 完成 |
-| 人工审核与 four-eyes | 审核记录独立持久化；高/critical risk 的创建者不能自批 | 完成 |
+| 人工审核 | 审核记录独立持久化；单管理员阶段允许具备 Reviewer/Admin/Release Owner 角色的创建者自批，审核理由和审计仍必需 | 完成 |
 | Admin API 与审计 | validate、dry-runs、submit-review、approve、reject 均鉴权并复用 `admin_audit_log` | 完成 |
 | Case Studio UI | Cases 列表、YAML Import、JSON form editor/YAML preview、Validation evidence、Mode B 结果、before/after、trace、审核动作 | 完成 |
 | 多 route 回放 | 生命周期测试覆盖 answer_only、create_new、edit_existing，另由 core-v1 batch 覆盖 clarify/review/multi-turn | 完成 |
