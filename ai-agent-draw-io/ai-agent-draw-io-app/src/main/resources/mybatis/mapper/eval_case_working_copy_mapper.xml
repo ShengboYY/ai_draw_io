@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.zipp.ai.infrastructure.dao.IEvalCaseWorkingCopyMapper">
+  <resultMap id="workingCopy" type="org.zipp.ai.infrastructure.dao.po.evaluation.controlplane.EvalCaseWorkingCopyPO">
+    <id property="id" column="id"/>
+    <result property="caseId" column="case_id"/>
+    <result property="caseVersion" column="case_version"/>
+    <result property="sourceType" column="source_type"/>
+    <result property="candidateId" column="candidate_id"/>
+    <result property="status" column="status"/>
+    <result property="ownerUserId" column="owner_user_id"/>
+    <result property="revision" column="revision"/>
+    <result property="definitionJson" column="definition_json"/>
+    <result property="createdAt" column="created_at"/>
+    <result property="updatedAt" column="updated_at"/>
+  </resultMap>
+
+  <select id="selectById" resultMap="workingCopy">
+    select * from eval_case_working_copy where id=#{id}
+  </select>
+
+  <select id="selectList" resultMap="workingCopy">
+    select * from eval_case_working_copy
+    <where>
+      <if test="status != null and status != ''">and status=#{status}</if>
+      <if test="ownerUserId != null and ownerUserId != ''">and owner_user_id=#{ownerUserId}</if>
+    </where>
+    order by updated_at desc, id desc limit #{limit} offset #{offset}
+  </select>
+
+  <insert id="insert">
+    insert into eval_case_working_copy
+      (id,case_id,case_version,source_type,candidate_id,status,owner_user_id,revision,definition_json,created_at,updated_at)
+    values
+      (#{id},#{caseId},#{caseVersion},#{sourceType},#{candidateId},#{status},#{ownerUserId},#{revision},#{definitionJson},#{createdAt},#{updatedAt})
+  </insert>
+
+  <update id="update">
+    update eval_case_working_copy
+    set status=#{workingCopy.status}, definition_json=#{workingCopy.definitionJson},
+        revision=#{workingCopy.revision}, updated_at=#{workingCopy.updatedAt}
+    where id=#{workingCopy.id} and revision=#{expectedRevision}
+  </update>
+</mapper>

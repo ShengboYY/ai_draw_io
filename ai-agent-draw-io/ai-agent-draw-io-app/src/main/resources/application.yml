@@ -94,5 +94,6 @@ mybatis:
     - classpath:/mybatis/mapper/admin_audit_log_mapper.xml
     - classpath:/mybatis/mapper/agent_debug_trace_mapper.xml
     - classpath:/mybatis/mapper/trace_to_eval_mapper.xml
+    - classpath:/mybatis/mapper/eval_case_working_copy_mapper.xml
     - classpath:/mybatis/mapper/usage_counter_mapper.xml
   config-location: classpath:/mybatis/config/mybatis-config.xml

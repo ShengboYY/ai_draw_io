@@ -344,3 +344,29 @@ mvn clean test
 ```
 
 CP0 只冻结跨阶段契约，不实现持久化或 Admin API；这些内容从 CP1 开始按 [Control Plane 实施计划](2026-07-13-evaluation-control-plane-implementation-plan.md) 逐阶段交付。
+
+## Control Plane CP1：Case Working Copy 后端
+
+**状态：完成**
+
+| 实施计划要求 | 实现证据 | 结果 |
+| --- | --- | --- |
+| Working Copy 持久化 | `eval_case_working_copy` migration、显式 MyBatis resultMap、repository 和 JSON round-trip | 完成 |
+| 统一 Case schema | definition JSON 始终序列化现有 `EvalCaseDefinition` | 完成 |
+| Manual / Import | `createManual`、`createImported` 生成 owner-scoped DRAFT | 完成 |
+| Working Copy Clone | Clone 创建新 identity/revision，清除 candidate linkage | 完成 |
+| Trace Draft 转换 | 读取最新 `EvalCaseDraft`，只投影 synthetic turns/route/sanitizer，不复制 source run/debug id | 完成 |
+| 乐观锁 | update 使用 `(id, expected_revision)` 条件更新；冲突返回稳定 `REVISION_CONFLICT` | 完成 |
+| 所有权与角色策略 | Editor 只能读写自己的 Draft；Admin/Release Owner 可跨 owner 管理 | 完成 |
+| 独立 Admin API | 新建 `EvaluationAdminController`，不继续膨胀生产 Trace `AdminController` | 完成 |
+| 权限、CSRF 与审计 | API 复用 admin authorization/全局写保护，操作写入现有 `admin_audit_log` target type | 完成 |
+| 错误隔离 | Validation、Not Found、Revision、State、Forbidden、Infrastructure 使用稳定错误码 | 完成 |
+
+验证命令：
+
+```text
+mvn -pl ai-agent-draw-io-app -am -Dtest=EvalCaseWorkingCopyServiceTest,EvalCaseWorkingCopyRepositoryTest,EvaluationAdminControllerTest -Dsurefire.failIfNoSpecifiedTests=false test
+mvn clean test
+```
+
+CP1 不执行 schema/privacy/fixture Validate，也不批准或发布 Case；这些行为属于 CP2/CP3。

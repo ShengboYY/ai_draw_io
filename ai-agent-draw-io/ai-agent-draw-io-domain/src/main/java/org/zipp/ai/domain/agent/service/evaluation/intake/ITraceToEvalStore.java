@@ -20,6 +20,7 @@ public interface ITraceToEvalStore {
     void insertCandidate(EvalCaseCandidate candidate);
     void updateCandidateStatus(String candidateId, EvalCandidateStatus status);
     void insertReview(EvalCaseReview review);
+    default Optional<EvalCaseDraft> findLatestDraft(String candidateId) { return Optional.empty(); }
     default void insertDraft(EvalCaseDraft draft) { }
     default void upsertCaseHealth(EvalCaseHealthRecord health) { }
     void insertLineage(EvalCaseLineage lineage);
