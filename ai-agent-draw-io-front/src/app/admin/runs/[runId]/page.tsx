@@ -66,7 +66,6 @@ export default function AdminRunDetailPage() {
   const router = useRouter();
   const returnTo = pathname;
   const runId = decodeURIComponent(params.runId);
-  const traceHref = `/admin/runs/${encodeURIComponent(runId)}`;
 
   const [trace, setTrace] = useState<AdminDiagramTraceDTO | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -319,7 +318,7 @@ export default function AdminRunDetailPage() {
 
   if (forbidden) {
     return (
-      <AdminShell active="trace" traceHref={traceHref}>
+      <AdminShell active="trace">
         <div className="mx-auto max-w-md py-20 text-center">
           <h1 className="font-display text-2xl font-semibold text-zinc-900">Admin access required</h1>
           <Link href={buildLoginHref(returnTo)} className="mt-5 inline-block text-sm font-medium text-zinc-700 hover:underline">
@@ -349,7 +348,7 @@ export default function AdminRunDetailPage() {
   )} llm · ${formatNumber(run?.toolCallCount ?? spans.filter((span) => span.kind === 'TOOL').length)} tools`;
 
   return (
-    <AdminShell active="trace" traceHref={traceHref}>
+    <AdminShell active="trace">
       <div className="mb-7 border-b border-stone-200 pb-5 sm:flex sm:items-start sm:justify-between sm:gap-5">
         <div className="min-w-0">
           <h1 className="font-display text-3xl font-semibold text-zinc-900 sm:text-4xl">Diagram trace</h1>

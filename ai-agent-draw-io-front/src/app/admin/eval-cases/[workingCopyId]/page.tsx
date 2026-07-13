@@ -4,6 +4,7 @@ import { use, useEffect, useState } from 'react';
 import { agentApi } from '@/api/agent';
 import type { EvalCaseWorkingCopyDTO } from '@/types/api';
 import { AdminPageHeading, AdminShell } from '../../admin-shell';
+import { EvaluationWorkspace } from '../../evaluation-workspace';
 
 export default function EvalCaseStudioPage({ params }: { params: Promise<{ workingCopyId: string }> }) {
   const { workingCopyId } = use(params);
@@ -36,18 +37,20 @@ export default function EvalCaseStudioPage({ params }: { params: Promise<{ worki
   const decide = (decision: 'approve' | 'reject') => { if (!item) return; const reason = window.prompt('Review reason:'); if (reason) run(agentApi.adminDecideEvalCase(item.id, decision, reason)); };
   return <AdminShell active="cases"><AdminPageHeading eyebrow="Case Studio" title={item?.caseId || 'Loading case'}
     description={item ? `${item.status} · revision ${item.revision} · source ${item.sourceType}` : 'Loading canonical definition…'} />
+    <EvaluationWorkspace active="cases" />
     {error && <p className="mb-4 rounded-lg bg-rose-50 p-3 text-sm text-rose-700">{error}</p>}
     <div className="grid gap-5 lg:grid-cols-[minmax(0,2fr)_minmax(18rem,1fr)]"><section>
       <label className="mb-2 block text-xs font-medium uppercase tracking-wide text-zinc-500">Canonical definition (JSON editor)</label>
       <textarea value={definition} onChange={(event) => setDefinition(event.target.value)} className="min-h-[32rem] w-full rounded-lg border border-stone-200 bg-zinc-950 p-4 font-mono text-xs text-zinc-100" />
     </section><aside className="space-y-4"><div className="rounded-lg border border-stone-200 bg-white p-4">
-      <h2 className="text-sm font-semibold">Qualification actions</h2><div className="mt-3 flex flex-wrap gap-2">
-        <Action onClick={save}>Save</Action><Action onClick={validate}>Validate</Action><Action onClick={dryRun}>Mode B dry run</Action>
-        <Action onClick={() => item && run(agentApi.adminSubmitEvalCaseReview(item.id))}>Submit review</Action>
-        <Action onClick={() => decide('approve')}>Approve</Action><Action onClick={() => decide('reject')}>Reject</Action>
-        {item?.status === 'APPROVED' && <Action onClick={() => window.confirm(`Publish immutable ${item.caseId}@${item.caseVersion}?`) &&
+      <h2 className="text-sm font-semibold">Qualify this Case</h2><p className="mt-1 text-xs leading-5 text-zinc-500">Move from an editable definition to reproducible evidence. Publishing is the only irreversible step.</p>
+      <div className="mt-4 space-y-3">
+        <QualificationStep number="1" title="Define & validate" text="Save the JSON, then check schema, privacy and replay inputs."><Action onClick={save}>Save</Action><Action onClick={validate}>Validate</Action></QualificationStep>
+        <QualificationStep number="2" title="Replay the Agent" text="Run the real deterministic chain with recorded model responses."><Action onClick={dryRun}>Mode B dry run</Action></QualificationStep>
+        <QualificationStep number="3" title="Review evidence" text="Submit the result, then approve it or send it back."><Action onClick={() => item && run(agentApi.adminSubmitEvalCaseReview(item.id))}>Submit review</Action><Action onClick={() => decide('approve')}>Approve</Action><Action onClick={() => decide('reject')}>Reject</Action></QualificationStep>
+        <QualificationStep number="4" title="Publish" text="Freeze this exact version so a Dataset can reference it.">{item?.status === 'APPROVED' ? <Action onClick={() => window.confirm(`Publish immutable ${item.caseId}@${item.caseVersion}?`) &&
           agentApi.adminPublishEvalCase(item.id).then(() => agentApi.adminGetEvalCaseWorkingCopy(item.id)
-            .then(({ data }) => update(data))).catch(showError)}>Publish immutable version</Action>}
+            .then(({ data }) => update(data))).catch(showError)}>Publish immutable version</Action> : <span className="text-[11px] text-zinc-400">Available after approval</span>}</QualificationStep>
       </div></div><div className="rounded-lg border border-stone-200 bg-white p-4"><h2 className="text-sm font-semibold">Evidence</h2>
         <ul className="mt-2 space-y-2 text-xs text-zinc-600">{evidence.map((value) => <li key={value}>{value}</li>)}</ul></div>
       <div className="rounded-lg border border-stone-200 bg-white p-4"><h2 className="text-sm font-semibold">YAML preview</h2>
@@ -63,6 +66,10 @@ export default function EvalCaseStudioPage({ params }: { params: Promise<{ worki
 function Artifact({ title, value }: { title: string; value?: string }) {
   return <div className="rounded-lg border border-stone-200 bg-white p-4"><h2 className="text-sm font-semibold">{title}</h2>
     <pre className="mt-2 max-h-64 overflow-auto whitespace-pre-wrap break-all rounded-md bg-stone-50 p-3 font-mono text-[10px] text-zinc-600">{value || 'Unavailable'}</pre></div>;
+}
+
+function QualificationStep({ number, title, text, children }: { number: string; title: string; text: string; children: React.ReactNode }) {
+  return <div className="grid grid-cols-[1.75rem_1fr] gap-2 border-t border-stone-100 pt-3 first:border-t-0 first:pt-0"><span className="flex h-7 w-7 items-center justify-center rounded-full bg-stone-100 font-mono text-[10px] text-zinc-500">{number}</span><div><p className="text-xs font-semibold text-zinc-800">{title}</p><p className="mt-0.5 text-[11px] leading-4 text-zinc-500">{text}</p><div className="mt-2 flex flex-wrap gap-2">{children}</div></div></div>;
 }
 
 // Preview only: the backend remains the authority for parsing and canonical publication.

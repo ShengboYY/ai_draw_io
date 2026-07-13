@@ -8,6 +8,7 @@ import type { EvalCaseCandidateDTO, SemanticMinerRunDTO } from '@/types/api';
 import { buildLoginHref } from '@/utils/login-form';
 import { formatTime } from '../admin-shared';
 import { AdminPageHeading, AdminShell } from '../admin-shell';
+import { EvaluationWorkspace } from '../evaluation-workspace';
 import { acceptCandidateForDraft, hasActiveSemanticDiscovery } from './candidate-review-workflow';
 
 const STATUS_FILTERS = ['', 'DETECTED', 'TRIAGED', 'DRAFT_READY', 'NEEDS_MANUAL_RECONSTRUCTION', 'UNDER_REVIEW', 'APPROVED', 'REJECTED', 'PUBLISHED'];
@@ -163,10 +164,17 @@ export default function AdminEvalCandidatesPage() {
   return (
     <AdminShell active="candidates">
       <AdminPageHeading
-        eyebrow="Trace-to-Eval"
-        title="Trace Discovery & Review"
-        description="Let the model screen sanitized Trace projections, then keep every acceptance, Draft, and Case publication under human control."
+        eyebrow="Evaluation · Step 4"
+        title="Discover issues from Traces"
+        description="Screen development Traces with deterministic rules or an LLM, then review every finding before it becomes a regression Case."
       />
+      <EvaluationWorkspace active="discover" />
+
+      <section className="mb-5 grid gap-3 sm:grid-cols-3" aria-label="Trace discovery boundaries">
+        <Boundary title="Input" text="Sanitized Trace projections—not raw production payloads." />
+        <Boundary title="Output" text="A Candidate for review—not a confirmed failure." />
+        <Boundary title="Your decision" text="Accept a useful finding or dismiss the noise." />
+      </section>
 
       <section className="mb-5 rounded-lg border border-stone-200 bg-white p-4 shadow-sm">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -197,7 +205,7 @@ export default function AdminEvalCandidatesPage() {
       </div>
       {error && <div className="mb-4 rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{error}</div>}
       {loading && <div className="py-16 text-center text-sm text-zinc-400">Loading candidates…</div>}
-      {!loading && candidates.length === 0 && <div className="py-16 text-center text-sm text-zinc-400">No matching candidates.</div>}
+      {!loading && !error && candidates.length === 0 && <div className="rounded-xl border border-dashed border-stone-300 bg-stone-50 px-5 py-12 text-center"><p className="text-sm font-medium text-zinc-700">Your Trace Inbox is clear</p><p className="mx-auto mt-1 max-w-lg text-xs leading-5 text-zinc-500">Run the Agent during development, then start a bounded discovery scan above. You can also skip Trace discovery and create a synthetic Case manually.</p><Link href="/admin/eval-cases/new" className="mt-4 inline-flex text-sm font-semibold text-zinc-700 hover:underline">Create a Case instead →</Link></div>}
 
       <div className="space-y-3">
         {candidates.map((candidate) => (
@@ -260,6 +268,10 @@ function candidateStatusLabel(status: string) {
 
 function Pill({ value }: { value: string }) {
   return <span className="rounded-full bg-stone-100 px-2 py-0.5 font-mono text-[10px] uppercase text-zinc-600">{value}</span>;
+}
+
+function Boundary({ title, text }: { title: string; text: string }) {
+  return <div className="rounded-xl border border-stone-200 bg-stone-50 px-4 py-3"><p className="text-xs font-semibold text-zinc-800">{title}</p><p className="mt-1 text-xs leading-5 text-zinc-500">{text}</p></div>;
 }
 
 function DraftCaseIdentity({ value, busy, onChange, onCreate }: {
