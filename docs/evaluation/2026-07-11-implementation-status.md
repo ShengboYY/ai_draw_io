@@ -706,7 +706,7 @@ mvn clean test
 | 管理员操作 | Case Studio 提供 Target selector；Cases、Datasets、Runs 支持 Target 过滤并显示 Target | 完成 |
 | API/持久化 | Target DTO、MyBatis PO/resultMap、查询过滤和 `/api/v1/admin/evaluation-targets` | 完成 |
 
-验证：R2 领域/发布/Run/Security 共 39 个定向测试通过，全量后端测试通过；前端 ESLint 零错误、生产构建通过。迁移已在本地 MySQL 重复执行，并用 fixture、冲突 tag、相似但非 canonical tag、空白 route 四类 synthetic 样本核对 SQL/Java 推断语义；临时记录已清理。
+验证：R2 领域/发布/Run/Security 定向测试与全量后端测试通过；前端 ESLint 零错误、生产构建通过。完成度审计补充 `needsCanvasQuality/maxCriticalIssues/maxMajorIssues` 的 SQL/Java parity contract；迁移在本地 MySQL 重新执行，三个 Drawing-only synthetic Case 均得到 `DRAWING_QUALITY/INFERRED`，route+quality 冲突项得到 `AMBIGUOUS`，探针记录已清理。
 
 ## Workspace R3：Profile 与内置 Suites
 
@@ -724,7 +724,7 @@ mvn clean test
 | 管理员体验 | Evaluation Overview 展示三张 Target 卡；Run wizard 仅列出与 Dataset Target/Run Mode 兼容的 Profile | 完成 |
 | 数据迁移 | `2026-07-14-add-evaluation-profile-snapshots.sql` 为历史 Run 保存明确标注的 partial legacy snapshot 和迁移报告 | 完成并在本地 MySQL 重复执行验证幂等 |
 
-验证：Profile resolver、API、Run manifest、Repository、Mode B/Mode C/Release 定向测试通过；前端 ESLint 零错误。迁移使用 synthetic 历史 Run 验证为 `legacy-run@1 / PARTIAL_LEGACY`，样本已清理。
+验证：Profile resolver、API、Run manifest、Repository、Mode B/Mode C/Release 定向测试通过；六个内置 `profile_id@version` 的 canonical hash 已由 golden contract 固定，执行语义变化而未发新 version 会直接使 CI 失败；前端 ESLint 零错误。迁移使用 synthetic 历史 Run 验证为 `legacy-run@1 / PARTIAL_LEGACY`，样本已清理。
 
 ## Workspace R4：Target execution adapters
 
@@ -755,7 +755,7 @@ mvn clean test
 | 运行中可见性 | QUEUED/RUNNING 页面明确标记 partial report，并每 3 秒同步 Run、Episode Matrix 与 Target Report，终态后停止轮询 | 完成 |
 | 独立 Drawing 执行 | 未引入派生 Run 或 `source_episode_id`；符合 R5 非必交付边界 | 完成 |
 
-验证：`EvalTargetReportServiceTest` 覆盖三个 Target、ERROR 排除、缺失 artifact、全空/阶段缺失 evidence、无效 Router 输出、Macro-F1/p95 样本阈值、Judge not-required、manifest 零结果层与顺序 Full Agent funnel；`EvalRunOrchestratorTest` 验证 deterministic severity 从 harness 经持久化保真；前端 source test 覆盖 partial polling 与点击下钻，生产构建通过。R5 不改变数据库 schema，因此没有迁移。
+验证：`EvalTargetReportServiceTest` 覆盖三个 Target、ERROR 排除、缺失 artifact、全空/阶段缺失 evidence、无效 Router 输出、Macro-F1/p95/Full Agent minimumCases 阈值、Judge not-required、manifest 零结果层与顺序 Full Agent funnel；未达到 frozen Profile `minimumCases` 时 TSR@1/CI 为 `COUNT_ONLY` 且不返回伪数值。`EvalRunOrchestratorTest` 验证 deterministic severity 从 harness 经持久化保真；前端 source test 覆盖 partial polling 与点击下钻，生产构建通过。R5 不改变数据库 schema，因此没有迁移。
 
 ## Workspace R6：Trace Analysis UX
 
@@ -770,7 +770,7 @@ mvn clean test
 | 异常覆盖 | 确定性 selector 覆盖延迟；Semantic miner 覆盖 success 但“无法加载”；Visual miner 形成视觉 Finding | 完成 |
 | 隐私与审计 | 复用受控 Trace 投影、purpose confirmation 和 `admin_audit_log`；Job 表不保存 prompt/XML/payload | 完成 |
 
-验证：`TraceAnalysisJobServiceTest` 覆盖单 Trace/批量幂等、以完成时间为准的 snapshot 边界、selection hash、预算、有限重试、UNAVAILABLE 零成本、错误隔离与 PARTIAL；`TraceAnalysisJobRepositoryTest` 覆盖版本/outcome round-trip 和原子幂等；`TraceFindingViewServiceTest` 覆盖过滤契约、review、VLM、结构化 recommendation 及证据分栏；`TraceFindingMapperContractTest` 与 repository test 锁定真实 routing event、最新 review 和批量 projection，避免退回 `request_type` 或 N+1；既有 selector/semantic/visual 测试覆盖三类 Finding；前端 source test 覆盖 Trace Analyze 轮询与 Findings/Job 工作台。迁移 `2026-07-10-create-eval-intake.sql`、`2026-07-11-index-eval-candidate-queue.sql`、`2026-07-13-create-semantic-anomaly-miner.sql` 和 `2026-07-14-create-trace-analysis-jobs.sql` 已在本地 Docker MySQL 执行；事务内 synthetic probe 得到 `chat_stream|edit_existing`，确认 Finding route 来自 `ROUTING_DECIDED`；探针数据已回滚。
+验证：`TraceAnalysisJobServiceTest` 覆盖单 Trace/批量幂等、以完成时间为准的 snapshot 边界、selection hash、预算、retryable timeout 两次尝试、non-retryable 输入错误一次即停、UNAVAILABLE 零成本、错误隔离与 PARTIAL；`TraceAnalysisJobRepositoryTest` 覆盖版本/outcome round-trip 和原子幂等；`TraceFindingViewServiceTest` 覆盖过滤契约、review、VLM、结构化 recommendation 及证据分栏；`TraceFindingMapperContractTest` 与 repository test 锁定真实 routing event、最新 review 和批量 projection，避免退回 `request_type` 或 N+1；既有 selector/semantic/visual 测试覆盖三类 Finding；前端 source test 覆盖 Trace Analyze 轮询与 Findings/Job 工作台。迁移 `2026-07-10-create-eval-intake.sql`、`2026-07-11-index-eval-candidate-queue.sql`、`2026-07-13-create-semantic-anomaly-miner.sql` 和 `2026-07-14-create-trace-analysis-jobs.sql` 已在本地 Docker MySQL 执行；事务内 synthetic probe 得到 `chat_stream|edit_existing`，确认 Finding route 来自 `ROUTING_DECIDED`；探针数据已回滚。
 
 ## Workspace R7：受控 Promote 桥接
 
@@ -785,7 +785,7 @@ mvn clean test
 | LLM 权限边界 | `TraceToEvalDraftService` 只生成需人工审核的 Draft，不依赖 Publisher/Promotion service；Validate、Dry Run、Review、Publish 仍为显式人工动作 | 完成 |
 | 单一发布路径 | 旧 Candidate 直审/直发 API 与 service 写路径已移除，Trace-derived Case 只能经过 Working Copy 与 Promotion 编排发布 | 完成 |
 
-验证：`EvalCasePromotionServiceTest` 覆盖重复 Promote、发布后 `ALREADY_PUBLISHED`、终态冲突、发布前隐私失败、发布前后 Reviewer 回查、LLM 无发布能力；repository/mapper contract test 覆盖 canonical link、无 payload 列和可执行迁移 guard；Controller test 锁定旧直审/直发 endpoint 不再暴露，既有 Working Copy/Publisher/Spring wiring 回归通过。前端 source test 覆盖新 Promote endpoint 和 `workingCopyId` 回跳，生产构建通过。迁移 `2026-07-11-create-eval-case-draft.sql`、`2026-07-13-clear-published-eval-candidate-links.sql`、`2026-07-14-create-eval-promotion-links.sql` 已在本地 Docker MySQL 执行；R7 迁移重复执行成功。事务 probe 验证两个并发语义 insert 收敛为 `1|r7_working_1`，发布转存结果为 `r7-case@1|PUBLISHED|NULL`，探针数据已回滚；隔离数据库中的重复 `candidate_id` 实测以 `SQLSTATE 45000` 和明确诊断阻断，随后探针库已删除。
+验证：`EvalCasePromotionServiceTest` 覆盖重复 Promote、发布后 `ALREADY_PUBLISHED`、终态冲突、发布前隐私失败、发布前后 Reviewer 回查、LLM 无发布能力；repository/mapper contract test 覆盖 canonical link、无 payload 列和可执行迁移 guard；Controller test 锁定旧直审/直发 endpoint 不再暴露，既有 Working Copy/Publisher/Spring wiring 回归通过。前端 source test 覆盖新 Promote endpoint、`workingCopyId` 回跳，以及 Case Studio 中受限 Source Finding → audited Trace 入口，生产构建通过。迁移 `2026-07-11-create-eval-case-draft.sql`、`2026-07-13-clear-published-eval-candidate-links.sql`、`2026-07-14-create-eval-promotion-links.sql` 已在本地 Docker MySQL 执行；R7 迁移重复执行成功。事务 probe 验证两个并发语义 insert 收敛为 `1|r7_working_1`，发布转存结果为 `r7-case@1|PUBLISHED|NULL`，探针数据已回滚；隔离数据库中的重复 `candidate_id` 实测以 `SQLSTATE 45000` 和明确诊断阻断，随后探针库已删除。
 
 ## Workspace R8：组合 Release 与运营收口
 

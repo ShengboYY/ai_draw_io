@@ -19,6 +19,9 @@ test('case studio exposes qualification lifecycle and only publishes an approved
   assert.match(studio, /YAML preview/);
   assert.match(studio, /item\?\.status === 'APPROVED'/);
   assert.match(studio, /adminPublishEvalCase/);
+  assert.match(studio, /adminGetEvalCaseSourceFinding/);
+  assert.match(studio, /Source Finding \(restricted\)/);
+  assert.match(studio, /Open audited source Trace/);
 });
 
 test('trace promotion uses the idempotent bridge instead of creating a raw linked working copy', () => {

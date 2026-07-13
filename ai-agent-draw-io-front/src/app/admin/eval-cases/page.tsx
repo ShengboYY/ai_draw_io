@@ -5,59 +5,181 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { agentApi } from '@/api/agent';
 import type { EvalCaseWorkingCopyDTO, EvaluationTarget, PublishedEvalCaseDTO } from '@/types/api';
-import { AdminPageHeading, AdminShell } from '../admin-shell';
+import { AdminShell } from '../admin-shell';
 import { EvaluationWorkspace } from '../evaluation-workspace';
+import { Btn, EmptyState, ErrorNote, Field, inputCls, MetricTile, StatusBadge, statusLabel } from '../eval-ui';
+
+const CASE_STATUSES = ['DRAFT', 'VALIDATED', 'DRY_RUN_PASSED', 'UNDER_REVIEW', 'APPROVED', 'REJECTED'];
+type OriginFilter = '' | 'offline' | 'trace';
 
 export default function AdminEvalCasesPage() {
   const router = useRouter();
   const [cases, setCases] = useState<EvalCaseWorkingCopyDTO[]>([]);
   const [published, setPublished] = useState<PublishedEvalCaseDTO[]>([]);
   const [status, setStatus] = useState('');
-  const [error, setError] = useState<string | null>(null);
+  const [origin, setOrigin] = useState<OriginFilter>('');
   const [target, setTarget] = useState<EvaluationTarget | ''>('');
+  const [error, setError] = useState<string | null>(null);
+  const [cloneSource, setCloneSource] = useState<PublishedEvalCaseDTO | null>(null);
+  const [cloneDraft, setCloneDraft] = useState({ caseId: '', caseVersion: '1' });
 
   useEffect(() => {
     agentApi.adminListEvalCaseWorkingCopies(status || undefined)
       .then(({ data }) => setCases(data || []))
       .catch((reason) => setError(reason instanceof Error ? reason.message : 'Failed to load cases'));
   }, [status]);
-  useEffect(() => { agentApi.adminListPublishedEvalCases().then(({ data }) => setPublished(data || [])).catch(() => undefined); }, []);
-  const clonePublished = (item: PublishedEvalCaseDTO) => { const newCaseId = window.prompt('New Case ID:', `${item.caseId}-variant`); const newVersion = window.prompt('New Case version:', '1'); if (!newCaseId || !newVersion) return; agentApi.adminClonePublishedEvalCase(item.caseId, item.caseVersion, newCaseId, newVersion).then(({ data }) => router.push(`/admin/eval-cases/${encodeURIComponent(data.id)}`)).catch((reason) => setError(reason instanceof Error ? reason.message : 'Clone failed')); };
-  const retire = (item: PublishedEvalCaseDTO) => window.confirm(`Retire ${item.caseId}@${item.caseVersion}?`) && agentApi.adminRetirePublishedEvalCase(item.caseId, item.caseVersion).then(({ data }) => setPublished((all) => all.map((entry) => entry.caseId === data.caseId && entry.caseVersion === data.caseVersion ? data : entry))).catch((reason) => setError(reason instanceof Error ? reason.message : 'Retire failed'));
 
-  return <AdminShell active="cases">
-    <AdminPageHeading eyebrow="Evaluation · Step 1" title="Build regression Cases"
-      description="Describe one behavior, its recorded replay inputs, and the assertions that decide whether the Agent succeeded."
-      action={<Link href="/admin/eval-cases/new" className="rounded-lg bg-zinc-800 px-4 py-2 text-sm font-medium text-white">New case</Link>} />
-    <EvaluationWorkspace active="cases" />
-    <section className="mb-5 grid gap-3 sm:grid-cols-3">
-      <CaseMetric label="Working copies" value={cases.length} hint="Editable until published" />
-      <CaseMetric label="Published versions" value={published.filter((item) => !item.retiredAt).length} hint="Ready for a Dataset" />
-      <CaseMetric label="Next step" value={published.some((item) => !item.retiredAt) ? 'Dataset' : 'Publish'} hint={published.some((item) => !item.retiredAt) ? 'Freeze Cases together' : 'Validate and dry-run'} />
-    </section>
-    {published.some((item) => !item.retiredAt) && <Link href="/admin/eval-datasets" className="mb-5 inline-flex text-sm font-semibold text-zinc-700 hover:underline">Add published Cases to a Dataset →</Link>}
-    <div className="mb-5 flex flex-wrap gap-4"><label className="block text-xs font-medium text-zinc-500">Status
-      <select value={status} onChange={(event) => setStatus(event.target.value)} className="ml-2 rounded-md border border-stone-200 bg-white px-2 py-1.5 text-sm">
-        <option value="">All</option>{['DRAFT', 'VALIDATED', 'DRY_RUN_PASSED', 'UNDER_REVIEW', 'APPROVED', 'REJECTED'].map((value) => <option key={value}>{value}</option>)}
-      </select>
-    </label><label className="block text-xs font-medium text-zinc-500">Target
-      <select value={target} onChange={(event) => setTarget(event.target.value as EvaluationTarget | '')} className="ml-2 rounded-md border border-stone-200 bg-white px-2 py-1.5 text-sm">
-        <option value="">All</option>{(['FULL_AGENT', 'INTENT_ROUTER', 'DRAWING_QUALITY'] as EvaluationTarget[]).map((value) => <option key={value}>{value.replaceAll('_', ' ')}</option>)}
-      </select></label></div>
-    {error && <p className="mb-4 rounded-lg bg-rose-50 p-3 text-sm text-rose-700">{error}</p>}
-    <div className="space-y-3">{!error && cases.length === 0 && <EmptyCases />}{cases.filter((item) => !target || item.evaluationTarget === target).map((item) => <Link key={item.id} href={`/admin/eval-cases/${encodeURIComponent(item.id)}`}
-      className="flex items-center justify-between rounded-lg border border-stone-200 bg-white p-4 shadow-sm hover:border-stone-300">
-      <div><div className="font-medium text-zinc-900">{item.caseId} <span className="text-zinc-400">v{item.caseVersion}</span></div>
-        <div className="mt-1 font-mono text-xs text-zinc-400">{item.sourceType} · revision {item.revision} · {item.ownerUserId}</div></div>
-      <span className="rounded-full bg-stone-100 px-2 py-1 font-mono text-[10px] text-zinc-600">{item.status}</span>
-    </Link>)}</div>
-    <h2 className="mb-3 mt-9 text-lg font-semibold text-zinc-900">Published versions</h2>
-    <div className="overflow-hidden rounded-lg border border-stone-200 bg-white">{published.filter((item) => !target || item.evaluationTarget === target).map((item) => <div key={`${item.caseId}:${item.caseVersion}`} className="grid grid-cols-[1fr_auto] gap-3 border-b border-stone-100 p-4 last:border-b-0">
-      <div><span className="font-medium">{item.caseId}@{item.caseVersion}</span><div className="mt-1 font-mono text-[10px] text-zinc-400">{item.contentHash}</div></div>
-      <div className="flex items-center gap-2"><button onClick={() => clonePublished(item)} className="text-xs text-zinc-600 hover:underline">Clone</button>{!item.retiredAt && <button onClick={() => retire(item)} className="text-xs text-rose-600 hover:underline">Retire</button>}<span className="text-xs text-zinc-500">{item.retiredAt ? 'RETIRED' : 'PUBLISHED'}</span></div>
-    </div>)}</div>
-  </AdminShell>;
+  useEffect(() => {
+    agentApi.adminListPublishedEvalCases().then(({ data }) => setPublished(data || [])).catch(() => undefined);
+  }, []);
+
+  const activePublished = published.filter((item) => !item.retiredAt);
+  // Route A produces MANUAL/IMPORTED/clone copies; Route B produces TRACE_DRAFT copies.
+  const visibleCases = cases
+    .filter((item) => origin === '' || (origin === 'trace') === (item.sourceType === 'TRACE_DRAFT'))
+    .filter((item) => !target || item.evaluationTarget === target);
+
+  const openCloneForm = (item: PublishedEvalCaseDTO) => {
+    setCloneSource(item);
+    setCloneDraft({ caseId: `${item.caseId}-variant`, caseVersion: '1' });
+  };
+
+  const submitClone = () => {
+    if (!cloneSource || !cloneDraft.caseId.trim() || !cloneDraft.caseVersion.trim()) return;
+    agentApi.adminClonePublishedEvalCase(cloneSource.caseId, cloneSource.caseVersion, cloneDraft.caseId.trim(), cloneDraft.caseVersion.trim())
+      .then(({ data }) => router.push(`/admin/eval-cases/${encodeURIComponent(data.id)}`))
+      .catch((reason) => setError(reason instanceof Error ? reason.message : 'Clone failed'));
+  };
+
+  const retire = (item: PublishedEvalCaseDTO) => window.confirm(`Retire ${item.caseId}@${item.caseVersion}? Datasets can no longer add it.`)
+    && agentApi.adminRetirePublishedEvalCase(item.caseId, item.caseVersion)
+      .then(({ data }) => setPublished((all) => all.map((entry) => entry.caseId === data.caseId && entry.caseVersion === data.caseVersion ? data : entry)))
+      .catch((reason) => setError(reason instanceof Error ? reason.message : 'Retire failed'));
+
+  return (
+    <AdminShell active="cases">
+      <EvaluationWorkspace active="cases"
+        title="Build regression Cases"
+        description="Route A — author a synthetic Case offline. It also collects Route B output: every Case, hand-written or trace-born, is qualified and published here."
+        action={<Link href="/admin/eval-cases/new" className="inline-flex h-9 items-center rounded-lg bg-zinc-900 px-4 text-sm font-medium text-white transition hover:bg-zinc-700">+ New case</Link>}
+      />
+
+      <section className="mb-6 grid gap-3 sm:grid-cols-3" aria-label="Case pipeline summary">
+        <MetricTile label="Working copies" value={cases.length} hint="Editable drafts — publish to freeze one" />
+        <MetricTile label="Published versions" value={activePublished.length} hint="Immutable — ready to pin in a Dataset" />
+        <MetricTile
+          label="Suggested next step"
+          value={activePublished.length > 0 ? 'Curate a Dataset' : 'Publish a Case'}
+          hint={activePublished.length > 0 ? 'Group published Cases into a test suite' : 'Validate, dry-run and publish a working copy'}
+        />
+      </section>
+
+      <ErrorNote message={error} />
+
+      <section className="mb-9" aria-label="Working copies">
+        <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <h2 className="font-display text-lg font-semibold text-zinc-900">Working copies</h2>
+            <p className="mt-0.5 text-xs text-zinc-500">Editable drafts. Open one to validate, dry-run, review and publish it.</p>
+          </div>
+          <div className="flex flex-wrap gap-3">
+            <Field label="Target">
+              <select value={target} onChange={(event) => setTarget(event.target.value as EvaluationTarget | '')} className={`${inputCls} w-48`}>
+                <option value="">All targets</option>
+                {(['FULL_AGENT', 'INTENT_ROUTER', 'DRAWING_QUALITY'] as EvaluationTarget[]).map((value) => <option key={value} value={value}>{value.replaceAll('_', ' ')}</option>)}
+              </select>
+            </Field>
+            <Field label="Origin route">
+              <select value={origin} onChange={(event) => setOrigin(event.target.value as OriginFilter)} className={`${inputCls} w-48`}>
+                <option value="">Both routes</option>
+                <option value="offline">Route A · authored offline</option>
+                <option value="trace">Route B · from trace drafts</option>
+              </select>
+            </Field>
+            <Field label="Status">
+              <select value={status} onChange={(event) => setStatus(event.target.value)} className={`${inputCls} w-44`}>
+                <option value="">All statuses</option>
+                {CASE_STATUSES.map((value) => <option key={value} value={value}>{statusLabel(value)}</option>)}
+              </select>
+            </Field>
+          </div>
+        </div>
+
+        {!error && visibleCases.length === 0 && (
+          <EmptyState
+            title={status || origin ? 'No working Cases match these filters' : 'No working Cases yet'}
+            hint="Start with a small synthetic task you expect the Agent to handle every time, or promote a reviewed Finding from Trace Analysis."
+            action={<Link href="/admin/eval-cases/new" className="text-sm font-semibold text-zinc-700 hover:underline">Create a Case →</Link>}
+          />
+        )}
+
+        <div className="space-y-2">
+          {visibleCases.map((item) => (
+            <Link
+              key={item.id}
+              href={`/admin/eval-cases/${encodeURIComponent(item.id)}`}
+              className="flex items-center justify-between gap-4 rounded-xl border border-stone-200 bg-white px-4 py-3.5 shadow-sm transition hover:border-zinc-400"
+            >
+              <div className="min-w-0">
+                <div className="truncate font-medium text-zinc-900">
+                  {item.caseId} <span className="font-normal text-zinc-400">v{item.caseVersion}</span>
+                </div>
+                <div className="mt-1 truncate text-xs text-zinc-500">
+                  {item.evaluationTarget?.replaceAll('_', ' ') || 'Target unresolved'} · source {item.sourceType === 'TRACE_DRAFT' ? 'trace draft' : item.sourceType.toLowerCase()} · revision {item.revision} · owner {item.ownerUserId}
+                </div>
+              </div>
+              <div className="flex shrink-0 items-center gap-2">
+                {item.sourceType === 'TRACE_DRAFT' && <StatusBadge value="TRACE_DRAFT" />}
+                <StatusBadge value={item.status} />
+              </div>
+            </Link>
+          ))}
+        </div>
+      </section>
+
+      <section aria-label="Published versions">
+        <div className="mb-3">
+          <h2 className="font-display text-lg font-semibold text-zinc-900">Published versions</h2>
+          <p className="mt-0.5 text-xs text-zinc-500">Immutable snapshots that Datasets pin by exact version. Clone one to start a variant.</p>
+        </div>
+        {published.length === 0
+          ? <EmptyState title="Nothing published yet" hint="Publishing happens from a working copy after it is approved." />
+          : (
+            <div className="overflow-hidden rounded-xl border border-stone-200 bg-white shadow-sm">
+              {published.map((item) => {
+                const key = `${item.caseId}:${item.caseVersion}`;
+                const cloning = cloneSource && `${cloneSource.caseId}:${cloneSource.caseVersion}` === key;
+                return (
+                  <div key={key} className="border-b border-stone-100 last:border-b-0">
+                    <div className="flex flex-wrap items-center gap-3 px-4 py-3.5">
+                      <div className="min-w-0 flex-1">
+                        <span className="font-medium text-zinc-900">{item.caseId}<span className="text-zinc-400">@{item.caseVersion}</span></span>
+                        <span className="ml-2 text-[10px] font-medium text-zinc-500">{item.evaluationTarget?.replaceAll('_', ' ') || 'Target unresolved'}</span>
+                        <div className="mt-0.5 truncate font-mono text-[10px] text-zinc-400" title="Content hash">{item.contentHash}</div>
+                      </div>
+                      <StatusBadge value={item.retiredAt ? 'RETIRED' : 'PUBLISHED'} />
+                      <div className="flex items-center gap-2">
+                        <Btn variant="secondary" onClick={() => (cloning ? setCloneSource(null) : openCloneForm(item))}>{cloning ? 'Cancel' : 'Clone'}</Btn>
+                        {!item.retiredAt && <Btn variant="danger" onClick={() => retire(item)}>Retire</Btn>}
+                      </div>
+                    </div>
+                    {cloning && (
+                      <div className="flex flex-wrap items-end gap-3 border-t border-stone-100 bg-stone-50 px-4 py-3">
+                        <Field label="New Case ID" className="w-64">
+                          <input value={cloneDraft.caseId} onChange={(event) => setCloneDraft((draft) => ({ ...draft, caseId: event.target.value }))} className={inputCls} />
+                        </Field>
+                        <Field label="New version" className="w-24">
+                          <input value={cloneDraft.caseVersion} onChange={(event) => setCloneDraft((draft) => ({ ...draft, caseVersion: event.target.value }))} className={inputCls} />
+                        </Field>
+                        <Btn onClick={submitClone} disabled={!cloneDraft.caseId.trim() || !cloneDraft.caseVersion.trim()}>Create working copy</Btn>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+      </section>
+    </AdminShell>
+  );
 }
-
-function CaseMetric({ label, value, hint }: { label: string; value: string | number; hint: string }) { return <div className="rounded-xl border border-stone-200 bg-white px-4 py-3"><p className="text-xs text-zinc-500">{label}</p><p className="mt-1 font-display text-xl font-semibold text-zinc-900">{value}</p><p className="mt-0.5 text-[11px] text-zinc-400">{hint}</p></div>; }
-function EmptyCases() { return <div className="rounded-xl border border-dashed border-stone-300 bg-stone-50 px-5 py-10 text-center"><p className="text-sm font-medium text-zinc-700">No working Cases yet</p><p className="mt-1 text-xs text-zinc-500">Start with a small synthetic task you expect the Agent to handle every time.</p><Link href="/admin/eval-cases/new" className="mt-4 inline-flex text-sm font-semibold text-zinc-700 hover:underline">Create a Case →</Link></div>; }

@@ -1,7 +1,8 @@
 # Evaluation Targets 与 Trace Analysis 双工作台重构方案
 
-> 状态：设计稿
+> 状态：已评审设计基线（实施进度见 `2026-07-11-implementation-status.md`）
 > 日期：2026-07-13
+> 最近修订：2026-07-14
 > 适用范围：AI Draw.io Agent 管理端、Evaluation Control Plane、Trace 分析能力
 > 相关文档：
 > - `2026-07-10-agent-evaluation-design.md`
@@ -27,6 +28,18 @@ Evaluation 内部再按**测评目标（Evaluation Target）**分离。第一批
 - Drawing Quality
 
 Tool Policy 和 Response Quality 预留为后续目标。Latency、cost、reliability 是所有目标都能使用的横切指标，不应被建模成目标。
+
+本轮评审后冻结以下设计决策：
+
+- Run 级 `EvaluationProfile` 是执行配置的唯一权威；每个 Run 必须保存解析后的 canonical config 快照和 hash。
+- Trace Finding 继续由现有 Candidate 生命周期承载；`TraceFindingView` 只是查询投影，不建立第二套可写状态机。
+- Draft 审核期允许在受限 Trace 权限域内回查原 Trace；Published Case artifact 和公开 lineage 必须彻底断链。
+- 现有 Case 级 `executionProfile` 仅作为 `LegacyCaseExecutionConfig` 兼容读取，不与 Run 级 Profile 共用语义。
+- 历史 Case 的 Target 先按现有元数据推断并输出迁移报告，只把歧义项交给管理员确认，不统一回填为 `FULL_AGENT`。
+- Drawing 复用 Full Agent 产物属于 R5 之后的可选派生 Run；第一版只运行独立 Drawing 链路。
+- 小样本指标必须显示 count-only/unavailable；延迟样本达到 Profile 阈值后才显示 p95。
+- non-required target 失败只形成 warning 和审计记录，不改变总体 Gate；required target 仍按组合规则阻断或产生 `NO_DECISION`。
+- Analysis Job 必须复用现有 Miner 调用能力并补持久化编排、预算、幂等、重试和 per-trace 错误隔离。
 
 ## 2. 为什么要拆成两条线
 
@@ -160,7 +173,7 @@ gatePolicy:
   maxInvalidRouteRate: 0.005
 ```
 
-EvaluationProfile 应不可变发布；修改产生新版本。每个 Run 在启动时必须保存解析默认值后的 canonical config JSON 快照及 SHA-256，后续执行和报告只读取 Run 快照，不能重新解释当前代码中的 preset。快照记录 model/version、temperature、runner adapter、grader/judge 版本、prompt/skill/tool policy hash、repetitions、timeout、预算、统计和 Gate 参数；credential 只记录 alias/version，禁止保存密钥。
+EvaluationProfile 应不可变发布；修改产生新版本。内置 preset 的配置发生任何执行语义变化时也必须递增 version，不能让同一个 `profile_id + profile_version` 指向两份配置。每个 Run 在启动时必须保存解析默认值后的 canonical config JSON 快照及 SHA-256，后续执行和报告只读取 Run 快照，不能重新解释当前代码中的 preset。快照记录 model/version、temperature、runner adapter、grader/judge 版本、prompt/skill/tool policy hash、repetitions、timeout、预算、统计和 Gate 参数；credential 只记录 alias/version，禁止保存密钥。
 
 即使第一版 Profile 是代码中的只读 preset，也必须遵守上述快照规则。`profile_id + profile_version` 用于识别人类可读版本，`profile_snapshot_json + profile_config_hash` 用于历史 Run 的真实还原和完整性校验。
 
@@ -214,7 +227,7 @@ expected:
 统一术语和迁移规则：
 
 - 新 Run 级概念统一称为 `EvaluationProfile`，它是执行配置的唯一权威来源。
-- 现有 Case 字段在迁移期称为 `LegacyCaseExecutionConfig`；新 Case 不再允许写入 model、credential、temperature 或价格。
+- 现有 Case 字段在领域和 UI 中称为 `LegacyCaseExecutionConfig`；迁移期可以继续读取序列化字段名 `executionProfile`，但新 Case 不再允许写入 model、credential、temperature 或价格。
 - 旧 Case 在没有显式 EvaluationProfile 时，可以把 legacy config 转换成一次性 EvaluationProfile 快照。
 - 如果旧 Case 配置与显式选择的 EvaluationProfile 冲突，Run 创建失败并返回 `PROFILE_CASE_CONFLICT`，不允许静默覆盖。
 - 历史 Case 迁移完成后删除 legacy 字段；Mode B 的录制回复继续属于 `replay`，不迁入 EvaluationProfile。
@@ -411,6 +424,8 @@ Finding 是“带证据的假设”，不是 Eval 结果。后端继续以现有
 
 Candidate 负责 `DETECTED → TRIAGED → DRAFT_READY/NEEDS_MANUAL_RECONSTRUCTION` 的发现和草拟阶段。创建 Working Copy 后，详细的 Validate/Dry Run/Review/Publish 状态以 `EvalCaseWorkingCopyStatus` 为权威；Candidate 只保存 `UNDER_REVIEW/APPROVED/PUBLISHED/REJECTED` 的粗粒度 Inbox 投影，并由同一编排事务随 Working Copy 关键状态更新，不能由 UI 独立推进两套状态。
 
+`triage`、`dismiss` 和 `promote` 端点必须调用 Candidate/Promotion orchestrator 写入现有状态机；`TraceFindingView` adapter 只能读取 Candidate、Evidence、Working Copy 和 Review history。“Finding 是只读投影”不代表 Findings 页面只读，而是所有写操作都回到已有事实来源，不能写入投影本身。
+
 Finding View 至少投影：
 
 ```text
@@ -583,7 +598,7 @@ eval_profile_version
   created_at
 ```
 
-第一版可以只提供内置只读 Profile，不必立即做通用 Profile 编辑器。内置 preset 仍需拥有稳定的 `profile_id/version`；创建 Run 时解析全部默认值，将 canonical config JSON 和 hash 落到 `eval_run`。此后代码中的 preset 即使改变，也不会改变历史 Run 的执行语义。等 preset 稳定后再开放管理员 Clone/Edit/Publish，避免过早建设复杂配置 UI。
+第一版可以只提供内置只读 Profile，不必立即做通用 Profile 编辑器。内置 preset 仍需拥有稳定的 `profile_id/version`；创建 Run 时解析全部默认值，将 canonical config JSON 和 hash 落到 `eval_run`。后续以新 version 修改 preset 时，历史 Run 仍只读取自己的快照，不会改变既有执行语义。等 preset 稳定后再开放管理员 Clone/Edit/Publish，避免过早建设复杂配置 UI。
 
 ### 10.4 Trace Analysis 数据
 
@@ -798,7 +813,8 @@ Release Decision  PASS
 - Overview 三张目标卡
 - Profile 与 Dataset Target 一致性校验
 - Run 保存 canonical `profile_snapshot_json + profile_config_hash`
-- 内置 preset 修改后，历史 Run 仍读取原快照
+- 内置 preset 的执行语义变更必须递增 Profile version
+- 内置 preset 发布新 version 后，历史 Run 仍读取原快照
 - credential 快照只保存 alias/version，不保存密钥
 
 第一版不做任意 Profile 编辑器。
@@ -844,6 +860,7 @@ Release Decision  PASS
 - deterministic-triggered 与 sampled-discovery
 - Recommendations
 - 现有 Candidate 状态机 + TraceFindingView 只读 projection
+- Findings 写操作全部委托 Candidate/Promotion orchestrator，不写入 projection
 - `trace_analysis_job/item` 迁移和 repository
 - 复用现有 Miner executor 的持久化 Analysis Job 编排、预算、幂等、有限重试和错误隔离
 

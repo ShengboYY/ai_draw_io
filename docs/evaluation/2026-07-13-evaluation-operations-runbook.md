@@ -111,7 +111,7 @@ Admins can inspect and manually refresh the queue at `/admin/eval-operations`. A
 
 ## 6. Regression feedback loop
 
-1. Open `/admin/eval-candidates` and review deterministic, Semantic Miner or Visual Miner findings.
+1. Open `/admin/trace-findings` and review deterministic, Semantic Miner or Visual Miner findings. The legacy `/admin/eval-candidates` deep link remains compatible.
 2. Prepare a synthetic draft, run privacy validation and dry-run, then require human review.
 3. Publish the approved Case and add its exact version to a Dataset.
 4. Implement the fix and start a candidate Eval Run against the pinned baseline.
@@ -139,3 +139,24 @@ The UI visualizes this sanitized flow but intentionally does not preserve a perm
 - Enable the Case Health schedule in one scheduler instance only.
 - Verify `/admin/eval-operations` can read recommendations and health records.
 - Run a low-traffic test and confirm `NO_DECISION`; run a synthetic critical-finding test and confirm `HALT_RECOMMENDED` without any deployment action.
+
+## 9. Workspace acceptance verification
+
+Run the repeatable synthetic acceptance suite from the repository root:
+
+```bash
+./scripts/verify-evaluation-workspaces.sh
+```
+
+The script exercises the six journeys in the workspace design without requiring production traffic or real provider credentials:
+
+| Journey | Direct evidence |
+| --- | --- |
+| Router Case → Dataset/Run → confusion matrix | Case publication/lifecycle tests, disk Router adapter, Run orchestrator, target report and Run UI tests |
+| Drawing structure evaluation → layered evidence | Disk Drawing adapter, grader persistence, target report and before/after UI tests |
+| Full Agent smoke → failure funnel → Episode | Disk Full Agent adapter, Run error isolation, funnel projection and Episode drill-down tests |
+| Development Trace → LLM Finding/recommendation | persistent Analysis Job, semantic miner and Findings workspace tests |
+| Finding → sanitized Draft → Dry Run/Publish | promotion idempotency/privacy, Working Copy lifecycle and Case Studio tests |
+| Missing calibration/sequestered evidence → `NO_DECISION`; hard failure → `BLOCK` | per-run Gate, target composition, Release controller and Operations UI tests |
+
+This suite uses synthetic fixtures and test model adapters for Mode C. A real-provider smoke, real sequestered artifact mount and deployment Canary window remain environment acceptance checks; the platform must return `NO_DECISION` when those inputs are absent.
