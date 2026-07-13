@@ -175,6 +175,25 @@ export interface EvalLiveRunReportDTO {
   gate?: EvalGateDecisionDTO;
 }
 
+export interface EvalCompositeTargetDecisionDTO {
+  target: EvaluationTarget;
+  evalRunId?: string;
+  required: boolean;
+  outcome: 'PASS' | 'BLOCK' | 'NO_DECISION';
+  overrideApproved: boolean;
+  hardFailure: boolean;
+  reasons: string[];
+}
+
+export interface EvalCompositeGateDecisionDTO {
+  outcome: 'PASS' | 'BLOCK' | 'NO_DECISION';
+  /** Stable CI contract: 0=PASS, 1=BLOCK, 2=NO_DECISION. */
+  exitCode: 0 | 1 | 2;
+  targets: Partial<Record<EvaluationTarget, EvalCompositeTargetDecisionDTO>>;
+  reasons: string[];
+  warnings: string[];
+}
+
 export interface EvalCanaryAssessmentDTO {
   id: string;
   evalRunId: string;

@@ -59,6 +59,8 @@ import {
     EvalEpisodeArtifactDTO,
     EvalGateDecisionDTO,
     EvalLiveRunReportDTO,
+    EvalCompositeGateDecisionDTO,
+    EvaluationTarget,
     EvalCanaryAssessmentDTO,
     EvalCaseHealthDTO,
 } from '@/types/api';
@@ -706,6 +708,16 @@ export const agentApi = {
     adminOverrideEvalGate: async (id: string, reason: string): Promise<Response<EvalGateDecisionDTO>> => {
         const response = await fetch(`${API_CONFIG.BASE_URL}/admin/eval-runs/${encodeURIComponent(id)}/gate/override`, { method: 'POST', headers: await csrfHeaders({ 'Content-Type': 'application/json' }), body: JSON.stringify({ reason }), credentials: 'include' });
         return handleResponse<EvalGateDecisionDTO>(response);
+    },
+
+    adminComposeEvalReleaseGate: async (
+        runIds: Partial<Record<EvaluationTarget, string>>, requiredTargets: EvaluationTarget[],
+    ): Promise<Response<EvalCompositeGateDecisionDTO>> => {
+        const response = await fetch(`${API_CONFIG.BASE_URL}/admin/eval-release-gates/compose`, {
+            method: 'POST', headers: await csrfHeaders({ 'Content-Type': 'application/json' }),
+            body: JSON.stringify({ runIds, requiredTargets }), credentials: 'include',
+        });
+        return handleResponse<EvalCompositeGateDecisionDTO>(response);
     },
 
     adminListEvalCanaryAssessments: async (evalRunId: string): Promise<Response<EvalCanaryAssessmentDTO[]>> => {

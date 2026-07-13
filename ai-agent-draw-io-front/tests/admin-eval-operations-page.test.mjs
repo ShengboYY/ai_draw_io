@@ -23,3 +23,13 @@ test('operations page exposes the non-sensitive Case Health queue and feedback l
   assert.match(page, /\/admin\/eval-cases/);
   assert.match(page, /\/admin\/eval-runs/);
 });
+
+test('operations page exposes calibration, sequestered readiness and target Gate composition', () => {
+  assert.match(page, /Calibration & sequestered readiness/);
+  assert.match(page, /adminGetEvalRunInsights/);
+  assert.match(page, /Compose target Gates/);
+  assert.match(page, /Required for release/);
+  assert.match(page, /PASS 0 · BLOCK 1 · NO_DECISION 2/);
+  assert.match(api, /adminComposeEvalReleaseGate/);
+  assert.match(api, /eval-release-gates\/compose/);
+});

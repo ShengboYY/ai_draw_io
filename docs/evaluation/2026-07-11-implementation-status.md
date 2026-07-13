@@ -787,6 +787,18 @@ mvn clean test
 
 验证：`EvalCasePromotionServiceTest` 覆盖重复 Promote、发布后 `ALREADY_PUBLISHED`、终态冲突、发布前隐私失败、发布前后 Reviewer 回查、LLM 无发布能力；repository/mapper contract test 覆盖 canonical link、无 payload 列和可执行迁移 guard；Controller test 锁定旧直审/直发 endpoint 不再暴露，既有 Working Copy/Publisher/Spring wiring 回归通过。前端 source test 覆盖新 Promote endpoint 和 `workingCopyId` 回跳，生产构建通过。迁移 `2026-07-11-create-eval-case-draft.sql`、`2026-07-13-clear-published-eval-candidate-links.sql`、`2026-07-14-create-eval-promotion-links.sql` 已在本地 Docker MySQL 执行；R7 迁移重复执行成功。事务 probe 验证两个并发语义 insert 收敛为 `1|r7_working_1`，发布转存结果为 `r7-case@1|PUBLISHED|NULL`，探针数据已回滚；隔离数据库中的重复 `candidate_id` 实测以 `SQLSTATE 45000` 和明确诊断阻断，随后探针库已删除。
 
+## Workspace R8：组合 Release 与运营收口
+
+| R8 要求 | 实现证据 | 结果 |
+| --- | --- | --- |
+| Target Gate composition | `EvalTargetGateCompositionService` 组合 Router/Drawing/Full Agent 的不可变 Release Gate；required BLOCK、required 缺失/NO_DECISION、optional warning 和由确定性 Grader FAIL 推导的全局 hard failure 按 §12 优先级处理；Judge-only FAIL 不会冒充 hard failure | 完成 |
+| CI adapter | `POST /admin/eval-release-gates/compose` 只读取既有 Run/Gate，不启动或修改 Run；响应固定 `exitCode`：PASS=0、BLOCK=1、NO_DECISION=2 | 完成 |
+| Calibration/Sequestered UI | Operations 读取既有 live report snapshot，展示 provider、文本 Judge、视觉 Judge、calibration version、封存集计数和单 Run Gate；缺证据明确显示 NO_DECISION 而非 0% | 完成 |
+| Composite Suite | 当前用 request-scoped required target 组合；没有真实版本化需求前不新增表或持久化第二套 Suite 模型 | 按方案刻意不持久化 |
+| Canary | 复用 CP10 已有 Gate→Canary adapter、三态 recommendation 和 Case Health；没有真实流量时不制造运营指标 | 平台完成，真实流量后启用 |
+
+验证：`EvalTargetGateCompositionServiceTest` 覆盖 required PASS/BLOCK/缺失、optional statistical warning、optional deterministic hard failure、Gate 尚未生成时的 hard failure，以及 optional Judge-only episode FAIL 不得升级为 hard failure；`EvaluationReleaseGateAdminControllerTest` 覆盖非 Admin、Release Owner、合法请求、非法 Target、异常脱敏、超长 UA 截断和 optional warning 独立审计；Spring wiring 通过。前端 Operations source test 覆盖 readiness、required target 组合和 CI endpoint，Target 在 UI/API 保持强类型，lint 无 error、production build 通过。R8 只读取已有 `eval_run`、`eval_episode`、`eval_gate_decision` 和 report artifact，因此没有数据库迁移。
+
 ## Control Plane CP10：Canary、Case Health 与持续运营
 
 **状态：平台接线完成；真实部署指标、外部告警路由和用户行为信号仍需外部授权/配置**

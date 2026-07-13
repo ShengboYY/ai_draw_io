@@ -11,7 +11,30 @@ This runbook covers the transition from an immutable Release Eval Run to canary 
 
 Evaluation identities must first be admitted through `ADMIN_EMAILS`. Optional `ADMIN_EVAL_EDITOR_EMAILS` and `ADMIN_EVAL_REVIEWER_EMAILS` narrow those users to the corresponding Evaluation role; `ADMIN_RELEASE_OWNER_EMAILS` grants Release Owner operations. Users admitted through `ADMIN_EMAILS` but omitted from the narrower lists retain Eval Admin privileges.
 
-## 2. Deployment adapter contract
+## 2. Target Gate CI contract
+
+After each required target has an immutable Release Run and a persisted per-run Gate, a Release Owner or CI adapter can compose them without rerunning or mutating Evaluation state:
+
+```text
+POST /api/v1/admin/eval-release-gates/compose
+```
+
+```json
+{
+  "runIds": {
+    "INTENT_ROUTER": "er_router_release",
+    "DRAWING_QUALITY": "er_drawing_release",
+    "FULL_AGENT": "er_agent_release"
+  },
+  "requiredTargets": ["INTENT_ROUTER", "DRAWING_QUALITY", "FULL_AGENT"]
+}
+```
+
+The response uses stable CI exit codes: `PASS=0`, `BLOCK=1`, `NO_DECISION=2`. A deterministic Grader failure always blocks; a required target `BLOCK` blocks; required missing/`NO_DECISION` evidence produces overall `NO_DECISION`. Optional degradation is returned as a warning and separately audited, unless a deterministic Grader failure makes it a hard block. Judge-only Episode failure is not misclassified as a deterministic hard failure.
+
+The first implementation keeps this composition request-scoped. Do not add a persisted Composite Suite until an operator needs reusable, versioned target bundles.
+
+## 3. Deployment adapter contract
 
 The deployment platform posts aggregate metrics to:
 
@@ -54,7 +77,7 @@ The caller must use an authenticated Release Owner session, the normal CSRF cont
 
 Counts, latency and cost must be non-negative; failures and infrastructure errors cannot exceed request count. Store only aggregate windows—never prompt, response, XML, trace, user or request ID.
 
-## 3. Recommendation handling
+## 4. Recommendation handling
 
 | Outcome | Meaning | Operator action |
 | --- | --- | --- |
@@ -64,7 +87,7 @@ Counts, latency and cost must be non-negative; failures and infrastructure error
 
 Critical findings are evaluated before infrastructure noise and therefore always produce `HALT_RECOMMENDED`. Every assessment is persisted in `eval_canary_assessment` and written to `admin_audit_log`. Non-`CONTINUE` outcomes emit the structured log event `eval-canary-recommendation`; production log routing should page the configured release channel.
 
-## 4. Case Health operations
+## 5. Case Health operations
 
 Enable the nightly job only after the Eval Run database and Published Case artifact store are configured:
 
@@ -86,7 +109,7 @@ The job reads completed Eval Runs, excludes referenced baseline runs from candid
 
 Admins can inspect and manually refresh the queue at `/admin/eval-operations`. A refresh is a maintenance calculation, not an Eval rerun.
 
-## 5. Regression feedback loop
+## 6. Regression feedback loop
 
 1. Open `/admin/eval-candidates` and review deterministic, Semantic Miner or Visual Miner findings.
 2. Prepare a synthetic draft, run privacy validation and dry-run, then require human review.
@@ -98,7 +121,7 @@ Admins can inspect and manually refresh the queue at `/admin/eval-operations`. A
 
 The UI visualizes this sanitized flow but intentionally does not preserve a permanent Candidate-to-production-run backlink after Case publication. This prevents a Published Dataset from becoming a route back to production identity.
 
-## 6. Incident checks
+## 7. Incident checks
 
 - `Release Gate decision is unavailable`: evaluate the Release Gate first.
 - `Release Gate is not eligible`: the Gate is `NO_DECISION`, or `BLOCK` lacks an approved Release Owner override.
@@ -107,7 +130,7 @@ The UI visualizes this sanitized flow but intentionally does not preserve a perm
 - Case Health empty: verify completed runs contain episodes and exact Case versions exist in the Published Case store.
 - Case Health job failure: inspect the safe error class in logs; never log a trace or payload while debugging the scheduled job.
 
-## 7. Deployment checklist
+## 8. Deployment checklist
 
 - Apply `docs/sql/migrations/2026-07-13-create-eval-canary-assessment.sql`, `2026-07-13-version-eval-case-health.sql`, and `2026-07-13-clear-published-eval-candidate-links.sql`.
 - Configure Release Owner identities and CSRF/origin policy.
