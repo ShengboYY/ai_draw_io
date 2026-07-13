@@ -53,6 +53,8 @@ import {
     EvalEpisodeArtifactDTO,
     EvalGateDecisionDTO,
     EvalLiveRunReportDTO,
+    EvalCanaryAssessmentDTO,
+    EvalCaseHealthDTO,
 } from '@/types/api';
 
 export class ApiResponseError extends Error {
@@ -605,6 +607,28 @@ export const agentApi = {
     adminOverrideEvalGate: async (id: string, reason: string): Promise<Response<EvalGateDecisionDTO>> => {
         const response = await fetch(`${API_CONFIG.BASE_URL}/admin/eval-runs/${encodeURIComponent(id)}/gate/override`, { method: 'POST', headers: await csrfHeaders({ 'Content-Type': 'application/json' }), body: JSON.stringify({ reason }), credentials: 'include' });
         return handleResponse<EvalGateDecisionDTO>(response);
+    },
+
+    adminListEvalCanaryAssessments: async (evalRunId: string): Promise<Response<EvalCanaryAssessmentDTO[]>> => {
+        const response = await fetch(`${API_CONFIG.BASE_URL}/admin/eval-operations/canary-assessments?evalRunId=${encodeURIComponent(evalRunId)}`, {
+            method: 'GET', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+        });
+        return handleResponse<EvalCanaryAssessmentDTO[]>(response);
+    },
+
+    adminListEvalCaseHealth: async (status?: string): Promise<Response<EvalCaseHealthDTO[]>> => {
+        const query = status ? `?status=${encodeURIComponent(status)}` : '';
+        const response = await fetch(`${API_CONFIG.BASE_URL}/admin/eval-operations/case-health${query}`, {
+            method: 'GET', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+        });
+        return handleResponse<EvalCaseHealthDTO[]>(response);
+    },
+
+    adminRefreshEvalCaseHealth: async (): Promise<Response<EvalCaseHealthDTO[]>> => {
+        const response = await fetch(`${API_CONFIG.BASE_URL}/admin/eval-operations/case-health/refresh`, {
+            method: 'POST', headers: await csrfHeaders({ 'Content-Type': 'application/json' }), credentials: 'include',
+        });
+        return handleResponse<EvalCaseHealthDTO[]>(response);
     },
 
     adminRunCaptures: async (runId: string): Promise<Response<AdminDebugTraceCaptureDTO[]>> => {

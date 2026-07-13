@@ -61,6 +61,7 @@ public class SemanticMinerRepositoryTest {
         @Override public int insertDraft(EvalCaseDraftPO draft) { return 1; }
         @Override public EvalCaseDraftPO selectLatestDraft(String candidateId) { return null; }
         @Override public int upsertCaseHealth(EvalCaseHealthPO health) { return 1; }
+        @Override public List<EvalCaseHealthPO> selectCaseHealth(String status, int limit) { return List.of(); }
         @Override public int insertSemanticMinerRun(SemanticMinerRunPO run) { this.run = run; return 1; }
         @Override public int updateSemanticMinerRun(SemanticMinerRunPO run) { this.run = run; return 1; }
         @Override public SemanticMinerRunPO selectSemanticMinerRun(String runId) { return run; }

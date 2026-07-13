@@ -130,6 +130,33 @@ export interface EvalLiveRunReportDTO {
   gate?: EvalGateDecisionDTO;
 }
 
+export interface EvalCanaryAssessmentDTO {
+  id: string;
+  evalRunId: string;
+  deploymentRef: string;
+  policyVersion: string;
+  outcome: 'CONTINUE' | 'HALT_RECOMMENDED' | 'NO_DECISION';
+  reasons: string[];
+  baselineRequests: number;
+  canaryRequests: number;
+  canaryFailures: number;
+  criticalFindings: number;
+  infrastructureErrors: number;
+  p95LatencyMs: number;
+  averageCost: number;
+  createdBy: string;
+  createdAt: string;
+}
+
+export interface EvalCaseHealthDTO {
+  caseId: string;
+  caseVersion: string;
+  baselineReproduced?: boolean;
+  healthStatus: 'HEALTHY' | 'FLAKY' | 'ALWAYS_PASS_REVIEW' | 'UNSCORABLE' | 'STALE_REVIEW' | 'BROKEN_BASELINE';
+  summary: string;
+  updatedAt: string;
+}
+
 export type ApiErrorCode = 'AUTH_RATE_LIMITED' | 'DEMO_QUOTA_EXHAUSTED' | 'PLATFORM_QUOTA_EXHAUSTED' | (string & {});
 
 export interface AiAgentConfigResponseDTO {

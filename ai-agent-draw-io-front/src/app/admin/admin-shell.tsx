@@ -5,7 +5,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { AdminAccountMenu } from './admin-account-menu';
 
-type AdminSection = 'overview' | 'runs' | 'evalRuns' | 'candidates' | 'cases' | 'datasets' | 'trace';
+type AdminSection = 'overview' | 'runs' | 'evalRuns' | 'operations' | 'candidates' | 'cases' | 'datasets' | 'trace';
 
 interface AdminShellProps {
   active: AdminSection;
@@ -24,6 +24,7 @@ const primaryNavItems: { id: Exclude<AdminSection, 'trace'>; href: string; label
   { id: 'overview', href: '/admin', label: 'Overview' },
   { id: 'runs', href: '/admin/runs', label: 'Runs' },
   { id: 'evalRuns', href: '/admin/eval-runs', label: 'Evaluations' },
+  { id: 'operations', href: '/admin/eval-operations', label: 'Operations' },
   { id: 'candidates', href: '/admin/eval-candidates', label: 'Candidates' },
   { id: 'cases', href: '/admin/eval-cases', label: 'Cases' },
   { id: 'datasets', href: '/admin/eval-datasets', label: 'Datasets' },

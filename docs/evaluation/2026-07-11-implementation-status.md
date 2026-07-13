@@ -629,3 +629,36 @@ mvn clean test
 ```
 
 “确定性 Analyzer 无 overlap，但 VLM 判断难读”的平台路径已经具备；真实 precision/recall、Judge agreement 和 calibration approval 不能由 synthetic fixture 伪造，仍需独立视觉标注集后才能启用。SVG adapter 是受版本控制的常见 mxCell 子集，不替代 draw.io 浏览器的完整渲染引擎；视觉校准集必须覆盖 renderer fidelity，发现不支持的 shape/style 时应升级 renderer version 并重新校准。
+
+## Control Plane CP10：Canary、Case Health 与持续运营
+
+**状态：平台接线完成；真实部署指标、外部告警路由和用户行为信号仍需外部授权/配置**
+
+| 实施计划要求 | 实现证据 | 结果 |
+| --- | --- | --- |
+| Gate → Canary adapter | Release Owner 聚合指标 endpoint 只接受 Gate PASS 或批准 override 的 Run | 平台完成；部署系统调用待接 |
+| Canary 持久化 | `eval_canary_assessment` 保存 policy、三态 recommendation 和聚合窗口，不保存 prompt/trace/XML | 完成 |
+| 三态 Operations UI | `/admin/eval-operations` 展示 CONTINUE/HALT_RECOMMENDED/NO_DECISION、理由和聚合指标 | 完成 |
+| 不越权部署 | `EvalCanaryOperationsService` 没有 deploy/rollback 方法；UI 明示人工决策 | 完成 |
+| 输入与优先级 | 非法窗口拒绝；低流量/高 infra 为 NO_DECISION；critical 优先 HALT_RECOMMENDED | 完成 |
+| nightly Case Health | 可配置 `EvalCaseHealthJob` 从持久化 Run/Episode 计算并 upsert 维护队列 | 完成 |
+| baseline 与 candidate 分离 | 被 candidate 引用的 baseline Run 不进入稳定性 samples；单独计算 baseline reproduced | 完成 |
+| 非敏感维护队列 | Case Health API/UI 支持 flaky/stale/broken baseline 等筛选，以 `(case_id, case_version)` 独立维护且 schema 无 user/run/trace/payload | 完成 |
+| 持续闭环可视化 | Operations UI 串联 Candidate → Case/Dataset → fix/rerun → Gate/Canary | 完成（隐私安全视图） |
+| 审计与告警 | 复用 `admin_audit_log`；非 CONTINUE 和 flaky/broken baseline 发结构化安全日志 | 平台完成；外部路由待接 |
+| Runbook | `2026-07-13-evaluation-operations-runbook.md` 固定权限、payload、处置、隐私与部署检查 | 完成 |
+
+刻意未实现的外部边界：
+
+- 未获产品隐私/留存/删除授权前，不采集 Undo、低评分或立即重试事件。
+- Published Case 不保存可回链 production run 的 Candidate backlink；UI 只展示脱敏后的工作流和 Case/Run 结果。
+- 代码不拥有部署权限；真实 canary rollout、rollback 和 pager/webhook 在部署仓库接线。
+
+验证命令：
+
+```text
+mvn -pl ai-agent-draw-io-app -am -Dtest=EvalContinuousOperationsTest,EvaluationOperationsAdminControllerTest -Dsurefire.failIfNoSpecifiedTests=false test
+node --test tests/admin-eval-operations-page.test.mjs
+npm run lint
+mvn clean test
+```

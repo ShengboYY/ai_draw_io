@@ -586,7 +586,7 @@ Gate override 必须要求 Release Owner、理由和审计，且不能把缺失�
 | Diagram VLM Judge | pixel adapter、独立 provider/readiness 已实现但未批准运行 | 视觉双人标注校准 Case、固定 VLM/renderer 版本 |
 | Release Gate service/report | 已实现 | CI/CD 接线、真实 core/sequestered 输入 |
 | Sequestered loader | 已实现 | 外置受控 Dataset 和权限运营 |
-| Canary/Case Health service | 已实现 | 部署平台接线、定期任务和真实运营数据 |
+| Canary/Case Health service | 聚合指标 API、持久化、定期任务和 Operations UI 已接线 | 部署平台调用、真实运营数据和外部告警路由 |
 | Admin Candidate 页面 | 已实现 | 完整 review/publish Case 操作体验 |
 | Admin Case Studio | 已实现 | 运营使用并扩充真实 Case |
 | Dataset 管理 UI/API | 已实现 | 挂载外置 Sequestered Dataset |

@@ -26,6 +26,7 @@ public interface ITraceToEvalStore {
     default Optional<EvalCaseDraft> findLatestDraft(String candidateId) { return Optional.empty(); }
     default void insertDraft(EvalCaseDraft draft) { }
     default void upsertCaseHealth(EvalCaseHealthRecord health) { }
+    default List<EvalCaseHealthRecord> listCaseHealth(String status, int limit) { return List.of(); }
     default void insertSemanticMinerRun(SemanticMinerRun run) { }
     default void updateSemanticMinerRun(SemanticMinerRun run) { }
     default Optional<SemanticMinerRun> findSemanticMinerRun(String runId) { return Optional.empty(); }

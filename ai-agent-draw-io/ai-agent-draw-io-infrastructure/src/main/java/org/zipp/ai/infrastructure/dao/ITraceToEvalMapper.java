@@ -19,6 +19,7 @@ public interface ITraceToEvalMapper {
     int insertDraft(EvalCaseDraftPO draft);
     EvalCaseDraftPO selectLatestDraft(@Param("candidateId") String candidateId);
     int upsertCaseHealth(EvalCaseHealthPO health);
+    List<EvalCaseHealthPO> selectCaseHealth(@Param("status") String status, @Param("limit") int limit);
     int insertSemanticMinerRun(SemanticMinerRunPO run);
     int updateSemanticMinerRun(SemanticMinerRunPO run);
     SemanticMinerRunPO selectSemanticMinerRun(@Param("runId") String runId);
