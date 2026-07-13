@@ -172,6 +172,22 @@ public class EvalTargetReportServiceTest {
     }
 
     @Test
+    public void fullAgentSmallSampleIsCountOnlyUntilProfileMinimumCasesIsMet() throws Exception {
+        Store store = new Store(); Artifacts artifacts = new Artifacts();
+        store.insertRun(run("small-agent", EvaluationTarget.FULL_AGENT, 20, 100, 2));
+        EvalCaseDefinition definition = drawingCase("agent");
+        addExecution(store, artifacts, "small-agent", "agent", 0, EvalEpisodeStatus.PASS, 10, "create_new");
+
+        EvalTargetReport.FullAgentMetrics metrics = service(store, artifacts, List.of(definition))
+                .report("small-agent", EvalAdminRole.ADMIN).getFullAgent();
+
+        assertEquals(EvalTargetReport.Availability.COUNT_ONLY, metrics.getAvailability());
+        assertNull(metrics.getTsrAtOne());
+        assertNull(metrics.getCiLower());
+        assertTrue(metrics.getUnavailableReason().contains("at least 2 eligible Cases"));
+    }
+
+    @Test
     public void fullAgentFunnelKeepsMissingEvidenceUnavailable() {
         Store store = new Store(); Artifacts artifacts = new Artifacts();
         store.insertRun(run("missing-agent", EvaluationTarget.FULL_AGENT, 20, 100));
@@ -192,8 +208,13 @@ public class EvalTargetReportServiceTest {
     }
 
     private EvalRun run(String id, EvaluationTarget target, int minClass, int p95) {
+        return run(id, target, minClass, p95, 1);
+    }
+
+    private EvalRun run(String id, EvaluationTarget target, int minClass, int p95, int minimumCases) {
         String snapshot = "{\"config\":{\"gatePolicy\":{\"minSamplesPerClass\":" + minClass
-                + ",\"minLatencySamplesForP95\":" + p95 + "}}}";
+                + ",\"minLatencySamplesForP95\":" + p95 + ",\"minimumCases\":" + minimumCases
+                + ",\"maximumErrorRate\":1}}}";
         String graders = target == EvaluationTarget.DRAWING_QUALITY
                 ? "[\"xml-integrity-v1\",\"visual-quality-v1\"]" : "[]";
         return EvalRun.builder().id(id).datasetId("core").datasetVersion("v1").evaluationTarget(target)

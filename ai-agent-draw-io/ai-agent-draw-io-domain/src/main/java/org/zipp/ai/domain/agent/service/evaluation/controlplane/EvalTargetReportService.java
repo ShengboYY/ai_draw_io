@@ -42,7 +42,7 @@ public class EvalTargetReportService {
         } else if (run.getEvaluationTarget() == EvaluationTarget.DRAWING_QUALITY) {
             result.drawing(drawing(run, eligible, definitions, executions));
         } else {
-            result.fullAgent(fullAgent(episodes, eligible, definitions, executions));
+            result.fullAgent(fullAgent(run, episodes, eligible, definitions, executions));
         }
         return result.build();
     }
@@ -170,11 +170,13 @@ public class EvalTargetReportService {
                 .judgeNotRequiredCount(episodes.size() - judgeRequired.size()).build();
     }
 
-    private EvalTargetReport.FullAgentMetrics fullAgent(List<EvalEpisode> all, List<EvalEpisode> eligible,
+    private EvalTargetReport.FullAgentMetrics fullAgent(EvalRun run, List<EvalEpisode> all, List<EvalEpisode> eligible,
                                                          Map<String, EvalCaseDefinition> definitions,
                                                          Map<String, EvalExecution> executions) {
         List<EvalSampleResult> samples = all.stream().map(this::sample).toList();
-        EvalStatisticalReport statistics = new EvalStatisticsService().summarize(samples, 1, 1D);
+        int minimumCases = threshold(run, "minimumCases", 1);
+        double maximumErrorRate = numberThreshold(run, "maximumErrorRate", 1D);
+        EvalStatisticalReport statistics = new EvalStatisticsService().summarize(samples, minimumCases, maximumErrorRate);
         List<EvalTargetReport.FunnelStage> funnel = new ArrayList<>();
         List<EvalEpisode> survivors = funnelStage(funnel, "route", eligible,
                 episode -> routePassed(episode, definitions, executions));
@@ -186,10 +188,16 @@ public class EvalTargetReportService {
                 episode -> structurePassed(episode, definitions));
         funnelStage(funnel, "semantics_experience", survivors,
                 episode -> semanticsPassed(episode, definitions, executions));
-        boolean available = !eligible.isEmpty();
+        boolean available = statistics.getDecision() == EvalStatisticalReport.Decision.READY;
+        EvalTargetReport.Availability availability = eligible.isEmpty()
+                ? EvalTargetReport.Availability.UNAVAILABLE
+                : available ? EvalTargetReport.Availability.AVAILABLE : EvalTargetReport.Availability.COUNT_ONLY;
+        String reason = eligible.isEmpty()
+                ? "No PASS/FAIL Episodes are eligible for quality metrics"
+                : available ? null : "TSR@1 requires at least " + minimumCases
+                + " eligible Cases and error rate at most " + maximumErrorRate;
         return EvalTargetReport.FullAgentMetrics.builder()
-                .availability(available ? EvalTargetReport.Availability.AVAILABLE : EvalTargetReport.Availability.UNAVAILABLE)
-                .unavailableReason(available ? null : "No PASS/FAIL Episodes are eligible for quality metrics")
+                .availability(availability).unavailableReason(reason)
                 .tsrAtOne(available ? statistics.getTsrAtOne() : null)
                 .ciLower(available ? statistics.getCiLower() : null).ciUpper(available ? statistics.getCiUpper() : null)
                 .errorRate(all.isEmpty() ? null : statistics.getErrorRate())
@@ -326,6 +334,14 @@ public class EvalTargetReportService {
             JsonNode root = mapper.readTree(run.getProfileSnapshotJson());
             JsonNode value = root.path("config").path("gatePolicy").path(field);
             return value.isIntegralNumber() && value.asInt() > 0 ? value.asInt() : fallback;
+        } catch (Exception ignored) { return fallback; }
+    }
+
+    private double numberThreshold(EvalRun run, String field, double fallback) {
+        try {
+            JsonNode root = mapper.readTree(run.getProfileSnapshotJson());
+            JsonNode value = root.path("config").path("gatePolicy").path(field);
+            return value.isNumber() && value.asDouble() >= 0D ? value.asDouble() : fallback;
         } catch (Exception ignored) { return fallback; }
     }
 
