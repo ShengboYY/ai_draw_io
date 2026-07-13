@@ -159,4 +159,13 @@ The script exercises the six journeys in the workspace design without requiring 
 | Finding → sanitized Draft → Dry Run/Publish | promotion idempotency/privacy, Working Copy lifecycle and Case Studio tests |
 | Missing calibration/sequestered evidence → `NO_DECISION`; hard failure → `BLOCK` | per-run Gate, target composition, Release controller and Operations UI tests |
 
+When changing R2 Target inference, execute the real migration against an isolated local MySQL schema as well:
+
+```bash
+cd ai-agent-draw-io
+./scripts/verify-evaluation-target-migration.sh
+```
+
+This contract test starts the local MySQL service if needed, executes the production migration file, verifies inferred/ambiguous records plus Case → Dataset → Run propagation and the migration report, then drops its isolated schema.
+
 This suite uses synthetic fixtures and test model adapters for Mode C. A real-provider smoke, real sequestered artifact mount and deployment Canary window remain environment acceptance checks; the platform must return `NO_DECISION` when those inputs are absent.

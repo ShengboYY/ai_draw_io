@@ -75,6 +75,7 @@ export default function AdminEvalRunsPage() {
   const datasetTarget = datasets.find((item) => item.id === draft.datasetId)?.evaluationTarget;
   const compatibleProfiles = profiles.filter((profile) => profile.target === datasetTarget
     && (profile.mode === draft.mode || draft.mode === 'RELEASE' && profile.mode === 'MODE_C' && profile.gateEligible));
+  const visibleRuns = runs.filter((run) => !targetFilter || run.evaluationTarget === targetFilter);
 
   return (
     <AdminShell active="evalRuns">
@@ -166,7 +167,7 @@ export default function AdminEvalRunsPage() {
       )}
 
       <div className="space-y-3">
-        {runs.filter((run) => !targetFilter || run.evaluationTarget === targetFilter).map((run) => (
+        {visibleRuns.map((run) => (
           <Link key={run.id} href={`/admin/eval-runs/${encodeURIComponent(run.id)}`} className="block rounded-xl border border-stone-200 bg-white p-4 shadow-sm transition hover:border-zinc-400">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
@@ -188,6 +189,9 @@ export default function AdminEvalRunsPage() {
             </div>
           </Link>
         ))}
+        {runs.length > 0 && visibleRuns.length === 0 && (
+          <EmptyState title="No Eval Runs match this target" hint="Choose another target or start a compatible Eval Run." />
+        )}
       </div>
     </AdminShell>
   );

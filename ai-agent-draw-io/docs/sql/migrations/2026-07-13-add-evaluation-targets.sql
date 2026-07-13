@@ -31,11 +31,13 @@ SELECT id,
        JSON_CONTAINS(COALESCE(LOWER(JSON_EXTRACT(definition_json, '$.tags')), JSON_ARRAY()), JSON_QUOTE('target:drawing_quality')) tag_drawing,
        JSON_UNQUOTE(JSON_EXTRACT(definition_json, '$.fixtureVersion')) fixture_version,
        NULLIF(TRIM(JSON_UNQUOTE(JSON_EXTRACT(definition_json, '$.expected.routeType'))), '') IS NOT NULL route_present,
-       (JSON_TYPE(JSON_EXTRACT(definition_json, '$.expected.graph')) IS NOT NULL
-         AND JSON_TYPE(JSON_EXTRACT(definition_json, '$.expected.graph')) <> 'NULL')
-         OR JSON_EXTRACT(definition_json, '$.expected.needsCanvasQuality') = TRUE
-         OR JSON_EXTRACT(definition_json, '$.expected.maxCriticalIssues') IS NOT NULL
-         OR JSON_EXTRACT(definition_json, '$.expected.maxMajorIssues') IS NOT NULL drawing_present
+       COALESCE(
+         (JSON_TYPE(JSON_EXTRACT(definition_json, '$.expected.graph')) IS NOT NULL
+           AND JSON_TYPE(JSON_EXTRACT(definition_json, '$.expected.graph')) <> 'NULL')
+           OR JSON_EXTRACT(definition_json, '$.expected.needsCanvasQuality') = TRUE
+           OR JSON_EXTRACT(definition_json, '$.expected.maxCriticalIssues') IS NOT NULL
+           OR JSON_EXTRACT(definition_json, '$.expected.maxMajorIssues') IS NOT NULL,
+         FALSE) drawing_present
 FROM eval_case_working_copy
 WHERE target_migration_status IS NULL;
 

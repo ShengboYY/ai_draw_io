@@ -38,6 +38,7 @@ export default function AdminEvalCasesPage() {
   const visibleCases = cases
     .filter((item) => origin === '' || (origin === 'trace') === (item.sourceType === 'TRACE_DRAFT'))
     .filter((item) => !target || item.evaluationTarget === target);
+  const visiblePublished = published.filter((item) => !target || item.evaluationTarget === target);
 
   const openCloneForm = (item: PublishedEvalCaseDTO) => {
     setCloneSource(item);
@@ -142,11 +143,11 @@ export default function AdminEvalCasesPage() {
           <h2 className="font-display text-lg font-semibold text-zinc-900">Published versions</h2>
           <p className="mt-0.5 text-xs text-zinc-500">Immutable snapshots that Datasets pin by exact version. Clone one to start a variant.</p>
         </div>
-        {published.length === 0
-          ? <EmptyState title="Nothing published yet" hint="Publishing happens from a working copy after it is approved." />
+        {visiblePublished.length === 0
+          ? <EmptyState title={target ? 'No published Cases match this target' : 'Nothing published yet'} hint="Publishing happens from a working copy after it is approved." />
           : (
             <div className="overflow-hidden rounded-xl border border-stone-200 bg-white shadow-sm">
-              {published.map((item) => {
+              {visiblePublished.map((item) => {
                 const key = `${item.caseId}:${item.caseVersion}`;
                 const cloning = cloneSource && `${cloneSource.caseId}:${cloneSource.caseVersion}` === key;
                 return (

@@ -70,6 +70,7 @@ public class EvaluationTargetInferenceServiceTest {
         assertTrue(sql.contains("$.expected.needsCanvasQuality"));
         assertTrue(sql.contains("$.expected.maxCriticalIssues"));
         assertTrue(sql.contains("$.expected.maxMajorIssues"));
+        assertTrue(sql.contains("COALESCE("));
         assertTrue(sql.contains("drawing_present"));
     }
 }

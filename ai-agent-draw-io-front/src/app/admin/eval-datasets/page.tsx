@@ -111,6 +111,7 @@ export default function AdminEvalDatasetsPage() {
   const added = [...currentKeys].filter((key) => !priorKeys.has(key));
   const removed = [...priorKeys].filter((key) => !currentKeys.has(key));
   const currentIsPublished = current?.status === 'PUBLISHED';
+  const visibleDatasets = datasets.filter((item) => !targetFilter || item.evaluationTarget === targetFilter);
 
   return (
     <AdminShell active="datasets">
@@ -156,7 +157,7 @@ export default function AdminEvalDatasetsPage() {
 
       <div className="grid gap-5 lg:grid-cols-[16rem_16rem_minmax(0,1fr)]">
         <Panel title="1 · Datasets" hint="Pick a suite to work on">
-          {datasets.filter((item) => !targetFilter || item.evaluationTarget === targetFilter).map((item) => {
+          {visibleDatasets.map((item) => {
             const isSelected = selected?.id === item.id;
             return (
               <button
@@ -171,7 +172,7 @@ export default function AdminEvalDatasetsPage() {
               </button>
             );
           })}
-          {datasets.length === 0 && <PanelHint text="No datasets yet." />}
+          {visibleDatasets.length === 0 && <PanelHint text={targetFilter ? 'No datasets match this target.' : 'No datasets yet.'} />}
         </Panel>
 
         <Panel title="2 · Versions" hint="Each version freezes one member list">

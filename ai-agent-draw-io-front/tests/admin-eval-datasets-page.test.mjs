@@ -12,5 +12,7 @@ test('dataset studio pins case versions and exposes validation, publication, and
   assert.match(page, /adminEvalDatasetCoverage/);
   assert.match(page, /Languages/);
   assert.match(page, /Diagram types/);
+  assert.match(page, /visibleDatasets/);
+  assert.match(page, /No datasets match this target/);
   assert.doesNotMatch(page, /Macro-F1|accuracy/i);
 });

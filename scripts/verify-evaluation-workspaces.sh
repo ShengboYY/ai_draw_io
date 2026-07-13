@@ -14,6 +14,8 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 # Node's type stripping is required because several focused UI tests import small TypeScript helpers directly.
 (
   cd "$ROOT_DIR/ai-agent-draw-io-front"
+  # --experimental-strip-types is available from Node 22.6; fail with an actionable message on older runtimes.
+  node -e 'const [major, minor] = process.versions.node.split(".").map(Number); if (major < 22 || (major === 22 && minor < 6)) { console.error("Evaluation UI acceptance tests require Node >= 22.6; found " + process.versions.node); process.exit(1); }'
   node --experimental-strip-types --test \
     tests/admin-evaluation-workspace.test.mjs \
     tests/admin-eval-cases-page.test.mjs \

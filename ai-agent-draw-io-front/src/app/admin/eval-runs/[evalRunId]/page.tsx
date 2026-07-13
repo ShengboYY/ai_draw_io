@@ -205,7 +205,7 @@ export default function AdminEvalRunDetailPage({ params }: { params: Promise<{ e
             <Block title="Input / expected" value={JSON.stringify({ input: detail.input, expected: detail.expected }, null, 2)} />
             <h3 className="mt-5 text-sm font-semibold">Grader evidence</h3>
             {detail.episode.graders.map((g) => <Block key={g.graderName} title={`${g.graderName}@${g.graderVersion} · ${g.status}`} value={g.evidenceJson} />)}
-            {detail.episode.judge && <Block title={`Judge@${detail.episode.judge.judgeVersion} · ${detail.episode.judge.status}`} value={JSON.stringify({ score: JSON.parse(detail.episode.judge.scoreJson), evidence: JSON.parse(detail.episode.judge.evidenceJson) }, null, 2)} />}
+            {detail.episode.judge && <Block title={`Judge@${detail.episode.judge.judgeVersion} · ${detail.episode.judge.status}`} value={JSON.stringify({ score: parseStoredJson(detail.episode.judge.scoreJson), evidence: parseStoredJson(detail.episode.judge.evidenceJson) }, null, 2)} />}
             <div className="mt-4">
               <Btn onClick={() => agentApi.adminGetEvalEpisodeArtifact(evalRunId, detail.episode.id).then(({ data }) => setArtifact(data)).catch(show)}>Load authorized trace & canvas</Btn>
             </div>
@@ -288,4 +288,9 @@ function gateReasons(value: string): string[] {
     const parsed = JSON.parse(value);
     return Array.isArray(parsed) ? parsed.map(String) : ['Invalid Gate reason data'];
   } catch { return ['Invalid Gate reason data']; }
+}
+
+function parseStoredJson(value: string): unknown {
+  // Corrupt historical evidence must remain inspectable without breaking the whole Run detail page.
+  try { return JSON.parse(value); } catch { return { unavailable: 'Stored Judge evidence is not valid JSON' }; }
 }

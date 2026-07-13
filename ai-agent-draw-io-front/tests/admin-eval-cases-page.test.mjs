@@ -10,6 +10,8 @@ test('case studio exposes qualification lifecycle and only publishes an approved
   const studio = read('../src/app/admin/eval-cases/[workingCopyId]/page.tsx');
   assert.match(list, /adminListEvalCaseWorkingCopies/);
   assert.match(list, /New case/);
+  assert.match(list, /visiblePublished/);
+  assert.match(list, /No published Cases match this target/);
   assert.match(studio, /adminValidateEvalCase/);
   assert.match(studio, /adminDryRunEvalCase/);
   assert.match(studio, /g\.graderName/);

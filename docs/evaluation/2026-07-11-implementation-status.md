@@ -700,13 +700,13 @@ mvn clean test
 | 设计要求 | 实现证据 | 结果 |
 | --- | --- | --- |
 | Target 权威链 | Working Copy 归一化并确认，Publish 复制到 Case Version，Dataset 从同 Target 成员派生，Run 从 Published Dataset Version 派生 | 完成 |
-| 数据库迁移 | `2026-07-13-add-evaluation-targets.sql` 添加字段、索引、回填及 `eval_target_migration_report` | 完成并在本地 MySQL 二次执行验证幂等 |
+| 数据库迁移 | `2026-07-13-add-evaluation-targets.sql` 添加字段、索引、回填及 `eval_target_migration_report`；`verify-evaluation-target-migration.sh` 在隔离 MySQL schema 执行真实迁移契约 | 完成并可重复验证 |
 | 旧数据推断 | 明确 target tag、`fixture-v1`、单一 route/drawing 断言可推断；重叠或不足信号标为 `AMBIGUOUS` | 完成 |
 | 安全阻断 | `AMBIGUOUS` Case 不能通过 Validate/Publish；混合 Target Dataset 拒绝；无 Target Dataset 不能创建 Run | 完成 |
 | 管理员操作 | Case Studio 提供 Target selector；Cases、Datasets、Runs 支持 Target 过滤并显示 Target | 完成 |
 | API/持久化 | Target DTO、MyBatis PO/resultMap、查询过滤和 `/api/v1/admin/evaluation-targets` | 完成 |
 
-验证：R2 领域/发布/Run/Security 定向测试与全量后端测试通过；前端 ESLint 零错误、生产构建通过。完成度审计补充 `needsCanvasQuality/maxCriticalIssues/maxMajorIssues` 的 SQL/Java parity contract；迁移在本地 MySQL 重新执行，三个 Drawing-only synthetic Case 均得到 `DRAWING_QUALITY/INFERRED`，route+quality 冲突项得到 `AMBIGUOUS`，探针记录已清理。
+验证：R2 领域/发布/Run/Security 定向测试与全量后端测试通过；前端 ESLint 零错误、生产构建通过。完成度审计补充 `needsCanvasQuality/maxCriticalIssues/maxMajorIssues` 的 SQL/Java parity contract，并以真实 MySQL fixture 覆盖 Drawing-only、Router-only、显式 Target、冲突信号、Published lineage、Dataset/Run 传播和 migration report。该契约测试发现并修复了缺失绘图信号被 SQL 三值逻辑误判为 `NULL` 的问题；修正版迁移已重新应用到本地 `ai_draw_io` 数据库。
 
 ## Workspace R3：Profile 与内置 Suites
 

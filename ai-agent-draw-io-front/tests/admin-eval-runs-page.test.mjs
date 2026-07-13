@@ -19,6 +19,8 @@ test('Eval Run UI exposes progress and keeps FAIL distinct from infrastructure E
   assert.match(detail, /TSR@1/); assert.match(detail, /Paired delta/); assert.match(detail, /Text Judge/); assert.match(detail, /Visual Judge/);
   assert.match(detail, /Canvas before \/ after pixels/);
   assert.match(detail, /Release Gate/); assert.match(detail, /Release Owner override/);
+  assert.match(list, /visibleRuns/); assert.match(list, /No Eval Runs match this target/);
+  assert.match(detail, /parseStoredJson/); assert.match(detail, /Stored Judge evidence is not valid JSON/);
 });
 
 test('Eval Run UI renders target-specific reports and links metric evidence to Episodes', () => {
