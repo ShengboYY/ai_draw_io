@@ -10,6 +10,7 @@ import org.zipp.ai.domain.agent.model.valobj.evaluation.controlplane.*;
 import org.zipp.ai.domain.agent.model.valobj.evaluation.EvalStatisticalReport;
 import org.zipp.ai.domain.agent.service.evaluation.controlplane.EvalControlPlaneAuditTypes;
 import org.zipp.ai.domain.agent.service.evaluation.controlplane.EvalControlPlaneErrorCode;
+import org.zipp.ai.domain.agent.service.evaluation.controlplane.EvalControlPlaneException;
 import org.zipp.ai.domain.agent.service.evaluation.controlplane.EvalRunOrchestrator;
 import org.zipp.ai.domain.agent.service.evaluation.controlplane.EvalRunQueryService;
 import org.zipp.ai.trigger.http.service.AdminAuthorizationService;
@@ -139,14 +140,18 @@ public class EvaluationRunAdminController {
         try {
             T result = operation.run(admin.get()); audit(admin.get(), action, target, "SUCCESS", request);
             return Response.<T>builder().code(ResponseCode.SUCCESS.getCode()).info(ResponseCode.SUCCESS.getInfo()).data(result).build();
+        } catch (EvalControlPlaneException e) {
+            audit(admin.get(), action, target, "REJECTED", request);
+            return Response.<T>builder().code(e.getCode().name()).info(e.getMessage()).build();
         } catch (SecurityException e) {
             audit(admin.get(), action, target, "REJECTED", request);
             return Response.<T>builder().code(ResponseCode.AUTH_FORBIDDEN.getCode()).info(e.getMessage()).build();
-        } catch (IllegalArgumentException | IllegalStateException e) {
+        } catch (IllegalArgumentException e) {
             audit(admin.get(), action, target, "REJECTED", request);
-            EvalControlPlaneErrorCode code = e.getMessage() != null && e.getMessage().contains("not found")
-                    ? EvalControlPlaneErrorCode.NOT_FOUND : EvalControlPlaneErrorCode.INVALID_STATE_TRANSITION;
-            return Response.<T>builder().code(code.name()).info(e.getMessage()).build();
+            return Response.<T>builder().code(EvalControlPlaneErrorCode.VALIDATION_FAILED.name()).info(e.getMessage()).build();
+        } catch (IllegalStateException e) {
+            audit(admin.get(), action, target, "REJECTED", request);
+            return Response.<T>builder().code(EvalControlPlaneErrorCode.INVALID_STATE_TRANSITION.name()).info(e.getMessage()).build();
         } catch (RuntimeException e) {
             audit(admin.get(), action, target, "ERROR", request);
             return Response.<T>builder().code(EvalControlPlaneErrorCode.INFRASTRUCTURE_ERROR.name()).info("Eval Run operation failed").build();

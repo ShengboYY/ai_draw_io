@@ -38,7 +38,7 @@ public class EvalDatasetService {
     public EvalDatasetVersion createVersion(String datasetId, String version, List<EvalDatasetMember> members,
                                             String actor, EvalAdminRole role) {
         requireAdmin(role); EvalDataset dataset = requireDataset(datasetId); require(version, "version");
-        if (datasets.find(datasetId, version).isPresent()) throw new IllegalStateException("dataset version already exists");
+        if (datasets.find(datasetId, version).isPresent()) throw error(EvalControlPlaneErrorCode.INVALID_STATE_TRANSITION, "dataset version already exists");
         EvalDatasetVersion value = EvalDatasetVersion.builder().datasetId(datasetId).version(version.trim())
                 .datasetClass(dataset.getDatasetClass()).status(EvalDatasetVersionStatus.DRAFT).revision(1L)
                 .members(normalize(members)).build();
@@ -49,39 +49,39 @@ public class EvalDatasetService {
                                              List<EvalDatasetMember> members, String actor, EvalAdminRole role) {
         requireAdmin(role); EvalDatasetVersion current = requireVersion(datasetId, version);
         if (current.getStatus() != EvalDatasetVersionStatus.DRAFT) {
-            throw new IllegalStateException("only a draft dataset version can be edited");
+            throw error(EvalControlPlaneErrorCode.INVALID_STATE_TRANSITION, "only a draft dataset version can be edited");
         }
         EvalDatasetVersion updated = current.toBuilder().members(normalize(members))
                 .revision(expectedRevision + 1).contentHash(null).build();
-        if (!datasets.update(updated, expectedRevision)) throw new IllegalStateException("dataset revision conflict");
+        if (!datasets.update(updated, expectedRevision)) throw error(EvalControlPlaneErrorCode.REVISION_CONFLICT, "dataset revision conflict");
         return updated;
     }
 
     public EvalDatasetVersion validate(String datasetId, String version, String actor, EvalAdminRole role) {
         requireAdmin(role); EvalDatasetVersion current = requireVersion(datasetId, version);
-        if (current.getStatus() != EvalDatasetVersionStatus.DRAFT) throw new IllegalStateException("dataset is not a draft");
-        if (current.getMembers().isEmpty()) throw new IllegalStateException("dataset requires at least one case");
+        if (current.getStatus() != EvalDatasetVersionStatus.DRAFT) throw error(EvalControlPlaneErrorCode.INVALID_STATE_TRANSITION, "dataset is not a draft");
+        if (current.getMembers().isEmpty()) throw error(EvalControlPlaneErrorCode.INVALID_STATE_TRANSITION, "dataset requires at least one case");
         for (EvalDatasetMember member : current.getMembers()) {
             EvalCaseVersion caseVersion = cases.find(member.getCaseId(), member.getCaseVersion())
-                    .orElseThrow(() -> new IllegalStateException("dataset member is not a published case: "
-                            + member.getCaseId() + "@" + member.getCaseVersion()));
-            if (caseVersion.getRetiredAt() != null) throw new IllegalStateException("dataset member is retired");
+                    .orElseThrow(() -> error(EvalControlPlaneErrorCode.INVALID_STATE_TRANSITION,
+                            "dataset member is not a published case: " + member.getCaseId() + "@" + member.getCaseVersion()));
+            if (caseVersion.getRetiredAt() != null) throw error(EvalControlPlaneErrorCode.INVALID_STATE_TRANSITION, "dataset member is retired");
         }
         EvalDatasetVersion validated = current.toBuilder().status(EvalDatasetVersionStatus.VALIDATED)
                 .revision(current.getRevision() + 1).build();
-        if (!datasets.update(validated, current.getRevision())) throw new IllegalStateException("dataset revision conflict");
+        if (!datasets.update(validated, current.getRevision())) throw error(EvalControlPlaneErrorCode.REVISION_CONFLICT, "dataset revision conflict");
         return validated;
     }
 
     public EvalDatasetVersion publish(String datasetId, String version, String actor, EvalAdminRole role) {
         requireAdmin(role); EvalDatasetVersion current = requireVersion(datasetId, version);
         if (current.getStatus() == EvalDatasetVersionStatus.PUBLISHED) return current;
-        if (current.getStatus() != EvalDatasetVersionStatus.VALIDATED) throw new IllegalStateException("dataset must be validated before publish");
+        if (current.getStatus() != EvalDatasetVersionStatus.VALIDATED) throw error(EvalControlPlaneErrorCode.INVALID_STATE_TRANSITION, "dataset must be validated before publish");
         String hash = content.sha256(content.write(current.getMembers()));
         EvalDatasetVersion published = current.toBuilder().status(EvalDatasetVersionStatus.PUBLISHED)
                 .contentHash(hash).revision(current.getRevision() + 1).publishedBy(actor)
                 .publishedAt(clock.instant()).build();
-        if (!datasets.update(published, current.getRevision())) throw new IllegalStateException("dataset revision conflict");
+        if (!datasets.update(published, current.getRevision())) throw error(EvalControlPlaneErrorCode.REVISION_CONFLICT, "dataset revision conflict");
         return published;
     }
 
@@ -105,9 +105,12 @@ public class EvalDatasetService {
                 .thenComparing(EvalDatasetMember::getCaseVersion)).toList();
     }
 
-    private EvalDataset requireDataset(String id) { return datasets.findDataset(id).orElseThrow(() -> new IllegalArgumentException("dataset not found")); }
-    private EvalDatasetVersion requireVersion(String id, String version) { return datasets.find(id, version).orElseThrow(() -> new IllegalArgumentException("dataset version not found")); }
+    private EvalDataset requireDataset(String id) { return datasets.findDataset(id).orElseThrow(() -> error(EvalControlPlaneErrorCode.NOT_FOUND, "dataset not found")); }
+    private EvalDatasetVersion requireVersion(String id, String version) { return datasets.find(id, version).orElseThrow(() -> error(EvalControlPlaneErrorCode.NOT_FOUND, "dataset version not found")); }
     private void requireAdmin(EvalAdminRole role) { if (role != EvalAdminRole.ADMIN && role != EvalAdminRole.RELEASE_OWNER) throw new SecurityException("Eval Admin role is required"); }
+    private EvalControlPlaneException error(EvalControlPlaneErrorCode code, String message) {
+        return new EvalControlPlaneException(code, message);
+    }
     private void require(String value, String field) { if (blank(value)) throw new IllegalArgumentException(field + " is required"); }
     private boolean blank(String value) { return value == null || value.isBlank(); }
 }

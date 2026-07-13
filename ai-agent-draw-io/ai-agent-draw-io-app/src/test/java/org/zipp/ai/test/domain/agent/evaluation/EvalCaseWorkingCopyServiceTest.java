@@ -8,6 +8,8 @@ import org.zipp.ai.domain.agent.model.valobj.evaluation.controlplane.EvalCaseWor
 import org.zipp.ai.domain.agent.model.valobj.evaluation.controlplane.EvalCaseWorkingCopyStatus;
 import org.zipp.ai.domain.agent.model.valobj.evaluation.intake.EvalCaseDraft;
 import org.zipp.ai.domain.agent.service.evaluation.controlplane.EvalCaseWorkingCopyService;
+import org.zipp.ai.domain.agent.service.evaluation.controlplane.EvalControlPlaneErrorCode;
+import org.zipp.ai.domain.agent.service.evaluation.controlplane.EvalControlPlaneException;
 import org.zipp.ai.domain.agent.service.evaluation.controlplane.IEvalCaseWorkingCopyStore;
 import org.zipp.ai.domain.agent.service.evaluation.intake.ITraceToEvalStore;
 
@@ -47,8 +49,9 @@ public class EvalCaseWorkingCopyServiceTest {
         assertEquals(EvalCaseWorkingCopyStatus.DRAFT, created.getStatus());
         assertEquals(Long.valueOf(2L), updated.getRevision());
         assertEquals("updated", updated.getDefinition().getInput().get("user"));
-        assertThrows(IllegalStateException.class, () -> service.update(created.getId(), 1L, changed,
-                "editor-1", EvalAdminRole.EDITOR));
+        EvalControlPlaneException conflict = assertThrows(EvalControlPlaneException.class,
+                () -> service.update(created.getId(), 1L, changed, "editor-1", EvalAdminRole.EDITOR));
+        assertEquals(EvalControlPlaneErrorCode.REVISION_CONFLICT, conflict.getCode());
     }
 
     @Test

@@ -202,7 +202,7 @@ public class EvalRunOrchestrator {
     }
 
     private boolean cancelled(String runId) { return requireRun(runId).getStatus() == EvalRunStatus.CANCELLED; }
-    private EvalRun requireRun(String id) { return store.findRun(id).orElseThrow(() -> new IllegalArgumentException("Eval Run not found")); }
+    private EvalRun requireRun(String id) { return store.findRun(id).orElseThrow(() -> new EvalControlPlaneException(EvalControlPlaneErrorCode.NOT_FOUND, "Eval Run not found")); }
     private String episodeId(String runId, String caseId, String version, int repetition) { return "eep_" + UUID.nameUUIDFromBytes((runId + "|" + caseId + "|" + version + "|" + repetition).getBytes(StandardCharsets.UTF_8)); }
     private String caseKey(String caseId, String version) { return caseId + "@" + version; }
     private void validate(EvalRunStartCommand command) {

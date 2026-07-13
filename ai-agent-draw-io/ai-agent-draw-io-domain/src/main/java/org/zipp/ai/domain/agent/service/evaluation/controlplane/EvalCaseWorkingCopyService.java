@@ -74,7 +74,8 @@ public class EvalCaseWorkingCopyService {
         requireEditor(role);
         require(candidateId, "candidateId");
         EvalCaseDraft draft = traceStore.findLatestDraft(candidateId)
-                .orElseThrow(() -> new IllegalArgumentException("Eval Draft not found"));
+                .orElseThrow(() -> new EvalControlPlaneException(
+                        EvalControlPlaneErrorCode.NOT_FOUND, "Eval Draft not found"));
         EvalCaseDefinition definition = fromDraft(draft, caseId, caseVersion);
         return create(EvalCaseSourceType.TRACE_DRAFT, definition, candidateId, actor, role);
     }
@@ -114,7 +115,8 @@ public class EvalCaseWorkingCopyService {
                 .revision(expectedRevision + 1).definition(copy(definition))
                 .createdAt(current.getCreatedAt()).updatedAt(clock.instant()).build();
         if (!store.update(updated, expectedRevision)) {
-            throw new IllegalStateException("working copy revision conflict");
+            throw new EvalControlPlaneException(EvalControlPlaneErrorCode.REVISION_CONFLICT,
+                    "working copy revision conflict");
         }
         return updated;
     }
@@ -150,7 +152,8 @@ public class EvalCaseWorkingCopyService {
                 .definition(copy(current.getDefinition())).createdAt(current.getCreatedAt())
                 .updatedAt(clock.instant()).build();
         if (!store.update(updated, current.getRevision())) {
-            throw new IllegalStateException("working copy revision conflict");
+            throw new EvalControlPlaneException(EvalControlPlaneErrorCode.REVISION_CONFLICT,
+                    "working copy revision conflict");
         }
         return updated;
     }
@@ -202,7 +205,8 @@ public class EvalCaseWorkingCopyService {
 
     private EvalCaseWorkingCopy find(String id) {
         require(id, "workingCopyId");
-        return store.find(id).orElseThrow(() -> new IllegalArgumentException("working copy not found"));
+        return store.find(id).orElseThrow(() -> new EvalControlPlaneException(
+                EvalControlPlaneErrorCode.NOT_FOUND, "working copy not found"));
     }
 
     private void requireDefinition(EvalCaseDefinition definition) {

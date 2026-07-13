@@ -156,14 +156,18 @@ public class EvaluationCatalogAdminController {
             T result = operation.run(admin.get());
             audits.record(admin.get().getId(), action, resourceType, target, "SUCCESS", request.getRemoteAddr(), request.getHeader("User-Agent"));
             return Response.<T>builder().code(ResponseCode.SUCCESS.getCode()).info(ResponseCode.SUCCESS.getInfo()).data(result).build();
+        } catch (EvalControlPlaneException e) {
+            audits.record(admin.get().getId(), action, resourceType, target, "REJECTED", request.getRemoteAddr(), request.getHeader("User-Agent"));
+            return Response.<T>builder().code(e.getCode().name()).info(e.getMessage()).build();
         } catch (SecurityException e) {
             audits.record(admin.get().getId(), action, resourceType, target, "REJECTED", request.getRemoteAddr(), request.getHeader("User-Agent"));
             return Response.<T>builder().code(EvalControlPlaneErrorCode.FORBIDDEN.name()).info(e.getMessage()).build();
-        } catch (IllegalArgumentException | IllegalStateException e) {
+        } catch (IllegalArgumentException e) {
             audits.record(admin.get().getId(), action, resourceType, target, "REJECTED", request.getRemoteAddr(), request.getHeader("User-Agent"));
-            EvalControlPlaneErrorCode code = e.getMessage() != null && e.getMessage().contains("not found")
-                    ? EvalControlPlaneErrorCode.NOT_FOUND : EvalControlPlaneErrorCode.INVALID_STATE_TRANSITION;
-            return Response.<T>builder().code(code.name()).info(e.getMessage()).build();
+            return Response.<T>builder().code(EvalControlPlaneErrorCode.VALIDATION_FAILED.name()).info(e.getMessage()).build();
+        } catch (IllegalStateException e) {
+            audits.record(admin.get().getId(), action, resourceType, target, "REJECTED", request.getRemoteAddr(), request.getHeader("User-Agent"));
+            return Response.<T>builder().code(EvalControlPlaneErrorCode.INVALID_STATE_TRANSITION.name()).info(e.getMessage()).build();
         } catch (RuntimeException e) {
             audits.record(admin.get().getId(), action, resourceType, target, "ERROR", request.getRemoteAddr(), request.getHeader("User-Agent"));
             return Response.<T>builder().code(EvalControlPlaneErrorCode.INFRASTRUCTURE_ERROR.name()).info("evaluation catalog operation failed").build();

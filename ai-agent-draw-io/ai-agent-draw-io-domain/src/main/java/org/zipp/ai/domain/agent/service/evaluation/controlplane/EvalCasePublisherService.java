@@ -36,14 +36,16 @@ public class EvalCasePublisherService {
         EvalCaseWorkingCopy workingCopy = workingCopies.get(workingCopyId, actor, role);
         if (workingCopy.getStatus() != EvalCaseWorkingCopyStatus.APPROVED
                 && workingCopy.getStatus() != EvalCaseWorkingCopyStatus.PUBLISHED) {
-            throw new IllegalStateException("only an approved working copy can be published");
+            throw new EvalControlPlaneException(EvalControlPlaneErrorCode.INVALID_STATE_TRANSITION,
+                    "only an approved working copy can be published");
         }
         byte[] bytes = content.write(workingCopy.getDefinition());
         String hash = content.sha256(bytes);
         EvalCaseVersion existing = versions.find(workingCopy.getCaseId(), workingCopy.getCaseVersion()).orElse(null);
         if (existing != null) {
             if (!hash.equals(existing.getContentHash())) {
-                throw new IllegalStateException("case version already exists with different content");
+                throw new EvalControlPlaneException(EvalControlPlaneErrorCode.INVALID_STATE_TRANSITION,
+                        "case version already exists with different content");
             }
             if (workingCopy.getStatus() == EvalCaseWorkingCopyStatus.APPROVED) {
                 workingCopies.transition(workingCopyId, EvalCaseWorkingCopyStatus.PUBLISHED, actor, role);
@@ -67,9 +69,11 @@ public class EvalCasePublisherService {
     public EvalCaseWorkingCopy clonePublished(String caseId, String caseVersion, String newCaseId,
                                               String newCaseVersion, String actor, EvalAdminRole role) {
         EvalCaseVersion source = versions.find(caseId, caseVersion)
-                .orElseThrow(() -> new IllegalArgumentException("published case version not found"));
+                .orElseThrow(() -> new EvalControlPlaneException(EvalControlPlaneErrorCode.NOT_FOUND,
+                        "published case version not found"));
         byte[] bytes = artifacts.read(source.getArtifactRef())
-                .orElseThrow(() -> new IllegalStateException("published case artifact is unavailable"));
+                .orElseThrow(() -> new EvalControlPlaneException(EvalControlPlaneErrorCode.ARTIFACT_UNAVAILABLE,
+                        "published case artifact is unavailable"));
         EvalCaseDefinition definition = content.read(bytes, EvalCaseDefinition.class);
         definition.setCaseId(require(newCaseId, "caseId"));
         definition.setCaseVersion(require(newCaseVersion, "caseVersion"));
@@ -83,19 +87,23 @@ public class EvalCasePublisherService {
 
     public EvalCaseDefinition load(String caseId, String caseVersion) {
         EvalCaseVersion version = versions.find(caseId, caseVersion)
-                .orElseThrow(() -> new IllegalArgumentException("published case version not found"));
+                .orElseThrow(() -> new EvalControlPlaneException(EvalControlPlaneErrorCode.NOT_FOUND,
+                        "published case version not found"));
         return content.read(artifacts.read(version.getArtifactRef())
-                .orElseThrow(() -> new IllegalStateException("published case artifact is unavailable")),
+                .orElseThrow(() -> new EvalControlPlaneException(EvalControlPlaneErrorCode.ARTIFACT_UNAVAILABLE,
+                        "published case artifact is unavailable")),
                 EvalCaseDefinition.class);
     }
 
     public EvalCaseVersion retire(String caseId, String caseVersion, String actor, EvalAdminRole role) {
         requirePublisher(role);
         EvalCaseVersion current = versions.find(caseId, caseVersion)
-                .orElseThrow(() -> new IllegalArgumentException("published case version not found"));
+                .orElseThrow(() -> new EvalControlPlaneException(EvalControlPlaneErrorCode.NOT_FOUND,
+                        "published case version not found"));
         if (current.getRetiredAt() != null) return current;
         if (!versions.retire(caseId, caseVersion, clock.instant())) {
-            throw new IllegalStateException("case version retirement conflict");
+            throw new EvalControlPlaneException(EvalControlPlaneErrorCode.REVISION_CONFLICT,
+                    "case version retirement conflict");
         }
         return versions.find(caseId, caseVersion).orElseThrow();
     }

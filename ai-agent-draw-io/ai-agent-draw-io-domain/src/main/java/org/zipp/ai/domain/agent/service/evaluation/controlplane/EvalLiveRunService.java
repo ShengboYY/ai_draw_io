@@ -209,7 +209,7 @@ public class EvalLiveRunService {
     private boolean budgetExhausted(EvalRun run) { return run.getMaxEstimatedCost() > 0D && store.listEpisodes(run.getId()).stream().mapToDouble(EvalEpisode::getEstimatedCost).sum() >= run.getMaxEstimatedCost(); }
     private boolean isUnsupportedMultiTurn(EvalCaseDefinition definition) { Object turns = definition.getInput() == null ? null : definition.getInput().get("turns"); return turns instanceof List<?> values && values.size() > 1; }
     private EvalStatisticalReport.Comparison noComparison() { return EvalStatisticalReport.Comparison.builder().decision(EvalStatisticalReport.Decision.NO_DECISION).build(); }
-    private EvalRun requireRun(String id) { return store.findRun(id).orElseThrow(() -> new IllegalArgumentException("Eval Run not found")); }
+    private EvalRun requireRun(String id) { return store.findRun(id).orElseThrow(() -> new EvalControlPlaneException(EvalControlPlaneErrorCode.NOT_FOUND, "Eval Run not found")); }
     private String episodeId(String runId, String caseId, String version, int repetition) { return "eep_" + UUID.nameUUIDFromBytes((runId + "|" + caseId + "|" + version + "|" + repetition).getBytes(StandardCharsets.UTF_8)); }
     private boolean blank(String value) { return value == null || value.isBlank(); }
 }

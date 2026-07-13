@@ -17,6 +17,7 @@ import org.zipp.ai.domain.agent.service.evaluation.controlplane.IEvalCaseWorking
 import org.zipp.ai.domain.agent.service.evaluation.controlplane.EvalCaseValidationService;
 import org.zipp.ai.domain.agent.service.evaluation.controlplane.EvalCaseDryRunService;
 import org.zipp.ai.domain.agent.service.evaluation.controlplane.EvalCaseReviewService;
+import org.zipp.ai.domain.agent.service.evaluation.controlplane.EvalControlPlaneErrorCode;
 import org.zipp.ai.domain.agent.service.evaluation.controlplane.IEvalCaseEvidenceStore;
 import org.zipp.ai.domain.agent.service.evaluation.controlplane.IEvalCaseWorkingCopyReviewStore;
 import org.zipp.ai.domain.agent.model.valobj.evaluation.controlplane.EvalCaseEvidence;
@@ -78,6 +79,21 @@ public class EvaluationAdminControllerTest {
     }
 
     @Test
+    public void missingExpectedRevisionIsAValidationFailureRatherThanAConflict() {
+        Fixture fixture = new Fixture(true);
+        EvaluationAdminController.CreateRequest create = new EvaluationAdminController.CreateRequest();
+        create.setSourceType("MANUAL"); create.setDefinition(definition("case-missing-revision", "1", "hello"));
+        EvalCaseWorkingCopy workingCopy = fixture.controller.create(create, request()).getData();
+        EvaluationAdminController.UpdateRequest update = new EvaluationAdminController.UpdateRequest();
+        update.setDefinition(definition("case-missing-revision", "1", "updated"));
+
+        Response<EvalCaseWorkingCopy> response = fixture.controller.update(workingCopy.getId(), update, request());
+
+        assertEquals("VALIDATION_FAILED", response.getCode());
+        assertEquals("REJECTED", fixture.auditLogs.logs.get(fixture.auditLogs.logs.size() - 1).getOutcome());
+    }
+
+    @Test
     public void nonAdminCannotAccessWorkingCopies() {
         Fixture fixture = new Fixture(false);
 
@@ -121,6 +137,20 @@ public class EvaluationAdminControllerTest {
 
         assertEquals("FORBIDDEN", response.getCode());
         assertEquals("REJECTED", fixture.auditLogs.logs.get(fixture.auditLogs.logs.size() - 1).getOutcome());
+    }
+
+    @Test
+    public void missingTraceDraftReturnsNotFoundInsteadOfInfrastructureError() {
+        Fixture fixture = new Fixture(true, EvalAdminRole.EDITOR);
+        EvaluationAdminController.CreateRequest request = new EvaluationAdminController.CreateRequest();
+        request.setSourceType("TRACE_DRAFT");
+        request.setCandidateId("missing-candidate");
+        request.setCaseId("trace-case");
+        request.setCaseVersion("1");
+
+        Response<EvalCaseWorkingCopy> response = fixture.controller.create(request, request());
+
+        assertEquals(EvalControlPlaneErrorCode.NOT_FOUND.name(), response.getCode());
     }
 
     @Test

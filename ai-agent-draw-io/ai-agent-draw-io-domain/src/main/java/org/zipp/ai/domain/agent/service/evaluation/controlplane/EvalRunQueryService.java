@@ -146,8 +146,8 @@ public class EvalRunQueryService {
         }
         return values;
     }
-    private EvalRun requireRun(String id) { return store.findRun(id).orElseThrow(() -> new IllegalArgumentException("Eval Run not found")); }
-    private EvalEpisode requireEpisode(String runId, String id) { EvalEpisode value = store.findEpisode(id).orElseThrow(() -> new IllegalArgumentException("Eval Episode not found")); if (!runId.equals(value.getEvalRunId())) throw new SecurityException("Episode does not belong to Eval Run"); return value; }
+    private EvalRun requireRun(String id) { return store.findRun(id).orElseThrow(() -> new EvalControlPlaneException(EvalControlPlaneErrorCode.NOT_FOUND, "Eval Run not found")); }
+    private EvalEpisode requireEpisode(String runId, String id) { EvalEpisode value = store.findEpisode(id).orElseThrow(() -> new EvalControlPlaneException(EvalControlPlaneErrorCode.NOT_FOUND, "Eval Episode not found")); if (!runId.equals(value.getEvalRunId())) throw new SecurityException("Episode does not belong to Eval Run"); return value; }
     private int count(List<EvalEpisode> values, EvalEpisodeStatus status) { return (int) values.stream().filter(value -> value.getStatus() == status).count(); }
     private String key(String id, String version) { return id + "@" + version; }
     private String value(String value) { return blank(value) ? "unknown" : value; }

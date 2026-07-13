@@ -26,6 +26,7 @@ import org.zipp.ai.domain.agent.service.evaluation.controlplane.EvalCaseValidati
 import org.zipp.ai.domain.agent.service.evaluation.controlplane.EvalCaseWorkingCopyService;
 import org.zipp.ai.domain.agent.service.evaluation.controlplane.EvalControlPlaneAuditTypes;
 import org.zipp.ai.domain.agent.service.evaluation.controlplane.EvalControlPlaneErrorCode;
+import org.zipp.ai.domain.agent.service.evaluation.controlplane.EvalControlPlaneException;
 import org.zipp.ai.trigger.http.service.AdminAuthorizationService;
 import org.zipp.ai.types.enums.ResponseCode;
 
@@ -67,7 +68,7 @@ public class EvaluationAdminController {
                     admin.get().getId(), role(admin.get()));
             audit(admin.get(), "VALIDATE_EVAL_CASE_WORKING_COPY", workingCopyId, "SUCCESS", request);
             return success(result);
-        } catch (IllegalArgumentException | IllegalStateException | SecurityException e) {
+        } catch (EvalControlPlaneException | IllegalArgumentException | IllegalStateException | SecurityException e) {
             audit(admin.get(), "VALIDATE_EVAL_CASE_WORKING_COPY", workingCopyId, "REJECTED", request);
             return failure(codeFor(e), e.getMessage());
         } catch (RuntimeException e) {
@@ -86,7 +87,7 @@ public class EvaluationAdminController {
                     admin.get().getId(), role(admin.get()));
             audit(admin.get(), "DRY_RUN_EVAL_CASE_WORKING_COPY", workingCopyId, "SUCCESS", request);
             return success(result);
-        } catch (IllegalArgumentException | IllegalStateException | SecurityException e) {
+        } catch (EvalControlPlaneException | IllegalArgumentException | IllegalStateException | SecurityException e) {
             audit(admin.get(), "DRY_RUN_EVAL_CASE_WORKING_COPY", workingCopyId, "REJECTED", request);
             return failure(codeFor(e), e.getMessage());
         } catch (RuntimeException e) {
@@ -105,7 +106,7 @@ public class EvaluationAdminController {
                     admin.get().getId(), role(admin.get()));
             audit(admin.get(), "SUBMIT_EVAL_CASE_REVIEW", workingCopyId, "SUCCESS", request);
             return success(result);
-        } catch (IllegalArgumentException | IllegalStateException | SecurityException e) {
+        } catch (EvalControlPlaneException | IllegalArgumentException | IllegalStateException | SecurityException e) {
             audit(admin.get(), "SUBMIT_EVAL_CASE_REVIEW", workingCopyId, "REJECTED", request);
             return failure(codeFor(e), e.getMessage());
         } catch (RuntimeException e) {
@@ -138,7 +139,7 @@ public class EvaluationAdminController {
                     body == null ? null : body.getReason(), admin.get().getId(), role(admin.get()));
             audit(admin.get(), action, workingCopyId, "SUCCESS", request);
             return success(result);
-        } catch (IllegalArgumentException | IllegalStateException | SecurityException e) {
+        } catch (EvalControlPlaneException | IllegalArgumentException | IllegalStateException | SecurityException e) {
             audit(admin.get(), action, workingCopyId, "REJECTED", request);
             return failure(codeFor(e), e.getMessage());
         } catch (RuntimeException e) {
@@ -162,7 +163,7 @@ public class EvaluationAdminController {
             };
             audit(admin.get(), "CREATE_EVAL_CASE_WORKING_COPY", created.getId(), "SUCCESS", request);
             return success(created);
-        } catch (IllegalArgumentException e) {
+        } catch (EvalControlPlaneException | IllegalArgumentException e) {
             audit(admin.get(), "CREATE_EVAL_CASE_WORKING_COPY", null, "REJECTED", request);
             return failure(codeFor(e), e.getMessage());
         } catch (RuntimeException e) {
@@ -201,7 +202,7 @@ public class EvaluationAdminController {
             EvalCaseWorkingCopy result = service.get(workingCopyId, admin.get().getId(), role(admin.get()));
             audit(admin.get(), "VIEW_EVAL_CASE_WORKING_COPY", workingCopyId, "SUCCESS", request);
             return success(result);
-        } catch (IllegalArgumentException e) {
+        } catch (EvalControlPlaneException | IllegalArgumentException e) {
             audit(admin.get(), "VIEW_EVAL_CASE_WORKING_COPY", workingCopyId, "REJECTED", request);
             return failure(codeFor(e), e.getMessage());
         } catch (RuntimeException e) {
@@ -229,13 +230,13 @@ public class EvaluationAdminController {
             return failure(EvalControlPlaneErrorCode.FORBIDDEN, e.getMessage());
         } catch (IllegalArgumentException e) {
             audit(admin.get(), "UPDATE_EVAL_CASE_WORKING_COPY", workingCopyId, "REJECTED", request);
-            return failure(codeFor(e), e.getMessage());
+            return failure(EvalControlPlaneErrorCode.VALIDATION_FAILED, e.getMessage());
+        } catch (EvalControlPlaneException e) {
+            audit(admin.get(), "UPDATE_EVAL_CASE_WORKING_COPY", workingCopyId, "REJECTED", request);
+            return failure(e.getCode(), e.getMessage());
         } catch (IllegalStateException e) {
             audit(admin.get(), "UPDATE_EVAL_CASE_WORKING_COPY", workingCopyId, "REJECTED", request);
-            EvalControlPlaneErrorCode code = StringUtils.containsIgnoreCase(e.getMessage(), "revision")
-                    ? EvalControlPlaneErrorCode.REVISION_CONFLICT
-                    : EvalControlPlaneErrorCode.INVALID_STATE_TRANSITION;
-            return failure(code, e.getMessage());
+            return failure(EvalControlPlaneErrorCode.INVALID_STATE_TRANSITION, e.getMessage());
         } catch (RuntimeException e) {
             audit(admin.get(), "UPDATE_EVAL_CASE_WORKING_COPY", workingCopyId, "ERROR", request);
             return failure(EvalControlPlaneErrorCode.INFRASTRUCTURE_ERROR, "failed to update working copy");
@@ -254,7 +255,7 @@ public class EvaluationAdminController {
                     admin.get().getId(), role(admin.get()));
             audit(admin.get(), "CLONE_EVAL_CASE_WORKING_COPY", clone.getId(), "SUCCESS", request);
             return success(clone);
-        } catch (IllegalArgumentException | IllegalStateException | SecurityException e) {
+        } catch (EvalControlPlaneException | IllegalArgumentException | IllegalStateException | SecurityException e) {
             audit(admin.get(), "CLONE_EVAL_CASE_WORKING_COPY", workingCopyId, "REJECTED", request);
             return failure(codeFor(e), e.getMessage());
         } catch (RuntimeException e) {
@@ -277,9 +278,8 @@ public class EvaluationAdminController {
     }
 
     private EvalControlPlaneErrorCode codeFor(RuntimeException error) {
+        if (error instanceof EvalControlPlaneException typed) return typed.getCode();
         if (error instanceof SecurityException) return EvalControlPlaneErrorCode.FORBIDDEN;
-        if (StringUtils.containsIgnoreCase(error.getMessage(), "not found")) return EvalControlPlaneErrorCode.NOT_FOUND;
-        if (StringUtils.containsIgnoreCase(error.getMessage(), "revision")) return EvalControlPlaneErrorCode.REVISION_CONFLICT;
         if (error instanceof IllegalStateException) return EvalControlPlaneErrorCode.INVALID_STATE_TRANSITION;
         return EvalControlPlaneErrorCode.VALIDATION_FAILED;
     }

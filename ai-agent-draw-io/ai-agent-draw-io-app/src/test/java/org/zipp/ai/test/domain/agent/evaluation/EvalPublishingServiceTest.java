@@ -57,8 +57,9 @@ public class EvalPublishingServiceTest {
                 new ArtifactStore(), new ReviewStore(), fixedClock());
         publisher.publish(first.getId(), "admin-1", EvalAdminRole.ADMIN);
 
-        assertThrows(IllegalStateException.class,
+        EvalControlPlaneException failure = assertThrows(EvalControlPlaneException.class,
                 () -> publisher.publish(second.getId(), "admin-1", EvalAdminRole.ADMIN));
+        assertEquals(EvalControlPlaneErrorCode.INVALID_STATE_TRANSITION, failure.getCode());
     }
 
     @Test
@@ -79,8 +80,10 @@ public class EvalPublishingServiceTest {
         assertEquals(EvalDatasetVersionStatus.VALIDATED, validated.getStatus());
         assertEquals(EvalDatasetVersionStatus.PUBLISHED, published.getStatus());
         assertNotNull(published.getContentHash());
-        assertThrows(IllegalStateException.class, () -> service.replaceMembers(dataset.getId(), "core-v2",
-                published.getRevision(), List.of(), "admin-1", EvalAdminRole.ADMIN));
+        EvalControlPlaneException immutable = assertThrows(EvalControlPlaneException.class,
+                () -> service.replaceMembers(dataset.getId(), "core-v2", published.getRevision(),
+                        List.of(), "admin-1", EvalAdminRole.ADMIN));
+        assertEquals(EvalControlPlaneErrorCode.INVALID_STATE_TRANSITION, immutable.getCode());
         assertEquals("1", datasets.find(dataset.getId(), "core-v2").orElseThrow().getMembers().get(0).getCaseVersion());
     }
 
