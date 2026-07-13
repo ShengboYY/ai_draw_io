@@ -7,14 +7,15 @@ const pagePath = fileURLToPath(new URL('../src/app/admin/runs/[runId]/page.tsx',
 const pageSource = readFileSync(pagePath, 'utf8');
 
 test('admin run detail is framed as a Diagram Trace workspace', () => {
-  // The page keeps the telemetry panels while framing them as diagram-specific trace work.
-  assert.match(pageSource, /Diagram Trace/);
-  assert.match(pageSource, /Trace Summary/);
-  assert.match(pageSource, /Request → Agent route → Diagram outcome/);
-  assert.match(pageSource, /Diagram Trace Timeline/);
-  assert.match(pageSource, /Diagram Outcome/);
-  assert.match(pageSource, /Trace Inspector/);
-  assert.match(pageSource, /Payload Evidence/);
+  // The current workspace keeps request, execution, inspection, and diagram outcome visible together.
+  assert.match(pageSource, /Diagram trace/);
+  assert.match(pageSource, /Trace progression/);
+  assert.match(pageSource, /label="Request"/);
+  assert.match(pageSource, /label="Agent route"/);
+  assert.match(pageSource, /label="Diagram outcome"/);
+  assert.match(pageSource, /Trace execution/);
+  assert.match(pageSource, /Trace inspector/);
+  assert.match(pageSource, /Payload evidence/);
 });
 
 test('admin run detail consumes the P1 unified diagram trace span model', () => {
@@ -26,23 +27,24 @@ test('admin run detail consumes the P1 unified diagram trace span model', () => 
 });
 
 test('admin run detail shows P2 diagram effect evidence on selected spans', () => {
-  assert.match(pageSource, /Diagram Effect/);
+  assert.match(pageSource, /Diagram effect/);
   assert.match(pageSource, /Diagram ID/);
-  assert.match(pageSource, /Canvas hash/);
+  assert.match(pageSource, /Before hash/);
+  assert.match(pageSource, /After hash/);
   assert.match(pageSource, /Render status/);
   assert.match(pageSource, /XML changed/);
   assert.match(pageSource, /Thumbnail changed/);
 });
 
 test('admin run detail shows P3 runtime findings and can jump to related spans', () => {
-  assert.match(pageSource, /Trace Findings/);
+  assert.match(pageSource, /Trace findings/);
   assert.match(pageSource, /trace\?\.findings/);
   assert.match(pageSource, /finding\.spanId/);
   assert.match(pageSource, /setSelectedId\(finding\.spanId\)/);
 });
 
 test('admin run detail shows P4 diagram snapshot filmstrip', () => {
-  assert.match(pageSource, /Evolution Filmstrip/);
+  assert.match(pageSource, /Diagram evolution/);
   assert.match(pageSource, /trace\?\.snapshots/);
   assert.match(pageSource, /snapshot\.spanId/);
   assert.match(pageSource, /snapshot\.canvasHash/);
