@@ -9,6 +9,8 @@ public class EvalCaseVersionPO {
     private String caseVersion;
     private String contentHash;
     private String artifactRef;
+    private String evaluationTarget;
+    private String targetMigrationStatus;
     private String approvedBy;
     private Date publishedAt;
     private Date retiredAt;

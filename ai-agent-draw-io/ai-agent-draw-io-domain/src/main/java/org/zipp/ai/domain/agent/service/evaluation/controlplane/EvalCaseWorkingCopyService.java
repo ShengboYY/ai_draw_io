@@ -5,10 +5,12 @@ import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.zipp.ai.domain.agent.model.valobj.evaluation.EvalCaseDefinition;
+import org.zipp.ai.domain.agent.model.valobj.evaluation.EvaluationTarget;
 import org.zipp.ai.domain.agent.model.valobj.evaluation.controlplane.EvalAdminRole;
 import org.zipp.ai.domain.agent.model.valobj.evaluation.controlplane.EvalCaseSourceType;
 import org.zipp.ai.domain.agent.model.valobj.evaluation.controlplane.EvalCaseWorkingCopy;
 import org.zipp.ai.domain.agent.model.valobj.evaluation.controlplane.EvalCaseWorkingCopyStatus;
+import org.zipp.ai.domain.agent.model.valobj.evaluation.controlplane.EvaluationTargetInference;
 import org.zipp.ai.domain.agent.model.valobj.evaluation.intake.EvalCaseDraft;
 import org.zipp.ai.domain.agent.service.evaluation.EvalCaseLoader;
 import org.zipp.ai.domain.agent.service.evaluation.intake.ITraceToEvalStore;
@@ -30,6 +32,7 @@ public class EvalCaseWorkingCopyService {
     private final ITraceToEvalStore traceStore;
     private final Clock clock;
     private final EvalCaseLoader caseLoader;
+    private final EvaluationTargetInferenceService targetInference;
 
     @Autowired
     public EvalCaseWorkingCopyService(IEvalCaseWorkingCopyStore store, ITraceToEvalStore traceStore) {
@@ -46,6 +49,7 @@ public class EvalCaseWorkingCopyService {
         this.traceStore = traceStore;
         this.clock = clock == null ? Clock.systemUTC() : clock;
         this.caseLoader = caseLoader;
+        this.targetInference = new EvaluationTargetInferenceService();
     }
 
     public EvalCaseWorkingCopy createManual(EvalCaseDefinition definition, String actor, EvalAdminRole role) {
@@ -108,11 +112,13 @@ public class EvalCaseWorkingCopyService {
                 || !current.getCaseVersion().equals(definition.getCaseVersion())) {
             throw new IllegalArgumentException("case identity cannot change during update");
         }
+        EvaluationTargetInference inferred = normalizeTarget(definition);
         EvalCaseWorkingCopy updated = EvalCaseWorkingCopy.builder()
                 .id(current.getId()).caseId(current.getCaseId()).caseVersion(current.getCaseVersion())
                 .sourceType(current.getSourceType()).candidateId(current.getCandidateId())
                 .status(EvalCaseWorkingCopyStatus.DRAFT).ownerUserId(current.getOwnerUserId())
                 .revision(expectedRevision + 1).definition(copy(definition))
+                .evaluationTarget(inferred.target()).targetMigrationStatus(inferred.status())
                 .createdAt(current.getCreatedAt()).updatedAt(clock.instant()).build();
         if (!store.update(updated, expectedRevision)) {
             throw new EvalControlPlaneException(EvalControlPlaneErrorCode.REVISION_CONFLICT,
@@ -149,7 +155,8 @@ public class EvalCaseWorkingCopyService {
                 .candidateId(target == EvalCaseWorkingCopyStatus.PUBLISHED ? null : current.getCandidateId())
                 .status(target)
                 .ownerUserId(current.getOwnerUserId()).revision(current.getRevision() + 1)
-                .definition(copy(current.getDefinition())).createdAt(current.getCreatedAt())
+                .definition(copy(current.getDefinition())).evaluationTarget(current.getEvaluationTarget())
+                .targetMigrationStatus(current.getTargetMigrationStatus()).createdAt(current.getCreatedAt())
                 .updatedAt(clock.instant()).build();
         if (!store.update(updated, current.getRevision())) {
             throw new EvalControlPlaneException(EvalControlPlaneErrorCode.REVISION_CONFLICT,
@@ -163,12 +170,14 @@ public class EvalCaseWorkingCopyService {
         requireActor(actor);
         requireEditor(role);
         requireDefinition(definition);
+        EvaluationTargetInference inferred = normalizeTarget(definition);
         EvalCaseWorkingCopy workingCopy = EvalCaseWorkingCopy.builder()
                 .id("ecw_" + UUID.randomUUID())
                 .caseId(definition.getCaseId()).caseVersion(definition.getCaseVersion())
                 .sourceType(sourceType).candidateId(StringUtils.trimToNull(candidateId))
                 .status(EvalCaseWorkingCopyStatus.DRAFT).ownerUserId(actor).revision(1L)
-                .definition(copy(definition)).createdAt(clock.instant()).updatedAt(clock.instant()).build();
+                .definition(copy(definition)).evaluationTarget(inferred.target())
+                .targetMigrationStatus(inferred.status()).createdAt(clock.instant()).updatedAt(clock.instant()).build();
         store.insert(workingCopy);
         return workingCopy;
     }
@@ -192,15 +201,36 @@ public class EvalCaseWorkingCopyService {
         }
         EvalCaseDefinition.Expected expected = new EvalCaseDefinition.Expected();
         expected.setRouteType(StringUtils.trimToNull(draft.getExpectedRoute()));
+        EvaluationTarget target = targetFromDraft(draft);
+        if (target == null) tags.add("target:ambiguous");
         return EvalCaseDefinition.builder()
                 .caseId(require(caseId, "caseId")).caseVersion(require(caseVersion, "caseVersion"))
                 .datasetVersion("dev-draft").origin("trace-derived-synthetic").risk("high")
+                .evaluationTarget(target)
                 .tags(tags).input(input)
                 .privacy(new EvalCaseDefinition.Privacy("synthetic",
                         StringUtils.defaultIfBlank(draft.getSanitizerVersion(), "unknown")))
                 .expected(expected)
                 .provenance(EvalCaseDefinition.Provenance.builder().sourceTraceRetained(false).build())
                 .build();
+    }
+
+    private EvaluationTarget targetFromDraft(EvalCaseDraft draft) {
+        String family = StringUtils.lowerCase(StringUtils.defaultString(draft.getSuspectedFailureFamily()));
+        if (family.contains("intent") || family.contains("route")) return EvaluationTarget.INTENT_ROUTER;
+        if (family.contains("visual") || family.contains("drawing") || family.contains("layout")
+                || family.contains("overlap") || family.contains("canvas_quality")) {
+            return EvaluationTarget.DRAWING_QUALITY;
+        }
+        if (family.contains("tool") || family.contains("latency") || family.contains("completion")
+                || family.contains("load") || family.contains("agent")) return EvaluationTarget.FULL_AGENT;
+        return null;
+    }
+
+    private EvaluationTargetInference normalizeTarget(EvalCaseDefinition definition) {
+        EvaluationTargetInference inferred = targetInference.infer(definition);
+        if (inferred.target() != null) definition.setEvaluationTarget(inferred.target());
+        return inferred;
     }
 
     private EvalCaseWorkingCopy find(String id) {

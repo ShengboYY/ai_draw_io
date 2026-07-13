@@ -56,8 +56,15 @@ public class EvalRunOrchestrator {
         Optional<EvalRun> existing = store.findByIdempotencyKey(command.getIdempotencyKey());
         if (existing.isPresent()) return existing.get();
         EvalRunMode mode = command.getMode() == null ? EvalRunMode.MODE_B : command.getMode();
+        EvalAdminRole datasetRole = mode == EvalRunMode.RELEASE ? EvalAdminRole.RELEASE_OWNER : EvalAdminRole.ADMIN;
+        EvaluationTarget target = cases.target(command.getDatasetId(), command.getDatasetVersion(), datasetRole);
+        if (target == null) {
+            throw new EvalControlPlaneException(EvalControlPlaneErrorCode.TARGET_AMBIGUOUS,
+                    "Dataset evaluationTarget is unresolved");
+        }
         EvalRun run = EvalRun.builder().id("erun_" + UUID.randomUUID()).mode(mode)
                 .datasetId(command.getDatasetId()).datasetVersion(command.getDatasetVersion())
+                .evaluationTarget(target)
                 .baselineRef(command.getBaselineRef()).candidateRef(blank(command.getCandidateRef()) ? command.getGitSha() : command.getCandidateRef())
                 .executionProfileHash(command.getExecutionProfileHash()).idempotencyKey(command.getIdempotencyKey())
                 .repetitions(command.getRepetitions()).gitSha(command.getGitSha())

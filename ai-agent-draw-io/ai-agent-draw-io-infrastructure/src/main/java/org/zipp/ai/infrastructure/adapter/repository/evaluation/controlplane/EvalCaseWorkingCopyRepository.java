@@ -4,6 +4,8 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.stereotype.Repository;
 import org.zipp.ai.domain.agent.model.valobj.evaluation.EvalCaseDefinition;
+import org.zipp.ai.domain.agent.model.valobj.evaluation.EvaluationTarget;
+import org.zipp.ai.domain.agent.model.valobj.evaluation.EvaluationTargetMigrationStatus;
 import org.zipp.ai.domain.agent.model.valobj.evaluation.controlplane.EvalCaseSourceType;
 import org.zipp.ai.domain.agent.model.valobj.evaluation.controlplane.EvalCaseWorkingCopy;
 import org.zipp.ai.domain.agent.model.valobj.evaluation.controlplane.EvalCaseWorkingCopyStatus;
@@ -55,6 +57,8 @@ public class EvalCaseWorkingCopyRepository implements IEvalCaseWorkingCopyStore 
                     .status(EvalCaseWorkingCopyStatus.valueOf(po.getStatus())).ownerUserId(po.getOwnerUserId())
                     .revision(po.getRevision())
                     .definition(objectMapper.readValue(po.getDefinitionJson(), EvalCaseDefinition.class))
+                    .evaluationTarget(enumValue(EvaluationTarget.class, po.getEvaluationTarget()))
+                    .targetMigrationStatus(enumValue(EvaluationTargetMigrationStatus.class, po.getTargetMigrationStatus()))
                     .createdAt(po.getCreatedAt().toInstant()).updatedAt(po.getUpdatedAt().toInstant()).build();
         } catch (JsonProcessingException e) {
             throw new IllegalStateException("invalid Eval Case Working Copy JSON", e);
@@ -68,10 +72,16 @@ public class EvalCaseWorkingCopyRepository implements IEvalCaseWorkingCopyStore 
             po.setSourceType(value.getSourceType().name()); po.setCandidateId(value.getCandidateId());
             po.setStatus(value.getStatus().name()); po.setOwnerUserId(value.getOwnerUserId());
             po.setRevision(value.getRevision()); po.setDefinitionJson(objectMapper.writeValueAsString(value.getDefinition()));
+            po.setEvaluationTarget(value.getEvaluationTarget() == null ? null : value.getEvaluationTarget().name());
+            po.setTargetMigrationStatus(value.getTargetMigrationStatus() == null ? null : value.getTargetMigrationStatus().name());
             po.setCreatedAt(Date.from(value.getCreatedAt())); po.setUpdatedAt(Date.from(value.getUpdatedAt()));
             return po;
         } catch (JsonProcessingException e) {
             throw new IllegalArgumentException("Eval Case Working Copy cannot be serialized", e);
         }
+    }
+
+    private <T extends Enum<T>> T enumValue(Class<T> type, String value) {
+        return value == null ? null : Enum.valueOf(type, value);
     }
 }

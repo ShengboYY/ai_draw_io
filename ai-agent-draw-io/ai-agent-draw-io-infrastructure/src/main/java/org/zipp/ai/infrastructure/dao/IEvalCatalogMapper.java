@@ -13,9 +13,12 @@ public interface IEvalCatalogMapper {
     List<EvalCaseVersionPO> selectCaseVersions(@Param("caseId") String caseId);
     int retireCaseVersion(@Param("caseId") String caseId, @Param("caseVersion") String caseVersion,
                           @Param("retiredAt") java.util.Date retiredAt);
+    int confirmCaseVersionTarget(@Param("caseId") String caseId, @Param("caseVersion") String caseVersion,
+                                 @Param("evaluationTarget") String evaluationTarget);
     int insertDataset(EvalDatasetPO value);
     EvalDatasetPO selectDataset(@Param("datasetId") String datasetId);
     List<EvalDatasetPO> selectDatasets();
+    int assignDatasetTarget(@Param("datasetId") String datasetId, @Param("evaluationTarget") String evaluationTarget);
     int insertDatasetVersion(EvalDatasetVersionPO value);
     int updateDatasetVersion(@Param("value") EvalDatasetVersionPO value, @Param("expectedRevision") long expectedRevision);
     EvalDatasetVersionPO selectDatasetVersion(@Param("datasetId") String datasetId, @Param("version") String version);

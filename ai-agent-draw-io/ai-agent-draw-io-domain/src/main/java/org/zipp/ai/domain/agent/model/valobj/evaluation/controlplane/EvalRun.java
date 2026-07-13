@@ -2,6 +2,7 @@ package org.zipp.ai.domain.agent.model.valobj.evaluation.controlplane;
 
 import lombok.Builder;
 import lombok.Value;
+import org.zipp.ai.domain.agent.model.valobj.evaluation.EvaluationTarget;
 
 import java.time.Instant;
 
@@ -13,6 +14,8 @@ public class EvalRun {
     EvalRunMode mode;
     String datasetId;
     String datasetVersion;
+    /** Derived from the immutable Dataset Version at Run creation. */
+    EvaluationTarget evaluationTarget;
     String baselineRef;
     String candidateRef;
     String executionProfileHash;

@@ -16,6 +16,8 @@ public class EvalCaseWorkingCopyPO {
     private String ownerUserId;
     private Long revision;
     private String definitionJson;
+    private String evaluationTarget;
+    private String targetMigrationStatus;
     private Date createdAt;
     private Date updatedAt;
 }

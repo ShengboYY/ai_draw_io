@@ -1,6 +1,7 @@
 package org.zipp.ai.domain.agent.service.evaluation.controlplane;
 
 import org.zipp.ai.domain.agent.model.valobj.evaluation.controlplane.*;
+import org.zipp.ai.domain.agent.model.valobj.evaluation.EvaluationTarget;
 
 import java.util.List;
 import java.util.Optional;
@@ -12,6 +13,11 @@ public interface IEvalRunStore {
     Optional<EvalRun> findRun(String runId);
     Optional<EvalRun> findByIdempotencyKey(String idempotencyKey);
     List<EvalRun> listRuns(int limit, int offset);
+
+    default List<EvalRun> listRuns(EvaluationTarget target, int limit, int offset) {
+        return listRuns(limit, offset).stream()
+                .filter(run -> target == null || run.getEvaluationTarget() == target).toList();
+    }
     void saveEpisode(EvalEpisode episode);
     Optional<EvalEpisode> findEpisode(String episodeId);
     List<EvalEpisode> listEpisodes(String runId);

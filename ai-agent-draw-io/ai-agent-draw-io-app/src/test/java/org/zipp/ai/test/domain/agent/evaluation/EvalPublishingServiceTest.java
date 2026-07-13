@@ -1,7 +1,10 @@
 package org.zipp.ai.test.domain.agent.evaluation;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.Test;
 import org.zipp.ai.domain.agent.model.valobj.evaluation.EvalCaseDefinition;
+import org.zipp.ai.domain.agent.model.valobj.evaluation.EvaluationTarget;
+import org.zipp.ai.domain.agent.model.valobj.evaluation.EvaluationTargetMigrationStatus;
 import org.zipp.ai.domain.agent.model.valobj.evaluation.controlplane.*;
 import org.zipp.ai.domain.agent.service.evaluation.controlplane.*;
 import org.zipp.ai.domain.agent.service.evaluation.intake.ITraceToEvalStore;
@@ -63,10 +66,72 @@ public class EvalPublishingServiceTest {
     }
 
     @Test
+    public void ambiguousPublishedMetadataCanBeConfirmedWithoutChangingArtifact() throws Exception {
+        CaseVersionStore versions = new CaseVersionStore();
+        ArtifactStore artifacts = new ArtifactStore();
+        artifacts.values.put("immutable", new ObjectMapper().writeValueAsBytes(EvalCaseDefinition.builder()
+                .caseId("legacy").caseVersion("1").build()));
+        EvalCaseVersion ambiguous = EvalCaseVersion.builder().caseId("legacy").caseVersion("1")
+                .contentHash("immutable-hash").artifactRef("artifact:immutable")
+                .targetMigrationStatus(EvaluationTargetMigrationStatus.AMBIGUOUS).publishedAt(NOW).build();
+        versions.insert(ambiguous);
+        EvalCasePublisherService publisher = new EvalCasePublisherService(
+                new EvalCaseWorkingCopyService(new WorkingStore(), new EmptyTraceStore(), fixedClock()),
+                versions, artifacts, new ReviewStore(), fixedClock());
+
+        EvalCaseVersion confirmed = publisher.confirmTarget("legacy", "1", EvaluationTarget.DRAWING_QUALITY,
+                "admin-1", EvalAdminRole.ADMIN);
+
+        assertEquals(EvaluationTarget.DRAWING_QUALITY, confirmed.getEvaluationTarget());
+        assertEquals(EvaluationTargetMigrationStatus.CONFIRMED, confirmed.getTargetMigrationStatus());
+        assertEquals("immutable-hash", confirmed.getContentHash());
+        assertEquals("artifact:immutable", confirmed.getArtifactRef());
+    }
+
+    @Test
+    public void publishedMetadataCannotContradictExplicitArtifactTarget() throws Exception {
+        CaseVersionStore versions = new CaseVersionStore();
+        ArtifactStore artifacts = new ArtifactStore();
+        artifacts.values.put("explicit", new ObjectMapper().writeValueAsBytes(EvalCaseDefinition.builder()
+                .caseId("legacy").caseVersion("1").evaluationTarget(EvaluationTarget.INTENT_ROUTER).build()));
+        versions.insert(EvalCaseVersion.builder().caseId("legacy").caseVersion("1")
+                .contentHash("immutable-hash").artifactRef("artifact:explicit")
+                .targetMigrationStatus(EvaluationTargetMigrationStatus.AMBIGUOUS).publishedAt(NOW).build());
+        EvalCasePublisherService publisher = new EvalCasePublisherService(
+                new EvalCaseWorkingCopyService(new WorkingStore(), new EmptyTraceStore(), fixedClock()),
+                versions, artifacts, new ReviewStore(), fixedClock());
+
+        EvalControlPlaneException failure = assertThrows(EvalControlPlaneException.class,
+                () -> publisher.confirmTarget("legacy", "1", EvaluationTarget.DRAWING_QUALITY,
+                        "admin-1", EvalAdminRole.ADMIN));
+
+        assertEquals(EvalControlPlaneErrorCode.TARGET_MISMATCH, failure.getCode());
+    }
+
+    @Test
+    public void ambiguousWorkingCopyCannotPublish() {
+        WorkingStore working = new WorkingStore();
+        EvalCaseWorkingCopy ambiguous = approvedCase("ambiguous", "1", "hello");
+        ambiguous.setEvaluationTarget(null);
+        ambiguous.setTargetMigrationStatus(EvaluationTargetMigrationStatus.AMBIGUOUS);
+        ambiguous.getDefinition().setEvaluationTarget(null);
+        working.insert(ambiguous);
+        EvalCasePublisherService publisher = new EvalCasePublisherService(
+                new EvalCaseWorkingCopyService(working, new EmptyTraceStore(), fixedClock()),
+                new CaseVersionStore(), new ArtifactStore(), new ReviewStore(), fixedClock());
+
+        EvalControlPlaneException failure = assertThrows(EvalControlPlaneException.class,
+                () -> publisher.publish(ambiguous.getId(), "admin-1", EvalAdminRole.ADMIN));
+
+        assertEquals(EvalControlPlaneErrorCode.TARGET_AMBIGUOUS, failure.getCode());
+    }
+
+    @Test
     public void datasetPinsPublishedVersionsAndBecomesImmutable() {
         CaseVersionStore versions = new CaseVersionStore();
         versions.insert(EvalCaseVersion.builder().caseId("case-1").caseVersion("1")
-                .contentHash("hash-1").artifactRef("artifact-1").publishedAt(NOW).build());
+                .contentHash("hash-1").artifactRef("artifact-1").evaluationTarget(EvaluationTarget.FULL_AGENT)
+                .targetMigrationStatus(EvaluationTargetMigrationStatus.CONFIRMED).publishedAt(NOW).build());
         DatasetStore datasets = new DatasetStore();
         EvalDatasetService service = new EvalDatasetService(datasets, versions, fixedClock());
         EvalDataset dataset = service.create("core", EvalDatasetClass.CORE, "admin-1", EvalAdminRole.ADMIN);
@@ -85,6 +150,27 @@ public class EvalPublishingServiceTest {
                         List.of(), "admin-1", EvalAdminRole.ADMIN));
         assertEquals(EvalControlPlaneErrorCode.INVALID_STATE_TRANSITION, immutable.getCode());
         assertEquals("1", datasets.find(dataset.getId(), "core-v2").orElseThrow().getMembers().get(0).getCaseVersion());
+        assertEquals(EvaluationTarget.FULL_AGENT,
+                datasets.find(dataset.getId(), "core-v2").orElseThrow().getEvaluationTarget());
+    }
+
+    @Test
+    public void datasetRejectsMixedTargets() {
+        CaseVersionStore versions = new CaseVersionStore();
+        versions.insert(version("router", EvaluationTarget.INTENT_ROUTER));
+        versions.insert(version("drawing", EvaluationTarget.DRAWING_QUALITY));
+        DatasetStore store = new DatasetStore();
+        EvalDatasetService service = new EvalDatasetService(store, versions, fixedClock());
+        EvalDataset dataset = service.create("mixed", EvalDatasetClass.DEV, "admin-1", EvalAdminRole.ADMIN);
+        service.createVersion(dataset.getId(), "v1", List.of(
+                EvalDatasetMember.builder().caseId("router").caseVersion("1").build(),
+                EvalDatasetMember.builder().caseId("drawing").caseVersion("1").build()),
+                "admin-1", EvalAdminRole.ADMIN);
+
+        EvalControlPlaneException failure = assertThrows(EvalControlPlaneException.class,
+                () -> service.validate(dataset.getId(), "v1", "admin-1", EvalAdminRole.ADMIN));
+
+        assertEquals(EvalControlPlaneErrorCode.TARGET_MISMATCH, failure.getCode());
     }
 
     @Test
@@ -118,7 +204,8 @@ public class EvalPublishingServiceTest {
     public void sequesteredDatasetContentsAreHiddenFromOrdinaryAdmins() {
         CaseVersionStore versions = new CaseVersionStore();
         versions.insert(EvalCaseVersion.builder().caseId("sealed-ref").caseVersion("1")
-                .contentHash("sealed-hash").artifactRef("external:sealed").publishedAt(NOW).build());
+                .contentHash("sealed-hash").artifactRef("external:sealed").evaluationTarget(EvaluationTarget.FULL_AGENT)
+                .targetMigrationStatus(EvaluationTargetMigrationStatus.CONFIRMED).publishedAt(NOW).build());
         DatasetStore store = new DatasetStore();
         EvalDatasetService datasets = new EvalDatasetService(store, versions, fixedClock());
         EvalDataset sealed = datasets.create("sealed", EvalDatasetClass.SEQUESTERED,
@@ -140,13 +227,22 @@ public class EvalPublishingServiceTest {
     private EvalCaseWorkingCopy approvedCase(String caseId, String version, String user) {
         return EvalCaseWorkingCopy.builder().id("w_" + UUID.randomUUID()).caseId(caseId).caseVersion(version)
                 .sourceType(EvalCaseSourceType.MANUAL).status(EvalCaseWorkingCopyStatus.APPROVED)
-                .ownerUserId("editor-1").revision(6L).definition(EvalCaseDefinition.builder()
+                .ownerUserId("editor-1").revision(6L).evaluationTarget(EvaluationTarget.FULL_AGENT)
+                .targetMigrationStatus(EvaluationTargetMigrationStatus.CONFIRMED)
+                .definition(EvalCaseDefinition.builder()
                         .caseId(caseId).caseVersion(version).datasetVersion("dev-draft")
                         .origin("specification-derived").risk("low").fixtureVersion("fixture-v1")
+                        .evaluationTarget(EvaluationTarget.FULL_AGENT)
                         .xmlContractVersion("drawio-v1").input(new LinkedHashMap<>(Map.of("user", user)))
                         .privacy(new EvalCaseDefinition.Privacy("synthetic", "test-v1"))
                         .expected(new EvalCaseDefinition.Expected()).build())
                 .createdAt(NOW).updatedAt(NOW).build();
+    }
+
+    private EvalCaseVersion version(String caseId, EvaluationTarget target) {
+        return EvalCaseVersion.builder().caseId(caseId).caseVersion("1").contentHash("hash-" + caseId)
+                .artifactRef("artifact-" + caseId).evaluationTarget(target)
+                .targetMigrationStatus(EvaluationTargetMigrationStatus.CONFIRMED).publishedAt(NOW).build();
     }
 
     private Clock fixedClock() { return Clock.fixed(NOW, ZoneOffset.UTC); }
@@ -162,6 +258,7 @@ public class EvalPublishingServiceTest {
         @Override public Optional<EvalCaseVersion> find(String id, String version) { return Optional.ofNullable(values.get(id + ":" + version)); }
         @Override public List<EvalCaseVersion> list(String id) { return values.values().stream().filter(v -> id == null || id.equals(v.getCaseId())).toList(); }
         @Override public boolean retire(String id, String version, Instant retiredAt) { EvalCaseVersion current = values.get(id + ":" + version); if (current == null || current.getRetiredAt() != null) return false; values.put(id + ":" + version, current.toBuilder().retiredAt(retiredAt).build()); return true; }
+        @Override public boolean confirmTarget(String id, String version, EvaluationTarget target) { EvalCaseVersion current = values.get(id + ":" + version); if (current == null || current.getEvaluationTarget() != null && current.getTargetMigrationStatus() != EvaluationTargetMigrationStatus.AMBIGUOUS) return false; values.put(id + ":" + version, current.toBuilder().evaluationTarget(target).targetMigrationStatus(EvaluationTargetMigrationStatus.CONFIRMED).build()); return true; }
     }
     private static final class DatasetStore implements IEvalDatasetStore {
         private final Map<String, EvalDataset> datasets = new LinkedHashMap<>();
@@ -177,6 +274,17 @@ public class EvalPublishingServiceTest {
         }
         @Override public Optional<EvalDatasetVersion> find(String id, String version) { return Optional.ofNullable(versions.get(key(id, version))); }
         @Override public List<EvalDatasetVersion> listVersions(String id) { return versions.values().stream().filter(v -> id.equals(v.getDatasetId())).toList(); }
+        @Override public boolean validateWithTarget(EvalDatasetVersion value, long revision, EvaluationTarget target) {
+            EvalDataset current = datasets.get(value.getDatasetId());
+            EvalDatasetVersion currentVersion = versions.get(key(value.getDatasetId(), value.getVersion()));
+            if (current == null || currentVersion == null || currentVersion.getRevision() != revision
+                    || current.getEvaluationTarget() != null && current.getEvaluationTarget() != target) return false;
+            datasets.put(value.getDatasetId(), EvalDataset.builder().id(current.getId()).name(current.getName())
+                    .datasetClass(current.getDatasetClass()).evaluationTarget(target)
+                    .ownerUserId(current.getOwnerUserId()).createdAt(current.getCreatedAt()).build());
+            versions.put(key(value.getDatasetId(), value.getVersion()), value);
+            return true;
+        }
         private String key(String id, String version) { return id + ":" + version; }
     }
     private static final class WorkingStore implements IEvalCaseWorkingCopyStore {

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { agentApi } from '@/api/agent';
-import type { EvalDatasetCoverageDTO, EvalDatasetDTO, EvalDatasetMemberDTO, EvalDatasetVersionDTO, PublishedEvalCaseDTO } from '@/types/api';
+import type { EvalDatasetCoverageDTO, EvalDatasetDTO, EvalDatasetMemberDTO, EvalDatasetVersionDTO, EvaluationTarget, PublishedEvalCaseDTO } from '@/types/api';
 import { AdminPageHeading, AdminShell } from '../admin-shell';
 import { EvaluationWorkspace } from '../evaluation-workspace';
 
@@ -16,6 +16,7 @@ export default function AdminEvalDatasetsPage() {
   const [selectedPublishedCase, setSelectedPublishedCase] = useState('');
   const [coverage, setCoverage] = useState<EvalDatasetCoverageDTO | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [targetFilter, setTargetFilter] = useState<EvaluationTarget | ''>('');
   const showError = (reason: unknown) => setError(reason instanceof Error ? reason.message : 'Dataset operation failed');
   useEffect(() => { agentApi.adminListEvalDatasets().then(({ data }) => setDatasets(data || []))
     .catch((reason) => setError(reason instanceof Error ? reason.message : 'Dataset operation failed')); }, []);
@@ -53,11 +54,16 @@ export default function AdminEvalDatasetsPage() {
     action={<button onClick={createDataset} className="rounded-lg bg-zinc-800 px-4 py-2 text-sm font-medium text-white">New dataset</button>} />
     <EvaluationWorkspace active="datasets" />
     {error && <p className="mb-4 rounded-lg bg-rose-50 p-3 text-sm text-rose-700">{error}</p>}
+    <label className="mb-4 block max-w-xs text-xs font-medium text-zinc-500">Target
+      <select value={targetFilter} onChange={(event) => setTargetFilter(event.target.value as EvaluationTarget | '')} className="ml-2 rounded-md border border-stone-200 bg-white px-2 py-1.5 text-sm">
+        <option value="">All</option>{(['FULL_AGENT', 'INTENT_ROUTER', 'DRAWING_QUALITY'] as EvaluationTarget[]).map((value) => <option key={value}>{value.replaceAll('_', ' ')}</option>)}
+      </select>
+    </label>
     {!error && datasets.length === 0 && <section className="mb-5 rounded-xl border border-dashed border-stone-300 bg-stone-50 px-5 py-10 text-center"><p className="text-sm font-medium text-zinc-700">Create a Dataset after publishing at least one Case</p><p className="mt-1 text-xs text-zinc-500">A Dataset pins Case versions so every Eval Run uses the same evidence.</p><button onClick={createDataset} className="mt-4 text-sm font-semibold text-zinc-700 hover:underline">Create Dataset →</button></section>}
     <div className="grid gap-5 lg:grid-cols-[16rem_16rem_minmax(0,1fr)]">
-      <Panel title="Datasets">{datasets.map((item) => <button key={item.id} onClick={() => open(item)} className="block w-full border-b border-stone-100 p-3 text-left text-sm"><b>{item.name}</b><span className="ml-2 text-xs text-zinc-400">{item.datasetClass}</span></button>)}</Panel>
+      <Panel title="Datasets">{datasets.filter((item) => !targetFilter || item.evaluationTarget === targetFilter).map((item) => <button key={item.id} onClick={() => open(item)} className="block w-full border-b border-stone-100 p-3 text-left text-sm"><b>{item.name}</b><span className="ml-2 text-xs text-zinc-400">{item.datasetClass} · {item.evaluationTarget?.replaceAll('_', ' ') || 'Target pending'}</span></button>)}</Panel>
       <Panel title="Versions"><button disabled={!selected} onClick={createVersion} className="m-3 rounded bg-zinc-800 px-3 py-1.5 text-xs text-white disabled:opacity-40">New version</button>{versions.map((item) => <button key={item.version} onClick={() => selectVersion(item)} className="block w-full border-t border-stone-100 p-3 text-left text-sm">{item.version}<span className="ml-2 text-xs text-zinc-400">{item.status}</span></button>)}</Panel>
-      <Panel title={current ? `${current.version} · revision ${current.revision}` : 'Member editor'}><div className="flex flex-col gap-2 border-b border-stone-200 bg-stone-50 p-3 sm:flex-row"><select aria-label="Published Case to add" disabled={!current} value={selectedPublishedCase} onChange={(event) => setSelectedPublishedCase(event.target.value)} className="min-w-0 flex-1 rounded border border-stone-200 bg-white px-2 py-2 text-xs disabled:opacity-50"><option value="">Select a published Case…</option>{publishedCases.map((item) => <option key={`${item.caseId}@${item.caseVersion}`} value={`${item.caseId}@${item.caseVersion}`}>{item.caseId}@{item.caseVersion}</option>)}</select><Button disabled={!current || !selectedPublishedCase} onClick={addPublishedCase}>Add Case</Button></div><textarea aria-label="Pinned case versions" value={members} onChange={(event) => setMembers(event.target.value)} placeholder="case-id@version" className="min-h-64 w-full border-b border-stone-200 p-4 font-mono text-xs" />
+      <Panel title={current ? `${current.version} · revision ${current.revision}` : 'Member editor'}><div className="flex flex-col gap-2 border-b border-stone-200 bg-stone-50 p-3 sm:flex-row"><select aria-label="Published Case to add" disabled={!current} value={selectedPublishedCase} onChange={(event) => setSelectedPublishedCase(event.target.value)} className="min-w-0 flex-1 rounded border border-stone-200 bg-white px-2 py-2 text-xs disabled:opacity-50"><option value="">Select a published Case…</option>{publishedCases.filter((item) => !selected?.evaluationTarget || item.evaluationTarget === selected.evaluationTarget).map((item) => <option key={`${item.caseId}@${item.caseVersion}`} value={`${item.caseId}@${item.caseVersion}`}>{item.caseId}@{item.caseVersion}</option>)}</select><Button disabled={!current || !selectedPublishedCase} onClick={addPublishedCase}>Add Case</Button></div><textarea aria-label="Pinned case versions" value={members} onChange={(event) => setMembers(event.target.value)} placeholder="case-id@version" className="min-h-64 w-full border-b border-stone-200 p-4 font-mono text-xs" />
         <div className="flex flex-wrap gap-2 p-3"><Button onClick={save}>Save members</Button><Button onClick={() => action('validate')}>Validate</Button><Button onClick={() => action('publish')}>Publish</Button><Button onClick={promote}>Promote / clone</Button><Button onClick={() => selected && current && agentApi.adminEvalDatasetCoverage(selected.id, current.version).then(({ data }) => setCoverage(data)).catch(showError)}>Coverage</Button></div>
         {current && <div className="border-t border-stone-200 p-4 text-xs text-zinc-500"><b className="text-zinc-700">Diff from {prior?.version || 'empty baseline'}</b><div className="mt-1 text-emerald-700">Added: {added.join(', ') || 'none'}</div><div className="mt-1 text-rose-700">Removed: {removed.join(', ') || 'none'}</div></div>}
         {coverage && <div className="grid gap-3 border-t border-stone-200 p-4 sm:grid-cols-2"><Coverage title="Routes" values={coverage.routes} /><Coverage title="Risks" values={coverage.risks} /><Coverage title="Languages" values={coverage.languages} /><Coverage title="Diagram types" values={coverage.diagramTypes} /><Coverage title="Agents" values={coverage.agents} /></div>}

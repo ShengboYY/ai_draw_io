@@ -5,6 +5,7 @@ import org.zipp.ai.domain.agent.model.valobj.evaluation.controlplane.EvalCaseVer
 import java.util.List;
 import java.util.Optional;
 import java.time.Instant;
+import org.zipp.ai.domain.agent.model.valobj.evaluation.EvaluationTarget;
 
 /** Metadata index for immutable, content-addressed Eval Case versions. */
 public interface IEvalCaseVersionStore {
@@ -12,4 +13,5 @@ public interface IEvalCaseVersionStore {
     Optional<EvalCaseVersion> find(String caseId, String caseVersion);
     List<EvalCaseVersion> list(String caseId);
     boolean retire(String caseId, String caseVersion, Instant retiredAt);
+    default boolean confirmTarget(String caseId, String caseVersion, EvaluationTarget target) { return false; }
 }

@@ -51,6 +51,9 @@ public class EvalRunRepositoryTest {
         @Override public EvalRunPO selectRun(String id) { return run; }
         @Override public EvalRunPO selectRunByIdempotencyKey(String key) { return run; }
         @Override public List<EvalRunPO> selectRuns(int limit, int offset) { return run == null ? List.of() : List.of(run); }
+        @Override public List<EvalRunPO> selectRunsByTarget(String target, int limit, int offset) {
+            return run == null || !target.equals(run.getEvaluationTarget()) ? List.of() : List.of(run);
+        }
         @Override public int upsertEpisode(EvalEpisodePO value) { episode = value; return 1; }
         @Override public EvalEpisodePO selectEpisode(String id) { return episode; }
         @Override public List<EvalEpisodePO> selectEpisodes(String id) { return episode == null ? List.of() : List.of(episode); }

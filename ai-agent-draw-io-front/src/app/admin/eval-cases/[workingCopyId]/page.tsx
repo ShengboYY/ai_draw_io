@@ -2,7 +2,7 @@
 
 import { use, useEffect, useState } from 'react';
 import { agentApi } from '@/api/agent';
-import type { EvalCaseWorkingCopyDTO } from '@/types/api';
+import type { EvalCaseWorkingCopyDTO, EvaluationTarget } from '@/types/api';
 import { AdminPageHeading, AdminShell } from '../../admin-shell';
 import { EvaluationWorkspace } from '../../evaluation-workspace';
 
@@ -10,15 +10,24 @@ export default function EvalCaseStudioPage({ params }: { params: Promise<{ worki
   const { workingCopyId } = use(params);
   const [item, setItem] = useState<EvalCaseWorkingCopyDTO | null>(null);
   const [definition, setDefinition] = useState('');
+  const [selectedTarget, setSelectedTarget] = useState<EvaluationTarget | ''>('');
   const [evidence, setEvidence] = useState<string[]>([]);
   const [artifacts, setArtifacts] = useState<{ before?: string; after?: string; trace?: string }>({});
   const [error, setError] = useState<string | null>(null);
   useEffect(() => { agentApi.adminGetEvalCaseWorkingCopy(workingCopyId).then(({ data }) => {
-    setItem(data); setDefinition(JSON.stringify(data.definition, null, 2));
+    setItem(data); setDefinition(JSON.stringify(data.definition, null, 2)); setSelectedTarget(data.evaluationTarget || '');
   }).catch((reason) => setError(reason instanceof Error ? reason.message : 'Load failed')); }, [workingCopyId]);
-  const update = (next: EvalCaseWorkingCopyDTO) => { setItem(next); setDefinition(JSON.stringify(next.definition, null, 2)); };
+  const update = (next: EvalCaseWorkingCopyDTO) => { setItem(next); setDefinition(JSON.stringify(next.definition, null, 2)); setSelectedTarget(next.evaluationTarget || ''); };
   const run = (operation: Promise<{ data: EvalCaseWorkingCopyDTO }>) => operation.then(({ data }) => update(data)).catch(showError);
   const showError = (reason: unknown) => setError(reason instanceof Error ? reason.message : 'Operation failed');
+  const selectTarget = (target: EvaluationTarget) => {
+    try {
+      const value = JSON.parse(definition) as Record<string, unknown>;
+      value.evaluationTarget = target;
+      setSelectedTarget(target);
+      setDefinition(JSON.stringify(value, null, 2));
+    } catch { setError('Definition must be valid JSON before changing its Target'); }
+  };
   const save = () => { if (!item) return; try {
     run(agentApi.adminUpdateEvalCaseWorkingCopy(item.id, item.revision, JSON.parse(definition)));
   } catch { setError('Definition must be valid JSON'); } };
@@ -40,6 +49,15 @@ export default function EvalCaseStudioPage({ params }: { params: Promise<{ worki
     <EvaluationWorkspace active="cases" />
     {error && <p className="mb-4 rounded-lg bg-rose-50 p-3 text-sm text-rose-700">{error}</p>}
     <div className="grid gap-5 lg:grid-cols-[minmax(0,2fr)_minmax(18rem,1fr)]"><section>
+      <label className="mb-4 block max-w-sm text-xs font-medium uppercase tracking-wide text-zinc-500">Evaluation target
+        <select value={selectedTarget}
+          onChange={(event) => event.target.value && selectTarget(event.target.value as EvaluationTarget)}
+          className="mt-2 w-full rounded-md border border-stone-200 bg-white px-3 py-2 text-sm text-zinc-900">
+          <option value="">Select target…</option>
+          {(['FULL_AGENT', 'INTENT_ROUTER', 'DRAWING_QUALITY'] as EvaluationTarget[]).map((value) => <option key={value} value={value}>{value.replaceAll('_', ' ')}</option>)}
+        </select>
+        {item?.targetMigrationStatus === 'AMBIGUOUS' && <span className="mt-1 block normal-case text-amber-700">Confirm and save a Target before validation.</span>}
+      </label>
       <label className="mb-2 block text-xs font-medium uppercase tracking-wide text-zinc-500">Canonical definition (JSON editor)</label>
       <textarea value={definition} onChange={(event) => setDefinition(event.target.value)} className="min-h-[32rem] w-full rounded-lg border border-stone-200 bg-zinc-950 p-4 font-mono text-xs text-zinc-100" />
     </section><aside className="space-y-4"><div className="rounded-lg border border-stone-200 bg-white p-4">

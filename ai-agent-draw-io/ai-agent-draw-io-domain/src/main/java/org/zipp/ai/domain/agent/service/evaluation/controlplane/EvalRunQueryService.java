@@ -34,6 +34,11 @@ public class EvalRunQueryService {
         return store.listRuns(Math.max(1, Math.min(limit, 200)), Math.max(0, offset)).stream().map(this::summary).toList();
     }
 
+    public List<EvalRunSummaryView> list(int limit, int offset, EvaluationTarget target) {
+        return store.listRuns(target, Math.max(1, Math.min(limit, 200)), Math.max(0, offset))
+                .stream().map(this::summary).toList();
+    }
+
     public EvalRunSummaryView summary(String runId) { return summary(requireRun(runId)); }
 
     public List<EvalEpisodeView> episodes(String runId, String status, String route, String risk, String language,
@@ -91,7 +96,8 @@ public class EvalRunQueryService {
         int expected = Math.max(run.getPlannedEpisodes(), episodes.size());
         int completed = episodes.size();
         return EvalRunSummaryView.builder().id(run.getId()).mode(run.getMode()).datasetId(run.getDatasetId())
-                .datasetVersion(run.getDatasetVersion()).status(run.getStatus()).gitSha(run.getGitSha())
+                .datasetVersion(run.getDatasetVersion()).evaluationTarget(run.getEvaluationTarget())
+                .status(run.getStatus()).gitSha(run.getGitSha())
                 .executionProfileHash(run.getExecutionProfileHash()).repetitions(run.getRepetitions())
                 .totalEpisodes(expected).completedEpisodes(completed)
                 .passCount(count(episodes, EvalEpisodeStatus.PASS)).failCount(count(episodes, EvalEpisodeStatus.FAIL))

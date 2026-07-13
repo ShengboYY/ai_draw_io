@@ -69,6 +69,14 @@ public class SecurityConfigTest {
     }
 
     @Test
+    public void evaluationTargetConfirmationRequiresCsrfToken() throws Exception {
+        perform(post("/api/v1/admin/eval-cases/legacy/confirm-target")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"caseVersion\":\"1\",\"evaluationTarget\":\"FULL_AGENT\"}"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
     public void mutatingRoutesAcceptValidCsrfToken() throws Exception {
         perform(post("/api/v1/test/mutate")
                 .with(csrf())

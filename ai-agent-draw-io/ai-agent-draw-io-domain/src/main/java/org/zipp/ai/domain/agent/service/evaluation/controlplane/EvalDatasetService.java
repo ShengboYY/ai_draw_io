@@ -3,6 +3,8 @@ package org.zipp.ai.domain.agent.service.evaluation.controlplane;
 import org.springframework.stereotype.Service;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.zipp.ai.domain.agent.model.valobj.evaluation.controlplane.*;
+import org.zipp.ai.domain.agent.model.valobj.evaluation.EvaluationTarget;
+import org.zipp.ai.domain.agent.model.valobj.evaluation.EvaluationTargetMigrationStatus;
 
 import java.time.Clock;
 import java.util.Comparator;
@@ -61,15 +63,34 @@ public class EvalDatasetService {
         requireAdmin(role); EvalDatasetVersion current = requireVersion(datasetId, version);
         if (current.getStatus() != EvalDatasetVersionStatus.DRAFT) throw error(EvalControlPlaneErrorCode.INVALID_STATE_TRANSITION, "dataset is not a draft");
         if (current.getMembers().isEmpty()) throw error(EvalControlPlaneErrorCode.INVALID_STATE_TRANSITION, "dataset requires at least one case");
+        EvaluationTarget memberTarget = null;
         for (EvalDatasetMember member : current.getMembers()) {
             EvalCaseVersion caseVersion = cases.find(member.getCaseId(), member.getCaseVersion())
                     .orElseThrow(() -> error(EvalControlPlaneErrorCode.INVALID_STATE_TRANSITION,
                             "dataset member is not a published case: " + member.getCaseId() + "@" + member.getCaseVersion()));
             if (caseVersion.getRetiredAt() != null) throw error(EvalControlPlaneErrorCode.INVALID_STATE_TRANSITION, "dataset member is retired");
+            if (caseVersion.getEvaluationTarget() == null
+                    || caseVersion.getTargetMigrationStatus() == EvaluationTargetMigrationStatus.AMBIGUOUS) {
+                throw error(EvalControlPlaneErrorCode.TARGET_AMBIGUOUS,
+                        "dataset member target requires confirmation: " + member.getCaseId());
+            }
+            if (memberTarget == null) memberTarget = caseVersion.getEvaluationTarget();
+            else if (memberTarget != caseVersion.getEvaluationTarget()) {
+                throw error(EvalControlPlaneErrorCode.TARGET_MISMATCH,
+                        "all dataset members must share one evaluationTarget");
+            }
         }
-        EvalDatasetVersion validated = current.toBuilder().status(EvalDatasetVersionStatus.VALIDATED)
+        EvalDataset dataset = requireDataset(datasetId);
+        if (dataset.getEvaluationTarget() != null && dataset.getEvaluationTarget() != memberTarget) {
+            throw error(EvalControlPlaneErrorCode.TARGET_MISMATCH,
+                    "dataset target cannot change between versions");
+        }
+        EvalDatasetVersion validated = current.toBuilder().evaluationTarget(memberTarget)
+                .status(EvalDatasetVersionStatus.VALIDATED)
                 .revision(current.getRevision() + 1).build();
-        if (!datasets.update(validated, current.getRevision())) throw error(EvalControlPlaneErrorCode.REVISION_CONFLICT, "dataset revision conflict");
+        if (!datasets.validateWithTarget(validated, current.getRevision(), memberTarget)) {
+            throw error(EvalControlPlaneErrorCode.REVISION_CONFLICT, "dataset validation conflict");
+        }
         return validated;
     }
 

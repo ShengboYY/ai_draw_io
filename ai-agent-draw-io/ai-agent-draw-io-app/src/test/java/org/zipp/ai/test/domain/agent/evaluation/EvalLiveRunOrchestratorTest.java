@@ -117,7 +117,8 @@ public class EvalLiveRunOrchestratorTest {
         EvalCaseDefinition.Expected expected = new EvalCaseDefinition.Expected();
         expected.setRouteType("answer_only"); expected.setJudgeRequired(true); expected.setMaxCriticalIssues(0); expected.setMaxMajorIssues(0);
         return EvalCaseDefinition.builder().caseId(id).caseVersion("1").datasetVersion("v1").risk("high")
-                .diagramType("none").input(Map.of("user", "hello")).expected(expected).executionProfile(profile).build();
+                .diagramType("none").evaluationTarget(EvaluationTarget.FULL_AGENT)
+                .input(Map.of("user", "hello")).expected(expected).executionProfile(profile).build();
     }
 
     private static EvalExecution execution(EvalCaseDefinition definition) {

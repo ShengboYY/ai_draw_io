@@ -3,6 +3,7 @@ package org.zipp.ai.domain.agent.service.evaluation.controlplane;
 import com.alibaba.fastjson.JSON;
 import org.springframework.stereotype.Service;
 import org.zipp.ai.domain.agent.model.valobj.evaluation.EvalCaseDefinition;
+import org.zipp.ai.domain.agent.model.valobj.evaluation.EvaluationTarget;
 import org.zipp.ai.domain.agent.model.valobj.evaluation.controlplane.*;
 
 import java.util.List;
@@ -31,7 +32,21 @@ public class EvalDatasetCaseSource implements IEvalDatasetCaseSource {
             EvalCaseDefinition definition = JSON.parseObject(
                     JSON.toJSONString(cases.load(member.getCaseId(), member.getCaseVersion())), EvalCaseDefinition.class);
             definition.setDatasetVersion(version);
+            // Legacy artifact bytes stay immutable; the validated Dataset snapshot supplies missing target metadata.
+            if (definition.getEvaluationTarget() == null) definition.setEvaluationTarget(dataset.getEvaluationTarget());
             return definition;
         }).toList();
+    }
+
+    @Override
+    public EvaluationTarget target(String datasetId, String version, EvalAdminRole role) {
+        EvalDatasetVersion dataset = datasets.get(datasetId, version);
+        if (dataset.getStatus() != EvalDatasetVersionStatus.PUBLISHED) {
+            throw new IllegalStateException("Eval Run requires a published Dataset Version");
+        }
+        if (dataset.getDatasetClass() == EvalDatasetClass.SEQUESTERED && role != EvalAdminRole.RELEASE_OWNER) {
+            throw new SecurityException("sequestered dataset contents require Release Owner role");
+        }
+        return dataset.getEvaluationTarget();
     }
 }

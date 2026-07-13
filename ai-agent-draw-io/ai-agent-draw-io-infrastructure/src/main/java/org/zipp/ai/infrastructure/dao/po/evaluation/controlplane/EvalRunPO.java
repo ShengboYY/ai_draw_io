@@ -6,6 +6,7 @@ import java.util.Date;
 @Data
 public class EvalRunPO {
     private String id; private String mode; private String datasetId; private String datasetVersion;
+    private String evaluationTarget;
     private String baselineRef; private String candidateRef; private String executionProfileHash;
     private String idempotencyKey; private Integer repetitions; private Integer plannedEpisodes; private String gitSha;
     private String livePolicyJson; private String graderManifestJson; private String reportRef; private String status; private String createdBy;

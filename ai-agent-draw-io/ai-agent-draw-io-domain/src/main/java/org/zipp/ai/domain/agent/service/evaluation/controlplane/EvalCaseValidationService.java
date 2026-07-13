@@ -6,6 +6,7 @@ import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.zipp.ai.domain.agent.model.valobj.evaluation.EvalCaseDefinition;
+import org.zipp.ai.domain.agent.model.valobj.evaluation.EvaluationTargetMigrationStatus;
 import org.zipp.ai.domain.agent.model.valobj.evaluation.controlplane.*;
 import org.zipp.ai.domain.agent.service.evaluation.EvalCaseLoader;
 import org.zipp.ai.domain.agent.service.evaluation.intake.EvalDraftSanitizer;
@@ -49,6 +50,7 @@ public class EvalCaseValidationService {
         EvalCaseWorkingCopy validating = workingCopies.transition(id, EvalCaseWorkingCopyStatus.VALIDATING, actor, role);
         List<String> failures = new ArrayList<>();
         validateCanonicalSchema(validating.getDefinition(), failures);
+        validateTarget(validating, failures);
         validateReplay(validating.getDefinition(), failures);
         validatePrivacy(validating.getDefinition(), failures);
         boolean passed = failures.isEmpty();
@@ -60,6 +62,17 @@ public class EvalCaseValidationService {
                 .status(passed ? "PASS" : "FAIL").payloadJson(JSON.toJSONString(failures))
                 .componentVersion(VERSION).createdAt(clock.instant()).build());
         return EvalCaseValidationResult.builder().passed(passed).evidence(failures).workingCopy(completed).build();
+    }
+
+    private void validateTarget(EvalCaseWorkingCopy workingCopy, List<String> failures) {
+        if (workingCopy.getEvaluationTarget() == null
+                || workingCopy.getTargetMigrationStatus() == EvaluationTargetMigrationStatus.AMBIGUOUS) {
+            failures.add("evaluationTarget requires administrator confirmation");
+        }
+        if (workingCopy.getDefinition() != null
+                && workingCopy.getDefinition().getEvaluationTarget() != workingCopy.getEvaluationTarget()) {
+            failures.add("definition and Working Copy evaluationTarget must match");
+        }
     }
 
     private void validateCanonicalSchema(EvalCaseDefinition definition, List<String> failures) {

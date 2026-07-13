@@ -693,6 +693,21 @@ mvn clean test
 
 “确定性 Analyzer 无 overlap，但 VLM 判断难读”的平台路径已经具备；真实 precision/recall、Judge agreement 和 calibration approval 不能由 synthetic fixture 伪造，仍需独立视觉标注集后才能启用。SVG adapter 是受版本控制的常见 mxCell 子集，不替代 draw.io 浏览器的完整渲染引擎；视觉校准集必须覆盖 renderer fidelity，发现不支持的 shape/style 时应升级 renderer version 并重新校准。
 
+## Workspace R2：Evaluation Target 正式化
+
+**状态：完成；历史歧义项必须由管理员确认后才能发布或运行**
+
+| 设计要求 | 实现证据 | 结果 |
+| --- | --- | --- |
+| Target 权威链 | Working Copy 归一化并确认，Publish 复制到 Case Version，Dataset 从同 Target 成员派生，Run 从 Published Dataset Version 派生 | 完成 |
+| 数据库迁移 | `2026-07-13-add-evaluation-targets.sql` 添加字段、索引、回填及 `eval_target_migration_report` | 完成并在本地 MySQL 二次执行验证幂等 |
+| 旧数据推断 | 明确 target tag、`fixture-v1`、单一 route/drawing 断言可推断；重叠或不足信号标为 `AMBIGUOUS` | 完成 |
+| 安全阻断 | `AMBIGUOUS` Case 不能通过 Validate/Publish；混合 Target Dataset 拒绝；无 Target Dataset 不能创建 Run | 完成 |
+| 管理员操作 | Case Studio 提供 Target selector；Cases、Datasets、Runs 支持 Target 过滤并显示 Target | 完成 |
+| API/持久化 | Target DTO、MyBatis PO/resultMap、查询过滤和 `/api/v1/admin/evaluation-targets` | 完成 |
+
+验证：R2 领域/发布/Run/Security 共 39 个定向测试通过，全量后端测试通过；前端 ESLint 零错误、生产构建通过。迁移已在本地 MySQL 重复执行，并用 fixture、冲突 tag、相似但非 canonical tag、空白 route 四类 synthetic 样本核对 SQL/Java 推断语义；临时记录已清理。
+
 ## Control Plane CP10：Canary、Case Health 与持续运营
 
 **状态：平台接线完成；真实部署指标、外部告警路由和用户行为信号仍需外部授权/配置**

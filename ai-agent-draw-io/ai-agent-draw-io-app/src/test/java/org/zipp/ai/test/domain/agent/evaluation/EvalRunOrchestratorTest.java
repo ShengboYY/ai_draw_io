@@ -2,6 +2,7 @@ package org.zipp.ai.test.domain.agent.evaluation;
 
 import org.junit.Test;
 import org.zipp.ai.domain.agent.model.valobj.evaluation.EvalCaseDefinition;
+import org.zipp.ai.domain.agent.model.valobj.evaluation.EvaluationTarget;
 import org.zipp.ai.domain.agent.model.valobj.evaluation.controlplane.*;
 import org.zipp.ai.domain.agent.service.evaluation.EvalBatchRunner;
 import org.zipp.ai.domain.agent.service.evaluation.EvalCaseLoader;
@@ -60,6 +61,20 @@ public class EvalRunOrchestratorTest {
     }
 
     @Test
+    public void unresolvedDatasetTargetCannotStart() {
+        IEvalDatasetCaseSource unresolved = (id, version, role) -> List.of(EvalCaseDefinition.builder()
+                .caseId("legacy").caseVersion("1").build());
+        EvalRunOrchestrator orchestrator = new EvalRunOrchestrator(new RunStore(), unresolved,
+                new ArtifactStore(), Runnable::run, git -> evalCase -> null,
+                Clock.fixed(NOW, ZoneOffset.UTC));
+
+        EvalControlPlaneException failure = assertThrows(EvalControlPlaneException.class,
+                () -> orchestrator.start(command("ambiguous-target")));
+
+        assertEquals(EvalControlPlaneErrorCode.TARGET_AMBIGUOUS, failure.getCode());
+    }
+
+    @Test
     public void retryOnlyReexecutesErrorAndNeverRetriesAgentFail() throws Exception {
         RunStore store = new RunStore();
         AtomicBoolean failInfrastructure = new AtomicBoolean(true);
@@ -115,7 +130,14 @@ public class EvalRunOrchestratorTest {
     private EvalRunOrchestrator orchestrator(RunStore store, IEvalJobExecutor executor,
                                              List<EvalCaseDefinition> definitions,
                                              java.util.function.Function<String, EvalBatchRunner.ExecutionFactory> factory) {
-        IEvalDatasetCaseSource source = (id, version, role) -> definitions;
+        IEvalDatasetCaseSource source = new IEvalDatasetCaseSource() {
+            @Override public List<EvalCaseDefinition> loadPublished(String id, String version, EvalAdminRole role) {
+                return definitions;
+            }
+            @Override public EvaluationTarget target(String id, String version, EvalAdminRole role) {
+                return EvaluationTarget.FULL_AGENT;
+            }
+        };
         return new EvalRunOrchestrator(store, source, new ArtifactStore(), executor, factory,
                 Clock.fixed(NOW, ZoneOffset.UTC));
     }
@@ -130,7 +152,9 @@ public class EvalRunOrchestratorTest {
         List<EvalCaseDefinition> values = new ArrayList<>();
         for (String resource : resources) {
             try (var input = getClass().getResourceAsStream("/evals/core-v1/" + resource)) {
-                values.add(new EvalCaseLoader().load(input));
+                EvalCaseDefinition value = new EvalCaseLoader().load(input);
+                value.setEvaluationTarget(EvaluationTarget.FULL_AGENT);
+                values.add(value);
             }
         }
         return values;

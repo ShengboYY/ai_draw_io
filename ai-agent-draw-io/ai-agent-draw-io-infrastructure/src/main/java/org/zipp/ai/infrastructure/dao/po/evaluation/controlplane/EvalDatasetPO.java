@@ -8,6 +8,7 @@ public class EvalDatasetPO {
     private String id;
     private String name;
     private String datasetClass;
+    private String evaluationTarget;
     private String ownerUserId;
     private Date createdAt;
 }

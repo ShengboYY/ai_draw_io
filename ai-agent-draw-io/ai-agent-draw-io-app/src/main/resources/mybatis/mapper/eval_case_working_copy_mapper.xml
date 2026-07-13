@@ -11,6 +11,8 @@
     <result property="ownerUserId" column="owner_user_id"/>
     <result property="revision" column="revision"/>
     <result property="definitionJson" column="definition_json"/>
+    <result property="evaluationTarget" column="evaluation_target"/>
+    <result property="targetMigrationStatus" column="target_migration_status"/>
     <result property="createdAt" column="created_at"/>
     <result property="updatedAt" column="updated_at"/>
   </resultMap>
@@ -30,14 +32,15 @@
 
   <insert id="insert">
     insert into eval_case_working_copy
-      (id,case_id,case_version,source_type,candidate_id,status,owner_user_id,revision,definition_json,created_at,updated_at)
+      (id,case_id,case_version,source_type,candidate_id,status,owner_user_id,revision,definition_json,evaluation_target,target_migration_status,created_at,updated_at)
     values
-      (#{id},#{caseId},#{caseVersion},#{sourceType},#{candidateId},#{status},#{ownerUserId},#{revision},#{definitionJson},#{createdAt},#{updatedAt})
+      (#{id},#{caseId},#{caseVersion},#{sourceType},#{candidateId},#{status},#{ownerUserId},#{revision},#{definitionJson},#{evaluationTarget},#{targetMigrationStatus},#{createdAt},#{updatedAt})
   </insert>
 
   <update id="update">
     update eval_case_working_copy
     set candidate_id=#{workingCopy.candidateId}, status=#{workingCopy.status}, definition_json=#{workingCopy.definitionJson},
+        evaluation_target=#{workingCopy.evaluationTarget}, target_migration_status=#{workingCopy.targetMigrationStatus},
         revision=#{workingCopy.revision}, updated_at=#{workingCopy.updatedAt}
     where id=#{workingCopy.id} and revision=#{expectedRevision}
   </update>

@@ -26,6 +26,8 @@ public class EvalCaseDefinition {
     private String diagramType;
     private String fixtureVersion;
     private String xmlContractVersion;
+    /** The capability this Case evaluates; authoritative while the Case is a Working Copy. */
+    private EvaluationTarget evaluationTarget;
 
     @Builder.Default
     private List<String> tags = new ArrayList<>();

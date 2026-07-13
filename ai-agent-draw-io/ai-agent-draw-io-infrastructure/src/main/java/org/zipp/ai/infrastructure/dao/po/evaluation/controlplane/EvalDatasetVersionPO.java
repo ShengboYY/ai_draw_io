@@ -8,6 +8,7 @@ public class EvalDatasetVersionPO {
     private String datasetId;
     private String version;
     private String datasetClass;
+    private String evaluationTarget;
     private String status;
     private String contentHash;
     private Long revision;

@@ -3,6 +3,7 @@ package org.zipp.ai.domain.agent.service.evaluation.controlplane;
 import org.springframework.stereotype.Service;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.zipp.ai.domain.agent.model.valobj.evaluation.EvalCaseDefinition;
+import org.zipp.ai.domain.agent.model.valobj.evaluation.EvaluationTarget;
 import org.zipp.ai.domain.agent.model.valobj.evaluation.controlplane.*;
 
 import java.time.Clock;
@@ -39,6 +40,11 @@ public class EvalCasePublisherService {
             throw new EvalControlPlaneException(EvalControlPlaneErrorCode.INVALID_STATE_TRANSITION,
                     "only an approved working copy can be published");
         }
+        if (workingCopy.getEvaluationTarget() == null
+                || workingCopy.getTargetMigrationStatus() == org.zipp.ai.domain.agent.model.valobj.evaluation.EvaluationTargetMigrationStatus.AMBIGUOUS) {
+            throw new EvalControlPlaneException(EvalControlPlaneErrorCode.TARGET_AMBIGUOUS,
+                    "evaluationTarget must be confirmed before publication");
+        }
         byte[] bytes = content.write(workingCopy.getDefinition());
         String hash = content.sha256(bytes);
         EvalCaseVersion existing = versions.find(workingCopy.getCaseId(), workingCopy.getCaseVersion()).orElse(null);
@@ -60,6 +66,8 @@ public class EvalCasePublisherService {
                 .map(EvalCaseWorkingCopyReview::getReviewerUserId).orElse(actor);
         EvalCaseVersion published = EvalCaseVersion.builder().caseId(workingCopy.getCaseId())
                 .caseVersion(workingCopy.getCaseVersion()).contentHash(hash).artifactRef(artifactRef)
+                .evaluationTarget(workingCopy.getEvaluationTarget())
+                .targetMigrationStatus(workingCopy.getTargetMigrationStatus())
                 .approvedBy(approvedBy).publishedAt(clock.instant()).build();
         versions.insert(published);
         workingCopies.transition(workingCopyId, EvalCaseWorkingCopyStatus.PUBLISHED, actor, role);
@@ -104,6 +112,39 @@ public class EvalCasePublisherService {
         if (!versions.retire(caseId, caseVersion, clock.instant())) {
             throw new EvalControlPlaneException(EvalControlPlaneErrorCode.REVISION_CONFLICT,
                     "case version retirement conflict");
+        }
+        return versions.find(caseId, caseVersion).orElseThrow();
+    }
+
+    /** Confirms migration metadata without mutating the immutable published artifact bytes. */
+    public EvalCaseVersion confirmTarget(String caseId, String caseVersion, EvaluationTarget target,
+                                         String actor, EvalAdminRole role) {
+        requirePublisher(role);
+        if (target == null) throw new IllegalArgumentException("evaluationTarget is required");
+        EvalCaseVersion current = versions.find(caseId, caseVersion)
+                .orElseThrow(() -> new EvalControlPlaneException(EvalControlPlaneErrorCode.NOT_FOUND,
+                        "published case version not found"));
+        EvalCaseDefinition artifactDefinition = content.read(artifacts.read(current.getArtifactRef())
+                        .orElseThrow(() -> new EvalControlPlaneException(EvalControlPlaneErrorCode.ARTIFACT_UNAVAILABLE,
+                                "published case artifact is unavailable")),
+                EvalCaseDefinition.class);
+        // Metadata may fill a missing legacy Target, but must never contradict immutable content.
+        if (artifactDefinition.getEvaluationTarget() != null
+                && artifactDefinition.getEvaluationTarget() != target) {
+            throw new EvalControlPlaneException(EvalControlPlaneErrorCode.TARGET_MISMATCH,
+                    "published Case artifact declares a different evaluationTarget");
+        }
+        if (current.getEvaluationTarget() != null
+                && current.getTargetMigrationStatus() != org.zipp.ai.domain.agent.model.valobj.evaluation.EvaluationTargetMigrationStatus.AMBIGUOUS) {
+            if (current.getEvaluationTarget() != target) {
+                throw new EvalControlPlaneException(EvalControlPlaneErrorCode.TARGET_MISMATCH,
+                        "confirmed published Case target is immutable");
+            }
+            return current;
+        }
+        if (!versions.confirmTarget(caseId, caseVersion, target)) {
+            throw new EvalControlPlaneException(EvalControlPlaneErrorCode.REVISION_CONFLICT,
+                    "published Case target confirmation conflict");
         }
         return versions.find(caseId, caseVersion).orElseThrow();
     }

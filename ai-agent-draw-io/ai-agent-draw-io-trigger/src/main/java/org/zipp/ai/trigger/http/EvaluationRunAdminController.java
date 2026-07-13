@@ -8,6 +8,7 @@ import org.zipp.ai.domain.account.model.entity.UserAccount;
 import org.zipp.ai.domain.admin.service.AdminAuditLogService;
 import org.zipp.ai.domain.agent.model.valobj.evaluation.controlplane.*;
 import org.zipp.ai.domain.agent.model.valobj.evaluation.EvalStatisticalReport;
+import org.zipp.ai.domain.agent.model.valobj.evaluation.EvaluationTarget;
 import org.zipp.ai.domain.agent.service.evaluation.controlplane.EvalControlPlaneAuditTypes;
 import org.zipp.ai.domain.agent.service.evaluation.controlplane.EvalControlPlaneErrorCode;
 import org.zipp.ai.domain.agent.service.evaluation.controlplane.EvalControlPlaneException;
@@ -56,8 +57,9 @@ public class EvaluationRunAdminController {
     @GetMapping
     public Response<List<EvalRunSummaryView>> list(@RequestParam(defaultValue = "50") int limit,
                                         @RequestParam(defaultValue = "0") int offset,
+                                        @RequestParam(required = false) EvaluationTarget target,
                                         HttpServletRequest request) {
-        return execute(request, "LIST_EVAL_RUNS", null, admin -> queryService.list(limit, offset));
+        return execute(request, "LIST_EVAL_RUNS", null, admin -> queryService.list(limit, offset, target));
     }
 
     @GetMapping("/{runId}")

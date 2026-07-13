@@ -7,6 +7,7 @@ import org.zipp.ai.api.response.Response;
 import org.zipp.ai.domain.account.model.entity.UserAccount;
 import org.zipp.ai.domain.admin.service.AdminAuditLogService;
 import org.zipp.ai.domain.agent.model.valobj.evaluation.controlplane.*;
+import org.zipp.ai.domain.agent.model.valobj.evaluation.EvaluationTarget;
 import org.zipp.ai.domain.agent.service.evaluation.controlplane.*;
 import org.zipp.ai.trigger.http.service.AdminAuthorizationService;
 import org.zipp.ai.types.enums.ResponseCode;
@@ -39,9 +40,12 @@ public class EvaluationCatalogAdminController {
     }
 
     @GetMapping("/eval-cases")
-    public Response<List<PublishedCaseDTO>> listCases(HttpServletRequest request) {
+    public Response<List<PublishedCaseDTO>> listCases(@RequestParam(required = false) EvaluationTarget target,
+                                                      HttpServletRequest request) {
         return execute(request, "LIST_EVAL_CASES", "EVAL_CASE_VERSION", null,
-                admin -> cases.list(null).stream().map(this::published).toList());
+                admin -> cases.list(null).stream()
+                        .filter(value -> target == null || value.getEvaluationTarget() == target)
+                        .map(this::published).toList());
     }
 
     @GetMapping("/eval-cases/{caseId}/versions")
@@ -65,6 +69,15 @@ public class EvaluationCatalogAdminController {
                 admin -> published(cases.retire(caseId, requireBody(body).getCaseVersion(), admin.getId(), role(admin))));
     }
 
+    @PostMapping("/eval-cases/{caseId}/confirm-target")
+    public Response<PublishedCaseDTO> confirmCaseTarget(@PathVariable String caseId,
+                                                        @RequestBody ConfirmTargetRequest body,
+                                                        HttpServletRequest request) {
+        return execute(request, "CONFIRM_EVAL_CASE_TARGET", "EVAL_CASE_VERSION", caseId,
+                admin -> { ConfirmTargetRequest value = requireBody(body); return published(cases.confirmTarget(
+                        caseId, value.getCaseVersion(), value.getEvaluationTarget(), admin.getId(), role(admin))); });
+    }
+
     @PostMapping("/eval-datasets")
     public Response<EvalDataset> createDataset(@RequestBody CreateDatasetRequest body, HttpServletRequest request) {
         return execute(request, "CREATE_EVAL_DATASET", "EVAL_DATASET", null, admin -> {
@@ -77,9 +90,18 @@ public class EvaluationCatalogAdminController {
     }
 
     @GetMapping("/eval-datasets")
-    public Response<List<EvalDataset>> listDatasets(HttpServletRequest request) {
+    public Response<List<EvalDataset>> listDatasets(@RequestParam(required = false) EvaluationTarget target,
+                                                    HttpServletRequest request) {
         return execute(request, "LIST_EVAL_DATASETS", "EVAL_DATASET", null,
-                admin -> datasets.list().stream().filter(value -> value.getDatasetClass() != EvalDatasetClass.SEQUESTERED).toList());
+                admin -> datasets.list().stream()
+                        .filter(value -> value.getDatasetClass() != EvalDatasetClass.SEQUESTERED)
+                        .filter(value -> target == null || value.getEvaluationTarget() == target).toList());
+    }
+
+    @GetMapping("/evaluation-targets")
+    public Response<List<EvaluationTarget>> targets(HttpServletRequest request) {
+        return execute(request, "LIST_EVALUATION_TARGETS", "EVALUATION_TARGET", null,
+                admin -> List.of(EvaluationTarget.values()));
     }
 
     @GetMapping("/eval-datasets/{id}/versions")
@@ -136,6 +158,7 @@ public class EvaluationCatalogAdminController {
 
     private PublishedCaseDTO published(EvalCaseVersion value) {
         return new PublishedCaseDTO(value.getCaseId(), value.getCaseVersion(), value.getContentHash(),
+                value.getEvaluationTarget(), value.getTargetMigrationStatus() == null ? null : value.getTargetMigrationStatus().name(),
                 value.getApprovedBy(), value.getPublishedAt(), value.getRetiredAt());
     }
 
@@ -175,10 +198,12 @@ public class EvaluationCatalogAdminController {
     }
 
     private interface Operation<T> { T run(UserAccount admin); }
-    public record PublishedCaseDTO(String caseId, String caseVersion, String contentHash, String approvedBy,
+    public record PublishedCaseDTO(String caseId, String caseVersion, String contentHash,
+                                   EvaluationTarget evaluationTarget, String targetMigrationStatus, String approvedBy,
                                    Instant publishedAt, Instant retiredAt) { }
     @Data public static class ClonePublishedCaseRequest { private String sourceVersion; private String newCaseId; private String newCaseVersion; }
     @Data public static class RetireCaseRequest { private String caseVersion; }
+    @Data public static class ConfirmTargetRequest { private String caseVersion; private EvaluationTarget evaluationTarget; }
     @Data public static class CreateDatasetRequest { private String name; private String datasetClass; }
     @Data public static class DatasetVersionRequest { private String version; private List<EvalDatasetMember> members; }
     @Data public static class CloneDatasetRequest { private String sourceVersion; private String targetDatasetId; private String targetVersion; }

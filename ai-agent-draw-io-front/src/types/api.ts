@@ -4,6 +4,9 @@ export interface Response<T> {
     data: T;
 }
 
+export type EvaluationTarget = 'FULL_AGENT' | 'INTENT_ROUTER' | 'DRAWING_QUALITY';
+export type EvaluationTargetMigrationStatus = 'INFERRED' | 'AMBIGUOUS' | 'CONFIRMED';
+
 export interface EvalCaseWorkingCopyDTO {
   id: string;
   caseId: string;
@@ -14,6 +17,8 @@ export interface EvalCaseWorkingCopyDTO {
   ownerUserId: string;
   revision: number;
   definition: Record<string, unknown>;
+  evaluationTarget?: EvaluationTarget;
+  targetMigrationStatus?: EvaluationTargetMigrationStatus;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -36,6 +41,8 @@ export interface PublishedEvalCaseDTO {
   caseId: string;
   caseVersion: string;
   contentHash: string;
+  evaluationTarget?: EvaluationTarget;
+  targetMigrationStatus?: EvaluationTargetMigrationStatus;
   approvedBy: string;
   publishedAt?: string;
   retiredAt?: string;
@@ -45,6 +52,7 @@ export interface EvalDatasetDTO {
   id: string;
   name: string;
   datasetClass: 'DEV' | 'CORE' | 'SEQUESTERED';
+  evaluationTarget?: EvaluationTarget;
   ownerUserId: string;
   createdAt?: string;
 }
@@ -55,6 +63,7 @@ export interface EvalDatasetVersionDTO {
   datasetId: string;
   version: string;
   datasetClass: 'DEV' | 'CORE' | 'SEQUESTERED';
+  evaluationTarget?: EvaluationTarget;
   status: 'DRAFT' | 'VALIDATED' | 'PUBLISHED' | 'RETIRED';
   contentHash?: string;
   revision: number;
@@ -74,6 +83,7 @@ export interface EvalDatasetCoverageDTO {
 
 export interface EvalRunSummaryDTO {
   id: string; mode: 'MODE_B' | 'MODE_C' | 'RELEASE'; datasetId: string; datasetVersion: string;
+  evaluationTarget?: EvaluationTarget;
   status: string; gitSha: string; executionProfileHash?: string; repetitions: number;
   totalEpisodes: number; completedEpisodes: number; passCount: number; failCount: number;
   errorCount: number; unavailableCount: number; progress: number; totalLatencyMs: number;

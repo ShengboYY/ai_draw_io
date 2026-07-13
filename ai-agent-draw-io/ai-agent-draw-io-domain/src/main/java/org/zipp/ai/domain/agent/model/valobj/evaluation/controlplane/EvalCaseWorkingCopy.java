@@ -5,6 +5,8 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.zipp.ai.domain.agent.model.valobj.evaluation.EvalCaseDefinition;
+import org.zipp.ai.domain.agent.model.valobj.evaluation.EvaluationTarget;
+import org.zipp.ai.domain.agent.model.valobj.evaluation.EvaluationTargetMigrationStatus;
 
 import java.time.Instant;
 
@@ -26,6 +28,8 @@ public class EvalCaseWorkingCopy {
     private String ownerUserId;
     private Long revision;
     private EvalCaseDefinition definition;
+    private EvaluationTarget evaluationTarget;
+    private EvaluationTargetMigrationStatus targetMigrationStatus;
     private Instant createdAt;
     private Instant updatedAt;
 }

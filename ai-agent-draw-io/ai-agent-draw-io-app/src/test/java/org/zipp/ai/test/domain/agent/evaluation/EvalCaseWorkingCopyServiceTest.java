@@ -2,6 +2,7 @@ package org.zipp.ai.test.domain.agent.evaluation;
 
 import org.junit.Test;
 import org.zipp.ai.domain.agent.model.valobj.evaluation.EvalCaseDefinition;
+import org.zipp.ai.domain.agent.model.valobj.evaluation.EvaluationTargetMigrationStatus;
 import org.zipp.ai.domain.agent.model.valobj.evaluation.controlplane.EvalAdminRole;
 import org.zipp.ai.domain.agent.model.valobj.evaluation.controlplane.EvalCaseSourceType;
 import org.zipp.ai.domain.agent.model.valobj.evaluation.controlplane.EvalCaseWorkingCopy;
@@ -118,6 +119,8 @@ public class EvalCaseWorkingCopyServiceTest {
                 "editor-1", EvalAdminRole.EDITOR);
 
         assertEquals(EvalCaseSourceType.TRACE_DRAFT, created.getSourceType());
+        assertNull(created.getEvaluationTarget());
+        assertEquals(EvaluationTargetMigrationStatus.AMBIGUOUS, created.getTargetMigrationStatus());
         assertEquals("synthetic", created.getDefinition().getPrivacy().getClassification());
         assertEquals(Boolean.FALSE, created.getDefinition().getProvenance().getSourceTraceRetained());
         assertEquals("edit_existing", created.getDefinition().getExpected().getRouteType());

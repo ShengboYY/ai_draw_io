@@ -5,6 +5,7 @@ import com.alibaba.fastjson.JSONObject;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 import org.zipp.ai.domain.agent.model.valobj.evaluation.controlplane.*;
+import org.zipp.ai.domain.agent.model.valobj.evaluation.EvaluationTarget;
 import org.zipp.ai.domain.agent.service.evaluation.controlplane.IEvalRunStore;
 import org.zipp.ai.infrastructure.dao.IEvalRunMapper;
 import org.zipp.ai.infrastructure.dao.po.evaluation.controlplane.*;
@@ -20,6 +21,10 @@ public class EvalRunRepository implements IEvalRunStore {
     @Override public Optional<EvalRun> findRun(String id) { return Optional.ofNullable(mapper.selectRun(id)).map(this::run); }
     @Override public Optional<EvalRun> findByIdempotencyKey(String key) { return Optional.ofNullable(mapper.selectRunByIdempotencyKey(key)).map(this::run); }
     @Override public List<EvalRun> listRuns(int limit, int offset) { return mapper.selectRuns(limit, offset).stream().map(this::run).toList(); }
+    @Override public List<EvalRun> listRuns(EvaluationTarget target, int limit, int offset) {
+        if (target == null) return listRuns(limit, offset);
+        return mapper.selectRunsByTarget(target.name(), limit, offset).stream().map(this::run).toList();
+    }
     @Override public void saveEpisode(EvalEpisode value) { mapper.upsertEpisode(episodePo(value)); }
     @Override public Optional<EvalEpisode> findEpisode(String id) { return Optional.ofNullable(mapper.selectEpisode(id)).map(this::episode); }
     @Override public List<EvalEpisode> listEpisodes(String runId) { return mapper.selectEpisodes(runId).stream().map(this::episode).toList(); }
@@ -34,6 +39,7 @@ public class EvalRunRepository implements IEvalRunStore {
         LivePolicy policy = livePolicy(po.getLivePolicyJson());
         return EvalRun.builder().id(po.getId()).mode(EvalRunMode.valueOf(po.getMode())).datasetId(po.getDatasetId())
                 .datasetVersion(po.getDatasetVersion()).baselineRef(po.getBaselineRef()).candidateRef(po.getCandidateRef())
+                .evaluationTarget(po.getEvaluationTarget() == null ? null : EvaluationTarget.valueOf(po.getEvaluationTarget()))
                 .executionProfileHash(po.getExecutionProfileHash()).idempotencyKey(po.getIdempotencyKey())
                 .repetitions(po.getRepetitions()).plannedEpisodes(po.getPlannedEpisodes() == null ? 0 : po.getPlannedEpisodes())
                 .maxEstimatedCost(policy.maxEstimatedCost()).minimumCases(policy.minimumCases())
@@ -46,6 +52,7 @@ public class EvalRunRepository implements IEvalRunStore {
     private EvalRunPO runPo(EvalRun value) {
         EvalRunPO po = new EvalRunPO(); po.setId(value.getId()); po.setMode(value.getMode().name());
         po.setDatasetId(value.getDatasetId()); po.setDatasetVersion(value.getDatasetVersion());
+        po.setEvaluationTarget(value.getEvaluationTarget() == null ? null : value.getEvaluationTarget().name());
         po.setBaselineRef(value.getBaselineRef()); po.setCandidateRef(value.getCandidateRef());
         po.setExecutionProfileHash(value.getExecutionProfileHash()); po.setIdempotencyKey(value.getIdempotencyKey());
         po.setRepetitions(value.getRepetitions()); po.setPlannedEpisodes(value.getPlannedEpisodes()); po.setGitSha(value.getGitSha());

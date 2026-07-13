@@ -13,6 +13,8 @@ public interface IEvalRunMapper {
     EvalRunPO selectRun(@Param("runId") String runId);
     EvalRunPO selectRunByIdempotencyKey(@Param("idempotencyKey") String key);
     List<EvalRunPO> selectRuns(@Param("limit") int limit, @Param("offset") int offset);
+    List<EvalRunPO> selectRunsByTarget(@Param("evaluationTarget") String evaluationTarget,
+                                       @Param("limit") int limit, @Param("offset") int offset);
     int upsertEpisode(EvalEpisodePO value);
     EvalEpisodePO selectEpisode(@Param("episodeId") String episodeId);
     List<EvalEpisodePO> selectEpisodes(@Param("runId") String runId);
