@@ -10,7 +10,8 @@ import java.time.Instant;
 @Value @Builder
 public class EvalRunSummaryView {
     String id; EvalRunMode mode; String datasetId; String datasetVersion; EvaluationTarget evaluationTarget; EvalRunStatus status;
-    String gitSha; String executionProfileHash; int repetitions; int totalEpisodes; int completedEpisodes;
+    String gitSha; String profileId; String profileVersion; String profileConfigHash;
+    String executionProfileHash; int repetitions; int totalEpisodes; int completedEpisodes;
     int passCount; int failCount; int errorCount; int unavailableCount; double progress;
     long totalLatencyMs; double estimatedCost; String baselineRef; String candidateRef;
     Instant createdAt; Instant startedAt; Instant completedAt;

@@ -18,11 +18,17 @@ public class EvalLiveRunService {
     private final IEvalRunArtifactStore artifacts;
     private final IEvalLiveRunSupport support;
     private final Clock clock;
+    private final EvaluationProfileResolver profiles;
     private final ObjectMapper mapper = new ObjectMapper().findAndRegisterModules();
 
     public EvalLiveRunService(IEvalRunStore store, IEvalDatasetCaseSource cases, IEvalRunArtifactStore artifacts,
-                              IEvalLiveRunSupport support, Clock clock) {
+                              IEvalLiveRunSupport support, Clock clock, EvaluationProfileResolver profiles) {
         this.store = store; this.cases = cases; this.artifacts = artifacts; this.support = support; this.clock = clock;
+        this.profiles = profiles;
+    }
+
+    public EvalLiveRunReadiness readiness() {
+        return support == null ? EvalLiveRunReadiness.builder().build() : support.readiness();
     }
 
     public void execute(EvalRun run, List<EvalCaseDefinition> definitions, BooleanSupplier cancelled) {
@@ -52,8 +58,13 @@ public class EvalLiveRunService {
             unavailableEpisode(run, definition, repetition, "ProviderCredentialUnavailable"); return;
         }
         try {
+            LiveEvalRunner.LiveExecutionFactory runtimeFactory = support.executionFactory(run.getCandidateRef());
             LiveEvalRunner.EpisodeResult result = new LiveEvalRunner(new DefaultEvalHarness(), support.diagramRenderer()).runDetailed(List.of(definition), 1,
-                    support.executionFactory(run.getCandidateRef()), support.judge()).get(0);
+                    evalCase -> {
+                        EvalExecution execution = runtimeFactory.execute(evalCase);
+                        profiles.applyExecutionMetadata(run, execution);
+                        return execution;
+                    }, support.judge()).get(0);
             EvalSampleResult sample = result.sample();
             String traceRef = result.execution() == null ? null : artifacts.put(run.getId(), episodeId, "execution",
                     mapper.writeValueAsBytes(result.execution()));
@@ -71,11 +82,13 @@ public class EvalLiveRunService {
     }
 
     public void finalizeRun(String runId, List<EvalCaseDefinition> definitions) {
-        EvalRun run = requireRun(runId); List<EvalSampleResult> samples = samples(store.listEpisodes(runId));
+        EvalRun run = requireRun(runId);
+        EvalLiveRunReadiness readiness = readiness();
+        profiles.verifyLiveRuntime(run, readiness);
+        List<EvalSampleResult> samples = samples(store.listEpisodes(runId));
         EvalStatisticsService statistics = new EvalStatisticsService();
         EvalStatisticalReport report = statistics.summarize(samples, run.getMinimumCases(), run.getMaximumErrorRate());
         EvalStatisticalReport.Comparison comparison = comparison(run, samples, statistics);
-        EvalLiveRunReadiness readiness = support == null ? EvalLiveRunReadiness.builder().build() : support.readiness();
         EvalGateDecisionRecord gate = run.getMode() == EvalRunMode.RELEASE
                 ? evaluateGate(run, definitions, report, comparison, readiness) : null;
         try {
@@ -111,7 +124,8 @@ public class EvalLiveRunService {
             throw new IllegalStateException("only a completed Release Run can be evaluated");
         EvalLiveRunReport current = insights(runId);
         List<EvalCaseDefinition> definitions = cases.loadPublished(run.getDatasetId(), run.getDatasetVersion(), EvalAdminRole.RELEASE_OWNER);
-        EvalLiveRunReadiness readiness = support == null ? EvalLiveRunReadiness.builder().build() : support.readiness();
+        EvalLiveRunReadiness readiness = readiness();
+        profiles.verifyLiveRuntime(run, readiness);
         return evaluateGate(run, definitions, current.getStatistics(), current.getComparison(), readiness);
     }
 

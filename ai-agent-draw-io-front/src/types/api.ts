@@ -7,6 +7,17 @@ export interface Response<T> {
 export type EvaluationTarget = 'FULL_AGENT' | 'INTENT_ROUTER' | 'DRAWING_QUALITY';
 export type EvaluationTargetMigrationStatus = 'INFERRED' | 'AMBIGUOUS' | 'CONFIRMED';
 
+export interface EvaluationProfileDTO {
+  profileId: string;
+  version: string;
+  target: EvaluationTarget;
+  runnerAdapter: string;
+  mode: 'MODE_B' | 'MODE_C' | 'RELEASE';
+  repetitions: number;
+  gateEligible: boolean;
+  configJson: string;
+}
+
 export interface EvalCaseWorkingCopyDTO {
   id: string;
   caseId: string;
@@ -84,6 +95,7 @@ export interface EvalDatasetCoverageDTO {
 export interface EvalRunSummaryDTO {
   id: string; mode: 'MODE_B' | 'MODE_C' | 'RELEASE'; datasetId: string; datasetVersion: string;
   evaluationTarget?: EvaluationTarget;
+  profileId?: string; profileVersion?: string; profileConfigHash?: string;
   status: string; gitSha: string; executionProfileHash?: string; repetitions: number;
   totalEpisodes: number; completedEpisodes: number; passCount: number; failCount: number;
   errorCount: number; unavailableCount: number; progress: number; totalLatencyMs: number;

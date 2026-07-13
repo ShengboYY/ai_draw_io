@@ -47,6 +47,7 @@ import {
     EvalDatasetVersionDTO,
     EvalDatasetMemberDTO,
     EvalDatasetCoverageDTO,
+    EvaluationProfileDTO,
     EvalRunSummaryDTO,
     EvalEpisodeViewDTO,
     EvalEpisodeDetailDTO,
@@ -574,7 +575,12 @@ export const agentApi = {
         return handleResponse<EvalDatasetCoverageDTO>(response);
     },
 
-    adminStartEvalRun: async (payload: { mode: 'MODE_B' | 'MODE_C' | 'RELEASE'; idempotencyKey: string; datasetId: string; datasetVersion: string; repetitions: number; gitSha: string; baselineRef?: string; candidateRef?: string; executionProfileHash?: string; maxEstimatedCost?: number; minimumCases?: number; maximumErrorRate?: number; minimumPairedCases?: number; regressionThreshold?: number }): Promise<Response<{ id: string }>> => {
+    adminListEvaluationProfiles: async (): Promise<Response<EvaluationProfileDTO[]>> => {
+        const response = await fetch(`${API_CONFIG.BASE_URL}/admin/evaluation-profiles`, { method: 'GET', headers: { 'Content-Type': 'application/json' }, credentials: 'include' });
+        return handleResponse<EvaluationProfileDTO[]>(response);
+    },
+
+    adminStartEvalRun: async (payload: { mode: 'MODE_B' | 'MODE_C' | 'RELEASE'; idempotencyKey: string; datasetId: string; datasetVersion: string; profileId?: string; profileVersion?: string; repetitions: number; gitSha: string; baselineRef?: string; candidateRef?: string; executionProfileHash?: string; maxEstimatedCost?: number; minimumCases?: number; maximumErrorRate?: number; minimumPairedCases?: number; regressionThreshold?: number }): Promise<Response<{ id: string }>> => {
         const response = await fetch(`${API_CONFIG.BASE_URL}/admin/eval-runs`, {
             method: 'POST', headers: await csrfHeaders({ 'Content-Type': 'application/json' }),
             body: JSON.stringify(payload), credentials: 'include',

@@ -44,6 +44,9 @@ public class EvalRunOrchestratorTest {
         assertEquals(1, orchestrator.episodes(first.getId()).stream().filter(e -> e.getStatus() == EvalEpisodeStatus.ERROR).count());
         assertNotNull(orchestrator.get(first.getId()).getReportRef());
         assertTrue(orchestrator.get(first.getId()).getGraderManifestJson().contains("xml-integrity-v1"));
+        assertEquals("full-agent-smoke", orchestrator.get(first.getId()).getProfileId());
+        assertTrue(orchestrator.get(first.getId()).getProfileSnapshotJson().contains("credentialAlias"));
+        assertEquals(64, orchestrator.get(first.getId()).getProfileConfigHash().length());
     }
 
     @Test
@@ -144,6 +147,7 @@ public class EvalRunOrchestratorTest {
 
     private EvalRunStartCommand command(String key) {
         return EvalRunStartCommand.builder().idempotencyKey(key).datasetId("core").datasetVersion("core-v1")
+                .profileId("full-agent-smoke").profileVersion("1")
                 .repetitions(1).gitSha("candidate-sha").executionProfileHash("profile-v1")
                 .createdBy("admin-1").build();
     }

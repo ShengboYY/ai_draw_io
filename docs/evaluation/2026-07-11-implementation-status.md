@@ -708,6 +708,24 @@ mvn clean test
 
 验证：R2 领域/发布/Run/Security 共 39 个定向测试通过，全量后端测试通过；前端 ESLint 零错误、生产构建通过。迁移已在本地 MySQL 重复执行，并用 fixture、冲突 tag、相似但非 canonical tag、空白 route 四类 synthetic 样本核对 SQL/Java 推断语义；临时记录已清理。
 
+## Workspace R3：Profile 与内置 Suites
+
+**状态：完成；第一版只提供六个 source-controlled 只读 Profile**
+
+| 设计要求 | 实现证据 | 结果 |
+| --- | --- | --- |
+| Profile domain/port/adapter | `EvaluationProfileVersion`、`IEvaluationProfileCatalog`、`BuiltInEvaluationProfileCatalog` 与唯一快照入口 `EvaluationProfileResolver` | 完成 |
+| 六个内置 Profile | Full Agent smoke/release、Router deterministic/live、Drawing structure/visual 均固定 `@1` | 完成 |
+| 历史可复现 | Run 保存 `profile_id/profile_version/profile_snapshot_json/profile_config_hash`；执行状态更新不覆盖快照 | 完成 |
+| 快照是执行权威 | Run 执行/重试先把冻结快照投影到现有 adapter seam，Episode artifact 强制记录 Run hash；不再重新解释当前 preset 或 Case legacy config | 完成 |
+| Live runtime 冻结 | live Run 启动时把实际 Judge/calibration version 写入无敏感信息的快照；worker 重启后版本漂移会 fail closed | 完成 |
+| Credential 安全 | Resolver 递归拒绝 secret/token/password/apiKey 字段；内置配置只保存 credential alias/version | 完成 |
+| Target/legacy 冲突 | Profile 与 Dataset Target/Mode 不一致拒绝；显式 Profile 与旧 Case config 冲突返回 `PROFILE_CASE_CONFLICT`；未显式选择时为一致的旧配置生成一次性 compatibility snapshot | 完成 |
+| 管理员体验 | Evaluation Overview 展示三张 Target 卡；Run wizard 仅列出与 Dataset Target/Run Mode 兼容的 Profile | 完成 |
+| 数据迁移 | `2026-07-14-add-evaluation-profile-snapshots.sql` 为历史 Run 保存明确标注的 partial legacy snapshot 和迁移报告 | 完成并在本地 MySQL 重复执行验证幂等 |
+
+验证：Profile resolver、API、Run manifest、Repository、Mode B/Mode C/Release 定向测试通过；前端 ESLint 零错误。迁移使用 synthetic 历史 Run 验证为 `legacy-run@1 / PARTIAL_LEGACY`，样本已清理。
+
 ## Control Plane CP10：Canary、Case Health 与持续运营
 
 **状态：平台接线完成；真实部署指标、外部告警路由和用户行为信号仍需外部授权/配置**

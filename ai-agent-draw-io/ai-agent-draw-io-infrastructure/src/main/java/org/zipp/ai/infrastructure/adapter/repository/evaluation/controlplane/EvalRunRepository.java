@@ -40,6 +40,8 @@ public class EvalRunRepository implements IEvalRunStore {
         return EvalRun.builder().id(po.getId()).mode(EvalRunMode.valueOf(po.getMode())).datasetId(po.getDatasetId())
                 .datasetVersion(po.getDatasetVersion()).baselineRef(po.getBaselineRef()).candidateRef(po.getCandidateRef())
                 .evaluationTarget(po.getEvaluationTarget() == null ? null : EvaluationTarget.valueOf(po.getEvaluationTarget()))
+                .profileId(po.getProfileId()).profileVersion(po.getProfileVersion())
+                .profileSnapshotJson(po.getProfileSnapshotJson()).profileConfigHash(po.getProfileConfigHash())
                 .executionProfileHash(po.getExecutionProfileHash()).idempotencyKey(po.getIdempotencyKey())
                 .repetitions(po.getRepetitions()).plannedEpisodes(po.getPlannedEpisodes() == null ? 0 : po.getPlannedEpisodes())
                 .maxEstimatedCost(policy.maxEstimatedCost()).minimumCases(policy.minimumCases())
@@ -54,6 +56,8 @@ public class EvalRunRepository implements IEvalRunStore {
         po.setDatasetId(value.getDatasetId()); po.setDatasetVersion(value.getDatasetVersion());
         po.setEvaluationTarget(value.getEvaluationTarget() == null ? null : value.getEvaluationTarget().name());
         po.setBaselineRef(value.getBaselineRef()); po.setCandidateRef(value.getCandidateRef());
+        po.setProfileId(value.getProfileId()); po.setProfileVersion(value.getProfileVersion());
+        po.setProfileSnapshotJson(value.getProfileSnapshotJson()); po.setProfileConfigHash(value.getProfileConfigHash());
         po.setExecutionProfileHash(value.getExecutionProfileHash()); po.setIdempotencyKey(value.getIdempotencyKey());
         po.setRepetitions(value.getRepetitions()); po.setPlannedEpisodes(value.getPlannedEpisodes()); po.setGitSha(value.getGitSha());
         po.setLivePolicyJson(JSON.toJSONString(new LivePolicy(value.getMaxEstimatedCost(), value.getMinimumCases(),

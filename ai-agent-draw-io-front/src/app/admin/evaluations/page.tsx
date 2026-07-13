@@ -23,6 +23,12 @@ const steps = [
   },
 ];
 
+const targets = [
+  { name: 'Full Agent', target: 'FULL_AGENT', description: 'Test the complete router → tools → canvas → response chain.', profile: 'full-agent-smoke' },
+  { name: 'Intent Router', target: 'INTENT_ROUTER', description: 'Measure route decisions without paying for drawing execution.', profile: 'router-deterministic' },
+  { name: 'Drawing Quality', target: 'DRAWING_QUALITY', description: 'Score XML structure, graph semantics, preservation and visual quality.', profile: 'drawing-structure' },
+];
+
 export default function AdminEvaluationsPage() {
   return (
     <AdminShell active="evalOverview">
@@ -42,6 +48,22 @@ export default function AdminEvaluationsPage() {
             <Link href={step.href} className="mt-4 inline-flex text-sm font-semibold text-zinc-700 hover:underline">{step.action} →</Link>
           </article>
         ))}
+      </section>
+
+      <section className="mt-6" aria-label="Evaluation targets">
+        <h2 className="font-display text-lg font-semibold text-zinc-900">Choose what you want to measure</h2>
+        <p className="mt-1 text-sm text-zinc-500">Each Target has its own Case contract, execution adapter and metrics. Profiles define how it runs.</p>
+        <div className="mt-3 grid gap-4 md:grid-cols-3">
+          {targets.map((target) => (
+            <article key={target.target} className="rounded-xl border border-stone-200 bg-white p-5 shadow-sm">
+              <span className="font-mono text-[10px] text-zinc-400">{target.target}</span>
+              <h3 className="mt-2 font-semibold text-zinc-900">{target.name}</h3>
+              <p className="mt-2 min-h-12 text-sm leading-6 text-zinc-500">{target.description}</p>
+              <p className="mt-3 text-xs text-zinc-400">Recommended first Profile: <span className="font-mono text-zinc-600">{target.profile}@1</span></p>
+              <Link href="/admin/eval-runs" className="mt-4 inline-flex text-sm font-semibold text-zinc-700 hover:underline">Configure a Run →</Link>
+            </article>
+          ))}
+        </div>
       </section>
 
       <section className="mt-5 rounded-xl border border-dashed border-stone-300 bg-stone-50 p-5">

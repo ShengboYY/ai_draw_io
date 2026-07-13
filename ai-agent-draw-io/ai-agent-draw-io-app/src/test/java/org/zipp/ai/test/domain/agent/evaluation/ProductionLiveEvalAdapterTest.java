@@ -38,6 +38,7 @@ public class ProductionLiveEvalAdapterTest {
                 .run(AgentRunTelemetry.builder().id("live-run-1").status("SUCCESS").build())
                 .traceEvents(List.of(AgentTraceEvent.builder().eventType("ROUTING_DECIDED")
                         .metadataJson("{\"routeType\":\"edit_existing\",\"diagramType\":\"architecture\"}").build()))
+                .llmCalls(List.of(LlmCallTelemetry.builder().model("gpt-5.5").build()))
                 .toolCalls(List.of(ToolCallTelemetry.builder().toolName("modify_diagram").status("SUCCESS").build()))
                 .build();
         IAgentUsageTelemetryStore telemetry = new FixedTelemetryStore(detail);
@@ -77,8 +78,9 @@ public class ProductionLiveEvalAdapterTest {
         expected.setTaskOutcome(EvalTrace.TaskOutcome.FULFILLED);
         EvalCaseDefinition.Replay replay = new EvalCaseDefinition.Replay();
         replay.setInitialCanvasXml(canvas("API"));
+        EvalCaseDefinition.ExecutionProfile profile = EvalCaseDefinition.ExecutionProfile.builder().model("gpt-5.5").build();
         return EvalCaseDefinition.builder().caseId("live-edit").input(Map.of("user", "Rename API to Gateway"))
-                .expected(expected).replay(replay).build();
+                .expected(expected).replay(replay).executionProfile(profile).build();
     }
 
     private String canvas(String label) {

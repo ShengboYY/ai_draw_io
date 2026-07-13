@@ -6,6 +6,7 @@ public final class EvalControlPlaneAuditTypes {
     public static final String CASE_VERSION = "EVAL_CASE_VERSION";
     public static final String DATASET_VERSION = "EVAL_DATASET_VERSION";
     public static final String EVAL_RUN = "EVAL_RUN";
+    public static final String EVALUATION_PROFILE = "EVALUATION_PROFILE";
     public static final String RELEASE_GATE = "EVAL_RELEASE_GATE";
 
     private EvalControlPlaneAuditTypes() {

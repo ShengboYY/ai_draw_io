@@ -18,6 +18,13 @@ public class EvalRun {
     EvaluationTarget evaluationTarget;
     String baselineRef;
     String candidateRef;
+    String profileId;
+    String profileVersion;
+    /** Canonical, credential-redacted config used by this exact historical Run. */
+    String profileSnapshotJson;
+    String profileConfigHash;
+    /** @deprecated Read profileConfigHash for R3+ Runs. */
+    @Deprecated(forRemoval = false)
     String executionProfileHash;
     String idempotencyKey;
     int repetitions;

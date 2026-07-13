@@ -76,6 +76,7 @@ public class ProductionLiveEvalAdapter implements LiveEvalRunner.LiveExecutionFa
             String runId = StringUtils.defaultIfBlank(emitter.runId(), request.getRunId());
             AgentRunDetail detail = telemetryStore.findRunDetail(runId)
                     .orElseThrow(() -> new EvalInfrastructureException("live run telemetry unavailable"));
+            verifyObservedModel(profile, detail);
             String finalXml = finalCanvas(evalCase, userId, diagramId, initialXml);
             EvalTrace trace = project(detail, evalCase, initialXml, finalXml);
             long inputTokens = detail.getLlmCalls().stream().mapToLong(call -> call.getPromptTokens() == null ? 0 : call.getPromptTokens()).sum();
@@ -146,6 +147,14 @@ public class ProductionLiveEvalAdapter implements LiveEvalRunner.LiveExecutionFa
 
     private EvalCaseDefinition.ExecutionProfile profile(EvalCaseDefinition evalCase) {
         return evalCase.getExecutionProfile() == null ? new EvalCaseDefinition.ExecutionProfile() : evalCase.getExecutionProfile();
+    }
+    private void verifyObservedModel(EvalCaseDefinition.ExecutionProfile profile, AgentRunDetail detail) {
+        if (StringUtils.isBlank(profile.getModel())) return;
+        List<String> observed = detail.getLlmCalls().stream().map(call -> call.getModel())
+                .filter(StringUtils::isNotBlank).distinct().toList();
+        if (!observed.isEmpty() && observed.stream().anyMatch(model -> !profile.getModel().equals(model))) {
+            throw new IllegalStateException("live model does not match the frozen Evaluation Profile");
+        }
     }
     private boolean failed(String status) { return "FAILED".equalsIgnoreCase(status) || "ERROR".equalsIgnoreCase(status); }
     private String hash(String value) { return value == null ? null : contentHasher.hash(value); }

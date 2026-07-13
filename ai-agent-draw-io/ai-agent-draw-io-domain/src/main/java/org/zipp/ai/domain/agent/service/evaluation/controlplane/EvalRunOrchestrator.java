@@ -18,7 +18,6 @@ import java.util.function.Function;
 /** Asynchronously owns Run lifecycle and delegates Mode-specific Case × repetition execution. */
 @Service
 public class EvalRunOrchestrator {
-    public static final String MODE_B_GRADER_MANIFEST = "route-tool-v1,xml-integrity-v1,visual-quality-v1,graph-assertion-v1,semantic-preservation-v1,multi-turn-state-v1";
     private final IEvalRunStore store;
     private final IEvalDatasetCaseSource cases;
     private final IEvalRunArtifactStore artifacts;
@@ -26,14 +25,15 @@ public class EvalRunOrchestrator {
     private final Function<String, EvalBatchRunner.ExecutionFactory> factories;
     private final Clock clock;
     private final EvalLiveRunService liveRuns;
+    private final EvaluationProfileResolver profiles;
     private final ObjectMapper mapper = new ObjectMapper().findAndRegisterModules();
 
     @Autowired
     public EvalRunOrchestrator(IEvalRunStore store, IEvalDatasetCaseSource cases,
                                IEvalRunArtifactStore artifacts, IEvalJobExecutor jobs,
-                               Optional<IEvalLiveRunSupport> liveSupport) {
+                               Optional<IEvalLiveRunSupport> liveSupport, EvaluationProfileResolver profiles) {
         this(store, cases, artifacts, jobs, ModeBReplayExecutionFactory::new, Clock.systemUTC(),
-                liveSupport.orElse(null));
+                liveSupport.orElse(null), profiles);
     }
 
     public EvalRunOrchestrator(IEvalRunStore store, IEvalDatasetCaseSource cases,
@@ -46,9 +46,18 @@ public class EvalRunOrchestrator {
                                IEvalRunArtifactStore artifacts, IEvalJobExecutor jobs,
                                Function<String, EvalBatchRunner.ExecutionFactory> factories, Clock clock,
                                IEvalLiveRunSupport liveSupport) {
+        this(store, cases, artifacts, jobs, factories, clock, liveSupport,
+                new EvaluationProfileResolver(DefaultEvaluationProfiles::versions));
+    }
+
+    public EvalRunOrchestrator(IEvalRunStore store, IEvalDatasetCaseSource cases,
+                               IEvalRunArtifactStore artifacts, IEvalJobExecutor jobs,
+                               Function<String, EvalBatchRunner.ExecutionFactory> factories, Clock clock,
+                               IEvalLiveRunSupport liveSupport, EvaluationProfileResolver profiles) {
         this.store = store; this.cases = cases; this.artifacts = artifacts; this.jobs = jobs;
         this.factories = factories; this.clock = clock == null ? Clock.systemUTC() : clock;
-        this.liveRuns = new EvalLiveRunService(store, cases, artifacts, liveSupport, this.clock);
+        this.profiles = profiles;
+        this.liveRuns = new EvalLiveRunService(store, cases, artifacts, liveSupport, this.clock, profiles);
     }
 
     public EvalRun start(EvalRunStartCommand command) {
@@ -62,17 +71,23 @@ public class EvalRunOrchestrator {
             throw new EvalControlPlaneException(EvalControlPlaneErrorCode.TARGET_AMBIGUOUS,
                     "Dataset evaluationTarget is unresolved");
         }
+        List<EvalCaseDefinition> definitions = cases.loadPublished(command.getDatasetId(), command.getDatasetVersion(), datasetRole);
+        EvaluationProfileSnapshot profile = profiles.resolveForRun(command.getProfileId(), command.getProfileVersion(),
+                target, mode, definitions);
+        if (mode != EvalRunMode.MODE_B) profile = profiles.bindLiveRuntime(profile, liveRuns.readiness());
+        EvaluationProfileResolver.EvaluationProfilePolicy policy = profiles.policy(profile);
         EvalRun run = EvalRun.builder().id("erun_" + UUID.randomUUID()).mode(mode)
                 .datasetId(command.getDatasetId()).datasetVersion(command.getDatasetVersion())
                 .evaluationTarget(target)
                 .baselineRef(command.getBaselineRef()).candidateRef(blank(command.getCandidateRef()) ? command.getGitSha() : command.getCandidateRef())
-                .executionProfileHash(command.getExecutionProfileHash()).idempotencyKey(command.getIdempotencyKey())
-                .repetitions(command.getRepetitions()).gitSha(command.getGitSha())
-                .maxEstimatedCost(command.getMaxEstimatedCost()).minimumCases(defaultPositive(command.getMinimumCases(), 1))
-                .maximumErrorRate(defaultNonNegative(command.getMaximumErrorRate(), 0.05D))
-                .minimumPairedCases(defaultPositive(command.getMinimumPairedCases(), 1))
-                .regressionThreshold(defaultNonNegative(command.getRegressionThreshold(), 0D))
-                .graderManifestJson(JSON.toJSONString(MODE_B_GRADER_MANIFEST.split(",")))
+                .profileId(profile.profileId()).profileVersion(profile.profileVersion())
+                .profileSnapshotJson(profile.canonicalConfigJson()).profileConfigHash(profile.configHash())
+                .executionProfileHash(profile.configHash()).idempotencyKey(command.getIdempotencyKey())
+                .repetitions(profile.repetitions()).gitSha(command.getGitSha())
+                .maxEstimatedCost(policy.maxEstimatedCost()).minimumCases(policy.minimumCases())
+                .maximumErrorRate(policy.maximumErrorRate()).minimumPairedCases(policy.minimumPairedCases())
+                .regressionThreshold(policy.regressionThreshold())
+                .graderManifestJson(profiles.graderManifestJson(profile))
                 .status(EvalRunStatus.QUEUED).createdBy(command.getCreatedBy()).createdAt(clock.instant()).build();
         try {
             store.insertRun(run);
@@ -96,8 +111,10 @@ public class EvalRunOrchestrator {
         run = run.toBuilder().status(EvalRunStatus.RUNNING).startedAt(clock.instant()).build();
         store.updateRun(run);
         try {
-            List<EvalCaseDefinition> definitions = cases.loadPublished(run.getDatasetId(), run.getDatasetVersion(),
-                    run.getMode() == EvalRunMode.RELEASE ? EvalAdminRole.RELEASE_OWNER : EvalAdminRole.ADMIN);
+            List<EvalCaseDefinition> definitions = copyDefinitions(cases.loadPublished(run.getDatasetId(), run.getDatasetVersion(),
+                    run.getMode() == EvalRunMode.RELEASE ? EvalAdminRole.RELEASE_OWNER : EvalAdminRole.ADMIN));
+            profiles.verifyLiveRuntime(run, liveRuns.readiness());
+            profiles.materializeExecutionConfig(run, definitions);
             run = run.toBuilder().plannedEpisodes(definitions.size() * run.getRepetitions()).build();
             store.updateRun(run);
             if (run.getMode() != EvalRunMode.MODE_B) {
@@ -137,10 +154,12 @@ public class EvalRunOrchestrator {
                 .filter(episode -> episode.getStatus() == EvalEpisodeStatus.ERROR).toList();
         if (errors.isEmpty()) return run;
         Map<String, EvalCaseDefinition> definitions = new LinkedHashMap<>();
-        for (EvalCaseDefinition definition : cases.loadPublished(run.getDatasetId(), run.getDatasetVersion(),
-                run.getMode() == EvalRunMode.RELEASE ? EvalAdminRole.RELEASE_OWNER : EvalAdminRole.ADMIN)) {
+        for (EvalCaseDefinition definition : copyDefinitions(cases.loadPublished(run.getDatasetId(), run.getDatasetVersion(),
+                run.getMode() == EvalRunMode.RELEASE ? EvalAdminRole.RELEASE_OWNER : EvalAdminRole.ADMIN))) {
             definitions.put(caseKey(definition.getCaseId(), definition.getCaseVersion()), definition);
         }
+        profiles.verifyLiveRuntime(run, liveRuns.readiness());
+        profiles.materializeExecutionConfig(run, new ArrayList<>(definitions.values()));
         store.updateRun(run.toBuilder().status(EvalRunStatus.RUNNING).completedAt(null).build());
         for (EvalEpisode error : errors) {
             EvalCaseDefinition definition = definitions.get(caseKey(error.getCaseId(), error.getCaseVersion()));
@@ -168,6 +187,7 @@ public class EvalRunOrchestrator {
         String episodeId = episodeId(run.getId(), definition.getCaseId(), definition.getCaseVersion(), repetition);
         try {
             EvalExecution execution = factories.apply(run.getGitSha()).create(definition);
+            profiles.applyExecutionMetadata(run, execution);
             EvalHarnessResult result = new DefaultEvalHarness().evaluate(execution);
             String traceRef = artifacts.put(run.getId(), episodeId, "execution",
                     mapper.writeValueAsBytes(execution));
@@ -212,18 +232,15 @@ public class EvalRunOrchestrator {
     private EvalRun requireRun(String id) { return store.findRun(id).orElseThrow(() -> new EvalControlPlaneException(EvalControlPlaneErrorCode.NOT_FOUND, "Eval Run not found")); }
     private String episodeId(String runId, String caseId, String version, int repetition) { return "eep_" + UUID.nameUUIDFromBytes((runId + "|" + caseId + "|" + version + "|" + repetition).getBytes(StandardCharsets.UTF_8)); }
     private String caseKey(String caseId, String version) { return caseId + "@" + version; }
+    private List<EvalCaseDefinition> copyDefinitions(List<EvalCaseDefinition> definitions) {
+        // Runtime Profile projection must never mutate immutable Dataset artifacts or shared caches.
+        return definitions.stream().map(definition -> mapper.convertValue(definition, EvalCaseDefinition.class)).toList();
+    }
     private void validate(EvalRunStartCommand command) {
         if (command == null || blank(command.getIdempotencyKey()) || blank(command.getDatasetId())
                 || blank(command.getDatasetVersion()) || blank(command.getGitSha()) || blank(command.getCreatedBy())) {
             throw new IllegalArgumentException("idempotencyKey, dataset, gitSha, and createdBy are required");
         }
-        if (command.getRepetitions() < 1 || command.getRepetitions() > 20) throw new IllegalArgumentException("repetitions must be between 1 and 20");
-        if (command.getMaxEstimatedCost() < 0D) throw new IllegalArgumentException("maxEstimatedCost cannot be negative");
-        if (command.getMode() != null && command.getMode() != EvalRunMode.MODE_B && blank(command.getExecutionProfileHash())) {
-            throw new IllegalArgumentException("live Eval Runs require executionProfileHash");
-        }
     }
-    private int defaultPositive(int value, int fallback) { return value > 0 ? value : fallback; }
-    private double defaultNonNegative(double value, double fallback) { return value >= 0D ? value : fallback; }
     private boolean blank(String value) { return value == null || value.isBlank(); }
 }

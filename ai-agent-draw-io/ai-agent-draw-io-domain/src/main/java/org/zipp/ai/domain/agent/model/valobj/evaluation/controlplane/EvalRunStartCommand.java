@@ -13,6 +13,8 @@ public class EvalRunStartCommand {
     String datasetVersion;
     String baselineRef;
     String candidateRef;
+    String profileId;
+    String profileVersion;
     int repetitions;
     String gitSha;
     String executionProfileHash;

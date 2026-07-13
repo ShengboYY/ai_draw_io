@@ -98,6 +98,8 @@ public class EvalRunQueryService {
         return EvalRunSummaryView.builder().id(run.getId()).mode(run.getMode()).datasetId(run.getDatasetId())
                 .datasetVersion(run.getDatasetVersion()).evaluationTarget(run.getEvaluationTarget())
                 .status(run.getStatus()).gitSha(run.getGitSha())
+                .profileId(run.getProfileId()).profileVersion(run.getProfileVersion())
+                .profileConfigHash(run.getProfileConfigHash())
                 .executionProfileHash(run.getExecutionProfileHash()).repetitions(run.getRepetitions())
                 .totalEpisodes(expected).completedEpisodes(completed)
                 .passCount(count(episodes, EvalEpisodeStatus.PASS)).failCount(count(episodes, EvalEpisodeStatus.FAIL))

@@ -29,9 +29,9 @@ public class EvalLiveRunOrchestratorTest {
         EvalRun release = service.start(command("candidate", EvalRunMode.RELEASE, baseline.getId()));
 
         assertEquals(EvalRunStatus.COMPLETED, service.get(release.getId()).getStatus());
-        assertEquals(10, providerCalls.get());
-        assertEquals(4, store.listEpisodes(release.getId()).size());
-        assertEquals(8, store.judges.size());
+        assertEquals(22, providerCalls.get());
+        assertEquals(10, store.listEpisodes(release.getId()).size());
+        assertEquals(20, store.judges.size());
         EvalLiveRunReport report = service.insights(release.getId());
         assertEquals(EvalStatisticalReport.Decision.READY, report.getStatistics().getDecision());
         assertEquals(EvalStatisticalReport.Decision.READY, report.getComparison().getDecision());
@@ -99,9 +99,30 @@ public class EvalLiveRunOrchestratorTest {
         assertEquals(2, store.listEpisodes(run.getId()).stream().filter(value -> value.getRepetition() == 0).findFirst().orElseThrow().getAttempt());
     }
 
+    @Test
+    public void gateRecalculationRejectsJudgeRuntimeDrift() {
+        Store store = new Store(); MutableLiveSupport support = new MutableLiveSupport();
+        EvalRunOrchestrator service = service(store, List.of(definition("frozen-runtime")), support);
+        EvalRun release = service.start(command("runtime-drift", EvalRunMode.RELEASE, null));
+        support.readiness = EvalLiveRunReadiness.builder().providerCredentialReady(true)
+                .judgeCalibrationApproved(true).calibrationVersion("cal-v1").judgeVersion("judge-v2")
+                .sequesteredCaseCount(20).minimumSequesteredCases(10).build();
+
+        EvalControlPlaneException failure = assertThrows(EvalControlPlaneException.class,
+                () -> service.evaluateGate(release.getId()));
+        assertEquals(EvalControlPlaneErrorCode.PROFILE_CASE_CONFLICT, failure.getCode());
+    }
+
     private EvalRunOrchestrator service(Store store, List<EvalCaseDefinition> definitions, IEvalLiveRunSupport live) {
+        List<EvaluationProfileVersion> testProfiles = DefaultEvaluationProfiles.versions().stream()
+                .map(profile -> new EvaluationProfileVersion(profile.profileId(), profile.version(), profile.target(),
+                        profile.runnerAdapter(), profile.mode(), profile.repetitions(), profile.gateEligible(),
+                        profile.configJson().replace("\"minimumCases\":20", "\"minimumCases\":2")
+                                .replace("\"minimumPairedCases\":20", "\"minimumPairedCases\":2")))
+                .toList();
         return new EvalRunOrchestrator(store, (id, version, role) -> definitions, new Artifacts(), Runnable::run,
-                git -> evalCase -> execution(evalCase), Clock.fixed(Instant.parse("2026-07-13T00:00:00Z"), ZoneOffset.UTC), live);
+                git -> evalCase -> execution(evalCase), Clock.fixed(Instant.parse("2026-07-13T00:00:00Z"), ZoneOffset.UTC), live,
+                new EvaluationProfileResolver(() -> testProfiles));
     }
 
     private EvalRunStartCommand command(String key, EvalRunMode mode, String baseline) {
@@ -112,13 +133,11 @@ public class EvalLiveRunOrchestratorTest {
     }
 
     private static EvalCaseDefinition definition(String id) {
-        EvalCaseDefinition.ExecutionProfile profile = new EvalCaseDefinition.ExecutionProfile();
-        profile.setProfileId("profile-v1"); profile.setModel("fake-live"); profile.setModelCredentialId("credential-1");
         EvalCaseDefinition.Expected expected = new EvalCaseDefinition.Expected();
         expected.setRouteType("answer_only"); expected.setJudgeRequired(true); expected.setMaxCriticalIssues(0); expected.setMaxMajorIssues(0);
         return EvalCaseDefinition.builder().caseId(id).caseVersion("1").datasetVersion("v1").risk("high")
                 .diagramType("none").evaluationTarget(EvaluationTarget.FULL_AGENT)
-                .input(Map.of("user", "hello")).expected(expected).executionProfile(profile).build();
+                .input(Map.of("user", "hello")).expected(expected).build();
     }
 
     private static EvalExecution execution(EvalCaseDefinition definition) {
@@ -148,6 +167,13 @@ public class EvalLiveRunOrchestratorTest {
         private static EvalLiveRunReadiness ready() { return EvalLiveRunReadiness.builder().providerCredentialReady(true)
                 .judgeCalibrationApproved(true).calibrationVersion("cal-v1").judgeVersion("judge-v1")
                 .sequesteredCaseCount(20).minimumSequesteredCases(10).build(); }
+    }
+
+    private static final class MutableLiveSupport implements IEvalLiveRunSupport {
+        private EvalLiveRunReadiness readiness = FakeLiveSupport.ready();
+        @Override public LiveEvalRunner.LiveExecutionFactory executionFactory(String candidateRef) { return EvalLiveRunOrchestratorTest::execution; }
+        @Override public IEvalJudge judge() { return new FakeLiveSupport(EvalLiveRunOrchestratorTest::execution, readiness).judge(); }
+        @Override public EvalLiveRunReadiness readiness() { return readiness; }
     }
 
     private static final class Artifacts implements IEvalRunArtifactStore {

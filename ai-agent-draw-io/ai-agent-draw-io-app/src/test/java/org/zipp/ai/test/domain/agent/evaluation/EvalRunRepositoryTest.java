@@ -18,6 +18,8 @@ public class EvalRunRepositoryTest {
         EvalRunRepository repository = new EvalRunRepository(mapper);
         EvalRun run = EvalRun.builder().id("run-1").mode(EvalRunMode.MODE_B).datasetId("core")
                 .datasetVersion("v1").idempotencyKey("key-1").repetitions(2).gitSha("sha")
+                .profileId("full-agent-smoke").profileVersion("1").profileSnapshotJson("{\"safe\":true}")
+                .profileConfigHash("snapshot-hash").executionProfileHash("snapshot-hash")
                 .maxEstimatedCost(5D).minimumCases(2).maximumErrorRate(0.1D).minimumPairedCases(2).regressionThreshold(0.02D)
                 .graderManifestJson("[]").status(EvalRunStatus.QUEUED).createdBy("admin")
                 .createdAt(Instant.parse("2026-07-13T06:00:00Z")).build();
@@ -36,6 +38,7 @@ public class EvalRunRepositoryTest {
         repository.saveJudge(judge); repository.saveGate(gate);
 
         assertEquals("key-1", repository.findRun("run-1").orElseThrow().getIdempotencyKey());
+        assertEquals("{\"safe\":true}", repository.findRun("run-1").orElseThrow().getProfileSnapshotJson());
         assertEquals(List.of("trace"), repository.findEpisode("ep-1").orElseThrow().getArtifactRefs());
         assertEquals("graph", repository.listGraders("ep-1").get(0).getGraderName());
         assertEquals(5D, repository.findRun("run-1").orElseThrow().getMaxEstimatedCost(), 0.001D);

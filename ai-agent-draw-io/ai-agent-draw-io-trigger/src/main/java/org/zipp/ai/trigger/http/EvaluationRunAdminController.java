@@ -45,6 +45,7 @@ public class EvaluationRunAdminController {
             }
             return orchestrator.start(EvalRunStartCommand.builder().mode(mode).idempotencyKey(body.getIdempotencyKey())
                     .datasetId(body.getDatasetId()).datasetVersion(body.getDatasetVersion())
+                    .profileId(body.getProfileId()).profileVersion(body.getProfileVersion())
                     .repetitions(body.getRepetitions()).gitSha(body.getGitSha())
                     .baselineRef(body.getBaselineRef()).candidateRef(body.getCandidateRef())
                     .executionProfileHash(body.getExecutionProfileHash()).maxEstimatedCost(body.getMaxEstimatedCost())
@@ -169,6 +170,7 @@ public class EvaluationRunAdminController {
     @Data public static class StartRequest {
         private String mode = "MODE_B"; private String idempotencyKey; private String datasetId;
         private String datasetVersion; private int repetitions = 1; private String gitSha;
+        private String profileId; private String profileVersion;
         private String baselineRef; private String candidateRef; private String executionProfileHash;
         private double maxEstimatedCost; private int minimumCases = 1; private double maximumErrorRate = 0.05D;
         private int minimumPairedCases = 1; private double regressionThreshold;
