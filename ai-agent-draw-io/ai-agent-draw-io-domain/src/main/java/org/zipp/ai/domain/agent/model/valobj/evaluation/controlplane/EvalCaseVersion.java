@@ -7,7 +7,7 @@ import java.time.Instant;
 
 /** Immutable metadata for a published synthetic case artifact. */
 @Value
-@Builder
+@Builder(toBuilder = true)
 public class EvalCaseVersion {
     String caseId;
     String caseVersion;

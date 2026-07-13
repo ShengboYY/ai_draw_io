@@ -45,6 +45,9 @@ export default function EvalCaseStudioPage({ params }: { params: Promise<{ worki
         <Action onClick={save}>Save</Action><Action onClick={validate}>Validate</Action><Action onClick={dryRun}>Mode B dry run</Action>
         <Action onClick={() => item && run(agentApi.adminSubmitEvalCaseReview(item.id))}>Submit review</Action>
         <Action onClick={() => decide('approve')}>Approve</Action><Action onClick={() => decide('reject')}>Reject</Action>
+        {item?.status === 'APPROVED' && <Action onClick={() => window.confirm(`Publish immutable ${item.caseId}@${item.caseVersion}?`) &&
+          agentApi.adminPublishEvalCase(item.id).then(() => agentApi.adminGetEvalCaseWorkingCopy(item.id)
+            .then(({ data }) => update(data))).catch(showError)}>Publish immutable version</Action>}
       </div></div><div className="rounded-lg border border-stone-200 bg-white p-4"><h2 className="text-sm font-semibold">Evidence</h2>
         <ul className="mt-2 space-y-2 text-xs text-zinc-600">{evidence.map((value) => <li key={value}>{value}</li>)}</ul></div>
       <div className="rounded-lg border border-stone-200 bg-white p-4"><h2 className="text-sm font-semibold">YAML preview</h2>

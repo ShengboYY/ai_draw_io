@@ -54,6 +54,10 @@ public class EvalCaseWorkingCopyService {
         return create(EvalCaseSourceType.IMPORTED, definition, null, actor, role);
     }
 
+    public EvalCaseWorkingCopy createPublishedClone(EvalCaseDefinition definition, String actor, EvalAdminRole role) {
+        return create(EvalCaseSourceType.PUBLISHED_CASE_CLONE, definition, null, actor, role);
+    }
+
     public EvalCaseWorkingCopy createImportedYaml(String yaml, String actor, EvalAdminRole role) {
         require(yaml, "yaml");
         try (ByteArrayInputStream input = new ByteArrayInputStream(yaml.getBytes(StandardCharsets.UTF_8))) {
@@ -229,6 +233,7 @@ public class EvalCaseWorkingCopyService {
             case DRY_RUN_PASSED -> target == EvalCaseWorkingCopyStatus.UNDER_REVIEW;
             case UNDER_REVIEW -> target == EvalCaseWorkingCopyStatus.APPROVED
                     || target == EvalCaseWorkingCopyStatus.REJECTED;
+            case APPROVED -> target == EvalCaseWorkingCopyStatus.PUBLISHED;
             default -> false;
         };
     }

@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.zipp.ai.infrastructure.dao.IEvalCatalogMapper">
+  <resultMap id="caseVersion" type="org.zipp.ai.infrastructure.dao.po.evaluation.controlplane.EvalCaseVersionPO">
+    <id property="caseId" column="case_id"/><id property="caseVersion" column="case_version"/>
+    <result property="contentHash" column="content_hash"/><result property="artifactRef" column="artifact_ref"/>
+    <result property="approvedBy" column="approved_by"/><result property="publishedAt" column="published_at"/>
+    <result property="retiredAt" column="retired_at"/>
+  </resultMap>
+  <resultMap id="dataset" type="org.zipp.ai.infrastructure.dao.po.evaluation.controlplane.EvalDatasetPO">
+    <id property="id" column="id"/><result property="name" column="name"/>
+    <result property="datasetClass" column="dataset_class"/><result property="ownerUserId" column="owner_user_id"/>
+    <result property="createdAt" column="created_at"/>
+  </resultMap>
+  <resultMap id="datasetVersion" type="org.zipp.ai.infrastructure.dao.po.evaluation.controlplane.EvalDatasetVersionPO">
+    <id property="datasetId" column="dataset_id"/><id property="version" column="version"/>
+    <result property="datasetClass" column="dataset_class"/><result property="status" column="status"/>
+    <result property="contentHash" column="content_hash"/><result property="revision" column="revision"/>
+    <result property="publishedBy" column="published_by"/><result property="publishedAt" column="published_at"/>
+  </resultMap>
+  <resultMap id="datasetMember" type="org.zipp.ai.infrastructure.dao.po.evaluation.controlplane.EvalDatasetMemberPO">
+    <id property="datasetId" column="dataset_id"/><id property="datasetVersion" column="dataset_version"/>
+    <id property="caseId" column="case_id"/><id property="caseVersion" column="case_version"/>
+  </resultMap>
+
+  <insert id="insertCaseVersion">insert into eval_case_version (case_id,case_version,content_hash,artifact_ref,approved_by,published_at,retired_at) values (#{caseId},#{caseVersion},#{contentHash},#{artifactRef},#{approvedBy},#{publishedAt},#{retiredAt})</insert>
+  <select id="selectCaseVersion" resultMap="caseVersion">select * from eval_case_version where case_id=#{caseId} and case_version=#{caseVersion}</select>
+  <select id="selectCaseVersions" resultMap="caseVersion">select * from eval_case_version <where><if test="caseId != null and caseId != ''">case_id=#{caseId}</if></where> order by case_id, published_at desc</select>
+  <update id="retireCaseVersion">update eval_case_version set retired_at=#{retiredAt} where case_id=#{caseId} and case_version=#{caseVersion} and retired_at is null</update>
+  <insert id="insertDataset">insert into eval_dataset (id,name,dataset_class,owner_user_id,created_at) values (#{id},#{name},#{datasetClass},#{ownerUserId},#{createdAt})</insert>
+  <select id="selectDataset" resultMap="dataset">select * from eval_dataset where id=#{datasetId}</select>
+  <select id="selectDatasets" resultMap="dataset">select * from eval_dataset order by created_at desc</select>
+  <insert id="insertDatasetVersion">insert into eval_dataset_version (dataset_id,version,dataset_class,status,content_hash,revision,published_by,published_at) values (#{datasetId},#{version},#{datasetClass},#{status},#{contentHash},#{revision},#{publishedBy},#{publishedAt})</insert>
+  <update id="updateDatasetVersion">update eval_dataset_version set status=#{value.status},content_hash=#{value.contentHash},revision=#{value.revision},published_by=#{value.publishedBy},published_at=#{value.publishedAt} where dataset_id=#{value.datasetId} and version=#{value.version} and revision=#{expectedRevision}</update>
+  <select id="selectDatasetVersion" resultMap="datasetVersion">select * from eval_dataset_version where dataset_id=#{datasetId} and version=#{version}</select>
+  <select id="selectDatasetVersions" resultMap="datasetVersion">select * from eval_dataset_version where dataset_id=#{datasetId} order by published_at desc, version desc</select>
+  <insert id="insertDatasetMember">insert into eval_dataset_member (dataset_id,dataset_version,case_id,case_version) values (#{datasetId},#{datasetVersion},#{caseId},#{caseVersion})</insert>
+  <delete id="deleteDatasetMembers">delete from eval_dataset_member where dataset_id=#{datasetId} and dataset_version=#{version}</delete>
+  <select id="selectDatasetMembers" resultMap="datasetMember">select * from eval_dataset_member where dataset_id=#{datasetId} and dataset_version=#{version} order by case_id, case_version</select>
+</mapper>

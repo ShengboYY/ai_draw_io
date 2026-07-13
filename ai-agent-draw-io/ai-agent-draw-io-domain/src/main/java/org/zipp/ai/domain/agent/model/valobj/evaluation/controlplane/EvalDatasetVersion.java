@@ -9,13 +9,14 @@ import java.util.List;
 
 /** Immutable dataset snapshot once status reaches PUBLISHED. */
 @Value
-@Builder
+@Builder(toBuilder = true)
 public class EvalDatasetVersion {
     String datasetId;
     String version;
     EvalDatasetClass datasetClass;
     EvalDatasetVersionStatus status;
     String contentHash;
+    Long revision;
     @Singular List<EvalDatasetMember> members;
     String publishedBy;
     Instant publishedAt;

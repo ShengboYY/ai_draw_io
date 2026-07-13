@@ -40,6 +40,11 @@ import {
     EvalCaseWorkingCopyDTO,
     EvalCaseValidationResultDTO,
     EvalCaseDryRunResultDTO,
+    PublishedEvalCaseDTO,
+    EvalDatasetDTO,
+    EvalDatasetVersionDTO,
+    EvalDatasetMemberDTO,
+    EvalDatasetCoverageDTO,
 } from '@/types/api';
 
 export class ApiResponseError extends Error {
@@ -418,6 +423,97 @@ export const agentApi = {
             body: JSON.stringify({ reason }), credentials: 'include',
         });
         return handleResponse<EvalCaseWorkingCopyDTO>(response);
+    },
+
+    adminPublishEvalCase: async (id: string): Promise<Response<PublishedEvalCaseDTO>> => {
+        const response = await fetch(`${API_CONFIG.BASE_URL}/admin/eval-case-working-copies/${encodeURIComponent(id)}/publish`, {
+            method: 'POST', headers: await csrfHeaders({ 'Content-Type': 'application/json' }), credentials: 'include',
+        });
+        return handleResponse<PublishedEvalCaseDTO>(response);
+    },
+
+    adminListPublishedEvalCases: async (): Promise<Response<PublishedEvalCaseDTO[]>> => {
+        const response = await fetch(`${API_CONFIG.BASE_URL}/admin/eval-cases`, {
+            method: 'GET', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+        });
+        return handleResponse<PublishedEvalCaseDTO[]>(response);
+    },
+
+    adminClonePublishedEvalCase: async (caseId: string, sourceVersion: string, newCaseId: string, newCaseVersion: string): Promise<Response<EvalCaseWorkingCopyDTO>> => {
+        const response = await fetch(`${API_CONFIG.BASE_URL}/admin/eval-cases/${encodeURIComponent(caseId)}/clone`, {
+            method: 'POST', headers: await csrfHeaders({ 'Content-Type': 'application/json' }),
+            body: JSON.stringify({ sourceVersion, newCaseId, newCaseVersion }), credentials: 'include',
+        });
+        return handleResponse<EvalCaseWorkingCopyDTO>(response);
+    },
+
+    adminRetirePublishedEvalCase: async (caseId: string, caseVersion: string): Promise<Response<PublishedEvalCaseDTO>> => {
+        const response = await fetch(`${API_CONFIG.BASE_URL}/admin/eval-cases/${encodeURIComponent(caseId)}/retire`, {
+            method: 'POST', headers: await csrfHeaders({ 'Content-Type': 'application/json' }),
+            body: JSON.stringify({ caseVersion }), credentials: 'include',
+        });
+        return handleResponse<PublishedEvalCaseDTO>(response);
+    },
+
+    adminListEvalDatasets: async (): Promise<Response<EvalDatasetDTO[]>> => {
+        const response = await fetch(`${API_CONFIG.BASE_URL}/admin/eval-datasets`, {
+            method: 'GET', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+        });
+        return handleResponse<EvalDatasetDTO[]>(response);
+    },
+
+    adminCreateEvalDataset: async (name: string, datasetClass: 'DEV' | 'CORE'): Promise<Response<EvalDatasetDTO>> => {
+        const response = await fetch(`${API_CONFIG.BASE_URL}/admin/eval-datasets`, {
+            method: 'POST', headers: await csrfHeaders({ 'Content-Type': 'application/json' }),
+            body: JSON.stringify({ name, datasetClass }), credentials: 'include',
+        });
+        return handleResponse<EvalDatasetDTO>(response);
+    },
+
+    adminListEvalDatasetVersions: async (id: string): Promise<Response<EvalDatasetVersionDTO[]>> => {
+        const response = await fetch(`${API_CONFIG.BASE_URL}/admin/eval-datasets/${encodeURIComponent(id)}/versions`, {
+            method: 'GET', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+        });
+        return handleResponse<EvalDatasetVersionDTO[]>(response);
+    },
+
+    adminCreateEvalDatasetVersion: async (id: string, version: string, members: EvalDatasetMemberDTO[]): Promise<Response<EvalDatasetVersionDTO>> => {
+        const response = await fetch(`${API_CONFIG.BASE_URL}/admin/eval-datasets/${encodeURIComponent(id)}/versions`, {
+            method: 'POST', headers: await csrfHeaders({ 'Content-Type': 'application/json' }),
+            body: JSON.stringify({ version, members }), credentials: 'include',
+        });
+        return handleResponse<EvalDatasetVersionDTO>(response);
+    },
+
+    adminCloneEvalDatasetVersion: async (sourceDatasetId: string, sourceVersion: string, targetDatasetId: string, targetVersion: string): Promise<Response<EvalDatasetVersionDTO>> => {
+        const response = await fetch(`${API_CONFIG.BASE_URL}/admin/eval-datasets/${encodeURIComponent(sourceDatasetId)}/clone`, {
+            method: 'POST', headers: await csrfHeaders({ 'Content-Type': 'application/json' }),
+            body: JSON.stringify({ sourceVersion, targetDatasetId, targetVersion }), credentials: 'include',
+        });
+        return handleResponse<EvalDatasetVersionDTO>(response);
+    },
+
+    adminReplaceEvalDatasetMembers: async (id: string, version: string, expectedRevision: number, members: EvalDatasetMemberDTO[]): Promise<Response<EvalDatasetVersionDTO>> => {
+        const response = await fetch(`${API_CONFIG.BASE_URL}/admin/eval-datasets/${encodeURIComponent(id)}/members`, {
+            method: 'PUT', headers: await csrfHeaders({ 'Content-Type': 'application/json' }),
+            body: JSON.stringify({ version, expectedRevision, members }), credentials: 'include',
+        });
+        return handleResponse<EvalDatasetVersionDTO>(response);
+    },
+
+    adminEvalDatasetAction: async (id: string, version: string, action: 'validate' | 'publish'): Promise<Response<EvalDatasetVersionDTO>> => {
+        const response = await fetch(`${API_CONFIG.BASE_URL}/admin/eval-datasets/${encodeURIComponent(id)}/${action}`, {
+            method: 'POST', headers: await csrfHeaders({ 'Content-Type': 'application/json' }),
+            body: JSON.stringify({ version }), credentials: 'include',
+        });
+        return handleResponse<EvalDatasetVersionDTO>(response);
+    },
+
+    adminEvalDatasetCoverage: async (id: string, version: string): Promise<Response<EvalDatasetCoverageDTO>> => {
+        const response = await fetch(`${API_CONFIG.BASE_URL}/admin/eval-datasets/${encodeURIComponent(id)}/coverage?version=${encodeURIComponent(version)}`, {
+            method: 'GET', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+        });
+        return handleResponse<EvalDatasetCoverageDTO>(response);
     },
 
     adminRunCaptures: async (runId: string): Promise<Response<AdminDebugTraceCaptureDTO[]>> => {

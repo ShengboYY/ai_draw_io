@@ -32,6 +32,46 @@ export interface EvalCaseDryRunResultDTO {
   trace?: { routing?: { routeType?: string }; toolCalls?: Array<{ name?: string; status?: string }> };
 }
 
+export interface PublishedEvalCaseDTO {
+  caseId: string;
+  caseVersion: string;
+  contentHash: string;
+  approvedBy: string;
+  publishedAt?: string;
+  retiredAt?: string;
+}
+
+export interface EvalDatasetDTO {
+  id: string;
+  name: string;
+  datasetClass: 'DEV' | 'CORE' | 'SEQUESTERED';
+  ownerUserId: string;
+  createdAt?: string;
+}
+
+export interface EvalDatasetMemberDTO { caseId: string; caseVersion: string }
+
+export interface EvalDatasetVersionDTO {
+  datasetId: string;
+  version: string;
+  datasetClass: 'DEV' | 'CORE' | 'SEQUESTERED';
+  status: 'DRAFT' | 'VALIDATED' | 'PUBLISHED' | 'RETIRED';
+  contentHash?: string;
+  revision: number;
+  members: EvalDatasetMemberDTO[];
+  publishedBy?: string;
+  publishedAt?: string;
+}
+
+export interface EvalDatasetCoverageDTO {
+  caseCount: number;
+  routes: Record<string, number>;
+  risks: Record<string, number>;
+  languages: Record<string, number>;
+  diagramTypes: Record<string, number>;
+  agents: Record<string, number>;
+}
+
 export type ApiErrorCode = 'AUTH_RATE_LIMITED' | 'DEMO_QUOTA_EXHAUSTED' | 'PLATFORM_QUOTA_EXHAUSTED' | (string & {});
 
 export interface AiAgentConfigResponseDTO {

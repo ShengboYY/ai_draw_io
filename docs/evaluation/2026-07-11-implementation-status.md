@@ -397,3 +397,33 @@ npm run build
 ```
 
 CP2 只把 Working Copy 推进到 `APPROVED`；不可变 Case Version 与 Dataset 发布属于 CP3。
+
+## Control Plane CP3：不可变 Case 与 Dataset Version
+
+**状态：完成**
+
+| 实施计划要求 | 实现证据 | 结果 |
+| --- | --- | --- |
+| Case 不可变发布 | `EvalCasePublisherService` 只接受 APPROVED；canonical JSON + SHA-256 + `eval_case_version` 元数据 | 完成 |
+| 幂等与冲突 | 同 Case/version/content 返回既有版本；同版本不同 content 拒绝 | 完成 |
+| Artifact 不写 Git | `FileSystemEvalCaseArtifactStore` 写配置的仓库外 content-addressed root，校验 hash 和 root scope | 完成 |
+| Published Case Clone/Retire | 从指定不可变 artifact 创建 `PUBLISHED_CASE_CLONE` Working Copy；Retire 只改 metadata | 完成 |
+| Dataset Draft 与乐观锁 | `eval_dataset`、version/member 表；DRAFT member edit 使用 revision conflict | 完成 |
+| 精确 version pin | 每个 member 固定 `(case_id, case_version)`，Validate 要求版本已发布且未 retired | 完成 |
+| Dataset 冻结 | VALIDATED 才能 PUBLISHED；发布写 member hash、publisher/time，之后禁止 edit | 完成 |
+| dev/core promotion | Clone Version 可将 dev 成员复制到目标 core Dataset 的新 DRAFT，不改源版本 | 完成 |
+| 历史可重放 source | `EvalDatasetCaseSource` 从 Published Dataset 加载其精确 artifact；磁盘 core-v1 runner 保持不变 | 完成 |
+| Sequestered 隔离 | 普通 Admin list/API 不返回 sequestered Dataset；Case source/coverage 要求 Release Owner | 完成 |
+| Coverage | UI/API 报 route/risk/language/diagram type/agent 原始计数，不伪造 F1 | 完成 |
+| Admin UI | Published Case history/clone/retire；Dataset member editor、diff、confirmation、coverage、promotion | 完成 |
+
+验证命令：
+
+```text
+mvn -pl ai-agent-draw-io-app -am -Dtest=EvalPublishingServiceTest,FileSystemEvalCaseArtifactStoreTest,EvalControlPlaneContractsTest -Dsurefire.failIfNoSpecifiedTests=false test
+node --test tests/admin-eval-cases-page.test.mjs tests/admin-eval-datasets-page.test.mjs
+npm run lint
+npm run build
+```
+
+部署必须显式配置 `zipp.evaluation.artifact-root`/`ZIPP_EVAL_ARTIFACT_ROOT` 到持久化、受控且不位于产品 Git checkout 的目录。Dataset 批量 Dry Run 在 CP4 由异步 Eval Run 编排统一提供，避免 CP3 建立第二条同步批跑链路。

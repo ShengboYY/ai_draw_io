@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 
 const read = (path) => readFileSync(fileURLToPath(new URL(path, import.meta.url)), 'utf8');
 
-test('case studio exposes qualification lifecycle without publishing early', () => {
+test('case studio exposes qualification lifecycle and only publishes an approved case', () => {
   const list = read('../src/app/admin/eval-cases/page.tsx');
   const studio = read('../src/app/admin/eval-cases/[workingCopyId]/page.tsx');
   assert.match(list, /adminListEvalCaseWorkingCopies/);
@@ -15,5 +15,6 @@ test('case studio exposes qualification lifecycle without publishing early', () 
   assert.match(studio, /adminSubmitEvalCaseReview/);
   assert.match(studio, /Approve/);
   assert.match(studio, /YAML preview/);
-  assert.doesNotMatch(studio, /adminPublishEvalCase/);
+  assert.match(studio, /item\?\.status === 'APPROVED'/);
+  assert.match(studio, /adminPublishEvalCase/);
 });
