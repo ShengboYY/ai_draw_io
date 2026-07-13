@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.zipp.ai.infrastructure.dao.IEvalRunMapper">
+  <resultMap id="run" type="org.zipp.ai.infrastructure.dao.po.evaluation.controlplane.EvalRunPO">
+    <id property="id" column="id"/><result property="mode" column="mode"/><result property="datasetId" column="dataset_id"/><result property="datasetVersion" column="dataset_version"/>
+    <result property="baselineRef" column="baseline_ref"/><result property="candidateRef" column="candidate_ref"/><result property="executionProfileHash" column="execution_profile_hash"/>
+    <result property="idempotencyKey" column="idempotency_key"/><result property="repetitions" column="repetitions"/><result property="gitSha" column="git_sha"/>
+    <result property="graderManifestJson" column="grader_manifest_json"/><result property="reportRef" column="report_ref"/><result property="status" column="status"/>
+    <result property="createdBy" column="created_by"/><result property="createdAt" column="created_at"/><result property="startedAt" column="started_at"/><result property="completedAt" column="completed_at"/>
+  </resultMap>
+  <resultMap id="episode" type="org.zipp.ai.infrastructure.dao.po.evaluation.controlplane.EvalEpisodePO">
+    <id property="id" column="id"/><result property="evalRunId" column="eval_run_id"/><result property="caseId" column="case_id"/><result property="caseVersion" column="case_version"/>
+    <result property="repetition" column="repetition"/><result property="attempt" column="attempt"/><result property="status" column="status"/><result property="traceRef" column="trace_ref"/>
+    <result property="artifactRefsJson" column="artifact_refs_json"/><result property="latencyMs" column="latency_ms"/><result property="inputTokens" column="input_tokens"/><result property="outputTokens" column="output_tokens"/>
+    <result property="estimatedCost" column="estimated_cost"/><result property="errorClass" column="error_class"/><result property="errorMessage" column="error_message"/>
+  </resultMap>
+  <resultMap id="grader" type="org.zipp.ai.infrastructure.dao.po.evaluation.controlplane.EvalGraderResultPO">
+    <id property="episodeId" column="episode_id"/><id property="graderName" column="grader_name"/><id property="graderVersion" column="grader_version"/>
+    <result property="status" column="status"/><result property="severity" column="severity"/><result property="score" column="score"/><result property="evidenceJson" column="evidence_json"/>
+  </resultMap>
+  <insert id="insertRun">insert into eval_run (id,mode,dataset_id,dataset_version,baseline_ref,candidate_ref,execution_profile_hash,idempotency_key,repetitions,git_sha,grader_manifest_json,report_ref,status,created_by,created_at,started_at,completed_at) values (#{id},#{mode},#{datasetId},#{datasetVersion},#{baselineRef},#{candidateRef},#{executionProfileHash},#{idempotencyKey},#{repetitions},#{gitSha},#{graderManifestJson},#{reportRef},#{status},#{createdBy},#{createdAt},#{startedAt},#{completedAt})</insert>
+  <update id="updateRun">update eval_run set status=#{status},report_ref=#{reportRef},started_at=#{startedAt},completed_at=#{completedAt} where id=#{id}</update>
+  <select id="selectRun" resultMap="run">select * from eval_run where id=#{runId}</select>
+  <select id="selectRunByIdempotencyKey" resultMap="run">select * from eval_run where idempotency_key=#{idempotencyKey}</select>
+  <select id="selectRuns" resultMap="run">select * from eval_run order by created_at desc,id desc limit #{limit} offset #{offset}</select>
+  <insert id="upsertEpisode">insert into eval_episode (id,eval_run_id,case_id,case_version,repetition,attempt,status,trace_ref,artifact_refs_json,latency_ms,input_tokens,output_tokens,estimated_cost,error_class,error_message) values (#{id},#{evalRunId},#{caseId},#{caseVersion},#{repetition},#{attempt},#{status},#{traceRef},#{artifactRefsJson},#{latencyMs},#{inputTokens},#{outputTokens},#{estimatedCost},#{errorClass},#{errorMessage}) on duplicate key update attempt=values(attempt),status=values(status),trace_ref=values(trace_ref),artifact_refs_json=values(artifact_refs_json),latency_ms=values(latency_ms),input_tokens=values(input_tokens),output_tokens=values(output_tokens),estimated_cost=values(estimated_cost),error_class=values(error_class),error_message=values(error_message)</insert>
+  <select id="selectEpisode" resultMap="episode">select * from eval_episode where id=#{episodeId}</select>
+  <select id="selectEpisodes" resultMap="episode">select * from eval_episode where eval_run_id=#{runId} order by case_id,case_version,repetition</select>
+  <delete id="deleteGraders">delete from eval_grader_result where episode_id=#{episodeId}</delete>
+  <insert id="insertGrader">insert into eval_grader_result (episode_id,grader_name,grader_version,status,severity,score,evidence_json) values (#{episodeId},#{graderName},#{graderVersion},#{status},#{severity},#{score},#{evidenceJson})</insert>
+  <select id="selectGraders" resultMap="grader">select * from eval_grader_result where episode_id=#{episodeId} order by grader_name</select>
+</mapper>

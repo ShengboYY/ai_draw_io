@@ -9,7 +9,7 @@ import java.util.List;
 
 /** Loads an immutable Dataset Version as executable Case definitions for CP4+ runners. */
 @Service
-public class EvalDatasetCaseSource {
+public class EvalDatasetCaseSource implements IEvalDatasetCaseSource {
     private final EvalDatasetService datasets;
     private final EvalCasePublisherService cases;
 
@@ -17,6 +17,7 @@ public class EvalDatasetCaseSource {
         this.datasets = datasets; this.cases = cases;
     }
 
+    @Override
     public List<EvalCaseDefinition> loadPublished(String datasetId, String version, EvalAdminRole role) {
         EvalDatasetVersion dataset = datasets.get(datasetId, version);
         if (dataset.getStatus() != EvalDatasetVersionStatus.PUBLISHED) {

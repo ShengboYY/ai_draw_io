@@ -427,3 +427,30 @@ npm run build
 ```
 
 部署必须显式配置 `zipp.evaluation.artifact-root`/`ZIPP_EVAL_ARTIFACT_ROOT` 到持久化、受控且不位于产品 Git checkout 的目录。Dataset 批量 Dry Run 在 CP4 由异步 Eval Run 编排统一提供，避免 CP3 建立第二条同步批跑链路。
+
+## Control Plane CP4：Mode B Eval Run 编排与持久化
+
+**状态：完成**
+
+| 实施计划要求 | 实现证据 | 结果 |
+| --- | --- | --- |
+| 不可变 Run manifest | `EvalRun` 固定 mode/dataset/version/repetitions/git SHA/profile/grader manifest/idempotency key | 完成 |
+| 异步 HTTP 边界 | `IEvalJobExecutor` + bounded application `ThreadPoolExecutor`；start API 只入队 | 完成 |
+| Dataset Mode B | `EvalDatasetCaseSource` 加载精确 Published Dataset，`ModeBReplayExecutionFactory` 执行真实确定性链 | 完成 |
+| Episode 隔离 | 每个 Case×repetition 独立 PASS/FAIL/ERROR/UNAVAILABLE；单 Case 异常不终止批次 | 完成 |
+| 完整持久化 | `eval_run`、`eval_episode`、`eval_grader_result` + 显式 MyBatis resultMap/repository | 完成 |
+| Artifact/report | normalized execution、canvas/trace 与最终 report 写受控仓库外 Run Artifact Store | 完成 |
+| Cancel | QUEUED/RUNNING 可取消；worker 在 Episode 边界检查，模型中不存在悬挂 RUNNING Episode | 完成 |
+| Retry ERROR only | retry 只选择 ERROR Episode 并增加 attempt；Agent FAIL 保持不变 | 完成 |
+| 幂等 start | service lookup + DB unique key；并发插入回查 winner | 完成 |
+| 12 个 core Case | 全部现有 core-v1 fixture 经新 orchestrator 产生 12 个独立 Episode | 完成 |
+| Admin API 与审计 | start/list/get/episodes/cancel/retry-errors，成功/拒绝/异常复用 admin audit | 完成 |
+
+验证命令：
+
+```text
+mvn -pl ai-agent-draw-io-app -am -Dtest=EvalRunOrchestratorTest,EvalRunRepositoryTest -Dsurefire.failIfNoSpecifiedTests=false test
+mvn clean test
+```
+
+`COMPLETED` 仅表示所有可执行 Episode 已完成，不表示质量 PASS；Gate outcome 仍独立。CP4 不调用真实模型，Mode C/Release 接线属于 CP6。

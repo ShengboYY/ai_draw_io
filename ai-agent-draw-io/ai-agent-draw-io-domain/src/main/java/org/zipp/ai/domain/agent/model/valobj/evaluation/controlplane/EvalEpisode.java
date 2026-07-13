@@ -8,13 +8,14 @@ import java.util.List;
 
 /** One independently retryable case/repetition execution. */
 @Value
-@Builder
+@Builder(toBuilder = true)
 public class EvalEpisode {
     String id;
     String evalRunId;
     String caseId;
     String caseVersion;
     int repetition;
+    int attempt;
     EvalEpisodeStatus status;
     String traceRef;
     @Singular List<String> artifactRefs;
@@ -22,4 +23,6 @@ public class EvalEpisode {
     long inputTokens;
     long outputTokens;
     double estimatedCost;
+    String errorClass;
+    String errorMessage;
 }

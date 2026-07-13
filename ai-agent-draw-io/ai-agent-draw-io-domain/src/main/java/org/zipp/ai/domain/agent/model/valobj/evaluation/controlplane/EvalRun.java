@@ -7,7 +7,7 @@ import java.time.Instant;
 
 /** Immutable run manifest plus its current execution state. */
 @Value
-@Builder
+@Builder(toBuilder = true)
 public class EvalRun {
     String id;
     EvalRunMode mode;
@@ -16,6 +16,11 @@ public class EvalRun {
     String baselineRef;
     String candidateRef;
     String executionProfileHash;
+    String idempotencyKey;
+    int repetitions;
+    String gitSha;
+    String graderManifestJson;
+    String reportRef;
     EvalRunStatus status;
     String createdBy;
     Instant createdAt;
