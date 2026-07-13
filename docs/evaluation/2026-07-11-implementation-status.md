@@ -741,6 +741,22 @@ mvn clean test
 
 验证：三类磁盘 Case、生产 Router/Drawing live adapter、target-aware Mode C 选择及既有 Mode B/Live orchestrator 回归均有自动化测试。
 
+## Workspace R5：Target-specific metrics 与报告
+
+| R5 要求 | 实现证据 | 结果 |
+| --- | --- | --- |
+| 同源只读投影 | `EvalTargetReportService` 只读取已持久化 Run/Episode/Grader/Judge 与 execution artifact；缺失 artifact/阶段证据单列 UNAVAILABLE，不进入质量分母；没有第二套执行或结果存储 | 完成 |
+| Router 报告 | 输出 Accuracy、confusion matrix、per-route precision/recall/F1、invalid output 与 repetition stability | 完成 |
+| 小样本语义 | Macro-F1 按 frozen Profile 的 `minSamplesPerClass` 判定；不足时返回 `COUNT_ONLY + reason`，不返回伪造的 0 分 | 完成 |
+| Drawing 报告 | frozen grader manifest 中配置的层即使零结果也可见；deterministic severity 经执行持久化；Judge 区分 available/unavailable/not-required；提供可回链 artifact 的 before/after 证据 | 完成 |
+| Full Agent 报告 | 有 eligible evidence 时复用 TSR@1/bootstrap CI；无 evidence 明确 UNAVAILABLE；每一层输出 PASS/FAIL/UNAVAILABLE，且按前序 PASS 样本形成顺序 failure funnel | 完成 |
+| 延迟统计 | 仅 PASS/FAIL Episode 进入统计；始终报告 median/max，达到 frozen Profile 的 `minLatencySamplesForP95` 后才报告 p95 | 完成 |
+| Episode 下钻 | confusion cell、funnel failure、grader failure、severity 与 before/after 行均携带 Episode id；Run UI 点击指标即打开对应 Episode detail，再由管理员按需加载受控 artifact | 完成 |
+| 运行中可见性 | QUEUED/RUNNING 页面明确标记 partial report，并每 3 秒同步 Run、Episode Matrix 与 Target Report，终态后停止轮询 | 完成 |
+| 独立 Drawing 执行 | 未引入派生 Run 或 `source_episode_id`；符合 R5 非必交付边界 | 完成 |
+
+验证：`EvalTargetReportServiceTest` 覆盖三个 Target、ERROR 排除、缺失 artifact、全空/阶段缺失 evidence、无效 Router 输出、Macro-F1/p95 样本阈值、Judge not-required、manifest 零结果层与顺序 Full Agent funnel；`EvalRunOrchestratorTest` 验证 deterministic severity 从 harness 经持久化保真；前端 source test 覆盖 partial polling 与点击下钻，生产构建通过。R5 不改变数据库 schema，因此没有迁移。
+
 ## Control Plane CP10：Canary、Case Health 与持续运营
 
 **状态：平台接线完成；真实部署指标、外部告警路由和用户行为信号仍需外部授权/配置**

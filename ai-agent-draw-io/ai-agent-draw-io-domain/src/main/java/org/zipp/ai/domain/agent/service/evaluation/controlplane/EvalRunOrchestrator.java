@@ -209,7 +209,7 @@ public class EvalRunOrchestrator {
             store.replaceGraders(episodeId, result.getGraders().stream().map(grader -> EvalGraderResultRecord.builder()
                     .episodeId(episodeId).graderName(grader.getGraderName()).graderVersion(grader.getGraderVersion())
                     .status(grader.isPassed() ? EvalEpisodeStatus.PASS : EvalEpisodeStatus.FAIL)
-                    .severity(grader.isPassed() ? "none" : "major").evidenceJson(JSON.toJSONString(grader.getEvidence())).build()).toList());
+                    .severity(grader.getSeverity()).evidenceJson(JSON.toJSONString(grader.getEvidence())).build()).toList());
         } catch (Exception e) {
             store.saveEpisode(EvalEpisode.builder().id(episodeId).evalRunId(run.getId())
                     .caseId(definition.getCaseId()).caseVersion(definition.getCaseVersion())

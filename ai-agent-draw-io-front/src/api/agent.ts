@@ -49,6 +49,7 @@ import {
     EvalDatasetCoverageDTO,
     EvaluationProfileDTO,
     EvalRunSummaryDTO,
+    EvalTargetReportDTO,
     EvalEpisodeViewDTO,
     EvalEpisodeDetailDTO,
     EvalEpisodeArtifactDTO,
@@ -596,6 +597,11 @@ export const agentApi = {
     adminGetEvalRun: async (id: string): Promise<Response<EvalRunSummaryDTO>> => {
         const response = await fetch(`${API_CONFIG.BASE_URL}/admin/eval-runs/${encodeURIComponent(id)}`, { method: 'GET', headers: { 'Content-Type': 'application/json' }, credentials: 'include' });
         return handleResponse<EvalRunSummaryDTO>(response);
+    },
+
+    adminGetEvalTargetReport: async (id: string): Promise<Response<EvalTargetReportDTO>> => {
+        const response = await fetch(`${API_CONFIG.BASE_URL}/admin/eval-runs/${encodeURIComponent(id)}/target-report`, { method: 'GET', headers: { 'Content-Type': 'application/json' }, credentials: 'include' });
+        return handleResponse<EvalTargetReportDTO>(response);
     },
 
     adminListEvalEpisodes: async (runId: string, filters?: { status?: string; route?: string; risk?: string; language?: string; agent?: string }): Promise<Response<EvalEpisodeViewDTO[]>> => {

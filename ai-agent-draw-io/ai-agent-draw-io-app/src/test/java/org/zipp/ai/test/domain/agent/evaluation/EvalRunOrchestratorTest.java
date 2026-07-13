@@ -110,6 +110,25 @@ public class EvalRunOrchestratorTest {
     }
 
     @Test
+    public void modeBPersistsTheDeterministicIssueSeverity() throws Exception {
+        RunStore store = new RunStore();
+        List<EvalCaseDefinition> definitions = cases("edit-api-gateway.yaml");
+        EvalRunOrchestrator orchestrator = orchestrator(store, Runnable::run, definitions, gitSha -> evalCase -> {
+            var execution = new ModeBReplayExecutionFactory(gitSha).create(evalCase);
+            execution.setFinalCanvasXml("<mxGraphModel><root><mxCell id='0'></root>");
+            return execution;
+        });
+
+        EvalRun run = orchestrator.start(command("severity-projection"));
+        EvalEpisode episode = orchestrator.episodes(run.getId()).get(0);
+
+        assertEquals(EvalEpisodeStatus.FAIL, episode.getStatus());
+        assertEquals("critical", store.listGraders(episode.getId()).stream()
+                .filter(value -> "xml_integrity".equals(value.getGraderName()))
+                .findFirst().orElseThrow().getSeverity());
+    }
+
+    @Test
     public void allTwelveCoreCasesRunThroughTheDatasetOrchestrator() throws Exception {
         Path root = Path.of(Objects.requireNonNull(getClass().getResource("/evals/core-v1")).toURI());
         List<EvalCaseDefinition> definitions;

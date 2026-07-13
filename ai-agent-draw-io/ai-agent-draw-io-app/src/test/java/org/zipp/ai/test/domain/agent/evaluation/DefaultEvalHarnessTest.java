@@ -99,6 +99,9 @@ public class DefaultEvalHarnessTest {
                 .findFirst()
                 .orElseThrow()
                 .isPassed() == false);
+        assertEquals("critical", result.getGraders().stream()
+                .filter(grader -> "xml_integrity".equals(grader.getGraderName()))
+                .findFirst().orElseThrow().getSeverity());
     }
 
     @Test

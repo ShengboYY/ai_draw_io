@@ -14,6 +14,7 @@ import org.zipp.ai.domain.agent.service.evaluation.controlplane.EvalControlPlane
 import org.zipp.ai.domain.agent.service.evaluation.controlplane.EvalControlPlaneException;
 import org.zipp.ai.domain.agent.service.evaluation.controlplane.EvalRunOrchestrator;
 import org.zipp.ai.domain.agent.service.evaluation.controlplane.EvalRunQueryService;
+import org.zipp.ai.domain.agent.service.evaluation.controlplane.EvalTargetReportService;
 import org.zipp.ai.trigger.http.service.AdminAuthorizationService;
 import org.zipp.ai.types.enums.ResponseCode;
 
@@ -26,12 +27,14 @@ import java.util.Optional;
 public class EvaluationRunAdminController {
     private final EvalRunOrchestrator orchestrator;
     private final EvalRunQueryService queryService;
+    private final EvalTargetReportService targetReports;
     private final AdminAuthorizationService authorization;
     private final AdminAuditLogService audits;
 
     public EvaluationRunAdminController(EvalRunOrchestrator orchestrator, EvalRunQueryService queryService,
+                                        EvalTargetReportService targetReports,
                                         AdminAuthorizationService authorization, AdminAuditLogService audits) {
-        this.orchestrator = orchestrator; this.queryService = queryService;
+        this.orchestrator = orchestrator; this.queryService = queryService; this.targetReports = targetReports;
         this.authorization = authorization; this.audits = audits;
     }
 
@@ -66,6 +69,12 @@ public class EvaluationRunAdminController {
     @GetMapping("/{runId}")
     public Response<EvalRunSummaryView> get(@PathVariable String runId, HttpServletRequest request) {
         return execute(request, "VIEW_EVAL_RUN", runId, admin -> queryService.summary(runId));
+    }
+
+    @GetMapping("/{runId}/target-report")
+    public Response<EvalTargetReport> targetReport(@PathVariable String runId, HttpServletRequest request) {
+        return execute(request, "VIEW_EVAL_TARGET_REPORT", runId,
+                admin -> targetReports.report(runId, authorization.evaluationRole(admin)));
     }
 
     @GetMapping("/{runId}/episodes")

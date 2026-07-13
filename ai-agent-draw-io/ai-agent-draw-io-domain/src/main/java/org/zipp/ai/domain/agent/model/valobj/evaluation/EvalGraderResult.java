@@ -20,6 +20,8 @@ public class EvalGraderResult {
     private String graderName;
     private String graderVersion;
     private boolean passed;
+    /** Highest deterministic issue severity represented by this grader result. */
+    private String severity;
 
     @Builder.Default
     private List<String> evidence = new ArrayList<>();

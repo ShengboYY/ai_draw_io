@@ -293,14 +293,21 @@ public class DefaultEvalHarness {
         if (majorCount > maxMajor) {
             evidence.add("Major issue count " + majorCount + " exceeds " + maxMajor + ".");
         }
-        return grader("visual_quality", VISUAL_GRADER_VERSION, evidence);
+        String severity = criticalCount > maxCritical ? "critical" : majorCount > maxMajor ? "major" : "none";
+        return grader("visual_quality", VISUAL_GRADER_VERSION, severity, evidence);
     }
 
     private EvalGraderResult grader(String name, String version, List<String> evidence) {
+        String severity = evidence.isEmpty() ? "none" : "xml_integrity".equals(name) ? "critical" : "major";
+        return grader(name, version, severity, evidence);
+    }
+
+    private EvalGraderResult grader(String name, String version, String severity, List<String> evidence) {
         return EvalGraderResult.builder()
                 .graderName(name)
                 .graderVersion(version)
                 .passed(evidence.isEmpty())
+                .severity(severity)
                 .evidence(evidence)
                 .build();
     }

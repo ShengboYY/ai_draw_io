@@ -3,9 +3,10 @@
 import { use, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { agentApi } from '@/api/agent';
-import type { EvalEpisodeArtifactDTO, EvalEpisodeDetailDTO, EvalEpisodeViewDTO, EvalLiveRunReportDTO, EvalRunSummaryDTO } from '@/types/api';
+import type { EvalEpisodeArtifactDTO, EvalEpisodeDetailDTO, EvalEpisodeViewDTO, EvalLiveRunReportDTO, EvalRunSummaryDTO, EvalTargetReportDTO } from '@/types/api';
 import { AdminPageHeading, AdminShell } from '../../admin-shell';
 import { EvaluationWorkspace } from '../../evaluation-workspace';
+import { TargetReportPanel } from './target-report-panel';
 
 const statuses = ['', 'PASS', 'FAIL', 'ERROR', 'UNAVAILABLE'];
 export default function AdminEvalRunDetailPage({ params }: { params: Promise<{ evalRunId: string }> }) {
@@ -14,12 +15,26 @@ export default function AdminEvalRunDetailPage({ params }: { params: Promise<{ e
   const [route, setRoute] = useState(''); const [risk, setRisk] = useState(''); const [language, setLanguage] = useState(''); const [agent, setAgent] = useState('');
   const [detail, setDetail] = useState<EvalEpisodeDetailDTO | null>(null); const [artifact, setArtifact] = useState<EvalEpisodeArtifactDTO | null>(null);
   const [insights, setInsights] = useState<EvalLiveRunReportDTO | null>(null);
+  const [targetReport, setTargetReport] = useState<EvalTargetReportDTO | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const isRunActive = Boolean(run && ['QUEUED', 'RUNNING'].includes(run.status));
   const show = (reason: unknown) => setError(reason instanceof Error ? reason.message : 'Evaluation query failed');
   useEffect(() => { agentApi.adminGetEvalRun(evalRunId).then(({ data }) => setRun(data)).catch((reason) => setError(reason instanceof Error ? reason.message : 'Evaluation query failed')); }, [evalRunId]);
+  useEffect(() => { agentApi.adminGetEvalTargetReport(evalRunId).then(({ data }) => setTargetReport(data)).catch(show); }, [evalRunId]);
   useEffect(() => { agentApi.adminListEvalEpisodes(evalRunId, { status, route, risk, language, agent }).then(({ data }) => setEpisodes(data || [])).catch((reason) => setError(reason instanceof Error ? reason.message : 'Evaluation query failed')); }, [evalRunId, status, route, risk, language, agent]);
   useEffect(() => { if (run?.mode !== 'MODE_B' && run?.status === 'COMPLETED') agentApi.adminGetEvalRunInsights(evalRunId).then(({ data }) => setInsights(data)).catch((reason) => setError(reason instanceof Error ? reason.message : 'Live evaluation insights failed')); }, [evalRunId, run?.mode, run?.status]);
+  useEffect(() => {
+    if (!isRunActive) return;
+    // Running reports are partial; keep manifest, Episode matrix and target metrics in sync until terminal state.
+    const timer = window.setInterval(() => {
+      agentApi.adminGetEvalRun(evalRunId).then(({ data }) => setRun(data)).catch(show);
+      agentApi.adminListEvalEpisodes(evalRunId, { status, route, risk, language, agent }).then(({ data }) => setEpisodes(data || [])).catch(show);
+      agentApi.adminGetEvalTargetReport(evalRunId).then(({ data }) => setTargetReport(data)).catch(show);
+    }, 3000);
+    return () => window.clearInterval(timer);
+  }, [evalRunId, isRunActive, status, route, risk, language, agent]);
   const open = (episode: EvalEpisodeViewDTO) => { setArtifact(null); agentApi.adminGetEvalEpisode(evalRunId, episode.id).then(({ data }) => setDetail(data)).catch(show); };
+  const openById = (episodeId: string) => { setArtifact(null); agentApi.adminGetEvalEpisode(evalRunId, episodeId).then(({ data }) => setDetail(data)).catch(show); };
   const action = (name: 'cancel' | 'retry-errors') => agentApi.adminEvalRunAction(evalRunId, name).then(() => agentApi.adminGetEvalRun(evalRunId).then(({ data }) => setRun(data))).catch(show);
   const evaluateGate = () => agentApi.adminEvaluateEvalGate(evalRunId).then(({ data }) => setInsights((value) => value ? { ...value, gate: data } : value)).catch(show);
   const overrideGate = () => { const reason = window.prompt('Release override reason:'); if (reason) agentApi.adminOverrideEvalGate(evalRunId, reason).then(({ data }) => setInsights((value) => value ? { ...value, gate: data } : value)).catch(show); };
@@ -33,6 +48,7 @@ export default function AdminEvalRunDetailPage({ params }: { params: Promise<{ e
       {insights.gate && <div className="mt-3 rounded bg-stone-50 p-3 text-xs"><div className="font-semibold">Release Gate {insights.gate.outcome}{insights.gate.overrideApproved ? ' · OVERRIDDEN' : ''}</div><ul className="mt-1 list-disc pl-5">{gateReasons(insights.gate.reasonsJson).map((reason) => <li key={reason}>{reason}</li>)}</ul></div>}
       {run?.mode === 'RELEASE' && <div className="mt-3 flex gap-2"><Button onClick={evaluateGate}>Evaluate Gate</Button>{insights.gate?.outcome === 'BLOCK' && !insights.gate.overrideApproved && <Button onClick={overrideGate}>Release Owner override</Button>}</div>}
     </section>}
+    {targetReport && <TargetReportPanel report={targetReport} onOpenEpisode={openById} isPartial={isRunActive} />}
     {run?.status === 'COMPLETED' && <section className="mb-5 flex flex-col gap-3 rounded-xl border border-violet-200 bg-violet-50 p-4 sm:flex-row sm:items-center sm:justify-between"><div><p className="text-sm font-semibold text-violet-950">Close the feedback loop</p><p className="mt-1 text-xs text-violet-800">Fix a known regression and rerun this Dataset, or capture a newly discovered blind spot as another Case.</p></div><div className="flex shrink-0 flex-wrap gap-3 text-xs font-semibold text-violet-900"><Link href="/admin/eval-runs" className="hover:underline">Rerun Dataset →</Link><Link href="/admin/eval-cases/new" className="hover:underline">Create Case →</Link><Link href="/admin/trace-findings" className="hover:underline">Trace Findings →</Link></div></section>}
     <div className="mb-4 flex flex-wrap gap-2"><Select value={status} values={statuses} onChange={setStatus} label="Status" /><Input value={route} onChange={setRoute} label="Route" /><Input value={risk} onChange={setRisk} label="Risk" /><Input value={language} onChange={setLanguage} label="Language" /><Input value={agent} onChange={setAgent} label="Agent" /></div>
     <h2 className="mb-2 text-sm font-semibold text-zinc-700">Case Matrix</h2>

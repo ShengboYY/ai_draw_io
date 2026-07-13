@@ -103,6 +103,29 @@ export interface EvalRunSummaryDTO {
   createdAt?: string; startedAt?: string; completedAt?: string;
 }
 
+export interface EvalTargetReportDTO {
+  runId: string; target: EvaluationTarget; totalEpisodes: number; eligibleEpisodes: number;
+  excludedErrors: number; excludedUnavailable: number;
+  latency: { sampleCount: number; medianMs?: number; maxMs?: number; p95Ms?: number;
+    p95Availability: 'AVAILABLE' | 'COUNT_ONLY' | 'UNAVAILABLE'; p95Reason?: string };
+  fullAgent?: { availability: 'AVAILABLE' | 'COUNT_ONLY' | 'UNAVAILABLE'; unavailableReason?: string;
+    tsrAtOne?: number; ciLower?: number; ciUpper?: number; errorRate?: number; estimatedCost: number;
+    funnel: Array<{ stage: string; inputCount: number; eligibleCount: number; passedCount: number; unavailableCount: number; passRate?: number;
+      availability: 'AVAILABLE' | 'COUNT_ONLY' | 'UNAVAILABLE'; failedEpisodeIds: string[]; unavailableEpisodeIds: string[] }> };
+  router?: { accuracy?: number; classifiedCount: number; invalidCount: number; evidenceUnavailableCount: number; macroF1?: number;
+    macroF1Availability: 'AVAILABLE' | 'COUNT_ONLY' | 'UNAVAILABLE'; macroF1Reason?: string;
+    repeatStability?: number; stabilityAvailability: 'AVAILABLE' | 'COUNT_ONLY' | 'UNAVAILABLE'; stabilityReason?: string;
+    confusionMatrix: Array<{ expectedRoute: string; actualRoute: string; count: number; episodeIds: string[] }>;
+    perRoute: Array<{ route: string; support: number; precision?: number; recall?: number; f1?: number }> };
+  drawing?: { layers: Array<{ graderName: string; eligibleCount: number; passedCount: number; failedCount: number;
+      unavailableCount: number; notRequiredCount: number; passRate?: number; availability: 'AVAILABLE' | 'COUNT_ONLY' | 'UNAVAILABLE';
+      failedEpisodeIds: string[]; unavailableEpisodeIds: string[] }>;
+    issueSeverities: Array<{ severity: string; count: number; episodeIds: string[] }>;
+    evidence: Array<{ episodeId: string; caseId: string; artifactRef?: string; beforeAvailable: boolean;
+      afterAvailable: boolean; canvasChanged?: boolean }>;
+    judgeAvailableCount: number; judgeUnavailableCount: number; judgeNotRequiredCount: number };
+}
+
 export interface EvalGraderRecordDTO {
   episodeId: string; graderName: string; graderVersion: string; status: string;
   severity: string; score?: number; evidenceJson: string;
