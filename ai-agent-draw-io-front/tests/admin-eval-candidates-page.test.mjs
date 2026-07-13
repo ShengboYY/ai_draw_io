@@ -4,8 +4,10 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 const page = readFileSync(fileURLToPath(new URL('../src/app/admin/eval-candidates/page.tsx', import.meta.url)), 'utf8');
+const api = readFileSync(fileURLToPath(new URL('../src/api/agent.ts', import.meta.url)), 'utf8');
+const workflow = readFileSync(fileURLToPath(new URL('../src/app/admin/eval-candidates/candidate-review-workflow.ts', import.meta.url)), 'utf8');
 
-test('candidate queue exposes deterministic evidence, filters, trace links, and guarded transitions', () => {
+test('candidate inbox supports autonomous discovery followed by one-click human acceptance', () => {
   assert.match(page, /adminListEvalCandidates/);
   assert.match(page, /failureFamily/);
   assert.match(page, /evidenceSummary/);
@@ -13,7 +15,7 @@ test('candidate queue exposes deterministic evidence, filters, trace links, and 
   assert.match(page, /TRIAGED/);
   assert.match(page, /UNDER_REVIEW/);
   assert.match(page, /REJECTED/);
-  assert.match(page, /adminPrepareEvalDraft/);
+  assert.match(workflow, /adminPrepareEvalDraft/);
   assert.match(page, /human review required/);
   assert.match(page, /adminStartSemanticMinerRun/);
   assert.match(page, /MODEL_DETECTED/);
@@ -21,7 +23,17 @@ test('candidate queue exposes deterministic evidence, filters, trace links, and 
   assert.match(page, /cannot approve, publish, or block a release/i);
   assert.match(page, /adminAnalyzeVisualRun/);
   assert.match(page, /adminAnalyzeVisualRun\(visualRunId\.trim\(\), true\)/);
-  assert.match(page, /adminPrepareEvalDraft\(candidate\.id, true\)/);
+  assert.match(page, /acceptCandidateForDraft\(agentApi, candidate\)/);
+  assert.match(page, /Accept & generate draft/);
+  assert.match(workflow, /Accepted for sanitized LLM draft preparation/);
+  assert.match(page, /Open in Case Studio/);
+  assert.match(page, /adminCreateEvalCaseWorkingCopyFromDraft/);
+  assert.match(api, /adminCreateEvalCaseWorkingCopyFromDraft/);
+  assert.match(api, /sourceType: 'TRACE_DRAFT'/);
+  assert.match(page, /setInterval/);
+  assert.match(page, /candidateRequestId/);
+  assert.match(page, /sampleLimit/);
+  assert.match(page, /TRIAGED: 'DRAFT_RETRY_READY'/);
   assert.match(page, /window\.confirm/);
   assert.match(page, /Pixels are inline, short-lived in memory, audited/);
   assert.doesNotMatch(page, /adminRunCaptures|Approve draft|Publish draft/i);

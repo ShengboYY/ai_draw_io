@@ -173,6 +173,15 @@ public class EvalCaseWorkingCopyService {
     private EvalCaseDefinition fromDraft(EvalCaseDraft draft, String caseId, String caseVersion) {
         Map<String, Object> input = new LinkedHashMap<>();
         input.put("turns", draft.getUserTurns() == null ? List.of() : List.copyOf(draft.getUserTurns()));
+        Map<String, Object> draftReview = new LinkedHashMap<>();
+        draftReview.put("failureSummary", StringUtils.trimToNull(draft.getFailureSummary()));
+        draftReview.put("initialFixtureHint", StringUtils.trimToNull(draft.getInitialFixtureHint()));
+        draftReview.put("suggestedAssertions", draft.getSuggestedAssertions() == null
+                ? List.of() : List.copyOf(draft.getSuggestedAssertions()));
+        draftReview.put("confidence", StringUtils.trimToNull(draft.getConfidence()));
+        draftReview.put("modelVersion", StringUtils.trimToNull(draft.getModelVersion()));
+        // Keep sanitized model suggestions visible in Case Studio without treating them as executable assertions.
+        input.put("draftReview", draftReview);
         List<String> tags = new ArrayList<>();
         tags.add("trace-derived");
         if (StringUtils.isNotBlank(draft.getSuspectedFailureFamily())) {

@@ -433,6 +433,19 @@ export const agentApi = {
         return handleResponse<EvalCaseWorkingCopyDTO>(response);
     },
 
+    adminCreateEvalCaseWorkingCopyFromDraft: async (
+        candidateId: string,
+        caseId: string,
+        caseVersion: string,
+    ): Promise<Response<EvalCaseWorkingCopyDTO>> => {
+        const response = await fetch(`${API_CONFIG.BASE_URL}/admin/eval-case-working-copies`, {
+            method: 'POST', headers: await csrfHeaders({ 'Content-Type': 'application/json' }),
+            body: JSON.stringify({ sourceType: 'TRACE_DRAFT', candidateId, caseId, caseVersion }),
+            credentials: 'include',
+        });
+        return handleResponse<EvalCaseWorkingCopyDTO>(response);
+    },
+
     adminUpdateEvalCaseWorkingCopy: async (id: string, revision: number, definition: Record<string, unknown>): Promise<Response<EvalCaseWorkingCopyDTO>> => {
         const response = await fetch(`${API_CONFIG.BASE_URL}/admin/eval-case-working-copies/${encodeURIComponent(id)}`, {
             method: 'PUT', headers: await csrfHeaders({ 'Content-Type': 'application/json' }),

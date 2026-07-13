@@ -102,6 +102,7 @@ public class EvalCaseWorkingCopyServiceTest {
                 .failureSummary("assistant reported unable to load")
                 .suspectedFailureFamily("false_success")
                 .userTurns(List.of("Rename API to Gateway"))
+                .initialFixtureHint("Synthetic API node named API")
                 .expectedRoute("edit_existing")
                 .suggestedAssertions(List.of("canvas must change"))
                 .sanitizerVersion("eval-sanitizer-v2")
@@ -118,6 +119,11 @@ public class EvalCaseWorkingCopyServiceTest {
         assertEquals(Boolean.FALSE, created.getDefinition().getProvenance().getSourceTraceRetained());
         assertEquals("edit_existing", created.getDefinition().getExpected().getRouteType());
         assertEquals(List.of("Rename API to Gateway"), created.getDefinition().getInput().get("turns"));
+        Map<?, ?> draftReview = (Map<?, ?>) created.getDefinition().getInput().get("draftReview");
+        assertEquals("assistant reported unable to load", draftReview.get("failureSummary"));
+        assertEquals("Synthetic API node named API", draftReview.get("initialFixtureHint"));
+        assertEquals(List.of("canvas must change"), draftReview.get("suggestedAssertions"));
+        assertEquals("draft-model-v1", draftReview.get("modelVersion"));
         String serialized = created.getDefinition().toString();
         assertFalse(serialized.contains("run_"));
         assertFalse(serialized.contains("debug"));
