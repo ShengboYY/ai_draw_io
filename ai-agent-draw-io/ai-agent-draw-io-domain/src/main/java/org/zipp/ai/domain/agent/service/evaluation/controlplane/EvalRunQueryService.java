@@ -1,10 +1,13 @@
 package org.zipp.ai.domain.agent.service.evaluation.controlplane;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.zipp.ai.domain.agent.model.valobj.evaluation.*;
 import org.zipp.ai.domain.agent.model.valobj.evaluation.controlplane.*;
 import org.zipp.ai.domain.agent.service.evaluation.DrawioGraphNormalizer;
+import org.zipp.ai.domain.agent.service.evaluation.visual.DrawioSvgRenderer;
+import org.zipp.ai.domain.agent.service.evaluation.visual.IDiagramImageRenderer;
 
 import java.util.*;
 
@@ -14,10 +17,17 @@ public class EvalRunQueryService {
     private final IEvalRunStore store;
     private final IEvalDatasetCaseSource cases;
     private final IEvalRunArtifactStore artifacts;
+    private final IDiagramImageRenderer renderer;
     private final ObjectMapper mapper = new ObjectMapper().findAndRegisterModules();
 
     public EvalRunQueryService(IEvalRunStore store, IEvalDatasetCaseSource cases, IEvalRunArtifactStore artifacts) {
-        this.store = store; this.cases = cases; this.artifacts = artifacts;
+        this(store, cases, artifacts, new DrawioSvgRenderer());
+    }
+
+    @Autowired
+    public EvalRunQueryService(IEvalRunStore store, IEvalDatasetCaseSource cases, IEvalRunArtifactStore artifacts,
+                               IDiagramImageRenderer renderer) {
+        this.store = store; this.cases = cases; this.artifacts = artifacts; this.renderer = renderer;
     }
 
     public List<EvalRunSummaryView> list(int limit, int offset) {
@@ -59,12 +69,21 @@ public class EvalRunQueryService {
                 .orElseThrow(() -> new IllegalStateException("Episode execution artifact is unavailable"));
         try {
             EvalExecution execution = mapper.readValue(bytes, EvalExecution.class);
+            String beforeImage = dataUrl(execution.getInitialCanvasXml());
+            String afterImage = dataUrl(execution.getFinalCanvasXml());
             return EvalEpisodeArtifactView.builder().trace(execution.getTrace())
                     .initialCanvasXml(execution.getInitialCanvasXml()).finalCanvasXml(execution.getFinalCanvasXml())
+                    .initialCanvasImageDataUrl(beforeImage).finalCanvasImageDataUrl(afterImage)
                     .semanticDiff(semanticDiff(execution, definition)).build();
         } catch (Exception e) {
             throw new IllegalStateException("Episode execution artifact is invalid", e);
         }
+    }
+
+    private String dataUrl(String xml) {
+        if (xml == null || xml.isBlank()) return null;
+        IDiagramImageRenderer.RenderedDiagram image = renderer.render(xml);
+        return "data:" + image.mimeType() + ";base64," + Base64.getEncoder().encodeToString(image.bytes());
     }
 
     private EvalRunSummaryView summary(EvalRun run) {

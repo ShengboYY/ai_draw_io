@@ -52,7 +52,7 @@ public class EvalLiveRunService {
             unavailableEpisode(run, definition, repetition, "ProviderCredentialUnavailable"); return;
         }
         try {
-            LiveEvalRunner.EpisodeResult result = new LiveEvalRunner().runDetailed(List.of(definition), 1,
+            LiveEvalRunner.EpisodeResult result = new LiveEvalRunner(new DefaultEvalHarness(), support.diagramRenderer()).runDetailed(List.of(definition), 1,
                     support.executionFactory(run.getCandidateRef()), support.judge()).get(0);
             EvalSampleResult sample = result.sample();
             String traceRef = result.execution() == null ? null : artifacts.put(run.getId(), episodeId, "execution",
@@ -63,7 +63,8 @@ public class EvalLiveRunService {
                     .latencyMs(sample.getLatencyMs()).inputTokens(sample.getInputTokens()).outputTokens(sample.getOutputTokens())
                     .estimatedCost(sample.getEstimatedCost()).errorClass(sample.getErrorClass()).build());
             store.replaceGraders(episodeId, graderRecords(episodeId, result.deterministic()));
-            if (result.judge() != null) store.saveJudge(judgeRecord(episodeId, result.judge(), readiness));
+            if (result.judge() != null) store.saveJudge(judgeRecord(episodeId, result.judge(), readiness,
+                    definition.getDiagramType() != null && !"none".equalsIgnoreCase(definition.getDiagramType())));
         } catch (Exception e) {
             errorEpisode(run, definition, repetition, attempt, e.getClass().getSimpleName(), e.getMessage());
         }
@@ -146,8 +147,14 @@ public class EvalLiveRunService {
             return new EvalReleaseGateService.CaseResult(episode.getCaseId(), definition == null ? "unknown" : definition.getRisk(), result);
         }).toList();
         boolean judgeRequired = definitions.stream().anyMatch(value -> Boolean.TRUE.equals(value.getExpected().getJudgeRequired()));
+        boolean textJudgeRequired = definitions.stream().anyMatch(value -> Boolean.TRUE.equals(value.getExpected().getJudgeRequired())
+                && (value.getDiagramType() == null || "none".equalsIgnoreCase(value.getDiagramType())));
+        boolean visualJudgeRequired = definitions.stream().anyMatch(value -> Boolean.TRUE.equals(value.getExpected().getJudgeRequired())
+                && value.getDiagramType() != null && !"none".equalsIgnoreCase(value.getDiagramType()));
         JudgeCalibrationService.Report calibration = JudgeCalibrationService.Report.builder()
-                .approved(readiness.isJudgeCalibrationApproved()).judgeVersion(readiness.getJudgeVersion()).build();
+                .approved((!textJudgeRequired || readiness.isJudgeCalibrationApproved())
+                        && (!visualJudgeRequired || readiness.isVisualJudgeCalibrationApproved()))
+                .judgeVersion(visualJudgeRequired ? readiness.getVisualJudgeVersion() : readiness.getJudgeVersion()).build();
         EvalReleaseGateService.Decision decision = new EvalReleaseGateService().evaluate(new EvalReleaseGateService.Input(
                 caseResults, report, comparison, calibration, judgeRequired, readiness.getSequesteredCaseCount(),
                 readiness.getMinimumSequesteredCases()));
@@ -165,14 +172,15 @@ public class EvalLiveRunService {
                 .severity(grader.isPassed() ? "none" : "major").evidenceJson(JSON.toJSONString(grader.getEvidence())).build()).toList();
     }
 
-    private EvalJudgeResultRecord judgeRecord(String episodeId, EvalJudgeResult judge, EvalLiveRunReadiness readiness) {
+    private EvalJudgeResultRecord judgeRecord(String episodeId, EvalJudgeResult judge, EvalLiveRunReadiness readiness,
+                                               boolean visual) {
         EvalEpisodeStatus status = !judge.isAvailable() ? EvalEpisodeStatus.UNAVAILABLE
                 : judge.isPassed() ? EvalEpisodeStatus.PASS : EvalEpisodeStatus.FAIL;
         Map<String, Object> score = new LinkedHashMap<>(); score.put("score", judge.getScore());
         score.put("criticalIssues", judge.getCriticalIssues()); score.put("majorIssues", judge.getMajorIssues());
         score.put("confidence", judge.getConfidence());
         return EvalJudgeResultRecord.builder().episodeId(episodeId).judgeVersion(judge.getJudgeVersion())
-                .calibrationVersion(readiness.getCalibrationVersion()).status(status)
+                .calibrationVersion(visual ? readiness.getVisualCalibrationVersion() : readiness.getCalibrationVersion()).status(status)
                 .scoreJson(JSON.toJSONString(score)).evidenceJson(JSON.toJSONString(judge.getEvidence())).build();
     }
 

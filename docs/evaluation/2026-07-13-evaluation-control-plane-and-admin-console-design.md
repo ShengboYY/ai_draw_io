@@ -580,19 +580,19 @@ Gate override 必须要求 Release Owner、理由和审计，且不能把缺失�
 | 确定性 Candidate Queue | 已实现 | 结构化 Analyzer issue、latency selector 和获批用户行为信号 |
 | Debug Trace + sanitizer + LLM Draft Agent | 已实现 | Draft suggestion 接入完整 Case Studio working copy |
 | LLM 直接语义异常发现 | 平台代码已实现、默认关闭 | 提供 50–80 条人工校准 Trace、批准固定 model/prompt/schema version 并接入真实成本单价 |
-| VLM 直接视觉异常发现 | 未实现 | render capture、multimodal provider、隐私策略和校准 |
+| VLM 直接视觉异常发现 | 平台代码已实现、默认关闭 | 提供独立视觉标注校准集、批准固定 model/prompt/schema/renderer version 并接入真实成本单价 |
 | Mode C runner、统计和成本模型 | 平台代码已实现 | 真实凭据、baseline、多轮受控运行和运营调度 |
 | Text Judge provider | 已实现但未批准运行 | 60–80 个双人标注校准 Case、固定模型版本 |
-| Diagram VLM Judge | 未实现 | before/after pixel adapter 和校准 |
+| Diagram VLM Judge | pixel adapter、独立 provider/readiness 已实现但未批准运行 | 视觉双人标注校准 Case、固定 VLM/renderer 版本 |
 | Release Gate service/report | 已实现 | CI/CD 接线、真实 core/sequestered 输入 |
 | Sequestered loader | 已实现 | 外置受控 Dataset 和权限运营 |
 | Canary/Case Health service | 已实现 | 部署平台接线、定期任务和真实运营数据 |
 | Admin Candidate 页面 | 已实现 | 完整 review/publish Case 操作体验 |
-| Admin Case Studio | 未实现 | working copy、编辑器、Validate、Dry Run、Diff、审批 |
-| Dataset 管理 UI/API | 未实现 | Dataset draft/version/coverage/publish |
-| Eval Run Control Plane | 未实现 | eval_run/episode 持久化、orchestrator、progress、case matrix |
+| Admin Case Studio | 已实现 | 运营使用并扩充真实 Case |
+| Dataset 管理 UI/API | 已实现 | 挂载外置 Sequestered Dataset |
+| Eval Run Control Plane | 已实现 | 真实凭据、baseline、多轮 live session 与调度 |
 | Calibration UI | 未实现 | calibration dataset、版本、agreement/critical recall 和 readiness 页面 |
-| Release Gate UI | 未实现 | Gate evidence、三态结论、reason、CI/CD adapter 和 override 审计 |
+| Release Gate UI | Run Detail 三态 evidence/override 已实现 | 独立 Gate 索引页和 CI/CD adapter |
 | Audit Logs UI | 未实现 | 复用 `admin_audit_log` 的 Evaluation resource/action 过滤视图 |
 
 当前 `/admin/runs` 展示生产 Agent Run；它不是 Eval Experiment Run 管理界面。现有 report writer 和 service class 也不等于一键可运行的管理员链路。

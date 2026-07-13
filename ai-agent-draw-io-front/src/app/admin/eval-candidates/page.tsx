@@ -25,6 +25,8 @@ export default function AdminEvalCandidatesPage() {
   const [minerRuns, setMinerRuns] = useState<SemanticMinerRunDTO[]>([]);
   const [samplingPolicy, setSamplingPolicy] = useState<'TARGETED' | 'RANDOM' | 'MIXED'>('TARGETED');
   const [mining, setMining] = useState(false);
+  const [visualRunId, setVisualRunId] = useState('');
+  const [visualMining, setVisualMining] = useState(false);
 
   useEffect(() => {
     let alive = true;
@@ -60,6 +62,16 @@ export default function AdminEvalCandidatesPage() {
       .then(({ data }) => setMinerRuns((current) => [data, ...current.filter((run) => run.id !== data.id)]))
       .catch((failure) => setError(failure instanceof Error ? failure.message : 'Semantic discovery failed'))
       .finally(() => setMining(false));
+  };
+
+  const analyzeVisualRun = () => {
+    if (!visualRunId.trim() || visualMining) return;
+    if (!window.confirm('Render this production run for one visual analysis? Pixels are used in memory only and the access is audited.')) return;
+    setVisualMining(true); setError(null);
+    agentApi.adminAnalyzeVisualRun(visualRunId.trim())
+      .then(({ data }) => { window.alert(data.status === 'CANDIDATE_CREATED' ? `Visual Candidate created: ${data.candidateId}` : `${data.status}${data.reason ? ` · ${data.reason}` : ''}`); window.location.reload(); })
+      .catch((failure) => setError(failure instanceof Error ? failure.message : 'Visual discovery failed'))
+      .finally(() => setVisualMining(false));
   };
 
   const transition = (candidate: EvalCaseCandidateDTO, target: string) => {
@@ -110,6 +122,10 @@ export default function AdminEvalCandidatesPage() {
           </div>
         </div>
         {minerRuns.length > 0 && <div className="mt-3 grid gap-2 sm:grid-cols-2">{minerRuns.slice(0, 4).map((run) => <div key={run.id} className="rounded-md bg-stone-50 px-3 py-2 text-xs text-zinc-600"><span className="font-mono">{run.id}</span> · <strong>{run.status}</strong> · {run.candidateCount} candidates / {run.analyzedCount} analyzed · ${run.estimatedCostUsd.toFixed(4)}{run.availabilityReason && <div className="mt-1 text-amber-700">{run.availabilityReason}</div>}</div>)}</div>}
+      </section>
+
+      <section className="mb-5 rounded-lg border border-stone-200 bg-white p-4 shadow-sm">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><div><div className="text-sm font-semibold text-zinc-800">Visual anomaly discovery</div><p className="mt-1 text-xs text-zinc-500">Administrator-selected run only. Pixels are inline, short-lived in memory, audited, and never copied into a Dataset.</p></div><div className="flex gap-2"><input aria-label="Source run id for visual analysis" value={visualRunId} onChange={(event) => setVisualRunId(event.target.value)} placeholder="Agent run id" className="rounded-md border border-stone-200 px-2 py-1.5 text-xs"/><Action onClick={analyzeVisualRun}>{visualMining ? 'Analyzing…' : 'Analyze pixels'}</Action></div></div>
       </section>
 
       <div className="mb-5 flex flex-wrap gap-3 border-b border-stone-200 pb-4">

@@ -3,6 +3,7 @@ package org.zipp.ai.test.domain.agent.evaluation;
 import org.junit.Test;
 import org.zipp.ai.domain.agent.model.valobj.evaluation.*;
 import org.zipp.ai.domain.agent.service.evaluation.*;
+import org.zipp.ai.domain.agent.service.evaluation.visual.DrawioSvgRenderer;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -106,6 +107,27 @@ public class LiveEvalStatisticsTest {
         assertEquals(EvalHarnessResult.Status.UNAVAILABLE, samples.get(0).getStatus());
     }
 
+    @Test
+    public void diagramCaseRequiresIndependentlyCalibratedVisualJudgeAndRealPixels() {
+        EvalCaseDefinition evalCase = caseDefinition("case-visual", true);
+        evalCase.setDiagramType("flowchart"); evalCase.getExpected().setRouteType("edit_existing");
+        IEvalJudge text = calibrated(input -> EvalJudgeResult.builder().available(true).passed(true).judgeVersion("text-v1").build(), "text-v1", true);
+        IEvalJudge visual = calibrated(input -> {
+            assertNotNull(input.initialImage()); assertNotNull(input.finalImage());
+            assertTrue(input.finalImage().bytes().length > 20);
+            return EvalJudgeResult.builder().available(true).passed(true).judgeVersion("visual-v1").build();
+        }, "visual-v1", false);
+
+        List<EvalSampleResult> unavailable = new LiveEvalRunner(new DefaultEvalHarness(), new DrawioSvgRenderer()).run(
+                List.of(evalCase), 1, ignored -> diagramExecution(evalCase), new RoutedEvalJudge(text, visual));
+
+        assertEquals(EvalHarnessResult.Status.UNAVAILABLE, unavailable.get(0).getStatus());
+    }
+
+    private IEvalJudge calibrated(IEvalJudge delegate, String version, boolean approved) {
+        return new CalibratedEvalJudge(delegate, JudgeCalibrationService.Report.builder().approved(approved).judgeVersion(version).build());
+    }
+
     private EvalSampleResult sample(String id, boolean passed, EvalHarnessResult.Status status) {
         return EvalSampleResult.builder().caseId(id).status(status).passed(passed).latencyMs(10)
                 .inputTokens(2).outputTokens(1).estimatedCost(0.01).build();
@@ -127,5 +149,12 @@ public class LiveEvalStatisticsTest {
                 .taskOutcome(EvalTrace.TaskOutcome.FULFILLED).routing(EvalTrace.Routing.builder().routeType("answer_only").build())
                 .beforeCanvasHash("same").afterCanvasHash("same").build()).initialCanvasXml(xml).finalCanvasXml(xml)
                 .inputTokens(10).outputTokens(5).estimatedCost(0.02).build();
+    }
+
+    private EvalExecution diagramExecution(EvalCaseDefinition evalCase) {
+        EvalExecution execution = execution(evalCase);
+        execution.getTrace().getRouting().setRouteType("edit_existing");
+        execution.getTrace().setBeforeCanvasHash("before"); execution.getTrace().setAfterCanvasHash("after");
+        return execution;
     }
 }

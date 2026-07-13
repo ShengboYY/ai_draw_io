@@ -102,7 +102,8 @@ export interface EvalEpisodeViewDTO {
 export interface EvalEpisodeDetailDTO { episode: EvalEpisodeViewDTO; input: Record<string, unknown>; expected: unknown }
 export interface EvalEpisodeArtifactDTO {
   trace?: { routing?: { routeType?: string; diagramType?: string; skillName?: string }; steps?: Array<{ phase?: string; agentId?: string; status?: string }>; toolCalls?: Array<{ name?: string; status?: string }> };
-  initialCanvasXml?: string; finalCanvasXml?: string; semanticDiff: string[];
+  initialCanvasXml?: string; finalCanvasXml?: string;
+  initialCanvasImageDataUrl?: string; finalCanvasImageDataUrl?: string; semanticDiff: string[];
 }
 
 export interface EvalStatisticalReportDTO {
@@ -124,7 +125,8 @@ export interface EvalGateDecisionDTO {
 export interface EvalLiveRunReportDTO {
   statistics: EvalStatisticalReportDTO; comparison: EvalComparisonDTO;
   readiness: { providerCredentialReady: boolean; judgeCalibrationApproved: boolean; calibrationVersion?: string;
-    judgeVersion?: string; sequesteredCaseCount: number; minimumSequesteredCases: number };
+    judgeVersion?: string; visualJudgeCalibrationApproved: boolean; visualCalibrationVersion?: string;
+    visualJudgeVersion?: string; sequesteredCaseCount: number; minimumSequesteredCases: number };
   gate?: EvalGateDecisionDTO;
 }
 
@@ -661,6 +663,11 @@ export interface SemanticMinerRunDTO {
   createdAt?: string;
   startedAt?: string;
   completedAt?: string;
+}
+
+export interface VisualMinerResultDTO {
+  status: 'UNAVAILABLE' | 'NO_FINDING' | 'MERGED' | 'CANDIDATE_CREATED';
+  reason?: string; candidateId?: string; confidence: number; estimatedCostUsd: number;
 }
 
 export interface EvalCaseDraftDTO {

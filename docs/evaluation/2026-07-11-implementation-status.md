@@ -581,3 +581,51 @@ npm run build
 ```
 
 验收中的 `SUCCESS + 无法加载`、输入/输出 identifier 泄漏、模型超时隔离、持久化 round-trip 和 Admin fail-closed 均已有自动化测试。尚未完成的是用真实 50–80 条标注 Trace 计算 precision/recall/Macro-F1、人工接受率和单有效 Candidate 成本；在该校准版本获批前，生产配置无法启动 Miner。
+
+## Control Plane CP9：VLM Visual Miner 与 Diagram Judge
+
+**状态：平台代码完成；真实 VLM 凭据、视觉校准集和批准仍属于运营前置**
+
+| 实施计划要求 | 实现证据 | 结果 |
+| --- | --- | --- |
+| 受控 render | `DrawioSvgRenderer` 对常见 mxCell geometry/style 生成确定性 SVG bytes，并限制 XML/cell/image 尺寸 | 完成 |
+| 像素传输 | `ChatVisualEvalJudge`、`ChatVisualAnomalyMiner` 通过 `ChatCommandEntity.InlineData` 传真实 bytes；不把 URL/ref 当视觉输入 | 完成 |
+| Miner/Judge 分离 | `IVisualAnomalyMiner` 与 `IVisualEvalJudge` 使用不同 adapter、agent/model/prompt/schema/version 和权限入口 | 完成 |
+| 文本/视觉路由 | `RoutedEvalJudge` 按 diagram type 路由；`LiveEvalRunner` 仅为图任务生成 before/after pixels | 完成 |
+| 独立校准 | `ProductionEvalLiveRunSupport` 分别校验 text/visual approved version；图任务缺视觉校准即 `UNAVAILABLE` | 完成 |
+| Release readiness | Dataset 含 required visual Judge Case 时，视觉校准未批准会使 Release Gate `NO_DECISION` | 完成 |
+| Visual Candidate | Admin 按 source run 显式触发；读取最终 canvas、合并 Analyzer evidence，输出脱敏 Candidate 与 synthetic reconstruction suggestion | 完成 |
+| 隐私与保留 | 生产像素只在单次请求内存中使用，不写 artifact/DB/Dataset；显式 purpose confirmation + Admin Audit | 完成 |
+| quota/cost/timeout | 最大 image bytes、单次成本估计、独立 bounded VLM pool 和 hard timeout；故障不进入用户 Agent 主链 | 完成 |
+| Episode pixels | 受控 artifact endpoint 按权限从 synthetic episode XML 即时渲染 data URL；Drawer 展示 before/after 与 semantic diff | 完成 |
+| 临时图片策略 | `EphemeralVisualArtifactService` 提供 owner scope、production approval、最长 15 分钟 TTL 和清理；当前生产 Miner 采用更严格的零持久化 | 完成 |
+| 工作流边界 | Miner 只能创建/合并 `MODEL_DETECTED` Candidate；不能 Approve、Publish 或 Gate；Published Case 仍只接受 synthetic fixture | 完成 |
+
+关键部署配置（均默认 fail closed）：
+
+```text
+zipp.evaluation.visual-judge-model-version=unconfigured
+zipp.evaluation.visual-judge-calibration-approved=false
+zipp.evaluation.visual-judge-calibration-version=unconfigured
+zipp.evaluation.visual-judge-calibrated-version=unconfigured
+zipp.evaluation.visual-miner-enabled=false
+zipp.evaluation.visual-miner-model-version=unconfigured
+zipp.evaluation.visual-miner-calibration-approved=false
+zipp.evaluation.visual-miner-calibrated-version=unconfigured
+zipp.evaluation.visual-miner-max-image-bytes=2000000
+zipp.evaluation.visual-miner-timeout-ms=30000
+zipp.evaluation.visual-miner-call-threads=1
+zipp.evaluation.visual-miner-estimated-cost-per-analysis-usd=0
+```
+
+验证命令：
+
+```text
+mvn -pl ai-agent-draw-io-app -am -Dtest=DrawioSvgRendererTest,ChatVisualEvalJudgeTest,VisualAnomalyDiscoveryServiceTest,VisualMinerCallExecutorTest,LiveEvalStatisticsTest,EvalRunQueryServiceTest -Dsurefire.failIfNoSpecifiedTests=false test
+node --test tests/admin-eval-candidates-page.test.mjs tests/admin-eval-runs-page.test.mjs
+npm run lint
+npm run build
+mvn clean test
+```
+
+“确定性 Analyzer 无 overlap，但 VLM 判断难读”的平台路径已经具备；真实 precision/recall、Judge agreement 和 calibration approval 不能由 synthetic fixture 伪造，仍需独立视觉标注集后才能启用。SVG adapter 是受版本控制的常见 mxCell 子集，不替代 draw.io 浏览器的完整渲染引擎；视觉校准集必须覆盖 renderer fidelity，发现不支持的 shape/style 时应升级 renderer version 并重新校准。

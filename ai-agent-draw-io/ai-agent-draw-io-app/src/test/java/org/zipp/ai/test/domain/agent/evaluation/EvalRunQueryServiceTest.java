@@ -48,6 +48,8 @@ public class EvalRunQueryServiceTest {
         assertTrue(query.episodes("run-1", null, null, null, null, "intent-router").isEmpty());
         assertEquals("draw synthetic service", detail.getInput().get("user"));
         assertNotNull(artifact.getTrace());
+        assertTrue(artifact.getInitialCanvasImageDataUrl().startsWith("data:image/svg+xml;base64,"));
+        assertTrue(artifact.getFinalCanvasImageDataUrl().startsWith("data:image/svg+xml;base64,"));
         assertEquals(2, artifact.getSemanticDiff().size());
         assertThrows(SecurityException.class, () -> query.detail("run-2", "ep-1"));
     }

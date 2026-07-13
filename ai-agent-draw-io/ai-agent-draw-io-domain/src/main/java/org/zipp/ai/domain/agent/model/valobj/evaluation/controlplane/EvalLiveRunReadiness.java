@@ -11,6 +11,9 @@ public class EvalLiveRunReadiness {
     boolean judgeCalibrationApproved;
     String calibrationVersion;
     String judgeVersion;
+    boolean visualJudgeCalibrationApproved;
+    String visualCalibrationVersion;
+    String visualJudgeVersion;
     int sequesteredCaseCount;
     int minimumSequesteredCases;
 }

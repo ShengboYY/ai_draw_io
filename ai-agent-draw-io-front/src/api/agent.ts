@@ -37,6 +37,7 @@ import {
     AdminDebugTraceControlRequestDTO,
     EvalCaseCandidateDTO,
     SemanticMinerRunDTO,
+    VisualMinerResultDTO,
     EvalDraftPreparationDTO,
     EvalCaseWorkingCopyDTO,
     EvalCaseValidationResultDTO,
@@ -368,6 +369,14 @@ export const agentApi = {
             method: 'GET', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
         });
         return handleResponse<SemanticMinerRunDTO[]>(response);
+    },
+
+    adminAnalyzeVisualRun: async (sourceRunId: string): Promise<Response<VisualMinerResultDTO>> => {
+        const response = await fetch(`${API_CONFIG.BASE_URL}/admin/visual-miner/analyze-run`, {
+            method: 'POST', headers: await csrfHeaders({ 'Content-Type': 'application/json' }),
+            body: JSON.stringify({ sourceRunId, purposeConfirmed: true }), credentials: 'include',
+        });
+        return handleResponse<VisualMinerResultDTO>(response);
     },
 
     adminTransitionEvalCandidate: async (

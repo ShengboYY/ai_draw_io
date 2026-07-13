@@ -32,4 +32,9 @@ public class CalibratedEvalJudge implements IEvalJudge {
     public boolean isCalibrated() {
         return calibration != null && calibration.isApproved();
     }
+
+    @Override
+    public boolean isCalibrated(JudgeInput input) {
+        return isCalibrated() && delegate != null;
+    }
 }

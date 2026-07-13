@@ -12,5 +12,7 @@ public class EvalEpisodeArtifactView {
     EvalTrace trace;
     String initialCanvasXml;
     String finalCanvasXml;
+    String initialCanvasImageDataUrl;
+    String finalCanvasImageDataUrl;
     List<String> semanticDiff;
 }

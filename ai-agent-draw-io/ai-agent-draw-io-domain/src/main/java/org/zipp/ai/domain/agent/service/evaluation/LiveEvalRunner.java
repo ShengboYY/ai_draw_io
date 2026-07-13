@@ -1,6 +1,7 @@
 package org.zipp.ai.domain.agent.service.evaluation;
 
 import org.zipp.ai.domain.agent.model.valobj.evaluation.*;
+import org.zipp.ai.domain.agent.service.evaluation.visual.IDiagramImageRenderer;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -8,9 +9,11 @@ import java.util.List;
 /** Repeated @1 live runner. FAIL is never retried; only explicit infrastructure ERROR is retried. */
 public class LiveEvalRunner {
     private final DefaultEvalHarness harness;
+    private final IDiagramImageRenderer renderer;
 
-    public LiveEvalRunner() { this(new DefaultEvalHarness()); }
-    public LiveEvalRunner(DefaultEvalHarness harness) { this.harness = harness; }
+    public LiveEvalRunner() { this(new DefaultEvalHarness(), null); }
+    public LiveEvalRunner(DefaultEvalHarness harness) { this(harness, null); }
+    public LiveEvalRunner(DefaultEvalHarness harness, IDiagramImageRenderer renderer) { this.harness = harness; this.renderer = renderer; }
 
     public List<EvalSampleResult> run(List<EvalCaseDefinition> cases, int repetitions,
                                       LiveExecutionFactory factory, IEvalJudge judge) {
@@ -41,9 +44,10 @@ public class LiveEvalRunner {
                 boolean passed = deterministic.isPassed();
                 EvalJudgeResult judged = null;
                 if (Boolean.TRUE.equals(evalCase.getExpected().getJudgeRequired())) {
-                    if (judge == null || !judge.isCalibrated()) return result(evalCase, repetition, EvalHarnessResult.Status.UNAVAILABLE,
+                    IEvalJudge.JudgeInput judgeInput = judgeInput(evalCase, execution, deterministic);
+                    if (judge == null || !judge.isCalibrated(judgeInput)) return result(evalCase, repetition, EvalHarnessResult.Status.UNAVAILABLE,
                             false, execution, deterministic, null, started, "JudgeUnavailable");
-                    judged = judge.judge(judgeInput(evalCase, execution, deterministic));
+                    judged = judge.judge(judgeInput);
                     if (judged == null || !judged.isAvailable()) return result(evalCase, repetition,
                             EvalHarnessResult.Status.UNAVAILABLE, false, execution, deterministic, judged, started, "JudgeUnavailable");
                     if (!judged.isPassed() || judged.getCriticalIssues() > 0) {
@@ -79,8 +83,11 @@ public class LiveEvalRunner {
         IEvalJudge.EvaluatedAgentVersion version = new IEvalJudge.EvaluatedAgentVersion(
                 profile == null ? null : profile.getModel(), profile == null ? null : profile.getTemperature(),
                 "judge-input-v2", rubric);
+        boolean diagram = evalCase.getDiagramType() != null && !"none".equalsIgnoreCase(evalCase.getDiagramType());
+        IDiagramImageRenderer.RenderedDiagram before = diagram && renderer != null ? renderer.render(execution.getInitialCanvasXml()) : null;
+        IDiagramImageRenderer.RenderedDiagram after = diagram && renderer != null ? renderer.render(execution.getFinalCanvasXml()) : null;
         return new IEvalJudge.JudgeInput(evalCase.getCaseId(), evalCase.getDiagramType(), String.valueOf(user),
-                initialGraph, finalGraph, execution.getResponseText(), issues, tools, version);
+                initialGraph, finalGraph, execution.getResponseText(), issues, tools, version, before, after);
     }
 
     private EpisodeResult result(EvalCaseDefinition evalCase, int repetition, EvalHarnessResult.Status status,
