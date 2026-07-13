@@ -10,8 +10,17 @@ public interface ITraceToEvalMapper {
     List<EvalCaseCandidatePO> selectCandidates(@Param("status") String status, @Param("risk") String risk,
                                                @Param("limit") int limit, @Param("offset") int offset);
     int insertCandidate(EvalCaseCandidatePO candidate); int updateCandidateStatus(@Param("candidateId") String candidateId, @Param("status") String status);
+    int mergeCandidateModelEvidence(@Param("candidateId") String candidateId,
+                                    @Param("modelVersion") String modelVersion,
+                                    @Param("modelConfidence") Double modelConfidence,
+                                    @Param("modelEvidenceJson") String modelEvidenceJson,
+                                    @Param("evidenceSummary") String evidenceSummary);
     int insertReview(EvalCaseReviewPO review); int insertLineage(EvalCaseLineagePO lineage);
     int insertDraft(EvalCaseDraftPO draft);
     EvalCaseDraftPO selectLatestDraft(@Param("candidateId") String candidateId);
     int upsertCaseHealth(EvalCaseHealthPO health);
+    int insertSemanticMinerRun(SemanticMinerRunPO run);
+    int updateSemanticMinerRun(SemanticMinerRunPO run);
+    SemanticMinerRunPO selectSemanticMinerRun(@Param("runId") String runId);
+    List<SemanticMinerRunPO> selectSemanticMinerRuns(@Param("limit") int limit);
 }

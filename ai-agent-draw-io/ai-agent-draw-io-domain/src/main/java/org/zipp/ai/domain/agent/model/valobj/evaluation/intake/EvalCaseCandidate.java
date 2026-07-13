@@ -22,4 +22,10 @@ public class EvalCaseCandidate {
     private String policyVersion;
     private EvalCandidateStatus status;
     private String createdBy;
+    /** MANUAL, RULE_DETECTED, or MODEL_DETECTED. */
+    private String detectionSource;
+    private String modelVersion;
+    private Double modelConfidence;
+    @Builder.Default
+    private java.util.List<String> modelEvidence = java.util.List.of();
 }

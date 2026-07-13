@@ -15,5 +15,9 @@ test('candidate queue exposes deterministic evidence, filters, trace links, and 
   assert.match(page, /REJECTED/);
   assert.match(page, /adminPrepareEvalDraft/);
   assert.match(page, /human review required/);
+  assert.match(page, /adminStartSemanticMinerRun/);
+  assert.match(page, /MODEL_DETECTED/);
+  assert.match(page, /modelEvidence/);
+  assert.match(page, /cannot approve, publish, or block a release/i);
   assert.doesNotMatch(page, /adminRunCaptures|Approve draft|Publish draft/i);
 });

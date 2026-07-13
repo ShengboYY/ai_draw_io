@@ -76,6 +76,18 @@ zipp:
     candidate-selector-enabled: ${ZIPP_EVAL_CANDIDATE_SELECTOR_ENABLED:false}
     candidate-selector-delay-ms: ${ZIPP_EVAL_CANDIDATE_SELECTOR_DELAY_MS:300000}
     draft-agent-id: ${ZIPP_EVAL_DRAFT_AGENT_ID:300013}
+    # Semantic discovery stays fail-closed until its exact model/prompt/schema version is calibrated.
+    semantic-miner-enabled: ${ZIPP_EVAL_SEMANTIC_MINER_ENABLED:false}
+    semantic-miner-calibration-approved: ${ZIPP_EVAL_SEMANTIC_MINER_CALIBRATION_APPROVED:false}
+    semantic-miner-agent-id: ${ZIPP_EVAL_SEMANTIC_MINER_AGENT_ID:300015}
+    semantic-miner-model-version: ${ZIPP_EVAL_SEMANTIC_MINER_MODEL_VERSION:unconfigured}
+    semantic-miner-prompt-version: ${ZIPP_EVAL_SEMANTIC_MINER_PROMPT_VERSION:semantic-miner-prompt-v1}
+    semantic-miner-schema-version: ${ZIPP_EVAL_SEMANTIC_MINER_SCHEMA_VERSION:semantic-miner-schema-v1}
+    semantic-miner-calibrated-version: ${ZIPP_EVAL_SEMANTIC_MINER_CALIBRATED_VERSION:unconfigured}
+    semantic-miner-max-samples: ${ZIPP_EVAL_SEMANTIC_MINER_MAX_SAMPLES:50}
+    semantic-miner-estimated-cost-per-analysis-usd: ${ZIPP_EVAL_SEMANTIC_MINER_COST_PER_ANALYSIS_USD:0}
+    semantic-miner-timeout-ms: ${ZIPP_EVAL_SEMANTIC_MINER_TIMEOUT_MS:30000}
+    semantic-miner-call-threads: ${ZIPP_EVAL_SEMANTIC_MINER_CALL_THREADS:2}
     live-agent-id: ${ZIPP_EVAL_LIVE_AGENT_ID:300000}
     # Release-only dataset must be mounted outside the product repository.
     sequestered-root: ${ZIPP_EVAL_SEQUESTERED_ROOT:}

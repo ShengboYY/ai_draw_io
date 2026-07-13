@@ -530,3 +530,54 @@ mvn clean test
 ```
 
 CP6 不伪造运营 readiness：默认配置会让真实 Release Run 得到 UNAVAILABLE/NO_DECISION。扩充 Dataset、校准 Judge、挂载外置封存集和建立真实 baseline 在 CP7 完成。
+
+## Control Plane CP7：真实运营数据准备
+
+**状态：等待真实数据与外部运营输入，未伪造完成**
+
+- 当前仓库只有 12 个 core-v1 Case，尚未达到 250–350 的发布级覆盖规模。
+- Text Judge 和 Semantic Miner 均缺少 50–80 条双人/人工标注校准集及批准记录。
+- 外置 Sequestered Dataset、真实 provider 凭据、首个 Mode C baseline、实际 token 单价和 CI/nightly 调度尚未提供。
+- CP6/CP8 因此继续默认 fail closed；缺少这些证据时分别返回 `NO_DECISION` 或 `UNAVAILABLE`，不会用 synthetic 标签冒充运营 readiness。
+
+## Control Plane CP8：LLM Semantic Anomaly Miner
+
+**状态：平台代码完成；真实校准数据和批准仍属于运营前置**
+
+| 实施计划要求 | 实现证据 | 结果 |
+| --- | --- | --- |
+| 独立模型 port | `ISemanticAnomalyMiner` 与 `ChatSemanticAnomalyMiner` 独立于 Draft Agent | 完成 |
+| 脱敏 Trace Projection | `SemanticTraceProjector` 去除 run/user/request/diagram/span ID，不传 trace metadata JSON；复用 fail-closed sanitizer | 完成 |
+| Strict schema/version | 固定六字段 JSON、枚举/类型/production ID 校验；version 同时 pin model/prompt/schema | 完成 |
+| 定向/随机抽样 | `TARGETED`、`RANDOM`、`MIXED`；只扫描终态 run，单次样本数受配置上限约束 | 完成 |
+| 异步与故障隔离 | Admin start 只进入 bounded Eval job；单样本 provider/schema/privacy 错误不终止批次或生产 Agent | 完成 |
+| 硬超时与资源隔离 | `SemanticMinerCallExecutor` 使用独立有界线程池、Future deadline 和 cancel | 完成 |
+| Candidate provenance/dedupe | Candidate 记录 `MODEL_DETECTED`、model version/confidence/evidence；沿 `(source_run_id, failure_family)` 合并 | 完成 |
+| 成本和运行可观测性 | `eval_semantic_miner_run` 持久化 sampled/analyzed/candidate/error/cost/status/readiness | 完成 |
+| 低置信保护 | 低于 0.5 不入队；0.5–0.8 即便模型建议 high/critical 也降为 medium | 完成 |
+| Admin 操作面 | Candidate 页面可启动 Targeted/Random/Mixed 扫描、查看作业状态和 model evidence | 完成 |
+| 权限/审计/工作流边界 | 启动和列表要求 Admin、复用 `admin_audit_log`；Miner 无 Approve/Publish/Gate 接口 | 完成 |
+
+关键部署配置（均默认 fail closed）：
+
+```text
+zipp.evaluation.semantic-miner-enabled=false
+zipp.evaluation.semantic-miner-calibration-approved=false
+zipp.evaluation.semantic-miner-model-version=unconfigured
+zipp.evaluation.semantic-miner-calibrated-version=unconfigured
+zipp.evaluation.semantic-miner-max-samples=50
+zipp.evaluation.semantic-miner-timeout-ms=30000
+zipp.evaluation.semantic-miner-call-threads=2
+zipp.evaluation.semantic-miner-estimated-cost-per-analysis-usd=0
+```
+
+验证命令：
+
+```text
+mvn -pl ai-agent-draw-io-app -am -Dtest=SemanticAnomalyDiscoveryServiceTest,ChatSemanticAnomalyMinerTest,SemanticMinerCallExecutorTest,SemanticMinerRepositoryTest,SemanticMinerAdminControllerTest -Dsurefire.failIfNoSpecifiedTests=false test
+node --test tests/admin-eval-candidates-page.test.mjs
+npm run lint
+npm run build
+```
+
+验收中的 `SUCCESS + 无法加载`、输入/输出 identifier 泄漏、模型超时隔离、持久化 round-trip 和 Admin fail-closed 均已有自动化测试。尚未完成的是用真实 50–80 条标注 Trace 计算 precision/recall/Macro-F1、人工接受率和单有效 Candidate 成本；在该校准版本获批前，生产配置无法启动 Miner。

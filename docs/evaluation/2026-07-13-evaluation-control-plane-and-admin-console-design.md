@@ -579,7 +579,7 @@ Gate override 必须要求 Release Owner、理由和审计，且不能把缺失�
 | EvalTrace、XML/Graph/Preservation/Visual Grader、多轮 Mode B | 已实现 | performance grader 和更丰富 visual/preservation assertions |
 | 确定性 Candidate Queue | 已实现 | 结构化 Analyzer issue、latency selector 和获批用户行为信号 |
 | Debug Trace + sanitizer + LLM Draft Agent | 已实现 | Draft suggestion 接入完整 Case Studio working copy |
-| LLM 直接语义异常发现 | 未实现 | Semantic Anomaly Miner、抽样策略、校准和成本监控 |
+| LLM 直接语义异常发现 | 平台代码已实现、默认关闭 | 提供 50–80 条人工校准 Trace、批准固定 model/prompt/schema version 并接入真实成本单价 |
 | VLM 直接视觉异常发现 | 未实现 | render capture、multimodal provider、隐私策略和校准 |
 | Mode C runner、统计和成本模型 | 平台代码已实现 | 真实凭据、baseline、多轮受控运行和运营调度 |
 | Text Judge provider | 已实现但未批准运行 | 60–80 个双人标注校准 Case、固定模型版本 |

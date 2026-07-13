@@ -6,6 +6,7 @@ import org.zipp.ai.domain.agent.model.valobj.evaluation.intake.EvalCaseReview;
 import org.zipp.ai.domain.agent.model.valobj.evaluation.intake.EvalCandidateStatus;
 import org.zipp.ai.domain.agent.model.valobj.evaluation.intake.EvalCaseDraft;
 import org.zipp.ai.domain.agent.model.valobj.evaluation.intake.EvalCaseHealthRecord;
+import org.zipp.ai.domain.agent.model.valobj.evaluation.intake.SemanticMinerRun;
 
 import java.util.Optional;
 import java.util.List;
@@ -18,10 +19,16 @@ public interface ITraceToEvalStore {
         return List.of();
     }
     void insertCandidate(EvalCaseCandidate candidate);
+    default void mergeCandidateModelEvidence(String candidateId, String modelVersion, Double confidence,
+                                             List<String> evidence, String evidenceSummary) { }
     void updateCandidateStatus(String candidateId, EvalCandidateStatus status);
     void insertReview(EvalCaseReview review);
     default Optional<EvalCaseDraft> findLatestDraft(String candidateId) { return Optional.empty(); }
     default void insertDraft(EvalCaseDraft draft) { }
     default void upsertCaseHealth(EvalCaseHealthRecord health) { }
+    default void insertSemanticMinerRun(SemanticMinerRun run) { }
+    default void updateSemanticMinerRun(SemanticMinerRun run) { }
+    default Optional<SemanticMinerRun> findSemanticMinerRun(String runId) { return Optional.empty(); }
+    default List<SemanticMinerRun> listSemanticMinerRuns(int limit) { return List.of(); }
     void insertLineage(EvalCaseLineage lineage);
 }

@@ -53,7 +53,7 @@ public class TraceToEvalIntakeService {
                 .evidenceSummary(failed == null ? "Manual review of run status=" + StringUtils.defaultIfBlank(run.getStatus(), "UNKNOWN")
                         : "Manual review of failed phase=" + failed.getPhase())
                 .risk("high").discoveredAt(clock.instant()).policyVersion("trace-intake-p0")
-                .status(EvalCandidateStatus.DETECTED).createdBy(actor).build();
+                .status(EvalCandidateStatus.DETECTED).createdBy(actor).detectionSource("MANUAL").build();
         intakeStore.insertCandidate(candidate);
         return candidate;
     }

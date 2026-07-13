@@ -36,6 +36,7 @@ import {
     AdminDebugTraceControlDTO,
     AdminDebugTraceControlRequestDTO,
     EvalCaseCandidateDTO,
+    SemanticMinerRunDTO,
     EvalDraftPreparationDTO,
     EvalCaseWorkingCopyDTO,
     EvalCaseValidationResultDTO,
@@ -346,6 +347,27 @@ export const agentApi = {
             credentials: 'include',
         });
         return handleResponse<EvalCaseCandidateDTO[]>(response);
+    },
+
+    adminStartSemanticMinerRun: async (payload: {
+        samplingPolicy: 'TARGETED' | 'RANDOM' | 'MIXED';
+        limit: number;
+        purposeConfirmed: boolean;
+    }): Promise<Response<SemanticMinerRunDTO>> => {
+        const response = await fetch(`${API_CONFIG.BASE_URL}/admin/semantic-miner-runs`, {
+            method: 'POST',
+            headers: await csrfHeaders({ 'Content-Type': 'application/json' }),
+            body: JSON.stringify(payload),
+            credentials: 'include',
+        });
+        return handleResponse<SemanticMinerRunDTO>(response);
+    },
+
+    adminListSemanticMinerRuns: async (limit = 10): Promise<Response<SemanticMinerRunDTO[]>> => {
+        const response = await fetch(`${API_CONFIG.BASE_URL}/admin/semantic-miner-runs?limit=${limit}`, {
+            method: 'GET', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+        });
+        return handleResponse<SemanticMinerRunDTO[]>(response);
     },
 
     adminTransitionEvalCandidate: async (

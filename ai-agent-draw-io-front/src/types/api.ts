@@ -638,6 +638,29 @@ export interface EvalCaseCandidateDTO {
   policyVersion: string;
   status: string;
   createdBy: string;
+  detectionSource?: 'MANUAL' | 'RULE_DETECTED' | 'MODEL_DETECTED';
+  modelVersion?: string;
+  modelConfidence?: number;
+  modelEvidence?: string[];
+}
+
+export interface SemanticMinerRunDTO {
+  id: string;
+  status: 'QUEUED' | 'RUNNING' | 'COMPLETED' | 'COMPLETED_WITH_ERRORS' | 'UNAVAILABLE';
+  samplingPolicy: 'TARGETED' | 'RANDOM' | 'MIXED';
+  requestedLimit: number;
+  sampledCount: number;
+  analyzedCount: number;
+  candidateCount: number;
+  errorCount: number;
+  estimatedCostUsd: number;
+  modelVersion: string;
+  sanitizerVersion: string;
+  availabilityReason?: string;
+  createdBy: string;
+  createdAt?: string;
+  startedAt?: string;
+  completedAt?: string;
 }
 
 export interface EvalCaseDraftDTO {

@@ -1,10 +1,10 @@
 'use client';
 
-import { useEffect, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { agentApi, ApiResponseError } from '@/api/agent';
-import type { EvalCaseCandidateDTO } from '@/types/api';
+import type { EvalCaseCandidateDTO, SemanticMinerRunDTO } from '@/types/api';
 import { buildLoginHref } from '@/utils/login-form';
 import { formatTime } from '../admin-shared';
 import { AdminPageHeading, AdminShell } from '../admin-shell';
@@ -22,6 +22,9 @@ export default function AdminEvalCandidatesPage() {
   const [forbidden, setForbidden] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [draftNotes, setDraftNotes] = useState<Record<string, string>>({});
+  const [minerRuns, setMinerRuns] = useState<SemanticMinerRunDTO[]>([]);
+  const [samplingPolicy, setSamplingPolicy] = useState<'TARGETED' | 'RANDOM' | 'MIXED'>('TARGETED');
+  const [mining, setMining] = useState(false);
 
   useEffect(() => {
     let alive = true;
@@ -42,6 +45,22 @@ export default function AdminEvalCandidatesPage() {
       .finally(() => alive && setLoading(false));
     return () => { alive = false; };
   }, [pathname, risk, router, status]);
+
+  const refreshMinerRuns = useCallback(() => agentApi.adminListSemanticMinerRuns(10)
+    .then(({ data }) => setMinerRuns(data || []))
+    .catch((failure) => setError(failure instanceof Error ? failure.message : 'Failed to load semantic scans')), []);
+
+  useEffect(() => { void refreshMinerRuns(); }, [refreshMinerRuns]);
+
+  const startSemanticScan = () => {
+    if (mining) return;
+    if (!window.confirm('Analyze a bounded sample of sanitized, de-identified traces? Model findings only enter human review.')) return;
+    setMining(true); setError(null);
+    agentApi.adminStartSemanticMinerRun({ samplingPolicy, limit: 20, purposeConfirmed: true })
+      .then(({ data }) => setMinerRuns((current) => [data, ...current.filter((run) => run.id !== data.id)]))
+      .catch((failure) => setError(failure instanceof Error ? failure.message : 'Semantic discovery failed'))
+      .finally(() => setMining(false));
+  };
 
   const transition = (candidate: EvalCaseCandidateDTO, target: string) => {
     const reason = window.prompt(`Reason for ${target.toLowerCase().replaceAll('_', ' ')}:`);
@@ -78,8 +97,20 @@ export default function AdminEvalCandidatesPage() {
       <AdminPageHeading
         eyebrow="Trace-to-Eval"
         title="Eval Candidates"
-        description="Metadata-only signals awaiting human triage. A candidate is evidence to review, not a confirmed Agent failure."
+        description="Rule and model signals awaiting human triage. Model scans receive only sanitized, de-identified projections; a Candidate is not a confirmed Agent failure."
       />
+
+      <section className="mb-5 rounded-lg border border-stone-200 bg-white p-4 shadow-sm">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div><div className="text-sm font-semibold text-zinc-800">Semantic anomaly discovery</div><p className="mt-1 text-xs text-zinc-500">Targeted or random asynchronous sampling. It cannot approve, publish, or block a release.</p></div>
+          <div className="flex items-center gap-2">
+            <select aria-label="Semantic sampling policy" value={samplingPolicy} onChange={(event) => setSamplingPolicy(event.target.value as typeof samplingPolicy)} className="rounded-md border border-stone-200 bg-white px-2 py-1.5 text-xs text-zinc-700"><option value="TARGETED">Targeted</option><option value="RANDOM">Random</option><option value="MIXED">Mixed</option></select>
+            <Action onClick={startSemanticScan}>{mining ? 'Starting…' : 'Scan 20 traces'}</Action>
+            <button type="button" onClick={() => void refreshMinerRuns()} className="text-xs text-zinc-500 hover:underline">Refresh</button>
+          </div>
+        </div>
+        {minerRuns.length > 0 && <div className="mt-3 grid gap-2 sm:grid-cols-2">{minerRuns.slice(0, 4).map((run) => <div key={run.id} className="rounded-md bg-stone-50 px-3 py-2 text-xs text-zinc-600"><span className="font-mono">{run.id}</span> · <strong>{run.status}</strong> · {run.candidateCount} candidates / {run.analyzedCount} analyzed · ${run.estimatedCostUsd.toFixed(4)}{run.availabilityReason && <div className="mt-1 text-amber-700">{run.availabilityReason}</div>}</div>)}</div>}
+      </section>
 
       <div className="mb-5 flex flex-wrap gap-3 border-b border-stone-200 pb-4">
         <Filter label="Status" value={status} options={STATUS_FILTERS} onChange={(value) => {
@@ -103,9 +134,11 @@ export default function AdminEvalCandidatesPage() {
                   <Pill value={candidate.status} />
                   <Pill value={candidate.risk} />
                   <Pill value={candidate.failureFamily} />
+                  <Pill value={candidate.detectionSource || 'RULE_DETECTED'} />
                 </div>
                 <div className="mt-3 text-sm font-medium text-zinc-800">{candidate.ruleId}</div>
                 <p className="mt-1 text-sm text-zinc-600">{candidate.evidenceSummary}</p>
+                {candidate.detectionSource === 'MODEL_DETECTED' && <div className="mt-2 rounded-md bg-violet-50 px-3 py-2 text-xs text-violet-800"><div className="font-medium">Model evidence · confidence {candidate.modelConfidence?.toFixed(2) || 'unknown'}</div><ul className="mt-1 list-disc pl-4">{candidate.modelEvidence?.map((evidence) => <li key={evidence}>{evidence}</li>)}</ul><div className="mt-1 font-mono text-[10px] text-violet-500">{candidate.modelVersion}</div></div>}
                 {draftNotes[candidate.id] && <p className="mt-2 rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-800">{draftNotes[candidate.id]}</p>}
                 <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 font-mono text-[11px] text-zinc-400">
                   <Link className="text-zinc-600 hover:underline" href={`/admin/runs/${encodeURIComponent(candidate.sourceRunId)}`}>Open source trace</Link>

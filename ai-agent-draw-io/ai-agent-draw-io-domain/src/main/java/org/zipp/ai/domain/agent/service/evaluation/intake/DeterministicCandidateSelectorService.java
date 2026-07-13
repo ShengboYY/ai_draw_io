@@ -84,6 +84,7 @@ public class DeterministicCandidateSelectorService {
                     .policyVersion(POLICY_VERSION)
                     .status(EvalCandidateStatus.DETECTED)
                     .createdBy("deterministic-selector")
+                    .detectionSource("RULE_DETECTED")
                     .build();
             intakeStore.insertCandidate(candidate);
             result.add(candidate);
