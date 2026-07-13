@@ -41,12 +41,12 @@ public class AdminAuditLogService {
         auditLogStore.insert(AdminAuditLog.builder()
                 .id("aal_" + UUID.randomUUID())
                 .actorUserId(actorUserId)
-                .action(action)
-                .targetType(blankToNull(targetType))
-                .targetId(blankToNull(targetId))
-                .outcome(StringUtils.defaultIfBlank(outcome, "SUCCESS"))
-                .ipAddress(blankToNull(ipAddress))
-                .userAgent(blankToNull(userAgent))
+                .action(StringUtils.left(action, 64))
+                .targetType(StringUtils.left(blankToNull(targetType), 32))
+                .targetId(StringUtils.left(blankToNull(targetId), 128))
+                .outcome(StringUtils.left(StringUtils.defaultIfBlank(outcome, "SUCCESS"), 24))
+                .ipAddress(StringUtils.left(blankToNull(ipAddress), 64))
+                .userAgent(StringUtils.left(blankToNull(userAgent), 256))
                 .createdAt(clock.instant())
                 .build());
     }

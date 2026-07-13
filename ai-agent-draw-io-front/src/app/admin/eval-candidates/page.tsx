@@ -68,7 +68,8 @@ export default function AdminEvalCandidatesPage() {
     if (!visualRunId.trim() || visualMining) return;
     if (!window.confirm('Render this production run for one visual analysis? Pixels are used in memory only and the access is audited.')) return;
     setVisualMining(true); setError(null);
-    agentApi.adminAnalyzeVisualRun(visualRunId.trim())
+    // Keep purpose confirmation explicit at the API boundary; the server also rejects false.
+    agentApi.adminAnalyzeVisualRun(visualRunId.trim(), true)
       .then(({ data }) => { window.alert(data.status === 'CANDIDATE_CREATED' ? `Visual Candidate created: ${data.candidateId}` : `${data.status}${data.reason ? ` · ${data.reason}` : ''}`); window.location.reload(); })
       .catch((failure) => setError(failure instanceof Error ? failure.message : 'Visual discovery failed'))
       .finally(() => setVisualMining(false));
@@ -87,7 +88,8 @@ export default function AdminEvalCandidatesPage() {
   const prepareDraft = (candidate: EvalCaseCandidateDTO) => {
     if (!window.confirm('Use this run\'s short-lived debug capture to create a sanitized synthetic Eval Draft?')) return;
     setError(null);
-    agentApi.adminPrepareEvalDraft(candidate.id)
+    // Debug capture access is allowed only after the administrator confirms this purpose.
+    agentApi.adminPrepareEvalDraft(candidate.id, true)
       .then(({ data }) => {
         setCandidates((current) => current.map((item) => item.id === candidate.id ? { ...item, status: data.status } : item));
         setDraftNotes((current) => ({

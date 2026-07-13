@@ -37,7 +37,7 @@
 
   <update id="update">
     update eval_case_working_copy
-    set status=#{workingCopy.status}, definition_json=#{workingCopy.definitionJson},
+    set candidate_id=#{workingCopy.candidateId}, status=#{workingCopy.status}, definition_json=#{workingCopy.definitionJson},
         revision=#{workingCopy.revision}, updated_at=#{workingCopy.updatedAt}
     where id=#{workingCopy.id} and revision=#{expectedRevision}
   </update>

@@ -373,10 +373,13 @@ export const agentApi = {
         return handleResponse<SemanticMinerRunDTO[]>(response);
     },
 
-    adminAnalyzeVisualRun: async (sourceRunId: string): Promise<Response<VisualMinerResultDTO>> => {
+    adminAnalyzeVisualRun: async (
+        sourceRunId: string,
+        purposeConfirmed: boolean,
+    ): Promise<Response<VisualMinerResultDTO>> => {
         const response = await fetch(`${API_CONFIG.BASE_URL}/admin/visual-miner/analyze-run`, {
             method: 'POST', headers: await csrfHeaders({ 'Content-Type': 'application/json' }),
-            body: JSON.stringify({ sourceRunId, purposeConfirmed: true }), credentials: 'include',
+            body: JSON.stringify({ sourceRunId, purposeConfirmed }), credentials: 'include',
         });
         return handleResponse<VisualMinerResultDTO>(response);
     },
@@ -394,11 +397,14 @@ export const agentApi = {
         return handleResponse<EvalCaseCandidateDTO>(response);
     },
 
-    adminPrepareEvalDraft: async (candidateId: string): Promise<Response<EvalDraftPreparationDTO>> => {
+    adminPrepareEvalDraft: async (
+        candidateId: string,
+        purposeConfirmed: boolean,
+    ): Promise<Response<EvalDraftPreparationDTO>> => {
         const response = await fetch(`${API_CONFIG.BASE_URL}/admin/eval-candidates/${encodeURIComponent(candidateId)}/draft`, {
             method: 'POST',
             headers: await csrfHeaders({ 'Content-Type': 'application/json' }),
-            body: JSON.stringify({ purposeConfirmed: true }),
+            body: JSON.stringify({ purposeConfirmed }),
             credentials: 'include',
         });
         return handleResponse<EvalDraftPreparationDTO>(response);

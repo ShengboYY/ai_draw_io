@@ -37,9 +37,9 @@ public class EvalRunQueryService {
     public EvalRunSummaryView summary(String runId) { return summary(requireRun(runId)); }
 
     public List<EvalEpisodeView> episodes(String runId, String status, String route, String risk, String language,
-                                          String agent) {
+                                          String agent, EvalAdminRole role) {
         EvalRun run = requireRun(runId);
-        Map<String, EvalCaseDefinition> definitions = definitions(run);
+        Map<String, EvalCaseDefinition> definitions = definitions(run, role);
         return store.listEpisodes(runId).stream().map(episode -> view(episode,
                         definitions.get(key(episode.getCaseId(), episode.getCaseVersion()))))
                 .filter(value -> blank(status) || value.getStatus().name().equalsIgnoreCase(status))
@@ -49,20 +49,20 @@ public class EvalRunQueryService {
                 .filter(value -> blank(agent) || Objects.equals(value.getAgent(), agent)).toList();
     }
 
-    public EvalEpisodeDetailView detail(String runId, String episodeId) {
+    public EvalEpisodeDetailView detail(String runId, String episodeId, EvalAdminRole role) {
         EvalRun run = requireRun(runId);
         EvalEpisode episode = requireEpisode(runId, episodeId);
-        EvalCaseDefinition definition = definitions(run).get(key(episode.getCaseId(), episode.getCaseVersion()));
+        EvalCaseDefinition definition = definitions(run, role).get(key(episode.getCaseId(), episode.getCaseVersion()));
         if (definition == null) throw new IllegalStateException("Episode Case is missing from immutable Dataset Version");
         return EvalEpisodeDetailView.builder().episode(view(episode, definition)).input(definition.getInput())
                 .expected(definition.getExpected()).build();
     }
 
-    public EvalEpisodeArtifactView artifact(String runId, String episodeId) {
+    public EvalEpisodeArtifactView artifact(String runId, String episodeId, EvalAdminRole role) {
         EvalRun run = requireRun(runId);
         EvalEpisode episode = requireEpisode(runId, episodeId);
         // Loading definitions enforces the sequestered Dataset boundary before any artifact read.
-        Map<String, EvalCaseDefinition> definitions = definitions(run);
+        Map<String, EvalCaseDefinition> definitions = definitions(run, role);
         EvalCaseDefinition definition = definitions.get(key(episode.getCaseId(), episode.getCaseVersion()));
         if (episode.getTraceRef() == null) throw new IllegalStateException("Episode has no execution artifact");
         byte[] bytes = artifacts.read(episode.getTraceRef())
@@ -139,9 +139,9 @@ public class EvalRunQueryService {
         return List.of("added nodes: " + added, "removed nodes: " + removed);
     }
 
-    private Map<String, EvalCaseDefinition> definitions(EvalRun run) {
+    private Map<String, EvalCaseDefinition> definitions(EvalRun run, EvalAdminRole role) {
         Map<String, EvalCaseDefinition> values = new LinkedHashMap<>();
-        for (EvalCaseDefinition definition : cases.loadPublished(run.getDatasetId(), run.getDatasetVersion(), EvalAdminRole.ADMIN)) {
+        for (EvalCaseDefinition definition : cases.loadPublished(run.getDatasetId(), run.getDatasetVersion(), role)) {
             values.put(key(definition.getCaseId(), definition.getCaseVersion()), definition);
         }
         return values;

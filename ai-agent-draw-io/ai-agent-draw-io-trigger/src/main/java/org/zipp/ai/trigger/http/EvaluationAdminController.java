@@ -64,7 +64,7 @@ public class EvaluationAdminController {
         if (admin.isEmpty()) return forbidden();
         try {
             EvalCaseValidationResult result = validationService.validate(workingCopyId,
-                    admin.get().getId(), EvalAdminRole.ADMIN);
+                    admin.get().getId(), role(admin.get()));
             audit(admin.get(), "VALIDATE_EVAL_CASE_WORKING_COPY", workingCopyId, "SUCCESS", request);
             return success(result);
         } catch (IllegalArgumentException | IllegalStateException | SecurityException e) {
@@ -83,7 +83,7 @@ public class EvaluationAdminController {
         if (admin.isEmpty()) return forbidden();
         try {
             EvalCaseDryRunResult result = dryRunService.run(workingCopyId,
-                    admin.get().getId(), EvalAdminRole.ADMIN);
+                    admin.get().getId(), role(admin.get()));
             audit(admin.get(), "DRY_RUN_EVAL_CASE_WORKING_COPY", workingCopyId, "SUCCESS", request);
             return success(result);
         } catch (IllegalArgumentException | IllegalStateException | SecurityException e) {
@@ -102,7 +102,7 @@ public class EvaluationAdminController {
         if (admin.isEmpty()) return forbidden();
         try {
             EvalCaseWorkingCopy result = reviewService.submit(workingCopyId,
-                    admin.get().getId(), EvalAdminRole.ADMIN);
+                    admin.get().getId(), role(admin.get()));
             audit(admin.get(), "SUBMIT_EVAL_CASE_REVIEW", workingCopyId, "SUCCESS", request);
             return success(result);
         } catch (IllegalArgumentException | IllegalStateException | SecurityException e) {
@@ -135,7 +135,7 @@ public class EvaluationAdminController {
         String action = decision + "_EVAL_CASE_WORKING_COPY";
         try {
             EvalCaseWorkingCopy result = reviewService.decide(workingCopyId, decision,
-                    body == null ? null : body.getReason(), admin.get().getId(), EvalAdminRole.ADMIN);
+                    body == null ? null : body.getReason(), admin.get().getId(), role(admin.get()));
             audit(admin.get(), action, workingCopyId, "SUCCESS", request);
             return success(result);
         } catch (IllegalArgumentException | IllegalStateException | SecurityException e) {
@@ -154,10 +154,10 @@ public class EvaluationAdminController {
         try {
             EvalCaseSourceType sourceType = parseSourceType(body == null ? null : body.getSourceType());
             EvalCaseWorkingCopy created = switch (sourceType) {
-                case MANUAL -> service.createManual(body.getDefinition(), admin.get().getId(), EvalAdminRole.ADMIN);
-                case IMPORTED -> service.createImportedYaml(body.getYaml(), admin.get().getId(), EvalAdminRole.ADMIN);
+                case MANUAL -> service.createManual(body.getDefinition(), admin.get().getId(), role(admin.get()));
+                case IMPORTED -> service.createImportedYaml(body.getYaml(), admin.get().getId(), role(admin.get()));
                 case TRACE_DRAFT -> service.createFromTraceDraft(body.getCandidateId(), body.getCaseId(),
-                        body.getCaseVersion(), admin.get().getId(), EvalAdminRole.ADMIN);
+                        body.getCaseVersion(), admin.get().getId(), role(admin.get()));
                 default -> throw new IllegalArgumentException("sourceType is not valid for create");
             };
             audit(admin.get(), "CREATE_EVAL_CASE_WORKING_COPY", created.getId(), "SUCCESS", request);
@@ -181,7 +181,7 @@ public class EvaluationAdminController {
         if (admin.isEmpty()) return forbidden();
         try {
             List<EvalCaseWorkingCopy> result = service.list(status, owner, limit, offset,
-                    admin.get().getId(), EvalAdminRole.ADMIN);
+                    admin.get().getId(), role(admin.get()));
             audit(admin.get(), "LIST_EVAL_CASE_WORKING_COPIES", null, "SUCCESS", request);
             return success(result);
         } catch (IllegalArgumentException e) {
@@ -198,7 +198,7 @@ public class EvaluationAdminController {
         Optional<UserAccount> admin = authorizationService.currentAdmin(request);
         if (admin.isEmpty()) return forbidden();
         try {
-            EvalCaseWorkingCopy result = service.get(workingCopyId, admin.get().getId(), EvalAdminRole.ADMIN);
+            EvalCaseWorkingCopy result = service.get(workingCopyId, admin.get().getId(), role(admin.get()));
             audit(admin.get(), "VIEW_EVAL_CASE_WORKING_COPY", workingCopyId, "SUCCESS", request);
             return success(result);
         } catch (IllegalArgumentException e) {
@@ -221,7 +221,7 @@ public class EvaluationAdminController {
                 throw new IllegalArgumentException("expectedRevision is required");
             }
             EvalCaseWorkingCopy result = service.update(workingCopyId, body.getExpectedRevision(),
-                    body.getDefinition(), admin.get().getId(), EvalAdminRole.ADMIN);
+                    body.getDefinition(), admin.get().getId(), role(admin.get()));
             audit(admin.get(), "UPDATE_EVAL_CASE_WORKING_COPY", workingCopyId, "SUCCESS", request);
             return success(result);
         } catch (SecurityException e) {
@@ -251,7 +251,7 @@ public class EvaluationAdminController {
         try {
             EvalCaseWorkingCopy clone = service.cloneWorkingCopy(workingCopyId,
                     body == null ? null : body.getCaseId(), body == null ? null : body.getCaseVersion(),
-                    admin.get().getId(), EvalAdminRole.ADMIN);
+                    admin.get().getId(), role(admin.get()));
             audit(admin.get(), "CLONE_EVAL_CASE_WORKING_COPY", clone.getId(), "SUCCESS", request);
             return success(clone);
         } catch (IllegalArgumentException | IllegalStateException | SecurityException e) {
@@ -270,6 +270,10 @@ public class EvaluationAdminController {
         } catch (IllegalArgumentException e) {
             throw new IllegalArgumentException("unsupported sourceType");
         }
+    }
+
+    private EvalAdminRole role(UserAccount admin) {
+        return authorizationService.evaluationRole(admin);
     }
 
     private EvalControlPlaneErrorCode codeFor(RuntimeException error) {

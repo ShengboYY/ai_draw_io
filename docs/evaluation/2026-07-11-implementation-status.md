@@ -648,10 +648,12 @@ mvn clean test
 | 审计与告警 | 复用 `admin_audit_log`；非 CONTINUE 和 flaky/broken baseline 发结构化安全日志 | 平台完成；外部路由待接 |
 | Runbook | `2026-07-13-evaluation-operations-runbook.md` 固定权限、payload、处置、隐私与部署检查 | 完成 |
 
+最终装配审查同时确认：多构造器 Control Plane service 具有唯一 Spring 注入入口；HTTP adapter 从 `ADMIN_EVAL_EDITOR_EMAILS`、`ADMIN_EVAL_REVIEWER_EMAILS`、`ADMIN_RELEASE_OWNER_EMAILS` 解析实际 Evaluation role，且 sequestered Episode 内容只向 Release Owner 传递。
+
 刻意未实现的外部边界：
 
 - 未获产品隐私/留存/删除授权前，不采集 Undo、低评分或立即重试事件。
-- Published Case 不保存可回链 production run 的 Candidate backlink；UI 只展示脱敏后的工作流和 Case/Run 结果。
+- Published Case 及其 PUBLISHED working copy 都会清除可回链 production run 的 Candidate backlink；UI 只展示脱敏后的工作流和 Case/Run 结果。
 - 代码不拥有部署权限；真实 canary rollout、rollback 和 pager/webhook 在部署仓库接线。
 
 验证命令：

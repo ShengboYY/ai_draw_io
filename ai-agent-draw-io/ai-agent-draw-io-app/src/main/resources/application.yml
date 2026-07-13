@@ -33,6 +33,10 @@ account:
 admin:
   emails: ${ADMIN_EMAILS:}
   allowed-origins: ${ADMIN_ALLOWED_ORIGINS:}
+  # Evaluation role lists are subsets of ADMIN_EMAILS; omitted users retain Eval Admin privileges.
+  eval-editor-emails: ${ADMIN_EVAL_EDITOR_EMAILS:}
+  eval-reviewer-emails: ${ADMIN_EVAL_REVIEWER_EMAILS:}
+  release-owner-emails: ${ADMIN_RELEASE_OWNER_EMAILS:}
 
 app:
   security:
@@ -75,6 +79,9 @@ zipp:
     # Run metadata-only candidate discovery on one scheduler instance; no debug payload or LLM access.
     candidate-selector-enabled: ${ZIPP_EVAL_CANDIDATE_SELECTOR_ENABLED:false}
     candidate-selector-delay-ms: ${ZIPP_EVAL_CANDIDATE_SELECTOR_DELAY_MS:300000}
+    # Enable on one scheduler instance after Eval Run persistence is configured.
+    case-health-job-enabled: ${ZIPP_EVAL_CASE_HEALTH_JOB_ENABLED:false}
+    case-health-job-cron: "${ZIPP_EVAL_CASE_HEALTH_JOB_CRON:0 30 2 * * *}"
     draft-agent-id: ${ZIPP_EVAL_DRAFT_AGENT_ID:300013}
     # Semantic discovery stays fail-closed until its exact model/prompt/schema version is calibrated.
     semantic-miner-enabled: ${ZIPP_EVAL_SEMANTIC_MINER_ENABLED:false}

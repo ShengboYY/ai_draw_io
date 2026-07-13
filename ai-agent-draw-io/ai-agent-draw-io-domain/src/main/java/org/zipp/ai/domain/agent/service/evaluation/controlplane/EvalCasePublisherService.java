@@ -1,6 +1,7 @@
 package org.zipp.ai.domain.agent.service.evaluation.controlplane;
 
 import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.zipp.ai.domain.agent.model.valobj.evaluation.EvalCaseDefinition;
 import org.zipp.ai.domain.agent.model.valobj.evaluation.controlplane.*;
 
@@ -17,6 +18,7 @@ public class EvalCasePublisherService {
     private final Clock clock;
     private final EvalContentSupport content = new EvalContentSupport();
 
+    @Autowired
     public EvalCasePublisherService(EvalCaseWorkingCopyService workingCopies, IEvalCaseVersionStore versions,
                                     IEvalCaseArtifactStore artifacts, IEvalCaseWorkingCopyReviewStore reviews) {
         this(workingCopies, versions, artifacts, reviews, Clock.systemUTC());

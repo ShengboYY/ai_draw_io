@@ -2,6 +2,7 @@ package org.zipp.ai.test.trigger.http;
 
 import org.junit.Test;
 import org.springframework.mock.web.MockHttpServletRequest;
+import org.springframework.test.util.ReflectionTestUtils;
 import org.zipp.ai.api.response.Response;
 import org.zipp.ai.domain.account.model.entity.UserAccount;
 import org.zipp.ai.domain.admin.model.entity.AdminAuditLog;
@@ -10,6 +11,7 @@ import org.zipp.ai.domain.admin.service.IAdminAuditLogStore;
 import org.zipp.ai.domain.agent.model.valobj.evaluation.EvalCaseDefinition;
 import org.zipp.ai.domain.agent.model.valobj.evaluation.controlplane.EvalCaseWorkingCopy;
 import org.zipp.ai.domain.agent.model.valobj.evaluation.controlplane.EvalCaseWorkingCopyStatus;
+import org.zipp.ai.domain.agent.model.valobj.evaluation.controlplane.EvalAdminRole;
 import org.zipp.ai.domain.agent.service.evaluation.controlplane.EvalCaseWorkingCopyService;
 import org.zipp.ai.domain.agent.service.evaluation.controlplane.IEvalCaseWorkingCopyStore;
 import org.zipp.ai.domain.agent.service.evaluation.controlplane.EvalCaseValidationService;
@@ -105,6 +107,39 @@ public class EvaluationAdminControllerTest {
         assertTrue(fixture.auditLogs.logs.stream().anyMatch(log -> "DRY_RUN_EVAL_CASE_WORKING_COPY".equals(log.getAction())));
     }
 
+    @Test
+    public void editorCannotApproveAWorkingCopy() {
+        Fixture fixture = new Fixture(true, EvalAdminRole.EDITOR);
+        EvaluationAdminController.CreateRequest create = new EvaluationAdminController.CreateRequest();
+        create.setDefinition(definition("case-editor", "1", "hello"));
+        EvalCaseWorkingCopy workingCopy = fixture.controller.create(create, request()).getData();
+        fixture.controller.submitReview(workingCopy.getId(), request());
+        EvaluationAdminController.ReviewDecisionRequest decision = new EvaluationAdminController.ReviewDecisionRequest();
+        decision.setReason("reviewed");
+
+        Response<EvalCaseWorkingCopy> response = fixture.controller.approve(workingCopy.getId(), decision, request());
+
+        assertEquals("FORBIDDEN", response.getCode());
+        assertEquals("REJECTED", fixture.auditLogs.logs.get(fixture.auditLogs.logs.size() - 1).getOutcome());
+    }
+
+    @Test
+    public void evaluationRolesResolveFromDedicatedEmailLists() {
+        AdminAuthorizationService authorization = new AdminAuthorizationService();
+        ReflectionTestUtils.setField(authorization, "evalEditorEmails", "editor@example.com");
+        ReflectionTestUtils.setField(authorization, "evalReviewerEmails", "reviewer@example.com");
+        ReflectionTestUtils.setField(authorization, "releaseOwnerEmails", "owner@example.com");
+
+        assertEquals(EvalAdminRole.EDITOR, authorization.evaluationRole(account("editor@example.com")));
+        assertEquals(EvalAdminRole.REVIEWER, authorization.evaluationRole(account("reviewer@example.com")));
+        assertEquals(EvalAdminRole.RELEASE_OWNER, authorization.evaluationRole(account("owner@example.com")));
+        assertEquals(EvalAdminRole.ADMIN, authorization.evaluationRole(account("admin@example.com")));
+    }
+
+    private static UserAccount account(String email) {
+        return UserAccount.builder().id(email).email(email).emailNormalized(email).build();
+    }
+
     private static EvalCaseDefinition definition(String id, String version, String user) {
         return EvalCaseDefinition.builder().caseId(id).caseVersion(version).datasetVersion("dev-draft")
                 .input(Map.of("user", user))
@@ -121,7 +156,9 @@ public class EvaluationAdminControllerTest {
         private final AuditStore auditLogs = new AuditStore();
         private final EvaluationAdminController controller;
 
-        private Fixture(boolean authenticated) {
+        private Fixture(boolean authenticated) { this(authenticated, EvalAdminRole.ADMIN); }
+
+        private Fixture(boolean authenticated, EvalAdminRole role) {
             WorkingCopyStore store = new WorkingCopyStore();
             EvalCaseWorkingCopyService service = new EvalCaseWorkingCopyService(store, new EmptyTraceStore(),
                     Clock.fixed(Instant.parse("2026-07-13T02:00:00Z"), ZoneOffset.UTC));
@@ -130,6 +167,7 @@ public class EvaluationAdminControllerTest {
                 @Override public Optional<UserAccount> currentAdmin(jakarta.servlet.http.HttpServletRequest request) {
                     return authenticated ? Optional.of(admin) : Optional.empty();
                 }
+                @Override public EvalAdminRole evaluationRole(UserAccount user) { return role; }
             };
             IEvalCaseEvidenceStore evidence = new IEvalCaseEvidenceStore() {
                 @Override public void insert(EvalCaseEvidence value) { }

@@ -44,7 +44,7 @@ public class EvalCaseLifecycleServiceTest {
         EvalCaseWorkingCopy underReview = reviewService.submit(workingCopy.getId(),
                 "editor-1", EvalAdminRole.EDITOR);
 
-        assertTrue(validation.isPassed());
+        assertTrue(validation.getEvidence().toString(), validation.isPassed());
         assertEquals(EvalHarnessResult.Status.PASS, dryRun.getResult().getStatus());
         assertEquals(EvalCaseWorkingCopyStatus.UNDER_REVIEW, underReview.getStatus());
         assertEquals(2, evidenceStore.values.size());
@@ -89,7 +89,8 @@ public class EvalCaseLifecycleServiceTest {
         for (String resource : List.of("answer-greeting.yaml", "create-customer-er.yaml", "edit-api-gateway.yaml")) {
             EvalCaseWorkingCopy workingCopy = workingService.createImportedYaml(resourceYaml(resource),
                     "editor-1", EvalAdminRole.EDITOR);
-            assertTrue(resource, validationService.validate(workingCopy.getId(), "editor-1", EvalAdminRole.EDITOR).isPassed());
+            EvalCaseValidationResult validation = validationService.validate(workingCopy.getId(), "editor-1", EvalAdminRole.EDITOR);
+            assertTrue(resource + ": " + validation.getEvidence(), validation.isPassed());
             EvalCaseDryRunResult result = dryRunService.run(workingCopy.getId(), "editor-1", EvalAdminRole.EDITOR);
             assertEquals(resource, EvalHarnessResult.Status.PASS, result.getResult().getStatus());
             assertNotNull(resource, result.getTrace());
@@ -112,6 +113,23 @@ public class EvalCaseLifecycleServiceTest {
             EvalCaseValidationResult result = validationService.validate(workingCopy.getId(), "editor-1", EvalAdminRole.EDITOR);
             assertFalse(definition.getCaseId(), result.isPassed());
             assertFalse(definition.getCaseId(), result.getEvidence().isEmpty());
+        }
+    }
+
+    @Test
+    public void validationRejectsSensitiveCaseTextAndCanvasLabels() throws Exception {
+        EvalCaseDefinition sensitive = validDefinition();
+        sensitive.getInput().put("user", "company: Acme Corp; contact alice@example.com; token=sk-secret12345");
+        EvalCaseDefinition xmlLeak = validDefinition();
+        xmlLeak.getReplay().setInitialCanvasXml(xmlLeak.getReplay().getInitialCanvasXml()
+                .replace("id='1' parent='0'", "id='1' parent='0' value='alice@example.com'"));
+
+        for (EvalCaseDefinition definition : List.of(sensitive, xmlLeak)) {
+            EvalCaseWorkingCopy workingCopy = workingService.createManual(definition, "editor-1", EvalAdminRole.EDITOR);
+            EvalCaseValidationResult result = validationService.validate(workingCopy.getId(), "editor-1", EvalAdminRole.EDITOR);
+            assertFalse(result.isPassed());
+            assertTrue(result.getEvidence().toString(), result.getEvidence().stream()
+                    .anyMatch(value -> value.contains("privacy sanitizer rejected")));
         }
     }
 

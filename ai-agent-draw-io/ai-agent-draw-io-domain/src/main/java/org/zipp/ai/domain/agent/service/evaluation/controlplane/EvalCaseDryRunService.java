@@ -2,6 +2,7 @@ package org.zipp.ai.domain.agent.service.evaluation.controlplane;
 
 import com.alibaba.fastjson.JSON;
 import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.zipp.ai.domain.agent.model.valobj.evaluation.EvalHarnessResult;
 import org.zipp.ai.domain.agent.model.valobj.evaluation.EvalExecution;
 import org.zipp.ai.domain.agent.model.valobj.evaluation.controlplane.*;
@@ -21,6 +22,7 @@ public class EvalCaseDryRunService {
     private final EvalBatchRunner.ExecutionFactory executionFactory;
     private final Clock clock;
 
+    @Autowired
     public EvalCaseDryRunService(EvalCaseWorkingCopyService workingCopies,
                                  IEvalCaseEvidenceStore evidenceStore) {
         this(workingCopies, evidenceStore, new ModeBReplayExecutionFactory(), Clock.systemUTC());

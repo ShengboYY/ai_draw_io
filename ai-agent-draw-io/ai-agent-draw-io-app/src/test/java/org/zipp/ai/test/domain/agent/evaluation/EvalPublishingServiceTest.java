@@ -20,6 +20,8 @@ public class EvalPublishingServiceTest {
     public void approvedCasePublishIsImmutableIdempotentAndCloneable() {
         WorkingStore working = new WorkingStore();
         EvalCaseWorkingCopy approved = approvedCase("case-1", "1", "hello");
+        approved.setSourceType(EvalCaseSourceType.TRACE_DRAFT);
+        approved.setCandidateId("ecc-production-link");
         working.insert(approved);
         ArtifactStore artifacts = new ArtifactStore();
         CaseVersionStore versions = new CaseVersionStore();
@@ -38,6 +40,7 @@ public class EvalPublishingServiceTest {
         assertEquals(1, versions.values.size());
         assertEquals(1, artifacts.values.size());
         assertEquals("reviewer-1", first.getApprovedBy());
+        assertNull(working.find(approved.getId()).orElseThrow().getCandidateId());
         assertEquals(EvalCaseSourceType.PUBLISHED_CASE_CLONE, clone.getSourceType());
         assertEquals("case-1-variant", clone.getCaseId());
     }

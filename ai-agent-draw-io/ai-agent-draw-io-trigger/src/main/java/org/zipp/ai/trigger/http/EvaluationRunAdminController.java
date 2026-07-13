@@ -73,14 +73,15 @@ public class EvaluationRunAdminController {
                                                     @RequestParam(required = false) String agent,
                                                     HttpServletRequest request) {
         return execute(request, "LIST_EVAL_EPISODES", runId,
-                admin -> queryService.episodes(runId, status, route, risk, language, agent));
+                admin -> queryService.episodes(runId, status, route, risk, language, agent,
+                        authorization.evaluationRole(admin)));
     }
 
     @GetMapping("/{runId}/episodes/{episodeId}")
     public Response<EvalEpisodeDetailView> episode(@PathVariable String runId, @PathVariable String episodeId,
                                                    HttpServletRequest request) {
         return execute(request, "VIEW_EVAL_EPISODE", runId,
-                admin -> queryService.detail(runId, episodeId));
+                admin -> queryService.detail(runId, episodeId, authorization.evaluationRole(admin)));
     }
 
     @GetMapping("/{runId}/episodes/{episodeId}/artifact")
@@ -88,7 +89,7 @@ public class EvaluationRunAdminController {
                                                              @PathVariable String episodeId,
                                                              HttpServletRequest request) {
         return execute(request, "VIEW_EVAL_EPISODE_ARTIFACT", runId,
-                admin -> queryService.artifact(runId, episodeId));
+                admin -> queryService.artifact(runId, episodeId, authorization.evaluationRole(admin)));
     }
 
     @GetMapping("/{runId}/insights")

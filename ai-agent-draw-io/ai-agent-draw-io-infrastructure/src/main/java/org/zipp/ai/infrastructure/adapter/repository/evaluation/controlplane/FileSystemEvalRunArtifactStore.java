@@ -22,7 +22,9 @@ public class FileSystemEvalRunArtifactStore implements IEvalRunArtifactStore {
     @Override public String put(String runId, String episodeId, String type, byte[] content) {
         String safeRun = safe(runId, "runId"); String safeEpisode = safe(episodeId, "episodeId"); String safeType = safe(type, "artifactType");
         try {
-            Path directory = root.resolve(safeRun); Files.createDirectories(directory);
+            Path directory = root.resolve(safeRun).normalize();
+            if (!directory.startsWith(root)) throw new SecurityException("run artifact path escapes the configured root");
+            Files.createDirectories(directory);
             Path target = directory.resolve(safeEpisode + "-" + safeType + ".json");
             Path temporary = Files.createTempFile(directory, "eval-", ".tmp");
             Files.write(temporary, content);
@@ -39,7 +41,9 @@ public class FileSystemEvalRunArtifactStore implements IEvalRunArtifactStore {
         catch (Exception e) { throw new IllegalStateException("failed to read Eval Run artifact", e); }
     }
     private String safe(String value, String field) {
-        if (value == null || !value.matches("[A-Za-z0-9_.:-]{1,180}")) throw new IllegalArgumentException(field + " is invalid");
+        if (value == null || !value.matches("[A-Za-z0-9][A-Za-z0-9_.-]{0,179}")) {
+            throw new IllegalArgumentException(field + " is invalid");
+        }
         return value;
     }
 }

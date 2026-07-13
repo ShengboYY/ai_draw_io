@@ -35,7 +35,7 @@ public class EvaluationCatalogAdminController {
     @PostMapping("/eval-case-working-copies/{id}/publish")
     public Response<PublishedCaseDTO> publishCase(@PathVariable String id, HttpServletRequest request) {
         return execute(request, "PUBLISH_EVAL_CASE", "EVAL_CASE_VERSION", id,
-                admin -> published(cases.publish(id, admin.getId(), EvalAdminRole.ADMIN)));
+                admin -> published(cases.publish(id, admin.getId(), role(admin))));
     }
 
     @GetMapping("/eval-cases")
@@ -55,14 +55,14 @@ public class EvaluationCatalogAdminController {
                                                    HttpServletRequest request) {
         return execute(request, "CLONE_PUBLISHED_EVAL_CASE", "EVAL_CASE_VERSION", caseId,
                 admin -> { ClonePublishedCaseRequest value = requireBody(body); return cases.clonePublished(caseId,
-                        value.getSourceVersion(), value.getNewCaseId(), value.getNewCaseVersion(), admin.getId(), EvalAdminRole.ADMIN); });
+                        value.getSourceVersion(), value.getNewCaseId(), value.getNewCaseVersion(), admin.getId(), role(admin)); });
     }
 
     @PostMapping("/eval-cases/{caseId}/retire")
     public Response<PublishedCaseDTO> retireCase(@PathVariable String caseId, @RequestBody RetireCaseRequest body,
                                                  HttpServletRequest request) {
         return execute(request, "RETIRE_EVAL_CASE", "EVAL_CASE_VERSION", caseId,
-                admin -> published(cases.retire(caseId, requireBody(body).getCaseVersion(), admin.getId(), EvalAdminRole.ADMIN)));
+                admin -> published(cases.retire(caseId, requireBody(body).getCaseVersion(), admin.getId(), role(admin))));
     }
 
     @PostMapping("/eval-datasets")
@@ -72,7 +72,7 @@ public class EvaluationCatalogAdminController {
             if (value.getDatasetClass() == null) throw new IllegalArgumentException("datasetClass is required");
             EvalDatasetClass datasetClass = EvalDatasetClass.valueOf(value.getDatasetClass().trim().toUpperCase());
             if (datasetClass == EvalDatasetClass.SEQUESTERED) throw new SecurityException("Release Owner role is required");
-            return datasets.create(value.getName(), datasetClass, admin.getId(), EvalAdminRole.ADMIN);
+            return datasets.create(value.getName(), datasetClass, admin.getId(), role(admin));
         });
     }
 
@@ -94,7 +94,7 @@ public class EvaluationCatalogAdminController {
                                                              HttpServletRequest request) {
         return execute(request, "CREATE_EVAL_DATASET_VERSION", "EVAL_DATASET", id,
                 admin -> { DatasetVersionRequest value = requireBody(body); return datasets.createVersion(id,
-                        value.getVersion(), value.getMembers(), admin.getId(), EvalAdminRole.ADMIN); });
+                        value.getVersion(), value.getMembers(), admin.getId(), role(admin)); });
     }
 
     @PostMapping("/eval-datasets/{id}/clone")
@@ -102,7 +102,7 @@ public class EvaluationCatalogAdminController {
                                                      HttpServletRequest request) {
         return execute(request, "CLONE_EVAL_DATASET_VERSION", "EVAL_DATASET", id,
                 admin -> { CloneDatasetRequest value = requireBody(body); return datasets.cloneVersion(id,
-                        value.getSourceVersion(), value.getTargetDatasetId(), value.getTargetVersion(), admin.getId(), EvalAdminRole.ADMIN); });
+                        value.getSourceVersion(), value.getTargetDatasetId(), value.getTargetVersion(), admin.getId(), role(admin)); });
     }
 
     @PutMapping("/eval-datasets/{id}/members")
@@ -110,28 +110,28 @@ public class EvaluationCatalogAdminController {
                                                        HttpServletRequest request) {
         return execute(request, "UPDATE_EVAL_DATASET_MEMBERS", "EVAL_DATASET", id,
                 admin -> { DatasetMembersRequest value = requireBody(body); return datasets.replaceMembers(id,
-                        value.getVersion(), value.getExpectedRevision(), value.getMembers(), admin.getId(), EvalAdminRole.ADMIN); });
+                        value.getVersion(), value.getExpectedRevision(), value.getMembers(), admin.getId(), role(admin)); });
     }
 
     @PostMapping("/eval-datasets/{id}/validate")
     public Response<EvalDatasetVersion> validateDataset(@PathVariable String id, @RequestBody DatasetActionRequest body,
                                                         HttpServletRequest request) {
         return execute(request, "VALIDATE_EVAL_DATASET", "EVAL_DATASET", id,
-                admin -> datasets.validate(id, requireBody(body).getVersion(), admin.getId(), EvalAdminRole.ADMIN));
+                admin -> datasets.validate(id, requireBody(body).getVersion(), admin.getId(), role(admin)));
     }
 
     @PostMapping("/eval-datasets/{id}/publish")
     public Response<EvalDatasetVersion> publishDataset(@PathVariable String id, @RequestBody DatasetActionRequest body,
                                                        HttpServletRequest request) {
         return execute(request, "PUBLISH_EVAL_DATASET", "EVAL_DATASET", id,
-                admin -> datasets.publish(id, requireBody(body).getVersion(), admin.getId(), EvalAdminRole.ADMIN));
+                admin -> datasets.publish(id, requireBody(body).getVersion(), admin.getId(), role(admin)));
     }
 
     @GetMapping("/eval-datasets/{id}/coverage")
     public Response<EvalDatasetCoverage> datasetCoverage(@PathVariable String id, @RequestParam String version,
                                                          HttpServletRequest request) {
         return execute(request, "VIEW_EVAL_DATASET_COVERAGE", "EVAL_DATASET", id,
-                admin -> coverage.coverage(id, version, EvalAdminRole.ADMIN));
+                admin -> coverage.coverage(id, version, role(admin)));
     }
 
     private PublishedCaseDTO published(EvalCaseVersion value) {
@@ -142,6 +142,10 @@ public class EvaluationCatalogAdminController {
     private <T> T requireBody(T value) {
         if (value == null) throw new IllegalArgumentException("request body is required");
         return value;
+    }
+
+    private EvalAdminRole role(UserAccount admin) {
+        return authorization.evaluationRole(admin);
     }
 
     private <T> Response<T> execute(HttpServletRequest request, String action, String resourceType, String target,

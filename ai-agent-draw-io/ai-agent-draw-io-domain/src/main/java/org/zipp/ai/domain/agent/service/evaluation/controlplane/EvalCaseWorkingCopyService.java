@@ -3,6 +3,7 @@ package org.zipp.ai.domain.agent.service.evaluation.controlplane;
 import com.alibaba.fastjson.JSON;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.zipp.ai.domain.agent.model.valobj.evaluation.EvalCaseDefinition;
 import org.zipp.ai.domain.agent.model.valobj.evaluation.controlplane.EvalAdminRole;
 import org.zipp.ai.domain.agent.model.valobj.evaluation.controlplane.EvalCaseSourceType;
@@ -30,6 +31,7 @@ public class EvalCaseWorkingCopyService {
     private final Clock clock;
     private final EvalCaseLoader caseLoader;
 
+    @Autowired
     public EvalCaseWorkingCopyService(IEvalCaseWorkingCopyStore store, ITraceToEvalStore traceStore) {
         this(store, traceStore, Clock.systemUTC(), new EvalCaseLoader());
     }
@@ -140,7 +142,10 @@ public class EvalCaseWorkingCopyService {
         }
         EvalCaseWorkingCopy updated = EvalCaseWorkingCopy.builder()
                 .id(current.getId()).caseId(current.getCaseId()).caseVersion(current.getCaseVersion())
-                .sourceType(current.getSourceType()).candidateId(current.getCandidateId()).status(target)
+                .sourceType(current.getSourceType())
+                // Publication severs the short-lived Candidate-to-production trace backlink.
+                .candidateId(target == EvalCaseWorkingCopyStatus.PUBLISHED ? null : current.getCandidateId())
+                .status(target)
                 .ownerUserId(current.getOwnerUserId()).revision(current.getRevision() + 1)
                 .definition(copy(current.getDefinition())).createdAt(current.getCreatedAt())
                 .updatedAt(clock.instant()).build();

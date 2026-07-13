@@ -1,6 +1,7 @@
 package org.zipp.ai.domain.agent.service.evaluation.controlplane;
 
 import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.zipp.ai.domain.agent.model.valobj.evaluation.controlplane.*;
 
 import java.time.Clock;
@@ -16,6 +17,7 @@ public class EvalDatasetService {
     private final Clock clock;
     private final EvalContentSupport content = new EvalContentSupport();
 
+    @Autowired
     public EvalDatasetService(IEvalDatasetStore datasets, IEvalCaseVersionStore cases) {
         this(datasets, cases, Clock.systemUTC());
     }

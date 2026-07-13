@@ -15,6 +15,7 @@ import java.util.List;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 public class EvalCaseWorkingCopyRepositoryTest {
@@ -31,7 +32,10 @@ public class EvalCaseWorkingCopyRepositoryTest {
 
         assertEquals("case-1", restored.getDefinition().getCaseId());
         assertEquals("hello", restored.getDefinition().getInput().get("user"));
+        assertEquals("ecc-source", restored.getCandidateId());
+        value.setCandidateId(null);
         assertTrue(repository.update(value, 1L));
+        assertNull(repository.find("ecw_1").orElseThrow().getCandidateId());
         mapper.allowUpdate = false;
         assertFalse(repository.update(value, 1L));
     }
@@ -56,7 +60,8 @@ public class EvalCaseWorkingCopyRepositoryTest {
     private EvalCaseWorkingCopy workingCopy() {
         Instant now = Instant.parse("2026-07-13T02:00:00Z");
         return EvalCaseWorkingCopy.builder().id("ecw_1").caseId("case-1").caseVersion("1")
-                .sourceType(EvalCaseSourceType.MANUAL).status(EvalCaseWorkingCopyStatus.DRAFT)
+                .sourceType(EvalCaseSourceType.TRACE_DRAFT).candidateId("ecc-source")
+                .status(EvalCaseWorkingCopyStatus.DRAFT)
                 .ownerUserId("editor-1").revision(1L)
                 .definition(EvalCaseDefinition.builder().caseId("case-1").caseVersion("1")
                         .input(java.util.Map.of("user", "hello"))

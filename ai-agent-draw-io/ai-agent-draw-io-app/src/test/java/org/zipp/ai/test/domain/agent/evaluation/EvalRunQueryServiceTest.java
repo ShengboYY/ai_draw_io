@@ -38,20 +38,40 @@ public class EvalRunQueryServiceTest {
         EvalRunQueryService query = new EvalRunQueryService(store, (id, version, role) -> List.of(definition), artifacts);
 
         EvalRunSummaryView summary = query.summary("run-1");
-        EvalEpisodeView row = query.episodes("run-1", "FAIL", "create_new", "high", "en", "drawing").get(0);
-        EvalEpisodeDetailView detail = query.detail("run-1", "ep-1");
-        EvalEpisodeArtifactView artifact = query.artifact("run-1", "ep-1");
+        EvalEpisodeView row = query.episodes("run-1", "FAIL", "create_new", "high", "en", "drawing", EvalAdminRole.ADMIN).get(0);
+        EvalEpisodeDetailView detail = query.detail("run-1", "ep-1", EvalAdminRole.ADMIN);
+        EvalEpisodeArtifactView artifact = query.artifact("run-1", "ep-1", EvalAdminRole.ADMIN);
 
         assertEquals(0.5D, summary.getProgress(), 0.001D);
         assertEquals("drawing", row.getAgent());
         assertEquals("Failed graders: graph (major)", row.getBlockingReason());
-        assertTrue(query.episodes("run-1", null, null, null, null, "intent-router").isEmpty());
+        assertTrue(query.episodes("run-1", null, null, null, null, "intent-router", EvalAdminRole.ADMIN).isEmpty());
         assertEquals("draw synthetic service", detail.getInput().get("user"));
         assertNotNull(artifact.getTrace());
         assertTrue(artifact.getInitialCanvasImageDataUrl().startsWith("data:image/svg+xml;base64,"));
         assertTrue(artifact.getFinalCanvasImageDataUrl().startsWith("data:image/svg+xml;base64,"));
         assertEquals(2, artifact.getSemanticDiff().size());
-        assertThrows(SecurityException.class, () -> query.detail("run-2", "ep-1"));
+        assertThrows(SecurityException.class, () -> query.detail("run-2", "ep-1", EvalAdminRole.ADMIN));
+    }
+
+    @Test
+    public void sequesteredEpisodeContentRequiresReleaseOwnerRole() {
+        Store store = new Store();
+        store.insertRun(EvalRun.builder().id("release-1").mode(EvalRunMode.RELEASE)
+                .datasetId("sealed").datasetVersion("v1").status(EvalRunStatus.COMPLETED).build());
+        store.saveEpisode(EvalEpisode.builder().id("ep-sealed").evalRunId("release-1")
+                .caseId("sealed-case").caseVersion("1").status(EvalEpisodeStatus.PASS).build());
+        EvalCaseDefinition definition = EvalCaseDefinition.builder().caseId("sealed-case").caseVersion("1")
+                .input(Map.of("user", "synthetic sealed task")).build();
+        IEvalDatasetCaseSource source = (id, version, role) -> {
+            if (role != EvalAdminRole.RELEASE_OWNER) throw new SecurityException("Release Owner role is required");
+            return List.of(definition);
+        };
+        EvalRunQueryService query = new EvalRunQueryService(store, source, new ArtifactStore());
+
+        assertThrows(SecurityException.class, () -> query.detail("release-1", "ep-sealed", EvalAdminRole.ADMIN));
+        assertEquals("synthetic sealed task", query.detail("release-1", "ep-sealed", EvalAdminRole.RELEASE_OWNER)
+                .getInput().get("user"));
     }
 
     private static final class ArtifactStore implements IEvalRunArtifactStore {

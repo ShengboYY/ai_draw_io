@@ -4,6 +4,7 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 import org.zipp.ai.infrastructure.adapter.repository.evaluation.controlplane.FileSystemEvalCaseArtifactStore;
+import org.zipp.ai.infrastructure.adapter.repository.evaluation.controlplane.FileSystemEvalRunArtifactStore;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -32,5 +33,16 @@ public class FileSystemEvalCaseArtifactStoreTest {
     public void artifactRootCannotPointInsideTheProductCheckout() {
         assertThrows(IllegalArgumentException.class,
                 () -> new FileSystemEvalCaseArtifactStore("target/eval-artifacts"));
+    }
+
+    @Test
+    public void runArtifactsRejectPathTraversalCoordinates() throws Exception {
+        FileSystemEvalRunArtifactStore store = new FileSystemEvalRunArtifactStore(
+                temporary.newFolder("run-artifacts").getPath());
+
+        assertThrows(IllegalArgumentException.class,
+                () -> store.put("..", "episode-1", "execution", new byte[]{1}));
+        String ref = store.put("run-1", "episode-1", "execution", new byte[]{1});
+        assertArrayEquals(new byte[]{1}, store.read(ref).orElseThrow());
     }
 }

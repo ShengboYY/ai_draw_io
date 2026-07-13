@@ -9,6 +9,8 @@ This runbook covers the transition from an immutable Release Eval Run to canary 
 - `NO_DECISION` means evidence is insufficient or unreliable. It must never be interpreted as `CONTINUE`.
 - Production identifiers stop at the reviewed Candidate boundary. Published Case artifacts and Case Health records remain synthetic and non-sensitive.
 
+Evaluation identities must first be admitted through `ADMIN_EMAILS`. Optional `ADMIN_EVAL_EDITOR_EMAILS` and `ADMIN_EVAL_REVIEWER_EMAILS` narrow those users to the corresponding Evaluation role; `ADMIN_RELEASE_OWNER_EMAILS` grants Release Owner operations. Users admitted through `ADMIN_EMAILS` but omitted from the narrower lists retain Eval Admin privileges.
+
 ## 2. Deployment adapter contract
 
 The deployment platform posts aggregate metrics to:
@@ -107,7 +109,7 @@ The UI visualizes this sanitized flow but intentionally does not preserve a perm
 
 ## 7. Deployment checklist
 
-- Apply `docs/sql/migrations/2026-07-13-create-eval-canary-assessment.sql` and the Case Health composite-version migration `2026-07-13-version-eval-case-health.sql`.
+- Apply `docs/sql/migrations/2026-07-13-create-eval-canary-assessment.sql`, `2026-07-13-version-eval-case-health.sql`, and `2026-07-13-clear-published-eval-candidate-links.sql`.
 - Configure Release Owner identities and CSRF/origin policy.
 - Connect deployment telemetry to the aggregate assessment endpoint.
 - Route `eval-canary-recommendation` and `eval-case-health-alert` structured logs to operator alerting.

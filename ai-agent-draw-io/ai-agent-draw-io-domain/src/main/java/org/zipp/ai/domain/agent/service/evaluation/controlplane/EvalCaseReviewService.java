@@ -2,6 +2,7 @@ package org.zipp.ai.domain.agent.service.evaluation.controlplane;
 
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.zipp.ai.domain.agent.model.valobj.evaluation.controlplane.*;
 
 import java.time.Clock;
@@ -15,6 +16,7 @@ public class EvalCaseReviewService {
     private final IEvalCaseWorkingCopyReviewStore reviewStore;
     private final Clock clock;
 
+    @Autowired
     public EvalCaseReviewService(EvalCaseWorkingCopyService workingCopies,
                                  IEvalCaseWorkingCopyReviewStore reviewStore) {
         this(workingCopies, reviewStore, Clock.systemUTC());

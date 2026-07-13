@@ -35,15 +35,18 @@ public class EvaluationOperationsAdminControllerTest {
                 authorization, new AdminAuditLogService(auditStore));
         EvaluationOperationsAdminController.CanaryRequest request = request();
 
-        Response<EvalCanaryAssessment> rejected = controller.assess(request, new MockHttpServletRequest());
+        MockHttpServletRequest http = new MockHttpServletRequest();
+        http.addHeader("User-Agent", "x".repeat(1000));
+        Response<EvalCanaryAssessment> rejected = controller.assess(request, http);
         authorization.releaseOwner = true;
-        Response<EvalCanaryAssessment> accepted = controller.assess(request, new MockHttpServletRequest());
+        Response<EvalCanaryAssessment> accepted = controller.assess(request, http);
 
         assertNull(rejected.getData());
         assertEquals("REJECTED", auditStore.logs.get(0).getOutcome());
         assertEquals("0000", accepted.getCode());
         assertEquals(org.zipp.ai.domain.agent.service.evaluation.EvalCanaryService.Outcome.CONTINUE, accepted.getData().getOutcome());
         assertEquals("SUCCESS", auditStore.logs.get(1).getOutcome());
+        assertEquals(256, auditStore.logs.get(1).getUserAgent().length());
         assertEquals(1, canaries.values.size());
     }
 

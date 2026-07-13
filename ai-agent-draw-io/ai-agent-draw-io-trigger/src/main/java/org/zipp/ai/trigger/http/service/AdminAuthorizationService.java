@@ -9,6 +9,7 @@ import org.springframework.stereotype.Service;
 import org.zipp.ai.domain.account.model.entity.UserAccount;
 import org.zipp.ai.domain.account.model.valobj.EmailNormalizer;
 import org.zipp.ai.domain.account.service.IAccountService;
+import org.zipp.ai.domain.agent.model.valobj.evaluation.controlplane.EvalAdminRole;
 
 import javax.annotation.Resource;
 import java.util.Arrays;
@@ -31,6 +32,12 @@ public class AdminAuthorizationService {
     @Value("${admin.release-owner-emails:}")
     private String releaseOwnerEmails;
 
+    @Value("${admin.eval-editor-emails:}")
+    private String evalEditorEmails;
+
+    @Value("${admin.eval-reviewer-emails:}")
+    private String evalReviewerEmails;
+
     public Optional<UserAccount> currentAdmin(HttpServletRequest request) {
         if (!isSameOriginOrAllowed(request)) {
             return Optional.empty();
@@ -50,6 +57,15 @@ public class AdminAuthorizationService {
 
     public boolean isReleaseOwner(UserAccount user) {
         return user != null && configuredEmails(releaseOwnerEmails).contains(normalizedEmail(user));
+    }
+
+    /** Resolves the Evaluation-specific role after the shared Admin admission check has succeeded. */
+    public EvalAdminRole evaluationRole(UserAccount user) {
+        if (isReleaseOwner(user)) return EvalAdminRole.RELEASE_OWNER;
+        String email = normalizedEmail(user);
+        if (configuredEmails(evalReviewerEmails).contains(email)) return EvalAdminRole.REVIEWER;
+        if (configuredEmails(evalEditorEmails).contains(email)) return EvalAdminRole.EDITOR;
+        return EvalAdminRole.ADMIN;
     }
 
     private boolean isConfiguredAdmin(UserAccount user) {

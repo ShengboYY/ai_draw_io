@@ -20,6 +20,9 @@ test('candidate queue exposes deterministic evidence, filters, trace links, and 
   assert.match(page, /modelEvidence/);
   assert.match(page, /cannot approve, publish, or block a release/i);
   assert.match(page, /adminAnalyzeVisualRun/);
+  assert.match(page, /adminAnalyzeVisualRun\(visualRunId\.trim\(\), true\)/);
+  assert.match(page, /adminPrepareEvalDraft\(candidate\.id, true\)/);
+  assert.match(page, /window\.confirm/);
   assert.match(page, /Pixels are inline, short-lived in memory, audited/);
   assert.doesNotMatch(page, /adminRunCaptures|Approve draft|Publish draft/i);
 });
