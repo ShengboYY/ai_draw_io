@@ -73,6 +73,8 @@ public class EvalRunOrchestrator {
         store.updateRun(run);
         try {
             List<EvalCaseDefinition> definitions = cases.loadPublished(run.getDatasetId(), run.getDatasetVersion(), EvalAdminRole.ADMIN);
+            run = run.toBuilder().plannedEpisodes(definitions.size() * run.getRepetitions()).build();
+            store.updateRun(run);
             for (EvalCaseDefinition definition : definitions) {
                 for (int repetition = 0; repetition < run.getRepetitions(); repetition++) {
                     if (cancelled(runId)) return;

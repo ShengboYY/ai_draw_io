@@ -454,3 +454,32 @@ mvn clean test
 ```
 
 `COMPLETED` 仅表示所有可执行 Episode 已完成，不表示质量 PASS；Gate outcome 仍独立。CP4 不调用真实模型，Mode C/Release 接线属于 CP6。
+
+## Control Plane CP5：Eval Run 可视化
+
+**状态：完成**
+
+| 实施计划要求 | 实现证据 | 结果 |
+| --- | --- | --- |
+| Run 列表 | `/admin/eval-runs` 展示 mode、Dataset/version、执行状态、进度、PASS/FAIL/ERROR、总 latency/cost | 完成 |
+| Run → Case → Episode → Evidence | Run Detail 的 Case Matrix、Episode Drawer 和受控 artifact endpoint 提供四层下钻 | 完成 |
+| 专用 read model | `EvalRunQueryService` 输出 summary/matrix/detail/artifact projection，前端不拼 storage/domain 对象 | 完成 |
+| Case Matrix | 每个 repetition/attempt 展示 agent、route、risk、language、status 和 grader status | 完成 |
+| 筛选 | 后端和 UI 支持 FAIL/ERROR/UNAVAILABLE、agent、route、risk、language | 完成 |
+| 可解释失败 | `blockingReason` 汇总失败 grader 或基础设施错误；FAIL 与 ERROR 使用不同统计、颜色和文案 | 完成 |
+| 大对象隔离 | list/detail 不内联 XML/trace；管理员显式请求 Episode artifact 后才加载 canvas、trace 和 semantic diff | 完成 |
+| Sequestered 边界 | artifact/detail 读取仍经过 Dataset source 权限校验；普通 Admin 不能读取 sequestered Case 内容 | 完成 |
+| Baseline/Candidate | 只有 Run manifest 同时存在两个 reference 时才展示比较占位 | 完成 |
+| Gate outcome 边界 | CP5 只展示执行状态和 Episode outcome；统计 Gate outcome 在 CP6 接入，避免把 COMPLETED 误称 PASS | 完成 |
+
+验证命令：
+
+```text
+mvn -pl ai-agent-draw-io-app -am -Dtest=EvalRunQueryServiceTest,EvalRunOrchestratorTest,EvalRunRepositoryTest -Dsurefire.failIfNoSpecifiedTests=false test
+node --test tests/admin-eval-runs-page.test.mjs
+npm run lint
+npm run build
+mvn clean test
+```
+
+CP5 完成后，Mode B 管理员闭环已可用于启动、观察、筛选和解释确定性 Dataset Run；真实模型重复采样、Judge、统计和 Release Gate 属于 CP6。

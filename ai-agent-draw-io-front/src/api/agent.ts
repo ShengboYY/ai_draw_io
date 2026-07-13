@@ -45,6 +45,10 @@ import {
     EvalDatasetVersionDTO,
     EvalDatasetMemberDTO,
     EvalDatasetCoverageDTO,
+    EvalRunSummaryDTO,
+    EvalEpisodeViewDTO,
+    EvalEpisodeDetailDTO,
+    EvalEpisodeArtifactDTO,
 } from '@/types/api';
 
 export class ApiResponseError extends Error {
@@ -514,6 +518,45 @@ export const agentApi = {
             method: 'GET', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
         });
         return handleResponse<EvalDatasetCoverageDTO>(response);
+    },
+
+    adminStartEvalRun: async (payload: { idempotencyKey: string; datasetId: string; datasetVersion: string; repetitions: number; gitSha: string; executionProfileHash?: string }): Promise<Response<{ id: string }>> => {
+        const response = await fetch(`${API_CONFIG.BASE_URL}/admin/eval-runs`, {
+            method: 'POST', headers: await csrfHeaders({ 'Content-Type': 'application/json' }),
+            body: JSON.stringify({ ...payload, mode: 'MODE_B' }), credentials: 'include',
+        });
+        return handleResponse<{ id: string }>(response);
+    },
+
+    adminListEvalRuns: async (): Promise<Response<EvalRunSummaryDTO[]>> => {
+        const response = await fetch(`${API_CONFIG.BASE_URL}/admin/eval-runs`, { method: 'GET', headers: { 'Content-Type': 'application/json' }, credentials: 'include' });
+        return handleResponse<EvalRunSummaryDTO[]>(response);
+    },
+
+    adminGetEvalRun: async (id: string): Promise<Response<EvalRunSummaryDTO>> => {
+        const response = await fetch(`${API_CONFIG.BASE_URL}/admin/eval-runs/${encodeURIComponent(id)}`, { method: 'GET', headers: { 'Content-Type': 'application/json' }, credentials: 'include' });
+        return handleResponse<EvalRunSummaryDTO>(response);
+    },
+
+    adminListEvalEpisodes: async (runId: string, filters?: { status?: string; route?: string; risk?: string; language?: string; agent?: string }): Promise<Response<EvalEpisodeViewDTO[]>> => {
+        const query = new URLSearchParams(); Object.entries(filters || {}).forEach(([key, value]) => value && query.set(key, value));
+        const response = await fetch(`${API_CONFIG.BASE_URL}/admin/eval-runs/${encodeURIComponent(runId)}/episodes?${query}`, { method: 'GET', headers: { 'Content-Type': 'application/json' }, credentials: 'include' });
+        return handleResponse<EvalEpisodeViewDTO[]>(response);
+    },
+
+    adminGetEvalEpisode: async (runId: string, episodeId: string): Promise<Response<EvalEpisodeDetailDTO>> => {
+        const response = await fetch(`${API_CONFIG.BASE_URL}/admin/eval-runs/${encodeURIComponent(runId)}/episodes/${encodeURIComponent(episodeId)}`, { method: 'GET', headers: { 'Content-Type': 'application/json' }, credentials: 'include' });
+        return handleResponse<EvalEpisodeDetailDTO>(response);
+    },
+
+    adminGetEvalEpisodeArtifact: async (runId: string, episodeId: string): Promise<Response<EvalEpisodeArtifactDTO>> => {
+        const response = await fetch(`${API_CONFIG.BASE_URL}/admin/eval-runs/${encodeURIComponent(runId)}/episodes/${encodeURIComponent(episodeId)}/artifact`, { method: 'GET', headers: { 'Content-Type': 'application/json' }, credentials: 'include' });
+        return handleResponse<EvalEpisodeArtifactDTO>(response);
+    },
+
+    adminEvalRunAction: async (id: string, action: 'cancel' | 'retry-errors'): Promise<Response<unknown>> => {
+        const response = await fetch(`${API_CONFIG.BASE_URL}/admin/eval-runs/${encodeURIComponent(id)}/${action}`, { method: 'POST', headers: await csrfHeaders({ 'Content-Type': 'application/json' }), credentials: 'include' });
+        return handleResponse<unknown>(response);
     },
 
     adminRunCaptures: async (runId: string): Promise<Response<AdminDebugTraceCaptureDTO[]>> => {

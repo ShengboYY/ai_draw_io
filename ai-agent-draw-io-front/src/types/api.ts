@@ -72,6 +72,33 @@ export interface EvalDatasetCoverageDTO {
   agents: Record<string, number>;
 }
 
+export interface EvalRunSummaryDTO {
+  id: string; mode: 'MODE_B' | 'MODE_C' | 'RELEASE'; datasetId: string; datasetVersion: string;
+  status: string; gitSha: string; executionProfileHash?: string; repetitions: number;
+  totalEpisodes: number; completedEpisodes: number; passCount: number; failCount: number;
+  errorCount: number; unavailableCount: number; progress: number; totalLatencyMs: number;
+  estimatedCost: number; baselineRef?: string; candidateRef?: string;
+  createdAt?: string; startedAt?: string; completedAt?: string;
+}
+
+export interface EvalGraderRecordDTO {
+  episodeId: string; graderName: string; graderVersion: string; status: string;
+  severity: string; score?: number; evidenceJson: string;
+}
+
+export interface EvalEpisodeViewDTO {
+  id: string; caseId: string; caseVersion: string; repetition: number; attempt: number;
+  status: 'PASS' | 'FAIL' | 'ERROR' | 'UNAVAILABLE'; route: string; risk: string;
+  language: string; diagramType: string; agent: string; latencyMs: number; estimatedCost: number;
+  errorClass?: string; errorMessage?: string; blockingReason?: string; graders: EvalGraderRecordDTO[];
+}
+
+export interface EvalEpisodeDetailDTO { episode: EvalEpisodeViewDTO; input: Record<string, unknown>; expected: unknown }
+export interface EvalEpisodeArtifactDTO {
+  trace?: { routing?: { routeType?: string; diagramType?: string; skillName?: string }; steps?: Array<{ phase?: string; agentId?: string; status?: string }>; toolCalls?: Array<{ name?: string; status?: string }> };
+  initialCanvasXml?: string; finalCanvasXml?: string; semanticDiff: string[];
+}
+
 export type ApiErrorCode = 'AUTH_RATE_LIMITED' | 'DEMO_QUOTA_EXHAUSTED' | 'PLATFORM_QUOTA_EXHAUSTED' | (string & {});
 
 export interface AiAgentConfigResponseDTO {

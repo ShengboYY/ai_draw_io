@@ -18,6 +18,7 @@ public class EvalRun {
     String executionProfileHash;
     String idempotencyKey;
     int repetitions;
+    int plannedEpisodes;
     String gitSha;
     String graderManifestJson;
     String reportRef;

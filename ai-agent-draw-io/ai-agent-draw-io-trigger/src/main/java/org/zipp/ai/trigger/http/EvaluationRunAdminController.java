@@ -10,6 +10,7 @@ import org.zipp.ai.domain.agent.model.valobj.evaluation.controlplane.*;
 import org.zipp.ai.domain.agent.service.evaluation.controlplane.EvalControlPlaneAuditTypes;
 import org.zipp.ai.domain.agent.service.evaluation.controlplane.EvalControlPlaneErrorCode;
 import org.zipp.ai.domain.agent.service.evaluation.controlplane.EvalRunOrchestrator;
+import org.zipp.ai.domain.agent.service.evaluation.controlplane.EvalRunQueryService;
 import org.zipp.ai.trigger.http.service.AdminAuthorizationService;
 import org.zipp.ai.types.enums.ResponseCode;
 
@@ -21,12 +22,14 @@ import java.util.Optional;
 @RequestMapping("/api/v1/admin/eval-runs")
 public class EvaluationRunAdminController {
     private final EvalRunOrchestrator orchestrator;
+    private final EvalRunQueryService queryService;
     private final AdminAuthorizationService authorization;
     private final AdminAuditLogService audits;
 
-    public EvaluationRunAdminController(EvalRunOrchestrator orchestrator,
+    public EvaluationRunAdminController(EvalRunOrchestrator orchestrator, EvalRunQueryService queryService,
                                         AdminAuthorizationService authorization, AdminAuditLogService audits) {
-        this.orchestrator = orchestrator; this.authorization = authorization; this.audits = audits;
+        this.orchestrator = orchestrator; this.queryService = queryService;
+        this.authorization = authorization; this.audits = audits;
     }
 
     @PostMapping
@@ -43,20 +46,42 @@ public class EvaluationRunAdminController {
     }
 
     @GetMapping
-    public Response<List<EvalRun>> list(@RequestParam(defaultValue = "50") int limit,
+    public Response<List<EvalRunSummaryView>> list(@RequestParam(defaultValue = "50") int limit,
                                         @RequestParam(defaultValue = "0") int offset,
                                         HttpServletRequest request) {
-        return execute(request, "LIST_EVAL_RUNS", null, admin -> orchestrator.list(limit, offset));
+        return execute(request, "LIST_EVAL_RUNS", null, admin -> queryService.list(limit, offset));
     }
 
     @GetMapping("/{runId}")
-    public Response<EvalRun> get(@PathVariable String runId, HttpServletRequest request) {
-        return execute(request, "VIEW_EVAL_RUN", runId, admin -> orchestrator.get(runId));
+    public Response<EvalRunSummaryView> get(@PathVariable String runId, HttpServletRequest request) {
+        return execute(request, "VIEW_EVAL_RUN", runId, admin -> queryService.summary(runId));
     }
 
     @GetMapping("/{runId}/episodes")
-    public Response<List<EvalEpisode>> episodes(@PathVariable String runId, HttpServletRequest request) {
-        return execute(request, "LIST_EVAL_EPISODES", runId, admin -> orchestrator.episodes(runId));
+    public Response<List<EvalEpisodeView>> episodes(@PathVariable String runId,
+                                                    @RequestParam(required = false) String status,
+                                                    @RequestParam(required = false) String route,
+                                                    @RequestParam(required = false) String risk,
+                                                    @RequestParam(required = false) String language,
+                                                    @RequestParam(required = false) String agent,
+                                                    HttpServletRequest request) {
+        return execute(request, "LIST_EVAL_EPISODES", runId,
+                admin -> queryService.episodes(runId, status, route, risk, language, agent));
+    }
+
+    @GetMapping("/{runId}/episodes/{episodeId}")
+    public Response<EvalEpisodeDetailView> episode(@PathVariable String runId, @PathVariable String episodeId,
+                                                   HttpServletRequest request) {
+        return execute(request, "VIEW_EVAL_EPISODE", runId,
+                admin -> queryService.detail(runId, episodeId));
+    }
+
+    @GetMapping("/{runId}/episodes/{episodeId}/artifact")
+    public Response<EvalEpisodeArtifactView> episodeArtifact(@PathVariable String runId,
+                                                             @PathVariable String episodeId,
+                                                             HttpServletRequest request) {
+        return execute(request, "VIEW_EVAL_EPISODE_ARTIFACT", runId,
+                admin -> queryService.artifact(runId, episodeId));
     }
 
     @PostMapping("/{runId}/cancel")
