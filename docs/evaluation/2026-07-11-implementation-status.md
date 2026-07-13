@@ -320,6 +320,42 @@ mvn clean test
 
 代码阶段 0–8 已按顺序完成。进入真实工业运行前仍需完成 Phase 6/7 记录的运营前置：扩充 curated case、人工 Judge 校准、外置封存集、真实 provider baseline 和部署平台接线。
 
+## Evaluation/Trace Workspace R0：术语与契约
+
+**状态：完成**
+
+R0 只冻结跨阶段契约，不把 Target/Profile 接入现有 Case、Dataset 或 Run，也不调整页面结构。旧 UI 仍出现的 `Trace Inbox`、`Candidate` 和 `executionProfileHash` 已记录为 R1–R3 的迁移输入；在 R0 修改它们会提前改变后续阶段范围。
+
+| R0 要求 | 实现证据 | 结果 |
+| --- | --- | --- |
+| 第一批 Target | `EvaluationTarget` 固定 `FULL_AGENT / INTENT_ROUTER / DRAWING_QUALITY` | 完成 |
+| 历史 Target 迁移结果 | `EvaluationTargetMigrationStatus` 固定 `INFERRED / AMBIGUOUS / CONFIRMED` | 完成 |
+| Profile 定义与 Run 快照分离 | `EvaluationProfileVersion` 与 `EvaluationProfileSnapshot` 是两个不可变 record；快照包含 canonical config/hash；R0 不提供持久化入口，R3 resolver 完成 canonicalization、credential redaction 和 secret 拒绝后才允许落库 | 完成 |
+| 旧 Case Profile 兼容 | `EvalCaseDefinition.executionProfile` 保留原序列化字段并标记 deprecated；R3 前不破坏旧 Case | 完成 |
+| Profile/Case 冲突 | `EvalControlPlaneErrorCode.PROFILE_CASE_CONFLICT` 固定为稳定错误码 | 完成 |
+| Finding 不是第二写模型 | `TraceFindingView` 是只读 record；`TraceFindingStatusGroup.from(...)` 只投影现有 `EvalCandidateStatus` | 完成 |
+| Target 权威顺序 | Working Copy → immutable Case Version → Dataset snapshot → Run manifest；Dataset/Profile 不一致时拒绝 Run | 完成 |
+| 运行行为不变 | 新契约未接入 repository/controller/orchestrator；R2/R3 才进行字段迁移和执行接线 | 完成 |
+
+### R0 现有实现映射
+
+| 新概念 | 当前路由/API | 当前表/领域契约 | R0 决策 |
+| --- | --- | --- | --- |
+| Evaluation Case | `/admin/eval-case-working-copies`、`/admin/eval-cases` | `eval_case_working_copy`、`eval_case_version`、`EvalCaseDefinition` | R2 增加显式 Target；Published Version 是成员 Target 权威 |
+| Dataset | `/admin/eval-datasets` | `eval_dataset`、`eval_dataset_version/member` | R2 从成员 Case Version 推导并快照同一 Target |
+| Evaluation Run | `/admin/eval-runs` | `eval_run/episode`、`EvalRun` | R2 快照 Target；R3 保存 Profile id/version/resolved snapshot/hash |
+| Evaluation Profile | 当前只有 Case `executionProfile` 和 Run `execution_profile_hash` | `EvalCaseDefinition.ExecutionProfile`、`eval_run.execution_profile_hash` | 旧字段命名为 legacy config；R3 迁移到 Run 级 EvaluationProfile |
+| Trace Finding | `/admin/eval-candidates`、`/admin/runs/{runId}/eval-candidates` | `eval_case_candidate/review/draft`、`EvalCaseCandidate` | Candidate 保持唯一写模型；新 UI/查询使用只读 Finding View |
+| Trace Run | `/admin/runs` | agent run/step/tool telemetry | 属于 Trace Analysis，不进入 Eval Run/Gate 状态机 |
+
+验证命令：
+
+```text
+mvn -pl ai-agent-draw-io-app -am -Dtest=EvalControlPlaneContractsTest -Dsurefire.failIfNoSpecifiedTests=false test
+```
+
+当前结果：6 个契约测试通过。下一阶段 R1 只重构两个工作台的导航和页面组合，不接入 Target/Profile 持久化。
+
 ## Control Plane CP0：契约与边界
 
 **状态：完成**

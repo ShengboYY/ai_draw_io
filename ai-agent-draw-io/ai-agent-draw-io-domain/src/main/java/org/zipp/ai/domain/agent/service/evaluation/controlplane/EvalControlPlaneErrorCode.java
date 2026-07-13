@@ -4,6 +4,7 @@ package org.zipp.ai.domain.agent.service.evaluation.controlplane;
 public enum EvalControlPlaneErrorCode {
     NOT_FOUND,
     REVISION_CONFLICT,
+    PROFILE_CASE_CONFLICT,
     INVALID_STATE_TRANSITION,
     VALIDATION_FAILED,
     FORBIDDEN,

@@ -752,9 +752,10 @@ Release Decision  PASS
 - Candidate 是 Finding 唯一写模型、TraceFindingView 只读投影
 - Working Copy → Case Version → Dataset → Run 的 Target 权威、派生和快照顺序
 - Target 自动推断、迁移报告和歧义人工确认规则
+- `EvaluationProfileSnapshot` 在 R0 只是 schema 契约，不承担 JSON 脱敏；R3 resolver 完成 canonicalization、credential alias/version 投影和 secret 拒绝之前，禁止把调用方直接构造的快照写入 Run manifest
 - 不改运行行为
 
-验收：设计文档、实现状态文档和 UI 文案使用同一套术语。
+验收：设计文档、实现状态文档和新增代码使用同一套术语；现有 UI 的 legacy 文案形成明确迁移清单，由不改变运行行为的 R1 统一替换，R0 不提前混入页面重构。
 
 ### R1：前端拆成两个工作台
 

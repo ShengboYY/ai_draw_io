@@ -45,6 +45,11 @@ public class EvalCaseDefinition {
     @Builder.Default
     private Provenance provenance = new Provenance();
 
+    /**
+     * @deprecated Legacy Case-scoped execution configuration. R3 migrates it to a Run-scoped
+     * EvaluationProfile snapshot; the serialized field remains for backward-compatible loading.
+     */
+    @Deprecated(forRemoval = false)
     private ExecutionProfile executionProfile;
     private Regression regression;
 
@@ -169,10 +174,12 @@ public class EvalCaseDefinition {
         private String approvedAt;
     }
 
+    /** @deprecated Use a Run-scoped EvaluationProfile after the R3 compatibility migration. */
     @Data
     @Builder
     @NoArgsConstructor
     @AllArgsConstructor
+    @Deprecated(forRemoval = false)
     public static class ExecutionProfile {
         private String profileId;
         private String model;
