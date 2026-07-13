@@ -54,6 +54,15 @@ public interface IAgentUsageTelemetryStore {
         return List.of();
     }
 
+    /** Returns runs proven terminal by a completion timestamp at or before the immutable sampling snapshot. */
+    default List<AgentRunTelemetry> listTerminalRunsAtOrBefore(Instant snapshot, int limit) {
+        return listRuns(null, null, null, limit, 0).stream()
+                .filter(run -> run != null && !"RUNNING".equalsIgnoreCase(run.getStatus()))
+                // Runs without a completion timestamp were not provably terminal at the snapshot and are excluded.
+                .filter(run -> run.getCompletedAt() != null && !run.getCompletedAt().isAfter(snapshot))
+                .toList();
+    }
+
     default int anonymizeUser(String userId, String anonymizedUserId) {
         return 0;
     }

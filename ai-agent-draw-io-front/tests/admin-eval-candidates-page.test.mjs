@@ -7,8 +7,8 @@ const page = readFileSync(fileURLToPath(new URL('../src/app/admin/eval-candidate
 const api = readFileSync(fileURLToPath(new URL('../src/api/agent.ts', import.meta.url)), 'utf8');
 const workflow = readFileSync(fileURLToPath(new URL('../src/app/admin/eval-candidates/candidate-review-workflow.ts', import.meta.url)), 'utf8');
 
-test('candidate inbox supports autonomous discovery followed by one-click human acceptance', () => {
-  assert.match(page, /adminListEvalCandidates/);
+test('finding inbox supports persistent multi-analyzer discovery followed by human acceptance', () => {
+  assert.match(page, /adminListTraceFindings/);
   assert.match(page, /failureFamily/);
   assert.match(page, /evidenceSummary/);
   assert.match(page, /Open source trace/);
@@ -17,12 +17,12 @@ test('candidate inbox supports autonomous discovery followed by one-click human 
   assert.match(page, /REJECTED/);
   assert.match(workflow, /adminPrepareEvalDraft/);
   assert.match(page, /human review required/);
-  assert.match(page, /adminStartSemanticMinerRun/);
+  assert.match(page, /adminStartTraceAnalysisBatch/);
   assert.match(page, /MODEL_DETECTED/);
   assert.match(page, /modelEvidence/);
-  assert.match(page, /cannot approve, publish, or block a release/i);
-  assert.match(page, /adminAnalyzeVisualRun/);
-  assert.match(page, /adminAnalyzeVisualRun\(visualRunId\.trim\(\), true\)/);
+  assert.match(page, /never alter a release Gate/i);
+  assert.match(page, /adminStartTraceAnalysis/);
+  assert.match(page, /adminStartTraceAnalysis\(visualRunId\.trim\(\), 'VLM'\)/);
   assert.match(page, /acceptCandidateForDraft\(agentApi, candidate\)/);
   assert.match(page, /Accept & generate draft/);
   assert.match(workflow, /Accepted for sanitized LLM draft preparation/);
@@ -36,5 +36,11 @@ test('candidate inbox supports autonomous discovery followed by one-click human 
   assert.match(page, /TRIAGED: 'DRAFT_RETRY_READY'/);
   assert.match(page, /window\.confirm/);
   assert.match(page, /Pixels are inline, short-lived in memory, audited/);
+  assert.match(page, /Expected impact/);
+  assert.match(page, /Original Trace evidence/);
+  assert.match(page, /Found by VLM/);
+  assert.match(page, /More filters/);
+  assert.match(api, /trace-analysis-jobs/);
+  assert.match(api, /trace-findings/);
   assert.doesNotMatch(page, /adminRunCaptures|Approve draft|Publish draft/i);
 });

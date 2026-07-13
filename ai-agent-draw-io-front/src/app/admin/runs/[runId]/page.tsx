@@ -12,7 +12,8 @@ import type {
   AdminDiagramTraceSpanDTO,
   AdminDebugTraceCaptureDTO,
   DiagramCanvasStateResponseDTO,
-  EvalCaseCandidateDTO,
+  TraceAnalysisJobViewDTO,
+  TraceFindingViewDTO,
 } from '@/types/api';
 import { buildLoginHref } from '@/utils/login-form';
 import {
@@ -76,9 +77,11 @@ export default function AdminRunDetailPage() {
   const [loading, setLoading] = useState(true);
   const [forbidden, setForbidden] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [evalCandidate, setEvalCandidate] = useState<EvalCaseCandidateDTO | null>(null);
   const [evalCandidateLoading, setEvalCandidateLoading] = useState(false);
   const [evalCandidateNote, setEvalCandidateNote] = useState<string | null>(null);
+  const [traceAnalyzer, setTraceAnalyzer] = useState<'DETERMINISTIC' | 'LLM' | 'VLM'>('DETERMINISTIC');
+  const [traceAnalysisJob, setTraceAnalysisJob] = useState<TraceAnalysisJobViewDTO | null>(null);
+  const [traceAnalysisFindings, setTraceAnalysisFindings] = useState<TraceFindingViewDTO[]>([]);
   const [diagramResult, setDiagramResult] = useState<{
     runId: string;
     diagram: DiagramCanvasStateResponseDTO | null;
@@ -115,7 +118,6 @@ export default function AdminRunDetailPage() {
         setSpanPayloads({});
         setSpanPayloadErrors({});
         setCaptures(null);
-        setEvalCandidate(null);
         setEvalCandidateNote(null);
         spanPayloadRequests.current.clear();
       })
@@ -159,6 +161,30 @@ export default function AdminRunDetailPage() {
       alive = false;
     };
   }, [trace?.run?.diagramId, runId]);
+
+  useEffect(() => {
+    let alive = true;
+    agentApi.adminListTraceFindings({ sourceRunId: runId, limit: 10 })
+      .then(({ data }) => { if (alive) setTraceAnalysisFindings(data || []); })
+      .catch(() => { /* The main Trace remains usable when its optional Finding projection is unavailable. */ });
+    return () => { alive = false; };
+  }, [runId]);
+
+  useEffect(() => {
+    const jobId = traceAnalysisJob?.job.id;
+    if (!jobId || !['QUEUED', 'RUNNING'].includes(traceAnalysisJob.job.status)) return;
+    // Poll the persisted Job rather than assuming the HTTP start response is its final state.
+    const timer = window.setInterval(() => {
+      agentApi.adminGetTraceAnalysisJob(jobId).then(({ data }) => {
+        setTraceAnalysisJob(data);
+        if (!['QUEUED', 'RUNNING'].includes(data.job.status)) {
+          void agentApi.adminListTraceFindings({ sourceRunId: runId, limit: 10 })
+            .then(({ data: findings }) => setTraceAnalysisFindings(findings || []));
+        }
+      }).catch((reason) => setEvalCandidateNote(reason instanceof Error ? reason.message : 'Failed to refresh analysis job'));
+    }, 1500);
+    return () => window.clearInterval(timer);
+  }, [runId, traceAnalysisJob]);
 
   const spans = useMemo(() => trace?.spans || [], [trace]);
   const findings = useMemo(() => trace?.findings || [], [trace]);
@@ -300,14 +326,18 @@ export default function AdminRunDetailPage() {
       .catch((e) => setCaptureNote(e instanceof Error ? e.message : 'Failed to enable capture'));
   };
 
-  const createEvalCandidate = () => {
+  const analyzeTrace = () => {
     setEvalCandidateLoading(true);
     setEvalCandidateNote(null);
-    // P0 deliberately sends only the run id; debug payloads remain behind their separate access path.
-    agentApi.adminCreateEvalCandidate(runId)
+    // The persistent job owns retries and evidence isolation; this page only starts and observes it.
+    agentApi.adminStartTraceAnalysis(runId, traceAnalyzer)
       .then((response) => {
-        setEvalCandidate(response.data);
-        setEvalCandidateNote('Finding is ready for manual reconstruction and review.');
+        setTraceAnalysisJob(response.data);
+        setEvalCandidateNote(`Analysis job ${response.data.job.id} · ${response.data.job.status}. Findings, if any, require review.`);
+        if (!['QUEUED', 'RUNNING'].includes(response.data.job.status)) {
+          void agentApi.adminListTraceFindings({ sourceRunId: runId, limit: 10 })
+            .then(({ data }) => setTraceAnalysisFindings(data || []));
+        }
       })
       .catch((reason) => {
         setEvalCandidateNote(reason instanceof Error ? reason.message : 'Failed to create Finding');
@@ -364,20 +394,22 @@ export default function AdminRunDetailPage() {
           )}
         </div>
         <div className="mt-4 shrink-0 sm:mt-0 sm:text-right">
+          <label className="mr-2 inline-flex flex-col text-left text-[10px] font-medium uppercase tracking-wide text-zinc-400">Analyzer
+            <select value={traceAnalyzer} onChange={(event) => setTraceAnalyzer(event.target.value as typeof traceAnalyzer)} className="mt-1 rounded-md border border-stone-200 bg-white px-2 py-1.5 text-xs normal-case text-zinc-700">
+              <option value="DETERMINISTIC">Rules</option><option value="LLM">LLM semantic</option><option value="VLM">VLM visual</option>
+            </select>
+          </label>
           <button
             type="button"
-            onClick={createEvalCandidate}
+            onClick={analyzeTrace}
             disabled={!run || evalCandidateLoading}
             className="rounded-md bg-zinc-900 px-3 py-2 text-sm font-medium text-white hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {evalCandidateLoading ? 'Creating…' : 'Create Finding'}
+            {evalCandidateLoading ? 'Starting…' : 'Analyze trace'}
           </button>
-          {evalCandidate && (
-            <div className="mt-2 font-mono text-[11px] text-zinc-500">
-              {evalCandidate.id} · <span className="font-semibold text-zinc-700">{evalCandidate.status}</span>
-            </div>
-          )}
           {evalCandidateNote && <div className="mt-1 max-w-xs text-xs text-zinc-500">{evalCandidateNote}</div>}
+          {traceAnalysisJob && <div className="mt-1 max-w-xs font-mono text-[10px] text-zinc-500">{traceAnalysisJob.job.status} · {traceAnalysisJob.job.succeededItems}/{traceAnalysisJob.job.totalItems} analyzed · ${traceAnalysisJob.job.actualCost.toFixed(4)}</div>}
+          {traceAnalysisFindings.length > 0 && <div className="mt-2 max-w-xs rounded-md bg-amber-50 px-2 py-1.5 text-left text-[11px] text-amber-800"><div className="font-semibold">Recent Findings</div>{traceAnalysisFindings.slice(0, 3).map((finding) => <Link key={finding.candidateId} href="/admin/eval-candidates" className="mt-1 block truncate hover:underline">{finding.analyzerType} · {finding.failureFamily}</Link>)}</div>}
         </div>
       </div>
 

@@ -142,6 +142,16 @@ public class AgentUsageTelemetryRepository implements IAgentUsageTelemetryStore 
     }
 
     @Override
+    public List<AgentRunTelemetry> listTerminalRunsAtOrBefore(Instant snapshot, int limit) {
+        if (snapshot == null) {
+            return List.of();
+        }
+        return agentUsageTelemetryMapper.selectTerminalRunsAtOrBefore(toDate(snapshot), limit).stream()
+                .map(this::toDomain)
+                .collect(Collectors.toList());
+    }
+
+    @Override
     public Optional<AgentRunDetail> findRunDetail(String runId) {
         AgentRunTelemetryPO run = agentUsageTelemetryMapper.selectRunById(runId);
         if (run == null) {

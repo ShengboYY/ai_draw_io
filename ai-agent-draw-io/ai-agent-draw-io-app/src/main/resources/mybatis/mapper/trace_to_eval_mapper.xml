@@ -1,8 +1,18 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="org.zipp.ai.infrastructure.dao.ITraceToEvalMapper">
-  <resultMap id="candidate" type="org.zipp.ai.infrastructure.dao.po.evaluation.EvalCaseCandidatePO"><id property="id" column="id"/><result property="sourceRunId" column="source_run_id"/><result property="sourceSpanId" column="source_span_id"/><result property="sourcePhase" column="source_phase"/><result property="sourceAgentId" column="source_agent_id"/><result property="failureFamily" column="failure_family"/><result property="ruleId" column="rule_id"/><result property="evidenceSummary" column="evidence_summary"/><result property="risk" column="risk"/><result property="discoveredAt" column="discovered_at"/><result property="policyVersion" column="policy_version"/><result property="status" column="status"/><result property="createdBy" column="created_by"/><result property="detectionSource" column="detection_source"/><result property="modelVersion" column="model_version"/><result property="modelConfidence" column="model_confidence"/><result property="modelEvidenceJson" column="model_evidence_json"/></resultMap>
+  <resultMap id="candidate" type="org.zipp.ai.infrastructure.dao.po.evaluation.EvalCaseCandidatePO"><id property="id" column="id"/><result property="sourceRunId" column="source_run_id"/><result property="sourceSpanId" column="source_span_id"/><result property="sourcePhase" column="source_phase"/><result property="sourceAgentId" column="source_agent_id"/><result property="failureFamily" column="failure_family"/><result property="ruleId" column="rule_id"/><result property="evidenceSummary" column="evidence_summary"/><result property="risk" column="risk"/><result property="discoveredAt" column="discovered_at"/><result property="policyVersion" column="policy_version"/><result property="status" column="status"/><result property="createdBy" column="created_by"/><result property="detectionSource" column="detection_source"/><result property="modelVersion" column="model_version"/><result property="modelConfidence" column="model_confidence"/><result property="modelEvidenceJson" column="model_evidence_json"/><result property="routeType" column="route_type"/><result property="findingAgentId" column="finding_agent_id"/><result property="sourceLatencyMs" column="source_latency_ms"/><result property="reviewedBy" column="reviewed_by"/><result property="reviewedAt" column="reviewed_at"/></resultMap>
   <select id="selectCandidate" resultMap="candidate">select * from eval_case_candidate where id=#{candidateId}</select>
+  <select id="selectFindingCandidate" resultMap="candidate">
+    select c.*,
+      json_unquote(json_extract((select e.metadata_json from agent_trace_event e where e.run_id=c.source_run_id and e.event_type='ROUTING_DECIDED' order by e.sequence_no asc,e.occurred_at asc limit 1),'$.routeType')) as route_type,
+      coalesce(c.source_agent_id,r.agent_id) as finding_agent_id,r.latency_ms as source_latency_ms,
+      rv.reviewer as reviewed_by,rv.reviewed_at
+    from eval_case_candidate c
+    left join agent_run r on r.id=c.source_run_id
+    left join eval_case_review rv on rv.id=(select er.id from eval_case_review er where er.candidate_id=c.id order by er.reviewed_at desc,er.id desc limit 1)
+    where c.id=#{candidateId}
+  </select>
   <select id="selectCandidateBySource" resultMap="candidate">select * from eval_case_candidate where source_run_id=#{sourceRunId} and failure_family=#{failureFamily}</select>
   <select id="selectCandidates" resultMap="candidate">
     select * from eval_case_candidate
@@ -12,10 +22,35 @@
     </where>
     order by discovered_at desc limit #{limit} offset #{offset}
   </select>
+  <select id="selectFindingCandidates" resultMap="candidate">
+    select c.*,
+      json_unquote(json_extract((select e.metadata_json from agent_trace_event e where e.run_id=c.source_run_id and e.event_type='ROUTING_DECIDED' order by e.sequence_no asc,e.occurred_at asc limit 1),'$.routeType')) as route_type,
+      coalesce(c.source_agent_id,r.agent_id) as finding_agent_id,r.latency_ms as source_latency_ms,
+      rv.reviewer as reviewed_by,rv.reviewed_at
+    from eval_case_candidate c
+    left join agent_run r on r.id=c.source_run_id
+    left join eval_case_review rv on rv.id=(select er.id from eval_case_review er where er.candidate_id=c.id order by er.reviewed_at desc,er.id desc limit 1)
+    <where>
+      <if test="status != null and status != ''">and c.status=#{status}</if>
+      <if test="risk != null and risk != ''">and c.risk=#{risk}</if>
+      <if test="analyzerType == 'DETERMINISTIC'">and coalesce(c.detection_source,'RULE_DETECTED')!='MODEL_DETECTED'</if>
+      <if test="analyzerType == 'LLM'">and c.detection_source='MODEL_DETECTED' and c.rule_id not like '%visual%'</if>
+      <if test="analyzerType == 'VLM'">and c.detection_source='MODEL_DETECTED' and c.rule_id like '%visual%'</if>
+      <if test="routeType != null and routeType != ''">and json_unquote(json_extract((select e.metadata_json from agent_trace_event e where e.run_id=c.source_run_id and e.event_type='ROUTING_DECIDED' order by e.sequence_no asc,e.occurred_at asc limit 1),'$.routeType'))=#{routeType}</if>
+      <if test="agentId != null and agentId != ''">and coalesce(c.source_agent_id,r.agent_id)=#{agentId}</if>
+      <if test="sourceRunId != null and sourceRunId != ''">and c.source_run_id=#{sourceRunId}</if>
+      <if test="discoveredFrom != null">and c.discovered_at&gt;=#{discoveredFrom}</if>
+      <if test="discoveredTo != null">and c.discovered_at&lt;=#{discoveredTo}</if>
+      <if test="minLatencyMs != null">and r.latency_ms&gt;=#{minLatencyMs}</if>
+      <if test="maxLatencyMs != null">and r.latency_ms&lt;=#{maxLatencyMs}</if>
+    </where>
+    order by c.discovered_at desc limit #{limit} offset #{offset}
+  </select>
   <insert id="insertCandidate">insert into eval_case_candidate (id,source_run_id,source_span_id,source_phase,source_agent_id,failure_family,rule_id,evidence_summary,risk,discovered_at,policy_version,status,created_by,detection_source,model_version,model_confidence,model_evidence_json) values (#{id},#{sourceRunId},#{sourceSpanId},#{sourcePhase},#{sourceAgentId},#{failureFamily},#{ruleId},#{evidenceSummary},#{risk},#{discoveredAt},#{policyVersion},#{status},#{createdBy},#{detectionSource},#{modelVersion},#{modelConfidence},#{modelEvidenceJson})</insert>
   <update id="mergeCandidateModelEvidence">update eval_case_candidate set detection_source='MODEL_DETECTED',model_version=#{modelVersion},model_confidence=#{modelConfidence},model_evidence_json=#{modelEvidenceJson},evidence_summary=#{evidenceSummary} where id=#{candidateId}</update>
   <update id="updateCandidateStatus">update eval_case_candidate set status=#{status} where id=#{candidateId}</update>
   <insert id="insertReview">insert into eval_case_review (id,candidate_id,reviewer,decision,reason,reviewed_at) values (#{id},#{candidateId},#{reviewer},#{decision},#{reason},#{reviewedAt})</insert>
+  <select id="selectLatestReview" resultType="org.zipp.ai.infrastructure.dao.po.evaluation.EvalCaseReviewPO">select id,candidate_id as candidateId,reviewer,decision,reason,reviewed_at as reviewedAt from eval_case_review where candidate_id=#{candidateId} order by reviewed_at desc,id desc limit 1</select>
   <insert id="insertDraft">insert into eval_case_draft (id,candidate_id,draft_json,sanitizer_version,model_version,created_at) values (#{id},#{candidateId},#{draftJson},#{sanitizerVersion},#{modelVersion},#{createdAt})</insert>
   <select id="selectLatestDraft" resultType="org.zipp.ai.infrastructure.dao.po.evaluation.EvalCaseDraftPO">select id,candidate_id as candidateId,draft_json as draftJson,sanitizer_version as sanitizerVersion,model_version as modelVersion,created_at as createdAt from eval_case_draft where candidate_id=#{candidateId} order by created_at desc limit 1</select>
   <insert id="upsertCaseHealth">insert into eval_case_health (case_id,case_version,baseline_reproduced,health_status,summary,updated_at) values (#{caseId},#{caseVersion},#{baselineReproduced},#{healthStatus},#{summary},#{updatedAt}) on duplicate key update baseline_reproduced=values(baseline_reproduced),health_status=values(health_status),summary=values(summary),updated_at=values(updated_at)</insert>

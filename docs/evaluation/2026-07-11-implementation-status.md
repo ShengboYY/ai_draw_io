@@ -757,6 +757,21 @@ mvn clean test
 
 验证：`EvalTargetReportServiceTest` 覆盖三个 Target、ERROR 排除、缺失 artifact、全空/阶段缺失 evidence、无效 Router 输出、Macro-F1/p95 样本阈值、Judge not-required、manifest 零结果层与顺序 Full Agent funnel；`EvalRunOrchestratorTest` 验证 deterministic severity 从 harness 经持久化保真；前端 source test 覆盖 partial polling 与点击下钻，生产构建通过。R5 不改变数据库 schema，因此没有迁移。
 
+## Workspace R6：Trace Analysis UX
+
+| R6 要求 | 实现证据 | 结果 |
+| --- | --- | --- |
+| Trace Analyze action | Trace Run 详情支持选择 Deterministic/LLM/VLM，并启动单 Trace Analysis Job | 完成 |
+| Findings Inbox | Findings 页面读取 `TraceFindingView` 只读投影；一次查询从 `ROUTING_DECIDED.metadata.routeType`、`agent_run` 和最新 review 投影 route/agent/latency/reviewer，支持 analyzer/route/agent/time/latency/source-run 过滤，分栏展示分析判断与原 Trace 引用 | 完成 |
+| 规则与抽样发现 | 支持 SINGLE_TRACE 与 SAMPLE_BATCH；批量支持 TARGETED/RANDOM/MIXED 抽样 | 完成 |
+| 单一写模型 | triage/dismiss 继续委托现有 Candidate service；Finding projection 不持有独立状态 | 完成 |
+| 持久化编排 | `trace_analysis_job/item` 保存 Job/Item 状态、完整 analyzer/model/prompt/schema version、配置 hash、预算、outcome、成本、尝试次数和隔离后的错误 | 完成 |
+| 可靠性边界 | 仅选择 `completed_at <= trace_snapshot_at` 的终态 Run，保存 selection hash；同时提供原子 config-hash 幂等、有限重试、per-trace 错误隔离和批量 PARTIAL 语义 | 完成 |
+| 异常覆盖 | 确定性 selector 覆盖延迟；Semantic miner 覆盖 success 但“无法加载”；Visual miner 形成视觉 Finding | 完成 |
+| 隐私与审计 | 复用受控 Trace 投影、purpose confirmation 和 `admin_audit_log`；Job 表不保存 prompt/XML/payload | 完成 |
+
+验证：`TraceAnalysisJobServiceTest` 覆盖单 Trace/批量幂等、以完成时间为准的 snapshot 边界、selection hash、预算、有限重试、UNAVAILABLE 零成本、错误隔离与 PARTIAL；`TraceAnalysisJobRepositoryTest` 覆盖版本/outcome round-trip 和原子幂等；`TraceFindingViewServiceTest` 覆盖过滤契约、review、VLM、结构化 recommendation 及证据分栏；`TraceFindingMapperContractTest` 与 repository test 锁定真实 routing event、最新 review 和批量 projection，避免退回 `request_type` 或 N+1；既有 selector/semantic/visual 测试覆盖三类 Finding；前端 source test 覆盖 Trace Analyze 轮询与 Findings/Job 工作台。迁移 `2026-07-10-create-eval-intake.sql`、`2026-07-11-index-eval-candidate-queue.sql`、`2026-07-13-create-semantic-anomaly-miner.sql` 和 `2026-07-14-create-trace-analysis-jobs.sql` 已在本地 Docker MySQL 执行；事务内 synthetic probe 得到 `chat_stream|edit_existing`，确认 Finding route 来自 `ROUTING_DECIDED`；探针数据已回滚。
+
 ## Control Plane CP10：Canary、Case Health 与持续运营
 
 **状态：平台接线完成；真实部署指标、外部告警路由和用户行为信号仍需外部授权/配置**

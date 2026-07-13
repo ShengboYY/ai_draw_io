@@ -20,6 +20,7 @@ import org.zipp.ai.domain.agent.model.valobj.evaluation.controlplane.EvaluationP
 import org.zipp.ai.domain.agent.model.valobj.evaluation.intake.EvalCandidateStatus;
 import org.zipp.ai.domain.agent.model.valobj.evaluation.intake.TraceFindingStatusGroup;
 import org.zipp.ai.domain.agent.model.valobj.evaluation.intake.TraceFindingView;
+import org.zipp.ai.domain.agent.model.valobj.evaluation.intake.TraceRecommendation;
 import org.zipp.ai.domain.agent.service.evaluation.controlplane.EvalControlPlaneErrorCode;
 
 import java.lang.reflect.Field;
@@ -149,9 +150,11 @@ public class EvalControlPlaneContractsTest {
         assertEquals(TraceFindingStatusGroup.PROMOTED, TraceFindingStatusGroup.from(EvalCandidateStatus.PUBLISHED));
 
         TraceFindingView view = new TraceFindingView(
-                "ecc_001", "run_001", "LLM", "semantic-v2", "false_success", "high", 0.91,
+                "ecc_001", "run_001", "edit_existing", "drawing-agent", 1200L,
+                "LLM", "semantic-v2", "false_success", "high", 0.91,
                 "The assistant reported success without a canvas mutation.", List.of("canvas_hash_unchanged"),
-                "Inspect the edit result path.", EvalCandidateStatus.TRIAGED,
+                List.of("trace://run/run_001"), new TraceRecommendation("tool", "canvas hash unchanged",
+                "Persist the mutation", "Inspect the edit result path.", 1, 0.91), EvalCandidateStatus.TRIAGED,
                 Instant.parse("2026-07-13T02:00:00Z"), "admin-1", Instant.parse("2026-07-13T02:05:00Z"));
 
         assertEquals(EvalCandidateStatus.TRIAGED, view.candidateStatus());

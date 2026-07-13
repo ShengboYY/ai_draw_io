@@ -9,4 +9,7 @@ public class EvalCaseCandidatePO {
     private String failureFamily; private String ruleId; private String evidenceSummary; private String risk; private Date discoveredAt;
     private String policyVersion; private String status; private String createdBy;
     private String detectionSource; private String modelVersion; private Double modelConfidence; private String modelEvidenceJson;
+    // Populated only by the Findings projection query; never written back to Candidate.
+    private String routeType; private String findingAgentId; private Long sourceLatencyMs;
+    private String reviewedBy; private Date reviewedAt;
 }

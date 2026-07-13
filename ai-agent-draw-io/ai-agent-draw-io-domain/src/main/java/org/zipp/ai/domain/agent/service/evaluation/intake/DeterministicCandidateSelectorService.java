@@ -61,6 +61,18 @@ public class DeterministicCandidateSelectorService {
         return selected;
     }
 
+    /** Analyze exactly one terminal Trace for the explicit Trace workbench action. */
+    public List<EvalCaseCandidate> discoverRun(String sourceRunId) {
+        if (StringUtils.isBlank(sourceRunId)) throw new IllegalArgumentException("sourceRunId is required");
+        AgentRunDetail detail = telemetryStore.findRunDetail(sourceRunId)
+                .orElseThrow(() -> new IllegalArgumentException("run not found"));
+        AgentRunTelemetry run = detail.getRun();
+        if (run == null || "RUNNING".equalsIgnoreCase(run.getStatus())) {
+            throw new IllegalStateException("only terminal runs can be analyzed");
+        }
+        return persist(run, groupedSignals(detail, telemetryStore.listDiagramSnapshots(sourceRunId)));
+    }
+
     private List<EvalCaseCandidate> persist(AgentRunTelemetry run, Map<String, List<Signal>> grouped) {
         List<EvalCaseCandidate> result = new ArrayList<>();
         for (Map.Entry<String, List<Signal>> entry : grouped.entrySet()) {
@@ -99,6 +111,10 @@ public class DeterministicCandidateSelectorService {
         AgentRunTelemetry run = detail.getRun();
         if (failed(run == null ? null : run.getStatus())) {
             add(grouped, new Signal("execution", "run_failed", "Run status=" + run.getStatus(), "high", run.getId(), "run"));
+        }
+        if (run != null && run.getLatencyMs() != null && run.getLatencyMs() >= 30_000L) {
+            add(grouped, new Signal("latency", "run_latency_anomaly", "Run latencyMs=" + run.getLatencyMs(),
+                    "medium", run.getId(), "run"));
         }
         detail.getSteps().stream().filter(step -> failed(step.getStatus())).forEach(step ->
                 add(grouped, new Signal("execution", "step_failed", "Step " + step.getPhase() + " status=" + step.getStatus(),
@@ -142,7 +158,7 @@ public class DeterministicCandidateSelectorService {
         String route = events.stream().filter(event -> "ROUTING_DECIDED".equals(event.getEventType()))
                 .map(event -> json(event.getMetadataJson()).path("routeType").asText(null))
                 .filter(StringUtils::isNotBlank).findFirst().orElse(null);
-        if (!MUTATING_ROUTES.contains(route) || snapshots == null || snapshots.size() < 2) return;
+        if (StringUtils.isBlank(route) || !MUTATING_ROUTES.contains(route) || snapshots == null || snapshots.size() < 2) return;
         List<AgentDiagramTraceSnapshot> ordered = snapshots.stream()
                 .sorted(Comparator.comparing(AgentDiagramTraceSnapshot::getVersion,
                         Comparator.nullsLast(Comparator.naturalOrder())))

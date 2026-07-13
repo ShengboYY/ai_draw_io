@@ -6,6 +6,8 @@ import org.zipp.ai.domain.agent.model.valobj.evaluation.intake.EvalCandidateStat
 import org.zipp.ai.domain.agent.model.valobj.evaluation.intake.SemanticMinerRun;
 import org.zipp.ai.domain.agent.model.valobj.evaluation.intake.SemanticMinerRunStatus;
 import org.zipp.ai.domain.agent.model.valobj.evaluation.intake.SemanticSamplingPolicy;
+import org.zipp.ai.domain.agent.model.valobj.evaluation.intake.TraceFindingCandidate;
+import org.zipp.ai.domain.agent.model.valobj.evaluation.intake.TraceFindingFilter;
 import org.zipp.ai.infrastructure.adapter.repository.evaluation.TraceToEvalRepository;
 import org.zipp.ai.infrastructure.dao.ITraceToEvalMapper;
 import org.zipp.ai.infrastructure.dao.po.evaluation.*;
@@ -37,12 +39,21 @@ public class SemanticMinerRepositoryTest {
                 .sanitizerVersion("sanitizer-v1").createdBy("admin-1").createdAt(now).completedAt(now).build();
 
         repository.insertCandidate(candidate);
+        mapper.candidate.setRouteType("edit_existing");
+        mapper.candidate.setFindingAgentId("drawing-agent");
+        mapper.candidate.setSourceLatencyMs(4800L);
         repository.insertSemanticMinerRun(run);
 
         EvalCaseCandidate restoredCandidate = repository.findCandidate("candidate-1").orElseThrow();
+        TraceFindingCandidate finding = repository.listFindingCandidates(new TraceFindingFilter(
+                null, null, null, "edit_existing", null, null,
+                null, null, null, null, 20, 0)).get(0);
         SemanticMinerRun restoredRun = repository.findSemanticMinerRun("scan-1").orElseThrow();
         assertEquals("MODEL_DETECTED", restoredCandidate.getDetectionSource());
         assertEquals(List.of("loading failed"), restoredCandidate.getModelEvidence());
+        assertEquals("edit_existing", finding.context().routeType());
+        assertEquals("drawing-agent", finding.context().sourceAgentId());
+        assertEquals(Long.valueOf(4800L), finding.context().sourceLatencyMs());
         assertEquals(SemanticMinerRunStatus.COMPLETED, restoredRun.getStatus());
         assertEquals(Integer.valueOf(1), restoredRun.getCandidateCount());
     }
@@ -51,12 +62,19 @@ public class SemanticMinerRepositoryTest {
         private EvalCaseCandidatePO candidate;
         private SemanticMinerRunPO run;
         @Override public EvalCaseCandidatePO selectCandidate(String candidateId) { return candidate; }
+        @Override public EvalCaseCandidatePO selectFindingCandidate(String candidateId) { return candidate; }
         @Override public EvalCaseCandidatePO selectCandidateBySource(String sourceRunId, String failureFamily) { return candidate; }
         @Override public List<EvalCaseCandidatePO> selectCandidates(String status, String risk, int limit, int offset) { return candidate == null ? List.of() : List.of(candidate); }
+        @Override public List<EvalCaseCandidatePO> selectFindingCandidates(String status, String risk, String analyzerType,
+                String routeType, String agentId, String sourceRunId, java.util.Date discoveredFrom,
+                java.util.Date discoveredTo, Long minLatencyMs, Long maxLatencyMs, int limit, int offset) {
+            return candidate == null ? List.of() : List.of(candidate);
+        }
         @Override public int insertCandidate(EvalCaseCandidatePO candidate) { this.candidate = candidate; return 1; }
         @Override public int updateCandidateStatus(String candidateId, String status) { candidate.setStatus(status); return 1; }
         @Override public int mergeCandidateModelEvidence(String candidateId, String modelVersion, Double modelConfidence, String modelEvidenceJson, String evidenceSummary) { return 1; }
         @Override public int insertReview(EvalCaseReviewPO review) { return 1; }
+        @Override public EvalCaseReviewPO selectLatestReview(String candidateId) { return null; }
         @Override public int insertLineage(EvalCaseLineagePO lineage) { return 1; }
         @Override public int insertDraft(EvalCaseDraftPO draft) { return 1; }
         @Override public EvalCaseDraftPO selectLatestDraft(String candidateId) { return null; }

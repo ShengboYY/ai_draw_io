@@ -153,6 +153,19 @@ public class SemanticAnomalyDiscoveryService {
         return store.listSemanticMinerRuns(Math.max(1, Math.min(requestedLimit, 100)));
     }
 
+    /** Analyze one administrator-selected Trace using the same sanitized projection as batch discovery. */
+    public AnalysisResult analyzeRun(String sourceRunId, String actor, boolean purposeConfirmed,
+                                     String ipAddress, String userAgent) {
+        if (!purposeConfirmed) throw new IllegalArgumentException("semantic discovery purpose confirmation is required");
+        if (StringUtils.isAnyBlank(sourceRunId, actor)) throw new IllegalArgumentException("sourceRunId and actor are required");
+        String unavailable = readinessFailure();
+        if (unavailable != null) return new AnalysisResult("UNAVAILABLE", unavailable, null, 0D);
+        return analyzeOne(sourceRunId, actor, ipAddress, userAgent);
+    }
+
+    public String analyzerVersion() { return miner.version(); }
+    public double estimatedCostPerAnalysisUsd() { return estimatedCostPerAnalysisUsd; }
+
     private void execute(SemanticMinerRun scan, String actor, String ipAddress, String userAgent) {
         scan.setStatus(SemanticMinerRunStatus.RUNNING);
         scan.setStartedAt(clock.instant());
@@ -165,18 +178,9 @@ public class SemanticAnomalyDiscoveryService {
             scan.setSampledCount(sampled.size());
             for (AgentRunTelemetry run : sampled) {
                 try {
-                    AgentRunDetail detail = telemetryStore.findRunDetail(run.getId())
-                            .orElseThrow(() -> new IllegalStateException("run detail unavailable"));
-                    List<DebugTraceCapture> captures = debugTraceService.viewCapturesForRun(
-                            actor, run.getId(), ipAddress, userAgent);
-                    SemanticTraceProjector.Projection projection = projector.project(detail, captures);
-                    if (!projection.safe()) {
-                        errors++;
-                        continue;
-                    }
                     analyzed++;
-                    ISemanticAnomalyMiner.Finding finding = modelCalls.execute(miner, projection.content(), modelTimeout);
-                    if (persistFinding(run, finding)) candidates++;
+                    AnalysisResult result = analyzeOne(run.getId(), actor, ipAddress, userAgent);
+                    if ("CANDIDATE_CREATED".equals(result.status())) candidates++;
                 } catch (RuntimeException ignored) {
                     // A provider timeout, schema error, or unsafe sample is isolated to this one run.
                     errors++;
@@ -194,9 +198,23 @@ public class SemanticAnomalyDiscoveryService {
         store.updateSemanticMinerRun(scan);
     }
 
-    private boolean persistFinding(AgentRunTelemetry run, ISemanticAnomalyMiner.Finding finding) {
+    private AnalysisResult analyzeOne(String sourceRunId, String actor, String ipAddress, String userAgent) {
+        AgentRunDetail detail = telemetryStore.findRunDetail(sourceRunId)
+                .orElseThrow(() -> new IllegalStateException("run detail unavailable"));
+        AgentRunTelemetry run = detail.getRun();
+        if (run == null) throw new IllegalStateException("run metadata unavailable");
+        List<DebugTraceCapture> captures = debugTraceService.viewCapturesForRun(actor, sourceRunId, ipAddress, userAgent);
+        SemanticTraceProjector.Projection projection = projector.project(detail, captures);
+        if (!projection.safe()) throw new IllegalStateException("safe semantic projection unavailable");
+        ISemanticAnomalyMiner.Finding finding = modelCalls.execute(miner, projection.content(), modelTimeout);
+        return persistFinding(run, finding);
+    }
+
+    private AnalysisResult persistFinding(AgentRunTelemetry run, ISemanticAnomalyMiner.Finding finding) {
         if (finding == null || !finding.isPotentialAnomaly() || !finding.requiresHumanReview()
-                || finding.confidence() < MIN_CANDIDATE_CONFIDENCE) return false;
+                || finding.confidence() < MIN_CANDIDATE_CONFIDENCE) {
+            return new AnalysisResult("NO_FINDING", null, null, estimatedCostPerAnalysisUsd);
+        }
         String family = failureFamily(finding.failureFamily());
         List<String> evidence = safeEvidence(finding.evidence());
         if (evidence.isEmpty()) throw new IllegalArgumentException("model evidence is required");
@@ -204,7 +222,7 @@ public class SemanticAnomalyDiscoveryService {
         Optional<EvalCaseCandidate> existing = store.findCandidateBySourceRunAndFailureFamily(run.getId(), family);
         if (existing.isPresent()) {
             store.mergeCandidateModelEvidence(existing.get().getId(), miner.version(), finding.confidence(), evidence, summary);
-            return false;
+            return new AnalysisResult("MERGED", null, existing.get().getId(), estimatedCostPerAnalysisUsd);
         }
         String risk = finding.confidence() < HIGH_CONFIDENCE ? "medium" : normalizedRisk(finding.suggestedRisk());
         EvalCaseCandidate candidate = EvalCaseCandidate.builder().id("ecc_" + UUID.randomUUID())
@@ -215,7 +233,7 @@ public class SemanticAnomalyDiscoveryService {
                 .detectionSource("MODEL_DETECTED").modelVersion(miner.version())
                 .modelConfidence(finding.confidence()).modelEvidence(evidence).build();
         store.insertCandidate(candidate);
-        return true;
+        return new AnalysisResult("CANDIDATE_CREATED", null, candidate.getId(), estimatedCostPerAnalysisUsd);
     }
 
     private List<String> safeEvidence(List<String> evidence) {
@@ -291,4 +309,6 @@ public class SemanticAnomalyDiscoveryService {
         String risk = StringUtils.lowerCase(StringUtils.trimToEmpty(value));
         return switch (risk) { case "critical", "high", "medium", "low" -> risk; default -> "medium"; };
     }
+
+    public record AnalysisResult(String status, String reason, String candidateId, double estimatedCostUsd) { }
 }

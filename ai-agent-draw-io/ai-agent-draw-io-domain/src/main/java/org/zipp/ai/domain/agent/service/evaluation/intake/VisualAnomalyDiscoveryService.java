@@ -104,6 +104,9 @@ public class VisualAnomalyDiscoveryService {
         candidates.insertCandidate(candidate); return new Result("CANDIDATE_CREATED", null, candidate.getId(), finding.confidence(), estimatedCostPerAnalysisUsd);
     }
 
+    public String analyzerVersion() { return miner.version(); }
+    public double estimatedCostPerAnalysisUsd() { return estimatedCostPerAnalysisUsd; }
+
     private List<String> safeEvidence(IVisualAnomalyMiner.Finding finding) {
         if (finding.evidence() == null || finding.evidence().stream().anyMatch(value -> !EVIDENCE_CODES.contains(value))
                 || !RECONSTRUCTION_CODES.contains(finding.syntheticReconstructionSuggestion())) {

@@ -282,6 +282,22 @@
         LIMIT #{limit} OFFSET #{offset}
     </select>
 
+    <select id="selectTerminalRunsAtOrBefore" resultMap="runMap">
+        SELECT
+            r.id, r.request_id, r.diagram_id, r.user_id, r.agent_id, r.session_id, r.request_type,
+            r.credential_source, r.model_credential_id, r.status, r.error_class, r.started_at,
+            r.completed_at, r.latency_ms,
+            (SELECT COALESCE(COUNT(*), 0) FROM agent_run_step s WHERE s.run_id = r.id) AS step_count,
+            (SELECT COALESCE(COUNT(*), 0) FROM agent_llm_call c WHERE c.run_id = r.id) AS llm_call_count,
+            (SELECT COALESCE(COUNT(*), 0) FROM agent_tool_call t WHERE t.run_id = r.id) AS tool_call_count,
+            (SELECT COALESCE(COUNT(*), 0) FROM agent_trace_event e WHERE e.run_id = r.id) AS trace_event_count,
+            (SELECT COALESCE(SUM(c.total_tokens), 0) FROM agent_llm_call c WHERE c.run_id = r.id) AS known_total_tokens
+        FROM agent_run r
+        WHERE r.status != 'RUNNING' AND r.completed_at IS NOT NULL AND r.completed_at &lt;= #{snapshot}
+        ORDER BY r.completed_at DESC, r.id DESC
+        LIMIT #{limit}
+    </select>
+
     <select id="selectStepsByRunId" resultMap="stepMap">
         SELECT id, run_id, parent_id, user_id, phase, status, error_class, started_at, completed_at, latency_ms
         FROM agent_run_step

@@ -37,6 +37,9 @@ import {
     AdminDebugTraceControlRequestDTO,
     EvalCaseCandidateDTO,
     SemanticMinerRunDTO,
+    TraceAnalysisJobDTO,
+    TraceAnalysisJobViewDTO,
+    TraceFindingViewDTO,
     VisualMinerResultDTO,
     EvalDraftPreparationDTO,
     EvalCaseWorkingCopyDTO,
@@ -384,6 +387,63 @@ export const agentApi = {
             body: JSON.stringify({ sourceRunId, purposeConfirmed }), credentials: 'include',
         });
         return handleResponse<VisualMinerResultDTO>(response);
+    },
+
+    adminStartTraceAnalysis: async (sourceRunId: string, analyzerType: 'DETERMINISTIC' | 'LLM' | 'VLM'): Promise<Response<TraceAnalysisJobViewDTO>> => {
+        const response = await fetch(`${API_CONFIG.BASE_URL}/admin/traces/${encodeURIComponent(sourceRunId)}/analysis-jobs`, {
+            method: 'POST', headers: await csrfHeaders({ 'Content-Type': 'application/json' }),
+            body: JSON.stringify({ analyzerType, purposeConfirmed: true }), credentials: 'include',
+        });
+        return handleResponse<TraceAnalysisJobViewDTO>(response);
+    },
+
+    adminStartTraceAnalysisBatch: async (payload: {
+        analyzerType: 'DETERMINISTIC' | 'LLM' | 'VLM';
+        samplingPolicy: 'TARGETED' | 'RANDOM' | 'MIXED';
+        limit: number;
+    }): Promise<Response<TraceAnalysisJobViewDTO>> => {
+        const response = await fetch(`${API_CONFIG.BASE_URL}/admin/trace-analysis-jobs`, {
+            method: 'POST', headers: await csrfHeaders({ 'Content-Type': 'application/json' }),
+            body: JSON.stringify({ ...payload, purposeConfirmed: true }), credentials: 'include',
+        });
+        return handleResponse<TraceAnalysisJobViewDTO>(response);
+    },
+
+    adminListTraceAnalysisJobs: async (limit = 20): Promise<Response<TraceAnalysisJobDTO[]>> => {
+        const response = await fetch(`${API_CONFIG.BASE_URL}/admin/trace-analysis-jobs?limit=${limit}`, {
+            method: 'GET', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+        });
+        return handleResponse<TraceAnalysisJobDTO[]>(response);
+    },
+
+    adminGetTraceAnalysisJob: async (jobId: string): Promise<Response<TraceAnalysisJobViewDTO>> => {
+        const response = await fetch(`${API_CONFIG.BASE_URL}/admin/trace-analysis-jobs/${encodeURIComponent(jobId)}`, {
+            method: 'GET', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+        });
+        return handleResponse<TraceAnalysisJobViewDTO>(response);
+    },
+
+    adminListTraceFindings: async (params?: {
+        status?: string; risk?: string; analyzer?: string; routeType?: string; agentId?: string;
+        sourceRunId?: string; discoveredFrom?: string; discoveredTo?: string;
+        minLatencyMs?: number; maxLatencyMs?: number; limit?: number;
+    }): Promise<Response<TraceFindingViewDTO[]>> => {
+        const query = new URLSearchParams();
+        if (params?.status) query.set('status', params.status);
+        if (params?.risk) query.set('risk', params.risk);
+        if (params?.analyzer) query.set('analyzer', params.analyzer);
+        if (params?.routeType) query.set('routeType', params.routeType);
+        if (params?.agentId) query.set('agentId', params.agentId);
+        if (params?.sourceRunId) query.set('sourceRunId', params.sourceRunId);
+        if (params?.discoveredFrom) query.set('discoveredFrom', params.discoveredFrom);
+        if (params?.discoveredTo) query.set('discoveredTo', params.discoveredTo);
+        if (params?.minLatencyMs != null) query.set('minLatencyMs', String(params.minLatencyMs));
+        if (params?.maxLatencyMs != null) query.set('maxLatencyMs', String(params.maxLatencyMs));
+        if (params?.limit) query.set('limit', String(params.limit));
+        const response = await fetch(`${API_CONFIG.BASE_URL}/admin/trace-findings?${query}`, {
+            method: 'GET', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+        });
+        return handleResponse<TraceFindingViewDTO[]>(response);
     },
 
     adminTransitionEvalCandidate: async (

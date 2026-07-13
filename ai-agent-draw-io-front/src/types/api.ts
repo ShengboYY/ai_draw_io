@@ -742,6 +742,72 @@ export interface VisualMinerResultDTO {
   reason?: string; candidateId?: string; confidence: number; estimatedCostUsd: number;
 }
 
+export interface TraceAnalysisJobDTO {
+  id: string;
+  scope: 'SINGLE_TRACE' | 'SAMPLE_BATCH';
+  analyzerType: 'DETERMINISTIC' | 'LLM' | 'VLM';
+  analyzerVersion: string;
+  analyzerConfigHash: string;
+  status: 'QUEUED' | 'RUNNING' | 'SUCCEEDED' | 'PARTIAL' | 'FAILED' | 'CANCELLED';
+  totalItems: number;
+  succeededItems: number;
+  failedItems: number;
+  reservedCost: number;
+  actualCost: number;
+  createdAt?: string;
+  startedAt?: string;
+  completedAt?: string;
+}
+
+export interface TraceAnalysisItemDTO {
+  id: string;
+  jobId: string;
+  sourceRunId: string;
+  analyzerType: 'DETERMINISTIC' | 'LLM' | 'VLM';
+  status: 'QUEUED' | 'RUNNING' | 'SUCCEEDED' | 'FAILED';
+  outcomeStatus?: 'NO_FINDING' | 'CANDIDATE_CREATED' | 'MERGED' | 'UNAVAILABLE';
+  attempt: number;
+  candidateId?: string;
+  latencyMs?: number;
+  estimatedCost: number;
+  errorClass?: string;
+  errorMessage?: string;
+}
+
+export interface TraceAnalysisJobViewDTO {
+  job: TraceAnalysisJobDTO;
+  items: TraceAnalysisItemDTO[];
+}
+
+export interface TraceFindingViewDTO {
+  candidateId: string;
+  sourceRunId: string;
+  routeType?: string;
+  sourceAgentId?: string;
+  sourceLatencyMs?: number;
+  analyzerType: 'DETERMINISTIC' | 'LLM' | 'VLM';
+  analyzerVersion?: string;
+  failureFamily: string;
+  risk: string;
+  confidence?: number;
+  analysisSummary: string;
+  analysisEvidence: string[];
+  evidenceRefs: string[];
+  recommendation: {
+    suspectedLayer: string;
+    evidence: string;
+    expectedImpact: string;
+    suggestedExperiment: string;
+    relatedFindingsCount: number;
+    confidence?: number;
+  };
+  candidateStatus: string;
+  statusGroup: string;
+  discoveredAt?: string;
+  reviewedBy?: string;
+  reviewedAt?: string;
+}
+
 export interface EvalCaseDraftDTO {
   id: string;
   failureSummary: string;

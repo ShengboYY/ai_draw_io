@@ -58,9 +58,13 @@ test('admin run detail supports P5 snapshot replay in the diagram preview', () =
   assert.match(pageSource, /setPlayingReplay/);
 });
 
-test('admin run detail provides the metadata-only Trace-to-Eval manual entry', () => {
-  assert.match(pageSource, /Create Finding/);
-  assert.match(pageSource, /adminCreateEvalCandidate\(runId\)/);
-  assert.match(pageSource, /evalCandidate\.status/);
-  assert.match(pageSource, /P0 deliberately sends only the run id/);
+test('admin run detail starts a persistent deterministic, LLM, or VLM analysis job', () => {
+  assert.match(pageSource, /Analyze trace/);
+  assert.match(pageSource, /adminStartTraceAnalysis\(runId, traceAnalyzer\)/);
+  assert.match(pageSource, /DETERMINISTIC/);
+  assert.match(pageSource, /LLM semantic/);
+  assert.match(pageSource, /VLM visual/);
+  assert.match(pageSource, /persistent job owns retries and evidence isolation/);
+  assert.match(pageSource, /adminGetTraceAnalysisJob/);
+  assert.match(pageSource, /Recent Findings/);
 });

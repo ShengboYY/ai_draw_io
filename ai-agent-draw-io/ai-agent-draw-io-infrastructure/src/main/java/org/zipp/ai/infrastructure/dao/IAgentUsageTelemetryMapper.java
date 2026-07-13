@@ -54,6 +54,9 @@ public interface IAgentUsageTelemetryMapper {
                                          @Param("limit") int limit,
                                          @Param("offset") int offset);
 
+    List<AgentRunTelemetryPO> selectTerminalRunsAtOrBefore(@Param("snapshot") Date snapshot,
+                                                           @Param("limit") int limit);
+
     List<AgentRunStepTelemetryPO> selectStepsByRunId(@Param("runId") String runId);
 
     List<LlmCallTelemetryPO> selectLlmCallsByRunId(@Param("runId") String runId);
