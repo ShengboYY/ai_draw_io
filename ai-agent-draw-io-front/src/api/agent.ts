@@ -37,6 +37,9 @@ import {
     AdminDebugTraceControlRequestDTO,
     EvalCaseCandidateDTO,
     EvalDraftPreparationDTO,
+    EvalCaseWorkingCopyDTO,
+    EvalCaseValidationResultDTO,
+    EvalCaseDryRunResultDTO,
 } from '@/types/api';
 
 export class ApiResponseError extends Error {
@@ -355,6 +358,66 @@ export const agentApi = {
             credentials: 'include',
         });
         return handleResponse<EvalDraftPreparationDTO>(response);
+    },
+
+    adminListEvalCaseWorkingCopies: async (status?: string): Promise<Response<EvalCaseWorkingCopyDTO[]>> => {
+        const query = status ? `?status=${encodeURIComponent(status)}` : '';
+        const response = await fetch(`${API_CONFIG.BASE_URL}/admin/eval-case-working-copies${query}`, {
+            method: 'GET', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+        });
+        return handleResponse<EvalCaseWorkingCopyDTO[]>(response);
+    },
+
+    adminGetEvalCaseWorkingCopy: async (id: string): Promise<Response<EvalCaseWorkingCopyDTO>> => {
+        const response = await fetch(`${API_CONFIG.BASE_URL}/admin/eval-case-working-copies/${encodeURIComponent(id)}`, {
+            method: 'GET', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+        });
+        return handleResponse<EvalCaseWorkingCopyDTO>(response);
+    },
+
+    adminImportEvalCaseYaml: async (yaml: string): Promise<Response<EvalCaseWorkingCopyDTO>> => {
+        const response = await fetch(`${API_CONFIG.BASE_URL}/admin/eval-case-working-copies`, {
+            method: 'POST', headers: await csrfHeaders({ 'Content-Type': 'application/json' }),
+            body: JSON.stringify({ sourceType: 'IMPORTED', yaml }), credentials: 'include',
+        });
+        return handleResponse<EvalCaseWorkingCopyDTO>(response);
+    },
+
+    adminUpdateEvalCaseWorkingCopy: async (id: string, revision: number, definition: Record<string, unknown>): Promise<Response<EvalCaseWorkingCopyDTO>> => {
+        const response = await fetch(`${API_CONFIG.BASE_URL}/admin/eval-case-working-copies/${encodeURIComponent(id)}`, {
+            method: 'PUT', headers: await csrfHeaders({ 'Content-Type': 'application/json' }),
+            body: JSON.stringify({ expectedRevision: revision, definition }), credentials: 'include',
+        });
+        return handleResponse<EvalCaseWorkingCopyDTO>(response);
+    },
+
+    adminValidateEvalCase: async (id: string): Promise<Response<EvalCaseValidationResultDTO>> => {
+        const response = await fetch(`${API_CONFIG.BASE_URL}/admin/eval-case-working-copies/${encodeURIComponent(id)}/validate`, {
+            method: 'POST', headers: await csrfHeaders({ 'Content-Type': 'application/json' }), credentials: 'include',
+        });
+        return handleResponse<EvalCaseValidationResultDTO>(response);
+    },
+
+    adminDryRunEvalCase: async (id: string): Promise<Response<EvalCaseDryRunResultDTO>> => {
+        const response = await fetch(`${API_CONFIG.BASE_URL}/admin/eval-case-working-copies/${encodeURIComponent(id)}/dry-runs`, {
+            method: 'POST', headers: await csrfHeaders({ 'Content-Type': 'application/json' }), credentials: 'include',
+        });
+        return handleResponse<EvalCaseDryRunResultDTO>(response);
+    },
+
+    adminSubmitEvalCaseReview: async (id: string): Promise<Response<EvalCaseWorkingCopyDTO>> => {
+        const response = await fetch(`${API_CONFIG.BASE_URL}/admin/eval-case-working-copies/${encodeURIComponent(id)}/submit-review`, {
+            method: 'POST', headers: await csrfHeaders({ 'Content-Type': 'application/json' }), credentials: 'include',
+        });
+        return handleResponse<EvalCaseWorkingCopyDTO>(response);
+    },
+
+    adminDecideEvalCase: async (id: string, decision: 'approve' | 'reject', reason: string): Promise<Response<EvalCaseWorkingCopyDTO>> => {
+        const response = await fetch(`${API_CONFIG.BASE_URL}/admin/eval-case-working-copies/${encodeURIComponent(id)}/${decision}`, {
+            method: 'POST', headers: await csrfHeaders({ 'Content-Type': 'application/json' }),
+            body: JSON.stringify({ reason }), credentials: 'include',
+        });
+        return handleResponse<EvalCaseWorkingCopyDTO>(response);
     },
 
     adminRunCaptures: async (runId: string): Promise<Response<AdminDebugTraceCaptureDTO[]>> => {

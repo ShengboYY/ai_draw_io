@@ -12,6 +12,13 @@ import org.zipp.ai.domain.agent.model.valobj.evaluation.controlplane.EvalCaseWor
 import org.zipp.ai.domain.agent.model.valobj.evaluation.controlplane.EvalCaseWorkingCopyStatus;
 import org.zipp.ai.domain.agent.service.evaluation.controlplane.EvalCaseWorkingCopyService;
 import org.zipp.ai.domain.agent.service.evaluation.controlplane.IEvalCaseWorkingCopyStore;
+import org.zipp.ai.domain.agent.service.evaluation.controlplane.EvalCaseValidationService;
+import org.zipp.ai.domain.agent.service.evaluation.controlplane.EvalCaseDryRunService;
+import org.zipp.ai.domain.agent.service.evaluation.controlplane.EvalCaseReviewService;
+import org.zipp.ai.domain.agent.service.evaluation.controlplane.IEvalCaseEvidenceStore;
+import org.zipp.ai.domain.agent.service.evaluation.controlplane.IEvalCaseWorkingCopyReviewStore;
+import org.zipp.ai.domain.agent.model.valobj.evaluation.controlplane.EvalCaseEvidence;
+import org.zipp.ai.domain.agent.model.valobj.evaluation.controlplane.EvalCaseWorkingCopyReview;
 import org.zipp.ai.domain.agent.service.evaluation.intake.ITraceToEvalStore;
 import org.zipp.ai.trigger.http.EvaluationAdminController;
 import org.zipp.ai.trigger.http.service.AdminAuthorizationService;
@@ -27,6 +34,8 @@ import java.util.Optional;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+import java.nio.charset.StandardCharsets;
 
 public class EvaluationAdminControllerTest {
 
@@ -76,6 +85,26 @@ public class EvaluationAdminControllerTest {
         assertEquals(0, fixture.auditLogs.logs.size());
     }
 
+    @Test
+    public void adminCanValidateDryRunAndSubmitAnImportedCase() throws Exception {
+        Fixture fixture = new Fixture(true);
+        EvaluationAdminController.CreateRequest create = new EvaluationAdminController.CreateRequest();
+        create.setSourceType("IMPORTED");
+        try (var input = getClass().getResourceAsStream("/evals/core-v1/edit-api-gateway.yaml")) {
+            create.setYaml(new String(input.readAllBytes(), StandardCharsets.UTF_8));
+        }
+        EvalCaseWorkingCopy workingCopy = fixture.controller.create(create, request()).getData();
+
+        var validation = fixture.controller.validate(workingCopy.getId(), request());
+        var dryRun = fixture.controller.dryRun(workingCopy.getId(), request());
+        var review = fixture.controller.submitReview(workingCopy.getId(), request());
+
+        assertTrue(validation.getData().isPassed());
+        assertEquals("PASS", dryRun.getData().getResult().getStatus().name());
+        assertEquals(EvalCaseWorkingCopyStatus.UNDER_REVIEW, review.getData().getStatus());
+        assertTrue(fixture.auditLogs.logs.stream().anyMatch(log -> "DRY_RUN_EVAL_CASE_WORKING_COPY".equals(log.getAction())));
+    }
+
     private static EvalCaseDefinition definition(String id, String version, String user) {
         return EvalCaseDefinition.builder().caseId(id).caseVersion(version).datasetVersion("dev-draft")
                 .input(Map.of("user", user))
@@ -102,7 +131,17 @@ public class EvaluationAdminControllerTest {
                     return authenticated ? Optional.of(admin) : Optional.empty();
                 }
             };
-            controller = new EvaluationAdminController(service, authorization,
+            IEvalCaseEvidenceStore evidence = new IEvalCaseEvidenceStore() {
+                @Override public void insert(EvalCaseEvidence value) { }
+                @Override public List<EvalCaseEvidence> list(String id) { return List.of(); }
+            };
+            IEvalCaseWorkingCopyReviewStore reviews = new IEvalCaseWorkingCopyReviewStore() {
+                @Override public void insert(EvalCaseWorkingCopyReview value) { }
+                @Override public List<EvalCaseWorkingCopyReview> list(String id) { return List.of(); }
+            };
+            controller = new EvaluationAdminController(service,
+                    new EvalCaseValidationService(service, evidence), new EvalCaseDryRunService(service, evidence),
+                    new EvalCaseReviewService(service, reviews), authorization,
                     new AdminAuditLogService(auditLogs, Clock.fixed(Instant.parse("2026-07-13T02:00:00Z"), ZoneOffset.UTC)));
         }
     }

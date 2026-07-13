@@ -122,6 +122,30 @@ public class EvalCaseWorkingCopyService {
         return create(EvalCaseSourceType.WORKING_COPY_CLONE, definition, null, actor, role);
     }
 
+    /** Advances the qualification state machine without mutating the case definition. */
+    public EvalCaseWorkingCopy transition(String id, EvalCaseWorkingCopyStatus target,
+                                          String actor, EvalAdminRole role) {
+        EvalCaseWorkingCopy current = find(id);
+        if (target == EvalCaseWorkingCopyStatus.APPROVED || target == EvalCaseWorkingCopyStatus.REJECTED) {
+            requireCanRead(current, actor, role);
+        } else {
+            requireCanEdit(current, actor, role);
+        }
+        if (!allowedTransition(current.getStatus(), target)) {
+            throw new IllegalStateException("invalid working-copy transition " + current.getStatus() + " -> " + target);
+        }
+        EvalCaseWorkingCopy updated = EvalCaseWorkingCopy.builder()
+                .id(current.getId()).caseId(current.getCaseId()).caseVersion(current.getCaseVersion())
+                .sourceType(current.getSourceType()).candidateId(current.getCandidateId()).status(target)
+                .ownerUserId(current.getOwnerUserId()).revision(current.getRevision() + 1)
+                .definition(copy(current.getDefinition())).createdAt(current.getCreatedAt())
+                .updatedAt(clock.instant()).build();
+        if (!store.update(updated, current.getRevision())) {
+            throw new IllegalStateException("working copy revision conflict");
+        }
+        return updated;
+    }
+
     private EvalCaseWorkingCopy create(EvalCaseSourceType sourceType, EvalCaseDefinition definition,
                                        String candidateId, String actor, EvalAdminRole role) {
         requireActor(actor);
@@ -179,16 +203,34 @@ public class EvalCaseWorkingCopyService {
 
     private void requireCanEdit(EvalCaseWorkingCopy workingCopy, String actor, EvalAdminRole role) {
         requireCanRead(workingCopy, actor, role);
+        if (role == EvalAdminRole.REVIEWER && !actor.equals(workingCopy.getOwnerUserId())) {
+            throw new SecurityException("reviewers cannot edit another administrator's working copy");
+        }
     }
 
     private boolean canManageAll(EvalAdminRole role) {
-        return role == EvalAdminRole.ADMIN || role == EvalAdminRole.RELEASE_OWNER;
+        return role == EvalAdminRole.REVIEWER || role == EvalAdminRole.ADMIN || role == EvalAdminRole.RELEASE_OWNER;
     }
 
     private boolean editable(EvalCaseWorkingCopyStatus status) {
         return status == EvalCaseWorkingCopyStatus.DRAFT
                 || status == EvalCaseWorkingCopyStatus.VALIDATION_FAILED
                 || status == EvalCaseWorkingCopyStatus.REJECTED;
+    }
+
+    private boolean allowedTransition(EvalCaseWorkingCopyStatus source, EvalCaseWorkingCopyStatus target) {
+        return switch (source) {
+            case DRAFT, VALIDATION_FAILED -> target == EvalCaseWorkingCopyStatus.VALIDATING;
+            case VALIDATING -> target == EvalCaseWorkingCopyStatus.VALIDATED
+                    || target == EvalCaseWorkingCopyStatus.VALIDATION_FAILED;
+            case VALIDATED -> target == EvalCaseWorkingCopyStatus.DRY_RUNNING;
+            case DRY_RUNNING -> target == EvalCaseWorkingCopyStatus.DRY_RUN_PASSED
+                    || target == EvalCaseWorkingCopyStatus.DRY_RUN_FAILED;
+            case DRY_RUN_PASSED -> target == EvalCaseWorkingCopyStatus.UNDER_REVIEW;
+            case UNDER_REVIEW -> target == EvalCaseWorkingCopyStatus.APPROVED
+                    || target == EvalCaseWorkingCopyStatus.REJECTED;
+            default -> false;
+        };
     }
 
     private EvalCaseWorkingCopyStatus parseStatus(String status) {

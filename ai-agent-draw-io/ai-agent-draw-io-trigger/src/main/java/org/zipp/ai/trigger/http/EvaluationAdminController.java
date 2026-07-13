@@ -18,6 +18,11 @@ import org.zipp.ai.domain.agent.model.valobj.evaluation.EvalCaseDefinition;
 import org.zipp.ai.domain.agent.model.valobj.evaluation.controlplane.EvalAdminRole;
 import org.zipp.ai.domain.agent.model.valobj.evaluation.controlplane.EvalCaseSourceType;
 import org.zipp.ai.domain.agent.model.valobj.evaluation.controlplane.EvalCaseWorkingCopy;
+import org.zipp.ai.domain.agent.model.valobj.evaluation.controlplane.EvalCaseValidationResult;
+import org.zipp.ai.domain.agent.model.valobj.evaluation.controlplane.EvalCaseDryRunResult;
+import org.zipp.ai.domain.agent.service.evaluation.controlplane.EvalCaseDryRunService;
+import org.zipp.ai.domain.agent.service.evaluation.controlplane.EvalCaseReviewService;
+import org.zipp.ai.domain.agent.service.evaluation.controlplane.EvalCaseValidationService;
 import org.zipp.ai.domain.agent.service.evaluation.controlplane.EvalCaseWorkingCopyService;
 import org.zipp.ai.domain.agent.service.evaluation.controlplane.EvalControlPlaneAuditTypes;
 import org.zipp.ai.domain.agent.service.evaluation.controlplane.EvalControlPlaneErrorCode;
@@ -32,15 +37,114 @@ import java.util.Optional;
 @RequestMapping("/api/v1/admin/eval-case-working-copies")
 public class EvaluationAdminController {
     private final EvalCaseWorkingCopyService service;
+    private final EvalCaseValidationService validationService;
+    private final EvalCaseDryRunService dryRunService;
+    private final EvalCaseReviewService reviewService;
     private final AdminAuthorizationService authorizationService;
     private final AdminAuditLogService auditLogService;
 
     public EvaluationAdminController(EvalCaseWorkingCopyService service,
+                                     EvalCaseValidationService validationService,
+                                     EvalCaseDryRunService dryRunService,
+                                     EvalCaseReviewService reviewService,
                                      AdminAuthorizationService authorizationService,
                                      AdminAuditLogService auditLogService) {
         this.service = service;
+        this.validationService = validationService;
+        this.dryRunService = dryRunService;
+        this.reviewService = reviewService;
         this.authorizationService = authorizationService;
         this.auditLogService = auditLogService;
+    }
+
+    @PostMapping("/{workingCopyId}/validate")
+    public Response<EvalCaseValidationResult> validate(@PathVariable String workingCopyId,
+                                                       HttpServletRequest request) {
+        Optional<UserAccount> admin = authorizationService.currentAdmin(request);
+        if (admin.isEmpty()) return forbidden();
+        try {
+            EvalCaseValidationResult result = validationService.validate(workingCopyId,
+                    admin.get().getId(), EvalAdminRole.ADMIN);
+            audit(admin.get(), "VALIDATE_EVAL_CASE_WORKING_COPY", workingCopyId, "SUCCESS", request);
+            return success(result);
+        } catch (IllegalArgumentException | IllegalStateException | SecurityException e) {
+            audit(admin.get(), "VALIDATE_EVAL_CASE_WORKING_COPY", workingCopyId, "REJECTED", request);
+            return failure(codeFor(e), e.getMessage());
+        } catch (RuntimeException e) {
+            audit(admin.get(), "VALIDATE_EVAL_CASE_WORKING_COPY", workingCopyId, "ERROR", request);
+            return failure(EvalControlPlaneErrorCode.INFRASTRUCTURE_ERROR, "failed to validate working copy");
+        }
+    }
+
+    @PostMapping("/{workingCopyId}/dry-runs")
+    public Response<EvalCaseDryRunResult> dryRun(@PathVariable String workingCopyId,
+                                                 HttpServletRequest request) {
+        Optional<UserAccount> admin = authorizationService.currentAdmin(request);
+        if (admin.isEmpty()) return forbidden();
+        try {
+            EvalCaseDryRunResult result = dryRunService.run(workingCopyId,
+                    admin.get().getId(), EvalAdminRole.ADMIN);
+            audit(admin.get(), "DRY_RUN_EVAL_CASE_WORKING_COPY", workingCopyId, "SUCCESS", request);
+            return success(result);
+        } catch (IllegalArgumentException | IllegalStateException | SecurityException e) {
+            audit(admin.get(), "DRY_RUN_EVAL_CASE_WORKING_COPY", workingCopyId, "REJECTED", request);
+            return failure(codeFor(e), e.getMessage());
+        } catch (RuntimeException e) {
+            audit(admin.get(), "DRY_RUN_EVAL_CASE_WORKING_COPY", workingCopyId, "ERROR", request);
+            return failure(EvalControlPlaneErrorCode.INFRASTRUCTURE_ERROR, "failed to dry-run working copy");
+        }
+    }
+
+    @PostMapping("/{workingCopyId}/submit-review")
+    public Response<EvalCaseWorkingCopy> submitReview(@PathVariable String workingCopyId,
+                                                      HttpServletRequest request) {
+        Optional<UserAccount> admin = authorizationService.currentAdmin(request);
+        if (admin.isEmpty()) return forbidden();
+        try {
+            EvalCaseWorkingCopy result = reviewService.submit(workingCopyId,
+                    admin.get().getId(), EvalAdminRole.ADMIN);
+            audit(admin.get(), "SUBMIT_EVAL_CASE_REVIEW", workingCopyId, "SUCCESS", request);
+            return success(result);
+        } catch (IllegalArgumentException | IllegalStateException | SecurityException e) {
+            audit(admin.get(), "SUBMIT_EVAL_CASE_REVIEW", workingCopyId, "REJECTED", request);
+            return failure(codeFor(e), e.getMessage());
+        } catch (RuntimeException e) {
+            audit(admin.get(), "SUBMIT_EVAL_CASE_REVIEW", workingCopyId, "ERROR", request);
+            return failure(EvalControlPlaneErrorCode.INFRASTRUCTURE_ERROR, "failed to submit working copy review");
+        }
+    }
+
+    @PostMapping("/{workingCopyId}/approve")
+    public Response<EvalCaseWorkingCopy> approve(@PathVariable String workingCopyId,
+                                                 @RequestBody ReviewDecisionRequest body,
+                                                 HttpServletRequest request) {
+        return review(workingCopyId, "APPROVE", body, request);
+    }
+
+    @PostMapping("/{workingCopyId}/reject")
+    public Response<EvalCaseWorkingCopy> reject(@PathVariable String workingCopyId,
+                                                @RequestBody ReviewDecisionRequest body,
+                                                HttpServletRequest request) {
+        return review(workingCopyId, "REJECT", body, request);
+    }
+
+    private Response<EvalCaseWorkingCopy> review(String workingCopyId, String decision,
+                                                 ReviewDecisionRequest body, HttpServletRequest request) {
+        Optional<UserAccount> admin = authorizationService.currentAdmin(request);
+        if (admin.isEmpty()) return forbidden();
+        String action = decision + "_EVAL_CASE_WORKING_COPY";
+        try {
+            EvalCaseWorkingCopy result = reviewService.decide(workingCopyId, decision,
+                    body == null ? null : body.getReason(), admin.get().getId(), EvalAdminRole.ADMIN);
+            audit(admin.get(), action, workingCopyId, "SUCCESS", request);
+            return success(result);
+        } catch (IllegalArgumentException | IllegalStateException | SecurityException e) {
+            audit(admin.get(), action, workingCopyId, "REJECTED", request);
+            return failure(codeFor(e), e.getMessage());
+        } catch (RuntimeException e) {
+            audit(admin.get(), action, workingCopyId, "ERROR", request);
+            return failure(EvalControlPlaneErrorCode.INFRASTRUCTURE_ERROR, "failed to review working copy");
+        }
     }
 
     @PostMapping
@@ -224,5 +328,10 @@ public class EvaluationAdminController {
     public static class CloneRequest {
         private String caseId;
         private String caseVersion;
+    }
+
+    @Data
+    public static class ReviewDecisionRequest {
+        private String reason;
     }
 }

@@ -2,6 +2,7 @@ package org.zipp.ai.test.domain.agent.evaluation;
 
 import org.junit.Test;
 import org.zipp.ai.domain.agent.model.valobj.evaluation.EvalHarnessResult;
+import org.zipp.ai.domain.agent.service.evaluation.ModeBReplayExecutionFactory;
 import org.zipp.ai.domain.agent.service.evaluation.EvalBatchRunner;
 
 import java.nio.file.Files;

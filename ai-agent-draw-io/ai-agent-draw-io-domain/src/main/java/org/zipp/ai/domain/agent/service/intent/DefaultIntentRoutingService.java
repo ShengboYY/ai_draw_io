@@ -30,6 +30,15 @@ public class DefaultIntentRoutingService implements IIntentRoutingService {
     @Resource
     private SkillCatalogService skillCatalogService;
 
+    public DefaultIntentRoutingService() {
+    }
+
+    /** Explicit seam used by deterministic replay without reflection or a Spring container. */
+    public DefaultIntentRoutingService(IChatService chatService, SkillCatalogService skillCatalogService) {
+        this.chatService = chatService;
+        this.skillCatalogService = skillCatalogService;
+    }
+
     // <mxGraphModel>...</mxGraphModel> embedded in the message means an existing canvas is in play.
     private static final java.util.regex.Pattern MXGRAPH_PATTERN =
             java.util.regex.Pattern.compile("<mxGraphModel[\\s\\S]*?</mxGraphModel>");

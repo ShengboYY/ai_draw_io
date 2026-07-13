@@ -4,6 +4,34 @@ export interface Response<T> {
     data: T;
 }
 
+export interface EvalCaseWorkingCopyDTO {
+  id: string;
+  caseId: string;
+  caseVersion: string;
+  sourceType: 'MANUAL' | 'IMPORTED' | 'TRACE_DRAFT' | 'WORKING_COPY_CLONE';
+  candidateId?: string;
+  status: string;
+  ownerUserId: string;
+  revision: number;
+  definition: Record<string, unknown>;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface EvalCaseValidationResultDTO {
+  passed: boolean;
+  evidence: string[];
+  workingCopy: EvalCaseWorkingCopyDTO;
+}
+
+export interface EvalCaseDryRunResultDTO {
+  result: { status: string; passed: boolean; latencyMs?: number; graders?: Array<{ grader: string; passed: boolean; evidence?: string[] }> };
+  workingCopy: EvalCaseWorkingCopyDTO;
+  initialCanvasXml?: string;
+  finalCanvasXml?: string;
+  trace?: { routing?: { routeType?: string }; toolCalls?: Array<{ name?: string; status?: string }> };
+}
+
 export type ApiErrorCode = 'AUTH_RATE_LIMITED' | 'DEMO_QUOTA_EXHAUSTED' | 'PLATFORM_QUOTA_EXHAUSTED' | (string & {});
 
 export interface AiAgentConfigResponseDTO {

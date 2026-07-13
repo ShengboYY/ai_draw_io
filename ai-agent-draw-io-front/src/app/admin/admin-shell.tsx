@@ -5,7 +5,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { AdminAccountMenu } from './admin-account-menu';
 
-type AdminSection = 'overview' | 'runs' | 'candidates' | 'trace';
+type AdminSection = 'overview' | 'runs' | 'candidates' | 'cases' | 'trace';
 
 interface AdminShellProps {
   active: AdminSection;
@@ -24,6 +24,7 @@ const primaryNavItems: { id: Exclude<AdminSection, 'trace'>; href: string; label
   { id: 'overview', href: '/admin', label: 'Overview' },
   { id: 'runs', href: '/admin/runs', label: 'Runs' },
   { id: 'candidates', href: '/admin/eval-candidates', label: 'Candidates' },
+  { id: 'cases', href: '/admin/eval-cases', label: 'Cases' },
 ];
 
 // Keep observability pages in the same visual frame as the diagram workspace.

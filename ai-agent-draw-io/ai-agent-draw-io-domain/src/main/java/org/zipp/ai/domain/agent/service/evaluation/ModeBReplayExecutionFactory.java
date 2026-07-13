@@ -1,4 +1,4 @@
-package org.zipp.ai.test.domain.agent.evaluation;
+package org.zipp.ai.domain.agent.service.evaluation;
 
 import com.google.adk.events.Event;
 import io.reactivex.rxjava3.core.Flowable;
@@ -14,20 +14,17 @@ import org.zipp.ai.domain.agent.service.armory.matter.mcp.server.DrawioCanvasMcp
 import org.zipp.ai.domain.agent.service.armory.matter.mcp.server.DrawioCanvasToolNames;
 import org.zipp.ai.domain.agent.service.armory.matter.mcp.server.DrawioCanvasXmlToolkit;
 import org.zipp.ai.domain.agent.service.armory.matter.skills.SkillCatalogService;
-import org.zipp.ai.domain.agent.service.evaluation.EvalBatchRunner;
 import org.zipp.ai.domain.agent.service.intent.DefaultIntentRoutingService;
 
-import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.List;
 
-/** Builds one deterministic execution solely from the replay data owned by that eval case. */
+/** Runs deterministic replay data through the real router post-processing and canvas tools. */
 public class ModeBReplayExecutionFactory implements EvalBatchRunner.ExecutionFactory {
-
     private final String gitSha;
 
     public ModeBReplayExecutionFactory() {
-        this(System.getProperty("eval.gitSha", "test-fixture-sha"));
+        this(System.getProperty("eval.gitSha", "mode-b-local"));
     }
 
     public ModeBReplayExecutionFactory(String gitSha) {
@@ -41,53 +38,24 @@ public class ModeBReplayExecutionFactory implements EvalBatchRunner.ExecutionFac
         if (replay.getTurns() != null && !replay.getTurns().isEmpty()) {
             return createMultiTurn(evalCase, replay, initialXml);
         }
-        IntentRoutingResult routing = route(userMessage(evalCase), initialXml, require(replay.getRouterReply(), "replay.routerReply"));
-
-        List<EvalTrace.ToolCall> toolCalls = new ArrayList<>();
-        for (String required : evalCase.getExpected().getRequiredToolNamesBeforeMutation()) {
-            toolCalls.add(successfulCall(required));
+        IntentRoutingResult routing = route(userMessage(evalCase), initialXml,
+                require(replay.getRouterReply(), "replay.routerReply"));
+        List<EvalTrace.ToolCall> calls = new ArrayList<>();
+        for (String required : safe(evalCase.getExpected().getRequiredToolNamesBeforeMutation())) {
+            calls.add(successfulCall(required));
         }
         String finalXml = initialXml;
-        for (EvalCaseDefinition.ReplayToolCall call : replay.getToolCalls()) {
+        for (EvalCaseDefinition.ReplayToolCall call : safe(replay.getToolCalls())) {
             finalXml = executeTool(call, finalXml);
-            toolCalls.add(successfulCall(call.getName()));
+            calls.add(successfulCall(call.getName()));
         }
         EvalTrace.TaskOutcome outcome = replay.getTaskOutcome() == null
                 ? EvalTrace.TaskOutcome.UNKNOWN : replay.getTaskOutcome();
-        EvalCaseDefinition.ExecutionProfile profile = evalCase.getExecutionProfile();
-        return EvalExecution.builder()
-                .evalCase(evalCase)
-                .trace(EvalTrace.builder()
-                        .runStatus(EvalTrace.RunStatus.SUCCESS)
-                        .taskOutcome(outcome)
-                        .routing(EvalTrace.Routing.builder()
-                                .routeType(routing.getRouteType())
-                                .diagramType(routing.getDiagramType())
-                                .skillName(routing.getSkillName())
-                                .needsCanvasQuality(routing.getNeedsCanvasQuality())
-                                .needsSemanticReview(routing.getNeedsSemanticReview())
-                                .answerMode(routing.getAnswerMode())
-                                .build())
-                        .steps(List.of(
-                                EvalTrace.Step.builder().phase("routing").agentId("300010")
-                                        .status(EvalTrace.RunStatus.SUCCESS).build(),
-                                EvalTrace.Step.builder().phase("drawing").agentId("300000")
-                                        .status(EvalTrace.RunStatus.SUCCESS).build()))
-                        .toolCalls(toolCalls)
-                        .beforeCanvasHash(Integer.toHexString(initialXml.hashCode()))
-                        .afterCanvasHash(Integer.toHexString(finalXml.hashCode()))
-                        .build())
-                .initialCanvasXml(initialXml)
-                .finalCanvasXml(finalXml)
-                .gitSha(gitSha)
-                .executionProfileHash(profileHash(profile))
-                .promptConfigHash(profile == null ? null : profile.getPromptConfigHash())
-                .skillCatalogHash(profile == null ? null : profile.getSkillCatalogHash())
-                .toolPolicyVersion(profile == null ? null : profile.getToolPolicyVersion())
-                .build();
+        return execution(evalCase, initialXml, finalXml, trace(routing, outcome, calls, initialXml, finalXml), List.of());
     }
 
-    private EvalExecution createMultiTurn(EvalCaseDefinition evalCase, EvalCaseDefinition.Replay replay, String initialXml) throws Exception {
+    private EvalExecution createMultiTurn(EvalCaseDefinition evalCase, EvalCaseDefinition.Replay replay,
+                                          String initialXml) throws Exception {
         List<String> users = userTurns(evalCase);
         if (users.size() != replay.getTurns().size()) {
             throw new IllegalArgumentException("input.turns and replay.turns must have the same size");
@@ -102,12 +70,13 @@ public class ModeBReplayExecutionFactory implements EvalBatchRunner.ExecutionFac
             IntentRoutingResult routing = route(users.get(index), before,
                     require(replayTurn.getRouterReply(), "replay.turns[].routerReply"));
             List<EvalTrace.ToolCall> calls = new ArrayList<>();
-            List<EvalCaseDefinition.ReplayToolCall> recordedCalls = replayTurn.getToolCalls() == null
-                    ? List.of() : replayTurn.getToolCalls();
-            if (!recordedCalls.isEmpty()) {
-                for (String required : evalCase.getExpected().getRequiredToolNamesBeforeMutation()) calls.add(successfulCall(required));
+            List<EvalCaseDefinition.ReplayToolCall> recorded = safe(replayTurn.getToolCalls());
+            if (!recorded.isEmpty()) {
+                for (String required : safe(evalCase.getExpected().getRequiredToolNamesBeforeMutation())) {
+                    calls.add(successfulCall(required));
+                }
             }
-            for (EvalCaseDefinition.ReplayToolCall call : recordedCalls) {
+            for (EvalCaseDefinition.ReplayToolCall call : recorded) {
                 currentXml = executeTool(call, currentXml);
                 calls.add(successfulCall(call.getName()));
             }
@@ -116,58 +85,55 @@ public class ModeBReplayExecutionFactory implements EvalBatchRunner.ExecutionFac
             turns.add(EvalExecution.TurnExecution.builder().index(index).user(users.get(index)).trace(lastTrace)
                     .beforeCanvasXml(before).afterCanvasXml(currentXml).build());
         }
-        EvalCaseDefinition.ExecutionProfile profile = evalCase.getExecutionProfile();
         EvalTrace aggregate = EvalTrace.builder().runStatus(EvalTrace.RunStatus.SUCCESS)
                 .taskOutcome(lastTrace == null ? EvalTrace.TaskOutcome.UNKNOWN : lastTrace.getTaskOutcome())
                 .routing(lastTrace == null ? null : lastTrace.getRouting()).toolCalls(allCalls)
-                .beforeCanvasHash(Integer.toHexString(initialXml.hashCode()))
-                .afterCanvasHash(Integer.toHexString(currentXml.hashCode())).build();
-        return EvalExecution.builder().evalCase(evalCase).trace(aggregate).turns(turns)
-                .initialCanvasXml(initialXml).finalCanvasXml(currentXml).gitSha(gitSha)
+                .beforeCanvasHash(hash(initialXml)).afterCanvasHash(hash(currentXml)).build();
+        return execution(evalCase, initialXml, currentXml, aggregate, turns);
+    }
+
+    private EvalExecution execution(EvalCaseDefinition evalCase, String initialXml, String finalXml,
+                                    EvalTrace trace, List<EvalExecution.TurnExecution> turns) {
+        EvalCaseDefinition.ExecutionProfile profile = evalCase.getExecutionProfile();
+        return EvalExecution.builder().evalCase(evalCase).trace(trace).turns(turns)
+                .initialCanvasXml(initialXml).finalCanvasXml(finalXml).gitSha(gitSha)
                 .executionProfileHash(profileHash(profile))
                 .promptConfigHash(profile == null ? null : profile.getPromptConfigHash())
                 .skillCatalogHash(profile == null ? null : profile.getSkillCatalogHash())
                 .toolPolicyVersion(profile == null ? null : profile.getToolPolicyVersion()).build();
     }
 
-    private EvalTrace trace(IntentRoutingResult routing, EvalTrace.TaskOutcome outcome, List<EvalTrace.ToolCall> calls,
-                            String before, String after) {
+    private EvalTrace trace(IntentRoutingResult routing, EvalTrace.TaskOutcome outcome,
+                            List<EvalTrace.ToolCall> calls, String before, String after) {
         return EvalTrace.builder().runStatus(EvalTrace.RunStatus.SUCCESS)
                 .taskOutcome(outcome == null ? EvalTrace.TaskOutcome.UNKNOWN : outcome)
-                .routing(EvalTrace.Routing.builder().routeType(routing.getRouteType()).diagramType(routing.getDiagramType())
-                        .skillName(routing.getSkillName()).needsCanvasQuality(routing.getNeedsCanvasQuality())
-                        .needsSemanticReview(routing.getNeedsSemanticReview()).answerMode(routing.getAnswerMode()).build())
-                .toolCalls(calls).beforeCanvasHash(Integer.toHexString(before.hashCode()))
-                .afterCanvasHash(Integer.toHexString(after.hashCode())).build();
+                .routing(EvalTrace.Routing.builder().routeType(routing.getRouteType())
+                        .diagramType(routing.getDiagramType()).skillName(routing.getSkillName())
+                        .needsCanvasQuality(routing.getNeedsCanvasQuality())
+                        .needsSemanticReview(routing.getNeedsSemanticReview())
+                        .answerMode(routing.getAnswerMode()).build())
+                .toolCalls(calls).beforeCanvasHash(hash(before)).afterCanvasHash(hash(after)).build();
     }
 
-    private IntentRoutingResult route(String userMessage, String canvasXml, String reply) throws Exception {
-        DefaultIntentRoutingService service = new DefaultIntentRoutingService();
-        inject(service, "chatService", new RecordedReplyChatService(reply));
-        inject(service, "skillCatalogService", new EmptySkillCatalogService());
-        return service.route(IntentRoutingCommand.builder()
-                .userId("eval-user")
-                .message(userMessage)
-                .canvasXml(canvasXml)
-                .build());
+    private IntentRoutingResult route(String user, String canvasXml, String recordedReply) {
+        DefaultIntentRoutingService router = new DefaultIntentRoutingService(
+                new RecordedReplyChatService(recordedReply), new EmptySkillCatalogService());
+        return router.route(IntentRoutingCommand.builder().userId("eval-user")
+                .message(user).canvasXml(canvasXml).build());
     }
 
-    private String executeTool(EvalCaseDefinition.ReplayToolCall call, String initialXml) {
+    private String executeTool(EvalCaseDefinition.ReplayToolCall call, String currentXml) {
         DrawioCanvasMcpService service = new DrawioCanvasMcpService();
         String toolName = require(call.getName(), "replay.toolCalls[].name");
         if (DrawioCanvasToolNames.MODIFY_DIAGRAM.equals(toolName)) {
             DrawioCanvasMcpService.ModifyDiagramRequest request = new DrawioCanvasMcpService.ModifyDiagramRequest();
             request.setMode(require(call.getMode(), "replay.toolCalls[].mode"));
-            request.setXml(call.getXml() == null ? initialXml : call.getXml());
+            request.setXml(call.getXml() == null ? currentXml : call.getXml());
             request.setCells(require(call.getCells(), "replay.toolCalls[].cells"));
             DrawioCanvasMcpService.DrawioMutationResponse response = service.modifyDiagram(request);
             assertRepairSignal(call, response.getRepairBrief());
-            if (response.getContent() != null) {
-                return response.getContent();
-            }
-            if (response.getCells() != null) {
-                return new DrawioCanvasXmlToolkit().replaceCells(initialXml, response.getCells());
-            }
+            if (response.getContent() != null) return response.getContent();
+            if (response.getCells() != null) return new DrawioCanvasXmlToolkit().replaceCells(currentXml, response.getCells());
             throw new IllegalStateException("modify_diagram returned no canvas artifact");
         }
         if (DrawioCanvasToolNames.CREATE_DIAGRAM.equals(toolName)) {
@@ -181,20 +147,15 @@ public class ModeBReplayExecutionFactory implements EvalBatchRunner.ExecutionFac
 
     private String userMessage(EvalCaseDefinition evalCase) {
         Object user = evalCase.getInput().get("user");
-        if (user instanceof String value && !value.isBlank()) {
-            return value;
-        }
-        Object turns = evalCase.getInput().get("turns");
-        if (turns instanceof List<?> values && !values.isEmpty()) {
-            return String.valueOf(values.get(0));
-        }
-        throw new IllegalArgumentException("input.user or input.turns is required");
+        if (user instanceof String value && !value.isBlank()) return value;
+        List<String> turns = userTurns(evalCase);
+        return turns.get(0);
     }
 
     private List<String> userTurns(EvalCaseDefinition evalCase) {
         Object turns = evalCase.getInput().get("turns");
         if (!(turns instanceof List<?> values) || values.isEmpty()) {
-            throw new IllegalArgumentException("input.turns is required for multi-turn replay");
+            throw new IllegalArgumentException("input.user or input.turns is required");
         }
         return values.stream().map(value -> {
             if (value instanceof java.util.Map<?, ?> map) {
@@ -206,16 +167,14 @@ public class ModeBReplayExecutionFactory implements EvalBatchRunner.ExecutionFac
     }
 
     private EvalCaseDefinition.Replay requireReplay(EvalCaseDefinition evalCase) {
-        if (evalCase.getReplay() == null) {
+        if (evalCase == null || evalCase.getReplay() == null) {
             throw new IllegalArgumentException("replay is required for Mode B");
         }
         return evalCase.getReplay();
     }
 
     private String require(String value, String field) {
-        if (value == null || value.isBlank()) {
-            throw new IllegalArgumentException(field + " is required");
-        }
+        if (value == null || value.isBlank()) throw new IllegalArgumentException(field + " is required");
         return value;
     }
 
@@ -224,7 +183,8 @@ public class ModeBReplayExecutionFactory implements EvalBatchRunner.ExecutionFac
     }
 
     private String profileHash(EvalCaseDefinition.ExecutionProfile profile) {
-        return profile == null ? null : Integer.toHexString((profile.getProfileId() + "|" + profile.getModel()
+        if (profile == null) return null;
+        return Integer.toHexString((profile.getProfileId() + "|" + profile.getModel()
                 + "|" + profile.getPromptConfigHash() + "|" + profile.getSkillCatalogHash()
                 + "|" + profile.getToolPolicyVersion() + "|" + profile.getTemperature()
                 + "|" + profile.getInputPricePerMillion() + "|" + profile.getOutputPricePerMillion()).hashCode());
@@ -237,20 +197,19 @@ public class ModeBReplayExecutionFactory implements EvalBatchRunner.ExecutionFac
         }
     }
 
-    private void inject(Object target, String fieldName, Object value) throws Exception {
-        Field field = target.getClass().getDeclaredField(fieldName);
-        field.setAccessible(true);
-        field.set(target, value);
+    private String hash(String value) {
+        return Integer.toHexString(value.hashCode());
     }
 
-    private static class EmptySkillCatalogService extends SkillCatalogService {
-        @Override
-        public RouterCatalog routerCatalog(String ownerId) {
-            return new RouterCatalog("", java.util.Set.of());
-        }
+    private <T> List<T> safe(List<T> values) {
+        return values == null ? List.of() : values;
     }
 
-    private static class RecordedReplyChatService implements IChatService {
+    private static final class EmptySkillCatalogService extends SkillCatalogService {
+        @Override public RouterCatalog routerCatalog(String ownerId) { return new RouterCatalog("", java.util.Set.of()); }
+    }
+
+    private static final class RecordedReplyChatService implements IChatService {
         private final List<String> reply;
         private RecordedReplyChatService(String reply) { this.reply = List.of(reply); }
         public List<AiAgentConfigTableVO.Agent> queryAiAgentConfigList() { return List.of(); }

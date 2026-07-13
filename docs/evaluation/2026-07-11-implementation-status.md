@@ -370,3 +370,30 @@ mvn clean test
 ```
 
 CP1 不执行 schema/privacy/fixture Validate，也不批准或发布 Case；这些行为属于 CP2/CP3。
+
+## Control Plane CP2：Case Studio、Validate 与单 Case Dry Run
+
+**状态：完成**
+
+| 实施计划要求 | 实现证据 | 结果 |
+| --- | --- | --- |
+| 确定性 Validation | `EvalCaseValidationService` 使用真实 `EvalCaseLoader` 检查 schema、fixture/XML contract version、graph alias version、privacy、replay 和禁止 provenance 字段 | 完成 |
+| Case 自有 Mode B replay | `ModeBReplayExecutionFactory` 已移到 production domain；从每个 Working Copy 的 input/replay 构造真实 router/tool/XML 执行，不共享硬编码场景 | 完成 |
+| Dry Run 证据 | `EvalCaseDryRunService` 返回 PASS/FAIL/ERROR、grader、trace、before/after XML，并写不可变 `eval_case_evidence` | 完成 |
+| 状态机 | Working Copy 严格执行 VALIDATING、VALIDATED、DRY_RUNNING、DRY_RUN_PASSED/FAILED、UNDER_REVIEW、APPROVED/REJECTED | 完成 |
+| 人工审核与 four-eyes | 审核记录独立持久化；高/critical risk 的创建者不能自批 | 完成 |
+| Admin API 与审计 | validate、dry-runs、submit-review、approve、reject 均鉴权并复用 `admin_audit_log` | 完成 |
+| Case Studio UI | Cases 列表、YAML Import、JSON form editor/YAML preview、Validation evidence、Mode B 结果、before/after、trace、审核动作 | 完成 |
+| 多 route 回放 | 生命周期测试覆盖 answer_only、create_new、edit_existing，另由 core-v1 batch 覆盖 clarify/review/multi-turn | 完成 |
+| 结果语义 | UI 明确区分 Validation FAIL、Eval FAIL 与 infrastructure ERROR/UNAVAILABLE | 完成 |
+
+验证命令：
+
+```text
+mvn -pl ai-agent-draw-io-app -am -Dtest=EvalCaseLifecycleServiceTest,EvalCaseLifecycleRepositoryTest,EvaluationAdminControllerTest,EvalBatchRunnerTest -Dsurefire.failIfNoSpecifiedTests=false test
+node --test tests/admin-eval-cases-page.test.mjs
+npm run lint
+npm run build
+```
+
+CP2 只把 Working Copy 推进到 `APPROVED`；不可变 Case Version 与 Dataset 发布属于 CP3。

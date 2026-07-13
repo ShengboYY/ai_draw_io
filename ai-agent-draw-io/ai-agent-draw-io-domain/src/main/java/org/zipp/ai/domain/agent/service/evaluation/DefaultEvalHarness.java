@@ -51,8 +51,11 @@ public class DefaultEvalHarness {
                 execution.getFinalCanvasXml(), execution.getEvalCase().getDiagramType());
         List<EvalGraderResult> graders = new ArrayList<>(List.of(
                 gradeRouteAndToolPolicy(execution),
-                gradeXmlIntegrity(execution.getFinalCanvasXml()),
-                gradeVisualQuality(execution.getEvalCase().getExpected(), analysis)));
+                gradeXmlIntegrity(execution.getFinalCanvasXml())));
+        // Answer/clarification routes must preserve the canvas, but an intentionally empty canvas is not a visual defect.
+        if (isDiagramRoute(execution.getEvalCase().getExpected().getRouteType())) {
+            graders.add(gradeVisualQuality(execution.getEvalCase().getExpected(), analysis));
+        }
         if (execution.getEvalCase().getExpected().getGraph() != null) graders.add(gradeGraph(execution));
         if (!safeList(execution.getEvalCase().getExpected().getProtectedNodes()).isEmpty()) graders.add(gradePreservation(execution));
         if (!execution.getEvalCase().getExpected().getTurns().isEmpty()) graders.add(gradeMultiTurn(execution));
@@ -71,6 +74,10 @@ public class DefaultEvalHarness {
                 .graders(graders)
                 .artifactEvidence(semanticDiffEvidence(execution))
                 .build();
+    }
+
+    private boolean isDiagramRoute(String routeType) {
+        return !"answer_only".equals(routeType) && !"clarify".equals(routeType);
     }
 
     private List<String> semanticDiffEvidence(EvalExecution execution) {

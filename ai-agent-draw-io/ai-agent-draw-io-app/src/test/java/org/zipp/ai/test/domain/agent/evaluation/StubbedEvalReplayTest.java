@@ -7,6 +7,7 @@ import org.zipp.ai.domain.agent.model.valobj.evaluation.EvalTrace;
 import org.zipp.ai.domain.agent.service.armory.matter.mcp.server.DrawioCanvasToolNames;
 import org.zipp.ai.domain.agent.service.armory.matter.mcp.server.DrawioSkillToolNames;
 import org.zipp.ai.domain.agent.service.evaluation.DefaultEvalHarness;
+import org.zipp.ai.domain.agent.service.evaluation.ModeBReplayExecutionFactory;
 
 import java.util.List;
 import java.util.Map;

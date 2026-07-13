@@ -6,6 +6,7 @@ import org.zipp.ai.domain.agent.model.valobj.evaluation.EvalExecution;
 import org.zipp.ai.domain.agent.model.valobj.evaluation.EvalHarnessResult;
 import org.zipp.ai.domain.agent.model.valobj.evaluation.EvalTrace;
 import org.zipp.ai.domain.agent.service.evaluation.DefaultEvalHarness;
+import org.zipp.ai.domain.agent.service.evaluation.ModeBReplayExecutionFactory;
 import org.zipp.ai.domain.agent.service.evaluation.EvalCaseLoader;
 
 import java.io.InputStream;
