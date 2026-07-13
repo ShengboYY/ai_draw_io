@@ -319,3 +319,28 @@ mvn clean test
 ## 后续顺序
 
 代码阶段 0–8 已按顺序完成。进入真实工业运行前仍需完成 Phase 6/7 记录的运营前置：扩充 curated case、人工 Judge 校准、外置封存集、真实 provider baseline 和部署平台接线。
+
+## Control Plane CP0：契约与边界
+
+**状态：完成**
+
+| 实施计划要求 | 实现证据 | 结果 |
+| --- | --- | --- |
+| Working Copy 复用统一 Case schema | `EvalCaseWorkingCopy` 直接承载现有 `EvalCaseDefinition`，没有第二套 UI/Trace Case | 完成 |
+| 发布对象不可变 | `EvalCaseVersion`、`EvalDatasetVersion`、`EvalRun`、`EvalEpisode` 使用不可变值对象 | 完成 |
+| 运行与 Gate 状态分离 | `EvalRunStatus` 与 `EvalGateOutcome` 独立，`COMPLETED` 不代表 `PASS` | 完成 |
+| FAIL/ERROR/UNAVAILABLE 分离 | `EvalEpisodeStatus` 固定四态 | 完成 |
+| 运行模式和 Dataset 分层 | `EvalRunMode` 固定 Mode B/Mode C/Release；`EvalDatasetClass` 固定 dev/core/sequestered | 完成 |
+| 权限契约 | `EvalAdminRole` 固定 Editor/Reviewer/Admin/Release Owner | 完成 |
+| 不可变存储 seam | `IEvalCaseArtifactStore` 使用 content hash；`IEvalDatasetStore` 固定版本查询 | 完成 |
+| 稳定错误与审计 target | `EvalControlPlaneErrorCode` 和复用 `admin_audit_log` 的 `EvalControlPlaneAuditTypes` | 完成 |
+| 隐私字段边界 | Published `EvalCaseVersion` 无 source run/candidate 字段，反射测试锁定 | 完成 |
+
+验证命令：
+
+```text
+mvn -pl ai-agent-draw-io-app -am -Dtest=EvalControlPlaneContractsTest -Dsurefire.failIfNoSpecifiedTests=false test
+mvn clean test
+```
+
+CP0 只冻结跨阶段契约，不实现持久化或 Admin API；这些内容从 CP1 开始按 [Control Plane 实施计划](2026-07-13-evaluation-control-plane-implementation-plan.md) 逐阶段交付。
