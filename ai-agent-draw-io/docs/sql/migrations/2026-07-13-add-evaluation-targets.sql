@@ -31,8 +31,11 @@ SELECT id,
        JSON_CONTAINS(COALESCE(LOWER(JSON_EXTRACT(definition_json, '$.tags')), JSON_ARRAY()), JSON_QUOTE('target:drawing_quality')) tag_drawing,
        JSON_UNQUOTE(JSON_EXTRACT(definition_json, '$.fixtureVersion')) fixture_version,
        NULLIF(TRIM(JSON_UNQUOTE(JSON_EXTRACT(definition_json, '$.expected.routeType'))), '') IS NOT NULL route_present,
-       JSON_TYPE(JSON_EXTRACT(definition_json, '$.expected.graph')) IS NOT NULL
-         AND JSON_TYPE(JSON_EXTRACT(definition_json, '$.expected.graph')) <> 'NULL' graph_present
+       (JSON_TYPE(JSON_EXTRACT(definition_json, '$.expected.graph')) IS NOT NULL
+         AND JSON_TYPE(JSON_EXTRACT(definition_json, '$.expected.graph')) <> 'NULL')
+         OR JSON_EXTRACT(definition_json, '$.expected.needsCanvasQuality') = TRUE
+         OR JSON_EXTRACT(definition_json, '$.expected.maxCriticalIssues') IS NOT NULL
+         OR JSON_EXTRACT(definition_json, '$.expected.maxMajorIssues') IS NOT NULL drawing_present
 FROM eval_case_working_copy
 WHERE target_migration_status IS NULL;
 
@@ -45,16 +48,16 @@ SET wc.evaluation_target = CASE
       WHEN sig.tag_router = 1 THEN 'INTENT_ROUTER'
       WHEN sig.tag_drawing = 1 THEN 'DRAWING_QUALITY'
       WHEN sig.fixture_version = 'fixture-v1' THEN 'FULL_AGENT'
-      WHEN sig.route_present AND NOT sig.graph_present THEN 'INTENT_ROUTER'
-      WHEN sig.graph_present AND NOT sig.route_present THEN 'DRAWING_QUALITY'
+      WHEN sig.route_present AND NOT sig.drawing_present THEN 'INTENT_ROUTER'
+      WHEN sig.drawing_present AND NOT sig.route_present THEN 'DRAWING_QUALITY'
       ELSE NULL END,
     wc.target_migration_status = CASE
       WHEN sig.explicit_target IN ('FULL_AGENT','INTENT_ROUTER','DRAWING_QUALITY') THEN 'CONFIRMED'
       WHEN sig.tag_full + sig.tag_router + sig.tag_drawing > 1 THEN 'AMBIGUOUS'
       WHEN sig.tag_full + sig.tag_router + sig.tag_drawing = 1
         OR sig.fixture_version = 'fixture-v1'
-        OR (sig.route_present AND NOT sig.graph_present)
-        OR (sig.graph_present AND NOT sig.route_present) THEN 'INFERRED'
+        OR (sig.route_present AND NOT sig.drawing_present)
+        OR (sig.drawing_present AND NOT sig.route_present) THEN 'INFERRED'
       ELSE 'AMBIGUOUS' END;
 
 DROP TEMPORARY TABLE eval_target_inference_signal;

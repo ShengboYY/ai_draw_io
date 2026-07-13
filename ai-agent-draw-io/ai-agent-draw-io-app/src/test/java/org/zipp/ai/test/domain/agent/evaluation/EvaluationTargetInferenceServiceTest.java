@@ -8,6 +8,8 @@ import org.zipp.ai.domain.agent.model.valobj.evaluation.controlplane.EvaluationT
 import org.zipp.ai.domain.agent.service.evaluation.controlplane.EvaluationTargetInferenceService;
 
 import java.util.List;
+import java.nio.file.Files;
+import java.nio.file.Path;
 
 import static org.junit.Assert.*;
 
@@ -44,5 +46,30 @@ public class EvaluationTargetInferenceServiceTest {
         assertEquals(EvaluationTargetMigrationStatus.AMBIGUOUS, overlapping.status());
         assertNull(conflictingTags.target());
         assertEquals(EvaluationTargetMigrationStatus.AMBIGUOUS, conflictingTags.status());
+    }
+
+    @Test
+    public void migrationAndDomainUseTheSameDrawingOnlySignals() throws Exception {
+        EvalCaseDefinition.Expected quality = new EvalCaseDefinition.Expected();
+        quality.setNeedsCanvasQuality(true);
+        EvalCaseDefinition.Expected critical = new EvalCaseDefinition.Expected();
+        critical.setMaxCriticalIssues(0);
+        EvalCaseDefinition.Expected major = new EvalCaseDefinition.Expected();
+        major.setMaxMajorIssues(1);
+
+        for (EvalCaseDefinition.Expected expected : List.of(quality, critical, major)) {
+            EvaluationTargetInference inference = service.infer(EvalCaseDefinition.builder().expected(expected).build());
+            assertEquals(EvaluationTarget.DRAWING_QUALITY, inference.target());
+            assertEquals(EvaluationTargetMigrationStatus.INFERRED, inference.status());
+        }
+
+        // The SQL backfill must stay in lockstep with the runtime inference contract.
+        Path migration = Path.of("docs/sql/migrations/2026-07-13-add-evaluation-targets.sql");
+        if (!Files.exists(migration)) migration = Path.of("../docs/sql/migrations/2026-07-13-add-evaluation-targets.sql");
+        String sql = Files.readString(migration);
+        assertTrue(sql.contains("$.expected.needsCanvasQuality"));
+        assertTrue(sql.contains("$.expected.maxCriticalIssues"));
+        assertTrue(sql.contains("$.expected.maxMajorIssues"));
+        assertTrue(sql.contains("drawing_present"));
     }
 }
