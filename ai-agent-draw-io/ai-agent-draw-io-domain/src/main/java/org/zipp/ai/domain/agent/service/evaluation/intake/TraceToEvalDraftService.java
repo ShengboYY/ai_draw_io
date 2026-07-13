@@ -3,6 +3,7 @@ package org.zipp.ai.domain.agent.service.evaluation.intake;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.commons.lang3.StringUtils;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.zipp.ai.domain.agent.model.valobj.debugtrace.DebugTraceCapture;
 import org.zipp.ai.domain.agent.model.valobj.evaluation.intake.EvalCaseCandidate;
@@ -29,6 +30,7 @@ public class TraceToEvalDraftService {
     private final Clock clock;
     private final ObjectMapper mapper = new ObjectMapper();
 
+    @Autowired
     public TraceToEvalDraftService(ITraceToEvalStore store, AgentDebugTraceService debugTraceService, IEvalDraftModel model) {
         this(store, debugTraceService, model, new EvalDraftSanitizer(), Clock.systemUTC());
     }

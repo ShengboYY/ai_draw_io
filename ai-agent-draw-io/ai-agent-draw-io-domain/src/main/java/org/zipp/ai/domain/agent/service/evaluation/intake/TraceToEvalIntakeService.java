@@ -1,6 +1,7 @@
 package org.zipp.ai.domain.agent.service.evaluation.intake;
 
 import org.apache.commons.lang3.StringUtils;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.zipp.ai.domain.agent.model.valobj.evaluation.intake.EvalCaseCandidate;
@@ -27,6 +28,7 @@ public class TraceToEvalIntakeService {
     private final ITraceToEvalStore intakeStore;
     private final Clock clock;
 
+    @Autowired
     public TraceToEvalIntakeService(IAgentUsageTelemetryStore telemetryStore, ITraceToEvalStore intakeStore) {
         this(telemetryStore, intakeStore, Clock.systemUTC());
     }

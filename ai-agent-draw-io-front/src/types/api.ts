@@ -25,7 +25,7 @@ export interface EvalCaseValidationResultDTO {
 }
 
 export interface EvalCaseDryRunResultDTO {
-  result: { status: string; passed: boolean; latencyMs?: number; graders?: Array<{ grader: string; passed: boolean; evidence?: string[] }> };
+  result: { status: string; passed: boolean; latencyMs?: number; graders?: Array<{ graderName: string; graderVersion?: string; passed: boolean; evidence?: string[] }> };
   workingCopy: EvalCaseWorkingCopyDTO;
   initialCanvasXml?: string;
   finalCanvasXml?: string;

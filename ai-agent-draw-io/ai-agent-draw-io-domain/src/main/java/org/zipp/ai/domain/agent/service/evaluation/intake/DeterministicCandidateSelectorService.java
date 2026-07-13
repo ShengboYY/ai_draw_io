@@ -3,6 +3,7 @@ package org.zipp.ai.domain.agent.service.evaluation.intake;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.commons.lang3.StringUtils;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.zipp.ai.domain.agent.model.valobj.evaluation.intake.EvalCaseCandidate;
 import org.zipp.ai.domain.agent.model.valobj.evaluation.intake.EvalCandidateStatus;
@@ -36,6 +37,7 @@ public class DeterministicCandidateSelectorService {
     private final Clock clock;
     private final ObjectMapper mapper = new ObjectMapper();
 
+    @Autowired
     public DeterministicCandidateSelectorService(IAgentUsageTelemetryStore telemetryStore, ITraceToEvalStore intakeStore) {
         this(telemetryStore, intakeStore, Clock.systemUTC());
     }

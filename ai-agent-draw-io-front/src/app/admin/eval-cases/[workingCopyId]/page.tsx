@@ -30,7 +30,7 @@ export default function EvalCaseStudioPage({ params }: { params: Promise<{ worki
     const outcome = data.result.status === 'PASS' ? 'Eval PASS'
       : data.result.status === 'FAIL' ? 'Eval FAIL · assertions did not pass'
         : `Infrastructure ${data.result.status} · execution was not graded as a product failure`;
-    update(data.workingCopy); setEvidence([outcome, ...((data.result.graders || []).flatMap((g) => `${g.grader}: ${g.passed ? 'PASS' : 'FAIL'}`))]);
+    update(data.workingCopy); setEvidence([outcome, ...((data.result.graders || []).flatMap((g) => `${g.graderName}: ${g.passed ? 'PASS' : 'FAIL'}`))]);
     setArtifacts({ before: data.initialCanvasXml, after: data.finalCanvasXml, trace: JSON.stringify(data.trace, null, 2) });
   }).catch(showError);
   const decide = (decision: 'approve' | 'reject') => { if (!item) return; const reason = window.prompt('Review reason:'); if (reason) run(agentApi.adminDecideEvalCase(item.id, decision, reason)); };

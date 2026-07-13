@@ -12,6 +12,8 @@ test('case studio exposes qualification lifecycle and only publishes an approved
   assert.match(list, /New case/);
   assert.match(studio, /adminValidateEvalCase/);
   assert.match(studio, /adminDryRunEvalCase/);
+  assert.match(studio, /g\.graderName/);
+  assert.doesNotMatch(studio, /g\.grader:/);
   assert.match(studio, /adminSubmitEvalCaseReview/);
   assert.match(studio, /Approve/);
   assert.match(studio, /YAML preview/);
