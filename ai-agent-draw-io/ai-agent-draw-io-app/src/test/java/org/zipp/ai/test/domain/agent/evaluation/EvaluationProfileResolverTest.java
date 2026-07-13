@@ -8,6 +8,7 @@ import org.zipp.ai.domain.agent.model.valobj.evaluation.controlplane.*;
 import org.zipp.ai.domain.agent.service.evaluation.controlplane.*;
 
 import java.util.List;
+import java.util.Map;
 
 import static org.junit.Assert.*;
 
@@ -27,6 +28,28 @@ public class EvaluationProfileResolverTest {
         assertEquals(64, first.configHash().length());
         assertTrue(first.canonicalConfigJson().contains("credentialAlias"));
         assertFalse(first.canonicalConfigJson().toLowerCase().contains("apikey"));
+    }
+
+    @Test
+    public void builtInProfileVersionMustChangeWhenExecutionSemanticsChange() {
+        EvaluationProfileResolver resolver = resolver(DefaultEvaluationProfiles.versions());
+        // Pin semantics to id@version so a preset edit must publish a new version instead of rewriting history.
+        Map<String, String> expected = Map.of(
+                "full-agent-smoke@1", "1483b6050bb3e83dd6076d4955c91ea7f6ca943e802d1b3d44960f3e00fd2b09",
+                "full-agent-release@1", "fce1e6b3be1ea1236af4f0f0471a586a998e9088a1d065c1e30ed34700abcfa2",
+                "router-deterministic@1", "1453792aa206924f7eec67f8ef98e60e476aee6d6e91ae40b1f4adfe9d17d222",
+                "router-live@1", "6dd7250a27d1ad7e1ec3f3dfa4baed74d5dd1724e045c33a006a1e1de28410c7",
+                "drawing-structure@1", "5a9d32caacc07655f1a7498c0c79d9362644013db61719f0240b9dc73b291435",
+                "drawing-visual@1", "d5bec76fbdf7777752f86e6621c08deccbd1a546f34d7de3de75267559261d95");
+
+        assertEquals(expected.size(), resolver.list().size());
+        resolver.list().forEach(profile -> {
+            String key = profile.profileId() + "@" + profile.version();
+            String actual = resolver.resolve(profile.profileId(), profile.version(),
+                    profile.target(), profile.mode()).configHash();
+            assertEquals("Execution semantics changed; publish a new Profile version for " + key,
+                    expected.get(key), actual);
+        });
     }
 
     @Test
