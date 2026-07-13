@@ -4,7 +4,7 @@
   <resultMap id="run" type="org.zipp.ai.infrastructure.dao.po.evaluation.controlplane.EvalRunPO">
     <id property="id" column="id"/><result property="mode" column="mode"/><result property="datasetId" column="dataset_id"/><result property="datasetVersion" column="dataset_version"/>
     <result property="baselineRef" column="baseline_ref"/><result property="candidateRef" column="candidate_ref"/><result property="executionProfileHash" column="execution_profile_hash"/>
-    <result property="idempotencyKey" column="idempotency_key"/><result property="repetitions" column="repetitions"/><result property="plannedEpisodes" column="planned_episodes"/><result property="gitSha" column="git_sha"/>
+    <result property="idempotencyKey" column="idempotency_key"/><result property="repetitions" column="repetitions"/><result property="plannedEpisodes" column="planned_episodes"/><result property="gitSha" column="git_sha"/><result property="livePolicyJson" column="live_policy_json"/>
     <result property="graderManifestJson" column="grader_manifest_json"/><result property="reportRef" column="report_ref"/><result property="status" column="status"/>
     <result property="createdBy" column="created_by"/><result property="createdAt" column="created_at"/><result property="startedAt" column="started_at"/><result property="completedAt" column="completed_at"/>
   </resultMap>
@@ -18,7 +18,15 @@
     <id property="episodeId" column="episode_id"/><id property="graderName" column="grader_name"/><id property="graderVersion" column="grader_version"/>
     <result property="status" column="status"/><result property="severity" column="severity"/><result property="score" column="score"/><result property="evidenceJson" column="evidence_json"/>
   </resultMap>
-  <insert id="insertRun">insert into eval_run (id,mode,dataset_id,dataset_version,baseline_ref,candidate_ref,execution_profile_hash,idempotency_key,repetitions,planned_episodes,git_sha,grader_manifest_json,report_ref,status,created_by,created_at,started_at,completed_at) values (#{id},#{mode},#{datasetId},#{datasetVersion},#{baselineRef},#{candidateRef},#{executionProfileHash},#{idempotencyKey},#{repetitions},#{plannedEpisodes},#{gitSha},#{graderManifestJson},#{reportRef},#{status},#{createdBy},#{createdAt},#{startedAt},#{completedAt})</insert>
+  <resultMap id="judge" type="org.zipp.ai.infrastructure.dao.po.evaluation.controlplane.EvalJudgeResultPO">
+    <id property="episodeId" column="episode_id"/><result property="judgeVersion" column="judge_version"/><result property="calibrationVersion" column="calibration_version"/>
+    <result property="status" column="status"/><result property="scoreJson" column="score_json"/><result property="evidenceJson" column="evidence_json"/>
+  </resultMap>
+  <resultMap id="gate" type="org.zipp.ai.infrastructure.dao.po.evaluation.controlplane.EvalGateDecisionPO">
+    <id property="evalRunId" column="eval_run_id"/><result property="gateVersion" column="gate_version"/><result property="outcome" column="outcome"/><result property="reasonsJson" column="reasons_json"/>
+    <result property="decidedAt" column="decided_at"/><result property="overrideApproved" column="override_approved"/><result property="overrideReason" column="override_reason"/><result property="overriddenBy" column="overridden_by"/><result property="overriddenAt" column="overridden_at"/>
+  </resultMap>
+  <insert id="insertRun">insert into eval_run (id,mode,dataset_id,dataset_version,baseline_ref,candidate_ref,execution_profile_hash,idempotency_key,repetitions,planned_episodes,git_sha,live_policy_json,grader_manifest_json,report_ref,status,created_by,created_at,started_at,completed_at) values (#{id},#{mode},#{datasetId},#{datasetVersion},#{baselineRef},#{candidateRef},#{executionProfileHash},#{idempotencyKey},#{repetitions},#{plannedEpisodes},#{gitSha},#{livePolicyJson},#{graderManifestJson},#{reportRef},#{status},#{createdBy},#{createdAt},#{startedAt},#{completedAt})</insert>
   <update id="updateRun">update eval_run set status=#{status},planned_episodes=#{plannedEpisodes},report_ref=#{reportRef},started_at=#{startedAt},completed_at=#{completedAt} where id=#{id}</update>
   <select id="selectRun" resultMap="run">select * from eval_run where id=#{runId}</select>
   <select id="selectRunByIdempotencyKey" resultMap="run">select * from eval_run where idempotency_key=#{idempotencyKey}</select>
@@ -29,4 +37,8 @@
   <delete id="deleteGraders">delete from eval_grader_result where episode_id=#{episodeId}</delete>
   <insert id="insertGrader">insert into eval_grader_result (episode_id,grader_name,grader_version,status,severity,score,evidence_json) values (#{episodeId},#{graderName},#{graderVersion},#{status},#{severity},#{score},#{evidenceJson})</insert>
   <select id="selectGraders" resultMap="grader">select * from eval_grader_result where episode_id=#{episodeId} order by grader_name</select>
+  <insert id="upsertJudge">insert into eval_judge_result (episode_id,judge_version,calibration_version,status,score_json,evidence_json) values (#{episodeId},#{judgeVersion},#{calibrationVersion},#{status},#{scoreJson},#{evidenceJson}) on duplicate key update judge_version=values(judge_version),calibration_version=values(calibration_version),status=values(status),score_json=values(score_json),evidence_json=values(evidence_json)</insert>
+  <select id="selectJudge" resultMap="judge">select * from eval_judge_result where episode_id=#{episodeId}</select>
+  <insert id="upsertGate">insert into eval_gate_decision (eval_run_id,gate_version,outcome,reasons_json,decided_at,override_approved,override_reason,overridden_by,overridden_at) values (#{evalRunId},#{gateVersion},#{outcome},#{reasonsJson},#{decidedAt},#{overrideApproved},#{overrideReason},#{overriddenBy},#{overriddenAt}) on duplicate key update gate_version=values(gate_version),outcome=values(outcome),reasons_json=values(reasons_json),decided_at=values(decided_at),override_approved=values(override_approved),override_reason=values(override_reason),overridden_by=values(overridden_by),overridden_at=values(overridden_at)</insert>
+  <select id="selectGate" resultMap="gate">select * from eval_gate_decision where eval_run_id=#{runId}</select>
 </mapper>

@@ -86,17 +86,46 @@ export interface EvalGraderRecordDTO {
   severity: string; score?: number; evidenceJson: string;
 }
 
+export interface EvalJudgeRecordDTO {
+  episodeId: string; judgeVersion?: string; calibrationVersion?: string;
+  status: string; scoreJson: string; evidenceJson: string;
+}
+
 export interface EvalEpisodeViewDTO {
   id: string; caseId: string; caseVersion: string; repetition: number; attempt: number;
   status: 'PASS' | 'FAIL' | 'ERROR' | 'UNAVAILABLE'; route: string; risk: string;
   language: string; diagramType: string; agent: string; latencyMs: number; estimatedCost: number;
   errorClass?: string; errorMessage?: string; blockingReason?: string; graders: EvalGraderRecordDTO[];
+  judge?: EvalJudgeRecordDTO;
 }
 
 export interface EvalEpisodeDetailDTO { episode: EvalEpisodeViewDTO; input: Record<string, unknown>; expected: unknown }
 export interface EvalEpisodeArtifactDTO {
   trace?: { routing?: { routeType?: string; diagramType?: string; skillName?: string }; steps?: Array<{ phase?: string; agentId?: string; status?: string }>; toolCalls?: Array<{ name?: string; status?: string }> };
   initialCanvasXml?: string; finalCanvasXml?: string; semanticDiff: string[];
+}
+
+export interface EvalStatisticalReportDTO {
+  decision: 'READY' | 'NO_DECISION'; totalSamples: number; eligibleSamples: number; eligibleCases: number;
+  tsrAtOne: number; ciLower: number; ciUpper: number; errorRate: number; graderAvailability: number;
+  totalLatencyMs: number; inputTokens: number; outputTokens: number; estimatedCost: number;
+  perCaseSuccessProbability: Record<string, number>;
+}
+
+export interface EvalComparisonDTO {
+  decision: 'READY' | 'NO_DECISION'; blocked: boolean; delta: number; ciLower: number; ciUpper: number; pairedCases: number;
+}
+
+export interface EvalGateDecisionDTO {
+  evalRunId: string; gateVersion: string; outcome: 'PASS' | 'BLOCK' | 'NO_DECISION'; reasonsJson: string;
+  decidedAt: string; overrideApproved: boolean; overrideReason?: string; overriddenBy?: string; overriddenAt?: string;
+}
+
+export interface EvalLiveRunReportDTO {
+  statistics: EvalStatisticalReportDTO; comparison: EvalComparisonDTO;
+  readiness: { providerCredentialReady: boolean; judgeCalibrationApproved: boolean; calibrationVersion?: string;
+    judgeVersion?: string; sequesteredCaseCount: number; minimumSequesteredCases: number };
+  gate?: EvalGateDecisionDTO;
 }
 
 export type ApiErrorCode = 'AUTH_RATE_LIMITED' | 'DEMO_QUOTA_EXHAUSTED' | 'PLATFORM_QUOTA_EXHAUSTED' | (string & {});

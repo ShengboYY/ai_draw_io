@@ -15,7 +15,7 @@ import java.time.Clock;
 import java.util.*;
 import java.util.function.Function;
 
-/** Asynchronously orchestrates isolated deterministic Case × repetition episodes. */
+/** Asynchronously owns Run lifecycle and delegates Mode-specific Case × repetition execution. */
 @Service
 public class EvalRunOrchestrator {
     public static final String MODE_B_GRADER_MANIFEST = "route-tool-v1,xml-integrity-v1,visual-quality-v1,graph-assertion-v1,semantic-preservation-v1,multi-turn-state-v1";
@@ -25,29 +25,46 @@ public class EvalRunOrchestrator {
     private final IEvalJobExecutor jobs;
     private final Function<String, EvalBatchRunner.ExecutionFactory> factories;
     private final Clock clock;
+    private final EvalLiveRunService liveRuns;
     private final ObjectMapper mapper = new ObjectMapper().findAndRegisterModules();
 
     @Autowired
     public EvalRunOrchestrator(IEvalRunStore store, IEvalDatasetCaseSource cases,
-                               IEvalRunArtifactStore artifacts, IEvalJobExecutor jobs) {
-        this(store, cases, artifacts, jobs, ModeBReplayExecutionFactory::new, Clock.systemUTC());
+                               IEvalRunArtifactStore artifacts, IEvalJobExecutor jobs,
+                               Optional<IEvalLiveRunSupport> liveSupport) {
+        this(store, cases, artifacts, jobs, ModeBReplayExecutionFactory::new, Clock.systemUTC(),
+                liveSupport.orElse(null));
     }
 
     public EvalRunOrchestrator(IEvalRunStore store, IEvalDatasetCaseSource cases,
                                IEvalRunArtifactStore artifacts, IEvalJobExecutor jobs,
                                Function<String, EvalBatchRunner.ExecutionFactory> factories, Clock clock) {
+        this(store, cases, artifacts, jobs, factories, clock, null);
+    }
+
+    public EvalRunOrchestrator(IEvalRunStore store, IEvalDatasetCaseSource cases,
+                               IEvalRunArtifactStore artifacts, IEvalJobExecutor jobs,
+                               Function<String, EvalBatchRunner.ExecutionFactory> factories, Clock clock,
+                               IEvalLiveRunSupport liveSupport) {
         this.store = store; this.cases = cases; this.artifacts = artifacts; this.jobs = jobs;
         this.factories = factories; this.clock = clock == null ? Clock.systemUTC() : clock;
+        this.liveRuns = new EvalLiveRunService(store, cases, artifacts, liveSupport, this.clock);
     }
 
     public EvalRun start(EvalRunStartCommand command) {
         validate(command);
         Optional<EvalRun> existing = store.findByIdempotencyKey(command.getIdempotencyKey());
         if (existing.isPresent()) return existing.get();
-        EvalRun run = EvalRun.builder().id("erun_" + UUID.randomUUID()).mode(EvalRunMode.MODE_B)
+        EvalRunMode mode = command.getMode() == null ? EvalRunMode.MODE_B : command.getMode();
+        EvalRun run = EvalRun.builder().id("erun_" + UUID.randomUUID()).mode(mode)
                 .datasetId(command.getDatasetId()).datasetVersion(command.getDatasetVersion())
+                .baselineRef(command.getBaselineRef()).candidateRef(blank(command.getCandidateRef()) ? command.getGitSha() : command.getCandidateRef())
                 .executionProfileHash(command.getExecutionProfileHash()).idempotencyKey(command.getIdempotencyKey())
                 .repetitions(command.getRepetitions()).gitSha(command.getGitSha())
+                .maxEstimatedCost(command.getMaxEstimatedCost()).minimumCases(defaultPositive(command.getMinimumCases(), 1))
+                .maximumErrorRate(defaultNonNegative(command.getMaximumErrorRate(), 0.05D))
+                .minimumPairedCases(defaultPositive(command.getMinimumPairedCases(), 1))
+                .regressionThreshold(defaultNonNegative(command.getRegressionThreshold(), 0D))
                 .graderManifestJson(JSON.toJSONString(MODE_B_GRADER_MANIFEST.split(",")))
                 .status(EvalRunStatus.QUEUED).createdBy(command.getCreatedBy()).createdAt(clock.instant()).build();
         try {
@@ -72,16 +89,22 @@ public class EvalRunOrchestrator {
         run = run.toBuilder().status(EvalRunStatus.RUNNING).startedAt(clock.instant()).build();
         store.updateRun(run);
         try {
-            List<EvalCaseDefinition> definitions = cases.loadPublished(run.getDatasetId(), run.getDatasetVersion(), EvalAdminRole.ADMIN);
+            List<EvalCaseDefinition> definitions = cases.loadPublished(run.getDatasetId(), run.getDatasetVersion(),
+                    run.getMode() == EvalRunMode.RELEASE ? EvalAdminRole.RELEASE_OWNER : EvalAdminRole.ADMIN);
             run = run.toBuilder().plannedEpisodes(definitions.size() * run.getRepetitions()).build();
             store.updateRun(run);
+            if (run.getMode() != EvalRunMode.MODE_B) {
+                EvalRun liveRun = run;
+                liveRuns.execute(liveRun, definitions, () -> cancelled(liveRun.getId()));
+                return;
+            }
             for (EvalCaseDefinition definition : definitions) {
                 for (int repetition = 0; repetition < run.getRepetitions(); repetition++) {
                     if (cancelled(runId)) return;
                     executeEpisode(run, definition, repetition, 1);
                 }
             }
-            complete(runId);
+            completeModeB(runId);
         } catch (RuntimeException e) {
             EvalRun current = requireRun(runId);
             if (current.getStatus() != EvalRunStatus.CANCELLED) {
@@ -107,16 +130,18 @@ public class EvalRunOrchestrator {
                 .filter(episode -> episode.getStatus() == EvalEpisodeStatus.ERROR).toList();
         if (errors.isEmpty()) return run;
         Map<String, EvalCaseDefinition> definitions = new LinkedHashMap<>();
-        for (EvalCaseDefinition definition : cases.loadPublished(run.getDatasetId(), run.getDatasetVersion(), EvalAdminRole.ADMIN)) {
+        for (EvalCaseDefinition definition : cases.loadPublished(run.getDatasetId(), run.getDatasetVersion(),
+                run.getMode() == EvalRunMode.RELEASE ? EvalAdminRole.RELEASE_OWNER : EvalAdminRole.ADMIN)) {
             definitions.put(caseKey(definition.getCaseId(), definition.getCaseVersion()), definition);
         }
         store.updateRun(run.toBuilder().status(EvalRunStatus.RUNNING).completedAt(null).build());
         for (EvalEpisode error : errors) {
             EvalCaseDefinition definition = definitions.get(caseKey(error.getCaseId(), error.getCaseVersion()));
             if (definition == null) throw new IllegalStateException("retry Case is missing from immutable Dataset Version");
-            executeEpisode(run, definition, error.getRepetition(), error.getAttempt() + 1);
+            if (run.getMode() == EvalRunMode.MODE_B) executeEpisode(run, definition, error.getRepetition(), error.getAttempt() + 1);
+            else liveRuns.executeEpisode(run, definition, error.getRepetition(), error.getAttempt() + 1);
         }
-        complete(runId);
+        if (run.getMode() == EvalRunMode.MODE_B) completeModeB(runId); else liveRuns.finalizeRun(runId, new ArrayList<>(definitions.values()));
         return requireRun(runId);
     }
 
@@ -124,6 +149,12 @@ public class EvalRunOrchestrator {
     public List<EvalRun> list(int limit, int offset) { return store.listRuns(Math.max(1, Math.min(limit, 200)), Math.max(0, offset)); }
     public List<EvalEpisode> episodes(String runId) { requireRun(runId); return store.listEpisodes(runId); }
     public List<EvalGraderResultRecord> graders(String episodeId) { return store.listGraders(episodeId); }
+
+    public EvalLiveRunReport insights(String runId) { return liveRuns.insights(runId); }
+    public EvalGateDecisionRecord gate(String runId) { return liveRuns.gate(runId); }
+    public EvalStatisticalReport.Comparison comparison(String runId) { return liveRuns.comparison(runId); }
+    public EvalGateDecisionRecord evaluateGate(String runId) { return liveRuns.evaluateGate(runId); }
+    public EvalGateDecisionRecord overrideGate(String runId, String actor, String reason) { return liveRuns.overrideGate(runId, actor, reason); }
 
     private void executeEpisode(EvalRun run, EvalCaseDefinition definition, int repetition, int attempt) {
         long started = System.nanoTime();
@@ -157,7 +188,7 @@ public class EvalRunOrchestrator {
         }
     }
 
-    private void complete(String runId) {
+    private void completeModeB(String runId) {
         EvalRun run = requireRun(runId);
         if (run.getStatus() == EvalRunStatus.CANCELLED) return;
         try {
@@ -180,6 +211,12 @@ public class EvalRunOrchestrator {
             throw new IllegalArgumentException("idempotencyKey, dataset, gitSha, and createdBy are required");
         }
         if (command.getRepetitions() < 1 || command.getRepetitions() > 20) throw new IllegalArgumentException("repetitions must be between 1 and 20");
+        if (command.getMaxEstimatedCost() < 0D) throw new IllegalArgumentException("maxEstimatedCost cannot be negative");
+        if (command.getMode() != null && command.getMode() != EvalRunMode.MODE_B && blank(command.getExecutionProfileHash())) {
+            throw new IllegalArgumentException("live Eval Runs require executionProfileHash");
+        }
     }
+    private int defaultPositive(int value, int fallback) { return value > 0 ? value : fallback; }
+    private double defaultNonNegative(double value, double fallback) { return value >= 0D ? value : fallback; }
     private boolean blank(String value) { return value == null || value.isBlank(); }
 }

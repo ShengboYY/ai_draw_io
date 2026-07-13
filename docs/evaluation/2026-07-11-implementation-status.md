@@ -483,3 +483,50 @@ mvn clean test
 ```
 
 CP5 完成后，Mode B 管理员闭环已可用于启动、观察、筛选和解释确定性 Dataset Run；真实模型重复采样、Judge、统计和 Release Gate 属于 CP6。
+
+## Control Plane CP6：Mode C、统计与 Release Gate Operations
+
+**状态：代码接线完成；真实凭据、校准集、封存集和 baseline 属于 CP7 运营前置**
+
+| 实施计划要求 | 实现证据 | 结果 |
+| --- | --- | --- |
+| Mode C / Release 分派 | `EvalRunOrchestrator` 保持统一 Run 生命周期，`EvalLiveRunService` 封装 live sampling/statistics/Gate | 完成 |
+| 真实生产 adapter | `ProductionEvalLiveRunSupport` 将既有 `ProductionLiveEvalAdapter`、`ChatEvalJudge` 和配置化 readiness 接入 | 完成 |
+| repetition / retry | 复用 `LiveEvalRunner.runDetailed`；仅 `EvalInfrastructureException` 最多重试两次，Agent FAIL 不重跑 | 完成 |
+| Episode evidence | `EvalSampleResult` 映射 Episode；确定性 Grader、Judge 和 execution artifact 分别持久化 | 完成 |
+| Judge 持久化 | `eval_judge_result` 映射现有 `EvalJudgeResult`，保留 judge/calibration version、status、score/evidence | 完成 |
+| 统计与 paired comparison | 复用 `EvalStatisticsService` 生成 TSR@1、bootstrap CI、availability、token/cost/latency 和 case-level paired delta | 完成 |
+| Release Gate | 复用 `EvalReleaseGateService`；真实 Run Episode/report/readiness 生成 PASS/BLOCK/NO_DECISION 并落 `eval_gate_decision` | 完成 |
+| Evidence 可追溯 | Gate 记录固定 run ID/version/reasons/time，Case hard failure reason 带 case/risk；报告与 Run `report_ref` 关联 | 完成 |
+| Readiness / comparability | provider credential、Judge calibration、sequestered count 和 execution profile comparability 缺失时不产生虚假 PASS | 完成 |
+| Budget / timeout | Run manifest 固定 cost budget；超预算 Episode 为 UNAVAILABLE；生产 adapter 沿用受控 live timeout | 完成 |
+| 多轮边界 | 尚无 live session adapter 时逐 Episode 记录 `MultiTurnLiveAdapterUnsupported` ERROR，不冒充模型 FAIL | 完成 |
+| Release Owner | `admin.release-owner-emails` 独立于普通 Admin；Release start/evaluate/override 均要求 Release Owner | 完成 |
+| Override 安全 | 只允许带理由 override BLOCK；原始 outcome/reasons 不改写，NO_DECISION 不可 override，操作进入通用 Admin Audit | 完成 |
+| Admin UI / CI API | New Run 支持三种 Mode、baseline/candidate/repetition/budget；详情展示 TSR/CI/readiness/delta/Gate/Judge，Gate API 可供 CI 调用 | 完成 |
+| 隐私边界 | Live report 仅含聚合统计/readiness/Gate，不含 Case body 或 sequestered payload；大 execution 继续走受控 artifact endpoint | 完成 |
+
+关键部署配置（均默认 fail closed）：
+
+```text
+zipp.evaluation.live-enabled=false
+zipp.evaluation.live-timeout-ms=120000
+zipp.evaluation.judge-calibration-approved=false
+zipp.evaluation.judge-calibration-version=unconfigured
+zipp.evaluation.judge-calibrated-version=unconfigured
+zipp.evaluation.sequestered-case-count=0
+zipp.evaluation.minimum-sequestered-cases=20
+admin.release-owner-emails=
+```
+
+验证命令：
+
+```text
+mvn -pl ai-agent-draw-io-app -am -Dtest=EvalLiveRunOrchestratorTest,EvalRunRepositoryTest,LiveEvalStatisticsTest,EvalReleaseGateServiceTest,EvalRunOrchestratorTest -Dsurefire.failIfNoSpecifiedTests=false test
+node --test tests/admin-eval-runs-page.test.mjs
+npm run lint
+npm run build
+mvn clean test
+```
+
+CP6 不伪造运营 readiness：默认配置会让真实 Release Run 得到 UNAVAILABLE/NO_DECISION。扩充 Dataset、校准 Judge、挂载外置封存集和建立真实 baseline 在 CP7 完成。

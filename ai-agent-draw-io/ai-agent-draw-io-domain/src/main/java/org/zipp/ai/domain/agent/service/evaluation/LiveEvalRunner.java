@@ -14,8 +14,14 @@ public class LiveEvalRunner {
 
     public List<EvalSampleResult> run(List<EvalCaseDefinition> cases, int repetitions,
                                       LiveExecutionFactory factory, IEvalJudge judge) {
+        return runDetailed(cases, repetitions, factory, judge).stream().map(EpisodeResult::sample).toList();
+    }
+
+    /** Returns the evidence needed by the Control Plane without changing statistics semantics. */
+    public List<EpisodeResult> runDetailed(List<EvalCaseDefinition> cases, int repetitions,
+                                           LiveExecutionFactory factory, IEvalJudge judge) {
         int repeat = Math.max(1, repetitions);
-        List<EvalSampleResult> samples = new ArrayList<>();
+        List<EpisodeResult> samples = new ArrayList<>();
         for (EvalCaseDefinition evalCase : cases) {
             for (int repetition = 0; repetition < repeat; repetition++) {
                 samples.add(runEpisode(evalCase, repetition, factory, judge));
@@ -24,8 +30,8 @@ public class LiveEvalRunner {
         return samples;
     }
 
-    private EvalSampleResult runEpisode(EvalCaseDefinition evalCase, int repetition,
-                                        LiveExecutionFactory factory, IEvalJudge judge) {
+    private EpisodeResult runEpisode(EvalCaseDefinition evalCase, int repetition,
+                                     LiveExecutionFactory factory, IEvalJudge judge) {
         long started = System.nanoTime();
         for (int attempt = 0; attempt < 3; attempt++) {
             try {
@@ -33,23 +39,24 @@ public class LiveEvalRunner {
                 EvalHarnessResult deterministic = harness.evaluate(execution);
                 EvalHarnessResult.Status status = deterministic.getStatus();
                 boolean passed = deterministic.isPassed();
+                EvalJudgeResult judged = null;
                 if (Boolean.TRUE.equals(evalCase.getExpected().getJudgeRequired())) {
-                    if (judge == null || !judge.isCalibrated()) return sample(evalCase, repetition, EvalHarnessResult.Status.UNAVAILABLE,
-                            false, execution, started, "JudgeUnavailable");
-                    EvalJudgeResult judged = judge.judge(judgeInput(evalCase, execution, deterministic));
-                    if (judged == null || !judged.isAvailable()) return sample(evalCase, repetition,
-                            EvalHarnessResult.Status.UNAVAILABLE, false, execution, started, "JudgeUnavailable");
+                    if (judge == null || !judge.isCalibrated()) return result(evalCase, repetition, EvalHarnessResult.Status.UNAVAILABLE,
+                            false, execution, deterministic, null, started, "JudgeUnavailable");
+                    judged = judge.judge(judgeInput(evalCase, execution, deterministic));
+                    if (judged == null || !judged.isAvailable()) return result(evalCase, repetition,
+                            EvalHarnessResult.Status.UNAVAILABLE, false, execution, deterministic, judged, started, "JudgeUnavailable");
                     if (!judged.isPassed() || judged.getCriticalIssues() > 0) {
                         status = EvalHarnessResult.Status.FAIL; passed = false;
                     }
                 }
-                return sample(evalCase, repetition, status, passed, execution, started, null);
+                return result(evalCase, repetition, status, passed, execution, deterministic, judged, started, null);
             } catch (EvalInfrastructureException e) {
-                if (attempt == 2) return sample(evalCase, repetition, EvalHarnessResult.Status.ERROR,
-                        false, null, started, e.getClass().getSimpleName());
+                if (attempt == 2) return result(evalCase, repetition, EvalHarnessResult.Status.ERROR,
+                        false, null, null, null, started, e.getClass().getSimpleName());
             } catch (RuntimeException e) {
-                return sample(evalCase, repetition, EvalHarnessResult.Status.ERROR,
-                        false, null, started, e.getClass().getSimpleName());
+                return result(evalCase, repetition, EvalHarnessResult.Status.ERROR,
+                        false, null, null, null, started, e.getClass().getSimpleName());
             }
         }
         throw new IllegalStateException("unreachable");
@@ -76,14 +83,19 @@ public class LiveEvalRunner {
                 initialGraph, finalGraph, execution.getResponseText(), issues, tools, version);
     }
 
-    private EvalSampleResult sample(EvalCaseDefinition evalCase, int repetition, EvalHarnessResult.Status status,
-                                    boolean passed, EvalExecution execution, long started, String errorClass) {
-        return EvalSampleResult.builder().caseId(evalCase.getCaseId()).slice(evalCase.getRisk()).repetition(repetition)
+    private EpisodeResult result(EvalCaseDefinition evalCase, int repetition, EvalHarnessResult.Status status,
+                                 boolean passed, EvalExecution execution, EvalHarnessResult deterministic,
+                                 EvalJudgeResult judge, long started, String errorClass) {
+        EvalSampleResult sample = EvalSampleResult.builder().caseId(evalCase.getCaseId()).slice(evalCase.getRisk()).repetition(repetition)
                 .status(status).passed(passed).latencyMs((System.nanoTime() - started) / 1_000_000)
                 .inputTokens(execution == null ? 0 : execution.getInputTokens())
                 .outputTokens(execution == null ? 0 : execution.getOutputTokens())
                 .estimatedCost(execution == null ? 0 : execution.getEstimatedCost()).errorClass(errorClass).build();
+        return new EpisodeResult(sample, execution, deterministic, judge);
     }
+
+    public record EpisodeResult(EvalSampleResult sample, EvalExecution execution,
+                                EvalHarnessResult deterministic, EvalJudgeResult judge) { }
 
     @FunctionalInterface
     public interface LiveExecutionFactory { EvalExecution execute(EvalCaseDefinition evalCase); }

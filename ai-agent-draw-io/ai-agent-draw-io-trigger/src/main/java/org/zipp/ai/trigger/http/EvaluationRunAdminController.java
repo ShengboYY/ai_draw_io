@@ -7,6 +7,7 @@ import org.zipp.ai.api.response.Response;
 import org.zipp.ai.domain.account.model.entity.UserAccount;
 import org.zipp.ai.domain.admin.service.AdminAuditLogService;
 import org.zipp.ai.domain.agent.model.valobj.evaluation.controlplane.*;
+import org.zipp.ai.domain.agent.model.valobj.evaluation.EvalStatisticalReport;
 import org.zipp.ai.domain.agent.service.evaluation.controlplane.EvalControlPlaneAuditTypes;
 import org.zipp.ai.domain.agent.service.evaluation.controlplane.EvalControlPlaneErrorCode;
 import org.zipp.ai.domain.agent.service.evaluation.controlplane.EvalRunOrchestrator;
@@ -35,13 +36,19 @@ public class EvaluationRunAdminController {
     @PostMapping
     public Response<EvalRun> start(@RequestBody StartRequest body, HttpServletRequest request) {
         return execute(request, "START_EVAL_RUN", null, admin -> {
-            if (body == null || (body.getMode() != null && !"MODE_B".equalsIgnoreCase(body.getMode()))) {
-                throw new IllegalArgumentException("CP4 supports MODE_B only");
+            if (body == null) throw new IllegalArgumentException("Eval Run request is required");
+            EvalRunMode mode = body.getMode() == null ? EvalRunMode.MODE_B : EvalRunMode.valueOf(body.getMode().toUpperCase());
+            if (mode == EvalRunMode.RELEASE && !authorization.isReleaseOwner(admin)) {
+                throw new SecurityException("Release Owner role is required");
             }
-            return orchestrator.start(EvalRunStartCommand.builder().idempotencyKey(body.getIdempotencyKey())
+            return orchestrator.start(EvalRunStartCommand.builder().mode(mode).idempotencyKey(body.getIdempotencyKey())
                     .datasetId(body.getDatasetId()).datasetVersion(body.getDatasetVersion())
                     .repetitions(body.getRepetitions()).gitSha(body.getGitSha())
-                    .executionProfileHash(body.getExecutionProfileHash()).createdBy(admin.getId()).build());
+                    .baselineRef(body.getBaselineRef()).candidateRef(body.getCandidateRef())
+                    .executionProfileHash(body.getExecutionProfileHash()).maxEstimatedCost(body.getMaxEstimatedCost())
+                    .minimumCases(body.getMinimumCases()).maximumErrorRate(body.getMaximumErrorRate())
+                    .minimumPairedCases(body.getMinimumPairedCases()).regressionThreshold(body.getRegressionThreshold())
+                    .createdBy(admin.getId()).build());
         });
     }
 
@@ -84,6 +91,37 @@ public class EvaluationRunAdminController {
                 admin -> queryService.artifact(runId, episodeId));
     }
 
+    @GetMapping("/{runId}/insights")
+    public Response<EvalLiveRunReport> insights(@PathVariable String runId, HttpServletRequest request) {
+        return execute(request, "VIEW_EVAL_RUN_INSIGHTS", runId, admin -> orchestrator.insights(runId));
+    }
+
+    @GetMapping("/{runId}/comparison")
+    public Response<EvalStatisticalReport.Comparison> comparison(@PathVariable String runId, HttpServletRequest request) {
+        return execute(request, "VIEW_EVAL_RUN_COMPARISON", runId, admin -> orchestrator.comparison(runId));
+    }
+
+    @GetMapping("/{runId}/gate")
+    public Response<EvalGateDecisionRecord> gate(@PathVariable String runId, HttpServletRequest request) {
+        return execute(request, "VIEW_EVAL_GATE", runId, admin -> orchestrator.gate(runId));
+    }
+
+    @PostMapping("/{runId}/gate/evaluate")
+    public Response<EvalGateDecisionRecord> evaluateGate(@PathVariable String runId, HttpServletRequest request) {
+        return execute(request, "EVALUATE_RELEASE_GATE", runId, admin -> {
+            requireReleaseOwner(admin); return orchestrator.evaluateGate(runId);
+        });
+    }
+
+    @PostMapping("/{runId}/gate/override")
+    public Response<EvalGateDecisionRecord> overrideGate(@PathVariable String runId, @RequestBody OverrideRequest body,
+                                                         HttpServletRequest request) {
+        return execute(request, "OVERRIDE_RELEASE_GATE", runId, admin -> {
+            requireReleaseOwner(admin);
+            return orchestrator.overrideGate(runId, admin.getId(), body == null ? null : body.getReason());
+        });
+    }
+
     @PostMapping("/{runId}/cancel")
     public Response<EvalRun> cancel(@PathVariable String runId, HttpServletRequest request) {
         return execute(request, "CANCEL_EVAL_RUN", runId, admin -> orchestrator.cancel(runId));
@@ -100,6 +138,9 @@ public class EvaluationRunAdminController {
         try {
             T result = operation.run(admin.get()); audit(admin.get(), action, target, "SUCCESS", request);
             return Response.<T>builder().code(ResponseCode.SUCCESS.getCode()).info(ResponseCode.SUCCESS.getInfo()).data(result).build();
+        } catch (SecurityException e) {
+            audit(admin.get(), action, target, "REJECTED", request);
+            return Response.<T>builder().code(ResponseCode.AUTH_FORBIDDEN.getCode()).info(e.getMessage()).build();
         } catch (IllegalArgumentException | IllegalStateException e) {
             audit(admin.get(), action, target, "REJECTED", request);
             EvalControlPlaneErrorCode code = e.getMessage() != null && e.getMessage().contains("not found")
@@ -115,10 +156,14 @@ public class EvaluationRunAdminController {
         audits.record(admin.getId(), action, EvalControlPlaneAuditTypes.EVAL_RUN, target, outcome,
                 request.getRemoteAddr(), request.getHeader("User-Agent"));
     }
+    private void requireReleaseOwner(UserAccount user) { if (!authorization.isReleaseOwner(user)) throw new SecurityException("Release Owner role is required"); }
     private interface Operation<T> { T run(UserAccount admin); }
     @Data public static class StartRequest {
         private String mode = "MODE_B"; private String idempotencyKey; private String datasetId;
         private String datasetVersion; private int repetitions = 1; private String gitSha;
-        private String executionProfileHash;
+        private String baselineRef; private String candidateRef; private String executionProfileHash;
+        private double maxEstimatedCost; private int minimumCases = 1; private double maximumErrorRate = 0.05D;
+        private int minimumPairedCases = 1; private double regressionThreshold;
     }
+    @Data public static class OverrideRequest { private String reason; }
 }

@@ -12,4 +12,5 @@ public class EvalEpisodeView {
     String route; String risk; String language; String diagramType; String agent;
     long latencyMs; double estimatedCost; String errorClass; String errorMessage; String blockingReason;
     List<EvalGraderResultRecord> graders;
+    EvalJudgeResultRecord judge;
 }

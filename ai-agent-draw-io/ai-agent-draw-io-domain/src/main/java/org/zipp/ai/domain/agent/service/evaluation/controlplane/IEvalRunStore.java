@@ -17,4 +17,8 @@ public interface IEvalRunStore {
     List<EvalEpisode> listEpisodes(String runId);
     void replaceGraders(String episodeId, List<EvalGraderResultRecord> graders);
     List<EvalGraderResultRecord> listGraders(String episodeId);
+    default void saveJudge(EvalJudgeResultRecord judge) { throw new UnsupportedOperationException("Judge persistence is unavailable"); }
+    default Optional<EvalJudgeResultRecord> findJudge(String episodeId) { return Optional.empty(); }
+    default void saveGate(EvalGateDecisionRecord gate) { throw new UnsupportedOperationException("Gate persistence is unavailable"); }
+    default Optional<EvalGateDecisionRecord> findGate(String runId) { return Optional.empty(); }
 }

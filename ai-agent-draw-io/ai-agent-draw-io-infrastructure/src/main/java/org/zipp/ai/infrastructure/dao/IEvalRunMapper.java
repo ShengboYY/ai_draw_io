@@ -19,4 +19,8 @@ public interface IEvalRunMapper {
     int deleteGraders(@Param("episodeId") String episodeId);
     int insertGrader(EvalGraderResultPO value);
     List<EvalGraderResultPO> selectGraders(@Param("episodeId") String episodeId);
+    int upsertJudge(EvalJudgeResultPO value);
+    EvalJudgeResultPO selectJudge(@Param("episodeId") String episodeId);
+    int upsertGate(EvalGateDecisionPO value);
+    EvalGateDecisionPO selectGate(@Param("runId") String runId);
 }

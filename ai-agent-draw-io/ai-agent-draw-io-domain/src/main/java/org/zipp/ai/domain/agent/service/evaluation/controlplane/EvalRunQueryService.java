@@ -93,7 +93,8 @@ public class EvalRunQueryService {
                 .language(tag(definition, "lang:", "unknown")).diagramType(definition == null ? "unknown" : value(definition.getDiagramType()))
                 .agent(tag(definition, "agent:", inferAgent(route))).latencyMs(episode.getLatencyMs())
                 .estimatedCost(episode.getEstimatedCost()).errorClass(episode.getErrorClass()).errorMessage(episode.getErrorMessage())
-                .blockingReason(blockingReason(episode, graders)).graders(graders).build();
+                .blockingReason(blockingReason(episode, graders)).graders(graders)
+                .judge(store.findJudge(episode.getId()).orElse(null)).build();
     }
 
     private String blockingReason(EvalEpisode episode, List<EvalGraderResultRecord> graders) {

@@ -28,6 +28,9 @@ public class AdminAuthorizationService {
     @Value("${admin.allowed-origins:}")
     private String adminAllowedOrigins;
 
+    @Value("${admin.release-owner-emails:}")
+    private String releaseOwnerEmails;
+
     public Optional<UserAccount> currentAdmin(HttpServletRequest request) {
         if (!isSameOriginOrAllowed(request)) {
             return Optional.empty();
@@ -45,20 +48,31 @@ public class AdminAuthorizationService {
         return isConfiguredAdmin(user.get()) ? user : Optional.empty();
     }
 
+    public boolean isReleaseOwner(UserAccount user) {
+        return user != null && configuredEmails(releaseOwnerEmails).contains(normalizedEmail(user));
+    }
+
     private boolean isConfiguredAdmin(UserAccount user) {
         Set<String> allowed = configuredAdminEmails();
         if (allowed.isEmpty()) {
             return false;
         }
-        String normalized = StringUtils.defaultIfBlank(user.getEmailNormalized(), EmailNormalizer.normalize(user.getEmail()));
-        return normalized != null && allowed.contains(normalized);
+        return allowed.contains(normalizedEmail(user));
     }
 
     private Set<String> configuredAdminEmails() {
-        return Arrays.stream(StringUtils.defaultString(adminEmails).split("[,;\\s]+"))
+        return configuredEmails(adminEmails);
+    }
+
+    private Set<String> configuredEmails(String configured) {
+        return Arrays.stream(StringUtils.defaultString(configured).split("[,;\\s]+"))
                 .map(EmailNormalizer::normalize)
                 .filter(StringUtils::isNotBlank)
                 .collect(Collectors.toSet());
+    }
+
+    private String normalizedEmail(UserAccount user) {
+        return StringUtils.defaultIfBlank(user.getEmailNormalized(), EmailNormalizer.normalize(user.getEmail()));
     }
 
     private boolean isSameOriginOrAllowed(HttpServletRequest request) {

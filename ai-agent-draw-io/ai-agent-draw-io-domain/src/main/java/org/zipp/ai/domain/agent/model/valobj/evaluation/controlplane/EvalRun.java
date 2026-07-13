@@ -19,6 +19,11 @@ public class EvalRun {
     String idempotencyKey;
     int repetitions;
     int plannedEpisodes;
+    double maxEstimatedCost;
+    int minimumCases;
+    double maximumErrorRate;
+    int minimumPairedCases;
+    double regressionThreshold;
     String gitSha;
     String graderManifestJson;
     String reportRef;

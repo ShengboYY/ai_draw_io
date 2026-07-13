@@ -49,6 +49,8 @@ import {
     EvalEpisodeViewDTO,
     EvalEpisodeDetailDTO,
     EvalEpisodeArtifactDTO,
+    EvalGateDecisionDTO,
+    EvalLiveRunReportDTO,
 } from '@/types/api';
 
 export class ApiResponseError extends Error {
@@ -520,10 +522,10 @@ export const agentApi = {
         return handleResponse<EvalDatasetCoverageDTO>(response);
     },
 
-    adminStartEvalRun: async (payload: { idempotencyKey: string; datasetId: string; datasetVersion: string; repetitions: number; gitSha: string; executionProfileHash?: string }): Promise<Response<{ id: string }>> => {
+    adminStartEvalRun: async (payload: { mode: 'MODE_B' | 'MODE_C' | 'RELEASE'; idempotencyKey: string; datasetId: string; datasetVersion: string; repetitions: number; gitSha: string; baselineRef?: string; candidateRef?: string; executionProfileHash?: string; maxEstimatedCost?: number; minimumCases?: number; maximumErrorRate?: number; minimumPairedCases?: number; regressionThreshold?: number }): Promise<Response<{ id: string }>> => {
         const response = await fetch(`${API_CONFIG.BASE_URL}/admin/eval-runs`, {
             method: 'POST', headers: await csrfHeaders({ 'Content-Type': 'application/json' }),
-            body: JSON.stringify({ ...payload, mode: 'MODE_B' }), credentials: 'include',
+            body: JSON.stringify(payload), credentials: 'include',
         });
         return handleResponse<{ id: string }>(response);
     },
@@ -557,6 +559,21 @@ export const agentApi = {
     adminEvalRunAction: async (id: string, action: 'cancel' | 'retry-errors'): Promise<Response<unknown>> => {
         const response = await fetch(`${API_CONFIG.BASE_URL}/admin/eval-runs/${encodeURIComponent(id)}/${action}`, { method: 'POST', headers: await csrfHeaders({ 'Content-Type': 'application/json' }), credentials: 'include' });
         return handleResponse<unknown>(response);
+    },
+
+    adminGetEvalRunInsights: async (id: string): Promise<Response<EvalLiveRunReportDTO>> => {
+        const response = await fetch(`${API_CONFIG.BASE_URL}/admin/eval-runs/${encodeURIComponent(id)}/insights`, { method: 'GET', headers: { 'Content-Type': 'application/json' }, credentials: 'include' });
+        return handleResponse<EvalLiveRunReportDTO>(response);
+    },
+
+    adminEvaluateEvalGate: async (id: string): Promise<Response<EvalGateDecisionDTO>> => {
+        const response = await fetch(`${API_CONFIG.BASE_URL}/admin/eval-runs/${encodeURIComponent(id)}/gate/evaluate`, { method: 'POST', headers: await csrfHeaders({ 'Content-Type': 'application/json' }), credentials: 'include' });
+        return handleResponse<EvalGateDecisionDTO>(response);
+    },
+
+    adminOverrideEvalGate: async (id: string, reason: string): Promise<Response<EvalGateDecisionDTO>> => {
+        const response = await fetch(`${API_CONFIG.BASE_URL}/admin/eval-runs/${encodeURIComponent(id)}/gate/override`, { method: 'POST', headers: await csrfHeaders({ 'Content-Type': 'application/json' }), body: JSON.stringify({ reason }), credentials: 'include' });
+        return handleResponse<EvalGateDecisionDTO>(response);
     },
 
     adminRunCaptures: async (runId: string): Promise<Response<AdminDebugTraceCaptureDTO[]>> => {

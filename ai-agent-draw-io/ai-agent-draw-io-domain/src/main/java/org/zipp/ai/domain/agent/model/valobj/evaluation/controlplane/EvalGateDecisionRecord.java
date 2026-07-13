@@ -14,4 +14,8 @@ public class EvalGateDecisionRecord {
     EvalGateOutcome outcome;
     String reasonsJson;
     Instant decidedAt;
+    boolean overrideApproved;
+    String overrideReason;
+    String overriddenBy;
+    Instant overriddenAt;
 }
