@@ -9,6 +9,8 @@ import org.zipp.ai.domain.agent.model.valobj.evaluation.controlplane.*;
 import org.zipp.ai.domain.agent.service.evaluation.DefaultEvalHarness;
 import org.zipp.ai.domain.agent.service.evaluation.EvalBatchRunner;
 import org.zipp.ai.domain.agent.service.evaluation.ModeBReplayExecutionFactory;
+import org.zipp.ai.domain.agent.service.evaluation.target.EvalTargetExecutionAdapter;
+import org.zipp.ai.domain.agent.service.evaluation.target.EvalTargetExecutionAdapters;
 
 import java.nio.charset.StandardCharsets;
 import java.time.Clock;
@@ -26,6 +28,7 @@ public class EvalRunOrchestrator {
     private final Clock clock;
     private final EvalLiveRunService liveRuns;
     private final EvaluationProfileResolver profiles;
+    private final EvalTargetExecutionAdapters targetAdapters;
     private final ObjectMapper mapper = new ObjectMapper().findAndRegisterModules();
 
     @Autowired
@@ -57,6 +60,7 @@ public class EvalRunOrchestrator {
         this.store = store; this.cases = cases; this.artifacts = artifacts; this.jobs = jobs;
         this.factories = factories; this.clock = clock == null ? Clock.systemUTC() : clock;
         this.profiles = profiles;
+        this.targetAdapters = new EvalTargetExecutionAdapters();
         this.liveRuns = new EvalLiveRunService(store, cases, artifacts, liveSupport, this.clock, profiles);
     }
 
@@ -186,7 +190,8 @@ public class EvalRunOrchestrator {
         long started = System.nanoTime();
         String episodeId = episodeId(run.getId(), definition.getCaseId(), definition.getCaseVersion(), repetition);
         try {
-            EvalExecution execution = factories.apply(run.getGitSha()).create(definition);
+            EvalTargetExecutionAdapter adapter = targetAdapters.require(run.getEvaluationTarget(), profiles.runnerAdapter(run));
+            EvalExecution execution = adapter.executeModeB(definition, run.getGitSha(), factories.apply(run.getGitSha()));
             profiles.applyExecutionMetadata(run, execution);
             EvalHarnessResult result = new DefaultEvalHarness().evaluate(execution);
             String traceRef = artifacts.put(run.getId(), episodeId, "execution",

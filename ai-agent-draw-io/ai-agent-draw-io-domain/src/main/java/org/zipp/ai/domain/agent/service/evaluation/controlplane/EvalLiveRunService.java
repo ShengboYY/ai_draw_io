@@ -5,6 +5,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.zipp.ai.domain.agent.model.valobj.evaluation.*;
 import org.zipp.ai.domain.agent.model.valobj.evaluation.controlplane.*;
 import org.zipp.ai.domain.agent.service.evaluation.*;
+import org.zipp.ai.domain.agent.service.evaluation.target.EvalTargetExecutionAdapter;
+import org.zipp.ai.domain.agent.service.evaluation.target.EvalTargetExecutionAdapters;
 
 import java.nio.charset.StandardCharsets;
 import java.time.Clock;
@@ -19,12 +21,13 @@ public class EvalLiveRunService {
     private final IEvalLiveRunSupport support;
     private final Clock clock;
     private final EvaluationProfileResolver profiles;
+    private final EvalTargetExecutionAdapters targetAdapters;
     private final ObjectMapper mapper = new ObjectMapper().findAndRegisterModules();
 
     public EvalLiveRunService(IEvalRunStore store, IEvalDatasetCaseSource cases, IEvalRunArtifactStore artifacts,
                               IEvalLiveRunSupport support, Clock clock, EvaluationProfileResolver profiles) {
         this.store = store; this.cases = cases; this.artifacts = artifacts; this.support = support; this.clock = clock;
-        this.profiles = profiles;
+        this.profiles = profiles; this.targetAdapters = new EvalTargetExecutionAdapters();
     }
 
     public EvalLiveRunReadiness readiness() {
@@ -58,10 +61,11 @@ public class EvalLiveRunService {
             unavailableEpisode(run, definition, repetition, "ProviderCredentialUnavailable"); return;
         }
         try {
-            LiveEvalRunner.LiveExecutionFactory runtimeFactory = support.executionFactory(run.getCandidateRef());
+            EvalTargetExecutionAdapter adapter = targetAdapters.require(run.getEvaluationTarget(), profiles.runnerAdapter(run));
+            LiveEvalRunner.LiveExecutionFactory runtimeFactory = support.executionFactory(run.getCandidateRef(), run.getEvaluationTarget());
             LiveEvalRunner.EpisodeResult result = new LiveEvalRunner(new DefaultEvalHarness(), support.diagramRenderer()).runDetailed(List.of(definition), 1,
                     evalCase -> {
-                        EvalExecution execution = runtimeFactory.execute(evalCase);
+                        EvalExecution execution = adapter.executeLive(evalCase, runtimeFactory);
                         profiles.applyExecutionMetadata(run, execution);
                         return execution;
                     }, support.judge()).get(0);

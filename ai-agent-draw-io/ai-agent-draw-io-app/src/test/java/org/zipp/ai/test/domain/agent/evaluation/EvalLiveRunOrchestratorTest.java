@@ -113,6 +113,21 @@ public class EvalLiveRunOrchestratorTest {
         assertEquals(EvalControlPlaneErrorCode.PROFILE_CASE_CONFLICT, failure.getCode());
     }
 
+    @Test
+    public void modeCSelectsTheTargetSpecificLiveFactory() {
+        EvalCaseDefinition routerCase = definition("router-live-target");
+        routerCase.setEvaluationTarget(EvaluationTarget.INTENT_ROUTER);
+        routerCase.getExpected().setJudgeRequired(false);
+        TargetCapturingLiveSupport support = new TargetCapturingLiveSupport();
+        Store store = new Store();
+
+        EvalRun run = service(store, List.of(routerCase), support)
+                .start(command("router-target", EvalRunMode.MODE_C, null));
+
+        assertEquals(EvaluationTarget.INTENT_ROUTER, support.requestedTarget);
+        assertEquals(EvalEpisodeStatus.PASS, store.listEpisodes(run.getId()).get(0).getStatus());
+    }
+
     private EvalRunOrchestrator service(Store store, List<EvalCaseDefinition> definitions, IEvalLiveRunSupport live) {
         List<EvaluationProfileVersion> testProfiles = DefaultEvaluationProfiles.versions().stream()
                 .map(profile -> new EvaluationProfileVersion(profile.profileId(), profile.version(), profile.target(),
@@ -174,6 +189,17 @@ public class EvalLiveRunOrchestratorTest {
         @Override public LiveEvalRunner.LiveExecutionFactory executionFactory(String candidateRef) { return EvalLiveRunOrchestratorTest::execution; }
         @Override public IEvalJudge judge() { return new FakeLiveSupport(EvalLiveRunOrchestratorTest::execution, readiness).judge(); }
         @Override public EvalLiveRunReadiness readiness() { return readiness; }
+    }
+
+    private static final class TargetCapturingLiveSupport implements IEvalLiveRunSupport {
+        private EvaluationTarget requestedTarget;
+        @Override public LiveEvalRunner.LiveExecutionFactory executionFactory(String candidateRef) { return EvalLiveRunOrchestratorTest::execution; }
+        @Override public LiveEvalRunner.LiveExecutionFactory executionFactory(String candidateRef, EvaluationTarget target) {
+            requestedTarget = target;
+            return EvalLiveRunOrchestratorTest::execution;
+        }
+        @Override public IEvalJudge judge() { return null; }
+        @Override public EvalLiveRunReadiness readiness() { return FakeLiveSupport.ready(); }
     }
 
     private static final class Artifacts implements IEvalRunArtifactStore {

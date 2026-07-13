@@ -14,6 +14,7 @@ import org.zipp.ai.domain.agent.service.evaluation.visual.ChatVisualEvalJudge;
 import org.zipp.ai.domain.agent.service.evaluation.visual.DrawioSvgRenderer;
 import org.zipp.ai.domain.agent.service.evaluation.visual.IDiagramImageRenderer;
 import org.zipp.ai.domain.agent.service.evaluation.visual.VisualEvalJudgeAdapter;
+import org.zipp.ai.domain.agent.model.valobj.evaluation.EvaluationTarget;
 
 import java.util.Objects;
 
@@ -21,6 +22,8 @@ import java.util.Objects;
 @Component
 public class ProductionEvalLiveRunSupport implements IEvalLiveRunSupport {
     private final ProductionLiveEvalAdapter execution;
+    private final ProductionRouterLiveEvalAdapter routerExecution;
+    private final ProductionDrawingLiveEvalAdapter drawingExecution;
     private final ChatEvalJudge rawJudge;
     private final ChatVisualEvalJudge rawVisualJudge;
     private final boolean providerCredentialReady;
@@ -33,7 +36,9 @@ public class ProductionEvalLiveRunSupport implements IEvalLiveRunSupport {
     private final int sequesteredCaseCount;
     private final int minimumSequesteredCases;
 
-    public ProductionEvalLiveRunSupport(ProductionLiveEvalAdapter execution, ChatEvalJudge rawJudge,
+    public ProductionEvalLiveRunSupport(ProductionLiveEvalAdapter execution,
+            ProductionRouterLiveEvalAdapter routerExecution,
+            ProductionDrawingLiveEvalAdapter drawingExecution, ChatEvalJudge rawJudge,
             ChatVisualEvalJudge rawVisualJudge,
             @Value("${zipp.evaluation.live-enabled:false}") boolean providerCredentialReady,
             @Value("${zipp.evaluation.judge-calibration-approved:false}") boolean calibrationApproved,
@@ -44,7 +49,8 @@ public class ProductionEvalLiveRunSupport implements IEvalLiveRunSupport {
             @Value("${zipp.evaluation.visual-judge-calibrated-version:unconfigured}") String calibratedVisualJudgeVersion,
             @Value("${zipp.evaluation.sequestered-case-count:0}") int sequesteredCaseCount,
             @Value("${zipp.evaluation.minimum-sequestered-cases:20}") int minimumSequesteredCases) {
-        this.execution = execution; this.rawJudge = rawJudge; this.rawVisualJudge = rawVisualJudge; this.providerCredentialReady = providerCredentialReady;
+        this.execution = execution; this.routerExecution = routerExecution; this.drawingExecution = drawingExecution;
+        this.rawJudge = rawJudge; this.rawVisualJudge = rawVisualJudge; this.providerCredentialReady = providerCredentialReady;
         this.calibrationApproved = calibrationApproved; this.calibrationVersion = calibrationVersion;
         this.calibratedJudgeVersion = calibratedJudgeVersion; this.sequesteredCaseCount = sequesteredCaseCount;
         this.visualCalibrationApproved = visualCalibrationApproved; this.visualCalibrationVersion = visualCalibrationVersion;
@@ -53,6 +59,16 @@ public class ProductionEvalLiveRunSupport implements IEvalLiveRunSupport {
     }
 
     @Override public LiveEvalRunner.LiveExecutionFactory executionFactory(String candidateRef) { return execution; }
+
+    @Override
+    public LiveEvalRunner.LiveExecutionFactory executionFactory(String candidateRef,
+            EvaluationTarget target) {
+        return switch (target) {
+            case FULL_AGENT -> execution;
+            case INTENT_ROUTER -> routerExecution;
+            case DRAWING_QUALITY -> drawingExecution;
+        };
+    }
 
     @Override public IEvalJudge judge() {
         IEvalJudge text = new CalibratedEvalJudge(rawJudge, JudgeCalibrationService.Report.builder()

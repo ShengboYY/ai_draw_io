@@ -130,6 +130,41 @@ public class EvalRunOrchestratorTest {
         assertEquals(EvalRunStatus.COMPLETED, orchestrator.get(run.getId()).getStatus());
     }
 
+    @Test
+    public void everyTargetDiskCasePersistsArtifactsAndIsolatesABadEpisode() throws Exception {
+        List<TargetFixture> fixtures = List.of(
+                new TargetFixture("full-agent.yaml", EvaluationTarget.FULL_AGENT, "full-agent-smoke"),
+                new TargetFixture("router.yaml", EvaluationTarget.INTENT_ROUTER, "router-deterministic"),
+                new TargetFixture("drawing.yaml", EvaluationTarget.DRAWING_QUALITY, "drawing-structure"));
+        for (TargetFixture fixture : fixtures) {
+            EvalCaseDefinition valid = targetCase(fixture.resource());
+            EvalCaseDefinition invalid = targetCase(fixture.resource());
+            invalidate(invalid, fixture.target());
+            ArtifactStore artifacts = new ArtifactStore();
+            RunStore store = new RunStore();
+            IEvalDatasetCaseSource source = new IEvalDatasetCaseSource() {
+                @Override public List<EvalCaseDefinition> loadPublished(String id, String version, EvalAdminRole role) {
+                    return List.of(valid, invalid);
+                }
+                @Override public EvaluationTarget target(String id, String version, EvalAdminRole role) { return fixture.target(); }
+            };
+            EvalRunOrchestrator orchestrator = new EvalRunOrchestrator(store, source, artifacts, Runnable::run,
+                    ModeBReplayExecutionFactory::new, Clock.fixed(NOW, ZoneOffset.UTC));
+
+            EvalRun run = orchestrator.start(command("target-" + fixture.target(), fixture.profileId()));
+
+            assertEquals(EvalRunStatus.COMPLETED, orchestrator.get(run.getId()).getStatus());
+            assertEquals(1, orchestrator.episodes(run.getId()).stream()
+                    .filter(episode -> episode.getStatus() == EvalEpisodeStatus.PASS).count());
+            assertEquals(1, orchestrator.episodes(run.getId()).stream()
+                    .filter(episode -> episode.getStatus() == EvalEpisodeStatus.ERROR).count());
+            EvalEpisode passed = orchestrator.episodes(run.getId()).stream()
+                    .filter(episode -> episode.getStatus() == EvalEpisodeStatus.PASS).findFirst().orElseThrow();
+            assertTrue(artifacts.read(passed.getTraceRef()).isPresent());
+            assertTrue(artifacts.read(orchestrator.get(run.getId()).getReportRef()).isPresent());
+        }
+    }
+
     private EvalRunOrchestrator orchestrator(RunStore store, IEvalJobExecutor executor,
                                              List<EvalCaseDefinition> definitions,
                                              java.util.function.Function<String, EvalBatchRunner.ExecutionFactory> factory) {
@@ -146,11 +181,33 @@ public class EvalRunOrchestratorTest {
     }
 
     private EvalRunStartCommand command(String key) {
+        return command(key, "full-agent-smoke");
+    }
+
+    private EvalRunStartCommand command(String key, String profileId) {
         return EvalRunStartCommand.builder().idempotencyKey(key).datasetId("core").datasetVersion("core-v1")
-                .profileId("full-agent-smoke").profileVersion("1")
+                .profileId(profileId).profileVersion("1")
                 .repetitions(1).gitSha("candidate-sha").executionProfileHash("profile-v1")
                 .createdBy("admin-1").build();
     }
+
+    private EvalCaseDefinition targetCase(String resource) throws Exception {
+        try (var input = getClass().getResourceAsStream("/evals/targets-r4/" + resource)) {
+            return new EvalCaseLoader().load(input);
+        }
+    }
+
+    private void invalidate(EvalCaseDefinition evalCase, EvaluationTarget target) {
+        evalCase.setCaseId(evalCase.getCaseId() + "-invalid");
+        switch (target) {
+            case FULL_AGENT -> evalCase.getReplay().setRouterReply(null);
+            case INTENT_ROUTER -> evalCase.getReplay().getToolCalls().add(EvalCaseDefinition.ReplayToolCall.builder()
+                    .name("modify_diagram").mode("append").cells("<mxCell id='9'/>").build());
+            case DRAWING_QUALITY -> evalCase.getReplay().getToolCalls().get(0).setCells(null);
+        }
+    }
+
+    private record TargetFixture(String resource, EvaluationTarget target, String profileId) { }
 
     private List<EvalCaseDefinition> cases(String... resources) throws Exception {
         List<EvalCaseDefinition> values = new ArrayList<>();

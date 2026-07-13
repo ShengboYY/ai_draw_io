@@ -271,11 +271,28 @@ public class ChatService implements IChatService {
                 JSONObject drawioDone = new JSONObject();
                 drawioDone.put("type", "drawio_done");
                 drawioDone.put("content", toolContent);
+                // Evaluation adapters need observed tool provenance; never infer it from expected output.
+                drawioDone.put("toolName", functionName);
+                drawioDone.put("toolStatus", observedToolStatus(json));
                 outputs.add(drawioDone.toJSONString());
             } else if (json.getString("type") != null) {
+                if (!functionName.isBlank()) {
+                    json.putIfAbsent("toolName", functionName);
+                    json.putIfAbsent("toolStatus", observedToolStatus(json));
+                }
                 outputs.add(json.toJSONString());
             }
         }
+    }
+
+    static String observedToolStatus(JSONObject response) {
+        String type = response == null || response.getString("type") == null ? "" : response.getString("type");
+        String status = response == null || response.getString("status") == null ? "" : response.getString("status");
+        Boolean success = response == null ? null : response.getBoolean("success");
+        boolean failed = "tool_error".equalsIgnoreCase(type) || "error".equalsIgnoreCase(type)
+                || "failed".equalsIgnoreCase(status) || "error".equalsIgnoreCase(status)
+                || Boolean.FALSE.equals(success);
+        return failed ? "FAILED" : "SUCCESS";
     }
 
     private void persistDraftDiagramState(InMemoryRunner runner, String appName, String userId, String sessionId, Event event) {

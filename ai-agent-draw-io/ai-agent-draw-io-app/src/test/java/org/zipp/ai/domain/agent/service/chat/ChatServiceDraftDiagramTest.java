@@ -1,5 +1,6 @@
 package org.zipp.ai.domain.agent.service.chat;
 
+import com.alibaba.fastjson.JSONObject;
 import com.google.adk.events.Event;
 import com.google.genai.types.Content;
 import com.google.genai.types.Part;
@@ -13,6 +14,15 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 public class ChatServiceDraftDiagramTest {
+
+    @Test
+    public void toolErrorIsProjectedAsFailedEvaluationEvidence() {
+        JSONObject rejected = new JSONObject();
+        rejected.put("type", "tool_error");
+
+        assertEquals("FAILED", ChatService.observedToolStatus(rejected));
+        assertEquals("SUCCESS", ChatService.observedToolStatus(new JSONObject()));
+    }
 
     @Test
     public void shouldExtractDraftDiagramFromDrawioMutationToolResponse() {

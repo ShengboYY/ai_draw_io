@@ -726,6 +726,21 @@ mvn clean test
 
 验证：Profile resolver、API、Run manifest、Repository、Mode B/Mode C/Release 定向测试通过；前端 ESLint 零错误。迁移使用 synthetic 历史 Run 验证为 `legacy-run@1 / PARTIAL_LEGACY`，样本已清理。
 
+## Workspace R4：Target execution adapters
+
+| R4 要求 | 实现证据 | 结果 |
+| --- | --- | --- |
+| Full Agent 独立 adapter | `FullAgentEvalAdapter` 复用完整 Mode B replay 或生产 Full Agent factory | 完成 |
+| Router 只执行路由 | `RouterEvalAdapter` 禁止 tool replay；`ProductionRouterLiveEvalAdapter` 直接调用 `IIntentRoutingService`，不进入 drawing agent | 完成 |
+| Drawing 只执行绘图 | `ModeBDrawingReplayExecutionFactory` 仅回放 canvas tools；`ProductionDrawingLiveEvalAdapter` 直接调用 drawing agent，不经过 Router | 完成 |
+| Profile/Target/adapter 一致 | `EvalTargetExecutionAdapters` 按 Run 的 frozen `runnerAdapter` 与 Target 双重选择，漂移时 fail closed | 完成 |
+| Mode B/Mode C 选择 | `EvalRunOrchestrator` 与 `EvalLiveRunService` 都经 target adapter；`IEvalLiveRunSupport` 提供 target-aware factory seam | 完成 |
+| Episode artifact 与错误隔离 | 三类 adapter 统一返回 `EvalExecution`，继续使用 `EvalEpisode`、artifact store 和 per-Episode ERROR/UNAVAILABLE 隔离 | 完成 |
+| Drawing 不引入派生 Run | 第一版只运行独立 drawing Case；没有 `source_run_id/source_episode_id` | 完成 |
+| 磁盘 Case E2E | `/evals/targets-r4` 为三类 adapter 各提供一个 synthetic YAML，测试执行真实 loader → adapter → harness | 完成 |
+
+验证：三类磁盘 Case、生产 Router/Drawing live adapter、target-aware Mode C 选择及既有 Mode B/Live orchestrator 回归均有自动化测试。
+
 ## Control Plane CP10：Canary、Case Health 与持续运营
 
 **状态：平台接线完成；真实部署指标、外部告警路由和用户行为信号仍需外部授权/配置**

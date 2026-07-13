@@ -1,0 +1,33 @@
+caseId: r4-drawing-001
+caseVersion: "1"
+datasetVersion: targets-r4
+origin: specification-derived
+risk: high
+diagramType: architecture
+fixtureVersion: fixture-v1
+xmlContractVersion: drawio-v1
+evaluationTarget: DRAWING_QUALITY
+tags: [drawing_quality, edit_existing]
+privacy: {classification: synthetic, sanitizerVersion: null}
+provenance: {sourceTraceRetained: false, reviewer: eval-team, approvedAt: "2026-07-14T00:00:00Z"}
+input: {user: "Add a Worker service and connect it to API"}
+replay:
+  initialCanvasXml: "<mxGraphModel><root><mxCell id='0'/><mxCell id='1' parent='0'/><mxCell id='2' value='API' vertex='1' parent='1'><mxGeometry x='100' y='100' width='140' height='60' as='geometry'/></mxCell></root></mxGraphModel>"
+  taskOutcome: FULFILLED
+  toolCalls:
+    - name: modify_diagram
+      mode: append
+      cells: "<mxCell id='3' value='Worker' vertex='1' parent='1'><mxGeometry x='380' y='100' width='140' height='60' as='geometry'/></mxCell><mxCell id='4' value='dispatches' edge='1' parent='1' source='2' target='3'><mxGeometry relative='1' as='geometry'/></mxCell>"
+expected:
+  taskOutcome: FULFILLED
+  allowedMutationTools: [modify_diagram]
+  requireCanvasChange: true
+  maxCriticalIssues: 0
+  maxMajorIssues: 0
+  graph:
+    aliasMapVersion: canonical-v1
+    aliases: {}
+    requiredNodes: [API, Worker]
+    forbiddenNodes: []
+    requiredEdges:
+      - {source: API, target: Worker, label: dispatches}

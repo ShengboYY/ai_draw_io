@@ -131,6 +131,16 @@ public class EvaluationProfileResolver {
         execution.setToolPolicyVersion(text(config.get("toolPolicyVersion")));
     }
 
+    /** Resolves the adapter identifier from the immutable Run snapshot, never from current presets. */
+    public String runnerAdapter(EvalRun run) {
+        String adapter = text(root(run.getProfileSnapshotJson()).get("runnerAdapter"));
+        if (blank(adapter)) {
+            throw new EvalControlPlaneException(EvalControlPlaneErrorCode.PROFILE_CASE_CONFLICT,
+                    "Evaluation Profile snapshot has no runnerAdapter");
+        }
+        return adapter;
+    }
+
     /** Returns the immutable execution policy embedded in the persisted Profile snapshot. */
     public EvaluationProfilePolicy policy(EvaluationProfileSnapshot snapshot) {
         Map<String, Object> config = config(snapshot.canonicalConfigJson());

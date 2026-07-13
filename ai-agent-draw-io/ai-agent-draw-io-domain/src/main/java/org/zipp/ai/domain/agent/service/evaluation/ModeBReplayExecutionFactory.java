@@ -10,9 +10,6 @@ import org.zipp.ai.domain.agent.model.valobj.evaluation.EvalTrace;
 import org.zipp.ai.domain.agent.model.valobj.intent.IntentRoutingCommand;
 import org.zipp.ai.domain.agent.model.valobj.intent.IntentRoutingResult;
 import org.zipp.ai.domain.agent.service.IChatService;
-import org.zipp.ai.domain.agent.service.armory.matter.mcp.server.DrawioCanvasMcpService;
-import org.zipp.ai.domain.agent.service.armory.matter.mcp.server.DrawioCanvasToolNames;
-import org.zipp.ai.domain.agent.service.armory.matter.mcp.server.DrawioCanvasXmlToolkit;
 import org.zipp.ai.domain.agent.service.armory.matter.skills.SkillCatalogService;
 import org.zipp.ai.domain.agent.service.intent.DefaultIntentRoutingService;
 
@@ -22,6 +19,7 @@ import java.util.List;
 /** Runs deterministic replay data through the real router post-processing and canvas tools. */
 public class ModeBReplayExecutionFactory implements EvalBatchRunner.ExecutionFactory {
     private final String gitSha;
+    private final ReplayCanvasToolExecutor tools = new ReplayCanvasToolExecutor();
 
     public ModeBReplayExecutionFactory() {
         this(System.getProperty("eval.gitSha", "mode-b-local"));
@@ -123,26 +121,7 @@ public class ModeBReplayExecutionFactory implements EvalBatchRunner.ExecutionFac
     }
 
     private String executeTool(EvalCaseDefinition.ReplayToolCall call, String currentXml) {
-        DrawioCanvasMcpService service = new DrawioCanvasMcpService();
-        String toolName = require(call.getName(), "replay.toolCalls[].name");
-        if (DrawioCanvasToolNames.MODIFY_DIAGRAM.equals(toolName)) {
-            DrawioCanvasMcpService.ModifyDiagramRequest request = new DrawioCanvasMcpService.ModifyDiagramRequest();
-            request.setMode(require(call.getMode(), "replay.toolCalls[].mode"));
-            request.setXml(call.getXml() == null ? currentXml : call.getXml());
-            request.setCells(require(call.getCells(), "replay.toolCalls[].cells"));
-            DrawioCanvasMcpService.DrawioMutationResponse response = service.modifyDiagram(request);
-            assertRepairSignal(call, response.getRepairBrief());
-            if (response.getContent() != null) return response.getContent();
-            if (response.getCells() != null) return new DrawioCanvasXmlToolkit().replaceCells(currentXml, response.getCells());
-            throw new IllegalStateException("modify_diagram returned no canvas artifact");
-        }
-        if (DrawioCanvasToolNames.CREATE_DIAGRAM.equals(toolName)) {
-            DrawioCanvasMcpService.DrawioXmlRequest request = new DrawioCanvasMcpService.DrawioXmlRequest();
-            request.setXml(require(call.getXml() == null ? call.getCells() : call.getXml(),
-                    "replay.toolCalls[].xml or cells"));
-            return service.createDiagram(request).getContent();
-        }
-        throw new IllegalArgumentException("Unsupported replay tool: " + toolName);
+        return tools.execute(call, currentXml);
     }
 
     private String userMessage(EvalCaseDefinition evalCase) {
@@ -188,13 +167,6 @@ public class ModeBReplayExecutionFactory implements EvalBatchRunner.ExecutionFac
                 + "|" + profile.getPromptConfigHash() + "|" + profile.getSkillCatalogHash()
                 + "|" + profile.getToolPolicyVersion() + "|" + profile.getTemperature()
                 + "|" + profile.getInputPricePerMillion() + "|" + profile.getOutputPricePerMillion()).hashCode());
-    }
-
-    private void assertRepairSignal(EvalCaseDefinition.ReplayToolCall call, String repairBrief) {
-        String expected = call.getExpectedRepairContains();
-        if (expected != null && (repairBrief == null || !repairBrief.contains(expected))) {
-            throw new IllegalStateException("Expected repair signal containing: " + expected);
-        }
     }
 
     private String hash(String value) {

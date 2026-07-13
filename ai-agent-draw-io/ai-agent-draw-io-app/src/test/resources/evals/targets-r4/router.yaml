@@ -1,0 +1,28 @@
+caseId: r4-router-001
+caseVersion: "1"
+datasetVersion: targets-r4
+origin: specification-derived
+risk: medium
+diagramType: none
+fixtureVersion: fixture-v1
+xmlContractVersion: drawio-v1
+evaluationTarget: INTENT_ROUTER
+tags: [intent_router, clarify]
+privacy: {classification: synthetic, sanitizerVersion: null}
+provenance: {sourceTraceRetained: false, reviewer: eval-team, approvedAt: "2026-07-14T00:00:00Z"}
+input: {user: "Please improve it"}
+replay:
+  initialCanvasXml: "<mxGraphModel><root><mxCell id='0'/><mxCell id='1' parent='0'/></root></mxGraphModel>"
+  routerReply: '{"routeType":"clarify","diagramType":"none","skillName":"none","needsCanvasQuality":false,"needsSemanticReview":false,"answerMode":"none","answer":"What should I improve?","reason":"ambiguous request"}'
+  taskOutcome: CLARIFICATION_NEEDED
+  toolCalls: []
+expected:
+  routeType: clarify
+  routeDiagramType: none
+  skillName: none
+  needsCanvasQuality: false
+  needsSemanticReview: false
+  answerMode: none
+  taskOutcome: CLARIFICATION_NEEDED
+  allowedMutationTools: []
+  requireCanvasChange: false
