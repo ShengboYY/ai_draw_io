@@ -21,6 +21,10 @@
     select * from eval_case_working_copy where id=#{id}
   </select>
 
+  <select id="selectByCandidateId" resultMap="workingCopy">
+    select * from eval_case_working_copy where candidate_id=#{candidateId}
+  </select>
+
   <select id="selectList" resultMap="workingCopy">
     select * from eval_case_working_copy
     <where>
@@ -35,6 +39,15 @@
       (id,case_id,case_version,source_type,candidate_id,status,owner_user_id,revision,definition_json,evaluation_target,target_migration_status,created_at,updated_at)
     values
       (#{id},#{caseId},#{caseVersion},#{sourceType},#{candidateId},#{status},#{ownerUserId},#{revision},#{definitionJson},#{evaluationTarget},#{targetMigrationStatus},#{createdAt},#{updatedAt})
+  </insert>
+
+  <!-- The nullable unique candidate_id index turns concurrent Promote requests into one canonical Draft. -->
+  <insert id="insertTraceDraftIfAbsent">
+    insert into eval_case_working_copy
+      (id,case_id,case_version,source_type,candidate_id,status,owner_user_id,revision,definition_json,evaluation_target,target_migration_status,created_at,updated_at)
+    values
+      (#{id},#{caseId},#{caseVersion},#{sourceType},#{candidateId},#{status},#{ownerUserId},#{revision},#{definitionJson},#{evaluationTarget},#{targetMigrationStatus},#{createdAt},#{updatedAt})
+    on duplicate key update id=id
   </insert>
 
   <update id="update">

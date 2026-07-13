@@ -11,6 +11,9 @@ import org.zipp.ai.domain.agent.model.valobj.evaluation.intake.EvalCaseCandidate
 import org.zipp.ai.domain.agent.model.valobj.evaluation.intake.TraceAnalysisJob;
 import org.zipp.ai.domain.agent.model.valobj.evaluation.intake.TraceAnalysisJobView;
 import org.zipp.ai.domain.agent.model.valobj.evaluation.intake.TraceFindingView;
+import org.zipp.ai.domain.agent.model.valobj.evaluation.controlplane.EvalCasePromotionResult;
+import org.zipp.ai.domain.agent.service.evaluation.controlplane.EvalCasePromotionService;
+import org.zipp.ai.domain.agent.service.evaluation.controlplane.EvalControlPlaneException;
 import org.zipp.ai.domain.agent.service.evaluation.intake.TraceAnalysisJobService;
 import org.zipp.ai.domain.agent.service.evaluation.intake.TraceFindingViewService;
 import org.zipp.ai.domain.agent.service.evaluation.intake.TraceToEvalIntakeService;
@@ -29,13 +32,16 @@ public class TraceAnalysisAdminController {
     private final TraceAnalysisJobService jobs;
     private final TraceFindingViewService findings;
     private final TraceToEvalIntakeService candidates;
+    private final EvalCasePromotionService promotions;
     private final AdminAuthorizationService authorization;
     private final AdminAuditLogService audits;
 
     public TraceAnalysisAdminController(TraceAnalysisJobService jobs, TraceFindingViewService findings,
-                                        TraceToEvalIntakeService candidates, AdminAuthorizationService authorization,
+                                        TraceToEvalIntakeService candidates, EvalCasePromotionService promotions,
+                                        AdminAuthorizationService authorization,
                                         AdminAuditLogService audits) {
         this.jobs = jobs; this.findings = findings; this.candidates = candidates;
+        this.promotions = promotions;
         this.authorization = authorization; this.audits = audits;
     }
 
@@ -103,6 +109,15 @@ public class TraceAnalysisAdminController {
                 "REJECTED", admin.getId(), body == null ? null : body.get("reason")));
     }
 
+    @PostMapping("/trace-findings/{findingId}/promote-to-eval-draft")
+    public Response<EvalCasePromotionResult> promote(@PathVariable("findingId") String findingId,
+                                                      @RequestBody PromoteRequest body,
+                                                      HttpServletRequest request) {
+        return execute(request, "PROMOTE_TRACE_FINDING", findingId, admin -> promotions.promote(findingId,
+                body == null ? null : body.getCaseId(), body == null ? null : body.getCaseVersion(),
+                admin.getId(), authorization.evaluationRole(admin)));
+    }
+
     private <T> Response<T> execute(HttpServletRequest request, String action, String targetId,
                                     java.util.function.Function<UserAccount, T> operation) {
         Optional<UserAccount> admin = authorization.currentAdmin(request);
@@ -110,6 +125,9 @@ public class TraceAnalysisAdminController {
         try {
             T result = operation.apply(admin.get()); audit(admin.get(), action, targetId, "SUCCESS", request);
             return response(ResponseCode.SUCCESS.getCode(), ResponseCode.SUCCESS.getInfo(), result);
+        } catch (EvalControlPlaneException error) {
+            audit(admin.get(), action, targetId, "REJECTED", request);
+            return response(error.getCode().name(), error.getMessage(), null);
         } catch (IllegalArgumentException | IllegalStateException | SecurityException error) {
             audit(admin.get(), action, targetId, "REJECTED", request); return response(ResponseCode.UN_ERROR.getCode(), error.getMessage(), null);
         } catch (RuntimeException error) {
@@ -130,5 +148,10 @@ public class TraceAnalysisAdminController {
         private int limit = 20;
         private Instant traceSnapshotAt;
         private boolean purposeConfirmed;
+    }
+
+    @Data public static class PromoteRequest {
+        private String caseId;
+        private String caseVersion;
     }
 }

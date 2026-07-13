@@ -3,6 +3,7 @@ package org.zipp.ai.trigger.http;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.Data;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.zipp.ai.api.response.Response;
 import org.zipp.ai.domain.account.model.entity.UserAccount;
 import org.zipp.ai.domain.admin.service.AdminAuditLogService;
@@ -21,22 +22,34 @@ import java.util.Optional;
 @RequestMapping("/api/v1/admin")
 public class EvaluationCatalogAdminController {
     private final EvalCasePublisherService cases;
+    private final EvalCasePromotionService promotions;
     private final EvalDatasetService datasets;
     private final EvalDatasetCoverageService coverage;
     private final AdminAuthorizationService authorization;
     private final AdminAuditLogService audits;
 
+    @Autowired
+    public EvaluationCatalogAdminController(EvalCasePublisherService cases, EvalCasePromotionService promotions,
+                                            EvalDatasetService datasets,
+                                            EvalDatasetCoverageService coverage,
+                                            AdminAuthorizationService authorization, AdminAuditLogService audits) {
+        this.cases = cases; this.promotions = promotions; this.datasets = datasets; this.coverage = coverage;
+        this.authorization = authorization; this.audits = audits;
+    }
+
+    /** Compatibility constructor retained for existing target-filter controller tests. */
     public EvaluationCatalogAdminController(EvalCasePublisherService cases, EvalDatasetService datasets,
                                             EvalDatasetCoverageService coverage,
                                             AdminAuthorizationService authorization, AdminAuditLogService audits) {
-        this.cases = cases; this.datasets = datasets; this.coverage = coverage;
-        this.authorization = authorization; this.audits = audits;
+        this(cases, null, datasets, coverage, authorization, audits);
     }
 
     @PostMapping("/eval-case-working-copies/{id}/publish")
     public Response<PublishedCaseDTO> publishCase(@PathVariable String id, HttpServletRequest request) {
         return execute(request, "PUBLISH_EVAL_CASE", "EVAL_CASE_VERSION", id,
-                admin -> published(cases.publish(id, admin.getId(), role(admin))));
+                admin -> published(promotions == null
+                        ? cases.publish(id, admin.getId(), role(admin))
+                        : promotions.publish(id, admin.getId(), role(admin))));
     }
 
     @GetMapping("/eval-cases")

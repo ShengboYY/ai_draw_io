@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.zipp.ai.api.response.Response;
 import org.zipp.ai.domain.account.model.entity.UserAccount;
 import org.zipp.ai.domain.admin.service.AdminAuditLogService;
@@ -24,9 +25,11 @@ import org.zipp.ai.domain.agent.service.evaluation.controlplane.EvalCaseDryRunSe
 import org.zipp.ai.domain.agent.service.evaluation.controlplane.EvalCaseReviewService;
 import org.zipp.ai.domain.agent.service.evaluation.controlplane.EvalCaseValidationService;
 import org.zipp.ai.domain.agent.service.evaluation.controlplane.EvalCaseWorkingCopyService;
+import org.zipp.ai.domain.agent.service.evaluation.controlplane.EvalCasePromotionService;
 import org.zipp.ai.domain.agent.service.evaluation.controlplane.EvalControlPlaneAuditTypes;
 import org.zipp.ai.domain.agent.service.evaluation.controlplane.EvalControlPlaneErrorCode;
 import org.zipp.ai.domain.agent.service.evaluation.controlplane.EvalControlPlaneException;
+import org.zipp.ai.domain.agent.model.valobj.evaluation.intake.TraceFindingView;
 import org.zipp.ai.trigger.http.service.AdminAuthorizationService;
 import org.zipp.ai.types.enums.ResponseCode;
 
@@ -41,21 +44,35 @@ public class EvaluationAdminController {
     private final EvalCaseValidationService validationService;
     private final EvalCaseDryRunService dryRunService;
     private final EvalCaseReviewService reviewService;
+    private final EvalCasePromotionService promotionService;
     private final AdminAuthorizationService authorizationService;
     private final AdminAuditLogService auditLogService;
 
+    @Autowired
     public EvaluationAdminController(EvalCaseWorkingCopyService service,
                                      EvalCaseValidationService validationService,
                                      EvalCaseDryRunService dryRunService,
                                      EvalCaseReviewService reviewService,
+                                     EvalCasePromotionService promotionService,
                                      AdminAuthorizationService authorizationService,
                                      AdminAuditLogService auditLogService) {
         this.service = service;
         this.validationService = validationService;
         this.dryRunService = dryRunService;
         this.reviewService = reviewService;
+        this.promotionService = promotionService;
         this.authorizationService = authorizationService;
         this.auditLogService = auditLogService;
+    }
+
+    /** Compatibility constructor retained for controller unit tests that do not exercise R7 orchestration. */
+    public EvaluationAdminController(EvalCaseWorkingCopyService service,
+                                     EvalCaseValidationService validationService,
+                                     EvalCaseDryRunService dryRunService,
+                                     EvalCaseReviewService reviewService,
+                                     AdminAuthorizationService authorizationService,
+                                     AdminAuditLogService auditLogService) {
+        this(service, validationService, dryRunService, reviewService, null, authorizationService, auditLogService);
     }
 
     @PostMapping("/{workingCopyId}/validate")
@@ -157,8 +174,12 @@ public class EvaluationAdminController {
             EvalCaseWorkingCopy created = switch (sourceType) {
                 case MANUAL -> service.createManual(body.getDefinition(), admin.get().getId(), role(admin.get()));
                 case IMPORTED -> service.createImportedYaml(body.getYaml(), admin.get().getId(), role(admin.get()));
-                case TRACE_DRAFT -> service.createFromTraceDraft(body.getCandidateId(), body.getCaseId(),
-                        body.getCaseVersion(), admin.get().getId(), role(admin.get()));
+                case TRACE_DRAFT -> promotionService == null
+                        ? service.createFromTraceDraft(body.getCandidateId(), body.getCaseId(), body.getCaseVersion(),
+                                admin.get().getId(), role(admin.get()))
+                        : service.get(promotionService.promote(body.getCandidateId(), body.getCaseId(),
+                                body.getCaseVersion(), admin.get().getId(), role(admin.get())).workingCopyId(),
+                                admin.get().getId(), role(admin.get()));
                 default -> throw new IllegalArgumentException("sourceType is not valid for create");
             };
             audit(admin.get(), "CREATE_EVAL_CASE_WORKING_COPY", created.getId(), "SUCCESS", request);
@@ -208,6 +229,26 @@ public class EvaluationAdminController {
         } catch (RuntimeException e) {
             audit(admin.get(), "VIEW_EVAL_CASE_WORKING_COPY", workingCopyId, "ERROR", request);
             return failure(EvalControlPlaneErrorCode.INFRASTRUCTURE_ERROR, "failed to load working copy");
+        }
+    }
+
+    @GetMapping("/{workingCopyId}/source-finding")
+    public Response<TraceFindingView> sourceFinding(@PathVariable String workingCopyId, HttpServletRequest request) {
+        Optional<UserAccount> admin = authorizationService.currentAdmin(request);
+        if (admin.isEmpty()) return forbidden();
+        try {
+            if (promotionService == null) throw new EvalControlPlaneException(
+                    EvalControlPlaneErrorCode.NOT_FOUND, "source Finding not found");
+            TraceFindingView result = promotionService.sourceFinding(workingCopyId,
+                    admin.get().getId(), role(admin.get()));
+            audit(admin.get(), "VIEW_EVAL_CASE_SOURCE_FINDING", workingCopyId, "SUCCESS", request);
+            return success(result);
+        } catch (EvalControlPlaneException | IllegalArgumentException | SecurityException e) {
+            audit(admin.get(), "VIEW_EVAL_CASE_SOURCE_FINDING", workingCopyId, "REJECTED", request);
+            return failure(codeFor(e), e.getMessage());
+        } catch (RuntimeException e) {
+            audit(admin.get(), "VIEW_EVAL_CASE_SOURCE_FINDING", workingCopyId, "ERROR", request);
+            return failure(EvalControlPlaneErrorCode.INFRASTRUCTURE_ERROR, "failed to load source Finding");
         }
     }
 

@@ -772,6 +772,21 @@ mvn clean test
 
 验证：`TraceAnalysisJobServiceTest` 覆盖单 Trace/批量幂等、以完成时间为准的 snapshot 边界、selection hash、预算、有限重试、UNAVAILABLE 零成本、错误隔离与 PARTIAL；`TraceAnalysisJobRepositoryTest` 覆盖版本/outcome round-trip 和原子幂等；`TraceFindingViewServiceTest` 覆盖过滤契约、review、VLM、结构化 recommendation 及证据分栏；`TraceFindingMapperContractTest` 与 repository test 锁定真实 routing event、最新 review 和批量 projection，避免退回 `request_type` 或 N+1；既有 selector/semantic/visual 测试覆盖三类 Finding；前端 source test 覆盖 Trace Analyze 轮询与 Findings/Job 工作台。迁移 `2026-07-10-create-eval-intake.sql`、`2026-07-11-index-eval-candidate-queue.sql`、`2026-07-13-create-semantic-anomaly-miner.sql` 和 `2026-07-14-create-trace-analysis-jobs.sql` 已在本地 Docker MySQL 执行；事务内 synthetic probe 得到 `chat_stream|edit_existing`，确认 Finding route 来自 `ROUTING_DECIDED`；探针数据已回滚。
 
+## Workspace R7：受控 Promote 桥接
+
+| R7 要求 | 实现证据 | 结果 |
+| --- | --- | --- |
+| Promote to Eval Draft | `POST /admin/trace-findings/{id}/promote-to-eval-draft` 返回 `CREATED / EXISTING_DRAFT / ALREADY_PUBLISHED`；兼容 TRACE_DRAFT 创建入口委托同一编排 | 完成 |
+| Draft 并发幂等 | `eval_case_working_copy.candidate_id` 为可空唯一键；repository 使用原子 insert-if-absent 后按 Candidate 回查 canonical Working Copy | 完成 |
+| 安全 Draft | 沿用确定性 sanitizer → synthetic rebuild → LLM draft → schema/privacy validation；Candidate 只有 `DRAFT_READY` 才可首次 Promote，REJECTED/EXPIRED/PURGED 明确拒绝 | 完成 |
+| 发布事务 | `EvalCasePromotionService.publish` 在事务内复检精确 definition 隐私、写受限 link、发布不可变 Case、清空 Working Copy backlink、更新 Candidate=PUBLISHED | 完成 |
+| 不可回链资产 | Case artifact/Version/公开 lineage 不含 Candidate/source run/raw payload；`eval_candidate_promotion_link` 只在 Trace 权限域保存最小 case/version/retention 关联 | 完成 |
+| Reviewer 回查 | Working Copy source-finding API 允许审查端在保留期内回到 Finding/Trace；访问继续走管理员鉴权与 `admin_audit_log`，UI 入口随工作台阶段统一接线 | 完成 |
+| LLM 权限边界 | `TraceToEvalDraftService` 只生成需人工审核的 Draft，不依赖 Publisher/Promotion service；Validate、Dry Run、Review、Publish 仍为显式人工动作 | 完成 |
+| 单一发布路径 | 旧 Candidate 直审/直发 API 与 service 写路径已移除，Trace-derived Case 只能经过 Working Copy 与 Promotion 编排发布 | 完成 |
+
+验证：`EvalCasePromotionServiceTest` 覆盖重复 Promote、发布后 `ALREADY_PUBLISHED`、终态冲突、发布前隐私失败、发布前后 Reviewer 回查、LLM 无发布能力；repository/mapper contract test 覆盖 canonical link、无 payload 列和可执行迁移 guard；Controller test 锁定旧直审/直发 endpoint 不再暴露，既有 Working Copy/Publisher/Spring wiring 回归通过。前端 source test 覆盖新 Promote endpoint 和 `workingCopyId` 回跳，生产构建通过。迁移 `2026-07-11-create-eval-case-draft.sql`、`2026-07-13-clear-published-eval-candidate-links.sql`、`2026-07-14-create-eval-promotion-links.sql` 已在本地 Docker MySQL 执行；R7 迁移重复执行成功。事务 probe 验证两个并发语义 insert 收敛为 `1|r7_working_1`，发布转存结果为 `r7-case@1|PUBLISHED|NULL`，探针数据已回滚；隔离数据库中的重复 `candidate_id` 实测以 `SQLSTATE 45000` 和明确诊断阻断，随后探针库已删除。
+
 ## Control Plane CP10：Canary、Case Health 与持续运营
 
 **状态：平台接线完成；真实部署指标、外部告警路由和用户行为信号仍需外部授权/配置**

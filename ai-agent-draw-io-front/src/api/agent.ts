@@ -40,6 +40,7 @@ import {
     TraceAnalysisJobDTO,
     TraceAnalysisJobViewDTO,
     TraceFindingViewDTO,
+    EvalCasePromotionResultDTO,
     VisualMinerResultDTO,
     EvalDraftPreparationDTO,
     EvalCaseWorkingCopyDTO,
@@ -499,13 +500,20 @@ export const agentApi = {
         candidateId: string,
         caseId: string,
         caseVersion: string,
-    ): Promise<Response<EvalCaseWorkingCopyDTO>> => {
-        const response = await fetch(`${API_CONFIG.BASE_URL}/admin/eval-case-working-copies`, {
+    ): Promise<Response<EvalCasePromotionResultDTO>> => {
+        const response = await fetch(`${API_CONFIG.BASE_URL}/admin/trace-findings/${encodeURIComponent(candidateId)}/promote-to-eval-draft`, {
             method: 'POST', headers: await csrfHeaders({ 'Content-Type': 'application/json' }),
-            body: JSON.stringify({ sourceType: 'TRACE_DRAFT', candidateId, caseId, caseVersion }),
+            body: JSON.stringify({ caseId, caseVersion }),
             credentials: 'include',
         });
-        return handleResponse<EvalCaseWorkingCopyDTO>(response);
+        return handleResponse<EvalCasePromotionResultDTO>(response);
+    },
+
+    adminGetEvalCaseSourceFinding: async (id: string): Promise<Response<TraceFindingViewDTO>> => {
+        const response = await fetch(`${API_CONFIG.BASE_URL}/admin/eval-case-working-copies/${encodeURIComponent(id)}/source-finding`, {
+            method: 'GET', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+        });
+        return handleResponse<TraceFindingViewDTO>(response);
     },
 
     adminUpdateEvalCaseWorkingCopy: async (id: string, revision: number, definition: Record<string, unknown>): Promise<Response<EvalCaseWorkingCopyDTO>> => {

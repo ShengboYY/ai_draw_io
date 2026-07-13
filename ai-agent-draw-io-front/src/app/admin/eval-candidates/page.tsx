@@ -172,7 +172,7 @@ export default function AdminEvalCandidatesPage() {
       const { data } = await agentApi.adminCreateEvalCaseWorkingCopyFromDraft(
         candidate.id, identity.caseId.trim(), identity.caseVersion.trim(),
       );
-      router.push(`/admin/eval-cases/${encodeURIComponent(data.id)}`);
+      router.push(`/admin/eval-cases/${encodeURIComponent(data.workingCopyId)}`);
     } catch (failure) {
       setError(failure instanceof Error ? failure.message : 'Failed to create Case working copy');
       setBusyCandidateId(null);

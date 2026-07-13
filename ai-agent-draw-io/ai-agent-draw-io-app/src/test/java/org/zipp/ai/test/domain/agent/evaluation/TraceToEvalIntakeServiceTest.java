@@ -15,28 +15,9 @@ import java.util.Optional;
 import java.util.List;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertSame;
 
 public class TraceToEvalIntakeServiceTest {
-    @Test
-    public void shouldKeepSourceRunOnlyInCandidateAndNotPublishedLineage() {
-        FakeAgentUsageTelemetryStore telemetry = new FakeAgentUsageTelemetryStore();
-        telemetry.runs.add(AgentRunTelemetry.builder().id("run-1").agentId("drawing-agent").status("FAILED").build());
-        telemetry.steps.add(AgentRunStepTelemetry.builder().id("step-1").runId("run-1").phase("drawing").status("FAILED").completedAt(Instant.now()).build());
-        MemoryStore store = new MemoryStore();
-        TraceToEvalIntakeService service = new TraceToEvalIntakeService(telemetry, store);
-
-        EvalCaseCandidate candidate = service.createManualCandidate("run-1", "reviewer-a");
-        assertEquals("run-1", candidate.getSourceRunId());
-        service.review(candidate.getId(), "APPROVE", "reviewer-a", "synthetic reconstruction ready");
-        EvalCaseLineage lineage = service.recordPublication(candidate.getId(), "draw-edit-001", "core-v1", "manual-synthesis", "reviewer-a");
-
-        assertEquals("trace-derived-synthetic", lineage.getOrigin());
-        assertFalse(java.util.Arrays.stream(EvalCaseLineage.class.getDeclaredFields())
-                .anyMatch(field -> field.getName().contains("sourceRun") || field.getName().contains("candidate")));
-    }
-
     @Test
     public void shouldReturnTheExistingCandidateForTheSameManualRun() {
         FakeAgentUsageTelemetryStore telemetry = new FakeAgentUsageTelemetryStore();
@@ -50,16 +31,6 @@ public class TraceToEvalIntakeServiceTest {
         assertSame(first, duplicate);
         assertEquals(1, store.candidates.size());
         assertEquals("Manual review of run status=SUCCESS", first.getEvidenceSummary());
-    }
-
-    @Test(expected = IllegalStateException.class)
-    public void shouldNotPublishBeforeHumanApproval() {
-        FakeAgentUsageTelemetryStore telemetry = new FakeAgentUsageTelemetryStore();
-        telemetry.runs.add(AgentRunTelemetry.builder().id("run-1").agentId("drawing-agent").status("SUCCESS").build());
-        TraceToEvalIntakeService service = new TraceToEvalIntakeService(telemetry, new MemoryStore());
-
-        EvalCaseCandidate candidate = service.createManualCandidate("run-1", "reviewer-a");
-        service.recordPublication(candidate.getId(), "case-1", "core-v1", "manual-synthesis", "reviewer-a");
     }
 
     @Test

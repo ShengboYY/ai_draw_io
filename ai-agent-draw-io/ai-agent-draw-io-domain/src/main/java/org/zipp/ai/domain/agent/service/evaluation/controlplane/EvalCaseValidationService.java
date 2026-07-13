@@ -64,6 +64,16 @@ public class EvalCaseValidationService {
         return EvalCaseValidationResult.builder().passed(passed).evidence(failures).workingCopy(completed).build();
     }
 
+    /** Re-checks the exact definition immediately before immutable publication. */
+    public void assertPrivacySafeForPublication(EvalCaseDefinition definition) {
+        List<String> failures = new ArrayList<>();
+        validatePrivacy(definition, failures);
+        if (!failures.isEmpty()) {
+            throw new EvalControlPlaneException(EvalControlPlaneErrorCode.VALIDATION_FAILED,
+                    String.join("; ", failures));
+        }
+    }
+
     private void validateTarget(EvalCaseWorkingCopy workingCopy, List<String> failures) {
         if (workingCopy.getEvaluationTarget() == null
                 || workingCopy.getTargetMigrationStatus() == EvaluationTargetMigrationStatus.AMBIGUOUS) {

@@ -78,11 +78,19 @@ public class EvalCaseWorkingCopyRepositoryTest {
         private int offset;
 
         @Override public EvalCaseWorkingCopyPO selectById(String id) { return value; }
+        @Override public EvalCaseWorkingCopyPO selectByCandidateId(String candidateId) {
+            return value != null && candidateId.equals(value.getCandidateId()) ? value : null;
+        }
         @Override public List<EvalCaseWorkingCopyPO> selectList(String status, String ownerUserId, int limit, int offset) {
             this.status = status; this.owner = ownerUserId; this.limit = limit; this.offset = offset;
             return value == null ? List.of() : List.of(value);
         }
         @Override public int insert(EvalCaseWorkingCopyPO value) { this.value = value; return 1; }
+        @Override public int insertTraceDraftIfAbsent(EvalCaseWorkingCopyPO workingCopy) {
+            if (value != null) return 0;
+            value = workingCopy;
+            return 1;
+        }
         @Override public int update(EvalCaseWorkingCopyPO value, long expectedRevision) {
             if (!allowUpdate) return 0;
             this.value = value;

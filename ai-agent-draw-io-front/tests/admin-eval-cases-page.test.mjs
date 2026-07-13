@@ -20,3 +20,12 @@ test('case studio exposes qualification lifecycle and only publishes an approved
   assert.match(studio, /item\?\.status === 'APPROVED'/);
   assert.match(studio, /adminPublishEvalCase/);
 });
+
+test('trace promotion uses the idempotent bridge instead of creating a raw linked working copy', () => {
+  const candidates = read('../src/app/admin/eval-candidates/page.tsx');
+  const api = read('../src/api/agent.ts');
+  assert.match(api, /promote-to-eval-draft/);
+  assert.match(api, /EvalCasePromotionResultDTO/);
+  assert.match(candidates, /data\.workingCopyId/);
+  assert.doesNotMatch(api, /sourceType: 'TRACE_DRAFT', candidateId/);
+});

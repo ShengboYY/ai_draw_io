@@ -5,7 +5,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.zipp.ai.domain.agent.model.valobj.evaluation.intake.EvalCaseCandidate;
-import org.zipp.ai.domain.agent.model.valobj.evaluation.intake.EvalCaseLineage;
 import org.zipp.ai.domain.agent.model.valobj.evaluation.intake.EvalCaseReview;
 import org.zipp.ai.domain.agent.model.valobj.evaluation.intake.EvalCandidateStatus;
 import org.zipp.ai.domain.agent.model.valobj.usage.AgentRunDetail;
@@ -89,31 +88,6 @@ public class TraceToEvalIntakeService {
         intakeStore.updateCandidateStatus(candidateId, target);
         candidate.setStatus(target);
         return candidate;
-    }
-
-    @Transactional
-    public EvalCaseCandidate review(String candidateId, String decision, String actor, String reason) {
-        require(candidateId, "candidateId"); require(actor, "actor");
-        String normalized = StringUtils.upperCase(StringUtils.trimToEmpty(decision));
-        EvalCandidateStatus next = "APPROVE".equals(normalized) ? EvalCandidateStatus.APPROVED
-                : "REJECT".equals(normalized) ? EvalCandidateStatus.REJECTED : null;
-        if (next == null) throw new IllegalArgumentException("decision must be APPROVE or REJECT");
-        EvalCaseCandidate candidate = intakeStore.findCandidate(candidateId).orElseThrow(() -> new IllegalArgumentException("candidate not found"));
-        if (candidate.getStatus() != EvalCandidateStatus.DETECTED) throw new IllegalStateException("candidate is not awaiting review");
-        intakeStore.insertReview(EvalCaseReview.builder().id("ecr_" + UUID.randomUUID()).candidateId(candidateId)
-                .reviewer(actor).decision(normalized).reason(StringUtils.left(StringUtils.trimToEmpty(reason), 1024)).reviewedAt(clock.instant()).build());
-        intakeStore.updateCandidateStatus(candidateId, next); candidate.setStatus(next); return candidate;
-    }
-
-    @Transactional
-    public EvalCaseLineage recordPublication(String candidateId, String caseId, String datasetVersion, String sanitizerVersion, String actor) {
-        require(candidateId, "candidateId"); require(caseId, "caseId"); require(datasetVersion, "datasetVersion"); require(actor, "actor");
-        EvalCaseCandidate candidate = intakeStore.findCandidate(candidateId).orElseThrow(() -> new IllegalArgumentException("candidate not found"));
-        if (candidate.getStatus() != EvalCandidateStatus.APPROVED) throw new IllegalStateException("candidate must be approved before publication");
-        EvalCaseLineage lineage = EvalCaseLineage.builder().promotionId("ecp_" + UUID.randomUUID()).caseId(caseId)
-                .datasetVersion(datasetVersion).reviewer(actor).approvedAt(clock.instant())
-                .sanitizerVersion(StringUtils.defaultIfBlank(sanitizerVersion, "manual-synthesis")).origin("trace-derived-synthetic").build();
-        intakeStore.insertLineage(lineage); intakeStore.updateCandidateStatus(candidateId, EvalCandidateStatus.PUBLISHED); return lineage;
     }
 
     private void require(String value, String field) { if (StringUtils.isBlank(value)) throw new IllegalArgumentException(field + " is required"); }

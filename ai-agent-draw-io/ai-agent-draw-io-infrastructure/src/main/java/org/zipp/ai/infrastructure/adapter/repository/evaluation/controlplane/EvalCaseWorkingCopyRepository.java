@@ -3,6 +3,7 @@ package org.zipp.ai.infrastructure.adapter.repository.evaluation.controlplane;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 import org.zipp.ai.domain.agent.model.valobj.evaluation.EvalCaseDefinition;
 import org.zipp.ai.domain.agent.model.valobj.evaluation.EvaluationTarget;
 import org.zipp.ai.domain.agent.model.valobj.evaluation.EvaluationTargetMigrationStatus;
@@ -34,6 +35,11 @@ public class EvalCaseWorkingCopyRepository implements IEvalCaseWorkingCopyStore 
     }
 
     @Override
+    public Optional<EvalCaseWorkingCopy> findByCandidateId(String candidateId) {
+        return Optional.ofNullable(mapper.selectByCandidateId(candidateId)).map(this::toDomain);
+    }
+
+    @Override
     public List<EvalCaseWorkingCopy> list(EvalCaseWorkingCopyStatus status, String ownerUserId, int limit, int offset) {
         return mapper.selectList(status == null ? null : status.name(), ownerUserId, limit, offset)
                 .stream().map(this::toDomain).toList();
@@ -42,6 +48,15 @@ public class EvalCaseWorkingCopyRepository implements IEvalCaseWorkingCopyStore 
     @Override
     public void insert(EvalCaseWorkingCopy workingCopy) {
         mapper.insert(toPo(workingCopy));
+    }
+
+    @Override
+    @Transactional
+    public EvalCaseWorkingCopy insertTraceDraftIfAbsent(EvalCaseWorkingCopy workingCopy) {
+        mapper.insertTraceDraftIfAbsent(toPo(workingCopy));
+        return Optional.ofNullable(mapper.selectByCandidateId(workingCopy.getCandidateId()))
+                .map(this::toDomain)
+                .orElseThrow(() -> new IllegalStateException("canonical Trace Draft was not persisted"));
     }
 
     @Override

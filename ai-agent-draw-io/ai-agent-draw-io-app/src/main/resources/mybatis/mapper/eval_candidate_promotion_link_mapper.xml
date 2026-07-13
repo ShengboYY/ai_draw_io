@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.zipp.ai.infrastructure.dao.IEvalCandidatePromotionLinkMapper">
+  <select id="selectByCandidateId" resultType="org.zipp.ai.infrastructure.dao.po.evaluation.controlplane.EvalCandidatePromotionLinkPO">
+    select candidate_id as candidateId,working_copy_id as workingCopyId,case_id as caseId,case_version as caseVersion,
+           promoted_at as promotedAt,retention_expires_at as retentionExpiresAt
+    from eval_candidate_promotion_link where candidate_id=#{candidateId}
+  </select>
+  <select id="selectByWorkingCopyId" resultType="org.zipp.ai.infrastructure.dao.po.evaluation.controlplane.EvalCandidatePromotionLinkPO">
+    select candidate_id as candidateId,working_copy_id as workingCopyId,case_id as caseId,case_version as caseVersion,
+           promoted_at as promotedAt,retention_expires_at as retentionExpiresAt
+    from eval_candidate_promotion_link where working_copy_id=#{workingCopyId}
+  </select>
+  <insert id="insertIfAbsent">
+    insert into eval_candidate_promotion_link
+      (candidate_id,working_copy_id,case_id,case_version,promoted_at,retention_expires_at)
+    values
+      (#{candidateId},#{workingCopyId},#{caseId},#{caseVersion},#{promotedAt},#{retentionExpiresAt})
+    on duplicate key update candidate_id=candidate_id
+  </insert>
+</mapper>

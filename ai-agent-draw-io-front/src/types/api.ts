@@ -808,6 +808,14 @@ export interface TraceFindingViewDTO {
   reviewedAt?: string;
 }
 
+export interface EvalCasePromotionResultDTO {
+  status: 'CREATED' | 'EXISTING_DRAFT' | 'ALREADY_PUBLISHED';
+  candidateId: string;
+  workingCopyId: string;
+  caseId: string;
+  caseVersion: string;
+}
+
 export interface EvalCaseDraftDTO {
   id: string;
   failureSummary: string;

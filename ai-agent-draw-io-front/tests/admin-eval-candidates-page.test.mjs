@@ -29,7 +29,8 @@ test('finding inbox supports persistent multi-analyzer discovery followed by hum
   assert.match(page, /Open in Case Studio/);
   assert.match(page, /adminCreateEvalCaseWorkingCopyFromDraft/);
   assert.match(api, /adminCreateEvalCaseWorkingCopyFromDraft/);
-  assert.match(api, /sourceType: 'TRACE_DRAFT'/);
+  assert.match(api, /promote-to-eval-draft/);
+  assert.doesNotMatch(api, /sourceType: 'TRACE_DRAFT', candidateId/);
   assert.match(page, /setInterval/);
   assert.match(page, /candidateRequestId/);
   assert.match(page, /sampleLimit/);

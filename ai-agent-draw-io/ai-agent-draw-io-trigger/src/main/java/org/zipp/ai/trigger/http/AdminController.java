@@ -55,7 +55,6 @@ import org.zipp.ai.domain.agent.service.usage.AgentUsageTelemetryService;
 import org.zipp.ai.domain.agent.service.evaluation.intake.TraceToEvalIntakeService;
 import org.zipp.ai.domain.agent.service.evaluation.intake.TraceToEvalDraftService;
 import org.zipp.ai.domain.agent.model.valobj.evaluation.intake.EvalCaseCandidate;
-import org.zipp.ai.domain.agent.model.valobj.evaluation.intake.EvalCaseLineage;
 import org.zipp.ai.trigger.http.service.AdminAuthorizationService;
 import org.zipp.ai.types.enums.ResponseCode;
 
@@ -181,44 +180,6 @@ public class AdminController {
         } catch (RuntimeException e) {
             audit(admin.get(), "PREPARE_EVAL_DRAFT", "EVAL_CANDIDATE", candidateId, "ERROR", request);
             return failure("failed to prepare Eval Draft");
-        }
-    }
-
-    @PostMapping("/eval-candidates/{candidateId}/review")
-    public Response<EvalCaseCandidate> reviewEvalCandidate(@PathVariable("candidateId") String candidateId,
-                                                           @RequestBody Map<String, String> body, HttpServletRequest request) {
-        Optional<UserAccount> admin = requireAdmin(request);
-        if (admin.isEmpty()) return forbidden();
-        try {
-            EvalCaseCandidate candidate = traceToEvalIntakeService.review(candidateId, body == null ? null : body.get("decision"),
-                    admin.get().getId(), body == null ? null : body.get("reason"));
-            audit(admin.get(), "REVIEW_EVAL_CANDIDATE", "EVAL_CANDIDATE", candidateId, "SUCCESS", request);
-            return success(candidate);
-        } catch (IllegalArgumentException | IllegalStateException e) {
-            audit(admin.get(), "REVIEW_EVAL_CANDIDATE", "EVAL_CANDIDATE", candidateId, "REJECTED", request);
-            return failure(e.getMessage());
-        } catch (RuntimeException e) {
-            audit(admin.get(), "REVIEW_EVAL_CANDIDATE", "EVAL_CANDIDATE", candidateId, "ERROR", request);
-            return failure("failed to review Eval Candidate");
-        }
-    }
-
-    @PostMapping("/eval-candidates/{candidateId}/publication")
-    public Response<EvalCaseLineage> recordEvalPublication(@PathVariable("candidateId") String candidateId,
-                                                           @RequestBody Map<String, String> body, HttpServletRequest request) {
-        Optional<UserAccount> admin = requireAdmin(request);
-        if (admin.isEmpty()) return forbidden();
-        try {
-            EvalCaseLineage lineage = traceToEvalIntakeService.recordPublication(candidateId, body == null ? null : body.get("caseId"),
-                    body == null ? null : body.get("datasetVersion"), body == null ? null : body.get("sanitizerVersion"), admin.get().getId());
-            audit(admin.get(), "PUBLISH_EVAL_CASE", "EVAL_CASE", lineage.getCaseId(), "SUCCESS", request);
-            return success(lineage);
-        } catch (IllegalArgumentException | IllegalStateException e) {
-            audit(admin.get(), "PUBLISH_EVAL_CASE", "EVAL_CANDIDATE", candidateId, "REJECTED", request);
-            return failure(e.getMessage());
-        } catch (RuntimeException e) {
-            audit(admin.get(), "PUBLISH_EVAL_CASE", "EVAL_CANDIDATE", candidateId, "ERROR", request);
-            return failure("failed to record Eval publication");
         }
     }
 

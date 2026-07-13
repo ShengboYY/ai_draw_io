@@ -23,6 +23,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
 /** Owns Working Copy identity, ownership and optimistic concurrency rules. */
@@ -77,17 +78,31 @@ public class EvalCaseWorkingCopyService {
                                                      String actor, EvalAdminRole role) {
         requireEditor(role);
         require(candidateId, "candidateId");
+        // Draft-stage idempotency must win before re-reading a model draft that may have expired.
+        EvalCaseWorkingCopy existing = store.findByCandidateId(candidateId).orElse(null);
+        if (existing != null) {
+            requireCanRead(existing, actor, role);
+            return existing;
+        }
         EvalCaseDraft draft = traceStore.findLatestDraft(candidateId)
                 .orElseThrow(() -> new EvalControlPlaneException(
                         EvalControlPlaneErrorCode.NOT_FOUND, "Eval Draft not found"));
         EvalCaseDefinition definition = fromDraft(draft, caseId, caseVersion);
-        return create(EvalCaseSourceType.TRACE_DRAFT, definition, candidateId, actor, role);
+        return createTraceDraft(definition, candidateId, actor, role);
     }
 
     public EvalCaseWorkingCopy get(String id, String actor, EvalAdminRole role) {
         EvalCaseWorkingCopy workingCopy = find(id);
         requireCanRead(workingCopy, actor, role);
         return workingCopy;
+    }
+
+    public Optional<EvalCaseWorkingCopy> findByCandidateId(String candidateId,
+                                                            String actor, EvalAdminRole role) {
+        require(candidateId, "candidateId");
+        Optional<EvalCaseWorkingCopy> result = store.findByCandidateId(candidateId);
+        result.ifPresent(workingCopy -> requireCanRead(workingCopy, actor, role));
+        return result;
     }
 
     public List<EvalCaseWorkingCopy> list(String status, String ownerUserId, int requestedLimit, int requestedOffset,
@@ -180,6 +195,23 @@ public class EvalCaseWorkingCopyService {
                 .targetMigrationStatus(inferred.status()).createdAt(clock.instant()).updatedAt(clock.instant()).build();
         store.insert(workingCopy);
         return workingCopy;
+    }
+
+    private EvalCaseWorkingCopy createTraceDraft(EvalCaseDefinition definition, String candidateId,
+                                                  String actor, EvalAdminRole role) {
+        requireActor(actor);
+        requireEditor(role);
+        requireDefinition(definition);
+        EvaluationTargetInference inferred = normalizeTarget(definition);
+        EvalCaseWorkingCopy proposed = EvalCaseWorkingCopy.builder()
+                .id("ecw_" + UUID.randomUUID()).caseId(definition.getCaseId()).caseVersion(definition.getCaseVersion())
+                .sourceType(EvalCaseSourceType.TRACE_DRAFT).candidateId(candidateId)
+                .status(EvalCaseWorkingCopyStatus.DRAFT).ownerUserId(actor).revision(1L)
+                .definition(copy(definition)).evaluationTarget(inferred.target())
+                .targetMigrationStatus(inferred.status()).createdAt(clock.instant()).updatedAt(clock.instant()).build();
+        EvalCaseWorkingCopy canonical = store.insertTraceDraftIfAbsent(proposed);
+        requireCanRead(canonical, actor, role);
+        return canonical;
     }
 
     private EvalCaseDefinition fromDraft(EvalCaseDraft draft, String caseId, String caseVersion) {

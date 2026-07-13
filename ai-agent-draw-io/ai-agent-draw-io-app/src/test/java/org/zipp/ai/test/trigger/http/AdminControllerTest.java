@@ -4,6 +4,7 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.springframework.mock.web.MockHttpServletRequest;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContext;
@@ -145,6 +146,18 @@ public class AdminControllerTest {
         assertEquals(1, traceToEvalStore.candidates.size());
         assertEquals(0, debugTraceStore.listCaptureRequests);
         assertEquals("CREATE_EVAL_CANDIDATE", auditLogs.logs.get(0).getAction());
+    }
+
+    @Test
+    public void legacyCandidateApprovalAndPublicationEndpointsAreNotExposed() {
+        List<String> postMappings = java.util.Arrays.stream(AdminController.class.getDeclaredMethods())
+                .map(method -> method.getAnnotation(PostMapping.class))
+                .filter(java.util.Objects::nonNull)
+                .flatMap(mapping -> java.util.Arrays.stream(mapping.value()))
+                .toList();
+
+        assertFalse(postMappings.contains("/eval-candidates/{candidateId}/review"));
+        assertFalse(postMappings.contains("/eval-candidates/{candidateId}/publication"));
     }
 
     @Test
