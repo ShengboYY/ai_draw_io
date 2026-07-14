@@ -1,0 +1,23 @@
+package org.zipp.ai.domain.agent.model.valobj.visualreview;
+
+import lombok.Builder;
+import lombok.Data;
+
+import java.util.List;
+
+@Data
+@Builder
+public class CanvasVisualReviewCommand {
+
+    private CanvasVisualReviewStage stage;
+    private String originalUserTask;
+    private String diagramType;
+    private String beforeImageDataUrl;
+    private String afterImageDataUrl;
+    private List<String> analyzerEvidence;
+    private String canvasSummary;
+    private String languageHint;
+    private String rendererVersion;
+    private Long expectedVersion;
+    private String expectedContentHash;
+}
