@@ -16,6 +16,8 @@ public class ChatRequestDTO {
     private String message;
     private String canvasXml;
     private String canvasSummary;
+    private String canvasImageDataUrl;
+    private String canvasImageRendererVersion;
     private CanvasSnapshotDTO canvasSnapshot;
     private ClientHintsDTO clientHints;
 
