@@ -341,6 +341,9 @@ export interface ChatRequestDTO {
   canvasXml?: string;
   /** Compact canvas summary for intent routing and answer-only requests. */
   canvasSummary?: string;
+  /** Real draw.io PNG used by review_only; never persisted as chat content. */
+  canvasImageDataUrl?: string;
+  canvasImageRendererVersion?: 'drawio-embed-png-v1';
   canvasSnapshot?: {
     valid?: boolean;
     nodeCount?: number;

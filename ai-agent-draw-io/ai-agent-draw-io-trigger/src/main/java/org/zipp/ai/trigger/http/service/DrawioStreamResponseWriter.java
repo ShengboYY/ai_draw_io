@@ -7,6 +7,11 @@ import org.springframework.web.servlet.mvc.method.annotation.ResponseBodyEmitter
 import org.zipp.ai.domain.agent.model.valobj.canvas.CanvasState;
 import org.zipp.ai.domain.agent.model.valobj.canvas.CanvasStateSaveResult;
 import org.zipp.ai.domain.agent.model.valobj.canvas.CanvasStateVersionConflictException;
+import org.zipp.ai.domain.agent.model.valobj.analysis.CanvasAnalysis;
+import org.zipp.ai.domain.agent.model.valobj.analysis.CanvasAnalysisIssue;
+import org.zipp.ai.domain.agent.model.valobj.visualreview.CanvasVisualIssue;
+import org.zipp.ai.domain.agent.model.valobj.visualreview.CanvasVisualReviewDecision;
+import org.zipp.ai.domain.agent.model.valobj.visualreview.CanvasVisualReviewResult;
 import org.zipp.ai.domain.agent.service.ICanvasStateStore;
 import org.zipp.ai.domain.agent.service.armory.matter.mcp.server.DrawioCanvasToolNames;
 import org.zipp.ai.domain.agent.service.armory.matter.mcp.server.DrawioCanvasXmlToolkit;
@@ -62,6 +67,62 @@ public class DrawioStreamResponseWriter {
         chunk.put("runId", runId);
         envelope.put("chunk", chunk);
         emitter.send(envelope.toJSONString() + "\n");
+    }
+
+    public void sendVisualReviewStarted(ResponseBodyEmitter emitter, String stage, String sourceRunId) throws Exception {
+        com.alibaba.fastjson.JSONObject chunk = new com.alibaba.fastjson.JSONObject();
+        chunk.put("type", "review_started");
+        chunk.put("stage", stage);
+        chunk.put("sourceRunId", sourceRunId);
+        sendWrappedChunk(emitter, "visual_review", chunk);
+    }
+
+    public void sendVisualReviewResult(ResponseBodyEmitter emitter,
+                                       String stage,
+                                       String sourceRunId,
+                                       String content,
+                                       CanvasAnalysis analysis,
+                                       CanvasVisualReviewResult result,
+                                       CanvasVisualReviewDecision decision) throws Exception {
+        com.alibaba.fastjson.JSONObject chunk = new com.alibaba.fastjson.JSONObject();
+        chunk.put("type", "review_result");
+        chunk.put("approved", decision == CanvasVisualReviewDecision.APPROVE
+                || decision == CanvasVisualReviewDecision.APPROVE_WITH_NOTES);
+        chunk.put("available", result != null && result.isAvailable());
+        chunk.put("decision", decision.name());
+        chunk.put("stage", stage);
+        chunk.put("content", StringUtils.defaultString(content));
+        chunk.put("issues", visualIssues(result));
+        chunk.put("deterministicIssues", deterministicIssues(analysis));
+        chunk.put("recommendedHumanReview", result != null && result.isRecommendedHumanReview());
+        chunk.put("sourceRunId", sourceRunId);
+        sendWrappedChunk(emitter, "visual_review", chunk);
+    }
+
+    private com.alibaba.fastjson.JSONArray visualIssues(CanvasVisualReviewResult result) {
+        com.alibaba.fastjson.JSONArray values = new com.alibaba.fastjson.JSONArray();
+        if (result == null) return values;
+        for (CanvasVisualIssue rawIssue : result.safeIssues().stream().limit(5).toList()) {
+            CanvasVisualIssue issue = rawIssue.boundedCopy();
+            com.alibaba.fastjson.JSONObject value = new com.alibaba.fastjson.JSONObject();
+            value.put("type", issue.getType() == null ? "" : issue.getType().name());
+            value.put("severity", issue.getSeverity() == null ? "" : issue.getSeverity().name().toLowerCase());
+            value.put("anchorLabels", issue.getAnchorLabels());
+            value.put("region", issue.getRegion());
+            value.put("evidence", issue.getEvidence());
+            value.put("repairInstruction", issue.getRepairInstruction());
+            values.add(value);
+        }
+        return values;
+    }
+
+    private List<String> deterministicIssues(CanvasAnalysis analysis) {
+        if (analysis == null || analysis.getIssues() == null) return List.of();
+        return analysis.getIssues().stream().limit(10)
+                .map(CanvasAnalysisIssue::getMessage)
+                .filter(StringUtils::isNotBlank)
+                .map(message -> StringUtils.abbreviate(message, 300))
+                .toList();
     }
 
     public void sendTypedError(ResponseBodyEmitter emitter, String code, String content) throws Exception {

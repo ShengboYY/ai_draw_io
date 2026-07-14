@@ -9,14 +9,21 @@ import org.zipp.ai.domain.account.service.IModelCredentialService;
 import org.zipp.ai.domain.account.service.PlatformDailyQuotaExceededException;
 import org.zipp.ai.domain.account.service.VerifiedUserPlatformQuotaService;
 import org.zipp.ai.domain.agent.model.valobj.canvas.CanvasState;
+import org.zipp.ai.domain.agent.model.valobj.analysis.CanvasAnalysis;
+import org.zipp.ai.domain.agent.model.valobj.analysis.CanvasAnalysisIssue;
 import org.zipp.ai.domain.agent.model.valobj.intent.IntentRoutingCommand;
 import org.zipp.ai.domain.agent.model.valobj.intent.IntentRoutingResult;
 import org.zipp.ai.domain.agent.model.valobj.review.CanvasReviewCommand;
 import org.zipp.ai.domain.agent.model.valobj.review.CanvasReviewContext;
+import org.zipp.ai.domain.agent.model.valobj.visualreview.CanvasVisualReviewCommand;
+import org.zipp.ai.domain.agent.model.valobj.visualreview.CanvasVisualReviewDecision;
+import org.zipp.ai.domain.agent.model.valobj.visualreview.CanvasVisualReviewResult;
+import org.zipp.ai.domain.agent.model.valobj.visualreview.CanvasVisualReviewStage;
 import org.zipp.ai.domain.agent.service.ICanvasReviewService;
 import org.zipp.ai.domain.agent.service.ICanvasStateStore;
 import org.zipp.ai.domain.agent.service.IChatService;
 import org.zipp.ai.domain.agent.service.IIntentRoutingService;
+import org.zipp.ai.domain.agent.service.analysis.ICanvasAnalyzer;
 import org.zipp.ai.domain.agent.service.armory.matter.mcp.server.DrawioCanvasToolNames;
 import org.zipp.ai.domain.agent.service.armory.matter.mcp.server.DrawioMutationResultPostProcessor;
 import org.zipp.ai.domain.agent.service.armory.matter.mcp.server.DrawioSkillToolNames;
@@ -26,6 +33,8 @@ import org.zipp.ai.domain.agent.service.debugtrace.AgentDebugTraceService;
 import org.zipp.ai.domain.agent.model.valobj.debugtrace.DebugTracePayloadKind;
 import org.zipp.ai.domain.agent.service.usage.AgentUsageTelemetryContext;
 import org.zipp.ai.domain.agent.service.usage.AgentUsageTelemetryService;
+import org.zipp.ai.domain.agent.service.visualreview.CanvasVisualReviewPolicy;
+import org.zipp.ai.domain.agent.service.visualreview.ICanvasVisualReviewer;
 import org.zipp.ai.types.enums.ResponseCode;
 import org.zipp.ai.types.exception.AppException;
 import org.zipp.ai.types.util.SecretLogSanitizer;
@@ -66,6 +75,15 @@ public class AgentConversationService {
     private ICanvasReviewService canvasReviewService;
 
     @Resource
+    private ICanvasAnalyzer canvasAnalyzer;
+
+    @Resource
+    private ICanvasVisualReviewer canvasVisualReviewer;
+
+    @Resource
+    private CanvasReviewImageValidator canvasReviewImageValidator;
+
+    @Resource
     private ICanvasStateStore canvasStateStore;
 
     @Resource
@@ -91,6 +109,8 @@ public class AgentConversationService {
 
     @Resource
     private AgentDebugTraceService agentDebugTraceService;
+
+    private final CanvasVisualReviewPolicy canvasVisualReviewPolicy = new CanvasVisualReviewPolicy();
 
     public ChatResponseDTO chat(ChatRequestDTO requestDTO) {
         AgentUsageTelemetryService.RunScope runScope = telemetryService().startRun(
@@ -119,6 +139,23 @@ public class AgentConversationService {
                     "routing", requestStepInput(currentRequest), AgentConversationService::routingStepOutput,
                     () -> routeIntent(currentRequest, config));
             recordRoutingDecision(runScope, routingResult);
+            if (isReviewOnly(routingResult)) {
+                ReviewOnlyContext reviewContext = prepareReviewOnlyContext(currentRequest, routingResult);
+                ChatResponseDTO responseDTO = new ChatResponseDTO();
+                if (!reviewContext.hasCanvas()) {
+                    responseDTO.setType("user");
+                    responseDTO.setContent(noCanvasReviewMessage(currentRequest.getMessage()));
+                } else {
+                    ReviewOnlyOutcome outcome = recordCapturedStep(
+                            "visual_review", requestStepInput(currentRequest), value -> traceField("decision", value.decision().name()),
+                            () -> reviewCurrentCanvas(currentRequest, routingResult, reviewContext));
+                    responseDTO.setType("review_result");
+                    responseDTO.setContent(outcome.content());
+                }
+                attachCorrelation(responseDTO, runScope);
+                captureRunOutput(runScope, responseDTO, currentRequest.getDiagramId());
+                return responseDTO;
+            }
             if (routingResult.isDirectReply()) {
                 ChatResponseDTO responseDTO = new ChatResponseDTO();
                 responseDTO.setType("user");
@@ -203,6 +240,37 @@ public class AgentConversationService {
                     "routing", requestStepInput(currentRequest), AgentConversationService::routingStepOutput,
                     () -> routeIntent(currentRequest, config));
             recordRoutingDecision(runScope, routingResult);
+            if (isReviewOnly(routingResult)) {
+                try {
+                    ReviewOnlyContext reviewContext = prepareReviewOnlyContext(currentRequest, routingResult);
+                    if (!reviewContext.hasCanvas()) {
+                        String content = noCanvasReviewMessage(currentRequest.getMessage());
+                        captureRunOutput(runScope, "user", content, currentRequest.getDiagramId());
+                        streamResponseWriter.sendDirectReply(emitter, content);
+                    } else {
+                        streamResponseWriter.sendVisualReviewStarted(
+                                emitter, CanvasVisualReviewStage.CURRENT_CANVAS.name(), runScope.getContext().runId());
+                        ReviewOnlyOutcome outcome = recordCapturedStep(
+                                "visual_review", requestStepInput(currentRequest), value -> traceField("decision", value.decision().name()),
+                                () -> reviewCurrentCanvas(currentRequest, routingResult, reviewContext));
+                        captureRunOutput(runScope, "review_result", outcome.content(), currentRequest.getDiagramId());
+                        streamResponseWriter.sendVisualReviewResult(
+                                emitter,
+                                CanvasVisualReviewStage.CURRENT_CANVAS.name(),
+                                runScope.getContext().runId(),
+                                outcome.content(),
+                                outcome.analysis(),
+                                outcome.result(),
+                                outcome.decision());
+                        streamResponseWriter.sendDone(emitter);
+                        emitter.complete();
+                    }
+                    completeStreamTelemetry(streamTelemetryCompleted, null, runScope, null);
+                } finally {
+                    clearSessionConfig(finalSessionId);
+                }
+                return;
+            }
             if (routingResult.isDirectReply()) {
                 try {
                     String answer = recordCapturedStep(
@@ -834,6 +902,83 @@ public class AgentConversationService {
         return canvasReviewService.answer(buildCanvasReviewCommand(requestDTO, config, routingResult));
     }
 
+    private boolean isReviewOnly(IntentRoutingResult routingResult) {
+        return routingResult != null && "review_only".equals(routingResult.getRouteType());
+    }
+
+    private ReviewOnlyContext prepareReviewOnlyContext(ChatRequestDTO requestDTO,
+                                                       IntentRoutingResult routingResult) {
+        String canvasXml = contextBuilder().resolveCanvasXml(requestDTO);
+        if (StringUtils.isBlank(canvasXml)) {
+            return new ReviewOnlyContext(null, false);
+        }
+        CanvasAnalysis analysis = canvasAnalyzer.analyze(canvasXml, routingResult.getDiagramType());
+        boolean hasCanvas = analysis != null && analysis.getSummary() != null
+                && analysis.getSummary().getNodeCount() > 0;
+        return new ReviewOnlyContext(analysis, hasCanvas);
+    }
+
+    private ReviewOnlyOutcome reviewCurrentCanvas(ChatRequestDTO requestDTO,
+                                                   IntentRoutingResult routingResult,
+                                                   ReviewOnlyContext context) {
+        CanvasVisualReviewResult result;
+        String imageDataUrl = requestDTO.getCanvasImageDataUrl();
+        if (StringUtils.isBlank(imageDataUrl)
+                || !CanvasVisualReviewOrchestrator.RENDERER_VERSION.equals(requestDTO.getCanvasImageRendererVersion())) {
+            result = CanvasVisualReviewResult.unavailable("screenshot_missing");
+        } else {
+            try {
+                canvasReviewImageValidator.validate(imageDataUrl);
+                result = canvasVisualReviewer.review(CanvasVisualReviewCommand.builder()
+                        .stage(CanvasVisualReviewStage.CURRENT_CANVAS)
+                        .originalUserTask(requestDTO.getMessage())
+                        .diagramType(routingResult.getDiagramType())
+                        .afterImageDataUrl(imageDataUrl)
+                        .analyzerEvidence(analyzerEvidence(context.analysis()))
+                        .canvasSummary(context.analysis() == null || context.analysis().getSummary() == null
+                                ? "" : context.analysis().getSummary().getSummary())
+                        .languageHint(containsHanText(requestDTO.getMessage()) ? "zh" : "en")
+                        .rendererVersion(requestDTO.getCanvasImageRendererVersion())
+                        .expectedVersion(requestDTO.getExpectedVersion())
+                        .build());
+            } catch (IllegalArgumentException e) {
+                result = CanvasVisualReviewResult.unavailable("invalid_screenshot");
+            }
+        }
+        CanvasVisualReviewDecision decision = canvasVisualReviewPolicy.decide(
+                result, CanvasVisualReviewStage.CURRENT_CANVAS, 0);
+        return new ReviewOnlyOutcome(context.analysis(), result, decision,
+                visualReviewContent(requestDTO.getMessage(), result));
+    }
+
+    private List<String> analyzerEvidence(CanvasAnalysis analysis) {
+        if (analysis == null || analysis.getIssues() == null) return List.of();
+        return analysis.getIssues().stream().limit(10)
+                .map(CanvasAnalysisIssue::getMessage)
+                .filter(StringUtils::isNotBlank)
+                .toList();
+    }
+
+    private String visualReviewContent(String userMessage, CanvasVisualReviewResult result) {
+        if (result != null && result.isAvailable() && StringUtils.isNotBlank(result.getSummary())) {
+            return result.getSummary();
+        }
+        return containsHanText(userMessage)
+                ? "视觉审查暂不可用；画布未被修改，请稍后重试。"
+                : "Visual review is currently unavailable. The canvas was not modified; please retry later.";
+    }
+
+    private String noCanvasReviewMessage(String userMessage) {
+        return containsHanText(userMessage)
+                ? "当前没有可审查的画布。"
+                : "There is no drawable canvas to review.";
+    }
+
+    private boolean containsHanText(String value) {
+        return StringUtils.defaultString(value).codePoints()
+                .anyMatch(codePoint -> codePoint >= 0x4E00 && codePoint <= 0x9FFF);
+    }
+
     private CanvasReviewContext buildReviewContextIfNeeded(ChatRequestDTO requestDTO,
                                                            CustomApiConfigManager.CustomApiConfig config,
                                                            IntentRoutingResult routingResult) {
@@ -932,6 +1077,15 @@ public class AgentConversationService {
     }
 
     private record RoutedDrawMessage(String message, java.util.Set<String> allowedSkillNames) {
+    }
+
+    private record ReviewOnlyContext(CanvasAnalysis analysis, boolean hasCanvas) {
+    }
+
+    private record ReviewOnlyOutcome(CanvasAnalysis analysis,
+                                     CanvasVisualReviewResult result,
+                                     CanvasVisualReviewDecision decision,
+                                     String content) {
     }
 
     private List<String> allowedToolsFor(IntentRoutingResult routingResult) {

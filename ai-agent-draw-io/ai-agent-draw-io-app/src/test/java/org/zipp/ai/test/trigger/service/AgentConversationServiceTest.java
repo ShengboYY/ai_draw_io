@@ -20,14 +20,18 @@ import org.zipp.ai.domain.account.service.VerifiedUserPlatformQuotaService;
 import org.zipp.ai.domain.agent.model.entity.ChatCommandEntity;
 import org.zipp.ai.domain.agent.model.valobj.AiAgentConfigTableVO;
 import org.zipp.ai.domain.agent.model.valobj.canvas.CanvasState;
+import org.zipp.ai.domain.agent.model.valobj.analysis.CanvasAnalysis;
+import org.zipp.ai.domain.agent.model.valobj.analysis.CanvasSummaryData;
 import org.zipp.ai.domain.agent.model.valobj.debugtrace.DebugTraceCapture;
 import org.zipp.ai.domain.agent.model.valobj.debugtrace.DebugTraceControl;
 import org.zipp.ai.domain.agent.model.valobj.intent.IntentRoutingCommand;
 import org.zipp.ai.domain.agent.model.valobj.intent.IntentRoutingResult;
 import org.zipp.ai.domain.agent.model.valobj.review.CanvasReviewCommand;
+import org.zipp.ai.domain.agent.model.valobj.visualreview.CanvasVisualReviewResult;
 import org.zipp.ai.domain.agent.service.ICanvasStateStore;
 import org.zipp.ai.domain.agent.service.IChatService;
 import org.zipp.ai.domain.agent.service.IIntentRoutingService;
+import org.zipp.ai.domain.agent.service.visualreview.ICanvasVisualReviewer;
 import org.zipp.ai.domain.agent.service.canvas.DefaultDrawioCanvasSnapshotService;
 import org.zipp.ai.domain.agent.service.debugtrace.AgentDebugTraceService;
 import org.zipp.ai.domain.agent.service.debugtrace.IAgentDebugTraceStore;
@@ -35,6 +39,7 @@ import org.zipp.ai.domain.agent.service.usage.AgentUsageTelemetryService;
 import org.zipp.ai.domain.agent.service.usage.AgentUsageTelemetryContext;
 import org.zipp.ai.test.domain.agent.FakeAgentUsageTelemetryStore;
 import org.zipp.ai.trigger.http.service.AgentConversationService;
+import org.zipp.ai.trigger.http.service.CanvasReviewImageValidator;
 import org.zipp.ai.trigger.http.service.DrawioPromptContextBuilder;
 import org.zipp.ai.trigger.http.service.DrawioStreamResponseWriter;
 import org.zipp.ai.trigger.http.service.DrawioToolCallRenderer;
@@ -52,6 +57,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.ArrayList;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertEquals;
@@ -59,6 +65,98 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 public class AgentConversationServiceTest {
+
+    private static final String VALID_PNG_DATA_URL = "data:image/png;base64,"
+            + "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=";
+
+    @Test
+    public void shouldUseProductionVlmForReviewOnlyWithoutCallingTheLegacyReviewer() throws Exception {
+        AgentConversationService service = quotaAwareService();
+        CountingChatService chatService = new CountingChatService();
+        AtomicInteger visualReviewCalls = new AtomicInteger();
+        injectField(service, "chatService", chatService);
+        injectField(service, "intentRoutingService", new ReviewOnlyRoutingService());
+        injectField(service, "canvasAnalyzer", passingAnalyzer());
+        injectField(service, "canvasReviewImageValidator", new CanvasReviewImageValidator());
+        injectField(service, "canvasVisualReviewer", (ICanvasVisualReviewer) command -> {
+            visualReviewCalls.incrementAndGet();
+            assertEquals("CURRENT_CANVAS", command.getStage().name());
+            assertEquals(VALID_PNG_DATA_URL, command.getAfterImageDataUrl());
+            return CanvasVisualReviewResult.builder().available(true).summary("The canvas is readable.")
+                    .issues(List.of()).recommendedHumanReview(false).build();
+        });
+        ChatRequestDTO request = platformRequest();
+        request.setMessage("review this diagram");
+        request.setCanvasXml(storedCanvasXml());
+        request.setCanvasImageDataUrl(VALID_PNG_DATA_URL);
+        request.setCanvasImageRendererVersion("drawio-embed-png-v1");
+        CapturingEmitter emitter = new CapturingEmitter();
+
+        service.stream(request, emitter);
+
+        String output = String.join("\n", emitter.sent);
+        assertEquals(1, visualReviewCalls.get());
+        assertEquals(0, chatService.handleMessageCalls);
+        assertEquals(0, chatService.handleMessageStreamCalls);
+        assertTrue(output.contains("\"type\":\"review_started\""));
+        assertTrue(output.contains("\"type\":\"review_result\""));
+        assertTrue(output.contains("\"decision\":\"APPROVE\""));
+        assertFalse(output.contains("\"type\":\"drawio_done\""));
+    }
+
+    @Test
+    public void shouldReturnUnavailableWhenReviewOnlyScreenshotIsMissing() throws Exception {
+        AgentConversationService service = quotaAwareService();
+        AtomicInteger visualReviewCalls = new AtomicInteger();
+        injectField(service, "chatService", new CountingChatService());
+        injectField(service, "intentRoutingService", new ReviewOnlyRoutingService());
+        injectField(service, "canvasAnalyzer", passingAnalyzer());
+        injectField(service, "canvasReviewImageValidator", new CanvasReviewImageValidator());
+        injectField(service, "canvasVisualReviewer", (ICanvasVisualReviewer) command -> {
+            visualReviewCalls.incrementAndGet();
+            return CanvasVisualReviewResult.unavailable("unexpected");
+        });
+        ChatRequestDTO request = platformRequest();
+        request.setMessage("review this diagram");
+        request.setCanvasXml(storedCanvasXml());
+        CapturingEmitter emitter = new CapturingEmitter();
+
+        service.stream(request, emitter);
+
+        String output = String.join("\n", emitter.sent);
+        assertEquals(0, visualReviewCalls.get());
+        assertTrue(output.contains("\"type\":\"review_result\""));
+        assertTrue(output.contains("\"decision\":\"UNAVAILABLE\""));
+    }
+
+    @Test
+    public void shouldAnswerWithoutReviewingWhenThereIsNoDrawableCanvas() throws Exception {
+        AgentConversationService service = quotaAwareService();
+        AtomicInteger visualReviewCalls = new AtomicInteger();
+        injectField(service, "chatService", new CountingChatService());
+        injectField(service, "intentRoutingService", new ReviewOnlyRoutingService());
+        injectField(service, "canvasVisualReviewer", (ICanvasVisualReviewer) command -> {
+            visualReviewCalls.incrementAndGet();
+            return CanvasVisualReviewResult.unavailable("unexpected");
+        });
+        ChatRequestDTO request = platformRequest();
+        request.setMessage("review this diagram");
+        CapturingEmitter emitter = new CapturingEmitter();
+
+        service.stream(request, emitter);
+
+        String output = String.join("\n", emitter.sent);
+        assertEquals(0, visualReviewCalls.get());
+        assertTrue(output.contains("There is no drawable canvas to review."));
+        assertFalse(output.contains("\"type\":\"review_result\""));
+    }
+
+    private org.zipp.ai.domain.agent.service.analysis.ICanvasAnalyzer passingAnalyzer() {
+        return (xml, diagramType) -> CanvasAnalysis.builder()
+                .valid(true).severity("ok").issues(List.of()).cells(List.of())
+                .summary(CanvasSummaryData.builder().nodeCount(1).edgeCount(0).summary("one readable node").build())
+                .build();
+    }
 
     @Test
     public void shouldClampFrontendReviewIterationSetting() throws Exception {
@@ -912,6 +1010,22 @@ public class AgentConversationServiceTest {
             result.setNeedsSemanticReview(false);
             result.setAnswerMode("general");
             result.setAnswer(null);
+            result.setReason("test");
+            return result;
+        }
+    }
+
+    private static class ReviewOnlyRoutingService implements IIntentRoutingService {
+        @Override
+        public IntentRoutingResult route(IntentRoutingCommand command) {
+            IntentRoutingResult result = new IntentRoutingResult();
+            result.setRouteType("review_only");
+            result.setDiagramType("architecture");
+            result.setSkillName("none");
+            result.setNeedsCanvasQuality(true);
+            result.setNeedsSemanticReview(false);
+            result.setAnswerMode("quality_review");
+            result.setAnswer("");
             result.setReason("test");
             return result;
         }

@@ -57,6 +57,20 @@ test('buildDrawioChatRequestPayload includes canvas state version fields', () =>
   assert.equal(request.expectedVersion, 4);
 });
 
+test('buildDrawioChatRequestPayload carries the current rendered PNG for review-only routing', () => {
+  const request = buildDrawioChatRequestPayload({
+    agentId: '300000',
+    userId: 'alice',
+    sessionId: 'session-1',
+    userMessage: 'review this diagram',
+    canvasImageDataUrl: 'data:image/png;base64,AAAA',
+    canvasImageRendererVersion: 'drawio-embed-png-v1',
+  });
+
+  assert.equal(request.canvasImageDataUrl, 'data:image/png;base64,AAAA');
+  assert.equal(request.canvasImageRendererVersion, 'drawio-embed-png-v1');
+});
+
 test('buildDrawioChatRequestPayload includes compact conversation context', () => {
   const request = buildDrawioChatRequestPayload({
     agentId: '300000',

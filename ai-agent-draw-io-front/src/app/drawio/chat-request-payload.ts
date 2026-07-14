@@ -15,6 +15,8 @@ type BuildDrawioChatRequestPayloadInput = {
   expectedVersion?: number;
   canvasXml?: string;
   canvasSummary?: string;
+  canvasImageDataUrl?: string;
+  canvasImageRendererVersion?: 'drawio-embed-png-v1';
   modelCredentialId?: string;
   customBaseUrl?: string;
   customApiKey?: string;
@@ -72,6 +74,8 @@ export const buildDrawioChatRequestPayload = ({
   userMessage,
   canvasXml,
   canvasSummary,
+  canvasImageDataUrl,
+  canvasImageRendererVersion,
   maxReviewIterations,
   skills,
   conversationMessages,
@@ -97,6 +101,8 @@ export const buildDrawioChatRequestPayload = ({
     message: userMessage,
     ...(canvasXml && { canvasXml }),
     ...(canvasSummary && { canvasSummary }),
+    ...(canvasImageDataUrl && { canvasImageDataUrl }),
+    ...(canvasImageRendererVersion && { canvasImageRendererVersion }),
     // Legacy raw custom fields are intentionally dropped; chat accepts saved credential ids only.
     ...(maxReviewIterations !== undefined && { maxReviewIterations }),
     ...(skills && skills.length > 0 && { skills }),
