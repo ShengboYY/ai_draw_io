@@ -84,6 +84,16 @@ public class EvalCaseDefinition {
         private Integer maxCriticalIssues;
         private Integer maxMajorIssues;
         private Boolean judgeRequired;
+        private Boolean reviewAvailable;
+        private String reviewDecision;
+        private String reviewUnavailableReason;
+
+        @Builder.Default
+        private List<String> requiredVisualIssueTypes = new ArrayList<>();
+
+        @Builder.Default
+        private List<String> forbiddenVisualIssueTypes = new ArrayList<>();
+
         private GraphAssertions graph;
 
         @Builder.Default

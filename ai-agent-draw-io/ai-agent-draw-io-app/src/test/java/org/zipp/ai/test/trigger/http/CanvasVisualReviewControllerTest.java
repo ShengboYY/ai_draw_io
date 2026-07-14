@@ -34,7 +34,7 @@ public class CanvasVisualReviewControllerTest {
                                CanvasVisualReviewRequestDTO request, ResponseBodyEmitter emitter) {
                 capturedOwner.set(ownerId);
                 assertEquals("usr_server_owner", request.getUserId());
-                assertTrue(visualReviewRunId.startsWith("visual_"));
+                assertTrue(visualReviewRunId.startsWith("aru_visual_"));
                 invoked.countDown();
                 emitter.complete();
             }

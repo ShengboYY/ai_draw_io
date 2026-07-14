@@ -24,6 +24,7 @@ public class ProductionEvalLiveRunSupport implements IEvalLiveRunSupport {
     private final ProductionLiveEvalAdapter execution;
     private final ProductionRouterLiveEvalAdapter routerExecution;
     private final ProductionDrawingLiveEvalAdapter drawingExecution;
+    private final ProductionVisualReviewLiveEvalAdapter visualReviewExecution;
     private final ChatEvalJudge rawJudge;
     private final ChatVisualEvalJudge rawVisualJudge;
     private final boolean providerCredentialReady;
@@ -38,7 +39,8 @@ public class ProductionEvalLiveRunSupport implements IEvalLiveRunSupport {
 
     public ProductionEvalLiveRunSupport(ProductionLiveEvalAdapter execution,
             ProductionRouterLiveEvalAdapter routerExecution,
-            ProductionDrawingLiveEvalAdapter drawingExecution, ChatEvalJudge rawJudge,
+            ProductionDrawingLiveEvalAdapter drawingExecution,
+            ProductionVisualReviewLiveEvalAdapter visualReviewExecution, ChatEvalJudge rawJudge,
             ChatVisualEvalJudge rawVisualJudge,
             @Value("${zipp.evaluation.live-enabled:false}") boolean providerCredentialReady,
             @Value("${zipp.evaluation.judge-calibration-approved:false}") boolean calibrationApproved,
@@ -50,6 +52,7 @@ public class ProductionEvalLiveRunSupport implements IEvalLiveRunSupport {
             @Value("${zipp.evaluation.sequestered-case-count:0}") int sequesteredCaseCount,
             @Value("${zipp.evaluation.minimum-sequestered-cases:20}") int minimumSequesteredCases) {
         this.execution = execution; this.routerExecution = routerExecution; this.drawingExecution = drawingExecution;
+        this.visualReviewExecution = visualReviewExecution;
         this.rawJudge = rawJudge; this.rawVisualJudge = rawVisualJudge; this.providerCredentialReady = providerCredentialReady;
         this.calibrationApproved = calibrationApproved; this.calibrationVersion = calibrationVersion;
         this.calibratedJudgeVersion = calibratedJudgeVersion; this.sequesteredCaseCount = sequesteredCaseCount;
@@ -67,6 +70,7 @@ public class ProductionEvalLiveRunSupport implements IEvalLiveRunSupport {
             case FULL_AGENT -> execution;
             case INTENT_ROUTER -> routerExecution;
             case DRAWING_QUALITY -> drawingExecution;
+            case VISUAL_REVIEW -> visualReviewExecution;
         };
     }
 

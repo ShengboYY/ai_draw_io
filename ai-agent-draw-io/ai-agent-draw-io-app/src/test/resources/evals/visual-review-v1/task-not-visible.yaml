@@ -1,0 +1,14 @@
+caseId: visual-review-task-not-visible
+caseVersion: "1"
+datasetVersion: visual-review-v1
+origin: specification-derived
+risk: critical
+diagramType: architecture
+fixtureVersion: fixture-v1
+xmlContractVersion: drawio-v1
+evaluationTarget: VISUAL_REVIEW
+tags: [target:visual_review, task_fulfillment, lang:en]
+privacy: {classification: synthetic, sanitizerVersion: null}
+input: {user: "Add a Payment service after API", stage: POST_MUTATION, syntheticFixture: task-not-visible}
+expected: {reviewAvailable: true, reviewDecision: REPAIR, requiredVisualIssueTypes: [TASK_NOT_VISIBLE]}
+

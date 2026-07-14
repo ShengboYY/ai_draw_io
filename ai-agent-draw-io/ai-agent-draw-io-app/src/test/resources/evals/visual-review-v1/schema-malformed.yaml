@@ -1,0 +1,14 @@
+caseId: visual-review-schema-malformed
+caseVersion: "1"
+datasetVersion: visual-review-v1
+origin: fault-injection
+risk: critical
+diagramType: architecture
+fixtureVersion: fixture-v1
+xmlContractVersion: drawio-v1
+evaluationTarget: VISUAL_REVIEW
+tags: [target:visual_review, fault_injection:schema]
+privacy: {classification: synthetic, sanitizerVersion: null}
+input: {user: "Review the architecture", stage: CURRENT_CANVAS, syntheticFixture: clean, failureInjection: schema_malformed}
+expected: {reviewAvailable: false, reviewDecision: UNAVAILABLE, reviewUnavailableReason: output_schema_error}
+

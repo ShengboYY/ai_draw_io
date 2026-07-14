@@ -91,7 +91,7 @@ export default function AdminEvalRunsPage() {
         <Field label="Filter by evaluation target">
           <select value={targetFilter} onChange={(event) => setTargetFilter(event.target.value as EvaluationTarget | '')} className={inputCls}>
             <option value="">All targets</option>
-            {(['FULL_AGENT', 'INTENT_ROUTER', 'DRAWING_QUALITY'] as EvaluationTarget[]).map((value) => <option key={value} value={value}>{value.replaceAll('_', ' ')}</option>)}
+            {(['FULL_AGENT', 'INTENT_ROUTER', 'DRAWING_QUALITY', 'VISUAL_REVIEW'] as EvaluationTarget[]).map((value) => <option key={value} value={value}>{value.replaceAll('_', ' ')}</option>)}
           </select>
         </Field>
       </div>

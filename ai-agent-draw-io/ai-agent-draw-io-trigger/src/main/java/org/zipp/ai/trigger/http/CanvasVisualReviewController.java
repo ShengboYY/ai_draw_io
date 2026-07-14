@@ -37,7 +37,7 @@ public class CanvasVisualReviewController {
                                       @RequestHeader(value = REQUEST_ID_HEADER, required = false) String requestIdHeader) {
         String requestId = correlationId(StringUtils.defaultIfBlank(requestIdHeader,
                 request == null ? null : request.getRequestId()), "req_");
-        String runId = correlationId(null, "visual_");
+        String runId = correlationId(null, "aru_visual_");
         ResponseBodyEmitter emitter = new ResponseBodyEmitter(2 * 60 * 1000L) {
             @Override
             protected void extendResponse(ServerHttpResponse outputMessage) {

@@ -14,6 +14,7 @@ const base = {
   sourceRunId: 'run-1',
   diagramId: 'diagram-1',
   expectedVersion: 3,
+  beforeContentHash: 'sha256:before',
   expectedContentHash: 'sha256:abc',
   originalUserTask: 'Draw the checkout flow',
   afterImageDataUrl: 'data:image/png;base64,after',
@@ -33,6 +34,7 @@ test('review requests preserve exact version, hash, stage, and before/after imag
   });
 
   assert.equal(request.expectedVersion, 3);
+  assert.equal(request.beforeContentHash, 'sha256:before');
   assert.equal(request.expectedContentHash, 'sha256:abc');
   assert.equal(request.stage, 'POST_MUTATION');
   assert.equal(request.beforeImageDataUrl, 'data:image/png;base64,before');

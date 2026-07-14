@@ -1,0 +1,14 @@
+caseId: visual-review-weak-hierarchy
+caseVersion: "1"
+datasetVersion: visual-review-v1
+origin: specification-derived
+risk: medium
+diagramType: architecture
+fixtureVersion: fixture-v1
+xmlContractVersion: drawio-v1
+evaluationTarget: VISUAL_REVIEW
+tags: [target:visual_review, hierarchy, lang:en]
+privacy: {classification: synthetic, sanitizerVersion: null}
+input: {user: "Create a clear architecture hierarchy", stage: POST_MUTATION, syntheticFixture: weak-hierarchy}
+expected: {reviewAvailable: true, reviewDecision: REPAIR, requiredVisualIssueTypes: [LAYOUT_HIERARCHY]}
+

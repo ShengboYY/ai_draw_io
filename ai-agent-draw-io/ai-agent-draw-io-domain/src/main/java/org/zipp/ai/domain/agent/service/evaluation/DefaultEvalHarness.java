@@ -7,6 +7,7 @@ import org.zipp.ai.domain.agent.model.valobj.evaluation.EvalExecution;
 import org.zipp.ai.domain.agent.model.valobj.evaluation.EvalGraderResult;
 import org.zipp.ai.domain.agent.model.valobj.evaluation.EvalHarnessResult;
 import org.zipp.ai.domain.agent.model.valobj.evaluation.EvalTrace;
+import org.zipp.ai.domain.agent.model.valobj.evaluation.EvaluationTarget;
 import org.zipp.ai.domain.agent.service.analysis.DefaultCanvasAnalyzer;
 import org.zipp.ai.domain.agent.service.armory.matter.mcp.server.DrawioCanvasToolNames;
 
@@ -30,6 +31,7 @@ public class DefaultEvalHarness {
     private static final String GRAPH_GRADER_VERSION = "graph-assertion-v1";
     private static final String PRESERVATION_GRADER_VERSION = "semantic-preservation-v1";
     private static final String MULTI_TURN_GRADER_VERSION = "multi-turn-state-v1";
+    private static final String VISUAL_REVIEW_GRADER_VERSION = "production-visual-review-v1";
 
     private final DefaultCanvasAnalyzer canvasAnalyzer;
 
@@ -53,8 +55,12 @@ public class DefaultEvalHarness {
                 gradeRouteAndToolPolicy(execution),
                 gradeXmlIntegrity(execution.getFinalCanvasXml())));
         // Answer/clarification routes must preserve the canvas, but an intentionally empty canvas is not a visual defect.
-        if (isDiagramRoute(execution.getEvalCase().getExpected().getRouteType())) {
+        if (execution.getEvalCase().getEvaluationTarget() != EvaluationTarget.VISUAL_REVIEW
+                && isDiagramRoute(execution.getEvalCase().getExpected().getRouteType())) {
             graders.add(gradeVisualQuality(execution.getEvalCase().getExpected(), analysis));
+        }
+        if (execution.getEvalCase().getEvaluationTarget() == EvaluationTarget.VISUAL_REVIEW) {
+            graders.add(gradeProductionVisualReview(execution));
         }
         if (execution.getEvalCase().getExpected().getGraph() != null) graders.add(gradeGraph(execution));
         if (!safeList(execution.getEvalCase().getExpected().getProtectedNodes()).isEmpty()) graders.add(gradePreservation(execution));
@@ -119,6 +125,36 @@ public class DefaultEvalHarness {
             }
         }
         return grader("multi_turn_state", MULTI_TURN_GRADER_VERSION, evidence);
+    }
+
+    private EvalGraderResult gradeProductionVisualReview(EvalExecution execution) {
+        EvalCaseDefinition.Expected expected = execution.getEvalCase().getExpected();
+        EvalTrace.VisualReview actual = execution.getTrace().getVisualReview();
+        List<String> evidence = new ArrayList<>();
+        if (actual == null) {
+            evidence.add("Production visual review result is missing.");
+            return grader("production_visual_review", VISUAL_REVIEW_GRADER_VERSION, evidence);
+        }
+        if (expected.getReviewAvailable() != null
+                && !Objects.equals(expected.getReviewAvailable(), actual.getAvailable())) {
+            evidence.add("Expected review available=" + expected.getReviewAvailable()
+                    + " but got " + actual.getAvailable() + ".");
+        }
+        compare("review decision", expected.getReviewDecision(), actual.getDecision(), evidence);
+        compare("review unavailable reason", expected.getReviewUnavailableReason(),
+                actual.getUnavailableReason(), evidence);
+        Set<String> actualTypes = new HashSet<>(safeList(actual.getIssueTypes()));
+        for (String required : safeList(expected.getRequiredVisualIssueTypes())) {
+            if (!actualTypes.contains(required)) {
+                evidence.add("Required visual issue type is missing: " + required + ".");
+            }
+        }
+        for (String forbidden : safeList(expected.getForbiddenVisualIssueTypes())) {
+            if (actualTypes.contains(forbidden)) {
+                evidence.add("Forbidden visual issue type is present: " + forbidden + ".");
+            }
+        }
+        return grader("production_visual_review", VISUAL_REVIEW_GRADER_VERSION, evidence);
     }
 
     private EvalGraderResult gradeGraph(EvalExecution execution) {

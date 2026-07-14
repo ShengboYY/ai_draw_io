@@ -186,6 +186,8 @@
                 <configuration>
                     <skipTests>${skipTests}</skipTests>
                     <testFailureIgnore>false</testFailureIgnore>
+                    <!-- Synthetic visual-review PNG fixtures must render in CI without a display server. -->
+                    <argLine>-Djava.awt.headless=true</argLine>
                     <includes>
                         <include>**/evaluation/**/*Test.java</include>
                     </includes>

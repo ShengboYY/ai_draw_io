@@ -104,7 +104,12 @@ function EpisodeLinks({ ids, label, onOpen }: { ids: string[]; label: string; on
 function Table({ title, headers, rows }: { title: string; headers: string[]; rows: React.ReactNode[][] }) {
   return <div><h3 className="text-xs font-semibold text-zinc-600">{title}</h3><div className="mt-2 overflow-x-auto rounded-lg border border-stone-200"><table className="w-full text-left text-xs"><thead className="bg-stone-50 text-zinc-400"><tr>{headers.map((header) => <th key={header} className="px-2 py-1.5 font-medium">{header}</th>)}</tr></thead><tbody>{rows.map((row, index) => <tr key={index} className="border-t border-stone-100">{row.map((cell, cellIndex) => <td key={cellIndex} className="px-2 py-2 text-zinc-700">{cell}</td>)}</tr>)}</tbody></table></div></div>;
 }
-function targetName(target: EvalTargetReportDTO['target']) { return target === 'FULL_AGENT' ? 'Full Agent' : target === 'INTENT_ROUTER' ? 'Intent Router' : 'Drawing Quality'; }
+function targetName(target: EvalTargetReportDTO['target']) {
+  if (target === 'FULL_AGENT') return 'Full Agent';
+  if (target === 'INTENT_ROUTER') return 'Intent Router';
+  if (target === 'VISUAL_REVIEW') return 'Visual Review';
+  return 'Drawing Quality';
+}
 function pct(value: number) { return `${(value * 100).toFixed(1)}%`; }
 function metric(value?: number) { return value == null ? 'Unavailable' : pct(value); }
 function value(value?: number, suffix = '') { return value == null ? 'Unavailable' : `${value}${suffix}`; }

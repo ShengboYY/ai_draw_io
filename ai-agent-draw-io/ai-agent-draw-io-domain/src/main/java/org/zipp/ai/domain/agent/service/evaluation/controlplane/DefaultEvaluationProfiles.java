@@ -23,7 +23,9 @@ public final class DefaultEvaluationProfiles {
                 profile("drawing-structure", EvaluationTarget.DRAWING_QUALITY, "drawing", EvalRunMode.MODE_B, 1, false,
                         "stubbed", 0D, "xml-integrity-v1,graph-assertion-v1,semantic-preservation-v1,visual-quality-v1", "structure_pass_rate,preservation_rate,median_latency_ms,max_latency_ms"),
                 profile("drawing-visual", EvaluationTarget.DRAWING_QUALITY, "drawing", EvalRunMode.MODE_C, 3, true,
-                        "gpt-5.5", 0D, "xml-integrity-v1,graph-assertion-v1,visual-quality-v1,visual-judge-v1", "visual_pass_rate,judge_availability,cost,median_latency_ms,max_latency_ms")
+                        "gpt-5.5", 0D, "xml-integrity-v1,graph-assertion-v1,visual-quality-v1,visual-judge-v1", "visual_pass_rate,judge_availability,cost,median_latency_ms,max_latency_ms"),
+                profile("production-visual-review", EvaluationTarget.VISUAL_REVIEW, "visual_review", EvalRunMode.MODE_C, 3, false,
+                        "gpt-5.5", 0D, "production-visual-review-v1", "review_availability,schema_error_rate,stale_rate,repair_verify_pass_rate,cost,median_latency_ms,max_latency_ms")
         );
     }
 

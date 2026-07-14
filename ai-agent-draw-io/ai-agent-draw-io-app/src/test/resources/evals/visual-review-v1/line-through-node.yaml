@@ -1,0 +1,14 @@
+caseId: visual-review-line-through-node
+caseVersion: "1"
+datasetVersion: visual-review-v1
+origin: production-regression
+risk: high
+diagramType: architecture
+fixtureVersion: fixture-v1
+xmlContractVersion: drawio-v1
+evaluationTarget: VISUAL_REVIEW
+tags: [target:visual_review, edges, regression, lang:en]
+privacy: {classification: synthetic, sanitizerVersion: null}
+input: {user: "Route connectors without crossing nodes", stage: POST_MUTATION, syntheticFixture: line-through-node}
+expected: {reviewAvailable: true, reviewDecision: REPAIR, requiredVisualIssueTypes: [EDGE_TRACEABILITY]}
+

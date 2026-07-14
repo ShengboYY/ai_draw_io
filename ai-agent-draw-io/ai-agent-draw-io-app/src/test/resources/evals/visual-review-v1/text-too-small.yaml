@@ -1,0 +1,14 @@
+caseId: visual-review-text-too-small
+caseVersion: "1"
+datasetVersion: visual-review-v1
+origin: specification-derived
+risk: high
+diagramType: architecture
+fixtureVersion: fixture-v1
+xmlContractVersion: drawio-v1
+evaluationTarget: VISUAL_REVIEW
+tags: [target:visual_review, readability, lang:en]
+privacy: {classification: synthetic, sanitizerVersion: null}
+input: {user: "Make the API label readable", stage: POST_MUTATION, syntheticFixture: text-too-small}
+expected: {reviewAvailable: true, reviewDecision: REPAIR, requiredVisualIssueTypes: [TEXT_READABILITY]}
+

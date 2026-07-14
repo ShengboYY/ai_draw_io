@@ -110,7 +110,7 @@ public class EvalControlPlaneContractsTest {
     @Test
     public void evaluationTargetAndProfileContractsMustBeStableAndSerializable() throws Exception {
         assertEquals(Set.of(EvaluationTarget.FULL_AGENT, EvaluationTarget.INTENT_ROUTER,
-                EvaluationTarget.DRAWING_QUALITY), Set.of(EvaluationTarget.values()));
+                EvaluationTarget.DRAWING_QUALITY, EvaluationTarget.VISUAL_REVIEW), Set.of(EvaluationTarget.values()));
         assertEquals(Set.of(EvaluationTargetMigrationStatus.INFERRED,
                         EvaluationTargetMigrationStatus.AMBIGUOUS,
                         EvaluationTargetMigrationStatus.CONFIRMED),

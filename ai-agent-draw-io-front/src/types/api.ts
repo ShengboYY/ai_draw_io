@@ -4,7 +4,7 @@ export interface Response<T> {
     data: T;
 }
 
-export type EvaluationTarget = 'FULL_AGENT' | 'INTENT_ROUTER' | 'DRAWING_QUALITY';
+export type EvaluationTarget = 'FULL_AGENT' | 'INTENT_ROUTER' | 'DRAWING_QUALITY' | 'VISUAL_REVIEW';
 export type EvaluationTargetMigrationStatus = 'INFERRED' | 'AMBIGUOUS' | 'CONFIRMED';
 
 export interface EvaluationProfileDTO {
@@ -388,6 +388,7 @@ export interface CanvasVisualReviewRequestDTO {
   sourceRunId: string;
   diagramId: string;
   expectedVersion: number;
+  beforeContentHash?: string;
   expectedContentHash: string;
   originalUserTask: string;
   diagramType?: string;

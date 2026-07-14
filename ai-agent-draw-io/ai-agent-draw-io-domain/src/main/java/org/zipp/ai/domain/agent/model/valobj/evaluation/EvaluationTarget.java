@@ -4,5 +4,6 @@ package org.zipp.ai.domain.agent.model.valobj.evaluation;
 public enum EvaluationTarget {
     FULL_AGENT,
     INTENT_ROUTER,
-    DRAWING_QUALITY
+    DRAWING_QUALITY,
+    VISUAL_REVIEW
 }

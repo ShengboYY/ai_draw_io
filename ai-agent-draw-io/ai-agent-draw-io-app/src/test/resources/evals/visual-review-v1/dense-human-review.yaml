@@ -1,0 +1,14 @@
+caseId: visual-review-dense-human-review
+caseVersion: "1"
+datasetVersion: visual-review-v1
+origin: specification-derived
+risk: critical
+diagramType: architecture
+fixtureVersion: fixture-v1
+xmlContractVersion: drawio-v1
+evaluationTarget: VISUAL_REVIEW
+tags: [target:visual_review, dense, human_review, lang:en]
+privacy: {classification: synthetic, sanitizerVersion: null}
+input: {user: "Review this large dense architecture without redrawing it wholesale", stage: POST_MUTATION, syntheticFixture: dense}
+expected: {reviewAvailable: true, reviewDecision: NEEDS_HUMAN_REVIEW}
+

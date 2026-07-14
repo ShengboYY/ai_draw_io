@@ -47,6 +47,7 @@ public class EvaluationTargetInferenceService {
         if (matches(tags, "target:full_agent")) targets.add(EvaluationTarget.FULL_AGENT);
         if (matches(tags, "target:intent_router")) targets.add(EvaluationTarget.INTENT_ROUTER);
         if (matches(tags, "target:drawing_quality")) targets.add(EvaluationTarget.DRAWING_QUALITY);
+        if (matches(tags, "target:visual_review")) targets.add(EvaluationTarget.VISUAL_REVIEW);
         return targets;
     }
 

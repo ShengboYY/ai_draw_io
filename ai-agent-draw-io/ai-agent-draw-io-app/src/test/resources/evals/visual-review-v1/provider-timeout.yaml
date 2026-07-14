@@ -1,0 +1,14 @@
+caseId: visual-review-provider-timeout
+caseVersion: "1"
+datasetVersion: visual-review-v1
+origin: fault-injection
+risk: critical
+diagramType: architecture
+fixtureVersion: fixture-v1
+xmlContractVersion: drawio-v1
+evaluationTarget: VISUAL_REVIEW
+tags: [target:visual_review, fault_injection:timeout]
+privacy: {classification: synthetic, sanitizerVersion: null}
+input: {user: "Review the architecture", stage: CURRENT_CANVAS, syntheticFixture: clean, failureInjection: provider_timeout}
+expected: {reviewAvailable: false, reviewDecision: UNAVAILABLE, reviewUnavailableReason: timeout}
+

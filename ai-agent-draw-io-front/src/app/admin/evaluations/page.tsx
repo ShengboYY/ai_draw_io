@@ -27,6 +27,7 @@ const targets = [
   { name: 'Full Agent', target: 'FULL_AGENT', description: 'Test the complete router → tools → canvas → response chain.', profile: 'full-agent-smoke' },
   { name: 'Intent Router', target: 'INTENT_ROUTER', description: 'Measure route decisions without paying for drawing execution.', profile: 'router-deterministic' },
   { name: 'Drawing Quality', target: 'DRAWING_QUALITY', description: 'Score XML structure, graph semantics, preservation and visual quality.', profile: 'drawing-structure' },
+  { name: 'Visual Review', target: 'VISUAL_REVIEW', description: 'Evaluate the production VLM reviewer against rendered PNG evidence.', profile: 'production-visual-review' },
 ];
 
 export default function AdminEvaluationsPage() {

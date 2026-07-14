@@ -1,0 +1,14 @@
+caseId: visual-review-label-overlap
+caseVersion: "1"
+datasetVersion: visual-review-v1
+origin: specification-derived
+risk: high
+diagramType: architecture
+fixtureVersion: fixture-v1
+xmlContractVersion: drawio-v1
+evaluationTarget: VISUAL_REVIEW
+tags: [target:visual_review, labels, lang:en]
+privacy: {classification: synthetic, sanitizerVersion: null}
+input: {user: "Keep relationship labels readable", stage: POST_MUTATION, syntheticFixture: label-overlap}
+expected: {reviewAvailable: true, reviewDecision: REPAIR, requiredVisualIssueTypes: [TEXT_READABILITY]}
+

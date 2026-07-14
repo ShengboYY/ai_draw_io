@@ -2262,6 +2262,7 @@ function DrawioPageContent() {
           diagramId: string;
           version: number;
           contentHash: string;
+          contentHashBeforeRepair: string;
           imageBeforeRepair: string;
           loadPromise: Promise<boolean>;
         };
@@ -2403,6 +2404,7 @@ function DrawioPageContent() {
                   diagramId: repairedDiagramId,
                   version: chunk.version as number,
                   contentHash: chunk.contentHash,
+                  contentHashBeforeRepair: reviewRequest.expectedContentHash,
                   imageBeforeRepair: reviewRequest.afterImageDataUrl,
                   loadPromise,
                 };
@@ -2455,6 +2457,7 @@ function DrawioPageContent() {
           sourceRunId,
           diagramId: finalDiagramId,
           expectedVersion: finalVersion,
+          beforeContentHash: activeSession?.canvasContentHash,
           expectedContentHash: finalContentHash,
           originalUserTask: displayContent,
           stage: 'POST_MUTATION',
@@ -2483,6 +2486,7 @@ function DrawioPageContent() {
           sourceRunId: reviewed.repairRunId || reviewed.visualReviewRunId || sourceRunId,
           diagramId: repaired.diagramId,
           expectedVersion: repaired.version,
+          beforeContentHash: repaired.contentHashBeforeRepair,
           expectedContentHash: repaired.contentHash,
           originalUserTask: displayContent,
           stage: 'VERIFY_ONLY',

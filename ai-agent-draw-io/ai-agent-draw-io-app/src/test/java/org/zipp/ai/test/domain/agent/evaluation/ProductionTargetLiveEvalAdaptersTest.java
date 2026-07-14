@@ -6,13 +6,19 @@ import org.junit.Test;
 import org.zipp.ai.domain.agent.model.entity.ChatCommandEntity;
 import org.zipp.ai.domain.agent.model.valobj.AiAgentConfigTableVO;
 import org.zipp.ai.domain.agent.model.valobj.evaluation.EvalCaseDefinition;
+import org.zipp.ai.domain.agent.model.valobj.evaluation.EvaluationTarget;
 import org.zipp.ai.domain.agent.model.valobj.intent.IntentRoutingCommand;
 import org.zipp.ai.domain.agent.model.valobj.intent.IntentRoutingResult;
+import org.zipp.ai.domain.agent.model.valobj.visualreview.CanvasVisualIssue;
+import org.zipp.ai.domain.agent.model.valobj.visualreview.CanvasVisualIssueSeverity;
+import org.zipp.ai.domain.agent.model.valobj.visualreview.CanvasVisualIssueType;
+import org.zipp.ai.domain.agent.model.valobj.visualreview.CanvasVisualReviewResult;
 import org.zipp.ai.domain.agent.service.IChatService;
 import org.zipp.ai.domain.agent.service.IIntentRoutingService;
 import org.zipp.ai.domain.agent.service.evaluation.DefaultEvalHarness;
 import org.zipp.ai.trigger.evaluation.ProductionDrawingLiveEvalAdapter;
 import org.zipp.ai.trigger.evaluation.ProductionRouterLiveEvalAdapter;
+import org.zipp.ai.trigger.evaluation.ProductionVisualReviewLiveEvalAdapter;
 
 import java.util.List;
 import java.util.Map;
@@ -88,6 +94,34 @@ public class ProductionTargetLiveEvalAdaptersTest {
                 execution.getTrace().getToolCalls().get(0).getStatus());
         assertEquals(EMPTY, execution.getFinalCanvasXml());
         assertFalse(new DefaultEvalHarness().evaluate(execution).isPassed());
+    }
+
+    @Test
+    public void visualReviewLiveAdapterCallsProductionReviewerAndGradesObservedIssues() {
+        EvalCaseDefinition evalCase = evalCase("Make the API label readable", "architecture");
+        evalCase.setEvaluationTarget(EvaluationTarget.VISUAL_REVIEW);
+        evalCase.setInput(Map.of(
+                "user", "Make the API label readable",
+                "stage", "POST_MUTATION",
+                "afterImageDataUrl", "data:image/png;base64,AAAA"));
+        evalCase.getExpected().setReviewAvailable(true);
+        evalCase.getExpected().setReviewDecision("REPAIR");
+        evalCase.getExpected().setRequiredVisualIssueTypes(List.of("TEXT_READABILITY"));
+        var reviewer = (org.zipp.ai.domain.agent.service.visualreview.ICanvasVisualReviewer) command ->
+                CanvasVisualReviewResult.builder().available(true).summary("API is too small")
+                        .issues(List.of(CanvasVisualIssue.builder()
+                                .type(CanvasVisualIssueType.TEXT_READABILITY)
+                                .severity(CanvasVisualIssueSeverity.MAJOR)
+                                .region("center").evidence("small").repairInstruction("increase size").build()))
+                        .reviewerVersion("production-reviewer-v1").build();
+
+        var execution = new ProductionVisualReviewLiveEvalAdapter(reviewer, "gpt-5.5", "r4-live")
+                .execute(evalCase);
+
+        assertEquals("300018", execution.getTrace().getSteps().get(0).getAgentId());
+        assertEquals("REPAIR", execution.getTrace().getVisualReview().getDecision());
+        assertEquals(List.of("TEXT_READABILITY"), execution.getTrace().getVisualReview().getIssueTypes());
+        assertTrue(new DefaultEvalHarness().evaluate(execution).isPassed());
     }
 
     private EvalCaseDefinition evalCase(String user, String diagramType) {

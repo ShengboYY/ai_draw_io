@@ -1,0 +1,17 @@
+caseId: visual-review-clean
+caseVersion: "1"
+datasetVersion: visual-review-v1
+origin: specification-derived
+risk: high
+diagramType: architecture
+fixtureVersion: fixture-v1
+xmlContractVersion: drawio-v1
+evaluationTarget: VISUAL_REVIEW
+tags: [target:visual_review, clean_negative, lang:en]
+privacy: {classification: synthetic, sanitizerVersion: null}
+input: {user: "Create a simple Web to API to Database architecture", stage: POST_MUTATION, syntheticFixture: clean}
+expected:
+  reviewAvailable: true
+  reviewDecision: APPROVE
+  forbiddenVisualIssueTypes: [TASK_NOT_VISIBLE, MISSING_REQUESTED_ELEMENT, WRONG_REQUESTED_RELATIONSHIP, TEXT_READABILITY, LAYOUT_HIERARCHY, EDGE_TRACEABILITY, STYLE_COHERENCE, DOMAIN_UNCERTAINTY]
+

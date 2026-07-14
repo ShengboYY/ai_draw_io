@@ -95,7 +95,7 @@ export default function EvalCaseStudioPage({ params }: { params: Promise<{ worki
               className={`${inputCls} mt-2`}
             >
               <option value="">Select target…</option>
-              {(['FULL_AGENT', 'INTENT_ROUTER', 'DRAWING_QUALITY'] as EvaluationTarget[]).map((value) => (
+              {(['FULL_AGENT', 'INTENT_ROUTER', 'DRAWING_QUALITY', 'VISUAL_REVIEW'] as EvaluationTarget[]).map((value) => (
                 <option key={value} value={value}>{value.replaceAll('_', ' ')}</option>
               ))}
             </select>

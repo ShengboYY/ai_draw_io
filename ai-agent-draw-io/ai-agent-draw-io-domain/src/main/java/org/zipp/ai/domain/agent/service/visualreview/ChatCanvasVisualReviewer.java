@@ -13,6 +13,7 @@ import org.zipp.ai.domain.agent.model.valobj.visualreview.CanvasVisualIssueType;
 import org.zipp.ai.domain.agent.model.valobj.visualreview.CanvasVisualReviewCommand;
 import org.zipp.ai.domain.agent.model.valobj.visualreview.CanvasVisualReviewResult;
 import org.zipp.ai.domain.agent.service.IChatService;
+import org.zipp.ai.domain.agent.service.usage.AgentUsageTelemetryContext;
 
 import java.util.ArrayList;
 import java.util.Base64;
@@ -64,11 +65,15 @@ public class ChatCanvasVisualReviewer implements ICanvasVisualReviewer {
             return unavailable("input_error");
         }
 
+        AgentUsageTelemetryContext.RunContext telemetryContext = AgentUsageTelemetryContext.current().orElse(null);
         CompletableFuture<List<String>> providerCall = CompletableFuture.supplyAsync(() -> {
-            // A new session prevents visual evidence or model state leaking across review requests.
-            String sessionId = chatService.createSession(agentId, "visual-review-system");
-            request.setSessionId(sessionId);
-            return chatService.handleMessage(request);
+            // Preserve the review run across the timeout worker so model/token telemetry stays correlated.
+            try (AgentUsageTelemetryContext.Scope ignored = AgentUsageTelemetryContext.bind(telemetryContext)) {
+                // A new session prevents visual evidence or model state leaking across review requests.
+                String sessionId = chatService.createSession(agentId, "visual-review-system");
+                request.setSessionId(sessionId);
+                return chatService.handleMessage(request);
+            }
         });
         List<String> replies;
         try {
@@ -90,6 +95,12 @@ public class ChatCanvasVisualReviewer implements ICanvasVisualReviewer {
         }
     }
 
+    @Override
+    public String agentId() {
+        return agentId;
+    }
+
+    @Override
     public String version() {
         return "visual-agent=" + agentId + ":model=" + modelVersion + ":temperature=0:"
                 + PROMPT_VERSION + ":" + RUBRIC_VERSION + ":" + SCHEMA_VERSION;

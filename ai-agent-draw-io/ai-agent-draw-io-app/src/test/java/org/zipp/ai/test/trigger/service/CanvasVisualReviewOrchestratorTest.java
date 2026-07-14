@@ -15,6 +15,8 @@ import org.zipp.ai.domain.agent.model.valobj.visualreview.CanvasVisualIssueSever
 import org.zipp.ai.domain.agent.model.valobj.visualreview.CanvasVisualIssueType;
 import org.zipp.ai.domain.agent.service.ICanvasStateStore;
 import org.zipp.ai.domain.agent.service.analysis.ICanvasAnalyzer;
+import org.zipp.ai.domain.agent.service.usage.AgentUsageTelemetryService;
+import org.zipp.ai.test.domain.agent.FakeAgentUsageTelemetryStore;
 import org.zipp.ai.trigger.http.service.CanvasReviewImageValidator;
 import org.zipp.ai.trigger.http.service.CanvasVisualReviewOrchestrator;
 import org.zipp.ai.trigger.http.service.AgentConversationService;
@@ -23,6 +25,8 @@ import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.lang.reflect.Field;
+import java.time.Clock;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
@@ -126,15 +130,23 @@ public class CanvasVisualReviewOrchestratorTest {
                 command -> CanvasVisualReviewResult.builder().available(true).summary("Needs spacing")
                         .issues(List.of(issue)).recommendedHumanReview(false).build(),
                 repairService);
+        FakeAgentUsageTelemetryStore telemetryStore = new FakeAgentUsageTelemetryStore();
+        inject(orchestrator, "agentUsageTelemetryService",
+                new AgentUsageTelemetryService(telemetryStore, Clock.systemUTC()));
         CapturingEmitter emitter = new CapturingEmitter();
 
-        orchestrator.stream("usr_owner", "visual-run-1", request(7L, "sha256:current"), emitter);
+        orchestrator.stream("usr_owner", "aru_visual_repair", request(7L, "sha256:current"), emitter);
 
         String output = String.join("\n", emitter.sent);
         assertEquals(1, repairCalls.get());
         assertTrue(output.contains("\"decision\":\"REPAIR\""));
         assertFalse(output.contains("\"type\":\"done\""));
         assertFalse(emitter.completed);
+        String metadata = telemetryStore.traceEvents.stream()
+                .filter(event -> "visual_review_completed".equals(event.getEventType()))
+                .findFirst().orElseThrow().getMetadataJson();
+        assertTrue(metadata.contains("\"autoRepairAttempted\":true"));
+        assertTrue(metadata.contains("aru_repair_"));
     }
 
     @Test
@@ -165,6 +177,72 @@ public class CanvasVisualReviewOrchestratorTest {
         assertEquals(0, repairCalls.get());
         assertTrue(String.join("\n", emitter.sent).contains("\"decision\":\"NEEDS_HUMAN_REVIEW\""));
         assertTrue(emitter.completed);
+    }
+
+    @Test
+    public void recordsScalarReviewTelemetryWithoutPersistingVisualContent() throws Exception {
+        CanvasVisualReviewOrchestrator orchestrator = orchestrator(
+                new SequenceCanvasStore(state(7L, "sha256:current")),
+                command -> CanvasVisualReviewResult.builder().available(true).summary("sensitive summary")
+                        .issues(List.of(CanvasVisualIssue.builder()
+                                .type(CanvasVisualIssueType.TEXT_READABILITY)
+                                .severity(CanvasVisualIssueSeverity.MAJOR)
+                                .evidence("sensitive evidence")
+                                .repairInstruction("sensitive instruction")
+                                .build()))
+                        .recommendedHumanReview(true)
+                        .reviewerVersion("visual-agent=300018:model=vlm-1:visual-review-schema-v1")
+                        .build());
+        FakeAgentUsageTelemetryStore telemetryStore = new FakeAgentUsageTelemetryStore();
+        inject(orchestrator, "agentUsageTelemetryService",
+                new AgentUsageTelemetryService(telemetryStore, Clock.systemUTC()));
+        CanvasVisualReviewRequestDTO request = request(7L, "sha256:current");
+        request.setBeforeContentHash("sha256:before");
+
+        orchestrator.stream("usr_owner", "aru_visual_test", request, new CapturingEmitter());
+
+        assertEquals("SUCCESS", telemetryStore.runs.get(0).getStatus());
+        assertTrue(telemetryStore.traceEvents.stream()
+                .anyMatch(event -> "visual_review_started".equals(event.getEventType())));
+        String completed = telemetryStore.traceEvents.stream()
+                .filter(event -> "visual_review_completed".equals(event.getEventType()))
+                .findFirst().orElseThrow().getMetadataJson();
+        assertTrue(completed.contains("sha256:before"));
+        assertTrue(completed.contains("sha256:current"));
+        assertTrue(completed.contains("TEXT_READABILITY"));
+        assertTrue(completed.contains("MAJOR"));
+        assertFalse(completed.contains("sensitive summary"));
+        assertFalse(completed.contains("sensitive evidence"));
+        assertFalse(completed.contains("sensitive instruction"));
+        assertFalse(completed.contains("data:image/png"));
+    }
+
+    @Test
+    public void recordsUnavailableAndStaleReviewLifecycleEvents() throws Exception {
+        FakeAgentUsageTelemetryStore unavailableStore = new FakeAgentUsageTelemetryStore();
+        CanvasVisualReviewOrchestrator unavailable = orchestrator(
+                new SequenceCanvasStore(state(7L, "sha256:current")),
+                command -> CanvasVisualReviewResult.unavailable("timeout"));
+        inject(unavailable, "agentUsageTelemetryService",
+                new AgentUsageTelemetryService(unavailableStore, Clock.systemUTC()));
+        unavailable.stream("usr_owner", "aru_visual_unavailable",
+                request(7L, "sha256:current"), new CapturingEmitter());
+
+        FakeAgentUsageTelemetryStore staleStore = new FakeAgentUsageTelemetryStore();
+        CanvasVisualReviewOrchestrator stale = orchestrator(
+                new SequenceCanvasStore(state(8L, "sha256:new")),
+                command -> CanvasVisualReviewResult.unavailable("unexpected"));
+        inject(stale, "agentUsageTelemetryService",
+                new AgentUsageTelemetryService(staleStore, Clock.systemUTC()));
+        stale.stream("usr_owner", "aru_visual_stale",
+                request(7L, "sha256:current"), new CapturingEmitter());
+
+        assertTrue(unavailableStore.traceEvents.stream()
+                .anyMatch(event -> "visual_review_unavailable".equals(event.getEventType())
+                        && event.getMetadataJson().contains("timeout")));
+        assertTrue(staleStore.traceEvents.stream()
+                .anyMatch(event -> "visual_review_stale".equals(event.getEventType())
+                        && event.getMetadataJson().contains("before_provider")));
     }
 
     private CanvasVisualReviewOrchestrator orchestrator(ICanvasStateStore store,
@@ -218,6 +296,12 @@ public class CanvasVisualReviewOrchestratorTest {
         ByteArrayOutputStream output = new ByteArrayOutputStream();
         ImageIO.write(new BufferedImage(16, 16, BufferedImage.TYPE_INT_RGB), "png", output);
         return "data:image/png;base64," + Base64.getEncoder().encodeToString(output.toByteArray());
+    }
+
+    private void inject(Object target, String name, Object value) throws Exception {
+        Field field = target.getClass().getDeclaredField(name);
+        field.setAccessible(true);
+        field.set(target, value);
     }
 
     private static final class SequenceCanvasStore implements ICanvasStateStore {

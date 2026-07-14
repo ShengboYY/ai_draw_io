@@ -14,7 +14,7 @@ export default function AdminEvalOperationsPage() {
   const [runId, setRunId] = useState('');
   const [canary, setCanary] = useState<EvalCanaryAssessmentDTO[]>([]);
   const [readiness, setReadiness] = useState<EvalLiveRunReportDTO | null>(null);
-  const [gateRuns, setGateRuns] = useState<Record<EvaluationTarget, string>>({ INTENT_ROUTER: '', DRAWING_QUALITY: '', FULL_AGENT: '' });
+  const [gateRuns, setGateRuns] = useState<Partial<Record<EvaluationTarget, string>>>({ INTENT_ROUTER: '', DRAWING_QUALITY: '', FULL_AGENT: '' });
   const [requiredTargets, setRequiredTargets] = useState<EvaluationTarget[]>(releaseTargets);
   const [compositeGate, setCompositeGate] = useState<EvalCompositeGateDecisionDTO | null>(null);
   const [health, setHealth] = useState<EvalCaseHealthDTO[]>([]);
@@ -37,7 +37,10 @@ export default function AdminEvalOperationsPage() {
   };
   const composeGate = () => {
     const configured: Partial<Record<EvaluationTarget, string>> = {};
-    releaseTargets.forEach((target) => { if (gateRuns[target].trim()) configured[target] = gateRuns[target].trim(); });
+    releaseTargets.forEach((target) => {
+      const run = gateRuns[target]?.trim();
+      if (run) configured[target] = run;
+    });
     setError(null); setCompositeGate(null);
     agentApi.adminComposeEvalReleaseGate(configured, requiredTargets).then(({ data }) => setCompositeGate(data)).catch(showError);
   };

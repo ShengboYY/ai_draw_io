@@ -1,0 +1,14 @@
+caseId: visual-review-low-contrast
+caseVersion: "1"
+datasetVersion: visual-review-v1
+origin: specification-derived
+risk: high
+diagramType: architecture
+fixtureVersion: fixture-v1
+xmlContractVersion: drawio-v1
+evaluationTarget: VISUAL_REVIEW
+tags: [target:visual_review, contrast, lang:en]
+privacy: {classification: synthetic, sanitizerVersion: null}
+input: {user: "Review the diagram readability", stage: POST_MUTATION, syntheticFixture: low-contrast}
+expected: {reviewAvailable: true, reviewDecision: REPAIR, requiredVisualIssueTypes: [TEXT_READABILITY]}
+

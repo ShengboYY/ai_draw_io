@@ -87,7 +87,7 @@ export default function AdminEvalCasesPage() {
             <Field label="Target">
               <select value={target} onChange={(event) => setTarget(event.target.value as EvaluationTarget | '')} className={`${inputCls} w-48`}>
                 <option value="">All targets</option>
-                {(['FULL_AGENT', 'INTENT_ROUTER', 'DRAWING_QUALITY'] as EvaluationTarget[]).map((value) => <option key={value} value={value}>{value.replaceAll('_', ' ')}</option>)}
+                {(['FULL_AGENT', 'INTENT_ROUTER', 'DRAWING_QUALITY', 'VISUAL_REVIEW'] as EvaluationTarget[]).map((value) => <option key={value} value={value}>{value.replaceAll('_', ' ')}</option>)}
               </select>
             </Field>
             <Field label="Origin route">

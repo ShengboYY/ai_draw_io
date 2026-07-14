@@ -7,12 +7,14 @@ import org.zipp.ai.domain.agent.model.valobj.visualreview.CanvasVisualReviewResu
 import org.zipp.ai.domain.agent.model.valobj.visualreview.CanvasVisualReviewStage;
 import org.zipp.ai.domain.agent.service.IChatService;
 import org.zipp.ai.domain.agent.service.visualreview.ChatCanvasVisualReviewer;
+import org.zipp.ai.domain.agent.service.usage.AgentUsageTelemetryContext;
 
 import java.lang.reflect.Proxy;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
@@ -111,6 +113,29 @@ public class ChatCanvasVisualReviewerTest {
 
         assertFalse(result.isAvailable());
         assertEquals("timeout", result.getUnavailableReason());
+    }
+
+    @Test
+    public void propagatesReviewTelemetryContextIntoTimeoutWorker() {
+        AtomicReference<String> observedRunId = new AtomicReference<>();
+        IChatService chat = proxy((method, args) -> {
+            if (method.getName().equals("createSession")) return "session";
+            if (method.getName().equals("handleMessage") && args.length == 1) {
+                AgentUsageTelemetryContext.current().ifPresent(context -> observedRunId.set(context.runId()));
+                return List.of(VALID_OUTPUT);
+            }
+            return defaultValue(method.getReturnType());
+        });
+        AgentUsageTelemetryContext.RunContext context = new AgentUsageTelemetryContext.RunContext(
+                "aru_visual_test", "request-1", "diagram-1", "usr-1", "300018",
+                "visual_review", "PLATFORM", null, "openai", "vlm-1", "visual_review");
+
+        try (AgentUsageTelemetryContext.Scope ignored = AgentUsageTelemetryContext.bind(context)) {
+            new ChatCanvasVisualReviewer(chat, "300018", "vlm-1", 2_000L)
+                    .review(command(null, image("after")));
+        }
+
+        assertEquals("aru_visual_test", observedRunId.get());
     }
 
     @Test

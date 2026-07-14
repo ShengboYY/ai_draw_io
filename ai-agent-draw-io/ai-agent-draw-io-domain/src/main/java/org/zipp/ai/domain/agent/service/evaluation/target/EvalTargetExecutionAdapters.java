@@ -13,7 +13,8 @@ public class EvalTargetExecutionAdapters {
     private final Map<EvaluationTarget, EvalTargetExecutionAdapter> adapters = new EnumMap<>(EvaluationTarget.class);
 
     public EvalTargetExecutionAdapters() {
-        this(List.of(new FullAgentEvalAdapter(), new RouterEvalAdapter(), new DrawingEvalAdapter()));
+        this(List.of(new FullAgentEvalAdapter(), new RouterEvalAdapter(), new DrawingEvalAdapter(),
+                new VisualReviewEvalAdapter()));
     }
 
     public EvalTargetExecutionAdapters(List<EvalTargetExecutionAdapter> values) {

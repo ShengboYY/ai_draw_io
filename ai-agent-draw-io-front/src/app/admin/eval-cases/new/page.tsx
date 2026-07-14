@@ -8,7 +8,7 @@ import { EvaluationWorkspace } from '../../evaluation-workspace';
 import { Btn, ErrorNote } from '../../eval-ui';
 import type { EvaluationTarget } from '@/types/api';
 
-const TARGETS: EvaluationTarget[] = ['FULL_AGENT', 'INTENT_ROUTER', 'DRAWING_QUALITY'];
+const TARGETS: EvaluationTarget[] = ['FULL_AGENT', 'INTENT_ROUTER', 'DRAWING_QUALITY', 'VISUAL_REVIEW'];
 
 export default function NewEvalCasePage() {
   const router = useRouter();

@@ -1,0 +1,13 @@
+caseId: visual-review-wrong-relationship
+caseVersion: "1"
+datasetVersion: visual-review-v1
+origin: specification-derived
+risk: critical
+diagramType: architecture
+fixtureVersion: fixture-v1
+xmlContractVersion: drawio-v1
+evaluationTarget: VISUAL_REVIEW
+tags: [target:visual_review, relationship, lang:en]
+privacy: {classification: synthetic, sanitizerVersion: null}
+input: {user: "Show API writing to Database", stage: POST_MUTATION, syntheticFixture: wrong-relationship}
+expected: {reviewAvailable: true, reviewDecision: NEEDS_HUMAN_REVIEW, requiredVisualIssueTypes: [WRONG_REQUESTED_RELATIONSHIP]}

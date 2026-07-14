@@ -21,6 +21,7 @@ public class EvalTrace {
     private RunStatus runStatus;
     private TaskOutcome taskOutcome;
     private Routing routing;
+    private VisualReview visualReview;
 
     @Builder.Default
     private List<Step> steps = new ArrayList<>();
@@ -53,6 +54,24 @@ public class EvalTrace {
         private String routeType;
         private String diagramType;
         private String skillName;
+    }
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class VisualReview {
+        private Boolean available;
+        private String decision;
+        private String unavailableReason;
+        private Boolean recommendedHumanReview;
+        private String reviewerVersion;
+
+        @Builder.Default
+        private List<String> issueTypes = new ArrayList<>();
+
+        @Builder.Default
+        private List<String> issueSeverities = new ArrayList<>();
     }
 
     @Data
