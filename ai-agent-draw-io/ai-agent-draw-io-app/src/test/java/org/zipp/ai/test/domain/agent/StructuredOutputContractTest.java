@@ -57,7 +57,9 @@ public class StructuredOutputContractTest {
         assertTrue(schema.contains("routeType"));
         assertTrue(schema.contains("create_new"));
         assertTrue(schema.contains("edit_existing"));
-        assertTrue(schema.contains("quality_and_semantic_review"));
+        assertFalse(schema.contains("needsCanvasQuality"));
+        assertFalse(schema.contains("needsSemanticReview"));
+        assertFalse(schema.contains("answerMode"));
         assertFalse("router schema should not expose legacy intent", schema.contains("\"intent\""));
         assertFalse("router schema should not expose legacy drawMode", schema.contains("\"drawMode\""));
         assertFalse("router schema should not expose legacy taskType", schema.contains("\"taskType\""));
@@ -73,16 +75,11 @@ public class StructuredOutputContractTest {
         String schema = IntentRoutingContract.routerJsonSchema();
         JSONObject properties = JSON.parseObject(schema).getJSONObject("properties");
         JSONArray routeTypeEnum = properties.getJSONObject("routeType").getJSONArray("enum");
-        JSONArray answerModeEnum = properties.getJSONObject("answerMode").getJSONArray("enum");
 
         assertEquals(IntentRoutingContract.ROUTE_TYPES, routeTypeEnum.toJavaList(String.class));
-        assertEquals(IntentRoutingContract.ANSWER_MODES, answerModeEnum.toJavaList(String.class));
 
         for (String routeType : IntentRoutingContract.ROUTE_TYPES) {
             assertTrue("schema missing routeType " + routeType, schema.contains(routeType));
-        }
-        for (String answerMode : IntentRoutingContract.ANSWER_MODES) {
-            assertTrue("schema missing answerMode " + answerMode, schema.contains(answerMode));
         }
     }
 }

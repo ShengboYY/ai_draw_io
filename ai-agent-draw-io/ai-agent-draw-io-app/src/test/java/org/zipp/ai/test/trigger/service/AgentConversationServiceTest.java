@@ -26,7 +26,6 @@ import org.zipp.ai.domain.agent.model.valobj.debugtrace.DebugTraceCapture;
 import org.zipp.ai.domain.agent.model.valobj.debugtrace.DebugTraceControl;
 import org.zipp.ai.domain.agent.model.valobj.intent.IntentRoutingCommand;
 import org.zipp.ai.domain.agent.model.valobj.intent.IntentRoutingResult;
-import org.zipp.ai.domain.agent.model.valobj.review.CanvasReviewCommand;
 import org.zipp.ai.domain.agent.model.valobj.visualreview.CanvasVisualReviewResult;
 import org.zipp.ai.domain.agent.service.ICanvasStateStore;
 import org.zipp.ai.domain.agent.service.IChatService;
@@ -295,22 +294,6 @@ public class AgentConversationServiceTest {
         assertTrue(intentMessage.contains("hasCanvas=true"));
         assertFalse(intentMessage.contains("<mxGraphModel"));
         assertFalse(intentMessage.contains("value=\"API\""));
-    }
-
-    @Test
-    public void shouldCarryUserSelectedSkillsIntoCanvasReviewCommand() throws Exception {
-        AgentConversationService service = new AgentConversationService();
-        ChatRequestDTO requestDTO = new ChatRequestDTO();
-        requestDTO.setUserId("alice");
-        requestDTO.setMessage("review this architecture diagram");
-        requestDTO.setSkills(List.of("custom-architecture"));
-        IntentRoutingResult routingResult = drawRoutingResult("review_only");
-        routingResult.setDiagramType("architecture");
-        routingResult.setNeedsSemanticReview(true);
-
-        CanvasReviewCommand command = buildCanvasReviewCommand(service, requestDTO, routingResult);
-
-        assertEquals(List.of("custom-architecture"), command.getSelectedSkillNames());
     }
 
     @Test
@@ -850,26 +833,12 @@ public class AgentConversationServiceTest {
                 "buildRoutedMessage",
                 ChatRequestDTO.class,
                 IntentRoutingResult.class,
-                org.zipp.ai.domain.agent.model.valobj.review.CanvasReviewContext.class,
                 int.class,
                 String.class,
                 java.util.List.class
         );
         method.setAccessible(true);
-        return (String) method.invoke(service, requestDTO, routingResult, null, maxReviewIterations, requestDTO.getUserId(), null);
-    }
-
-    private CanvasReviewCommand buildCanvasReviewCommand(AgentConversationService service,
-                                                         ChatRequestDTO requestDTO,
-                                                         IntentRoutingResult routingResult) throws Exception {
-        Method method = AgentConversationService.class.getDeclaredMethod(
-                "buildCanvasReviewCommand",
-                ChatRequestDTO.class,
-                org.zipp.ai.domain.agent.service.chat.CustomApiConfigManager.CustomApiConfig.class,
-                IntentRoutingResult.class
-        );
-        method.setAccessible(true);
-        return (CanvasReviewCommand) method.invoke(service, requestDTO, null, routingResult);
+        return (String) method.invoke(service, requestDTO, routingResult, maxReviewIterations, requestDTO.getUserId(), null);
     }
 
     private void injectPromptContextBuilder(AgentConversationService service) throws Exception {
@@ -931,9 +900,6 @@ public class AgentConversationServiceTest {
         result.setRouteType(routeType);
         result.setDiagramType("others");
         result.setSkillName("none");
-        result.setNeedsCanvasQuality(false);
-        result.setNeedsSemanticReview(false);
-        result.setAnswerMode("none");
         result.setAnswer("");
         result.setReason("test");
         return result;
@@ -1027,9 +993,6 @@ public class AgentConversationServiceTest {
             result.setRouteType("answer_only");
             result.setDiagramType("none");
             result.setSkillName("none");
-            result.setNeedsCanvasQuality(false);
-            result.setNeedsSemanticReview(false);
-            result.setAnswerMode("general");
             result.setAnswer(null);
             result.setReason("test");
             return result;
@@ -1043,9 +1006,6 @@ public class AgentConversationServiceTest {
             result.setRouteType("review_only");
             result.setDiagramType("architecture");
             result.setSkillName("none");
-            result.setNeedsCanvasQuality(true);
-            result.setNeedsSemanticReview(false);
-            result.setAnswerMode("quality_review");
             result.setAnswer("");
             result.setReason("test");
             return result;

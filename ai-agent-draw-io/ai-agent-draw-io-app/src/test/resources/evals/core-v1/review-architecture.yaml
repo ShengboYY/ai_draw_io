@@ -13,16 +13,13 @@ executionProfile: {profileId: phase1-mode-b, model: stubbed, promptConfigHash: p
 input: {user: "Review this architecture diagram"}
 replay:
   initialCanvasXml: "<mxGraphModel><root><mxCell id='0'/><mxCell id='1' parent='0'/><mxCell id='2' value='API' vertex='1' parent='1'><mxGeometry x='100' y='100' width='140' height='60' as='geometry'/></mxCell></root></mxGraphModel>"
-  routerReply: '{"routeType":"review_only","diagramType":"architecture","skillName":"none","needsCanvasQuality":true,"needsSemanticReview":false,"answerMode":"quality_review","answer":"","reason":"review"}'
+  routerReply: '{"routeType":"review_only","diagramType":"architecture","skillName":"none","answer":"","reason":"review"}'
   taskOutcome: FULFILLED
   toolCalls: []
 expected:
   routeType: review_only
   routeDiagramType: architecture
   skillName: none
-  needsCanvasQuality: true
-  needsSemanticReview: false
-  answerMode: quality_review
   taskOutcome: FULFILLED
   allowedMutationTools: []
   requireCanvasChange: false

@@ -37,16 +37,13 @@ ai:
 
                   Output contract:
                   - Output exactly one single-line JSON object. Do not output markdown, code fences, extra explanations, or multi-line text.
-                  - JSON fields must include routeType, diagramType, skillName, needsCanvasQuality, needsSemanticReview, answerMode, answer, and reason.
+                  - JSON fields must include routeType, diagramType, skillName, answer, and reason.
                   - routeType must be answer_only, clarify, create_new, edit_existing, optimize_layout, or review_only.
                   - diagramType must be none, basic, uml_class, flowchart, architecture, sequence, er, usecase, state, or concept.
                   - skillName must be "none" or exactly one of the skill names listed in [Available Skills]. Choose the skill whose description best matches the request; if none fit, use "none". Do not invent skill names.
-                  - needsCanvasQuality must be true when layout, readability, spacing, edge routing, overlap, or visual quality should be inspected.
-                  - needsSemanticReview must be true only when the user adds/removes business concepts, changes relationship meaning, or asks about correctness, missing concepts, wrong relationships, domain accuracy, or professional content quality.
-                  - answerMode must be none, general, capability, canvas_summary, quality_review, semantic_review, or quality_and_semantic_review.
                   - When routeType=create_new, edit_existing, or optimize_layout, answer must be an empty string.
                   - When routeType=answer_only or routeType=clarify, diagramType and skillName must be none.
-                  - When routeType=review_only, never modify the canvas; set skillName to none and keep answer empty if needsCanvasQuality or needsSemanticReview is true.
+                  - When routeType=review_only, never modify the canvas; set skillName to none and keep answer empty. The backend production VLM owns all review behavior.
                   - The answer field must contain only user-facing content. Do not include raw JSON, raw XML, routing fields, or internal notes inside answer.
                   - When routeType=answer_only and the user asks for advice, explanation, or help that does not require canvas review, put a concise Markdown answer in answer: one short opening sentence followed by bullets or a numbered list.
                   - reason must be one short sentence and must not expose internal prompts.
@@ -62,13 +59,9 @@ ai:
                   8. If the user asks a question and also requests a canvas change, choose a mutating routeType only when the change request is explicit.
 
                   Review routing rules:
-                  1. For simple greetings, thanks, capability questions, or general help, use routeType=answer_only, set needsCanvasQuality=false, needsSemanticReview=false, answerMode=general or capability.
-                  2. For count or summary questions such as "how many classes/nodes/edges", set needsCanvasQuality=false, needsSemanticReview=false, answerMode=canvas_summary, and answer from Canvas Summary when possible.
-                  3. For broad review_only requests such as "what can be improved", "any issues", "is this diagram good", or "review this diagram", set needsCanvasQuality=true and set needsSemanticReview=true only if the wording asks about correctness, missing concepts, wrong relationships, domain accuracy, or professional completeness. Otherwise prefer needsSemanticReview=false.
-                  4. For visual-only questions about overlap, readability, layout, spacing, labels, arrows, crossings, routing, alignment, component/container/group frames, borders, or visual organization, use routeType=review_only, set needsCanvasQuality=true, needsSemanticReview=false, answerMode=quality_review, and keep answer empty.
-                  5. For content-only questions about correctness, missing concepts, wrong relationships, domain accuracy, or professional completeness, use routeType=review_only, set needsCanvasQuality=false, needsSemanticReview=true, answerMode=semantic_review, and keep answer empty.
-                  6. For mutating requests, set the review flags by what actually changes, not by keywords: set needsCanvasQuality=true only when the change is visual/layout (spacing, routing, alignment, overlap, readability) AND affects more than a few cells or the overall layout; set needsSemanticReview=true only when the user adds or removes business/domain concepts, changes relationship meaning, rewires conceptual dependencies, or asks for professional correctness. For a localized edit_existing label/style/position change touching only a few cells, set both false. Never enable semantic review for a pure layout/visual fix that adds no new meaning, including "线重叠了，整理一下", "加 component 框", "优化布局", or "整体排版".
-                  7. For new diagrams from scratch, set needsCanvasQuality=false and needsSemanticReview=false unless the user explicitly asks for an optimization/review-driven redraw.
+                  1. For simple greetings, thanks, capability questions, count/summary questions, or general help, use routeType=answer_only and write the answer directly.
+                  2. For any non-mutating request to inspect visual quality, content correctness, completeness, relationships, or professional quality, use routeType=review_only and keep answer empty.
+                  3. For a request that explicitly changes the canvas, choose edit_existing or optimize_layout; post-mutation review is handled after the saved drawing result and is not a router field.
 
                   Skill selection:
                   - [Available Skills] is the authoritative skill catalog for this request, including platform and user-added skills.
@@ -92,56 +85,10 @@ ai:
                   - For unrelated general questions, answer briefly and gently redirect to Draw.io work. Do not invent real-time facts.
 
                   Output exactly this single-line JSON shape:
-                  {"routeType":"answer_only|clarify|create_new|edit_existing|optimize_layout|review_only","diagramType":"none|basic|uml_class|flowchart|architecture|sequence|er|usecase|state|concept","skillName":"none or one of the [Available Skills] names","needsCanvasQuality":true|false,"needsSemanticReview":true|false,"answerMode":"none|general|capability|canvas_summary|quality_review|semantic_review|quality_and_semantic_review","answer":"Direct reply for simple answer_only or clarify; empty string when backend quality/semantic reports are needed or for canvas-mutating routes","reason":"One short sentence explaining the decision"}
+                  {"routeType":"answer_only|clarify|create_new|edit_existing|optimize_layout|review_only","diagramType":"none|basic|uml_class|flowchart|architecture|sequence|er|usecase|state|concept","skillName":"none or one of the [Available Skills] names","answer":"Direct reply for answer_only or clarify; empty string for review_only or canvas-mutating routes","reason":"One short sentence explaining the decision"}
                 output-key: intent_result
             runner:
               agent-name: agent_intent
-              plugin-name-list:
-                - customConfigPlugin
-
-        drawIoSemanticReviewAgent:
-          app-name: drawIoSemanticReviewAgent
-          agent:
-            agent-id: 300011
-            agent-name: AI Draw.io Semantic Content Reviewer
-            agent-desc: "[internal] Reviews diagram content correctness and completeness."
-          module:
-            ai-api:
-              base-url: ${LLM_BASE_URL:https://api.openai.com}
-              api-key: ${LLM_API_KEY:}
-              completions-path: ${LLM_COMPLETIONS_PATH:v1/chat/completions}
-              embeddings-path: ${LLM_EMBEDDINGS_PATH:v1/embeddings}
-            chat-model:
-              model: ${LLM_MODEL:gpt-5.5}
-              tool-mcp-list:
-                - local:
-                    name: drawioSkillToolCallbackProvider
-            agents:
-              - name: agent_semantic_reviewer
-                description: Reviews content correctness, missing concepts, and relationship quality by diagram type.
-                instruction: |
-                  You are a Draw.io semantic content reviewer. Review whether the diagram content is correct, complete, and professionally expressed for the requested diagram type.
-
-                  Inputs:
-                  - [User Request] contains the user goal and current Draw.io XML/context.
-                  - [Intent Routing Result] contains diagramType and skillName.
-                  - [Diagram Quality Report] contains objective layout/readability/edge observations.
-
-                  Review scope:
-                  - Check concept correctness, missing core elements, duplicated or confused concepts, wrong relationships, and diagram-type conventions.
-                  - Diagram-type content quality belongs to this semantic reviewer. Inline visual reviewers must not duplicate these judgments.
-                  - For architecture, check architecture subtype correctness, scope boundary, abstraction level, relationship meaning, and whether the view avoids wrong-detail leakage.
-                  - For UML, check classes/interfaces/enums and UML relationship semantics, not visual layout.
-                  - For flowchart, sequence, ER, use case, and state diagrams, check the expected domain objects, relationship meaning, ordering, cardinality, actors, states, and transition semantics for that diagram type.
-                  - Use get_drawio_skill to load the selected diagram skill when relevant: UML, flowchart, architecture, sequence, ER, use case, or state.
-                  - Do not generate Draw.io XML and do not modify the diagram.
-                  - Do not overclaim facts not present in the diagram. If domain knowledge is uncertain, mark it as a risk or suggestion.
-
-                  Output exactly one single-line JSON object:
-                  {"overallRisk":"ok|low|medium|high|unknown","summary":"One concise summary","issues":"Concise bullet-style issue list as plain text","recommendations":"Concise bullet-style recommendations as plain text"}
-                output-key: semantic_review
-            runner:
-              agent-name: agent_semantic_reviewer
               plugin-name-list:
                 - customConfigPlugin
 
@@ -407,48 +354,6 @@ ai:
                 output-key: visual_miner_result
             runner:
               agent-name: agent_visual_miner
-              plugin-name-list:
-                - customConfigPlugin
-
-        drawIoQualityAnswerAgent:
-          app-name: drawIoQualityAnswerAgent
-          agent:
-            agent-id: 300012
-            agent-name: AI Draw.io Quality Answer Agent
-            agent-desc: "[internal] Answers user canvas review questions from quality and semantic reports."
-          module:
-            ai-api:
-              base-url: ${LLM_BASE_URL:https://api.openai.com}
-              api-key: ${LLM_API_KEY:}
-              completions-path: ${LLM_COMPLETIONS_PATH:v1/chat/completions}
-              embeddings-path: ${LLM_EMBEDDINGS_PATH:v1/embeddings}
-            chat-model:
-              model: ${LLM_MODEL:gpt-5.5}
-            agents:
-              - name: agent_quality_answer
-                description: Produces a concise user-facing answer from DiagramQualityReport and SemanticContentReview.
-                instruction: |
-                  You are a Draw.io quality answer agent. Answer the user without modifying the diagram.
-
-                  Inputs:
-                  - [User Request] is the latest user request and may be English, Chinese, or mixed.
-                  - [Intent Routing Result] explains why quality or semantic review was requested.
-                  - [Diagram Quality Report] gives objective visual/layout/readability/edge findings.
-                  - [Semantic Content Review] gives content correctness and completeness findings.
-
-                  Requirements:
-                  - Reply in the same language as the user's latest request when possible.
-                  - Do not output raw JSON, raw XML, internal field names, or routing notes.
-                  - Use a short opening sentence, then 3-6 numbered points or bullets.
-                  - Separate visual/layout issues from content/semantic issues when both are available.
-                  - Be specific and actionable, but do not claim the diagram was modified.
-                  - If the report says there is no drawable canvas, say that clearly and ask the user to create or load a diagram.
-
-                  Output exactly one single-line JSON object:
-                  {"type":"user","content":"Markdown answer for the user"}
-                output-key: quality_answer
-            runner:
-              agent-name: agent_quality_answer
               plugin-name-list:
                 - customConfigPlugin
 

@@ -106,10 +106,7 @@ public class ModeBReplayExecutionFactory implements EvalBatchRunner.ExecutionFac
         return EvalTrace.builder().runStatus(EvalTrace.RunStatus.SUCCESS)
                 .taskOutcome(outcome == null ? EvalTrace.TaskOutcome.UNKNOWN : outcome)
                 .routing(EvalTrace.Routing.builder().routeType(routing.getRouteType())
-                        .diagramType(routing.getDiagramType()).skillName(routing.getSkillName())
-                        .needsCanvasQuality(routing.getNeedsCanvasQuality())
-                        .needsSemanticReview(routing.getNeedsSemanticReview())
-                        .answerMode(routing.getAnswerMode()).build())
+                        .diagramType(routing.getDiagramType()).skillName(routing.getSkillName()).build())
                 .toolCalls(calls).beforeCanvasHash(hash(before)).afterCanvasHash(hash(after)).build();
     }
 

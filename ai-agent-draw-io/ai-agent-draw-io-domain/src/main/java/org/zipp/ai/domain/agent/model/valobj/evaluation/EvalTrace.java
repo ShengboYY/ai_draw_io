@@ -53,9 +53,6 @@ public class EvalTrace {
         private String routeType;
         private String diagramType;
         private String skillName;
-        private Boolean needsCanvasQuality;
-        private Boolean needsSemanticReview;
-        private String answerMode;
     }
 
     @Data

@@ -18,9 +18,6 @@ expected:
   routeType: edit_existing
   routeDiagramType: architecture
   skillName: none
-  needsCanvasQuality: true
-  needsSemanticReview: true
-  answerMode: none
   taskOutcome: FULFILLED
   requiredToolNamesBeforeMutation: [get_drawio_skill]
   allowedMutationTools: [modify_diagram]
@@ -40,10 +37,10 @@ expected:
 replay:
   initialCanvasXml: "<mxGraphModel><root><mxCell id='0'/><mxCell id='1' parent='0'/><mxCell id='2' value='Gateway' vertex='1' parent='1'><mxGeometry x='100' y='100' width='140' height='60' as='geometry'/></mxCell></root></mxGraphModel>"
   turns:
-    - routerReply: '{"routeType":"not_valid","diagramType":"none","skillName":"none","needsCanvasQuality":false,"needsSemanticReview":false,"answerMode":"general","answer":"Which service should I change?","reason":"ambiguous"}'
+    - routerReply: '{"routeType":"not_valid","diagramType":"none","skillName":"none","answer":"Which service should I change?","reason":"ambiguous"}'
       taskOutcome: FULFILLED
       toolCalls: []
-    - routerReply: '{"routeType":"edit_existing","diagramType":"architecture","skillName":"none","needsCanvasQuality":true,"needsSemanticReview":true,"answerMode":"none","answer":"","reason":"add worker"}'
+    - routerReply: '{"routeType":"edit_existing","diagramType":"architecture","skillName":"none","answer":"","reason":"add worker"}'
       taskOutcome: FULFILLED
       toolCalls:
         - name: modify_diagram

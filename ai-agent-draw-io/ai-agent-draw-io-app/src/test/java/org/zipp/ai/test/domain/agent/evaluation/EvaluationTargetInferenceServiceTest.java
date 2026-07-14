@@ -50,14 +50,14 @@ public class EvaluationTargetInferenceServiceTest {
 
     @Test
     public void migrationAndDomainUseTheSameDrawingOnlySignals() throws Exception {
-        EvalCaseDefinition.Expected quality = new EvalCaseDefinition.Expected();
-        quality.setNeedsCanvasQuality(true);
+        EvalCaseDefinition.Expected graph = new EvalCaseDefinition.Expected();
+        graph.setGraph(new EvalCaseDefinition.GraphAssertions());
         EvalCaseDefinition.Expected critical = new EvalCaseDefinition.Expected();
         critical.setMaxCriticalIssues(0);
         EvalCaseDefinition.Expected major = new EvalCaseDefinition.Expected();
         major.setMaxMajorIssues(1);
 
-        for (EvalCaseDefinition.Expected expected : List.of(quality, critical, major)) {
+        for (EvalCaseDefinition.Expected expected : List.of(graph, critical, major)) {
             EvaluationTargetInference inference = service.infer(EvalCaseDefinition.builder().expected(expected).build());
             assertEquals(EvaluationTarget.DRAWING_QUALITY, inference.target());
             assertEquals(EvaluationTargetMigrationStatus.INFERRED, inference.status());
@@ -67,7 +67,7 @@ public class EvaluationTargetInferenceServiceTest {
         Path migration = Path.of("docs/sql/migrations/2026-07-13-add-evaluation-targets.sql");
         if (!Files.exists(migration)) migration = Path.of("../docs/sql/migrations/2026-07-13-add-evaluation-targets.sql");
         String sql = Files.readString(migration);
-        assertTrue(sql.contains("$.expected.needsCanvasQuality"));
+        assertTrue(sql.contains("$.expected.graph"));
         assertTrue(sql.contains("$.expected.maxCriticalIssues"));
         assertTrue(sql.contains("$.expected.maxMajorIssues"));
         assertTrue(sql.contains("COALESCE("));

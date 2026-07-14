@@ -74,13 +74,6 @@ public class DrawioPromptContextBuilder {
                 + rawUserMessage(requestDTO);
     }
 
-    public String buildReviewContextMessage(ChatRequestDTO requestDTO, IntentRoutingResult routingResult) {
-        String canvasXml = resolveCanvasXml(requestDTO);
-        return buildFullXmlContext(requestDTO, canvasXml)
-                + "\n\n[User Request]\n"
-                + rawUserMessage(requestDTO);
-    }
-
     public String resolveCanvasXml(ChatRequestDTO requestDTO) {
         if (null == requestDTO) {
             return "";

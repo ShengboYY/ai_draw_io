@@ -100,8 +100,7 @@ public class ProductionTargetLiveEvalAdaptersTest {
     private IntentRoutingResult routeResult() {
         IntentRoutingResult result = new IntentRoutingResult();
         result.setRouteType("clarify"); result.setDiagramType("none"); result.setSkillName("none");
-        result.setNeedsCanvasQuality(false); result.setNeedsSemanticReview(false);
-        result.setAnswerMode("none"); result.setAnswer("Which part?");
+        result.setAnswer("Which part?");
         return result;
     }
 

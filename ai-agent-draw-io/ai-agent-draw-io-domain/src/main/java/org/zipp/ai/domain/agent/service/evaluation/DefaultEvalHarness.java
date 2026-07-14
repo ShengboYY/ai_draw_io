@@ -183,12 +183,6 @@ public class DefaultEvalHarness {
         compare("route diagram type", expected.getRouteDiagramType(),
                 routing == null ? null : routing.getDiagramType(), evidence);
         compare("skill", expected.getSkillName(), routing == null ? null : routing.getSkillName(), evidence);
-        compare("needsCanvasQuality", expected.getNeedsCanvasQuality(),
-                routing == null ? null : routing.getNeedsCanvasQuality(), evidence);
-        compare("needsSemanticReview", expected.getNeedsSemanticReview(),
-                routing == null ? null : routing.getNeedsSemanticReview(), evidence);
-        compare("answer mode", expected.getAnswerMode(),
-                routing == null ? null : routing.getAnswerMode(), evidence);
         if (expected.getTaskOutcome() != null && expected.getTaskOutcome() != trace.getTaskOutcome()) {
             evidence.add("Expected task outcome " + expected.getTaskOutcome() + " but got " + trace.getTaskOutcome() + ".");
         }

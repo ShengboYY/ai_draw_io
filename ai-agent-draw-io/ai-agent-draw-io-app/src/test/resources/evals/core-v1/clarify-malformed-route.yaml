@@ -13,16 +13,13 @@ executionProfile: {profileId: phase1-mode-b, model: stubbed, promptConfigHash: p
 input: {user: "Please adjust this diagram"}
 replay:
   initialCanvasXml: "<mxGraphModel><root><mxCell id='0'/><mxCell id='1' parent='0'/><mxCell id='2' value='API' vertex='1' parent='1'><mxGeometry x='100' y='100' width='140' height='60' as='geometry'/></mxCell></root></mxGraphModel>"
-  routerReply: '{"routeType":"WAT","diagramType":"architecture","skillName":"none","needsCanvasQuality":false,"needsSemanticReview":false,"answerMode":"none","answer":"","reason":"malformed"}'
+  routerReply: '{"routeType":"WAT","diagramType":"architecture","skillName":"none","answer":"","reason":"malformed"}'
   taskOutcome: CLARIFICATION_NEEDED
   toolCalls: []
 expected:
   routeType: clarify
   routeDiagramType: none
   skillName: none
-  needsCanvasQuality: false
-  needsSemanticReview: false
-  answerMode: general
   taskOutcome: CLARIFICATION_NEEDED
   allowedMutationTools: []
   requireCanvasChange: false

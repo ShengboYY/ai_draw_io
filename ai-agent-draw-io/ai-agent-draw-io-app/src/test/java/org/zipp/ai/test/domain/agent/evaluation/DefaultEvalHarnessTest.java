@@ -121,21 +121,6 @@ public class DefaultEvalHarnessTest {
     }
 
     @Test
-    public void shouldFailWhenRoutingFlagsDoNotMatchTheCase() {
-        EvalExecution execution = validExecution();
-        execution.getEvalCase().getExpected().setNeedsSemanticReview(true);
-        execution.getTrace().getRouting().setNeedsSemanticReview(false);
-
-        EvalHarnessResult result = new DefaultEvalHarness().evaluate(execution);
-
-        assertFalse(result.isPassed());
-        assertTrue(result.getGraders().stream()
-                .filter(grader -> "route_tool_policy".equals(grader.getGraderName()))
-                .flatMap(grader -> grader.getEvidence().stream())
-                .anyMatch(message -> message.contains("needsSemanticReview")));
-    }
-
-    @Test
     public void shouldGradeGraphWithOnlyExplicitCanonicalAliases() {
         EvalExecution execution = validExecution();
         execution.getEvalCase().getExpected().setGraph(EvalCaseDefinition.GraphAssertions.builder()

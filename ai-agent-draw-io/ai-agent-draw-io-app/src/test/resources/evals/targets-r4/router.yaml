@@ -13,16 +13,13 @@ provenance: {sourceTraceRetained: false, reviewer: eval-team, approvedAt: "2026-
 input: {user: "Please improve it"}
 replay:
   initialCanvasXml: "<mxGraphModel><root><mxCell id='0'/><mxCell id='1' parent='0'/></root></mxGraphModel>"
-  routerReply: '{"routeType":"clarify","diagramType":"none","skillName":"none","needsCanvasQuality":false,"needsSemanticReview":false,"answerMode":"none","answer":"What should I improve?","reason":"ambiguous request"}'
+  routerReply: '{"routeType":"clarify","diagramType":"none","skillName":"none","answer":"What should I improve?","reason":"ambiguous request"}'
   taskOutcome: CLARIFICATION_NEEDED
   toolCalls: []
 expected:
   routeType: clarify
   routeDiagramType: none
   skillName: none
-  needsCanvasQuality: false
-  needsSemanticReview: false
-  answerMode: none
   taskOutcome: CLARIFICATION_NEEDED
   allowedMutationTools: []
   requireCanvasChange: false

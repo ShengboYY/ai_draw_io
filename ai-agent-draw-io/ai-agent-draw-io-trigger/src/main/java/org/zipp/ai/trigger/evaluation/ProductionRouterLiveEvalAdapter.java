@@ -38,8 +38,7 @@ public class ProductionRouterLiveEvalAdapter implements LiveEvalRunner.LiveExecu
         EvalTrace trace = EvalTrace.builder().runStatus(EvalTrace.RunStatus.SUCCESS)
                 .taskOutcome(outcome(result.getRouteType()))
                 .routing(EvalTrace.Routing.builder().routeType(result.getRouteType()).diagramType(result.getDiagramType())
-                        .skillName(result.getSkillName()).needsCanvasQuality(result.getNeedsCanvasQuality())
-                        .needsSemanticReview(result.getNeedsSemanticReview()).answerMode(result.getAnswerMode()).build())
+                        .skillName(result.getSkillName()).build())
                 .beforeCanvasHash(hasher.hash(initialXml)).afterCanvasHash(hasher.hash(initialXml)).build();
         return EvalExecution.builder().evalCase(evalCase).trace(trace).initialCanvasXml(initialXml)
                 .finalCanvasXml(initialXml).responseText(result.getAnswer()).gitSha(gitSha).build();

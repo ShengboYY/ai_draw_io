@@ -13,13 +13,10 @@ import org.zipp.ai.domain.agent.model.valobj.analysis.CanvasAnalysis;
 import org.zipp.ai.domain.agent.model.valobj.analysis.CanvasAnalysisIssue;
 import org.zipp.ai.domain.agent.model.valobj.intent.IntentRoutingCommand;
 import org.zipp.ai.domain.agent.model.valobj.intent.IntentRoutingResult;
-import org.zipp.ai.domain.agent.model.valobj.review.CanvasReviewCommand;
-import org.zipp.ai.domain.agent.model.valobj.review.CanvasReviewContext;
 import org.zipp.ai.domain.agent.model.valobj.visualreview.CanvasVisualReviewCommand;
 import org.zipp.ai.domain.agent.model.valobj.visualreview.CanvasVisualReviewDecision;
 import org.zipp.ai.domain.agent.model.valobj.visualreview.CanvasVisualReviewResult;
 import org.zipp.ai.domain.agent.model.valobj.visualreview.CanvasVisualReviewStage;
-import org.zipp.ai.domain.agent.service.ICanvasReviewService;
 import org.zipp.ai.domain.agent.service.ICanvasStateStore;
 import org.zipp.ai.domain.agent.service.IChatService;
 import org.zipp.ai.domain.agent.service.IIntentRoutingService;
@@ -70,9 +67,6 @@ public class AgentConversationService {
 
     @Resource
     private IIntentRoutingService intentRoutingService;
-
-    @Resource
-    private ICanvasReviewService canvasReviewService;
 
     @Resource
     private ICanvasAnalyzer canvasAnalyzer;
@@ -161,18 +155,14 @@ public class AgentConversationService {
                 responseDTO.setType("user");
                 responseDTO.setContent(recordCapturedStep(
                         "direct_answer", routingStepOutput(routingResult), value -> traceField("answer", value),
-                        () -> resolveDirectAnswer(currentRequest, config, routingResult)));
+                        () -> resolveDirectAnswer(routingResult)));
                 attachCorrelation(responseDTO, runScope);
                 captureRunOutput(runScope, responseDTO, currentRequest.getDiagramId());
                 return responseDTO;
             }
 
-            CanvasReviewContext reviewContext = routingResult.needsCanvasReview()
-                    ? recordCapturedStep("review", requestStepInput(currentRequest), value -> value,
-                    () -> buildReviewContextIfNeeded(currentRequest, config, routingResult))
-                    : null;
             int maxReviewIterations = effectiveMaxReviewIterations(currentRequest, routingResult);
-            RoutedDrawMessage routedMessage = buildRoutedDrawMessage(currentRequest, routingResult, reviewContext, maxReviewIterations, currentRequest.getUserId(), currentRequest.getSkills());
+            RoutedDrawMessage routedMessage = buildRoutedDrawMessage(currentRequest, routingResult, maxReviewIterations, currentRequest.getUserId(), currentRequest.getSkills());
             captureDebugTrace(runScope, "ROUTED_MESSAGE", routedMessage.message());
             final String finalSessionId = sessionId;
             DrawioSkillAccessContext.bindSession(finalSessionId, routedMessage.allowedSkillNames());
@@ -218,9 +208,6 @@ public class AgentConversationService {
         repairRoute.setRouteType(optimizeLayout ? "optimize_layout" : "edit_existing");
         repairRoute.setDiagramType(StringUtils.defaultIfBlank(diagramType, "none"));
         repairRoute.setSkillName("none");
-        repairRoute.setNeedsCanvasQuality(false);
-        repairRoute.setNeedsSemanticReview(false);
-        repairRoute.setAnswerMode("none");
         repairRoute.setReason("production_visual_review_repair");
         stream(requestDTO, emitter, repairRoute, "visual_repair_stream");
     }
@@ -303,7 +290,7 @@ public class AgentConversationService {
                 try {
                     String answer = recordCapturedStep(
                             "direct_answer", routingStepOutput(routingResult), value -> traceField("answer", value),
-                            () -> resolveDirectAnswer(currentRequest, config, routingResult));
+                            () -> resolveDirectAnswer(routingResult));
                     captureRunOutput(runScope, "user", answer, currentRequest.getDiagramId());
                     streamResponseWriter.sendDirectReply(emitter, answer);
                     completeStreamTelemetry(streamTelemetryCompleted, null, runScope, null);
@@ -326,11 +313,7 @@ public class AgentConversationService {
             final AtomicBoolean finalFirstStreamOutputRecorded = firstStreamOutputRecorded;
             final BoundedTextCapture finalStreamOutputCapture = streamOutputCapture;
             final long finalStreamStartedNanos = streamStartedNanos;
-            final CanvasReviewContext reviewContext = routingResult.needsCanvasReview()
-                    ? recordCapturedStep("review", requestStepInput(currentRequest), value -> value,
-                    () -> buildReviewContextIfNeeded(currentRequest, config, routingResult))
-                    : null;
-            final RoutedDrawMessage routedMessage = buildRoutedDrawMessage(currentRequest, routingResult, reviewContext, maxRepairRounds, currentRequest.getUserId(), currentRequest.getSkills());
+            final RoutedDrawMessage routedMessage = buildRoutedDrawMessage(currentRequest, routingResult, maxRepairRounds, currentRequest.getUserId(), currentRequest.getSkills());
             captureDebugTrace(runScope, "ROUTED_MESSAGE", routedMessage.message());
             // The current canvas travels in the request; keep it so patch_cells can merge a delta
             // without the model re-emitting the whole diagram.
@@ -571,7 +554,7 @@ public class AgentConversationService {
         // completes as soon as the edited canvas is flushed, instead of waiting on review rounds.
         if (routingResult != null
                 && "edit_existing".equals(routingResult.getRouteType())
-                && !routingResult.needsCanvasReview()) {
+                && (StringUtils.isBlank(routingResult.getSkillName()) || "none".equals(routingResult.getSkillName()))) {
             return 0;
         }
         return normalizeMaxReviewIterations(requestDTO.getMaxReviewIterations());
@@ -649,9 +632,6 @@ public class AgentConversationService {
         Map<String, Object> metadata = new LinkedHashMap<>();
         metadata.put("routeType", StringUtils.defaultString(routingResult.getRouteType()));
         metadata.put("diagramType", StringUtils.defaultString(routingResult.getDiagramType()));
-        metadata.put("answerMode", StringUtils.defaultString(routingResult.getAnswerMode()));
-        metadata.put("needsCanvasQuality", Boolean.TRUE.equals(routingResult.getNeedsCanvasQuality()));
-        metadata.put("needsSemanticReview", Boolean.TRUE.equals(routingResult.getNeedsSemanticReview()));
         metadata.put("hasSkill", StringUtils.isNotBlank(routingResult.getSkillName()));
         recordLifecycleEvent(runScope, "ROUTING_DECIDED", "routing", "SUCCESS", metadata);
     }
@@ -891,9 +871,6 @@ public class AgentConversationService {
         Map<String, Object> output = new LinkedHashMap<>();
         output.put("routeType", result == null ? null : result.getRouteType());
         output.put("diagramType", result == null ? null : result.getDiagramType());
-        output.put("answerMode", result == null ? null : result.getAnswerMode());
-        output.put("needsCanvasQuality", result != null && Boolean.TRUE.equals(result.getNeedsCanvasQuality()));
-        output.put("needsSemanticReview", result != null && Boolean.TRUE.equals(result.getNeedsSemanticReview()));
         output.put("skillName", result == null ? null : result.getSkillName());
         return output;
     }
@@ -925,11 +902,8 @@ public class AgentConversationService {
                 .build());
     }
 
-    private String resolveDirectAnswer(ChatRequestDTO requestDTO, CustomApiConfigManager.CustomApiConfig config, IntentRoutingResult routingResult) {
-        if (!routingResult.needsCanvasReview()) {
-            return routingResult.getAnswer();
-        }
-        return canvasReviewService.answer(buildCanvasReviewCommand(requestDTO, config, routingResult));
+    private String resolveDirectAnswer(IntentRoutingResult routingResult) {
+        return routingResult.getAnswer();
     }
 
     private boolean isReviewOnly(IntentRoutingResult routingResult) {
@@ -1009,35 +983,15 @@ public class AgentConversationService {
                 .anyMatch(codePoint -> codePoint >= 0x4E00 && codePoint <= 0x9FFF);
     }
 
-    private CanvasReviewContext buildReviewContextIfNeeded(ChatRequestDTO requestDTO,
-                                                           CustomApiConfigManager.CustomApiConfig config,
-                                                           IntentRoutingResult routingResult) {
-        if (!routingResult.needsCanvasReview()) {
-            return null;
-        }
-        return canvasReviewService.buildReviewContext(buildCanvasReviewCommand(requestDTO, config, routingResult));
-    }
-
-    private CanvasReviewCommand buildCanvasReviewCommand(ChatRequestDTO requestDTO,
-                                                         CustomApiConfigManager.CustomApiConfig config,
-                                                         IntentRoutingResult routingResult) {
-        requestDTO = requestWithStoredCanvas(requestDTO);
-        return CanvasReviewCommand.builder()
-                .userId(requestDTO.getUserId())
-                .message(contextBuilder().buildReviewContextMessage(requestDTO, routingResult))
-                .routingResult(routingResult)
-                .selectedSkillNames(requestDTO.getSkills())
-                .customApiConfig(config)
-                .build();
-    }
-
     // Inject skill rules only when the drawer needs diagram-specific semantics; small edits stay lean.
     // User-specified skills (if any) override the router's automatic selection.
     private SkillContentProvider.SkillSection skillSectionFor(IntentRoutingResult routingResult, String ownerId, List<String> userSkills) {
         String routeType = StringUtils.defaultString(routingResult.getRouteType());
         boolean generativeDraw = "create_new".equals(routeType)
                 || "optimize_layout".equals(routeType)
-                || ("edit_existing".equals(routeType) && routingResult.needsCanvasReview());
+                || ("edit_existing".equals(routeType)
+                && StringUtils.isNotBlank(routingResult.getSkillName())
+                && !"none".equals(routingResult.getSkillName()));
         if (!generativeDraw && (userSkills == null || userSkills.isEmpty())) {
             return SkillContentProvider.SkillSection.empty();
         }
@@ -1053,16 +1007,14 @@ public class AgentConversationService {
 
     private String buildRoutedMessage(ChatRequestDTO requestDTO,
                                       IntentRoutingResult routingResult,
-                                      CanvasReviewContext reviewContext,
                                       int maxReviewIterations,
                                       String ownerId,
                                       List<String> userSkills) {
-        return buildRoutedDrawMessage(requestDTO, routingResult, reviewContext, maxReviewIterations, ownerId, userSkills).message();
+        return buildRoutedDrawMessage(requestDTO, routingResult, maxReviewIterations, ownerId, userSkills).message();
     }
 
     private RoutedDrawMessage buildRoutedDrawMessage(ChatRequestDTO requestDTO,
                                                      IntentRoutingResult routingResult,
-                                                     CanvasReviewContext reviewContext,
                                                      int maxReviewIterations,
                                                      String ownerId,
                                                      List<String> userSkills) {
@@ -1071,9 +1023,6 @@ public class AgentConversationService {
         routingJson.put("routeType", routingResult.getRouteType());
         routingJson.put("diagramType", routingResult.getDiagramType());
         routingJson.put("skillName", routingResult.getSkillName());
-        routingJson.put("needsCanvasQuality", routingResult.getNeedsCanvasQuality());
-        routingJson.put("needsSemanticReview", routingResult.getNeedsSemanticReview());
-        routingJson.put("answerMode", routingResult.getAnswerMode());
         routingJson.put("reason", routingResult.getReason());
         routingJson.put("maxRepairRounds", maxReviewIterations);
         List<String> allowedTools = allowedToolsFor(routingResult);
@@ -1081,15 +1030,12 @@ public class AgentConversationService {
         routingJson.put("skillTools", DrawioSkillToolNames.SKILL_LOOKUP_TOOL_NAMES);
         routingJson.put("toolPolicy", "Use skillTools to load required skill rules before the initial draft. Use only allowedTools for canvas mutation. Self-repair rounds use modify_diagram or optimize_diagram(mode=route_only) and must not call create_diagram; explicit user redraws route through a new create_diagram action.");
         // Log derived routing controls only; the routed message below can contain full canvas XML.
-        log.info("[draw-route] userId={} routeType={} allowedTools={} maxRepairRounds={} canvasReview={} semanticReview={} skillName={} reviewContext={}",
+        log.info("[draw-route] userId={} routeType={} allowedTools={} maxRepairRounds={} skillName={}",
                 SecretLogSanitizer.maskCapability(ownerId),
                 logValue(routingResult.getRouteType()),
                 allowedTools,
                 maxReviewIterations,
-                routingResult.getNeedsCanvasQuality(),
-                routingResult.getNeedsSemanticReview(),
-                logValue(routingResult.getSkillName()),
-                null != reviewContext);
+                logValue(routingResult.getSkillName()));
 
         SkillContentProvider.SkillSection skillSection = skillSectionFor(routingResult, ownerId, userSkills);
         String routedMessage = "[Intent Routing Result]\n"
@@ -1097,13 +1043,7 @@ public class AgentConversationService {
                 + "\n\n"
                 + skillSection.text()
                 + contextBuilder().buildDrawingContextMessage(requestDTO, routingResult);
-        if (null == reviewContext) {
-            return new RoutedDrawMessage(routedMessage, skillSection.requiredSkillNames());
-        }
-
-        return new RoutedDrawMessage(routedMessage
-                + "\n\n"
-                + reviewContext.getSerializedContext(), skillSection.requiredSkillNames());
+        return new RoutedDrawMessage(routedMessage, skillSection.requiredSkillNames());
     }
 
     private record RoutedDrawMessage(String message, java.util.Set<String> allowedSkillNames) {

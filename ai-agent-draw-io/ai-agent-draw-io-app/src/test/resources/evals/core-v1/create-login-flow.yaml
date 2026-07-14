@@ -26,7 +26,7 @@ input:
   user: "Create a login flow"
 replay:
   initialCanvasXml: "<mxGraphModel><root><mxCell id='0'/><mxCell id='1' parent='0'/></root></mxGraphModel>"
-  routerReply: '{"routeType":"create_new","diagramType":"flowchart","skillName":"none","needsCanvasQuality":false,"needsSemanticReview":false,"answerMode":"none","answer":"","reason":"create login flow"}'
+  routerReply: '{"routeType":"create_new","diagramType":"flowchart","skillName":"none","answer":"","reason":"create login flow"}'
   taskOutcome: FULFILLED
   toolCalls:
     - name: create_diagram
@@ -35,9 +35,6 @@ expected:
   routeType: create_new
   routeDiagramType: flowchart
   skillName: none
-  needsCanvasQuality: false
-  needsSemanticReview: false
-  answerMode: none
   taskOutcome: FULFILLED
   requiredToolNamesBeforeMutation:
     - get_drawio_skill

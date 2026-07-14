@@ -13,7 +13,7 @@ executionProfile: {profileId: phase1-mode-b, model: stubbed, promptConfigHash: p
 input: {user: "Create a simple web architecture diagram"}
 replay:
   initialCanvasXml: "<mxGraphModel><root><mxCell id='0'/><mxCell id='1' parent='0'/></root></mxGraphModel>"
-  routerReply: '{"routeType":"create_new","diagramType":"architecture","skillName":"none","needsCanvasQuality":false,"needsSemanticReview":false,"answerMode":"none","answer":"","reason":"create architecture"}'
+  routerReply: '{"routeType":"create_new","diagramType":"architecture","skillName":"none","answer":"","reason":"create architecture"}'
   taskOutcome: FULFILLED
   toolCalls:
     - name: create_diagram
@@ -22,9 +22,6 @@ expected:
   routeType: create_new
   routeDiagramType: architecture
   skillName: none
-  needsCanvasQuality: false
-  needsSemanticReview: false
-  answerMode: none
   taskOutcome: FULFILLED
   requiredToolNamesBeforeMutation: [get_drawio_skill]
   allowedMutationTools: [create_diagram]

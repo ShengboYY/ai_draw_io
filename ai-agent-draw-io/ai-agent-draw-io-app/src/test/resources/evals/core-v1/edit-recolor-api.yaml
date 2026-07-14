@@ -13,7 +13,7 @@ executionProfile: {profileId: phase1-mode-b, model: stubbed, promptConfigHash: p
 input: {user: "Recolor API blue"}
 replay:
   initialCanvasXml: "<mxGraphModel><root><mxCell id='0'/><mxCell id='1' parent='0'/><mxCell id='2' value='API' style='rounded=1;fillColor=#ffffff;' vertex='1' parent='1'><mxGeometry x='100' y='100' width='140' height='60' as='geometry'/></mxCell></root></mxGraphModel>"
-  routerReply: '{"routeType":"edit_existing","diagramType":"architecture","skillName":"none","needsCanvasQuality":false,"needsSemanticReview":false,"answerMode":"none","answer":"","reason":"unused fast path"}'
+  routerReply: '{"routeType":"edit_existing","diagramType":"architecture","skillName":"none","answer":"","reason":"unused fast path"}'
   taskOutcome: FULFILLED
   toolCalls:
     - name: modify_diagram
@@ -23,9 +23,6 @@ expected:
   routeType: edit_existing
   routeDiagramType: none
   skillName: none
-  needsCanvasQuality: false
-  needsSemanticReview: false
-  answerMode: none
   taskOutcome: FULFILLED
   requiredToolNamesBeforeMutation: [get_drawio_skill]
   allowedMutationTools: [modify_diagram]

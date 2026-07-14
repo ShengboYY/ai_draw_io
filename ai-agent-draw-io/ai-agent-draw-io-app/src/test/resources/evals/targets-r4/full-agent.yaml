@@ -13,16 +13,13 @@ provenance: {sourceTraceRetained: false, reviewer: eval-team, approvedAt: "2026-
 input: {user: "Hello"}
 replay:
   initialCanvasXml: "<mxGraphModel><root><mxCell id='0'/><mxCell id='1' parent='0'/></root></mxGraphModel>"
-  routerReply: '{"routeType":"create_new","diagramType":"flowchart","skillName":"none","needsCanvasQuality":false,"needsSemanticReview":false,"answerMode":"none","answer":"","reason":"unused greeting replay"}'
+  routerReply: '{"routeType":"create_new","diagramType":"flowchart","skillName":"none","answer":"","reason":"unused greeting replay"}'
   taskOutcome: FULFILLED
   toolCalls: []
 expected:
   routeType: answer_only
   routeDiagramType: none
   skillName: none
-  needsCanvasQuality: false
-  needsSemanticReview: false
-  answerMode: general
   taskOutcome: FULFILLED
   allowedMutationTools: []
   requireCanvasChange: false

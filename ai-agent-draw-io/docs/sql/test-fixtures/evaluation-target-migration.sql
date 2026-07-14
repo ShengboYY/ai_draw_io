@@ -46,7 +46,7 @@ INSERT INTO eval_case_working_copy (id, case_id, case_version, definition_json, 
   ('explicit', 'explicit', '1', JSON_OBJECT('evaluationTarget', 'FULL_AGENT'), 'DRAFT'),
   ('fixture', 'fixture', '1', JSON_OBJECT('fixtureVersion', 'fixture-v1'), 'DRAFT'),
   ('major', 'major', '1', JSON_OBJECT('expected', JSON_OBJECT('maxMajorIssues', 1)), 'DRAFT'),
-  ('quality', 'quality', '1', JSON_OBJECT('expected', JSON_OBJECT('needsCanvasQuality', TRUE)), 'PUBLISHED'),
+  ('quality', 'quality', '1', JSON_OBJECT('expected', JSON_OBJECT('graph', JSON_OBJECT())), 'PUBLISHED'),
   ('router', 'router', '1', JSON_OBJECT('expected', JSON_OBJECT('routeType', 'answer_only')), 'DRAFT');
 
 INSERT INTO eval_case_version (case_id, case_version, artifact_ref) VALUES ('quality', '1', 'quality.yaml');

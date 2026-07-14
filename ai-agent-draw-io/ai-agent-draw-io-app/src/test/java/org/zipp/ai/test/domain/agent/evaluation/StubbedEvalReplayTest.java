@@ -47,9 +47,6 @@ public class StubbedEvalReplayTest {
         expected.setRouteType("edit_existing");
         expected.setRouteDiagramType("architecture");
         expected.setSkillName("none");
-        expected.setNeedsCanvasQuality(true);
-        expected.setNeedsSemanticReview(true);
-        expected.setAnswerMode("none");
         expected.setTaskOutcome(EvalTrace.TaskOutcome.FULFILLED);
         expected.setRequiredToolNamesBeforeMutation(List.of(DrawioSkillToolNames.GET_DRAWIO_SKILL));
         expected.setAllowedMutationTools(List.of(DrawioCanvasToolNames.MODIFY_DIAGRAM));
@@ -66,8 +63,7 @@ public class StubbedEvalReplayTest {
                         + "<mxGeometry x='100' y='100' width='140' height='60' as='geometry'/></mxCell>"
                         + "</root></mxGraphModel>")
                 .routerReply("{\"routeType\":\"edit_existing\",\"diagramType\":\"architecture\","
-                        + "\"skillName\":\"none\",\"needsCanvasQuality\":true,\"needsSemanticReview\":true,"
-                        + "\"answerMode\":\"none\",\"answer\":\"\",\"reason\":\"add payment service\"}")
+                        + "\"skillName\":\"none\",\"answer\":\"\",\"reason\":\"add payment service\"}")
                 .toolCalls(List.of(EvalCaseDefinition.ReplayToolCall.builder()
                         .name(DrawioCanvasToolNames.MODIFY_DIAGRAM)
                         .mode("append")

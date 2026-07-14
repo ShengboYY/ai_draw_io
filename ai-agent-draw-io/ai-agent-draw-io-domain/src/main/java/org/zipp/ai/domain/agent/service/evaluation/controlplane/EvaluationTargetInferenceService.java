@@ -34,7 +34,6 @@ public class EvaluationTargetInferenceService {
         }
         EvalCaseDefinition.Expected expected = definition.getExpected();
         boolean drawing = expected != null && (expected.getGraph() != null
-                || Boolean.TRUE.equals(expected.getNeedsCanvasQuality())
                 || expected.getMaxCriticalIssues() != null || expected.getMaxMajorIssues() != null);
         boolean router = expected != null && expected.getRouteType() != null
                 && !expected.getRouteType().isBlank();

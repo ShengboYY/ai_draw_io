@@ -97,7 +97,6 @@ public class DefaultIntentRoutingService implements IIntentRoutingService {
     // json_schema handed to capable providers can never drift apart. Any router output outside these
     // is coerced to a safe default, so a hallucinated / injected token cannot leak into the drawer.
     private static final Set<String> ALLOWED_ROUTE_TYPES = Set.copyOf(IntentRoutingContract.ROUTE_TYPES);
-    private static final Set<String> ALLOWED_ANSWER_MODES = Set.copyOf(IntentRoutingContract.ANSWER_MODES);
     // Canonical diagram types seen downstream. Router-friendly aliases (uml_class, concept, diagram,
     // basic) are mapped into this set by normalizeDiagramType; nothing else is allowed.
     private static final Set<String> CANONICAL_DIAGRAM_TYPES = IntentRoutingContract.CANONICAL_DIAGRAM_TYPES;
@@ -175,9 +174,6 @@ public class DefaultIntentRoutingService implements IIntentRoutingService {
         result.setRouteType("edit_existing");
         result.setDiagramType("none");
         result.setSkillName("none");
-        result.setNeedsCanvasQuality(false);
-        result.setNeedsSemanticReview(false);
-        result.setAnswerMode("none");
         result.setAnswer("");
         result.setReason("Rule-based fast path: existing canvas with a localized relabel/recolor edit.");
         return result;
@@ -216,9 +212,6 @@ public class DefaultIntentRoutingService implements IIntentRoutingService {
         result.setRouteType("answer_only");
         result.setDiagramType("none");
         result.setSkillName("none");
-        result.setNeedsCanvasQuality(false);
-        result.setNeedsSemanticReview(false);
-        result.setAnswerMode("general");
         result.setAnswer(smallTalkAnswer(instruction));
         result.setReason("Rule-based fast path: greeting/small talk with no canvas task.");
         return result;
@@ -316,21 +309,16 @@ public class DefaultIntentRoutingService implements IIntentRoutingService {
         result.setRouteType(routeType);
 
         if (result.isDirectReply()) {
-            if (!"review_only".equals(routeType)) {
-                result.setDiagramType("none");
-            } else {
+            if ("review_only".equals(routeType)) {
                 result.setDiagramType(normalizeDiagramType(result.getDiagramType(), userInstruction));
+                result.setAnswer("");
+            } else {
+                result.setDiagramType("none");
+                if (null == result.getAnswer() || result.getAnswer().trim().isEmpty()) {
+                    result.setAnswer("Please provide a little more detail about what you want to do with the Draw.io canvas.");
+                }
             }
             result.setSkillName("none");
-            normalizeReviewFlags(result, userInstruction);
-            ensureReviewOnlyHasReviewSignal(result);
-            if (null == result.getAnswerMode() || result.getAnswerMode().trim().isEmpty()) {
-                result.setAnswerMode(result.needsCanvasReview() ? "quality_review" : "general");
-            }
-            coerceAnswerMode(result);
-            if (null == result.getAnswer() || result.getAnswer().trim().isEmpty()) {
-                result.setAnswer("Please provide a little more detail about what you want to do with the Draw.io canvas.");
-            }
             return result;
         }
 
@@ -340,22 +328,8 @@ public class DefaultIntentRoutingService implements IIntentRoutingService {
 
         result.setDiagramType(normalizeDiagramType(result.getDiagramType(), userInstruction));
         validateSkillName(result, allowedSkills);
-        normalizeReviewFlags(result, userInstruction);
-        if (null == result.getAnswerMode() || result.getAnswerMode().trim().isEmpty()) {
-            result.setAnswerMode("none");
-        }
-        coerceAnswerMode(result);
         result.setAnswer("");
         return result;
-    }
-
-    // ---- Closed-set enum coercion: invalid router output becomes a safe default, never passthrough.
-
-    private void coerceAnswerMode(IntentRoutingResult result) {
-        if (!ALLOWED_ANSWER_MODES.contains(result.getAnswerMode())) {
-            log.info("[intent-route] invalid_answer_mode value={} -> none", logValue(result.getAnswerMode()));
-            result.setAnswerMode("none");
-        }
     }
 
     // Only skills the router was actually offered may be selected; anything else (hallucinated or
@@ -394,43 +368,6 @@ public class DefaultIntentRoutingService implements IIntentRoutingService {
             return diagramTypeClassifier.classify(userInstruction);
         }
         return mapped;
-    }
-
-    private void normalizeReviewFlags(IntentRoutingResult result, String userInstruction) {
-        if (null == result.getNeedsCanvasQuality()) {
-            result.setNeedsCanvasQuality(false);
-        }
-        if (null == result.getNeedsSemanticReview()) {
-            result.setNeedsSemanticReview(false);
-        }
-        if (Boolean.TRUE.equals(result.getNeedsSemanticReview())
-                && shouldSuppressSemanticReview(result, userInstruction)) {
-            log.info("[intent-route] semantic_review_suppressed routeType={} reason={} userInstruction={}",
-                    logValue(result.getRouteType()),
-                    logValue(result.getReason()),
-                    logValue(userInstruction));
-            result.setNeedsSemanticReview(false);
-        }
-    }
-
-    private void ensureReviewOnlyHasReviewSignal(IntentRoutingResult result) {
-        if (!"review_only".equals(result.getRouteType()) || result.needsCanvasReview()) {
-            return;
-        }
-        // json_schema cannot express cross-field invariants, so enforce review_only => review work here.
-        log.info("[intent-route] review_only_without_review_flags -> needsCanvasQuality=true");
-        result.setNeedsCanvasQuality(true);
-        result.setAnswerMode("quality_review");
-    }
-
-    private boolean shouldSuppressSemanticReview(IntentRoutingResult result, String userInstruction) {
-        if ("optimize_layout".equals(result.getRouteType())) {
-            return true;
-        }
-
-        // Key the decision on the user's own words only, not the model-generated `reason`.
-        String text = String.valueOf(userInstruction).toLowerCase(Locale.ROOT);
-        return containsAny(text, VISUAL_REVIEW_TERMS) && !containsAny(text, SEMANTIC_REVIEW_TERMS);
     }
 
     private String extractFirstJsonObject(String raw) {
@@ -480,15 +417,12 @@ public class DefaultIntentRoutingService implements IIntentRoutingService {
         if (null == result) {
             return;
         }
-        log.info("[intent-route] source={} userId={} routeType={} diagramType={} skillName={} canvasReview={} semanticReview={} answerMode={} reason={}",
+        log.info("[intent-route] source={} userId={} routeType={} diagramType={} skillName={} reason={}",
                 logValue(source),
                 SecretLogSanitizer.maskCapability(userId),
                 logValue(result.getRouteType()),
                 logValue(result.getDiagramType()),
                 logValue(result.getSkillName()),
-                result.getNeedsCanvasQuality(),
-                result.getNeedsSemanticReview(),
-                logValue(result.getAnswerMode()),
                 logValue(result.getReason()));
     }
 

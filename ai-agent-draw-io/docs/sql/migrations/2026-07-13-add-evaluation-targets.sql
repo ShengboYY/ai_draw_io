@@ -32,10 +32,9 @@ SELECT id,
        JSON_UNQUOTE(JSON_EXTRACT(definition_json, '$.fixtureVersion')) fixture_version,
        NULLIF(TRIM(JSON_UNQUOTE(JSON_EXTRACT(definition_json, '$.expected.routeType'))), '') IS NOT NULL route_present,
        COALESCE(
-         (JSON_TYPE(JSON_EXTRACT(definition_json, '$.expected.graph')) IS NOT NULL
-           AND JSON_TYPE(JSON_EXTRACT(definition_json, '$.expected.graph')) <> 'NULL')
-           OR JSON_EXTRACT(definition_json, '$.expected.needsCanvasQuality') = TRUE
-           OR JSON_EXTRACT(definition_json, '$.expected.maxCriticalIssues') IS NOT NULL
+        (JSON_TYPE(JSON_EXTRACT(definition_json, '$.expected.graph')) IS NOT NULL
+          AND JSON_TYPE(JSON_EXTRACT(definition_json, '$.expected.graph')) <> 'NULL')
+          OR JSON_EXTRACT(definition_json, '$.expected.maxCriticalIssues') IS NOT NULL
            OR JSON_EXTRACT(definition_json, '$.expected.maxMajorIssues') IS NOT NULL,
          FALSE) drawing_present
 FROM eval_case_working_copy

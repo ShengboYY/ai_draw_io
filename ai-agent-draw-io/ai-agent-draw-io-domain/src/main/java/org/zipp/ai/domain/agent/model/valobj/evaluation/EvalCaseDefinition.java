@@ -72,9 +72,6 @@ public class EvalCaseDefinition {
         private String routeType;
         private String routeDiagramType;
         private String skillName;
-        private Boolean needsCanvasQuality;
-        private Boolean needsSemanticReview;
-        private String answerMode;
         private EvalTrace.TaskOutcome taskOutcome;
 
         @Builder.Default

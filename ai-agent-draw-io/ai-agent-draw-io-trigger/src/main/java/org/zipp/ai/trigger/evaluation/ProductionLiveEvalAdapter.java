@@ -128,9 +128,7 @@ public class ProductionLiveEvalAdapter implements LiveEvalRunner.LiveExecutionFa
         return EvalTrace.builder().runStatus(runFailed ? EvalTrace.RunStatus.FAILED : EvalTrace.RunStatus.SUCCESS)
                 .taskOutcome(outcome)
                 .routing(EvalTrace.Routing.builder().routeType(routing.getString("routeType"))
-                        .diagramType(routing.getString("diagramType")).answerMode(routing.getString("answerMode"))
-                        .needsCanvasQuality(routing.getBoolean("needsCanvasQuality"))
-                        .needsSemanticReview(routing.getBoolean("needsSemanticReview")).build())
+                        .diagramType(routing.getString("diagramType")).build())
                 .toolCalls(tools).beforeCanvasHash(hash(before)).afterCanvasHash(hash(after)).build();
     }
 

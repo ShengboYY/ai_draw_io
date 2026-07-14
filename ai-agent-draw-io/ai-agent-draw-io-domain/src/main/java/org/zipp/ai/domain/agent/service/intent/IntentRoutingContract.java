@@ -31,9 +31,6 @@ public final class IntentRoutingContract {
 
     public static final List<String> ROUTE_TYPES =
             List.of("answer_only", "clarify", "create_new", "edit_existing", "optimize_layout", "review_only");
-    public static final List<String> ANSWER_MODES = List.of(
-            "none", "general", "capability", "canvas_summary",
-            "quality_review", "semantic_review", "quality_and_semantic_review");
 
     /** Canonical diagram types seen downstream (after alias normalization). Used by validation. */
     public static final Set<String> CANONICAL_DIAGRAM_TYPES = Set.of(
@@ -75,9 +72,6 @@ public final class IntentRoutingContract {
         properties.put("routeType", enumProp(ROUTE_TYPES));
         properties.put("diagramType", enumProp(ROUTER_DIAGRAM_TYPE_ENUM));
         properties.put("skillName", stringProp());
-        properties.put("needsCanvasQuality", boolProp());
-        properties.put("needsSemanticReview", boolProp());
-        properties.put("answerMode", enumProp(ANSWER_MODES));
         properties.put("answer", stringProp());
         properties.put("reason", stringProp());
 
@@ -102,9 +96,4 @@ public final class IntentRoutingContract {
         return prop;
     }
 
-    private static Map<String, Object> boolProp() {
-        Map<String, Object> prop = new LinkedHashMap<>();
-        prop.put("type", "boolean");
-        return prop;
-    }
 }

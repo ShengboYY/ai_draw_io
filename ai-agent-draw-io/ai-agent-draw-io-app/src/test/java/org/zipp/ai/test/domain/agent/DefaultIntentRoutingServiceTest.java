@@ -76,16 +76,13 @@ public class DefaultIntentRoutingServiceTest {
     }
 
     @Test
-    public void shouldDisableSemanticReviewForVisualOnlyLayoutRequests() throws Exception {
+    public void shouldRouteVisualLayoutRequestsWithoutLegacyReviewFlags() throws Exception {
         IntentRoutingResult result = routeWithStubbedLlm(
                 "线重叠了，整理一下",
                 "{\"routeType\":\"optimize_layout\",\"diagramType\":\"architecture\",\"skillName\":\"none\","
-                        + "\"needsCanvasQuality\":true,\"needsSemanticReview\":true,"
-                        + "\"answerMode\":\"none\",\"answer\":\"\",\"reason\":\"layout cleanup\"}");
+                        + "\"answer\":\"\",\"reason\":\"layout cleanup\"}");
 
         assertEquals("optimize_layout", result.getRouteType());
-        assertTrue(result.getNeedsCanvasQuality());
-        assertFalse(result.getNeedsSemanticReview());
     }
 
     @Test
@@ -93,8 +90,7 @@ public class DefaultIntentRoutingServiceTest {
         IntentRoutingResult result = routeWithStubbedLlm(
                 "请画一个 jvm 架构图",
                 "{\"routeType\":\"create_new\",\"diagramType\":\"\",\"skillName\":\"none\","
-                        + "\"needsCanvasQuality\":false,\"needsSemanticReview\":false,"
-                        + "\"answerMode\":\"none\",\"answer\":\"\",\"reason\":\"new diagram\"}");
+                        + "\"answer\":\"\",\"reason\":\"new diagram\"}");
 
         assertEquals("architecture", result.getDiagramType());
     }
@@ -104,61 +100,52 @@ public class DefaultIntentRoutingServiceTest {
         IntentRoutingResult result = routeWithStubbedLlm(
                 "请画一个 jvm 架构图",
                 "{\"routeType\":\"create_new\",\"diagramType\":\"Flowchart\",\"skillName\":\"none\","
-                        + "\"needsCanvasQuality\":false,\"needsSemanticReview\":false,"
-                        + "\"answerMode\":\"none\",\"answer\":\"\",\"reason\":\"router chose flowchart\"}");
+                        + "\"answer\":\"\",\"reason\":\"router chose flowchart\"}");
 
         assertEquals("flowchart", result.getDiagramType());
     }
 
     @Test
-    public void shouldDisableSemanticReviewForComponentFrameRequests() throws Exception {
+    public void shouldRouteComponentFrameRequestsAsEdits() throws Exception {
         IntentRoutingResult result = routeWithStubbedLlm(
                 "给这些节点加 component 框",
                 "{\"routeType\":\"edit_existing\",\"diagramType\":\"architecture\",\"skillName\":\"none\","
-                        + "\"needsCanvasQuality\":true,\"needsSemanticReview\":true,"
-                        + "\"answerMode\":\"none\",\"answer\":\"\",\"reason\":\"add visual component frame\"}");
+                        + "\"answer\":\"\",\"reason\":\"add visual component frame\"}");
 
         assertEquals("edit_existing", result.getRouteType());
-        assertTrue(result.getNeedsCanvasQuality());
-        assertFalse(result.getNeedsSemanticReview());
     }
 
     @Test
-    public void shouldKeepSemanticReviewForBusinessConceptChanges() throws Exception {
+    public void shouldRouteBusinessConceptChangesAsEdits() throws Exception {
         IntentRoutingResult result = routeWithStubbedLlm(
                 "新增支付服务并连接订单服务",
                 "{\"routeType\":\"edit_existing\",\"diagramType\":\"architecture\",\"skillName\":\"none\","
-                        + "\"needsCanvasQuality\":true,\"needsSemanticReview\":true,"
-                        + "\"answerMode\":\"none\",\"answer\":\"\",\"reason\":\"add business service and relationship\"}");
+                        + "\"answer\":\"\",\"reason\":\"add business service and relationship\"}");
 
-        assertTrue(result.getNeedsSemanticReview());
+        assertEquals("edit_existing", result.getRouteType());
     }
 
     @Test
-    public void shouldKeepSemanticReviewForProfessionalCorrectnessQuestions() throws Exception {
+    public void shouldDeriveProfessionalReviewFromRouteType() throws Exception {
         IntentRoutingResult result = routeWithStubbedLlm(
                 "这个架构专业上合理吗，有没有缺少认证模块",
                 "{\"routeType\":\"review_only\",\"diagramType\":\"architecture\",\"skillName\":\"none\","
-                        + "\"needsCanvasQuality\":false,\"needsSemanticReview\":true,"
-                        + "\"answerMode\":\"semantic_review\",\"answer\":\"\",\"reason\":\"professional correctness question\"}");
+                        + "\"answer\":\"\",\"reason\":\"professional correctness question\"}");
 
-        assertTrue(result.getNeedsSemanticReview());
+        assertEquals("review_only", result.getRouteType());
+        assertEquals("", result.getAnswer());
     }
 
     @Test
-    public void shouldForceQualityReviewWhenReviewOnlyHasNoReviewFlags() throws Exception {
-        // Strict json_schema cannot express "review_only requires at least one review flag", so
-        // normalize defensively before AgentConversationService decides whether to run canvas review.
+    public void shouldKeepReviewOnlyNonMutatingWithoutAuxiliaryControlFields() throws Exception {
         IntentRoutingResult result = routeWithStubbedLlm(
                 "帮我评审一下这张图",
                 "{\"routeType\":\"review_only\",\"diagramType\":\"architecture\",\"skillName\":\"none\","
-                        + "\"needsCanvasQuality\":false,\"needsSemanticReview\":false,"
-                        + "\"answerMode\":\"none\",\"answer\":\"\",\"reason\":\"review requested\"}");
+                        + "\"answer\":\"\",\"reason\":\"review requested\"}");
 
         assertEquals("review_only", result.getRouteType());
-        assertTrue(result.getNeedsCanvasQuality());
-        assertFalse(result.getNeedsSemanticReview());
-        assertEquals("quality_review", result.getAnswerMode());
+        assertEquals("none", result.getSkillName());
+        assertEquals("", result.getAnswer());
     }
 
     @Test
@@ -168,8 +155,7 @@ public class DefaultIntentRoutingServiceTest {
         IntentRoutingResult result = routeWithStubbedLlm(
                 "画一个类图",
                 "{\"routeType\":\"create_new\",\"diagramType\":\"uml_class\",\"skillName\":\"drawio-uml\","
-                        + "\"needsCanvasQuality\":false,\"needsSemanticReview\":false,"
-                        + "\"answerMode\":\"none\",\"answer\":\"\",\"reason\":\"new uml\"}");
+                        + "\"answer\":\"\",\"reason\":\"new uml\"}");
 
         assertEquals("none", result.getSkillName());
     }
@@ -181,8 +167,7 @@ public class DefaultIntentRoutingServiceTest {
         String message = "[User Request]\n你好\n\n[Canvas State]\nhasCanvas=true\n\n[Canvas Summary]\n3 nodes, 2 edges";
         IntentRoutingResult result = routeWithStubbedLlm(message,
                 "{\"routeType\":\"create_new\",\"diagramType\":\"flowchart\",\"skillName\":\"none\","
-                        + "\"needsCanvasQuality\":false,\"needsSemanticReview\":false,"
-                        + "\"answerMode\":\"none\",\"answer\":\"\",\"reason\":\"should never be reached\"}");
+                        + "\"answer\":\"\",\"reason\":\"should never be reached\"}");
 
         assertEquals("answer_only", result.getRouteType());
         assertTrue(result.getReason().toLowerCase().contains("greeting"));
@@ -192,16 +177,13 @@ public class DefaultIntentRoutingServiceTest {
     public void smallTalkFastPathUsesContextualReplyCopy() throws Exception {
         IntentRoutingResult thanks = routeWithStubbedLlm("谢谢",
                 "{\"routeType\":\"create_new\",\"diagramType\":\"flowchart\",\"skillName\":\"none\","
-                        + "\"needsCanvasQuality\":false,\"needsSemanticReview\":false,"
-                        + "\"answerMode\":\"none\",\"answer\":\"\",\"reason\":\"should never be reached\"}");
+                        + "\"answer\":\"\",\"reason\":\"should never be reached\"}");
         IntentRoutingResult farewell = routeWithStubbedLlm("goodbye",
                 "{\"routeType\":\"create_new\",\"diagramType\":\"flowchart\",\"skillName\":\"none\","
-                        + "\"needsCanvasQuality\":false,\"needsSemanticReview\":false,"
-                        + "\"answerMode\":\"none\",\"answer\":\"\",\"reason\":\"should never be reached\"}");
+                        + "\"answer\":\"\",\"reason\":\"should never be reached\"}");
         IntentRoutingResult ack = routeWithStubbedLlm("okay",
                 "{\"routeType\":\"create_new\",\"diagramType\":\"flowchart\",\"skillName\":\"none\","
-                        + "\"needsCanvasQuality\":false,\"needsSemanticReview\":false,"
-                        + "\"answerMode\":\"none\",\"answer\":\"\",\"reason\":\"should never be reached\"}");
+                        + "\"answer\":\"\",\"reason\":\"should never be reached\"}");
 
         assertEquals("answer_only", thanks.getRouteType());
         assertTrue(thanks.getAnswer().contains("不客气"));
@@ -219,8 +201,7 @@ public class DefaultIntentRoutingServiceTest {
         IntentRoutingResult result = routeWithStubbedLlm(
                 "帮我调整这个图",
                 "{\"routeType\":\"WAT\",\"diagramType\":\"architecture\",\"skillName\":\"none\","
-                        + "\"needsCanvasQuality\":false,\"needsSemanticReview\":false,"
-                        + "\"answerMode\":\"none\",\"answer\":\"\",\"reason\":\"garbage routeType\"}");
+                        + "\"answer\":\"\",\"reason\":\"garbage routeType\"}");
 
         assertEquals("clarify", result.getRouteType());
     }
