@@ -29,16 +29,19 @@ public class ChatEvalJudge implements IEvalJudge {
     private static final Set<String> SEVERITIES = Set.of("none", "minor", "major", "critical");
 
     private final IChatService chatService;
+    private final String providerVersion;
     private final String agentId;
     private final String judgeModelVersion;
     private final double judgeTemperature;
     private final ObjectMapper mapper = new ObjectMapper();
 
     public ChatEvalJudge(IChatService chatService,
+                         @Value("${zipp.evaluation.text-provider-version:unconfigured}") String providerVersion,
                          @Value("${zipp.evaluation.judge-agent-id:300014}") String agentId,
                          @Value("${zipp.evaluation.judge-model-version:unconfigured}") String judgeModelVersion,
                          @Value("${zipp.evaluation.judge-temperature:0}") double judgeTemperature) {
         this.chatService = chatService;
+        this.providerVersion = providerVersion;
         this.agentId = agentId;
         this.judgeModelVersion = judgeModelVersion;
         this.judgeTemperature = judgeTemperature;
@@ -178,7 +181,8 @@ public class ChatEvalJudge implements IEvalJudge {
         String projection = evidence == null ? "unknown-projection"
                 : StringUtils.defaultIfBlank(evidence.inputProjectionVersion(), "unknown-projection");
         String rubric = evidence == null ? RUBRIC_VERSION : StringUtils.defaultIfBlank(evidence.rubricVersion(), RUBRIC_VERSION);
-        return "chat-agent:" + agentId + ":judge-model=" + judgeModelVersion + ":judge-temperature=" + judgeTemperature
+        return "provider=" + providerVersion + ":chat-agent=" + agentId
+                + ":judge-model=" + judgeModelVersion + ":judge-temperature=" + judgeTemperature
                 + ":" + PROMPT_VERSION + ":" + RUBRIC_VERSION + ":case-rubric=" + rubric
                 + ":" + projection + ":" + SCHEMA_VERSION;
     }

@@ -23,21 +23,27 @@ public class ChatSemanticAnomalyMiner implements ISemanticAnomalyMiner {
     private static final Pattern PRODUCTION_ID = Pattern.compile("(?i)\\b(?:run|aru|usr|ecc|adt|req|diagram)_[A-Za-z0-9_-]+\\b");
 
     private final IChatService chatService;
+    private final String providerVersion;
     private final String agentId;
     private final String modelVersion;
+    private final double temperature;
     private final String promptVersion;
     private final String schemaVersion;
     private final ObjectMapper mapper = new ObjectMapper();
     private final EvalDraftSanitizer sanitizer = new EvalDraftSanitizer();
 
     public ChatSemanticAnomalyMiner(IChatService chatService,
+                                    @Value("${zipp.evaluation.text-provider-version:unconfigured}") String providerVersion,
                                     @Value("${zipp.evaluation.semantic-miner-agent-id:300015}") String agentId,
                                     @Value("${zipp.evaluation.semantic-miner-model-version:unconfigured}") String modelVersion,
+                                    @Value("${zipp.evaluation.semantic-miner-temperature:0}") double temperature,
                                     @Value("${zipp.evaluation.semantic-miner-prompt-version:semantic-miner-prompt-v1}") String promptVersion,
                                     @Value("${zipp.evaluation.semantic-miner-schema-version:semantic-miner-schema-v1}") String schemaVersion) {
         this.chatService = chatService;
+        this.providerVersion = providerVersion;
         this.agentId = agentId;
         this.modelVersion = modelVersion;
+        this.temperature = temperature;
         this.promptVersion = promptVersion;
         this.schemaVersion = schemaVersion;
     }
@@ -54,7 +60,8 @@ public class ChatSemanticAnomalyMiner implements ISemanticAnomalyMiner {
 
     @Override
     public String version() {
-        return "model=" + modelVersion + ";prompt=" + promptVersion + ";schema=" + schemaVersion;
+        return "provider=" + providerVersion + ";model=" + modelVersion + ";temperature=" + temperature
+                + ";prompt=" + promptVersion + ";schema=" + schemaVersion;
     }
 
     private String prompt(String projection) {

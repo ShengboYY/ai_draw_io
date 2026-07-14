@@ -154,12 +154,12 @@ ai:
             agent-desc: "[internal] Converts sanitized Finding evidence into a synthetic Eval Case draft."
           module:
             ai-api:
-              base-url: ${LLM_BASE_URL:https://api.openai.com}
-              api-key: ${LLM_API_KEY:}
-              completions-path: ${LLM_COMPLETIONS_PATH:v1/chat/completions}
-              embeddings-path: ${LLM_EMBEDDINGS_PATH:v1/embeddings}
+              base-url: ${EVAL_TEXT_LLM_BASE_URL:${LLM_BASE_URL_deepseek:https://api.deepseek.com}}
+              api-key: ${EVAL_TEXT_LLM_API_KEY:${LLM_API_KEY_deepseek:}}
+              completions-path: ${EVAL_TEXT_LLM_COMPLETIONS_PATH:${LLM_COMPLETIONS_PATH_deepseek:v1/chat/completions}}
+              embeddings-path: ${EVAL_TEXT_LLM_EMBEDDINGS_PATH:v1/embeddings}
             chat-model:
-              model: ${ZIPP_EVAL_DRAFT_MODEL_VERSION:${LLM_MODEL:gpt-5.5}}
+              model: ${ZIPP_EVAL_DRAFT_MODEL_VERSION:${EVAL_TEXT_LLM_MODEL:${LLM_MODEL_deepseek:deepseek-chat}}}
               temperature: ${ZIPP_EVAL_DRAFT_TEMPERATURE:0}
             agents:
               - name: agent_eval_draft
@@ -199,12 +199,12 @@ ai:
             agent-desc: "[internal] Scores text and semantic Eval evidence under a fixed rubric."
           module:
             ai-api:
-              base-url: ${LLM_BASE_URL:https://api.openai.com}
-              api-key: ${LLM_API_KEY:}
-              completions-path: ${LLM_COMPLETIONS_PATH:v1/chat/completions}
-              embeddings-path: ${LLM_EMBEDDINGS_PATH:v1/embeddings}
+              base-url: ${EVAL_TEXT_LLM_BASE_URL:${LLM_BASE_URL_deepseek:https://api.deepseek.com}}
+              api-key: ${EVAL_TEXT_LLM_API_KEY:${LLM_API_KEY_deepseek:}}
+              completions-path: ${EVAL_TEXT_LLM_COMPLETIONS_PATH:${LLM_COMPLETIONS_PATH_deepseek:v1/chat/completions}}
+              embeddings-path: ${EVAL_TEXT_LLM_EMBEDDINGS_PATH:v1/embeddings}
             chat-model:
-              model: ${ZIPP_EVAL_JUDGE_MODEL_VERSION:${LLM_MODEL:gpt-5.5}}
+              model: ${ZIPP_EVAL_JUDGE_MODEL_VERSION:${EVAL_TEXT_LLM_MODEL:${LLM_MODEL_deepseek:deepseek-chat}}}
               temperature: ${ZIPP_EVAL_JUDGE_TEMPERATURE:0}
             agents:
               - name: agent_eval_judge
@@ -241,12 +241,13 @@ ai:
             agent-desc: "[internal] Detects potential semantic anomalies in sanitized Agent traces."
           module:
             ai-api:
-              base-url: ${LLM_BASE_URL:https://api.openai.com}
-              api-key: ${LLM_API_KEY:}
-              completions-path: ${LLM_COMPLETIONS_PATH:v1/chat/completions}
-              embeddings-path: ${LLM_EMBEDDINGS_PATH:v1/embeddings}
+              base-url: ${EVAL_TEXT_LLM_BASE_URL:${LLM_BASE_URL_deepseek:https://api.deepseek.com}}
+              api-key: ${EVAL_TEXT_LLM_API_KEY:${LLM_API_KEY_deepseek:}}
+              completions-path: ${EVAL_TEXT_LLM_COMPLETIONS_PATH:${LLM_COMPLETIONS_PATH_deepseek:v1/chat/completions}}
+              embeddings-path: ${EVAL_TEXT_LLM_EMBEDDINGS_PATH:v1/embeddings}
             chat-model:
-              model: ${ZIPP_EVAL_SEMANTIC_MINER_MODEL_VERSION:${LLM_MODEL:gpt-5.5}}
+              model: ${ZIPP_EVAL_SEMANTIC_MINER_MODEL_VERSION:${EVAL_TEXT_LLM_MODEL:${LLM_MODEL_deepseek:deepseek-chat}}}
+              temperature: ${ZIPP_EVAL_SEMANTIC_MINER_TEMPERATURE:0}
             agents:
               - name: agent_semantic_miner
                 description: Screens one sanitized Trace projection for a potential semantic Agent anomaly.

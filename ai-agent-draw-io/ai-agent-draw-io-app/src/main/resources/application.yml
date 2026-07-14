@@ -76,6 +76,8 @@ zipp:
     cleanup-cron: "${ZIPP_TELEMETRY_CLEANUP_CRON:0 30 3 * * *}"
     delete-batch-size: ${ZIPP_TELEMETRY_DELETE_BATCH_SIZE:500}
   evaluation:
+    # Bump this non-secret identifier whenever the text provider or endpoint contract changes.
+    text-provider-version: ${EVAL_TEXT_LLM_PROVIDER_VERSION:unconfigured}
     # Run metadata-only candidate discovery on one scheduler instance; no debug payload or LLM access.
     candidate-selector-enabled: ${ZIPP_EVAL_CANDIDATE_SELECTOR_ENABLED:false}
     candidate-selector-delay-ms: ${ZIPP_EVAL_CANDIDATE_SELECTOR_DELAY_MS:300000}
@@ -99,6 +101,7 @@ zipp:
     semantic-miner-calibration-approved: ${ZIPP_EVAL_SEMANTIC_MINER_CALIBRATION_APPROVED:false}
     semantic-miner-agent-id: ${ZIPP_EVAL_SEMANTIC_MINER_AGENT_ID:300015}
     semantic-miner-model-version: ${ZIPP_EVAL_SEMANTIC_MINER_MODEL_VERSION:unconfigured}
+    semantic-miner-temperature: ${ZIPP_EVAL_SEMANTIC_MINER_TEMPERATURE:0}
     semantic-miner-prompt-version: ${ZIPP_EVAL_SEMANTIC_MINER_PROMPT_VERSION:semantic-miner-prompt-v1}
     semantic-miner-schema-version: ${ZIPP_EVAL_SEMANTIC_MINER_SCHEMA_VERSION:semantic-miner-schema-v1}
     semantic-miner-calibrated-version: ${ZIPP_EVAL_SEMANTIC_MINER_CALIBRATED_VERSION:unconfigured}

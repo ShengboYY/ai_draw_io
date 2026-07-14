@@ -23,7 +23,7 @@ public class SemanticMinerAgentConfigurationTest {
             assertFalse("Semantic Miner agent table must be registered", table.isMissingNode());
             assertEquals("${ZIPP_EVAL_SEMANTIC_MINER_AGENT_ID:300015}",
                     table.at("/agent/agent-id").asText());
-            assertEquals("${ZIPP_EVAL_SEMANTIC_MINER_MODEL_VERSION:${LLM_MODEL:gpt-5.5}}",
+            assertEquals("${ZIPP_EVAL_SEMANTIC_MINER_MODEL_VERSION:${EVAL_TEXT_LLM_MODEL:${LLM_MODEL_deepseek:deepseek-chat}}}",
                     table.at("/module/chat-model/model").asText());
             assertEquals("agent_semantic_miner", table.at("/module/agents/0/name").asText());
             assertEquals("agent_semantic_miner", table.at("/module/runner/agent-name").asText());

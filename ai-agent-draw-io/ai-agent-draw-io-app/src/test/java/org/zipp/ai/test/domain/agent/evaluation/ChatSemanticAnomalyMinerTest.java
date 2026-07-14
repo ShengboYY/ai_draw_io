@@ -20,13 +20,14 @@ public class ChatSemanticAnomalyMinerTest {
         RecordingChat chat = new RecordingChat("{\"isPotentialAnomaly\":true,\"confidence\":0.91,"
                 + "\"failureFamily\":\"FALSE_SUCCESS\",\"evidence\":[\"assistant reported loading failure\"],"
                 + "\"suggestedRisk\":\"high\",\"requiresHumanReview\":true}");
-        ChatSemanticAnomalyMiner miner = new ChatSemanticAnomalyMiner(chat, "semantic-agent", "model-v1", "prompt-v1", "schema-v1");
+        ChatSemanticAnomalyMiner miner = miner(chat);
 
         ISemanticAnomalyMiner.Finding finding = miner.analyze("{\"run\":{\"status\":\"SUCCESS\"}}");
 
         assertTrue(finding.isPotentialAnomaly());
         assertEquals("FALSE_SUCCESS", finding.failureFamily());
-        assertTrue(miner.version().contains("model-v1"));
+        assertEquals("provider=deepseek-api-v1;model=model-v1;temperature=0.0;prompt=prompt-v1;schema=schema-v1",
+                miner.version());
         assertTrue(chat.prompt.contains("sanitized_trace_projection"));
     }
 
@@ -44,7 +45,8 @@ public class ChatSemanticAnomalyMinerTest {
     }
 
     private ChatSemanticAnomalyMiner miner(RecordingChat chat) {
-        return new ChatSemanticAnomalyMiner(chat, "semantic-agent", "model-v1", "prompt-v1", "schema-v1");
+        return new ChatSemanticAnomalyMiner(chat, "deepseek-api-v1", "semantic-agent", "model-v1", 0D,
+                "prompt-v1", "schema-v1");
     }
 
     private static final class RecordingChat implements IChatService {

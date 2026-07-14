@@ -21,8 +21,9 @@ public class EvaluationModelAgentsConfigurationTest {
         JsonNode table = table("drawIoEvalDraftAgent");
 
         assertAgent(table, "${ZIPP_EVAL_DRAFT_AGENT_ID:300013}",
-                "${ZIPP_EVAL_DRAFT_MODEL_VERSION:${LLM_MODEL:gpt-5.5}}",
+                "${ZIPP_EVAL_DRAFT_MODEL_VERSION:${EVAL_TEXT_LLM_MODEL:${LLM_MODEL_deepseek:deepseek-chat}}}",
                 "${ZIPP_EVAL_DRAFT_TEMPERATURE:0}", "agent_eval_draft");
+        assertDeepSeekTextProvider(table);
         String instruction = instruction(table);
         assertContains(instruction, "failure_summary", "suspected_failure_family", "suggested_case",
                 "user_turns", "initial_fixture_hint", "expected_route", "suggested_assertions",
@@ -37,8 +38,9 @@ public class EvaluationModelAgentsConfigurationTest {
         JsonNode table = table("drawIoEvalJudgeAgent");
 
         assertAgent(table, "${ZIPP_EVAL_JUDGE_AGENT_ID:300014}",
-                "${ZIPP_EVAL_JUDGE_MODEL_VERSION:${LLM_MODEL:gpt-5.5}}",
+                "${ZIPP_EVAL_JUDGE_MODEL_VERSION:${EVAL_TEXT_LLM_MODEL:${LLM_MODEL_deepseek:deepseek-chat}}}",
                 "${ZIPP_EVAL_JUDGE_TEMPERATURE:0}", "agent_eval_judge");
+        assertDeepSeekTextProvider(table);
         String instruction = instruction(table);
         assertContains(instruction, "task_fulfilled", "helpfulness_score", "unexpected_side_effect",
                 "severity", "evidence", "recommended_human_review", "severity must be none",
@@ -80,10 +82,22 @@ public class EvaluationModelAgentsConfigurationTest {
     }
 
     @Test
+    public void shouldKeepSemanticMinerOnDedicatedDeepSeekTextProvider() throws Exception {
+        JsonNode table = table("drawIoSemanticMinerAgent");
+
+        assertEquals("${ZIPP_EVAL_SEMANTIC_MINER_MODEL_VERSION:${EVAL_TEXT_LLM_MODEL:${LLM_MODEL_deepseek:deepseek-chat}}}",
+                table.at("/module/chat-model/model").asText());
+        assertEquals("${ZIPP_EVAL_SEMANTIC_MINER_TEMPERATURE:0}",
+                table.at("/module/chat-model/temperature").asText());
+        assertDeepSeekTextProvider(table);
+    }
+
+    @Test
     public void shouldExposeFailClosedRuntimeConfigurationForEvaluationAgents() throws Exception {
         JsonNode evaluation = resource("application.yml").at("/zipp/evaluation");
 
         assertEquals("${ZIPP_EVAL_DRAFT_AGENT_ID:300013}", evaluation.path("draft-agent-id").asText());
+        assertEquals("${EVAL_TEXT_LLM_PROVIDER_VERSION:unconfigured}", evaluation.path("text-provider-version").asText());
         assertEquals("${ZIPP_EVAL_DRAFT_MODEL_VERSION:unconfigured}", evaluation.path("draft-model-version").asText());
         assertEquals("${ZIPP_EVAL_DRAFT_TEMPERATURE:0}", evaluation.path("draft-temperature").asText());
         assertEquals("${ZIPP_EVAL_LIVE_ENABLED:false}", evaluation.path("live-enabled").asText());
@@ -92,6 +106,7 @@ public class EvaluationModelAgentsConfigurationTest {
         assertEquals("${ZIPP_EVAL_JUDGE_TEMPERATURE:0}", evaluation.path("judge-temperature").asText());
         assertEquals("${ZIPP_EVAL_JUDGE_CALIBRATION_APPROVED:false}", evaluation.path("judge-calibration-approved").asText());
         assertEquals("${ZIPP_EVAL_JUDGE_CALIBRATED_VERSION:unconfigured}", evaluation.path("judge-calibrated-version").asText());
+        assertEquals("${ZIPP_EVAL_SEMANTIC_MINER_TEMPERATURE:0}", evaluation.path("semantic-miner-temperature").asText());
         assertEquals("${ZIPP_EVAL_VISUAL_JUDGE_AGENT_ID:300016}", evaluation.path("visual-judge-agent-id").asText());
         assertEquals("${ZIPP_EVAL_VISUAL_JUDGE_MODEL_VERSION:unconfigured}", evaluation.path("visual-judge-model-version").asText());
         assertEquals("${ZIPP_EVAL_VISUAL_JUDGE_TEMPERATURE:0}", evaluation.path("visual-judge-temperature").asText());
@@ -125,6 +140,15 @@ public class EvaluationModelAgentsConfigurationTest {
         assertEquals(agentName, table.at("/module/runner/agent-name").asText());
         // Evaluation model agents must never inherit production canvas or search tools.
         assertTrue(table.at("/module/chat-model/tool-mcp-list").isMissingNode());
+    }
+
+    private void assertDeepSeekTextProvider(JsonNode table) {
+        assertEquals("${EVAL_TEXT_LLM_BASE_URL:${LLM_BASE_URL_deepseek:https://api.deepseek.com}}",
+                table.at("/module/ai-api/base-url").asText());
+        assertEquals("${EVAL_TEXT_LLM_API_KEY:${LLM_API_KEY_deepseek:}}",
+                table.at("/module/ai-api/api-key").asText());
+        assertEquals("${EVAL_TEXT_LLM_COMPLETIONS_PATH:${LLM_COMPLETIONS_PATH_deepseek:v1/chat/completions}}",
+                table.at("/module/ai-api/completions-path").asText());
     }
 
     private String instruction(JsonNode table) {

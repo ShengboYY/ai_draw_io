@@ -9,9 +9,9 @@ import static org.junit.Assert.assertEquals;
 public class EvaluationAdapterVersionTest {
 
     @Test
-    public void draftVersionIncludesAgentModelAndTemperature() {
-        ChatEvalDraftModel model = new ChatEvalDraftModel(null, "300013", "gpt-5.5", 0D);
+    public void draftVersionIncludesProviderAgentModelAndTemperature() {
+        ChatEvalDraftModel model = new ChatEvalDraftModel(null, "deepseek-api-v1", "300013", "deepseek-chat", 0D);
 
-        assertEquals("chat-agent:300013:model=gpt-5.5:temperature=0.0", model.version());
+        assertEquals("provider=deepseek-api-v1:chat-agent=300013:model=deepseek-chat:temperature=0.0", model.version());
     }
 }

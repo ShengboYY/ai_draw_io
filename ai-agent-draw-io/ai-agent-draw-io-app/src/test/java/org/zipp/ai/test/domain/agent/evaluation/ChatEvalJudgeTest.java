@@ -24,7 +24,7 @@ public class ChatEvalJudgeTest {
         RecordingChat chat = new RecordingChat("{\"task_fulfilled\":true,\"helpfulness_score\":4,"
                 + "\"unexpected_side_effect\":false,\"severity\":\"none\",\"evidence\":[\"Gateway is connected\"],"
                 + "\"recommended_human_review\":false}");
-        ChatEvalJudge judge = new ChatEvalJudge(chat, "judge-agent", "judge-model-v1", 0D);
+        ChatEvalJudge judge = judge(chat, "judge-model-v1");
         DrawioGraphNormalizer.Graph graph = new DrawioGraphNormalizer.Graph(
                 Set.of("gateway"), Set.of(), Map.of("gateway", 1));
 
@@ -36,6 +36,7 @@ public class ChatEvalJudgeTest {
         assertEquals(4D, result.getScore(), 0.001D);
         assertEquals(judge.version(input), result.getJudgeVersion());
         assertTrue(result.getJudgeVersion().contains("judge-model=judge-model-v1"));
+        assertTrue(result.getJudgeVersion().contains("provider=deepseek-api-v1"));
         assertTrue(chat.prompt.contains("final_graph"));
         assertTrue(chat.prompt.contains("deterministic_issues"));
         assertFalse(chat.prompt.contains("<mxGraphModel"));
@@ -45,7 +46,7 @@ public class ChatEvalJudgeTest {
     public void invalidOrMarkdownWrappedOutputMustBeUnavailable() {
         RecordingChat chat = new RecordingChat("```json\n{\"task_fulfilled\":true}\n```");
 
-        EvalJudgeResult result = new ChatEvalJudge(chat, "judge-agent", "judge-model-v1", 0D).judge(
+        EvalJudgeResult result = judge(chat, "judge-model-v1").judge(
                 input("none", new DrawioGraphNormalizer.Graph(Set.of(), Set.of(), Map.of())));
 
         assertFalse(result.isAvailable());
@@ -56,7 +57,7 @@ public class ChatEvalJudgeTest {
     public void textOnlyJudgeMustRejectEveryDiagramCaseWithoutCallingTheModel() {
         RecordingChat chat = new RecordingChat("unused");
 
-        EvalJudgeResult result = new ChatEvalJudge(chat, "judge-agent", "judge-model-v1", 0D).judge(
+        EvalJudgeResult result = judge(chat, "judge-model-v1").judge(
                 input("architecture", new DrawioGraphNormalizer.Graph(Set.of("gateway"), Set.of(), Map.of())));
 
         assertFalse(result.isAvailable());
@@ -68,7 +69,7 @@ public class ChatEvalJudgeTest {
     public void unconfiguredJudgeModelVersionMustFailClosed() {
         RecordingChat chat = new RecordingChat("unused");
 
-        EvalJudgeResult result = new ChatEvalJudge(chat, "judge-agent", "unconfigured", 0D).judge(
+        EvalJudgeResult result = judge(chat, "unconfigured").judge(
                 input("none", new DrawioGraphNormalizer.Graph(Set.of(), Set.of(), Map.of())));
 
         assertFalse(result.isAvailable());
@@ -80,6 +81,10 @@ public class ChatEvalJudgeTest {
         return new IEvalJudge.JudgeInput("case-1", diagramType, "Add a gateway", graph, graph, "Done",
                 List.of("no deterministic issues"), List.of("modify_diagram:SUCCESS"),
                 new IEvalJudge.EvaluatedAgentVersion("candidate-model-v1", 0D, "projection-v1", "architecture-rubric-v1"));
+    }
+
+    private ChatEvalJudge judge(IChatService chat, String modelVersion) {
+        return new ChatEvalJudge(chat, "deepseek-api-v1", "judge-agent", modelVersion, 0D);
     }
 
     private static final class RecordingChat implements IChatService {
