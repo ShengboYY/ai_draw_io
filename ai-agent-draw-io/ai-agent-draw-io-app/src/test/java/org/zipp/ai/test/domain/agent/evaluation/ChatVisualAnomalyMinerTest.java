@@ -22,7 +22,8 @@ public class ChatVisualAnomalyMinerTest {
             if (method.getName().equals("handleMessage") && args.length == 1) { captured[0] = (ChatCommandEntity) args[0]; return List.of("{\"potentialIssue\":true,\"confidence\":0.9,\"issueFamily\":\"READABILITY\",\"evidence\":[\"TEXT_TOO_SMALL\"],\"suggestedRisk\":\"high\",\"syntheticReconstructionSuggestion\":\"SYNTHETIC_SMALL_LABEL_FLOW\",\"requiresHumanReview\":true}"); }
             return null;
         });
-        ChatVisualAnomalyMiner miner = new ChatVisualAnomalyMiner(chat, "miner", "vlm-1");
+        ChatVisualAnomalyMiner miner = new ChatVisualAnomalyMiner(chat, "miner", "vlm-1", 0D);
+        assertTrue(miner.version().contains("temperature=0.0"));
         IVisualAnomalyMiner.Finding finding = miner.analyze(input());
         assertTrue(finding.potentialIssue()); assertArrayEquals("pixels".getBytes(StandardCharsets.UTF_8), captured[0].getInlineDatas().get(0).getBytes());
     }
@@ -31,7 +32,7 @@ public class ChatVisualAnomalyMinerTest {
     public void rejectsFreeTextThatCouldCopyProductionLabels() {
         IChatService chat = proxy((method, args) -> method.getName().equals("createSession") ? "session"
                 : method.getName().equals("handleMessage") ? List.of("{\"potentialIssue\":true,\"confidence\":0.9,\"issueFamily\":\"READABILITY\",\"evidence\":[\"Customer-42 label is tiny\"],\"suggestedRisk\":\"high\",\"syntheticReconstructionSuggestion\":\"SYNTHETIC_SMALL_LABEL_FLOW\",\"requiresHumanReview\":true}") : null);
-        assertThrows(IllegalArgumentException.class, () -> new ChatVisualAnomalyMiner(chat, "miner", "vlm-1").analyze(input()));
+        assertThrows(IllegalArgumentException.class, () -> new ChatVisualAnomalyMiner(chat, "miner", "vlm-1", 0D).analyze(input()));
     }
 
     private IVisualAnomalyMiner.Input input() { return new IVisualAnomalyMiner.Input(new IDiagramImageRenderer.RenderedDiagram("pixels".getBytes(StandardCharsets.UTF_8), "image/png", "fixture", 10, 10), List.of(), "flowchart"); }

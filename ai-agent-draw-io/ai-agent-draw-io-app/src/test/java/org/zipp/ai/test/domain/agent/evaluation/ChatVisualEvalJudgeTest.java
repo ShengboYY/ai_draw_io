@@ -27,7 +27,8 @@ public class ChatVisualEvalJudgeTest {
             }
             return defaultValue(method.getReturnType());
         });
-        ChatVisualEvalJudge judge = new ChatVisualEvalJudge(chat, "visual-agent", "vlm-1");
+        ChatVisualEvalJudge judge = new ChatVisualEvalJudge(chat, "visual-agent", "vlm-1", 0D);
+        assertTrue(judge.version().contains("temperature=0.0"));
         IDiagramImageRenderer.RenderedDiagram before = image("before-pixels");
         IDiagramImageRenderer.RenderedDiagram after = image("after-pixels");
 
@@ -45,7 +46,7 @@ public class ChatVisualEvalJudgeTest {
     public void textOnlyOrUnconfiguredProviderCannotProduceVisualScore() {
         int[] calls = new int[1];
         IChatService chat = proxy(IChatService.class, (method, args) -> { calls[0]++; return defaultValue(method.getReturnType()); });
-        ChatVisualEvalJudge judge = new ChatVisualEvalJudge(chat, "visual-agent", "unconfigured");
+        ChatVisualEvalJudge judge = new ChatVisualEvalJudge(chat, "visual-agent", "unconfigured", 0D);
         EvalJudgeResult result = judge.judge(new IVisualEvalJudge.VisualJudgeInput("case-1", "flowchart", "task",
                 image("before"), image("after"), List.of(), null));
         assertFalse(result.isAvailable());

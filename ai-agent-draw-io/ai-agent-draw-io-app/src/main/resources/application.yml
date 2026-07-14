@@ -82,7 +82,18 @@ zipp:
     # Enable on one scheduler instance after Eval Run persistence is configured.
     case-health-job-enabled: ${ZIPP_EVAL_CASE_HEALTH_JOB_ENABLED:false}
     case-health-job-cron: "${ZIPP_EVAL_CASE_HEALTH_JOB_CRON:0 30 2 * * *}"
+    # Live execution and every model-backed Judge remain unavailable until explicitly configured.
+    live-enabled: ${ZIPP_EVAL_LIVE_ENABLED:false}
+    live-timeout-ms: ${ZIPP_EVAL_LIVE_TIMEOUT_MS:120000}
     draft-agent-id: ${ZIPP_EVAL_DRAFT_AGENT_ID:300013}
+    draft-model-version: ${ZIPP_EVAL_DRAFT_MODEL_VERSION:unconfigured}
+    draft-temperature: ${ZIPP_EVAL_DRAFT_TEMPERATURE:0}
+    judge-agent-id: ${ZIPP_EVAL_JUDGE_AGENT_ID:300014}
+    judge-model-version: ${ZIPP_EVAL_JUDGE_MODEL_VERSION:unconfigured}
+    judge-temperature: ${ZIPP_EVAL_JUDGE_TEMPERATURE:0}
+    judge-calibration-approved: ${ZIPP_EVAL_JUDGE_CALIBRATION_APPROVED:false}
+    judge-calibration-version: ${ZIPP_EVAL_JUDGE_CALIBRATION_VERSION:unconfigured}
+    judge-calibrated-version: ${ZIPP_EVAL_JUDGE_CALIBRATED_VERSION:unconfigured}
     # Semantic discovery stays fail-closed until its exact model/prompt/schema version is calibrated.
     semantic-miner-enabled: ${ZIPP_EVAL_SEMANTIC_MINER_ENABLED:false}
     semantic-miner-calibration-approved: ${ZIPP_EVAL_SEMANTIC_MINER_CALIBRATION_APPROVED:false}
@@ -95,6 +106,23 @@ zipp:
     semantic-miner-estimated-cost-per-analysis-usd: ${ZIPP_EVAL_SEMANTIC_MINER_COST_PER_ANALYSIS_USD:0}
     semantic-miner-timeout-ms: ${ZIPP_EVAL_SEMANTIC_MINER_TIMEOUT_MS:30000}
     semantic-miner-call-threads: ${ZIPP_EVAL_SEMANTIC_MINER_CALL_THREADS:2}
+    # Visual discovery and scoring use separate multimodal Agents and independent calibration records.
+    visual-judge-agent-id: ${ZIPP_EVAL_VISUAL_JUDGE_AGENT_ID:300016}
+    visual-judge-model-version: ${ZIPP_EVAL_VISUAL_JUDGE_MODEL_VERSION:unconfigured}
+    visual-judge-temperature: ${ZIPP_EVAL_VISUAL_JUDGE_TEMPERATURE:0}
+    visual-judge-calibration-approved: ${ZIPP_EVAL_VISUAL_JUDGE_CALIBRATION_APPROVED:false}
+    visual-judge-calibration-version: ${ZIPP_EVAL_VISUAL_JUDGE_CALIBRATION_VERSION:unconfigured}
+    visual-judge-calibrated-version: ${ZIPP_EVAL_VISUAL_JUDGE_CALIBRATED_VERSION:unconfigured}
+    visual-miner-agent-id: ${ZIPP_EVAL_VISUAL_MINER_AGENT_ID:300017}
+    visual-miner-enabled: ${ZIPP_EVAL_VISUAL_MINER_ENABLED:false}
+    visual-miner-model-version: ${ZIPP_EVAL_VISUAL_MINER_MODEL_VERSION:unconfigured}
+    visual-miner-temperature: ${ZIPP_EVAL_VISUAL_MINER_TEMPERATURE:0}
+    visual-miner-calibration-approved: ${ZIPP_EVAL_VISUAL_MINER_CALIBRATION_APPROVED:false}
+    visual-miner-calibrated-version: ${ZIPP_EVAL_VISUAL_MINER_CALIBRATED_VERSION:unconfigured}
+    visual-miner-max-image-bytes: ${ZIPP_EVAL_VISUAL_MINER_MAX_IMAGE_BYTES:2000000}
+    visual-miner-estimated-cost-per-analysis-usd: ${ZIPP_EVAL_VISUAL_MINER_COST_PER_ANALYSIS_USD:0}
+    visual-miner-timeout-ms: ${ZIPP_EVAL_VISUAL_MINER_TIMEOUT_MS:30000}
+    visual-miner-call-threads: ${ZIPP_EVAL_VISUAL_MINER_CALL_THREADS:1}
     live-agent-id: ${ZIPP_EVAL_LIVE_AGENT_ID:300000}
     # Release-only dataset must be mounted outside the product repository.
     sequestered-root: ${ZIPP_EVAL_SEQUESTERED_ROOT:}

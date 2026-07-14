@@ -119,7 +119,14 @@ public class VisualAnomalyDiscoveryService {
         return values.stream().map(value -> StringUtils.left(value, 300)).limit(8).toList();
     }
 
-    private String readinessFailure() { if (!enabled) return "visual_miner_disabled"; if (!calibrationApproved) return "visual_calibration_not_approved"; if (StringUtils.isBlank(calibratedVersion) || !calibratedVersion.equals(miner.version())) return "visual_calibrated_version_mismatch"; return null; }
+    private String readinessFailure() {
+        if (!enabled) return "visual_miner_disabled";
+        if (!calibrationApproved) return "visual_calibration_not_approved";
+        // A matching tuple is insufficient when it still names the fail-closed placeholder model.
+        if (StringUtils.containsIgnoreCase(miner.version(), "model=unconfigured")) return "visual_model_version_unconfigured";
+        if (StringUtils.isBlank(calibratedVersion) || !calibratedVersion.equals(miner.version())) return "visual_calibrated_version_mismatch";
+        return null;
+    }
     private String normalizedRisk(String value) { String risk = StringUtils.lowerCase(StringUtils.trimToEmpty(value)); return List.of("critical", "high", "medium", "low").contains(risk) ? risk : "medium"; }
     public record Result(String status, String reason, String candidateId, double confidence, double estimatedCostUsd) { }
 }

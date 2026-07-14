@@ -58,6 +58,22 @@ public class VisualAnomalyDiscoveryServiceTest {
         assertEquals(0, productionReads[0]);
     }
 
+    @Test
+    public void unconfiguredMinerModelFailsClosedBeforeProductionCanvasAccess() {
+        int[] productionReads = new int[1];
+        IAgentUsageTelemetryStore telemetry = proxy(IAgentUsageTelemetryStore.class, (method, args) -> { productionReads[0]++; return defaultValue(method.getReturnType()); });
+        ICanvasStateStore canvases = proxy(ICanvasStateStore.class, (method, args) -> { productionReads[0]++; return defaultValue(method.getReturnType()); });
+        IVisualAnomalyMiner miner = new IVisualAnomalyMiner() { @Override public Finding analyze(Input input) { return null; } @Override public String version() { return "model=unconfigured;prompt=visual-v1;schema=visual-v1"; } };
+        VisualAnomalyDiscoveryService service = new VisualAnomalyDiscoveryService(telemetry, canvases, proxy(ITraceToEvalStore.class, (method, args) -> defaultValue(method.getReturnType())),
+                xml -> null, miner, true, true, miner.version(), 1000, Clock.systemUTC());
+
+        VisualAnomalyDiscoveryService.Result result = service.analyzeRun("run-source", "admin-1", true);
+
+        assertEquals("UNAVAILABLE", result.status());
+        assertEquals("visual_model_version_unconfigured", result.reason());
+        assertEquals(0, productionReads[0]);
+    }
+
     private static Object defaultValue(Class<?> type) { if (!type.isPrimitive()) return null; if (type == boolean.class) return false; if (type == int.class) return 0; if (type == long.class) return 0L; return 0D; }
     @SuppressWarnings("unchecked") private static <T> T proxy(Class<T> type, Invocation invocation) { return (T) Proxy.newProxyInstance(type.getClassLoader(), new Class<?>[]{type}, (value, method, args) -> invocation.call(method, args == null ? new Object[0] : args)); }
     private interface Invocation { Object call(java.lang.reflect.Method method, Object[] args); }

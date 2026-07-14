@@ -74,14 +74,21 @@ public class ChatModelNode extends AbstractArmorySupport {
         // 构建对话模型
         ChatModel chatModel = OpenAiChatModel.builder()
                 .openAiApi(openAiApi)
-                .defaultOptions(OpenAiChatOptions.builder()
-                        .model(chatModelConfig.getModel())
-                        .build())
+                .defaultOptions(defaultOptions(chatModelConfig))
                 .build();
 
         dynamicContext.setChatModel(chatModel);
 
         return router(requestParameter, dynamicContext);
+    }
+
+    static OpenAiChatOptions defaultOptions(AiAgentConfigTableVO.Module.ChatModel config) {
+        OpenAiChatOptions.Builder builder = OpenAiChatOptions.builder().model(config.getModel());
+        // Only an explicit YAML value overrides the provider default.
+        if (config.getTemperature() != null) {
+            builder.temperature(config.getTemperature());
+        }
+        return builder.build();
     }
 
     @Override

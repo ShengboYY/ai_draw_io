@@ -73,6 +73,9 @@ public class AiAgentConfigTableVO {
 
             private String model;
 
+            // Optional so existing production agents retain their provider sampling default.
+            private Double temperature;
+
             private List<ToolMcp> toolMcpList;
 
             private List<ToolSkills> toolSkillsList;

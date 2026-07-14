@@ -30,12 +30,14 @@ public class ChatVisualAnomalyMiner implements IVisualAnomalyMiner {
     private final IChatService chat;
     private final String agentId;
     private final String modelVersion;
+    private final double temperature;
     private final ObjectMapper mapper = new ObjectMapper();
 
     public ChatVisualAnomalyMiner(IChatService chat,
             @Value("${zipp.evaluation.visual-miner-agent-id:300017}") String agentId,
-            @Value("${zipp.evaluation.visual-miner-model-version:unconfigured}") String modelVersion) {
-        this.chat = chat; this.agentId = agentId; this.modelVersion = modelVersion;
+            @Value("${zipp.evaluation.visual-miner-model-version:unconfigured}") String modelVersion,
+            @Value("${zipp.evaluation.visual-miner-temperature:0}") double temperature) {
+        this.chat = chat; this.agentId = agentId; this.modelVersion = modelVersion; this.temperature = temperature;
     }
 
     @Override public Finding analyze(Input input) {
@@ -55,7 +57,7 @@ public class ChatVisualAnomalyMiner implements IVisualAnomalyMiner {
         return parse(replies.get(replies.size() - 1));
     }
 
-    @Override public String version() { return "model=" + modelVersion + ";prompt=" + PROMPT + ";schema=" + SCHEMA; }
+    @Override public String version() { return "model=" + modelVersion + ";temperature=" + temperature + ";prompt=" + PROMPT + ";schema=" + SCHEMA; }
 
     private Finding parse(String output) {
         try {

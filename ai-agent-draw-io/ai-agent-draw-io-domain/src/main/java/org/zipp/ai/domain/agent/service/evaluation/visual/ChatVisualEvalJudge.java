@@ -25,12 +25,14 @@ public class ChatVisualEvalJudge implements IVisualEvalJudge {
     private final IChatService chat;
     private final String agentId;
     private final String modelVersion;
+    private final double temperature;
     private final ObjectMapper mapper = new ObjectMapper();
 
     public ChatVisualEvalJudge(IChatService chat,
             @Value("${zipp.evaluation.visual-judge-agent-id:300016}") String agentId,
-            @Value("${zipp.evaluation.visual-judge-model-version:unconfigured}") String modelVersion) {
-        this.chat = chat; this.agentId = agentId; this.modelVersion = modelVersion;
+            @Value("${zipp.evaluation.visual-judge-model-version:unconfigured}") String modelVersion,
+            @Value("${zipp.evaluation.visual-judge-temperature:0}") double temperature) {
+        this.chat = chat; this.agentId = agentId; this.modelVersion = modelVersion; this.temperature = temperature;
     }
 
     @Override public EvalJudgeResult judge(VisualJudgeInput input) {
@@ -49,7 +51,8 @@ public class ChatVisualEvalJudge implements IVisualEvalJudge {
     }
 
     @Override public String version() {
-        return "visual-agent:" + agentId + ":model=" + modelVersion + ":" + PROMPT_VERSION + ":" + RUBRIC_VERSION + ":" + SCHEMA_VERSION;
+        return "visual-agent:" + agentId + ":model=" + modelVersion + ":temperature=" + temperature
+                + ":" + PROMPT_VERSION + ":" + RUBRIC_VERSION + ":" + SCHEMA_VERSION;
     }
 
     private String prompt(VisualJudgeInput input) {

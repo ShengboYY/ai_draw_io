@@ -11,11 +11,17 @@ import java.util.List;
 public class ChatEvalDraftModel implements IEvalDraftModel {
     private final IChatService chatService;
     private final String agentId;
+    private final String modelVersion;
+    private final double temperature;
 
     public ChatEvalDraftModel(IChatService chatService,
-                              @Value("${zipp.evaluation.draft-agent-id:300013}") String agentId) {
+                              @Value("${zipp.evaluation.draft-agent-id:300013}") String agentId,
+                              @Value("${zipp.evaluation.draft-model-version:unconfigured}") String modelVersion,
+                              @Value("${zipp.evaluation.draft-temperature:0}") double temperature) {
         this.chatService = chatService;
         this.agentId = agentId;
+        this.modelVersion = modelVersion;
+        this.temperature = temperature;
     }
 
     @Override
@@ -28,6 +34,6 @@ public class ChatEvalDraftModel implements IEvalDraftModel {
 
     @Override
     public String version() {
-        return "chat-agent:" + agentId;
+        return "chat-agent:" + agentId + ":model=" + modelVersion + ":temperature=" + temperature;
     }
 }
