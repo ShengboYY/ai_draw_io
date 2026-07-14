@@ -243,6 +243,8 @@ public class AccountDeletionServiceTest {
         @Override public org.zipp.ai.domain.agent.model.valobj.usage.AdminUsageSummary summarizeGlobal() { return org.zipp.ai.domain.agent.model.valobj.usage.AdminUsageSummary.empty(); }
         @Override public List<org.zipp.ai.domain.agent.model.valobj.usage.UsageDimensionSummary> summarizeByProviderModelCredentialSource() { return List.of(); }
         @Override public Optional<org.zipp.ai.domain.agent.model.valobj.usage.AgentRunDetail> findRunDetail(String runId) { return Optional.empty(); }
+        @Override public List<org.zipp.ai.domain.agent.model.valobj.usage.AgentRunTelemetry> listTerminalRunsBetween(
+                Instant completedFrom, Instant completedTo, int limit) { return List.of(); }
         @Override public int anonymizeUser(String userId, String anonymizedUserId) {
             this.originalUserId = userId;
             this.anonymizedUserId = anonymizedUserId;

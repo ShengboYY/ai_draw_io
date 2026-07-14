@@ -146,7 +146,18 @@ public class AgentUsageTelemetryRepository implements IAgentUsageTelemetryStore 
         if (snapshot == null) {
             return List.of();
         }
-        return agentUsageTelemetryMapper.selectTerminalRunsAtOrBefore(toDate(snapshot), limit).stream()
+        return agentUsageTelemetryMapper.selectTerminalRunsBetween(null, toDate(snapshot), limit).stream()
+                .map(this::toDomain)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public List<AgentRunTelemetry> listTerminalRunsBetween(Instant completedFrom, Instant completedTo, int limit) {
+        if (completedTo == null) {
+            return List.of();
+        }
+        return agentUsageTelemetryMapper.selectTerminalRunsBetween(
+                        completedFrom == null ? null : toDate(completedFrom), toDate(completedTo), limit).stream()
                 .map(this::toDomain)
                 .collect(Collectors.toList());
     }

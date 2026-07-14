@@ -63,6 +63,9 @@ public interface IAgentUsageTelemetryStore {
                 .toList();
     }
 
+    /** Returns terminal runs in a completion-time window, newest first. */
+    List<AgentRunTelemetry> listTerminalRunsBetween(Instant completedFrom, Instant completedTo, int limit);
+
     default int anonymizeUser(String userId, String anonymizedUserId) {
         return 0;
     }

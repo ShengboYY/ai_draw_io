@@ -34,6 +34,13 @@ test('finding inbox supports persistent multi-analyzer discovery followed by hum
   assert.match(page, /setInterval/);
   assert.match(page, /candidateRequestId/);
   assert.match(page, /sampleLimit/);
+  assert.match(page, /<option value="LATEST">Latest<\/option>/);
+  assert.match(page, /Completed from/);
+  assert.match(page, /Completed to/);
+  assert.match(api, /completedFrom/);
+  assert.match(api, /completedTo/);
+  assert.doesNotMatch(page, /<option value="RANDOM">Random<\/option>/);
+  assert.doesNotMatch(page, /<option value="MIXED">Mixed<\/option>/);
   assert.match(page, /TRIAGED: 'DRAFT_RETRY_READY'/);
   assert.match(page, /window\.confirm/);
   assert.match(page, /Pixels are inline, short-lived in memory, audited/);

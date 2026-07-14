@@ -123,6 +123,8 @@ public class ProductionLiveEvalAdapterTest {
         @Override public AgentUsageSummary summarizeForUser(String userId) { return null; }
         @Override public AdminUsageSummary summarizeGlobal() { return null; }
         @Override public List<UsageDimensionSummary> summarizeByProviderModelCredentialSource() { return List.of(); }
+        @Override public List<AgentRunTelemetry> listTerminalRunsBetween(
+                Instant completedFrom, Instant completedTo, int limit) { return List.of(); }
         @Override public Optional<AgentRunDetail> findRunDetail(String runId) {
             return "live-run-1".equals(runId) ? Optional.of(detail) : Optional.empty();
         }

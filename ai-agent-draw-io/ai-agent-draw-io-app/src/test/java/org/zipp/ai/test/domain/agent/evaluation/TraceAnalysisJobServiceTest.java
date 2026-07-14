@@ -96,6 +96,28 @@ public class TraceAnalysisJobServiceTest {
     }
 
     @Test
+    public void batchDefaultsToLatestAndAppliesTheCompletionWindow() {
+        FakeAgentUsageTelemetryStore telemetry = telemetry("run-old", "SUCCESS", 10L);
+        telemetry.runs.add(AgentRunTelemetry.builder().id("run-middle").status("SUCCESS").latencyMs(10L)
+                .startedAt(Instant.parse("2020-01-02T00:00:00Z"))
+                .completedAt(Instant.parse("2020-01-02T00:01:00Z")).build());
+        telemetry.runs.add(AgentRunTelemetry.builder().id("run-newest").status("SUCCESS").latencyMs(10L)
+                .startedAt(Instant.parse("2020-01-03T00:00:00Z"))
+                .completedAt(Instant.parse("2020-01-03T00:01:00Z")).build());
+        TraceAnalysisJobService service = service(new MemoryJobStore(), telemetry, new CandidateStore(),
+                new StubSemantic(), new StubVisual());
+
+        TraceAnalysisJobView result = service.startBatch("DETERMINISTIC", null, 2,
+                Instant.parse("2020-01-02T00:00:00Z"), Instant.parse("2020-01-04T00:00:00Z"),
+                "admin", true, null, null);
+
+        assertEquals(List.of("run-newest", "run-middle"), result.items().stream()
+                .map(TraceAnalysisItem::getSourceRunId).toList());
+        assertTrue(result.job().getSampleDefinitionJson().contains("\"policy\":\"LATEST\""));
+        assertTrue(result.job().getSampleDefinitionJson().contains("2020-01-02T00:00:00Z"));
+    }
+
+    @Test
     public void unavailableAnalyzerDoesNotReportProviderCost() {
         FakeAgentUsageTelemetryStore telemetry = telemetry("run-good", "SUCCESS", 10L);
         MemoryJobStore jobs = new MemoryJobStore();

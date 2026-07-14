@@ -57,7 +57,8 @@ public class TraceAnalysisAdminController {
     public Response<TraceAnalysisJobView> startBatch(@RequestBody StartRequest body, HttpServletRequest request) {
         return execute(request, "START_TRACE_ANALYSIS_BATCH", null, admin -> jobs.startBatch(
                 body == null ? null : body.getAnalyzerType(), body == null ? null : body.getSamplingPolicy(),
-                body == null ? 0 : body.getLimit(), body == null ? null : body.getTraceSnapshotAt(), admin.getId(),
+                body == null ? 0 : body.getLimit(), body == null ? null : body.getCompletedFrom(),
+                body == null ? null : body.effectiveCompletedTo(), admin.getId(),
                 body != null && body.isPurposeConfirmed(), clientIp(request), userAgent(request)));
     }
 
@@ -144,10 +145,15 @@ public class TraceAnalysisAdminController {
 
     @Data public static class StartRequest {
         private String analyzerType = "DETERMINISTIC";
-        private String samplingPolicy = "TARGETED";
+        private String samplingPolicy = "LATEST";
         private int limit = 20;
+        private Instant completedFrom;
+        private Instant completedTo;
+        // Kept as an input alias so older clients can still pin the immutable upper bound.
         private Instant traceSnapshotAt;
         private boolean purposeConfirmed;
+
+        private Instant effectiveCompletedTo() { return completedTo == null ? traceSnapshotAt : completedTo; }
     }
 
     @Data public static class PromoteRequest {

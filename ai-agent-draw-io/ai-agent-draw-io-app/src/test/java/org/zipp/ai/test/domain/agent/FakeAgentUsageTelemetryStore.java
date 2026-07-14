@@ -220,6 +220,19 @@ public class FakeAgentUsageTelemetryStore implements IAgentUsageTelemetryStore {
     }
 
     @Override
+    public List<AgentRunTelemetry> listTerminalRunsBetween(Instant completedFrom, Instant completedTo, int limit) {
+        return runs.stream()
+                .filter(run -> run != null && run.getCompletedAt() != null)
+                .filter(run -> !"RUNNING".equalsIgnoreCase(run.getStatus()))
+                .filter(run -> completedFrom == null || !run.getCompletedAt().isBefore(completedFrom))
+                .filter(run -> completedTo != null && !run.getCompletedAt().isAfter(completedTo))
+                .sorted(Comparator.comparing(AgentRunTelemetry::getCompletedAt).reversed()
+                        .thenComparing(AgentRunTelemetry::getId, Comparator.reverseOrder()))
+                .limit(limit)
+                .toList();
+    }
+
+    @Override
     public int deleteTelemetryBefore(Instant cutoff) {
         deletedBeforeCutoff = cutoff;
         return deletedBeforeCount;

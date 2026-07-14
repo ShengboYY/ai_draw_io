@@ -34,8 +34,10 @@ export default function AdminEvalCandidatesPage() {
   const [analysisJobs, setAnalysisJobs] = useState<TraceAnalysisJobDTO[]>([]);
   const [batchAnalyzer, setBatchAnalyzer] = useState<'DETERMINISTIC' | 'LLM' | 'VLM'>('LLM');
   const [findingViews, setFindingViews] = useState<Record<string, TraceFindingViewDTO>>({});
-  const [samplingPolicy, setSamplingPolicy] = useState<'TARGETED' | 'RANDOM' | 'MIXED'>('TARGETED');
+  const [samplingPolicy, setSamplingPolicy] = useState<'LATEST' | 'TARGETED'>('LATEST');
   const [sampleLimit, setSampleLimit] = useState(20);
+  const [scanCompletedFrom, setScanCompletedFrom] = useState('');
+  const [scanCompletedTo, setScanCompletedTo] = useState('');
   const [mining, setMining] = useState(false);
   const [busyCandidateId, setBusyCandidateId] = useState<string | null>(null);
   const [caseIdentities, setCaseIdentities] = useState<Record<string, { caseId: string; caseVersion: string }>>({});
@@ -99,7 +101,10 @@ export default function AdminEvalCandidatesPage() {
     if (mining || hasActiveDiscovery) return;
     if (!window.confirm('Analyze a bounded sample of sanitized, de-identified traces? Model findings only enter human review.')) return;
     setMining(true); setError(null);
-    agentApi.adminStartTraceAnalysisBatch({ analyzerType: batchAnalyzer, samplingPolicy, limit: sampleLimit })
+    agentApi.adminStartTraceAnalysisBatch({
+      analyzerType: batchAnalyzer, samplingPolicy, limit: sampleLimit,
+      completedFrom: toIso(scanCompletedFrom), completedTo: toIso(scanCompletedTo),
+    })
       .then(({ data }) => {
         setAnalysisJobs((current) => [data.job, ...current.filter((job) => job.id !== data.job.id)]);
         return refreshCandidates();
@@ -192,27 +197,37 @@ export default function AdminEvalCandidatesPage() {
 
       <section className="mb-6 grid gap-3 sm:grid-cols-2" aria-label="Trace discovery">
         <article className="rounded-xl border border-stone-200 bg-white p-4 shadow-sm">
-          <h2 className="text-sm font-semibold text-zinc-900">Sampled discovery</h2>
-          <p className="mt-1 text-xs leading-5 text-zinc-500">Choose rules, an LLM, or a VLM to screen a bounded Trace sample. Findings remain hypotheses for human review and never alter a release Gate.</p>
+          <h2 className="text-sm font-semibold text-zinc-900">Recent Trace discovery</h2>
+          <p className="mt-1 text-xs leading-5 text-zinc-500">Scan the latest completed Traces by default, or prioritize suspicious ones. Findings remain hypotheses for human review and never alter a release Gate.</p>
           <div className="mt-3 flex flex-wrap items-end gap-2">
             <Field label="Analyzer">
               <select aria-label="Trace analyzer" value={batchAnalyzer} onChange={(event) => setBatchAnalyzer(event.target.value as typeof batchAnalyzer)} className={`${inputCls} w-36`}>
                 <option value="DETERMINISTIC">Rules</option><option value="LLM">LLM semantic</option><option value="VLM">VLM visual</option>
               </select>
             </Field>
-            <Field label="Sampling">
+            <Field label="Order">
               <select aria-label="Semantic sampling policy" value={samplingPolicy} onChange={(event) => setSamplingPolicy(event.target.value as typeof samplingPolicy)} className={`${inputCls} w-32`}>
+                <option value="LATEST">Latest</option>
                 <option value="TARGETED">Targeted</option>
-                <option value="RANDOM">Random</option>
-                <option value="MIXED">Mixed</option>
               </select>
             </Field>
-            <Field label="Sample size">
+            <Field label="Trace count">
               <input aria-label="Trace sample limit" type="number" min={1} max={50} value={sampleLimit} onChange={(event) => setSampleLimit(Math.max(1, Math.min(50, Number(event.target.value) || 1)))} className={`${inputCls} w-20`} />
             </Field>
             <Btn disabled={mining || hasActiveDiscovery} onClick={startTraceAnalysisBatch}>{mining ? 'Starting…' : hasActiveDiscovery ? 'Discovery running…' : `Scan ${sampleLimit} traces`}</Btn>
             <Btn variant="secondary" onClick={() => { void refreshAnalysisJobs(); void refreshCandidates(); }}>Refresh</Btn>
           </div>
+          <details className="mt-3 rounded-lg border border-stone-200 bg-stone-50 px-3 py-2 text-xs text-zinc-600">
+            <summary className="cursor-pointer font-medium text-zinc-700">Filter Traces by completion time</summary>
+            <div className="mt-3 grid gap-3 sm:grid-cols-2">
+              <Field label="Completed from">
+                <input type="datetime-local" value={scanCompletedFrom} onChange={(event) => setScanCompletedFrom(event.target.value)} className={inputCls} />
+              </Field>
+              <Field label="Completed to">
+                <input type="datetime-local" value={scanCompletedTo} onChange={(event) => setScanCompletedTo(event.target.value)} className={inputCls} />
+              </Field>
+            </div>
+          </details>
           {hasActiveDiscovery && <div className="mt-3 rounded-lg bg-blue-50 px-3 py-2 text-xs text-blue-700">Discovery is running — progress and new Findings refresh automatically.</div>}
           {analysisJobs.length > 0 && (
             <div className="mt-3 space-y-2">

@@ -15,7 +15,6 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.time.Clock;
 import java.time.Instant;
-import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HexFormat;
@@ -77,21 +76,35 @@ public class TraceAnalysisJobService {
     public TraceAnalysisJobView startBatch(String analyzerType, String samplingPolicy, int requestedLimit,
                                            Instant traceSnapshotAt, String actor, boolean purposeConfirmed,
                                            String ipAddress, String userAgent) {
+        return startBatch(analyzerType, samplingPolicy, requestedLimit, null, traceSnapshotAt,
+                actor, purposeConfirmed, ipAddress, userAgent);
+    }
+
+    public TraceAnalysisJobView startBatch(String analyzerType, String samplingPolicy, int requestedLimit,
+                                           Instant completedFrom, Instant completedTo, String actor,
+                                           boolean purposeConfirmed, String ipAddress, String userAgent) {
         if (StringUtils.isBlank(actor)) throw new IllegalArgumentException("actor is required");
         requirePurpose(purposeConfirmed);
         String analyzer = analyzer(analyzerType);
         String policy = samplingPolicy(samplingPolicy);
         int limit = Math.max(1, Math.min(requestedLimit, maxBatchItems));
-        // Keep retries idempotent when a caller omits the snapshot, without freezing later batches forever.
-        Instant snapshot = traceSnapshotAt == null ? clock.instant().truncatedTo(ChronoUnit.MINUTES) : traceSnapshotAt;
-        if (snapshot.isAfter(clock.instant())) throw new IllegalArgumentException("traceSnapshotAt cannot be in the future");
-        List<String> sourceRuns = sample(policy, limit, snapshot);
+        Instant snapshot = completedTo == null ? clock.instant() : completedTo;
+        if (snapshot.isAfter(clock.instant())) throw new IllegalArgumentException("completedTo cannot be in the future");
+        if (completedFrom != null && completedFrom.isAfter(snapshot)) {
+            throw new IllegalArgumentException("completedFrom cannot be after completedTo");
+        }
+        List<String> sourceRuns = sample(policy, limit, completedFrom, snapshot);
         if (sourceRuns.isEmpty()) throw new IllegalStateException("no terminal traces are available for this sample");
         // The selection hash proves which immutable snapshot population was sampled without copying run ids into Job metadata.
+        String selectionHash = hash(String.join("|", sourceRuns));
         String definition = "{\"policy\":\"" + policy + "\",\"limit\":" + limit
-                + ",\"selectionHash\":\"" + hash(String.join("|", sourceRuns)) + "\"}";
+                + ",\"completedFrom\":" + instantJson(completedFrom)
+                + ",\"completedTo\":\"" + snapshot + "\""
+                + ",\"selectionHash\":\"" + selectionHash + "\"}";
         String configHash = configHash(analyzer);
-        String key = hash("batch|" + definition + "|" + snapshot + "|" + analyzer + "|" + configHash);
+        // The selected population keeps retries idempotent while still allowing second-level latest selection.
+        String key = hash("batch|" + policy + "|" + limit + "|" + completedFrom + "|" + completedTo
+                + "|" + selectionHash + "|" + analyzer + "|" + configHash);
         TraceAnalysisJob existing = store.findJobByIdempotencyKey(key).orElse(null);
         if (existing != null) return view(existing);
         return createAndQueue("SAMPLE_BATCH", analyzer, analyzerVersion(analyzer), configHash, definition, snapshot, key,
@@ -194,13 +207,18 @@ public class TraceAnalysisJobService {
 
     private TraceAnalysisJobView view(TraceAnalysisJob job) { return new TraceAnalysisJobView(job, store.listItems(job.getId())); }
 
-    private List<String> sample(String policy, int limit, Instant snapshot) {
-        List<AgentRunTelemetry> terminal = telemetry.listTerminalRunsAtOrBefore(snapshot, Math.min(500, limit * 5)).stream()
+    private List<String> sample(String policy, int limit, Instant completedFrom, Instant snapshot) {
+        List<AgentRunTelemetry> terminal = telemetry.listTerminalRunsBetween(
+                        completedFrom, snapshot, Math.min(500, limit * 5)).stream()
                 .filter(run -> run != null && StringUtils.isNotBlank(run.getId()))
                 .toList();
+        Comparator<AgentRunTelemetry> latest = Comparator
+                .comparing(AgentRunTelemetry::getCompletedAt, Comparator.nullsLast(Comparator.reverseOrder()))
+                .thenComparing(AgentRunTelemetry::getId, Comparator.reverseOrder());
         Comparator<AgentRunTelemetry> targeted = Comparator.comparingInt(this::targetScore).reversed()
-                .thenComparing(run -> StringUtils.defaultString(run.getId()));
+                .thenComparing(latest);
         Comparator<AgentRunTelemetry> random = Comparator.comparingInt(run -> StringUtils.defaultString(run.getId()).hashCode());
+        if ("LATEST".equals(policy)) return terminal.stream().sorted(latest).limit(limit).map(AgentRunTelemetry::getId).toList();
         if ("TARGETED".equals(policy)) return terminal.stream().sorted(targeted).limit(limit).map(AgentRunTelemetry::getId).toList();
         if ("RANDOM".equals(policy)) return terminal.stream().sorted(random).limit(limit).map(AgentRunTelemetry::getId).toList();
         List<String> result = new ArrayList<>(terminal.stream().sorted(targeted).limit((limit + 1L) / 2L).map(AgentRunTelemetry::getId).toList());
@@ -222,10 +240,12 @@ public class TraceAnalysisJobService {
     }
 
     private String samplingPolicy(String value) {
-        String normalized = StringUtils.upperCase(StringUtils.defaultIfBlank(value, "TARGETED"), Locale.ROOT);
-        if (!List.of("TARGETED", "RANDOM", "MIXED").contains(normalized)) throw new IllegalArgumentException("unsupported samplingPolicy");
+        String normalized = StringUtils.upperCase(StringUtils.defaultIfBlank(value, "LATEST"), Locale.ROOT);
+        if (!List.of("LATEST", "TARGETED", "RANDOM", "MIXED").contains(normalized)) throw new IllegalArgumentException("unsupported samplingPolicy");
         return normalized;
     }
+
+    private String instantJson(Instant value) { return value == null ? "null" : "\"" + value + "\""; }
 
     private double costPerAnalysis(String analyzer) {
         return "LLM".equals(analyzer) ? semantic.estimatedCostPerAnalysisUsd()

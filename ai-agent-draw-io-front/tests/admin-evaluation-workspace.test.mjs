@@ -62,7 +62,7 @@ test('Trace Analysis owns runs, findings and miner entry points', () => {
   assert.match(traceRuns, /active="runs"/);
   assert.match(traceDetail, /TraceAnalysisWorkspace active="runs"/);
   assert.match(legacyCandidates, /TraceAnalysisWorkspace active="findings"/);
-  assert.match(legacyCandidates, /Choose rules, an LLM, or a VLM to screen a bounded Trace sample/);
+  assert.match(legacyCandidates, /Scan the latest completed Traces by default/);
   assert.match(legacyCandidates, /Visual anomaly discovery/);
 });
 

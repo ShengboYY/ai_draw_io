@@ -402,8 +402,10 @@ export const agentApi = {
 
     adminStartTraceAnalysisBatch: async (payload: {
         analyzerType: 'DETERMINISTIC' | 'LLM' | 'VLM';
-        samplingPolicy: 'TARGETED' | 'RANDOM' | 'MIXED';
+        samplingPolicy: 'LATEST' | 'TARGETED';
         limit: number;
+        completedFrom?: string;
+        completedTo?: string;
     }): Promise<Response<TraceAnalysisJobViewDTO>> => {
         const response = await fetch(`${API_CONFIG.BASE_URL}/admin/trace-analysis-jobs`, {
             method: 'POST', headers: await csrfHeaders({ 'Content-Type': 'application/json' }),
