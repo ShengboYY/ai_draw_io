@@ -19,14 +19,6 @@ export const isPngThumbnailDataUrl = (value?: string | null) => (
   && value.length > 'data:image/png;base64,'.length
 );
 
-export const isThumbnailExportResult = ({
-  format,
-  data,
-}: {
-  format?: string | null;
-  data?: string | null;
-}) => format === THUMBNAIL_EXPORT_OPTIONS.format || isPngThumbnailDataUrl(data);
-
 export const shouldPersistThumbnail = ({
   diagramId,
   dataUrl,

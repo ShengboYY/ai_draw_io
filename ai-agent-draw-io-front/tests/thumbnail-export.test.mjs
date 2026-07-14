@@ -5,7 +5,6 @@ import {
   THUMBNAIL_EXPORT_OPTIONS,
   buildThumbnailExportRequest,
   isPngThumbnailDataUrl,
-  isThumbnailExportResult,
   planThumbnailExport,
   shouldPersistThumbnail,
 } from '../src/app/drawio/thumbnail-export.ts';
@@ -40,12 +39,6 @@ test('shouldPersistThumbnail requires a diagram id and png data', () => {
   assert.equal(shouldPersistThumbnail({ diagramId: 'diagram-1', dataUrl: pngDataUrl }), true);
   assert.equal(shouldPersistThumbnail({ diagramId: '', dataUrl: pngDataUrl }), false);
   assert.equal(shouldPersistThumbnail({ diagramId: 'diagram-1', dataUrl: 'data:text/plain;base64,SGVsbG8=' }), false);
-});
-
-test('isThumbnailExportResult ignores earlier xmlsvg exports while waiting for png', () => {
-  assert.equal(isThumbnailExportResult({ format: 'xmlsvg', data: '<mxGraphModel />' }), false);
-  assert.equal(isThumbnailExportResult({ format: 'png', data: pngDataUrl }), true);
-  assert.equal(isThumbnailExportResult({ data: pngDataUrl }), true);
 });
 
 test('planThumbnailExport defers export until the draw.io editor is ready', () => {

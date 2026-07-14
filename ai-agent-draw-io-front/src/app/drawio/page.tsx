@@ -64,10 +64,18 @@ import {
 } from './agent-run-presentation';
 import {
   buildThumbnailExportRequest,
-  isThumbnailExportResult,
   planThumbnailExport,
   shouldPersistThumbnail,
 } from './thumbnail-export';
+import {
+  CanvasExportCoordinator,
+  CanvasExportError,
+} from './canvas-export-coordinator';
+import {
+  VISUAL_REVIEW_RENDERER_VERSION,
+  buildVisualReviewExportRequest,
+  isVisualReviewPngDataUrl,
+} from './visual-review-export';
 
 // Message type definition
 type MessageStep = {
@@ -105,6 +113,8 @@ const STREAMING_PREVIEW_FRAME_MS = 280;
 type StructuredCanvasContext = {
   canvasXml?: string;
   canvasSummary?: string;
+  canvasImageDataUrl?: string;
+  canvasImageRendererVersion?: typeof VISUAL_REVIEW_RENDERER_VERSION;
 };
 
 // Elegant SVG Icons with consistent styling
@@ -669,13 +679,15 @@ function DrawioPageContent() {
   const streamAbortRef = useRef<AbortController | null>(null);
 
   // Context State
-  const [lastExportedData, setLastExportedData] = useState<{data: string, xml?: string, format?: string, timestamp: number} | null>(null);
-  const isExportingForChatRef = useRef(false);
-  const isAutosaveRef = useRef(false);
-  const isExportingThumbnailRef = useRef(false);
-  const pendingThumbnailDiagramIdRef = useRef('');
   const pendingThumbnailExportRef = useRef<{ diagramId: string; xml: string } | null>(null);
-  const pendingMessageRef = useRef('');
+  const exportCoordinatorRef = useRef<CanvasExportCoordinator | null>(null);
+  if (!exportCoordinatorRef.current) {
+    exportCoordinatorRef.current = new CanvasExportCoordinator(options => {
+      const editor = drawioRef.current;
+      if (!editor) throw new Error('Draw.io editor is not ready.');
+      editor.exportDiagram(options);
+    });
+  }
   const [isDrawIoReady, setIsDrawIoReady] = useState(false);
   const isDrawIoReadyRef = useRef(false);
   const streamingPreviewQueueRef = useRef<string[]>([]);
@@ -1248,17 +1260,22 @@ function DrawioPageContent() {
   };
 
   const requestDiagramThumbnailExport = (diagramId: string) => {
-    if (!drawioRef.current) return;
+    const sessionId = currentSessionRef.current;
+    if (!drawioRef.current || !sessionId) return;
 
-    pendingThumbnailDiagramIdRef.current = diagramId;
-    isExportingThumbnailRef.current = true;
-    try {
-      drawioRef.current.exportDiagram(buildThumbnailExportRequest());
-    } catch (e) {
-      isExportingThumbnailRef.current = false;
-      pendingThumbnailDiagramIdRef.current = '';
-      console.warn('Thumbnail export failed:', e);
-    }
+    void exportCoordinatorRef.current?.enqueue({
+      purpose: 'thumbnail-png',
+      diagramId,
+      sessionId,
+      format: 'png',
+      options: buildThumbnailExportRequest(),
+    }).then(result => {
+      if (result.sessionId !== currentSessionRef.current) return;
+      void persistDiagramThumbnail(result.diagramId, result.data);
+    }).catch(error => {
+      if (error instanceof CanvasExportError && error.code === 'EXPORT_SCOPE_CHANGED') return;
+      console.warn('Thumbnail export failed:', error);
+    });
   };
 
   const queueDiagramThumbnailExport = (diagramId?: string, xml?: unknown) => {
@@ -1289,6 +1306,27 @@ function DrawioPageContent() {
 
     pendingThumbnailExportRef.current = null;
     requestDiagramThumbnailExport(pending.diagramId);
+  };
+
+  const requestAutosaveXmlExport = (session: Session) => {
+    const diagramId = session.diagramId || makeLocalDiagramId(session.id);
+    void exportCoordinatorRef.current?.enqueue({
+      purpose: 'autosave-xml',
+      diagramId,
+      sessionId: session.id,
+      format: 'xmlsvg',
+      options: { format: 'xmlsvg' },
+    }).then(result => {
+      if (result.sessionId !== currentSessionRef.current) return;
+      const latestSession = sessionsRef.current.find(item => item.id === result.sessionId);
+      const xml = chooseUsableCanvasXml(result, latestSession?.drawIoXml);
+      saveCurrentCanvasXml(xml);
+      queueManualCanvasStateSave(xml, latestSession);
+      queueDiagramThumbnailExport(result.diagramId, xml);
+    }).catch(error => {
+      if (error instanceof CanvasExportError && error.code === 'EXPORT_SCOPE_CHANGED') return;
+      console.warn('Autosave export failed:', error);
+    });
   };
   scheduleStreamingPreviewDrainRef.current = scheduleStreamingPreviewDrain;
 
@@ -1354,6 +1392,11 @@ function DrawioPageContent() {
   // Update ref
   useEffect(() => {
     currentSessionRef.current = currentSessionId;
+    const activeSession = sessionsRef.current.find(session => session.id === currentSessionId);
+    exportCoordinatorRef.current?.retainScope({
+      sessionId: currentSessionId,
+      diagramId: activeSession?.diagramId,
+    });
   }, [currentSessionId]);
 
   useEffect(() => {
@@ -2221,6 +2264,8 @@ function DrawioPageContent() {
           ),
           canvasXml: canvasContext.canvasXml,
           canvasSummary: canvasContext.canvasSummary,
+          canvasImageDataUrl: canvasContext.canvasImageDataUrl,
+          canvasImageRendererVersion: canvasContext.canvasImageRendererVersion,
           modelCredentialId: activeModelConfig?.modelCredentialId || undefined,
           maxReviewIterations,
           skills: pendingSkillsRef.current.length ? pendingSkillsRef.current : undefined,
@@ -2757,20 +2802,67 @@ function DrawioPageContent() {
 
     setIsSending(true);
 
-    if (drawioRef.current && isDrawIoReady) {
-        isExportingForChatRef.current = true;
-        pendingMessageRef.current = content;
-        try {
-            drawioRef.current.exportDiagram({
-                 format: 'xmlsvg'
-             });
-        } catch (e) {
-            console.error("Export failed", e);
-            performSendMessage(content);
-        }
-    } else {
-        performSendMessage(content);
+    const activeSession = sessionsRef.current.find(session => session.id === currentSessionRef.current);
+    if (!drawioRef.current || !isDrawIoReady || !activeSession) {
+      await performSendMessage(content);
+      return;
     }
+
+    const diagramId = activeSession.diagramId || makeLocalDiagramId(activeSession.id);
+    let canvasContext = buildStructuredCanvasContext(activeSession.drawIoXml || EMPTY_DRAWIO_XML);
+    try {
+      const xmlExport = await exportCoordinatorRef.current?.enqueue({
+        purpose: 'chat-xml',
+        diagramId,
+        sessionId: activeSession.id,
+        format: 'xmlsvg',
+        options: { format: 'xmlsvg' },
+      });
+      if (!xmlExport || xmlExport.sessionId !== currentSessionRef.current) {
+        setIsSending(false);
+        return;
+      }
+
+      const xml = chooseUsableCanvasXml(xmlExport, activeSession.drawIoXml);
+      canvasContext = buildStructuredCanvasContext(xml);
+      saveCurrentCanvasXml(xml);
+
+      if (hasDrawableCells(xml)) {
+        try {
+          const pngExport = await exportCoordinatorRef.current?.enqueue({
+            purpose: 'visual-review-png',
+            diagramId,
+            sessionId: activeSession.id,
+            format: 'png',
+            options: buildVisualReviewExportRequest(),
+          });
+          if (pngExport && pngExport.sessionId === currentSessionRef.current
+              && isVisualReviewPngDataUrl(pngExport.data)) {
+            canvasContext = {
+              ...canvasContext,
+              canvasImageDataUrl: pngExport.data,
+              canvasImageRendererVersion: VISUAL_REVIEW_RENDERER_VERSION,
+            };
+          }
+        } catch (error) {
+          if (error instanceof CanvasExportError && error.code === 'EXPORT_SCOPE_CHANGED') {
+            setIsSending(false);
+            return;
+          }
+          // Mutations remain fail-open; review-only receives an explicit unavailable result from the backend.
+          console.warn('Visual review screenshot export failed:', error);
+        }
+      }
+    } catch (error) {
+      if (error instanceof CanvasExportError && error.code === 'EXPORT_SCOPE_CHANGED') {
+        setIsSending(false);
+        return;
+      }
+      // XML export failure should not prevent the user from sending a normal mutation request.
+      console.warn('Canvas context export failed; using the latest stored canvas:', error);
+    }
+
+    await performSendMessage(content, canvasContext);
   };
 
   const handleSendMessage = async () => {
@@ -2785,46 +2877,6 @@ function DrawioPageContent() {
     if (textarea) textarea.style.height = '80px';
     sendContent(content);
   };
-
-  useEffect(() => {
-    if (!lastExportedData) return;
-
-    // Thumbnail export can overlap with xmlsvg exports; only a png result consumes this request.
-    if (isExportingThumbnailRef.current && isThumbnailExportResult(lastExportedData)) {
-        isExportingThumbnailRef.current = false;
-        const diagramId = pendingThumbnailDiagramIdRef.current;
-        pendingThumbnailDiagramIdRef.current = '';
-        persistDiagramThumbnail(diagramId, lastExportedData.data);
-        return;
-    }
-    
-    if (isExportingForChatRef.current) {
-        isExportingForChatRef.current = false;
-        const storedXml = sessions.find(session => session.id === currentSessionId)?.drawIoXml;
-        const xml = chooseUsableCanvasXml(lastExportedData, storedXml);
-        const content = pendingMessageRef.current;
-        const canvasContext = buildStructuredCanvasContext(xml);
-        saveCurrentCanvasXml(xml);
-        performSendMessage(content, canvasContext);
-        return;
-    }
-    
-    // Autosave handling
-    if (isAutosaveRef.current) {
-        isAutosaveRef.current = false;
-        const activeSession = sessions.find(session => session.id === currentSessionId);
-        const storedXml = activeSession?.drawIoXml;
-        const diagramId = activeSession?.diagramId;
-        const xml = chooseUsableCanvasXml(lastExportedData, storedXml);
-        saveCurrentCanvasXml(xml);
-        queueManualCanvasStateSave(xml, activeSession);
-        queueDiagramThumbnailExport(diagramId, xml);
-        return;
-    }
-
-    // Manual Export
-    setImgData(lastExportedData.data);
-  }, [lastExportedData]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     // When the "/" picker is open, the keyboard drives the menu instead of sending.
@@ -3087,8 +3139,11 @@ function DrawioPageContent() {
                 if (shouldHandleManualAutosave({
                   currentSessionId: activeSessionId,
                   editorReady: isDrawIoReadyRef.current,
-                  exportingForChat: isExportingForChatRef.current,
-                  exportingThumbnail: isExportingThumbnailRef.current,
+                  exportingForChat: Boolean(
+                    exportCoordinatorRef.current?.isBusy('chat-xml')
+                    || exportCoordinatorRef.current?.isBusy('visual-review-png')
+                  ),
+                  exportingThumbnail: Boolean(exportCoordinatorRef.current?.isBusy('thumbnail-png')),
                   hasInlineXml,
                 })) {
                    const activeSession = sessionsRef.current.find(session => session.id === activeSessionId);
@@ -3101,13 +3156,19 @@ function DrawioPageContent() {
                        queueDiagramThumbnailExport(diagramId, xmlContent);
                    } else {
                        // Fallback to export if no XML provided in event
-                        isAutosaveRef.current = true;
-                        drawioRef.current?.exportDiagram({ format: 'xmlsvg' });
+                       if (activeSession) requestAutosaveXmlExport(activeSession);
                   }
                 }
               }}
               onLoad={handleDrawioLoad}
-              onExport={(data) => setLastExportedData({ data: data.data, xml: data.xml, format: data.format, timestamp: Date.now() })}
+              onExport={(data) => {
+                const handled = exportCoordinatorRef.current?.handleExport({
+                  data: data.data,
+                  xml: data.xml,
+                  format: data.format,
+                });
+                if (!handled && data.data) setImgData(data.data);
+              }}
               urlParameters={{
                 // The minimal draw.io shell keeps the app chrome closer to the Codex-style workspace.
                 ui: 'min',
