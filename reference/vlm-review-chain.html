@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>VLM Review Chain — Quick Reference</title>
+  <link rel="stylesheet" href="../assets/teaching.css">
+</head>
+<body><main>
+  <span class="tag">速查表</span>
+  <h1>VLM Review Chain</h1>
+  <p class="lede">判断一个问题属于像素、画布事实、授权还是生命周期，然后去对应模块。</p>
+  <table>
+    <thead><tr><th>问题</th><th>负责人</th><th>关键文件</th></tr></thead>
+    <tbody>
+      <tr><td>导出结果属于哪个请求？</td><td>Frontend export coordinator</td><td><code>canvas-export-coordinator.ts</code></td></tr>
+      <tr><td>画布是否还是被审的版本？</td><td>Review orchestrator</td><td><code>CanvasVisualReviewOrchestrator.matches()</code></td></tr>
+      <tr><td>像素中有什么问题？</td><td>VLM agent 300018</td><td><code>ChatCanvasVisualReviewer</code></td></tr>
+      <tr><td>结果能否自动修？</td><td>Deterministic policy</td><td><code>CanvasVisualReviewPolicy</code></td></tr>
+      <tr><td>修复能调用什么工具？</td><td>Server route + tool guard</td><td><code>DrawioToolAccessContext</code></td></tr>
+      <tr><td>一次 run 花了多少？</td><td>Usage telemetry</td><td><code>LlmPricingSnapshot</code></td></tr>
+    </tbody>
+  </table>
+
+  <h2>Decision 速查</h2>
+  <table>
+    <thead><tr><th>Decision</th><th>含义</th><th>是否改画布</th></tr></thead>
+    <tbody>
+      <tr><td><code>APPROVE</code></td><td>没有可见问题</td><td>否</td></tr>
+      <tr><td><code>APPROVE_WITH_NOTES</code></td><td>只有 minor 问题</td><td>否</td></tr>
+      <tr><td><code>REPAIR</code></td><td>首次 POST_MUTATION、≤3 条、白名单、全部 LOCAL</td><td>一次</td></tr>
+      <tr><td><code>NEEDS_HUMAN_REVIEW</code></td><td>语义风险、整体重画、范围过大或 verify 仍失败</td><td>否</td></tr>
+      <tr><td><code>UNAVAILABLE</code></td><td>超时、过载、provider/schema 失败</td><td>否，保留画布</td></tr>
+    </tbody>
+  </table>
+
+  <h2>上线顺序</h2>
+  <ol>
+    <li>两个开关都关闭：没有 provider call。</li>
+    <li>隔离部署开启 review、请求带 <code>shadow=true</code>：只记录，不展示、不修复。</li>
+    <li>开启 visible review、保持 auto repair 关闭。</li>
+    <li>指标通过后开启 auto repair；verify 永远不能触发第二次 repair。</li>
+  </ol>
+  <p><a href="../lessons/0001-production-vlm-review-chain.html">返回完整课程</a></p>
+</main></body>
+</html>

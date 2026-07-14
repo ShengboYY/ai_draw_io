@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>从 drawio_done 到 VLM Verify</title>
+  <link rel="stylesheet" href="../assets/teaching.css">
+</head>
+<body><main>
+  <span class="tag">Lesson 0001</span>
+  <h1>从 <code>drawio_done</code> 到 VLM Verify</h1>
+  <p class="lede">本课的目标：你能看着一次 run，准确指出“谁看图、谁做决定、谁有改图权限，以及为什么不会无限修复”。</p>
+
+  <div class="flow">
+    <div class="node">1. Draw<small>生成候选 XML</small></div>
+    <div class="node">2. Persist<small>version + hash</small></div>
+    <div class="node">3. Review<small>真实 PNG → VLM</small></div>
+    <div class="node">4. Decide<small>确定性 policy</small></div>
+    <div class="node">5. Repair?<small>最多一次、受限工具</small></div>
+    <div class="node">6. Verify<small>只复核，不再修改</small></div>
+    <div class="node">7. Present<small>NDJSON lifecycle</small></div>
+    <div class="node">8. Observe<small>run/token/cost</small></div>
+  </div>
+
+  <h2>一、VLM 是 Agent，但不是总控 Agent</h2>
+  <p><code>300018</code> 在配置层确实是一个独立 agent：它拥有独立 prompt、model、temperature=0 和 session。但它没有画布工具。它只把 before/after PNG 与有界文本证据转换成 schema v2 JSON。</p>
+  <div class="card safe"><strong>核心分权：</strong>VLM 负责“看见什么”；Java policy 负责“允许发生什么”；drawer agent 负责“执行什么”。</div>
+  <p>因此 reviewer 不是可以自由规划的第二个绘图 Agent，而是一个 tool-less perception component。真正编排它的是 <code>CanvasVisualReviewOrchestrator</code>。</p>
+
+  <h2>二、<code>drawio_done</code> 为什么不是整条链路的 done</h2>
+  <p>绘图模型或工具可能多次产生候选结果。<code>DrawioStreamResponseWriter</code> 先把它们记为 pending candidate，做确定性 XML/geometry 修复，只在流结束时持久化并发送最终候选。此时 <code>drawio_done</code> 表示“这一轮 drawer 已得到一个 canonical canvas”，并不表示视觉审查、可选修复和 verify 都完成。</p>
+  <p>持久化返回 <code>diagramId + version + contentHash</code>。这三个值是后续 review 的身份证；没有它们，前端不会开始 POST_MUTATION review。</p>
+
+  <h2>三、为什么必须审真实 PNG</h2>
+  <p>XML analyzer 擅长结构事实：节点数、边、可解析性、几何数据。它不能可靠判断最终像素里的小字、低对比、遮挡或视觉层级。前端等待最终 XML 真正加载进 draw.io iframe，再导出 review PNG。</p>
+  <p>XML、thumbnail、autosave 和 review PNG 共用一个 iframe export 通道。Coordinator 将请求串行化，并在 export action 中加入 <code>requestId</code>；draw.io 的 response <code>message</code> 会回显原 action，所以迟到回调只能完成自己的 request，不能污染下一张图。官方协议见 <a href="https://www.drawio.com/docs/reference/embed-mode/">draw.io Embed Mode</a>。</p>
+
+  <h2>四、后端审查的双重 stale 防线</h2>
+  <p>请求带上 expected version/hash。Orchestrator 在调用 provider 前查一次数据库，在 provider 返回后再查一次。任意一次不匹配都返回 <code>STALE</code>，丢弃结果。这样用户在 VLM 思考期间继续编辑时，旧截图不会评价或修改新画布。</p>
+
+  <h2>五、schema v2 与 decision policy</h2>
+  <p>VLM 最多返回 5 个 issue，每条有 type、severity、可见 anchor、region、evidence、repairInstruction 和结构化 <code>repairScope</code>。解析器要求字段集合完全一致；Markdown、额外字段、未知枚举、过长文本都会变成 <code>UNAVAILABLE(output_schema_error)</code>。</p>
+  <table>
+    <thead><tr><th>条件</th><th>Decision</th></tr></thead>
+    <tbody>
+      <tr><td>provider/schema/timeout 失败</td><td>UNAVAILABLE，fail-open 保留画布</td></tr>
+      <tr><td>没有 issue</td><td>APPROVE</td></tr>
+      <tr><td>只有 minor issue</td><td>APPROVE_WITH_NOTES</td></tr>
+      <tr><td>语义不确定、whole_canvas、超过 3 条、非白名单</td><td>NEEDS_HUMAN_REVIEW</td></tr>
+      <tr><td>首次 POST_MUTATION，≤3 条，白名单且全部 LOCAL</td><td>REPAIR</td></tr>
+      <tr><td>VERIFY_ONLY 仍有 blocking issue</td><td>NEEDS_HUMAN_REVIEW，绝不二次修复</td></tr>
+    </tbody>
+  </table>
+
+  <h2>六、自动修复为什么不会越权</h2>
+  <p>Orchestrator 不接受客户端指定的 repair agent，而是固定使用服务器配置的 drawer agent。它把 route 强制成 <code>edit_existing</code> 或 <code>optimize_layout</code>；session allowlist 只允许相应 mutation tool，<code>create_diagram</code> 会在工具执行层被拒绝。skill lookup 不受影响。</p>
+  <p>修复成功后前端收到新的 <code>drawio_done</code>、保存新 version/hash、重新导出 PNG，并发起 <code>VERIFY_ONLY</code>。Policy 根据 stage 硬性禁止第二轮 repair，因此不会形成 VLM 自我循环。</p>
+
+  <h2>七、故障和灰度</h2>
+  <div class="card warn"><strong>Fail-open 的准确含义：</strong>VLM 不可用时保留已经通过确定性校验并持久化的画布；不是忽略版本冲突，也不是允许不安全修复。</div>
+  <p>两个开关分别控制 review 和 auto repair。shadow 请求仍调用 VLM并记 telemetry，但不发用户可见 result，也不修图。上线顺序应为 disabled → shadow → visible → auto repair。</p>
+
+  <h2>八、数据库迁移在链路中的位置</h2>
+  <p>每次模型调用会记录 token，同时用 <code>LlmPricingSnapshot</code> 固化价格表版本、输入/输出单价和估算成本。这样以后价格变化时，历史 run 成本不会被新价格重算。新增列均 nullable，所以迁移后旧记录保持 NULL，新代码开始写快照。本次本地库已有 131 条旧记录，迁移后全部保留。</p>
+  <p>MySQL 允许一个 <code>ALTER TABLE</code> 中包含多个 <code>ADD COLUMN</code>；本项目通过版本化 SQL 做向前迁移。参见 <a href="https://dev.mysql.com/doc/refman/8.4/en/alter-table.html">MySQL 8.4 ALTER TABLE</a>。</p>
+
+  <h2>检索练习</h2>
+  <details><summary>谁有权把 VLM issue 变成 REPAIR？</summary><p><code>CanvasVisualReviewPolicy</code>，不是 VLM。VLM 只返回结构化 evidence。</p></details>
+  <details><summary>用户在 VLM 返回前改了图，会发生什么？</summary><p>第二次 version/hash 检查失败，结果标记 STALE，不展示为当前图结论，也不触发修复。</p></details>
+  <details><summary>为什么 verify 不能再修一次？</summary><p>Policy 要求 stage 必须是首次 POST_MUTATION；VERIFY_ONLY 无论发现什么都不会返回 REPAIR。</p></details>
+
+  <p><a href="../reference/vlm-review-chain.html">打开一页速查表</a> · <a href="../docs/superpowers/plans/2026-07-14-production-vlm-reviewer-implementation-plan.md">查看完整实施方案</a></p>
+  <p>有任何一步不清楚，直接把对应 run event 或文件名发给我，我们可以沿实际 trace 再走一遍。</p>
+</main></body>
+</html>

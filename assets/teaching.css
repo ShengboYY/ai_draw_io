@@ -1,0 +1,52 @@
+:root {
+  color-scheme: light;
+  --ink: #172033;
+  --muted: #5b6474;
+  --line: #dce2ea;
+  --paper: #fbfcfe;
+  --accent: #3157d5;
+  --safe: #16765a;
+  --warn: #a65b00;
+}
+
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: #eef2f7;
+  color: var(--ink);
+  font: 16px/1.65 ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+main {
+  width: min(980px, calc(100% - 32px));
+  margin: 32px auto;
+  padding: 48px 56px;
+  background: var(--paper);
+  box-shadow: 0 16px 48px rgba(23, 32, 51, .10);
+}
+h1 { margin: 0 0 8px; font-size: 2.35rem; line-height: 1.15; letter-spacing: -.035em; }
+h2 { margin-top: 2.2em; padding-top: .5em; border-top: 1px solid var(--line); }
+h3 { margin-bottom: .3em; }
+p, li { max-width: 78ch; }
+.lede { color: var(--muted); font-size: 1.15rem; }
+.flow { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin: 24px 0; }
+.node, .card { border: 1px solid var(--line); border-radius: 10px; background: white; padding: 14px; }
+.node { position: relative; font-weight: 650; }
+.node small { display: block; color: var(--muted); font-weight: 400; }
+.card.safe { border-left: 4px solid var(--safe); }
+.card.warn { border-left: 4px solid var(--warn); }
+code { color: #2343a1; background: #edf1ff; padding: .08em .3em; border-radius: 4px; }
+pre { overflow: auto; padding: 16px; border-radius: 8px; background: #151b2a; color: #eaf0ff; }
+table { width: 100%; border-collapse: collapse; }
+th, td { padding: 9px 10px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+th { color: var(--muted); font-size: .9rem; }
+a { color: var(--accent); }
+details { margin: 10px 0; padding: 10px 14px; border: 1px solid var(--line); border-radius: 8px; background: white; }
+.tag { display: inline-block; padding: 2px 8px; border-radius: 999px; color: white; background: var(--accent); font-size: .78rem; }
+@media (max-width: 760px) {
+  main { padding: 28px 22px; }
+  .flow { grid-template-columns: 1fr 1fr; }
+}
+@media print {
+  body { background: white; }
+  main { width: 100%; margin: 0; padding: 0; box-shadow: none; }
+}
