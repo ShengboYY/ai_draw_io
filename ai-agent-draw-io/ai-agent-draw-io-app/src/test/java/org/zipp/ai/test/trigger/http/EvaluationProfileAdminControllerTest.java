@@ -20,7 +20,7 @@ import static org.junit.Assert.assertEquals;
 
 public class EvaluationProfileAdminControllerTest {
     @Test
-    public void profileCatalogRequiresAdminAndReturnsSixReadOnlyVersions() {
+    public void profileCatalogRequiresAdminAndReturnsEightReadOnlyVersions() {
         Fixture denied = new Fixture(false);
         assertEquals("AUTH_FORBIDDEN", denied.controller.list(request()).getCode());
 
@@ -28,7 +28,7 @@ public class EvaluationProfileAdminControllerTest {
         Response<List<EvaluationProfileVersion>> response = allowed.controller.list(request());
 
         assertEquals("0000", response.getCode());
-        assertEquals(6, response.getData().size());
+        assertEquals(8, response.getData().size());
         assertEquals("LIST_EVALUATION_PROFILES", allowed.audits.values.get(0).getAction());
     }
 

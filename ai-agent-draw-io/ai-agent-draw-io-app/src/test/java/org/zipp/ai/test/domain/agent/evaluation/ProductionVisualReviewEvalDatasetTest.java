@@ -40,7 +40,7 @@ public class ProductionVisualReviewEvalDatasetTest {
             return CanvasVisualReviewResult.builder().available(true).summary("captured").issues(List.of()).build();
         };
         ProductionVisualReviewLiveEvalAdapter adapter =
-                new ProductionVisualReviewLiveEvalAdapter(reviewer, "unconfigured", "test");
+                new ProductionVisualReviewLiveEvalAdapter(reviewer, "unconfigured", 1D, "test");
 
         for (Path fixture : fixtures) {
             EvalCaseDefinition evalCase;

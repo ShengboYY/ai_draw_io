@@ -67,6 +67,7 @@ public class ChatCanvasVisualReviewerTest {
         assertEquals(1, captured.get(1).getInlineDatas().size());
         assertNotEquals(captured.get(0).getSessionId(), captured.get(1).getSessionId());
         assertFalse(captured.get(0).getTexts().get(0).getMessage().contains(image("after")));
+        assertTrue(first.getReviewerVersion().contains("temperature=1.0"));
         assertTrue(first.getReviewerVersion().contains("visual-review-schema-v2"));
     }
 
@@ -155,6 +156,7 @@ public class ChatCanvasVisualReviewerTest {
 
         assertTrue(table.contains("${ZIPP_VISUAL_REVIEW_AGENT_ID:300018}"));
         assertTrue(table.contains("agent_visual_reviewer"));
+        assertTrue(table.contains("temperature: ${VLM_TEMPERATURE:1}"));
         assertFalse(table.contains("tool-mcp-list"));
         assertFalse(table.contains("drawioCanvasToolCallbackProvider"));
     }
@@ -169,7 +171,7 @@ public class ChatCanvasVisualReviewerTest {
     }
 
     private ChatCanvasVisualReviewer reviewer(IChatService chat, long timeoutMillis) {
-        return new ChatCanvasVisualReviewer(chat, "300018", "vlm-1", timeoutMillis, reviewExecutor);
+        return new ChatCanvasVisualReviewer(chat, "300018", "vlm-1", 1D, timeoutMillis, reviewExecutor);
     }
 
     private CanvasVisualReviewCommand command(String before, String after) {

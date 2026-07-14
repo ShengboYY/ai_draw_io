@@ -117,13 +117,28 @@ public class ProductionTargetLiveEvalAdaptersTest {
                                 .repairScope(CanvasVisualRepairScope.LOCAL).build()))
                         .reviewerVersion("production-reviewer-v1").build();
 
-        var execution = new ProductionVisualReviewLiveEvalAdapter(reviewer, "gpt-5.5", "r4-live")
+        var execution = new ProductionVisualReviewLiveEvalAdapter(reviewer, "gpt-5.5", 1D, "r4-live")
                 .execute(evalCase);
 
         assertEquals("300018", execution.getTrace().getSteps().get(0).getAgentId());
         assertEquals("REPAIR", execution.getTrace().getVisualReview().getDecision());
         assertEquals(List.of("TEXT_READABILITY"), execution.getTrace().getVisualReview().getIssueTypes());
         assertTrue(new DefaultEvalHarness().evaluate(execution).isPassed());
+    }
+
+    @Test
+    public void visualReviewLiveAdapterRejectsFrozenTemperatureMismatch() {
+        EvalCaseDefinition evalCase = evalCase("Review this", "architecture");
+        evalCase.setEvaluationTarget(EvaluationTarget.VISUAL_REVIEW);
+        evalCase.setInput(Map.of("user", "Review this", "afterImageDataUrl", "data:image/png;base64,AAAA"));
+        evalCase.getExecutionProfile().setTemperature(0D);
+        var reviewer = (org.zipp.ai.domain.agent.service.visualreview.ICanvasVisualReviewer) command ->
+                CanvasVisualReviewResult.builder().available(true).issues(List.of()).build();
+
+        var adapter = new ProductionVisualReviewLiveEvalAdapter(reviewer, "gpt-5.5", 1D, "r4-live");
+
+        IllegalStateException error = assertThrows(IllegalStateException.class, () -> adapter.execute(evalCase));
+        assertTrue(error.getMessage().contains("temperature"));
     }
 
     private EvalCaseDefinition evalCase(String user, String diagramType) {

@@ -14,7 +14,7 @@ There are deliberately no per-issue switches. The repair whitelist remains versi
 1. **Shadow validation**
    - Keep the primary deployment switches false. Route only sampled `/api/v1/visual-reviews/stream` requests to an isolated review deployment with review enabled and auto repair disabled.
    - The sampled client sets `shadow=true`. The server calls reviewer `300018` and records the decision, but emits no `review_result` and never starts repair.
-   - Run the `production-visual-review@1` Mode C profile against the versioned `visual-review-v1` suite and a purpose-approved human sample before and during the sample.
+   - Run the `production-visual-review@2` Mode C profile against the versioned `visual-review-v1` suite and a purpose-approved human sample before and during the sample.
    - Use reviewer `300018`; reviewer `300016` remains an evaluation-only comparison judge and must not receive product traffic.
    - Do not duplicate the same product request or write image payloads to logs/databases. The traffic layer selects one review endpoint and applies a dedicated shadow quota budget.
 2. **Visible review**

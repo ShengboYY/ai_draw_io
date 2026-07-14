@@ -106,7 +106,8 @@ ai:
               embeddings-path: ${LLM_EMBEDDINGS_PATH:v1/embeddings}
             chat-model:
               model: ${VLM_MODEL:${LLM_MODEL:gpt-5.5}}
-              temperature: 0
+              # Current reasoning-capable VLMs may only accept their default sampling value.
+              temperature: ${VLM_TEMPERATURE:1}
             agents:
               - name: agent_visual_reviewer
                 description: Reviews visible production diagram quality and returns bounded structured issues.

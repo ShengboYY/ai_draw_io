@@ -44,6 +44,7 @@ public class ChatCanvasVisualReviewer implements ICanvasVisualReviewer {
     private final IChatService chatService;
     private final String agentId;
     private final String modelVersion;
+    private final double temperature;
     private final long timeoutMillis;
     private final CanvasVisualReviewExecutor reviewExecutor;
     private final ObjectMapper mapper = new ObjectMapper();
@@ -52,11 +53,13 @@ public class ChatCanvasVisualReviewer implements ICanvasVisualReviewer {
     public ChatCanvasVisualReviewer(IChatService chatService,
                                     @Value("${zipp.visual-review.agent-id:300018}") String agentId,
                                     @Value("${zipp.visual-review.model-version:${VLM_MODEL:unconfigured}}") String modelVersion,
+                                    @Value("${VLM_TEMPERATURE:1}") double temperature,
                                     @Value("${zipp.visual-review.timeout-ms:30000}") long timeoutMillis,
                                     CanvasVisualReviewExecutor reviewExecutor) {
         this.chatService = chatService;
         this.agentId = agentId;
         this.modelVersion = modelVersion;
+        this.temperature = temperature;
         this.timeoutMillis = timeoutMillis;
         this.reviewExecutor = reviewExecutor;
     }
@@ -116,7 +119,7 @@ public class ChatCanvasVisualReviewer implements ICanvasVisualReviewer {
 
     @Override
     public String version() {
-        return "visual-agent=" + agentId + ":model=" + modelVersion + ":temperature=0:"
+        return "visual-agent=" + agentId + ":model=" + modelVersion + ":temperature=" + temperature + ":"
                 + PROMPT_VERSION + ":" + RUBRIC_VERSION + ":" + SCHEMA_VERSION;
     }
 

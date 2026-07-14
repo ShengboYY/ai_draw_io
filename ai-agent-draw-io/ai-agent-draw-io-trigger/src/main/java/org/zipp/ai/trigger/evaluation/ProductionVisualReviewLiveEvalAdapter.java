@@ -29,6 +29,7 @@ public class ProductionVisualReviewLiveEvalAdapter implements LiveEvalRunner.Liv
 
     private final ICanvasVisualReviewer reviewer;
     private final String runtimeModelVersion;
+    private final double runtimeTemperature;
     private final String gitSha;
     private final CanvasVisualReviewPolicy policy = new CanvasVisualReviewPolicy();
     private final CanvasXmlContentHasher hasher = new CanvasXmlContentHasher();
@@ -37,9 +38,11 @@ public class ProductionVisualReviewLiveEvalAdapter implements LiveEvalRunner.Liv
     public ProductionVisualReviewLiveEvalAdapter(
             ICanvasVisualReviewer reviewer,
             @Value("${zipp.visual-review.model-version:${VLM_MODEL:unconfigured}}") String runtimeModelVersion,
+            @Value("${VLM_TEMPERATURE:1}") double runtimeTemperature,
             @Value("${GIT_SHA:unknown}") String gitSha) {
         this.reviewer = reviewer;
         this.runtimeModelVersion = runtimeModelVersion;
+        this.runtimeTemperature = runtimeTemperature;
         this.gitSha = gitSha;
     }
 
@@ -183,6 +186,10 @@ public class ProductionVisualReviewLiveEvalAdapter implements LiveEvalRunner.Liv
         if (profile != null && StringUtils.isNotBlank(profile.getModel())
                 && !profile.getModel().equals(runtimeModelVersion)) {
             throw new IllegalStateException("visual reviewer runtime model does not match the frozen Evaluation Profile");
+        }
+        if (profile != null && profile.getTemperature() != null
+                && Double.compare(profile.getTemperature(), runtimeTemperature) != 0) {
+            throw new IllegalStateException("visual reviewer runtime temperature does not match the frozen Evaluation Profile");
         }
     }
 }

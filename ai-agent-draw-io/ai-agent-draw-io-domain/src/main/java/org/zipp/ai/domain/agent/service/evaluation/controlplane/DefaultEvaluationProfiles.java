@@ -25,11 +25,21 @@ public final class DefaultEvaluationProfiles {
                 profile("drawing-visual", EvaluationTarget.DRAWING_QUALITY, "drawing", EvalRunMode.MODE_C, 3, true,
                         "gpt-5.5", 0D, "xml-integrity-v1,graph-assertion-v1,visual-quality-v1,visual-judge-v1", "visual_pass_rate,judge_availability,cost,median_latency_ms,max_latency_ms"),
                 profile("production-visual-review", EvaluationTarget.VISUAL_REVIEW, "visual_review", EvalRunMode.MODE_C, 3, false,
-                        "gpt-5.5", 0D, "production-visual-review-v1", "review_availability,schema_error_rate,stale_rate,repair_verify_pass_rate,cost,median_latency_ms,max_latency_ms")
+                        "gpt-5.5", 0D, "production-visual-review-v1", "review_availability,schema_error_rate,stale_rate,repair_verify_pass_rate,cost,median_latency_ms,max_latency_ms"),
+                profile("production-visual-review", "2", EvaluationTarget.VISUAL_REVIEW, "visual_review", EvalRunMode.MODE_C, 3, false,
+                        "gpt-5.5", 1D, "production-visual-review-v1", "review_availability,schema_error_rate,stale_rate,repair_verify_pass_rate,cost,median_latency_ms,max_latency_ms")
         );
     }
 
     private static EvaluationProfileVersion profile(String id, EvaluationTarget target, String adapter,
+                                                     EvalRunMode mode, int repetitions, boolean gateEligible,
+                                                     String model, double temperature, String graders, String metrics) {
+        return profile(id, "1", target, adapter, mode, repetitions, gateEligible,
+                model, temperature, graders, metrics);
+    }
+
+    private static EvaluationProfileVersion profile(String id, String version,
+                                                     EvaluationTarget target, String adapter,
                                                      EvalRunMode mode, int repetitions, boolean gateEligible,
                                                      String model, double temperature, String graders, String metrics) {
         int minimumCases = mode == EvalRunMode.MODE_B ? 1 : 20;
@@ -42,6 +52,6 @@ public final class DefaultEvaluationProfiles {
         String config = """
                 {"model":"%s","modelVersion":"%s","temperature":%s,"credentialAlias":"server-default","credentialVersion":"1","promptConfigHash":"prompt-v1","skillCatalogHash":"skills-v1","toolPolicyVersion":"tool-policy-v1","maxReviewIterations":2,"inputPricePerMillion":0,"outputPricePerMillion":0,"timeoutMs":60000,"maxEstimatedCost":10,"graders":"%s","metrics":"%s","gatePolicy":{"minimumCases":%d,"maximumErrorRate":0.05,"minimumPairedCases":%d,"regressionThreshold":0.01,"minSamplesPerClass":20,"minLatencySamplesForP95":100}%s}
                 """.formatted(model, model, temperature, graders, metrics, minimumCases, minimumPairedCases, judge).trim();
-        return new EvaluationProfileVersion(id, "1", target, adapter, mode, repetitions, gateEligible, config);
+        return new EvaluationProfileVersion(id, version, target, adapter, mode, repetitions, gateEligible, config);
     }
 }

@@ -17,7 +17,7 @@ public class EvaluationProfileResolverTest {
     public void builtInsResolveToStableSecretFreeSnapshots() {
         EvaluationProfileResolver resolver = resolver(DefaultEvaluationProfiles.versions());
 
-        assertEquals(7, resolver.list().size());
+        assertEquals(8, resolver.list().size());
         EvaluationProfileSnapshot first = resolver.resolve("router-live", "1",
                 EvaluationTarget.INTENT_ROUTER, EvalRunMode.MODE_C);
         EvaluationProfileSnapshot second = resolver.resolve("router-live", "1",
@@ -41,7 +41,8 @@ public class EvaluationProfileResolverTest {
                 "router-live@1", "6dd7250a27d1ad7e1ec3f3dfa4baed74d5dd1724e045c33a006a1e1de28410c7",
                 "drawing-structure@1", "5a9d32caacc07655f1a7498c0c79d9362644013db61719f0240b9dc73b291435",
                 "drawing-visual@1", "d5bec76fbdf7777752f86e6621c08deccbd1a546f34d7de3de75267559261d95",
-                "production-visual-review@1", "4c8ee7db86d06a103d6bdd736d27751f63089b74577c8de071682436269b05ff");
+                "production-visual-review@1", "4c8ee7db86d06a103d6bdd736d27751f63089b74577c8de071682436269b05ff",
+                "production-visual-review@2", "8396386fe4e17ef5317c1d2111f89cd48d4594661e112f2e1350ba6d89ea89f8");
 
         assertEquals(expected.size(), resolver.list().size());
         resolver.list().forEach(profile -> {
