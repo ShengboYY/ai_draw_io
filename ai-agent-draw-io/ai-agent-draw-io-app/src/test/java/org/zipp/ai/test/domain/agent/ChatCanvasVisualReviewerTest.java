@@ -161,6 +161,14 @@ public class ChatCanvasVisualReviewerTest {
         assertFalse(table.contains("drawioCanvasToolCallbackProvider"));
     }
 
+    @Test
+    public void productionReviewerConfigurationAllowsSlowVisualCallsAndReportsTheResolvedModel() throws Exception {
+        String yaml = new String(getClass().getResourceAsStream("/application.yml").readAllBytes(), StandardCharsets.UTF_8);
+
+        assertTrue(yaml.contains("timeout-ms: ${ZIPP_VISUAL_REVIEW_TIMEOUT_MS:60000}"));
+        assertTrue(yaml.contains("model-version: ${VLM_MODEL:${LLM_MODEL:gpt-5.5}}"));
+    }
+
     private ChatCanvasVisualReviewer reviewerReturning(String output) {
         IChatService chat = proxy((method, args) -> {
             if (method.getName().equals("createSession")) return "session";

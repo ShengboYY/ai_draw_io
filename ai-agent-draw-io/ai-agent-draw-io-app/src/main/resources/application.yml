@@ -74,6 +74,9 @@ zipp:
     enabled: ${ZIPP_VISUAL_REVIEW_ENABLED:false}
     auto-repair-enabled: ${ZIPP_VISUAL_REVIEW_AUTO_REPAIR_ENABLED:false}
     drawer-agent-id: ${ZIPP_VISUAL_REVIEW_DRAWER_AGENT_ID:300000}
+    # Allow slow image reviews while staying below the 120-second streaming response timeout.
+    timeout-ms: ${ZIPP_VISUAL_REVIEW_TIMEOUT_MS:60000}
+    model-version: ${VLM_MODEL:${LLM_MODEL:gpt-5.5}}
     request-threads: ${ZIPP_VISUAL_REVIEW_REQUEST_THREADS:4}
     request-queue-capacity: ${ZIPP_VISUAL_REVIEW_REQUEST_QUEUE_CAPACITY:50}
     call-threads: ${ZIPP_VISUAL_REVIEW_CALL_THREADS:2}
