@@ -205,9 +205,33 @@ public class AgentConversationService {
     }
 
     public void stream(ChatRequestDTO requestDTO, ResponseBodyEmitter emitter) {
+        stream(requestDTO, emitter, null, "chat_stream");
+    }
+
+    public void streamVisualRepair(ChatRequestDTO requestDTO,
+                                   String diagramType,
+                                   boolean optimizeLayout,
+                                   ResponseBodyEmitter emitter) {
+        // The VLM policy already authorized a bounded repair; rerouting model-authored repair text
+        // could turn it into a create action, so this internal continuation uses a fixed safe route.
+        IntentRoutingResult repairRoute = new IntentRoutingResult();
+        repairRoute.setRouteType(optimizeLayout ? "optimize_layout" : "edit_existing");
+        repairRoute.setDiagramType(StringUtils.defaultIfBlank(diagramType, "none"));
+        repairRoute.setSkillName("none");
+        repairRoute.setNeedsCanvasQuality(false);
+        repairRoute.setNeedsSemanticReview(false);
+        repairRoute.setAnswerMode("none");
+        repairRoute.setReason("production_visual_review_repair");
+        stream(requestDTO, emitter, repairRoute, "visual_repair_stream");
+    }
+
+    private void stream(ChatRequestDTO requestDTO,
+                        ResponseBodyEmitter emitter,
+                        IntentRoutingResult forcedRoutingResult,
+                        String operation) {
         AgentUsageTelemetryService.RunScope runScope = telemetryService().startRun(
                 requestDTO.getRunId(), requestDTO.getRequestId(),
-                requestDTO.getUserId(), requestDTO.getAgentId(), requestDTO.getSessionId(), "chat_stream",
+                requestDTO.getUserId(), requestDTO.getAgentId(), requestDTO.getSessionId(), operation,
                 requestDTO.getDiagramId(), credentialSource(requestDTO), requestDTO.getModelCredentialId(), "openai", "unknown");
         requestDTO.setRunId(runScope.getContext().runId());
         BoundedTextCapture streamOutputCapture = new BoundedTextCapture(MAX_BUFFERED_STREAM_CAPTURE_CHARS);
@@ -236,9 +260,11 @@ public class AgentConversationService {
 
             requestDTO = requestWithStoredCanvas(requestDTO);
             final ChatRequestDTO currentRequest = requestDTO;
-            IntentRoutingResult routingResult = recordCapturedStep(
+            IntentRoutingResult routingResult = forcedRoutingResult == null
+                    ? recordCapturedStep(
                     "routing", requestStepInput(currentRequest), AgentConversationService::routingStepOutput,
-                    () -> routeIntent(currentRequest, config));
+                    () -> routeIntent(currentRequest, config))
+                    : forcedRoutingResult;
             recordRoutingDecision(runScope, routingResult);
             if (isReviewOnly(routingResult)) {
                 try {
@@ -288,7 +314,9 @@ public class AgentConversationService {
             // Each author has its own buffer because the ADK stream can interleave partial chunks.
             final ConcurrentHashMap<String, StringBuilder> authorBuffers = new ConcurrentHashMap<>();
             // Drawing-loop budget: one first draw plus N self-repair mutations (frontend Max Loops).
-            final int maxRepairRounds = effectiveMaxReviewIterations(requestDTO, routingResult);
+            final int maxRepairRounds = forcedRoutingResult == null
+                    ? effectiveMaxReviewIterations(requestDTO, routingResult)
+                    : normalizeMaxReviewIterations(requestDTO.getMaxReviewIterations());
             final AtomicInteger mutationRounds = new AtomicInteger(0);
             final AtomicReference<Disposable> disposableRef = new AtomicReference<>();
             final AtomicBoolean manuallyCompleted = new AtomicBoolean(false);

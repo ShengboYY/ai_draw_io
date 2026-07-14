@@ -6,7 +6,9 @@ import lombok.Data;
 public class CanvasVisualReviewRequestDTO {
 
     private String userId;
+    private String agentId;
     private String sessionId;
+    private String modelCredentialId;
     private String requestId;
     private String sourceRunId;
     private String diagramId;

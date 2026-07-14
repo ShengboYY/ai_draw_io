@@ -6,12 +6,14 @@ import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseBodyEmitter;
 import org.zipp.ai.api.dto.CanvasVisualReviewRequestDTO;
+import org.zipp.ai.api.dto.ChatRequestDTO;
 import org.zipp.ai.domain.account.service.AnonymousDemoQuotaService;
 import org.zipp.ai.domain.account.service.VerifiedUserPlatformQuotaService;
 import org.zipp.ai.domain.agent.model.valobj.analysis.CanvasAnalysis;
 import org.zipp.ai.domain.agent.model.valobj.analysis.CanvasAnalysisIssue;
 import org.zipp.ai.domain.agent.model.valobj.canvas.CanvasState;
 import org.zipp.ai.domain.agent.model.valobj.visualreview.CanvasVisualIssue;
+import org.zipp.ai.domain.agent.model.valobj.visualreview.CanvasVisualIssueType;
 import org.zipp.ai.domain.agent.model.valobj.visualreview.CanvasVisualReviewCommand;
 import org.zipp.ai.domain.agent.model.valobj.visualreview.CanvasVisualReviewDecision;
 import org.zipp.ai.domain.agent.model.valobj.visualreview.CanvasVisualReviewResult;
@@ -19,11 +21,14 @@ import org.zipp.ai.domain.agent.model.valobj.visualreview.CanvasVisualReviewStag
 import org.zipp.ai.domain.agent.service.ICanvasStateStore;
 import org.zipp.ai.domain.agent.service.analysis.ICanvasAnalyzer;
 import org.zipp.ai.domain.agent.service.visualreview.CanvasVisualReviewPolicy;
+import org.zipp.ai.domain.agent.service.visualreview.CanvasVisualRepairBriefComposer;
 import org.zipp.ai.domain.agent.service.visualreview.ICanvasVisualReviewer;
 
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
+import java.util.UUID;
 
 @Service
 public class CanvasVisualReviewOrchestrator {
@@ -36,20 +41,29 @@ public class CanvasVisualReviewOrchestrator {
     private final CanvasReviewImageValidator imageValidator;
     private final AnonymousDemoQuotaService anonymousDemoQuotaService;
     private final VerifiedUserPlatformQuotaService verifiedUserPlatformQuotaService;
+    private final AgentConversationService agentConversationService;
     private final CanvasVisualReviewPolicy policy = new CanvasVisualReviewPolicy();
+    private final CanvasVisualRepairBriefComposer repairBriefComposer = new CanvasVisualRepairBriefComposer();
+    private static final Set<CanvasVisualIssueType> LAYOUT_REPAIR_TYPES = Set.of(
+            CanvasVisualIssueType.TEXT_READABILITY,
+            CanvasVisualIssueType.LAYOUT_HIERARCHY,
+            CanvasVisualIssueType.EDGE_TRACEABILITY,
+            CanvasVisualIssueType.STYLE_COHERENCE);
 
     public CanvasVisualReviewOrchestrator(ICanvasStateStore canvasStateStore,
                                           ICanvasAnalyzer canvasAnalyzer,
                                           ICanvasVisualReviewer visualReviewer,
                                           CanvasReviewImageValidator imageValidator,
                                           AnonymousDemoQuotaService anonymousDemoQuotaService,
-                                          VerifiedUserPlatformQuotaService verifiedUserPlatformQuotaService) {
+                                          VerifiedUserPlatformQuotaService verifiedUserPlatformQuotaService,
+                                          AgentConversationService agentConversationService) {
         this.canvasStateStore = canvasStateStore;
         this.canvasAnalyzer = canvasAnalyzer;
         this.visualReviewer = visualReviewer;
         this.imageValidator = imageValidator;
         this.anonymousDemoQuotaService = anonymousDemoQuotaService;
         this.verifiedUserPlatformQuotaService = verifiedUserPlatformQuotaService;
+        this.agentConversationService = agentConversationService;
     }
 
     public void stream(String ownerId,
@@ -85,6 +99,16 @@ public class CanvasVisualReviewOrchestrator {
             } else {
                 CanvasVisualReviewDecision decision = policy.decide(result, stage, stage == CanvasVisualReviewStage.VERIFY_ONLY ? 1 : 0);
                 sendReviewResult(emitter, visualReviewRunId, request, result, decision);
+                if (decision == CanvasVisualReviewDecision.REPAIR) {
+                    // A single policy-approved continuation stays on this stream; the client never
+                    // synthesizes another user message and VERIFY_ONLY can never enter this branch.
+                    agentConversationService.streamVisualRepair(
+                            repairRequest(ownerId, request, latestState, result),
+                            diagramType(request, latestState),
+                            shouldOptimizeLayout(result),
+                            emitter);
+                    return;
+                }
             }
             sendDone(emitter, visualReviewRunId, request.getSourceRunId());
             emitter.complete();
@@ -97,7 +121,8 @@ public class CanvasVisualReviewOrchestrator {
     }
 
     private void validateRequest(String ownerId, CanvasVisualReviewRequestDTO request) {
-        if (StringUtils.isBlank(ownerId) || request == null || StringUtils.isBlank(request.getDiagramId())
+        if (StringUtils.isBlank(ownerId) || request == null || StringUtils.isBlank(request.getAgentId())
+                || StringUtils.isBlank(request.getSessionId()) || StringUtils.isBlank(request.getDiagramId())
                 || request.getExpectedVersion() == null || StringUtils.isBlank(request.getExpectedContentHash())
                 || StringUtils.isBlank(request.getAfterImageDataUrl()) || StringUtils.isBlank(request.getStage())
                 || StringUtils.isBlank(request.getSourceRunId()) || StringUtils.isBlank(request.getOriginalUserTask())
@@ -109,6 +134,34 @@ public class CanvasVisualReviewOrchestrator {
         } catch (Exception e) {
             throw new IllegalArgumentException("invalid_stage", e);
         }
+    }
+
+    private ChatRequestDTO repairRequest(String ownerId,
+                                         CanvasVisualReviewRequestDTO request,
+                                         CanvasState state,
+                                         CanvasVisualReviewResult result) {
+        ChatRequestDTO repair = new ChatRequestDTO();
+        repair.setUserId(ownerId);
+        repair.setAgentId(request.getAgentId());
+        repair.setSessionId(request.getSessionId());
+        repair.setModelCredentialId(request.getModelCredentialId());
+        repair.setRequestId("repair_req_" + UUID.randomUUID());
+        repair.setRunId("repair_" + UUID.randomUUID());
+        repair.setDiagramId(state.getDiagramId());
+        repair.setExpectedVersion(state.getVersion());
+        repair.setCanvasXml(state.getCurrentXml());
+        repair.setMaxReviewIterations(1);
+        repair.setMessage(repairBriefComposer.compose(
+                request.getOriginalUserTask(), state.getVersion(), state.getContentHash(), result.safeIssues()));
+        return repair;
+    }
+
+    private boolean shouldOptimizeLayout(CanvasVisualReviewResult result) {
+        List<CanvasVisualIssue> blocking = result.safeIssues().stream()
+                .filter(issue -> issue.getSeverity() != null && issue.getSeverity().isBlocking())
+                .toList();
+        return !blocking.isEmpty() && blocking.stream()
+                .allMatch(issue -> LAYOUT_REPAIR_TYPES.contains(issue.getType()));
     }
 
     private CanvasVisualReviewCommand command(CanvasVisualReviewRequestDTO request,

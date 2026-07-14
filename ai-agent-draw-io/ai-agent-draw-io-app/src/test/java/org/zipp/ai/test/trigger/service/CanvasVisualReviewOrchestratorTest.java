@@ -3,16 +3,21 @@ package org.zipp.ai.test.trigger.service;
 import org.junit.Test;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseBodyEmitter;
 import org.zipp.ai.api.dto.CanvasVisualReviewRequestDTO;
+import org.zipp.ai.api.dto.ChatRequestDTO;
 import org.zipp.ai.domain.account.service.AnonymousDemoQuotaService;
 import org.zipp.ai.domain.account.service.VerifiedUserPlatformQuotaService;
 import org.zipp.ai.domain.agent.model.valobj.analysis.CanvasAnalysis;
 import org.zipp.ai.domain.agent.model.valobj.analysis.CanvasSummaryData;
 import org.zipp.ai.domain.agent.model.valobj.canvas.CanvasState;
 import org.zipp.ai.domain.agent.model.valobj.visualreview.CanvasVisualReviewResult;
+import org.zipp.ai.domain.agent.model.valobj.visualreview.CanvasVisualIssue;
+import org.zipp.ai.domain.agent.model.valobj.visualreview.CanvasVisualIssueSeverity;
+import org.zipp.ai.domain.agent.model.valobj.visualreview.CanvasVisualIssueType;
 import org.zipp.ai.domain.agent.service.ICanvasStateStore;
 import org.zipp.ai.domain.agent.service.analysis.ICanvasAnalyzer;
 import org.zipp.ai.trigger.http.service.CanvasReviewImageValidator;
 import org.zipp.ai.trigger.http.service.CanvasVisualReviewOrchestrator;
+import org.zipp.ai.trigger.http.service.AgentConversationService;
 
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
@@ -89,8 +94,85 @@ public class CanvasVisualReviewOrchestratorTest {
         assertTrue(String.join("\n", emitter.sent).contains("\"type\":\"review_stale\""));
     }
 
+    @Test
+    public void repairDecisionContinuesDirectlyIntoOneVisualRepairStream() throws Exception {
+        AtomicInteger repairCalls = new AtomicInteger();
+        AgentConversationService repairService = new AgentConversationService() {
+            @Override
+            public void streamVisualRepair(ChatRequestDTO request, String diagramType,
+                                           boolean optimizeLayout, ResponseBodyEmitter emitter) {
+                repairCalls.incrementAndGet();
+                assertEquals("300001", request.getAgentId());
+                assertEquals("session-1", request.getSessionId());
+                assertEquals(Long.valueOf(7L), request.getExpectedVersion());
+                assertEquals(Integer.valueOf(1), request.getMaxReviewIterations());
+                assertTrue(request.getMessage().contains("Preserve every unmentioned id"));
+                assertEquals("architecture", diagramType);
+                assertTrue(optimizeLayout);
+            }
+        };
+        CanvasVisualIssue issue = CanvasVisualIssue.builder()
+                .type(CanvasVisualIssueType.LAYOUT_HIERARCHY)
+                .severity(CanvasVisualIssueSeverity.MAJOR)
+                .anchorLabels(List.of("API"))
+                .region("center")
+                .evidence("Crowded layout")
+                .repairInstruction("Increase spacing")
+                .build();
+        CanvasVisualReviewOrchestrator orchestrator = orchestrator(
+                new SequenceCanvasStore(state(7L, "sha256:current")),
+                command -> CanvasVisualReviewResult.builder().available(true).summary("Needs spacing")
+                        .issues(List.of(issue)).recommendedHumanReview(false).build(),
+                repairService);
+        CapturingEmitter emitter = new CapturingEmitter();
+
+        orchestrator.stream("usr_owner", "visual-run-1", request(7L, "sha256:current"), emitter);
+
+        String output = String.join("\n", emitter.sent);
+        assertEquals(1, repairCalls.get());
+        assertTrue(output.contains("\"decision\":\"REPAIR\""));
+        assertFalse(output.contains("\"type\":\"done\""));
+        assertFalse(emitter.completed);
+    }
+
+    @Test
+    public void verifyOnlyNeverStartsAnotherVisualRepair() throws Exception {
+        AtomicInteger repairCalls = new AtomicInteger();
+        AgentConversationService repairService = new AgentConversationService() {
+            @Override
+            public void streamVisualRepair(ChatRequestDTO request, String diagramType,
+                                           boolean optimizeLayout, ResponseBodyEmitter emitter) {
+                repairCalls.incrementAndGet();
+            }
+        };
+        CanvasVisualIssue issue = CanvasVisualIssue.builder()
+                .type(CanvasVisualIssueType.LAYOUT_HIERARCHY)
+                .severity(CanvasVisualIssueSeverity.MAJOR)
+                .build();
+        CanvasVisualReviewOrchestrator orchestrator = orchestrator(
+                new SequenceCanvasStore(state(7L, "sha256:current")),
+                command -> CanvasVisualReviewResult.builder().available(true).summary("Still crowded")
+                        .issues(List.of(issue)).recommendedHumanReview(false).build(),
+                repairService);
+        CanvasVisualReviewRequestDTO request = request(7L, "sha256:current");
+        request.setStage("VERIFY_ONLY");
+        CapturingEmitter emitter = new CapturingEmitter();
+
+        orchestrator.stream("usr_owner", "visual-run-2", request, emitter);
+
+        assertEquals(0, repairCalls.get());
+        assertTrue(String.join("\n", emitter.sent).contains("\"decision\":\"NEEDS_HUMAN_REVIEW\""));
+        assertTrue(emitter.completed);
+    }
+
     private CanvasVisualReviewOrchestrator orchestrator(ICanvasStateStore store,
                                                          org.zipp.ai.domain.agent.service.visualreview.ICanvasVisualReviewer reviewer) {
+        return orchestrator(store, reviewer, new AgentConversationService());
+    }
+
+    private CanvasVisualReviewOrchestrator orchestrator(ICanvasStateStore store,
+                                                         org.zipp.ai.domain.agent.service.visualreview.ICanvasVisualReviewer reviewer,
+                                                         AgentConversationService repairService) {
         ICanvasAnalyzer analyzer = (xml, diagramType) -> CanvasAnalysis.builder()
                 .valid(true)
                 .severity("ok")
@@ -100,12 +182,14 @@ public class CanvasVisualReviewOrchestratorTest {
                 .build();
         return new CanvasVisualReviewOrchestrator(store, analyzer, reviewer,
                 new CanvasReviewImageValidator(), new AnonymousDemoQuotaService(),
-                new VerifiedUserPlatformQuotaService());
+                new VerifiedUserPlatformQuotaService(), repairService);
     }
 
     private CanvasVisualReviewRequestDTO request(Long version, String hash) throws Exception {
         CanvasVisualReviewRequestDTO request = new CanvasVisualReviewRequestDTO();
         request.setDiagramId("diagram-1");
+        request.setAgentId("300001");
+        request.setSessionId("session-1");
         request.setExpectedVersion(version);
         request.setExpectedContentHash(hash);
         request.setSourceRunId("source-run");

@@ -6,6 +6,7 @@ import {
     CreateSessionResponseDTO,
     ChatRequestDTO,
     ChatResponseDTO,
+    CanvasVisualReviewRequestDTO,
     CurrentAccountResponseDTO,
     DiagramCanvasStateResponseDTO,
     DiagramSummaryResponseDTO,
@@ -201,12 +202,42 @@ export interface MetaChunk {
     type: 'meta';
     requestId?: string;
     runId?: string;
+    sourceRunId?: string;
+    visualReviewRunId?: string;
 }
 
 export interface ReviewResultChunk {
     type: 'review_result';
     approved: boolean;
     content: string;
+    available?: boolean;
+    decision?: 'APPROVE' | 'APPROVE_WITH_NOTES' | 'REPAIR' | 'NEEDS_HUMAN_REVIEW' | 'UNAVAILABLE';
+    stage?: 'CURRENT_CANVAS' | 'POST_MUTATION' | 'VERIFY_ONLY';
+    issues?: Array<{
+        type?: string;
+        severity?: 'minor' | 'major' | 'critical';
+        anchorLabels?: string[];
+        region?: string;
+        evidence?: string;
+        repairInstruction?: string;
+    }>;
+    sourceRunId?: string;
+    visualReviewRunId?: string;
+}
+
+export interface ReviewStartedChunk {
+    type: 'review_started';
+    stage: 'CURRENT_CANVAS' | 'POST_MUTATION' | 'VERIFY_ONLY';
+    sourceRunId?: string;
+    visualReviewRunId?: string;
+}
+
+export interface ReviewStaleChunk {
+    type: 'review_stale';
+    sourceRunId?: string;
+    visualReviewRunId?: string;
+    expectedVersion?: number;
+    currentVersion?: number;
 }
 
 export interface ValidationResultChunk {
@@ -226,14 +257,90 @@ export interface VersionConflictChunk {
     currentContentHash?: string;
 }
 
-export type StreamChunk = DrawioPreviewChunk | DrawioNodeChunk | DrawioEdgeChunk | DrawioDoneChunk | DrawioLegacyChunk | StatusChunk | ErrorChunk | UserChunk | DoneChunk | TokenChunk | MetaChunk | ReviewResultChunk | ValidationResultChunk | VersionConflictChunk;
+export type StreamChunk = DrawioPreviewChunk | DrawioNodeChunk | DrawioEdgeChunk | DrawioDoneChunk | DrawioLegacyChunk | StatusChunk | ErrorChunk | UserChunk | DoneChunk | TokenChunk | MetaChunk | ReviewStartedChunk | ReviewResultChunk | ReviewStaleChunk | ValidationResultChunk | VersionConflictChunk;
 
 export interface StreamEvent {
-    phase: 'analyzing' | 'drawing' | 'reviewing' | 'revising' | 'thinking' | 'error' | 'done' | 'generating';
+    phase: 'analyzing' | 'drawing' | 'reviewing' | 'visual_review' | 'revising' | 'thinking' | 'error' | 'done' | 'generating';
     chunk: StreamChunk;
 }
 
 export type StreamEventCallback = (event: StreamEvent) => void;
+
+const openNdjsonStream = async ({
+    path,
+    data,
+    userId,
+    requestId,
+    onEvent,
+    onError,
+    onComplete,
+}: {
+    path: string;
+    data: unknown;
+    userId: string;
+    requestId?: string;
+    onEvent: StreamEventCallback;
+    onError: (error: Error) => void;
+    onComplete: () => void;
+}): Promise<AbortController> => {
+    const controller = new AbortController();
+
+    try {
+        const response = await fetch(`${API_CONFIG.BASE_URL}${path}`, {
+            method: 'POST',
+            headers: await csrfHeaders(workspaceHeaders(userId, requestId)),
+            body: JSON.stringify(data),
+            signal: controller.signal,
+            credentials: 'include',
+        });
+        if (!response.ok) {
+            const errorText = await response.text();
+            onError(new Error(`HTTP error! status: ${response.status}, message: ${errorText}`));
+            return controller;
+        }
+
+        const reader = response.body!.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+        void (async () => {
+            try {
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+                    buffer += decoder.decode(value, { stream: true });
+                    const lines = buffer.split('\n');
+                    buffer = lines.pop() || '';
+                    for (const line of lines) {
+                        const trimmed = line.trim();
+                        if (!trimmed) continue;
+                        try {
+                            onEvent(JSON.parse(trimmed) as StreamEvent);
+                        } catch (parseError) {
+                            console.warn('Failed to parse stream event:', trimmed, parseError);
+                        }
+                    }
+                }
+                if (buffer.trim()) {
+                    try {
+                        onEvent(JSON.parse(buffer.trim()) as StreamEvent);
+                    } catch { /* A truncated final line is ignored. */ }
+                }
+                if (!controller.signal.aborted) onComplete();
+            } catch (error) {
+                if (error instanceof DOMException && error.name === 'AbortError') {
+                    onComplete();
+                    return;
+                }
+                onError(error instanceof Error ? error : new Error(String(error)));
+            }
+        })();
+    } catch (error) {
+        if (!(error instanceof DOMException && error.name === 'AbortError')) {
+            onError(error instanceof Error ? error : new Error(String(error)));
+        }
+    }
+    return controller;
+};
 
 export const agentApi = {
     /**
@@ -1053,83 +1160,28 @@ export const agentApi = {
         onEvent: StreamEventCallback,
         onError: (error: Error) => void,
         onComplete: () => void
-    ): Promise<AbortController> => {
-        const controller = new AbortController();
+    ): Promise<AbortController> => openNdjsonStream({
+        path: '/chat_stream',
+        data,
+        userId: data.userId,
+        requestId: data.requestId,
+        onEvent,
+        onError,
+        onComplete,
+    }),
 
-        try {
-            const response = await fetch(`${API_CONFIG.BASE_URL}/chat_stream`, {
-                method: 'POST',
-                headers: await csrfHeaders(workspaceHeaders(data.userId, data.requestId)),
-                body: JSON.stringify(data),
-                signal: controller.signal,
-                credentials: 'include',
-            });
-
-            if (!response.ok) {
-                const errorText = await response.text();
-                onError(new Error(`HTTP error! status: ${response.status}, message: ${errorText}`));
-                return controller;
-            }
-
-            const reader = response.body!.getReader();
-            const decoder = new TextDecoder();
-            let buffer = '';
-
-            const processStream = async () => {
-                try {
-                    while (true) {
-                        const { done, value } = await reader.read();
-                        if (done) break;
-
-                        buffer += decoder.decode(value, { stream: true });
-
-                        // Process complete lines
-                        const lines = buffer.split('\n');
-                        buffer = lines.pop() || ''; // Keep incomplete line in buffer
-
-                        for (const line of lines) {
-                            const trimmed = line.trim();
-                            if (!trimmed) continue;
-
-                            try {
-                                const event: StreamEvent = JSON.parse(trimmed);
-                                onEvent(event);
-                            } catch (parseErr) {
-                                // If JSON parse fails, treat as raw status text
-                                console.warn('Failed to parse stream event:', trimmed, parseErr);
-                            }
-                        }
-                    }
-
-                    // Process any remaining buffer
-                    if (buffer.trim()) {
-                        try {
-                            const event: StreamEvent = JSON.parse(buffer.trim());
-                            onEvent(event);
-                        } catch {}
-                    }
-
-                    // Only call onComplete if we didn't abort
-                    if (!controller.signal.aborted) {
-                        onComplete();
-                    }
-                } catch (err: unknown) {
-                    if (err instanceof DOMException && err.name === 'AbortError') {
-                        // User cancelled, no error, but call complete to cleanup UI state
-                        onComplete();
-                        return;
-                    }
-                    onError(err instanceof Error ? err : new Error(String(err)));
-                }
-            };
-
-            processStream();
-        } catch (err: unknown) {
-            if (!(err instanceof DOMException && err.name === 'AbortError')) {
-                onError(err instanceof Error ? err : new Error(String(err)));
-            }
-        }
-
-        return controller;
-    }
+    visualReviewStream: async (
+        data: CanvasVisualReviewRequestDTO,
+        onEvent: StreamEventCallback,
+        onError: (error: Error) => void,
+        onComplete: () => void
+    ): Promise<AbortController> => openNdjsonStream({
+        path: '/visual-reviews/stream',
+        data,
+        userId: data.userId,
+        requestId: data.requestId,
+        onEvent,
+        onError,
+        onComplete,
+    }),
 };

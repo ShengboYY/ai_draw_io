@@ -28,7 +28,7 @@ public class CanvasVisualReviewControllerTest {
         AtomicReference<String> capturedOwner = new AtomicReference<>();
         CountDownLatch invoked = new CountDownLatch(1);
         CanvasVisualReviewOrchestrator orchestrator = new CanvasVisualReviewOrchestrator(
-                null, null, null, null, null, null) {
+                null, null, null, null, null, null, null) {
             @Override
             public void stream(String ownerId, String visualReviewRunId,
                                CanvasVisualReviewRequestDTO request, ResponseBodyEmitter emitter) {

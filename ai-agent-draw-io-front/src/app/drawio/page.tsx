@@ -76,6 +76,11 @@ import {
   buildVisualReviewExportRequest,
   isVisualReviewPngDataUrl,
 } from './visual-review-export';
+import {
+  buildCanvasVisualReviewRequest,
+  canStartPostMutationReview,
+  shouldRunFinalVerification,
+} from './visual-review-chain';
 
 // Message type definition
 type MessageStep = {
@@ -680,6 +685,11 @@ function DrawioPageContent() {
 
   // Context State
   const pendingThumbnailExportRef = useRef<{ diagramId: string; xml: string } | null>(null);
+  const canvasLoadWaitersRef = useRef<Array<{
+    sessionId: string;
+    resolve: (loaded: boolean) => void;
+    timer: ReturnType<typeof setTimeout>;
+  }>>([]);
   const exportCoordinatorRef = useRef<CanvasExportCoordinator | null>(null);
   if (!exportCoordinatorRef.current) {
     exportCoordinatorRef.current = new CanvasExportCoordinator(options => {
@@ -1370,8 +1380,27 @@ function DrawioPageContent() {
     if (confirmingBlankEditorLoadRef.current) {
       finishBlankEditorGuardSoon();
     }
+    const loadedSessionId = currentSessionRef.current;
+    const completedWaiters = canvasLoadWaitersRef.current.filter(waiter => waiter.sessionId === loadedSessionId);
+    canvasLoadWaitersRef.current = canvasLoadWaitersRef.current.filter(waiter => waiter.sessionId !== loadedSessionId);
+    completedWaiters.forEach(waiter => {
+      clearTimeout(waiter.timer);
+      waiter.resolve(true);
+    });
     flushPendingThumbnailExport();
   };
+
+  const waitForCanvasLoad = (sessionId: string, timeoutMs = 5_000) => new Promise<boolean>(resolve => {
+    const waiter = {
+      sessionId,
+      resolve,
+      timer: setTimeout(() => {
+        canvasLoadWaitersRef.current = canvasLoadWaitersRef.current.filter(candidate => candidate !== waiter);
+        resolve(false);
+      }, timeoutMs),
+    };
+    canvasLoadWaitersRef.current.push(waiter);
+  });
 
   const clampChatWidth = (width: number) => {
     const availableWidth = typeof window === 'undefined'
@@ -1392,6 +1421,12 @@ function DrawioPageContent() {
   // Update ref
   useEffect(() => {
     currentSessionRef.current = currentSessionId;
+    const staleWaiters = canvasLoadWaitersRef.current.filter(waiter => waiter.sessionId !== currentSessionId);
+    canvasLoadWaitersRef.current = canvasLoadWaitersRef.current.filter(waiter => waiter.sessionId === currentSessionId);
+    staleWaiters.forEach(waiter => {
+      clearTimeout(waiter.timer);
+      waiter.resolve(false);
+    });
     const activeSession = sessionsRef.current.find(session => session.id === currentSessionId);
     exportCoordinatorRef.current?.retainScope({
       sessionId: currentSessionId,
@@ -2017,6 +2052,8 @@ function DrawioPageContent() {
       setStreamPhase('connecting');
       setStreamProgress('Connecting...');
       let activeStreamPhase = 'connecting';
+      let sourceRunId = '';
+      let postDrawReviewPromise: Promise<void> | null = null;
       let activeStepKey = '';
       let lastStepSnapshot = '';
       const phaseVisitCounts: Record<string, number> = {};
@@ -2272,6 +2309,182 @@ function DrawioPageContent() {
           conversationMessages: messages,
       });
 
+      type ReviewStreamOutcome = {
+        decision?: string;
+        visualReviewRunId?: string;
+        repairRunId?: string;
+        repairedCanvas?: {
+          diagramId: string;
+          version: number;
+          contentHash: string;
+          imageBeforeRepair: string;
+          loadPromise: Promise<boolean>;
+        };
+      };
+
+      const nextReviewRequestId = () => (
+        typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+          ? `review-${crypto.randomUUID()}`
+          : `review-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`
+      );
+
+      const exportVisualReviewPng = async (targetDiagramId: string) => {
+        const exported = await exportCoordinatorRef.current?.enqueue({
+          purpose: 'visual-review-png',
+          diagramId: targetDiagramId,
+          sessionId: activeSession?.id || currentSessionId || '',
+          format: 'png',
+          options: buildVisualReviewExportRequest(),
+        });
+        return exported && isVisualReviewPngDataUrl(exported.data) ? exported.data : undefined;
+      };
+
+      const executeVisualReview = (reviewRequest: ReturnType<typeof buildCanvasVisualReviewRequest>) => (
+        new Promise<ReviewStreamOutcome>(resolve => {
+          const outcome: ReviewStreamOutcome = {};
+          let settled = false;
+          const finish = () => {
+            if (settled) return;
+            settled = true;
+            resolve(outcome);
+          };
+
+          void agentApi.visualReviewStream(
+            reviewRequest,
+            event => {
+              const { chunk } = event;
+              if (chunk.type === 'meta') {
+                if (chunk.visualReviewRunId) outcome.visualReviewRunId = chunk.visualReviewRunId;
+                if (chunk.runId && outcome.visualReviewRunId) outcome.repairRunId = chunk.runId;
+                return;
+              }
+              if (chunk.type === 'review_started') {
+                upsertRunEvent(`visual-review:${chunk.stage}`, {
+                  phase: 'reviewing',
+                  title: chunk.stage === 'VERIFY_ONLY' ? 'Final visual verification' : 'Visual review',
+                  detail: 'Inspecting the rendered canvas.',
+                  status: 'running',
+                  tone: 'review',
+                });
+                return;
+              }
+              if (chunk.type === 'review_result') {
+                outcome.decision = chunk.decision;
+                if (chunk.decision === 'REPAIR' && !activeAiMutationDiagramId) {
+                  activeAiMutationDiagramId = reviewRequest.diagramId;
+                  beginAiCanvasMutationForDiagram(reviewRequest.diagramId);
+                }
+                if (chunk.content) appendAgentMessageContent(chunk.content);
+                upsertRunEvent(`visual-review:${chunk.stage || reviewRequest.stage}`, {
+                  phase: 'reviewing',
+                  title: chunk.stage === 'VERIFY_ONLY' ? 'Final visual verification' : 'Visual review',
+                  detail: chunk.approved ? 'Rendered canvas passed.' : 'Rendered canvas needs attention.',
+                  status: chunk.approved ? 'done' : 'warning',
+                  tone: 'review',
+                });
+                return;
+              }
+              if (chunk.type === 'review_stale') {
+                outcome.decision = 'STALE';
+                appendAgentMessageContent('The canvas changed, so the outdated visual review was skipped.');
+                return;
+              }
+              if (chunk.type === 'drawio_done' && Number.isFinite(chunk.version) && chunk.contentHash) {
+                const repairedDiagramId = chunk.diagramId || reviewRequest.diagramId;
+                const loadPromise = waitForCanvasLoad(activeSession?.id || currentSessionId || '');
+                applyFinalDiagramXml(chunk.content, chunk.mode);
+                saveCurrentCanvasXml(chunk.content, {
+                  diagramId: repairedDiagramId,
+                  version: chunk.version,
+                  contentHash: chunk.contentHash,
+                });
+                if (activeSession?.id) {
+                  rememberManualCanvasVersion(activeSession.id, repairedDiagramId, chunk.version, chunk.contentHash);
+                }
+                outcome.repairedCanvas = {
+                  diagramId: repairedDiagramId,
+                  version: chunk.version as number,
+                  contentHash: chunk.contentHash,
+                  imageBeforeRepair: reviewRequest.afterImageDataUrl,
+                  loadPromise,
+                };
+                return;
+              }
+              if (chunk.type === 'error') {
+                appendAgentMessageContent('Visual review could not be completed. The current canvas was kept.');
+              }
+            },
+            () => {
+              appendAgentMessageContent('Visual review could not be completed. The current canvas was kept.');
+              finish();
+            },
+            finish,
+          ).then(controller => {
+            streamAbortRef.current = controller;
+          });
+        })
+      );
+
+      const runPostDrawVisualReview = async ({
+        finalDiagramId,
+        finalVersion,
+        finalContentHash,
+        canvasLoaded,
+      }: {
+        finalDiagramId: string;
+        finalVersion: number;
+        finalContentHash: string;
+        canvasLoaded: Promise<boolean>;
+      }) => {
+        if (!await canvasLoaded || currentSessionRef.current !== activeSession?.id) return;
+        const afterImage = await exportVisualReviewPng(finalDiagramId);
+        if (!afterImage || !sourceRunId) return;
+
+        const postMutationRequest = buildCanvasVisualReviewRequest({
+          userId: currentUser,
+          agentId: selectedAgentId,
+          sessionId: activeBackendSessionId,
+          requestId: nextReviewRequestId(),
+          sourceRunId,
+          diagramId: finalDiagramId,
+          expectedVersion: finalVersion,
+          expectedContentHash: finalContentHash,
+          originalUserTask: displayContent,
+          stage: 'POST_MUTATION',
+          beforeImageDataUrl: canvasContext.canvasImageDataUrl,
+          afterImageDataUrl: afterImage,
+          modelCredentialId: activeModelConfig?.modelCredentialId,
+        });
+        const reviewed = await executeVisualReview(postMutationRequest);
+        const repaired = reviewed.repairedCanvas;
+        if (!repaired || !shouldRunFinalVerification({
+          decision: reviewed.decision,
+          version: repaired.version,
+          contentHash: repaired.contentHash,
+        })) return;
+
+        // One repair is the hard limit: this second request is VERIFY_ONLY and the backend policy
+        // cannot authorize another mutation regardless of its findings.
+        if (!await repaired.loadPromise || currentSessionRef.current !== activeSession?.id) return;
+        const repairedImage = await exportVisualReviewPng(repaired.diagramId);
+        if (!repairedImage) return;
+        await executeVisualReview(buildCanvasVisualReviewRequest({
+          userId: currentUser,
+          agentId: selectedAgentId,
+          sessionId: activeBackendSessionId,
+          requestId: nextReviewRequestId(),
+          sourceRunId: reviewed.repairRunId || reviewed.visualReviewRunId || sourceRunId,
+          diagramId: repaired.diagramId,
+          expectedVersion: repaired.version,
+          expectedContentHash: repaired.contentHash,
+          originalUserTask: displayContent,
+          stage: 'VERIFY_ONLY',
+          beforeImageDataUrl: repaired.imageBeforeRepair,
+          afterImageDataUrl: repairedImage,
+          modelCredentialId: activeModelConfig?.modelCredentialId,
+        }));
+      };
+
       if (demoQuotaState.visible) {
         // Keep the visible counter in step with the backend; the refresh below reconciles failures.
         setCurrentAccount(prev => applyDemoQuotaConsumption(prev));
@@ -2284,9 +2497,9 @@ function DrawioPageContent() {
           const { phase, chunk } = event;
           if (chunk.type === 'meta') {
             // Correlation metadata is for diagnostics and should not create a visible run step.
+            sourceRunId = chunk.runId || sourceRunId;
             return;
           }
-
           // Update phase display
           const phaseLabel: Record<string, string> = {
             analyzing: '🔍 Analyze request',
@@ -2463,24 +2676,49 @@ function DrawioPageContent() {
               // Reviewer may send the polished final diagram after the drawing stage.
               const isFinalStage = phase === 'drawing' || phase === 'reviewing' || phase === 'done';
               
-	              if (isFinalStage) {
-	                // Local edits merge in place; full redraws recreate the iframe with the final stable XML.
-	                if (currentSessionId === currentSessionRef.current && finalXml && finalXml.trim() !== '') {
-	                  applyFinalDiagramXml(finalXml, chunk.mode);
-	                }
-
-	                saveCurrentCanvasXml(finalXml, {
-	                  diagramId: chunk.diagramId,
-	                  version: chunk.version,
+              if (isFinalStage) {
+                const shouldReviewFinalCanvas = Boolean(chunk.diagramId || diagramId)
+                  && !postDrawReviewPromise && canStartPostMutationReview({
+                    version: chunk.version,
                     contentHash: chunk.contentHash,
-	                });
-	                persistedDiagramId = chunk.diagramId || persistedDiagramId;
-	                queueDiagramThumbnailExport(persistedDiagramId, finalXml);
-	                if (!diagramTitlePersisted) {
-	                  diagramTitlePersisted = true;
-	                  persistDiagramTitle(chunk.diagramId || diagramId, diagramTitle);
-	                }
-	              }
+                  });
+                const canvasLoaded = shouldReviewFinalCanvas && activeSession?.id
+                  ? waitForCanvasLoad(activeSession.id)
+                  : null;
+                // Local edits merge in place; full redraws recreate the iframe with the final stable XML.
+                if (currentSessionId === currentSessionRef.current && finalXml && finalXml.trim() !== '') {
+                  applyFinalDiagramXml(finalXml, chunk.mode);
+                }
+
+                saveCurrentCanvasXml(finalXml, {
+                  diagramId: chunk.diagramId,
+                  version: chunk.version,
+                  contentHash: chunk.contentHash,
+                });
+                persistedDiagramId = chunk.diagramId || persistedDiagramId;
+                queueDiagramThumbnailExport(persistedDiagramId, finalXml);
+                if (!diagramTitlePersisted) {
+                  diagramTitlePersisted = true;
+                  persistDiagramTitle(chunk.diagramId || diagramId, diagramTitle);
+                }
+                if (canvasLoaded && chunk.version !== undefined && chunk.contentHash) {
+                  // The initial mutation is already persisted. Release autosave ownership while the
+                  // VLM thinks so a manual edit can advance version/hash and make its result stale.
+                  if (activeAiMutationDiagramId) {
+                    finishAiCanvasMutationForDiagram(activeAiMutationDiagramId);
+                    activeAiMutationDiagramId = undefined;
+                  }
+                  postDrawReviewPromise = runPostDrawVisualReview({
+                    finalDiagramId: chunk.diagramId || diagramId || '',
+                    finalVersion: chunk.version,
+                    finalContentHash: chunk.contentHash,
+                    canvasLoaded,
+                  }).catch(error => {
+                    console.warn('Post-draw visual review failed open:', error);
+                    appendAgentMessageContent('Visual review could not be completed. The current canvas was kept.');
+                  });
+                }
+              }
               
               break;
             }
@@ -2708,6 +2946,10 @@ function DrawioPageContent() {
 
             case 'done': {
               // Stream completed explicitly by backend
+              if (postDrawReviewPromise) {
+                setStreamPhase('reviewing');
+                break;
+              }
               accumulatedSteps.forEach(s => { s.status = 'done'; });
               markRunEventsDone();
               if (receivedVersionConflict) {
@@ -2747,24 +2989,30 @@ function DrawioPageContent() {
         },
         // onComplete
         () => {
-          if (activeAiMutationDiagramId) {
-            finishAiCanvasMutationForDiagram(activeAiMutationDiagramId);
+          const finishFullRun = () => {
+            if (activeAiMutationDiagramId) {
+              finishAiCanvasMutationForDiagram(activeAiMutationDiagramId);
+            }
+            setIsSending(false);
+            setStreamPhase('');
+            void refreshCurrentAccount();
+            markRunEventsDone();
+
+            if (!appendCompletionMessage() && !appendEmptyResponseMessage()) {
+                setMessages(prev => prev.map(m => {
+                    if (m.id === agentMsgId) {
+                        return { ...m, steps: markStepsDone(m.steps) };
+                    }
+                    return m;
+                }));
+            }
+            persistCurrentTurnConversation();
+          };
+          if (postDrawReviewPromise) {
+            void postDrawReviewPromise.finally(finishFullRun);
+          } else {
+            finishFullRun();
           }
-          setIsSending(false);
-          setStreamPhase('');
-          setStreamProgress('');
-          void refreshCurrentAccount();
-          markRunEventsDone();
-          
-          if (!appendCompletionMessage() && !appendEmptyResponseMessage()) {
-              setMessages(prev => prev.map(m => {
-                  if (m.id === agentMsgId) {
-                      return { ...m, steps: markStepsDone(m.steps) };
-                  }
-                  return m;
-              }));
-          }
-          persistCurrentTurnConversation();
         }
       );
 

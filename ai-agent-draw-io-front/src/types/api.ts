@@ -374,6 +374,26 @@ export interface ChatResponseDTO {
     runId?: string;
 }
 
+export type CanvasVisualReviewStage = 'POST_MUTATION' | 'VERIFY_ONLY';
+
+export interface CanvasVisualReviewRequestDTO {
+  userId: string;
+  agentId: string;
+  sessionId: string;
+  requestId?: string;
+  sourceRunId: string;
+  diagramId: string;
+  expectedVersion: number;
+  expectedContentHash: string;
+  originalUserTask: string;
+  diagramType?: string;
+  stage: CanvasVisualReviewStage;
+  beforeImageDataUrl?: string;
+  afterImageDataUrl: string;
+  rendererVersion: 'drawio-embed-png-v1';
+  modelCredentialId?: string;
+}
+
 export type LoginStatus =
   | 'SUCCESS'
   | 'INVALID_CREDENTIALS'

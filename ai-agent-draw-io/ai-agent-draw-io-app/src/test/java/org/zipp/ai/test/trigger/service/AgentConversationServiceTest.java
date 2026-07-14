@@ -159,6 +159,27 @@ public class AgentConversationServiceTest {
     }
 
     @Test
+    public void shouldBypassIntentRoutingForPolicyApprovedVisualRepair() throws Exception {
+        AgentConversationService service = quotaAwareService();
+        CountingChatService chatService = new CountingChatService();
+        CountingIntentRoutingService routingService = new CountingIntentRoutingService();
+        injectField(service, "chatService", chatService);
+        injectField(service, "intentRoutingService", routingService);
+        ChatRequestDTO request = platformRequest();
+        request.setDiagramId("diagram-1");
+        request.setCanvasXml(storedCanvasXml());
+        request.setMessage("Fix only the cited spacing issue and preserve everything else.");
+
+        service.streamVisualRepair(request, "architecture", false, new CapturingEmitter());
+
+        assertEquals(0, routingService.calls);
+        assertEquals(1, chatService.handleMessageStreamCalls);
+        assertTrue(chatService.lastStreamMessage.contains("\"routeType\":\"edit_existing\""));
+        assertTrue(chatService.lastStreamMessage.contains("\"allowedTools\":[\"modify_diagram\"]"));
+        assertTrue(chatService.lastStreamMessage.contains("\"maxRepairRounds\":1"));
+    }
+
+    @Test
     public void shouldClampFrontendReviewIterationSetting() throws Exception {
         AgentConversationService service = new AgentConversationService();
 
@@ -1084,6 +1105,7 @@ public class AgentConversationServiceTest {
         private int handleMessageStreamCalls;
         private AgentUsageTelemetryContext.RunContext lastRunContext;
         private AgentUsageTelemetryContext.RunContext lastStreamRunContext;
+        private String lastStreamMessage = "";
 
         @Override
         public List<AiAgentConfigTableVO.Agent> queryAiAgentConfigList() {
@@ -1124,6 +1146,7 @@ public class AgentConversationServiceTest {
         @Override
         public Flowable<Event> handleMessageStream(String agentId, String userId, String sessionId, String message) {
             handleMessageStreamCalls++;
+            lastStreamMessage = message;
             return Flowable.empty();
         }
 
