@@ -15,6 +15,12 @@ const request = (purpose, format = 'xmlsvg', scope = {}) => ({
   timeoutMs: scope.timeoutMs || 100,
 });
 
+const formats = dispatched => dispatched.map(({ format }) => ({ format }));
+const responseFor = (dispatched, index, payload) => ({
+  ...payload,
+  requestId: dispatched[index].requestId,
+});
+
 test('exports are dispatched FIFO with only one request in flight', async () => {
   const dispatched = [];
   const coordinator = new CanvasExportCoordinator(options => dispatched.push(options));
@@ -22,13 +28,20 @@ test('exports are dispatched FIFO with only one request in flight', async () => 
   const chat = coordinator.enqueue(request('chat-xml'));
   const thumbnail = coordinator.enqueue(request('thumbnail-png', 'png'));
 
-  assert.deepEqual(dispatched, [{ format: 'xmlsvg' }]);
-  assert.equal(coordinator.handleExport({ format: 'png', data: 'data:image/png;base64,old' }), false);
-  assert.deepEqual(dispatched, [{ format: 'xmlsvg' }]);
+  assert.deepEqual(formats(dispatched), [{ format: 'xmlsvg' }]);
+  assert.equal(coordinator.handleExport(responseFor(dispatched, 0, {
+    format: 'png', data: 'data:image/png;base64,old',
+  })), false);
+  assert.equal(coordinator.handleExport({ format: 'xmlsvg', xml: '<unscoped />' }), false);
+  assert.deepEqual(formats(dispatched), [{ format: 'xmlsvg' }]);
 
-  assert.equal(coordinator.handleExport({ format: 'xmlsvg', xml: '<mxGraphModel />' }), true);
-  assert.deepEqual(dispatched, [{ format: 'xmlsvg' }, { format: 'png' }]);
-  assert.equal(coordinator.handleExport({ format: 'png', data: 'data:image/png;base64,new' }), true);
+  assert.equal(coordinator.handleExport(responseFor(dispatched, 0, {
+    format: 'xmlsvg', xml: '<mxGraphModel />',
+  })), true);
+  assert.deepEqual(formats(dispatched), [{ format: 'xmlsvg' }, { format: 'png' }]);
+  assert.equal(coordinator.handleExport(responseFor(dispatched, 1, {
+    format: 'png', data: 'data:image/png;base64,new',
+  })), true);
 
   assert.equal((await chat).purpose, 'chat-xml');
   assert.equal((await thumbnail).purpose, 'thumbnail-png');
@@ -44,13 +57,34 @@ test('timeout rejects the stalled request and advances the queue', async () => {
   await assert.rejects(stalled, error => (
     error instanceof CanvasExportError && error.code === 'EXPORT_TIMEOUT'
   ));
-  assert.deepEqual(dispatched, [{ format: 'xmlsvg' }, { format: 'png' }]);
+  assert.deepEqual(formats(dispatched), [{ format: 'xmlsvg' }, { format: 'png' }]);
 
-  coordinator.handleExport({ format: 'png', data: 'data:image/png;base64,next' });
+  coordinator.handleExport(responseFor(dispatched, 1, {
+    format: 'png', data: 'data:image/png;base64,next',
+  }));
   assert.equal((await next).purpose, 'visual-review-png');
 });
 
-test('scope changes reject queued work but keep an active stale export as a response barrier', async () => {
+test('same-format timeout advances immediately and rejects the late correlated callback', async () => {
+  const dispatched = [];
+  const coordinator = new CanvasExportCoordinator(options => dispatched.push(options));
+
+  const stalled = coordinator.enqueue(request('thumbnail-png', 'png', { timeoutMs: 10 }));
+  const next = coordinator.enqueue(request('visual-review-png', 'png'));
+
+  await assert.rejects(stalled, error => error.code === 'EXPORT_TIMEOUT');
+  assert.deepEqual(formats(dispatched), [{ format: 'png' }, { format: 'png' }]);
+
+  assert.equal(coordinator.handleExport(responseFor(dispatched, 0, {
+    format: 'png', data: 'data:image/png;base64,late',
+  })), false);
+  coordinator.handleExport(responseFor(dispatched, 1, {
+    format: 'png', data: 'data:image/png;base64,current',
+  }));
+  assert.equal((await next).data, 'data:image/png;base64,current');
+});
+
+test('scope changes reject stale work and correlate the next same-format response', async () => {
   const dispatched = [];
   const coordinator = new CanvasExportCoordinator(options => dispatched.push(options));
 
@@ -64,11 +98,11 @@ test('scope changes reject queued work but keep an active stale export as a resp
   coordinator.retainScope({ diagramId: 'diagram-2', sessionId: 'session-2' });
   await assert.rejects(oldActive, error => error.code === 'EXPORT_SCOPE_CHANGED');
   await assert.rejects(oldQueued, error => error.code === 'EXPORT_SCOPE_CHANGED');
-  assert.deepEqual(dispatched, [{ format: 'xmlsvg' }]);
+  assert.deepEqual(formats(dispatched), [{ format: 'xmlsvg' }, { format: 'xmlsvg' }]);
 
-  // Consume the old iframe response before dispatching the same-format request for the new canvas.
-  assert.equal(coordinator.handleExport({ format: 'xmlsvg', xml: '<old />' }), true);
-  assert.deepEqual(dispatched, [{ format: 'xmlsvg' }, { format: 'xmlsvg' }]);
-  coordinator.handleExport({ format: 'xmlsvg', xml: '<new />' });
+  assert.equal(coordinator.handleExport(responseFor(dispatched, 0, {
+    format: 'xmlsvg', xml: '<old />',
+  })), false);
+  coordinator.handleExport(responseFor(dispatched, 1, { format: 'xmlsvg', xml: '<new />' }));
   assert.equal((await newQueued).diagramId, 'diagram-2');
 });

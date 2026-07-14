@@ -11,4 +11,3 @@ tags: [target:visual_review, i18n, lang:mixed]
 privacy: {classification: synthetic, sanitizerVersion: null}
 input: {user: "检查中英文混合标签是否清晰", stage: CURRENT_CANVAS, syntheticFixture: mixed-labels, languageHint: zh}
 expected: {reviewAvailable: true, forbiddenVisualIssueTypes: [DOMAIN_UNCERTAINTY]}
-

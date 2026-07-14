@@ -314,6 +314,10 @@ public class AgentUsageTelemetryRepository implements IAgentUsageTelemetryStore 
         po.setPromptTokens(call.getPromptTokens());
         po.setCompletionTokens(call.getCompletionTokens());
         po.setTotalTokens(call.getTotalTokens());
+        po.setPricingVersion(call.getPricingVersion());
+        po.setInputPricePerMillionUsd(call.getInputPricePerMillionUsd());
+        po.setOutputPricePerMillionUsd(call.getOutputPricePerMillionUsd());
+        po.setEstimatedCostUsd(call.getEstimatedCostUsd());
         po.setProviderRequestId(call.getProviderRequestId());
         po.setProviderResponseId(call.getProviderResponseId());
         po.setTtftMs(call.getTtftMs());
@@ -412,6 +416,10 @@ public class AgentUsageTelemetryRepository implements IAgentUsageTelemetryStore 
                 .promptTokens(po.getPromptTokens())
                 .completionTokens(po.getCompletionTokens())
                 .totalTokens(po.getTotalTokens())
+                .pricingVersion(po.getPricingVersion())
+                .inputPricePerMillionUsd(po.getInputPricePerMillionUsd())
+                .outputPricePerMillionUsd(po.getOutputPricePerMillionUsd())
+                .estimatedCostUsd(po.getEstimatedCostUsd())
                 .providerRequestId(po.getProviderRequestId())
                 .providerResponseId(po.getProviderResponseId())
                 .ttftMs(po.getTtftMs())

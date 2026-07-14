@@ -11,4 +11,3 @@ tags: [target:visual_review, labels, lang:en]
 privacy: {classification: synthetic, sanitizerVersion: null}
 input: {user: "Keep relationship labels readable", stage: POST_MUTATION, syntheticFixture: label-overlap}
 expected: {reviewAvailable: true, reviewDecision: REPAIR, requiredVisualIssueTypes: [TEXT_READABILITY]}
-

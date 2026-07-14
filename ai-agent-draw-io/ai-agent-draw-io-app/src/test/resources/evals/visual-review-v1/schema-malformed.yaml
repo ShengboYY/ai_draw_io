@@ -11,4 +11,3 @@ tags: [target:visual_review, fault_injection:schema]
 privacy: {classification: synthetic, sanitizerVersion: null}
 input: {user: "Review the architecture", stage: CURRENT_CANVAS, syntheticFixture: clean, failureInjection: schema_malformed}
 expected: {reviewAvailable: false, reviewDecision: UNAVAILABLE, reviewUnavailableReason: output_schema_error}
-

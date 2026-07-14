@@ -19,6 +19,10 @@ public class LlmCallTelemetryPO {
     private Integer promptTokens;
     private Integer completionTokens;
     private Integer totalTokens;
+    private String pricingVersion;
+    private Double inputPricePerMillionUsd;
+    private Double outputPricePerMillionUsd;
+    private Double estimatedCostUsd;
     private String providerRequestId;
     private String providerResponseId;
     private Long ttftMs;

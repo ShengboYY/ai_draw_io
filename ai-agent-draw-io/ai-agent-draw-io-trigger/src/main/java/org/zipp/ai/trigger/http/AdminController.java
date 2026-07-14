@@ -47,6 +47,7 @@ import org.zipp.ai.domain.agent.model.valobj.usage.AgentRunStepTelemetry;
 import org.zipp.ai.domain.agent.model.valobj.usage.AgentRunTelemetry;
 import org.zipp.ai.domain.agent.model.valobj.usage.AgentTraceEvent;
 import org.zipp.ai.domain.agent.model.valobj.usage.LlmCallTelemetry;
+import org.zipp.ai.domain.agent.model.valobj.usage.LlmPricingSnapshot;
 import org.zipp.ai.domain.agent.model.valobj.usage.ToolCallTelemetry;
 import org.zipp.ai.domain.agent.model.valobj.usage.UsageDimensionSummary;
 import org.zipp.ai.domain.agent.service.ICanvasStateStore;
@@ -563,7 +564,7 @@ public class AdminController {
         dto.setSpanCount((long) safeList(spans).size());
         dto.setTotalTokens(run.getKnownTotalTokens());
         dto.setEstimatedCost(safeList(detail.getLlmCalls()).stream()
-                .mapToDouble(call -> estimateCostUsd(call.getPromptTokens(), call.getCompletionTokens(), call.getModel()))
+                .mapToDouble(this::estimatedCostUsd)
                 .sum());
         return dto;
     }
@@ -673,7 +674,7 @@ public class AdminController {
         dto.setTtftMs(call.getTtftMs());
         dto.setAttemptCount(call.getAttemptCount());
         dto.setRetryCount(call.getRetryCount());
-        dto.setEstimatedCost(estimateCostUsd(call.getPromptTokens(), call.getCompletionTokens(), call.getModel()));
+        dto.setEstimatedCost(estimatedCostUsd(call));
         dto.setErrorClass(call.getErrorClass());
         return dto;
     }
@@ -1074,34 +1075,11 @@ public class AdminController {
         };
     }
 
-    private double estimateCostUsd(Integer promptTokens, Integer completionTokens, String model) {
-        double[] price = pricePerMillion(model);
-        double promptCost = ((promptTokens == null ? 0 : promptTokens) / 1_000_000D) * price[0];
-        double completionCost = ((completionTokens == null ? 0 : completionTokens) / 1_000_000D) * price[1];
-        return promptCost + completionCost;
-    }
-
-    private double[] pricePerMillion(String model) {
-        String m = StringUtils.defaultString(model).toLowerCase();
-        if (m.contains("gpt-5") || m.contains("gpt5")) {
-            return new double[]{1.25D, 10D};
-        }
-        if (m.contains("gpt-4o") || m.contains("4o-mini")) {
-            return new double[]{2.5D, 10D};
-        }
-        if (m.contains("opus")) {
-            return new double[]{15D, 75D};
-        }
-        if (m.contains("sonnet")) {
-            return new double[]{3D, 15D};
-        }
-        if (m.contains("haiku")) {
-            return new double[]{0.8D, 4D};
-        }
-        if (m.contains("gemini")) {
-            return new double[]{1.25D, 5D};
-        }
-        return new double[]{2D, 8D};
+    private double estimatedCostUsd(LlmCallTelemetry call) {
+        if (call.getEstimatedCostUsd() != null) return call.getEstimatedCostUsd();
+        Double fallback = LlmPricingSnapshot.capture(
+                call.getModel(), call.getPromptTokens(), call.getCompletionTokens()).estimatedCostUsd();
+        return fallback == null ? 0D : fallback;
     }
 
     private AdminPayloadAvailabilityDTO toPayloadAvailability() {
@@ -1292,6 +1270,10 @@ public class AdminController {
         dto.setPromptTokens(call.getPromptTokens());
         dto.setCompletionTokens(call.getCompletionTokens());
         dto.setTotalTokens(call.getTotalTokens());
+        dto.setPricingVersion(call.getPricingVersion());
+        dto.setInputPricePerMillionUsd(call.getInputPricePerMillionUsd());
+        dto.setOutputPricePerMillionUsd(call.getOutputPricePerMillionUsd());
+        dto.setEstimatedCostUsd(call.getEstimatedCostUsd());
         dto.setProviderRequestId(call.getProviderRequestId());
         dto.setProviderResponseId(call.getProviderResponseId());
         dto.setTtftMs(call.getTtftMs());

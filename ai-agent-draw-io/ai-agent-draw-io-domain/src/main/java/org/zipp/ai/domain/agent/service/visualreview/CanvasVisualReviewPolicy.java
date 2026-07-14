@@ -3,6 +3,7 @@ package org.zipp.ai.domain.agent.service.visualreview;
 import org.zipp.ai.domain.agent.model.valobj.visualreview.CanvasVisualIssue;
 import org.zipp.ai.domain.agent.model.valobj.visualreview.CanvasVisualIssueType;
 import org.zipp.ai.domain.agent.model.valobj.visualreview.CanvasVisualReviewDecision;
+import org.zipp.ai.domain.agent.model.valobj.visualreview.CanvasVisualRepairScope;
 import org.zipp.ai.domain.agent.model.valobj.visualreview.CanvasVisualReviewResult;
 import org.zipp.ai.domain.agent.model.valobj.visualreview.CanvasVisualReviewStage;
 
@@ -47,8 +48,11 @@ public class CanvasVisualReviewPolicy {
 
         // Only the first post-mutation review may authorize a bounded repair.
         if (stage != CanvasVisualReviewStage.POST_MUTATION || completedRepairRounds > 0
-                || blocking.size() > MAX_AUTOMATIC_REPAIR_ISSUES
-                || blocking.stream().anyMatch(issue -> !AUTOMATIC_REPAIR_TYPES.contains(issue.getType()))) {
+                || issues.size() > MAX_AUTOMATIC_REPAIR_ISSUES
+                // Every issue entering the repair brief must be safe; a minor semantic issue
+                // cannot hitchhike on a repairable blocking layout issue.
+                || issues.stream().anyMatch(issue -> !AUTOMATIC_REPAIR_TYPES.contains(issue.getType()))
+                || issues.stream().anyMatch(issue -> issue.getRepairScope() != CanvasVisualRepairScope.LOCAL)) {
             return CanvasVisualReviewDecision.NEEDS_HUMAN_REVIEW;
         }
         return CanvasVisualReviewDecision.REPAIR;

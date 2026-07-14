@@ -3389,6 +3389,7 @@ function DrawioPageContent() {
                   data: data.data,
                   xml: data.xml,
                   format: data.format,
+                  requestId: (data.message as { requestId?: string }).requestId,
                 });
                 if (!handled && data.data) setImgData(data.data);
               }}

@@ -11,4 +11,3 @@ tags: [target:visual_review, hierarchy, lang:en]
 privacy: {classification: synthetic, sanitizerVersion: null}
 input: {user: "Create a clear architecture hierarchy", stage: POST_MUTATION, syntheticFixture: weak-hierarchy}
 expected: {reviewAvailable: true, reviewDecision: REPAIR, requiredVisualIssueTypes: [LAYOUT_HIERARCHY]}
-

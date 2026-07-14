@@ -12,6 +12,7 @@ import org.zipp.ai.domain.agent.model.valobj.intent.IntentRoutingResult;
 import org.zipp.ai.domain.agent.model.valobj.visualreview.CanvasVisualIssue;
 import org.zipp.ai.domain.agent.model.valobj.visualreview.CanvasVisualIssueSeverity;
 import org.zipp.ai.domain.agent.model.valobj.visualreview.CanvasVisualIssueType;
+import org.zipp.ai.domain.agent.model.valobj.visualreview.CanvasVisualRepairScope;
 import org.zipp.ai.domain.agent.model.valobj.visualreview.CanvasVisualReviewResult;
 import org.zipp.ai.domain.agent.service.IChatService;
 import org.zipp.ai.domain.agent.service.IIntentRoutingService;
@@ -112,7 +113,8 @@ public class ProductionTargetLiveEvalAdaptersTest {
                         .issues(List.of(CanvasVisualIssue.builder()
                                 .type(CanvasVisualIssueType.TEXT_READABILITY)
                                 .severity(CanvasVisualIssueSeverity.MAJOR)
-                                .region("center").evidence("small").repairInstruction("increase size").build()))
+                                .region("center").evidence("small").repairInstruction("increase size")
+                                .repairScope(CanvasVisualRepairScope.LOCAL).build()))
                         .reviewerVersion("production-reviewer-v1").build();
 
         var execution = new ProductionVisualReviewLiveEvalAdapter(reviewer, "gpt-5.5", "r4-live")

@@ -73,6 +73,11 @@ zipp:
     # Roll out visible review first. Auto repair stays independently disabled until canary metrics pass.
     enabled: ${ZIPP_VISUAL_REVIEW_ENABLED:false}
     auto-repair-enabled: ${ZIPP_VISUAL_REVIEW_AUTO_REPAIR_ENABLED:false}
+    drawer-agent-id: ${ZIPP_VISUAL_REVIEW_DRAWER_AGENT_ID:300000}
+    request-threads: ${ZIPP_VISUAL_REVIEW_REQUEST_THREADS:4}
+    request-queue-capacity: ${ZIPP_VISUAL_REVIEW_REQUEST_QUEUE_CAPACITY:50}
+    call-threads: ${ZIPP_VISUAL_REVIEW_CALL_THREADS:2}
+    call-queue-capacity: ${ZIPP_VISUAL_REVIEW_CALL_QUEUE_CAPACITY:20}
   telemetry:
     # Enable this on exactly one app instance, or run cleanup from a dedicated scheduler.
     cleanup-enabled: ${ZIPP_TELEMETRY_CLEANUP_ENABLED:false}

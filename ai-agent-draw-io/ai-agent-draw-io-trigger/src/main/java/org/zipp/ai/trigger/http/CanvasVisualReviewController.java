@@ -1,6 +1,7 @@
 package org.zipp.ai.trigger.http;
 
 import org.apache.commons.lang3.StringUtils;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.server.ServerHttpResponse;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -9,10 +10,10 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseBodyEmitter;
 import org.zipp.ai.api.dto.CanvasVisualReviewRequestDTO;
+import org.zipp.ai.domain.agent.service.visualreview.CanvasVisualReviewExecutor;
 import org.zipp.ai.trigger.http.service.CanvasVisualReviewOrchestrator;
 
 import java.util.UUID;
-import java.util.concurrent.CompletableFuture;
 import java.util.regex.Pattern;
 
 @RestController
@@ -25,11 +26,15 @@ public class CanvasVisualReviewController {
 
     private final CurrentOwnerHttpResolver ownerResolver;
     private final CanvasVisualReviewOrchestrator orchestrator;
+    private final CanvasVisualReviewExecutor reviewExecutor;
 
+    @Autowired
     public CanvasVisualReviewController(CurrentOwnerHttpResolver ownerResolver,
-                                        CanvasVisualReviewOrchestrator orchestrator) {
+                                        CanvasVisualReviewOrchestrator orchestrator,
+                                        CanvasVisualReviewExecutor reviewExecutor) {
         this.ownerResolver = ownerResolver;
         this.orchestrator = orchestrator;
+        this.reviewExecutor = reviewExecutor;
     }
 
     @PostMapping("/stream")
@@ -57,8 +62,10 @@ public class CanvasVisualReviewController {
         }
         request.setUserId(ownerId);
         request.setRequestId(requestId);
-        // Return the emitter immediately; owner resolution has already happened on the request thread.
-        CompletableFuture.runAsync(() -> orchestrator.stream(ownerId, runId, request, emitter));
+        // Return the emitter immediately; a bounded pool prevents slow reviews consuming shared workers.
+        if (!reviewExecutor.executeRequest(() -> orchestrator.stream(ownerId, runId, request, emitter))) {
+            emitter.completeWithError(new IllegalStateException("Visual review capacity is currently exhausted"));
+        }
         return emitter;
     }
 

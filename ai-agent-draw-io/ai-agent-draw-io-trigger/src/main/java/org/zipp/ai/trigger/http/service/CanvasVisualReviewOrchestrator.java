@@ -4,6 +4,7 @@ import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseBodyEmitter;
 import org.zipp.ai.api.dto.CanvasVisualReviewRequestDTO;
 import org.zipp.ai.api.dto.ChatRequestDTO;
@@ -56,6 +57,8 @@ public class CanvasVisualReviewOrchestrator {
     private AgentUsageTelemetryService agentUsageTelemetryService;
     @Resource
     private VisualReviewRolloutPolicy visualReviewRolloutPolicy;
+    @Value("${zipp.visual-review.drawer-agent-id:300000}")
+    private String drawerAgentId = "300000";
     private final CanvasVisualReviewPolicy policy = new CanvasVisualReviewPolicy();
     private final CanvasVisualRepairBriefComposer repairBriefComposer = new CanvasVisualRepairBriefComposer();
     private static final Set<CanvasVisualIssueType> LAYOUT_REPAIR_TYPES = Set.of(
@@ -160,13 +163,16 @@ public class CanvasVisualReviewOrchestrator {
 
             CanvasVisualReviewDecision decision = policy.decide(
                     result, stage, stage == CanvasVisualReviewStage.VERIFY_ONLY ? 1 : 0);
+            boolean shadow = Boolean.TRUE.equals(request.getShadow());
             if (decision == CanvasVisualReviewDecision.REPAIR && !autoRepairEnabled()) {
                 // Visible-review rollout reports the same evidence without granting mutation authority.
                 decision = CanvasVisualReviewDecision.NEEDS_HUMAN_REVIEW;
             }
-            sendReviewResult(emitter, visualReviewRunId, request, result, decision);
             Map<String, Object> completed = completedMetadata(request, result, decision, reviewLatencyMs);
-            if (decision != CanvasVisualReviewDecision.REPAIR) {
+            if (!shadow) {
+                sendReviewResult(emitter, visualReviewRunId, request, result, decision);
+            }
+            if (shadow || decision != CanvasVisualReviewDecision.REPAIR) {
                 recordReviewEvent(run, result != null && result.isAvailable()
                         ? "visual_review_completed" : "visual_review_unavailable", "SUCCESS", completed);
                 sendDone(emitter, visualReviewRunId, request.getSourceRunId());
@@ -219,6 +225,12 @@ public class CanvasVisualReviewOrchestrator {
         metadata.put("issueSeverityCounts", issueSeverityCounts(result));
         metadata.put("autoRepairAttempted", false);
         metadata.put("autoRepairEnabled", autoRepairEnabled());
+        boolean repairVerification = CanvasVisualReviewStage.VERIFY_ONLY.name().equals(request.getStage());
+        boolean repairSucceeded = repairVerification
+                && (decision == CanvasVisualReviewDecision.APPROVE
+                || decision == CanvasVisualReviewDecision.APPROVE_WITH_NOTES);
+        metadata.put("autoRepairSucceeded", repairSucceeded);
+        metadata.put("afterRepairCanvasHash", repairVerification ? request.getExpectedContentHash() : "");
         return metadata;
     }
 
@@ -229,6 +241,7 @@ public class CanvasVisualReviewOrchestrator {
         metadata.put("expectedVersion", request.getExpectedVersion());
         metadata.put("beforeCanvasHash", StringUtils.defaultString(request.getBeforeContentHash()));
         metadata.put("reviewedCanvasHash", request.getExpectedContentHash());
+        metadata.put("shadow", Boolean.TRUE.equals(request.getShadow()));
         return metadata;
     }
 
@@ -310,7 +323,8 @@ public class CanvasVisualReviewOrchestrator {
                                          CanvasVisualReviewResult result) {
         ChatRequestDTO repair = new ChatRequestDTO();
         repair.setUserId(ownerId);
-        repair.setAgentId(request.getAgentId());
+        // Repair authority is server-owned; never let a client select an agent with broader tools.
+        repair.setAgentId(drawerAgentId);
         repair.setSessionId(request.getSessionId());
         repair.setModelCredentialId(request.getModelCredentialId());
         repair.setRequestId("repair_req_" + UUID.randomUUID());
@@ -425,6 +439,8 @@ public class CanvasVisualReviewOrchestrator {
             value.put("region", issue.getRegion());
             value.put("evidence", issue.getEvidence());
             value.put("repairInstruction", issue.getRepairInstruction());
+            value.put("repairScope", issue.getRepairScope() == null
+                    ? "" : issue.getRepairScope().name().toLowerCase());
             issues.add(value);
         }
         return issues;

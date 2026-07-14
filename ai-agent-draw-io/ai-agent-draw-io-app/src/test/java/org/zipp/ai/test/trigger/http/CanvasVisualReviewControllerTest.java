@@ -1,8 +1,10 @@
 package org.zipp.ai.test.trigger.http;
 
+import org.junit.After;
 import org.junit.Test;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseBodyEmitter;
 import org.zipp.ai.api.dto.CanvasVisualReviewRequestDTO;
+import org.zipp.ai.domain.agent.service.visualreview.CanvasVisualReviewExecutor;
 import org.zipp.ai.trigger.http.CanvasVisualReviewController;
 import org.zipp.ai.trigger.http.CurrentOwnerHttpResolver;
 import org.zipp.ai.trigger.http.service.CanvasVisualReviewOrchestrator;
@@ -16,6 +18,13 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 public class CanvasVisualReviewControllerTest {
+
+    private final CanvasVisualReviewExecutor reviewExecutor = new CanvasVisualReviewExecutor(1, 10, 1, 10);
+
+    @After
+    public void closeExecutor() {
+        reviewExecutor.close();
+    }
 
     @Test
     public void serverResolvedOwnerOverridesTheRequestBodyOwner() throws Exception {
@@ -39,7 +48,7 @@ public class CanvasVisualReviewControllerTest {
                 emitter.complete();
             }
         };
-        CanvasVisualReviewController controller = new CanvasVisualReviewController(ownerResolver, orchestrator);
+        CanvasVisualReviewController controller = new CanvasVisualReviewController(ownerResolver, orchestrator, reviewExecutor);
         CanvasVisualReviewRequestDTO request = new CanvasVisualReviewRequestDTO();
         request.setUserId("usr_attacker_supplied");
 

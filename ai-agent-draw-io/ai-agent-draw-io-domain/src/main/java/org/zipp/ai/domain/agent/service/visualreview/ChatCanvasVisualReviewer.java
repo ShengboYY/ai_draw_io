@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.zipp.ai.domain.agent.model.entity.ChatCommandEntity;
@@ -12,6 +13,7 @@ import org.zipp.ai.domain.agent.model.valobj.visualreview.CanvasVisualIssueSever
 import org.zipp.ai.domain.agent.model.valobj.visualreview.CanvasVisualIssueType;
 import org.zipp.ai.domain.agent.model.valobj.visualreview.CanvasVisualReviewCommand;
 import org.zipp.ai.domain.agent.model.valobj.visualreview.CanvasVisualReviewResult;
+import org.zipp.ai.domain.agent.model.valobj.visualreview.CanvasVisualRepairScope;
 import org.zipp.ai.domain.agent.service.IChatService;
 import org.zipp.ai.domain.agent.service.usage.AgentUsageTelemetryContext;
 
@@ -22,8 +24,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeoutException;
 
 @Service
@@ -32,27 +34,31 @@ public class ChatCanvasVisualReviewer implements ICanvasVisualReviewer {
 
     private static final String PROMPT_VERSION = "visual-review-prompt-v1";
     private static final String RUBRIC_VERSION = "visual-review-rubric-v1";
-    private static final String SCHEMA_VERSION = "visual-review-schema-v1";
+    private static final String SCHEMA_VERSION = "visual-review-schema-v2";
     private static final String PNG_DATA_URL_PREFIX = "data:image/png;base64,";
     private static final Set<String> ROOT_FIELDS = Set.of("summary", "issues", "recommendedHumanReview");
     private static final Set<String> ISSUE_FIELDS = Set.of(
-            "type", "severity", "anchorLabels", "region", "evidence", "repairInstruction");
+            "type", "severity", "anchorLabels", "region", "evidence", "repairInstruction", "repairScope");
     private static final Set<String> REGIONS = Set.of("top", "right", "bottom", "left", "center", "whole");
 
     private final IChatService chatService;
     private final String agentId;
     private final String modelVersion;
     private final long timeoutMillis;
+    private final CanvasVisualReviewExecutor reviewExecutor;
     private final ObjectMapper mapper = new ObjectMapper();
 
+    @Autowired
     public ChatCanvasVisualReviewer(IChatService chatService,
                                     @Value("${zipp.visual-review.agent-id:300018}") String agentId,
                                     @Value("${zipp.visual-review.model-version:${VLM_MODEL:unconfigured}}") String modelVersion,
-                                    @Value("${zipp.visual-review.timeout-ms:30000}") long timeoutMillis) {
+                                    @Value("${zipp.visual-review.timeout-ms:30000}") long timeoutMillis,
+                                    CanvasVisualReviewExecutor reviewExecutor) {
         this.chatService = chatService;
         this.agentId = agentId;
         this.modelVersion = modelVersion;
         this.timeoutMillis = timeoutMillis;
+        this.reviewExecutor = reviewExecutor;
     }
 
     @Override
@@ -66,21 +72,29 @@ public class ChatCanvasVisualReviewer implements ICanvasVisualReviewer {
         }
 
         AgentUsageTelemetryContext.RunContext telemetryContext = AgentUsageTelemetryContext.current().orElse(null);
-        CompletableFuture<List<String>> providerCall = CompletableFuture.supplyAsync(() -> {
-            // Preserve the review run across the timeout worker so model/token telemetry stays correlated.
-            try (AgentUsageTelemetryContext.Scope ignored = AgentUsageTelemetryContext.bind(telemetryContext)) {
-                // A new session prevents visual evidence or model state leaking across review requests.
-                String sessionId = chatService.createSession(agentId, "visual-review-system");
-                request.setSessionId(sessionId);
-                return chatService.handleMessage(request);
-            }
-        });
         List<String> replies;
         try {
-            replies = providerCall.get(timeoutMillis, TimeUnit.MILLISECONDS);
-        } catch (Exception e) {
-            providerCall.cancel(true);
-            String reason = e instanceof TimeoutException ? "timeout" : "provider_error";
+            replies = reviewExecutor.callProvider(() -> {
+                // Preserve the review run across the timeout worker so model/token telemetry stays correlated.
+                try (AgentUsageTelemetryContext.Scope ignored = AgentUsageTelemetryContext.bind(telemetryContext)) {
+                    // A new session prevents visual evidence or model state leaking across review requests.
+                    String sessionId = chatService.createSession(agentId, "visual-review-system");
+                    request.setSessionId(sessionId);
+                    return chatService.handleMessage(request);
+                }
+            }, timeoutMillis);
+        } catch (TimeoutException e) {
+            unavailableLog("timeout", e);
+            return unavailable("timeout");
+        } catch (RejectedExecutionException e) {
+            unavailableLog("overloaded", e);
+            return unavailable("overloaded");
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            unavailableLog("provider_error", e);
+            return unavailable("provider_error");
+        } catch (ExecutionException e) {
+            String reason = "provider_error";
             unavailableLog(reason, e);
             return unavailable(reason);
         }
@@ -150,7 +164,8 @@ public class ChatCanvasVisualReviewer implements ICanvasVisualReviewer {
                     + "Judge only visible task fulfillment, readability, hierarchy, edge traceability, style coherence, and visible semantic risk. "
                     + "Do not output XML or propose changes unsupported by the original task. Return one JSON object with exactly summary(string), "
                     + "issues(array up to 5), recommendedHumanReview(boolean). Each issue must have exactly type, severity(minor|major|critical), "
-                    + "anchorLabels(array up to 3 visible labels), region(top|right|bottom|left|center|whole), evidence, repairInstruction. "
+                    + "anchorLabels(array up to 3 visible labels), region(top|right|bottom|left|center|whole), evidence, repairInstruction, "
+                    + "repairScope(local|whole_canvas). Use whole_canvas whenever the recommendation replaces, recreates, or broadly redraws the diagram. "
                     + "Issue type must be TASK_NOT_VISIBLE, MISSING_REQUESTED_ELEMENT, WRONG_REQUESTED_RELATIONSHIP, TEXT_READABILITY, "
                     + "LAYOUT_HIERARCHY, EDGE_TRACEABILITY, STYLE_COHERENCE, or DOMAIN_UNCERTAINTY. No Markdown or extra fields. "
                     + "Contract=" + PROMPT_VERSION + "/" + RUBRIC_VERSION + "/" + SCHEMA_VERSION + ".\n"
@@ -210,6 +225,11 @@ public class ChatCanvasVisualReviewer implements ICanvasVisualReviewer {
                 .region(region)
                 .evidence(requiredText(node, "evidence", 300))
                 .repairInstruction(requiredText(node, "repairInstruction", 300))
+                .repairScope(switch (requiredText(node, "repairScope", 32)) {
+                    case "local" -> CanvasVisualRepairScope.LOCAL;
+                    case "whole_canvas" -> CanvasVisualRepairScope.WHOLE_CANVAS;
+                    default -> throw new IllegalArgumentException("Invalid repair scope");
+                })
                 .build();
     }
 

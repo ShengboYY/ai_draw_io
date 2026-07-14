@@ -2,6 +2,7 @@ package org.zipp.ai.test.domain.agent.evaluation;
 
 import org.junit.Test;
 import org.zipp.ai.domain.agent.model.valobj.evaluation.EvalCaseDefinition;
+import org.zipp.ai.domain.agent.model.valobj.evaluation.EvalExecution;
 import org.zipp.ai.domain.agent.model.valobj.evaluation.EvaluationTarget;
 import org.zipp.ai.domain.agent.model.valobj.visualreview.CanvasVisualReviewCommand;
 import org.zipp.ai.domain.agent.model.valobj.visualreview.CanvasVisualReviewResult;
@@ -19,6 +20,7 @@ import java.util.Comparator;
 import java.util.List;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
@@ -46,12 +48,23 @@ public class ProductionVisualReviewEvalDatasetTest {
                 evalCase = new EvalCaseLoader().load(input);
             }
             assertEquals(EvaluationTarget.VISUAL_REVIEW, evalCase.getEvaluationTarget());
-            adapter.execute(evalCase);
-            assertPng(commands.get(commands.size() - 1).getAfterImageDataUrl());
+            int callsBefore = commands.size();
+            EvalExecution execution = adapter.execute(evalCase);
+            if (commands.size() > callsBefore) {
+                assertPng(commands.get(commands.size() - 1).getAfterImageDataUrl());
+            }
+            if (fixture.getFileName().toString().equals("provider-timeout.yaml")) {
+                assertFalse(execution.getTrace().getVisualReview().getAvailable());
+                assertEquals("timeout", execution.getTrace().getVisualReview().getUnavailableReason());
+            }
+            if (fixture.getFileName().toString().equals("schema-malformed.yaml")) {
+                assertFalse(execution.getTrace().getVisualReview().getAvailable());
+                assertEquals("output_schema_error", execution.getTrace().getVisualReview().getUnavailableReason());
+            }
         }
 
         assertEquals(16, fixtures.size());
-        assertEquals(fixtures.size(), commands.size());
+        assertEquals(fixtures.size() - 2, commands.size());
         assertTrue(fixtures.stream().anyMatch(path -> path.getFileName().toString().equals("provider-timeout.yaml")));
         assertTrue(fixtures.stream().anyMatch(path -> path.getFileName().toString().equals("schema-malformed.yaml")));
     }

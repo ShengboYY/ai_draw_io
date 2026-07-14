@@ -11,4 +11,3 @@ tags: [target:visual_review, task_fulfillment, lang:en]
 privacy: {classification: synthetic, sanitizerVersion: null}
 input: {user: "Add a Payment service after API", stage: POST_MUTATION, syntheticFixture: task-not-visible}
 expected: {reviewAvailable: true, reviewDecision: REPAIR, requiredVisualIssueTypes: [TASK_NOT_VISIBLE]}
-

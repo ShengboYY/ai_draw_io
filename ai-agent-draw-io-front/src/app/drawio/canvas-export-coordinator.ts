@@ -10,6 +10,7 @@ export type CanvasExportPayload = {
   data?: string;
   xml?: string;
   format?: string;
+  requestId?: string;
 };
 
 export type CanvasExportRequest = {
@@ -24,6 +25,7 @@ export type CanvasExportRequest = {
 export type CanvasExportResult = CanvasExportPayload & Pick<CanvasExportRequest, 'purpose' | 'diagramId' | 'sessionId'>;
 
 type PendingCanvasExport = CanvasExportRequest & {
+  requestId: string;
   resolve: (result: CanvasExportResult) => void;
   reject: (error: CanvasExportError) => void;
   settled: boolean;
@@ -56,6 +58,7 @@ export class CanvasExportCoordinator {
   private readonly queue: PendingCanvasExport[] = [];
   private active: PendingCanvasExport | null = null;
   private activeTimer: ReturnType<typeof setTimeout> | null = null;
+  private sequence = 0;
 
   constructor(dispatch: (options: CanvasExportRequest['options']) => void) {
     this.dispatch = dispatch;
@@ -63,13 +66,16 @@ export class CanvasExportCoordinator {
 
   enqueue(request: CanvasExportRequest): Promise<CanvasExportResult> {
     return new Promise((resolve, reject) => {
-      this.queue.push({ ...request, resolve, reject, settled: false });
+      this.sequence += 1;
+      this.queue.push({ ...request, requestId: `canvas-export-${this.sequence}`, resolve, reject, settled: false });
       this.startNext();
     });
   }
 
   handleExport(payload: CanvasExportPayload): boolean {
-    if (!this.active || !matchesExpectedFormat(this.active.format, payload)) return false;
+    if (!this.active
+        || payload.requestId !== this.active.requestId
+        || !matchesExpectedFormat(this.active.format, payload)) return false;
 
     const completed = this.active;
     this.clearActiveTimer();
@@ -97,11 +103,14 @@ export class CanvasExportCoordinator {
       'Canvas export cancelled because the active diagram changed.',
     );
 
-    if (this.active && !belongsToScope(this.active) && !this.active.settled) {
-      // The iframe does not echo request ids. Keep this stale request active as a barrier so its
-      // eventual callback cannot satisfy a same-format request for the newly selected diagram.
-      this.active.settled = true;
-      this.active.reject(scopeError());
+    if (this.active && !belongsToScope(this.active)) {
+      const cancelled = this.active;
+      this.clearActiveTimer();
+      this.active = null;
+      if (!cancelled.settled) {
+        cancelled.settled = true;
+        cancelled.reject(scopeError());
+      }
     }
 
     for (let index = this.queue.length - 1; index >= 0; index -= 1) {
@@ -113,6 +122,7 @@ export class CanvasExportCoordinator {
         item.reject(scopeError());
       }
     }
+    this.startNext();
   }
 
   isBusy(purpose?: CanvasExportPurpose) {
@@ -127,7 +137,8 @@ export class CanvasExportCoordinator {
     if (!next) return;
     this.active = next;
     try {
-      this.dispatch(next.options);
+      // draw.io echoes the original export message, including this correlation id.
+      this.dispatch({ ...next.options, requestId: next.requestId });
     } catch (error) {
       this.active = null;
       next.settled = true;
@@ -155,4 +166,5 @@ export class CanvasExportCoordinator {
     clearTimeout(this.activeTimer);
     this.activeTimer = null;
   }
+
 }

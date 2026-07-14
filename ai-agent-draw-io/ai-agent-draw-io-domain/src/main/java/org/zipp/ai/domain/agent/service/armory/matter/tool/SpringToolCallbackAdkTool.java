@@ -68,6 +68,10 @@ public class SpringToolCallbackAdkTool extends BaseTool {
     @Override
     public Single<Map<String, Object>> runAsync(Map<String, Object> args, ToolContext toolContext) {
         return Single.fromCallable(() -> {
+            // Route allowlists govern canvas mutation only; skill lookup remains available to the agent.
+            if (toolContext != null && !DrawioToolAccessContext.allowsCanvasTool(toolContext.sessionId(), name())) {
+                throw new IllegalStateException("Canvas tool is not allowed for this routed session: " + name());
+            }
             AgentUsageTelemetryContext.RunContext runContext = resolveRunContext(toolContext).orElse(null);
             DrawioSkillAccessContext.SkillAccess skillAccess = resolveSkillAccess(toolContext).orElse(null);
             try (AgentUsageTelemetryContext.Scope runScope = bindRunContext(runContext);

@@ -389,6 +389,7 @@ export interface CanvasVisualReviewRequestDTO {
   diagramId: string;
   expectedVersion: number;
   beforeContentHash?: string;
+  shadow?: boolean;
   expectedContentHash: string;
   originalUserTask: string;
   diagramType?: string;
@@ -499,6 +500,10 @@ export interface AdminUsageDimensionDTO {
   promptTokens?: number;
   completionTokens?: number;
   totalTokens?: number;
+  pricingVersion?: string;
+  inputPricePerMillionUsd?: number;
+  outputPricePerMillionUsd?: number;
+  estimatedCostUsd?: number;
   unknownTokenCallCount?: number;
   averageLatencyMs?: number;
 }

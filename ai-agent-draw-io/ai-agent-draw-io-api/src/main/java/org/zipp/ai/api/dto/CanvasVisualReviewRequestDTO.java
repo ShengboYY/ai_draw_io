@@ -14,6 +14,7 @@ public class CanvasVisualReviewRequestDTO {
     private String diagramId;
     private Long expectedVersion;
     private String beforeContentHash;
+    private Boolean shadow;
     private String expectedContentHash;
     private String originalUserTask;
     private String diagramType;

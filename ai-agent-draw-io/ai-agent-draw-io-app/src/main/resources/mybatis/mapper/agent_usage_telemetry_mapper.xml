@@ -50,6 +50,10 @@
         <result column="prompt_tokens" property="promptTokens"/>
         <result column="completion_tokens" property="completionTokens"/>
         <result column="total_tokens" property="totalTokens"/>
+        <result column="pricing_version" property="pricingVersion"/>
+        <result column="input_price_per_million_usd" property="inputPricePerMillionUsd"/>
+        <result column="output_price_per_million_usd" property="outputPricePerMillionUsd"/>
+        <result column="estimated_cost_usd" property="estimatedCostUsd"/>
         <result column="provider_request_id" property="providerRequestId"/>
         <result column="provider_response_id" property="providerResponseId"/>
         <result column="ttft_ms" property="ttftMs"/>
@@ -136,12 +140,16 @@
     <insert id="insertLlmCall" parameterType="org.zipp.ai.infrastructure.dao.po.LlmCallTelemetryPO">
         INSERT INTO agent_llm_call (
             id, run_id, parent_id, user_id, phase, provider, model, credential_source, model_credential_id,
-            prompt_tokens, completion_tokens, total_tokens, provider_request_id, provider_response_id,
+            prompt_tokens, completion_tokens, total_tokens, pricing_version,
+            input_price_per_million_usd, output_price_per_million_usd, estimated_cost_usd,
+            provider_request_id, provider_response_id,
             ttft_ms, attempt_count, retry_count, status, error_class, started_at, completed_at, latency_ms
         )
         VALUES (
             #{id}, #{runId}, #{parentId}, #{userId}, #{phase}, #{provider}, #{model}, #{credentialSource}, #{modelCredentialId},
-            #{promptTokens}, #{completionTokens}, #{totalTokens}, #{providerRequestId}, #{providerResponseId},
+            #{promptTokens}, #{completionTokens}, #{totalTokens}, #{pricingVersion},
+            #{inputPricePerMillionUsd}, #{outputPricePerMillionUsd}, #{estimatedCostUsd},
+            #{providerRequestId}, #{providerResponseId},
             #{ttftMs}, #{attemptCount}, #{retryCount}, #{status}, #{errorClass},
             #{startedAt}, #{completedAt}, #{latencyMs}
         )
@@ -311,7 +319,9 @@
     <select id="selectLlmCallsByRunId" resultMap="llmCallMap">
         SELECT
             id, run_id, parent_id, user_id, phase, provider, model, credential_source, model_credential_id,
-            prompt_tokens, completion_tokens, total_tokens, provider_request_id, provider_response_id,
+            prompt_tokens, completion_tokens, total_tokens, pricing_version,
+            input_price_per_million_usd, output_price_per_million_usd, estimated_cost_usd,
+            provider_request_id, provider_response_id,
             ttft_ms, attempt_count, retry_count, status, error_class,
             started_at, completed_at, latency_ms
         FROM agent_llm_call

@@ -25,6 +25,7 @@ import org.zipp.ai.domain.agent.service.armory.matter.mcp.server.DrawioCanvasToo
 import org.zipp.ai.domain.agent.service.armory.matter.mcp.server.DrawioMutationResultPostProcessor;
 import org.zipp.ai.domain.agent.service.armory.matter.mcp.server.DrawioSkillToolNames;
 import org.zipp.ai.domain.agent.service.armory.matter.skills.DrawioSkillAccessContext;
+import org.zipp.ai.domain.agent.service.armory.matter.tool.DrawioToolAccessContext;
 import org.zipp.ai.domain.agent.service.chat.CustomApiConfigManager;
 import org.zipp.ai.domain.agent.service.debugtrace.AgentDebugTraceService;
 import org.zipp.ai.domain.agent.model.valobj.debugtrace.DebugTracePayloadKind;
@@ -47,6 +48,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -170,6 +172,7 @@ public class AgentConversationService {
             captureDebugTrace(runScope, "ROUTED_MESSAGE", routedMessage.message());
             final String finalSessionId = sessionId;
             DrawioSkillAccessContext.bindSession(finalSessionId, routedMessage.allowedSkillNames());
+            DrawioToolAccessContext.bindSession(finalSessionId, routedMessage.allowedToolNames());
             ChatResponseDTO response = recordCapturedStep("drawing", traceField("message", routedMessage.message()), value -> value, () -> {
                 List<String> messages = chatService.handleMessage(
                         currentRequest.getAgentId(),
@@ -333,6 +336,7 @@ public class AgentConversationService {
                     runScope.getContext().runId(),
                     drawingStep == null ? runScope.getContext().runId() : drawingStep.getStepContext().spanId());
             DrawioSkillAccessContext.bindSession(finalSessionId, routedMessage.allowedSkillNames());
+            DrawioToolAccessContext.bindSession(finalSessionId, routedMessage.allowedToolNames());
             final AgentUsageTelemetryService.RunScope finalRunScope = runScope;
             final AgentUsageTelemetryService.StepScope finalDrawingStep = drawingStep;
 
@@ -1068,10 +1072,12 @@ public class AgentConversationService {
                 + "\n\n"
                 + skillSection.text()
                 + contextBuilder().buildDrawingContextMessage(requestDTO, routingResult);
-        return new RoutedDrawMessage(routedMessage, skillSection.requiredSkillNames());
+        return new RoutedDrawMessage(routedMessage, skillSection.requiredSkillNames(), Set.copyOf(allowedTools));
     }
 
-    private record RoutedDrawMessage(String message, java.util.Set<String> allowedSkillNames) {
+    private record RoutedDrawMessage(String message,
+                                     Set<String> allowedSkillNames,
+                                     Set<String> allowedToolNames) {
     }
 
     private record ReviewOnlyContext(CanvasAnalysis analysis, boolean hasCanvas) {
@@ -1362,6 +1368,7 @@ public class AgentConversationService {
     private void clearSessionConfig(String sessionId) {
         CustomApiConfigManager.clearConfig(sessionId);
         DrawioSkillAccessContext.clearSession(sessionId);
+        DrawioToolAccessContext.clearSession(sessionId);
     }
 
     // Emit any buffered author output (non-XML lines such as patch_cells are only complete at flush time).

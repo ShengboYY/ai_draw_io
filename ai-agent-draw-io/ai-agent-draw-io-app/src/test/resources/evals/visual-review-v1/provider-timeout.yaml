@@ -11,4 +11,3 @@ tags: [target:visual_review, fault_injection:timeout]
 privacy: {classification: synthetic, sanitizerVersion: null}
 input: {user: "Review the architecture", stage: CURRENT_CANVAS, syntheticFixture: clean, failureInjection: provider_timeout}
 expected: {reviewAvailable: false, reviewDecision: UNAVAILABLE, reviewUnavailableReason: timeout}
-

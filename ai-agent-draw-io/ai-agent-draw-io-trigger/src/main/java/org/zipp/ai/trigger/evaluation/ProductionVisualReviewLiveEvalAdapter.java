@@ -56,7 +56,7 @@ public class ProductionVisualReviewLiveEvalAdapter implements LiveEvalRunner.Liv
             throw new IllegalArgumentException("Visual Review Evaluation Case requires input.afterImageDataUrl or input.syntheticFixture");
         }
         CanvasVisualReviewStage stage = stage(input);
-        CanvasVisualReviewResult result = reviewer.review(CanvasVisualReviewCommand.builder()
+        CanvasVisualReviewCommand command = CanvasVisualReviewCommand.builder()
                 .stage(stage)
                 .originalUserTask(requiredText(input, "user"))
                 .diagramType(StringUtils.defaultIfBlank(evalCase.getDiagramType(), "none"))
@@ -66,7 +66,11 @@ public class ProductionVisualReviewLiveEvalAdapter implements LiveEvalRunner.Liv
                 .canvasSummary(optionalText(input, "canvasSummary"))
                 .languageHint(optionalText(input, "languageHint"))
                 .rendererVersion(StringUtils.defaultIfBlank(optionalText(input, "rendererVersion"), "eval-png-v1"))
-                .build());
+                .build();
+        CanvasVisualReviewResult result = injectedFailure(input);
+        if (result == null) {
+            result = reviewer.review(command);
+        }
         CanvasVisualReviewDecision decision = policy.decide(
                 result, stage, stage == CanvasVisualReviewStage.VERIFY_ONLY ? 1 : 0);
         String initialXml = evalCase.getReplay() == null ? EMPTY_CANVAS
@@ -143,6 +147,17 @@ public class ProductionVisualReviewLiveEvalAdapter implements LiveEvalRunner.Liv
     private SyntheticVisualReviewFixtureRenderer.Images fixtureImages(Map<String, Object> input) {
         String fixture = optionalText(input, "syntheticFixture");
         return StringUtils.isBlank(fixture) ? null : fixtureRenderer.render(fixture);
+    }
+
+    private CanvasVisualReviewResult injectedFailure(Map<String, Object> input) {
+        // Fault injection is evaluation-only and makes timeout/schema cases deterministic without
+        // routing product traffic to the evaluation reviewer.
+        return switch (StringUtils.defaultString(optionalText(input, "failureInjection"))) {
+            case "provider_timeout" -> CanvasVisualReviewResult.unavailable("timeout");
+            case "schema_malformed" -> CanvasVisualReviewResult.unavailable("output_schema_error");
+            case "" -> null;
+            default -> throw new IllegalArgumentException("Unknown visual review failureInjection");
+        };
     }
 
     private String requiredText(Map<String, Object> input, String key) {

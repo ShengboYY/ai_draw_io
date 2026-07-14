@@ -121,8 +121,16 @@
           "value": "replace-with-approved-model"
         },
         {
-          "name": "DRAWIO_REVIEW_MAX_ITERATIONS",
-          "value": "5"
+          "name": "ZIPP_VISUAL_REVIEW_ENABLED",
+          "value": "false"
+        },
+        {
+          "name": "ZIPP_VISUAL_REVIEW_AUTO_REPAIR_ENABLED",
+          "value": "false"
+        },
+        {
+          "name": "ZIPP_VISUAL_REVIEW_DRAWER_AGENT_ID",
+          "value": "300000"
         },
         {
           "name": "LOG_PATH",

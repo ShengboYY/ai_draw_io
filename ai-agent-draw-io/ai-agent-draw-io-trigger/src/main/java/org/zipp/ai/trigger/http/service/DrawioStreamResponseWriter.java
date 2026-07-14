@@ -111,6 +111,8 @@ public class DrawioStreamResponseWriter {
             value.put("region", issue.getRegion());
             value.put("evidence", issue.getEvidence());
             value.put("repairInstruction", issue.getRepairInstruction());
+            value.put("repairScope", issue.getRepairScope() == null
+                    ? "" : issue.getRepairScope().name().toLowerCase());
             values.add(value);
         }
         return values;

@@ -17,6 +17,7 @@ public class CanvasVisualIssue {
     private String region;
     private String evidence;
     private String repairInstruction;
+    private CanvasVisualRepairScope repairScope;
 
     /**
      * Bounds model-authored text before it can reach a repair prompt or stream response.
@@ -32,6 +33,7 @@ public class CanvasVisualIssue {
                 .region(abbreviate(region, 32))
                 .evidence(abbreviate(evidence, 300))
                 .repairInstruction(abbreviate(repairInstruction, 300))
+                .repairScope(repairScope)
                 .build();
     }
 

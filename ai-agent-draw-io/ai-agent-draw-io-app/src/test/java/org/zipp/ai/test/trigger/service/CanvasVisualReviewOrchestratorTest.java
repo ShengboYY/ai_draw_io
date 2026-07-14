@@ -13,6 +13,7 @@ import org.zipp.ai.domain.agent.model.valobj.visualreview.CanvasVisualReviewResu
 import org.zipp.ai.domain.agent.model.valobj.visualreview.CanvasVisualIssue;
 import org.zipp.ai.domain.agent.model.valobj.visualreview.CanvasVisualIssueSeverity;
 import org.zipp.ai.domain.agent.model.valobj.visualreview.CanvasVisualIssueType;
+import org.zipp.ai.domain.agent.model.valobj.visualreview.CanvasVisualRepairScope;
 import org.zipp.ai.domain.agent.service.ICanvasStateStore;
 import org.zipp.ai.domain.agent.service.analysis.ICanvasAnalyzer;
 import org.zipp.ai.domain.agent.service.usage.AgentUsageTelemetryService;
@@ -130,7 +131,7 @@ public class CanvasVisualReviewOrchestratorTest {
             public void streamVisualRepair(ChatRequestDTO request, String diagramType,
                                            boolean optimizeLayout, ResponseBodyEmitter emitter) {
                 repairCalls.incrementAndGet();
-                assertEquals("300001", request.getAgentId());
+                assertEquals("300000", request.getAgentId());
                 assertEquals("session-1", request.getSessionId());
                 assertEquals(Long.valueOf(7L), request.getExpectedVersion());
                 assertNull(request.getMaxDeterministicRepairRounds());
@@ -147,6 +148,7 @@ public class CanvasVisualReviewOrchestratorTest {
                 .region("center")
                 .evidence("Crowded layout")
                 .repairInstruction("Increase spacing")
+                .repairScope(CanvasVisualRepairScope.LOCAL)
                 .build();
         CanvasVisualReviewOrchestrator orchestrator = orchestrator(
                 new SequenceCanvasStore(state(7L, "sha256:current")),
@@ -203,6 +205,68 @@ public class CanvasVisualReviewOrchestratorTest {
     }
 
     @Test
+    public void shadowReviewRecordsDecisionWithoutShowingOrRepairingIt() throws Exception {
+        AtomicInteger repairCalls = new AtomicInteger();
+        AgentConversationService repairService = new AgentConversationService() {
+            @Override
+            public void streamVisualRepair(ChatRequestDTO request, String diagramType,
+                                           boolean optimizeLayout, ResponseBodyEmitter emitter) {
+                repairCalls.incrementAndGet();
+            }
+        };
+        CanvasVisualIssue issue = CanvasVisualIssue.builder()
+                .type(CanvasVisualIssueType.TEXT_READABILITY)
+                .severity(CanvasVisualIssueSeverity.MAJOR)
+                .repairScope(CanvasVisualRepairScope.LOCAL)
+                .build();
+        CanvasVisualReviewOrchestrator orchestrator = orchestrator(
+                new SequenceCanvasStore(state(7L, "sha256:current")),
+                command -> CanvasVisualReviewResult.builder().available(true).summary("Needs repair")
+                        .issues(List.of(issue)).recommendedHumanReview(false).build(),
+                repairService);
+        FakeAgentUsageTelemetryStore telemetryStore = new FakeAgentUsageTelemetryStore();
+        inject(orchestrator, "agentUsageTelemetryService",
+                new AgentUsageTelemetryService(telemetryStore, Clock.systemUTC()));
+        CanvasVisualReviewRequestDTO request = request(7L, "sha256:current");
+        request.setShadow(true);
+        CapturingEmitter emitter = new CapturingEmitter();
+
+        orchestrator.stream("usr_owner", "aru_visual_shadow", request, emitter);
+
+        assertEquals(0, repairCalls.get());
+        assertFalse(String.join("\n", emitter.sent).contains("\"type\":\"review_result\""));
+        assertTrue(emitter.completed);
+        String metadata = telemetryStore.traceEvents.stream()
+                .filter(event -> "visual_review_completed".equals(event.getEventType()))
+                .findFirst().orElseThrow().getMetadataJson();
+        assertTrue(metadata.contains("\"shadow\":true"));
+        assertTrue(metadata.contains("\"decision\":\"REPAIR\""));
+        assertTrue(metadata.contains("\"autoRepairAttempted\":false"));
+    }
+
+    @Test
+    public void verifyOnlyTelemetryRecordsSuccessfulRepairHash() throws Exception {
+        CanvasVisualReviewOrchestrator orchestrator = orchestrator(
+                new SequenceCanvasStore(state(8L, "sha256:repaired")),
+                command -> CanvasVisualReviewResult.builder().available(true).summary("Verified")
+                        .issues(List.of()).recommendedHumanReview(false).build());
+        FakeAgentUsageTelemetryStore telemetryStore = new FakeAgentUsageTelemetryStore();
+        inject(orchestrator, "agentUsageTelemetryService",
+                new AgentUsageTelemetryService(telemetryStore, Clock.systemUTC()));
+        CanvasVisualReviewRequestDTO request = request(8L, "sha256:repaired");
+        request.setStage("VERIFY_ONLY");
+        request.setBeforeContentHash("sha256:before-repair");
+
+        orchestrator.stream("usr_owner", "aru_visual_verify", request, new CapturingEmitter());
+
+        String metadata = telemetryStore.traceEvents.stream()
+                .filter(event -> "visual_review_completed".equals(event.getEventType()))
+                .findFirst().orElseThrow().getMetadataJson();
+        assertTrue(metadata.contains("\"autoRepairSucceeded\":true"));
+        assertTrue(metadata.contains("\"afterRepairCanvasHash\":\"sha256:repaired\""));
+    }
+
+    @Test
     public void verifyOnlyNeverStartsAnotherVisualRepair() throws Exception {
         AtomicInteger repairCalls = new AtomicInteger();
         AgentConversationService repairService = new AgentConversationService() {
@@ -223,6 +287,9 @@ public class CanvasVisualReviewOrchestratorTest {
                 repairService);
         CanvasVisualReviewRequestDTO request = request(7L, "sha256:current");
         request.setStage("VERIFY_ONLY");
+        FakeAgentUsageTelemetryStore telemetryStore = new FakeAgentUsageTelemetryStore();
+        inject(orchestrator, "agentUsageTelemetryService",
+                new AgentUsageTelemetryService(telemetryStore, Clock.systemUTC()));
         CapturingEmitter emitter = new CapturingEmitter();
 
         orchestrator.stream("usr_owner", "visual-run-2", request, emitter);
@@ -230,6 +297,11 @@ public class CanvasVisualReviewOrchestratorTest {
         assertEquals(0, repairCalls.get());
         assertTrue(String.join("\n", emitter.sent).contains("\"decision\":\"NEEDS_HUMAN_REVIEW\""));
         assertTrue(emitter.completed);
+        String metadata = telemetryStore.traceEvents.stream()
+                .filter(event -> "visual_review_completed".equals(event.getEventType()))
+                .findFirst().orElseThrow().getMetadataJson();
+        assertTrue(metadata.contains("\"autoRepairSucceeded\":false"));
+        assertTrue(metadata.contains("\"afterRepairCanvasHash\":\"sha256:current\""));
     }
 
     @Test
@@ -244,7 +316,7 @@ public class CanvasVisualReviewOrchestratorTest {
                                 .repairInstruction("sensitive instruction")
                                 .build()))
                         .recommendedHumanReview(true)
-                        .reviewerVersion("visual-agent=300018:model=vlm-1:visual-review-schema-v1")
+                        .reviewerVersion("visual-agent=300018:model=vlm-1:visual-review-schema-v2")
                         .build());
         FakeAgentUsageTelemetryStore telemetryStore = new FakeAgentUsageTelemetryStore();
         inject(orchestrator, "agentUsageTelemetryService",

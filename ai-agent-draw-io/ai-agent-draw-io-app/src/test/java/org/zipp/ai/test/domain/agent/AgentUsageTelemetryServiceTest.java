@@ -39,6 +39,26 @@ public class AgentUsageTelemetryServiceTest {
         assertNull(store.llmCalls.get(0).getPromptTokens());
         assertNull(store.llmCalls.get(0).getCompletionTokens());
         assertNull(store.llmCalls.get(0).getTotalTokens());
+        assertNull(store.llmCalls.get(0).getEstimatedCostUsd());
+        assertEquals("pricing-2026-07-14-v1", store.llmCalls.get(0).getPricingVersion());
+    }
+
+    @Test
+    public void shouldSnapshotPricingAndEstimatedCostWithEachLlmCall() {
+        FakeAgentUsageTelemetryStore store = new FakeAgentUsageTelemetryStore();
+        AgentUsageTelemetryService service = service(store);
+        AgentUsageTelemetryService.RunScope run = service.startRun(
+                "usr_alice", "300018", "session-1", "visual_review",
+                "PLATFORM", null, "openai", "gpt-5.5");
+
+        try (AgentUsageTelemetryContext.Scope ignored = AgentUsageTelemetryContext.bind(run.getContext())) {
+            service.recordLlmCall("visual_review", "openai", "gpt-5.5", 12L,
+                    1_000_000, 1_000_000, 2_000_000, null);
+        }
+
+        assertEquals(Double.valueOf(1.25D), store.llmCalls.get(0).getInputPricePerMillionUsd());
+        assertEquals(Double.valueOf(10D), store.llmCalls.get(0).getOutputPricePerMillionUsd());
+        assertEquals(Double.valueOf(11.25D), store.llmCalls.get(0).getEstimatedCostUsd());
     }
 
     @Test

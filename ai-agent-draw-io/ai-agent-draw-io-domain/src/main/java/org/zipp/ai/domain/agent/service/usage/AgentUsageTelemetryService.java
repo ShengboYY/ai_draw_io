@@ -12,6 +12,7 @@ import org.zipp.ai.domain.agent.model.valobj.usage.AdminUsageSummary;
 import org.zipp.ai.domain.agent.model.valobj.usage.AgentRunDetail;
 import org.zipp.ai.domain.agent.model.valobj.usage.AgentUsageSummary;
 import org.zipp.ai.domain.agent.model.valobj.usage.LlmCallTelemetry;
+import org.zipp.ai.domain.agent.model.valobj.usage.LlmPricingSnapshot;
 import org.zipp.ai.domain.agent.model.valobj.usage.ToolCallTelemetry;
 import org.zipp.ai.domain.agent.model.valobj.usage.UsageDimensionSummary;
 import org.zipp.ai.types.util.SecretLogSanitizer;
@@ -362,6 +363,7 @@ public class AgentUsageTelemetryService {
         }
         Instant completedAt = clock.instant();
         Instant startedAt = latencyMs == null ? completedAt : completedAt.minusMillis(Math.max(0, latencyMs));
+        LlmPricingSnapshot pricing = LlmPricingSnapshot.capture(model, promptTokens, completionTokens);
         safeStore(() -> telemetryStore.insertLlmCall(LlmCallTelemetry.builder()
                 .id(StringUtils.defaultIfBlank(callId, newLlmCallId()))
                 .runId(context.runId())
@@ -375,6 +377,10 @@ public class AgentUsageTelemetryService {
                 .promptTokens(promptTokens)
                 .completionTokens(completionTokens)
                 .totalTokens(totalTokens)
+                .pricingVersion(pricing.version())
+                .inputPricePerMillionUsd(pricing.inputPricePerMillionUsd())
+                .outputPricePerMillionUsd(pricing.outputPricePerMillionUsd())
+                .estimatedCostUsd(pricing.estimatedCostUsd())
                 .providerRequestId(providerRequestId)
                 .providerResponseId(providerResponseId)
                 .ttftMs(ttftMs)

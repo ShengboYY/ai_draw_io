@@ -7,6 +7,7 @@ import org.zipp.ai.domain.agent.model.valobj.visualreview.CanvasVisualIssueType;
 import org.zipp.ai.domain.agent.model.valobj.visualreview.CanvasVisualReviewDecision;
 import org.zipp.ai.domain.agent.model.valobj.visualreview.CanvasVisualReviewResult;
 import org.zipp.ai.domain.agent.model.valobj.visualreview.CanvasVisualReviewStage;
+import org.zipp.ai.domain.agent.model.valobj.visualreview.CanvasVisualRepairScope;
 import org.zipp.ai.domain.agent.service.visualreview.CanvasVisualReviewPolicy;
 
 import java.util.List;
@@ -51,6 +52,16 @@ public class CanvasVisualReviewPolicyTest {
     }
 
     @Test
+    public void minorSemanticRiskCannotHitchhikeOnSafeLayoutRepair() {
+        List<CanvasVisualIssue> issues = List.of(
+                issue(CanvasVisualIssueType.WRONG_REQUESTED_RELATIONSHIP, CanvasVisualIssueSeverity.MINOR),
+                issue(CanvasVisualIssueType.TEXT_READABILITY, CanvasVisualIssueSeverity.MAJOR));
+
+        assertEquals(CanvasVisualReviewDecision.NEEDS_HUMAN_REVIEW,
+                policy.decide(available(issues, false), CanvasVisualReviewStage.POST_MUTATION, 0));
+    }
+
+    @Test
     public void verifyOnlyNeverStartsAnotherRepair() {
         assertEquals(CanvasVisualReviewDecision.NEEDS_HUMAN_REVIEW,
                 policy.decide(available(List.of(issue(CanvasVisualIssueType.TEXT_READABILITY,
@@ -67,6 +78,16 @@ public class CanvasVisualReviewPolicyTest {
 
         assertEquals(CanvasVisualReviewDecision.NEEDS_HUMAN_REVIEW,
                 policy.decide(available(issues, false), CanvasVisualReviewStage.POST_MUTATION, 0));
+    }
+
+    @Test
+    public void wholeCanvasRedrawInstructionRequiresHumanReview() {
+        CanvasVisualIssue issue = issue(CanvasVisualIssueType.LAYOUT_HIERARCHY, CanvasVisualIssueSeverity.MAJOR);
+        issue.setRepairInstruction("Start over from scratch.");
+        issue.setRepairScope(CanvasVisualRepairScope.WHOLE_CANVAS);
+
+        assertEquals(CanvasVisualReviewDecision.NEEDS_HUMAN_REVIEW,
+                policy.decide(available(List.of(issue), false), CanvasVisualReviewStage.POST_MUTATION, 0));
     }
 
     private CanvasVisualReviewResult available(List<CanvasVisualIssue> issues, boolean humanReview) {
@@ -86,6 +107,7 @@ public class CanvasVisualReviewPolicyTest {
                 .region("center")
                 .evidence("The visible edge is hard to follow.")
                 .repairInstruction("Route the edge around the node.")
+                .repairScope(CanvasVisualRepairScope.LOCAL)
                 .build();
     }
 }

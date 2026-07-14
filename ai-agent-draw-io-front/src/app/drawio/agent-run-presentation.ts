@@ -11,6 +11,7 @@ export type VisualReviewDisplayIssue = {
   // These fields are accepted so callers can pass the transport object directly, but are never rendered.
   evidence?: string;
   repairInstruction?: string;
+  repairScope?: 'local' | 'whole_canvas';
 };
 
 export type AgentRunEvent = {

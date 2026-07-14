@@ -1,5 +1,6 @@
 package org.zipp.ai.test.domain.agent;
 
+import org.junit.After;
 import org.junit.Test;
 import org.zipp.ai.domain.agent.model.entity.ChatCommandEntity;
 import org.zipp.ai.domain.agent.model.valobj.visualreview.CanvasVisualReviewCommand;
@@ -7,6 +8,7 @@ import org.zipp.ai.domain.agent.model.valobj.visualreview.CanvasVisualReviewResu
 import org.zipp.ai.domain.agent.model.valobj.visualreview.CanvasVisualReviewStage;
 import org.zipp.ai.domain.agent.service.IChatService;
 import org.zipp.ai.domain.agent.service.visualreview.ChatCanvasVisualReviewer;
+import org.zipp.ai.domain.agent.service.visualreview.CanvasVisualReviewExecutor;
 import org.zipp.ai.domain.agent.service.usage.AgentUsageTelemetryContext;
 
 import java.lang.reflect.Proxy;
@@ -26,8 +28,14 @@ import static org.junit.Assert.assertTrue;
 public class ChatCanvasVisualReviewerTest {
 
     private static final String VALID_OUTPUT = """
-            {"summary":"The requested change is visible.","issues":[{"type":"TEXT_READABILITY","severity":"minor","anchorLabels":["API"],"region":"center","evidence":"The API label is slightly small.","repairInstruction":"Increase the label size."}],"recommendedHumanReview":false}
+            {"summary":"The requested change is visible.","issues":[{"type":"TEXT_READABILITY","severity":"minor","anchorLabels":["API"],"region":"center","evidence":"The API label is slightly small.","repairInstruction":"Increase the label size.","repairScope":"local"}],"recommendedHumanReview":false}
             """;
+    private final CanvasVisualReviewExecutor reviewExecutor = new CanvasVisualReviewExecutor(1, 20, 1, 20);
+
+    @After
+    public void closeExecutor() {
+        reviewExecutor.close();
+    }
 
     @Test
     public void sendsBeforeThenAfterPixelsAndUsesAFreshSessionPerReview() {
@@ -45,7 +53,7 @@ public class ChatCanvasVisualReviewerTest {
             }
             return defaultValue(method.getReturnType());
         });
-        ChatCanvasVisualReviewer reviewer = new ChatCanvasVisualReviewer(chat, "300018", "vlm-1", 2_000L);
+        ChatCanvasVisualReviewer reviewer = reviewer(chat, 2_000L);
 
         CanvasVisualReviewResult first = reviewer.review(command(image("before"), image("after")));
         CanvasVisualReviewResult second = reviewer.review(command(null, image("current")));
@@ -59,12 +67,12 @@ public class ChatCanvasVisualReviewerTest {
         assertEquals(1, captured.get(1).getInlineDatas().size());
         assertNotEquals(captured.get(0).getSessionId(), captured.get(1).getSessionId());
         assertFalse(captured.get(0).getTexts().get(0).getMessage().contains(image("after")));
-        assertTrue(first.getReviewerVersion().contains("visual-review-schema-v1"));
+        assertTrue(first.getReviewerVersion().contains("visual-review-schema-v2"));
     }
 
     @Test
     public void rejectsEverySchemaDeviation() {
-        String issue = "{\"type\":\"TEXT_READABILITY\",\"severity\":\"major\",\"anchorLabels\":[\"API\"],\"region\":\"center\",\"evidence\":\"visible\",\"repairInstruction\":\"increase size\"}";
+        String issue = "{\"type\":\"TEXT_READABILITY\",\"severity\":\"major\",\"anchorLabels\":[\"API\"],\"region\":\"center\",\"evidence\":\"visible\",\"repairInstruction\":\"increase size\",\"repairScope\":\"local\"}";
         List<String> invalidOutputs = List.of(
                 VALID_OUTPUT.trim().replace("}", ",\"extra\":true}"),
                 "```json\n" + VALID_OUTPUT + "\n```",
@@ -89,7 +97,7 @@ public class ChatCanvasVisualReviewerTest {
             return defaultValue(method.getReturnType());
         });
 
-        CanvasVisualReviewResult result = new ChatCanvasVisualReviewer(chat, "300018", "vlm-1", 2_000L)
+        CanvasVisualReviewResult result = reviewer(chat, 2_000L)
                 .review(command(null, image("after")));
 
         assertFalse(result.isAvailable());
@@ -108,7 +116,7 @@ public class ChatCanvasVisualReviewerTest {
             return defaultValue(method.getReturnType());
         });
 
-        CanvasVisualReviewResult result = new ChatCanvasVisualReviewer(chat, "300018", "vlm-1", 5L)
+        CanvasVisualReviewResult result = reviewer(chat, 5L)
                 .review(command(null, image("after")));
 
         assertFalse(result.isAvailable());
@@ -131,7 +139,7 @@ public class ChatCanvasVisualReviewerTest {
                 "visual_review", "PLATFORM", null, "openai", "vlm-1", "visual_review");
 
         try (AgentUsageTelemetryContext.Scope ignored = AgentUsageTelemetryContext.bind(context)) {
-            new ChatCanvasVisualReviewer(chat, "300018", "vlm-1", 2_000L)
+            reviewer(chat, 2_000L)
                     .review(command(null, image("after")));
         }
 
@@ -157,7 +165,11 @@ public class ChatCanvasVisualReviewerTest {
             if (method.getName().equals("handleMessage") && args.length == 1) return List.of(output);
             return defaultValue(method.getReturnType());
         });
-        return new ChatCanvasVisualReviewer(chat, "300018", "vlm-1", 2_000L);
+        return reviewer(chat, 2_000L);
+    }
+
+    private ChatCanvasVisualReviewer reviewer(IChatService chat, long timeoutMillis) {
+        return new ChatCanvasVisualReviewer(chat, "300018", "vlm-1", timeoutMillis, reviewExecutor);
     }
 
     private CanvasVisualReviewCommand command(String before, String after) {

@@ -226,6 +226,7 @@ export interface ReviewResultChunk {
         region?: string;
         evidence?: string;
         repairInstruction?: string;
+        repairScope?: 'local' | 'whole_canvas';
     }>;
     sourceRunId?: string;
     visualReviewRunId?: string;

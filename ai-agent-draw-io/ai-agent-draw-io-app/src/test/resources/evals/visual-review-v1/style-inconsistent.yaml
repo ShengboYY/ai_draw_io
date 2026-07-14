@@ -11,4 +11,3 @@ tags: [target:visual_review, style, lang:en]
 privacy: {classification: synthetic, sanitizerVersion: null}
 input: {user: "Use one coherent visual style", stage: POST_MUTATION, syntheticFixture: style-inconsistent}
 expected: {reviewAvailable: true, reviewDecision: REPAIR, requiredVisualIssueTypes: [STYLE_COHERENCE]}
-

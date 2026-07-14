@@ -127,10 +127,11 @@ ai:
                   - anchorLabels contains at most 3 short visible labels and never guessed cell ids.
                   - region: top, right, bottom, left, center, or whole.
                   - evidence states only what is visible. repairInstruction is one bounded change that preserves unrelated content.
+                  - repairScope is local or whole_canvas. Use whole_canvas for any full replacement, recreation, or broad redraw recommendation.
                   - Return at most 5 issues, in the user's language. Use issues=[] when no issue is visible.
 
                   Return exactly one single-line JSON object with no Markdown and no extra fields:
-                  {"summary":"Concise user-facing summary","issues":[{"type":"TEXT_READABILITY","severity":"major","anchorLabels":["Visible label"],"region":"center","evidence":"Visible evidence only","repairInstruction":"One bounded instruction"}],"recommendedHumanReview":false}
+                  {"summary":"Concise user-facing summary","issues":[{"type":"TEXT_READABILITY","severity":"major","anchorLabels":["Visible label"],"region":"center","evidence":"Visible evidence only","repairInstruction":"One bounded instruction","repairScope":"local"}],"recommendedHumanReview":false}
                 output-key: visual_review_result
             runner:
               agent-name: agent_visual_reviewer

@@ -11,4 +11,3 @@ tags: [target:visual_review, preservation, regression, lang:en]
 privacy: {classification: synthetic, sanitizerVersion: null}
 input: {user: "Add a Worker without deleting existing services", stage: POST_MUTATION, syntheticFixture: unexpected-deletion}
 expected: {reviewAvailable: true, reviewDecision: REPAIR, requiredVisualIssueTypes: [MISSING_REQUESTED_ELEMENT]}
-
