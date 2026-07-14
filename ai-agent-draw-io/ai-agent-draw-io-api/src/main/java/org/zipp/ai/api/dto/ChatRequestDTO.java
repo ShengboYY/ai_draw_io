@@ -33,7 +33,10 @@ public class ChatRequestDTO {
     private String customCompletionsPath;
     private String customModel;
 
-    // Draw.io 审查修订循环次数，由前端控制，后端会做上限保护。
+    // 用户可调的确定性修复轮数；VLM 自动修复使用独立的服务端固定预算。
+    private Integer maxDeterministicRepairRounds;
+
+    // 兼容旧客户端一个发布周期；新代码不再发送该字段。
     private Integer maxReviewIterations;
 
     // 用户手动指定要使用的技能(名),覆盖意图路由的自动选择;可多选(组合)。为空则走自动选择。
@@ -58,6 +61,7 @@ public class ChatRequestDTO {
 
     @Data
     public static class ClientHintsDTO {
+        private Integer maxDeterministicRepairRounds;
         private Integer maxReviewIterations;
         private java.util.List<String> skills;
     }

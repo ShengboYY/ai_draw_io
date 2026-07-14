@@ -150,7 +150,6 @@ public class CanvasVisualReviewOrchestrator {
         repair.setDiagramId(state.getDiagramId());
         repair.setExpectedVersion(state.getVersion());
         repair.setCanvasXml(state.getCurrentXml());
-        repair.setMaxReviewIterations(1);
         repair.setMessage(repairBriefComposer.compose(
                 request.getOriginalUserTask(), state.getVersion(), state.getContentHash(), result.safeIssues()));
         return repair;

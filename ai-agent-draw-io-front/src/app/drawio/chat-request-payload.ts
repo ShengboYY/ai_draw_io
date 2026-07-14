@@ -22,7 +22,7 @@ type BuildDrawioChatRequestPayloadInput = {
   customApiKey?: string;
   customCompletionsPath?: string;
   customModel?: string;
-  maxReviewIterations?: number;
+  maxDeterministicRepairRounds?: number;
   skills?: string[];
   conversationMessages?: ConversationMessageInput[];
 };
@@ -76,14 +76,14 @@ export const buildDrawioChatRequestPayload = ({
   canvasSummary,
   canvasImageDataUrl,
   canvasImageRendererVersion,
-  maxReviewIterations,
+  maxDeterministicRepairRounds,
   skills,
   conversationMessages,
 }: BuildDrawioChatRequestPayloadInput) => {
   const clientHints =
-    maxReviewIterations !== undefined || (skills && skills.length > 0)
+    maxDeterministicRepairRounds !== undefined || (skills && skills.length > 0)
       ? {
-          ...(maxReviewIterations !== undefined && { maxReviewIterations }),
+          ...(maxDeterministicRepairRounds !== undefined && { maxDeterministicRepairRounds }),
           ...(skills && skills.length > 0 && { skills }),
       }
       : undefined;
@@ -104,7 +104,7 @@ export const buildDrawioChatRequestPayload = ({
     ...(canvasImageDataUrl && { canvasImageDataUrl }),
     ...(canvasImageRendererVersion && { canvasImageRendererVersion }),
     // Legacy raw custom fields are intentionally dropped; chat accepts saved credential ids only.
-    ...(maxReviewIterations !== undefined && { maxReviewIterations }),
+    ...(maxDeterministicRepairRounds !== undefined && { maxDeterministicRepairRounds }),
     ...(skills && skills.length > 0 && { skills }),
     ...(clientHints && { clientHints }),
     ...(compactConversationMessages.length > 0 && { conversationMessages: compactConversationMessages }),

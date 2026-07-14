@@ -58,8 +58,9 @@ import java.util.function.Function;
 @Service
 public class AgentConversationService {
 
-    private static final int DEFAULT_MAX_REVIEW_ITERATIONS = 1;
-    private static final int MAX_REVIEW_ITERATIONS_LIMIT = 3;
+    private static final int DEFAULT_MAX_DETERMINISTIC_REPAIR_ROUNDS = 1;
+    private static final int MAX_DETERMINISTIC_REPAIR_ROUNDS = 3;
+    private static final int MAX_VISUAL_REPAIR_ROUNDS = 1;
     private static final int MAX_BUFFERED_STREAM_CAPTURE_CHARS = 64_000;
 
     @Resource
@@ -161,8 +162,8 @@ public class AgentConversationService {
                 return responseDTO;
             }
 
-            int maxReviewIterations = effectiveMaxReviewIterations(currentRequest, routingResult);
-            RoutedDrawMessage routedMessage = buildRoutedDrawMessage(currentRequest, routingResult, maxReviewIterations, currentRequest.getUserId(), currentRequest.getSkills());
+            int maxDeterministicRepairRounds = effectiveDeterministicRepairRounds(currentRequest, routingResult);
+            RoutedDrawMessage routedMessage = buildRoutedDrawMessage(currentRequest, routingResult, maxDeterministicRepairRounds, currentRequest.getUserId(), currentRequest.getSkills());
             captureDebugTrace(runScope, "ROUTED_MESSAGE", routedMessage.message());
             final String finalSessionId = sessionId;
             DrawioSkillAccessContext.bindSession(finalSessionId, routedMessage.allowedSkillNames());
@@ -302,10 +303,10 @@ public class AgentConversationService {
 
             // Each author has its own buffer because the ADK stream can interleave partial chunks.
             final ConcurrentHashMap<String, StringBuilder> authorBuffers = new ConcurrentHashMap<>();
-            // Drawing-loop budget: one first draw plus N self-repair mutations (frontend Max Loops).
+            // Drawing-loop budget: one first draw plus N deterministic self-repair mutations.
             final int maxRepairRounds = forcedRoutingResult == null
-                    ? effectiveMaxReviewIterations(requestDTO, routingResult)
-                    : normalizeMaxReviewIterations(requestDTO.getMaxReviewIterations());
+                    ? effectiveDeterministicRepairRounds(requestDTO, routingResult)
+                    : MAX_VISUAL_REPAIR_ROUNDS;
             final AtomicInteger mutationRounds = new AtomicInteger(0);
             final AtomicReference<Disposable> disposableRef = new AtomicReference<>();
             final AtomicBoolean manuallyCompleted = new AtomicBoolean(false);
@@ -549,7 +550,7 @@ public class AgentConversationService {
         return responseDTO;
     }
 
-    private int effectiveMaxReviewIterations(ChatRequestDTO requestDTO, IntentRoutingResult routingResult) {
+    private int effectiveDeterministicRepairRounds(ChatRequestDTO requestDTO, IntentRoutingResult routingResult) {
         // Localized edits skip the review/revision loop entirely: with 0 iterations the stream
         // completes as soon as the edited canvas is flushed, instead of waiting on review rounds.
         if (routingResult != null
@@ -557,15 +558,29 @@ public class AgentConversationService {
                 && (StringUtils.isBlank(routingResult.getSkillName()) || "none".equals(routingResult.getSkillName()))) {
             return 0;
         }
-        return normalizeMaxReviewIterations(requestDTO.getMaxReviewIterations());
+        return normalizeDeterministicRepairRounds(requestedDeterministicRepairRounds(requestDTO));
     }
 
-    private int normalizeMaxReviewIterations(Integer maxReviewIterations) {
-        if (maxReviewIterations == null) {
-            return DEFAULT_MAX_REVIEW_ITERATIONS;
+    private Integer requestedDeterministicRepairRounds(ChatRequestDTO requestDTO) {
+        if (requestDTO.getMaxDeterministicRepairRounds() != null) {
+            return requestDTO.getMaxDeterministicRepairRounds();
         }
-        // Frontend owns the setting; backend clamps it to avoid runaway review loops.
-        return Math.max(0, Math.min(maxReviewIterations, MAX_REVIEW_ITERATIONS_LIMIT));
+        ChatRequestDTO.ClientHintsDTO hints = requestDTO.getClientHints();
+        if (hints != null && hints.getMaxDeterministicRepairRounds() != null) {
+            return hints.getMaxDeterministicRepairRounds();
+        }
+        if (requestDTO.getMaxReviewIterations() != null) {
+            return requestDTO.getMaxReviewIterations();
+        }
+        return hints == null ? null : hints.getMaxReviewIterations();
+    }
+
+    private int normalizeDeterministicRepairRounds(Integer requestedRounds) {
+        if (requestedRounds == null) {
+            return DEFAULT_MAX_DETERMINISTIC_REPAIR_ROUNDS;
+        }
+        // Clamp client input so deterministic retries cannot become an unbounded model loop.
+        return Math.max(0, Math.min(requestedRounds, MAX_DETERMINISTIC_REPAIR_ROUNDS));
     }
 
     private CustomApiConfigManager.CustomApiConfig buildCustomApiConfig(ChatRequestDTO requestDTO) {
@@ -1007,15 +1022,15 @@ public class AgentConversationService {
 
     private String buildRoutedMessage(ChatRequestDTO requestDTO,
                                       IntentRoutingResult routingResult,
-                                      int maxReviewIterations,
+                                      int maxDeterministicRepairRounds,
                                       String ownerId,
                                       List<String> userSkills) {
-        return buildRoutedDrawMessage(requestDTO, routingResult, maxReviewIterations, ownerId, userSkills).message();
+        return buildRoutedDrawMessage(requestDTO, routingResult, maxDeterministicRepairRounds, ownerId, userSkills).message();
     }
 
     private RoutedDrawMessage buildRoutedDrawMessage(ChatRequestDTO requestDTO,
                                                      IntentRoutingResult routingResult,
-                                                     int maxReviewIterations,
+                                                     int maxDeterministicRepairRounds,
                                                      String ownerId,
                                                      List<String> userSkills) {
         requestDTO = requestWithStoredCanvas(requestDTO);
@@ -1024,7 +1039,7 @@ public class AgentConversationService {
         routingJson.put("diagramType", routingResult.getDiagramType());
         routingJson.put("skillName", routingResult.getSkillName());
         routingJson.put("reason", routingResult.getReason());
-        routingJson.put("maxRepairRounds", maxReviewIterations);
+        routingJson.put("maxRepairRounds", maxDeterministicRepairRounds);
         List<String> allowedTools = allowedToolsFor(routingResult);
         routingJson.put("allowedTools", allowedTools);
         routingJson.put("skillTools", DrawioSkillToolNames.SKILL_LOOKUP_TOOL_NAMES);
@@ -1034,7 +1049,7 @@ public class AgentConversationService {
                 SecretLogSanitizer.maskCapability(ownerId),
                 logValue(routingResult.getRouteType()),
                 allowedTools,
-                maxReviewIterations,
+                maxDeterministicRepairRounds,
                 logValue(routingResult.getSkillName()));
 
         SkillContentProvider.SkillSection skillSection = skillSectionFor(routingResult, ownerId, userSkills);

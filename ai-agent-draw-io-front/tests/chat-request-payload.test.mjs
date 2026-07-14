@@ -14,7 +14,7 @@ test('buildDrawioChatRequestPayload keeps user text separate from canvas context
     canvasXml: xml,
     canvasSummary: 'The canvas contains 1 node and 0 edges. Main labels: API.',
     modelCredentialId: 'mcr_gpt55',
-    maxReviewIterations: 2,
+    maxDeterministicRepairRounds: 2,
     skills: ['drawio-architecture'],
   });
 
@@ -22,10 +22,11 @@ test('buildDrawioChatRequestPayload keeps user text separate from canvas context
   assert.equal(request.canvasXml, xml);
   assert.equal(request.canvasSummary, 'The canvas contains 1 node and 0 edges. Main labels: API.');
   assert.equal(request.modelCredentialId, 'mcr_gpt55');
-  assert.equal(request.maxReviewIterations, 2);
+  assert.equal(request.maxDeterministicRepairRounds, 2);
+  assert.equal('maxReviewIterations' in request, false);
   assert.deepEqual(request.skills, ['drawio-architecture']);
   assert.deepEqual(request.clientHints, {
-    maxReviewIterations: 2,
+    maxDeterministicRepairRounds: 2,
     skills: ['drawio-architecture'],
   });
   assert.doesNotMatch(request.message, /Current Draw\.io XML|mxGraphModel|Canvas Summary/);

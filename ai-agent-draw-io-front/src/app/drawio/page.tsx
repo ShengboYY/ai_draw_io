@@ -115,8 +115,9 @@ const CANVAS_MIN_WIDTH = 360;
 const DRAWIO_MOBILE_BREAKPOINT = 640;
 const SIDEBAR_OPEN_STORAGE_KEY = 'ai_drawio_sidebar_open';
 const DRAWIO_SESSIONS_STORAGE_KEY = 'drawio_sessions';
-const MAX_REVIEW_ITERATIONS_STORAGE_KEY = 'ai_drawio_max_review_iterations';
-const REVIEW_ITERATION_OPTIONS = [0, 1, 2, 3];
+const DETERMINISTIC_REPAIR_ROUNDS_STORAGE_KEY = 'ai_drawio_max_deterministic_repair_rounds';
+const LEGACY_REVIEW_ITERATIONS_STORAGE_KEY = 'ai_drawio_max_review_iterations';
+const DETERMINISTIC_REPAIR_ROUND_OPTIONS = [0, 1, 2, 3];
 const EMPTY_DRAWIO_XML = '<mxGraphModel><root><mxCell id="0"/><mxCell id="1" parent="0"/></root></mxGraphModel>';
 const STREAMING_PREVIEW_FRAME_MS = 280;
 
@@ -673,7 +674,7 @@ function DrawioPageContent() {
   const [showApiConfig, setShowApiConfig] = useState(false);
   const [customModels, setCustomModels] = useState<CustomModelConfig[]>([]);
   const [selectedCustomModelId, setSelectedCustomModelId] = useState<string>('default');
-  const [maxReviewIterations, setMaxReviewIterations] = useState(1);
+  const [maxDeterministicRepairRounds, setMaxDeterministicRepairRounds] = useState(1);
   const demoQuotaState = buildDemoQuotaState({
     account: currentAccount,
     selectedCustomModelId,
@@ -1826,11 +1827,13 @@ function DrawioPageContent() {
         setSelectedCustomModelId(savedSelected);
       }
       void loadModelCredentials();
-      const savedMaxReviewIterationsRaw = localStorage.getItem(MAX_REVIEW_ITERATIONS_STORAGE_KEY);
-      if (savedMaxReviewIterationsRaw !== null && savedMaxReviewIterationsRaw !== '') {
-        const savedMaxReviewIterations = Number(savedMaxReviewIterationsRaw);
-        if (Number.isFinite(savedMaxReviewIterations)) {
-          setMaxReviewIterations(Math.min(Math.max(savedMaxReviewIterations, 0), 3));
+      // Read the legacy key only as a one-release migration fallback.
+      const savedRepairRoundsRaw = localStorage.getItem(DETERMINISTIC_REPAIR_ROUNDS_STORAGE_KEY)
+        ?? localStorage.getItem(LEGACY_REVIEW_ITERATIONS_STORAGE_KEY);
+      if (savedRepairRoundsRaw !== null && savedRepairRoundsRaw !== '') {
+        const savedRepairRounds = Number(savedRepairRoundsRaw);
+        if (Number.isFinite(savedRepairRounds)) {
+          setMaxDeterministicRepairRounds(Math.min(Math.max(savedRepairRounds, 0), 3));
         }
       }
 
@@ -2246,7 +2249,7 @@ function DrawioPageContent() {
           canvasImageDataUrl: canvasContext.canvasImageDataUrl,
           canvasImageRendererVersion: canvasContext.canvasImageRendererVersion,
           modelCredentialId: activeModelConfig?.modelCredentialId || undefined,
-          maxReviewIterations,
+          maxDeterministicRepairRounds,
           skills: pendingSkillsRef.current.length ? pendingSkillsRef.current : undefined,
           conversationMessages: messages,
       });
@@ -3604,17 +3607,17 @@ function DrawioPageContent() {
                     </div>
                 </div>
                 <div className="relative flex items-center rounded-full border border-stone-200 bg-white shadow-sm transition-colors hover:border-stone-300">
-                    <span className="pl-3 text-[11px] font-medium text-zinc-500">Max Loops</span>
+                    <span className="pl-3 text-[11px] font-medium text-zinc-500">Deterministic repair rounds</span>
                     <select
-                        value={maxReviewIterations}
+                        value={maxDeterministicRepairRounds}
                         onChange={(e) => {
                             const nextValue = Number(e.target.value);
-                            setMaxReviewIterations(nextValue);
-                            localStorage.setItem(MAX_REVIEW_ITERATIONS_STORAGE_KEY, String(nextValue));
+                            setMaxDeterministicRepairRounds(nextValue);
+                            localStorage.setItem(DETERMINISTIC_REPAIR_ROUNDS_STORAGE_KEY, String(nextValue));
                         }}
                         className="cursor-pointer appearance-none border-none bg-transparent py-1 pl-1 pr-5 text-[11px] font-medium text-zinc-600 outline-none focus:ring-0"
                     >
-                        {REVIEW_ITERATION_OPTIONS.map(count => (
+                        {DETERMINISTIC_REPAIR_ROUND_OPTIONS.map(count => (
                             <option key={count} value={count}>{count}x</option>
                         ))}
                     </select>

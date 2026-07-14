@@ -31,6 +31,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 public class CanvasVisualReviewOrchestratorTest {
@@ -105,7 +106,8 @@ public class CanvasVisualReviewOrchestratorTest {
                 assertEquals("300001", request.getAgentId());
                 assertEquals("session-1", request.getSessionId());
                 assertEquals(Long.valueOf(7L), request.getExpectedVersion());
-                assertEquals(Integer.valueOf(1), request.getMaxReviewIterations());
+                assertNull(request.getMaxDeterministicRepairRounds());
+                assertNull(request.getMaxReviewIterations());
                 assertTrue(request.getMessage().contains("Preserve every unmentioned id"));
                 assertEquals("architecture", diagramType);
                 assertTrue(optimizeLayout);

@@ -167,6 +167,7 @@ public class AgentConversationServiceTest {
         ChatRequestDTO request = platformRequest();
         request.setDiagramId("diagram-1");
         request.setCanvasXml(storedCanvasXml());
+        request.setMaxDeterministicRepairRounds(3);
         request.setMessage("Fix only the cited spacing issue and preserve everything else.");
 
         service.streamVisualRepair(request, "architecture", false, new CapturingEmitter());
@@ -179,14 +180,33 @@ public class AgentConversationServiceTest {
     }
 
     @Test
-    public void shouldClampFrontendReviewIterationSetting() throws Exception {
+    public void shouldClampDeterministicRepairRoundSetting() throws Exception {
         AgentConversationService service = new AgentConversationService();
 
-        assertEquals(1, normalizeMaxReviewIterations(service, null));
-        assertEquals(0, normalizeMaxReviewIterations(service, -1));
-        assertEquals(0, normalizeMaxReviewIterations(service, 0));
-        assertEquals(2, normalizeMaxReviewIterations(service, 2));
-        assertEquals(3, normalizeMaxReviewIterations(service, 9));
+        assertEquals(1, normalizeDeterministicRepairRounds(service, null));
+        assertEquals(0, normalizeDeterministicRepairRounds(service, -1));
+        assertEquals(0, normalizeDeterministicRepairRounds(service, 0));
+        assertEquals(2, normalizeDeterministicRepairRounds(service, 2));
+        assertEquals(3, normalizeDeterministicRepairRounds(service, 9));
+    }
+
+    @Test
+    public void shouldPreferNewDeterministicRepairBudgetOverLegacyField() throws Exception {
+        AgentConversationService service = new AgentConversationService();
+        ChatRequestDTO request = new ChatRequestDTO();
+        request.setMaxDeterministicRepairRounds(2);
+        request.setMaxReviewIterations(3);
+
+        assertEquals(Integer.valueOf(2), requestedDeterministicRepairRounds(service, request));
+    }
+
+    @Test
+    public void shouldReadLegacyRepairBudgetWhenNewFieldIsAbsent() throws Exception {
+        AgentConversationService service = new AgentConversationService();
+        ChatRequestDTO request = new ChatRequestDTO();
+        request.setMaxReviewIterations(3);
+
+        assertEquals(Integer.valueOf(3), requestedDeterministicRepairRounds(service, request));
     }
 
     @Test
@@ -806,11 +826,19 @@ public class AgentConversationServiceTest {
         throw new AssertionError("expected routing failure");
     }
 
-    private int normalizeMaxReviewIterations(AgentConversationService service, Integer value) throws Exception {
+    private int normalizeDeterministicRepairRounds(AgentConversationService service, Integer value) throws Exception {
         // Exercise the private normalization boundary without widening production API surface.
-        Method method = AgentConversationService.class.getDeclaredMethod("normalizeMaxReviewIterations", Integer.class);
+        Method method = AgentConversationService.class.getDeclaredMethod("normalizeDeterministicRepairRounds", Integer.class);
         method.setAccessible(true);
         return (int) method.invoke(service, value);
+    }
+
+    private Integer requestedDeterministicRepairRounds(AgentConversationService service,
+                                                       ChatRequestDTO request) throws Exception {
+        Method method = AgentConversationService.class.getDeclaredMethod(
+                "requestedDeterministicRepairRounds", ChatRequestDTO.class);
+        method.setAccessible(true);
+        return (Integer) method.invoke(service, request);
     }
 
     private String buildIntentMessage(AgentConversationService service, ChatRequestDTO requestDTO) throws Exception {
@@ -828,7 +856,7 @@ public class AgentConversationServiceTest {
     private String buildRoutedMessage(AgentConversationService service,
                                       ChatRequestDTO requestDTO,
                                       IntentRoutingResult routingResult,
-                                      int maxReviewIterations) throws Exception {
+                                      int maxDeterministicRepairRounds) throws Exception {
         Method method = AgentConversationService.class.getDeclaredMethod(
                 "buildRoutedMessage",
                 ChatRequestDTO.class,
@@ -838,7 +866,7 @@ public class AgentConversationServiceTest {
                 java.util.List.class
         );
         method.setAccessible(true);
-        return (String) method.invoke(service, requestDTO, routingResult, maxReviewIterations, requestDTO.getUserId(), null);
+        return (String) method.invoke(service, requestDTO, routingResult, maxDeterministicRepairRounds, requestDTO.getUserId(), null);
     }
 
     private void injectPromptContextBuilder(AgentConversationService service) throws Exception {

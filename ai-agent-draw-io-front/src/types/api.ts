@@ -352,6 +352,8 @@ export interface ChatRequestDTO {
     labels?: string[];
   };
   clientHints?: {
+    maxDeterministicRepairRounds?: number;
+    /** Legacy request field accepted temporarily by the backend. */
     maxReviewIterations?: number;
     skills?: string[];
   };
@@ -362,6 +364,8 @@ export interface ChatRequestDTO {
   customApiKey?: string;
   customCompletionsPath?: string;
   customModel?: string;
+  maxDeterministicRepairRounds?: number;
+  /** Legacy request field accepted temporarily by the backend. */
   maxReviewIterations?: number;
   /** User-specified skills (via the "/" picker); overrides the router's auto-selection. */
   skills?: string[];

@@ -66,7 +66,8 @@ public class ProductionLiveEvalAdapter implements LiveEvalRunner.LiveExecutionFa
             request.setAgentId(agentId); request.setUserId(userId); request.setDiagramId(diagramId);
             request.setSessionId("eval-session-" + UUID.randomUUID()); request.setRequestId("eval-request-" + UUID.randomUUID());
             request.setRunId("eval-run-" + UUID.randomUUID());
-            request.setMessage(message); request.setCanvasXml(initialXml); request.setMaxReviewIterations(profile.getMaxReviewIterations());
+            request.setMessage(message); request.setCanvasXml(initialXml);
+            request.setMaxDeterministicRepairRounds(profile.getMaxReviewIterations());
             request.setExpectedVersion(seeded == null ? null : seeded.getVersion());
             request.setModelCredentialId(profile.getModelCredentialId());
             CapturingEmitter emitter = new CapturingEmitter(timeoutMs);
