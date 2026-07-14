@@ -210,6 +210,8 @@ export interface MetaChunk {
 export interface RouteChunk {
     type: 'route';
     routeType: string;
+    diagramType?: string;
+    skillName?: string;
 }
 
 export interface ReviewResultChunk {

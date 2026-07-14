@@ -52,19 +52,20 @@ import {
   AgentRunEvent,
   AgentRunEventStatus,
   AgentRunEventTone,
+  VisualReviewPresentation,
   buildAgentCompletionReply,
-  buildAgentProgressSummary,
   buildAgentRunView,
-  buildVisualReviewMessage,
+  buildRouteStepDetail,
+  buildVisualRepairStepDetail,
+  buildVisualReviewStepDetail,
   finishEventsAfterCanvasLoaded,
   finishPreviousPhaseEvents,
   getVisibleExecutionSteps,
-  shouldShowAgentProgressCard,
   shouldShowAgentTyping,
   thinkingPhaseLabel,
   thinkingRouteLabel,
+  usesChinesePresentation,
   visualReviewStageLabel,
-  visualReviewStaleMessage,
 } from './agent-run-presentation';
 import {
   buildThumbnailExportRequest,
@@ -101,6 +102,7 @@ type Message = {
   content: string;
   reasoning?: string;
   routeType?: string;
+  language?: 'zh' | 'en';
   steps?: MessageStep[];
   events?: AgentRunEvent[];
   timestamp: number;
@@ -404,84 +406,6 @@ const getValidationStatus = (chunk: StreamEvent['chunk']): AgentRunEventStatus =
   if (chunk.valid === false || chunk.severity === 'critical' || chunk.severity === 'error') return 'warning';
   if (chunk.severity === 'warning') return 'warning';
   return 'done';
-};
-
-const eventTextClasses: Record<AgentRunEventStatus, string> = {
-  running: 'text-blue-600',
-  done: 'text-emerald-600',
-  warning: 'text-amber-600',
-  error: 'text-rose-600',
-};
-
-const eventStatusMarks: Record<AgentRunEventStatus, string> = {
-  running: '…',
-  done: '✓',
-  warning: '!',
-  error: '×',
-};
-
-const summarizeEventDetail = (detail?: string) => {
-  const normalized = detail?.replace(/\s+/g, ' ').trim() || '';
-  if (!normalized) return '';
-  return normalized.length > 180 ? `${normalized.slice(0, 177).trim()}...` : normalized;
-};
-
-const AgentProgressMessage = ({
-  message,
-  isRunning,
-}: {
-  message: Message;
-  isRunning: boolean;
-}) => {
-  const view = buildAgentRunView({
-    events: message.events,
-    content: message.content,
-    isRunning,
-  });
-  const summary = buildAgentProgressSummary(view, isRunning);
-
-  return (
-    <div className="w-full rounded-lg border border-stone-200 bg-white px-3.5 py-3 text-sm leading-relaxed text-zinc-700 shadow-sm">
-      <p className="m-0">{summary}</p>
-
-      {view.finalContent && (
-        <div className="mt-2 prose prose-sm prose-zinc max-w-none prose-p:my-1.5 prose-ol:my-2 prose-ul:my-2 prose-li:my-1">
-          <ReactMarkdown remarkPlugins={[remarkGfm]}>{view.finalContent}</ReactMarkdown>
-        </div>
-      )}
-
-      {view.visibleEvents.length > 0 && (
-        <details className="group/details mt-3 border-t border-stone-100 pt-2">
-          <summary className="inline-flex cursor-pointer items-center gap-1.5 text-xs font-medium text-zinc-500 transition-colors hover:text-zinc-700">
-            <Icons.Sparkles className="h-3.5 w-3.5 text-zinc-500" />
-            <span className="group-open/details:hidden">View tool and validation details</span>
-            <span className="hidden group-open/details:inline">Hide tool and validation details</span>
-          </summary>
-          <div className="mt-2 space-y-2 rounded-lg bg-stone-50 p-3 text-xs text-zinc-600">
-            <div>
-              <span className="font-medium text-zinc-700">Actions:</span> {view.toolLabel}
-            </div>
-            {view.visibleEvents.map(event => (
-              <div key={event.id} className="flex gap-2">
-                <span className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full border text-[10px] font-semibold ${event.status === 'done' ? 'border-emerald-200 bg-emerald-50 text-emerald-600' : event.status === 'warning' ? 'border-amber-200 bg-amber-50 text-amber-600' : event.status === 'error' ? 'border-rose-200 bg-rose-50 text-rose-600' : 'border-blue-200 bg-blue-50 text-blue-600'}`}>
-                  {eventStatusMarks[event.status]}
-                </span>
-                <div className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-1.5">
-                    <span className="font-medium text-zinc-700">{event.title}</span>
-                    <span className={eventTextClasses[event.status]}>{event.statusLabel}</span>
-                  </div>
-                  {event.detail && (
-                    <div className="mt-0.5 break-words text-zinc-500">{summarizeEventDetail(event.detail)}</div>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        </details>
-      )}
-    </div>
-  );
 };
 
 export default function Home() {
@@ -1961,11 +1885,13 @@ function DrawioPageContent() {
     };
     
     const agentMsgId = Date.now().toString() + '-agent';
+    const useChinese = usesChinesePresentation(displayContent);
     const initialAgentMsg: Message = {
       id: agentMsgId,
       role: 'agent',
       content: '',
       reasoning: '',
+      language: useChinese ? 'zh' : 'en',
       steps: [],
       events: [],
       timestamp: Date.now()
@@ -2024,6 +1950,7 @@ function DrawioPageContent() {
       let accumulatedContent = '';
       const accumulatedSteps: MessageStep[] = [];
       const accumulatedEvents: AgentRunEvent[] = [];
+      const visualReviews: VisualReviewPresentation[] = [];
       const eventIndexByKey: Record<string, number> = {};
       let eventSequence = 0;
 
@@ -2071,11 +1998,17 @@ function DrawioPageContent() {
 
       const getVisibleStepDetail = (phaseStr: string, state?: 'loaded' | 'passed' | 'needs_attention') => {
         // Thinking shows observable progress only; model-produced status text stays out of the UI.
-        if (state === 'loaded') return 'Updated the canvas.';
-        if (state === 'passed') return 'Validation passed.';
-        if (state === 'needs_attention') return 'Validation needs attention.';
+        if (state === 'loaded') {
+          return useChinese
+            ? `已将 ${nodeCount} 个节点、${edgeCount} 条连线加载到画布。`
+            : `Loaded ${nodeCount} nodes and ${edgeCount} connectors onto the canvas.`;
+        }
+        if (state === 'passed') return useChinese ? '结构校验通过。' : 'Structural validation passed.';
+        if (state === 'needs_attention') return useChinese ? '结构校验发现需要处理的问题。' : 'Structural validation found issues to address.';
         if (phaseStr === 'drawing' && (nodeCount > 0 || edgeCount > 0)) {
-          return `Canvas preview: ${nodeCount} nodes · ${edgeCount} connections.`;
+          return useChinese
+            ? `正在构建画布：${nodeCount} 个节点、${edgeCount} 条连线。`
+            : `Building the canvas: ${nodeCount} nodes and ${edgeCount} connectors.`;
         }
         return '';
       };
@@ -2129,6 +2062,21 @@ function DrawioPageContent() {
         setMessages(prev => prev.map(m => m.id === agentMsgId ? { ...m, steps: [...accumulatedSteps] } : m));
       };
 
+      const recordVisualReview = (review: VisualReviewPresentation) => {
+        // A stage has one authoritative result; replace retries instead of duplicating the final narrative.
+        const existingIndex = visualReviews.findIndex(item => item.stage === review.stage);
+        if (existingIndex >= 0) visualReviews[existingIndex] = review;
+        else visualReviews.push(review);
+      };
+
+      const markVisualRepairCompleted = () => {
+        // A repair decision is only a proposal; drawio_done is the observable completion signal.
+        const reviewIndex = visualReviews.findIndex(item => item.decision === 'REPAIR');
+        if (reviewIndex >= 0) {
+          visualReviews[reviewIndex] = { ...visualReviews[reviewIndex], repairCompleted: true };
+        }
+      };
+
       const canShowCompletion = () => !requestedMoreInfo && !receivedVersionConflict && (nodeCount > 0 || edgeCount > 0 || receivedDrawioDone);
 
       const loadStreamingPreview = (xml: string) => {
@@ -2146,30 +2094,14 @@ function DrawioPageContent() {
             content: accumulatedContent,
             isRunning: false,
           }),
-          displayContent
+          displayContent,
+          visualReviews,
         );
         if (completionContent && !accumulatedContent.includes(completionContent)) {
           accumulatedContent += (accumulatedContent ? '\n\n' : '') + completionContent;
         }
         setMessages(prev => prev.map(m => (
           m.id === agentMsgId ? { ...m, content: accumulatedContent, steps: markStepsDone(m.steps) } : m
-        )));
-        return true;
-      };
-
-      const appendAgentMessageContent = (content?: string) => {
-        const displayContent = normalizeAgentDisplayContent(content || '');
-        if (!displayContent) return false;
-
-        const existingBlocks = accumulatedContent.split('\n\n').map(block => block.trim());
-        if (!existingBlocks.includes(displayContent)) {
-          accumulatedContent += (accumulatedContent ? '\n\n' : '') + displayContent;
-        }
-        if (!agentTextContent.includes(displayContent)) {
-          agentTextContent += (agentTextContent ? '\n\n' : '') + displayContent;
-        }
-        setMessages(prev => prev.map(m => (
-          m.id === agentMsgId ? { ...m, content: accumulatedContent, steps: [...accumulatedSteps] } : m
         )));
         return true;
       };
@@ -2214,7 +2146,6 @@ function DrawioPageContent() {
           {
             ...initialAgentMsg,
             content: agentContent,
-            steps: markStepsDone(initialAgentMsg.steps),
             timestamp: Date.now(),
           },
         ];
@@ -2289,7 +2220,7 @@ function DrawioPageContent() {
         new Promise<ReviewStreamOutcome>(resolve => {
           const outcome: ReviewStreamOutcome = {};
           const reviewStepKey = `visual-review:${reviewRequest.stage}`;
-          const reviewStepLabel = visualReviewStageLabel(reviewRequest.stage);
+          const reviewStepLabel = visualReviewStageLabel(reviewRequest.stage, useChinese);
           let settled = false;
           const finish = () => {
             if (settled) return;
@@ -2297,8 +2228,12 @@ function DrawioPageContent() {
             resolve(outcome);
           };
           const showUnavailableReview = () => {
-            const detail = 'Visual review was unavailable; the current canvas was kept.';
-            appendAgentMessageContent(buildVisualReviewMessage({ decision: 'UNAVAILABLE' }));
+            const unavailableReview: VisualReviewPresentation = {
+              stage: reviewRequest.stage,
+              decision: 'UNAVAILABLE',
+            };
+            recordVisualReview(unavailableReview);
+            const detail = buildVisualReviewStepDetail({ ...unavailableReview, useChinese });
             updateStep(reviewStepKey, 'visual_review', reviewStepLabel, detail, true, true);
             publishSteps();
             upsertRunEvent(`visual-review:${reviewRequest.stage}`, {
@@ -2333,24 +2268,18 @@ function DrawioPageContent() {
               }
               if (chunk.type === 'review_result') {
                 outcome.decision = chunk.decision;
-                const reviewMessage = buildVisualReviewMessage({
+                const review: VisualReviewPresentation = {
+                  stage: chunk.stage || reviewRequest.stage,
                   decision: chunk.decision,
                   summary: chunk.content,
                   issues: chunk.issues,
-                  autoRepairStarted: chunk.decision === 'REPAIR' && reviewRequest.stage === 'POST_MUTATION',
-                });
+                };
+                recordVisualReview(review);
                 if (chunk.decision === 'REPAIR' && !activeAiMutationDiagramId) {
                   activeAiMutationDiagramId = reviewRequest.diagramId;
                   beginAiCanvasMutationForDiagram(reviewRequest.diagramId);
                 }
-                appendAgentMessageContent(reviewMessage);
-                const reviewDetail = chunk.decision === 'UNAVAILABLE'
-                  ? 'Visual review was unavailable; the current canvas was kept.'
-                  : chunk.decision === 'NEEDS_HUMAN_REVIEW'
-                    ? 'Human review is recommended; the canvas was not changed.'
-                    : chunk.decision === 'REPAIR'
-                      ? 'Visual issues found; starting one bounded repair.'
-                      : chunk.approved ? 'Rendered canvas passed.' : 'Rendered canvas needs attention.';
+                const reviewDetail = buildVisualReviewStepDetail({ ...review, useChinese });
                 updateStep(reviewStepKey, 'visual_review', reviewStepLabel, reviewDetail, true, true);
                 publishSteps();
                 upsertRunEvent(`visual-review:${chunk.stage || reviewRequest.stage}`, {
@@ -2361,13 +2290,14 @@ function DrawioPageContent() {
                   tone: 'review',
                 });
                 if (chunk.decision === 'REPAIR') {
-                  const repairStepLabel = visualReviewStageLabel('REPAIR');
-                  updateStep('visual-repair', 'visual_repair', repairStepLabel, 'Applying the cited visual fixes.', false, true);
+                  const repairStepLabel = visualReviewStageLabel('REPAIR', useChinese);
+                  const repairDetail = buildVisualRepairStepDetail({ issues: chunk.issues, useChinese });
+                  updateStep('visual-repair', 'visual_repair', repairStepLabel, repairDetail, false, true);
                   publishSteps();
                   upsertRunEvent('visual-repair', {
                     phase: 'revising',
                     title: 'Visual repair',
-                    detail: 'Applying the cited visual fixes.',
+                    detail: repairDetail,
                     status: 'running',
                     tone: 'review',
                   });
@@ -2376,19 +2306,26 @@ function DrawioPageContent() {
               }
               if (chunk.type === 'review_stale') {
                 outcome.decision = 'STALE';
-                appendAgentMessageContent(visualReviewStaleMessage);
-                updateStep(reviewStepKey, 'visual_review', reviewStepLabel, visualReviewStaleMessage, true, true);
+                const staleReview: VisualReviewPresentation = {
+                  stage: reviewRequest.stage,
+                  decision: 'UNAVAILABLE',
+                  stale: true,
+                };
+                recordVisualReview(staleReview);
+                const staleDetail = buildVisualReviewStepDetail({ ...staleReview, useChinese });
+                updateStep(reviewStepKey, 'visual_review', reviewStepLabel, staleDetail, true, true);
                 publishSteps();
                 upsertRunEvent(`visual-review:${reviewRequest.stage}`, {
                   phase: 'reviewing',
                   title: reviewRequest.stage === 'VERIFY_ONLY' ? 'Final visual verification' : 'Visual review',
-                  detail: visualReviewStaleMessage,
+                  detail: staleDetail,
                   status: 'warning',
                   tone: 'review',
                 });
                 return;
               }
               if (chunk.type === 'drawio_done' && Number.isFinite(chunk.version) && chunk.contentHash) {
+                markVisualRepairCompleted();
                 const repairedDiagramId = chunk.diagramId || reviewRequest.diagramId;
                 const loadPromise = waitForCanvasLoad(activeSession?.id || currentSessionId || '');
                 applyFinalDiagramXml(chunk.content, chunk.mode);
@@ -2408,12 +2345,15 @@ function DrawioPageContent() {
                   imageBeforeRepair: reviewRequest.afterImageDataUrl,
                   loadPromise,
                 };
-                updateStep('visual-repair', 'visual_repair', visualReviewStageLabel('REPAIR'), 'Updated the canvas.', true, true);
+                const repairCompletedDetail = useChinese
+                  ? '已完成一轮局部视觉修复，并重新加载画布。'
+                  : 'Completed one local visual repair and reloaded the canvas.';
+                updateStep('visual-repair', 'visual_repair', visualReviewStageLabel('REPAIR', useChinese), repairCompletedDetail, true, true);
                 publishSteps();
                 upsertRunEvent('visual-repair', {
                   phase: 'revising',
                   title: 'Visual repair',
-                  detail: 'Updated the canvas.',
+                  detail: repairCompletedDetail,
                   status: 'done',
                   tone: 'review',
                 });
@@ -2515,10 +2455,26 @@ function DrawioPageContent() {
             // The router has selected the work path, so label the next visible steps accordingly.
             activeRouteType = chunk.routeType;
             setMessages(prev => prev.map(m => m.id === agentMsgId ? { ...m, routeType: activeRouteType } : m));
+            const routeStepLabel = thinkingPhaseLabel(activeRouteType, 'analyzing', useChinese);
+            const routeDetail = buildRouteStepDetail({
+              routeType: chunk.routeType,
+              diagramType: chunk.diagramType,
+              skillName: chunk.skillName,
+              useChinese,
+            });
+            updateStep('route', 'analyzing', routeStepLabel, routeDetail, true, true);
+            publishSteps();
+            upsertRunEvent('route', {
+              phase: 'analyzing',
+              title: 'Intent Router',
+              detail: routeDetail,
+              status: 'done',
+              tone: 'analysis',
+            });
             return;
           }
           // Update phase display
-          const currentPhaseLabel = thinkingPhaseLabel(activeRouteType, phase);
+          const currentPhaseLabel = thinkingPhaseLabel(activeRouteType, phase, useChinese);
           let currentStep: { key: string; label: string } = { key: phase, label: currentPhaseLabel };
 
           if (phase !== 'done' && phase !== 'error') {
@@ -2720,7 +2676,7 @@ function DrawioPageContent() {
                     canvasLoaded,
                   }).catch(error => {
                     console.warn('Post-draw visual review failed open:', error);
-                    appendAgentMessageContent('Visual review could not be completed. The current canvas was kept.');
+                    recordVisualReview({ stage: 'POST_MUTATION', decision: 'UNAVAILABLE' });
                   });
                 }
               }
@@ -2825,12 +2781,14 @@ function DrawioPageContent() {
             }
 
             case 'review_result': {
-              const reviewDetail = chunk.approved ? 'Review passed.' : 'Review found changes to consider.';
-              appendAgentMessageContent(buildVisualReviewMessage({
+              const review: VisualReviewPresentation = {
+                stage: chunk.stage || 'CURRENT_CANVAS',
                 decision: chunk.decision,
                 summary: chunk.content,
                 issues: chunk.issues,
-              }));
+              };
+              recordVisualReview(review);
+              const reviewDetail = buildVisualReviewStepDetail({ ...review, useChinese });
               upsertRunEvent('review:result', {
                 phase: 'reviewing',
                 title: 'review_result',
@@ -2840,7 +2798,7 @@ function DrawioPageContent() {
                 nodes: nodeCount,
                 edges: edgeCount,
               });
-              updateStep(currentStep.key, 'reviewing', currentStep.label, getVisibleStepDetail('reviewing', chunk.approved ? 'passed' : 'needs_attention'), chunk.approved, true);
+              updateStep(currentStep.key, 'reviewing', currentStep.label, reviewDetail, true, true);
               publishSteps();
               break;
             }
@@ -3443,18 +3401,13 @@ function DrawioPageContent() {
           {/* Messages Area */}
           <div className="flex-1 space-y-6 overflow-y-auto bg-[var(--app-bg)] p-5 pr-14 scrollbar-thin scrollbar-track-transparent scrollbar-thumb-stone-300">
             {messages.map((msg, index) => {
-              const hasAgentRunEvents = msg.role === 'agent' && !!msg.events && msg.events.length > 0;
               const isLatestRunningAgent = index === messages.length - 1 && isSending;
-              const showAgentProgressCard = shouldShowAgentProgressCard({
-                role: msg.role,
-                eventCount: msg.events?.length || 0,
-                isLatestRunningAgent,
-              });
               const visibleExecutionSteps = getVisibleExecutionSteps(msg.steps, isLatestRunningAgent);
               const thinkingSteps = msg.steps || [];
               const currentThinkingStep = visibleExecutionSteps[visibleExecutionSteps.length - 1];
               const hasThinking = msg.role === 'agent' && thinkingSteps.length > 0;
-              const routeLabel = thinkingRouteLabel(msg.routeType);
+              const useChineseMessage = msg.language === 'zh' || usesChinesePresentation(msg.content);
+              const routeLabel = thinkingRouteLabel(msg.routeType, useChineseMessage);
 
               return (
                 <div 
@@ -3473,24 +3426,26 @@ function DrawioPageContent() {
 
                   <div className="flex flex-col max-w-[85%] w-full">
                       <div className={`flex flex-col gap-2 ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
-                        {showAgentProgressCard && (
-                          <AgentProgressMessage message={msg} isRunning={isLatestRunningAgent} />
-                        )}
-
-                        {/* Thinking stays prominent while live, then compacts into an inspectable trace after completion. */}
+                        {/* Show observable execution facts, not private model reasoning. */}
                         {hasThinking && (
                           <div className="w-full max-w-full">
                             <details className="group/details w-full" open={isLatestRunningAgent}>
                               <summary className="flex cursor-pointer list-none select-none items-center gap-2 rounded-lg px-1 py-1 text-xs font-medium text-zinc-500 transition-colors hover:bg-stone-100 hover:text-zinc-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-300">
                                  {isLatestRunningAgent ? <Icons.Loader className="h-3.5 w-3.5 animate-spin text-zinc-600" /> : <Icons.Sparkles className="h-3.5 w-3.5 text-zinc-500" />}
-                                 <span className="text-zinc-700">{isLatestRunningAgent ? 'Thinking' : 'Thought process'}</span>
+                                 <span className="text-zinc-700">
+                                   {isLatestRunningAgent
+                                     ? useChineseMessage ? '正在处理' : 'Working'
+                                     : useChineseMessage ? '执行过程' : 'Execution trace'}
+                                 </span>
                                  <span className="text-zinc-400">
                                    {isLatestRunningAgent
-                                     ? currentThinkingStep?.label || 'Working through the request'
-                                     : `${routeLabel ? `${routeLabel} · ` : ''}${thinkingSteps.length || 1} step${thinkingSteps.length === 1 ? '' : 's'}`}
+                                     ? currentThinkingStep?.label || (useChineseMessage ? '正在处理请求' : 'Working through the request')
+                                     : useChineseMessage
+                                       ? `${routeLabel ? `${routeLabel} · ` : ''}${thinkingSteps.length || 1} 步`
+                                       : `${routeLabel ? `${routeLabel} · ` : ''}${thinkingSteps.length || 1} step${thinkingSteps.length === 1 ? '' : 's'}`}
                                  </span>
-                                 <span className="ml-auto text-zinc-400 group-open/details:hidden">Show</span>
-                                 <span className="ml-auto hidden text-zinc-400 group-open/details:inline">Hide</span>
+                                 <span className="ml-auto text-zinc-400 group-open/details:hidden">{useChineseMessage ? '展开' : 'Show'}</span>
+                                 <span className="ml-auto hidden text-zinc-400 group-open/details:inline">{useChineseMessage ? '收起' : 'Hide'}</span>
                               </summary>
                               <div className="mt-2 border-l border-stone-200 pb-1 pl-3 text-sm text-zinc-600">
                                 {thinkingSteps.length > 0 ? thinkingSteps.map((step, idx) => (
@@ -3498,14 +3453,14 @@ function DrawioPageContent() {
                                     <span className={`absolute -left-[1.05rem] top-1 h-2 w-2 rounded-full border-2 border-[var(--app-bg)] ${step.status === 'running' ? 'animate-pulse bg-zinc-800' : 'bg-stone-300'}`} aria-hidden="true" />
                                     <div className="flex items-center gap-2 text-xs">
                                       <span className="font-medium text-zinc-700">{step.label}</span>
-                                      {step.status === 'running' && <span className="text-zinc-400">In progress</span>}
+                                      {step.status === 'running' && <span className="text-zinc-400">{useChineseMessage ? '进行中' : 'In progress'}</span>}
                                     </div>
                                     {step.content && (
                                       <p className="mt-1 text-xs leading-relaxed text-zinc-500">{step.content.trim()}</p>
                                     )}
                                   </div>
                                 )) : (
-                                  <p className="text-xs leading-relaxed text-zinc-500">Working through the request.</p>
+                                  <p className="text-xs leading-relaxed text-zinc-500">{useChineseMessage ? '正在处理请求。' : 'Working through the request.'}</p>
                                 )}
                               </div>
                             </details>
@@ -3513,7 +3468,7 @@ function DrawioPageContent() {
                         )}
 
                         {/* Content Block */}
-                        {msg.content && !hasAgentRunEvents && (
+                        {msg.content && (
                           <div 
                             className={`
                                 p-3.5 text-sm leading-relaxed shadow-sm w-fit

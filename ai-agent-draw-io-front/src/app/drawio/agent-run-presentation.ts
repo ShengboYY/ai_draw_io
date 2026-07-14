@@ -3,6 +3,7 @@ export type AgentRunEventTone = 'analysis' | 'drawing' | 'tool' | 'validation' |
 export type AgentRunScope = 'full' | 'local' | 'append' | 'layout' | 'review';
 export type AgentRouteType = 'create_new' | 'edit_existing' | 'optimize_layout' | 'answer_only' | 'clarify' | 'review_only';
 export type VisualReviewDecision = 'APPROVE' | 'APPROVE_WITH_NOTES' | 'REPAIR' | 'NEEDS_HUMAN_REVIEW' | 'UNAVAILABLE';
+export type VisualReviewStage = 'CURRENT_CANVAS' | 'POST_MUTATION' | 'VERIFY_ONLY';
 
 export type VisualReviewDisplayIssue = {
   type?: string;
@@ -12,6 +13,15 @@ export type VisualReviewDisplayIssue = {
   evidence?: string;
   repairInstruction?: string;
   repairScope?: 'local' | 'whole_canvas';
+};
+
+export type VisualReviewPresentation = {
+  stage: VisualReviewStage;
+  decision?: VisualReviewDecision;
+  summary?: string;
+  issues?: VisualReviewDisplayIssue[];
+  stale?: boolean;
+  repairCompleted?: boolean;
 };
 
 export type AgentRunEvent = {
@@ -27,19 +37,10 @@ export type AgentRunEvent = {
   edges?: number;
 };
 
-export type AgentRunDisplayEvent = AgentRunEvent & {
-  statusLabel: string;
-};
-
 export type AgentRunView = {
-  title: string;
-  statusLabel: string;
   statusTone: 'running' | 'passed' | 'warning' | 'failed';
-  scopeLabel: string;
-  toolLabel: string;
   metricLabel: string;
   finalContent: string;
-  visibleEvents: AgentRunDisplayEvent[];
 };
 
 const unique = (values: string[]) => Array.from(new Set(values.filter(Boolean)));
@@ -48,92 +49,13 @@ const pluralize = (count: number, singular: string, plural: string) => `${count}
 
 const containsCjk = (text?: string) => /[\u3400-\u9fff]/.test(text || '');
 
+export const usesChinesePresentation = (text?: string) => containsCjk(text);
+
 const localizeMetricLabel = (metricLabel: string, useChinese: boolean) => {
   const match = metricLabel.match(/^(\d+) nodes? · (\d+) edges?$/);
   if (!match || !useChinese) return metricLabel;
   return `${match[1]} 个节点、${match[2]} 条连线`;
 };
-
-const actionLabels: Record<string, string> = {
-  'intent router': 'Understand request',
-  agent_intent: 'Understand request',
-  'drawing agent': 'Draw diagram',
-  agent_drawer: 'Draw diagram',
-  drawio_node: 'Add node',
-  drawio_edge: 'Add connector',
-  drawio_preview: 'Update canvas preview',
-  'streaming nodes': 'Update canvas preview',
-  'streaming edges': 'Update canvas preview',
-  'update canvas preview': 'Update canvas preview',
-  drawio_done: 'Load canvas',
-  drawio: 'Load canvas',
-  display_diagram: 'Load canvas',
-  validate_diagram: 'Validate diagram',
-  validation_result: 'Validate diagram',
-  reviewer: 'Review diagram',
-  agent_reviewer: 'Review diagram',
-  'visual review': 'Visual review',
-  'visual repair': 'Visual repair',
-  'final visual verification': 'Final verification',
-  'revision agent': 'Revise diagram',
-  update_cells: 'Update selected items',
-  find_cells: 'Find target items',
-  append_diagram: 'Append to diagram',
-  optimize_diagram: 'Optimize layout',
-  route_edges: 'Route connectors',
-};
-
-const statusLabels: Record<AgentRunEventStatus, string> = {
-  running: 'In progress',
-  done: 'Done',
-  warning: 'Needs attention',
-  error: 'Failed',
-};
-
-const actionLabelFor = (event: Pick<AgentRunEvent, 'title' | 'tool'>) => {
-  const titleKey = (event.title || '').trim().toLowerCase();
-  if (actionLabels[titleKey]) return actionLabels[titleKey];
-
-  const rawValue = (event.tool || event.title || '').trim();
-  const key = rawValue.toLowerCase();
-  if (actionLabels[key]) return actionLabels[key];
-
-  if (key.includes('validate')) return 'Validate diagram';
-  if (key.includes('display') || key.includes('done')) return 'Load canvas';
-  if (key.includes('draw')) return 'Draw diagram';
-  if (key.includes('review')) return 'Review diagram';
-  if (key.includes('update')) return 'Update selected items';
-  if (key.includes('route')) return 'Route connectors';
-  return 'Process step';
-};
-
-const detailLabelFor = (event: AgentRunEvent) => {
-  const detail = event.detail?.replace(/\s+/g, ' ').trim() || '';
-  const title = actionLabelFor(event);
-  const lowerDetail = detail.toLowerCase();
-
-  if (!detail) return '';
-  if (title === 'Validate diagram' && (lowerDetail.includes('xml ok') || lowerDetail.includes('passed lightweight validation'))) {
-    return 'Diagram structure looks valid.';
-  }
-  if (title === 'Draw diagram' && lowerDetail.includes('generating canvas changes')) {
-    return 'Creating canvas changes.';
-  }
-  if (title === 'Load canvas' && lowerDetail.includes('final canvas loaded')) {
-    return 'Final canvas loaded.';
-  }
-  if (title === 'Update canvas preview' && lowerDetail.includes('loaded preview skeleton')) {
-    return 'Started canvas preview.';
-  }
-  return detail;
-};
-
-const toDisplayEvent = (event: AgentRunEvent): AgentRunDisplayEvent => ({
-  ...event,
-  title: actionLabelFor(event),
-  detail: detailLabelFor(event),
-  statusLabel: statusLabels[event.status],
-});
 
 const getLatestMetric = (events: AgentRunEvent[]) => {
   for (let i = events.length - 1; i >= 0; i--) {
@@ -151,34 +73,6 @@ const getLatestMetric = (events: AgentRunEvent[]) => {
   return null;
 };
 
-const inferScope = (events: AgentRunEvent[]) => {
-  const explicitScope = events.find(event => event.scope)?.scope;
-  if (explicitScope) return explicitScope;
-
-  const tools = events.map(event => event.tool || event.title);
-  if (tools.some(tool => tool === 'update_cells' || tool === 'find_cells')) return 'local';
-  if (tools.some(tool => tool === 'append_diagram')) return 'append';
-  if (tools.some(tool => tool === 'route_edges' || tool === 'optimize_diagram')) return 'layout';
-  if (events.some(event => event.phase === 'reviewing')) return 'review';
-  return 'full';
-};
-
-const scopeTitles: Record<AgentRunScope, string> = {
-  full: 'Drawing diagram',
-  local: 'Local edit',
-  append: 'Appending content',
-  layout: 'Optimizing layout',
-  review: 'Reviewing quality',
-};
-
-const scopeLabels: Record<AgentRunScope, string> = {
-  full: 'Full canvas',
-  local: 'Local patch',
-  append: 'Append only',
-  layout: 'Layout repair',
-  review: 'Quality review',
-};
-
 const routeLabels: Record<AgentRouteType, string> = {
   create_new: 'New diagram',
   edit_existing: 'Edit diagram',
@@ -186,6 +80,15 @@ const routeLabels: Record<AgentRouteType, string> = {
   answer_only: 'Answer',
   clarify: 'Clarify request',
   review_only: 'Diagram review',
+};
+
+const routeLabelsChinese: Record<AgentRouteType, string> = {
+  create_new: '新建图表',
+  edit_existing: '修改图表',
+  optimize_layout: '布局修复',
+  answer_only: '回答问题',
+  clarify: '澄清需求',
+  review_only: '审阅图表',
 };
 
 const routePhaseLabels: Record<AgentRouteType, Partial<Record<string, string>>> = {
@@ -229,19 +132,95 @@ const fallbackPhaseLabels: Record<string, string> = {
   thinking: 'Thinking',
 };
 
-export const thinkingRouteLabel = (routeType?: string) => routeLabels[routeType as AgentRouteType];
-
-export const thinkingPhaseLabel = (routeType: string | undefined, phase: string) => (
-  routePhaseLabels[routeType as AgentRouteType]?.[phase] || fallbackPhaseLabels[phase] || fallbackPhaseLabels.thinking
-);
-
-export const visualReviewStageLabel = (stage: 'CURRENT_CANVAS' | 'POST_MUTATION' | 'VERIFY_ONLY' | 'REPAIR') => {
-  if (stage === 'VERIFY_ONLY') return 'Final verification';
-  if (stage === 'REPAIR') return 'Visual repair';
-  return 'Visual review';
+const routePhaseLabelsChinese: Record<AgentRouteType, Partial<Record<string, string>>> = {
+  create_new: { analyzing: '理解图表需求', drawing: '绘制图表', reviewing: '结构校验', revising: '修正图表' },
+  edit_existing: { analyzing: '理解修改要求', drawing: '修改画布', reviewing: '结构校验', revising: '修正修改' },
+  optimize_layout: { analyzing: '检查布局', drawing: '优化布局', reviewing: '结构校验', revising: '修复剩余问题' },
+  answer_only: { analyzing: '理解问题', thinking: '组织回答' },
+  clarify: { analyzing: '确认缺失信息', thinking: '组织澄清问题' },
+  review_only: { analyzing: '检查图表', reviewing: '整理审阅结果' },
 };
 
-export const visualReviewStaleMessage = 'The canvas changed, so the outdated visual review was skipped.';
+const fallbackPhaseLabelsChinese: Record<string, string> = {
+  analyzing: '分析请求',
+  drawing: '绘制图表',
+  reviewing: '检查质量',
+  revising: '修正图表',
+  thinking: '处理请求',
+};
+
+const diagramTypeLabelsChinese: Record<string, string> = {
+  architecture: '架构图',
+  concept: '概念图',
+  er: 'ER 图',
+  flowchart: '流程图',
+  sequence: '时序图',
+  state: '状态图',
+  uml: 'UML 图',
+  usecase: '用例图',
+};
+
+export const thinkingRouteLabel = (routeType?: string, useChinese = false) => (
+  (useChinese ? routeLabelsChinese : routeLabels)[routeType as AgentRouteType]
+);
+
+export const thinkingPhaseLabel = (routeType: string | undefined, phase: string, useChinese = false) => (
+  useChinese
+    ? routePhaseLabelsChinese[routeType as AgentRouteType]?.[phase]
+      || fallbackPhaseLabelsChinese[phase]
+      || fallbackPhaseLabelsChinese.thinking
+    : routePhaseLabels[routeType as AgentRouteType]?.[phase]
+      || fallbackPhaseLabels[phase]
+      || fallbackPhaseLabels.thinking
+);
+
+export const visualReviewStageLabel = (stage: VisualReviewStage | 'REPAIR', useChinese = false) => {
+  if (stage === 'VERIFY_ONLY') return useChinese ? '修复后复核' : 'Final verification';
+  if (stage === 'REPAIR') return useChinese ? '视觉修复' : 'Visual repair';
+  return useChinese ? '视觉审阅' : 'Visual review';
+};
+
+export const buildRouteStepDetail = ({
+  routeType,
+  diagramType,
+  skillName,
+  useChinese = false,
+}: {
+  routeType?: string;
+  diagramType?: string;
+  skillName?: string;
+  useChinese?: boolean;
+}) => {
+  const route = routeType as AgentRouteType;
+  const usableSkill = skillName && skillName !== 'none' ? skillName : '';
+  const diagramLabel = useChinese
+    ? diagramTypeLabelsChinese[(diagramType || '').toLowerCase()] || '图表'
+    : (diagramType && diagramType !== 'none' ? diagramType.replace(/[_-]+/g, ' ') : 'diagram');
+
+  if (useChinese) {
+    if (route === 'create_new') {
+      return `识别为新建${diagramLabel}任务${usableSkill ? `，将使用 ${usableSkill} 技能` : ''}生成画布。`;
+    }
+    if (route === 'edit_existing') return `识别为修改现有${diagramLabel}${usableSkill ? `，将使用 ${usableSkill} 技能并` : '，将'}保留未涉及的画布内容。`;
+    if (route === 'optimize_layout') return `识别为${diagramLabel}布局优化${usableSkill ? `，将使用 ${usableSkill} 技能` : ''}，只调整排版和连线路径。`;
+    if (route === 'review_only') return `识别为${diagramLabel}审阅任务${usableSkill ? `，将使用 ${usableSkill} 技能` : ''}，只检查画布，不直接修改。`;
+    if (route === 'clarify') return '当前信息不足以安全修改画布，将先确认具体需求。';
+    return '这是一个无需修改画布的问题，将直接组织回答。';
+  }
+
+  if (route === 'create_new') {
+    return `Classified as a new ${diagramLabel}${usableSkill ? ` using the ${usableSkill} skill` : ''}.`;
+  }
+  if (route === 'edit_existing') return `Classified as an edit to the existing ${diagramLabel}${usableSkill ? ` using the ${usableSkill} skill` : ''}; unrelated canvas content will be preserved.`;
+  if (route === 'optimize_layout') return `Classified as a ${diagramLabel} layout optimization${usableSkill ? ` using the ${usableSkill} skill` : ''}.`;
+  if (route === 'review_only') return `Classified as a review-only pass over the current ${diagramLabel}${usableSkill ? ` using the ${usableSkill} skill` : ''}.`;
+  if (route === 'clarify') return 'More information is needed before the canvas can be changed safely.';
+  return 'No canvas mutation is needed; preparing a direct answer.';
+};
+
+export const visualReviewStaleMessage = (useChinese = false) => useChinese
+  ? '审阅期间画布已发生变化，因此跳过了过期的视觉审阅结果。'
+  : 'The canvas changed during review, so the outdated visual review result was skipped.';
 
 const safeReviewText = (value?: string, maxLength = 500) => {
   const text = (value || '').replace(/```/g, '').replace(/\s+/g, ' ').trim();
@@ -255,40 +234,115 @@ const humanizeReviewValue = (value?: string) => {
   return text ? `${text.charAt(0).toUpperCase()}${text.slice(1)}` : '';
 };
 
-export const buildVisualReviewMessage = ({
+const issueTypeLabelsChinese: Record<string, string> = {
+  TASK_NOT_VISIBLE: '任务内容可见性',
+  MISSING_REQUESTED_ELEMENT: '缺失内容',
+  WRONG_REQUESTED_RELATIONSHIP: '关系与要求不符',
+  TEXT_READABILITY: '文字可读性',
+  LAYOUT_HIERARCHY: '布局层级',
+  EDGE_TRACEABILITY: '连线可追踪性',
+  STYLE_COHERENCE: '样式一致性',
+  DOMAIN_UNCERTAINTY: '业务语义',
+};
+
+const naturalJoin = (values: string[], useChinese: boolean) => {
+  if (values.length <= 1) return values[0] || '';
+  if (useChinese) return `${values.slice(0, -1).join('、')}和${values.at(-1)}`;
+  return `${values.slice(0, -1).join(', ')} and ${values.at(-1)}`;
+};
+
+const reviewIssueTypeLabels = (issues: VisualReviewDisplayIssue[], useChinese: boolean) => unique(
+  issues.map(issue => (
+    useChinese
+      ? issueTypeLabelsChinese[(issue.type || '').toUpperCase()] || safeReviewText(issue.type, 80)
+      : humanizeReviewValue(issue.type)
+  )),
+);
+
+const issueCountLabel = (issues: VisualReviewDisplayIssue[], useChinese: boolean) => {
+  const major = issues.filter(issue => issue.severity === 'major' || issue.severity === 'critical').length;
+  const minor = issues.filter(issue => issue.severity === 'minor').length;
+  const total = issues.length;
+
+  if (useChinese) {
+    const parts = [
+      major ? `${major} 个主要问题` : '',
+      minor ? `${minor} 个轻微问题` : '',
+    ].filter(Boolean);
+    return parts.length === 2 ? `${parts[0]}和 ${parts[1]}` : parts[0] || `${total} 个问题`;
+  }
+
+  const parts = [
+    major ? pluralize(major, 'blocking issue', 'blocking issues') : '',
+    minor ? pluralize(minor, 'minor note', 'minor notes') : '',
+  ].filter(Boolean);
+  return parts.length ? naturalJoin(parts, false) : pluralize(total, 'issue', 'issues');
+};
+
+export const buildVisualReviewStepDetail = ({
+  stage,
   decision,
   summary,
   issues,
-  autoRepairStarted = false,
+  stale = false,
+  useChinese = false,
 }: {
+  stage: VisualReviewStage;
   decision?: VisualReviewDecision;
   summary?: string;
   issues?: VisualReviewDisplayIssue[];
-  autoRepairStarted?: boolean;
+  stale?: boolean;
+  useChinese?: boolean;
 }) => {
+  const safeSummary = safeReviewText(summary, 220);
+  const safeIssues = (issues || []).slice(0, 5);
+  const count = issueCountLabel(safeIssues, useChinese);
+  const isVerification = stage === 'VERIFY_ONLY';
+
+  if (stale) return visualReviewStaleMessage(useChinese);
   if (decision === 'UNAVAILABLE') {
-    return '⚠️ Visual review is temporarily unavailable. The current canvas was kept.';
+    return useChinese
+      ? '视觉审阅暂时不可用；当前画布已保留。'
+      : 'Visual review is temporarily unavailable; the current canvas was kept.';
   }
-
-  const safeSummary = safeReviewText(summary);
-  const issueLines = (issues || []).slice(0, 5).map(issue => {
-    // Evidence and repair instructions remain internal; only bounded categorical fields reach chat.
-    const parts = [
-      humanizeReviewValue(issue.severity),
-      humanizeReviewValue(issue.type),
-      safeReviewText(issue.region, 80),
-    ].filter(Boolean);
-    return parts.length ? `- ${parts.join(' · ')}` : '';
-  }).filter(Boolean);
-
-  const blocks = [safeSummary || (decision === 'APPROVE' ? 'Visual review passed.' : 'Visual review completed.')];
-  if (issueLines.length > 0) blocks.push(`Issues:\n${issueLines.join('\n')}`);
   if (decision === 'NEEDS_HUMAN_REVIEW') {
-    blocks.push('Human review is recommended. The canvas was not automatically modified.');
-  } else if (decision === 'REPAIR' && autoRepairStarted) {
-    blocks.push('A single automatic visual repair has started.');
+    return useChinese
+      ? `视觉审阅${safeSummary ? `发现：${safeSummary}` : `发现 ${count}`} 建议人工确认，画布未被自动修改。`
+      : `Visual review ${safeSummary ? `found: ${safeSummary}` : `found ${count}`}. Human review is recommended; the canvas was not changed automatically.`;
   }
-  return blocks.join('\n\n');
+  if (decision === 'REPAIR') {
+    const chineseSummary = safeSummary
+      ? `：${safeSummary}${/[。！？.!?]$/.test(safeSummary) ? '' : '。'}`
+      : '。';
+    return useChinese
+      ? `视觉审阅发现 ${count}${chineseSummary}将启动一次局部自动修复。`
+      : `Visual review found ${count}${safeSummary ? `: ${safeSummary}` : ''} One bounded local repair will start.`;
+  }
+  if (decision === 'APPROVE_WITH_NOTES') {
+    return useChinese
+      ? `${isVerification ? '修复后复核通过' : '视觉审阅通过'}；${safeSummary || `仍保留 ${count} 作为备注。`}`
+      : `${isVerification ? 'Post-repair verification passed' : 'Visual review passed'} with notes${safeSummary ? `: ${safeSummary}` : '.'}`;
+  }
+  if (decision === 'APPROVE') {
+    return useChinese
+      ? `${isVerification ? '修复后复核通过' : '视觉审阅通过'}，未发现需要继续处理的问题。`
+      : `${isVerification ? 'Post-repair verification passed' : 'Visual review passed'} with no remaining action required.`;
+  }
+  return useChinese
+    ? '视觉审阅未返回可确认的结论；当前画布已保留。'
+    : 'Visual review did not return a conclusive decision; the current canvas was kept.';
+};
+
+export const buildVisualRepairStepDetail = ({
+  issues,
+  useChinese = false,
+}: {
+  issues?: VisualReviewDisplayIssue[];
+  useChinese?: boolean;
+}) => {
+  const types = reviewIssueTypeLabels((issues || []).slice(0, 5), useChinese);
+  if (useChinese) return `正在根据审阅结果修复${types.length ? naturalJoin(types, true) : '已确认的视觉问题'}。`;
+  return `Applying the review fixes${types.length ? ` for ${naturalJoin(types, false).toLowerCase()}` : ''}.`;
 };
 
 export const buildAgentRunView = ({
@@ -301,84 +355,112 @@ export const buildAgentRunView = ({
   isRunning: boolean;
 }): AgentRunView => {
   const safeEvents = events || [];
-  const scope = inferScope(safeEvents);
   const hasError = safeEvents.some(event => event.status === 'error');
   const hasWarning = safeEvents.some(event => event.status === 'warning');
-  const tools = unique(safeEvents.map(event => actionLabelFor(event)));
   const metric = getLatestMetric(safeEvents);
 
-  // Keep the chat card compact by showing the latest high-signal execution events.
-  const visibleEvents = safeEvents.slice(-6).map(toDisplayEvent);
-
   const statusTone = hasError ? 'failed' : hasWarning ? 'warning' : isRunning ? 'running' : 'passed';
-  const statusLabel = hasError ? 'Failed' : hasWarning ? 'Needs attention' : isRunning ? 'Running' : 'Completed';
 
   return {
-    title: scopeTitles[scope],
-    statusLabel,
     statusTone,
-    scopeLabel: scopeLabels[scope],
-    toolLabel: tools.length ? tools.join(' → ') : 'No tool yet',
     metricLabel: metric ? `${pluralize(metric.nodes, 'node', 'nodes')} · ${pluralize(metric.edges, 'edge', 'edges')}` : 'Waiting for canvas',
     finalContent: (content || '').trim(),
-    visibleEvents,
   };
 };
 
-export const buildAgentCompletionReply = (view: AgentRunView, userRequest?: string) => {
+export const buildAgentCompletionReply = (
+  view: AgentRunView,
+  userRequest?: string,
+  visualReviews: VisualReviewPresentation[] = [],
+) => {
   if (view.finalContent) return view.finalContent;
-  if (view.metricLabel === 'Waiting for canvas') return '';
 
   const useChinese = containsCjk(userRequest);
-  const metricLabel = localizeMetricLabel(view.metricLabel, useChinese);
+  const finalReview = visualReviews.at(-1);
+  const repairReview = visualReviews.find(review => review.decision === 'REPAIR');
+  const finalSummary = safeReviewText(finalReview?.summary);
+  const repairSummary = safeReviewText(repairReview?.summary);
 
-  // Keep the completion copy user-facing while detailed tool output stays in the run details panel.
-  if (view.statusTone === 'warning') {
-    return useChinese
-      ? `图表已加载到 Draw.io 画布中，当前包含 ${metricLabel}，但还有一些布局或校验提醒可以继续优化。`
-      : `The diagram is loaded into the Draw.io canvas with ${metricLabel}, with a few validation notes still available for review.`;
+  if (view.metricLabel === 'Waiting for canvas') {
+    if (!finalReview) return '';
+    return buildVisualReviewStepDetail({ ...finalReview, useChinese });
   }
 
+  const metricLabel = localizeMetricLabel(view.metricLabel, useChinese);
+
+  // Keep the completion copy user-facing while detailed tool output stays in the execution trace.
   if (view.statusTone === 'failed') {
     return useChinese
       ? '图表生成过程中遇到问题，详情里保留了工具输出，方便继续排查。'
       : 'The diagram generation hit a problem. The details panel keeps the tool output for follow-up.';
   }
 
+  if (finalReview) {
+    const paragraphs = [
+      useChinese
+        ? `已完成并加载到 Draw.io 画布，共 ${metricLabel}。`
+        : `Done. I loaded the diagram into Draw.io with ${metricLabel}.`,
+    ];
+
+    if (repairReview?.repairCompleted) {
+      paragraphs.push(useChinese
+        ? `${repairSummary ? `视觉审阅发现：${repairSummary} ` : ''}我根据审阅结果完成了一次局部自动修复。`
+        : `${repairSummary ? `Visual review found: ${repairSummary} ` : ''}I applied one bounded local repair.`);
+    } else if (repairReview) {
+      paragraphs.push(useChinese
+        ? `${repairSummary ? `视觉审阅发现：${repairSummary} ` : ''}审阅建议进行局部修复，但未返回修复后的画布，因此保留了当前版本。`
+        : `${repairSummary ? `Visual review found: ${repairSummary} ` : ''}A local repair was requested, but no repaired canvas was returned, so I kept the current version.`);
+    }
+
+    if (finalReview.stale) {
+      paragraphs.push(visualReviewStaleMessage(useChinese));
+    } else if (finalReview.decision === 'UNAVAILABLE') {
+      paragraphs.push(useChinese
+        ? '视觉审阅暂时不可用，当前画布已保留。'
+        : 'Visual review was temporarily unavailable, so the current canvas was kept.');
+    } else if (finalReview.decision === 'NEEDS_HUMAN_REVIEW') {
+      paragraphs.push(useChinese
+        ? `${finalSummary || '仍有无法安全自动处理的问题'} 建议人工确认，我没有继续改动画布。`
+        : `${finalSummary || 'Some issues could not be handled safely'}. Human review is recommended, and I did not change the canvas further.`);
+    } else if (finalReview.stage === 'VERIFY_ONLY'
+      && (finalReview.decision === 'APPROVE' || finalReview.decision === 'APPROVE_WITH_NOTES')) {
+      paragraphs.push(useChinese
+        ? `修复后复核${finalReview.decision === 'APPROVE' ? '已通过' : '通过并保留备注'}。${finalSummary || '主要问题已经解决。'}${finalReview.decision === 'APPROVE_WITH_NOTES' ? ' 剩余问题已作为备注保留，没有继续改动画布。' : ''}`
+        : `Post-repair verification ${finalReview.decision === 'APPROVE' ? 'passed' : 'passed with notes'}. ${finalSummary || 'The blocking issues were resolved.'}${finalReview.decision === 'APPROVE_WITH_NOTES' ? ' The remaining notes were kept without another canvas mutation.' : ''}`);
+    } else if (finalReview.decision === 'REPAIR' && finalReview.repairCompleted) {
+      paragraphs.push(useChinese
+        ? '局部修复已经完成，但未能完成修复后复核。'
+        : 'The local repair completed, but post-repair visual verification could not be completed.');
+    } else if (finalReview.decision === 'APPROVE_WITH_NOTES') {
+      paragraphs.push(useChinese
+        ? `视觉审阅通过并保留备注。${finalSummary}`
+        : `Visual review passed with notes. ${finalSummary}`);
+    } else if (finalReview.decision === 'APPROVE' && !repairReview) {
+      paragraphs.push(useChinese
+        ? `视觉审阅已通过。${finalSummary}`
+        : `Visual review passed. ${finalSummary}`);
+    } else if (finalReview.stage === 'VERIFY_ONLY') {
+      paragraphs.push(useChinese
+        ? '修复后复核未返回可确认的结论，当前画布已保留。'
+        : 'Post-repair verification did not return a conclusive decision, so the current canvas was kept.');
+    } else if (!repairReview) {
+      paragraphs.push(useChinese
+        ? '视觉审阅未返回可确认的结论，当前画布已保留。'
+        : 'Visual review did not return a conclusive decision, so the current canvas was kept.');
+    }
+
+    return paragraphs.filter(Boolean).join('\n\n').trim();
+  }
+
+  if (view.statusTone === 'warning') {
+    return useChinese
+      ? `图表已加载到 Draw.io 画布中，当前包含 ${metricLabel}，但还有一些布局或校验提醒可以继续优化。`
+      : `The diagram is loaded into the Draw.io canvas with ${metricLabel}, with a few validation notes still available for review.`;
+  }
+
   return useChinese
     ? `已完成图表，并加载到 Draw.io 画布中。当前图表包含 ${metricLabel}。`
     : `Done. I loaded the diagram into the Draw.io canvas with ${metricLabel}.`;
-};
-
-const issueCountFromDetail = (detail?: string) => {
-  if (!detail) return 0;
-  return detail.split(';').map(item => item.trim()).filter(Boolean).length;
-};
-
-export const buildAgentProgressSummary = (view: AgentRunView, isRunning: boolean) => {
-  const hasCanvasMetric = view.metricLabel !== 'Waiting for canvas';
-  const metricSuffix = hasCanvasMetric ? ` (${view.metricLabel})` : '';
-  const latestWarning = [...view.visibleEvents].reverse().find(event => event.status === 'warning');
-  const issueCount = issueCountFromDetail(latestWarning?.detail);
-
-  if (view.statusTone === 'failed') {
-    return `Diagram generation hit a problem${metricSuffix}. Open the details to inspect the tool output.`;
-  }
-  if (view.statusTone === 'warning') {
-    const issueText = issueCount > 1 ? `${issueCount} layout issues` : 'a layout issue';
-    return `Diagram loaded${metricSuffix}; ${issueText} detected and may need another pass.`;
-  }
-  if (isRunning) {
-    if (view.title === 'Reviewing quality') return `Checking diagram quality${metricSuffix}.`;
-    if (view.title === 'Drawing diagram') return `Drawing the diagram${metricSuffix}.`;
-    return `Working on the diagram${metricSuffix}.`;
-  }
-  if (!hasCanvasMetric) {
-    return containsCjk(view.finalContent)
-      ? '没有加载到可绘制的图表。Agent 返回了文字说明，但没有返回 Draw.io XML。'
-      : 'No drawable diagram was loaded. The agent returned text instead of Draw.io XML.';
-  }
-  return `Diagram completed${metricSuffix}.`;
 };
 
 export const shouldShowAgentTyping = ({
@@ -404,16 +486,6 @@ export const shouldShowAgentTyping = ({
   && stepCount === 0
 );
 
-export const shouldShowAgentProgressCard = ({
-  role,
-  eventCount,
-  isLatestRunningAgent,
-}: {
-  role: string;
-  eventCount: number;
-  isLatestRunningAgent: boolean;
-}) => role === 'agent' && (eventCount > 0 || isLatestRunningAgent);
-
 export const finishPreviousPhaseEvents = (events: AgentRunEvent[], activePhase: string) => (
   events.map(event => (
     event.status === 'running' && event.phase !== activePhase
@@ -424,8 +496,7 @@ export const finishPreviousPhaseEvents = (events: AgentRunEvent[], activePhase: 
 
 export const finishEventsAfterCanvasLoaded = (events: AgentRunEvent[]) => (
   events.map(event => {
-    const label = actionLabelFor(event);
-    if (event.status === 'running' && (label === 'Draw diagram' || label === 'Update canvas preview')) {
+    if (event.status === 'running' && event.phase === 'drawing') {
       return { ...event, status: 'done' as const };
     }
     return event;

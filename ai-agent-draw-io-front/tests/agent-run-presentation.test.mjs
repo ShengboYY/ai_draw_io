@@ -3,13 +3,13 @@ import assert from 'node:assert/strict';
 
 import {
   buildAgentRunView,
-  buildAgentProgressSummary,
   buildAgentCompletionReply,
-  buildVisualReviewMessage,
+  buildRouteStepDetail,
+  buildVisualRepairStepDetail,
+  buildVisualReviewStepDetail,
   finishEventsAfterCanvasLoaded,
   finishPreviousPhaseEvents,
   getVisibleExecutionSteps,
-  shouldShowAgentProgressCard,
   shouldShowAgentTyping,
   thinkingPhaseLabel,
   thinkingRouteLabel,
@@ -25,53 +25,89 @@ test('thinking labels follow the routed work path', () => {
   assert.equal(thinkingPhaseLabel(undefined, 'drawing'), 'Draw diagram');
 });
 
+test('route step describes the actual diagram type and selected skill', () => {
+  assert.equal(
+    buildRouteStepDetail({
+      routeType: 'create_new',
+      diagramType: 'flowchart',
+      skillName: 'drawio-flowchart',
+      useChinese: true,
+    }),
+    '识别为新建流程图任务，将使用 drawio-flowchart 技能生成画布。',
+  );
+  assert.equal(
+    buildRouteStepDetail({
+      routeType: 'edit_existing',
+      diagramType: 'flowchart',
+      skillName: 'drawio-flowchart',
+      useChinese: true,
+    }),
+    '识别为修改现有流程图，将使用 drawio-flowchart 技能并保留未涉及的画布内容。',
+  );
+});
+
 test('visual review lifecycle uses explicit user-facing stage labels', () => {
   assert.equal(visualReviewStageLabel('POST_MUTATION'), 'Visual review');
   assert.equal(visualReviewStageLabel('REPAIR'), 'Visual repair');
   assert.equal(visualReviewStageLabel('VERIFY_ONLY'), 'Final verification');
-
-  const view = buildAgentRunView({
-    isRunning: false,
-    content: '',
-    events: [
-      { id: '1', phase: 'reviewing', title: 'Visual review', status: 'done', tone: 'review' },
-      { id: '2', phase: 'revising', title: 'Visual repair', status: 'done', tone: 'review' },
-      { id: '3', phase: 'reviewing', title: 'Final visual verification', status: 'done', tone: 'review' },
-    ],
-  });
-  assert.equal(view.toolLabel, 'Visual review → Visual repair → Final verification');
 });
 
-test('visual review message shows a bounded issue list without internal evidence', () => {
-  const content = buildVisualReviewMessage({
+test('visual review step explains the concrete finding and next action', () => {
+  const content = buildVisualReviewStepDetail({
+    stage: 'POST_MUTATION',
     decision: 'REPAIR',
-    summary: 'Two layout issues need attention.',
-    autoRepairStarted: true,
-    issues: Array.from({ length: 6 }, (_, index) => ({
-      type: index === 0 ? 'TEXT_READABILITY' : 'EDGE_TRACEABILITY',
-      severity: index === 0 ? 'critical' : 'major',
-      region: `Region ${index + 1}`,
-      evidence: `private evidence ${index + 1}`,
-      repairInstruction: `internal repair prompt ${index + 1}`,
-    })),
+    summary: '右侧异常分支的连线追踪存在明显歧义，且主流程节点间距不够统一。',
+    issues: [
+      { type: 'EDGE_TRACEABILITY', severity: 'major', region: 'center' },
+      { type: 'EDGE_TRACEABILITY', severity: 'minor', region: 'center' },
+      { type: 'LAYOUT_HIERARCHY', severity: 'minor', region: 'left' },
+    ],
+    useChinese: true,
   });
 
-  assert.match(content, /Two layout issues need attention\./);
-  assert.match(content, /Critical · Text readability · Region 1/);
-  assert.match(content, /A single automatic visual repair has started\./);
-  assert.doesNotMatch(content, /Region 6|private evidence|internal repair prompt/);
+  assert.match(content, /1 个主要问题和 2 个轻微问题/);
+  assert.match(content, /右侧异常分支的连线追踪存在明显歧义/);
+  assert.match(content, /启动一次局部自动修复/);
+  assert.equal(
+    buildVisualRepairStepDetail({
+      issues: [
+        { type: 'EDGE_TRACEABILITY', severity: 'major' },
+        { type: 'LAYOUT_HIERARCHY', severity: 'minor' },
+        { type: 'WRONG_REQUESTED_RELATIONSHIP', severity: 'major' },
+      ],
+      useChinese: true,
+    }),
+    '正在根据审阅结果修复连线可追踪性、布局层级和关系与要求不符。',
+  );
 });
 
 test('visual review warnings explain unavailable, human-review, and stale outcomes', () => {
-  assert.equal(
-    buildVisualReviewMessage({ decision: 'UNAVAILABLE', summary: '{"raw":"provider payload"}', issues: [] }),
-    '⚠️ Visual review is temporarily unavailable. The current canvas was kept.',
+  assert.match(
+    buildVisualReviewStepDetail({ stage: 'POST_MUTATION', decision: 'UNAVAILABLE', useChinese: true }),
+    /视觉审阅暂时不可用/,
   );
   assert.match(
-    buildVisualReviewMessage({ decision: 'NEEDS_HUMAN_REVIEW', summary: 'Connector direction is ambiguous.', issues: [] }),
-    /The canvas was not automatically modified/,
+    buildVisualReviewStepDetail({
+      stage: 'POST_MUTATION',
+      decision: 'NEEDS_HUMAN_REVIEW',
+      summary: '连接方向存在歧义。',
+      useChinese: true,
+    }),
+    /建议人工确认/,
   );
-  assert.equal(visualReviewStaleMessage, 'The canvas changed, so the outdated visual review was skipped.');
+  assert.equal(visualReviewStaleMessage(true), '审阅期间画布已发生变化，因此跳过了过期的视觉审阅结果。');
+  assert.match(
+    buildVisualReviewStepDetail({ stage: 'POST_MUTATION', decision: 'UNAVAILABLE', stale: true, useChinese: true }),
+    /跳过了过期的视觉审阅结果/,
+  );
+  assert.match(
+    buildVisualReviewStepDetail({ stage: 'VERIFY_ONLY', useChinese: true }),
+    /未返回可确认的结论/,
+  );
+  assert.doesNotMatch(
+    buildVisualReviewStepDetail({ stage: 'VERIFY_ONLY', useChinese: true }),
+    /通过/,
+  );
 });
 
 test('buildAgentRunView summarizes local edit tool usage and preserves final text', () => {
@@ -86,10 +122,7 @@ test('buildAgentRunView summarizes local edit tool usage and preserves final tex
     ],
   });
 
-  assert.equal(view.title, 'Local edit');
-  assert.equal(view.statusLabel, 'Completed');
   assert.equal(view.statusTone, 'passed');
-  assert.equal(view.toolLabel, 'Understand request → Find target items → Update selected items → Validate diagram');
   assert.equal(view.metricLabel, '8 nodes · 6 edges');
   assert.equal(view.finalContent, '已完成局部修改，没有重画整张图。');
 });
@@ -103,11 +136,8 @@ test('buildAgentRunView reports running drawing progress from the latest event',
     ],
   });
 
-  assert.equal(view.title, 'Drawing diagram');
-  assert.equal(view.statusLabel, 'Running');
   assert.equal(view.statusTone, 'running');
   assert.equal(view.metricLabel, '3 nodes · 1 edge');
-  assert.equal(view.visibleEvents[0].detail, 'Added node #3: Gateway');
 });
 
 test('buildAgentRunView highlights validation warnings before completion', () => {
@@ -119,9 +149,7 @@ test('buildAgentRunView highlights validation warnings before completion', () =>
     ],
   });
 
-  assert.equal(view.statusLabel, 'Needs attention');
   assert.equal(view.statusTone, 'warning');
-  assert.equal(view.title, 'Reviewing quality');
 });
 
 test('buildAgentCompletionReply gives a natural language completion summary', () => {
@@ -139,19 +167,83 @@ test('buildAgentCompletionReply gives a natural language completion summary', ()
   );
 });
 
-test('buildAgentProgressSummary does not claim completion when no canvas loaded', () => {
+test('completion reply merges repair and verification into one specific assistant answer', () => {
   const view = buildAgentRunView({
     isRunning: false,
-    content: '用户请求创建图表，但模型只返回了说明文字。',
+    content: '',
     events: [
-      { id: '1', phase: 'drawing', title: 'Drawing Agent', detail: 'Generating canvas changes', status: 'done', tone: 'drawing' },
+      { id: '1', phase: 'drawing', title: 'drawio_done', status: 'done', tone: 'drawing', nodes: 11, edges: 13 },
+    ],
+  });
+  const reply = buildAgentCompletionReply(view, '请画一个用户登录流程图', [
+    {
+      stage: 'POST_MUTATION',
+      decision: 'REPAIR',
+      repairCompleted: true,
+      summary: '右侧异常分支的连线追踪存在明显歧义，且主流程节点间距不够统一。',
+      issues: [
+        { type: 'EDGE_TRACEABILITY', severity: 'major', region: 'center' },
+        { type: 'EDGE_TRACEABILITY', severity: 'minor', region: 'center' },
+        { type: 'LAYOUT_HIERARCHY', severity: 'minor', region: 'left' },
+      ],
+    },
+    {
+      stage: 'VERIFY_ONLY',
+      decision: 'APPROVE_WITH_NOTES',
+      summary: '主要问题已经解决，右侧失败分支仍有轻微绕行。',
+      issues: [{ type: 'EDGE_TRACEABILITY', severity: 'minor', region: 'right' }],
+    },
+  ]);
+
+  assert.match(reply, /已完成并加载到 Draw\.io 画布，共 11 个节点、13 条连线/);
+  assert.match(reply, /完成了一次局部自动修复/);
+  assert.match(reply, /修复后复核/);
+  assert.match(reply, /右侧失败分支仍有轻微绕行/);
+  assert.doesNotMatch(reply, /Issues:|EDGE_TRACEABILITY|A single automatic/);
+});
+
+test('completion reply distinguishes requested, completed, and verified repair states', () => {
+  const view = buildAgentRunView({
+    isRunning: false,
+    content: '',
+    events: [
+      { id: '1', phase: 'drawing', title: 'drawio_done', status: 'done', tone: 'drawing', nodes: 5, edges: 4 },
+    ],
+  });
+  const requestedOnly = buildAgentCompletionReply(view, '请画一个登录流程图', [
+    { stage: 'POST_MUTATION', decision: 'REPAIR', summary: '连线路径需要调整。' },
+  ]);
+  const repairedOnly = buildAgentCompletionReply(view, '请画一个登录流程图', [
+    { stage: 'POST_MUTATION', decision: 'REPAIR', repairCompleted: true, summary: '连线路径需要调整。' },
+  ]);
+  const inconclusiveVerification = buildAgentCompletionReply(view, '请画一个登录流程图', [
+    { stage: 'POST_MUTATION', decision: 'REPAIR', repairCompleted: true, summary: '连线路径需要调整。' },
+    { stage: 'VERIFY_ONLY' },
+  ]);
+
+  assert.match(requestedOnly, /未返回修复后的画布/);
+  assert.doesNotMatch(requestedOnly, /完成了一次局部自动修复/);
+  assert.match(repairedOnly, /完成了一次局部自动修复/);
+  assert.match(repairedOnly, /未能完成修复后复核/);
+  assert.match(inconclusiveVerification, /复核未返回可确认的结论/);
+});
+
+test('stale visual review stays inside the single completion reply', () => {
+  const view = buildAgentRunView({
+    isRunning: false,
+    content: '',
+    events: [
+      { id: '1', phase: 'drawing', title: 'drawio_done', status: 'done', tone: 'drawing', nodes: 5, edges: 4 },
     ],
   });
 
-  assert.equal(
-    buildAgentProgressSummary(view, false),
-    '没有加载到可绘制的图表。Agent 返回了文字说明，但没有返回 Draw.io XML。'
-  );
+  const reply = buildAgentCompletionReply(view, '请画一个登录流程图', [
+    { stage: 'POST_MUTATION', decision: 'UNAVAILABLE', stale: true },
+  ]);
+
+  assert.match(reply, /已完成并加载到 Draw\.io 画布/);
+  assert.match(reply, /审阅期间画布已发生变化/);
+  assert.doesNotMatch(reply, /temporarily unavailable/);
 });
 
 test('buildAgentRunView ignores zero review metrics when no canvas was loaded', () => {
@@ -165,10 +257,6 @@ test('buildAgentRunView ignores zero review metrics when no canvas was loaded', 
   });
 
   assert.equal(view.metricLabel, 'Waiting for canvas');
-  assert.equal(
-    buildAgentProgressSummary(view, false),
-    'No drawable diagram was loaded. The agent returned text instead of Draw.io XML.'
-  );
 });
 
 test('shouldShowAgentTyping hides the idle dots once run events exist', () => {
@@ -201,44 +289,6 @@ test('finishPreviousPhaseEvents closes older phase rows when a new phase starts'
   assert.equal(events[1].status, 'done');
 });
 
-test('buildAgentRunView uses user-facing action names instead of backend names', () => {
-  const view = buildAgentRunView({
-    isRunning: false,
-    content: '',
-    events: [
-      { id: '1', phase: 'drawing', title: 'Drawing Agent', detail: 'Generating canvas changes', status: 'done', tone: 'drawing' },
-      { id: '2', phase: 'reviewing', title: 'validate_diagram', detail: 'Diagram XML passed lightweight validation.', status: 'done', tone: 'validation', tool: 'validate_diagram' },
-      { id: '3', phase: 'drawing', title: 'drawio_done', detail: 'Final canvas loaded', status: 'done', tone: 'drawing', tool: 'display_diagram', nodes: 9, edges: 4 },
-    ],
-  });
-
-  assert.equal(view.toolLabel, 'Draw diagram → Validate diagram → Load canvas');
-  assert.equal(view.visibleEvents[0].title, 'Draw diagram');
-  assert.equal(view.visibleEvents[0].statusLabel, 'Done');
-  assert.equal(view.visibleEvents[1].title, 'Validate diagram');
-  assert.equal(view.visibleEvents[1].detail, 'Diagram structure looks valid.');
-  assert.equal(view.visibleEvents[2].title, 'Load canvas');
-});
-
-test('buildAgentRunView labels streamed canvas updates without repeating load canvas', () => {
-  const view = buildAgentRunView({
-    isRunning: true,
-    content: '',
-    events: [
-      { id: '1', phase: 'drawing', title: 'Drawing Agent', detail: 'Generating canvas changes', status: 'done', tone: 'drawing' },
-      { id: '2', phase: 'drawing', title: 'drawio_preview', detail: 'Loaded preview skeleton', status: 'done', tone: 'drawing', tool: 'display_diagram', nodes: 1, edges: 0 },
-      { id: '3', phase: 'drawing', title: 'Streaming nodes', detail: 'Added node #7: draw.io 图表', status: 'running', tone: 'drawing', tool: 'display_diagram', nodes: 7, edges: 5 },
-      { id: '4', phase: 'drawing', title: 'Streaming edges', detail: 'Added edge #6: 展示给用户', status: 'running', tone: 'drawing', tool: 'display_diagram', nodes: 7, edges: 6 },
-      { id: '5', phase: 'reviewing', title: 'validation_result', detail: 'XML OK', status: 'done', tone: 'validation', tool: 'validate_diagram', nodes: 7, edges: 6 },
-    ],
-  });
-
-  assert.equal(view.toolLabel, 'Draw diagram → Update canvas preview → Validate diagram');
-  assert.equal(view.visibleEvents[1].title, 'Update canvas preview');
-  assert.equal(view.visibleEvents[2].title, 'Update canvas preview');
-  assert.equal(view.visibleEvents.at(-1).title, 'Validate diagram');
-});
-
 test('getVisibleExecutionSteps only shows the active step while running', () => {
   const steps = [
     { phase: 'analyzing', label: 'Analyze request', content: '', status: 'done' },
@@ -247,20 +297,6 @@ test('getVisibleExecutionSteps only shows the active step while running', () => 
 
   assert.deepEqual(getVisibleExecutionSteps(steps, true), [steps[1]]);
   assert.deepEqual(getVisibleExecutionSteps(steps, false), []);
-});
-
-test('shouldShowAgentProgressCard appears immediately for the active agent message', () => {
-  assert.equal(shouldShowAgentProgressCard({
-    role: 'agent',
-    eventCount: 0,
-    isLatestRunningAgent: true,
-  }), true);
-
-  assert.equal(shouldShowAgentProgressCard({
-    role: 'agent',
-    eventCount: 0,
-    isLatestRunningAgent: false,
-  }), false);
 });
 
 test('finishEventsAfterCanvasLoaded closes stale drawing progress rows', () => {

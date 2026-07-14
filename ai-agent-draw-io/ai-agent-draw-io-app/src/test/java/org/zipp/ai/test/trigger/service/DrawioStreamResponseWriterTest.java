@@ -28,12 +28,14 @@ public class DrawioStreamResponseWriterTest {
         DrawioStreamResponseWriter writer = new DrawioStreamResponseWriter(new DrawioToolCallRenderer());
         CapturingEmitter emitter = new CapturingEmitter();
 
-        writer.sendRoute(emitter, "edit_existing");
+        writer.sendRoute(emitter, "edit_existing", "flowchart", "drawio-flowchart");
 
         String output = String.join("\n", emitter.sent);
         assertTrue(output.contains("\"phase\":\"thinking\""));
         assertTrue(output.contains("\"type\":\"route\""));
         assertTrue(output.contains("\"routeType\":\"edit_existing\""));
+        assertTrue(output.contains("\"diagramType\":\"flowchart\""));
+        assertTrue(output.contains("\"skillName\":\"drawio-flowchart\""));
     }
 
     @Test
