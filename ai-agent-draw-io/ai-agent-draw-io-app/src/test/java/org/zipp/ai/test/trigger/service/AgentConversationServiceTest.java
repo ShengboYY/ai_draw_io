@@ -204,6 +204,8 @@ public class AgentConversationServiceTest {
         assertEquals(1, chatService.handleMessageStreamCalls);
         assertTrue(chatService.lastStreamMessage.contains("\"routeType\":\"edit_existing\""));
         assertTrue(chatService.lastStreamMessage.contains("\"allowedTools\":[\"modify_diagram\"]"));
+        assertTrue(chatService.lastStreamMessage.contains(
+                "\"repairTools\":[\"modify_diagram\",\"optimize_diagram\"]"));
         assertTrue(chatService.lastStreamMessage.contains("\"maxRepairRounds\":1"));
     }
 
@@ -275,24 +277,31 @@ public class AgentConversationServiceTest {
     }
 
     @Test
-    public void shouldDescribeSelfRepairToolPolicyForCreateNewDraft() throws Exception {
+    public void shouldDescribeExactInitialAndRepairToolsForEveryDrawingRoute() throws Exception {
         AgentConversationService service = new AgentConversationService();
         injectPromptContextBuilder(service);
         injectSkillContentProvider(service);
-        IntentRoutingResult routingResult = drawRoutingResult("create_new");
-
         ChatRequestDTO requestDTO = new ChatRequestDTO();
         requestDTO.setMessage("draw a flowchart");
+        requestDTO.setCanvasXml(storedCanvasXml());
+        Map<String, String> initialToolByRoute = Map.of(
+                "create_new", "create_diagram",
+                "edit_existing", "modify_diagram",
+                "optimize_layout", "optimize_diagram");
 
-        String routedMessage = buildRoutedMessage(service, requestDTO, routingResult, 1);
+        for (Map.Entry<String, String> entry : initialToolByRoute.entrySet()) {
+            String routedMessage = buildRoutedMessage(
+                    service, requestDTO, drawRoutingResult(entry.getKey()), 1);
+            com.alibaba.fastjson.JSONObject routingJson = routedMessageJson(routedMessage);
 
-        assertTrue(routedMessage.contains("\"allowedTools\""));
-        assertTrue(routedMessage.contains("create_diagram"));
-        assertTrue(routedMessage.contains("modify_diagram"));
-        assertTrue(routedMessage.contains("optimize_diagram"));
-        assertTrue(routedMessage.contains("get_drawio_skill"));
-        assertTrue(routedMessage.contains("Self-repair rounds use modify_diagram or optimize_diagram(mode=route_only)"));
-        assertFalse(routedMessage.contains("reviewRepairTools"));
+            assertEquals(List.of(entry.getValue()),
+                    routingJson.getJSONArray("allowedTools").toJavaList(String.class));
+            assertEquals(List.of("modify_diagram", "optimize_diagram"),
+                    routingJson.getJSONArray("repairTools").toJavaList(String.class));
+            assertTrue(routedMessage.contains("get_drawio_skill"));
+            assertTrue(routedMessage.contains("Self-repair rounds use only repairTools"));
+            assertFalse(routedMessage.contains("reviewRepairTools"));
+        }
     }
 
     @Test
@@ -895,6 +904,12 @@ public class AgentConversationServiceTest {
         );
         method.setAccessible(true);
         return (String) method.invoke(service, requestDTO, routingResult, maxDeterministicRepairRounds, requestDTO.getUserId(), null);
+    }
+
+    private com.alibaba.fastjson.JSONObject routedMessageJson(String routedMessage) {
+        int jsonStart = routedMessage.indexOf('\n') + 1;
+        int jsonEnd = routedMessage.indexOf("\n\n", jsonStart);
+        return com.alibaba.fastjson.JSON.parseObject(routedMessage.substring(jsonStart, jsonEnd));
     }
 
     private void injectPromptContextBuilder(AgentConversationService service) throws Exception {

@@ -11,6 +11,7 @@ import io.reactivex.rxjava3.core.Single;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.ai.tool.ToolCallback;
 import org.springframework.ai.tool.definition.ToolDefinition;
+import org.zipp.ai.domain.agent.service.armory.matter.mcp.server.DrawioCanvasToolNames;
 import org.zipp.ai.domain.agent.service.armory.matter.mcp.server.DrawioMutationResultPostProcessor;
 import org.zipp.ai.domain.agent.service.armory.matter.skills.DrawioSkillAccessContext;
 import org.zipp.ai.domain.agent.service.armory.matter.skills.SkillToolTraceContext;
@@ -22,6 +23,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 public class SpringToolCallbackAdkTool extends BaseTool {
@@ -29,6 +31,9 @@ public class SpringToolCallbackAdkTool extends BaseTool {
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
     private static final TypeReference<Map<String, Object>> MAP_TYPE = new TypeReference<>() {
     };
+    private static final Set<String> APPLIED_MUTATION_RESULT_TYPES = Set.of(
+            "drawio_done",
+            DrawioCanvasToolNames.PATCH_CELLS);
     private static final DrawioMutationResultPostProcessor DRAWIO_RESULT_POST_PROCESSOR =
             new DrawioMutationResultPostProcessor();
 
@@ -68,21 +73,43 @@ public class SpringToolCallbackAdkTool extends BaseTool {
     @Override
     public Single<Map<String, Object>> runAsync(Map<String, Object> args, ToolContext toolContext) {
         return Single.fromCallable(() -> {
-            // Route allowlists govern canvas mutation only; skill lookup remains available to the agent.
-            if (toolContext != null && !DrawioToolAccessContext.allowsCanvasTool(toolContext.sessionId(), name())) {
+            AgentUsageTelemetryContext.RunContext runContext = resolveRunContext(toolContext).orElse(null);
+            String sessionId = toolContext == null ? "" : toolContext.sessionId();
+            String runId = runContext == null ? "" : runContext.runId();
+            boolean canvasTool = DrawioCanvasToolNames.CONSOLIDATED_TOOL_NAMES.contains(name());
+            // Reserving the initial mutation atomically prevents concurrent tool calls from both
+            // consuming the route-specific create/edit action.
+            if (!DrawioToolAccessContext.tryStartCanvasTool(sessionId, runId, name())) {
                 throw new IllegalStateException("Canvas tool is not allowed for this routed session: " + name());
             }
-            AgentUsageTelemetryContext.RunContext runContext = resolveRunContext(toolContext).orElse(null);
             DrawioSkillAccessContext.SkillAccess skillAccess = resolveSkillAccess(toolContext).orElse(null);
             try (AgentUsageTelemetryContext.Scope runScope = bindRunContext(runContext);
                  DrawioSkillAccessContext.Scope skillScope = bindSkillAccess(skillAccess);
                 SkillToolTraceContext.Scope traceScope = bindSkillTrace(runContext, toolContext)) {
-                String response = toolCallback.call(OBJECT_MAPPER.writeValueAsString(args == null ? Map.of() : args));
-                Map<String, Object> parsed = parseToolResponse(response);
-                Map<String, Object> state = toolContext == null ? new LinkedHashMap<>() : toolContext.state();
-                return DRAWIO_RESULT_POST_PROCESSOR.process(name(), args, parsed, state);
+                try {
+                    String response = toolCallback.call(OBJECT_MAPPER.writeValueAsString(args == null ? Map.of() : args));
+                    Map<String, Object> parsed = parseToolResponse(response);
+                    Map<String, Object> state = toolContext == null ? new LinkedHashMap<>() : toolContext.state();
+                    DrawioMutationResultPostProcessor.ProcessResult processed =
+                            DRAWIO_RESULT_POST_PROCESSOR.processWithStatus(name(), args, parsed, state);
+                    if (canvasTool) {
+                        DrawioToolAccessContext.finishCanvasTool(
+                                sessionId, runId, isAppliedCanvasMutation(processed));
+                    }
+                    return processed.response();
+                } catch (Exception e) {
+                    if (canvasTool) {
+                        DrawioToolAccessContext.finishCanvasTool(sessionId, runId, false);
+                    }
+                    throw e;
+                }
             }
         });
+    }
+
+    private boolean isAppliedCanvasMutation(DrawioMutationResultPostProcessor.ProcessResult result) {
+        return result.mutationApplied()
+                && APPLIED_MUTATION_RESULT_TYPES.contains(String.valueOf(result.response().get("type")));
     }
 
     private AgentUsageTelemetryContext.Scope bindRunContext(AgentUsageTelemetryContext.RunContext runContext) {

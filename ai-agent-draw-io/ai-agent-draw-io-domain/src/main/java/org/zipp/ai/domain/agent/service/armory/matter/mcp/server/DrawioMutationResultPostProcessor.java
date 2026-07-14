@@ -27,17 +27,24 @@ public class DrawioMutationResultPostProcessor {
                                        Map<String, Object> args,
                                        Map<String, Object> response,
                                        Map<String, Object> state) {
+        return processWithStatus(toolName, args, response, state).response();
+    }
+
+    public ProcessResult processWithStatus(String toolName,
+                                           Map<String, Object> args,
+                                           Map<String, Object> response,
+                                           Map<String, Object> state) {
         Map<String, Object> processed = response == null
                 ? new LinkedHashMap<>()
                 : new LinkedHashMap<>(response);
         if (!DrawioCanvasToolNames.CONSOLIDATED_TOOL_NAMES.contains(toolName)
                 || "tool_error".equals(stringValue(processed.get("type")))) {
-            return processed;
+            return new ProcessResult(processed, false);
         }
 
         String candidate = canonicalCandidate(args, processed, state);
         if (StringUtils.isBlank(candidate)) {
-            return processed;
+            return new ProcessResult(processed, false);
         }
 
         // Match the stream writer's deterministic safety pass so the drawer, persisted canvas,
@@ -50,7 +57,7 @@ public class DrawioMutationResultPostProcessor {
         if (state != null) {
             state.put(DRAFT_DIAGRAM_STATE_KEY, candidate);
         }
-        return processed;
+        return new ProcessResult(processed, true);
     }
 
     private String canonicalCandidate(Map<String, Object> args,
@@ -73,5 +80,9 @@ public class DrawioMutationResultPostProcessor {
 
     private String stringValue(Object value) {
         return value == null ? "" : String.valueOf(value);
+    }
+
+    /** Separates an acknowledged payload type from a mutation that was actually canonicalized. */
+    public record ProcessResult(Map<String, Object> response, boolean mutationApplied) {
     }
 }

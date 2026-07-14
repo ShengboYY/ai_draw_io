@@ -132,6 +132,9 @@ public class AgentConversationService {
             consumeAnonymousDemoQuota(requestDTO, config);
             consumeVerifiedUserPlatformQuota(requestDTO, config);
             sessionId = ensureSession(requestDTO);
+            // Claim the reusable ADK session before installing any session-scoped configuration;
+            // a concurrent request must not overwrite or clear another run's tool policy.
+            DrawioToolAccessContext.openSession(sessionId, runScope.getContext().runId());
             CustomApiConfigManager.setConfig(sessionId, config);
             requestDTO = requestWithStoredCanvas(requestDTO);
             final ChatRequestDTO currentRequest = requestDTO;
@@ -172,7 +175,8 @@ public class AgentConversationService {
             captureDebugTrace(runScope, "ROUTED_MESSAGE", routedMessage.message());
             final String finalSessionId = sessionId;
             DrawioSkillAccessContext.bindSession(finalSessionId, routedMessage.allowedSkillNames());
-            DrawioToolAccessContext.bindSession(finalSessionId, routedMessage.allowedToolNames());
+            DrawioToolAccessContext.applyToolPolicy(
+                    runScope.getContext().runId(), routedMessage.toolPolicy());
             ChatResponseDTO response = recordCapturedStep("drawing", traceField("message", routedMessage.message()), value -> value, () -> {
                 List<String> messages = chatService.handleMessage(
                         currentRequest.getAgentId(),
@@ -193,7 +197,7 @@ public class AgentConversationService {
             throw new RuntimeException(e);
         } finally {
             telemetryService().completeRun(runScope, runError);
-            clearSessionConfig(sessionId);
+            clearSessionConfig(sessionId, runScope.getContext().runId());
             if (configuredScope != null) {
                 configuredScope.close();
             }
@@ -250,6 +254,8 @@ public class AgentConversationService {
             consumeVerifiedUserPlatformQuota(requestDTO, config);
             sessionId = ensureSession(requestDTO);
             final String finalSessionId = sessionId;
+            // Keep all session-scoped model, skill, and tool configuration owned by one run.
+            DrawioToolAccessContext.openSession(finalSessionId, runScope.getContext().runId());
             CustomApiConfigManager.setConfig(finalSessionId, config);
 
             requestDTO = requestWithStoredCanvas(requestDTO);
@@ -289,7 +295,7 @@ public class AgentConversationService {
                     }
                     completeStreamTelemetry(streamTelemetryCompleted, null, runScope, null);
                 } finally {
-                    clearSessionConfig(finalSessionId);
+                    clearSessionConfig(finalSessionId, runScope.getContext().runId());
                 }
                 return;
             }
@@ -302,7 +308,7 @@ public class AgentConversationService {
                     streamResponseWriter.sendDirectReply(emitter, answer);
                     completeStreamTelemetry(streamTelemetryCompleted, null, runScope, null);
                 } finally {
-                    clearSessionConfig(finalSessionId);
+                    clearSessionConfig(finalSessionId, runScope.getContext().runId());
                 }
                 return;
             }
@@ -336,7 +342,8 @@ public class AgentConversationService {
                     runScope.getContext().runId(),
                     drawingStep == null ? runScope.getContext().runId() : drawingStep.getStepContext().spanId());
             DrawioSkillAccessContext.bindSession(finalSessionId, routedMessage.allowedSkillNames());
-            DrawioToolAccessContext.bindSession(finalSessionId, routedMessage.allowedToolNames());
+            DrawioToolAccessContext.applyToolPolicy(
+                    runScope.getContext().runId(), routedMessage.toolPolicy());
             final AgentUsageTelemetryService.RunScope finalRunScope = runScope;
             final AgentUsageTelemetryService.StepScope finalDrawingStep = drawingStep;
 
@@ -429,14 +436,15 @@ public class AgentConversationService {
                                 }
                             },
                             error -> {
-                                clearSessionConfig(finalSessionId);
+                                clearSessionConfig(finalSessionId, finalRunScope.getContext().runId());
                                 completeStreamTelemetry(finalStreamTelemetryCompleted, finalDrawingStep, finalRunScope, error);
                                 streamResponseWriter.handleStreamError(emitter, manuallyCompleted.get(), error);
                             },
                             () -> {
                                 captureBufferedStreamOutput(finalRunScope, finalStreamOutputCapture);
                                 completeStreamTelemetry(finalStreamTelemetryCompleted, finalDrawingStep, finalRunScope, null);
-                                handleStreamComplete(emitter, authorBuffers, manuallyCompleted, finalSessionId);
+                                handleStreamComplete(
+                                        emitter, authorBuffers, manuallyCompleted, finalSessionId, finalRunScope);
                             }
                     );
             disposableRef.set(disposable);
@@ -445,27 +453,27 @@ public class AgentConversationService {
             }
 
             emitter.onCompletion(() -> {
-                clearSessionConfig(finalSessionId);
+                clearSessionConfig(finalSessionId, finalRunScope.getContext().runId());
                 captureBufferedStreamOutput(finalRunScope, finalStreamOutputCapture);
                 completeStreamTelemetry(finalStreamTelemetryCompleted, finalDrawingStep, finalRunScope, null);
                 streamResponseWriter.clearPendingDiagram(emitter);
                 disposeStream(finalSessionId, "emitter.onCompletion", disposable);
             });
             emitter.onTimeout(() -> {
-                clearSessionConfig(finalSessionId);
+                clearSessionConfig(finalSessionId, finalRunScope.getContext().runId());
                 completeStreamTelemetry(finalStreamTelemetryCompleted, finalDrawingStep, finalRunScope,
                         new IllegalStateException("stream_timeout"));
                 streamResponseWriter.clearPendingDiagram(emitter);
                 disposeStream(finalSessionId, "emitter.onTimeout", disposable);
             });
             emitter.onError(e -> {
-                clearSessionConfig(finalSessionId);
+                clearSessionConfig(finalSessionId, finalRunScope.getContext().runId());
                 completeStreamTelemetry(finalStreamTelemetryCompleted, finalDrawingStep, finalRunScope, e);
                 streamResponseWriter.clearPendingDiagram(emitter);
                 disposeStream(finalSessionId, "emitter.onError", disposable);
             });
         } catch (AnonymousDemoQuotaExceededException e) {
-            clearSessionConfig(sessionId);
+            clearSessionConfig(sessionId, runScope.getContext().runId());
             completeStreamTelemetry(streamTelemetryCompleted, drawingStep, runScope, e);
             log.info("Anonymous demo quota exhausted for userId:{}", SecretLogSanitizer.maskCapability(requestDTO.getUserId()));
             try {
@@ -475,7 +483,7 @@ public class AgentConversationService {
             }
             emitter.complete();
         } catch (PlatformDailyQuotaExceededException e) {
-            clearSessionConfig(sessionId);
+            clearSessionConfig(sessionId, runScope.getContext().runId());
             completeStreamTelemetry(streamTelemetryCompleted, drawingStep, runScope, e);
             log.info("Verified user daily platform quota exhausted for userId:{}", SecretLogSanitizer.maskCapability(requestDTO.getUserId()));
             try {
@@ -485,7 +493,7 @@ public class AgentConversationService {
             }
             emitter.complete();
         } catch (AppException e) {
-            clearSessionConfig(sessionId);
+            clearSessionConfig(sessionId, runScope.getContext().runId());
             completeStreamTelemetry(streamTelemetryCompleted, drawingStep, runScope, e);
             log.info("Stream request rejected for userId:{} code:{}",
                     SecretLogSanitizer.maskCapability(requestDTO.getUserId()), e.getCode());
@@ -496,7 +504,7 @@ public class AgentConversationService {
             }
             emitter.complete();
         } catch (Exception e) {
-            clearSessionConfig(sessionId);
+            clearSessionConfig(sessionId, runScope.getContext().runId());
             completeStreamTelemetry(streamTelemetryCompleted, drawingStep, runScope, e);
             log.error("流式对话失败", e);
             emitter.completeWithError(e);
@@ -1054,15 +1062,17 @@ public class AgentConversationService {
         routingJson.put("skillName", routingResult.getSkillName());
         routingJson.put("reason", routingResult.getReason());
         routingJson.put("maxRepairRounds", maxDeterministicRepairRounds);
-        List<String> allowedTools = allowedToolsFor(routingResult);
-        routingJson.put("allowedTools", allowedTools);
+        DrawioToolAccessContext.ToolPolicy toolPolicy = toolPolicyFor(routingResult);
+        routingJson.put("allowedTools", toolPolicy.initialTools());
+        routingJson.put("repairTools", toolPolicy.repairTools());
         routingJson.put("skillTools", DrawioSkillToolNames.SKILL_LOOKUP_TOOL_NAMES);
-        routingJson.put("toolPolicy", "Use skillTools to load required skill rules before the initial draft. Use only allowedTools for canvas mutation. Self-repair rounds use modify_diagram or optimize_diagram(mode=route_only) and must not call create_diagram; explicit user redraws route through a new create_diagram action.");
+        routingJson.put("toolPolicy", "Use skillTools to load required skill rules before the initial draft. Use only allowedTools for the first canvas mutation. Self-repair rounds use only repairTools and must not call create_diagram; explicit user redraws route through a new create_diagram action.");
         // Log derived routing controls only; the routed message below can contain full canvas XML.
-        log.info("[draw-route] userId={} routeType={} allowedTools={} maxRepairRounds={} skillName={}",
+        log.info("[draw-route] userId={} routeType={} allowedTools={} repairTools={} maxRepairRounds={} skillName={}",
                 SecretLogSanitizer.maskCapability(ownerId),
                 logValue(routingResult.getRouteType()),
-                allowedTools,
+                toolPolicy.initialTools(),
+                toolPolicy.repairTools(),
                 maxDeterministicRepairRounds,
                 logValue(routingResult.getSkillName()));
 
@@ -1072,12 +1082,15 @@ public class AgentConversationService {
                 + "\n\n"
                 + skillSection.text()
                 + contextBuilder().buildDrawingContextMessage(requestDTO, routingResult);
-        return new RoutedDrawMessage(routedMessage, skillSection.requiredSkillNames(), Set.copyOf(allowedTools));
+        return new RoutedDrawMessage(
+                routedMessage,
+                skillSection.requiredSkillNames(),
+                toolPolicy);
     }
 
     private record RoutedDrawMessage(String message,
                                      Set<String> allowedSkillNames,
-                                     Set<String> allowedToolNames) {
+                                     DrawioToolAccessContext.ToolPolicy toolPolicy) {
     }
 
     private record ReviewOnlyContext(CanvasAnalysis analysis, boolean hasCanvas) {
@@ -1089,15 +1102,23 @@ public class AgentConversationService {
                                      String content) {
     }
 
-    private List<String> allowedToolsFor(IntentRoutingResult routingResult) {
+    private DrawioToolAccessContext.ToolPolicy toolPolicyFor(IntentRoutingResult routingResult) {
         String routeType = StringUtils.defaultString(routingResult.getRouteType());
         return switch (routeType) {
-            case "create_new" -> List.of(DrawioCanvasToolNames.CREATE_DIAGRAM);
-            case "edit_existing" -> List.of(DrawioCanvasToolNames.MODIFY_DIAGRAM);
-            case "optimize_layout" -> List.of(DrawioCanvasToolNames.OPTIMIZE_DIAGRAM);
-            case "review_only", "answer_only", "clarify" -> List.of();
-            default -> DrawioCanvasToolNames.CONSOLIDATED_TOOL_NAMES;
+            case "create_new" -> phasedToolPolicy(DrawioCanvasToolNames.CREATE_DIAGRAM);
+            case "edit_existing" -> phasedToolPolicy(DrawioCanvasToolNames.MODIFY_DIAGRAM);
+            case "optimize_layout" -> phasedToolPolicy(DrawioCanvasToolNames.OPTIMIZE_DIAGRAM);
+            case "review_only", "answer_only", "clarify" -> DrawioToolAccessContext.ToolPolicy.of(List.of(), List.of());
+            default -> DrawioToolAccessContext.ToolPolicy.of(
+                    DrawioCanvasToolNames.CONSOLIDATED_TOOL_NAMES,
+                    List.of(DrawioCanvasToolNames.MODIFY_DIAGRAM, DrawioCanvasToolNames.OPTIMIZE_DIAGRAM));
         };
+    }
+
+    private DrawioToolAccessContext.ToolPolicy phasedToolPolicy(String initialTool) {
+        return DrawioToolAccessContext.ToolPolicy.of(
+                List.of(initialTool),
+                List.of(DrawioCanvasToolNames.MODIFY_DIAGRAM, DrawioCanvasToolNames.OPTIMIZE_DIAGRAM));
     }
 
     private String buildIntentMessage(ChatRequestDTO requestDTO) {
@@ -1308,7 +1329,7 @@ public class AgentConversationService {
         if (!manuallyCompleted.compareAndSet(false, true)) {
             return;
         }
-        clearSessionConfig(sessionId);
+        clearSessionConfig(sessionId, runScope.getContext().runId());
         captureBufferedStreamOutput(runScope, streamOutputCapture);
         completeStreamTelemetry(streamTelemetryCompleted, drawingStep, runScope, null);
         try {
@@ -1351,11 +1372,12 @@ public class AgentConversationService {
     private void handleStreamComplete(ResponseBodyEmitter emitter,
                                       ConcurrentHashMap<String, StringBuilder> authorBuffers,
                                       AtomicBoolean manuallyCompleted,
-                                      String sessionId) {
+                                      String sessionId,
+                                      AgentUsageTelemetryService.RunScope runScope) {
         if (manuallyCompleted.get()) {
             return;
         }
-        clearSessionConfig(sessionId);
+        clearSessionConfig(sessionId, runScope.getContext().runId());
         flushAuthorBuffers(emitter, authorBuffers);
         try {
             streamResponseWriter.flushPendingDiagram(emitter, "done");
@@ -1365,10 +1387,10 @@ public class AgentConversationService {
         emitter.complete();
     }
 
-    private void clearSessionConfig(String sessionId) {
+    private void clearSessionConfig(String sessionId, String runId) {
+        if (!DrawioToolAccessContext.closeSession(sessionId, runId)) return;
         CustomApiConfigManager.clearConfig(sessionId);
         DrawioSkillAccessContext.clearSession(sessionId);
-        DrawioToolAccessContext.clearSession(sessionId);
     }
 
     // Emit any buffered author output (non-XML lines such as patch_cells are only complete at flush time).
