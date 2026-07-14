@@ -20,6 +20,7 @@ import org.zipp.ai.test.domain.agent.FakeAgentUsageTelemetryStore;
 import org.zipp.ai.trigger.http.service.CanvasReviewImageValidator;
 import org.zipp.ai.trigger.http.service.CanvasVisualReviewOrchestrator;
 import org.zipp.ai.trigger.http.service.AgentConversationService;
+import org.zipp.ai.trigger.http.service.VisualReviewRolloutPolicy;
 
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
@@ -39,6 +40,28 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 public class CanvasVisualReviewOrchestratorTest {
+
+    @Test
+    public void disabledRolloutSkipsProviderQuotaAndVisibleReview() throws Exception {
+        AtomicInteger reviewerCalls = new AtomicInteger();
+        CanvasVisualReviewOrchestrator orchestrator = orchestrator(
+                new SequenceCanvasStore(state(7L, "sha256:current")),
+                command -> {
+                    reviewerCalls.incrementAndGet();
+                    return CanvasVisualReviewResult.unavailable("unexpected");
+                });
+        inject(orchestrator, "visualReviewRolloutPolicy", new VisualReviewRolloutPolicy(false, false));
+        CapturingEmitter emitter = new CapturingEmitter();
+
+        orchestrator.stream("usr_owner", "aru_visual_disabled", request(7L, "sha256:current"), emitter);
+
+        String output = String.join("\n", emitter.sent);
+        assertEquals(0, reviewerCalls.get());
+        assertTrue(output.contains("\"type\":\"meta\""));
+        assertTrue(output.contains("\"type\":\"done\""));
+        assertFalse(output.contains("\"type\":\"review_result\""));
+        assertTrue(emitter.completed);
+    }
 
     @Test
     public void streamsStructuredReviewForTheExactCanvasVersion() throws Exception {
@@ -147,6 +170,36 @@ public class CanvasVisualReviewOrchestratorTest {
                 .findFirst().orElseThrow().getMetadataJson();
         assertTrue(metadata.contains("\"autoRepairAttempted\":true"));
         assertTrue(metadata.contains("aru_repair_"));
+    }
+
+    @Test
+    public void visibleReviewRolloutDoesNotGrantRepairAuthority() throws Exception {
+        AtomicInteger repairCalls = new AtomicInteger();
+        AgentConversationService repairService = new AgentConversationService() {
+            @Override
+            public void streamVisualRepair(ChatRequestDTO request, String diagramType,
+                                           boolean optimizeLayout, ResponseBodyEmitter emitter) {
+                repairCalls.incrementAndGet();
+            }
+        };
+        CanvasVisualIssue issue = CanvasVisualIssue.builder()
+                .type(CanvasVisualIssueType.LAYOUT_HIERARCHY)
+                .severity(CanvasVisualIssueSeverity.MAJOR)
+                .build();
+        CanvasVisualReviewOrchestrator orchestrator = orchestrator(
+                new SequenceCanvasStore(state(7L, "sha256:current")),
+                command -> CanvasVisualReviewResult.builder().available(true).summary("Needs spacing")
+                        .issues(List.of(issue)).recommendedHumanReview(false).build(),
+                repairService);
+        inject(orchestrator, "visualReviewRolloutPolicy", new VisualReviewRolloutPolicy(true, false));
+        CapturingEmitter emitter = new CapturingEmitter();
+
+        orchestrator.stream("usr_owner", "aru_visual_visible", request(7L, "sha256:current"), emitter);
+
+        String output = String.join("\n", emitter.sent);
+        assertEquals(0, repairCalls.get());
+        assertTrue(output.contains("\"decision\":\"NEEDS_HUMAN_REVIEW\""));
+        assertTrue(emitter.completed);
     }
 
     @Test

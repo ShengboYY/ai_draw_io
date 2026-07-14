@@ -43,6 +43,7 @@ import org.zipp.ai.trigger.http.service.DrawioPromptContextBuilder;
 import org.zipp.ai.trigger.http.service.DrawioStreamResponseWriter;
 import org.zipp.ai.trigger.http.service.DrawioToolCallRenderer;
 import org.zipp.ai.trigger.http.service.SkillContentProvider;
+import org.zipp.ai.trigger.http.service.VisualReviewRolloutPolicy;
 import org.zipp.ai.types.enums.ResponseCode;
 import org.zipp.ai.types.exception.AppException;
 
@@ -125,6 +126,33 @@ public class AgentConversationServiceTest {
         String output = String.join("\n", emitter.sent);
         assertEquals(0, visualReviewCalls.get());
         assertTrue(output.contains("\"type\":\"review_result\""));
+        assertTrue(output.contains("\"decision\":\"UNAVAILABLE\""));
+    }
+
+    @Test
+    public void shouldNotCallProductionVlmWhenVisualReviewIsDisabled() throws Exception {
+        AgentConversationService service = quotaAwareService();
+        AtomicInteger visualReviewCalls = new AtomicInteger();
+        injectField(service, "chatService", new CountingChatService());
+        injectField(service, "intentRoutingService", new ReviewOnlyRoutingService());
+        injectField(service, "canvasAnalyzer", passingAnalyzer());
+        injectField(service, "canvasReviewImageValidator", new CanvasReviewImageValidator());
+        injectField(service, "visualReviewRolloutPolicy", new VisualReviewRolloutPolicy(false, false));
+        injectField(service, "canvasVisualReviewer", (ICanvasVisualReviewer) command -> {
+            visualReviewCalls.incrementAndGet();
+            return CanvasVisualReviewResult.unavailable("unexpected");
+        });
+        ChatRequestDTO request = platformRequest();
+        request.setMessage("review this diagram");
+        request.setCanvasXml(storedCanvasXml());
+        request.setCanvasImageDataUrl(VALID_PNG_DATA_URL);
+        request.setCanvasImageRendererVersion("drawio-embed-png-v1");
+        CapturingEmitter emitter = new CapturingEmitter();
+
+        service.stream(request, emitter);
+
+        String output = String.join("\n", emitter.sent);
+        assertEquals(0, visualReviewCalls.get());
         assertTrue(output.contains("\"decision\":\"UNAVAILABLE\""));
     }
 

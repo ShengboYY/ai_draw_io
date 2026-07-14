@@ -105,6 +105,9 @@ public class AgentConversationService {
     @Resource
     private AgentDebugTraceService agentDebugTraceService;
 
+    @Resource
+    private VisualReviewRolloutPolicy visualReviewRolloutPolicy;
+
     private final CanvasVisualReviewPolicy canvasVisualReviewPolicy = new CanvasVisualReviewPolicy();
 
     public ChatResponseDTO chat(ChatRequestDTO requestDTO) {
@@ -942,7 +945,9 @@ public class AgentConversationService {
                                                    ReviewOnlyContext context) {
         CanvasVisualReviewResult result;
         String imageDataUrl = requestDTO.getCanvasImageDataUrl();
-        if (StringUtils.isBlank(imageDataUrl)
+        if (!visualReviewEnabled()) {
+            result = CanvasVisualReviewResult.unavailable("feature_disabled");
+        } else if (StringUtils.isBlank(imageDataUrl)
                 || !CanvasVisualReviewOrchestrator.RENDERER_VERSION.equals(requestDTO.getCanvasImageRendererVersion())) {
             result = CanvasVisualReviewResult.unavailable("screenshot_missing");
         } else {
@@ -968,6 +973,11 @@ public class AgentConversationService {
                 result, CanvasVisualReviewStage.CURRENT_CANVAS, 0);
         return new ReviewOnlyOutcome(context.analysis(), result, decision,
                 visualReviewContent(requestDTO.getMessage(), result));
+    }
+
+    private boolean visualReviewEnabled() {
+        // Plain unit tests construct the service outside Spring; preserve the pre-rollout behavior there.
+        return visualReviewRolloutPolicy == null || visualReviewRolloutPolicy.isEnabled();
     }
 
     private List<String> analyzerEvidence(CanvasAnalysis analysis) {

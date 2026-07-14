@@ -54,6 +54,8 @@ public class CanvasVisualReviewOrchestrator {
     private final AgentConversationService agentConversationService;
     @Resource
     private AgentUsageTelemetryService agentUsageTelemetryService;
+    @Resource
+    private VisualReviewRolloutPolicy visualReviewRolloutPolicy;
     private final CanvasVisualReviewPolicy policy = new CanvasVisualReviewPolicy();
     private final CanvasVisualRepairBriefComposer repairBriefComposer = new CanvasVisualRepairBriefComposer();
     private static final Set<CanvasVisualIssueType> LAYOUT_REPAIR_TYPES = Set.of(
@@ -84,6 +86,13 @@ public class CanvasVisualReviewOrchestrator {
                        ResponseBodyEmitter emitter) {
         try {
             validateRequest(ownerId, request);
+            if (!visualReviewEnabled()) {
+                // Disabled means no provider call, quota consumption, telemetry run, or user-visible review.
+                sendMeta(emitter, visualReviewRunId, request);
+                sendDone(emitter, visualReviewRunId, request.getSourceRunId());
+                emitter.complete();
+                return;
+            }
             CanvasReviewImageValidator.ValidatedImage before = StringUtils.isBlank(request.getBeforeImageDataUrl())
                     ? null : imageValidator.validate(request.getBeforeImageDataUrl());
             CanvasReviewImageValidator.ValidatedImage after = imageValidator.validate(request.getAfterImageDataUrl());
@@ -151,6 +160,10 @@ public class CanvasVisualReviewOrchestrator {
 
             CanvasVisualReviewDecision decision = policy.decide(
                     result, stage, stage == CanvasVisualReviewStage.VERIFY_ONLY ? 1 : 0);
+            if (decision == CanvasVisualReviewDecision.REPAIR && !autoRepairEnabled()) {
+                // Visible-review rollout reports the same evidence without granting mutation authority.
+                decision = CanvasVisualReviewDecision.NEEDS_HUMAN_REVIEW;
+            }
             sendReviewResult(emitter, visualReviewRunId, request, result, decision);
             Map<String, Object> completed = completedMetadata(request, result, decision, reviewLatencyMs);
             if (decision != CanvasVisualReviewDecision.REPAIR) {
@@ -205,6 +218,7 @@ public class CanvasVisualReviewOrchestrator {
         metadata.put("issueTypeCounts", issueTypeCounts(result));
         metadata.put("issueSeverityCounts", issueSeverityCounts(result));
         metadata.put("autoRepairAttempted", false);
+        metadata.put("autoRepairEnabled", autoRepairEnabled());
         return metadata;
     }
 
@@ -260,6 +274,15 @@ public class CanvasVisualReviewOrchestrator {
 
     private AgentUsageTelemetryService telemetryService() {
         return agentUsageTelemetryService == null ? NOOP_TELEMETRY : agentUsageTelemetryService;
+    }
+
+    private boolean visualReviewEnabled() {
+        // Plain unit tests construct the service outside Spring; preserve the pre-rollout behavior there.
+        return visualReviewRolloutPolicy == null || visualReviewRolloutPolicy.isEnabled();
+    }
+
+    private boolean autoRepairEnabled() {
+        return visualReviewRolloutPolicy == null || visualReviewRolloutPolicy.isAutoRepairEnabled();
     }
 
     private record RepairContinuation(ChatRequestDTO request, String diagramType, boolean optimizeLayout) {

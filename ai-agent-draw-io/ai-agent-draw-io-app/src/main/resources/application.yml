@@ -69,6 +69,10 @@ management:
         ai.agent.tool.call.latency: true
 
 zipp:
+  visual-review:
+    # Roll out visible review first. Auto repair stays independently disabled until canary metrics pass.
+    enabled: ${ZIPP_VISUAL_REVIEW_ENABLED:false}
+    auto-repair-enabled: ${ZIPP_VISUAL_REVIEW_AUTO_REPAIR_ENABLED:false}
   telemetry:
     # Enable this on exactly one app instance, or run cleanup from a dedicated scheduler.
     cleanup-enabled: ${ZIPP_TELEMETRY_CLEANUP_ENABLED:false}
