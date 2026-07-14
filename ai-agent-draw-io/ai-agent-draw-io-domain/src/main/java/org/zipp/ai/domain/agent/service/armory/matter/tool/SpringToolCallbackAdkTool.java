@@ -11,6 +11,7 @@ import io.reactivex.rxjava3.core.Single;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.ai.tool.ToolCallback;
 import org.springframework.ai.tool.definition.ToolDefinition;
+import org.zipp.ai.domain.agent.service.armory.matter.mcp.server.DrawioMutationResultPostProcessor;
 import org.zipp.ai.domain.agent.service.armory.matter.skills.DrawioSkillAccessContext;
 import org.zipp.ai.domain.agent.service.armory.matter.skills.SkillToolTraceContext;
 import org.zipp.ai.domain.agent.service.usage.AgentUsageTelemetryContext;
@@ -28,6 +29,8 @@ public class SpringToolCallbackAdkTool extends BaseTool {
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
     private static final TypeReference<Map<String, Object>> MAP_TYPE = new TypeReference<>() {
     };
+    private static final DrawioMutationResultPostProcessor DRAWIO_RESULT_POST_PROCESSOR =
+            new DrawioMutationResultPostProcessor();
 
     private final ToolCallback toolCallback;
     private final FunctionDeclaration declaration;
@@ -69,9 +72,11 @@ public class SpringToolCallbackAdkTool extends BaseTool {
             DrawioSkillAccessContext.SkillAccess skillAccess = resolveSkillAccess(toolContext).orElse(null);
             try (AgentUsageTelemetryContext.Scope runScope = bindRunContext(runContext);
                  DrawioSkillAccessContext.Scope skillScope = bindSkillAccess(skillAccess);
-                 SkillToolTraceContext.Scope traceScope = bindSkillTrace(runContext, toolContext)) {
+                SkillToolTraceContext.Scope traceScope = bindSkillTrace(runContext, toolContext)) {
                 String response = toolCallback.call(OBJECT_MAPPER.writeValueAsString(args == null ? Map.of() : args));
-                return parseToolResponse(response);
+                Map<String, Object> parsed = parseToolResponse(response);
+                Map<String, Object> state = toolContext == null ? new LinkedHashMap<>() : toolContext.state();
+                return DRAWIO_RESULT_POST_PROCESSOR.process(name(), args, parsed, state);
             }
         });
     }

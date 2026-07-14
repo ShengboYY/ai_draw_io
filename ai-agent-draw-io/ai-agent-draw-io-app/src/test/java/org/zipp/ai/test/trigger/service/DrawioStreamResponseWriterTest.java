@@ -37,7 +37,7 @@ public class DrawioStreamResponseWriterTest {
         assertTrue(beforeFlush.contains("\"valid\":false"));
         assertTrue(beforeFlush.contains("Overlapping nodes"));
         assertTrue(beforeFlush.contains("\"type\":\"drawio_node\""));
-        assertTrue(beforeFlush.contains("\"type\":\"drawio_done\""));
+        assertFalse(beforeFlush.contains("\"type\":\"drawio_done\""));
 
         writer.flushPendingDiagram(emitter, "done");
 
@@ -70,7 +70,7 @@ public class DrawioStreamResponseWriterTest {
     }
 
     @Test
-    public void shouldSendValidDiagramImmediatelyWithoutPendingFlush() throws Exception {
+    public void shouldSendValidDiagramOnlyAfterFinalization() throws Exception {
         DrawioStreamResponseWriter writer = new DrawioStreamResponseWriter(new DrawioToolCallRenderer());
         CapturingEmitter emitter = new CapturingEmitter();
 
@@ -79,7 +79,7 @@ public class DrawioStreamResponseWriterTest {
                 """);
 
         String beforeFlush = String.join("\n", emitter.sent);
-        assertTrue(beforeFlush.contains("\"type\":\"drawio_done\""));
+        assertFalse(beforeFlush.contains("\"type\":\"drawio_done\""));
 
         writer.flushPendingDiagram(emitter, "done");
 
@@ -95,6 +95,7 @@ public class DrawioStreamResponseWriterTest {
         writer.sendDrawioStream(emitter, "drawing", """
                 <mxGraphModel><root><mxCell id='0'/><mxCell id='1' parent='0'/><mxCell id='2' value='User' vertex='1' parent='1'><mxGeometry x='100' y='100' width='120' height='60' as='geometry'/></mxCell><mxCell id='3' value='API' vertex='1' parent='1'><mxGeometry x='300' y='100' width='120' height='60' as='geometry'/></mxCell><mxCell id='4' value='calls' edge='1' parent='1' source='2' target='3'><mxGeometry relative='1' as='geometry'/></mxCell></root></mxGraphModel>
                 """);
+        writer.flushPendingDiagram(emitter, "done");
 
         String output = String.join("\n", emitter.sent);
         assertTrue(output.contains("\"type\":\"drawio_preview\""));
@@ -112,6 +113,7 @@ public class DrawioStreamResponseWriterTest {
         writer.processAndSendLine(emitter, "drawing", """
                 <mxGraphModel><root><mxCell id='0'/><mxCell id='1' parent='0'/><mxCell id='2' value='User' vertex='1' parent='1'><mxGeometry x='100' y='100' width='120' height='60' as='geometry'/></mxCell><mxCell id='3' value='API' vertex='1' parent='1'><mxGeometry x='300' y='100' width='120' height='60' as='geometry'/></mxCell><mxCell id='4' value='calls' edge='1' parent='1' source='2' target='3'><mxGeometry relative='1' as='geometry'/></mxCell></root></mxGraphModel>
                 """);
+        writer.flushPendingDiagram(emitter, "done");
 
         String output = String.join("\n", emitter.sent);
         assertTrue(output.contains("\"type\":\"drawio_preview\""));
@@ -134,6 +136,7 @@ public class DrawioStreamResponseWriterTest {
         writer.processAndSendLine(emitter, "drawing", """
                 {"type":"continue_diagram","continuationId":"fallback","xmlFragment":"<mxCell id='3' value='B' vertex='1' parent='1'><mxGeometry x='300' y='100' width='120' height='60' as='geometry'/></mxCell>","done":true}
                 """);
+        writer.flushPendingDiagram(emitter, "done");
 
         String output = String.join("\n", emitter.sent);
         assertTrue(output.contains("\"type\":\"continuation_result\""));
@@ -156,6 +159,7 @@ public class DrawioStreamResponseWriterTest {
         writer.processAndSendLine(emitter, "drawing", """
                 {"type":"modify_diagram","mode":"patch","cells":"<mxCell id='2' value='API v2' vertex='1' parent='1'><mxGeometry x='100' y='100' width='140' height='60' as='geometry'/></mxCell>"}
                 """);
+        writer.flushPendingDiagram(emitter, "done");
 
         String output = String.join("\n", emitter.sent);
         assertTrue(output.contains("\"type\":\"drawio_done\""));
@@ -176,6 +180,7 @@ public class DrawioStreamResponseWriterTest {
         writer.processAndSendLine(emitter, "drawing", """
                 {"type":"modify_diagram","mode":"append","cells":"<mxCell id='3' value='Worker' vertex='1' parent='1'><mxGeometry x='320' y='100' width='120' height='60' as='geometry'/></mxCell>"}
                 """);
+        writer.flushPendingDiagram(emitter, "done");
 
         String output = String.join("\n", emitter.sent);
         assertTrue(output.contains("\"type\":\"drawio_done\""));
@@ -198,6 +203,7 @@ public class DrawioStreamResponseWriterTest {
         writer.processAndSendLine(emitter, "drawing", """
                 {"type":"modify_diagram","mode":"replace_cells","cells":"<mxCell id='2' value='Gateway' vertex='1' parent='1'><mxGeometry x='100' y='100' width='160' height='60' as='geometry'/></mxCell>"}
                 """);
+        writer.flushPendingDiagram(emitter, "done");
 
         String output = String.join("\n", emitter.sent);
         assertTrue(output.contains("\"type\":\"drawio_done\""));
@@ -224,6 +230,7 @@ public class DrawioStreamResponseWriterTest {
         writer.processAndSendLine(emitter, "drawing", """
                 {"type":"patch_cells","cells":"<mxCell id='3' value='Service v2' vertex='1' parent='1'><mxGeometry x='300' y='100' width='150' height='60' as='geometry'/></mxCell>"}
                 """);
+        writer.flushPendingDiagram(emitter, "done");
 
         String finalChunk = emitter.sent.get(emitter.sent.size() - 1);
         assertTrue(finalChunk.contains("API v2"));
@@ -244,6 +251,7 @@ public class DrawioStreamResponseWriterTest {
         boolean sent = writer.sendLocalCellPatch(emitter, "drawing", "", """
                 <mxCell id='2' value='API v2' vertex='1' parent='1'><mxGeometry x='100' y='100' width='140' height='60' as='geometry'/></mxCell>
                 """);
+        writer.flushPendingDiagram(emitter, "done");
 
         String output = String.join("\n", emitter.sent);
         assertTrue(sent);
@@ -268,6 +276,7 @@ public class DrawioStreamResponseWriterTest {
         writer.processAndSendLine(emitter, "drawing", """
                 {"type":"patch_cells","cells":"<mxCell id='2' value='API v2' vertex='1' parent='1'><mxGeometry x='100' y='100' width='140' height='60' as='geometry'/></mxCell>"}
                 """);
+        writer.flushPendingDiagram(emitter, "done");
 
         assertEquals("alice", canvasStateStore.saved.getUserId());
         assertEquals("diagram-1", canvasStateStore.saved.getDiagramId());
@@ -294,6 +303,7 @@ public class DrawioStreamResponseWriterTest {
         writer.processAndSendLine(emitter, "drawing", """
                 {"type":"drawio_done","content":"<mxGraphModel><root><mxCell id='0'/><mxCell id='1' parent='0'/><mxCell id='2' value='API v2' vertex='1' parent='1'><mxGeometry x='100' y='100' width='140' height='60' as='geometry'/></mxCell><mxCell id='3' value='Worker' vertex='1' parent='1'><mxGeometry x='320' y='100' width='120' height='60' as='geometry'/></mxCell></root></mxGraphModel>"}
                 """);
+        writer.flushPendingDiagram(emitter, "done");
 
         assertEquals(1, telemetryStore.diagramSnapshots.size());
         assertEquals(Integer.valueOf(2), telemetryStore.diagramSnapshots.get(0).getChangedCellCount());
@@ -311,6 +321,7 @@ public class DrawioStreamResponseWriterTest {
         writer.processAndSendLine(emitter, "drawing", """
                 {"type":"drawio_done","content":"<mxGraphModel><root><mxCell id='0'/><mxCell id='1' parent='0'/><mxCell id='2' value='API v2' vertex='1' parent='1'><mxGeometry x='100' y='100' width='140' height='60' as='geometry'/></mxCell></root></mxGraphModel>"}
                 """);
+        writer.flushPendingDiagram(emitter, "done");
 
         String output = String.join("\n", emitter.sent);
         assertTrue(output.contains("\"type\":\"drawio_done\""));
@@ -343,6 +354,7 @@ public class DrawioStreamResponseWriterTest {
         writer.processAndSendLine(emitter, "drawing", """
                 {"type":"patch_cells","cells":"<mxCell id='2' value='API v2' vertex='1' parent='1'><mxGeometry x='100' y='100' width='140' height='60' as='geometry'/></mxCell>"}
                 """);
+        writer.flushPendingDiagram(emitter, "done");
 
         String output = String.join("\n", emitter.sent);
         assertTrue(output.contains("\"type\":\"version_conflict\""));
@@ -366,6 +378,7 @@ public class DrawioStreamResponseWriterTest {
         writer.processAndSendLine(emitter, "drawing", """
                 {"type":"modify_diagram","xml":"<mxGraphModel><root><mxCell id='0'/><mxCell id='1' parent='0'/><mxCell id='2' value='API v2' vertex='1' parent='1'><mxGeometry x='100' y='100' width='140' height='60' as='geometry'/></mxCell></root></mxGraphModel>"}
                 """);
+        writer.flushPendingDiagram(emitter, "done");
 
         String output = String.join("\n", emitter.sent);
         assertFalse(output.contains("\"type\":\"drawio_preview\""));
@@ -387,17 +400,62 @@ public class DrawioStreamResponseWriterTest {
                 """);
         String firstDraw = String.join("\n", emitter.sent);
         assertEquals(2, countOccurrences(firstDraw, "\"type\":\"drawio_node\""));
-        assertEquals(1, countOccurrences(firstDraw, "\"type\":\"drawio_done\""));
+        assertEquals(0, countOccurrences(firstDraw, "\"type\":\"drawio_done\""));
 
         // A repair pass must not replay cells over the finished canvas; it merges in place.
         writer.processAndSendLine(emitter, "drawing", """
                 {"type":"optimize_diagram","xml":"<mxGraphModel><root><mxCell id='0'/><mxCell id='1' parent='0'/><mxCell id='2' value='A' vertex='1' parent='1'><mxGeometry x='100' y='100' width='120' height='60' as='geometry'/></mxCell><mxCell id='3' value='B' vertex='1' parent='1'><mxGeometry x='320' y='200' width='120' height='60' as='geometry'/></mxCell></root></mxGraphModel>"}
                 """);
+        writer.flushPendingDiagram(emitter, "done");
 
         String output = String.join("\n", emitter.sent);
         assertEquals(2, countOccurrences(output, "\"type\":\"drawio_node\""));
-        assertEquals(2, countOccurrences(output, "\"type\":\"drawio_done\""));
+        assertEquals(1, countOccurrences(output, "\"type\":\"drawio_done\""));
         assertEquals(1, countOccurrences(output, "\"mode\":\"local\""));
+    }
+
+    @Test
+    public void shouldPersistAndEmitOnlyTheLatestCandidateWhenTheRunIsFinalized() throws Exception {
+        DrawioStreamResponseWriter writer = new DrawioStreamResponseWriter(new DrawioToolCallRenderer());
+        List<CanvasState> saves = new ArrayList<>();
+        injectCanvasStateStore(writer, new ICanvasStateStore() {
+            @Override
+            public Optional<CanvasState> find(String userId, String diagramId) {
+                return Optional.empty();
+            }
+
+            @Override
+            public CanvasState save(CanvasState state) {
+                saves.add(state);
+                state.setVersion(4L);
+                state.setContentHash("sha256:latest");
+                return state;
+            }
+        });
+        CapturingEmitter emitter = new CapturingEmitter();
+        writer.setCanvasStateContext(emitter, "alice", "diagram-1", 3L);
+        writer.setCurrentCanvas(emitter, """
+                <mxGraphModel><root><mxCell id='0'/><mxCell id='1' parent='0'/></root></mxGraphModel>
+                """);
+
+        writer.processAndSendLine(emitter, "drawing", """
+                {"type":"drawio_done","content":"<mxGraphModel><root><mxCell id='0'/><mxCell id='1' parent='0'/><mxCell id='2' value='Draft' vertex='1' parent='1'><mxGeometry x='100' y='100' width='120' height='60' as='geometry'/></mxCell></root></mxGraphModel>"}
+                """);
+        writer.processAndSendLine(emitter, "drawing", """
+                {"type":"drawio_done","content":"<mxGraphModel><root><mxCell id='0'/><mxCell id='1' parent='0'/><mxCell id='2' value='Final' vertex='1' parent='1'><mxGeometry x='100' y='100' width='140' height='60' as='geometry'/></mxCell></root></mxGraphModel>"}
+                """);
+
+        assertTrue(saves.isEmpty());
+        assertEquals(0, countOccurrences(String.join("\n", emitter.sent), "\"type\":\"drawio_done\""));
+
+        writer.flushPendingDiagram(emitter, "done");
+
+        String output = String.join("\n", emitter.sent);
+        assertEquals(1, saves.size());
+        assertTrue(saves.get(0).getCurrentXml().contains("value='Final'"));
+        assertFalse(saves.get(0).getCurrentXml().contains("value='Draft'"));
+        assertEquals(1, countOccurrences(output, "\"type\":\"drawio_done\""));
+        assertTrue(output.contains("\"contentHash\":\"sha256:latest\""));
     }
 
     @Test
@@ -448,7 +506,7 @@ public class DrawioStreamResponseWriterTest {
     }
 
     @Test
-    public void shouldAdvanceExpectedVersionAcrossMultipleFlushesInOneStream() throws Exception {
+    public void shouldPersistTheLatestCandidateAgainstTheOriginalExpectedVersion() throws Exception {
         DrawioStreamResponseWriter writer = new DrawioStreamResponseWriter(new DrawioToolCallRenderer());
         List<Long> savedInputVersions = new ArrayList<>();
         injectCanvasStateStore(writer, new ICanvasStateStore() {
@@ -479,8 +537,10 @@ public class DrawioStreamResponseWriterTest {
                 {"type":"patch_cells","cells":"<mxCell id='2' value='API v3' vertex='1' parent='1'><mxGeometry x='100' y='100' width='160' height='60' as='geometry'/></mxCell>"}
                 """);
 
-        // First flush locks against 3 and persists 4; the second must lock against 4, not the stale 3.
-        assertEquals(List.of(3L, 4L), savedInputVersions);
+        assertTrue(savedInputVersions.isEmpty());
+        writer.flushPendingDiagram(emitter, "done");
+
+        assertEquals(List.of(3L), savedInputVersions);
         assertFalse("no spurious version conflict for a single stream's own edits",
                 String.join("\n", emitter.sent).contains("version_conflict"));
     }

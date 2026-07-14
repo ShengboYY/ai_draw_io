@@ -34,6 +34,9 @@ public class DrawioStreamResponseWriter {
     // Current canvas per in-flight stream, so a localized patch (only the changed cell fragment) can be
     // merged server-side without the model re-sending the whole diagram.
     private final ConcurrentMap<ResponseBodyEmitter, String> currentCanvasByEmitter = new ConcurrentHashMap<>();
+    // Stable request baseline used for changed-cell telemetry when several repair candidates are
+    // accumulated before the one final persistence operation.
+    private final ConcurrentMap<ResponseBodyEmitter, String> baselineCanvasByEmitter = new ConcurrentHashMap<>();
     private final ConcurrentMap<ResponseBodyEmitter, CanvasStateContext> canvasStateContextByEmitter = new ConcurrentHashMap<>();
     // Last localized merge emitted per stream; multiple author buffers can carry the same patch, so skip
     // re-rendering an identical result.
@@ -291,12 +294,13 @@ public class DrawioStreamResponseWriter {
             return;
         }
 
-        sendDrawioDoneUnchecked(emitter, phase, pendingDiagram.xml);
+        sendDrawioDoneUnchecked(emitter, phase, pendingDiagram.xml, pendingDiagram.mode);
     }
 
     public void clearPendingDiagram(ResponseBodyEmitter emitter) {
         pendingDiagrams.remove(emitter);
         currentCanvasByEmitter.remove(emitter);
+        baselineCanvasByEmitter.remove(emitter);
         lastPatchByEmitter.remove(emitter);
         canvasStateContextByEmitter.remove(emitter);
     }
@@ -304,6 +308,7 @@ public class DrawioStreamResponseWriter {
     public void setCurrentCanvas(ResponseBodyEmitter emitter, String canvasXml) {
         if (StringUtils.isNotBlank(canvasXml)) {
             currentCanvasByEmitter.put(emitter, canvasXml);
+            baselineCanvasByEmitter.putIfAbsent(emitter, canvasXml);
         }
     }
 
@@ -335,25 +340,21 @@ public class DrawioStreamResponseWriter {
             sendValidationChunk(emitter, phase, inspection);
         }
 
-        // Visual warnings still need a canvas to inspect; only structural failures are held back.
+        // Every mutation is a candidate until the drawer finishes its deterministic repair loop.
+        // Holding the latest candidate here gives downstream VLM review one unambiguous final version.
         if (!inspection.isValid() && isCriticalSeverity(inspection.getSeverity())) {
-            rememberPendingDiagram(emitter, xml, inspection);
+            rememberPendingDiagram(emitter, xml, inspection, mode);
             return;
         }
 
-        pendingDiagrams.remove(emitter);
-        sendDrawioDoneUnchecked(emitter, phase, xml, mode);
-    }
-
-    private void sendDrawioDoneUnchecked(ResponseBodyEmitter emitter, String phase, String xml) throws Exception {
-        sendDrawioDoneUnchecked(emitter, phase, xml, null);
+        rememberPendingDiagram(emitter, xml, inspection, mode);
     }
 
     private void sendDrawioDoneUnchecked(ResponseBodyEmitter emitter, String phase, String xml, String mode) throws Exception {
         CanvasStateSaveResult saveResult = null;
         if (StringUtils.isNotBlank(xml)) {
             try {
-                String previousXml = currentCanvasByEmitter.get(emitter);
+                String previousXml = baselineCanvasByEmitter.get(emitter);
                 saveResult = persistCanvasState(emitter, xml, previousXml);
             } catch (CanvasStateVersionConflictException e) {
                 sendVersionConflict(emitter, phase, canvasStateContextByEmitter.get(emitter));
@@ -387,8 +388,8 @@ public class DrawioStreamResponseWriter {
                     .currentXml(xml)
                     .version(context.expectedVersion())
                     .build());
-            // Advance the expected version so a later flush in the same stream (e.g. a review-repair
-            // pass) locks against the freshly persisted version instead of the stale original.
+            // A stream persists only its final candidate, but advancing the context keeps this writer
+            // safe when a caller intentionally starts another finalized pass on the same emitter.
             CanvasState saved = result == null ? null : result.getState();
             if (saved != null && saved.getVersion() != null) {
                 canvasStateContextByEmitter.put(emitter,
@@ -529,7 +530,7 @@ public class DrawioStreamResponseWriter {
         if (doneChunk != null && shouldWithholdFinalDiagram(validationChunk)) {
             // Hold only structural XML failures; visual warnings should still stream to the canvas.
             sendWrappedChunk(emitter, phase, validationChunk);
-            rememberPendingDiagram(emitter, doneChunk.getString("content"), validationChunk);
+            rememberPendingDiagram(emitter, doneChunk.getString("content"), validationChunk, doneChunk.getString("mode"));
             return true;
         }
 
@@ -638,22 +639,28 @@ public class DrawioStreamResponseWriter {
 
     private void rememberPendingDiagram(ResponseBodyEmitter emitter,
                                         String xml,
-                                        DrawioCanvasXmlToolkit.CanvasInspection inspection) {
+                                        DrawioCanvasXmlToolkit.CanvasInspection inspection,
+                                        String mode) {
         pendingDiagrams.put(emitter, new PendingDiagram(
                 xml,
                 inspection.getSeverity(),
-                inspection.isValid() ? "" : String.join("; ", inspection.getIssues())
+                inspection.isValid() ? "" : String.join("; ", inspection.getIssues()),
+                mode
         ));
+        currentCanvasByEmitter.put(emitter, xml);
     }
 
     private void rememberPendingDiagram(ResponseBodyEmitter emitter,
                                         String xml,
-                                        com.alibaba.fastjson.JSONObject validationChunk) {
+                                        com.alibaba.fastjson.JSONObject validationChunk,
+                                        String mode) {
         pendingDiagrams.put(emitter, new PendingDiagram(
                 xml,
                 validationChunk.getString("severity"),
-                StringUtils.defaultString(validationChunk.getString("content"))
+                StringUtils.defaultString(validationChunk.getString("content")),
+                mode
         ));
+        currentCanvasByEmitter.put(emitter, xml);
     }
 
     private boolean isCriticalSeverity(String severity) {
@@ -880,11 +887,13 @@ public class DrawioStreamResponseWriter {
         private final String xml;
         private final String severity;
         private final String content;
+        private final String mode;
 
-        private PendingDiagram(String xml, String severity, String content) {
+        private PendingDiagram(String xml, String severity, String content, String mode) {
             this.xml = xml;
             this.severity = severity;
             this.content = content;
+            this.mode = mode;
         }
     }
 

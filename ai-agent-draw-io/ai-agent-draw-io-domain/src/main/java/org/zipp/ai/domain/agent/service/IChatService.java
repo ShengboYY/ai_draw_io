@@ -7,6 +7,7 @@ import com.google.adk.events.Event;
 import io.reactivex.rxjava3.core.Flowable;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * 对话接口
@@ -44,6 +45,15 @@ public interface IChatService {
                                                 String message,
                                                 AgentUsageTelemetryContext.RunContext runContext) {
         return handleMessageStream(agentId, userId, sessionId, message);
+    }
+
+    default Flowable<Event> handleMessageStream(String agentId,
+                                                String userId,
+                                                String sessionId,
+                                                String message,
+                                                AgentUsageTelemetryContext.RunContext runContext,
+                                                Map<String, Object> initialState) {
+        return handleMessageStream(agentId, userId, sessionId, message, runContext);
     }
 
     List<String> handleMessage(ChatCommandEntity chatCommandEntity);

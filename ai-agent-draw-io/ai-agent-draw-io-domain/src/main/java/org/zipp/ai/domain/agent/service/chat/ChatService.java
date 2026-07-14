@@ -27,6 +27,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Optional;
 import java.util.List;
 import java.util.Map;
@@ -185,6 +186,16 @@ public class ChatService implements IChatService {
                                                String sessionId,
                                                String message,
                                                AgentUsageTelemetryContext.RunContext runContext) {
+        return handleMessageStream(agentId, userId, sessionId, message, runContext, Map.of());
+    }
+
+    @Override
+    public Flowable<Event> handleMessageStream(String agentId,
+                                               String userId,
+                                               String sessionId,
+                                               String message,
+                                               AgentUsageTelemetryContext.RunContext runContext,
+                                               Map<String, Object> initialState) {
         AiAgentRegisterVO aiAgentRegisterVO = defaultArmoryFactory.getAiAgentRegisterVO(agentId);
 
         if (null == aiAgentRegisterVO) {
@@ -198,7 +209,13 @@ public class ChatService implements IChatService {
         // Enable SSE streaming mode so LLM produces partial events (per-token)
         RunConfig runConfig = RunConfig.builder().setStreamingMode(RunConfig.StreamingMode.SSE).build();
         AgentUsageTelemetryContext.InvocationState invocationState = AgentUsageTelemetryContext.newInvocationState(runContext);
-        return runner.runAsync(userId, sessionId, userMsg, runConfig, invocationState.stateDelta())
+        Map<String, Object> stateDelta = new HashMap<>();
+        if (initialState != null) {
+            stateDelta.putAll(initialState);
+        }
+        // Telemetry's invocation token is server-owned and must win over any caller-supplied key.
+        stateDelta.putAll(invocationState.stateDelta());
+        return runner.runAsync(userId, sessionId, userMsg, runConfig, stateDelta)
                 .doOnNext(event -> persistDraftDiagramState(runner, appName, userId, sessionId, event))
                 .doFinally(invocationState::close);
     }

@@ -18,6 +18,7 @@ import org.zipp.ai.domain.agent.service.ICanvasStateStore;
 import org.zipp.ai.domain.agent.service.IChatService;
 import org.zipp.ai.domain.agent.service.IIntentRoutingService;
 import org.zipp.ai.domain.agent.service.armory.matter.mcp.server.DrawioCanvasToolNames;
+import org.zipp.ai.domain.agent.service.armory.matter.mcp.server.DrawioMutationResultPostProcessor;
 import org.zipp.ai.domain.agent.service.armory.matter.mcp.server.DrawioSkillToolNames;
 import org.zipp.ai.domain.agent.service.armory.matter.skills.DrawioSkillAccessContext;
 import org.zipp.ai.domain.agent.service.chat.CustomApiConfigManager;
@@ -257,7 +258,10 @@ public class AgentConversationService {
                             routedMessage.message(),
                             finalDrawingStep != null
                                     ? finalDrawingStep.getStepContext()
-                                    : runScope.getContext().withPhase("drawing"))
+                                    : runScope.getContext().withPhase("drawing"),
+                            StringUtils.isBlank(currentCanvasXml)
+                                    ? Map.of()
+                                    : Map.of(DrawioMutationResultPostProcessor.DRAFT_DIAGRAM_STATE_KEY, currentCanvasXml))
                     .subscribe(
                             event -> {
                                 try {

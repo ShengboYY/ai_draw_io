@@ -51,6 +51,7 @@ import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Optional;
 import java.util.ArrayList;
+import java.util.Map;
 
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertEquals;
@@ -667,6 +668,20 @@ public class AgentConversationServiceTest {
     }
 
     @Test
+    public void shouldSeedTheDrawerDraftStateFromTheCurrentCanvas() throws Exception {
+        InitialStateCapturingChatService chatService = new InitialStateCapturingChatService();
+        AgentConversationService service = quotaAwareService();
+        injectField(service, "chatService", chatService);
+        injectField(service, "intentRoutingService", new CountingIntentRoutingService());
+        ChatRequestDTO requestDTO = platformRequest();
+        requestDTO.setCanvasXml(storedCanvasXml());
+
+        service.stream(requestDTO, new CapturingEmitter());
+
+        assertTrue(String.valueOf(chatService.initialState.get("draft_diagram")).contains("Stored API"));
+    }
+
+    @Test
     public void shouldRecordFailedRunTelemetryWithoutPersistingErrorMessageContent() throws Exception {
         FakeAgentUsageTelemetryStore telemetryStore = new FakeAgentUsageTelemetryStore();
         AgentConversationService service = quotaAwareService();
@@ -1028,6 +1043,21 @@ public class AgentConversationServiceTest {
                     .partial(false)
                     .build();
             return Flowable.just(event);
+        }
+    }
+
+    private static final class InitialStateCapturingChatService extends CountingChatService {
+        private Map<String, Object> initialState = Map.of();
+
+        @Override
+        public Flowable<Event> handleMessageStream(String agentId,
+                                                   String userId,
+                                                   String sessionId,
+                                                   String message,
+                                                   AgentUsageTelemetryContext.RunContext runContext,
+                                                   Map<String, Object> initialState) {
+            this.initialState = initialState;
+            return Flowable.empty();
         }
     }
 
