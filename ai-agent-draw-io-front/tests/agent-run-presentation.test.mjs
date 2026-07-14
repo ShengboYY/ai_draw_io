@@ -5,12 +5,74 @@ import {
   buildAgentRunView,
   buildAgentProgressSummary,
   buildAgentCompletionReply,
+  buildVisualReviewMessage,
   finishEventsAfterCanvasLoaded,
   finishPreviousPhaseEvents,
   getVisibleExecutionSteps,
   shouldShowAgentProgressCard,
   shouldShowAgentTyping,
+  thinkingPhaseLabel,
+  thinkingRouteLabel,
+  visualReviewStageLabel,
+  visualReviewStaleMessage,
 } from '../src/app/drawio/agent-run-presentation.ts';
+
+test('thinking labels follow the routed work path', () => {
+  assert.equal(thinkingRouteLabel('edit_existing'), 'Edit diagram');
+  assert.equal(thinkingPhaseLabel('edit_existing', 'drawing'), 'Drawing');
+  assert.equal(thinkingPhaseLabel('optimize_layout', 'reviewing'), 'Deterministic validation');
+  assert.equal(thinkingPhaseLabel('answer_only', 'thinking'), 'Prepare answer');
+  assert.equal(thinkingPhaseLabel(undefined, 'drawing'), 'Draw diagram');
+});
+
+test('visual review lifecycle uses explicit user-facing stage labels', () => {
+  assert.equal(visualReviewStageLabel('POST_MUTATION'), 'Visual review');
+  assert.equal(visualReviewStageLabel('REPAIR'), 'Visual repair');
+  assert.equal(visualReviewStageLabel('VERIFY_ONLY'), 'Final verification');
+
+  const view = buildAgentRunView({
+    isRunning: false,
+    content: '',
+    events: [
+      { id: '1', phase: 'reviewing', title: 'Visual review', status: 'done', tone: 'review' },
+      { id: '2', phase: 'revising', title: 'Visual repair', status: 'done', tone: 'review' },
+      { id: '3', phase: 'reviewing', title: 'Final visual verification', status: 'done', tone: 'review' },
+    ],
+  });
+  assert.equal(view.toolLabel, 'Visual review → Visual repair → Final verification');
+});
+
+test('visual review message shows a bounded issue list without internal evidence', () => {
+  const content = buildVisualReviewMessage({
+    decision: 'REPAIR',
+    summary: 'Two layout issues need attention.',
+    autoRepairStarted: true,
+    issues: Array.from({ length: 6 }, (_, index) => ({
+      type: index === 0 ? 'TEXT_READABILITY' : 'EDGE_TRACEABILITY',
+      severity: index === 0 ? 'critical' : 'major',
+      region: `Region ${index + 1}`,
+      evidence: `private evidence ${index + 1}`,
+      repairInstruction: `internal repair prompt ${index + 1}`,
+    })),
+  });
+
+  assert.match(content, /Two layout issues need attention\./);
+  assert.match(content, /Critical · Text readability · Region 1/);
+  assert.match(content, /A single automatic visual repair has started\./);
+  assert.doesNotMatch(content, /Region 6|private evidence|internal repair prompt/);
+});
+
+test('visual review warnings explain unavailable, human-review, and stale outcomes', () => {
+  assert.equal(
+    buildVisualReviewMessage({ decision: 'UNAVAILABLE', summary: '{"raw":"provider payload"}', issues: [] }),
+    '⚠️ Visual review is temporarily unavailable. The current canvas was kept.',
+  );
+  assert.match(
+    buildVisualReviewMessage({ decision: 'NEEDS_HUMAN_REVIEW', summary: 'Connector direction is ambiguous.', issues: [] }),
+    /The canvas was not automatically modified/,
+  );
+  assert.equal(visualReviewStaleMessage, 'The canvas changed, so the outdated visual review was skipped.');
+});
 
 test('buildAgentRunView summarizes local edit tool usage and preserves final text', () => {
   const view = buildAgentRunView({

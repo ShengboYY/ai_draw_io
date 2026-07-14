@@ -206,6 +206,12 @@ export interface MetaChunk {
     visualReviewRunId?: string;
 }
 
+/** Route selected by the backend intent router before the agent starts visible work. */
+export interface RouteChunk {
+    type: 'route';
+    routeType: string;
+}
+
 export interface ReviewResultChunk {
     type: 'review_result';
     approved: boolean;
@@ -257,7 +263,7 @@ export interface VersionConflictChunk {
     currentContentHash?: string;
 }
 
-export type StreamChunk = DrawioPreviewChunk | DrawioNodeChunk | DrawioEdgeChunk | DrawioDoneChunk | DrawioLegacyChunk | StatusChunk | ErrorChunk | UserChunk | DoneChunk | TokenChunk | MetaChunk | ReviewStartedChunk | ReviewResultChunk | ReviewStaleChunk | ValidationResultChunk | VersionConflictChunk;
+export type StreamChunk = DrawioPreviewChunk | DrawioNodeChunk | DrawioEdgeChunk | DrawioDoneChunk | DrawioLegacyChunk | StatusChunk | ErrorChunk | UserChunk | DoneChunk | TokenChunk | MetaChunk | RouteChunk | ReviewStartedChunk | ReviewResultChunk | ReviewStaleChunk | ValidationResultChunk | VersionConflictChunk;
 
 export interface StreamEvent {
     phase: 'analyzing' | 'drawing' | 'reviewing' | 'visual_review' | 'revising' | 'thinking' | 'error' | 'done' | 'generating';

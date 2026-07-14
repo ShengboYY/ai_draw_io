@@ -266,6 +266,8 @@ public class AgentConversationService {
                     () -> routeIntent(currentRequest, config))
                     : forcedRoutingResult;
             recordRoutingDecision(runScope, routingResult);
+            // The UI uses this compact event to label the visible Thinking timeline for the selected route.
+            streamResponseWriter.sendRoute(emitter, routingResult.getRouteType());
             if (isReviewOnly(routingResult)) {
                 try {
                     ReviewOnlyContext reviewContext = prepareReviewOnlyContext(currentRequest, routingResult);

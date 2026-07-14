@@ -1,6 +1,17 @@
 export type AgentRunEventStatus = 'running' | 'done' | 'warning' | 'error';
 export type AgentRunEventTone = 'analysis' | 'drawing' | 'tool' | 'validation' | 'review';
 export type AgentRunScope = 'full' | 'local' | 'append' | 'layout' | 'review';
+export type AgentRouteType = 'create_new' | 'edit_existing' | 'optimize_layout' | 'answer_only' | 'clarify' | 'review_only';
+export type VisualReviewDecision = 'APPROVE' | 'APPROVE_WITH_NOTES' | 'REPAIR' | 'NEEDS_HUMAN_REVIEW' | 'UNAVAILABLE';
+
+export type VisualReviewDisplayIssue = {
+  type?: string;
+  severity?: string;
+  region?: string;
+  // These fields are accepted so callers can pass the transport object directly, but are never rendered.
+  evidence?: string;
+  repairInstruction?: string;
+};
 
 export type AgentRunEvent = {
   id: string;
@@ -60,6 +71,9 @@ const actionLabels: Record<string, string> = {
   validation_result: 'Validate diagram',
   reviewer: 'Review diagram',
   agent_reviewer: 'Review diagram',
+  'visual review': 'Visual review',
+  'visual repair': 'Visual repair',
+  'final visual verification': 'Final verification',
   'revision agent': 'Revise diagram',
   update_cells: 'Update selected items',
   find_cells: 'Find target items',
@@ -162,6 +176,118 @@ const scopeLabels: Record<AgentRunScope, string> = {
   append: 'Append only',
   layout: 'Layout repair',
   review: 'Quality review',
+};
+
+const routeLabels: Record<AgentRouteType, string> = {
+  create_new: 'New diagram',
+  edit_existing: 'Edit diagram',
+  optimize_layout: 'Layout repair',
+  answer_only: 'Answer',
+  clarify: 'Clarify request',
+  review_only: 'Diagram review',
+};
+
+const routePhaseLabels: Record<AgentRouteType, Partial<Record<string, string>>> = {
+  create_new: {
+    analyzing: 'Understand diagram request',
+    drawing: 'Drawing',
+    reviewing: 'Deterministic validation',
+    revising: 'Refine diagram',
+  },
+  edit_existing: {
+    analyzing: 'Understand requested change',
+    drawing: 'Drawing',
+    reviewing: 'Deterministic validation',
+    revising: 'Refine changes',
+  },
+  optimize_layout: {
+    analyzing: 'Inspect layout',
+    drawing: 'Drawing',
+    reviewing: 'Deterministic validation',
+    revising: 'Fix remaining issues',
+  },
+  answer_only: {
+    analyzing: 'Understand question',
+    thinking: 'Prepare answer',
+  },
+  clarify: {
+    analyzing: 'Identify missing details',
+    thinking: 'Prepare question',
+  },
+  review_only: {
+    analyzing: 'Inspect diagram',
+    reviewing: 'Explain findings',
+  },
+};
+
+const fallbackPhaseLabels: Record<string, string> = {
+  analyzing: 'Analyze request',
+  drawing: 'Draw diagram',
+  reviewing: 'Review quality',
+  revising: 'Plan revision',
+  thinking: 'Thinking',
+};
+
+export const thinkingRouteLabel = (routeType?: string) => routeLabels[routeType as AgentRouteType];
+
+export const thinkingPhaseLabel = (routeType: string | undefined, phase: string) => (
+  routePhaseLabels[routeType as AgentRouteType]?.[phase] || fallbackPhaseLabels[phase] || fallbackPhaseLabels.thinking
+);
+
+export const visualReviewStageLabel = (stage: 'CURRENT_CANVAS' | 'POST_MUTATION' | 'VERIFY_ONLY' | 'REPAIR') => {
+  if (stage === 'VERIFY_ONLY') return 'Final verification';
+  if (stage === 'REPAIR') return 'Visual repair';
+  return 'Visual review';
+};
+
+export const visualReviewStaleMessage = 'The canvas changed, so the outdated visual review was skipped.';
+
+const safeReviewText = (value?: string, maxLength = 500) => {
+  const text = (value || '').replace(/```/g, '').replace(/\s+/g, ' ').trim();
+  // A JSON-looking summary is a provider/schema leak, not user-facing review content.
+  if (!text || text.startsWith('{') || text.startsWith('[')) return '';
+  return text.length > maxLength ? `${text.slice(0, maxLength - 3).trim()}...` : text;
+};
+
+const humanizeReviewValue = (value?: string) => {
+  const text = safeReviewText(value, 80).replace(/[_-]+/g, ' ').toLowerCase();
+  return text ? `${text.charAt(0).toUpperCase()}${text.slice(1)}` : '';
+};
+
+export const buildVisualReviewMessage = ({
+  decision,
+  summary,
+  issues,
+  autoRepairStarted = false,
+}: {
+  decision?: VisualReviewDecision;
+  summary?: string;
+  issues?: VisualReviewDisplayIssue[];
+  autoRepairStarted?: boolean;
+}) => {
+  if (decision === 'UNAVAILABLE') {
+    return '⚠️ Visual review is temporarily unavailable. The current canvas was kept.';
+  }
+
+  const safeSummary = safeReviewText(summary);
+  const issueLines = (issues || []).slice(0, 5).map(issue => {
+    // Evidence and repair instructions remain internal; only bounded categorical fields reach chat.
+    const parts = [
+      humanizeReviewValue(issue.severity),
+      humanizeReviewValue(issue.type),
+      safeReviewText(issue.region, 80),
+    ].filter(Boolean);
+    return parts.length ? `- ${parts.join(' · ')}` : '';
+  }).filter(Boolean);
+
+  const blocks = [safeSummary || (decision === 'APPROVE' ? 'Visual review passed.' : 'Visual review completed.')];
+  if (issueLines.length > 0) blocks.push(`Issues:\n${issueLines.join('\n')}`);
+  if (decision === 'NEEDS_HUMAN_REVIEW') {
+    blocks.push('Human review is recommended. The canvas was not automatically modified.');
+  } else if (decision === 'REPAIR' && autoRepairStarted) {
+    blocks.push('A single automatic visual repair has started.');
+  }
+  return blocks.join('\n\n');
 };
 
 export const buildAgentRunView = ({

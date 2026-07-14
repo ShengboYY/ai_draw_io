@@ -24,6 +24,19 @@ import static org.junit.Assert.assertTrue;
 public class DrawioStreamResponseWriterTest {
 
     @Test
+    public void shouldSendRouteAsACompactThinkingEvent() throws Exception {
+        DrawioStreamResponseWriter writer = new DrawioStreamResponseWriter(new DrawioToolCallRenderer());
+        CapturingEmitter emitter = new CapturingEmitter();
+
+        writer.sendRoute(emitter, "edit_existing");
+
+        String output = String.join("\n", emitter.sent);
+        assertTrue(output.contains("\"phase\":\"thinking\""));
+        assertTrue(output.contains("\"type\":\"route\""));
+        assertTrue(output.contains("\"routeType\":\"edit_existing\""));
+    }
+
+    @Test
     public void shouldStreamVisualWarningsImmediately() throws Exception {
         DrawioStreamResponseWriter writer = new DrawioStreamResponseWriter(new DrawioToolCallRenderer());
         CapturingEmitter emitter = new CapturingEmitter();

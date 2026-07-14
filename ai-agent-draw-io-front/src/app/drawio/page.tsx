@@ -10,7 +10,6 @@ import { agentApi, ApiResponseError, StreamEvent } from '@/api/agent';
 import type { CurrentAccountResponseDTO, DiagramCanvasStateResponseDTO, DiagramSummaryResponseDTO, ModelCredentialResponseDTO, ProviderPresetDTO } from '@/types/api';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { buildStepSummary } from './execution-step-summary';
 import {
   buildStreamingPreviewXml,
   isValidDrawioCellXml,
@@ -56,11 +55,16 @@ import {
   buildAgentCompletionReply,
   buildAgentProgressSummary,
   buildAgentRunView,
+  buildVisualReviewMessage,
   finishEventsAfterCanvasLoaded,
   finishPreviousPhaseEvents,
   getVisibleExecutionSteps,
   shouldShowAgentProgressCard,
   shouldShowAgentTyping,
+  thinkingPhaseLabel,
+  thinkingRouteLabel,
+  visualReviewStageLabel,
+  visualReviewStaleMessage,
 } from './agent-run-presentation';
 import {
   buildThumbnailExportRequest,
@@ -96,6 +100,7 @@ type Message = {
   role: 'user' | 'agent';
   content: string;
   reasoning?: string;
+  routeType?: string;
   steps?: MessageStep[];
   events?: AgentRunEvent[];
   timestamp: number;
@@ -261,60 +266,6 @@ type EditingModelConfig = CustomModelConfig & {
   provider: string;
 };
 
-const normalizeCjkText = (text: string) => {
-  let normalized = text;
-  for (let i = 0; i < 3; i++) {
-    normalized = normalized.replace(/([\u4e00-\u9fff])\s+([\u4e00-\u9fff])/g, '$1$2');
-  }
-  return normalized;
-};
-
-const formatStepContent = (content: string, phase?: string) => {
-  const trimmed = content.trim();
-  if (!trimmed) return '';
-
-  const normalized = normalizeCjkText(trimmed)
-    .replace(/```(?:json)?/gi, '')
-    .replace(/```/g, '');
-
-  if (/^(Working summary|Drawing progress|Quality checklist|Revision brief):/m.test(normalized)) {
-    return normalized;
-  }
-
-  const looksStructured = phase === 'analyzing' || /["{][^"\n{}]{1,30}["]?\s*[:：]/.test(normalized);
-  if (!looksStructured) return content;
-
-  const keyValuePairs: string[] = [];
-  const seen = new Set<string>();
-  const pairPattern = /["“]?([^"“”{}[\],:\n]{2,18})["”]?\s*[:：]\s*["“]?([^"“”{}[\],\n]{1,80})["”]?/g;
-  let match: RegExpExecArray | null;
-
-  while ((match = pairPattern.exec(normalized)) !== null) {
-    const key = match[1].trim().replace(/^content$/i, '');
-    const value = match[2].trim().replace(/,$/, '');
-    if (!key || !value || ['type', 'content'].includes(key.toLowerCase())) continue;
-    if (value === key || value === 'drawio_request') continue;
-
-    const line = `${key}：${value}`;
-    if (!seen.has(line)) {
-      seen.add(line);
-      keyValuePairs.push(line);
-    }
-  }
-
-  if (keyValuePairs.length > 0) {
-    return `Requirement summary:\n${keyValuePairs.slice(0, 8).map(item => `- ${item}`).join('\n')}`;
-  }
-
-  // Some models stream pseudo-JSON line by line. Keep only human-readable text.
-  const readableLines = normalized
-    .split('\n')
-    .map(line => line.trim().replace(/^["',{}[\]\s]+|["',{}[\]\s]+$/g, ''))
-    .filter(line => line && !line.startsWith('type') && line !== 'content');
-
-  return readableLines.join('\n');
-};
-
 const parseDrawioXml = (xml?: string | null) => {
   const parser = new DOMParser();
   const doc = parser.parseFromString(xml && xml.trim() ? xml : EMPTY_DRAWIO_XML, 'application/xml');
@@ -445,13 +396,6 @@ const phaseRunEvent: Record<string, { title: string; detail: string; tone: Agent
     detail: 'Preparing response',
     tone: 'analysis',
   },
-};
-
-const getValidationDetail = (chunk: StreamEvent['chunk']) => {
-  if (chunk.type !== 'validation_result') return '';
-  if (chunk.content) return chunk.content;
-  if (chunk.issues && chunk.issues.length > 0) return `${chunk.issues.length} issue${chunk.issues.length === 1 ? '' : 's'} found`;
-  return chunk.valid === false ? 'Validation needs attention' : 'XML OK';
 };
 
 const getValidationStatus = (chunk: StreamEvent['chunk']): AgentRunEventStatus => {
@@ -679,8 +623,6 @@ function DrawioPageContent() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   // Stream State
-  const [streamPhase, setStreamPhase] = useState<string>('');
-  const [streamProgress, setStreamProgress] = useState<string>('');
   const streamAbortRef = useRef<AbortController | null>(null);
 
   // Context State
@@ -1541,7 +1483,7 @@ function DrawioPageContent() {
       // restores, while keeping the saved sessions so the history sidebar (and the
       // persistence effect) does not lose them.
       setSessions(savedSessions);
-      createNewSession(true);
+      createNewSession();
       // Landing page hands off the typed prompt via ?prompt=…; draft it into the
       // composer (focused, ready to send) rather than auto-sending on mount.
       const initialPrompt = freshParams.get('prompt');
@@ -1561,7 +1503,7 @@ function DrawioPageContent() {
       setMessages(mostRecent.messages);
       replaceEditorXml(mostRecent.drawIoXml || EMPTY_DRAWIO_XML);
     } else {
-      createNewSession(true);
+      createNewSession();
     }
   }, []);
 
@@ -1592,7 +1534,7 @@ function DrawioPageContent() {
     }
   }, [messages, currentSessionId, sessionId]);
 
-  const createNewSession = (_isInitial = false, backendId = '') => {
+  const createNewSession = (backendId = '') => {
     pendingThumbnailExportRef.current = null;
     armBlankEditorGuard();
     const localSessionId = Date.now().toString();
@@ -1929,7 +1871,7 @@ function DrawioPageContent() {
     
     try {
         const res = await agentApi.createSession(selectedAgentId, currentUser);
-        createNewSession(false, res.data.sessionId);
+        createNewSession(res.data.sessionId);
         setInputValue('');
     } catch (error) {
         console.error('Failed to create new session:', error);
@@ -1986,8 +1928,6 @@ function DrawioPageContent() {
     }
     aiCanvasMutationDiagramIdsRef.current.clear();
     setIsSending(false);
-    setStreamPhase('');
-    setStreamProgress('');
     setMessages(prev => [...prev, {
       id: Date.now().toString(),
       role: 'agent',
@@ -2049,9 +1989,8 @@ function DrawioPageContent() {
       }));
 
       // 2. Send Message via Stream
-      setStreamPhase('connecting');
-      setStreamProgress('Connecting...');
       let activeStreamPhase = 'connecting';
+      let activeRouteType: string | undefined;
       let sourceRunId = '';
       let postDrawReviewPromise: Promise<void> | null = null;
       let activeStepKey = '';
@@ -2127,13 +2066,16 @@ function DrawioPageContent() {
         };
       };
 
-      const getPhaseStatusText = (phaseStr: string, note?: string) => buildStepSummary({
-        phase: phaseStr,
-        nodeCount,
-        edgeCount,
-        note,
-        userRequest: displayContent
-      });
+      const getVisibleStepDetail = (phaseStr: string, state?: 'loaded' | 'passed' | 'needs_attention') => {
+        // Thinking shows observable progress only; model-produced status text stays out of the UI.
+        if (state === 'loaded') return 'Updated the canvas.';
+        if (state === 'passed') return 'Validation passed.';
+        if (state === 'needs_attention') return 'Validation needs attention.';
+        if (phaseStr === 'drawing' && (nodeCount > 0 || edgeCount > 0)) {
+          return `Canvas preview: ${nodeCount} nodes · ${edgeCount} connections.`;
+        }
+        return '';
+      };
 
       const markStepsDone = (steps?: MessageStep[]) => steps?.map(s => ({ ...s, status: 'done' as const }));
 
@@ -2342,11 +2284,26 @@ function DrawioPageContent() {
       const executeVisualReview = (reviewRequest: ReturnType<typeof buildCanvasVisualReviewRequest>) => (
         new Promise<ReviewStreamOutcome>(resolve => {
           const outcome: ReviewStreamOutcome = {};
+          const reviewStepKey = `visual-review:${reviewRequest.stage}`;
+          const reviewStepLabel = visualReviewStageLabel(reviewRequest.stage);
           let settled = false;
           const finish = () => {
             if (settled) return;
             settled = true;
             resolve(outcome);
+          };
+          const showUnavailableReview = () => {
+            const detail = 'Visual review was unavailable; the current canvas was kept.';
+            appendAgentMessageContent(buildVisualReviewMessage({ decision: 'UNAVAILABLE' }));
+            updateStep(reviewStepKey, 'visual_review', reviewStepLabel, detail, true, true);
+            publishSteps();
+            upsertRunEvent(`visual-review:${reviewRequest.stage}`, {
+              phase: 'reviewing',
+              title: reviewRequest.stage === 'VERIFY_ONLY' ? 'Final visual verification' : 'Visual review',
+              detail,
+              status: 'warning',
+              tone: 'review',
+            });
           };
 
           void agentApi.visualReviewStream(
@@ -2359,6 +2316,8 @@ function DrawioPageContent() {
                 return;
               }
               if (chunk.type === 'review_started') {
+                updateStep(reviewStepKey, 'visual_review', reviewStepLabel, '', false, true);
+                publishSteps();
                 upsertRunEvent(`visual-review:${chunk.stage}`, {
                   phase: 'reviewing',
                   title: chunk.stage === 'VERIFY_ONLY' ? 'Final visual verification' : 'Visual review',
@@ -2370,23 +2329,59 @@ function DrawioPageContent() {
               }
               if (chunk.type === 'review_result') {
                 outcome.decision = chunk.decision;
+                const reviewMessage = buildVisualReviewMessage({
+                  decision: chunk.decision,
+                  summary: chunk.content,
+                  issues: chunk.issues,
+                  autoRepairStarted: chunk.decision === 'REPAIR' && reviewRequest.stage === 'POST_MUTATION',
+                });
                 if (chunk.decision === 'REPAIR' && !activeAiMutationDiagramId) {
                   activeAiMutationDiagramId = reviewRequest.diagramId;
                   beginAiCanvasMutationForDiagram(reviewRequest.diagramId);
                 }
-                if (chunk.content) appendAgentMessageContent(chunk.content);
+                appendAgentMessageContent(reviewMessage);
+                const reviewDetail = chunk.decision === 'UNAVAILABLE'
+                  ? 'Visual review was unavailable; the current canvas was kept.'
+                  : chunk.decision === 'NEEDS_HUMAN_REVIEW'
+                    ? 'Human review is recommended; the canvas was not changed.'
+                    : chunk.decision === 'REPAIR'
+                      ? 'Visual issues found; starting one bounded repair.'
+                      : chunk.approved ? 'Rendered canvas passed.' : 'Rendered canvas needs attention.';
+                updateStep(reviewStepKey, 'visual_review', reviewStepLabel, reviewDetail, true, true);
+                publishSteps();
                 upsertRunEvent(`visual-review:${chunk.stage || reviewRequest.stage}`, {
                   phase: 'reviewing',
                   title: chunk.stage === 'VERIFY_ONLY' ? 'Final visual verification' : 'Visual review',
-                  detail: chunk.approved ? 'Rendered canvas passed.' : 'Rendered canvas needs attention.',
+                  detail: reviewDetail,
                   status: chunk.approved ? 'done' : 'warning',
                   tone: 'review',
                 });
+                if (chunk.decision === 'REPAIR') {
+                  const repairStepLabel = visualReviewStageLabel('REPAIR');
+                  updateStep('visual-repair', 'visual_repair', repairStepLabel, 'Applying the cited visual fixes.', false, true);
+                  publishSteps();
+                  upsertRunEvent('visual-repair', {
+                    phase: 'revising',
+                    title: 'Visual repair',
+                    detail: 'Applying the cited visual fixes.',
+                    status: 'running',
+                    tone: 'review',
+                  });
+                }
                 return;
               }
               if (chunk.type === 'review_stale') {
                 outcome.decision = 'STALE';
-                appendAgentMessageContent('The canvas changed, so the outdated visual review was skipped.');
+                appendAgentMessageContent(visualReviewStaleMessage);
+                updateStep(reviewStepKey, 'visual_review', reviewStepLabel, visualReviewStaleMessage, true, true);
+                publishSteps();
+                upsertRunEvent(`visual-review:${reviewRequest.stage}`, {
+                  phase: 'reviewing',
+                  title: reviewRequest.stage === 'VERIFY_ONLY' ? 'Final visual verification' : 'Visual review',
+                  detail: visualReviewStaleMessage,
+                  status: 'warning',
+                  tone: 'review',
+                });
                 return;
               }
               if (chunk.type === 'drawio_done' && Number.isFinite(chunk.version) && chunk.contentHash) {
@@ -2408,14 +2403,23 @@ function DrawioPageContent() {
                   imageBeforeRepair: reviewRequest.afterImageDataUrl,
                   loadPromise,
                 };
+                updateStep('visual-repair', 'visual_repair', visualReviewStageLabel('REPAIR'), 'Updated the canvas.', true, true);
+                publishSteps();
+                upsertRunEvent('visual-repair', {
+                  phase: 'revising',
+                  title: 'Visual repair',
+                  detail: 'Updated the canvas.',
+                  status: 'done',
+                  tone: 'review',
+                });
                 return;
               }
               if (chunk.type === 'error') {
-                appendAgentMessageContent('Visual review could not be completed. The current canvas was kept.');
+                showUnavailableReview();
               }
             },
             () => {
-              appendAgentMessageContent('Visual review could not be completed. The current canvas was kept.');
+              showUnavailableReview();
               finish();
             },
             finish,
@@ -2500,21 +2504,20 @@ function DrawioPageContent() {
             sourceRunId = chunk.runId || sourceRunId;
             return;
           }
+          if (chunk.type === 'route') {
+            // The router has selected the work path, so label the next visible steps accordingly.
+            activeRouteType = chunk.routeType;
+            setMessages(prev => prev.map(m => m.id === agentMsgId ? { ...m, routeType: activeRouteType } : m));
+            return;
+          }
           // Update phase display
-          const phaseLabel: Record<string, string> = {
-            analyzing: '🔍 Analyze request',
-            revising: '🛠 Plan revision',
-            drawing: '🎨 Draw diagram',
-            reviewing: '✅ Review quality',
-            thinking: '🤔 Thinking',
-          };
-          const currentPhaseLabel = phaseLabel[phase] || phaseLabel.thinking;
+          const currentPhaseLabel = thinkingPhaseLabel(activeRouteType, phase);
           let currentStep: { key: string; label: string } = { key: phase, label: currentPhaseLabel };
 
           if (phase !== 'done' && phase !== 'error') {
             const previousPhase = activeStreamPhase;
             currentStep = ensurePhaseStep(phase, currentPhaseLabel);
-            updateStep(currentStep.key, phase, currentStep.label, getPhaseStatusText(phase), false, true);
+            updateStep(currentStep.key, phase, currentStep.label, getVisibleStepDetail(phase), false, true);
             if (phase !== previousPhase) {
               finishEventsBeforePhase(phase);
               const phaseEvent = phaseRunEvent[phase] || phaseRunEvent.thinking;
@@ -2528,7 +2531,6 @@ function DrawioPageContent() {
             }
             if (phase !== activeStreamPhase) {
               activeStreamPhase = phase;
-              setStreamPhase(phase);
               publishSteps();
             } else if (phase !== previousPhase) {
               publishSteps();
@@ -2546,7 +2548,7 @@ function DrawioPageContent() {
               previewSkeletonXml = chunk.content;
               nodeCount = previewCounts.nodes;
               edgeCount = previewCounts.edges;
-              updateStep(currentStep.key, 'drawing', currentStep.label, getPhaseStatusText('drawing', 'Loaded preview skeleton'), false, true);
+              updateStep(currentStep.key, 'drawing', currentStep.label, getVisibleStepDetail('drawing'), false, true);
               upsertRunEvent('drawio:stream', {
                 phase: 'drawing',
                 title: 'Update canvas preview',
@@ -2556,7 +2558,6 @@ function DrawioPageContent() {
                 nodes: nodeCount,
                 edges: edgeCount,
               });
-              setStreamProgress('Loaded preview skeleton...');
               publishSteps();
               // A preview arriving after drawio_done opens a new draw pass; never replay it over
               // the finished canvas.
@@ -2586,7 +2587,7 @@ function DrawioPageContent() {
                   accumulatedNodes.push(chunk.xml);
                   hasIncrementalContent = true;
                   nodeCount = countDrawableCells(buildStreamingPreviewXml(accumulatedNodes, accumulatedEdges, previewSkeletonXml)).nodes;
-                  updateStep(currentStep.key, 'drawing', currentStep.label, getPhaseStatusText('drawing', `Added node #${nodeCount}: ${chunk.label}`), false, true);
+                  updateStep(currentStep.key, 'drawing', currentStep.label, getVisibleStepDetail('drawing'), false, true);
                   upsertRunEvent('drawio:stream', {
                     phase: 'drawing',
                     title: 'Update canvas preview',
@@ -2596,7 +2597,6 @@ function DrawioPageContent() {
                     nodes: nodeCount,
                     edges: edgeCount,
                   });
-                  setStreamProgress(`Added node #${nodeCount}: ${chunk.label}`);
                   publishSteps();
                   if (!suppressPreviewReplay) {
                     loadStreamingPreview(buildStreamingPreviewXml(accumulatedNodes, accumulatedEdges, previewSkeletonXml));
@@ -2625,7 +2625,7 @@ function DrawioPageContent() {
                   accumulatedEdges.push(chunk.xml);
                   hasIncrementalContent = true;
                   edgeCount = countDrawableCells(buildStreamingPreviewXml(accumulatedNodes, accumulatedEdges, previewSkeletonXml)).edges;
-                  updateStep(currentStep.key, 'drawing', currentStep.label, getPhaseStatusText('drawing', `Added edge #${edgeCount}: ${chunk.label || chunk.source + '→' + chunk.target}`), false, true);
+                  updateStep(currentStep.key, 'drawing', currentStep.label, getVisibleStepDetail('drawing'), false, true);
                   upsertRunEvent('drawio:stream', {
                     phase: 'drawing',
                     title: 'Update canvas preview',
@@ -2635,7 +2635,6 @@ function DrawioPageContent() {
                     nodes: nodeCount,
                     edges: edgeCount,
                   });
-                  setStreamProgress(`Added edge #${edgeCount}: ${chunk.label || chunk.source + '→' + chunk.target}`);
                   publishSteps();
                   if (!suppressPreviewReplay) {
                     loadStreamingPreview(buildStreamingPreviewXml(accumulatedNodes, accumulatedEdges, previewSkeletonXml));
@@ -2658,7 +2657,6 @@ function DrawioPageContent() {
               nodeCount = finalCounts.nodes;
               edgeCount = finalCounts.edges;
               finalXml = chunk.content;
-              setStreamProgress('🎨 Drawing complete. Loading the final diagram...');
               upsertRunEvent('drawio:done', {
                 phase,
                 title: 'drawio_done',
@@ -2670,7 +2668,7 @@ function DrawioPageContent() {
                 edges: edgeCount,
               });
               finishCanvasLoadEvents();
-              updateStep(currentStep.key, phase, currentStep.label, getPhaseStatusText(phase, 'Final canvas loaded'), true, true);
+              updateStep(currentStep.key, phase, currentStep.label, getVisibleStepDetail(phase, 'loaded'), true, true);
               publishSteps();
 
               // Reviewer may send the polished final diagram after the drawing stage.
@@ -2774,7 +2772,7 @@ function DrawioPageContent() {
                           if (parsed.content) {
                               displayContent = parsed.content;
                           }
-                      } catch (e) {
+                      } catch {
                           // Try regex extraction if JSON parse fails due to streaming fragmentation
                           const match = trimmedContent.match(/"content"\s*:\s*"([^"]+)"/);
                           if (match && match[1]) {
@@ -2815,62 +2813,43 @@ function DrawioPageContent() {
             }
 
             case 'status': {
-              // Intermediate status message
-              if (chunk.content) {
-                 const text = chunk.content.trim();
-                 // Keep execution steps readable: do not print long model text into the process panel.
-                 if (text !== '}' && text !== '{' && text !== ']' && text !== '[' && 
-                     !text.startsWith('```') && 
-                     !text.startsWith('"type":') &&
-                     !text.startsWith('"id":') &&
-                     !text.startsWith('"xml":') &&
-                     !text.startsWith('<mxCell') &&
-                     !text.startsWith('<mxGraphModel') &&
-                     !text.includes('"drawio_node"') &&
-                     !text.includes('"drawio_edge"') &&
-                     !text.includes('"drawio_done"')) {
-
-                     updateStep(currentStep.key, phase, currentStep.label, getPhaseStatusText(phase, text), false, true);
-                     setStreamProgress(text.substring(0, 50) + '...');
-                     publishSteps();
-                 }
-              }
+              // Raw model status may include process text, so it is intentionally not rendered in Thinking.
               break;
             }
 
             case 'review_result': {
-              const reviewText = chunk.approved ? 'Review passed. No changes needed.' : (chunk.content || 'Review found issues that need revision.');
-              if (chunk.content) {
-                appendAgentMessageContent(chunk.content);
-              }
+              const reviewDetail = chunk.approved ? 'Review passed.' : 'Review found changes to consider.';
+              appendAgentMessageContent(buildVisualReviewMessage({
+                decision: chunk.decision,
+                summary: chunk.content,
+                issues: chunk.issues,
+              }));
               upsertRunEvent('review:result', {
                 phase: 'reviewing',
                 title: 'review_result',
-                detail: reviewText,
+                detail: reviewDetail,
                 status: chunk.approved ? 'done' : 'warning',
                 tone: 'review',
                 nodes: nodeCount,
                 edges: edgeCount,
               });
-              updateStep(currentStep.key, 'reviewing', currentStep.label, getPhaseStatusText('reviewing', reviewText), chunk.approved, true);
-              setStreamProgress(reviewText.substring(0, 50) + '...');
+              updateStep(currentStep.key, 'reviewing', currentStep.label, getVisibleStepDetail('reviewing', chunk.approved ? 'passed' : 'needs_attention'), chunk.approved, true);
               publishSteps();
               break;
             }
 
             case 'validation_result': {
-              const validationDetail = getValidationDetail(chunk);
+              const validationStatus = getValidationStatus(chunk);
               upsertRunEvent('validation:result', {
                 phase: 'reviewing',
                 title: 'validate_diagram',
-                detail: validationDetail,
-                status: getValidationStatus(chunk),
+                detail: validationStatus === 'done' ? 'Diagram structure looks valid.' : 'Validation needs attention.',
+                status: validationStatus,
                 tone: 'validation',
                 tool: 'validate_diagram',
                 nodes: nodeCount,
                 edges: edgeCount,
               });
-              setStreamProgress(validationDetail.substring(0, 50) + '...');
               break;
             }
 
@@ -2894,7 +2873,6 @@ function DrawioPageContent() {
                 tone: 'review',
               });
               accumulatedContent += (accumulatedContent ? '\n\n' : '') + `❌ ${conflictMessage}`;
-              setStreamProgress(conflictMessage.substring(0, 50) + '...');
               setMessages(prev => prev.map(m => (
                 m.id === agentMsgId ? { ...m, content: accumulatedContent, steps: [...accumulatedSteps] } : m
               )));
@@ -2902,7 +2880,7 @@ function DrawioPageContent() {
             }
 
             case 'token': {
-              // Real-time token output
+              // Keep plain text only as a final-response fallback; it never appears in the Thinking UI.
               if (chunk.content) {
                   const text = chunk.content.trim();
                   // Only use token text for the small progress hint; the process panel stays compact.
@@ -2917,9 +2895,6 @@ function DrawioPageContent() {
                      !text.includes('"drawio_edge"') &&
                      !text.includes('"drawio_done"')) {
                       plainTextFallbackContent += chunk.content;
-                      if (text.length > 1) {
-                        setStreamProgress(text.substring(0, 50) + '...');
-                      }
 	                  }
               }
               break;
@@ -2947,7 +2922,6 @@ function DrawioPageContent() {
             case 'done': {
               // Stream completed explicitly by backend
               if (postDrawReviewPromise) {
-                setStreamPhase('reviewing');
                 break;
               }
               accumulatedSteps.forEach(s => { s.status = 'done'; });
@@ -2960,7 +2934,6 @@ function DrawioPageContent() {
                 setMessages(prev => prev.map(m => m.id === agentMsgId ? { ...m, steps: [...accumulatedSteps] } : m));
               }
               persistCurrentTurnConversation();
-              setStreamPhase(receivedVersionConflict ? 'error' : 'done');
               break;
             }
           }
@@ -2983,8 +2956,6 @@ function DrawioPageContent() {
           }
           
           setIsSending(false);
-          setStreamPhase('');
-          setStreamProgress('');
           void refreshCurrentAccount();
         },
         // onComplete
@@ -2994,7 +2965,6 @@ function DrawioPageContent() {
               finishAiCanvasMutationForDiagram(activeAiMutationDiagramId);
             }
             setIsSending(false);
-            setStreamPhase('');
             void refreshCurrentAccount();
             markRunEventsDone();
 
@@ -3031,8 +3001,6 @@ function DrawioPageContent() {
         timestamp: Date.now()
       }]);
       setIsSending(false);
-      setStreamPhase('');
-      setStreamProgress('');
     }
   };
 
@@ -3475,6 +3443,10 @@ function DrawioPageContent() {
                 isLatestRunningAgent,
               });
               const visibleExecutionSteps = getVisibleExecutionSteps(msg.steps, isLatestRunningAgent);
+              const thinkingSteps = msg.steps || [];
+              const currentThinkingStep = visibleExecutionSteps[visibleExecutionSteps.length - 1];
+              const hasThinking = msg.role === 'agent' && thinkingSteps.length > 0;
+              const routeLabel = thinkingRouteLabel(msg.routeType);
 
               return (
                 <div 
@@ -3497,35 +3469,36 @@ function DrawioPageContent() {
                           <AgentProgressMessage message={msg} isRunning={isLatestRunningAgent} />
                         )}
 
-                        {/* Steps / Reasoning Block */}
-                        {msg.role === 'agent' && (visibleExecutionSteps.length > 0 || (isLatestRunningAgent && msg.reasoning)) && (
+                        {/* Thinking stays prominent while live, then compacts into an inspectable trace after completion. */}
+                        {hasThinking && (
                           <div className="w-full max-w-full">
-                            <details className="w-full group/details open:pb-2" open={index === messages.length - 1 && isSending}>
-                              <summary className="inline-flex cursor-pointer select-none items-center gap-2 rounded-lg border border-stone-200 bg-white px-3 py-1.5 text-xs font-medium text-zinc-500 shadow-sm transition-all hover:border-stone-300 hover:text-zinc-700">
-                                 <Icons.Sparkles className="w-3.5 h-3.5 text-zinc-500" />
-                                 <span className="group-open/details:hidden">Show execution steps</span>
-                                 <span className="hidden group-open/details:inline">Hide execution steps</span>
+                            <details className="group/details w-full" open={isLatestRunningAgent}>
+                              <summary className="flex cursor-pointer list-none select-none items-center gap-2 rounded-lg px-1 py-1 text-xs font-medium text-zinc-500 transition-colors hover:bg-stone-100 hover:text-zinc-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-300">
+                                 {isLatestRunningAgent ? <Icons.Loader className="h-3.5 w-3.5 animate-spin text-zinc-600" /> : <Icons.Sparkles className="h-3.5 w-3.5 text-zinc-500" />}
+                                 <span className="text-zinc-700">{isLatestRunningAgent ? 'Thinking' : 'Thought process'}</span>
+                                 <span className="text-zinc-400">
+                                   {isLatestRunningAgent
+                                     ? currentThinkingStep?.label || 'Working through the request'
+                                     : `${routeLabel ? `${routeLabel} · ` : ''}${thinkingSteps.length || 1} step${thinkingSteps.length === 1 ? '' : 's'}`}
+                                 </span>
+                                 <span className="ml-auto text-zinc-400 group-open/details:hidden">Show</span>
+                                 <span className="ml-auto hidden text-zinc-400 group-open/details:inline">Hide</span>
                               </summary>
-                              <div className="mt-2 flex max-w-none flex-col gap-2 overflow-x-auto rounded-lg border border-stone-200 bg-stone-50 p-3 text-sm text-zinc-600 shadow-sm">
-                                 {visibleExecutionSteps.length > 0 ? (
-                                   visibleExecutionSteps.map((step, idx) => (
-                                     <div key={idx} className="flex flex-col gap-1.5 rounded-lg border border-stone-100 bg-white p-2 shadow-sm">
-                                         <div className="flex items-center gap-2 font-medium text-zinc-700">
-                                             <Icons.Loader className="w-3.5 h-3.5 text-zinc-500" />
-                                             <span>{step.label}</span>
-                                         </div>
-                                         {step.content && (
-                                             <div className="ml-1.5 border-l-2 border-stone-100 pl-6 text-xs text-zinc-500 prose prose-sm prose-zinc max-w-none prose-p:my-1 prose-pre:my-2 prose-pre:bg-stone-100 prose-pre:text-zinc-700">
-                                               <ReactMarkdown remarkPlugins={[remarkGfm]}>{formatStepContent(step.content, step.phase)}</ReactMarkdown>
-                                           </div>
-                                         )}
-                                     </div>
-                                   ))
-                                 ) : (
-                                   <div className="rounded-lg border border-stone-100 bg-white p-2 shadow-sm prose prose-sm prose-zinc max-w-none prose-p:my-1 prose-pre:my-2 prose-pre:bg-stone-100 prose-pre:text-zinc-700">
-                                     <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.reasoning || ''}</ReactMarkdown>
-                                   </div>
-                                 )}
+                              <div className="mt-2 border-l border-stone-200 pb-1 pl-3 text-sm text-zinc-600">
+                                {thinkingSteps.length > 0 ? thinkingSteps.map((step, idx) => (
+                                  <div key={`${step.phase}-${idx}`} className="relative pb-3 last:pb-0">
+                                    <span className={`absolute -left-[1.05rem] top-1 h-2 w-2 rounded-full border-2 border-[var(--app-bg)] ${step.status === 'running' ? 'animate-pulse bg-zinc-800' : 'bg-stone-300'}`} aria-hidden="true" />
+                                    <div className="flex items-center gap-2 text-xs">
+                                      <span className="font-medium text-zinc-700">{step.label}</span>
+                                      {step.status === 'running' && <span className="text-zinc-400">In progress</span>}
+                                    </div>
+                                    {step.content && (
+                                      <p className="mt-1 text-xs leading-relaxed text-zinc-500">{step.content.trim()}</p>
+                                    )}
+                                  </div>
+                                )) : (
+                                  <p className="text-xs leading-relaxed text-zinc-500">Working through the request.</p>
+                                )}
                               </div>
                             </details>
                           </div>

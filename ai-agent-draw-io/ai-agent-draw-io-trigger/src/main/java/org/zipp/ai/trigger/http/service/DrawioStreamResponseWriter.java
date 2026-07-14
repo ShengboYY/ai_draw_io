@@ -125,6 +125,19 @@ public class DrawioStreamResponseWriter {
                 .toList();
     }
 
+    /**
+     * Send the selected intent route before visible agent work so clients can describe the right process.
+     */
+    public void sendRoute(ResponseBodyEmitter emitter, String routeType) throws Exception {
+        com.alibaba.fastjson.JSONObject envelope = new com.alibaba.fastjson.JSONObject();
+        envelope.put("phase", "thinking");
+        com.alibaba.fastjson.JSONObject chunk = new com.alibaba.fastjson.JSONObject();
+        chunk.put("type", "route");
+        chunk.put("routeType", StringUtils.defaultString(routeType));
+        envelope.put("chunk", chunk);
+        emitter.send(envelope.toJSONString() + "\n");
+    }
+
     public void sendTypedError(ResponseBodyEmitter emitter, String code, String content) throws Exception {
         sendError(emitter, "error", code, content);
     }
