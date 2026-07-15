@@ -7,19 +7,32 @@ import org.dom4j.Element;
 import org.springframework.stereotype.Service;
 import org.zipp.ai.domain.agent.model.valobj.analysis.CanvasAnalysis;
 import org.zipp.ai.domain.agent.model.valobj.analysis.CanvasAnalysisIssue;
+import org.zipp.ai.domain.agent.model.valobj.analysis.CanvasAnalysisRequest;
 import org.zipp.ai.domain.agent.model.valobj.analysis.CanvasCellData;
+import org.zipp.ai.domain.agent.model.valobj.analysis.CanvasEvidenceSource;
+import org.zipp.ai.domain.agent.model.valobj.analysis.CanvasIssueCategory;
+import org.zipp.ai.domain.agent.model.valobj.analysis.CanvasIssueEvidence;
+import org.zipp.ai.domain.agent.model.valobj.analysis.CanvasIssueSeverity;
 import org.zipp.ai.domain.agent.model.valobj.analysis.CanvasIssueType;
 import org.zipp.ai.domain.agent.model.valobj.analysis.CanvasPointData;
+import org.zipp.ai.domain.agent.model.valobj.analysis.CanvasQualityIssue;
+import org.zipp.ai.domain.agent.model.valobj.analysis.CanvasRepairability;
 import org.zipp.ai.domain.agent.model.valobj.analysis.CanvasSummaryData;
+import org.zipp.ai.domain.agent.model.valobj.analysis.DiagramQualityProfile;
+import org.zipp.ai.domain.agent.model.valobj.analysis.DiagramType;
+import org.zipp.ai.domain.agent.model.valobj.analysis.LayoutFamily;
 
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Service
@@ -31,45 +44,94 @@ public class DefaultCanvasAnalyzer implements ICanvasAnalyzer {
     private static final double PORT_SAFE_MIN = 0.25D;
     private static final double PORT_SAFE_MAX = 0.75D;
     private static final double MIN_LABEL_LINE_OFFSET = 30D;
+    private final DiagramQualityProfileCatalog profileCatalog = new DiagramQualityProfileCatalog();
 
     @Override
     public CanvasAnalysis analyze(String mxGraphModelXml, String diagramType) {
+        // Temporary caller adapter: the typed request is the production implementation path.
+        return analyze(new CanvasAnalysisRequest(mxGraphModelXml, DiagramType.from(diagramType), null, null));
+    }
+
+    @Override
+    public CanvasAnalysis analyze(CanvasAnalysisRequest request) {
+        if (request == null) {
+            DiagramQualityProfile profile = profileCatalog.resolve(DiagramType.GENERIC);
+            return invalid("No canvas analysis request was provided.", DiagramType.GENERIC,
+                    profile.defaultLayoutFamily(), profile);
+        }
+        DiagramQualityProfile profile = profileCatalog.resolve(request.diagramType(), request.profileVersion());
+        return analyzeInternal(request.mxGraphModelXml(), request.layoutHint(), profile);
+    }
+
+    private CanvasAnalysis analyzeInternal(String mxGraphModelXml,
+                                           LayoutFamily layoutHint,
+                                           DiagramQualityProfile profile) {
         if (StringUtils.isBlank(mxGraphModelXml)) {
-            return invalid("No Draw.io XML was provided.");
+            return invalid("No Draw.io XML was provided.", profile.diagramType(),
+                    resolveLayoutFamily(profile, layoutHint, "grid"), profile);
         }
 
         try {
             Document document = DocumentHelper.parseText(toGraphModel(mxGraphModelXml));
             Element root = document.getRootElement().element("root");
             if (root == null) {
-                return invalid("mxGraphModel is missing a root element.");
+                return invalid("mxGraphModel is missing a root element.", profile.diagramType(),
+                        resolveLayoutFamily(profile, layoutHint, "grid"), profile);
             }
 
             List<CanvasCellData> cells = readCells(root);
             normalizeAbsoluteCoordinates(cells);
-            List<CanvasAnalysisIssue> issues = analyzeIssues(cells);
+            List<CanvasAnalysisIssue> issues = analyzeIssues(cells).stream()
+                    .filter(issue -> profile.enables(issue.getType()))
+                    .toList();
+            String layoutMode = resolveLayoutMode(cells);
+            LayoutFamily layoutFamily = resolveLayoutFamily(profile, layoutHint, layoutMode);
             return CanvasAnalysis.builder()
                     .valid(!hasBlockingIssue(issues))
                     .severity(resolveSeverity(issues))
-                    .layoutMode(resolveLayoutMode(cells))
+                    .layoutMode(layoutMode)
+                    .diagramType(profile.diagramType())
+                    .layoutFamily(layoutFamily)
+                    .profileVersion(profile.version())
                     .issues(issues)
+                    .qualityIssues(toQualityIssues(issues, profile))
                     .cells(cells)
                     .summary(summary(cells))
                     .build();
         } catch (Exception e) {
-            return invalid("The Draw.io XML could not be parsed: " + e.getMessage());
+            return invalid("The Draw.io XML could not be parsed: " + e.getMessage(), profile.diagramType(),
+                    resolveLayoutFamily(profile, layoutHint, "grid"), profile);
         }
     }
 
-    private CanvasAnalysis invalid(String message) {
-        return CanvasAnalysis.invalid("critical", issue(
+    private CanvasAnalysis invalid(String message,
+                                   DiagramType diagramType,
+                                   LayoutFamily layoutFamily,
+                                   DiagramQualityProfile profile) {
+        CanvasAnalysisIssue legacyIssue = issue(
                 CanvasIssueType.INVALID_XML,
                 "structure",
                 "critical",
                 List.of(),
                 message,
                 "none"
-        ));
+        );
+        return CanvasAnalysis.builder()
+                .valid(false)
+                .severity("critical")
+                .layoutMode("grid")
+                .diagramType(diagramType)
+                .layoutFamily(layoutFamily)
+                .profileVersion(profile.version())
+                .issues(List.of(legacyIssue))
+                .qualityIssues(toQualityIssues(List.of(legacyIssue), profile))
+                .cells(List.of())
+                .summary(CanvasSummaryData.builder()
+                        .nodeCount(0)
+                        .edgeCount(0)
+                        .summary("Canvas analysis failed.")
+                        .build())
+                .build();
     }
 
     private List<CanvasCellData> readCells(Element root) {
@@ -1301,6 +1363,63 @@ public class DefaultCanvasAnalyzer implements ICanvasAnalyzer {
                 .message(message)
                 .repairability(repairability)
                 .build();
+    }
+
+    private List<CanvasQualityIssue> toQualityIssues(List<CanvasAnalysisIssue> issues,
+                                                     DiagramQualityProfile profile) {
+        return issues.stream().map(issue -> toQualityIssue(issue, profile)).toList();
+    }
+
+    private CanvasQualityIssue toQualityIssue(CanvasAnalysisIssue issue,
+                                              DiagramQualityProfile profile) {
+        Set<String> targets = new LinkedHashSet<>(issue.getTargetCellIds() == null
+                ? List.of()
+                : issue.getTargetCellIds());
+        String fingerprint = issue.getType() + "|" + String.join(",", targets) + "|"
+                + StringUtils.defaultString(issue.getMessage());
+        CanvasRepairability repairability = typedRepairability(issue.getRepairability());
+        if ((repairability == CanvasRepairability.SAFE_AUTOMATIC
+                || repairability == CanvasRepairability.CONDITIONAL_AUTOMATIC)
+                && !profile.allowsAutomaticRepair(issue.getType())) {
+            repairability = CanvasRepairability.MODEL_ASSISTED;
+        }
+        return new CanvasQualityIssue(
+                "det-" + UUID.nameUUIDFromBytes(fingerprint.getBytes(StandardCharsets.UTF_8)),
+                issue.getType(),
+                CanvasIssueCategory.fromLegacy(issue.getCategory()),
+                CanvasIssueSeverity.fromLegacy(issue.getSeverity()),
+                repairability,
+                1D,
+                targets,
+                new CanvasIssueEvidence(CanvasEvidenceSource.DETERMINISTIC, issue.getType().name(),
+                        Map.of("legacyRepairability", StringUtils.defaultString(issue.getRepairability()))),
+                issue.getMessage(),
+                profile.version());
+    }
+
+    private CanvasRepairability typedRepairability(String repairability) {
+        return switch (StringUtils.defaultString(repairability)) {
+            case "auto_repair" -> CanvasRepairability.SAFE_AUTOMATIC;
+            case "auto_reroute" -> CanvasRepairability.CONDITIONAL_AUTOMATIC;
+            case "candidate" -> CanvasRepairability.MODEL_ASSISTED;
+            default -> CanvasRepairability.MANUAL_ONLY;
+        };
+    }
+
+    private LayoutFamily resolveLayoutFamily(DiagramQualityProfile profile,
+                                             LayoutFamily requestedLayout,
+                                             String inferredLayoutMode) {
+        if (requestedLayout != null && profile.allowedLayoutFamilies().contains(requestedLayout)) {
+            return requestedLayout;
+        }
+        LayoutFamily inferredLayout = switch (StringUtils.defaultString(inferredLayoutMode)) {
+            case "radial" -> LayoutFamily.RADIAL;
+            case "illustration" -> LayoutFamily.FREEFORM;
+            default -> profile.defaultLayoutFamily();
+        };
+        return profile.allowedLayoutFamilies().contains(inferredLayout)
+                ? inferredLayout
+                : profile.defaultLayoutFamily();
     }
 
     private String resolveSeverity(List<CanvasAnalysisIssue> issues) {

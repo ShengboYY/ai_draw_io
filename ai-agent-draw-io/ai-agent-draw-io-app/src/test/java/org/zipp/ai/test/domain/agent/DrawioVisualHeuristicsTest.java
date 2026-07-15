@@ -20,7 +20,9 @@ public class DrawioVisualHeuristicsTest {
     private final DrawioCanvasXmlToolkit toolkit = new DrawioCanvasXmlToolkit();
 
     private CanvasAnalysis analyze(String fragments) {
-        return analyzer.analyze(toolkit.toGraphModel(fragments), "unknown");
+        // These fixtures exercise directional grid rules, so they use the flowchart profile
+        // instead of the deliberately conservative generic/imported profile.
+        return analyzer.analyze(toolkit.toGraphModel(fragments), "flowchart");
     }
 
     private boolean hasIssue(CanvasAnalysis analysis, CanvasIssueType type) {

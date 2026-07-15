@@ -80,6 +80,11 @@ public class DrawioCanvasXmlToolkit {
         return canvasAnalyzer.analyze(xml, "unknown");
     }
 
+    /** Temporary compatibility for the deterministic repair pipeline; remove in Phase 3. */
+    CanvasAnalysis analyzeForLegacyRouting(String xml) {
+        return canvasAnalyzer.analyzeForLegacyRouting(xml);
+    }
+
     public List<OverlapInfo> detectOverlaps(String xml) {
         CanvasAnalysis analysis = analyze(xml);
         Map<String, CanvasCellData> cellsById = analysis.getCells().stream()
@@ -258,7 +263,7 @@ public class DrawioCanvasXmlToolkit {
      * path so incremental edits get the same geometry safety net as full-canvas mutations.
      */
     public String repairGeometryIfNeeded(String xml) {
-        CanvasAnalysis analysis = analyze(xml);
+        CanvasAnalysis analysis = analyzeForLegacyRouting(xml);
         Set<String> edgeIds = analysis.getCells().stream()
                 .filter(cell -> "edge".equals(cell.getKind()))
                 .map(CanvasCellData::getId)
@@ -702,7 +707,7 @@ public class DrawioCanvasXmlToolkit {
     }
 
     private boolean hasEdgeNodeCrossing(String xml, String edgeId) {
-        return canvasAnalyzer.analyze(xml, "unknown").getIssues().stream()
+        return analyzeForLegacyRouting(xml).getIssues().stream()
                 .anyMatch(issue -> CanvasIssueType.EDGE_NODE_CROSSING == issue.getType()
                         && !issue.getTargetCellIds().isEmpty()
                         && StringUtils.equals(edgeId, issue.getTargetCellIds().get(0)));

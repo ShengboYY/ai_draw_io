@@ -1,6 +1,7 @@
 package org.zipp.ai.test.domain.agent;
 
 import org.junit.Test;
+import org.zipp.ai.domain.agent.service.analysis.DefaultCanvasAnalyzer;
 import org.zipp.ai.domain.agent.service.armory.matter.mcp.server.DrawioCanvasMcpService;
 import org.zipp.ai.domain.agent.service.armory.matter.mcp.server.DrawioCanvasXmlToolkit;
 import org.zipp.ai.domain.agent.service.armory.matter.mcp.server.DrawioMutationResultPostProcessor;
@@ -112,7 +113,7 @@ public class DrawioMutationResultPostProcessorTest {
         request.setTargetEdgeIds(List.of("5"));
         DrawioCanvasXmlToolkit toolkit = new DrawioCanvasXmlToolkit();
         assertTrue("the regression needs an unrelated edge that the validator wants to reroute",
-                toolkit.analyze(currentXml).getIssues().stream()
+                new DefaultCanvasAnalyzer().analyze(currentXml, "flowchart").getIssues().stream()
                         .anyMatch(issue -> issue.getTargetCellIds().contains("6")
                                 && "auto_reroute".equals(issue.getRepairability())));
         String unrelatedEdgeBefore = toolkit.edgeCells(currentXml, Set.of("6"));

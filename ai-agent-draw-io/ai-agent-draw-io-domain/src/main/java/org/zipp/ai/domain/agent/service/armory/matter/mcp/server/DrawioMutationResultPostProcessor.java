@@ -57,7 +57,9 @@ public class DrawioMutationResultPostProcessor {
                 candidate = xmlToolkit.repairGeometryIfNeeded(xmlToolkit.autoRepair(candidate));
             }
         }
-        CanvasAnalysis analysis = xmlToolkit.analyze(candidate);
+        // The post-processor still belongs to the legacy deterministic repair path. Phase 3 will
+        // replace this with the routed diagram profile and remove the compatibility analysis.
+        CanvasAnalysis analysis = xmlToolkit.analyzeForLegacyRouting(candidate);
         processed.put("analysis", OBJECT_MAPPER.convertValue(
                 DrawioCanvasMcpService.CanvasAnalysisResponse.from(analysis), MAP_TYPE));
         processed.put("repairBrief", DrawioRepairBriefComposer.compose(analysis));

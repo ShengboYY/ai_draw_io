@@ -21,7 +21,15 @@ public class CanvasAnalysis {
      */
     private String layoutMode;
 
+    private DiagramType diagramType;
+
+    private LayoutFamily layoutFamily;
+
+    private String profileVersion;
+
     private List<CanvasAnalysisIssue> issues;
+
+    private List<CanvasQualityIssue> qualityIssues;
 
     private List<CanvasCellData> cells;
 
