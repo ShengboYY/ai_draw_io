@@ -284,6 +284,11 @@ public class DrawioStreamResponseWriter {
      * the update_cells renderer path, which tags the result mode=local for in-place frontend merge.
      */
     public boolean sendLocalCellPatch(ResponseBodyEmitter emitter, String phase, String currentCanvasXml, String cells) throws Exception {
+        return sendLocalCellPatch(emitter, phase, currentCanvasXml, cells, false);
+    }
+
+    public boolean sendLocalCellPatch(ResponseBodyEmitter emitter, String phase, String currentCanvasXml,
+                                      String cells, boolean preserveGeometryScope) throws Exception {
         String baseCanvasXml = StringUtils.defaultIfBlank(currentCanvasByEmitter.get(emitter), currentCanvasXml);
         if (StringUtils.isBlank(cells) || StringUtils.isBlank(baseCanvasXml)) {
             return false;
@@ -292,10 +297,12 @@ public class DrawioStreamResponseWriter {
         if (StringUtils.isBlank(merged)) {
             return false;
         }
-        // A localized patch can move a node or reroute an edge into another node's body; the model authors
-        // those coordinates blind. Give the patch path the same deterministic structure and geometry
-        // safety net as full mutations before the merged canvas is streamed.
-        merged = xmlToolkit.repairGeometryIfNeeded(xmlToolkit.autoRepair(merged));
+        // Mechanical normalization is safe for every patch. Only an explicitly scoped route repair
+        // may skip the general geometry pass, which can otherwise reroute unrelated edges.
+        merged = xmlToolkit.autoRepair(merged);
+        if (!preserveGeometryScope) {
+            merged = xmlToolkit.repairGeometryIfNeeded(merged);
+        }
         if (merged.equals(lastPatchByEmitter.get(emitter))) {
             return true; // Already emitted this exact merge for the stream; treat as handled, don't resend.
         }
@@ -303,6 +310,8 @@ public class DrawioStreamResponseWriter {
         com.alibaba.fastjson.JSONObject toolJson = new com.alibaba.fastjson.JSONObject();
         toolJson.put("type", DrawioCanvasToolNames.UPDATE_CELLS);
         toolJson.put("xml", merged);
+        // The merge above applied the operation-specific repair policy; the renderer must not widen it.
+        toolJson.put("geometryRepairComplete", true);
         processAndSendLine(emitter, phase, toolJson.toJSONString());
         return true;
     }
@@ -407,10 +416,19 @@ public class DrawioStreamResponseWriter {
         canvasStateContextByEmitter.put(emitter, new CanvasStateContext(userId, diagramId, expectedVersion, runId, spanId));
     }
 
-    private void sendDrawioDone(ResponseBodyEmitter emitter, String phase, String xml, boolean includeValidation, String mode) throws Exception {
-        // Deterministically repair mechanical XML mistakes and colliding edge routes/labels first;
-        // a draft is only held back when it stays unrenderable (unparseable or empty) after repair.
-        String repaired = xmlToolkit.repairGeometryIfNeeded(xmlToolkit.autoRepair(xml));
+    private void sendDrawioDone(ResponseBodyEmitter emitter, String phase, String xml,
+                                boolean includeValidation, String mode) throws Exception {
+        sendDrawioDone(emitter, phase, xml, includeValidation, mode, true);
+    }
+
+    private void sendDrawioDone(ResponseBodyEmitter emitter, String phase, String xml,
+                                boolean includeValidation, String mode, boolean applyGeometryRepair) throws Exception {
+        // Some mutation paths already own a bounded route/layout. Reapplying the general repair here
+        // would erase that scope, so only unprocessed create/modify candidates receive the safety pass.
+        String normalized = xmlToolkit.autoRepair(xml);
+        String repaired = applyGeometryRepair
+                ? xmlToolkit.repairGeometryIfNeeded(normalized)
+                : normalized;
         DrawioCanvasXmlToolkit.CanvasInspection inspection = xmlToolkit.inspect(repaired);
         if (inspection.isValid() || !isCriticalSeverity(inspection.getSeverity())) {
             xml = repaired;
@@ -621,7 +639,10 @@ public class DrawioStreamResponseWriter {
         for (com.alibaba.fastjson.JSONObject chunk : chunks) {
             String chunkType = chunk.getString("type");
             if ("drawio_done".equals(chunkType)) {
-                sendDrawioDone(emitter, phase, chunk.getString("content"), false, chunk.getString("mode"));
+                boolean applyGeometryRepair = !toolCall.getBooleanValue("geometryRepairComplete")
+                        && !DrawioCanvasToolNames.OPTIMIZE_DIAGRAM.equals(type);
+                sendDrawioDone(emitter, phase, chunk.getString("content"), false,
+                        chunk.getString("mode"), applyGeometryRepair);
                 continue;
             }
             if (!replayCells && isCellReplayChunk(chunkType)) {

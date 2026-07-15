@@ -166,17 +166,42 @@ public class DrawioCanvasMcpServiceTest {
     }
 
     @Test
-    public void shouldAttachAnalysisToOptimizedOutputAfterRouting() {
+    public void shouldAnalyzeLayoutOptimizeWithoutImplicitRerouting() {
         DrawioCanvasMcpService service = new DrawioCanvasMcpService();
         DrawioCanvasMcpService.OptimizeDiagramRequest request = new DrawioCanvasMcpService.OptimizeDiagramRequest();
+        request.setMode("layout_optimize");
         request.setXml(edgeCrossingGraphXml());
 
         DrawioCanvasMcpService.DrawioMutationResponse response = service.optimizeDiagram(request);
 
         assertEquals("drawio_done", response.getType());
         assertEquals("validation_result", response.getAnalysis().getType());
-        assertFalse(response.getAnalysis().getIssues().stream()
+        assertTrue(response.getAnalysis().getIssues().stream()
                 .anyMatch(issue -> "EDGE_NODE_CROSSING".equals(issue.getType()) && issue.getTargetCellIds().equals(List.of("5", "4"))));
+    }
+
+    @Test
+    public void shouldPreserveDrawerWaypointsDuringLayoutOptimize() {
+        DrawioCanvasMcpService service = new DrawioCanvasMcpService();
+        DrawioCanvasMcpService.OptimizeDiagramRequest request = new DrawioCanvasMcpService.OptimizeDiagramRequest();
+        request.setMode("layout_optimize");
+        String drawerXml = """
+                <mxGraphModel><root><mxCell id='0'/><mxCell id='1' parent='0'/>
+                <mxCell id='2' value='Main step' vertex='1' parent='1'><mxGeometry x='420' y='360' width='160' height='70' as='geometry'/></mxCell>
+                <mxCell id='3' value='Failure' vertex='1' parent='1'><mxGeometry x='720' y='360' width='160' height='70' as='geometry'/></mxCell>
+                <mxCell id='22' value='retry' style='edgeStyle=orthogonalEdgeStyle;dashed=1;exitX=1;exitY=0.5;entryX=1;entryY=0.5;' edge='1' parent='1' source='3' target='2'>
+                    <mxGeometry relative='1' as='geometry'><Array as='points'><mxPoint x='930' y='395'/><mxPoint x='930' y='300'/><mxPoint x='620' y='300'/></Array></mxGeometry>
+                </mxCell>
+                </root></mxGraphModel>
+                """;
+        request.setXml(drawerXml);
+
+        DrawioCanvasMcpService.DrawioMutationResponse response = service.optimizeDiagram(request);
+
+        assertEquals("drawio_done", response.getType());
+        DrawioCanvasXmlToolkit toolkit = new DrawioCanvasXmlToolkit();
+        assertEquals(toolkit.edgeCells(drawerXml, Set.of("22")),
+                toolkit.edgeCells(response.getContent(), Set.of("22")));
     }
 
     @Test

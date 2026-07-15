@@ -47,9 +47,16 @@ public class DrawioMutationResultPostProcessor {
             return new ProcessResult(processed, false);
         }
 
-        // Match the stream writer's deterministic safety pass so the drawer, persisted canvas,
-        // and eventual VLM screenshot all refer to the same candidate.
-        candidate = xmlToolkit.repairGeometryIfNeeded(xmlToolkit.autoRepair(candidate));
+        if (!isRouteOnly(toolName, args)) {
+            if (DrawioCanvasToolNames.OPTIMIZE_DIAGRAM.equals(toolName)) {
+                // layout_optimize already owns the accepted layout. Re-running geometry repair here
+                // would overwrite its waypoints; only mechanical normalization remains allowed.
+                candidate = xmlToolkit.autoRepair(candidate);
+            } else {
+                // Match the stream writer's deterministic safety pass for create/modify mutations.
+                candidate = xmlToolkit.repairGeometryIfNeeded(xmlToolkit.autoRepair(candidate));
+            }
+        }
         CanvasAnalysis analysis = xmlToolkit.analyze(candidate);
         processed.put("analysis", OBJECT_MAPPER.convertValue(
                 DrawioCanvasMcpService.CanvasAnalysisResponse.from(analysis), MAP_TYPE));
@@ -58,6 +65,12 @@ public class DrawioMutationResultPostProcessor {
             state.put(DRAFT_DIAGRAM_STATE_KEY, candidate);
         }
         return new ProcessResult(processed, true);
+    }
+
+    private boolean isRouteOnly(String toolName, Map<String, Object> args) {
+        return DrawioCanvasToolNames.OPTIMIZE_DIAGRAM.equals(toolName)
+                && args != null
+                && "route_only".equals(stringValue(args.get("mode")).trim());
     }
 
     private String canonicalCandidate(Map<String, Object> args,

@@ -2,11 +2,13 @@ package org.zipp.ai.test.domain.agent;
 
 import org.junit.Test;
 import org.zipp.ai.domain.agent.service.armory.matter.mcp.server.DrawioCanvasMcpService;
+import org.zipp.ai.domain.agent.service.armory.matter.mcp.server.DrawioCanvasXmlToolkit;
 import org.zipp.ai.domain.agent.service.armory.matter.mcp.server.DrawioMutationResultPostProcessor;
 
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -86,5 +88,50 @@ public class DrawioMutationResultPostProcessorTest {
         assertTrue(canonical.contains("style=\"edgeStyle=orthogonalEdgeStyle;exitX=0;exitY=0.5;entryX=1;entryY=0.5;\""));
         assertTrue(canonical.contains("<mxPoint x=\"320\" y=\"500\"/>"));
         assertTrue(canonical.contains("<mxPoint x=\"160\" y=\"500\"/>"));
+    }
+
+    @Test
+    public void routeOnlyPostProcessingDoesNotRepairAnUnrelatedProblemEdge() {
+        String currentXml = """
+                <mxGraphModel><root><mxCell id='0'/><mxCell id='1' parent='0'/>
+                <mxCell id='2' value='Source' vertex='1' parent='1'><mxGeometry x='40' y='120' width='80' height='60' as='geometry'/></mxCell>
+                <mxCell id='3' value='Target' vertex='1' parent='1'><mxGeometry x='360' y='120' width='80' height='60' as='geometry'/></mxCell>
+                <mxCell id='4' value='Top blocker' vertex='1' parent='1'><mxGeometry x='210' y='110' width='80' height='80' as='geometry'/></mxCell>
+                <mxCell id='5' value='' edge='1' parent='1' source='2' target='3'><mxGeometry relative='1' as='geometry'/></mxCell>
+                <mxCell id='7' value='Retry source' vertex='1' parent='1'><mxGeometry x='40' y='360' width='80' height='60' as='geometry'/></mxCell>
+                <mxCell id='8' value='Retry target' vertex='1' parent='1'><mxGeometry x='360' y='360' width='80' height='60' as='geometry'/></mxCell>
+                <mxCell id='9' value='Bottom blocker' vertex='1' parent='1'><mxGeometry x='210' y='350' width='80' height='80' as='geometry'/></mxCell>
+                <mxCell id='6' value='manual return' style='edgeStyle=orthogonalEdgeStyle;exitX=1;exitY=0.5;entryX=0;entryY=0.5;' edge='1' parent='1' source='7' target='8'>
+                    <mxGeometry relative='1' as='geometry'><Array as='points'><mxPoint x='160' y='390'/><mxPoint x='320' y='390'/></Array></mxGeometry>
+                </mxCell>
+                </root></mxGraphModel>
+                """;
+        DrawioCanvasMcpService.OptimizeDiagramRequest request = new DrawioCanvasMcpService.OptimizeDiagramRequest();
+        request.setMode("route_only");
+        request.setXml(currentXml);
+        request.setTargetEdgeIds(List.of("5"));
+        DrawioCanvasXmlToolkit toolkit = new DrawioCanvasXmlToolkit();
+        assertTrue("the regression needs an unrelated edge that the validator wants to reroute",
+                toolkit.analyze(currentXml).getIssues().stream()
+                        .anyMatch(issue -> issue.getTargetCellIds().contains("6")
+                                && "auto_reroute".equals(issue.getRepairability())));
+        String unrelatedEdgeBefore = toolkit.edgeCells(currentXml, Set.of("6"));
+        DrawioCanvasMcpService.DrawioMutationResponse toolResponse =
+                new DrawioCanvasMcpService().optimizeDiagram(request);
+        Map<String, Object> state = new HashMap<>();
+        state.put(DrawioMutationResultPostProcessor.DRAFT_DIAGRAM_STATE_KEY, currentXml);
+        Map<String, Object> response = new HashMap<>();
+        response.put("type", toolResponse.getType());
+        response.put("cells", toolResponse.getCells());
+
+        new DrawioMutationResultPostProcessor().process(
+                "optimize_diagram",
+                Map.of("mode", "route_only", "targetEdgeIds", List.of("5")),
+                response,
+                state);
+
+        String canonical = String.valueOf(state.get(DrawioMutationResultPostProcessor.DRAFT_DIAGRAM_STATE_KEY));
+        assertEquals("route_only must preserve a non-target edge even when it has its own issue",
+                unrelatedEdgeBefore, toolkit.edgeCells(canonical, Set.of("6")));
     }
 }

@@ -5,6 +5,7 @@ import org.springframework.web.servlet.mvc.method.annotation.ResponseBodyEmitter
 import org.zipp.ai.domain.agent.model.valobj.canvas.CanvasState;
 import org.zipp.ai.domain.agent.model.valobj.canvas.CanvasStateVersionConflictException;
 import org.zipp.ai.domain.agent.service.ICanvasStateStore;
+import org.zipp.ai.domain.agent.service.armory.matter.mcp.server.DrawioCanvasXmlToolkit;
 import org.zipp.ai.domain.agent.service.usage.AgentUsageTelemetryService;
 import org.zipp.ai.test.domain.agent.FakeAgentUsageTelemetryStore;
 import org.zipp.ai.trigger.http.service.DrawioStreamResponseWriter;
@@ -15,6 +16,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.time.Clock;
 
 import static org.junit.Assert.assertEquals;
@@ -298,6 +300,95 @@ public class DrawioStreamResponseWriterTest {
         assertEquals(Long.valueOf(3L), canvasStateStore.saved.getVersion());
         assertTrue(canvasStateStore.saved.getCurrentXml().contains("API v2"));
         assertFalse(canvasStateStore.saved.getCurrentXml().contains("value='API'"));
+    }
+
+    @Test
+    public void shouldNotRerouteUnrelatedEdgesWhenStreamingAnEdgeOnlyPatch() throws Exception {
+        DrawioStreamResponseWriter writer = new DrawioStreamResponseWriter(new DrawioToolCallRenderer());
+        CapturingCanvasStateStore canvasStateStore = new CapturingCanvasStateStore();
+        injectCanvasStateStore(writer, canvasStateStore);
+        CapturingEmitter emitter = new CapturingEmitter();
+        writer.setCanvasStateContext(emitter, "alice", "diagram-1", 3L);
+        String currentXml = """
+                <mxGraphModel><root><mxCell id='0'/><mxCell id='1' parent='0'/>
+                <mxCell id='2' value='Source' vertex='1' parent='1'><mxGeometry x='40' y='120' width='80' height='60' as='geometry'/></mxCell>
+                <mxCell id='3' value='Target' vertex='1' parent='1'><mxGeometry x='360' y='120' width='80' height='60' as='geometry'/></mxCell>
+                <mxCell id='4' value='Top blocker' vertex='1' parent='1'><mxGeometry x='210' y='110' width='80' height='80' as='geometry'/></mxCell>
+                <mxCell id='5' value='' edge='1' parent='1' source='2' target='3'><mxGeometry relative='1' as='geometry'/></mxCell>
+                <mxCell id='7' value='Retry source' vertex='1' parent='1'><mxGeometry x='40' y='360' width='80' height='60' as='geometry'/></mxCell>
+                <mxCell id='8' value='Retry target' vertex='1' parent='1'><mxGeometry x='360' y='360' width='80' height='60' as='geometry'/></mxCell>
+                <mxCell id='9' value='Bottom blocker' vertex='1' parent='1'><mxGeometry x='210' y='350' width='80' height='80' as='geometry'/></mxCell>
+                <mxCell id='6' value='manual return' style='edgeStyle=orthogonalEdgeStyle;exitX=1;exitY=0.5;entryX=0;entryY=0.5;' edge='1' parent='1' source='7' target='8'>
+                    <mxGeometry relative='1' as='geometry'><Array as='points'><mxPoint x='160' y='390'/><mxPoint x='320' y='390'/></Array></mxGeometry>
+                </mxCell>
+                </root></mxGraphModel>
+                """;
+        writer.setCurrentCanvas(emitter, currentXml);
+        DrawioCanvasXmlToolkit toolkit = new DrawioCanvasXmlToolkit();
+        String unrelatedEdgeBefore = toolkit.edgeCells(currentXml, Set.of("6"));
+
+        writer.sendLocalCellPatch(emitter, "drawing", currentXml,
+                "<mxCell id='5' value='' style='edgeStyle=orthogonalEdgeStyle;exitX=1;exitY=0.5;entryX=0;entryY=0.5;' edge='1' parent='1' source='2' target='3'><mxGeometry relative='1' as='geometry'><Array as='points'><mxPoint x='160' y='80'/><mxPoint x='320' y='80'/></Array></mxGeometry></mxCell>",
+                true);
+        writer.flushPendingDiagram(emitter, "done");
+
+        assertEquals("an edge-only patch must not repair another edge as a side effect",
+                unrelatedEdgeBefore, toolkit.edgeCells(canvasStateStore.saved.getCurrentXml(), Set.of("6")));
+    }
+
+    @Test
+    public void shouldMechanicallyRepairAnOrdinaryEdgePatch() throws Exception {
+        DrawioStreamResponseWriter writer = new DrawioStreamResponseWriter(new DrawioToolCallRenderer());
+        CapturingCanvasStateStore canvasStateStore = new CapturingCanvasStateStore();
+        injectCanvasStateStore(writer, canvasStateStore);
+        CapturingEmitter emitter = new CapturingEmitter();
+        writer.setCanvasStateContext(emitter, "alice", "diagram-1", 3L);
+        String currentXml = """
+                <mxGraphModel><root><mxCell id='0'/><mxCell id='1' parent='0'/>
+                <mxCell id='2' value='Source' vertex='1' parent='1'><mxGeometry x='40' y='120' width='80' height='60' as='geometry'/></mxCell>
+                <mxCell id='3' value='Target' vertex='1' parent='1'><mxGeometry x='360' y='120' width='80' height='60' as='geometry'/></mxCell>
+                <mxCell id='5' edge='1' parent='1' source='2' target='3'><mxGeometry relative='1' as='geometry'/></mxCell>
+                </root></mxGraphModel>
+                """;
+
+        writer.sendLocalCellPatch(emitter, "drawing", currentXml,
+                "<mxCell id='5' edge='1' parent='1' source='2' target='3'/>");
+        writer.flushPendingDiagram(emitter, "done");
+
+        assertTrue(new DrawioCanvasXmlToolkit().edgeCells(
+                canvasStateStore.saved.getCurrentXml(), Set.of("5")).contains("<mxGeometry"));
+    }
+
+    @Test
+    public void shouldPersistLayoutOptimizeWithoutReroutingItsWaypoints() throws Exception {
+        DrawioStreamResponseWriter writer = new DrawioStreamResponseWriter(new DrawioToolCallRenderer());
+        CapturingCanvasStateStore canvasStateStore = new CapturingCanvasStateStore();
+        injectCanvasStateStore(writer, canvasStateStore);
+        CapturingEmitter emitter = new CapturingEmitter();
+        writer.setCanvasStateContext(emitter, "alice", "diagram-1", 3L);
+        String optimizedXml = """
+                <mxGraphModel><root><mxCell id='0'/><mxCell id='1' parent='0'/>
+                <mxCell id='2' value='Main step' vertex='1' parent='1'><mxGeometry x='420' y='360' width='160' height='70' as='geometry'/></mxCell>
+                <mxCell id='3' value='Failure' vertex='1' parent='1'><mxGeometry x='720' y='360' width='160' height='70' as='geometry'/></mxCell>
+                <mxCell id='22' value='retry' style='edgeStyle=orthogonalEdgeStyle;dashed=1;exitX=1;exitY=0.5;entryX=1;entryY=0.5;' edge='1' parent='1' source='3' target='2'>
+                    <mxGeometry relative='1' as='geometry'><Array as='points'><mxPoint x='930' y='395'/><mxPoint x='930' y='300'/><mxPoint x='620' y='300'/></Array></mxGeometry>
+                </mxCell>
+                <mxCell id='23' value='fallback' edge='1' parent='1' source='2' target='3'/>
+                </root></mxGraphModel>
+                """;
+        writer.setCurrentCanvas(emitter, optimizedXml);
+        com.alibaba.fastjson.JSONObject toolResult = new com.alibaba.fastjson.JSONObject();
+        toolResult.put("type", "optimize_diagram");
+        toolResult.put("xml", optimizedXml);
+
+        writer.processAndSendLine(emitter, "drawing", toolResult.toJSONString());
+        writer.flushPendingDiagram(emitter, "done");
+
+        DrawioCanvasXmlToolkit toolkit = new DrawioCanvasXmlToolkit();
+        assertEquals(toolkit.edgeCells(optimizedXml, Set.of("22")),
+                toolkit.edgeCells(canvasStateStore.saved.getCurrentXml(), Set.of("22")));
+        assertTrue(toolkit.edgeCells(canvasStateStore.saved.getCurrentXml(), Set.of("23"))
+                .contains("<mxGeometry"));
     }
 
     @Test

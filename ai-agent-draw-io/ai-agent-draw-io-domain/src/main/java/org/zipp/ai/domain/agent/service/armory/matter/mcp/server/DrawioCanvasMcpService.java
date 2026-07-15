@@ -135,7 +135,9 @@ public class DrawioCanvasMcpService {
         }
         String content = routeOnly
                 ? xmlToolkit.routeEdges(sourceXml, targetEdgeIds)
-                : xmlToolkit.routeEdges(sourceXml);
+                // layout_optimize is a complete Drawer-authored layout; normalize structural XML
+                // without recomputing routes or discarding its explicit waypoint decisions.
+                : xmlToolkit.autoRepair(sourceXml);
         DrawioMutationResponse response = routeOnly
                 ? edgePatchResponse(xmlToolkit.edgeCells(content, targetEdgeIds), content)
                 : drawioMutationDone(content);

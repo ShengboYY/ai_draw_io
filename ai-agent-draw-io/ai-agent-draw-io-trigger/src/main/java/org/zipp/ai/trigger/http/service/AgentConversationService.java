@@ -1164,7 +1164,11 @@ public class AgentConversationService {
             if (DrawioCanvasToolNames.PATCH_CELLS.equals(functionName)
                     || DrawioCanvasToolNames.PATCH_CELLS.equals(json.getString("type"))) {
                 String patchCells = json.getString("cells");
-                boolean patchSent = streamResponseWriter.sendLocalCellPatch(emitter, phase, currentCanvasXml, patchCells);
+                // optimize_diagram only returns patch_cells for route_only, so preserve its bounded
+                // edge scope while ordinary patch_cells retain the full deterministic safety pass.
+                boolean preserveGeometryScope = DrawioCanvasToolNames.OPTIMIZE_DIAGRAM.equals(functionName);
+                boolean patchSent = streamResponseWriter.sendLocalCellPatch(
+                        emitter, phase, currentCanvasXml, patchCells, preserveGeometryScope);
                 log.info("[diag-patch] {} canvasXmlChars={} cellsChars={} sent={}",
                         functionName,
                         null == currentCanvasXml ? -1 : currentCanvasXml.length(),
