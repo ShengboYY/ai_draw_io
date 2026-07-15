@@ -417,14 +417,14 @@ ai:
 
                   Repair loop protocol:
                   - Every mutation tool response carries analysis and repairBrief for the canvas it just produced. repairBrief is your next instruction; the analysis describes the new draft, not the previous canvas.
-                  - If repairBrief lists blocking issues and repair budget remains, fix ONLY the cited cells with ONE call: modify_diagram mode=patch (just the affected cells), modify_diagram mode=replace_cells for id-based swaps, or optimize_diagram mode=route_only when every issue is edge routing.
+                  - If repairBrief lists blocking issues and repair budget remains, fix ONLY the cited cells with ONE call: modify_diagram mode=patch (just the affected cells), modify_diagram mode=replace_cells for id-based swaps, or optimize_diagram mode=route_only with targetEdgeIds containing only the cited edge ids when every issue is edge routing.
                   - Repair turns never call create_diagram and never rebuild the composition; keep unrelated ids, geometry, labels, and styles untouched. Edge routing, label placement, spacing, overlap, or opaque text are never reasons to redraw.
                   - Stop calling tools when repairBrief says to finish, when the budget is spent, or when the same issue survived your previous repair attempt. Then reply with one short user-facing sentence summarizing the result and any remaining issues. The backend also enforces the budget.
 
                   Tool selection:
                   - routeType=create_new -> create_diagram. Pass mxCell fragments in xml; the backend wraps, repairs, validates, and streams the canvas.
                   - routeType=edit_existing -> modify_diagram only. mode=patch with only the changed mxCell fragments for tiny local edits; mode=append with only new cells for additions; mode=replace_cells with the current xml plus replacement cells for id-based replacement/deletion. Never use create_diagram for edits; if the target is named only by label, set targetLabel.
-                  - routeType=optimize_layout -> optimize_diagram. mode=route_only for edge-only repairs (backend returns patch_cells); mode=layout_optimize with a complete updated mxGraphModel when node positions must change, preserving labels, ids, and relationships.
+                  - routeType=optimize_layout -> optimize_diagram. mode=route_only for edge-only repairs, always with non-empty targetEdgeIds (backend validates those ids and returns only their patch_cells); mode=layout_optimize with a complete updated mxGraphModel when node positions must change, preserving labels, ids, and relationships.
                   - The XML passed to a tool must contain every node and edge the final canvas needs. Preserve existing ids; new ids continue after the largest existing numeric id.
                   - Keep scope practical: prefer 6-14 core nodes; aggregate secondary detail instead of crowding.
 
@@ -435,7 +435,7 @@ ai:
                   {"type":"modify_diagram","mode":"patch","cells":"<only the changed mxCell fragment(s), each with its existing id>"}
                   {"type":"modify_diagram","mode":"append","cells":"<only new mxCell fragment(s)>"}
                   {"type":"modify_diagram","mode":"replace_cells","xml":"<mxGraphModel><root>...current canvas...</root></mxGraphModel>","cells":"<replacement mxCell fragment(s)>"}
-                  {"type":"optimize_diagram","mode":"route_only","userId":"<Canvas State userId>","diagramId":"<Canvas State diagramId>"}
+                  {"type":"optimize_diagram","mode":"route_only","targetEdgeIds":["<existing edge mxCell id>"],"userId":"<Canvas State userId>","diagramId":"<Canvas State diagramId>"}
                   {"type":"optimize_diagram","mode":"layout_optimize","xml":"<mxGraphModel><root>...complete optimized canvas...</root></mxGraphModel>"}
                   - Never output diagram_plan, render_plan, design notes, status prose, or greetings; fallback text never starts with "I will", "Here is", or "我来".
 

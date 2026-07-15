@@ -1,5 +1,7 @@
 package org.zipp.ai.test.domain.agent;
 
+import org.dom4j.DocumentHelper;
+import org.dom4j.Element;
 import org.junit.Test;
 import org.zipp.ai.domain.agent.model.valobj.analysis.CanvasAnalysis;
 import org.zipp.ai.domain.agent.model.valobj.analysis.CanvasAnalysisIssue;
@@ -187,8 +189,43 @@ public class CanvasAnalyzerTest {
                 </root></mxGraphModel>
                 """;
 
-        assertNotEquals("a crossing patch should be rerouted", crossing, toolkit.repairGeometryIfNeeded(crossing));
+        String repaired = toolkit.repairGeometryIfNeeded(crossing);
+        assertNotEquals("a crossing patch should be rerouted", crossing, repaired);
+        assertEquals("a completed deterministic repair must be idempotent",
+                repaired, toolkit.repairGeometryIfNeeded(repaired));
         assertEquals("a clean patch should pass through untouched", clean, toolkit.repairGeometryIfNeeded(clean));
+    }
+
+    @Test
+    public void repairGeometryIfNeededPreservesAnUnrelatedManualRoute() throws Exception {
+        DrawioCanvasXmlToolkit toolkit = new DrawioCanvasXmlToolkit();
+        String xml = """
+                <mxGraphModel><root><mxCell id='0'/><mxCell id='1' parent='0'/>
+                <mxCell id='2' value='Source' vertex='1' parent='1'><mxGeometry x='40' y='120' width='80' height='60' as='geometry'/></mxCell>
+                <mxCell id='3' value='Target' vertex='1' parent='1'><mxGeometry x='360' y='120' width='80' height='60' as='geometry'/></mxCell>
+                <mxCell id='4' value='Blocker' vertex='1' parent='1'><mxGeometry x='210' y='110' width='80' height='80' as='geometry'/></mxCell>
+                <mxCell id='5' value='primary' edge='1' parent='1' source='2' target='3'><mxGeometry relative='1' as='geometry'/></mxCell>
+                <mxCell id='7' value='Retry source' vertex='1' parent='1'><mxGeometry x='360' y='360' width='80' height='60' as='geometry'/></mxCell>
+                <mxCell id='8' value='Retry target' vertex='1' parent='1'><mxGeometry x='40' y='360' width='80' height='60' as='geometry'/></mxCell>
+                <mxCell id='6' value='' style='edgeStyle=orthogonalEdgeStyle;exitX=0;exitY=0.5;entryX=1;entryY=0.5;' edge='1' parent='1' source='7' target='8'>
+                    <mxGeometry relative='1' as='geometry'><Array as='points'><mxPoint x='320' y='500'/><mxPoint x='160' y='500'/></Array></mxGeometry>
+                </mxCell>
+                </root></mxGraphModel>
+                """;
+
+        String repaired = toolkit.repairGeometryIfNeeded(xml);
+        Element manualEdge = cell(repaired, "6");
+
+        assertEquals("an unrelated edge must keep the Drawer-authored ports",
+                "edgeStyle=orthogonalEdgeStyle;exitX=0;exitY=0.5;entryX=1;entryY=0.5;",
+                manualEdge.attributeValue("style"));
+        List<?> points = manualEdge.element("mxGeometry").element("Array").elements("mxPoint");
+        Element first = (Element) points.get(0);
+        Element second = (Element) points.get(1);
+        assertEquals("320", first.attributeValue("x"));
+        assertEquals("500", first.attributeValue("y"));
+        assertEquals("160", second.attributeValue("x"));
+        assertEquals("500", second.attributeValue("y"));
     }
 
     @Test
@@ -393,5 +430,15 @@ public class CanvasAnalyzerTest {
         assertFalse("Did not expect issue " + type + " with targets " + targetCellIds,
                 issues.stream().anyMatch(issue ->
                         type == issue.getType() && issue.getTargetCellIds().equals(targetCellIds)));
+    }
+
+    private Element cell(String xml, String id) throws Exception {
+        for (Object item : DocumentHelper.parseText(xml).getRootElement().element("root").elements("mxCell")) {
+            Element cell = (Element) item;
+            if (id.equals(cell.attributeValue("id"))) {
+                return cell;
+            }
+        }
+        throw new AssertionError("Cell not found: " + id);
     }
 }

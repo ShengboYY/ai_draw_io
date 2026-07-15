@@ -1,11 +1,14 @@
 package org.zipp.ai.test.domain.agent;
 
 import org.junit.Test;
+import org.zipp.ai.domain.agent.service.armory.matter.mcp.server.DrawioCanvasMcpService;
 import org.zipp.ai.domain.agent.service.armory.matter.mcp.server.DrawioMutationResultPostProcessor;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
@@ -38,5 +41,50 @@ public class DrawioMutationResultPostProcessorTest {
         assertFalse(processed.containsKey("content"));
         assertNotNull(processed.get("analysis"));
         assertNotNull(processed.get("repairBrief"));
+    }
+
+    @Test
+    public void scopedRouteOnlyPreservesManualWaypointsThroughPostProcessing() {
+        String currentXml = """
+                <mxGraphModel><root><mxCell id='0'/><mxCell id='1' parent='0'/>
+                <mxCell id='2' value='Source' vertex='1' parent='1'><mxGeometry x='40' y='120' width='80' height='60' as='geometry'/></mxCell>
+                <mxCell id='3' value='Target' vertex='1' parent='1'><mxGeometry x='360' y='120' width='80' height='60' as='geometry'/></mxCell>
+                <mxCell id='4' value='Blocker' vertex='1' parent='1'><mxGeometry x='210' y='110' width='80' height='80' as='geometry'/></mxCell>
+                <mxCell id='5' value='' edge='1' parent='1' source='2' target='3'><mxGeometry relative='1' as='geometry'/></mxCell>
+                <mxCell id='7' value='Retry source' vertex='1' parent='1'><mxGeometry x='360' y='360' width='80' height='60' as='geometry'/></mxCell>
+                <mxCell id='8' value='Retry target' vertex='1' parent='1'><mxGeometry x='40' y='360' width='80' height='60' as='geometry'/></mxCell>
+                <mxCell id='6' value='' style='edgeStyle=orthogonalEdgeStyle;exitX=0;exitY=0.5;entryX=1;entryY=0.5;' edge='1' parent='1' source='7' target='8'>
+                    <mxGeometry relative='1' as='geometry'><Array as='points'><mxPoint x='320' y='500'/><mxPoint x='160' y='500'/></Array></mxGeometry>
+                </mxCell>
+                </root></mxGraphModel>
+                """;
+        DrawioCanvasMcpService.OptimizeDiagramRequest request = new DrawioCanvasMcpService.OptimizeDiagramRequest();
+        request.setMode("route_only");
+        request.setXml(currentXml);
+        request.setTargetEdgeIds(List.of("5"));
+
+        DrawioCanvasMcpService.DrawioMutationResponse toolResponse =
+                new DrawioCanvasMcpService().optimizeDiagram(request);
+        Map<String, Object> state = new HashMap<>();
+        state.put(DrawioMutationResultPostProcessor.DRAFT_DIAGRAM_STATE_KEY, currentXml);
+        Map<String, Object> response = new HashMap<>();
+        response.put("type", toolResponse.getType());
+        response.put("cells", toolResponse.getCells());
+
+        new DrawioMutationResultPostProcessor().process(
+                "optimize_diagram",
+                Map.of("mode", "route_only", "targetEdgeIds", List.of("5")),
+                response,
+                state);
+
+        String canonical = String.valueOf(state.get(DrawioMutationResultPostProcessor.DRAFT_DIAGRAM_STATE_KEY));
+        assertEquals("patch_cells", toolResponse.getType());
+        assertFalse(toolResponse.getAnalysis().getIssues().stream()
+                .anyMatch(issue -> "EDGE_NODE_CROSSING".equals(issue.getType())));
+        assertTrue(toolResponse.getCells().contains("id=\"5\""));
+        assertFalse(toolResponse.getCells().contains("id=\"6\""));
+        assertTrue(canonical.contains("style=\"edgeStyle=orthogonalEdgeStyle;exitX=0;exitY=0.5;entryX=1;entryY=0.5;\""));
+        assertTrue(canonical.contains("<mxPoint x=\"320\" y=\"500\"/>"));
+        assertTrue(canonical.contains("<mxPoint x=\"160\" y=\"500\"/>"));
     }
 }

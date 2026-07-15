@@ -202,6 +202,17 @@ public class DrawioCanvasXmlToolkit {
     }
 
     public String routeEdges(String xml) {
+        return routeEdges(xml, null);
+    }
+
+    /**
+     * Routes only the requested edges. A null scope is reserved for an explicit full-layout pass;
+     * an empty scope is a safe no-op so local repair callers can never widen scope accidentally.
+     */
+    public String routeEdges(String xml, Set<String> targetEdgeIds) {
+        if (targetEdgeIds != null && targetEdgeIds.isEmpty()) {
+            return xml;
+        }
         try {
             Document document = DocumentHelper.parseText(toGraphModel(xml));
             Element root = document.getRootElement().element("root");
@@ -218,6 +229,9 @@ public class DrawioCanvasXmlToolkit {
             for (Object item : root.elements("mxCell")) {
                 Element edge = (Element) item;
                 if (!"1".equals(edge.attributeValue("edge"))) {
+                    continue;
+                }
+                if (targetEdgeIds != null && !targetEdgeIds.contains(edge.attributeValue("id"))) {
                     continue;
                 }
                 // Deliberately free-routed edges (radial spokes, cycle arcs, curved flows)
@@ -245,15 +259,27 @@ public class DrawioCanvasXmlToolkit {
      */
     public String repairGeometryIfNeeded(String xml) {
         CanvasAnalysis analysis = analyze(xml);
-        boolean needsReroute = analysis.getIssues().stream()
-                .anyMatch(issue -> (CanvasIssueType.EDGE_NODE_CROSSING == issue.getType()
-                        || CanvasIssueType.EDGE_LABEL_COLLISION == issue.getType()
-                        || CanvasIssueType.PORT_DIRECTION_MISMATCH == issue.getType()
-                        || CanvasIssueType.PARALLEL_EDGE_OVERLAP == issue.getType()
-                        || CanvasIssueType.NODE_SIDE_PORT_CROWDING == issue.getType()
-                        || CanvasIssueType.PORT_CORNER_PROXIMITY == issue.getType())
-                        && "auto_reroute".equals(issue.getRepairability()));
-        return needsReroute ? routeEdges(xml) : xml;
+        Set<String> edgeIds = analysis.getCells().stream()
+                .filter(cell -> "edge".equals(cell.getKind()))
+                .map(CanvasCellData::getId)
+                .collect(Collectors.toSet());
+        Set<String> targetEdgeIds = analysis.getIssues().stream()
+                .filter(this::isAutoRerouteIssue)
+                .flatMap(issue -> issue.getTargetCellIds().stream())
+                // Issue targets can also contain blocking node ids; only edges belong in route scope.
+                .filter(edgeIds::contains)
+                .collect(Collectors.toSet());
+        return targetEdgeIds.isEmpty() ? xml : routeEdges(xml, targetEdgeIds);
+    }
+
+    private boolean isAutoRerouteIssue(CanvasAnalysisIssue issue) {
+        return (CanvasIssueType.EDGE_NODE_CROSSING == issue.getType()
+                || CanvasIssueType.EDGE_LABEL_COLLISION == issue.getType()
+                || CanvasIssueType.PORT_DIRECTION_MISMATCH == issue.getType()
+                || CanvasIssueType.PARALLEL_EDGE_OVERLAP == issue.getType()
+                || CanvasIssueType.NODE_SIDE_PORT_CROWDING == issue.getType()
+                || CanvasIssueType.PORT_CORNER_PROXIMITY == issue.getType())
+                && "auto_reroute".equals(issue.getRepairability());
     }
 
     /**
@@ -519,6 +545,11 @@ public class DrawioCanvasXmlToolkit {
     }
 
     public String edgeCells(String xml) {
+        return edgeCells(xml, null);
+    }
+
+    /** Returns only edge fragments inside the requested scope; null means every edge. */
+    public String edgeCells(String xml, Set<String> targetEdgeIds) {
         try {
             Document document = DocumentHelper.parseText(toGraphModel(xml));
             Element root = document.getRootElement().element("root");
@@ -529,7 +560,8 @@ public class DrawioCanvasXmlToolkit {
             StringBuilder cells = new StringBuilder();
             for (Object item : root.elements("mxCell")) {
                 Element cell = (Element) item;
-                if ("1".equals(cell.attributeValue("edge"))) {
+                if ("1".equals(cell.attributeValue("edge"))
+                        && (targetEdgeIds == null || targetEdgeIds.contains(cell.attributeValue("id")))) {
                     cells.append(cell.asXML());
                 }
             }

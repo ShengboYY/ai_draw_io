@@ -185,6 +185,7 @@ public class DrawioCanvasMcpServiceTest {
         DrawioCanvasMcpService.OptimizeDiagramRequest request = new DrawioCanvasMcpService.OptimizeDiagramRequest();
         request.setMode("route_only");
         request.setXml(edgeCrossingGraphXml());
+        request.setTargetEdgeIds(List.of("5"));
 
         DrawioCanvasMcpService.DrawioMutationResponse response = service.optimizeDiagram(request);
 
@@ -197,6 +198,63 @@ public class DrawioCanvasMcpServiceTest {
     }
 
     @Test
+    public void shouldRejectRouteOnlyOptimizeWithoutTargetEdgeIds() {
+        DrawioCanvasMcpService service = new DrawioCanvasMcpService();
+        DrawioCanvasMcpService.OptimizeDiagramRequest request = new DrawioCanvasMcpService.OptimizeDiagramRequest();
+        request.setMode("route_only");
+        request.setXml(edgeCrossingGraphXml());
+
+        DrawioCanvasMcpService.DrawioMutationResponse response = service.optimizeDiagram(request);
+
+        assertEquals("tool_error", response.getType());
+        assertTrue(response.getMessage().contains("targetEdgeIds"));
+        assertEquals(null, response.getCells());
+        assertEquals(null, response.getContent());
+    }
+
+    @Test
+    public void shouldRejectRouteOnlyTargetsThatAreNotExistingEdges() {
+        DrawioCanvasMcpService service = new DrawioCanvasMcpService();
+        DrawioCanvasMcpService.OptimizeDiagramRequest request = new DrawioCanvasMcpService.OptimizeDiagramRequest();
+        request.setMode("route_only");
+        request.setXml(edgeCrossingGraphXml());
+        request.setTargetEdgeIds(List.of("4", "404"));
+
+        DrawioCanvasMcpService.DrawioMutationResponse response = service.optimizeDiagram(request);
+
+        assertEquals("tool_error", response.getType());
+        assertTrue(response.getMessage().contains("existing edge"));
+        assertTrue(response.getMessage().contains("4"));
+        assertTrue(response.getMessage().contains("404"));
+    }
+
+    @Test
+    public void shouldReturnOnlyTargetedEdgesFromRouteOnlyOptimize() {
+        DrawioCanvasMcpService service = new DrawioCanvasMcpService();
+        DrawioCanvasMcpService.OptimizeDiagramRequest request = new DrawioCanvasMcpService.OptimizeDiagramRequest();
+        request.setMode("route_only");
+        request.setTargetEdgeIds(List.of("5"));
+        request.setXml("""
+                <mxGraphModel><root><mxCell id='0'/><mxCell id='1' parent='0'/>
+                <mxCell id='2' value='Source' vertex='1' parent='1'><mxGeometry x='40' y='120' width='80' height='60' as='geometry'/></mxCell>
+                <mxCell id='3' value='Target' vertex='1' parent='1'><mxGeometry x='360' y='120' width='80' height='60' as='geometry'/></mxCell>
+                <mxCell id='4' value='Blocker' vertex='1' parent='1'><mxGeometry x='210' y='110' width='80' height='80' as='geometry'/></mxCell>
+                <mxCell id='5' value='primary' edge='1' parent='1' source='2' target='3'><mxGeometry relative='1' as='geometry'/></mxCell>
+                <mxCell id='6' value='manual return' style='edgeStyle=orthogonalEdgeStyle;exitX=0;exitY=0.5;entryX=1;entryY=0.5;' edge='1' parent='1' source='3' target='2'>
+                    <mxGeometry relative='1' as='geometry'><Array as='points'><mxPoint x='320' y='240'/><mxPoint x='160' y='240'/></Array></mxGeometry>
+                </mxCell>
+                </root></mxGraphModel>
+                """);
+
+        DrawioCanvasMcpService.DrawioMutationResponse response = service.optimizeDiagram(request);
+
+        assertEquals("patch_cells", response.getType());
+        assertTrue(response.getCells().contains("id=\"5\""));
+        assertFalse("route_only must not return collateral edge patches",
+                response.getCells().contains("id=\"6\""));
+    }
+
+    @Test
     public void shouldOptimizeStoredCanvasWhenXmlIsNotProvided() throws Exception {
         DrawioCanvasMcpService service = new DrawioCanvasMcpService();
         injectCanvasStateStore(service, new FixedCanvasStateStore(edgeCrossingGraphXml()));
@@ -204,6 +262,7 @@ public class DrawioCanvasMcpServiceTest {
         request.setMode("route_only");
         request.setUserId("alice");
         request.setDiagramId("diagram-1");
+        request.setTargetEdgeIds(List.of("5"));
 
         DrawioCanvasMcpService.DrawioMutationResponse response = service.optimizeDiagram(request);
 

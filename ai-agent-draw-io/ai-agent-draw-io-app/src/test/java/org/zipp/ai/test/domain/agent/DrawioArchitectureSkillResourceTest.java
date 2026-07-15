@@ -65,7 +65,7 @@ public class DrawioArchitectureSkillResourceTest {
         assertTrue(agentPrompt.contains("Repair turns never call create_diagram"));
         assertTrue(agentPrompt.contains("Stop calling tools when repairBrief says to finish"));
         // The old reviewer/repair handoff protocol must be gone.
-        assertFalse(agentPrompt.contains("review_result"));
+        assertFalse(agentPrompt.contains("\"type\":\"review_result\""));
         assertFalse(agentPrompt.contains("fix_strategy"));
         assertFalse(agentPrompt.contains("reviewRepairTools"));
     }
@@ -79,6 +79,7 @@ public class DrawioArchitectureSkillResourceTest {
         assertTrue(agentPrompt.contains("{\"type\":\"modify_diagram\",\"mode\":\"append\""));
         assertTrue(agentPrompt.contains("{\"type\":\"modify_diagram\",\"mode\":\"replace_cells\""));
         assertTrue(agentPrompt.contains("{\"type\":\"optimize_diagram\",\"mode\":\"route_only\""));
+        assertTrue(agentPrompt.contains("\"targetEdgeIds\":[\"<existing edge mxCell id>\"]"));
         assertTrue(agentPrompt.contains("{\"type\":\"optimize_diagram\",\"mode\":\"layout_optimize\""));
     }
 

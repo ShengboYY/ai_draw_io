@@ -48,7 +48,7 @@ final class DrawioRepairBriefComposer {
         }
         appendPolishNotes(brief, analysis);
         brief.append("If repair budget remains, fix these with ONE modify_diagram call (mode=patch, only the affected cells)")
-                .append(" or optimize_diagram(mode=route_only) for edge-only fixes; never redraw the diagram.")
+                .append(" or optimize_diagram(mode=route_only, targetEdgeIds=[only the cited edge ids]) for edge-only fixes; never redraw the diagram.")
                 .append(" If the budget is exhausted, finish and briefly mention what is left.");
         return brief.toString();
     }
@@ -98,7 +98,7 @@ final class DrawioRepairBriefComposer {
             case OVERSIZED_REGION -> "shrink region " + first + " to its content plus ~30px padding, or move its children to fill the empty band";
             case PALETTE_INCOHERENT -> "reuse the existing palette roles instead of introducing new fill colors";
             case UNEVEN_SPACING -> "realign cells " + ids + " to one uniform gap on their shared row/column";
-            case EDGE_LABEL_COLLISION -> "call optimize_diagram(mode=route_only) — it reroutes edge " + first
+            case EDGE_LABEL_COLLISION -> "call optimize_diagram(mode=route_only, targetEdgeIds=[\"" + first + "\"]) — it reroutes edge " + first
                     + " and repositions its label off " + second + " automatically";
             case PORT_DIRECTION_MISMATCH -> "reattach edge " + first
                     + " to the side that matches its visual flow, then keep the route orthogonal";

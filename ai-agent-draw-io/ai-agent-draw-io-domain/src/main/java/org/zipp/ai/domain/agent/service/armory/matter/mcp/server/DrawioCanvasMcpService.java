@@ -18,8 +18,10 @@ import org.zipp.ai.types.util.SecretLogSanitizer;
 import javax.annotation.Resource;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.stream.Collectors;
 
 @Service
 public class DrawioCanvasMcpService {
@@ -103,12 +105,39 @@ public class DrawioCanvasMcpService {
         return response;
     }
 
-    @Tool(name = DrawioCanvasToolNames.OPTIMIZE_DIAGRAM, description = "Optimize Draw.io layout, spacing, readability, or edge routing under the Global Draw.io Layout Contract, preserving the diagram's layout mode and relationship/layout semantics. In grid-flow layouts keep straight edgeStyle=none relationships straight, never reuse the same node-side anchor, and use orthogonal routing with explicit exit/entry ports, distinct tracks, and waypoints only for dense workflow/network wiring or obstacle avoidance; in radial layouts even out ring spacing instead and never straighten edgeStyle=none/curved spokes. Use mode=route_only for edge-only patches or layout_optimize for a complete optimized mxGraphModel.")
+    @Tool(name = DrawioCanvasToolNames.OPTIMIZE_DIAGRAM, description = "Optimize Draw.io layout, spacing, readability, or edge routing under the Global Draw.io Layout Contract, preserving the diagram's layout mode and relationship/layout semantics. In grid-flow layouts keep straight edgeStyle=none relationships straight, never reuse the same node-side anchor, and use orthogonal routing with explicit exit/entry ports, distinct tracks, and waypoints only for dense workflow/network wiring or obstacle avoidance; in radial layouts even out ring spacing instead and never straighten edgeStyle=none/curved spokes. Use mode=route_only with non-empty targetEdgeIds for scoped edge patches, or layout_optimize for a complete optimized mxGraphModel.")
     public DrawioMutationResponse optimizeDiagram(OptimizeDiagramRequest request) {
+        boolean routeOnly = routeOnlyMode(request);
+        Set<String> targetEdgeIds = routeOnly ? targetEdgeIds(request) : Set.of();
+        if (routeOnly && targetEdgeIds.isEmpty()) {
+            // A missing scope must fail closed; treating it as "all edges" can destroy manual routes.
+            DrawioMutationResponse response = rejectedOptimizeResponse(
+                    "optimize_diagram mode=route_only requires non-empty targetEdgeIds.");
+            logOptimizeToolResult(request, response);
+            return response;
+        }
         String sourceXml = resolveOptimizableXml(request);
-        String content = xmlToolkit.routeEdges(sourceXml);
-        DrawioMutationResponse response = routeOnlyMode(request)
-                ? edgePatchResponse(xmlToolkit.edgeCells(content), content)
+        if (routeOnly) {
+            Set<String> existingEdgeIds = xmlToolkit.inspect(sourceXml).getCells().stream()
+                    .filter(cell -> "edge".equals(cell.getKind()))
+                    .map(DrawioCanvasXmlToolkit.CellInfo::getId)
+                    .collect(Collectors.toSet());
+            List<String> invalidTargetIds = targetEdgeIds.stream()
+                    .filter(id -> !existingEdgeIds.contains(id))
+                    .sorted()
+                    .toList();
+            if (!invalidTargetIds.isEmpty()) {
+                DrawioMutationResponse response = rejectedOptimizeResponse(
+                        "targetEdgeIds must reference existing edge mxCells; invalid ids: " + invalidTargetIds);
+                logOptimizeToolResult(request, response);
+                return response;
+            }
+        }
+        String content = routeOnly
+                ? xmlToolkit.routeEdges(sourceXml, targetEdgeIds)
+                : xmlToolkit.routeEdges(sourceXml);
+        DrawioMutationResponse response = routeOnly
+                ? edgePatchResponse(xmlToolkit.edgeCells(content, targetEdgeIds), content)
                 : drawioMutationDone(content);
         logOptimizeToolResult(request, response);
         return response;
@@ -310,6 +339,16 @@ public class DrawioCanvasMcpService {
         return "route_only".equals(String.valueOf(request.getMode()).trim());
     }
 
+    private Set<String> targetEdgeIds(OptimizeDiagramRequest request) {
+        if (request == null || request.getTargetEdgeIds() == null) {
+            return Set.of();
+        }
+        return request.getTargetEdgeIds().stream()
+                .filter(StringUtils::isNotBlank)
+                .map(String::trim)
+                .collect(Collectors.toSet());
+    }
+
     private String resolveOptimizableXml(OptimizeDiagramRequest request) {
         if (request == null) {
             return "";
@@ -350,6 +389,13 @@ public class DrawioCanvasMcpService {
         response.setType("tool_error");
         // Keep full-canvas replacement out of the modify path; redraw intent belongs to create_diagram.
         response.setMessage("modify_diagram only supports patch, append, and replace_cells. Use create_diagram for full redraws or full canvas replacement.");
+        return response;
+    }
+
+    private DrawioMutationResponse rejectedOptimizeResponse(String message) {
+        DrawioMutationResponse response = new DrawioMutationResponse();
+        response.setType("tool_error");
+        response.setMessage(message);
         return response;
     }
 
@@ -470,8 +516,12 @@ public class DrawioCanvasMcpService {
     @JsonInclude(JsonInclude.Include.NON_NULL)
     public static class OptimizeDiagramRequest extends DrawioXmlRequest {
         @JsonProperty(value = "mode")
-        @JsonPropertyDescription("route_only returns edge mxCell patches; layout_optimize returns a complete optimized mxGraphModel.")
+        @JsonPropertyDescription("route_only returns scoped edge mxCell patches and requires targetEdgeIds; layout_optimize returns a complete optimized mxGraphModel.")
         private String mode;
+
+        @JsonProperty(value = "targetEdgeIds")
+        @JsonPropertyDescription("Existing edge mxCell ids to reroute. Required and non-empty when mode=route_only.")
+        private List<String> targetEdgeIds;
 
         @JsonProperty(value = "userId")
         @JsonPropertyDescription("Optional owner id used with diagramId to load the current canvas when xml is omitted.")
