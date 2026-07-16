@@ -23,6 +23,7 @@ import org.zipp.ai.domain.agent.model.valobj.visualreview.CanvasVisualReviewComm
 import org.zipp.ai.domain.agent.model.valobj.visualreview.CanvasVisualReviewDecision;
 import org.zipp.ai.domain.agent.model.valobj.visualreview.CanvasVisualReviewResult;
 import org.zipp.ai.domain.agent.model.valobj.visualreview.CanvasVisualReviewStage;
+import org.zipp.ai.domain.agent.model.valobj.visualreview.DrawerContinuationContext;
 import org.zipp.ai.domain.agent.service.ICanvasStateStore;
 import org.zipp.ai.domain.agent.service.analysis.ICanvasAnalyzer;
 import org.zipp.ai.domain.agent.service.visualreview.CanvasVisualReviewPolicy;
@@ -104,16 +105,12 @@ public class CanvasVisualReviewOrchestrator {
                     ? null : imageValidator.validate(request.getBeforeImageDataUrl());
             CanvasReviewImageValidator.ValidatedImage after = imageValidator.validate(request.getAfterImageDataUrl());
             CanvasVisualReviewStage stage = CanvasVisualReviewStage.valueOf(request.getStage());
-            RepairContinuation repair = review(ownerId, visualReviewRunId, request, emitter, before, after, stage);
-            if (repair == null) return;
-            // The repair owns a separate run. Its terminal status and diagram snapshot provide
-            // auto-repair success and after-repair hash without copying canvas content into review telemetry.
-            agentConversationService.streamVisualRepair(
-                    repair.request(),
-                    repair.diagramType(),
-                    repair.optimizeLayout(),
-                    repair.authorization(),
-                    emitter);
+            DrawerContinuation continuation = review(
+                    ownerId, visualReviewRunId, request, emitter, before, after, stage);
+            if (continuation == null) return;
+            // The continuation owns a separate run while reusing the original Drawer agent and session.
+            agentConversationService.continueDrawing(
+                    continuation.request(), continuation.context(), emitter);
         } catch (IllegalArgumentException e) {
             sendErrorAndComplete(emitter, "invalid_visual_review_request", e.getMessage());
         } catch (Exception e) {
@@ -122,7 +119,7 @@ public class CanvasVisualReviewOrchestrator {
         }
     }
 
-    private RepairContinuation review(String ownerId,
+    private DrawerContinuation review(String ownerId,
                                       String visualReviewRunId,
                                       CanvasVisualReviewRequestDTO request,
                                       ResponseBodyEmitter emitter,
@@ -195,8 +192,12 @@ public class CanvasVisualReviewOrchestrator {
             completed.put("autoRepairAttempted", true);
             completed.put("repairRunId", repair.getRunId());
             recordReviewEvent(run, "visual_review_completed", "SUCCESS", completed);
-            return new RepairContinuation(
-                    repair, diagramType(request, latestState), shouldOptimizeLayout(result), authorization);
+            return new DrawerContinuation(
+                    repair,
+                    new DrawerContinuationContext(
+                            diagramType(request, latestState),
+                            shouldOptimizeLayout(result),
+                            authorization));
         } catch (Exception e) {
             failure = e;
             throw e;
@@ -340,10 +341,8 @@ public class CanvasVisualReviewOrchestrator {
                 CanvasRepairScope.TARGET_CELLS);
     }
 
-    private record RepairContinuation(ChatRequestDTO request,
-                                      String diagramType,
-                                      boolean optimizeLayout,
-                                      CanvasMutationAuthorization authorization) {
+    private record DrawerContinuation(ChatRequestDTO request,
+                                      DrawerContinuationContext context) {
     }
 
     private void validateRequest(String ownerId, CanvasVisualReviewRequestDTO request) {

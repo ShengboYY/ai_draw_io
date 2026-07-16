@@ -11,6 +11,7 @@ import org.zipp.ai.domain.agent.model.valobj.analysis.CanvasCellData;
 import org.zipp.ai.domain.agent.model.valobj.analysis.CanvasSummaryData;
 import org.zipp.ai.domain.agent.model.valobj.canvas.CanvasState;
 import org.zipp.ai.domain.agent.model.valobj.canvas.CanvasMutationAuthorization;
+import org.zipp.ai.domain.agent.model.valobj.visualreview.DrawerContinuationContext;
 import org.zipp.ai.domain.agent.model.valobj.visualreview.CanvasVisualReviewResult;
 import org.zipp.ai.domain.agent.model.valobj.visualreview.CanvasVisualIssue;
 import org.zipp.ai.domain.agent.model.valobj.visualreview.CanvasVisualIssueSeverity;
@@ -126,23 +127,25 @@ public class CanvasVisualReviewOrchestratorTest {
     }
 
     @Test
-    public void repairDecisionContinuesDirectlyIntoOneVisualRepairStream() throws Exception {
+    public void repairDecisionContinuesTheOriginalDrawerLoop() throws Exception {
         AtomicInteger repairCalls = new AtomicInteger();
         AgentConversationService repairService = new AgentConversationService() {
             @Override
-            public void streamVisualRepair(ChatRequestDTO request, String diagramType,
-                                           boolean optimizeLayout, CanvasMutationAuthorization authorization,
-                                           ResponseBodyEmitter emitter) {
+            public void continueDrawing(ChatRequestDTO request,
+                                        DrawerContinuationContext continuation,
+                                        ResponseBodyEmitter emitter) {
                 repairCalls.incrementAndGet();
                 assertEquals("300000", request.getAgentId());
                 assertEquals("session-1", request.getSessionId());
                 assertEquals(Long.valueOf(7L), request.getExpectedVersion());
+                assertEquals("sha256:current", request.getExpectedContentHash());
+                assertTrue(request.getCanvasXml().contains("value='API'"));
                 assertNull(request.getMaxDeterministicRepairRounds());
                 assertNull(request.getMaxReviewIterations());
                 assertTrue(request.getMessage().contains("Preserve every unmentioned id"));
-                assertEquals("architecture", diagramType);
-                assertTrue(optimizeLayout);
-                assertTrue(authorization.allowedCellIds().contains("2"));
+                assertEquals("architecture", continuation.diagramType());
+                assertTrue(continuation.optimizeLayout());
+                assertTrue(continuation.authorization().allowedCellIds().contains("2"));
             }
         };
         CanvasVisualIssue issue = CanvasVisualIssue.builder()
@@ -183,8 +186,9 @@ public class CanvasVisualReviewOrchestratorTest {
         AtomicInteger repairCalls = new AtomicInteger();
         AgentConversationService repairService = new AgentConversationService() {
             @Override
-            public void streamVisualRepair(ChatRequestDTO request, String diagramType,
-                                           boolean optimizeLayout, ResponseBodyEmitter emitter) {
+            public void continueDrawing(ChatRequestDTO request,
+                                        DrawerContinuationContext continuation,
+                                        ResponseBodyEmitter emitter) {
                 repairCalls.incrementAndGet();
             }
         };
@@ -213,8 +217,9 @@ public class CanvasVisualReviewOrchestratorTest {
         AtomicInteger repairCalls = new AtomicInteger();
         AgentConversationService repairService = new AgentConversationService() {
             @Override
-            public void streamVisualRepair(ChatRequestDTO request, String diagramType,
-                                           boolean optimizeLayout, ResponseBodyEmitter emitter) {
+            public void continueDrawing(ChatRequestDTO request,
+                                        DrawerContinuationContext continuation,
+                                        ResponseBodyEmitter emitter) {
                 repairCalls.incrementAndGet();
             }
         };
@@ -275,8 +280,9 @@ public class CanvasVisualReviewOrchestratorTest {
         AtomicInteger repairCalls = new AtomicInteger();
         AgentConversationService repairService = new AgentConversationService() {
             @Override
-            public void streamVisualRepair(ChatRequestDTO request, String diagramType,
-                                           boolean optimizeLayout, ResponseBodyEmitter emitter) {
+            public void continueDrawing(ChatRequestDTO request,
+                                        DrawerContinuationContext continuation,
+                                        ResponseBodyEmitter emitter) {
                 repairCalls.incrementAndGet();
             }
         };

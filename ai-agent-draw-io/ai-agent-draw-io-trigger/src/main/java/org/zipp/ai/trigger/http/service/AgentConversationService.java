@@ -19,6 +19,7 @@ import org.zipp.ai.domain.agent.model.valobj.visualreview.CanvasVisualReviewComm
 import org.zipp.ai.domain.agent.model.valobj.visualreview.CanvasVisualReviewDecision;
 import org.zipp.ai.domain.agent.model.valobj.visualreview.CanvasVisualReviewResult;
 import org.zipp.ai.domain.agent.model.valobj.visualreview.CanvasVisualReviewStage;
+import org.zipp.ai.domain.agent.model.valobj.visualreview.DrawerContinuationContext;
 import org.zipp.ai.domain.agent.service.ICanvasStateStore;
 import org.zipp.ai.domain.agent.service.IChatService;
 import org.zipp.ai.domain.agent.service.IIntentRoutingService;
@@ -211,27 +212,18 @@ public class AgentConversationService {
         stream(requestDTO, emitter, null, "chat_stream", null);
     }
 
-    public void streamVisualRepair(ChatRequestDTO requestDTO,
-                                   String diagramType,
-                                   boolean optimizeLayout,
-                                   ResponseBodyEmitter emitter) {
-        streamVisualRepair(requestDTO, diagramType, optimizeLayout, null, emitter);
-    }
-
-    public void streamVisualRepair(ChatRequestDTO requestDTO,
-                                   String diagramType,
-                                   boolean optimizeLayout,
-                                   CanvasMutationAuthorization authorization,
-                                   ResponseBodyEmitter emitter) {
-        // The VLM policy already authorized a bounded repair; rerouting model-authored repair text
-        // could turn it into a create action, so this internal continuation uses a fixed safe route.
-        IntentRoutingResult repairRoute = new IntentRoutingResult();
-        repairRoute.setRouteType(optimizeLayout ? "optimize_layout" : "edit_existing");
-        repairRoute.setDiagramType(StringUtils.defaultIfBlank(diagramType, "none"));
-        repairRoute.setSkillName("none");
-        repairRoute.setReason("production_visual_review_repair");
-        stream(requestDTO, emitter, repairRoute, "visual_repair_stream",
-                new CanvasMutationIntent(CanvasMutationPurpose.VLM_REPAIR, authorization));
+    public void continueDrawing(ChatRequestDTO requestDTO,
+                                DrawerContinuationContext continuation,
+                                ResponseBodyEmitter emitter) {
+        // Visual review is feedback on an already-routed task. Continue the same Drawer loop without
+        // asking the intent model to reinterpret the server-authored feedback as a new user request.
+        IntentRoutingResult continuationRoute = new IntentRoutingResult();
+        continuationRoute.setRouteType(continuation.optimizeLayout() ? "optimize_layout" : "edit_existing");
+        continuationRoute.setDiagramType(continuation.diagramType());
+        continuationRoute.setSkillName("none");
+        continuationRoute.setReason("production_visual_review_continuation");
+        stream(requestDTO, emitter, continuationRoute, "drawer_continuation_stream",
+                new CanvasMutationIntent(CanvasMutationPurpose.VLM_REPAIR, continuation.authorization()));
     }
 
     private void stream(ChatRequestDTO requestDTO,

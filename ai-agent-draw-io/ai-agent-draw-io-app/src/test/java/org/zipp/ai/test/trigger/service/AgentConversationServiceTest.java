@@ -20,6 +20,7 @@ import org.zipp.ai.domain.account.service.VerifiedUserPlatformQuotaService;
 import org.zipp.ai.domain.agent.model.entity.ChatCommandEntity;
 import org.zipp.ai.domain.agent.model.valobj.AiAgentConfigTableVO;
 import org.zipp.ai.domain.agent.model.valobj.canvas.CanvasState;
+import org.zipp.ai.domain.agent.model.valobj.canvas.CanvasMutationAuthorization;
 import org.zipp.ai.domain.agent.model.valobj.analysis.CanvasAnalysis;
 import org.zipp.ai.domain.agent.model.valobj.analysis.CanvasSummaryData;
 import org.zipp.ai.domain.agent.model.valobj.debugtrace.DebugTraceCapture;
@@ -27,6 +28,7 @@ import org.zipp.ai.domain.agent.model.valobj.debugtrace.DebugTraceControl;
 import org.zipp.ai.domain.agent.model.valobj.intent.IntentRoutingCommand;
 import org.zipp.ai.domain.agent.model.valobj.intent.IntentRoutingResult;
 import org.zipp.ai.domain.agent.model.valobj.visualreview.CanvasVisualReviewResult;
+import org.zipp.ai.domain.agent.model.valobj.visualreview.DrawerContinuationContext;
 import org.zipp.ai.domain.agent.service.ICanvasStateStore;
 import org.zipp.ai.domain.agent.service.IChatService;
 import org.zipp.ai.domain.agent.service.IIntentRoutingService;
@@ -186,7 +188,7 @@ public class AgentConversationServiceTest {
     }
 
     @Test
-    public void shouldBypassIntentRoutingForPolicyApprovedVisualRepair() throws Exception {
+    public void shouldBypassIntentRoutingWhenContinuingTheDrawer() throws Exception {
         AgentConversationService service = quotaAwareService();
         CountingChatService chatService = new CountingChatService();
         CountingIntentRoutingService routingService = new CountingIntentRoutingService();
@@ -198,7 +200,13 @@ public class AgentConversationServiceTest {
         request.setMaxDeterministicRepairRounds(3);
         request.setMessage("Fix only the cited spacing issue and preserve everything else.");
 
-        service.streamVisualRepair(request, "architecture", false, new CapturingEmitter());
+        service.continueDrawing(
+                request,
+                new DrawerContinuationContext(
+                        "architecture",
+                        false,
+                        CanvasMutationAuthorization.unrestricted()),
+                new CapturingEmitter());
 
         assertEquals(0, routingService.calls);
         assertEquals(1, chatService.handleMessageStreamCalls);
