@@ -144,7 +144,6 @@ public class CanvasVisualReviewOrchestratorTest {
                 assertNull(request.getMaxReviewIterations());
                 assertTrue(request.getMessage().contains("Preserve every unmentioned id"));
                 assertEquals("architecture", continuation.diagramType());
-                assertTrue(continuation.optimizeLayout());
                 assertTrue(continuation.authorization().allowedCellIds().contains("2"));
             }
         };

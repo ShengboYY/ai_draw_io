@@ -52,6 +52,20 @@ public class CanvasVisualReviewPolicyTest {
     }
 
     @Test
+    public void missingRequestedElementDoesNotReceiveVisualRepairAuthority() {
+        assertEquals(CanvasVisualReviewDecision.NEEDS_HUMAN_REVIEW,
+                policy.decide(available(List.of(issue(CanvasVisualIssueType.MISSING_REQUESTED_ELEMENT,
+                        CanvasVisualIssueSeverity.MAJOR)), false), CanvasVisualReviewStage.POST_MUTATION, 0));
+    }
+
+    @Test
+    public void invisibleTaskDoesNotReceiveVisualRepairAuthority() {
+        assertEquals(CanvasVisualReviewDecision.NEEDS_HUMAN_REVIEW,
+                policy.decide(available(List.of(issue(CanvasVisualIssueType.TASK_NOT_VISIBLE,
+                        CanvasVisualIssueSeverity.MAJOR)), false), CanvasVisualReviewStage.POST_MUTATION, 0));
+    }
+
+    @Test
     public void minorSemanticRiskCannotHitchhikeOnSafeLayoutRepair() {
         List<CanvasVisualIssue> issues = List.of(
                 issue(CanvasVisualIssueType.WRONG_REQUESTED_RELATIONSHIP, CanvasVisualIssueSeverity.MINOR),

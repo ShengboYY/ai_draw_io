@@ -204,17 +204,35 @@ public class AgentConversationServiceTest {
                 request,
                 new DrawerContinuationContext(
                         "architecture",
-                        false,
                         CanvasMutationAuthorization.unrestricted()),
                 new CapturingEmitter());
 
         assertEquals(0, routingService.calls);
         assertEquals(1, chatService.handleMessageStreamCalls);
         assertTrue(chatService.lastStreamMessage.contains("\"routeType\":\"edit_existing\""));
-        assertTrue(chatService.lastStreamMessage.contains("\"allowedTools\":[\"modify_diagram\"]"));
+        assertTrue(chatService.lastStreamMessage.contains(
+                "\"allowedTools\":[\"modify_diagram\",\"optimize_diagram\"]"));
+        assertFalse(chatService.lastStreamMessage.contains("\"allowedTools\":[\"create_diagram\"]"));
         assertTrue(chatService.lastStreamMessage.contains(
                 "\"repairTools\":[\"modify_diagram\",\"optimize_diagram\"]"));
         assertTrue(chatService.lastStreamMessage.contains("\"maxRepairRounds\":1"));
+    }
+
+    @Test
+    public void modelAuthoredReasonCannotGrantDrawerContinuationTools() throws Exception {
+        AgentConversationService service = new AgentConversationService();
+        injectPromptContextBuilder(service);
+        IntentRoutingResult routingResult = drawRoutingResult("edit_existing");
+        routingResult.setReason("production_visual_review_continuation");
+        ChatRequestDTO request = new ChatRequestDTO();
+        request.setMessage("change the API label");
+        request.setCanvasXml(storedCanvasXml());
+
+        String routedMessage = buildRoutedMessage(service, request, routingResult, 1);
+
+        assertTrue(routedMessage.contains("\"allowedTools\":[\"modify_diagram\"]"));
+        assertFalse(routedMessage.contains(
+                "\"allowedTools\":[\"modify_diagram\",\"optimize_diagram\"]"));
     }
 
     @Test

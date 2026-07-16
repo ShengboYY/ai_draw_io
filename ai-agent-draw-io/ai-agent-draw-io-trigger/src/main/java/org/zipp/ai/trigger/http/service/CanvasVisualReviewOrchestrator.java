@@ -66,11 +66,6 @@ public class CanvasVisualReviewOrchestrator {
     private String drawerAgentId = "300000";
     private final CanvasVisualReviewPolicy policy = new CanvasVisualReviewPolicy();
     private final CanvasVisualRepairBriefComposer repairBriefComposer = new CanvasVisualRepairBriefComposer();
-    private static final Set<CanvasVisualIssueType> LAYOUT_REPAIR_TYPES = Set.of(
-            CanvasVisualIssueType.TEXT_READABILITY,
-            CanvasVisualIssueType.LAYOUT_HIERARCHY,
-            CanvasVisualIssueType.EDGE_TRACEABILITY,
-            CanvasVisualIssueType.STYLE_COHERENCE);
 
     public CanvasVisualReviewOrchestrator(ICanvasStateStore canvasStateStore,
                                           ICanvasAnalyzer canvasAnalyzer,
@@ -196,7 +191,6 @@ public class CanvasVisualReviewOrchestrator {
                     repair,
                     new DrawerContinuationContext(
                             diagramType(request, latestState),
-                            shouldOptimizeLayout(result),
                             authorization));
         } catch (Exception e) {
             failure = e;
@@ -381,14 +375,6 @@ public class CanvasVisualReviewOrchestrator {
         repair.setMessage(repairBriefComposer.compose(
                 request.getOriginalUserTask(), state.getVersion(), state.getContentHash(), result.safeIssues()));
         return repair;
-    }
-
-    private boolean shouldOptimizeLayout(CanvasVisualReviewResult result) {
-        List<CanvasVisualIssue> blocking = result.safeIssues().stream()
-                .filter(issue -> issue.getSeverity() != null && issue.getSeverity().isBlocking())
-                .toList();
-        return !blocking.isEmpty() && blocking.stream()
-                .allMatch(issue -> LAYOUT_REPAIR_TYPES.contains(issue.getType()));
     }
 
     private CanvasVisualReviewCommand command(CanvasVisualReviewRequestDTO request,

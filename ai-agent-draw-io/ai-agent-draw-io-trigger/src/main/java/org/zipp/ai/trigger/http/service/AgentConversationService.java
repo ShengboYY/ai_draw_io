@@ -67,6 +67,7 @@ public class AgentConversationService {
     private static final int MAX_DETERMINISTIC_REPAIR_ROUNDS = 3;
     private static final int MAX_VISUAL_REPAIR_ROUNDS = 1;
     private static final int MAX_BUFFERED_STREAM_CAPTURE_CHARS = 64_000;
+    private static final String DRAWER_CONTINUATION_REASON = "production_visual_review_continuation";
 
     @Resource
     private IChatService chatService;
@@ -174,7 +175,9 @@ public class AgentConversationService {
             }
 
             int maxDeterministicRepairRounds = effectiveDeterministicRepairRounds(currentRequest, routingResult);
-            RoutedDrawMessage routedMessage = buildRoutedDrawMessage(currentRequest, routingResult, maxDeterministicRepairRounds, currentRequest.getUserId(), currentRequest.getSkills());
+            RoutedDrawMessage routedMessage = buildRoutedDrawMessage(
+                    currentRequest, routingResult, maxDeterministicRepairRounds,
+                    currentRequest.getUserId(), currentRequest.getSkills(), false);
             captureDebugTrace(runScope, "ROUTED_MESSAGE", routedMessage.message());
             final String finalSessionId = sessionId;
             DrawioSkillAccessContext.bindSession(finalSessionId, routedMessage.allowedSkillNames());
@@ -218,10 +221,12 @@ public class AgentConversationService {
         // Visual review is feedback on an already-routed task. Continue the same Drawer loop without
         // asking the intent model to reinterpret the server-authored feedback as a new user request.
         IntentRoutingResult continuationRoute = new IntentRoutingResult();
-        continuationRoute.setRouteType(continuation.optimizeLayout() ? "optimize_layout" : "edit_existing");
+        // Keep the established edit route for prompt context; the continuation policy exposes both
+        // local repair tools so the Drawer can select the smallest operation from the review evidence.
+        continuationRoute.setRouteType("edit_existing");
         continuationRoute.setDiagramType(continuation.diagramType());
         continuationRoute.setSkillName("none");
-        continuationRoute.setReason("production_visual_review_continuation");
+        continuationRoute.setReason(DRAWER_CONTINUATION_REASON);
         stream(requestDTO, emitter, continuationRoute, "drawer_continuation_stream",
                 new CanvasMutationIntent(CanvasMutationPurpose.VLM_REPAIR, continuation.authorization()));
     }
@@ -338,7 +343,13 @@ public class AgentConversationService {
             final AtomicBoolean finalFirstStreamOutputRecorded = firstStreamOutputRecorded;
             final BoundedTextCapture finalStreamOutputCapture = streamOutputCapture;
             final long finalStreamStartedNanos = streamStartedNanos;
-            final RoutedDrawMessage routedMessage = buildRoutedDrawMessage(currentRequest, routingResult, maxRepairRounds, currentRequest.getUserId(), currentRequest.getSkills());
+            // Mutation intent is constructed by this service, unlike model-authored routing fields.
+            final boolean drawerContinuation = forcedRoutingResult != null
+                    && mutationIntent != null
+                    && mutationIntent.purpose() == CanvasMutationPurpose.VLM_REPAIR;
+            final RoutedDrawMessage routedMessage = buildRoutedDrawMessage(
+                    currentRequest, routingResult, maxRepairRounds,
+                    currentRequest.getUserId(), currentRequest.getSkills(), drawerContinuation);
             captureDebugTrace(runScope, "ROUTED_MESSAGE", routedMessage.message());
             // The current canvas travels in the request; keep it so patch_cells can merge a delta
             // without the model re-emitting the whole diagram.
@@ -1079,6 +1090,16 @@ public class AgentConversationService {
                                                      int maxDeterministicRepairRounds,
                                                      String ownerId,
                                                      List<String> userSkills) {
+        return buildRoutedDrawMessage(
+                requestDTO, routingResult, maxDeterministicRepairRounds, ownerId, userSkills, false);
+    }
+
+    private RoutedDrawMessage buildRoutedDrawMessage(ChatRequestDTO requestDTO,
+                                                     IntentRoutingResult routingResult,
+                                                     int maxDeterministicRepairRounds,
+                                                     String ownerId,
+                                                     List<String> userSkills,
+                                                     boolean drawerContinuation) {
         requestDTO = requestWithStoredCanvas(requestDTO);
         com.alibaba.fastjson.JSONObject routingJson = new com.alibaba.fastjson.JSONObject();
         routingJson.put("routeType", routingResult.getRouteType());
@@ -1086,7 +1107,7 @@ public class AgentConversationService {
         routingJson.put("skillName", routingResult.getSkillName());
         routingJson.put("reason", routingResult.getReason());
         routingJson.put("maxRepairRounds", maxDeterministicRepairRounds);
-        DrawioToolAccessContext.ToolPolicy toolPolicy = toolPolicyFor(routingResult);
+        DrawioToolAccessContext.ToolPolicy toolPolicy = toolPolicyFor(routingResult, drawerContinuation);
         routingJson.put("allowedTools", toolPolicy.initialTools());
         routingJson.put("repairTools", toolPolicy.repairTools());
         routingJson.put("skillTools", DrawioSkillToolNames.SKILL_LOOKUP_TOOL_NAMES);
@@ -1126,7 +1147,14 @@ public class AgentConversationService {
                                      String content) {
     }
 
-    private DrawioToolAccessContext.ToolPolicy toolPolicyFor(IntentRoutingResult routingResult) {
+    private DrawioToolAccessContext.ToolPolicy toolPolicyFor(IntentRoutingResult routingResult,
+                                                             boolean drawerContinuation) {
+        if (drawerContinuation) {
+            // Reviewer feedback returns to the Drawer, which chooses the smallest suitable local tool.
+            return DrawioToolAccessContext.ToolPolicy.of(
+                    List.of(DrawioCanvasToolNames.MODIFY_DIAGRAM, DrawioCanvasToolNames.OPTIMIZE_DIAGRAM),
+                    List.of(DrawioCanvasToolNames.MODIFY_DIAGRAM, DrawioCanvasToolNames.OPTIMIZE_DIAGRAM));
+        }
         String routeType = StringUtils.defaultString(routingResult.getRouteType());
         return switch (routeType) {
             case "create_new" -> phasedToolPolicy(DrawioCanvasToolNames.CREATE_DIAGRAM);

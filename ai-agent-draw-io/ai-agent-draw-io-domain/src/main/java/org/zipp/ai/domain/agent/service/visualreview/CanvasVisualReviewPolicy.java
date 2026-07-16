@@ -15,8 +15,6 @@ public class CanvasVisualReviewPolicy {
 
     private static final int MAX_AUTOMATIC_REPAIR_ISSUES = 3;
     private static final Set<CanvasVisualIssueType> AUTOMATIC_REPAIR_TYPES = EnumSet.of(
-            CanvasVisualIssueType.TASK_NOT_VISIBLE,
-            CanvasVisualIssueType.MISSING_REQUESTED_ELEMENT,
             CanvasVisualIssueType.TEXT_READABILITY,
             CanvasVisualIssueType.LAYOUT_HIERARCHY,
             CanvasVisualIssueType.EDGE_TRACEABILITY,

@@ -7,7 +7,6 @@ import java.util.Objects;
 /** Server-owned context for continuing the existing Drawer loop after visual review. */
 public record DrawerContinuationContext(
         String diagramType,
-        boolean optimizeLayout,
         CanvasMutationAuthorization authorization
 ) {
     public DrawerContinuationContext {
