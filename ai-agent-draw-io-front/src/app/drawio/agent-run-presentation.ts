@@ -23,6 +23,7 @@ export type VisualReviewPresentation = {
   issues?: VisualReviewDisplayIssue[];
   stale?: boolean;
   repairCompleted?: boolean;
+  unavailableReason?: 'EXPORT_FAILED' | 'VLM_UNAVAILABLE' | 'REVIEW_REQUEST_FAILED';
 };
 
 export type AgentRunEvent = {
@@ -48,9 +49,13 @@ const unique = (values: string[]) => Array.from(new Set(values.filter(Boolean)))
 
 const pluralize = (count: number, singular: string, plural: string) => `${count} ${count === 1 ? singular : plural}`;
 
-const containsCjk = (text?: string) => /[\u3400-\u9fff]/.test(text || '');
-
-export const usesChinesePresentation = (text?: string) => containsCjk(text);
+export const usesChinesePresentation = (text?: string) => {
+  const value = text || '';
+  const hanCount = [...value].filter(char => /[\u3400-\u9fff]/.test(char)).length;
+  const latinCount = [...value].filter(char => /[A-Za-z]/.test(char)).length;
+  // A quoted Chinese label should not switch an otherwise English response to Chinese.
+  return hanCount > 0 && (latinCount === 0 || (hanCount >= 2 && hanCount * 2 >= latinCount));
+};
 
 const localizeMetricLabel = (metricLabel: string, useChinese: boolean) => {
   const match = metricLabel.match(/^(\d+) nodes? · (\d+) edges?$/);
@@ -287,6 +292,7 @@ export const buildVisualReviewStepDetail = ({
   summary,
   issues,
   stale = false,
+  unavailableReason,
   useChinese = false,
 }: {
   stage: VisualReviewStage;
@@ -294,6 +300,7 @@ export const buildVisualReviewStepDetail = ({
   summary?: string;
   issues?: VisualReviewDisplayIssue[];
   stale?: boolean;
+  unavailableReason?: VisualReviewPresentation['unavailableReason'];
   useChinese?: boolean;
 }) => {
   const safeSummary = safeReviewText(summary, 220);
@@ -303,9 +310,19 @@ export const buildVisualReviewStepDetail = ({
 
   if (stale) return visualReviewStaleMessage(useChinese);
   if (decision === 'UNAVAILABLE') {
+    if (unavailableReason === 'EXPORT_FAILED') {
+      return useChinese
+        ? '无法导出审阅截图；当前画布已保留，尚未调用视觉审阅模型。'
+        : 'The review screenshot could not be exported. The canvas was kept and the visual reviewer was not called.';
+    }
+    if (unavailableReason === 'VLM_UNAVAILABLE') {
+      return useChinese
+        ? '视觉审阅服务暂时不可用；截图已生成，当前画布已保留。'
+        : 'The visual review service is temporarily unavailable. Evidence was rendered and the current canvas was kept.';
+    }
     return useChinese
-      ? '视觉审阅暂时不可用；当前画布已保留。'
-      : 'Visual review is temporarily unavailable; the current canvas was kept.';
+      ? '视觉审阅暂时不可用；请求未能完成，当前画布已保留。'
+      : 'Visual review is temporarily unavailable; the request could not be completed and the current canvas was kept.';
   }
   if (decision === 'NEEDS_HUMAN_REVIEW') {
     return useChinese
@@ -375,9 +392,9 @@ export const buildAgentCompletionReply = (
   userRequest?: string,
   visualReviews: VisualReviewPresentation[] = [],
 ) => {
-  if (view.finalContent) return view.finalContent;
+  if (view.finalContent && visualReviews.length === 0) return view.finalContent;
 
-  const useChinese = containsCjk(userRequest);
+  const useChinese = usesChinesePresentation(userRequest);
   const finalReview = visualReviews.at(-1);
   const repairReviews = visualReviews.filter(review => review.decision === 'REPAIR');
   const repairReview = repairReviews.at(0);
@@ -419,9 +436,7 @@ export const buildAgentCompletionReply = (
     if (finalReview.stale) {
       paragraphs.push(visualReviewStaleMessage(useChinese));
     } else if (finalReview.decision === 'UNAVAILABLE') {
-      paragraphs.push(useChinese
-        ? '视觉审阅暂时不可用，当前画布已保留。'
-        : 'Visual review was temporarily unavailable, so the current canvas was kept.');
+      paragraphs.push(buildVisualReviewStepDetail({ ...finalReview, useChinese }));
     } else if (finalReview.decision === 'NEEDS_HUMAN_REVIEW') {
       paragraphs.push(useChinese
         ? `${finalSummary || '仍有无法安全自动处理的问题'} 建议人工确认，我没有继续改动画布。`

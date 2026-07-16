@@ -443,14 +443,17 @@ feat(review): allow bounded reviewer drawer retries
 
 ### Phase 6：真实画布覆盖与前端表达
 
-在 Agent loop 稳定后再做：
+状态：已实现。
 
-- 大图 overview + tiles；
-- 多 page 分别 Review；
-- 小文字像素覆盖；
-- 导出失败与 VLM unavailable 分开；
-- Thinking 展示真实步骤、版本和具体问题；
-- 最终回复跟随用户语言。
+实现边界：
+
+- 前端 Evidence Producer 从当前 version 对应的 Draw.io XML 读取 page manifest，并逐页导出真实 PNG；最多覆盖 4 页。
+- 单页图在节点/边密集，或 XML 中存在小于 12px 的显式字号时，额外导出 3200px 图并切成 2×2 高清 tiles。
+- 后端只接受 4 张 supplemental evidence，逐张验证 PNG、尺寸、role、page 和 tile metadata，并以已保存 XML 的 page manifest 校验页数、顺序和覆盖率；Reviewer 通过 image manifest 区分 overview 与 tile。
+- Reviewer 必须逐页检查，并用主导语言生成的 `languageHint` 输出与原始用户请求一致的语言；它仍只返回 findings，不获得 canvas tool。
+- 如果页数超过证据预算，Reviewer 可以报告已见问题，但 Orchestrator 强制转为 `NEEDS_HUMAN_REVIEW`，不能批准或触发自动修复。
+- 前端把截图导出失败标记为 `EXPORT_FAILED`，不调用 VLM；截图成功但模型不可用标记为 `VLM_UNAVAILABLE`。
+- Thinking 单独展示“准备视觉证据”、被审 version、已覆盖页数和高清局部图数量；即使 Drawer 已返回普通结束文本，最终回复仍复用同一语言并合并具体 Review 结果。
 
 这部分只增强 Review evidence，不改变“两次 repair、三次 review、Policy 授权”的有界 Drawer loop。
 

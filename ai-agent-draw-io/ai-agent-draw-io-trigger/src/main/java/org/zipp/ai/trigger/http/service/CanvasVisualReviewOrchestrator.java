@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseBodyEmitter;
 import org.zipp.ai.api.dto.CanvasVisualReviewRequestDTO;
+import org.zipp.ai.api.dto.CanvasVisualReviewEvidenceDTO;
 import org.zipp.ai.api.dto.ChatRequestDTO;
 import org.zipp.ai.domain.account.service.AnonymousDemoQuotaService;
 import org.zipp.ai.domain.account.service.VerifiedUserPlatformQuotaService;
@@ -22,6 +23,8 @@ import org.zipp.ai.domain.agent.model.valobj.visualreview.CanvasVisualIssueSever
 import org.zipp.ai.domain.agent.model.valobj.visualreview.CanvasVisualIssueType;
 import org.zipp.ai.domain.agent.model.valobj.visualreview.CanvasVisualReviewCommand;
 import org.zipp.ai.domain.agent.model.valobj.visualreview.CanvasVisualReviewDecision;
+import org.zipp.ai.domain.agent.model.valobj.visualreview.CanvasVisualReviewEvidence;
+import org.zipp.ai.domain.agent.model.valobj.visualreview.CanvasVisualReviewEvidenceRole;
 import org.zipp.ai.domain.agent.model.valobj.visualreview.CanvasVisualReviewResult;
 import org.zipp.ai.domain.agent.model.valobj.visualreview.CanvasVisualReviewStage;
 import org.zipp.ai.domain.agent.model.valobj.visualreview.DrawerContinuationContext;
@@ -51,7 +54,10 @@ import java.util.regex.Pattern;
 public class CanvasVisualReviewOrchestrator {
 
     public static final String RENDERER_VERSION = "drawio-embed-png-v1";
+    private static final int MAX_ADDITIONAL_REVIEW_IMAGES = 4;
+    private static final int MAX_REVIEWED_PAGES = 4;
     private static final Pattern CORRELATION_ID = Pattern.compile("^[A-Za-z0-9._:-]{8,128}$");
+    private static final Pattern DIAGRAM_TAG = Pattern.compile("<diagram\\b([^>]*)>", Pattern.CASE_INSENSITIVE);
     private static final AgentUsageTelemetryService NOOP_TELEMETRY =
             new AgentUsageTelemetryService(null, Clock.systemUTC());
 
@@ -93,11 +99,13 @@ public class CanvasVisualReviewOrchestrator {
                        ResponseBodyEmitter emitter) {
         try {
             validateRequest(ownerId, request);
-            log.info("[visual-review-loop] event=request reviewRunId={} sourceRunId={} parentRunId={} repairRound={} stage={} diagramId={} expectedVersion={} expectedHash={} shadow={}",
+            log.info("[visual-review-loop] event=request reviewRunId={} sourceRunId={} parentRunId={} repairRound={} stage={} diagramId={} expectedVersion={} expectedHash={} pages={} truncatedPages={} additionalImages={} shadow={}",
                     logValue(visualReviewRunId), logValue(request.getSourceRunId()),
                     logValue(request.getParentRunId()), visualRepairRound(request), request.getStage(),
                     logValue(request.getDiagramId()), request.getExpectedVersion(),
-                    logValue(request.getExpectedContentHash()), Boolean.TRUE.equals(request.getShadow()));
+                    logValue(request.getExpectedContentHash()), pageCount(request), truncatedPageCount(request),
+                    request.getAdditionalAfterImages() == null ? 0 : request.getAdditionalAfterImages().size(),
+                    Boolean.TRUE.equals(request.getShadow()));
             if (!visualReviewEnabled()) {
                 // Disabled means no provider call, quota consumption, telemetry run, or user-visible review.
                 log.info("[visual-review-loop] event=complete reviewRunId={} stage={} repairRound={} outcome=disabled",
@@ -110,9 +118,10 @@ public class CanvasVisualReviewOrchestrator {
             CanvasReviewImageValidator.ValidatedImage before = StringUtils.isBlank(request.getBeforeImageDataUrl())
                     ? null : imageValidator.validate(request.getBeforeImageDataUrl());
             CanvasReviewImageValidator.ValidatedImage after = imageValidator.validate(request.getAfterImageDataUrl());
+            List<CanvasVisualReviewEvidence> supplemental = validateSupplementalEvidence(request);
             CanvasVisualReviewStage stage = CanvasVisualReviewStage.valueOf(request.getStage());
             DrawerContinuation continuation = review(
-                    ownerId, visualReviewRunId, request, emitter, before, after, stage);
+                    ownerId, visualReviewRunId, request, emitter, before, after, supplemental, stage);
             if (continuation == null) return;
             // The continuation owns a separate run while reusing the original Drawer agent and session.
             log.info("[visual-review-loop] event=drawer_continuation reviewRunId={} repairRunId={} sourceRunId={} parentRunId={} repairRound={} diagramId={} expectedVersion={} expectedHash={} authorizedCells={}",
@@ -143,6 +152,7 @@ public class CanvasVisualReviewOrchestrator {
                                       ResponseBodyEmitter emitter,
                                       CanvasReviewImageValidator.ValidatedImage before,
                                       CanvasReviewImageValidator.ValidatedImage after,
+                                      List<CanvasVisualReviewEvidence> supplemental,
                                       CanvasVisualReviewStage stage) throws Exception {
         AgentUsageTelemetryService.RunScope run = telemetryService().startRun(
                 visualReviewRunId, request.getRequestId(), ownerId, visualReviewer.agentId(), request.getSessionId(),
@@ -152,7 +162,7 @@ public class CanvasVisualReviewOrchestrator {
         try (AgentUsageTelemetryContext.Scope ignored = AgentUsageTelemetryContext.bind(run.getContext())) {
             CanvasState reviewedState = canvasStateStore.find(ownerId, request.getDiagramId()).orElse(null);
             recordReviewEvent(run, "visual_review_started", "RUNNING",
-                    startedMetadata(request, before, after));
+                    startedMetadata(request, before, after, supplemental));
             sendMeta(emitter, visualReviewRunId, request);
             if (!matches(reviewedState, ownerId, request)) {
                 recordStale(run, request, reviewedState, "before_provider");
@@ -161,6 +171,7 @@ public class CanvasVisualReviewOrchestrator {
                 emitter.complete();
                 return null;
             }
+            validateEvidenceCoverage(reviewedState.getCurrentXml(), request, supplemental);
             if (stage == CanvasVisualReviewStage.POST_REPAIR
                     || stage == CanvasVisualReviewStage.VERIFY_ONLY) {
                 boolean verifiedLineage = telemetryService().isVisualRepairResult(
@@ -180,9 +191,10 @@ public class CanvasVisualReviewOrchestrator {
             anonymousDemoQuotaService.consumeIfNeeded(ownerId, null);
             verifiedUserPlatformQuotaService.consumeIfNeeded(ownerId, null);
             CanvasAnalysis analysis = canvasAnalyzer.analyze(reviewedState.getCurrentXml(), diagramType(request, reviewedState));
-            sendReviewStarted(emitter, visualReviewRunId, request, before, after);
+            sendReviewStarted(emitter, visualReviewRunId, request, before, after, supplemental);
             long startedNanos = System.nanoTime();
-            CanvasVisualReviewResult result = visualReviewer.review(command(request, reviewedState, stage, analysis));
+            CanvasVisualReviewResult result = visualReviewer.review(
+                    command(request, reviewedState, stage, analysis, supplemental));
             long reviewLatencyMs = (System.nanoTime() - startedNanos) / 1_000_000;
 
             // Reject results for a canvas that changed while pixels were being reviewed.
@@ -199,6 +211,13 @@ public class CanvasVisualReviewOrchestrator {
                     result, stage, visualRepairRound(request));
             CanvasMutationAuthorization authorization = repairAuthorization(analysis, result);
             boolean shadow = Boolean.TRUE.equals(request.getShadow());
+            if (!shadow && result != null && result.isAvailable() && truncatedPageCount(request) > 0) {
+                // A partial page sample may report findings, but it cannot authorize or approve the whole canvas.
+                decision = CanvasVisualReviewDecision.NEEDS_HUMAN_REVIEW;
+                log.info("[visual-review-loop] event=incomplete_evidence reviewRunId={} sourceRunId={} pages={} truncatedPages={} outcome=human_review",
+                        logValue(visualReviewRunId), logValue(request.getSourceRunId()),
+                        pageCount(request), truncatedPageCount(request));
+            }
             if (!shadow && decision == CanvasVisualReviewDecision.REPAIR
                     && authorization.allowedCellIds().isEmpty()) {
                 // Phase 3 fails closed until a deterministic issue can locate the visual finding.
@@ -271,7 +290,8 @@ public class CanvasVisualReviewOrchestrator {
 
     private Map<String, Object> startedMetadata(CanvasVisualReviewRequestDTO request,
                                                 CanvasReviewImageValidator.ValidatedImage before,
-                                                CanvasReviewImageValidator.ValidatedImage after) {
+                                                CanvasReviewImageValidator.ValidatedImage after,
+                                                List<CanvasVisualReviewEvidence> supplemental) {
         Map<String, Object> metadata = baseMetadata(request);
         metadata.put("reviewerVersion", visualReviewer.version());
         metadata.put("rendererVersion", request.getRendererVersion());
@@ -281,6 +301,9 @@ public class CanvasVisualReviewOrchestrator {
         metadata.put("afterImageBytes", after.bytes().length);
         metadata.put("afterImageWidth", after.width());
         metadata.put("afterImageHeight", after.height());
+        metadata.put("additionalImageCount", supplemental.size());
+        metadata.put("totalPageCount", pageCount(request));
+        metadata.put("truncatedPageCount", truncatedPageCount(request));
         return metadata;
     }
 
@@ -417,6 +440,9 @@ public class CanvasVisualReviewOrchestrator {
                                       DrawerContinuationContext context) {
     }
 
+    private record CanvasPage(String pageId, String pageName) {
+    }
+
     private void validateRequest(String ownerId, CanvasVisualReviewRequestDTO request) {
         if (StringUtils.isBlank(ownerId) || request == null || StringUtils.isBlank(request.getAgentId())
                 || StringUtils.isBlank(request.getSessionId()) || StringUtils.isBlank(request.getDiagramId())
@@ -451,6 +477,141 @@ public class CanvasVisualReviewOrchestrator {
         }
     }
 
+    private List<CanvasVisualReviewEvidence> validateSupplementalEvidence(
+            CanvasVisualReviewRequestDTO request) {
+        List<CanvasVisualReviewEvidenceDTO> values = request.getAdditionalAfterImages() == null
+                ? List.of() : request.getAdditionalAfterImages();
+        if (values.size() > MAX_ADDITIONAL_REVIEW_IMAGES) {
+            throw new IllegalArgumentException("too_many_visual_evidence_images");
+        }
+        return values.stream().map(value -> {
+            if (value == null || StringUtils.isBlank(value.getRole())
+                    || StringUtils.length(value.getPageId()) > 80
+                    || StringUtils.length(value.getPageName()) > 80) {
+                throw new IllegalArgumentException("invalid_visual_evidence_metadata");
+            }
+            CanvasVisualReviewEvidenceRole role;
+            try {
+                role = CanvasVisualReviewEvidenceRole.valueOf(value.getRole());
+            } catch (Exception e) {
+                throw new IllegalArgumentException("invalid_visual_evidence_role", e);
+            }
+            if (role == CanvasVisualReviewEvidenceRole.DETAIL_TILE
+                    && (value.getTileIndex() == null || value.getTileCount() == null
+                    || value.getTileIndex() < 1 || value.getTileCount() < 1
+                    || value.getTileIndex() > value.getTileCount() || value.getTileCount() > 4)) {
+                throw new IllegalArgumentException("invalid_visual_evidence_tile");
+            }
+            CanvasReviewImageValidator.ValidatedImage image = imageValidator.validate(value.getDataUrl());
+            return CanvasVisualReviewEvidence.builder()
+                    .role(role)
+                    .pageId(value.getPageId())
+                    .pageName(value.getPageName())
+                    .tileIndex(value.getTileIndex())
+                    .tileCount(value.getTileCount())
+                    .width(image.width())
+                    .height(image.height())
+                    .dataUrl(value.getDataUrl())
+                    .build();
+        }).toList();
+    }
+
+    private void validateEvidenceCoverage(String canvasXml,
+                                          CanvasVisualReviewRequestDTO request,
+                                          List<CanvasVisualReviewEvidence> supplemental) {
+        List<CanvasPage> pages = canvasPages(canvasXml);
+        int expectedCoveredPages = Math.min(pages.size(), MAX_REVIEWED_PAGES);
+        int expectedTruncatedPages = pages.size() - expectedCoveredPages;
+        if (pageCount(request) != pages.size()
+                || truncatedPageCount(request) != expectedTruncatedPages
+                || !matchesPage(pages.get(0), request.getAfterImagePageId(),
+                request.getAfterImagePageName(), pages.size() > 1)) {
+            log.warn("[visual-review-loop] event=evidence_coverage_rejected diagramId={} reason=page_manifest expectedPages={} reportedPages={} expectedTruncated={} reportedTruncated={}",
+                    logValue(request.getDiagramId()), pages.size(), pageCount(request),
+                    expectedTruncatedPages, truncatedPageCount(request));
+            throw new IllegalArgumentException("invalid_visual_evidence_coverage");
+        }
+
+        List<CanvasVisualReviewEvidence> overviews = supplemental.stream()
+                .filter(item -> item.getRole() == CanvasVisualReviewEvidenceRole.PAGE_OVERVIEW)
+                .toList();
+        List<CanvasVisualReviewEvidence> tiles = supplemental.stream()
+                .filter(item -> item.getRole() == CanvasVisualReviewEvidenceRole.DETAIL_TILE)
+                .toList();
+        if (overviews.size() != expectedCoveredPages - 1 || (pages.size() > 1 && !tiles.isEmpty())) {
+            log.warn("[visual-review-loop] event=evidence_coverage_rejected diagramId={} reason=image_roles expectedOverviews={} actualOverviews={} tiles={}",
+                    logValue(request.getDiagramId()), expectedCoveredPages - 1, overviews.size(), tiles.size());
+            throw new IllegalArgumentException("invalid_visual_evidence_coverage");
+        }
+        for (int index = 1; index < expectedCoveredPages; index++) {
+            CanvasPage expected = pages.get(index);
+            long matches = overviews.stream()
+                    .filter(item -> matchesPage(expected, item.getPageId(), item.getPageName(), true))
+                    .count();
+            if (matches != 1) {
+                log.warn("[visual-review-loop] event=evidence_coverage_rejected diagramId={} reason=page_identity pageIndex={} matches={}",
+                        logValue(request.getDiagramId()), index, matches);
+                throw new IllegalArgumentException("invalid_visual_evidence_coverage");
+            }
+        }
+        if (pages.size() == 1 && tiles.stream()
+                .anyMatch(item -> !matchesPage(pages.get(0), item.getPageId(), item.getPageName(), false))) {
+            throw new IllegalArgumentException("invalid_visual_evidence_coverage");
+        }
+    }
+
+    private List<CanvasPage> canvasPages(String canvasXml) {
+        java.util.regex.Matcher matcher = DIAGRAM_TAG.matcher(StringUtils.defaultString(canvasXml));
+        List<CanvasPage> pages = new java.util.ArrayList<>();
+        Set<String> pageIds = new java.util.HashSet<>();
+        while (matcher.find()) {
+            String attributes = matcher.group(1);
+            String pageId = xmlAttribute(attributes, "id");
+            String pageName = StringUtils.defaultIfBlank(
+                    xmlAttribute(attributes, "name"), "Page-" + (pages.size() + 1));
+            // Draw.io page ids are the stable identity used to correlate each exported PNG.
+            if (StringUtils.isBlank(pageId) || !pageIds.add(pageId)) {
+                throw new IllegalArgumentException("invalid_visual_evidence_coverage");
+            }
+            pages.add(new CanvasPage(pageId, pageName));
+        }
+        return pages.isEmpty() ? List.of(new CanvasPage("", "Page-1")) : pages;
+    }
+
+    private String xmlAttribute(String attributes, String name) {
+        java.util.regex.Matcher matcher = Pattern.compile(
+                "\\b" + Pattern.quote(name) + "=(?:\"([^\"]*)\"|'([^']*)')",
+                Pattern.CASE_INSENSITIVE).matcher(attributes);
+        if (!matcher.find()) return "";
+        String value = StringUtils.defaultString(matcher.group(1), matcher.group(2));
+        return value.replace("&quot;", "\"")
+                .replace("&apos;", "'")
+                .replace("&lt;", "<")
+                .replace("&gt;", ">")
+                .replace("&amp;", "&");
+    }
+
+    private boolean matchesPage(CanvasPage expected,
+                                String actualPageId,
+                                String actualPageName,
+                                boolean identityRequired) {
+        if (identityRequired && (StringUtils.isBlank(actualPageId) || StringUtils.isBlank(actualPageName))) {
+            return false;
+        }
+        return (StringUtils.isBlank(actualPageId) || Objects.equals(expected.pageId(), actualPageId))
+                && (StringUtils.isBlank(actualPageName) || Objects.equals(expected.pageName(), actualPageName));
+    }
+
+    private int pageCount(CanvasVisualReviewRequestDTO request) {
+        Integer count = request.getTotalPageCount();
+        return count == null || count < 1 ? 1 : count;
+    }
+
+    private int truncatedPageCount(CanvasVisualReviewRequestDTO request) {
+        Integer count = request.getTruncatedPageCount();
+        return count == null || count < 0 ? 0 : count;
+    }
+
     private ChatRequestDTO repairRequest(String ownerId,
                                          String visualReviewRunId,
                                          String repairRunId,
@@ -482,7 +643,8 @@ public class CanvasVisualReviewOrchestrator {
     private CanvasVisualReviewCommand command(CanvasVisualReviewRequestDTO request,
                                               CanvasState state,
                                               CanvasVisualReviewStage stage,
-                                              CanvasAnalysis analysis) {
+                                              CanvasAnalysis analysis,
+                                              List<CanvasVisualReviewEvidence> supplemental) {
         List<String> evidence = analysis == null || analysis.getIssues() == null
                 ? Collections.emptyList()
                 : analysis.getIssues().stream().limit(10).map(CanvasAnalysisIssue::getMessage)
@@ -494,12 +656,27 @@ public class CanvasVisualReviewOrchestrator {
                 .diagramType(diagramType(request, state))
                 .beforeImageDataUrl(request.getBeforeImageDataUrl())
                 .afterImageDataUrl(request.getAfterImageDataUrl())
+                .afterImagePageId(request.getAfterImagePageId())
+                .afterImagePageName(request.getAfterImagePageName())
+                .totalPageCount(pageCount(request))
+                .truncatedPageCount(truncatedPageCount(request))
+                .additionalAfterImages(supplemental)
                 .analyzerEvidence(evidence)
                 .canvasSummary(summary)
+                .languageHint(usesChineseLanguage(request.getOriginalUserTask()) ? "zh" : "en")
                 .rendererVersion(request.getRendererVersion())
                 .expectedVersion(request.getExpectedVersion())
                 .expectedContentHash(request.getExpectedContentHash())
                 .build();
+    }
+
+    private boolean usesChineseLanguage(String value) {
+        String text = StringUtils.defaultString(value);
+        long hanCount = text.codePoints().filter(codePoint -> codePoint >= 0x3400 && codePoint <= 0x9FFF).count();
+        long latinCount = text.codePoints().filter(codePoint -> (codePoint >= 'A' && codePoint <= 'Z')
+                || (codePoint >= 'a' && codePoint <= 'z')).count();
+        // A quoted Chinese node label should not switch an otherwise English reviewer response to Chinese.
+        return hanCount > 0 && (latinCount == 0 || (hanCount >= 2 && hanCount * 2 >= latinCount));
     }
 
     private boolean matches(CanvasState state, String ownerId, CanvasVisualReviewRequestDTO request) {
@@ -518,7 +695,8 @@ public class CanvasVisualReviewOrchestrator {
                                    String runId,
                                    CanvasVisualReviewRequestDTO request,
                                    CanvasReviewImageValidator.ValidatedImage before,
-                                   CanvasReviewImageValidator.ValidatedImage after) throws Exception {
+                                   CanvasReviewImageValidator.ValidatedImage after,
+                                   List<CanvasVisualReviewEvidence> supplemental) throws Exception {
         JSONObject chunk = chunk("review_started");
         chunk.put("stage", request.getStage());
         chunk.put("sourceRunId", request.getSourceRunId());
@@ -529,6 +707,9 @@ public class CanvasVisualReviewOrchestrator {
         chunk.put("afterImageBytes", after.bytes().length);
         chunk.put("afterImageWidth", after.width());
         chunk.put("afterImageHeight", after.height());
+        chunk.put("additionalImageCount", supplemental.size());
+        chunk.put("totalPageCount", pageCount(request));
+        chunk.put("truncatedPageCount", truncatedPageCount(request));
         send(emitter, chunk);
     }
 
@@ -554,6 +735,8 @@ public class CanvasVisualReviewOrchestrator {
         chunk.put("approved", decision == CanvasVisualReviewDecision.APPROVE
                 || decision == CanvasVisualReviewDecision.APPROVE_WITH_NOTES);
         chunk.put("available", result != null && result.isAvailable());
+        chunk.put("unavailableReason", result == null ? "missing_result"
+                : StringUtils.defaultString(result.getUnavailableReason()));
         chunk.put("decision", decision.name());
         chunk.put("stage", request.getStage());
         chunk.put("visualRepairRound", visualRepairRound(request));

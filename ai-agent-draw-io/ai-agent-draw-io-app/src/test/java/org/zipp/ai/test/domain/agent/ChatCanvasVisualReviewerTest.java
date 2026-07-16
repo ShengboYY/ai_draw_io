@@ -4,6 +4,8 @@ import org.junit.After;
 import org.junit.Test;
 import org.zipp.ai.domain.agent.model.entity.ChatCommandEntity;
 import org.zipp.ai.domain.agent.model.valobj.visualreview.CanvasVisualReviewCommand;
+import org.zipp.ai.domain.agent.model.valobj.visualreview.CanvasVisualReviewEvidence;
+import org.zipp.ai.domain.agent.model.valobj.visualreview.CanvasVisualReviewEvidenceRole;
 import org.zipp.ai.domain.agent.model.valobj.visualreview.CanvasVisualReviewResult;
 import org.zipp.ai.domain.agent.model.valobj.visualreview.CanvasVisualReviewStage;
 import org.zipp.ai.domain.agent.service.IChatService;
@@ -69,6 +71,41 @@ public class ChatCanvasVisualReviewerTest {
         assertFalse(captured.get(0).getTexts().get(0).getMessage().contains(image("after")));
         assertTrue(first.getReviewerVersion().contains("temperature=1.0"));
         assertTrue(first.getReviewerVersion().contains("visual-review-schema-v2"));
+    }
+
+    @Test
+    public void sendsSupplementalPageAndTilePixelsWithAnExplicitImageManifest() {
+        AtomicReference<ChatCommandEntity> captured = new AtomicReference<>();
+        IChatService chat = proxy((method, args) -> {
+            if (method.getName().equals("createSession")) return "session";
+            if (method.getName().equals("handleMessage") && args.length == 1) {
+                captured.set((ChatCommandEntity) args[0]);
+                return List.of(VALID_OUTPUT);
+            }
+            return defaultValue(method.getReturnType());
+        });
+        CanvasVisualReviewCommand command = command(null, image("overview"));
+        command.setAdditionalAfterImages(List.of(
+                CanvasVisualReviewEvidence.builder()
+                        .role(CanvasVisualReviewEvidenceRole.PAGE_OVERVIEW)
+                        .pageId("page-2").pageName("Errors").dataUrl(image("page-2")).width(1600).height(900).build(),
+                CanvasVisualReviewEvidence.builder()
+                        .role(CanvasVisualReviewEvidenceRole.DETAIL_TILE)
+                        .pageId("page-1").pageName("Overview").tileIndex(1).tileCount(4)
+                        .dataUrl(image("tile-1")).width(1600).height(1200).build()));
+
+        CanvasVisualReviewResult result = reviewer(chat, 2_000L).review(command);
+
+        assertTrue(result.isAvailable());
+        assertEquals(3, captured.get().getInlineDatas().size());
+        String prompt = captured.get().getTexts().get(0).getMessage();
+        assertTrue(prompt.contains("\"role\":\"PAGE_OVERVIEW\""));
+        assertTrue(prompt.contains("\"pageName\":\"Errors\""));
+        assertTrue(prompt.contains("\"role\":\"DETAIL_TILE\""));
+        assertTrue(prompt.contains("\"tileIndex\":1"));
+        assertTrue(prompt.contains("Inspect every page overview independently"));
+        assertTrue(prompt.contains("Respond in the language named by languageHint"));
+        assertFalse(prompt.contains(image("tile-1")));
     }
 
     @Test

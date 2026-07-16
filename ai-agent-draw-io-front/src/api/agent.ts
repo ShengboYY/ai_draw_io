@@ -224,6 +224,7 @@ export interface ReviewResultChunk {
     decision?: 'APPROVE' | 'APPROVE_WITH_NOTES' | 'REPAIR' | 'NEEDS_HUMAN_REVIEW' | 'UNAVAILABLE';
     stage?: 'CURRENT_CANVAS' | 'POST_MUTATION' | 'POST_REPAIR' | 'VERIFY_ONLY';
     visualRepairRound?: number;
+    unavailableReason?: string;
     issues?: Array<{
         type?: string;
         severity?: 'minor' | 'major' | 'critical';
@@ -243,6 +244,9 @@ export interface ReviewStartedChunk {
     sourceRunId?: string;
     parentRunId?: string;
     visualRepairRound?: number;
+    additionalImageCount?: number;
+    totalPageCount?: number;
+    truncatedPageCount?: number;
     visualReviewRunId?: string;
 }
 

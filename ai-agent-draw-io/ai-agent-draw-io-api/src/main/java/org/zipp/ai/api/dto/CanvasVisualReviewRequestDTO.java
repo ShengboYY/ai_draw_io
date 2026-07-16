@@ -2,6 +2,8 @@ package org.zipp.ai.api.dto;
 
 import lombok.Data;
 
+import java.util.List;
+
 @Data
 public class CanvasVisualReviewRequestDTO {
 
@@ -23,5 +25,10 @@ public class CanvasVisualReviewRequestDTO {
     private String stage;
     private String beforeImageDataUrl;
     private String afterImageDataUrl;
+    private String afterImagePageId;
+    private String afterImagePageName;
+    private Integer totalPageCount;
+    private Integer truncatedPageCount;
+    private List<CanvasVisualReviewEvidenceDTO> additionalAfterImages;
     private String rendererVersion;
 }

@@ -34,10 +34,10 @@ type PendingCanvasExport = CanvasExportRequest & {
 const DEFAULT_EXPORT_TIMEOUT_MS = 10_000;
 
 export class CanvasExportError extends Error {
-  readonly code: 'EXPORT_TIMEOUT' | 'EXPORT_SCOPE_CHANGED' | 'EXPORT_DISPATCH_FAILED';
+  readonly code: 'EXPORT_TIMEOUT' | 'EXPORT_SCOPE_CHANGED' | 'EXPORT_DISPATCH_FAILED' | 'EXPORT_INVALID_PAYLOAD';
 
   constructor(
-    code: 'EXPORT_TIMEOUT' | 'EXPORT_SCOPE_CHANGED' | 'EXPORT_DISPATCH_FAILED',
+    code: 'EXPORT_TIMEOUT' | 'EXPORT_SCOPE_CHANGED' | 'EXPORT_DISPATCH_FAILED' | 'EXPORT_INVALID_PAYLOAD',
     message: string,
   ) {
     super(message);

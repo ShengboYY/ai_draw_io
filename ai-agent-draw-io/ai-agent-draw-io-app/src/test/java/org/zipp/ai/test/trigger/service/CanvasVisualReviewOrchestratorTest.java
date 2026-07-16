@@ -3,6 +3,7 @@ package org.zipp.ai.test.trigger.service;
 import org.junit.Test;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseBodyEmitter;
 import org.zipp.ai.api.dto.CanvasVisualReviewRequestDTO;
+import org.zipp.ai.api.dto.CanvasVisualReviewEvidenceDTO;
 import org.zipp.ai.api.dto.ChatRequestDTO;
 import org.zipp.ai.domain.account.service.AnonymousDemoQuotaService;
 import org.zipp.ai.domain.account.service.VerifiedUserPlatformQuotaService;
@@ -38,6 +39,7 @@ import java.util.Base64;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -92,6 +94,140 @@ public class CanvasVisualReviewOrchestratorTest {
         assertTrue(output.contains("\"decision\":\"APPROVE\""));
         assertTrue(output.contains("\"sourceRunId\":\"source-run\""));
         assertTrue(output.contains("\"type\":\"done\""));
+        assertTrue(emitter.completed);
+    }
+
+    @Test
+    public void validatesAndForwardsSupplementalVisualEvidence() throws Exception {
+        AtomicReference<org.zipp.ai.domain.agent.model.valobj.visualreview.CanvasVisualReviewCommand> captured =
+                new AtomicReference<>();
+        CanvasVisualReviewOrchestrator orchestrator = orchestrator(
+                new SequenceCanvasStore(state(7L, "sha256:current")),
+                command -> {
+                    captured.set(command);
+                    return CanvasVisualReviewResult.builder().available(true).summary("Reviewed all evidence")
+                            .issues(List.of()).recommendedHumanReview(false).build();
+                });
+        CanvasVisualReviewRequestDTO request = request(7L, "sha256:current");
+        CanvasVisualReviewEvidenceDTO tile = new CanvasVisualReviewEvidenceDTO();
+        tile.setRole("DETAIL_TILE");
+        tile.setPageName("Page-1");
+        tile.setTileIndex(1);
+        tile.setTileCount(4);
+        tile.setDataUrl(png());
+        request.setAdditionalAfterImages(List.of(tile));
+        request.setOriginalUserTask("检查这个图");
+
+        orchestrator.stream("usr_owner", "visual-evidence-run", request, new CapturingEmitter());
+
+        assertEquals(1, captured.get().getAdditionalAfterImages().size());
+        assertEquals(Integer.valueOf(16), captured.get().getAdditionalAfterImages().get(0).getWidth());
+        assertEquals(Integer.valueOf(1), captured.get().getAdditionalAfterImages().get(0).getTileIndex());
+        assertEquals("zh", captured.get().getLanguageHint());
+
+        CanvasVisualReviewRequestDTO englishRequest = request(7L, "sha256:current");
+        englishRequest.setAdditionalAfterImages(List.of(tile));
+        englishRequest.setOriginalUserTask("Please move the 登录 node to the right.");
+        orchestrator.stream("usr_owner", "visual-evidence-language", englishRequest, new CapturingEmitter());
+        assertEquals("en", captured.get().getLanguageHint());
+    }
+
+    @Test
+    public void rejectsMoreSupplementalImagesThanTheReviewBudgetAllows() throws Exception {
+        AtomicInteger reviewerCalls = new AtomicInteger();
+        CanvasVisualReviewOrchestrator orchestrator = orchestrator(
+                new SequenceCanvasStore(state(7L, "sha256:current")),
+                command -> {
+                    reviewerCalls.incrementAndGet();
+                    return CanvasVisualReviewResult.unavailable("unexpected");
+                });
+        CanvasVisualReviewRequestDTO request = request(7L, "sha256:current");
+        List<CanvasVisualReviewEvidenceDTO> images = new ArrayList<>();
+        for (int index = 0; index < 5; index++) {
+            CanvasVisualReviewEvidenceDTO image = new CanvasVisualReviewEvidenceDTO();
+            image.setRole("PAGE_OVERVIEW");
+            image.setPageId("page-" + index);
+            image.setDataUrl(png());
+            images.add(image);
+        }
+        request.setAdditionalAfterImages(images);
+        CapturingEmitter emitter = new CapturingEmitter();
+
+        orchestrator.stream("usr_owner", "visual-evidence-overflow", request, emitter);
+
+        assertEquals(0, reviewerCalls.get());
+        assertTrue(String.join("\n", emitter.sent).contains("too_many_visual_evidence_images"));
+        assertTrue(emitter.completed);
+    }
+
+    @Test
+    public void incompletePageCoverageNeverStartsAutomaticRepair() throws Exception {
+        AtomicInteger repairCalls = new AtomicInteger();
+        CanvasVisualIssue issue = CanvasVisualIssue.builder()
+                .type(CanvasVisualIssueType.LAYOUT_HIERARCHY)
+                .severity(CanvasVisualIssueSeverity.MAJOR)
+                .anchorLabels(List.of("API"))
+                .region("center")
+                .evidence("The visible page is crowded.")
+                .repairInstruction("Increase spacing.")
+                .repairScope(CanvasVisualRepairScope.LOCAL)
+                .build();
+        AgentConversationService repairService = new AgentConversationService() {
+            @Override
+            public void continueDrawing(ChatRequestDTO request,
+                                        DrawerContinuationContext continuation,
+                                        ResponseBodyEmitter emitter) {
+                repairCalls.incrementAndGet();
+            }
+        };
+        CanvasVisualReviewOrchestrator orchestrator = orchestrator(
+                new SequenceCanvasStore(multiPageState(7L, "sha256:current", 6)),
+                command -> CanvasVisualReviewResult.builder().available(true).summary("Visible pages need repair")
+                        .issues(List.of(issue)).recommendedHumanReview(false).build(),
+                repairService);
+        FakeAgentUsageTelemetryStore telemetryStore = new FakeAgentUsageTelemetryStore();
+        seedSourceMutation(telemetryStore, 7L, "sha256:current");
+        inject(orchestrator, "agentUsageTelemetryService",
+                new AgentUsageTelemetryService(telemetryStore, Clock.systemUTC()));
+        CanvasVisualReviewRequestDTO request = request(7L, "sha256:current");
+        request.setTotalPageCount(6);
+        request.setTruncatedPageCount(2);
+        request.setAfterImagePageId("page-1");
+        request.setAfterImagePageName("Page 1");
+        request.setAdditionalAfterImages(List.of(
+                pageOverview("page-2", "Page 2"),
+                pageOverview("page-3", "Page 3"),
+                pageOverview("page-4", "Page 4")));
+        CapturingEmitter emitter = new CapturingEmitter();
+
+        orchestrator.stream("usr_owner", "visual-truncated-pages", request, emitter);
+
+        String output = String.join("\n", emitter.sent);
+        assertEquals(0, repairCalls.get());
+        assertTrue(output, output.contains("\"decision\":\"NEEDS_HUMAN_REVIEW\""));
+        assertTrue(output, output.contains("\"type\":\"done\""));
+        assertTrue(emitter.completed);
+    }
+
+    @Test
+    public void rejectsClientPageCountsThatDoNotMatchTheStoredCanvas() throws Exception {
+        AtomicInteger reviewerCalls = new AtomicInteger();
+        CanvasVisualReviewOrchestrator orchestrator = orchestrator(
+                new SequenceCanvasStore(multiPageState(7L, "sha256:current", 6)),
+                command -> {
+                    reviewerCalls.incrementAndGet();
+                    return CanvasVisualReviewResult.builder().available(true).summary("Incomplete approval")
+                            .issues(List.of()).recommendedHumanReview(false).build();
+                });
+        CanvasVisualReviewRequestDTO request = request(7L, "sha256:current");
+        request.setTotalPageCount(1);
+        request.setTruncatedPageCount(0);
+        CapturingEmitter emitter = new CapturingEmitter();
+
+        orchestrator.stream("usr_owner", "visual-page-count-spoof", request, emitter);
+
+        assertEquals(0, reviewerCalls.get());
+        assertTrue(String.join("\n", emitter.sent).contains("invalid_visual_evidence_coverage"));
         assertTrue(emitter.completed);
     }
 
@@ -700,6 +836,24 @@ public class CanvasVisualReviewOrchestratorTest {
                         + "<mxGeometry x='40' y='40' width='120' height='60' as='geometry'/></mxCell>"
                         + "</root></mxGraphModel>")
                 .build();
+    }
+
+    private CanvasState multiPageState(Long version, String hash, int pageCount) {
+        String pages = java.util.stream.IntStream.rangeClosed(1, pageCount)
+                .mapToObj(index -> "<diagram id='page-" + index + "' name='Page " + index + "'/>")
+                .collect(java.util.stream.Collectors.joining());
+        CanvasState state = state(version, hash);
+        state.setCurrentXml("<mxfile>" + pages + "</mxfile>");
+        return state;
+    }
+
+    private CanvasVisualReviewEvidenceDTO pageOverview(String pageId, String pageName) throws Exception {
+        CanvasVisualReviewEvidenceDTO evidence = new CanvasVisualReviewEvidenceDTO();
+        evidence.setRole("PAGE_OVERVIEW");
+        evidence.setPageId(pageId);
+        evidence.setPageName(pageName);
+        evidence.setDataUrl(png());
+        return evidence;
     }
 
     private org.zipp.ai.domain.agent.model.valobj.usage.AgentRunTelemetry sourceRun() {

@@ -7,7 +7,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { getUserInfo, setUserInfo as persistUserInfo } from '@/utils/cookie';
 import { getWorkspaceIdentity } from '@/utils/workspace-identity';
 import { agentApi, ApiResponseError, StreamEvent } from '@/api/agent';
-import type { CurrentAccountResponseDTO, DiagramCanvasStateResponseDTO, DiagramSummaryResponseDTO, ModelCredentialResponseDTO, ProviderPresetDTO } from '@/types/api';
+import type { CanvasVisualReviewEvidenceDTO, CurrentAccountResponseDTO, DiagramCanvasStateResponseDTO, DiagramSummaryResponseDTO, ModelCredentialResponseDTO, ProviderPresetDTO } from '@/types/api';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import {
@@ -77,8 +77,11 @@ import {
   CanvasExportError,
 } from './canvas-export-coordinator';
 import {
+  VISUAL_REVIEW_DETAIL_WIDTH,
   VISUAL_REVIEW_RENDERER_VERSION,
+  buildVisualReviewEvidencePlan,
   buildVisualReviewExportRequest,
+  createVisualReviewDetailTiles,
   isVisualReviewPngDataUrl,
 } from './visual-review-export';
 import {
@@ -2228,8 +2231,18 @@ function DrawioPageContent() {
           contentHash: string;
           contentHashBeforeRepair: string;
           imageBeforeRepair: string;
+          canvasXml: string;
           loadPromise: Promise<boolean>;
         };
+      };
+
+      type VisualReviewEvidenceBundle = {
+        primaryImageDataUrl: string;
+        primaryPageId?: string;
+        primaryPageName: string;
+        totalPageCount: number;
+        truncatedPageCount: number;
+        additionalAfterImages: CanvasVisualReviewEvidenceDTO[];
       };
 
       const nextReviewRequestId = () => (
@@ -2238,16 +2251,85 @@ function DrawioPageContent() {
           : `review-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`
       );
 
-      const exportVisualReviewPng = async (targetDiagramId: string) => {
+      const exportVisualReviewPage = async (
+        targetDiagramId: string,
+        pageId?: string,
+        width?: string,
+      ) => {
         const exported = await exportCoordinatorRef.current?.enqueue({
           purpose: 'visual-review-png',
           diagramId: targetDiagramId,
           sessionId: activeSession?.id || currentSessionId || '',
           format: 'png',
-          options: buildVisualReviewExportRequest(),
+          options: buildVisualReviewExportRequest(pageId, width),
         });
-        return exported && isVisualReviewPngDataUrl(exported.data) ? exported.data : undefined;
+        if (!exported || !isVisualReviewPngDataUrl(exported.data)) {
+          throw new CanvasExportError('EXPORT_INVALID_PAYLOAD', 'Draw.io returned an invalid visual-review PNG.');
+        }
+        return exported.data as string;
       };
+
+      const exportVisualReviewEvidence = async (
+        targetDiagramId: string,
+        canvasXml: string,
+      ): Promise<VisualReviewEvidenceBundle> => {
+        const counts = countDrawableCells(canvasXml);
+        const plan = buildVisualReviewEvidencePlan({
+          canvasXml,
+          nodeCount: counts.nodes,
+          edgeCount: counts.edges,
+        });
+        const pageImages: Array<{ pageId?: string; pageName: string; dataUrl: string }> = [];
+        for (const page of plan.pages) {
+          pageImages.push({
+            ...page,
+            dataUrl: await exportVisualReviewPage(targetDiagramId, page.pageId),
+          });
+        }
+        const primary = pageImages[0];
+        if (!primary) {
+          throw new CanvasExportError('EXPORT_INVALID_PAYLOAD', 'No visual-review page was available.');
+        }
+        const additionalAfterImages: CanvasVisualReviewEvidenceDTO[] = pageImages.slice(1).map(page => ({
+          role: 'PAGE_OVERVIEW',
+          pageId: page.pageId,
+          pageName: page.pageName,
+          dataUrl: page.dataUrl,
+        }));
+        if (plan.detailTiles) {
+          const detailSource = await exportVisualReviewPage(
+            targetDiagramId,
+            primary.pageId,
+            VISUAL_REVIEW_DETAIL_WIDTH,
+          );
+          const tiles = await createVisualReviewDetailTiles(detailSource);
+          tiles.forEach((dataUrl, index) => additionalAfterImages.push({
+            role: 'DETAIL_TILE',
+            pageId: primary.pageId,
+            pageName: primary.pageName,
+            tileIndex: index + 1,
+            tileCount: tiles.length,
+            dataUrl,
+          }));
+        }
+        return {
+          primaryImageDataUrl: primary.dataUrl,
+          primaryPageId: primary.pageId,
+          primaryPageName: primary.pageName,
+          totalPageCount: plan.totalPageCount,
+          truncatedPageCount: plan.truncatedPageCount,
+          additionalAfterImages,
+        };
+      };
+
+      const reviewEvidenceFields = (evidence: VisualReviewEvidenceBundle) => ({
+        afterImageDataUrl: evidence.primaryImageDataUrl,
+        afterImagePageId: evidence.primaryPageId,
+        afterImagePageName: evidence.primaryPageName,
+        totalPageCount: evidence.totalPageCount,
+        truncatedPageCount: evidence.truncatedPageCount,
+        additionalAfterImages: evidence.additionalAfterImages,
+      });
 
       const executeVisualReview = (reviewRequest: ReturnType<typeof buildCanvasVisualReviewRequest>) => (
         new Promise<ReviewStreamOutcome>(resolve => {
@@ -2282,6 +2364,7 @@ function DrawioPageContent() {
               stage: reviewRequest.stage,
               visualRepairRound: reviewRequest.visualRepairRound,
               decision: 'UNAVAILABLE',
+              unavailableReason: 'REVIEW_REQUEST_FAILED',
             };
             recordVisualReview(unavailableReview);
             const detail = buildVisualReviewStepDetail({ ...unavailableReview, useChinese });
@@ -2289,7 +2372,7 @@ function DrawioPageContent() {
             publishSteps();
             upsertRunEvent(`visual-review:${reviewKeySuffix}`, {
               phase: 'reviewing',
-              title: reviewRequest.stage === 'VERIFY_ONLY' ? 'Final visual verification' : 'Visual review',
+              title: reviewStepLabel,
               detail,
               status: 'warning',
               tone: 'review',
@@ -2310,8 +2393,8 @@ function DrawioPageContent() {
                 publishSteps();
                 upsertRunEvent(`visual-review:${chunk.stage}:${chunk.visualRepairRound ?? reviewRequest.visualRepairRound}`, {
                   phase: 'reviewing',
-                  title: chunk.stage === 'VERIFY_ONLY' ? 'Final visual verification' : 'Visual review',
-                  detail: 'Inspecting the rendered canvas.',
+                  title: visualReviewStageLabel(chunk.stage || reviewRequest.stage, useChinese),
+                  detail: useChinese ? '正在检查当前版本的真实渲染画布。' : 'Inspecting the rendered canvas for this version.',
                   status: 'running',
                   tone: 'review',
                 });
@@ -2326,6 +2409,7 @@ function DrawioPageContent() {
                   decision: chunk.decision,
                   summary: chunk.content,
                   issues: chunk.issues,
+                  unavailableReason: chunk.decision === 'UNAVAILABLE' ? 'VLM_UNAVAILABLE' : undefined,
                 };
                 recordVisualReview(review);
                 if (chunk.decision === 'REPAIR' && !activeAiMutationDiagramId) {
@@ -2337,7 +2421,7 @@ function DrawioPageContent() {
                 publishSteps();
                 upsertRunEvent(`visual-review:${chunk.stage || reviewRequest.stage}:${chunk.visualRepairRound ?? reviewRequest.visualRepairRound}`, {
                   phase: 'reviewing',
-                  title: chunk.stage === 'VERIFY_ONLY' ? 'Final visual verification' : 'Visual review',
+                  title: visualReviewStageLabel(chunk.stage || reviewRequest.stage, useChinese),
                   detail: reviewDetail,
                   status: chunk.approved ? 'done' : 'warning',
                   tone: 'review',
@@ -2349,7 +2433,7 @@ function DrawioPageContent() {
                   publishSteps();
                   upsertRunEvent(repairStepKey, {
                     phase: 'revising',
-                    title: 'Visual repair',
+                    title: repairStepLabel,
                     detail: repairDetail,
                     status: 'running',
                     tone: 'review',
@@ -2372,7 +2456,7 @@ function DrawioPageContent() {
                 publishSteps();
                 upsertRunEvent(`visual-review:${reviewKeySuffix}`, {
                   phase: 'reviewing',
-                  title: reviewRequest.stage === 'VERIFY_ONLY' ? 'Final visual verification' : 'Visual review',
+                  title: reviewStepLabel,
                   detail: staleDetail,
                   status: 'warning',
                   tone: 'review',
@@ -2398,6 +2482,7 @@ function DrawioPageContent() {
                   contentHash: chunk.contentHash,
                   contentHashBeforeRepair: reviewRequest.expectedContentHash,
                   imageBeforeRepair: reviewRequest.afterImageDataUrl,
+                  canvasXml: chunk.content,
                   loadPromise,
                 };
                 const repairCompletedDetail = useChinese
@@ -2407,7 +2492,7 @@ function DrawioPageContent() {
                 publishSteps();
                 upsertRunEvent(repairStepKey, {
                   phase: 'revising',
-                  title: 'Visual repair',
+                  title: visualReviewStageLabel('REPAIR', useChinese),
                   detail: repairCompletedDetail,
                   status: 'done',
                   tone: 'review',
@@ -2451,16 +2536,77 @@ function DrawioPageContent() {
         finalDiagramId,
         finalVersion,
         finalContentHash,
+        finalCanvasXml,
         canvasLoaded,
       }: {
         finalDiagramId: string;
         finalVersion: number;
         finalContentHash: string;
+        finalCanvasXml: string;
         canvasLoaded: Promise<boolean>;
       }) => {
         if (!await canvasLoaded || currentSessionRef.current !== activeSession?.id) return;
-        const afterImage = await exportVisualReviewPng(finalDiagramId);
-        if (!afterImage || !sourceRunId) return;
+        if (!sourceRunId) return;
+
+        const collectEvidence = async (
+          diagramId: string,
+          canvasXml: string,
+          stage: VisualReviewPresentation['stage'],
+          repairRound: number,
+          version: number,
+        ) => {
+          const stepKey = `visual-evidence:${repairRound}`;
+          const label = useChinese ? '准备视觉证据' : 'Prepare visual evidence';
+          updateStep(stepKey, 'visual_evidence', label, '', false, true);
+          publishSteps();
+          try {
+            const evidence = await exportVisualReviewEvidence(diagramId, canvasXml);
+            const detailCount = evidence.additionalAfterImages.filter(item => item.role === 'DETAIL_TILE').length;
+            const detail = useChinese
+              ? `已为版本 ${version} 导出 ${evidence.totalPageCount - evidence.truncatedPageCount}/${evidence.totalPageCount} 页概览${detailCount ? `和 ${detailCount} 张高清局部图` : ''}。`
+              : `Exported ${evidence.totalPageCount - evidence.truncatedPageCount}/${evidence.totalPageCount} page overviews for version ${version}${detailCount ? ` plus ${detailCount} high-resolution detail tiles` : ''}.`;
+            updateStep(stepKey, 'visual_evidence', label, detail, true, true);
+            publishSteps();
+            upsertRunEvent(stepKey, {
+              phase: 'reviewing',
+              title: label,
+              detail,
+              status: evidence.truncatedPageCount > 0 ? 'warning' : 'done',
+              tone: 'review',
+            });
+            return evidence;
+          } catch (error) {
+            const review: VisualReviewPresentation = {
+              stage,
+              visualRepairRound: repairRound,
+              decision: 'UNAVAILABLE',
+              unavailableReason: 'EXPORT_FAILED',
+            };
+            recordVisualReview(review);
+            const detail = buildVisualReviewStepDetail({ ...review, useChinese });
+            updateStep(stepKey, 'visual_evidence', label, detail, true, true);
+            publishSteps();
+            upsertRunEvent(stepKey, {
+              phase: 'reviewing',
+              title: useChinese ? '视觉证据导出' : 'Visual evidence export',
+              detail,
+              status: 'warning',
+              tone: 'review',
+            });
+            console.warn('Visual review evidence export failed:',
+              error instanceof CanvasExportError ? error.code : 'UNKNOWN');
+            return undefined;
+          }
+        };
+
+        let evidence = await collectEvidence(
+          finalDiagramId,
+          finalCanvasXml,
+          'POST_MUTATION',
+          0,
+          finalVersion,
+        );
+        if (!evidence) return;
 
         let reviewRequest = buildCanvasVisualReviewRequest({
           userId: currentUser,
@@ -2477,7 +2623,7 @@ function DrawioPageContent() {
           originalUserTask: displayContent,
           stage: 'POST_MUTATION',
           beforeImageDataUrl: canvasContext.canvasImageDataUrl,
-          afterImageDataUrl: afterImage,
+          ...reviewEvidenceFields(evidence),
           modelCredentialId: activeModelConfig?.modelCredentialId,
         });
         let reviewed = await executeVisualReview(reviewRequest);
@@ -2494,8 +2640,14 @@ function DrawioPageContent() {
           // A persisted Drawer run id is required to prove each follow-up review's lineage.
           if (!nextStage || !reviewed.repairRunId) return;
           if (!await repaired.loadPromise || currentSessionRef.current !== activeSession?.id) return;
-          const repairedImage = await exportVisualReviewPng(repaired.diagramId);
-          if (!repairedImage) return;
+          evidence = await collectEvidence(
+            repaired.diagramId,
+            repaired.canvasXml,
+            nextStage,
+            completedRepairRounds,
+            repaired.version,
+          );
+          if (!evidence) return;
           reviewRequest = buildCanvasVisualReviewRequest({
             userId: currentUser,
             agentId: selectedAgentId,
@@ -2511,7 +2663,7 @@ function DrawioPageContent() {
             originalUserTask: displayContent,
             stage: nextStage,
             beforeImageDataUrl: repaired.imageBeforeRepair,
-            afterImageDataUrl: repairedImage,
+            ...reviewEvidenceFields(evidence),
             modelCredentialId: activeModelConfig?.modelCredentialId,
           });
           reviewed = await executeVisualReview(reviewRequest);
@@ -2755,6 +2907,7 @@ function DrawioPageContent() {
                     finalDiagramId: chunk.diagramId || diagramId || '',
                     finalVersion: chunk.version,
                     finalContentHash: chunk.contentHash,
+                    finalCanvasXml: finalXml,
                     canvasLoaded,
                   }).catch(error => {
                     console.warn('Post-draw visual review failed open:', error);

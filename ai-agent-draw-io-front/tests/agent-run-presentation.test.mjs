@@ -13,6 +13,7 @@ import {
   shouldShowAgentTyping,
   thinkingPhaseLabel,
   thinkingRouteLabel,
+  usesChinesePresentation,
   visualReviewStageLabel,
   visualReviewStaleMessage,
 } from '../src/app/drawio/agent-run-presentation.ts';
@@ -129,6 +130,21 @@ test('visual review warnings explain unavailable, human-review, and stale outcom
   );
 });
 
+test('render export failure is distinct from VLM provider unavailability', () => {
+  assert.match(
+    buildVisualReviewStepDetail({
+      stage: 'POST_MUTATION', decision: 'UNAVAILABLE', unavailableReason: 'EXPORT_FAILED', useChinese: true,
+    }),
+    /无法导出审阅截图/,
+  );
+  assert.match(
+    buildVisualReviewStepDetail({
+      stage: 'POST_MUTATION', decision: 'UNAVAILABLE', unavailableReason: 'VLM_UNAVAILABLE', useChinese: true,
+    }),
+    /视觉审阅服务暂时不可用/,
+  );
+});
+
 test('buildAgentRunView summarizes local edit tool usage and preserves final text', () => {
   const view = buildAgentRunView({
     isRunning: false,
@@ -219,6 +235,29 @@ test('completion reply merges repair and verification into one specific assistan
   assert.match(reply, /修复后复核/);
   assert.match(reply, /右侧失败分支仍有轻微绕行/);
   assert.doesNotMatch(reply, /Issues:|EDGE_TRACEABILITY|A single automatic/);
+});
+
+test('completion reply keeps visual verification when Drawer also returned final text', () => {
+  const view = buildAgentRunView({
+    isRunning: false,
+    content: 'Done with the diagram.',
+    events: [
+      { id: '1', phase: 'drawing', title: 'drawio_done', status: 'done', tone: 'drawing', nodes: 4, edges: 3 },
+    ],
+  });
+
+  const reply = buildAgentCompletionReply(view, '请画一个登录流程图', [
+    { stage: 'VERIFY_ONLY', decision: 'APPROVE', summary: '修复后的连线已经清晰。' },
+  ]);
+
+  assert.match(reply, /修复后复核已通过/);
+  assert.match(reply, /修复后的连线已经清晰/);
+  assert.doesNotMatch(reply, /^Done with the diagram\.$/);
+});
+
+test('presentation language follows the dominant request language', () => {
+  assert.equal(usesChinesePresentation('Please move the 登录 node to the right.'), false);
+  assert.equal(usesChinesePresentation('请把 API Gateway 节点移到右侧。'), true);
 });
 
 test('completion reply distinguishes requested, completed, and verified repair states', () => {

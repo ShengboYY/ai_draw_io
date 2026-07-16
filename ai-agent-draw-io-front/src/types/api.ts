@@ -383,6 +383,15 @@ export interface ChatResponseDTO {
 
 export type CanvasVisualReviewStage = 'POST_MUTATION' | 'POST_REPAIR' | 'VERIFY_ONLY';
 
+export interface CanvasVisualReviewEvidenceDTO {
+  role: 'PAGE_OVERVIEW' | 'DETAIL_TILE';
+  pageId?: string;
+  pageName?: string;
+  tileIndex?: number;
+  tileCount?: number;
+  dataUrl: string;
+}
+
 export interface CanvasVisualReviewRequestDTO {
   userId: string;
   agentId: string;
@@ -401,6 +410,11 @@ export interface CanvasVisualReviewRequestDTO {
   stage: CanvasVisualReviewStage;
   beforeImageDataUrl?: string;
   afterImageDataUrl: string;
+  afterImagePageId?: string;
+  afterImagePageName?: string;
+  totalPageCount?: number;
+  truncatedPageCount?: number;
+  additionalAfterImages?: CanvasVisualReviewEvidenceDTO[];
   rendererVersion: 'drawio-embed-png-v1';
   modelCredentialId?: string;
 }

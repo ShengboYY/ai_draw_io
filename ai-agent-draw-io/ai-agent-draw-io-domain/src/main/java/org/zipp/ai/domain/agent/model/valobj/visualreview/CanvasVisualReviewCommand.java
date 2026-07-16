@@ -14,6 +14,11 @@ public class CanvasVisualReviewCommand {
     private String diagramType;
     private String beforeImageDataUrl;
     private String afterImageDataUrl;
+    private String afterImagePageId;
+    private String afterImagePageName;
+    private Integer totalPageCount;
+    private Integer truncatedPageCount;
+    private List<CanvasVisualReviewEvidence> additionalAfterImages;
     private List<String> analyzerEvidence;
     private String canvasSummary;
     private String languageHint;
