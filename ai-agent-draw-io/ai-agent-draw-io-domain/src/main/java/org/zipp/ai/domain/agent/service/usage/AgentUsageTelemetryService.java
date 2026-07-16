@@ -15,6 +15,7 @@ import org.zipp.ai.domain.agent.model.valobj.usage.LlmCallTelemetry;
 import org.zipp.ai.domain.agent.model.valobj.usage.LlmPricingSnapshot;
 import org.zipp.ai.domain.agent.model.valobj.usage.ToolCallTelemetry;
 import org.zipp.ai.domain.agent.model.valobj.usage.UsageDimensionSummary;
+import org.zipp.ai.domain.agent.service.visualreview.CanvasVisualReviewPolicy;
 import org.zipp.ai.types.util.SecretLogSanitizer;
 
 import java.time.Clock;
@@ -296,22 +297,26 @@ public class AgentUsageTelemetryService {
 
     /**
      * Serializes the durable claim behind earlier telemetry writes, so the source run is visible
-     * before the database atomically grants its only automatic visual-repair attempt.
+     * before the database atomically grants the requested numbered visual-repair attempt.
      */
     public boolean tryClaimVisualRepair(String sourceRunId,
+                                        String reviewedRunId,
                                         String userId,
                                         String diagramId,
                                         String requestId,
                                         Long reviewedVersion,
                                         String reviewedCanvasHash,
+                                        int repairRound,
                                         String repairRunId) {
-        if (telemetryStore == null || reviewedVersion == null
-                || StringUtils.isAnyBlank(sourceRunId, userId, diagramId, reviewedCanvasHash, repairRunId)) {
+        if (telemetryStore == null || reviewedVersion == null || repairRound < 1
+                || repairRound > CanvasVisualReviewPolicy.MAX_AUTOMATIC_REPAIR_ROUNDS
+                || StringUtils.isAnyBlank(sourceRunId, reviewedRunId, userId, diagramId,
+                reviewedCanvasHash, repairRunId)) {
             return false;
         }
         return Boolean.TRUE.equals(awaitStoreDecision(() -> telemetryStore.tryClaimVisualRepair(
-                        sourceRunId, userId, diagramId, blankToNull(requestId), reviewedVersion,
-                        reviewedCanvasHash, repairRunId, clock.instant()), userId, "claim"));
+                        sourceRunId, reviewedRunId, userId, diagramId, blankToNull(requestId), reviewedVersion,
+                        reviewedCanvasHash, repairRound, repairRunId, clock.instant()), userId, "claim"));
     }
 
     public boolean isVisualRepairResult(String sourceRunId,
@@ -319,14 +324,16 @@ public class AgentUsageTelemetryService {
                                         String userId,
                                         String diagramId,
                                         Long repairedVersion,
-                                        String repairedCanvasHash) {
-        if (telemetryStore == null || repairedVersion == null
+                                        String repairedCanvasHash,
+                                        int repairRound) {
+        if (telemetryStore == null || repairedVersion == null || repairRound < 1
                 || StringUtils.isAnyBlank(sourceRunId, repairRunId, userId, diagramId, repairedCanvasHash)) {
             return false;
         }
         for (int attempt = 1; attempt <= VISUAL_REPAIR_VERIFY_ATTEMPTS; attempt++) {
             Boolean verified = awaitStoreDecision(() -> telemetryStore.isVisualRepairResult(
-                            sourceRunId, repairRunId, userId, diagramId, repairedVersion, repairedCanvasHash),
+                            sourceRunId, repairRunId, userId, diagramId, repairedVersion,
+                            repairedCanvasHash, repairRound),
                     userId, "verification");
             if (Boolean.TRUE.equals(verified)) {
                 return true;

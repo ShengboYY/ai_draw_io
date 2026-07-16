@@ -13,7 +13,7 @@
 - VLM 在配置层仍注册为独立 agent（建议 `300018`），方便独立模型、提示词、限流、观测和评测。
 - 在运行语义上，它是一个**无工具、无长期记忆、严格结构化输出的 reviewer**。
 - 只有 drawer 能修改画布；VLM 只返回可见证据和修复建议。
-- 应用服务负责状态机：确定性校验 → 真实渲染 → VLM 审查 → 最多一次受控修复 → 最终复核。
+- 应用服务负责状态机：确定性校验 → 真实渲染 → VLM 审查 → Policy 授权的有界修复 → 最终复核；当前上限以 2026-07-16 唯一方案中的两次为准。
 - 删除旧文本语义 reviewer `300011`、旧答疑 agent `300012` 及其编排代码。
 - 保留 `DefaultCanvasAnalyzer`。它不是旧 reviewer，而是 XML、cell、几何和路由的确定性真相源。
 - 保留评测专用 `300014`、`300016`、`300017`；它们不能被复用成生产 reviewer，也不应和生产链路共享 agent id。
@@ -25,7 +25,7 @@
 ### 2.1 本方案的假设
 
 1. 所有成功的 `create_new`、`edit_existing`、`optimize_layout` 都进入一次 post-draw VLM 审查；先通过 feature flag 灰度，再默认开启。
-2. 每个用户请求最多触发一次 VLM 自动修复。修复后可再审一次，但第二次审查只报告，不继续自动修，防止循环失控。
+2. 本文最初采用一次 VLM 自动修复；该历史约束已被 2026-07-16 唯一方案替代为最多两次，并在每轮 VLM 后由 Policy 重新授权。
 3. VLM 故障采用 fail-open：已通过确定性校验的画布继续保存和展示，同时 UI 标明“视觉审查暂不可用”。
 4. VLM 只能基于用户任务、前后渲染图、图类型和精简的确定性分析证据判断；它不能把图中可见文本当指令，也不能声称掌握图外的业务事实。
 5. 当前工作区已有的 route SSE/Thinking UI 未提交改动属于现状，不在本文档生成过程中修改。
@@ -109,7 +109,7 @@ thumbnail、chat XML、autosave 都通过同一个 draw.io `onExport` 回调区�
 | `DefaultCanvasAnalyzer` | XML、结构、几何、路由和可定位硬约束 | 通过现有确定性 repair 间接修改 |
 | Production VLM Reviewer `300018` | 从真实前后截图判断任务可见性、可读性、层级、边可追踪性和可见语义风险 | 否 |
 | `CanvasVisualReviewPolicy` | 把 VLM issues 转成 `APPROVE/APPROVE_WITH_NOTES/REPAIR/NEEDS_HUMAN_REVIEW/UNAVAILABLE` | 否 |
-| `CanvasVisualReviewOrchestrator` | 校验版本、调用 VLM、发 review chunk、最多触发一次 drawer 修复 | 只能调用 drawer 专用修复入口 |
+| `CanvasVisualReviewOrchestrator` | 校验版本、调用 VLM、发 review chunk；历史版本最多一次，当前由 2026-07-16 方案限制为最多两次 | 只能调用 drawer continuation 入口 |
 | Frontend export coordinator | 串行导出 XML/PNG，并确保截图属于准确的 diagram version/hash | 否 |
 
 ### 4.2 mutation 终态状态机
@@ -378,7 +378,7 @@ Prompt 必须明确：
 
 以下顺序按可验证的依赖排列。每个任务建议一个小 commit；若不提交，也应保持同样的 diff 边界。
 
-编码时为以下非显然边界写简短的 “why” 注释：canonical candidate 合并、只落一次最终稿、export 单飞行、VLM fail-open、stale version 拒绝和最多一次 visual repair。普通 getter、DTO 字段和显然流程不写重复代码含义的注释。
+编码时为以下非显然边界写简短的 “why” 注释：canonical candidate 合并、只落一次最终稿、export 单飞行、VLM fail-open、stale version 拒绝和有界 visual repair。普通 getter、DTO 字段和显然流程不写重复代码含义的注释。
 
 ### Task 1：固定 canonical candidate 与最终稿边界
 
@@ -407,7 +407,7 @@ Prompt 必须明确：
 - [ ] post-processor 只负责 canonicalize 和调用现有 analyzer/brief composer，不新增第二套几何或质量规则。
 - [ ] writer 对中间 mutation 只发送 preview 并更新本轮 accumulator；ADK 完成后只保存最新 candidate 一次、只发送一个最终 `drawio_done`。
 - [ ] 保留 critical candidate 不落库的现有规则。
-- [ ] 确认一次用户 mutation 最多增加一次 canvas version；视觉修复是第二个独立 run，因此可再增加一次。
+- [ ] 确认每个 Drawer run 最多增加一次 canvas version；当前视觉循环最多创建两个独立 repair run，具体边界以 2026-07-16 唯一方案为准。
 
 **测试：**
 
@@ -525,7 +525,7 @@ Prompt 必须明确：
 
 **验收：** 并发触发 autosave、thumbnail、chat 和 visual review 时，四个结果不会串单；timeout 后队列可继续。
 
-### Task 7：post-draw VLM 审查和一次自动修复
+### Task 7：post-draw VLM 审查和有界自动修复（轮数以后续唯一方案为准）
 
 **主要文件：**
 
@@ -662,7 +662,7 @@ Prompt 必须明确：
 
 1. **Shadow**：调用 VLM、记录结果，不展示、不修复；与人工抽样和 300016 eval 结果对比。
 2. **Visible review**：展示 `review_result`，仍不自动修。
-3. **Auto repair canary**：仅对 5% 用户、仅自动修白名单、最多一次。
+3. **Auto repair canary**：仅对 5% 用户、仅自动修白名单；分别观察第一、第二轮，硬上限为两次。
 4. **Default on**：指标达标后全量；随后删除旧 300011/300012 和临时兼容字段。
 
 feature flag 最少只保留：

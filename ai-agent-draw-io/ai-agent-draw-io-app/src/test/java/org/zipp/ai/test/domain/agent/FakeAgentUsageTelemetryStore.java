@@ -11,6 +11,7 @@ import org.zipp.ai.domain.agent.model.valobj.usage.LlmCallTelemetry;
 import org.zipp.ai.domain.agent.model.valobj.usage.ToolCallTelemetry;
 import org.zipp.ai.domain.agent.model.valobj.usage.UsageDimensionSummary;
 import org.zipp.ai.domain.agent.service.usage.IAgentUsageTelemetryStore;
+import org.zipp.ai.domain.agent.service.visualreview.CanvasVisualReviewPolicy;
 
 import java.time.Instant;
 import java.util.ArrayList;
@@ -78,20 +79,26 @@ public class FakeAgentUsageTelemetryStore implements IAgentUsageTelemetryStore {
 
     @Override
     public synchronized boolean tryClaimVisualRepair(String sourceRunId,
+                                                     String reviewedRunId,
                                                      String userId,
                                                      String diagramId,
                                                      String requestId,
                                                      Long reviewedVersion,
                                                      String reviewedCanvasHash,
+                                                     int repairRound,
                                                      String repairRunId,
                                                      Instant occurredAt) {
+        if (repairRound < 1 || repairRound > CanvasVisualReviewPolicy.MAX_AUTOMATIC_REPAIR_ROUNDS) {
+            return false;
+        }
         boolean ownsSourceRun = runs.stream().anyMatch(run -> sourceRunId.equals(run.getId())
                 && userId.equals(run.getUserId()) && diagramId.equals(run.getDiagramId()));
-        boolean ownsReviewedSnapshot = diagramSnapshots.stream().anyMatch(snapshot -> sourceRunId.equals(snapshot.getRunId())
+        boolean ownsReviewedSnapshot = diagramSnapshots.stream().anyMatch(snapshot -> reviewedRunId.equals(snapshot.getRunId())
                 && diagramId.equals(snapshot.getDiagramId()) && reviewedVersion.equals(snapshot.getVersion())
                 && reviewedCanvasHash.equals(snapshot.getCanvasHash()));
         return ownsSourceRun && ownsReviewedSnapshot
-                && visualRepairClaims.putIfAbsent(sourceRunId, new VisualRepairClaim(repairRunId)) == null;
+                && visualRepairClaims.putIfAbsent(claimKey(sourceRunId, repairRound),
+                new VisualRepairClaim(repairRunId, repairRound)) == null;
     }
 
     @Override
@@ -100,18 +107,23 @@ public class FakeAgentUsageTelemetryStore implements IAgentUsageTelemetryStore {
                                                      String userId,
                                                      String diagramId,
                                                      Long repairedVersion,
-                                                     String repairedCanvasHash) {
-        VisualRepairClaim claim = visualRepairClaims.get(sourceRunId);
+                                                     String repairedCanvasHash,
+                                                     int repairRound) {
+        VisualRepairClaim claim = visualRepairClaims.get(claimKey(sourceRunId, repairRound));
         boolean ownsRepairRun = runs.stream().anyMatch(run -> repairRunId.equals(run.getId())
                 && userId.equals(run.getUserId()) && diagramId.equals(run.getDiagramId()));
         boolean ownsRepairedSnapshot = diagramSnapshots.stream().anyMatch(snapshot -> repairRunId.equals(snapshot.getRunId())
                 && diagramId.equals(snapshot.getDiagramId()) && repairedVersion.equals(snapshot.getVersion())
                 && repairedCanvasHash.equals(snapshot.getCanvasHash()));
-        return claim != null && repairRunId.equals(claim.repairRunId())
+        return claim != null && repairRunId.equals(claim.repairRunId()) && repairRound == claim.repairRound()
                 && ownsRepairRun && ownsRepairedSnapshot;
     }
 
-    private record VisualRepairClaim(String repairRunId) {
+    private String claimKey(String sourceRunId, int repairRound) {
+        return sourceRunId + ":" + repairRound;
+    }
+
+    private record VisualRepairClaim(String repairRunId, int repairRound) {
     }
 
     @Override

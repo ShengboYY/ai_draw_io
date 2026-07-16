@@ -15,6 +15,7 @@ import org.zipp.ai.domain.agent.model.valobj.usage.LlmCallTelemetry;
 import org.zipp.ai.domain.agent.model.valobj.usage.ToolCallTelemetry;
 import org.zipp.ai.domain.agent.model.valobj.usage.UsageDimensionSummary;
 import org.zipp.ai.domain.agent.service.usage.IAgentUsageTelemetryStore;
+import org.zipp.ai.domain.agent.service.visualreview.CanvasVisualReviewPolicy;
 import org.zipp.ai.infrastructure.dao.IAgentUsageTelemetryMapper;
 import org.zipp.ai.infrastructure.dao.po.AgentRunStepTelemetryPO;
 import org.zipp.ai.infrastructure.dao.po.AgentRunTelemetryPO;
@@ -78,20 +79,26 @@ public class AgentUsageTelemetryRepository implements IAgentUsageTelemetryStore 
 
     @Override
     public boolean tryClaimVisualRepair(String sourceRunId,
+                                        String reviewedRunId,
                                         String userId,
                                         String diagramId,
                                         String requestId,
                                         Long reviewedVersion,
                                         String reviewedCanvasHash,
+                                        int repairRound,
                                         String repairRunId,
                                         Instant occurredAt) {
+        if (repairRound < 1 || repairRound > CanvasVisualReviewPolicy.MAX_AUTOMATIC_REPAIR_ROUNDS) {
+            return false;
+        }
         String metadataJson = JSON.toJSONString(Map.of(
                 "repairRunId", repairRunId,
+                "repairRound", repairRound,
                 "reviewedVersion", reviewedVersion,
                 "reviewedCanvasHash", reviewedCanvasHash));
         return agentUsageTelemetryMapper.tryClaimVisualRepair(
-                visualRepairClaimId(sourceRunId), sourceRunId, userId, diagramId,
-                requestId, reviewedVersion, reviewedCanvasHash, metadataJson, toDate(occurredAt)) == 1;
+                visualRepairClaimId(sourceRunId, repairRound), sourceRunId, reviewedRunId, userId, diagramId,
+                requestId, reviewedVersion, reviewedCanvasHash, repairRound, metadataJson, toDate(occurredAt)) == 1;
     }
 
     @Override
@@ -100,10 +107,11 @@ public class AgentUsageTelemetryRepository implements IAgentUsageTelemetryStore 
                                         String userId,
                                         String diagramId,
                                         Long repairedVersion,
-                                        String repairedCanvasHash) {
+                                        String repairedCanvasHash,
+                                        int repairRound) {
         return agentUsageTelemetryMapper.countVisualRepairResult(
-                visualRepairClaimId(sourceRunId), sourceRunId, repairRunId, userId, diagramId,
-                repairedVersion, repairedCanvasHash) > 0;
+                visualRepairClaimId(sourceRunId, repairRound), sourceRunId, repairRunId, userId, diagramId,
+                repairedVersion, repairedCanvasHash, repairRound) > 0;
     }
 
     @Override
@@ -289,10 +297,10 @@ public class AgentUsageTelemetryRepository implements IAgentUsageTelemetryStore 
         return po;
     }
 
-    private String visualRepairClaimId(String sourceRunId) {
+    private String visualRepairClaimId(String sourceRunId, int repairRound) {
         try {
             byte[] digest = MessageDigest.getInstance("SHA-256")
-                    .digest(sourceRunId.getBytes(StandardCharsets.UTF_8));
+                    .digest((sourceRunId + ":" + repairRound).getBytes(StandardCharsets.UTF_8));
             return "avr_" + HexFormat.of().formatHex(digest).substring(0, 48);
         } catch (Exception e) {
             throw new IllegalStateException("SHA-256 is unavailable", e);

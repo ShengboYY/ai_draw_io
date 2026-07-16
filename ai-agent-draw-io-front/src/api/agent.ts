@@ -222,7 +222,8 @@ export interface ReviewResultChunk {
     content: string;
     available?: boolean;
     decision?: 'APPROVE' | 'APPROVE_WITH_NOTES' | 'REPAIR' | 'NEEDS_HUMAN_REVIEW' | 'UNAVAILABLE';
-    stage?: 'CURRENT_CANVAS' | 'POST_MUTATION' | 'VERIFY_ONLY';
+    stage?: 'CURRENT_CANVAS' | 'POST_MUTATION' | 'POST_REPAIR' | 'VERIFY_ONLY';
+    visualRepairRound?: number;
     issues?: Array<{
         type?: string;
         severity?: 'minor' | 'major' | 'critical';
@@ -238,7 +239,7 @@ export interface ReviewResultChunk {
 
 export interface ReviewStartedChunk {
     type: 'review_started';
-    stage: 'CURRENT_CANVAS' | 'POST_MUTATION' | 'VERIFY_ONLY';
+    stage: 'CURRENT_CANVAS' | 'POST_MUTATION' | 'POST_REPAIR' | 'VERIFY_ONLY';
     sourceRunId?: string;
     parentRunId?: string;
     visualRepairRound?: number;

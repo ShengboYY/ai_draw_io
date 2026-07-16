@@ -186,6 +186,53 @@ public class CanvasVisualReviewOrchestratorTest {
     }
 
     @Test
+    public void postRepairPolicyCanContinueDrawerForSecondRepair() throws Exception {
+        AtomicInteger repairCalls = new AtomicInteger();
+        AgentConversationService repairService = new AgentConversationService() {
+            @Override
+            public void continueDrawing(ChatRequestDTO request,
+                                        DrawerContinuationContext continuation,
+                                        ResponseBodyEmitter emitter) {
+                repairCalls.incrementAndGet();
+                assertEquals("source-run", request.getSourceRunId());
+                assertEquals("aru_visual_post_repair", request.getParentRunId());
+                assertEquals(Integer.valueOf(2), request.getVisualRepairRound());
+                assertEquals(Long.valueOf(8L), request.getExpectedVersion());
+                assertTrue(continuation.authorization().allowedCellIds().contains("2"));
+            }
+        };
+        CanvasVisualIssue issue = CanvasVisualIssue.builder()
+                .type(CanvasVisualIssueType.EDGE_TRACEABILITY)
+                .severity(CanvasVisualIssueSeverity.MAJOR)
+                .anchorLabels(List.of("API"))
+                .region("right")
+                .evidence("The repaired edge still crosses the node.")
+                .repairInstruction("Route only the anchored edge outside the node.")
+                .repairScope(CanvasVisualRepairScope.LOCAL)
+                .build();
+        CanvasVisualReviewOrchestrator orchestrator = orchestrator(
+                new SequenceCanvasStore(state(8L, "sha256:repair-1")),
+                command -> CanvasVisualReviewResult.builder().available(true).summary("One issue remains")
+                        .issues(List.of(issue)).recommendedHumanReview(false).build(),
+                repairService);
+        FakeAgentUsageTelemetryStore telemetryStore = new FakeAgentUsageTelemetryStore();
+        seedFirstRepair(telemetryStore, "aru_repair_1", 8L, "sha256:repair-1");
+        inject(orchestrator, "agentUsageTelemetryService",
+                new AgentUsageTelemetryService(telemetryStore, Clock.systemUTC()));
+        CanvasVisualReviewRequestDTO request = request(8L, "sha256:repair-1");
+        request.setStage("POST_REPAIR");
+        request.setParentRunId("aru_repair_1");
+        request.setVisualRepairRound(1);
+        CapturingEmitter emitter = new CapturingEmitter();
+
+        orchestrator.stream("usr_owner", "aru_visual_post_repair", request, emitter);
+
+        assertEquals(1, repairCalls.get());
+        assertTrue(String.join("\n", emitter.sent).contains("\"decision\":\"REPAIR\""));
+        assertFalse(emitter.completed);
+    }
+
+    @Test
     public void visibleReviewRolloutDoesNotGrantRepairAuthority() throws Exception {
         AtomicInteger repairCalls = new AtomicInteger();
         AgentConversationService repairService = new AgentConversationService() {
@@ -270,7 +317,7 @@ public class CanvasVisualReviewOrchestratorTest {
         CanvasVisualReviewRequestDTO request = request(8L, "sha256:repaired");
         request.setStage("VERIFY_ONLY");
         request.setParentRunId("aru_repair_parent");
-        request.setVisualRepairRound(1);
+        request.setVisualRepairRound(2);
         request.setBeforeContentHash("sha256:before-repair");
 
         orchestrator.stream("usr_owner", "aru_visual_verify", request, new CapturingEmitter());
@@ -281,7 +328,7 @@ public class CanvasVisualReviewOrchestratorTest {
         assertTrue(metadata.contains("\"autoRepairSucceeded\":true"));
         assertTrue(metadata.contains("\"afterRepairCanvasHash\":\"sha256:repaired\""));
         assertTrue(metadata.contains("\"parentRunId\":\"aru_repair_parent\""));
-        assertTrue(metadata.contains("\"visualRepairRound\":1"));
+        assertTrue(metadata.contains("\"visualRepairRound\":2"));
     }
 
     @Test
@@ -302,9 +349,11 @@ public class CanvasVisualReviewOrchestratorTest {
                                                              String userId,
                                                              String diagramId,
                                                              Long repairedVersion,
-                                                             String repairedCanvasHash) {
+                                                             String repairedCanvasHash,
+                                                             int repairRound) {
                 return visibilityChecks.incrementAndGet() >= 3 && super.isVisualRepairResult(
-                        sourceRunId, repairRunId, userId, diagramId, repairedVersion, repairedCanvasHash);
+                        sourceRunId, repairRunId, userId, diagramId, repairedVersion,
+                        repairedCanvasHash, repairRound);
             }
         };
         seedVerifiedRepair(telemetryStore, "aru_repair_parent", 8L, "sha256:repaired");
@@ -313,7 +362,7 @@ public class CanvasVisualReviewOrchestratorTest {
         CanvasVisualReviewRequestDTO request = request(8L, "sha256:repaired");
         request.setStage("VERIFY_ONLY");
         request.setParentRunId("aru_repair_parent");
-        request.setVisualRepairRound(1);
+        request.setVisualRepairRound(2);
         CapturingEmitter emitter = new CapturingEmitter();
 
         orchestrator.stream("usr_owner", "aru_visual_delayed_snapshot", request, emitter);
@@ -347,7 +396,7 @@ public class CanvasVisualReviewOrchestratorTest {
         CanvasVisualReviewRequestDTO request = request(7L, "sha256:current");
         request.setStage("VERIFY_ONLY");
         request.setParentRunId("aru_repair_parent");
-        request.setVisualRepairRound(1);
+        request.setVisualRepairRound(2);
         FakeAgentUsageTelemetryStore telemetryStore = new FakeAgentUsageTelemetryStore();
         seedVerifiedRepair(telemetryStore, "aru_repair_parent", 7L, "sha256:current");
         inject(orchestrator, "agentUsageTelemetryService",
@@ -671,12 +720,38 @@ public class CanvasVisualReviewOrchestratorTest {
                                     String repairRunId,
                                     Long repairedVersion,
                                     String repairedHash) {
+        Long sourceVersion = repairedVersion - 2;
+        String sourceHash = "sha256:before-" + sourceVersion;
+        seedSourceMutation(store, sourceVersion, sourceHash);
+        String firstRepairRunId = repairRunId + "_previous";
+        assertTrue(store.tryClaimVisualRepair(
+                "source-run", "source-run", "usr_owner", "diagram-1", "review-request",
+                sourceVersion, sourceHash, 1, firstRepairRunId, Instant.now()));
+        org.zipp.ai.domain.agent.model.valobj.usage.AgentRunTelemetry firstRepairRun = sourceRun();
+        firstRepairRun.setId(firstRepairRunId);
+        store.insertRun(firstRepairRun);
+        Long intermediateVersion = repairedVersion - 1;
+        String intermediateHash = "sha256:before-" + repairedVersion;
+        store.insertDiagramSnapshot(snapshot(firstRepairRunId, intermediateVersion, intermediateHash));
+        assertTrue(store.tryClaimVisualRepair(
+                "source-run", firstRepairRunId, "usr_owner", "diagram-1", "review-request-2",
+                intermediateVersion, intermediateHash, 2, repairRunId, Instant.now()));
+        org.zipp.ai.domain.agent.model.valobj.usage.AgentRunTelemetry repairRun = sourceRun();
+        repairRun.setId(repairRunId);
+        store.insertRun(repairRun);
+        store.insertDiagramSnapshot(snapshot(repairRunId, repairedVersion, repairedHash));
+    }
+
+    private void seedFirstRepair(FakeAgentUsageTelemetryStore store,
+                                 String repairRunId,
+                                 Long repairedVersion,
+                                 String repairedHash) {
         Long reviewedVersion = repairedVersion - 1;
         String reviewedHash = "sha256:before-" + repairedVersion;
         seedSourceMutation(store, reviewedVersion, reviewedHash);
         assertTrue(store.tryClaimVisualRepair(
-                "source-run", "usr_owner", "diagram-1", "review-request",
-                reviewedVersion, reviewedHash, repairRunId, Instant.now()));
+                "source-run", "source-run", "usr_owner", "diagram-1", "review-request",
+                reviewedVersion, reviewedHash, 1, repairRunId, Instant.now()));
         org.zipp.ai.domain.agent.model.valobj.usage.AgentRunTelemetry repairRun = sourceRun();
         repairRun.setId(repairRunId);
         store.insertRun(repairRun);
@@ -701,7 +776,7 @@ public class CanvasVisualReviewOrchestratorTest {
         CanvasVisualReviewRequestDTO request = request(8L, requestedHash);
         request.setStage("VERIFY_ONLY");
         request.setParentRunId(requestedParentRunId);
-        request.setVisualRepairRound(1);
+        request.setVisualRepairRound(2);
         CapturingEmitter emitter = new CapturingEmitter();
 
         orchestrator.stream("usr_owner", "aru_visual_invalid_lineage", request, emitter);

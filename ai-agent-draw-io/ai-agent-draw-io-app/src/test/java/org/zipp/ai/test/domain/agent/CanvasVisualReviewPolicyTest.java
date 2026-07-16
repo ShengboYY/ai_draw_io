@@ -38,10 +38,28 @@ public class CanvasVisualReviewPolicyTest {
     }
 
     @Test
-    public void eligibleBlockingIssueRequestsOneRepair() {
+    public void eligibleBlockingIssueRequestsFirstRepair() {
         assertEquals(CanvasVisualReviewDecision.REPAIR,
                 policy.decide(available(List.of(issue(CanvasVisualIssueType.EDGE_TRACEABILITY,
                         CanvasVisualIssueSeverity.MAJOR)), false), CanvasVisualReviewStage.POST_MUTATION, 0));
+    }
+
+    @Test
+    public void eligiblePostRepairIssueRequestsSecondRepair() {
+        assertEquals(CanvasVisualReviewDecision.REPAIR,
+                policy.decide(available(List.of(issue(CanvasVisualIssueType.EDGE_TRACEABILITY,
+                        CanvasVisualIssueSeverity.MAJOR)), false), CanvasVisualReviewStage.POST_REPAIR, 1));
+    }
+
+    @Test
+    public void repairAuthorityRequiresTheExactStageRoundPair() {
+        CanvasVisualReviewResult result = available(List.of(issue(CanvasVisualIssueType.EDGE_TRACEABILITY,
+                CanvasVisualIssueSeverity.MAJOR)), false);
+
+        assertEquals(CanvasVisualReviewDecision.NEEDS_HUMAN_REVIEW,
+                policy.decide(result, CanvasVisualReviewStage.POST_MUTATION, 1));
+        assertEquals(CanvasVisualReviewDecision.NEEDS_HUMAN_REVIEW,
+                policy.decide(result, CanvasVisualReviewStage.POST_REPAIR, 0));
     }
 
     @Test
@@ -76,10 +94,10 @@ public class CanvasVisualReviewPolicyTest {
     }
 
     @Test
-    public void verifyOnlyNeverStartsAnotherRepair() {
+    public void finalVerificationNeverStartsThirdRepair() {
         assertEquals(CanvasVisualReviewDecision.NEEDS_HUMAN_REVIEW,
                 policy.decide(available(List.of(issue(CanvasVisualIssueType.TEXT_READABILITY,
-                        CanvasVisualIssueSeverity.CRITICAL)), false), CanvasVisualReviewStage.VERIFY_ONLY, 1));
+                        CanvasVisualIssueSeverity.CRITICAL)), false), CanvasVisualReviewStage.VERIFY_ONLY, 2));
     }
 
     @Test

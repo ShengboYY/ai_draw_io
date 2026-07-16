@@ -3,7 +3,7 @@ export type AgentRunEventTone = 'analysis' | 'drawing' | 'tool' | 'validation' |
 export type AgentRunScope = 'full' | 'local' | 'append' | 'layout' | 'review';
 export type AgentRouteType = 'create_new' | 'edit_existing' | 'optimize_layout' | 'answer_only' | 'clarify' | 'review_only';
 export type VisualReviewDecision = 'APPROVE' | 'APPROVE_WITH_NOTES' | 'REPAIR' | 'NEEDS_HUMAN_REVIEW' | 'UNAVAILABLE';
-export type VisualReviewStage = 'CURRENT_CANVAS' | 'POST_MUTATION' | 'VERIFY_ONLY';
+export type VisualReviewStage = 'CURRENT_CANVAS' | 'POST_MUTATION' | 'POST_REPAIR' | 'VERIFY_ONLY';
 
 export type VisualReviewDisplayIssue = {
   type?: string;
@@ -17,6 +17,7 @@ export type VisualReviewDisplayIssue = {
 
 export type VisualReviewPresentation = {
   stage: VisualReviewStage;
+  visualRepairRound?: number;
   decision?: VisualReviewDecision;
   summary?: string;
   issues?: VisualReviewDisplayIssue[];
@@ -176,6 +177,7 @@ export const thinkingPhaseLabel = (routeType: string | undefined, phase: string,
 
 export const visualReviewStageLabel = (stage: VisualReviewStage | 'REPAIR', useChinese = false) => {
   if (stage === 'VERIFY_ONLY') return useChinese ? '修复后复核' : 'Final verification';
+  if (stage === 'POST_REPAIR') return useChinese ? '修复后审阅' : 'Post-repair review';
   if (stage === 'REPAIR') return useChinese ? '视觉修复' : 'Visual repair';
   return useChinese ? '视觉审阅' : 'Visual review';
 };
@@ -297,7 +299,7 @@ export const buildVisualReviewStepDetail = ({
   const safeSummary = safeReviewText(summary, 220);
   const safeIssues = (issues || []).slice(0, 5);
   const count = issueCountLabel(safeIssues, useChinese);
-  const isVerification = stage === 'VERIFY_ONLY';
+  const isPostRepair = stage === 'POST_REPAIR' || stage === 'VERIFY_ONLY';
 
   if (stale) return visualReviewStaleMessage(useChinese);
   if (decision === 'UNAVAILABLE') {
@@ -320,13 +322,13 @@ export const buildVisualReviewStepDetail = ({
   }
   if (decision === 'APPROVE_WITH_NOTES') {
     return useChinese
-      ? `${isVerification ? '修复后复核通过' : '视觉审阅通过'}；${safeSummary || `仍保留 ${count} 作为备注。`}`
-      : `${isVerification ? 'Post-repair verification passed' : 'Visual review passed'} with notes${safeSummary ? `: ${safeSummary}` : '.'}`;
+      ? `${isPostRepair ? '修复后审阅通过' : '视觉审阅通过'}；${safeSummary || `仍保留 ${count} 作为备注。`}`
+      : `${isPostRepair ? 'Post-repair review passed' : 'Visual review passed'} with notes${safeSummary ? `: ${safeSummary}` : '.'}`;
   }
   if (decision === 'APPROVE') {
     return useChinese
-      ? `${isVerification ? '修复后复核通过' : '视觉审阅通过'}，未发现需要继续处理的问题。`
-      : `${isVerification ? 'Post-repair verification passed' : 'Visual review passed'} with no remaining action required.`;
+      ? `${isPostRepair ? '修复后审阅通过' : '视觉审阅通过'}，未发现需要继续处理的问题。`
+      : `${isPostRepair ? 'Post-repair review passed' : 'Visual review passed'} with no remaining action required.`;
   }
   return useChinese
     ? '视觉审阅未返回可确认的结论；当前画布已保留。'
@@ -377,7 +379,9 @@ export const buildAgentCompletionReply = (
 
   const useChinese = containsCjk(userRequest);
   const finalReview = visualReviews.at(-1);
-  const repairReview = visualReviews.find(review => review.decision === 'REPAIR');
+  const repairReviews = visualReviews.filter(review => review.decision === 'REPAIR');
+  const repairReview = repairReviews.at(0);
+  const completedRepairCount = repairReviews.filter(review => review.repairCompleted).length;
   const finalSummary = safeReviewText(finalReview?.summary);
   const repairSummary = safeReviewText(repairReview?.summary);
 
@@ -402,10 +406,10 @@ export const buildAgentCompletionReply = (
         : `Done. I loaded the diagram into Draw.io with ${metricLabel}.`,
     ];
 
-    if (repairReview?.repairCompleted) {
+    if (completedRepairCount > 0) {
       paragraphs.push(useChinese
-        ? `${repairSummary ? `视觉审阅发现：${repairSummary} ` : ''}我根据审阅结果完成了一次局部自动修复。`
-        : `${repairSummary ? `Visual review found: ${repairSummary} ` : ''}I applied one bounded local repair.`);
+        ? `${repairSummary ? `视觉审阅发现：${repairSummary} ` : ''}我根据每轮审阅后的策略判断完成了${completedRepairCount === 1 ? '一次' : ` ${completedRepairCount} 次`}局部自动修复。`
+        : `${repairSummary ? `Visual review found: ${repairSummary} ` : ''}I applied ${completedRepairCount} bounded local ${completedRepairCount === 1 ? 'repair' : 'repairs'}, each authorized after review.`);
     } else if (repairReview) {
       paragraphs.push(useChinese
         ? `${repairSummary ? `视觉审阅发现：${repairSummary} ` : ''}审阅建议进行局部修复，但未返回修复后的画布，因此保留了当前版本。`
@@ -422,11 +426,14 @@ export const buildAgentCompletionReply = (
       paragraphs.push(useChinese
         ? `${finalSummary || '仍有无法安全自动处理的问题'} 建议人工确认，我没有继续改动画布。`
         : `${finalSummary || 'Some issues could not be handled safely'}. Human review is recommended, and I did not change the canvas further.`);
-    } else if (finalReview.stage === 'VERIFY_ONLY'
+    } else if ((finalReview.stage === 'POST_REPAIR' || finalReview.stage === 'VERIFY_ONLY')
       && (finalReview.decision === 'APPROVE' || finalReview.decision === 'APPROVE_WITH_NOTES')) {
+      const reviewLabel = finalReview.stage === 'VERIFY_ONLY'
+        ? (useChinese ? '修复后复核' : 'Post-repair verification')
+        : (useChinese ? '修复后审阅' : 'Post-repair review');
       paragraphs.push(useChinese
-        ? `修复后复核${finalReview.decision === 'APPROVE' ? '已通过' : '通过并保留备注'}。${finalSummary || '主要问题已经解决。'}${finalReview.decision === 'APPROVE_WITH_NOTES' ? ' 剩余问题已作为备注保留，没有继续改动画布。' : ''}`
-        : `Post-repair verification ${finalReview.decision === 'APPROVE' ? 'passed' : 'passed with notes'}. ${finalSummary || 'The blocking issues were resolved.'}${finalReview.decision === 'APPROVE_WITH_NOTES' ? ' The remaining notes were kept without another canvas mutation.' : ''}`);
+        ? `${reviewLabel}${finalReview.decision === 'APPROVE' ? '已通过' : '通过并保留备注'}。${finalSummary || '主要问题已经解决。'}${finalReview.decision === 'APPROVE_WITH_NOTES' ? ' 剩余问题已作为备注保留，没有继续改动画布。' : ''}`
+        : `${reviewLabel} ${finalReview.decision === 'APPROVE' ? 'passed' : 'passed with notes'}. ${finalSummary || 'The blocking issues were resolved.'}${finalReview.decision === 'APPROVE_WITH_NOTES' ? ' The remaining notes were kept without another canvas mutation.' : ''}`);
     } else if (finalReview.decision === 'REPAIR' && finalReview.repairCompleted) {
       paragraphs.push(useChinese
         ? '局部修复已经完成，但未能完成修复后复核。'

@@ -381,7 +381,7 @@ export interface ChatResponseDTO {
     runId?: string;
 }
 
-export type CanvasVisualReviewStage = 'POST_MUTATION' | 'VERIFY_ONLY';
+export type CanvasVisualReviewStage = 'POST_MUTATION' | 'POST_REPAIR' | 'VERIFY_ONLY';
 
 export interface CanvasVisualReviewRequestDTO {
   userId: string;

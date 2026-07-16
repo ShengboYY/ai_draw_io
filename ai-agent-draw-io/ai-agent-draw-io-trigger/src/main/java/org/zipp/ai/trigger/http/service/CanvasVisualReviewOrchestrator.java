@@ -161,14 +161,16 @@ public class CanvasVisualReviewOrchestrator {
                 emitter.complete();
                 return null;
             }
-            if (stage == CanvasVisualReviewStage.VERIFY_ONLY) {
+            if (stage == CanvasVisualReviewStage.POST_REPAIR
+                    || stage == CanvasVisualReviewStage.VERIFY_ONLY) {
                 boolean verifiedLineage = telemetryService().isVisualRepairResult(
                         request.getSourceRunId(), request.getParentRunId(), ownerId, request.getDiagramId(),
-                        request.getExpectedVersion(), request.getExpectedContentHash());
-                log.info("[visual-review-loop] event=verify_lineage reviewRunId={} sourceRunId={} parentRunId={} diagramId={} version={} hash={} verified={}",
+                        request.getExpectedVersion(), request.getExpectedContentHash(), visualRepairRound(request));
+                log.info("[visual-review-loop] event=verify_lineage reviewRunId={} sourceRunId={} parentRunId={} diagramId={} repairRound={} version={} hash={} verified={}",
                         logValue(visualReviewRunId), logValue(request.getSourceRunId()),
                         logValue(request.getParentRunId()), logValue(request.getDiagramId()),
-                        request.getExpectedVersion(), logValue(request.getExpectedContentHash()), verifiedLineage);
+                        visualRepairRound(request), request.getExpectedVersion(),
+                        logValue(request.getExpectedContentHash()), verifiedLineage);
                 if (!verifiedLineage) {
                     throw new IllegalArgumentException("invalid_visual_repair_lineage");
                 }
@@ -209,16 +211,25 @@ public class CanvasVisualReviewOrchestrator {
             String repairRunId = !shadow && decision == CanvasVisualReviewDecision.REPAIR
                     ? "aru_repair_" + UUID.randomUUID() : null;
             if (!shadow && decision == CanvasVisualReviewDecision.REPAIR) {
+                int nextRepairRound = visualRepairRound(request) + 1;
                 boolean claimed = telemetryService().tryClaimVisualRepair(
-                        request.getSourceRunId(), ownerId, request.getDiagramId(), request.getRequestId(),
-                        request.getExpectedVersion(), request.getExpectedContentHash(), repairRunId);
-                log.info("[visual-review-loop] event=repair_claim reviewRunId={} sourceRunId={} diagramId={} granted={}",
+                        request.getSourceRunId(), request.getParentRunId(), ownerId, request.getDiagramId(),
+                        request.getRequestId(), request.getExpectedVersion(), request.getExpectedContentHash(),
+                        nextRepairRound, repairRunId);
+                log.info("[visual-review-loop] event=repair_claim reviewRunId={} sourceRunId={} diagramId={} repairRound={} granted={}",
                         logValue(visualReviewRunId), logValue(request.getSourceRunId()),
-                        logValue(request.getDiagramId()), claimed);
+                        logValue(request.getDiagramId()), nextRepairRound, claimed);
                 if (!claimed) {
                     // Missing ownership and replayed source runs both fail closed without mutating the canvas.
                     decision = CanvasVisualReviewDecision.NEEDS_HUMAN_REVIEW;
                 }
+            }
+            if (stage == CanvasVisualReviewStage.VERIFY_ONLY
+                    && decision == CanvasVisualReviewDecision.NEEDS_HUMAN_REVIEW) {
+                // Final verification may report unresolved findings, but the mutation budget is closed.
+                log.info("[visual-review-loop] event=repair_budget_exhausted reviewRunId={} sourceRunId={} repairRound={} issues={}",
+                        logValue(visualReviewRunId), logValue(request.getSourceRunId()),
+                        visualRepairRound(request), result == null ? 0 : result.safeIssues().size());
             }
             log.info("[visual-review-loop] event=decision reviewRunId={} sourceRunId={} repairRound={} stage={} available={} decision={} issues={} authorizedCells={} latencyMs={}",
                     logValue(visualReviewRunId), logValue(request.getSourceRunId()), visualRepairRound(request),
@@ -291,6 +302,8 @@ public class CanvasVisualReviewOrchestrator {
         metadata.put("autoRepairAttempted", false);
         metadata.put("autoRepairEnabled", autoRepairEnabled());
         boolean repairVerification = CanvasVisualReviewStage.VERIFY_ONLY.name().equals(request.getStage());
+        metadata.put("repairBudgetExhausted", repairVerification
+                && decision == CanvasVisualReviewDecision.NEEDS_HUMAN_REVIEW);
         boolean repairSucceeded = repairVerification
                 && (decision == CanvasVisualReviewDecision.APPROVE
                 || decision == CanvasVisualReviewDecision.APPROVE_WITH_NOTES);
@@ -424,11 +437,15 @@ public class CanvasVisualReviewOrchestrator {
         } catch (Exception e) {
             throw new IllegalArgumentException("invalid_stage", e);
         }
-        int expectedRound = stage == CanvasVisualReviewStage.VERIFY_ONLY ? 1 : 0;
+        int expectedRound = switch (stage) {
+            case CURRENT_CANVAS, POST_MUTATION -> 0;
+            case POST_REPAIR -> 1;
+            case VERIFY_ONLY -> CanvasVisualReviewPolicy.MAX_AUTOMATIC_REPAIR_ROUNDS;
+        };
         if (request.getVisualRepairRound() != expectedRound) {
             throw new IllegalArgumentException("invalid_visual_repair_round");
         }
-        if (stage != CanvasVisualReviewStage.VERIFY_ONLY
+        if ((stage == CanvasVisualReviewStage.CURRENT_CANVAS || stage == CanvasVisualReviewStage.POST_MUTATION)
                 && !Objects.equals(request.getSourceRunId(), request.getParentRunId())) {
             throw new IllegalArgumentException("invalid_visual_review_parent");
         }
@@ -451,8 +468,8 @@ public class CanvasVisualReviewOrchestrator {
         repair.setRunId(repairRunId);
         repair.setSourceRunId(request.getSourceRunId());
         repair.setParentRunId(visualReviewRunId);
-        // The outer loop permits exactly one saved visual repair before VERIFY_ONLY.
-        repair.setVisualRepairRound(1);
+        // The Drawer receives the numbered mutation attempt granted by the server-side policy.
+        repair.setVisualRepairRound(visualRepairRound(request) + 1);
         repair.setDiagramId(state.getDiagramId());
         repair.setExpectedVersion(state.getVersion());
         repair.setExpectedContentHash(state.getContentHash());
@@ -539,6 +556,7 @@ public class CanvasVisualReviewOrchestrator {
         chunk.put("available", result != null && result.isAvailable());
         chunk.put("decision", decision.name());
         chunk.put("stage", request.getStage());
+        chunk.put("visualRepairRound", visualRepairRound(request));
         chunk.put("content", result == null ? "" : StringUtils.defaultString(result.getSummary()));
         chunk.put("issues", issueArray(result));
         chunk.put("recommendedHumanReview", result != null && result.isRecommendedHumanReview());
@@ -615,7 +633,7 @@ public class CanvasVisualReviewOrchestrator {
         if (requestedRound != null) {
             return requestedRound;
         }
-        return request != null && CanvasVisualReviewStage.VERIFY_ONLY.name().equals(request.getStage()) ? 1 : 0;
+        return 0;
     }
 
     private String logValue(String value) {

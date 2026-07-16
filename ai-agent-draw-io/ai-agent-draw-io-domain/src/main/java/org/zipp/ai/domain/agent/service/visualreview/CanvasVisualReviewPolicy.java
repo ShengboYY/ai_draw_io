@@ -13,6 +13,7 @@ import java.util.Set;
 
 public class CanvasVisualReviewPolicy {
 
+    public static final int MAX_AUTOMATIC_REPAIR_ROUNDS = 2;
     private static final int MAX_AUTOMATIC_REPAIR_ISSUES = 3;
     private static final Set<CanvasVisualIssueType> AUTOMATIC_REPAIR_TYPES = EnumSet.of(
             CanvasVisualIssueType.TEXT_READABILITY,
@@ -44,8 +45,10 @@ public class CanvasVisualReviewPolicy {
             return CanvasVisualReviewDecision.APPROVE_WITH_NOTES;
         }
 
-        // Only the first post-mutation review may authorize a bounded repair.
-        if (stage != CanvasVisualReviewStage.POST_MUTATION || completedRepairRounds > 0
+        // VLM findings are evidence only. This policy grants at most two local repair mutations.
+        boolean repairCheckpoint = (stage == CanvasVisualReviewStage.POST_MUTATION && completedRepairRounds == 0)
+                || (stage == CanvasVisualReviewStage.POST_REPAIR && completedRepairRounds == 1);
+        if (!repairCheckpoint
                 || issues.size() > MAX_AUTOMATIC_REPAIR_ISSUES
                 // Every issue entering the repair brief must be safe; a minor semantic issue
                 // cannot hitchhike on a repairable blocking layout issue.

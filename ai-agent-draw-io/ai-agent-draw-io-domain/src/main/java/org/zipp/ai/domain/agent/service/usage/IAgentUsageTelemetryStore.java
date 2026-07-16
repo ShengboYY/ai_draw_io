@@ -33,25 +33,28 @@ public interface IAgentUsageTelemetryStore {
     default void insertDiagramSnapshot(AgentDiagramTraceSnapshot snapshot) {
     }
 
-    /** Atomically grants the single visual-repair attempt owned by a source Draw run. */
+    /** Atomically grants one numbered visual-repair attempt owned by a source Draw run. */
     default boolean tryClaimVisualRepair(String sourceRunId,
+                                         String reviewedRunId,
                                          String userId,
                                          String diagramId,
                                          String requestId,
                                          Long reviewedVersion,
                                          String reviewedCanvasHash,
+                                         int repairRound,
                                          String repairRunId,
                                          Instant occurredAt) {
         return false;
     }
 
-    /** Verifies that a claimed repair run persisted the exact canvas submitted for VERIFY_ONLY. */
+    /** Verifies that a numbered repair claim persisted the exact canvas submitted for follow-up review. */
     default boolean isVisualRepairResult(String sourceRunId,
                                          String repairRunId,
                                          String userId,
                                          String diagramId,
                                          Long repairedVersion,
-                                         String repairedCanvasHash) {
+                                         String repairedCanvasHash,
+                                         int repairRound) {
         return false;
     }
 

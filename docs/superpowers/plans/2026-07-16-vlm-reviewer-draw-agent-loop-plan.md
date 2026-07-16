@@ -23,7 +23,7 @@ flowchart TD
     A --> P["Review Policy"]
     V --> P
     P -->|"通过 / 仅提示 / 不可用"| DONE["最终回复"]
-    P -->|"允许一次自动修复"| C["写入 Visual Review Continuation"]
+    P -->|"判断需要且允许修复，累计未达 2 次"| C["写入 Visual Review Continuation"]
     C --> D
 ```
 
@@ -37,10 +37,12 @@ flowchart TD
 - 不重新调用 Intent Router；原始意图已经确定，重新路由既浪费一次模型调用，也可能把内部修复说明误判成新建任务。
 - Reviewer 反馈作为服务端生成的 continuation context 进入 Drawer；Drawer 自己选择合适工具。
 
-外层视觉循环初期最多一次：
+外层视觉循环最多允许两次已保存的自动修复，每次 VLM 后都由 Policy 判断，而不是由 VLM 直接决定是否执行：
 
 ```text
-Draw → Render → Review → Drawer continuation → Render → Verify-only → Finish
+Draw → Render → Review(round 0) → [Policy] → Drawer repair 1
+     → Render → Post-repair review(round 1) → [Policy] → Drawer repair 2（如仍需要且安全）
+     → Render → Verify-only(round 2) → Finish
 ```
 
 Drawer continuation 内部仍可保留一次确定性 self-repair，因为读取 tool 的 `analysis/repairBrief` 后立即修正，比再次截图并调用 VLM 更便宜。
@@ -124,7 +126,7 @@ continueDrawing(
 [Visual Review Continuation]
 Original task: <original task>
 Reviewed canvas: version=<version>, contentHash=<hash>
-Review round: 1/1
+Review round: <completed repair rounds>/2
 
 Visible issues:
 1. type=EDGE_TRACEABILITY, severity=MAJOR
@@ -204,13 +206,14 @@ record DrawerContinuationContext(
    - `UNAVAILABLE`
    - `NEEDS_HUMAN_REVIEW`
    - `REPAIR`
-5. 只有 `POST_MUTATION + REPAIR + round=0 + local + 可唯一授权` 才创建 continuation。
+5. `POST_MUTATION + round=0` 或 `POST_REPAIR + round=1` 时，只有 Policy 返回 `REPAIR`，且全部问题 local、类型在白名单、可唯一授权，才创建 continuation。
 6. continuation 使用相同 Drawer agent id 和 session id，跳过 Intent Router。
 7. Drawer 收到当前 XML、原始任务和结构化 Review 反馈。
 8. Drawer 自主选择 `modify_diagram` 或 `optimize_diagram`。
 9. Mutation Gate 拒绝越权、退化、stale 或无实际候选的修改。
 10. 接受后保存新版本，前端重新加载并导出 PNG。
-11. 进行 `VERIFY_ONLY` Review；无论结果如何都不再自动回到 Drawer。
+11. 第一次修复后进行 `POST_REPAIR + round=1` Review；Policy 重新判断是否需要且允许第二次修复。
+12. 第二次修复后进行 `VERIFY_ONLY + round=2` Review；该阶段只给最终结论，不再授予 mutation。
 
 ### 5.3 停止条件
 
@@ -224,8 +227,8 @@ record DrawerContinuationContext(
 - cell 授权不能唯一确定；
 - Mutation Gate 拒绝候选；
 - version/hash 已变化；
-- 已完成一次视觉 continuation；
-- verify-only 仍发现 major/critical 问题。
+- 已完成两次视觉 continuation；
+- verify-only 仍发现 major/critical 问题（报告并建议人工确认）。
 
 ## 6. Draw Agent 效率设计
 
@@ -269,14 +272,14 @@ record DrawerContinuationContext(
 
 ### 6.5 两层预算
 
-- 外层 VLM continuation：最多 1 次。
+- 外层 VLM continuation：最多 2 次，每次都必须重新经过 Review Policy 和独立持久化 claim。
 - continuation 内 deterministic self-repair：最多 1 次。
 
-这样最多产生两次 VLM Review 和两次 repair mutation，不会无限循环，同时优先利用廉价的确定性反馈。
+这样最多产生三次 VLM Review（首轮、第一次修复后、最终复核）和两个已保存的外层视觉 repair 版本，不会无限循环，同时优先利用廉价的确定性反馈。
 
 ### 6.6 只在新版本产生后重新 Review
 
-`NO_SAFE_CANDIDATE`、scope violation、quality regression 和 stale mutation 都不触发新截图/VLM 调用。只有 Mutation Gate 实际保存了新 version/hash，前端才进行 verify-only。
+`NO_SAFE_CANDIDATE`、scope violation、quality regression 和 stale mutation 都不触发新截图/VLM 调用。只有 Mutation Gate 实际保存了新 version/hash，前端才进行下一轮 `POST_REPAIR` 或最终 `VERIFY_ONLY`。
 
 ## 7. Phase 1–4 审计结论
 
@@ -400,19 +403,42 @@ refactor(agent): let drawer choose review repair tools
 - 最多发送 3 个 issue，清理图片 data URL 和冗余自由文本。
 - 默认不重复加载完整 diagram skill。
 - 透传 `sourceRunId/parentRunId/visualRepairRound`。
-- 只有保存了新 version/hash 才触发 verify-only。
+- 只有保存了新 version/hash 才触发修复后审阅。
 
 验收：
 
 - Draw Agent 能看到原任务、当前版本、Review evidence 和约束。
 - Review continuation 的 prompt 不伪装成用户新请求。
-- verify-only 不会再次触发 continuation。
+- 第一轮修复后审阅仍可由 Policy 判断；最终 verify-only 不会再次触发 continuation。
 - VLM unavailable、stale、Mutation Gate rejection 都正确结束。
 
 建议提交：
 
 ```text
 feat(review): close the reviewer drawer loop
+```
+
+### Phase 5D：Policy 驱动的有界二次修复
+
+修改目标：
+
+- 增加 `POST_REPAIR` 中间审阅阶段，保留 `VERIFY_ONLY` 作为最终只读复核。
+- VLM 只返回结构化 findings；`CanvasVisualReviewPolicy` 在 round 0 和 round 1 分别判断是否需要且允许修复。
+- 将 durable repair claim 从 source-run one-shot 改为 `sourceRunId + repairRound`，并验证每个已保存 Drawer run 的 version/hash lineage。
+- 前端只在 repair 确实产生新 version/hash 后继续，最多执行两次 Drawer continuation。
+- 每一轮 review/repair 使用独立 UI key、日志 round 和 telemetry metadata。
+
+验收：
+
+- 第一次 repair 后的 major local finding 可以触发第二次 Drawer continuation。
+- notes、unavailable、human review、Mutation Gate rejection 或无新版本立即停止。
+- 第二次 repair 后必定进入 `VERIFY_ONLY + round=2`，无法签发第三个 claim。
+- 重放任一 repair round 的 claim 都失败，其他 source run、parent run 或 snapshot 不能借用 lineage。
+
+建议提交：
+
+```text
+feat(review): allow bounded reviewer drawer retries
 ```
 
 ### Phase 6：真实画布覆盖与前端表达
@@ -426,7 +452,7 @@ feat(review): close the reviewer drawer loop
 - Thinking 展示真实步骤、版本和具体问题；
 - 最终回复跟随用户语言。
 
-这部分只增强 Review evidence，不改变 Drawer loop。
+这部分只增强 Review evidence，不改变“两次 repair、三次 review、Policy 授权”的有界 Drawer loop。
 
 建议提交：
 
@@ -437,8 +463,8 @@ feat(review): expand visual evidence coverage
 ### Phase 7：灰度、指标和死代码清理
 
 - 先打开 Reviewer，关闭 automatic continuation。
-- 再对小流量打开一次 automatic continuation。
-- 统计 Review repair 接受率、Mutation Gate 拒绝原因、verify pass、人工再次修改率、token/latency。
+- 再对小流量打开 automatic continuation，先观察 round 1，再单独观察 round 2 的增量收益。
+- 统计各 round 的 Review repair 接受率、Mutation Gate 拒绝原因、预算耗尽率、verify pass、人工再次修改率、token/latency。
 - 达标后扩大流量。
 - 删除改造产生的旧方法、旧参数、旧注释和旧测试分支。
 - Router v2 根据独立指标决定启用或删除。
@@ -456,7 +482,8 @@ chore(review): complete drawer loop rollout cleanup
 - `REPAIR` 回到同一个 Drawer agent 和 session。
 - 不调用 Intent Router。
 - `APPROVE/NOTES/UNAVAILABLE/HUMAN_REVIEW` 不回到 Drawer。
-- verify-only 不继续循环。
+- `POST_REPAIR + round=1` 可由 Policy 继续第二次修复。
+- `VERIFY_ONLY + round=2` 不继续循环，也不能创建第三个 durable claim。
 - 重复 label、空 anchor、whole-canvas issue fail closed。
 - version/hash 在 provider 前后变化时丢弃 Review。
 
@@ -479,12 +506,13 @@ chore(review): complete drawer loop rollout cleanup
 
 ### 9.4 端到端场景
 
-- 登录流程图右侧回流线：Reviewer → Drawer → `optimize_diagram(route_only)` → verify。
+- 登录流程图右侧回流线：Reviewer → Drawer → `optimize_diagram(route_only)` → post-repair review；必要时再进行一次局部修复 → final verify。
 - 长文字节点：Reviewer → Drawer → `modify_diagram` 或 layout optimize → verify。
 - 缺少用户要求节点：Reviewer 只报告并请求用户确认，不自动进入 Drawer continuation。
 - 重复标签无法定位：只报告，不自动改。
 - VLM 超时：保留当前画布并给出 unavailable 提示。
-- repair 后仍有 major：结束并建议人工确认，不进行第二次自动 repair。
+- 第一次 repair 后仍有可定位、local、白名单内的 major：Policy 允许第二次 repair。
+- 第二次 repair 后仍有 major：final verify 报告并建议人工确认，不进行第三次自动 repair。
 
 ## 10. 配置、数据和观测
 
@@ -507,12 +535,13 @@ ZIPP_VISUAL_REVIEW_AUTO_REPAIR_ENABLED=false
 - Drawer 选择的 tool
 - Mutation Gate decision/rejection reason
 - before/after version/hash
-- verify-only decision
+- post-repair 与 verify-only decision
+- 各 round 的 claim granted/replayed/budget exhausted
 - token、VLM latency、Drawer latency
 
 禁止把 PNG base64、完整 XML 或完整 system prompt写入普通日志。
 
-第一版 verify-only 如果仍发现视觉问题，只报告并停止，不自动回滚已经通过 Mutation Gate 的非语义局部修改。自动视觉回滚需要候选预览或版本回退协议，会显著增加状态复杂度；是否值得实现应由灰度数据中的“verify 后视觉变差率”决定。
+最终 verify-only 如果仍发现视觉问题，只报告并停止，不自动回滚已经通过 Mutation Gate 的非语义局部修改。自动视觉回滚需要候选预览或版本回退协议，会显著增加状态复杂度；是否值得实现应由灰度数据中的“verify 后视觉变差率”决定。
 
 ## 11. 完成定义
 
@@ -523,7 +552,7 @@ ZIPP_VISUAL_REVIEW_AUTO_REPAIR_ENABLED=false
 3. continuation 不再次调用 Intent Router。
 4. Drawer 可在 `modify_diagram` 和 `optimize_diagram` 中自主选择，`create_diagram` 被禁止。
 5. Mutation Gate 是唯一保存 seam，拒绝结果不会产生新画布版本。
-6. 外层视觉自动修复最多一次，verify-only 不再循环。
+6. 外层视觉自动修复最多两次；每次由 Policy 授权并拥有独立 durable claim，verify-only 不再循环。
 7. Phase 1–3 的质量与安全能力全部复用。
 8. Phase 4 仅作为可选 route-only 内部能力，不侵入主编排。
 9. 所有旧专用 repair 参数、未使用方法和过时架构文档被删除。

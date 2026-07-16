@@ -15,6 +15,7 @@ import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.Map;
 import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -22,6 +23,32 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.assertNull;
 
 public class AgentUsageTelemetryServiceTest {
+
+    @Test
+    public void visualRepairClaimRejectsRoundsBeyondThePolicyBudget() {
+        AtomicInteger storeCalls = new AtomicInteger();
+        FakeAgentUsageTelemetryStore store = new FakeAgentUsageTelemetryStore() {
+            @Override
+            public synchronized boolean tryClaimVisualRepair(String sourceRunId,
+                                                             String reviewedRunId,
+                                                             String userId,
+                                                             String diagramId,
+                                                             String requestId,
+                                                             Long reviewedVersion,
+                                                             String reviewedCanvasHash,
+                                                             int repairRound,
+                                                             String repairRunId,
+                                                             Instant occurredAt) {
+                storeCalls.incrementAndGet();
+                return true;
+            }
+        };
+
+        assertFalse(service(store).tryClaimVisualRepair(
+                "source-run", "repair-2", "usr_alice", "diagram-1", "review-request",
+                9L, "sha256:repair-2", 3, "repair-3"));
+        assertEquals(0, storeCalls.get());
+    }
 
     @Test
     public void shouldStoreMissingProviderTokenCountsAsUnknownNotZero() {

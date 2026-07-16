@@ -75,7 +75,11 @@ public class ProductionVisualReviewLiveEvalAdapter implements LiveEvalRunner.Liv
             result = reviewer.review(command);
         }
         CanvasVisualReviewDecision decision = policy.decide(
-                result, stage, stage == CanvasVisualReviewStage.VERIFY_ONLY ? 1 : 0);
+                result, stage, switch (stage) {
+                    case POST_REPAIR -> 1;
+                    case VERIFY_ONLY -> CanvasVisualReviewPolicy.MAX_AUTOMATIC_REPAIR_ROUNDS;
+                    default -> 0;
+                });
         String initialXml = evalCase.getReplay() == null ? EMPTY_CANVAS
                 : StringUtils.defaultIfBlank(evalCase.getReplay().getInitialCanvasXml(), EMPTY_CANVAS);
         EvalTrace trace = EvalTrace.builder()

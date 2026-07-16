@@ -29,24 +29,37 @@ public class AgentUsageTelemetryRepositoryTest {
                         throw new UnsupportedOperationException(method.getName());
                     }
                     attempts.add(List.of(args));
-                    return attempts.size() == 1 ? 1 : 0;
+                    return attempts.size() == 1 || attempts.size() == 3 ? 1 : 0;
                 });
         AgentUsageTelemetryRepository repository = new AgentUsageTelemetryRepository();
         ReflectionTestUtils.setField(repository, "agentUsageTelemetryMapper", mapper);
         Instant now = Instant.parse("2026-07-16T00:00:00Z");
 
         assertTrue(repository.tryClaimVisualRepair(
-                "source-run", "usr_owner", "diagram-1", "review-request",
-                7L, "sha256:current", "aru_repair_1", now));
+                "source-run", "source-run", "usr_owner", "diagram-1", "review-request",
+                7L, "sha256:current", 1, "aru_repair_1", now));
         assertFalse(repository.tryClaimVisualRepair(
-                "source-run", "usr_owner", "diagram-1", "review-request-2",
-                7L, "sha256:current", "aru_repair_2", now));
+                "source-run", "source-run", "usr_owner", "diagram-1", "review-request-2",
+                7L, "sha256:current", 1, "aru_repair_2", now));
+        assertTrue(repository.tryClaimVisualRepair(
+                "source-run", "aru_repair_1", "usr_owner", "diagram-1", "review-request-3",
+                8L, "sha256:repair-1", 2, "aru_repair_2", now));
+        assertFalse(repository.tryClaimVisualRepair(
+                "source-run", "aru_repair_1", "usr_owner", "diagram-1", "review-request-4",
+                8L, "sha256:repair-1", 2, "aru_repair_3", now));
+        assertFalse(repository.tryClaimVisualRepair(
+                "source-run", "aru_repair_2", "usr_owner", "diagram-1", "review-request-5",
+                9L, "sha256:repair-2", 3, "aru_repair_3", now));
 
+        assertEquals(4, attempts.size());
         assertEquals(attempts.get(0).get(0), attempts.get(1).get(0));
+        assertFalse(attempts.get(0).get(0).equals(attempts.get(2).get(0)));
+        assertEquals(attempts.get(2).get(0), attempts.get(3).get(0));
         assertEquals("source-run", attempts.get(0).get(1));
-        assertEquals("usr_owner", attempts.get(0).get(2));
-        assertEquals("diagram-1", attempts.get(0).get(3));
-        assertTrue(String.valueOf(attempts.get(0).get(7)).contains("aru_repair_1"));
+        assertEquals("source-run", attempts.get(0).get(2));
+        assertEquals("usr_owner", attempts.get(0).get(3));
+        assertEquals("diagram-1", attempts.get(0).get(4));
+        assertTrue(String.valueOf(attempts.get(0).get(9)).contains("aru_repair_1"));
     }
 
     @Test
@@ -66,12 +79,13 @@ public class AgentUsageTelemetryRepositoryTest {
         ReflectionTestUtils.setField(repository, "agentUsageTelemetryMapper", mapper);
 
         assertTrue(repository.isVisualRepairResult(
-                "source-run", "aru_repair_1", "usr_owner", "diagram-1", 8L, "sha256:repaired"));
+                "source-run", "aru_repair_1", "usr_owner", "diagram-1", 8L, "sha256:repaired", 1));
 
         assertEquals("source-run", arguments.get(1));
         assertEquals("aru_repair_1", arguments.get(2));
         assertEquals(8L, arguments.get(5));
         assertEquals("sha256:repaired", arguments.get(6));
+        assertEquals(1, arguments.get(7));
     }
 
     @Test

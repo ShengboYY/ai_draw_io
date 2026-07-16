@@ -48,8 +48,27 @@ test('route step describes the actual diagram type and selected skill', () => {
 
 test('visual review lifecycle uses explicit user-facing stage labels', () => {
   assert.equal(visualReviewStageLabel('POST_MUTATION'), 'Visual review');
+  assert.equal(visualReviewStageLabel('POST_REPAIR'), 'Post-repair review');
   assert.equal(visualReviewStageLabel('REPAIR'), 'Visual repair');
   assert.equal(visualReviewStageLabel('VERIFY_ONLY'), 'Final verification');
+});
+
+test('completion reply reports both policy-authorized repair rounds', () => {
+  const view = buildAgentRunView({
+    isRunning: false,
+    content: '',
+    events: [
+      { id: '1', phase: 'drawing', title: 'drawio_done', status: 'done', tone: 'drawing', nodes: 6, edges: 7 },
+    ],
+  });
+  const reply = buildAgentCompletionReply(view, '请画一个登录流程图', [
+    { stage: 'POST_MUTATION', visualRepairRound: 0, decision: 'REPAIR', repairCompleted: true },
+    { stage: 'POST_REPAIR', visualRepairRound: 1, decision: 'REPAIR', repairCompleted: true },
+    { stage: 'VERIFY_ONLY', visualRepairRound: 2, decision: 'APPROVE' },
+  ]);
+
+  assert.match(reply, /完成了 2 次局部自动修复/);
+  assert.match(reply, /修复后复核已通过/);
 });
 
 test('visual review step explains the concrete finding and next action', () => {

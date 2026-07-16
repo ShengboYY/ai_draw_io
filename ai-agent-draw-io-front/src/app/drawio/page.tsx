@@ -84,8 +84,9 @@ import {
 import {
   buildCanvasVisualReviewRequest,
   canStartPostMutationReview,
+  nextVisualReviewStage,
   shouldShowUnavailableReview,
-  shouldRunFinalVerification,
+  shouldReviewSavedRepair,
 } from './visual-review-chain';
 
 // Message type definition
@@ -2092,15 +2093,17 @@ function DrawioPageContent() {
       };
 
       const recordVisualReview = (review: VisualReviewPresentation) => {
-        // A stage has one authoritative result; replace retries instead of duplicating the final narrative.
-        const existingIndex = visualReviews.findIndex(item => item.stage === review.stage);
+        // A review round has one authoritative result; keep distinct post-repair checkpoints visible.
+        const existingIndex = visualReviews.findIndex(item => item.stage === review.stage
+          && item.visualRepairRound === review.visualRepairRound);
         if (existingIndex >= 0) visualReviews[existingIndex] = review;
         else visualReviews.push(review);
       };
 
-      const markVisualRepairCompleted = () => {
+      const markVisualRepairCompleted = (reviewRound: number) => {
         // A repair decision is only a proposal; drawio_done is the observable completion signal.
-        const reviewIndex = visualReviews.findIndex(item => item.decision === 'REPAIR');
+        const reviewIndex = visualReviews.findIndex(item => item.decision === 'REPAIR'
+          && item.visualRepairRound === reviewRound);
         if (reviewIndex >= 0) {
           visualReviews[reviewIndex] = { ...visualReviews[reviewIndex], repairCompleted: true };
         }
@@ -2249,7 +2252,9 @@ function DrawioPageContent() {
       const executeVisualReview = (reviewRequest: ReturnType<typeof buildCanvasVisualReviewRequest>) => (
         new Promise<ReviewStreamOutcome>(resolve => {
           const outcome: ReviewStreamOutcome = {};
-          const reviewStepKey = `visual-review:${reviewRequest.stage}`;
+          const reviewKeySuffix = `${reviewRequest.stage}:${reviewRequest.visualRepairRound}`;
+          const reviewStepKey = `visual-review:${reviewKeySuffix}`;
+          const repairStepKey = `visual-repair:${reviewRequest.visualRepairRound + 1}`;
           const reviewStepLabel = visualReviewStageLabel(reviewRequest.stage, useChinese);
           let settled = false;
           let hasReviewPresentation = false;
@@ -2260,9 +2265,9 @@ function DrawioPageContent() {
           };
           const finishRepairWithoutSave = (detail: string) => {
             if (outcome.decision !== 'REPAIR') return;
-            updateStep('visual-repair', 'visual_repair', visualReviewStageLabel('REPAIR', useChinese), detail, true, true);
+            updateStep(repairStepKey, 'visual_repair', visualReviewStageLabel('REPAIR', useChinese), detail, true, true);
             publishSteps();
-            upsertRunEvent('visual-repair', {
+            upsertRunEvent(repairStepKey, {
               phase: 'revising',
               title: 'Visual repair',
               detail,
@@ -2275,13 +2280,14 @@ function DrawioPageContent() {
             if (!shouldShowUnavailableReview(hasReviewPresentation)) return;
             const unavailableReview: VisualReviewPresentation = {
               stage: reviewRequest.stage,
+              visualRepairRound: reviewRequest.visualRepairRound,
               decision: 'UNAVAILABLE',
             };
             recordVisualReview(unavailableReview);
             const detail = buildVisualReviewStepDetail({ ...unavailableReview, useChinese });
             updateStep(reviewStepKey, 'visual_review', reviewStepLabel, detail, true, true);
             publishSteps();
-            upsertRunEvent(`visual-review:${reviewRequest.stage}`, {
+            upsertRunEvent(`visual-review:${reviewKeySuffix}`, {
               phase: 'reviewing',
               title: reviewRequest.stage === 'VERIFY_ONLY' ? 'Final visual verification' : 'Visual review',
               detail,
@@ -2302,7 +2308,7 @@ function DrawioPageContent() {
               if (chunk.type === 'review_started') {
                 updateStep(reviewStepKey, 'visual_review', reviewStepLabel, '', false, true);
                 publishSteps();
-                upsertRunEvent(`visual-review:${chunk.stage}`, {
+                upsertRunEvent(`visual-review:${chunk.stage}:${chunk.visualRepairRound ?? reviewRequest.visualRepairRound}`, {
                   phase: 'reviewing',
                   title: chunk.stage === 'VERIFY_ONLY' ? 'Final visual verification' : 'Visual review',
                   detail: 'Inspecting the rendered canvas.',
@@ -2316,6 +2322,7 @@ function DrawioPageContent() {
                 outcome.decision = chunk.decision;
                 const review: VisualReviewPresentation = {
                   stage: chunk.stage || reviewRequest.stage,
+                  visualRepairRound: chunk.visualRepairRound ?? reviewRequest.visualRepairRound,
                   decision: chunk.decision,
                   summary: chunk.content,
                   issues: chunk.issues,
@@ -2328,7 +2335,7 @@ function DrawioPageContent() {
                 const reviewDetail = buildVisualReviewStepDetail({ ...review, useChinese });
                 updateStep(reviewStepKey, 'visual_review', reviewStepLabel, reviewDetail, true, true);
                 publishSteps();
-                upsertRunEvent(`visual-review:${chunk.stage || reviewRequest.stage}`, {
+                upsertRunEvent(`visual-review:${chunk.stage || reviewRequest.stage}:${chunk.visualRepairRound ?? reviewRequest.visualRepairRound}`, {
                   phase: 'reviewing',
                   title: chunk.stage === 'VERIFY_ONLY' ? 'Final visual verification' : 'Visual review',
                   detail: reviewDetail,
@@ -2338,9 +2345,9 @@ function DrawioPageContent() {
                 if (chunk.decision === 'REPAIR') {
                   const repairStepLabel = visualReviewStageLabel('REPAIR', useChinese);
                   const repairDetail = buildVisualRepairStepDetail({ issues: chunk.issues, useChinese });
-                  updateStep('visual-repair', 'visual_repair', repairStepLabel, repairDetail, false, true);
+                  updateStep(repairStepKey, 'visual_repair', repairStepLabel, repairDetail, false, true);
                   publishSteps();
-                  upsertRunEvent('visual-repair', {
+                  upsertRunEvent(repairStepKey, {
                     phase: 'revising',
                     title: 'Visual repair',
                     detail: repairDetail,
@@ -2355,6 +2362,7 @@ function DrawioPageContent() {
                 outcome.decision = 'STALE';
                 const staleReview: VisualReviewPresentation = {
                   stage: reviewRequest.stage,
+                  visualRepairRound: reviewRequest.visualRepairRound,
                   decision: 'UNAVAILABLE',
                   stale: true,
                 };
@@ -2362,7 +2370,7 @@ function DrawioPageContent() {
                 const staleDetail = buildVisualReviewStepDetail({ ...staleReview, useChinese });
                 updateStep(reviewStepKey, 'visual_review', reviewStepLabel, staleDetail, true, true);
                 publishSteps();
-                upsertRunEvent(`visual-review:${reviewRequest.stage}`, {
+                upsertRunEvent(`visual-review:${reviewKeySuffix}`, {
                   phase: 'reviewing',
                   title: reviewRequest.stage === 'VERIFY_ONLY' ? 'Final visual verification' : 'Visual review',
                   detail: staleDetail,
@@ -2372,7 +2380,7 @@ function DrawioPageContent() {
                 return;
               }
               if (chunk.type === 'drawio_done' && Number.isFinite(chunk.version) && chunk.contentHash) {
-                markVisualRepairCompleted();
+                markVisualRepairCompleted(reviewRequest.visualRepairRound);
                 const repairedDiagramId = chunk.diagramId || reviewRequest.diagramId;
                 const loadPromise = waitForCanvasLoad(activeSession?.id || currentSessionId || '');
                 applyFinalDiagramXml(chunk.content, chunk.mode);
@@ -2395,9 +2403,9 @@ function DrawioPageContent() {
                 const repairCompletedDetail = useChinese
                   ? '已完成一轮局部视觉修复，并重新加载画布。'
                   : 'Completed one local visual repair and reloaded the canvas.';
-                updateStep('visual-repair', 'visual_repair', visualReviewStageLabel('REPAIR', useChinese), repairCompletedDetail, true, true);
+                updateStep(repairStepKey, 'visual_repair', visualReviewStageLabel('REPAIR', useChinese), repairCompletedDetail, true, true);
                 publishSteps();
-                upsertRunEvent('visual-repair', {
+                upsertRunEvent(repairStepKey, {
                   phase: 'revising',
                   title: 'Visual repair',
                   detail: repairCompletedDetail,
@@ -2454,7 +2462,7 @@ function DrawioPageContent() {
         const afterImage = await exportVisualReviewPng(finalDiagramId);
         if (!afterImage || !sourceRunId) return;
 
-        const postMutationRequest = buildCanvasVisualReviewRequest({
+        let reviewRequest = buildCanvasVisualReviewRequest({
           userId: currentUser,
           agentId: selectedAgentId,
           sessionId: activeBackendSessionId,
@@ -2472,39 +2480,42 @@ function DrawioPageContent() {
           afterImageDataUrl: afterImage,
           modelCredentialId: activeModelConfig?.modelCredentialId,
         });
-        const reviewed = await executeVisualReview(postMutationRequest);
-        const repaired = reviewed.repairedCanvas;
-        if (!repaired || !shouldRunFinalVerification({
+        let reviewed = await executeVisualReview(reviewRequest);
+        while (reviewed.repairedCanvas && shouldReviewSavedRepair({
           decision: reviewed.decision,
-          reviewedVersion: finalVersion,
-          reviewedContentHash: finalContentHash,
-          version: repaired.version,
-          contentHash: repaired.contentHash,
-        })) return;
-
-        // One repair is the hard limit: this second request is VERIFY_ONLY and the backend policy
-        // cannot authorize another mutation regardless of its findings.
-        if (!await repaired.loadPromise || currentSessionRef.current !== activeSession?.id) return;
-        const repairedImage = await exportVisualReviewPng(repaired.diagramId);
-        if (!repairedImage) return;
-        await executeVisualReview(buildCanvasVisualReviewRequest({
-          userId: currentUser,
-          agentId: selectedAgentId,
-          sessionId: activeBackendSessionId,
-          requestId: nextReviewRequestId(),
-          sourceRunId,
-          parentRunId: reviewed.repairRunId || reviewed.visualReviewRunId || sourceRunId,
-          visualRepairRound: 1,
-          diagramId: repaired.diagramId,
-          expectedVersion: repaired.version,
-          beforeContentHash: repaired.contentHashBeforeRepair,
-          expectedContentHash: repaired.contentHash,
-          originalUserTask: displayContent,
-          stage: 'VERIFY_ONLY',
-          beforeImageDataUrl: repaired.imageBeforeRepair,
-          afterImageDataUrl: repairedImage,
-          modelCredentialId: activeModelConfig?.modelCredentialId,
-        }));
+          reviewedVersion: reviewRequest.expectedVersion,
+          reviewedContentHash: reviewRequest.expectedContentHash,
+          version: reviewed.repairedCanvas.version,
+          contentHash: reviewed.repairedCanvas.contentHash,
+        })) {
+          const repaired = reviewed.repairedCanvas;
+          const completedRepairRounds = reviewRequest.visualRepairRound + 1;
+          const nextStage = nextVisualReviewStage(completedRepairRounds);
+          // A persisted Drawer run id is required to prove each follow-up review's lineage.
+          if (!nextStage || !reviewed.repairRunId) return;
+          if (!await repaired.loadPromise || currentSessionRef.current !== activeSession?.id) return;
+          const repairedImage = await exportVisualReviewPng(repaired.diagramId);
+          if (!repairedImage) return;
+          reviewRequest = buildCanvasVisualReviewRequest({
+            userId: currentUser,
+            agentId: selectedAgentId,
+            sessionId: activeBackendSessionId,
+            requestId: nextReviewRequestId(),
+            sourceRunId,
+            parentRunId: reviewed.repairRunId,
+            visualRepairRound: completedRepairRounds,
+            diagramId: repaired.diagramId,
+            expectedVersion: repaired.version,
+            beforeContentHash: repaired.contentHashBeforeRepair,
+            expectedContentHash: repaired.contentHash,
+            originalUserTask: displayContent,
+            stage: nextStage,
+            beforeImageDataUrl: repaired.imageBeforeRepair,
+            afterImageDataUrl: repairedImage,
+            modelCredentialId: activeModelConfig?.modelCredentialId,
+          });
+          reviewed = await executeVisualReview(reviewRequest);
+        }
       };
 
       if (demoQuotaState.visible) {

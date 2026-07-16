@@ -4,8 +4,9 @@ import assert from 'node:assert/strict';
 import {
   buildCanvasVisualReviewRequest,
   canStartPostMutationReview,
+  nextVisualReviewStage,
   shouldShowUnavailableReview,
-  shouldRunFinalVerification,
+  shouldReviewSavedRepair,
 } from '../src/app/drawio/visual-review-chain.ts';
 
 const base = {
@@ -48,20 +49,26 @@ test('review requests preserve exact version, hash, stage, and before/after imag
   assert.equal(request.rendererVersion, 'drawio-embed-png-v1');
 });
 
-test('only a repair decision followed by a persisted repaired canvas triggers VERIFY_ONLY', () => {
+test('only a repair decision followed by a persisted repaired canvas continues review', () => {
   const reviewed = { reviewedVersion: 3, reviewedContentHash: 'sha256:abc' };
-  assert.equal(shouldRunFinalVerification({
+  assert.equal(shouldReviewSavedRepair({
     ...reviewed, decision: 'REPAIR', version: 4, contentHash: 'sha256:def',
   }), true);
-  assert.equal(shouldRunFinalVerification({
+  assert.equal(shouldReviewSavedRepair({
     ...reviewed, decision: 'APPROVE', version: 4, contentHash: 'sha256:def',
   }), false);
-  assert.equal(shouldRunFinalVerification({
+  assert.equal(shouldReviewSavedRepair({
     ...reviewed, decision: 'REPAIR', version: 3, contentHash: 'sha256:def',
   }), false);
-  assert.equal(shouldRunFinalVerification({
+  assert.equal(shouldReviewSavedRepair({
     ...reviewed, decision: 'REPAIR', version: 4, contentHash: 'sha256:abc',
   }), false);
+});
+
+test('saved repairs progress through one policy checkpoint and one final verification', () => {
+  assert.equal(nextVisualReviewStage(1), 'POST_REPAIR');
+  assert.equal(nextVisualReviewStage(2), 'VERIFY_ONLY');
+  assert.equal(nextVisualReviewStage(3), undefined);
 });
 
 test('repair transport failures preserve an already presented VLM review', () => {

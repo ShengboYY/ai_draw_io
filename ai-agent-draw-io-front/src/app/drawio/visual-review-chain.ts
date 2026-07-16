@@ -30,7 +30,20 @@ export const buildCanvasVisualReviewRequest = (
   rendererVersion: 'drawio-embed-png-v1',
 });
 
-export const shouldRunFinalVerification = ({
+export const MAX_AUTOMATIC_VISUAL_REPAIR_ROUNDS = 2;
+
+export const nextVisualReviewStage = (
+  completedRepairRounds: number,
+): CanvasVisualReviewStage | undefined => {
+  if (completedRepairRounds <= 0 || completedRepairRounds > MAX_AUTOMATIC_VISUAL_REPAIR_ROUNDS) {
+    return undefined;
+  }
+  return completedRepairRounds === MAX_AUTOMATIC_VISUAL_REPAIR_ROUNDS
+    ? 'VERIFY_ONLY'
+    : 'POST_REPAIR';
+};
+
+export const shouldReviewSavedRepair = ({
   decision,
   reviewedVersion,
   reviewedContentHash,

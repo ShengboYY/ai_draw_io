@@ -175,24 +175,30 @@
         )
     </insert>
 
-    <!-- The deterministic primary key makes this a cross-instance, restart-safe one-shot claim. -->
+    <!-- The source+round primary key makes each bounded attempt cross-instance and restart safe. -->
     <insert id="tryClaimVisualRepair">
         INSERT IGNORE INTO agent_trace_event (
             id, run_id, parent_id, request_id, user_id, sequence_no, event_type, phase, status, metadata_json, occurred_at
         )
         SELECT
-            #{id}, r.id, r.id, #{requestId}, r.user_id, 0, 'visual_repair_claimed', 'review', 'SUCCESS',
+            #{id}, source.id, #{reviewedRunId}, #{requestId}, source.user_id, #{repairRound},
+            'visual_repair_claimed', 'review', 'SUCCESS',
             #{metadataJson},
             #{occurredAt}
-        FROM agent_run r
+        FROM agent_run source
+        INNER JOIN agent_run reviewed
+            ON reviewed.id = #{reviewedRunId}
+            AND reviewed.user_id = source.user_id
+            AND reviewed.diagram_id = source.diagram_id
         INNER JOIN agent_diagram_trace_snapshot s
-            ON s.run_id = r.id
+            ON s.run_id = reviewed.id
             AND s.diagram_id = #{diagramId}
             AND s.version = #{reviewedVersion}
             AND s.canvas_hash = #{reviewedCanvasHash}
-        WHERE r.id = #{sourceRunId}
-          AND r.user_id = #{userId}
-          AND r.diagram_id = #{diagramId}
+        WHERE source.id = #{sourceRunId}
+          AND source.user_id = #{userId}
+          AND source.diagram_id = #{diagramId}
+          AND #{repairRound} BETWEEN 1 AND 2
     </insert>
 
     <select id="countVisualRepairResult" resultType="int">
@@ -214,6 +220,7 @@
         WHERE claim.id = #{id}
           AND claim.run_id = #{sourceRunId}
           AND claim.event_type = 'visual_repair_claimed'
+          AND JSON_EXTRACT(claim.metadata_json, '$.repairRound') = #{repairRound}
           AND JSON_UNQUOTE(JSON_EXTRACT(claim.metadata_json, '$.repairRunId')) = #{repairRunId}
     </select>
 

@@ -36,11 +36,13 @@ public interface IAgentUsageTelemetryMapper {
 
     int tryClaimVisualRepair(@Param("id") String id,
                              @Param("sourceRunId") String sourceRunId,
+                             @Param("reviewedRunId") String reviewedRunId,
                              @Param("userId") String userId,
                              @Param("diagramId") String diagramId,
                              @Param("requestId") String requestId,
                              @Param("reviewedVersion") Long reviewedVersion,
                              @Param("reviewedCanvasHash") String reviewedCanvasHash,
+                             @Param("repairRound") int repairRound,
                              @Param("metadataJson") String metadataJson,
                              @Param("occurredAt") Date occurredAt);
 
@@ -50,7 +52,8 @@ public interface IAgentUsageTelemetryMapper {
                                 @Param("userId") String userId,
                                 @Param("diagramId") String diagramId,
                                 @Param("repairedVersion") Long repairedVersion,
-                                @Param("repairedCanvasHash") String repairedCanvasHash);
+                                @Param("repairedCanvasHash") String repairedCanvasHash,
+                                @Param("repairRound") int repairRound);
 
     int insertDiagramSnapshot(DiagramTraceSnapshotPO snapshot);
 
