@@ -6,13 +6,16 @@ import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 import lombok.Data;
 import org.apache.commons.lang3.StringUtils;
 import lombok.EqualsAndHashCode;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.stereotype.Service;
 import org.zipp.ai.domain.agent.model.valobj.analysis.CanvasAnalysis;
 import org.zipp.ai.domain.agent.model.valobj.analysis.CanvasAnalysisIssue;
 import org.zipp.ai.domain.agent.model.valobj.analysis.CanvasSummaryData;
+import org.zipp.ai.domain.agent.model.valobj.analysis.DiagramType;
 import org.zipp.ai.domain.agent.model.valobj.canvas.CanvasState;
 import org.zipp.ai.domain.agent.service.ICanvasStateStore;
+import org.zipp.ai.domain.agent.service.canvas.routing.TargetedEdgeRouter;
 import org.zipp.ai.types.util.SecretLogSanitizer;
 
 import javax.annotation.Resource;
@@ -31,7 +34,10 @@ public class DrawioCanvasMcpService {
     private static final int MAX_CONTINUATION_BUFFER_CHARS = 600_000;
 
     private final DrawioCanvasXmlToolkit xmlToolkit = new DrawioCanvasXmlToolkit();
+    private final TargetedEdgeRouter targetedEdgeRouter = new TargetedEdgeRouter();
     private final ConcurrentMap<String, StringBuilder> continuationBuffers = new ConcurrentHashMap<>();
+    @Value("${zipp.canvas.targeted-edge-router-v2-enabled:false}")
+    private boolean targetedEdgeRouterV2Enabled;
     @Resource
     private ICanvasStateStore canvasStateStore;
 
@@ -105,7 +111,7 @@ public class DrawioCanvasMcpService {
         return response;
     }
 
-    @Tool(name = DrawioCanvasToolNames.OPTIMIZE_DIAGRAM, description = "Optimize Draw.io layout, spacing, readability, or edge routing under the Global Draw.io Layout Contract, preserving the diagram's layout mode and relationship/layout semantics. In grid-flow layouts keep straight edgeStyle=none relationships straight, never reuse the same node-side anchor, and use orthogonal routing with explicit exit/entry ports, distinct tracks, and waypoints only for dense workflow/network wiring or obstacle avoidance; in radial layouts even out ring spacing instead and never straighten edgeStyle=none/curved spokes. Use mode=route_only with non-empty targetEdgeIds for scoped edge patches, or layout_optimize for a complete optimized mxGraphModel.")
+    @Tool(name = DrawioCanvasToolNames.OPTIMIZE_DIAGRAM, description = "Optimize Draw.io layout, spacing, readability, or edge routing under the Global Draw.io Layout Contract, preserving the diagram's layout mode and relationship/layout semantics. In grid-flow layouts keep straight edgeStyle=none relationships straight, never reuse the same node-side anchor, and use orthogonal routing with explicit exit/entry ports, distinct tracks, and waypoints only for dense workflow/network wiring or obstacle avoidance; in radial layouts even out ring spacing instead and never straighten edgeStyle=none/curved spokes. Use mode=route_only with non-empty targetEdgeIds and diagramType for scoped edge patches, or layout_optimize for a complete optimized mxGraphModel.")
     public DrawioMutationResponse optimizeDiagram(OptimizeDiagramRequest request) {
         boolean routeOnly = routeOnlyMode(request);
         Set<String> targetEdgeIds = routeOnly ? targetEdgeIds(request) : Set.of();
@@ -133,12 +139,28 @@ public class DrawioCanvasMcpService {
                 return response;
             }
         }
-        String content = routeOnly
-                ? xmlToolkit.routeEdges(sourceXml, targetEdgeIds)
-                : sourceXml;
+        TargetedEdgeRouter.RoutingResult routingResult = null;
+        String content = sourceXml;
+        if (routeOnly) {
+            if (targetedEdgeRouterV2Enabled) {
+                routingResult = targetedEdgeRouter.route(
+                        sourceXml, DiagramType.from(request.getDiagramType()), targetEdgeIds);
+                content = routingResult.xml();
+            } else {
+                content = xmlToolkit.routeEdges(sourceXml, targetEdgeIds);
+            }
+        }
         DrawioMutationResponse response = routeOnly
                 ? edgePatchResponse(xmlToolkit.edgeCells(content, targetEdgeIds), content)
                 : drawioMutationDone(content);
+        if (routingResult != null && routingResult.status() == TargetedEdgeRouter.Status.NO_SAFE_CANDIDATE) {
+            // This is an explicit non-mutation result. Returning patch_cells here would make the
+            // post-processor apply an unchanged edge and hide the fail-closed signal from the loop.
+            response.setType(DrawioCanvasToolNames.NO_SAFE_CANDIDATE);
+            response.setCells(null);
+            response.setContent(null);
+            response.setRepairBrief("NO_SAFE_CANDIDATE: " + routingResult.reason());
+        }
         logOptimizeToolResult(request, response);
         return response;
     }
@@ -522,6 +544,10 @@ public class DrawioCanvasMcpService {
         @JsonPropertyDescription("Existing edge mxCell ids to reroute. Required and non-empty when mode=route_only.")
         private List<String> targetEdgeIds;
 
+        @JsonProperty(value = "diagramType")
+        @JsonPropertyDescription("Optional quality profile for route_only, such as flowchart, architecture, or state. Unknown profiles fail closed in router v2.")
+        private String diagramType;
+
         @JsonProperty(value = "userId")
         @JsonPropertyDescription("Optional owner id used with diagramId to load the current canvas when xml is omitted.")
         private String userId;
@@ -555,7 +581,7 @@ public class DrawioCanvasMcpService {
     @JsonInclude(JsonInclude.Include.NON_NULL)
     public static class DrawioMutationResponse {
         @JsonProperty(required = true, value = "type")
-        @JsonPropertyDescription("patch_cells for local fragments or drawio_done for complete updated XML.")
+        @JsonPropertyDescription("patch_cells for local fragments, drawio_done for complete updated XML, or no_safe_candidate when no mutation was produced.")
         private String type;
 
         @JsonProperty(value = "content")

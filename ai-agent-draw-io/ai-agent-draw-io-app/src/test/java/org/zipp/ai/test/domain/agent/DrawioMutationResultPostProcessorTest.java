@@ -135,4 +135,22 @@ public class DrawioMutationResultPostProcessorTest {
         assertEquals("route_only must preserve a non-target edge even when it has its own issue",
                 unrelatedEdgeBefore, toolkit.edgeCells(canonical, Set.of("6")));
     }
+
+    @Test
+    public void noSafeCandidateDoesNotMutateTheWorkingDraftOrLoseItsReason() {
+        String currentXml = "<mxGraphModel><root><mxCell id='0'/><mxCell id='1' parent='0'/></root></mxGraphModel>";
+        Map<String, Object> state = new HashMap<>();
+        state.put(DrawioMutationResultPostProcessor.DRAFT_DIAGRAM_STATE_KEY, currentXml);
+        Map<String, Object> response = new HashMap<>();
+        response.put("type", "no_safe_candidate");
+        response.put("repairBrief", "NO_SAFE_CANDIDATE: self-loop routing is not supported.");
+
+        DrawioMutationResultPostProcessor.ProcessResult result =
+                new DrawioMutationResultPostProcessor().processWithStatus(
+                        "optimize_diagram", Map.of("mode", "route_only"), response, state);
+
+        assertFalse(result.mutationApplied());
+        assertEquals(currentXml, state.get(DrawioMutationResultPostProcessor.DRAFT_DIAGRAM_STATE_KEY));
+        assertEquals(response.get("repairBrief"), result.response().get("repairBrief"));
+    }
 }

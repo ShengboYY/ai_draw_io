@@ -9,6 +9,7 @@ public final class DrawioCanvasToolNames {
     public static final String MODIFY_DIAGRAM = "modify_diagram";
     public static final String OPTIMIZE_DIAGRAM = "optimize_diagram";
     public static final String PATCH_CELLS = "patch_cells";
+    public static final String NO_SAFE_CANDIDATE = "no_safe_candidate";
 
     public static final String DISPLAY_DIAGRAM = "display_diagram";
     public static final String APPEND_DIAGRAM = "append_diagram";

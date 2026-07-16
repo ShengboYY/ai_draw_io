@@ -39,7 +39,8 @@ public class DrawioMutationResultPostProcessor {
                 ? new LinkedHashMap<>()
                 : new LinkedHashMap<>(response);
         if (!DrawioCanvasToolNames.CONSOLIDATED_TOOL_NAMES.contains(toolName)
-                || "tool_error".equals(stringValue(processed.get("type")))) {
+                || "tool_error".equals(stringValue(processed.get("type")))
+                || DrawioCanvasToolNames.NO_SAFE_CANDIDATE.equals(stringValue(processed.get("type")))) {
             return new ProcessResult(processed, false);
         }
 

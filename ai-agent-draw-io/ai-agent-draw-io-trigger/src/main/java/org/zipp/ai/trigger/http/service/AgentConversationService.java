@@ -1330,7 +1330,7 @@ public class AgentConversationService {
                 continue;
             }
             String type = json.getString("type");
-            if ("tool_error".equals(type)) {
+            if ("tool_error".equals(type) || DrawioCanvasToolNames.NO_SAFE_CANDIDATE.equals(type)) {
                 // A rejected mutation applied nothing; let the model retry without burning budget.
                 continue;
             }
