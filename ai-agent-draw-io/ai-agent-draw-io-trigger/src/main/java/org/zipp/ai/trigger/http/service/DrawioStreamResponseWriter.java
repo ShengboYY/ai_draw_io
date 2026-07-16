@@ -6,17 +6,21 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseBodyEmitter;
 import org.zipp.ai.domain.agent.model.valobj.canvas.CanvasState;
 import org.zipp.ai.domain.agent.model.valobj.canvas.CanvasStateSaveResult;
-import org.zipp.ai.domain.agent.model.valobj.canvas.CanvasStateVersionConflictException;
+import org.zipp.ai.domain.agent.model.valobj.analysis.DiagramType;
+import org.zipp.ai.domain.agent.model.valobj.canvas.CanvasMutationAuthorization;
+import org.zipp.ai.domain.agent.model.valobj.canvas.CanvasMutationCommand;
+import org.zipp.ai.domain.agent.model.valobj.canvas.CanvasMutationDecision;
+import org.zipp.ai.domain.agent.model.valobj.canvas.CanvasMutationPurpose;
+import org.zipp.ai.domain.agent.model.valobj.canvas.CanvasMutationStatus;
 import org.zipp.ai.domain.agent.model.valobj.analysis.CanvasAnalysis;
 import org.zipp.ai.domain.agent.model.valobj.analysis.CanvasAnalysisIssue;
 import org.zipp.ai.domain.agent.model.valobj.visualreview.CanvasVisualIssue;
 import org.zipp.ai.domain.agent.model.valobj.visualreview.CanvasVisualReviewDecision;
 import org.zipp.ai.domain.agent.model.valobj.visualreview.CanvasVisualReviewResult;
-import org.zipp.ai.domain.agent.service.ICanvasStateStore;
 import org.zipp.ai.domain.agent.service.armory.matter.mcp.server.DrawioCanvasToolNames;
 import org.zipp.ai.domain.agent.service.armory.matter.mcp.server.DrawioCanvasXmlToolkit;
+import org.zipp.ai.domain.agent.service.canvas.CanvasMutationGate;
 import org.zipp.ai.domain.agent.service.usage.AgentUsageTelemetryService;
-import org.zipp.ai.types.util.SecretLogSanitizer;
 
 import javax.annotation.Resource;
 import java.util.List;
@@ -30,7 +34,7 @@ public class DrawioStreamResponseWriter {
     private final DrawioToolCallRenderer toolCallRenderer;
     private final DrawioCanvasXmlToolkit xmlToolkit = new DrawioCanvasXmlToolkit();
     @Resource
-    private ICanvasStateStore canvasStateStore;
+    private CanvasMutationGate canvasMutationGate;
     @Resource
     private AgentUsageTelemetryService agentUsageTelemetryService;
     private final ConcurrentMap<String, StringBuilder> fallbackContinuationBuffers = new ConcurrentHashMap<>();
@@ -284,11 +288,6 @@ public class DrawioStreamResponseWriter {
      * the update_cells renderer path, which tags the result mode=local for in-place frontend merge.
      */
     public boolean sendLocalCellPatch(ResponseBodyEmitter emitter, String phase, String currentCanvasXml, String cells) throws Exception {
-        return sendLocalCellPatch(emitter, phase, currentCanvasXml, cells, false);
-    }
-
-    public boolean sendLocalCellPatch(ResponseBodyEmitter emitter, String phase, String currentCanvasXml,
-                                      String cells, boolean preserveGeometryScope) throws Exception {
         String baseCanvasXml = StringUtils.defaultIfBlank(currentCanvasByEmitter.get(emitter), currentCanvasXml);
         if (StringUtils.isBlank(cells) || StringUtils.isBlank(baseCanvasXml)) {
             return false;
@@ -297,12 +296,6 @@ public class DrawioStreamResponseWriter {
         if (StringUtils.isBlank(merged)) {
             return false;
         }
-        // Mechanical normalization is safe for every patch. Only an explicitly scoped route repair
-        // may skip the general geometry pass, which can otherwise reroute unrelated edges.
-        merged = xmlToolkit.autoRepair(merged);
-        if (!preserveGeometryScope) {
-            merged = xmlToolkit.repairGeometryIfNeeded(merged);
-        }
         if (merged.equals(lastPatchByEmitter.get(emitter))) {
             return true; // Already emitted this exact merge for the stream; treat as handled, don't resend.
         }
@@ -310,8 +303,6 @@ public class DrawioStreamResponseWriter {
         com.alibaba.fastjson.JSONObject toolJson = new com.alibaba.fastjson.JSONObject();
         toolJson.put("type", DrawioCanvasToolNames.UPDATE_CELLS);
         toolJson.put("xml", merged);
-        // The merge above applied the operation-specific repair policy; the renderer must not widen it.
-        toolJson.put("geometryRepairComplete", true);
         processAndSendLine(emitter, phase, toolJson.toJSONString());
         return true;
     }
@@ -377,7 +368,8 @@ public class DrawioStreamResponseWriter {
             return;
         }
 
-        if (isCriticalSeverity(pendingDiagram.severity)) {
+        if (isCriticalSeverity(pendingDiagram.severity)
+                && !canvasStateContextByEmitter.containsKey(emitter)) {
             sendError(emitter, phase, "Diagram XML could not be finalized: " + pendingDiagram.content);
             return;
         }
@@ -401,7 +393,7 @@ public class DrawioStreamResponseWriter {
     }
 
     public void setCanvasStateContext(ResponseBodyEmitter emitter, String userId, String diagramId, Long expectedVersion) {
-        setCanvasStateContext(emitter, userId, diagramId, expectedVersion, null, null);
+        setCanvasStateContext(emitter, userId, diagramId, expectedVersion, null, null, null, null);
     }
 
     public void setCanvasStateContext(ResponseBodyEmitter emitter,
@@ -410,29 +402,52 @@ public class DrawioStreamResponseWriter {
                                       Long expectedVersion,
                                       String runId,
                                       String spanId) {
+        setCanvasStateContext(emitter, userId, diagramId, expectedVersion, null, null, runId, spanId);
+    }
+
+    public void setCanvasStateContext(ResponseBodyEmitter emitter,
+                                      String userId,
+                                      String diagramId,
+                                      Long expectedVersion,
+                                      String diagramType,
+                                      String runId,
+                                      String spanId) {
+        setCanvasStateContext(emitter, userId, diagramId, expectedVersion, null, diagramType, runId, spanId);
+    }
+
+    public void setCanvasStateContext(ResponseBodyEmitter emitter,
+                                      String userId,
+                                      String diagramId,
+                                      Long expectedVersion,
+                                      String expectedContentHash,
+                                      String diagramType,
+                                      String runId,
+                                      String spanId) {
+        setCanvasStateContext(emitter, userId, diagramId, expectedVersion, expectedContentHash,
+                diagramType, null, null, runId, spanId);
+    }
+
+    public void setCanvasStateContext(ResponseBodyEmitter emitter,
+                                      String userId,
+                                      String diagramId,
+                                      Long expectedVersion,
+                                      String expectedContentHash,
+                                      String diagramType,
+                                      CanvasMutationPurpose purpose,
+                                      CanvasMutationAuthorization authorization,
+                                      String runId,
+                                      String spanId) {
         if (emitter == null || StringUtils.isBlank(userId) || StringUtils.isBlank(diagramId)) {
             return;
         }
-        canvasStateContextByEmitter.put(emitter, new CanvasStateContext(userId, diagramId, expectedVersion, runId, spanId));
+        canvasStateContextByEmitter.put(emitter, new CanvasStateContext(
+                userId, diagramId, expectedVersion, expectedContentHash,
+                DiagramType.from(diagramType), purpose, authorization, runId, spanId));
     }
 
     private void sendDrawioDone(ResponseBodyEmitter emitter, String phase, String xml,
                                 boolean includeValidation, String mode) throws Exception {
-        sendDrawioDone(emitter, phase, xml, includeValidation, mode, true);
-    }
-
-    private void sendDrawioDone(ResponseBodyEmitter emitter, String phase, String xml,
-                                boolean includeValidation, String mode, boolean applyGeometryRepair) throws Exception {
-        // Some mutation paths already own a bounded route/layout. Reapplying the general repair here
-        // would erase that scope, so only unprocessed create/modify candidates receive the safety pass.
-        String normalized = xmlToolkit.autoRepair(xml);
-        String repaired = applyGeometryRepair
-                ? xmlToolkit.repairGeometryIfNeeded(normalized)
-                : normalized;
-        DrawioCanvasXmlToolkit.CanvasInspection inspection = xmlToolkit.inspect(repaired);
-        if (inspection.isValid() || !isCriticalSeverity(inspection.getSeverity())) {
-            xml = repaired;
-        }
+        DrawioCanvasXmlToolkit.CanvasInspection inspection = xmlToolkit.inspect(xml);
         if (includeValidation) {
             sendValidationChunk(emitter, phase, inspection);
         }
@@ -450,12 +465,37 @@ public class DrawioStreamResponseWriter {
     private void sendDrawioDoneUnchecked(ResponseBodyEmitter emitter, String phase, String xml, String mode) throws Exception {
         CanvasStateSaveResult saveResult = null;
         if (StringUtils.isNotBlank(xml)) {
-            try {
-                String previousXml = baselineCanvasByEmitter.get(emitter);
-                saveResult = persistCanvasState(emitter, xml, previousXml);
-            } catch (CanvasStateVersionConflictException e) {
-                sendVersionConflict(emitter, phase, canvasStateContextByEmitter.get(emitter));
-                return;
+            CanvasStateContext context = canvasStateContextByEmitter.get(emitter);
+            if (context != null) {
+                String beforeXml = baselineCanvasByEmitter.get(emitter);
+                CanvasMutationDecision decision = canvasMutationGate.evaluate(new CanvasMutationCommand(
+                        context.purpose() != null
+                                ? context.purpose()
+                                : (StringUtils.isBlank(beforeXml)
+                                        ? CanvasMutationPurpose.USER_CREATE
+                                        : CanvasMutationPurpose.USER_EDIT),
+                        beforeXml,
+                        xml,
+                        context.diagramType(),
+                        context.authorization() == null
+                                ? CanvasMutationAuthorization.unrestricted()
+                                : context.authorization(),
+                        context.userId(),
+                        context.diagramId(),
+                        context.expectedVersion(),
+                        context.expectedContentHash()));
+                if (decision.status() == CanvasMutationStatus.STALE_VERSION) {
+                    sendVersionConflict(emitter, phase, context, decision.currentState());
+                    return;
+                }
+                if (decision.status() != CanvasMutationStatus.ACCEPTED
+                        && decision.status() != CanvasMutationStatus.ACCEPTED_WITH_NOTES) {
+                    sendMutationRejected(emitter, phase, context, decision);
+                    return;
+                }
+                xml = decision.resultingXml();
+                saveResult = decision.saveResult();
+                recordDiagramSnapshot(context, saveResult, decision.changedCellIds().size());
             }
             currentCanvasByEmitter.put(emitter, xml);
         }
@@ -469,38 +509,6 @@ public class DrawioStreamResponseWriter {
         appendCanvasStateMetadata(chunk, saveResult, canvasStateContextByEmitter.get(emitter));
         wrapper.put("chunk", chunk);
         emitter.send(wrapper.toJSONString() + "\n");
-    }
-
-    private CanvasStateSaveResult persistCanvasState(ResponseBodyEmitter emitter,
-                                                      String xml,
-                                                      String previousXml) {
-        CanvasStateContext context = canvasStateContextByEmitter.get(emitter);
-        if (canvasStateStore == null || context == null || StringUtils.isBlank(xml)) {
-            return null;
-        }
-        try {
-            CanvasStateSaveResult result = canvasStateStore.saveWithResult(CanvasState.builder()
-                    .userId(context.userId())
-                    .diagramId(context.diagramId())
-                    .currentXml(xml)
-                    .version(context.expectedVersion())
-                    .build());
-            // A stream persists only its final candidate, but advancing the context keeps this writer
-            // safe when a caller intentionally starts another finalized pass on the same emitter.
-            CanvasState saved = result == null ? null : result.getState();
-            if (saved != null && saved.getVersion() != null) {
-                canvasStateContextByEmitter.put(emitter,
-                        new CanvasStateContext(context.userId(), context.diagramId(), saved.getVersion(), context.runId(), context.spanId()));
-            }
-            recordDiagramSnapshot(context, result, xmlToolkit.countChangedCells(previousXml, xml));
-            return result;
-        } catch (CanvasStateVersionConflictException e) {
-            throw e;
-        } catch (Exception e) {
-            log.warn("Failed to persist canvas state. userId:{} diagramId:{}",
-                    SecretLogSanitizer.maskCapability(context.userId()), logValue(context.diagramId()), e);
-            return null;
-        }
     }
 
     private void recordDiagramSnapshot(CanvasStateContext context,
@@ -533,31 +541,38 @@ public class DrawioStreamResponseWriter {
         }
     }
 
-    private void sendVersionConflict(ResponseBodyEmitter emitter, String phase, CanvasStateContext context) throws Exception {
+    private void sendVersionConflict(ResponseBodyEmitter emitter,
+                                     String phase,
+                                     CanvasStateContext context,
+                                     CanvasState currentState) throws Exception {
         com.alibaba.fastjson.JSONObject chunk = new com.alibaba.fastjson.JSONObject();
         chunk.put("type", "version_conflict");
         chunk.put("content", "Canvas state version conflict. Refresh the diagram and retry.");
         if (context != null) {
             chunk.put("diagramId", context.diagramId());
             chunk.put("expectedVersion", context.expectedVersion());
-            appendCurrentCanvasState(chunk, context);
+            if (currentState != null) {
+                chunk.put("currentVersion", currentState.getVersion());
+                chunk.put("currentContentHash", currentState.getContentHash());
+            }
         }
         sendWrappedChunk(emitter, phase, chunk);
     }
 
-    private void appendCurrentCanvasState(com.alibaba.fastjson.JSONObject chunk, CanvasStateContext context) {
-        if (canvasStateStore == null || context == null) {
-            return;
+    private void sendMutationRejected(ResponseBodyEmitter emitter,
+                                      String phase,
+                                      CanvasStateContext context,
+                                      CanvasMutationDecision decision) throws Exception {
+        com.alibaba.fastjson.JSONObject chunk = new com.alibaba.fastjson.JSONObject();
+        chunk.put("type", "mutation_rejected");
+        chunk.put("status", decision.status().name());
+        chunk.put("reason", decision.rejectionReason() == null ? "" : decision.rejectionReason().name());
+        chunk.put("content", decision.resultingXml());
+        chunk.put("changedCellIds", decision.changedCellIds());
+        if (context != null) {
+            chunk.put("diagramId", context.diagramId());
         }
-        try {
-            canvasStateStore.find(context.userId(), context.diagramId()).ifPresent(current -> {
-                chunk.put("currentVersion", current.getVersion());
-                chunk.put("currentContentHash", current.getContentHash());
-            });
-        } catch (Exception e) {
-            log.warn("Failed to load current canvas state after conflict. userId:{} diagramId:{}",
-                    SecretLogSanitizer.maskCapability(context.userId()), logValue(context.diagramId()), e);
-        }
+        sendWrappedChunk(emitter, phase, chunk);
     }
 
     public void sendDone(ResponseBodyEmitter emitter) throws Exception {
@@ -639,10 +654,8 @@ public class DrawioStreamResponseWriter {
         for (com.alibaba.fastjson.JSONObject chunk : chunks) {
             String chunkType = chunk.getString("type");
             if ("drawio_done".equals(chunkType)) {
-                boolean applyGeometryRepair = !toolCall.getBooleanValue("geometryRepairComplete")
-                        && !DrawioCanvasToolNames.OPTIMIZE_DIAGRAM.equals(type);
                 sendDrawioDone(emitter, phase, chunk.getString("content"), false,
-                        chunk.getString("mode"), applyGeometryRepair);
+                        chunk.getString("mode"));
                 continue;
             }
             if (!replayCells && isCellReplayChunk(chunkType)) {
@@ -975,14 +988,6 @@ public class DrawioStreamResponseWriter {
                 || error.getCause() instanceof java.io.IOException;
     }
 
-    private String logValue(String value) {
-        if (value == null) {
-            return "";
-        }
-        String compact = value.replaceAll("[\\r\\n\\t]+", " ").trim();
-        return compact.length() <= 160 ? compact : compact.substring(0, 160) + "...";
-    }
-
     private static class PendingDiagram {
         private final String xml;
         private final String severity;
@@ -997,7 +1002,15 @@ public class DrawioStreamResponseWriter {
         }
     }
 
-    private record CanvasStateContext(String userId, String diagramId, Long expectedVersion, String runId, String spanId) {
+    private record CanvasStateContext(String userId,
+                                      String diagramId,
+                                      Long expectedVersion,
+                                      String expectedContentHash,
+                                      DiagramType diagramType,
+                                      CanvasMutationPurpose purpose,
+                                      CanvasMutationAuthorization authorization,
+                                      String runId,
+                                      String spanId) {
     }
 
 }

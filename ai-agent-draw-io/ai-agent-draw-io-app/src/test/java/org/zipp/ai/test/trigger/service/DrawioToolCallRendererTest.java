@@ -34,8 +34,8 @@ public class DrawioToolCallRendererTest {
         assertEquals("3", chunks.get(2).getString("id"));
 
         String xml = chunks.get(4).getString("content");
-        assertTrue(xml.contains("<mxGraphModel>"));
-        assertTrue(xml.contains("<mxCell id=\"1\" parent=\"0\"/>"));
+        assertTrue("the renderer must preserve the raw candidate for the final Gate",
+                !xml.contains("<mxGraphModel>"));
         assertTrue(xml.contains("value='User'"));
         assertTrue(xml.contains("value='calls'"));
     }
@@ -55,7 +55,8 @@ public class DrawioToolCallRendererTest {
         assertEquals("validation_result", chunks.get(2).getString("type"));
         assertEquals(true, chunks.get(2).getBooleanValue("valid"));
         assertEquals("drawio_done", chunks.get(3).getString("type"));
-        assertTrue(chunks.get(3).getString("content").contains("value='&lt;heap &amp; metaspace&gt;'"));
+        assertTrue("preview validation may sanitize, but drawio_done must retain the raw candidate",
+                chunks.get(3).getString("content").contains("value='<heap & metaspace>'"));
     }
 
     @Test

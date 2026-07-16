@@ -12,6 +12,9 @@ import org.zipp.ai.domain.account.service.AnonymousDemoQuotaService;
 import org.zipp.ai.domain.account.service.VerifiedUserPlatformQuotaService;
 import org.zipp.ai.domain.agent.model.valobj.analysis.CanvasAnalysis;
 import org.zipp.ai.domain.agent.model.valobj.analysis.CanvasAnalysisIssue;
+import org.zipp.ai.domain.agent.model.valobj.canvas.CanvasField;
+import org.zipp.ai.domain.agent.model.valobj.canvas.CanvasMutationAuthorization;
+import org.zipp.ai.domain.agent.model.valobj.canvas.CanvasRepairScope;
 import org.zipp.ai.domain.agent.model.valobj.canvas.CanvasState;
 import org.zipp.ai.domain.agent.model.valobj.visualreview.CanvasVisualIssue;
 import org.zipp.ai.domain.agent.model.valobj.visualreview.CanvasVisualIssueSeverity;
@@ -37,6 +40,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.stream.Collectors;
 import java.util.UUID;
 
 @Service
@@ -108,6 +112,7 @@ public class CanvasVisualReviewOrchestrator {
                     repair.request(),
                     repair.diagramType(),
                     repair.optimizeLayout(),
+                    repair.authorization(),
                     emitter);
         } catch (IllegalArgumentException e) {
             sendErrorAndComplete(emitter, "invalid_visual_review_request", e.getMessage());
@@ -163,7 +168,13 @@ public class CanvasVisualReviewOrchestrator {
 
             CanvasVisualReviewDecision decision = policy.decide(
                     result, stage, stage == CanvasVisualReviewStage.VERIFY_ONLY ? 1 : 0);
+            CanvasMutationAuthorization authorization = repairAuthorization(analysis, result);
             boolean shadow = Boolean.TRUE.equals(request.getShadow());
+            if (!shadow && decision == CanvasVisualReviewDecision.REPAIR
+                    && authorization.allowedCellIds().isEmpty()) {
+                // Phase 3 fails closed until a deterministic issue can locate the visual finding.
+                decision = CanvasVisualReviewDecision.NEEDS_HUMAN_REVIEW;
+            }
             if (decision == CanvasVisualReviewDecision.REPAIR && !autoRepairEnabled()) {
                 // Visible-review rollout reports the same evidence without granting mutation authority.
                 decision = CanvasVisualReviewDecision.NEEDS_HUMAN_REVIEW;
@@ -184,7 +195,8 @@ public class CanvasVisualReviewOrchestrator {
             completed.put("autoRepairAttempted", true);
             completed.put("repairRunId", repair.getRunId());
             recordReviewEvent(run, "visual_review_completed", "SUCCESS", completed);
-            return new RepairContinuation(repair, diagramType(request, latestState), shouldOptimizeLayout(result));
+            return new RepairContinuation(
+                    repair, diagramType(request, latestState), shouldOptimizeLayout(result), authorization);
         } catch (Exception e) {
             failure = e;
             throw e;
@@ -298,7 +310,40 @@ public class CanvasVisualReviewOrchestrator {
         return visualReviewRolloutPolicy == null || visualReviewRolloutPolicy.isAutoRepairEnabled();
     }
 
-    private record RepairContinuation(ChatRequestDTO request, String diagramType, boolean optimizeLayout) {
+    private CanvasMutationAuthorization repairAuthorization(CanvasAnalysis analysis,
+                                                             CanvasVisualReviewResult result) {
+        Set<String> cellIds = new java.util.LinkedHashSet<>();
+        Set<String> anchorLabels = result == null ? Set.of() : result.safeIssues().stream()
+                .flatMap(issue -> issue.getAnchorLabels() == null
+                        ? java.util.stream.Stream.empty()
+                        : issue.getAnchorLabels().stream())
+                .filter(StringUtils::isNotBlank)
+                .map(label -> label.trim().toLowerCase(java.util.Locale.ROOT))
+                .collect(Collectors.toSet());
+        if (analysis != null && analysis.getCells() != null && !anchorLabels.isEmpty()) {
+            Map<String, List<org.zipp.ai.domain.agent.model.valobj.analysis.CanvasCellData>> cellsByLabel =
+                    analysis.getCells().stream()
+                            .filter(cell -> StringUtils.isNotBlank(cell.getId()))
+                            .collect(Collectors.groupingBy(cell -> StringUtils.defaultString(cell.getLabel())
+                                    .trim().toLowerCase(java.util.Locale.ROOT)));
+            // Until Phase 5 adds the full VisualIssueLocator, only a unique exact label grants authority.
+            anchorLabels.forEach(label -> {
+                List<org.zipp.ai.domain.agent.model.valobj.analysis.CanvasCellData> matches = cellsByLabel.get(label);
+                if (matches != null && matches.size() == 1) {
+                    cellIds.add(matches.get(0).getId());
+                }
+            });
+        }
+        return new CanvasMutationAuthorization(
+                cellIds,
+                Set.of(CanvasField.STYLE, CanvasField.GEOMETRY, CanvasField.WAYPOINTS),
+                CanvasRepairScope.TARGET_CELLS);
+    }
+
+    private record RepairContinuation(ChatRequestDTO request,
+                                      String diagramType,
+                                      boolean optimizeLayout,
+                                      CanvasMutationAuthorization authorization) {
     }
 
     private void validateRequest(String ownerId, CanvasVisualReviewRequestDTO request) {
@@ -332,6 +377,7 @@ public class CanvasVisualReviewOrchestrator {
         repair.setRunId("aru_repair_" + UUID.randomUUID());
         repair.setDiagramId(state.getDiagramId());
         repair.setExpectedVersion(state.getVersion());
+        repair.setExpectedContentHash(state.getContentHash());
         repair.setCanvasXml(state.getCurrentXml());
         repair.setMessage(repairBriefComposer.compose(
                 request.getOriginalUserTask(), state.getVersion(), state.getContentHash(), result.safeIssues()));

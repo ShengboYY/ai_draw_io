@@ -298,6 +298,7 @@ export interface UpdateDiagramThumbnailRequestDTO {
 export interface SaveDiagramCanvasStateRequestDTO {
   userId?: string;
   expectedVersion?: number;
+  expectedContentHash?: string;
   canvasXml: string;
 }
 
@@ -337,6 +338,8 @@ export interface ChatRequestDTO {
   diagramId?: string;
   /** Optimistic-lock version expected by this mutation request. */
   expectedVersion?: number;
+  /** Optimistic-lock hash expected by this mutation request. */
+  expectedContentHash?: string;
   /** Current Draw.io XML, kept out of message so routers can avoid full-canvas prompt noise. */
   canvasXml?: string;
   /** Compact canvas summary for intent routing and answer-only requests. */

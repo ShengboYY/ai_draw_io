@@ -5,7 +5,9 @@ import org.springframework.web.servlet.mvc.method.annotation.ResponseBodyEmitter
 import org.zipp.ai.domain.agent.model.valobj.canvas.CanvasState;
 import org.zipp.ai.domain.agent.model.valobj.canvas.CanvasStateVersionConflictException;
 import org.zipp.ai.domain.agent.service.ICanvasStateStore;
+import org.zipp.ai.domain.agent.service.analysis.DefaultCanvasAnalyzer;
 import org.zipp.ai.domain.agent.service.armory.matter.mcp.server.DrawioCanvasXmlToolkit;
+import org.zipp.ai.domain.agent.service.canvas.CanvasMutationGate;
 import org.zipp.ai.domain.agent.service.usage.AgentUsageTelemetryService;
 import org.zipp.ai.test.domain.agent.FakeAgentUsageTelemetryStore;
 import org.zipp.ai.trigger.http.service.DrawioStreamResponseWriter;
@@ -303,6 +305,23 @@ public class DrawioStreamResponseWriterTest {
     }
 
     @Test
+    public void shouldPreserveTheRoutedDiagramTypeAtTheMutationGate() throws Exception {
+        DrawioStreamResponseWriter writer = new DrawioStreamResponseWriter(new DrawioToolCallRenderer());
+        CapturingCanvasStateStore canvasStateStore = new CapturingCanvasStateStore();
+        injectCanvasStateStore(writer, canvasStateStore);
+        CapturingEmitter emitter = new CapturingEmitter();
+        writer.setCanvasStateContext(
+                emitter, "alice", "diagram-1", 3L, "architecture", "aru_type", "ars_drawing");
+
+        writer.processAndSendLine(emitter, "drawing", """
+                {"type":"drawio_done","content":"<mxGraphModel><root><mxCell id='0'/><mxCell id='1' parent='0'/><mxCell id='2' value='API' vertex='1' parent='1'><mxGeometry x='100' y='100' width='140' height='60' as='geometry'/></mxCell></root></mxGraphModel>"}
+                """);
+        writer.flushPendingDiagram(emitter, "done");
+
+        assertEquals("architecture", canvasStateStore.saved.getDiagramType());
+    }
+
+    @Test
     public void shouldNotRerouteUnrelatedEdgesWhenStreamingAnEdgeOnlyPatch() throws Exception {
         DrawioStreamResponseWriter writer = new DrawioStreamResponseWriter(new DrawioToolCallRenderer());
         CapturingCanvasStateStore canvasStateStore = new CapturingCanvasStateStore();
@@ -328,8 +347,7 @@ public class DrawioStreamResponseWriterTest {
         String unrelatedEdgeBefore = toolkit.edgeCells(currentXml, Set.of("6"));
 
         writer.sendLocalCellPatch(emitter, "drawing", currentXml,
-                "<mxCell id='5' value='' style='edgeStyle=orthogonalEdgeStyle;exitX=1;exitY=0.5;entryX=0;entryY=0.5;' edge='1' parent='1' source='2' target='3'><mxGeometry relative='1' as='geometry'><Array as='points'><mxPoint x='160' y='80'/><mxPoint x='320' y='80'/></Array></mxGeometry></mxCell>",
-                true);
+                "<mxCell id='5' value='' style='edgeStyle=orthogonalEdgeStyle;exitX=1;exitY=0.5;entryX=0;entryY=0.5;' edge='1' parent='1' source='2' target='3'><mxGeometry relative='1' as='geometry'><Array as='points'><mxPoint x='160' y='80'/><mxPoint x='320' y='80'/></Array></mxGeometry></mxCell>");
         writer.flushPendingDiagram(emitter, "done");
 
         assertEquals("an edge-only patch must not repair another edge as a side effect",
@@ -337,7 +355,7 @@ public class DrawioStreamResponseWriterTest {
     }
 
     @Test
-    public void shouldMechanicallyRepairAnOrdinaryEdgePatch() throws Exception {
+    public void shouldLeaveMechanicalEdgeRepairToTheMutationGatePolicy() throws Exception {
         DrawioStreamResponseWriter writer = new DrawioStreamResponseWriter(new DrawioToolCallRenderer());
         CapturingCanvasStateStore canvasStateStore = new CapturingCanvasStateStore();
         injectCanvasStateStore(writer, canvasStateStore);
@@ -355,7 +373,7 @@ public class DrawioStreamResponseWriterTest {
                 "<mxCell id='5' edge='1' parent='1' source='2' target='3'/>");
         writer.flushPendingDiagram(emitter, "done");
 
-        assertTrue(new DrawioCanvasXmlToolkit().edgeCells(
+        assertFalse(new DrawioCanvasXmlToolkit().edgeCells(
                 canvasStateStore.saved.getCurrentXml(), Set.of("5")).contains("<mxGeometry"));
     }
 
@@ -387,7 +405,7 @@ public class DrawioStreamResponseWriterTest {
         DrawioCanvasXmlToolkit toolkit = new DrawioCanvasXmlToolkit();
         assertEquals(toolkit.edgeCells(optimizedXml, Set.of("22")),
                 toolkit.edgeCells(canvasStateStore.saved.getCurrentXml(), Set.of("22")));
-        assertTrue(toolkit.edgeCells(canvasStateStore.saved.getCurrentXml(), Set.of("23"))
+        assertFalse(toolkit.edgeCells(canvasStateStore.saved.getCurrentXml(), Set.of("23"))
                 .contains("<mxGeometry"));
     }
 
@@ -469,6 +487,64 @@ public class DrawioStreamResponseWriterTest {
         assertTrue(output.contains("\"currentVersion\":5"));
         assertTrue(output.contains("\"currentContentHash\":\"sha256:current\""));
         assertFalse(output.contains("\"type\":\"drawio_done\""));
+    }
+
+    @Test
+    public void shouldUseMutationGateAsTheFinalAcceptanceSeam() throws Exception {
+        DrawioStreamResponseWriter writer = new DrawioStreamResponseWriter(new DrawioToolCallRenderer());
+        CapturingCanvasStateStore canvasStateStore = new CapturingCanvasStateStore();
+        canvasStateStore.currentState = CanvasState.builder()
+                .userId("alice")
+                .diagramId("diagram-1")
+                .currentXml("<mxGraphModel><root><mxCell id='0'/><mxCell id='1' parent='0'/></root></mxGraphModel>")
+                .version(5L)
+                .contentHash("sha256:current")
+                .build();
+        injectMutationGate(writer, new CanvasMutationGate(canvasStateStore, new DefaultCanvasAnalyzer()));
+        CapturingEmitter emitter = new CapturingEmitter();
+        writer.setCanvasStateContext(emitter, "alice", "diagram-1", 3L);
+        writer.setCurrentCanvas(emitter, canvasStateStore.currentState.getCurrentXml());
+
+        writer.processAndSendLine(emitter, "drawing", """
+                {"type":"drawio_done","content":"<mxGraphModel><root><mxCell id='0'/><mxCell id='1' parent='0'/><mxCell id='2' value='Stale edit' vertex='1' parent='1'><mxGeometry x='100' y='100' width='120' height='60' as='geometry'/></mxCell></root></mxGraphModel>"}
+                """);
+        writer.flushPendingDiagram(emitter, "done");
+
+        String output = String.join("\n", emitter.sent);
+        assertTrue(output.contains("\"type\":\"version_conflict\""));
+        assertTrue(output.contains("\"currentVersion\":5"));
+        assertFalse(output.contains("\"type\":\"drawio_done\""));
+        assertTrue(canvasStateStore.saved == null);
+    }
+
+    @Test
+    public void shouldPropagatePersistenceFailureWithoutEmittingSuccess() throws Exception {
+        DrawioStreamResponseWriter writer = new DrawioStreamResponseWriter(new DrawioToolCallRenderer());
+        injectMutationGate(writer, new CanvasMutationGate(new ICanvasStateStore() {
+            @Override
+            public Optional<CanvasState> find(String userId, String diagramId) {
+                return Optional.empty();
+            }
+
+            @Override
+            public CanvasState save(CanvasState state) {
+                throw new IllegalStateException("database unavailable");
+            }
+        }, new DefaultCanvasAnalyzer()));
+        CapturingEmitter emitter = new CapturingEmitter();
+        writer.setCanvasStateContext(emitter, "alice", "diagram-1", null);
+        writer.processAndSendLine(emitter, "drawing", """
+                {"type":"drawio_done","content":"<mxGraphModel><root><mxCell id='0'/><mxCell id='1' parent='0'/><mxCell id='2' value='API' vertex='1' parent='1'><mxGeometry x='100' y='100' width='140' height='60' as='geometry'/></mxCell></root></mxGraphModel>"}
+                """);
+
+        try {
+            writer.flushPendingDiagram(emitter, "done");
+            throw new AssertionError("persistence failure should escape finalization");
+        } catch (IllegalStateException expected) {
+            assertEquals("database unavailable", expected.getMessage());
+        }
+
+        assertFalse(String.join("\n", emitter.sent).contains("\"type\":\"drawio_done\""));
     }
 
     @Test
@@ -599,9 +675,13 @@ public class DrawioStreamResponseWriterTest {
     }
 
     private void injectCanvasStateStore(DrawioStreamResponseWriter writer, ICanvasStateStore canvasStateStore) throws Exception {
-        Field field = DrawioStreamResponseWriter.class.getDeclaredField("canvasStateStore");
+        injectMutationGate(writer, new CanvasMutationGate(canvasStateStore, new DefaultCanvasAnalyzer()));
+    }
+
+    private void injectMutationGate(DrawioStreamResponseWriter writer, CanvasMutationGate mutationGate) throws Exception {
+        Field field = DrawioStreamResponseWriter.class.getDeclaredField("canvasMutationGate");
         field.setAccessible(true);
-        field.set(writer, canvasStateStore);
+        field.set(writer, mutationGate);
     }
 
     private void injectTelemetryService(DrawioStreamResponseWriter writer,

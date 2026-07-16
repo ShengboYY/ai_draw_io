@@ -29,6 +29,8 @@ import org.zipp.ai.domain.account.service.VerifiedUserPlatformQuotaService;
 import org.zipp.ai.domain.agent.model.valobj.canvas.CanvasState;
 import org.zipp.ai.domain.agent.model.valobj.canvas.CanvasStateVersionConflictException;
 import org.zipp.ai.domain.agent.service.ICanvasStateStore;
+import org.zipp.ai.domain.agent.service.analysis.DefaultCanvasAnalyzer;
+import org.zipp.ai.domain.agent.service.canvas.CanvasMutationGate;
 import org.zipp.ai.domain.agent.service.usage.AgentUsageTelemetryService;
 import org.zipp.ai.test.domain.agent.FakeAgentUsageTelemetryStore;
 import org.zipp.ai.trigger.http.AgentServiceController;
@@ -166,11 +168,12 @@ public class AgentServiceControllerWorkspaceTest {
         AgentServiceController controller = new AgentServiceController();
         FakeCanvasStateStore store = new FakeCanvasStateStore();
         inject(controller, "canvasStateStore", store);
+        inject(controller, "canvasMutationGate", new CanvasMutationGate(store, new DefaultCanvasAnalyzer()));
         MockHttpServletRequest request = new MockHttpServletRequest();
         request.addHeader("X-Workspace-Id", VALID_WORKSPACE_ID);
         RequestContextHolder.setRequestAttributes(new ServletRequestAttributes(request));
         SaveDiagramCanvasStateRequestDTO requestDTO = new SaveDiagramCanvasStateRequestDTO();
-        requestDTO.setCanvasXml("<mxGraphModel><root><mxCell id=\"0\"/><mxCell id=\"1\" parent=\"0\"/><mxCell id=\"2\" vertex=\"1\" parent=\"1\"/></root></mxGraphModel>");
+        requestDTO.setCanvasXml("<mxGraphModel><root><mxCell id=\"0\"/><mxCell id=\"1\" parent=\"0\"/><mxCell id=\"2\" vertex=\"1\" parent=\"1\"><mxGeometry x=\"40\" y=\"40\" width=\"120\" height=\"60\" as=\"geometry\"/></mxCell></root></mxGraphModel>");
         requestDTO.setExpectedVersion(3L);
 
         Response<?> response = controller.saveDiagramCanvasState("diagram-1", requestDTO);
@@ -198,6 +201,7 @@ public class AgentServiceControllerWorkspaceTest {
                 .version(4L)
                 .build();
         inject(controller, "canvasStateStore", store);
+        inject(controller, "canvasMutationGate", new CanvasMutationGate(store, new DefaultCanvasAnalyzer()));
         MockHttpServletRequest request = new MockHttpServletRequest();
         request.addHeader("X-Workspace-Id", VALID_WORKSPACE_ID);
         RequestContextHolder.setRequestAttributes(new ServletRequestAttributes(request));

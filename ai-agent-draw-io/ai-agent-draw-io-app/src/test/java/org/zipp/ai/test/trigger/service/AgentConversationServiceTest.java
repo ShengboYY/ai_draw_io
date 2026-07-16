@@ -471,6 +471,24 @@ public class AgentConversationServiceTest {
     }
 
     @Test
+    public void shouldRejectCanvasMutationWithoutADiagramIdBeforeDrawerWork() throws Exception {
+        AgentConversationService service = quotaAwareService();
+        CountingChatService chatService = new CountingChatService();
+        injectField(service, "chatService", chatService);
+        injectField(service, "intentRoutingService", new CountingIntentRoutingService());
+        ChatRequestDTO request = platformRequest();
+        request.setDiagramId(null);
+        CapturingEmitter emitter = new CapturingEmitter();
+
+        service.stream(request, emitter);
+
+        String output = String.join("\n", emitter.sent);
+        assertTrue(output.contains("\"type\":\"error\""));
+        assertTrue(output.contains(ResponseCode.ILLEGAL_PARAMETER.getCode()));
+        assertEquals(0, chatService.handleMessageStreamCalls);
+    }
+
+    @Test
     public void shouldRejectTwentyFirstVerifiedPlatformBlockingRequestBeforeModelWork() throws Exception {
         AgentConversationService service = quotaAwareService();
         CountingChatService chatService = new CountingChatService();
@@ -956,6 +974,7 @@ public class AgentConversationServiceTest {
         requestDTO.setAgentId("300000");
         requestDTO.setUserId("anon_123e4567-e89b-42d3-a456-426614174000");
         requestDTO.setSessionId("session-1");
+        requestDTO.setDiagramId("diagram-1");
         requestDTO.setMessage("draw a flowchart");
         return requestDTO;
     }

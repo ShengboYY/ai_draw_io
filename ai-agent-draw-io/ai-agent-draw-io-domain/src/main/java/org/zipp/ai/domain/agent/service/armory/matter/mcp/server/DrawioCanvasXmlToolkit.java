@@ -8,6 +8,7 @@ import org.dom4j.DocumentHelper;
 import org.dom4j.Element;
 import org.zipp.ai.domain.agent.model.valobj.analysis.CanvasAnalysis;
 import org.zipp.ai.domain.agent.model.valobj.analysis.CanvasAnalysisIssue;
+import org.zipp.ai.domain.agent.model.valobj.analysis.DiagramType;
 import org.zipp.ai.domain.agent.model.valobj.analysis.CanvasCellData;
 import org.zipp.ai.domain.agent.model.valobj.analysis.CanvasIssueType;
 import org.zipp.ai.domain.agent.service.analysis.DefaultCanvasAnalyzer;
@@ -19,7 +20,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.regex.Matcher;
@@ -80,9 +80,8 @@ public class DrawioCanvasXmlToolkit {
         return canvasAnalyzer.analyze(xml, "unknown");
     }
 
-    /** Temporary compatibility for the deterministic repair pipeline; remove in Phase 3. */
-    CanvasAnalysis analyzeForLegacyRouting(String xml) {
-        return canvasAnalyzer.analyzeForLegacyRouting(xml);
+    public CanvasAnalysis analyze(String xml, DiagramType diagramType) {
+        return canvasAnalyzer.analyze(xml, diagramType == null ? "unknown" : diagramType.name());
     }
 
     public List<OverlapInfo> detectOverlaps(String xml) {
@@ -105,34 +104,6 @@ public class DrawioCanvasXmlToolkit {
         return inspection.getCells().stream()
                 .filter(cell -> StringUtils.isBlank(normalizedQuery) || cell.matches(normalizedQuery))
                 .collect(Collectors.toList());
-    }
-
-    public Integer countChangedCells(String beforeXml, String afterXml) {
-        if (StringUtils.isBlank(afterXml)) {
-            return null;
-        }
-        try {
-            Map<String, CellInfo> before = cellsById(beforeXml);
-            Map<String, CellInfo> after = cellsById(afterXml);
-            Set<String> ids = new HashSet<>(before.keySet());
-            ids.addAll(after.keySet());
-            return (int) ids.stream()
-                    .filter(id -> !Objects.equals(before.get(id), after.get(id)))
-                    .count();
-        } catch (Exception ignored) {
-            // A saved snapshot remains useful even when a malformed legacy canvas cannot be diffed.
-            return null;
-        }
-    }
-
-    private Map<String, CellInfo> cellsById(String xml) {
-        if (StringUtils.isBlank(xml)) {
-            return Map.of();
-        }
-        return inspect(xml).getCells().stream()
-                .filter(cell -> StringUtils.isNotBlank(cell.getId()))
-                .filter(cell -> !"0".equals(cell.getId()) && !"1".equals(cell.getId()))
-                .collect(Collectors.toMap(CellInfo::getId, cell -> cell, (left, right) -> right));
     }
 
     private CellInfo toCellInfo(CanvasCellData cell) {
@@ -255,287 +226,6 @@ public class DrawioCanvasXmlToolkit {
         } catch (Exception ignored) {
             return toGraphModel(xml);
         }
-    }
-
-    /**
-     * Deterministically repair auto-fixable geometry (edge/node body crossings) by rerouting edges,
-     * returning the input unchanged when there is nothing to auto-fix. Used by the localized patch merge
-     * path so incremental edits get the same geometry safety net as full-canvas mutations.
-     */
-    public String repairGeometryIfNeeded(String xml) {
-        CanvasAnalysis analysis = analyzeForLegacyRouting(xml);
-        Set<String> edgeIds = analysis.getCells().stream()
-                .filter(cell -> "edge".equals(cell.getKind()))
-                .map(CanvasCellData::getId)
-                .collect(Collectors.toSet());
-        Set<String> targetEdgeIds = analysis.getIssues().stream()
-                .filter(this::isAutoRerouteIssue)
-                .flatMap(issue -> issue.getTargetCellIds().stream())
-                // Issue targets can also contain blocking node ids; only edges belong in route scope.
-                .filter(edgeIds::contains)
-                .collect(Collectors.toSet());
-        return targetEdgeIds.isEmpty() ? xml : routeEdges(xml, targetEdgeIds);
-    }
-
-    private boolean isAutoRerouteIssue(CanvasAnalysisIssue issue) {
-        return (CanvasIssueType.EDGE_NODE_CROSSING == issue.getType()
-                || CanvasIssueType.EDGE_LABEL_COLLISION == issue.getType()
-                || CanvasIssueType.PORT_DIRECTION_MISMATCH == issue.getType()
-                || CanvasIssueType.PARALLEL_EDGE_OVERLAP == issue.getType()
-                || CanvasIssueType.NODE_SIDE_PORT_CROWDING == issue.getType()
-                || CanvasIssueType.PORT_CORNER_PROXIMITY == issue.getType())
-                && "auto_reroute".equals(issue.getRepairability());
-    }
-
-    /**
-     * Deterministic structural repair for model-authored XML. Fixes only what code can fix
-     * reliably — nested cells, duplicate ids, port attributes outside the style string, missing
-     * geometry, and dangling edge references — so a draft is never discarded for a mechanical
-     * mistake. Visual quality issues stay with the analyzer and the drawing loop.
-     */
-    public String autoRepair(String xml) {
-        String wrapped = toGraphModel(xml);
-        try {
-            Document document = DocumentHelper.parseText(wrapped);
-            Element root = document.getRootElement().element("root");
-            if (root == null) {
-                return wrapped;
-            }
-            boolean changed = flattenNestedCells(root);
-            changed |= deduplicateCellIds(root);
-            changed |= movePortAttributesIntoStyle(root);
-            changed |= ensureGeometry(root);
-            changed |= repairEdgeEndpoints(root);
-            // Preserve the caller's original text when nothing needed fixing; re-serialization
-            // would needlessly normalize quotes and formatting.
-            return changed ? document.getRootElement().asXML() : wrapped;
-        } catch (Exception ignored) {
-            // Unparseable even after normalization; return the wrapped input so the caller's
-            // inspection reports the parse failure instead of this repair pass masking it.
-            return wrapped;
-        }
-    }
-
-    private boolean flattenNestedCells(Element root) {
-        // Draw.io ignores mxCell elements nested inside another mxCell; hoist them to root
-        // siblings and keep the intended grouping through the parent attribute.
-        boolean changed = false;
-        boolean moved = true;
-        while (moved) {
-            moved = false;
-            for (Element cell : new ArrayList<Element>(root.elements("mxCell"))) {
-                for (Element nested : new ArrayList<Element>(cell.elements("mxCell"))) {
-                    if (StringUtils.isBlank(nested.attributeValue("parent"))
-                            && StringUtils.isNotBlank(cell.attributeValue("id"))) {
-                        nested.addAttribute("parent", cell.attributeValue("id"));
-                    }
-                    nested.detach();
-                    root.add(nested);
-                    moved = true;
-                    changed = true;
-                }
-            }
-        }
-        return changed;
-    }
-
-    private boolean deduplicateCellIds(Element root) {
-        boolean changed = false;
-        Set<String> seen = new HashSet<>();
-        for (Element cell : new ArrayList<Element>(root.elements("mxCell"))) {
-            String id = cell.attributeValue("id");
-            if (StringUtils.isBlank(id) || "0".equals(id) || "1".equals(id)) {
-                continue;
-            }
-            if (!seen.add(id)) {
-                // References keep resolving to the first occurrence; the later duplicate gets a
-                // fresh id so both cells stay visible instead of one silently replacing the other.
-                int suffix = 2;
-                String candidate = id + "-r" + suffix;
-                while (seen.contains(candidate)) {
-                    candidate = id + "-r" + (++suffix);
-                }
-                cell.addAttribute("id", candidate);
-                seen.add(candidate);
-                changed = true;
-            }
-        }
-        return changed;
-    }
-
-    private static final String[] PORT_ATTRIBUTES = {"exitX", "exitY", "entryX", "entryY", "exitDx", "exitDy", "entryDx", "entryDy"};
-
-    private boolean movePortAttributesIntoStyle(Element root) {
-        boolean anyChanged = false;
-        for (Element cell : new ArrayList<Element>(root.elements("mxCell"))) {
-            String style = StringUtils.defaultString(cell.attributeValue("style"));
-            boolean changed = false;
-            for (String name : PORT_ATTRIBUTES) {
-                String value = cell.attributeValue(name);
-                if (StringUtils.isNotBlank(value)) {
-                    if (!style.contains(name + "=")) {
-                        style = StringUtils.appendIfMissing(StringUtils.isBlank(style) ? "" : style, ";");
-                        style = style + name + "=" + value + ";";
-                    }
-                    cell.remove(cell.attribute(name));
-                    changed = true;
-                }
-                for (Element strayTag : new ArrayList<Element>(cell.elements(name))) {
-                    cell.remove(strayTag);
-                    changed = true;
-                }
-            }
-            if (changed) {
-                cell.addAttribute("style", style);
-                anyChanged = true;
-            }
-        }
-        return anyChanged;
-    }
-
-    private boolean ensureGeometry(Element root) {
-        boolean changed = false;
-        double stagingY = 40D;
-        for (Object item : root.elements("mxCell")) {
-            Element cell = (Element) item;
-            Element geometry = cell.element("mxGeometry");
-            if (geometry != null && geometry.attributeValue("y") != null) {
-                double bottom = parseDouble(geometry.attributeValue("y")) + parseDouble(geometry.attributeValue("height"));
-                stagingY = Math.max(stagingY, bottom + 40D);
-            }
-        }
-        for (Element cell : new ArrayList<Element>(root.elements("mxCell"))) {
-            String id = cell.attributeValue("id");
-            if ("0".equals(id) || "1".equals(id)) {
-                continue;
-            }
-            boolean isEdge = "1".equals(cell.attributeValue("edge"));
-            Element geometry = cell.element("mxGeometry");
-            if (isEdge) {
-                if (geometry == null) {
-                    geometry = cell.addElement("mxGeometry");
-                    geometry.addAttribute("as", "geometry");
-                    changed = true;
-                }
-                if (StringUtils.isBlank(geometry.attributeValue("relative"))) {
-                    geometry.addAttribute("relative", "1");
-                    changed = true;
-                }
-                continue;
-            }
-            if (!"1".equals(cell.attributeValue("vertex"))) {
-                continue;
-            }
-            if (geometry == null) {
-                geometry = cell.addElement("mxGeometry");
-                geometry.addAttribute("as", "geometry");
-                changed = true;
-            }
-            if (parseDouble(geometry.attributeValue("width")) <= 0) {
-                geometry.addAttribute("width", "160");
-                changed = true;
-            }
-            if (parseDouble(geometry.attributeValue("height")) <= 0) {
-                geometry.addAttribute("height", "60");
-                changed = true;
-            }
-            if (geometry.attributeValue("x") == null && geometry.attributeValue("y") == null) {
-                // Stage repaired vertices in a visible column below existing content instead of
-                // stacking them at the origin.
-                geometry.addAttribute("x", "40");
-                geometry.addAttribute("y", trimNumber(stagingY));
-                stagingY += 90D;
-                changed = true;
-            }
-        }
-        return changed;
-    }
-
-    private boolean repairEdgeEndpoints(Element root) {
-        boolean changed = false;
-        Set<String> ids = new HashSet<>();
-        Map<String, Element> cellsById = new HashMap<>();
-        for (Object item : root.elements("mxCell")) {
-            Element cell = (Element) item;
-            if (StringUtils.isNotBlank(cell.attributeValue("id"))) {
-                ids.add(cell.attributeValue("id"));
-                cellsById.putIfAbsent(cell.attributeValue("id"), cell);
-            }
-        }
-
-        for (Element edge : new ArrayList<Element>(root.elements("mxCell"))) {
-            if (!"1".equals(edge.attributeValue("edge"))) {
-                continue;
-            }
-            String source = edge.attributeValue("source");
-            String target = edge.attributeValue("target");
-            boolean sourceBroken = StringUtils.isNotBlank(source) && !ids.contains(source);
-            boolean targetBroken = StringUtils.isNotBlank(target) && !ids.contains(target);
-            if (sourceBroken && targetBroken) {
-                // Neither endpoint resolves; the edge carries no usable information.
-                root.remove(edge);
-                changed = true;
-                continue;
-            }
-            if (sourceBroken) {
-                edge.remove(edge.attribute("source"));
-                anchorDanglingEndpoint(edge, cellsById.get(target), "sourcePoint");
-                changed = true;
-            }
-            if (targetBroken) {
-                edge.remove(edge.attribute("target"));
-                anchorDanglingEndpoint(edge, cellsById.get(source), "targetPoint");
-                changed = true;
-            }
-
-            boolean hasSource = StringUtils.isNotBlank(edge.attributeValue("source"));
-            boolean hasTarget = StringUtils.isNotBlank(edge.attributeValue("target"));
-            if (!hasSource && !hasTarget && namedPoint(edge, "sourcePoint") == null && namedPoint(edge, "targetPoint") == null) {
-                root.remove(edge);
-                changed = true;
-            }
-        }
-        return changed;
-    }
-
-    private void anchorDanglingEndpoint(Element edge, Element remainingNode, String pointName) {
-        if (namedPoint(edge, pointName) != null) {
-            return;
-        }
-        Element geometry = edge.element("mxGeometry");
-        if (geometry == null) {
-            geometry = edge.addElement("mxGeometry");
-            geometry.addAttribute("relative", "1");
-            geometry.addAttribute("as", "geometry");
-        }
-        double x = 40D;
-        double y = 40D;
-        Element remainingGeometry = remainingNode == null ? null : remainingNode.element("mxGeometry");
-        if (remainingGeometry != null) {
-            double nodeX = parseDouble(remainingGeometry.attributeValue("x"));
-            double nodeY = parseDouble(remainingGeometry.attributeValue("y"));
-            double nodeH = parseDouble(remainingGeometry.attributeValue("height"));
-            x = "sourcePoint".equals(pointName) ? Math.max(0, nodeX - 120D) : nodeX + 200D;
-            y = nodeY + Math.max(nodeH / 2D, 20D);
-        }
-        Element point = geometry.addElement("mxPoint");
-        point.addAttribute("x", trimNumber(x));
-        point.addAttribute("y", trimNumber(y));
-        point.addAttribute("as", pointName);
-    }
-
-    private Element namedPoint(Element edge, String pointName) {
-        Element geometry = edge.element("mxGeometry");
-        if (geometry == null) {
-            return null;
-        }
-        for (Object item : geometry.elements("mxPoint")) {
-            Element point = (Element) item;
-            if (StringUtils.equals(pointName, point.attributeValue("as"))) {
-                return point;
-            }
-        }
-        return null;
     }
 
     private double parseDouble(String raw) {
@@ -707,7 +397,7 @@ public class DrawioCanvasXmlToolkit {
     }
 
     private boolean hasEdgeNodeCrossing(String xml, String edgeId) {
-        return analyzeForLegacyRouting(xml).getIssues().stream()
+        return canvasAnalyzer.analyze(xml, "flowchart").getIssues().stream()
                 .anyMatch(issue -> CanvasIssueType.EDGE_NODE_CROSSING == issue.getType()
                         && !issue.getTargetCellIds().isEmpty()
                         && StringUtils.equals(edgeId, issue.getTargetCellIds().get(0)));

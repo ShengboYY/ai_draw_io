@@ -130,7 +130,7 @@ public class DrawioCanvasMcpServiceTest {
     }
 
     @Test
-    public void shouldSanitizeRawLabelCharactersWhenCreatingDiagram() {
+    public void shouldLeaveRawLabelCanonicalizationToTheMutationGate() {
         DrawioCanvasMcpService service = new DrawioCanvasMcpService();
         DrawioCanvasMcpService.DrawioXmlRequest request = new DrawioCanvasMcpService.DrawioXmlRequest();
         request.setXml("""
@@ -140,8 +140,8 @@ public class DrawioCanvasMcpServiceTest {
         DrawioCanvasMcpService.DrawioToolResponse response = service.createDiagram(request);
 
         assertEquals("drawio_done", response.getType());
-        assertEquals(true, response.getAnalysis().isValid());
-        assertTrue(response.getContent().contains("value='&lt;heap &amp; metaspace&gt;'"));
+        assertEquals(false, response.getAnalysis().isValid());
+        assertTrue(response.getContent().contains("value='<heap & metaspace>'"));
     }
 
     @Test
@@ -166,18 +166,18 @@ public class DrawioCanvasMcpServiceTest {
     }
 
     @Test
-    public void shouldAnalyzeLayoutOptimizeWithoutImplicitRerouting() {
+    public void shouldReturnLayoutOptimizeAsAnUnmodifiedWorkingCandidate() {
         DrawioCanvasMcpService service = new DrawioCanvasMcpService();
         DrawioCanvasMcpService.OptimizeDiagramRequest request = new DrawioCanvasMcpService.OptimizeDiagramRequest();
         request.setMode("layout_optimize");
-        request.setXml(edgeCrossingGraphXml());
+        String candidate = edgeCrossingGraphXml();
+        request.setXml(candidate);
 
         DrawioCanvasMcpService.DrawioMutationResponse response = service.optimizeDiagram(request);
 
         assertEquals("drawio_done", response.getType());
         assertEquals("validation_result", response.getAnalysis().getType());
-        assertTrue(response.getAnalysis().getIssues().stream()
-                .anyMatch(issue -> "EDGE_NODE_CROSSING".equals(issue.getType()) && issue.getTargetCellIds().equals(List.of("5", "4"))));
+        assertEquals(candidate, response.getContent());
     }
 
     @Test
@@ -357,7 +357,7 @@ public class DrawioCanvasMcpServiceTest {
     }
 
     @Test
-    public void shouldReturnDrawioDoneForCellFragments() {
+    public void shouldReturnCellFragmentsAsUnacceptedWorkingCandidates() {
         DrawioCanvasMcpService service = new DrawioCanvasMcpService();
         DrawioCanvasMcpService.DrawioXmlRequest request = new DrawioCanvasMcpService.DrawioXmlRequest();
         request.setXml("<mxCell id='2' value='API' vertex='1' parent='1'><mxGeometry x='100' y='100' width='120' height='60' as='geometry'/></mxCell>");
@@ -365,8 +365,7 @@ public class DrawioCanvasMcpServiceTest {
         DrawioCanvasMcpService.DrawioToolResponse response = service.displayDiagram(request);
 
         assertEquals("drawio_done", response.getType());
-        assertTrue(response.getContent().contains("<mxGraphModel>"));
-        assertTrue(response.getContent().contains("<mxCell id=\"1\" parent=\"0\"/>"));
+        assertFalse(response.getContent().contains("<mxGraphModel>"));
         assertTrue(response.getContent().contains("value='API'"));
     }
 
@@ -469,7 +468,8 @@ public class DrawioCanvasMcpServiceTest {
         assertEquals(false, response.isValid());
         assertEquals("major", response.getSeverity());
         assertTrue(response.getIssues().stream().anyMatch(issue -> issue.contains("Overlapping nodes: 2 and 3")));
-        assertTrue(response.getIssues().stream().anyMatch(issue -> issue.contains("Text cell has opaque background: 4")));
+        assertFalse("generic validation intentionally omits diagram-specific text styling rules",
+                response.getIssues().stream().anyMatch(issue -> issue.contains("Text cell has opaque background: 4")));
     }
 
     @Test
@@ -633,7 +633,7 @@ public class DrawioCanvasMcpServiceTest {
     }
 
     @Test
-    public void shouldRerouteCornerAdjacentPortsBeforeReturningDiagram() throws Exception {
+    public void shouldNotRerouteCornerAdjacentPortsBeforeTheMutationGate() throws Exception {
         DrawioCanvasMcpService service = new DrawioCanvasMcpService();
         DrawioCanvasMcpService.DrawioXmlRequest request = new DrawioCanvasMcpService.DrawioXmlRequest();
         request.setXml("""
@@ -647,12 +647,12 @@ public class DrawioCanvasMcpServiceTest {
 
         DrawioCanvasMcpService.DrawioToolResponse response = service.createDiagram(request);
 
-        assertTrue(styleFraction(response.getContent(), "4", "exitY") >= 0.25D);
-        assertTrue(styleFraction(response.getContent(), "4", "entryY") >= 0.25D);
+        assertEquals(0.1D, styleFraction(response.getContent(), "4", "exitY"), 0.001D);
+        assertEquals(0.1D, styleFraction(response.getContent(), "4", "entryY"), 0.001D);
     }
 
     @Test
-    public void shouldRerouteVerticalCornerAdjacentPortsBeforeReturningDiagram() throws Exception {
+    public void shouldNotRerouteVerticalCornerAdjacentPortsBeforeTheMutationGate() throws Exception {
         DrawioCanvasMcpService service = new DrawioCanvasMcpService();
         DrawioCanvasMcpService.DrawioXmlRequest request = new DrawioCanvasMcpService.DrawioXmlRequest();
         request.setXml("""
@@ -666,10 +666,8 @@ public class DrawioCanvasMcpServiceTest {
 
         DrawioCanvasMcpService.DrawioToolResponse response = service.createDiagram(request);
 
-        assertTrue(styleFraction(response.getContent(), "4", "exitX") >= 0.25D);
-        assertTrue(styleFraction(response.getContent(), "4", "entryX") >= 0.25D);
-        assertTrue(styleFraction(response.getContent(), "4", "exitX") <= 0.75D);
-        assertTrue(styleFraction(response.getContent(), "4", "entryX") <= 0.75D);
+        assertEquals(0.1D, styleFraction(response.getContent(), "4", "exitX"), 0.001D);
+        assertEquals(0.1D, styleFraction(response.getContent(), "4", "entryX"), 0.001D);
     }
 
     @Test
@@ -807,7 +805,7 @@ public class DrawioCanvasMcpServiceTest {
     }
 
     @Test
-    public void shouldMoveCenteredHorizontalEdgeLabelAboveLineOnCreate() throws Exception {
+    public void shouldLeaveEdgeLabelPlacementToAnExplicitRepairCandidate() throws Exception {
         DrawioCanvasMcpService service = new DrawioCanvasMcpService();
         DrawioCanvasMcpService.DrawioXmlRequest request = new DrawioCanvasMcpService.DrawioXmlRequest();
         request.setXml("""
@@ -822,10 +820,7 @@ public class DrawioCanvasMcpServiceTest {
         DrawioCanvasMcpService.DrawioToolResponse response = service.createDiagram(request);
 
         Element geometry = edgeGeometry(response.getContent(), "4");
-        assertTrue("horizontal edge labels should move above the line by default",
-                Double.parseDouble(geometry.attributeValue("y")) < 0D);
-        assertTrue("label offset should clear thick strokes instead of barely leaving the line",
-                Math.abs(Double.parseDouble(geometry.attributeValue("y"))) >= 30D);
+        assertEquals(null, geometry.attributeValue("y"));
     }
 
     @Test

@@ -94,8 +94,8 @@ public class DrawioCanvasMcpService {
             return response;
         }
 
-        String base = xmlToolkit.repairGeometryIfNeeded(
-                xmlToolkit.autoRepair(xmlToolkit.replaceCells(request.getXml(), request.getCells())));
+        // Tool output is only a working candidate; the Mutation Gate canonicalizes the final one.
+        String base = xmlToolkit.replaceCells(request.getXml(), request.getCells());
         CanvasAnalysis baseAnalysis = xmlToolkit.analyze(base);
         response.setType("drawio_done");
         response.setContent(base);
@@ -135,9 +135,7 @@ public class DrawioCanvasMcpService {
         }
         String content = routeOnly
                 ? xmlToolkit.routeEdges(sourceXml, targetEdgeIds)
-                // layout_optimize is a complete Drawer-authored layout; normalize structural XML
-                // without recomputing routes or discarding its explicit waypoint decisions.
-                : xmlToolkit.autoRepair(sourceXml);
+                : sourceXml;
         DrawioMutationResponse response = routeOnly
                 ? edgePatchResponse(xmlToolkit.edgeCells(content, targetEdgeIds), content)
                 : drawioMutationDone(content);
@@ -291,10 +289,9 @@ public class DrawioCanvasMcpService {
     }
 
     private DrawioToolResponse drawioDone(String xml) {
-        // Repair mechanical mistakes (dangling refs, duplicate ids, missing geometry) and
-        // deterministically reroute edges whose paths/labels collide with nodes, so the draft
-        // is streamed, analyzed, and fed back to the drawing loop in its best deterministic form.
-        return drawioDoneContent(xmlToolkit.repairGeometryIfNeeded(xmlToolkit.autoRepair(xml)));
+        // Tool output remains a working candidate. The post-processor may analyze it for Drawer
+        // feedback, but only CanvasMutationGate may canonicalize and accept the final candidate.
+        return drawioDoneContent(xml);
     }
 
     private DrawioToolResponse drawioDoneContent(String content) {

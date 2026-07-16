@@ -4,18 +4,19 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.commons.lang3.StringUtils;
 import org.zipp.ai.domain.agent.model.valobj.analysis.CanvasAnalysis;
+import org.zipp.ai.domain.agent.model.valobj.analysis.DiagramType;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
- * Keeps one canonical full canvas in ADK state while mutation tools return compact local patches.
- * Geometry and quality rules remain owned by {@link DrawioCanvasXmlToolkit}; this class only
- * canonicalizes the mutation result before the drawer reads its analysis and repair brief.
+ * Keeps one full working candidate in ADK state while mutation tools return compact local patches.
+ * The candidate remains unaccepted until the stream finalizer sends it through CanvasMutationGate.
  */
 public class DrawioMutationResultPostProcessor {
 
     public static final String DRAFT_DIAGRAM_STATE_KEY = "draft_diagram";
+    public static final String DIAGRAM_TYPE_STATE_KEY = "diagram_type";
 
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
     private static final TypeReference<Map<String, Object>> MAP_TYPE = new TypeReference<>() {
@@ -42,24 +43,17 @@ public class DrawioMutationResultPostProcessor {
             return new ProcessResult(processed, false);
         }
 
-        String candidate = canonicalCandidate(args, processed, state);
+        String candidate = workingCandidate(args, processed, state);
         if (StringUtils.isBlank(candidate)) {
             return new ProcessResult(processed, false);
         }
 
-        if (!isRouteOnly(toolName, args)) {
-            if (DrawioCanvasToolNames.OPTIMIZE_DIAGRAM.equals(toolName)) {
-                // layout_optimize already owns the accepted layout. Re-running geometry repair here
-                // would overwrite its waypoints; only mechanical normalization remains allowed.
-                candidate = xmlToolkit.autoRepair(candidate);
-            } else {
-                // Match the stream writer's deterministic safety pass for create/modify mutations.
-                candidate = xmlToolkit.repairGeometryIfNeeded(xmlToolkit.autoRepair(candidate));
-            }
-        }
-        // The post-processor still belongs to the legacy deterministic repair path. Phase 3 will
-        // replace this with the routed diagram profile and remove the compatibility analysis.
-        CanvasAnalysis analysis = xmlToolkit.analyzeForLegacyRouting(candidate);
+        // Analysis is read-only feedback for the Drawer loop; acceptance and canonicalization belong
+        // exclusively to CanvasMutationGate when the latest working candidate is finalized.
+        DiagramType diagramType = DiagramType.from(state == null
+                ? null
+                : stringValue(state.get(DIAGRAM_TYPE_STATE_KEY)));
+        CanvasAnalysis analysis = xmlToolkit.analyze(candidate, diagramType);
         processed.put("analysis", OBJECT_MAPPER.convertValue(
                 DrawioCanvasMcpService.CanvasAnalysisResponse.from(analysis), MAP_TYPE));
         processed.put("repairBrief", DrawioRepairBriefComposer.compose(analysis));
@@ -69,18 +63,12 @@ public class DrawioMutationResultPostProcessor {
         return new ProcessResult(processed, true);
     }
 
-    private boolean isRouteOnly(String toolName, Map<String, Object> args) {
-        return DrawioCanvasToolNames.OPTIMIZE_DIAGRAM.equals(toolName)
-                && args != null
-                && "route_only".equals(stringValue(args.get("mode")).trim());
-    }
-
-    private String canonicalCandidate(Map<String, Object> args,
-                                      Map<String, Object> response,
-                                      Map<String, Object> state) {
+    private String workingCandidate(Map<String, Object> args,
+                                    Map<String, Object> response,
+                                    Map<String, Object> state) {
         String completeContent = stringValue(response.get("content"));
         if (StringUtils.isNotBlank(completeContent)) {
-            return xmlToolkit.toGraphModel(completeContent);
+            return completeContent;
         }
 
         String cells = stringValue(response.get("cells"));
@@ -97,7 +85,7 @@ public class DrawioMutationResultPostProcessor {
         return value == null ? "" : String.valueOf(value);
     }
 
-    /** Separates an acknowledged payload type from a mutation that was actually canonicalized. */
+    /** Separates an acknowledged payload type from a mutation merged into the working draft. */
     public record ProcessResult(Map<String, Object> response, boolean mutationApplied) {
     }
 }

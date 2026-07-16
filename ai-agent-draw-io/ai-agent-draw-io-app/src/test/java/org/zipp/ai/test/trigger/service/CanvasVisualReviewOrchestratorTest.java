@@ -7,8 +7,10 @@ import org.zipp.ai.api.dto.ChatRequestDTO;
 import org.zipp.ai.domain.account.service.AnonymousDemoQuotaService;
 import org.zipp.ai.domain.account.service.VerifiedUserPlatformQuotaService;
 import org.zipp.ai.domain.agent.model.valobj.analysis.CanvasAnalysis;
+import org.zipp.ai.domain.agent.model.valobj.analysis.CanvasCellData;
 import org.zipp.ai.domain.agent.model.valobj.analysis.CanvasSummaryData;
 import org.zipp.ai.domain.agent.model.valobj.canvas.CanvasState;
+import org.zipp.ai.domain.agent.model.valobj.canvas.CanvasMutationAuthorization;
 import org.zipp.ai.domain.agent.model.valobj.visualreview.CanvasVisualReviewResult;
 import org.zipp.ai.domain.agent.model.valobj.visualreview.CanvasVisualIssue;
 import org.zipp.ai.domain.agent.model.valobj.visualreview.CanvasVisualIssueSeverity;
@@ -129,7 +131,8 @@ public class CanvasVisualReviewOrchestratorTest {
         AgentConversationService repairService = new AgentConversationService() {
             @Override
             public void streamVisualRepair(ChatRequestDTO request, String diagramType,
-                                           boolean optimizeLayout, ResponseBodyEmitter emitter) {
+                                           boolean optimizeLayout, CanvasMutationAuthorization authorization,
+                                           ResponseBodyEmitter emitter) {
                 repairCalls.incrementAndGet();
                 assertEquals("300000", request.getAgentId());
                 assertEquals("session-1", request.getSessionId());
@@ -139,6 +142,7 @@ public class CanvasVisualReviewOrchestratorTest {
                 assertTrue(request.getMessage().contains("Preserve every unmentioned id"));
                 assertEquals("architecture", diagramType);
                 assertTrue(optimizeLayout);
+                assertTrue(authorization.allowedCellIds().contains("2"));
             }
         };
         CanvasVisualIssue issue = CanvasVisualIssue.builder()
@@ -382,7 +386,8 @@ public class CanvasVisualReviewOrchestratorTest {
                 .valid(true)
                 .severity("ok")
                 .issues(List.of())
-                .cells(List.of())
+                // Keep the test analysis aligned with the canvas fixture so visual anchors can be authorized.
+                .cells(List.of(CanvasCellData.builder().id("2").label("API").kind("vertex").build()))
                 .summary(CanvasSummaryData.builder().nodeCount(1).edgeCount(0).summary("one node").build())
                 .build();
         return new CanvasVisualReviewOrchestrator(store, analyzer, reviewer,
@@ -413,7 +418,10 @@ public class CanvasVisualReviewOrchestratorTest {
                 .diagramType("architecture")
                 .version(version)
                 .contentHash(hash)
-                .currentXml("<mxGraphModel><root><mxCell id='0'/><mxCell id='1' parent='0'/></root></mxGraphModel>")
+                .currentXml("<mxGraphModel><root><mxCell id='0'/><mxCell id='1' parent='0'/>"
+                        + "<mxCell id='2' value='API' vertex='1' parent='1'>"
+                        + "<mxGeometry x='40' y='40' width='120' height='60' as='geometry'/></mxCell>"
+                        + "</root></mxGraphModel>")
                 .build();
     }
 

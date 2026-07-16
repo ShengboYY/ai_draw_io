@@ -13,6 +13,7 @@ type BuildDrawioChatRequestPayloadInput = {
   userMessage: string;
   diagramId?: string;
   expectedVersion?: number;
+  expectedContentHash?: string;
   canvasXml?: string;
   canvasSummary?: string;
   canvasImageDataUrl?: string;
@@ -70,6 +71,7 @@ export const buildDrawioChatRequestPayload = ({
   sessionId,
   diagramId,
   expectedVersion,
+  expectedContentHash,
   modelCredentialId,
   userMessage,
   canvasXml,
@@ -96,6 +98,7 @@ export const buildDrawioChatRequestPayload = ({
     requestId: newRequestId(),
     ...(diagramId && { diagramId }),
     ...(expectedVersion !== undefined && { expectedVersion }),
+    ...(expectedContentHash?.trim() && { expectedContentHash: expectedContentHash.trim() }),
     ...(modelCredentialId && { modelCredentialId }),
     // Keep message as the raw user request; canvas context travels in structured fields.
     message: userMessage,

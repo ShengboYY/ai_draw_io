@@ -32,8 +32,10 @@ public class DrawioToolCallRenderer {
             return List.of();
         }
 
-        String graphModel = xmlToolkit.toGraphModel(xml);
-        List<String> cells = extractRootCells(graphModel);
+        // Preview extraction may use a normalized projection, but the mutation candidate itself
+        // must remain raw until CanvasMutationGate canonicalizes it exactly once.
+        String previewGraphModel = xmlToolkit.toGraphModel(xml);
+        List<String> cells = extractRootCells(previewGraphModel);
 
         List<JSONObject> chunks = new ArrayList<>();
         chunks.add(chunk("drawio_preview", "content", buildPreviewSkeleton(cells)));
@@ -55,8 +57,8 @@ public class DrawioToolCallRenderer {
                 chunks.add(edge);
             }
         }
-        chunks.add(validationChunk(graphModel));
-        JSONObject done = chunk("drawio_done", "content", graphModel);
+        chunks.add(validationChunk(previewGraphModel));
+        JSONObject done = chunk("drawio_done", "content", xml);
         // "local" lets the frontend merge into the existing canvas; "full" triggers a clean reload.
         done.put("mode", DrawioCanvasToolNames.LOCAL_EDIT_TOOL_NAMES.contains(toolCall.getString("type")) ? "local" : "full");
         chunks.add(done);

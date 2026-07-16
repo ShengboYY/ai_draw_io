@@ -266,7 +266,16 @@ export interface VersionConflictChunk {
     currentContentHash?: string;
 }
 
-export type StreamChunk = DrawioPreviewChunk | DrawioNodeChunk | DrawioEdgeChunk | DrawioDoneChunk | DrawioLegacyChunk | StatusChunk | ErrorChunk | UserChunk | DoneChunk | TokenChunk | MetaChunk | RouteChunk | ReviewStartedChunk | ReviewResultChunk | ReviewStaleChunk | ValidationResultChunk | VersionConflictChunk;
+export interface MutationRejectedChunk {
+    type: 'mutation_rejected';
+    status: string;
+    reason?: string;
+    content?: string;
+    diagramId?: string;
+    changedCellIds?: string[];
+}
+
+export type StreamChunk = DrawioPreviewChunk | DrawioNodeChunk | DrawioEdgeChunk | DrawioDoneChunk | DrawioLegacyChunk | StatusChunk | ErrorChunk | UserChunk | DoneChunk | TokenChunk | MetaChunk | RouteChunk | ReviewStartedChunk | ReviewResultChunk | ReviewStaleChunk | ValidationResultChunk | VersionConflictChunk | MutationRejectedChunk;
 
 export interface StreamEvent {
     phase: 'analyzing' | 'drawing' | 'reviewing' | 'visual_review' | 'revising' | 'thinking' | 'error' | 'done' | 'generating';
@@ -1092,11 +1101,12 @@ export const agentApi = {
         diagramId: string,
         canvasXml: string,
         expectedVersion?: number,
-        options?: { keepalive?: boolean }
+        options?: { keepalive?: boolean; expectedContentHash?: string }
     ): Promise<Response<DiagramCanvasStateResponseDTO | null>> => {
         const body: SaveDiagramCanvasStateRequestDTO = {
             canvasXml,
             ...(Number.isFinite(expectedVersion) && { expectedVersion }),
+            ...(options?.expectedContentHash?.trim() && { expectedContentHash: options.expectedContentHash.trim() }),
         };
         const response = await fetch(`${API_CONFIG.BASE_URL}/diagrams/${encodeURIComponent(diagramId)}/canvas`, {
             method: 'PATCH',

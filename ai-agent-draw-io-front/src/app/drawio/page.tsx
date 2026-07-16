@@ -773,14 +773,20 @@ function DrawioPageContent() {
     });
   };
 
-  const fetchLatestCanvasVersion = async (userId: string, diagramId: string): Promise<number | undefined> => {
+  const fetchLatestCanvasBaseline = async (
+    userId: string,
+    diagramId: string,
+  ): Promise<{ version?: number; contentHash?: string }> => {
     try {
       const response = await agentApi.getDiagram(userId, diagramId);
       const version = response.data?.version;
-      return Number.isFinite(version) ? version : undefined;
+      return {
+        version: Number.isFinite(version) ? version : undefined,
+        contentHash: response.data?.contentHash?.trim() || undefined,
+      };
     } catch (error) {
-      console.warn('Failed to load the latest canvas version after a save conflict:', error);
-      return undefined;
+      console.warn('Failed to load the latest canvas baseline after a save conflict:', error);
+      return {};
     }
   };
 
@@ -825,6 +831,7 @@ function DrawioPageContent() {
         request.diagramId,
         request.canvasXml,
         request.expectedVersion,
+        { expectedContentHash: request.expectedContentHash },
       );
       // Only sync the version; the local canvas may already be newer than the XML just saved,
       // so writing the response XML back would briefly roll the session state backwards.
@@ -844,14 +851,28 @@ function DrawioPageContent() {
           return;
         }
 
-        const latestVersion = knownConflictVersion ?? await fetchLatestCanvasVersion(request.userId, request.diagramId);
-        if (Number.isFinite(latestVersion)) {
-          rememberManualCanvasVersion(request.sessionId, request.diagramId, latestVersion);
+        // Version and hash form one optimistic-lock baseline; never retry with only half of it.
+        const fetchedBaseline = knownConflictVersion !== undefined && knownConflictContentHash
+          ? {}
+          : await fetchLatestCanvasBaseline(request.userId, request.diagramId);
+        const latestVersion = knownConflictVersion ?? fetchedBaseline.version;
+        const latestContentHash = knownConflictContentHash ?? fetchedBaseline.contentHash;
+        if (Number.isFinite(latestVersion) && latestContentHash) {
+          rememberManualCanvasVersion(
+            request.sessionId,
+            request.diagramId,
+            latestVersion,
+            latestContentHash,
+          );
           // Manual edits treat the local canvas as the source of truth, so save over the fresh version.
-          await performManualCanvasSave({ ...request, expectedVersion: latestVersion }, false);
+          await performManualCanvasSave({
+            ...request,
+            expectedVersion: latestVersion,
+            expectedContentHash: latestContentHash,
+          }, false);
           return;
         }
-        console.warn('Manual canvas autosave conflicted and the latest backend version could not be loaded.');
+        console.warn('Manual canvas autosave conflicted and the latest backend baseline could not be loaded.');
       } else {
         console.warn('Failed to sync manual canvas autosave:', error);
       }
@@ -898,6 +919,7 @@ function DrawioPageContent() {
     agentApi
       .saveDiagramCanvasState(request.userId, request.diagramId, request.canvasXml, request.expectedVersion, {
         keepalive: true,
+        expectedContentHash: request.expectedContentHash,
       })
       .then(response => {
         const version = response.data?.version;
@@ -915,6 +937,7 @@ function DrawioPageContent() {
       sessionId: activeSession?.id || currentSessionRef.current,
       diagramId: activeSession?.diagramId,
       canvasVersion: activeSession?.canvasVersion,
+      canvasContentHash: activeSession?.canvasContentHash,
       canvasXml: xml,
     });
     // Blank canvases intentionally stay local: an accidental clear (or a glitchy empty
@@ -1019,9 +1042,14 @@ function DrawioPageContent() {
       await persistDiagramTitle(normalizedDiagramId, title);
     } catch (error) {
       if (error instanceof ApiResponseError && error.code === 'CANVAS_VERSION_CONFLICT') {
-        const latestVersion = await fetchLatestCanvasVersion(ownerId, normalizedDiagramId || '');
-        if (Number.isFinite(latestVersion) && currentSessionRef.current) {
-          rememberManualCanvasVersion(currentSessionRef.current, normalizedDiagramId || '', latestVersion);
+        const latestBaseline = await fetchLatestCanvasBaseline(ownerId, normalizedDiagramId || '');
+        if ((Number.isFinite(latestBaseline.version) || latestBaseline.contentHash) && currentSessionRef.current) {
+          rememberManualCanvasVersion(
+            currentSessionRef.current,
+            normalizedDiagramId || '',
+            latestBaseline.version,
+            latestBaseline.contentHash,
+          );
         }
         return;
       }
@@ -2175,6 +2203,7 @@ function DrawioPageContent() {
             diagramId ? manualCanvasVersionsRef.current.get(diagramId) : undefined,
             activeSession?.canvasVersion,
           ),
+          expectedContentHash: activeSession?.canvasContentHash,
           canvasXml: canvasContext.canvasXml,
           canvasSummary: canvasContext.canvasSummary,
           canvasImageDataUrl: canvasContext.canvasImageDataUrl,
@@ -2838,6 +2867,29 @@ function DrawioPageContent() {
                 tone: 'review',
               });
               accumulatedContent += (accumulatedContent ? '\n\n' : '') + `❌ ${conflictMessage}`;
+              setMessages(prev => prev.map(m => (
+                m.id === agentMsgId ? { ...m, content: accumulatedContent, steps: [...accumulatedSteps] } : m
+              )));
+              break;
+            }
+
+            case 'mutation_rejected': {
+              const rollbackXml = chunk.content?.trim();
+              if (rollbackXml && currentSessionId === currentSessionRef.current) {
+                applyFinalDiagramXml(rollbackXml, 'full');
+                saveCurrentCanvasXml(rollbackXml, { diagramId: chunk.diagramId || diagramId });
+              }
+              const rejectionMessage = useChinese
+                ? `画布修改未通过安全检查（${chunk.reason || chunk.status}），已恢复原图。`
+                : `The canvas change failed the safety check (${chunk.reason || chunk.status}) and was rolled back.`;
+              upsertRunEvent('canvas:mutation_rejected', {
+                phase: 'error',
+                title: 'Canvas change rejected',
+                detail: rejectionMessage,
+                status: 'error',
+                tone: 'review',
+              });
+              accumulatedContent += (accumulatedContent ? '\n\n' : '') + `❌ ${rejectionMessage}`;
               setMessages(prev => prev.map(m => (
                 m.id === agentMsgId ? { ...m, content: accumulatedContent, steps: [...accumulatedSteps] } : m
               )));

@@ -9,6 +9,8 @@ import org.zipp.ai.domain.account.service.IModelCredentialService;
 import org.zipp.ai.domain.account.service.PlatformDailyQuotaExceededException;
 import org.zipp.ai.domain.account.service.VerifiedUserPlatformQuotaService;
 import org.zipp.ai.domain.agent.model.valobj.canvas.CanvasState;
+import org.zipp.ai.domain.agent.model.valobj.canvas.CanvasMutationAuthorization;
+import org.zipp.ai.domain.agent.model.valobj.canvas.CanvasMutationPurpose;
 import org.zipp.ai.domain.agent.model.valobj.analysis.CanvasAnalysis;
 import org.zipp.ai.domain.agent.model.valobj.analysis.CanvasAnalysisIssue;
 import org.zipp.ai.domain.agent.model.valobj.intent.IntentRoutingCommand;
@@ -206,12 +208,20 @@ public class AgentConversationService {
     }
 
     public void stream(ChatRequestDTO requestDTO, ResponseBodyEmitter emitter) {
-        stream(requestDTO, emitter, null, "chat_stream");
+        stream(requestDTO, emitter, null, "chat_stream", null);
     }
 
     public void streamVisualRepair(ChatRequestDTO requestDTO,
                                    String diagramType,
                                    boolean optimizeLayout,
+                                   ResponseBodyEmitter emitter) {
+        streamVisualRepair(requestDTO, diagramType, optimizeLayout, null, emitter);
+    }
+
+    public void streamVisualRepair(ChatRequestDTO requestDTO,
+                                   String diagramType,
+                                   boolean optimizeLayout,
+                                   CanvasMutationAuthorization authorization,
                                    ResponseBodyEmitter emitter) {
         // The VLM policy already authorized a bounded repair; rerouting model-authored repair text
         // could turn it into a create action, so this internal continuation uses a fixed safe route.
@@ -220,13 +230,15 @@ public class AgentConversationService {
         repairRoute.setDiagramType(StringUtils.defaultIfBlank(diagramType, "none"));
         repairRoute.setSkillName("none");
         repairRoute.setReason("production_visual_review_repair");
-        stream(requestDTO, emitter, repairRoute, "visual_repair_stream");
+        stream(requestDTO, emitter, repairRoute, "visual_repair_stream",
+                new CanvasMutationIntent(CanvasMutationPurpose.VLM_REPAIR, authorization));
     }
 
     private void stream(ChatRequestDTO requestDTO,
                         ResponseBodyEmitter emitter,
                         IntentRoutingResult forcedRoutingResult,
-                        String operation) {
+                        String operation,
+                        CanvasMutationIntent mutationIntent) {
         AgentUsageTelemetryService.RunScope runScope = telemetryService().startRun(
                 requestDTO.getRunId(), requestDTO.getRequestId(),
                 requestDTO.getUserId(), requestDTO.getAgentId(), requestDTO.getSessionId(), operation,
@@ -313,6 +325,13 @@ public class AgentConversationService {
                 }
                 return;
             }
+            // Canvas mutations need a persistent identity; otherwise the final candidate would have
+            // no optimistic-lock baseline and could bypass the mutation acceptance seam.
+            if (StringUtils.isBlank(currentRequest.getDiagramId())) {
+                throw new AppException(
+                        ResponseCode.ILLEGAL_PARAMETER.getCode(),
+                        "diagramId is required for canvas mutations");
+            }
 
             // Each author has its own buffer because the ADK stream can interleave partial chunks.
             final ConcurrentHashMap<String, StringBuilder> authorBuffers = new ConcurrentHashMap<>();
@@ -340,6 +359,10 @@ public class AgentConversationService {
                     currentRequest.getUserId(),
                     currentRequest.getDiagramId(),
                     currentRequest.getExpectedVersion(),
+                    currentRequest.getExpectedContentHash(),
+                    routingResult.getDiagramType(),
+                    mutationIntent == null ? null : mutationIntent.purpose(),
+                    mutationIntent == null ? null : mutationIntent.authorization(),
                     runScope.getContext().runId(),
                     drawingStep == null ? runScope.getContext().runId() : drawingStep.getStepContext().spanId());
             DrawioSkillAccessContext.bindSession(finalSessionId, routedMessage.allowedSkillNames());
@@ -348,6 +371,13 @@ public class AgentConversationService {
             final AgentUsageTelemetryService.RunScope finalRunScope = runScope;
             final AgentUsageTelemetryService.StepScope finalDrawingStep = drawingStep;
 
+            Map<String, Object> initialAgentState = new LinkedHashMap<>();
+            if (StringUtils.isNotBlank(currentCanvasXml)) {
+                initialAgentState.put(DrawioMutationResultPostProcessor.DRAFT_DIAGRAM_STATE_KEY, currentCanvasXml);
+            }
+            initialAgentState.put(
+                    DrawioMutationResultPostProcessor.DIAGRAM_TYPE_STATE_KEY,
+                    StringUtils.defaultString(routingResult.getDiagramType()));
             Disposable disposable = chatService.handleMessageStream(
                             currentRequest.getAgentId(),
                             currentRequest.getUserId(),
@@ -356,9 +386,7 @@ public class AgentConversationService {
                             finalDrawingStep != null
                                     ? finalDrawingStep.getStepContext()
                                     : runScope.getContext().withPhase("drawing"),
-                            StringUtils.isBlank(currentCanvasXml)
-                                    ? Map.of()
-                                    : Map.of(DrawioMutationResultPostProcessor.DRAFT_DIAGRAM_STATE_KEY, currentCanvasXml))
+                            initialAgentState)
                     .subscribe(
                             event -> {
                                 try {
@@ -443,9 +471,9 @@ public class AgentConversationService {
                             },
                             () -> {
                                 captureBufferedStreamOutput(finalRunScope, finalStreamOutputCapture);
-                                completeStreamTelemetry(finalStreamTelemetryCompleted, finalDrawingStep, finalRunScope, null);
                                 handleStreamComplete(
-                                        emitter, authorBuffers, manuallyCompleted, finalSessionId, finalRunScope);
+                                        emitter, authorBuffers, manuallyCompleted, finalSessionId, finalDrawingStep,
+                                        finalRunScope, finalStreamTelemetryCompleted);
                             }
                     );
             disposableRef.set(disposable);
@@ -535,6 +563,9 @@ public class AgentConversationService {
                 }
                 if (requestDTO.getExpectedVersion() == null) {
                     requestDTO.setExpectedVersion(state.getVersion());
+                }
+                if (StringUtils.isBlank(requestDTO.getExpectedContentHash())) {
+                    requestDTO.setExpectedContentHash(state.getContentHash());
                 }
             });
         } catch (Exception e) {
@@ -1164,11 +1195,8 @@ public class AgentConversationService {
             if (DrawioCanvasToolNames.PATCH_CELLS.equals(functionName)
                     || DrawioCanvasToolNames.PATCH_CELLS.equals(json.getString("type"))) {
                 String patchCells = json.getString("cells");
-                // optimize_diagram only returns patch_cells for route_only, so preserve its bounded
-                // edge scope while ordinary patch_cells retain the full deterministic safety pass.
-                boolean preserveGeometryScope = DrawioCanvasToolNames.OPTIMIZE_DIAGRAM.equals(functionName);
                 boolean patchSent = streamResponseWriter.sendLocalCellPatch(
-                        emitter, phase, currentCanvasXml, patchCells, preserveGeometryScope);
+                        emitter, phase, currentCanvasXml, patchCells);
                 log.info("[diag-patch] {} canvasXmlChars={} cellsChars={} sent={}",
                         functionName,
                         null == currentCanvasXml ? -1 : currentCanvasXml.length(),
@@ -1287,6 +1315,10 @@ public class AgentConversationService {
         NEEDS_REPAIR
     }
 
+    private record CanvasMutationIntent(CanvasMutationPurpose purpose,
+                                        CanvasMutationAuthorization authorization) {
+    }
+
     private MutationOutcome mutationOutcome(com.google.adk.events.Event event) {
         MutationOutcome outcome = MutationOutcome.NONE;
         for (com.google.genai.types.FunctionResponse functionResponse : event.functionResponses()) {
@@ -1336,18 +1368,14 @@ public class AgentConversationService {
         }
         clearSessionConfig(sessionId, runScope.getContext().runId());
         captureBufferedStreamOutput(runScope, streamOutputCapture);
-        completeStreamTelemetry(streamTelemetryCompleted, drawingStep, runScope, null);
         try {
             streamResponseWriter.flushPendingDiagram(emitter, "done");
-        } catch (Exception ignored) {
-        }
-        try {
             streamResponseWriter.sendDone(emitter);
-        } catch (Exception ignored) {
-        }
-        try {
+            completeStreamTelemetry(streamTelemetryCompleted, drawingStep, runScope, null);
             emitter.complete();
-        } catch (Exception ignored) {
+        } catch (Exception error) {
+            completeStreamTelemetry(streamTelemetryCompleted, drawingStep, runScope, error);
+            emitter.completeWithError(error);
         }
 
         Disposable disposable = disposableRef.get();
@@ -1378,7 +1406,9 @@ public class AgentConversationService {
                                       ConcurrentHashMap<String, StringBuilder> authorBuffers,
                                       AtomicBoolean manuallyCompleted,
                                       String sessionId,
-                                      AgentUsageTelemetryService.RunScope runScope) {
+                                      AgentUsageTelemetryService.StepScope drawingStep,
+                                      AgentUsageTelemetryService.RunScope runScope,
+                                      AtomicBoolean streamTelemetryCompleted) {
         if (manuallyCompleted.get()) {
             return;
         }
@@ -1387,9 +1417,12 @@ public class AgentConversationService {
         try {
             streamResponseWriter.flushPendingDiagram(emitter, "done");
             streamResponseWriter.sendDone(emitter);
-        } catch (Exception ignored) {
+            completeStreamTelemetry(streamTelemetryCompleted, drawingStep, runScope, null);
+            emitter.complete();
+        } catch (Exception error) {
+            completeStreamTelemetry(streamTelemetryCompleted, drawingStep, runScope, error);
+            emitter.completeWithError(error);
         }
-        emitter.complete();
     }
 
     private void clearSessionConfig(String sessionId, String runId) {

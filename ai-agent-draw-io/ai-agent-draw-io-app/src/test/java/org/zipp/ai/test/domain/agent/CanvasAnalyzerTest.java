@@ -170,67 +170,6 @@ public class CanvasAnalyzerTest {
     }
 
     @Test
-    public void repairGeometryIfNeededReroutesOnlyWhenAnEdgeCrossesANode() {
-        DrawioCanvasXmlToolkit toolkit = new DrawioCanvasXmlToolkit();
-
-        String crossing = """
-                <mxGraphModel><root><mxCell id='0'/><mxCell id='1' parent='0'/>
-                <mxCell id='2' value='Source' vertex='1' parent='1'><mxGeometry x='40' y='40' width='80' height='60' as='geometry'/></mxCell>
-                <mxCell id='3' value='Target' vertex='1' parent='1'><mxGeometry x='360' y='40' width='80' height='60' as='geometry'/></mxCell>
-                <mxCell id='4' value='Blocker' vertex='1' parent='1'><mxGeometry x='180' y='160' width='80' height='80' as='geometry'/></mxCell>
-                <mxCell id='5' value='' edge='1' parent='1' source='2' target='3'>
-                    <mxGeometry relative='1' as='geometry'><Array as='points'><mxPoint x='220' y='200'/><mxPoint x='320' y='200'/></Array></mxGeometry>
-                </mxCell>
-                </root></mxGraphModel>
-                """;
-        String clean = """
-                <mxGraphModel><root><mxCell id='0'/><mxCell id='1' parent='0'/>
-                <mxCell id='2' value='Source' vertex='1' parent='1'><mxGeometry x='40' y='120' width='80' height='60' as='geometry'/></mxCell>
-                <mxCell id='3' value='Target' vertex='1' parent='1'><mxGeometry x='360' y='120' width='80' height='60' as='geometry'/></mxCell>
-                <mxCell id='5' value='' edge='1' parent='1' source='2' target='3'><mxGeometry relative='1' as='geometry'/></mxCell>
-                </root></mxGraphModel>
-                """;
-
-        String repaired = toolkit.repairGeometryIfNeeded(crossing);
-        assertNotEquals("a crossing patch should be rerouted", crossing, repaired);
-        assertEquals("a completed deterministic repair must be idempotent",
-                repaired, toolkit.repairGeometryIfNeeded(repaired));
-        assertEquals("a clean patch should pass through untouched", clean, toolkit.repairGeometryIfNeeded(clean));
-    }
-
-    @Test
-    public void repairGeometryIfNeededPreservesAnUnrelatedManualRoute() throws Exception {
-        DrawioCanvasXmlToolkit toolkit = new DrawioCanvasXmlToolkit();
-        String xml = """
-                <mxGraphModel><root><mxCell id='0'/><mxCell id='1' parent='0'/>
-                <mxCell id='2' value='Source' vertex='1' parent='1'><mxGeometry x='40' y='120' width='80' height='60' as='geometry'/></mxCell>
-                <mxCell id='3' value='Target' vertex='1' parent='1'><mxGeometry x='360' y='120' width='80' height='60' as='geometry'/></mxCell>
-                <mxCell id='4' value='Blocker' vertex='1' parent='1'><mxGeometry x='210' y='110' width='80' height='80' as='geometry'/></mxCell>
-                <mxCell id='5' value='primary' edge='1' parent='1' source='2' target='3'><mxGeometry relative='1' as='geometry'/></mxCell>
-                <mxCell id='7' value='Retry source' vertex='1' parent='1'><mxGeometry x='360' y='360' width='80' height='60' as='geometry'/></mxCell>
-                <mxCell id='8' value='Retry target' vertex='1' parent='1'><mxGeometry x='40' y='360' width='80' height='60' as='geometry'/></mxCell>
-                <mxCell id='6' value='' style='edgeStyle=orthogonalEdgeStyle;exitX=0;exitY=0.5;entryX=1;entryY=0.5;' edge='1' parent='1' source='7' target='8'>
-                    <mxGeometry relative='1' as='geometry'><Array as='points'><mxPoint x='320' y='500'/><mxPoint x='160' y='500'/></Array></mxGeometry>
-                </mxCell>
-                </root></mxGraphModel>
-                """;
-
-        String repaired = toolkit.repairGeometryIfNeeded(xml);
-        Element manualEdge = cell(repaired, "6");
-
-        assertEquals("an unrelated edge must keep the Drawer-authored ports",
-                "edgeStyle=orthogonalEdgeStyle;exitX=0;exitY=0.5;entryX=1;entryY=0.5;",
-                manualEdge.attributeValue("style"));
-        List<?> points = manualEdge.element("mxGeometry").element("Array").elements("mxPoint");
-        Element first = (Element) points.get(0);
-        Element second = (Element) points.get(1);
-        assertEquals("320", first.attributeValue("x"));
-        assertEquals("500", first.attributeValue("y"));
-        assertEquals("160", second.attributeValue("x"));
-        assertEquals("500", second.attributeValue("y"));
-    }
-
-    @Test
     public void routeEdgesDropsWaypointsThatContradictTheirExitPort() {
         DrawioCanvasXmlToolkit toolkit = new DrawioCanvasXmlToolkit();
 
@@ -409,9 +348,7 @@ public class CanvasAnalyzerTest {
         assertEquals("free-routed edges are repaired by the model, never straightened",
                 "candidate", crossing.getRepairability());
 
-        // Neither the crossing-triggered repair nor a direct route pass may orthogonalize it.
-        assertEquals("no auto_reroute issue -> repair pass leaves the input untouched",
-                xml, toolkit.repairGeometryIfNeeded(xml));
+        // A direct route pass may not orthogonalize a free-routed concept edge.
         assertFalse(toolkit.routeEdges(xml).contains("orthogonalEdgeStyle"));
     }
 

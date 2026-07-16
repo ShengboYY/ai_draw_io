@@ -13,6 +13,7 @@ public class ChatRequestDTO {
     private String runId;
     private String diagramId;
     private Long expectedVersion;
+    private String expectedContentHash;
     private String message;
     private String canvasXml;
     private String canvasSummary;

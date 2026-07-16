@@ -3,6 +3,7 @@ export type ManualCanvasSaveInput = {
   sessionId?: string | null;
   diagramId?: string;
   canvasVersion?: number;
+  canvasContentHash?: string;
   canvasXml?: string | null;
 };
 
@@ -11,6 +12,7 @@ export type ManualCanvasSaveRequest = {
   sessionId: string;
   diagramId: string;
   expectedVersion?: number;
+  expectedContentHash?: string;
   canvasXml: string;
 };
 
@@ -34,6 +36,7 @@ export const buildManualCanvasSaveRequest = ({
   sessionId,
   diagramId,
   canvasVersion,
+  canvasContentHash,
   canvasXml,
 }: ManualCanvasSaveInput): ManualCanvasSaveRequest | null => {
   const normalizedUserId = userId?.trim();
@@ -47,6 +50,7 @@ export const buildManualCanvasSaveRequest = ({
     sessionId: normalizedSessionId,
     diagramId: normalizedDiagramId,
     ...(Number.isFinite(canvasVersion) && { expectedVersion: canvasVersion }),
+    ...(canvasContentHash?.trim() && { expectedContentHash: canvasContentHash.trim() }),
     canvasXml: normalizedXml,
   };
 };

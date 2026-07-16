@@ -25,7 +25,10 @@ final class ReplayCanvasToolExecutor {
             DrawioCanvasMcpService.DrawioXmlRequest request = new DrawioCanvasMcpService.DrawioXmlRequest();
             request.setXml(require(call.getXml() == null ? call.getCells() : call.getXml(),
                     "replay.toolCalls[].xml or cells"));
-            return service.createDiagram(request).getContent();
+            String candidate = service.createDiagram(request).getContent();
+            // Replay has no persistence Gate, so its terminal adapter performs the same single
+            // structural canonicalization that the production Gate performs before evaluation.
+            return new DrawioCanvasXmlToolkit().toGraphModel(candidate);
         }
         throw new IllegalArgumentException("Unsupported replay tool: " + toolName);
     }

@@ -13,11 +13,17 @@ import org.zipp.ai.domain.agent.model.valobj.usage.AgentUsageSummary;
 import org.zipp.ai.domain.agent.model.valobj.AiAgentConfigTableVO;
 import org.zipp.ai.domain.agent.model.valobj.canvas.CanvasState;
 import org.zipp.ai.domain.agent.model.valobj.canvas.CanvasStateSaveResult;
-import org.zipp.ai.domain.agent.model.valobj.canvas.CanvasStateVersionConflictException;
+import org.zipp.ai.domain.agent.model.valobj.analysis.DiagramType;
+import org.zipp.ai.domain.agent.model.valobj.canvas.CanvasMutationAuthorization;
+import org.zipp.ai.domain.agent.model.valobj.canvas.CanvasMutationCommand;
+import org.zipp.ai.domain.agent.model.valobj.canvas.CanvasMutationDecision;
+import org.zipp.ai.domain.agent.model.valobj.canvas.CanvasMutationPurpose;
+import org.zipp.ai.domain.agent.model.valobj.canvas.CanvasMutationStatus;
 import org.zipp.ai.domain.agent.model.valobj.conversation.DiagramConversationMessage;
 import org.zipp.ai.domain.agent.service.ICanvasStateStore;
 import org.zipp.ai.domain.agent.service.IDiagramConversationStore;
 import org.zipp.ai.domain.agent.service.IChatService;
+import org.zipp.ai.domain.agent.service.canvas.CanvasMutationGate;
 import org.zipp.ai.domain.agent.service.usage.AgentUsageTelemetryService;
 import org.zipp.ai.trigger.http.service.AgentConversationService;
 import org.zipp.ai.types.enums.ResponseCode;
@@ -62,6 +68,9 @@ public class AgentServiceController implements IAgentService {
 
     @Resource
     private ICanvasStateStore canvasStateStore;
+
+    @Resource
+    private CanvasMutationGate canvasMutationGate;
 
     @Resource
     private IDiagramConversationStore diagramConversationStore;
@@ -285,27 +294,36 @@ public class AgentServiceController implements IAgentService {
                     .build();
         }
         try {
-            CanvasStateSaveResult saved = canvasStateStore.saveWithResult(CanvasState.builder()
-                    .userId(workspaceId)
-                    .diagramId(diagramId)
-                    .currentXml(canvasXml)
-                    .version(requestDTO.getExpectedVersion())
-                    .build());
+            CanvasState current = canvasStateStore.find(workspaceId, diagramId).orElse(null);
+            CanvasMutationDecision decision = canvasMutationGate.evaluate(new CanvasMutationCommand(
+                    current == null ? CanvasMutationPurpose.USER_CREATE : CanvasMutationPurpose.USER_EDIT,
+                    current == null ? "" : current.getCurrentXml(),
+                    canvasXml,
+                    DiagramType.from(current == null ? null : current.getDiagramType()),
+                    CanvasMutationAuthorization.unrestricted(),
+                    workspaceId,
+                    diagramId,
+                    requestDTO.getExpectedVersion(),
+                    requestDTO.getExpectedContentHash()));
+            if (decision.status() == CanvasMutationStatus.STALE_VERSION) {
+                return Response.<DiagramCanvasStateResponseDTO>builder()
+                        .code(ResponseCode.CANVAS_VERSION_CONFLICT.getCode())
+                        .info(ResponseCode.CANVAS_VERSION_CONFLICT.getInfo())
+                        .data(decision.currentState() == null ? null : toDiagramCanvasState(decision.currentState()))
+                        .build();
+            }
+            if (decision.status() != CanvasMutationStatus.ACCEPTED
+                    && decision.status() != CanvasMutationStatus.ACCEPTED_WITH_NOTES) {
+                return Response.<DiagramCanvasStateResponseDTO>builder()
+                        .code(ResponseCode.INVALID_CANVAS_XML.getCode())
+                        .info(ResponseCode.INVALID_CANVAS_XML.getInfo())
+                        .build();
+            }
+            CanvasStateSaveResult saved = decision.saveResult();
             return Response.<DiagramCanvasStateResponseDTO>builder()
                     .code(ResponseCode.SUCCESS.getCode())
                     .info(ResponseCode.SUCCESS.getInfo())
                     .data(toDiagramCanvasState(saved))
-                    .build();
-        } catch (CanvasStateVersionConflictException e) {
-            log.warn("保存图画布版本冲突 userId:{} diagramId:{}",
-                    CurrentOwnerHttpResolver.mask(workspaceId), diagramId);
-            DiagramCanvasStateResponseDTO currentState = canvasStateStore.find(workspaceId, diagramId)
-                    .map(this::toDiagramCanvasState)
-                    .orElse(null);
-            return Response.<DiagramCanvasStateResponseDTO>builder()
-                    .code(ResponseCode.CANVAS_VERSION_CONFLICT.getCode())
-                    .info(ResponseCode.CANVAS_VERSION_CONFLICT.getInfo())
-                    .data(currentState)
                     .build();
         } catch (Exception e) {
             log.error("保存图画布失败 userId:{} diagramId:{}", CurrentOwnerHttpResolver.mask(workspaceId), diagramId, e);
