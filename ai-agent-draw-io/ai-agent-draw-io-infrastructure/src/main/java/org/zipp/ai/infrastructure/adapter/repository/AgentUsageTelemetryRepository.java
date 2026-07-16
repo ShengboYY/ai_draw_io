@@ -1,5 +1,6 @@
 package org.zipp.ai.infrastructure.adapter.repository;
 
+import com.alibaba.fastjson.JSON;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Repository;
@@ -26,9 +27,13 @@ import org.zipp.ai.infrastructure.dao.po.ToolCallTelemetryPO;
 import org.zipp.ai.infrastructure.dao.po.UsageDimensionSummaryPO;
 
 import javax.annotation.Resource;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.time.Instant;
 import java.util.Date;
+import java.util.HexFormat;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
@@ -69,6 +74,36 @@ public class AgentUsageTelemetryRepository implements IAgentUsageTelemetryStore 
     @Override
     public void insertTraceEvent(AgentTraceEvent event) {
         agentUsageTelemetryMapper.insertTraceEvent(toPo(event));
+    }
+
+    @Override
+    public boolean tryClaimVisualRepair(String sourceRunId,
+                                        String userId,
+                                        String diagramId,
+                                        String requestId,
+                                        Long reviewedVersion,
+                                        String reviewedCanvasHash,
+                                        String repairRunId,
+                                        Instant occurredAt) {
+        String metadataJson = JSON.toJSONString(Map.of(
+                "repairRunId", repairRunId,
+                "reviewedVersion", reviewedVersion,
+                "reviewedCanvasHash", reviewedCanvasHash));
+        return agentUsageTelemetryMapper.tryClaimVisualRepair(
+                visualRepairClaimId(sourceRunId), sourceRunId, userId, diagramId,
+                requestId, reviewedVersion, reviewedCanvasHash, metadataJson, toDate(occurredAt)) == 1;
+    }
+
+    @Override
+    public boolean isVisualRepairResult(String sourceRunId,
+                                        String repairRunId,
+                                        String userId,
+                                        String diagramId,
+                                        Long repairedVersion,
+                                        String repairedCanvasHash) {
+        return agentUsageTelemetryMapper.countVisualRepairResult(
+                visualRepairClaimId(sourceRunId), sourceRunId, repairRunId, userId, diagramId,
+                repairedVersion, repairedCanvasHash) > 0;
     }
 
     @Override
@@ -252,6 +287,16 @@ public class AgentUsageTelemetryRepository implements IAgentUsageTelemetryStore 
         po.setTraceEventCount(run.getTraceEventCount());
         po.setKnownTotalTokens(run.getKnownTotalTokens());
         return po;
+    }
+
+    private String visualRepairClaimId(String sourceRunId) {
+        try {
+            byte[] digest = MessageDigest.getInstance("SHA-256")
+                    .digest(sourceRunId.getBytes(StandardCharsets.UTF_8));
+            return "avr_" + HexFormat.of().formatHex(digest).substring(0, 48);
+        } catch (Exception e) {
+            throw new IllegalStateException("SHA-256 is unavailable", e);
+        }
     }
 
     private DiagramTraceSnapshotPO toPo(AgentDiagramTraceSnapshot snapshot) {

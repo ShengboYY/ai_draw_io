@@ -389,6 +389,8 @@ export interface CanvasVisualReviewRequestDTO {
   sessionId: string;
   requestId?: string;
   sourceRunId: string;
+  parentRunId: string;
+  visualRepairRound: number;
   diagramId: string;
   expectedVersion: number;
   beforeContentHash?: string;

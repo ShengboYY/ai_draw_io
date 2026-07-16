@@ -11,6 +11,8 @@ public class CanvasVisualReviewRequestDTO {
     private String modelCredentialId;
     private String requestId;
     private String sourceRunId;
+    private String parentRunId;
+    private Integer visualRepairRound;
     private String diagramId;
     private Long expectedVersion;
     private String beforeContentHash;

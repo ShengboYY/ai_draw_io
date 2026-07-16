@@ -34,6 +34,24 @@ public interface IAgentUsageTelemetryMapper {
 
     int insertTraceEvent(AgentTraceEventPO event);
 
+    int tryClaimVisualRepair(@Param("id") String id,
+                             @Param("sourceRunId") String sourceRunId,
+                             @Param("userId") String userId,
+                             @Param("diagramId") String diagramId,
+                             @Param("requestId") String requestId,
+                             @Param("reviewedVersion") Long reviewedVersion,
+                             @Param("reviewedCanvasHash") String reviewedCanvasHash,
+                             @Param("metadataJson") String metadataJson,
+                             @Param("occurredAt") Date occurredAt);
+
+    int countVisualRepairResult(@Param("id") String id,
+                                @Param("sourceRunId") String sourceRunId,
+                                @Param("repairRunId") String repairRunId,
+                                @Param("userId") String userId,
+                                @Param("diagramId") String diagramId,
+                                @Param("repairedVersion") Long repairedVersion,
+                                @Param("repairedCanvasHash") String repairedCanvasHash);
+
     int insertDiagramSnapshot(DiagramTraceSnapshotPO snapshot);
 
     int backfillDiagramSnapshotThumbnail(@Param("diagramId") String diagramId,

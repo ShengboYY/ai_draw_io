@@ -203,6 +203,8 @@ export interface MetaChunk {
     requestId?: string;
     runId?: string;
     sourceRunId?: string;
+    parentRunId?: string;
+    visualRepairRound?: number;
     visualReviewRunId?: string;
 }
 
@@ -238,6 +240,8 @@ export interface ReviewStartedChunk {
     type: 'review_started';
     stage: 'CURRENT_CANVAS' | 'POST_MUTATION' | 'VERIFY_ONLY';
     sourceRunId?: string;
+    parentRunId?: string;
+    visualRepairRound?: number;
     visualReviewRunId?: string;
 }
 

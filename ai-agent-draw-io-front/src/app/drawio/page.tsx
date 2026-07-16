@@ -84,6 +84,7 @@ import {
 import {
   buildCanvasVisualReviewRequest,
   canStartPostMutationReview,
+  shouldShowUnavailableReview,
   shouldRunFinalVerification,
 } from './visual-review-chain';
 
@@ -2251,12 +2252,27 @@ function DrawioPageContent() {
           const reviewStepKey = `visual-review:${reviewRequest.stage}`;
           const reviewStepLabel = visualReviewStageLabel(reviewRequest.stage, useChinese);
           let settled = false;
+          let hasReviewPresentation = false;
           const finish = () => {
             if (settled) return;
             settled = true;
             resolve(outcome);
           };
+          const finishRepairWithoutSave = (detail: string) => {
+            if (outcome.decision !== 'REPAIR') return;
+            updateStep('visual-repair', 'visual_repair', visualReviewStageLabel('REPAIR', useChinese), detail, true, true);
+            publishSteps();
+            upsertRunEvent('visual-repair', {
+              phase: 'revising',
+              title: 'Visual repair',
+              detail,
+              status: 'warning',
+              tone: 'review',
+            });
+          };
           const showUnavailableReview = () => {
+            // A later repair transport failure must not erase VLM findings already shown to the user.
+            if (!shouldShowUnavailableReview(hasReviewPresentation)) return;
             const unavailableReview: VisualReviewPresentation = {
               stage: reviewRequest.stage,
               decision: 'UNAVAILABLE',
@@ -2296,6 +2312,7 @@ function DrawioPageContent() {
                 return;
               }
               if (chunk.type === 'review_result') {
+                hasReviewPresentation = true;
                 outcome.decision = chunk.decision;
                 const review: VisualReviewPresentation = {
                   stage: chunk.stage || reviewRequest.stage,
@@ -2334,6 +2351,7 @@ function DrawioPageContent() {
                 return;
               }
               if (chunk.type === 'review_stale') {
+                hasReviewPresentation = true;
                 outcome.decision = 'STALE';
                 const staleReview: VisualReviewPresentation = {
                   stage: reviewRequest.stage,
@@ -2388,11 +2406,29 @@ function DrawioPageContent() {
                 });
                 return;
               }
+              if (chunk.type === 'mutation_rejected') {
+                finishRepairWithoutSave(useChinese
+                  ? `视觉修复未通过安全检查（${chunk.reason || chunk.status}），已保留原画布。`
+                  : `The visual repair failed the safety check (${chunk.reason || chunk.status}); the original canvas was kept.`);
+                return;
+              }
+              if (chunk.type === 'version_conflict') {
+                finishRepairWithoutSave(useChinese
+                  ? '视觉修复期间画布版本已变化，已跳过本次修复。'
+                  : 'The canvas changed during visual repair, so this repair was skipped.');
+                return;
+              }
               if (chunk.type === 'error') {
+                finishRepairWithoutSave(useChinese
+                  ? '视觉修复暂时不可用，当前画布已保留。'
+                  : 'Visual repair is temporarily unavailable; the current canvas was kept.');
                 showUnavailableReview();
               }
             },
             () => {
+              finishRepairWithoutSave(useChinese
+                ? '视觉修复请求失败，当前画布已保留。'
+                : 'The visual repair request failed; the current canvas was kept.');
               showUnavailableReview();
               finish();
             },
@@ -2424,6 +2460,8 @@ function DrawioPageContent() {
           sessionId: activeBackendSessionId,
           requestId: nextReviewRequestId(),
           sourceRunId,
+          parentRunId: sourceRunId,
+          visualRepairRound: 0,
           diagramId: finalDiagramId,
           expectedVersion: finalVersion,
           beforeContentHash: activeSession?.canvasContentHash,
@@ -2438,6 +2476,8 @@ function DrawioPageContent() {
         const repaired = reviewed.repairedCanvas;
         if (!repaired || !shouldRunFinalVerification({
           decision: reviewed.decision,
+          reviewedVersion: finalVersion,
+          reviewedContentHash: finalContentHash,
           version: repaired.version,
           contentHash: repaired.contentHash,
         })) return;
@@ -2452,7 +2492,9 @@ function DrawioPageContent() {
           agentId: selectedAgentId,
           sessionId: activeBackendSessionId,
           requestId: nextReviewRequestId(),
-          sourceRunId: reviewed.repairRunId || reviewed.visualReviewRunId || sourceRunId,
+          sourceRunId,
+          parentRunId: reviewed.repairRunId || reviewed.visualReviewRunId || sourceRunId,
+          visualRepairRound: 1,
           diagramId: repaired.diagramId,
           expectedVersion: repaired.version,
           beforeContentHash: repaired.contentHashBeforeRepair,
@@ -2705,7 +2747,10 @@ function DrawioPageContent() {
                     canvasLoaded,
                   }).catch(error => {
                     console.warn('Post-draw visual review failed open:', error);
-                    recordVisualReview({ stage: 'POST_MUTATION', decision: 'UNAVAILABLE' });
+                    const hasPostMutationReview = visualReviews.some(review => review.stage === 'POST_MUTATION');
+                    if (shouldShowUnavailableReview(hasPostMutationReview)) {
+                      recordVisualReview({ stage: 'POST_MUTATION', decision: 'UNAVAILABLE' });
+                    }
                   });
                 }
               }

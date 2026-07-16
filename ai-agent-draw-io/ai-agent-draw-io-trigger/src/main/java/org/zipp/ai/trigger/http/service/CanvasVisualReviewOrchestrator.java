@@ -2,6 +2,7 @@ package org.zipp.ai.trigger.http.service;
 
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.beans.factory.annotation.Value;
@@ -43,11 +44,14 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.UUID;
+import java.util.regex.Pattern;
 
 @Service
+@Slf4j
 public class CanvasVisualReviewOrchestrator {
 
     public static final String RENDERER_VERSION = "drawio-embed-png-v1";
+    private static final Pattern CORRELATION_ID = Pattern.compile("^[A-Za-z0-9._:-]{8,128}$");
     private static final AgentUsageTelemetryService NOOP_TELEMETRY =
             new AgentUsageTelemetryService(null, Clock.systemUTC());
 
@@ -89,8 +93,15 @@ public class CanvasVisualReviewOrchestrator {
                        ResponseBodyEmitter emitter) {
         try {
             validateRequest(ownerId, request);
+            log.info("[visual-review-loop] event=request reviewRunId={} sourceRunId={} parentRunId={} repairRound={} stage={} diagramId={} expectedVersion={} expectedHash={} shadow={}",
+                    logValue(visualReviewRunId), logValue(request.getSourceRunId()),
+                    logValue(request.getParentRunId()), visualRepairRound(request), request.getStage(),
+                    logValue(request.getDiagramId()), request.getExpectedVersion(),
+                    logValue(request.getExpectedContentHash()), Boolean.TRUE.equals(request.getShadow()));
             if (!visualReviewEnabled()) {
                 // Disabled means no provider call, quota consumption, telemetry run, or user-visible review.
+                log.info("[visual-review-loop] event=complete reviewRunId={} stage={} repairRound={} outcome=disabled",
+                        logValue(visualReviewRunId), request.getStage(), visualRepairRound(request));
                 sendMeta(emitter, visualReviewRunId, request);
                 sendDone(emitter, visualReviewRunId, request.getSourceRunId());
                 emitter.complete();
@@ -104,12 +115,24 @@ public class CanvasVisualReviewOrchestrator {
                     ownerId, visualReviewRunId, request, emitter, before, after, stage);
             if (continuation == null) return;
             // The continuation owns a separate run while reusing the original Drawer agent and session.
+            log.info("[visual-review-loop] event=drawer_continuation reviewRunId={} repairRunId={} sourceRunId={} parentRunId={} repairRound={} diagramId={} expectedVersion={} expectedHash={} authorizedCells={}",
+                    logValue(visualReviewRunId), logValue(continuation.request().getRunId()),
+                    logValue(continuation.request().getSourceRunId()), logValue(continuation.request().getParentRunId()),
+                    continuation.request().getVisualRepairRound(), logValue(continuation.request().getDiagramId()),
+                    continuation.request().getExpectedVersion(), logValue(continuation.request().getExpectedContentHash()),
+                    continuation.context().authorization().allowedCellIds().size());
             agentConversationService.continueDrawing(
                     continuation.request(), continuation.context(), emitter);
         } catch (IllegalArgumentException e) {
+            log.warn("[visual-review-loop] event=rejected reviewRunId={} errorClass={}",
+                    logValue(visualReviewRunId), e.getClass().getSimpleName());
             sendErrorAndComplete(emitter, "invalid_visual_review_request", e.getMessage());
         } catch (Exception e) {
             // VLM/provider details and image content must never be copied into the client error.
+            log.warn("[visual-review-loop] event=failed reviewRunId={} sourceRunId={} stage={} repairRound={} errorClass={}",
+                    logValue(visualReviewRunId), logValue(request == null ? null : request.getSourceRunId()),
+                    request == null ? "" : logValue(request.getStage()),
+                    request == null ? -1 : visualRepairRound(request), e.getClass().getSimpleName());
             sendErrorAndComplete(emitter, "visual_review_failed", "Visual review could not be completed.");
         }
     }
@@ -138,6 +161,18 @@ public class CanvasVisualReviewOrchestrator {
                 emitter.complete();
                 return null;
             }
+            if (stage == CanvasVisualReviewStage.VERIFY_ONLY) {
+                boolean verifiedLineage = telemetryService().isVisualRepairResult(
+                        request.getSourceRunId(), request.getParentRunId(), ownerId, request.getDiagramId(),
+                        request.getExpectedVersion(), request.getExpectedContentHash());
+                log.info("[visual-review-loop] event=verify_lineage reviewRunId={} sourceRunId={} parentRunId={} diagramId={} version={} hash={} verified={}",
+                        logValue(visualReviewRunId), logValue(request.getSourceRunId()),
+                        logValue(request.getParentRunId()), logValue(request.getDiagramId()),
+                        request.getExpectedVersion(), logValue(request.getExpectedContentHash()), verifiedLineage);
+                if (!verifiedLineage) {
+                    throw new IllegalArgumentException("invalid_visual_repair_lineage");
+                }
+            }
 
             // A visual review is a distinct model call and consumes the same owner quota as chat model work.
             anonymousDemoQuotaService.consumeIfNeeded(ownerId, null);
@@ -159,7 +194,7 @@ public class CanvasVisualReviewOrchestrator {
             }
 
             CanvasVisualReviewDecision decision = policy.decide(
-                    result, stage, stage == CanvasVisualReviewStage.VERIFY_ONLY ? 1 : 0);
+                    result, stage, visualRepairRound(request));
             CanvasMutationAuthorization authorization = repairAuthorization(analysis, result);
             boolean shadow = Boolean.TRUE.equals(request.getShadow());
             if (!shadow && decision == CanvasVisualReviewDecision.REPAIR
@@ -171,6 +206,25 @@ public class CanvasVisualReviewOrchestrator {
                 // Visible-review rollout reports the same evidence without granting mutation authority.
                 decision = CanvasVisualReviewDecision.NEEDS_HUMAN_REVIEW;
             }
+            String repairRunId = !shadow && decision == CanvasVisualReviewDecision.REPAIR
+                    ? "aru_repair_" + UUID.randomUUID() : null;
+            if (!shadow && decision == CanvasVisualReviewDecision.REPAIR) {
+                boolean claimed = telemetryService().tryClaimVisualRepair(
+                        request.getSourceRunId(), ownerId, request.getDiagramId(), request.getRequestId(),
+                        request.getExpectedVersion(), request.getExpectedContentHash(), repairRunId);
+                log.info("[visual-review-loop] event=repair_claim reviewRunId={} sourceRunId={} diagramId={} granted={}",
+                        logValue(visualReviewRunId), logValue(request.getSourceRunId()),
+                        logValue(request.getDiagramId()), claimed);
+                if (!claimed) {
+                    // Missing ownership and replayed source runs both fail closed without mutating the canvas.
+                    decision = CanvasVisualReviewDecision.NEEDS_HUMAN_REVIEW;
+                }
+            }
+            log.info("[visual-review-loop] event=decision reviewRunId={} sourceRunId={} repairRound={} stage={} available={} decision={} issues={} authorizedCells={} latencyMs={}",
+                    logValue(visualReviewRunId), logValue(request.getSourceRunId()), visualRepairRound(request),
+                    request.getStage(), result != null && result.isAvailable(), decision,
+                    result == null ? 0 : result.safeIssues().size(), authorization.allowedCellIds().size(),
+                    reviewLatencyMs);
             Map<String, Object> completed = completedMetadata(request, result, decision, reviewLatencyMs);
             if (!shadow) {
                 sendReviewResult(emitter, visualReviewRunId, request, result, decision);
@@ -178,12 +232,16 @@ public class CanvasVisualReviewOrchestrator {
             if (shadow || decision != CanvasVisualReviewDecision.REPAIR) {
                 recordReviewEvent(run, result != null && result.isAvailable()
                         ? "visual_review_completed" : "visual_review_unavailable", "SUCCESS", completed);
+                log.info("[visual-review-loop] event=complete reviewRunId={} sourceRunId={} repairRound={} stage={} outcome={}",
+                        logValue(visualReviewRunId), logValue(request.getSourceRunId()), visualRepairRound(request),
+                        request.getStage(), shadow ? "shadow" : decision.name());
                 sendDone(emitter, visualReviewRunId, request.getSourceRunId());
                 emitter.complete();
                 return null;
             }
 
-            ChatRequestDTO repair = repairRequest(ownerId, request, latestState, result);
+            ChatRequestDTO repair = repairRequest(
+                    ownerId, visualReviewRunId, repairRunId, request, latestState, result);
             completed.put("autoRepairAttempted", true);
             completed.put("repairRunId", repair.getRunId());
             recordReviewEvent(run, "visual_review_completed", "SUCCESS", completed);
@@ -244,6 +302,8 @@ public class CanvasVisualReviewOrchestrator {
     private Map<String, Object> baseMetadata(CanvasVisualReviewRequestDTO request) {
         Map<String, Object> metadata = new LinkedHashMap<>();
         metadata.put("sourceRunId", request.getSourceRunId());
+        metadata.put("parentRunId", StringUtils.defaultString(request.getParentRunId()));
+        metadata.put("visualRepairRound", visualRepairRound(request));
         metadata.put("stage", request.getStage());
         metadata.put("expectedVersion", request.getExpectedVersion());
         metadata.put("beforeCanvasHash", StringUtils.defaultString(request.getBeforeContentHash()));
@@ -283,6 +343,11 @@ public class CanvasVisualReviewOrchestrator {
         metadata.put("currentVersion", current == null ? -1 : current.getVersion());
         metadata.put("currentCanvasHash", current == null ? "" : StringUtils.defaultString(current.getContentHash()));
         recordReviewEvent(run, "visual_review_stale", "SUCCESS", metadata);
+        log.info("[visual-review-loop] event=stale reviewRunId={} sourceRunId={} repairRound={} stage={} detectedAt={} expectedVersion={} currentVersion={} expectedHash={} currentHash={}",
+                logValue(run.getContext().runId()), logValue(request.getSourceRunId()), visualRepairRound(request),
+                request.getStage(), detectedAt, request.getExpectedVersion(),
+                current == null ? null : current.getVersion(), logValue(request.getExpectedContentHash()),
+                logValue(current == null ? null : current.getContentHash()));
     }
 
     private void recordReviewEvent(AgentUsageTelemetryService.RunScope run,
@@ -344,18 +409,34 @@ public class CanvasVisualReviewOrchestrator {
                 || StringUtils.isBlank(request.getSessionId()) || StringUtils.isBlank(request.getDiagramId())
                 || request.getExpectedVersion() == null || StringUtils.isBlank(request.getExpectedContentHash())
                 || StringUtils.isBlank(request.getAfterImageDataUrl()) || StringUtils.isBlank(request.getStage())
-                || StringUtils.isBlank(request.getSourceRunId()) || StringUtils.isBlank(request.getOriginalUserTask())
+                || StringUtils.isBlank(request.getSourceRunId()) || StringUtils.isBlank(request.getParentRunId())
+                || request.getVisualRepairRound() == null || StringUtils.isBlank(request.getOriginalUserTask())
                 || !RENDERER_VERSION.equals(request.getRendererVersion())) {
             throw new IllegalArgumentException("missing_or_invalid_fields");
         }
+        if (!CORRELATION_ID.matcher(request.getSourceRunId()).matches()
+                || !CORRELATION_ID.matcher(request.getParentRunId()).matches()) {
+            throw new IllegalArgumentException("invalid_lineage_id");
+        }
+        CanvasVisualReviewStage stage;
         try {
-            CanvasVisualReviewStage.valueOf(request.getStage());
+            stage = CanvasVisualReviewStage.valueOf(request.getStage());
         } catch (Exception e) {
             throw new IllegalArgumentException("invalid_stage", e);
+        }
+        int expectedRound = stage == CanvasVisualReviewStage.VERIFY_ONLY ? 1 : 0;
+        if (request.getVisualRepairRound() != expectedRound) {
+            throw new IllegalArgumentException("invalid_visual_repair_round");
+        }
+        if (stage != CanvasVisualReviewStage.VERIFY_ONLY
+                && !Objects.equals(request.getSourceRunId(), request.getParentRunId())) {
+            throw new IllegalArgumentException("invalid_visual_review_parent");
         }
     }
 
     private ChatRequestDTO repairRequest(String ownerId,
+                                         String visualReviewRunId,
+                                         String repairRunId,
                                          CanvasVisualReviewRequestDTO request,
                                          CanvasState state,
                                          CanvasVisualReviewResult result) {
@@ -367,7 +448,11 @@ public class CanvasVisualReviewOrchestrator {
         repair.setModelCredentialId(request.getModelCredentialId());
         repair.setRequestId("repair_req_" + UUID.randomUUID());
         // Keep the correlation id stable when it crosses the telemetry normalization boundary.
-        repair.setRunId("aru_repair_" + UUID.randomUUID());
+        repair.setRunId(repairRunId);
+        repair.setSourceRunId(request.getSourceRunId());
+        repair.setParentRunId(visualReviewRunId);
+        // The outer loop permits exactly one saved visual repair before VERIFY_ONLY.
+        repair.setVisualRepairRound(1);
         repair.setDiagramId(state.getDiagramId());
         repair.setExpectedVersion(state.getVersion());
         repair.setExpectedContentHash(state.getContentHash());
@@ -420,6 +505,8 @@ public class CanvasVisualReviewOrchestrator {
         JSONObject chunk = chunk("review_started");
         chunk.put("stage", request.getStage());
         chunk.put("sourceRunId", request.getSourceRunId());
+        chunk.put("parentRunId", request.getParentRunId());
+        chunk.put("visualRepairRound", visualRepairRound(request));
         chunk.put("visualReviewRunId", runId);
         chunk.put("beforeImageBytes", before == null ? 0 : before.bytes().length);
         chunk.put("afterImageBytes", after.bytes().length);
@@ -433,6 +520,8 @@ public class CanvasVisualReviewOrchestrator {
                           CanvasVisualReviewRequestDTO request) throws Exception {
         JSONObject chunk = chunk("meta");
         chunk.put("sourceRunId", request.getSourceRunId());
+        chunk.put("parentRunId", request.getParentRunId());
+        chunk.put("visualRepairRound", visualRepairRound(request));
         chunk.put("visualReviewRunId", runId);
         chunk.put("diagramId", request.getDiagramId());
         chunk.put("expectedVersion", request.getExpectedVersion());
@@ -519,5 +608,18 @@ public class CanvasVisualReviewOrchestrator {
         envelope.put("phase", "visual_review");
         envelope.put("chunk", chunk);
         emitter.send(envelope.toJSONString() + "\n");
+    }
+
+    private int visualRepairRound(CanvasVisualReviewRequestDTO request) {
+        Integer requestedRound = request == null ? null : request.getVisualRepairRound();
+        if (requestedRound != null) {
+            return requestedRound;
+        }
+        return request != null && CanvasVisualReviewStage.VERIFY_ONLY.name().equals(request.getStage()) ? 1 : 0;
+    }
+
+    private String logValue(String value) {
+        String compact = StringUtils.defaultString(value).replaceAll("[\\r\\n\\t]+", " ").trim();
+        return compact.length() <= 160 ? compact : compact.substring(0, 160) + "...";
     }
 }

@@ -175,6 +175,48 @@
         )
     </insert>
 
+    <!-- The deterministic primary key makes this a cross-instance, restart-safe one-shot claim. -->
+    <insert id="tryClaimVisualRepair">
+        INSERT IGNORE INTO agent_trace_event (
+            id, run_id, parent_id, request_id, user_id, sequence_no, event_type, phase, status, metadata_json, occurred_at
+        )
+        SELECT
+            #{id}, r.id, r.id, #{requestId}, r.user_id, 0, 'visual_repair_claimed', 'review', 'SUCCESS',
+            #{metadataJson},
+            #{occurredAt}
+        FROM agent_run r
+        INNER JOIN agent_diagram_trace_snapshot s
+            ON s.run_id = r.id
+            AND s.diagram_id = #{diagramId}
+            AND s.version = #{reviewedVersion}
+            AND s.canvas_hash = #{reviewedCanvasHash}
+        WHERE r.id = #{sourceRunId}
+          AND r.user_id = #{userId}
+          AND r.diagram_id = #{diagramId}
+    </insert>
+
+    <select id="countVisualRepairResult" resultType="int">
+        SELECT COUNT(*)
+        FROM agent_trace_event claim
+        INNER JOIN agent_run source
+            ON source.id = claim.run_id
+            AND source.user_id = #{userId}
+            AND source.diagram_id = #{diagramId}
+        INNER JOIN agent_run repair
+            ON repair.id = #{repairRunId}
+            AND repair.user_id = #{userId}
+            AND repair.diagram_id = #{diagramId}
+        INNER JOIN agent_diagram_trace_snapshot repaired
+            ON repaired.run_id = repair.id
+            AND repaired.diagram_id = #{diagramId}
+            AND repaired.version = #{repairedVersion}
+            AND repaired.canvas_hash = #{repairedCanvasHash}
+        WHERE claim.id = #{id}
+          AND claim.run_id = #{sourceRunId}
+          AND claim.event_type = 'visual_repair_claimed'
+          AND JSON_UNQUOTE(JSON_EXTRACT(claim.metadata_json, '$.repairRunId')) = #{repairRunId}
+    </select>
+
     <insert id="insertDiagramSnapshot" parameterType="org.zipp.ai.infrastructure.dao.po.DiagramTraceSnapshotPO">
         INSERT INTO agent_diagram_trace_snapshot (
             id, run_id, span_id, diagram_id, version, canvas_hash, thumbnail_url, summary, changed_cell_count, created_at

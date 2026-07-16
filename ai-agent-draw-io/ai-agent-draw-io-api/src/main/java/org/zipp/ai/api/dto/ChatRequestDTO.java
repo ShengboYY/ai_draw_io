@@ -11,6 +11,10 @@ public class ChatRequestDTO {
     private String requestId;
     // Server-owned correlation id; controllers overwrite any client-provided value before use.
     private String runId;
+    // Visual repair lineage is server-owned and lets logs/telemetry reconstruct the outer loop.
+    private String sourceRunId;
+    private String parentRunId;
+    private Integer visualRepairRound;
     private String diagramId;
     private Long expectedVersion;
     private String expectedContentHash;

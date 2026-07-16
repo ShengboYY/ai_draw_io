@@ -16,26 +16,32 @@ public class CanvasVisualRepairBriefComposer {
                           String reviewedContentHash,
                           List<CanvasVisualIssue> issues) {
         StringBuilder brief = new StringBuilder();
-        brief.append("Perform one scoped visual repair for the original task: ")
-                .append(safeText(originalUserTask, 500))
+        brief.append("[Visual Review Continuation]\n")
+                .append("This is reviewer feedback for the existing Draw Agent session, not a new user request.\n")
+                .append("Original task: ")
+                .append(safeText(originalUserTask, 300))
                 .append("\nReviewed canvas: version=")
                 .append(reviewedVersion == null ? "unknown" : reviewedVersion)
                 .append(", contentHash=")
                 .append(safeText(reviewedContentHash, 100))
-                .append("\nFix only these visible issues:\n");
+                .append("\nReviewer evidence (maximum 3 issues):\n");
 
         List<CanvasVisualIssue> safeIssues = issues == null ? Collections.emptyList() : issues;
         for (int index = 0; index < Math.min(3, safeIssues.size()); index++) {
             CanvasVisualIssue issue = safeIssues.get(index).boundedCopy();
             brief.append(index + 1).append(". ")
                     .append(issue.getType()).append("/").append(issue.getSeverity())
-                    .append("; anchors=").append(issue.getAnchorLabels())
+                    .append("; anchors=").append(safeText(String.valueOf(issue.getAnchorLabels()), 180))
                     .append("; region=").append(issue.getRegion())
-                    .append("; evidence=").append(safeText(issue.getEvidence(), 300))
-                    .append("; instruction=").append(safeText(issue.getRepairInstruction(), 300))
+                    .append("; evidence=").append(safeText(issue.getEvidence(), 180))
+                    .append("; suggestedFix=").append(safeText(issue.getRepairInstruction(), 180))
                     .append("\n");
         }
-        brief.append("Preserve every unmentioned id, label, relationship, geometry, and style.");
+        brief.append("Constraints:\n")
+                .append("- Make one bounded repair.\n")
+                .append("- Preserve every unmentioned id, label, relationship, geometry, and style.\n")
+                .append("- Use modify_diagram for precise cell patches or optimize_diagram for non-semantic layout/routing.\n")
+                .append("- Never call create_diagram; stop after one saved mutation.");
         return brief.toString();
     }
 

@@ -484,6 +484,13 @@ public class DrawioStreamResponseWriter {
                         context.diagramId(),
                         context.expectedVersion(),
                         context.expectedContentHash()));
+                CanvasState savedState = decision.saveResult() == null ? null : decision.saveResult().getState();
+                // One line per final candidate is enough to reconstruct save, reject, and stale outcomes.
+                log.info("[canvas-mutation] event=evaluated runId={} spanId={} purpose={} diagramId={} expectedVersion={} status={} reason={} changedCells={} savedVersion={} savedHash={}",
+                        logValue(context.runId()), logValue(context.spanId()), context.purpose(), logValue(context.diagramId()),
+                        context.expectedVersion(), decision.status(), decision.rejectionReason(),
+                        decision.changedCellIds().size(), savedState == null ? null : savedState.getVersion(),
+                        savedState == null ? "" : savedState.getContentHash());
                 if (decision.status() == CanvasMutationStatus.STALE_VERSION) {
                     sendVersionConflict(emitter, phase, context, decision.currentState());
                     return;
@@ -986,6 +993,11 @@ public class DrawioStreamResponseWriter {
         return error instanceof java.io.IOException
                 || (error.getMessage() != null && error.getMessage().contains("Broken pipe"))
                 || error.getCause() instanceof java.io.IOException;
+    }
+
+    private String logValue(String value) {
+        String compact = StringUtils.defaultString(value).replaceAll("[\\r\\n\\t]+", " ").trim();
+        return compact.length() <= 160 ? compact : compact.substring(0, 160) + "...";
     }
 
     private static class PendingDiagram {

@@ -32,10 +32,26 @@ export const buildCanvasVisualReviewRequest = (
 
 export const shouldRunFinalVerification = ({
   decision,
+  reviewedVersion,
+  reviewedContentHash,
   version,
   contentHash,
 }: {
   decision?: string;
+  reviewedVersion?: number;
+  reviewedContentHash?: string;
   version?: number;
   contentHash?: string;
-}) => decision === 'REPAIR' && Number.isFinite(version) && Boolean(contentHash?.trim());
+}) => decision === 'REPAIR'
+  && typeof reviewedVersion === 'number'
+  && Number.isFinite(reviewedVersion)
+  && typeof version === 'number'
+  && Number.isFinite(version)
+  && version > reviewedVersion
+  && Boolean(reviewedContentHash?.trim())
+  && Boolean(contentHash?.trim())
+  && contentHash !== reviewedContentHash;
+
+export const shouldShowUnavailableReview = (hasReviewPresentation: boolean) => (
+  !hasReviewPresentation
+);

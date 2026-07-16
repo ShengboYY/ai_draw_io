@@ -218,6 +218,11 @@ public class AgentConversationService {
     public void continueDrawing(ChatRequestDTO requestDTO,
                                 DrawerContinuationContext continuation,
                                 ResponseBodyEmitter emitter) {
+        log.info("[drawer-continuation] event=start runId={} sourceRunId={} parentRunId={} repairRound={} diagramId={} expectedVersion={} expectedHash={}",
+                logValue(requestDTO.getRunId()), logValue(requestDTO.getSourceRunId()),
+                logValue(requestDTO.getParentRunId()), requestDTO.getVisualRepairRound(),
+                logValue(requestDTO.getDiagramId()), requestDTO.getExpectedVersion(),
+                logValue(requestDTO.getExpectedContentHash()));
         // Visual review is feedback on an already-routed task. Continue the same Drawer loop without
         // asking the intent model to reinterpret the server-authored feedback as a new user request.
         IntentRoutingResult continuationRoute = new IntentRoutingResult();
@@ -708,6 +713,12 @@ public class AgentConversationService {
         metadata.put("hasCanvasXml", StringUtils.isNotBlank(requestDTO == null ? null : requestDTO.getCanvasXml()));
         metadata.put("hasDiagramId", StringUtils.isNotBlank(requestDTO == null ? null : requestDTO.getDiagramId()));
         metadata.put("hasSavedCredential", StringUtils.isNotBlank(requestDTO == null ? null : requestDTO.getModelCredentialId()));
+        if (requestDTO != null && StringUtils.isNotBlank(requestDTO.getSourceRunId())) {
+            // Correlation fields contain no prompt/XML and make repair runs traceable to the original draw.
+            metadata.put("sourceRunId", requestDTO.getSourceRunId());
+            metadata.put("parentRunId", StringUtils.defaultString(requestDTO.getParentRunId()));
+            metadata.put("visualRepairRound", requestDTO.getVisualRepairRound());
+        }
         return metadata;
     }
 

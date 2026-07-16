@@ -25,6 +25,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.Callable;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.RejectedExecutionException;
@@ -45,6 +46,8 @@ public class AgentUsageTelemetryService {
     private static final String FAILED = "FAILED";
     private static final int MAX_METADATA_JSON_LENGTH = 2_000;
     private static final int TELEMETRY_QUEUE_CAPACITY = 10_000;
+    private static final int VISUAL_REPAIR_VERIFY_ATTEMPTS = 5;
+    private static final long VISUAL_REPAIR_VERIFY_RETRY_MS = 75L;
 
     private final IAgentUsageTelemetryStore telemetryStore;
     private final Clock clock;
@@ -289,6 +292,93 @@ public class AgentUsageTelemetryService {
                 .changedCellCount(changedCellCount)
                 .createdAt(createdAt)
                 .build()), state.getUserId());
+    }
+
+    /**
+     * Serializes the durable claim behind earlier telemetry writes, so the source run is visible
+     * before the database atomically grants its only automatic visual-repair attempt.
+     */
+    public boolean tryClaimVisualRepair(String sourceRunId,
+                                        String userId,
+                                        String diagramId,
+                                        String requestId,
+                                        Long reviewedVersion,
+                                        String reviewedCanvasHash,
+                                        String repairRunId) {
+        if (telemetryStore == null || reviewedVersion == null
+                || StringUtils.isAnyBlank(sourceRunId, userId, diagramId, reviewedCanvasHash, repairRunId)) {
+            return false;
+        }
+        return Boolean.TRUE.equals(awaitStoreDecision(() -> telemetryStore.tryClaimVisualRepair(
+                        sourceRunId, userId, diagramId, blankToNull(requestId), reviewedVersion,
+                        reviewedCanvasHash, repairRunId, clock.instant()), userId, "claim"));
+    }
+
+    public boolean isVisualRepairResult(String sourceRunId,
+                                        String repairRunId,
+                                        String userId,
+                                        String diagramId,
+                                        Long repairedVersion,
+                                        String repairedCanvasHash) {
+        if (telemetryStore == null || repairedVersion == null
+                || StringUtils.isAnyBlank(sourceRunId, repairRunId, userId, diagramId, repairedCanvasHash)) {
+            return false;
+        }
+        for (int attempt = 1; attempt <= VISUAL_REPAIR_VERIFY_ATTEMPTS; attempt++) {
+            Boolean verified = awaitStoreDecision(() -> telemetryStore.isVisualRepairResult(
+                            sourceRunId, repairRunId, userId, diagramId, repairedVersion, repairedCanvasHash),
+                    userId, "verification");
+            if (Boolean.TRUE.equals(verified)) {
+                return true;
+            }
+            if (verified == null) {
+                return false;
+            }
+            if (attempt < VISUAL_REPAIR_VERIFY_ATTEMPTS && !pauseForRepairVisibility(userId)) {
+                return false;
+            }
+        }
+        return false;
+    }
+
+    private boolean pauseForRepairVisibility(String userId) {
+        try {
+            TimeUnit.MILLISECONDS.sleep(VISUAL_REPAIR_VERIFY_RETRY_MS);
+            return true;
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            org.slf4j.LoggerFactory.getLogger(AgentUsageTelemetryService.class)
+                    .warn("Visual repair verification retry interrupted. userId:{}",
+                            SecretLogSanitizer.maskCapability(userId));
+            return false;
+        }
+    }
+
+    private Boolean awaitStoreDecision(Callable<Boolean> operation, String userId, String operationName) {
+        CompletableFuture<Boolean> result = new CompletableFuture<>();
+        try {
+            writeExecutor.execute(() -> {
+                try {
+                    result.complete(operation.call());
+                } catch (Exception e) {
+                    result.completeExceptionally(e);
+                }
+            });
+            return result.get(5, TimeUnit.SECONDS);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            metrics.recordTelemetryWriteDropped();
+            org.slf4j.LoggerFactory.getLogger(AgentUsageTelemetryService.class)
+                    .warn("Visual repair {} interrupted. userId:{}", operationName,
+                            SecretLogSanitizer.maskCapability(userId));
+            return null;
+        } catch (Exception e) {
+            metrics.recordTelemetryWriteDropped();
+            org.slf4j.LoggerFactory.getLogger(AgentUsageTelemetryService.class)
+                    .warn("Visual repair {} failed. userId:{} errorClass:{}", operationName,
+                            SecretLogSanitizer.maskCapability(userId), e.getClass().getSimpleName());
+            return null;
+        }
     }
 
     /**

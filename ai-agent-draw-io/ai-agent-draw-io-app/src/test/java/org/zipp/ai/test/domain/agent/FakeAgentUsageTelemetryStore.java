@@ -15,6 +15,7 @@ import org.zipp.ai.domain.agent.service.usage.IAgentUsageTelemetryStore;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -28,6 +29,7 @@ public class FakeAgentUsageTelemetryStore implements IAgentUsageTelemetryStore {
     public final List<ToolCallTelemetry> toolCalls = new ArrayList<>();
     public final List<AgentTraceEvent> traceEvents = new ArrayList<>();
     public final List<AgentDiagramTraceSnapshot> diagramSnapshots = new ArrayList<>();
+    private final Map<String, VisualRepairClaim> visualRepairClaims = new HashMap<>();
     public Instant deletedBeforeCutoff;
     public int deletedBeforeCount;
 
@@ -72,6 +74,44 @@ public class FakeAgentUsageTelemetryStore implements IAgentUsageTelemetryStore {
     @Override
     public void insertDiagramSnapshot(AgentDiagramTraceSnapshot snapshot) {
         diagramSnapshots.add(snapshot);
+    }
+
+    @Override
+    public synchronized boolean tryClaimVisualRepair(String sourceRunId,
+                                                     String userId,
+                                                     String diagramId,
+                                                     String requestId,
+                                                     Long reviewedVersion,
+                                                     String reviewedCanvasHash,
+                                                     String repairRunId,
+                                                     Instant occurredAt) {
+        boolean ownsSourceRun = runs.stream().anyMatch(run -> sourceRunId.equals(run.getId())
+                && userId.equals(run.getUserId()) && diagramId.equals(run.getDiagramId()));
+        boolean ownsReviewedSnapshot = diagramSnapshots.stream().anyMatch(snapshot -> sourceRunId.equals(snapshot.getRunId())
+                && diagramId.equals(snapshot.getDiagramId()) && reviewedVersion.equals(snapshot.getVersion())
+                && reviewedCanvasHash.equals(snapshot.getCanvasHash()));
+        return ownsSourceRun && ownsReviewedSnapshot
+                && visualRepairClaims.putIfAbsent(sourceRunId, new VisualRepairClaim(repairRunId)) == null;
+    }
+
+    @Override
+    public synchronized boolean isVisualRepairResult(String sourceRunId,
+                                                     String repairRunId,
+                                                     String userId,
+                                                     String diagramId,
+                                                     Long repairedVersion,
+                                                     String repairedCanvasHash) {
+        VisualRepairClaim claim = visualRepairClaims.get(sourceRunId);
+        boolean ownsRepairRun = runs.stream().anyMatch(run -> repairRunId.equals(run.getId())
+                && userId.equals(run.getUserId()) && diagramId.equals(run.getDiagramId()));
+        boolean ownsRepairedSnapshot = diagramSnapshots.stream().anyMatch(snapshot -> repairRunId.equals(snapshot.getRunId())
+                && diagramId.equals(snapshot.getDiagramId()) && repairedVersion.equals(snapshot.getVersion())
+                && repairedCanvasHash.equals(snapshot.getCanvasHash()));
+        return claim != null && repairRunId.equals(claim.repairRunId())
+                && ownsRepairRun && ownsRepairedSnapshot;
+    }
+
+    private record VisualRepairClaim(String repairRunId) {
     }
 
     @Override
