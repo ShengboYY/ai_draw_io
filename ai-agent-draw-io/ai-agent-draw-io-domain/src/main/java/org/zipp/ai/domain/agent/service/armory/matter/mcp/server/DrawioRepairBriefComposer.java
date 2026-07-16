@@ -108,6 +108,20 @@ final class DrawioRepairBriefComposer {
                     + " so arrowheads do not stack on one node side";
             case PORT_CORNER_PROXIMITY -> "move edge " + first
                     + " away from rounded corners by using side-port tracks between 0.25 and 0.75";
+            case EDGE_EDGE_CROSSING -> "reroute edges " + ids
+                    + " onto separate orthogonal tracks without changing their endpoints";
+            case EDGE_COLLINEAR_OVERLAP -> "separate the overlapping segments on edges " + ids
+                    + " by assigning distinct tracks";
+            case PROTECTED_LANE_INTRUSION -> "move return edge " + first
+                    + " out of the protected main-flow lane";
+            case RETURN_GUTTER_VIOLATION -> "route return edge " + first
+                    + " through an outer gutter beyond the content bounds";
+            case EDGE_DIRECTION_MISMATCH -> "make edge " + first
+                    + " follow the selected layout direction or mark it as an explicit return path";
+            case AMBIGUOUS_EDGE_TRACE -> "simplify edge " + first
+                    + " and separate it from the listed conflicting edges " + ids;
+            case ANALYSIS_LIMITATION -> "add explicit ports or waypoints to edge " + first
+                    + " before attempting deterministic geometric repair";
         };
     }
 }

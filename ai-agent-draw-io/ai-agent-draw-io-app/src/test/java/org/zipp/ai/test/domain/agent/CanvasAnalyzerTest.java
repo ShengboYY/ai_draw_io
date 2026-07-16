@@ -74,7 +74,9 @@ public class CanvasAnalyzerTest {
                 """, "unknown");
 
         assertTrue(analysis.isValid());
-        assertTrue(analysis.getIssues().isEmpty());
+        assertEquals("freeform geometry rules stay disabled while unsupported curves remain explicit",
+                List.of(CanvasIssueType.ANALYSIS_LIMITATION),
+                analysis.getIssues().stream().map(CanvasAnalysisIssue::getType).toList());
     }
 
     @Test

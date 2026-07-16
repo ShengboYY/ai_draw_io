@@ -19,7 +19,8 @@ public final class DiagramQualityProfileCatalog {
             CanvasIssueType.INVALID_XML,
             CanvasIssueType.DUP_ID,
             CanvasIssueType.MISSING_GEOMETRY,
-            CanvasIssueType.BROKEN_EDGE);
+            CanvasIssueType.BROKEN_EDGE,
+            CanvasIssueType.ANALYSIS_LIMITATION);
     private static final Set<CanvasIssueType> ROUTE_REPAIR_ISSUES = EnumSet.of(
             CanvasIssueType.EDGE_NODE_CROSSING,
             CanvasIssueType.EDGE_LABEL_COLLISION,

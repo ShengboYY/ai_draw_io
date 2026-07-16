@@ -1,9 +1,6 @@
 package org.zipp.ai.domain.agent.service.analysis;
 
 import org.apache.commons.lang3.StringUtils;
-import org.dom4j.Document;
-import org.dom4j.DocumentHelper;
-import org.dom4j.Element;
 import org.springframework.stereotype.Service;
 import org.zipp.ai.domain.agent.model.valobj.analysis.CanvasAnalysis;
 import org.zipp.ai.domain.agent.model.valobj.analysis.CanvasAnalysisIssue;
@@ -72,20 +69,18 @@ public class DefaultCanvasAnalyzer implements ICanvasAnalyzer {
         }
 
         try {
-            Document document = DocumentHelper.parseText(toGraphModel(mxGraphModelXml));
-            Element root = document.getRootElement().element("root");
-            if (root == null) {
+            CanvasDocumentModel document = CanvasDocumentModel.parse(mxGraphModelXml);
+            if (!document.rootPresent()) {
                 return invalid("mxGraphModel is missing a root element.", profile.diagramType(),
                         resolveLayoutFamily(profile, layoutHint, "grid"), profile);
             }
 
-            List<CanvasCellData> cells = readCells(root);
-            normalizeAbsoluteCoordinates(cells);
-            List<CanvasAnalysisIssue> issues = analyzeIssues(cells).stream()
-                    .filter(issue -> profile.enables(issue.getType()))
-                    .toList();
+            List<CanvasCellData> cells = document.cells();
             String layoutMode = resolveLayoutMode(cells);
             LayoutFamily layoutFamily = resolveLayoutFamily(profile, layoutHint, layoutMode);
+            List<CanvasAnalysisIssue> issues = analyzeIssues(document, profile, layoutFamily).stream()
+                    .filter(issue -> profile.enables(issue.getType()))
+                    .toList();
             return CanvasAnalysis.builder()
                     .valid(!hasBlockingIssue(issues))
                     .severity(resolveSeverity(issues))
@@ -134,106 +129,10 @@ public class DefaultCanvasAnalyzer implements ICanvasAnalyzer {
                 .build();
     }
 
-    private List<CanvasCellData> readCells(Element root) {
-        List<CanvasCellData> cells = new ArrayList<>();
-        for (Object item : root.elements("mxCell")) {
-            Element cell = (Element) item;
-            String id = StringUtils.defaultString(cell.attributeValue("id"));
-            if ("0".equals(id) || "1".equals(id)) {
-                continue;
-            }
-
-            Element geometry = cell.element("mxGeometry");
-            cells.add(CanvasCellData.builder()
-                    .id(id)
-                    .label(cleanLabel(cell.attributeValue("value")))
-                    .kind(resolveKind(cell))
-                    .style(StringUtils.defaultString(cell.attributeValue("style")))
-                    .parentId(StringUtils.defaultString(cell.attributeValue("parent")))
-                    .source(StringUtils.defaultString(cell.attributeValue("source")))
-                    .target(StringUtils.defaultString(cell.attributeValue("target")))
-                    .sourcePoint(readNamedPoint(geometry, "sourcePoint"))
-                    .targetPoint(readNamedPoint(geometry, "targetPoint"))
-                    .points(readWaypoints(geometry))
-                    .x(number(geometry, "x"))
-                    .y(number(geometry, "y"))
-                    .width(number(geometry, "width"))
-                    .height(number(geometry, "height"))
-                    .rawXml(cell.asXML())
-                    .build());
-        }
-        return cells;
-    }
-
-    private CanvasPointData readNamedPoint(Element geometry, String name) {
-        if (geometry == null) {
-            return null;
-        }
-        for (Object item : geometry.elements("mxPoint")) {
-            Element point = (Element) item;
-            if (StringUtils.equals(name, point.attributeValue("as"))) {
-                return point(point);
-            }
-        }
-        return null;
-    }
-
-    private List<CanvasPointData> readWaypoints(Element geometry) {
-        List<CanvasPointData> points = new ArrayList<>();
-        if (geometry == null) {
-            return points;
-        }
-        for (Object item : geometry.elements("Array")) {
-            Element array = (Element) item;
-            if (!StringUtils.equals("points", array.attributeValue("as"))) {
-                continue;
-            }
-            for (Object pointItem : array.elements("mxPoint")) {
-                points.add(point((Element) pointItem));
-            }
-        }
-        return points;
-    }
-
-    private CanvasPointData point(Element point) {
-        return CanvasPointData.builder()
-                .x(number(point, "x"))
-                .y(number(point, "y"))
-                .build();
-    }
-
-    private void normalizeAbsoluteCoordinates(List<CanvasCellData> cells) {
-        // Child mxGeometry values are local to their parent; geometry checks need absolute bounds.
-        Map<String, CanvasCellData> firstCellById = new HashMap<>();
-        for (CanvasCellData cell : cells) {
-            firstCellById.putIfAbsent(cell.getId(), cell);
-        }
-
-        Set<String> resolved = new HashSet<>();
-        for (CanvasCellData cell : cells) {
-            resolvePosition(cell, firstCellById, resolved, new HashSet<>());
-        }
-    }
-
-    private void resolvePosition(CanvasCellData cell,
-                                 Map<String, CanvasCellData> cellById,
-                                 Set<String> resolved,
-                                 Set<String> resolving) {
-        if (cell == null || resolved.contains(cell.getId()) || resolving.contains(cell.getId())) {
-            return;
-        }
-        resolving.add(cell.getId());
-        CanvasCellData parent = cellById.get(cell.getParentId());
-        if (parent != null && "node".equals(parent.getKind())) {
-            resolvePosition(parent, cellById, resolved, resolving);
-            cell.setX(parent.getX() + cell.getX());
-            cell.setY(parent.getY() + cell.getY());
-        }
-        resolving.remove(cell.getId());
-        resolved.add(cell.getId());
-    }
-
-    private List<CanvasAnalysisIssue> analyzeIssues(List<CanvasCellData> cells) {
+    private List<CanvasAnalysisIssue> analyzeIssues(CanvasDocumentModel document,
+                                                    DiagramQualityProfile profile,
+                                                    LayoutFamily layoutFamily) {
+        List<CanvasCellData> cells = document.cells();
         List<CanvasAnalysisIssue> issues = new ArrayList<>();
         if (cells.isEmpty()) {
             issues.add(issue(CanvasIssueType.INVALID_XML, "structure", "critical", List.of(),
@@ -245,27 +144,354 @@ public class DefaultCanvasAnalyzer implements ICanvasAnalyzer {
         if (isFreeformIllustration(cells)) {
             // Freeform art (mascots, scenes) is built from intentionally overlapping,
             // unlabeled shapes; diagram layout heuristics only produce destructive
-            // "repairs" here, so structural validity is the whole contract.
+            // "repairs" here, so only structural validity and analysis limitations apply.
+            detectRouteLimitations(document, issues);
             return issues;
         }
         // Ellipse zone backgrounds (rings, halos) legitimately sit under nodes and edges;
         // computing them once keeps overlap/crossing checks honest for radial layouts.
         Set<String> zoneIds = detectZoneCells(cells);
-        detectNodeOverlaps(cells, zoneIds, issues);
-        detectEdgeNodeCrossings(cells, zoneIds, issues);
-        detectPortDirectionMismatches(cells, issues);
-        detectPortCornerProximity(cells, issues);
-        detectParallelEdgeTrackOverlaps(cells, issues);
-        detectNodeSidePortCrowding(cells, issues);
-        detectRemovableWaypoints(cells, zoneIds, issues);
+        detectNodeOverlaps(document, zoneIds, issues);
+        detectEdgeNodeCrossings(document, zoneIds, issues);
+        detectPortDirectionMismatches(document, issues);
+        detectPortCornerProximity(document, issues);
+        detectParallelEdgeTrackOverlaps(document, issues);
+        detectNodeSidePortCrowding(document, issues);
+        detectRemovableWaypoints(document, zoneIds, issues);
         detectOpaqueTextBackgrounds(cells, issues);
         // Perceptual quality that is computable from geometry alone (no rendering needed).
         detectTextOverflow(cells, issues);
         detectOversizedRegions(cells, issues);
         detectPaletteIncoherence(cells, issues);
         detectUnevenSpacing(cells, zoneIds, issues);
-        detectEdgeLabelCollisions(cells, zoneIds, issues);
+        detectEdgeLabelCollisions(document, zoneIds, issues);
+        detectRouteLimitations(document, issues);
+        detectEdgeRelationships(document, issues);
+        detectReturnLaneIssues(document, profile, layoutFamily, issues);
         return issues;
+    }
+
+    private void detectRouteLimitations(CanvasDocumentModel document, List<CanvasAnalysisIssue> issues) {
+        for (CanvasCellData edge : document.cells()) {
+            if (!"edge".equals(edge.getKind())) {
+                continue;
+            }
+            CanvasDocumentModel.EdgePath path = document.path(edge);
+            if (path.confidence().supportsPreciseGeometry() || path.limitation() == null) {
+                continue;
+            }
+            issues.add(issueWithEvidence(CanvasIssueType.ANALYSIS_LIMITATION, "analysis", "minor",
+                    List.of(edge.getId()),
+                    "Edge " + edge.getId() + " cannot be reconstructed precisely: " + path.limitation() + ".",
+                    "none", path.confidence().score(), Map.of(
+                            "pathConfidence", path.confidence().name(),
+                            "limitation", path.limitation(),
+                            "fingerprintKey", edge.getId() + "|" + path.limitation())));
+        }
+    }
+
+    private void detectEdgeRelationships(CanvasDocumentModel document, List<CanvasAnalysisIssue> issues) {
+        List<CanvasCellData> edges = document.cells().stream()
+                .filter(cell -> "edge".equals(cell.getKind()))
+                .filter(edge -> document.path(edge).confidence().supportsPreciseGeometry())
+                .sorted(Comparator.comparing(CanvasCellData::getId))
+                .toList();
+        Map<String, Set<String>> conflictsByEdge = new HashMap<>();
+
+        for (int i = 0; i < edges.size(); i++) {
+            CanvasCellData left = edges.get(i);
+            for (int j = i + 1; j < edges.size(); j++) {
+                CanvasCellData right = edges.get(j);
+                EdgeRelationship relationship = relationship(document, left, right);
+                if (relationship.overlaps().isEmpty() && relationship.intersections().isEmpty()) {
+                    continue;
+                }
+                CanvasDocumentModel.PathConfidence confidence = minimumConfidence(
+                        document.path(left).confidence(), document.path(right).confidence());
+                List<String> targets = List.of(left.getId(), right.getId());
+                if (!relationship.overlaps().isEmpty()) {
+                    issues.add(issueWithEvidence(CanvasIssueType.EDGE_COLLINEAR_OVERLAP, "geometry", "major",
+                            targets,
+                            "Edges " + left.getId() + " and " + right.getId()
+                                    + " contain collinear overlapping segments.",
+                            "candidate", confidence.score(), Map.of(
+                                    "pathConfidence", confidence.name(),
+                                    "overlaps", relationship.overlaps(),
+                                    "fingerprintKey", stablePair(left.getId(), right.getId()))));
+                }
+                if (!relationship.intersections().isEmpty()) {
+                    issues.add(issueWithEvidence(CanvasIssueType.EDGE_EDGE_CROSSING, "geometry", "major",
+                            targets,
+                            "Edges " + left.getId() + " and " + right.getId() + " cross each other.",
+                            "candidate", confidence.score(), Map.of(
+                                    "pathConfidence", confidence.name(),
+                                    "intersections", relationship.intersections(),
+                                    "fingerprintKey", stablePair(left.getId(), right.getId()))));
+                }
+                conflictsByEdge.computeIfAbsent(left.getId(), ignored -> new LinkedHashSet<>()).add(right.getId());
+                conflictsByEdge.computeIfAbsent(right.getId(), ignored -> new LinkedHashSet<>()).add(left.getId());
+            }
+        }
+
+        conflictsByEdge.forEach((edgeId, conflicts) -> {
+            if (conflicts.size() < 2) {
+                return;
+            }
+            List<String> targets = new ArrayList<>();
+            targets.add(edgeId);
+            targets.addAll(conflicts.stream().sorted().toList());
+            issues.add(issueWithEvidence(CanvasIssueType.AMBIGUOUS_EDGE_TRACE, "readability", "major",
+                    targets,
+                    "Edge " + edgeId + " has multiple geometric conflicts and is difficult to trace.",
+                    "candidate", 0.75D, Map.of(
+                            "conflictCount", conflicts.size(),
+                            "fingerprintKey", edgeId + "|" + String.join(",", conflicts.stream().sorted().toList()))));
+        });
+    }
+
+    private EdgeRelationship relationship(CanvasDocumentModel document,
+                                          CanvasCellData left,
+                                          CanvasCellData right) {
+        List<Map<String, Object>> intersections = new ArrayList<>();
+        List<Map<String, Object>> overlaps = new ArrayList<>();
+        for (CanvasDocumentModel.PathSegment leftSegment : document.segments(left)) {
+            for (CanvasDocumentModel.PathSegment rightSegment : document.segments(right)) {
+                SegmentOverlap overlap = collinearOverlap(leftSegment, rightSegment);
+                if (overlap != null) {
+                    overlaps.add(Map.of(
+                            "leftSegment", leftSegment.index(),
+                            "rightSegment", rightSegment.index(),
+                            "startX", overlap.start().getX(),
+                            "startY", overlap.start().getY(),
+                            "endX", overlap.end().getX(),
+                            "endY", overlap.end().getY()));
+                    continue;
+                }
+                CanvasPointData intersection = intersectionPoint(leftSegment, rightSegment);
+                if (intersection == null || sharedEndpointTouch(document, left, right, intersection)) {
+                    continue;
+                }
+                intersections.add(Map.of(
+                        "leftSegment", leftSegment.index(),
+                        "rightSegment", rightSegment.index(),
+                        "x", intersection.getX(),
+                        "y", intersection.getY()));
+            }
+        }
+        return new EdgeRelationship(List.copyOf(intersections), List.copyOf(overlaps));
+    }
+
+    private SegmentOverlap collinearOverlap(CanvasDocumentModel.PathSegment left,
+                                             CanvasDocumentModel.PathSegment right) {
+        CanvasPointData a = left.start();
+        CanvasPointData b = left.end();
+        CanvasPointData c = right.start();
+        CanvasPointData d = right.end();
+        if (Math.abs(orientation(a, b, c)) > GEOMETRY_EPSILON
+                || Math.abs(orientation(a, b, d)) > GEOMETRY_EPSILON) {
+            return null;
+        }
+        boolean horizontal = Math.abs(b.getX() - a.getX()) >= Math.abs(b.getY() - a.getY());
+        double leftMin = horizontal ? Math.min(a.getX(), b.getX()) : Math.min(a.getY(), b.getY());
+        double leftMax = horizontal ? Math.max(a.getX(), b.getX()) : Math.max(a.getY(), b.getY());
+        double rightMin = horizontal ? Math.min(c.getX(), d.getX()) : Math.min(c.getY(), d.getY());
+        double rightMax = horizontal ? Math.max(c.getX(), d.getX()) : Math.max(c.getY(), d.getY());
+        double overlapStart = Math.max(leftMin, rightMin);
+        double overlapEnd = Math.min(leftMax, rightMax);
+        if (overlapEnd - overlapStart <= OVERLAP_TOLERANCE) {
+            return null;
+        }
+        if (horizontal) {
+            double y = Math.abs(b.getX() - a.getX()) < GEOMETRY_EPSILON
+                    ? a.getY()
+                    : a.getY() + (overlapStart - a.getX()) * (b.getY() - a.getY()) / (b.getX() - a.getX());
+            double endY = Math.abs(b.getX() - a.getX()) < GEOMETRY_EPSILON
+                    ? b.getY()
+                    : a.getY() + (overlapEnd - a.getX()) * (b.getY() - a.getY()) / (b.getX() - a.getX());
+            return new SegmentOverlap(point(overlapStart, y), point(overlapEnd, endY));
+        }
+        double x = Math.abs(b.getY() - a.getY()) < GEOMETRY_EPSILON
+                ? a.getX()
+                : a.getX() + (overlapStart - a.getY()) * (b.getX() - a.getX()) / (b.getY() - a.getY());
+        double endX = Math.abs(b.getY() - a.getY()) < GEOMETRY_EPSILON
+                ? b.getX()
+                : a.getX() + (overlapEnd - a.getY()) * (b.getX() - a.getX()) / (b.getY() - a.getY());
+        return new SegmentOverlap(point(x, overlapStart), point(endX, overlapEnd));
+    }
+
+    private CanvasPointData intersectionPoint(CanvasDocumentModel.PathSegment left,
+                                              CanvasDocumentModel.PathSegment right) {
+        CanvasPointData a = left.start();
+        CanvasPointData b = left.end();
+        CanvasPointData c = right.start();
+        CanvasPointData d = right.end();
+        if (!segmentsIntersect(a, b, c, d)) {
+            return null;
+        }
+        double denominator = (a.getX() - b.getX()) * (c.getY() - d.getY())
+                - (a.getY() - b.getY()) * (c.getX() - d.getX());
+        if (Math.abs(denominator) <= GEOMETRY_EPSILON) {
+            return null;
+        }
+        double determinantLeft = a.getX() * b.getY() - a.getY() * b.getX();
+        double determinantRight = c.getX() * d.getY() - c.getY() * d.getX();
+        double x = (determinantLeft * (c.getX() - d.getX())
+                - (a.getX() - b.getX()) * determinantRight) / denominator;
+        double y = (determinantLeft * (c.getY() - d.getY())
+                - (a.getY() - b.getY()) * determinantRight) / denominator;
+        return point(x, y);
+    }
+
+    private boolean sharedEndpointTouch(CanvasDocumentModel document,
+                                        CanvasCellData left,
+                                        CanvasCellData right,
+                                        CanvasPointData intersection) {
+        boolean sharesEndpoint = StringUtils.equals(left.getSource(), right.getSource())
+                || StringUtils.equals(left.getSource(), right.getTarget())
+                || StringUtils.equals(left.getTarget(), right.getSource())
+                || StringUtils.equals(left.getTarget(), right.getTarget());
+        if (!sharesEndpoint) {
+            return false;
+        }
+        List<CanvasPointData> leftPoints = document.path(left).points();
+        List<CanvasPointData> rightPoints = document.path(right).points();
+        return isPathEndpoint(leftPoints, intersection) && isPathEndpoint(rightPoints, intersection);
+    }
+
+    private boolean isPathEndpoint(List<CanvasPointData> points, CanvasPointData candidate) {
+        return !points.isEmpty()
+                && (samePoint(points.get(0), candidate) || samePoint(points.get(points.size() - 1), candidate));
+    }
+
+    private boolean samePoint(CanvasPointData left, CanvasPointData right) {
+        return Math.abs(left.getX() - right.getX()) <= GEOMETRY_EPSILON
+                && Math.abs(left.getY() - right.getY()) <= GEOMETRY_EPSILON;
+    }
+
+    private void detectReturnLaneIssues(CanvasDocumentModel document,
+                                        DiagramQualityProfile profile,
+                                        LayoutFamily layoutFamily,
+                                        List<CanvasAnalysisIssue> issues) {
+        if ((profile.diagramType() != DiagramType.FLOWCHART && profile.diagramType() != DiagramType.STATE)
+                || (layoutFamily != LayoutFamily.TOP_DOWN && layoutFamily != LayoutFamily.LEFT_RIGHT)) {
+            return;
+        }
+        List<CanvasCellData> nodes = document.cells().stream()
+                .filter(cell -> "node".equals(cell.getKind()))
+                .filter(cell -> cell.getWidth() > 0D && cell.getHeight() > 0D)
+                .filter(cell -> !isTextCell(cell) && !isBoundaryLike(cell))
+                .toList();
+        if (nodes.size() < 2) {
+            return;
+        }
+        Bounds contentBounds = bounds(nodes);
+        boolean topDown = layoutFamily == LayoutFamily.TOP_DOWN;
+        double laneCenter = median(nodes.stream()
+                .mapToDouble(node -> topDown ? node.centerX() : node.centerY())
+                .sorted()
+                .toArray());
+
+        for (CanvasCellData edge : document.cells()) {
+            if (!"edge".equals(edge.getKind())) {
+                continue;
+            }
+            CanvasCellData source = document.cell(edge.getSource());
+            CanvasCellData target = document.cell(edge.getTarget());
+            if (source == null || target == null || !isReverseDirection(source, target, topDown)) {
+                continue;
+            }
+            CanvasDocumentModel.EdgePath path = document.path(edge);
+            if (!path.confidence().supportsPreciseGeometry()) {
+                continue;
+            }
+            if (edge.getPoints() == null || edge.getPoints().isEmpty()) {
+                issues.add(issueWithEvidence(CanvasIssueType.EDGE_DIRECTION_MISMATCH, "geometry", "major",
+                        List.of(edge.getId()),
+                        "Edge " + edge.getId() + " runs against the selected layout without an explicit return route.",
+                        "candidate", path.confidence().score(), Map.of(
+                                "pathConfidence", path.confidence().name(),
+                                "fingerprintKey", edge.getId() + "|reverse")));
+                continue;
+            }
+
+            if (!usesOuterGutter(path.points(), contentBounds, topDown)) {
+                issues.add(issueWithEvidence(CanvasIssueType.RETURN_GUTTER_VIOLATION, "geometry", "major",
+                        List.of(edge.getId()),
+                        "Return edge " + edge.getId() + " stays inside the content bounds instead of an outer gutter.",
+                        "candidate", path.confidence().score(), Map.of(
+                                "pathConfidence", path.confidence().name(),
+                                "contentBounds", boundsEvidence(contentBounds),
+                                "fingerprintKey", edge.getId() + "|return-gutter")));
+            }
+            List<Integer> intrudingSegments = protectedLaneSegments(document.segments(edge), laneCenter, topDown);
+            if (!intrudingSegments.isEmpty()) {
+                issues.add(issueWithEvidence(CanvasIssueType.PROTECTED_LANE_INTRUSION, "geometry", "major",
+                        List.of(edge.getId()),
+                        "Return edge " + edge.getId() + " enters the protected main-flow lane.",
+                        "candidate", path.confidence().score(), Map.of(
+                                "pathConfidence", path.confidence().name(),
+                                "laneCenter", laneCenter,
+                                "segmentIndexes", intrudingSegments,
+                                "fingerprintKey", edge.getId() + "|protected-lane")));
+            }
+        }
+    }
+
+    private boolean isReverseDirection(CanvasCellData source, CanvasCellData target, boolean topDown) {
+        return topDown
+                ? target.centerY() < source.centerY() - GEOMETRY_EPSILON
+                : target.centerX() < source.centerX() - GEOMETRY_EPSILON;
+    }
+
+    private boolean usesOuterGutter(List<CanvasPointData> points, Bounds bounds, boolean topDown) {
+        double gutter = 30D;
+        if (topDown) {
+            return points.stream().anyMatch(point -> point.getX() < bounds.x() - gutter
+                    || point.getX() > bounds.x() + bounds.width() + gutter);
+        }
+        return points.stream().anyMatch(point -> point.getY() < bounds.y() - gutter
+                || point.getY() > bounds.y() + bounds.height() + gutter);
+    }
+
+    private List<Integer> protectedLaneSegments(List<CanvasDocumentModel.PathSegment> segments,
+                                                double laneCenter,
+                                                boolean topDown) {
+        List<Integer> result = new ArrayList<>();
+        for (CanvasDocumentModel.PathSegment segment : segments) {
+            // Endpoint stubs naturally touch the main lane; only internal route segments count.
+            if (segment.index() == 0 || segment.index() == segments.size() - 1) {
+                continue;
+            }
+            boolean parallelToFlow = topDown
+                    ? Math.abs(segment.start().getX() - segment.end().getX()) <= GEOMETRY_EPSILON
+                    : Math.abs(segment.start().getY() - segment.end().getY()) <= GEOMETRY_EPSILON;
+            double segmentLane = topDown ? segment.start().getX() : segment.start().getY();
+            if (parallelToFlow && Math.abs(segmentLane - laneCenter) <= 20D) {
+                result.add(segment.index());
+            }
+        }
+        return List.copyOf(result);
+    }
+
+    private Map<String, Double> boundsEvidence(Bounds bounds) {
+        return Map.of("x", bounds.x(), "y", bounds.y(), "width", bounds.width(), "height", bounds.height());
+    }
+
+    private double median(double[] values) {
+        if (values.length == 0) {
+            return 0D;
+        }
+        int middle = values.length / 2;
+        return values.length % 2 == 0 ? (values[middle - 1] + values[middle]) / 2D : values[middle];
+    }
+
+    private CanvasDocumentModel.PathConfidence minimumConfidence(CanvasDocumentModel.PathConfidence left,
+                                                                  CanvasDocumentModel.PathConfidence right) {
+        return left.score() <= right.score() ? left : right;
+    }
+
+    private String stablePair(String left, String right) {
+        return left.compareTo(right) <= 0 ? left + "|" + right : right + "|" + left;
     }
 
     /**
@@ -361,11 +587,9 @@ public class DefaultCanvasAnalyzer implements ICanvasAnalyzer {
         return labeledShapes <= Math.max(1, shapes.size() * 2 / 5);
     }
 
-    private void detectPortDirectionMismatches(List<CanvasCellData> cells, List<CanvasAnalysisIssue> issues) {
-        Map<String, CanvasCellData> cellsById = cells.stream()
-                .filter(cell -> StringUtils.isNotBlank(cell.getId()))
-                .collect(Collectors.toMap(CanvasCellData::getId, cell -> cell, (left, right) -> left));
-
+    private void detectPortDirectionMismatches(CanvasDocumentModel document,
+                                               List<CanvasAnalysisIssue> issues) {
+        List<CanvasCellData> cells = document.cells();
         for (CanvasCellData edge : cells) {
             if (!"edge".equals(edge.getKind())) {
                 continue;
@@ -373,8 +597,8 @@ public class DefaultCanvasAnalyzer implements ICanvasAnalyzer {
             if (edge.getPoints() != null && !edge.getPoints().isEmpty()) {
                 continue;
             }
-            CanvasCellData source = cellsById.get(edge.getSource());
-            CanvasCellData target = cellsById.get(edge.getTarget());
+            CanvasCellData source = document.cell(edge.getSource());
+            CanvasCellData target = document.cell(edge.getTarget());
             if (source == null || target == null || StringUtils.equals(source.getId(), target.getId())) {
                 continue;
             }
@@ -383,7 +607,7 @@ public class DefaultCanvasAnalyzer implements ICanvasAnalyzer {
             if (isUmlLifeline(source) || isUmlLifeline(target)) {
                 continue;
             }
-            PortSet ports = readPorts(edge.getStyle());
+            CanvasDocumentModel.EdgePorts ports = document.ports(edge);
             if (!ports.complete()) {
                 continue;
             }
@@ -407,21 +631,18 @@ public class DefaultCanvasAnalyzer implements ICanvasAnalyzer {
         }
     }
 
-    private void detectPortCornerProximity(List<CanvasCellData> cells, List<CanvasAnalysisIssue> issues) {
-        Map<String, CanvasCellData> cellsById = cells.stream()
-                .filter(cell -> StringUtils.isNotBlank(cell.getId()))
-                .collect(Collectors.toMap(CanvasCellData::getId, cell -> cell, (left, right) -> left));
-
+    private void detectPortCornerProximity(CanvasDocumentModel document, List<CanvasAnalysisIssue> issues) {
+        List<CanvasCellData> cells = document.cells();
         for (CanvasCellData edge : cells) {
             if (!"edge".equals(edge.getKind()) || StringUtils.isBlank(edge.getSource()) || StringUtils.isBlank(edge.getTarget())) {
                 continue;
             }
-            CanvasCellData source = cellsById.get(edge.getSource());
-            CanvasCellData target = cellsById.get(edge.getTarget());
+            CanvasCellData source = document.cell(edge.getSource());
+            CanvasCellData target = document.cell(edge.getTarget());
             if (source == null || target == null) {
                 continue;
             }
-            PortSet ports = readPorts(edge.getStyle());
+            CanvasDocumentModel.EdgePorts ports = document.ports(edge);
             if (!ports.complete()) {
                 continue;
             }
@@ -454,16 +675,14 @@ public class DefaultCanvasAnalyzer implements ICanvasAnalyzer {
                 "auto_reroute"));
     }
 
-    private void detectParallelEdgeTrackOverlaps(List<CanvasCellData> cells, List<CanvasAnalysisIssue> issues) {
-        Map<String, CanvasCellData> cellsById = cells.stream()
-                .filter(cell -> StringUtils.isNotBlank(cell.getId()))
-                .collect(Collectors.toMap(CanvasCellData::getId, cell -> cell, (left, right) -> left));
+    private void detectParallelEdgeTrackOverlaps(CanvasDocumentModel document, List<CanvasAnalysisIssue> issues) {
+        List<CanvasCellData> cells = document.cells();
         Map<String, List<CanvasCellData>> edgesByPair = new HashMap<>();
         for (CanvasCellData edge : cells) {
             if (!"edge".equals(edge.getKind()) || StringUtils.isBlank(edge.getSource()) || StringUtils.isBlank(edge.getTarget())) {
                 continue;
             }
-            if (!cellsById.containsKey(edge.getSource()) || !cellsById.containsKey(edge.getTarget())) {
+            if (document.cell(edge.getSource()) == null || document.cell(edge.getTarget()) == null) {
                 continue;
             }
             edgesByPair.computeIfAbsent(unorderedEndpointKey(edge), ignored -> new ArrayList<>()).add(edge);
@@ -475,17 +694,17 @@ public class DefaultCanvasAnalyzer implements ICanvasAnalyzer {
             }
             for (int i = 0; i < relatedEdges.size(); i++) {
                 CanvasCellData left = relatedEdges.get(i);
-                CanvasCellData leftSource = cellsById.get(left.getSource());
-                CanvasCellData leftTarget = cellsById.get(left.getTarget());
-                Double leftTrack = renderedTrack(left, leftSource, leftTarget);
+                CanvasCellData leftSource = document.cell(left.getSource());
+                CanvasCellData leftTarget = document.cell(left.getTarget());
+                Double leftTrack = renderedTrack(document, left, leftSource, leftTarget);
                 if (leftTrack == null) {
                     continue;
                 }
                 for (int j = i + 1; j < relatedEdges.size(); j++) {
                     CanvasCellData right = relatedEdges.get(j);
-                    CanvasCellData rightSource = cellsById.get(right.getSource());
-                    CanvasCellData rightTarget = cellsById.get(right.getTarget());
-                    Double rightTrack = renderedTrack(right, rightSource, rightTarget);
+                    CanvasCellData rightSource = document.cell(right.getSource());
+                    CanvasCellData rightTarget = document.cell(right.getTarget());
+                    Double rightTrack = renderedTrack(document, right, rightSource, rightTarget);
                     if (rightTrack == null) {
                         continue;
                     }
@@ -501,21 +720,26 @@ public class DefaultCanvasAnalyzer implements ICanvasAnalyzer {
         }
     }
 
-    private Double renderedTrack(CanvasCellData edge, CanvasCellData source, CanvasCellData target) {
+    private Double renderedTrack(CanvasDocumentModel document,
+                                 CanvasCellData edge,
+                                 CanvasCellData source,
+                                 CanvasCellData target) {
         if (source == null || target == null) {
             return null;
         }
-        List<CanvasPointData> route = reconstructRoute(edge, source, target);
-        if (route == null || route.size() < 2) {
+        CanvasDocumentModel.EdgePath path = document.path(edge);
+        if (!path.confidence().supportsPreciseGeometry() || path.points().size() < 2) {
             return null;
         }
+        List<CanvasPointData> route = path.points();
         boolean horizontal = Math.abs(target.centerX() - source.centerX()) >= Math.abs(target.centerY() - source.centerY());
         CanvasPointData first = route.get(0);
         CanvasPointData last = route.get(route.size() - 1);
         return horizontal ? (first.getY() + last.getY()) / 2D : (first.getX() + last.getX()) / 2D;
     }
 
-    private void detectNodeSidePortCrowding(List<CanvasCellData> cells, List<CanvasAnalysisIssue> issues) {
+    private void detectNodeSidePortCrowding(CanvasDocumentModel document, List<CanvasAnalysisIssue> issues) {
+        List<CanvasCellData> cells = document.cells();
         Map<String, CanvasCellData> nodesById = cells.stream()
                 .filter(cell -> "node".equals(cell.getKind()))
                 .filter(cell -> StringUtils.isNotBlank(cell.getId()))
@@ -531,7 +755,7 @@ public class DefaultCanvasAnalyzer implements ICanvasAnalyzer {
             if (source == null || target == null) {
                 continue;
             }
-            PortSet ports = readPorts(edge.getStyle());
+            CanvasDocumentModel.EdgePorts ports = document.ports(edge);
             if (!ports.complete()) {
                 continue;
             }
@@ -615,15 +839,6 @@ public class DefaultCanvasAnalyzer implements ICanvasAnalyzer {
         return source.compareTo(target) <= 0 ? source + "::" + target : target + "::" + source;
     }
 
-    private PortSet readPorts(String style) {
-        return new PortSet(
-                styleFraction(style, "exitX"),
-                styleFraction(style, "exitY"),
-                styleFraction(style, "entryX"),
-                styleFraction(style, "entryY")
-        );
-    }
-
     private boolean near(Double value, double expected) {
         return value != null && Math.abs(value - expected) <= 0.12D;
     }
@@ -633,29 +848,29 @@ public class DefaultCanvasAnalyzer implements ICanvasAnalyzer {
      * labels that land on a node body or on another edge's label. Repairable deterministically
      * by the route-only optimizer, which re-scores label positions.
      */
-    private void detectEdgeLabelCollisions(List<CanvasCellData> cells, Set<String> zoneIds, List<CanvasAnalysisIssue> issues) {
-        Map<String, CanvasCellData> cellsById = cells.stream()
-                .filter(cell -> StringUtils.isNotBlank(cell.getId()))
-                .collect(Collectors.toMap(CanvasCellData::getId, cell -> cell, (left, right) -> left));
+    private void detectEdgeLabelCollisions(CanvasDocumentModel document,
+                                           Set<String> zoneIds,
+                                           List<CanvasAnalysisIssue> issues) {
+        List<CanvasCellData> cells = document.cells();
         List<CanvasCellData> obstacles = cells.stream()
                 .filter(cell -> "node".equals(cell.getKind()))
                 .filter(cell -> cell.getWidth() > 0 && cell.getHeight() > 0)
                 .filter(cell -> !isTextCell(cell) && !isBoundaryLike(cell) && !zoneIds.contains(cell.getId()))
                 .toList();
 
-        List<CanvasCellData> labelBoxes = new ArrayList<>();
+        List<CanvasDocumentModel.CanvasBounds> labelBoxes = new ArrayList<>();
         List<CanvasCellData> labelEdges = new ArrayList<>();
         for (CanvasCellData edge : cells) {
             if (!"edge".equals(edge.getKind()) || StringUtils.isBlank(edge.getLabel())) {
                 continue;
             }
-            CanvasCellData source = cellsById.get(edge.getSource());
-            CanvasCellData target = cellsById.get(edge.getTarget());
+            CanvasCellData source = document.cell(edge.getSource());
+            CanvasCellData target = document.cell(edge.getTarget());
             if (source == null || target == null) {
                 continue;
             }
-            List<CanvasPointData> route = reconstructRoute(edge, source, target);
-            if (route == null || route.size() < 2) {
+            CanvasDocumentModel.EdgePath path = document.path(edge);
+            if (!path.confidence().supportsPreciseGeometry() || path.points().size() < 2) {
                 continue;
             }
             String repairability = isFreeRoutedEdge(edge) ? "candidate" : "auto_reroute";
@@ -665,24 +880,17 @@ public class DefaultCanvasAnalyzer implements ICanvasAnalyzer {
                         "Label of edge " + edge.getId() + " sits too close to the edge line; move it above or below the line.",
                         repairability));
             }
-            CanvasPointData mid = midpointByLength(route);
             double fontSize = fontSize(edge.getStyle());
             double charFactor = cjkRatio(edge.getLabel()) > 0.3D ? CJK_CHAR_WIDTH_FACTOR : LATIN_CHAR_WIDTH_FACTOR;
             double width = clamp(edge.getLabel().length() * fontSize * charFactor, 36D, 200D);
             double height = fontSize * LINE_HEIGHT_FACTOR;
-            CanvasCellData labelBox = CanvasCellData.builder()
-                    .id(edge.getId())
-                    .x(mid.getX() - width / 2D)
-                    .y(mid.getY() - height / 2D)
-                    .width(width)
-                    .height(height)
-                    .build();
+            CanvasDocumentModel.CanvasBounds labelBox = document.edgeLabelBounds(edge, width, height);
 
             for (CanvasCellData node : obstacles) {
                 if (isCrossingEndpointOrContainer(edge, node)) {
                     continue;
                 }
-                if (rectsOverlap(labelBox, node)) {
+                if (labelBox.overlaps(document.bounds(node))) {
                     issues.add(issue(CanvasIssueType.EDGE_LABEL_COLLISION, "readability", "major",
                             List.of(edge.getId(), node.getId()),
                             "Label of edge " + edge.getId() + " likely sits on node " + node.getId() + ".",
@@ -691,7 +899,7 @@ public class DefaultCanvasAnalyzer implements ICanvasAnalyzer {
                 }
             }
             for (int i = 0; i < labelBoxes.size(); i++) {
-                if (rectsOverlap(labelBox, labelBoxes.get(i))) {
+                if (labelBox.overlaps(labelBoxes.get(i))) {
                     issues.add(issue(CanvasIssueType.EDGE_LABEL_COLLISION, "readability", "major",
                             List.of(edge.getId(), labelEdges.get(i).getId()),
                             "Labels of edges " + edge.getId() + " and " + labelEdges.get(i).getId()
@@ -702,38 +910,6 @@ public class DefaultCanvasAnalyzer implements ICanvasAnalyzer {
             labelBoxes.add(labelBox);
             labelEdges.add(edge);
         }
-    }
-
-    private CanvasPointData midpointByLength(List<CanvasPointData> route) {
-        double total = 0D;
-        for (int i = 0; i + 1 < route.size(); i++) {
-            total += distance(route.get(i), route.get(i + 1));
-        }
-        double remaining = total / 2D;
-        for (int i = 0; i + 1 < route.size(); i++) {
-            double segment = distance(route.get(i), route.get(i + 1));
-            if (segment >= remaining && segment > 0D) {
-                double ratio = remaining / segment;
-                return CanvasPointData.builder()
-                        .x(route.get(i).getX() + (route.get(i + 1).getX() - route.get(i).getX()) * ratio)
-                        .y(route.get(i).getY() + (route.get(i + 1).getY() - route.get(i).getY()) * ratio)
-                        .build();
-            }
-            remaining -= segment;
-        }
-        return route.get(route.size() / 2);
-    }
-
-    private double distance(CanvasPointData a, CanvasPointData b) {
-        double dx = b.getX() - a.getX();
-        double dy = b.getY() - a.getY();
-        return Math.sqrt(dx * dx + dy * dy);
-    }
-
-    private boolean rectsOverlap(CanvasCellData left, CanvasCellData right) {
-        double width = Math.min(left.maxX(), right.maxX()) - Math.max(left.getX(), right.getX());
-        double height = Math.min(left.maxY(), right.maxY()) - Math.max(left.getY(), right.getY());
-        return width > 0D && height > 0D;
     }
 
     private double clamp(double value, double min, double max) {
@@ -967,13 +1143,10 @@ public class DefaultCanvasAnalyzer implements ICanvasAnalyzer {
         }
     }
 
-    private void detectNodeOverlaps(List<CanvasCellData> cells, Set<String> zoneIds, List<CanvasAnalysisIssue> issues) {
-        Map<String, CanvasCellData> cellById = new HashMap<>();
-        for (CanvasCellData cell : cells) {
-            if (StringUtils.isNotBlank(cell.getId())) {
-                cellById.putIfAbsent(cell.getId(), cell);
-            }
-        }
+    private void detectNodeOverlaps(CanvasDocumentModel document,
+                                    Set<String> zoneIds,
+                                    List<CanvasAnalysisIssue> issues) {
+        List<CanvasCellData> cells = document.cells();
         List<CanvasCellData> nodes = cells.stream()
                 .filter(cell -> "node".equals(cell.getKind()))
                 .filter(cell -> cell.getWidth() > 0 && cell.getHeight() > 0)
@@ -987,7 +1160,7 @@ public class DefaultCanvasAnalyzer implements ICanvasAnalyzer {
                 double width = Math.min(left.maxX(), right.maxX()) - Math.max(left.getX(), right.getX());
                 double height = Math.min(left.maxY(), right.maxY()) - Math.max(left.getY(), right.getY());
                 if (width > OVERLAP_TOLERANCE && height > OVERLAP_TOLERANCE
-                        && !isRelatedByAncestry(left, right, cellById)
+                        && !document.relatedByAncestry(left, right)
                         && !zoneIds.contains(left.getId()) && !zoneIds.contains(right.getId())
                         && !isBoundaryLike(left) && !isBoundaryLike(right)) {
                     issues.add(issue(CanvasIssueType.NODE_OVERLAP, "geometry", "major", List.of(left.getId(), right.getId()),
@@ -995,24 +1168,6 @@ public class DefaultCanvasAnalyzer implements ICanvasAnalyzer {
                 }
             }
         }
-    }
-
-    /** True when one cell is an ancestor container of the other, at any nesting depth. */
-    private boolean isRelatedByAncestry(CanvasCellData left, CanvasCellData right, Map<String, CanvasCellData> cellById) {
-        return isAncestorOf(left, right, cellById) || isAncestorOf(right, left, cellById);
-    }
-
-    private boolean isAncestorOf(CanvasCellData ancestor, CanvasCellData descendant, Map<String, CanvasCellData> cellById) {
-        String parentId = descendant.getParentId();
-        int depth = 0;
-        while (StringUtils.isNotBlank(parentId) && depth++ < 32) {
-            if (StringUtils.equals(parentId, ancestor.getId())) {
-                return true;
-            }
-            CanvasCellData parent = cellById.get(parentId);
-            parentId = parent == null ? null : parent.getParentId();
-        }
-        return false;
     }
 
     /**
@@ -1027,10 +1182,10 @@ public class DefaultCanvasAnalyzer implements ICanvasAnalyzer {
                 || (style.contains("fillcolor=none") && !style.startsWith("text"));
     }
 
-    private void detectEdgeNodeCrossings(List<CanvasCellData> cells, Set<String> zoneIds, List<CanvasAnalysisIssue> issues) {
-        Map<String, CanvasCellData> cellsById = cells.stream()
-                .filter(cell -> StringUtils.isNotBlank(cell.getId()))
-                .collect(Collectors.toMap(CanvasCellData::getId, cell -> cell, (left, right) -> left));
+    private void detectEdgeNodeCrossings(CanvasDocumentModel document,
+                                         Set<String> zoneIds,
+                                         List<CanvasAnalysisIssue> issues) {
+        List<CanvasCellData> cells = document.cells();
         List<CanvasCellData> nodes = cells.stream()
                 .filter(cell -> "node".equals(cell.getKind()))
                 .filter(cell -> cell.getWidth() > 0 && cell.getHeight() > 0)
@@ -1044,18 +1199,19 @@ public class DefaultCanvasAnalyzer implements ICanvasAnalyzer {
             if (!"edge".equals(edge.getKind())) {
                 continue;
             }
-            CanvasCellData source = cellsById.get(edge.getSource());
-            CanvasCellData target = cellsById.get(edge.getTarget());
+            CanvasCellData source = document.cell(edge.getSource());
+            CanvasCellData target = document.cell(edge.getTarget());
             if (source == null || target == null) {
                 continue;
             }
             // Draw.io's orthogonal router does NOT avoid unrelated nodes; when the edge declares
             // explicit exit/entry ports we can reconstruct its probable path and check it.
             // Only port-less auto-routed edges stay unverifiable and are skipped.
-            List<CanvasPointData> route = reconstructRoute(edge, source, target);
-            if (route == null) {
+            CanvasDocumentModel.EdgePath path = document.path(edge);
+            if (!path.confidence().supportsPreciseGeometry()) {
                 continue;
             }
+            List<CanvasPointData> route = path.points();
             // Free-routed edges must never be straightened onto orthogonal tracks; hand
             // their crossings back to the model instead of the deterministic rerouter.
             String repairability = isFreeRoutedEdge(edge) ? "candidate" : "auto_reroute";
@@ -1063,16 +1219,22 @@ public class DefaultCanvasAnalyzer implements ICanvasAnalyzer {
                 if (isCrossingEndpointOrContainer(edge, node) || !routeIntersectsNode(route, node)) {
                     continue;
                 }
-                issues.add(issue(CanvasIssueType.EDGE_NODE_CROSSING, "geometry", "major", List.of(edge.getId(), node.getId()),
-                        "Edge " + edge.getId() + " crosses node body: " + node.getId(), repairability));
+                List<Integer> segmentIndexes = crossingSegmentIndexes(document, edge, node);
+                issues.add(issueWithEvidence(CanvasIssueType.EDGE_NODE_CROSSING, "geometry", "major",
+                        List.of(edge.getId(), node.getId()),
+                        "Edge " + edge.getId() + " crosses node body: " + node.getId(), repairability,
+                        path.confidence().score(), Map.of(
+                                "pathConfidence", path.confidence().name(),
+                                "segmentIndexes", segmentIndexes,
+                                "fingerprintKey", edge.getId() + "|" + node.getId())));
             }
         }
     }
 
-    private void detectRemovableWaypoints(List<CanvasCellData> cells, Set<String> zoneIds, List<CanvasAnalysisIssue> issues) {
-        Map<String, CanvasCellData> cellsById = cells.stream()
-                .filter(cell -> StringUtils.isNotBlank(cell.getId()))
-                .collect(Collectors.toMap(CanvasCellData::getId, cell -> cell, (left, right) -> left));
+    private void detectRemovableWaypoints(CanvasDocumentModel document,
+                                          Set<String> zoneIds,
+                                          List<CanvasAnalysisIssue> issues) {
+        List<CanvasCellData> cells = document.cells();
         List<CanvasCellData> nodes = cells.stream()
                 .filter(cell -> "node".equals(cell.getKind()))
                 .filter(cell -> cell.getWidth() > 0 && cell.getHeight() > 0)
@@ -1089,8 +1251,8 @@ public class DefaultCanvasAnalyzer implements ICanvasAnalyzer {
             if (isFreeRoutedEdge(edge)) {
                 continue;
             }
-            CanvasCellData source = cellsById.get(edge.getSource());
-            CanvasCellData target = cellsById.get(edge.getTarget());
+            CanvasCellData source = document.cell(edge.getSource());
+            CanvasCellData target = document.cell(edge.getTarget());
             if (source == null || target == null) {
                 continue;
             }
@@ -1098,9 +1260,7 @@ public class DefaultCanvasAnalyzer implements ICanvasAnalyzer {
             if (hasParallelEdge(edge, edges)) {
                 continue;
             }
-            List<CanvasPointData> directRoute = List.of(
-                    anchorToward(source, edge.getSourcePoint(), center(target)),
-                    anchorToward(target, edge.getTargetPoint(), center(source)));
+            List<CanvasPointData> directRoute = document.directPath(edge);
             boolean directBlocked = nodes.stream()
                     .anyMatch(node -> !isCrossingEndpointOrContainer(edge, node) && routeIntersectsNode(directRoute, node));
             if (!directBlocked) {
@@ -1126,154 +1286,14 @@ public class DefaultCanvasAnalyzer implements ICanvasAnalyzer {
         return false;
     }
 
-    /**
-     * Best reconstruction of the rendered edge path: explicit waypoints win; otherwise explicit
-     * exit/entry ports give exact endpoints (with an L/Z jog for orthogonal styles, a straight
-     * segment for plain edges); a port-less straight edge falls back to anchor estimation.
-     * Returns null only for port-less auto-routed edges, whose path is genuinely unknowable.
-     */
-    private List<CanvasPointData> reconstructRoute(CanvasCellData edge, CanvasCellData source, CanvasCellData target) {
-        if (edge.getPoints() != null && !edge.getPoints().isEmpty()) {
-            return edgeRoute(edge, source, target);
-        }
-        List<CanvasPointData> portRoute = portBasedRoute(edge, source, target);
-        if (portRoute != null) {
-            return portRoute;
-        }
-        return isAutoRoutedWithoutWaypoints(edge) ? null : edgeRoute(edge, source, target);
-    }
-
-    private List<CanvasPointData> portBasedRoute(CanvasCellData edge, CanvasCellData source, CanvasCellData target) {
-        String style = StringUtils.defaultString(edge.getStyle());
-        Double exitX = styleFraction(style, "exitX");
-        Double exitY = styleFraction(style, "exitY");
-        Double entryX = styleFraction(style, "entryX");
-        Double entryY = styleFraction(style, "entryY");
-        if (exitX == null || exitY == null || entryX == null || entryY == null) {
-            return null;
-        }
-        CanvasPointData exitPoint = CanvasPointData.builder()
-                .x(source.getX() + exitX * source.getWidth())
-                .y(source.getY() + exitY * source.getHeight())
-                .build();
-        CanvasPointData entryPoint = CanvasPointData.builder()
-                .x(target.getX() + entryX * target.getWidth())
-                .y(target.getY() + entryY * target.getHeight())
-                .build();
-
-        List<CanvasPointData> route = new ArrayList<>();
-        route.add(exitPoint);
-        String lower = style.toLowerCase(Locale.ROOT);
-        boolean orthogonal = lower.contains("orthogonaledgestyle") || lower.contains("elbowedgestyle");
-        if (orthogonal) {
-            boolean exitHorizontal = exitX == 0D || exitX == 1D || (exitY != 0D && exitY != 1D);
-            boolean entryHorizontal = entryX == 0D || entryX == 1D || (entryY != 0D && entryY != 1D);
-            if (exitHorizontal && entryHorizontal) {
-                double midX = (exitPoint.getX() + entryPoint.getX()) / 2D;
-                route.add(CanvasPointData.builder().x(midX).y(exitPoint.getY()).build());
-                route.add(CanvasPointData.builder().x(midX).y(entryPoint.getY()).build());
-            } else if (!exitHorizontal && !entryHorizontal) {
-                double midY = (exitPoint.getY() + entryPoint.getY()) / 2D;
-                route.add(CanvasPointData.builder().x(exitPoint.getX()).y(midY).build());
-                route.add(CanvasPointData.builder().x(entryPoint.getX()).y(midY).build());
-            } else if (exitHorizontal) {
-                route.add(CanvasPointData.builder().x(entryPoint.getX()).y(exitPoint.getY()).build());
-            } else {
-                route.add(CanvasPointData.builder().x(exitPoint.getX()).y(entryPoint.getY()).build());
-            }
-        }
-        route.add(entryPoint);
-        return route;
-    }
-
-    private Double styleFraction(String style, String token) {
-        int index = style.indexOf(token + "=");
-        if (index < 0) {
-            return null;
-        }
-        int start = index + token.length() + 1;
-        int end = start;
-        while (end < style.length() && (Character.isDigit(style.charAt(end)) || style.charAt(end) == '.')) {
-            end++;
-        }
-        try {
-            return Double.parseDouble(style.substring(start, end));
-        } catch (Exception ignored) {
-            return null;
-        }
-    }
-
-    private boolean isAutoRoutedWithoutWaypoints(CanvasCellData edge) {
-        if (edge.getPoints() != null && !edge.getPoints().isEmpty()) {
-            return false;
-        }
-        String style = StringUtils.defaultString(edge.getStyle()).toLowerCase(Locale.ROOT);
-        return style.contains("orthogonaledgestyle")
-                || style.contains("elbowedgestyle")
-                || style.contains("entityrelationedgestyle")
-                || style.contains("isometricedgestyle");
-    }
-
     private boolean isCrossingEndpointOrContainer(CanvasCellData edge, CanvasCellData node) {
         return StringUtils.equals(node.getId(), edge.getSource())
                 || StringUtils.equals(node.getId(), edge.getTarget())
                 || StringUtils.equals(node.getId(), edge.getParentId());
     }
 
-    private List<CanvasPointData> edgeRoute(CanvasCellData edge, CanvasCellData source, CanvasCellData target) {
-        List<CanvasPointData> waypoints = edge.getPoints() == null ? List.of() : edge.getPoints();
-        List<CanvasPointData> route = new ArrayList<>();
-        CanvasPointData firstDirection = waypoints.isEmpty() ? center(target) : waypoints.get(0);
-        CanvasPointData lastDirection = waypoints.isEmpty() ? center(source) : waypoints.get(waypoints.size() - 1);
-        route.add(edgeEndpoint(edge, source, true, firstDirection));
-        route.addAll(waypoints);
-        route.add(edgeEndpoint(edge, target, false, lastDirection));
-        return route;
-    }
-
-    private CanvasPointData edgeEndpoint(CanvasCellData edge,
-                                         CanvasCellData node,
-                                         boolean sourceEndpoint,
-                                         CanvasPointData fallbackDirection) {
-        CanvasPointData explicitPoint = sourceEndpoint ? edge.getSourcePoint() : edge.getTargetPoint();
-        if (explicitPoint != null) {
-            return explicitPoint;
-        }
-        String style = StringUtils.defaultString(edge.getStyle());
-        Double xFraction = styleFraction(style, sourceEndpoint ? "exitX" : "entryX");
-        Double yFraction = styleFraction(style, sourceEndpoint ? "exitY" : "entryY");
-        if (xFraction != null && yFraction != null) {
-            return CanvasPointData.builder()
-                    .x(node.getX() + xFraction * node.getWidth())
-                    .y(node.getY() + yFraction * node.getHeight())
-                    .build();
-        }
-        return anchorToward(node, null, fallbackDirection);
-    }
-
-    private CanvasPointData anchorToward(CanvasCellData node, CanvasPointData explicitPoint, CanvasPointData direction) {
-        if (explicitPoint != null) {
-            return explicitPoint;
-        }
-        double dx = direction.getX() - node.centerX();
-        double dy = direction.getY() - node.centerY();
-        if (Math.abs(dx) >= Math.abs(dy)) {
-            return CanvasPointData.builder()
-                    .x(dx >= 0D ? node.maxX() : node.getX())
-                    .y(node.centerY())
-                    .build();
-        }
-        return CanvasPointData.builder()
-                .x(node.centerX())
-                .y(dy >= 0D ? node.maxY() : node.getY())
-                .build();
-    }
-
-    private CanvasPointData center(CanvasCellData node) {
-        return CanvasPointData.builder()
-                .x(node.centerX())
-                .y(node.centerY())
-                .build();
+    private CanvasPointData point(double x, double y) {
+        return CanvasPointData.builder().x(x).y(y).build();
     }
 
     private boolean routeIntersectsNode(List<CanvasPointData> route, CanvasCellData node) {
@@ -1283,6 +1303,15 @@ public class DefaultCanvasAnalyzer implements ICanvasAnalyzer {
             }
         }
         return false;
+    }
+
+    private List<Integer> crossingSegmentIndexes(CanvasDocumentModel document,
+                                                 CanvasCellData edge,
+                                                 CanvasCellData node) {
+        return document.segments(edge).stream()
+                .filter(segment -> segmentIntersectsRect(segment.start(), segment.end(), node))
+                .map(CanvasDocumentModel.PathSegment::index)
+                .toList();
     }
 
     private boolean segmentIntersectsRect(CanvasPointData start, CanvasPointData end, CanvasCellData rect) {
@@ -1355,6 +1384,17 @@ public class DefaultCanvasAnalyzer implements ICanvasAnalyzer {
                                       List<String> targetCellIds,
                                       String message,
                                       String repairability) {
+        return issueWithEvidence(type, category, severity, targetCellIds, message, repairability, 1D, Map.of());
+    }
+
+    private CanvasAnalysisIssue issueWithEvidence(CanvasIssueType type,
+                                                  String category,
+                                                  String severity,
+                                                  List<String> targetCellIds,
+                                                  String message,
+                                                  String repairability,
+                                                  double confidence,
+                                                  Map<String, Object> evidence) {
         return CanvasAnalysisIssue.builder()
                 .type(type)
                 .category(category)
@@ -1362,6 +1402,8 @@ public class DefaultCanvasAnalyzer implements ICanvasAnalyzer {
                 .targetCellIds(targetCellIds)
                 .message(message)
                 .repairability(repairability)
+                .confidence(confidence)
+                .evidence(evidence)
                 .build();
     }
 
@@ -1372,27 +1414,34 @@ public class DefaultCanvasAnalyzer implements ICanvasAnalyzer {
 
     private CanvasQualityIssue toQualityIssue(CanvasAnalysisIssue issue,
                                               DiagramQualityProfile profile) {
-        Set<String> targets = new LinkedHashSet<>(issue.getTargetCellIds() == null
-                ? List.of()
-                : issue.getTargetCellIds());
-        String fingerprint = issue.getType() + "|" + String.join(",", targets) + "|"
-                + StringUtils.defaultString(issue.getMessage());
+        List<String> sortedTargets = (issue.getTargetCellIds() == null ? List.<String>of() : issue.getTargetCellIds())
+                .stream()
+                .filter(StringUtils::isNotBlank)
+                .distinct()
+                .sorted()
+                .toList();
+        Set<String> targets = new LinkedHashSet<>(sortedTargets);
+        Map<String, Object> issueEvidence = issue.getEvidence() == null ? Map.of() : issue.getEvidence();
+        String fingerprint = issue.getType() + "|" + String.join(",", sortedTargets) + "|"
+                + StringUtils.defaultString(String.valueOf(issueEvidence.getOrDefault("fingerprintKey", "")));
         CanvasRepairability repairability = typedRepairability(issue.getRepairability());
         if ((repairability == CanvasRepairability.SAFE_AUTOMATIC
                 || repairability == CanvasRepairability.CONDITIONAL_AUTOMATIC)
                 && !profile.allowsAutomaticRepair(issue.getType())) {
             repairability = CanvasRepairability.MODEL_ASSISTED;
         }
+        Map<String, Object> evidence = new HashMap<>(issueEvidence);
+        evidence.put("legacyRepairability", StringUtils.defaultString(issue.getRepairability()));
         return new CanvasQualityIssue(
                 "det-" + UUID.nameUUIDFromBytes(fingerprint.getBytes(StandardCharsets.UTF_8)),
                 issue.getType(),
                 CanvasIssueCategory.fromLegacy(issue.getCategory()),
                 CanvasIssueSeverity.fromLegacy(issue.getSeverity()),
                 repairability,
-                1D,
+                issue.getConfidence() == null ? 1D : issue.getConfidence(),
                 targets,
                 new CanvasIssueEvidence(CanvasEvidenceSource.DETERMINISTIC, issue.getType().name(),
-                        Map.of("legacyRepairability", StringUtils.defaultString(issue.getRepairability()))),
+                        evidence),
                 issue.getMessage(),
                 profile.version());
     }
@@ -1511,80 +1560,14 @@ public class DefaultCanvasAnalyzer implements ICanvasAnalyzer {
                 || style.contains("labelbackgroundcolor=white");
     }
 
-    private String resolveKind(Element cell) {
-        if ("1".equals(cell.attributeValue("vertex"))) {
-            return "node";
-        }
-        if ("1".equals(cell.attributeValue("edge"))) {
-            return "edge";
-        }
-        return "cell";
-    }
-
-    private String toGraphModel(String xml) {
-        String normalized = normalizeXml(xml);
-        String graphModel = extractGraphModel(normalized);
-        if (StringUtils.isNotBlank(graphModel)) {
-            return graphModel;
-        }
-        return "<mxGraphModel><root><mxCell id=\"0\"/><mxCell id=\"1\" parent=\"0\"/>"
-                + normalized
-                + "</root></mxGraphModel>";
-    }
-
-    private String normalizeXml(String xml) {
-        return StringUtils.trimToEmpty(xml)
-                .replace("```xml", "")
-                .replace("```", "")
-                .replace("\\\"", "\"")
-                .replace("\\n", "")
-                .replace("\\/", "/")
-                .trim();
-    }
-
-    private String extractGraphModel(String xml) {
-        int xmlStart = xml.indexOf("<mxGraphModel");
-        int xmlEnd = xml.lastIndexOf("</mxGraphModel>");
-        if (xmlStart < 0 || xmlEnd < xmlStart) {
-            return "";
-        }
-        return xml.substring(xmlStart, xmlEnd + "</mxGraphModel>".length());
-    }
-
-    private String cleanLabel(String label) {
-        if (label == null) {
-            return "";
-        }
-        return label.replaceAll("<[^>]+>", " ")
-                .replace("&nbsp;", " ")
-                .replace("&amp;", "&")
-                .replace("\\n", " ")
-                .replaceAll("\\s+", " ")
-                .trim();
-    }
-
-    private double number(Element geometry, String attribute) {
-        if (geometry == null) {
-            return 0D;
-        }
-        String raw = geometry.attributeValue(attribute);
-        if (StringUtils.isBlank(raw)) {
-            return 0D;
-        }
-        try {
-            return Double.parseDouble(raw);
-        } catch (Exception ignored) {
-            return 0D;
-        }
-    }
-
-    private record PortSet(Double exitX, Double exitY, Double entryX, Double entryY) {
-        private boolean complete() {
-            return exitX != null && exitY != null && entryX != null && entryY != null;
-        }
-    }
-
     private record EndpointPortBinding(String edgeId, String nodeId, PortSide side, double track) {
+    }
+
+    private record EdgeRelationship(List<Map<String, Object>> intersections,
+                                    List<Map<String, Object>> overlaps) {
+    }
+
+    private record SegmentOverlap(CanvasPointData start, CanvasPointData end) {
     }
 
     private enum PortSide {
