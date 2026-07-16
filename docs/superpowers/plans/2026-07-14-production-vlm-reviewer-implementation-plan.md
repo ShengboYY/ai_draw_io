@@ -1,5 +1,7 @@
 # Production VLM Reviewer Replacement Implementation Plan
 
+> 历史实施记录：本文记录 Production VLM Reviewer 的替换过程；2026-07-16 之后的 Reviewer → Drawer 编排以 [`2026-07-16-vlm-reviewer-draw-agent-loop-plan.md`](2026-07-16-vlm-reviewer-draw-agent-loop-plan.md) 为唯一方案。
+
 > 编写日期：2026-07-14
 > 适用仓库：`ai_draw_io`
 > 本文取代旧 `REVIEW_REFACTOR_PLAN.md` 中“保留 300011/300012 作为生产 reviewer”的终态设计。旧文档对统一确定性分析器和 drawer 自修复的部分已基本落地，但 reviewer 终态不再适用。
