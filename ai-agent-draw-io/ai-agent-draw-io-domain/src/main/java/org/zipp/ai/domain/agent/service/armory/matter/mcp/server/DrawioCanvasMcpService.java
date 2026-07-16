@@ -16,6 +16,7 @@ import org.zipp.ai.domain.agent.model.valobj.analysis.DiagramType;
 import org.zipp.ai.domain.agent.model.valobj.canvas.CanvasState;
 import org.zipp.ai.domain.agent.service.ICanvasStateStore;
 import org.zipp.ai.domain.agent.service.canvas.routing.TargetedEdgeRouter;
+import org.zipp.ai.domain.agent.service.usage.AgentUsageTelemetryService;
 import org.zipp.ai.types.util.SecretLogSanitizer;
 
 import javax.annotation.Resource;
@@ -40,6 +41,8 @@ public class DrawioCanvasMcpService {
     private boolean targetedEdgeRouterV2Enabled;
     @Resource
     private ICanvasStateStore canvasStateStore;
+    @Resource
+    private AgentUsageTelemetryService agentUsageTelemetryService;
 
     @Tool(name = DrawioCanvasToolNames.CREATE_DIAGRAM, description = "Create a new Draw.io diagram from mxCell XML fragments or a complete mxGraphModel. Follow the Global Draw.io Layout Contract for the layout mode you chose: in grid-flow mode keep nodes on a stable grid and choose edge routing by relationship/layout semantics — straight edgeStyle=none for hierarchy/dependency/fan-out, orthogonal routing with explicit exit/entry ports and waypoints for dense workflow/network wiring; never reuse the same node-side anchor for multiple connectors. In radial mode place nodes on ring coordinates and keep spokes as port-less edgeStyle=none straight lines. Avoid relying on later review repair for first-draft readability. The backend wraps, validates, and streams the final canvas.")
     public DrawioToolResponse createDiagram(DrawioXmlRequest request) {
@@ -119,6 +122,7 @@ public class DrawioCanvasMcpService {
             // A missing scope must fail closed; treating it as "all edges" can destroy manual routes.
             DrawioMutationResponse response = rejectedOptimizeResponse(
                     "optimize_diagram mode=route_only requires non-empty targetEdgeIds.");
+            recordTargetedRouterOutcome("invalid_scope");
             logOptimizeToolResult(request, response);
             return response;
         }
@@ -135,6 +139,7 @@ public class DrawioCanvasMcpService {
             if (!invalidTargetIds.isEmpty()) {
                 DrawioMutationResponse response = rejectedOptimizeResponse(
                         "targetEdgeIds must reference existing edge mxCells; invalid ids: " + invalidTargetIds);
+                recordTargetedRouterOutcome("invalid_target");
                 logOptimizeToolResult(request, response);
                 return response;
             }
@@ -161,8 +166,21 @@ public class DrawioCanvasMcpService {
             response.setContent(null);
             response.setRepairBrief("NO_SAFE_CANDIDATE: " + routingResult.reason());
         }
+        if (routeOnly) {
+            recordTargetedRouterOutcome(routingResult == null
+                    ? "routed"
+                    : routingResult.status().name());
+        }
         logOptimizeToolResult(request, response);
         return response;
+    }
+
+    private void recordTargetedRouterOutcome(String outcome) {
+        if (agentUsageTelemetryService != null) {
+            // Keep v1 and v2 observable independently so rollout and deletion remain reversible.
+            agentUsageTelemetryService.recordTargetedEdgeRouter(
+                    targetedEdgeRouterV2Enabled ? "v2" : "v1", outcome);
+        }
     }
 
     // Internal analysis entry point; drawer prompts receive Canvas Issues automatically.

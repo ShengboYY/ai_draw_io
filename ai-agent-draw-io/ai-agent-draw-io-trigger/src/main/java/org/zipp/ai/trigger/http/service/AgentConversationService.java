@@ -371,6 +371,7 @@ public class AgentConversationService {
                     routingResult.getDiagramType(),
                     mutationIntent == null ? null : mutationIntent.purpose(),
                     mutationIntent == null ? null : mutationIntent.authorization(),
+                    currentRequest.getVisualRepairRound(),
                     runScope.getContext().runId(),
                     drawingStep == null ? runScope.getContext().runId() : drawingStep.getStepContext().spanId());
             DrawioSkillAccessContext.bindSession(finalSessionId, routedMessage.allowedSkillNames());
@@ -1003,7 +1004,7 @@ public class AgentConversationService {
                                                    ReviewOnlyContext context) {
         CanvasVisualReviewResult result;
         String imageDataUrl = requestDTO.getCanvasImageDataUrl();
-        if (!visualReviewEnabled()) {
+        if (!visualReviewEnabled(requestDTO)) {
             result = CanvasVisualReviewResult.unavailable("feature_disabled");
         } else if (StringUtils.isBlank(imageDataUrl)
                 || !CanvasVisualReviewOrchestrator.RENDERER_VERSION.equals(requestDTO.getCanvasImageRendererVersion())) {
@@ -1033,9 +1034,11 @@ public class AgentConversationService {
                 visualReviewContent(requestDTO.getMessage(), result));
     }
 
-    private boolean visualReviewEnabled() {
+    private boolean visualReviewEnabled(ChatRequestDTO requestDTO) {
         // Plain unit tests construct the service outside Spring; preserve the pre-rollout behavior there.
-        return visualReviewRolloutPolicy == null || visualReviewRolloutPolicy.isEnabled();
+        return visualReviewRolloutPolicy == null || visualReviewRolloutPolicy.isReviewEnabled(
+                requestDTO == null ? null : requestDTO.getUserId(),
+                requestDTO == null ? null : requestDTO.getDiagramId());
     }
 
     private List<String> analyzerEvidence(CanvasAnalysis analysis) {

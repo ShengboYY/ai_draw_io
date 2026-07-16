@@ -1110,12 +1110,21 @@ export const agentApi = {
         diagramId: string,
         canvasXml: string,
         expectedVersion?: number,
-        options?: { keepalive?: boolean; expectedContentHash?: string }
+        options?: {
+            keepalive?: boolean;
+            expectedContentHash?: string;
+            visualRepairSourceRunId?: string;
+            visualRepairRunId?: string;
+            visualRepairRound?: number;
+        }
     ): Promise<Response<DiagramCanvasStateResponseDTO | null>> => {
         const body: SaveDiagramCanvasStateRequestDTO = {
             canvasXml,
             ...(Number.isFinite(expectedVersion) && { expectedVersion }),
             ...(options?.expectedContentHash?.trim() && { expectedContentHash: options.expectedContentHash.trim() }),
+            ...(options?.visualRepairSourceRunId?.trim() && { visualRepairSourceRunId: options.visualRepairSourceRunId.trim() }),
+            ...(options?.visualRepairRunId?.trim() && { visualRepairRunId: options.visualRepairRunId.trim() }),
+            ...(Number.isFinite(options?.visualRepairRound) && { visualRepairRound: options?.visualRepairRound }),
         };
         const response = await fetch(`${API_CONFIG.BASE_URL}/diagrams/${encodeURIComponent(diagramId)}/canvas`, {
             method: 'PATCH',

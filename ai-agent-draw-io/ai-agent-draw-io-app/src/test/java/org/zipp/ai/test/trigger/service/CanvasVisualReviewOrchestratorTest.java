@@ -1,5 +1,6 @@
 package org.zipp.ai.test.trigger.service;
 
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.Test;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseBodyEmitter;
 import org.zipp.ai.api.dto.CanvasVisualReviewRequestDTO;
@@ -20,6 +21,7 @@ import org.zipp.ai.domain.agent.model.valobj.visualreview.CanvasVisualIssueType;
 import org.zipp.ai.domain.agent.model.valobj.visualreview.CanvasVisualRepairScope;
 import org.zipp.ai.domain.agent.service.ICanvasStateStore;
 import org.zipp.ai.domain.agent.service.analysis.ICanvasAnalyzer;
+import org.zipp.ai.domain.agent.service.usage.AgentTelemetryMetrics;
 import org.zipp.ai.domain.agent.service.usage.AgentUsageTelemetryService;
 import org.zipp.ai.test.domain.agent.FakeAgentUsageTelemetryStore;
 import org.zipp.ai.trigger.http.service.CanvasReviewImageValidator;
@@ -382,6 +384,8 @@ public class CanvasVisualReviewOrchestratorTest {
         CanvasVisualIssue issue = CanvasVisualIssue.builder()
                 .type(CanvasVisualIssueType.LAYOUT_HIERARCHY)
                 .severity(CanvasVisualIssueSeverity.MAJOR)
+                .anchorLabels(List.of("API"))
+                .repairScope(CanvasVisualRepairScope.LOCAL)
                 .build();
         CanvasVisualReviewOrchestrator orchestrator = orchestrator(
                 new SequenceCanvasStore(state(7L, "sha256:current")),
@@ -523,6 +527,8 @@ public class CanvasVisualReviewOrchestratorTest {
         CanvasVisualIssue issue = CanvasVisualIssue.builder()
                 .type(CanvasVisualIssueType.LAYOUT_HIERARCHY)
                 .severity(CanvasVisualIssueSeverity.MAJOR)
+                .anchorLabels(List.of("API"))
+                .repairScope(CanvasVisualRepairScope.LOCAL)
                 .build();
         CanvasVisualReviewOrchestrator orchestrator = orchestrator(
                 new SequenceCanvasStore(state(7L, "sha256:current")),
@@ -534,9 +540,12 @@ public class CanvasVisualReviewOrchestratorTest {
         request.setParentRunId("aru_repair_parent");
         request.setVisualRepairRound(2);
         FakeAgentUsageTelemetryStore telemetryStore = new FakeAgentUsageTelemetryStore();
+        SimpleMeterRegistry registry = new SimpleMeterRegistry();
         seedVerifiedRepair(telemetryStore, "aru_repair_parent", 7L, "sha256:current");
         inject(orchestrator, "agentUsageTelemetryService",
-                new AgentUsageTelemetryService(telemetryStore, Clock.systemUTC()));
+                new AgentUsageTelemetryService(telemetryStore, Clock.systemUTC(),
+                        AgentUsageTelemetryService.TelemetryWriteExecutor.direct(),
+                        new AgentTelemetryMetrics(registry)));
         CapturingEmitter emitter = new CapturingEmitter();
 
         orchestrator.stream("usr_owner", "visual-run-2", request, emitter);
@@ -549,6 +558,8 @@ public class CanvasVisualReviewOrchestratorTest {
                 .findFirst().orElseThrow().getMetadataJson();
         assertTrue(metadata.contains("\"autoRepairSucceeded\":false"));
         assertTrue(metadata.contains("\"afterRepairCanvasHash\":\"sha256:current\""));
+        assertEquals(1D, registry.get("ai.agent.visual.repair.budget.exhausted")
+                .tag("round", "2").counter().count(), 0.001D);
     }
 
     @Test
@@ -783,6 +794,26 @@ public class CanvasVisualReviewOrchestratorTest {
         assertTrue(staleStore.traceEvents.stream()
                 .anyMatch(event -> "visual_review_stale".equals(event.getEventType())
                         && event.getMetadataJson().contains("before_provider")));
+    }
+
+    @Test
+    public void publishesRoundAndDecisionMetricsForProductionReview() throws Exception {
+        SimpleMeterRegistry registry = new SimpleMeterRegistry();
+        CanvasVisualReviewOrchestrator orchestrator = orchestrator(
+                new SequenceCanvasStore(state(7L, "sha256:current")),
+                command -> CanvasVisualReviewResult.builder().available(true).summary("Looks good")
+                        .issues(List.of()).recommendedHumanReview(false).build());
+        inject(orchestrator, "agentUsageTelemetryService", new AgentUsageTelemetryService(
+                new FakeAgentUsageTelemetryStore(), Clock.systemUTC(),
+                AgentUsageTelemetryService.TelemetryWriteExecutor.direct(),
+                new AgentTelemetryMetrics(registry)));
+
+        orchestrator.stream("usr_owner", "visual-metric-run",
+                request(7L, "sha256:current"), new CapturingEmitter());
+
+        assertEquals(1D, registry.get("ai.agent.visual.review")
+                .tag("stage", "post_mutation").tag("round", "0").tag("decision", "approve")
+                .counter().count(), 0.001D);
     }
 
     private CanvasVisualReviewOrchestrator orchestrator(ICanvasStateStore store,

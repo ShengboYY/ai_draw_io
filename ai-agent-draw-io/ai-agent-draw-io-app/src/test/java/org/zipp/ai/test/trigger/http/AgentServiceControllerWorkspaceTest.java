@@ -189,6 +189,57 @@ public class AgentServiceControllerWorkspaceTest {
     }
 
     @Test
+    public void shouldCountManualEditOnlyAfterServerVerifiesRepairLineage() throws Exception {
+        AgentServiceController controller = new AgentServiceController();
+        FakeCanvasStateStore store = new FakeCanvasStateStore();
+        store.currentState = CanvasState.builder()
+                .userId(VALID_WORKSPACE_ID)
+                .diagramId("diagram-1")
+                .currentXml("<mxGraphModel><root><mxCell id='0'/><mxCell id='1' parent='0'/><mxCell id='2' value='Repaired' vertex='1' parent='1'><mxGeometry x='40' y='40' width='120' height='60' as='geometry'/></mxCell></root></mxGraphModel>")
+                .contentHash("sha256:repaired")
+                .version(3L)
+                .build();
+        RecordingTelemetryService telemetry = new RecordingTelemetryService();
+        inject(controller, "canvasStateStore", store);
+        inject(controller, "canvasMutationGate", new CanvasMutationGate(store, new DefaultCanvasAnalyzer()));
+        inject(controller, "agentUsageTelemetryService", telemetry);
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.addHeader("X-Workspace-Id", VALID_WORKSPACE_ID);
+        RequestContextHolder.setRequestAttributes(new ServletRequestAttributes(request));
+        SaveDiagramCanvasStateRequestDTO requestDTO = new SaveDiagramCanvasStateRequestDTO();
+        requestDTO.setCanvasXml(store.currentState.getCurrentXml().replace("Repaired", "Manually edited"));
+        requestDTO.setExpectedVersion(3L);
+        requestDTO.setExpectedContentHash("sha256:repaired");
+        requestDTO.setVisualRepairSourceRunId("aru_source123");
+        requestDTO.setVisualRepairRunId("aru_repair123");
+        requestDTO.setVisualRepairRound(1);
+
+        SaveDiagramCanvasStateRequestDTO unchangedRequest = new SaveDiagramCanvasStateRequestDTO();
+        unchangedRequest.setCanvasXml(store.currentState.getCurrentXml());
+        unchangedRequest.setExpectedVersion(3L);
+        unchangedRequest.setExpectedContentHash("sha256:repaired");
+        unchangedRequest.setVisualRepairSourceRunId("aru_source123");
+        unchangedRequest.setVisualRepairRunId("aru_repair123");
+        unchangedRequest.setVisualRepairRound(1);
+
+        Response<?> unchangedResponse = controller.saveDiagramCanvasState("diagram-1", unchangedRequest);
+        Response<?> response = controller.saveDiagramCanvasState("diagram-1", requestDTO);
+        store.currentState = CanvasState.builder()
+                .userId(VALID_WORKSPACE_ID).diagramId("diagram-1")
+                .currentXml(requestDTO.getCanvasXml()).contentHash("sha256:manual").version(4L).build();
+        requestDTO.setCanvasXml(requestDTO.getCanvasXml().replace("Manually edited", "Edited again"));
+        requestDTO.setExpectedVersion(4L);
+        requestDTO.setExpectedContentHash("sha256:manual");
+        Response<?> repeatedResponse = controller.saveDiagramCanvasState("diagram-1", requestDTO);
+
+        assertEquals(ResponseCode.SUCCESS.getCode(), unchangedResponse.getCode());
+        assertEquals(ResponseCode.SUCCESS.getCode(), response.getCode());
+        assertEquals(ResponseCode.SUCCESS.getCode(), repeatedResponse.getCode());
+        assertEquals(1, telemetry.recordedCount);
+        assertEquals(1, telemetry.recordedRound);
+    }
+
+    @Test
     public void shouldReturnConflictWhenManualCanvasSaveVersionIsStale() throws Exception {
         AgentServiceController controller = new AgentServiceController();
         FakeCanvasStateStore store = new FakeCanvasStateStore();
@@ -529,6 +580,28 @@ public class AgentServiceControllerWorkspaceTest {
                     .diagramId("imported-diagram-1")
                     .title("Imported checkout")
                     .build());
+        }
+    }
+
+    private static class RecordingTelemetryService extends AgentUsageTelemetryService {
+        private int recordedRound;
+        private int recordedCount;
+
+        private RecordingTelemetryService() {
+            super(null);
+        }
+
+        @Override
+        public boolean isVisualRepairResult(String sourceRunId, String repairRunId, String userId,
+                                            String diagramId, Long repairedVersion,
+                                            String repairedCanvasHash, int repairRound) {
+            return Long.valueOf(3L).equals(repairedVersion) && "sha256:repaired".equals(repairedCanvasHash);
+        }
+
+        @Override
+        public void recordManualEditAfterVisualRepair(int repairRound) {
+            recordedRound = repairRound;
+            recordedCount++;
         }
     }
 }

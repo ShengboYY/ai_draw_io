@@ -239,6 +239,27 @@ public class AgentUsageTelemetryService {
                 recordTraceEvent(context, eventType, phase, status, metadata));
     }
 
+    public void recordVisualReview(String stage,
+                                   int round,
+                                   String decision,
+                                   String repairOutcome,
+                                   boolean budgetExhausted,
+                                   long latencyMs) {
+        metrics.recordVisualReview(stage, round, decision, repairOutcome, budgetExhausted, latencyMs);
+    }
+
+    public void recordCanvasMutation(String purpose, String status, String reason, int repairRound) {
+        metrics.recordCanvasMutation(purpose, status, reason, repairRound);
+    }
+
+    public void recordManualEditAfterVisualRepair(int repairRound) {
+        metrics.recordManualEditAfterVisualRepair(repairRound);
+    }
+
+    public void recordTargetedEdgeRouter(String version, String outcome) {
+        metrics.recordTargetedEdgeRouter(version, outcome);
+    }
+
     public void recordTraceEvent(AgentUsageTelemetryContext.RunContext context,
                                  String eventType,
                                  String phase,

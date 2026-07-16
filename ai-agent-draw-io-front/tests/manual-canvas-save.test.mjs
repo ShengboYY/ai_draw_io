@@ -50,6 +50,29 @@ test('buildManualCanvasSaveRequest skips incomplete autosave payloads', () => {
   }), null);
 });
 
+test('buildManualCanvasSaveRequest carries repair lineage only for a later manual edit', () => {
+  const provenance = {
+    sourceRunId: 'aru_source123',
+    repairRunId: 'aru_repair123',
+    repairRound: 1,
+    repairedCanvasXml: '<mxGraphModel><root/></mxGraphModel>',
+  };
+  const unchanged = buildManualCanvasSaveRequest({
+    userId: 'anon_123', sessionId: 'session-1', diagramId: 'diagram-1',
+    canvasXml: provenance.repairedCanvasXml, visualRepairProvenance: provenance,
+  });
+  const edited = buildManualCanvasSaveRequest({
+    userId: 'anon_123', sessionId: 'session-1', diagramId: 'diagram-1',
+    canvasXml: '<mxGraphModel><root><mxCell id="2"/></root></mxGraphModel>',
+    visualRepairProvenance: provenance,
+  });
+
+  assert.equal(unchanged.visualRepairRunId, undefined);
+  assert.equal(edited.visualRepairSourceRunId, 'aru_source123');
+  assert.equal(edited.visualRepairRunId, 'aru_repair123');
+  assert.equal(edited.visualRepairRound, 1);
+});
+
 test('latestCanvasVersion picks the highest known version', () => {
   assert.equal(latestCanvasVersion(4, 5), 5);
   assert.equal(latestCanvasVersion(5, 4), 5);

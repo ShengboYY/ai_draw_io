@@ -295,6 +295,8 @@ public class AgentServiceController implements IAgentService {
         }
         try {
             CanvasState current = canvasStateStore.find(workspaceId, diagramId).orElse(null);
+            boolean manualEditAfterRepair = isManualEditAfterVisualRepair(
+                    requestDTO, workspaceId, diagramId, current);
             CanvasMutationDecision decision = canvasMutationGate.evaluate(new CanvasMutationCommand(
                     current == null ? CanvasMutationPurpose.USER_CREATE : CanvasMutationPurpose.USER_EDIT,
                     current == null ? "" : current.getCurrentXml(),
@@ -320,6 +322,11 @@ public class AgentServiceController implements IAgentService {
                         .build();
             }
             CanvasStateSaveResult saved = decision.saveResult();
+            if (manualEditAfterRepair && !decision.changedCellIds().isEmpty()) {
+                telemetryService().recordManualEditAfterVisualRepair(requestDTO.getVisualRepairRound());
+                log.info("[visual-review-loop] event=manual_edit_after_repair diagramId={} repairRound={}",
+                        diagramId, requestDTO.getVisualRepairRound());
+            }
             return Response.<DiagramCanvasStateResponseDTO>builder()
                     .code(ResponseCode.SUCCESS.getCode())
                     .info(ResponseCode.SUCCESS.getInfo())
@@ -332,6 +339,31 @@ public class AgentServiceController implements IAgentService {
                     .info(ResponseCode.UN_ERROR.getInfo())
                     .build();
         }
+    }
+
+    private boolean isManualEditAfterVisualRepair(SaveDiagramCanvasStateRequestDTO requestDTO,
+                                                   String workspaceId,
+                                                   String diagramId,
+                                                   CanvasState current) {
+        if (requestDTO == null || current == null || current.getVersion() == null
+                || StringUtils.isBlank(current.getContentHash())
+                || requestDTO.getVisualRepairRound() == null
+                || requestDTO.getVisualRepairRound() < 1
+                || requestDTO.getVisualRepairRound() > 2
+                || !validCorrelationId(requestDTO.getVisualRepairSourceRunId())
+                || !validCorrelationId(requestDTO.getVisualRepairRunId())) {
+            return false;
+        }
+        // Treat lineage supplied by the browser as a claim only; the durable repair claim and
+        // exact current version/hash are the authority for whether this is a post-repair edit.
+        return telemetryService().isVisualRepairResult(
+                requestDTO.getVisualRepairSourceRunId(), requestDTO.getVisualRepairRunId(),
+                workspaceId, diagramId, current.getVersion(), current.getContentHash(),
+                requestDTO.getVisualRepairRound());
+    }
+
+    private boolean validCorrelationId(String value) {
+        return StringUtils.isNotBlank(value) && CORRELATION_ID.matcher(value).matches();
     }
 
     @RequestMapping(value = "diagrams/{diagramId}", method = RequestMethod.DELETE)

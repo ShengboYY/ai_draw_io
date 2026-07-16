@@ -374,6 +374,37 @@ public class AgentUsageTelemetryServiceTest {
     }
 
     @Test
+    public void shouldPublishBoundedVisualReviewRolloutMetrics() {
+        SimpleMeterRegistry registry = new SimpleMeterRegistry();
+        AgentUsageTelemetryService service = new AgentUsageTelemetryService(
+                new FakeAgentUsageTelemetryStore(),
+                Clock.fixed(Instant.parse("2026-07-02T12:00:00Z"), ZoneOffset.UTC),
+                AgentUsageTelemetryService.TelemetryWriteExecutor.direct(),
+                new AgentTelemetryMetrics(registry));
+
+        service.recordVisualReview("POST_REPAIR", 1, "REPAIR", "continued", false, 420L);
+        service.recordCanvasMutation("VLM_REPAIR", "REJECTED", "SCOPE_VIOLATION", 2);
+        service.recordManualEditAfterVisualRepair(2);
+        service.recordTargetedEdgeRouter("v2", "routed");
+
+        assertEquals(1D, registry.get("ai.agent.visual.review")
+                .tag("stage", "post_repair").tag("round", "1").tag("decision", "repair")
+                .counter().count(), 0.001D);
+        assertEquals(1L, registry.get("ai.agent.visual.review.latency")
+                .tag("stage", "post_repair").timer().count());
+        assertEquals(1D, registry.get("ai.agent.visual.repair")
+                .tag("round", "1").tag("outcome", "continued").counter().count(), 0.001D);
+        assertEquals(1D, registry.get("ai.agent.canvas.mutation")
+                .tag("purpose", "vlm_repair").tag("status", "rejected")
+                .tag("reason", "scope_violation").tag("repair_round", "2")
+                .counter().count(), 0.001D);
+        assertEquals(1D, registry.get("ai.agent.visual.repair.manual.edit")
+                .tag("round", "2").counter().count(), 0.001D);
+        assertEquals(1D, registry.get("ai.agent.targeted.edge.router")
+                .tag("version", "v2").tag("outcome", "routed").counter().count(), 0.001D);
+    }
+
+    @Test
     public void shouldBucketUserSuppliedModelToCustomButKeepPlatformModel() {
         FakeAgentUsageTelemetryStore store = new FakeAgentUsageTelemetryStore();
         SimpleMeterRegistry registry = new SimpleMeterRegistry();

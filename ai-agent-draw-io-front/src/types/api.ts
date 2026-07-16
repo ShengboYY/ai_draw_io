@@ -299,6 +299,9 @@ export interface SaveDiagramCanvasStateRequestDTO {
   userId?: string;
   expectedVersion?: number;
   expectedContentHash?: string;
+  visualRepairSourceRunId?: string;
+  visualRepairRunId?: string;
+  visualRepairRound?: number;
   canvasXml: string;
 }
 

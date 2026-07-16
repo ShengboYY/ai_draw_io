@@ -28,6 +28,7 @@ import {
   shouldCreateConversationDiagramShell,
   shouldHandleManualAutosave,
   type ManualCanvasSaveRequest,
+  type VisualRepairProvenance,
 } from './manual-canvas-save';
 import {
   beginAiCanvasMutation,
@@ -588,6 +589,7 @@ function DrawioPageContent() {
   // Authoritative latest-known canvas version per diagram; React session state can lag
   // behind while a save is in flight, so version locks must never be read from it alone.
   const manualCanvasVersionsRef = useRef(new Map<string, number>());
+  const visualRepairProvenanceRef = useRef(new Map<string, VisualRepairProvenance>());
   const aiCanvasMutationDiagramIdsRef = useRef(new Set<string>());
 
   // Agent State
@@ -812,6 +814,10 @@ function DrawioPageContent() {
       clearTimeout(manualCanvasSaveTimerRef.current);
       manualCanvasSaveTimerRef.current = null;
     }
+    if (result.started && diagramId) {
+      // A later AI mutation supersedes the last repair baseline; only direct human edits count.
+      visualRepairProvenanceRef.current.delete(diagramId);
+    }
     return result.started;
   };
 
@@ -836,11 +842,19 @@ function DrawioPageContent() {
         request.diagramId,
         request.canvasXml,
         request.expectedVersion,
-        { expectedContentHash: request.expectedContentHash },
+        {
+          expectedContentHash: request.expectedContentHash,
+          visualRepairSourceRunId: request.visualRepairSourceRunId,
+          visualRepairRunId: request.visualRepairRunId,
+          visualRepairRound: request.visualRepairRound,
+        },
       );
       // Only sync the version; the local canvas may already be newer than the XML just saved,
       // so writing the response XML back would briefly roll the session state backwards.
       rememberManualCanvasVersion(request.sessionId, request.diagramId, response.data?.version, response.data?.contentHash);
+      if (request.visualRepairRunId) {
+        visualRepairProvenanceRef.current.delete(request.diagramId);
+      }
     } catch (error) {
       if (error instanceof ApiResponseError && error.code === 'CANVAS_VERSION_CONFLICT' && retryOnConflict) {
         const knownConflictVersion = currentVersionFromConflict(error);
@@ -925,11 +939,17 @@ function DrawioPageContent() {
       .saveDiagramCanvasState(request.userId, request.diagramId, request.canvasXml, request.expectedVersion, {
         keepalive: true,
         expectedContentHash: request.expectedContentHash,
+        visualRepairSourceRunId: request.visualRepairSourceRunId,
+        visualRepairRunId: request.visualRepairRunId,
+        visualRepairRound: request.visualRepairRound,
       })
       .then(response => {
         const version = response.data?.version;
         if (Number.isFinite(version)) {
           manualCanvasVersionsRef.current.set(request.diagramId, version as number);
+        }
+        if (request.visualRepairRunId) {
+          visualRepairProvenanceRef.current.delete(request.diagramId);
         }
       })
       .catch(() => {});
@@ -944,6 +964,10 @@ function DrawioPageContent() {
       canvasVersion: activeSession?.canvasVersion,
       canvasContentHash: activeSession?.canvasContentHash,
       canvasXml: xml,
+      visualRepairProvenance: activeSession?.diagramId
+        && !aiCanvasMutationDiagramIdsRef.current.has(activeSession.diagramId)
+        ? visualRepairProvenanceRef.current.get(activeSession.diagramId)
+        : undefined,
     });
     // Blank canvases intentionally stay local: an accidental clear (or a glitchy empty
     // autosave event) must never wipe the server copy of the diagram.
@@ -2342,6 +2366,14 @@ function DrawioPageContent() {
           let hasReviewPresentation = false;
           const finish = () => {
             if (settled) return;
+            if (sourceRunId && outcome.repairRunId && outcome.repairedCanvas) {
+              visualRepairProvenanceRef.current.set(outcome.repairedCanvas.diagramId, {
+                sourceRunId,
+                repairRunId: outcome.repairRunId,
+                repairRound: reviewRequest.visualRepairRound + 1,
+                repairedCanvasXml: outcome.repairedCanvas.canvasXml,
+              });
+            }
             settled = true;
             resolve(outcome);
           };

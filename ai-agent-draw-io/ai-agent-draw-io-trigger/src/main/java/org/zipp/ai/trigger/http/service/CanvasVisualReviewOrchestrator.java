@@ -106,7 +106,7 @@ public class CanvasVisualReviewOrchestrator {
                     logValue(request.getExpectedContentHash()), pageCount(request), truncatedPageCount(request),
                     request.getAdditionalAfterImages() == null ? 0 : request.getAdditionalAfterImages().size(),
                     Boolean.TRUE.equals(request.getShadow()));
-            if (!visualReviewEnabled()) {
+            if (!visualReviewEnabled(ownerId, request)) {
                 // Disabled means no provider call, quota consumption, telemetry run, or user-visible review.
                 log.info("[visual-review-loop] event=complete reviewRunId={} stage={} repairRound={} outcome=disabled",
                         logValue(visualReviewRunId), request.getStage(), visualRepairRound(request));
@@ -207,30 +207,36 @@ public class CanvasVisualReviewOrchestrator {
                 return null;
             }
 
-            CanvasVisualReviewDecision decision = policy.decide(
+            CanvasVisualReviewDecision policyDecision = policy.decide(
                     result, stage, visualRepairRound(request));
+            CanvasVisualReviewDecision decision = policyDecision;
+            String repairOutcome = policyDecision == CanvasVisualReviewDecision.REPAIR ? "requested" : "";
             CanvasMutationAuthorization authorization = repairAuthorization(analysis, result);
             boolean shadow = Boolean.TRUE.equals(request.getShadow());
+            int nextRepairRound = visualRepairRound(request) + 1;
+            boolean autoRepairEligible = autoRepairEnabled(ownerId, request, nextRepairRound);
             if (!shadow && result != null && result.isAvailable() && truncatedPageCount(request) > 0) {
                 // A partial page sample may report findings, but it cannot authorize or approve the whole canvas.
                 decision = CanvasVisualReviewDecision.NEEDS_HUMAN_REVIEW;
+                if (policyDecision == CanvasVisualReviewDecision.REPAIR) repairOutcome = "evidence_incomplete";
                 log.info("[visual-review-loop] event=incomplete_evidence reviewRunId={} sourceRunId={} pages={} truncatedPages={} outcome=human_review",
                         logValue(visualReviewRunId), logValue(request.getSourceRunId()),
                         pageCount(request), truncatedPageCount(request));
             }
             if (!shadow && decision == CanvasVisualReviewDecision.REPAIR
                     && authorization.allowedCellIds().isEmpty()) {
-                // Phase 3 fails closed until a deterministic issue can locate the visual finding.
+                // A finding without a uniquely authorized target must never grant mutation authority.
                 decision = CanvasVisualReviewDecision.NEEDS_HUMAN_REVIEW;
+                repairOutcome = "authorization_blocked";
             }
-            if (decision == CanvasVisualReviewDecision.REPAIR && !autoRepairEnabled()) {
+            if (decision == CanvasVisualReviewDecision.REPAIR && !autoRepairEligible) {
                 // Visible-review rollout reports the same evidence without granting mutation authority.
                 decision = CanvasVisualReviewDecision.NEEDS_HUMAN_REVIEW;
+                repairOutcome = "rollout_blocked";
             }
             String repairRunId = !shadow && decision == CanvasVisualReviewDecision.REPAIR
                     ? "aru_repair_" + UUID.randomUUID() : null;
             if (!shadow && decision == CanvasVisualReviewDecision.REPAIR) {
-                int nextRepairRound = visualRepairRound(request) + 1;
                 boolean claimed = telemetryService().tryClaimVisualRepair(
                         request.getSourceRunId(), request.getParentRunId(), ownerId, request.getDiagramId(),
                         request.getRequestId(), request.getExpectedVersion(), request.getExpectedContentHash(),
@@ -241,21 +247,34 @@ public class CanvasVisualReviewOrchestrator {
                 if (!claimed) {
                     // Missing ownership and replayed source runs both fail closed without mutating the canvas.
                     decision = CanvasVisualReviewDecision.NEEDS_HUMAN_REVIEW;
+                    repairOutcome = "claim_rejected";
                 }
             }
-            if (stage == CanvasVisualReviewStage.VERIFY_ONLY
-                    && decision == CanvasVisualReviewDecision.NEEDS_HUMAN_REVIEW) {
+            boolean budgetExhausted = stage == CanvasVisualReviewStage.VERIFY_ONLY
+                    && decision == CanvasVisualReviewDecision.NEEDS_HUMAN_REVIEW
+                    && truncatedPageCount(request) == 0
+                    && !authorization.allowedCellIds().isEmpty()
+                    && policy.hasRepairableBlockingIssues(result);
+            if (budgetExhausted) {
                 // Final verification may report unresolved findings, but the mutation budget is closed.
+                repairOutcome = "budget_exhausted";
                 log.info("[visual-review-loop] event=repair_budget_exhausted reviewRunId={} sourceRunId={} repairRound={} issues={}",
                         logValue(visualReviewRunId), logValue(request.getSourceRunId()),
                         visualRepairRound(request), result == null ? 0 : result.safeIssues().size());
             }
+            if (decision == CanvasVisualReviewDecision.REPAIR) {
+                repairOutcome = shadow ? "shadow" : "continued";
+            }
+            telemetryService().recordVisualReview(
+                    stage.name(), visualRepairRound(request), decision.name(), repairOutcome,
+                    budgetExhausted, reviewLatencyMs);
             log.info("[visual-review-loop] event=decision reviewRunId={} sourceRunId={} repairRound={} stage={} available={} decision={} issues={} authorizedCells={} latencyMs={}",
                     logValue(visualReviewRunId), logValue(request.getSourceRunId()), visualRepairRound(request),
                     request.getStage(), result != null && result.isAvailable(), decision,
                     result == null ? 0 : result.safeIssues().size(), authorization.allowedCellIds().size(),
                     reviewLatencyMs);
-            Map<String, Object> completed = completedMetadata(request, result, decision, reviewLatencyMs);
+            Map<String, Object> completed = completedMetadata(
+                    request, result, decision, reviewLatencyMs, autoRepairEligible, repairOutcome);
             if (!shadow) {
                 sendReviewResult(emitter, visualReviewRunId, request, result, decision);
             }
@@ -310,7 +329,9 @@ public class CanvasVisualReviewOrchestrator {
     private Map<String, Object> completedMetadata(CanvasVisualReviewRequestDTO request,
                                                   CanvasVisualReviewResult result,
                                                   CanvasVisualReviewDecision decision,
-                                                  long reviewLatencyMs) {
+                                                  long reviewLatencyMs,
+                                                  boolean autoRepairEligible,
+                                                  String repairOutcome) {
         Map<String, Object> metadata = baseMetadata(request);
         metadata.put("reviewerVersion", result == null
                 ? visualReviewer.version() : StringUtils.defaultIfBlank(result.getReviewerVersion(), visualReviewer.version()));
@@ -323,7 +344,8 @@ public class CanvasVisualReviewOrchestrator {
         metadata.put("issueTypeCounts", issueTypeCounts(result));
         metadata.put("issueSeverityCounts", issueSeverityCounts(result));
         metadata.put("autoRepairAttempted", false);
-        metadata.put("autoRepairEnabled", autoRepairEnabled());
+        metadata.put("autoRepairEnabled", autoRepairEligible);
+        metadata.put("repairOutcome", StringUtils.defaultString(repairOutcome));
         boolean repairVerification = CanvasVisualReviewStage.VERIFY_ONLY.name().equals(request.getStage());
         metadata.put("repairBudgetExhausted", repairVerification
                 && decision == CanvasVisualReviewDecision.NEEDS_HUMAN_REVIEW);
@@ -397,13 +419,17 @@ public class CanvasVisualReviewOrchestrator {
         return agentUsageTelemetryService == null ? NOOP_TELEMETRY : agentUsageTelemetryService;
     }
 
-    private boolean visualReviewEnabled() {
+    private boolean visualReviewEnabled(String ownerId, CanvasVisualReviewRequestDTO request) {
         // Plain unit tests construct the service outside Spring; preserve the pre-rollout behavior there.
-        return visualReviewRolloutPolicy == null || visualReviewRolloutPolicy.isEnabled();
+        return visualReviewRolloutPolicy == null || visualReviewRolloutPolicy.isReviewEnabled(
+                ownerId, request == null ? null : request.getDiagramId());
     }
 
-    private boolean autoRepairEnabled() {
-        return visualReviewRolloutPolicy == null || visualReviewRolloutPolicy.isAutoRepairEnabled();
+    private boolean autoRepairEnabled(String ownerId,
+                                      CanvasVisualReviewRequestDTO request,
+                                      int nextRepairRound) {
+        return visualReviewRolloutPolicy == null || visualReviewRolloutPolicy.isAutoRepairEnabled(
+                ownerId, request == null ? null : request.getDiagramId(), nextRepairRound);
     }
 
     private CanvasMutationAuthorization repairAuthorization(CanvasAnalysis analysis,
@@ -422,7 +448,7 @@ public class CanvasVisualReviewOrchestrator {
                             .filter(cell -> StringUtils.isNotBlank(cell.getId()))
                             .collect(Collectors.groupingBy(cell -> StringUtils.defaultString(cell.getLabel())
                                     .trim().toLowerCase(java.util.Locale.ROOT)));
-            // Until Phase 5 adds the full VisualIssueLocator, only a unique exact label grants authority.
+            // Exact labels grant authority only when they identify one cell unambiguously.
             anchorLabels.forEach(label -> {
                 List<org.zipp.ai.domain.agent.model.valobj.analysis.CanvasCellData> matches = cellsByLabel.get(label);
                 if (matches != null && matches.size() == 1) {

@@ -437,12 +437,27 @@ public class DrawioStreamResponseWriter {
                                       CanvasMutationAuthorization authorization,
                                       String runId,
                                       String spanId) {
+        setCanvasStateContext(emitter, userId, diagramId, expectedVersion, expectedContentHash,
+                diagramType, purpose, authorization, null, runId, spanId);
+    }
+
+    public void setCanvasStateContext(ResponseBodyEmitter emitter,
+                                      String userId,
+                                      String diagramId,
+                                      Long expectedVersion,
+                                      String expectedContentHash,
+                                      String diagramType,
+                                      CanvasMutationPurpose purpose,
+                                      CanvasMutationAuthorization authorization,
+                                      Integer visualRepairRound,
+                                      String runId,
+                                      String spanId) {
         if (emitter == null || StringUtils.isBlank(userId) || StringUtils.isBlank(diagramId)) {
             return;
         }
         canvasStateContextByEmitter.put(emitter, new CanvasStateContext(
                 userId, diagramId, expectedVersion, expectedContentHash,
-                DiagramType.from(diagramType), purpose, authorization, runId, spanId));
+                DiagramType.from(diagramType), purpose, authorization, visualRepairRound, runId, spanId));
     }
 
     private void sendDrawioDone(ResponseBodyEmitter emitter, String phase, String xml,
@@ -491,6 +506,13 @@ public class DrawioStreamResponseWriter {
                         context.expectedVersion(), decision.status(), decision.rejectionReason(),
                         decision.changedCellIds().size(), savedState == null ? null : savedState.getVersion(),
                         savedState == null ? "" : savedState.getContentHash());
+                if (agentUsageTelemetryService != null) {
+                    agentUsageTelemetryService.recordCanvasMutation(
+                            context.purpose() == null ? "UNKNOWN" : context.purpose().name(),
+                            decision.status().name(),
+                            decision.rejectionReason() == null ? "NONE" : decision.rejectionReason().name(),
+                            context.visualRepairRound() == null ? 0 : context.visualRepairRound());
+                }
                 if (decision.status() == CanvasMutationStatus.STALE_VERSION) {
                     sendVersionConflict(emitter, phase, context, decision.currentState());
                     return;
@@ -1021,6 +1043,7 @@ public class DrawioStreamResponseWriter {
                                       DiagramType diagramType,
                                       CanvasMutationPurpose purpose,
                                       CanvasMutationAuthorization authorization,
+                                      Integer visualRepairRound,
                                       String runId,
                                       String spanId) {
     }

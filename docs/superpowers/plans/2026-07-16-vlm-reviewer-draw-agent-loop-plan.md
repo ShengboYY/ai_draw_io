@@ -465,12 +465,15 @@ feat(review): expand visual evidence coverage
 
 ### Phase 7：灰度、指标和死代码清理
 
-- 先打开 Reviewer，关闭 automatic continuation。
-- 再对小流量打开 automatic continuation，先观察 round 1，再单独观察 round 2 的增量收益。
-- 统计各 round 的 Review repair 接受率、Mutation Gate 拒绝原因、预算耗尽率、verify pass、人工再次修改率、token/latency。
-- 达标后扩大流量。
-- 删除改造产生的旧方法、旧参数、旧注释和旧测试分支。
-- Router v2 根据独立指标决定启用或删除。
+状态：已实现。操作步骤、指标口径、扩量门槛和回滚方式见
+[`docs/operations/visual-review-rollout.md`](../../operations/visual-review-rollout.md)。
+
+- Reviewer、round 1 和 round 2 使用 `ownerId + diagramId` 的稳定百分比分组；部署的首个灰度阶段只开 Reviewer，不自动修复。二进制安全默认值仍为全部关闭，避免未配置环境直接产生 VLM 成本。
+- 先观察 Reviewer，再小流量开启 round 1，最后单独观察 round 2 的增量收益；扩量不会由代码自动发生。
+- Micrometer 分别统计各 round 的 Review 决策与修复结果、Mutation Gate 拒绝原因、预算耗尽、verify 结果、修复后首次人工编辑和 latency；LLM token/latency 复用现有指标。
+- 人工再次修改率只在客户端提交 repair lineage、且后端用 durable claim 与当前 version/hash 验证成功后计数。
+- Router v1/v2 以独立 version/outcome 标签统计，是否启用或删除由灰度数据决定。
+- 已删除阶段性旧入口与过期 Phase 注释；有历史回归覆盖的 v1 router 暂不作为死代码删除。
 
 建议提交：
 

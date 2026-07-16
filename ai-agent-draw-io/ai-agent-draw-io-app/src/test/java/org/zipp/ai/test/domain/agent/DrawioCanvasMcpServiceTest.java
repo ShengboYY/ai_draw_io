@@ -7,6 +7,7 @@ import org.dom4j.Document;
 import org.dom4j.DocumentHelper;
 import org.dom4j.Element;
 import org.junit.Test;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.tool.ToolCallback;
 import org.springframework.ai.tool.method.MethodToolCallbackProvider;
@@ -17,6 +18,8 @@ import org.zipp.ai.domain.agent.service.ICanvasStateStore;
 import org.zipp.ai.domain.agent.service.analysis.DefaultCanvasAnalyzer;
 import org.zipp.ai.domain.agent.service.armory.matter.mcp.server.DrawioCanvasMcpService;
 import org.zipp.ai.domain.agent.service.armory.matter.mcp.server.DrawioCanvasXmlToolkit;
+import org.zipp.ai.domain.agent.service.usage.AgentTelemetryMetrics;
+import org.zipp.ai.domain.agent.service.usage.AgentUsageTelemetryService;
 
 import java.lang.reflect.Field;
 import java.util.Arrays;
@@ -220,6 +223,28 @@ public class DrawioCanvasMcpServiceTest {
         assertEquals("validation_result", response.getAnalysis().getType());
         assertNoAnalyzerIssue(new DrawioCanvasXmlToolkit().replaceCells(edgeCrossingGraphXml(), response.getCells()),
                 CanvasIssueType.EDGE_NODE_CROSSING, List.of("5", "4"));
+    }
+
+    @Test
+    public void shouldPublishTargetedRouterVersionAndOutcome() throws Exception {
+        DrawioCanvasMcpService service = new DrawioCanvasMcpService();
+        SimpleMeterRegistry registry = new SimpleMeterRegistry();
+        inject(service, "targetedEdgeRouterV2Enabled", true);
+        inject(service, "agentUsageTelemetryService", new AgentUsageTelemetryService(
+                new FakeAgentUsageTelemetryStore(), java.time.Clock.systemUTC(),
+                AgentUsageTelemetryService.TelemetryWriteExecutor.direct(),
+                new AgentTelemetryMetrics(registry)));
+        DrawioCanvasMcpService.OptimizeDiagramRequest request = new DrawioCanvasMcpService.OptimizeDiagramRequest();
+        request.setMode("route_only");
+        request.setXml(edgeCrossingGraphXml());
+        request.setDiagramType("flowchart");
+        request.setTargetEdgeIds(List.of("5"));
+
+        service.optimizeDiagram(request);
+
+        assertEquals(1D, registry.get("ai.agent.targeted.edge.router")
+                .tags("version", "v2", "outcome", "routed")
+                .counter().count(), 0D);
     }
 
     @Test
@@ -1014,6 +1039,12 @@ public class DrawioCanvasMcpServiceTest {
         Field field = DrawioCanvasMcpService.class.getDeclaredField("canvasStateStore");
         field.setAccessible(true);
         field.set(service, canvasStateStore);
+    }
+
+    private void inject(DrawioCanvasMcpService service, String fieldName, Object value) throws Exception {
+        Field field = DrawioCanvasMcpService.class.getDeclaredField(fieldName);
+        field.setAccessible(true);
+        field.set(service, value);
     }
 
     private static class FixedCanvasStateStore implements ICanvasStateStore {

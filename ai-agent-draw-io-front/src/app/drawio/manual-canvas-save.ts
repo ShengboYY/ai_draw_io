@@ -5,6 +5,14 @@ export type ManualCanvasSaveInput = {
   canvasVersion?: number;
   canvasContentHash?: string;
   canvasXml?: string | null;
+  visualRepairProvenance?: VisualRepairProvenance;
+};
+
+export type VisualRepairProvenance = {
+  sourceRunId: string;
+  repairRunId: string;
+  repairRound: number;
+  repairedCanvasXml: string;
 };
 
 export type ManualCanvasSaveRequest = {
@@ -13,6 +21,9 @@ export type ManualCanvasSaveRequest = {
   diagramId: string;
   expectedVersion?: number;
   expectedContentHash?: string;
+  visualRepairSourceRunId?: string;
+  visualRepairRunId?: string;
+  visualRepairRound?: number;
   canvasXml: string;
 };
 
@@ -38,12 +49,23 @@ export const buildManualCanvasSaveRequest = ({
   canvasVersion,
   canvasContentHash,
   canvasXml,
+  visualRepairProvenance,
 }: ManualCanvasSaveInput): ManualCanvasSaveRequest | null => {
   const normalizedUserId = userId?.trim();
   const normalizedSessionId = sessionId?.trim();
   const normalizedDiagramId = diagramId?.trim();
   const normalizedXml = canvasXml?.trim();
   if (!normalizedUserId || !normalizedSessionId || !normalizedDiagramId || !normalizedXml) return null;
+  const provenanceRound = visualRepairProvenance?.repairRound;
+  const provenanceApplies = Boolean(
+    visualRepairProvenance?.sourceRunId.trim()
+    && visualRepairProvenance?.repairRunId.trim()
+    && Number.isFinite(provenanceRound)
+    && provenanceRound !== undefined
+    && provenanceRound >= 1
+    && provenanceRound <= 2
+    && visualRepairProvenance?.repairedCanvasXml.trim() !== normalizedXml,
+  );
 
   return {
     userId: normalizedUserId,
@@ -51,6 +73,11 @@ export const buildManualCanvasSaveRequest = ({
     diagramId: normalizedDiagramId,
     ...(Number.isFinite(canvasVersion) && { expectedVersion: canvasVersion }),
     ...(canvasContentHash?.trim() && { expectedContentHash: canvasContentHash.trim() }),
+    ...(provenanceApplies && {
+      visualRepairSourceRunId: visualRepairProvenance?.sourceRunId.trim(),
+      visualRepairRunId: visualRepairProvenance?.repairRunId.trim(),
+      visualRepairRound: visualRepairProvenance?.repairRound,
+    }),
     canvasXml: normalizedXml,
   };
 };

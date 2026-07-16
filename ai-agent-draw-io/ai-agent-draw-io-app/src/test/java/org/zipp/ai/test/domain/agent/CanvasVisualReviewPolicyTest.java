@@ -13,6 +13,8 @@ import org.zipp.ai.domain.agent.service.visualreview.CanvasVisualReviewPolicy;
 import java.util.List;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
 public class CanvasVisualReviewPolicyTest {
 
@@ -95,9 +97,21 @@ public class CanvasVisualReviewPolicyTest {
 
     @Test
     public void finalVerificationNeverStartsThirdRepair() {
+        CanvasVisualReviewResult result = available(List.of(issue(CanvasVisualIssueType.TEXT_READABILITY,
+                CanvasVisualIssueSeverity.CRITICAL)), false);
         assertEquals(CanvasVisualReviewDecision.NEEDS_HUMAN_REVIEW,
-                policy.decide(available(List.of(issue(CanvasVisualIssueType.TEXT_READABILITY,
-                        CanvasVisualIssueSeverity.CRITICAL)), false), CanvasVisualReviewStage.VERIFY_ONLY, 2));
+                policy.decide(result, CanvasVisualReviewStage.VERIFY_ONLY, 2));
+        assertTrue(policy.hasRepairableBlockingIssues(result));
+    }
+
+    @Test
+    public void humanRecommendationIsNotClassifiedAsRepairableBudgetWork() {
+        CanvasVisualReviewResult result = available(List.of(issue(CanvasVisualIssueType.TEXT_READABILITY,
+                CanvasVisualIssueSeverity.MAJOR)), true);
+
+        assertEquals(CanvasVisualReviewDecision.NEEDS_HUMAN_REVIEW,
+                policy.decide(result, CanvasVisualReviewStage.VERIFY_ONLY, 2));
+        assertFalse(policy.hasRepairableBlockingIssues(result));
     }
 
     @Test

@@ -1,14 +1,18 @@
 package org.zipp.ai.test.trigger.service;
 
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.Test;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseBodyEmitter;
 import org.zipp.ai.domain.agent.model.valobj.canvas.CanvasState;
 import org.zipp.ai.domain.agent.model.valobj.canvas.CanvasStateVersionConflictException;
+import org.zipp.ai.domain.agent.model.valobj.canvas.CanvasMutationAuthorization;
+import org.zipp.ai.domain.agent.model.valobj.canvas.CanvasMutationPurpose;
 import org.zipp.ai.domain.agent.service.ICanvasStateStore;
 import org.zipp.ai.domain.agent.service.analysis.DefaultCanvasAnalyzer;
 import org.zipp.ai.domain.agent.service.armory.matter.mcp.server.DrawioCanvasXmlToolkit;
 import org.zipp.ai.domain.agent.service.canvas.CanvasMutationGate;
 import org.zipp.ai.domain.agent.service.usage.AgentUsageTelemetryService;
+import org.zipp.ai.domain.agent.service.usage.AgentTelemetryMetrics;
 import org.zipp.ai.test.domain.agent.FakeAgentUsageTelemetryStore;
 import org.zipp.ai.trigger.http.service.DrawioStreamResponseWriter;
 import org.zipp.ai.trigger.http.service.DrawioToolCallRenderer;
@@ -302,6 +306,33 @@ public class DrawioStreamResponseWriterTest {
         assertEquals(Long.valueOf(3L), canvasStateStore.saved.getVersion());
         assertTrue(canvasStateStore.saved.getCurrentXml().contains("API v2"));
         assertFalse(canvasStateStore.saved.getCurrentXml().contains("value='API'"));
+    }
+
+    @Test
+    public void shouldPublishMutationGateOutcomeForVisualRepairRound() throws Exception {
+        SimpleMeterRegistry registry = new SimpleMeterRegistry();
+        DrawioStreamResponseWriter writer = new DrawioStreamResponseWriter(new DrawioToolCallRenderer());
+        CapturingCanvasStateStore canvasStateStore = new CapturingCanvasStateStore();
+        injectCanvasStateStore(writer, canvasStateStore);
+        injectTelemetryService(writer, new AgentUsageTelemetryService(
+                new FakeAgentUsageTelemetryStore(), Clock.systemUTC(),
+                AgentUsageTelemetryService.TelemetryWriteExecutor.direct(),
+                new AgentTelemetryMetrics(registry)));
+        CapturingEmitter emitter = new CapturingEmitter();
+        writer.setCanvasStateContext(
+                emitter, "alice", "diagram-1", 3L, null, "flowchart",
+                CanvasMutationPurpose.VLM_REPAIR, CanvasMutationAuthorization.unrestricted(),
+                1, "aru_repair", "ars_drawing");
+
+        writer.processAndSendLine(emitter, "drawing", """
+                {"type":"drawio_done","content":"<mxGraphModel><root><mxCell id='0'/><mxCell id='1' parent='0'/><mxCell id='2' value='API' vertex='1' parent='1'><mxGeometry x='100' y='100' width='140' height='60' as='geometry'/></mxCell></root></mxGraphModel>"}
+                """);
+        writer.flushPendingDiagram(emitter, "done");
+
+        assertEquals(1D, registry.get("ai.agent.canvas.mutation")
+                .tag("purpose", "vlm_repair").tag("status", "rejected_scope_violation")
+                .tag("reason", "scope_violation").tag("repair_round", "1")
+                .counter().count(), 0.001D);
     }
 
     @Test

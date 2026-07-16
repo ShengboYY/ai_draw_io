@@ -116,6 +116,52 @@ public class AgentTelemetryMetrics {
                 Tags.of("outcome", lowCardinalityTag(outcome)), 1D);
     }
 
+    public void recordVisualReview(String stage,
+                                   int round,
+                                   String decision,
+                                   String repairOutcome,
+                                   boolean budgetExhausted,
+                                   long latencyMs) {
+        String roundTag = boundedRound(round);
+        Tags reviewTags = Tags.of(
+                "stage", lowCardinalityTag(stage),
+                "round", roundTag,
+                "decision", lowCardinalityTag(decision));
+        increment("ai.agent.visual.review", reviewTags, 1D);
+        recordTimer("ai.agent.visual.review.latency", reviewTags, latencyMs);
+        if (StringUtils.isNotBlank(repairOutcome)) {
+            increment("ai.agent.visual.repair", Tags.of(
+                    "round", roundTag,
+                    "outcome", lowCardinalityTag(repairOutcome)), 1D);
+        }
+        if (budgetExhausted) {
+            increment("ai.agent.visual.repair.budget.exhausted", Tags.of("round", roundTag), 1D);
+        }
+        if ("verify_only".equals(lowCardinalityTag(stage))) {
+            increment("ai.agent.visual.verify", Tags.of(
+                    "outcome", lowCardinalityTag(decision)), 1D);
+        }
+    }
+
+    public void recordCanvasMutation(String purpose, String status, String reason, int repairRound) {
+        increment("ai.agent.canvas.mutation", Tags.of(
+                "purpose", lowCardinalityTag(purpose),
+                "status", lowCardinalityTag(status),
+                "reason", lowCardinalityTag(reason),
+                "repair_round", boundedRound(repairRound)), 1D);
+    }
+
+    public void recordManualEditAfterVisualRepair(int repairRound) {
+        increment("ai.agent.visual.repair.manual.edit",
+                Tags.of("round", boundedRound(repairRound)), 1D);
+    }
+
+    public void recordTargetedEdgeRouter(String version, String outcome) {
+        increment("ai.agent.targeted.edge.router", Tags.of(
+                "version", lowCardinalityTag(version),
+                "outcome", lowCardinalityTag(outcome)), 1D);
+    }
+
     private void incrementTokens(Tags baseTags, String tokenType, Integer amount) {
         if (amount == null || amount <= 0) {
             return;
@@ -153,6 +199,10 @@ public class AgentTelemetryMetrics {
             return "custom";
         }
         return lowCardinalityTag(model);
+    }
+
+    private String boundedRound(int round) {
+        return round >= 0 && round <= 2 ? String.valueOf(round) : UNKNOWN;
     }
 
     private String lowCardinalityTag(String value) {
