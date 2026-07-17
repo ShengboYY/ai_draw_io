@@ -106,6 +106,15 @@ jobs:
           --tag ai-drawio-frontend:ci
           ai-agent-draw-io-front
 
+      - name: Build database migration image
+        run: >-
+          docker build
+          --provenance=false
+          --platform linux/amd64
+          --file deploy/aws/database/Dockerfile
+          --tag ai-drawio-db-migrate:ci
+          .
+
   publish-images:
     name: publish-images
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
