@@ -20,7 +20,12 @@ RUN --mount=type=cache,target=/root/.m2 \
 
 FROM eclipse-temurin:17-jre-jammy
 
-RUN groupadd --system app && useradd --system --gid app --home-dir /app app
+# Apply current Jammy security fixes to Wget inherited from the base image.
+RUN apt-get update \
+    && apt-get install --yes --only-upgrade --no-install-recommends wget \
+    && rm -rf /var/lib/apt/lists/* \
+    && groupadd --system app \
+    && useradd --system --gid app --home-dir /app app
 
 WORKDIR /app
 COPY --from=build /workspace/ai-agent-draw-io-app/target/ai-agent-draw-io-app.jar /app/app.jar
