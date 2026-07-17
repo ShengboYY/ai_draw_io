@@ -1,5 +1,6 @@
 package org.zipp.ai.trigger.http.service;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
@@ -16,6 +17,8 @@ public class VisualReviewRolloutPolicy {
     private final int roundOneRolloutPercent;
     private final int roundTwoRolloutPercent;
 
+    // Select the configuration-backed production constructor while retaining the concise test constructor below.
+    @Autowired
     public VisualReviewRolloutPolicy(
             @Value("${zipp.visual-review.enabled:false}") boolean enabled,
             @Value("${zipp.visual-review.auto-repair-enabled:false}") boolean autoRepairEnabled,

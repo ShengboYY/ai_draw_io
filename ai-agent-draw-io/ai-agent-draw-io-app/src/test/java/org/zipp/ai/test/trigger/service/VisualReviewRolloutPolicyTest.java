@@ -1,12 +1,22 @@
 package org.zipp.ai.test.trigger.service;
 
 import org.junit.Test;
+import org.springframework.context.annotation.AnnotationConfigApplicationContext;
 import org.zipp.ai.trigger.http.service.VisualReviewRolloutPolicy;
 
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 public class VisualReviewRolloutPolicyTest {
+
+    @Test
+    public void springSelectsTheConfigurationConstructorWhenTestConstructorAlsoExists() {
+        // Exercise the same component-instantiation path used during application startup.
+        try (AnnotationConfigApplicationContext context = new AnnotationConfigApplicationContext(
+                VisualReviewRolloutPolicy.class)) {
+            assertTrue(context.containsBean("visualReviewRolloutPolicy"));
+        }
+    }
 
     @Test
     public void reviewerAndRepairRoundsHaveIndependentRolloutBudgets() {
