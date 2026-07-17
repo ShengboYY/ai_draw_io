@@ -1,11 +1,11 @@
 # Build the Next.js standalone server.
-FROM node:22-bookworm-slim AS deps
+FROM node:22-alpine AS deps
 
 WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci
 
-FROM node:22-bookworm-slim AS build
+FROM node:22-alpine AS build
 
 WORKDIR /app
 ENV NEXT_TELEMETRY_DISABLED=1
@@ -13,7 +13,7 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 RUN npm run build
 
-FROM node:22-bookworm-slim AS runtime
+FROM node:22-alpine AS runtime
 
 WORKDIR /app
 ENV NODE_ENV=production
@@ -22,7 +22,11 @@ ENV PORT=3000
 ENV HOSTNAME=0.0.0.0
 ENV NEXT_PUBLIC_API_BASE_URL=/api/v1
 
-RUN groupadd --system nodejs && useradd --system --gid nodejs --home-dir /app nextjs
+# The standalone server only needs Node; omit the npm CLI and run unprivileged.
+RUN rm -rf /usr/local/lib/node_modules/npm \
+    && rm -f /usr/local/bin/npm /usr/local/bin/npx \
+    && addgroup -S nodejs \
+    && adduser -S -G nodejs -h /app nextjs
 
 COPY --from=build --chown=nextjs:nodejs /app/public ./public
 COPY --from=build --chown=nextjs:nodejs /app/.next/standalone ./
