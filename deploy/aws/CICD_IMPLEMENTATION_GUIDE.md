@@ -1477,9 +1477,11 @@ ai-agent-draw-io/docs/sql/migrations/
 - checksum 检查。
 - 自动判断已执行和未执行 migration。
 - CI 中从空数据库验证全部 migration。
-- 生产专用 migration runner。
+- 可复用的生产 migration workflow 和已注册 ECS task definition。
 
 在这些能力完成前，不应该让 application startup 自动扫描并执行整个目录。
+
+2026-07-17 进度：`deploy/aws/database/` 已为首次 SHA 发布提供专用 migration image、30 个文件的依赖顺序、SHA-256 checksum 和 `deployment_schema_history`。它已经从 2026-07-05 旧生产基线在本地 MySQL 8.4 完整执行，并通过第二次运行全部跳过的验证。生产 ECS one-off task、snapshot 和 schema inventory 尚未执行，因此这仍是 release-specific 过渡方案，不等同于完成 Flyway 接入。
 
 ### 14.3 Phase 1：人工受控 migration
 

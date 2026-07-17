@@ -11,6 +11,7 @@
 - `ai-agent-draw-io-front/docker-entrypoint.sh`: 启动时写入运行时 API 地址。
 - `deploy/aws/env/*.example`: 本地或 ECS 环境变量模板。
 - `deploy/aws/ecs/*.example.json`: ECS Fargate task definition 示例。
+- `deploy/aws/database/`: 经过本地旧生产基线验证的专用 migration image、顺序清单和运行手册。
 - `deploy/aws/docker-compose.prod.example.yml`: 本地生产化 smoke test 示例。
 
 ## 推荐架构
