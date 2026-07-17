@@ -21,6 +21,7 @@ import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.IntStream;
 
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
@@ -137,6 +138,35 @@ public class ChatCanvasVisualReviewerTest {
         assertTrue(result.isAvailable());
         assertTrue(captured.get().getTexts().get(0).getMessage().contains("\"id\":\"" + cellId + "\""));
         assertEquals(List.of(cellId), result.getIssues().get(0).getTargetCellIds());
+    }
+
+    @Test
+    public void projectedEdgesKeepEndpointLabelsBeyondTheNodeProjectionBoundary() {
+        AtomicReference<ChatCommandEntity> captured = new AtomicReference<>();
+        IChatService chat = proxy((method, args) -> {
+            if (method.getName().equals("createSession")) return "session";
+            if (method.getName().equals("handleMessage") && args.length == 1) {
+                captured.set((ChatCommandEntity) args[0]);
+                return List.of(VALID_OUTPUT);
+            }
+            return defaultValue(method.getReturnType());
+        });
+        List<CanvasCellData> cells = new ArrayList<>(IntStream.rangeClosed(1, 101)
+                .mapToObj(index -> CanvasCellData.builder()
+                        .id("node-" + index).label("Node " + index).kind("node").build())
+                .toList());
+        cells.add(CanvasCellData.builder().id("edge-1").kind("edge")
+                .source("node-101").target("node-1").build());
+        CanvasVisualReviewCommand command = command(null, image("overview"));
+        command.setCanvasCells(cells);
+
+        CanvasVisualReviewResult result = reviewer(chat, 2_000L).review(command);
+
+        assertTrue(result.isAvailable());
+        String prompt = captured.get().getTexts().get(0).getMessage();
+        assertTrue(prompt.contains("\"truncatedNodeCount\":1"));
+        assertTrue(prompt.contains("\"sourceId\":\"node-101\""));
+        assertTrue(prompt.contains("\"sourceLabel\":\"Node 101\""));
     }
 
     @Test

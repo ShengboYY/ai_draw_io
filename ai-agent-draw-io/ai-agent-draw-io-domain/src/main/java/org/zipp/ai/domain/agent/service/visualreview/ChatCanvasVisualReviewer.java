@@ -201,11 +201,19 @@ public class ChatCanvasVisualReviewer implements ICanvasVisualReviewer {
 
     private Map<String, Object> cellManifest(List<CanvasCellData> cells) {
         CanvasVisualReviewManifestProjector.Projection projection = manifestProjector.project(cells);
-        Map<String, String> labelsById = projection.nodes().stream().collect(Collectors.toMap(
-                CanvasCellData::getId,
-                cell -> safe(cell.getLabel(), 120),
-                (first, ignored) -> first,
-                LinkedHashMap::new));
+        Set<String> endpointIds = projection.edges().stream()
+                .flatMap(edge -> java.util.stream.Stream.of(edge.getSource(), edge.getTarget()))
+                .filter(StringUtils::isNotBlank)
+                .collect(Collectors.toSet());
+        // At most 100 projected edges contribute 200 endpoint labels without widening target authorization.
+        Map<String, String> labelsById = (cells == null ? List.<CanvasCellData>of() : cells).stream()
+                .filter(cell -> cell != null && !"edge".equalsIgnoreCase(cell.getKind()))
+                .filter(cell -> endpointIds.contains(cell.getId()))
+                .collect(Collectors.toMap(
+                        CanvasCellData::getId,
+                        cell -> safe(cell.getLabel(), 120),
+                        (first, ignored) -> first,
+                        LinkedHashMap::new));
 
         Map<String, Object> manifest = new LinkedHashMap<>();
         manifest.put("nodeCount", projection.totalNodeCount());
