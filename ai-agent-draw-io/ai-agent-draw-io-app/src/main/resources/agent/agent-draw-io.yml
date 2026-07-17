@@ -416,13 +416,13 @@ ai:
                   - Use Current Draw.io XML and Canvas Summary to preserve ids, geometry, labels, styles, and edges on edit/append/optimize tasks.
 
                   Repair loop protocol:
-                  - Every mutation tool response carries analysis and repairBrief for the canvas it just produced. repairBrief is your next instruction; the analysis describes the new draft, not the previous canvas.
-                  - If repairBrief lists blocking issues and repair budget remains, fix ONLY the cited cells with ONE call: modify_diagram mode=patch (just the affected cells), modify_diagram mode=replace_cells for id-based swaps, or optimize_diagram mode=route_only with targetEdgeIds containing only the cited edge ids when every issue is edge routing.
+                  - Every mutation tool response carries analysis and repairBrief for the canvas it just produced. analysis is read-only evidence and may contain visual findings; only repairBrief can authorize deterministic self-repair.
+                  - If repairBrief lists hard structural issues and repair budget remains, fix ONLY the cited cells with ONE call: modify_diagram mode=patch (just the affected cells) or modify_diagram mode=replace_cells for id-based swaps. Visual routing, spacing, readability, and style findings never start this loop; the VLM review path handles them after rendering.
                   - Repair turns never call create_diagram and never rebuild the composition; keep unrelated ids, geometry, labels, and styles untouched. Edge routing, label placement, spacing, overlap, or opaque text are never reasons to redraw.
                   - Stop calling tools when repairBrief says to finish, when the budget is spent, or when the same issue survived your previous repair attempt. Then reply with one short user-facing sentence summarizing the result and any remaining issues. The backend also enforces the budget.
 
                   Tool selection:
-                  - routeType=create_new -> create_diagram. Pass mxCell fragments in xml; the backend wraps, repairs, validates, and streams the canvas.
+                  - routeType=create_new -> create_diagram. Pass mxCell fragments in xml; the backend wraps, analyzes, validates, and streams the canvas.
                   - routeType=edit_existing -> modify_diagram only. mode=patch with only the changed mxCell fragments for tiny local edits; mode=append with only new cells for additions; mode=replace_cells with the current xml plus replacement cells for id-based replacement/deletion. Never use create_diagram for edits; if the target is named only by label, set targetLabel.
                   - routeType=optimize_layout -> optimize_diagram. mode=route_only for edge-only repairs, always with non-empty targetEdgeIds (backend validates those ids and returns only their patch_cells); mode=layout_optimize with a complete updated mxGraphModel when node positions must change, preserving labels, ids, and relationships.
                   - The XML passed to a tool must contain every node and edge the final canvas needs. Preserve existing ids; new ids continue after the largest existing numeric id.
@@ -443,11 +443,11 @@ ai:
                 output-key: draft_diagram
 
             agent-workflows:
-              # Public entry workflow. The drawer self-repairs inside its own ADK tool loop;
-              # the backend enforces the mutation budget (first draw + maxRepairRounds).
+              # Public entry workflow. The drawer may repair hard structural failures inside its
+              # own ADK tool loop; the backend enforces the mutation budget.
               - type: sequential
                 name: sequential_draw_process
-                description: "Backend-routed diagram flow: single drawer with self-repair tool loop"
+                description: "Backend-routed diagram flow: single drawer with optional hard-structure repair"
                 sub-agents:
                   - agent_drawer
 

@@ -63,9 +63,9 @@ import java.util.function.Function;
 @Service
 public class AgentConversationService {
 
-    private static final int DEFAULT_MAX_DETERMINISTIC_REPAIR_ROUNDS = 1;
+    private static final int DEFAULT_MAX_DETERMINISTIC_REPAIR_ROUNDS = 0;
     private static final int MAX_DETERMINISTIC_REPAIR_ROUNDS = 3;
-    private static final int MAX_VISUAL_REPAIR_ROUNDS = 1;
+    private static final int MAX_VISUAL_CONTINUATION_DETERMINISTIC_REPAIR_ROUNDS = 0;
     private static final int MAX_BUFFERED_STREAM_CAPTURE_CHARS = 64_000;
     private static final String DRAWER_CONTINUATION_REASON = "production_visual_review_continuation";
 
@@ -337,10 +337,11 @@ public class AgentConversationService {
 
             // Each author has its own buffer because the ADK stream can interleave partial chunks.
             final ConcurrentHashMap<String, StringBuilder> authorBuffers = new ConcurrentHashMap<>();
-            // Drawing-loop budget: one first draw plus N deterministic self-repair mutations.
+            // Drawing-loop budget: one requested mutation plus N optional hard-structure repairs.
+            // A VLM continuation always uses zero so its candidate is reviewed immediately.
             final int maxRepairRounds = forcedRoutingResult == null
                     ? effectiveDeterministicRepairRounds(requestDTO, routingResult)
-                    : MAX_VISUAL_REPAIR_ROUNDS;
+                    : MAX_VISUAL_CONTINUATION_DETERMINISTIC_REPAIR_ROUNDS;
             final AtomicInteger mutationRounds = new AtomicInteger(0);
             final AtomicReference<Disposable> disposableRef = new AtomicReference<>();
             final AtomicBoolean manuallyCompleted = new AtomicBoolean(false);
@@ -1343,9 +1344,9 @@ public class AgentConversationService {
     private enum MutationOutcome {
         /** No drawing mutation in this event (e.g. a search tool response). */
         NONE,
-        /** Canvas mutated and the deterministic analysis reports no blocking issues. */
+        /** Canvas mutated and its repair brief authorizes the loop to finish. */
         CLEAN,
-        /** Canvas mutated but critical/major issues remain; the loop may continue. */
+        /** Canvas mutated but a structural repair brief authorizes another tool turn. */
         NEEDS_REPAIR
     }
 
@@ -1376,9 +1377,12 @@ public class AgentConversationService {
                 continue;
             }
             com.alibaba.fastjson.JSONObject analysis = json.getJSONObject("analysis");
-            boolean clean = analysis == null
+            // repairBrief is the mutation authority: visual majors may keep analysis.valid=false,
+            // but they must not start deterministic self-repair. Fall back only for legacy tools
+            // that do not emit a repair brief yet.
+            boolean clean = json.containsKey("repairBrief")
                     ? isFinishBrief(json.getString("repairBrief"))
-                    : analysis.getBooleanValue("valid");
+                    : analysis == null || analysis.getBooleanValue("valid");
             outcome = clean ? MutationOutcome.CLEAN : MutationOutcome.NEEDS_REPAIR;
         }
         return outcome;

@@ -47,6 +47,45 @@ public class DrawioMutationResultPostProcessorTest {
     }
 
     @Test
+    public void visualMajorIssueIsReportedWithoutTriggeringDeterministicSelfRepair() {
+        String candidate = """
+                <mxGraphModel><root><mxCell id='0'/><mxCell id='1' parent='0'/>
+                <mxCell id='2' value='First' vertex='1' parent='1'><mxGeometry x='100' y='100' width='160' height='80' as='geometry'/></mxCell>
+                <mxCell id='3' value='Second' vertex='1' parent='1'><mxGeometry x='140' y='120' width='160' height='80' as='geometry'/></mxCell>
+                </root></mxGraphModel>
+                """;
+
+        Map<String, Object> processed = new DrawioMutationResultPostProcessor().process(
+                "create_diagram",
+                Map.of("xml", candidate),
+                Map.of("type", "drawio", "content", candidate),
+                new HashMap<>());
+
+        assertTrue(String.valueOf(processed.get("repairBrief"))
+                .startsWith("APPLIED. No blocking issues"));
+    }
+
+    @Test
+    public void structuralCriticalIssueStillTriggersDeterministicSelfRepair() {
+        String candidate = """
+                <mxGraphModel><root><mxCell id='0'/><mxCell id='1' parent='0'/>
+                <mxCell id='2' value='First' vertex='1' parent='1'><mxGeometry x='100' y='100' width='160' height='80' as='geometry'/></mxCell>
+                <mxCell id='2' value='Duplicate' vertex='1' parent='1'><mxGeometry x='360' y='100' width='160' height='80' as='geometry'/></mxCell>
+                </root></mxGraphModel>
+                """;
+
+        Map<String, Object> processed = new DrawioMutationResultPostProcessor().process(
+                "create_diagram",
+                Map.of("xml", candidate),
+                Map.of("type", "drawio", "content", candidate),
+                new HashMap<>());
+
+        String repairBrief = String.valueOf(processed.get("repairBrief"));
+        assertTrue(repairBrief.contains("[critical] Duplicate cell id: 2"));
+        assertTrue(repairBrief.contains("If repair budget remains"));
+    }
+
+    @Test
     public void scopedRouteOnlyPreservesManualWaypointsThroughPostProcessing() {
         String currentXml = """
                 <mxGraphModel><root><mxCell id='0'/><mxCell id='1' parent='0'/>

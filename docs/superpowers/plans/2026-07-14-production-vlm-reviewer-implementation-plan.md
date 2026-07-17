@@ -544,11 +544,11 @@ Prompt 必须明确：
 - [ ] 初始 mutation stream 收到唯一最终 `drawio_done` 后，等待该 XML 真正 load 到 draw.io，再导出 after PNG。
 - [ ] 调 `/visual-reviews/stream`，携带 sourceRunId、最终 version/hash、before/after PNG。
 - [ ] `APPROVE/NOTES/UNAVAILABLE/HUMAN_REVIEW` 时结束，不再调用 drawer。
-- [ ] `REPAIR` 时由 orchestrator 直接调用 `streamVisualRepair(command, emitter)`；不要再次跑 intent router。
-- [ ] visual repair 根据 issues 选择 `edit_existing` 或 `optimize_layout`，allowedTools 仅为 modify/optimize，禁止 create。
-- [ ] visual repair 仍经过 mutation tool 的 deterministic analyzer 和 repair budget；其 deterministic repair round 默认 1。
+- [ ] `REPAIR` 时由 visual review policy 授权 Drawer continuation；沿已有 `continueDrawing(...)` 路径并绕过 intent router。
+- [ ] continuation 仅向同一个 Drawer 暴露 `modify_diagram` / `optimize_diagram`，禁止 create；由 Drawer 根据引用问题选择工具。
+- [ ] visual repair candidate 仍经过 deterministic analyzer，但 continuation 内部 repair budget 固定为 0；candidate 生成后立即截图复审。
 - [ ] repair prompt 明确只修 cited issues，保留其余 id、labels、关系、geometry 和 style。
-- [ ] 修复后的 `drawio_done` 触发一次 `VERIFY_ONLY` 请求；后端在该 stage 无论结果如何都不再自动修。
+- [ ] 修复后的 `drawio_done` 触发下一次 VLM 审阅；外层 policy 在总计最多 2 个自动修复回合内重新判断是否还需修复。
 - [ ] sourceRunId、visualReviewRunId、repairRunId 通过 meta/trace 关联。
 
 **并发规则：**
@@ -614,8 +614,8 @@ Prompt 必须明确：
 **步骤：**
 
 - [ ] 新字段统一叫 `maxDeterministicRepairRounds`。
-- [ ] 后端一版内按“新字段优先，旧 `maxReviewIterations` 次之，默认 1，上限 3”读取。
-- [ ] VLM auto repair 永远不读取此值；使用服务端 `MAX_VISUAL_REPAIR_ROUNDS=1`。
+- [ ] 后端一版内按“新字段优先，旧 `maxReviewIterations` 次之，默认 0，上限 3”读取；显式非零值只允许结构性硬错误触发 self-repair。
+- [ ] VLM auto repair 永远不读取此值；使用服务端 `MAX_VISUAL_CONTINUATION_DETERMINISTIC_REPAIR_ROUNDS=0`，使每个 VLM repair candidate 立即进入下一次截图审阅。
 - [ ] UI 把 “Max Loops” 改为 “Deterministic repair rounds” 或隐藏在高级设置。
 - [ ] 下一兼容窗口再删除旧字段，避免把大范围 eval control-plane 迁移混入 VLM 首次上线的阻断路径。
 

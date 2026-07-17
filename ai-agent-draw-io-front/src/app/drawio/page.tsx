@@ -605,7 +605,7 @@ function DrawioPageContent() {
   const [showApiConfig, setShowApiConfig] = useState(false);
   const [customModels, setCustomModels] = useState<CustomModelConfig[]>([]);
   const [selectedCustomModelId, setSelectedCustomModelId] = useState<string>('default');
-  const [maxDeterministicRepairRounds, setMaxDeterministicRepairRounds] = useState(1);
+  const [maxDeterministicRepairRounds, setMaxDeterministicRepairRounds] = useState(0);
   const demoQuotaState = buildDemoQuotaState({
     account: currentAccount,
     selectedCustomModelId,

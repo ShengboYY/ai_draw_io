@@ -215,7 +215,7 @@ public class AgentConversationServiceTest {
         assertFalse(chatService.lastStreamMessage.contains("\"allowedTools\":[\"create_diagram\"]"));
         assertTrue(chatService.lastStreamMessage.contains(
                 "\"repairTools\":[\"modify_diagram\",\"optimize_diagram\"]"));
-        assertTrue(chatService.lastStreamMessage.contains("\"maxRepairRounds\":1"));
+        assertTrue(chatService.lastStreamMessage.contains("\"maxRepairRounds\":0"));
     }
 
     @Test
@@ -239,11 +239,35 @@ public class AgentConversationServiceTest {
     public void shouldClampDeterministicRepairRoundSetting() throws Exception {
         AgentConversationService service = new AgentConversationService();
 
-        assertEquals(1, normalizeDeterministicRepairRounds(service, null));
+        assertEquals(0, normalizeDeterministicRepairRounds(service, null));
         assertEquals(0, normalizeDeterministicRepairRounds(service, -1));
         assertEquals(0, normalizeDeterministicRepairRounds(service, 0));
         assertEquals(2, normalizeDeterministicRepairRounds(service, 2));
         assertEquals(3, normalizeDeterministicRepairRounds(service, 9));
+    }
+
+    @Test
+    public void finishRepairBriefOverridesVisualAnalysisFailureForLoopControl() throws Exception {
+        AgentConversationService service = new AgentConversationService();
+        Event event = mutationEvent(Map.of(
+                "type", "drawio_done",
+                "analysis", Map.of("valid", false),
+                "repairBrief", "APPLIED. No blocking issues remain."
+        ));
+
+        assertEquals("CLEAN", mutationOutcome(service, event));
+    }
+
+    @Test
+    public void structuralRepairBriefOverridesPassingAnalysisForLoopControl() throws Exception {
+        AgentConversationService service = new AgentConversationService();
+        Event event = mutationEvent(Map.of(
+                "type", "drawio_done",
+                "analysis", Map.of("valid", true),
+                "repairBrief", "REPAIR REQUIRED: DUP_ID must be fixed."
+        ));
+
+        assertEquals("NEEDS_REPAIR", mutationOutcome(service, event));
     }
 
     @Test
@@ -912,6 +936,21 @@ public class AgentConversationServiceTest {
         Method method = AgentConversationService.class.getDeclaredMethod("normalizeDeterministicRepairRounds", Integer.class);
         method.setAccessible(true);
         return (int) method.invoke(service, value);
+    }
+
+    private String mutationOutcome(AgentConversationService service, Event event) throws Exception {
+        // Exercise loop authorization without widening the production API surface.
+        Method method = AgentConversationService.class.getDeclaredMethod("mutationOutcome", Event.class);
+        method.setAccessible(true);
+        return method.invoke(service, event).toString();
+    }
+
+    private Event mutationEvent(Map<String, Object> response) {
+        return Event.builder()
+                .author("agent_drawer")
+                .content(com.google.genai.types.Content.fromParts(
+                        com.google.genai.types.Part.fromFunctionResponse("modify_diagram", response)))
+                .build();
     }
 
     private Integer requestedDeterministicRepairRounds(AgentConversationService service,

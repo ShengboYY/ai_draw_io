@@ -2,7 +2,7 @@
 
 > 编写日期：2026-07-16
 > 适用仓库：`ai_draw_io`
-> 状态：新的唯一后续实施方案
+> 状态：当前实施方案（2026-07-17 修订：视觉修复候选不再附带确定性二次修复）
 > 取代：`2026-07-15-diagram-quality-validation-and-repair-engine-plan.md` 中的多修复器架构
 
 ## 1. 结论
@@ -45,7 +45,9 @@ Draw → Render → Review(round 0) → [Policy] → Drawer repair 1
      → Render → Verify-only(round 2) → Finish
 ```
 
-Drawer continuation 内部仍可保留一次确定性 self-repair，因为读取 tool 的 `analysis/repairBrief` 后立即修正，比再次截图并调用 VLM 更便宜。
+Drawer continuation 内部不再附带确定性 self-repair。Drawer 每次根据 VLM continuation 只产生一个候选，然后立即重新截图审阅，避免视觉修复后又被启发式规则二次改写。
+
+普通首轮绘图的 deterministic repair budget 默认同样为 0。Analyzer 继续产出完整 evidence，但只有 `INVALID_XML`、`DUP_ID`、`MISSING_GEOMETRY`、`BROKEN_EDGE` 这四类结构性 critical issue 可以写入 `repairBrief`；连线、端口、间距、可读性和样式问题交由渲染后的 VLM Reviewer 判断。
 
 ## 2. 为什么采用这个方案
 
@@ -273,9 +275,9 @@ record DrawerContinuationContext(
 ### 6.5 两层预算
 
 - 外层 VLM continuation：最多 2 次，每次都必须重新经过 Review Policy 和独立持久化 claim。
-- continuation 内 deterministic self-repair：最多 1 次。
+- continuation 内 deterministic self-repair：0 次；每个候选立即进入下一次 VLM Review。
 
-这样最多产生三次 VLM Review（首轮、第一次修复后、最终复核）和两个已保存的外层视觉 repair 版本，不会无限循环，同时优先利用廉价的确定性反馈。
+这样最多产生三次 VLM Review（首轮、第一次修复后、最终复核）和两个已保存的外层视觉 repair 版本，不会无限循环，也不会在两次像素审阅之间插入额外的启发式改写。
 
 ### 6.6 只在新版本产生后重新 Review
 
@@ -498,7 +500,7 @@ chore(review): complete drawer loop rollout cleanup
 - continuation 初次调用允许 `modify_diagram`。
 - continuation 初次调用允许 `optimize_diagram`。
 - continuation 禁止 `create_diagram`。
-- tool 完成后允许一次 deterministic self-repair。
+- tool 完成后立即结束该 Drawer continuation，不允许 deterministic self-repair。
 - 不属于当前 run 的 session tool call 被拒绝。
 
 ### 9.3 Mutation Gate
