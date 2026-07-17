@@ -394,7 +394,8 @@ export default function Home() {
         </div>
       </header>
 
-      <div className="mx-auto flex w-full max-w-7xl flex-col px-4 py-5 sm:px-6 sm:py-7 lg:px-8">
+      {/* The diagram workspace fills wide screens; responsive gutters keep content off the viewport edge. */}
+      <div className="flex w-full flex-col px-4 py-5 sm:px-6 sm:py-7 lg:px-8">
         {errorMessage && (
           <div className="mb-6 rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
             {errorMessage}

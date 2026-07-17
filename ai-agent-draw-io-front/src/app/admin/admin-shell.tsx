@@ -86,7 +86,8 @@ export function AdminShell({ active, children }: AdminShellProps) {
         </div>
       </header>
 
-      <div className="mx-auto w-full max-w-7xl px-4 py-7 sm:px-6 sm:py-9 lg:px-8">{children}</div>
+      {/* Admin workspaces use the full viewport width while retaining a comfortable edge gutter. */}
+      <div className="w-full px-4 py-7 sm:px-6 sm:py-9 lg:px-8">{children}</div>
     </main>
   );
 }
