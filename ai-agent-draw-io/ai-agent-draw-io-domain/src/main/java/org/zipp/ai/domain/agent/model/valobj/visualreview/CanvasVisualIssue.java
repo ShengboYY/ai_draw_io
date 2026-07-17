@@ -26,7 +26,7 @@ public class CanvasVisualIssue {
     public CanvasVisualIssue boundedCopy() {
         List<String> cellIds = targetCellIds == null
                 ? Collections.emptyList()
-                : targetCellIds.stream().limit(5).map(id -> abbreviate(id, 80)).toList();
+                : targetCellIds.stream().limit(5).map(id -> abbreviate(id, 256)).toList();
         List<String> labels = anchorLabels == null
                 ? Collections.emptyList()
                 : anchorLabels.stream().limit(3).map(label -> abbreviate(label, 80)).toList();

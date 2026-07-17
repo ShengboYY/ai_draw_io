@@ -24,6 +24,11 @@ public class CanvasVisualReviewPolicy {
     public CanvasVisualReviewDecision decide(CanvasVisualReviewResult result,
                                              CanvasVisualReviewStage stage,
                                              int completedRepairRounds) {
+        if (result != null && !result.isAvailable()
+                && "output_schema_error".equals(result.getUnavailableReason())) {
+            // A malformed reviewer response is not safe evidence of approval; require manual inspection.
+            return CanvasVisualReviewDecision.NEEDS_HUMAN_REVIEW;
+        }
         // Review failure is fail-open: deterministic validation already owns canvas safety.
         if (result == null || !result.isAvailable()) {
             return CanvasVisualReviewDecision.UNAVAILABLE;

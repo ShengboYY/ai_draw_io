@@ -41,6 +41,7 @@ public class ChatCanvasVisualReviewer implements ICanvasVisualReviewer {
     private static final String SCHEMA_VERSION = "visual-review-schema-v3";
     private static final int MAX_MANIFEST_NODES = 100;
     private static final int MAX_MANIFEST_EDGES = 100;
+    private static final int MAX_CELL_ID_LENGTH = 256;
     private static final String PNG_DATA_URL_PREFIX = "data:image/png;base64,";
     private static final Set<String> ROOT_FIELDS = Set.of("summary", "issues", "recommendedHumanReview");
     private static final Set<String> ISSUE_FIELDS = Set.of(
@@ -227,7 +228,7 @@ public class ChatCanvasVisualReviewer implements ICanvasVisualReviewer {
 
     private Map<String, Object> nodeEvidence(CanvasCellData cell) {
         Map<String, Object> value = new LinkedHashMap<>();
-        value.put("id", safe(cell.getId(), 80));
+        value.put("id", manifestCellId(cell.getId()));
         value.put("label", safe(cell.getLabel(), 120));
         value.put("kind", safe(cell.getKind(), 32));
         value.put("x", cell.getX());
@@ -239,11 +240,11 @@ public class ChatCanvasVisualReviewer implements ICanvasVisualReviewer {
 
     private Map<String, Object> edgeEvidence(CanvasCellData cell, Map<String, String> labelsById) {
         Map<String, Object> value = new LinkedHashMap<>();
-        value.put("id", safe(cell.getId(), 80));
+        value.put("id", manifestCellId(cell.getId()));
         value.put("label", safe(cell.getLabel(), 120));
-        value.put("sourceId", safe(cell.getSource(), 80));
+        value.put("sourceId", manifestCellId(cell.getSource()));
         value.put("sourceLabel", labelsById.getOrDefault(cell.getSource(), ""));
-        value.put("targetId", safe(cell.getTarget(), 80));
+        value.put("targetId", manifestCellId(cell.getTarget()));
         value.put("targetLabel", labelsById.getOrDefault(cell.getTarget(), ""));
         value.put("waypointCount", cell.getPoints() == null ? 0 : cell.getPoints().size());
         return value;
@@ -326,7 +327,7 @@ public class ChatCanvasVisualReviewer implements ICanvasVisualReviewer {
             throw new IllegalArgumentException("Invalid targetCellIds");
         }
         List<String> targetCellIds = new ArrayList<>();
-        targetIdsNode.forEach(id -> targetCellIds.add(requiredText(id, 80)));
+        targetIdsNode.forEach(id -> targetCellIds.add(requiredText(id, MAX_CELL_ID_LENGTH)));
         return CanvasVisualIssue.builder()
                 .type(type)
                 .severity(severity)
@@ -382,6 +383,14 @@ public class ChatCanvasVisualReviewer implements ICanvasVisualReviewer {
 
     private String safe(String value, int maxLength) {
         return StringUtils.left(StringUtils.defaultString(value).replaceAll("[\\r\\n]+", " "), maxLength);
+    }
+
+    private String manifestCellId(String value) {
+        String cellId = StringUtils.defaultString(value);
+        if (cellId.length() > MAX_CELL_ID_LENGTH || cellId.indexOf('\r') >= 0 || cellId.indexOf('\n') >= 0) {
+            throw new IllegalArgumentException("Invalid cell id");
+        }
+        return cellId;
     }
 
     private CanvasVisualReviewResult unavailable(String reason) {

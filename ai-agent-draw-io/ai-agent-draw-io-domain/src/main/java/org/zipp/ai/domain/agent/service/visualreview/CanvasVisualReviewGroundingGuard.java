@@ -23,12 +23,6 @@ import java.util.stream.Collectors;
 
 public class CanvasVisualReviewGroundingGuard {
 
-    private static final Set<CanvasVisualIssueType> AUTOMATIC_TYPES = EnumSet.of(
-            CanvasVisualIssueType.TEXT_READABILITY,
-            CanvasVisualIssueType.LAYOUT_HIERARCHY,
-            CanvasVisualIssueType.EDGE_TRACEABILITY,
-            CanvasVisualIssueType.STYLE_COHERENCE);
-
     public CanvasVisualReviewGrounding ground(CanvasAnalysis analysis, CanvasVisualReviewResult result) {
         List<CanvasCellData> cells = analysis == null || analysis.getCells() == null
                 ? List.of() : analysis.getCells();
@@ -42,18 +36,20 @@ public class CanvasVisualReviewGroundingGuard {
         Set<String> validTargets = new LinkedHashSet<>();
         Set<String> invalidTargets = new LinkedHashSet<>();
         Set<CanvasField> allowedFields = new LinkedHashSet<>();
+        Set<Set<CanvasField>> requiredCapabilities = new LinkedHashSet<>();
         String conflict = null;
 
         for (CanvasVisualIssue issue : result == null ? List.<CanvasVisualIssue>of() : result.safeIssues()) {
             if (issue == null) continue;
             List<String> issueTargets = issue.getTargetCellIds() == null ? List.of() : issue.getTargetCellIds().stream()
-                    .filter(StringUtils::isNotBlank).map(String::trim).distinct().toList();
+                    .filter(StringUtils::isNotBlank).distinct().toList();
+            Set<CanvasField> issueFields = fieldsFor(issue.getType());
             returnedTargets.addAll(issueTargets);
             if (issue.getRepairScope() == CanvasVisualRepairScope.WHOLE_CANVAS && conflict == null) {
                 conflict = "whole_canvas_not_automatable";
             }
             if (issue.getRepairScope() == CanvasVisualRepairScope.LOCAL
-                    && AUTOMATIC_TYPES.contains(issue.getType()) && issueTargets.isEmpty() && conflict == null) {
+                    && !issueFields.isEmpty() && issueTargets.isEmpty() && conflict == null) {
                 // Visible labels remain explanatory evidence and never grant mutation authority.
                 conflict = "local_issue_without_target";
             }
@@ -70,11 +66,21 @@ public class CanvasVisualReviewGroundingGuard {
             if (!invalidTargets.isEmpty() && conflict == null) {
                 conflict = "unknown_target_cell";
             }
-            if (issue.getType() == CanvasVisualIssueType.EDGE_TRACEABILITY
-                    && resolved.stream().noneMatch(this::isEdge) && conflict == null) {
-                conflict = "edge_issue_without_edge_target";
+            if (issue.getType() == CanvasVisualIssueType.EDGE_TRACEABILITY && conflict == null) {
+                if (resolved.stream().noneMatch(this::isEdge)) {
+                    conflict = "edge_issue_without_edge_target";
+                } else if (resolved.stream().anyMatch(cell -> !isEdge(cell))) {
+                    conflict = "edge_issue_with_non_edge_target";
+                }
             }
-            allowedFields.addAll(fieldsFor(issue.getType()));
+            if (!issueFields.isEmpty()) {
+                requiredCapabilities.add(Set.copyOf(issueFields));
+                allowedFields.addAll(issueFields);
+            }
+        }
+        if (conflict == null && requiredCapabilities.size() > 1) {
+            // The current authorization contract has global fields, so mixed capabilities would over-grant targets.
+            conflict = "mixed_target_capabilities";
         }
 
         CanvasMutationAuthorization authorization = conflict == null

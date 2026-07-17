@@ -27,6 +27,13 @@ public class CanvasVisualReviewPolicyTest {
     }
 
     @Test
+    public void malformedReviewerOutputRequiresHumanReview() {
+        assertEquals(CanvasVisualReviewDecision.NEEDS_HUMAN_REVIEW,
+                policy.decide(CanvasVisualReviewResult.unavailable("output_schema_error"),
+                        CanvasVisualReviewStage.POST_MUTATION, 0));
+    }
+
+    @Test
     public void emptyIssuesAreApproved() {
         assertEquals(CanvasVisualReviewDecision.APPROVE,
                 policy.decide(available(List.of(), false), CanvasVisualReviewStage.POST_MUTATION, 0));

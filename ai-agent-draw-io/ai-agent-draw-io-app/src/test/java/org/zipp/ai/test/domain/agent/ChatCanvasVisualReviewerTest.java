@@ -117,6 +117,29 @@ public class ChatCanvasVisualReviewerTest {
     }
 
     @Test
+    public void preservesOpaqueCellIdsLongerThanDisplayTextLimits() {
+        String cellId = "cell-" + "x".repeat(120);
+        AtomicReference<ChatCommandEntity> captured = new AtomicReference<>();
+        IChatService chat = proxy((method, args) -> {
+            if (method.getName().equals("createSession")) return "session";
+            if (method.getName().equals("handleMessage") && args.length == 1) {
+                captured.set((ChatCommandEntity) args[0]);
+                return List.of(VALID_OUTPUT.replace("\"2\"", "\"" + cellId + "\""));
+            }
+            return defaultValue(method.getReturnType());
+        });
+        CanvasVisualReviewCommand command = command(null, image("overview"));
+        command.setCanvasCells(List.of(CanvasCellData.builder()
+                .id(cellId).label("API").kind("node").build()));
+
+        CanvasVisualReviewResult result = reviewer(chat, 2_000L).review(command);
+
+        assertTrue(result.isAvailable());
+        assertTrue(captured.get().getTexts().get(0).getMessage().contains("\"id\":\"" + cellId + "\""));
+        assertEquals(List.of(cellId), result.getIssues().get(0).getTargetCellIds());
+    }
+
+    @Test
     public void sendsSupplementalPageAndTilePixelsWithAnExplicitImageManifest() {
         AtomicReference<ChatCommandEntity> captured = new AtomicReference<>();
         IChatService chat = proxy((method, args) -> {

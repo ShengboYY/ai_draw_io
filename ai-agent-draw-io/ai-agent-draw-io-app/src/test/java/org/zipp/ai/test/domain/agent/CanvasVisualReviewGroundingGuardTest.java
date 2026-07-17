@@ -49,6 +49,30 @@ public class CanvasVisualReviewGroundingGuardTest {
     }
 
     @Test
+    public void rejectsAnEdgeFindingThatMixesEdgeAndNodeTargets() {
+        CanvasVisualReviewGrounding grounding = guard.ground(analysis(), result(issue(
+                CanvasVisualIssueType.EDGE_TRACEABILITY,
+                CanvasVisualRepairScope.LOCAL,
+                List.of("edge-1", "node-1"))));
+
+        assertEquals("edge_issue_with_non_edge_target", grounding.conflictReason());
+        assertTrue(grounding.authorization().allowedCellIds().isEmpty());
+    }
+
+    @Test
+    public void rejectsMixedIssuesThatNeedDifferentFieldCapabilities() {
+        CanvasVisualReviewGrounding grounding = guard.ground(analysis(), result(
+                issue(CanvasVisualIssueType.TEXT_READABILITY,
+                        CanvasVisualRepairScope.LOCAL, List.of("node-1")),
+                issue(CanvasVisualIssueType.EDGE_TRACEABILITY,
+                        CanvasVisualRepairScope.LOCAL, List.of("edge-1"))));
+
+        assertEquals("mixed_target_capabilities", grounding.conflictReason());
+        assertTrue(grounding.authorization().allowedCellIds().isEmpty());
+        assertTrue(grounding.authorization().allowedFields().isEmpty());
+    }
+
+    @Test
     public void labelsNeverGrantMutationAuthorityWithoutTargetIds() {
         CanvasVisualIssue issue = issue(CanvasVisualIssueType.LAYOUT_HIERARCHY,
                 CanvasVisualRepairScope.LOCAL, List.of());
@@ -83,8 +107,8 @@ public class CanvasVisualReviewGroundingGuardTest {
                         .source("node-1").target("node-2").build())).build();
     }
 
-    private CanvasVisualReviewResult result(CanvasVisualIssue issue) {
-        return CanvasVisualReviewResult.builder().available(true).issues(List.of(issue)).build();
+    private CanvasVisualReviewResult result(CanvasVisualIssue... issues) {
+        return CanvasVisualReviewResult.builder().available(true).issues(List.of(issues)).build();
     }
 
     private CanvasVisualIssue issue(CanvasVisualIssueType type,

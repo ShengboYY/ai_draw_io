@@ -83,7 +83,7 @@ public class CanvasVisualReviewOrchestratorTest {
                     reviewerCalls.incrementAndGet();
                     assertTrue(command.getAfterImageDataUrl().startsWith("data:image/png;base64,"));
                     assertEquals(Long.valueOf(7L), command.getExpectedVersion());
-                    assertEquals(List.of("2", "3"), command.getCanvasCells().stream()
+                    assertEquals(List.of("2"), command.getCanvasCells().stream()
                             .map(CanvasCellData::getId).toList());
                     return CanvasVisualReviewResult.builder().available(true).summary("Looks good")
                             .issues(List.of()).recommendedHumanReview(false).reviewerVersion("reviewer-v1").build();
@@ -403,8 +403,8 @@ public class CanvasVisualReviewOrchestratorTest {
                 .repairInstruction("Route only the anchored edge outside the node.")
                 .repairScope(CanvasVisualRepairScope.LOCAL)
                 .build();
-        CanvasVisualReviewOrchestrator orchestrator = orchestrator(
-                new SequenceCanvasStore(state(8L, "sha256:repair-1")),
+        CanvasVisualReviewOrchestrator orchestrator = edgeOrchestrator(
+                new SequenceCanvasStore(edgeState(8L, "sha256:repair-1")),
                 command -> CanvasVisualReviewResult.builder().available(true).summary("One issue remains")
                         .issues(List.of(issue)).recommendedHumanReview(false).build(),
                 repairService);
@@ -890,6 +890,22 @@ public class CanvasVisualReviewOrchestratorTest {
                 .severity("ok")
                 .issues(List.of())
                 // Keep the test analysis aligned with the canvas fixture so visual anchors can be authorized.
+                .cells(List.of(CanvasCellData.builder().id("2").label("API").kind("vertex").build()))
+                .summary(CanvasSummaryData.builder().nodeCount(1).edgeCount(0).summary("one node").build())
+                .build();
+        return new CanvasVisualReviewOrchestrator(store, analyzer, reviewer,
+                new CanvasReviewImageValidator(), new AnonymousDemoQuotaService(),
+                new VerifiedUserPlatformQuotaService(), repairService);
+    }
+
+    private CanvasVisualReviewOrchestrator edgeOrchestrator(
+            ICanvasStateStore store,
+            org.zipp.ai.domain.agent.service.visualreview.ICanvasVisualReviewer reviewer,
+            AgentConversationService repairService) {
+        ICanvasAnalyzer analyzer = (xml, diagramType) -> CanvasAnalysis.builder()
+                .valid(true)
+                .severity("ok")
+                .issues(List.of())
                 .cells(List.of(
                         CanvasCellData.builder().id("2").label("API").kind("node").build(),
                         CanvasCellData.builder().id("3").label("query").kind("edge")
@@ -929,10 +945,19 @@ public class CanvasVisualReviewOrchestratorTest {
                 .currentXml("<mxGraphModel><root><mxCell id='0'/><mxCell id='1' parent='0'/>"
                         + "<mxCell id='2' value='API' vertex='1' parent='1'>"
                         + "<mxGeometry x='40' y='40' width='120' height='60' as='geometry'/></mxCell>"
-                        + "<mxCell id='3' value='query' edge='1' parent='1' source='2' target='2'>"
-                        + "<mxGeometry relative='1' as='geometry'/></mxCell>"
                         + "</root></mxGraphModel>")
                 .build();
+    }
+
+    private CanvasState edgeState(Long version, String hash) {
+        CanvasState state = state(version, hash);
+        state.setCurrentXml("<mxGraphModel><root><mxCell id='0'/><mxCell id='1' parent='0'/>"
+                + "<mxCell id='2' value='API' vertex='1' parent='1'>"
+                + "<mxGeometry x='40' y='40' width='120' height='60' as='geometry'/></mxCell>"
+                + "<mxCell id='3' value='query' edge='1' parent='1' source='2' target='2'>"
+                + "<mxGeometry relative='1' as='geometry'/></mxCell>"
+                + "</root></mxGraphModel>");
+        return state;
     }
 
     private CanvasState multiPageState(Long version, String hash, int pageCount) {
