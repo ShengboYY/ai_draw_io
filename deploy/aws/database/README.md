@@ -6,7 +6,8 @@ This directory packages the 30 migrations added after the successful 2026-07-05 
 
 - The manifest records dependency order explicitly.
 - The image contains the SQL; it does not download scripts at runtime.
-- The runner requires TLS, only accepts the `ai_draw_io` database, and does not put the password in command arguments.
+- The minimal Alpine image contains the MariaDB client and its MySQL 8 authentication plugin rather than a full MySQL server.
+- The runner requires TLS, verifies the RDS endpoint against the checksum-pinned AWS global CA bundle, only accepts the `ai_draw_io` database, and does not put the password in command arguments.
 - `deployment_schema_history` stores each filename and SHA-256 checksum.
 - A previously applied file is skipped only when its checksum still matches.
 - Any SQL error, missing file, checksum change, or unexpected history count stops the task with a non-zero exit code.
@@ -22,6 +23,8 @@ Migration release 20260717 is complete: 30 recorded, 30 applied in this run.
 ```
 
 Run the same image a second time against that database. It must verify every checksum and report `0 applied in this run`.
+
+`MYSQL_SSL_VERIFY_SERVER_CERT=false` is permitted only for this disposable local test. Do not set it in an ECS task definition; production uses the checksum-pinned AWS RDS CA bundle and endpoint verification by default.
 
 ## Production sequence
 

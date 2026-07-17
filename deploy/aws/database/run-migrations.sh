@@ -7,6 +7,8 @@ set -eu
 : "${MYSQL_PASSWORD:?MYSQL_PASSWORD is required}"
 
 MYSQL_PORT="${MYSQL_PORT:-3306}"
+MYSQL_SSL_CA="${MYSQL_SSL_CA:-/migration/rds-global-bundle.pem}"
+MYSQL_SSL_VERIFY_SERVER_CERT="${MYSQL_SSL_VERIFY_SERVER_CERT:-true}"
 MIGRATION_RELEASE="20260717"
 MIGRATION_ROOT="/migration"
 MIGRATION_MANIFEST="${MIGRATION_ROOT}/release-20260717.manifest"
@@ -21,16 +23,46 @@ fi
 export MYSQL_PWD="$MYSQL_PASSWORD"
 
 mysql_command() {
-  mysql \
-    --protocol=TCP \
-    --host="$MYSQL_HOST" \
-    --port="$MYSQL_PORT" \
-    --user="$MYSQL_USER" \
-    --ssl-mode=REQUIRED \
-    --batch \
-    --skip-column-names \
-    "$@"
+  case "$MYSQL_SSL_VERIFY_SERVER_CERT" in
+    true)
+      mariadb \
+        --protocol=TCP \
+        --host="$MYSQL_HOST" \
+        --port="$MYSQL_PORT" \
+        --user="$MYSQL_USER" \
+        --ssl \
+        --ssl-ca="$MYSQL_SSL_CA" \
+        --ssl-verify-server-cert \
+        --batch \
+        --skip-column-names \
+        "$@"
+      ;;
+    false)
+      # Local disposable MySQL validation only; production must use endpoint verification.
+      mariadb \
+        --protocol=TCP \
+        --host="$MYSQL_HOST" \
+        --port="$MYSQL_PORT" \
+        --user="$MYSQL_USER" \
+        --ssl \
+        --batch \
+        --skip-column-names \
+        "$@"
+      ;;
+    *)
+      echo "MYSQL_SSL_VERIFY_SERVER_CERT must be true or false." >&2
+      exit 1
+      ;;
+  esac
 }
+
+# Fail before any DDL when the negotiated connection is not encrypted.
+tls_cipher="$(mysql_command --execute="SHOW SESSION STATUS LIKE 'Ssl_cipher';" | awk 'NR == 1 { print $2 }')"
+if [ -z "$tls_cipher" ]; then
+  echo "The database connection did not negotiate TLS." >&2
+  exit 1
+fi
+echo "Verified encrypted database connection."
 
 mysql_command "$MYSQL_DATABASE" <<'SQL'
 CREATE TABLE IF NOT EXISTS deployment_schema_history (
