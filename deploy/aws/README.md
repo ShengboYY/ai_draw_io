@@ -4,6 +4,8 @@
 
 ## 文件说明
 
+- `deploy/aws/CICD_IMPLEMENTATION_GUIDE.md`: GitHub Actions、OIDC、ECR、ECS 发布、回滚、数据库 migration、监控和成本的完整 CI/CD 实施文档。
+- `deploy/aws/DEPLOYMENT_REVIEW_GUIDE.md`: 当前 AWS 架构、服务原理、安全边界、成本与面试复盘文档。
 - `ai-agent-draw-io/Dockerfile`: 后端 Spring Boot 多阶段构建镜像。
 - `ai-agent-draw-io-front/Dockerfile`: 前端 Next.js standalone 镜像。
 - `ai-agent-draw-io-front/docker-entrypoint.sh`: 启动时写入运行时 API 地址。
