@@ -18,6 +18,7 @@ public class CanvasVisualRepairBriefComposerTest {
         CanvasVisualIssue issue = CanvasVisualIssue.builder()
                 .type(CanvasVisualIssueType.TEXT_READABILITY)
                 .severity(CanvasVisualIssueSeverity.MAJOR)
+                .targetCellIds(List.of("node-2"))
                 .anchorLabels(List.of("data:image/png;base64,SECRET", "A".repeat(300), "API"))
                 .region("center")
                 .evidence("data:image/png;base64,SECRET " + "E".repeat(1000))
@@ -39,6 +40,7 @@ public class CanvasVisualRepairBriefComposerTest {
         assertTrue(brief.contains("Make the API readable"));
         assertTrue(brief.contains("version=7"));
         assertTrue(brief.contains("sha256:abc"));
+        assertTrue(brief.contains("targets=[node-2]"));
         assertTrue(brief.contains("Preserve every unmentioned"));
         assertTrue(brief.length() < 1800);
         assertFalse(brief.contains("data:image"));

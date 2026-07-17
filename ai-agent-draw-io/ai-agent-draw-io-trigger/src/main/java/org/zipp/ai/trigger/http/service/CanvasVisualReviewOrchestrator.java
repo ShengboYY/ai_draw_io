@@ -14,9 +14,7 @@ import org.zipp.ai.domain.account.service.AnonymousDemoQuotaService;
 import org.zipp.ai.domain.account.service.VerifiedUserPlatformQuotaService;
 import org.zipp.ai.domain.agent.model.valobj.analysis.CanvasAnalysis;
 import org.zipp.ai.domain.agent.model.valobj.analysis.CanvasAnalysisIssue;
-import org.zipp.ai.domain.agent.model.valobj.canvas.CanvasField;
 import org.zipp.ai.domain.agent.model.valobj.canvas.CanvasMutationAuthorization;
-import org.zipp.ai.domain.agent.model.valobj.canvas.CanvasRepairScope;
 import org.zipp.ai.domain.agent.model.valobj.canvas.CanvasState;
 import org.zipp.ai.domain.agent.model.valobj.visualreview.CanvasVisualIssue;
 import org.zipp.ai.domain.agent.model.valobj.visualreview.CanvasVisualIssueSeverity;
@@ -25,12 +23,14 @@ import org.zipp.ai.domain.agent.model.valobj.visualreview.CanvasVisualReviewComm
 import org.zipp.ai.domain.agent.model.valobj.visualreview.CanvasVisualReviewDecision;
 import org.zipp.ai.domain.agent.model.valobj.visualreview.CanvasVisualReviewEvidence;
 import org.zipp.ai.domain.agent.model.valobj.visualreview.CanvasVisualReviewEvidenceRole;
+import org.zipp.ai.domain.agent.model.valobj.visualreview.CanvasVisualReviewGrounding;
 import org.zipp.ai.domain.agent.model.valobj.visualreview.CanvasVisualReviewResult;
 import org.zipp.ai.domain.agent.model.valobj.visualreview.CanvasVisualReviewStage;
 import org.zipp.ai.domain.agent.model.valobj.visualreview.DrawerContinuationContext;
 import org.zipp.ai.domain.agent.service.ICanvasStateStore;
 import org.zipp.ai.domain.agent.service.analysis.ICanvasAnalyzer;
 import org.zipp.ai.domain.agent.service.visualreview.CanvasVisualReviewPolicy;
+import org.zipp.ai.domain.agent.service.visualreview.CanvasVisualReviewGroundingGuard;
 import org.zipp.ai.domain.agent.service.visualreview.CanvasVisualRepairBriefComposer;
 import org.zipp.ai.domain.agent.service.visualreview.ICanvasVisualReviewer;
 import org.zipp.ai.domain.agent.service.usage.AgentUsageTelemetryContext;
@@ -45,7 +45,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
-import java.util.stream.Collectors;
 import java.util.UUID;
 import java.util.regex.Pattern;
 
@@ -75,6 +74,8 @@ public class CanvasVisualReviewOrchestrator {
     @Value("${zipp.visual-review.drawer-agent-id:300000}")
     private String drawerAgentId = "300000";
     private final CanvasVisualReviewPolicy policy = new CanvasVisualReviewPolicy();
+    // The reviewer proposes targets; this guard alone translates grounded targets into mutation authority.
+    private final CanvasVisualReviewGroundingGuard groundingGuard = new CanvasVisualReviewGroundingGuard();
     private final CanvasVisualRepairBriefComposer repairBriefComposer = new CanvasVisualRepairBriefComposer();
 
     public CanvasVisualReviewOrchestrator(ICanvasStateStore canvasStateStore,
@@ -211,7 +212,13 @@ public class CanvasVisualReviewOrchestrator {
                     result, stage, visualRepairRound(request));
             CanvasVisualReviewDecision decision = policyDecision;
             String repairOutcome = policyDecision == CanvasVisualReviewDecision.REPAIR ? "requested" : "";
-            CanvasMutationAuthorization authorization = repairAuthorization(analysis, result);
+            CanvasVisualReviewGrounding grounding = groundingGuard.ground(analysis, result);
+            CanvasMutationAuthorization authorization = grounding.authorization();
+            log.info("[visual-review-loop] event=grounding reviewRunId={} sourceRunId={} manifestNodes={} manifestEdges={} returnedTargets={} validTargets={} invalidTargets={} conflict={}",
+                    logValue(visualReviewRunId), logValue(request.getSourceRunId()),
+                    grounding.nodeCount(), grounding.edgeCount(), grounding.returnedTargetCount(),
+                    grounding.validTargetCount(), grounding.invalidTargetCount(),
+                    grounding.hasConflict() ? logValue(grounding.conflictReason()) : "none");
             boolean shadow = Boolean.TRUE.equals(request.getShadow());
             int nextRepairRound = visualRepairRound(request) + 1;
             boolean autoRepairEligible = autoRepairEnabled(ownerId, request, nextRepairRound);
@@ -222,6 +229,11 @@ public class CanvasVisualReviewOrchestrator {
                 log.info("[visual-review-loop] event=incomplete_evidence reviewRunId={} sourceRunId={} pages={} truncatedPages={} outcome=human_review",
                         logValue(visualReviewRunId), logValue(request.getSourceRunId()),
                         pageCount(request), truncatedPageCount(request));
+            }
+            if (!shadow && decision == CanvasVisualReviewDecision.REPAIR && grounding.hasConflict()) {
+                // A malformed or ungrounded reviewer target is evidence for a human, never mutation authority.
+                decision = CanvasVisualReviewDecision.NEEDS_HUMAN_REVIEW;
+                repairOutcome = "grounding_conflict";
             }
             if (!shadow && decision == CanvasVisualReviewDecision.REPAIR
                     && authorization.allowedCellIds().isEmpty()) {
@@ -430,36 +442,6 @@ public class CanvasVisualReviewOrchestrator {
                                       int nextRepairRound) {
         return visualReviewRolloutPolicy == null || visualReviewRolloutPolicy.isAutoRepairEnabled(
                 ownerId, request == null ? null : request.getDiagramId(), nextRepairRound);
-    }
-
-    private CanvasMutationAuthorization repairAuthorization(CanvasAnalysis analysis,
-                                                             CanvasVisualReviewResult result) {
-        Set<String> cellIds = new java.util.LinkedHashSet<>();
-        Set<String> anchorLabels = result == null ? Set.of() : result.safeIssues().stream()
-                .flatMap(issue -> issue.getAnchorLabels() == null
-                        ? java.util.stream.Stream.empty()
-                        : issue.getAnchorLabels().stream())
-                .filter(StringUtils::isNotBlank)
-                .map(label -> label.trim().toLowerCase(java.util.Locale.ROOT))
-                .collect(Collectors.toSet());
-        if (analysis != null && analysis.getCells() != null && !anchorLabels.isEmpty()) {
-            Map<String, List<org.zipp.ai.domain.agent.model.valobj.analysis.CanvasCellData>> cellsByLabel =
-                    analysis.getCells().stream()
-                            .filter(cell -> StringUtils.isNotBlank(cell.getId()))
-                            .collect(Collectors.groupingBy(cell -> StringUtils.defaultString(cell.getLabel())
-                                    .trim().toLowerCase(java.util.Locale.ROOT)));
-            // Exact labels grant authority only when they identify one cell unambiguously.
-            anchorLabels.forEach(label -> {
-                List<org.zipp.ai.domain.agent.model.valobj.analysis.CanvasCellData> matches = cellsByLabel.get(label);
-                if (matches != null && matches.size() == 1) {
-                    cellIds.add(matches.get(0).getId());
-                }
-            });
-        }
-        return new CanvasMutationAuthorization(
-                cellIds,
-                Set.of(CanvasField.STYLE, CanvasField.GEOMETRY, CanvasField.WAYPOINTS),
-                CanvasRepairScope.TARGET_CELLS);
     }
 
     private record DrawerContinuation(ChatRequestDTO request,

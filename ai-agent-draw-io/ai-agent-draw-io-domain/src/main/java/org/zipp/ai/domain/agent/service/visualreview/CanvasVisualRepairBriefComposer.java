@@ -31,6 +31,7 @@ public class CanvasVisualRepairBriefComposer {
             CanvasVisualIssue issue = safeIssues.get(index).boundedCopy();
             brief.append(index + 1).append(". ")
                     .append(issue.getType()).append("/").append(issue.getSeverity())
+                    .append("; targets=").append(safeText(String.valueOf(issue.getTargetCellIds()), 220))
                     .append("; anchors=").append(safeText(String.valueOf(issue.getAnchorLabels()), 180))
                     .append("; region=").append(issue.getRegion())
                     .append("; evidence=").append(safeText(issue.getEvidence(), 180))
