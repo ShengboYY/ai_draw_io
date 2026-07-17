@@ -26,7 +26,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.RejectedExecutionException;
@@ -39,8 +38,6 @@ public class ChatCanvasVisualReviewer implements ICanvasVisualReviewer {
     private static final String PROMPT_VERSION = "visual-review-prompt-v3";
     private static final String RUBRIC_VERSION = "visual-review-rubric-v1";
     private static final String SCHEMA_VERSION = "visual-review-schema-v3";
-    private static final int MAX_MANIFEST_NODES = 100;
-    private static final int MAX_MANIFEST_EDGES = 100;
     private static final int MAX_CELL_ID_LENGTH = 256;
     private static final String PNG_DATA_URL_PREFIX = "data:image/png;base64,";
     private static final Set<String> ROOT_FIELDS = Set.of("summary", "issues", "recommendedHumanReview");
@@ -54,6 +51,7 @@ public class ChatCanvasVisualReviewer implements ICanvasVisualReviewer {
     private final double temperature;
     private final long timeoutMillis;
     private final CanvasVisualReviewExecutor reviewExecutor;
+    private final CanvasVisualReviewManifestProjector manifestProjector = new CanvasVisualReviewManifestProjector();
     private final ObjectMapper mapper = new ObjectMapper();
 
     @Autowired
@@ -202,26 +200,21 @@ public class ChatCanvasVisualReviewer implements ICanvasVisualReviewer {
     }
 
     private Map<String, Object> cellManifest(List<CanvasCellData> cells) {
-        List<CanvasCellData> safeCells = cells == null ? List.of() : cells.stream()
-                .filter(cell -> cell != null && StringUtils.isNotBlank(cell.getId()))
-                .toList();
-        Predicate<CanvasCellData> isEdge = cell -> "edge".equalsIgnoreCase(cell.getKind());
-        List<CanvasCellData> nodes = safeCells.stream().filter(isEdge.negate()).toList();
-        List<CanvasCellData> edges = safeCells.stream().filter(isEdge).toList();
-        Map<String, String> labelsById = nodes.stream().collect(Collectors.toMap(
+        CanvasVisualReviewManifestProjector.Projection projection = manifestProjector.project(cells);
+        Map<String, String> labelsById = projection.nodes().stream().collect(Collectors.toMap(
                 CanvasCellData::getId,
                 cell -> safe(cell.getLabel(), 120),
                 (first, ignored) -> first,
                 LinkedHashMap::new));
 
         Map<String, Object> manifest = new LinkedHashMap<>();
-        manifest.put("nodeCount", nodes.size());
-        manifest.put("edgeCount", edges.size());
-        manifest.put("truncatedNodeCount", Math.max(0, nodes.size() - MAX_MANIFEST_NODES));
-        manifest.put("truncatedEdgeCount", Math.max(0, edges.size() - MAX_MANIFEST_EDGES));
+        manifest.put("nodeCount", projection.totalNodeCount());
+        manifest.put("edgeCount", projection.totalEdgeCount());
+        manifest.put("truncatedNodeCount", projection.truncatedNodeCount());
+        manifest.put("truncatedEdgeCount", projection.truncatedEdgeCount());
         // Only normalized review facts cross the model seam; raw XML and style strings stay server-side.
-        manifest.put("nodes", nodes.stream().limit(MAX_MANIFEST_NODES).map(this::nodeEvidence).toList());
-        manifest.put("edges", edges.stream().limit(MAX_MANIFEST_EDGES)
+        manifest.put("nodes", projection.nodes().stream().map(this::nodeEvidence).toList());
+        manifest.put("edges", projection.edges().stream()
                 .map(edge -> edgeEvidence(edge, labelsById)).toList());
         return manifest;
     }

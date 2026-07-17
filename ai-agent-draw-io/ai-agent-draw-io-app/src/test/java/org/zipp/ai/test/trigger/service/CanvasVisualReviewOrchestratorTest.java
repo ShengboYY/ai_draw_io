@@ -889,7 +889,7 @@ public class CanvasVisualReviewOrchestratorTest {
                 .valid(true)
                 .severity("ok")
                 .issues(List.of())
-                // Keep the test analysis aligned with the canvas fixture so visual anchors can be authorized.
+                // Keep analyzer cell IDs aligned with the saved canvas used for grounding.
                 .cells(List.of(CanvasCellData.builder().id("2").label("API").kind("vertex").build()))
                 .summary(CanvasSummaryData.builder().nodeCount(1).edgeCount(0).summary("one node").build())
                 .build();

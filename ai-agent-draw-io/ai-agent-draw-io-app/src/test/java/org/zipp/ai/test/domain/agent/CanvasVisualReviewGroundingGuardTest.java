@@ -14,6 +14,7 @@ import org.zipp.ai.domain.agent.service.visualreview.CanvasVisualReviewGrounding
 
 import java.util.List;
 import java.util.Set;
+import java.util.stream.IntStream;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -97,6 +98,23 @@ public class CanvasVisualReviewGroundingGuardTest {
         assertTrue(unknown.authorization().allowedCellIds().isEmpty());
         assertEquals("whole_canvas_not_automatable", wholeCanvas.conflictReason());
         assertTrue(wholeCanvas.authorization().allowedCellIds().isEmpty());
+    }
+
+    @Test
+    public void targetOutsideTheBoundedManifestNeverReceivesAuthority() {
+        List<CanvasCellData> cells = IntStream.rangeClosed(1, 101)
+                .mapToObj(index -> CanvasCellData.builder()
+                        .id("node-" + index).label("Node " + index).kind("node").build())
+                .toList();
+        CanvasAnalysis analysis = CanvasAnalysis.builder().cells(cells).build();
+
+        CanvasVisualReviewGrounding grounding = guard.ground(analysis, result(issue(
+                CanvasVisualIssueType.TEXT_READABILITY,
+                CanvasVisualRepairScope.LOCAL,
+                List.of("node-101"))));
+
+        assertEquals("target_not_in_manifest", grounding.conflictReason());
+        assertTrue(grounding.authorization().allowedCellIds().isEmpty());
     }
 
     private CanvasAnalysis analysis() {

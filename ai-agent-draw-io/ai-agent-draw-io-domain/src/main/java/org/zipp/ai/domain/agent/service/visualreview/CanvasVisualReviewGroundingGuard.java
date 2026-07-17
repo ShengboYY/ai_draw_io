@@ -23,15 +23,23 @@ import java.util.stream.Collectors;
 
 public class CanvasVisualReviewGroundingGuard {
 
+    private final CanvasVisualReviewManifestProjector manifestProjector =
+            new CanvasVisualReviewManifestProjector();
+
     public CanvasVisualReviewGrounding ground(CanvasAnalysis analysis, CanvasVisualReviewResult result) {
         List<CanvasCellData> cells = analysis == null || analysis.getCells() == null
                 ? List.of() : analysis.getCells();
-        Map<String, CanvasCellData> cellsById = cells.stream()
+        Map<String, CanvasCellData> allCellsById = cells.stream()
                 .filter(cell -> cell != null && StringUtils.isNotBlank(cell.getId()))
                 .collect(Collectors.toMap(CanvasCellData::getId, Function.identity(),
                         (first, ignored) -> first, LinkedHashMap::new));
-        int edgeCount = (int) cellsById.values().stream().filter(this::isEdge).count();
-        int nodeCount = cellsById.size() - edgeCount;
+        CanvasVisualReviewManifestProjector.Projection projection = manifestProjector.project(cells);
+        Map<String, CanvasCellData> manifestCellsById = java.util.stream.Stream
+                .concat(projection.nodes().stream(), projection.edges().stream())
+                .collect(Collectors.toMap(CanvasCellData::getId, Function.identity(),
+                        (first, ignored) -> first, LinkedHashMap::new));
+        int nodeCount = projection.nodes().size();
+        int edgeCount = projection.edges().size();
         Set<String> returnedTargets = new LinkedHashSet<>();
         Set<String> validTargets = new LinkedHashSet<>();
         Set<String> invalidTargets = new LinkedHashSet<>();
@@ -55,16 +63,24 @@ public class CanvasVisualReviewGroundingGuard {
             }
 
             Set<CanvasCellData> resolved = new LinkedHashSet<>();
+            boolean unknownTarget = false;
+            boolean outsideManifest = false;
             for (String targetId : issueTargets) {
-                CanvasCellData cell = cellsById.get(targetId);
-                if (cell == null) invalidTargets.add(targetId);
+                CanvasCellData cell = manifestCellsById.get(targetId);
+                if (cell == null) {
+                    invalidTargets.add(targetId);
+                    if (allCellsById.containsKey(targetId)) outsideManifest = true;
+                    else unknownTarget = true;
+                }
                 else {
                     validTargets.add(targetId);
                     resolved.add(cell);
                 }
             }
-            if (!invalidTargets.isEmpty() && conflict == null) {
+            if (unknownTarget && conflict == null) {
                 conflict = "unknown_target_cell";
+            } else if (outsideManifest && conflict == null) {
+                conflict = "target_not_in_manifest";
             }
             if (issue.getType() == CanvasVisualIssueType.EDGE_TRACEABILITY && conflict == null) {
                 if (resolved.stream().noneMatch(this::isEdge)) {
