@@ -1,3 +1,4 @@
+-- Match eval_run's charset and collation so the VARCHAR foreign key is compatible.
 CREATE TABLE IF NOT EXISTS eval_canary_assessment (
   id VARCHAR(64) PRIMARY KEY,
   eval_run_id VARCHAR(64) NOT NULL,
@@ -16,4 +17,4 @@ CREATE TABLE IF NOT EXISTS eval_canary_assessment (
   created_at TIMESTAMP(3) NOT NULL,
   KEY idx_eval_canary_run_time (eval_run_id, created_at),
   CONSTRAINT fk_eval_canary_run FOREIGN KEY (eval_run_id) REFERENCES eval_run(id)
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

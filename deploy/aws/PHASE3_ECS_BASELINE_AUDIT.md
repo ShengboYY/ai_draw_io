@@ -17,15 +17,16 @@ Remediation progress on 2026-07-17:
 | CloudWatch alarms | Deferred for cost control; manual monitoring risk accepted |
 | GitHub `production` Environment | Completed; deployment branch restricted to `main` |
 | GitHub OIDC deployer role | Completed with project-scoped ECS, ECR read, and `iam:PassRole` permissions |
-| Production deploy and rollback workflows | Implemented locally; pending review and merge |
+| Production deploy and rollback workflows | Completed and merged in PR #20 |
+| Release `20260717` database migration package | Locally validated from the 2026-07-05 production baseline; production inventory, snapshot, and one-off ECS run remain |
 
 ## 1. Executive conclusion
 
-The current production service is healthy, but the baseline is **not ready for unattended production deployment**.
+The current production service is healthy, but the first SHA-based release remains **blocked on the production database migration**.
 
 The public website and backend route both return HTTP 200 over valid HTTPS. The ALB, target groups, ECS tasks, and RDS instance are currently available. Network ingress is well restricted: the ALB is the only public application entry point, ECS containers only accept traffic from the ALB security group, and MySQL only accepts traffic from the backend security group.
 
-Before the first GitHub Actions production deployment, complete the release-safety items in Section 3. The most important gaps are disabled ECS automatic rollback, unsuitable backend health checking, missing production deployment approval and IAM separation, no CloudWatch alarms, and a one-day RDS recovery window.
+ECS automatic rollback, the GitHub production trust boundary, deployment workflows, and the seven-day RDS recovery window are now in place. Local validation proved that 30 migrations added after the 2026-07-05 database initialization must run before the current backend image can be deployed. The dedicated migration package is under `deploy/aws/database/`.
 
 ## 2. Current architecture
 
@@ -252,7 +253,7 @@ The backend task role is appropriately narrow: it only allows `ses:SendEmail` fo
 
 Production is healthy but still runs older manually named image tags. It does not yet run the immutable `sha-<full-git-sha>` images produced and scanned by Phase 2.
 
-Do not manually retag or replace the tasks in the console. After Sections 3.1 through 3.5 are addressed, the first controlled deployment should select a full commit SHA whose backend and frontend images both exist in ECR. The workflow should save the current task definition revisions, update only the image fields, deploy backend first, run a backend smoke test, deploy frontend, and run a frontend smoke test.
+Do not manually retag or replace the tasks in the console. After release `20260717` database migration completes, the first controlled deployment should select a full commit SHA whose backend and frontend images both exist in ECR. The workflow saves the current task definition revisions, updates only the image fields, deploys backend first, runs a backend smoke test, deploys frontend, and runs a frontend smoke test.
 
 ## 7. Recommended execution order
 
@@ -263,26 +264,31 @@ Do not manually retag or replace the tasks in the console. After Sections 3.1 th
 5. Add deployment variables without adding long-lived AWS secrets.
 6. Implement and review the production deployment workflow.
 7. Implement and review the manual rollback workflow.
-8. Deploy one known-safe full SHA with `no-database-change`, retaining the existing backend health path for this first deployment.
-9. Verify the deployed backend readiness endpoint, then change the target group path to `/actuator/health/readiness` and reduce healthy threshold to 2 or 3.
-10. Manually verify ECS stability, target health, CloudWatch logs, RDS free storage, and application smoke tests.
-11. Add CloudWatch alarms when the monitoring budget permits.
-12. Schedule the private-subnet and read-only-root-filesystem hardening as separate changes.
+8. Inspect the production schema from a read-only one-off task and confirm it still matches the 2026-07-05 baseline.
+9. Create a manual RDS snapshot and wait until it is `available`.
+10. Run the reviewed release `20260717` migration image as an ECS one-off task and verify all 30 history records.
+11. Deploy the known-safe full SHA with `migration-completed`, retaining the existing backend health path for this first deployment.
+12. Verify the deployed backend readiness endpoint, then change the target group path to `/actuator/health/readiness` and reduce healthy threshold to 2 or 3.
+13. Manually verify ECS stability, target health, CloudWatch logs, RDS free storage, and application smoke tests.
+14. Add CloudWatch alarms when the monitoring budget permits.
+15. Schedule the private-subnet and read-only-root-filesystem hardening as separate changes.
 
 ## 8. Go/no-go checklist for the first automated deployment
 
-- [ ] RDS backup retention is at least 7 days.
+- [x] RDS backup retention is at least 7 days.
 - [ ] A current recovery point or manual snapshot exists.
-- [ ] Both ECS services have circuit breaker and rollback enabled.
+- [x] Both ECS services have circuit breaker and rollback enabled.
 - [ ] Before the first SHA deployment, the existing backend target group is healthy.
 - [ ] After deploying the Actuator-enabled backend, the target group is changed to `/actuator/health/readiness`.
 - [ ] Both target groups are healthy before deployment.
 - [ ] CloudWatch alarms are active, or the temporary manual monitoring risk is explicitly accepted.
-- [ ] GitHub `production` Environment exists.
-- [ ] The deployer OIDC role is separate from the image publisher role.
-- [ ] Deployment IAM can pass only approved task roles.
-- [ ] Both `sha-<full-git-sha>` images exist and have acceptable scan results.
-- [ ] The release SHA belongs to `main`.
-- [ ] Database migration state is explicitly confirmed.
+- [x] GitHub `production` Environment exists.
+- [x] The deployer OIDC role is separate from the image publisher role.
+- [x] Deployment IAM can pass only approved task roles.
+- [x] Both `sha-<full-git-sha>` images exist and have acceptable scan results.
+- [x] The release SHA belongs to `main`.
+- [ ] Production schema matches the audited 2026-07-05 baseline.
+- [ ] Release `20260717` migration task exits successfully and records all 30 checksums.
+- [ ] Database migration state is explicitly confirmed as `migration-completed`.
 - [ ] Previous backend and frontend task definition revisions are recorded.
 - [ ] Backend and frontend smoke tests pass after deployment.

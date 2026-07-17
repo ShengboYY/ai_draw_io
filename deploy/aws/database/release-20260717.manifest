@@ -1,0 +1,32 @@
+# Migrations added after the successful 2026-07-05 production database initialization.
+# Order is dependency-aware; do not sort these entries alphabetically.
+2026-07-07-add-canvas-content-hash.sql
+2026-07-09-agent-trace-event.sql
+2026-07-09-add-run-diagram-id.sql
+2026-07-09-add-span-parent-id.sql
+2026-07-10-agent-diagram-trace-snapshot.sql
+2026-07-10-add-diagram-changed-cell-count.sql
+2026-07-10-add-llm-observation-fields.sql
+2026-07-10-debug-trace-span-payload.sql
+2026-07-10-normalize-debug-payload-kind.sql
+2026-07-10-expand-debug-trace-original-length.sql
+2026-07-10-telemetry-timestamp-millis-precision.sql
+2026-07-10-create-eval-intake.sql
+2026-07-11-create-eval-case-draft.sql
+2026-07-11-create-eval-case-health.sql
+2026-07-11-index-eval-candidate-queue.sql
+2026-07-13-create-eval-case-working-copy.sql
+2026-07-13-create-eval-case-and-dataset-versions.sql
+2026-07-13-create-eval-run-control-plane.sql
+2026-07-13-add-eval-run-planned-episodes.sql
+2026-07-13-create-eval-case-lifecycle-evidence.sql
+2026-07-13-create-eval-canary-assessment.sql
+2026-07-13-create-eval-live-run-results.sql
+2026-07-13-create-semantic-anomaly-miner.sql
+2026-07-13-version-eval-case-health.sql
+2026-07-13-add-evaluation-targets.sql
+2026-07-13-clear-published-eval-candidate-links.sql
+2026-07-14-add-evaluation-profile-snapshots.sql
+2026-07-14-add-llm-pricing-snapshots.sql
+2026-07-14-create-eval-promotion-links.sql
+2026-07-14-create-trace-analysis-jobs.sql
