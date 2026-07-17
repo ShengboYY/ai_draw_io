@@ -253,7 +253,8 @@ public class TraceAnalysisJobService {
     }
 
     private String configHash(String analyzer) {
-        return hash(analyzer + "|" + analyzerVersion(analyzer) + "|r6");
+        // r7 invalidates jobs created before local semantic-miner configuration was loaded by every launcher.
+        return hash(analyzer + "|" + analyzerVersion(analyzer) + "|r7");
     }
 
     private String analyzerVersion(String analyzer) {

@@ -1,5 +1,7 @@
 spring:
   config:
+    # Load local settings for IntelliJ and Maven launches; the file remains optional for CI.
+    import: optional:file:.env[.properties]
     name: ai-agent-draw-io-app
   profiles:
     active: dev
@@ -136,7 +138,7 @@ zipp:
     visual-miner-calibrated-version: ${ZIPP_EVAL_VISUAL_MINER_CALIBRATED_VERSION:unconfigured}
     visual-miner-max-image-bytes: ${ZIPP_EVAL_VISUAL_MINER_MAX_IMAGE_BYTES:2000000}
     visual-miner-estimated-cost-per-analysis-usd: ${ZIPP_EVAL_VISUAL_MINER_COST_PER_ANALYSIS_USD:0}
-    visual-miner-timeout-ms: ${ZIPP_EVAL_VISUAL_MINER_TIMEOUT_MS:30000}
+    visual-miner-timeout-ms: ${ZIPP_EVAL_VISUAL_MINER_TIMEOUT_MS:90000}
     visual-miner-call-threads: ${ZIPP_EVAL_VISUAL_MINER_CALL_THREADS:1}
     live-agent-id: ${ZIPP_EVAL_LIVE_AGENT_ID:300000}
     # Release-only dataset must be mounted outside the product repository.
