@@ -111,6 +111,7 @@ public class DrawioStreamResponseWriter {
             com.alibaba.fastjson.JSONObject value = new com.alibaba.fastjson.JSONObject();
             value.put("type", issue.getType() == null ? "" : issue.getType().name());
             value.put("severity", issue.getSeverity() == null ? "" : issue.getSeverity().name().toLowerCase());
+            value.put("targetCellIds", issue.getTargetCellIds());
             value.put("anchorLabels", issue.getAnchorLabels());
             value.put("region", issue.getRegion());
             value.put("evidence", issue.getEvidence());

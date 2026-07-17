@@ -3,6 +3,8 @@ package org.zipp.ai.test.domain.agent;
 import org.junit.After;
 import org.junit.Test;
 import org.zipp.ai.domain.agent.model.entity.ChatCommandEntity;
+import org.zipp.ai.domain.agent.model.valobj.analysis.CanvasCellData;
+import org.zipp.ai.domain.agent.model.valobj.analysis.CanvasPointData;
 import org.zipp.ai.domain.agent.model.valobj.visualreview.CanvasVisualReviewCommand;
 import org.zipp.ai.domain.agent.model.valobj.visualreview.CanvasVisualReviewEvidence;
 import org.zipp.ai.domain.agent.model.valobj.visualreview.CanvasVisualReviewEvidenceRole;
@@ -30,7 +32,7 @@ import static org.junit.Assert.assertTrue;
 public class ChatCanvasVisualReviewerTest {
 
     private static final String VALID_OUTPUT = """
-            {"summary":"The requested change is visible.","issues":[{"type":"TEXT_READABILITY","severity":"minor","anchorLabels":["API"],"region":"center","evidence":"The API label is slightly small.","repairInstruction":"Increase the label size.","repairScope":"local"}],"recommendedHumanReview":false}
+            {"summary":"The requested change is visible.","issues":[{"type":"TEXT_READABILITY","severity":"minor","targetCellIds":["2"],"anchorLabels":["API"],"region":"center","evidence":"The API label is slightly small.","repairInstruction":"Increase the label size.","repairScope":"local"}],"recommendedHumanReview":false}
             """;
     private final CanvasVisualReviewExecutor reviewExecutor = new CanvasVisualReviewExecutor(1, 20, 1, 20);
 
@@ -70,7 +72,48 @@ public class ChatCanvasVisualReviewerTest {
         assertNotEquals(captured.get(0).getSessionId(), captured.get(1).getSessionId());
         assertFalse(captured.get(0).getTexts().get(0).getMessage().contains(image("after")));
         assertTrue(first.getReviewerVersion().contains("temperature=1.0"));
-        assertTrue(first.getReviewerVersion().contains("visual-review-schema-v2"));
+        assertTrue(first.getReviewerVersion().contains("visual-review-schema-v3"));
+        assertEquals(List.of("2"), first.getIssues().get(0).getTargetCellIds());
+    }
+
+    @Test
+    public void groundsTheReviewWithBoundedNodesAndEdgesWithoutRawXmlOrStyles() {
+        AtomicReference<ChatCommandEntity> captured = new AtomicReference<>();
+        IChatService chat = proxy((method, args) -> {
+            if (method.getName().equals("createSession")) return "session";
+            if (method.getName().equals("handleMessage") && args.length == 1) {
+                captured.set((ChatCommandEntity) args[0]);
+                return List.of(VALID_OUTPUT);
+            }
+            return defaultValue(method.getReturnType());
+        });
+        CanvasVisualReviewCommand command = command(null, image("overview"));
+        command.setCanvasCells(List.of(
+                CanvasCellData.builder().id("2").label("API").kind("node")
+                        .style("SECRET_STYLE").rawXml("<mxCell secret='true'/>")
+                        .x(40).y(50).width(120).height(60).build(),
+                CanvasCellData.builder().id("3").label("Database").kind("node")
+                        .x(300).y(50).width(120).height(60).build(),
+                CanvasCellData.builder().id("edge-1").label("query").kind("edge")
+                        .source("2").target("3")
+                        .points(List.of(CanvasPointData.builder().x(200).y(80).build()))
+                        .style("SECRET_EDGE_STYLE").rawXml("<mxCell edge='1' secret='true'/>").build()));
+
+        CanvasVisualReviewResult result = reviewer(chat, 2_000L).review(command);
+
+        assertTrue(result.isAvailable());
+        String prompt = captured.get().getTexts().get(0).getMessage();
+        assertTrue(prompt.contains("\"cellManifest\""));
+        assertTrue(prompt.contains("\"nodeCount\":2"));
+        assertTrue(prompt.contains("\"edgeCount\":1"));
+        assertTrue(prompt.contains("\"id\":\"edge-1\""));
+        assertTrue(prompt.contains("\"sourceId\":\"2\""));
+        assertTrue(prompt.contains("\"sourceLabel\":\"API\""));
+        assertTrue(prompt.contains("\"targetLabel\":\"Database\""));
+        assertTrue(prompt.contains("\"waypointCount\":1"));
+        assertFalse(prompt.contains("SECRET_STYLE"));
+        assertFalse(prompt.contains("SECRET_EDGE_STYLE"));
+        assertFalse(prompt.contains("secret='true'"));
     }
 
     @Test
@@ -110,7 +153,7 @@ public class ChatCanvasVisualReviewerTest {
 
     @Test
     public void rejectsEverySchemaDeviation() {
-        String issue = "{\"type\":\"TEXT_READABILITY\",\"severity\":\"major\",\"anchorLabels\":[\"API\"],\"region\":\"center\",\"evidence\":\"visible\",\"repairInstruction\":\"increase size\",\"repairScope\":\"local\"}";
+        String issue = "{\"type\":\"TEXT_READABILITY\",\"severity\":\"major\",\"targetCellIds\":[\"2\"],\"anchorLabels\":[\"API\"],\"region\":\"center\",\"evidence\":\"visible\",\"repairInstruction\":\"increase size\",\"repairScope\":\"local\"}";
         List<String> invalidOutputs = List.of(
                 VALID_OUTPUT.trim().replace("}", ",\"extra\":true}"),
                 "```json\n" + VALID_OUTPUT + "\n```",

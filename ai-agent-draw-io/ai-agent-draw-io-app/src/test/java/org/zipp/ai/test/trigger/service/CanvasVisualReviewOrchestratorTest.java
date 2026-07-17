@@ -81,6 +81,8 @@ public class CanvasVisualReviewOrchestratorTest {
                     reviewerCalls.incrementAndGet();
                     assertTrue(command.getAfterImageDataUrl().startsWith("data:image/png;base64,"));
                     assertEquals(Long.valueOf(7L), command.getExpectedVersion());
+                    assertEquals(List.of("2"), command.getCanvasCells().stream()
+                            .map(CanvasCellData::getId).toList());
                     return CanvasVisualReviewResult.builder().available(true).summary("Looks good")
                             .issues(List.of()).recommendedHumanReview(false).reviewerVersion("reviewer-v1").build();
                 });

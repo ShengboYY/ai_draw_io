@@ -689,6 +689,8 @@ public class CanvasVisualReviewOrchestrator {
                 .additionalAfterImages(supplemental)
                 .analyzerEvidence(evidence)
                 .canvasSummary(summary)
+                .canvasCells(analysis == null || analysis.getCells() == null
+                        ? Collections.emptyList() : analysis.getCells())
                 .languageHint(usesChineseLanguage(request.getOriginalUserTask()) ? "zh" : "en")
                 .rendererVersion(request.getRendererVersion())
                 .expectedVersion(request.getExpectedVersion())
@@ -782,6 +784,7 @@ public class CanvasVisualReviewOrchestrator {
             JSONObject value = new JSONObject();
             value.put("type", issue.getType() == null ? "" : issue.getType().name());
             value.put("severity", issue.getSeverity() == null ? "" : issue.getSeverity().name().toLowerCase());
+            value.put("targetCellIds", issue.getTargetCellIds());
             value.put("anchorLabels", issue.getAnchorLabels());
             value.put("region", issue.getRegion());
             value.put("evidence", issue.getEvidence());

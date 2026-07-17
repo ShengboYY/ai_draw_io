@@ -228,6 +228,7 @@ export interface ReviewResultChunk {
     issues?: Array<{
         type?: string;
         severity?: 'minor' | 'major' | 'critical';
+        targetCellIds?: string[];
         anchorLabels?: string[];
         region?: string;
         evidence?: string;

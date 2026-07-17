@@ -13,6 +13,7 @@ public class CanvasVisualIssue {
 
     private CanvasVisualIssueType type;
     private CanvasVisualIssueSeverity severity;
+    private List<String> targetCellIds;
     private List<String> anchorLabels;
     private String region;
     private String evidence;
@@ -23,12 +24,16 @@ public class CanvasVisualIssue {
      * Bounds model-authored text before it can reach a repair prompt or stream response.
      */
     public CanvasVisualIssue boundedCopy() {
+        List<String> cellIds = targetCellIds == null
+                ? Collections.emptyList()
+                : targetCellIds.stream().limit(5).map(id -> abbreviate(id, 80)).toList();
         List<String> labels = anchorLabels == null
                 ? Collections.emptyList()
                 : anchorLabels.stream().limit(3).map(label -> abbreviate(label, 80)).toList();
         return CanvasVisualIssue.builder()
                 .type(type)
                 .severity(severity)
+                .targetCellIds(cellIds)
                 .anchorLabels(labels)
                 .region(abbreviate(region, 32))
                 .evidence(abbreviate(evidence, 300))
