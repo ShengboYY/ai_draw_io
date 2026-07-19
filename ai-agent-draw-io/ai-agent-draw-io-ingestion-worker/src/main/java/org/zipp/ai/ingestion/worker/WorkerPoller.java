@@ -92,7 +92,7 @@ public final class WorkerPoller {
                     ANALYZE_VISUALS, BUILD_EVIDENCE_UNITS, BUILD_RETRIEVAL_CHUNKS ->
                     requireDocumentProcessingHandler().handle(lease);
             case BUILD_LEXICAL_PROJECTION, EMBED_CHUNK_BATCHES, UPSERT_VECTOR_BATCHES,
-                    VERIFY_PROJECTION_MANIFEST -> requireVectorProjectionHandler().handle(lease);
+                    VERIFY_PROJECTION_MANIFEST, PUBLISH_REVISION -> requireVectorProjectionHandler().handle(lease);
             default -> JobOutcome.permanent("UNSUPPORTED_WORKER_STAGE");
         };
         var job = lease.job();
@@ -154,7 +154,8 @@ public final class WorkerPoller {
                 stages.addAll(Set.of(ProcessingJobStage.BUILD_LEXICAL_PROJECTION,
                         ProcessingJobStage.EMBED_CHUNK_BATCHES,
                         ProcessingJobStage.UPSERT_VECTOR_BATCHES,
-                        ProcessingJobStage.VERIFY_PROJECTION_MANIFEST));
+                        ProcessingJobStage.VERIFY_PROJECTION_MANIFEST,
+                        ProcessingJobStage.PUBLISH_REVISION));
             }
             return Set.copyOf(stages);
         }

@@ -48,7 +48,8 @@ class WorkerPollerTest {
                         ProcessingJobStage.BUILD_LEXICAL_PROJECTION,
                         ProcessingJobStage.EMBED_CHUNK_BATCHES,
                         ProcessingJobStage.UPSERT_VECTOR_BATCHES,
-                        ProcessingJobStage.VERIFY_PROJECTION_MANIFEST),
+                        ProcessingJobStage.VERIFY_PROJECTION_MANIFEST,
+                        ProcessingJobStage.PUBLISH_REVISION),
                 WorkerPoller.claimableStages(true, true, true));
     }
 }

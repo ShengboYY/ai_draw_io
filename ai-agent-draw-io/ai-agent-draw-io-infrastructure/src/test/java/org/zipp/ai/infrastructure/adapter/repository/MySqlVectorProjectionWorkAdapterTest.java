@@ -82,6 +82,37 @@ class MySqlVectorProjectionWorkAdapterTest {
                 new WorkerFence("job_verify", "worker_1", 3)));
     }
 
+    @Test
+    void publicationAtomicallyActivatesInitialGenerationThenRevisionAndVersion() {
+        List<String> calls = new ArrayList<>();
+        VectorProjectionWorkPO row = publicationRow();
+        IVectorProjectionMapper mapper = proxy(IVectorProjectionMapper.class, (method, args) -> {
+            calls.add(method);
+            return switch (method) {
+                case "lockMaterialLifecycleState" -> "ACTIVE";
+                case "lockRevisionGate" -> "rev_1";
+                case "lockGenerationState" -> IndexGenerationState.BUILDING.name();
+                case "selectActiveGenerationForUpdate" -> null;
+                case "selectPublicationWork" -> List.of(row);
+                case "activateInitialGeneration", "publishRevision", "activateVersionRevision" -> 1;
+                case "recordInitialProcessingUsage" -> 1;
+                default -> unsupported(method);
+            };
+        });
+        IDocumentProcessingMapper documents = proxy(IDocumentProcessingMapper.class,
+                (method, args) -> "countCurrentFence".equals(method) ? 1 : unsupported(method));
+        MySqlVectorProjectionWorkAdapter adapter = new MySqlVectorProjectionWorkAdapter(
+                mapper, documents, unusedJobs());
+
+        assertTrue(adapter.commitPublication(publicationWork(),
+                new WorkerFence("job_publish", "worker_1", 3)));
+
+        assertTrue(calls.indexOf("lockMaterialLifecycleState") < calls.indexOf("lockRevisionGate"));
+        assertTrue(calls.indexOf("activateInitialGeneration") < calls.indexOf("publishRevision"));
+        assertTrue(calls.indexOf("publishRevision") < calls.indexOf("activateVersionRevision"));
+        assertTrue(calls.indexOf("activateVersionRevision") < calls.indexOf("recordInitialProcessingUsage"));
+    }
+
     private VectorUpsertWork upsertWork() {
         RevisionProjectionContext context = new RevisionProjectionContext("rev_1", "ver_1", "mat_1",
                 OwnerType.USER, "owner_1", 7, 8, "d".repeat(64), artifact("manifest"));
@@ -119,6 +150,50 @@ class MySqlVectorProjectionWorkAdapterTest {
         row.setTokenizerFingerprint(profile.tokenizerFingerprint());
         row.setProjectionRole("PRIMARY");
         return row;
+    }
+
+    private VectorProjectionWorkPO publicationRow() {
+        VectorProjectionWorkPO row = workRow();
+        row.setProjectionManifestKey("projection-manifest");
+        row.setProjectionManifestVersionId("v3");
+        row.setProjectionManifestSha256("f".repeat(64));
+        row.setProjectionManifestSize(42);
+        row.setProjectionManifestContentType("application/json+gzip");
+        row.setProjectionManifestHash("b".repeat(64));
+        row.setStructureKey("structure");
+        row.setStructureVersionId("v1");
+        row.setStructureSha256("a".repeat(64));
+        row.setStructureSize(10);
+        row.setStructureContentType("application/json+gzip");
+        row.setEvidenceManifestKey("evidence");
+        row.setEvidenceManifestVersionId("v1");
+        row.setEvidenceManifestSha256("a".repeat(64));
+        row.setEvidenceManifestSize(10);
+        row.setEvidenceManifestContentType("application/json+gzip");
+        row.setRetrievalChunkCount(1);
+        row.setLexicalProjectionCount(1);
+        row.setExactTermCount(0);
+        row.setChunkEvidenceMappingCount(1);
+        row.setEvidenceUnitCount(1);
+        row.setExpectedProjectionCount(1);
+        row.setIndexedProjectionCount(1);
+        row.setGenerationState(IndexGenerationState.BUILDING.name());
+        row.setChunkId("chunk_1");
+        row.setVectorId("vector_1");
+        row.setProjectionFingerprint("c".repeat(64));
+        return row;
+    }
+
+    private RevisionPublicationWork publicationWork() {
+        RevisionProjectionContext context = new RevisionProjectionContext("rev_1", "ver_1", "mat_1",
+                OwnerType.USER, "owner_1", 7, 8, "d".repeat(64), artifact("manifest"));
+        StoredArtifact projection = new StoredArtifact("projection-manifest", "v3",
+                "f".repeat(64), 42, "application/json+gzip");
+        return new RevisionPublicationWork(context, profile(), artifact("structure"), artifact("evidence"), null,
+                projection, "b".repeat(64), 1, 1, 0, 1, 1,
+                1, 1, IndexGenerationState.BUILDING, null,
+                List.of(new org.zipp.ai.domain.retrieval.projection.VectorProjectionManifestEntry(
+                        "chunk_1", "vector_1", "c".repeat(64))));
     }
 
     private VectorGenerationProfile profile() {

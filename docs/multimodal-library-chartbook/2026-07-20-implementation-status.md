@@ -20,6 +20,7 @@
 | WP3C-B3b1：固定 multilingual-e5 tokenizer runtime | 已完成 | `8a424eb7` |
 | WP3C-B3b2：Retrieval 投影编排与原子持久化 | 已完成 | 当前 WP3C-B3b2 阶段提交 |
 | WP3C-B3c：向量 generation、批次嵌入与 Pinecone 投影 | 已完成 | 当前 WP3C-B3c 阶段提交 |
+| WP3C-B3d：Revision publication gate | 已完成 | 当前 WP3C-B3d 阶段提交 |
 
 ## WP2 交付范围
 
@@ -136,6 +137,16 @@ WP2 不把文件复制到正式 materials bucket，也不提供预览。安全�
 - lexical-only revision 也会生成零向量 projection manifest，不会被错误阻塞。`MATERIAL_VECTOR_PROJECTION_ENABLED` 是独立且默认关闭的 Worker 开关；关闭后不会实例化 Pinecone/HMAC 依赖或领取向量 stage，原有纯文本绘图路径不依赖向量服务。
 - `2026-07-28-create-vector-projection-artifacts.sql` 增加 generation 配置、revision projection plan、vector batch 与 projection manifest 审计表，checksum 为 `320545ca02d54fb2cf0c6cd357b59a87bee03a7a88892946cb08ca78e28fc061`。生产必须先执行 migration 并配置 Pinecone host/API key、namespace 与 tenant HMAC secret；在下一阶段完成 publish gate 前保持向量开关关闭。
 
+## WP3C-B3d 交付范围
+
+- Worker 现在领取并执行 `PUBLISH_REVISION`。它按数据库固定的 object key、`VersionId` 和 SHA-256 读取 structure → evidence → retrieval → projection manifest 链，核验链式内容 hash、revision/version、完整 generation profile、tokenizer、MySQL Evidence/Chunk/chunk-evidence mapping/lexical/exact-term/vector count，以及每项 chunk ID、vector ID 与 projection fingerprint；任一静态身份不一致都禁止发布。
+- Pinecone 新增只返回 opaque vector identity 的分批 fetch。最终一致窗口内只要缺少任一声明向量，job 就以 10 秒 provider delay durable retry，Revision 保持 `PROCESSING/PUBLISHING`，不会被普通检索看到。
+- 全部证据一致后，MySQL 采用和 lease/删除一致的 Material-first 锁顺序，再在同一 fenced 事务内锁定 Revision 和 generation：首次 generation 从 `BUILDING` 原子激活，已有同 generation 为 `ACTIVE` 时安全追加 Revision，然后根据 gap 判定 `READY/PARTIAL_READY`、将 Version 的 `active_revision_id` 指向该 Revision 并把 ingest state 标记为 `READY`。已有 active Revision 的 Version 可以保持 `READY` 和旧指针继续提供读取，直到新 Revision 在同一事务中完成原子替换；失败或未完成的新 Revision 不影响旧指针。已有另一 ACTIVE generation 时明确拒绝直接发布，不能绕过 compatibility projection。
+- `2026-07-29-enforce-index-generation-publication.sql` 通过 generated `active_slot` 唯一键在数据库层保证最多一个 ACTIVE generation；本地 MySQL 已执行并验证，checksum 为 `ca2965a9ceb2cb9393acec7a06b56f18ab74f516d5cb25ce762dc609e06baf1d`。生产必须在开启 `worker.vector-projection-enabled` 前执行。
+- `2026-07-30-create-material-processing-usage.sql` 建立以 owner-scoped content blob 为唯一计量边界的页面处理 ledger；publish 事务使用 `INSERT IGNORE`，Worker 重试与同内容的后续 processing revision 不会重复计量。本地 MySQL 已执行并验证，checksum 为 `9f74f525d32de8dec3541a6480530e237649d59aeae5d89124ef87a8c51fc022`。
+- `2026-07-31-pin-revision-gap-manifest.sql` 将 gap manifest 补齐为 exact object `VersionId`、SHA-256、大小与类型的成组 pin；只有能读取且包含非空 `pageNo/modality/errorCode/retryable/coverageImpact` 条目的 manifest 才能发布 `PARTIAL_READY`。本地 MySQL 已执行并验证，checksum 为 `896f05b9e2fa66dd831a4b82fb6b407ba1e1b5a4d37fc811a3cebf4eba67eb2c`。
+- 向量功能仍由独立 feature flag 控制；关闭时不会领取 vector/publish stages，普通文本输入绘图路径不受 Pinecone、S3 projection manifest 或该发布门影响。
+
 ## 下一阶段
 
-WP3C-B3d 将实现 `PUBLISH_REVISION` 的 publication gate：核验 projection manifest 的 exact S3 pin、MySQL projection 数量与 Pinecone generation readiness；首次 generation 准备完成后原子激活，已有 generation 则安全追加 revision，最后才把 Revision/Version 发布为可检索。该阶段同时补充显式 compatibility coordinator，使新写入和历史 active/pinned revision 可以在 ACTIVE/BUILDING generation 间建立双投影并完成 shadow gate。失败与回滚不能让半成品 revision 进入检索；generation 切换需要保留旧 generation，供既有图表与引用继续按原版本解析。
+WP3C-B3e 将实现独立的 generation compatibility coordinator 与 shadow switch。它不复用仍要求 Revision/Version 为 `PROCESSING` 的首次摄取状态机，而是为新 BUILDING generation 对“新写入 + 历史 active/pinned revision”建立独立、generation-routed 的 compatibility work；新旧 profile Worker 只能领取自身 generation 的任务。回填完整性和 shadow 指标通过后再原子切换全局 ACTIVE，旧 generation 进入保留窗口而不删除，供既有图表与引用继续解析。这个边界避免把已发布 Processing Revision 重新变为可变对象，也避免新旧 embedding Worker 串领任务。

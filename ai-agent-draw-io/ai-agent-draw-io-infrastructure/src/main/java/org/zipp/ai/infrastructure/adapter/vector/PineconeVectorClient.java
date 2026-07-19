@@ -6,6 +6,8 @@ import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 
 import java.net.URI;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZonedDateTime;
@@ -143,9 +145,33 @@ public final class PineconeVectorClient {
         exchange(indexUri("/vectors/delete"), body);
     }
 
+    public Set<String> fetchExisting(String namespace, List<String> ids) {
+        if (ids == null || ids.isEmpty()) return Set.of();
+        if (ids.size() > 100) throw new IllegalArgumentException("Pinecone fetch batch cannot exceed 100 ids");
+        StringBuilder query = new StringBuilder("?namespace=")
+                .append(encodeQuery(required(namespace, "namespace")));
+        for (String id : ids) query.append("&ids=").append(encodeQuery(required(id, "vector id")));
+        JsonNode response = exchange("GET", indexUri("/vectors/fetch" + query), "");
+        JsonNode vectors = response.path("vectors");
+        if (!vectors.isObject()) throw new IllegalStateException("Pinecone fetch response has no vectors object");
+        Set<String> requested = Set.copyOf(ids);
+        java.util.HashSet<String> existing = new java.util.HashSet<>();
+        vectors.fieldNames().forEachRemaining(id -> {
+            if (!requested.contains(id)) {
+                throw new IllegalStateException("Pinecone fetch returned an unrequested vector id");
+            }
+            existing.add(id);
+        });
+        return Set.copyOf(existing);
+    }
+
     private JsonNode exchange(URI uri, ObjectNode body) {
+        return exchange("POST", uri, body.toString());
+    }
+
+    private JsonNode exchange(String method, URI uri, String body) {
         try {
-            PineconeHttpResponse response = transport.exchange("POST", uri, headers(), body.toString());
+            PineconeHttpResponse response = transport.exchange(method, uri, headers(), body);
             if (response.statusCode() == 429 || response.statusCode() >= 500) {
                 throw new RetryableRetrievalException("Pinecone returned HTTP " + response.statusCode(),
                         retryAfter(response.retryAfter()));
@@ -187,6 +213,10 @@ public final class PineconeVectorClient {
 
     private URI indexUri(String path) {
         return URI.create(indexHost.toString() + path);
+    }
+
+    private String encodeQuery(String value) {
+        return URLEncoder.encode(value, StandardCharsets.UTF_8).replace("+", "%20");
     }
 
     private void validateVector(float[] values) {

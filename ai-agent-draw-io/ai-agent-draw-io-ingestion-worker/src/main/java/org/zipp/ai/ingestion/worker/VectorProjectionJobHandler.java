@@ -13,6 +13,7 @@ import org.zipp.ai.domain.retrieval.port.RetryableRetrievalException;
 import org.zipp.ai.domain.retrieval.port.TenantKeyPort;
 import org.zipp.ai.domain.retrieval.port.VectorProjectionWorkPort;
 import org.zipp.ai.domain.retrieval.projection.*;
+import org.zipp.ai.domain.retrieval.service.RevisionPublicationGate;
 import org.zipp.ai.ingestion.worker.document.RevisionPageCodec;
 
 import java.time.Clock;
@@ -39,6 +40,7 @@ public final class VectorProjectionJobHandler {
     private final RetrievalVectorIndex vectorIndex;
     private final TenantKeyPort tenantKeys;
     private final VectorProjectionPlanner planner;
+    private final RevisionPublicationGate publicationGate;
     private final RevisionPageCodec codec;
     private final VectorGenerationProfile profile;
     private final ProcessingQueuePort queue;
@@ -48,6 +50,7 @@ public final class VectorProjectionJobHandler {
                                       EmbeddingPort embedding, EmbeddingCachePort embeddingCache,
                                       RetrievalVectorIndex vectorIndex,
                                       TenantKeyPort tenantKeys, VectorProjectionPlanner planner,
+                                      RevisionPublicationGate publicationGate,
                                       RevisionPageCodec codec, VectorGenerationProfile profile,
                                       ProcessingQueuePort queue, Clock clock) {
         this.work = Objects.requireNonNull(work, "work");
@@ -57,6 +60,7 @@ public final class VectorProjectionJobHandler {
         this.vectorIndex = Objects.requireNonNull(vectorIndex, "vectorIndex");
         this.tenantKeys = Objects.requireNonNull(tenantKeys, "tenantKeys");
         this.planner = Objects.requireNonNull(planner, "planner");
+        this.publicationGate = Objects.requireNonNull(publicationGate, "publicationGate");
         this.codec = Objects.requireNonNull(codec, "codec");
         this.profile = Objects.requireNonNull(profile, "profile");
         this.queue = Objects.requireNonNull(queue, "queue");
@@ -73,6 +77,7 @@ public final class VectorProjectionJobHandler {
                 case EMBED_CHUNK_BATCHES -> embed(revisionId, lease);
                 case UPSERT_VECTOR_BATCHES -> upsert(revisionId, lease);
                 case VERIFY_PROJECTION_MANIFEST -> manifest(revisionId, lease);
+                case PUBLISH_REVISION -> publish(revisionId, lease);
                 default -> JobOutcome.permanent("UNSUPPORTED_VECTOR_STAGE");
             };
         } catch (IllegalArgumentException e) {
@@ -199,9 +204,47 @@ public final class VectorProjectionJobHandler {
                 codec.encode(manifest), JSON_GZIP);
         VectorProjectionManifestResult result = new VectorProjectionManifestResult(manifest, artifact);
         ProcessingJob successor = nextJob(revisionId, ProcessingJobStage.PUBLISH_REVISION,
-                "ig:" + source.profile().generationId(), VectorGenerationProfile.sha256(
-                        artifact.contentSha256() + ":" + manifest.manifestHash() + ":PUBLISH_REVISION"));
+                RevisionPublicationWork.publicationWorkKey(source.profile().generationId()),
+                RevisionPublicationWork.publicationInputFingerprint(
+                        artifact.contentSha256(), manifest.manifestHash()));
         return work.commitManifest(source, result, successor, fence(lease))
+                ? JobOutcome.succeeded() : staleFence();
+    }
+
+    private JobOutcome publish(String revisionId, ProcessingJobLease lease) {
+        RevisionPublicationWork source = work.findPublicationWork(
+                revisionId, lease.job().workKey(), fence(lease)).orElse(null);
+        if (source == null) return JobOutcome.succeeded();
+        verifyProfile(source.profile());
+        if (!source.publicationInputFingerprint().equals(lease.job().inputFingerprint())) {
+            return JobOutcome.permanent("STALE_PROCESSING_FINGERPRINT");
+        }
+        if (!heartbeat(lease)) return staleFence();
+        VectorProjectionManifest manifest = codec.decodeVectorProjectionManifest(
+                artifacts.read(source.projectionManifestArtifact(), MAXIMUM_ARTIFACT_BYTES),
+                MAXIMUM_ARTIFACT_BYTES);
+        RetrievalProjectionManifest retrieval = readRetrievalManifest(source.context());
+        EvidenceManifest evidence = codec.decodeEvidenceManifest(
+                artifacts.read(source.evidenceManifestArtifact(), MAXIMUM_ARTIFACT_BYTES),
+                MAXIMUM_ARTIFACT_BYTES);
+        DocumentStructure structure = codec.decodeDocumentStructure(
+                artifacts.read(source.structureArtifact(), MAXIMUM_ARTIFACT_BYTES),
+                MAXIMUM_ARTIFACT_BYTES);
+        publicationGate.verifySourceChain(source, retrieval, evidence, structure);
+        publicationGate.verifyManifest(source, manifest);
+        if (source.gapManifestArtifact() != null) {
+            RevisionGapManifest gaps = codec.decodeRevisionGapManifest(
+                    artifacts.read(source.gapManifestArtifact(), MAXIMUM_ARTIFACT_BYTES),
+                    MAXIMUM_ARTIFACT_BYTES);
+            publicationGate.verifyGapManifest(source, gaps);
+        }
+        if (!publicationGate.allVectorsVisible(source,
+                vectorIndex.existingVectorIds(source.vectorIds()))) {
+            // Pinecone is eventually consistent; keep the revision unpublished and retry the exact pin.
+            throw new RetryableRetrievalException(
+                    "Pinecone projection is not visible yet", Duration.ofSeconds(10));
+        }
+        return work.commitPublication(source, fence(lease))
                 ? JobOutcome.succeeded() : staleFence();
     }
 

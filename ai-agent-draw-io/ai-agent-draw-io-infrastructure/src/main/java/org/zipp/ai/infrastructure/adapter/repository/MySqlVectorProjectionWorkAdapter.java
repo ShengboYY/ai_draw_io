@@ -190,6 +190,61 @@ public class MySqlVectorProjectionWorkAdapter implements VectorProjectionWorkPor
         return true;
     }
 
+    @Override
+    public Optional<RevisionPublicationWork> findPublicationWork(
+            String revisionId, String workKey, WorkerFence fence) {
+        WorkerFence current = Objects.requireNonNull(fence, "fence");
+        List<VectorProjectionWorkPO> rows = mapper.selectPublicationWork(
+                required(revisionId, "revisionId"), required(workKey, "workKey"),
+                current.jobId(), current.workerId(), current.fenceToken());
+        return rows.isEmpty() ? Optional.empty() : Optional.of(publication(rows));
+    }
+
+    @Override
+    @Transactional
+    public boolean commitPublication(RevisionPublicationWork work, WorkerFence fence) {
+        RevisionPublicationWork source = Objects.requireNonNull(work, "work");
+        WorkerFence currentFence = Objects.requireNonNull(fence, "fence");
+        // Publication shares the material-first lock order with leases, trash, and permanent deletion.
+        if (!"ACTIVE".equals(mapper.lockMaterialLifecycleState(source.context().materialId()))) {
+            return false;
+        }
+        if (!source.context().revisionId().equals(mapper.lockRevisionGate(source.context().revisionId()))) {
+            return false;
+        }
+        String generationState = mapper.lockGenerationState(source.profile().generationId());
+        if (generationState == null) return false;
+        String activeGenerationId = mapper.selectActiveGenerationForUpdate();
+        List<VectorProjectionWorkPO> currentRows = mapper.selectPublicationWork(
+                source.context().revisionId(),
+                RevisionPublicationWork.publicationWorkKey(source.profile().generationId()),
+                currentFence.jobId(), currentFence.workerId(), currentFence.fenceToken());
+        if (currentRows.isEmpty() || !samePublication(source, publication(currentRows))) return false;
+        if (!hasFence(source.context(), ProcessingJobStage.PUBLISH_REVISION, currentFence)) return false;
+
+        IndexGenerationState state = IndexGenerationState.valueOf(generationState);
+        if (state == IndexGenerationState.BUILDING) {
+            if (activeGenerationId != null) {
+                throw new IllegalStateException("another active generation requires compatibility projection");
+            }
+            if (mapper.activateInitialGeneration(source.profile().generationId(), Instant.now()) != 1) {
+                throw new IllegalStateException("initial index generation activation lost its fence");
+            }
+        } else if (state != IndexGenerationState.ACTIVE
+                || !source.profile().generationId().equals(activeGenerationId)) {
+            throw new IllegalStateException("revision publication requires its active generation");
+        }
+        if (mapper.publishRevision(source.context().revisionId(),
+                source.context().revisionFenceGeneration(), source.publicationState().name(), Instant.now()) != 1
+                || mapper.activateVersionRevision(source.context().versionId(),
+                        source.context().revisionId()) != 1) {
+            throw new IllegalStateException("revision publication boundary became stale");
+        }
+        // INSERT IGNORE makes retries and later revisions of the same content non-billable.
+        mapper.recordInitialProcessingUsage(source.context().revisionId());
+        return true;
+    }
+
     private void validateCoordinatorSuccessors(RevisionProjectionContext source, VectorProjectionPlan plan,
                                                List<ProcessingJob> successors) {
         if (plan.batches().isEmpty()) {
@@ -248,13 +303,14 @@ public class MySqlVectorProjectionWorkAdapter implements VectorProjectionWorkPor
     private void validateManifestCommit(VectorManifestWork source, VectorProjectionManifestResult output,
                                         ProcessingJob successor) {
         var manifest = output.manifest();
-        String expected = VectorGenerationProfile.sha256(output.artifact().contentSha256() + ":"
-                + manifest.manifestHash() + ":PUBLISH_REVISION");
+        String expected = RevisionPublicationWork.publicationInputFingerprint(
+                output.artifact().contentSha256(), manifest.manifestHash());
         if (!source.context().revisionId().equals(manifest.revisionId())
                 || !source.context().versionId().equals(manifest.versionId())
                 || !source.profile().generationId().equals(manifest.generationId())
                 || successor.stage() != ProcessingJobStage.PUBLISH_REVISION
-                || !("ig:" + source.profile().generationId()).equals(successor.workKey())
+                || !RevisionPublicationWork.publicationWorkKey(source.profile().generationId())
+                        .equals(successor.workKey())
                 || !expected.equals(successor.inputFingerprint())) {
             throw new IllegalArgumentException("projection manifest commit identity is invalid");
         }
@@ -274,6 +330,56 @@ public class MySqlVectorProjectionWorkAdapter implements VectorProjectionWorkPor
         return new RevisionProjectionContext(po.getRevisionId(), po.getVersionId(), po.getMaterialId(),
                 OwnerType.valueOf(po.getOwnerType()), po.getOwnerKey(), po.getRevisionFenceGeneration(),
                 po.getMaterialLifecycleGeneration(), po.getProcessingFingerprint(), manifest);
+    }
+
+    private RevisionPublicationWork publication(List<VectorProjectionWorkPO> rows) {
+        VectorProjectionWorkPO first = rows.get(0);
+        StoredArtifact projectionManifest = new StoredArtifact(first.getProjectionManifestKey(),
+                first.getProjectionManifestVersionId(), first.getProjectionManifestSha256(),
+                first.getProjectionManifestSize(), first.getProjectionManifestContentType());
+        StoredArtifact structure = new StoredArtifact(first.getStructureKey(), first.getStructureVersionId(),
+                first.getStructureSha256(), first.getStructureSize(), first.getStructureContentType());
+        StoredArtifact evidence = new StoredArtifact(first.getEvidenceManifestKey(),
+                first.getEvidenceManifestVersionId(), first.getEvidenceManifestSha256(),
+                first.getEvidenceManifestSize(), first.getEvidenceManifestContentType());
+        StoredArtifact gaps = first.getGapManifestKey() == null ? null : new StoredArtifact(
+                first.getGapManifestKey(), first.getGapManifestVersionId(), first.getGapManifestSha256(),
+                Objects.requireNonNull(first.getGapManifestSize(), "gapManifestSize"),
+                first.getGapManifestContentType());
+        List<VectorProjectionManifestEntry> indexed = rows.stream()
+                .filter(row -> row.getVectorId() != null)
+                .map(row -> new VectorProjectionManifestEntry(row.getChunkId(), row.getVectorId(),
+                        row.getProjectionFingerprint())).toList();
+        return new RevisionPublicationWork(context(first), profile(first), structure, evidence, gaps,
+                projectionManifest, first.getProjectionManifestHash(), first.getRetrievalChunkCount(),
+                first.getLexicalProjectionCount(), first.getExactTermCount(),
+                first.getChunkEvidenceMappingCount(), first.getEvidenceUnitCount(),
+                first.getExpectedProjectionCount(),
+                first.getIndexedProjectionCount(), IndexGenerationState.valueOf(first.getGenerationState()),
+                first.getActiveGenerationId(), indexed);
+    }
+
+    private boolean samePublication(RevisionPublicationWork expected, RevisionPublicationWork current) {
+        return expected.context().revisionId().equals(current.context().revisionId())
+                && expected.context().versionId().equals(current.context().versionId())
+                && expected.context().revisionFenceGeneration() == current.context().revisionFenceGeneration()
+                && expected.context().materialLifecycleGeneration()
+                        == current.context().materialLifecycleGeneration()
+                && expected.profile().equals(current.profile())
+                && expected.structureArtifact().equals(current.structureArtifact())
+                && expected.evidenceManifestArtifact().equals(current.evidenceManifestArtifact())
+                && Objects.equals(expected.gapManifestArtifact(), current.gapManifestArtifact())
+                && expected.projectionManifestArtifact().equals(current.projectionManifestArtifact())
+                && expected.projectionManifestHash().equals(current.projectionManifestHash())
+                && expected.retrievalChunkCount() == current.retrievalChunkCount()
+                && expected.lexicalProjectionCount() == current.lexicalProjectionCount()
+                && expected.exactTermCount() == current.exactTermCount()
+                && expected.chunkEvidenceMappingCount() == current.chunkEvidenceMappingCount()
+                && expected.evidenceUnitCount() == current.evidenceUnitCount()
+                && expected.expectedProjectionCount() == current.expectedProjectionCount()
+                && expected.indexedProjectionCount() == current.indexedProjectionCount()
+                && new HashSet<>(expected.indexedProjections())
+                        .equals(new HashSet<>(current.indexedProjections()));
     }
 
     private VectorGenerationProfile profile(VectorProjectionWorkPO po) {

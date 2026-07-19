@@ -103,6 +103,15 @@ class MaterialMapperContractTest {
         assertTrue(mapper.contains("j.fence_token = #{fenceToken}"));
         assertTrue(mapper.contains("j.lease_until &gt; UTC_TIMESTAMP(3)"));
         assertTrue(mapper.contains("pending_projection.state != 'INDEXED'"));
+        assertTrue(mapper.contains("<select id=\"selectPublicationWork\""));
+        assertTrue(mapper.contains("pm.object_version_id AS projection_manifest_version_id"));
+        assertTrue(mapper.contains("j.stage = 'PUBLISH_REVISION'"));
+        assertTrue(mapper.contains("v.ingest_state = 'READY' AND v.active_revision_id IS NOT NULL"));
+        assertTrue(mapper.contains("<update id=\"publishRevision\""));
+        assertTrue(mapper.contains("active_revision_id = #{revisionId}"));
+        assertTrue(mapper.contains("ingest_state = 'READY' AND active_revision_id IS NOT NULL"));
+        assertTrue(mapper.contains("SET state = #{state}, progress = 100"));
+        assertTrue(mapper.contains("<insert id=\"recordInitialProcessingUsage\""));
     }
 
     private String resource(String path) throws Exception {

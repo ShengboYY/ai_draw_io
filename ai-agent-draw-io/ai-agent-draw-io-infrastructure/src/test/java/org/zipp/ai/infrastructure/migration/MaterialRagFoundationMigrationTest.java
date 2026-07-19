@@ -147,6 +147,44 @@ class MaterialRagFoundationMigrationTest {
     }
 
     @Test
+    void publicationMigrationEnforcesOneActiveIndexGeneration() throws Exception {
+        Path migration = Path.of("docs/sql/migrations/2026-07-29-enforce-index-generation-publication.sql");
+        if (!Files.exists(migration)) {
+            migration = Path.of("../docs/sql/migrations/2026-07-29-enforce-index-generation-publication.sql");
+        }
+        String sql = Files.readString(migration);
+
+        assertTrue(sql.contains("CASE WHEN state = 'ACTIVE' THEN 1 ELSE NULL END"));
+        assertTrue(sql.contains("UNIQUE KEY uk_rag_one_active_generation (active_slot)"));
+    }
+
+    @Test
+    void processingUsageMigrationRecordsOneChargePerContentBlob() throws Exception {
+        Path migration = Path.of("docs/sql/migrations/2026-07-30-create-material-processing-usage.sql");
+        if (!Files.exists(migration)) {
+            migration = Path.of("../docs/sql/migrations/2026-07-30-create-material-processing-usage.sql");
+        }
+        String sql = Files.readString(migration);
+
+        assertTrue(sql.contains("CREATE TABLE IF NOT EXISTS material_processing_usage"));
+        assertTrue(sql.contains("PRIMARY KEY (content_blob_id)"));
+        assertTrue(sql.contains("first_revision_id VARCHAR(64) NOT NULL"));
+    }
+
+    @Test
+    void gapManifestMigrationRequiresAnExactObjectPin() throws Exception {
+        Path migration = Path.of("docs/sql/migrations/2026-07-31-pin-revision-gap-manifest.sql");
+        if (!Files.exists(migration)) {
+            migration = Path.of("../docs/sql/migrations/2026-07-31-pin-revision-gap-manifest.sql");
+        }
+        String sql = Files.readString(migration);
+
+        assertTrue(sql.contains("gap_manifest_object_version_id VARCHAR(255)"));
+        assertTrue(sql.contains("gap_manifest_sha256 CHAR(64)"));
+        assertTrue(sql.contains("chk_revision_gap_manifest_pin"));
+    }
+
+    @Test
     void workerIamAllowsExactVersionVerificationAndCleanupInBothBuckets() throws Exception {
         Path template = Path.of("../deploy/aws/material-upload/s3-and-iam.template.yml");
         if (!Files.exists(template)) {

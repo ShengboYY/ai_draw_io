@@ -6,6 +6,8 @@ import org.zipp.ai.domain.retrieval.port.RetrievalVectorIndex;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
+import java.util.HashSet;
 
 public final class PineconeRetrievalVectorIndexAdapter implements RetrievalVectorIndex {
     private final PineconeVectorClient client;
@@ -22,6 +24,18 @@ public final class PineconeRetrievalVectorIndexAdapter implements RetrievalVecto
         client.upsert(namespace, List.copyOf(projections).stream().map(projection ->
                 new PineconeVectorRecord(projection.vectorId(), projection.values(), projection.metadata()))
                 .toList());
+    }
+
+    @Override
+    public Set<String> existingVectorIds(List<String> vectorIds) {
+        List<String> requested = List.copyOf(vectorIds);
+        HashSet<String> existing = new HashSet<>();
+        // Keep fetch URLs bounded while supporting large revision manifests.
+        for (int start = 0; start < requested.size(); start += 100) {
+            existing.addAll(client.fetchExisting(namespace,
+                    requested.subList(start, Math.min(start + 100, requested.size()))));
+        }
+        return Set.copyOf(existing);
     }
 
     @Override

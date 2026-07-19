@@ -8,13 +8,22 @@ import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 public final class FakeRetrievalVectorIndex implements RetrievalVectorIndex {
     private final Map<String, VectorProjection> records = new LinkedHashMap<>();
+    private boolean readinessVisible = true;
 
     @Override
     public void upsert(List<VectorProjection> projections) {
         projections.forEach(projection -> records.put(projection.vectorId(), projection));
+    }
+
+    @Override
+    public Set<String> existingVectorIds(List<String> vectorIds) {
+        if (!readinessVisible) return Set.of();
+        return vectorIds.stream().filter(records::containsKey).collect(Collectors.toUnmodifiableSet());
     }
 
     @Override
@@ -37,5 +46,9 @@ public final class FakeRetrievalVectorIndex implements RetrievalVectorIndex {
             safeRecords.add(record.vectorId() + record.metadata() + Arrays.toString(record.values()));
         }
         return String.join("\n", safeRecords);
+    }
+
+    public void setReadinessVisible(boolean readinessVisible) {
+        this.readinessVisible = readinessVisible;
     }
 }

@@ -6,6 +6,7 @@ import org.zipp.ai.domain.ingestion.model.valobj.DocumentStructure;
 import org.zipp.ai.domain.ingestion.model.valobj.EvidenceManifest;
 import org.zipp.ai.domain.ingestion.model.valobj.PageExtraction;
 import org.zipp.ai.domain.ingestion.model.valobj.VisualCropManifest;
+import org.zipp.ai.domain.ingestion.model.valobj.RevisionGapManifest;
 import org.zipp.ai.domain.retrieval.projection.RetrievalChunkProjection;
 import org.zipp.ai.domain.retrieval.projection.RetrievalParentContext;
 import org.zipp.ai.domain.retrieval.projection.RetrievalProjectionManifest;
@@ -77,6 +78,10 @@ public final class RevisionPageCodec {
         return encodeValue(manifest);
     }
 
+    public byte[] encode(RevisionGapManifest manifest) {
+        return encodeValue(manifest);
+    }
+
     public PageExtraction decodeExtraction(byte[] content) {
         return decodeValue(content, PageExtraction.class, DEFAULT_MAXIMUM_UNCOMPRESSED_BYTES);
     }
@@ -120,6 +125,16 @@ public final class RevisionPageCodec {
 
     public EmbeddingCacheValue decodeEmbeddingCacheValue(byte[] content, long maximumUncompressedBytes) {
         return decodeValue(content, EmbeddingCacheValue.class, maximumUncompressedBytes);
+    }
+
+    public VectorProjectionManifest decodeVectorProjectionManifest(
+            byte[] content, long maximumUncompressedBytes) {
+        return decodeValue(content, VectorProjectionManifest.class, maximumUncompressedBytes);
+    }
+
+    public RevisionGapManifest decodeRevisionGapManifest(
+            byte[] content, long maximumUncompressedBytes) {
+        return decodeValue(content, RevisionGapManifest.class, maximumUncompressedBytes);
     }
 
     private byte[] encodeValue(Object value) {

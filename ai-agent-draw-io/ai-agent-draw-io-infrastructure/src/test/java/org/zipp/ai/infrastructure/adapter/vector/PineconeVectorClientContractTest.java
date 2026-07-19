@@ -11,6 +11,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -101,6 +102,23 @@ class PineconeVectorClientContractTest {
     }
 
     @Test
+    void shouldFetchOnlyVectorIdentitiesForPublicationReadiness() {
+        RecordingTransport transport = new RecordingTransport(objectMapper);
+        PineconeVectorClient client = new PineconeVectorClient(
+                "test-api-key", "https://drawio-test.svc.pinecone.io",
+                "multilingual-e5-large", 1024, transport, objectMapper);
+
+        assertEquals(Set.of("rc_chunk1_ig2"),
+                client.fetchExisting("drawio-retrieval-v2", List.of("rc_chunk1_ig2", "missing")));
+
+        RecordedRequest request = transport.requests.get(0);
+        assertEquals("GET", request.method);
+        assertEquals("/vectors/fetch", request.uri.getPath());
+        assertTrue(request.uri.getQuery().contains("namespace=drawio-retrieval-v2"));
+        assertFalse(request.uri.toString().contains("source text"));
+    }
+
+    @Test
     void shouldPropagatePineconeRetryAfterForDurableWorkerBackoff() {
         PineconeHttpTransport transport = (method, uri, headers, body) ->
                 new PineconeHttpResponse(429, "{}", "17");
@@ -160,6 +178,10 @@ class PineconeVectorClientContractTest {
             if (uri.getPath().equals("/query")) {
                 return new PineconeHttpResponse(200,
                         "{\"matches\":[{\"id\":\"rc_chunk1_ig2\",\"score\":0.91}]}");
+            }
+            if (uri.getPath().equals("/vectors/fetch")) {
+                return new PineconeHttpResponse(200,
+                        "{\"vectors\":{\"rc_chunk1_ig2\":{\"id\":\"rc_chunk1_ig2\"}}}");
             }
             return new PineconeHttpResponse(200, "{}");
         }

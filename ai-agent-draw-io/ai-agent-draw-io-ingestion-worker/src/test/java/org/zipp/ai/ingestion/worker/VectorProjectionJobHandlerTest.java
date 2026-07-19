@@ -11,6 +11,7 @@ import org.zipp.ai.domain.retrieval.model.valobj.*;
 import org.zipp.ai.domain.retrieval.port.EmbeddingPort;
 import org.zipp.ai.domain.retrieval.port.VectorProjectionWorkPort;
 import org.zipp.ai.domain.retrieval.projection.*;
+import org.zipp.ai.domain.retrieval.service.RevisionPublicationGate;
 import org.zipp.ai.ingestion.worker.document.RevisionPageCodec;
 import org.zipp.ai.ingestion.worker.fake.FakeEmbeddingPort;
 import org.zipp.ai.ingestion.worker.fake.FakeRetrievalVectorIndex;
@@ -35,10 +36,28 @@ class VectorProjectionJobHandlerTest {
         RetrievalProjectionManifest retrieval = retrievalManifest();
         StoredArtifact retrievalArtifact = artifacts.putImmutable("retrieval-manifest.json.gz",
                 codec.encode(retrieval), "application/json+gzip");
+        DocumentStructure structure = new DocumentStructure("document-structure-v1",
+                List.of(new DocumentSection("section_1", null, 1, 1, 1, 1,
+                        null, "4".repeat(64))), List.of(), List.of(), "4".repeat(64));
+        StoredArtifact structureArtifact = artifacts.putImmutable("structure.json.gz",
+                codec.encode(structure), "application/json+gzip");
+        String evidenceText = "Agile development uses short feedback cycles.";
+        NormalizedBoundingBox box = new NormalizedBoundingBox(0.1, 0.1, 0.9, 0.2);
+        EvidenceUnit evidenceUnit = new EvidenceUnit("evidence_1", "page_1", 1, "section_1",
+                EvidenceUnitType.CONTENT,
+                org.zipp.ai.domain.ingestion.model.valobj.EvidenceModality.TEXT,
+                "NATIVE", evidenceText,
+                VectorGenerationProfile.sha256(evidenceText), retrievalArtifact, null,
+                List.of(new EvidenceRegion("page_1", 1, box, 0, evidenceText.length(), "block_1")), 0.95);
+        EvidenceManifest evidence = new EvidenceManifest("evidence-manifest-v1", "rev_1", "ver_1",
+                structure.structureHash(), "evidence-builder-v1", "2".repeat(64),
+                List.of(evidenceUnit), List.of(), List.of());
+        StoredArtifact evidenceArtifact = artifacts.putImmutable("evidence.json.gz",
+                codec.encode(evidence), "application/json+gzip");
         RevisionProjectionContext context = new RevisionProjectionContext(
                 "rev_1", "ver_1", "material_1", OwnerType.USER, "user_1", 7, 2,
                 "d".repeat(64), retrievalArtifact);
-        InMemoryWork work = new InMemoryWork(context);
+        InMemoryWork work = new InMemoryWork(context, structureArtifact, evidenceArtifact);
         FakeRetrievalVectorIndex index = new FakeRetrievalVectorIndex();
         RecordingQueue queue = new RecordingQueue();
         VectorGenerationProfile profile = new VectorGenerationProfile(
@@ -49,7 +68,7 @@ class VectorProjectionJobHandlerTest {
         VectorProjectionJobHandler handler = new VectorProjectionJobHandler(
                 work, artifacts, embedding, embeddingCache, index,
                 (ownerType, ownerKey) -> "tenant-opaque", new VectorProjectionPlanner(96, 1_000_000),
-                codec, profile, queue, Clock.fixed(NOW, ZoneOffset.UTC));
+                new RevisionPublicationGate(), codec, profile, queue, Clock.fixed(NOW, ZoneOffset.UTC));
 
         assertEquals(JobOutcome.Kind.SUCCEEDED, handler.handle(lease(
                 ProcessingJobStage.BUILD_LEXICAL_PROJECTION, "root",
@@ -86,6 +105,18 @@ class VectorProjectionJobHandlerTest {
         assertEquals("revisions/rev_1/projections/" + profile.generationId()
                 + "/projection-manifest.json.gz", work.manifestResult.artifact().objectKey());
         assertEquals(1, work.manifestResult.manifest().entries().size());
+
+        index.setReadinessVisible(false);
+        assertEquals(JobOutcome.Kind.TRANSIENT_FAILURE, handler.handle(lease(
+                ProcessingJobStage.PUBLISH_REVISION, work.nextWorkKey,
+                work.publicationWork.publicationInputFingerprint())).kind());
+        assertFalse(work.published);
+
+        index.setReadinessVisible(true);
+        assertEquals(JobOutcome.Kind.SUCCEEDED, handler.handle(lease(
+                ProcessingJobStage.PUBLISH_REVISION, work.nextWorkKey,
+                work.publicationWork.publicationInputFingerprint())).kind());
+        assertTrue(work.published);
     }
 
     private ProcessingJobLease lease(ProcessingJobStage stage, String workKey, String fingerprint) {
@@ -111,16 +142,25 @@ class VectorProjectionJobHandlerTest {
 
     private static final class InMemoryWork implements VectorProjectionWorkPort {
         private final RevisionProjectionContext context;
+        private final StoredArtifact structureArtifact;
+        private final StoredArtifact evidenceArtifact;
         private VectorProjectionPlan plan;
         private VectorEmbeddingWork embeddingWork;
         private VectorBatchArtifactResult embeddingResult;
         private VectorUpsertWork upsertWork;
         private VectorManifestWork manifestWork;
         private VectorProjectionManifestResult manifestResult;
+        private RevisionPublicationWork publicationWork;
+        private boolean published;
         private ProcessingJobStage nextStage;
         private String nextWorkKey;
 
-        private InMemoryWork(RevisionProjectionContext context) { this.context = context; }
+        private InMemoryWork(RevisionProjectionContext context, StoredArtifact structureArtifact,
+                             StoredArtifact evidenceArtifact) {
+            this.context = context;
+            this.structureArtifact = structureArtifact;
+            this.evidenceArtifact = evidenceArtifact;
+        }
 
         @Override public Optional<RevisionProjectionContext> findCoordinatorWork(
                 String revisionId, WorkerFence fence) { return Optional.of(context); }
@@ -172,8 +212,22 @@ class VectorProjectionJobHandlerTest {
         @Override public boolean commitManifest(VectorManifestWork work, VectorProjectionManifestResult result,
                                                 ProcessingJob nextJob, WorkerFence fence) {
             manifestResult = result;
+            publicationWork = new RevisionPublicationWork(context, plan.profile(),
+                    structureArtifact, evidenceArtifact, null, result.artifact(),
+                    result.manifest().manifestHash(), 1, 1, 0, 1, 1,
+                    result.manifest().entries().size(), result.manifest().entries().size(),
+                    IndexGenerationState.BUILDING, null, result.manifest().entries());
             nextStage = nextJob.stage();
             nextWorkKey = nextJob.workKey();
+            return true;
+        }
+
+
+        @Override public Optional<RevisionPublicationWork> findPublicationWork(
+                String revisionId, String workKey, WorkerFence fence) { return Optional.of(publicationWork); }
+
+        @Override public boolean commitPublication(RevisionPublicationWork work, WorkerFence fence) {
+            published = true;
             return true;
         }
     }

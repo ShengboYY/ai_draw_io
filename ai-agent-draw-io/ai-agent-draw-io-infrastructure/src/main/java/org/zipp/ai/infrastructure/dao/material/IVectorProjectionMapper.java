@@ -31,6 +31,11 @@ public interface IVectorProjectionMapper {
                                                     @Param("jobId") String jobId,
                                                     @Param("workerId") String workerId,
                                                     @Param("fenceToken") long fenceToken);
+    List<VectorProjectionWorkPO> selectPublicationWork(@Param("revisionId") String revisionId,
+                                                       @Param("workKey") String workKey,
+                                                       @Param("jobId") String jobId,
+                                                       @Param("workerId") String workerId,
+                                                       @Param("fenceToken") long fenceToken);
     int insertGeneration(RagIndexGenerationPO generation);
     RagIndexGenerationPO selectGeneration(@Param("generationId") String generationId);
     int insertRevisionProjection(RevisionVectorProjectionPO projection);
@@ -72,4 +77,16 @@ public interface IVectorProjectionMapper {
     int insertManifest(VectorProjectionManifestPO manifest);
     VectorProjectionManifestPO selectManifest(@Param("revisionId") String revisionId,
                                               @Param("generationId") String generationId);
+    String lockGenerationState(@Param("generationId") String generationId);
+    String lockMaterialLifecycleState(@Param("materialId") String materialId);
+    String selectActiveGenerationForUpdate();
+    int activateInitialGeneration(@Param("generationId") String generationId,
+                                  @Param("activatedAt") Instant activatedAt);
+    int publishRevision(@Param("revisionId") String revisionId,
+                        @Param("revisionFenceGeneration") long revisionFenceGeneration,
+                        @Param("state") String state,
+                        @Param("publishedAt") Instant publishedAt);
+    int activateVersionRevision(@Param("versionId") String versionId,
+                                @Param("revisionId") String revisionId);
+    int recordInitialProcessingUsage(@Param("revisionId") String revisionId);
 }

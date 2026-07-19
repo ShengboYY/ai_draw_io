@@ -23,4 +23,7 @@ public interface VectorProjectionWorkPort {
     Optional<VectorManifestWork> findManifestWork(String revisionId, String workKey, WorkerFence fence);
     boolean commitManifest(VectorManifestWork work, VectorProjectionManifestResult result,
                            ProcessingJob nextJob, WorkerFence fence);
+    Optional<RevisionPublicationWork> findPublicationWork(String revisionId, String workKey,
+                                                          WorkerFence fence);
+    boolean commitPublication(RevisionPublicationWork work, WorkerFence fence);
 }

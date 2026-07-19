@@ -134,6 +134,89 @@
         ORDER BY p.retrieval_chunk_id
     </select>
 
+    <select id="selectPublicationWork"
+            resultType="org.zipp.ai.infrastructure.dao.material.po.VectorProjectionWorkPO">
+        SELECT <include refid="projectionContextColumns"/>,
+               g.id AS index_generation_id, g.index_name, g.namespace, g.embedding_model,
+               g.embedding_model_fingerprint, g.dimension, g.metric, g.vector_schema_version,
+               rv.tokenizer_fingerprint,
+               pm.object_key AS projection_manifest_key,
+               pm.object_version_id AS projection_manifest_version_id,
+               pm.content_sha256 AS projection_manifest_sha256,
+               pm.byte_size AS projection_manifest_size,
+               pm.content_type AS projection_manifest_content_type,
+               pm.manifest_hash AS projection_manifest_hash,
+               structure_manifest.object_key AS structure_key,
+               structure_manifest.object_version_id AS structure_version_id,
+               structure_manifest.content_sha256 AS structure_sha256,
+               structure_manifest.byte_size AS structure_size,
+               structure_manifest.content_type AS structure_content_type,
+               evidence_manifest.object_key AS evidence_manifest_key,
+               evidence_manifest.object_version_id AS evidence_manifest_version_id,
+               evidence_manifest.content_sha256 AS evidence_manifest_sha256,
+               evidence_manifest.byte_size AS evidence_manifest_size,
+               evidence_manifest.content_type AS evidence_manifest_content_type,
+               (SELECT COUNT(*) FROM retrieval_chunk chunk_count
+                WHERE chunk_count.revision_id = r.id) AS retrieval_chunk_count,
+               (SELECT COUNT(*) FROM retrieval_search_document lexical_count
+                WHERE lexical_count.revision_id = r.id) AS lexical_projection_count,
+               (SELECT COUNT(*) FROM retrieval_exact_term exact_count
+                WHERE exact_count.revision_id = r.id) AS exact_term_count,
+               (SELECT COUNT(*) FROM retrieval_chunk_evidence mapping_count
+                JOIN retrieval_chunk mapped_chunk ON mapped_chunk.id = mapping_count.retrieval_chunk_id
+                WHERE mapped_chunk.revision_id = r.id) AS chunk_evidence_mapping_count,
+               (SELECT COUNT(*) FROM evidence_unit evidence_count
+                WHERE evidence_count.revision_id = r.id) AS evidence_unit_count,
+               r.gap_manifest_key,
+               r.gap_manifest_object_version_id AS gap_manifest_version_id,
+               r.gap_manifest_sha256,
+               r.gap_manifest_size,
+               r.gap_manifest_content_type,
+               rv.expected_projection_count,
+               (SELECT COUNT(*) FROM retrieval_chunk_vector_projection indexed
+                JOIN retrieval_chunk indexed_chunk ON indexed_chunk.id = indexed.retrieval_chunk_id
+                WHERE indexed_chunk.revision_id = r.id AND indexed.index_generation_id = g.id
+                  AND indexed.state = 'INDEXED') AS indexed_projection_count,
+               g.state AS generation_state,
+               (SELECT active.id FROM rag_index_generation active
+                WHERE active.state = 'ACTIVE' ORDER BY active.activated_at, active.id LIMIT 1)
+                    AS active_generation_id,
+               p.retrieval_chunk_id AS chunk_id, p.vector_id,
+               p.embedding_fingerprint AS projection_fingerprint
+        FROM material_processing_revision r
+        JOIN material_version v ON v.id = r.version_id
+        JOIN material m ON m.id = v.material_id
+        JOIN material_revision_artifact manifest
+          ON manifest.revision_id = r.id AND manifest.artifact_kind = 'RETRIEVAL_MANIFEST'
+        JOIN material_revision_artifact evidence_manifest
+          ON evidence_manifest.revision_id = r.id
+         AND evidence_manifest.artifact_kind = 'EVIDENCE_MANIFEST'
+        JOIN material_revision_artifact structure_manifest
+          ON structure_manifest.revision_id = r.id
+         AND structure_manifest.artifact_kind = 'DOCUMENT_STRUCTURE'
+        JOIN rag_index_generation g ON CONCAT('ig:', g.id) = #{workKey}
+        JOIN retrieval_revision_vector_projection rv
+          ON rv.revision_id = r.id AND rv.index_generation_id = g.id AND rv.state = 'READY'
+        JOIN retrieval_projection_manifest pm
+          ON pm.revision_id = r.id AND pm.index_generation_id = g.id AND pm.state = 'READY'
+        LEFT JOIN retrieval_chunk c ON c.revision_id = r.id
+        LEFT JOIN retrieval_chunk_vector_projection p
+          ON p.retrieval_chunk_id = c.id AND p.index_generation_id = g.id AND p.state = 'INDEXED'
+        JOIN material_processing_job j ON j.revision_id = r.id
+        WHERE r.id = #{revisionId} AND r.state = 'PROCESSING' AND r.stage = 'PUBLISHING'
+          AND r.progress = 98
+          <!-- A replacement revision is published while the previous active revision remains readable. -->
+          AND (v.ingest_state = 'PROCESSING'
+               OR (v.ingest_state = 'READY' AND v.active_revision_id IS NOT NULL
+                   AND v.active_revision_id != r.id))
+          AND m.lifecycle_state = 'ACTIVE'
+          AND (m.retention_class = 'RETAINED' OR m.expires_at &gt; UTC_TIMESTAMP(3))
+          AND j.id = #{jobId} AND j.stage = 'PUBLISH_REVISION' AND j.work_key = #{workKey}
+          AND j.status = 'RUNNING' AND j.lease_owner = #{workerId}
+          AND j.fence_token = #{fenceToken} AND j.lease_until &gt; UTC_TIMESTAMP(3)
+        ORDER BY p.vector_id
+    </select>
+
     <insert id="insertGeneration">
         INSERT IGNORE INTO rag_index_generation (
             id, index_name, namespace, embedding_model, embedding_model_fingerprint,
@@ -240,4 +323,52 @@
         SELECT * FROM retrieval_projection_manifest
         WHERE revision_id = #{revisionId} AND index_generation_id = #{generationId}
     </select>
+
+    <select id="lockGenerationState" resultType="string">
+        SELECT state FROM rag_index_generation WHERE id = #{generationId} FOR UPDATE
+    </select>
+
+    <select id="lockMaterialLifecycleState" resultType="string">
+        SELECT lifecycle_state FROM material WHERE id = #{materialId} FOR UPDATE
+    </select>
+
+    <select id="selectActiveGenerationForUpdate" resultType="string">
+        SELECT id FROM rag_index_generation
+        WHERE state = 'ACTIVE' ORDER BY activated_at, id LIMIT 1 FOR UPDATE
+    </select>
+
+    <update id="activateInitialGeneration">
+        UPDATE rag_index_generation SET state = 'ACTIVE', activated_at = #{activatedAt}
+        WHERE id = #{generationId} AND state = 'BUILDING'
+          AND NOT EXISTS (
+              SELECT 1 FROM (SELECT id, state FROM rag_index_generation) existing
+              WHERE existing.state = 'ACTIVE'
+          )
+    </update>
+
+    <update id="publishRevision">
+        UPDATE material_processing_revision
+        SET state = #{state}, progress = 100, published_at = #{publishedAt}
+        WHERE id = #{revisionId} AND fence_generation = #{revisionFenceGeneration}
+          AND state = 'PROCESSING' AND stage = 'PUBLISHING' AND progress = 98
+    </update>
+
+    <update id="activateVersionRevision">
+        UPDATE material_version SET active_revision_id = #{revisionId}, ingest_state = 'READY'
+        WHERE id = #{versionId}
+          AND (ingest_state = 'PROCESSING'
+               OR (ingest_state = 'READY' AND active_revision_id IS NOT NULL
+                   AND active_revision_id != #{revisionId}))
+    </update>
+
+    <insert id="recordInitialProcessingUsage">
+        INSERT IGNORE INTO material_processing_usage (
+            content_blob_id, owner_key, version_id, first_revision_id, page_count
+        )
+        SELECT v.content_blob_id, v.owner_key, v.id, r.id, v.page_count
+        FROM material_processing_revision r
+        JOIN material_version v ON v.id = r.version_id
+        WHERE r.id = #{revisionId} AND r.state IN ('READY', 'PARTIAL_READY')
+          AND v.page_count IS NOT NULL
+    </insert>
 </mapper>

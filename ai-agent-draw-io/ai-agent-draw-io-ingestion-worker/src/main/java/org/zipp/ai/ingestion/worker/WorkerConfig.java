@@ -24,6 +24,7 @@ import org.zipp.ai.domain.retrieval.projection.RetrievalChunkBuilder;
 import org.zipp.ai.domain.retrieval.port.EmbeddingPort;
 import org.zipp.ai.domain.retrieval.port.EmbeddingCachePort;
 import org.zipp.ai.domain.retrieval.port.RetrievalVectorIndex;
+import org.zipp.ai.domain.retrieval.service.RevisionPublicationGate;
 import org.zipp.ai.domain.retrieval.port.TenantKeyPort;
 import org.zipp.ai.domain.retrieval.port.VectorProjectionWorkPort;
 import org.zipp.ai.domain.retrieval.projection.VectorGenerationProfile;
@@ -264,13 +265,21 @@ public class WorkerConfig {
 
     @Bean
     @ConditionalOnProperty(name = "worker.vector-projection-enabled", havingValue = "true")
+    public RevisionPublicationGate revisionPublicationGate() {
+        return new RevisionPublicationGate();
+    }
+
+    @Bean
+    @ConditionalOnProperty(name = "worker.vector-projection-enabled", havingValue = "true")
     public VectorProjectionJobHandler vectorProjectionJobHandler(
             VectorProjectionWorkPort work, RevisionArtifactPort artifacts, EmbeddingPort embedding,
             EmbeddingCachePort embeddingCache,
             RetrievalVectorIndex vectorIndex, TenantKeyPort tenantKeys, VectorProjectionPlanner planner,
+            RevisionPublicationGate publicationGate,
             ObjectMapper objectMapper, VectorGenerationProfile profile, ProcessingQueuePort queue, Clock clock) {
         return new VectorProjectionJobHandler(work, artifacts, embedding, embeddingCache,
-                vectorIndex, tenantKeys, planner, new RevisionPageCodec(objectMapper), profile, queue, clock);
+                vectorIndex, tenantKeys, planner, publicationGate,
+                new RevisionPageCodec(objectMapper), profile, queue, clock);
     }
 
     @Bean
