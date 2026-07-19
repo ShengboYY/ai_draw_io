@@ -20,6 +20,8 @@
         {"name": "AWS_REGION", "value": "ap-southeast-2"},
         {"name": "MATERIALS_BUCKET", "value": "replace-with-private-materials-bucket"},
         {"name": "MATERIAL_MATERIALIZATION_ENABLED", "value": "true"},
+        {"name": "MATERIAL_DOCUMENT_PROCESSING_ENABLED", "value": "true"},
+        {"name": "TESSERACT_RUNTIME_VERSION", "value": "replace-with-worker-image-tesseract-version"},
         {"name": "CLAMAV_HOST", "value": "127.0.0.1"},
         {"name": "CLAMAV_PORT", "value": "3310"}
       ],

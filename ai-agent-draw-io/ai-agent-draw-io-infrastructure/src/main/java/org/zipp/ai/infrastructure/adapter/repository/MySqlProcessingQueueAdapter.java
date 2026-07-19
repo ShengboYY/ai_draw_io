@@ -35,12 +35,21 @@ public class MySqlProcessingQueueAdapter implements ProcessingQueuePort {
     @Transactional
     public Optional<ProcessingJobLease> claim(String workerId, Instant now, Duration leaseDuration,
                                               Set<ProcessingJobStage> acceptedStages) {
+        return claim(workerId, now, leaseDuration, acceptedStages, null);
+    }
+
+    @Override
+    @Transactional
+    public Optional<ProcessingJobLease> claim(String workerId, Instant now, Duration leaseDuration,
+                                              Set<ProcessingJobStage> acceptedStages,
+                                              String processingFingerprint) {
         String owner = requireText(workerId, "workerId");
         Instant claimedAt = Objects.requireNonNull(now, "now");
         Duration duration = positive(leaseDuration);
+        String profile = processingFingerprint == null ? null : requireFingerprint(processingFingerprint);
         var stages = acceptedStages == null ? java.util.List.<String>of()
                 : acceptedStages.stream().map(Enum::name).sorted().toList();
-        ProcessingJobPO candidate = mapper.selectClaimableForUpdate(claimedAt, stages);
+        ProcessingJobPO candidate = mapper.selectClaimableForUpdate(claimedAt, stages, profile);
         if (candidate == null || mapper.claim(candidate.getId(), owner, claimedAt, claimedAt.plus(duration)) != 1) {
             return Optional.empty();
         }
@@ -123,5 +132,13 @@ public class MySqlProcessingQueueAdapter implements ProcessingQueuePort {
             throw new IllegalArgumentException(field + " is required");
         }
         return value.trim();
+    }
+
+    private static String requireFingerprint(String value) {
+        String fingerprint = requireText(value, "processingFingerprint");
+        if (!fingerprint.matches("[0-9a-f]{64}")) {
+            throw new IllegalArgumentException("processingFingerprint must be lowercase SHA-256");
+        }
+        return fingerprint;
     }
 }

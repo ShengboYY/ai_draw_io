@@ -1,0 +1,191 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.zipp.ai.infrastructure.dao.material.IDocumentProcessingMapper">
+    <select id="selectExtractionWork" resultType="org.zipp.ai.infrastructure.dao.material.po.DocumentExtractionWorkPO">
+        SELECT r.id AS revision_id,
+               v.detected_mime AS detected_media_type,
+               r.fence_generation AS revision_fence_generation,
+               m.lifecycle_generation AS material_lifecycle_generation,
+               r.fingerprint AS processing_fingerprint,
+               b.original_object_key AS object_key,
+               b.original_object_version_id AS object_version_id,
+               b.content_sha256 AS content_sha256,
+               b.byte_size AS byte_size,
+               b.detected_mime AS content_type
+        FROM material_processing_revision r
+        JOIN material_version v ON v.id = r.version_id
+        JOIN material m ON m.id = v.material_id
+        JOIN material_content_blob b ON b.id = v.content_blob_id
+        JOIN material_processing_job j ON j.revision_id = r.id
+        WHERE r.id = #{revisionId}
+          AND r.state = 'PROCESSING'
+          AND r.stage IN ('CREATED', 'EXTRACTING')
+          AND v.ingest_state = 'PROCESSING'
+          AND m.lifecycle_state = 'ACTIVE'
+          AND (m.retention_class = 'RETAINED' OR m.expires_at &gt; UTC_TIMESTAMP(3))
+          AND b.status = 'AVAILABLE'
+          AND j.id = #{jobId}
+          AND j.stage = 'EXTRACT_NATIVE'
+          AND j.status = 'RUNNING'
+          AND j.lease_owner = #{workerId}
+          AND j.fence_token = #{fenceToken}
+          AND j.lease_until &gt; UTC_TIMESTAMP(3)
+    </select>
+
+    <select id="selectProcessingGenerations" resultType="org.zipp.ai.infrastructure.dao.material.po.ProcessingGenerationPO">
+        SELECT r.fence_generation AS revision_fence_generation,
+               m.lifecycle_generation AS material_lifecycle_generation,
+               r.fingerprint AS processing_fingerprint
+        FROM material_processing_revision r
+        JOIN material_version v ON v.id = r.version_id
+        JOIN material m ON m.id = v.material_id
+        JOIN material_processing_job j ON j.revision_id = r.id
+        WHERE r.id = #{revisionId}
+          AND r.state = 'PROCESSING'
+          AND v.ingest_state = 'PROCESSING'
+          AND m.lifecycle_state = 'ACTIVE'
+          AND (m.retention_class = 'RETAINED' OR m.expires_at &gt; UTC_TIMESTAMP(3))
+          AND j.id = #{jobId}
+          AND j.status = 'RUNNING'
+          AND j.lease_owner = #{workerId}
+          AND j.fence_token = #{fenceToken}
+          AND j.lease_until &gt; UTC_TIMESTAMP(3)
+    </select>
+
+    <select id="selectPageBatch" resultType="org.zipp.ai.infrastructure.dao.material.po.RevisionPageWorkPO">
+        SELECT p.page_no, p.width, p.height, p.ocr_status,
+               image.object_key AS page_image_key,
+               image.object_version_id AS page_image_version_id,
+               image.content_sha256 AS page_image_sha256,
+               image.byte_size AS page_image_size,
+               image.content_type AS page_image_content_type,
+               native.object_key AS native_key,
+               native.object_version_id AS native_version_id,
+               native.content_sha256 AS native_sha256,
+               native.byte_size AS native_size,
+               native.content_type AS native_content_type,
+               raw.object_key AS raw_key,
+               raw.object_version_id AS raw_version_id,
+               raw.content_sha256 AS raw_sha256,
+               raw.byte_size AS raw_size,
+               raw.content_type AS raw_content_type
+        FROM material_page p
+        JOIN material_page_artifact image
+          ON image.revision_id = p.revision_id AND image.page_no = p.page_no
+         AND image.artifact_kind = 'PAGE_IMAGE'
+        JOIN material_page_artifact native
+          ON native.revision_id = p.revision_id AND native.page_no = p.page_no
+         AND native.artifact_kind = 'NATIVE_EXTRACTION'
+        LEFT JOIN material_page_artifact raw
+          ON raw.revision_id = p.revision_id AND raw.page_no = p.page_no
+         AND raw.artifact_kind = 'RAW_EXTRACTION'
+        JOIN material_processing_job j ON j.revision_id = p.revision_id
+        WHERE p.revision_id = #{revisionId}
+          AND j.id = #{jobId}
+          AND j.status = 'RUNNING'
+          AND j.lease_owner = #{workerId}
+          AND j.fence_token = #{fenceToken}
+          AND j.lease_until &gt; UTC_TIMESTAMP(3)
+          AND ((j.stage = 'OCR_SELECTED_PAGES' AND j.work_key = CONCAT('page:', p.page_no)
+                AND p.ocr_status = 'REQUIRED')
+            OR (j.stage = 'NORMALIZE_CANONICAL_PAGES' AND j.work_key = CONCAT('page:', p.page_no)
+                AND p.canonical_page_key IS NULL))
+        ORDER BY p.page_no
+    </select>
+
+    <select id="countCurrentFence" resultType="int">
+        SELECT COUNT(*)
+        FROM material_processing_revision r
+        JOIN material_version v ON v.id = r.version_id
+        JOIN material m ON m.id = v.material_id
+        JOIN material_processing_job j ON j.revision_id = r.id
+        WHERE r.id = #{revisionId}
+          AND r.fence_generation = #{expectedGeneration}
+          AND m.lifecycle_generation = #{materialLifecycleGeneration}
+          AND r.state = 'PROCESSING'
+          AND v.ingest_state = 'PROCESSING'
+          AND m.lifecycle_state = 'ACTIVE'
+          AND (m.retention_class = 'RETAINED' OR m.expires_at &gt; UTC_TIMESTAMP(3))
+          AND j.id = #{jobId}
+          AND j.stage = #{expectedStage}
+          AND j.status = 'RUNNING'
+          AND j.lease_owner = #{workerId}
+          AND j.fence_token = #{fenceToken}
+          AND j.lease_until &gt; UTC_TIMESTAMP(3)
+        FOR UPDATE
+    </select>
+
+    <insert id="insertPage">
+        INSERT IGNORE INTO material_page (
+            id, revision_id, page_no, width, height, native_text_status, ocr_status,
+            ocr_quality, visual_status, page_image_key, raw_extraction_key, canonical_page_key
+        ) VALUES (
+            #{id}, #{revisionId}, #{pageNo}, #{width}, #{height}, #{nativeTextStatus}, #{ocrStatus},
+            #{ocrQuality}, #{visualStatus}, #{pageImageKey}, #{rawExtractionKey}, #{canonicalPageKey}
+        )
+    </insert>
+
+    <select id="selectPage" resultType="org.zipp.ai.infrastructure.dao.material.po.MaterialPagePO">
+        SELECT * FROM material_page WHERE revision_id = #{revisionId} AND page_no = #{pageNo}
+    </select>
+
+    <insert id="insertArtifact">
+        INSERT IGNORE INTO material_page_artifact (
+            id, revision_id, page_no, artifact_kind, object_key, object_version_id,
+            content_sha256, byte_size, content_type
+        ) VALUES (
+            #{id}, #{revisionId}, #{pageNo}, #{artifactKind}, #{objectKey}, #{objectVersionId},
+            #{contentSha256}, #{byteSize}, #{contentType}
+        )
+    </insert>
+
+    <select id="selectArtifact" resultType="org.zipp.ai.infrastructure.dao.material.po.RevisionArtifactPO">
+        SELECT * FROM material_page_artifact
+        WHERE revision_id = #{revisionId} AND page_no = #{pageNo} AND artifact_kind = #{artifactKind}
+    </select>
+
+    <update id="updatePageOcr">
+        UPDATE material_page
+        SET ocr_status = #{ocrStatus}, ocr_quality = #{ocrQuality},
+            raw_extraction_key = #{rawExtractionKey}
+        WHERE revision_id = #{revisionId} AND page_no = #{pageNo} AND ocr_status = 'REQUIRED'
+    </update>
+
+    <update id="updatePageCanonical">
+        UPDATE material_page
+        SET canonical_page_key = #{canonicalPageKey}
+        WHERE revision_id = #{revisionId} AND page_no = #{pageNo}
+          AND canonical_page_key IS NULL
+    </update>
+
+    <select id="countMissingCanonical" resultType="int">
+        SELECT COUNT(*) FROM material_page
+        WHERE revision_id = #{revisionId} AND canonical_page_key IS NULL
+    </select>
+
+    <select id="selectCanonicalHashes" resultType="string">
+        SELECT a.content_sha256
+        FROM material_page_artifact a
+        WHERE a.revision_id = #{revisionId} AND a.artifact_kind = 'CANONICAL_PAGE'
+        ORDER BY a.page_no
+    </select>
+
+    <update id="updatePageCount">
+        UPDATE material_version v
+        JOIN material_processing_revision r ON r.version_id = v.id
+        SET v.page_count = #{pageCount}
+        WHERE r.id = #{revisionId} AND v.ingest_state = 'PROCESSING'
+    </update>
+
+    <update id="updateRevisionProgress">
+        UPDATE material_processing_revision
+        SET stage = #{stage}, progress = GREATEST(progress, #{progress})
+        WHERE id = #{revisionId} AND state = 'PROCESSING'
+    </update>
+
+    <update id="advanceRevision">
+        UPDATE material_processing_revision
+        SET stage = #{stage}, progress = #{progress}, fence_generation = fence_generation + 1
+        WHERE id = #{revisionId} AND fence_generation = #{expectedGeneration} AND state = 'PROCESSING'
+    </update>
+</mapper>

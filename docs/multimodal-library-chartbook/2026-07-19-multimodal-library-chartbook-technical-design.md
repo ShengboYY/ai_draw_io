@@ -356,6 +356,7 @@ DELETE_PENDING → DELETING → DELETED
 - 匿名过期、登录临时过期和明确移除都先停止新读取，再等待已有 lease 结束或超时。
 - 临时 `expires_at` 只被 PRD 定义的有意义用户活动滑动到 `max(now + 24h, current)`；轮询、Worker、SSE、自动重试和心跳不更新。
 - Worker 的每次 stage commit 必须同时检查 lifecycle state、processing revision 和 fence token；迟到任务只能丢弃结果，不能复活资料。
+- promotion 与 revision job claim 必须匹配 Revision 持久化的 processing fingerprint；滚动发布期间旧 profile Worker 排空旧任务，新 profile Worker 不得用新 parser/OCR 配置处理旧 Revision。
 - “保留在本图/加入资料库”在同一 material 行锁事务中增加目标 scope link，把 `retention_class` 改为 RETAINED，并清空 `expires_at`；不复制 original/evidence/vector。恢复登录临时资料保持 TEMPORARY 与原 `origin_conversation_id`，把 `expires_at` 设为恢复时刻 + 24 小时。恢复长期资料保持 RETAINED。
 - TTL 延长使用条件更新：`WHERE retention_class='TEMPORARY' AND lifecycle_state='ACTIVE' AND lifecycle_generation=:expected AND expires_at>UTC_TIMESTAMP(3)`；转换/过期/删除都会增加 generation，使迟到活动不能续命。
 
@@ -436,6 +437,7 @@ DELETE_PENDING → DELETING → DELETED
 |---|---|---|
 | `material_processing_revision` | `id`, `version_id`, `revision_no`, `fingerprint`, `state`, `stage`, `progress`, `parser_version`, `cleaner_version`, `chunk_schema_version`, `ocr_version`, `vlm_schema_version`, `excluded_pages_json`, `gap_manifest_key`, `fence_generation`, `published_at` | `(version_id, revision_no)` 和 `(version_id, fingerprint)` 唯一；stage fingerprints 写 manifest；embedding 配置在 index generation/projection，不属于 revision |
 | `material_page` | `id`, `revision_id`, `page_no`, `width`, `height`, `native_text_status`, `ocr_status`, `ocr_quality`, `visual_status`, `page_image_key`, `raw_extraction_key`, `canonical_page_key`, `error_code` | `(revision_id, page_no)` 唯一 |
+| `material_page_artifact` | `id`, `revision_id`, `page_no`, `artifact_kind`, `object_key`, `object_version_id`, `content_sha256`, `byte_size`, `content_type` | `(revision_id, page_no, artifact_kind)` 唯一；只固定 revision-owned S3 VersionId，不做跨 revision 引用计数 |
 | `material_section` | `id`, `revision_id`, `parent_section_id`, `level`, `ordinal`, `page_start`, `page_end`, `heading_evidence_id`, `structure_hash` | `(revision_id, ordinal)`；形成标题树与 coverage 单元 |
 | `evidence_unit` | `id`, `version_id`, `revision_id`, `page_id`, `section_id`, `unit_type`, `modality`, `source_channel`, `display_text_object_key NULL`, `visual_object_key NULL`, `visual_analysis_object_key NULL`, `display_text_sha256 NULL`, `quality_json`, `status` | `source_channel=NATIVE|OCR|VISUAL`；最小可定位、可回源、可引用事实；VLM analysis 不是可引用文字；不等同向量 chunk |
 | `evidence_region` | `evidence_id`, `page_id`, `ordinal`, `bbox_json`, `display_char_start`, `display_char_end`, `source_block_ref` | `(evidence_id, ordinal)`；支持多栏/多行多个 bbox |
@@ -510,7 +512,8 @@ drawio-materials-{env}/
   owners/{ownerKeyHash}/materials/{materialId}/versions/{versionId}/revisions/{revisionId}/revision-manifest.json.gz
   owners/{ownerKeyHash}/materials/{materialId}/versions/{versionId}/revisions/{revisionId}/pages/{pageNo}/raw-extraction.json.gz
   owners/{ownerKeyHash}/materials/{materialId}/versions/{versionId}/revisions/{revisionId}/pages/{pageNo}/canonical-page.json.gz
-  owners/{ownerKeyHash}/materials/{materialId}/versions/{versionId}/revisions/{revisionId}/pages/{pageNo}/page.webp
+  owners/{ownerKeyHash}/materials/{materialId}/versions/{versionId}/revisions/{revisionId}/pages/{pageNo}/page.png
+  owners/{ownerKeyHash}/materials/{materialId}/versions/{versionId}/revisions/{revisionId}/pages/{pageNo}/preview.webp
   owners/{ownerKeyHash}/materials/{materialId}/versions/{versionId}/revisions/{revisionId}/evidence/{evidenceId}.json.gz
   owners/{ownerKeyHash}/materials/{materialId}/versions/{versionId}/revisions/{revisionId}/visual/{evidenceId}.webp
   owners/{ownerKeyHash}/materials/{materialId}/versions/{versionId}/revisions/{revisionId}/visual-analysis/{evidenceId}.json.gz
@@ -522,6 +525,7 @@ drawio-materials-{env}/
 - key 由服务端随机生成，不含原文件名、邮箱、用户输入标签或可猜顺序号。
 - quarantine bucket 只允许 Upload principal 写入、Worker 读取/删除；在线 API、模型适配器和预览 API没有读取权限。
 - materials bucket 的原件只允许 Worker 写；在线 API 通过业务鉴权后的服务端流式接口读取有限预览，不向模型暴露长期 S3 URI。
+- `page.png` 是 lossless OCR/canonical source；`preview.webp` 是后续预览阶段从固定 PNG 派生的受限展示对象，两者不得混用 identity/hash。
 - 上传通过 10 分钟有效的 SigV4 browser POST policy，精确限定 bucket、upload-session key、content type 前缀、SSE 字段和 `content-length-range`。Policy 可被重放，因此安全性来自 version pin，而不是假设 URL/表单天然一次性。
 - quarantine 未完成、未固定和已处理的所有 object versions 使用版本感知的 24 小时 lifecycle/cleanup 清理，不能只删 current delete marker。
 - 安全通过后由 Worker 以固定 `source VersionId` 做 server-side copy 到 materials bucket 的 immutable content-blob key；数据库发布 blob key 前必须确认复制字节 hash 与已扫描版本一致。copy 后删除本次及同 upload key 的 quarantine versions。
@@ -720,7 +724,7 @@ VLM 必须返回严格 JSON：
 - `CONTENT` 初始目标 180–320 tokens、硬上限 420；只有一个长结构被强制切开时，允许重复一个完整句且最多 40 tokens。
 - 每个 leaf chunk 关联 450–900 tokens 的 S3 parent context，但 parent 不单独 embedding，只有 shortlist 命中后才加载。送入模型的每个 parent/stitched 片段必须有独立 citation key 与 `SUPPORT|CONTEXT_ONLY` role；`CONTEXT_ONLY` 不能支持事实 claim，真正提供支持的 parent 事实必须提升为对应 Evidence Unit 的 SUPPORT key。
 - 表格按表头 + 3–12 行切块；数字、单位、行列含义必须共同验证。视觉 chunk 仍使用结构化描述的文本向量，命中后回源原图核验。
-- canonical page 负责多栏阅读顺序、native/OCR block 合并、页眉页脚、source map 和质量特征；Chunk Builder 不重新猜 PDF 坐标。
+- canonical page 负责多栏阅读顺序、native/OCR block 合并、页眉页脚位置候选、source map 和质量特征；`BUILD_DOCUMENT_STRUCTURE` 在可比页面间执行 60% 重复确认并产出 boilerplate 分类，Chunk Builder 不重新猜 PDF 坐标，也不能把单页位置候选直接当成已确认页眉页脚。
 - stage-level fingerprint 支持本 revision 的幂等恢复，并允许从同 Owner/Version 上一 revision 校验、复制未变化阶段到本 revision 的独立对象 key；排除单页只调度受影响 section/chunk。Embedding/index generation 独立于 revision，模型变化不重新 OCR。
 
 完整 Retrieval Chunk 的 retrieval text 存 S3 gzip JSON；`retrieval_search_document` 提供 word/CJK lexical 影子。MySQL 搜索副本必须按 Owner、version、revision、lifecycle 过滤并在永久删除时清理，不能成为绕过 Evidence 授权的读取接口。

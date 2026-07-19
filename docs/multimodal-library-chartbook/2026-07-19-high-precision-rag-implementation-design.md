@@ -217,7 +217,7 @@ Worker 先把 PDFBox/Tesseract 输出转换为与解析器无关的 page model�
 }
 ```
 
-Canonicalizer 负责多栏阅读顺序、块合并和页内结构；Chunk Builder 不重新解释 PDF 坐标。一个 block/Evidence 可以包含多个 region，不能用覆盖两栏或多行的大矩形代替真实位置；`sourceMap` 将 `displayText` 字符区间映射回 `extractedText` 以及 PDF glyph 或 OCR word bbox。视觉区域可关联独立的 `visualAnalysisRef`，但该分析文本没有 citable source map。
+Canonicalizer 负责多栏阅读顺序、块合并、页内结构和页眉页脚位置候选；`BUILD_DOCUMENT_STRUCTURE` 再基于整份文档执行 60% 跨页重复确认。Chunk Builder 不重新解释 PDF 坐标，也不能把位置候选当作已确认 boilerplate。一个 block/Evidence 可以包含多个 region，不能用覆盖两栏或多行的大矩形代替真实位置；`sourceMap` 将 `displayText` 字符区间映射回 `extractedText` 以及 PDF glyph 或 OCR word bbox。视觉区域可关联独立的 `visualAnalysisRef`，但该分析文本没有 citable source map。
 
 ### 5.2 清洗规则
 
@@ -543,7 +543,8 @@ lexical query 必须先带 Owner 和 authorized version/revision 条件，返回
 ```text
 revisions/{revisionId}/pages/{pageNo}/canonical-page.json.gz
 revisions/{revisionId}/pages/{pageNo}/raw-extraction.json.gz
-revisions/{revisionId}/pages/{pageNo}/page.webp
+revisions/{revisionId}/pages/{pageNo}/page.png
+revisions/{revisionId}/pages/{pageNo}/preview.webp
 revisions/{revisionId}/evidence/{evidenceId}.json.gz
 revisions/{revisionId}/visual/{evidenceId}.webp
 revisions/{revisionId}/visual-analysis/{evidenceId}.json.gz
@@ -553,11 +554,11 @@ revisions/{revisionId}/revision-manifest.json.gz
 revisions/{revisionId}/projections/{indexGenerationId}/projection-manifest.json.gz
 ```
 
-`raw-extraction` 保存不可改写的 PDFBox/Tesseract 逻辑输出和坐标；`canonical-page` 保存 display text、source map、阅读顺序和质量特征；`page.webp` 与 `visual/{evidenceId}.webp` 分别是受限预览页和可核验原始视觉裁剪。VLM 输出只能写独立 `visual-analysis` 对象。不可变 `revision-manifest` 包含 processing fingerprint、全部 stage fingerprint、page/evidence/chunk/视觉对象 hash 和 lexical row checksum；每个 index generation 使用独立、只写一次的 `projection-manifest`，包含 tokenizer/model/vector schema、projection fingerprint 和 vector IDs。所有 `visual_object_key` 必须出现在 manifest 中，永久删除/重建按 manifest 精确执行。
+`raw-extraction` 保存不可改写的 PDFBox/Tesseract 逻辑输出和坐标；`canonical-page` 保存 display text、source map、阅读顺序和质量特征；lossless `page.png` 是 OCR/canonical source，受限 `preview.webp` 只作为其派生预览，`visual/{evidenceId}.webp` 是可核验原始视觉裁剪。VLM 输出只能写独立 `visual-analysis` 对象。不可变 `revision-manifest` 包含 processing fingerprint、全部 stage fingerprint、page/evidence/chunk/视觉对象 hash 和 lexical row checksum；每个 index generation 使用独立、只写一次的 `projection-manifest`，包含 tokenizer/model/vector schema、projection fingerprint 和 vector IDs。所有 `visual_object_key` 必须出现在 manifest 中，永久删除/重建按 manifest 精确执行。
 
 新增 compatibility projection 时只新增 `{indexGenerationId}/projection-manifest` 和 DB projection 行，不修改既有 `revision-manifest` 或旧 generation manifest，从而保持 ProcessingRevision 内容不可变。
 
-首版每个 ProcessingRevision 写入自己 revision prefix 下的独立确定性对象，不跨 revision 共享对象引用，也不引入 artifact/refcount 表。相同 `(revisionId, stage, workKey, inputFingerprint)` 重试验证并复用本 revision 的既有对象；建立新 revision 时，若同 Owner/Source Version 的上一已发布 revision 在 manifest 中具有完全相同的 stage fingerprint，Worker 可以校验 source hash 后用 S3 server-side copy 把对应不可变对象复制到新 revision 的独立 key，并再次核验 checksum。新旧 revision 不共享 object key，删除时按各自 manifest 精确删除，因此不存在引用计数和误删问题。
+首版每个 ProcessingRevision 写入自己 revision prefix 下的独立确定性对象，不跨 revision 共享对象引用，也不引入跨 revision artifact/refcount。摄取期间允许 `material_page_artifact` 作为 revision-local exact-VersionId pin，固定 kind/key/version/hash/size/type；它不是共享 artifact registry，也没有 refcount。相同 `(revisionId, stage, workKey, inputFingerprint)` 重试验证并复用本 revision 的既有对象；建立新 revision 时，若同 Owner/Source Version 的上一已发布 revision 在 manifest 中具有完全相同的 stage fingerprint，Worker 可以校验 source hash 后用 S3 server-side copy 把对应不可变对象复制到新 revision 的独立 key，并再次核验 checksum。新旧 revision 不共享 object key，删除时按各自 manifest 精确删除，因此不存在引用计数和误删问题。
 
 ### 7.3 Pinecone record
 

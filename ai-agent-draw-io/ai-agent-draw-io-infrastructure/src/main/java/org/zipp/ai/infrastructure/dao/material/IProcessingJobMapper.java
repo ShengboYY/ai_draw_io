@@ -11,7 +11,8 @@ import java.util.List;
 public interface IProcessingJobMapper {
     int insert(ProcessingJobPO job);
     ProcessingJobPO selectClaimableForUpdate(@Param("now") Instant now,
-                                             @Param("stages") List<String> stages);
+                                             @Param("stages") List<String> stages,
+                                             @Param("processingFingerprint") String processingFingerprint);
     ProcessingJobPO selectById(@Param("id") String id);
     int claim(@Param("id") String id, @Param("workerId") String workerId,
               @Param("now") Instant now, @Param("leaseUntil") Instant leaseUntil);

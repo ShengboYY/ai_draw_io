@@ -72,8 +72,10 @@ class IngestionPortFakeContractTest {
     void fakeContentPortsExposeConfiguredResultsWithoutExternalIo() {
         MaterialObject object = new MaterialObject("objects/one", "sha256:one", new byte[]{1});
         assertTrue(new FakeMalwareScanner(true).scan(object).clean());
-        assertEquals(2, new FakeDocumentParser(2).parse(object).pageCount());
-        assertEquals("ocr-page-1", new FakeOcrEngine().recognize(object, 1).text());
+        assertEquals(2, new FakeDocumentParser(2).parse(
+                java.nio.file.Path.of("fake.pdf"), "application/pdf", java.nio.file.Path.of("fake-pages"))
+                .pageCount());
+        assertEquals("ocr-page-1", new FakeOcrEngine().recognize(java.nio.file.Path.of("page.png"), 1).text());
         assertEquals("diagram", new FakeVisionAnalyzer().analyze(object, 1, "region:1").kind());
     }
 }

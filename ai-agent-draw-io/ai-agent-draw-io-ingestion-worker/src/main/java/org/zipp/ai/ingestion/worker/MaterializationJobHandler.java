@@ -12,6 +12,7 @@ import org.zipp.ai.domain.ingestion.port.MaterializationWorkPort;
 import org.zipp.ai.domain.ingestion.port.OriginalPromotionPort;
 import org.zipp.ai.domain.ingestion.port.PinnedQuarantineContentPort;
 import org.zipp.ai.domain.ingestion.port.ProcessingQueuePort;
+import org.zipp.ai.ingestion.worker.document.DocumentProcessingProfile;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -23,15 +24,6 @@ import java.util.UUID;
 
 public final class MaterializationJobHandler {
 
-    private static final String PROCESSING_FINGERPRINT = sha256(
-            sha256("extract=pdfbox-3.0.8:pdfbox-default-v1")
-                    + sha256("ocr=tesseract-5:lstm-eng-chi_sim:render-v1")
-                    + sha256("clean=canonical-v1:normalization-v1:boilerplate-v1")
-                    + sha256("structure=layout-heuristic-v1:section-v1")
-                    + sha256("visual=multimodal-provider-v1:visual-schema-v1:budget-v1")
-                    + sha256("chunk=chunk-v1:tokenizer-v1:structure-aware-v1")
-                    + sha256("lexical=mysql-word-cjk2-v1:exact-term-v1")
-                    + "[]");
     private static final Duration HEARTBEAT_EXTENSION = Duration.ofMinutes(5);
 
     private final MaterializationWorkPort work;
@@ -39,17 +31,28 @@ public final class MaterializationJobHandler {
     private final PinnedQuarantineContentPort quarantine;
     private final ProcessingQueuePort queue;
     private final Clock clock;
+    private final DocumentProcessingProfile processingProfile;
 
     public MaterializationJobHandler(MaterializationWorkPort work,
                                      OriginalPromotionPort promotion,
                                      PinnedQuarantineContentPort quarantine,
                                      ProcessingQueuePort queue,
                                      Clock clock) {
+        this(work, promotion, quarantine, queue, clock, DocumentProcessingProfile.defaults());
+    }
+
+    public MaterializationJobHandler(MaterializationWorkPort work,
+                                     OriginalPromotionPort promotion,
+                                     PinnedQuarantineContentPort quarantine,
+                                     ProcessingQueuePort queue,
+                                     Clock clock,
+                                     DocumentProcessingProfile processingProfile) {
         this.work = Objects.requireNonNull(work, "work");
         this.promotion = Objects.requireNonNull(promotion, "promotion");
         this.quarantine = Objects.requireNonNull(quarantine, "quarantine");
         this.queue = Objects.requireNonNull(queue, "queue");
         this.clock = Objects.requireNonNull(clock, "clock");
+        this.processingProfile = Objects.requireNonNull(processingProfile, "processingProfile");
     }
 
     public JobOutcome handle(ProcessingJobLease lease) {
@@ -76,8 +79,8 @@ public final class MaterializationJobHandler {
                 "root", sha256(uploadId + ":" + ProcessingJobStage.PROMOTE_ORIGINAL), 0, clock.instant());
         ProcessingJob extractionJob = ProcessingJob.enqueue(id("job_"),
                 ProcessingJobTarget.forRevision(ids.revisionId()), ProcessingJobStage.EXTRACT_NATIVE,
-                "root", sha256(ids.revisionId() + ":" + PROCESSING_FINGERPRINT), 0, clock.instant());
-        work.resolveAndMaterialize(uploadId, ids, PROCESSING_FINGERPRINT,
+                "root", sha256(ids.revisionId() + ":" + processingProfile.overallFingerprint()), 0, clock.instant());
+        work.resolveAndMaterialize(uploadId, ids, processingProfile.revisionProfile(),
                 promotionJob, extractionJob, fence(lease), clock.instant());
         return JobOutcome.succeeded();
     }
@@ -87,6 +90,10 @@ public final class MaterializationJobHandler {
         if (promotionWork == null) {
             // A replay after the fenced commit has no remaining promotion work.
             return JobOutcome.succeeded();
+        }
+        if (!processingProfile.overallFingerprint().equals(promotionWork.processingFingerprint())) {
+            // Profile-routed workers normally prevent this; retry preserves the pinned revision on deployment races.
+            return JobOutcome.transientFailure("PROCESSING_PROFILE_UNAVAILABLE");
         }
         if (!heartbeat(lease)) {
             return JobOutcome.transientFailure(UploadErrorCode.STALE_FENCE.name());
@@ -106,7 +113,8 @@ public final class MaterializationJobHandler {
         }
         ProcessingJob extractionJob = ProcessingJob.enqueue(id("job_"),
                 ProcessingJobTarget.forRevision(promotionWork.revisionId()), ProcessingJobStage.EXTRACT_NATIVE,
-                "root", sha256(promotionWork.revisionId() + ":" + PROCESSING_FINGERPRINT),
+                "root", DocumentProcessingProfile.pinnedExtractionInput(promotionWork.contentSha256(),
+                        promotionWork.processingFingerprint()),
                 0, clock.instant());
         boolean committed;
         try {

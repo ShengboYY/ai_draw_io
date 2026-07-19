@@ -18,12 +18,20 @@ worker:
   aws-region: ${AWS_REGION:ap-southeast-2}
   materials-bucket: ${MATERIALS_BUCKET:}
   materialization-enabled: ${MATERIAL_MATERIALIZATION_ENABLED:false}
+  document-processing-enabled: ${MATERIAL_DOCUMENT_PROCESSING_ENABLED:false}
   poll-delay-ms: ${WORKER_POLL_DELAY_MS:1000}
   reaper-delay-ms: ${WORKER_REAPER_DELAY_MS:60000}
   clamav:
     host: ${CLAMAV_HOST:127.0.0.1}
     port: ${CLAMAV_PORT:3310}
     timeout-seconds: ${CLAMAV_TIMEOUT_SECONDS:60}
+  document:
+    render-dpi: ${DOCUMENT_RENDER_DPI:200}
+  tesseract:
+    executable: ${TESSERACT_EXECUTABLE:tesseract}
+    languages: ${TESSERACT_LANGUAGES:eng+chi_sim}
+    timeout-seconds: ${TESSERACT_TIMEOUT_SECONDS:120}
+    runtime-version: ${TESSERACT_RUNTIME_VERSION:tesseract-5}
 
 management:
   endpoints:

@@ -8,6 +8,7 @@ import org.zipp.ai.domain.ingestion.model.valobj.OriginalPromotionWork;
 import org.zipp.ai.domain.ingestion.model.valobj.ProcessingJobLease;
 import org.zipp.ai.domain.ingestion.model.valobj.ProcessingJobStage;
 import org.zipp.ai.domain.ingestion.model.valobj.ProcessingJobTarget;
+import org.zipp.ai.domain.ingestion.model.valobj.ProcessingRevisionProfile;
 import org.zipp.ai.domain.ingestion.model.valobj.PromotedOriginal;
 import org.zipp.ai.domain.ingestion.model.valobj.WorkerFence;
 import org.zipp.ai.domain.ingestion.port.MaterializationWorkPort;
@@ -27,6 +28,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class MaterializationJobHandlerTest {
 
     private static final Instant NOW = Instant.parse("2026-07-20T01:00:00Z");
+    private static final String PROCESSING_FINGERPRINT =
+            org.zipp.ai.ingestion.worker.document.DocumentProcessingProfile.defaults().overallFingerprint();
 
     @Test
     void resolveStageMaterializesThroughTheFencedTransaction() {
@@ -50,7 +53,7 @@ class MaterializationJobHandlerTest {
         OriginalPromotionWork promotionWork = new OriginalPromotionWork(
                 "upl_1", 3, "quarantine", "incoming/opaque", "s3-source-version",
                 "original/owner/blob", "blob_1", "mat_1", "ver_1", "rev_1",
-                "application/pdf", 42, "a".repeat(64), null);
+                "application/pdf", 42, "a".repeat(64), PROCESSING_FINGERPRINT, null);
         FakeMaterializationWork work = new FakeMaterializationWork();
         work.promotionWork = promotionWork;
         FakeProcessingQueue queue = new FakeProcessingQueue();
@@ -75,7 +78,7 @@ class MaterializationJobHandlerTest {
         OriginalPromotionWork promotionWork = new OriginalPromotionWork(
                 "upl_1", 3, "quarantine", "incoming/opaque", "s3-source-version",
                 "original/owner/blob", "blob_1", "mat_1", "ver_1", "rev_1",
-                "application/pdf", 42, "a".repeat(64), fixed);
+                "application/pdf", 42, "a".repeat(64), PROCESSING_FINGERPRINT, fixed);
         FakeMaterializationWork work = new FakeMaterializationWork();
         work.promotionWork = promotionWork;
         FakeProcessingQueue queue = new FakeProcessingQueue();
@@ -96,7 +99,7 @@ class MaterializationJobHandlerTest {
         OriginalPromotionWork promotionWork = new OriginalPromotionWork(
                 "upl_1", 3, "quarantine", "incoming/opaque", "s3-source-version",
                 "original/owner/blob", "blob_1", "mat_1", "ver_1", "rev_1",
-                "application/pdf", 42, "a".repeat(64), null);
+                "application/pdf", 42, "a".repeat(64), PROCESSING_FINGERPRINT, null);
         PromotedOriginal copied = new PromotedOriginal(
                 "original/owner/blob", "loser-version", "etag", "checksum", 42);
         FakeMaterializationWork work = new FakeMaterializationWork();
@@ -126,6 +129,27 @@ class MaterializationJobHandlerTest {
         assertEquals("loser-version", discarded.get().objectVersionId());
     }
 
+    @Test
+    void promotionWaitsForAWorkerMatchingThePersistedRevisionProfile() {
+        OriginalPromotionWork promotionWork = new OriginalPromotionWork(
+                "upl_1", 3, "quarantine", "incoming/opaque", "s3-source-version",
+                "original/owner/blob", "blob_1", "mat_1", "ver_1", "rev_1",
+                "application/pdf", 42, "a".repeat(64), "e".repeat(64), null);
+        FakeMaterializationWork work = new FakeMaterializationWork();
+        work.promotionWork = promotionWork;
+        FakeProcessingQueue queue = new FakeProcessingQueue();
+        ProcessingJobLease lease = lease(queue, "job_profile_mismatch", ProcessingJobStage.PROMOTE_ORIGINAL);
+        MaterializationJobHandler handler = new MaterializationJobHandler(
+                work, ignored -> { throw new AssertionError("mismatched workers must not copy content"); },
+                (bucket, key, version, maximum, destination) -> null,
+                queue, Clock.fixed(NOW, ZoneOffset.UTC));
+
+        JobOutcome outcome = handler.handle(lease);
+
+        assertEquals(JobOutcome.Kind.TRANSIENT_FAILURE, outcome.kind());
+        assertEquals("PROCESSING_PROFILE_UNAVAILABLE", outcome.errorCode());
+    }
+
     private static ProcessingJobLease lease(FakeProcessingQueue queue, String jobId, ProcessingJobStage stage) {
         queue.enqueue(ProcessingJob.enqueue(jobId, ProcessingJobTarget.forUpload("upl_1"), stage,
                 "root", "f".repeat(64), 0, NOW));
@@ -140,7 +164,7 @@ class MaterializationJobHandlerTest {
 
         @Override
         public MaterializationResult resolveAndMaterialize(String uploadId, MaterializationIds ids,
-                                                            String processingFingerprint,
+                                                            ProcessingRevisionProfile processingProfile,
                                                             ProcessingJob promotionJob,
                                                             ProcessingJob extractionJob,
                                                             WorkerFence fence, Instant now) {

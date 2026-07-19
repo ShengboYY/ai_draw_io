@@ -7,6 +7,7 @@ import org.zipp.ai.domain.ingestion.model.valobj.MaterializationResult;
 import org.zipp.ai.domain.ingestion.model.valobj.OriginalPromotionWork;
 import org.zipp.ai.domain.ingestion.model.valobj.ProcessingJobStage;
 import org.zipp.ai.domain.ingestion.model.valobj.ProcessingJobTarget;
+import org.zipp.ai.domain.ingestion.model.valobj.ProcessingRevisionProfile;
 import org.zipp.ai.domain.ingestion.model.valobj.PromotedOriginal;
 import org.zipp.ai.domain.ingestion.model.valobj.WorkerFence;
 import org.zipp.ai.infrastructure.dao.material.IMaterializationMapper;
@@ -15,6 +16,7 @@ import org.zipp.ai.infrastructure.dao.material.po.ContentBlobPO;
 import org.zipp.ai.infrastructure.dao.material.po.MaterialPO;
 import org.zipp.ai.infrastructure.dao.material.po.MaterialVersionMatchPO;
 import org.zipp.ai.infrastructure.dao.material.po.ProcessingJobPO;
+import org.zipp.ai.infrastructure.dao.material.po.ProcessingRevisionPO;
 import org.zipp.ai.infrastructure.dao.material.po.UploadSessionPO;
 
 import java.lang.reflect.Proxy;
@@ -28,6 +30,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class MySqlMaterializationWorkAdapterTest {
 
     private static final Instant NOW = Instant.parse("2026-07-20T02:00:00Z");
+    private static final ProcessingRevisionProfile PROFILE = new ProcessingRevisionProfile(
+            "d".repeat(64), "pdfbox-test", "canonical-test", "chunk-test", "ocr-test", "visual-test");
 
     @Test
     void uniqueValidatedContentCreatesOneMaterialGraphAndQueuesPromotion() {
@@ -44,14 +48,21 @@ class MySqlMaterializationWorkAdapterTest {
         MaterialPO active = new MaterialPO();
         active.setId("mat_1");
         AtomicReference<ProcessingJobPO> queued = new AtomicReference<>();
-        IMaterializationMapper mapper = proxy(IMaterializationMapper.class, (method, args) -> switch (method) {
-            case "selectUploadForMaterialization" -> upload;
-            case "insertContentBlob", "insertMaterial", "insertVersion", "insertRevision",
-                    "updateLatestVersion", "insertScopeLink", "correlateForPromotion" -> 1;
-            case "selectContentBlobForUpdate" -> blob;
-            case "selectReusableVersionForUpdate" -> null;
-            case "selectActiveMaterialForUpdate" -> active;
-            default -> throw new UnsupportedOperationException(method);
+        AtomicReference<ProcessingRevisionPO> revision = new AtomicReference<>();
+        IMaterializationMapper mapper = proxy(IMaterializationMapper.class, (method, args) -> {
+            if ("insertRevision".equals(method)) {
+                revision.set((ProcessingRevisionPO) args[0]);
+                return 1;
+            }
+            return switch (method) {
+                case "selectUploadForMaterialization" -> upload;
+                case "insertContentBlob", "insertMaterial", "insertVersion",
+                        "updateLatestVersion", "insertScopeLink", "correlateForPromotion" -> 1;
+                case "selectContentBlobForUpdate" -> blob;
+                case "selectReusableVersionForUpdate" -> null;
+                case "selectActiveMaterialForUpdate" -> active;
+                default -> throw new UnsupportedOperationException(method);
+            };
         });
         IProcessingJobMapper jobs = proxy(IProcessingJobMapper.class, (method, args) -> {
             if ("insert".equals(method)) {
@@ -68,11 +79,14 @@ class MySqlMaterializationWorkAdapterTest {
 
         MaterializationResult result = adapter.resolveAndMaterialize("upl_1",
                 new MaterializationIds("mat_1", "ver_1", "blob_1", "rev_1", "scope_1"),
-                "d".repeat(64), promotion, extraction,
+                PROFILE, promotion, extraction,
                 new WorkerFence("job_resolve", "worker-1", 1), NOW);
 
         assertEquals(MaterializationResult.Outcome.PROMOTION_QUEUED, result.outcome());
         assertEquals(ProcessingJobStage.PROMOTE_ORIGINAL.name(), queued.get().getStage());
+        assertEquals(PROFILE.parserVersion(), revision.get().getParserVersion());
+        assertEquals(PROFILE.cleanerVersion(), revision.get().getCleanerVersion());
+        assertEquals(PROFILE.ocrVersion(), revision.get().getOcrVersion());
     }
 
     @Test
@@ -115,7 +129,7 @@ class MySqlMaterializationWorkAdapterTest {
 
         MaterializationResult result = adapter.resolveAndMaterialize("upl_1",
                 new MaterializationIds("mat_unused", "ver_new", "blob_unused", "rev_new", "scope_2"),
-                "d".repeat(64), promotion, extraction,
+                PROFILE, promotion, extraction,
                 new WorkerFence("job_resolve", "worker-1", 1), NOW);
 
         assertEquals(MaterializationResult.Outcome.EXTRACTION_QUEUED, result.outcome());
@@ -184,7 +198,7 @@ class MySqlMaterializationWorkAdapterTest {
     private static OriginalPromotionWork promotionWork() {
         return new OriginalPromotionWork("upl_1", 3, "quarantine", "incoming/opaque", "source-version",
                 "original/blob_1/" + "a".repeat(64), "blob_1", "mat_1", "ver_1", "rev_1",
-                "application/pdf", 42, "a".repeat(64), null);
+                "application/pdf", 42, "a".repeat(64), PROFILE.fingerprint(), null);
     }
 
     private static PromotedOriginal promoted() {
@@ -194,7 +208,9 @@ class MySqlMaterializationWorkAdapterTest {
 
     private static ProcessingJob extractionJob() {
         return ProcessingJob.enqueue("job_extract", ProcessingJobTarget.forRevision("rev_1"),
-                ProcessingJobStage.EXTRACT_NATIVE, "root", "c".repeat(64), 0, NOW);
+                ProcessingJobStage.EXTRACT_NATIVE, "root",
+                org.zipp.ai.domain.ingestion.service.ProcessingStageFingerprintPolicy.extractionInput(
+                        "a".repeat(64), PROFILE.fingerprint()), 0, NOW);
     }
 
     private static UploadSessionPO validatedUpload() {

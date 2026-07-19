@@ -59,6 +59,21 @@ class MaterialRagFoundationMigrationTest {
     }
 
     @Test
+    void wp3bMigrationPinsEveryPageArtifactToAnExactObjectVersion() throws Exception {
+        Path migration = Path.of("docs/sql/migrations/2026-07-22-create-document-processing-artifacts.sql");
+        if (!Files.exists(migration)) {
+            migration = Path.of("../docs/sql/migrations/2026-07-22-create-document-processing-artifacts.sql");
+        }
+        String sql = Files.readString(migration);
+
+        assertTrue(sql.contains("CREATE TABLE IF NOT EXISTS material_page_artifact"));
+        assertTrue(sql.contains("object_version_id VARCHAR(255) NOT NULL"));
+        assertTrue(sql.contains("content_sha256 CHAR(64) NOT NULL"));
+        assertTrue(sql.contains("UNIQUE KEY uk_material_page_artifact_kind"));
+        assertTrue(sql.contains("UNIQUE KEY uk_material_page_artifact_object"));
+    }
+
+    @Test
     void workerIamAllowsExactVersionVerificationAndCleanupInBothBuckets() throws Exception {
         Path template = Path.of("../deploy/aws/material-upload/s3-and-iam.template.yml");
         if (!Files.exists(template)) {
@@ -68,6 +83,16 @@ class MaterialRagFoundationMigrationTest {
 
         assertEquals(2, occurrences(yaml, "s3:GetObjectVersion"));
         assertEquals(2, occurrences(yaml, "s3:DeleteObjectVersion"));
+    }
+
+    @Test
+    void queueRoutesRevisionAndPromotionJobsOnlyToMatchingProcessingProfiles() throws Exception {
+        Path mapper = Path.of("src/main/resources/mybatis/mapper/material_processing_job_mapper.xml");
+        String xml = Files.readString(mapper);
+
+        assertTrue(xml.contains("r.fingerprint = #{processingFingerprint}"));
+        assertTrue(xml.contains("stage != 'PROMOTE_ORIGINAL'"));
+        assertTrue(xml.contains("u.processing_revision_id"));
     }
 
     private String jobTable(String sql) {

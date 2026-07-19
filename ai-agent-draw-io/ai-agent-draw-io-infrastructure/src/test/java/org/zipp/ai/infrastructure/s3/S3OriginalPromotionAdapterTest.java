@@ -50,7 +50,7 @@ class S3OriginalPromotionAdapterTest {
         OriginalPromotionWork work = new OriginalPromotionWork(
                 "upl_1", 3, "quarantine", "incoming/owner/file name.pdf", "v+1/exact",
                 "original/owner/blob", "blob_1", "mat_1", "ver_1", "rev_1",
-                "application/pdf", 42, sha256, null);
+                "application/pdf", 42, sha256, "d".repeat(64), null);
 
         var promoted = new S3OriginalPromotionAdapter(s3, "materials").promote(work);
 
@@ -84,7 +84,7 @@ class S3OriginalPromotionAdapterTest {
         OriginalPromotionWork work = new OriginalPromotionWork(
                 "upl_1", 3, "quarantine", "incoming/opaque", "source-version",
                 "original/owner/blob", "blob_1", "mat_1", "ver_1", "rev_1",
-                "application/pdf", 42, "a".repeat(64), null);
+                "application/pdf", 42, "a".repeat(64), "d".repeat(64), null);
 
         assertThrows(IllegalStateException.class,
                 () -> new S3OriginalPromotionAdapter(s3, "materials").promote(work));

@@ -79,6 +79,7 @@
         <result property="detectedMediaType" column="detected_media_type"/>
         <result property="byteSize" column="byte_size"/>
         <result property="contentSha256" column="content_sha256"/>
+        <result property="processingFingerprint" column="processing_fingerprint"/>
         <result property="formalObjectVersionId" column="formal_object_version_id"/>
         <result property="formalEtag" column="formal_etag"/>
         <result property="formalChecksumSha256" column="formal_checksum_sha256"/>
@@ -254,6 +255,7 @@
                b.original_object_key AS destination_key, b.id AS content_blob_id,
                u.material_id, u.version_id, u.processing_revision_id AS revision_id,
                b.detected_mime AS detected_media_type, b.byte_size, b.content_sha256,
+               r.fingerprint AS processing_fingerprint,
                b.original_object_version_id AS formal_object_version_id,
                b.s3_etag AS formal_etag, b.s3_checksum_sha256 AS formal_checksum_sha256
         FROM material_upload_session u

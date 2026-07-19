@@ -6,6 +6,7 @@ public record OriginalPromotionWork(String uploadId, long uploadGeneration,
                                     String contentBlobId, String materialId, String versionId,
                                     String revisionId, String detectedMediaType,
                                     long byteSize, String contentSha256,
+                                    String processingFingerprint,
                                     PromotedOriginal fixedOriginal) {
     public OriginalPromotionWork {
         uploadId = requireText(uploadId, "uploadId");
@@ -22,11 +23,19 @@ public record OriginalPromotionWork(String uploadId, long uploadGeneration,
         revisionId = requireText(revisionId, "revisionId");
         detectedMediaType = requireText(detectedMediaType, "detectedMediaType");
         contentSha256 = requireText(contentSha256, "contentSha256");
+        processingFingerprint = requireFingerprint(processingFingerprint);
         if (fixedOriginal != null && (!destinationKey.equals(fixedOriginal.objectKey())
                 || byteSize != fixedOriginal.byteSize()
                 || fixedOriginal.checksumSha256() == null)) {
             throw new IllegalArgumentException("fixed original must match the immutable content identity");
         }
+    }
+
+    private static String requireFingerprint(String value) {
+        if (value == null || !value.matches("[0-9a-f]{64}")) {
+            throw new IllegalArgumentException("processingFingerprint must be lowercase SHA-256");
+        }
+        return value;
     }
 
     private static String requireText(String value, String field) {

@@ -17,6 +17,7 @@ public class OriginalPromotionWorkPO {
     private String detectedMediaType;
     private long byteSize;
     private String contentSha256;
+    private String processingFingerprint;
     private String formalObjectVersionId;
     private String formalEtag;
     private String formalChecksumSha256;

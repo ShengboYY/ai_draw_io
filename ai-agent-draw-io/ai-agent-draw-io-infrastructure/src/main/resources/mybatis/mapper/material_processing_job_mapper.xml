@@ -39,6 +39,19 @@
           AND stage IN
           <foreach collection="stages" item="stage" open="(" separator="," close=")">#{stage}</foreach>
         </if>
+        <if test="processingFingerprint != null and processingFingerprint != ''">
+          AND (revision_id IS NULL OR EXISTS (
+              SELECT 1 FROM material_processing_revision r
+              WHERE r.id = material_processing_job.revision_id
+                AND r.fingerprint = #{processingFingerprint}
+          ))
+          AND (stage != 'PROMOTE_ORIGINAL' OR EXISTS (
+              SELECT 1 FROM material_upload_session u
+              JOIN material_processing_revision r ON r.id = u.processing_revision_id
+              WHERE u.id = material_processing_job.upload_session_id
+                AND r.fingerprint = #{processingFingerprint}
+          ))
+        </if>
         ORDER BY priority DESC, created_at ASC
         LIMIT 1
         FOR UPDATE SKIP LOCKED

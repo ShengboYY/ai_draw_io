@@ -13,6 +13,11 @@ public interface ProcessingQueuePort {
     void enqueue(ProcessingJob job);
     Optional<ProcessingJobLease> claim(String workerId, Instant now, Duration leaseDuration,
                                        Set<ProcessingJobStage> acceptedStages);
+    default Optional<ProcessingJobLease> claim(String workerId, Instant now, Duration leaseDuration,
+                                               Set<ProcessingJobStage> acceptedStages,
+                                               String processingFingerprint) {
+        return claim(workerId, now, leaseDuration, acceptedStages);
+    }
     default Optional<ProcessingJobLease> claim(String workerId, Instant now, Duration leaseDuration) {
         return claim(workerId, now, leaseDuration, Set.of());
     }

@@ -16,11 +16,17 @@ class WorkerConfigTest {
     void disabledMaterializationDoesNotRequirePromotionBeansOrMaterialsBucket() throws Exception {
         assertConditional("originalPromotionPort");
         assertConditional("materializationJobHandler");
+        assertDocumentConditional("revisionArtifactPort");
+        assertDocumentConditional("documentParserPort");
+        assertDocumentConditional("ocrEnginePort");
+        assertDocumentConditional("documentProcessingJobHandler");
         try (InputStream stream = getClass().getClassLoader().getResourceAsStream("application.yml")) {
             assertNotNull(stream);
             String configuration = new String(stream.readAllBytes(), StandardCharsets.UTF_8);
             assertTrue(configuration.contains("materials-bucket: ${MATERIALS_BUCKET:}"));
             assertTrue(configuration.contains("materialization-enabled: ${MATERIAL_MATERIALIZATION_ENABLED:false}"));
+            assertTrue(configuration.contains(
+                    "document-processing-enabled: ${MATERIAL_DOCUMENT_PROCESSING_ENABLED:false}"));
         }
     }
 
@@ -31,5 +37,14 @@ class WorkerConfigTest {
         ConditionalOnProperty condition = method.getAnnotation(ConditionalOnProperty.class);
         assertNotNull(condition, methodName);
         assertTrue(Arrays.asList(condition.name()).contains("worker.materialization-enabled"));
+    }
+
+    private void assertDocumentConditional(String methodName) {
+        var method = Arrays.stream(WorkerConfig.class.getDeclaredMethods())
+                .filter(candidate -> candidate.getName().equals(methodName))
+                .findFirst().orElseThrow();
+        ConditionalOnProperty condition = method.getAnnotation(ConditionalOnProperty.class);
+        assertNotNull(condition, methodName);
+        assertTrue(Arrays.asList(condition.name()).contains("worker.document-processing-enabled"));
     }
 }

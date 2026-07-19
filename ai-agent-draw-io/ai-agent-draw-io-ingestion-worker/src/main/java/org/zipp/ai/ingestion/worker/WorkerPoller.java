@@ -13,7 +13,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 public final class WorkerPoller {
 
-    private static final Duration LEASE_DURATION = Duration.ofMinutes(5);
+    private static final Duration LEASE_DURATION = Duration.ofMinutes(30);
     private static final Duration FIRST_RETRY_DELAY = Duration.ofSeconds(10);
     private static final Duration SECOND_RETRY_DELAY = Duration.ofSeconds(60);
     private static final Duration THIRD_RETRY_DELAY = Duration.ofMinutes(5);
@@ -21,25 +21,39 @@ public final class WorkerPoller {
     private final ProcessingQueuePort queue;
     private final SecureUploadJobHandler secureUploadHandler;
     private final MaterializationJobHandler materializationHandler;
+    private final DocumentProcessingJobHandler documentProcessingHandler;
     private final Clock clock;
     private final String workerId;
     private final Set<ProcessingJobStage> claimableStages;
+    private final String processingFingerprint;
     private final AtomicBoolean polling = new AtomicBoolean();
 
     public WorkerPoller(ProcessingQueuePort queue,
                         SecureUploadJobHandler secureUploadHandler,
                         MaterializationJobHandler materializationHandler,
-                        Clock clock, String workerId, boolean materializationEnabled) {
+                        DocumentProcessingJobHandler documentProcessingHandler,
+                        Clock clock, String workerId, boolean materializationEnabled,
+                        boolean documentProcessingEnabled, String processingFingerprint) {
         this.queue = Objects.requireNonNull(queue, "queue");
         this.secureUploadHandler = Objects.requireNonNull(secureUploadHandler, "secureUploadHandler");
         this.materializationHandler = materializationEnabled
                 ? Objects.requireNonNull(materializationHandler, "materializationHandler") : materializationHandler;
+        this.documentProcessingHandler = documentProcessingEnabled
+                ? Objects.requireNonNull(documentProcessingHandler, "documentProcessingHandler")
+                : documentProcessingHandler;
         this.clock = Objects.requireNonNull(clock, "clock");
         if (workerId == null || workerId.isBlank()) {
             throw new IllegalArgumentException("workerId is required");
         }
         this.workerId = workerId.trim();
-        this.claimableStages = claimableStages(materializationEnabled);
+        if (documentProcessingEnabled && !materializationEnabled) {
+            throw new IllegalArgumentException("document processing requires materialization");
+        }
+        this.claimableStages = claimableStages(materializationEnabled, documentProcessingEnabled);
+        if (processingFingerprint == null || !processingFingerprint.matches("[0-9a-f]{64}")) {
+            throw new IllegalArgumentException("processingFingerprint must be lowercase SHA-256");
+        }
+        this.processingFingerprint = processingFingerprint;
     }
 
     @Scheduled(fixedDelayString = "${worker.poll-delay-ms:1000}")
@@ -48,7 +62,8 @@ public final class WorkerPoller {
             return;
         }
         try {
-            queue.claim(workerId, clock.instant(), LEASE_DURATION, claimableStages).ifPresent(this::execute);
+            queue.claim(workerId, clock.instant(), LEASE_DURATION, claimableStages, processingFingerprint)
+                    .ifPresent(this::execute);
         } finally {
             polling.set(false);
         }
@@ -60,8 +75,13 @@ public final class WorkerPoller {
     }
 
     private void execute(ProcessingJobLease lease) {
-        JobOutcome outcome = lease.job().stage() == ProcessingJobStage.VALIDATE_OWNERSHIP
-                ? secureUploadHandler.handle(lease) : requireMaterializationHandler().handle(lease);
+        JobOutcome outcome = switch (lease.job().stage()) {
+            case VALIDATE_OWNERSHIP -> secureUploadHandler.handle(lease);
+            case RESOLVE_CONTENT_DEDUP, PROMOTE_ORIGINAL -> requireMaterializationHandler().handle(lease);
+            case EXTRACT_NATIVE, OCR_SELECTED_PAGES, NORMALIZE_CANONICAL_PAGES ->
+                    requireDocumentProcessingHandler().handle(lease);
+            default -> JobOutcome.permanent("UNSUPPORTED_WORKER_STAGE");
+        };
         var job = lease.job();
         switch (outcome.kind()) {
             case SUCCEEDED -> queue.succeed(job.id(), workerId, lease.fenceToken());
@@ -89,8 +109,19 @@ public final class WorkerPoller {
     }
 
     static Set<ProcessingJobStage> claimableStages(boolean materializationEnabled) {
+        return claimableStages(materializationEnabled, false);
+    }
+
+    static Set<ProcessingJobStage> claimableStages(boolean materializationEnabled,
+                                                   boolean documentProcessingEnabled) {
         if (!materializationEnabled) {
             return Set.of(ProcessingJobStage.VALIDATE_OWNERSHIP);
+        }
+        if (documentProcessingEnabled) {
+            return Set.of(ProcessingJobStage.VALIDATE_OWNERSHIP,
+                    ProcessingJobStage.RESOLVE_CONTENT_DEDUP, ProcessingJobStage.PROMOTE_ORIGINAL,
+                    ProcessingJobStage.EXTRACT_NATIVE, ProcessingJobStage.OCR_SELECTED_PAGES,
+                    ProcessingJobStage.NORMALIZE_CANONICAL_PAGES);
         }
         return Set.of(ProcessingJobStage.VALIDATE_OWNERSHIP,
                 ProcessingJobStage.RESOLVE_CONTENT_DEDUP, ProcessingJobStage.PROMOTE_ORIGINAL);
@@ -101,5 +132,12 @@ public final class WorkerPoller {
             throw new IllegalStateException("materialization handler is disabled");
         }
         return materializationHandler;
+    }
+
+    private DocumentProcessingJobHandler requireDocumentProcessingHandler() {
+        if (documentProcessingHandler == null) {
+            throw new IllegalStateException("document processing handler is disabled");
+        }
+        return documentProcessingHandler;
     }
 }

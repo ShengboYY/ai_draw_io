@@ -11,9 +11,11 @@ import org.zipp.ai.domain.ingestion.model.valobj.OriginalPromotionWork;
 import org.zipp.ai.domain.ingestion.model.valobj.OwnedContentBlob;
 import org.zipp.ai.domain.ingestion.model.valobj.OwnedMaterialVersion;
 import org.zipp.ai.domain.ingestion.model.valobj.PromotedOriginal;
+import org.zipp.ai.domain.ingestion.model.valobj.ProcessingRevisionProfile;
 import org.zipp.ai.domain.ingestion.model.valobj.WorkerFence;
 import org.zipp.ai.domain.ingestion.port.MaterializationWorkPort;
 import org.zipp.ai.domain.ingestion.service.ContentMaterializationPolicy;
+import org.zipp.ai.domain.ingestion.service.ProcessingStageFingerprintPolicy;
 import org.zipp.ai.domain.material.model.aggregate.Material;
 import org.zipp.ai.domain.material.model.aggregate.MaterialVersion;
 import org.zipp.ai.domain.material.model.valobj.MaterialKind;
@@ -39,10 +41,6 @@ import java.util.Optional;
 @Repository
 public class MySqlMaterializationWorkAdapter implements MaterializationWorkPort {
 
-    private static final String PARSER_VERSION = "pdfbox-3.0.8";
-    private static final String CLEANER_VERSION = "canonical-v1";
-    private static final String CHUNK_SCHEMA_VERSION = "chunk-v1";
-
     private final IMaterializationMapper mapper;
     private final IProcessingJobMapper jobMapper;
     private final ContentMaterializationPolicy policy = new ContentMaterializationPolicy();
@@ -55,11 +53,13 @@ public class MySqlMaterializationWorkAdapter implements MaterializationWorkPort 
     @Override
     @Transactional
     public MaterializationResult resolveAndMaterialize(String uploadId, MaterializationIds ids,
-                                                       String processingFingerprint,
+                                                       ProcessingRevisionProfile processingProfile,
                                                        ProcessingJob promotionJob,
                                                        ProcessingJob extractionJob,
                                                        WorkerFence fence, Instant now) {
         WorkerFence workerFence = Objects.requireNonNull(fence, "fence");
+        ProcessingRevisionProfile revisionProfile = Objects.requireNonNull(processingProfile,
+                "processingProfile");
         UploadSessionPO upload = mapper.selectUploadForMaterialization(
                 requireText(uploadId, "uploadId"), workerFence.jobId(), workerFence.workerId(),
                 workerFence.fenceToken());
@@ -95,13 +95,13 @@ public class MySqlMaterializationWorkAdapter implements MaterializationWorkPort 
             }
             case CREATE_VERSION -> {
                 resolved = createVersion(upload, ids, blob, decision.materialId(),
-                        processingFingerprint);
+                        revisionProfile);
                 createdRevision = true;
             }
             case CREATE_MATERIAL -> {
                 createMaterial(upload, ids.materialId(), now);
                 resolved = createVersion(upload, ids, blob, ids.materialId(),
-                        processingFingerprint);
+                        revisionProfile);
                 createdRevision = true;
             }
             default -> throw new IllegalStateException("unsupported materialization action");
@@ -140,7 +140,7 @@ public class MySqlMaterializationWorkAdapter implements MaterializationWorkPort 
                 throw new IllegalStateException("materialization fence became stale before completion");
             }
             if (createdRevision) {
-                jobMapper.insert(toPo(extractionJob));
+                jobMapper.insert(extractionPo(extractionJob, blob.getContentSha256(), revisionProfile.fingerprint()));
             }
             return new MaterializationResult(createdRevision
                     ? MaterializationResult.Outcome.EXTRACTION_QUEUED
@@ -193,7 +193,12 @@ public class MySqlMaterializationWorkAdapter implements MaterializationWorkPort 
             // Throw so Spring rolls back the blob/version mutations performed earlier in this transaction.
             throw new IllegalStateException("promotion fence became stale before upload completion");
         }
-        jobMapper.insert(toPo(Objects.requireNonNull(extractionJob, "extractionJob")));
+        ProcessingJob requestedExtraction = Objects.requireNonNull(extractionJob, "extractionJob");
+        if (!requestedExtraction.inputFingerprint().equals(ProcessingStageFingerprintPolicy.extractionInput(
+                source.contentSha256(), source.processingFingerprint()))) {
+            throw new IllegalArgumentException("extraction job does not match the persisted revision profile");
+        }
+        jobMapper.insert(toPo(requestedExtraction));
         return true;
     }
 
@@ -241,7 +246,7 @@ public class MySqlMaterializationWorkAdapter implements MaterializationWorkPort 
 
     private MaterialVersionMatchPO createVersion(UploadSessionPO upload, MaterializationIds ids,
                                                   ContentBlobPO blob, String materialId,
-                                                  String processingFingerprint) {
+                                                  ProcessingRevisionProfile processingProfile) {
         if (!materialId.equals(ids.materialId())) {
             MaterialPO target = mapper.selectActiveMaterialForUpdate(
                     materialId, upload.getOwnerType(), upload.getOwnerKey());
@@ -253,10 +258,10 @@ public class MySqlMaterializationWorkAdapter implements MaterializationWorkPort 
         MaterialVersion version = MaterialVersion.create(ids.versionId(), materialId, upload.getOwnerKey(),
                 versionNo, blob.getId(), upload.getActualSha256(), upload.getActualSize());
         ProcessingRevision revision = ProcessingRevision.start(ids.revisionId(), version.id(), 1,
-                processingFingerprint, java.util.Set.of());
+                processingProfile.fingerprint(), java.util.Set.of());
         mapper.insertVersion(toPo(version, upload, "AVAILABLE".equals(blob.getStatus())
                 ? "PROCESSING" : "PROMOTING"));
-        mapper.insertRevision(toPo(revision));
+        mapper.insertRevision(toPo(revision, processingProfile));
         mapper.updateLatestVersion(materialId, version.id());
         MaterialVersionMatchPO match = new MaterialVersionMatchPO();
         match.setMaterialId(materialId);
@@ -311,6 +316,7 @@ public class MySqlMaterializationWorkAdapter implements MaterializationWorkPort 
                 work.getQuarantineBucket(), work.getQuarantineKey(), work.getQuarantineVersionId(),
                 work.getDestinationKey(), work.getContentBlobId(), work.getMaterialId(), work.getVersionId(),
                 work.getRevisionId(), work.getDetectedMediaType(), work.getByteSize(), work.getContentSha256(),
+                work.getProcessingFingerprint(),
                 fixedOriginal);
     }
 
@@ -351,7 +357,8 @@ public class MySqlMaterializationWorkAdapter implements MaterializationWorkPort 
         return po;
     }
 
-    private static ProcessingRevisionPO toPo(ProcessingRevision revision) {
+    private static ProcessingRevisionPO toPo(ProcessingRevision revision,
+                                             ProcessingRevisionProfile processingProfile) {
         ProcessingRevisionPO po = new ProcessingRevisionPO();
         po.setId(revision.id());
         po.setVersionId(revision.versionId());
@@ -360,11 +367,11 @@ public class MySqlMaterializationWorkAdapter implements MaterializationWorkPort 
         po.setState(revision.state().name());
         po.setStage(revision.stage().name());
         po.setProgress(revision.progress());
-        po.setParserVersion(PARSER_VERSION);
-        po.setCleanerVersion(CLEANER_VERSION);
-        po.setChunkSchemaVersion(CHUNK_SCHEMA_VERSION);
-        po.setOcrVersion("tesseract-5:lstm-eng-chi_sim:render-v1");
-        po.setVlmSchemaVersion("visual-schema-v1:budget-v1");
+        po.setParserVersion(processingProfile.parserVersion());
+        po.setCleanerVersion(processingProfile.cleanerVersion());
+        po.setChunkSchemaVersion(processingProfile.chunkSchemaVersion());
+        po.setOcrVersion(processingProfile.ocrVersion());
+        po.setVlmSchemaVersion(processingProfile.vlmSchemaVersion());
         po.setExcludedPagesJson("[]");
         return po;
     }
@@ -382,6 +389,14 @@ public class MySqlMaterializationWorkAdapter implements MaterializationWorkPort 
         po.setAttempt(job.attempt());
         po.setNotBefore(job.notBefore());
         po.setFenceToken(job.fenceToken());
+        return po;
+    }
+
+    private static ProcessingJobPO extractionPo(ProcessingJob job, String sourceSha256,
+                                                 String processingFingerprint) {
+        ProcessingJobPO po = toPo(job);
+        po.setInputFingerprint(ProcessingStageFingerprintPolicy.extractionInput(
+                sourceSha256, processingFingerprint));
         return po;
     }
 

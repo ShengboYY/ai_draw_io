@@ -1,9 +1,17 @@
 package org.zipp.ai.domain.ingestion.model.valobj;
 
-public record ParsedDocument(int pageCount) {
+import java.util.List;
+import java.util.Objects;
+
+public record ParsedDocument(List<ParsedPage> pages) {
     public ParsedDocument {
-        if (pageCount < 1) {
-            throw new IllegalArgumentException("pageCount must be positive");
+        pages = List.copyOf(Objects.requireNonNull(pages, "pages"));
+        if (pages.isEmpty()) {
+            throw new IllegalArgumentException("parsed document requires at least one page");
         }
+    }
+
+    public int pageCount() {
+        return pages.size();
     }
 }
