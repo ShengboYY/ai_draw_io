@@ -7,13 +7,17 @@ public record CanonicalBlock(String blockId, TextBlockKind kind, int readingOrde
                              List<NormalizedBoundingBox> regions, TextSource textSource,
                              String extractedText, String displayText,
                              List<SourceMapSpan> sourceMap, double confidence,
-                             BoilerplatePosition boilerplatePosition) {
+                             BoilerplatePosition boilerplatePosition,
+                             int tableHeaderRowCount) {
     public CanonicalBlock {
         if (blockId == null || blockId.isBlank() || readingOrder < 1
                 || confidence < 0 || confidence > 1) {
             throw new IllegalArgumentException("canonical block identity is invalid");
         }
         kind = Objects.requireNonNull(kind, "kind");
+        if (tableHeaderRowCount < 0 || kind != TextBlockKind.TABLE && tableHeaderRowCount != 0) {
+            throw new IllegalArgumentException("table header metadata is invalid for the block kind");
+        }
         regions = List.copyOf(Objects.requireNonNull(regions, "regions"));
         textSource = Objects.requireNonNull(textSource, "textSource");
         boilerplatePosition = Objects.requireNonNull(boilerplatePosition, "boilerplatePosition");
@@ -31,5 +35,14 @@ public record CanonicalBlock(String blockId, TextBlockKind kind, int readingOrde
         if (displayCursor != displayText.length()) {
             throw new IllegalArgumentException("source map must cover all display text");
         }
+    }
+
+    public CanonicalBlock(String blockId, TextBlockKind kind, int readingOrder,
+                          List<NormalizedBoundingBox> regions, TextSource textSource,
+                          String extractedText, String displayText,
+                          List<SourceMapSpan> sourceMap, double confidence,
+                          BoilerplatePosition boilerplatePosition) {
+        this(blockId, kind, readingOrder, regions, textSource, extractedText, displayText,
+                sourceMap, confidence, boilerplatePosition, 0);
     }
 }

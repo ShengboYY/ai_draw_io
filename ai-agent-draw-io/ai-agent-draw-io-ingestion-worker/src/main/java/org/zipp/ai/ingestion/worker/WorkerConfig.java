@@ -17,6 +17,7 @@ import org.zipp.ai.domain.ingestion.port.OriginalPromotionPort;
 import org.zipp.ai.domain.ingestion.port.RevisionArtifactPort;
 import org.zipp.ai.domain.ingestion.service.CanonicalPageAssembler;
 import org.zipp.ai.domain.ingestion.service.DocumentStructureBuilder;
+import org.zipp.ai.domain.ingestion.service.EvidenceUnitBuilder;
 import org.zipp.ai.domain.ingestion.service.VisualCandidateSelectionPolicy;
 import org.zipp.ai.domain.ingestion.service.OcrSelectionPolicy;
 import org.zipp.ai.infrastructure.adapter.s3.S3OriginalPromotionAdapter;
@@ -28,6 +29,7 @@ import org.zipp.ai.ingestion.worker.document.TesseractOcrEngine;
 import org.zipp.ai.ingestion.worker.document.VisualCropDeriver;
 import org.zipp.ai.ingestion.worker.document.TesseractInstallationVerifier;
 import org.zipp.ai.ingestion.worker.document.DocumentProcessingProfile;
+import org.zipp.ai.ingestion.worker.document.EvidenceBuildLimits;
 import org.zipp.ai.ingestion.worker.security.ClamAvScannerAdapter;
 import org.zipp.ai.ingestion.worker.security.SecureFileValidator;
 import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
@@ -106,6 +108,16 @@ public class WorkerConfig {
     }
 
     @Bean
+    public EvidenceUnitBuilder evidenceUnitBuilder() {
+        return new EvidenceUnitBuilder();
+    }
+
+    @Bean
+    public EvidenceBuildLimits evidenceBuildLimits() {
+        return new EvidenceBuildLimits(16L * 1024 * 1024, 5_000_000, 500_000);
+    }
+
+    @Bean
     public DocumentProcessingProfile documentProcessingProfile(
             @Value("${worker.document.render-dpi:200}") int renderDpi,
             @Value("${worker.tesseract.executable:tesseract}") String executable,
@@ -114,11 +126,14 @@ public class WorkerConfig {
             @Value("${worker.tesseract.runtime-version}") String runtimeVersion,
             DocumentStructureBuilder structureBuilder,
             VisualCandidateSelectionPolicy visualPolicy,
-            VisualCropDeriver visualCropper) {
+            VisualCropDeriver visualCropper,
+            EvidenceUnitBuilder evidenceBuilder,
+            EvidenceBuildLimits evidenceLimits) {
         OcrSelectionPolicy selection = new OcrSelectionPolicy(40, 0.10, 0.20, 0.01, 0.03);
         CanonicalPageAssembler canonical = new CanonicalPageAssembler(0.70);
         return DocumentProcessingProfile.of(renderDpi, executable, languages, timeoutSeconds,
-                runtimeVersion, selection, canonical, structureBuilder, visualPolicy, visualCropper);
+                runtimeVersion, selection, canonical, structureBuilder, visualPolicy, visualCropper,
+                evidenceBuilder, evidenceLimits);
     }
 
     @Bean
@@ -152,12 +167,14 @@ public class WorkerConfig {
             ObjectMapper objectMapper, DocumentProcessingProfile processingProfile,
             DocumentStructureBuilder structureBuilder,
             VisualCandidateSelectionPolicy visualPolicy,
-            VisualCropDeriver visualCropper) {
+            VisualCropDeriver visualCropper,
+            EvidenceUnitBuilder evidenceBuilder,
+            EvidenceBuildLimits evidenceLimits) {
         OcrSelectionPolicy selection = new OcrSelectionPolicy(40, 0.10, 0.20, 0.01);
         CanonicalPageAssembler assembler = new CanonicalPageAssembler(0.70);
         RevisionPageCodec codec = new RevisionPageCodec(objectMapper);
         return new DocumentProcessingJobHandler(work, artifacts, parser, ocr, selection,
-                assembler, structureBuilder, visualPolicy,
+                assembler, structureBuilder, visualPolicy, evidenceBuilder, evidenceLimits,
                 visualCropper,
                 codec, processingProfile, queue, clock);
     }

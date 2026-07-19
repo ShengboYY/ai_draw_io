@@ -26,4 +26,9 @@ public class RevisionStructurePagePO {
     private String structureSha256;
     private long structureSize;
     private String structureContentType;
+    private String visualManifestKey;
+    private String visualManifestVersionId;
+    private String visualManifestSha256;
+    private long visualManifestSize;
+    private String visualManifestContentType;
 }

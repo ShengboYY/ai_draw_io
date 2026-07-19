@@ -8,7 +8,10 @@ import org.apache.pdfbox.pdmodel.font.Standard14Fonts;
 import org.apache.pdfbox.pdmodel.graphics.image.LosslessFactory;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
-import org.zipp.ai.domain.ingestion.model.valobj.TextSource;
+import org.zipp.ai.domain.ingestion.model.valobj.*;
+import org.zipp.ai.domain.ingestion.service.CanonicalPageAssembler;
+import org.zipp.ai.domain.ingestion.service.DocumentStructureBuilder;
+import org.zipp.ai.domain.ingestion.service.EvidenceUnitBuilder;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -57,6 +60,45 @@ class PdfBoxDocumentParserTest {
         assertTrue(agileBlock.sourceMap().stream().allMatch(span -> span.regions().size() == 1));
         assertFalse(page.extraction().nativeTextQuality().effectiveCharacters() == 0);
         assertTrue(Files.size(page.renderedImage()) > 0);
+    }
+
+    @Test
+    void realPdfProducesStructuredCitableEvidence() throws Exception {
+        Path pdf = temporaryDirectory.resolve("structured.pdf");
+        try (PDDocument document = new PDDocument()) {
+            PDPage page = new PDPage();
+            document.addPage(page);
+            try (PDPageContentStream content = new PDPageContentStream(document, page)) {
+                writeLine(content, "1. Agile Delivery", 20, 72, 700);
+                writeLine(content, "- Plan work", 12, 72, 650);
+                writeLine(content, "Figure 1. Sprint loop", 10, 72, 600);
+                writeLine(content, "Name|Value", 10, 72, 550);
+                writeLine(content, "A|1", 10, 72, 530);
+                writeLine(content, "B|2", 10, 72, 510);
+            }
+            document.save(pdf.toFile());
+        }
+
+        PageExtraction extraction = new PdfBoxDocumentParser(200).parse(pdf, "application/pdf",
+                temporaryDirectory.resolve("structured-render")).pages().get(0).extraction();
+        CanonicalPage canonical = new CanonicalPageAssembler(0.70).assemble(extraction);
+        DocumentStructure structure = new DocumentStructureBuilder().build(List.of(canonical));
+        StoredArtifact canonicalArtifact = new StoredArtifact("canonical.json.gz", "version-1",
+                "a".repeat(64), 100, "application/json+gzip");
+        EvidenceManifest evidence = new EvidenceUnitBuilder().build("revision-1", "version-1", structure,
+                List.of(new EvidenceSourcePage("page-1", canonical, canonicalArtifact)),
+                new VisualCropManifest("visual-crop-manifest-v1", structure.structureHash(),
+                        "selection-v1", 0, 0, List.of()));
+
+        assertEquals(List.of(TextBlockKind.HEADING, TextBlockKind.LIST_ITEM,
+                        TextBlockKind.CAPTION, TextBlockKind.TABLE),
+                canonical.blocks().stream().map(CanonicalBlock::kind).toList());
+        assertTrue(evidence.units().stream().anyMatch(unit -> unit.unitType() == EvidenceUnitType.HEADING));
+        assertTrue(evidence.units().stream().anyMatch(unit -> unit.unitType() == EvidenceUnitType.LIST));
+        assertTrue(evidence.units().stream().anyMatch(unit -> unit.unitType() == EvidenceUnitType.CAPTION));
+        assertTrue(evidence.units().stream().anyMatch(unit ->
+                unit.unitType() == EvidenceUnitType.TABLE_ROW_GROUP));
+        assertEquals(structure.sections().get(0).sectionId(), evidence.units().get(1).sectionId());
     }
 
     @Test
@@ -111,5 +153,15 @@ class PdfBoxDocumentParserTest {
         BufferedImage normalized = ImageIO.read(page.renderedImage().toFile());
         assertEquals(10, normalized.getWidth());
         assertEquals(20, normalized.getHeight());
+    }
+
+    private static void writeLine(PDPageContentStream content, String text, float fontSize,
+                                  float x, float y) throws Exception {
+        // Separate text objects mirror the line blocks emitted by PDFBox in production parsing.
+        content.beginText();
+        content.setFont(new PDType1Font(Standard14Fonts.FontName.HELVETICA), fontSize);
+        content.newLineAtOffset(x, y);
+        content.showText(text);
+        content.endText();
     }
 }

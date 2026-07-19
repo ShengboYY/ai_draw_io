@@ -16,6 +16,7 @@ import org.zipp.ai.domain.ingestion.model.valobj.ParsedPage;
 import org.zipp.ai.domain.ingestion.model.valobj.TextBlockKind;
 import org.zipp.ai.domain.ingestion.model.valobj.TextSource;
 import org.zipp.ai.domain.ingestion.service.NativeBlockConfidencePolicy;
+import org.zipp.ai.domain.ingestion.service.TextBlockKindPolicy;
 import org.zipp.ai.domain.ingestion.model.valobj.SourceMapSpan;
 import org.zipp.ai.domain.ingestion.port.DocumentParserPort;
 
@@ -147,6 +148,7 @@ public final class PdfBoxDocumentParser implements DocumentParserPort {
 
     private static final class PageAccumulator {
         private static final NativeBlockConfidencePolicy BLOCK_CONFIDENCE = new NativeBlockConfidencePolicy();
+        private static final TextBlockKindPolicy BLOCK_KIND = new TextBlockKindPolicy();
         private final double width;
         private final double height;
         private final List<ExtractedTextBlock> blocks = new ArrayList<>();
@@ -221,7 +223,10 @@ public final class PdfBoxDocumentParser implements DocumentParserPort {
             anomalousCharacters += blockAnomalousCharacters;
             double sourceCoverage = blockEffectiveCharacters == 0 ? 0
                     : Math.min(1, (double) mappedCharacters / blockEffectiveCharacters);
-            blocks.add(new ExtractedTextBlock("native_" + (blocks.size() + 1), TextBlockKind.PARAGRAPH,
+            double relativeLineHeight = positions.stream().mapToDouble(TextPosition::getFontSizeInPt)
+                    .max().orElse(0) / height;
+            TextBlockKind kind = BLOCK_KIND.classify(TextBlockKind.PARAGRAPH, text, relativeLineHeight);
+            blocks.add(new ExtractedTextBlock("native_" + (blocks.size() + 1), kind,
                     blocks.size() + 1, glyphRegions.isEmpty() ? List.of(box) : glyphRegions, TextSource.NATIVE, text,
                     completeSourceMap(text, sourceMap, List.of(box)),
                     BLOCK_CONFIDENCE.confidence(blockEffectiveCharacters, blockAnomalousCharacters,

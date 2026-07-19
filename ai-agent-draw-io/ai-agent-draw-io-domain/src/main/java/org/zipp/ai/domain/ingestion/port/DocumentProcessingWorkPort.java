@@ -3,9 +3,11 @@ package org.zipp.ai.domain.ingestion.port;
 import org.zipp.ai.domain.ingestion.model.aggregate.ProcessingJob;
 import org.zipp.ai.domain.ingestion.model.valobj.CanonicalPageResult;
 import org.zipp.ai.domain.ingestion.model.valobj.DocumentStructureResult;
+import org.zipp.ai.domain.ingestion.model.valobj.EvidenceBuildResult;
 import org.zipp.ai.domain.ingestion.model.valobj.NativePageResult;
 import org.zipp.ai.domain.ingestion.model.valobj.OcrPageResult;
 import org.zipp.ai.domain.ingestion.model.valobj.RevisionExtractionWork;
+import org.zipp.ai.domain.ingestion.model.valobj.RevisionEvidenceWork;
 import org.zipp.ai.domain.ingestion.model.valobj.RevisionPageBatch;
 import org.zipp.ai.domain.ingestion.model.valobj.RevisionStructureWork;
 import org.zipp.ai.domain.ingestion.model.valobj.RevisionVisualWork;
@@ -31,4 +33,7 @@ public interface DocumentProcessingWorkPort {
     Optional<RevisionVisualWork> findVisualWork(String revisionId, WorkerFence fence);
     boolean commitVisualCrops(RevisionVisualWork work, VisualProcessingResult result,
                               ProcessingJob nextJob, WorkerFence fence);
+    Optional<RevisionEvidenceWork> findEvidenceWork(String revisionId, WorkerFence fence);
+    boolean commitEvidence(RevisionEvidenceWork work, EvidenceBuildResult result,
+                           ProcessingJob nextJob, WorkerFence fence);
 }

@@ -115,6 +115,21 @@ class MaterialRagFoundationMigrationTest {
     }
 
     @Test
+    void evidenceMigrationPinsTextVisualAndAnalysisObjectVersions() throws Exception {
+        Path migration = Path.of("docs/sql/migrations/2026-07-26-pin-evidence-artifact-versions.sql");
+        if (!Files.exists(migration)) {
+            migration = Path.of("../docs/sql/migrations/2026-07-26-pin-evidence-artifact-versions.sql");
+        }
+        String sql = Files.readString(migration);
+
+        assertTrue(sql.contains("display_text_object_version_id VARCHAR(255)"));
+        assertTrue(sql.contains("visual_object_version_id VARCHAR(255)"));
+        assertTrue(sql.contains("visual_analysis_object_version_id VARCHAR(255)"));
+        assertTrue(sql.contains("chk_evidence_display_pin"));
+        assertTrue(sql.contains("chk_evidence_visual_pin"));
+    }
+
+    @Test
     void workerIamAllowsExactVersionVerificationAndCleanupInBothBuckets() throws Exception {
         Path template = Path.of("../deploy/aws/material-upload/s3-and-iam.template.yml");
         if (!Files.exists(template)) {

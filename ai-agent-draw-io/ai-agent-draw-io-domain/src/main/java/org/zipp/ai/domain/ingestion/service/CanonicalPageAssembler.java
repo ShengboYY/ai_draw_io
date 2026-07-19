@@ -15,11 +15,13 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 public final class CanonicalPageAssembler {
 
     private final double lowConfidenceThreshold;
     private final TextSourceQualityCalibration qualityCalibration;
+    private final TextBlockKindPolicy blockKindPolicy;
 
     public CanonicalPageAssembler(double lowConfidenceThreshold) {
         this(lowConfidenceThreshold, TextSourceQualityCalibration.goldenV1());
@@ -32,6 +34,7 @@ public final class CanonicalPageAssembler {
         }
         this.lowConfidenceThreshold = lowConfidenceThreshold;
         this.qualityCalibration = java.util.Objects.requireNonNull(qualityCalibration, "qualityCalibration");
+        this.blockKindPolicy = new TextBlockKindPolicy();
     }
 
     public double lowConfidenceThreshold() {
@@ -39,7 +42,9 @@ public final class CanonicalPageAssembler {
     }
 
     public String fingerprint() {
-        return "canonical-v3:source-map-v2:block-region-merge:reading-flow-v1:boilerplate-candidate-v1"
+        return "canonical-v4:source-map-v2:block-region-merge:reading-flow-v1:boilerplate-candidate-v1"
+                + ":delimited-row-merge-gap4pct-left3pct-right15pct"
+                + ":" + blockKindPolicy.fingerprint()
                 + ":calibration=" + qualityCalibration.version() + ":low-confidence=" + lowConfidenceThreshold;
     }
 
@@ -76,14 +81,82 @@ public final class CanonicalPageAssembler {
             }
         }
         selected = orderByReadingFlow(selected);
+        selected = mergeDelimitedTableRows(selected);
         List<CanonicalBlock> ordered = new ArrayList<>();
         for (int index = 0; index < selected.size(); index++) {
             CanonicalBlock block = selected.get(index);
             ordered.add(new CanonicalBlock(block.blockId(), block.kind(), index + 1, block.regions(),
                     block.textSource(), block.extractedText(), block.displayText(), block.sourceMap(),
-                    block.confidence(), boilerplatePosition(block)));
+                    block.confidence(), boilerplatePosition(block), block.tableHeaderRowCount()));
         }
         return List.copyOf(ordered);
+    }
+
+    private static List<CanonicalBlock> mergeDelimitedTableRows(List<CanonicalBlock> blocks) {
+        List<CanonicalBlock> merged = new ArrayList<>();
+        for (int index = 0; index < blocks.size();) {
+            CanonicalBlock first = blocks.get(index);
+            Optional<TextBlockKindPolicy.DelimitedRow> structure =
+                    first.kind() == TextBlockKind.PARAGRAPH
+                            ? TextBlockKindPolicy.delimitedRow(first.displayText()) : Optional.empty();
+            List<CanonicalBlock> rows = new ArrayList<>();
+            rows.add(first);
+            int cursor = index + 1;
+            while (structure.isPresent() && cursor < blocks.size()) {
+                CanonicalBlock candidate = blocks.get(cursor);
+                if (candidate.kind() != TextBlockKind.PARAGRAPH
+                        || candidate.textSource() != first.textSource()
+                        || !structure.equals(TextBlockKindPolicy.delimitedRow(candidate.displayText()))
+                        || !alignedTableRows(rows.get(rows.size() - 1), candidate)) {
+                    break;
+                }
+                rows.add(candidate);
+                cursor++;
+            }
+            // A single delimited line remains a paragraph; two aligned rows are a strong table signal.
+            merged.add(rows.size() < 2 ? first : mergeTableRows(rows));
+            index += rows.size();
+        }
+        return List.copyOf(merged);
+    }
+
+    private static boolean alignedTableRows(CanonicalBlock previous, CanonicalBlock next) {
+        double verticalGap = Math.max(0, top(next) - bottom(previous));
+        return verticalGap <= 0.04 && Math.abs(left(previous) - left(next)) <= 0.03
+                && Math.abs(right(previous) - right(next)) <= 0.15;
+    }
+
+    private static CanonicalBlock mergeTableRows(List<CanonicalBlock> rows) {
+        StringBuilder extracted = new StringBuilder();
+        StringBuilder display = new StringBuilder();
+        List<SourceMapSpan> sourceMap = new ArrayList<>();
+        List<org.zipp.ai.domain.ingestion.model.valobj.NormalizedBoundingBox> regions = rows.stream()
+                .flatMap(row -> row.regions().stream()).distinct().toList();
+        for (int index = 0; index < rows.size(); index++) {
+            CanonicalBlock row = rows.get(index);
+            if (index > 0) {
+                int extractedStart = extracted.length();
+                int displayStart = display.length();
+                extracted.append('\n');
+                display.append('\n');
+                sourceMap.add(new SourceMapSpan(displayStart, display.length(), extractedStart,
+                        extracted.length(), List.of(rows.get(index - 1).regions().get(0), row.regions().get(0))));
+            }
+            int extractedOffset = extracted.length();
+            int displayOffset = display.length();
+            extracted.append(row.extractedText());
+            display.append(row.displayText());
+            row.sourceMap().forEach(span -> sourceMap.add(new SourceMapSpan(
+                    displayOffset + span.displayStart(), displayOffset + span.displayEnd(),
+                    extractedOffset + span.extractedStart(), extractedOffset + span.extractedEnd(),
+                    span.regions())));
+        }
+        CanonicalBlock first = rows.get(0);
+        CanonicalBlock last = rows.get(rows.size() - 1);
+        double confidence = rows.stream().mapToDouble(CanonicalBlock::confidence).min().orElse(0);
+        return new CanonicalBlock("table_" + first.blockId() + "_" + last.blockId(), TextBlockKind.TABLE,
+                first.readingOrder(), regions, first.textSource(), extracted.toString(), display.toString(),
+                sourceMap, confidence, BoilerplatePosition.NONE, 0);
     }
 
     private static boolean overlaps(CanonicalBlock first, CanonicalBlock second) {
@@ -114,7 +187,7 @@ public final class CanonicalPageAssembler {
                     representative.readingOrder(), representative.regions(), representative.textSource(),
                     representative.extractedText(), representative.displayText(), representative.sourceMap(),
                     Math.min(representative.confidence(), candidate.confidence()) * 0.75,
-                    representative.boilerplatePosition()));
+                    representative.boilerplatePosition(), representative.tableHeaderRowCount()));
         }
         return List.copyOf(collapsed);
     }
@@ -235,7 +308,7 @@ public final class CanonicalPageAssembler {
                 block.regions(), block.textSource(), block.text(), block.sourceMap(), block.confidence())).toList();
     }
 
-    private static List<CanonicalBlock> ocrBlocks(PageExtraction page) {
+    private List<CanonicalBlock> ocrBlocks(PageExtraction page) {
         if (page.ocrResult() == null || page.ocrResult().words().isEmpty()) {
             return List.of();
         }
@@ -261,8 +334,12 @@ public final class CanonicalPageAssembler {
                     offset++;
                 }
             }
+            List<org.zipp.ai.domain.ingestion.model.valobj.NormalizedBoundingBox> regions =
+                    words.stream().map(OcrWord::region).toList();
+            TextBlockKind kind = blockKindPolicy.classify(TextBlockKind.PARAGRAPH, text,
+                    regions.stream().mapToDouble(region -> region.y2() - region.y1()).max().orElse(0));
             blocks.add(new CanonicalBlock("ocr_p" + page.pageNo() + "_" + order,
-                    TextBlockKind.PARAGRAPH, order, words.stream().map(OcrWord::region).toList(),
+                    kind, order, regions,
                     TextSource.OCR, text, text, sourceMap, confidence, BoilerplatePosition.NONE));
             order++;
         }

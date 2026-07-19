@@ -2,10 +2,12 @@ package org.zipp.ai.ingestion.worker.document;
 
 import org.zipp.ai.domain.ingestion.service.CanonicalPageAssembler;
 import org.zipp.ai.domain.ingestion.service.DocumentStructureBuilder;
+import org.zipp.ai.domain.ingestion.service.EvidenceUnitBuilder;
 import org.zipp.ai.domain.ingestion.service.OcrSelectionPolicy;
 import org.zipp.ai.domain.ingestion.service.NativeBlockConfidencePolicy;
 import org.zipp.ai.domain.ingestion.service.ProcessingStageFingerprintPolicy;
 import org.zipp.ai.domain.ingestion.service.VisualCandidateSelectionPolicy;
+import org.zipp.ai.domain.ingestion.service.TextBlockKindPolicy;
 import org.zipp.ai.domain.ingestion.model.valobj.ProcessingRevisionProfile;
 
 import java.nio.charset.StandardCharsets;
@@ -15,7 +17,7 @@ import java.util.List;
 
 /** Immutable processing configuration used in revision and stage fingerprints. */
 public record DocumentProcessingProfile(String parser, String ocr, String selection,
-                                        String canonical, String structure, String visual) {
+                                        String canonical, String structure, String visual, String evidence) {
 
     public DocumentProcessingProfile {
         parser = requireText(parser, "parser");
@@ -24,6 +26,7 @@ public record DocumentProcessingProfile(String parser, String ocr, String select
         canonical = requireText(canonical, "canonical");
         structure = requireText(structure, "structure");
         visual = requireText(visual, "visual");
+        evidence = requireText(evidence, "evidence");
     }
 
     public static DocumentProcessingProfile of(int renderDpi, String executable, String languages,
@@ -32,25 +35,29 @@ public record DocumentProcessingProfile(String parser, String ocr, String select
                                                CanonicalPageAssembler canonical,
                                                DocumentStructureBuilder structure,
                                                VisualCandidateSelectionPolicy visual,
-                                               VisualCropDeriver cropper) {
+                                               VisualCropDeriver cropper,
+                                               EvidenceUnitBuilder evidenceBuilder,
+                                               EvidenceBuildLimits evidenceLimits) {
         String normalizedLanguages = requireText(languages, "languages");
         if (!"eng+chi_sim".equals(normalizedLanguages)) {
             throw new IllegalArgumentException("WP3B calibration requires Tesseract languages eng+chi_sim");
         }
         return new DocumentProcessingProfile(
                 "pdfbox-3.0.8:render-dpi=" + renderDpi + ":rotation-v2:image-normalize-v2:"
-                        + new NativeBlockConfidencePolicy().fingerprint(),
+                        + new NativeBlockConfidencePolicy().fingerprint() + ":"
+                        + new TextBlockKindPolicy().fingerprint(),
                 "tesseract:" + requireText(tesseractRuntimeVersion, "tesseractRuntimeVersion")
                         + ":executable=" + requireText(executable, "executable")
                         + ":languages=" + normalizedLanguages
                         + ":timeout=" + timeoutSeconds,
                 selection.fingerprint(), canonical.fingerprint(), structure.fingerprint(),
-                visual.fingerprint() + ":" + cropper.fingerprint());
+                visual.fingerprint() + ":" + cropper.fingerprint(),
+                evidenceBuilder.fingerprint() + ":" + evidenceLimits.fingerprint());
     }
 
     public String overallFingerprint() {
         return sha256(parser + ":" + ocr + ":" + selection + ":" + canonical
-                + ":" + structure + ":" + visual + ":chunk-v1");
+                + ":" + structure + ":" + visual + ":" + evidence + ":chunk-v1");
     }
 
     public ProcessingRevisionProfile revisionProfile() {
@@ -93,6 +100,10 @@ public record DocumentProcessingProfile(String parser, String ocr, String select
 
     public String evidenceInput(String visualManifestHash) {
         return ProcessingStageFingerprintPolicy.evidenceInput(visualManifestHash, overallFingerprint());
+    }
+
+    public String retrievalInput(String evidenceManifestHash) {
+        return ProcessingStageFingerprintPolicy.retrievalInput(evidenceManifestHash, overallFingerprint());
     }
 
     private static String sha256(String value) {

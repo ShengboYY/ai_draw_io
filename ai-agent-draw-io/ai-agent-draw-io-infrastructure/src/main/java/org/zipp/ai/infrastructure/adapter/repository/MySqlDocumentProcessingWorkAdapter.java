@@ -1,17 +1,25 @@
 package org.zipp.ai.infrastructure.adapter.repository;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 import org.zipp.ai.domain.ingestion.model.aggregate.ProcessingJob;
 import org.zipp.ai.domain.ingestion.model.valobj.CanonicalPageResult;
 import org.zipp.ai.domain.ingestion.model.valobj.DocumentSection;
 import org.zipp.ai.domain.ingestion.model.valobj.DocumentStructureResult;
+import org.zipp.ai.domain.ingestion.model.valobj.EvidenceBuildResult;
+import org.zipp.ai.domain.ingestion.model.valobj.EvidenceRegion;
+import org.zipp.ai.domain.ingestion.model.valobj.EvidenceRelation;
+import org.zipp.ai.domain.ingestion.model.valobj.EvidenceUnit;
 import org.zipp.ai.domain.ingestion.model.valobj.NativePageResult;
 import org.zipp.ai.domain.ingestion.model.valobj.OcrPageResult;
 import org.zipp.ai.domain.ingestion.model.valobj.OcrPageStatus;
 import org.zipp.ai.domain.ingestion.model.valobj.PageArtifactKind;
 import org.zipp.ai.domain.ingestion.model.valobj.ProcessingJobStage;
 import org.zipp.ai.domain.ingestion.model.valobj.RevisionExtractionWork;
+import org.zipp.ai.domain.ingestion.model.valobj.RevisionEvidenceWork;
 import org.zipp.ai.domain.ingestion.model.valobj.RevisionPageBatch;
 import org.zipp.ai.domain.ingestion.model.valobj.RevisionPageWork;
 import org.zipp.ai.domain.ingestion.model.valobj.RevisionCanonicalPageWork;
@@ -35,6 +43,9 @@ import org.zipp.ai.infrastructure.dao.material.po.RevisionStructurePagePO;
 import org.zipp.ai.infrastructure.dao.material.po.DocumentStructureArtifactPO;
 import org.zipp.ai.infrastructure.dao.material.po.MaterialSectionPO;
 import org.zipp.ai.infrastructure.dao.material.po.VisualCropArtifactPO;
+import org.zipp.ai.infrastructure.dao.material.po.EvidenceUnitPO;
+import org.zipp.ai.infrastructure.dao.material.po.EvidenceRegionPO;
+import org.zipp.ai.infrastructure.dao.material.po.EvidenceRelationPO;
 
 import java.util.List;
 import java.util.Objects;
@@ -43,6 +54,8 @@ import java.util.UUID;
 
 @Repository
 public class MySqlDocumentProcessingWorkAdapter implements DocumentProcessingWorkPort {
+
+    private static final ObjectMapper JSON = new ObjectMapper();
 
     private final IDocumentProcessingMapper mapper;
     private final IProcessingJobMapper jobMapper;
@@ -307,6 +320,67 @@ public class MySqlDocumentProcessingWorkAdapter implements DocumentProcessingWor
         return true;
     }
 
+    @Override
+    public Optional<RevisionEvidenceWork> findEvidenceWork(String revisionId, WorkerFence fence) {
+        String id = requireText(revisionId, "revisionId");
+        WorkerFence current = Objects.requireNonNull(fence, "fence");
+        List<RevisionStructurePagePO> rows = mapper.selectEvidenceWork(id, current.jobId(), current.workerId(),
+                current.fenceToken());
+        if (rows.isEmpty()) {
+            return Optional.empty();
+        }
+        RevisionStructurePagePO first = rows.get(0);
+        StoredArtifact structure = new StoredArtifact(first.getStructureKey(), first.getStructureVersionId(),
+                first.getStructureSha256(), first.getStructureSize(), first.getStructureContentType());
+        StoredArtifact visualManifest = new StoredArtifact(first.getVisualManifestKey(),
+                first.getVisualManifestVersionId(), first.getVisualManifestSha256(),
+                first.getVisualManifestSize(), first.getVisualManifestContentType());
+        return Optional.of(new RevisionEvidenceWork(first.getRevisionId(), first.getVersionId(),
+                first.getRevisionFenceGeneration(), first.getMaterialLifecycleGeneration(),
+                first.getProcessingFingerprint(), structure, visualManifest,
+                rows.stream().map(this::toStructurePage).toList()));
+    }
+
+    @Override
+    @Transactional
+    public boolean commitEvidence(RevisionEvidenceWork work, EvidenceBuildResult result,
+                                  ProcessingJob nextJob, WorkerFence fence) {
+        RevisionEvidenceWork source = Objects.requireNonNull(work, "work");
+        EvidenceBuildResult output = Objects.requireNonNull(result, "result");
+        ProcessingJob successor = Objects.requireNonNull(nextJob, "nextJob");
+        if (successor.stage() != ProcessingJobStage.BUILD_RETRIEVAL_CHUNKS
+                || !"root".equals(successor.workKey())
+                || !source.revisionId().equals(successor.target().revisionId())
+                || !ProcessingStageFingerprintPolicy.retrievalInput(output.manifestArtifact().contentSha256(),
+                        source.processingFingerprint()).equals(successor.inputFingerprint())) {
+            throw new IllegalArgumentException("evidence commit requires the pinned retrieval successor");
+        }
+        if (!source.revisionId().equals(output.manifest().revisionId())
+                || !source.versionId().equals(output.manifest().versionId())) {
+            throw new IllegalArgumentException("evidence manifest does not belong to its work target");
+        }
+        if (!hasCurrentFence(source.revisionId(), source.revisionFenceGeneration(),
+                source.materialLifecycleGeneration(), ProcessingJobStage.BUILD_EVIDENCE_UNITS, fence)) {
+            return false;
+        }
+        persistRevisionArtifact(source.revisionId(), "EVIDENCE_MANIFEST", output.manifestArtifact());
+        output.manifest().units().forEach(unit -> persistEvidenceUnit(source, output.manifestArtifact(), unit));
+        output.manifest().relations().forEach(this::persistEvidenceRelation);
+        output.manifest().sectionHeadings().forEach(heading -> {
+            mapper.updateSectionHeading(source.revisionId(), heading.sectionId(), heading.evidenceId());
+            MaterialSectionPO section = mapper.selectSectionById(source.revisionId(), heading.sectionId());
+            if (section == null || !heading.evidenceId().equals(section.getHeadingEvidenceId())) {
+                throw new IllegalStateException("section heading evidence collided with a different unit");
+            }
+        });
+        if (mapper.advanceRevision(source.revisionId(), source.revisionFenceGeneration(),
+                "INDEXING", 88) != 1) {
+            throw new IllegalStateException("revision generation became stale during evidence commit");
+        }
+        jobMapper.insert(toPo(successor));
+        return true;
+    }
+
     private boolean hasCurrentFence(String revisionId, long expectedGeneration, long materialLifecycleGeneration,
                                     ProcessingJobStage expectedStage, WorkerFence fence) {
         WorkerFence current = Objects.requireNonNull(fence, "fence");
@@ -422,6 +496,85 @@ public class MySqlDocumentProcessingWorkAdapter implements DocumentProcessingWor
         }
     }
 
+    private void persistEvidenceUnit(RevisionEvidenceWork source, StoredArtifact manifestArtifact,
+                                     EvidenceUnit evidence) {
+        EvidenceUnitPO po = new EvidenceUnitPO();
+        po.setId(evidence.evidenceId());
+        po.setVersionId(source.versionId());
+        po.setRevisionId(source.revisionId());
+        po.setPageId(evidence.pageId());
+        po.setSectionId(evidence.sectionId());
+        po.setUnitType(evidence.unitType().name());
+        po.setModality(evidence.modality().name());
+        po.setSourceChannel(evidence.sourceChannel());
+        if (evidence.displayText() != null) {
+            po.setDisplayTextObjectKey(manifestArtifact.objectKey());
+            po.setDisplayTextObjectVersionId(manifestArtifact.objectVersionId());
+        }
+        if (evidence.visualArtifact() != null) {
+            po.setVisualObjectKey(evidence.visualArtifact().objectKey());
+            po.setVisualObjectVersionId(evidence.visualArtifact().objectVersionId());
+        }
+        po.setDisplayTextSha256(evidence.displayTextSha256());
+        po.setQualityJson("{\"score\":" + Double.toString(evidence.quality()) + "}");
+        po.setStatus("ACTIVE");
+        mapper.insertEvidenceUnit(po);
+        EvidenceUnitPO persisted = mapper.selectEvidenceUnit(po.getId());
+        if (persisted == null || !po.getVersionId().equals(persisted.getVersionId())
+                || !po.getRevisionId().equals(persisted.getRevisionId())
+                || !po.getPageId().equals(persisted.getPageId())
+                || !Objects.equals(po.getSectionId(), persisted.getSectionId())
+                || !po.getUnitType().equals(persisted.getUnitType())
+                || !po.getModality().equals(persisted.getModality())
+                || !po.getSourceChannel().equals(persisted.getSourceChannel())
+                || !Objects.equals(po.getDisplayTextObjectKey(), persisted.getDisplayTextObjectKey())
+                || !Objects.equals(po.getDisplayTextObjectVersionId(), persisted.getDisplayTextObjectVersionId())
+                || !Objects.equals(po.getVisualObjectKey(), persisted.getVisualObjectKey())
+                || !Objects.equals(po.getVisualObjectVersionId(), persisted.getVisualObjectVersionId())
+                || !Objects.equals(po.getDisplayTextSha256(), persisted.getDisplayTextSha256())
+                || !sameJson(po.getQualityJson(), persisted.getQualityJson())
+                || !po.getStatus().equals(persisted.getStatus())) {
+            throw new IllegalStateException("immutable evidence unit collided with different content");
+        }
+        evidence.regions().forEach(region -> persistEvidenceRegion(evidence.evidenceId(), region));
+    }
+
+    private void persistEvidenceRegion(String evidenceId, EvidenceRegion region) {
+        EvidenceRegionPO po = new EvidenceRegionPO();
+        po.setEvidenceId(evidenceId);
+        po.setPageId(region.pageId());
+        po.setOrdinal(region.ordinal());
+        po.setBboxJson("{\"x1\":" + region.boundingBox().x1() + ",\"y1\":"
+                + region.boundingBox().y1() + ",\"x2\":" + region.boundingBox().x2()
+                + ",\"y2\":" + region.boundingBox().y2() + "}");
+        po.setDisplayCharStart(region.displayCharStart());
+        po.setDisplayCharEnd(region.displayCharEnd());
+        po.setSourceBlockRef(region.sourceBlockRef());
+        mapper.insertEvidenceRegion(po);
+        EvidenceRegionPO persisted = mapper.selectEvidenceRegion(evidenceId, region.ordinal());
+        if (persisted == null || !po.getPageId().equals(persisted.getPageId())
+                || !sameJson(po.getBboxJson(), persisted.getBboxJson())
+                || !Objects.equals(po.getDisplayCharStart(), persisted.getDisplayCharStart())
+                || !Objects.equals(po.getDisplayCharEnd(), persisted.getDisplayCharEnd())
+                || !Objects.equals(po.getSourceBlockRef(), persisted.getSourceBlockRef())) {
+            throw new IllegalStateException("immutable evidence region collided with different content");
+        }
+    }
+
+    private void persistEvidenceRelation(EvidenceRelation relation) {
+        EvidenceRelationPO po = new EvidenceRelationPO();
+        po.setFromEvidenceId(relation.fromEvidenceId());
+        po.setToEvidenceId(relation.toEvidenceId());
+        po.setRelationType(relation.relationType().name());
+        po.setWeight(relation.weight());
+        mapper.insertEvidenceRelation(po);
+        EvidenceRelationPO persisted = mapper.selectEvidenceRelation(po.getFromEvidenceId(),
+                po.getToEvidenceId(), po.getRelationType());
+        if (persisted == null || Math.abs(po.getWeight() - persisted.getWeight()) > 0.000001) {
+            throw new IllegalStateException("immutable evidence relation collided with different content");
+        }
+    }
+
     private void persistSection(String revisionId, DocumentSection section) {
         MaterialSectionPO po = new MaterialSectionPO();
         po.setId(section.sectionId());
@@ -467,6 +620,19 @@ public class MySqlDocumentProcessingWorkAdapter implements DocumentProcessingWor
             throw new IllegalArgumentException(field + " is required");
         }
         return value.trim();
+    }
+
+    private static boolean sameJson(String expected, String actual) {
+        if (expected == null || actual == null) {
+            return expected == null && actual == null;
+        }
+        try {
+            JsonNode expectedNode = JSON.readTree(expected);
+            JsonNode actualNode = JSON.readTree(actual);
+            return expectedNode.equals(actualNode);
+        } catch (JsonProcessingException e) {
+            throw new IllegalStateException("persisted evidence JSON is invalid", e);
+        }
     }
 
 }

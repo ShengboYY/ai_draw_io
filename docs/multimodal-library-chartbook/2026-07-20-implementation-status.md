@@ -1,6 +1,6 @@
 # 多模态资料库与图表册：实施状态
 
-> 更新日期：2026-07-25
+> 更新日期：2026-07-26
 > 当前分支：`codex/multimodal-library-chartbook`
 
 ## 已完成阶段
@@ -15,6 +15,7 @@
 | WP3C-A：文档结构领域核心 | 已完成 | `af48c3cf` |
 | WP3C-B1：结构编排与持久化 | 已完成 | `8793495d` |
 | WP3C-B2a：本地视觉候选与 crop manifest | 已完成 | 当前 WP3C-B2a 阶段提交 |
+| WP3C-B2b：Evidence Unit、区域与关系 | 已完成 | 当前 WP3C-B2b 阶段提交 |
 
 ## WP2 交付范围
 
@@ -100,6 +101,14 @@ WP2 不把文件复制到正式 materials bucket，也不提供预览。安全�
 - `2026-07-25-create-visual-crop-artifacts.sql` 已在本地 MySQL 应用并记录 checksum；生产必须在 `2026-07-23`、`2026-07-24` 之后执行。
 - 当前 crop 是 Evidence 创建前的内部 PNG，不是最终可引用视觉证据，也不是产品 WebP preview；未取得视觉授权时不会调用 VLM。
 
+## WP3C-B2b 交付范围
+
+- 新增确定性的 `TextBlockKindPolicy` 与 `EvidenceUnitBuilder` 富领域服务：真实 PDF/OCR canonicalization 通过文字、几何和字体高度强信号识别 heading、list、caption；页级 canonical assembler 只把同来源、连续、几何相邻且分隔符/列数一致的至少两行合并为 table，单行 `|`/tab 仍是 paragraph，强 heading 几何优先于编号列表语法。Evidence 只从固定 canonical `display_text` 与视觉 crop 建立可引用边界。确认的 boilerplate 被排除，连续同源且缩进同层的列表最多 8 项成组，超过 2,000 字符的段落依次按句界、空白与 Unicode code-point 安全边界切分；表格只有在 canonical metadata 明确声明表头行时才建立表头关系，否则保留为普通表格行组。VLM 生成文字不进入 Evidence。
+- 文本 Evidence 固定 revision、version、page、section、canonical artifact、来源 `NATIVE/OCR`、原文 SHA-256、source-map 字符区间和一个或多个 bbox；视觉 Evidence 固定原页面、candidate bbox 与 crop object `VersionId`。
+- 领域层只在同一非空 section 内建立双向 `PREVIOUS_IN_SECTION/NEXT_IN_SECTION`，同时建立 `CAPTION_OF` 与 `TABLE_HEADER_FOR` relation，并把 heading Evidence 回填到对应 section；同页首 heading 前正文保持 unsectioned，不会错误连接到后续章节。`evidence-manifest.json.gz` 保存全部精确来源 pin 与确定性 evidence hash。
+- `BUILD_EVIDENCE_UNITS` 只读取固定 structure、visual manifest 与 canonical page `VersionId`；共享、版本化的 `EvidenceBuildLimits` 同时注入 Handler 和 processing profile，gzip 解压、整文字符与 region 数均有硬预算，超限以 `DOCUMENT_PROCESSING_LIMIT_EXCEEDED` 永久失败而不重试。manifest、`evidence_unit`、`evidence_region`、`evidence_relation`、section heading 和唯一 `BUILD_RETRIEVAL_CHUNKS` successor 在同一 fenced 事务提交；MySQL JSON 以结构语义而非键顺序比较。
+- `2026-07-26-pin-evidence-artifact-versions.sql` 给文本、视觉和未来 visual-analysis 引用补齐 exact object `VersionId` 及成对非空约束；已在本地 MySQL 应用，checksum 为 `1b086e6a64bfa4309ae7c90c1498484ec21835cac5a7e339cfd348a481be0282`。生产必须在 `2026-07-23`、`2026-07-24`、`2026-07-25` 之后执行。
+
 ## 下一阶段
 
-WP3C-B2b 消费固定 visual crop manifest 与 canonical pages，创建文本/视觉 Evidence Unit、`evidence_region`、caption/顺序 relation 和可引用边界；随后再接可选的严格 VLM JSON adapter。视觉描述不是引用本体，视觉引用必须固定原始页面、bbox 和视觉对象 `VersionId`。
+WP3C-B3 消费固定 Evidence manifest，按结构与 token budget 创建 Retrieval Chunk、parent context 和 Evidence 映射；随后构建 lexical projection。可选的严格 VLM JSON enrichment 继续保持独立，生成描述不得写入 `display_text` 或冒充来源原文。

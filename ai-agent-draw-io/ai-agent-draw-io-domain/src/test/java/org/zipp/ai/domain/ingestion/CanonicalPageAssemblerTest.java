@@ -64,6 +64,40 @@ class CanonicalPageAssemblerTest {
     }
 
     @Test
+    void classifiesOcrListAndCaptionLinesUsingTheSharedDeterministicPolicy() {
+        OcrResult ocr = new OcrResult(1, "- Plan Figure 1. Sprint loop", 0.90, List.of(
+                new OcrWord("-", new NormalizedBoundingBox(0.1, 0.2, 0.12, 0.23), 0.90, "line:1"),
+                new OcrWord("Plan", new NormalizedBoundingBox(0.13, 0.2, 0.3, 0.23), 0.90, "line:1"),
+                new OcrWord("Figure", new NormalizedBoundingBox(0.1, 0.5, 0.2, 0.53), 0.90, "line:2"),
+                new OcrWord("1.", new NormalizedBoundingBox(0.21, 0.5, 0.24, 0.53), 0.90, "line:2"),
+                new OcrWord("Sprint", new NormalizedBoundingBox(0.25, 0.5, 0.35, 0.53), 0.90, "line:2"),
+                new OcrWord("loop", new NormalizedBoundingBox(0.36, 0.5, 0.44, 0.53), 0.90, "line:2")));
+
+        CanonicalPage canonical = new CanonicalPageAssembler(0.70).assemble(new PageExtraction(
+                1, 1000, 1400, List.of(), NativeTextQuality.empty(), ocr));
+
+        assertEquals(List.of(TextBlockKind.LIST_ITEM, TextBlockKind.CAPTION), canonical.blocks().stream()
+                .map(block -> block.kind()).toList());
+    }
+
+    @Test
+    void mergesAlignedOcrRowsWithTheSameDelimitedShapeIntoATable() {
+        OcrResult ocr = new OcrResult(1, "Name Value A 1", 0.90, List.of(
+                word("Name", 0.10, 0.20, 0.25, 0.22, "line:1"),
+                word("|Value", 0.26, 0.20, 0.42, 0.22, "line:1"),
+                word("A", 0.10, 0.23, 0.25, 0.25, "line:2"),
+                word("|1", 0.26, 0.23, 0.42, 0.25, "line:2")));
+
+        CanonicalPage canonical = new CanonicalPageAssembler(0.70).assemble(new PageExtraction(
+                1, 1000, 1400, List.of(), NativeTextQuality.empty(), ocr));
+
+        assertEquals(1, canonical.blocks().size());
+        assertEquals(TextBlockKind.TABLE, canonical.blocks().get(0).kind());
+        assertEquals("Name |Value\nA |1", canonical.blocks().get(0).displayText());
+        assertEquals(0, canonical.blocks().get(0).tableHeaderRowCount());
+    }
+
+    @Test
     void nativeWhitespaceNormalizationKeepsExactCharacterOffsets() {
         ExtractedTextBlock nativeBlock = new ExtractedTextBlock(
                 "b_1", TextBlockKind.PARAGRAPH, 1, List.of(BOX), TextSource.NATIVE,
@@ -157,5 +191,9 @@ class CanonicalPageAssemblerTest {
     private static ExtractedTextBlock block(String id, String text, NormalizedBoundingBox region) {
         return new ExtractedTextBlock(id, TextBlockKind.PARAGRAPH, 1, List.of(region), TextSource.NATIVE,
                 text, 0.95);
+    }
+
+    private static OcrWord word(String text, double x1, double y1, double x2, double y2, String line) {
+        return new OcrWord(text, new NormalizedBoundingBox(x1, y1, x2, y2), 0.90, line);
     }
 }

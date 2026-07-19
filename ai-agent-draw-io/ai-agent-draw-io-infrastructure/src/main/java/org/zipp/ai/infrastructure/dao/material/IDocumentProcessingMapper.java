@@ -11,6 +11,9 @@ import org.zipp.ai.infrastructure.dao.material.po.RevisionStructurePagePO;
 import org.zipp.ai.infrastructure.dao.material.po.DocumentStructureArtifactPO;
 import org.zipp.ai.infrastructure.dao.material.po.MaterialSectionPO;
 import org.zipp.ai.infrastructure.dao.material.po.VisualCropArtifactPO;
+import org.zipp.ai.infrastructure.dao.material.po.EvidenceUnitPO;
+import org.zipp.ai.infrastructure.dao.material.po.EvidenceRegionPO;
+import org.zipp.ai.infrastructure.dao.material.po.EvidenceRelationPO;
 
 import java.util.List;
 
@@ -59,15 +62,33 @@ public interface IDocumentProcessingMapper {
                                                    @Param("jobId") String jobId,
                                                    @Param("workerId") String workerId,
                                                    @Param("fenceToken") long fenceToken);
+    List<RevisionStructurePagePO> selectEvidenceWork(@Param("revisionId") String revisionId,
+                                                     @Param("jobId") String jobId,
+                                                     @Param("workerId") String workerId,
+                                                     @Param("fenceToken") long fenceToken);
     int insertRevisionArtifact(DocumentStructureArtifactPO artifact);
     DocumentStructureArtifactPO selectRevisionArtifact(@Param("revisionId") String revisionId,
                                                        @Param("artifactKind") String artifactKind);
     int insertSection(MaterialSectionPO section);
     MaterialSectionPO selectSection(@Param("revisionId") String revisionId,
                                     @Param("ordinal") int ordinal);
+    MaterialSectionPO selectSectionById(@Param("revisionId") String revisionId,
+                                        @Param("sectionId") String sectionId);
     int insertVisualCrop(VisualCropArtifactPO artifact);
     VisualCropArtifactPO selectVisualCrop(@Param("revisionId") String revisionId,
                                           @Param("candidateId") String candidateId);
+    int insertEvidenceUnit(EvidenceUnitPO evidence);
+    EvidenceUnitPO selectEvidenceUnit(@Param("evidenceId") String evidenceId);
+    int insertEvidenceRegion(EvidenceRegionPO region);
+    EvidenceRegionPO selectEvidenceRegion(@Param("evidenceId") String evidenceId,
+                                          @Param("ordinal") int ordinal);
+    int insertEvidenceRelation(EvidenceRelationPO relation);
+    EvidenceRelationPO selectEvidenceRelation(@Param("fromEvidenceId") String fromEvidenceId,
+                                              @Param("toEvidenceId") String toEvidenceId,
+                                              @Param("relationType") String relationType);
+    int updateSectionHeading(@Param("revisionId") String revisionId,
+                             @Param("sectionId") String sectionId,
+                             @Param("evidenceId") String evidenceId);
     int updatePageVisualStatus(@Param("revisionId") String revisionId,
                                @Param("pageNo") int pageNo,
                                @Param("visualStatus") String visualStatus);

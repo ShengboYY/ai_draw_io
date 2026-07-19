@@ -30,7 +30,8 @@ class WorkerPollerTest {
                         ProcessingJobStage.EXTRACT_NATIVE, ProcessingJobStage.OCR_SELECTED_PAGES,
                         ProcessingJobStage.NORMALIZE_CANONICAL_PAGES,
                         ProcessingJobStage.BUILD_DOCUMENT_STRUCTURE,
-                        ProcessingJobStage.ANALYZE_VISUALS),
+                        ProcessingJobStage.ANALYZE_VISUALS,
+                        ProcessingJobStage.BUILD_EVIDENCE_UNITS),
                 WorkerPoller.claimableStages(true, true));
     }
 }

@@ -9,9 +9,11 @@ import org.zipp.ai.domain.ingestion.port.ProcessingQueuePort;
 import org.zipp.ai.domain.ingestion.port.RevisionArtifactPort;
 import org.zipp.ai.domain.ingestion.service.CanonicalPageAssembler;
 import org.zipp.ai.domain.ingestion.service.DocumentStructureBuilder;
+import org.zipp.ai.domain.ingestion.service.EvidenceUnitBuilder;
 import org.zipp.ai.domain.ingestion.service.OcrSelectionPolicy;
 import org.zipp.ai.domain.ingestion.service.VisualCandidateSelectionPolicy;
 import org.zipp.ai.ingestion.worker.document.RevisionPageCodec;
+import org.zipp.ai.ingestion.worker.document.EvidenceBuildLimits;
 import org.zipp.ai.ingestion.worker.document.VisualCropDeriver;
 
 import java.nio.file.Files;
@@ -26,13 +28,16 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 class DocumentProcessingJobHandlerTest {
 
     private static final Instant NOW = Instant.parse("2026-07-22T00:00:00Z");
+    private static final EvidenceBuildLimits EVIDENCE_LIMITS =
+            new EvidenceBuildLimits(16L * 1024 * 1024, 5_000_000, 500_000);
     private static final org.zipp.ai.ingestion.worker.document.DocumentProcessingProfile PROFILE =
             org.zipp.ai.ingestion.worker.document.DocumentProcessingProfile.of(200, "tesseract",
                     "eng+chi_sim", 120, "test-tesseract-4.1.1",
                     new OcrSelectionPolicy(40, 0.10, 0.20, 0.01, 0.03),
                     new CanonicalPageAssembler(0.70), new DocumentStructureBuilder(),
                     new VisualCandidateSelectionPolicy(12, 0.15, 3),
-                    new VisualCropDeriver(25_000_000, 10 * 1024 * 1024));
+                    new VisualCropDeriver(25_000_000, 10 * 1024 * 1024),
+                    new EvidenceUnitBuilder(), EVIDENCE_LIMITS);
 
     @Test
     void processesNativeOcrAndCanonicalStagesWithExactArtifacts() throws Exception {
@@ -60,6 +65,7 @@ class DocumentProcessingJobHandlerTest {
         DocumentProcessingJobHandler handler = new DocumentProcessingJobHandler(work, artifacts, parser, ocr,
                 new OcrSelectionPolicy(40, 0.10, 0.20, 0.01), new CanonicalPageAssembler(0.70),
                 new DocumentStructureBuilder(), new VisualCandidateSelectionPolicy(12, 0.15, 3),
+                new EvidenceUnitBuilder(), EVIDENCE_LIMITS,
                 new VisualCropDeriver(25_000_000, 10 * 1024 * 1024),
                 new RevisionPageCodec(new ObjectMapper()), PROFILE,
                 queue, Clock.fixed(NOW, ZoneOffset.UTC));
@@ -96,7 +102,14 @@ class DocumentProcessingJobHandlerTest {
         assertEquals(ProcessingJobStage.BUILD_EVIDENCE_UNITS, work.nextStage);
         assertNotNull(work.visualResult);
         assertEquals(0, work.visualResult.manifest().totalCandidateCount());
-        assertEquals(7, queue.heartbeats);
+        assertEquals(JobOutcome.Kind.SUCCEEDED,
+                handler.handle(lease(ProcessingJobStage.BUILD_EVIDENCE_UNITS,
+                        PROFILE.evidenceInput(work.visualResult.manifestArtifact().contentSha256()))).kind());
+        assertEquals(ProcessingJobStage.BUILD_RETRIEVAL_CHUNKS, work.nextStage);
+        assertNotNull(work.evidenceResult);
+        assertEquals("revisions/rev_1/evidence-manifest.json.gz",
+                work.evidenceResult.manifestArtifact().objectKey());
+        assertEquals(9, queue.heartbeats);
         assertEquals(JobOutcome.Kind.PERMANENT_FAILURE,
                 handler.handle(lease(ProcessingJobStage.EXTRACT_NATIVE, "0".repeat(64))).kind());
     }
@@ -112,6 +125,7 @@ class DocumentProcessingJobHandlerTest {
                 (path, pageNo) -> { throw new AssertionError("mismatched OCR must not run"); },
                 new OcrSelectionPolicy(40, 0.10, 0.20, 0.01), new CanonicalPageAssembler(0.70),
                 new DocumentStructureBuilder(), new VisualCandidateSelectionPolicy(12, 0.15, 3),
+                new EvidenceUnitBuilder(), EVIDENCE_LIMITS,
                 new VisualCropDeriver(25_000_000, 10 * 1024 * 1024),
                 new RevisionPageCodec(new ObjectMapper()), PROFILE,
                 new RecordingQueue(),
@@ -123,6 +137,57 @@ class DocumentProcessingJobHandlerTest {
 
         assertEquals(JobOutcome.Kind.TRANSIENT_FAILURE, outcome.kind());
         assertEquals("PROCESSING_PROFILE_UNAVAILABLE", outcome.errorCode());
+    }
+
+    @Test
+    void evidenceBuildRejectsDocumentsAboveTheCumulativeCharacterBudget() {
+        InMemoryArtifacts artifacts = new InMemoryArtifacts();
+        StoredArtifact original = artifacts.putImmutable("original/blob", new byte[]{1}, "application/pdf");
+        InMemoryWork work = new InMemoryWork(new RevisionExtractionWork(
+                "rev_1", "application/pdf", 0, 0, PROFILE.overallFingerprint(), original));
+        RevisionPageCodec codec = new RevisionPageCodec(new ObjectMapper());
+        List<RevisionCanonicalPageWork> pageWork = new ArrayList<>();
+        for (int pageNo = 1; pageNo <= 2; pageNo++) {
+            String text = "a".repeat(1_300_000);
+            NormalizedBoundingBox region = new NormalizedBoundingBox(0.1, 0.1, 0.9, 0.2);
+            CanonicalBlock block = new CanonicalBlock("block_" + pageNo, TextBlockKind.PARAGRAPH, 1,
+                    List.of(region), TextSource.NATIVE, text, text,
+                    List.of(new SourceMapSpan(0, text.length(), 0, text.length(), List.of(region))),
+                    0.95, BoilerplatePosition.NONE);
+            CanonicalPage canonical = new CanonicalPage(pageNo, 100, 100, List.of(block),
+                    NativeTextQuality.empty(), null, false);
+            StoredArtifact canonicalArtifact = artifacts.putImmutable("canonical-" + pageNo + ".json.gz",
+                    codec.encode(canonical), "application/json+gzip");
+            StoredArtifact image = artifacts.putImmutable("page-" + pageNo + ".png",
+                    new byte[]{1}, "image/png");
+            pageWork.add(new RevisionCanonicalPageWork("page_" + pageNo, pageNo, image, canonicalArtifact));
+        }
+        DocumentSection root = new DocumentSection("sec_root", null, 1, 1, 1, 2,
+                null, "c".repeat(64));
+        DocumentStructure structure = new DocumentStructure("document-structure-v1", List.of(root),
+                List.of(), List.of(), "e".repeat(64));
+        StoredArtifact structureArtifact = artifacts.putImmutable("structure.json.gz",
+                codec.encode(structure), "application/json+gzip");
+        VisualCropManifest visual = new VisualCropManifest("visual-crop-manifest-v1",
+                structure.structureHash(), "selection-v1", 0, 0, List.of());
+        StoredArtifact visualArtifact = artifacts.putImmutable("visual.json.gz",
+                codec.encode(visual), "application/json+gzip");
+        work.evidenceWork = new RevisionEvidenceWork("rev_1", "ver_1", 5, 0,
+                PROFILE.overallFingerprint(), structureArtifact, visualArtifact, pageWork);
+        DocumentProcessingJobHandler handler = new DocumentProcessingJobHandler(work, artifacts,
+                (path, mediaType, directory) -> { throw new AssertionError("parser must not run"); },
+                (path, pageNo) -> { throw new AssertionError("OCR must not run"); },
+                new OcrSelectionPolicy(40, 0.10, 0.20, 0.01), new CanonicalPageAssembler(0.70),
+                new DocumentStructureBuilder(), new VisualCandidateSelectionPolicy(12, 0.15, 3),
+                new EvidenceUnitBuilder(), EVIDENCE_LIMITS,
+                new VisualCropDeriver(25_000_000, 10 * 1024 * 1024),
+                codec, PROFILE, new RecordingQueue(), Clock.fixed(NOW, ZoneOffset.UTC));
+
+        JobOutcome outcome = handler.handle(lease(ProcessingJobStage.BUILD_EVIDENCE_UNITS,
+                PROFILE.evidenceInput(visualArtifact.contentSha256())));
+
+        assertEquals(JobOutcome.Kind.PERMANENT_FAILURE, outcome.kind());
+        assertEquals("DOCUMENT_PROCESSING_LIMIT_EXCEEDED", outcome.errorCode());
     }
 
     private static ProcessingJobLease lease(ProcessingJobStage stage, String inputFingerprint) {
@@ -142,6 +207,8 @@ class DocumentProcessingJobHandlerTest {
         private DocumentStructureResult structureResult;
         private RevisionVisualWork visualWork;
         private VisualProcessingResult visualResult;
+        private RevisionEvidenceWork evidenceWork;
+        private EvidenceBuildResult evidenceResult;
 
         private InMemoryWork(RevisionExtractionWork extraction) {
             this.extraction = extraction;
@@ -222,6 +289,23 @@ class DocumentProcessingJobHandlerTest {
         public boolean commitVisualCrops(RevisionVisualWork work, VisualProcessingResult result,
                                          ProcessingJob nextJob, WorkerFence fence) {
             visualResult = result;
+            evidenceWork = new RevisionEvidenceWork(work.revisionId(), work.versionId(), 5,
+                    work.materialLifecycleGeneration(), work.processingFingerprint(), work.structureArtifact(),
+                    result.manifestArtifact(), work.pages());
+            nextStage = nextJob.stage();
+            nextWorkKey = nextJob.workKey();
+            return true;
+        }
+
+        @Override
+        public Optional<RevisionEvidenceWork> findEvidenceWork(String revisionId, WorkerFence fence) {
+            return Optional.ofNullable(evidenceWork);
+        }
+
+        @Override
+        public boolean commitEvidence(RevisionEvidenceWork work, EvidenceBuildResult result,
+                                      ProcessingJob nextJob, WorkerFence fence) {
+            evidenceResult = result;
             nextStage = nextJob.stage();
             nextWorkKey = nextJob.workKey();
             return true;

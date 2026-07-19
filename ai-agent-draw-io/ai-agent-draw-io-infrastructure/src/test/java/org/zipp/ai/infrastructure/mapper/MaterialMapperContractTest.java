@@ -80,6 +80,18 @@ class MaterialMapperContractTest {
         assertTrue(mapper.contains("j.lease_until &gt; UTC_TIMESTAMP(3)"));
     }
 
+    @Test
+    void evidenceWorkReadsEveryExactPinOnlyUnderTheCurrentFence() throws Exception {
+        String mapper = resource("mybatis/mapper/material_document_processing_mapper.xml");
+
+        assertTrue(mapper.contains("<select id=\"selectEvidenceWork\""));
+        assertTrue(mapper.contains("visual.object_version_id AS visual_manifest_version_id"));
+        assertTrue(mapper.contains("canonical.object_version_id AS canonical_version_id"));
+        assertTrue(mapper.contains("j.stage = 'BUILD_EVIDENCE_UNITS'"));
+        assertTrue(mapper.contains("display_text_object_version_id"));
+        assertTrue(mapper.contains("visual_object_version_id"));
+    }
+
     private String resource(String path) throws Exception {
         try (InputStream stream = getClass().getClassLoader().getResourceAsStream(path)) {
             assertNotNull(stream, path);

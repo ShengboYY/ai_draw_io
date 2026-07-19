@@ -4,6 +4,8 @@ import org.zipp.ai.domain.ingestion.model.aggregate.ProcessingJob;
 import org.zipp.ai.domain.ingestion.model.valobj.CanonicalPage;
 import org.zipp.ai.domain.ingestion.model.valobj.CanonicalPageResult;
 import org.zipp.ai.domain.ingestion.model.valobj.DocumentStructureResult;
+import org.zipp.ai.domain.ingestion.model.valobj.EvidenceBuildResult;
+import org.zipp.ai.domain.ingestion.model.valobj.EvidenceSourcePage;
 import org.zipp.ai.domain.ingestion.model.valobj.NativePageResult;
 import org.zipp.ai.domain.ingestion.model.valobj.OcrPageResult;
 import org.zipp.ai.domain.ingestion.model.valobj.PageExtraction;
@@ -25,10 +27,13 @@ import org.zipp.ai.domain.ingestion.port.ProcessingQueuePort;
 import org.zipp.ai.domain.ingestion.port.RevisionArtifactPort;
 import org.zipp.ai.domain.ingestion.service.CanonicalPageAssembler;
 import org.zipp.ai.domain.ingestion.service.DocumentStructureBuilder;
+import org.zipp.ai.domain.ingestion.service.EvidenceUnitBuilder;
 import org.zipp.ai.domain.ingestion.service.OcrSelectionPolicy;
 import org.zipp.ai.domain.ingestion.service.VisualCandidateSelectionPolicy;
 import org.zipp.ai.ingestion.worker.document.RevisionPageCodec;
 import org.zipp.ai.ingestion.worker.document.DocumentProcessingProfile;
+import org.zipp.ai.ingestion.worker.document.EvidenceBuildLimits;
+import org.zipp.ai.ingestion.worker.document.ProcessingLimitExceededException;
 import org.zipp.ai.ingestion.worker.document.VisualCropDeriver;
 
 import java.io.IOException;
@@ -59,6 +64,8 @@ public final class DocumentProcessingJobHandler {
     private final CanonicalPageAssembler canonicalAssembler;
     private final DocumentStructureBuilder structureBuilder;
     private final VisualCandidateSelectionPolicy visualSelection;
+    private final EvidenceUnitBuilder evidenceBuilder;
+    private final EvidenceBuildLimits evidenceLimits;
     private final VisualCropDeriver visualCropper;
     private final RevisionPageCodec codec;
     private final DocumentProcessingProfile profile;
@@ -71,6 +78,8 @@ public final class DocumentProcessingJobHandler {
                                         CanonicalPageAssembler canonicalAssembler,
                                         DocumentStructureBuilder structureBuilder,
                                         VisualCandidateSelectionPolicy visualSelection,
+                                        EvidenceUnitBuilder evidenceBuilder,
+                                        EvidenceBuildLimits evidenceLimits,
                                         VisualCropDeriver visualCropper, RevisionPageCodec codec,
                                         DocumentProcessingProfile profile,
                                         ProcessingQueuePort queue, Clock clock) {
@@ -82,6 +91,8 @@ public final class DocumentProcessingJobHandler {
         this.canonicalAssembler = Objects.requireNonNull(canonicalAssembler, "canonicalAssembler");
         this.structureBuilder = Objects.requireNonNull(structureBuilder, "structureBuilder");
         this.visualSelection = Objects.requireNonNull(visualSelection, "visualSelection");
+        this.evidenceBuilder = Objects.requireNonNull(evidenceBuilder, "evidenceBuilder");
+        this.evidenceLimits = Objects.requireNonNull(evidenceLimits, "evidenceLimits");
         this.visualCropper = Objects.requireNonNull(visualCropper, "visualCropper");
         this.codec = Objects.requireNonNull(codec, "codec");
         this.profile = Objects.requireNonNull(profile, "profile");
@@ -102,8 +113,11 @@ public final class DocumentProcessingJobHandler {
                 case NORMALIZE_CANONICAL_PAGES -> canonicalize(revisionId, lease);
                 case BUILD_DOCUMENT_STRUCTURE -> buildStructure(revisionId, lease);
                 case ANALYZE_VISUALS -> prepareVisualCrops(revisionId, lease);
+                case BUILD_EVIDENCE_UNITS -> buildEvidence(revisionId, lease);
                 default -> JobOutcome.permanent("UNSUPPORTED_DOCUMENT_STAGE");
             };
+        } catch (ProcessingLimitExceededException e) {
+            return JobOutcome.permanent("DOCUMENT_PROCESSING_LIMIT_EXCEEDED");
         } catch (IllegalArgumentException e) {
             return JobOutcome.permanent("INVALID_DOCUMENT_CONTENT");
         } catch (RuntimeException e) {
@@ -344,6 +358,67 @@ public final class DocumentProcessingJobHandler {
         ProcessingJob successor = nextJob(revisionId, ProcessingJobStage.BUILD_EVIDENCE_UNITS, "root",
                 profile.evidenceInput(manifestArtifact.contentSha256()));
         if (!work.commitVisualCrops(source, result, successor, fence(lease))) {
+            return JobOutcome.transientFailure(UploadErrorCode.STALE_FENCE.name());
+        }
+        return JobOutcome.succeeded();
+    }
+
+    private JobOutcome buildEvidence(String revisionId, ProcessingJobLease lease) {
+        var source = work.findEvidenceWork(revisionId, fence(lease)).orElse(null);
+        if (source == null) {
+            return JobOutcome.succeeded();
+        }
+        if (!profile.overallFingerprint().equals(source.processingFingerprint())) {
+            return JobOutcome.transientFailure("PROCESSING_PROFILE_UNAVAILABLE");
+        }
+        if (!profile.evidenceInput(source.visualManifestArtifact().contentSha256())
+                .equals(lease.job().inputFingerprint())) {
+            return JobOutcome.permanent("STALE_PROCESSING_FINGERPRINT");
+        }
+        if (!heartbeat(lease)) {
+            return JobOutcome.transientFailure(UploadErrorCode.STALE_FENCE.name());
+        }
+        var structure = codec.decodeDocumentStructure(
+                artifacts.read(source.structureArtifact(), MAX_PAGE_ARTIFACT_BYTES),
+                evidenceLimits.maximumArtifactUncompressedBytes());
+        var visualManifest = codec.decodeVisualCropManifest(
+                artifacts.read(source.visualManifestArtifact(), MAX_PAGE_ARTIFACT_BYTES),
+                evidenceLimits.maximumArtifactUncompressedBytes());
+        List<EvidenceSourcePage> pages = new ArrayList<>();
+        long cumulativeCharacters = 0;
+        long cumulativeRegions = 0;
+        for (var page : source.pages()) {
+            if (!heartbeat(lease)) {
+                return JobOutcome.transientFailure(UploadErrorCode.STALE_FENCE.name());
+            }
+            CanonicalPage canonical = codec.decodeCanonicalPage(
+                    artifacts.read(page.canonicalPage(), MAX_PAGE_ARTIFACT_BYTES),
+                    evidenceLimits.maximumArtifactUncompressedBytes());
+            if (canonical.pageNo() != page.pageNo()) {
+                throw new IllegalArgumentException("canonical page number does not match its evidence pin");
+            }
+            long pageCharacters = canonical.blocks().stream().mapToLong(block ->
+                    (long) block.extractedText().length() + block.displayText().length()).sum();
+            long pageRegions = canonical.rasterRegions().size()
+                    + canonical.blocks().stream().mapToLong(block -> block.regions().size()
+                            + block.sourceMap().stream().mapToLong(span -> span.regions().size()).sum()).sum();
+            if (pageCharacters > evidenceLimits.maximumDocumentCharacters() - cumulativeCharacters
+                    || pageRegions > evidenceLimits.maximumDocumentRegions() - cumulativeRegions) {
+                throw new ProcessingLimitExceededException(
+                        "document exceeds the cumulative evidence build budget");
+            }
+            cumulativeCharacters += pageCharacters;
+            cumulativeRegions += pageRegions;
+            pages.add(new EvidenceSourcePage(page.pageId(), canonical, page.canonicalPage()));
+        }
+        var manifest = evidenceBuilder.build(source.revisionId(), source.versionId(),
+                structure, pages, visualManifest);
+        StoredArtifact manifestArtifact = artifacts.putImmutable(
+                "revisions/" + revisionId + "/evidence-manifest.json.gz", codec.encode(manifest), JSON_GZIP);
+        EvidenceBuildResult result = new EvidenceBuildResult(manifest, manifestArtifact);
+        ProcessingJob successor = nextJob(revisionId, ProcessingJobStage.BUILD_RETRIEVAL_CHUNKS, "root",
+                profile.retrievalInput(manifestArtifact.contentSha256()));
+        if (!work.commitEvidence(source, result, successor, fence(lease))) {
             return JobOutcome.transientFailure(UploadErrorCode.STALE_FENCE.name());
         }
         return JobOutcome.succeeded();
