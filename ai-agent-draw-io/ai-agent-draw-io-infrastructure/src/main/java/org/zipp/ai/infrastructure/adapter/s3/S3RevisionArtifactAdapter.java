@@ -59,7 +59,7 @@ public final class S3RevisionArtifactAdapter implements RevisionArtifactPort {
         HeadObjectResponse head = s3Client.headObject(HeadObjectRequest.builder().bucket(materialsBucket)
                 .key(key).versionId(versionId).checksumMode(ChecksumMode.ENABLED).build());
         if (head.contentLength() != bytes.length || !hex.equals(head.metadata().get("content-sha256"))
-                || !base64.equals(head.checksumSHA256())) {
+                || !base64.equals(head.checksumSHA256()) || !type.equals(head.contentType())) {
             deleteVersion(key, versionId);
             throw new IllegalStateException("stored revision artifact failed identity verification");
         }
@@ -100,7 +100,8 @@ public final class S3RevisionArtifactAdapter implements RevisionArtifactPort {
         try {
             HeadObjectResponse head = s3Client.headObject(HeadObjectRequest.builder()
                     .bucket(materialsBucket).key(key).checksumMode(ChecksumMode.ENABLED).build());
-            if (!expectedSha256.equals(head.metadata().get("content-sha256"))) {
+            if (!expectedSha256.equals(head.metadata().get("content-sha256"))
+                    || !contentType.equals(head.contentType())) {
                 throw new IllegalStateException("immutable artifact key already contains different content");
             }
             return new StoredArtifact(key, requireText(head.versionId(), "artifact objectVersionId"),

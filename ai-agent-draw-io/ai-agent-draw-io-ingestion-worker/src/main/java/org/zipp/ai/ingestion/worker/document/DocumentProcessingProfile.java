@@ -5,6 +5,7 @@ import org.zipp.ai.domain.ingestion.service.DocumentStructureBuilder;
 import org.zipp.ai.domain.ingestion.service.OcrSelectionPolicy;
 import org.zipp.ai.domain.ingestion.service.NativeBlockConfidencePolicy;
 import org.zipp.ai.domain.ingestion.service.ProcessingStageFingerprintPolicy;
+import org.zipp.ai.domain.ingestion.service.VisualCandidateSelectionPolicy;
 import org.zipp.ai.domain.ingestion.model.valobj.ProcessingRevisionProfile;
 
 import java.nio.charset.StandardCharsets;
@@ -14,7 +15,7 @@ import java.util.List;
 
 /** Immutable processing configuration used in revision and stage fingerprints. */
 public record DocumentProcessingProfile(String parser, String ocr, String selection,
-                                        String canonical, String structure) {
+                                        String canonical, String structure, String visual) {
 
     public DocumentProcessingProfile {
         parser = requireText(parser, "parser");
@@ -22,13 +23,16 @@ public record DocumentProcessingProfile(String parser, String ocr, String select
         selection = requireText(selection, "selection");
         canonical = requireText(canonical, "canonical");
         structure = requireText(structure, "structure");
+        visual = requireText(visual, "visual");
     }
 
     public static DocumentProcessingProfile of(int renderDpi, String executable, String languages,
                                                long timeoutSeconds, String tesseractRuntimeVersion,
                                                OcrSelectionPolicy selection,
                                                CanonicalPageAssembler canonical,
-                                               DocumentStructureBuilder structure) {
+                                               DocumentStructureBuilder structure,
+                                               VisualCandidateSelectionPolicy visual,
+                                               VisualCropDeriver cropper) {
         String normalizedLanguages = requireText(languages, "languages");
         if (!"eng+chi_sim".equals(normalizedLanguages)) {
             throw new IllegalArgumentException("WP3B calibration requires Tesseract languages eng+chi_sim");
@@ -40,12 +44,13 @@ public record DocumentProcessingProfile(String parser, String ocr, String select
                         + ":executable=" + requireText(executable, "executable")
                         + ":languages=" + normalizedLanguages
                         + ":timeout=" + timeoutSeconds,
-                selection.fingerprint(), canonical.fingerprint(), structure.fingerprint());
+                selection.fingerprint(), canonical.fingerprint(), structure.fingerprint(),
+                visual.fingerprint() + ":" + cropper.fingerprint());
     }
 
     public String overallFingerprint() {
         return sha256(parser + ":" + ocr + ":" + selection + ":" + canonical
-                + ":" + structure + ":visual-schema-v1:chunk-v1");
+                + ":" + structure + ":" + visual + ":chunk-v1");
     }
 
     public ProcessingRevisionProfile revisionProfile() {
@@ -54,7 +59,7 @@ public record DocumentProcessingProfile(String parser, String ocr, String select
                 auditVersion("canonical", canonical),
                 "chunk-v1",
                 auditVersion(ocrAuditPrefix(), ocr),
-                "visual-schema-v1");
+                auditVersion("visual", visual));
     }
 
     public String extractionInput(String sourceSha256) {
@@ -84,6 +89,10 @@ public record DocumentProcessingProfile(String parser, String ocr, String select
     public String visualInput(String structureHash, String structureArtifactHash) {
         return ProcessingStageFingerprintPolicy.visualInput(
                 structureHash, structureArtifactHash, overallFingerprint());
+    }
+
+    public String evidenceInput(String visualManifestHash) {
+        return ProcessingStageFingerprintPolicy.evidenceInput(visualManifestHash, overallFingerprint());
     }
 
     private static String sha256(String value) {

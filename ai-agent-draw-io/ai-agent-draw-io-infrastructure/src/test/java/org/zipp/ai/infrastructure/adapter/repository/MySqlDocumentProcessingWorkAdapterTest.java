@@ -11,6 +11,7 @@ import org.zipp.ai.infrastructure.dao.material.po.RevisionArtifactPO;
 import org.zipp.ai.infrastructure.dao.material.po.RevisionStructurePagePO;
 import org.zipp.ai.infrastructure.dao.material.po.DocumentStructureArtifactPO;
 import org.zipp.ai.infrastructure.dao.material.po.MaterialSectionPO;
+import org.zipp.ai.infrastructure.dao.material.po.VisualCropArtifactPO;
 
 import java.lang.reflect.Proxy;
 import java.time.Instant;
@@ -229,6 +230,59 @@ class MySqlDocumentProcessingWorkAdapterTest {
         assertThrows(IllegalStateException.class, () -> adapter.commitStructure(source,
                 new DocumentStructureResult(structure, structureArtifact), successor,
                 new WorkerFence("job_1", "worker-1", 2)));
+    }
+
+    @Test
+    void visualCommitPinsCropsAndManifestBeforeQueuingEvidenceWork() {
+        AtomicReference<VisualCropArtifactPO> persistedCrop = new AtomicReference<>();
+        AtomicReference<DocumentStructureArtifactPO> persistedManifest = new AtomicReference<>();
+        AtomicReference<ProcessingJobPO> queued = new AtomicReference<>();
+        IDocumentProcessingMapper mapper = proxy(IDocumentProcessingMapper.class, (method, args) -> switch (method) {
+            case "countCurrentFence", "updatePageVisualStatus", "advanceRevision" -> 1;
+            case "insertVisualCrop" -> {
+                persistedCrop.set((VisualCropArtifactPO) args[0]);
+                yield 1;
+            }
+            case "selectVisualCrop" -> persistedCrop.get();
+            case "insertRevisionArtifact" -> {
+                persistedManifest.set((DocumentStructureArtifactPO) args[0]);
+                yield 1;
+            }
+            case "selectRevisionArtifact" -> persistedManifest.get();
+            default -> unsupported(method);
+        });
+        IProcessingJobMapper jobs = proxy(IProcessingJobMapper.class, (method, args) -> {
+            if ("insert".equals(method)) {
+                queued.set((ProcessingJobPO) args[0]);
+                return 1;
+            }
+            return unsupported(method);
+        });
+        var adapter = new MySqlDocumentProcessingWorkAdapter(mapper, jobs);
+        RevisionCanonicalPageWork page = new RevisionCanonicalPageWork("page_1", 1,
+                artifact("page.png", "image-version"), artifact("canonical.json.gz", "canonical-version"));
+        RevisionVisualWork source = new RevisionVisualWork("rev_1", "ver_1", 5, 7, "d".repeat(64),
+                artifact("structure.json.gz", "structure-version"), List.of(page));
+        VisualCandidate candidate = new VisualCandidate("vis_1", 1,
+                List.of(new NormalizedBoundingBox(0.1, 0.1, 0.5, 0.5)), "caption_1");
+        VisualCropArtifact crop = new VisualCropArtifact("page_1", candidate,
+                artifact("visual/vis_1.png", "crop-version"));
+        VisualCropManifest manifest = new VisualCropManifest("visual-crop-manifest-v1", "e".repeat(64),
+                "policy-v1", 1, 0, List.of(crop));
+        StoredArtifact manifestArtifact = new StoredArtifact("visual-manifest.json.gz", "manifest-version",
+                "f".repeat(64), 30, "application/json+gzip");
+        ProcessingJob successor = ProcessingJob.enqueue("job_evidence", ProcessingJobTarget.forRevision("rev_1"),
+                ProcessingJobStage.BUILD_EVIDENCE_UNITS, "root",
+                org.zipp.ai.domain.ingestion.service.ProcessingStageFingerprintPolicy.evidenceInput(
+                        manifestArtifact.contentSha256(), source.processingFingerprint()),
+                0, Instant.parse("2026-07-25T00:00:00Z"));
+
+        assertTrue(adapter.commitVisualCrops(source, new VisualProcessingResult(manifest, manifestArtifact),
+                successor, new WorkerFence("job_1", "worker-1", 2)));
+
+        assertEquals("crop-version", persistedCrop.get().getObjectVersionId());
+        assertEquals("VISUAL_CROP_MANIFEST", persistedManifest.get().getArtifactKind());
+        assertEquals(ProcessingJobStage.BUILD_EVIDENCE_UNITS.name(), queued.get().getStage());
     }
 
     private static StoredArtifact artifact(String key, String version) {

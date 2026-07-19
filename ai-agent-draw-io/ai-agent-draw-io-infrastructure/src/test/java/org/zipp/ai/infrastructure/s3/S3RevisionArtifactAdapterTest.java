@@ -39,7 +39,8 @@ class S3RevisionArtifactAdapterTest {
                             throw NoSuchKeyException.builder().message("missing").build();
                         }
                         yield HeadObjectResponse.builder().versionId("artifact-version").contentLength((long) content.length)
-                                .checksumSHA256(base64).metadata(Map.of("content-sha256", hex)).build();
+                                .contentType("application/gzip").checksumSHA256(base64)
+                                .metadata(Map.of("content-sha256", hex)).build();
                     }
                     case "putObject" -> {
                         put.set((PutObjectRequest) args[0]);

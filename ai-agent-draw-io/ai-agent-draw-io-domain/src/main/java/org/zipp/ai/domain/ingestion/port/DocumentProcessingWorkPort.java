@@ -8,6 +8,8 @@ import org.zipp.ai.domain.ingestion.model.valobj.OcrPageResult;
 import org.zipp.ai.domain.ingestion.model.valobj.RevisionExtractionWork;
 import org.zipp.ai.domain.ingestion.model.valobj.RevisionPageBatch;
 import org.zipp.ai.domain.ingestion.model.valobj.RevisionStructureWork;
+import org.zipp.ai.domain.ingestion.model.valobj.RevisionVisualWork;
+import org.zipp.ai.domain.ingestion.model.valobj.VisualProcessingResult;
 import org.zipp.ai.domain.ingestion.model.valobj.WorkerFence;
 
 import java.util.List;
@@ -26,4 +28,7 @@ public interface DocumentProcessingWorkPort {
     Optional<RevisionStructureWork> findStructureWork(String revisionId, WorkerFence fence);
     boolean commitStructure(RevisionStructureWork work, DocumentStructureResult result,
                             ProcessingJob nextJob, WorkerFence fence);
+    Optional<RevisionVisualWork> findVisualWork(String revisionId, WorkerFence fence);
+    boolean commitVisualCrops(RevisionVisualWork work, VisualProcessingResult result,
+                              ProcessingJob nextJob, WorkerFence fence);
 }

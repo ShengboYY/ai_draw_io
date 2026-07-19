@@ -18,6 +18,9 @@ import org.zipp.ai.domain.ingestion.model.valobj.RevisionCanonicalPageWork;
 import org.zipp.ai.domain.ingestion.model.valobj.RevisionStructureWork;
 import org.zipp.ai.domain.ingestion.model.valobj.StoredArtifact;
 import org.zipp.ai.domain.ingestion.model.valobj.WorkerFence;
+import org.zipp.ai.domain.ingestion.model.valobj.RevisionVisualWork;
+import org.zipp.ai.domain.ingestion.model.valobj.VisualCropArtifact;
+import org.zipp.ai.domain.ingestion.model.valobj.VisualProcessingResult;
 import org.zipp.ai.domain.ingestion.port.DocumentProcessingWorkPort;
 import org.zipp.ai.domain.ingestion.service.ProcessingStageFingerprintPolicy;
 import org.zipp.ai.infrastructure.dao.material.IDocumentProcessingMapper;
@@ -31,6 +34,7 @@ import org.zipp.ai.infrastructure.dao.material.po.ProcessingGenerationPO;
 import org.zipp.ai.infrastructure.dao.material.po.RevisionStructurePagePO;
 import org.zipp.ai.infrastructure.dao.material.po.DocumentStructureArtifactPO;
 import org.zipp.ai.infrastructure.dao.material.po.MaterialSectionPO;
+import org.zipp.ai.infrastructure.dao.material.po.VisualCropArtifactPO;
 
 import java.util.List;
 import java.util.Objects;
@@ -238,11 +242,66 @@ public class MySqlDocumentProcessingWorkAdapter implements DocumentProcessingWor
                 source.materialLifecycleGeneration(), ProcessingJobStage.BUILD_DOCUMENT_STRUCTURE, fence)) {
             return false;
         }
-        persistStructureArtifact(source.revisionId(), output.artifact());
+        persistRevisionArtifact(source.revisionId(), "DOCUMENT_STRUCTURE", output.artifact());
         output.structure().sections().forEach(section -> persistSection(source.revisionId(), section));
         if (mapper.advanceRevision(source.revisionId(), source.revisionFenceGeneration(),
                 "VISUAL_ANALYSIS", 75) != 1) {
             throw new IllegalStateException("revision generation became stale during structure commit");
+        }
+        jobMapper.insert(toPo(successor));
+        return true;
+    }
+
+    @Override
+    public Optional<RevisionVisualWork> findVisualWork(String revisionId, WorkerFence fence) {
+        String id = requireText(revisionId, "revisionId");
+        WorkerFence current = Objects.requireNonNull(fence, "fence");
+        List<RevisionStructurePagePO> rows = mapper.selectVisualWork(id, current.jobId(), current.workerId(),
+                current.fenceToken());
+        if (rows.isEmpty()) {
+            return Optional.empty();
+        }
+        RevisionStructurePagePO first = rows.get(0);
+        StoredArtifact structure = new StoredArtifact(first.getStructureKey(), first.getStructureVersionId(),
+                first.getStructureSha256(), first.getStructureSize(), first.getStructureContentType());
+        return Optional.of(new RevisionVisualWork(first.getRevisionId(), first.getVersionId(),
+                first.getRevisionFenceGeneration(), first.getMaterialLifecycleGeneration(),
+                first.getProcessingFingerprint(), structure, rows.stream().map(this::toStructurePage).toList()));
+    }
+
+    @Override
+    @Transactional
+    public boolean commitVisualCrops(RevisionVisualWork work, VisualProcessingResult result,
+                                     ProcessingJob nextJob, WorkerFence fence) {
+        RevisionVisualWork source = Objects.requireNonNull(work, "work");
+        VisualProcessingResult output = Objects.requireNonNull(result, "result");
+        ProcessingJob successor = Objects.requireNonNull(nextJob, "nextJob");
+        if (successor.stage() != ProcessingJobStage.BUILD_EVIDENCE_UNITS
+                || !"root".equals(successor.workKey())
+                || !source.revisionId().equals(successor.target().revisionId())
+                || !ProcessingStageFingerprintPolicy.evidenceInput(output.manifestArtifact().contentSha256(),
+                        source.processingFingerprint()).equals(successor.inputFingerprint())) {
+            throw new IllegalArgumentException("visual crop commit requires the pinned evidence successor");
+        }
+        if (!hasCurrentFence(source.revisionId(), source.revisionFenceGeneration(),
+                source.materialLifecycleGeneration(), ProcessingJobStage.ANALYZE_VISUALS, fence)) {
+            return false;
+        }
+        for (VisualCropArtifact crop : output.manifest().crops()) {
+            persistVisualCrop(source.revisionId(), crop);
+        }
+        persistRevisionArtifact(source.revisionId(), "VISUAL_CROP_MANIFEST", output.manifestArtifact());
+        var croppedPages = output.manifest().crops().stream()
+                .map(crop -> crop.candidate().pageNo()).collect(java.util.stream.Collectors.toSet());
+        for (RevisionCanonicalPageWork page : source.pages()) {
+            if (mapper.updatePageVisualStatus(source.revisionId(), page.pageNo(),
+                    croppedPages.contains(page.pageNo()) ? "CROPPED" : "NOT_SELECTED") != 1) {
+                throw new IllegalStateException("visual page state was not selectable");
+            }
+        }
+        if (mapper.advanceRevision(source.revisionId(), source.revisionFenceGeneration(),
+                "EVIDENCE_BUILD", 82) != 1) {
+            throw new IllegalStateException("revision generation became stale during visual crop commit");
         }
         jobMapper.insert(toPo(successor));
         return true;
@@ -316,24 +375,50 @@ public class MySqlDocumentProcessingWorkAdapter implements DocumentProcessingWor
         return new RevisionCanonicalPageWork(po.getPageId(), po.getPageNo(), image, canonical);
     }
 
-    private void persistStructureArtifact(String revisionId, StoredArtifact artifact) {
+    private void persistRevisionArtifact(String revisionId, String artifactKind, StoredArtifact artifact) {
         DocumentStructureArtifactPO po = new DocumentStructureArtifactPO();
         po.setId("revision_artifact_" + UUID.randomUUID());
         po.setRevisionId(revisionId);
-        po.setArtifactKind("DOCUMENT_STRUCTURE");
+        po.setArtifactKind(artifactKind);
         po.setObjectKey(artifact.objectKey());
         po.setObjectVersionId(artifact.objectVersionId());
         po.setContentSha256(artifact.contentSha256());
         po.setByteSize(artifact.byteSize());
         po.setContentType(artifact.contentType());
         mapper.insertRevisionArtifact(po);
-        DocumentStructureArtifactPO persisted = mapper.selectRevisionArtifact(revisionId, "DOCUMENT_STRUCTURE");
+        DocumentStructureArtifactPO persisted = mapper.selectRevisionArtifact(revisionId, artifactKind);
         if (persisted == null || !artifact.objectKey().equals(persisted.getObjectKey())
                 || !artifact.objectVersionId().equals(persisted.getObjectVersionId())
                 || !artifact.contentSha256().equals(persisted.getContentSha256())
                 || artifact.byteSize() != persisted.getByteSize()
                 || !artifact.contentType().equals(persisted.getContentType())) {
-            throw new IllegalStateException("immutable structure artifact collided with different content");
+            throw new IllegalStateException("immutable revision artifact collided with different content");
+        }
+    }
+
+    private void persistVisualCrop(String revisionId, VisualCropArtifact crop) {
+        VisualCropArtifactPO po = new VisualCropArtifactPO();
+        po.setRevisionId(revisionId);
+        po.setCandidateId(crop.candidate().candidateId());
+        po.setPageId(crop.pageId());
+        po.setPageNo(crop.candidate().pageNo());
+        po.setCaptionBlockId(crop.candidate().captionBlockId());
+        po.setObjectKey(crop.artifact().objectKey());
+        po.setObjectVersionId(crop.artifact().objectVersionId());
+        po.setContentSha256(crop.artifact().contentSha256());
+        po.setByteSize(crop.artifact().byteSize());
+        po.setContentType(crop.artifact().contentType());
+        mapper.insertVisualCrop(po);
+        VisualCropArtifactPO persisted = mapper.selectVisualCrop(revisionId, po.getCandidateId());
+        if (persisted == null || !po.getPageId().equals(persisted.getPageId())
+                || po.getPageNo() != persisted.getPageNo()
+                || !Objects.equals(po.getCaptionBlockId(), persisted.getCaptionBlockId())
+                || !po.getObjectKey().equals(persisted.getObjectKey())
+                || !po.getObjectVersionId().equals(persisted.getObjectVersionId())
+                || !po.getContentSha256().equals(persisted.getContentSha256())
+                || po.getByteSize() != persisted.getByteSize()
+                || !po.getContentType().equals(persisted.getContentType())) {
+            throw new IllegalStateException("immutable visual crop collided with different content");
         }
     }
 

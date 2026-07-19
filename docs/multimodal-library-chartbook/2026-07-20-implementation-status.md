@@ -1,6 +1,6 @@
 # 多模态资料库与图表册：实施状态
 
-> 更新日期：2026-07-23
+> 更新日期：2026-07-25
 > 当前分支：`codex/multimodal-library-chartbook`
 
 ## 已完成阶段
@@ -13,7 +13,8 @@
 | WP3A：内容去重、资料物化与 original promote | 已完成 | `23c58260` |
 | WP3B：PDF/图片解析、选择性 OCR 与 canonical page | 已完成 | `8fadb343` |
 | WP3C-A：文档结构领域核心 | 已完成 | `af48c3cf` |
-| WP3C-B1：结构编排与持久化 | 已完成 | 当前 WP3C-B1 阶段提交 |
+| WP3C-B1：结构编排与持久化 | 已完成 | `8793495d` |
+| WP3C-B2a：本地视觉候选与 crop manifest | 已完成 | 当前 WP3C-B2a 阶段提交 |
 
 ## WP2 交付范围
 
@@ -90,6 +91,15 @@ WP2 不把文件复制到正式 materials bucket，也不提供预览。安全�
 - 结构提交后 revision 进入 `VISUAL_ANALYSIS`，并仅排入目标 revision、固定 structure hash/artifact hash/profile 的唯一 `ANALYZE_VISUALS` successor。
 - `2026-07-23-create-document-structure-artifacts.sql` 和后续修正 section identity scope 的 `2026-07-24-scope-document-section-identity.sql` 已在本地 MySQL 应用并记录 checksum；生产环境必须按顺序通过独立 migration release 应用后才能部署本阶段 Worker。
 
+## WP3C-B2a 交付范围
+
+- `ANALYZE_VISUALS` 只从固定 `DOCUMENT_STRUCTURE` 与 page image `VersionId` 读取，不向外部模型或第三方服务发送文件内容，仅访问受控 MySQL/S3；job input 绑定 structure hash、structure artifact hash 和完整 processing profile。
+- 领域 `VisualCandidateSelectionPolicy` 默认最多选择 `min(12, ceil(pageCount * 15%))` 页、每页最多 3 个区域；caption 与区域面积用于确定性排序，manifest 同时记录候选总数和被预算跳过的数量，不伪装成全量视觉覆盖。
+- Worker 按候选 bbox union 从 lossless page PNG 生成本地 lossless PNG crop，并限制解码像素与输出大小；crop 与 `visual-crop-manifest.json.gz` 都使用 revision-local immutable key。
+- MySQL `material_visual_artifact` 固定每个 candidate 的 crop object key、`VersionId`、SHA-256、大小和类型；crop、manifest、页面视觉状态和唯一 `BUILD_EVIDENCE_UNITS` successor 在同一 fenced 事务提交。
+- `2026-07-25-create-visual-crop-artifacts.sql` 已在本地 MySQL 应用并记录 checksum；生产必须在 `2026-07-23`、`2026-07-24` 之后执行。
+- 当前 crop 是 Evidence 创建前的内部 PNG，不是最终可引用视觉证据，也不是产品 WebP preview；未取得视觉授权时不会调用 VLM。
+
 ## 下一阶段
 
-WP3C-B2 从固定 page image 与 structure visual candidate 生成受限视觉 crop，接入 `ANALYZE_VISUALS`，再由 `BUILD_EVIDENCE_UNITS` 写入 Evidence Unit/region/relation 和可引用边界。视觉描述不是引用本体；引用必须固定原始页面/区域及对应 object `VersionId`。
+WP3C-B2b 消费固定 visual crop manifest 与 canonical pages，创建文本/视觉 Evidence Unit、`evidence_region`、caption/顺序 relation 和可引用边界；随后再接可选的严格 VLM JSON adapter。视觉描述不是引用本体，视觉引用必须固定原始页面、bbox 和视觉对象 `VersionId`。

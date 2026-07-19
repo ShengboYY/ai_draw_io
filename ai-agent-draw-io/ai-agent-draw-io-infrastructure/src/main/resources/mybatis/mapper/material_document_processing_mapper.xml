@@ -32,6 +32,59 @@
           AND j.lease_until &gt; UTC_TIMESTAMP(3)
     </select>
 
+    <select id="selectVisualWork"
+            resultType="org.zipp.ai.infrastructure.dao.material.po.RevisionStructurePagePO">
+        SELECT r.id AS revision_id,
+               r.version_id,
+               r.fence_generation AS revision_fence_generation,
+               m.lifecycle_generation AS material_lifecycle_generation,
+               r.fingerprint AS processing_fingerprint,
+               p.id AS page_id,
+               p.page_no,
+               image.object_key AS page_image_key,
+               image.object_version_id AS page_image_version_id,
+               image.content_sha256 AS page_image_sha256,
+               image.byte_size AS page_image_size,
+               image.content_type AS page_image_content_type,
+               canonical.object_key AS canonical_key,
+               canonical.object_version_id AS canonical_version_id,
+               canonical.content_sha256 AS canonical_sha256,
+               canonical.byte_size AS canonical_size,
+               canonical.content_type AS canonical_content_type,
+               structure.object_key AS structure_key,
+               structure.object_version_id AS structure_version_id,
+               structure.content_sha256 AS structure_sha256,
+               structure.byte_size AS structure_size,
+               structure.content_type AS structure_content_type
+        FROM material_processing_revision r
+        JOIN material_version v ON v.id = r.version_id
+        JOIN material m ON m.id = v.material_id
+        JOIN material_page p ON p.revision_id = r.id
+        JOIN material_page_artifact image
+          ON image.revision_id = p.revision_id AND image.page_no = p.page_no
+         AND image.artifact_kind = 'PAGE_IMAGE'
+        JOIN material_page_artifact canonical
+          ON canonical.revision_id = p.revision_id AND canonical.page_no = p.page_no
+         AND canonical.artifact_kind = 'CANONICAL_PAGE'
+        JOIN material_revision_artifact structure
+          ON structure.revision_id = r.id AND structure.artifact_kind = 'DOCUMENT_STRUCTURE'
+        JOIN material_processing_job j ON j.revision_id = r.id
+        WHERE r.id = #{revisionId}
+          AND r.state = 'PROCESSING'
+          AND r.stage = 'VISUAL_ANALYSIS'
+          AND v.ingest_state = 'PROCESSING'
+          AND m.lifecycle_state = 'ACTIVE'
+          AND (m.retention_class = 'RETAINED' OR m.expires_at &gt; UTC_TIMESTAMP(3))
+          AND j.id = #{jobId}
+          AND j.stage = 'ANALYZE_VISUALS'
+          AND j.work_key = 'root'
+          AND j.status = 'RUNNING'
+          AND j.lease_owner = #{workerId}
+          AND j.fence_token = #{fenceToken}
+          AND j.lease_until &gt; UTC_TIMESTAMP(3)
+        ORDER BY p.page_no
+    </select>
+
     <select id="selectProcessingGenerations" resultType="org.zipp.ai.infrastructure.dao.material.po.ProcessingGenerationPO">
         SELECT r.fence_generation AS revision_fence_generation,
                m.lifecycle_generation AS material_lifecycle_generation,
@@ -245,6 +298,27 @@
     <select id="selectSection" resultType="org.zipp.ai.infrastructure.dao.material.po.MaterialSectionPO">
         SELECT * FROM material_section WHERE revision_id = #{revisionId} AND ordinal = #{ordinal}
     </select>
+
+    <insert id="insertVisualCrop">
+        INSERT IGNORE INTO material_visual_artifact (
+            revision_id, candidate_id, page_id, page_no, caption_block_id,
+            object_key, object_version_id, content_sha256, byte_size, content_type
+        ) VALUES (
+            #{revisionId}, #{candidateId}, #{pageId}, #{pageNo}, #{captionBlockId},
+            #{objectKey}, #{objectVersionId}, #{contentSha256}, #{byteSize}, #{contentType}
+        )
+    </insert>
+
+    <select id="selectVisualCrop"
+            resultType="org.zipp.ai.infrastructure.dao.material.po.VisualCropArtifactPO">
+        SELECT * FROM material_visual_artifact
+        WHERE revision_id = #{revisionId} AND candidate_id = #{candidateId}
+    </select>
+
+    <update id="updatePageVisualStatus">
+        UPDATE material_page SET visual_status = #{visualStatus}
+        WHERE revision_id = #{revisionId} AND page_no = #{pageNo}
+    </update>
 
     <update id="updatePageCount">
         UPDATE material_version v

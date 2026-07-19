@@ -11,9 +11,13 @@ import org.zipp.ai.domain.ingestion.model.valobj.ProcessingJobLease;
 import org.zipp.ai.domain.ingestion.model.valobj.ProcessingJobStage;
 import org.zipp.ai.domain.ingestion.model.valobj.ProcessingJobTarget;
 import org.zipp.ai.domain.ingestion.model.valobj.RevisionPageBatch;
+import org.zipp.ai.domain.ingestion.model.valobj.RevisionCanonicalPageWork;
 import org.zipp.ai.domain.ingestion.model.valobj.StoredArtifact;
 import org.zipp.ai.domain.ingestion.model.valobj.UploadErrorCode;
 import org.zipp.ai.domain.ingestion.model.valobj.WorkerFence;
+import org.zipp.ai.domain.ingestion.model.valobj.VisualCropArtifact;
+import org.zipp.ai.domain.ingestion.model.valobj.VisualCropManifest;
+import org.zipp.ai.domain.ingestion.model.valobj.VisualProcessingResult;
 import org.zipp.ai.domain.ingestion.port.DocumentParserPort;
 import org.zipp.ai.domain.ingestion.port.DocumentProcessingWorkPort;
 import org.zipp.ai.domain.ingestion.port.OcrEnginePort;
@@ -22,8 +26,10 @@ import org.zipp.ai.domain.ingestion.port.RevisionArtifactPort;
 import org.zipp.ai.domain.ingestion.service.CanonicalPageAssembler;
 import org.zipp.ai.domain.ingestion.service.DocumentStructureBuilder;
 import org.zipp.ai.domain.ingestion.service.OcrSelectionPolicy;
+import org.zipp.ai.domain.ingestion.service.VisualCandidateSelectionPolicy;
 import org.zipp.ai.ingestion.worker.document.RevisionPageCodec;
 import org.zipp.ai.ingestion.worker.document.DocumentProcessingProfile;
+import org.zipp.ai.ingestion.worker.document.VisualCropDeriver;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -33,6 +39,8 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 
@@ -50,6 +58,8 @@ public final class DocumentProcessingJobHandler {
     private final OcrSelectionPolicy ocrSelection;
     private final CanonicalPageAssembler canonicalAssembler;
     private final DocumentStructureBuilder structureBuilder;
+    private final VisualCandidateSelectionPolicy visualSelection;
+    private final VisualCropDeriver visualCropper;
     private final RevisionPageCodec codec;
     private final DocumentProcessingProfile profile;
     private final ProcessingQueuePort queue;
@@ -59,7 +69,9 @@ public final class DocumentProcessingJobHandler {
                                         DocumentParserPort parser, OcrEnginePort ocr,
                                         OcrSelectionPolicy ocrSelection,
                                         CanonicalPageAssembler canonicalAssembler,
-                                        DocumentStructureBuilder structureBuilder, RevisionPageCodec codec,
+                                        DocumentStructureBuilder structureBuilder,
+                                        VisualCandidateSelectionPolicy visualSelection,
+                                        VisualCropDeriver visualCropper, RevisionPageCodec codec,
                                         DocumentProcessingProfile profile,
                                         ProcessingQueuePort queue, Clock clock) {
         this.work = Objects.requireNonNull(work, "work");
@@ -69,6 +81,8 @@ public final class DocumentProcessingJobHandler {
         this.ocrSelection = Objects.requireNonNull(ocrSelection, "ocrSelection");
         this.canonicalAssembler = Objects.requireNonNull(canonicalAssembler, "canonicalAssembler");
         this.structureBuilder = Objects.requireNonNull(structureBuilder, "structureBuilder");
+        this.visualSelection = Objects.requireNonNull(visualSelection, "visualSelection");
+        this.visualCropper = Objects.requireNonNull(visualCropper, "visualCropper");
         this.codec = Objects.requireNonNull(codec, "codec");
         this.profile = Objects.requireNonNull(profile, "profile");
         this.queue = Objects.requireNonNull(queue, "queue");
@@ -87,6 +101,7 @@ public final class DocumentProcessingJobHandler {
                 case OCR_SELECTED_PAGES -> ocr(revisionId, lease);
                 case NORMALIZE_CANONICAL_PAGES -> canonicalize(revisionId, lease);
                 case BUILD_DOCUMENT_STRUCTURE -> buildStructure(revisionId, lease);
+                case ANALYZE_VISUALS -> prepareVisualCrops(revisionId, lease);
                 default -> JobOutcome.permanent("UNSUPPORTED_DOCUMENT_STAGE");
             };
         } catch (IllegalArgumentException e) {
@@ -274,6 +289,61 @@ public final class DocumentProcessingJobHandler {
         ProcessingJob successor = nextJob(revisionId, ProcessingJobStage.ANALYZE_VISUALS, "root",
                 profile.visualInput(structure.structureHash(), structureArtifact.contentSha256()));
         if (!work.commitStructure(source, result, successor, fence(lease))) {
+            return JobOutcome.transientFailure(UploadErrorCode.STALE_FENCE.name());
+        }
+        return JobOutcome.succeeded();
+    }
+
+    private JobOutcome prepareVisualCrops(String revisionId, ProcessingJobLease lease) {
+        var source = work.findVisualWork(revisionId, fence(lease)).orElse(null);
+        if (source == null) {
+            return JobOutcome.succeeded();
+        }
+        if (!profile.overallFingerprint().equals(source.processingFingerprint())) {
+            return JobOutcome.transientFailure("PROCESSING_PROFILE_UNAVAILABLE");
+        }
+        if (!heartbeat(lease)) {
+            return JobOutcome.transientFailure(UploadErrorCode.STALE_FENCE.name());
+        }
+        var structure = codec.decodeDocumentStructure(
+                artifacts.read(source.structureArtifact(), MAX_PAGE_ARTIFACT_BYTES));
+        if (!profile.visualInput(structure.structureHash(), source.structureArtifact().contentSha256())
+                .equals(lease.job().inputFingerprint())) {
+            return JobOutcome.permanent("STALE_PROCESSING_FINGERPRINT");
+        }
+        int pageCount = source.pages().stream().mapToInt(page -> page.pageNo()).max().orElseThrow();
+        var selection = visualSelection.select(structure, pageCount);
+        Map<Integer, RevisionCanonicalPageWork> pages = new HashMap<>();
+        source.pages().forEach(page -> pages.put(page.pageNo(), page));
+        List<VisualCropArtifact> crops = new ArrayList<>();
+        int loadedPageNo = -1;
+        byte[] loadedPageImage = null;
+        for (var candidate : selection.selectedCandidates()) {
+            if (!heartbeat(lease)) {
+                return JobOutcome.transientFailure(UploadErrorCode.STALE_FENCE.name());
+            }
+            var page = pages.get(candidate.pageNo());
+            if (page == null) {
+                throw new IllegalArgumentException("visual candidate does not reference a pinned page");
+            }
+            if (loadedPageNo != candidate.pageNo()) {
+                loadedPageNo = candidate.pageNo();
+                loadedPageImage = artifacts.read(page.pageImage(), MAX_PAGE_ARTIFACT_BYTES);
+            }
+            StoredArtifact crop = artifacts.putImmutable("revisions/" + revisionId + "/visual-candidates/"
+                    + candidate.candidateId() + ".png", visualCropper.derive(loadedPageImage, candidate), "image/png");
+            crops.add(new VisualCropArtifact(page.pageId(), candidate, crop));
+        }
+        var manifest = new VisualCropManifest(
+                "visual-crop-manifest-v1", structure.structureHash(), visualSelection.fingerprint(),
+                selection.totalCandidateCount(), selection.skippedCandidateCount(), crops);
+        StoredArtifact manifestArtifact = artifacts.putImmutable(
+                "revisions/" + revisionId + "/visual-crop-manifest.json.gz",
+                codec.encode(manifest), JSON_GZIP);
+        var result = new VisualProcessingResult(manifest, manifestArtifact);
+        ProcessingJob successor = nextJob(revisionId, ProcessingJobStage.BUILD_EVIDENCE_UNITS, "root",
+                profile.evidenceInput(manifestArtifact.contentSha256()));
+        if (!work.commitVisualCrops(source, result, successor, fence(lease))) {
             return JobOutcome.transientFailure(UploadErrorCode.STALE_FENCE.name());
         }
         return JobOutcome.succeeded();

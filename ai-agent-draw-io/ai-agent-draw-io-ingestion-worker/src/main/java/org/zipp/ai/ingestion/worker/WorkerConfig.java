@@ -17,6 +17,7 @@ import org.zipp.ai.domain.ingestion.port.OriginalPromotionPort;
 import org.zipp.ai.domain.ingestion.port.RevisionArtifactPort;
 import org.zipp.ai.domain.ingestion.service.CanonicalPageAssembler;
 import org.zipp.ai.domain.ingestion.service.DocumentStructureBuilder;
+import org.zipp.ai.domain.ingestion.service.VisualCandidateSelectionPolicy;
 import org.zipp.ai.domain.ingestion.service.OcrSelectionPolicy;
 import org.zipp.ai.infrastructure.adapter.s3.S3OriginalPromotionAdapter;
 import org.zipp.ai.infrastructure.adapter.s3.S3PinnedQuarantineContentAdapter;
@@ -24,6 +25,7 @@ import org.zipp.ai.infrastructure.adapter.s3.S3RevisionArtifactAdapter;
 import org.zipp.ai.ingestion.worker.document.PdfBoxDocumentParser;
 import org.zipp.ai.ingestion.worker.document.RevisionPageCodec;
 import org.zipp.ai.ingestion.worker.document.TesseractOcrEngine;
+import org.zipp.ai.ingestion.worker.document.VisualCropDeriver;
 import org.zipp.ai.ingestion.worker.document.TesseractInstallationVerifier;
 import org.zipp.ai.ingestion.worker.document.DocumentProcessingProfile;
 import org.zipp.ai.ingestion.worker.security.ClamAvScannerAdapter;
@@ -94,17 +96,29 @@ public class WorkerConfig {
     }
 
     @Bean
+    public VisualCandidateSelectionPolicy visualCandidateSelectionPolicy() {
+        return new VisualCandidateSelectionPolicy(12, 0.15, 3);
+    }
+
+    @Bean
+    public VisualCropDeriver visualCropDeriver() {
+        return new VisualCropDeriver(25_000_000, 10 * 1024 * 1024);
+    }
+
+    @Bean
     public DocumentProcessingProfile documentProcessingProfile(
             @Value("${worker.document.render-dpi:200}") int renderDpi,
             @Value("${worker.tesseract.executable:tesseract}") String executable,
             @Value("${worker.tesseract.languages:eng+chi_sim}") String languages,
             @Value("${worker.tesseract.timeout-seconds:120}") long timeoutSeconds,
             @Value("${worker.tesseract.runtime-version}") String runtimeVersion,
-            DocumentStructureBuilder structureBuilder) {
+            DocumentStructureBuilder structureBuilder,
+            VisualCandidateSelectionPolicy visualPolicy,
+            VisualCropDeriver visualCropper) {
         OcrSelectionPolicy selection = new OcrSelectionPolicy(40, 0.10, 0.20, 0.01, 0.03);
         CanonicalPageAssembler canonical = new CanonicalPageAssembler(0.70);
         return DocumentProcessingProfile.of(renderDpi, executable, languages, timeoutSeconds,
-                runtimeVersion, selection, canonical, structureBuilder);
+                runtimeVersion, selection, canonical, structureBuilder, visualPolicy, visualCropper);
     }
 
     @Bean
@@ -136,12 +150,16 @@ public class WorkerConfig {
             DocumentProcessingWorkPort work, RevisionArtifactPort artifacts,
             DocumentParserPort parser, OcrEnginePort ocr, ProcessingQueuePort queue, Clock clock,
             ObjectMapper objectMapper, DocumentProcessingProfile processingProfile,
-            DocumentStructureBuilder structureBuilder) {
+            DocumentStructureBuilder structureBuilder,
+            VisualCandidateSelectionPolicy visualPolicy,
+            VisualCropDeriver visualCropper) {
         OcrSelectionPolicy selection = new OcrSelectionPolicy(40, 0.10, 0.20, 0.01);
         CanonicalPageAssembler assembler = new CanonicalPageAssembler(0.70);
         RevisionPageCodec codec = new RevisionPageCodec(objectMapper);
         return new DocumentProcessingJobHandler(work, artifacts, parser, ocr, selection,
-                assembler, structureBuilder, codec, processingProfile, queue, clock);
+                assembler, structureBuilder, visualPolicy,
+                visualCropper,
+                codec, processingProfile, queue, clock);
     }
 
     @Bean

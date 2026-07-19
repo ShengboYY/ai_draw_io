@@ -10,6 +10,7 @@ import org.zipp.ai.infrastructure.dao.material.po.ProcessingGenerationPO;
 import org.zipp.ai.infrastructure.dao.material.po.RevisionStructurePagePO;
 import org.zipp.ai.infrastructure.dao.material.po.DocumentStructureArtifactPO;
 import org.zipp.ai.infrastructure.dao.material.po.MaterialSectionPO;
+import org.zipp.ai.infrastructure.dao.material.po.VisualCropArtifactPO;
 
 import java.util.List;
 
@@ -54,12 +55,22 @@ public interface IDocumentProcessingMapper {
                                                       @Param("jobId") String jobId,
                                                       @Param("workerId") String workerId,
                                                       @Param("fenceToken") long fenceToken);
+    List<RevisionStructurePagePO> selectVisualWork(@Param("revisionId") String revisionId,
+                                                   @Param("jobId") String jobId,
+                                                   @Param("workerId") String workerId,
+                                                   @Param("fenceToken") long fenceToken);
     int insertRevisionArtifact(DocumentStructureArtifactPO artifact);
     DocumentStructureArtifactPO selectRevisionArtifact(@Param("revisionId") String revisionId,
                                                        @Param("artifactKind") String artifactKind);
     int insertSection(MaterialSectionPO section);
     MaterialSectionPO selectSection(@Param("revisionId") String revisionId,
                                     @Param("ordinal") int ordinal);
+    int insertVisualCrop(VisualCropArtifactPO artifact);
+    VisualCropArtifactPO selectVisualCrop(@Param("revisionId") String revisionId,
+                                          @Param("candidateId") String candidateId);
+    int updatePageVisualStatus(@Param("revisionId") String revisionId,
+                               @Param("pageNo") int pageNo,
+                               @Param("visualStatus") String visualStatus);
     int updatePageCount(@Param("revisionId") String revisionId, @Param("pageCount") int pageCount);
     int updateRevisionProgress(@Param("revisionId") String revisionId,
                                @Param("stage") String stage,

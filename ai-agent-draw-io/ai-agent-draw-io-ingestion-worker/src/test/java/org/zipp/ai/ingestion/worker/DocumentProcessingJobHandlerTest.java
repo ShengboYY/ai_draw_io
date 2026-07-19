@@ -10,7 +10,9 @@ import org.zipp.ai.domain.ingestion.port.RevisionArtifactPort;
 import org.zipp.ai.domain.ingestion.service.CanonicalPageAssembler;
 import org.zipp.ai.domain.ingestion.service.DocumentStructureBuilder;
 import org.zipp.ai.domain.ingestion.service.OcrSelectionPolicy;
+import org.zipp.ai.domain.ingestion.service.VisualCandidateSelectionPolicy;
 import org.zipp.ai.ingestion.worker.document.RevisionPageCodec;
+import org.zipp.ai.ingestion.worker.document.VisualCropDeriver;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -28,7 +30,9 @@ class DocumentProcessingJobHandlerTest {
             org.zipp.ai.ingestion.worker.document.DocumentProcessingProfile.of(200, "tesseract",
                     "eng+chi_sim", 120, "test-tesseract-4.1.1",
                     new OcrSelectionPolicy(40, 0.10, 0.20, 0.01, 0.03),
-                    new CanonicalPageAssembler(0.70), new DocumentStructureBuilder());
+                    new CanonicalPageAssembler(0.70), new DocumentStructureBuilder(),
+                    new VisualCandidateSelectionPolicy(12, 0.15, 3),
+                    new VisualCropDeriver(25_000_000, 10 * 1024 * 1024));
 
     @Test
     void processesNativeOcrAndCanonicalStagesWithExactArtifacts() throws Exception {
@@ -55,7 +59,9 @@ class DocumentProcessingJobHandlerTest {
                         new OcrWord("flow", new NormalizedBoundingBox(0.21, 0.1, 0.3, 0.2), 0.90, "line:1")));
         DocumentProcessingJobHandler handler = new DocumentProcessingJobHandler(work, artifacts, parser, ocr,
                 new OcrSelectionPolicy(40, 0.10, 0.20, 0.01), new CanonicalPageAssembler(0.70),
-                new DocumentStructureBuilder(), new RevisionPageCodec(new ObjectMapper()), PROFILE,
+                new DocumentStructureBuilder(), new VisualCandidateSelectionPolicy(12, 0.15, 3),
+                new VisualCropDeriver(25_000_000, 10 * 1024 * 1024),
+                new RevisionPageCodec(new ObjectMapper()), PROFILE,
                 queue, Clock.fixed(NOW, ZoneOffset.UTC));
 
         assertEquals(JobOutcome.Kind.SUCCEEDED, handler.handle(lease(ProcessingJobStage.EXTRACT_NATIVE,
@@ -83,7 +89,14 @@ class DocumentProcessingJobHandlerTest {
         assertEquals("revisions/rev_1/document-structure.json.gz",
                 work.structureResult.artifact().objectKey());
         assertEquals(1, work.structureResult.structure().sections().size());
-        assertEquals(6, queue.heartbeats);
+        assertEquals(JobOutcome.Kind.SUCCEEDED,
+                handler.handle(lease(ProcessingJobStage.ANALYZE_VISUALS,
+                        PROFILE.visualInput(work.structureResult.structure().structureHash(),
+                                work.structureResult.artifact().contentSha256()))).kind());
+        assertEquals(ProcessingJobStage.BUILD_EVIDENCE_UNITS, work.nextStage);
+        assertNotNull(work.visualResult);
+        assertEquals(0, work.visualResult.manifest().totalCandidateCount());
+        assertEquals(7, queue.heartbeats);
         assertEquals(JobOutcome.Kind.PERMANENT_FAILURE,
                 handler.handle(lease(ProcessingJobStage.EXTRACT_NATIVE, "0".repeat(64))).kind());
     }
@@ -98,7 +111,9 @@ class DocumentProcessingJobHandlerTest {
                 (path, mediaType, directory) -> { throw new AssertionError("mismatched parser must not run"); },
                 (path, pageNo) -> { throw new AssertionError("mismatched OCR must not run"); },
                 new OcrSelectionPolicy(40, 0.10, 0.20, 0.01), new CanonicalPageAssembler(0.70),
-                new DocumentStructureBuilder(), new RevisionPageCodec(new ObjectMapper()), PROFILE,
+                new DocumentStructureBuilder(), new VisualCandidateSelectionPolicy(12, 0.15, 3),
+                new VisualCropDeriver(25_000_000, 10 * 1024 * 1024),
+                new RevisionPageCodec(new ObjectMapper()), PROFILE,
                 new RecordingQueue(),
                 Clock.fixed(NOW, ZoneOffset.UTC));
 
@@ -125,6 +140,8 @@ class DocumentProcessingJobHandlerTest {
         private StoredArtifact canonicalArtifact;
         private RevisionStructureWork structureWork;
         private DocumentStructureResult structureResult;
+        private RevisionVisualWork visualWork;
+        private VisualProcessingResult visualResult;
 
         private InMemoryWork(RevisionExtractionWork extraction) {
             this.extraction = extraction;
@@ -189,6 +206,22 @@ class DocumentProcessingJobHandlerTest {
         public boolean commitStructure(RevisionStructureWork work, DocumentStructureResult result,
                                        ProcessingJob nextJob, WorkerFence fence) {
             structureResult = result;
+            visualWork = new RevisionVisualWork(work.revisionId(), work.versionId(), 4,
+                    work.materialLifecycleGeneration(), work.processingFingerprint(), result.artifact(), work.pages());
+            nextStage = nextJob.stage();
+            nextWorkKey = nextJob.workKey();
+            return true;
+        }
+
+        @Override
+        public Optional<RevisionVisualWork> findVisualWork(String revisionId, WorkerFence fence) {
+            return Optional.ofNullable(visualWork);
+        }
+
+        @Override
+        public boolean commitVisualCrops(RevisionVisualWork work, VisualProcessingResult result,
+                                         ProcessingJob nextJob, WorkerFence fence) {
+            visualResult = result;
             nextStage = nextJob.stage();
             nextWorkKey = nextJob.workKey();
             return true;

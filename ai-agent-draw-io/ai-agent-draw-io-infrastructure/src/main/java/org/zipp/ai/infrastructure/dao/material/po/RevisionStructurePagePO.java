@@ -21,4 +21,9 @@ public class RevisionStructurePagePO {
     private String canonicalSha256;
     private long canonicalSize;
     private String canonicalContentType;
+    private String structureKey;
+    private String structureVersionId;
+    private String structureSha256;
+    private long structureSize;
+    private String structureContentType;
 }

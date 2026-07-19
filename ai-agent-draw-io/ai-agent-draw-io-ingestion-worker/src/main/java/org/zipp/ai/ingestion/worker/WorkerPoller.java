@@ -78,7 +78,8 @@ public final class WorkerPoller {
         JobOutcome outcome = switch (lease.job().stage()) {
             case VALIDATE_OWNERSHIP -> secureUploadHandler.handle(lease);
             case RESOLVE_CONTENT_DEDUP, PROMOTE_ORIGINAL -> requireMaterializationHandler().handle(lease);
-            case EXTRACT_NATIVE, OCR_SELECTED_PAGES, NORMALIZE_CANONICAL_PAGES, BUILD_DOCUMENT_STRUCTURE ->
+            case EXTRACT_NATIVE, OCR_SELECTED_PAGES, NORMALIZE_CANONICAL_PAGES, BUILD_DOCUMENT_STRUCTURE,
+                    ANALYZE_VISUALS ->
                     requireDocumentProcessingHandler().handle(lease);
             default -> JobOutcome.permanent("UNSUPPORTED_WORKER_STAGE");
         };
@@ -121,7 +122,8 @@ public final class WorkerPoller {
             return Set.of(ProcessingJobStage.VALIDATE_OWNERSHIP,
                     ProcessingJobStage.RESOLVE_CONTENT_DEDUP, ProcessingJobStage.PROMOTE_ORIGINAL,
                     ProcessingJobStage.EXTRACT_NATIVE, ProcessingJobStage.OCR_SELECTED_PAGES,
-                    ProcessingJobStage.NORMALIZE_CANONICAL_PAGES, ProcessingJobStage.BUILD_DOCUMENT_STRUCTURE);
+                    ProcessingJobStage.NORMALIZE_CANONICAL_PAGES, ProcessingJobStage.BUILD_DOCUMENT_STRUCTURE,
+                    ProcessingJobStage.ANALYZE_VISUALS);
         }
         return Set.of(ProcessingJobStage.VALIDATE_OWNERSHIP,
                 ProcessingJobStage.RESOLVE_CONTENT_DEDUP, ProcessingJobStage.PROMOTE_ORIGINAL);
