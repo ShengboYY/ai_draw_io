@@ -32,7 +32,8 @@ class MaterializationJobHandlerTest {
             org.zipp.ai.ingestion.worker.document.DocumentProcessingProfile.of(200, "tesseract",
                     "eng+chi_sim", 120, "test-tesseract-4.1.1",
                     new org.zipp.ai.domain.ingestion.service.OcrSelectionPolicy(40, 0.10, 0.20, 0.01, 0.03),
-                    new org.zipp.ai.domain.ingestion.service.CanonicalPageAssembler(0.70));
+                    new org.zipp.ai.domain.ingestion.service.CanonicalPageAssembler(0.70),
+                    new org.zipp.ai.domain.ingestion.service.DocumentStructureBuilder());
     private static final String PROCESSING_FINGERPRINT = PROCESSING_PROFILE.overallFingerprint();
 
     @Test

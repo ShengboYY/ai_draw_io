@@ -1,6 +1,7 @@
 package org.zipp.ai.ingestion.worker.document;
 
 import org.zipp.ai.domain.ingestion.service.CanonicalPageAssembler;
+import org.zipp.ai.domain.ingestion.service.DocumentStructureBuilder;
 import org.zipp.ai.domain.ingestion.service.OcrSelectionPolicy;
 import org.zipp.ai.domain.ingestion.service.NativeBlockConfidencePolicy;
 import org.zipp.ai.domain.ingestion.service.ProcessingStageFingerprintPolicy;
@@ -9,21 +10,25 @@ import org.zipp.ai.domain.ingestion.model.valobj.ProcessingRevisionProfile;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.util.HexFormat;
+import java.util.List;
 
 /** Immutable processing configuration used in revision and stage fingerprints. */
-public record DocumentProcessingProfile(String parser, String ocr, String selection, String canonical) {
+public record DocumentProcessingProfile(String parser, String ocr, String selection,
+                                        String canonical, String structure) {
 
     public DocumentProcessingProfile {
         parser = requireText(parser, "parser");
         ocr = requireText(ocr, "ocr");
         selection = requireText(selection, "selection");
         canonical = requireText(canonical, "canonical");
+        structure = requireText(structure, "structure");
     }
 
     public static DocumentProcessingProfile of(int renderDpi, String executable, String languages,
                                                long timeoutSeconds, String tesseractRuntimeVersion,
                                                OcrSelectionPolicy selection,
-                                               CanonicalPageAssembler canonical) {
+                                               CanonicalPageAssembler canonical,
+                                               DocumentStructureBuilder structure) {
         String normalizedLanguages = requireText(languages, "languages");
         if (!"eng+chi_sim".equals(normalizedLanguages)) {
             throw new IllegalArgumentException("WP3B calibration requires Tesseract languages eng+chi_sim");
@@ -35,12 +40,12 @@ public record DocumentProcessingProfile(String parser, String ocr, String select
                         + ":executable=" + requireText(executable, "executable")
                         + ":languages=" + normalizedLanguages
                         + ":timeout=" + timeoutSeconds,
-                selection.fingerprint(), canonical.fingerprint());
+                selection.fingerprint(), canonical.fingerprint(), structure.fingerprint());
     }
 
     public String overallFingerprint() {
         return sha256(parser + ":" + ocr + ":" + selection + ":" + canonical
-                + ":structure-v1:visual-schema-v1:chunk-v1");
+                + ":" + structure + ":visual-schema-v1:chunk-v1");
     }
 
     public ProcessingRevisionProfile revisionProfile() {
@@ -66,6 +71,19 @@ public record DocumentProcessingProfile(String parser, String ocr, String select
 
     public String canonicalInput(String rawExtractionSha256) {
         return sha256(rawExtractionSha256 + ":" + canonical);
+    }
+
+    public String structureSeed() {
+        return ProcessingStageFingerprintPolicy.structureSeed(overallFingerprint());
+    }
+
+    public String structureInput(List<String> orderedCanonicalHashes) {
+        return ProcessingStageFingerprintPolicy.structureInput(orderedCanonicalHashes, overallFingerprint());
+    }
+
+    public String visualInput(String structureHash, String structureArtifactHash) {
+        return ProcessingStageFingerprintPolicy.visualInput(
+                structureHash, structureArtifactHash, overallFingerprint());
     }
 
     private static String sha256(String value) {

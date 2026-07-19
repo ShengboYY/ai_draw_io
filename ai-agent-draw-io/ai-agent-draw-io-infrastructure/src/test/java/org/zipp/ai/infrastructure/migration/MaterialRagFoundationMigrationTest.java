@@ -74,6 +74,33 @@ class MaterialRagFoundationMigrationTest {
     }
 
     @Test
+    void wp3cMigrationPinsTheWholeDocumentStructureArtifact() throws Exception {
+        Path migration = Path.of("docs/sql/migrations/2026-07-23-create-document-structure-artifacts.sql");
+        if (!Files.exists(migration)) {
+            migration = Path.of("../docs/sql/migrations/2026-07-23-create-document-structure-artifacts.sql");
+        }
+        String sql = Files.readString(migration);
+
+        assertTrue(sql.contains("CREATE TABLE IF NOT EXISTS material_revision_artifact"));
+        assertTrue(sql.contains("object_version_id VARCHAR(255) NOT NULL"));
+        assertTrue(sql.contains("content_sha256 CHAR(64) NOT NULL"));
+        assertTrue(sql.contains("UNIQUE KEY uk_material_revision_artifact_kind"));
+        assertTrue(sql.contains("UNIQUE KEY uk_material_revision_artifact_object"));
+    }
+
+    @Test
+    void documentSectionIdentityIsScopedToItsProcessingRevision() throws Exception {
+        Path migration = Path.of("docs/sql/migrations/2026-07-24-scope-document-section-identity.sql");
+        if (!Files.exists(migration)) {
+            migration = Path.of("../docs/sql/migrations/2026-07-24-scope-document-section-identity.sql");
+        }
+        String sql = Files.readString(migration);
+
+        assertTrue(sql.contains("DROP PRIMARY KEY"));
+        assertTrue(sql.contains("PRIMARY KEY (revision_id, id)"));
+    }
+
+    @Test
     void workerIamAllowsExactVersionVerificationAndCleanupInBothBuckets() throws Exception {
         Path template = Path.of("../deploy/aws/material-upload/s3-and-iam.template.yml");
         if (!Files.exists(template)) {

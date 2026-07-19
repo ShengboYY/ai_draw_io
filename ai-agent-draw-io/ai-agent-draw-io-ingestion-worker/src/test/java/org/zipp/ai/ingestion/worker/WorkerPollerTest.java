@@ -28,7 +28,8 @@ class WorkerPollerTest {
         assertEquals(java.util.Set.of(ProcessingJobStage.VALIDATE_OWNERSHIP,
                         ProcessingJobStage.RESOLVE_CONTENT_DEDUP, ProcessingJobStage.PROMOTE_ORIGINAL,
                         ProcessingJobStage.EXTRACT_NATIVE, ProcessingJobStage.OCR_SELECTED_PAGES,
-                        ProcessingJobStage.NORMALIZE_CANONICAL_PAGES),
+                        ProcessingJobStage.NORMALIZE_CANONICAL_PAGES,
+                        ProcessingJobStage.BUILD_DOCUMENT_STRUCTURE),
                 WorkerPoller.claimableStages(true, true));
     }
 }

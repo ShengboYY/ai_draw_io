@@ -1,7 +1,9 @@
 package org.zipp.ai.ingestion.worker;
 
 import org.zipp.ai.domain.ingestion.model.aggregate.ProcessingJob;
+import org.zipp.ai.domain.ingestion.model.valobj.CanonicalPage;
 import org.zipp.ai.domain.ingestion.model.valobj.CanonicalPageResult;
+import org.zipp.ai.domain.ingestion.model.valobj.DocumentStructureResult;
 import org.zipp.ai.domain.ingestion.model.valobj.NativePageResult;
 import org.zipp.ai.domain.ingestion.model.valobj.OcrPageResult;
 import org.zipp.ai.domain.ingestion.model.valobj.PageExtraction;
@@ -18,20 +20,18 @@ import org.zipp.ai.domain.ingestion.port.OcrEnginePort;
 import org.zipp.ai.domain.ingestion.port.ProcessingQueuePort;
 import org.zipp.ai.domain.ingestion.port.RevisionArtifactPort;
 import org.zipp.ai.domain.ingestion.service.CanonicalPageAssembler;
+import org.zipp.ai.domain.ingestion.service.DocumentStructureBuilder;
 import org.zipp.ai.domain.ingestion.service.OcrSelectionPolicy;
 import org.zipp.ai.ingestion.worker.document.RevisionPageCodec;
 import org.zipp.ai.ingestion.worker.document.DocumentProcessingProfile;
 
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.security.MessageDigest;
 import java.time.Clock;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.HexFormat;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
@@ -49,6 +49,7 @@ public final class DocumentProcessingJobHandler {
     private final OcrEnginePort ocr;
     private final OcrSelectionPolicy ocrSelection;
     private final CanonicalPageAssembler canonicalAssembler;
+    private final DocumentStructureBuilder structureBuilder;
     private final RevisionPageCodec codec;
     private final DocumentProcessingProfile profile;
     private final ProcessingQueuePort queue;
@@ -58,7 +59,8 @@ public final class DocumentProcessingJobHandler {
                                         DocumentParserPort parser, OcrEnginePort ocr,
                                         OcrSelectionPolicy ocrSelection,
                                         CanonicalPageAssembler canonicalAssembler,
-                                        RevisionPageCodec codec, DocumentProcessingProfile profile,
+                                        DocumentStructureBuilder structureBuilder, RevisionPageCodec codec,
+                                        DocumentProcessingProfile profile,
                                         ProcessingQueuePort queue, Clock clock) {
         this.work = Objects.requireNonNull(work, "work");
         this.artifacts = Objects.requireNonNull(artifacts, "artifacts");
@@ -66,6 +68,7 @@ public final class DocumentProcessingJobHandler {
         this.ocr = Objects.requireNonNull(ocr, "ocr");
         this.ocrSelection = Objects.requireNonNull(ocrSelection, "ocrSelection");
         this.canonicalAssembler = Objects.requireNonNull(canonicalAssembler, "canonicalAssembler");
+        this.structureBuilder = Objects.requireNonNull(structureBuilder, "structureBuilder");
         this.codec = Objects.requireNonNull(codec, "codec");
         this.profile = Objects.requireNonNull(profile, "profile");
         this.queue = Objects.requireNonNull(queue, "queue");
@@ -83,6 +86,7 @@ public final class DocumentProcessingJobHandler {
                 case EXTRACT_NATIVE -> extract(revisionId, lease);
                 case OCR_SELECTED_PAGES -> ocr(revisionId, lease);
                 case NORMALIZE_CANONICAL_PAGES -> canonicalize(revisionId, lease);
+                case BUILD_DOCUMENT_STRUCTURE -> buildStructure(revisionId, lease);
                 default -> JobOutcome.permanent("UNSUPPORTED_DOCUMENT_STAGE");
             };
         } catch (IllegalArgumentException e) {
@@ -231,7 +235,45 @@ public final class DocumentProcessingJobHandler {
         }
         if (!work.commitCanonical(batch, results,
                 nextJob(revisionId, ProcessingJobStage.BUILD_DOCUMENT_STRUCTURE, "root",
-                        sha256(profile.overallFingerprint() + ":structure-v1")), fence(lease))) {
+                        profile.structureSeed()), fence(lease))) {
+            return JobOutcome.transientFailure(UploadErrorCode.STALE_FENCE.name());
+        }
+        return JobOutcome.succeeded();
+    }
+
+    private JobOutcome buildStructure(String revisionId, ProcessingJobLease lease) {
+        var source = work.findStructureWork(revisionId, fence(lease)).orElse(null);
+        if (source == null) {
+            return JobOutcome.succeeded();
+        }
+        if (!profile.overallFingerprint().equals(source.processingFingerprint())) {
+            return JobOutcome.transientFailure("PROCESSING_PROFILE_UNAVAILABLE");
+        }
+        List<String> canonicalHashes = source.pages().stream()
+                .map(page -> page.canonicalPage().contentSha256()).toList();
+        if (!profile.structureInput(canonicalHashes).equals(lease.job().inputFingerprint())) {
+            return JobOutcome.permanent("STALE_PROCESSING_FINGERPRINT");
+        }
+        List<CanonicalPage> canonicalPages = new ArrayList<>();
+        for (var page : source.pages()) {
+            if (!heartbeat(lease)) {
+                return JobOutcome.transientFailure(UploadErrorCode.STALE_FENCE.name());
+            }
+            var canonical = codec.decodeCanonicalPage(
+                    artifacts.read(page.canonicalPage(), MAX_PAGE_ARTIFACT_BYTES));
+            if (canonical.pageNo() != page.pageNo()) {
+                throw new IllegalArgumentException("canonical page number does not match its exact artifact pin");
+            }
+            canonicalPages.add(canonical);
+        }
+        var structure = structureBuilder.build(canonicalPages);
+        StoredArtifact structureArtifact = artifacts.putImmutable(
+                "revisions/" + revisionId + "/document-structure.json.gz",
+                codec.encode(structure), JSON_GZIP);
+        DocumentStructureResult result = new DocumentStructureResult(structure, structureArtifact);
+        ProcessingJob successor = nextJob(revisionId, ProcessingJobStage.ANALYZE_VISUALS, "root",
+                profile.visualInput(structure.structureHash(), structureArtifact.contentSha256()));
+        if (!work.commitStructure(source, result, successor, fence(lease))) {
             return JobOutcome.transientFailure(UploadErrorCode.STALE_FENCE.name());
         }
         return JobOutcome.succeeded();
@@ -290,12 +332,4 @@ public final class DocumentProcessingJobHandler {
         }
     }
 
-    private static String sha256(String value) {
-        try {
-            return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256")
-                    .digest(value.getBytes(StandardCharsets.UTF_8)));
-        } catch (java.security.NoSuchAlgorithmException e) {
-            throw new IllegalStateException("SHA-256 is required by the JVM", e);
-        }
-    }
 }

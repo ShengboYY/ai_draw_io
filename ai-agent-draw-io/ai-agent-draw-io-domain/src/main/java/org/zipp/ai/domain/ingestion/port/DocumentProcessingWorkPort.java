@@ -2,10 +2,12 @@ package org.zipp.ai.domain.ingestion.port;
 
 import org.zipp.ai.domain.ingestion.model.aggregate.ProcessingJob;
 import org.zipp.ai.domain.ingestion.model.valobj.CanonicalPageResult;
+import org.zipp.ai.domain.ingestion.model.valobj.DocumentStructureResult;
 import org.zipp.ai.domain.ingestion.model.valobj.NativePageResult;
 import org.zipp.ai.domain.ingestion.model.valobj.OcrPageResult;
 import org.zipp.ai.domain.ingestion.model.valobj.RevisionExtractionWork;
 import org.zipp.ai.domain.ingestion.model.valobj.RevisionPageBatch;
+import org.zipp.ai.domain.ingestion.model.valobj.RevisionStructureWork;
 import org.zipp.ai.domain.ingestion.model.valobj.WorkerFence;
 
 import java.util.List;
@@ -20,5 +22,8 @@ public interface DocumentProcessingWorkPort {
     boolean commitOcr(RevisionPageBatch batch, List<OcrPageResult> pages,
                       ProcessingJob nextJob, WorkerFence fence);
     boolean commitCanonical(RevisionPageBatch batch, List<CanonicalPageResult> pages,
+                            ProcessingJob nextJob, WorkerFence fence);
+    Optional<RevisionStructureWork> findStructureWork(String revisionId, WorkerFence fence);
+    boolean commitStructure(RevisionStructureWork work, DocumentStructureResult result,
                             ProcessingJob nextJob, WorkerFence fence);
 }

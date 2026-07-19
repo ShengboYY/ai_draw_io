@@ -170,6 +170,82 @@
         ORDER BY a.page_no
     </select>
 
+    <select id="selectStructureWork"
+            resultType="org.zipp.ai.infrastructure.dao.material.po.RevisionStructurePagePO">
+        SELECT r.id AS revision_id,
+               r.version_id,
+               r.fence_generation AS revision_fence_generation,
+               m.lifecycle_generation AS material_lifecycle_generation,
+               r.fingerprint AS processing_fingerprint,
+               p.id AS page_id,
+               p.page_no,
+               image.object_key AS page_image_key,
+               image.object_version_id AS page_image_version_id,
+               image.content_sha256 AS page_image_sha256,
+               image.byte_size AS page_image_size,
+               image.content_type AS page_image_content_type,
+               canonical.object_key AS canonical_key,
+               canonical.object_version_id AS canonical_version_id,
+               canonical.content_sha256 AS canonical_sha256,
+               canonical.byte_size AS canonical_size,
+               canonical.content_type AS canonical_content_type
+        FROM material_processing_revision r
+        JOIN material_version v ON v.id = r.version_id
+        JOIN material m ON m.id = v.material_id
+        JOIN material_page p ON p.revision_id = r.id
+        JOIN material_page_artifact image
+          ON image.revision_id = p.revision_id AND image.page_no = p.page_no
+         AND image.artifact_kind = 'PAGE_IMAGE'
+        JOIN material_page_artifact canonical
+          ON canonical.revision_id = p.revision_id AND canonical.page_no = p.page_no
+         AND canonical.artifact_kind = 'CANONICAL_PAGE'
+        JOIN material_processing_job j ON j.revision_id = r.id
+        WHERE r.id = #{revisionId}
+          AND r.state = 'PROCESSING'
+          AND r.stage = 'OCR_VISUAL'
+          AND v.ingest_state = 'PROCESSING'
+          AND m.lifecycle_state = 'ACTIVE'
+          AND (m.retention_class = 'RETAINED' OR m.expires_at &gt; UTC_TIMESTAMP(3))
+          AND j.id = #{jobId}
+          AND j.stage = 'BUILD_DOCUMENT_STRUCTURE'
+          AND j.work_key = 'root'
+          AND j.status = 'RUNNING'
+          AND j.lease_owner = #{workerId}
+          AND j.fence_token = #{fenceToken}
+          AND j.lease_until &gt; UTC_TIMESTAMP(3)
+        ORDER BY p.page_no
+    </select>
+
+    <insert id="insertRevisionArtifact">
+        INSERT IGNORE INTO material_revision_artifact (
+            id, revision_id, artifact_kind, object_key, object_version_id,
+            content_sha256, byte_size, content_type
+        ) VALUES (
+            #{id}, #{revisionId}, #{artifactKind}, #{objectKey}, #{objectVersionId},
+            #{contentSha256}, #{byteSize}, #{contentType}
+        )
+    </insert>
+
+    <select id="selectRevisionArtifact"
+            resultType="org.zipp.ai.infrastructure.dao.material.po.DocumentStructureArtifactPO">
+        SELECT * FROM material_revision_artifact
+        WHERE revision_id = #{revisionId} AND artifact_kind = #{artifactKind}
+    </select>
+
+    <insert id="insertSection">
+        INSERT IGNORE INTO material_section (
+            id, revision_id, parent_section_id, level, ordinal, page_start, page_end,
+            heading_evidence_id, structure_hash
+        ) VALUES (
+            #{id}, #{revisionId}, #{parentSectionId}, #{level}, #{ordinal}, #{pageStart}, #{pageEnd},
+            #{headingEvidenceId}, #{structureHash}
+        )
+    </insert>
+
+    <select id="selectSection" resultType="org.zipp.ai.infrastructure.dao.material.po.MaterialSectionPO">
+        SELECT * FROM material_section WHERE revision_id = #{revisionId} AND ordinal = #{ordinal}
+    </select>
+
     <update id="updatePageCount">
         UPDATE material_version v
         JOIN material_processing_revision r ON r.version_id = v.id

@@ -2,6 +2,7 @@ package org.zipp.ai.ingestion.worker.document;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.zipp.ai.domain.ingestion.model.valobj.CanonicalPage;
+import org.zipp.ai.domain.ingestion.model.valobj.DocumentStructure;
 import org.zipp.ai.domain.ingestion.model.valobj.PageExtraction;
 
 import java.io.ByteArrayInputStream;
@@ -28,8 +29,16 @@ public final class RevisionPageCodec {
         return encodeValue(page);
     }
 
+    public byte[] encode(DocumentStructure structure) {
+        return encodeValue(structure);
+    }
+
     public PageExtraction decodeExtraction(byte[] content) {
         return decodeValue(content, PageExtraction.class);
+    }
+
+    public CanonicalPage decodeCanonicalPage(byte[] content) {
+        return decodeValue(content, CanonicalPage.class);
     }
 
     private byte[] encodeValue(Object value) {

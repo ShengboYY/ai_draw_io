@@ -16,6 +16,7 @@ import org.zipp.ai.domain.ingestion.port.OcrEnginePort;
 import org.zipp.ai.domain.ingestion.port.OriginalPromotionPort;
 import org.zipp.ai.domain.ingestion.port.RevisionArtifactPort;
 import org.zipp.ai.domain.ingestion.service.CanonicalPageAssembler;
+import org.zipp.ai.domain.ingestion.service.DocumentStructureBuilder;
 import org.zipp.ai.domain.ingestion.service.OcrSelectionPolicy;
 import org.zipp.ai.infrastructure.adapter.s3.S3OriginalPromotionAdapter;
 import org.zipp.ai.infrastructure.adapter.s3.S3PinnedQuarantineContentAdapter;
@@ -88,16 +89,22 @@ public class WorkerConfig {
     }
 
     @Bean
+    public DocumentStructureBuilder documentStructureBuilder() {
+        return new DocumentStructureBuilder();
+    }
+
+    @Bean
     public DocumentProcessingProfile documentProcessingProfile(
             @Value("${worker.document.render-dpi:200}") int renderDpi,
             @Value("${worker.tesseract.executable:tesseract}") String executable,
             @Value("${worker.tesseract.languages:eng+chi_sim}") String languages,
             @Value("${worker.tesseract.timeout-seconds:120}") long timeoutSeconds,
-            @Value("${worker.tesseract.runtime-version}") String runtimeVersion) {
+            @Value("${worker.tesseract.runtime-version}") String runtimeVersion,
+            DocumentStructureBuilder structureBuilder) {
         OcrSelectionPolicy selection = new OcrSelectionPolicy(40, 0.10, 0.20, 0.01, 0.03);
         CanonicalPageAssembler canonical = new CanonicalPageAssembler(0.70);
         return DocumentProcessingProfile.of(renderDpi, executable, languages, timeoutSeconds,
-                runtimeVersion, selection, canonical);
+                runtimeVersion, selection, canonical, structureBuilder);
     }
 
     @Bean
@@ -128,12 +135,13 @@ public class WorkerConfig {
     public DocumentProcessingJobHandler documentProcessingJobHandler(
             DocumentProcessingWorkPort work, RevisionArtifactPort artifacts,
             DocumentParserPort parser, OcrEnginePort ocr, ProcessingQueuePort queue, Clock clock,
-            ObjectMapper objectMapper, DocumentProcessingProfile processingProfile) {
+            ObjectMapper objectMapper, DocumentProcessingProfile processingProfile,
+            DocumentStructureBuilder structureBuilder) {
         OcrSelectionPolicy selection = new OcrSelectionPolicy(40, 0.10, 0.20, 0.01);
         CanonicalPageAssembler assembler = new CanonicalPageAssembler(0.70);
         RevisionPageCodec codec = new RevisionPageCodec(objectMapper);
         return new DocumentProcessingJobHandler(work, artifacts, parser, ocr, selection,
-                assembler, codec, processingProfile, queue, clock);
+                assembler, structureBuilder, codec, processingProfile, queue, clock);
     }
 
     @Bean

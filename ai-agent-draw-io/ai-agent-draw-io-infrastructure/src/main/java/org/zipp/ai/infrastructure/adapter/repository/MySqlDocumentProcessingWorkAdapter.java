@@ -4,6 +4,8 @@ import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 import org.zipp.ai.domain.ingestion.model.aggregate.ProcessingJob;
 import org.zipp.ai.domain.ingestion.model.valobj.CanonicalPageResult;
+import org.zipp.ai.domain.ingestion.model.valobj.DocumentSection;
+import org.zipp.ai.domain.ingestion.model.valobj.DocumentStructureResult;
 import org.zipp.ai.domain.ingestion.model.valobj.NativePageResult;
 import org.zipp.ai.domain.ingestion.model.valobj.OcrPageResult;
 import org.zipp.ai.domain.ingestion.model.valobj.OcrPageStatus;
@@ -12,9 +14,12 @@ import org.zipp.ai.domain.ingestion.model.valobj.ProcessingJobStage;
 import org.zipp.ai.domain.ingestion.model.valobj.RevisionExtractionWork;
 import org.zipp.ai.domain.ingestion.model.valobj.RevisionPageBatch;
 import org.zipp.ai.domain.ingestion.model.valobj.RevisionPageWork;
+import org.zipp.ai.domain.ingestion.model.valobj.RevisionCanonicalPageWork;
+import org.zipp.ai.domain.ingestion.model.valobj.RevisionStructureWork;
 import org.zipp.ai.domain.ingestion.model.valobj.StoredArtifact;
 import org.zipp.ai.domain.ingestion.model.valobj.WorkerFence;
 import org.zipp.ai.domain.ingestion.port.DocumentProcessingWorkPort;
+import org.zipp.ai.domain.ingestion.service.ProcessingStageFingerprintPolicy;
 import org.zipp.ai.infrastructure.dao.material.IDocumentProcessingMapper;
 import org.zipp.ai.infrastructure.dao.material.IProcessingJobMapper;
 import org.zipp.ai.infrastructure.dao.material.po.DocumentExtractionWorkPO;
@@ -23,14 +28,14 @@ import org.zipp.ai.infrastructure.dao.material.po.ProcessingJobPO;
 import org.zipp.ai.infrastructure.dao.material.po.RevisionArtifactPO;
 import org.zipp.ai.infrastructure.dao.material.po.RevisionPageWorkPO;
 import org.zipp.ai.infrastructure.dao.material.po.ProcessingGenerationPO;
+import org.zipp.ai.infrastructure.dao.material.po.RevisionStructurePagePO;
+import org.zipp.ai.infrastructure.dao.material.po.DocumentStructureArtifactPO;
+import org.zipp.ai.infrastructure.dao.material.po.MaterialSectionPO;
 
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.util.HexFormat;
 
 @Repository
 public class MySqlDocumentProcessingWorkAdapter implements DocumentProcessingWorkPort {
@@ -184,10 +189,62 @@ public class MySqlDocumentProcessingWorkAdapter implements DocumentProcessingWor
                 "OCR_VISUAL", 65) != 1) {
             throw new IllegalStateException("revision generation became stale at canonical barrier");
         }
+        if (nextJob.stage() != ProcessingJobStage.BUILD_DOCUMENT_STRUCTURE
+                || !"root".equals(nextJob.workKey())
+                || !source.revisionId().equals(nextJob.target().revisionId())
+                || !ProcessingStageFingerprintPolicy.structureSeed(source.processingFingerprint())
+                        .equals(nextJob.inputFingerprint())) {
+            throw new IllegalArgumentException("canonical barrier requires the pinned structure successor");
+        }
         ProcessingJobPO successor = toPo(nextJob);
-        successor.setInputFingerprint(sha256(String.join(":", mapper.selectCanonicalHashes(source.revisionId()))
-                + ":" + nextJob.inputFingerprint()));
+        successor.setInputFingerprint(ProcessingStageFingerprintPolicy.structureInput(
+                mapper.selectCanonicalHashes(source.revisionId()), source.processingFingerprint()));
         jobMapper.insert(successor);
+        return true;
+    }
+
+    @Override
+    public Optional<RevisionStructureWork> findStructureWork(String revisionId, WorkerFence fence) {
+        String id = requireText(revisionId, "revisionId");
+        WorkerFence current = Objects.requireNonNull(fence, "fence");
+        List<RevisionStructurePagePO> rows = mapper.selectStructureWork(id, current.jobId(), current.workerId(),
+                current.fenceToken());
+        if (rows.isEmpty()) {
+            return Optional.empty();
+        }
+        RevisionStructurePagePO first = rows.get(0);
+        List<RevisionCanonicalPageWork> pages = rows.stream().map(this::toStructurePage).toList();
+        return Optional.of(new RevisionStructureWork(first.getRevisionId(), first.getVersionId(),
+                first.getRevisionFenceGeneration(), first.getMaterialLifecycleGeneration(),
+                first.getProcessingFingerprint(), pages));
+    }
+
+    @Override
+    @Transactional
+    public boolean commitStructure(RevisionStructureWork work, DocumentStructureResult result,
+                                   ProcessingJob nextJob, WorkerFence fence) {
+        RevisionStructureWork source = Objects.requireNonNull(work, "work");
+        DocumentStructureResult output = Objects.requireNonNull(result, "result");
+        ProcessingJob successor = Objects.requireNonNull(nextJob, "nextJob");
+        if (successor.stage() != ProcessingJobStage.ANALYZE_VISUALS
+                || !"root".equals(successor.workKey())
+                || !source.revisionId().equals(successor.target().revisionId())
+                || !ProcessingStageFingerprintPolicy.visualInput(output.structure().structureHash(),
+                        output.artifact().contentSha256(), source.processingFingerprint())
+                        .equals(successor.inputFingerprint())) {
+            throw new IllegalArgumentException("structure commit requires the pinned visual successor");
+        }
+        if (!hasCurrentFence(source.revisionId(), source.revisionFenceGeneration(),
+                source.materialLifecycleGeneration(), ProcessingJobStage.BUILD_DOCUMENT_STRUCTURE, fence)) {
+            return false;
+        }
+        persistStructureArtifact(source.revisionId(), output.artifact());
+        output.structure().sections().forEach(section -> persistSection(source.revisionId(), section));
+        if (mapper.advanceRevision(source.revisionId(), source.revisionFenceGeneration(),
+                "VISUAL_ANALYSIS", 75) != 1) {
+            throw new IllegalStateException("revision generation became stale during structure commit");
+        }
+        jobMapper.insert(toPo(successor));
         return true;
     }
 
@@ -226,7 +283,8 @@ public class MySqlDocumentProcessingWorkAdapter implements DocumentProcessingWor
         if (persisted == null || !artifact.objectKey().equals(persisted.getObjectKey())
                 || !artifact.objectVersionId().equals(persisted.getObjectVersionId())
                 || !artifact.contentSha256().equals(persisted.getContentSha256())
-                || artifact.byteSize() != persisted.getByteSize()) {
+                || artifact.byteSize() != persisted.getByteSize()
+                || !artifact.contentType().equals(persisted.getContentType())) {
             throw new IllegalStateException("immutable page artifact collided with different content");
         }
     }
@@ -248,6 +306,59 @@ public class MySqlDocumentProcessingWorkAdapter implements DocumentProcessingWor
         return new RevisionPageWork(po.getPageNo(), po.getWidth(), po.getHeight(),
                 OcrPageStatus.valueOf(po.getOcrStatus()),
                 image, nativeExtraction, raw);
+    }
+
+    private RevisionCanonicalPageWork toStructurePage(RevisionStructurePagePO po) {
+        StoredArtifact image = new StoredArtifact(po.getPageImageKey(), po.getPageImageVersionId(),
+                po.getPageImageSha256(), po.getPageImageSize(), po.getPageImageContentType());
+        StoredArtifact canonical = new StoredArtifact(po.getCanonicalKey(), po.getCanonicalVersionId(),
+                po.getCanonicalSha256(), po.getCanonicalSize(), po.getCanonicalContentType());
+        return new RevisionCanonicalPageWork(po.getPageId(), po.getPageNo(), image, canonical);
+    }
+
+    private void persistStructureArtifact(String revisionId, StoredArtifact artifact) {
+        DocumentStructureArtifactPO po = new DocumentStructureArtifactPO();
+        po.setId("revision_artifact_" + UUID.randomUUID());
+        po.setRevisionId(revisionId);
+        po.setArtifactKind("DOCUMENT_STRUCTURE");
+        po.setObjectKey(artifact.objectKey());
+        po.setObjectVersionId(artifact.objectVersionId());
+        po.setContentSha256(artifact.contentSha256());
+        po.setByteSize(artifact.byteSize());
+        po.setContentType(artifact.contentType());
+        mapper.insertRevisionArtifact(po);
+        DocumentStructureArtifactPO persisted = mapper.selectRevisionArtifact(revisionId, "DOCUMENT_STRUCTURE");
+        if (persisted == null || !artifact.objectKey().equals(persisted.getObjectKey())
+                || !artifact.objectVersionId().equals(persisted.getObjectVersionId())
+                || !artifact.contentSha256().equals(persisted.getContentSha256())
+                || artifact.byteSize() != persisted.getByteSize()
+                || !artifact.contentType().equals(persisted.getContentType())) {
+            throw new IllegalStateException("immutable structure artifact collided with different content");
+        }
+    }
+
+    private void persistSection(String revisionId, DocumentSection section) {
+        MaterialSectionPO po = new MaterialSectionPO();
+        po.setId(section.sectionId());
+        po.setRevisionId(revisionId);
+        po.setParentSectionId(section.parentSectionId());
+        po.setLevel(section.level());
+        po.setOrdinal(section.ordinal());
+        po.setPageStart(section.pageStart());
+        po.setPageEnd(section.pageEnd());
+        // Heading evidence is linked after Evidence Units are created; the structure artifact keeps the block ref.
+        po.setHeadingEvidenceId(null);
+        po.setStructureHash(section.structureHash());
+        mapper.insertSection(po);
+        MaterialSectionPO persisted = mapper.selectSection(revisionId, section.ordinal());
+        if (persisted == null || !section.sectionId().equals(persisted.getId())
+                || !Objects.equals(section.parentSectionId(), persisted.getParentSectionId())
+                || section.level() != persisted.getLevel()
+                || section.pageStart() != persisted.getPageStart()
+                || section.pageEnd() != persisted.getPageEnd()
+                || !section.structureHash().equals(persisted.getStructureHash())) {
+            throw new IllegalStateException("immutable document section collided with different structure");
+        }
     }
 
     private static ProcessingJobPO toPo(ProcessingJob job) {
@@ -273,12 +384,4 @@ public class MySqlDocumentProcessingWorkAdapter implements DocumentProcessingWor
         return value.trim();
     }
 
-    private static String sha256(String value) {
-        try {
-            return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256")
-                    .digest(value.getBytes(StandardCharsets.UTF_8)));
-        } catch (java.security.NoSuchAlgorithmException e) {
-            throw new IllegalStateException("SHA-256 is required by the JVM", e);
-        }
-    }
 }

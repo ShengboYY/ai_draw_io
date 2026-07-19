@@ -1,6 +1,6 @@
 # 多模态资料库与图表册：实施状态
 
-> 更新日期：2026-07-22
+> 更新日期：2026-07-23
 > 当前分支：`codex/multimodal-library-chartbook`
 
 ## 已完成阶段
@@ -12,7 +12,8 @@
 | WP2：S3 上传与安全 Worker | 已完成 | `82e22f07` |
 | WP3A：内容去重、资料物化与 original promote | 已完成 | `23c58260` |
 | WP3B：PDF/图片解析、选择性 OCR 与 canonical page | 已完成 | `8fadb343` |
-| WP3C-A：文档结构领域核心 | 已完成 | 当前 WP3C-A 阶段提交 |
+| WP3C-A：文档结构领域核心 | 已完成 | `af48c3cf` |
+| WP3C-B1：结构编排与持久化 | 已完成 | 当前 WP3C-B1 阶段提交 |
 
 ## WP2 交付范围
 
@@ -81,6 +82,14 @@ WP2 不把文件复制到正式 materials bucket，也不提供预览。安全�
 - canonical page 保留 placed raster region；图片资料以整页区域作为视觉候选，PDF 使用真实 placed image bbox。视觉候选生成稳定 ID，并在几何距离不超过 15% 页高时关联最近图注。
 - WP3C-A 只完成 byte-stable 的领域结构产物及测试；`BUILD_DOCUMENT_STRUCTURE` 的 exact-version artifact、fenced MySQL section persistence 和后续 `ANALYZE_VISUALS/BUILD_EVIDENCE_UNITS` 由 WP3C-B 接入。
 
+## WP3C-B1 交付范围
+
+- `BUILD_DOCUMENT_STRUCTURE` Worker 只读取当前 revision 固定的 canonical page `VersionId`，逐页续租并再次校验页号；profile 包含 `DocumentStructureBuilder` 的真实策略 fingerprint，按页排序的 canonical hash 与 job input fingerprint 不一致时拒绝处理。
+- `DocumentStructureBuilder` 产物写入 immutable `document-structure.json.gz`；MySQL `material_revision_artifact` 固定 object key、`VersionId`、SHA-256、大小和类型，重试只能观察到相同内容。
+- section manifest 与 structure artifact 在持有 job stage、lease/fence、Material lifecycle generation 和 revision generation 的同一事务中提交；稳定 section identity 以 `(revision_id, id)` 为数据库主键，不同 revision 可复用相同结构 ref，同一 revision 的不可变事实冲突时失败。
+- 结构提交后 revision 进入 `VISUAL_ANALYSIS`，并仅排入目标 revision、固定 structure hash/artifact hash/profile 的唯一 `ANALYZE_VISUALS` successor。
+- `2026-07-23-create-document-structure-artifacts.sql` 和后续修正 section identity scope 的 `2026-07-24-scope-document-section-identity.sql` 已在本地 MySQL 应用并记录 checksum；生产环境必须按顺序通过独立 migration release 应用后才能部署本阶段 Worker。
+
 ## 下一阶段
 
-WP3C-B 把 `DocumentStructureBuilder` 接入 `BUILD_DOCUMENT_STRUCTURE` Worker stage，持久化固定版本的 structure artifact 与 section manifest，再生成视觉 crop、Evidence Unit/region/relation 和可引用边界。
+WP3C-B2 从固定 page image 与 structure visual candidate 生成受限视觉 crop，接入 `ANALYZE_VISUALS`，再由 `BUILD_EVIDENCE_UNITS` 写入 Evidence Unit/region/relation 和可引用边界。视觉描述不是引用本体；引用必须固定原始页面/区域及对应 object `VersionId`。
