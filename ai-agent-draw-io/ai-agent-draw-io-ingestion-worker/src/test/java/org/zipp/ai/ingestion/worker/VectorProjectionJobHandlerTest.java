@@ -117,6 +117,32 @@ class VectorProjectionJobHandlerTest {
                 ProcessingJobStage.PUBLISH_REVISION, work.nextWorkKey,
                 work.publicationWork.publicationInputFingerprint())).kind());
         assertTrue(work.published);
+
+        VectorGenerationProfile compatibilityProfile = new VectorGenerationProfile(
+                "drawio-test-v2", "test", "multilingual-e5-large-v2", "f".repeat(64),
+                4, "cosine", "vector-v2", "tokenizer-v1");
+        work.compatibilityWork = new CompatibilityProjectionWork(context, compatibilityProfile);
+        VectorProjectionJobHandler compatibilityHandler = new VectorProjectionJobHandler(
+                work, artifacts, embedding, embeddingCache, index,
+                (ownerType, ownerKey) -> "tenant-opaque", new VectorProjectionPlanner(96, 1_000_000),
+                new RevisionPublicationGate(), codec, compatibilityProfile, queue,
+                Clock.fixed(NOW, ZoneOffset.UTC));
+
+        assertEquals(JobOutcome.Kind.SUCCEEDED, compatibilityHandler.handle(lease(
+                ProcessingJobStage.BUILD_COMPATIBILITY_PROJECTION,
+                work.compatibilityWork.workKey(), work.compatibilityWork.inputFingerprint())).kind());
+        assertEquals(VectorProjectionRole.COMPATIBILITY, work.embeddingWork.projectionRole());
+        assertEquals(JobOutcome.Kind.SUCCEEDED, compatibilityHandler.handle(lease(
+                ProcessingJobStage.EMBED_CHUNK_BATCHES, work.nextWorkKey,
+                work.embeddingWork.batchInputFingerprint())).kind());
+        assertEquals(JobOutcome.Kind.SUCCEEDED, compatibilityHandler.handle(lease(
+                ProcessingJobStage.UPSERT_VECTOR_BATCHES, work.nextWorkKey,
+                work.upsertWork.upsertInputFingerprint())).kind());
+        assertEquals(JobOutcome.Kind.SUCCEEDED, compatibilityHandler.handle(lease(
+                ProcessingJobStage.VERIFY_PROJECTION_MANIFEST, work.nextWorkKey,
+                work.manifestWork.verificationInputFingerprint())).kind());
+        assertTrue(work.compatibilityReady);
+        assertEquals(VectorProjectionRole.COMPATIBILITY, work.manifestResult.manifest().projectionRole());
     }
 
     private ProcessingJobLease lease(ProcessingJobStage stage, String workKey, String fingerprint) {
@@ -151,6 +177,8 @@ class VectorProjectionJobHandlerTest {
         private VectorManifestWork manifestWork;
         private VectorProjectionManifestResult manifestResult;
         private RevisionPublicationWork publicationWork;
+        private CompatibilityProjectionWork compatibilityWork;
+        private boolean compatibilityReady;
         private boolean published;
         private ProcessingJobStage nextStage;
         private String nextWorkKey;
@@ -176,6 +204,24 @@ class VectorProjectionJobHandlerTest {
             return true;
         }
 
+        @Override public Optional<CompatibilityProjectionWork> findCompatibilityCoordinatorWork(
+                String revisionId, String workKey, WorkerFence fence) {
+            return Optional.ofNullable(compatibilityWork);
+        }
+
+        @Override public boolean commitCompatibilityCoordinator(
+                CompatibilityProjectionWork work, VectorProjectionPlan result,
+                List<ProcessingJob> nextJobs, WorkerFence fence) {
+            plan = result;
+            VectorBatchPlan batch = result.batches().get(0);
+            embeddingWork = new VectorEmbeddingWork(context, result.profile(),
+                    VectorProjectionRole.COMPATIBILITY, batch.batchNo(), batch.workKey(),
+                    batch.inputFingerprint());
+            nextStage = nextJobs.get(0).stage();
+            nextWorkKey = nextJobs.get(0).workKey();
+            return true;
+        }
+
         @Override public Optional<VectorEmbeddingWork> findEmbeddingWork(
                 String revisionId, String workKey, WorkerFence fence) { return Optional.of(embeddingWork); }
 
@@ -187,6 +233,11 @@ class VectorProjectionJobHandlerTest {
                     target.projectionFingerprint(), target.chunkType(), target.modality(), 1, target.language());
             upsertWork = new VectorUpsertWork(context, plan.profile(), work.batchNo(), work.workKey(),
                     work.batchInputFingerprint(), result.artifact(), List.of(metadata));
+            if (work.projectionRole() == VectorProjectionRole.COMPATIBILITY) {
+                upsertWork = new VectorUpsertWork(context, plan.profile(), VectorProjectionRole.COMPATIBILITY,
+                        work.batchNo(), work.workKey(), work.batchInputFingerprint(),
+                        result.artifact(), List.of(metadata));
+            }
             nextStage = nextJob.stage();
             nextWorkKey = nextJob.workKey();
             return true;
@@ -198,7 +249,7 @@ class VectorProjectionJobHandlerTest {
         @Override public boolean commitUpsert(VectorUpsertWork work, VectorBatchPayload payload,
                                               ProcessingJob verificationJob, WorkerFence fence) {
             VectorProjectionTarget target = plan.projections().get(0);
-            manifestWork = new VectorManifestWork(context, plan.profile(), VectorProjectionRole.PRIMARY,
+            manifestWork = new VectorManifestWork(context, plan.profile(), work.projectionRole(),
                     List.of(new VectorProjectionManifestEntry(target.chunkId(), target.vectorId(),
                             target.projectionFingerprint())));
             nextStage = verificationJob.stage();
@@ -219,6 +270,14 @@ class VectorProjectionJobHandlerTest {
                     IndexGenerationState.BUILDING, null, result.manifest().entries());
             nextStage = nextJob.stage();
             nextWorkKey = nextJob.workKey();
+            return true;
+        }
+
+        @Override public boolean commitCompatibilityManifest(VectorManifestWork work,
+                                                              VectorProjectionManifestResult result,
+                                                              WorkerFence fence) {
+            manifestResult = result;
+            compatibilityReady = true;
             return true;
         }
 

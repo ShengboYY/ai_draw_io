@@ -21,6 +21,7 @@
 | WP3C-B3b2：Retrieval 投影编排与原子持久化 | 已完成 | 当前 WP3C-B3b2 阶段提交 |
 | WP3C-B3c：向量 generation、批次嵌入与 Pinecone 投影 | 已完成 | 当前 WP3C-B3c 阶段提交 |
 | WP3C-B3d：Revision publication gate | 已完成 | 当前 WP3C-B3d 阶段提交 |
+| WP3C-B3e：Index Generation compatibility 与 shadow switch | 已完成 | 当前 WP3C-B3e 阶段提交 |
 
 ## WP2 交付范围
 
@@ -147,6 +148,17 @@ WP2 不把文件复制到正式 materials bucket，也不提供预览。安全�
 - `2026-07-31-pin-revision-gap-manifest.sql` 将 gap manifest 补齐为 exact object `VersionId`、SHA-256、大小与类型的成组 pin；只有能读取且包含非空 `pageNo/modality/errorCode/retryable/coverageImpact` 条目的 manifest 才能发布 `PARTIAL_READY`。本地 MySQL 已执行并验证，checksum 为 `896f05b9e2fa66dd831a4b82fb6b407ba1e1b5a4d37fc811a3cebf4eba67eb2c`。
 - 向量功能仍由独立 feature flag 控制；关闭时不会领取 vector/publish stages，普通文本输入绘图路径不受 Pinecone、S3 projection manifest 或该发布门影响。
 
+## WP3C-B3e 交付范围
+
+- 新增独立的 generation compatibility coordinator。它按当前 ACTIVE Revision、图表固定 Revision、历史 citation Revision，以及已经进入 retrieval/indexing 的在途 Revision 建立不可变 target snapshot；每个 target 使用独立 `BUILD_COMPATIBILITY_PROJECTION` 工作流，只新增目标 generation 的 batch、vector projection 和 exact-version projection manifest，不修改 ProcessingRevision、Evidence、Chunk 或旧 generation manifest。
+- Processing queue 现在同时按 document processing fingerprint 和 `projectionGenerationId` 路由：普通解析任务仍只由匹配 processing profile 的 Worker 领取；compatibility 的 plan/embed/upsert/verify/publish 可跨历史 processing fingerprint，但只能由 work key 对应的新 generation Worker 领取，旧/new embedding Worker 不会串领。
+- coordinator 会在 `BUILDING` 和 `SHADOW` 期间持续吸收新 active/pinned/in-flight Revision。`target_generation` 在新增 target 时单调递增，Shadow report 必须固定 candidate/baseline generation、target generation 和 policy fingerprint；任何回填、manifest、向量数量不完整、授权结果偏差、Recall/nDCG/延迟未达显式 policy 的报告都不能激活。
+- ACTIVE 切换在同一 MySQL 事务中锁定当前 ACTIVE generation、候选 generation 和 target snapshot，重新扫描新增 target 后先将旧 generation 标为 `RETIRED` 并记录 `rollback_until`，再将候选 `SHADOW` 原子切为 `ACTIVE` 并固定 `activation_report_id`。回滚窗口内可按 `previous_generation_id` 原子恢复旧 generation；Pinecone index/vector 不会在切换时删除。
+- 在切换时仍处于 `INDEXING/PUBLISHING` 的 Revision 会提前获得 compatibility projection；候选 generation 激活后，coordinator 通过该 generation 的 exact projection manifest 重新排入 `PUBLISH_REVISION`，避免旧 generation Worker 已领取的在途 Revision 因切换永久卡住。
+- `2026-08-01-create-index-generation-compatibility.sql` 新增 compatibility profile、target snapshot、content-free shadow report 和 generation shadow/retirement/rollback 元数据；本地 MySQL 已执行并验证，checksum 为 `089c595b2963591509d3b0edee8b42b8eed6206b172d7d8c3a94a6807dbf70ae`。
+- compatibility coordinator 仍受 `MATERIAL_VECTOR_PROJECTION_ENABLED` 控制。关闭后不创建 coordinator、不领取 generation/vector job，普通文本输入绘图路径继续不依赖 Pinecone。
+- 当前 B3e 只接受由受控内部评测流程产生的不可变 locked shadow report；在生产 retrieval query/evaluator 接入前，候选 generation 必须保持 `SHADOW`，不得生产激活。后续评测入口必须从实际双代际查询计算授权一致性、Recall/nDCG、延迟与投影完整性，不能由调用方直接自报聚合指标。
+
 ## 下一阶段
 
-WP3C-B3e 将实现独立的 generation compatibility coordinator 与 shadow switch。它不复用仍要求 Revision/Version 为 `PROCESSING` 的首次摄取状态机，而是为新 BUILDING generation 对“新写入 + 历史 active/pinned revision”建立独立、generation-routed 的 compatibility work；新旧 profile Worker 只能领取自身 generation 的任务。回填完整性和 shadow 指标通过后再原子切换全局 ACTIVE，旧 generation 进入保留窗口而不删除，供既有图表与引用继续解析。这个边界避免把已发布 Processing Revision 重新变为可变对象，也避免新旧 embedding Worker 串领任务。
+WP3C-B4 将补齐摄取侧的 projection reconciliation、retired generation 到期清理和失败 target 的可审计重试/修复入口，完成 WP3 所要求的 publish/delete/reconcile 闭环；随后进入 WP4 资料库、图表册与生命周期 UI/API。

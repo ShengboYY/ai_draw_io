@@ -74,6 +74,7 @@ public final class VectorProjectionJobHandler {
         try {
             return switch (job.stage()) {
                 case BUILD_LEXICAL_PROJECTION -> coordinate(revisionId, lease);
+                case BUILD_COMPATIBILITY_PROJECTION -> coordinateCompatibility(revisionId, lease);
                 case EMBED_CHUNK_BATCHES -> embed(revisionId, lease);
                 case UPSERT_VECTOR_BATCHES -> upsert(revisionId, lease);
                 case VERIFY_PROJECTION_MANIFEST -> manifest(revisionId, lease);
@@ -110,6 +111,28 @@ public final class VectorProjectionJobHandler {
                 : plan.batches().stream().map(batch -> nextJob(revisionId,
                         ProcessingJobStage.EMBED_CHUNK_BATCHES, batch.workKey(), batch.inputFingerprint())).toList();
         return work.commitCoordinator(context, plan, successors, fence(lease))
+                ? JobOutcome.succeeded() : staleFence();
+    }
+
+    private JobOutcome coordinateCompatibility(String revisionId, ProcessingJobLease lease) {
+        CompatibilityProjectionWork source = work.findCompatibilityCoordinatorWork(
+                revisionId, lease.job().workKey(), fence(lease)).orElse(null);
+        if (source == null) return JobOutcome.succeeded();
+        verifyProfile(source.profile());
+        if (!source.workKey().equals(lease.job().workKey())
+                || !source.inputFingerprint().equals(lease.job().inputFingerprint())) {
+            return JobOutcome.permanent("STALE_PROCESSING_FINGERPRINT");
+        }
+        if (!heartbeat(lease)) return staleFence();
+        VectorProjectionPlan plan = planner.plan(readRetrievalManifest(source.context()), source.profile());
+        List<ProcessingJob> successors = plan.batches().isEmpty()
+                ? List.of(nextJob(revisionId, ProcessingJobStage.VERIFY_PROJECTION_MANIFEST,
+                        VectorManifestWork.verificationWorkKey(source.profile().generationId()),
+                        VectorManifestWork.verificationInputFingerprint(
+                                revisionId, source.profile().generationId())))
+                : plan.batches().stream().map(batch -> nextJob(revisionId,
+                        ProcessingJobStage.EMBED_CHUNK_BATCHES, batch.workKey(), batch.inputFingerprint())).toList();
+        return work.commitCompatibilityCoordinator(source, plan, successors, fence(lease))
                 ? JobOutcome.succeeded() : staleFence();
     }
 
@@ -203,6 +226,18 @@ public final class VectorProjectionJobHandler {
                 + source.profile().generationId() + "/projection-manifest.json.gz",
                 codec.encode(manifest), JSON_GZIP);
         VectorProjectionManifestResult result = new VectorProjectionManifestResult(manifest, artifact);
+        if (source.projectionRole() == VectorProjectionRole.COMPATIBILITY) {
+            if (!publicationGate.allVectorsVisible(source.entries().stream().map(
+                    VectorProjectionManifestEntry::vectorId).toList(),
+                    vectorIndex.existingVectorIds(source.entries().stream().map(
+                            VectorProjectionManifestEntry::vectorId).toList()))) {
+                // A READY compatibility target must already be visible to shadow queries.
+                throw new RetryableRetrievalException(
+                        "Pinecone compatibility projection is not visible yet", Duration.ofSeconds(10));
+            }
+            return work.commitCompatibilityManifest(source, result, fence(lease))
+                    ? JobOutcome.succeeded() : staleFence();
+        }
         ProcessingJob successor = nextJob(revisionId, ProcessingJobStage.PUBLISH_REVISION,
                 RevisionPublicationWork.publicationWorkKey(source.profile().generationId()),
                 RevisionPublicationWork.publicationInputFingerprint(

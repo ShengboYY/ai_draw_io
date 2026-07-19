@@ -185,6 +185,23 @@ class MaterialRagFoundationMigrationTest {
     }
 
     @Test
+    void compatibilityMigrationPinsTargetsShadowReportsAndRollbackMetadata() throws Exception {
+        Path migration = Path.of("docs/sql/migrations/2026-08-01-create-index-generation-compatibility.sql");
+        if (!Files.exists(migration)) {
+            migration = Path.of("../docs/sql/migrations/2026-08-01-create-index-generation-compatibility.sql");
+        }
+        String sql = Files.readString(migration);
+
+        assertTrue(sql.contains("CREATE TABLE IF NOT EXISTS rag_index_generation_target"));
+        assertTrue(sql.contains("PRIMARY KEY (index_generation_id, revision_id)"));
+        assertTrue(sql.contains("CREATE TABLE IF NOT EXISTS rag_index_shadow_report"));
+        assertTrue(sql.contains("target_generation BIGINT NOT NULL"));
+        assertTrue(sql.contains("rollback_until DATETIME(3)"));
+        assertTrue(sql.contains("activation_report_id VARCHAR(64)"));
+        assertTrue(sql.contains("previous_generation_id VARCHAR(64)"));
+    }
+
+    @Test
     void workerIamAllowsExactVersionVerificationAndCleanupInBothBuckets() throws Exception {
         Path template = Path.of("../deploy/aws/material-upload/s3-and-iam.template.yml");
         if (!Files.exists(template)) {
@@ -204,6 +221,10 @@ class MaterialRagFoundationMigrationTest {
         assertTrue(xml.contains("r.fingerprint = #{processingFingerprint}"));
         assertTrue(xml.contains("stage != 'PROMOTE_ORIGINAL'"));
         assertTrue(xml.contains("u.processing_revision_id"));
+        assertTrue(xml.contains("projectionGenerationId"));
+        assertTrue(xml.contains("BUILD_COMPATIBILITY_PROJECTION"));
+        assertTrue(xml.contains("rv.projection_role = 'COMPATIBILITY'"));
+        assertTrue(xml.contains("material_processing_job.stage IN ('EMBED_CHUNK_BATCHES', 'UPSERT_VECTOR_BATCHES',"));
     }
 
     private String jobTable(String sql) {

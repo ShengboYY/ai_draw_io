@@ -18,6 +18,12 @@ public interface ProcessingQueuePort {
                                                String processingFingerprint) {
         return claim(workerId, now, leaseDuration, acceptedStages);
     }
+    default Optional<ProcessingJobLease> claim(String workerId, Instant now, Duration leaseDuration,
+                                               Set<ProcessingJobStage> acceptedStages,
+                                               String processingFingerprint,
+                                               String projectionGenerationId) {
+        return claim(workerId, now, leaseDuration, acceptedStages, processingFingerprint);
+    }
     default Optional<ProcessingJobLease> claim(String workerId, Instant now, Duration leaseDuration) {
         return claim(workerId, now, leaseDuration, Set.of());
     }

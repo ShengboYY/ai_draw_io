@@ -2,6 +2,8 @@ package org.zipp.ai.infrastructure.dao.material.po;
 
 import lombok.Data;
 
+import java.time.Instant;
+
 @Data
 public class RagIndexGenerationPO {
     private String id;
@@ -13,4 +15,10 @@ public class RagIndexGenerationPO {
     private String metric;
     private String vectorSchemaVersion;
     private String state;
+    private Instant activatedAt;
+    private Instant shadowStartedAt;
+    private Instant retiredAt;
+    private Instant rollbackUntil;
+    private String activationReportId;
+    private String previousGenerationId;
 }

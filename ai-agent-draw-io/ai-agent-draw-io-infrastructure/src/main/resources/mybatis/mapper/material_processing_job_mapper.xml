@@ -40,10 +40,17 @@
           <foreach collection="stages" item="stage" open="(" separator="," close=")">#{stage}</foreach>
         </if>
         <if test="processingFingerprint != null and processingFingerprint != ''">
-          AND (revision_id IS NULL OR EXISTS (
+          AND (revision_id IS NULL OR stage = 'BUILD_COMPATIBILITY_PROJECTION' OR EXISTS (
               SELECT 1 FROM material_processing_revision r
               WHERE r.id = material_processing_job.revision_id
                 AND r.fingerprint = #{processingFingerprint}
+          ) OR EXISTS (
+              SELECT 1 FROM retrieval_revision_vector_projection rv
+              WHERE material_processing_job.stage IN ('EMBED_CHUNK_BATCHES', 'UPSERT_VECTOR_BATCHES',
+                                                       'VERIFY_PROJECTION_MANIFEST', 'PUBLISH_REVISION')
+                AND rv.revision_id = material_processing_job.revision_id
+                AND rv.index_generation_id = #{projectionGenerationId}
+                AND rv.projection_role = 'COMPATIBILITY'
           ))
           AND (stage != 'PROMOTE_ORIGINAL' OR EXISTS (
               SELECT 1 FROM material_upload_session u
@@ -51,6 +58,25 @@
               WHERE u.id = material_processing_job.upload_session_id
                 AND r.fingerprint = #{processingFingerprint}
           ))
+        </if>
+        <if test="projectionGenerationId != null and projectionGenerationId != ''">
+          <!-- Vector jobs are owned by exactly one generation profile; historical revisions bypass
+               the document-processing fingerprint only after their compatibility target is routed. -->
+          AND (
+              stage NOT IN ('BUILD_LEXICAL_PROJECTION', 'EMBED_CHUNK_BATCHES',
+                            'UPSERT_VECTOR_BATCHES', 'VERIFY_PROJECTION_MANIFEST',
+                            'PUBLISH_REVISION', 'BUILD_COMPATIBILITY_PROJECTION')
+              OR (stage = 'BUILD_LEXICAL_PROJECTION' AND (
+                    NOT EXISTS (SELECT 1 FROM rag_index_generation active WHERE active.state = 'ACTIVE')
+                    OR EXISTS (SELECT 1 FROM rag_index_generation active
+                               WHERE active.state = 'ACTIVE' AND active.id = #{projectionGenerationId})
+                 ))
+              OR (stage != 'BUILD_LEXICAL_PROJECTION'
+                  AND work_key LIKE CONCAT('ig:', #{projectionGenerationId}, '%')
+                  AND EXISTS (SELECT 1 FROM rag_index_generation routed
+                              WHERE routed.id = #{projectionGenerationId}
+                                AND routed.state IN ('BUILDING', 'SHADOW', 'ACTIVE')))
+          )
         </if>
         ORDER BY priority DESC, created_at ASC
         LIMIT 1

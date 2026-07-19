@@ -8,11 +8,13 @@ import java.util.Objects;
 
 /** Exact vector artifact and authoritative metadata authorized for an idempotent index upsert. */
 public record VectorUpsertWork(RevisionProjectionContext context, VectorGenerationProfile profile,
+                               VectorProjectionRole projectionRole,
                                int batchNo, String workKey, String batchInputFingerprint,
                                StoredArtifact vectorArtifact, List<VectorProjectionMetadata> projections) {
     public VectorUpsertWork {
         context = Objects.requireNonNull(context, "context");
         profile = Objects.requireNonNull(profile, "profile");
+        projectionRole = Objects.requireNonNull(projectionRole, "projectionRole");
         vectorArtifact = Objects.requireNonNull(vectorArtifact, "vectorArtifact");
         projections = List.copyOf(Objects.requireNonNull(projections, "projections"));
         if (batchNo < 0 || workKey == null || workKey.isBlank()
@@ -20,6 +22,13 @@ public record VectorUpsertWork(RevisionProjectionContext context, VectorGenerati
                 || projections.isEmpty()) {
             throw new IllegalArgumentException("vector upsert work identity is invalid");
         }
+    }
+
+    public VectorUpsertWork(RevisionProjectionContext context, VectorGenerationProfile profile,
+                            int batchNo, String workKey, String batchInputFingerprint,
+                            StoredArtifact vectorArtifact, List<VectorProjectionMetadata> projections) {
+        this(context, profile, VectorProjectionRole.PRIMARY, batchNo, workKey,
+                batchInputFingerprint, vectorArtifact, projections);
     }
 
     public String upsertInputFingerprint() {

@@ -43,13 +43,24 @@ public class MySqlProcessingQueueAdapter implements ProcessingQueuePort {
     public Optional<ProcessingJobLease> claim(String workerId, Instant now, Duration leaseDuration,
                                               Set<ProcessingJobStage> acceptedStages,
                                               String processingFingerprint) {
+        return claim(workerId, now, leaseDuration, acceptedStages, processingFingerprint, null);
+    }
+
+    @Override
+    @Transactional
+    public Optional<ProcessingJobLease> claim(String workerId, Instant now, Duration leaseDuration,
+                                              Set<ProcessingJobStage> acceptedStages,
+                                              String processingFingerprint,
+                                              String projectionGenerationId) {
         String owner = requireText(workerId, "workerId");
         Instant claimedAt = Objects.requireNonNull(now, "now");
         Duration duration = positive(leaseDuration);
         String profile = processingFingerprint == null ? null : requireFingerprint(processingFingerprint);
+        String generation = projectionGenerationId == null ? null
+                : requireText(projectionGenerationId, "projectionGenerationId");
         var stages = acceptedStages == null ? java.util.List.<String>of()
                 : acceptedStages.stream().map(Enum::name).sorted().toList();
-        ProcessingJobPO candidate = mapper.selectClaimableForUpdate(claimedAt, stages, profile);
+        ProcessingJobPO candidate = mapper.selectClaimableForUpdate(claimedAt, stages, profile, generation);
         if (candidate == null || mapper.claim(candidate.getId(), owner, claimedAt, claimedAt.plus(duration)) != 1) {
             return Optional.empty();
         }

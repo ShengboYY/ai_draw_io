@@ -13,6 +13,11 @@ public interface IVectorProjectionMapper {
                                                  @Param("jobId") String jobId,
                                                  @Param("workerId") String workerId,
                                                  @Param("fenceToken") long fenceToken);
+    VectorProjectionWorkPO selectCompatibilityCoordinatorWork(@Param("revisionId") String revisionId,
+                                                              @Param("workKey") String workKey,
+                                                              @Param("jobId") String jobId,
+                                                              @Param("workerId") String workerId,
+                                                              @Param("fenceToken") long fenceToken);
     VectorProjectionWorkPO selectEmbeddingWork(@Param("revisionId") String revisionId,
                                                @Param("workKey") String workKey,
                                                @Param("jobId") String jobId,
@@ -89,4 +94,47 @@ public interface IVectorProjectionMapper {
     int activateVersionRevision(@Param("versionId") String versionId,
                                 @Param("revisionId") String revisionId);
     int recordInitialProcessingUsage(@Param("revisionId") String revisionId);
+    int updateGenerationTargetState(@Param("revisionId") String revisionId,
+                                    @Param("generationId") String generationId,
+                                    @Param("expectedState") String expectedState,
+                                    @Param("state") String state);
+    int countGenerationRoutedFence(@Param("revisionId") String revisionId,
+                                   @Param("generationId") String generationId,
+                                   @Param("stage") String stage,
+                                   @Param("jobId") String jobId,
+                                   @Param("workerId") String workerId,
+                                   @Param("fenceToken") long fenceToken);
+    int insertCompatibilityProfile(@Param("generationId") String generationId,
+                                   @Param("tokenizerFingerprint") String tokenizerFingerprint,
+                                   @Param("campaignFingerprint") String campaignFingerprint,
+                                   @Param("registeredAt") Instant registeredAt);
+    String selectCompatibilityTokenizer(@Param("generationId") String generationId);
+    int insertRequiredGenerationTargets(@Param("generationId") String generationId,
+                                        @Param("tokenizerFingerprint") String tokenizerFingerprint,
+                                        @Param("requiredAt") Instant requiredAt);
+    int advanceCompatibilityTargetGeneration(@Param("generationId") String generationId,
+                                             @Param("addedTargetCount") int addedTargetCount);
+    List<VectorProjectionWorkPO> selectPendingGenerationTargets(@Param("generationId") String generationId,
+                                                                @Param("limit") int limit);
+    List<VectorProjectionWorkPO> selectPendingGenerationPublications(
+            @Param("generationId") String generationId, @Param("limit") int limit);
+    GenerationBackfillStatusPO selectGenerationBackfillStatus(@Param("generationId") String generationId);
+    int beginGenerationShadow(@Param("generationId") String generationId,
+                              @Param("shadowStartedAt") Instant shadowStartedAt);
+    int insertShadowReport(GenerationShadowReportPO report);
+    GenerationShadowReportPO selectShadowReport(@Param("generationId") String generationId,
+                                                @Param("reportId") String reportId);
+    List<String> lockGenerationTargets(@Param("generationId") String generationId);
+    int retireActiveGeneration(@Param("generationId") String generationId,
+                               @Param("retiredAt") Instant retiredAt,
+                               @Param("rollbackUntil") Instant rollbackUntil);
+    int activateShadowGeneration(@Param("generationId") String generationId,
+                                 @Param("previousGenerationId") String previousGenerationId,
+                                 @Param("reportId") String reportId,
+                                 @Param("activatedAt") Instant activatedAt);
+    RagIndexGenerationPO selectGenerationForUpdate(@Param("generationId") String generationId);
+    int retireRolledBackGeneration(@Param("generationId") String generationId,
+                                   @Param("retiredAt") Instant retiredAt);
+    int restoreRetiredGeneration(@Param("generationId") String generationId,
+                                 @Param("activatedAt") Instant activatedAt);
 }

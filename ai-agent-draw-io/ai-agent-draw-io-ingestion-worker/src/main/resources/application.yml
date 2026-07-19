@@ -22,6 +22,8 @@ worker:
   vector-projection-enabled: ${MATERIAL_VECTOR_PROJECTION_ENABLED:false}
   poll-delay-ms: ${WORKER_POLL_DELAY_MS:1000}
   reaper-delay-ms: ${WORKER_REAPER_DELAY_MS:60000}
+  generation-sync-delay-ms: ${GENERATION_SYNC_DELAY_MS:5000}
+  generation-sync-batch-size: ${GENERATION_SYNC_BATCH_SIZE:100}
   clamav:
     host: ${CLAMAV_HOST:127.0.0.1}
     port: ${CLAMAV_PORT:3310}

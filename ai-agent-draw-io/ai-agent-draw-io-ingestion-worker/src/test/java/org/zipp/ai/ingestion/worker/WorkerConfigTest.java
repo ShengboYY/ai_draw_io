@@ -20,6 +20,7 @@ class WorkerConfigTest {
         assertDocumentConditional("documentParserPort");
         assertDocumentConditional("ocrEnginePort");
         assertDocumentConditional("documentProcessingJobHandler");
+        assertVectorConditional("indexGenerationCompatibilityCoordinator");
         try (InputStream stream = getClass().getClassLoader().getResourceAsStream("application.yml")) {
             assertNotNull(stream);
             String configuration = new String(stream.readAllBytes(), StandardCharsets.UTF_8);
@@ -46,5 +47,14 @@ class WorkerConfigTest {
         ConditionalOnProperty condition = method.getAnnotation(ConditionalOnProperty.class);
         assertNotNull(condition, methodName);
         assertTrue(Arrays.asList(condition.name()).contains("worker.document-processing-enabled"));
+    }
+
+    private void assertVectorConditional(String methodName) {
+        var method = Arrays.stream(WorkerConfig.class.getDeclaredMethods())
+                .filter(candidate -> candidate.getName().equals(methodName))
+                .findFirst().orElseThrow();
+        ConditionalOnProperty condition = method.getAnnotation(ConditionalOnProperty.class);
+        assertNotNull(condition, methodName);
+        assertTrue(Arrays.asList(condition.name()).contains("worker.vector-projection-enabled"));
     }
 }

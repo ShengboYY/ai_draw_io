@@ -27,6 +27,7 @@ public final class WorkerPoller {
     private final String workerId;
     private final Set<ProcessingJobStage> claimableStages;
     private final String processingFingerprint;
+    private final String projectionGenerationId;
     private final AtomicBoolean polling = new AtomicBoolean();
 
     public WorkerPoller(ProcessingQueuePort queue,
@@ -36,7 +37,7 @@ public final class WorkerPoller {
                         VectorProjectionJobHandler vectorProjectionHandler,
                         Clock clock, String workerId, boolean materializationEnabled,
                         boolean documentProcessingEnabled, boolean vectorProjectionEnabled,
-                        String processingFingerprint) {
+                        String processingFingerprint, String projectionGenerationId) {
         this.queue = Objects.requireNonNull(queue, "queue");
         this.secureUploadHandler = Objects.requireNonNull(secureUploadHandler, "secureUploadHandler");
         this.materializationHandler = materializationEnabled
@@ -64,6 +65,8 @@ public final class WorkerPoller {
             throw new IllegalArgumentException("processingFingerprint must be lowercase SHA-256");
         }
         this.processingFingerprint = processingFingerprint;
+        this.projectionGenerationId = vectorProjectionEnabled
+                ? requireText(projectionGenerationId, "projectionGenerationId") : null;
     }
 
     @Scheduled(fixedDelayString = "${worker.poll-delay-ms:1000}")
@@ -72,7 +75,8 @@ public final class WorkerPoller {
             return;
         }
         try {
-            queue.claim(workerId, clock.instant(), LEASE_DURATION, claimableStages, processingFingerprint)
+            queue.claim(workerId, clock.instant(), LEASE_DURATION, claimableStages,
+                            processingFingerprint, projectionGenerationId)
                     .ifPresent(this::execute);
         } finally {
             polling.set(false);
@@ -92,7 +96,8 @@ public final class WorkerPoller {
                     ANALYZE_VISUALS, BUILD_EVIDENCE_UNITS, BUILD_RETRIEVAL_CHUNKS ->
                     requireDocumentProcessingHandler().handle(lease);
             case BUILD_LEXICAL_PROJECTION, EMBED_CHUNK_BATCHES, UPSERT_VECTOR_BATCHES,
-                    VERIFY_PROJECTION_MANIFEST, PUBLISH_REVISION -> requireVectorProjectionHandler().handle(lease);
+                    VERIFY_PROJECTION_MANIFEST, PUBLISH_REVISION, BUILD_COMPATIBILITY_PROJECTION ->
+                    requireVectorProjectionHandler().handle(lease);
             default -> JobOutcome.permanent("UNSUPPORTED_WORKER_STAGE");
         };
         var job = lease.job();
@@ -155,7 +160,8 @@ public final class WorkerPoller {
                         ProcessingJobStage.EMBED_CHUNK_BATCHES,
                         ProcessingJobStage.UPSERT_VECTOR_BATCHES,
                         ProcessingJobStage.VERIFY_PROJECTION_MANIFEST,
-                        ProcessingJobStage.PUBLISH_REVISION));
+                        ProcessingJobStage.PUBLISH_REVISION,
+                        ProcessingJobStage.BUILD_COMPATIBILITY_PROJECTION));
             }
             return Set.copyOf(stages);
         }
@@ -182,5 +188,10 @@ public final class WorkerPoller {
             throw new IllegalStateException("vector projection handler is disabled");
         }
         return vectorProjectionHandler;
+    }
+
+    private static String requireText(String value, String field) {
+        if (value == null || value.isBlank()) throw new IllegalArgumentException(field + " is required");
+        return value.trim();
     }
 }

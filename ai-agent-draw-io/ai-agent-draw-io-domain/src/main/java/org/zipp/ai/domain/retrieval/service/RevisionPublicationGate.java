@@ -10,6 +10,7 @@ import org.zipp.ai.domain.ingestion.model.valobj.RevisionGapManifest;
 import org.zipp.ai.domain.retrieval.model.valobj.RetrievalIndexMode;
 
 import java.util.HashSet;
+import java.util.Collection;
 import java.util.Objects;
 import java.util.Set;
 
@@ -89,7 +90,12 @@ public final class RevisionPublicationGate {
     }
 
     public boolean allVectorsVisible(RevisionPublicationWork work, Set<String> existingVectorIds) {
-        return new HashSet<>(work.vectorIds()).equals(Set.copyOf(existingVectorIds));
+        return allVectorsVisible(work.vectorIds(), existingVectorIds);
+    }
+
+    public boolean allVectorsVisible(Collection<String> expectedVectorIds, Set<String> existingVectorIds) {
+        return new HashSet<>(Objects.requireNonNull(expectedVectorIds, "expectedVectorIds"))
+                .equals(Set.copyOf(Objects.requireNonNull(existingVectorIds, "existingVectorIds")));
     }
 
     public void verifyGapManifest(RevisionPublicationWork work, RevisionGapManifest gapManifest) {

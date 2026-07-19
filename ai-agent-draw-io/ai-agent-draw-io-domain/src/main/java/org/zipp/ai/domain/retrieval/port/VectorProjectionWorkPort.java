@@ -14,6 +14,10 @@ public interface VectorProjectionWorkPort {
     Optional<RevisionProjectionContext> findCoordinatorWork(String revisionId, WorkerFence fence);
     boolean commitCoordinator(RevisionProjectionContext work, VectorProjectionPlan result,
                               List<ProcessingJob> nextJobs, WorkerFence fence);
+    Optional<CompatibilityProjectionWork> findCompatibilityCoordinatorWork(
+            String revisionId, String workKey, WorkerFence fence);
+    boolean commitCompatibilityCoordinator(CompatibilityProjectionWork work, VectorProjectionPlan result,
+                                           List<ProcessingJob> nextJobs, WorkerFence fence);
     Optional<VectorEmbeddingWork> findEmbeddingWork(String revisionId, String workKey, WorkerFence fence);
     boolean commitEmbedding(VectorEmbeddingWork work, VectorBatchArtifactResult result,
                             ProcessingJob nextJob, WorkerFence fence);
@@ -23,6 +27,8 @@ public interface VectorProjectionWorkPort {
     Optional<VectorManifestWork> findManifestWork(String revisionId, String workKey, WorkerFence fence);
     boolean commitManifest(VectorManifestWork work, VectorProjectionManifestResult result,
                            ProcessingJob nextJob, WorkerFence fence);
+    boolean commitCompatibilityManifest(VectorManifestWork work,
+                                        VectorProjectionManifestResult result, WorkerFence fence);
     Optional<RevisionPublicationWork> findPublicationWork(String revisionId, String workKey,
                                                           WorkerFence fence);
     boolean commitPublication(RevisionPublicationWork work, WorkerFence fence);

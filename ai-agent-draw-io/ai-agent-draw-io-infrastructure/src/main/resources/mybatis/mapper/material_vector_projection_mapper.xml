@@ -31,6 +31,34 @@
           AND j.fence_token = #{fenceToken} AND j.lease_until &gt; UTC_TIMESTAMP(3)
     </select>
 
+    <select id="selectCompatibilityCoordinatorWork"
+            resultType="org.zipp.ai.infrastructure.dao.material.po.VectorProjectionWorkPO">
+        SELECT <include refid="projectionContextColumns"/>,
+               g.id AS index_generation_id, g.index_name, g.namespace, g.embedding_model,
+               g.embedding_model_fingerprint, g.dimension, g.metric, g.vector_schema_version,
+               target.tokenizer_fingerprint
+        FROM rag_index_generation_target target
+        JOIN rag_index_generation g ON g.id = target.index_generation_id
+        JOIN material_processing_revision r ON r.id = target.revision_id
+        JOIN material_version v ON v.id = r.version_id
+        JOIN material m ON m.id = v.material_id
+        JOIN material_revision_artifact manifest
+          ON manifest.revision_id = r.id AND manifest.artifact_kind = 'RETRIEVAL_MANIFEST'
+        JOIN material_processing_job j ON j.revision_id = r.id
+        WHERE r.id = #{revisionId}
+          AND (r.state IN ('READY', 'PARTIAL_READY')
+               OR (r.state = 'PROCESSING' AND r.stage IN ('INDEXING', 'PUBLISHING')
+                   AND r.progress &gt;= 93))
+          AND target.state = 'PENDING' AND g.state IN ('BUILDING', 'SHADOW')
+          AND CONCAT('ig:', g.id, ':compatibility') = #{workKey}
+          AND m.lifecycle_state = 'ACTIVE'
+          AND (m.retention_class = 'RETAINED' OR m.expires_at &gt; UTC_TIMESTAMP(3))
+          AND j.id = #{jobId} AND j.stage = 'BUILD_COMPATIBILITY_PROJECTION'
+          AND j.work_key = #{workKey} AND j.status = 'RUNNING'
+          AND j.lease_owner = #{workerId} AND j.fence_token = #{fenceToken}
+          AND j.lease_until &gt; UTC_TIMESTAMP(3)
+    </select>
+
     <sql id="batchProfileColumns">
         , g.id AS index_generation_id, g.index_name, g.namespace, g.embedding_model,
         g.embedding_model_fingerprint, g.dimension, g.metric, g.vector_schema_version,
@@ -53,8 +81,18 @@
         JOIN retrieval_revision_vector_projection rv
           ON rv.revision_id = r.id AND rv.index_generation_id = g.id
         JOIN material_processing_job j ON j.revision_id = r.id
-        WHERE r.id = #{revisionId} AND r.state = 'PROCESSING' AND r.stage = 'INDEXING'
-          AND b.state = 'PENDING' AND v.ingest_state = 'PROCESSING' AND m.lifecycle_state = 'ACTIVE'
+        WHERE r.id = #{revisionId} AND b.state = 'PENDING' AND m.lifecycle_state = 'ACTIVE'
+          AND ((rv.projection_role = 'PRIMARY' AND r.state = 'PROCESSING'
+                AND r.stage = 'INDEXING' AND v.ingest_state = 'PROCESSING')
+               OR (rv.projection_role = 'COMPATIBILITY'
+                   AND (r.state IN ('READY', 'PARTIAL_READY')
+                        OR (r.state = 'PROCESSING' AND r.stage IN ('INDEXING', 'PUBLISHING')
+                            AND r.progress &gt;= 93))
+                   AND g.state IN ('BUILDING', 'SHADOW')
+                   AND EXISTS (SELECT 1 FROM rag_index_generation_target target
+                               WHERE target.revision_id = r.id
+                                 AND target.index_generation_id = g.id
+                                 AND target.state = 'PLANNED')))
           AND (m.retention_class = 'RETAINED' OR m.expires_at &gt; UTC_TIMESTAMP(3))
           AND j.id = #{jobId} AND j.stage = 'EMBED_CHUNK_BATCHES' AND j.work_key = b.work_key
           AND j.status = 'RUNNING' AND j.lease_owner = #{workerId}
@@ -74,8 +112,18 @@
         JOIN retrieval_revision_vector_projection rv
           ON rv.revision_id = r.id AND rv.index_generation_id = g.id
         JOIN material_processing_job j ON j.revision_id = r.id
-        WHERE r.id = #{revisionId} AND r.state = 'PROCESSING' AND r.stage = 'INDEXING'
-          AND b.state = 'EMBEDDED' AND v.ingest_state = 'PROCESSING' AND m.lifecycle_state = 'ACTIVE'
+        WHERE r.id = #{revisionId} AND b.state = 'EMBEDDED' AND m.lifecycle_state = 'ACTIVE'
+          AND ((rv.projection_role = 'PRIMARY' AND r.state = 'PROCESSING'
+                AND r.stage = 'INDEXING' AND v.ingest_state = 'PROCESSING')
+               OR (rv.projection_role = 'COMPATIBILITY'
+                   AND (r.state IN ('READY', 'PARTIAL_READY')
+                        OR (r.state = 'PROCESSING' AND r.stage IN ('INDEXING', 'PUBLISHING')
+                            AND r.progress &gt;= 93))
+                   AND g.state IN ('BUILDING', 'SHADOW')
+                   AND EXISTS (SELECT 1 FROM rag_index_generation_target target
+                               WHERE target.revision_id = r.id
+                                 AND target.index_generation_id = g.id
+                                 AND target.state = 'PLANNED')))
           AND (m.retention_class = 'RETAINED' OR m.expires_at &gt; UTC_TIMESTAMP(3))
           AND j.id = #{jobId} AND j.stage = 'UPSERT_VECTOR_BATCHES' AND j.work_key = b.work_key
           AND j.status = 'RUNNING' AND j.lease_owner = #{workerId}
@@ -116,11 +164,22 @@
         LEFT JOIN retrieval_chunk_vector_projection p
           ON p.retrieval_chunk_id = c.id AND p.index_generation_id = g.id AND p.state = 'INDEXED'
         JOIN material_processing_job j ON j.revision_id = r.id
-        WHERE r.id = #{revisionId} AND r.state = 'PROCESSING' AND r.stage = 'INDEXING'
+        WHERE r.id = #{revisionId}
           AND j.id = #{jobId} AND j.stage = 'VERIFY_PROJECTION_MANIFEST' AND j.work_key = #{workKey}
           AND j.status = 'RUNNING' AND j.lease_owner = #{workerId}
           AND j.fence_token = #{fenceToken} AND j.lease_until &gt; UTC_TIMESTAMP(3)
-          AND v.ingest_state = 'PROCESSING' AND m.lifecycle_state = 'ACTIVE'
+          AND m.lifecycle_state = 'ACTIVE'
+          AND ((rv.projection_role = 'PRIMARY' AND r.state = 'PROCESSING'
+                AND r.stage = 'INDEXING' AND v.ingest_state = 'PROCESSING')
+               OR (rv.projection_role = 'COMPATIBILITY'
+                   AND (r.state IN ('READY', 'PARTIAL_READY')
+                        OR (r.state = 'PROCESSING' AND r.stage IN ('INDEXING', 'PUBLISHING')
+                            AND r.progress &gt;= 93))
+                   AND g.state IN ('BUILDING', 'SHADOW')
+                   AND EXISTS (SELECT 1 FROM rag_index_generation_target target
+                               WHERE target.revision_id = r.id
+                                 AND target.index_generation_id = g.id
+                                 AND target.state = 'PLANNED')))
           AND (m.retention_class = 'RETAINED' OR m.expires_at &gt; UTC_TIMESTAMP(3))
           AND NOT EXISTS (SELECT 1 FROM retrieval_vector_batch pending
                           WHERE pending.revision_id = r.id AND pending.index_generation_id = g.id
@@ -368,7 +427,240 @@
         SELECT v.content_blob_id, v.owner_key, v.id, r.id, v.page_count
         FROM material_processing_revision r
         JOIN material_version v ON v.id = r.version_id
-        WHERE r.id = #{revisionId} AND r.state IN ('READY', 'PARTIAL_READY')
+        WHERE r.id = #{revisionId}
+          AND (r.state IN ('READY', 'PARTIAL_READY')
+               OR (r.state = 'PROCESSING' AND r.stage IN ('INDEXING', 'PUBLISHING')
+                   AND r.progress &gt;= 93))
           AND v.page_count IS NOT NULL
     </insert>
+
+    <update id="updateGenerationTargetState">
+        UPDATE rag_index_generation_target SET state = #{state}
+        WHERE revision_id = #{revisionId} AND index_generation_id = #{generationId}
+          AND state = #{expectedState}
+    </update>
+
+    <select id="countGenerationRoutedFence" resultType="int">
+        SELECT COUNT(*)
+        FROM material_processing_job j
+        JOIN material_processing_revision r ON r.id = j.revision_id
+        JOIN material_version v ON v.id = r.version_id
+        JOIN material m ON m.id = v.material_id
+        JOIN retrieval_revision_vector_projection rv
+          ON rv.revision_id = r.id AND rv.index_generation_id = #{generationId}
+         AND rv.projection_role = 'COMPATIBILITY'
+        JOIN rag_index_generation g ON g.id = rv.index_generation_id
+        JOIN rag_index_generation_target target
+          ON target.revision_id = r.id AND target.index_generation_id = g.id
+        WHERE r.id = #{revisionId}
+          AND (r.state IN ('READY', 'PARTIAL_READY')
+               OR (r.state = 'PROCESSING' AND r.stage IN ('INDEXING', 'PUBLISHING')
+                   AND r.progress &gt;= 93))
+          AND g.state IN ('BUILDING', 'SHADOW') AND target.state IN ('PENDING', 'PLANNED')
+          AND m.lifecycle_state = 'ACTIVE'
+          AND (m.retention_class = 'RETAINED' OR m.expires_at &gt; UTC_TIMESTAMP(3))
+          AND j.id = #{jobId} AND j.stage = #{stage} AND j.status = 'RUNNING'
+          AND j.lease_owner = #{workerId} AND j.fence_token = #{fenceToken}
+          AND j.lease_until &gt; UTC_TIMESTAMP(3)
+    </select>
+
+    <insert id="insertCompatibilityProfile">
+        INSERT IGNORE INTO rag_index_generation_compatibility_profile (
+            index_generation_id, tokenizer_fingerprint, campaign_fingerprint, registered_at
+        ) VALUES (#{generationId}, #{tokenizerFingerprint}, #{campaignFingerprint}, #{registeredAt})
+    </insert>
+
+    <select id="selectCompatibilityTokenizer" resultType="string">
+        SELECT tokenizer_fingerprint FROM rag_index_generation_compatibility_profile
+        WHERE index_generation_id = #{generationId}
+    </select>
+
+    <insert id="insertRequiredGenerationTargets">
+        INSERT IGNORE INTO rag_index_generation_target (
+            index_generation_id, revision_id, tokenizer_fingerprint, state, required_at
+        )
+        SELECT #{generationId}, required_revision.revision_id, #{tokenizerFingerprint},
+               'PENDING', #{requiredAt}
+        FROM (
+            SELECT active_version.active_revision_id AS revision_id
+            FROM material_version active_version
+            WHERE active_version.active_revision_id IS NOT NULL
+            UNION
+            SELECT source_pin.processing_revision_id AS revision_id
+            FROM diagram_source_pin source_pin
+            UNION
+            SELECT citation.revision_id
+            FROM citation_evidence citation
+            UNION
+            SELECT in_flight.id
+            FROM material_processing_revision in_flight
+            JOIN material_revision_artifact retrieval_manifest
+              ON retrieval_manifest.revision_id = in_flight.id
+             AND retrieval_manifest.artifact_kind = 'RETRIEVAL_MANIFEST'
+            WHERE in_flight.state = 'PROCESSING'
+              AND in_flight.stage IN ('INDEXING', 'PUBLISHING')
+              AND in_flight.progress &gt;= 93
+        ) required_revision
+        JOIN material_processing_revision r ON r.id = required_revision.revision_id
+          AND (r.state IN ('READY', 'PARTIAL_READY')
+               OR (r.state = 'PROCESSING' AND r.stage IN ('INDEXING', 'PUBLISHING')
+                   AND r.progress &gt;= 93))
+        JOIN material_version v ON v.id = r.version_id
+        JOIN material m ON m.id = v.material_id AND m.lifecycle_state = 'ACTIVE'
+          AND (m.retention_class = 'RETAINED' OR m.expires_at &gt; UTC_TIMESTAMP(3))
+    </insert>
+
+    <update id="advanceCompatibilityTargetGeneration">
+        UPDATE rag_index_generation_compatibility_profile
+        SET target_generation = target_generation + #{addedTargetCount}
+        WHERE index_generation_id = #{generationId} AND #{addedTargetCount} &gt; 0
+    </update>
+
+    <select id="selectPendingGenerationTargets"
+            resultType="org.zipp.ai.infrastructure.dao.material.po.VectorProjectionWorkPO">
+        SELECT <include refid="projectionContextColumns"/>,
+               g.id AS index_generation_id, g.index_name, g.namespace, g.embedding_model,
+               g.embedding_model_fingerprint, g.dimension, g.metric, g.vector_schema_version,
+               target.tokenizer_fingerprint
+        FROM rag_index_generation_target target
+        JOIN rag_index_generation g ON g.id = target.index_generation_id
+        JOIN material_processing_revision r ON r.id = target.revision_id
+        JOIN material_version v ON v.id = r.version_id
+        JOIN material m ON m.id = v.material_id
+        JOIN material_revision_artifact manifest
+          ON manifest.revision_id = r.id AND manifest.artifact_kind = 'RETRIEVAL_MANIFEST'
+        WHERE target.index_generation_id = #{generationId} AND target.state = 'PENDING'
+          AND g.state IN ('BUILDING', 'SHADOW')
+          AND (r.state IN ('READY', 'PARTIAL_READY')
+               OR (r.state = 'PROCESSING' AND r.stage IN ('INDEXING', 'PUBLISHING')
+                   AND r.progress &gt;= 93))
+          AND m.lifecycle_state = 'ACTIVE'
+          AND (m.retention_class = 'RETAINED' OR m.expires_at &gt; UTC_TIMESTAMP(3))
+        ORDER BY target.required_at, target.revision_id
+        LIMIT #{limit}
+    </select>
+
+    <select id="selectPendingGenerationPublications"
+            resultType="org.zipp.ai.infrastructure.dao.material.po.VectorProjectionWorkPO">
+        SELECT r.id AS revision_id,
+               pm.content_sha256 AS projection_manifest_sha256,
+               pm.manifest_hash AS projection_manifest_hash
+        FROM rag_index_generation_target target
+        JOIN material_processing_revision r ON r.id = target.revision_id
+        JOIN retrieval_revision_vector_projection rv
+          ON rv.revision_id = r.id AND rv.index_generation_id = target.index_generation_id
+         AND rv.state = 'READY'
+        JOIN retrieval_projection_manifest pm
+          ON pm.revision_id = r.id AND pm.index_generation_id = target.index_generation_id
+         AND pm.state = 'READY'
+        JOIN rag_index_generation g ON g.id = target.index_generation_id AND g.state = 'ACTIVE'
+        WHERE target.index_generation_id = #{generationId} AND target.state = 'READY'
+          AND r.state = 'PROCESSING' AND r.stage = 'PUBLISHING' AND r.progress = 98
+        ORDER BY r.id
+        LIMIT #{limit}
+    </select>
+
+    <select id="selectGenerationBackfillStatus"
+            resultType="org.zipp.ai.infrastructure.dao.material.po.GenerationBackfillStatusPO">
+        SELECT g.id AS generation_id, g.state AS generation_state,
+               (SELECT active.id FROM rag_index_generation active
+                WHERE active.state = 'ACTIVE' ORDER BY active.activated_at, active.id LIMIT 1)
+                    AS active_generation_id,
+               COALESCE(profile.target_generation, 0) AS target_generation,
+               COUNT(target.revision_id) AS required_revision_count,
+               COALESCE(SUM(target.state = 'READY'), 0) AS ready_revision_count,
+               COALESCE(SUM(rv.expected_projection_count), 0) AS expected_vector_count,
+               COALESCE(SUM((SELECT COUNT(*)
+                    FROM retrieval_chunk_vector_projection indexed
+                    JOIN retrieval_chunk chunk ON chunk.id = indexed.retrieval_chunk_id
+                    WHERE chunk.revision_id = target.revision_id
+                      AND indexed.index_generation_id = g.id AND indexed.state = 'INDEXED')), 0)
+                    AS indexed_vector_count,
+               COALESCE(SUM(manifest.state = 'READY'), 0) AS ready_manifest_count
+        FROM rag_index_generation g
+        LEFT JOIN rag_index_generation_target target ON target.index_generation_id = g.id
+        LEFT JOIN rag_index_generation_compatibility_profile profile
+          ON profile.index_generation_id = g.id
+        LEFT JOIN retrieval_revision_vector_projection rv
+          ON rv.revision_id = target.revision_id AND rv.index_generation_id = g.id
+        LEFT JOIN retrieval_projection_manifest manifest
+          ON manifest.revision_id = target.revision_id AND manifest.index_generation_id = g.id
+        WHERE g.id = #{generationId}
+        GROUP BY g.id, g.state, profile.target_generation
+    </select>
+
+    <update id="beginGenerationShadow">
+        UPDATE rag_index_generation g SET state = 'SHADOW', shadow_started_at = #{shadowStartedAt}
+        WHERE g.id = #{generationId} AND g.state = 'BUILDING'
+          AND EXISTS (SELECT 1 FROM rag_index_generation active
+                      WHERE active.state = 'ACTIVE' AND active.id != g.id)
+          AND EXISTS (SELECT 1 FROM rag_index_generation_target target
+                      WHERE target.index_generation_id = g.id)
+          AND NOT EXISTS (SELECT 1 FROM rag_index_generation_target target
+                          WHERE target.index_generation_id = g.id AND target.state != 'READY')
+    </update>
+
+    <insert id="insertShadowReport">
+        INSERT IGNORE INTO rag_index_shadow_report (
+            report_id, schema_version, index_generation_id, baseline_generation_id, target_generation,
+            policy_fingerprint, sample_count, authorization_mismatch_count,
+            candidate_recall_at_40, baseline_recall_at_40,
+            candidate_ndcg_at_16, baseline_ndcg_at_16,
+            candidate_p95_latency_ms, baseline_p95_latency_ms, evaluated_at
+        ) VALUES (
+            #{reportId}, #{schemaVersion}, #{indexGenerationId}, #{baselineGenerationId}, #{targetGeneration},
+            #{policyFingerprint}, #{sampleCount}, #{authorizationMismatchCount},
+            #{candidateRecallAt40}, #{baselineRecallAt40},
+            #{candidateNdcgAt16}, #{baselineNdcgAt16},
+            #{candidateP95LatencyMs}, #{baselineP95LatencyMs}, #{evaluatedAt}
+        )
+    </insert>
+
+    <select id="selectShadowReport"
+            resultType="org.zipp.ai.infrastructure.dao.material.po.GenerationShadowReportPO">
+        SELECT report_id, schema_version, index_generation_id, baseline_generation_id, target_generation,
+               policy_fingerprint, sample_count, authorization_mismatch_count,
+               candidate_recall_at_40, baseline_recall_at_40,
+               candidate_ndcg_at_16, baseline_ndcg_at_16,
+               candidate_p95_latency_ms, baseline_p95_latency_ms, evaluated_at
+        FROM rag_index_shadow_report
+        WHERE index_generation_id = #{generationId} AND report_id = #{reportId}
+    </select>
+
+    <select id="lockGenerationTargets" resultType="string">
+        SELECT revision_id FROM rag_index_generation_target
+        WHERE index_generation_id = #{generationId} ORDER BY revision_id FOR UPDATE
+    </select>
+
+    <update id="retireActiveGeneration">
+        UPDATE rag_index_generation
+        SET state = 'RETIRED', retired_at = #{retiredAt}, rollback_until = #{rollbackUntil}
+        WHERE id = #{generationId} AND state = 'ACTIVE'
+    </update>
+
+    <update id="activateShadowGeneration">
+        UPDATE rag_index_generation
+        SET state = 'ACTIVE', activated_at = #{activatedAt}, retired_at = NULL,
+            rollback_until = NULL, activation_report_id = #{reportId},
+            previous_generation_id = #{previousGenerationId}
+        WHERE id = #{generationId} AND state = 'SHADOW'
+    </update>
+
+    <select id="selectGenerationForUpdate"
+            resultType="org.zipp.ai.infrastructure.dao.material.po.RagIndexGenerationPO">
+        SELECT * FROM rag_index_generation WHERE id = #{generationId} FOR UPDATE
+    </select>
+
+    <update id="retireRolledBackGeneration">
+        UPDATE rag_index_generation
+        SET state = 'RETIRED', retired_at = #{retiredAt}, rollback_until = NULL
+        WHERE id = #{generationId} AND state = 'ACTIVE'
+    </update>
+
+    <update id="restoreRetiredGeneration">
+        UPDATE rag_index_generation
+        SET state = 'ACTIVE', activated_at = #{activatedAt}, retired_at = NULL, rollback_until = NULL
+        WHERE id = #{generationId} AND state = 'RETIRED'
+          AND rollback_until &gt; #{activatedAt}
+    </update>
 </mapper>

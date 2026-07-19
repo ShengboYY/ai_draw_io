@@ -27,6 +27,8 @@ import org.zipp.ai.domain.retrieval.port.RetrievalVectorIndex;
 import org.zipp.ai.domain.retrieval.service.RevisionPublicationGate;
 import org.zipp.ai.domain.retrieval.port.TenantKeyPort;
 import org.zipp.ai.domain.retrieval.port.VectorProjectionWorkPort;
+import org.zipp.ai.domain.retrieval.port.IndexGenerationCompatibilityPort;
+import org.zipp.ai.domain.retrieval.service.IndexGenerationActivationGate;
 import org.zipp.ai.domain.retrieval.projection.VectorGenerationProfile;
 import org.zipp.ai.domain.retrieval.projection.VectorProjectionPlanner;
 import org.zipp.ai.infrastructure.adapter.s3.S3OriginalPromotionAdapter;
@@ -271,6 +273,22 @@ public class WorkerConfig {
 
     @Bean
     @ConditionalOnProperty(name = "worker.vector-projection-enabled", havingValue = "true")
+    public IndexGenerationActivationGate indexGenerationActivationGate() {
+        return new IndexGenerationActivationGate();
+    }
+
+    @Bean
+    @ConditionalOnProperty(name = "worker.vector-projection-enabled", havingValue = "true")
+    public IndexGenerationCompatibilityCoordinator indexGenerationCompatibilityCoordinator(
+            IndexGenerationCompatibilityPort compatibility, IndexGenerationActivationGate activationGate,
+            VectorGenerationProfile profile, Clock clock,
+            @Value("${worker.generation-sync-batch-size:100}") int batchSize) {
+        return new IndexGenerationCompatibilityCoordinator(
+                compatibility, activationGate, profile, batchSize, clock);
+    }
+
+    @Bean
+    @ConditionalOnProperty(name = "worker.vector-projection-enabled", havingValue = "true")
     public VectorProjectionJobHandler vectorProjectionJobHandler(
             VectorProjectionWorkPort work, RevisionArtifactPort artifacts, EmbeddingPort embedding,
             EmbeddingCachePort embeddingCache,
@@ -288,6 +306,7 @@ public class WorkerConfig {
                                      ObjectProvider<MaterializationJobHandler> materializationHandler,
                                      ObjectProvider<DocumentProcessingJobHandler> documentProcessingHandler,
                                      ObjectProvider<VectorProjectionJobHandler> vectorProjectionHandler,
+                                     ObjectProvider<VectorGenerationProfile> vectorGenerationProfile,
                                      Clock clock, DocumentProcessingProfile processingProfile,
                                      @Value("${worker.id}") String workerId,
                                      @Value("${worker.materialization-enabled:false}") boolean materializationEnabled,
@@ -298,6 +317,7 @@ public class WorkerConfig {
         return new WorkerPoller(queue, secureUploadHandler, materializationHandler.getIfAvailable(),
                 documentProcessingHandler.getIfAvailable(), vectorProjectionHandler.getIfAvailable(),
                 clock, workerId, materializationEnabled, documentProcessingEnabled,
-                vectorProjectionEnabled, processingProfile.overallFingerprint());
+                vectorProjectionEnabled, processingProfile.overallFingerprint(),
+                vectorProjectionEnabled ? vectorGenerationProfile.getObject().generationId() : null);
     }
 }

@@ -24,6 +24,7 @@ public class MySqlVectorProjectionWorkAdapter implements VectorProjectionWorkPor
     private final IVectorProjectionMapper mapper;
     private final IDocumentProcessingMapper documentMapper;
     private final IProcessingJobMapper jobMapper;
+    private final MySqlVectorProjectionPersistence persistence;
 
     public MySqlVectorProjectionWorkAdapter(IVectorProjectionMapper mapper,
                                             IDocumentProcessingMapper documentMapper,
@@ -31,6 +32,7 @@ public class MySqlVectorProjectionWorkAdapter implements VectorProjectionWorkPor
         this.mapper = Objects.requireNonNull(mapper, "mapper");
         this.documentMapper = Objects.requireNonNull(documentMapper, "documentMapper");
         this.jobMapper = Objects.requireNonNull(jobMapper, "jobMapper");
+        this.persistence = new MySqlVectorProjectionPersistence(mapper, jobMapper);
     }
 
     @Override
@@ -52,20 +54,45 @@ public class MySqlVectorProjectionWorkAdapter implements VectorProjectionWorkPor
         }
         validateCoordinatorSuccessors(source, plan, successors);
         if (!hasFence(source, ProcessingJobStage.BUILD_LEXICAL_PROJECTION, fence)) return false;
-        persistGeneration(plan.profile());
-        persistRevisionProjection(source.revisionId(), plan, VectorProjectionRole.PRIMARY);
-        Map<String, Integer> batchByChunk = new HashMap<>();
-        for (VectorBatchPlan batch : plan.batches()) {
-            persistBatch(source.revisionId(), plan.generationId(), batch);
-            batch.projections().forEach(projection -> batchByChunk.put(projection.chunkId(), batch.batchNo()));
-        }
-        for (VectorProjectionTarget target : plan.projections()) {
-            persistProjection(plan.profile(), target, batchByChunk.get(target.chunkId()),
-                    VectorProjectionRole.PRIMARY);
-        }
+        persistence.persistPlan(source.revisionId(), plan, VectorProjectionRole.PRIMARY);
         if (documentMapper.advanceRevision(source.revisionId(), source.revisionFenceGeneration(),
                 ProcessingStage.INDEXING.name(), 95) != 1) {
             throw new IllegalStateException("revision generation became stale during vector coordination");
+        }
+        successors.forEach(job -> jobMapper.insert(toPo(job)));
+        return true;
+    }
+
+    @Override
+    public Optional<CompatibilityProjectionWork> findCompatibilityCoordinatorWork(
+            String revisionId, String workKey, WorkerFence fence) {
+        WorkerFence current = Objects.requireNonNull(fence, "fence");
+        VectorProjectionWorkPO row = mapper.selectCompatibilityCoordinatorWork(
+                required(revisionId, "revisionId"), required(workKey, "workKey"),
+                current.jobId(), current.workerId(), current.fenceToken());
+        return Optional.ofNullable(row).map(po -> new CompatibilityProjectionWork(context(po), profile(po)));
+    }
+
+    @Override
+    @Transactional
+    public boolean commitCompatibilityCoordinator(CompatibilityProjectionWork work,
+                                                  VectorProjectionPlan result,
+                                                  List<ProcessingJob> nextJobs, WorkerFence fence) {
+        CompatibilityProjectionWork source = Objects.requireNonNull(work, "work");
+        VectorProjectionPlan plan = Objects.requireNonNull(result, "result");
+        List<ProcessingJob> successors = List.copyOf(nextJobs);
+        if (!source.context().revisionId().equals(plan.revisionId())
+                || !source.context().versionId().equals(plan.versionId())
+                || !source.profile().equals(plan.profile())) {
+            throw new IllegalArgumentException("compatibility plan does not belong to its target");
+        }
+        validateCoordinatorSuccessors(source.context(), plan, successors);
+        if (!hasGenerationFence(source.context(), plan.generationId(),
+                ProcessingJobStage.BUILD_COMPATIBILITY_PROJECTION, fence)) return false;
+        persistence.persistPlan(source.context().revisionId(), plan, VectorProjectionRole.COMPATIBILITY);
+        if (mapper.updateGenerationTargetState(source.context().revisionId(), plan.generationId(),
+                "PENDING", "PLANNED") != 1) {
+            throw new IllegalStateException("compatibility target was not pending");
         }
         successors.forEach(job -> jobMapper.insert(toPo(job)));
         return true;
@@ -77,7 +104,7 @@ public class MySqlVectorProjectionWorkAdapter implements VectorProjectionWorkPor
         VectorProjectionWorkPO po = mapper.selectEmbeddingWork(required(revisionId, "revisionId"),
                 required(workKey, "workKey"), current.jobId(), current.workerId(), current.fenceToken());
         return Optional.ofNullable(po).map(row -> new VectorEmbeddingWork(context(row), profile(row),
-                row.getBatchNo(), row.getWorkKey(), row.getBatchInputFingerprint()));
+                role(row), row.getBatchNo(), row.getWorkKey(), row.getBatchInputFingerprint()));
     }
 
     @Override
@@ -88,7 +115,8 @@ public class MySqlVectorProjectionWorkAdapter implements VectorProjectionWorkPor
         VectorBatchArtifactResult output = Objects.requireNonNull(result, "result");
         ProcessingJob successor = Objects.requireNonNull(nextJob, "nextJob");
         validateEmbeddingCommit(source, output, successor);
-        if (!hasFence(source.context(), ProcessingJobStage.EMBED_CHUNK_BATCHES, fence)) return false;
+        if (!hasProjectionFence(source.context(), source.profile().generationId(),
+                source.projectionRole(), ProcessingJobStage.EMBED_CHUNK_BATCHES, fence)) return false;
         StoredArtifact artifact = output.artifact();
         if (mapper.pinVectorBatch(source.context().revisionId(), source.profile().generationId(),
                 source.batchNo(), artifact.objectKey(), artifact.objectVersionId(), artifact.contentSha256(),
@@ -116,7 +144,7 @@ public class MySqlVectorProjectionWorkAdapter implements VectorProjectionWorkPor
         StoredArtifact vectorArtifact = new StoredArtifact(header.getVectorObjectKey(),
                 header.getVectorObjectVersionId(), header.getVectorContentSha256(),
                 header.getVectorByteSize(), header.getVectorContentType());
-        return Optional.of(new VectorUpsertWork(context(header), profile(header), header.getBatchNo(),
+        return Optional.of(new VectorUpsertWork(context(header), profile(header), role(header), header.getBatchNo(),
                 header.getWorkKey(), header.getBatchInputFingerprint(), vectorArtifact, projections));
     }
 
@@ -132,7 +160,8 @@ public class MySqlVectorProjectionWorkAdapter implements VectorProjectionWorkPor
         if (!source.context().revisionId().equals(mapper.lockRevisionGate(source.context().revisionId()))) {
             return false;
         }
-        if (!hasFence(source.context(), ProcessingJobStage.UPSERT_VECTOR_BATCHES, fence)) return false;
+        if (!hasProjectionFence(source.context(), source.profile().generationId(),
+                source.projectionRole(), ProcessingJobStage.UPSERT_VECTOR_BATCHES, fence)) return false;
         int changed = mapper.updateProjectionBatchState(source.context().revisionId(),
                 source.profile().generationId(), source.batchNo(), VectorProjectionState.EMBEDDED.name(),
                 VectorProjectionState.INDEXED.name(), Instant.now());
@@ -172,6 +201,9 @@ public class MySqlVectorProjectionWorkAdapter implements VectorProjectionWorkPor
     public boolean commitManifest(VectorManifestWork work, VectorProjectionManifestResult result,
                                   ProcessingJob nextJob, WorkerFence fence) {
         VectorManifestWork source = Objects.requireNonNull(work, "work");
+        if (source.projectionRole() != VectorProjectionRole.PRIMARY) {
+            throw new IllegalArgumentException("primary manifest commit requires a primary projection");
+        }
         VectorProjectionManifestResult output = Objects.requireNonNull(result, "result");
         ProcessingJob successor = Objects.requireNonNull(nextJob, "nextJob");
         validateManifestCommit(source, output, successor);
@@ -187,6 +219,32 @@ public class MySqlVectorProjectionWorkAdapter implements VectorProjectionWorkPor
             throw new IllegalStateException("revision generation became stale during projection manifest commit");
         }
         jobMapper.insert(toPo(successor));
+        return true;
+    }
+
+    @Override
+    @Transactional
+    public boolean commitCompatibilityManifest(VectorManifestWork work,
+                                               VectorProjectionManifestResult result,
+                                               WorkerFence fence) {
+        VectorManifestWork source = Objects.requireNonNull(work, "work");
+        VectorProjectionManifestResult output = Objects.requireNonNull(result, "result");
+        if (source.projectionRole() != VectorProjectionRole.COMPATIBILITY
+                || !source.context().revisionId().equals(output.manifest().revisionId())
+                || !source.context().versionId().equals(output.manifest().versionId())
+                || !source.profile().generationId().equals(output.manifest().generationId())) {
+            throw new IllegalArgumentException("compatibility manifest identity is invalid");
+        }
+        if (!hasGenerationFence(source.context(), source.profile().generationId(),
+                ProcessingJobStage.VERIFY_PROJECTION_MANIFEST, fence)) return false;
+        persistManifest(source, output);
+        if (mapper.updateRevisionProjectionState(source.context().revisionId(),
+                source.profile().generationId(), RevisionVectorProjectionState.BUILDING.name(),
+                RevisionVectorProjectionState.READY.name()) != 1
+                || mapper.updateGenerationTargetState(source.context().revisionId(),
+                        source.profile().generationId(), "PLANNED", "READY") != 1) {
+            throw new IllegalStateException("compatibility projection boundary became stale");
+        }
         return true;
     }
 
@@ -323,13 +381,23 @@ public class MySqlVectorProjectionWorkAdapter implements VectorProjectionWorkPor
                 current.fenceToken()) == 1;
     }
 
+    private boolean hasProjectionFence(RevisionProjectionContext context, String generationId,
+                                       VectorProjectionRole role, ProcessingJobStage stage,
+                                       WorkerFence fence) {
+        return role == VectorProjectionRole.PRIMARY
+                ? hasFence(context, stage, fence)
+                : hasGenerationFence(context, generationId, stage, fence);
+    }
+
+    private boolean hasGenerationFence(RevisionProjectionContext context, String generationId,
+                                       ProcessingJobStage stage, WorkerFence fence) {
+        WorkerFence current = Objects.requireNonNull(fence, "fence");
+        return mapper.countGenerationRoutedFence(context.revisionId(), generationId, stage.name(),
+                current.jobId(), current.workerId(), current.fenceToken()) == 1;
+    }
+
     private RevisionProjectionContext context(VectorProjectionWorkPO po) {
-        StoredArtifact manifest = new StoredArtifact(po.getRetrievalManifestKey(),
-                po.getRetrievalManifestVersionId(), po.getRetrievalManifestSha256(),
-                po.getRetrievalManifestSize(), po.getRetrievalManifestContentType());
-        return new RevisionProjectionContext(po.getRevisionId(), po.getVersionId(), po.getMaterialId(),
-                OwnerType.valueOf(po.getOwnerType()), po.getOwnerKey(), po.getRevisionFenceGeneration(),
-                po.getMaterialLifecycleGeneration(), po.getProcessingFingerprint(), manifest);
+        return persistence.context(po);
     }
 
     private RevisionPublicationWork publication(List<VectorProjectionWorkPO> rows) {
@@ -383,9 +451,12 @@ public class MySqlVectorProjectionWorkAdapter implements VectorProjectionWorkPor
     }
 
     private VectorGenerationProfile profile(VectorProjectionWorkPO po) {
-        return new VectorGenerationProfile(po.getIndexName(), po.getNamespace(), po.getEmbeddingModel(),
-                po.getEmbeddingModelFingerprint(), po.getDimension(), po.getMetric(),
-                po.getVectorSchemaVersion(), po.getTokenizerFingerprint());
+        return persistence.profile(po);
+    }
+
+    private VectorProjectionRole role(VectorProjectionWorkPO po) {
+        return po.getProjectionRole() == null ? VectorProjectionRole.PRIMARY
+                : VectorProjectionRole.valueOf(po.getProjectionRole());
     }
 
     private VectorProjectionMetadata metadata(VectorProjectionWorkPO po) {
@@ -393,93 +464,6 @@ public class MySqlVectorProjectionWorkAdapter implements VectorProjectionWorkPor
                 RetrievalChunkType.valueOf(po.getChunkType()),
                 org.zipp.ai.domain.ingestion.model.valobj.EvidenceModality.valueOf(po.getModality()),
                 po.getPageNo(), po.getLanguage());
-    }
-
-    private void persistGeneration(VectorGenerationProfile profile) {
-        RagIndexGenerationPO po = new RagIndexGenerationPO();
-        po.setId(profile.generationId());
-        po.setIndexName(profile.indexName());
-        po.setNamespace(profile.namespace());
-        po.setEmbeddingModel(profile.embeddingModel());
-        po.setEmbeddingModelFingerprint(profile.embeddingModelFingerprint());
-        po.setDimension(profile.dimension());
-        po.setMetric(profile.metric());
-        po.setVectorSchemaVersion(profile.vectorSchemaVersion());
-        po.setState(IndexGenerationState.BUILDING.name());
-        mapper.insertGeneration(po);
-        RagIndexGenerationPO persisted = mapper.selectGeneration(po.getId());
-        if (persisted == null || !po.getIndexName().equals(persisted.getIndexName())
-                || !po.getNamespace().equals(persisted.getNamespace())
-                || !po.getEmbeddingModel().equals(persisted.getEmbeddingModel())
-                || !po.getEmbeddingModelFingerprint().equals(persisted.getEmbeddingModelFingerprint())
-                || po.getDimension() != persisted.getDimension() || !po.getMetric().equals(persisted.getMetric())
-                || !po.getVectorSchemaVersion().equals(persisted.getVectorSchemaVersion())) {
-            throw new IllegalStateException("index generation collided with different configuration");
-        }
-    }
-
-    private void persistRevisionProjection(String revisionId, VectorProjectionPlan plan,
-                                           VectorProjectionRole role) {
-        RevisionVectorProjectionPO po = new RevisionVectorProjectionPO();
-        po.setRevisionId(revisionId);
-        po.setIndexGenerationId(plan.generationId());
-        po.setTokenizerFingerprint(plan.profile().tokenizerFingerprint());
-        po.setPlanFingerprint(plan.planFingerprint());
-        po.setProjectionRole(role.name());
-        po.setExpectedProjectionCount(plan.projections().size());
-        po.setState(RevisionVectorProjectionState.BUILDING.name());
-        mapper.insertRevisionProjection(po);
-        RevisionVectorProjectionPO persisted = mapper.selectRevisionProjection(revisionId, plan.generationId());
-        if (persisted == null || !po.getTokenizerFingerprint().equals(persisted.getTokenizerFingerprint())
-                || !po.getPlanFingerprint().equals(persisted.getPlanFingerprint())
-                || !po.getProjectionRole().equals(persisted.getProjectionRole())
-                || po.getExpectedProjectionCount() != persisted.getExpectedProjectionCount()) {
-            throw new IllegalStateException("revision vector projection collided with a different plan");
-        }
-    }
-
-    private void persistBatch(String revisionId, String generationId, VectorBatchPlan batch) {
-        VectorBatchPO po = new VectorBatchPO();
-        po.setRevisionId(revisionId);
-        po.setIndexGenerationId(generationId);
-        po.setBatchNo(batch.batchNo());
-        po.setWorkKey(batch.workKey());
-        po.setInputFingerprint(batch.inputFingerprint());
-        po.setState(VectorProjectionState.PENDING.name());
-        mapper.insertBatch(po);
-        VectorBatchPO persisted = mapper.selectBatch(revisionId, generationId, batch.batchNo());
-        if (persisted == null || !po.getWorkKey().equals(persisted.getWorkKey())
-                || !po.getInputFingerprint().equals(persisted.getInputFingerprint())) {
-            throw new IllegalStateException("vector batch collided with different identity");
-        }
-    }
-
-    private void persistProjection(VectorGenerationProfile profile, VectorProjectionTarget target,
-                                   int batchNo, VectorProjectionRole role) {
-        VectorProjectionPO po = new VectorProjectionPO();
-        po.setRetrievalChunkId(target.chunkId());
-        po.setIndexGenerationId(profile.generationId());
-        po.setBatchNo(batchNo);
-        po.setIndexName(profile.indexName());
-        po.setNamespace(profile.namespace());
-        po.setVectorId(target.vectorId());
-        po.setEmbeddingModel(profile.embeddingModel());
-        po.setEmbeddingFingerprint(target.projectionFingerprint());
-        po.setDimension(profile.dimension());
-        po.setProjectionRole(role.name());
-        po.setState(VectorProjectionState.PENDING.name());
-        mapper.insertProjection(po);
-        VectorProjectionPO persisted = mapper.selectProjection(target.chunkId(), profile.generationId());
-        if (persisted == null || persisted.getBatchNo() != batchNo
-                || !po.getIndexName().equals(persisted.getIndexName())
-                || !po.getNamespace().equals(persisted.getNamespace())
-                || !po.getVectorId().equals(persisted.getVectorId())
-                || !po.getEmbeddingModel().equals(persisted.getEmbeddingModel())
-                || !po.getEmbeddingFingerprint().equals(persisted.getEmbeddingFingerprint())
-                || po.getDimension() != persisted.getDimension()
-                || !po.getProjectionRole().equals(persisted.getProjectionRole())) {
-            throw new IllegalStateException("vector projection collided with different identity");
-        }
     }
 
     private void persistManifest(VectorManifestWork source, VectorProjectionManifestResult result) {
@@ -508,19 +492,7 @@ public class MySqlVectorProjectionWorkAdapter implements VectorProjectionWorkPor
     }
 
     private ProcessingJobPO toPo(ProcessingJob job) {
-        ProcessingJobPO po = new ProcessingJobPO();
-        po.setId(job.id());
-        po.setUploadSessionId(job.target().uploadSessionId());
-        po.setRevisionId(job.target().revisionId());
-        po.setStage(job.stage().name());
-        po.setWorkKey(job.workKey());
-        po.setInputFingerprint(job.inputFingerprint());
-        po.setPriority(job.priority());
-        po.setStatus(job.status().name());
-        po.setAttempt(job.attempt());
-        po.setNotBefore(job.notBefore());
-        po.setFenceToken(job.fenceToken());
-        return po;
+        return persistence.processingJob(job);
     }
 
     private String required(String value, String field) {

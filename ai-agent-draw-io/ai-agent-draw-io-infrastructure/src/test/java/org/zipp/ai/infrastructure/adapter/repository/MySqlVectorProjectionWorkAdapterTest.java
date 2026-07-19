@@ -9,14 +9,14 @@ import org.zipp.ai.domain.retrieval.projection.VectorGenerationProfile;
 import org.zipp.ai.infrastructure.dao.material.IDocumentProcessingMapper;
 import org.zipp.ai.infrastructure.dao.material.IProcessingJobMapper;
 import org.zipp.ai.infrastructure.dao.material.IVectorProjectionMapper;
-import org.zipp.ai.infrastructure.dao.material.po.ProcessingJobPO;
-import org.zipp.ai.infrastructure.dao.material.po.VectorProjectionWorkPO;
+import org.zipp.ai.infrastructure.dao.material.po.*;
 
 import java.lang.reflect.Proxy;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -113,6 +113,144 @@ class MySqlVectorProjectionWorkAdapterTest {
         assertTrue(calls.indexOf("activateVersionRevision") < calls.indexOf("recordInitialProcessingUsage"));
     }
 
+    @Test
+    void synchronizationRegistersTargetsBeforeGenerationRoutedCompatibilityJobs() {
+        List<String> calls = new ArrayList<>();
+        AtomicInteger statusReads = new AtomicInteger();
+        VectorProjectionWorkPO pending = workRow();
+        pending.setProjectionRole(VectorProjectionRole.COMPATIBILITY.name());
+        IVectorProjectionMapper mapper = proxy(IVectorProjectionMapper.class, (method, args) -> {
+            calls.add(method);
+            return switch (method) {
+                case "insertGeneration", "insertCompatibilityProfile",
+                        "advanceCompatibilityTargetGeneration" -> 1;
+                case "selectGeneration" -> generation(IndexGenerationState.BUILDING, profile().generationId());
+                case "selectGenerationBackfillStatus" -> statusReads.getAndIncrement() == 0
+                        ? status(IndexGenerationState.BUILDING, 0, 0, 0)
+                        : status(IndexGenerationState.BUILDING, 1, 1, 0);
+                case "selectCompatibilityTokenizer" -> profile().tokenizerFingerprint();
+                case "insertRequiredGenerationTargets" -> 1;
+                case "selectPendingGenerationTargets" -> List.of(pending);
+                default -> unsupported(method);
+            };
+        });
+        AtomicReference<ProcessingJobPO> queued = new AtomicReference<>();
+        IProcessingJobMapper jobs = proxy(IProcessingJobMapper.class, (method, args) -> {
+            if ("insert".equals(method)) {
+                queued.set((ProcessingJobPO) args[0]);
+                return 1;
+            }
+            return unsupported(method);
+        });
+        MySqlIndexGenerationCompatibilityAdapter adapter =
+                new MySqlIndexGenerationCompatibilityAdapter(mapper, jobs);
+
+        adapter.synchronize(profile(), 10, Instant.parse("2026-07-20T00:00:00Z"));
+
+        assertTrue(calls.indexOf("insertRequiredGenerationTargets")
+                < calls.indexOf("selectPendingGenerationTargets"));
+        assertEquals(ProcessingJobStage.BUILD_COMPATIBILITY_PROJECTION.name(), queued.get().getStage());
+        assertEquals(CompatibilityProjectionWork.workKey(profile().generationId()), queued.get().getWorkKey());
+    }
+
+    @Test
+    void synchronizationDoesNotInventAnActiveGenerationDuringBootstrap() {
+        AtomicInteger targetScans = new AtomicInteger();
+        IVectorProjectionMapper mapper = proxy(IVectorProjectionMapper.class, (method, args) -> switch (method) {
+            case "insertGeneration", "insertCompatibilityProfile" -> 1;
+            case "selectGeneration" -> generation(IndexGenerationState.BUILDING, profile().generationId());
+            case "selectGenerationBackfillStatus" -> {
+                GenerationBackfillStatusPO status = status(IndexGenerationState.BUILDING, 0, 0, 0);
+                status.setActiveGenerationId(null);
+                yield status;
+            }
+            case "selectCompatibilityTokenizer" -> profile().tokenizerFingerprint();
+            case "insertRequiredGenerationTargets" -> {
+                targetScans.incrementAndGet();
+                yield 0;
+            }
+            case "selectPendingGenerationTargets" -> List.of();
+            default -> unsupported(method);
+        });
+
+        GenerationBackfillStatus result = new MySqlIndexGenerationCompatibilityAdapter(
+                mapper, unusedJobs()).synchronize(profile(), 10,
+                Instant.parse("2026-07-20T00:00:00Z"));
+
+        assertEquals(null, result.activeGenerationId());
+        assertEquals(1, targetScans.get());
+    }
+
+    @Test
+    void activationRetiresTheBaselineBeforeActivatingThePinnedShadowGeneration() {
+        List<String> calls = new ArrayList<>();
+        GenerationBackfillStatus expected = new GenerationBackfillStatus(profile().generationId(),
+                IndexGenerationState.SHADOW, "ig_old", 2, 2, 2, 5, 5, 2);
+        GenerationShadowReport report = new GenerationShadowReport(
+                "generation-shadow-report-v1", "report_1", profile().generationId(), "ig_old", 2,
+                "a".repeat(64), 120, 0, 0.91, 0.90, 0.82, 0.80,
+                110, 100, Instant.parse("2026-07-20T00:00:00Z"));
+        IVectorProjectionMapper mapper = proxy(IVectorProjectionMapper.class, (method, args) -> {
+            calls.add(method);
+            return switch (method) {
+                case "selectActiveGenerationForUpdate" -> "ig_old";
+                case "selectGenerationForUpdate" -> generation(IndexGenerationState.SHADOW,
+                        profile().generationId());
+                case "selectCompatibilityTokenizer" -> profile().tokenizerFingerprint();
+                case "insertRequiredGenerationTargets" -> 0;
+                case "lockGenerationTargets" -> List.of("rev_1", "rev_2");
+                case "selectGenerationBackfillStatus" -> status(IndexGenerationState.SHADOW, 2, 2, 2);
+                case "selectShadowReport" -> shadowReport(report);
+                case "retireActiveGeneration", "activateShadowGeneration" -> 1;
+                case "selectPendingGenerationPublications" -> List.of();
+                default -> unsupported(method);
+            };
+        });
+        MySqlIndexGenerationCompatibilityAdapter adapter =
+                new MySqlIndexGenerationCompatibilityAdapter(mapper, unusedJobs());
+
+        assertTrue(adapter.activate(expected, report,
+                Instant.parse("2026-07-20T01:00:00Z"), Instant.parse("2026-07-27T01:00:00Z")));
+
+        assertTrue(calls.indexOf("lockGenerationTargets")
+                < calls.indexOf("selectGenerationBackfillStatus"));
+        assertTrue(calls.indexOf("retireActiveGeneration") < calls.indexOf("activateShadowGeneration"));
+    }
+
+    @Test
+    void activeGenerationResumesInFlightRevisionPublicationOnItsCompatibilityManifest() {
+        VectorProjectionWorkPO row = new VectorProjectionWorkPO();
+        row.setRevisionId("rev_in_flight");
+        row.setProjectionManifestSha256("f".repeat(64));
+        row.setProjectionManifestHash("b".repeat(64));
+        IVectorProjectionMapper mapper = proxy(IVectorProjectionMapper.class, (method, args) -> switch (method) {
+            case "insertGeneration" -> 1;
+            case "selectGeneration" -> generation(IndexGenerationState.ACTIVE, profile().generationId());
+            case "selectGenerationBackfillStatus" -> {
+                GenerationBackfillStatusPO status = status(IndexGenerationState.ACTIVE, 1, 1, 1);
+                status.setActiveGenerationId(profile().generationId());
+                yield status;
+            }
+            case "selectPendingGenerationPublications" -> List.of(row);
+            default -> unsupported(method);
+        });
+        AtomicReference<ProcessingJobPO> queued = new AtomicReference<>();
+        IProcessingJobMapper jobs = proxy(IProcessingJobMapper.class, (method, args) -> {
+            if ("insert".equals(method)) {
+                queued.set((ProcessingJobPO) args[0]);
+                return 1;
+            }
+            return unsupported(method);
+        });
+
+        new MySqlIndexGenerationCompatibilityAdapter(mapper, jobs)
+                .synchronize(profile(), 10, Instant.parse("2026-07-20T00:00:00Z"));
+
+        assertEquals(ProcessingJobStage.PUBLISH_REVISION.name(), queued.get().getStage());
+        assertEquals(RevisionPublicationWork.publicationWorkKey(profile().generationId()),
+                queued.get().getWorkKey());
+    }
+
     private VectorUpsertWork upsertWork() {
         RevisionProjectionContext context = new RevisionProjectionContext("rev_1", "ver_1", "mat_1",
                 OwnerType.USER, "owner_1", 7, 8, "d".repeat(64), artifact("manifest"));
@@ -199,6 +337,55 @@ class MySqlVectorProjectionWorkAdapterTest {
     private VectorGenerationProfile profile() {
         return new VectorGenerationProfile("index", "namespace", "model", "e".repeat(64),
                 4, "cosine", "vector-v1", "tokenizer-v1");
+    }
+
+    private RagIndexGenerationPO generation(IndexGenerationState state, String id) {
+        RagIndexGenerationPO po = new RagIndexGenerationPO();
+        po.setId(id);
+        po.setIndexName(profile().indexName());
+        po.setNamespace(profile().namespace());
+        po.setEmbeddingModel(profile().embeddingModel());
+        po.setEmbeddingModelFingerprint(profile().embeddingModelFingerprint());
+        po.setDimension(profile().dimension());
+        po.setMetric(profile().metric());
+        po.setVectorSchemaVersion(profile().vectorSchemaVersion());
+        po.setState(state.name());
+        return po;
+    }
+
+    private GenerationBackfillStatusPO status(IndexGenerationState state, long targetGeneration,
+                                               int required, int ready) {
+        GenerationBackfillStatusPO po = new GenerationBackfillStatusPO();
+        po.setGenerationId(profile().generationId());
+        po.setGenerationState(state.name());
+        po.setActiveGenerationId("ig_old");
+        po.setTargetGeneration(targetGeneration);
+        po.setRequiredRevisionCount(required);
+        po.setReadyRevisionCount(ready);
+        po.setExpectedVectorCount(required == 0 ? 0 : 5);
+        po.setIndexedVectorCount(ready == required ? po.getExpectedVectorCount() : 0);
+        po.setReadyManifestCount(ready);
+        return po;
+    }
+
+    private GenerationShadowReportPO shadowReport(GenerationShadowReport report) {
+        GenerationShadowReportPO po = new GenerationShadowReportPO();
+        po.setReportId(report.reportId());
+        po.setSchemaVersion(report.schemaVersion());
+        po.setIndexGenerationId(report.generationId());
+        po.setBaselineGenerationId(report.baselineGenerationId());
+        po.setTargetGeneration(report.targetGeneration());
+        po.setPolicyFingerprint(report.policyFingerprint());
+        po.setSampleCount(report.sampleCount());
+        po.setAuthorizationMismatchCount(report.authorizationMismatchCount());
+        po.setCandidateRecallAt40(report.candidateRecallAt40());
+        po.setBaselineRecallAt40(report.baselineRecallAt40());
+        po.setCandidateNdcgAt16(report.candidateNdcgAt16());
+        po.setBaselineNdcgAt16(report.baselineNdcgAt16());
+        po.setCandidateP95LatencyMs(report.candidateP95LatencyMs());
+        po.setBaselineP95LatencyMs(report.baselineP95LatencyMs());
+        po.setEvaluatedAt(report.createdAt());
+        return po;
     }
 
     private StoredArtifact artifact(String key) {

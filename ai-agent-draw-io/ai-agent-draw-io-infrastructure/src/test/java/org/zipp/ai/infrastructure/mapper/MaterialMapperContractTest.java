@@ -112,6 +112,15 @@ class MaterialMapperContractTest {
         assertTrue(mapper.contains("ingest_state = 'READY' AND active_revision_id IS NOT NULL"));
         assertTrue(mapper.contains("SET state = #{state}, progress = 100"));
         assertTrue(mapper.contains("<insert id=\"recordInitialProcessingUsage\""));
+        assertTrue(mapper.contains("<select id=\"selectCompatibilityCoordinatorWork\""));
+        assertTrue(mapper.contains("target.state = 'PENDING'"));
+        assertTrue(mapper.contains("in_flight.stage IN ('INDEXING', 'PUBLISHING')"));
+        assertTrue(mapper.contains("<select id=\"selectPendingGenerationPublications\""));
+        assertTrue(mapper.contains("rv.projection_role = 'COMPATIBILITY'"));
+        assertTrue(mapper.contains("<select id=\"selectGenerationBackfillStatus\""));
+        assertTrue(mapper.contains("<insert id=\"insertShadowReport\""));
+        assertTrue(mapper.contains("<update id=\"activateShadowGeneration\""));
+        assertTrue(mapper.contains("<update id=\"restoreRetiredGeneration\""));
     }
 
     private String resource(String path) throws Exception {
