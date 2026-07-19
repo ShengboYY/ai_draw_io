@@ -32,6 +32,18 @@ class MaterialLifecycleTest {
     }
 
     @Test
+    void retainedUploadStartsInItsDurableScopeWithoutATemporaryExpiry() {
+        Material material = Material.createRetained(
+                "mat_library", OwnerType.USER, "usr_1", MaterialKind.PDF, "Agile Guide",
+                MaterialScopeLink.of(MaterialScopeType.LIBRARY, "personal", "usr_1"), NOW);
+
+        assertEquals(RetentionClass.RETAINED, material.retentionClass());
+        assertEquals(null, material.expiresAt());
+        assertEquals(null, material.originConversationId());
+        assertEquals(1, material.scopeLinks().size());
+    }
+
+    @Test
     void retainingMaterialAddsScopeAndInvalidatesLateTtlActivity() {
         Material material = Material.createTemporary(
                 "mat_1", OwnerType.USER, "usr_1", MaterialKind.PDF,
@@ -45,6 +57,19 @@ class MaterialLifecycleTest {
         assertEquals(expectedGeneration + 1, material.lifecycleGeneration());
         assertThrows(IllegalStateException.class,
                 () -> material.recordMeaningfulActivity(NOW.plusSeconds(1)));
+    }
+
+    @Test
+    void rehydratedTemporaryMaterialRetainsThroughTheSameAggregateInvariant() {
+        Material material = Material.rehydrateTemporaryActive(
+                "mat_1", OwnerType.USER, "usr_1", MaterialKind.PDF, "Agile Guide", "conv_1",
+                4, NOW.minus(Duration.ofHours(2)), NOW.plus(Duration.ofHours(22)));
+
+        material.retain(MaterialScopeLink.of(MaterialScopeType.LIBRARY, "personal", "usr_1"), NOW);
+
+        assertEquals(RetentionClass.RETAINED, material.retentionClass());
+        assertEquals(5, material.lifecycleGeneration());
+        assertEquals(null, material.expiresAt());
     }
 
     @Test

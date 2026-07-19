@@ -2,14 +2,14 @@ package org.zipp.ai.ingestion.worker;
 
 import org.springframework.scheduling.annotation.Scheduled;
 import org.zipp.ai.domain.ingestion.model.valobj.ProcessingJobLease;
+import org.zipp.ai.domain.ingestion.model.valobj.ProcessingJobStage;
 import org.zipp.ai.domain.ingestion.port.ProcessingQueuePort;
 
 import java.time.Clock;
 import java.time.Duration;
 import java.util.Objects;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.Set;
-import org.zipp.ai.domain.ingestion.model.valobj.ProcessingJobStage;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public final class WorkerPoller {
 
@@ -19,19 +19,27 @@ public final class WorkerPoller {
     private static final Duration THIRD_RETRY_DELAY = Duration.ofMinutes(5);
 
     private final ProcessingQueuePort queue;
-    private final SecureUploadJobHandler handler;
+    private final SecureUploadJobHandler secureUploadHandler;
+    private final MaterializationJobHandler materializationHandler;
     private final Clock clock;
     private final String workerId;
+    private final Set<ProcessingJobStage> claimableStages;
     private final AtomicBoolean polling = new AtomicBoolean();
 
-    public WorkerPoller(ProcessingQueuePort queue, SecureUploadJobHandler handler, Clock clock, String workerId) {
+    public WorkerPoller(ProcessingQueuePort queue,
+                        SecureUploadJobHandler secureUploadHandler,
+                        MaterializationJobHandler materializationHandler,
+                        Clock clock, String workerId, boolean materializationEnabled) {
         this.queue = Objects.requireNonNull(queue, "queue");
-        this.handler = Objects.requireNonNull(handler, "handler");
+        this.secureUploadHandler = Objects.requireNonNull(secureUploadHandler, "secureUploadHandler");
+        this.materializationHandler = materializationEnabled
+                ? Objects.requireNonNull(materializationHandler, "materializationHandler") : materializationHandler;
         this.clock = Objects.requireNonNull(clock, "clock");
         if (workerId == null || workerId.isBlank()) {
             throw new IllegalArgumentException("workerId is required");
         }
         this.workerId = workerId.trim();
+        this.claimableStages = claimableStages(materializationEnabled);
     }
 
     @Scheduled(fixedDelayString = "${worker.poll-delay-ms:1000}")
@@ -40,8 +48,7 @@ public final class WorkerPoller {
             return;
         }
         try {
-            queue.claim(workerId, clock.instant(), LEASE_DURATION,
-                    Set.of(ProcessingJobStage.VALIDATE_OWNERSHIP)).ifPresent(this::execute);
+            queue.claim(workerId, clock.instant(), LEASE_DURATION, claimableStages).ifPresent(this::execute);
         } finally {
             polling.set(false);
         }
@@ -53,7 +60,8 @@ public final class WorkerPoller {
     }
 
     private void execute(ProcessingJobLease lease) {
-        JobOutcome outcome = handler.handle(lease);
+        JobOutcome outcome = lease.job().stage() == ProcessingJobStage.VALIDATE_OWNERSHIP
+                ? secureUploadHandler.handle(lease) : requireMaterializationHandler().handle(lease);
         var job = lease.job();
         switch (outcome.kind()) {
             case SUCCEEDED -> queue.succeed(job.id(), workerId, lease.fenceToken());
@@ -78,5 +86,20 @@ public final class WorkerPoller {
             case 3 -> THIRD_RETRY_DELAY;
             default -> null;
         };
+    }
+
+    static Set<ProcessingJobStage> claimableStages(boolean materializationEnabled) {
+        if (!materializationEnabled) {
+            return Set.of(ProcessingJobStage.VALIDATE_OWNERSHIP);
+        }
+        return Set.of(ProcessingJobStage.VALIDATE_OWNERSHIP,
+                ProcessingJobStage.RESOLVE_CONTENT_DEDUP, ProcessingJobStage.PROMOTE_ORIGINAL);
+    }
+
+    private MaterializationJobHandler requireMaterializationHandler() {
+        if (materializationHandler == null) {
+            throw new IllegalStateException("materialization handler is disabled");
+        }
+        return materializationHandler;
     }
 }

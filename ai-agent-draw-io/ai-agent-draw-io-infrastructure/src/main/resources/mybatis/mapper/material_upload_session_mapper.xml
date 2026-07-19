@@ -23,6 +23,9 @@
         <result property="state" column="state"/>
         <result property="materialId" column="material_id"/>
         <result property="versionId" column="version_id"/>
+        <result property="contentBlobId" column="content_blob_id"/>
+        <result property="processingRevisionId" column="processing_revision_id"/>
+        <result property="materialLifecycleGeneration" column="material_lifecycle_generation"/>
         <result property="generation" column="generation"/>
         <result property="errorCode" column="error_code"/>
         <result property="actualSize" column="actual_size"/>
@@ -82,6 +85,7 @@
           +
           (SELECT COALESCE(SUM(expected_size), 0) FROM material_upload_session
            WHERE owner_type = #{ownerType} AND owner_key = #{ownerKey}
+             AND content_blob_id IS NULL
              AND (state IN ('OBJECT_VERSION_PINNED', 'PROCESSING')
                OR (state = 'CREATED' AND policy_expires_at &gt; UTC_TIMESTAMP(3))))
     </select>
@@ -93,6 +97,7 @@
           +
           (SELECT COUNT(*) FROM material_upload_session
            WHERE owner_type = #{ownerType} AND owner_key = #{ownerKey}
+             AND content_blob_id IS NULL
              AND (state IN ('OBJECT_VERSION_PINNED', 'PROCESSING')
                OR (state = 'CREATED' AND policy_expires_at &gt; UTC_TIMESTAMP(3))))
     </select>

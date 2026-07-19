@@ -35,23 +35,64 @@ public final class Material {
     private Instant deletedAt;
 
     private Material(String id, OwnerType ownerType, String ownerKey, MaterialKind kind,
-                     String displayName, String originConversationId, Instant createdAt) {
+                     String displayName, String originConversationId, MaterialScopeLink initialScope,
+                     RetentionClass initialRetention, Instant createdAt) {
         this.id = requireText(id, "id");
         this.ownerType = Objects.requireNonNull(ownerType, "ownerType");
         this.ownerKey = requireText(ownerKey, "ownerKey");
         this.kind = Objects.requireNonNull(kind, "kind");
         this.displayName = requireText(displayName, "displayName");
-        this.originConversationId = requireText(originConversationId, "originConversationId");
+        this.retentionClass = Objects.requireNonNull(initialRetention, "initialRetention");
+        this.originConversationId = initialRetention == RetentionClass.TEMPORARY
+                ? requireText(originConversationId, "originConversationId") : null;
         Instant now = Objects.requireNonNull(createdAt, "createdAt");
-        this.retentionClass = RetentionClass.TEMPORARY;
         this.lifecycleState = MaterialLifecycleState.ACTIVE;
         this.lastMeaningfulActivityAt = now;
-        this.expiresAt = now.plus(TEMPORARY_TTL);
+        if (initialRetention == RetentionClass.TEMPORARY) {
+            this.expiresAt = now.plus(TEMPORARY_TTL);
+        } else {
+            if (ownerType == OwnerType.ANONYMOUS) {
+                throw new IllegalArgumentException("anonymous materials cannot start retained");
+            }
+            MaterialScopeLink retainedScope = Objects.requireNonNull(initialScope, "initialScope");
+            if (retainedScope.scopeType() == MaterialScopeType.CONVERSATION) {
+                throw new IllegalArgumentException("retained material requires a durable scope");
+            }
+            scopeLinks.add(retainedScope);
+        }
     }
 
     public static Material createTemporary(String id, OwnerType ownerType, String ownerKey, MaterialKind kind,
                                            String displayName, String originConversationId, Instant createdAt) {
-        return new Material(id, ownerType, ownerKey, kind, displayName, originConversationId, createdAt);
+        return new Material(id, ownerType, ownerKey, kind, displayName, originConversationId, null,
+                RetentionClass.TEMPORARY, createdAt);
+    }
+
+    public static Material createRetained(String id, OwnerType ownerType, String ownerKey, MaterialKind kind,
+                                          String displayName, MaterialScopeLink initialScope, Instant createdAt) {
+        return new Material(id, ownerType, ownerKey, kind, displayName, null, initialScope,
+                RetentionClass.RETAINED, createdAt);
+    }
+
+    public static Material rehydrateTemporaryActive(String id, OwnerType ownerType, String ownerKey,
+                                                     MaterialKind kind, String displayName,
+                                                     String originConversationId, long lifecycleGeneration,
+                                                     Instant lastMeaningfulActivityAt, Instant expiresAt) {
+        if (lifecycleGeneration < 0) {
+            throw new IllegalArgumentException("lifecycleGeneration cannot be negative");
+        }
+        Instant activity = Objects.requireNonNull(lastMeaningfulActivityAt, "lastMeaningfulActivityAt");
+        Instant expiry = Objects.requireNonNull(expiresAt, "expiresAt");
+        if (!expiry.isAfter(activity)) {
+            throw new IllegalArgumentException("temporary material expiry must follow meaningful activity");
+        }
+        Material material = createTemporary(id, ownerType, ownerKey, kind, displayName,
+                originConversationId, activity);
+        // Rehydration restores persisted concurrency facts before applying a new domain transition.
+        material.lifecycleGeneration = lifecycleGeneration;
+        material.lastMeaningfulActivityAt = activity;
+        material.expiresAt = expiry;
+        return material;
     }
 
     public void recordMeaningfulActivity(Instant activityAt) {

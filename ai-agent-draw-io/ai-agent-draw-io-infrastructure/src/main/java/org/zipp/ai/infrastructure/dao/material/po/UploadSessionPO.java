@@ -27,6 +27,9 @@ public class UploadSessionPO {
     private String state;
     private String materialId;
     private String versionId;
+    private String contentBlobId;
+    private String processingRevisionId;
+    private Long materialLifecycleGeneration;
     private long generation;
     private String errorCode;
     private Long actualSize;

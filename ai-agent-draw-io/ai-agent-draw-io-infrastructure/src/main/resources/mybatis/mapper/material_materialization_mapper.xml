@@ -1,0 +1,362 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.zipp.ai.infrastructure.dao.material.IMaterializationMapper">
+    <resultMap id="uploadMap" type="org.zipp.ai.infrastructure.dao.material.po.UploadSessionPO">
+        <id property="id" column="id"/>
+        <result property="ownerType" column="owner_type"/>
+        <result property="ownerKey" column="owner_key"/>
+        <result property="displayName" column="display_name"/>
+        <result property="targetScopeType" column="target_scope_type"/>
+        <result property="targetScopeKey" column="target_scope_key"/>
+        <result property="targetRetentionClass" column="target_retention_class"/>
+        <result property="newVersionOfMaterialId" column="new_version_of_material_id"/>
+        <result property="declaredMime" column="declared_mime"/>
+        <result property="quarantineBucket" column="quarantine_bucket"/>
+        <result property="quarantineKey" column="quarantine_key"/>
+        <result property="quarantineObjectVersionId" column="quarantine_object_version_id"/>
+        <result property="state" column="state"/>
+        <result property="materialId" column="material_id"/>
+        <result property="versionId" column="version_id"/>
+        <result property="contentBlobId" column="content_blob_id"/>
+        <result property="processingRevisionId" column="processing_revision_id"/>
+        <result property="materialLifecycleGeneration" column="material_lifecycle_generation"/>
+        <result property="generation" column="generation"/>
+        <result property="actualSize" column="actual_size"/>
+        <result property="actualSha256" column="actual_sha256"/>
+        <result property="detectedMime" column="detected_mime"/>
+        <result property="pageCount" column="page_count"/>
+        <result property="securityStatus" column="security_status"/>
+    </resultMap>
+
+    <resultMap id="blobMap" type="org.zipp.ai.infrastructure.dao.material.po.ContentBlobPO">
+        <id property="id" column="id"/>
+        <result property="ownerType" column="owner_type"/>
+        <result property="ownerKey" column="owner_key"/>
+        <result property="contentSha256" column="content_sha256"/>
+        <result property="byteSize" column="byte_size"/>
+        <result property="detectedMime" column="detected_mime"/>
+        <result property="originalObjectKey" column="original_object_key"/>
+        <result property="originalObjectVersionId" column="original_object_version_id"/>
+        <result property="s3Etag" column="s3_etag"/>
+        <result property="s3ChecksumSha256" column="s3_checksum_sha256"/>
+        <result property="status" column="status"/>
+    </resultMap>
+
+    <resultMap id="materialMap" type="org.zipp.ai.infrastructure.dao.material.po.MaterialPO">
+        <id property="id" column="id"/>
+        <result property="ownerType" column="owner_type"/>
+        <result property="ownerKey" column="owner_key"/>
+        <result property="kind" column="kind"/>
+        <result property="displayName" column="display_name"/>
+        <result property="retentionClass" column="retention_class"/>
+        <result property="originConversationId" column="origin_conversation_id"/>
+        <result property="lifecycleState" column="lifecycle_state"/>
+        <result property="lifecycleGeneration" column="lifecycle_generation"/>
+        <result property="latestVersionId" column="latest_version_id"/>
+        <result property="lastMeaningfulActivityAt" column="last_meaningful_activity_at"/>
+        <result property="expiresAt" column="expires_at"/>
+    </resultMap>
+
+    <resultMap id="versionMatchMap" type="org.zipp.ai.infrastructure.dao.material.po.MaterialVersionMatchPO">
+        <result property="materialId" column="material_id"/>
+        <result property="versionId" column="version_id"/>
+        <result property="revisionId" column="revision_id"/>
+        <result property="contentBlobId" column="content_blob_id"/>
+        <result property="materialLifecycleGeneration" column="material_lifecycle_generation"/>
+    </resultMap>
+
+    <resultMap id="promotionWorkMap" type="org.zipp.ai.infrastructure.dao.material.po.OriginalPromotionWorkPO">
+        <result property="uploadId" column="upload_id"/>
+        <result property="uploadGeneration" column="upload_generation"/>
+        <result property="quarantineBucket" column="quarantine_bucket"/>
+        <result property="quarantineKey" column="quarantine_key"/>
+        <result property="quarantineVersionId" column="quarantine_version_id"/>
+        <result property="destinationKey" column="destination_key"/>
+        <result property="contentBlobId" column="content_blob_id"/>
+        <result property="materialId" column="material_id"/>
+        <result property="versionId" column="version_id"/>
+        <result property="revisionId" column="revision_id"/>
+        <result property="detectedMediaType" column="detected_media_type"/>
+        <result property="byteSize" column="byte_size"/>
+        <result property="contentSha256" column="content_sha256"/>
+        <result property="formalObjectVersionId" column="formal_object_version_id"/>
+        <result property="formalEtag" column="formal_etag"/>
+        <result property="formalChecksumSha256" column="formal_checksum_sha256"/>
+    </resultMap>
+
+    <select id="selectUploadForMaterialization" resultMap="uploadMap">
+        SELECT u.*
+        FROM material_upload_session u
+        JOIN material_processing_job j ON j.id = #{jobId}
+        WHERE u.id = #{uploadId}
+          AND u.state IN ('PROCESSING', 'SUCCEEDED')
+          AND u.security_status = 'VALIDATED'
+          AND j.upload_session_id = u.id
+          AND j.stage = 'RESOLVE_CONTENT_DEDUP'
+          AND j.status = 'RUNNING' AND j.lease_owner = #{workerId}
+          AND j.fence_token = #{fenceToken} AND j.lease_until &gt; UTC_TIMESTAMP(3)
+        FOR UPDATE
+    </select>
+
+    <insert id="insertContentBlob">
+        INSERT IGNORE INTO material_content_blob (
+            id, owner_type, owner_key, content_sha256, byte_size, detected_mime,
+            original_object_key, status
+        ) VALUES (
+            #{id}, #{ownerType}, #{ownerKey}, #{contentSha256}, #{byteSize}, #{detectedMime},
+            #{originalObjectKey}, #{status}
+        )
+    </insert>
+
+    <select id="selectContentBlobForUpdate" resultMap="blobMap">
+        SELECT * FROM material_content_blob
+        WHERE owner_type = #{ownerType} AND owner_key = #{ownerKey}
+          AND content_sha256 = #{contentSha256} AND byte_size = #{byteSize}
+        FOR UPDATE
+    </select>
+
+    <update id="reviveDeletedBlob">
+        UPDATE material_content_blob
+        SET detected_mime = #{detectedMime}, original_object_key = #{originalObjectKey},
+            original_object_version_id = NULL, s3_etag = NULL, s3_checksum_sha256 = NULL,
+            status = 'PROMOTING'
+        WHERE id = #{id} AND owner_type = #{ownerType} AND owner_key = #{ownerKey}
+          AND status = 'DELETED'
+    </update>
+
+    <select id="selectReusableVersionForUpdate" resultMap="versionMatchMap">
+        SELECT m.id AS material_id, v.id AS version_id, r.id AS revision_id,
+               v.content_blob_id AS content_blob_id,
+               m.lifecycle_generation AS material_lifecycle_generation
+        FROM material_version v
+        JOIN material m ON m.id = v.material_id
+        JOIN material_processing_revision r ON r.version_id = v.id
+        WHERE m.owner_type = #{ownerType} AND m.owner_key = #{ownerKey}
+          AND m.lifecycle_state = 'ACTIVE' AND v.content_blob_id = #{contentBlobId}
+          AND (m.retention_class = 'RETAINED' OR m.expires_at &gt; UTC_TIMESTAMP(3))
+          AND r.revision_no = (SELECT MAX(r2.revision_no) FROM material_processing_revision r2
+                               WHERE r2.version_id = v.id)
+        ORDER BY v.created_at ASC
+        LIMIT 1
+        FOR UPDATE
+    </select>
+
+    <select id="selectTargetVersionForUpdate" resultMap="versionMatchMap">
+        SELECT m.id AS material_id, v.id AS version_id, r.id AS revision_id,
+               v.content_blob_id AS content_blob_id,
+               m.lifecycle_generation AS material_lifecycle_generation
+        FROM material m
+        JOIN material_version v ON v.material_id = m.id
+        JOIN material_processing_revision r ON r.version_id = v.id
+        WHERE m.id = #{materialId} AND m.owner_type = #{ownerType} AND m.owner_key = #{ownerKey}
+          AND m.lifecycle_state = 'ACTIVE' AND v.content_blob_id = #{contentBlobId}
+          AND (m.retention_class = 'RETAINED' OR m.expires_at &gt; UTC_TIMESTAMP(3))
+          AND r.revision_no = (SELECT MAX(r2.revision_no) FROM material_processing_revision r2
+                               WHERE r2.version_id = v.id)
+        LIMIT 1
+        FOR UPDATE
+    </select>
+
+    <select id="selectActiveMaterialForUpdate" resultMap="materialMap">
+        SELECT * FROM material
+        WHERE id = #{materialId} AND owner_type = #{ownerType} AND owner_key = #{ownerKey}
+          AND lifecycle_state = 'ACTIVE'
+          AND (retention_class = 'RETAINED' OR expires_at &gt; UTC_TIMESTAMP(3))
+        FOR UPDATE
+    </select>
+
+    <select id="selectNextVersionNo" resultType="int">
+        SELECT COALESCE(MAX(version_no), 0) + 1 FROM material_version WHERE material_id = #{materialId}
+    </select>
+
+    <insert id="insertMaterial">
+        INSERT INTO material (
+            id, owner_type, owner_key, kind, display_name, retention_class, origin_conversation_id,
+            lifecycle_state, lifecycle_generation, latest_version_id, last_meaningful_activity_at, expires_at
+        ) VALUES (
+            #{id}, #{ownerType}, #{ownerKey}, #{kind}, #{displayName}, #{retentionClass},
+            #{originConversationId}, #{lifecycleState}, #{lifecycleGeneration}, #{latestVersionId},
+            #{lastMeaningfulActivityAt}, #{expiresAt}
+        )
+    </insert>
+
+    <insert id="insertScopeLink">
+        INSERT IGNORE INTO material_scope_link (id, material_id, scope_type, scope_key, created_by)
+        VALUES (#{id}, #{materialId}, #{scopeType}, #{scopeKey}, #{createdBy})
+    </insert>
+
+    <update id="persistRetainedMaterial">
+        UPDATE material
+        SET retention_class = 'RETAINED', expires_at = NULL, lifecycle_generation = #{newGeneration}
+        WHERE id = #{materialId} AND owner_type = #{ownerType} AND owner_key = #{ownerKey}
+          AND lifecycle_state = 'ACTIVE' AND retention_class = 'TEMPORARY'
+          AND lifecycle_generation = #{expectedGeneration}
+    </update>
+
+    <insert id="insertVersion">
+        INSERT INTO material_version (
+            id, material_id, owner_key, version_no, content_blob_id, content_sha256,
+            declared_mime, detected_mime, byte_size, page_count, ingest_state
+        ) VALUES (
+            #{id}, #{materialId}, #{ownerKey}, #{versionNo}, #{contentBlobId}, #{contentSha256},
+            #{declaredMime}, #{detectedMime}, #{byteSize}, #{pageCount}, #{ingestState}
+        )
+    </insert>
+
+    <insert id="insertRevision">
+        INSERT INTO material_processing_revision (
+            id, version_id, revision_no, fingerprint, state, stage, progress,
+            parser_version, cleaner_version, chunk_schema_version, ocr_version, vlm_schema_version,
+            excluded_pages_json
+        ) VALUES (
+            #{id}, #{versionId}, #{revisionNo}, #{fingerprint}, #{state}, #{stage}, #{progress},
+            #{parserVersion}, #{cleanerVersion}, #{chunkSchemaVersion}, #{ocrVersion}, #{vlmSchemaVersion},
+            #{excludedPagesJson}
+        )
+    </insert>
+
+    <update id="updateLatestVersion">
+        UPDATE material SET latest_version_id = #{versionId} WHERE id = #{materialId}
+    </update>
+
+    <update id="correlateForPromotion">
+        UPDATE material_upload_session u
+        SET material_id = #{materialId}, version_id = #{versionId},
+            content_blob_id = #{contentBlobId}, processing_revision_id = #{revisionId},
+            material_lifecycle_generation = #{materialLifecycleGeneration},
+            generation = generation + 1
+        WHERE u.id = #{uploadId} AND u.state = 'PROCESSING' AND u.security_status = 'VALIDATED'
+          AND u.generation = #{expectedGeneration}
+          AND EXISTS (SELECT 1 FROM material_processing_job j WHERE j.id = #{jobId}
+              AND j.upload_session_id = u.id AND j.stage = 'RESOLVE_CONTENT_DEDUP'
+              AND j.status = 'RUNNING' AND j.lease_owner = #{workerId}
+              AND j.fence_token = #{fenceToken} AND j.lease_until &gt; UTC_TIMESTAMP(3))
+    </update>
+
+    <update id="completeWithoutPromotion">
+        UPDATE material_upload_session u
+        SET material_id = #{materialId}, version_id = #{versionId},
+            content_blob_id = #{contentBlobId}, processing_revision_id = #{revisionId},
+            material_lifecycle_generation = #{materialLifecycleGeneration},
+            state = 'SUCCEEDED', completed_at = UTC_TIMESTAMP(3), generation = generation + 1
+        WHERE u.id = #{uploadId} AND u.state = 'PROCESSING' AND u.security_status = 'VALIDATED'
+          AND u.generation = #{expectedGeneration}
+          AND EXISTS (SELECT 1 FROM material_processing_job j WHERE j.id = #{jobId}
+              AND j.upload_session_id = u.id AND j.stage = 'RESOLVE_CONTENT_DEDUP'
+              AND j.status = 'RUNNING' AND j.lease_owner = #{workerId}
+              AND j.fence_token = #{fenceToken} AND j.lease_until &gt; UTC_TIMESTAMP(3))
+    </update>
+
+    <select id="selectPromotionWork" resultMap="promotionWorkMap">
+        SELECT u.id AS upload_id, u.generation AS upload_generation,
+               u.quarantine_bucket, u.quarantine_key,
+               u.quarantine_object_version_id AS quarantine_version_id,
+               b.original_object_key AS destination_key, b.id AS content_blob_id,
+               u.material_id, u.version_id, u.processing_revision_id AS revision_id,
+               b.detected_mime AS detected_media_type, b.byte_size, b.content_sha256,
+               b.original_object_version_id AS formal_object_version_id,
+               b.s3_etag AS formal_etag, b.s3_checksum_sha256 AS formal_checksum_sha256
+        FROM material_upload_session u
+        JOIN material_processing_job j ON j.id = #{jobId} AND j.upload_session_id = u.id
+          AND j.stage = 'PROMOTE_ORIGINAL' AND j.status = 'RUNNING'
+          AND j.lease_owner = #{workerId} AND j.fence_token = #{fenceToken}
+          AND j.lease_until &gt; UTC_TIMESTAMP(3)
+        JOIN material_content_blob b ON b.id = u.content_blob_id
+          AND b.owner_type = u.owner_type AND b.owner_key = u.owner_key
+        JOIN material m ON m.id = u.material_id AND m.owner_type = u.owner_type
+          AND m.owner_key = u.owner_key AND m.lifecycle_state = 'ACTIVE'
+          AND m.lifecycle_generation = u.material_lifecycle_generation
+          AND (m.retention_class = 'RETAINED' OR m.expires_at &gt; UTC_TIMESTAMP(3))
+        JOIN material_processing_revision r ON r.id = u.processing_revision_id
+          AND r.version_id = u.version_id AND r.state = 'PROCESSING'
+        WHERE u.id = #{uploadId} AND u.state = 'PROCESSING'
+          AND u.security_status = 'VALIDATED' AND b.status IN ('PROMOTING', 'AVAILABLE')
+    </select>
+
+    <update id="pinBlobIfPromoting">
+        UPDATE material_content_blob b
+        SET original_object_key = #{objectKey}, original_object_version_id = #{objectVersionId},
+            s3_etag = #{eTag}, s3_checksum_sha256 = #{checksumSha256},
+            status = 'AVAILABLE', promoted_at = UTC_TIMESTAMP(3)
+        WHERE b.id = #{contentBlobId} AND b.status = 'PROMOTING'
+          AND EXISTS (SELECT 1 FROM material_upload_session u
+              JOIN material_processing_job j ON j.id = #{jobId} AND j.upload_session_id = u.id
+                  AND j.stage = 'PROMOTE_ORIGINAL'
+              JOIN material m ON m.id = u.material_id AND m.lifecycle_state = 'ACTIVE'
+                  AND m.lifecycle_generation = u.material_lifecycle_generation
+                  AND (m.retention_class = 'RETAINED' OR m.expires_at &gt; UTC_TIMESTAMP(3))
+              JOIN material_processing_revision r ON r.id = u.processing_revision_id
+                  AND r.version_id = u.version_id AND r.state = 'PROCESSING'
+              WHERE u.id = #{uploadId} AND u.content_blob_id = b.id AND u.state = 'PROCESSING'
+              AND j.status = 'RUNNING' AND j.lease_owner = #{workerId}
+              AND j.fence_token = #{fenceToken} AND j.lease_until &gt; UTC_TIMESTAMP(3))
+    </update>
+
+    <select id="countFixedBlobForPromotion" resultType="int">
+        SELECT COUNT(*) FROM material_upload_session u
+        JOIN material_processing_job j ON j.id = #{jobId} AND j.upload_session_id = u.id
+          AND j.stage = 'PROMOTE_ORIGINAL' AND j.status = 'RUNNING'
+          AND j.lease_owner = #{workerId} AND j.fence_token = #{fenceToken}
+          AND j.lease_until &gt; UTC_TIMESTAMP(3)
+        JOIN material_content_blob b ON b.id = u.content_blob_id
+          AND b.id = #{contentBlobId} AND b.status = 'AVAILABLE'
+          AND b.original_object_key = #{objectKey}
+          AND b.original_object_version_id = #{objectVersionId}
+          AND b.s3_checksum_sha256 = #{checksumSha256}
+        JOIN material m ON m.id = u.material_id AND m.lifecycle_state = 'ACTIVE'
+          AND m.lifecycle_generation = u.material_lifecycle_generation
+          AND (m.retention_class = 'RETAINED' OR m.expires_at &gt; UTC_TIMESTAMP(3))
+        JOIN material_processing_revision r ON r.id = u.processing_revision_id
+          AND r.version_id = u.version_id AND r.state = 'PROCESSING'
+        WHERE u.id = #{uploadId} AND u.state = 'PROCESSING'
+    </select>
+
+    <update id="markVersionProcessing">
+        UPDATE material_version v SET ingest_state = 'PROCESSING'
+        WHERE v.id = #{versionId} AND v.ingest_state = 'PROMOTING'
+          AND EXISTS (SELECT 1 FROM material_upload_session u
+              JOIN material_processing_job j ON j.id = #{jobId} AND j.upload_session_id = u.id
+                  AND j.stage = 'PROMOTE_ORIGINAL'
+              JOIN material m ON m.id = u.material_id AND m.lifecycle_state = 'ACTIVE'
+                  AND m.lifecycle_generation = u.material_lifecycle_generation
+                  AND (m.retention_class = 'RETAINED' OR m.expires_at &gt; UTC_TIMESTAMP(3))
+              JOIN material_processing_revision r ON r.id = u.processing_revision_id
+                  AND r.version_id = v.id AND r.state = 'PROCESSING'
+              WHERE u.id = #{uploadId} AND u.version_id = v.id AND u.state = 'PROCESSING'
+              AND j.status = 'RUNNING' AND j.lease_owner = #{workerId}
+              AND j.fence_token = #{fenceToken} AND j.lease_until &gt; UTC_TIMESTAMP(3))
+    </update>
+
+    <select id="countProcessableVersionForPromotion" resultType="int">
+        SELECT COUNT(*) FROM material_upload_session u
+        JOIN material_processing_job j ON j.id = #{jobId} AND j.upload_session_id = u.id
+          AND j.stage = 'PROMOTE_ORIGINAL' AND j.status = 'RUNNING'
+          AND j.lease_owner = #{workerId} AND j.fence_token = #{fenceToken}
+          AND j.lease_until &gt; UTC_TIMESTAMP(3)
+        JOIN material m ON m.id = u.material_id AND m.lifecycle_state = 'ACTIVE'
+          AND m.lifecycle_generation = u.material_lifecycle_generation
+          AND (m.retention_class = 'RETAINED' OR m.expires_at &gt; UTC_TIMESTAMP(3))
+        JOIN material_version v ON v.id = u.version_id AND v.id = #{versionId}
+          AND v.material_id = m.id AND v.ingest_state = 'PROCESSING'
+        JOIN material_processing_revision r ON r.id = u.processing_revision_id
+          AND r.id = #{revisionId} AND r.version_id = v.id AND r.state = 'PROCESSING'
+        WHERE u.id = #{uploadId} AND u.state = 'PROCESSING'
+    </select>
+
+    <update id="completePromotedUpload">
+        UPDATE material_upload_session u
+        SET state = 'SUCCEEDED', completed_at = UTC_TIMESTAMP(3), generation = generation + 1
+        WHERE u.id = #{uploadId} AND u.state = 'PROCESSING'
+          AND u.security_status = 'VALIDATED' AND u.generation = #{expectedGeneration}
+          AND EXISTS (SELECT 1 FROM material_processing_job j
+              JOIN material m ON m.id = u.material_id AND m.lifecycle_state = 'ACTIVE'
+                  AND m.lifecycle_generation = u.material_lifecycle_generation
+                  AND (m.retention_class = 'RETAINED' OR m.expires_at &gt; UTC_TIMESTAMP(3))
+              JOIN material_processing_revision r ON r.id = u.processing_revision_id
+                  AND r.version_id = u.version_id AND r.state = 'PROCESSING'
+              JOIN material_content_blob b ON b.id = u.content_blob_id AND b.status = 'AVAILABLE'
+              WHERE j.id = #{jobId} AND j.upload_session_id = u.id
+              AND j.stage = 'PROMOTE_ORIGINAL' AND j.status = 'RUNNING' AND j.lease_owner = #{workerId}
+              AND j.fence_token = #{fenceToken} AND j.lease_until &gt; UTC_TIMESTAMP(3))
+    </update>
+</mapper>

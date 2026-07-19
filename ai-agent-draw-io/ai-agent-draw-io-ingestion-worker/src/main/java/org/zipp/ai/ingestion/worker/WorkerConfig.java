@@ -1,11 +1,16 @@
 package org.zipp.ai.ingestion.worker;
 
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.zipp.ai.domain.ingestion.port.PinnedQuarantineContentPort;
 import org.zipp.ai.domain.ingestion.port.ProcessingQueuePort;
 import org.zipp.ai.domain.ingestion.port.SecureUploadWorkPort;
+import org.zipp.ai.domain.ingestion.port.MaterializationWorkPort;
+import org.zipp.ai.domain.ingestion.port.OriginalPromotionPort;
+import org.zipp.ai.infrastructure.adapter.s3.S3OriginalPromotionAdapter;
 import org.zipp.ai.infrastructure.adapter.s3.S3PinnedQuarantineContentAdapter;
 import org.zipp.ai.ingestion.worker.security.ClamAvScannerAdapter;
 import org.zipp.ai.ingestion.worker.security.SecureFileValidator;
@@ -36,6 +41,13 @@ public class WorkerConfig {
     }
 
     @Bean
+    @ConditionalOnProperty(name = "worker.materialization-enabled", havingValue = "true")
+    public OriginalPromotionPort originalPromotionPort(
+            S3Client s3Client, @Value("${worker.materials-bucket}") String materialsBucket) {
+        return new S3OriginalPromotionAdapter(s3Client, materialsBucket);
+    }
+
+    @Bean
     public SecureFileValidator secureFileValidator(@Value("${worker.clamav.host}") String host,
                                                    @Value("${worker.clamav.port:3310}") int port,
                                                    @Value("${worker.clamav.timeout-seconds:60}") long timeoutSeconds) {
@@ -52,8 +64,23 @@ public class WorkerConfig {
     }
 
     @Bean
-    public WorkerPoller workerPoller(ProcessingQueuePort queue, SecureUploadJobHandler handler, Clock clock,
-                                     @Value("${worker.id}") String workerId) {
-        return new WorkerPoller(queue, handler, clock, workerId);
+    @ConditionalOnProperty(name = "worker.materialization-enabled", havingValue = "true")
+    public MaterializationJobHandler materializationJobHandler(MaterializationWorkPort work,
+                                                               OriginalPromotionPort promotion,
+                                                               PinnedQuarantineContentPort content,
+                                                               ProcessingQueuePort queue,
+                                                               Clock clock) {
+        return new MaterializationJobHandler(work, promotion, content, queue, clock);
+    }
+
+    @Bean
+    public WorkerPoller workerPoller(ProcessingQueuePort queue,
+                                     SecureUploadJobHandler secureUploadHandler,
+                                     ObjectProvider<MaterializationJobHandler> materializationHandler,
+                                     Clock clock,
+                                     @Value("${worker.id}") String workerId,
+                                     @Value("${worker.materialization-enabled:false}") boolean materializationEnabled) {
+        return new WorkerPoller(queue, secureUploadHandler, materializationHandler.getIfAvailable(), clock, workerId,
+                materializationEnabled);
     }
 }

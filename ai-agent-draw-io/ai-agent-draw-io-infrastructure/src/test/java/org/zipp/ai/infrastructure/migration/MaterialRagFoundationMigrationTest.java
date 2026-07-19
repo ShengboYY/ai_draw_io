@@ -43,6 +43,33 @@ class MaterialRagFoundationMigrationTest {
         assertTrue(sql.contains("lifecycle_state <> 'ACTIVE' OR expires_at IS NOT NULL"));
     }
 
+    @Test
+    void wp3MigrationPersistsUploadCorrelationsAndPinnedFormalObjectVersion() throws Exception {
+        Path migration = Path.of("docs/sql/migrations/2026-07-21-create-materialization-promotion.sql");
+        if (!Files.exists(migration)) {
+            migration = Path.of("../docs/sql/migrations/2026-07-21-create-materialization-promotion.sql");
+        }
+        String sql = Files.readString(migration);
+
+        assertTrue(sql.contains("content_blob_id VARCHAR(64)"));
+        assertTrue(sql.contains("processing_revision_id VARCHAR(64)"));
+        assertTrue(sql.contains("material_lifecycle_generation BIGINT"));
+        assertTrue(sql.contains("original_object_version_id VARCHAR(255)"));
+        assertTrue(sql.contains("promoted_at DATETIME(3)"));
+    }
+
+    @Test
+    void workerIamAllowsExactVersionVerificationAndCleanupInBothBuckets() throws Exception {
+        Path template = Path.of("../deploy/aws/material-upload/s3-and-iam.template.yml");
+        if (!Files.exists(template)) {
+            template = Path.of("../../deploy/aws/material-upload/s3-and-iam.template.yml");
+        }
+        String yaml = Files.readString(template);
+
+        assertEquals(2, occurrences(yaml, "s3:GetObjectVersion"));
+        assertEquals(2, occurrences(yaml, "s3:DeleteObjectVersion"));
+    }
+
     private String jobTable(String sql) {
         int start = sql.indexOf("CREATE TABLE IF NOT EXISTS material_processing_job");
         int end = sql.indexOf("CREATE TABLE IF NOT EXISTS deletion_task", start);
