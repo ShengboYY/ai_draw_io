@@ -166,4 +166,6 @@ mybatis:
     - classpath:/mybatis/mapper/eval_catalog_mapper.xml
     - classpath:/mybatis/mapper/eval_run_mapper.xml
     - classpath:/mybatis/mapper/usage_counter_mapper.xml
+    - classpath*:/mybatis/mapper/material_foundation_mapper.xml
+    - classpath*:/mybatis/mapper/material_processing_job_mapper.xml
   config-location: classpath:/mybatis/config/mybatis-config.xml

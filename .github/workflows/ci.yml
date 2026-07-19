@@ -41,8 +41,29 @@ jobs:
           mvn -B
           -s ai-agent-draw-io/docker/maven-settings.xml
           -f ai-agent-draw-io/pom.xml
-          -pl ai-agent-draw-io-app -am
           test
+
+      - name: Verify module sentinel reports
+        run: |
+          set -euo pipefail
+          test -f ai-agent-draw-io/ai-agent-draw-io-domain/target/surefire-reports/TEST-org.zipp.ai.domain.DomainModuleSentinelTest.xml
+          test -f ai-agent-draw-io/ai-agent-draw-io-trigger/target/surefire-reports/TEST-org.zipp.ai.trigger.TriggerModuleSentinelTest.xml
+          test -f ai-agent-draw-io/ai-agent-draw-io-infrastructure/target/surefire-reports/TEST-org.zipp.ai.infrastructure.InfrastructureModuleSentinelTest.xml
+          test -f ai-agent-draw-io/ai-agent-draw-io-app/target/surefire-reports/TEST-org.zipp.ai.test.AppModuleSentinelTest.xml
+          test -f ai-agent-draw-io/ai-agent-draw-io-ingestion-worker/target/surefire-reports/TEST-org.zipp.ai.ingestion.worker.WorkerModuleSentinelTest.xml
+
+      - name: Upload backend test reports
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: backend-surefire-reports
+          if-no-files-found: error
+          path: |
+            ai-agent-draw-io/ai-agent-draw-io-domain/target/surefire-reports/
+            ai-agent-draw-io/ai-agent-draw-io-trigger/target/surefire-reports/
+            ai-agent-draw-io/ai-agent-draw-io-infrastructure/target/surefire-reports/
+            ai-agent-draw-io/ai-agent-draw-io-app/target/surefire-reports/
+            ai-agent-draw-io/ai-agent-draw-io-ingestion-worker/target/surefire-reports/
 
   frontend-ci:
     name: frontend-ci

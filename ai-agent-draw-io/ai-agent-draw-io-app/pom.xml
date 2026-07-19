@@ -11,10 +11,7 @@
 
     <packaging>jar</packaging>
 
-    <!--
-      大多数历史测试需要真实 MySQL / 模型 key，仍不在默认生命周期执行。
-      Phase 1 evaluation 是纯确定性回放，作为唯一默认 app 测试纳入普通 mvn test；其余测试可通过 -Dtest=<Class> 精确运行。
-    -->
+    <!-- The default lifecycle must discover every deterministic unit and contract test. -->
     <properties>
         <skipTests>false</skipTests>
     </properties>
@@ -73,6 +70,11 @@
         <dependency>
             <groupId>junit</groupId>
             <artifactId>junit</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.vintage</groupId>
+            <artifactId>junit-vintage-engine</artifactId>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -182,15 +184,18 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
-                <version>2.6</version>
                 <configuration>
                     <skipTests>${skipTests}</skipTests>
                     <testFailureIgnore>false</testFailureIgnore>
                     <!-- Synthetic visual-review PNG fixtures must render in CI without a display server. -->
                     <argLine>-Djava.awt.headless=true</argLine>
-                    <includes>
-                        <include>**/evaluation/**/*Test.java</include>
-                    </includes>
+                    <!-- Demo/live tests require a database or model credentials and stay opt-in via -Dtest. -->
+                    <excludes>
+                        <exclude>**/ApiTest.java</exclude>
+                        <exclude>**/AiAgentAutoConfigTest.java</exclude>
+                        <exclude>**/ChatServiceTest.java</exclude>
+                        <exclude>**/api/**/*Test.java</exclude>
+                    </excludes>
                 </configuration>
             </plugin>
             <plugin>
@@ -203,5 +208,24 @@
             </plugin>
         </plugins>
     </build>
+
+    <profiles>
+        <profile>
+            <id>evaluation-only</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-surefire-plugin</artifactId>
+                        <configuration>
+                            <includes>
+                                <include>**/evaluation/**/*Test.java</include>
+                            </includes>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
 
 </project>

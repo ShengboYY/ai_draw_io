@@ -266,6 +266,7 @@
     <module>ai-agent-draw-io-domain</module>
     <module>ai-agent-draw-io-trigger</module>
     <module>ai-agent-draw-io-infrastructure</module>
+    <module>ai-agent-draw-io-ingestion-worker</module>
     <module>ai-agent-draw-io-types</module>
   </modules>
 </project>

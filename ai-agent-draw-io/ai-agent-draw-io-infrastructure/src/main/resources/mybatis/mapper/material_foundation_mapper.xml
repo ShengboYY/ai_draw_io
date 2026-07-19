@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.zipp.ai.infrastructure.dao.material.IMaterialFoundationMapper">
+    <resultMap id="materialMap" type="org.zipp.ai.infrastructure.dao.material.po.MaterialPO">
+        <id property="id" column="id"/>
+        <result property="ownerType" column="owner_type"/>
+        <result property="ownerKey" column="owner_key"/>
+        <result property="kind" column="kind"/>
+        <result property="displayName" column="display_name"/>
+        <result property="retentionClass" column="retention_class"/>
+        <result property="originConversationId" column="origin_conversation_id"/>
+        <result property="lifecycleState" column="lifecycle_state"/>
+        <result property="lifecycleGeneration" column="lifecycle_generation"/>
+        <result property="latestVersionId" column="latest_version_id"/>
+        <result property="lastMeaningfulActivityAt" column="last_meaningful_activity_at"/>
+        <result property="expiresAt" column="expires_at"/>
+        <result property="trashExpiresAt" column="trash_expires_at"/>
+        <result property="deletedAt" column="deleted_at"/>
+    </resultMap>
+
+    <insert id="insertMaterial">
+        INSERT INTO material (
+            id, owner_type, owner_key, kind, display_name, retention_class, origin_conversation_id,
+            lifecycle_state, lifecycle_generation, latest_version_id, last_meaningful_activity_at,
+            expires_at, trash_expires_at, deleted_at
+        ) VALUES (
+            #{id}, #{ownerType}, #{ownerKey}, #{kind}, #{displayName}, #{retentionClass},
+            #{originConversationId}, #{lifecycleState}, #{lifecycleGeneration}, #{latestVersionId},
+            #{lastMeaningfulActivityAt}, #{expiresAt}, #{trashExpiresAt}, #{deletedAt}
+        )
+    </insert>
+
+    <select id="selectByIdForOwner" resultMap="materialMap">
+        SELECT *
+        FROM material
+        WHERE id = #{id}
+          AND owner_type = #{ownerType}
+          AND owner_key = #{ownerKey}
+    </select>
+
+    <insert id="insertScopeLink">
+        INSERT IGNORE INTO material_scope_link (id, material_id, scope_type, scope_key, created_by)
+        VALUES (#{id}, #{materialId}, #{scopeType}, #{scopeKey}, #{createdBy})
+    </insert>
+
+    <update id="extendTemporaryExpiry">
+        UPDATE material
+        SET last_meaningful_activity_at = #{activityAt},
+            expires_at = GREATEST(expires_at, #{expiresAt})
+        WHERE id = #{id}
+          AND owner_type = #{ownerType}
+          AND owner_key = #{ownerKey}
+          AND retention_class = 'TEMPORARY'
+          AND lifecycle_state = 'ACTIVE'
+          AND lifecycle_generation = #{expectedGeneration}
+          AND expires_at &gt; UTC_TIMESTAMP(3)
+    </update>
+</mapper>

@@ -12,6 +12,7 @@ import org.zipp.ai.domain.agent.service.ICanvasStateStore;
 import org.zipp.ai.domain.agent.service.IDiagramConversationStore;
 import org.zipp.ai.domain.agent.service.debugtrace.IAgentDebugTraceStore;
 import org.zipp.ai.domain.agent.service.usage.IAgentUsageTelemetryStore;
+import org.zipp.ai.domain.material.service.MaterialDeletionModule;
 
 import java.time.Clock;
 import java.time.Instant;
@@ -29,6 +30,7 @@ public class DefaultAccountDeletionService implements IAccountDeletionService {
     private final IAgentDebugTraceStore debugTraceStore;
     private final IAgentUsageTelemetryStore usageTelemetryStore;
     private final IAdminAuditLogStore adminAuditLogStore;
+    private final MaterialDeletionModule materialDeletionModule;
     private final Clock clock;
 
     @Autowired
@@ -39,9 +41,24 @@ public class DefaultAccountDeletionService implements IAccountDeletionService {
                                          IDiagramConversationStore diagramConversationStore,
                                          IAgentDebugTraceStore debugTraceStore,
                                          IAgentUsageTelemetryStore usageTelemetryStore,
+                                         IAdminAuditLogStore adminAuditLogStore,
+                                         Optional<MaterialDeletionModule> materialDeletionModule) {
+        this(userAccountStore, accountTokenStore, modelCredentialStore, canvasStateStore, diagramConversationStore,
+                debugTraceStore, usageTelemetryStore, adminAuditLogStore,
+                materialDeletionModule.orElse(MaterialDeletionModule.NO_OP), Clock.systemUTC());
+    }
+
+    public DefaultAccountDeletionService(IUserAccountStore userAccountStore,
+                                         IAccountTokenStore accountTokenStore,
+                                         IModelCredentialStore modelCredentialStore,
+                                         ICanvasStateStore canvasStateStore,
+                                         IDiagramConversationStore diagramConversationStore,
+                                         IAgentDebugTraceStore debugTraceStore,
+                                         IAgentUsageTelemetryStore usageTelemetryStore,
                                          IAdminAuditLogStore adminAuditLogStore) {
         this(userAccountStore, accountTokenStore, modelCredentialStore, canvasStateStore, diagramConversationStore,
-                debugTraceStore, usageTelemetryStore, adminAuditLogStore, Clock.systemUTC());
+                debugTraceStore, usageTelemetryStore, adminAuditLogStore, MaterialDeletionModule.NO_OP,
+                Clock.systemUTC());
     }
 
     public DefaultAccountDeletionService(IUserAccountStore userAccountStore,
@@ -53,6 +70,20 @@ public class DefaultAccountDeletionService implements IAccountDeletionService {
                                          IAgentUsageTelemetryStore usageTelemetryStore,
                                          IAdminAuditLogStore adminAuditLogStore,
                                          Clock clock) {
+        this(userAccountStore, accountTokenStore, modelCredentialStore, canvasStateStore, diagramConversationStore,
+                debugTraceStore, usageTelemetryStore, adminAuditLogStore, MaterialDeletionModule.NO_OP, clock);
+    }
+
+    public DefaultAccountDeletionService(IUserAccountStore userAccountStore,
+                                         IAccountTokenStore accountTokenStore,
+                                         IModelCredentialStore modelCredentialStore,
+                                         ICanvasStateStore canvasStateStore,
+                                         IDiagramConversationStore diagramConversationStore,
+                                         IAgentDebugTraceStore debugTraceStore,
+                                         IAgentUsageTelemetryStore usageTelemetryStore,
+                                         IAdminAuditLogStore adminAuditLogStore,
+                                         MaterialDeletionModule materialDeletionModule,
+                                         Clock clock) {
         this.userAccountStore = Objects.requireNonNull(userAccountStore, "userAccountStore");
         this.accountTokenStore = Objects.requireNonNull(accountTokenStore, "accountTokenStore");
         this.modelCredentialStore = Objects.requireNonNull(modelCredentialStore, "modelCredentialStore");
@@ -61,6 +92,7 @@ public class DefaultAccountDeletionService implements IAccountDeletionService {
         this.debugTraceStore = Objects.requireNonNull(debugTraceStore, "debugTraceStore");
         this.usageTelemetryStore = Objects.requireNonNull(usageTelemetryStore, "usageTelemetryStore");
         this.adminAuditLogStore = Objects.requireNonNull(adminAuditLogStore, "adminAuditLogStore");
+        this.materialDeletionModule = Objects.requireNonNull(materialDeletionModule, "materialDeletionModule");
         this.clock = clock == null ? Clock.systemUTC() : clock;
     }
 
@@ -88,6 +120,7 @@ public class DefaultAccountDeletionService implements IAccountDeletionService {
         debugTraceStore.deleteContentForUser(originalUserId, anonymizedUserId, deletedAt);
         usageTelemetryStore.anonymizeUser(originalUserId, anonymizedUserId);
         adminAuditLogStore.redactDeletedUser(originalUserId, anonymizedUserId);
+        materialDeletionModule.requestAccountDeletion(originalUserId, deletedAt);
 
         boolean deleted = userAccountStore.deleteAndRedact(originalUserId, anonymizedUserId, deletedEmail, deletedAt);
         if (!deleted) {
