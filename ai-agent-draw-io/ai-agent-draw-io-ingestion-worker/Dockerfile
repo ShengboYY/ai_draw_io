@@ -32,7 +32,13 @@ ENV TESSERACT_LANGUAGES=eng+chi_sim \
     TESSERACT_RUNTIME_VERSION=tesseract-4.1.1
 WORKDIR /worker
 COPY --from=build /workspace/ai-agent-draw-io-ingestion-worker/target/ai-agent-draw-io-ingestion-worker.jar /worker/worker.jar
+# Pin the exact open-source tokenizer used by Pinecone multilingual-e5-large token budgets.
+ADD --checksum=sha256:62c24cdc13d4c9952d63718d6c9fa4c287974249e16b7ade6d5a85e7bbb75626 \
+    https://huggingface.co/intfloat/multilingual-e5-large/resolve/7e3f8d934469747d2213f586d9dd13ff7b207e8f/tokenizer.json \
+    /worker/tokenizer.json
 
-ENV JAVA_OPTS="-XX:MaxRAMPercentage=70.0 -Djava.awt.headless=true -Djava.security.egd=file:/dev/./urandom -Djava.io.tmpdir=/tmp"
+ENV E5_TOKENIZER_PATH=/worker/tokenizer.json \
+    E5_TOKENIZER_SHA256=62c24cdc13d4c9952d63718d6c9fa4c287974249e16b7ade6d5a85e7bbb75626 \
+    JAVA_OPTS="-XX:MaxRAMPercentage=70.0 -Djava.awt.headless=true -Djava.security.egd=file:/dev/./urandom -Djava.io.tmpdir=/tmp"
 USER worker
 ENTRYPOINT ["sh", "-c", "exec java $JAVA_OPTS -jar /worker/worker.jar"]

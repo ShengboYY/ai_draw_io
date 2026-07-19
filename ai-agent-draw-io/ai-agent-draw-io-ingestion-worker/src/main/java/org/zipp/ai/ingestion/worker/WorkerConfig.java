@@ -30,6 +30,7 @@ import org.zipp.ai.ingestion.worker.document.VisualCropDeriver;
 import org.zipp.ai.ingestion.worker.document.TesseractInstallationVerifier;
 import org.zipp.ai.ingestion.worker.document.DocumentProcessingProfile;
 import org.zipp.ai.ingestion.worker.document.EvidenceBuildLimits;
+import org.zipp.ai.ingestion.worker.document.MultilingualE5TokenCounter;
 import org.zipp.ai.ingestion.worker.security.ClamAvScannerAdapter;
 import org.zipp.ai.ingestion.worker.security.SecureFileValidator;
 import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
@@ -38,6 +39,7 @@ import software.amazon.awssdk.services.s3.S3Client;
 
 import java.time.Clock;
 import java.time.Duration;
+import java.nio.file.Path;
 
 @Configuration
 public class WorkerConfig {
@@ -115,6 +117,14 @@ public class WorkerConfig {
     @Bean
     public EvidenceBuildLimits evidenceBuildLimits() {
         return new EvidenceBuildLimits(16L * 1024 * 1024, 5_000_000, 500_000);
+    }
+
+    @Bean(destroyMethod = "close")
+    @ConditionalOnProperty(name = "worker.document-processing-enabled", havingValue = "true")
+    public MultilingualE5TokenCounter multilingualE5TokenCounter(
+            @Value("${worker.retrieval.tokenizer-path}") String tokenizerPath,
+            @Value("${worker.retrieval.tokenizer-sha256}") String tokenizerSha256) {
+        return new MultilingualE5TokenCounter(Path.of(tokenizerPath), tokenizerSha256);
     }
 
     @Bean

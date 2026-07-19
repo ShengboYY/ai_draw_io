@@ -16,7 +16,8 @@
 | WP3C-B1：结构编排与持久化 | 已完成 | `8793495d` |
 | WP3C-B2a：本地视觉候选与 crop manifest | 已完成 | 当前 WP3C-B2a 阶段提交 |
 | WP3C-B2b：Evidence Unit、区域与关系 | 已完成 | 当前 WP3C-B2b 阶段提交 |
-| WP3C-B3a：Retrieval Chunk 与 lexical 领域投影 | 已完成 | 当前 WP3C-B3a 阶段提交 |
+| WP3C-B3a：Retrieval Chunk 与 lexical 领域投影 | 已完成 | `5ef60be0` |
+| WP3C-B3b1：固定 multilingual-e5 tokenizer runtime | 已完成 | 当前 WP3C-B3b1 阶段提交 |
 
 ## WP2 交付范围
 
@@ -119,4 +120,4 @@ WP2 不把文件复制到正式 materials bucket，也不提供预览。安全�
 
 ## 下一阶段
 
-WP3C-B3b 将把真实 tokenizer adapter、builder fingerprint、固定 Evidence manifest 读取、Retrieval/parent S3 对象、MySQL chunk/mapping/lexical/exact rows 和后续 projection job 接入同一个 fenced 原子提交。可选的严格 VLM JSON enrichment 继续保持独立，生成描述不得写入 `display_text` 或冒充来源原文。
+WP3C-B3b2 将把 builder fingerprint、固定 Evidence manifest 读取、Retrieval/parent S3 对象、MySQL chunk/mapping/lexical/exact rows 和后续 projection job 接入同一个 fenced 原子提交。B3b1 已把固定 commit、固定 SHA-256 的 `multilingual-e5-large` tokenizer 放入 Worker 镜像，并只在 document processing 开启时加载。可选的严格 VLM JSON enrichment 继续保持独立，生成描述不得写入 `display_text` 或冒充来源原文。
