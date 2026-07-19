@@ -24,7 +24,10 @@ class DocumentProcessingJobHandlerTest {
 
     private static final Instant NOW = Instant.parse("2026-07-22T00:00:00Z");
     private static final org.zipp.ai.ingestion.worker.document.DocumentProcessingProfile PROFILE =
-            org.zipp.ai.ingestion.worker.document.DocumentProcessingProfile.defaults();
+            org.zipp.ai.ingestion.worker.document.DocumentProcessingProfile.of(200, "tesseract",
+                    "eng+chi_sim", 120, "test-tesseract-4.1.1",
+                    new OcrSelectionPolicy(40, 0.10, 0.20, 0.01, 0.03),
+                    new CanonicalPageAssembler(0.70));
 
     @Test
     void processesNativeOcrAndCanonicalStagesWithExactArtifacts() throws Exception {
@@ -51,7 +54,7 @@ class DocumentProcessingJobHandlerTest {
                         new OcrWord("flow", new NormalizedBoundingBox(0.21, 0.1, 0.3, 0.2), 0.90, "line:1")));
         DocumentProcessingJobHandler handler = new DocumentProcessingJobHandler(work, artifacts, parser, ocr,
                 new OcrSelectionPolicy(40, 0.10, 0.20, 0.01), new CanonicalPageAssembler(0.70),
-                new RevisionPageCodec(new ObjectMapper()), queue, Clock.fixed(NOW, ZoneOffset.UTC));
+                new RevisionPageCodec(new ObjectMapper()), PROFILE, queue, Clock.fixed(NOW, ZoneOffset.UTC));
 
         assertEquals(JobOutcome.Kind.SUCCEEDED, handler.handle(lease(ProcessingJobStage.EXTRACT_NATIVE,
                 PROFILE.extractionInput(original.contentSha256()))).kind());
@@ -85,7 +88,7 @@ class DocumentProcessingJobHandlerTest {
                 (path, mediaType, directory) -> { throw new AssertionError("mismatched parser must not run"); },
                 (path, pageNo) -> { throw new AssertionError("mismatched OCR must not run"); },
                 new OcrSelectionPolicy(40, 0.10, 0.20, 0.01), new CanonicalPageAssembler(0.70),
-                new RevisionPageCodec(new ObjectMapper()), new RecordingQueue(),
+                new RevisionPageCodec(new ObjectMapper()), PROFILE, new RecordingQueue(),
                 Clock.fixed(NOW, ZoneOffset.UTC));
 
         JobOutcome outcome = handler.handle(lease(ProcessingJobStage.EXTRACT_NATIVE,

@@ -38,12 +38,6 @@ public record DocumentProcessingProfile(String parser, String ocr, String select
                 selection.fingerprint(), canonical.fingerprint());
     }
 
-    public static DocumentProcessingProfile defaults() {
-        return of(200, "tesseract", "eng+chi_sim", 120, "tesseract-5",
-                new OcrSelectionPolicy(40, 0.10, 0.20, 0.01, 0.03),
-                new CanonicalPageAssembler(0.70));
-    }
-
     public String overallFingerprint() {
         return sha256(parser + ":" + ocr + ":" + selection + ":" + canonical
                 + ":structure-v1:visual-schema-v1:chunk-v1");

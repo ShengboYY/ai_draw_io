@@ -31,7 +31,7 @@ worker:
     executable: ${TESSERACT_EXECUTABLE:tesseract}
     languages: ${TESSERACT_LANGUAGES:eng+chi_sim}
     timeout-seconds: ${TESSERACT_TIMEOUT_SECONDS:120}
-    runtime-version: ${TESSERACT_RUNTIME_VERSION:tesseract-5}
+    runtime-version: ${TESSERACT_RUNTIME_VERSION:}
 
 management:
   endpoints:

@@ -17,12 +17,19 @@ RUN --mount=type=cache,target=/root/.m2 \
 
 FROM eclipse-temurin:17-jre-jammy
 
+# Pin OCR runtime and language data so the persisted processing profile matches the image exactly.
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
-        tesseract-ocr tesseract-ocr-eng tesseract-ocr-chi-sim \
+        tesseract-ocr=4.1.1-2.1build1 \
+        tesseract-ocr-eng=1:4.00~git30-7274cfa-1.1 \
+        tesseract-ocr-chi-sim=1:4.00~git30-7274cfa-1.1 \
     && rm -rf /var/lib/apt/lists/* \
     && groupadd --system worker \
     && useradd --system --gid worker --home-dir /worker worker
+
+# These values are the runtime-profile authority for this image and are verified when processing is enabled.
+ENV TESSERACT_LANGUAGES=eng+chi_sim \
+    TESSERACT_RUNTIME_VERSION=tesseract-4.1.1
 WORKDIR /worker
 COPY --from=build /workspace/ai-agent-draw-io-ingestion-worker/target/ai-agent-draw-io-ingestion-worker.jar /worker/worker.jar
 

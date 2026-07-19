@@ -1,6 +1,11 @@
-# Production Database Migration Release 20260717
+# Production Database Migration Releases
 
-This directory packages the 30 migrations added after the successful 2026-07-05 production database initialization.
+This directory packages reviewed, ordered migration releases added after the successful 2026-07-05 production database initialization.
+
+## Releases
+
+- `Dockerfile` / `release-20260717.manifest`: the original 30-migration release.
+- `Dockerfile.20260722` / `release-20260722.manifest`: the five additive multimodal migrations from anonymous workspace credentials through WP3B document-processing artifacts. Its dedicated runner refuses to execute any DDL until all 30 `20260717` history rows and their packaged checksums are verified.
 
 ## Safety properties
 
@@ -16,10 +21,10 @@ MySQL DDL is not fully transactional. If a file fails after partially applying D
 
 ## Local validation
 
-Reproduce the old production schema in a disposable MySQL 8.4 database, then build and run this image against it. A successful run must report:
+Reproduce the appropriate pre-release schema in a disposable MySQL 8.4 database, then build and run the selected release image against it. A successful `20260722` run must report:
 
 ```text
-Migration release 20260717 is complete: 30 recorded, 30 applied in this run.
+Migration release 20260722 is complete: 5 recorded, 5 applied in this run.
 ```
 
 Run the same image a second time against that database. It must verify every checksum and report `0 applied in this run`.
@@ -28,10 +33,10 @@ Run the same image a second time against that database. It must verify every che
 
 ## Production sequence
 
-1. Confirm the production schema still matches the 2026-07-05 baseline.
+1. Select exactly one release and verify its precondition: `20260717` requires the 2026-07-05 schema baseline; `20260722` requires all 30 `20260717` history rows and checksums. The `20260722` runner enforces its predecessor gate before DDL.
 2. Confirm RDS automated backups and point-in-time recovery are available.
 3. Create a manual RDS snapshot and wait until its status is `available`.
-4. Run this image once as an ECS Fargate one-off task in the same VPC as RDS.
+4. Run the selected release image once as an ECS Fargate one-off task in the same VPC as RDS.
 5. Inject `MYSQL_PASSWORD` from Secrets Manager; never pass or print its value through GitHub.
 6. Require the task's essential container exit code to be `0`.
 7. Review the dedicated CloudWatch migration log stream.

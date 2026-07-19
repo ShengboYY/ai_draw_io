@@ -37,14 +37,6 @@ public final class MaterializationJobHandler {
                                      OriginalPromotionPort promotion,
                                      PinnedQuarantineContentPort quarantine,
                                      ProcessingQueuePort queue,
-                                     Clock clock) {
-        this(work, promotion, quarantine, queue, clock, DocumentProcessingProfile.defaults());
-    }
-
-    public MaterializationJobHandler(MaterializationWorkPort work,
-                                     OriginalPromotionPort promotion,
-                                     PinnedQuarantineContentPort quarantine,
-                                     ProcessingQueuePort queue,
                                      Clock clock,
                                      DocumentProcessingProfile processingProfile) {
         this.work = Objects.requireNonNull(work, "work");

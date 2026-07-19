@@ -93,6 +93,8 @@ CREATE TABLE IF NOT EXISTS material_upload_session (
     declared_mime VARCHAR(128) NULL,
     quarantine_bucket VARCHAR(255) NULL,
     quarantine_key VARCHAR(1024) NULL,
+    -- Hash the complete S3 key because an utf8mb4 VARCHAR(1024) exceeds MySQL's 3072-byte index limit.
+    quarantine_key_hash BINARY(32) GENERATED ALWAYS AS (UNHEX(SHA2(quarantine_key, 256))) STORED,
     quarantine_object_version_id VARCHAR(255) NULL,
     s3_etag VARCHAR(255) NULL,
     s3_checksum_sha256 VARCHAR(128) NULL,
@@ -106,7 +108,7 @@ CREATE TABLE IF NOT EXISTS material_upload_session (
     updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
     PRIMARY KEY (id),
     UNIQUE KEY uk_material_upload_owner_idempotency (owner_type, owner_key, idempotency_key),
-    UNIQUE KEY uk_material_upload_quarantine_key (quarantine_key),
+    UNIQUE KEY uk_material_upload_quarantine_key (quarantine_key_hash),
     KEY idx_material_upload_state_expiry (state, policy_expires_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 

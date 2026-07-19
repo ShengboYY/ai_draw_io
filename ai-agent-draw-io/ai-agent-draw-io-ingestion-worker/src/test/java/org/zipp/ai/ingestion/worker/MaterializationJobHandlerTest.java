@@ -28,8 +28,12 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class MaterializationJobHandlerTest {
 
     private static final Instant NOW = Instant.parse("2026-07-20T01:00:00Z");
-    private static final String PROCESSING_FINGERPRINT =
-            org.zipp.ai.ingestion.worker.document.DocumentProcessingProfile.defaults().overallFingerprint();
+    private static final org.zipp.ai.ingestion.worker.document.DocumentProcessingProfile PROCESSING_PROFILE =
+            org.zipp.ai.ingestion.worker.document.DocumentProcessingProfile.of(200, "tesseract",
+                    "eng+chi_sim", 120, "test-tesseract-4.1.1",
+                    new org.zipp.ai.domain.ingestion.service.OcrSelectionPolicy(40, 0.10, 0.20, 0.01, 0.03),
+                    new org.zipp.ai.domain.ingestion.service.CanonicalPageAssembler(0.70));
+    private static final String PROCESSING_FINGERPRINT = PROCESSING_PROFILE.overallFingerprint();
 
     @Test
     void resolveStageMaterializesThroughTheFencedTransaction() {
@@ -40,7 +44,7 @@ class MaterializationJobHandlerTest {
                 work, ignored -> { throw new AssertionError("resolve must not copy S3 content"); },
                 (bucket, key, version, maximum, destination) -> {
                     throw new AssertionError("resolve must not download quarantine content");
-                }, queue, Clock.fixed(NOW, ZoneOffset.UTC));
+                }, queue, Clock.fixed(NOW, ZoneOffset.UTC), PROCESSING_PROFILE);
 
         JobOutcome outcome = handler.handle(lease);
 
@@ -63,7 +67,7 @@ class MaterializationJobHandlerTest {
                 "original/owner/blob", "s3-destination-version", "etag", "checksum", 42),
                 (bucket, key, version, maximum, destination) -> {
                     throw new AssertionError("S3 server-side promotion must not download the object");
-                }, queue, Clock.fixed(NOW, ZoneOffset.UTC));
+                }, queue, Clock.fixed(NOW, ZoneOffset.UTC), PROCESSING_PROFILE);
 
         JobOutcome outcome = handler.handle(lease);
 
@@ -86,7 +90,7 @@ class MaterializationJobHandlerTest {
         MaterializationJobHandler handler = new MaterializationJobHandler(
                 work, ignored -> { throw new AssertionError("an available blob must not be copied again"); },
                 (bucket, key, version, maximum, destination) -> null,
-                queue, Clock.fixed(NOW, ZoneOffset.UTC));
+                queue, Clock.fixed(NOW, ZoneOffset.UTC), PROCESSING_PROFILE);
 
         JobOutcome outcome = handler.handle(lease);
 
@@ -121,7 +125,7 @@ class MaterializationJobHandlerTest {
         ProcessingJobLease lease = lease(queue, "job_promote", ProcessingJobStage.PROMOTE_ORIGINAL);
         MaterializationJobHandler handler = new MaterializationJobHandler(
                 work, promotion, (bucket, key, version, maximum, destination) -> null,
-                queue, Clock.fixed(NOW, ZoneOffset.UTC));
+                queue, Clock.fixed(NOW, ZoneOffset.UTC), PROCESSING_PROFILE);
 
         JobOutcome outcome = handler.handle(lease);
 
@@ -142,7 +146,7 @@ class MaterializationJobHandlerTest {
         MaterializationJobHandler handler = new MaterializationJobHandler(
                 work, ignored -> { throw new AssertionError("mismatched workers must not copy content"); },
                 (bucket, key, version, maximum, destination) -> null,
-                queue, Clock.fixed(NOW, ZoneOffset.UTC));
+                queue, Clock.fixed(NOW, ZoneOffset.UTC), PROCESSING_PROFILE);
 
         JobOutcome outcome = handler.handle(lease);
 

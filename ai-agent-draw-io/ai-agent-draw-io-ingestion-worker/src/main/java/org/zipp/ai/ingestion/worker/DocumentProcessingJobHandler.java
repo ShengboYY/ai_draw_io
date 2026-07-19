@@ -58,15 +58,6 @@ public final class DocumentProcessingJobHandler {
                                         DocumentParserPort parser, OcrEnginePort ocr,
                                         OcrSelectionPolicy ocrSelection,
                                         CanonicalPageAssembler canonicalAssembler,
-                                        RevisionPageCodec codec, ProcessingQueuePort queue, Clock clock) {
-        this(work, artifacts, parser, ocr, ocrSelection, canonicalAssembler, codec,
-                DocumentProcessingProfile.defaults(), queue, clock);
-    }
-
-    public DocumentProcessingJobHandler(DocumentProcessingWorkPort work, RevisionArtifactPort artifacts,
-                                        DocumentParserPort parser, OcrEnginePort ocr,
-                                        OcrSelectionPolicy ocrSelection,
-                                        CanonicalPageAssembler canonicalAssembler,
                                         RevisionPageCodec codec, DocumentProcessingProfile profile,
                                         ProcessingQueuePort queue, Clock clock) {
         this.work = Objects.requireNonNull(work, "work");

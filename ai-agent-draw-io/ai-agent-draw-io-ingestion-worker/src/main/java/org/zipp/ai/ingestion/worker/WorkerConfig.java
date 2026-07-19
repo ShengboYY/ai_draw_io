@@ -23,6 +23,7 @@ import org.zipp.ai.infrastructure.adapter.s3.S3RevisionArtifactAdapter;
 import org.zipp.ai.ingestion.worker.document.PdfBoxDocumentParser;
 import org.zipp.ai.ingestion.worker.document.RevisionPageCodec;
 import org.zipp.ai.ingestion.worker.document.TesseractOcrEngine;
+import org.zipp.ai.ingestion.worker.document.TesseractInstallationVerifier;
 import org.zipp.ai.ingestion.worker.document.DocumentProcessingProfile;
 import org.zipp.ai.ingestion.worker.security.ClamAvScannerAdapter;
 import org.zipp.ai.ingestion.worker.security.SecureFileValidator;
@@ -92,7 +93,7 @@ public class WorkerConfig {
             @Value("${worker.tesseract.executable:tesseract}") String executable,
             @Value("${worker.tesseract.languages:eng+chi_sim}") String languages,
             @Value("${worker.tesseract.timeout-seconds:120}") long timeoutSeconds,
-            @Value("${worker.tesseract.runtime-version:tesseract-5}") String runtimeVersion) {
+            @Value("${worker.tesseract.runtime-version}") String runtimeVersion) {
         OcrSelectionPolicy selection = new OcrSelectionPolicy(40, 0.10, 0.20, 0.01, 0.03);
         CanonicalPageAssembler canonical = new CanonicalPageAssembler(0.70);
         return DocumentProcessingProfile.of(renderDpi, executable, languages, timeoutSeconds,
@@ -116,7 +117,9 @@ public class WorkerConfig {
     @ConditionalOnProperty(name = "worker.document-processing-enabled", havingValue = "true")
     public OcrEnginePort ocrEnginePort(@Value("${worker.tesseract.executable:tesseract}") String executable,
                                       @Value("${worker.tesseract.languages:eng+chi_sim}") String languages,
-                                      @Value("${worker.tesseract.timeout-seconds:120}") long timeoutSeconds) {
+                                      @Value("${worker.tesseract.timeout-seconds:120}") long timeoutSeconds,
+                                      @Value("${worker.tesseract.runtime-version}") String runtimeVersion) {
+        TesseractInstallationVerifier.verify(executable, languages, runtimeVersion, Duration.ofSeconds(10));
         return new TesseractOcrEngine(executable, languages, Duration.ofSeconds(timeoutSeconds));
     }
 
