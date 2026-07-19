@@ -19,6 +19,7 @@ worker:
   materials-bucket: ${MATERIALS_BUCKET:}
   materialization-enabled: ${MATERIAL_MATERIALIZATION_ENABLED:false}
   document-processing-enabled: ${MATERIAL_DOCUMENT_PROCESSING_ENABLED:false}
+  vector-projection-enabled: ${MATERIAL_VECTOR_PROJECTION_ENABLED:false}
   poll-delay-ms: ${WORKER_POLL_DELAY_MS:1000}
   reaper-delay-ms: ${WORKER_REAPER_DELAY_MS:60000}
   clamav:
@@ -30,6 +31,12 @@ worker:
   retrieval:
     tokenizer-path: ${E5_TOKENIZER_PATH:/worker/tokenizer.json}
     tokenizer-sha256: ${E5_TOKENIZER_SHA256:62c24cdc13d4c9952d63718d6c9fa4c287974249e16b7ade6d5a85e7bbb75626}
+  pinecone:
+    api-key: ${PINECONE_API_KEY:}
+    index-host: ${PINECONE_INDEX_HOST:}
+    index-name: ${PINECONE_INDEX_NAME:drawio-retrieval-v1}
+    namespace: ${PINECONE_NAMESPACE:prod}
+    tenant-hmac-secret: ${PINECONE_TENANT_HMAC_SECRET:}
   tesseract:
     executable: ${TESSERACT_EXECUTABLE:tesseract}
     languages: ${TESSERACT_LANGUAGES:eng+chi_sim}

@@ -9,6 +9,9 @@ import org.zipp.ai.domain.ingestion.model.valobj.VisualCropManifest;
 import org.zipp.ai.domain.retrieval.projection.RetrievalChunkProjection;
 import org.zipp.ai.domain.retrieval.projection.RetrievalParentContext;
 import org.zipp.ai.domain.retrieval.projection.RetrievalProjectionManifest;
+import org.zipp.ai.domain.retrieval.model.valobj.VectorBatchPayload;
+import org.zipp.ai.domain.retrieval.model.valobj.EmbeddingCacheValue;
+import org.zipp.ai.domain.retrieval.projection.VectorProjectionManifest;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -62,6 +65,18 @@ public final class RevisionPageCodec {
         return encodeValue(parentContext);
     }
 
+    public byte[] encode(VectorBatchPayload payload) {
+        return encodeValue(payload);
+    }
+
+    public byte[] encode(EmbeddingCacheValue embedding) {
+        return encodeValue(embedding);
+    }
+
+    public byte[] encode(VectorProjectionManifest manifest) {
+        return encodeValue(manifest);
+    }
+
     public PageExtraction decodeExtraction(byte[] content) {
         return decodeValue(content, PageExtraction.class, DEFAULT_MAXIMUM_UNCOMPRESSED_BYTES);
     }
@@ -92,6 +107,19 @@ public final class RevisionPageCodec {
 
     public EvidenceManifest decodeEvidenceManifest(byte[] content, long maximumUncompressedBytes) {
         return decodeValue(content, EvidenceManifest.class, maximumUncompressedBytes);
+    }
+
+    public RetrievalProjectionManifest decodeRetrievalProjectionManifest(
+            byte[] content, long maximumUncompressedBytes) {
+        return decodeValue(content, RetrievalProjectionManifest.class, maximumUncompressedBytes);
+    }
+
+    public VectorBatchPayload decodeVectorBatchPayload(byte[] content, long maximumUncompressedBytes) {
+        return decodeValue(content, VectorBatchPayload.class, maximumUncompressedBytes);
+    }
+
+    public EmbeddingCacheValue decodeEmbeddingCacheValue(byte[] content, long maximumUncompressedBytes) {
+        return decodeValue(content, EmbeddingCacheValue.class, maximumUncompressedBytes);
     }
 
     private byte[] encodeValue(Object value) {

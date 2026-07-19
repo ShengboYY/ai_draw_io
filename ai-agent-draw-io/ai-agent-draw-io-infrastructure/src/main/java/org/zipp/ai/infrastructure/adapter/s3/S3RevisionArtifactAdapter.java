@@ -23,6 +23,7 @@ import java.util.Base64;
 import java.util.HexFormat;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 
 public final class S3RevisionArtifactAdapter implements RevisionArtifactPort {
 
@@ -64,6 +65,43 @@ public final class S3RevisionArtifactAdapter implements RevisionArtifactPort {
             throw new IllegalStateException("stored revision artifact failed identity verification");
         }
         return new StoredArtifact(key, versionId, hex, bytes.length, type);
+    }
+
+    @Override
+    public Optional<StoredArtifact> findImmutable(String objectKey, String contentType, long maximumBytes) {
+        String key = requireText(objectKey, "objectKey");
+        String expectedType = requireText(contentType, "contentType");
+        if (maximumBytes < 1) throw new IllegalArgumentException("maximumBytes must be positive");
+        try {
+            HeadObjectResponse head = s3Client.headObject(HeadObjectRequest.builder()
+                    .bucket(materialsBucket).key(key).checksumMode(ChecksumMode.ENABLED).build());
+            String sha256 = head.metadata().get("content-sha256");
+            if (sha256 == null || !sha256.matches("[0-9a-f]{64}")
+                    || head.contentLength() < 1 || head.contentLength() > maximumBytes
+                    || !expectedType.equals(head.contentType())) {
+                throw new IllegalStateException("immutable artifact cache identity is invalid");
+            }
+            return Optional.of(new StoredArtifact(key,
+                    requireText(head.versionId(), "artifact objectVersionId"), sha256,
+                    head.contentLength(), expectedType));
+        } catch (NoSuchKeyException e) {
+            return Optional.empty();
+        } catch (S3Exception e) {
+            if (e.statusCode() == 404) return Optional.empty();
+            throw e;
+        }
+    }
+
+    @Override
+    public boolean deleteExact(StoredArtifact artifact) {
+        StoredArtifact exact = Objects.requireNonNull(artifact, "artifact");
+        try {
+            s3Client.deleteObject(DeleteObjectRequest.builder().bucket(materialsBucket)
+                    .key(exact.objectKey()).versionId(exact.objectVersionId()).build());
+            return true;
+        } catch (RuntimeException ignored) {
+            return false;
+        }
     }
 
     @Override

@@ -21,9 +21,20 @@ import org.zipp.ai.domain.ingestion.service.EvidenceUnitBuilder;
 import org.zipp.ai.domain.ingestion.service.VisualCandidateSelectionPolicy;
 import org.zipp.ai.domain.ingestion.service.OcrSelectionPolicy;
 import org.zipp.ai.domain.retrieval.projection.RetrievalChunkBuilder;
+import org.zipp.ai.domain.retrieval.port.EmbeddingPort;
+import org.zipp.ai.domain.retrieval.port.EmbeddingCachePort;
+import org.zipp.ai.domain.retrieval.port.RetrievalVectorIndex;
+import org.zipp.ai.domain.retrieval.port.TenantKeyPort;
+import org.zipp.ai.domain.retrieval.port.VectorProjectionWorkPort;
+import org.zipp.ai.domain.retrieval.projection.VectorGenerationProfile;
+import org.zipp.ai.domain.retrieval.projection.VectorProjectionPlanner;
 import org.zipp.ai.infrastructure.adapter.s3.S3OriginalPromotionAdapter;
 import org.zipp.ai.infrastructure.adapter.s3.S3PinnedQuarantineContentAdapter;
 import org.zipp.ai.infrastructure.adapter.s3.S3RevisionArtifactAdapter;
+import org.zipp.ai.infrastructure.adapter.vector.HmacTenantKeyAdapter;
+import org.zipp.ai.infrastructure.adapter.vector.PineconeEmbeddingAdapter;
+import org.zipp.ai.infrastructure.adapter.vector.PineconeRetrievalVectorIndexAdapter;
+import org.zipp.ai.infrastructure.adapter.vector.PineconeVectorClient;
 import org.zipp.ai.ingestion.worker.document.PdfBoxDocumentParser;
 import org.zipp.ai.ingestion.worker.document.RevisionPageCodec;
 import org.zipp.ai.ingestion.worker.document.TesseractOcrEngine;
@@ -32,6 +43,7 @@ import org.zipp.ai.ingestion.worker.document.TesseractInstallationVerifier;
 import org.zipp.ai.ingestion.worker.document.DocumentProcessingProfile;
 import org.zipp.ai.ingestion.worker.document.EvidenceBuildLimits;
 import org.zipp.ai.ingestion.worker.document.MultilingualE5TokenCounter;
+import org.zipp.ai.ingestion.worker.document.RevisionEmbeddingCacheAdapter;
 import org.zipp.ai.ingestion.worker.security.ClamAvScannerAdapter;
 import org.zipp.ai.ingestion.worker.security.SecureFileValidator;
 import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
@@ -194,17 +206,89 @@ public class WorkerConfig {
     }
 
     @Bean
+    @ConditionalOnProperty(name = "worker.vector-projection-enabled", havingValue = "true")
+    public PineconeVectorClient pineconeVectorClient(
+            @Value("${worker.pinecone.api-key}") String apiKey,
+            @Value("${worker.pinecone.index-host}") String indexHost,
+            VectorGenerationProfile profile,
+            ObjectMapper objectMapper) {
+        return new PineconeVectorClient(apiKey, indexHost, profile.embeddingModel(),
+                profile.dimension(), objectMapper);
+    }
+
+    @Bean
+    @ConditionalOnProperty(name = "worker.vector-projection-enabled", havingValue = "true")
+    public EmbeddingPort embeddingPort(PineconeVectorClient client) {
+        return new PineconeEmbeddingAdapter(client);
+    }
+
+    @Bean
+    @ConditionalOnProperty(name = "worker.vector-projection-enabled", havingValue = "true")
+    public EmbeddingCachePort embeddingCachePort(
+            RevisionArtifactPort artifacts, ObjectMapper objectMapper) {
+        return new RevisionEmbeddingCacheAdapter(artifacts, objectMapper);
+    }
+
+    @Bean
+    @ConditionalOnProperty(name = "worker.vector-projection-enabled", havingValue = "true")
+    public RetrievalVectorIndex retrievalVectorIndex(
+            PineconeVectorClient client, @Value("${worker.pinecone.namespace:prod}") String namespace) {
+        return new PineconeRetrievalVectorIndexAdapter(client, namespace);
+    }
+
+    @Bean
+    @ConditionalOnProperty(name = "worker.vector-projection-enabled", havingValue = "true")
+    public TenantKeyPort tenantKeyPort(@Value("${worker.pinecone.tenant-hmac-secret}") String secret) {
+        return new HmacTenantKeyAdapter(secret);
+    }
+
+    @Bean
+    @ConditionalOnProperty(name = "worker.vector-projection-enabled", havingValue = "true")
+    public VectorGenerationProfile vectorGenerationProfile(
+            @Value("${worker.pinecone.index-name:drawio-retrieval-v1}") String indexName,
+            @Value("${worker.pinecone.namespace:prod}") String namespace,
+            @Value("${worker.retrieval.tokenizer-sha256}") String tokenizerSha256) {
+        // The profile creates a new immutable generation whenever the embedding contract changes.
+        String embeddingFingerprint = VectorGenerationProfile.sha256(
+                "pinecone:multilingual-e5-large:dimension=1024:truncate=NONE");
+        return new VectorGenerationProfile(indexName, namespace, "multilingual-e5-large",
+                embeddingFingerprint, 1024, "cosine", "vector-v1",
+                MultilingualE5TokenCounter.fingerprint(tokenizerSha256));
+    }
+
+    @Bean
+    @ConditionalOnProperty(name = "worker.vector-projection-enabled", havingValue = "true")
+    public VectorProjectionPlanner vectorProjectionPlanner() {
+        return new VectorProjectionPlanner(96, 2_000_000);
+    }
+
+    @Bean
+    @ConditionalOnProperty(name = "worker.vector-projection-enabled", havingValue = "true")
+    public VectorProjectionJobHandler vectorProjectionJobHandler(
+            VectorProjectionWorkPort work, RevisionArtifactPort artifacts, EmbeddingPort embedding,
+            EmbeddingCachePort embeddingCache,
+            RetrievalVectorIndex vectorIndex, TenantKeyPort tenantKeys, VectorProjectionPlanner planner,
+            ObjectMapper objectMapper, VectorGenerationProfile profile, ProcessingQueuePort queue, Clock clock) {
+        return new VectorProjectionJobHandler(work, artifacts, embedding, embeddingCache,
+                vectorIndex, tenantKeys, planner, new RevisionPageCodec(objectMapper), profile, queue, clock);
+    }
+
+    @Bean
     public WorkerPoller workerPoller(ProcessingQueuePort queue,
                                      SecureUploadJobHandler secureUploadHandler,
                                      ObjectProvider<MaterializationJobHandler> materializationHandler,
                                      ObjectProvider<DocumentProcessingJobHandler> documentProcessingHandler,
+                                     ObjectProvider<VectorProjectionJobHandler> vectorProjectionHandler,
                                      Clock clock, DocumentProcessingProfile processingProfile,
                                      @Value("${worker.id}") String workerId,
                                      @Value("${worker.materialization-enabled:false}") boolean materializationEnabled,
                                      @Value("${worker.document-processing-enabled:false}")
-                                     boolean documentProcessingEnabled) {
+                                     boolean documentProcessingEnabled,
+                                     @Value("${worker.vector-projection-enabled:false}")
+                                     boolean vectorProjectionEnabled) {
         return new WorkerPoller(queue, secureUploadHandler, materializationHandler.getIfAvailable(),
-                documentProcessingHandler.getIfAvailable(), clock, workerId, materializationEnabled,
-                documentProcessingEnabled, processingProfile.overallFingerprint());
+                documentProcessingHandler.getIfAvailable(), vectorProjectionHandler.getIfAvailable(),
+                clock, workerId, materializationEnabled, documentProcessingEnabled,
+                vectorProjectionEnabled, processingProfile.overallFingerprint());
     }
 }

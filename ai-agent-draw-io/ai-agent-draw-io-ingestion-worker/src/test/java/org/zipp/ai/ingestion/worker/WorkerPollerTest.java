@@ -16,6 +16,9 @@ class WorkerPollerTest {
         assertEquals(Duration.ofSeconds(60), WorkerPoller.retryDelayForAttempt(2));
         assertEquals(Duration.ofMinutes(5), WorkerPoller.retryDelayForAttempt(3));
         assertNull(WorkerPoller.retryDelayForAttempt(4));
+        assertEquals(Duration.ofSeconds(17),
+                WorkerPoller.retryDelayForAttempt(1, Duration.ofSeconds(17)));
+        assertNull(WorkerPoller.retryDelayForAttempt(4, Duration.ofSeconds(17)));
     }
 
     @Test
@@ -34,5 +37,18 @@ class WorkerPollerTest {
                         ProcessingJobStage.BUILD_EVIDENCE_UNITS,
                         ProcessingJobStage.BUILD_RETRIEVAL_CHUNKS),
                 WorkerPoller.claimableStages(true, true));
+        assertEquals(java.util.Set.of(ProcessingJobStage.VALIDATE_OWNERSHIP,
+                        ProcessingJobStage.RESOLVE_CONTENT_DEDUP, ProcessingJobStage.PROMOTE_ORIGINAL,
+                        ProcessingJobStage.EXTRACT_NATIVE, ProcessingJobStage.OCR_SELECTED_PAGES,
+                        ProcessingJobStage.NORMALIZE_CANONICAL_PAGES,
+                        ProcessingJobStage.BUILD_DOCUMENT_STRUCTURE,
+                        ProcessingJobStage.ANALYZE_VISUALS,
+                        ProcessingJobStage.BUILD_EVIDENCE_UNITS,
+                        ProcessingJobStage.BUILD_RETRIEVAL_CHUNKS,
+                        ProcessingJobStage.BUILD_LEXICAL_PROJECTION,
+                        ProcessingJobStage.EMBED_CHUNK_BATCHES,
+                        ProcessingJobStage.UPSERT_VECTOR_BATCHES,
+                        ProcessingJobStage.VERIFY_PROJECTION_MANIFEST),
+                WorkerPoller.claimableStages(true, true, true));
     }
 }

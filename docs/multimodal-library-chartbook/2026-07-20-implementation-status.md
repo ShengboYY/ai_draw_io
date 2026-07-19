@@ -1,6 +1,6 @@
 # 多模态资料库与图表册：实施状态
 
-> 更新日期：2026-07-27
+> 更新日期：2026-07-28
 > 当前分支：`codex/multimodal-library-chartbook`
 
 ## 已完成阶段
@@ -19,6 +19,7 @@
 | WP3C-B3a：Retrieval Chunk 与 lexical 领域投影 | 已完成 | `5ef60be0` |
 | WP3C-B3b1：固定 multilingual-e5 tokenizer runtime | 已完成 | `8a424eb7` |
 | WP3C-B3b2：Retrieval 投影编排与原子持久化 | 已完成 | 当前 WP3C-B3b2 阶段提交 |
+| WP3C-B3c：向量 generation、批次嵌入与 Pinecone 投影 | 已完成 | 当前 WP3C-B3c 阶段提交 |
 
 ## WP2 交付范围
 
@@ -126,6 +127,15 @@ WP2 不把文件复制到正式 materials bucket，也不提供预览。安全�
 - `retrieval_chunk`、`retrieval_chunk_evidence`、`retrieval_search_document`、`retrieval_exact_term`、Retrieval manifest pin 和唯一 `BUILD_LEXICAL_PROJECTION` coordinator successor 在同一个校验 job stage/lease/fence、Material lifecycle generation/TTL 与 revision generation 的 MySQL 事务提交。不可检索 chunk 不会创建 lexical rows，引用边界仍只来自显式 Evidence mapping。
 - `2026-07-27-pin-retrieval-artifact-versions.sql` 为 retrieval text/parent object 补齐 exact `VersionId`，并把 Evidence mapping identity 修正为 `(retrieval_chunk_id, ordinal)`；checksum 为 `e90335c8aee058d9a711b8d75a55b8268481d2eef03bf20f1b0ad48ec1945a36`。生产必须在旧 migration 之后执行，并在新 Worker 开始领取 retrieval job 前完成。
 
+## WP3C-B3c 交付范围
+
+- 新增 generation-scoped `VectorProjectionPlanner` 富领域服务：generation identity 固定 Pinecone index/namespace、`multilingual-e5-large` 模型 fingerprint、1024 维 cosine contract 与 vector schema；仅 `DENSE_AND_LEXICAL` chunk 进入 embedding，lexical-only 与 unsearchable chunk 不会发往 Pinecone。
+- `BUILD_LEXICAL_PROJECTION` 从 exact-version Retrieval manifest 确定性生成每批最多 96 条且受 UTF-8 payload 预算约束的计划；work key 固定为 `ig:{generation}:batch:{batch}`。Embedding 明确使用 passage input 与 `truncate=NONE`，返回模型 identity、数量和维度都在写入前校验；Pinecone 429/5xx 的 `Retry-After` 会进入 durable job backoff，无值时使用既有指数退避。
+- 每个 passage embedding 先按 Owner HMAC、revision、retrieval text hash、tokenizer/model fingerprint 与 input type 查找 revision-local immutable S3 vector cache；重试和同 revision 重复文本不会再次调用推理。每批向量再写独立 immutable object，由 `UPSERT_VECTOR_BATCHES` job 幂等写 Pinecone。Pinecone 只保存向量、稳定 vector ID 与受限标量 metadata；不上传 Owner key、文件名或 chunk 原文。
+- MySQL 分别保存不可变 generation 配置和 revision→generation 投影计划；tokenizer 属于 revision 投影而非全局 generation，因此 chunk schema 更新不会与仍兼容的 embedding index 冲突。另保存 batch identity/state、每个 chunk 的 projection fingerprint/state，以及 exact-version `projection-manifest.json.gz` pin。所有状态推进和 successor job 都校验 stage、lease/fence、Material lifecycle/TTL 与 revision generation；最终 batch 判定使用 revision row lock 串行化，避免并发 upsert 丢失 verifier。Pinecone 成功而 DB 提交失败时可按相同 vector ID 安全重试。
+- lexical-only revision 也会生成零向量 projection manifest，不会被错误阻塞。`MATERIAL_VECTOR_PROJECTION_ENABLED` 是独立且默认关闭的 Worker 开关；关闭后不会实例化 Pinecone/HMAC 依赖或领取向量 stage，原有纯文本绘图路径不依赖向量服务。
+- `2026-07-28-create-vector-projection-artifacts.sql` 增加 generation 配置、revision projection plan、vector batch 与 projection manifest 审计表，checksum 为 `320545ca02d54fb2cf0c6cd357b59a87bee03a7a88892946cb08ca78e28fc061`。生产必须先执行 migration 并配置 Pinecone host/API key、namespace 与 tenant HMAC secret；在下一阶段完成 publish gate 前保持向量开关关闭。
+
 ## 下一阶段
 
-WP3C-B3c 将由 `BUILD_LEXICAL_PROJECTION` coordinator 创建固定 index generation 和 batch，再实现 `EMBED_CHUNK_BATCHES` 与 `UPSERT_VECTOR_BATCHES`：embedding/upsert work key 必须携带 `ig:{generation}:batch:{batch}`，只嵌入可检索 chunk，使用固定 generation/model/dimension 写 Pinecone，并在 MySQL 保存可核对的 vector projection manifest；批次重试必须幂等，向量服务不可用时不得影响原有纯文本绘图链路。可选的严格 VLM JSON enrichment 继续保持独立，生成描述不得写入 `display_text` 或冒充来源原文。
+WP3C-B3d 将实现 `PUBLISH_REVISION` 的 publication gate：核验 projection manifest 的 exact S3 pin、MySQL projection 数量与 Pinecone generation readiness；首次 generation 准备完成后原子激活，已有 generation 则安全追加 revision，最后才把 Revision/Version 发布为可检索。该阶段同时补充显式 compatibility coordinator，使新写入和历史 active/pinned revision 可以在 ACTIVE/BUILDING generation 间建立双投影并完成 shadow gate。失败与回滚不能让半成品 revision 进入检索；generation 切换需要保留旧 generation，供既有图表与引用继续按原版本解析。

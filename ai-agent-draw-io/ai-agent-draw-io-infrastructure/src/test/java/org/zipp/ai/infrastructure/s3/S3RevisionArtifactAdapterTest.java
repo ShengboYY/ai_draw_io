@@ -59,10 +59,12 @@ class S3RevisionArtifactAdapterTest {
 
         var stored = adapter.putImmutable("revisions/rev_1/pages/1/canonical-page.json.gz",
                 content, "application/gzip");
+        var cached = adapter.findImmutable(stored.objectKey(), stored.contentType(), 1024).orElseThrow();
         byte[] loaded = adapter.read(stored, 1024);
 
         assertEquals(hex, stored.contentSha256());
         assertEquals("artifact-version", stored.objectVersionId());
+        assertEquals(stored, cached);
         assertEquals(hex, put.get().metadata().get("content-sha256"));
         assertEquals("artifact-version", get.get().versionId());
         assertArrayEquals(content, loaded);

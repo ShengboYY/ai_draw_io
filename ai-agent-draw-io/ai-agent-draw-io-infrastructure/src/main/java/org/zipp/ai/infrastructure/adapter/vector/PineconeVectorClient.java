@@ -6,11 +6,16 @@ import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 
 import java.net.URI;
+import java.time.Duration;
+import java.time.Instant;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import org.zipp.ai.domain.retrieval.port.RetryableRetrievalException;
 
 /**
  * REST spike for a standard Pinecone dense index. Embedding is always a separate inference call;
@@ -18,7 +23,6 @@ import java.util.Set;
  */
 public final class PineconeVectorClient {
 
-    static final int DIMENSION = 1024;
     private static final String API_VERSION = "2025-10";
     private static final URI INFERENCE_URI = URI.create("https://api.pinecone.io/embed");
     private static final Set<String> METADATA_ALLOWLIST = Set.of(
@@ -29,44 +33,70 @@ public final class PineconeVectorClient {
 
     private final String apiKey;
     private final URI indexHost;
+    private final String embeddingModel;
+    private final int dimension;
     private final PineconeHttpTransport transport;
     private final ObjectMapper objectMapper;
 
-    public PineconeVectorClient(String apiKey, String indexHost, ObjectMapper objectMapper) {
-        this(apiKey, indexHost, new JdkPineconeHttpTransport(), objectMapper);
+    public PineconeVectorClient(String apiKey, String indexHost, String embeddingModel,
+                                int dimension, ObjectMapper objectMapper) {
+        this(apiKey, indexHost, embeddingModel, dimension, new JdkPineconeHttpTransport(), objectMapper);
     }
 
-    PineconeVectorClient(String apiKey, String indexHost,
+    PineconeVectorClient(String apiKey, String indexHost, String embeddingModel, int dimension,
                          PineconeHttpTransport transport, ObjectMapper objectMapper) {
         if (apiKey == null || apiKey.isBlank()) throw new IllegalArgumentException("Pinecone API key is required");
         if (indexHost == null || indexHost.isBlank()) throw new IllegalArgumentException("Pinecone index host is required");
         this.apiKey = apiKey;
         this.indexHost = URI.create(indexHost.replaceAll("/+$", ""));
+        this.embeddingModel = required(embeddingModel, "embedding model");
+        if (dimension < 1) throw new IllegalArgumentException("embedding dimension must be positive");
+        this.dimension = dimension;
         this.transport = transport;
         this.objectMapper = objectMapper;
     }
 
     public float[] embedOne(String text, String inputType) {
-        if (text == null || text.isBlank()) throw new IllegalArgumentException("Embedding text is required");
+        return embed(List.of(text), inputType).get(0);
+    }
+
+    public List<float[]> embed(List<String> texts, String inputType) {
+        if (texts == null || texts.isEmpty()) throw new IllegalArgumentException("Embedding texts are required");
         if (!"passage".equals(inputType) && !"query".equals(inputType)) {
             throw new IllegalArgumentException("Pinecone E5 input type must be passage or query");
         }
+        int maximumBatchSize = "passage".equals(inputType) ? 96 : 3;
+        if (texts.size() > maximumBatchSize || texts.stream().anyMatch(text -> text == null || text.isBlank())) {
+            throw new IllegalArgumentException("Pinecone E5 embedding batch is invalid");
+        }
         ObjectNode body = objectMapper.createObjectNode();
-        body.put("model", "multilingual-e5-large");
+        body.put("model", embeddingModel);
         ObjectNode parameters = body.putObject("parameters");
         parameters.put("input_type", inputType);
         // Chunking owns the token budget; provider-side truncation would silently corrupt evidence.
         parameters.put("truncate", "NONE");
-        body.putArray("inputs").addObject().put("text", text);
+        ArrayNode inputs = body.putArray("inputs");
+        texts.forEach(text -> inputs.addObject().put("text", text));
 
         JsonNode response = exchange(INFERENCE_URI, body);
-        JsonNode values = response.path("data").path(0).path("values");
-        if (!values.isArray() || values.size() != DIMENSION) {
-            throw new IllegalStateException("Pinecone embedding dimension is not " + DIMENSION);
+        if (!embeddingModel.equals(response.path("model").asText())) {
+            throw new IllegalStateException("Pinecone embedding model does not match the generation profile");
         }
-        float[] vector = new float[DIMENSION];
-        for (int i = 0; i < DIMENSION; i++) vector[i] = (float) values.get(i).asDouble();
-        return vector;
+        JsonNode data = response.path("data");
+        if (!data.isArray() || data.size() != texts.size()) {
+            throw new IllegalStateException("Pinecone embedding result count does not match the request");
+        }
+        List<float[]> result = new ArrayList<>();
+        for (JsonNode item : data) {
+            JsonNode values = item.path("values");
+            if (!values.isArray() || values.size() != dimension) {
+                throw new IllegalStateException("Pinecone embedding dimension is not " + dimension);
+            }
+            float[] vector = new float[dimension];
+            for (int i = 0; i < dimension; i++) vector[i] = (float) values.get(i).asDouble();
+            result.add(vector);
+        }
+        return List.copyOf(result);
     }
 
     public void upsert(String namespace, List<PineconeVectorRecord> records) {
@@ -116,16 +146,34 @@ public final class PineconeVectorClient {
     private JsonNode exchange(URI uri, ObjectNode body) {
         try {
             PineconeHttpResponse response = transport.exchange("POST", uri, headers(), body.toString());
+            if (response.statusCode() == 429 || response.statusCode() >= 500) {
+                throw new RetryableRetrievalException("Pinecone returned HTTP " + response.statusCode(),
+                        retryAfter(response.retryAfter()));
+            }
             if (response.statusCode() < 200 || response.statusCode() >= 300) {
                 throw new IllegalStateException("Pinecone returned HTTP " + response.statusCode());
             }
             return response.body() == null || response.body().isBlank()
                     ? objectMapper.createObjectNode()
                     : objectMapper.readTree(response.body());
-        } catch (IllegalStateException e) {
+        } catch (RuntimeException e) {
             throw e;
         } catch (Exception e) {
             throw new IllegalStateException("Pinecone request failed", e);
+        }
+    }
+
+    private Duration retryAfter(String value) {
+        if (value == null || value.isBlank()) return null;
+        try {
+            if (value.trim().matches("[0-9]+")) {
+                return Duration.ofSeconds(Long.parseLong(value.trim()));
+            }
+            Duration delay = Duration.between(Instant.now(), ZonedDateTime.parse(
+                    value.trim(), DateTimeFormatter.RFC_1123_DATE_TIME).toInstant());
+            return delay.isNegative() || delay.isZero() ? null : delay;
+        } catch (RuntimeException ignored) {
+            return null;
         }
     }
 
@@ -142,8 +190,8 @@ public final class PineconeVectorClient {
     }
 
     private void validateVector(float[] values) {
-        if (values == null || values.length != DIMENSION) {
-            throw new IllegalArgumentException("Vector dimension must be " + DIMENSION);
+        if (values == null || values.length != dimension) {
+            throw new IllegalArgumentException("Vector dimension must be " + dimension);
         }
     }
 

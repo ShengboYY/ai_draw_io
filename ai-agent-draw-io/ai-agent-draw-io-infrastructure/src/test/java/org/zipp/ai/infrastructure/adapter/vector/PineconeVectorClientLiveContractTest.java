@@ -19,7 +19,8 @@ class PineconeVectorClientLiveContractTest {
         Assumptions.assumeTrue(apiKey != null && !apiKey.isBlank()
                 && indexHost != null && !indexHost.isBlank());
 
-        PineconeVectorClient client = new PineconeVectorClient(apiKey, indexHost, new ObjectMapper());
+        PineconeVectorClient client = new PineconeVectorClient(
+                apiKey, indexHost, "multilingual-e5-large", 1024, new ObjectMapper());
         String id = "wp0_" + UUID.randomUUID();
         String tenantKey = "wp0_" + UUID.randomUUID();
         float[] vector = client.embedOne("WP0 Pinecone standalone embedding contract", "passage");

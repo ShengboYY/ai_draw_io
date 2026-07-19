@@ -47,9 +47,9 @@ class IngestionPortFakeContractTest {
         assertEquals(4, vectors.get(0).length);
 
         FakeRetrievalVectorIndex index = new FakeRetrievalVectorIndex();
-        index.upsert(new VectorProjection(
+        index.upsert(List.of(new VectorProjection(
                 "rc_1", "ig_1", "vec_1", vectors.get(0),
-                Map.of("tenant_key", "tenant_1", "retrieval_chunk_id", "rc_1")));
+                Map.of("tenant_key", "tenant_1", "retrieval_chunk_id", "rc_1"))));
         assertEquals(List.of("rc_1"), index.query(vectors.get(0), "tenant_1", 5));
         assertFalse(index.serializedRecords().contains("agile flow"));
     }

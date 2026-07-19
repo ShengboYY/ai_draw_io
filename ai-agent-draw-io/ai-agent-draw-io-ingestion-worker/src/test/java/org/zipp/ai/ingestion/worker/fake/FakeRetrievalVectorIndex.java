@@ -13,8 +13,8 @@ public final class FakeRetrievalVectorIndex implements RetrievalVectorIndex {
     private final Map<String, VectorProjection> records = new LinkedHashMap<>();
 
     @Override
-    public void upsert(VectorProjection projection) {
-        records.put(projection.vectorId(), projection);
+    public void upsert(List<VectorProjection> projections) {
+        projections.forEach(projection -> records.put(projection.vectorId(), projection));
     }
 
     @Override

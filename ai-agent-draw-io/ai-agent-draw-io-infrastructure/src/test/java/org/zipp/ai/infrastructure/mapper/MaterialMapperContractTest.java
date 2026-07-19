@@ -92,6 +92,19 @@ class MaterialMapperContractTest {
         assertTrue(mapper.contains("visual_object_version_id"));
     }
 
+    @Test
+    void vectorProjectionWorkUsesExactPinsFencesAndOneShotCoordinatorProgress() throws Exception {
+        String mapper = resource("mybatis/mapper/material_vector_projection_mapper.xml");
+
+        assertTrue(mapper.contains("r.progress = 93"));
+        assertTrue(mapper.contains("manifest.object_version_id AS retrieval_manifest_version_id"));
+        assertTrue(mapper.contains("b.vector_object_version_id"));
+        assertTrue(mapper.contains("j.lease_owner = #{workerId}"));
+        assertTrue(mapper.contains("j.fence_token = #{fenceToken}"));
+        assertTrue(mapper.contains("j.lease_until &gt; UTC_TIMESTAMP(3)"));
+        assertTrue(mapper.contains("pending_projection.state != 'INDEXED'"));
+    }
+
     private String resource(String path) throws Exception {
         try (InputStream stream = getClass().getClassLoader().getResourceAsStream(path)) {
             assertNotNull(stream, path);

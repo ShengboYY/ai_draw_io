@@ -1,0 +1,243 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.zipp.ai.infrastructure.dao.material.IVectorProjectionMapper">
+    <sql id="projectionContextColumns">
+        r.id AS revision_id, r.version_id, v.material_id, m.owner_type, m.owner_key,
+        r.fence_generation AS revision_fence_generation,
+        m.lifecycle_generation AS material_lifecycle_generation,
+        r.fingerprint AS processing_fingerprint,
+        manifest.object_key AS retrieval_manifest_key,
+        manifest.object_version_id AS retrieval_manifest_version_id,
+        manifest.content_sha256 AS retrieval_manifest_sha256,
+        manifest.byte_size AS retrieval_manifest_size,
+        manifest.content_type AS retrieval_manifest_content_type
+    </sql>
+
+    <select id="selectCoordinatorWork"
+            resultType="org.zipp.ai.infrastructure.dao.material.po.VectorProjectionWorkPO">
+        SELECT <include refid="projectionContextColumns"/>
+        FROM material_processing_revision r
+        JOIN material_version v ON v.id = r.version_id
+        JOIN material m ON m.id = v.material_id
+        JOIN material_revision_artifact manifest
+          ON manifest.revision_id = r.id AND manifest.artifact_kind = 'RETRIEVAL_MANIFEST'
+        JOIN material_processing_job j ON j.revision_id = r.id
+        WHERE r.id = #{revisionId} AND r.state = 'PROCESSING' AND r.stage = 'INDEXING'
+          AND r.progress = 93
+          AND v.ingest_state = 'PROCESSING' AND m.lifecycle_state = 'ACTIVE'
+          AND (m.retention_class = 'RETAINED' OR m.expires_at &gt; UTC_TIMESTAMP(3))
+          AND j.id = #{jobId} AND j.stage = 'BUILD_LEXICAL_PROJECTION' AND j.work_key = 'root'
+          AND j.status = 'RUNNING' AND j.lease_owner = #{workerId}
+          AND j.fence_token = #{fenceToken} AND j.lease_until &gt; UTC_TIMESTAMP(3)
+    </select>
+
+    <sql id="batchProfileColumns">
+        , g.id AS index_generation_id, g.index_name, g.namespace, g.embedding_model,
+        g.embedding_model_fingerprint, g.dimension, g.metric, g.vector_schema_version,
+        rv.tokenizer_fingerprint, b.batch_no, b.work_key,
+        b.input_fingerprint AS batch_input_fingerprint,
+        b.vector_object_key, b.vector_object_version_id, b.vector_content_sha256,
+        b.vector_byte_size, b.vector_content_type
+    </sql>
+
+    <select id="selectEmbeddingWork"
+            resultType="org.zipp.ai.infrastructure.dao.material.po.VectorProjectionWorkPO">
+        SELECT <include refid="projectionContextColumns"/><include refid="batchProfileColumns"/>
+        FROM material_processing_revision r
+        JOIN material_version v ON v.id = r.version_id
+        JOIN material m ON m.id = v.material_id
+        JOIN material_revision_artifact manifest
+          ON manifest.revision_id = r.id AND manifest.artifact_kind = 'RETRIEVAL_MANIFEST'
+        JOIN retrieval_vector_batch b ON b.revision_id = r.id AND b.work_key = #{workKey}
+        JOIN rag_index_generation g ON g.id = b.index_generation_id
+        JOIN retrieval_revision_vector_projection rv
+          ON rv.revision_id = r.id AND rv.index_generation_id = g.id
+        JOIN material_processing_job j ON j.revision_id = r.id
+        WHERE r.id = #{revisionId} AND r.state = 'PROCESSING' AND r.stage = 'INDEXING'
+          AND b.state = 'PENDING' AND v.ingest_state = 'PROCESSING' AND m.lifecycle_state = 'ACTIVE'
+          AND (m.retention_class = 'RETAINED' OR m.expires_at &gt; UTC_TIMESTAMP(3))
+          AND j.id = #{jobId} AND j.stage = 'EMBED_CHUNK_BATCHES' AND j.work_key = b.work_key
+          AND j.status = 'RUNNING' AND j.lease_owner = #{workerId}
+          AND j.fence_token = #{fenceToken} AND j.lease_until &gt; UTC_TIMESTAMP(3)
+    </select>
+
+    <select id="selectUpsertWork"
+            resultType="org.zipp.ai.infrastructure.dao.material.po.VectorProjectionWorkPO">
+        SELECT <include refid="projectionContextColumns"/><include refid="batchProfileColumns"/>
+        FROM material_processing_revision r
+        JOIN material_version v ON v.id = r.version_id
+        JOIN material m ON m.id = v.material_id
+        JOIN material_revision_artifact manifest
+          ON manifest.revision_id = r.id AND manifest.artifact_kind = 'RETRIEVAL_MANIFEST'
+        JOIN retrieval_vector_batch b ON b.revision_id = r.id AND b.work_key = #{workKey}
+        JOIN rag_index_generation g ON g.id = b.index_generation_id
+        JOIN retrieval_revision_vector_projection rv
+          ON rv.revision_id = r.id AND rv.index_generation_id = g.id
+        JOIN material_processing_job j ON j.revision_id = r.id
+        WHERE r.id = #{revisionId} AND r.state = 'PROCESSING' AND r.stage = 'INDEXING'
+          AND b.state = 'EMBEDDED' AND v.ingest_state = 'PROCESSING' AND m.lifecycle_state = 'ACTIVE'
+          AND (m.retention_class = 'RETAINED' OR m.expires_at &gt; UTC_TIMESTAMP(3))
+          AND j.id = #{jobId} AND j.stage = 'UPSERT_VECTOR_BATCHES' AND j.work_key = b.work_key
+          AND j.status = 'RUNNING' AND j.lease_owner = #{workerId}
+          AND j.fence_token = #{fenceToken} AND j.lease_until &gt; UTC_TIMESTAMP(3)
+    </select>
+
+    <select id="selectBatchProjections"
+            resultType="org.zipp.ai.infrastructure.dao.material.po.VectorProjectionWorkPO">
+        SELECT p.retrieval_chunk_id AS chunk_id, p.vector_id,
+               p.embedding_fingerprint AS projection_fingerprint,
+               c.chunk_type, c.modality, page.page_no, c.language_primary AS language
+        FROM retrieval_chunk_vector_projection p
+        JOIN retrieval_chunk c ON c.id = p.retrieval_chunk_id
+        LEFT JOIN material_page page ON page.id = c.page_id AND page.revision_id = c.revision_id
+        WHERE c.revision_id = #{revisionId} AND p.index_generation_id = #{generationId}
+          AND p.batch_no = #{batchNo} AND p.state = 'EMBEDDED'
+        ORDER BY c.structural_ordinal, c.id
+    </select>
+
+    <select id="selectManifestWork"
+            resultType="org.zipp.ai.infrastructure.dao.material.po.VectorProjectionWorkPO">
+        SELECT <include refid="projectionContextColumns"/>,
+               g.id AS index_generation_id, g.index_name, g.namespace, g.embedding_model,
+               g.embedding_model_fingerprint, g.dimension, g.metric, g.vector_schema_version,
+               rv.tokenizer_fingerprint, rv.projection_role,
+               p.retrieval_chunk_id AS chunk_id, p.vector_id,
+               p.embedding_fingerprint AS projection_fingerprint,
+               rv.expected_projection_count AS eligible_projection_count
+        FROM material_processing_revision r
+        JOIN material_version v ON v.id = r.version_id
+        JOIN material m ON m.id = v.material_id
+        JOIN material_revision_artifact manifest
+          ON manifest.revision_id = r.id AND manifest.artifact_kind = 'RETRIEVAL_MANIFEST'
+        JOIN rag_index_generation g ON CONCAT('ig:', g.id) = #{workKey}
+        JOIN retrieval_revision_vector_projection rv
+          ON rv.revision_id = r.id AND rv.index_generation_id = g.id
+        LEFT JOIN retrieval_chunk c ON c.revision_id = r.id
+        LEFT JOIN retrieval_chunk_vector_projection p
+          ON p.retrieval_chunk_id = c.id AND p.index_generation_id = g.id AND p.state = 'INDEXED'
+        JOIN material_processing_job j ON j.revision_id = r.id
+        WHERE r.id = #{revisionId} AND r.state = 'PROCESSING' AND r.stage = 'INDEXING'
+          AND j.id = #{jobId} AND j.stage = 'VERIFY_PROJECTION_MANIFEST' AND j.work_key = #{workKey}
+          AND j.status = 'RUNNING' AND j.lease_owner = #{workerId}
+          AND j.fence_token = #{fenceToken} AND j.lease_until &gt; UTC_TIMESTAMP(3)
+          AND v.ingest_state = 'PROCESSING' AND m.lifecycle_state = 'ACTIVE'
+          AND (m.retention_class = 'RETAINED' OR m.expires_at &gt; UTC_TIMESTAMP(3))
+          AND NOT EXISTS (SELECT 1 FROM retrieval_vector_batch pending
+                          WHERE pending.revision_id = r.id AND pending.index_generation_id = g.id
+                            AND pending.state != 'INDEXED')
+          AND NOT EXISTS (SELECT 1 FROM retrieval_chunk_vector_projection pending_projection
+                          JOIN retrieval_chunk projected_chunk
+                            ON projected_chunk.id = pending_projection.retrieval_chunk_id
+                          WHERE projected_chunk.revision_id = r.id
+                            AND pending_projection.index_generation_id = g.id
+                            AND pending_projection.state != 'INDEXED')
+        ORDER BY p.retrieval_chunk_id
+    </select>
+
+    <insert id="insertGeneration">
+        INSERT IGNORE INTO rag_index_generation (
+            id, index_name, namespace, embedding_model, embedding_model_fingerprint,
+            dimension, metric, vector_schema_version, state
+        ) VALUES (
+            #{id}, #{indexName}, #{namespace}, #{embeddingModel}, #{embeddingModelFingerprint},
+            #{dimension}, #{metric}, #{vectorSchemaVersion}, #{state}
+        )
+    </insert>
+    <select id="selectGeneration" resultType="org.zipp.ai.infrastructure.dao.material.po.RagIndexGenerationPO">
+        SELECT * FROM rag_index_generation WHERE id = #{generationId}
+    </select>
+
+    <insert id="insertRevisionProjection">
+        INSERT IGNORE INTO retrieval_revision_vector_projection (
+            revision_id, index_generation_id, tokenizer_fingerprint, plan_fingerprint,
+            projection_role, expected_projection_count, state
+        ) VALUES (
+            #{revisionId}, #{indexGenerationId}, #{tokenizerFingerprint}, #{planFingerprint},
+            #{projectionRole}, #{expectedProjectionCount}, #{state}
+        )
+    </insert>
+    <select id="selectRevisionProjection"
+            resultType="org.zipp.ai.infrastructure.dao.material.po.RevisionVectorProjectionPO">
+        SELECT * FROM retrieval_revision_vector_projection
+        WHERE revision_id = #{revisionId} AND index_generation_id = #{generationId}
+    </select>
+
+    <insert id="insertBatch">
+        INSERT IGNORE INTO retrieval_vector_batch (
+            revision_id, index_generation_id, batch_no, work_key, input_fingerprint, state
+        ) VALUES (
+            #{revisionId}, #{indexGenerationId}, #{batchNo}, #{workKey}, #{inputFingerprint}, #{state}
+        )
+    </insert>
+    <select id="selectBatch" resultType="org.zipp.ai.infrastructure.dao.material.po.VectorBatchPO">
+        SELECT * FROM retrieval_vector_batch
+        WHERE revision_id = #{revisionId} AND index_generation_id = #{generationId} AND batch_no = #{batchNo}
+    </select>
+
+    <insert id="insertProjection">
+        INSERT IGNORE INTO retrieval_chunk_vector_projection (
+            retrieval_chunk_id, index_generation_id, batch_no, index_name, namespace, vector_id,
+            embedding_model, embedding_fingerprint, dimension, projection_role, state, indexed_at
+        ) VALUES (
+            #{retrievalChunkId}, #{indexGenerationId}, #{batchNo}, #{indexName}, #{namespace}, #{vectorId},
+            #{embeddingModel}, #{embeddingFingerprint}, #{dimension}, #{projectionRole}, #{state}, #{indexedAt}
+        )
+    </insert>
+    <select id="selectProjection" resultType="org.zipp.ai.infrastructure.dao.material.po.VectorProjectionPO">
+        SELECT * FROM retrieval_chunk_vector_projection
+        WHERE retrieval_chunk_id = #{chunkId} AND index_generation_id = #{generationId}
+    </select>
+
+    <update id="pinVectorBatch">
+        UPDATE retrieval_vector_batch
+        SET vector_object_key = #{objectKey}, vector_object_version_id = #{objectVersionId},
+            vector_content_sha256 = #{contentSha256}, vector_byte_size = #{byteSize},
+            vector_content_type = #{contentType}, state = 'EMBEDDED'
+        WHERE revision_id = #{revisionId} AND index_generation_id = #{generationId}
+          AND batch_no = #{batchNo} AND state = 'PENDING'
+    </update>
+
+    <update id="updateProjectionBatchState">
+        UPDATE retrieval_chunk_vector_projection p
+        JOIN retrieval_chunk c ON c.id = p.retrieval_chunk_id
+        SET p.state = #{state}, p.indexed_at = #{indexedAt}
+        WHERE c.revision_id = #{revisionId} AND p.index_generation_id = #{generationId}
+          AND p.batch_no = #{batchNo} AND p.state = #{expectedState}
+    </update>
+
+    <update id="updateBatchState">
+        UPDATE retrieval_vector_batch SET state = #{state}
+        WHERE revision_id = #{revisionId} AND index_generation_id = #{generationId}
+          AND batch_no = #{batchNo} AND state = #{expectedState}
+    </update>
+
+    <select id="countIncompleteBatches" resultType="int">
+        SELECT COUNT(*) FROM retrieval_vector_batch
+        WHERE revision_id = #{revisionId} AND index_generation_id = #{generationId} AND state != 'INDEXED'
+    </select>
+
+    <select id="lockRevisionGate" resultType="string">
+        SELECT id FROM material_processing_revision WHERE id = #{revisionId} FOR UPDATE
+    </select>
+
+    <update id="updateRevisionProjectionState">
+        UPDATE retrieval_revision_vector_projection SET state = #{state}
+        WHERE revision_id = #{revisionId} AND index_generation_id = #{generationId}
+          AND state = #{expectedState}
+    </update>
+
+    <insert id="insertManifest">
+        INSERT IGNORE INTO retrieval_projection_manifest (
+            revision_id, index_generation_id, object_key, object_version_id, content_sha256,
+            byte_size, content_type, manifest_hash, projection_count, state
+        ) VALUES (
+            #{revisionId}, #{indexGenerationId}, #{objectKey}, #{objectVersionId}, #{contentSha256},
+            #{byteSize}, #{contentType}, #{manifestHash}, #{projectionCount}, #{state}
+        )
+    </insert>
+    <select id="selectManifest"
+            resultType="org.zipp.ai.infrastructure.dao.material.po.VectorProjectionManifestPO">
+        SELECT * FROM retrieval_projection_manifest
+        WHERE revision_id = #{revisionId} AND index_generation_id = #{generationId}
+    </select>
+</mapper>

@@ -3,7 +3,7 @@ package org.zipp.ai.domain.retrieval.model.valobj;
 import java.util.Map;
 
 public record VectorProjection(String retrievalChunkId, String indexGenerationId, String vectorId,
-                               float[] values, Map<String, String> metadata) {
+                               float[] values, Map<String, Object> metadata) {
 
     public VectorProjection {
         retrievalChunkId = requireText(retrievalChunkId, "retrievalChunkId");

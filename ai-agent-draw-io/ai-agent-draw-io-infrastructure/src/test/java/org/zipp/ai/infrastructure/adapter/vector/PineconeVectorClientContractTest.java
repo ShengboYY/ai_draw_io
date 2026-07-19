@@ -3,8 +3,10 @@ package org.zipp.ai.infrastructure.adapter.vector;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
+import org.zipp.ai.domain.retrieval.port.RetryableRetrievalException;
 
 import java.net.URI;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -23,7 +25,8 @@ class PineconeVectorClientContractTest {
     void shouldEmbedSeparatelyThenUpsertOnlyVectorAndOpaqueMetadata() throws Exception {
         RecordingTransport transport = new RecordingTransport(objectMapper);
         PineconeVectorClient client = new PineconeVectorClient(
-                "test-api-key", "https://drawio-test.svc.pinecone.io", transport, objectMapper);
+                "test-api-key", "https://drawio-test.svc.pinecone.io",
+                "multilingual-e5-large", 1024, transport, objectMapper);
 
         float[] vector = client.embedOne("source text stays only in inference request", "passage");
         client.upsert("drawio-retrieval-v2", List.of(new PineconeVectorRecord(
@@ -54,7 +57,8 @@ class PineconeVectorClientContractTest {
     void shouldRejectContentBearingMetadataBeforeCallingPinecone() {
         RecordingTransport transport = new RecordingTransport(objectMapper);
         PineconeVectorClient client = new PineconeVectorClient(
-                "test-api-key", "https://drawio-test.svc.pinecone.io", transport, objectMapper);
+                "test-api-key", "https://drawio-test.svc.pinecone.io",
+                "multilingual-e5-large", 1024, transport, objectMapper);
         Map<String, Object> metadata = opaqueMetadata();
         metadata.put("filename", "Agile Practice Guide.pdf");
 
@@ -65,10 +69,26 @@ class PineconeVectorClientContractTest {
     }
 
     @Test
+    void shouldPreservePassageBatchOrderWithoutProviderTruncation() throws Exception {
+        RecordingTransport transport = new RecordingTransport(objectMapper);
+        PineconeVectorClient client = new PineconeVectorClient(
+                "test-api-key", "https://drawio-test.svc.pinecone.io",
+                "multilingual-e5-large", 1024, transport, objectMapper);
+
+        List<float[]> embeddings = client.embed(List.of("first passage", "second passage"), "passage");
+
+        assertEquals(2, embeddings.size());
+        JsonNode request = objectMapper.readTree(transport.requests.get(0).body);
+        assertEquals(2, request.path("inputs").size());
+        assertEquals("NONE", request.path("parameters").path("truncate").asText());
+    }
+
+    @Test
     void shouldQueryAndDeleteThroughVectorEndpoints() {
         RecordingTransport transport = new RecordingTransport(objectMapper);
         PineconeVectorClient client = new PineconeVectorClient(
-                "test-api-key", "https://drawio-test.svc.pinecone.io", transport, objectMapper);
+                "test-api-key", "https://drawio-test.svc.pinecone.io",
+                "multilingual-e5-large", 1024, transport, objectMapper);
 
         List<String> matches = client.query("drawio-retrieval-v2", new float[1024], 8,
                 Map.of("tenant_key", Map.of("$eq", "tenant_hmac")));
@@ -78,6 +98,33 @@ class PineconeVectorClientContractTest {
         assertEquals("/query", transport.requests.get(0).uri.getPath());
         assertTrue(transport.requests.get(0).body.contains("\"$eq\":\"tenant_hmac\""));
         assertEquals("/vectors/delete", transport.requests.get(1).uri.getPath());
+    }
+
+    @Test
+    void shouldPropagatePineconeRetryAfterForDurableWorkerBackoff() {
+        PineconeHttpTransport transport = (method, uri, headers, body) ->
+                new PineconeHttpResponse(429, "{}", "17");
+        PineconeVectorClient client = new PineconeVectorClient(
+                "test-api-key", "https://drawio-test.svc.pinecone.io",
+                "multilingual-e5-large", 1024, transport, objectMapper);
+
+        RetryableRetrievalException failure = assertThrows(
+                RetryableRetrievalException.class,
+                () -> client.embedOne("retry passage", "passage"));
+
+        assertEquals(Duration.ofSeconds(17), failure.retryAfter());
+    }
+
+    @Test
+    void shouldRejectEmbeddingResponseFromAnotherModel() {
+        PineconeHttpTransport transport = (method, uri, headers, body) ->
+                new PineconeHttpResponse(200, "{\"model\":\"wrong-model\",\"data\":[]}");
+        PineconeVectorClient client = new PineconeVectorClient(
+                "test-api-key", "https://drawio-test.svc.pinecone.io",
+                "multilingual-e5-large", 1024, transport, objectMapper);
+
+        assertThrows(IllegalStateException.class,
+                () -> client.embedOne("generation-bound passage", "passage"));
     }
 
     private Map<String, Object> opaqueMetadata() {
@@ -108,7 +155,7 @@ class PineconeVectorClientContractTest {
                                              Map<String, String> headers, String body) throws Exception {
             requests.add(new RecordedRequest(method, uri, headers, body));
             if (uri.getPath().equals("/embed")) {
-                return new PineconeHttpResponse(200, embeddingResponse());
+                return new PineconeHttpResponse(200, embeddingResponse(body));
             }
             if (uri.getPath().equals("/query")) {
                 return new PineconeHttpResponse(200,
@@ -117,12 +164,15 @@ class PineconeVectorClientContractTest {
             return new PineconeHttpResponse(200, "{}");
         }
 
-        private String embeddingResponse() throws Exception {
+        private String embeddingResponse(String requestBody) throws Exception {
             Map<String, Object> embedding = Map.of("values", new float[1024]);
+            int inputCount = objectMapper.readTree(requestBody).path("inputs").size();
+            List<Map<String, Object>> data = new ArrayList<>();
+            for (int index = 0; index < inputCount; index++) data.add(embedding);
             return objectMapper.writeValueAsString(Map.of(
                     "model", "multilingual-e5-large",
                     "vector_type", "dense",
-                    "data", List.of(embedding),
+                    "data", data,
                     "usage", Map.of("total_tokens", 7)));
         }
     }

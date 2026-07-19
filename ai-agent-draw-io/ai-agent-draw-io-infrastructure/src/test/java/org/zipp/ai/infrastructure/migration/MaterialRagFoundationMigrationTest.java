@@ -130,6 +130,23 @@ class MaterialRagFoundationMigrationTest {
     }
 
     @Test
+    void vectorProjectionMigrationPinsGenerationBatchesAndManifestArtifacts() throws Exception {
+        Path migration = Path.of("docs/sql/migrations/2026-07-28-create-vector-projection-artifacts.sql");
+        if (!Files.exists(migration)) {
+            migration = Path.of("../docs/sql/migrations/2026-07-28-create-vector-projection-artifacts.sql");
+        }
+        String sql = Files.readString(migration);
+
+        assertTrue(sql.contains("embedding_model_fingerprint CHAR(64) NOT NULL"));
+        assertTrue(sql.contains("tokenizer_fingerprint VARCHAR(255) NOT NULL"));
+        assertTrue(sql.contains("CREATE TABLE IF NOT EXISTS retrieval_revision_vector_projection"));
+        assertTrue(sql.contains("CREATE TABLE IF NOT EXISTS retrieval_vector_batch"));
+        assertTrue(sql.contains("chk_vector_batch_artifact_pin"));
+        assertTrue(sql.contains("CREATE TABLE IF NOT EXISTS retrieval_projection_manifest"));
+        assertTrue(sql.contains("UNIQUE KEY uk_projection_manifest_object"));
+    }
+
+    @Test
     void workerIamAllowsExactVersionVerificationAndCleanupInBothBuckets() throws Exception {
         Path template = Path.of("../deploy/aws/material-upload/s3-and-iam.template.yml");
         if (!Files.exists(template)) {
