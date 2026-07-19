@@ -31,7 +31,8 @@ class WorkerPollerTest {
                         ProcessingJobStage.NORMALIZE_CANONICAL_PAGES,
                         ProcessingJobStage.BUILD_DOCUMENT_STRUCTURE,
                         ProcessingJobStage.ANALYZE_VISUALS,
-                        ProcessingJobStage.BUILD_EVIDENCE_UNITS),
+                        ProcessingJobStage.BUILD_EVIDENCE_UNITS,
+                        ProcessingJobStage.BUILD_RETRIEVAL_CHUNKS),
                 WorkerPoller.claimableStages(true, true));
     }
 }

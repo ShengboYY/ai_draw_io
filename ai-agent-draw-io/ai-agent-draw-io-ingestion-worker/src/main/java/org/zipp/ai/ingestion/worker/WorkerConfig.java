@@ -20,6 +20,7 @@ import org.zipp.ai.domain.ingestion.service.DocumentStructureBuilder;
 import org.zipp.ai.domain.ingestion.service.EvidenceUnitBuilder;
 import org.zipp.ai.domain.ingestion.service.VisualCandidateSelectionPolicy;
 import org.zipp.ai.domain.ingestion.service.OcrSelectionPolicy;
+import org.zipp.ai.domain.retrieval.projection.RetrievalChunkBuilder;
 import org.zipp.ai.infrastructure.adapter.s3.S3OriginalPromotionAdapter;
 import org.zipp.ai.infrastructure.adapter.s3.S3PinnedQuarantineContentAdapter;
 import org.zipp.ai.infrastructure.adapter.s3.S3RevisionArtifactAdapter;
@@ -138,12 +139,14 @@ public class WorkerConfig {
             VisualCandidateSelectionPolicy visualPolicy,
             VisualCropDeriver visualCropper,
             EvidenceUnitBuilder evidenceBuilder,
-            EvidenceBuildLimits evidenceLimits) {
+            EvidenceBuildLimits evidenceLimits,
+            @Value("${worker.retrieval.tokenizer-sha256}") String tokenizerSha256) {
         OcrSelectionPolicy selection = new OcrSelectionPolicy(40, 0.10, 0.20, 0.01, 0.03);
         CanonicalPageAssembler canonical = new CanonicalPageAssembler(0.70);
         return DocumentProcessingProfile.of(renderDpi, executable, languages, timeoutSeconds,
                 runtimeVersion, selection, canonical, structureBuilder, visualPolicy, visualCropper,
-                evidenceBuilder, evidenceLimits);
+                evidenceBuilder, evidenceLimits, RetrievalChunkBuilder.fingerprintFor(
+                        MultilingualE5TokenCounter.fingerprint(tokenizerSha256)));
     }
 
     @Bean
@@ -179,13 +182,14 @@ public class WorkerConfig {
             VisualCandidateSelectionPolicy visualPolicy,
             VisualCropDeriver visualCropper,
             EvidenceUnitBuilder evidenceBuilder,
-            EvidenceBuildLimits evidenceLimits) {
+            EvidenceBuildLimits evidenceLimits,
+            MultilingualE5TokenCounter tokenCounter) {
         OcrSelectionPolicy selection = new OcrSelectionPolicy(40, 0.10, 0.20, 0.01);
         CanonicalPageAssembler assembler = new CanonicalPageAssembler(0.70);
         RevisionPageCodec codec = new RevisionPageCodec(objectMapper);
         return new DocumentProcessingJobHandler(work, artifacts, parser, ocr, selection,
                 assembler, structureBuilder, visualPolicy, evidenceBuilder, evidenceLimits,
-                visualCropper,
+                new RetrievalChunkBuilder(tokenCounter), visualCropper,
                 codec, processingProfile, queue, clock);
     }
 

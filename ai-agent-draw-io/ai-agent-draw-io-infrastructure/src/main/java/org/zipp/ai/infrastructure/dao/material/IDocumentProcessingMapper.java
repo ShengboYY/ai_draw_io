@@ -14,6 +14,11 @@ import org.zipp.ai.infrastructure.dao.material.po.VisualCropArtifactPO;
 import org.zipp.ai.infrastructure.dao.material.po.EvidenceUnitPO;
 import org.zipp.ai.infrastructure.dao.material.po.EvidenceRegionPO;
 import org.zipp.ai.infrastructure.dao.material.po.EvidenceRelationPO;
+import org.zipp.ai.infrastructure.dao.material.po.RevisionRetrievalWorkPO;
+import org.zipp.ai.infrastructure.dao.material.po.RetrievalChunkPO;
+import org.zipp.ai.infrastructure.dao.material.po.RetrievalChunkEvidencePO;
+import org.zipp.ai.infrastructure.dao.material.po.RetrievalSearchDocumentPO;
+import org.zipp.ai.infrastructure.dao.material.po.RetrievalExactTermPO;
 
 import java.util.List;
 
@@ -66,6 +71,10 @@ public interface IDocumentProcessingMapper {
                                                      @Param("jobId") String jobId,
                                                      @Param("workerId") String workerId,
                                                      @Param("fenceToken") long fenceToken);
+    RevisionRetrievalWorkPO selectRetrievalWork(@Param("revisionId") String revisionId,
+                                                @Param("jobId") String jobId,
+                                                @Param("workerId") String workerId,
+                                                @Param("fenceToken") long fenceToken);
     int insertRevisionArtifact(DocumentStructureArtifactPO artifact);
     DocumentStructureArtifactPO selectRevisionArtifact(@Param("revisionId") String revisionId,
                                                        @Param("artifactKind") String artifactKind);
@@ -89,6 +98,17 @@ public interface IDocumentProcessingMapper {
     int updateSectionHeading(@Param("revisionId") String revisionId,
                              @Param("sectionId") String sectionId,
                              @Param("evidenceId") String evidenceId);
+    int insertRetrievalChunk(RetrievalChunkPO chunk);
+    RetrievalChunkPO selectRetrievalChunk(@Param("chunkId") String chunkId);
+    int insertRetrievalChunkEvidence(RetrievalChunkEvidencePO mapping);
+    RetrievalChunkEvidencePO selectRetrievalChunkEvidence(@Param("chunkId") String chunkId,
+                                                          @Param("ordinal") int ordinal);
+    int insertRetrievalSearchDocument(RetrievalSearchDocumentPO document);
+    RetrievalSearchDocumentPO selectRetrievalSearchDocument(@Param("chunkId") String chunkId);
+    int insertRetrievalExactTerm(RetrievalExactTermPO term);
+    RetrievalExactTermPO selectRetrievalExactTerm(@Param("chunkId") String chunkId,
+                                                  @Param("normalizedTerm") String normalizedTerm,
+                                                  @Param("termType") String termType);
     int updatePageVisualStatus(@Param("revisionId") String revisionId,
                                @Param("pageNo") int pageNo,
                                @Param("visualStatus") String visualStatus);

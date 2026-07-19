@@ -1,6 +1,6 @@
 # 多模态资料库与图表册：实施状态
 
-> 更新日期：2026-07-26
+> 更新日期：2026-07-27
 > 当前分支：`codex/multimodal-library-chartbook`
 
 ## 已完成阶段
@@ -17,7 +17,8 @@
 | WP3C-B2a：本地视觉候选与 crop manifest | 已完成 | 当前 WP3C-B2a 阶段提交 |
 | WP3C-B2b：Evidence Unit、区域与关系 | 已完成 | 当前 WP3C-B2b 阶段提交 |
 | WP3C-B3a：Retrieval Chunk 与 lexical 领域投影 | 已完成 | `5ef60be0` |
-| WP3C-B3b1：固定 multilingual-e5 tokenizer runtime | 已完成 | 当前 WP3C-B3b1 阶段提交 |
+| WP3C-B3b1：固定 multilingual-e5 tokenizer runtime | 已完成 | `8a424eb7` |
+| WP3C-B3b2：Retrieval 投影编排与原子持久化 | 已完成 | 当前 WP3C-B3b2 阶段提交 |
 
 ## WP2 交付范围
 
@@ -118,6 +119,13 @@ WP2 不把文件复制到正式 materials bucket，也不提供预览。安全�
 - 检索文本中的章节标题、表头和图注都保留对应 Evidence identity；parent context 同时保存全部来源 Evidence IDs。无图注视觉与低质量/OCR Evidence 标为 `UNSEARCHABLE`，不会生成 lexical projection。
 - word/CJK lexical shadow 与受限 exact identifier/number terms 均由确定性投影产生；bridge/profile 数量受 leaf chunk 20% 上限约束。所有 chunk ID、文本 SHA-256 和 manifest hash 可重复生成。
 
+## WP3C-B3b2 交付范围
+
+- processing profile 现在包含 Retrieval builder 和固定 tokenizer fingerprint；旧 profile 任务只会由匹配的旧 Worker 领取。`BUILD_RETRIEVAL_CHUNKS` 只读取 MySQL 固定的 Evidence manifest object `VersionId`，同时校验 revision/version、上游 artifact SHA-256、完整 processing profile 和 builder fingerprint。
+- Worker 为每个 chunk 写入独立 immutable gzip JSON；有 parent window 时另写带完整 Evidence identities 的 parent artifact，并写入 revision 级 `retrieval-manifest.json.gz`。所有对象均使用 revision-local deterministic key，数据库固定 object key 与 `VersionId`。
+- `retrieval_chunk`、`retrieval_chunk_evidence`、`retrieval_search_document`、`retrieval_exact_term`、Retrieval manifest pin 和唯一 `BUILD_LEXICAL_PROJECTION` coordinator successor 在同一个校验 job stage/lease/fence、Material lifecycle generation/TTL 与 revision generation 的 MySQL 事务提交。不可检索 chunk 不会创建 lexical rows，引用边界仍只来自显式 Evidence mapping。
+- `2026-07-27-pin-retrieval-artifact-versions.sql` 为 retrieval text/parent object 补齐 exact `VersionId`，并把 Evidence mapping identity 修正为 `(retrieval_chunk_id, ordinal)`；checksum 为 `e90335c8aee058d9a711b8d75a55b8268481d2eef03bf20f1b0ad48ec1945a36`。生产必须在旧 migration 之后执行，并在新 Worker 开始领取 retrieval job 前完成。
+
 ## 下一阶段
 
-WP3C-B3b2 将把 builder fingerprint、固定 Evidence manifest 读取、Retrieval/parent S3 对象、MySQL chunk/mapping/lexical/exact rows 和后续 projection job 接入同一个 fenced 原子提交。B3b1 已把固定 commit、固定 SHA-256 的 `multilingual-e5-large` tokenizer 放入 Worker 镜像，并只在 document processing 开启时加载。可选的严格 VLM JSON enrichment 继续保持独立，生成描述不得写入 `display_text` 或冒充来源原文。
+WP3C-B3c 将由 `BUILD_LEXICAL_PROJECTION` coordinator 创建固定 index generation 和 batch，再实现 `EMBED_CHUNK_BATCHES` 与 `UPSERT_VECTOR_BATCHES`：embedding/upsert work key 必须携带 `ig:{generation}:batch:{batch}`，只嵌入可检索 chunk，使用固定 generation/model/dimension 写 Pinecone，并在 MySQL 保存可核对的 vector projection manifest；批次重试必须幂等，向量服务不可用时不得影响原有纯文本绘图链路。可选的严格 VLM JSON enrichment 继续保持独立，生成描述不得写入 `display_text` 或冒充来源原文。

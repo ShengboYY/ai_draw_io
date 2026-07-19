@@ -60,9 +60,16 @@ public final class RetrievalChunkBuilder {
     }
 
     public String fingerprint() {
+        return fingerprintFor(tokenCounter.fingerprint());
+    }
+
+    public static String fingerprintFor(String tokenCounterFingerprint) {
+        if (tokenCounterFingerprint == null || tokenCounterFingerprint.isBlank()) {
+            throw new IllegalArgumentException("tokenCounterFingerprint is required");
+        }
         return SCHEMA_VERSION + ":leaf-by-evidence:sentence-safe-split:parent-neighbor-max900:"
                 + "section-bridge-min3-or500:aux-hard20pct:extractive-profile:lexical-v2:tokenizer="
-                + tokenCounter.fingerprint();
+                + tokenCounterFingerprint.trim();
     }
 
     public RetrievalProjectionManifest build(EvidenceManifest evidence) {

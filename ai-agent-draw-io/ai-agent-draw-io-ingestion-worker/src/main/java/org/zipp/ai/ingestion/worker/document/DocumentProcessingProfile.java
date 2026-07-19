@@ -17,7 +17,8 @@ import java.util.List;
 
 /** Immutable processing configuration used in revision and stage fingerprints. */
 public record DocumentProcessingProfile(String parser, String ocr, String selection,
-                                        String canonical, String structure, String visual, String evidence) {
+                                        String canonical, String structure, String visual, String evidence,
+                                        String retrieval) {
 
     public DocumentProcessingProfile {
         parser = requireText(parser, "parser");
@@ -27,6 +28,7 @@ public record DocumentProcessingProfile(String parser, String ocr, String select
         structure = requireText(structure, "structure");
         visual = requireText(visual, "visual");
         evidence = requireText(evidence, "evidence");
+        retrieval = requireText(retrieval, "retrieval");
     }
 
     public static DocumentProcessingProfile of(int renderDpi, String executable, String languages,
@@ -37,7 +39,8 @@ public record DocumentProcessingProfile(String parser, String ocr, String select
                                                VisualCandidateSelectionPolicy visual,
                                                VisualCropDeriver cropper,
                                                EvidenceUnitBuilder evidenceBuilder,
-                                               EvidenceBuildLimits evidenceLimits) {
+                                               EvidenceBuildLimits evidenceLimits,
+                                               String retrievalFingerprint) {
         String normalizedLanguages = requireText(languages, "languages");
         if (!"eng+chi_sim".equals(normalizedLanguages)) {
             throw new IllegalArgumentException("WP3B calibration requires Tesseract languages eng+chi_sim");
@@ -52,19 +55,20 @@ public record DocumentProcessingProfile(String parser, String ocr, String select
                         + ":timeout=" + timeoutSeconds,
                 selection.fingerprint(), canonical.fingerprint(), structure.fingerprint(),
                 visual.fingerprint() + ":" + cropper.fingerprint(),
-                evidenceBuilder.fingerprint() + ":" + evidenceLimits.fingerprint());
+                evidenceBuilder.fingerprint() + ":" + evidenceLimits.fingerprint(),
+                requireText(retrievalFingerprint, "retrievalFingerprint"));
     }
 
     public String overallFingerprint() {
         return sha256(parser + ":" + ocr + ":" + selection + ":" + canonical
-                + ":" + structure + ":" + visual + ":" + evidence + ":chunk-v1");
+                + ":" + structure + ":" + visual + ":" + evidence + ":" + retrieval);
     }
 
     public ProcessingRevisionProfile revisionProfile() {
         return new ProcessingRevisionProfile(overallFingerprint(),
                 auditVersion("pdfbox-3.0.8", parser),
                 auditVersion("canonical", canonical),
-                "chunk-v1",
+                auditVersion("retrieval", retrieval),
                 auditVersion(ocrAuditPrefix(), ocr),
                 auditVersion("visual", visual));
     }
@@ -104,6 +108,11 @@ public record DocumentProcessingProfile(String parser, String ocr, String select
 
     public String retrievalInput(String evidenceManifestHash) {
         return ProcessingStageFingerprintPolicy.retrievalInput(evidenceManifestHash, overallFingerprint());
+    }
+
+    public String lexicalProjectionInput(String retrievalManifestHash) {
+        return ProcessingStageFingerprintPolicy.lexicalProjectionInput(
+                retrievalManifestHash, overallFingerprint());
     }
 
     private static String sha256(String value) {

@@ -18,8 +18,12 @@ import org.zipp.ai.domain.ingestion.model.valobj.OcrPageResult;
 import org.zipp.ai.domain.ingestion.model.valobj.OcrPageStatus;
 import org.zipp.ai.domain.ingestion.model.valobj.PageArtifactKind;
 import org.zipp.ai.domain.ingestion.model.valobj.ProcessingJobStage;
+import org.zipp.ai.domain.ingestion.model.valobj.ProcessingStage;
 import org.zipp.ai.domain.ingestion.model.valobj.RevisionExtractionWork;
 import org.zipp.ai.domain.ingestion.model.valobj.RevisionEvidenceWork;
+import org.zipp.ai.domain.ingestion.model.valobj.RevisionRetrievalWork;
+import org.zipp.ai.domain.ingestion.model.valobj.RetrievalBuildResult;
+import org.zipp.ai.domain.ingestion.model.valobj.RetrievalChunkArtifact;
 import org.zipp.ai.domain.ingestion.model.valobj.RevisionPageBatch;
 import org.zipp.ai.domain.ingestion.model.valobj.RevisionPageWork;
 import org.zipp.ai.domain.ingestion.model.valobj.RevisionCanonicalPageWork;
@@ -31,6 +35,10 @@ import org.zipp.ai.domain.ingestion.model.valobj.VisualCropArtifact;
 import org.zipp.ai.domain.ingestion.model.valobj.VisualProcessingResult;
 import org.zipp.ai.domain.ingestion.port.DocumentProcessingWorkPort;
 import org.zipp.ai.domain.ingestion.service.ProcessingStageFingerprintPolicy;
+import org.zipp.ai.domain.account.model.valobj.OwnerType;
+import org.zipp.ai.domain.retrieval.projection.LexicalProjection;
+import org.zipp.ai.domain.retrieval.projection.RetrievalChunkProjection;
+import org.zipp.ai.domain.retrieval.projection.RetrievalEvidenceMapping;
 import org.zipp.ai.infrastructure.dao.material.IDocumentProcessingMapper;
 import org.zipp.ai.infrastructure.dao.material.IProcessingJobMapper;
 import org.zipp.ai.infrastructure.dao.material.po.DocumentExtractionWorkPO;
@@ -46,10 +54,18 @@ import org.zipp.ai.infrastructure.dao.material.po.VisualCropArtifactPO;
 import org.zipp.ai.infrastructure.dao.material.po.EvidenceUnitPO;
 import org.zipp.ai.infrastructure.dao.material.po.EvidenceRegionPO;
 import org.zipp.ai.infrastructure.dao.material.po.EvidenceRelationPO;
+import org.zipp.ai.infrastructure.dao.material.po.RevisionRetrievalWorkPO;
+import org.zipp.ai.infrastructure.dao.material.po.RetrievalChunkPO;
+import org.zipp.ai.infrastructure.dao.material.po.RetrievalChunkEvidencePO;
+import org.zipp.ai.infrastructure.dao.material.po.RetrievalSearchDocumentPO;
+import org.zipp.ai.infrastructure.dao.material.po.RetrievalExactTermPO;
 
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 import java.util.UUID;
 
 @Repository
@@ -379,6 +395,183 @@ public class MySqlDocumentProcessingWorkAdapter implements DocumentProcessingWor
         }
         jobMapper.insert(toPo(successor));
         return true;
+    }
+
+    @Override
+    public Optional<RevisionRetrievalWork> findRetrievalWork(String revisionId, WorkerFence fence) {
+        WorkerFence current = Objects.requireNonNull(fence, "fence");
+        RevisionRetrievalWorkPO po = mapper.selectRetrievalWork(requireText(revisionId, "revisionId"),
+                current.jobId(), current.workerId(), current.fenceToken());
+        if (po == null) {
+            return Optional.empty();
+        }
+        StoredArtifact evidence = new StoredArtifact(po.getEvidenceManifestKey(),
+                po.getEvidenceManifestVersionId(), po.getEvidenceManifestSha256(),
+                po.getEvidenceManifestSize(), po.getEvidenceManifestContentType());
+        return Optional.of(new RevisionRetrievalWork(po.getRevisionId(), po.getVersionId(), po.getMaterialId(),
+                OwnerType.valueOf(po.getOwnerType()), po.getOwnerKey(), po.getRevisionFenceGeneration(),
+                po.getMaterialLifecycleGeneration(), po.getProcessingFingerprint(), evidence));
+    }
+
+    @Override
+    @Transactional
+    public boolean commitRetrieval(RevisionRetrievalWork work, RetrievalBuildResult result,
+                                   ProcessingJob nextJob, WorkerFence fence) {
+        RevisionRetrievalWork source = Objects.requireNonNull(work, "work");
+        RetrievalBuildResult output = Objects.requireNonNull(result, "result");
+        ProcessingJob successor = Objects.requireNonNull(nextJob, "nextJob");
+        if (!source.revisionId().equals(output.manifest().revisionId())
+                || !source.versionId().equals(output.manifest().versionId())) {
+            throw new IllegalArgumentException("retrieval manifest does not belong to its work target");
+        }
+        if (successor.stage() != ProcessingJobStage.BUILD_LEXICAL_PROJECTION
+                || !"root".equals(successor.workKey())
+                || !source.revisionId().equals(successor.target().revisionId())
+                || !ProcessingStageFingerprintPolicy.lexicalProjectionInput(
+                        output.manifestArtifact().contentSha256(),
+                        source.processingFingerprint()).equals(successor.inputFingerprint())) {
+            throw new IllegalArgumentException("retrieval commit requires the pinned projection coordinator");
+        }
+        if (!hasCurrentFence(source.revisionId(), source.revisionFenceGeneration(),
+                source.materialLifecycleGeneration(), ProcessingJobStage.BUILD_RETRIEVAL_CHUNKS, fence)) {
+            return false;
+        }
+        Map<String, RetrievalChunkArtifact> artifactsByChunk = output.chunkArtifacts().stream()
+                .collect(Collectors.toUnmodifiableMap(RetrievalChunkArtifact::chunkId, Function.identity()));
+        Map<String, LexicalProjection> lexicalByChunk = output.manifest().lexicalProjections().stream()
+                .collect(Collectors.toUnmodifiableMap(LexicalProjection::chunkId, Function.identity()));
+        persistRevisionArtifact(source.revisionId(), "RETRIEVAL_MANIFEST", output.manifestArtifact());
+        for (RetrievalChunkProjection chunk : output.manifest().chunks()) {
+            RetrievalChunkArtifact chunkArtifact = artifactsByChunk.get(chunk.chunkId());
+            if ((chunk.parentContext() == null) != (chunkArtifact.parentContextArtifact() == null)) {
+                throw new IllegalArgumentException("parent context and its exact artifact pin must be paired");
+            }
+            persistRetrievalChunk(source, chunk, chunkArtifact);
+            chunk.evidenceMappings().forEach(mapping -> persistRetrievalEvidence(chunk.chunkId(), mapping));
+            LexicalProjection lexical = lexicalByChunk.get(chunk.chunkId());
+            if (lexical != null) {
+                persistSearchDocument(source, lexical);
+                lexical.exactTerms().forEach(term -> persistExactTerm(source, lexical.chunkId(), term));
+            }
+        }
+        if (mapper.advanceRevision(source.revisionId(), source.revisionFenceGeneration(),
+                ProcessingStage.INDEXING.name(), 93) != 1) {
+            throw new IllegalStateException("revision generation became stale during retrieval commit");
+        }
+        jobMapper.insert(toPo(successor));
+        return true;
+    }
+
+    private void persistRetrievalChunk(RevisionRetrievalWork source, RetrievalChunkProjection chunk,
+                                       RetrievalChunkArtifact artifact) {
+        RetrievalChunkPO po = new RetrievalChunkPO();
+        po.setId(chunk.chunkId());
+        po.setVersionId(source.versionId());
+        po.setRevisionId(source.revisionId());
+        po.setPageId(chunk.pageId());
+        po.setSectionId(chunk.sectionId());
+        po.setChunkType(chunk.chunkType().name());
+        po.setModality(chunk.modality().name());
+        po.setLanguagePrimary(chunk.languagePrimary());
+        po.setCitable(chunk.citable());
+        po.setIndexMode(chunk.indexMode().name());
+        po.setRetrievalTextObjectKey(artifact.retrievalTextArtifact().objectKey());
+        po.setRetrievalTextObjectVersionId(artifact.retrievalTextArtifact().objectVersionId());
+        po.setRetrievalTextSha256(chunk.retrievalTextSha256());
+        if (artifact.parentContextArtifact() != null) {
+            po.setParentContextObjectKey(artifact.parentContextArtifact().objectKey());
+            po.setParentContextObjectVersionId(artifact.parentContextArtifact().objectVersionId());
+        }
+        po.setTokenCount(chunk.tokenCount());
+        po.setQualityScore(chunk.quality());
+        po.setStructuralOrdinal(chunk.structuralOrdinal());
+        po.setStatus("ACTIVE");
+        mapper.insertRetrievalChunk(po);
+        RetrievalChunkPO persisted = mapper.selectRetrievalChunk(po.getId());
+        if (persisted == null || !po.getVersionId().equals(persisted.getVersionId())
+                || !po.getRevisionId().equals(persisted.getRevisionId())
+                || !Objects.equals(po.getPageId(), persisted.getPageId())
+                || !Objects.equals(po.getSectionId(), persisted.getSectionId())
+                || !po.getChunkType().equals(persisted.getChunkType())
+                || !po.getModality().equals(persisted.getModality())
+                || !po.getLanguagePrimary().equals(persisted.getLanguagePrimary())
+                || po.isCitable() != persisted.isCitable()
+                || !po.getIndexMode().equals(persisted.getIndexMode())
+                || !po.getRetrievalTextObjectKey().equals(persisted.getRetrievalTextObjectKey())
+                || !po.getRetrievalTextObjectVersionId().equals(persisted.getRetrievalTextObjectVersionId())
+                || !po.getRetrievalTextSha256().equals(persisted.getRetrievalTextSha256())
+                || !Objects.equals(po.getParentContextObjectKey(), persisted.getParentContextObjectKey())
+                || !Objects.equals(po.getParentContextObjectVersionId(),
+                        persisted.getParentContextObjectVersionId())
+                || po.getTokenCount() != persisted.getTokenCount()
+                || Math.abs(po.getQualityScore() - persisted.getQualityScore()) > 0.000001
+                || po.getStructuralOrdinal() != persisted.getStructuralOrdinal()
+                || !po.getStatus().equals(persisted.getStatus())) {
+            throw new IllegalStateException("immutable retrieval chunk collided with different content");
+        }
+    }
+
+    private void persistRetrievalEvidence(String chunkId, RetrievalEvidenceMapping mapping) {
+        RetrievalChunkEvidencePO po = new RetrievalChunkEvidencePO();
+        po.setRetrievalChunkId(chunkId);
+        po.setEvidenceId(mapping.evidenceId());
+        po.setRole(mapping.role().name());
+        po.setOrdinal(mapping.ordinal());
+        po.setCharStart(mapping.charStart());
+        po.setCharEnd(mapping.charEnd());
+        mapper.insertRetrievalChunkEvidence(po);
+        RetrievalChunkEvidencePO persisted = mapper.selectRetrievalChunkEvidence(chunkId, mapping.ordinal());
+        if (persisted == null || !po.getEvidenceId().equals(persisted.getEvidenceId())
+                || !po.getRole().equals(persisted.getRole())
+                || !Objects.equals(po.getCharStart(), persisted.getCharStart())
+                || !Objects.equals(po.getCharEnd(), persisted.getCharEnd())) {
+            throw new IllegalStateException("immutable retrieval Evidence mapping collided with different content");
+        }
+    }
+
+    private void persistSearchDocument(RevisionRetrievalWork source, LexicalProjection lexical) {
+        RetrievalSearchDocumentPO po = new RetrievalSearchDocumentPO();
+        po.setRetrievalChunkId(lexical.chunkId());
+        po.setOwnerType(source.ownerType().name());
+        po.setOwnerKey(source.ownerKey());
+        po.setMaterialId(source.materialId());
+        po.setVersionId(source.versionId());
+        po.setRevisionId(source.revisionId());
+        po.setWordSearchText(lexical.wordSearchText());
+        po.setCjkSearchText(lexical.cjkSearchText());
+        po.setStatus("ACTIVE");
+        mapper.insertRetrievalSearchDocument(po);
+        RetrievalSearchDocumentPO persisted = mapper.selectRetrievalSearchDocument(lexical.chunkId());
+        if (persisted == null || !po.getOwnerType().equals(persisted.getOwnerType())
+                || !po.getOwnerKey().equals(persisted.getOwnerKey())
+                || !po.getMaterialId().equals(persisted.getMaterialId())
+                || !po.getVersionId().equals(persisted.getVersionId())
+                || !po.getRevisionId().equals(persisted.getRevisionId())
+                || !Objects.equals(po.getWordSearchText(), persisted.getWordSearchText())
+                || !Objects.equals(po.getCjkSearchText(), persisted.getCjkSearchText())
+                || !po.getStatus().equals(persisted.getStatus())) {
+            throw new IllegalStateException("immutable retrieval search document collided with different content");
+        }
+    }
+
+    private void persistExactTerm(RevisionRetrievalWork source, String chunkId, LexicalProjection.ExactTerm term) {
+        RetrievalExactTermPO po = new RetrievalExactTermPO();
+        po.setRetrievalChunkId(chunkId);
+        po.setOwnerType(source.ownerType().name());
+        po.setOwnerKey(source.ownerKey());
+        po.setVersionId(source.versionId());
+        po.setRevisionId(source.revisionId());
+        po.setNormalizedTerm(term.normalizedTerm());
+        po.setTermType(term.termType());
+        mapper.insertRetrievalExactTerm(po);
+        RetrievalExactTermPO persisted = mapper.selectRetrievalExactTerm(
+                chunkId, term.normalizedTerm(), term.termType());
+        if (persisted == null || !po.getOwnerType().equals(persisted.getOwnerType())
+                || !po.getOwnerKey().equals(persisted.getOwnerKey())
+                || !po.getVersionId().equals(persisted.getVersionId())
+                || !po.getRevisionId().equals(persisted.getRevisionId())) {
+            throw new IllegalStateException("immutable retrieval exact term collided with different content");
+        }
     }
 
     private boolean hasCurrentFence(String revisionId, long expectedGeneration, long materialLifecycleGeneration,

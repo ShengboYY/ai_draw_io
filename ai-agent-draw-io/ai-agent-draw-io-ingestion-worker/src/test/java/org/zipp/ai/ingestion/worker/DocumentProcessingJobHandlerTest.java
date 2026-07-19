@@ -3,6 +3,7 @@ package org.zipp.ai.ingestion.worker;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.zipp.ai.domain.ingestion.model.aggregate.ProcessingJob;
+import org.zipp.ai.domain.account.model.valobj.OwnerType;
 import org.zipp.ai.domain.ingestion.model.valobj.*;
 import org.zipp.ai.domain.ingestion.port.DocumentProcessingWorkPort;
 import org.zipp.ai.domain.ingestion.port.ProcessingQueuePort;
@@ -12,6 +13,8 @@ import org.zipp.ai.domain.ingestion.service.DocumentStructureBuilder;
 import org.zipp.ai.domain.ingestion.service.EvidenceUnitBuilder;
 import org.zipp.ai.domain.ingestion.service.OcrSelectionPolicy;
 import org.zipp.ai.domain.ingestion.service.VisualCandidateSelectionPolicy;
+import org.zipp.ai.domain.retrieval.projection.RetrievalChunkBuilder;
+import org.zipp.ai.domain.retrieval.projection.RetrievalTokenCounter;
 import org.zipp.ai.ingestion.worker.document.RevisionPageCodec;
 import org.zipp.ai.ingestion.worker.document.EvidenceBuildLimits;
 import org.zipp.ai.ingestion.worker.document.VisualCropDeriver;
@@ -24,12 +27,18 @@ import java.util.*;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class DocumentProcessingJobHandlerTest {
 
     private static final Instant NOW = Instant.parse("2026-07-22T00:00:00Z");
     private static final EvidenceBuildLimits EVIDENCE_LIMITS =
             new EvidenceBuildLimits(16L * 1024 * 1024, 5_000_000, 500_000);
+    private static final RetrievalTokenCounter TOKEN_COUNTER = new RetrievalTokenCounter() {
+        @Override public int count(String text) { return Math.max(1, text.codePointCount(0, text.length())); }
+        @Override public String fingerprint() { return "retrieval-test-tokenizer-v1"; }
+    };
+    private static final RetrievalChunkBuilder RETRIEVAL_BUILDER = new RetrievalChunkBuilder(TOKEN_COUNTER);
     private static final org.zipp.ai.ingestion.worker.document.DocumentProcessingProfile PROFILE =
             org.zipp.ai.ingestion.worker.document.DocumentProcessingProfile.of(200, "tesseract",
                     "eng+chi_sim", 120, "test-tesseract-4.1.1",
@@ -37,7 +46,7 @@ class DocumentProcessingJobHandlerTest {
                     new CanonicalPageAssembler(0.70), new DocumentStructureBuilder(),
                     new VisualCandidateSelectionPolicy(12, 0.15, 3),
                     new VisualCropDeriver(25_000_000, 10 * 1024 * 1024),
-                    new EvidenceUnitBuilder(), EVIDENCE_LIMITS);
+                    new EvidenceUnitBuilder(), EVIDENCE_LIMITS, RETRIEVAL_BUILDER.fingerprint());
 
     @Test
     void processesNativeOcrAndCanonicalStagesWithExactArtifacts() throws Exception {
@@ -65,7 +74,7 @@ class DocumentProcessingJobHandlerTest {
         DocumentProcessingJobHandler handler = new DocumentProcessingJobHandler(work, artifacts, parser, ocr,
                 new OcrSelectionPolicy(40, 0.10, 0.20, 0.01), new CanonicalPageAssembler(0.70),
                 new DocumentStructureBuilder(), new VisualCandidateSelectionPolicy(12, 0.15, 3),
-                new EvidenceUnitBuilder(), EVIDENCE_LIMITS,
+                new EvidenceUnitBuilder(), EVIDENCE_LIMITS, RETRIEVAL_BUILDER,
                 new VisualCropDeriver(25_000_000, 10 * 1024 * 1024),
                 new RevisionPageCodec(new ObjectMapper()), PROFILE,
                 queue, Clock.fixed(NOW, ZoneOffset.UTC));
@@ -109,7 +118,14 @@ class DocumentProcessingJobHandlerTest {
         assertNotNull(work.evidenceResult);
         assertEquals("revisions/rev_1/evidence-manifest.json.gz",
                 work.evidenceResult.manifestArtifact().objectKey());
-        assertEquals(9, queue.heartbeats);
+        assertEquals(JobOutcome.Kind.SUCCEEDED,
+                handler.handle(lease(ProcessingJobStage.BUILD_RETRIEVAL_CHUNKS,
+                        PROFILE.retrievalInput(work.evidenceResult.manifestArtifact().contentSha256()))).kind());
+        assertEquals(ProcessingJobStage.BUILD_LEXICAL_PROJECTION, work.nextStage);
+        assertNotNull(work.retrievalResult);
+        assertEquals("revisions/rev_1/retrieval-manifest.json.gz",
+                work.retrievalResult.manifestArtifact().objectKey());
+        assertTrue(queue.heartbeats > 9);
         assertEquals(JobOutcome.Kind.PERMANENT_FAILURE,
                 handler.handle(lease(ProcessingJobStage.EXTRACT_NATIVE, "0".repeat(64))).kind());
     }
@@ -125,7 +141,7 @@ class DocumentProcessingJobHandlerTest {
                 (path, pageNo) -> { throw new AssertionError("mismatched OCR must not run"); },
                 new OcrSelectionPolicy(40, 0.10, 0.20, 0.01), new CanonicalPageAssembler(0.70),
                 new DocumentStructureBuilder(), new VisualCandidateSelectionPolicy(12, 0.15, 3),
-                new EvidenceUnitBuilder(), EVIDENCE_LIMITS,
+                new EvidenceUnitBuilder(), EVIDENCE_LIMITS, RETRIEVAL_BUILDER,
                 new VisualCropDeriver(25_000_000, 10 * 1024 * 1024),
                 new RevisionPageCodec(new ObjectMapper()), PROFILE,
                 new RecordingQueue(),
@@ -179,7 +195,7 @@ class DocumentProcessingJobHandlerTest {
                 (path, pageNo) -> { throw new AssertionError("OCR must not run"); },
                 new OcrSelectionPolicy(40, 0.10, 0.20, 0.01), new CanonicalPageAssembler(0.70),
                 new DocumentStructureBuilder(), new VisualCandidateSelectionPolicy(12, 0.15, 3),
-                new EvidenceUnitBuilder(), EVIDENCE_LIMITS,
+                new EvidenceUnitBuilder(), EVIDENCE_LIMITS, RETRIEVAL_BUILDER,
                 new VisualCropDeriver(25_000_000, 10 * 1024 * 1024),
                 codec, PROFILE, new RecordingQueue(), Clock.fixed(NOW, ZoneOffset.UTC));
 
@@ -209,6 +225,8 @@ class DocumentProcessingJobHandlerTest {
         private VisualProcessingResult visualResult;
         private RevisionEvidenceWork evidenceWork;
         private EvidenceBuildResult evidenceResult;
+        private RevisionRetrievalWork retrievalWork;
+        private RetrievalBuildResult retrievalResult;
 
         private InMemoryWork(RevisionExtractionWork extraction) {
             this.extraction = extraction;
@@ -306,6 +324,23 @@ class DocumentProcessingJobHandlerTest {
         public boolean commitEvidence(RevisionEvidenceWork work, EvidenceBuildResult result,
                                       ProcessingJob nextJob, WorkerFence fence) {
             evidenceResult = result;
+            retrievalWork = new RevisionRetrievalWork(work.revisionId(), work.versionId(), "material_1",
+                    OwnerType.USER, "user_1", 6, work.materialLifecycleGeneration(), work.processingFingerprint(),
+                    result.manifestArtifact());
+            nextStage = nextJob.stage();
+            nextWorkKey = nextJob.workKey();
+            return true;
+        }
+
+        @Override
+        public Optional<RevisionRetrievalWork> findRetrievalWork(String revisionId, WorkerFence fence) {
+            return Optional.ofNullable(retrievalWork);
+        }
+
+        @Override
+        public boolean commitRetrieval(RevisionRetrievalWork work, RetrievalBuildResult result,
+                                       ProcessingJob nextJob, WorkerFence fence) {
+            retrievalResult = result;
             nextStage = nextJob.stage();
             nextWorkKey = nextJob.workKey();
             return true;

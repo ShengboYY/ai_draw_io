@@ -13,6 +13,8 @@ import org.zipp.ai.domain.ingestion.model.valobj.ProcessingJobLease;
 import org.zipp.ai.domain.ingestion.model.valobj.ProcessingJobStage;
 import org.zipp.ai.domain.ingestion.model.valobj.ProcessingJobTarget;
 import org.zipp.ai.domain.ingestion.model.valobj.RevisionPageBatch;
+import org.zipp.ai.domain.ingestion.model.valobj.RetrievalBuildResult;
+import org.zipp.ai.domain.ingestion.model.valobj.RetrievalChunkArtifact;
 import org.zipp.ai.domain.ingestion.model.valobj.RevisionCanonicalPageWork;
 import org.zipp.ai.domain.ingestion.model.valobj.StoredArtifact;
 import org.zipp.ai.domain.ingestion.model.valobj.UploadErrorCode;
@@ -30,6 +32,8 @@ import org.zipp.ai.domain.ingestion.service.DocumentStructureBuilder;
 import org.zipp.ai.domain.ingestion.service.EvidenceUnitBuilder;
 import org.zipp.ai.domain.ingestion.service.OcrSelectionPolicy;
 import org.zipp.ai.domain.ingestion.service.VisualCandidateSelectionPolicy;
+import org.zipp.ai.domain.retrieval.projection.RetrievalChunkBuilder;
+import org.zipp.ai.domain.retrieval.projection.RetrievalParentContext;
 import org.zipp.ai.ingestion.worker.document.RevisionPageCodec;
 import org.zipp.ai.ingestion.worker.document.DocumentProcessingProfile;
 import org.zipp.ai.ingestion.worker.document.EvidenceBuildLimits;
@@ -66,6 +70,7 @@ public final class DocumentProcessingJobHandler {
     private final VisualCandidateSelectionPolicy visualSelection;
     private final EvidenceUnitBuilder evidenceBuilder;
     private final EvidenceBuildLimits evidenceLimits;
+    private final RetrievalChunkBuilder retrievalBuilder;
     private final VisualCropDeriver visualCropper;
     private final RevisionPageCodec codec;
     private final DocumentProcessingProfile profile;
@@ -80,6 +85,7 @@ public final class DocumentProcessingJobHandler {
                                         VisualCandidateSelectionPolicy visualSelection,
                                         EvidenceUnitBuilder evidenceBuilder,
                                         EvidenceBuildLimits evidenceLimits,
+                                        RetrievalChunkBuilder retrievalBuilder,
                                         VisualCropDeriver visualCropper, RevisionPageCodec codec,
                                         DocumentProcessingProfile profile,
                                         ProcessingQueuePort queue, Clock clock) {
@@ -93,6 +99,7 @@ public final class DocumentProcessingJobHandler {
         this.visualSelection = Objects.requireNonNull(visualSelection, "visualSelection");
         this.evidenceBuilder = Objects.requireNonNull(evidenceBuilder, "evidenceBuilder");
         this.evidenceLimits = Objects.requireNonNull(evidenceLimits, "evidenceLimits");
+        this.retrievalBuilder = Objects.requireNonNull(retrievalBuilder, "retrievalBuilder");
         this.visualCropper = Objects.requireNonNull(visualCropper, "visualCropper");
         this.codec = Objects.requireNonNull(codec, "codec");
         this.profile = Objects.requireNonNull(profile, "profile");
@@ -114,6 +121,7 @@ public final class DocumentProcessingJobHandler {
                 case BUILD_DOCUMENT_STRUCTURE -> buildStructure(revisionId, lease);
                 case ANALYZE_VISUALS -> prepareVisualCrops(revisionId, lease);
                 case BUILD_EVIDENCE_UNITS -> buildEvidence(revisionId, lease);
+                case BUILD_RETRIEVAL_CHUNKS -> buildRetrieval(revisionId, lease);
                 default -> JobOutcome.permanent("UNSUPPORTED_DOCUMENT_STAGE");
             };
         } catch (ProcessingLimitExceededException e) {
@@ -419,6 +427,57 @@ public final class DocumentProcessingJobHandler {
         ProcessingJob successor = nextJob(revisionId, ProcessingJobStage.BUILD_RETRIEVAL_CHUNKS, "root",
                 profile.retrievalInput(manifestArtifact.contentSha256()));
         if (!work.commitEvidence(source, result, successor, fence(lease))) {
+            return JobOutcome.transientFailure(UploadErrorCode.STALE_FENCE.name());
+        }
+        return JobOutcome.succeeded();
+    }
+
+    private JobOutcome buildRetrieval(String revisionId, ProcessingJobLease lease) {
+        var source = work.findRetrievalWork(revisionId, fence(lease)).orElse(null);
+        if (source == null) {
+            return JobOutcome.succeeded();
+        }
+        if (!profile.overallFingerprint().equals(source.processingFingerprint())) {
+            return JobOutcome.transientFailure("PROCESSING_PROFILE_UNAVAILABLE");
+        }
+        if (!profile.retrievalInput(source.evidenceManifestArtifact().contentSha256())
+                .equals(lease.job().inputFingerprint())) {
+            return JobOutcome.permanent("STALE_PROCESSING_FINGERPRINT");
+        }
+        if (!heartbeat(lease)) {
+            return JobOutcome.transientFailure(UploadErrorCode.STALE_FENCE.name());
+        }
+        var evidence = codec.decodeEvidenceManifest(
+                artifacts.read(source.evidenceManifestArtifact(), MAX_PAGE_ARTIFACT_BYTES),
+                evidenceLimits.maximumArtifactUncompressedBytes());
+        if (!source.revisionId().equals(evidence.revisionId())
+                || !source.versionId().equals(evidence.versionId())) {
+            throw new IllegalArgumentException("Evidence manifest does not belong to its exact retrieval pin");
+        }
+        var manifest = retrievalBuilder.build(evidence);
+        if (!profile.retrieval().equals(manifest.builderFingerprint())) {
+            return JobOutcome.transientFailure("PROCESSING_PROFILE_UNAVAILABLE");
+        }
+        List<RetrievalChunkArtifact> chunkArtifacts = new ArrayList<>();
+        for (var chunk : manifest.chunks()) {
+            if (!heartbeat(lease)) {
+                return JobOutcome.transientFailure(UploadErrorCode.STALE_FENCE.name());
+            }
+            String prefix = "revisions/" + revisionId + "/retrieval/" + chunk.chunkId();
+            StoredArtifact retrievalText = artifacts.putImmutable(prefix + ".json.gz",
+                    codec.encode(chunk), JSON_GZIP);
+            StoredArtifact parent = chunk.parentContext() == null ? null : artifacts.putImmutable(
+                    prefix + ".parent.json.gz", codec.encode(new RetrievalParentContext(
+                            chunk.chunkId(), chunk.parentContext(), chunk.parentEvidenceIds())), JSON_GZIP);
+            chunkArtifacts.add(new RetrievalChunkArtifact(chunk.chunkId(), retrievalText, parent));
+        }
+        StoredArtifact manifestArtifact = artifacts.putImmutable(
+                "revisions/" + revisionId + "/retrieval-manifest.json.gz",
+                codec.encode(manifest), JSON_GZIP);
+        RetrievalBuildResult result = new RetrievalBuildResult(manifest, manifestArtifact, chunkArtifacts);
+        ProcessingJob successor = nextJob(revisionId, ProcessingJobStage.BUILD_LEXICAL_PROJECTION, "root",
+                profile.lexicalProjectionInput(manifestArtifact.contentSha256()));
+        if (!work.commitRetrieval(source, result, successor, fence(lease))) {
             return JobOutcome.transientFailure(UploadErrorCode.STALE_FENCE.name());
         }
         return JobOutcome.succeeded();

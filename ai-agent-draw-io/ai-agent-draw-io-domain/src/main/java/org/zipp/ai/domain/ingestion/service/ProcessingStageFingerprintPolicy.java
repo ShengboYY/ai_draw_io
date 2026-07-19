@@ -50,6 +50,12 @@ public final class ProcessingStageFingerprintPolicy {
                 + ":BUILD_RETRIEVAL_CHUNKS:retrieval-schema-v1");
     }
 
+    public static String lexicalProjectionInput(String retrievalManifestHash, String processingFingerprint) {
+        return sha256(requireSha256(retrievalManifestHash, "retrievalManifestHash") + ":"
+                + requireSha256(processingFingerprint, "processingFingerprint")
+                + ":BUILD_LEXICAL_PROJECTION:vector-coordinator-v1");
+    }
+
     private static String requireSha256(String value, String field) {
         if (value == null || !value.matches("[0-9a-f]{64}")) {
             throw new IllegalArgumentException(field + " must be lowercase SHA-256");

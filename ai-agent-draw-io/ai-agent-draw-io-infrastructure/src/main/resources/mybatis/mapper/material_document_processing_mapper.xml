@@ -165,6 +165,42 @@
           AND j.lease_until &gt; UTC_TIMESTAMP(3)
     </select>
 
+    <select id="selectRetrievalWork"
+            resultType="org.zipp.ai.infrastructure.dao.material.po.RevisionRetrievalWorkPO">
+        SELECT r.id AS revision_id,
+               r.version_id,
+               v.material_id,
+               m.owner_type,
+               m.owner_key,
+               r.fence_generation AS revision_fence_generation,
+               m.lifecycle_generation AS material_lifecycle_generation,
+               r.fingerprint AS processing_fingerprint,
+               evidence.object_key AS evidence_manifest_key,
+               evidence.object_version_id AS evidence_manifest_version_id,
+               evidence.content_sha256 AS evidence_manifest_sha256,
+               evidence.byte_size AS evidence_manifest_size,
+               evidence.content_type AS evidence_manifest_content_type
+        FROM material_processing_revision r
+        JOIN material_version v ON v.id = r.version_id
+        JOIN material m ON m.id = v.material_id
+        JOIN material_revision_artifact evidence
+          ON evidence.revision_id = r.id AND evidence.artifact_kind = 'EVIDENCE_MANIFEST'
+        JOIN material_processing_job j ON j.revision_id = r.id
+        WHERE r.id = #{revisionId}
+          AND r.state = 'PROCESSING'
+          AND r.stage = 'INDEXING'
+          AND v.ingest_state = 'PROCESSING'
+          AND m.lifecycle_state = 'ACTIVE'
+          AND (m.retention_class = 'RETAINED' OR m.expires_at &gt; UTC_TIMESTAMP(3))
+          AND j.id = #{jobId}
+          AND j.stage = 'BUILD_RETRIEVAL_CHUNKS'
+          AND j.work_key = 'root'
+          AND j.status = 'RUNNING'
+          AND j.lease_owner = #{workerId}
+          AND j.fence_token = #{fenceToken}
+          AND j.lease_until &gt; UTC_TIMESTAMP(3)
+    </select>
+
     <select id="selectPageBatch" resultType="org.zipp.ai.infrastructure.dao.material.po.RevisionPageWorkPO">
         SELECT p.page_no, p.width, p.height, p.ocr_status,
                image.object_key AS page_image_key,
@@ -431,6 +467,73 @@
         WHERE revision_id = #{revisionId} AND id = #{sectionId}
           AND (heading_evidence_id IS NULL OR heading_evidence_id = #{evidenceId})
     </update>
+
+    <insert id="insertRetrievalChunk">
+        INSERT IGNORE INTO retrieval_chunk (
+            id, version_id, revision_id, page_id, section_id, chunk_type, modality,
+            language_primary, citable, index_mode, duplicate_cluster_id, canonical_chunk_id,
+            retrieval_text_object_key, retrieval_text_object_version_id, retrieval_text_sha256,
+            parent_context_object_key, parent_context_object_version_id,
+            token_count, quality_score, structural_ordinal, status
+        ) VALUES (
+            #{id}, #{versionId}, #{revisionId}, #{pageId}, #{sectionId}, #{chunkType}, #{modality},
+            #{languagePrimary}, #{citable}, #{indexMode}, #{duplicateClusterId}, #{canonicalChunkId},
+            #{retrievalTextObjectKey}, #{retrievalTextObjectVersionId}, #{retrievalTextSha256},
+            #{parentContextObjectKey}, #{parentContextObjectVersionId},
+            #{tokenCount}, #{qualityScore}, #{structuralOrdinal}, #{status}
+        )
+    </insert>
+
+    <select id="selectRetrievalChunk"
+            resultType="org.zipp.ai.infrastructure.dao.material.po.RetrievalChunkPO">
+        SELECT * FROM retrieval_chunk WHERE id = #{chunkId}
+    </select>
+
+    <insert id="insertRetrievalChunkEvidence">
+        INSERT IGNORE INTO retrieval_chunk_evidence (
+            retrieval_chunk_id, evidence_id, role, ordinal, char_start, char_end
+        ) VALUES (
+            #{retrievalChunkId}, #{evidenceId}, #{role}, #{ordinal}, #{charStart}, #{charEnd}
+        )
+    </insert>
+
+    <select id="selectRetrievalChunkEvidence"
+            resultType="org.zipp.ai.infrastructure.dao.material.po.RetrievalChunkEvidencePO">
+        SELECT * FROM retrieval_chunk_evidence
+        WHERE retrieval_chunk_id = #{chunkId} AND ordinal = #{ordinal}
+    </select>
+
+    <insert id="insertRetrievalSearchDocument">
+        INSERT IGNORE INTO retrieval_search_document (
+            retrieval_chunk_id, owner_type, owner_key, material_id, version_id, revision_id,
+            word_search_text, cjk_search_text, status
+        ) VALUES (
+            #{retrievalChunkId}, #{ownerType}, #{ownerKey}, #{materialId}, #{versionId}, #{revisionId},
+            #{wordSearchText}, #{cjkSearchText}, #{status}
+        )
+    </insert>
+
+    <select id="selectRetrievalSearchDocument"
+            resultType="org.zipp.ai.infrastructure.dao.material.po.RetrievalSearchDocumentPO">
+        SELECT * FROM retrieval_search_document WHERE retrieval_chunk_id = #{chunkId}
+    </select>
+
+    <insert id="insertRetrievalExactTerm">
+        INSERT IGNORE INTO retrieval_exact_term (
+            retrieval_chunk_id, owner_type, owner_key, version_id, revision_id, normalized_term, term_type
+        ) VALUES (
+            #{retrievalChunkId}, #{ownerType}, #{ownerKey}, #{versionId}, #{revisionId},
+            #{normalizedTerm}, #{termType}
+        )
+    </insert>
+
+    <select id="selectRetrievalExactTerm"
+            resultType="org.zipp.ai.infrastructure.dao.material.po.RetrievalExactTermPO">
+        SELECT * FROM retrieval_exact_term
+        WHERE retrieval_chunk_id = #{chunkId}
+          AND normalized_term = #{normalizedTerm}
+          AND term_type = #{termType}
+    </select>
 
     <update id="updatePageVisualStatus">
         UPDATE material_page SET visual_status = #{visualStatus}

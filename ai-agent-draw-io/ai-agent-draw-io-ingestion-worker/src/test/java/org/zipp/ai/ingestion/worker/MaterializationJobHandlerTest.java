@@ -38,7 +38,7 @@ class MaterializationJobHandlerTest {
                     new org.zipp.ai.ingestion.worker.document.VisualCropDeriver(25_000_000, 10 * 1024 * 1024),
                     new org.zipp.ai.domain.ingestion.service.EvidenceUnitBuilder(),
                     new org.zipp.ai.ingestion.worker.document.EvidenceBuildLimits(
-                            16L * 1024 * 1024, 5_000_000, 500_000));
+                            16L * 1024 * 1024, 5_000_000, 500_000), "retrieval-test-v1");
     private static final String PROCESSING_FINGERPRINT = PROCESSING_PROFILE.overallFingerprint();
 
     @Test
