@@ -12,6 +12,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -51,6 +52,20 @@ class IngestionPortFakeContractTest {
                 Map.of("tenant_key", "tenant_1", "retrieval_chunk_id", "rc_1")));
         assertEquals(List.of("rc_1"), index.query(vectors.get(0), "tenant_1", 5));
         assertFalse(index.serializedRecords().contains("agile flow"));
+    }
+
+    @Test
+    void workersOnlyClaimStagesTheyOwn() {
+        FakeProcessingQueue queue = new FakeProcessingQueue();
+        queue.enqueue(ProcessingJob.enqueue("job-security", ProcessingJobTarget.forUpload("upl_1"),
+                ProcessingJobStage.VALIDATE_OWNERSHIP, "root", "a".repeat(64), 0, NOW));
+        queue.enqueue(ProcessingJob.enqueue("job-dedup", ProcessingJobTarget.forUpload("upl_1"),
+                ProcessingJobStage.RESOLVE_CONTENT_DEDUP, "root", "b".repeat(64), 10, NOW));
+
+        var claimed = queue.claim("security-worker", NOW, Duration.ofMinutes(2),
+                Set.of(ProcessingJobStage.VALIDATE_OWNERSHIP)).orElseThrow();
+
+        assertEquals(ProcessingJobStage.VALIDATE_OWNERSHIP, claimed.job().stage());
     }
 
     @Test

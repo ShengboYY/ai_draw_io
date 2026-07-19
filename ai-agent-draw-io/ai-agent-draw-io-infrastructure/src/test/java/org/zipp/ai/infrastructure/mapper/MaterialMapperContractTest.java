@@ -28,6 +28,21 @@ class MaterialMapperContractTest {
         assertTrue(mapper.contains("fence_token = fence_token + 1"));
         assertTrue(mapper.contains("lease_owner = #{workerId}"));
         assertTrue(mapper.contains("fence_token = #{fenceToken}"));
+        assertTrue(mapper.contains("lease_until &gt; UTC_TIMESTAMP(3)"));
+        assertTrue(mapper.contains("collection=\"stages\""));
+    }
+
+    @Test
+    void uploadMapperScopesBrowserReadsAndFencesEveryWorkerCommit() throws Exception {
+        String mapper = resource("mybatis/mapper/material_upload_session_mapper.xml");
+
+        assertTrue(mapper.contains("owner_type = #{ownerType}"));
+        assertTrue(mapper.contains("owner_key = #{ownerKey}"));
+        assertTrue(mapper.contains("state = 'CREATED' AND generation = #{expectedGeneration}"));
+        assertTrue(mapper.contains("state = 'CREATED' AND policy_expires_at &gt; UTC_TIMESTAMP(3)"));
+        assertTrue(mapper.contains("j.lease_owner = #{workerId}"));
+        assertTrue(mapper.contains("j.fence_token = #{fenceToken}"));
+        assertTrue(mapper.contains("j.lease_until &gt; UTC_TIMESTAMP(3)"));
     }
 
     private String resource(String path) throws Exception {

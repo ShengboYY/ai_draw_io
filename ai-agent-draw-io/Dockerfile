@@ -11,6 +11,7 @@ COPY ai-agent-draw-io-api/pom.xml ai-agent-draw-io-api/pom.xml
 COPY ai-agent-draw-io-app/pom.xml ai-agent-draw-io-app/pom.xml
 COPY ai-agent-draw-io-domain/pom.xml ai-agent-draw-io-domain/pom.xml
 COPY ai-agent-draw-io-infrastructure/pom.xml ai-agent-draw-io-infrastructure/pom.xml
+COPY ai-agent-draw-io-ingestion-worker/pom.xml ai-agent-draw-io-ingestion-worker/pom.xml
 COPY ai-agent-draw-io-trigger/pom.xml ai-agent-draw-io-trigger/pom.xml
 COPY ai-agent-draw-io-types/pom.xml ai-agent-draw-io-types/pom.xml
 

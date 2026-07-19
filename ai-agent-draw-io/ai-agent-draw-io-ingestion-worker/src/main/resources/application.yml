@@ -1,0 +1,30 @@
+spring:
+  application:
+    name: ai-agent-draw-io-ingestion-worker
+  main:
+    web-application-type: none
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+mybatis:
+  mapper-locations:
+    - classpath*:/mybatis/mapper/*.xml
+
+worker:
+  id: ${WORKER_ID:${HOSTNAME:worker-local}}
+  aws-region: ${AWS_REGION:ap-southeast-2}
+  poll-delay-ms: ${WORKER_POLL_DELAY_MS:1000}
+  reaper-delay-ms: ${WORKER_REAPER_DELAY_MS:60000}
+  clamav:
+    host: ${CLAMAV_HOST:127.0.0.1}
+    port: ${CLAMAV_PORT:3310}
+    timeout-seconds: ${CLAMAV_TIMEOUT_SECONDS:60}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health

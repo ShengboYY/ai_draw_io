@@ -1,0 +1,115 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Private versioned quarantine and clean material buckets for WP2.
+
+Parameters:
+  EnvironmentName:
+    Type: String
+  BackendTaskRoleName:
+    Type: String
+  WorkerTaskRoleName:
+    Type: String
+  BrowserOrigin:
+    Type: String
+    Description: Exact HTTPS origin of the web application.
+
+Resources:
+  QuarantineBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault: {SSEAlgorithm: AES256}
+      VersioningConfiguration: {Status: Enabled}
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      CorsConfiguration:
+        CorsRules:
+          - AllowedOrigins: [!Ref BrowserOrigin]
+            AllowedMethods: [POST]
+            AllowedHeaders: ['*']
+            ExposedHeaders: [ETag, x-amz-version-id]
+            MaxAge: 600
+      LifecycleConfiguration:
+        Rules:
+          - Id: expire-quarantine-versions
+            Status: Enabled
+            ExpirationInDays: 2
+            NoncurrentVersionExpiration: {NoncurrentDays: 2}
+
+  MaterialsBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault: {SSEAlgorithm: AES256}
+      VersioningConfiguration: {Status: Enabled}
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+
+  QuarantineTlsPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref QuarantineBucket
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: DenyInsecureTransport
+            Effect: Deny
+            Principal: '*'
+            Action: s3:*
+            Resource: [!GetAtt QuarantineBucket.Arn, !Sub '${QuarantineBucket.Arn}/*']
+            Condition: {Bool: {aws:SecureTransport: 'false'}}
+
+  MaterialsTlsPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref MaterialsBucket
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: DenyInsecureTransport
+            Effect: Deny
+            Principal: '*'
+            Action: s3:*
+            Resource: [!GetAtt MaterialsBucket.Arn, !Sub '${MaterialsBucket.Arn}/*']
+            Condition: {Bool: {aws:SecureTransport: 'false'}}
+
+  BackendUploadPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      Roles: [!Ref BackendTaskRoleName]
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Action: [s3:GetBucketLocation]
+            Resource: !GetAtt QuarantineBucket.Arn
+          - Effect: Allow
+            Action: [s3:PutObject]
+            Resource: !Sub '${QuarantineBucket.Arn}/incoming/*'
+
+  WorkerMaterialPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      Roles: [!Ref WorkerTaskRoleName]
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Action: [s3:GetObject, s3:GetObjectVersion, s3:DeleteObject, s3:ListBucketVersions]
+            Resource:
+              - !GetAtt QuarantineBucket.Arn
+              - !Sub '${QuarantineBucket.Arn}/incoming/*'
+          - Effect: Allow
+            Action: [s3:GetObject, s3:PutObject, s3:DeleteObject]
+            Resource: !Sub '${MaterialsBucket.Arn}/*'
+
+Outputs:
+  QuarantineBucketName: {Value: !Ref QuarantineBucket}
+  MaterialsBucketName: {Value: !Ref MaterialsBucket}

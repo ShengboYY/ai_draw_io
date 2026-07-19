@@ -1,0 +1,9 @@
+# syntax=docker/dockerfile:1.7
+# CI should override this argument with a reviewed immutable digest.
+ARG CLAMAV_IMAGE=clamav/clamav:stable
+FROM ${CLAMAV_IMAGE}
+
+# Registered uploads can reach 50 MiB. Keep the transport and aggregate scan bounds above that
+# value while remaining below the Worker task's memory envelope.
+RUN sed -i '/^StreamMaxLength /d; /^MaxScanSize /d; /^MaxFileSize /d' /etc/clamav/clamd.conf \
+    && printf '\nStreamMaxLength 64M\nMaxScanSize 128M\nMaxFileSize 64M\n' >> /etc/clamav/clamd.conf

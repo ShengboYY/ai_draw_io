@@ -12,9 +12,27 @@
     <artifactId>ai-agent-draw-io-ingestion-worker</artifactId>
 
     <dependencies>
+        <!-- Logging must precede the legacy framework jar, which contains old shaded SLF4J classes. -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter</artifactId>
+        </dependency>
         <dependency>
             <groupId>org.zipp.ai</groupId>
             <artifactId>ai-agent-draw-io-domain</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.zipp.ai</groupId>
+            <artifactId>ai-agent-draw-io-infrastructure</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.pdfbox</groupId>
+            <artifactId>pdfbox</artifactId>
+            <version>${pdfbox.version}</version>
         </dependency>
         <dependency>
             <groupId>org.junit.jupiter</groupId>
@@ -22,4 +40,14 @@
             <scope>test</scope>
         </dependency>
     </dependencies>
+
+    <build>
+        <finalName>ai-agent-draw-io-ingestion-worker</finalName>
+        <plugins>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+            </plugin>
+        </plugins>
+    </build>
 </project>

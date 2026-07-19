@@ -40,6 +40,24 @@ public final class ProcessingJob {
         return new ProcessingJob(id, target, stage, workKey, inputFingerprint, priority, notBefore);
     }
 
+    public static ProcessingJob rehydrate(String id, ProcessingJobTarget target, ProcessingJobStage stage,
+                                          String workKey, String inputFingerprint, int priority,
+                                          ProcessingJobStatus status, int attempt, Instant notBefore,
+                                          String leaseOwner, Instant leaseUntil, long fenceToken,
+                                          String lastErrorCode) {
+        ProcessingJob job = new ProcessingJob(id, target, stage, workKey, inputFingerprint, priority, notBefore);
+        job.status = Objects.requireNonNull(status, "status");
+        job.attempt = attempt;
+        job.leaseOwner = leaseOwner;
+        job.leaseUntil = leaseUntil;
+        job.fenceToken = fenceToken;
+        job.lastErrorCode = lastErrorCode;
+        if (status == ProcessingJobStatus.RUNNING && (leaseOwner == null || leaseUntil == null || fenceToken < 1)) {
+            throw new IllegalArgumentException("a running job requires an active fenced lease");
+        }
+        return job;
+    }
+
     public long claim(String workerId, Instant claimedAt, Duration leaseDuration) {
         if (status != ProcessingJobStatus.QUEUED && status != ProcessingJobStatus.RETRY) {
             throw new IllegalStateException("job is not claimable");

@@ -494,7 +494,7 @@ COMMIT;
 - revision 派生 job 使用 `(revision_id, stage, work_key)` 表示 page/region/batch，例如 `OCR_PAGE/page:12`、`ANALYZE_VISUAL/page:12:region:3`、`EMBED_CHUNK_BATCH/ig:ig_2:batch:0008`、`UPSERT_VECTOR_BATCH/ig:ig_2:batch:0008`；Embedding/Upsert key 必须含 Index Generation ID，避免 compatibility projection 与旧 generation 冲突。单一 work unit 失败不得重跑整份文档。
 - 每次完成写入带 `job_id + fence_token` 条件，并同时校验 revision 仍可提交。
 - `lease_until` 过期的 RUNNING job 可由 reaper 转为 RETRY；旧 Worker 的 fence token 随即失效。
-- `ProcessingQueuePort` 只暴露 `enqueue/claim/heartbeat/succeed/retry/fail`，以后可在不改领域状态机的情况下换 SQS。
+- `ProcessingQueuePort` 只暴露 `enqueue/claim(acceptedStages)/heartbeat/succeed/retry/fail/requeueExpiredLeases`；Worker 必须声明自己拥有的 stage，避免安全 Worker 误领后续解析任务，以后仍可在不改领域状态机的情况下换 SQS。
 - 队列积压、最老 job age、每阶段失败率必须成为指标；queue 不参加 API readiness 健康判定。
 
 ### 7.4 S3 bucket 与对象布局
@@ -579,7 +579,7 @@ sequenceDiagram
 
 登录用户的配置默认：PDF 50 MB/200 页，图片 15 MB/25 MP，前端一次批量最多 10 文件，账户 original bytes 2 GB。批量上传只是客户端/批次协调，每个文件拥有独立 upload/version/job 和错误；不能因一个文件失败回滚已安全接收的其他文件。匿名限制见 14.3。
 
-`material_upload_session.state`：`CREATED → OBJECT_VERSION_PINNED → PROCESSING → SUCCEEDED|REJECTED`，并允许未处理状态进入 `CANCELLED|EXPIRED`。complete 首次成功时把 HEAD 返回的 `VersionId/ETag/ChecksumSHA256` 固定到行中；重复 complete 只能返回相同固定版本，不能重新指向最新对象。S3 checksum/HEAD 只做快速接收校验，Worker 对固定 version 重新流式计算的实际 size + SHA-256 才是内容身份和 dedup 的权威；不一致即 REJECTED 并删除该 quarantine version。过期 session 和 policy 重放产生的未固定 versions 由版本感知 cleanup 全部清理。
+`material_upload_session.state`：`CREATED → OBJECT_VERSION_PINNED → PROCESSING → SUCCEEDED|REJECTED`，并允许未处理状态进入 `CANCELLED|EXPIRED`。`security_status` 是 PROCESSING 内的正交安全关卡；只有 `VALIDATED` 才能排入内容去重/物化阶段，不能把它伪装成用户可用终态。complete 首次成功时把 HEAD 返回的 `VersionId/ETag/ChecksumSHA256` 固定到行中；重复 complete 只能返回相同固定版本，不能重新指向最新对象。S3 checksum/HEAD 只做快速接收校验，Worker 对固定 version 重新流式计算的实际 size + SHA-256 才是内容身份和 dedup 的权威；不一致即 REJECTED 并删除该 quarantine version。过期 session 和 policy 重放产生的未固定 versions 由版本感知 cleanup 全部清理。
 
 upload session 到达终态并超过短期排障窗口后，应清空 display name、quarantine key/version、ETag/checksum 和声明 hash，只保留不透明 session/material/version ID、状态/error code 与时间；永久删除对应资料时同样清除这些内容性字段。
 

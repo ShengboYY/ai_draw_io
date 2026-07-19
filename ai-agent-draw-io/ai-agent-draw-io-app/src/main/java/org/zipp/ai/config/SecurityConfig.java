@@ -79,6 +79,7 @@ public class SecurityConfig {
                 "X-Requested-With",
                 // The streaming client uses this ID to correlate browser requests with trace runs.
                 "X-Request-Id",
+                "Idempotency-Key",
                 "X-XSRF-TOKEN"));
         cfg.setExposedHeaders(List.of("X-CSRF-TOKEN"));
         cfg.setAllowCredentials(true);

@@ -44,6 +44,14 @@ app:
   security:
     # Credentialed CORS is restricted to known SPA origins; production should set this env var.
     allowed-origins: ${APP_SECURITY_ALLOWED_ORIGINS:http://localhost:3000,http://127.0.0.1:3000}
+  material-upload:
+    # Fail closed until the quarantine bucket, IAM task role, and HMAC secrets are deployed.
+    enabled: ${MATERIAL_UPLOAD_ENABLED:false}
+    anonymous-enabled: ${MATERIAL_UPLOAD_ANONYMOUS_ENABLED:false}
+    aws-region: ${MATERIAL_UPLOAD_AWS_REGION:${AWS_REGION:ap-southeast-2}}
+    quarantine-bucket: ${MATERIAL_UPLOAD_QUARANTINE_BUCKET:}
+    owner-path-secret: ${MATERIAL_UPLOAD_OWNER_PATH_SECRET:}
+    rate-key-secret: ${MATERIAL_UPLOAD_RATE_KEY_SECRET:}
 
 # Actuator only exposes health and Prometheus metrics. Production must restrict /actuator/prometheus
 # at the network or reverse-proxy layer so it is reachable by Prometheus, not public users.
@@ -168,4 +176,5 @@ mybatis:
     - classpath:/mybatis/mapper/usage_counter_mapper.xml
     - classpath*:/mybatis/mapper/material_foundation_mapper.xml
     - classpath*:/mybatis/mapper/material_processing_job_mapper.xml
+    - classpath*:/mybatis/mapper/material_upload_session_mapper.xml
   config-location: classpath:/mybatis/config/mybatis-config.xml

@@ -11,6 +11,8 @@ import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
+import org.zipp.ai.domain.ingestion.model.valobj.ProcessingJobStage;
 
 public final class FakeProcessingQueue implements ProcessingQueuePort {
     private final Map<String, ProcessingJob> jobs = new LinkedHashMap<>();
@@ -23,10 +25,13 @@ public final class FakeProcessingQueue implements ProcessingQueuePort {
     }
 
     @Override
-    public synchronized Optional<ProcessingJobLease> claim(String workerId, Instant now, Duration leaseDuration) {
+    public synchronized Optional<ProcessingJobLease> claim(String workerId, Instant now, Duration leaseDuration,
+                                                           Set<ProcessingJobStage> acceptedStages) {
         return jobs.values().stream()
                 .filter(job -> job.status() == ProcessingJobStatus.QUEUED || job.status() == ProcessingJobStatus.RETRY)
                 .filter(job -> !job.notBefore().isAfter(now))
+                .filter(job -> acceptedStages == null || acceptedStages.isEmpty()
+                        || acceptedStages.contains(job.stage()))
                 .sorted(Comparator.comparingInt(ProcessingJob::priority).reversed().thenComparing(ProcessingJob::id))
                 .findFirst()
                 .map(job -> new ProcessingJobLease(job, job.claim(workerId, now, leaseDuration)));
@@ -56,5 +61,19 @@ public final class FakeProcessingQueue implements ProcessingQueuePort {
     public synchronized boolean fail(String jobId, String workerId, long fenceToken, String errorCode) {
         ProcessingJob job = jobs.get(jobId);
         return job != null && job.fail(workerId, fenceToken, errorCode);
+    }
+
+    @Override
+    public synchronized int requeueExpiredLeases(Instant now, int limit) {
+        int requeued = 0;
+        for (ProcessingJob job : jobs.values()) {
+            if (requeued >= limit) {
+                break;
+            }
+            if (job.retryExpiredLease(now)) {
+                requeued++;
+            }
+        }
+        return requeued;
     }
 }

@@ -35,9 +35,17 @@
         FROM material_processing_job
         WHERE status IN ('QUEUED', 'RETRY')
           AND not_before &lt;= #{now}
+        <if test="stages != null and !stages.isEmpty()">
+          AND stage IN
+          <foreach collection="stages" item="stage" open="(" separator="," close=")">#{stage}</foreach>
+        </if>
         ORDER BY priority DESC, created_at ASC
         LIMIT 1
         FOR UPDATE SKIP LOCKED
+    </select>
+
+    <select id="selectById" resultMap="jobMap">
+        SELECT * FROM material_processing_job WHERE id = #{id}
     </select>
 
     <update id="claim">
@@ -52,6 +60,8 @@
         SET lease_until = #{leaseUntil}
         WHERE id = #{id} AND status = 'RUNNING'
           AND lease_owner = #{workerId} AND fence_token = #{fenceToken}
+          AND lease_until &gt; UTC_TIMESTAMP(3)
+          AND lease_until &gt; #{now}
     </update>
 
     <update id="succeed">
@@ -59,5 +69,32 @@
         SET status = 'SUCCEEDED', lease_owner = NULL, lease_until = NULL
         WHERE id = #{id} AND status = 'RUNNING'
           AND lease_owner = #{workerId} AND fence_token = #{fenceToken}
+          AND lease_until &gt; UTC_TIMESTAMP(3)
+    </update>
+
+    <update id="retry">
+        UPDATE material_processing_job
+        SET status = 'RETRY', not_before = #{retryAt}, last_error_code = #{errorCode},
+            lease_owner = NULL, lease_until = NULL
+        WHERE id = #{id} AND status = 'RUNNING'
+          AND lease_owner = #{workerId} AND fence_token = #{fenceToken}
+          AND lease_until &gt; UTC_TIMESTAMP(3)
+    </update>
+
+    <update id="fail">
+        UPDATE material_processing_job
+        SET status = 'FAILED', last_error_code = #{errorCode}, lease_owner = NULL, lease_until = NULL
+        WHERE id = #{id} AND status = 'RUNNING'
+          AND lease_owner = #{workerId} AND fence_token = #{fenceToken}
+          AND lease_until &gt; UTC_TIMESTAMP(3)
+    </update>
+
+    <update id="requeueExpiredLeases">
+        UPDATE material_processing_job
+        SET status = 'RETRY', not_before = #{now}, last_error_code = 'LEASE_EXPIRED',
+            lease_owner = NULL, lease_until = NULL
+        WHERE status = 'RUNNING' AND lease_until &lt;= #{now}
+        ORDER BY lease_until ASC
+        LIMIT #{limit}
     </update>
 </mapper>
