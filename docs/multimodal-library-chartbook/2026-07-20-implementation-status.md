@@ -16,6 +16,7 @@
 | WP3C-B1：结构编排与持久化 | 已完成 | `8793495d` |
 | WP3C-B2a：本地视觉候选与 crop manifest | 已完成 | 当前 WP3C-B2a 阶段提交 |
 | WP3C-B2b：Evidence Unit、区域与关系 | 已完成 | 当前 WP3C-B2b 阶段提交 |
+| WP3C-B3a：Retrieval Chunk 与 lexical 领域投影 | 已完成 | 当前 WP3C-B3a 阶段提交 |
 
 ## WP2 交付范围
 
@@ -109,6 +110,13 @@ WP2 不把文件复制到正式 materials bucket，也不提供预览。安全�
 - `BUILD_EVIDENCE_UNITS` 只读取固定 structure、visual manifest 与 canonical page `VersionId`；共享、版本化的 `EvidenceBuildLimits` 同时注入 Handler 和 processing profile，gzip 解压、整文字符与 region 数均有硬预算，超限以 `DOCUMENT_PROCESSING_LIMIT_EXCEEDED` 永久失败而不重试。manifest、`evidence_unit`、`evidence_region`、`evidence_relation`、section heading 和唯一 `BUILD_RETRIEVAL_CHUNKS` successor 在同一 fenced 事务提交；MySQL JSON 以结构语义而非键顺序比较。
 - `2026-07-26-pin-evidence-artifact-versions.sql` 给文本、视觉和未来 visual-analysis 引用补齐 exact object `VersionId` 及成对非空约束；已在本地 MySQL 应用，checksum 为 `1b086e6a64bfa4309ae7c90c1498484ec21835cac5a7e339cfd348a481be0282`。生产必须在 `2026-07-23`、`2026-07-24`、`2026-07-25` 之后执行。
 
+## WP3C-B3a 交付范围
+
+- 新增 `RetrievalChunkBuilder` 领域服务和带 fingerprint 的 `RetrievalTokenCounter` 端口；领域层不使用字符数近似代替真实 `multilingual-e5-large` tokenizer，也不允许供应商截断。
+- 从固定 Evidence manifest 生成 citable leaf、同页同 section 的短块合并、句界/code-point 安全超限拆分、最多相邻一块的 bounded parent context、不可引用的 section bridge/document profile，以及显式 `PRIMARY/HEADER/CAPTION/REPRESENTATIVE` Evidence 映射。
+- 检索文本中的章节标题、表头和图注都保留对应 Evidence identity；parent context 同时保存全部来源 Evidence IDs。无图注视觉与低质量/OCR Evidence 标为 `UNSEARCHABLE`，不会生成 lexical projection。
+- word/CJK lexical shadow 与受限 exact identifier/number terms 均由确定性投影产生；bridge/profile 数量受 leaf chunk 20% 上限约束。所有 chunk ID、文本 SHA-256 和 manifest hash 可重复生成。
+
 ## 下一阶段
 
-WP3C-B3 消费固定 Evidence manifest，按结构与 token budget 创建 Retrieval Chunk、parent context 和 Evidence 映射；随后构建 lexical projection。可选的严格 VLM JSON enrichment 继续保持独立，生成描述不得写入 `display_text` 或冒充来源原文。
+WP3C-B3b 将把真实 tokenizer adapter、builder fingerprint、固定 Evidence manifest 读取、Retrieval/parent S3 对象、MySQL chunk/mapping/lexical/exact rows 和后续 projection job 接入同一个 fenced 原子提交。可选的严格 VLM JSON enrichment 继续保持独立，生成描述不得写入 `display_text` 或冒充来源原文。
