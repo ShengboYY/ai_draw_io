@@ -92,7 +92,8 @@ public final class PdfBoxDocumentParser implements DocumentParserPort {
             throw new IllegalStateException("PNG writer is unavailable");
         }
         PageExtraction extraction = new PageExtraction(1, image.getWidth(), image.getHeight(),
-                List.of(), NativeTextQuality.empty(), null);
+                List.of(), NativeTextQuality.empty(),
+                List.of(new NormalizedBoundingBox(0, 0, 1, 1)), null);
         return new ParsedDocument(List.of(new ParsedPage(extraction, rendered)));
     }
 

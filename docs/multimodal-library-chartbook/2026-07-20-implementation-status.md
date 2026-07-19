@@ -11,7 +11,8 @@
 | WP1：DDD 领域基础、MySQL schema、Pinecone 边界 | 已完成 | `3c67fbe0` |
 | WP2：S3 上传与安全 Worker | 已完成 | `82e22f07` |
 | WP3A：内容去重、资料物化与 original promote | 已完成 | `23c58260` |
-| WP3B：PDF/图片解析、选择性 OCR 与 canonical page | 已完成 | 当前 WP3B 阶段提交 |
+| WP3B：PDF/图片解析、选择性 OCR 与 canonical page | 已完成 | `8fadb343` |
+| WP3C-A：文档结构领域核心 | 已完成 | 当前 WP3C-A 阶段提交 |
 
 ## WP2 交付范围
 
@@ -70,6 +71,14 @@ WP2 不把文件复制到正式 materials bucket，也不提供预览。安全�
 - Maven 全 reactor 测试通过；MyBatis XML 通过 XML 语法检查，ECS JSON 通过 JSON 解析检查。
 - WP3B 增加 native/OCR 选择、OCR word source map、PDF/图片解析、Tesseract 安全 argv、S3 exact-version artifact、fenced 三阶段编排和 migration contract 测试；全 reactor 继续通过。
 
+## WP3C-A 交付范围
+
+- 新增确定性的 `DocumentStructureBuilder` 富领域服务，不把跨页规则放入 Worker 或 MySQL adapter。
+- 顶部/底部位置候选按 NFC、空白和独立页码占位规范化；同一 band 文本至少出现在 `max(3, ceil(pageCount * 60%))` 个可比页面才确认为 boilerplate，少量章节标题不会被误判。
+- 基于 canonical `HEADING` block 产生稳定 section identity、页范围和 structure hash；尚未识别出标题时创建覆盖整文的 root section。
+- canonical page 保留 placed raster region；图片资料以整页区域作为视觉候选，PDF 使用真实 placed image bbox。视觉候选生成稳定 ID，并在几何距离不超过 15% 页高时关联最近图注。
+- WP3C-A 只完成 byte-stable 的领域结构产物及测试；`BUILD_DOCUMENT_STRUCTURE` 的 exact-version artifact、fenced MySQL section persistence 和后续 `ANALYZE_VISUALS/BUILD_EVIDENCE_UNITS` 由 WP3C-B 接入。
+
 ## 下一阶段
 
-WP3C 从 `BUILD_DOCUMENT_STRUCTURE` 开始，基于 canonical page 生成文档层次、视觉候选、Evidence Unit/region/relation 与可引用边界，再进入 Retrieval Chunk 和索引投影。
+WP3C-B 把 `DocumentStructureBuilder` 接入 `BUILD_DOCUMENT_STRUCTURE` Worker stage，持久化固定版本的 structure artifact 与 section manifest，再生成视觉 crop、Evidence Unit/region/relation 和可引用边界。

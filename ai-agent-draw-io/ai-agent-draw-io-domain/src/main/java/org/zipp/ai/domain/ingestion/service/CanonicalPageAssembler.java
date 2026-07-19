@@ -50,7 +50,7 @@ public final class CanonicalPageAssembler {
         Double ocrConfidence = page.ocrResult() == null ? null : page.ocrResult().confidence();
         return new CanonicalPage(page.pageNo(), page.width(), page.height(), blocks,
                 page.nativeTextQuality(), ocrConfidence,
-                ocrConfidence != null && ocrConfidence < lowConfidenceThreshold);
+                ocrConfidence != null && ocrConfidence < lowConfidenceThreshold, page.rasterRegions());
     }
 
     private List<CanonicalBlock> mergeByRegion(List<CanonicalBlock> nativeBlocks,

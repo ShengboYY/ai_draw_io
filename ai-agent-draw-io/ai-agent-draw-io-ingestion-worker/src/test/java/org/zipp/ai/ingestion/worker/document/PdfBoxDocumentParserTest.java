@@ -12,6 +12,7 @@ import org.zipp.ai.domain.ingestion.model.valobj.TextSource;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 import java.awt.image.BufferedImage;
 import javax.imageio.ImageIO;
 
@@ -105,6 +106,8 @@ class PdfBoxDocumentParserTest {
 
         assertEquals(10, page.extraction().width());
         assertEquals(20, page.extraction().height());
+        assertEquals(List.of(new org.zipp.ai.domain.ingestion.model.valobj.NormalizedBoundingBox(0, 0, 1, 1)),
+                page.extraction().rasterRegions());
         BufferedImage normalized = ImageIO.read(page.renderedImage().toFile());
         assertEquals(10, normalized.getWidth());
         assertEquals(20, normalized.getHeight());
