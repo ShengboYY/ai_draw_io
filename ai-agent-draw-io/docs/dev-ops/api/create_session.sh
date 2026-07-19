@@ -1,21 +1,23 @@
-# GET/POST create_session now requires X-Workspace-Id.
-# Legacy userId in query/body without this header is rejected with 400.
-curl 'http://127.0.0.1:8091/api/v1/create_session' \
-  -H 'Accept: */*' \
-  -H 'Accept-Language: zh-CN,zh;q=0.9,en;q=0.8' \
-  -H 'Cache-Control: no-cache' \
-  -H 'Connection: keep-alive' \
-  -H 'Content-Type: application/json' \
-  -H 'DNT: 1' \
-  -H 'Origin: http://localhost:63343' \
-  -H 'Pragma: no-cache' \
-  -H 'Referer: http://localhost:63343/' \
-  -H 'X-Workspace-Id: anon_123e4567-e89b-42d3-a456-426614174000' \
-  -H 'Sec-Fetch-Dest: empty' \
-  -H 'Sec-Fetch-Mode: cors' \
-  -H 'Sec-Fetch-Site: cross-site' \
-  -H 'User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36' \
-  -H 'sec-ch-ua: "Google Chrome";v="143", "Chromium";v="143", "Not A(Brand";v="24"' \
-  -H 'sec-ch-ua-mobile: ?0' \
-  -H 'sec-ch-ua-platform: "macOS"' \
-  --data-raw '{"agentId":"100003"}'
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Anonymous ownership is authenticated by the server-issued HttpOnly cookie, never by owner id.
+COOKIE_JAR="${COOKIE_JAR:-/tmp/ai-drawio-api-cookies.txt}"
+
+curl --fail --silent --show-error \
+  --cookie-jar "$COOKIE_JAR" \
+  --request POST \
+  'http://127.0.0.1:8091/api/v1/anonymous-workspaces'
+
+# Fetch a CSRF token, then copy data.token into X-XSRF-TOKEN for the state-changing request.
+curl --fail --silent --show-error \
+  --cookie "$COOKIE_JAR" \
+  --cookie-jar "$COOKIE_JAR" \
+  'http://127.0.0.1:8091/api/v1/auth/csrf'
+
+curl --fail --silent --show-error \
+  --cookie "$COOKIE_JAR" \
+  --header 'Content-Type: application/json' \
+  --header 'X-XSRF-TOKEN: replace-with-data.token-from-previous-response' \
+  --data '{"agentId":"100003"}' \
+  'http://127.0.0.1:8091/api/v1/create_session'

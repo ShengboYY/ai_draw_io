@@ -1,12 +1,9 @@
 package org.zipp.ai.test.trigger.http;
 
-import ch.qos.logback.classic.Logger;
-import ch.qos.logback.classic.spi.ILoggingEvent;
-import ch.qos.logback.core.read.ListAppender;
 import org.junit.After;
 import org.junit.Test;
-import org.slf4j.LoggerFactory;
 import org.springframework.mock.web.MockHttpServletRequest;
+import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContext;
@@ -23,8 +20,12 @@ import org.zipp.ai.api.dto.UpdateDiagramThumbnailRequestDTO;
 import org.zipp.ai.api.dto.UpdateDiagramTitleRequestDTO;
 import org.zipp.ai.api.response.Response;
 import org.zipp.ai.domain.account.model.valobj.AccountStatus;
+import org.zipp.ai.domain.account.model.valobj.IssuedAnonymousWorkspace;
 import org.zipp.ai.domain.account.model.valobj.OwnerType;
+import org.zipp.ai.domain.account.model.valobj.ResolvedOwner;
 import org.zipp.ai.domain.account.service.AnonymousDemoQuotaService;
+import org.zipp.ai.domain.account.service.DefaultCurrentOwnerResolver;
+import org.zipp.ai.domain.account.service.IAnonymousWorkspaceIdentityService;
 import org.zipp.ai.domain.account.service.VerifiedUserPlatformQuotaService;
 import org.zipp.ai.domain.agent.model.valobj.canvas.CanvasState;
 import org.zipp.ai.domain.agent.model.valobj.canvas.CanvasStateVersionConflictException;
@@ -34,13 +35,18 @@ import org.zipp.ai.domain.agent.service.canvas.CanvasMutationGate;
 import org.zipp.ai.domain.agent.service.usage.AgentUsageTelemetryService;
 import org.zipp.ai.test.domain.agent.FakeAgentUsageTelemetryStore;
 import org.zipp.ai.trigger.http.AgentServiceController;
+import org.zipp.ai.trigger.http.AnonymousWorkspaceCookie;
+import org.zipp.ai.trigger.http.CurrentOwnerHttpResolver;
+import org.zipp.ai.trigger.http.service.AnonymousWorkspaceClaimService;
 import org.zipp.ai.types.enums.ResponseCode;
 
+import jakarta.servlet.http.Cookie;
 import java.lang.reflect.Field;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.List;
+import java.util.Optional;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -49,6 +55,7 @@ import static org.junit.Assert.assertTrue;
 public class AgentServiceControllerWorkspaceTest {
 
     private static final String VALID_WORKSPACE_ID = "anon_123e4567-e89b-42d3-a456-426614174000";
+    private static final String VALID_CREDENTIAL = "awc_123e4567-e89b-42d3-a456-426614174000.secret-value";
     private static final String VALID_PNG_DATA_URL = "data:image/png;base64,"
             + "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=";
 
@@ -72,27 +79,16 @@ public class AgentServiceControllerWorkspaceTest {
     }
 
     @Test
-    public void shouldLogMigrationHintWhenLegacyWorkspaceIdIsIgnored() throws Exception {
+    public void shouldIgnoreLegacyWorkspaceIdWithoutTreatingItAsAuthority() throws Exception {
         AgentServiceController controller = new AgentServiceController();
         FakeCanvasStateStore store = new FakeCanvasStateStore();
         inject(controller, "canvasStateStore", store);
         RequestContextHolder.setRequestAttributes(new ServletRequestAttributes(new MockHttpServletRequest()));
-        Logger logger = (Logger) LoggerFactory.getLogger("org.zipp.ai.trigger.http.CurrentOwnerHttpResolver");
-        ListAppender<ILoggingEvent> appender = new ListAppender<>();
-        appender.start();
-        logger.addAppender(appender);
 
-        try {
-            controller.listDiagrams("admin");
+        Response<List<DiagramSummaryResponseDTO>> response = controller.listDiagrams("admin");
 
-            assertTrue(appender.list.stream()
-                    .map(ILoggingEvent::getFormattedMessage)
-                    .anyMatch(message -> message.contains("Workspace id header missing")
-                            && message.contains("X-Workspace-Id")
-                            && !message.contains("admin")));
-        } finally {
-            logger.detachAppender(appender);
-        }
+        assertEquals(ResponseCode.ILLEGAL_PARAMETER.getCode(), response.getCode());
+        assertFalse(store.listCalled);
     }
 
     @Test
@@ -101,7 +97,7 @@ public class AgentServiceControllerWorkspaceTest {
         FakeCanvasStateStore store = new FakeCanvasStateStore();
         inject(controller, "canvasStateStore", store);
         MockHttpServletRequest request = new MockHttpServletRequest();
-        request.addHeader("X-Workspace-Id", VALID_WORKSPACE_ID);
+        authorizeAnonymous(controller, request);
         RequestContextHolder.setRequestAttributes(new ServletRequestAttributes(request));
 
         Response<List<DiagramSummaryResponseDTO>> response = controller.listDiagrams("admin");
@@ -148,7 +144,7 @@ public class AgentServiceControllerWorkspaceTest {
         FakeCanvasStateStore store = new FakeCanvasStateStore();
         inject(controller, "canvasStateStore", store);
         MockHttpServletRequest request = new MockHttpServletRequest();
-        request.addHeader("X-Workspace-Id", VALID_WORKSPACE_ID);
+        authorizeAnonymous(controller, request);
         RequestContextHolder.setRequestAttributes(new ServletRequestAttributes(request));
         UpdateDiagramThumbnailRequestDTO requestDTO = new UpdateDiagramThumbnailRequestDTO();
         requestDTO.setThumbnailDataUrl(VALID_PNG_DATA_URL);
@@ -170,7 +166,7 @@ public class AgentServiceControllerWorkspaceTest {
         inject(controller, "canvasStateStore", store);
         inject(controller, "canvasMutationGate", new CanvasMutationGate(store, new DefaultCanvasAnalyzer()));
         MockHttpServletRequest request = new MockHttpServletRequest();
-        request.addHeader("X-Workspace-Id", VALID_WORKSPACE_ID);
+        authorizeAnonymous(controller, request);
         RequestContextHolder.setRequestAttributes(new ServletRequestAttributes(request));
         SaveDiagramCanvasStateRequestDTO requestDTO = new SaveDiagramCanvasStateRequestDTO();
         requestDTO.setCanvasXml("<mxGraphModel><root><mxCell id=\"0\"/><mxCell id=\"1\" parent=\"0\"/><mxCell id=\"2\" vertex=\"1\" parent=\"1\"><mxGeometry x=\"40\" y=\"40\" width=\"120\" height=\"60\" as=\"geometry\"/></mxCell></root></mxGraphModel>");
@@ -204,7 +200,7 @@ public class AgentServiceControllerWorkspaceTest {
         inject(controller, "canvasMutationGate", new CanvasMutationGate(store, new DefaultCanvasAnalyzer()));
         inject(controller, "agentUsageTelemetryService", telemetry);
         MockHttpServletRequest request = new MockHttpServletRequest();
-        request.addHeader("X-Workspace-Id", VALID_WORKSPACE_ID);
+        authorizeAnonymous(controller, request);
         RequestContextHolder.setRequestAttributes(new ServletRequestAttributes(request));
         SaveDiagramCanvasStateRequestDTO requestDTO = new SaveDiagramCanvasStateRequestDTO();
         requestDTO.setCanvasXml(store.currentState.getCurrentXml().replace("Repaired", "Manually edited"));
@@ -254,7 +250,7 @@ public class AgentServiceControllerWorkspaceTest {
         inject(controller, "canvasStateStore", store);
         inject(controller, "canvasMutationGate", new CanvasMutationGate(store, new DefaultCanvasAnalyzer()));
         MockHttpServletRequest request = new MockHttpServletRequest();
-        request.addHeader("X-Workspace-Id", VALID_WORKSPACE_ID);
+        authorizeAnonymous(controller, request);
         RequestContextHolder.setRequestAttributes(new ServletRequestAttributes(request));
         SaveDiagramCanvasStateRequestDTO requestDTO = new SaveDiagramCanvasStateRequestDTO();
         requestDTO.setCanvasXml("<mxGraphModel><root><mxCell id=\"0\"/></root></mxGraphModel>");
@@ -275,7 +271,7 @@ public class AgentServiceControllerWorkspaceTest {
         FakeCanvasStateStore store = new FakeCanvasStateStore();
         inject(controller, "canvasStateStore", store);
         MockHttpServletRequest request = new MockHttpServletRequest();
-        request.addHeader("X-Workspace-Id", VALID_WORKSPACE_ID);
+        authorizeAnonymous(controller, request);
         RequestContextHolder.setRequestAttributes(new ServletRequestAttributes(request));
 
         SaveDiagramCanvasStateRequestDTO blankRequest = new SaveDiagramCanvasStateRequestDTO();
@@ -297,7 +293,7 @@ public class AgentServiceControllerWorkspaceTest {
         FakeCanvasStateStore store = new FakeCanvasStateStore();
         inject(controller, "canvasStateStore", store);
         MockHttpServletRequest request = new MockHttpServletRequest();
-        request.addHeader("X-Workspace-Id", VALID_WORKSPACE_ID);
+        authorizeAnonymous(controller, request);
         RequestContextHolder.setRequestAttributes(new ServletRequestAttributes(request));
         UpdateDiagramThumbnailRequestDTO requestDTO = new UpdateDiagramThumbnailRequestDTO();
         requestDTO.setThumbnailDataUrl("data:text/plain;base64,SGVsbG8=");
@@ -309,10 +305,10 @@ public class AgentServiceControllerWorkspaceTest {
     }
 
     @Test
-    public void shouldReturnAnonymousCurrentAccountStatus() {
+    public void shouldReturnAnonymousCurrentAccountStatus() throws Exception {
         AgentServiceController controller = new AgentServiceController();
         MockHttpServletRequest request = new MockHttpServletRequest();
-        request.addHeader("X-Workspace-Id", VALID_WORKSPACE_ID);
+        authorizeAnonymous(controller, request);
         RequestContextHolder.setRequestAttributes(new ServletRequestAttributes(request));
 
         Response<CurrentAccountResponseDTO> response = controller.currentAccount();
@@ -333,7 +329,7 @@ public class AgentServiceControllerWorkspaceTest {
         quotaService.consume(VALID_WORKSPACE_ID);
         inject(controller, "anonymousDemoQuotaService", quotaService);
         MockHttpServletRequest request = new MockHttpServletRequest();
-        request.addHeader("X-Workspace-Id", VALID_WORKSPACE_ID);
+        authorizeAnonymous(controller, request);
         RequestContextHolder.setRequestAttributes(new ServletRequestAttributes(request));
 
         Response<CurrentAccountResponseDTO> response = controller.currentAccount();
@@ -350,7 +346,7 @@ public class AgentServiceControllerWorkspaceTest {
         FakeCanvasStateStore store = new FakeCanvasStateStore();
         inject(controller, "canvasStateStore", store);
         MockHttpServletRequest request = new MockHttpServletRequest();
-        request.addHeader("X-Workspace-Id", VALID_WORKSPACE_ID);
+        authorizeAnonymous(controller, request);
         RequestContextHolder.setRequestAttributes(new ServletRequestAttributes(request));
         authenticate("usr_session-owner");
 
@@ -469,10 +465,17 @@ public class AgentServiceControllerWorkspaceTest {
         AgentServiceController controller = new AgentServiceController();
         FakeCanvasStateStore store = new FakeCanvasStateStore();
         inject(controller, "canvasStateStore", store);
-        RequestContextHolder.setRequestAttributes(new ServletRequestAttributes(new MockHttpServletRequest()));
+        AnonymousWorkspaceCookie workspaceCookie = new AnonymousWorkspaceCookie(false);
+        inject(controller, "anonymousWorkspaceCookie", workspaceCookie);
+        inject(controller, "anonymousWorkspaceClaimService",
+                new AnonymousWorkspaceClaimService(new TestAnonymousIdentity(), store));
+        MockHttpServletRequest servletRequest = new MockHttpServletRequest();
+        servletRequest.setCookies(new Cookie(AnonymousWorkspaceCookie.NAME, VALID_CREDENTIAL));
+        MockHttpServletResponse servletResponse = new MockHttpServletResponse();
+        RequestContextHolder.setRequestAttributes(new ServletRequestAttributes(servletRequest, servletResponse));
         authenticate("usr_alice");
         ImportAnonymousWorkspaceRequestDTO requestDTO = new ImportAnonymousWorkspaceRequestDTO();
-        requestDTO.setAnonymousWorkspaceId(VALID_WORKSPACE_ID);
+        requestDTO.setAnonymousWorkspaceId("admin");
 
         Response<ImportAnonymousWorkspaceResponseDTO> response = controller.importAnonymousWorkspace(requestDTO);
 
@@ -482,6 +485,41 @@ public class AgentServiceControllerWorkspaceTest {
         assertEquals("usr_alice", store.importedTargetOwnerId);
         assertEquals(1, response.getData().getImportedCount());
         assertEquals("imported-diagram-1", response.getData().getDiagrams().get(0).getDiagramId());
+        assertTrue(servletResponse.getHeader("Set-Cookie").contains("Max-Age=0"));
+    }
+
+    private void authorizeAnonymous(AgentServiceController controller,
+                                    MockHttpServletRequest request) throws Exception {
+        AnonymousWorkspaceCookie workspaceCookie = new AnonymousWorkspaceCookie(false);
+        CurrentOwnerHttpResolver resolver = new CurrentOwnerHttpResolver();
+        inject(resolver, "anonymousWorkspaceCookie", workspaceCookie);
+        inject(resolver, "currentOwnerResolver",
+                new DefaultCurrentOwnerResolver(new TestAnonymousIdentity()));
+        inject(controller, "currentOwnerHttpResolver", resolver);
+        request.setCookies(new Cookie(AnonymousWorkspaceCookie.NAME, VALID_CREDENTIAL));
+    }
+
+    private static final class TestAnonymousIdentity implements IAnonymousWorkspaceIdentityService {
+
+        @Override
+        public IssuedAnonymousWorkspace issue() {
+            throw new UnsupportedOperationException("Not needed by workspace controller tests");
+        }
+
+        @Override
+        public Optional<ResolvedOwner> authenticate(String rawCredential) {
+            return VALID_CREDENTIAL.equals(rawCredential)
+                    ? Optional.of(ResolvedOwner.anonymous(VALID_WORKSPACE_ID))
+                    : Optional.empty();
+        }
+
+        @Override
+        public String claim(String rawCredential, String targetUserId) {
+            if (!VALID_CREDENTIAL.equals(rawCredential)) {
+                throw new IllegalArgumentException("Invalid credential");
+            }
+            return VALID_WORKSPACE_ID;
+        }
     }
 
     private static void authenticate(String userId) {

@@ -6,7 +6,7 @@ import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { agentApi } from '@/api/agent';
 import { clearUserInfo, getUserInfo, setUserInfo as persistUserInfo, type UserInfo } from '@/utils/cookie';
-import { getWorkspaceIdentity } from '@/utils/workspace-identity';
+import { rememberAnonymousWorkspaceHint } from '@/utils/workspace-identity';
 import {
   clearAnonymousWorkspaceImportNotice,
   readAnonymousWorkspaceImportNotice,
@@ -109,11 +109,19 @@ export default function Home() {
           return;
         }
       } catch {
-        // Fall back to the browser-local anonymous workspace when the backend is unavailable.
+        // Continue below and ask the server for an anonymous capability.
       }
 
       if (!cancelled) {
-        setOwnerId(getWorkspaceIdentity(browserUserInfo?.user).ownerId);
+        try {
+          const anonymous = await agentApi.ensureAnonymousWorkspace();
+          const anonymousOwnerId = anonymous.data?.ownerId || '';
+          rememberAnonymousWorkspaceHint(window.localStorage, anonymousOwnerId);
+          setOwnerId(anonymousOwnerId);
+        } catch {
+          setErrorMessage('Failed to initialize the anonymous workspace.');
+          setIsLoading(false);
+        }
       }
     };
 
@@ -232,7 +240,16 @@ export default function Home() {
     setUserInfo(null);
     setCurrentAccount(null);
     setIsLoading(true);
-    setOwnerId(getWorkspaceIdentity(null).ownerId);
+    try {
+      const anonymous = await agentApi.ensureAnonymousWorkspace();
+      const anonymousOwnerId = anonymous.data?.ownerId || '';
+      rememberAnonymousWorkspaceHint(window.localStorage, anonymousOwnerId);
+      setOwnerId(anonymousOwnerId);
+    } catch {
+      setOwnerId('');
+      setErrorMessage('Failed to initialize the anonymous workspace.');
+      setIsLoading(false);
+    }
   };
 
   const renameDiagram = async (diagram: DiagramSummaryResponseDTO) => {

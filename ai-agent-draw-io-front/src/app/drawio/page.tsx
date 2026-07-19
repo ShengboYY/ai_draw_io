@@ -1,11 +1,12 @@
 'use client';
 
-import { DrawIoEmbed, DrawIoEmbedRef } from 'react-drawio';
+import { DrawIoEmbed, type DrawIoEmbedRef } from './secure-drawio-embed';
+import type { DrawioSelection } from './secure-drawio-bridge';
 import Image from 'next/image';
 import { Suspense, useRef, useState, useEffect, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { getUserInfo, setUserInfo as persistUserInfo } from '@/utils/cookie';
-import { getWorkspaceIdentity } from '@/utils/workspace-identity';
+import { setUserInfo as persistUserInfo } from '@/utils/cookie';
+import { rememberAnonymousWorkspaceHint } from '@/utils/workspace-identity';
 import { agentApi, ApiResponseError, StreamEvent } from '@/api/agent';
 import type { CanvasVisualReviewEvidenceDTO, CurrentAccountResponseDTO, DiagramCanvasStateResponseDTO, DiagramSummaryResponseDTO, ModelCredentialResponseDTO, ProviderPresetDTO } from '@/types/api';
 import ReactMarkdown from 'react-markdown';
@@ -127,6 +128,8 @@ const DETERMINISTIC_REPAIR_ROUNDS_STORAGE_KEY = 'ai_drawio_max_deterministic_rep
 const LEGACY_REVIEW_ITERATIONS_STORAGE_KEY = 'ai_drawio_max_review_iterations';
 const DETERMINISTIC_REPAIR_ROUND_OPTIONS = [0, 1, 2, 3];
 const EMPTY_DRAWIO_XML = '<mxGraphModel><root><mxCell id="0"/><mxCell id="1" parent="0"/></root></mxGraphModel>';
+const DRAWIO_BASE_URL = process.env.NEXT_PUBLIC_DRAWIO_BASE_URL || 'https://embed.diagrams.net';
+const DRAWIO_SELECTION_PLUGIN_ID = process.env.NEXT_PUBLIC_DRAWIO_BASE_URL ? 'zippSelection' : undefined;
 const STREAMING_PREVIEW_FRAME_MS = 280;
 
 type StructuredCanvasContext = {
@@ -428,6 +431,7 @@ function DrawioPageContent() {
   const restoreDiagramId = searchParams.get('diagramId');
   const [imgData, setImgData] = useState<string | null>(null);
   const drawioRef = useRef<DrawIoEmbedRef>(null);
+  const selectedCellsRef = useRef<DrawioSelection | null>(null);
   const restoredDiagramIdRef = useRef<string | null>(null);
   const hasInitializedSessionsRef = useRef(false);
   
@@ -1775,7 +1779,6 @@ function DrawioPageContent() {
     let cancelled = false;
 
     const initializeWorkspace = async () => {
-      const userInfo = getUserInfo();
       let ownerId = '';
 
       try {
@@ -1790,12 +1793,19 @@ function DrawioPageContent() {
           }
         }
       } catch {
-        // Anonymous local work still needs to open when the auth endpoint is unavailable in dev.
+        // Continue below and ask the server for an anonymous capability.
       }
 
       if (!ownerId) {
         setAccountDisplayName('');
-        ownerId = getWorkspaceIdentity(userInfo?.user).ownerId;
+        try {
+          const anonymous = await agentApi.ensureAnonymousWorkspace();
+          ownerId = anonymous.data?.ownerId || '';
+          rememberAnonymousWorkspaceHint(window.localStorage, ownerId);
+        } catch {
+          setHistoryError('Failed to initialize the anonymous workspace.');
+          return;
+        }
       }
 
       if (cancelled) return;
@@ -3374,6 +3384,7 @@ function DrawioPageContent() {
   ];
   const historyEntries = buildDiagramHistoryEntries(historyDiagrams);
   const currentDiagramId = sessions.find(session => session.id === currentSessionId)?.diagramId;
+  const activeCanvasSession = sessions.find(session => session.id === currentSessionId);
   const formatHistoryUpdatedAt = (updatedAtMs: number) => {
     if (!updatedAtMs) return 'No updates yet';
     return `${new Date(updatedAtMs).toLocaleDateString()} ${new Date(updatedAtMs).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`;
@@ -3604,6 +3615,14 @@ function DrawioPageContent() {
             <DrawIoEmbed 
               key={editorInstanceKey}
               ref={drawioRef}
+              baseUrl={DRAWIO_BASE_URL}
+              selectionPluginId={DRAWIO_SELECTION_PLUGIN_ID}
+              canvasVersion={activeCanvasSession?.canvasVersion}
+              contentHash={activeCanvasSession?.canvasContentHash}
+              onSelectionChange={(selection) => {
+                // The tuple is sent to the server later; stale selections are never reduced to IDs alone.
+                selectedCellsRef.current = selection;
+              }}
               xml={editorXml}
               autosave={true}
               onAutoSave={(data) => {

@@ -262,6 +262,10 @@ export interface CurrentAccountResponseDTO {
   unknownTokenLlmCallCount?: number;
 }
 
+export interface AnonymousWorkspaceResponseDTO {
+  ownerId: string;
+}
+
 export interface DiagramSummaryResponseDTO {
   diagramId: string;
   title?: string;
@@ -317,10 +321,6 @@ export interface SaveDiagramMessagesRequestDTO {
   userId?: string;
   sessionId?: string;
   messages: DiagramConversationMessageDTO[];
-}
-
-export interface ImportAnonymousWorkspaceRequestDTO {
-  anonymousWorkspaceId: string;
 }
 
 export interface ImportAnonymousWorkspaceResponseDTO {

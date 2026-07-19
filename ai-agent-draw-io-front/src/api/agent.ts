@@ -7,11 +7,11 @@ import {
     ChatRequestDTO,
     ChatResponseDTO,
     CanvasVisualReviewRequestDTO,
+    AnonymousWorkspaceResponseDTO,
     CurrentAccountResponseDTO,
     DiagramCanvasStateResponseDTO,
     DiagramSummaryResponseDTO,
     DiagramConversationMessageDTO,
-    ImportAnonymousWorkspaceRequestDTO,
     ImportAnonymousWorkspaceResponseDTO,
     SaveDiagramCanvasStateRequestDTO,
     SaveDiagramMessagesRequestDTO,
@@ -92,9 +92,8 @@ const handleResponse = async <T>(response: globalThis.Response): Promise<Respons
     return data;
 };
 
-const workspaceHeaders = (userId: string, requestId?: string) => ({
+const workspaceHeaders = (_userId: string, requestId?: string) => ({
     'Content-Type': 'application/json',
-    'X-Workspace-Id': userId,
     ...(requestId && { 'X-Request-Id': requestId }),
 });
 
@@ -1036,6 +1035,15 @@ export const agentApi = {
         return handleResponse<LoginResponseDTO>(response);
     },
 
+    ensureAnonymousWorkspace: async (): Promise<Response<AnonymousWorkspaceResponseDTO>> => {
+        const response = await fetch(`${API_CONFIG.BASE_URL}/anonymous-workspaces`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+        });
+        return handleResponse<AnonymousWorkspaceResponseDTO>(response);
+    },
+
     /**
      * Create Session
      * Path: /api/v1/create_session
@@ -1059,13 +1067,12 @@ export const agentApi = {
         return handleResponse<DiagramSummaryResponseDTO[]>(response);
     },
 
-    importAnonymousWorkspace: async (
-        payload: ImportAnonymousWorkspaceRequestDTO,
-    ): Promise<Response<ImportAnonymousWorkspaceResponseDTO>> => {
+    importAnonymousWorkspace: async (): Promise<Response<ImportAnonymousWorkspaceResponseDTO>> => {
         const response = await fetch(`${API_CONFIG.BASE_URL}/workspaces/anonymous/import`, {
             method: 'POST',
             headers: await csrfHeaders({ 'Content-Type': 'application/json' }),
-            body: JSON.stringify(payload),
+            // The source workspace comes exclusively from the HttpOnly capability cookie.
+            body: JSON.stringify({}),
             credentials: 'include',
         });
         return handleResponse<ImportAnonymousWorkspaceResponseDTO>(response);

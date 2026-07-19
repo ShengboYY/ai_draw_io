@@ -100,9 +100,7 @@ export default function Login() {
     setImportingWorkspace(true);
     setImportError('');
     try {
-      const response = await agentApi.importAnonymousWorkspace({
-        anonymousWorkspaceId: pendingImportPrompt.anonymousWorkspaceId,
-      });
+      const response = await agentApi.importAnonymousWorkspace();
       clearImportedAnonymousWorkspace(storage, pendingImportPrompt.anonymousWorkspaceId);
       rememberAnonymousWorkspaceImportResult(sessionStorage, response.data?.importedCount);
       finishPendingImportPrompt();

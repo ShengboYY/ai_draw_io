@@ -155,6 +155,10 @@
           "valueFrom": "arn:aws:secretsmanager:ap-southeast-2:123456789012:secret:ai-drawio/prod-AbCdEf:MODEL_CREDENTIAL_ENCRYPTION_KEY::"
         },
         {
+          "name": "ANONYMOUS_WORKSPACE_PEPPER",
+          "valueFrom": "arn:aws:secretsmanager:ap-southeast-2:123456789012:secret:ai-drawio/prod-AbCdEf:ANONYMOUS_WORKSPACE_PEPPER::"
+        },
+        {
           "name": "BAIDU_SEARCH_API_KEY",
           "valueFrom": "arn:aws:secretsmanager:ap-southeast-2:123456789012:secret:ai-drawio/prod-AbCdEf:BAIDU_SEARCH_API_KEY::"
         },

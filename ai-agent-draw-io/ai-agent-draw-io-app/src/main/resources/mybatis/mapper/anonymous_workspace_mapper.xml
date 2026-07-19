@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.zipp.ai.infrastructure.dao.IAnonymousWorkspaceMapper">
+
+    <resultMap id="anonymousWorkspaceMap" type="org.zipp.ai.infrastructure.dao.po.AnonymousWorkspacePO">
+        <id column="owner_id" property="ownerId"/>
+        <result column="credential_id" property="credentialId"/>
+        <result column="credential_hash" property="credentialHash"/>
+        <result column="status" property="status"/>
+        <result column="claimed_by_user_id" property="claimedByUserId"/>
+        <result column="created_at" property="createdAt"/>
+        <result column="claimed_at" property="claimedAt"/>
+    </resultMap>
+
+    <sql id="cols">
+        owner_id, credential_id, credential_hash, status, claimed_by_user_id, created_at, claimed_at
+    </sql>
+
+    <insert id="insert" parameterType="org.zipp.ai.infrastructure.dao.po.AnonymousWorkspacePO">
+        INSERT INTO anonymous_workspace
+            (owner_id, credential_id, credential_hash, status, claimed_by_user_id, created_at, claimed_at, updated_at)
+        VALUES
+            (#{ownerId}, #{credentialId}, #{credentialHash}, #{status}, #{claimedByUserId}, #{createdAt}, #{claimedAt}, #{createdAt})
+    </insert>
+
+    <select id="selectByCredentialId" resultMap="anonymousWorkspaceMap">
+        SELECT <include refid="cols"/>
+        FROM anonymous_workspace
+        WHERE credential_id = #{credentialId}
+    </select>
+
+    <update id="markClaimed">
+        UPDATE anonymous_workspace
+        SET status = 'CLAIMED',
+            claimed_by_user_id = #{claimedByUserId},
+            claimed_at = #{claimedAt},
+            updated_at = #{claimedAt}
+        WHERE credential_id = #{credentialId}
+          AND status = 'ACTIVE'
+    </update>
+
+</mapper>

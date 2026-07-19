@@ -26,6 +26,7 @@ import org.zipp.ai.domain.agent.service.IChatService;
 import org.zipp.ai.domain.agent.service.canvas.CanvasMutationGate;
 import org.zipp.ai.domain.agent.service.usage.AgentUsageTelemetryService;
 import org.zipp.ai.trigger.http.service.AgentConversationService;
+import org.zipp.ai.trigger.http.service.AnonymousWorkspaceClaimService;
 import org.zipp.ai.types.enums.ResponseCode;
 import org.zipp.ai.types.exception.AppException;
 import org.zipp.ai.types.util.SecretLogSanitizer;
@@ -35,12 +36,14 @@ import org.slf4j.MDC;
 import org.springframework.http.server.ServerHttpResponse;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseBodyEmitter;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
 
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import javax.annotation.Resource;
 import java.util.Base64;
 import java.util.List;
-import java.util.Locale;
 import java.util.UUID;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -50,8 +53,6 @@ import java.util.stream.Collectors;
 @RequestMapping("/api/v1/")
 public class AgentServiceController implements IAgentService {
 
-    private static final Pattern ANONYMOUS_WORKSPACE_ID = Pattern.compile(
-            "^anon_[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$");
     private static final String PNG_DATA_URL_PREFIX = "data:image/png;base64,";
     private static final int MAX_THUMBNAIL_BYTES = 512 * 1024;
     private static final int MAX_THUMBNAIL_DATA_URL_LENGTH = 750 * 1024;
@@ -77,6 +78,12 @@ public class AgentServiceController implements IAgentService {
 
     @Resource
     private CurrentOwnerHttpResolver currentOwnerHttpResolver;
+
+    @Resource
+    private AnonymousWorkspaceClaimService anonymousWorkspaceClaimService;
+
+    @Resource
+    private AnonymousWorkspaceCookie anonymousWorkspaceCookie;
 
     @Resource
     private AnonymousDemoQuotaService anonymousDemoQuotaService;
@@ -565,21 +572,27 @@ public class AgentServiceController implements IAgentService {
 
     @RequestMapping(value = "workspaces/anonymous/import", method = RequestMethod.POST)
     public Response<ImportAnonymousWorkspaceResponseDTO> importAnonymousWorkspace(
-            @RequestBody ImportAnonymousWorkspaceRequestDTO requestDTO) {
+            @RequestBody(required = false) ImportAnonymousWorkspaceRequestDTO requestDTO,
+            HttpServletRequest servletRequest,
+            HttpServletResponse servletResponse) {
         ResolvedOwner owner = ownerHttpResolver().resolve(null).orElse(null);
         if (owner == null || OwnerType.USER != owner.getOwnerType() || !owner.isAuthenticated()) {
             return illegalWorkspaceResponse();
         }
 
-        String anonymousWorkspaceId = normalizeAnonymousWorkspaceId(
-                requestDTO == null ? null : requestDTO.getAnonymousWorkspaceId());
-        if (StringUtils.isBlank(anonymousWorkspaceId)) {
+        String rawCredential = anonymousWorkspaceCookie == null
+                ? null
+                : anonymousWorkspaceCookie.read(servletRequest).orElse(null);
+        if (StringUtils.isBlank(rawCredential) || anonymousWorkspaceClaimService == null) {
             return illegalWorkspaceResponse();
         }
 
         try {
-            List<CanvasState> imported = canvasStateStore.importAnonymousWorkspace(
-                    anonymousWorkspaceId, owner.getOwnerId());
+            // The request body is intentionally ignored: only possession of the server-issued
+            // HttpOnly credential authorizes migration from an anonymous owner.
+            List<CanvasState> imported = anonymousWorkspaceClaimService.claim(
+                    rawCredential, owner.getOwnerId());
+            anonymousWorkspaceCookie.clear(servletResponse);
             ImportAnonymousWorkspaceResponseDTO responseDTO = new ImportAnonymousWorkspaceResponseDTO();
             responseDTO.setImportedCount(imported.size());
             responseDTO.setDiagrams(imported.stream()
@@ -591,14 +604,24 @@ public class AgentServiceController implements IAgentService {
                     .data(responseDTO)
                     .build();
         } catch (Exception e) {
-            log.error("导入匿名工作区失败 sourceOwnerId:{} targetOwnerId:{}",
-                    CurrentOwnerHttpResolver.mask(anonymousWorkspaceId),
+            log.error("导入匿名工作区失败 targetOwnerId:{}",
                     CurrentOwnerHttpResolver.mask(owner.getOwnerId()), e);
             return Response.<ImportAnonymousWorkspaceResponseDTO>builder()
                     .code(ResponseCode.UN_ERROR.getCode())
                     .info(ResponseCode.UN_ERROR.getInfo())
                     .build();
         }
+    }
+
+    /** Compatibility overload for direct controller tests; it does not restore body-id authority. */
+    public Response<ImportAnonymousWorkspaceResponseDTO> importAnonymousWorkspace(
+            ImportAnonymousWorkspaceRequestDTO requestDTO) {
+        ServletRequestAttributes attributes = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
+        if (attributes == null) {
+            return illegalWorkspaceResponse();
+        }
+        return importAnonymousWorkspace(
+                requestDTO, attributes.getRequest(), attributes.getResponse());
     }
 
     private DiagramSummaryResponseDTO toDiagramSummary(CanvasState state) {
@@ -701,15 +724,6 @@ public class AgentServiceController implements IAgentService {
 
     private String resolveOwnerId(String legacyOwnerId) {
         return ownerHttpResolver().resolveOwnerId(legacyOwnerId).orElse(null);
-    }
-
-    private String normalizeAnonymousWorkspaceId(String workspaceId) {
-        if (StringUtils.isBlank(workspaceId)) {
-            return null;
-        }
-        String normalized = workspaceId.trim().toLowerCase(Locale.ROOT);
-        // Import moves data between owners; only browser-generated anonymous workspace ids are accepted.
-        return ANONYMOUS_WORKSPACE_ID.matcher(normalized).matches() ? normalized : null;
     }
 
     private String normalizeThumbnailDataUrl(String value) {
