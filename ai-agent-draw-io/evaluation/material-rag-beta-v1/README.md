@@ -21,3 +21,21 @@ Release flow:
    `POST /api/v1/admin/material-capabilities/release-gate`.
 6. Pin the returned `rag-approval-v1:<sha256>` in `MATERIAL_RELEASE_REPORT_VERSION`; never set approval
    from an unversioned local result or from the seed dataset.
+
+## Local Pinecone smoke evaluation
+
+Use a non-production namespace whose name contains `test` or `dev`. Load the backend `.env`, then run:
+
+```bash
+set -a
+source .env
+set +a
+mvn -q -pl ai-agent-draw-io-infrastructure -am \
+  -Dtest=PineconeVectorClientLiveContractTest,PineconeRecallLiveEvaluationTest \
+  -Dsurefire.failIfNoSpecifiedTests=false test
+```
+
+The live evaluation writes a unique disposable bilingual corpus, waits separately for fetch and ANN
+visibility, measures Recall@1/5/10 and MRR@10, verifies tenant isolation, and deletes every test vector.
+It is a connectivity and retrieval-quality smoke test only; it does not replace the 165-case reviewed
+Beta dataset or end-to-end PDF/OCR/visual evaluation.

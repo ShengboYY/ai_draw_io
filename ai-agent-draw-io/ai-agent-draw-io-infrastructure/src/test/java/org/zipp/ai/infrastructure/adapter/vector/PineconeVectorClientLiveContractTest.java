@@ -9,13 +9,16 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
 /** Opt-in live contract. It is skipped unless a disposable 1024-dimension index is configured. */
 class PineconeVectorClientLiveContractTest {
 
     @Test
-    void shouldEmbedUpsertQueryAndDeleteAgainstConfiguredIndex() {
+    void shouldEmbedUpsertQueryAndDeleteAgainstConfiguredIndex() throws InterruptedException {
         String apiKey = System.getenv("PINECONE_API_KEY");
         String indexHost = System.getenv("PINECONE_INDEX_HOST");
+        String namespace = System.getenv().getOrDefault("PINECONE_NAMESPACE", "drawio-retrieval-v2");
         Assumptions.assumeTrue(apiKey != null && !apiKey.isBlank()
                 && indexHost != null && !indexHost.isBlank());
 
@@ -25,14 +28,24 @@ class PineconeVectorClientLiveContractTest {
         String tenantKey = "wp0_" + UUID.randomUUID();
         float[] vector = client.embedOne("WP0 Pinecone standalone embedding contract", "passage");
         try {
-            client.upsert("drawio-retrieval-v2", List.of(new PineconeVectorRecord(
+            client.upsert(namespace, List.of(new PineconeVectorRecord(
                     id, vector, metadata(tenantKey, id))));
-            client.query("drawio-retrieval-v2", vector, 1,
-                    Map.of("tenant_key", Map.of("$eq", tenantKey)));
+            assertTrue(waitForMatch(client, namespace, vector, tenantKey, id));
         } finally {
             // Always remove the disposable vector if the upsert reached Pinecone.
-            client.delete("drawio-retrieval-v2", List.of(id));
+            client.delete(namespace, List.of(id));
         }
+    }
+
+    private boolean waitForMatch(PineconeVectorClient client, String namespace, float[] vector,
+                                 String tenantKey, String id) throws InterruptedException {
+        // Serverless writes are eventually consistent, so bound the visibility wait.
+        for (int attempt = 0; attempt < 20; attempt++) {
+            if (client.query(namespace, vector, 1,
+                    Map.of("tenant_key", Map.of("$eq", tenantKey))).contains(id)) return true;
+            Thread.sleep(500L);
+        }
+        return false;
     }
 
     private Map<String, Object> metadata(String tenantKey, String chunkId) {
