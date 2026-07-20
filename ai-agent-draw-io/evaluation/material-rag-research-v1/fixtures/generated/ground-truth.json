@@ -146,6 +146,102 @@
       "goldMatch": "Delta|210,000|85%|Core Services"
     },
     {
+      "anchorId": "hgr-program-id",
+      "source": "realistic-harbor-report",
+      "version": "v1",
+      "page": 2,
+      "modality": "text",
+      "goldMatch": "HBR-OPS-41"
+    },
+    {
+      "anchorId": "hgr-isolation-time",
+      "source": "realistic-harbor-report",
+      "version": "v1",
+      "page": 3,
+      "modality": "text",
+      "goldMatch": "At 04:17 the controller isolated feeder SP-3"
+    },
+    {
+      "anchorId": "hgr-south-pier-restore",
+      "source": "realistic-harbor-report",
+      "version": "v1",
+      "page": 4,
+      "modality": "table",
+      "goldMatch": "14 min"
+    },
+    {
+      "anchorId": "hgr-quorum",
+      "source": "realistic-harbor-report",
+      "version": "v1",
+      "page": 5,
+      "modality": "text",
+      "goldMatch": "quorum rule requires five voting members"
+    },
+    {
+      "anchorId": "hgr-baseline-energy",
+      "source": "realistic-harbor-report",
+      "version": "v1",
+      "page": 6,
+      "modality": "text",
+      "goldMatch": "average of 18.4 MWh per operating day"
+    },
+    {
+      "anchorId": "hgr-post-energy",
+      "source": "realistic-harbor-report",
+      "version": "v1",
+      "page": 7,
+      "modality": "text",
+      "goldMatch": "average of 15.1 MWh per operating day"
+    },
+    {
+      "anchorId": "hgr-derived-reduction",
+      "source": "realistic-harbor-report",
+      "version": "v1",
+      "page": 7,
+      "modality": "text",
+      "goldMatch": "3.3 MWh per operating day"
+    },
+    {
+      "anchorId": "hgr-river-berth-chart",
+      "source": "realistic-harbor-report",
+      "version": "v1",
+      "page": 8,
+      "modality": "visual_chart",
+      "goldMatch": "River Berth|12 min"
+    },
+    {
+      "anchorId": "hgr-cn-code",
+      "source": "realistic-harbor-report",
+      "version": "v1",
+      "page": 9,
+      "modality": "text",
+      "goldMatch": "CN-HARBOR-62"
+    },
+    {
+      "anchorId": "hgr-cn-threshold",
+      "source": "realistic-harbor-report",
+      "version": "v1",
+      "page": 9,
+      "modality": "text",
+      "goldMatch": "连续三次超过 74 摄氏度"
+    },
+    {
+      "anchorId": "hgr-label-deadline",
+      "source": "realistic-harbor-report",
+      "version": "v1",
+      "page": 9,
+      "modality": "text",
+      "goldMatch": "2026 年 11 月 30 日前完成"
+    },
+    {
+      "anchorId": "hgr-approved-version",
+      "source": "realistic-harbor-report",
+      "version": "v1",
+      "page": 10,
+      "modality": "text",
+      "goldMatch": "version 1.0, approved on 12 October 2026"
+    },
+    {
       "anchorId": "ocr-en-code",
       "source": "scanned-ops",
       "version": "v1",

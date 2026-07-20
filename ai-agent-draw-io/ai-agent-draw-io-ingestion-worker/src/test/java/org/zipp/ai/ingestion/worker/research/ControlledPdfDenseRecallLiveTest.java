@@ -75,6 +75,25 @@ class ControlledPdfDenseRecallLiveTest {
     }
 
     @Test
+    void completeEvidenceRankShouldHonorAnyAndAllPartsGroups() {
+        List<String> matches = List.of("vector-a", "distractor", "vector-b");
+        Map<String, Set<String>> vectorsByAnchor = Map.of(
+                "alternative-a", Set.of("vector-a"),
+                "alternative-missing", Set.of("missing"),
+                "part-a", Set.of("vector-a"),
+                "part-b", Set.of("vector-b"));
+        List<RequiredEvidenceGroup> groups = List.of(
+                new RequiredEvidenceGroup("alternative", EvidenceGroupOperator.ANY, List.of(
+                        new EvidenceRequirement("alternative-missing", 3),
+                        new EvidenceRequirement("alternative-a", 3))),
+                new RequiredEvidenceGroup("comparison", EvidenceGroupOperator.ALL_PARTS, List.of(
+                        new EvidenceRequirement("part-a", 2),
+                        new EvidenceRequirement("part-b", 2))));
+
+        assertEquals(3, completeEvidenceRank(matches, groups, vectorsByAnchor));
+    }
+
+    @Test
     void shouldMeasureDenseRecallAfterTheRealPdfAndChunkPipeline() throws Exception {
         String apiKey = System.getenv("PINECONE_API_KEY");
         String indexHost = System.getenv("PINECONE_INDEX_HOST");
@@ -90,10 +109,10 @@ class ControlledPdfDenseRecallLiveTest {
         anchors(root).forEach(anchor -> anchors.put(anchor.anchorId(), anchor));
         List<ResearchCase> cases = cases(root).stream()
                 .filter(ResearchCase::answerable)
-                .filter(value -> {
-                    ResearchAnchor anchor = anchors.get(value.goldAnchorId());
-                    return anchor != null && Set.of("text", "table").contains(anchor.modality());
-                }).toList();
+                .filter(value -> !value.goldAnchorIds().isEmpty()
+                        && value.goldAnchorIds().stream().map(anchors::get).allMatch(anchor ->
+                        anchor != null && Set.of("text", "table").contains(anchor.modality())))
+                .toList();
         assertFalse(cases.isEmpty());
 
         PineconeVectorClient client = new PineconeVectorClient(
@@ -129,9 +148,11 @@ class ControlledPdfDenseRecallLiveTest {
         for (OpenCase value : openCases(researchRoot()).stream()
                 .filter(candidate -> bySource.containsKey(candidate.sourceId() + ":pinned")).toList()) {
             anchors.put(value.caseId(), new ResearchAnchor(value.caseId(), value.sourceId(), "pinned",
-                    "open_pdf", value.goldMatch(), value.page()));
+                    "open_pdf", value.goldMatch(), value.page(), true));
             cases.add(new ResearchCase(value.caseId(), "open_pdf", value.language(), value.query(),
-                    true, value.caseId()));
+                    true, List.of(value.caseId()), List.of(new RequiredEvidenceGroup(
+                    "answer", EvidenceGroupOperator.ANY,
+                    List.of(new EvidenceRequirement(value.caseId(), 3))))));
         }
         PineconeVectorClient client = new PineconeVectorClient(
                 apiKey, indexHost, "multilingual-e5-large", 1024, JSON);
@@ -170,7 +191,7 @@ class ControlledPdfDenseRecallLiveTest {
                     .filter(value -> !exactGoldChunkIds(manifest, value.goldMatch()).isEmpty()).count();
             long relevanceMapped = sourceCases.stream().filter(value -> !goldChunkIds(manifest,
                     new ResearchAnchor(value.caseId(), value.sourceId(), "pinned", "open_pdf",
-                            value.goldMatch(), value.page())).isEmpty()).count();
+                            value.goldMatch(), value.page(), true)).isEmpty()).count();
             System.out.printf(Locale.ROOT,
                     "Open chunk profile %s chunks=%d tokens[p50=%d,p95=%d,max=%d] "
                             + "exactGoldMapped=%d/%d relevanceMapped=%d/%d%n",
@@ -263,6 +284,8 @@ class ControlledPdfDenseRecallLiveTest {
                 "controlled-guide-v1", "v1", "controlled-operations-guide-v1.pdf"));
         result.put("controlled-guide-v2:v2", buildProjection(root,
                 "controlled-guide-v2", "v2", "controlled-operations-guide-v2.pdf"));
+        result.put("realistic-harbor-report:v1", buildProjection(root,
+                "realistic-harbor-report", "v1", "realistic-harbor-grid-report-v1.pdf"));
         return new ProjectionSet(Map.copyOf(result));
     }
 
@@ -316,19 +339,33 @@ class ControlledPdfDenseRecallLiveTest {
                                   ProjectionSet projections, List<IndexedChunk> indexed) {
         List<CaseRank> ranks = new ArrayList<>();
         for (ResearchCase researchCase : cases) {
-            ResearchAnchor anchor = anchors.get(researchCase.goldAnchorId());
-            Set<String> goldChunkIds = goldChunkIds(
-                    projections.bySourceVersion().get(anchor.sourceVersion()), anchor);
-            Set<String> goldVectorIds = indexed.stream()
-                    .filter(value -> value.sourceVersion().equals(anchor.sourceVersion())
-                            && goldChunkIds.contains(value.chunk().chunkId()))
-                    .map(IndexedChunk::vectorId).collect(java.util.stream.Collectors.toSet());
+            List<EvidenceRequirement> requirements = researchCase.requiredEvidenceGroups().stream()
+                    .flatMap(group -> group.evidence().stream()).toList();
+            List<ResearchAnchor> required = requirements.stream()
+                    .map(requirement -> anchors.get(requirement.anchorId())).toList();
+            Set<String> sourceVersions = required.stream().map(ResearchAnchor::sourceVersion)
+                    .collect(java.util.stream.Collectors.toSet());
+            if (sourceVersions.size() != 1) {
+                throw new IllegalStateException("A controlled case must use one source version: "
+                        + researchCase.caseId());
+            }
+            String sourceVersion = sourceVersions.iterator().next();
+            Map<String, Set<String>> requiredGoldVectorIds = new LinkedHashMap<>();
+            for (EvidenceRequirement requirement : requirements) {
+                ResearchAnchor anchor = anchors.get(requirement.anchorId());
+                Set<String> goldChunkIds = goldChunkIds(
+                        projections.bySourceVersion().get(sourceVersion), anchor);
+                requiredGoldVectorIds.put(requirement.anchorId(), indexed.stream()
+                        .filter(value -> value.sourceVersion().equals(sourceVersion)
+                                && goldChunkIds.contains(value.chunk().chunkId()))
+                        .map(IndexedChunk::vectorId).collect(java.util.stream.Collectors.toSet()));
+            }
             float[] query = client.embedOne(researchCase.query(), "query");
             List<String> matches = client.query(namespace, query, 40, Map.of("$and", List.of(
                     Map.of("tenant_key", Map.of("$eq", tenantKey)),
-                    Map.of("version_id", Map.of("$eq", anchor.sourceVersion())))));
-            int rank = firstGoldRank(matches, goldVectorIds);
-            ranks.add(new CaseRank(researchCase, rank < 0 ? 0 : rank + 1));
+                    Map.of("version_id", Map.of("$eq", sourceVersion)))));
+            ranks.add(new CaseRank(researchCase, completeEvidenceRank(
+                    matches, researchCase.requiredEvidenceGroups(), requiredGoldVectorIds)));
         }
         SliceMetric total = summarize("all", ranks);
         List<SliceMetric> slices = new ArrayList<>();
@@ -342,7 +379,7 @@ class ControlledPdfDenseRecallLiveTest {
                 .map(value -> value.researchCase().caseId()).toList();
         List<String> weak = ranks.stream().filter(value -> value.rank() == 0 || value.rank() > 5)
                 .map(value -> value.researchCase().caseId() + ":rank=" + value.rank()
-                        + ":anchor=" + value.researchCase().goldAnchorId()).toList();
+                        + ":anchors=" + value.researchCase().goldAnchorIds()).toList();
         return new DenseMetrics(total.recallAt1(), total.recallAt5(), total.recallAt10(),
                 total.recallAt40(), total.mrrAt10(), misses, List.copyOf(slices), weak);
     }
@@ -359,16 +396,38 @@ class ControlledPdfDenseRecallLiveTest {
                 at10 / count, at40 / count, reciprocalRank / count);
     }
 
-    private int firstGoldRank(List<String> matches, Set<String> gold) {
-        for (int index = 0; index < matches.size(); index++) {
-            if (gold.contains(matches.get(index))) return index;
+    private int completeEvidenceRank(List<String> matches, List<RequiredEvidenceGroup> groups,
+                                     Map<String, Set<String>> vectorsByAnchor) {
+        int completeRank = 0;
+        for (RequiredEvidenceGroup group : groups) {
+            List<Integer> evidenceRanks = group.evidence().stream().map(requirement ->
+                    firstEvidenceRank(matches, vectorsByAnchor.getOrDefault(
+                            requirement.anchorId(), Set.of()))).toList();
+            int groupRank;
+            if (group.operator() == EvidenceGroupOperator.ANY) {
+                groupRank = evidenceRanks.stream().filter(rank -> rank > 0)
+                        .mapToInt(Integer::intValue).min().orElse(0);
+            } else {
+                if (evidenceRanks.stream().anyMatch(rank -> rank == 0)) return 0;
+                groupRank = evidenceRanks.stream().mapToInt(Integer::intValue).max().orElse(0);
+            }
+            if (groupRank == 0) return 0;
+            completeRank = Math.max(completeRank, groupRank);
         }
-        return -1;
+        return completeRank;
+    }
+
+    private int firstEvidenceRank(List<String> matches, Set<String> gold) {
+        for (int index = 0; index < matches.size(); index++) {
+            if (gold.contains(matches.get(index))) return index + 1;
+        }
+        return 0;
     }
 
     private Set<String> goldChunkIds(RetrievalProjectionManifest manifest, ResearchAnchor anchor) {
         Set<String> exact = exactGoldChunkIds(manifest, anchor.goldMatch());
-        if (!exact.isEmpty() || manifest == null || anchor.pageNo() <= 0) return exact;
+        if (!exact.isEmpty() || manifest == null || anchor.pageNo() <= 0
+                || !anchor.allowPageFallback()) return exact;
         return manifest.chunks().stream()
                 .filter(chunk -> pageNo(chunk.pageId()) == anchor.pageNo())
                 .map(RetrievalChunkProjection::chunkId)
@@ -417,7 +476,7 @@ class ControlledPdfDenseRecallLiveTest {
         for (JsonNode value : values) {
             result.add(new ResearchAnchor(value.path("anchorId").asText(), value.path("source").asText(),
                     value.path("version").asText(), value.path("modality").asText(),
-                    value.path("goldMatch").asText(), value.path("page").asInt()));
+                    value.path("goldMatch").asText(), value.path("page").asInt(), false));
         }
         return List.copyOf(result);
     }
@@ -428,10 +487,33 @@ class ControlledPdfDenseRecallLiveTest {
             for (String line : lines.filter(value -> !value.isBlank()).toList()) {
                 JsonNode value = JSON.readTree(line);
                 JsonNode gold = value.path("goldAnchorIds");
+                List<String> goldAnchorIds = gold.isEmpty() ? List.of() : JSON.convertValue(gold,
+                        JSON.getTypeFactory().constructCollectionType(List.class, String.class));
+                List<RequiredEvidenceGroup> groups = requiredEvidenceGroups(value, goldAnchorIds);
                 result.add(new ResearchCase(value.path("caseId").asText(), value.path("category").asText(),
                         value.path("language").asText(), value.path("query").asText(),
-                        value.path("answerable").asBoolean(), gold.isEmpty() ? null : gold.get(0).asText()));
+                        value.path("answerable").asBoolean(), goldAnchorIds, groups));
             }
+        }
+        return List.copyOf(result);
+    }
+
+    private List<RequiredEvidenceGroup> requiredEvidenceGroups(JsonNode value, List<String> fallbackAnchors) {
+        JsonNode groups = value.path("requiredEvidenceGroups");
+        if (groups.isMissingNode() || groups.isEmpty()) {
+            if (fallbackAnchors.isEmpty()) return List.of();
+            return List.of(new RequiredEvidenceGroup("legacy", EvidenceGroupOperator.ALL_PARTS,
+                    fallbackAnchors.stream().map(anchor -> new EvidenceRequirement(anchor, 3)).toList()));
+        }
+        List<RequiredEvidenceGroup> result = new ArrayList<>();
+        for (JsonNode group : groups) {
+            List<EvidenceRequirement> evidence = new ArrayList<>();
+            for (JsonNode requirement : group.path("evidence")) {
+                evidence.add(new EvidenceRequirement(requirement.path("anchorId").asText(),
+                        requirement.path("minimumGrade").asInt()));
+            }
+            result.add(new RequiredEvidenceGroup(group.path("groupId").asText(),
+                    EvidenceGroupOperator.valueOf(group.path("operator").asText()), List.copyOf(evidence)));
         }
         return List.copyOf(result);
     }
@@ -532,12 +614,21 @@ class ControlledPdfDenseRecallLiveTest {
     private record ProjectionSet(Map<String, RetrievalProjectionManifest> bySourceVersion) { }
 
     private record ResearchAnchor(String anchorId, String source, String version,
-                                  String modality, String goldMatch, int pageNo) {
+                                  String modality, String goldMatch, int pageNo,
+                                  boolean allowPageFallback) {
         String sourceVersion() { return source + ":" + version; }
     }
 
     private record ResearchCase(String caseId, String category, String language, String query,
-                                boolean answerable, String goldAnchorId) { }
+                                boolean answerable, List<String> goldAnchorIds,
+                                List<RequiredEvidenceGroup> requiredEvidenceGroups) { }
+
+    private record EvidenceRequirement(String anchorId, int minimumGrade) { }
+
+    private record RequiredEvidenceGroup(String groupId, EvidenceGroupOperator operator,
+                                         List<EvidenceRequirement> evidence) { }
+
+    private enum EvidenceGroupOperator { ANY, ALL_PARTS }
 
     private record OpenCase(String caseId, String sourceId, int page, String language,
                             String query, String goldMatch) { }
