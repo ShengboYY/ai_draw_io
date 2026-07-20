@@ -1,0 +1,45 @@
+{
+  "schemaVersion": "material-rag-research-plan-v1",
+  "experimentId": "material-rag-research-v1",
+  "minimumReviewedCases": 180,
+  "minimumLockedCases": 60,
+  "primaryMetrics": [
+    "parse_anchor_recall",
+    "ocr_word_error_rate",
+    "candidate_recall_at_40",
+    "post_authorization_recall",
+    "hydrated_recall_at_16",
+    "bundle_recall_at_8",
+    "precision_at_5",
+    "mrr_at_10",
+    "required_facet_coverage",
+    "citation_precision"
+  ],
+  "caseAllocation": {
+    "digital_pdf": 24,
+    "scanned_pdf_ocr": 24,
+    "exact_term": 18,
+    "table_cell": 18,
+    "visual_arrow": 24,
+    "version_and_scope": 20,
+    "comparison_multihop": 16,
+    "no_answer": 20,
+    "style_no_retrieval": 8,
+    "fault_and_degradation": 8
+  },
+  "languages": ["en", "zh", "cross_language"],
+  "retrievalProfiles": [
+    "lexical-only",
+    "dense-only",
+    "rrf-current",
+    "rrf-reranked",
+    "rrf-reranked-visual"
+  ],
+  "reporting": {
+    "confidenceLevel": 0.95,
+    "bootstrapSamples": 10000,
+    "requirePerSliceCounts": true,
+    "requirePairedCaseComparison": true
+  }
+}
+

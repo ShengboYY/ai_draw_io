@@ -1,0 +1,197 @@
+{
+  "schemaVersion": "material-rag-ground-truth-v1",
+  "anchors": [
+    {
+      "anchorId": "orion-window-v1",
+      "source": "controlled-guide-v1",
+      "version": "v1",
+      "page": 1,
+      "modality": "text",
+      "goldMatch": "02:00 UTC"
+    },
+    {
+      "anchorId": "orion-rollback",
+      "source": "controlled-guide-v1",
+      "version": "v1",
+      "page": 1,
+      "modality": "text",
+      "goldMatch": "three consecutive health-check failures"
+    },
+    {
+      "anchorId": "atlas-sla",
+      "source": "controlled-guide-v1",
+      "version": "v1",
+      "page": 2,
+      "modality": "table",
+      "goldMatch": "99.95%"
+    },
+    {
+      "anchorId": "comet-budget",
+      "source": "controlled-guide-v1",
+      "version": "v1",
+      "page": 2,
+      "modality": "table",
+      "goldMatch": "48,500 AUD"
+    },
+    {
+      "anchorId": "delta-owner",
+      "source": "controlled-guide-v1",
+      "version": "v1",
+      "page": 2,
+      "modality": "table",
+      "goldMatch": "Core Services"
+    },
+    {
+      "anchorId": "risk-high-path",
+      "source": "controlled-guide-v1",
+      "version": "v1",
+      "page": 3,
+      "modality": "visual",
+      "goldMatch": "ASSESS->HUMAN REVIEW"
+    },
+    {
+      "anchorId": "risk-feedback",
+      "source": "controlled-guide-v1",
+      "version": "v1",
+      "page": 3,
+      "modality": "visual",
+      "goldMatch": "HUMAN REVIEW--dashed-->ASSESS"
+    },
+    {
+      "anchorId": "cn-risk-id",
+      "source": "controlled-guide-v1",
+      "version": "v1",
+      "page": 4,
+      "modality": "text",
+      "goldMatch": "CN-RISK-204"
+    },
+    {
+      "anchorId": "cn-risk-threshold-v1",
+      "source": "controlled-guide-v1",
+      "version": "v1",
+      "page": 4,
+      "modality": "text",
+      "goldMatch": "85 分"
+    },
+    {
+      "anchorId": "retro-code",
+      "source": "controlled-guide-v1",
+      "version": "v1",
+      "page": 5,
+      "modality": "text",
+      "goldMatch": "AG-RETRO-17"
+    },
+    {
+      "anchorId": "retro-purpose",
+      "source": "controlled-guide-v1",
+      "version": "v1",
+      "page": 5,
+      "modality": "text",
+      "goldMatch": "team effectiveness"
+    },
+    {
+      "anchorId": "review-purpose",
+      "source": "controlled-guide-v1",
+      "version": "v1",
+      "page": 5,
+      "modality": "text",
+      "goldMatch": "product outcome with stakeholders"
+    },
+    {
+      "anchorId": "retention-v1",
+      "source": "controlled-guide-v1",
+      "version": "v1",
+      "page": 6,
+      "modality": "text",
+      "goldMatch": "30 days"
+    },
+    {
+      "anchorId": "retention-v2",
+      "source": "controlled-guide-v2",
+      "version": "v2",
+      "page": 6,
+      "modality": "text",
+      "goldMatch": "45 days"
+    },
+    {
+      "anchorId": "approval-v1",
+      "source": "controlled-guide-v1",
+      "version": "v1",
+      "page": 6,
+      "modality": "text",
+      "goldMatch": "Release Manager"
+    },
+    {
+      "anchorId": "approval-v2",
+      "source": "controlled-guide-v2",
+      "version": "v2",
+      "page": 6,
+      "modality": "text",
+      "goldMatch": "Reliability Council"
+    },
+    {
+      "anchorId": "visual-beacon-cap",
+      "source": "controlled-guide-v1",
+      "version": "v1",
+      "page": 7,
+      "modality": "visual_table",
+      "goldMatch": "Beacon|75,000|70%|Data Systems"
+    },
+    {
+      "anchorId": "visual-delta-cap",
+      "source": "controlled-guide-v1",
+      "version": "v1",
+      "page": 7,
+      "modality": "visual_table",
+      "goldMatch": "Delta|210,000|85%|Core Services"
+    },
+    {
+      "anchorId": "ocr-en-code",
+      "source": "scanned-ops",
+      "version": "v1",
+      "page": 1,
+      "modality": "ocr",
+      "goldMatch": "OCR-AX9-771"
+    },
+    {
+      "anchorId": "ocr-en-threshold",
+      "source": "scanned-ops",
+      "version": "v1",
+      "page": 1,
+      "modality": "ocr",
+      "goldMatch": "73%"
+    },
+    {
+      "anchorId": "ocr-zh-code",
+      "source": "scanned-ops",
+      "version": "v1",
+      "page": 2,
+      "modality": "ocr",
+      "goldMatch": "OCR-ZH-882"
+    },
+    {
+      "anchorId": "ocr-zh-threshold",
+      "source": "scanned-ops",
+      "version": "v1",
+      "page": 2,
+      "modality": "ocr",
+      "goldMatch": "62%"
+    },
+    {
+      "anchorId": "ocr-zone-east",
+      "source": "scanned-ops",
+      "version": "v1",
+      "page": 3,
+      "modality": "ocr_table",
+      "goldMatch": "East|76|Team Maple"
+    },
+    {
+      "anchorId": "whiteboard-feedback",
+      "source": "whiteboard-review-feedback",
+      "version": "v1",
+      "page": 1,
+      "modality": "image_visual",
+      "goldMatch": "REVIEW--dashed-->INTAKE"
+    }
+  ]
+}

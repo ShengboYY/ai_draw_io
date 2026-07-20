@@ -1,0 +1,32 @@
+{
+  "schemaVersion": "material-rag-open-sources-v1",
+  "sources": [
+    {
+      "id": "scrum-guide-2020-en",
+      "title": "The Scrum Guide 2020 - English",
+      "publisher": "Scrum Guides",
+      "url": "https://scrumguides.org/docs/scrumguide/v2020/2020-Scrum-Guide-US.pdf",
+      "sha256": "ed83eb2378459c9e5da5e695844a24c3770fba33687cafaf0a0683ad5070b3ec",
+      "use": ["digital_pdf", "agile_terms", "near_concept_negatives"],
+      "pinSha256BeforeRun": true
+    },
+    {
+      "id": "nist-ai-rmf-1.0",
+      "title": "Artificial Intelligence Risk Management Framework 1.0",
+      "publisher": "NIST",
+      "url": "https://nvlpubs.nist.gov/nistpubs/ai/NIST.AI.100-1.pdf",
+      "sha256": "7576edb531d9848825814ee88e28b1795d3a84b435b4b797d3670eafdc4a89f1",
+      "use": ["digital_pdf", "tables", "multi_section", "exact_terms"],
+      "pinSha256BeforeRun": true
+    },
+    {
+      "id": "nasa-se-handbook-rev2",
+      "title": "NASA Systems Engineering Handbook Rev 2",
+      "publisher": "NASA",
+      "url": "https://www.nasa.gov/wp-content/uploads/2018/09/nasa_systems_engineering_handbook_0.pdf",
+      "sha256": "8eeb4887a4dc57a23049da7dd2ed556833cf98e214b240468d987873164ff688",
+      "use": ["large_pdf", "figures", "tables", "multi_hop"],
+      "pinSha256BeforeRun": true
+    }
+  ]
+}
