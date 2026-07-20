@@ -4,9 +4,13 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import math
+import os
 import random
+import re
+from functools import cache
 from pathlib import Path
 
 from PIL import Image, ImageDraw, ImageEnhance, ImageFilter, ImageFont
@@ -19,19 +23,48 @@ from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.pdfgen import canvas
 from reportlab.platypus import Paragraph, Table, TableStyle
 
+from realistic_corpus_specs import (
+    ADDITIONAL_FACTS,
+    ADDITIONAL_MULTI_CASES,
+    ADDITIONAL_NO_ANSWER_CASES,
+    DIGITAL_DOCUMENTS,
+    SCANNED_DOCUMENT,
+)
+
 
 ROOT = Path(__file__).resolve().parents[1]
 UNICODE_FONT = Path("/Library/Fonts/Arial Unicode.ttf")
 FALLBACK_FONT = Path("/System/Library/Fonts/Supplemental/Arial Unicode.ttf")
+FONT_SHA256 = "876af2cd4854644e7f3e7feb2f688997fdb3343c6df6693611209c9dfb47ccec"
 PAGE_WIDTH, PAGE_HEIGHT = A4
 RANDOM = random.Random(20260720)
+OUTAGE_CHART_VALUES = [
+    ("Docklands North", 16),
+    ("River Berth", 12),
+    ("Cold Store", 19),
+    ("Transit Loop", 8),
+]
 
 
+@cache
 def font_path() -> Path:
-    for candidate in (UNICODE_FONT, FALLBACK_FONT):
-        if candidate.exists():
-            return candidate
-    raise RuntimeError("Arial Unicode font is required to generate bilingual fixtures")
+    """Resolve the pinned bilingual font and reject silent host-font drift."""
+    configured = os.environ.get("MATERIAL_RAG_FONT_PATH")
+    candidates = ([Path(configured)] if configured else []) + [UNICODE_FONT, FALLBACK_FONT]
+    expected_sha = FONT_SHA256
+    for candidate in candidates:
+        if not candidate.exists():
+            continue
+        actual_sha = hashlib.sha256(candidate.read_bytes()).hexdigest()
+        if actual_sha != expected_sha:
+            raise RuntimeError(
+                f"Fixture font hash mismatch for {candidate}: expected {expected_sha}, got {actual_sha}"
+            )
+        return candidate
+    raise RuntimeError(
+        "Pinned Arial Unicode font is required; set MATERIAL_RAG_FONT_PATH to a file with "
+        f"SHA-256 {expected_sha}"
+    )
 
 
 def register_pdf_font() -> str:
@@ -53,6 +86,38 @@ def draw_page_title(pdf: canvas.Canvas, title: str, subtitle: str, page_no: int,
     pdf.setFont(font, 9)
     pdf.drawString(48, PAGE_HEIGHT - 76, subtitle)
     pdf.drawRightString(PAGE_WIDTH - 48, 30, f"Research fixture - page {page_no}")
+
+
+def draw_spec_page_title(pdf: canvas.Canvas, document: dict, page: dict,
+                         page_no: int, font: str) -> float:
+    """Render visibly different headers for paper, field-memo and standard document families."""
+    template = document.get("template", "standard")
+    if template == "paper":
+        pdf.setFillColorRGB(0.10, 0.10, 0.10)
+        pdf.setFont(font, 18)
+        pdf.drawCentredString(PAGE_WIDTH / 2, PAGE_HEIGHT - 54, page["title"])
+        pdf.setFont(font, 8.5)
+        pdf.setFillColorRGB(0.35, 0.35, 0.35)
+        pdf.drawCentredString(PAGE_WIDTH / 2, PAGE_HEIGHT - 72, page["subtitle"])
+        pdf.setStrokeColorRGB(0.25, 0.25, 0.25)
+        pdf.line(56, PAGE_HEIGHT - 84, PAGE_WIDTH - 56, PAGE_HEIGHT - 84)
+        pdf.drawCentredString(PAGE_WIDTH / 2, 28, f"Forest Evidence Working Paper | {page_no}")
+        return PAGE_HEIGHT - 102
+    if template == "field_memo":
+        pdf.setFillColorRGB(0.12, 0.27, 0.24)
+        pdf.rect(0, PAGE_HEIGHT - 96, 18, 96, fill=1, stroke=0)
+        pdf.setFillColorRGB(0.12, 0.18, 0.17)
+        pdf.setFont(font, 9)
+        pdf.drawString(42, PAGE_HEIGHT - 34, "COLLECTION CARE / CONDITION MEMO")
+        pdf.setFont(font, 19)
+        pdf.drawString(42, PAGE_HEIGHT - 59, page["title"])
+        pdf.setFillColorRGB(0.38, 0.43, 0.42)
+        pdf.setFont(font, 8.5)
+        pdf.drawString(42, PAGE_HEIGHT - 78, page["subtitle"])
+        pdf.drawRightString(PAGE_WIDTH - 42, 28, f"ACM fixture | leaf {page_no}")
+        return PAGE_HEIGHT - 112
+    draw_page_title(pdf, page["title"], page["subtitle"], page_no, font)
+    return PAGE_HEIGHT - 105
 
 
 def draw_lines(pdf: canvas.Canvas, lines: list[str], x: float, y: float,
@@ -184,8 +249,9 @@ def generate_outage_chart(path: Path) -> None:
     label = pil_font(30)
     value_font = pil_font(28)
     draw.text((70, 50), "Average interruption minutes after upgrade", font=title, fill="#102a43")
-    values = [("Docklands North", 16, "#3572b0"), ("River Berth", 12, "#2f855a"),
-              ("Cold Store", 19, "#d97706"), ("Transit Loop", 8, "#7c3aed")]
+    palette = ["#3572b0", "#2f855a", "#d97706", "#7c3aed"]
+    values = [(label, minutes, palette[index])
+              for index, (label, minutes) in enumerate(OUTAGE_CHART_VALUES)]
     x_start = 310
     y_start = 190
     scale = 58
@@ -200,6 +266,170 @@ def generate_outage_chart(path: Path) -> None:
     draw.text((70, 830), "Source: validated incident logs, April-September 2026",
               font=value_font, fill="#52606d")
     image.save(path, optimize=True)
+
+
+def generate_spec_bar_chart(path: Path, chart: dict) -> None:
+    """Generate a document-specific raster chart without leaking values into the PDF text layer."""
+    image = Image.new("RGB", (1500, 900), "white")
+    draw = ImageDraw.Draw(image)
+    draw.text((70, 50), chart["title"], font=pil_font(45), fill="#102a43")
+    palette = ["#3572b0", "#2f855a", "#d97706", "#7c3aed", "#b83280"]
+    maximum = max(value for _, value in chart["values"])
+    scale = 900 / maximum
+    for index, (label, value) in enumerate(chart["values"]):
+        y = 180 + index * 145
+        draw.text((70, y + 18), label, font=pil_font(29), fill="#243b53")
+        draw.rounded_rectangle((380, y, 380 + value * scale, y + 72), radius=15,
+                               fill=palette[index % len(palette)])
+        draw.text((400 + value * scale, y + 16), f"{value}{chart['valueSuffix']}",
+                  font=pil_font(27), fill="#102a43")
+    draw.line((380, 145, 380, 800), fill="#486581", width=4)
+    image.save(path, optimize=True)
+
+
+def generate_spec_diagram(path: Path, diagram: dict) -> None:
+    """Generate a simple process diagram whose node relationships require visual inspection."""
+    image = Image.new("RGB", (1700, 900), "#f7f9fc")
+    draw = ImageDraw.Draw(image)
+    draw.text((70, 55), diagram["title"], font=pil_font(46), fill="#14213d")
+    nodes = diagram["nodes"]
+    centers = []
+    box_width = 300
+    for index, node in enumerate(nodes):
+        x = 55 + index * 410
+        bounds = (x, 330, x + box_width, 500)
+        centers.append((x + box_width // 2, 415))
+        draw.rounded_rectangle(bounds, radius=24, fill="white", outline="#2356a8", width=6)
+        text_box = draw.textbbox((0, 0), node, font=pil_font(29))
+        draw.text((x + (box_width - (text_box[2] - text_box[0])) / 2,
+                   400 - (text_box[3] - text_box[1]) / 2), node,
+                  font=pil_font(29), fill="#14213d")
+    for index, label in enumerate(diagram["edgeLabels"]):
+        start = (centers[index][0] + box_width // 2, centers[index][1])
+        end = (centers[index + 1][0] - box_width // 2, centers[index + 1][1])
+        arrow(draw, start, end, "#197645", width=6)
+        draw.text((start[0] + 20, start[1] - 75), label, font=pil_font(24), fill="#197645")
+    image.save(path, optimize=True)
+
+
+def draw_spec_table(pdf: canvas.Canvas, table_spec: dict, font: str, y: float) -> float:
+    """Render a native-text table from an authored document specification."""
+    data = [table_spec["headers"], *table_spec["rows"]]
+    table = Table(data, colWidths=table_spec["colWidths"], repeatRows=1)
+    table.setStyle(TableStyle([
+        ("FONTNAME", (0, 0), (-1, -1), font),
+        ("FONTSIZE", (0, 0), (-1, -1), 8.2),
+        ("LEADING", (0, 0), (-1, -1), 10),
+        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#DCEAF7")),
+        ("TEXTCOLOR", (0, 0), (-1, 0), colors.HexColor("#102A43")),
+        ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#829AB1")),
+        ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#F5F7FA")]),
+        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+        ("TOPPADDING", (0, 0), (-1, -1), 6),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
+    ]))
+    _, height = table.wrap(PAGE_WIDTH - 96, 500)
+    table.drawOn(pdf, 48, y - height)
+    return y - height - 12
+
+
+def generate_spec_document(path: Path, document: dict, image_dir: Path) -> None:
+    """Render a stable multi-page report while allowing each family to vary its page layout."""
+    font = register_pdf_font()
+    pdf = canvas.Canvas(str(path), pagesize=A4, invariant=1)
+    for page_no, page in enumerate(document["pages"], start=1):
+        content_top = draw_spec_page_title(pdf, document, page, page_no, font)
+        if page.get("layout") == "columns":
+            gap = 22
+            width = (PAGE_WIDTH - 96 - gap) / 2
+            split = (len(page["sections"]) + 1) // 2
+            y = draw_article_sections(pdf, page["sections"][:split], content_top,
+                                      font, width, 48)
+            draw_article_sections(pdf, page["sections"][split:], content_top,
+                                  font, width, 48 + width + gap)
+        else:
+            y = draw_article_sections(pdf, page["sections"], content_top, font)
+        if "table" in page:
+            y = draw_spec_table(pdf, page["table"], font, y)
+            draw_article_sections(pdf, page.get("afterSections", []), y, font)
+        if "diagram" in page:
+            asset = image_dir / page["diagram"]["filename"]
+            generate_spec_diagram(asset, page["diagram"])
+            pdf.drawImage(ImageReader(str(asset)), 48, 90, PAGE_WIDTH - 96, 330,
+                          preserveAspectRatio=True, anchor="c")
+        if "chart" in page:
+            asset = image_dir / page["chart"]["filename"]
+            generate_spec_bar_chart(asset, page["chart"])
+            pdf.drawImage(ImageReader(str(asset)), 48, 90, PAGE_WIDTH - 96, 330,
+                          preserveAspectRatio=True, anchor="c")
+        pdf.showPage()
+    pdf.save()
+
+
+def wrap_for_image(draw: ImageDraw.ImageDraw, text: str, font: ImageFont.FreeTypeFont,
+                   max_width: int) -> list[str]:
+    """Wrap both spaced text and CJK text using measured glyph width."""
+    units = text.split() if " " in text else list(text)
+    separator = " " if " " in text else ""
+    lines: list[str] = []
+    current = ""
+    for unit in units:
+        candidate = unit if not current else current + separator + unit
+        if draw.textlength(candidate, font=font) <= max_width:
+            current = candidate
+        else:
+            if current:
+                lines.append(current)
+            current = unit
+    if current:
+        lines.append(current)
+    return lines
+
+
+def generate_scanned_article(path: Path, image_dir: Path, document: dict) -> None:
+    """Create a multi-page image-only report with deterministic scan degradation."""
+    page_images: list[Path] = []
+    for page_no, page in enumerate(document["pages"], start=1):
+        image = Image.new("L", (1654, 2339), 248)
+        draw = ImageDraw.Draw(image)
+        title_font = pil_font(52)
+        subtitle_font = pil_font(28)
+        heading_font = pil_font(34)
+        body_font = pil_font(28)
+        draw.text((115, 120), page["title"], font=title_font, fill=18)
+        draw.text((115, 190), page["subtitle"], font=subtitle_font, fill=70)
+        draw.line((115, 240, 1539, 240), fill=90, width=3)
+        y = 290
+        for heading, body in page["sections"]:
+            draw.text((115, y), heading, font=heading_font, fill=25)
+            y += 52
+            for line in body.split("\n"):
+                for wrapped in wrap_for_image(draw, line, body_font, 1424):
+                    draw.text((115, y), wrapped, font=body_font, fill=32)
+                    y += 42
+                y += 10
+            y += 24
+        draw.line((115, 2240, 1539, 2240), fill=120, width=2)
+        draw.text((115, 2265), f"Synthetic inspection scan | page {page_no}",
+                  font=subtitle_font, fill=85)
+        # Mild deterministic noise and rotation preserve readability while exercising OCR.
+        pixels = image.load()
+        for _ in range(int(image.width * image.height * 0.0025)):
+            x = RANDOM.randrange(image.width)
+            noise_y = RANDOM.randrange(image.height)
+            pixels[x, noise_y] = max(0, min(255, pixels[x, noise_y] + RANDOM.randint(-38, 38)))
+        image = image.filter(ImageFilter.GaussianBlur(radius=0.35))
+        image = image.rotate((page_no % 3 - 1) * 0.7, resample=Image.Resampling.BICUBIC,
+                             expand=False, fillcolor=255)
+        image_path = image_dir / f"rail-scan-page-{page_no}.jpg"
+        image.convert("RGB").save(image_path, quality=86, optimize=True)
+        page_images.append(image_path)
+    pdf = canvas.Canvas(str(path), pagesize=A4, invariant=1)
+    for page_image in page_images:
+        pdf.drawImage(ImageReader(str(page_image)), 0, 0, PAGE_WIDTH, PAGE_HEIGHT,
+                      preserveAspectRatio=True, anchor="c")
+        pdf.showPage()
+    pdf.save()
 
 
 def draw_reliability_table(pdf: canvas.Canvas, font: str, y: float) -> float:
@@ -660,19 +890,132 @@ def facts() -> list[dict]:
         {"anchorId": "whiteboard-feedback", "source": "whiteboard-review-feedback", "version": "v1", "page": 1,
          "modality": "image_visual", "goldMatch": "REVIEW--dashed-->INTAKE",
          "queries": ["Where does the whiteboard rework arrow return?", "白板上的返工虚线从 REVIEW 指向哪里？"]},
+    ] + ADDITIONAL_FACTS
+
+
+def generated_documents() -> list[dict]:
+    """Describe family and split ownership before cases are emitted."""
+    documents = [
+        {"source": "controlled-guide-v1", "documentFamily": "controlled-operations-guide",
+         "version": "v1", "split": "development", "role": "controlled",
+         "filename": "controlled-operations-guide-v1.pdf"},
+        {"source": "controlled-guide-v2", "documentFamily": "controlled-operations-guide",
+         "version": "v2", "split": "development", "role": "controlled",
+         "filename": "controlled-operations-guide-v2.pdf"},
+        {"source": "scanned-ops", "documentFamily": "controlled-scanned-cards",
+         "version": "v1", "split": "guard_visual_ocr", "role": "controlled",
+         "filename": "scanned-operations-cards.pdf"},
+        {"source": "whiteboard-review-feedback", "documentFamily": "whiteboard-review-feedback",
+         "version": "v1", "split": "guard_visual_ocr", "role": "challenge",
+         "filename": "whiteboard-review-feedback.png"},
+        {"source": "realistic-harbor-report", "documentFamily": "harbor-grid-resilience",
+         "version": "v1", "split": "development", "role": "realistic",
+         "filename": "realistic-harbor-grid-report-v1.pdf"},
     ]
+    documents.extend({
+        "source": document["source"],
+        "documentFamily": document["documentFamily"],
+        "version": document["version"],
+        "split": document["split"],
+        "role": "realistic",
+        "freezeStatus": "candidate" if document["split"] in {"validation", "holdout"} else "development",
+        "filename": document["filename"],
+    } for document in DIGITAL_DOCUMENTS)
+    documents.append({
+        "source": SCANNED_DOCUMENT["source"],
+        "documentFamily": SCANNED_DOCUMENT["documentFamily"],
+        "version": SCANNED_DOCUMENT["version"],
+        "split": SCANNED_DOCUMENT["split"],
+        "role": "challenge",
+        "freezeStatus": "guard",
+        "filename": SCANNED_DOCUMENT["filename"],
+    })
+    return documents
+
+
+def source_metadata() -> dict[str, dict]:
+    return {document["source"]: document for document in generated_documents()}
+
+
+def normalize_authored_text(value: str) -> str:
+    return re.sub(r"\s+", "", value).casefold()
+
+
+def validate_additional_specs() -> None:
+    """Fail generation when authored facts drift away from their assigned pages."""
+    documents = {document["source"]: document for document in DIGITAL_DOCUMENTS}
+    documents[SCANNED_DOCUMENT["source"]] = SCANNED_DOCUMENT
+    for fact in ADDITIONAL_FACTS:
+        document = documents[fact["source"]]
+        page = document["pages"][fact["page"] - 1]
+        native_parts = [page["title"], page["subtitle"]]
+        for heading, body in [*page.get("sections", []), *page.get("afterSections", [])]:
+            native_parts.extend([heading, body])
+        if "table" in page:
+            native_parts.extend(page["table"]["headers"])
+            native_parts.extend(cell for row in page["table"]["rows"] for cell in row)
+        page_text = normalize_authored_text(" ".join(native_parts))
+        gold = normalize_authored_text(fact["goldMatch"])
+        modality = fact["modality"]
+        if modality.startswith("visual"):
+            if gold in page_text:
+                raise RuntimeError(f"Visual gold leaked into native page text: {fact['anchorId']}")
+        elif gold not in page_text:
+            raise RuntimeError(f"Gold text is absent from authored page: {fact['anchorId']}")
+
+    special_visual_facts = {
+        "controlled-guide-v1": {
+            "ASSESS->HUMAN REVIEW",
+            "HUMAN REVIEW--dashed-->ASSESS",
+            "Beacon|75,000|70%|Data Systems",
+            "Delta|210,000|85%|Core Services",
+        },
+        "realistic-harbor-report": {
+            f"{label}|{minutes} min" for label, minutes in OUTAGE_CHART_VALUES
+        },
+        "whiteboard-review-feedback": {"REVIEW--dashed-->INTAKE"},
+    }
+    for fact in facts():
+        if not fact["modality"].startswith("visual") and fact["modality"] != "image_visual":
+            continue
+        representations = set(special_visual_facts.get(fact["source"], set()))
+        if fact["source"] in documents:
+            page = documents[fact["source"]]["pages"][fact["page"] - 1]
+            if "diagram" in page:
+                nodes = page["diagram"]["nodes"]
+                representations.update(
+                    f"{nodes[index]}->{nodes[index + 1]}" for index in range(len(nodes) - 1)
+                )
+            if "chart" in page:
+                suffix = page["chart"]["valueSuffix"]
+                representations.update(
+                    f"{label}|{value:g}{suffix}" for label, value in page["chart"]["values"]
+                )
+        normalized_representations = {normalize_authored_text(value) for value in representations}
+        if normalize_authored_text(fact["goldMatch"]) not in normalized_representations:
+            raise RuntimeError(f"Visual gold is absent from image configuration: {fact['anchorId']}")
 
 
 def write_ground_truth(output_root: Path) -> None:
     anchors = facts()
+    metadata = source_metadata()
     (output_root / "ground-truth.json").write_text(json.dumps({
         "schemaVersion": "material-rag-ground-truth-v1",
-        "anchors": [{key: value for key, value in fact.items() if key != "queries"} for fact in anchors],
+        "anchors": [{
+            **{key: value for key, value in fact.items() if key != "queries"},
+            "documentFamily": metadata[fact["source"]]["documentFamily"],
+            "split": metadata[fact["source"]]["split"],
+        } for fact in anchors],
+    }, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    (output_root / "corpus-manifest.json").write_text(json.dumps({
+        "schemaVersion": "material-rag-generated-corpus-v1",
+        "documents": generated_documents(),
     }, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     cases_path = output_root / "cases.jsonl"
     with cases_path.open("w", encoding="utf-8") as output:
         ordinal = 1
         for fact in anchors:
+            document = metadata[fact["source"]]
             for query in fact["queries"]:
                 language = "zh" if any("\u4e00" <= char <= "\u9fff" for char in query) else "en"
                 output.write(json.dumps({
@@ -680,45 +1023,59 @@ def write_ground_truth(output_root: Path) -> None:
                     "caseId": f"controlled-{ordinal:03d}",
                     "category": fact["modality"],
                     "language": language,
+                    "split": document["split"],
+                    "documentFamily": document["documentFamily"],
                     "query": query,
                     "allowedSourceVersions": [f"{fact['source']}:{fact['version']}"],
                     "goldAnchorIds": [fact["anchorId"]],
                     "requiredEvidenceGroups": [{
                         "groupId": "answer",
                         "operator": "ANY",
-                        "evidence": [{"anchorId": fact["anchorId"], "minimumGrade": 3}],
+                        "evidence": [{"anchorId": fact["anchorId"], "grade": 3, "minimumGrade": 3}],
                     }],
                     "expectedPage": fact["page"],
                     "answerable": True,
                 }, ensure_ascii=False) + "\n")
                 ordinal += 1
-        # Both language variants deliberately require evidence from two separate pages.
-        multi_evidence_queries = [
-            ("en", "What were average daily auxiliary energy use before and after the upgrade, "
-                   "and how much did it fall?"),
-            ("zh", "升级前后辅助系统的日均能耗分别是多少，降低了多少？"),
-        ]
-        for language, query in multi_evidence_queries:
-            output.write(json.dumps({
-                "schemaVersion": "material-rag-research-case-v2",
-                "caseId": f"controlled-{ordinal:03d}",
-                "category": "multi_evidence",
-                "language": language,
-                "query": query,
-                "allowedSourceVersions": ["realistic-harbor-report:v1"],
-                "goldAnchorIds": ["hgr-baseline-energy", "hgr-post-energy"],
-                "requiredEvidenceGroups": [{
-                    "groupId": "before_after",
-                    "operator": "ALL_PARTS",
-                    "evidence": [
-                        {"anchorId": "hgr-baseline-energy", "minimumGrade": 2},
-                        {"anchorId": "hgr-post-energy", "minimumGrade": 2},
-                    ],
-                }],
-                "expectedPages": [6, 7],
-                "answerable": True,
-            }, ensure_ascii=False) + "\n")
-            ordinal += 1
+        # Each comparison keeps all required pages within one preassigned document family.
+        multi_cases = [{
+            "category": "multi_evidence",
+            "split": "development",
+            "sourceVersion": "realistic-harbor-report:v1",
+            "anchorIds": ["hgr-baseline-energy", "hgr-post-energy"],
+            "groupId": "before_after",
+            "expectedPages": [6, 7],
+            "queries": [
+                ("en", "What were average daily auxiliary energy use before and after the upgrade, "
+                       "and how much did it fall?"),
+                ("zh", "升级前后辅助系统的日均能耗分别是多少，降低了多少？"),
+            ],
+        }, *ADDITIONAL_MULTI_CASES]
+        for case in multi_cases:
+            source = case["sourceVersion"].split(":", maxsplit=1)[0]
+            for language, query in case["queries"]:
+                output.write(json.dumps({
+                    "schemaVersion": "material-rag-research-case-v2",
+                    "caseId": f"controlled-{ordinal:03d}",
+                    "category": case["category"],
+                    "language": language,
+                    "split": case["split"],
+                    "documentFamily": metadata[source]["documentFamily"],
+                    "query": query,
+                    "allowedSourceVersions": [case["sourceVersion"]],
+                    "goldAnchorIds": case["anchorIds"],
+                    "requiredEvidenceGroups": [{
+                        "groupId": case["groupId"],
+                        "operator": "ALL_PARTS",
+                        "evidence": [
+                            {"anchorId": anchor_id, "grade": 2, "minimumGrade": 2}
+                            for anchor_id in case["anchorIds"]
+                        ],
+                    }],
+                    "expectedPages": case["expectedPages"],
+                    "answerable": True,
+                }, ensure_ascii=False) + "\n")
+                ordinal += 1
         no_answer_queries = [
             "What customer phone number is listed in the guide?",
             "文档中记录的银行账号是什么？",
@@ -732,8 +1089,30 @@ def write_ground_truth(output_root: Path) -> None:
                 "caseId": f"controlled-{ordinal:03d}",
                 "category": "no_answer",
                 "language": language,
+                "split": "development",
+                "documentFamily": "controlled-operations-guide",
                 "query": query,
                 "allowedSourceVersions": ["controlled-guide-v1:v1"],
+                "goldAnchorIds": [],
+                "requiredEvidenceGroups": [],
+                "expectedPage": None,
+                "answerable": False,
+            }, ensure_ascii=False) + "\n")
+            ordinal += 1
+        for no_answer in ADDITIONAL_NO_ANSWER_CASES:
+            source, version = no_answer["sourceVersion"].split(":", maxsplit=1)
+            document = metadata[source]
+            query = no_answer["query"]
+            language = "zh" if any("\u4e00" <= char <= "\u9fff" for char in query) else "en"
+            output.write(json.dumps({
+                "schemaVersion": "material-rag-research-case-v2",
+                "caseId": f"controlled-{ordinal:03d}",
+                "category": "no_answer",
+                "language": language,
+                "split": document["split"],
+                "documentFamily": document["documentFamily"],
+                "query": query,
+                "allowedSourceVersions": [f"{source}:{version}"],
                 "goldAnchorIds": [],
                 "requiredEvidenceGroups": [],
                 "expectedPage": None,
@@ -751,6 +1130,7 @@ def main() -> None:
     image_dir = output_root / "images"
     pdf_dir.mkdir(parents=True, exist_ok=True)
     image_dir.mkdir(parents=True, exist_ok=True)
+    validate_additional_specs()
 
     risk_flow = image_dir / "risk-escalation-flow.png"
     capacity_table = image_dir / "capacity-table.png"
@@ -761,7 +1141,10 @@ def main() -> None:
     generate_digital_pdf(pdf_dir / "controlled-operations-guide-v1.pdf", "v1", risk_flow, capacity_table)
     generate_digital_pdf(pdf_dir / "controlled-operations-guide-v2.pdf", "v2", risk_flow, capacity_table)
     generate_realistic_report(pdf_dir / "realistic-harbor-grid-report-v1.pdf", outage_chart)
+    for document in DIGITAL_DOCUMENTS:
+        generate_spec_document(pdf_dir / document["filename"], document, image_dir)
     generate_scanned_pdf(pdf_dir / "scanned-operations-cards.pdf", image_dir)
+    generate_scanned_article(pdf_dir / SCANNED_DOCUMENT["filename"], image_dir, SCANNED_DOCUMENT)
     write_ground_truth(output_root)
     print(f"generated material RAG fixtures under {output_root}")
 

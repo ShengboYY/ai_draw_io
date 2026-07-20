@@ -64,14 +64,9 @@ class ControlledPdfDenseRecallLiveTest {
                 .map(ResearchAnchor::anchorId).toList();
         assertTrue(unmappable.isEmpty(), "Gold anchors lost before retrieval: " + unmappable);
 
-        ParsedDocument scanned = new PdfBoxDocumentParser(150).parse(
-                root.resolve("fixtures/generated/pdfs/scanned-operations-cards.pdf"),
-                "application/pdf", temporaryDirectory.resolve("scanned"));
-        OcrSelectionPolicy policy = new OcrSelectionPolicy(40, 0.10, 0.20, 0.01, 0.03);
-        assertEquals(3, scanned.pageCount());
-        assertTrue(scanned.pages().stream().allMatch(page -> page.extraction().nativeBlocks().isEmpty()));
-        assertTrue(scanned.pages().stream().allMatch(page -> policy.requiresOcr("application/pdf",
-                page.extraction().nativeTextQuality(), page.extraction().rasterRegions())));
+        assertImageOnlyPdfRequiresOcr(root, "scanned-operations-cards.pdf", "scanned", 3);
+        assertImageOnlyPdfRequiresOcr(root, "realistic-metro-rail-inspection-scan-v1.pdf",
+                "rail-scan", 6);
     }
 
     @Test
@@ -79,18 +74,23 @@ class ControlledPdfDenseRecallLiveTest {
         List<String> matches = List.of("vector-a", "distractor", "vector-b");
         Map<String, Set<String>> vectorsByAnchor = Map.of(
                 "alternative-a", Set.of("vector-a"),
+                "alternative-low-grade", Set.of("vector-a"),
                 "alternative-missing", Set.of("missing"),
                 "part-a", Set.of("vector-a"),
                 "part-b", Set.of("vector-b"));
         List<RequiredEvidenceGroup> groups = List.of(
                 new RequiredEvidenceGroup("alternative", EvidenceGroupOperator.ANY, List.of(
-                        new EvidenceRequirement("alternative-missing", 3),
-                        new EvidenceRequirement("alternative-a", 3))),
+                        new EvidenceRequirement("alternative-low-grade", 2, 3),
+                        new EvidenceRequirement("alternative-missing", 3, 3),
+                        new EvidenceRequirement("alternative-a", 3, 3))),
                 new RequiredEvidenceGroup("comparison", EvidenceGroupOperator.ALL_PARTS, List.of(
-                        new EvidenceRequirement("part-a", 2),
-                        new EvidenceRequirement("part-b", 2))));
+                        new EvidenceRequirement("part-a", 2, 2),
+                        new EvidenceRequirement("part-b", 2, 2))));
 
         assertEquals(3, completeEvidenceRank(matches, groups, vectorsByAnchor));
+        assertEquals(0, completeEvidenceRank(matches, List.of(new RequiredEvidenceGroup(
+                "below-grade", EvidenceGroupOperator.ANY,
+                List.of(new EvidenceRequirement("alternative-low-grade", 2, 3)))), vectorsByAnchor));
     }
 
     @Test
@@ -107,8 +107,12 @@ class ControlledPdfDenseRecallLiveTest {
         ProjectionSet projections = buildControlledProjections(root);
         Map<String, ResearchAnchor> anchors = new HashMap<>();
         anchors(root).forEach(anchor -> anchors.put(anchor.anchorId(), anchor));
+        String researchSplit = System.getenv().getOrDefault("MATERIAL_RAG_RESEARCH_SPLIT", "development");
+        assertTrue(Set.of("development", "validation", "holdout").contains(researchSplit),
+                "Unknown research split: " + researchSplit);
         List<ResearchCase> cases = cases(root).stream()
                 .filter(ResearchCase::answerable)
+                .filter(value -> researchSplit.equals(value.split()))
                 .filter(value -> !value.goldAnchorIds().isEmpty()
                         && value.goldAnchorIds().stream().map(anchors::get).allMatch(anchor ->
                         anchor != null && Set.of("text", "table").contains(anchor.modality())))
@@ -150,9 +154,9 @@ class ControlledPdfDenseRecallLiveTest {
             anchors.put(value.caseId(), new ResearchAnchor(value.caseId(), value.sourceId(), "pinned",
                     "open_pdf", value.goldMatch(), value.page(), true));
             cases.add(new ResearchCase(value.caseId(), "open_pdf", value.language(), value.query(),
-                    true, List.of(value.caseId()), List.of(new RequiredEvidenceGroup(
+                    "open_diagnostic", true, List.of(value.caseId()), List.of(new RequiredEvidenceGroup(
                     "answer", EvidenceGroupOperator.ANY,
-                    List.of(new EvidenceRequirement(value.caseId(), 3))))));
+                    List.of(new EvidenceRequirement(value.caseId(), 3, 3))))));
         }
         PineconeVectorClient client = new PineconeVectorClient(
                 apiKey, indexHost, "multilingual-e5-large", 1024, JSON);
@@ -286,7 +290,29 @@ class ControlledPdfDenseRecallLiveTest {
                 "controlled-guide-v2", "v2", "controlled-operations-guide-v2.pdf"));
         result.put("realistic-harbor-report:v1", buildProjection(root,
                 "realistic-harbor-report", "v1", "realistic-harbor-grid-report-v1.pdf"));
+        result.put("realistic-water-audit:v1", buildProjection(root,
+                "realistic-water-audit", "v1", "realistic-coastal-water-audit-v1.pdf"));
+        result.put("realistic-solar-manual:v1", buildProjection(root,
+                "realistic-solar-manual", "v1", "realistic-helios-inverter-manual-v1.pdf"));
+        result.put("realistic-cold-chain-report:v1", buildProjection(root,
+                "realistic-cold-chain-report", "v1", "realistic-aurora-cold-chain-validation-v1.pdf"));
+        result.put("realistic-forest-study:v1", buildProjection(root,
+                "realistic-forest-study", "v1", "realistic-meridian-forest-study-v1.pdf"));
+        result.put("realistic-museum-condition-memo:v1", buildProjection(root,
+                "realistic-museum-condition-memo", "v1", "realistic-arcadia-condition-memo-v1.pdf"));
         return new ProjectionSet(Map.copyOf(result));
+    }
+
+    private void assertImageOnlyPdfRequiresOcr(Path root, String filename, String temporaryName,
+                                               int expectedPages) throws Exception {
+        ParsedDocument scanned = new PdfBoxDocumentParser(150).parse(
+                root.resolve("fixtures/generated/pdfs").resolve(filename),
+                "application/pdf", temporaryDirectory.resolve(temporaryName));
+        OcrSelectionPolicy policy = new OcrSelectionPolicy(40, 0.10, 0.20, 0.01, 0.03);
+        assertEquals(expectedPages, scanned.pageCount());
+        assertTrue(scanned.pages().stream().allMatch(page -> page.extraction().nativeBlocks().isEmpty()));
+        assertTrue(scanned.pages().stream().allMatch(page -> policy.requiresOcr("application/pdf",
+                page.extraction().nativeTextQuality(), page.extraction().rasterRegions())));
     }
 
     private RetrievalProjectionManifest buildProjection(Path root, String source, String version,
@@ -401,7 +427,8 @@ class ControlledPdfDenseRecallLiveTest {
         int completeRank = 0;
         for (RequiredEvidenceGroup group : groups) {
             List<Integer> evidenceRanks = group.evidence().stream().map(requirement ->
-                    firstEvidenceRank(matches, vectorsByAnchor.getOrDefault(
+                    requirement.grade() < requirement.minimumGrade() ? 0
+                            : firstEvidenceRank(matches, vectorsByAnchor.getOrDefault(
                             requirement.anchorId(), Set.of()))).toList();
             int groupRank;
             if (group.operator() == EvidenceGroupOperator.ANY) {
@@ -492,7 +519,8 @@ class ControlledPdfDenseRecallLiveTest {
                 List<RequiredEvidenceGroup> groups = requiredEvidenceGroups(value, goldAnchorIds);
                 result.add(new ResearchCase(value.path("caseId").asText(), value.path("category").asText(),
                         value.path("language").asText(), value.path("query").asText(),
-                        value.path("answerable").asBoolean(), goldAnchorIds, groups));
+                        value.path("split").asText("development"), value.path("answerable").asBoolean(),
+                        goldAnchorIds, groups));
             }
         }
         return List.copyOf(result);
@@ -503,14 +531,15 @@ class ControlledPdfDenseRecallLiveTest {
         if (groups.isMissingNode() || groups.isEmpty()) {
             if (fallbackAnchors.isEmpty()) return List.of();
             return List.of(new RequiredEvidenceGroup("legacy", EvidenceGroupOperator.ALL_PARTS,
-                    fallbackAnchors.stream().map(anchor -> new EvidenceRequirement(anchor, 3)).toList()));
+                    fallbackAnchors.stream().map(anchor -> new EvidenceRequirement(anchor, 3, 3)).toList()));
         }
         List<RequiredEvidenceGroup> result = new ArrayList<>();
         for (JsonNode group : groups) {
             List<EvidenceRequirement> evidence = new ArrayList<>();
             for (JsonNode requirement : group.path("evidence")) {
+                int minimumGrade = requirement.path("minimumGrade").asInt();
                 evidence.add(new EvidenceRequirement(requirement.path("anchorId").asText(),
-                        requirement.path("minimumGrade").asInt()));
+                        requirement.path("grade").asInt(minimumGrade), minimumGrade));
             }
             result.add(new RequiredEvidenceGroup(group.path("groupId").asText(),
                     EvidenceGroupOperator.valueOf(group.path("operator").asText()), List.copyOf(evidence)));
@@ -620,10 +649,10 @@ class ControlledPdfDenseRecallLiveTest {
     }
 
     private record ResearchCase(String caseId, String category, String language, String query,
-                                boolean answerable, List<String> goldAnchorIds,
+                                String split, boolean answerable, List<String> goldAnchorIds,
                                 List<RequiredEvidenceGroup> requiredEvidenceGroups) { }
 
-    private record EvidenceRequirement(String anchorId, int minimumGrade) { }
+    private record EvidenceRequirement(String anchorId, int grade, int minimumGrade) { }
 
     private record RequiredEvidenceGroup(String groupId, EvidenceGroupOperator operator,
                                          List<EvidenceRequirement> evidence) { }

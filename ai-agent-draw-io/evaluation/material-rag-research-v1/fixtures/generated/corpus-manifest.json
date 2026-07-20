@@ -1,0 +1,99 @@
+{
+  "schemaVersion": "material-rag-generated-corpus-v1",
+  "documents": [
+    {
+      "source": "controlled-guide-v1",
+      "documentFamily": "controlled-operations-guide",
+      "version": "v1",
+      "split": "development",
+      "role": "controlled",
+      "filename": "controlled-operations-guide-v1.pdf"
+    },
+    {
+      "source": "controlled-guide-v2",
+      "documentFamily": "controlled-operations-guide",
+      "version": "v2",
+      "split": "development",
+      "role": "controlled",
+      "filename": "controlled-operations-guide-v2.pdf"
+    },
+    {
+      "source": "scanned-ops",
+      "documentFamily": "controlled-scanned-cards",
+      "version": "v1",
+      "split": "guard_visual_ocr",
+      "role": "controlled",
+      "filename": "scanned-operations-cards.pdf"
+    },
+    {
+      "source": "whiteboard-review-feedback",
+      "documentFamily": "whiteboard-review-feedback",
+      "version": "v1",
+      "split": "guard_visual_ocr",
+      "role": "challenge",
+      "filename": "whiteboard-review-feedback.png"
+    },
+    {
+      "source": "realistic-harbor-report",
+      "documentFamily": "harbor-grid-resilience",
+      "version": "v1",
+      "split": "development",
+      "role": "realistic",
+      "filename": "realistic-harbor-grid-report-v1.pdf"
+    },
+    {
+      "source": "realistic-water-audit",
+      "documentFamily": "coastal-water-audit",
+      "version": "v1",
+      "split": "development",
+      "role": "realistic",
+      "freezeStatus": "development",
+      "filename": "realistic-coastal-water-audit-v1.pdf"
+    },
+    {
+      "source": "realistic-solar-manual",
+      "documentFamily": "helios-inverter-manual",
+      "version": "v1",
+      "split": "validation",
+      "role": "realistic",
+      "freezeStatus": "candidate",
+      "filename": "realistic-helios-inverter-manual-v1.pdf"
+    },
+    {
+      "source": "realistic-cold-chain-report",
+      "documentFamily": "aurora-cold-chain-validation",
+      "version": "v1",
+      "split": "holdout",
+      "role": "realistic",
+      "freezeStatus": "candidate",
+      "filename": "realistic-aurora-cold-chain-validation-v1.pdf"
+    },
+    {
+      "source": "realistic-forest-study",
+      "documentFamily": "meridian-forest-restoration-study",
+      "version": "v1",
+      "split": "validation",
+      "role": "realistic",
+      "freezeStatus": "candidate",
+      "filename": "realistic-meridian-forest-study-v1.pdf"
+    },
+    {
+      "source": "realistic-museum-condition-memo",
+      "documentFamily": "arcadia-museum-condition-memo",
+      "version": "v1",
+      "split": "holdout",
+      "role": "realistic",
+      "freezeStatus": "candidate",
+      "filename": "realistic-arcadia-condition-memo-v1.pdf"
+    },
+    {
+      "source": "realistic-rail-scan",
+      "documentFamily": "metro-rail-inspection-scan",
+      "version": "v1",
+      "split": "guard_visual_ocr",
+      "role": "challenge",
+      "freezeStatus": "guard",
+      "filename": "realistic-metro-rail-inspection-scan-v1.pdf"
+    }
+  ]
+}

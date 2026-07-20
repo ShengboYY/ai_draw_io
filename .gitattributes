@@ -1,0 +1,2 @@
+# ReportLab PDFs are binary fixtures even when their container bytes are mostly ASCII.
+*.pdf binary

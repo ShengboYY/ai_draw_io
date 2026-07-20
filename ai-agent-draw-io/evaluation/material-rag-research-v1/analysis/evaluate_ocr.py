@@ -6,10 +6,16 @@ from __future__ import annotations
 import argparse
 import json
 import re
+import sys
 from pathlib import Path
 
 
-EXPECTED_PAGES = {
+FIXTURE_DIR = Path(__file__).resolve().parents[1] / "fixtures"
+sys.path.insert(0, str(FIXTURE_DIR))
+from realistic_corpus_specs import ADDITIONAL_FACTS, SCANNED_DOCUMENT  # noqa: E402
+
+
+CARD_EXPECTED_PAGES = {
     1: """SCANNED OPERATIONS CARD
 Document code: OCR-AX9-771
 Emergency load threshold: 73%
@@ -30,13 +36,32 @@ East | 76 | Team Maple
 West | 68 | Team Ash""",
 }
 
-ANCHORS = {
+CARD_ANCHORS = {
     "ocr-en-code": (1, "OCR-AX9-771"),
     "ocr-en-threshold": (1, "73%"),
     "ocr-zh-code": (2, "OCR-ZH-882"),
     "ocr-zh-threshold": (2, "62%"),
     "ocr-zone-east": (3, "East|76|TeamMaple"),
 }
+
+
+def rail_profile() -> tuple[dict[int, str], dict[str, tuple[int, str]]]:
+    """Derive OCR truth from the same authored scan specification used by the PDF generator."""
+    pages = {
+        page_no: "\n".join([
+            page["title"],
+            page["subtitle"],
+            *(f"{heading}\n{body}" for heading, body in page["sections"]),
+            f"Synthetic inspection scan | page {page_no}",
+        ])
+        for page_no, page in enumerate(SCANNED_DOCUMENT["pages"], start=1)
+    }
+    anchors = {
+        fact["anchorId"]: (fact["page"], fact["goldMatch"])
+        for fact in ADDITIONAL_FACTS
+        if fact["source"] == SCANNED_DOCUMENT["source"] and fact["modality"].startswith("ocr")
+    }
+    return pages, anchors
 
 
 def normalize(value: str) -> str:
@@ -60,13 +85,17 @@ def edit_distance(left: str, right: str) -> int:
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("result_dir", type=Path)
+    parser.add_argument("--profile", choices=["cards", "rail"], default="cards")
     parser.add_argument("--json-out", type=Path)
     args = parser.parse_args()
+    expected_pages, anchors = (CARD_EXPECTED_PAGES, CARD_ANCHORS)
+    if args.profile == "rail":
+        expected_pages, anchors = rail_profile()
     pages: dict[int, str] = {}
     page_metrics = []
     total_distance = 0
     total_characters = 0
-    for page_no, expected in EXPECTED_PAGES.items():
+    for page_no, expected in expected_pages.items():
         actual = args.result_dir.joinpath(f"page-{page_no}.txt").read_text(encoding="utf-8")
         pages[page_no] = actual
         expected_normalized = normalize(expected)
@@ -82,10 +111,11 @@ def main() -> None:
         })
     anchor_results = {
         anchor_id: normalize(value) in normalize(pages[page_no])
-        for anchor_id, (page_no, value) in ANCHORS.items()
+        for anchor_id, (page_no, value) in anchors.items()
     }
     result = {
         "schemaVersion": "material-rag-ocr-result-v1",
+        "profile": args.profile,
         "pageMetrics": page_metrics,
         "overallCharacterErrorRate": total_distance / total_characters,
         "anchorRecall": sum(anchor_results.values()) / len(anchor_results),

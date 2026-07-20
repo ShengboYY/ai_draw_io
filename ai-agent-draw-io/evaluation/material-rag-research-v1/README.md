@@ -37,14 +37,33 @@ The generated corpus intentionally contains two different levels of realism:
 
 - `controlled-operations-guide-v1/v2.pdf` and `scanned-operations-cards.pdf` remain small regression
   fixtures for exact values, version conflicts, OCR anchors, visual relations and abstention.
-- `realistic-harbor-grid-report-v1.pdf` is a ten-page article-style fixture with dense prose, a
-  timeline, native table, two-column policy page, cross-page evidence, a raster-only chart, Chinese
-  sections, rejected draft values and unsupported-fact negatives.
+- Seven separate realistic families broaden topic, language and layout coverage:
+  - `realistic-harbor-grid-report-v1.pdf`: ten-page operational report with timeline, table, chart,
+    Chinese sections and cross-page evidence;
+  - `realistic-coastal-water-audit-v1.pdf`: Chinese audit with version conflict, native table and
+    English cross-language questions;
+  - `realistic-helios-inverter-manual-v1.pdf`: bilingual procedural manual with numbered steps,
+    parameter table and raster-only process diagram;
+  - `realistic-aurora-cold-chain-validation-v1.pdf`: English experimental report with matched
+    before/after evidence, route table and raster-only sensor chart;
+  - `realistic-meridian-forest-study-v1.pdf`: five-page two-column research paper with paired plots,
+    a native results table and absolute-versus-relative change negatives;
+  - `realistic-arcadia-condition-memo-v1.pdf`: five-page bilingual collection-care memo with a
+    distinct field-record layout, condition register and exposure controls;
+  - `realistic-metro-rail-inspection-scan-v1.pdf`: six-page image-only English/Chinese field report
+    with scan noise, rotation, a scanned register and hard negatives.
 
 Do not use the small controlled documents alone to claim real-document quality. The current generated
-cohort contains 78 cases, including two `ALL_PARTS` cases that require evidence from separate pages.
-Together with the 14 pinned open-document cases, 92 cases are defined; this remains a development
-cohort rather than the frozen 240-case V2 dataset.
+cohort contains 191 cases, including twelve `ALL_PARTS` cases that require evidence from separate
+pages. Together with the 14 pinned open-document cases, 205 cases are defined. Development has two
+realistic families, Validation has two, Holdout has two, and the OCR/visual guard has one image-only
+family. This remains an authored synthetic cohort rather than the frozen, independently reviewed
+240-case V2 dataset.
+
+`fixtures/generated/corpus-manifest.json` records each generated document family and its preassigned
+Development, Validation, Holdout or guard-suite split. Questions from one family never cross splits.
+Validation and Holdout documents are marked `candidate` until an independent reviewer freezes the
+questions and corpus hashes; the visible repository copy is not yet a sealed holdout.
 
 ## Evaluation stages
 
@@ -115,8 +134,13 @@ python3 -m pip install -r evaluation/material-rag-research-v1/requirements.txt
 python3 evaluation/material-rag-research-v1/fixtures/generate_fixtures.py
 ```
 
-Fixture generation currently requires Arial Unicode at `/Library/Fonts/Arial Unicode.ttf` or the
-macOS supplemental-font location recorded in the generator.
+Fixture generation requires the pinned Arial Unicode input with SHA-256
+`876af2cd4854644e7f3e7feb2f688997fdb3343c6df6693611209c9dfb47ccec`. The generator checks the
+standard macOS locations, or another exact copy can be supplied explicitly:
+
+```bash
+export MATERIAL_RAG_FONT_PATH="/absolute/path/to/Arial Unicode.ttf"
+```
 
 Render PDFs before accepting fixture changes:
 
@@ -126,13 +150,14 @@ pdftoppm -png -r 144 \
   tmp/material-rag-render/v1
 ```
 
-Also render all ten pages of the article-style fixture and inspect the prose, table, columns, chart and
-Chinese layout:
+Render every realistic family and inspect prose, tables, columns, charts, diagrams, Chinese layout and
+the image-only scan:
 
 ```bash
-pdftoppm -png -r 144 \
-  evaluation/material-rag-research-v1/fixtures/generated/pdfs/realistic-harbor-grid-report-v1.pdf \
-  tmp/material-rag-render/harbor
+for pdf in evaluation/material-rag-research-v1/fixtures/generated/pdfs/realistic-*.pdf; do
+  name="$(basename "$pdf" .pdf)"
+  pdftoppm -png -r 144 "$pdf" "tmp/material-rag-render/$name"
+done
 ```
 
 The live Java experiment must use the same tokenizer as the Worker profile. Export the pinned
@@ -142,6 +167,10 @@ The live Java experiment must use the same tokenizer as the Worker profile. Expo
 export MATERIAL_RAG_TOKENIZER_PATH="$PWD/tmp/material-rag-tokenizer/tokenizer.json"
 export MATERIAL_RAG_OPEN_SOURCE_DIR="$PWD/tmp/material-rag-open-sources"
 ```
+
+Generated-corpus retrieval defaults to `development`. Set `MATERIAL_RAG_RESEARCH_SPLIT` explicitly
+to `validation` for checkpointing. Use `holdout` only after the manifest status has been independently
+frozen; do not tune against either split.
 
 Then load `.env` and run either the controlled or pinned open-PDF method:
 
@@ -167,6 +196,19 @@ Evaluate OCR output named `page-1.txt` through `page-3.txt` with:
 python3 evaluation/material-rag-research-v1/analysis/evaluate_ocr.py \
   tmp/material-rag-ocr-results
 ```
+
+For the six-page Rail scan, run an OCR engine first so its UTF-8 outputs are named `page-1.txt`
+through `page-6.txt`, then use the authored Rail profile:
+
+```bash
+python3 evaluation/material-rag-research-v1/analysis/evaluate_ocr.py \
+  tmp/material-rag-rail-ocr-results --profile rail \
+  --json-out tmp/material-rag-rail-ocr-result.json
+```
+
+The evaluator scores character error and anchor recall; it does not invoke or silently substitute an
+OCR engine. A machine without an English/Chinese OCR runtime can still verify that the PDF has no
+native text layer, but cannot claim a measured Rail OCR result.
 
 The first measured report is `results/2026-07-20-baseline.md`. It is a diagnostic baseline; its 66
 defined cases do not replace the planned 180-case reviewed release suite.
