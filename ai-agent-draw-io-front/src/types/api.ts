@@ -345,8 +345,13 @@ export interface ChatRequestDTO {
   expectedContentHash?: string;
   /** Current Draw.io XML, kept out of message so routers can avoid full-canvas prompt noise. */
   canvasXml?: string;
-  /** Compact canvas summary for intent routing and answer-only requests. */
+  /** Legacy drawer-only summary; Intent Router V2 never receives it. */
   canvasSummary?: string;
+  sourceMode?: 'NONE' | 'AUTO' | 'EXPLICIT' | 'EXPLICIT_ONLY';
+  selectedVersionIds?: string[];
+  selectedCellIds?: string[];
+  selectionCanvasVersion?: number;
+  selectionContentHash?: string;
   /** Real draw.io PNG used by review_only; never persisted as chat content. */
   canvasImageDataUrl?: string;
   canvasImageRendererVersion?: 'drawio-embed-png-v1';

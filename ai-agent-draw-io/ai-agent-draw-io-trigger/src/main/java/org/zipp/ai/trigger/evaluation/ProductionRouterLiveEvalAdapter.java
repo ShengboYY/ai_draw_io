@@ -8,6 +8,7 @@ import org.zipp.ai.domain.agent.model.valobj.evaluation.EvalExecution;
 import org.zipp.ai.domain.agent.model.valobj.evaluation.EvalTrace;
 import org.zipp.ai.domain.agent.model.valobj.intent.IntentRoutingCommand;
 import org.zipp.ai.domain.agent.model.valobj.intent.IntentRoutingResult;
+import org.zipp.ai.domain.agent.model.valobj.intent.IntentRoutingProbe;
 import org.zipp.ai.domain.agent.service.IIntentRoutingService;
 import org.zipp.ai.domain.agent.service.canvas.CanvasXmlContentHasher;
 import org.zipp.ai.domain.agent.service.evaluation.LiveEvalRunner;
@@ -34,7 +35,7 @@ public class ProductionRouterLiveEvalAdapter implements LiveEvalRunner.LiveExecu
         String initialXml = evalCase.getReplay() == null
                 ? EMPTY_CANVAS : StringUtils.defaultIfBlank(evalCase.getReplay().getInitialCanvasXml(), EMPTY_CANVAS);
         IntentRoutingResult result = router.route(IntentRoutingCommand.builder().userId("eval-router-system")
-                .message(message).canvasXml(initialXml).canvasSummary(canvasSummary(evalCase)).build());
+                .message(message).requestProbe(IntentRoutingProbe.canvasOnly(hasDrawableCell(initialXml))).build());
         EvalTrace trace = EvalTrace.builder().runStatus(EvalTrace.RunStatus.SUCCESS)
                 .taskOutcome(outcome(result.getRouteType()))
                 .routing(EvalTrace.Routing.builder().routeType(result.getRouteType()).diagramType(result.getDiagramType())
@@ -42,6 +43,11 @@ public class ProductionRouterLiveEvalAdapter implements LiveEvalRunner.LiveExecu
                 .beforeCanvasHash(hasher.hash(initialXml)).afterCanvasHash(hasher.hash(initialXml)).build();
         return EvalExecution.builder().evalCase(evalCase).trace(trace).initialCanvasXml(initialXml)
                 .finalCanvasXml(initialXml).responseText(result.getAnswer()).gitSha(gitSha).build();
+    }
+
+    private boolean hasDrawableCell(String xml) {
+        return xml != null && (xml.contains("vertex=\"1\"") || xml.contains("vertex='1'")
+                || xml.contains("edge=\"1\"") || xml.contains("edge='1'"));
     }
 
     private EvalTrace.TaskOutcome outcome(String routeType) {

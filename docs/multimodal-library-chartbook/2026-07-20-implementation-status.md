@@ -204,6 +204,17 @@ WP2 不把文件复制到正式 materials bucket，也不提供预览。安全�
 - `2026-08-05-create-material-lifecycle-operations.sql` 已在本地 MySQL 应用并验证，checksum 为 `54e24c7621f70a4b029ab5dabcdb9a75af3bfee32c5bfcf297354e0cd28e5914`。在线 App 需同时开启 `MATERIAL_CATALOG_ENABLED=true` 和 `MATERIAL_LIFECYCLE_ENABLED=true`，并配置至少 32 字符的 `MATERIAL_DELETION_CONFIRMATION_SECRET`；Deletion Worker 另由 `MATERIAL_DELETION_ENABLED=true` 控制。存在 Pinecone vectors 时必须同时保留匹配 index profile 的 vector Worker 配置。
 - 所有用户可见组件默认关闭；关闭或 S3/Pinecone/多模态能力故障时，普通文本输入绘图不依赖生命周期 Controller、maintenance job 或 deletion poller。账号删除的 Material bounded-context seam 始终注册并 fail closed，避免关闭页面功能时静默遗留用户资料。
 
+## WP5 交付范围
+
+- 新增 `RequestProbeService`，只向 Intent Router 暴露服务端画布计数、selection 状态、来源数量/状态和 source mode；Router V2 不再接收 canvas XML、label 或自由文本 summary。Intent schema 增加 `answer_with_evidence/evidenceNeed/targetNeed`，显式资料强制 `REQUIRED`，纯样式请求强制 `NONE`，无效/超时/破损 JSON 使用确定性 fail-closed fallback。`answer_with_evidence` 与 unknown route 的工具集均为空。
+- 新增 DDD `EvidencePreparationModule` 深模块，封装服务端 canvas fail-closed loader、确定性 target resolver、source policy/readiness、TEXT/VISUAL/HYBRID route、最多三个 query facet、MySQL FULLTEXT/exact 与可选 Pinecone dense 召回、weighted RRF、最终 MySQL re-authorization、批量 read lease、exact-version S3 hydration、absolute sufficiency gate 和 bounded Evidence Bundle。只有 `READY` 可携带 `PreparedEvidence`；其他结果均为 sealed typed stop。
+- 显式来源必须属于当前 conversation、diagram、所属 chartbook 或个人资料库；`EXPLICIT` 允许有界自动补充，`EXPLICIT_ONLY` 不扩展且最多 500 个 Version。Pinecone 在 top-K 前同时按 opaque tenant key 与授权 Version 批量过滤，返回 ID 后仍由 MySQL 复核 Owner、active Revision、lifecycle/TTL、excluded page、Evidence mapping 和 exact artifact identity。
+- 会话上传处理中返回 `WAITING`，长期/部分就绪资料返回 `MATERIAL_NOT_READY`；处理中 Revision 在尚无 active Revision 时仍可被 source resolver 观察到。资料读取先整批获取 WP4C lease，且只为最终授权命中的来源申请；run resource 状态为 `OPEN -> PREPARED -> COMMITTING -> CLOSED`，同步 finally、流式 completion/timeout/error/disconnect 和 cancellation 共用 exactly-once cleanup。
+- Request Probe 使用 300ms 边界；在线 retrieval 使用 3 秒单一 deadline、800ms S3 hydration 子预算，编排与受限 I/O 使用独立线程池，并为 Pinecone Inference 与 Database 保持独立进程内 circuit breaker。所有 Canvas/MySQL/lease/S3/Pinecone 外部调用共享 deadline；lease 在创建它的同一 continuation 内登记，迟到结果会立即释放。dense 不可用时 lexical-only 可继续做充分性判断；可选 AUTO 证据不足时普通文本绘图沿用旧路径，严格/显式请求任何失败都不调用 Drawer。在线视觉 verifier 尚未配置时，VISUAL/VISUAL_EXACT 及包含高价值视觉内容的整文 HYBRID 请求明确返回 `VISUAL_VERIFICATION_REQUIRED`，不会把 caption/OCR 当成已核验视觉事实。
+- 同步/流式 `AgentConversationService` 只依赖 `RequestProbeService` 与 `EvidencePreparationModule` 两个外观。流式协议新增 evidence progress，以及 `source_wait_started/source_not_ready/target_clarification/degraded` 完成事件；完成型证据路径不复用 `user` clarification chunk。WP6/WP7 尚未交付时，`READY` 只返回 `CAPABILITY_UNAVAILABLE`，不会将 Bundle 交给旧 Drawer。
+- 新增 `2026-08-06-add-online-retrieval-artifact-identity.sql`，为 retrieval chunk 补齐回源对象大小和 content type。旧行不能安全猜测这些不可变事实，保持 `NULL` 并在在线复核时不可用；必须通过 reprocess 产生完整身份后才可 hydration。
+- 所有能力由 `MATERIAL_RAG_ENABLED=false` 默认关闭；dense 另由 `MATERIAL_RAG_DENSE_ENABLED=false` 控制。关闭或 Pinecone/S3 资料能力异常时，不需要资料的普通文本绘图不依赖这些 bean、表或外部服务。
+
 ## 下一阶段
 
-下一阶段进入 WP5：接入在线 Probe、Intent Router 后的 Retrieval Router、EvidencePreparationModule、混合检索与降级路径。WP4 的资料库/图表册前端页面、持久化 WebP 和增量 revision 复制仍在对应的前端/媒体优化阶段补齐。
+下一阶段进入 WP6：实现 EvidencePromptAssembler、Evidence Answer/Drawer 引用 manifest、Claim/Citation Guard、画布与引用/pins 的原子提交，以及 citation 查询与来源面板。启用 WP5 前需先执行 `2026-08-06-add-online-retrieval-artifact-identity.sql` 并 reprocess 需要在线检索的旧 Revision；涉及图片/图表理解的请求还必须先接入受控 `VisualEvidenceVerifier`，当前安全行为是明确停止而非文本猜测。WP4 的资料库/图表册完整前端页面、持久化 WebP 和增量 revision 复制仍在对应前端/媒体优化阶段补齐。

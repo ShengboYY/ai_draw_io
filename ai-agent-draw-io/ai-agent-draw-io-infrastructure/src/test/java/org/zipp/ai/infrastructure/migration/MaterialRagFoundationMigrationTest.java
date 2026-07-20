@@ -266,6 +266,19 @@ class MaterialRagFoundationMigrationTest {
     }
 
     @Test
+    void onlineRetrievalMigrationAddsCompleteImmutableHydrationIdentity() throws Exception {
+        Path migration = Path.of("docs/sql/migrations/2026-08-06-add-online-retrieval-artifact-identity.sql");
+        if (!Files.exists(migration)) {
+            migration = Path.of("../docs/sql/migrations/2026-08-06-add-online-retrieval-artifact-identity.sql");
+        }
+        String sql = Files.readString(migration);
+
+        assertTrue(sql.contains("retrieval_text_byte_size BIGINT NULL"));
+        assertTrue(sql.contains("retrieval_text_content_type VARCHAR(128) NULL"));
+        assertTrue(sql.contains("Existing chunks stay ineligible"));
+    }
+
+    @Test
     void workerIamAllowsExactVersionVerificationAndCleanupInBothBuckets() throws Exception {
         Path template = Path.of("../deploy/aws/material-upload/s3-and-iam.template.yml");
         if (!Files.exists(template)) {

@@ -45,6 +45,14 @@ public final class PineconeRetrievalVectorIndexAdapter implements RetrievalVecto
     }
 
     @Override
+    public List<String> query(float[] vector, String tenantKey, List<String> versionIds, int topK) {
+        if (versionIds == null || versionIds.isEmpty()) return List.of();
+        return client.query(namespace, vector, topK, Map.of("$and", List.of(
+                Map.of("tenant_key", Map.of("$eq", tenantKey)),
+                Map.of("version_id", Map.of("$in", List.copyOf(versionIds))))));
+    }
+
+    @Override
     public VectorIdPage listVectorIds(String paginationToken, int limit) {
         return client.listVectorIds(namespace, paginationToken, limit);
     }

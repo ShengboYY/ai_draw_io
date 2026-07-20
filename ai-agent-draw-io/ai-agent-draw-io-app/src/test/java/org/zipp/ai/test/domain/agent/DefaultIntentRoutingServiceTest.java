@@ -11,9 +11,11 @@ import org.zipp.ai.domain.agent.model.entity.ChatCommandEntity;
 import org.zipp.ai.domain.agent.model.valobj.AiAgentConfigTableVO;
 import org.zipp.ai.domain.agent.model.valobj.intent.IntentRoutingCommand;
 import org.zipp.ai.domain.agent.model.valobj.intent.IntentRoutingResult;
+import org.zipp.ai.domain.agent.model.valobj.intent.IntentRoutingProbe;
 import org.zipp.ai.domain.agent.service.IChatService;
 import org.zipp.ai.domain.agent.service.armory.matter.skills.SkillCatalogService;
 import org.zipp.ai.domain.agent.service.intent.DefaultIntentRoutingService;
+import org.zipp.ai.domain.retrieval.SourceMode;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
@@ -30,7 +32,7 @@ public class DefaultIntentRoutingServiceTest {
     public void shouldUseStructuredCanvasXmlForFastPatchRoute() throws Exception {
         IntentRoutingCommand command = IntentRoutingCommand.builder()
                 .message("把 API 改成 Gateway")
-                .canvasXml("<mxGraphModel><root><mxCell id=\"0\"/><mxCell id=\"1\" parent=\"0\"/><mxCell id=\"2\" value=\"API\" vertex=\"1\" parent=\"1\"/></root></mxGraphModel>")
+                .requestProbe(IntentRoutingProbe.canvasOnly(true))
                 .build();
 
         IntentRoutingResult result = tryFastPatchRoute(command);
@@ -43,7 +45,7 @@ public class DefaultIntentRoutingServiceTest {
     public void shouldNotUseFastPatchRouteForCreateRequestsWithExistingCanvas() throws Exception {
         IntentRoutingCommand command = IntentRoutingCommand.builder()
                 .message("重新画一个用户登录流程图")
-                .canvasXml("<mxGraphModel><root><mxCell id=\"0\"/><mxCell id=\"1\" parent=\"0\"/><mxCell id=\"2\" value=\"API\" vertex=\"1\" parent=\"1\"/></root></mxGraphModel>")
+                .requestProbe(IntentRoutingProbe.canvasOnly(true))
                 .build();
 
         assertNull(tryFastPatchRoute(command));
@@ -59,7 +61,7 @@ public class DefaultIntentRoutingServiceTest {
             IntentRoutingCommand command = IntentRoutingCommand.builder()
                     .userId("anon_123e4567-e89b-42d3-a456-426614174000")
                     .message("把 API 改成 Gateway")
-                    .canvasXml("<mxGraphModel><root><mxCell id=\"0\"/><mxCell id=\"1\" parent=\"0\"/><mxCell id=\"2\" value=\"API\" vertex=\"1\" parent=\"1\"/></root></mxGraphModel>")
+                    .requestProbe(IntentRoutingProbe.canvasOnly(true))
                     .build();
 
             new DefaultIntentRoutingService().route(command);
@@ -206,6 +208,47 @@ public class DefaultIntentRoutingServiceTest {
         assertEquals("clarify", result.getRouteType());
     }
 
+    @Test
+    public void answerWithEvidenceForcesRequiredEvidenceAndNoDirectAnswer() throws Exception {
+        IntentRoutingResult result = routeWithStubbedLlm(
+                "Agile Practice Guide 里的迭代流程是什么？",
+                "{\"routeType\":\"answer_with_evidence\",\"diagramType\":\"none\",\"skillName\":\"none\","
+                        + "\"evidenceNeed\":\"NONE\",\"targetNeed\":\"NONE\","
+                        + "\"answer\":\"untrusted answer\",\"reason\":\"source question\"}");
+
+        assertEquals("answer_with_evidence", result.getRouteType());
+        assertEquals("REQUIRED", result.getEvidenceNeed());
+        assertEquals("", result.getAnswer());
+    }
+
+    @Test
+    public void selectedSourcesForceEvidenceEvenWhenRouterSaysNone() throws Exception {
+        IntentRoutingResult result = routeWithStubbedLlm("请画一个迭代流程图",
+                "{\"routeType\":\"create_new\",\"diagramType\":\"flowchart\",\"skillName\":\"none\","
+                        + "\"evidenceNeed\":\"NONE\",\"targetNeed\":\"NONE\",\"answer\":\"\",\"reason\":\"draw\"}",
+                new IntentRoutingProbe(false, 0, 0, 1, 0, true, false, false, SourceMode.EXPLICIT));
+
+        assertEquals("REQUIRED", result.getEvidenceNeed());
+    }
+
+    @Test
+    public void invalidEvidenceQuestionFallsBackToEvidenceWithoutMutation() throws Exception {
+        IntentRoutingResult result = routeWithStubbedLlm("请根据资料回答 Agile 的流程",
+                "{\"routeType\":\"WAT\",\"diagramType\":\"none\",\"skillName\":\"none\","
+                        + "\"answer\":\"\",\"reason\":\"bad\"}");
+
+        assertEquals("answer_with_evidence", result.getRouteType());
+        assertEquals("REQUIRED", result.getEvidenceNeed());
+    }
+
+    @Test
+    public void malformedEvidenceQuestionFallsBackToEvidenceWithoutMutation() throws Exception {
+        IntentRoutingResult result = routeWithStubbedLlm("请根据资料回答 Agile 的流程", "{broken-json");
+
+        assertEquals("answer_with_evidence", result.getRouteType());
+        assertEquals("REQUIRED", result.getEvidenceNeed());
+    }
+
     private IntentRoutingResult tryFastPatchRoute(IntentRoutingCommand command) throws Exception {
         // Keep the production method private while still locking the structured fast-path behavior.
         Method method = DefaultIntentRoutingService.class.getDeclaredMethod("tryFastPatchRoute", IntentRoutingCommand.class);
@@ -214,14 +257,18 @@ public class DefaultIntentRoutingServiceTest {
     }
 
     private IntentRoutingResult routeWithStubbedLlm(String message, String llmJson) throws Exception {
+        return routeWithStubbedLlm(message, llmJson, IntentRoutingProbe.canvasOnly(true));
+    }
+
+    private IntentRoutingResult routeWithStubbedLlm(String message, String llmJson,
+                                                     IntentRoutingProbe probe) throws Exception {
         DefaultIntentRoutingService service = new DefaultIntentRoutingService();
         inject(service, "chatService", new StubChatService(List.of(llmJson)));
         inject(service, "skillCatalogService", new EmptySkillCatalogService());
         return service.route(IntentRoutingCommand.builder()
                 .userId("alice")
                 .message(message)
-                .canvasXml("<mxGraphModel><root><mxCell id=\"0\"/><mxCell id=\"1\" parent=\"0\"/>"
-                        + "<mxCell id=\"2\" value=\"API\" vertex=\"1\" parent=\"1\"/></root></mxGraphModel>")
+                .requestProbe(probe)
                 .build());
     }
 

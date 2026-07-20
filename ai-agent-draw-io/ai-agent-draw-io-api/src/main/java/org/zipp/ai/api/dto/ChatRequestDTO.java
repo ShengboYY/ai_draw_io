@@ -21,6 +21,12 @@ public class ChatRequestDTO {
     private String message;
     private String canvasXml;
     private String canvasSummary;
+    // WP5 source/selection declarations are opaque IDs; authorization and canvas validation stay server-side.
+    private String sourceMode;
+    private java.util.List<String> selectedVersionIds;
+    private java.util.List<String> selectedCellIds;
+    private Long selectionCanvasVersion;
+    private String selectionContentHash;
     private String canvasImageDataUrl;
     private String canvasImageRendererVersion;
     private CanvasSnapshotDTO canvasSnapshot;

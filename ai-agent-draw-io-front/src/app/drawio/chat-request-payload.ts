@@ -16,6 +16,11 @@ type BuildDrawioChatRequestPayloadInput = {
   expectedContentHash?: string;
   canvasXml?: string;
   canvasSummary?: string;
+  sourceMode?: 'NONE' | 'AUTO' | 'EXPLICIT' | 'EXPLICIT_ONLY';
+  selectedVersionIds?: string[];
+  selectedCellIds?: string[];
+  selectionCanvasVersion?: number;
+  selectionContentHash?: string;
   canvasImageDataUrl?: string;
   canvasImageRendererVersion?: 'drawio-embed-png-v1';
   modelCredentialId?: string;
@@ -76,6 +81,11 @@ export const buildDrawioChatRequestPayload = ({
   userMessage,
   canvasXml,
   canvasSummary,
+  sourceMode,
+  selectedVersionIds,
+  selectedCellIds,
+  selectionCanvasVersion,
+  selectionContentHash,
   canvasImageDataUrl,
   canvasImageRendererVersion,
   maxDeterministicRepairRounds,
@@ -104,6 +114,11 @@ export const buildDrawioChatRequestPayload = ({
     message: userMessage,
     ...(canvasXml && { canvasXml }),
     ...(canvasSummary && { canvasSummary }),
+    ...(sourceMode && { sourceMode }),
+    ...(selectedVersionIds?.length && { selectedVersionIds }),
+    ...(selectedCellIds?.length && { selectedCellIds }),
+    ...(selectionCanvasVersion !== undefined && { selectionCanvasVersion }),
+    ...(selectionContentHash?.trim() && { selectionContentHash: selectionContentHash.trim() }),
     ...(canvasImageDataUrl && { canvasImageDataUrl }),
     ...(canvasImageRendererVersion && { canvasImageRendererVersion }),
     // Legacy raw custom fields are intentionally dropped; chat accepts saved credential ids only.

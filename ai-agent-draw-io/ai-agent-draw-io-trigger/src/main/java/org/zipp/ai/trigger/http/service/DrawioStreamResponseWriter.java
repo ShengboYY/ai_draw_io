@@ -73,6 +73,29 @@ public class DrawioStreamResponseWriter {
         emitter.send(envelope.toJSONString() + "\n");
     }
 
+    public void sendEvidenceProgress(ResponseBodyEmitter emitter, String stage, int completed, int total)
+            throws Exception {
+        com.alibaba.fastjson.JSONObject envelope = new com.alibaba.fastjson.JSONObject();
+        envelope.put("phase", "retrieval");
+        com.alibaba.fastjson.JSONObject chunk = new com.alibaba.fastjson.JSONObject();
+        chunk.put("type", "evidence_progress");
+        chunk.put("stage", StringUtils.defaultString(stage));
+        chunk.put("completed", Math.max(0, completed));
+        chunk.put("total", Math.max(0, total));
+        envelope.put("chunk", chunk);
+        emitter.send(envelope.toJSONString() + "\n");
+    }
+
+    /** Sends a terminal evidence-path event without reusing the clarification-oriented user chunk. */
+    public void sendEvidenceOutcome(ResponseBodyEmitter emitter, String eventType, String content) throws Exception {
+        com.alibaba.fastjson.JSONObject chunk = new com.alibaba.fastjson.JSONObject();
+        chunk.put("type", StringUtils.defaultString(eventType, "degraded"));
+        chunk.put("content", StringUtils.defaultString(content));
+        sendWrappedChunk(emitter, "retrieval", chunk);
+        sendDone(emitter);
+        emitter.complete();
+    }
+
     public void sendVisualReviewStarted(ResponseBodyEmitter emitter, String stage, String sourceRunId) throws Exception {
         com.alibaba.fastjson.JSONObject chunk = new com.alibaba.fastjson.JSONObject();
         chunk.put("type", "review_started");

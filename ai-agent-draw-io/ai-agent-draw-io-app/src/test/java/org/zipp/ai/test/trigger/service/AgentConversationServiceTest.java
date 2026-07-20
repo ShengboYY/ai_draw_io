@@ -236,6 +236,22 @@ public class AgentConversationServiceTest {
     }
 
     @Test
+    public void unknownAndEvidenceRoutesNeverReceiveCanvasTools() throws Exception {
+        AgentConversationService service = new AgentConversationService();
+        injectPromptContextBuilder(service);
+        ChatRequestDTO request = new ChatRequestDTO();
+        request.setMessage("answer from the guide");
+
+        String unknown = buildRoutedMessage(service, request, drawRoutingResult("invented_route"), 1);
+        String evidence = buildRoutedMessage(service, request, drawRoutingResult("answer_with_evidence"), 1);
+
+        assertTrue(unknown.contains("\"allowedTools\""));
+        assertTrue(evidence.contains("\"allowedTools\""));
+        assertFalse(unknown.contains("\"allowedTools\":[\"create_diagram\"]"));
+        assertFalse(evidence.contains("\"allowedTools\":[\"modify_diagram\"]"));
+    }
+
+    @Test
     public void shouldClampDeterministicRepairRoundSetting() throws Exception {
         AgentConversationService service = new AgentConversationService();
 
@@ -397,8 +413,9 @@ public class AgentConversationServiceTest {
         String intentMessage = buildIntentMessage(service, requestDTO);
 
         assertTrue(intentMessage.contains("[User Request]\n把 API 改成 Gateway"));
-        assertTrue(intentMessage.contains("[Canvas Summary]\nThe canvas contains 1 node and 0 edges. Main labels: API."));
-        assertTrue(intentMessage.contains("hasCanvas=true"));
+        assertFalse(intentMessage.contains("[Canvas Summary]"));
+        assertFalse(intentMessage.contains("hasCanvas=true"));
+        assertFalse(intentMessage.contains("Main labels: API"));
         assertFalse(intentMessage.contains("<mxGraphModel"));
         assertFalse(intentMessage.contains("value=\"API\""));
     }
@@ -768,6 +785,22 @@ public class AgentConversationServiceTest {
                 directAnswerSpanId.equals(capture.getSpanId()) && "ERROR".equals(capture.getPayloadKind())));
         assertTrue(debugStore.captures.stream().anyMatch(capture ->
                 directAnswerSpanId.equals(capture.getSpanId()) && "OUTPUT".equals(capture.getPayloadKind())));
+    }
+
+    @Test
+    public void evidenceAnswerStopsBeforeDrawerWhenWp5FeatureIsDisabled() throws Exception {
+        AgentConversationService service = quotaAwareService();
+        CountingChatService chatService = new CountingChatService();
+        injectField(service, "chatService", chatService);
+        injectField(service, "intentRoutingService", new EvidenceRoutingService());
+        ChatRequestDTO request = platformRequest();
+        request.setMessage("answer from Agile Practice Guide");
+
+        org.zipp.ai.api.dto.ChatResponseDTO response = service.chat(request);
+
+        assertEquals("capability_unavailable", response.getType());
+        assertEquals(0, chatService.handleMessageCalls);
+        assertEquals(0, chatService.handleMessageStreamCalls);
     }
 
     @Test
@@ -1163,6 +1196,16 @@ public class AgentConversationServiceTest {
             result.setSkillName("none");
             result.setAnswer("");
             result.setReason("test");
+            return result;
+        }
+    }
+
+    private static class EvidenceRoutingService implements IIntentRoutingService {
+        @Override
+        public IntentRoutingResult route(IntentRoutingCommand command) {
+            IntentRoutingResult result = drawRoutingResult("answer_with_evidence");
+            result.setEvidenceNeed("REQUIRED");
+            result.setTargetNeed("NONE");
             return result;
         }
     }

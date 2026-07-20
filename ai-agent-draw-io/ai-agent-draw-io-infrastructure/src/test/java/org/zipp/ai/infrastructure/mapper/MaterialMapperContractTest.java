@@ -182,6 +182,28 @@ class MaterialMapperContractTest {
         assertFalse(deletion.contains("metadata"));
     }
 
+    @Test
+    void onlineRetrievalReauthorizesOwnerRevisionAndExactArtifactBeforeHydration() throws Exception {
+        String mapper = resource("mybatis/mapper/online_retrieval_mapper.xml");
+
+        assertTrue(mapper.contains("doc.owner_type = #{ownerType}"));
+        assertTrue(mapper.contains("doc.owner_key = #{ownerKey}"));
+        assertTrue(mapper.contains("mv.active_revision_id = mr.id"));
+        assertTrue(mapper.contains("material.lifecycle_state = 'ACTIVE'"));
+        assertTrue(mapper.contains("chunk.retrieval_text_byte_size IS NOT NULL"));
+        assertTrue(mapper.contains("chunk.retrieval_text_content_type IS NOT NULL"));
+        assertTrue(mapper.contains("MATCH(doc.word_search_text)"));
+        assertTrue(mapper.contains("MATCH(doc.cjk_search_text)"));
+        assertTrue(mapper.contains("retrieval_exact_term"));
+        assertTrue(mapper.contains("projection.vector_id IN"));
+        assertTrue(mapper.contains("COALESCE(v.active_revision_id"));
+        assertTrue(mapper.contains("ORDER BY pending.revision_no DESC LIMIT 1"));
+        assertTrue(mapper.contains("link.scope_key = #{conversationId}"));
+        assertTrue(mapper.contains("link.scope_key = d.chartbook_id"));
+        assertTrue(mapper.contains("mr.excluded_pages_json"));
+        assertFalse(mapper.contains("visual_object_key AS source_label"));
+    }
+
     private String resource(String path) throws Exception {
         try (InputStream stream = getClass().getClassLoader().getResourceAsStream(path)) {
             assertNotNull(stream, path);

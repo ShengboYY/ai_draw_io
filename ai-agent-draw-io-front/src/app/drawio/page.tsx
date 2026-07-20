@@ -3060,6 +3060,40 @@ function DrawioPageContent() {
               break;
             }
 
+            case 'evidence_progress': {
+              const detail = `${chunk.stage} ${chunk.completed}/${chunk.total}`;
+              upsertRunEvent(`retrieval:${chunk.stage}`, {
+                phase: 'retrieval',
+                title: 'Prepare evidence',
+                detail,
+                status: chunk.total > 0 && chunk.completed >= chunk.total ? 'done' : 'running',
+                tone: 'analysis',
+              });
+              break;
+            }
+
+            case 'source_wait_started':
+            case 'source_not_ready':
+            case 'target_clarification':
+            case 'degraded': {
+              const displayContent = normalizeAgentDisplayContent(chunk.content || '');
+              if (displayContent) {
+                agentTextContent += displayContent;
+                accumulatedContent += (accumulatedContent ? '\n\n' : '') + displayContent;
+                setMessages(prev => prev.map(m => m.id === agentMsgId
+                  ? { ...m, content: accumulatedContent, steps: [...accumulatedSteps] }
+                  : m));
+              }
+              upsertRunEvent(`retrieval:${chunk.type}`, {
+                phase: 'retrieval',
+                title: chunk.type,
+                detail: displayContent,
+                status: chunk.type === 'source_wait_started' ? 'running' : 'warning',
+                tone: 'analysis',
+              });
+              break;
+            }
+
             case 'review_result': {
               const review: VisualReviewPresentation = {
                 stage: chunk.stage || 'CURRENT_CANVAS',

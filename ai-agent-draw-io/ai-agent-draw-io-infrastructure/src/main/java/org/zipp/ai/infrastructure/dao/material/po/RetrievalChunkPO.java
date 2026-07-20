@@ -19,6 +19,8 @@ public class RetrievalChunkPO {
     private String retrievalTextObjectKey;
     private String retrievalTextObjectVersionId;
     private String retrievalTextSha256;
+    private long retrievalTextByteSize;
+    private String retrievalTextContentType;
     private String parentContextObjectKey;
     private String parentContextObjectVersionId;
     private int tokenCount;

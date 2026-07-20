@@ -1,7 +1,7 @@
 export type AgentRunEventStatus = 'running' | 'done' | 'warning' | 'error';
 export type AgentRunEventTone = 'analysis' | 'drawing' | 'tool' | 'validation' | 'review';
 export type AgentRunScope = 'full' | 'local' | 'append' | 'layout' | 'review';
-export type AgentRouteType = 'create_new' | 'edit_existing' | 'optimize_layout' | 'answer_only' | 'clarify' | 'review_only';
+export type AgentRouteType = 'create_new' | 'edit_existing' | 'optimize_layout' | 'answer_only' | 'answer_with_evidence' | 'clarify' | 'review_only';
 export type VisualReviewDecision = 'APPROVE' | 'APPROVE_WITH_NOTES' | 'REPAIR' | 'NEEDS_HUMAN_REVIEW' | 'UNAVAILABLE';
 export type VisualReviewStage = 'CURRENT_CANVAS' | 'POST_MUTATION' | 'POST_REPAIR' | 'VERIFY_ONLY';
 
@@ -84,6 +84,7 @@ const routeLabels: Record<AgentRouteType, string> = {
   edit_existing: 'Edit diagram',
   optimize_layout: 'Layout repair',
   answer_only: 'Answer',
+  answer_with_evidence: 'Evidence answer',
   clarify: 'Clarify request',
   review_only: 'Diagram review',
 };
@@ -93,6 +94,7 @@ const routeLabelsChinese: Record<AgentRouteType, string> = {
   edit_existing: '修改图表',
   optimize_layout: '布局修复',
   answer_only: '回答问题',
+  answer_with_evidence: '资料回答',
   clarify: '澄清需求',
   review_only: '审阅图表',
 };
@@ -120,6 +122,10 @@ const routePhaseLabels: Record<AgentRouteType, Partial<Record<string, string>>> 
     analyzing: 'Understand question',
     thinking: 'Prepare answer',
   },
+  answer_with_evidence: {
+    analyzing: 'Understand evidence question',
+    retrieval: 'Retrieve authorized evidence',
+  },
   clarify: {
     analyzing: 'Identify missing details',
     thinking: 'Prepare question',
@@ -136,6 +142,7 @@ const fallbackPhaseLabels: Record<string, string> = {
   reviewing: 'Review quality',
   revising: 'Plan revision',
   thinking: 'Thinking',
+  retrieval: 'Retrieve evidence',
 };
 
 const routePhaseLabelsChinese: Record<AgentRouteType, Partial<Record<string, string>>> = {
@@ -143,6 +150,7 @@ const routePhaseLabelsChinese: Record<AgentRouteType, Partial<Record<string, str
   edit_existing: { analyzing: '理解修改要求', drawing: '修改画布', reviewing: '结构校验', revising: '修正修改' },
   optimize_layout: { analyzing: '检查布局', drawing: '优化布局', reviewing: '结构校验', revising: '修复剩余问题' },
   answer_only: { analyzing: '理解问题', thinking: '组织回答' },
+  answer_with_evidence: { analyzing: '理解资料问题', retrieval: '检索授权资料' },
   clarify: { analyzing: '确认缺失信息', thinking: '组织澄清问题' },
   review_only: { analyzing: '检查图表', reviewing: '整理审阅结果' },
 };
@@ -153,6 +161,7 @@ const fallbackPhaseLabelsChinese: Record<string, string> = {
   reviewing: '检查质量',
   revising: '修正图表',
   thinking: '处理请求',
+  retrieval: '检索资料',
 };
 
 const diagramTypeLabelsChinese: Record<string, string> = {

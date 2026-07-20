@@ -480,6 +480,8 @@ public class MySqlDocumentProcessingWorkAdapter implements DocumentProcessingWor
         po.setRetrievalTextObjectKey(artifact.retrievalTextArtifact().objectKey());
         po.setRetrievalTextObjectVersionId(artifact.retrievalTextArtifact().objectVersionId());
         po.setRetrievalTextSha256(chunk.retrievalTextSha256());
+        po.setRetrievalTextByteSize(artifact.retrievalTextArtifact().byteSize());
+        po.setRetrievalTextContentType(artifact.retrievalTextArtifact().contentType());
         if (artifact.parentContextArtifact() != null) {
             po.setParentContextObjectKey(artifact.parentContextArtifact().objectKey());
             po.setParentContextObjectVersionId(artifact.parentContextArtifact().objectVersionId());

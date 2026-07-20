@@ -3,6 +3,7 @@ package org.zipp.ai.trigger.http.service;
 import org.zipp.ai.api.dto.ChatRequestDTO;
 import org.zipp.ai.api.dto.ChatResponseDTO;
 import org.zipp.ai.domain.account.model.valobj.ModelCredentialSecret;
+import org.zipp.ai.domain.account.model.valobj.OwnerType;
 import org.zipp.ai.domain.account.service.AnonymousDemoQuotaExceededException;
 import org.zipp.ai.domain.account.service.AnonymousDemoQuotaService;
 import org.zipp.ai.domain.account.service.IModelCredentialService;
@@ -15,6 +16,7 @@ import org.zipp.ai.domain.agent.model.valobj.analysis.CanvasAnalysis;
 import org.zipp.ai.domain.agent.model.valobj.analysis.CanvasAnalysisIssue;
 import org.zipp.ai.domain.agent.model.valobj.intent.IntentRoutingCommand;
 import org.zipp.ai.domain.agent.model.valobj.intent.IntentRoutingResult;
+import org.zipp.ai.domain.agent.model.valobj.intent.IntentRoutingProbe;
 import org.zipp.ai.domain.agent.model.valobj.visualreview.CanvasVisualReviewCommand;
 import org.zipp.ai.domain.agent.model.valobj.visualreview.CanvasVisualReviewDecision;
 import org.zipp.ai.domain.agent.model.valobj.visualreview.CanvasVisualReviewResult;
@@ -36,6 +38,8 @@ import org.zipp.ai.domain.agent.service.usage.AgentUsageTelemetryContext;
 import org.zipp.ai.domain.agent.service.usage.AgentUsageTelemetryService;
 import org.zipp.ai.domain.agent.service.visualreview.CanvasVisualReviewPolicy;
 import org.zipp.ai.domain.agent.service.visualreview.ICanvasVisualReviewer;
+import org.zipp.ai.domain.material.model.valobj.CatalogOwner;
+import org.zipp.ai.domain.retrieval.*;
 import org.zipp.ai.types.enums.ResponseCode;
 import org.zipp.ai.types.exception.AppException;
 import org.zipp.ai.types.util.SecretLogSanitizer;
@@ -44,6 +48,8 @@ import io.reactivex.rxjava3.disposables.Disposable;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseBodyEmitter;
 
 import javax.annotation.Resource;
@@ -114,9 +120,19 @@ public class AgentConversationService {
     @Resource
     private VisualReviewRolloutPolicy visualReviewRolloutPolicy;
 
+    @Autowired(required = false)
+    private RequestProbeService requestProbeService;
+
+    @Autowired(required = false)
+    private EvidencePreparationModule evidencePreparationModule;
+
+    @Value("${app.material-rag.enabled:false}")
+    private boolean materialRagEnabled;
+
     private final CanvasVisualReviewPolicy canvasVisualReviewPolicy = new CanvasVisualReviewPolicy();
 
     public ChatResponseDTO chat(ChatRequestDTO requestDTO) {
+        RunResourceDomain evidenceResources = new RunResourceDomain();
         AgentUsageTelemetryService.RunScope runScope = telemetryService().startRun(
                 requestDTO.getRunId(), requestDTO.getRequestId(),
                 requestDTO.getUserId(), requestDTO.getAgentId(), requestDTO.getSessionId(), "chat",
@@ -142,10 +158,19 @@ public class AgentConversationService {
             CustomApiConfigManager.setConfig(sessionId, config);
             requestDTO = requestWithStoredCanvas(requestDTO);
             final ChatRequestDTO currentRequest = requestDTO;
+            RequestProbe requestProbe = probeRequest(currentRequest);
             IntentRoutingResult routingResult = recordCapturedStep(
                     "routing", requestStepInput(currentRequest), AgentConversationService::routingStepOutput,
-                    () -> routeIntent(currentRequest, config));
+                    () -> routeIntent(currentRequest, config, requestProbe));
             recordRoutingDecision(runScope, routingResult);
+            ChatResponseDTO evidenceResponse = prepareEvidenceResponse(
+                    currentRequest, routingResult, requestProbe, evidenceResources,
+                    EvidenceProgressListener.NOOP, CancellationSignal.NEVER);
+            if (evidenceResponse != null) {
+                attachCorrelation(evidenceResponse, runScope);
+                captureRunOutput(runScope, evidenceResponse, currentRequest.getDiagramId());
+                return evidenceResponse;
+            }
             if (isReviewOnly(routingResult)) {
                 ReviewOnlyContext reviewContext = prepareReviewOnlyContext(currentRequest, routingResult);
                 ChatResponseDTO responseDTO = new ChatResponseDTO();
@@ -202,6 +227,7 @@ public class AgentConversationService {
             }
             throw new RuntimeException(e);
         } finally {
+            evidenceResources.closeExactlyOnce(runError == null ? CloseReason.COMPLETED : CloseReason.FAILED);
             telemetryService().completeRun(runScope, runError);
             clearSessionConfig(sessionId, runScope.getContext().runId());
             if (configuredScope != null) {
@@ -245,6 +271,18 @@ public class AgentConversationService {
                 requestDTO.getRunId(), requestDTO.getRequestId(),
                 requestDTO.getUserId(), requestDTO.getAgentId(), requestDTO.getSessionId(), operation,
                 requestDTO.getDiagramId(), credentialSource(requestDTO), requestDTO.getModelCredentialId(), "openai", "unknown");
+        RunResourceDomain evidenceResources = new RunResourceDomain();
+        AtomicBoolean evidenceCancelled = new AtomicBoolean(false);
+        // Register cleanup before probe/retrieval so disconnects cannot strand leases or in-flight work.
+        emitter.onCompletion(() -> evidenceResources.closeExactlyOnce(CloseReason.COMPLETED));
+        emitter.onTimeout(() -> {
+            evidenceCancelled.set(true);
+            evidenceResources.closeExactlyOnce(CloseReason.TIMED_OUT);
+        });
+        emitter.onError(error -> {
+            evidenceCancelled.set(true);
+            evidenceResources.closeExactlyOnce(CloseReason.CLIENT_DISCONNECTED);
+        });
         requestDTO.setRunId(runScope.getContext().runId());
         BoundedTextCapture streamOutputCapture = new BoundedTextCapture(MAX_BUFFERED_STREAM_CAPTURE_CHARS);
         AgentUsageTelemetryContext.Scope initialScope = AgentUsageTelemetryContext.bind(runScope.getContext());
@@ -274,15 +312,33 @@ public class AgentConversationService {
 
             requestDTO = requestWithStoredCanvas(requestDTO);
             final ChatRequestDTO currentRequest = requestDTO;
+            RequestProbe requestProbe = probeRequest(currentRequest);
             IntentRoutingResult routingResult = forcedRoutingResult == null
                     ? recordCapturedStep(
                     "routing", requestStepInput(currentRequest), AgentConversationService::routingStepOutput,
-                    () -> routeIntent(currentRequest, config))
+                    () -> routeIntent(currentRequest, config, requestProbe))
                     : forcedRoutingResult;
             recordRoutingDecision(runScope, routingResult);
             // The UI uses this compact event to describe the selected route without exposing model reasoning.
             streamResponseWriter.sendRoute(emitter, routingResult.getRouteType(),
                     routingResult.getDiagramType(), routingResult.getSkillName());
+            if (forcedRoutingResult == null) {
+                ChatResponseDTO evidenceResponse = prepareEvidenceResponse(currentRequest, routingResult,
+                        requestProbe, evidenceResources, (stage, completed, total) -> {
+                            try {
+                                streamResponseWriter.sendEvidenceProgress(emitter, stage, completed, total);
+                            } catch (Exception error) {
+                                evidenceCancelled.set(true);
+                            }
+                        }, evidenceCancelled::get);
+                if (evidenceResponse != null) {
+                    captureRunOutput(runScope, evidenceResponse, currentRequest.getDiagramId());
+                    streamResponseWriter.sendEvidenceOutcome(emitter,
+                            evidenceStreamEvent(evidenceResponse.getType()), evidenceResponse.getContent());
+                    completeStreamTelemetry(streamTelemetryCompleted, null, runScope, null);
+                    return;
+                }
+            }
             if (isReviewOnly(routingResult)) {
                 try {
                     ReviewOnlyContext reviewContext = prepareReviewOnlyContext(currentRequest, routingResult);
@@ -967,17 +1023,177 @@ public class AgentConversationService {
                 : AgentUsageTelemetryService.PLATFORM;
     }
 
-    private IntentRoutingResult routeIntent(ChatRequestDTO requestDTO, CustomApiConfigManager.CustomApiConfig config) {
-        requestDTO = requestWithStoredCanvas(requestDTO);
+    private IntentRoutingResult routeIntent(ChatRequestDTO requestDTO,
+                                            CustomApiConfigManager.CustomApiConfig config,
+                                            RequestProbe requestProbe) {
         DrawioPromptContextBuilder contextBuilder = contextBuilder();
-        String canvasXml = contextBuilder.resolveCanvasXml(requestDTO);
         return intentRoutingService.route(IntentRoutingCommand.builder()
                 .userId(requestDTO.getUserId())
                 .message(contextBuilder.buildIntentMessage(requestDTO))
-                .canvasXml(canvasXml)
-                .canvasSummary(contextBuilder.resolveCanvasSummary(requestDTO, canvasXml))
+                .requestProbe(intentProbe(requestProbe))
                 .customApiConfig(config)
                 .build());
+    }
+
+    private RequestProbe probeRequest(ChatRequestDTO requestDTO) {
+        SourceMode mode = sourceMode(requestDTO == null ? null : requestDTO.getSourceMode());
+        if (requestDTO == null) {
+            return new RequestProbe(SourceProbe.empty(mode), new CanvasProbe(false, 0, 0,
+                    null, "", 0, List.of(), false, false));
+        }
+        if (materialRagEnabled && requestProbeService != null) {
+            try {
+                return requestProbeService.probe(new RequestProbeCommand(owner(requestDTO),
+                        requestDTO.getDiagramId(), requestDTO.getSessionId(), mode,
+                        safeList(requestDTO.getSelectedVersionIds()), safeList(requestDTO.getSelectedCellIds()),
+                        requestDTO.getSelectionCanvasVersion(), requestDTO.getSelectionContentHash()));
+            } catch (RuntimeException exception) {
+                log.warn("Request probe failed closed. diagramId={}",
+                        SecretLogSanitizer.maskCapability(requestDTO.getDiagramId()), exception);
+                return new RequestProbe(SourceProbe.empty(mode), CanvasProbe.unavailableProbe());
+            }
+        }
+        // Legacy drawing still uses server state, but only the content-free existence bit reaches the router.
+        if (canvasStateStore == null) {
+            return new RequestProbe(SourceProbe.empty(mode), CanvasProbe.unavailableProbe());
+        }
+        if (StringUtils.isBlank(requestDTO.getDiagramId())) {
+            return new RequestProbe(SourceProbe.empty(mode), CanvasProbe.unavailableProbe());
+        }
+        return canvasStateStore.find(requestDTO.getUserId(), requestDTO.getDiagramId())
+                .map(state -> new RequestProbe(SourceProbe.empty(mode),
+                        new CanvasProbe(hasDrawableCell(state.getCurrentXml()),
+                                hasDrawableCell(state.getCurrentXml()) ? 1 : 0, 0, state.getVersion(),
+                                StringUtils.defaultString(state.getContentHash()), 0, List.of(), false, false)))
+                .orElseGet(() -> new RequestProbe(SourceProbe.empty(mode), CanvasProbe.unavailableProbe()));
+    }
+
+    private IntentRoutingProbe intentProbe(RequestProbe requestProbe) {
+        SourceProbe source = requestProbe.sources();
+        CanvasProbe canvas = requestProbe.canvas();
+        return new IntentRoutingProbe(canvas.hasCanvas(), canvas.nodeCount(), canvas.edgeCount(),
+                source.selectedCount(), source.pendingConversationUploadCount(),
+                source.hasReadyDiagramSources() || source.hasReadyChartbookSources()
+                        || source.hasReadyLibrarySources(),
+                source.hasVisualEvidence(), canvas.selectionVersionMismatch(), source.effectiveSourceMode());
+    }
+
+    private ChatResponseDTO prepareEvidenceResponse(ChatRequestDTO requestDTO,
+                                                    IntentRoutingResult routing,
+                                                    RequestProbe requestProbe,
+                                                    RunResourceDomain resources,
+                                                    EvidenceProgressListener progress,
+                                                    CancellationSignal cancellation) {
+        if (!shouldPrepareEvidence(requestDTO, routing)) return null;
+        boolean strict = routing.isEvidenceAnswer() || "REQUIRED".equals(routing.getEvidenceNeed())
+                || sourceMode(requestDTO.getSourceMode()) == SourceMode.EXPLICIT_ONLY
+                || !safeList(requestDTO.getSelectedVersionIds()).isEmpty();
+        if (!materialRagEnabled || evidencePreparationModule == null) {
+            return strict ? evidenceResponse("capability_unavailable",
+                    "资料检索功能当前不可用，画布未被修改。 / Evidence retrieval is currently unavailable; the canvas was not modified.")
+                    : null;
+        }
+        EvidencePreparationCommand command = new EvidencePreparationCommand(owner(requestDTO),
+                requestDTO.getDiagramId(), requestDTO.getSessionId(),
+                StringUtils.defaultIfBlank(requestDTO.getRequestId(), requestDTO.getRunId()), requestDTO.getRunId(),
+                requestDTO.getMessage(), requestProbe.canvas(),
+                new ValidatedSelection(safeList(requestDTO.getSelectedCellIds()),
+                        requestDTO.getSelectionCanvasVersion(), requestDTO.getSelectionContentHash()),
+                sourceMode(requestDTO.getSourceMode()), safeList(requestDTO.getSelectedVersionIds()),
+                StringUtils.defaultIfBlank(routing.getEvidenceNeed(), "OPTIONAL"),
+                StringUtils.defaultIfBlank(routing.getTargetNeed(), "NONE"));
+        PreparationOutcome outcome = evidencePreparationModule.prepare(command, resources, progress, cancellation)
+                .toCompletableFuture().join();
+        if (outcome instanceof PreparationOutcome.NotRequired) return null;
+        if (!strict && (outcome instanceof PreparationOutcome.InsufficientEvidence
+                || outcome instanceof PreparationOutcome.Failed)) {
+            // Optional AUTO retrieval may degrade to the existing text-only Drawer path.
+            return null;
+        }
+        if (outcome instanceof PreparationOutcome.Waiting) {
+            return evidenceResponse("material_waiting",
+                    "会话中的资料仍在处理中，完成后可继续本轮请求。 / Conversation material is still processing.");
+        }
+        if (outcome instanceof PreparationOutcome.MaterialNotReady) {
+            return evidenceResponse("material_not_ready",
+                    "所选资料尚未就绪，请稍后重试。 / The selected library material is not ready yet.");
+        }
+        if (outcome instanceof PreparationOutcome.TargetClarification) {
+            return evidenceResponse("target_clarification",
+                    "无法唯一确定要处理的画布对象，请先明确选择节点或连线。 / Please select the intended canvas target.");
+        }
+        if (outcome instanceof PreparationOutcome.CanvasChangedRetry) {
+            return evidenceResponse("canvas_changed_retry",
+                    "画布已发生变化，请刷新后重试。 / The canvas changed; refresh and retry.");
+        }
+        if (outcome instanceof PreparationOutcome.StaleCanvasSelection) {
+            return evidenceResponse("stale_canvas_selection",
+                    "画布选择已过期，请重新选择目标后重试。 / The canvas selection is stale; select the target again.");
+        }
+        if (outcome instanceof PreparationOutcome.CanvasUnavailable) {
+            return evidenceResponse("canvas_unavailable",
+                    "无法读取可信的服务端画布，已停止本轮操作。 / The trusted server canvas is unavailable.");
+        }
+        if (outcome instanceof PreparationOutcome.Cancelled) {
+            return evidenceResponse("cancelled", "请求已取消。 / Request cancelled.");
+        }
+        if (outcome instanceof PreparationOutcome.Ready) {
+            // WP6/WP7 will consume this bundle; WP5 must never silently send it to the legacy Drawer.
+            return evidenceResponse("capability_unavailable",
+                    "资料证据已准备完成，但证据化回答/绘图服务尚未启用，画布未被修改。 / Evidence is ready, but grounded generation is not enabled yet.");
+        }
+        return evidenceResponse("insufficient_evidence",
+                "当前资料不足以安全完成请求，画布未被修改。 / The available evidence is insufficient.");
+    }
+
+    private boolean shouldPrepareEvidence(ChatRequestDTO requestDTO, IntentRoutingResult routing) {
+        if (routing == null || requestDTO == null) return false;
+        if (routing.isEvidenceAnswer() || "REQUIRED".equals(routing.getEvidenceNeed())) return true;
+        if (!safeList(requestDTO.getSelectedVersionIds()).isEmpty()) return true;
+        SourceMode mode = sourceMode(requestDTO.getSourceMode());
+        return materialRagEnabled && routing.isDrawAction() && !"NONE".equals(routing.getEvidenceNeed())
+                && mode != SourceMode.NONE;
+    }
+
+    private ChatResponseDTO evidenceResponse(String type, String content) {
+        ChatResponseDTO response = new ChatResponseDTO();
+        response.setType(type);
+        response.setContent(content);
+        return response;
+    }
+
+    private String evidenceStreamEvent(String responseType) {
+        return switch (StringUtils.defaultString(responseType)) {
+            case "material_waiting" -> "source_wait_started";
+            case "material_not_ready" -> "source_not_ready";
+            case "target_clarification" -> "target_clarification";
+            case "stale_canvas_selection" -> "target_clarification";
+            default -> "degraded";
+        };
+    }
+
+    private CatalogOwner owner(ChatRequestDTO requestDTO) {
+        String ownerKey = StringUtils.defaultIfBlank(requestDTO.getUserId(), "unknown-owner");
+        OwnerType type = ownerKey.startsWith("anon_") ? OwnerType.ANONYMOUS : OwnerType.USER;
+        return new CatalogOwner(type, ownerKey);
+    }
+
+    private SourceMode sourceMode(String value) {
+        if (StringUtils.isBlank(value)) return SourceMode.AUTO;
+        try {
+            return SourceMode.valueOf(value.trim().toUpperCase(java.util.Locale.ROOT));
+        } catch (IllegalArgumentException exception) {
+            return SourceMode.AUTO;
+        }
+    }
+
+    private List<String> safeList(List<String> values) {
+        return values == null ? List.of() : values;
+    }
+
+    private boolean hasDrawableCell(String xml) {
+        return xml != null && (xml.contains("vertex=\"1\"") || xml.contains("vertex='1'")
+                || xml.contains("edge=\"1\"") || xml.contains("edge='1'"));
     }
 
     private String resolveDirectAnswer(IntentRoutingResult routingResult) {
@@ -1175,10 +1391,9 @@ public class AgentConversationService {
             case "create_new" -> phasedToolPolicy(DrawioCanvasToolNames.CREATE_DIAGRAM);
             case "edit_existing" -> phasedToolPolicy(DrawioCanvasToolNames.MODIFY_DIAGRAM);
             case "optimize_layout" -> phasedToolPolicy(DrawioCanvasToolNames.OPTIMIZE_DIAGRAM);
-            case "review_only", "answer_only", "clarify" -> DrawioToolAccessContext.ToolPolicy.of(List.of(), List.of());
-            default -> DrawioToolAccessContext.ToolPolicy.of(
-                    DrawioCanvasToolNames.CONSOLIDATED_TOOL_NAMES,
-                    List.of(DrawioCanvasToolNames.MODIFY_DIAGRAM, DrawioCanvasToolNames.OPTIMIZE_DIAGRAM));
+            case "review_only", "answer_only", "answer_with_evidence", "clarify" ->
+                    DrawioToolAccessContext.ToolPolicy.of(List.of(), List.of());
+            default -> DrawioToolAccessContext.ToolPolicy.of(List.of(), List.of());
         };
     }
 

@@ -30,7 +30,11 @@ public final class IntentRoutingContract {
     }
 
     public static final List<String> ROUTE_TYPES =
-            List.of("answer_only", "clarify", "create_new", "edit_existing", "optimize_layout", "review_only");
+            List.of("answer_only", "answer_with_evidence", "clarify", "create_new", "edit_existing",
+                    "optimize_layout", "review_only");
+
+    public static final List<String> EVIDENCE_NEEDS = List.of("NONE", "OPTIONAL", "REQUIRED");
+    public static final List<String> TARGET_NEEDS = List.of("NONE", "OPTIONAL", "REQUIRED");
 
     /** Canonical diagram types seen downstream (after alias normalization). Used by validation. */
     public static final Set<String> CANONICAL_DIAGRAM_TYPES = Set.of(
@@ -72,6 +76,8 @@ public final class IntentRoutingContract {
         properties.put("routeType", enumProp(ROUTE_TYPES));
         properties.put("diagramType", enumProp(ROUTER_DIAGRAM_TYPE_ENUM));
         properties.put("skillName", stringProp());
+        properties.put("evidenceNeed", enumProp(EVIDENCE_NEEDS));
+        properties.put("targetNeed", enumProp(TARGET_NEEDS));
         properties.put("answer", stringProp());
         properties.put("reason", stringProp());
 

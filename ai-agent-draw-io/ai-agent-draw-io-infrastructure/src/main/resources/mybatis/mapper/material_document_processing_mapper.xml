@@ -480,12 +480,14 @@
             id, version_id, revision_id, page_id, section_id, chunk_type, modality,
             language_primary, citable, index_mode, duplicate_cluster_id, canonical_chunk_id,
             retrieval_text_object_key, retrieval_text_object_version_id, retrieval_text_sha256,
+            retrieval_text_byte_size, retrieval_text_content_type,
             parent_context_object_key, parent_context_object_version_id,
             token_count, quality_score, structural_ordinal, status
         ) VALUES (
             #{id}, #{versionId}, #{revisionId}, #{pageId}, #{sectionId}, #{chunkType}, #{modality},
             #{languagePrimary}, #{citable}, #{indexMode}, #{duplicateClusterId}, #{canonicalChunkId},
             #{retrievalTextObjectKey}, #{retrievalTextObjectVersionId}, #{retrievalTextSha256},
+            #{retrievalTextByteSize}, #{retrievalTextContentType},
             #{parentContextObjectKey}, #{parentContextObjectVersionId},
             #{tokenCount}, #{qualityScore}, #{structuralOrdinal}, #{status}
         )

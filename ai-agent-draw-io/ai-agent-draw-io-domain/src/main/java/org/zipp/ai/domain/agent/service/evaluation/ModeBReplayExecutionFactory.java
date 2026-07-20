@@ -9,6 +9,7 @@ import org.zipp.ai.domain.agent.model.valobj.evaluation.EvalExecution;
 import org.zipp.ai.domain.agent.model.valobj.evaluation.EvalTrace;
 import org.zipp.ai.domain.agent.model.valobj.intent.IntentRoutingCommand;
 import org.zipp.ai.domain.agent.model.valobj.intent.IntentRoutingResult;
+import org.zipp.ai.domain.agent.model.valobj.intent.IntentRoutingProbe;
 import org.zipp.ai.domain.agent.service.IChatService;
 import org.zipp.ai.domain.agent.service.armory.matter.skills.SkillCatalogService;
 import org.zipp.ai.domain.agent.service.intent.DefaultIntentRoutingService;
@@ -114,7 +115,12 @@ public class ModeBReplayExecutionFactory implements EvalBatchRunner.ExecutionFac
         DefaultIntentRoutingService router = new DefaultIntentRoutingService(
                 new RecordedReplyChatService(recordedReply), new EmptySkillCatalogService());
         return router.route(IntentRoutingCommand.builder().userId("eval-user")
-                .message(user).canvasXml(canvasXml).build());
+                .message(user).requestProbe(IntentRoutingProbe.canvasOnly(hasDrawableCell(canvasXml))).build());
+    }
+
+    private boolean hasDrawableCell(String xml) {
+        return xml != null && (xml.contains("vertex=\"1\"") || xml.contains("vertex='1'")
+                || xml.contains("edge=\"1\"") || xml.contains("edge='1'"));
     }
 
     private String executeTool(EvalCaseDefinition.ReplayToolCall call, String currentXml) {

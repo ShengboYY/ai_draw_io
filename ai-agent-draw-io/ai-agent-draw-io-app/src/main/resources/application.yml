@@ -66,6 +66,23 @@ app:
       chunk-schema-version: ${MATERIAL_PROCESSING_CHUNK_SCHEMA_VERSION:}
       ocr-version: ${MATERIAL_PROCESSING_OCR_VERSION:}
       vlm-schema-version: ${MATERIAL_PROCESSING_VLM_SCHEMA_VERSION:}
+  material-rag:
+    # WP5 remains fail-closed until migrations, lifecycle leases, S3 and optional Pinecone are configured.
+    enabled: ${MATERIAL_RAG_ENABLED:false}
+    dense-enabled: ${MATERIAL_RAG_DENSE_ENABLED:false}
+    parallelism: ${MATERIAL_RAG_PARALLELISM:4}
+    retrieval-timeout-ms: ${MATERIAL_RAG_RETRIEVAL_TIMEOUT_MS:3000}
+    probe-timeout-ms: ${MATERIAL_RAG_PROBE_TIMEOUT_MS:300}
+    hydration-timeout-ms: ${MATERIAL_RAG_HYDRATION_TIMEOUT_MS:800}
+    aws-region: ${MATERIAL_RAG_AWS_REGION:${AWS_REGION:ap-southeast-2}}
+    materials-bucket: ${MATERIALS_BUCKET:}
+    pinecone:
+      api-key: ${PINECONE_API_KEY:}
+      index-host: ${PINECONE_INDEX_HOST:}
+      namespace: ${PINECONE_NAMESPACE:prod}
+      embedding-model: ${PINECONE_EMBEDDING_MODEL:multilingual-e5-large}
+      dimension: ${PINECONE_DIMENSION:1024}
+      tenant-hmac-secret: ${PINECONE_TENANT_HMAC_SECRET:}
   material-upload:
     # Fail closed until the quarantine bucket, IAM task role, and HMAC secrets are deployed.
     enabled: ${MATERIAL_UPLOAD_ENABLED:false}
@@ -205,4 +222,5 @@ mybatis:
     - classpath*:/mybatis/mapper/material_lifecycle_mapper.xml
     - classpath*:/mybatis/mapper/material_read_lease_mapper.xml
     - classpath*:/mybatis/mapper/material_deletion_mapper.xml
+    - classpath*:/mybatis/mapper/online_retrieval_mapper.xml
   config-location: classpath:/mybatis/config/mybatis-config.xml

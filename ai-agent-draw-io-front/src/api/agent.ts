@@ -215,6 +215,18 @@ export interface RouteChunk {
     skillName?: string;
 }
 
+export interface EvidenceProgressChunk {
+    type: 'evidence_progress';
+    stage: string;
+    completed: number;
+    total: number;
+}
+
+export interface EvidenceOutcomeChunk {
+    type: 'source_wait_started' | 'source_not_ready' | 'target_clarification' | 'degraded';
+    content: string;
+}
+
 export interface ReviewResultChunk {
     type: 'review_result';
     approved: boolean;
@@ -284,10 +296,10 @@ export interface MutationRejectedChunk {
     changedCellIds?: string[];
 }
 
-export type StreamChunk = DrawioPreviewChunk | DrawioNodeChunk | DrawioEdgeChunk | DrawioDoneChunk | DrawioLegacyChunk | StatusChunk | ErrorChunk | UserChunk | DoneChunk | TokenChunk | MetaChunk | RouteChunk | ReviewStartedChunk | ReviewResultChunk | ReviewStaleChunk | ValidationResultChunk | VersionConflictChunk | MutationRejectedChunk;
+export type StreamChunk = DrawioPreviewChunk | DrawioNodeChunk | DrawioEdgeChunk | DrawioDoneChunk | DrawioLegacyChunk | StatusChunk | ErrorChunk | UserChunk | DoneChunk | TokenChunk | MetaChunk | RouteChunk | EvidenceProgressChunk | EvidenceOutcomeChunk | ReviewStartedChunk | ReviewResultChunk | ReviewStaleChunk | ValidationResultChunk | VersionConflictChunk | MutationRejectedChunk;
 
 export interface StreamEvent {
-    phase: 'analyzing' | 'drawing' | 'reviewing' | 'visual_review' | 'revising' | 'thinking' | 'error' | 'done' | 'generating';
+    phase: 'analyzing' | 'drawing' | 'reviewing' | 'visual_review' | 'revising' | 'thinking' | 'retrieval' | 'error' | 'done' | 'generating';
     chunk: StreamChunk;
 }
 
