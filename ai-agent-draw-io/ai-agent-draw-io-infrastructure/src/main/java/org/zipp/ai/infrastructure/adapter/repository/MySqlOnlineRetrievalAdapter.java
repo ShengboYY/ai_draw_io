@@ -82,6 +82,18 @@ public class MySqlOnlineRetrievalAdapter implements EvidenceCatalog, RetrievalLe
                 .stream().map(this::authorized).toList();
     }
 
+    @Override
+    public List<CandidateRef> existingTargetCandidates(String diagramId, Long canvasVersion,
+                                                       List<String> cellIds,
+                                                       AuthorizedSourceSet sources, int limit) {
+        if (diagramId == null || diagramId.isBlank() || canvasVersion == null
+                || cellIds == null || cellIds.isEmpty() || sources.sources().isEmpty()) return List.of();
+        return mapper.selectExistingTargetCandidates(sources.owner().ownerType().name(),
+                        sources.owner().ownerKey(), diagramId, canvasVersion, cellIds,
+                        sources.sources(), Math.max(1, Math.min(12, limit)))
+                .stream().map(this::candidate).toList();
+    }
+
     private AuthorizedSource source(OnlineSourcePO row, boolean required) {
         return new AuthorizedSource(row.getMaterialId(), row.getVersionId(), row.getRevisionId(),
                 MaterialScopeType.valueOf(row.getScopeType()), row.getScopeKey(), row.getState(),

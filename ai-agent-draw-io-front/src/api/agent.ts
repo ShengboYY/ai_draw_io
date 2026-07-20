@@ -223,8 +223,36 @@ export interface EvidenceProgressChunk {
 }
 
 export interface EvidenceOutcomeChunk {
-    type: 'source_wait_started' | 'source_not_ready' | 'target_clarification' | 'degraded';
+    type: 'source_wait_started' | 'source_not_ready' | 'degraded' | 'stale_canvas_selection';
     content: string;
+}
+
+export interface TargetClarificationChunk {
+    type: 'target_clarification';
+    content: string;
+    candidates: Array<{ cellId: string; kind: string; shortLabel: string; reasonCode: string }>;
+    canvasVersion: number;
+    contentHash: string;
+}
+
+export interface EvidenceAnswerChunk {
+    type: 'evidence_answer';
+    messageId: string;
+    content: string;
+    coverage: 'FULL' | 'PARTIAL';
+    claims: Array<{
+        claimKey: string;
+        statementText: string;
+        citationKeys: string[];
+        supportType: 'DIRECT' | 'SYNTHESIZED' | 'VISUAL_VERIFIED' | 'AI_KNOWLEDGE';
+    }>;
+    sources: Array<{
+        citationKey: string;
+        sourceLabel: string;
+        pageNumber?: number;
+        modality?: string;
+        origin: 'EXISTING_REFERENCE' | 'EXPLICIT' | 'SEARCH' | 'SUPPLEMENTAL';
+    }>;
 }
 
 export interface GroundingRejectedChunk {
@@ -329,10 +357,10 @@ export interface MutationRejectedChunk {
     changedCellIds?: string[];
 }
 
-export type StreamChunk = DrawioPreviewChunk | DrawioNodeChunk | DrawioEdgeChunk | DrawioDoneChunk | DrawioLegacyChunk | StatusChunk | ErrorChunk | UserChunk | DoneChunk | TokenChunk | MetaChunk | RouteChunk | EvidenceProgressChunk | EvidenceOutcomeChunk | GroundingRejectedChunk | ReviewStartedChunk | ReviewResultChunk | ReviewStaleChunk | ValidationResultChunk | VersionConflictChunk | MutationRejectedChunk;
+export type StreamChunk = DrawioPreviewChunk | DrawioNodeChunk | DrawioEdgeChunk | DrawioDoneChunk | DrawioLegacyChunk | StatusChunk | ErrorChunk | UserChunk | DoneChunk | TokenChunk | MetaChunk | RouteChunk | EvidenceProgressChunk | EvidenceOutcomeChunk | TargetClarificationChunk | EvidenceAnswerChunk | GroundingRejectedChunk | ReviewStartedChunk | ReviewResultChunk | ReviewStaleChunk | ValidationResultChunk | VersionConflictChunk | MutationRejectedChunk;
 
 export interface StreamEvent {
-    phase: 'analyzing' | 'drawing' | 'reviewing' | 'visual_review' | 'revising' | 'thinking' | 'retrieval' | 'error' | 'done' | 'generating';
+    phase: 'analyzing' | 'drawing' | 'reviewing' | 'visual_review' | 'revising' | 'thinking' | 'retrieval' | 'answer' | 'error' | 'done' | 'generating';
     chunk: StreamChunk;
 }
 

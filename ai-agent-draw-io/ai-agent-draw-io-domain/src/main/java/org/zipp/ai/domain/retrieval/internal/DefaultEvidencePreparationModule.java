@@ -91,8 +91,8 @@ public final class DefaultEvidencePreparationModule implements EvidencePreparati
             if (command.selectedVersionIds().size() > 500) {
                 return new PreparationOutcome.InsufficientEvidence(List.of("EXPLICIT_SOURCE_LIMIT_EXCEEDED"));
             }
-            PreparationOutcome targetStop = resolveTarget(command, deadline, cancellation, resources);
-            if (targetStop != null) return targetStop;
+            TargetResolution target = resolveTarget(command, deadline, cancellation, resources);
+            if (target.stop() != null) return target.stop();
 
             progress.onProgress("SOURCE_POLICY", 0, 1);
             SourceResolution resolution = callWithinDeadline(
@@ -114,7 +114,16 @@ public final class DefaultEvidencePreparationModule implements EvidencePreparati
                 // require pixels. A later configured VisualEvidenceVerifier may satisfy this gap.
                 return insufficient(command, "VISUAL_VERIFICATION_REQUIRED");
             }
-            List<String> queries = planQueries(command.userMessage());
+            List<CandidateRef> existing = target.cellIds().isEmpty() ? List.of() : callWithinDeadline(
+                    () -> catalog.existingTargetCandidates(command.diagramId(),
+                            command.canvasProbe().serverCanvasVersion(), target.cellIds(), sources, 12),
+                    deadline, cancellation, resources);
+            Set<String> existingChunkIds = existing.stream().map(CandidateRef::chunkId)
+                    .collect(java.util.stream.Collectors.toUnmodifiableSet());
+            PreparationOutcome existingOnly = prepareExistingOnly(command, resolution, sources, route,
+                    target, existingChunkIds, resources, progress, cancellation, deadline, new ArrayList<>());
+            if (existingOnly != null) return existingOnly;
+            List<String> queries = planQueries(command.userMessage(), target.labels());
             progress.onProgress("RETRIEVAL", 0, 2);
 
             List<String> diagnostics = Collections.synchronizedList(new ArrayList<>());
@@ -130,8 +139,11 @@ public final class DefaultEvidencePreparationModule implements EvidencePreparati
             progress.onProgress("RETRIEVAL", 2, 2);
             if (cancelled(cancellation, resources)) return new PreparationOutcome.Cancelled();
 
-            List<String> fusedIds = fuse(lexicalCandidates, denseCandidates).stream()
-                    .limit(40).map(ScoredChunk::chunkId).toList();
+            LinkedHashSet<String> rankedIds = new LinkedHashSet<>();
+            existing.stream().map(CandidateRef::chunkId).forEach(rankedIds::add);
+            fuse(lexicalCandidates, denseCandidates).stream().limit(40)
+                    .map(ScoredChunk::chunkId).forEach(rankedIds::add);
+            List<String> fusedIds = rankedIds.stream().limit(40).toList();
             if (fusedIds.isEmpty()) return insufficient(command, "NO_RETRIEVAL_MATCH");
             List<AuthorizedCandidate> authorized = callWithinDeadline(
                     () -> catalog.reauthorize(fusedIds, sources, FINAL_CANDIDATE_LIMIT),
@@ -166,8 +178,9 @@ public final class DefaultEvidencePreparationModule implements EvidencePreparati
             if (cancelled(cancellation, resources)) return new PreparationOutcome.Cancelled();
 
             progress.onProgress("HYDRATION", 0, Math.min(HYDRATE_LIMIT, authorized.size()));
-            List<EvidenceBundleItem> items = hydrate(authorized, fusedIds, progress, cancellation,
-                    resources, deadline, diagnostics);
+            List<EvidenceBundleItem> items = hydrate(authorized, fusedIds, existingChunkIds,
+                    !target.cellIds().isEmpty(), Set.copyOf(command.selectedVersionIds()),
+                    progress, cancellation, resources, deadline, diagnostics);
             if (items.isEmpty()) {
                 resources.closeExactlyOnce(CloseReason.FAILED);
                 return insufficient(command, "NO_DISPLAY_EVIDENCE");
@@ -180,7 +193,7 @@ public final class DefaultEvidencePreparationModule implements EvidencePreparati
             EvidenceBundle bundle = new EvidenceBundle(bundleId(command), command.requestId(), command.runId(),
                     resolution.mode(), items);
             resources.markPrepared();
-            return new PreparationOutcome.Ready(new PreparedEvidence(bundle, resources),
+            return new PreparationOutcome.Ready(new PreparedEvidence(bundle, resources, target.targets()),
                     new RetrievalDiagnostics(route, List.copyOf(diagnostics)));
         } catch (RetrievalCancelledException cancelled) {
             resources.closeExactlyOnce(CloseReason.CANCELLED);
@@ -191,20 +204,60 @@ public final class DefaultEvidencePreparationModule implements EvidencePreparati
         }
     }
 
-    private PreparationOutcome resolveTarget(EvidencePreparationCommand command, RetrievalDeadline deadline,
-                                             CancellationSignal cancellation, RunResourceDomain resources) {
-        if (!command.requiresTarget() && command.selection().cellIds().isEmpty()) return null;
+    private PreparationOutcome prepareExistingOnly(EvidencePreparationCommand command,
+                                                    SourceResolution resolution,
+                                                    AuthorizedSourceSet sources,
+                                                    RetrievalRoute route,
+                                                    TargetResolution target,
+                                                    Set<String> existingChunkIds,
+                                                    RunResourceDomain resources,
+                                                    EvidenceProgressListener progress,
+                                                    CancellationSignal cancellation,
+                                                    RetrievalDeadline deadline,
+                                                    List<String> diagnostics) {
+        if (existingChunkIds.isEmpty()) return null;
+        List<String> rankedIds = List.copyOf(existingChunkIds);
+        List<AuthorizedCandidate> authorized = callWithinDeadline(
+                () -> catalog.reauthorize(rankedIds, sources, Math.min(FINAL_CANDIDATE_LIMIT, rankedIds.size())),
+                deadline, cancellation, resources).stream()
+                .filter(candidate -> candidate.qualityScore() >= 0.20)
+                // A historical visual citation still needs a current authenticated observation.
+                .filter(candidate -> !"VISUAL".equals(candidate.modality())).toList();
+        if (authorized.isEmpty()) return null;
+        Set<String> versions = authorized.stream().map(AuthorizedCandidate::versionId)
+                .collect(java.util.stream.Collectors.toUnmodifiableSet());
+        AuthorizedSourceSet usedSources = new AuthorizedSourceSet(command.owner(), sources.mode(),
+                sources.sources().stream().filter(source -> versions.contains(source.versionId())).toList());
+        callWithinDeadline(() -> {
+            resources.attach(leases.acquire(command.owner(), command.runId(), usedSources));
+            return null;
+        }, deadline, cancellation, resources);
+        List<EvidenceBundleItem> items = hydrate(authorized, rankedIds, existingChunkIds, true,
+                Set.copyOf(command.selectedVersionIds()), progress, cancellation, resources, deadline, diagnostics);
+        if (items.isEmpty() || !sufficiency.evaluate(command.userMessage(), route, items).sufficient()) {
+            return null;
+        }
+        EvidenceBundle bundle = new EvidenceBundle(bundleId(command), command.requestId(), command.runId(),
+                resolution.mode(), items);
+        resources.markPrepared();
+        return new PreparationOutcome.Ready(new PreparedEvidence(bundle, resources, target.targets()),
+                new RetrievalDiagnostics(route, List.copyOf(diagnostics)));
+    }
+
+    private TargetResolution resolveTarget(EvidencePreparationCommand command, RetrievalDeadline deadline,
+                                           CancellationSignal cancellation, RunResourceDomain resources) {
+        if (!command.requiresTarget() && command.selection().cellIds().isEmpty()) return TargetResolution.none();
         if (!command.selection().cellIds().isEmpty() && command.canvasProbe().selectionVersionMismatch()) {
-            return new PreparationOutcome.StaleCanvasSelection("STALE_CANVAS_SELECTION");
+            return TargetResolution.stop(new PreparationOutcome.StaleCanvasSelection("STALE_CANVAS_SELECTION"));
         }
         ServerCanvasSnapshotLoader.LoadResult loaded = callWithinDeadline(
                 () -> canvases.load(command.owner(), command.diagramId(), command.canvasProbe()),
                 deadline, cancellation, resources);
         if (loaded instanceof ServerCanvasSnapshotLoader.LoadResult.Unavailable unavailable) {
-            return new PreparationOutcome.CanvasUnavailable(unavailable.errorCode());
+            return TargetResolution.stop(new PreparationOutcome.CanvasUnavailable(unavailable.errorCode()));
         }
         if (loaded instanceof ServerCanvasSnapshotLoader.LoadResult.Changed changed) {
-            return new PreparationOutcome.CanvasChangedRetry(changed.expectedVersion(), changed.actualVersion());
+            return TargetResolution.stop(new PreparationOutcome.CanvasChangedRetry(changed.expectedVersion(), changed.actualVersion()));
         }
         var snapshot = ((ServerCanvasSnapshotLoader.LoadResult.Ready) loaded).snapshot();
         if (!command.selection().cellIds().isEmpty()
@@ -212,18 +265,23 @@ public final class DefaultEvidencePreparationModule implements EvidencePreparati
                 || command.selection().canvasVersion() != snapshot.version()
                 || command.selection().contentHash().isBlank()
                 || !command.selection().contentHash().equals(snapshot.contentHash()))) {
-            return new PreparationOutcome.StaleCanvasSelection("STALE_CANVAS_SELECTION");
+            return TargetResolution.stop(new PreparationOutcome.StaleCanvasSelection("STALE_CANVAS_SELECTION"));
         }
         DiagramTargetResolver.TargetResult result = targets.resolve(
                 snapshot.xml(), command.selection(), command.userMessage());
         if (result instanceof DiagramTargetResolver.TargetResult.Ambiguous ambiguous) {
-            return new PreparationOutcome.TargetClarification(ambiguous.candidates());
+            return TargetResolution.stop(new PreparationOutcome.TargetClarification(ambiguous.candidates()));
         }
         if (result instanceof DiagramTargetResolver.TargetResult.Missing missing && command.requiresTarget()) {
-            return new PreparationOutcome.TargetClarification(List.of(
-                    new TargetCandidate("", "UNKNOWN", "", missing.errorCode())));
+            return TargetResolution.stop(new PreparationOutcome.TargetClarification(List.of(
+                    new TargetCandidate("", "UNKNOWN", "", missing.errorCode()))));
         }
-        return null;
+        if (result instanceof DiagramTargetResolver.TargetResult.Resolved resolved) {
+            return new TargetResolution(null, resolved.cells().stream()
+                    .map(cell -> new EvidenceTarget(cell.id(), cell.kind(), cell.label(),
+                            cell.sourceId(), cell.targetId(), cell.nearbyLabels())).toList());
+        }
+        return TargetResolution.none();
     }
 
     private PreparationOutcome readiness(EvidencePreparationCommand command, SourceResolution resolution) {
@@ -274,8 +332,12 @@ public final class DefaultEvidencePreparationModule implements EvidencePreparati
         return RetrievalRoute.TEXT;
     }
 
-    private List<String> planQueries(String message) {
+    private List<String> planQueries(String message, List<String> targetLabels) {
         String query = message == null ? "" : message.trim();
+        String targetContext = targetLabels == null ? "" : targetLabels.stream()
+                .map(label -> label.replaceAll("<[^>]+>", " ").trim())
+                .filter(label -> !label.isBlank()).limit(4).reduce("", (left, right) -> left + " " + right).trim();
+        if (!targetContext.isBlank()) query = (query + " " + targetContext).trim();
         if (query.isBlank()) return List.of("document overview");
         List<String> facets = new ArrayList<>();
         facets.add(query);
@@ -364,6 +426,8 @@ public final class DefaultEvidencePreparationModule implements EvidencePreparati
     }
 
     private List<EvidenceBundleItem> hydrate(List<AuthorizedCandidate> authorized, List<String> fusedIds,
+                                             Set<String> existingChunkIds, boolean hasTarget,
+                                             Set<String> explicitlySelectedVersions,
                                              EvidenceProgressListener progress, CancellationSignal cancellation,
                                              RunResourceDomain resources, RetrievalDeadline deadline,
                                              List<String> diagnostics) {
@@ -415,10 +479,14 @@ public final class DefaultEvidencePreparationModule implements EvidencePreparati
             int remaining = BUNDLE_CHAR_LIMIT - chars;
             if (remaining <= 0) break;
             String bounded = text.length() <= remaining ? text : text.substring(0, remaining);
+            EvidenceOrigin origin = existingChunkIds.contains(candidate.chunkId())
+                    ? EvidenceOrigin.EXISTING_REFERENCE
+                    : explicitlySelectedVersions.contains(candidate.versionId()) ? EvidenceOrigin.EXPLICIT
+                    : hasTarget ? EvidenceOrigin.SUPPLEMENTAL : EvidenceOrigin.SEARCH;
             items.add(new EvidenceBundleItem("cite_" + (items.size() + 1), candidate.evidenceId(),
                     candidate.materialId(), candidate.versionId(), candidate.revisionId(),
                     candidate.sourceLabel(), candidate.pageNumber(),
-                    candidate.modality(), bounded));
+                    candidate.modality(), bounded, EvidenceSupportRole.SUPPORT, origin));
             chars += bounded.length();
             materialCounts.merge(candidate.materialId(), 1, Integer::sum);
             if ("VISUAL".equals(candidate.modality())) visualCount++;
@@ -520,6 +588,19 @@ public final class DefaultEvidencePreparationModule implements EvidencePreparati
     }
 
     private record ScoredChunk(String chunkId, double score) { }
+
+    private record TargetResolution(PreparationOutcome stop, List<EvidenceTarget> targets) {
+        private TargetResolution {
+            targets = List.copyOf(targets == null ? List.of() : targets);
+        }
+        List<String> cellIds() { return targets.stream().map(EvidenceTarget::cellId).toList(); }
+        List<String> labels() { return targets.stream()
+                .flatMap(target -> java.util.stream.Stream.concat(java.util.stream.Stream.of(target.label()),
+                        target.nearbyLabels().stream()))
+                .filter(label -> label != null && !label.isBlank()).distinct().limit(8).toList(); }
+        static TargetResolution none() { return new TargetResolution(null, List.of()); }
+        static TargetResolution stop(PreparationOutcome stop) { return new TargetResolution(stop, List.of()); }
+    }
 
     private static final class RetrievalDeadlineExceededException extends RuntimeException { }
     private static final class RetrievalCancelledException extends RuntimeException { }

@@ -36,15 +36,13 @@
     </select>
 
     <insert id="upsertMessage" parameterType="org.zipp.ai.infrastructure.dao.po.DiagramConversationMessagePO">
+        <!-- Stable client message IDs are immutable; retries may observe but never rewrite text
+             that could already be bound to durable answer citations. -->
         INSERT INTO diagram_conversation_message
             (diagram_id, user_id, session_id, client_message_id, role, content)
         VALUES
             (#{diagramId}, #{userId}, #{sessionId}, #{clientMessageId}, #{role}, #{content})
-        ON DUPLICATE KEY UPDATE
-            session_id = VALUES(session_id),
-            role = VALUES(role),
-            content = VALUES(content),
-            updated_at = CURRENT_TIMESTAMP
+        ON DUPLICATE KEY UPDATE client_message_id = client_message_id
     </insert>
 
     <delete id="deleteByUserId">

@@ -3,6 +3,7 @@ package org.zipp.ai.api.dto;
 import lombok.Data;
 
 import java.util.Date;
+import java.util.List;
 
 @Data
 public class DiagramConversationMessageDTO {
@@ -12,5 +13,23 @@ public class DiagramConversationMessageDTO {
     private String role;
     private String content;
     private Date createdAt;
+    private List<EvidenceClaimDTO> evidenceClaims;
+    private List<EvidenceSourceDTO> evidenceSources;
+
+    @Data
+    public static class EvidenceClaimDTO {
+        private String claimKey;
+        private List<String> citationKeys;
+        private String supportType;
+    }
+
+    @Data
+    public static class EvidenceSourceDTO {
+        private String citationKey;
+        private String sourceLabel;
+        private Integer pageNumber;
+        private String modality;
+        private String origin;
+    }
 
 }

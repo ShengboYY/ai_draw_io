@@ -5,9 +5,11 @@ import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.zipp.ai.domain.ingestion.port.RevisionArtifactPort;
 import org.zipp.ai.domain.citation.model.valobj.CellCitationView;
+import org.zipp.ai.domain.citation.model.valobj.AnswerCitationView;
 import org.zipp.ai.domain.citation.model.valobj.SupportType;
 import org.zipp.ai.domain.citation.port.CitationQueryPort;
 import org.zipp.ai.infrastructure.dao.grounding.CellCitationRowPO;
+import org.zipp.ai.infrastructure.dao.grounding.AnswerCitationRowPO;
 import org.zipp.ai.infrastructure.dao.grounding.ICitationQueryMapper;
 
 import java.util.ArrayList;
@@ -44,6 +46,20 @@ public class MySqlCitationQueryAdapter implements CitationQueryPort {
                     boundedExcerpt(row), previewUrl(row), row.getDeletedAt()));
         }
         return grouped.values().stream().map(CitationBuilder::build).toList();
+    }
+
+    @Override
+    public List<AnswerCitationView> findAnswerCitations(String ownerKey, String diagramId,
+                                                        List<String> messageIds) {
+        LinkedHashMap<String, AnswerCitationBuilder> grouped = new LinkedHashMap<>();
+        for (AnswerCitationRowPO row : mapper.selectAnswerCitations(ownerKey, diagramId, messageIds)) {
+            AnswerCitationBuilder citation = grouped.computeIfAbsent(row.getCitationId(),
+                    ignored -> new AnswerCitationBuilder(row));
+            if (row.getCitationKey() != null) citation.sources.add(new AnswerCitationView.AnswerSourceView(
+                    row.getCitationKey(), row.getSourceLabel(), row.getPageNumber(), row.getModality(),
+                    row.getSourceOrigin() == null ? "SEARCH" : row.getSourceOrigin()));
+        }
+        return grouped.values().stream().map(AnswerCitationBuilder::build).toList();
     }
 
     private String boundedExcerpt(CellCitationRowPO row) {
@@ -86,6 +102,17 @@ public class MySqlCitationQueryAdapter implements CitationQueryPort {
         private CellCitationView build() {
             return new CellCitationView(row.getCitationId(), row.getCellId(), row.getProvenanceRef(), row.getStatementKey(),
                     SupportType.valueOf(row.getSupportType()), row.getCitationState(), sources);
+        }
+    }
+
+    private static final class AnswerCitationBuilder {
+        private final AnswerCitationRowPO row;
+        private final List<AnswerCitationView.AnswerSourceView> sources = new ArrayList<>();
+
+        private AnswerCitationBuilder(AnswerCitationRowPO row) { this.row = row; }
+
+        private AnswerCitationView build() {
+            return new AnswerCitationView(row.getMessageId(), row.getClaimKey(), row.getSupportType(), sources);
         }
     }
 }

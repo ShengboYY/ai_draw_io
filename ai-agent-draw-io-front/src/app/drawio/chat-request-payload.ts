@@ -10,6 +10,7 @@ type BuildDrawioChatRequestPayloadInput = {
   agentId: string;
   userId: string;
   sessionId: string;
+  responseMessageId?: string;
   userMessage: string;
   diagramId?: string;
   expectedVersion?: number;
@@ -74,6 +75,7 @@ export const buildDrawioChatRequestPayload = ({
   agentId,
   userId,
   sessionId,
+  responseMessageId,
   diagramId,
   expectedVersion,
   expectedContentHash,
@@ -106,6 +108,7 @@ export const buildDrawioChatRequestPayload = ({
     userId,
     sessionId,
     requestId: newRequestId(),
+    ...(responseMessageId && { responseMessageId }),
     ...(diagramId && { diagramId }),
     ...(expectedVersion !== undefined && { expectedVersion }),
     ...(expectedContentHash?.trim() && { expectedContentHash: expectedContentHash.trim() }),

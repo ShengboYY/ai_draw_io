@@ -50,11 +50,16 @@ public class DrawioStreamResponseWriterTest {
             @Override public CanvasState save(CanvasState state) { throw new AssertionError("must use atomic port"); }
         };
         AtomicInteger commits = new AtomicInteger();
-        GroundedCanvasCommitPort port = plan -> {
-            commits.incrementAndGet();
-            return org.zipp.ai.domain.agent.model.valobj.canvas.CanvasStateSaveResult.updated(
-                    CanvasState.builder().userId("alice").diagramId("diagram-1").diagramType("flowchart")
-                            .currentXml(plan.canvasXml()).contentHash(plan.contentHash()).version(2L).build());
+        GroundedCanvasCommitPort port = new GroundedCanvasCommitPort() {
+            @Override public java.util.Map<String, InheritedProvenance> findPersistedProvenance(InheritanceQuery query) {
+                return java.util.Map.of();
+            }
+            @Override public org.zipp.ai.domain.agent.model.valobj.canvas.CanvasStateSaveResult commit(CommitPlan plan) {
+                commits.incrementAndGet();
+                return org.zipp.ai.domain.agent.model.valobj.canvas.CanvasStateSaveResult.updated(
+                        CanvasState.builder().userId("alice").diagramId("diagram-1").diagramType("flowchart")
+                                .currentXml(plan.canvasXml()).contentHash(plan.contentHash()).version(2L).build());
+            }
         };
         CanvasMutationGate gate = new CanvasMutationGate(store, new DefaultCanvasAnalyzer());
         DrawioStreamResponseWriter writer = new DrawioStreamResponseWriter(new DrawioToolCallRenderer());

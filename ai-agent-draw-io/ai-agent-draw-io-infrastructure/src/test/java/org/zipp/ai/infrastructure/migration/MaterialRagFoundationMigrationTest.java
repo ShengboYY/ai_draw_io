@@ -12,6 +12,18 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class MaterialRagFoundationMigrationTest {
 
     @Test
+    void answerCitationOriginMigrationKeepsHistorySourceClassification() throws Exception {
+        Path migration = Path.of("docs/sql/migrations/2026-08-08-add-answer-citation-origin.sql");
+        if (!Files.exists(migration)) {
+            migration = Path.of("../docs/sql/migrations/2026-08-08-add-answer-citation-origin.sql");
+        }
+        String sql = Files.readString(migration);
+
+        assertTrue(sql.contains("ALTER TABLE citation_evidence"));
+        assertTrue(sql.contains("ADD COLUMN source_origin VARCHAR(24)"));
+    }
+
+    @Test
     void provenanceReferenceMigrationBackfillsAndIndexesOpaqueIdentity() throws Exception {
         Path migration = Path.of("docs/sql/migrations/2026-08-07-add-cell-provenance-reference.sql");
         if (!Files.exists(migration)) {

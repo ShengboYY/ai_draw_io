@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.zipp.ai.infrastructure.dao.grounding.IEvidenceAnswerCommitMapper">
+    <select id="lockRunState" resultType="org.zipp.ai.infrastructure.dao.grounding.GroundedRunRowPO">
+        SELECT run_id, owner_key, request_id, state, generation
+        FROM grounded_run_control
+        WHERE run_id = #{plan.runId} AND owner_key = #{plan.owner.ownerKey}
+          AND request_id = #{plan.requestId}
+        FOR UPDATE
+    </select>
+
+    <select id="lockCanvasTuple" resultType="org.zipp.ai.infrastructure.dao.grounding.AnswerCanvasTupleRowPO">
+        SELECT state.version, state.content_hash
+        FROM diagram_canvas_state state
+        JOIN diagram ON diagram.id = state.diagram_id AND diagram.user_id = state.user_id
+        WHERE state.diagram_id = #{plan.diagramId} AND state.user_id = #{plan.owner.ownerKey}
+          AND diagram.deleted = 0
+        FOR UPDATE
+    </select>
+
+    <insert id="insertMessage">
+        INSERT INTO diagram_conversation_message
+            (diagram_id, user_id, session_id, client_message_id, role, content)
+        VALUES
+            (#{plan.diagramId}, #{plan.owner.ownerKey}, #{plan.sessionId}, #{plan.messageId}, 'agent', #{plan.content})
+    </insert>
+
+    <insert id="insertCitation">
+        INSERT INTO source_citation
+            (id, owner_key, target_type, diagram_id, canvas_version, message_id, claim_key,
+             support_type, state)
+        VALUES
+            (#{citation.citationId}, #{plan.owner.ownerKey}, 'ANSWER_CLAIM', #{plan.diagramId},
+             #{canvasVersion}, #{plan.messageId}, #{citation.claimKey}, #{citation.supportType},
+             CASE WHEN #{citation.supportType} = 'AI_KNOWLEDGE' THEN NULL ELSE 'VERIFIED' END)
+    </insert>
+
+    <insert id="insertCitationEvidence">
+        INSERT INTO citation_evidence
+            (citation_id, evidence_id, version_id, revision_id, citation_key, use_role, source_origin)
+        VALUES
+            (#{citationId}, #{link.evidenceId}, #{link.versionId}, #{link.revisionId},
+             #{link.citationKey}, #{link.useRole}, #{link.origin})
+    </insert>
+
+    <select id="lockValidEvidenceLink" resultType="string">
+        SELECT evidence.id
+        FROM evidence_unit evidence
+        JOIN material_version version ON version.id = #{link.versionId}
+             AND version.material_id = #{link.materialId}
+        JOIN material ON material.id = version.material_id
+             AND material.owner_type = #{plan.owner.ownerType}
+             AND material.owner_key = #{plan.owner.ownerKey}
+             AND material.lifecycle_state = 'ACTIVE'
+             AND (material.retention_class = 'RETAINED' OR material.expires_at &gt; UTC_TIMESTAMP(3))
+        JOIN material_processing_revision revision ON revision.id = #{link.revisionId}
+             AND revision.version_id = version.id AND revision.state = 'READY'
+        JOIN evidence_read_lease lease ON lease.owner_key = #{plan.owner.ownerKey}
+             AND lease.run_id = #{plan.runId} AND lease.version_id = version.id
+             AND lease.revision_id = revision.id AND lease.status = 'ACTIVE'
+             AND lease.expires_at &gt; UTC_TIMESTAMP(3)
+        WHERE evidence.id = #{link.evidenceId} AND evidence.version_id = version.id
+          AND evidence.revision_id = revision.id AND evidence.status = 'ACTIVE'
+        LIMIT 1
+        FOR UPDATE
+    </select>
+
+    <insert id="upsertSourcePin">
+        INSERT INTO diagram_source_pin
+            (diagram_id, material_id, version_id, processing_revision_id, state,
+             first_used_at, latest_citation_at)
+        VALUES
+            (#{plan.diagramId}, #{link.materialId}, #{link.versionId}, #{link.revisionId},
+             'ACTIVE', UTC_TIMESTAMP(3), UTC_TIMESTAMP(3))
+        ON DUPLICATE KEY UPDATE state = 'ACTIVE', latest_citation_at = UTC_TIMESTAMP(3)
+    </insert>
+
+    <update id="completeRun">
+        UPDATE grounded_run_control
+        SET state = 'COMPLETED', completed_at = UTC_TIMESTAMP(3), updated_at = UTC_TIMESTAMP(3)
+        WHERE run_id = #{plan.runId} AND owner_key = #{plan.owner.ownerKey}
+          AND request_id = #{plan.requestId} AND state = 'RUNNING'
+          AND generation = #{plan.expectedRunGeneration}
+    </update>
+</mapper>

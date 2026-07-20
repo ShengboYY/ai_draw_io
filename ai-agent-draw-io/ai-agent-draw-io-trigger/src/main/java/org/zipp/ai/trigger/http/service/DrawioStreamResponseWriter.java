@@ -27,11 +27,14 @@ import org.zipp.ai.domain.citation.model.valobj.StatementKind;
 import org.zipp.ai.domain.citation.model.valobj.SupportAtom;
 import org.zipp.ai.domain.citation.model.valobj.SupportAtomRole;
 import org.zipp.ai.domain.citation.model.valobj.SupportType;
+import org.zipp.ai.domain.citation.answer.AnswerClaim;
+import org.zipp.ai.domain.citation.answer.EvidenceAnswerResult;
 import org.zipp.ai.domain.grounding.CanvasCommitCommand;
 import org.zipp.ai.domain.grounding.CanvasCommitModule;
 import org.zipp.ai.domain.grounding.CanvasCommitResult;
 import org.zipp.ai.domain.grounding.EvidenceAccessContext;
 import org.zipp.ai.domain.retrieval.RunResourceDomain;
+import org.zipp.ai.api.dto.ChatResponseDTO;
 
 import javax.annotation.Resource;
 import java.util.List;
@@ -111,6 +114,52 @@ public class DrawioStreamResponseWriter {
         com.alibaba.fastjson.JSONObject chunk = new com.alibaba.fastjson.JSONObject();
         chunk.put("type", StringUtils.defaultString(eventType, "degraded"));
         chunk.put("content", StringUtils.defaultString(content));
+        sendWrappedChunk(emitter, "retrieval", chunk);
+        sendDone(emitter);
+        emitter.complete();
+    }
+
+    /** Terminal evidence answer event is emitted only after message and claim citations commit. */
+    public void sendEvidenceAnswer(ResponseBodyEmitter emitter, EvidenceAnswerResult result) throws Exception {
+        com.alibaba.fastjson.JSONObject chunk = new com.alibaba.fastjson.JSONObject();
+        chunk.put("type", "evidence_answer");
+        chunk.put("messageId", result.messageId());
+        chunk.put("content", result.content());
+        com.alibaba.fastjson.JSONArray claims = new com.alibaba.fastjson.JSONArray();
+        for (AnswerClaim claim : result.claims()) {
+            com.alibaba.fastjson.JSONObject value = new com.alibaba.fastjson.JSONObject();
+            value.put("claimKey", claim.claimKey());
+            value.put("statementText", claim.statementText());
+            value.put("citationKeys", claim.citationKeys());
+            value.put("supportType", claim.supportType().name());
+            claims.add(value);
+        }
+        chunk.put("claims", claims);
+        com.alibaba.fastjson.JSONArray sources = new com.alibaba.fastjson.JSONArray();
+        for (org.zipp.ai.domain.retrieval.EvidenceBundleItem item : result.sources()) {
+            com.alibaba.fastjson.JSONObject value = new com.alibaba.fastjson.JSONObject();
+            value.put("citationKey", item.citationKey());
+            value.put("sourceLabel", item.sourceLabel());
+            value.put("pageNumber", item.pageNumber());
+            value.put("modality", item.modality());
+            value.put("origin", item.origin().name());
+            sources.add(value);
+        }
+        chunk.put("sources", sources);
+        chunk.put("coverage", result.gaps().isEmpty() && result.conflicts().isEmpty() ? "FULL" : "PARTIAL");
+        sendWrappedChunk(emitter, "answer", chunk);
+        sendDone(emitter);
+        emitter.complete();
+    }
+
+    /** Target candidates include the authoritative canvas tuple required by highlight actions. */
+    public void sendTargetClarification(ResponseBodyEmitter emitter, ChatResponseDTO response) throws Exception {
+        com.alibaba.fastjson.JSONObject chunk = new com.alibaba.fastjson.JSONObject();
+        chunk.put("type", "target_clarification");
+        chunk.put("content", StringUtils.defaultString(response.getContent()));
+        chunk.put("candidates", response.getTargetCandidates());
+        chunk.put("canvasVersion", response.getCanvasVersion());
+        chunk.put("contentHash", response.getContentHash());
         sendWrappedChunk(emitter, "retrieval", chunk);
         sendDone(emitter);
         emitter.complete();

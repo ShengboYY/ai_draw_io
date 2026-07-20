@@ -3,6 +3,8 @@ type RestorableConversationMessage = {
   role?: string;
   content?: string;
   createdAt?: string;
+  evidenceClaims?: RestoredChatMessage['evidenceClaims'];
+  evidenceSources?: RestoredChatMessage['evidenceSources'];
 };
 
 type RestoredChatMessage = {
@@ -10,6 +12,18 @@ type RestoredChatMessage = {
   role: 'user' | 'agent';
   content: string;
   timestamp: number;
+  evidenceClaims?: Array<{
+    claimKey: string;
+    citationKeys: string[];
+    supportType: 'DIRECT' | 'SYNTHESIZED' | 'VISUAL_VERIFIED' | 'AI_KNOWLEDGE';
+  }>;
+  evidenceSources?: Array<{
+    citationKey: string;
+    sourceLabel: string;
+    pageNumber?: number;
+    modality?: string;
+    origin: 'EXISTING_REFERENCE' | 'EXPLICIT' | 'SEARCH' | 'SUPPLEMENTAL';
+  }>;
 };
 
 const normalizeRole = (role?: string): 'user' | 'agent' => (
@@ -32,6 +46,8 @@ export const buildRestoredConversationMessages = (
       role: normalizeRole(message.role),
       content: message.content?.trim() || '',
       timestamp: parseTimestamp(message.createdAt),
+      evidenceClaims: message.evidenceClaims,
+      evidenceSources: message.evidenceSources,
     }));
 
   if (restored.length > 0) {

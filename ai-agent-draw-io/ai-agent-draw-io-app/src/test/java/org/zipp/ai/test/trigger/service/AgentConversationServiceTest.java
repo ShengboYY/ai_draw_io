@@ -804,6 +804,57 @@ public class AgentConversationServiceTest {
     }
 
     @Test
+    public void evidenceAnswerCommitsBeforeReturningAndNeverCallsDrawer() throws Exception {
+        AgentConversationService service = quotaAwareService();
+        CountingChatService chatService = new CountingChatService();
+        AtomicInteger commits = new AtomicInteger();
+        injectField(service, "chatService", chatService);
+        injectField(service, "intentRoutingService", new EvidenceRoutingService());
+        injectField(service, "canvasStateStore", new FixedCanvasStateStore(storedCanvasXml()));
+        injectField(service, "materialRagEnabled", true);
+        injectField(service, "groundedRunControlPort", new org.zipp.ai.domain.grounding.port.GroundedRunControlPort() {
+            @Override public void start(RunIdentity identity) { }
+            @Override public CancelResult cancel(RunIdentity identity) { return CancelResult.ALREADY_COMPLETED; }
+        });
+        injectField(service, "evidencePreparationModule",
+                (org.zipp.ai.domain.retrieval.EvidencePreparationModule) (command, resources, progress, cancellation) -> {
+                    resources.markPrepared();
+                    org.zipp.ai.domain.retrieval.EvidenceBundle bundle = new org.zipp.ai.domain.retrieval.EvidenceBundle(
+                            "bundle-1", command.requestId(), command.runId(), org.zipp.ai.domain.retrieval.SourceMode.AUTO,
+                            List.of(new org.zipp.ai.domain.retrieval.EvidenceBundleItem(
+                                    "E1", "evidence-1", "material-1", "version-1", "revision-1",
+                                    "Agile Guide", 4, "TEXT", "Teams inspect progress every day")));
+                    return java.util.concurrent.CompletableFuture.completedFuture(
+                            new org.zipp.ai.domain.retrieval.PreparationOutcome.Ready(
+                                    new org.zipp.ai.domain.retrieval.PreparedEvidence(bundle, resources),
+                                    new org.zipp.ai.domain.retrieval.RetrievalDiagnostics(
+                                            org.zipp.ai.domain.retrieval.RetrievalRoute.TEXT, List.of())));
+                });
+        org.zipp.ai.domain.citation.answer.AnswerClaim claim = new org.zipp.ai.domain.citation.answer.AnswerClaim(
+                "C1", "Teams inspect progress every day", List.of("E1"),
+                org.zipp.ai.domain.citation.answer.AnswerSupportType.DIRECT,
+                List.of(new org.zipp.ai.domain.citation.model.valobj.SupportAtom(
+                        "A1", "E1", "Teams inspect progress every day",
+                        org.zipp.ai.domain.citation.model.valobj.SupportAtomRole.DIRECT_QUOTE)));
+        injectField(service, "evidenceAnswerService", new org.zipp.ai.domain.citation.answer.EvidenceAnswerService(
+                command -> new org.zipp.ai.domain.citation.answer.AnswerProposal(List.of(claim), List.of(), List.of()),
+                new org.zipp.ai.domain.citation.answer.EvidenceAnswerGuard(requests -> List.of()),
+                plan -> { commits.incrementAndGet(); return org.zipp.ai.domain.citation.answer.EvidenceAnswerCommitPort.CommitStatus.COMMITTED; }));
+        ChatRequestDTO request = platformRequest();
+        request.setRequestId("request-evidence-1");
+        request.setResponseMessageId("message-evidence-1");
+        request.setMessage("answer from Agile Practice Guide");
+
+        org.zipp.ai.api.dto.ChatResponseDTO response = service.chat(request);
+
+        assertEquals("evidence_answer", response.getType());
+        assertTrue(response.getContent().contains("[C1]"));
+        assertEquals(1, commits.get());
+        assertEquals(0, chatService.handleMessageCalls);
+        assertEquals(0, chatService.handleMessageStreamCalls);
+    }
+
+    @Test
     public void shouldAttachRequestAndRunIdsToBlockingChatResponseAndAdkRunContext() throws Exception {
         FakeAgentUsageTelemetryStore telemetryStore = new FakeAgentUsageTelemetryStore();
         AgentConversationService service = quotaAwareService();

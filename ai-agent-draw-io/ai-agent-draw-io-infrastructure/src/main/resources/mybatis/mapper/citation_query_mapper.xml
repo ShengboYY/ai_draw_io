@@ -45,4 +45,25 @@
                WHERE state.diagram_id = #{diagramId} AND state.user_id = #{ownerKey}))
         ORDER BY citation.created_at, citation_key
     </select>
+
+    <select id="selectAnswerCitations" resultType="org.zipp.ai.infrastructure.dao.grounding.AnswerCitationRowPO">
+        SELECT citation.id AS citation_id, citation.message_id, citation.claim_key, citation.support_type,
+               evidence.citation_key, material.display_name AS source_label, page.page_no AS page_number,
+               unit.modality, evidence.source_origin
+        FROM source_citation citation
+        JOIN diagram ON diagram.id = citation.diagram_id
+             AND diagram.user_id = #{ownerKey} AND diagram.deleted = 0
+        LEFT JOIN citation_evidence evidence ON evidence.citation_id = citation.id
+        LEFT JOIN evidence_unit unit ON unit.id = evidence.evidence_id
+             AND unit.version_id = evidence.version_id AND unit.revision_id = evidence.revision_id
+        LEFT JOIN material_version version ON version.id = evidence.version_id
+        LEFT JOIN material ON material.id = version.material_id AND material.owner_key = #{ownerKey}
+        LEFT JOIN material_page page ON page.id = unit.page_id AND page.revision_id = evidence.revision_id
+        WHERE citation.owner_key = #{ownerKey} AND citation.diagram_id = #{diagramId}
+          AND citation.target_type = 'ANSWER_CLAIM' AND citation.message_id IN
+          <foreach collection="messageIds" item="messageId" open="(" separator="," close=")">
+              #{messageId}
+          </foreach>
+        ORDER BY citation.created_at, citation.id, evidence.citation_key
+    </select>
 </mapper>

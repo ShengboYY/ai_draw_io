@@ -24,6 +24,7 @@ import org.zipp.ai.domain.agent.model.valobj.visualreview.CanvasVisualReviewStag
 import org.zipp.ai.domain.agent.model.valobj.visualreview.DrawerContinuationContext;
 import org.zipp.ai.domain.agent.service.ICanvasStateStore;
 import org.zipp.ai.domain.agent.service.IChatService;
+import org.zipp.ai.domain.agent.service.IDiagramConversationStore;
 import org.zipp.ai.domain.agent.service.IIntentRoutingService;
 import org.zipp.ai.domain.agent.service.analysis.ICanvasAnalyzer;
 import org.zipp.ai.domain.agent.service.armory.matter.mcp.server.DrawioCanvasToolNames;
@@ -39,6 +40,9 @@ import org.zipp.ai.domain.agent.service.usage.AgentUsageTelemetryService;
 import org.zipp.ai.domain.agent.service.visualreview.CanvasVisualReviewPolicy;
 import org.zipp.ai.domain.agent.service.visualreview.ICanvasVisualReviewer;
 import org.zipp.ai.domain.material.model.valobj.CatalogOwner;
+import org.zipp.ai.domain.citation.answer.EvidenceAnswerCommand;
+import org.zipp.ai.domain.citation.answer.EvidenceAnswerResult;
+import org.zipp.ai.domain.citation.answer.EvidenceAnswerService;
 import org.zipp.ai.domain.grounding.EvidenceAccessContext;
 import org.zipp.ai.domain.grounding.EvidencePromptAssembler;
 import org.zipp.ai.domain.grounding.port.GroundedRunControlPort;
@@ -141,6 +145,15 @@ public class AgentConversationService {
     @Autowired(required = false)
     private ConfiguredModelClaimSupportVerifier claimSupportVerifier;
 
+    @Autowired(required = false)
+    private ConfiguredModelEvidenceAnswerGenerator evidenceAnswerGenerator;
+
+    @Autowired(required = false)
+    private EvidenceAnswerService evidenceAnswerService;
+
+    @Autowired(required = false)
+    private IDiagramConversationStore diagramConversationStore;
+
     @Value("${app.material-rag.enabled:false}")
     private boolean materialRagEnabled;
 
@@ -148,6 +161,8 @@ public class AgentConversationService {
 
     public ChatResponseDTO chat(ChatRequestDTO requestDTO) {
         RunResourceDomain evidenceResources = new RunResourceDomain();
+        AtomicReference<PreparedEvidence> preparedEvidenceRef = new AtomicReference<>();
+        AtomicReference<GroundedRunControlPort.RunIdentity> groundedRunRef = new AtomicReference<>();
         AgentUsageTelemetryService.RunScope runScope = telemetryService().startRun(
                 requestDTO.getRunId(), requestDTO.getRequestId(),
                 requestDTO.getUserId(), requestDTO.getAgentId(), requestDTO.getSessionId(), "chat",
@@ -162,6 +177,12 @@ public class AgentConversationService {
                     requestMetadata(requestDTO, false));
             captureRunPayload(runScope, DebugTracePayloadKind.INPUT, requestDTO.getMessage());
             CustomApiConfigManager.CustomApiConfig config = buildCustomApiConfig(requestDTO);
+            if (claimSupportVerifier != null) {
+                claimSupportVerifier.register(runScope.getContext().runId(), requestDTO.getUserId(), config);
+            }
+            if (evidenceAnswerGenerator != null) {
+                evidenceAnswerGenerator.register(runScope.getContext().runId(), requestDTO.getUserId(), config);
+            }
             runScope = telemetryService().withProviderModel(runScope, config.getProvider(), config.getModel());
             configuredScope = AgentUsageTelemetryContext.bind(runScope.getContext());
             consumeAnonymousDemoQuota(requestDTO, config);
@@ -178,13 +199,38 @@ public class AgentConversationService {
                     "routing", requestStepInput(currentRequest), AgentConversationService::routingStepOutput,
                     () -> routeIntent(currentRequest, config, requestProbe));
             recordRoutingDecision(runScope, routingResult);
+            if (routingResult.isEvidenceAnswer() && shouldPrepareEvidence(currentRequest, routingResult)
+                    && groundedRunControlPort != null) {
+                GroundedRunControlPort.RunIdentity identity = new GroundedRunControlPort.RunIdentity(
+                        currentRequest.getUserId(),
+                        StringUtils.defaultIfBlank(currentRequest.getRequestId(), runScope.getContext().requestId()),
+                        runScope.getContext().runId());
+                groundedRunControlPort.start(identity);
+                groundedRunRef.set(identity);
+            }
             ChatResponseDTO evidenceResponse = prepareEvidenceResponse(
                     currentRequest, routingResult, requestProbe, evidenceResources,
-                    EvidenceProgressListener.NOOP, CancellationSignal.NEVER, null);
+                    EvidenceProgressListener.NOOP, CancellationSignal.NEVER,
+                    routingResult.isEvidenceAnswer() ? preparedEvidenceRef : null);
             if (evidenceResponse != null) {
                 attachCorrelation(evidenceResponse, runScope);
                 captureRunOutput(runScope, evidenceResponse, currentRequest.getDiagramId());
                 return evidenceResponse;
+            }
+            if (routingResult.isEvidenceAnswer()) {
+                PreparedEvidence prepared = preparedEvidenceRef.get();
+                EvidenceAnswerResult answer = prepared == null || evidenceAnswerService == null
+                        ? EvidenceAnswerResult.rejected(responseMessageId(currentRequest),
+                        List.of("EVIDENCE_ANSWER_UNAVAILABLE"))
+                        : evidenceAnswerService.answer(evidenceAnswerCommand(
+                                currentRequest, requestProbe, runScope.getContext().requestId()), prepared);
+                ChatResponseDTO responseDTO = evidenceResponse(answer.committed()
+                                ? "evidence_answer" : "grounding_rejected",
+                        answer.committed() ? answer.content()
+                                : "可用资料不足以生成经过验证的回答。 / The prepared sources did not support a verified answer.");
+                attachCorrelation(responseDTO, runScope);
+                captureRunOutput(runScope, responseDTO, currentRequest.getDiagramId());
+                return responseDTO;
             }
             if (isReviewOnly(routingResult)) {
                 ReviewOnlyContext reviewContext = prepareReviewOnlyContext(currentRequest, routingResult);
@@ -243,6 +289,9 @@ public class AgentConversationService {
             throw new RuntimeException(e);
         } finally {
             evidenceResources.closeExactlyOnce(runError == null ? CloseReason.COMPLETED : CloseReason.FAILED);
+            cancelGroundedRun(groundedRunRef.get());
+            unregisterClaimVerifier(runScope.getContext().runId());
+            unregisterAnswerGenerator(runScope.getContext().runId());
             telemetryService().completeRun(runScope, runError);
             clearSessionConfig(sessionId, runScope.getContext().runId());
             if (configuredScope != null) {
@@ -296,18 +345,21 @@ public class AgentConversationService {
             evidenceResources.closeExactlyOnce(CloseReason.COMPLETED);
             cancelGroundedRun(groundedRunRef.get());
             unregisterClaimVerifier(groundedRunId);
+            unregisterAnswerGenerator(groundedRunId);
         });
         emitter.onTimeout(() -> {
             evidenceCancelled.set(true);
             evidenceResources.closeExactlyOnce(CloseReason.TIMED_OUT);
             cancelGroundedRun(groundedRunRef.get());
             unregisterClaimVerifier(groundedRunId);
+            unregisterAnswerGenerator(groundedRunId);
         });
         emitter.onError(error -> {
             evidenceCancelled.set(true);
             evidenceResources.closeExactlyOnce(CloseReason.CLIENT_DISCONNECTED);
             cancelGroundedRun(groundedRunRef.get());
             unregisterClaimVerifier(groundedRunId);
+            unregisterAnswerGenerator(groundedRunId);
         });
         requestDTO.setRunId(runScope.getContext().runId());
         BoundedTextCapture streamOutputCapture = new BoundedTextCapture(MAX_BUFFERED_STREAM_CAPTURE_CHARS);
@@ -328,6 +380,9 @@ public class AgentConversationService {
             CustomApiConfigManager.CustomApiConfig config = buildCustomApiConfig(requestDTO);
             if (claimSupportVerifier != null) {
                 claimSupportVerifier.register(groundedRunId, requestDTO.getUserId(), config);
+            }
+            if (evidenceAnswerGenerator != null) {
+                evidenceAnswerGenerator.register(groundedRunId, requestDTO.getUserId(), config);
             }
             runScope = telemetryService().withProviderModel(runScope, config.getProvider(), config.getModel());
             configuredScope = AgentUsageTelemetryContext.bind(runScope.getContext());
@@ -352,7 +407,8 @@ public class AgentConversationService {
             streamResponseWriter.sendRoute(emitter, routingResult.getRouteType(),
                     routingResult.getDiagramType(), routingResult.getSkillName());
             if (forcedRoutingResult == null) {
-                if (routingResult.isDrawAction() && shouldPrepareEvidence(currentRequest, routingResult)
+                if ((routingResult.isDrawAction() || routingResult.isEvidenceAnswer())
+                        && shouldPrepareEvidence(currentRequest, routingResult)
                         && groundedRunControlPort != null) {
                     GroundedRunControlPort.RunIdentity identity = new GroundedRunControlPort.RunIdentity(
                             currentRequest.getUserId(),
@@ -371,8 +427,12 @@ public class AgentConversationService {
                         }, evidenceCancelled::get, preparedEvidenceRef);
                 if (evidenceResponse != null) {
                     captureRunOutput(runScope, evidenceResponse, currentRequest.getDiagramId());
-                    streamResponseWriter.sendEvidenceOutcome(emitter,
-                            evidenceStreamEvent(evidenceResponse.getType()), evidenceResponse.getContent());
+                    if ("target_clarification".equals(evidenceResponse.getType())) {
+                        streamResponseWriter.sendTargetClarification(emitter, evidenceResponse);
+                    } else {
+                        streamResponseWriter.sendEvidenceOutcome(emitter,
+                                evidenceStreamEvent(evidenceResponse.getType()), evidenceResponse.getContent());
+                    }
                     completeStreamTelemetry(streamTelemetryCompleted, null, runScope, null);
                     return;
                 }
@@ -419,6 +479,26 @@ public class AgentConversationService {
                 } finally {
                     clearSessionConfig(finalSessionId, runScope.getContext().runId());
                 }
+                return;
+            }
+            if (routingResult.isEvidenceAnswer()) {
+                PreparedEvidence prepared = preparedEvidenceRef.get();
+                if (prepared == null || evidenceAnswerService == null) {
+                    streamResponseWriter.sendEvidenceOutcome(emitter, "degraded",
+                            "证据回答当前不可用。 / Grounded answers are currently unavailable.");
+                    completeStreamTelemetry(streamTelemetryCompleted, null, runScope, null);
+                    return;
+                }
+                EvidenceAnswerResult answer = evidenceAnswerService.answer(
+                        evidenceAnswerCommand(currentRequest, requestProbe, runScope.getContext().requestId()), prepared);
+                if (!answer.committed()) {
+                    streamResponseWriter.sendEvidenceOutcome(emitter, "grounding_rejected",
+                            "可用资料不足以生成经过验证的回答。 / The prepared sources did not support a verified answer.");
+                } else {
+                    captureRunOutput(runScope, "evidence_answer", answer.content(), currentRequest.getDiagramId());
+                    streamResponseWriter.sendEvidenceAnswer(emitter, answer);
+                }
+                completeStreamTelemetry(streamTelemetryCompleted, null, runScope, null);
                 return;
             }
             // Canvas mutations need a persistent identity; otherwise the final candidate would have
@@ -654,7 +734,10 @@ public class AgentConversationService {
             log.error("流式对话失败", e);
             emitter.completeWithError(e);
         } finally {
-            if (evidenceResources.isClosed()) unregisterClaimVerifier(groundedRunId);
+            if (evidenceResources.isClosed()) {
+                unregisterClaimVerifier(groundedRunId);
+                unregisterAnswerGenerator(groundedRunId);
+            }
             if (configuredScope != null) {
                 configuredScope.close();
             }
@@ -1189,8 +1272,21 @@ public class AgentConversationService {
                     "所选资料尚未就绪，请稍后重试。 / The selected library material is not ready yet.");
         }
         if (outcome instanceof PreparationOutcome.TargetClarification) {
-            return evidenceResponse("target_clarification",
+            PreparationOutcome.TargetClarification clarification =
+                    (PreparationOutcome.TargetClarification) outcome;
+            ChatResponseDTO response = evidenceResponse("target_clarification",
                     "无法唯一确定要处理的画布对象，请先明确选择节点或连线。 / Please select the intended canvas target.");
+            response.setTargetCandidates(clarification.candidates().stream().map(candidate -> {
+                ChatResponseDTO.TargetCandidateDTO value = new ChatResponseDTO.TargetCandidateDTO();
+                value.setCellId(candidate.cellId());
+                value.setKind(candidate.kind());
+                value.setShortLabel(candidate.shortLabel());
+                value.setReasonCode(candidate.reasonCode());
+                return value;
+            }).toList());
+            response.setCanvasVersion(requestProbe.canvas().serverCanvasVersion());
+            response.setContentHash(requestProbe.canvas().contentHash());
+            return response;
         }
         if (outcome instanceof PreparationOutcome.CanvasChangedRetry) {
             return evidenceResponse("canvas_changed_retry",
@@ -1208,7 +1304,7 @@ public class AgentConversationService {
             return evidenceResponse("cancelled", "请求已取消。 / Request cancelled.");
         }
         if (outcome instanceof PreparationOutcome.Ready ready
-                && preparedEvidenceRef != null && routing.isDrawAction()) {
+                && preparedEvidenceRef != null && (routing.isDrawAction() || routing.isEvidenceAnswer())) {
             preparedEvidenceRef.set(ready.preparedEvidence());
             return null;
         }
@@ -1249,7 +1345,7 @@ public class AgentConversationService {
             case "material_waiting" -> "source_wait_started";
             case "material_not_ready" -> "source_not_ready";
             case "target_clarification" -> "target_clarification";
-            case "stale_canvas_selection" -> "target_clarification";
+            case "stale_canvas_selection" -> "stale_canvas_selection";
             default -> "degraded";
         };
     }
@@ -1473,6 +1569,46 @@ public class AgentConversationService {
 
     private void unregisterClaimVerifier(String runId) {
         if (claimSupportVerifier != null) claimSupportVerifier.unregister(runId);
+    }
+
+    private void unregisterAnswerGenerator(String runId) {
+        if (evidenceAnswerGenerator != null) evidenceAnswerGenerator.unregister(runId);
+    }
+
+    private EvidenceAnswerCommand evidenceAnswerCommand(ChatRequestDTO request,
+                                                        RequestProbe probe,
+                                                        String requestId) {
+        String messageId = responseMessageId(request);
+        String targetContext = safeList(request.getSelectedCellIds()).isEmpty()
+                ? "" : "selectedCellIds=" + String.join(",", safeList(request.getSelectedCellIds()));
+        return new EvidenceAnswerCommand(owner(request), request.getDiagramId(), request.getSessionId(),
+                messageId, StringUtils.defaultIfBlank(request.getRequestId(), requestId), request.getRunId(),
+                request.getMessage(), targetContext, answerConversationContext(request),
+                probe.canvas().serverCanvasVersion(),
+                probe.canvas().contentHash(), sourceMode(request.getSourceMode()) != SourceMode.EXPLICIT_ONLY);
+    }
+
+    private String answerConversationContext(ChatRequestDTO request) {
+        if (diagramConversationStore == null || StringUtils.isBlank(request.getUserId())
+                || StringUtils.isBlank(request.getDiagramId())) return "";
+        try {
+            List<org.zipp.ai.domain.agent.model.valobj.conversation.DiagramConversationMessage> stored =
+                    diagramConversationStore.listMessages(request.getUserId(), request.getDiagramId());
+            int start = Math.max(0, stored.size() - 6);
+            String context = stored.subList(start, stored.size()).stream()
+                    .map(message -> StringUtils.defaultString(message.getRole()) + ": "
+                            + StringUtils.abbreviate(StringUtils.defaultString(message.getContent()), 500))
+                    .collect(java.util.stream.Collectors.joining("\n"));
+            return StringUtils.abbreviate(context, 2400);
+        } catch (RuntimeException unavailable) {
+            // Conversation context improves follow-ups but is never allowed to weaken grounding.
+            return "";
+        }
+    }
+
+    private String responseMessageId(ChatRequestDTO request) {
+        return StringUtils.defaultIfBlank(request.getResponseMessageId(),
+                "answer-" + StringUtils.defaultIfBlank(request.getRequestId(), request.getRunId()));
     }
 
     private record RoutedDrawMessage(String message,

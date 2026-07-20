@@ -112,7 +112,25 @@ type Message = {
   language?: 'zh' | 'en';
   steps?: MessageStep[];
   events?: AgentRunEvent[];
+  evidenceSources?: Array<{
+    citationKey: string;
+    sourceLabel: string;
+    pageNumber?: number;
+    modality?: string;
+    origin: 'EXISTING_REFERENCE' | 'EXPLICIT' | 'SEARCH' | 'SUPPLEMENTAL';
+  }>;
+  evidenceClaims?: Array<{
+    claimKey: string;
+    citationKeys: string[];
+    supportType: 'DIRECT' | 'SYNTHESIZED' | 'VISUAL_VERIFIED' | 'AI_KNOWLEDGE';
+  }>;
   timestamp: number;
+};
+
+type TargetClarification = {
+  candidates: Array<{ cellId: string; kind: string; shortLabel: string; reasonCode: string }>;
+  canvasVersion: number;
+  contentHash: string;
 };
 
 const CHAT_WIDTH_STORAGE_KEY = 'ai_drawio_chat_width';
@@ -510,6 +528,7 @@ function DrawioPageContent() {
   const [citationCellId, setCitationCellId] = useState<string | null>(null);
   const [cellCitations, setCellCitations] = useState<CellCitationDTO[]>([]);
   const [citationsLoading, setCitationsLoading] = useState(false);
+  const [targetClarification, setTargetClarification] = useState<TargetClarification | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // "/" skill picker
@@ -2213,6 +2232,7 @@ function DrawioPageContent() {
       let diagramTitlePersisted = false;
       let persistedDiagramId = diagramId;
       let conversationPersisted = false;
+      let evidenceAnswerCommitted = false;
 
       const persistCurrentTurnConversation = () => {
         if (conversationPersisted) return;
@@ -2221,7 +2241,9 @@ function DrawioPageContent() {
         const agentContent = (accumulatedContent || agentTextContent).trim();
         if (!agentContent) return;
 
-        const messagesToPersist = [
+        // Grounded assistant text and citations are already one server transaction. The generic
+        // conversation endpoint may persist the user turn, but must never rewrite that answer.
+        const messagesToPersist = evidenceAnswerCommitted ? [userMsg] : [
           userMsg,
           {
             ...initialAgentMsg,
@@ -2249,6 +2271,7 @@ function DrawioPageContent() {
           agentId: selectedAgentId,
           userId: currentUser,
           sessionId: activeBackendSessionId,
+          responseMessageId: agentMsgId,
           userMessage: displayContent,
           diagramId,
           expectedVersion: latestCanvasVersion(
@@ -2261,6 +2284,9 @@ function DrawioPageContent() {
           canvasImageDataUrl: canvasContext.canvasImageDataUrl,
           canvasImageRendererVersion: canvasContext.canvasImageRendererVersion,
           modelCredentialId: activeModelConfig?.modelCredentialId || undefined,
+          selectedCellIds: selectedCellsRef.current?.cellIds,
+          selectionCanvasVersion: selectedCellsRef.current?.canvasVersion,
+          selectionContentHash: selectedCellsRef.current?.contentHash,
           maxDeterministicRepairRounds,
           skills: pendingSkillsRef.current.length ? pendingSkillsRef.current : undefined,
           conversationMessages: messages,
@@ -3085,9 +3111,14 @@ function DrawioPageContent() {
 
             case 'source_wait_started':
             case 'source_not_ready':
-            case 'target_clarification':
             case 'degraded':
+            case 'stale_canvas_selection':
             case 'grounding_rejected': {
+              if (chunk.type === 'stale_canvas_selection') {
+                // A stale tuple cannot be highlighted or reused; wait for a fresh bridge selection.
+                selectedCellsRef.current = null;
+                setTargetClarification(null);
+              }
               const displayContent = normalizeAgentDisplayContent(chunk.content || '');
               if (displayContent) {
                 agentTextContent += displayContent;
@@ -3103,6 +3134,42 @@ function DrawioPageContent() {
                 status: chunk.type === 'source_wait_started' ? 'running' : 'warning',
                 tone: 'analysis',
               });
+              break;
+            }
+
+            case 'target_clarification': {
+              const candidates = chunk.candidates || [];
+              setTargetClarification({
+                candidates,
+                canvasVersion: chunk.canvasVersion,
+                contentHash: chunk.contentHash,
+              });
+              const highlightIds = candidates.map(candidate => candidate.cellId).filter(Boolean);
+              if (highlightIds.length > 0) {
+                drawioRef.current?.highlightCells(highlightIds, chunk.canvasVersion, chunk.contentHash);
+              }
+              const displayContent = normalizeAgentDisplayContent(chunk.content || '');
+              accumulatedContent += (accumulatedContent ? '\n\n' : '') + displayContent;
+              setMessages(prev => prev.map(m => m.id === agentMsgId
+                ? { ...m, content: accumulatedContent, steps: [...accumulatedSteps] }
+                : m));
+              break;
+            }
+
+            case 'evidence_answer': {
+              evidenceAnswerCommitted = true;
+              accumulatedContent = normalizeAgentDisplayContent(chunk.content || '');
+              agentTextContent = accumulatedContent;
+              setMessages(prev => prev.map(m => m.id === agentMsgId
+                ? {
+                    ...m,
+                    id: chunk.messageId || m.id,
+                    content: accumulatedContent,
+                    evidenceSources: chunk.sources || [],
+                    evidenceClaims: chunk.claims || [],
+                    steps: markStepsDone(m.steps),
+                  }
+                : m));
               break;
             }
 
@@ -3668,6 +3735,7 @@ function DrawioPageContent() {
               onSelectionChange={(selection) => {
                 // The tuple is sent to the server later; stale selections are never reduced to IDs alone.
                 selectedCellsRef.current = selection;
+                setTargetClarification(null);
                 const cellId = selection.cellIds[0];
                 const diagramId = activeCanvasSession?.diagramId;
                 const requestNumber = ++citationRequestRef.current;
@@ -3741,6 +3809,48 @@ function DrawioPageContent() {
               }}
             />
           </div>
+          {targetClarification && (
+            <aside className="absolute left-5 top-5 z-30 w-80 max-w-[calc(100%-2.5rem)] rounded-xl border border-amber-200 bg-white/95 p-4 shadow-lg backdrop-blur">
+              <div className="mb-3 flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-amber-700">Choose canvas target</p>
+                  <p className="text-xs text-zinc-500">Select one candidate, then resend the question.</p>
+                </div>
+                <button
+                  className="rounded p-1 text-zinc-400 hover:bg-stone-100 hover:text-zinc-700"
+                  onClick={() => {
+                    drawioRef.current?.highlightCells([], targetClarification.canvasVersion, targetClarification.contentHash);
+                    selectedCellsRef.current = null;
+                    setTargetClarification(null);
+                  }}
+                  title="Clear target candidates"
+                >
+                  <Icons.Close className="h-4 w-4" />
+                </button>
+              </div>
+              <div className="max-h-64 space-y-2 overflow-y-auto">
+                {targetClarification.candidates.filter(candidate => candidate.cellId).map(candidate => (
+                  <button
+                    key={candidate.cellId}
+                    className="w-full rounded-lg border border-stone-200 bg-stone-50 p-3 text-left hover:border-amber-300 hover:bg-amber-50"
+                    onClick={() => {
+                      selectedCellsRef.current = {
+                        cellIds: [candidate.cellId],
+                        canvasVersion: targetClarification.canvasVersion,
+                        contentHash: targetClarification.contentHash,
+                      };
+                      drawioRef.current?.highlightCells([candidate.cellId], targetClarification.canvasVersion,
+                        targetClarification.contentHash);
+                      setTargetClarification(null);
+                    }}
+                  >
+                    <p className="truncate text-sm font-medium text-zinc-800">{candidate.shortLabel || candidate.cellId}</p>
+                    <p className="mt-1 text-xs text-zinc-500">{candidate.kind.toLowerCase()} · {candidate.reasonCode.toLowerCase()}</p>
+                  </button>
+                ))}
+              </div>
+            </aside>
+          )}
           {citationCellId && (
             <aside className="absolute bottom-5 right-5 z-30 w-80 max-w-[calc(100%-2.5rem)] rounded-xl border border-stone-200 bg-white/95 p-4 shadow-lg backdrop-blur">
               <div className="mb-3 flex items-center justify-between">
@@ -3912,6 +4022,31 @@ function DrawioPageContent() {
                             ) : (
                                <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.content}</ReactMarkdown>
                             )}
+                          </div>
+                        )}
+
+                        {msg.role === 'agent' && msg.evidenceClaims && msg.evidenceClaims.length > 0 && (
+                          <div className="max-w-full space-y-1.5">
+                            {msg.evidenceClaims.map(claim => (
+                              <div key={claim.claimKey} className="flex flex-wrap items-center gap-1.5 text-[11px] text-zinc-500">
+                                <span className="font-medium text-zinc-700">{claim.claimKey}</span>
+                                {claim.citationKeys.length === 0 && <span>AI knowledge</span>}
+                                {claim.citationKeys.map(citationKey => {
+                                  const source = msg.evidenceSources?.find(item => item.citationKey === citationKey);
+                                  if (!source) return null;
+                                  return (
+                                    <span
+                                      key={`${claim.claimKey}:${citationKey}`}
+                                      className="rounded-full border border-stone-200 bg-stone-50 px-2.5 py-1 text-zinc-600"
+                                      title={`${source.origin.toLowerCase()} · ${source.modality?.toLowerCase() || 'text'}`}
+                                    >
+                                      {source.sourceLabel}{source.pageNumber ? ` p.${source.pageNumber}` : ''}
+                                      {source.origin === 'EXISTING_REFERENCE' ? ' · existing' : source.origin === 'SUPPLEMENTAL' ? ' · supplemental' : ''}
+                                    </span>
+                                  );
+                                })}
+                              </div>
+                            ))}
                           </div>
                         )}
 

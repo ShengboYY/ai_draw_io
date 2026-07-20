@@ -44,17 +44,44 @@ final class DiagramTargetResolver {
         factory.setAttribute(XMLConstants.ACCESS_EXTERNAL_SCHEMA, "");
         NodeList nodes = factory.newDocumentBuilder().parse(new InputSource(new StringReader(xml)))
                 .getElementsByTagName("mxCell");
-        Map<String, Cell> result = new HashMap<>();
+        Map<String, Cell> raw = new HashMap<>();
         for (int index = 0; index < nodes.getLength(); index++) {
             Element element = (Element) nodes.item(index);
             String kind = "1".equals(element.getAttribute("edge")) ? "EDGE"
                     : "1".equals(element.getAttribute("vertex")) ? "NODE" : "OTHER";
             if (!"OTHER".equals(kind)) {
-                result.put(element.getAttribute("id"), new Cell(element.getAttribute("id"), kind,
-                        element.getAttribute("value")));
+                raw.put(element.getAttribute("id"), new Cell(element.getAttribute("id"), kind,
+                        element.getAttribute("value"), element.getAttribute("source"),
+                        element.getAttribute("target"), List.of()));
             }
         }
+        // Build adjacency once so resolving nearby labels remains linear for large canvases.
+        Map<String, List<Cell>> adjacentEdges = new HashMap<>();
+        for (Cell cell : raw.values()) {
+            if (!"EDGE".equals(cell.kind())) continue;
+            adjacentEdges.computeIfAbsent(cell.sourceId(), ignored -> new ArrayList<>()).add(cell);
+            adjacentEdges.computeIfAbsent(cell.targetId(), ignored -> new ArrayList<>()).add(cell);
+        }
+        Map<String, Cell> result = new HashMap<>();
+        for (Cell cell : raw.values()) {
+            List<String> nearby = new ArrayList<>();
+            if ("EDGE".equals(cell.kind())) {
+                addLabel(nearby, raw.get(cell.sourceId()));
+                addLabel(nearby, raw.get(cell.targetId()));
+            } else {
+                for (Cell edge : adjacentEdges.getOrDefault(cell.id(), List.of())) {
+                    addLabel(nearby, raw.get(cell.id().equals(edge.sourceId()) ? edge.targetId() : edge.sourceId()));
+                    addLabel(nearby, edge);
+                }
+            }
+            result.put(cell.id(), new Cell(cell.id(), cell.kind(), cell.label(), cell.sourceId(),
+                    cell.targetId(), nearby.stream().filter(label -> !label.isBlank()).distinct().limit(8).toList()));
+        }
         return result;
+    }
+
+    private void addLabel(List<String> labels, Cell cell) {
+        if (cell != null && cell.label() != null && !cell.label().isBlank()) labels.add(cell.label());
     }
 
     private List<Cell> lexicalMatches(java.util.Collection<Cell> cells, String message) {
@@ -78,7 +105,8 @@ final class DiagramTargetResolver {
         return plain.length() <= 80 ? plain : plain.substring(0, 80);
     }
 
-    record Cell(String id, String kind, String label) { }
+    record Cell(String id, String kind, String label, String sourceId, String targetId,
+                List<String> nearbyLabels) { }
 
     sealed interface TargetResult permits TargetResult.Resolved, TargetResult.Ambiguous, TargetResult.Missing {
         record Resolved(List<Cell> cells) implements TargetResult { }

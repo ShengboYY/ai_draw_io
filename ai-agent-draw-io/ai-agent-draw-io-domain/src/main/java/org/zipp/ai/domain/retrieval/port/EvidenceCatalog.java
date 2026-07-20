@@ -12,4 +12,11 @@ public interface EvidenceCatalog {
 
     /** Performs the final DB authorization/revision/status check before leases and blob reads. */
     List<AuthorizedCandidate> reauthorize(List<String> chunkIds, AuthorizedSourceSet sources, int limit);
+
+    /** Seeds target evidence from persisted EVIDENCE provenance; MANUAL targets naturally return none. */
+    default List<CandidateRef> existingTargetCandidates(String diagramId, Long canvasVersion,
+                                                        List<String> cellIds,
+                                                        AuthorizedSourceSet sources, int limit) {
+        return List.of();
+    }
 }

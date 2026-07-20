@@ -1,6 +1,7 @@
 package org.zipp.ai.domain.citation.service;
 
 import org.zipp.ai.domain.citation.model.valobj.CellCitationView;
+import org.zipp.ai.domain.citation.model.valobj.AnswerCitationView;
 import org.zipp.ai.domain.citation.port.CitationQueryPort;
 
 import java.util.List;
@@ -28,6 +29,21 @@ public final class CitationQueryService {
         }
         return queryPort.findCellCitations(ownerKey.trim(), diagramId.trim(), cellId.trim(),
                 canvasVersion, expectedRef);
+    }
+
+    public List<AnswerCitationView> findAnswers(String ownerKey, String diagramId, List<String> messageIds) {
+        if (blank(ownerKey) || blank(diagramId)) {
+            throw new IllegalArgumentException("ownerKey and diagramId are required");
+        }
+        List<String> normalized = (messageIds == null ? List.<String>of() : messageIds).stream()
+                .filter(id -> !blank(id)).distinct().toList();
+        if (normalized.isEmpty()) return List.of();
+        java.util.ArrayList<AnswerCitationView> result = new java.util.ArrayList<>();
+        for (int start = 0; start < normalized.size(); start += 200) {
+            result.addAll(queryPort.findAnswerCitations(ownerKey.trim(), diagramId.trim(),
+                    normalized.subList(start, Math.min(start + 200, normalized.size()))));
+        }
+        return List.copyOf(result);
     }
 
     private boolean blank(String value) { return value == null || value.isBlank(); }

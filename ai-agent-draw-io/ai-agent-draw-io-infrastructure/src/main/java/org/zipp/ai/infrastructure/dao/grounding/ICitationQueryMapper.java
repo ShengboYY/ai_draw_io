@@ -12,4 +12,8 @@ public interface ICitationQueryMapper {
                                                 @Param("cellId") String cellId,
                                                 @Param("canvasVersion") Long canvasVersion,
                                                 @Param("provenanceRef") String provenanceRef);
+
+    List<AnswerCitationRowPO> selectAnswerCitations(@Param("ownerKey") String ownerKey,
+                                                    @Param("diagramId") String diagramId,
+                                                    @Param("messageIds") List<String> messageIds);
 }

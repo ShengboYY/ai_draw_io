@@ -144,7 +144,7 @@
         JOIN material material ON material.id = doc.material_id
         JOIN material_version mv ON mv.id = doc.version_id AND mv.material_id = material.id
         JOIN material_processing_revision mr ON mr.id = doc.revision_id
-             AND mr.version_id = mv.id AND mv.active_revision_id = mr.id
+             AND mr.version_id = mv.id
         JOIN retrieval_chunk_evidence mapping ON mapping.retrieval_chunk_id = chunk.id
              AND mapping.role = 'PRIMARY'
         JOIN evidence_unit evidence ON evidence.id = mapping.evidence_id
@@ -170,6 +170,41 @@
           )
         ORDER BY FIELD(chunk.id,
             <foreach collection="chunkIds" item="id" separator=",">#{id}</foreach>), mapping.ordinal
+        LIMIT #{limit}
+    </select>
+
+    <select id="selectExistingTargetCandidates" resultType="org.zipp.ai.infrastructure.dao.retrieval.po.OnlineCandidatePO">
+        SELECT chunk.id AS chunk_id, chunk.modality, 1.0 AS score
+        FROM diagram_cell_provenance provenance
+        JOIN diagram ON diagram.id = provenance.diagram_id
+                    AND diagram.user_id = #{ownerKey} AND diagram.deleted = 0
+        JOIN source_citation anchor ON anchor.id = provenance.current_citation_id
+                    AND anchor.owner_key = #{ownerKey} AND anchor.target_type = 'DIAGRAM_CELL'
+        JOIN source_citation citation ON citation.diagram_id = provenance.diagram_id
+                    AND citation.cell_id = provenance.cell_id
+                    AND citation.canvas_version = anchor.canvas_version
+                    AND citation.owner_key = #{ownerKey} AND citation.target_type = 'DIAGRAM_CELL'
+                    AND citation.state = 'VERIFIED'
+        JOIN citation_evidence cited ON cited.citation_id = citation.id AND cited.use_role = 'SUPPORT'
+        JOIN retrieval_chunk_evidence mapping ON mapping.evidence_id = cited.evidence_id
+                    AND mapping.role = 'PRIMARY'
+        JOIN retrieval_chunk chunk ON chunk.id = mapping.retrieval_chunk_id
+                    AND chunk.status = 'ACTIVE' AND chunk.citable = TRUE
+        JOIN retrieval_search_document doc ON doc.retrieval_chunk_id = chunk.id
+                    AND doc.owner_type = #{ownerType} AND doc.owner_key = #{ownerKey}
+                    AND doc.status = 'ACTIVE'
+        WHERE provenance.diagram_id = #{diagramId}
+          AND provenance.canvas_version = #{canvasVersion}
+          AND provenance.support_type = 'EVIDENCE'
+          AND provenance.cell_id IN
+            <foreach collection="cellIds" item="cellId" open="(" separator="," close=")">#{cellId}</foreach>
+          AND (
+            <foreach collection="sources" item="source" separator=" OR ">
+                (doc.version_id = #{source.versionId} AND doc.revision_id = #{source.revisionId})
+            </foreach>
+          )
+        ORDER BY FIELD(provenance.cell_id,
+            <foreach collection="cellIds" item="cellId" separator=",">#{cellId}</foreach>), mapping.ordinal
         LIMIT #{limit}
     </select>
 </mapper>

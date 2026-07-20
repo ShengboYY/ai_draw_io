@@ -38,4 +38,11 @@ public interface IOnlineRetrievalMapper {
                                                   @Param("chunkIds") List<String> chunkIds,
                                                   @Param("sources") List<AuthorizedSource> sources,
                                                   @Param("limit") int limit);
+    List<OnlineCandidatePO> selectExistingTargetCandidates(@Param("ownerType") String ownerType,
+                                                           @Param("ownerKey") String ownerKey,
+                                                           @Param("diagramId") String diagramId,
+                                                           @Param("canvasVersion") Long canvasVersion,
+                                                           @Param("cellIds") List<String> cellIds,
+                                                           @Param("sources") List<AuthorizedSource> sources,
+                                                           @Param("limit") int limit);
 }

@@ -9,6 +9,8 @@ public class ChatRequestDTO {
     private String userId;
     private String sessionId;
     private String requestId;
+    // Stable frontend assistant-message id used by the WP7 atomic answer transaction.
+    private String responseMessageId;
     // Server-owned correlation id; controllers overwrite any client-provided value before use.
     private String runId;
     // Visual repair lineage is server-owned and lets logs/telemetry reconstruct the outer loop.

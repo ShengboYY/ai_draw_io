@@ -166,6 +166,70 @@ class EvidencePreparationModuleTest {
         assertEquals(0, catalogCalls.get());
     }
 
+    @Test
+    void selectedTargetSeedsItsPersistedCitationBeforeSupplementalSearch() {
+        AuthorizedSource ready = source("READY", false);
+        StoredArtifact artifact = new StoredArtifact("retrieval/existing.txt", "s3-version-1",
+                "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", 96, "text/plain");
+        AuthorizedCandidate authorized = new AuthorizedCandidate("chunk-existing", "evidence-existing",
+                "material-1", "version-1", "revision-1", "TEXT", 6, 0.95,
+                artifact, "Agile Practice Guide");
+        AtomicInteger seedCalls = new AtomicInteger();
+        AtomicInteger supplementalCalls = new AtomicInteger();
+        EvidenceCatalog catalog = new EvidenceCatalog() {
+            @Override public SourceResolution resolveSources(EvidencePreparationCommand command) {
+                return new SourceResolution(SourceMode.AUTO, List.of(ready), List.of());
+            }
+            @Override public List<CandidateRef> resolveVectorCandidates(List<String> vectorIds, AuthorizedSourceSet sources) {
+                return List.of();
+            }
+            @Override public List<AuthorizedCandidate> reauthorize(List<String> chunkIds, AuthorizedSourceSet sources, int limit) {
+                assertEquals("chunk-existing", chunkIds.get(0));
+                return List.of(authorized);
+            }
+            @Override public List<CandidateRef> existingTargetCandidates(String diagramId, Long canvasVersion,
+                                                                         List<String> cellIds,
+                                                                         AuthorizedSourceSet sources, int limit) {
+                seedCalls.incrementAndGet();
+                assertEquals(List.of("cell-1"), cellIds);
+                return List.of(new CandidateRef("chunk-existing", "TEXT", 1.0));
+            }
+        };
+        String xml = "<mxGraphModel><root><mxCell id='0'/><mxCell id='1' parent='0'/>"
+                + "<mxCell id='cell-1' value='Product Owner' vertex='1' parent='1'/>"
+                + "<mxCell id='cell-2' value='Product Backlog' vertex='1' parent='1'/>"
+                + "<mxCell id='edge-1' value='orders' edge='1' source='cell-1' target='cell-2' parent='1'/>"
+                + "</root></mxGraphModel>";
+        EvidencePreparationModule module = new DefaultEvidencePreparationModule(catalog,
+                (queries, sources, route, limit) -> {
+                    supplementalCalls.incrementAndGet();
+                    return List.of(new CandidateRef("chunk-supplement", "TEXT", 0.9));
+                },
+                Optional.empty(), Optional.empty(), (ownerType, ownerKey) -> "opaque-tenant",
+                (owner, runId, sources) -> () -> { },
+                (candidate, maximumBytes) -> "Product Owner maximizes product value and manages priorities.",
+                (requestedOwner, diagramId) -> Optional.of(
+                        new ServerCanvasPort.ServerCanvasSnapshot(7L, "hash-7", xml)),
+                ForkJoinPool.commonPool());
+        EvidencePreparationCommand command = new EvidencePreparationCommand(owner, "diagram-1", "conversation-1",
+                "request-1", "run-1", "Why does Product Owner maximize value?",
+                new CanvasProbe(true, 1, 0, 7L, "hash-7", 1, List.of("NODE"), false, false),
+                new ValidatedSelection(List.of("cell-1"), 7L, "hash-7"), SourceMode.AUTO,
+                List.of(), "REQUIRED", "REQUIRED");
+
+        PreparationOutcome outcome = module.prepare(command, new RunResourceDomain(),
+                EvidenceProgressListener.NOOP, CancellationSignal.NEVER).toCompletableFuture().join();
+
+        PreparationOutcome.Ready readyOutcome = assertInstanceOf(PreparationOutcome.Ready.class, outcome);
+        assertEquals(1, seedCalls.get());
+        assertEquals(0, supplementalCalls.get());
+        assertEquals(EvidenceOrigin.EXISTING_REFERENCE,
+                readyOutcome.preparedEvidence().bundle().items().get(0).origin());
+        assertEquals("cell-1", readyOutcome.preparedEvidence().targets().get(0).cellId());
+        assertEquals("NODE", readyOutcome.preparedEvidence().targets().get(0).kind());
+        assertTrue(readyOutcome.preparedEvidence().targets().get(0).nearbyLabels().contains("Product Backlog"));
+    }
+
     private DefaultEvidencePreparationModule module(EvidenceCatalog catalog, List<CandidateRef> candidates) {
         return new DefaultEvidencePreparationModule(catalog,
                 (queries, sources, route, limit) -> new ArrayList<>(candidates),

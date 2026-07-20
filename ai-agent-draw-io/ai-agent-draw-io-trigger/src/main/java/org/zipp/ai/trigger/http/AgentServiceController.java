@@ -25,6 +25,8 @@ import org.zipp.ai.domain.agent.service.IDiagramConversationStore;
 import org.zipp.ai.domain.agent.service.IChatService;
 import org.zipp.ai.domain.agent.service.canvas.CanvasMutationGate;
 import org.zipp.ai.domain.agent.service.usage.AgentUsageTelemetryService;
+import org.zipp.ai.domain.citation.model.valobj.AnswerCitationView;
+import org.zipp.ai.domain.citation.service.CitationQueryService;
 import org.zipp.ai.trigger.http.service.AgentConversationService;
 import org.zipp.ai.trigger.http.service.AnonymousWorkspaceClaimService;
 import org.zipp.ai.trigger.http.service.ManualCanvasCommitCoordinator;
@@ -45,7 +47,10 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import javax.annotation.Resource;
 import java.util.Base64;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -98,6 +103,9 @@ public class AgentServiceController implements IAgentService {
 
     @Resource
     private AgentUsageTelemetryService agentUsageTelemetryService;
+
+    @Autowired(required = false)
+    private CitationQueryService citationQueryService;
 
     @RequestMapping(value = "query_ai_agent_config_list", method = RequestMethod.GET)
     @Override
@@ -417,6 +425,7 @@ public class AgentServiceController implements IAgentService {
             List<DiagramConversationMessageDTO> messages = diagramConversationStore.listMessages(workspaceId, diagramId).stream()
                     .map(this::toDiagramConversationMessageDTO)
                     .collect(Collectors.toList());
+            attachAnswerCitations(workspaceId, diagramId, messages);
             return Response.<List<DiagramConversationMessageDTO>>builder()
                     .code(ResponseCode.SUCCESS.getCode())
                     .info(ResponseCode.SUCCESS.getInfo())
@@ -681,6 +690,41 @@ public class AgentServiceController implements IAgentService {
         dto.setContent(message.getContent());
         dto.setCreatedAt(message.getCreatedAt());
         return dto;
+    }
+
+    private void attachAnswerCitations(String ownerKey, String diagramId,
+                                       List<DiagramConversationMessageDTO> messages) {
+        if (citationQueryService == null || messages.isEmpty()) return;
+        List<AnswerCitationView> citations = citationQueryService.findAnswers(ownerKey, diagramId,
+                messages.stream().map(DiagramConversationMessageDTO::getClientMessageId).toList());
+        Map<String, List<AnswerCitationView>> byMessage = citations.stream()
+                .collect(Collectors.groupingBy(AnswerCitationView::messageId, LinkedHashMap::new, Collectors.toList()));
+        for (DiagramConversationMessageDTO message : messages) {
+            List<AnswerCitationView> claims = byMessage.getOrDefault(message.getClientMessageId(), List.of());
+            if (claims.isEmpty()) continue;
+            List<DiagramConversationMessageDTO.EvidenceClaimDTO> claimDtos = new ArrayList<>();
+            LinkedHashMap<String, DiagramConversationMessageDTO.EvidenceSourceDTO> sourceDtos = new LinkedHashMap<>();
+            for (AnswerCitationView claim : claims) {
+                DiagramConversationMessageDTO.EvidenceClaimDTO claimDto = new DiagramConversationMessageDTO.EvidenceClaimDTO();
+                claimDto.setClaimKey(claim.claimKey());
+                claimDto.setSupportType(claim.supportType());
+                claimDto.setCitationKeys(claim.sources().stream().map(AnswerCitationView.AnswerSourceView::citationKey).toList());
+                claimDtos.add(claimDto);
+                for (AnswerCitationView.AnswerSourceView source : claim.sources()) {
+                    sourceDtos.computeIfAbsent(source.citationKey(), ignored -> {
+                        DiagramConversationMessageDTO.EvidenceSourceDTO sourceDto = new DiagramConversationMessageDTO.EvidenceSourceDTO();
+                        sourceDto.setCitationKey(source.citationKey());
+                        sourceDto.setSourceLabel(source.sourceLabel());
+                        sourceDto.setPageNumber(source.pageNumber());
+                        sourceDto.setModality(source.modality());
+                        sourceDto.setOrigin(source.origin());
+                        return sourceDto;
+                    });
+                }
+            }
+            message.setEvidenceClaims(List.copyOf(claimDtos));
+            message.setEvidenceSources(List.copyOf(sourceDtos.values()));
+        }
     }
 
     private DiagramConversationMessage toDiagramConversationMessage(SaveDiagramMessagesRequestDTO requestDTO,

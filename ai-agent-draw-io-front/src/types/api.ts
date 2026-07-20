@@ -315,6 +315,18 @@ export interface DiagramConversationMessageDTO {
   role: 'user' | 'agent';
   content: string;
   createdAt?: string;
+  evidenceClaims?: Array<{
+    claimKey: string;
+    citationKeys: string[];
+    supportType: 'DIRECT' | 'SYNTHESIZED' | 'VISUAL_VERIFIED' | 'AI_KNOWLEDGE';
+  }>;
+  evidenceSources?: Array<{
+    citationKey: string;
+    sourceLabel: string;
+    pageNumber?: number;
+    modality?: string;
+    origin: 'EXISTING_REFERENCE' | 'EXPLICIT' | 'SEARCH' | 'SUPPLEMENTAL';
+  }>;
 }
 
 export interface SaveDiagramMessagesRequestDTO {
@@ -335,6 +347,8 @@ export interface ChatRequestDTO {
   message: string;
   /** Client-generated id used to correlate browser request, backend logs, and stream metadata. */
   requestId?: string;
+  /** Stable assistant message id for atomic evidence-answer persistence. */
+  responseMessageId?: string;
   /** Server-owned run id; clients only read it from responses. */
   runId?: string;
   /** Stable diagram id used by the backend CanvasStateStore. */

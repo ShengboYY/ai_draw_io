@@ -11,6 +11,10 @@ import org.springframework.context.annotation.Configuration;
 import org.zipp.ai.domain.agent.service.ICanvasStateStore;
 import org.zipp.ai.domain.agent.service.canvas.CanvasMutationGate;
 import org.zipp.ai.domain.citation.port.ClaimSupportVerifierPort;
+import org.zipp.ai.domain.citation.answer.EvidenceAnswerCommitPort;
+import org.zipp.ai.domain.citation.answer.EvidenceAnswerGeneratorPort;
+import org.zipp.ai.domain.citation.answer.EvidenceAnswerGuard;
+import org.zipp.ai.domain.citation.answer.EvidenceAnswerService;
 import org.zipp.ai.domain.citation.port.CitationQueryPort;
 import org.zipp.ai.domain.citation.port.ManualProvenancePort;
 import org.zipp.ai.domain.citation.service.CitationGuard;
@@ -71,6 +75,18 @@ public class MaterialRagConfig {
                                                  CitationGuard groundedCitationGuard,
                                                  GroundedCanvasCommitPort commitPort) {
         return new CanvasCommitModule(mutationGate, groundedCitationGuard, commitPort);
+    }
+
+    @Bean
+    public EvidenceAnswerGuard evidenceAnswerGuard(ObjectProvider<ClaimSupportVerifierPort> verifiers) {
+        return new EvidenceAnswerGuard(verifiers.getIfAvailable(() -> requests -> java.util.List.of()));
+    }
+
+    @Bean
+    public EvidenceAnswerService evidenceAnswerService(EvidenceAnswerGeneratorPort generator,
+                                                       EvidenceAnswerGuard guard,
+                                                       EvidenceAnswerCommitPort commitPort) {
+        return new EvidenceAnswerService(generator, guard, commitPort);
     }
 
     @Bean
