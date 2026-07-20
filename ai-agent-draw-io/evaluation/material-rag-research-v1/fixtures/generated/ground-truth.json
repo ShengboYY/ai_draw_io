@@ -9,7 +9,7 @@
       "modality": "text",
       "goldMatch": "02:00 UTC",
       "documentFamily": "controlled-operations-guide",
-      "split": "development"
+      "split": "guard_regression"
     },
     {
       "anchorId": "orion-rollback",
@@ -19,7 +19,7 @@
       "modality": "text",
       "goldMatch": "three consecutive health-check failures",
       "documentFamily": "controlled-operations-guide",
-      "split": "development"
+      "split": "guard_regression"
     },
     {
       "anchorId": "atlas-sla",
@@ -29,7 +29,7 @@
       "modality": "table",
       "goldMatch": "99.95%",
       "documentFamily": "controlled-operations-guide",
-      "split": "development"
+      "split": "guard_regression"
     },
     {
       "anchorId": "comet-budget",
@@ -39,7 +39,7 @@
       "modality": "table",
       "goldMatch": "48,500 AUD",
       "documentFamily": "controlled-operations-guide",
-      "split": "development"
+      "split": "guard_regression"
     },
     {
       "anchorId": "delta-owner",
@@ -49,7 +49,7 @@
       "modality": "table",
       "goldMatch": "Core Services",
       "documentFamily": "controlled-operations-guide",
-      "split": "development"
+      "split": "guard_regression"
     },
     {
       "anchorId": "risk-high-path",
@@ -59,7 +59,7 @@
       "modality": "visual",
       "goldMatch": "ASSESS->HUMAN REVIEW",
       "documentFamily": "controlled-operations-guide",
-      "split": "development"
+      "split": "guard_regression"
     },
     {
       "anchorId": "risk-feedback",
@@ -69,7 +69,7 @@
       "modality": "visual",
       "goldMatch": "HUMAN REVIEW--dashed-->ASSESS",
       "documentFamily": "controlled-operations-guide",
-      "split": "development"
+      "split": "guard_regression"
     },
     {
       "anchorId": "cn-risk-id",
@@ -79,7 +79,7 @@
       "modality": "text",
       "goldMatch": "CN-RISK-204",
       "documentFamily": "controlled-operations-guide",
-      "split": "development"
+      "split": "guard_regression"
     },
     {
       "anchorId": "cn-risk-threshold-v1",
@@ -89,7 +89,7 @@
       "modality": "text",
       "goldMatch": "85 分",
       "documentFamily": "controlled-operations-guide",
-      "split": "development"
+      "split": "guard_regression"
     },
     {
       "anchorId": "retro-code",
@@ -99,7 +99,7 @@
       "modality": "text",
       "goldMatch": "AG-RETRO-17",
       "documentFamily": "controlled-operations-guide",
-      "split": "development"
+      "split": "guard_regression"
     },
     {
       "anchorId": "retro-purpose",
@@ -109,7 +109,7 @@
       "modality": "text",
       "goldMatch": "team effectiveness",
       "documentFamily": "controlled-operations-guide",
-      "split": "development"
+      "split": "guard_regression"
     },
     {
       "anchorId": "review-purpose",
@@ -119,7 +119,7 @@
       "modality": "text",
       "goldMatch": "product outcome with stakeholders",
       "documentFamily": "controlled-operations-guide",
-      "split": "development"
+      "split": "guard_regression"
     },
     {
       "anchorId": "retention-v1",
@@ -129,7 +129,7 @@
       "modality": "text",
       "goldMatch": "30 days",
       "documentFamily": "controlled-operations-guide",
-      "split": "development"
+      "split": "guard_regression"
     },
     {
       "anchorId": "retention-v2",
@@ -139,7 +139,7 @@
       "modality": "text",
       "goldMatch": "45 days",
       "documentFamily": "controlled-operations-guide",
-      "split": "development"
+      "split": "guard_regression"
     },
     {
       "anchorId": "approval-v1",
@@ -149,7 +149,7 @@
       "modality": "text",
       "goldMatch": "Release Manager",
       "documentFamily": "controlled-operations-guide",
-      "split": "development"
+      "split": "guard_regression"
     },
     {
       "anchorId": "approval-v2",
@@ -159,7 +159,7 @@
       "modality": "text",
       "goldMatch": "Reliability Council",
       "documentFamily": "controlled-operations-guide",
-      "split": "development"
+      "split": "guard_regression"
     },
     {
       "anchorId": "visual-beacon-cap",
@@ -169,7 +169,7 @@
       "modality": "visual_table",
       "goldMatch": "Beacon|75,000|70%|Data Systems",
       "documentFamily": "controlled-operations-guide",
-      "split": "development"
+      "split": "guard_regression"
     },
     {
       "anchorId": "visual-delta-cap",
@@ -179,7 +179,7 @@
       "modality": "visual_table",
       "goldMatch": "Delta|210,000|85%|Core Services",
       "documentFamily": "controlled-operations-guide",
-      "split": "development"
+      "split": "guard_regression"
     },
     {
       "anchorId": "hgr-program-id",
@@ -840,6 +840,599 @@
       "goldMatch": "due by 24 October 2026",
       "documentFamily": "arcadia-museum-condition-memo",
       "split": "holdout"
+    },
+    {
+      "anchorId": "daa-id",
+      "source": "drawio-agent-architecture",
+      "version": "v1",
+      "page": 1,
+      "modality": "text",
+      "goldMatch": "DAA-2026-17",
+      "documentFamily": "drawio-agent-architecture-blueprint",
+      "split": "development"
+    },
+    {
+      "anchorId": "daa-canvas-owner",
+      "source": "drawio-agent-architecture",
+      "version": "v1",
+      "page": 2,
+      "modality": "table",
+      "goldMatch": "Canvas Composer is owned by the Diagram team",
+      "documentFamily": "drawio-agent-architecture-blueprint",
+      "split": "development"
+    },
+    {
+      "anchorId": "daa-visual-route",
+      "source": "drawio-agent-architecture",
+      "version": "v1",
+      "page": 3,
+      "modality": "visual_flow",
+      "goldMatch": "RETRIEVE EVIDENCE->BUILD PLAN",
+      "documentFamily": "drawio-agent-architecture-blueprint",
+      "split": "development"
+    },
+    {
+      "anchorId": "daa-candidates",
+      "source": "drawio-agent-architecture",
+      "version": "v1",
+      "page": 4,
+      "modality": "text",
+      "goldMatch": "retrieves 40 evidence candidates",
+      "documentFamily": "drawio-agent-architecture-blueprint",
+      "split": "development"
+    },
+    {
+      "anchorId": "daa-hydration",
+      "source": "drawio-agent-architecture",
+      "version": "v1",
+      "page": 4,
+      "modality": "text",
+      "goldMatch": "At most 16 authorized candidates are hydrated",
+      "documentFamily": "drawio-agent-architecture-blueprint",
+      "split": "development"
+    },
+    {
+      "anchorId": "daa-bundle",
+      "source": "drawio-agent-architecture",
+      "version": "v1",
+      "page": 4,
+      "modality": "text",
+      "goldMatch": "final evidence bundle contains at most 8 items",
+      "documentFamily": "drawio-agent-architecture-blueprint",
+      "split": "development"
+    },
+    {
+      "anchorId": "daa-explicit-source",
+      "source": "drawio-agent-architecture",
+      "version": "v1",
+      "page": 4,
+      "modality": "text",
+      "primaryCategory": "retrievalDecision",
+      "goldMatch": "explicit selection wins",
+      "documentFamily": "drawio-agent-architecture-blueprint",
+      "split": "development"
+    },
+    {
+      "anchorId": "daa-version-pin",
+      "source": "drawio-agent-architecture",
+      "version": "v1",
+      "page": 5,
+      "modality": "text",
+      "primaryCategory": "versionAndAuthorization",
+      "evaluationContext": {
+        "scenarioType": "versionConflict",
+        "actingRole": "chartbook editor",
+        "scopeConstraint": "an existing shape cites V1 while V2 is ready",
+        "expectedDecision": "keep the existing citation pinned to V1"
+      },
+      "goldMatch": "remains pinned to V1",
+      "documentFamily": "drawio-agent-architecture-blueprint",
+      "split": "development"
+    },
+    {
+      "anchorId": "daa-degraded",
+      "source": "drawio-agent-architecture",
+      "version": "v1",
+      "page": 5,
+      "modality": "text",
+      "primaryCategory": "failure",
+      "evaluationContext": {
+        "injectedDependency": "Pinecone",
+        "injectedState": "unavailable",
+        "expectedSystemBehavior": "keep ordinary text drawing available and mark material retrieval degraded",
+        "forbiddenSystemBehavior": "claim that no evidence exists"
+      },
+      "goldMatch": "ordinary text",
+      "documentFamily": "drawio-agent-architecture-blueprint",
+      "split": "development"
+    },
+    {
+      "anchorId": "daa-approval",
+      "source": "drawio-agent-architecture",
+      "version": "v1",
+      "page": 5,
+      "modality": "text",
+      "goldMatch": "November 2026",
+      "documentFamily": "drawio-agent-architecture-blueprint",
+      "split": "development"
+    },
+    {
+      "anchorId": "dwh-id",
+      "source": "drawio-workflow-handbook",
+      "version": "v1",
+      "page": 1,
+      "modality": "text",
+      "goldMatch": "DWH-2026-12",
+      "documentFamily": "drawio-diagram-workflow-handbook",
+      "split": "development"
+    },
+    {
+      "anchorId": "dwh-explicit",
+      "source": "drawio-workflow-handbook",
+      "version": "v1",
+      "page": 2,
+      "modality": "text",
+      "primaryCategory": "retrievalDecision",
+      "goldMatch": "只能在该范围内检索",
+      "documentFamily": "drawio-diagram-workflow-handbook",
+      "split": "development"
+    },
+    {
+      "anchorId": "dwh-layout-only",
+      "source": "drawio-workflow-handbook",
+      "version": "v1",
+      "page": 2,
+      "modality": "text",
+      "primaryCategory": "retrievalDecision",
+      "goldMatch": "纯布局操作",
+      "documentFamily": "drawio-diagram-workflow-handbook",
+      "split": "development"
+    },
+    {
+      "anchorId": "dwh-sequence-type",
+      "source": "drawio-workflow-handbook",
+      "version": "v1",
+      "page": 3,
+      "modality": "table",
+      "goldMatch": "描述系统交互时首选时序图",
+      "documentFamily": "drawio-diagram-workflow-handbook",
+      "split": "development"
+    },
+    {
+      "anchorId": "dwh-handoff-type",
+      "source": "drawio-workflow-handbook",
+      "version": "v1",
+      "page": 3,
+      "modality": "table",
+      "goldMatch": "责任交接则首选泳道图",
+      "documentFamily": "drawio-diagram-workflow-handbook",
+      "split": "development"
+    },
+    {
+      "anchorId": "dwh-visual-route",
+      "source": "drawio-workflow-handbook",
+      "version": "v1",
+      "page": 4,
+      "modality": "visual_flow",
+      "goldMatch": "TYPED PLAN->LAYOUT CHECK",
+      "documentFamily": "drawio-diagram-workflow-handbook",
+      "split": "development"
+    },
+    {
+      "anchorId": "dwh-factual-edit",
+      "source": "drawio-workflow-handbook",
+      "version": "v1",
+      "page": 5,
+      "modality": "text",
+      "goldMatch": "必须重新检查证据",
+      "documentFamily": "drawio-diagram-workflow-handbook",
+      "split": "development"
+    },
+    {
+      "anchorId": "dwh-canonical",
+      "source": "drawio-workflow-handbook",
+      "version": "v1",
+      "page": 5,
+      "modality": "text",
+      "goldMatch": "draw.io XML 是可继续编辑的正式结果",
+      "documentFamily": "drawio-diagram-workflow-handbook",
+      "split": "development"
+    },
+    {
+      "anchorId": "dwh-approval",
+      "source": "drawio-workflow-handbook",
+      "version": "v1",
+      "page": 6,
+      "modality": "text",
+      "goldMatch": "2026 年 12 月 6 日",
+      "documentFamily": "drawio-diagram-workflow-handbook",
+      "split": "development"
+    },
+    {
+      "anchorId": "dwh-review-sample",
+      "source": "drawio-workflow-handbook",
+      "version": "v1",
+      "page": 6,
+      "modality": "text",
+      "goldMatch": "至少抽查 12 个复杂图",
+      "documentFamily": "drawio-diagram-workflow-handbook",
+      "split": "development"
+    },
+    {
+      "anchorId": "dcg-id",
+      "source": "drawio-collaboration-governance",
+      "version": "v1",
+      "page": 1,
+      "modality": "text",
+      "goldMatch": "DCG-2026-05",
+      "documentFamily": "drawio-collaboration-governance",
+      "split": "validation"
+    },
+    {
+      "anchorId": "dcg-reviewer-share",
+      "source": "drawio-collaboration-governance",
+      "version": "v1",
+      "page": 2,
+      "modality": "table",
+      "primaryCategory": "versionAndAuthorization",
+      "evaluationContext": {
+        "scenarioType": "authorizationScope",
+        "actingRole": "Reviewer",
+        "scopeConstraint": "attempt to manage chartbook shares",
+        "expectedDecision": "deny share management"
+      },
+      "goldMatch": "Reviewer may approve evidence changes but cannot manage shares",
+      "documentFamily": "drawio-collaboration-governance",
+      "split": "validation"
+    },
+    {
+      "anchorId": "dcg-editor-approve",
+      "source": "drawio-collaboration-governance",
+      "version": "v1",
+      "page": 2,
+      "modality": "table",
+      "primaryCategory": "versionAndAuthorization",
+      "evaluationContext": {
+        "scenarioType": "authorizationScope",
+        "actingRole": "Editor",
+        "scopeConstraint": "attempt to approve a chartbook release",
+        "expectedDecision": "deny release approval"
+      },
+      "goldMatch": "Editor may edit the canvas but cannot approve a release",
+      "documentFamily": "drawio-collaboration-governance",
+      "split": "validation"
+    },
+    {
+      "anchorId": "dcg-explicit",
+      "source": "drawio-collaboration-governance",
+      "version": "v1",
+      "page": 3,
+      "modality": "text",
+      "primaryCategory": "retrievalDecision",
+      "goldMatch": "limits the request",
+      "documentFamily": "drawio-collaboration-governance",
+      "split": "validation"
+    },
+    {
+      "anchorId": "dcg-removed",
+      "source": "drawio-collaboration-governance",
+      "version": "v1",
+      "page": 3,
+      "modality": "text",
+      "primaryCategory": "versionAndAuthorization",
+      "evaluationContext": {
+        "scenarioType": "authorizationScope",
+        "actingRole": "chartbook member",
+        "scopeConstraint": "the material share was removed before a new request",
+        "expectedDecision": "block new retrieval immediately"
+      },
+      "goldMatch": "blocks new retrieval immediately",
+      "documentFamily": "drawio-collaboration-governance",
+      "split": "validation"
+    },
+    {
+      "anchorId": "dcg-visual-route",
+      "source": "drawio-collaboration-governance",
+      "version": "v1",
+      "page": 4,
+      "modality": "visual_flow",
+      "goldMatch": "EVIDENCE REVIEW->OWNER APPROVAL",
+      "documentFamily": "drawio-collaboration-governance",
+      "split": "validation"
+    },
+    {
+      "anchorId": "dcg-retention",
+      "source": "drawio-collaboration-governance",
+      "version": "v1",
+      "page": 5,
+      "modality": "text",
+      "goldMatch": "retained for 36 months",
+      "documentFamily": "drawio-collaboration-governance",
+      "split": "validation"
+    },
+    {
+      "anchorId": "dcg-approval",
+      "source": "drawio-collaboration-governance",
+      "version": "v1",
+      "page": 5,
+      "modality": "text",
+      "goldMatch": "approved on 18 December 2026",
+      "documentFamily": "drawio-collaboration-governance",
+      "split": "validation"
+    },
+    {
+      "anchorId": "dcg-temp-reviewer",
+      "source": "drawio-collaboration-governance",
+      "version": "v1",
+      "page": 6,
+      "modality": "text",
+      "goldMatch": "up to 8 hours",
+      "documentFamily": "drawio-collaboration-governance",
+      "split": "validation"
+    },
+    {
+      "anchorId": "drr-id",
+      "source": "drawio-recovery-runbook",
+      "version": "v1",
+      "page": 1,
+      "modality": "text",
+      "goldMatch": "DRR-2026-09",
+      "documentFamily": "drawio-agent-recovery-runbook",
+      "split": "holdout"
+    },
+    {
+      "anchorId": "drr-pinecone",
+      "source": "drawio-recovery-runbook",
+      "version": "v1",
+      "page": 2,
+      "modality": "table",
+      "primaryCategory": "failure",
+      "evaluationContext": {
+        "injectedDependency": "Pinecone",
+        "injectedState": "unavailable",
+        "expectedSystemBehavior": "allow manual drawing and block material search",
+        "forbiddenSystemBehavior": "return material-backed output as if search succeeded"
+      },
+      "goldMatch": "manual drawing remains available but material search is blocked",
+      "documentFamily": "drawio-agent-recovery-runbook",
+      "split": "holdout"
+    },
+    {
+      "anchorId": "drr-save-severity",
+      "source": "drawio-recovery-runbook",
+      "version": "v1",
+      "page": 2,
+      "modality": "table",
+      "primaryCategory": "failure",
+      "evaluationContext": {
+        "injectedDependency": "canvas object storage",
+        "injectedState": "save failed",
+        "expectedSystemBehavior": "classify the incident as SEV-1 and preserve an explicit unsaved state",
+        "forbiddenSystemBehavior": "report the canvas as saved"
+      },
+      "goldMatch": "canvas-save failure is SEV-1",
+      "documentFamily": "drawio-agent-recovery-runbook",
+      "split": "holdout"
+    },
+    {
+      "anchorId": "drr-visual-route",
+      "source": "drawio-recovery-runbook",
+      "version": "v1",
+      "page": 3,
+      "modality": "visual_flow",
+      "goldMatch": "FREEZE MATERIAL TASKS->VERIFY SCOPE",
+      "documentFamily": "drawio-agent-recovery-runbook",
+      "split": "holdout"
+    },
+    {
+      "anchorId": "drr-probes",
+      "source": "drawio-recovery-runbook",
+      "version": "v1",
+      "page": 4,
+      "modality": "text",
+      "primaryCategory": "failure",
+      "evaluationContext": {
+        "injectedDependency": "Pinecone",
+        "injectedState": "recovering",
+        "expectedSystemBehavior": "remain degraded until 12 consecutive scoped probes succeed",
+        "forbiddenSystemBehavior": "restore normal status early"
+      },
+      "goldMatch": "12 consecutive scoped probes",
+      "documentFamily": "drawio-agent-recovery-runbook",
+      "split": "holdout"
+    },
+    {
+      "anchorId": "drr-ocr-gate",
+      "source": "drawio-recovery-runbook",
+      "version": "v1",
+      "page": 4,
+      "modality": "text",
+      "primaryCategory": "failure",
+      "evaluationContext": {
+        "injectedDependency": "OCR",
+        "injectedState": "recovering",
+        "expectedSystemBehavior": "keep OCR recovery gated until anchor recall reaches 0.95",
+        "forbiddenSystemBehavior": "mark OCR healthy below the recall gate"
+      },
+      "goldMatch": "anchor recall of at least 0.95",
+      "documentFamily": "drawio-agent-recovery-runbook",
+      "split": "holdout"
+    },
+    {
+      "anchorId": "drr-retry",
+      "source": "drawio-recovery-runbook",
+      "version": "v1",
+      "page": 5,
+      "modality": "text",
+      "primaryCategory": "failure",
+      "evaluationContext": {
+        "injectedDependency": "SEV-3 dependency operation",
+        "injectedState": "failed",
+        "expectedSystemBehavior": "retry twice and then surface the failure",
+        "forbiddenSystemBehavior": "retry without a bound or claim success"
+      },
+      "goldMatch": "retry twice",
+      "documentFamily": "drawio-agent-recovery-runbook",
+      "split": "holdout"
+    },
+    {
+      "anchorId": "drr-no-evidence",
+      "source": "drawio-recovery-runbook",
+      "version": "v1",
+      "page": 5,
+      "modality": "text",
+      "primaryCategory": "failure",
+      "evaluationContext": {
+        "injectedDependency": "material retrieval",
+        "injectedState": "did not execute",
+        "expectedSystemBehavior": "report that search could not run",
+        "forbiddenSystemBehavior": "claim that no evidence exists"
+      },
+      "goldMatch": "never says 'no evidence exists'",
+      "documentFamily": "drawio-agent-recovery-runbook",
+      "split": "holdout"
+    },
+    {
+      "anchorId": "drr-approval",
+      "source": "drawio-recovery-runbook",
+      "version": "v1",
+      "page": 6,
+      "modality": "text",
+      "goldMatch": "approved on 21 December 2026",
+      "documentFamily": "drawio-agent-recovery-runbook",
+      "split": "holdout"
+    },
+    {
+      "anchorId": "dpw-id",
+      "page": 1,
+      "goldMatch": "DPW-2026-33",
+      "source": "drawio-planning-workshop-scan",
+      "version": "v1",
+      "modality": "ocr",
+      "primaryCategory": "ocr",
+      "documentFamily": "drawio-planning-workshop-scan",
+      "split": "development"
+    },
+    {
+      "anchorId": "dpw-canonical",
+      "page": 1,
+      "goldMatch": "editable draw.io XML",
+      "source": "drawio-planning-workshop-scan",
+      "version": "v1",
+      "modality": "ocr",
+      "primaryCategory": "ocr",
+      "documentFamily": "drawio-planning-workshop-scan",
+      "split": "development"
+    },
+    {
+      "anchorId": "dpw-layout",
+      "page": 2,
+      "goldMatch": "does not require retrieval",
+      "source": "drawio-planning-workshop-scan",
+      "version": "v1",
+      "modality": "ocr",
+      "primaryCategory": "ocr",
+      "documentFamily": "drawio-planning-workshop-scan",
+      "split": "development"
+    },
+    {
+      "anchorId": "dpw-new-fact",
+      "page": 2,
+      "goldMatch": "requires retrieval and evidence validation",
+      "source": "drawio-planning-workshop-scan",
+      "version": "v1",
+      "modality": "ocr",
+      "primaryCategory": "ocr",
+      "documentFamily": "drawio-planning-workshop-scan",
+      "split": "development"
+    },
+    {
+      "anchorId": "dpw-clarify",
+      "page": 2,
+      "goldMatch": "ask the user before searching",
+      "source": "drawio-planning-workshop-scan",
+      "version": "v1",
+      "modality": "ocr",
+      "primaryCategory": "ocr",
+      "documentFamily": "drawio-planning-workshop-scan",
+      "split": "development"
+    },
+    {
+      "anchorId": "dpw-source-order",
+      "page": 3,
+      "goldMatch": "explicit source first",
+      "source": "drawio-planning-workshop-scan",
+      "version": "v1",
+      "modality": "ocr",
+      "primaryCategory": "ocr",
+      "documentFamily": "drawio-planning-workshop-scan",
+      "split": "development"
+    },
+    {
+      "anchorId": "dpw-removed",
+      "page": 3,
+      "goldMatch": "cannot be used for a new request",
+      "source": "drawio-planning-workshop-scan",
+      "version": "v1",
+      "modality": "ocr",
+      "primaryCategory": "ocr",
+      "documentFamily": "drawio-planning-workshop-scan",
+      "split": "development"
+    },
+    {
+      "anchorId": "dpw-degraded",
+      "page": 3,
+      "goldMatch": "DEGRADED SEARCH, not NO EVIDENCE",
+      "source": "drawio-planning-workshop-scan",
+      "version": "v1",
+      "modality": "ocr",
+      "primaryCategory": "ocr",
+      "documentFamily": "drawio-planning-workshop-scan",
+      "split": "development"
+    },
+    {
+      "anchorId": "dpw-budgets",
+      "page": 4,
+      "goldMatch": "Candidate retrieval: 40 | Hydration: 16 | Final bundle: 8",
+      "source": "drawio-planning-workshop-scan",
+      "version": "v1",
+      "modality": "ocr",
+      "primaryCategory": "ocr",
+      "documentFamily": "drawio-planning-workshop-scan",
+      "split": "development"
+    },
+    {
+      "anchorId": "dpw-owner",
+      "page": 4,
+      "goldMatch": "Trust reviewer",
+      "source": "drawio-planning-workshop-scan",
+      "version": "v1",
+      "modality": "ocr",
+      "primaryCategory": "ocr",
+      "documentFamily": "drawio-planning-workshop-scan",
+      "split": "development"
+    },
+    {
+      "anchorId": "dpw-deadline",
+      "page": 6,
+      "goldMatch": "14 January 2027",
+      "source": "drawio-planning-workshop-scan",
+      "version": "v1",
+      "modality": "ocr",
+      "primaryCategory": "ocr",
+      "documentFamily": "drawio-planning-workshop-scan",
+      "split": "development"
+    },
+    {
+      "anchorId": "dpw-approver",
+      "page": 6,
+      "goldMatch": "Agent UX Lead",
+      "source": "drawio-planning-workshop-scan",
+      "version": "v1",
+      "modality": "ocr",
+      "primaryCategory": "ocr",
+      "documentFamily": "drawio-planning-workshop-scan",
+      "split": "development"
     }
   ]
 }

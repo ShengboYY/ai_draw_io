@@ -5,7 +5,8 @@
       "source": "controlled-guide-v1",
       "documentFamily": "controlled-operations-guide",
       "version": "v1",
-      "split": "development",
+      "split": "guard_regression",
+      "language": "mixed",
       "role": "controlled",
       "filename": "controlled-operations-guide-v1.pdf"
     },
@@ -13,7 +14,8 @@
       "source": "controlled-guide-v2",
       "documentFamily": "controlled-operations-guide",
       "version": "v2",
-      "split": "development",
+      "split": "guard_regression",
+      "language": "mixed",
       "role": "controlled",
       "filename": "controlled-operations-guide-v2.pdf"
     },
@@ -22,6 +24,7 @@
       "documentFamily": "controlled-scanned-cards",
       "version": "v1",
       "split": "guard_visual_ocr",
+      "language": "mixed",
       "role": "controlled",
       "filename": "scanned-operations-cards.pdf"
     },
@@ -30,6 +33,7 @@
       "documentFamily": "whiteboard-review-feedback",
       "version": "v1",
       "split": "guard_visual_ocr",
+      "language": "en",
       "role": "challenge",
       "filename": "whiteboard-review-feedback.png"
     },
@@ -38,6 +42,7 @@
       "documentFamily": "harbor-grid-resilience",
       "version": "v1",
       "split": "development",
+      "language": "mixed",
       "role": "realistic",
       "filename": "realistic-harbor-grid-report-v1.pdf"
     },
@@ -46,6 +51,7 @@
       "documentFamily": "coastal-water-audit",
       "version": "v1",
       "split": "development",
+      "language": "zh",
       "role": "realistic",
       "freezeStatus": "development",
       "filename": "realistic-coastal-water-audit-v1.pdf"
@@ -55,6 +61,7 @@
       "documentFamily": "helios-inverter-manual",
       "version": "v1",
       "split": "validation",
+      "language": "mixed",
       "role": "realistic",
       "freezeStatus": "candidate",
       "filename": "realistic-helios-inverter-manual-v1.pdf"
@@ -64,6 +71,7 @@
       "documentFamily": "aurora-cold-chain-validation",
       "version": "v1",
       "split": "holdout",
+      "language": "en",
       "role": "realistic",
       "freezeStatus": "candidate",
       "filename": "realistic-aurora-cold-chain-validation-v1.pdf"
@@ -73,6 +81,7 @@
       "documentFamily": "meridian-forest-restoration-study",
       "version": "v1",
       "split": "validation",
+      "language": "en",
       "role": "realistic",
       "freezeStatus": "candidate",
       "filename": "realistic-meridian-forest-study-v1.pdf"
@@ -82,18 +91,70 @@
       "documentFamily": "arcadia-museum-condition-memo",
       "version": "v1",
       "split": "holdout",
+      "language": "mixed",
       "role": "realistic",
       "freezeStatus": "candidate",
       "filename": "realistic-arcadia-condition-memo-v1.pdf"
+    },
+    {
+      "source": "drawio-agent-architecture",
+      "documentFamily": "drawio-agent-architecture-blueprint",
+      "version": "v1",
+      "split": "development",
+      "language": "en",
+      "role": "realistic",
+      "freezeStatus": "development",
+      "filename": "drawio-agent-architecture-blueprint-v1.pdf"
+    },
+    {
+      "source": "drawio-workflow-handbook",
+      "documentFamily": "drawio-diagram-workflow-handbook",
+      "version": "v1",
+      "split": "development",
+      "language": "zh",
+      "role": "realistic",
+      "freezeStatus": "development",
+      "filename": "drawio-diagram-workflow-handbook-v1.pdf"
+    },
+    {
+      "source": "drawio-collaboration-governance",
+      "documentFamily": "drawio-collaboration-governance",
+      "version": "v1",
+      "split": "validation",
+      "language": "en",
+      "role": "realistic",
+      "freezeStatus": "candidate",
+      "filename": "drawio-collaboration-governance-v1.pdf"
+    },
+    {
+      "source": "drawio-recovery-runbook",
+      "documentFamily": "drawio-agent-recovery-runbook",
+      "version": "v1",
+      "split": "holdout",
+      "language": "en",
+      "role": "realistic",
+      "freezeStatus": "candidate",
+      "filename": "drawio-agent-recovery-runbook-v1.pdf"
     },
     {
       "source": "realistic-rail-scan",
       "documentFamily": "metro-rail-inspection-scan",
       "version": "v1",
       "split": "guard_visual_ocr",
+      "language": "mixed",
       "role": "challenge",
       "freezeStatus": "guard",
       "filename": "realistic-metro-rail-inspection-scan-v1.pdf"
+    },
+    {
+      "source": "drawio-planning-workshop-scan",
+      "documentFamily": "drawio-planning-workshop-scan",
+      "version": "v1",
+      "split": "development",
+      "language": "mixed",
+      "role": "realistic_scan",
+      "freezeStatus": "development",
+      "filename": "drawio-planning-workshop-scan-v1.pdf"
     }
   ]
 }

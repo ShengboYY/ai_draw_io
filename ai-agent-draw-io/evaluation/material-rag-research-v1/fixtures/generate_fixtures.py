@@ -30,14 +30,27 @@ from realistic_corpus_specs import (
     DIGITAL_DOCUMENTS,
     SCANNED_DOCUMENT,
 )
+from drawio_agent_corpus_specs import (
+    DRAWIO_DIGITAL_DOCUMENTS,
+    DRAWIO_FACTS,
+    DRAWIO_MULTI_CASES,
+    DRAWIO_NO_ANSWER_CASES,
+    DRAWIO_SCAN_FACTS,
+    DRAWIO_SCANNED_DOCUMENT,
+)
 
 
 ROOT = Path(__file__).resolve().parents[1]
+GENERATION_CONFIG = json.loads(
+    (ROOT / "fixtures" / "generation-config.json").read_text(encoding="utf-8")
+)
 UNICODE_FONT = Path("/Library/Fonts/Arial Unicode.ttf")
 FALLBACK_FONT = Path("/System/Library/Fonts/Supplemental/Arial Unicode.ttf")
-FONT_SHA256 = "876af2cd4854644e7f3e7feb2f688997fdb3343c6df6693611209c9dfb47ccec"
+FONT_SHA256 = GENERATION_CONFIG["fixtureFontSha256"]
 PAGE_WIDTH, PAGE_HEIGHT = A4
-RANDOM = random.Random(20260720)
+RANDOM = random.Random(GENERATION_CONFIG["randomSeed"])
+ALL_DIGITAL_DOCUMENTS = [*DIGITAL_DOCUMENTS, *DRAWIO_DIGITAL_DOCUMENTS]
+ALL_SCANNED_DOCUMENTS = [SCANNED_DOCUMENT, DRAWIO_SCANNED_DOCUMENT]
 OUTAGE_CHART_VALUES = [
     ("Docklands North", 16),
     ("River Berth", 12),
@@ -101,20 +114,23 @@ def draw_spec_page_title(pdf: canvas.Canvas, document: dict, page: dict,
         pdf.drawCentredString(PAGE_WIDTH / 2, PAGE_HEIGHT - 72, page["subtitle"])
         pdf.setStrokeColorRGB(0.25, 0.25, 0.25)
         pdf.line(56, PAGE_HEIGHT - 84, PAGE_WIDTH - 56, PAGE_HEIGHT - 84)
-        pdf.drawCentredString(PAGE_WIDTH / 2, 28, f"Forest Evidence Working Paper | {page_no}")
+        footer_label = document.get("footerLabel", "Forest Evidence Working Paper")
+        pdf.drawCentredString(PAGE_WIDTH / 2, 28, f"{footer_label} | {page_no}")
         return PAGE_HEIGHT - 102
     if template == "field_memo":
         pdf.setFillColorRGB(0.12, 0.27, 0.24)
         pdf.rect(0, PAGE_HEIGHT - 96, 18, 96, fill=1, stroke=0)
         pdf.setFillColorRGB(0.12, 0.18, 0.17)
         pdf.setFont(font, 9)
-        pdf.drawString(42, PAGE_HEIGHT - 34, "COLLECTION CARE / CONDITION MEMO")
+        pdf.drawString(42, PAGE_HEIGHT - 34,
+                       document.get("headerLabel", "COLLECTION CARE / CONDITION MEMO"))
         pdf.setFont(font, 19)
         pdf.drawString(42, PAGE_HEIGHT - 59, page["title"])
         pdf.setFillColorRGB(0.38, 0.43, 0.42)
         pdf.setFont(font, 8.5)
         pdf.drawString(42, PAGE_HEIGHT - 78, page["subtitle"])
-        pdf.drawRightString(PAGE_WIDTH - 42, 28, f"ACM fixture | leaf {page_no}")
+        footer_label = document.get("footerLabel", "ACM fixture")
+        pdf.drawRightString(PAGE_WIDTH - 42, 28, f"{footer_label} | leaf {page_no}")
         return PAGE_HEIGHT - 112
     draw_page_title(pdf, page["title"], page["subtitle"], page_no, font)
     return PAGE_HEIGHT - 105
@@ -131,14 +147,15 @@ def draw_lines(pdf: canvas.Canvas, lines: list[str], x: float, y: float,
 
 
 def draw_article_sections(pdf: canvas.Canvas, sections: list[tuple[str, str]], y: float,
-                          font: str, width: float = PAGE_WIDTH - 96, x: float = 48) -> float:
+                          font: str, width: float = PAGE_WIDTH - 96, x: float = 48,
+                          body_size: float = 9.4, body_leading: float = 13.2) -> float:
     """Draw dense report prose while keeping each authored page deterministic."""
     heading_style = ParagraphStyle(
-        "article-heading", fontName=font, fontSize=12, leading=15,
+        "article-heading", fontName=font, fontSize=body_size + 2.6, leading=body_leading + 1.8,
         textColor=colors.HexColor("#17365D"), spaceAfter=5,
     )
     body_style = ParagraphStyle(
-        "article-body", fontName=font, fontSize=9.4, leading=13.2,
+        "article-body", fontName=font, fontSize=body_size, leading=body_leading,
         textColor=colors.HexColor("#20242B"), alignment=4, spaceAfter=8,
     )
     for heading, body in sections:
@@ -337,6 +354,8 @@ def generate_spec_document(path: Path, document: dict, image_dir: Path) -> None:
     """Render a stable multi-page report while allowing each family to vary its page layout."""
     font = register_pdf_font()
     pdf = canvas.Canvas(str(path), pagesize=A4, invariant=1)
+    body_size = document.get("bodyFontSize", 9.4)
+    body_leading = document.get("bodyLeading", 13.2)
     for page_no, page in enumerate(document["pages"], start=1):
         content_top = draw_spec_page_title(pdf, document, page, page_no, font)
         if page.get("layout") == "columns":
@@ -344,14 +363,16 @@ def generate_spec_document(path: Path, document: dict, image_dir: Path) -> None:
             width = (PAGE_WIDTH - 96 - gap) / 2
             split = (len(page["sections"]) + 1) // 2
             y = draw_article_sections(pdf, page["sections"][:split], content_top,
-                                      font, width, 48)
+                                      font, width, 48, body_size, body_leading)
             draw_article_sections(pdf, page["sections"][split:], content_top,
-                                  font, width, 48 + width + gap)
+                                  font, width, 48 + width + gap, body_size, body_leading)
         else:
-            y = draw_article_sections(pdf, page["sections"], content_top, font)
+            y = draw_article_sections(pdf, page["sections"], content_top, font,
+                                      body_size=body_size, body_leading=body_leading)
         if "table" in page:
             y = draw_spec_table(pdf, page["table"], font, y)
-            draw_article_sections(pdf, page.get("afterSections", []), y, font)
+            draw_article_sections(pdf, page.get("afterSections", []), y, font,
+                                  body_size=body_size, body_leading=body_leading)
         if "diagram" in page:
             asset = image_dir / page["diagram"]["filename"]
             generate_spec_diagram(asset, page["diagram"])
@@ -421,7 +442,8 @@ def generate_scanned_article(path: Path, image_dir: Path, document: dict) -> Non
         image = image.filter(ImageFilter.GaussianBlur(radius=0.35))
         image = image.rotate((page_no % 3 - 1) * 0.7, resample=Image.Resampling.BICUBIC,
                              expand=False, fillcolor=255)
-        image_path = image_dir / f"rail-scan-page-{page_no}.jpg"
+        image_prefix = document.get("imagePrefix", "rail-scan")
+        image_path = image_dir / f"{image_prefix}-page-{page_no}.jpg"
         image.convert("RGB").save(image_path, quality=86, optimize=True)
         page_images.append(image_path)
     pdf = canvas.Canvas(str(path), pagesize=A4, invariant=1)
@@ -890,26 +912,26 @@ def facts() -> list[dict]:
         {"anchorId": "whiteboard-feedback", "source": "whiteboard-review-feedback", "version": "v1", "page": 1,
          "modality": "image_visual", "goldMatch": "REVIEW--dashed-->INTAKE",
          "queries": ["Where does the whiteboard rework arrow return?", "白板上的返工虚线从 REVIEW 指向哪里？"]},
-    ] + ADDITIONAL_FACTS
+    ] + ADDITIONAL_FACTS + DRAWIO_FACTS + DRAWIO_SCAN_FACTS
 
 
 def generated_documents() -> list[dict]:
     """Describe family and split ownership before cases are emitted."""
     documents = [
         {"source": "controlled-guide-v1", "documentFamily": "controlled-operations-guide",
-         "version": "v1", "split": "development", "role": "controlled",
+         "version": "v1", "split": "guard_regression", "language": "mixed", "role": "controlled",
          "filename": "controlled-operations-guide-v1.pdf"},
         {"source": "controlled-guide-v2", "documentFamily": "controlled-operations-guide",
-         "version": "v2", "split": "development", "role": "controlled",
+         "version": "v2", "split": "guard_regression", "language": "mixed", "role": "controlled",
          "filename": "controlled-operations-guide-v2.pdf"},
         {"source": "scanned-ops", "documentFamily": "controlled-scanned-cards",
-         "version": "v1", "split": "guard_visual_ocr", "role": "controlled",
+         "version": "v1", "split": "guard_visual_ocr", "language": "mixed", "role": "controlled",
          "filename": "scanned-operations-cards.pdf"},
         {"source": "whiteboard-review-feedback", "documentFamily": "whiteboard-review-feedback",
-         "version": "v1", "split": "guard_visual_ocr", "role": "challenge",
+         "version": "v1", "split": "guard_visual_ocr", "language": "en", "role": "challenge",
          "filename": "whiteboard-review-feedback.png"},
         {"source": "realistic-harbor-report", "documentFamily": "harbor-grid-resilience",
-         "version": "v1", "split": "development", "role": "realistic",
+         "version": "v1", "split": "development", "language": "mixed", "role": "realistic",
          "filename": "realistic-harbor-grid-report-v1.pdf"},
     ]
     documents.extend({
@@ -917,19 +939,21 @@ def generated_documents() -> list[dict]:
         "documentFamily": document["documentFamily"],
         "version": document["version"],
         "split": document["split"],
+        "language": document["language"],
         "role": "realistic",
         "freezeStatus": "candidate" if document["split"] in {"validation", "holdout"} else "development",
         "filename": document["filename"],
-    } for document in DIGITAL_DOCUMENTS)
-    documents.append({
-        "source": SCANNED_DOCUMENT["source"],
-        "documentFamily": SCANNED_DOCUMENT["documentFamily"],
-        "version": SCANNED_DOCUMENT["version"],
-        "split": SCANNED_DOCUMENT["split"],
-        "role": "challenge",
-        "freezeStatus": "guard",
-        "filename": SCANNED_DOCUMENT["filename"],
-    })
+    } for document in ALL_DIGITAL_DOCUMENTS)
+    documents.extend({
+        "source": document["source"],
+        "documentFamily": document["documentFamily"],
+        "version": document["version"],
+        "split": document["split"],
+        "language": document["language"],
+        "role": "challenge" if document["split"].startswith("guard") else "realistic_scan",
+        "freezeStatus": "guard" if document["split"].startswith("guard") else "development",
+        "filename": document["filename"],
+    } for document in ALL_SCANNED_DOCUMENTS)
     return documents
 
 
@@ -941,11 +965,40 @@ def normalize_authored_text(value: str) -> str:
     return re.sub(r"\s+", "", value).casefold()
 
 
+def query_language(query: str) -> str:
+    return "zh" if any("\u4e00" <= character <= "\u9fff" for character in query) else "en"
+
+
+def language_target(query: str, document: dict) -> tuple[str, list[str]]:
+    """Distinguish monolingual cases from queries crossing a single-language document."""
+    query_language_value = query_language(query)
+    cross_language = document["language"] in {"en", "zh"} \
+        and query_language_value != document["language"]
+    target = "crossLanguage" if cross_language else query_language_value
+    tags = [f"queryLanguage:{query_language_value}", f"documentLanguage:{document['language']}"]
+    if cross_language:
+        tags.append("crossLanguage")
+    return target, tags
+
+
+def fact_primary_category(fact: dict, target_language: str) -> str:
+    if fact.get("primaryCategory"):
+        return fact["primaryCategory"]
+    modality = fact["modality"]
+    if modality.startswith("visual") or modality == "image_visual":
+        return "visual"
+    if modality.startswith("ocr"):
+        return "ocr"
+    if target_language == "crossLanguage":
+        return "crossLanguage"
+    return "exactLookup"
+
+
 def validate_additional_specs() -> None:
     """Fail generation when authored facts drift away from their assigned pages."""
-    documents = {document["source"]: document for document in DIGITAL_DOCUMENTS}
-    documents[SCANNED_DOCUMENT["source"]] = SCANNED_DOCUMENT
-    for fact in ADDITIONAL_FACTS:
+    documents = {document["source"]: document for document in ALL_DIGITAL_DOCUMENTS}
+    documents.update({document["source"]: document for document in ALL_SCANNED_DOCUMENTS})
+    for fact in [*ADDITIONAL_FACTS, *DRAWIO_FACTS, *DRAWIO_SCAN_FACTS]:
         document = documents[fact["source"]]
         page = document["pages"][fact["page"] - 1]
         native_parts = [page["title"], page["subtitle"]]
@@ -1017,12 +1070,15 @@ def write_ground_truth(output_root: Path) -> None:
         for fact in anchors:
             document = metadata[fact["source"]]
             for query in fact["queries"]:
-                language = "zh" if any("\u4e00" <= char <= "\u9fff" for char in query) else "en"
-                output.write(json.dumps({
+                language, tags = language_target(query, document)
+                case_record = {
                     "schemaVersion": "material-rag-research-case-v2",
                     "caseId": f"controlled-{ordinal:03d}",
                     "category": fact["modality"],
                     "language": language,
+                    "queryLanguage": query_language(query),
+                    "primaryCategory": fact_primary_category(fact, language),
+                    "tags": [f"modality:{fact['modality']}", *tags],
                     "split": document["split"],
                     "documentFamily": document["documentFamily"],
                     "query": query,
@@ -1033,9 +1089,15 @@ def write_ground_truth(output_root: Path) -> None:
                         "operator": "ANY",
                         "evidence": [{"anchorId": fact["anchorId"], "grade": 3, "minimumGrade": 3}],
                     }],
+                    "expectedAnswer": fact.get("expectedAnswer", fact["goldMatch"]),
+                    "abstentionCondition": None,
                     "expectedPage": fact["page"],
                     "answerable": True,
-                }, ensure_ascii=False) + "\n")
+                }
+                # Scenario categories carry executable conditions instead of relying on labels alone.
+                if fact.get("evaluationContext"):
+                    case_record["evaluationContext"] = fact["evaluationContext"]
+                output.write(json.dumps(case_record, ensure_ascii=False) + "\n")
                 ordinal += 1
         # Each comparison keeps all required pages within one preassigned document family.
         multi_cases = [{
@@ -1045,20 +1107,25 @@ def write_ground_truth(output_root: Path) -> None:
             "anchorIds": ["hgr-baseline-energy", "hgr-post-energy"],
             "groupId": "before_after",
             "expectedPages": [6, 7],
+            "expectedAnswer": "18.4 MWh per operating day before and 15.1 MWh after, a decrease of 3.3 MWh per operating day or about 17.9%.",
             "queries": [
                 ("en", "What were average daily auxiliary energy use before and after the upgrade, "
                        "and how much did it fall?"),
                 ("zh", "升级前后辅助系统的日均能耗分别是多少，降低了多少？"),
             ],
-        }, *ADDITIONAL_MULTI_CASES]
+        }, *ADDITIONAL_MULTI_CASES, *DRAWIO_MULTI_CASES]
         for case in multi_cases:
             source = case["sourceVersion"].split(":", maxsplit=1)[0]
-            for language, query in case["queries"]:
+            for _, query in case["queries"]:
+                language, tags = language_target(query, metadata[source])
                 output.write(json.dumps({
                     "schemaVersion": "material-rag-research-case-v2",
                     "caseId": f"controlled-{ordinal:03d}",
                     "category": case["category"],
                     "language": language,
+                    "queryLanguage": query_language(query),
+                    "primaryCategory": "multiEvidence",
+                    "tags": ["multiEvidence", *tags],
                     "split": case["split"],
                     "documentFamily": metadata[source]["documentFamily"],
                     "query": query,
@@ -1072,6 +1139,8 @@ def write_ground_truth(output_root: Path) -> None:
                             for anchor_id in case["anchorIds"]
                         ],
                     }],
+                    "expectedAnswer": case["expectedAnswer"],
+                    "abstentionCondition": None,
                     "expectedPages": case["expectedPages"],
                     "answerable": True,
                 }, ensure_ascii=False) + "\n")
@@ -1083,38 +1152,49 @@ def write_ground_truth(output_root: Path) -> None:
             "蓝鲸计划的办公地址在哪里？",
         ]
         for query in no_answer_queries:
-            language = "zh" if any("\u4e00" <= char <= "\u9fff" for char in query) else "en"
+            document = metadata["controlled-guide-v1"]
+            language, tags = language_target(query, document)
             output.write(json.dumps({
                 "schemaVersion": "material-rag-research-case-v2",
                 "caseId": f"controlled-{ordinal:03d}",
                 "category": "no_answer",
                 "language": language,
-                "split": "development",
+                "queryLanguage": query_language(query),
+                "primaryCategory": "noAnswerAndMisleading",
+                "tags": ["noAnswer", *tags],
+                "split": "guard_regression",
                 "documentFamily": "controlled-operations-guide",
                 "query": query,
                 "allowedSourceVersions": ["controlled-guide-v1:v1"],
                 "goldAnchorIds": [],
                 "requiredEvidenceGroups": [],
+                "expectedAnswer": None,
+                "abstentionCondition": "The requested fact is explicitly absent from the allowed source version.",
                 "expectedPage": None,
                 "answerable": False,
             }, ensure_ascii=False) + "\n")
             ordinal += 1
-        for no_answer in ADDITIONAL_NO_ANSWER_CASES:
+        for no_answer in [*ADDITIONAL_NO_ANSWER_CASES, *DRAWIO_NO_ANSWER_CASES]:
             source, version = no_answer["sourceVersion"].split(":", maxsplit=1)
             document = metadata[source]
             query = no_answer["query"]
-            language = "zh" if any("\u4e00" <= char <= "\u9fff" for char in query) else "en"
+            language, tags = language_target(query, document)
             output.write(json.dumps({
                 "schemaVersion": "material-rag-research-case-v2",
                 "caseId": f"controlled-{ordinal:03d}",
                 "category": "no_answer",
                 "language": language,
+                "queryLanguage": query_language(query),
+                "primaryCategory": "noAnswerAndMisleading",
+                "tags": ["noAnswer", *tags],
                 "split": document["split"],
                 "documentFamily": document["documentFamily"],
                 "query": query,
                 "allowedSourceVersions": [f"{source}:{version}"],
                 "goldAnchorIds": [],
                 "requiredEvidenceGroups": [],
+                "expectedAnswer": None,
+                "abstentionCondition": "The requested fact is explicitly absent from the allowed source version.",
                 "expectedPage": None,
                 "answerable": False,
             }, ensure_ascii=False) + "\n")
@@ -1141,10 +1221,11 @@ def main() -> None:
     generate_digital_pdf(pdf_dir / "controlled-operations-guide-v1.pdf", "v1", risk_flow, capacity_table)
     generate_digital_pdf(pdf_dir / "controlled-operations-guide-v2.pdf", "v2", risk_flow, capacity_table)
     generate_realistic_report(pdf_dir / "realistic-harbor-grid-report-v1.pdf", outage_chart)
-    for document in DIGITAL_DOCUMENTS:
+    for document in ALL_DIGITAL_DOCUMENTS:
         generate_spec_document(pdf_dir / document["filename"], document, image_dir)
     generate_scanned_pdf(pdf_dir / "scanned-operations-cards.pdf", image_dir)
-    generate_scanned_article(pdf_dir / SCANNED_DOCUMENT["filename"], image_dir, SCANNED_DOCUMENT)
+    for document in ALL_SCANNED_DOCUMENTS:
+        generate_scanned_article(pdf_dir / document["filename"], image_dir, document)
     write_ground_truth(output_root)
     print(f"generated material RAG fixtures under {output_root}")
 

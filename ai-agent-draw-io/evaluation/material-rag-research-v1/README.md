@@ -37,7 +37,8 @@ The generated corpus intentionally contains two different levels of realism:
 
 - `controlled-operations-guide-v1/v2.pdf` and `scanned-operations-cards.pdf` remain small regression
   fixtures for exact values, version conflicts, OCR anchors, visual relations and abstention.
-- Seven separate realistic families broaden topic, language and layout coverage:
+- Twelve separate realistic families broaden topic, language and layout coverage. Five are directly
+  tied to draw.io Agent workflows:
   - `realistic-harbor-grid-report-v1.pdf`: ten-page operational report with timeline, table, chart,
     Chinese sections and cross-page evidence;
   - `realistic-coastal-water-audit-v1.pdf`: Chinese audit with version conflict, native table and
@@ -52,18 +53,48 @@ The generated corpus intentionally contains two different levels of realism:
     distinct field-record layout, condition register and exposure controls;
   - `realistic-metro-rail-inspection-scan-v1.pdf`: six-page image-only English/Chinese field report
     with scan noise, rotation, a scanned register and hard negatives.
+  - `drawio-agent-architecture-blueprint-v1.pdf`: evidence-to-canvas architecture, component table,
+    raster route and retrieval/context limits;
+  - `drawio-diagram-workflow-handbook-v1.pdf`: Chinese source-selection, diagram-type, editing and
+    export handbook;
+  - `drawio-planning-workshop-scan-v1.pdf`: six-page image-only planning and review record;
+  - `drawio-collaboration-governance-v1.pdf`: chartbook roles, sharing scope, approval and incident
+    governance;
+  - `drawio-agent-recovery-runbook-v1.pdf`: Pinecone, OCR, visual verification and canvas-save
+    degraded-mode behavior.
 
 Do not use the small controlled documents alone to claim real-document quality. The current generated
-cohort contains 191 cases, including twelve `ALL_PARTS` cases that require evidence from separate
-pages. Together with the 14 pinned open-document cases, 205 cases are defined. Development has two
-realistic families, Validation has two, Holdout has two, and the OCR/visual guard has one image-only
-family. This remains an authored synthetic cohort rather than the frozen, independently reviewed
-240-case V2 dataset.
+cohort contains 309 cases: exactly 240 core cases split 120/60/60, plus 69 guard/regression cases.
+Together with the 14 pinned open-document cases, 323 cases are defined. Quantity and family isolation
+now meet the E0 plan, but category/language balancing and independent human review still block freeze.
 
 `fixtures/generated/corpus-manifest.json` records each generated document family and its preassigned
 Development, Validation, Holdout or guard-suite split. Questions from one family never cross splits.
 Validation and Holdout documents are marked `candidate` until an independent reviewer freezes the
 questions and corpus hashes; the visible repository copy is not yet a sealed holdout.
+
+### E0 readiness
+
+Run the structural audit after generating fixtures:
+
+```bash
+python3 evaluation/material-rag-research-v1/analysis/audit_corpus.py \
+  --json-out evaluation/material-rag-research-v1/results/e0-readiness-current.json \
+  --markdown-out evaluation/material-rag-research-v1/results/E0-READINESS.md \
+  --candidate-lock evaluation/material-rag-research-v1/fixtures/generated/corpus-lock.candidate.json
+```
+
+The candidate lock records deterministic SHA-256 values for generated inputs plus the authored plan,
+generator/specs, evaluators, dependency declaration and pinned font hash, but it is not a frozen E0 lock. The auditor
+only counts a case as independently reviewed when an optional `--review-ledger` JSON entry names two
+distinct reviewers and has status `agreed` or `arbitrated`; a command-line count cannot self-certify
+review. Controlled regression cases are assigned to `guard_regression` and do not inflate the core
+count. The current audit reaches 240/240 core cases and exact 120/60/60 splits, but it remains blocked:
+V2 primary-category and language targets are not yet balanced, and independent review is pending.
+Failure and version/authorization labels also require executable scenario context; static approval-date
+lookups do not satisfy those categories. Run formal E0 only from a clean committed worktree so stopped
+E1 experiments or unrelated local changes cannot alter the baseline pipeline.
+E0 and subsequent E1 experiments must not be presented as formal results until those checks pass.
 
 ## Evaluation stages
 
@@ -154,7 +185,7 @@ Render every realistic family and inspect prose, tables, columns, charts, diagra
 the image-only scan:
 
 ```bash
-for pdf in evaluation/material-rag-research-v1/fixtures/generated/pdfs/realistic-*.pdf; do
+for pdf in evaluation/material-rag-research-v1/fixtures/generated/pdfs/{realistic,drawio}-*.pdf; do
   name="$(basename "$pdf" .pdf)"
   pdftoppm -png -r 144 "$pdf" "tmp/material-rag-render/$name"
 done
@@ -209,6 +240,9 @@ python3 evaluation/material-rag-research-v1/analysis/evaluate_ocr.py \
 The evaluator scores character error and anchor recall; it does not invoke or silently substitute an
 OCR engine. A machine without an English/Chinese OCR runtime can still verify that the PDF has no
 native text layer, but cannot claim a measured Rail OCR result.
+
+Use the same six-page workflow for the application-specific scan, changing the profile to
+`--profile drawio-workshop` and pointing at its six `page-N.txt` OCR outputs.
 
 The first measured report is `results/2026-07-20-baseline.md`. It is a diagnostic baseline; its 66
 defined cases do not replace the planned 180-case reviewed release suite.

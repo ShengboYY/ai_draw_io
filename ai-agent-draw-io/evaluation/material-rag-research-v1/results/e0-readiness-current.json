@@ -1,0 +1,123 @@
+{
+  "schemaVersion": "material-rag-e0-readiness-v1",
+  "status": "blocked",
+  "readyForFormalComparison": false,
+  "readyForE0Freeze": false,
+  "counts": {
+    "allGeneratedCases": 309,
+    "coreCases": 240,
+    "coreBySplit": {
+      "development": 120,
+      "holdout": 60,
+      "validation": 60
+    },
+    "coreByLanguage": {
+      "crossLanguage": 74,
+      "en": 99,
+      "zh": 67
+    },
+    "coreByPrimaryCategory": {
+      "crossLanguage": 42,
+      "exactLookup": 94,
+      "failure": 14,
+      "multiEvidence": 20,
+      "noAnswerAndMisleading": 16,
+      "ocr": 24,
+      "retrievalDecision": 8,
+      "versionAndAuthorization": 8,
+      "visual": 14
+    },
+    "coreByModality": {
+      "multi_evidence": 20,
+      "no_answer": 16,
+      "ocr": 24,
+      "table": 26,
+      "text": 140,
+      "visual_chart": 4,
+      "visual_flow": 10
+    },
+    "anchors": 134,
+    "documents": 16,
+    "reviewedCoreCases": 0
+  },
+  "targets": {
+    "coreCases": {
+      "development": 120,
+      "validation": 60,
+      "holdout": 60
+    },
+    "primaryCategories": {
+      "exactLookup": 30,
+      "crossLanguage": 30,
+      "multiEvidence": 28,
+      "visual": 40,
+      "ocr": 30,
+      "versionAndAuthorization": 24,
+      "retrievalDecision": 18,
+      "noAnswerAndMisleading": 24,
+      "failure": 16
+    },
+    "languageTargets": {
+      "zh": 96,
+      "en": 96,
+      "crossLanguage": 48
+    }
+  },
+  "gaps": {
+    "coreCases": 0,
+    "coreBySplit": {},
+    "independentHumanReview": "pending",
+    "reviewedCasesBeforeComparison": 180,
+    "primaryCategoryDelta": {
+      "exactLookup": -64,
+      "crossLanguage": -12,
+      "multiEvidence": 8,
+      "visual": 26,
+      "ocr": 6,
+      "versionAndAuthorization": 16,
+      "retrievalDecision": 10,
+      "noAnswerAndMisleading": 8,
+      "failure": 2
+    },
+    "languageTargetDelta": {
+      "zh": 29,
+      "en": -3,
+      "crossLanguage": -26
+    }
+  },
+  "checks": {
+    "uniqueCaseIds": true,
+    "uniqueAnchorIds": true,
+    "allGoldAnchorsResolve": true,
+    "allowedSourcesMatchAnchors": true,
+    "caseAnchorMetadataMatches": true,
+    "evidenceGradesValid": true,
+    "evidenceGroupsStructurallyValid": true,
+    "requiredEvidenceMetadataMatches": true,
+    "requiredEvidenceMatchesGoldAnchors": true,
+    "allowedSourceVersionsExist": true,
+    "answerableCasesHaveExpectedAnswer": true,
+    "noAnswerCasesHaveAbstentionCondition": true,
+    "documentFamiliesDoNotCrossSplits": true,
+    "reviewLedgerReferencesKnownCases": true,
+    "primaryCategoryLabelsValid": true,
+    "scenarioCategoryContextsValid": true
+  },
+  "details": {
+    "duplicateCaseIds": [],
+    "duplicateAnchorIds": [],
+    "unresolvedAnchors": [],
+    "sourceMismatches": [],
+    "metadataMismatches": [],
+    "invalidEvidenceGrades": [],
+    "invalidEvidenceShapes": [],
+    "evidenceMetadataMismatches": [],
+    "evidenceGroupGoldMismatches": [],
+    "unknownAllowedSourceVersions": [],
+    "invalidCategoryContexts": [],
+    "missingExpectedAnswers": [],
+    "missingAbstentionConditions": [],
+    "splitLeakage": {},
+    "unknownReviewedCaseIds": []
+  }
+}

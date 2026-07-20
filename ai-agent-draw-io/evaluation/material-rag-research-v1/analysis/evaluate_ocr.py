@@ -13,6 +13,10 @@ from pathlib import Path
 FIXTURE_DIR = Path(__file__).resolve().parents[1] / "fixtures"
 sys.path.insert(0, str(FIXTURE_DIR))
 from realistic_corpus_specs import ADDITIONAL_FACTS, SCANNED_DOCUMENT  # noqa: E402
+from drawio_agent_corpus_specs import (  # noqa: E402
+    DRAWIO_SCAN_FACTS,
+    DRAWIO_SCANNED_DOCUMENT,
+)
 
 
 CARD_EXPECTED_PAGES = {
@@ -45,7 +49,7 @@ CARD_ANCHORS = {
 }
 
 
-def rail_profile() -> tuple[dict[int, str], dict[str, tuple[int, str]]]:
+def document_profile(document: dict, facts: list[dict]) -> tuple[dict[int, str], dict[str, tuple[int, str]]]:
     """Derive OCR truth from the same authored scan specification used by the PDF generator."""
     pages = {
         page_no: "\n".join([
@@ -54,12 +58,12 @@ def rail_profile() -> tuple[dict[int, str], dict[str, tuple[int, str]]]:
             *(f"{heading}\n{body}" for heading, body in page["sections"]),
             f"Synthetic inspection scan | page {page_no}",
         ])
-        for page_no, page in enumerate(SCANNED_DOCUMENT["pages"], start=1)
+        for page_no, page in enumerate(document["pages"], start=1)
     }
     anchors = {
         fact["anchorId"]: (fact["page"], fact["goldMatch"])
-        for fact in ADDITIONAL_FACTS
-        if fact["source"] == SCANNED_DOCUMENT["source"] and fact["modality"].startswith("ocr")
+        for fact in facts
+        if fact["source"] == document["source"] and fact["modality"].startswith("ocr")
     }
     return pages, anchors
 
@@ -85,12 +89,14 @@ def edit_distance(left: str, right: str) -> int:
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("result_dir", type=Path)
-    parser.add_argument("--profile", choices=["cards", "rail"], default="cards")
+    parser.add_argument("--profile", choices=["cards", "rail", "drawio-workshop"], default="cards")
     parser.add_argument("--json-out", type=Path)
     args = parser.parse_args()
     expected_pages, anchors = (CARD_EXPECTED_PAGES, CARD_ANCHORS)
     if args.profile == "rail":
-        expected_pages, anchors = rail_profile()
+        expected_pages, anchors = document_profile(SCANNED_DOCUMENT, ADDITIONAL_FACTS)
+    elif args.profile == "drawio-workshop":
+        expected_pages, anchors = document_profile(DRAWIO_SCANNED_DOCUMENT, DRAWIO_SCAN_FACTS)
     pages: dict[int, str] = {}
     page_metrics = []
     total_distance = 0

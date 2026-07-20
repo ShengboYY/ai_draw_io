@@ -67,6 +67,8 @@ class ControlledPdfDenseRecallLiveTest {
         assertImageOnlyPdfRequiresOcr(root, "scanned-operations-cards.pdf", "scanned", 3);
         assertImageOnlyPdfRequiresOcr(root, "realistic-metro-rail-inspection-scan-v1.pdf",
                 "rail-scan", 6);
+        assertImageOnlyPdfRequiresOcr(root, "drawio-planning-workshop-scan-v1.pdf",
+                "drawio-workshop-scan", 6);
     }
 
     @Test
@@ -300,6 +302,14 @@ class ControlledPdfDenseRecallLiveTest {
                 "realistic-forest-study", "v1", "realistic-meridian-forest-study-v1.pdf"));
         result.put("realistic-museum-condition-memo:v1", buildProjection(root,
                 "realistic-museum-condition-memo", "v1", "realistic-arcadia-condition-memo-v1.pdf"));
+        result.put("drawio-agent-architecture:v1", buildProjection(root,
+                "drawio-agent-architecture", "v1", "drawio-agent-architecture-blueprint-v1.pdf"));
+        result.put("drawio-workflow-handbook:v1", buildProjection(root,
+                "drawio-workflow-handbook", "v1", "drawio-diagram-workflow-handbook-v1.pdf"));
+        result.put("drawio-collaboration-governance:v1", buildProjection(root,
+                "drawio-collaboration-governance", "v1", "drawio-collaboration-governance-v1.pdf"));
+        result.put("drawio-recovery-runbook:v1", buildProjection(root,
+                "drawio-recovery-runbook", "v1", "drawio-agent-recovery-runbook-v1.pdf"));
         return new ProjectionSet(Map.copyOf(result));
     }
 
