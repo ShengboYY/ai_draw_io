@@ -1,6 +1,7 @@
 package org.zipp.ai.infrastructure.adapter.vector;
 
 import org.zipp.ai.domain.retrieval.model.valobj.VectorProjection;
+import org.zipp.ai.domain.retrieval.model.valobj.VectorIdPage;
 import org.zipp.ai.domain.retrieval.port.RetrievalVectorIndex;
 
 import java.util.List;
@@ -44,8 +45,12 @@ public final class PineconeRetrievalVectorIndexAdapter implements RetrievalVecto
     }
 
     @Override
-    public boolean delete(String vectorId) {
-        client.delete(namespace, List.of(vectorId));
-        return true;
+    public VectorIdPage listVectorIds(String paginationToken, int limit) {
+        return client.listVectorIds(namespace, paginationToken, limit);
+    }
+
+    @Override
+    public void delete(List<String> vectorIds) {
+        client.delete(namespace, List.copyOf(vectorIds));
     }
 }

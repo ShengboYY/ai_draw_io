@@ -24,6 +24,10 @@ worker:
   reaper-delay-ms: ${WORKER_REAPER_DELAY_MS:60000}
   generation-sync-delay-ms: ${GENERATION_SYNC_DELAY_MS:5000}
   generation-sync-batch-size: ${GENERATION_SYNC_BATCH_SIZE:100}
+  projection-maintenance-delay-ms: ${PROJECTION_MAINTENANCE_DELAY_MS:86400000}
+  projection-reconciliation-interval-hours: ${PROJECTION_RECONCILIATION_INTERVAL_HOURS:24}
+  projection-maintenance-batch-size: ${PROJECTION_MAINTENANCE_BATCH_SIZE:100}
+  retired-generation-cleanup-grace-hours: ${RETIRED_GENERATION_CLEANUP_GRACE_HOURS:24}
   clamav:
     host: ${CLAMAV_HOST:127.0.0.1}
     port: ${CLAMAV_PORT:3310}

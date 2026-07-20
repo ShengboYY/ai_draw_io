@@ -1,6 +1,7 @@
 package org.zipp.ai.ingestion.worker.fake;
 
 import org.zipp.ai.domain.retrieval.model.valobj.VectorProjection;
+import org.zipp.ai.domain.retrieval.model.valobj.VectorIdPage;
 import org.zipp.ai.domain.retrieval.port.RetrievalVectorIndex;
 
 import java.util.ArrayList;
@@ -36,8 +37,14 @@ public final class FakeRetrievalVectorIndex implements RetrievalVectorIndex {
     }
 
     @Override
-    public boolean delete(String vectorId) {
-        return records.remove(vectorId) != null;
+    public VectorIdPage listVectorIds(String paginationToken, int limit) {
+        List<String> ids = records.keySet().stream().sorted().limit(limit).toList();
+        return new VectorIdPage(ids, null);
+    }
+
+    @Override
+    public void delete(List<String> vectorIds) {
+        vectorIds.forEach(records::remove);
     }
 
     public String serializedRecords() {

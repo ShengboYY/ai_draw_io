@@ -119,6 +119,24 @@ class PineconeVectorClientContractTest {
     }
 
     @Test
+    void shouldListOpaqueVectorIdsWithBoundedPagination() {
+        RecordingTransport transport = new RecordingTransport(objectMapper);
+        PineconeVectorClient client = new PineconeVectorClient(
+                "test-api-key", "https://drawio-test.svc.pinecone.io",
+                "multilingual-e5-large", 1024, transport, objectMapper);
+
+        var page = client.listVectorIds("drawio-retrieval-v2", "next page", 100);
+
+        assertEquals(List.of("rc_chunk1_ig2"), page.vectorIds());
+        assertEquals("next-token", page.nextToken());
+        RecordedRequest request = transport.requests.get(0);
+        assertEquals("GET", request.method);
+        assertEquals("/vectors/list", request.uri.getPath());
+        assertTrue(request.uri.getRawQuery().contains("paginationToken=next%20page"));
+        assertTrue(request.uri.getQuery().contains("limit=100"));
+    }
+
+    @Test
     void shouldPropagatePineconeRetryAfterForDurableWorkerBackoff() {
         PineconeHttpTransport transport = (method, uri, headers, body) ->
                 new PineconeHttpResponse(429, "{}", "17");
@@ -182,6 +200,11 @@ class PineconeVectorClientContractTest {
             if (uri.getPath().equals("/vectors/fetch")) {
                 return new PineconeHttpResponse(200,
                         "{\"vectors\":{\"rc_chunk1_ig2\":{\"id\":\"rc_chunk1_ig2\"}}}");
+            }
+            if (uri.getPath().equals("/vectors/list")) {
+                return new PineconeHttpResponse(200,
+                        "{\"vectors\":[{\"id\":\"rc_chunk1_ig2\"}],"
+                                + "\"pagination\":{\"next\":\"next-token\"}}");
             }
             return new PineconeHttpResponse(200, "{}");
         }

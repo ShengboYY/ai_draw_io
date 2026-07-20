@@ -18,6 +18,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import org.zipp.ai.domain.retrieval.port.RetryableRetrievalException;
+import org.zipp.ai.domain.retrieval.model.valobj.VectorIdPage;
 
 /**
  * REST spike for a standard Pinecone dense index. Embedding is always a separate inference call;
@@ -163,6 +164,21 @@ public final class PineconeVectorClient {
             existing.add(id);
         });
         return Set.copyOf(existing);
+    }
+
+    public VectorIdPage listVectorIds(String namespace, String paginationToken, int limit) {
+        if (limit < 1 || limit > 100) throw new IllegalArgumentException("list limit must be between 1 and 100");
+        StringBuilder query = new StringBuilder("?namespace=")
+                .append(encodeQuery(required(namespace, "namespace")))
+                .append("&limit=").append(limit);
+        if (paginationToken != null && !paginationToken.isBlank()) {
+            query.append("&paginationToken=").append(encodeQuery(paginationToken.trim()));
+        }
+        JsonNode response = exchange("GET", indexUri("/vectors/list" + query), "");
+        List<String> ids = new ArrayList<>();
+        response.path("vectors").forEach(vector -> ids.add(required(vector.path("id").asText(), "vector id")));
+        String next = response.path("pagination").path("next").asText(null);
+        return new VectorIdPage(ids, next);
     }
 
     private JsonNode exchange(URI uri, ObjectNode body) {

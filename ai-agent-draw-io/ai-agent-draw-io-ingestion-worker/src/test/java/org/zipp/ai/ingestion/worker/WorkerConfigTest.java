@@ -21,6 +21,7 @@ class WorkerConfigTest {
         assertDocumentConditional("ocrEnginePort");
         assertDocumentConditional("documentProcessingJobHandler");
         assertVectorConditional("indexGenerationCompatibilityCoordinator");
+        assertVectorConditional("indexProjectionMaintenanceCoordinator");
         try (InputStream stream = getClass().getClassLoader().getResourceAsStream("application.yml")) {
             assertNotNull(stream);
             String configuration = new String(stream.readAllBytes(), StandardCharsets.UTF_8);

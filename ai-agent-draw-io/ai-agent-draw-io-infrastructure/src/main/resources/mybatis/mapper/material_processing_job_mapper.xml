@@ -40,7 +40,7 @@
           <foreach collection="stages" item="stage" open="(" separator="," close=")">#{stage}</foreach>
         </if>
         <if test="processingFingerprint != null and processingFingerprint != ''">
-          AND (revision_id IS NULL OR stage = 'BUILD_COMPATIBILITY_PROJECTION' OR EXISTS (
+          AND (revision_id IS NULL OR stage IN ('BUILD_COMPATIBILITY_PROJECTION', 'REPAIR_VECTOR_BATCH') OR EXISTS (
               SELECT 1 FROM material_processing_revision r
               WHERE r.id = material_processing_job.revision_id
                 AND r.fingerprint = #{processingFingerprint}
@@ -65,14 +65,15 @@
           AND (
               stage NOT IN ('BUILD_LEXICAL_PROJECTION', 'EMBED_CHUNK_BATCHES',
                             'UPSERT_VECTOR_BATCHES', 'VERIFY_PROJECTION_MANIFEST',
-                            'PUBLISH_REVISION', 'BUILD_COMPATIBILITY_PROJECTION')
+                            'PUBLISH_REVISION', 'BUILD_COMPATIBILITY_PROJECTION', 'REPAIR_VECTOR_BATCH')
               OR (stage = 'BUILD_LEXICAL_PROJECTION' AND (
                     NOT EXISTS (SELECT 1 FROM rag_index_generation active WHERE active.state = 'ACTIVE')
                     OR EXISTS (SELECT 1 FROM rag_index_generation active
                                WHERE active.state = 'ACTIVE' AND active.id = #{projectionGenerationId})
                  ))
               OR (stage != 'BUILD_LEXICAL_PROJECTION'
-                  AND work_key LIKE CONCAT('ig:', #{projectionGenerationId}, '%')
+                  AND (work_key = CONCAT('ig:', #{projectionGenerationId})
+                       OR work_key LIKE CONCAT('ig:', #{projectionGenerationId}, ':%'))
                   AND EXISTS (SELECT 1 FROM rag_index_generation routed
                               WHERE routed.id = #{projectionGenerationId}
                                 AND routed.state IN ('BUILDING', 'SHADOW', 'ACTIVE')))

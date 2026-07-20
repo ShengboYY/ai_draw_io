@@ -28,6 +28,7 @@ import org.zipp.ai.domain.retrieval.service.RevisionPublicationGate;
 import org.zipp.ai.domain.retrieval.port.TenantKeyPort;
 import org.zipp.ai.domain.retrieval.port.VectorProjectionWorkPort;
 import org.zipp.ai.domain.retrieval.port.IndexGenerationCompatibilityPort;
+import org.zipp.ai.domain.retrieval.port.IndexProjectionMaintenancePort;
 import org.zipp.ai.domain.retrieval.service.IndexGenerationActivationGate;
 import org.zipp.ai.domain.retrieval.projection.VectorGenerationProfile;
 import org.zipp.ai.domain.retrieval.projection.VectorProjectionPlanner;
@@ -289,13 +290,27 @@ public class WorkerConfig {
 
     @Bean
     @ConditionalOnProperty(name = "worker.vector-projection-enabled", havingValue = "true")
+    public IndexProjectionMaintenanceCoordinator indexProjectionMaintenanceCoordinator(
+            IndexProjectionMaintenancePort maintenance, RetrievalVectorIndex vectorIndex,
+            VectorGenerationProfile profile, Clock clock,
+            @Value("${worker.projection-reconciliation-interval-hours:24}") long reconciliationHours,
+            @Value("${worker.retired-generation-cleanup-grace-hours:24}") long cleanupGraceHours,
+            @Value("${worker.projection-maintenance-batch-size:100}") int batchSize) {
+        return new IndexProjectionMaintenanceCoordinator(maintenance, vectorIndex, profile,
+                java.time.Duration.ofHours(reconciliationHours),
+                java.time.Duration.ofHours(cleanupGraceHours), batchSize, clock);
+    }
+
+    @Bean
+    @ConditionalOnProperty(name = "worker.vector-projection-enabled", havingValue = "true")
     public VectorProjectionJobHandler vectorProjectionJobHandler(
-            VectorProjectionWorkPort work, RevisionArtifactPort artifacts, EmbeddingPort embedding,
+            VectorProjectionWorkPort work, IndexProjectionMaintenancePort maintenance,
+            RevisionArtifactPort artifacts, EmbeddingPort embedding,
             EmbeddingCachePort embeddingCache,
             RetrievalVectorIndex vectorIndex, TenantKeyPort tenantKeys, VectorProjectionPlanner planner,
             RevisionPublicationGate publicationGate,
             ObjectMapper objectMapper, VectorGenerationProfile profile, ProcessingQueuePort queue, Clock clock) {
-        return new VectorProjectionJobHandler(work, artifacts, embedding, embeddingCache,
+        return new VectorProjectionJobHandler(work, maintenance, artifacts, embedding, embeddingCache,
                 vectorIndex, tenantKeys, planner, publicationGate,
                 new RevisionPageCodec(objectMapper), profile, queue, clock);
     }

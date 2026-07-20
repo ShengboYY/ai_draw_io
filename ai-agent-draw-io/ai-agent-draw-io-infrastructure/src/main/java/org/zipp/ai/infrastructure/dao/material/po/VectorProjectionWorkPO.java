@@ -73,4 +73,6 @@ public class VectorProjectionWorkPO {
     private String gapManifestSha256;
     private Long gapManifestSize;
     private String gapManifestContentType;
+    private String repairId;
+    private String repairInputFingerprint;
 }

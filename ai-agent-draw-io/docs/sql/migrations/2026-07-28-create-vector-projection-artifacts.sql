@@ -56,8 +56,11 @@ CREATE TABLE IF NOT EXISTS retrieval_projection_manifest (
     manifest_hash CHAR(64) NOT NULL,
     projection_count INT NOT NULL,
     state VARCHAR(16) NOT NULL,
+    object_identity_hash CHAR(64) GENERATED ALWAYS AS (
+        SHA2(CONCAT(object_key, CHAR(0), object_version_id), 256)
+    ) STORED,
     created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
     updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
     PRIMARY KEY (revision_id, index_generation_id),
-    UNIQUE KEY uk_projection_manifest_object (object_key, object_version_id)
+    UNIQUE KEY uk_projection_manifest_object (object_identity_hash)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

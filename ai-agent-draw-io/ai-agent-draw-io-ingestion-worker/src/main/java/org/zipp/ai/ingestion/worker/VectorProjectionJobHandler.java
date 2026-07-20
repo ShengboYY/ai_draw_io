@@ -8,6 +8,7 @@ import org.zipp.ai.domain.ingestion.service.ProcessingStageFingerprintPolicy;
 import org.zipp.ai.domain.retrieval.model.valobj.*;
 import org.zipp.ai.domain.retrieval.port.EmbeddingPort;
 import org.zipp.ai.domain.retrieval.port.EmbeddingCachePort;
+import org.zipp.ai.domain.retrieval.port.IndexProjectionMaintenancePort;
 import org.zipp.ai.domain.retrieval.port.RetrievalVectorIndex;
 import org.zipp.ai.domain.retrieval.port.RetryableRetrievalException;
 import org.zipp.ai.domain.retrieval.port.TenantKeyPort;
@@ -34,6 +35,7 @@ public final class VectorProjectionJobHandler {
     private static final String JSON_GZIP = "application/json+gzip";
 
     private final VectorProjectionWorkPort work;
+    private final IndexProjectionMaintenancePort maintenance;
     private final RevisionArtifactPort artifacts;
     private final EmbeddingPort embedding;
     private final EmbeddingCachePort embeddingCache;
@@ -46,7 +48,9 @@ public final class VectorProjectionJobHandler {
     private final ProcessingQueuePort queue;
     private final Clock clock;
 
-    public VectorProjectionJobHandler(VectorProjectionWorkPort work, RevisionArtifactPort artifacts,
+    public VectorProjectionJobHandler(VectorProjectionWorkPort work,
+                                      IndexProjectionMaintenancePort maintenance,
+                                      RevisionArtifactPort artifacts,
                                       EmbeddingPort embedding, EmbeddingCachePort embeddingCache,
                                       RetrievalVectorIndex vectorIndex,
                                       TenantKeyPort tenantKeys, VectorProjectionPlanner planner,
@@ -54,6 +58,7 @@ public final class VectorProjectionJobHandler {
                                       RevisionPageCodec codec, VectorGenerationProfile profile,
                                       ProcessingQueuePort queue, Clock clock) {
         this.work = Objects.requireNonNull(work, "work");
+        this.maintenance = Objects.requireNonNull(maintenance, "maintenance");
         this.artifacts = Objects.requireNonNull(artifacts, "artifacts");
         this.embedding = Objects.requireNonNull(embedding, "embedding");
         this.embeddingCache = Objects.requireNonNull(embeddingCache, "embeddingCache");
@@ -79,6 +84,7 @@ public final class VectorProjectionJobHandler {
                 case UPSERT_VECTOR_BATCHES -> upsert(revisionId, lease);
                 case VERIFY_PROJECTION_MANIFEST -> manifest(revisionId, lease);
                 case PUBLISH_REVISION -> publish(revisionId, lease);
+                case REPAIR_VECTOR_BATCH -> repair(revisionId, lease);
                 default -> JobOutcome.permanent("UNSUPPORTED_VECTOR_STAGE");
             };
         } catch (IllegalArgumentException e) {
@@ -177,30 +183,8 @@ public final class VectorProjectionJobHandler {
         VectorBatchPayload payload = codec.decodeVectorBatchPayload(
                 artifacts.read(source.vectorArtifact(), MAXIMUM_ARTIFACT_BYTES), MAXIMUM_ARTIFACT_BYTES);
         validatePayload(source, payload);
-        Map<String, VectorEmbeddingValue> valuesByChunk = new HashMap<>();
-        payload.embeddings().forEach(value -> valuesByChunk.put(value.chunkId(), value));
-        String tenantKey = tenantKeys.opaqueKey(source.context().ownerType(), source.context().ownerKey());
-        List<VectorProjection> projections = source.projections().stream().map(metadata -> {
-            VectorEmbeddingValue value = valuesByChunk.get(metadata.chunkId());
-            if (value == null || !metadata.vectorId().equals(value.vectorId())
-                    || !metadata.projectionFingerprint().equals(value.projectionFingerprint())) {
-                throw new IllegalArgumentException("vector payload does not match its authoritative projection");
-            }
-            Map<String, Object> pineconeMetadata = new HashMap<>();
-            pineconeMetadata.put("tenant_key", tenantKey);
-            pineconeMetadata.put("material_id", source.context().materialId());
-            pineconeMetadata.put("version_id", source.context().versionId());
-            pineconeMetadata.put("revision_id", source.context().revisionId());
-            pineconeMetadata.put("retrieval_chunk_id", metadata.chunkId());
-            pineconeMetadata.put("chunk_type", metadata.chunkType().name());
-            pineconeMetadata.put("modality", metadata.modality().name());
-            if (metadata.pageNo() != null) pineconeMetadata.put("page_no", metadata.pageNo());
-            pineconeMetadata.put("language", metadata.language());
-            pineconeMetadata.put("index_generation_id", source.profile().generationId());
-            return new VectorProjection(metadata.chunkId(), source.profile().generationId(), metadata.vectorId(),
-                    value.values(), pineconeMetadata);
-        }).toList();
-        vectorIndex.upsert(projections);
+        vectorIndex.upsert(providerProjections(
+                source.context(), source.profile(), source.projections(), payload));
         String verificationWorkKey = VectorManifestWork.verificationWorkKey(
                 source.profile().generationId());
         String verificationFingerprint = VectorManifestWork.verificationInputFingerprint(
@@ -283,6 +267,29 @@ public final class VectorProjectionJobHandler {
                 ? JobOutcome.succeeded() : staleFence();
     }
 
+    private JobOutcome repair(String revisionId, ProcessingJobLease lease) {
+        VectorRepairWork source = maintenance.findRepairWork(
+                revisionId, lease.job().workKey(), fence(lease)).orElse(null);
+        if (source == null) return JobOutcome.succeeded();
+        verifyProfile(source.profile());
+        if (!source.inputFingerprint().equals(lease.job().inputFingerprint())) {
+            return JobOutcome.permanent("STALE_VECTOR_REPAIR");
+        }
+        if (!heartbeat(lease)) return staleFence();
+        VectorBatchPayload payload = codec.decodeVectorBatchPayload(
+                artifacts.read(source.vectorArtifact(), MAXIMUM_ARTIFACT_BYTES), MAXIMUM_ARTIFACT_BYTES);
+        validateRepairPayload(source, payload);
+        vectorIndex.upsert(providerProjections(
+                source.context(), source.profile(), source.projections(), payload));
+        List<String> vectorIds = source.projections().stream().map(VectorProjectionMetadata::vectorId).toList();
+        if (!publicationGate.allVectorsVisible(vectorIds, vectorIndex.existingVectorIds(vectorIds))) {
+            throw new RetryableRetrievalException("repaired Pinecone batch is not visible yet",
+                    Duration.ofSeconds(10));
+        }
+        return maintenance.completeRepair(source, fence(lease), clock.instant())
+                ? JobOutcome.succeeded() : staleFence();
+    }
+
     private RetrievalProjectionManifest readRetrievalManifest(RevisionProjectionContext context) {
         var manifest = codec.decodeRetrievalProjectionManifest(
                 artifacts.read(context.retrievalManifestArtifact(), MAXIMUM_ARTIFACT_BYTES),
@@ -302,6 +309,45 @@ public final class VectorProjectionJobHandler {
                 || source.projections().size() != payload.embeddings().size()) {
             throw new IllegalArgumentException("vector payload identity is stale");
         }
+    }
+
+    private void validateRepairPayload(VectorRepairWork source, VectorBatchPayload payload) {
+        if (!source.context().revisionId().equals(payload.revisionId())
+                || !source.profile().generationId().equals(payload.generationId())
+                || source.batchNo() != payload.batchNo()
+                || !source.batchInputFingerprint().equals(payload.batchInputFingerprint())
+                || source.projections().size() != payload.embeddings().size()) {
+            throw new IllegalArgumentException("vector repair payload identity is stale");
+        }
+    }
+
+    private List<VectorProjection> providerProjections(RevisionProjectionContext context,
+                                                       VectorGenerationProfile generation,
+                                                       List<VectorProjectionMetadata> metadata,
+                                                       VectorBatchPayload payload) {
+        Map<String, VectorEmbeddingValue> valuesByChunk = new HashMap<>();
+        payload.embeddings().forEach(value -> valuesByChunk.put(value.chunkId(), value));
+        String tenantKey = tenantKeys.opaqueKey(context.ownerType(), context.ownerKey());
+        return metadata.stream().map(projection -> {
+            VectorEmbeddingValue value = valuesByChunk.get(projection.chunkId());
+            if (value == null || !projection.vectorId().equals(value.vectorId())
+                    || !projection.projectionFingerprint().equals(value.projectionFingerprint())) {
+                throw new IllegalArgumentException("vector payload does not match its authoritative projection");
+            }
+            Map<String, Object> providerMetadata = new HashMap<>();
+            providerMetadata.put("tenant_key", tenantKey);
+            providerMetadata.put("material_id", context.materialId());
+            providerMetadata.put("version_id", context.versionId());
+            providerMetadata.put("revision_id", context.revisionId());
+            providerMetadata.put("retrieval_chunk_id", projection.chunkId());
+            providerMetadata.put("chunk_type", projection.chunkType().name());
+            providerMetadata.put("modality", projection.modality().name());
+            if (projection.pageNo() != null) providerMetadata.put("page_no", projection.pageNo());
+            providerMetadata.put("language", projection.language());
+            providerMetadata.put("index_generation_id", generation.generationId());
+            return new VectorProjection(projection.chunkId(), generation.generationId(), projection.vectorId(),
+                    value.values(), providerMetadata);
+        }).toList();
     }
 
     private void verifyProfile(VectorGenerationProfile persisted) {

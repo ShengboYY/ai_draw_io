@@ -18,6 +18,7 @@ public class RagIndexGenerationPO {
     private Instant activatedAt;
     private Instant shadowStartedAt;
     private Instant retiredAt;
+    private Instant purgedAt;
     private Instant rollbackUntil;
     private String activationReportId;
     private String previousGenerationId;

@@ -4,5 +4,7 @@ public enum IndexGenerationState {
     BUILDING,
     SHADOW,
     ACTIVE,
-    RETIRED
+    RETIRED,
+    PURGING,
+    PURGED
 }

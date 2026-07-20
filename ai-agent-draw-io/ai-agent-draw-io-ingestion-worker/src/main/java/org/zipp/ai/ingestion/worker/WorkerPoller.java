@@ -96,7 +96,8 @@ public final class WorkerPoller {
                     ANALYZE_VISUALS, BUILD_EVIDENCE_UNITS, BUILD_RETRIEVAL_CHUNKS ->
                     requireDocumentProcessingHandler().handle(lease);
             case BUILD_LEXICAL_PROJECTION, EMBED_CHUNK_BATCHES, UPSERT_VECTOR_BATCHES,
-                    VERIFY_PROJECTION_MANIFEST, PUBLISH_REVISION, BUILD_COMPATIBILITY_PROJECTION ->
+                    VERIFY_PROJECTION_MANIFEST, PUBLISH_REVISION, BUILD_COMPATIBILITY_PROJECTION,
+                    REPAIR_VECTOR_BATCH ->
                     requireVectorProjectionHandler().handle(lease);
             default -> JobOutcome.permanent("UNSUPPORTED_WORKER_STAGE");
         };
@@ -161,7 +162,8 @@ public final class WorkerPoller {
                         ProcessingJobStage.UPSERT_VECTOR_BATCHES,
                         ProcessingJobStage.VERIFY_PROJECTION_MANIFEST,
                         ProcessingJobStage.PUBLISH_REVISION,
-                        ProcessingJobStage.BUILD_COMPATIBILITY_PROJECTION));
+                        ProcessingJobStage.BUILD_COMPATIBILITY_PROJECTION,
+                        ProcessingJobStage.REPAIR_VECTOR_BATCH));
             }
             return Set.copyOf(stages);
         }

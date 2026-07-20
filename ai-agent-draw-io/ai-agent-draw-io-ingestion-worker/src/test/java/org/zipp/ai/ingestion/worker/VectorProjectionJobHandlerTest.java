@@ -15,6 +15,7 @@ import org.zipp.ai.domain.retrieval.service.RevisionPublicationGate;
 import org.zipp.ai.ingestion.worker.document.RevisionPageCodec;
 import org.zipp.ai.ingestion.worker.fake.FakeEmbeddingPort;
 import org.zipp.ai.ingestion.worker.fake.FakeRetrievalVectorIndex;
+import org.zipp.ai.ingestion.worker.fake.FakeIndexProjectionMaintenancePort;
 
 import java.nio.file.Path;
 import java.security.MessageDigest;
@@ -66,7 +67,7 @@ class VectorProjectionJobHandlerTest {
         CountingEmbeddingPort embedding = new CountingEmbeddingPort(4);
         InMemoryEmbeddingCache embeddingCache = new InMemoryEmbeddingCache();
         VectorProjectionJobHandler handler = new VectorProjectionJobHandler(
-                work, artifacts, embedding, embeddingCache, index,
+                work, new FakeIndexProjectionMaintenancePort(), artifacts, embedding, embeddingCache, index,
                 (ownerType, ownerKey) -> "tenant-opaque", new VectorProjectionPlanner(96, 1_000_000),
                 new RevisionPublicationGate(), codec, profile, queue, Clock.fixed(NOW, ZoneOffset.UTC));
 
@@ -123,7 +124,7 @@ class VectorProjectionJobHandlerTest {
                 4, "cosine", "vector-v2", "tokenizer-v1");
         work.compatibilityWork = new CompatibilityProjectionWork(context, compatibilityProfile);
         VectorProjectionJobHandler compatibilityHandler = new VectorProjectionJobHandler(
-                work, artifacts, embedding, embeddingCache, index,
+                work, new FakeIndexProjectionMaintenancePort(), artifacts, embedding, embeddingCache, index,
                 (ownerType, ownerKey) -> "tenant-opaque", new VectorProjectionPlanner(96, 1_000_000),
                 new RevisionPublicationGate(), codec, compatibilityProfile, queue,
                 Clock.fixed(NOW, ZoneOffset.UTC));
@@ -143,6 +144,49 @@ class VectorProjectionJobHandlerTest {
                 work.manifestWork.verificationInputFingerprint())).kind());
         assertTrue(work.compatibilityReady);
         assertEquals(VectorProjectionRole.COMPATIBILITY, work.manifestResult.manifest().projectionRole());
+    }
+
+    @Test
+    void repairsProviderLossFromThePinnedEmbeddingArtifact() {
+        RevisionPageCodec codec = new RevisionPageCodec(new ObjectMapper());
+        InMemoryArtifacts artifacts = new InMemoryArtifacts();
+        StoredArtifact retrievalArtifact = artifacts.putImmutable("retrieval.json.gz",
+                codec.encode(retrievalManifest()), "application/json+gzip");
+        RevisionProjectionContext context = new RevisionProjectionContext(
+                "rev_1", "ver_1", "material_1", OwnerType.USER, "user_1", 7, 2,
+                "d".repeat(64), retrievalArtifact);
+        VectorGenerationProfile profile = new VectorGenerationProfile(
+                "drawio-test", "test", "multilingual-e5-large", "e".repeat(64),
+                4, "cosine", "vector-v1", "tokenizer-v1");
+        String vectorId = "vector_1";
+        String projectionFingerprint = "c".repeat(64);
+        String batchFingerprint = "b".repeat(64);
+        VectorBatchPayload payload = new VectorBatchPayload("vector-batch-v1", "rev_1",
+                profile.generationId(), 0, batchFingerprint,
+                List.of(new VectorEmbeddingValue("chunk_1", vectorId,
+                        projectionFingerprint, new float[4])));
+        StoredArtifact vectorArtifact = artifacts.putImmutable("vectors.json.gz",
+                codec.encode(payload), "application/json+gzip");
+        FakeIndexProjectionMaintenancePort maintenance = new FakeIndexProjectionMaintenancePort();
+        maintenance.repairWork = new VectorRepairWork("repair_1", context, profile, 0,
+                "ig:" + profile.generationId() + ":repair:repair_1", "a".repeat(64),
+                batchFingerprint, vectorArtifact,
+                List.of(new VectorProjectionMetadata("chunk_1", vectorId, projectionFingerprint,
+                        RetrievalChunkType.CONTENT,
+                        org.zipp.ai.domain.ingestion.model.valobj.EvidenceModality.TEXT, 1, "en")));
+        FakeRetrievalVectorIndex index = new FakeRetrievalVectorIndex();
+        VectorProjectionJobHandler handler = new VectorProjectionJobHandler(
+                new InMemoryWork(context, vectorArtifact, vectorArtifact), maintenance,
+                artifacts, new CountingEmbeddingPort(4), new InMemoryEmbeddingCache(), index,
+                (ownerType, ownerKey) -> "tenant-opaque", new VectorProjectionPlanner(96, 1_000_000),
+                new RevisionPublicationGate(), codec, profile, new RecordingQueue(),
+                Clock.fixed(NOW, ZoneOffset.UTC));
+
+        assertEquals(JobOutcome.Kind.SUCCEEDED, handler.handle(lease(
+                ProcessingJobStage.REPAIR_VECTOR_BATCH, maintenance.repairWork.workKey(),
+                maintenance.repairWork.inputFingerprint())).kind());
+        assertEquals(Set.of(vectorId), index.existingVectorIds(List.of(vectorId)));
+        assertTrue(maintenance.repairCompleted);
     }
 
     private ProcessingJobLease lease(ProcessingJobStage stage, String workKey, String fingerprint) {

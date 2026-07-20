@@ -22,6 +22,7 @@
 | WP3C-B3c：向量 generation、批次嵌入与 Pinecone 投影 | 已完成 | 当前 WP3C-B3c 阶段提交 |
 | WP3C-B3d：Revision publication gate | 已完成 | 当前 WP3C-B3d 阶段提交 |
 | WP3C-B3e：Index Generation compatibility 与 shadow switch | 已完成 | 当前 WP3C-B3e 阶段提交 |
+| WP3C-B4：Projection reconciliation、repair 与 retired cleanup | 已完成 | 当前 WP3C-B4 阶段提交 |
 
 ## WP2 交付范围
 
@@ -136,7 +137,7 @@ WP2 不把文件复制到正式 materials bucket，也不提供预览。安全�
 - 每个 passage embedding 先按 Owner HMAC、revision、retrieval text hash、tokenizer/model fingerprint 与 input type 查找 revision-local immutable S3 vector cache；重试和同 revision 重复文本不会再次调用推理。每批向量再写独立 immutable object，由 `UPSERT_VECTOR_BATCHES` job 幂等写 Pinecone。Pinecone 只保存向量、稳定 vector ID 与受限标量 metadata；不上传 Owner key、文件名或 chunk 原文。
 - MySQL 分别保存不可变 generation 配置和 revision→generation 投影计划；tokenizer 属于 revision 投影而非全局 generation，因此 chunk schema 更新不会与仍兼容的 embedding index 冲突。另保存 batch identity/state、每个 chunk 的 projection fingerprint/state，以及 exact-version `projection-manifest.json.gz` pin。所有状态推进和 successor job 都校验 stage、lease/fence、Material lifecycle/TTL 与 revision generation；最终 batch 判定使用 revision row lock 串行化，避免并发 upsert 丢失 verifier。Pinecone 成功而 DB 提交失败时可按相同 vector ID 安全重试。
 - lexical-only revision 也会生成零向量 projection manifest，不会被错误阻塞。`MATERIAL_VECTOR_PROJECTION_ENABLED` 是独立且默认关闭的 Worker 开关；关闭后不会实例化 Pinecone/HMAC 依赖或领取向量 stage，原有纯文本绘图路径不依赖向量服务。
-- `2026-07-28-create-vector-projection-artifacts.sql` 增加 generation 配置、revision projection plan、vector batch 与 projection manifest 审计表，checksum 为 `320545ca02d54fb2cf0c6cd357b59a87bee03a7a88892946cb08ca78e28fc061`。生产必须先执行 migration 并配置 Pinecone host/API key、namespace 与 tenant HMAC secret；在下一阶段完成 publish gate 前保持向量开关关闭。
+- `2026-07-28-create-vector-projection-artifacts.sql` 增加 generation 配置、revision projection plan、vector batch 与 projection manifest 审计表。原 migration 的 utf8mb4 `(object_key, object_version_id)` 唯一键超过 InnoDB 3072-byte 上限，现改为数据库生成的完整对象 identity SHA-256 唯一列，同时保留完整 key/VersionId 和应用层逐字段碰撞校验；修正后 checksum 为 `63f14fe6aa5a7a7c4f40c286e7d563c8d29dd02dfd869a2ec92921dc30591ce4`。本地已补执行并验证；生产必须使用修正版 migration，再配置 Pinecone host/API key、namespace 与 tenant HMAC secret。
 
 ## WP3C-B3d 交付范围
 
@@ -159,6 +160,15 @@ WP2 不把文件复制到正式 materials bucket，也不提供预览。安全�
 - compatibility coordinator 仍受 `MATERIAL_VECTOR_PROJECTION_ENABLED` 控制。关闭后不创建 coordinator、不领取 generation/vector job，普通文本输入绘图路径继续不依赖 Pinecone。
 - 当前 B3e 只接受由受控内部评测流程产生的不可变 locked shadow report；在生产 retrieval query/evaluator 接入前，候选 generation 必须保持 `SHADOW`，不得生产激活。后续评测入口必须从实际双代际查询计算授权一致性、Recall/nDCG、延迟与投影完整性，不能由调用方直接自报聚合指标。
 
+## WP3C-B4 交付范围
+
+- 新增独立 `IndexProjectionMaintenanceCoordinator`。它按最久未检查的 ACTIVE generation batch 从 MySQL 读取完整权威 vector ID 集合，以 Pinecone fetch 精确比较；完整批次更新 `last_reconciled_at`，缺失批次创建唯一、可审计的 `REPAIR_VECTOR_BATCH`，重放原 exact-version embedding artifact，不重新调用 embedding 模型，也不改写 Revision/Chunk/manifest identity。
+- Pinecone serverless list API 每次最多读取 100 个 opaque ID；每个 generation 的 pagination token 持久化到 MySQL，并以 compare-and-set 推进，Worker 重启或多副本竞争不会使后续页面永久饥饿。orphan 只定义为“任一 generation 的 MySQL projection row 都不存在或已经写入 provider deletion tombstone”的精确 ID。删除前先写 durable、content-free intent，随后使用显式 ID 列表删除并标记完成；审计只保存 ID 集合 fingerprint、数量和尝试/完成时间，不保存向量 ID 或资料内容，禁止 metadata filter/delete-all。
+- terminal FAILED 的 compatibility target 可通过 Worker 内已装配的受控 application-service 入口重试。入口先锁定 `BUILDING/SHADOW` target 和对应失败 job，在同一事务记录 `requested_by_hash`、稳定 reason code、原 error code 后将该 job 重置为 RETRY；不能重试 READY target、ACTIVE/RETIRED generation 或不属于该 generation 的任务。首版不额外暴露公网 HTTP；管理员 API/UI 随 WP4 接入该内部入口。
+- retired cleanup 在 `rollback_until` 到期后才将 generation 原子转为 `PURGING`；没有 rollback deadline 的 rolled-back candidate 还必须经过独立 minimum grace。`PURGING` 使并发 rollback 失效；每个 generation profile Worker 只使用自身固定的 index/namespace 清理该 generation，因此旧 profile Worker 必须保留到对应 generation 达到 `PURGED`。Worker 随后按 MySQL vector ID 分批删除并通过 fetch 确认不存在后写 `provider_deleted_at`，全部完成才进入 `PURGED` 并记录 `purged_at`。Worker/Pinecone 故障只会留下可续跑的 `PURGING`，不会提前丢失回滚 generation。
+- `2026-08-02-create-index-projection-maintenance.sql` 新增 reconciliation cursor、provider deletion tombstone、repair/orphan/target-retry audit 与 generation purge metadata；本地已执行并验证，checksum 为 `0fbd64149d92a2376e1b6c9b61b8c3d7ba0099d48d7ee394a78fa9c3e088d7f4`。
+- maintenance 和 repair job 继续受 `MATERIAL_VECTOR_PROJECTION_ENABLED` 控制。关闭后不实例化 Pinecone maintenance coordinator、不领取 repair job，普通文本输入绘图仍不依赖 Pinecone。
+
 ## 下一阶段
 
-WP3C-B4 将补齐摄取侧的 projection reconciliation、retired generation 到期清理和失败 target 的可审计重试/修复入口，完成 WP3 所要求的 publish/delete/reconcile 闭环；随后进入 WP4 资料库、图表册与生命周期 UI/API。
+WP3 已形成 publish/delete/reconcile 闭环。下一阶段进入 WP4：资料库、图表册、scope link、版本/预览/处理状态，以及临时资料 TTL、回收站、restore 与 deletion task 的 UI/API。

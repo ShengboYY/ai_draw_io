@@ -143,7 +143,8 @@ class MaterialRagFoundationMigrationTest {
         assertTrue(sql.contains("CREATE TABLE IF NOT EXISTS retrieval_vector_batch"));
         assertTrue(sql.contains("chk_vector_batch_artifact_pin"));
         assertTrue(sql.contains("CREATE TABLE IF NOT EXISTS retrieval_projection_manifest"));
-        assertTrue(sql.contains("UNIQUE KEY uk_projection_manifest_object"));
+        assertTrue(sql.contains("object_identity_hash CHAR(64) GENERATED ALWAYS"));
+        assertTrue(sql.contains("UNIQUE KEY uk_projection_manifest_object (object_identity_hash)"));
     }
 
     @Test
@@ -202,6 +203,26 @@ class MaterialRagFoundationMigrationTest {
     }
 
     @Test
+    void projectionMaintenanceMigrationKeepsAuditsAndProviderDeletionTombstones() throws Exception {
+        Path migration = Path.of("docs/sql/migrations/2026-08-02-create-index-projection-maintenance.sql");
+        if (!Files.exists(migration)) {
+            migration = Path.of("../docs/sql/migrations/2026-08-02-create-index-projection-maintenance.sql");
+        }
+        String sql = Files.readString(migration);
+
+        assertTrue(sql.contains("purged_at DATETIME(3)"));
+        assertTrue(sql.contains("provider_deleted_at DATETIME(3)"));
+        assertTrue(sql.contains("CREATE TABLE IF NOT EXISTS rag_projection_repair_audit"));
+        assertTrue(sql.contains("CREATE TABLE IF NOT EXISTS rag_projection_reconciliation_cursor"));
+        assertTrue(sql.contains("pagination_token VARCHAR(2048)"));
+        assertTrue(sql.contains("CREATE TABLE IF NOT EXISTS rag_projection_orphan_deletion_audit"));
+        assertTrue(sql.contains("requested_at DATETIME(3) NOT NULL"));
+        assertTrue(sql.contains("completed_at DATETIME(3) NULL"));
+        assertTrue(sql.contains("CREATE TABLE IF NOT EXISTS rag_generation_target_repair_audit"));
+        assertTrue(sql.contains("uk_projection_repair_open"));
+    }
+
+    @Test
     void workerIamAllowsExactVersionVerificationAndCleanupInBothBuckets() throws Exception {
         Path template = Path.of("../deploy/aws/material-upload/s3-and-iam.template.yml");
         if (!Files.exists(template)) {
@@ -222,9 +243,18 @@ class MaterialRagFoundationMigrationTest {
         assertTrue(xml.contains("stage != 'PROMOTE_ORIGINAL'"));
         assertTrue(xml.contains("u.processing_revision_id"));
         assertTrue(xml.contains("projectionGenerationId"));
+        assertTrue(xml.contains("work_key = CONCAT('ig:', #{projectionGenerationId})"));
+        assertTrue(xml.contains("LIKE CONCAT('ig:', #{projectionGenerationId}, ':%')"));
         assertTrue(xml.contains("BUILD_COMPATIBILITY_PROJECTION"));
+        assertTrue(xml.contains("REPAIR_VECTOR_BATCH"));
         assertTrue(xml.contains("rv.projection_role = 'COMPATIBILITY'"));
         assertTrue(xml.contains("material_processing_job.stage IN ('EMBED_CHUNK_BATCHES', 'UPSERT_VECTOR_BATCHES',"));
+
+        Path maintenanceMapper = Path.of(
+                "src/main/resources/mybatis/mapper/index_projection_maintenance_mapper.xml");
+        String maintenanceXml = Files.readString(maintenanceMapper);
+        assertTrue(maintenanceXml.contains("job.work_key = CONCAT('ig:', #{generationId})"));
+        assertTrue(maintenanceXml.contains("LIKE CONCAT('ig:', #{generationId}, ':%')"));
     }
 
     private String jobTable(String sql) {

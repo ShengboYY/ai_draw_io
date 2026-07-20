@@ -50,7 +50,8 @@ class WorkerPollerTest {
                         ProcessingJobStage.UPSERT_VECTOR_BATCHES,
                         ProcessingJobStage.VERIFY_PROJECTION_MANIFEST,
                         ProcessingJobStage.PUBLISH_REVISION,
-                        ProcessingJobStage.BUILD_COMPATIBILITY_PROJECTION),
+                        ProcessingJobStage.BUILD_COMPATIBILITY_PROJECTION,
+                        ProcessingJobStage.REPAIR_VECTOR_BATCH),
                 WorkerPoller.claimableStages(true, true, true));
     }
 }
