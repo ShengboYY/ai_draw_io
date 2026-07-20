@@ -943,6 +943,7 @@
         "forbiddenSystemBehavior": "claim that no evidence exists"
       },
       "goldMatch": "ordinary text",
+      "expectedAnswer": "Ordinary text drawing remains available, but material-backed retrieval enters an explicit degraded state.",
       "documentFamily": "drawio-agent-architecture-blueprint",
       "split": "development"
     },
@@ -953,6 +954,7 @@
       "page": 5,
       "modality": "text",
       "goldMatch": "November 2026",
+      "expectedAnswer": "Blueprint version 1.0 was approved on 28 November 2026.",
       "documentFamily": "drawio-agent-architecture-blueprint",
       "split": "development"
     },
@@ -1024,7 +1026,8 @@
       "version": "v1",
       "page": 5,
       "modality": "text",
-      "goldMatch": "必须重新检查证据",
+      "goldMatch": "重新检查证据",
+      "expectedAnswer": "修改节点数值后，系统必须重新检查并验证证据。",
       "documentFamily": "drawio-diagram-workflow-handbook",
       "split": "development"
     },
@@ -1098,7 +1101,8 @@
         "scopeConstraint": "attempt to approve a chartbook release",
         "expectedDecision": "deny release approval"
       },
-      "goldMatch": "Editor may edit the canvas but cannot approve a release",
+      "goldMatch": "cannot approve a release",
+      "expectedAnswer": "No. An Editor may edit the canvas but cannot approve a release.",
       "documentFamily": "drawio-collaboration-governance",
       "split": "validation"
     },
@@ -1126,7 +1130,8 @@
         "scopeConstraint": "the material share was removed before a new request",
         "expectedDecision": "block new retrieval immediately"
       },
-      "goldMatch": "blocks new retrieval immediately",
+      "goldMatch": "blocks new retrieval",
+      "expectedAnswer": "Removing a material share blocks new retrieval immediately.",
       "documentFamily": "drawio-collaboration-governance",
       "split": "validation"
     },
@@ -1210,7 +1215,8 @@
         "expectedSystemBehavior": "classify the incident as SEV-1 and preserve an explicit unsaved state",
         "forbiddenSystemBehavior": "report the canvas as saved"
       },
-      "goldMatch": "canvas-save failure is SEV-1",
+      "goldMatch": "publishing could lose",
+      "expectedAnswer": "A canvas-save failure is SEV-1.",
       "documentFamily": "drawio-agent-recovery-runbook",
       "split": "holdout"
     },
@@ -1288,7 +1294,8 @@
         "expectedSystemBehavior": "report that search could not run",
         "forbiddenSystemBehavior": "claim that no evidence exists"
       },
-      "goldMatch": "never says 'no evidence exists'",
+      "goldMatch": "no evidence exists",
+      "expectedAnswer": "No. The agent must report that retrieval did not execute and must not claim that no evidence exists.",
       "documentFamily": "drawio-agent-recovery-runbook",
       "split": "holdout"
     },

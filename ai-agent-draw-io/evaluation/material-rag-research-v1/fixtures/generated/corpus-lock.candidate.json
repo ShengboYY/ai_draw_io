@@ -21,12 +21,12 @@
     "fixtures/generate_fixtures.py": "22a1e5fa273e9f132932a6f4534138e3a6ebbb1e4eebf143a2d3cd2bd0f14140",
     "fixtures/generation-config.json": "aabdf2491d269f0c2a62e6c40fe32764e35abe75f4b5efbf9cd55e6d4fbe0c79",
     "fixtures/realistic_corpus_specs.py": "0afebbfaec0de6e8060c466783e3501b35d4b74e778ce7f4351cfd1f4305a14e",
-    "fixtures/drawio_agent_corpus_specs.py": "a2d032ec81f4867e83afb70b822d63a055899614450ebf3ca60689ab384def9b"
+    "fixtures/drawio_agent_corpus_specs.py": "6196ab35c2735bf2fc21cfb6b055784d5f2eb4513c6f5a2884c6c7841e3d4463"
   },
   "files": {
-    "cases.jsonl": "8cd4f94916272184742a4412bc27cb44e02b0a84c6250388346993f14a7f53a8",
+    "cases.jsonl": "9b2f61832b97a861bc1253b206e10b91e375c43d944a1fcfcfbf6fb3e7e17a3d",
     "corpus-manifest.json": "a77a548a76b1ae782f1f5f3cb4bb43b60eac3ba2b9492cec98e62c1f50aadc0a",
-    "ground-truth.json": "8b4f53dbbcc8194e578be87483d779b699b1628745fa42495eff95224038ecae",
+    "ground-truth.json": "72fc0891a278eacc4b1b9940bd72202ba18afa008e988bc06c7c536c9847f41c",
     "images/aurora-sensor-position-chart.png": "e2de6ac8af4c8d1d26c5a449982d67daad9e10537fa05e2780e08235c03cc0fd",
     "images/capacity-table.png": "25b1ed23cf3245d5d0a265f961df16aab66e338a81868d4e5d03b1bf5ac77a70",
     "images/drawio-agent-request-route.png": "419f29850cf17fa8ff2f44b6113bf836056f335132fb4e33f5c14feb21faaa1e",
