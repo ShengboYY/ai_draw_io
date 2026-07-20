@@ -157,6 +157,9 @@ public class AgentConversationService {
     @Value("${app.material-rag.enabled:false}")
     private boolean materialRagEnabled;
 
+    @Value("${app.material-operations.retrieval-shadow-enabled:false}")
+    private boolean materialRetrievalShadowEnabled;
+
     private final CanvasVisualReviewPolicy canvasVisualReviewPolicy = new CanvasVisualReviewPolicy();
 
     public ChatResponseDTO chat(ChatRequestDTO requestDTO) {
@@ -1241,7 +1244,9 @@ public class AgentConversationService {
                                                     AtomicReference<PreparedEvidence> preparedEvidenceRef) {
         if (!shouldPrepareEvidence(requestDTO, routing)) return null;
         boolean strict = isStrictEvidenceRequest(requestDTO, routing);
-        if (!materialRagEnabled || evidencePreparationModule == null) {
+        boolean shadowOnly = !materialRagEnabled && materialRetrievalShadowEnabled
+                && !strict && routing.isDrawAction();
+        if (evidencePreparationModule == null || (!materialRagEnabled && !shadowOnly)) {
             return strict ? evidenceResponse("capability_unavailable",
                     "资料检索功能当前不可用，画布未被修改。 / Evidence retrieval is currently unavailable; the canvas was not modified.")
                     : null;
@@ -1255,6 +1260,14 @@ public class AgentConversationService {
                 sourceMode(requestDTO.getSourceMode()), safeList(requestDTO.getSelectedVersionIds()),
                 StringUtils.defaultIfBlank(routing.getEvidenceNeed(), "OPTIONAL"),
                 StringUtils.defaultIfBlank(routing.getTargetNeed(), "NONE"));
+        if (shadowOnly) {
+            // Candidate-only observation owns its resources and never delays or mutates the primary request.
+            evidencePreparationModule.observe(command).exceptionally(failure -> {
+                log.warn("Material shadow retrieval failed without affecting drawing");
+                return null;
+            });
+            return null;
+        }
         PreparationOutcome outcome = evidencePreparationModule.prepare(command, resources, progress, cancellation)
                 .toCompletableFuture().join();
         if (outcome instanceof PreparationOutcome.NotRequired) return null;
@@ -1329,6 +1342,9 @@ public class AgentConversationService {
         if (routing.isEvidenceAnswer() || "REQUIRED".equals(routing.getEvidenceNeed())) return true;
         if (!safeList(requestDTO.getSelectedVersionIds()).isEmpty()) return true;
         SourceMode mode = sourceMode(requestDTO.getSourceMode());
+        if (!materialRagEnabled && materialRetrievalShadowEnabled) {
+            return routing.isDrawAction() && mode != SourceMode.NONE;
+        }
         return materialRagEnabled && routing.isDrawAction() && !"NONE".equals(routing.getEvidenceNeed())
                 && mode != SourceMode.NONE;
     }

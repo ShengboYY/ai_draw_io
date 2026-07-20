@@ -2,6 +2,7 @@ package org.zipp.ai.config;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -10,10 +11,13 @@ import org.zipp.ai.domain.ingestion.port.QuarantineObjectPort;
 import org.zipp.ai.domain.ingestion.port.UploadPolicySignerPort;
 import org.zipp.ai.domain.ingestion.port.UploadScopeAuthorizer;
 import org.zipp.ai.domain.ingestion.port.UploadSessionStore;
+import org.zipp.ai.domain.ingestion.port.MaterialUploadTelemetry;
 import org.zipp.ai.domain.ingestion.service.DefaultMaterialUploadService;
 import org.zipp.ai.domain.ingestion.service.IMaterialUploadService;
 import org.zipp.ai.domain.ingestion.service.UploadAdmissionPolicy;
 import org.zipp.ai.domain.ingestion.service.UploadIdFactory;
+import org.zipp.ai.domain.operations.MaterialCapacityBreaker;
+import org.zipp.ai.domain.operations.MaterialRolloutGate;
 import org.zipp.ai.infrastructure.adapter.s3.S3BrowserPostPolicySigner;
 import org.zipp.ai.infrastructure.adapter.s3.S3QuarantineObjectAdapter;
 import org.zipp.ai.infrastructure.adapter.s3.SecureUploadIdFactory;
@@ -80,10 +84,14 @@ public class MaterialUploadConfig {
             UploadScopeAuthorizer scopeAuthorizer,
             UploadIdFactory idFactory,
             Clock clock,
+            MaterialCapacityBreaker capacityBreaker,
+            MaterialRolloutGate rolloutGate,
+            ObjectProvider<MaterialUploadTelemetry> telemetry,
             @Value("${app.material-upload.quarantine-bucket}") String quarantineBucket,
             @Value("${app.material-upload.anonymous-enabled:false}") boolean anonymousEnabled) {
         return new DefaultMaterialUploadService(sessionStore, quarantineObjectPort, uploadPolicySignerPort,
                 scopeAuthorizer, new UploadAdmissionPolicy(UploadLimits.defaults(anonymousEnabled)),
-                idFactory, clock, quarantineBucket);
+                idFactory, clock, quarantineBucket, capacityBreaker, rolloutGate,
+                telemetry.getIfAvailable(() -> MaterialUploadTelemetry.NOOP));
     }
 }

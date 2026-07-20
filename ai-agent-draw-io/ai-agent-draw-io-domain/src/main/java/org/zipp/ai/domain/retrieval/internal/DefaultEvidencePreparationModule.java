@@ -33,6 +33,7 @@ public final class DefaultEvidencePreparationModule implements EvidencePreparati
     private final ExecutorService ioExecutor;
     private final Duration retrievalTimeout;
     private final Duration hydrationTimeout;
+    private final MaterialRetrievalTelemetry telemetry;
     private final CallCircuitBreaker inferenceCircuit = new CallCircuitBreaker(5, Duration.ofSeconds(30));
     private final CallCircuitBreaker vectorCircuit = new CallCircuitBreaker(5, Duration.ofSeconds(30));
 
@@ -44,7 +45,7 @@ public final class DefaultEvidencePreparationModule implements EvidencePreparati
                                             ServerCanvasPort canvases, ExecutorService executor) {
         this(catalog, lexical, embedding, vectors, tenantKeys, leases, blobs, canvases,
                 ForkJoinPool.commonPool(), executor,
-                Duration.ofSeconds(3), Duration.ofMillis(800));
+                Duration.ofSeconds(3), Duration.ofMillis(800), MaterialRetrievalTelemetry.NOOP);
     }
 
     public DefaultEvidencePreparationModule(EvidenceCatalog catalog, RetrievalLexicalIndex lexical,
@@ -55,6 +56,20 @@ public final class DefaultEvidencePreparationModule implements EvidencePreparati
                                             ServerCanvasPort canvases, ExecutorService orchestrationExecutor,
                                             ExecutorService ioExecutor,
                                             Duration retrievalTimeout, Duration hydrationTimeout) {
+        this(catalog, lexical, embedding, vectors, tenantKeys, leases, blobs, canvases,
+                orchestrationExecutor, ioExecutor, retrievalTimeout, hydrationTimeout,
+                MaterialRetrievalTelemetry.NOOP);
+    }
+
+    public DefaultEvidencePreparationModule(EvidenceCatalog catalog, RetrievalLexicalIndex lexical,
+                                            Optional<EmbeddingPort> embedding,
+                                            Optional<RetrievalVectorIndex> vectors,
+                                            TenantKeyPort tenantKeys,
+                                            EvidenceReadLeaseCoordinator leases, EvidenceBlobStore blobs,
+                                            ServerCanvasPort canvases, ExecutorService orchestrationExecutor,
+                                            ExecutorService ioExecutor,
+                                            Duration retrievalTimeout, Duration hydrationTimeout,
+                                            MaterialRetrievalTelemetry telemetry) {
         this.catalog = Objects.requireNonNull(catalog, "catalog");
         this.lexical = Objects.requireNonNull(lexical, "lexical");
         this.embedding = Objects.requireNonNull(embedding, "embedding");
@@ -67,6 +82,7 @@ public final class DefaultEvidencePreparationModule implements EvidencePreparati
         this.ioExecutor = Objects.requireNonNull(ioExecutor, "ioExecutor");
         this.retrievalTimeout = positive(retrievalTimeout, "retrievalTimeout");
         this.hydrationTimeout = positive(hydrationTimeout, "hydrationTimeout");
+        this.telemetry = Objects.requireNonNull(telemetry, "telemetry");
     }
 
     @Override
@@ -78,13 +94,60 @@ public final class DefaultEvidencePreparationModule implements EvidencePreparati
         Objects.requireNonNull(resources, "resources");
         EvidenceProgressListener listener = progress == null ? EvidenceProgressListener.NOOP : progress;
         CancellationSignal signal = cancellation == null ? CancellationSignal.NEVER : cancellation;
-        if (!command.needsEvidence()) return CompletableFuture.completedFuture(new PreparationOutcome.NotRequired());
-        return CompletableFuture.supplyAsync(
-                () -> prepareNow(command, resources, listener, signal), orchestrationExecutor);
+        long startedNanos = System.nanoTime();
+        CompletionStage<PreparationOutcome> outcome = !command.needsEvidence()
+                ? CompletableFuture.completedFuture(new PreparationOutcome.NotRequired())
+                : CompletableFuture.supplyAsync(
+                        () -> prepareNow(command, resources, listener, signal, false), orchestrationExecutor);
+        return outcome.whenComplete((result, failure) -> recordTelemetry(
+                command, result, failure, System.nanoTime() - startedNanos));
+    }
+
+    @Override
+    public CompletionStage<Void> observe(EvidencePreparationCommand command) {
+        Objects.requireNonNull(command, "command");
+        RunResourceDomain resources = new RunResourceDomain();
+        long startedNanos = System.nanoTime();
+        return CompletableFuture.supplyAsync(() -> prepareNow(command, resources,
+                        EvidenceProgressListener.NOOP, CancellationSignal.NEVER, true), orchestrationExecutor)
+                .whenComplete((outcome, failure) -> {
+                    resources.closeExactlyOnce(failure == null ? CloseReason.COMPLETED : CloseReason.FAILED);
+                    recordTelemetry(command, outcome, failure, System.nanoTime() - startedNanos);
+                }).thenApply(ignored -> null);
+    }
+
+    private void recordTelemetry(EvidencePreparationCommand command, PreparationOutcome outcome,
+                                 Throwable failure, long elapsedNanos) {
+        String route = "unknown";
+        String result = failure == null && outcome != null
+                ? outcome.getClass().getSimpleName().replaceAll("([a-z])([A-Z])", "$1_$2") : "failed";
+        int evidenceItems = 0;
+        if (outcome instanceof PreparationOutcome.Ready ready) {
+            route = ready.diagnostics().route().name();
+            evidenceItems = ready.preparedEvidence().bundle().items().size();
+        } else if (outcome instanceof PreparationOutcome.NotRequired) {
+            route = "NONE";
+        } else if (outcome instanceof PreparationOutcome.ShadowObserved shadow) {
+            route = shadow.diagnostics().route().name();
+            result = "shadow_observed";
+            try {
+                telemetry.recordCandidates(route, command.sourceMode().name(), "authorized",
+                        shadow.candidateCount());
+            } catch (RuntimeException ignored) {
+                // Candidate metrics cannot change observation completion.
+            }
+        }
+        try {
+            telemetry.record(route, command.sourceMode().name(), result,
+                    Duration.ofNanos(Math.max(0L, elapsedNanos)), evidenceItems);
+        } catch (RuntimeException ignored) {
+            // Observability is best-effort and must never change a retrieval outcome.
+        }
     }
 
     private PreparationOutcome prepareNow(EvidencePreparationCommand command, RunResourceDomain resources,
-                                          EvidenceProgressListener progress, CancellationSignal cancellation) {
+                                          EvidenceProgressListener progress, CancellationSignal cancellation,
+                                          boolean shadowOnly) {
         if (cancelled(cancellation, resources)) return new PreparationOutcome.Cancelled();
         RetrievalDeadline deadline = RetrievalDeadline.start(retrievalTimeout);
         try {
@@ -108,7 +171,7 @@ public final class DefaultEvidencePreparationModule implements EvidencePreparati
 
             RetrievalRoute route = route(command, sources);
             if (route == RetrievalRoute.NONE) return new PreparationOutcome.NotRequired();
-            if (route == RetrievalRoute.HYBRID
+            if (!shadowOnly && route == RetrievalRoute.HYBRID
                     && sources.sources().stream().anyMatch(AuthorizedSource::hasVisual)) {
                 // Whole-document/hybrid requests must not silently ignore figures or tables that
                 // require pixels. A later configured VisualEvidenceVerifier may satisfy this gap.
@@ -120,9 +183,11 @@ public final class DefaultEvidencePreparationModule implements EvidencePreparati
                     deadline, cancellation, resources);
             Set<String> existingChunkIds = existing.stream().map(CandidateRef::chunkId)
                     .collect(java.util.stream.Collectors.toUnmodifiableSet());
-            PreparationOutcome existingOnly = prepareExistingOnly(command, resolution, sources, route,
-                    target, existingChunkIds, resources, progress, cancellation, deadline, new ArrayList<>());
-            if (existingOnly != null) return existingOnly;
+            if (!shadowOnly) {
+                PreparationOutcome existingOnly = prepareExistingOnly(command, resolution, sources, route,
+                        target, existingChunkIds, resources, progress, cancellation, deadline, new ArrayList<>());
+                if (existingOnly != null) return existingOnly;
+            }
             List<String> queries = planQueries(command.userMessage(), target.labels());
             progress.onProgress("RETRIEVAL", 0, 2);
 
@@ -150,6 +215,10 @@ public final class DefaultEvidencePreparationModule implements EvidencePreparati
                     deadline, cancellation, resources);
             authorized = authorized.stream().filter(candidate -> candidate.qualityScore() >= 0.20).toList();
             if (authorized.isEmpty()) return insufficient(command, "NO_AUTHORIZED_CANDIDATE");
+            if (shadowOnly) {
+                return new PreparationOutcome.ShadowObserved(
+                        new RetrievalDiagnostics(route, List.copyOf(diagnostics)), authorized.size());
+            }
             if (authorized.stream().anyMatch(candidate -> "VISUAL".equals(candidate.modality()))) {
                 // Online visual verification is a separate capability. Until a verified visual
                 // fragment is available, retrieval text/captions cannot support visual facts.

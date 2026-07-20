@@ -18,7 +18,8 @@ import java.util.concurrent.*;
 
 /** Bounded no-tool answer call. The returned JSON remains untrusted until the domain Guard accepts it. */
 @Service
-@ConditionalOnProperty(name = {"app.material-rag.enabled", "app.material-lifecycle.enabled"}, havingValue = "true")
+@ConditionalOnProperty(name = {"app.material-rag.enabled", "app.material-lifecycle.enabled",
+        "app.material-rag.evidence-answer-enabled"}, havingValue = "true")
 public class ConfiguredModelEvidenceAnswerGenerator implements EvidenceAnswerGeneratorPort {
     private static final String ANSWER_AGENT_ID = "300020";
     private final IChatService chatService;

@@ -7,4 +7,9 @@ public interface EvidencePreparationModule {
                                                 RunResourceDomain resources,
                                                 EvidenceProgressListener progress,
                                                 CancellationSignal cancellation);
+
+    /** Non-intrusive candidate-only observation; it must never hydrate evidence or hold read leases. */
+    default CompletionStage<Void> observe(EvidencePreparationCommand command) {
+        return java.util.concurrent.CompletableFuture.completedFuture(null);
+    }
 }

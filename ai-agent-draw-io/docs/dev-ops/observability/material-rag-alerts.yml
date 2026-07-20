@@ -1,0 +1,88 @@
+groups:
+  - name: material-rag-beta
+    rules:
+      - alert: MaterialIngestionQueueOldestAgeHigh
+        expr: material_ingestion_queue_oldest_seconds > 120
+        for: 5m
+        labels: {severity: warning}
+        annotations:
+          summary: "Material ingestion queue is outside the two-minute alert boundary"
+      - alert: MaterialCapacityWarning
+        expr: material_capacity_usage_percent{resource="maximum"} >= 70
+        for: 10m
+        labels: {severity: warning}
+        annotations:
+          summary: "Material monthly/provider capacity is above 70%"
+      - alert: MaterialCapacityRestricted
+        expr: material_capacity_usage_percent{resource="maximum"} >= 85
+        for: 5m
+        labels: {severity: high}
+        annotations:
+          summary: "Anonymous low-priority material work must be restricted"
+      - alert: MaterialAnonymousCapacityExhausted
+        expr: material_capacity_usage_percent{resource="maximum"} >= 95
+        for: 1m
+        labels: {severity: critical}
+        annotations:
+          summary: "New anonymous uploads must be stopped"
+      - alert: MaterialProviderCapacityFeedUnavailable
+        expr: material_capacity_state{level="unavailable"} == 1
+        for: 1m
+        labels: {severity: critical}
+        annotations:
+          summary: "Provider billing capacity feed is missing, stale or unavailable"
+      - alert: MaterialExpiredReadLeaseBacklog
+        expr: material_read_leases{status="expired_due"} > 0
+        for: 10m
+        labels: {severity: warning}
+        annotations:
+          summary: "Expired evidence read leases are not being reconciled"
+      - alert: MaterialDeletionStuck
+        expr: material_deletion_stuck > 0
+        for: 10m
+        labels: {severity: high}
+        annotations:
+          summary: "At least one material deletion has been pending for ten minutes"
+      - alert: MaterialProcessingFailures
+        expr: material_ingestion_jobs{status="failed_24h"} > 0
+        for: 5m
+        labels: {severity: warning}
+        annotations:
+          summary: "Material ingestion has terminal failures in the last 24 hours"
+      - alert: MaterialScanFailures
+        expr: increase(material_scan_total{result!="succeeded"}[5m]) > 0
+        labels: {severity: critical}
+        annotations:
+          summary: "Secure material validation or malware scanning failed"
+      - alert: MaterialOcrFailures
+        expr: increase(material_ocr_pages_total{result!="succeeded"}[10m]) > 0
+        labels: {severity: warning}
+        annotations:
+          summary: "Material OCR pages are failing"
+      - alert: MaterialVectorProviderFailures
+        expr: increase(material_vector_operations_total{result!="succeeded"}[5m]) > 0
+        labels: {severity: high}
+        annotations:
+          summary: "Embedding or vector projection operations are failing"
+      - alert: MaterialRetrievalFailures
+        expr: increase(material_retrieval_seconds_count{result="failed"}[5m]) > 0
+        labels: {severity: warning}
+        annotations:
+          summary: "Online material retrieval failures are increasing"
+      - alert: MaterialAnonymousUploadRejected
+        expr: increase(material_upload_total{owner_type="anonymous",result!~"accepted|replay"}[10m]) > 5
+        labels: {severity: warning}
+        annotations:
+          summary: "Anonymous material uploads are being rejected unusually often"
+      - alert: MaterialCapabilityMisconfigured
+        expr: material_capability{state="misconfigured"} == 1
+        for: 1m
+        labels: {severity: high}
+        annotations:
+          summary: "Material rollout flags violate their dependency order"
+      - alert: MaterialReconciliationBacklog
+        expr: material_reconciliation_backlog > 0
+        for: 15m
+        labels: {severity: high}
+        annotations:
+          summary: "Material projection reconciliation has a persistent backlog"

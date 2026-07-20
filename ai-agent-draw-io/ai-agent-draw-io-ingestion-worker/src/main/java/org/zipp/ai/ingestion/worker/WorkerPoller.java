@@ -4,9 +4,11 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.zipp.ai.domain.ingestion.model.valobj.ProcessingJobLease;
 import org.zipp.ai.domain.ingestion.model.valobj.ProcessingJobStage;
 import org.zipp.ai.domain.ingestion.port.ProcessingQueuePort;
+import org.zipp.ai.domain.ingestion.port.MaterialIngestionTelemetry;
 
 import java.time.Clock;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -29,6 +31,7 @@ public final class WorkerPoller {
     private final String processingFingerprint;
     private final String projectionGenerationId;
     private final AtomicBoolean polling = new AtomicBoolean();
+    private final MaterialIngestionTelemetry telemetry;
 
     public WorkerPoller(ProcessingQueuePort queue,
                         SecureUploadJobHandler secureUploadHandler,
@@ -38,6 +41,21 @@ public final class WorkerPoller {
                         Clock clock, String workerId, boolean materializationEnabled,
                         boolean documentProcessingEnabled, boolean vectorProjectionEnabled,
                         String processingFingerprint, String projectionGenerationId) {
+        this(queue, secureUploadHandler, materializationHandler, documentProcessingHandler,
+                vectorProjectionHandler, clock, workerId, materializationEnabled,
+                documentProcessingEnabled, vectorProjectionEnabled, processingFingerprint,
+                projectionGenerationId, MaterialIngestionTelemetry.NOOP);
+    }
+
+    public WorkerPoller(ProcessingQueuePort queue,
+                        SecureUploadJobHandler secureUploadHandler,
+                        MaterializationJobHandler materializationHandler,
+                        DocumentProcessingJobHandler documentProcessingHandler,
+                        VectorProjectionJobHandler vectorProjectionHandler,
+                        Clock clock, String workerId, boolean materializationEnabled,
+                        boolean documentProcessingEnabled, boolean vectorProjectionEnabled,
+                        String processingFingerprint, String projectionGenerationId,
+                        MaterialIngestionTelemetry telemetry) {
         this.queue = Objects.requireNonNull(queue, "queue");
         this.secureUploadHandler = Objects.requireNonNull(secureUploadHandler, "secureUploadHandler");
         this.materializationHandler = materializationEnabled
@@ -67,6 +85,7 @@ public final class WorkerPoller {
         this.processingFingerprint = processingFingerprint;
         this.projectionGenerationId = vectorProjectionEnabled
                 ? requireText(projectionGenerationId, "projectionGenerationId") : null;
+        this.telemetry = Objects.requireNonNull(telemetry, "telemetry");
     }
 
     @Scheduled(fixedDelayString = "${worker.poll-delay-ms:1000}")
@@ -89,7 +108,11 @@ public final class WorkerPoller {
     }
 
     private void execute(ProcessingJobLease lease) {
-        JobOutcome outcome = switch (lease.job().stage()) {
+        Instant startedAt = clock.instant();
+        ProcessingJobStage stage = lease.job().stage();
+        JobOutcome outcome;
+        try {
+            outcome = switch (stage) {
             case VALIDATE_OWNERSHIP -> secureUploadHandler.handle(lease);
             case RESOLVE_CONTENT_DEDUP, PROMOTE_ORIGINAL -> requireMaterializationHandler().handle(lease);
             case EXTRACT_NATIVE, OCR_SELECTED_PAGES, NORMALIZE_CANONICAL_PAGES, BUILD_DOCUMENT_STRUCTURE,
@@ -100,7 +123,11 @@ public final class WorkerPoller {
                     REPAIR_VECTOR_BATCH ->
                     requireVectorProjectionHandler().handle(lease);
             default -> JobOutcome.permanent("UNSUPPORTED_WORKER_STAGE");
-        };
+            };
+        } catch (RuntimeException exception) {
+            recordTelemetry(stage, "exception", startedAt);
+            throw exception;
+        }
         var job = lease.job();
         switch (outcome.kind()) {
             case SUCCEEDED -> queue.succeed(job.id(), workerId, lease.fenceToken());
@@ -114,6 +141,15 @@ public final class WorkerPoller {
                             clock.instant().plus(retryDelay));
                 }
             }
+        }
+        recordTelemetry(stage, outcome.kind().name(), startedAt);
+    }
+
+    private void recordTelemetry(ProcessingJobStage stage, String result, Instant startedAt) {
+        try {
+            telemetry.record(stage, result, Duration.between(startedAt, clock.instant()));
+        } catch (RuntimeException ignored) {
+            // Metric delivery cannot change queue acknowledgement or retry semantics.
         }
     }
 

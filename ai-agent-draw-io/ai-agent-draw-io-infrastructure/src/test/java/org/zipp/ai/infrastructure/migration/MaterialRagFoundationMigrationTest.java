@@ -12,6 +12,24 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class MaterialRagFoundationMigrationTest {
 
     @Test
+    void operationsMigrationAddsCoveringIndexesForBoundedDashboardAggregates() throws Exception {
+        Path migration = Path.of("docs/sql/migrations/2026-08-09-add-material-operations-indexes.sql");
+        if (!Files.exists(migration)) {
+            migration = Path.of("../docs/sql/migrations/2026-08-09-add-material-operations-indexes.sql");
+        }
+        String sql = Files.readString(migration);
+
+        assertTrue(sql.contains("idx_processing_job_status_updated"));
+        assertTrue(sql.contains("idx_evidence_lease_status_expiry"));
+        assertTrue(sql.contains("idx_material_lifecycle_updated"));
+        assertTrue(sql.contains("idx_processing_usage_recorded"));
+        assertTrue(sql.contains("idx_vector_batch_state_reconciled"));
+        assertTrue(sql.contains("idx_projection_repair_global_state"));
+        assertTrue(sql.contains("idx_orphan_deletion_completion"));
+        assertTrue(sql.contains("CREATE TABLE IF NOT EXISTS material_provider_capacity_snapshot"));
+    }
+
+    @Test
     void answerCitationOriginMigrationKeepsHistorySourceClassification() throws Exception {
         Path migration = Path.of("docs/sql/migrations/2026-08-08-add-answer-citation-origin.sql");
         if (!Files.exists(migration)) {

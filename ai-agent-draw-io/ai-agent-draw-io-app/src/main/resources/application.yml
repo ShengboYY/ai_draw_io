@@ -69,6 +69,8 @@ app:
   material-rag:
     # WP5 remains fail-closed until migrations, lifecycle leases, S3 and optional Pinecone are configured.
     enabled: ${MATERIAL_RAG_ENABLED:false}
+    citation-commit-enabled: ${MATERIAL_CITATION_COMMIT_ENABLED:false}
+    evidence-answer-enabled: ${MATERIAL_EVIDENCE_ANSWER_ENABLED:false}
     dense-enabled: ${MATERIAL_RAG_DENSE_ENABLED:false}
     parallelism: ${MATERIAL_RAG_PARALLELISM:4}
     retrieval-timeout-ms: ${MATERIAL_RAG_RETRIEVAL_TIMEOUT_MS:3000}
@@ -91,6 +93,19 @@ app:
     quarantine-bucket: ${MATERIAL_UPLOAD_QUARANTINE_BUCKET:}
     owner-path-secret: ${MATERIAL_UPLOAD_OWNER_PATH_SECRET:}
     rate-key-secret: ${MATERIAL_UPLOAD_RATE_KEY_SECRET:}
+  material-operations:
+    # Anonymous upload is admitted only after the pinned WP8 release report is approved.
+    enabled: ${MATERIAL_OPERATIONS_ENABLED:false}
+    ingestion-enabled: ${MATERIAL_INGESTION_ROLLOUT_ENABLED:false}
+    retrieval-shadow-enabled: ${MATERIAL_RETRIEVAL_SHADOW_ENABLED:false}
+    release-approved: ${MATERIAL_RELEASE_APPROVED:false}
+    release-report-version: ${MATERIAL_RELEASE_REPORT_VERSION:}
+    refresh-ms: ${MATERIAL_OPERATIONS_REFRESH_MS:30000}
+    capacity:
+      monthly-indexed-pages-limit: ${MATERIAL_MONTHLY_INDEXED_PAGES_LIMIT:7000}
+      # The authenticated billing exporter must refresh the live feed before this age expires.
+      provider-max-age-seconds: ${MATERIAL_PROVIDER_CAPACITY_MAX_AGE_SECONDS:180}
+      exporter-secret: ${MATERIAL_PROVIDER_CAPACITY_EXPORTER_SECRET:}
 
 # Actuator only exposes health and Prometheus metrics. Production must restrict /actuator/prometheus
 # at the network or reverse-proxy layer so it is reachable by Prometheus, not public users.
@@ -223,4 +238,5 @@ mybatis:
     - classpath*:/mybatis/mapper/material_read_lease_mapper.xml
     - classpath*:/mybatis/mapper/material_deletion_mapper.xml
     - classpath*:/mybatis/mapper/online_retrieval_mapper.xml
+    - classpath*:/mybatis/mapper/material_operations_mapper.xml
   config-location: classpath:/mybatis/config/mybatis-config.xml

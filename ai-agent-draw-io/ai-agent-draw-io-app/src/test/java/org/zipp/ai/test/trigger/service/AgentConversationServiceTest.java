@@ -804,6 +804,46 @@ public class AgentConversationServiceTest {
     }
 
     @Test
+    public void shadowRetrievalRecordsAnAttemptWithoutChangingTheDrawingResponse() throws Exception {
+        AgentConversationService service = quotaAwareService();
+        CountingChatService chatService = new CountingChatService();
+        AtomicInteger shadowAttempts = new AtomicInteger();
+        AtomicInteger materialProbeCalls = new AtomicInteger();
+        injectField(service, "chatService", chatService);
+        injectField(service, "intentRoutingService", new CountingIntentRoutingService());
+        injectField(service, "materialRetrievalShadowEnabled", true);
+        injectField(service, "requestProbeService",
+                (org.zipp.ai.domain.retrieval.RequestProbeService) command -> {
+                    materialProbeCalls.incrementAndGet();
+                    throw new AssertionError("shadow probe must not affect the primary router");
+                });
+        injectField(service, "evidencePreparationModule", new org.zipp.ai.domain.retrieval.EvidencePreparationModule() {
+            @Override
+            public java.util.concurrent.CompletionStage<org.zipp.ai.domain.retrieval.PreparationOutcome> prepare(
+                    org.zipp.ai.domain.retrieval.EvidencePreparationCommand command,
+                    org.zipp.ai.domain.retrieval.RunResourceDomain resources,
+                    org.zipp.ai.domain.retrieval.EvidenceProgressListener progress,
+                    org.zipp.ai.domain.retrieval.CancellationSignal cancellation) {
+                throw new AssertionError("shadow must not use synchronous evidence preparation");
+            }
+
+            @Override
+            public java.util.concurrent.CompletionStage<Void> observe(
+                    org.zipp.ai.domain.retrieval.EvidencePreparationCommand command) {
+                    shadowAttempts.incrementAndGet();
+                    return java.util.concurrent.CompletableFuture.completedFuture(null);
+            }
+        });
+
+        org.zipp.ai.api.dto.ChatResponseDTO response = service.chat(platformRequest());
+
+        assertEquals("user", response.getType());
+        assertEquals(1, shadowAttempts.get());
+        assertEquals(0, materialProbeCalls.get());
+        assertEquals(1, chatService.handleMessageCalls);
+    }
+
+    @Test
     public void evidenceAnswerCommitsBeforeReturningAndNeverCallsDrawer() throws Exception {
         AgentConversationService service = quotaAwareService();
         CountingChatService chatService = new CountingChatService();

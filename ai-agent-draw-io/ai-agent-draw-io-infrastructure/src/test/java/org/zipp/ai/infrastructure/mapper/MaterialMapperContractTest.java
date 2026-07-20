@@ -188,7 +188,9 @@ class MaterialMapperContractTest {
 
         assertTrue(mapper.contains("doc.owner_type = #{ownerType}"));
         assertTrue(mapper.contains("doc.owner_key = #{ownerKey}"));
-        assertTrue(mapper.contains("mv.active_revision_id = mr.id"));
+        // Existing diagrams may keep a ready, exact older revision after a newer revision becomes active.
+        assertTrue(mapper.contains("doc.version_id = #{source.versionId} AND doc.revision_id = #{source.revisionId}"));
+        assertFalse(mapper.contains("mv.active_revision_id = mr.id"));
         assertTrue(mapper.contains("material.lifecycle_state = 'ACTIVE'"));
         assertTrue(mapper.contains("chunk.retrieval_text_byte_size IS NOT NULL"));
         assertTrue(mapper.contains("chunk.retrieval_text_content_type IS NOT NULL"));
@@ -236,6 +238,25 @@ class MaterialMapperContractTest {
         assertTrue(manual.contains("diagram.user_id = #{ownerKey}"));
         assertTrue(run.contains("generation = generation + 1"));
         assertTrue(run.contains("generation = #{identity.generation}"));
+    }
+
+    @Test
+    void operationsDashboardUsesOnlyBoundedAggregatesAndUtcCutoffs() throws Exception {
+        String mapper = resource("mybatis/mapper/material_operations_mapper.xml");
+
+        assertTrue(mapper.contains("COUNT(*) FROM material_processing_job"));
+        assertTrue(mapper.contains("SUM(page_count)"));
+        assertTrue(mapper.contains("#{last24Hours}"));
+        assertTrue(mapper.contains("#{monthStart}"));
+        assertTrue(mapper.contains("lifecycle_state IN ('DELETE_PENDING', 'DELETING')"));
+        assertTrue(mapper.contains("rag_projection_repair_audit"));
+        assertTrue(mapper.contains("rag_projection_orphan_deletion_audit"));
+        assertTrue(mapper.contains("last_reconciled_at &lt; #{reconciliationStaleBefore}"));
+        assertTrue(mapper.contains("VALUES(sequence_no) &gt; sequence_no"));
+        assertTrue(mapper.contains("sequence_no = GREATEST(sequence_no, VALUES(sequence_no))"));
+        assertFalse(mapper.contains("owner_key"));
+        assertFalse(mapper.contains("display_name"));
+        assertFalse(mapper.contains("display_text"));
     }
 
     private String resource(String path) throws Exception {

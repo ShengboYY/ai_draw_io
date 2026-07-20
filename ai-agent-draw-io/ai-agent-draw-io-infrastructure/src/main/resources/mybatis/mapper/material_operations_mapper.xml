@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.zipp.ai.infrastructure.dao.material.IMaterialOperationsMapper">
+    <!-- One content-free projection keeps the operator dashboard bounded and avoids per-row identifiers. -->
+    <select id="selectSnapshot" resultType="org.zipp.ai.infrastructure.dao.material.po.MaterialOperationalSnapshotPO">
+        SELECT
+            #{now} AS capturedAt,
+            (SELECT COUNT(*) FROM material_processing_job
+             WHERE status IN ('QUEUED', 'RETRY')) AS queuedJobs,
+            (SELECT COUNT(*) FROM material_processing_job
+             WHERE status = 'RUNNING') AS runningJobs,
+            (SELECT COUNT(*) FROM material_processing_job
+             WHERE status = 'FAILED' AND updated_at &gt;= #{last24Hours}) AS failedJobsLast24Hours,
+            GREATEST(COALESCE((SELECT TIMESTAMPDIFF(SECOND, MIN(created_at), #{now})
+                              FROM material_processing_job
+                              WHERE status IN ('QUEUED', 'RETRY')), 0), 0) AS oldestQueuedSeconds,
+            (SELECT COUNT(*) FROM evidence_read_lease
+             WHERE status = 'ACTIVE' AND expires_at &gt; #{now}) AS activeReadLeases,
+            (SELECT COUNT(*) FROM evidence_read_lease
+             WHERE status = 'ACTIVE' AND expires_at &lt;= #{now}) AS expiredReadLeases,
+            (SELECT COUNT(*) FROM material
+             WHERE lifecycle_state IN ('DELETE_PENDING', 'DELETING')
+               AND updated_at &lt;= #{stuckBefore}) AS stuckDeletingMaterials,
+            GREATEST(COALESCE((SELECT TIMESTAMPDIFF(SECOND, MIN(updated_at), #{now})
+                              FROM material
+                              WHERE lifecycle_state IN ('DELETE_PENDING', 'DELETING')), 0), 0)
+                AS oldestDeletionSeconds,
+            (SELECT COALESCE(SUM(page_count), 0) FROM material_processing_usage
+             WHERE recorded_at &gt;= #{monthStart}) AS indexedPagesThisMonth,
+            (SELECT COUNT(*) FROM retrieval_vector_batch
+             WHERE state = 'READY' AND (last_reconciled_at IS NULL
+                    OR last_reconciled_at &lt; #{reconciliationStaleBefore})) AS staleVectorBatches,
+            (SELECT COUNT(*) FROM rag_projection_repair_audit
+             WHERE state IN ('QUEUED', 'RUNNING')) AS openProjectionRepairs,
+            (SELECT COUNT(*) FROM rag_projection_orphan_deletion_audit
+             WHERE completed_at IS NULL) AS pendingOrphanDeletions,
+            (SELECT COUNT(*) FROM rag_index_generation
+             WHERE state = 'PURGING') AS purgingGenerations
+    </select>
+
+    <select id="selectProviderCapacity"
+            resultType="org.zipp.ai.infrastructure.dao.material.po.MaterialProviderCapacityPO">
+        SELECT captured_at AS capturedAt, sequence_no AS sequence,
+               embedding_percent AS embeddingPercent, vector_read_percent AS vectorReadPercent,
+               vector_write_percent AS vectorWritePercent,
+               dependencies_available AS dependenciesAvailable
+        FROM material_provider_capacity_snapshot
+        WHERE singleton_key = 1
+    </select>
+
+    <!-- Sequence is assigned by the authenticated exporter; delayed retries cannot lower capacity. -->
+    <insert id="upsertProviderCapacity">
+        INSERT INTO material_provider_capacity_snapshot (
+            singleton_key, captured_at, sequence_no, embedding_percent,
+            vector_read_percent, vector_write_percent, dependencies_available
+        ) VALUES (1, #{capturedAt}, #{sequence}, #{embeddingPercent},
+                  #{vectorReadPercent}, #{vectorWritePercent}, #{dependenciesAvailable})
+        ON DUPLICATE KEY UPDATE
+            captured_at = IF(VALUES(sequence_no) &gt; sequence_no, VALUES(captured_at), captured_at),
+            embedding_percent = IF(VALUES(sequence_no) &gt; sequence_no,
+                                   VALUES(embedding_percent), embedding_percent),
+            vector_read_percent = IF(VALUES(sequence_no) &gt; sequence_no,
+                                     VALUES(vector_read_percent), vector_read_percent),
+            vector_write_percent = IF(VALUES(sequence_no) &gt; sequence_no,
+                                      VALUES(vector_write_percent), vector_write_percent),
+            dependencies_available = IF(VALUES(sequence_no) &gt; sequence_no,
+                                        VALUES(dependencies_available), dependencies_available),
+            sequence_no = GREATEST(sequence_no, VALUES(sequence_no))
+    </insert>
+</mapper>

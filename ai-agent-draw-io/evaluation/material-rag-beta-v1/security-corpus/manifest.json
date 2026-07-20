@@ -1,0 +1,22 @@
+{
+  "schemaVersion": "material-security-corpus-v1",
+  "fixturePolicy": "synthetic-only-no-production-content",
+  "cases": [
+    {"id": "mime-extension-mismatch", "gate": "REJECT_BEFORE_SCAN_PASS"},
+    {"id": "encrypted-or-corrupt-pdf", "gate": "REJECT_BEFORE_EXTRACTION"},
+    {"id": "pdf-javascript-openaction-launch", "gate": "REJECT_ACTIVE_CONTENT"},
+    {"id": "pdf-embedded-file-external-reference", "gate": "REJECT_ACTIVE_CONTENT"},
+    {"id": "compressed-stream-object-page-bomb", "gate": "REJECT_LIMIT"},
+    {"id": "image-pixel-bomb-animated-webp", "gate": "REJECT_LIMIT"},
+    {"id": "document-prompt-injection", "gate": "NO_TOOL_OR_POLICY_OVERRIDE"},
+    {"id": "forged-citation-key", "gate": "GUARD_REJECT"},
+    {"id": "forged-zipp-xml-property", "gate": "SERVER_METADATA_REBUILT"},
+    {"id": "cross-owner-id-enumeration", "gate": "ZERO_READ"},
+    {"id": "anonymous-cookie-replay-after-claim", "gate": "ZERO_ACCESS"},
+    {"id": "trashed-expired-deleting-stale-vector", "gate": "ZERO_REAUTH"},
+    {"id": "presigned-post-condition-violation", "gate": "ZERO_ACCEPT"},
+    {"id": "clamav-unavailable-timeout", "gate": "RETRY_WITHOUT_DELIVERY"},
+    {"id": "pinecone-429-5xx", "gate": "DEGRADE_WITHOUT_PLAIN_TEXT_IMPACT"},
+    {"id": "s3-partial-delete-mysql-deadlock", "gate": "DURABLE_RETRY_AND_RECONCILE"}
+  ]
+}

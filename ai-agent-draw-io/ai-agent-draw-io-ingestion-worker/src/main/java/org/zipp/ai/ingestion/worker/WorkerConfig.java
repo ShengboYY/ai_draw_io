@@ -1,6 +1,7 @@
 package org.zipp.ai.ingestion.worker;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.micrometer.core.instrument.MeterRegistry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -12,6 +13,8 @@ import org.zipp.ai.domain.ingestion.port.PinnedQuarantineContentPort;
 import org.zipp.ai.domain.ingestion.port.ProcessingQueuePort;
 import org.zipp.ai.domain.ingestion.port.SecureUploadWorkPort;
 import org.zipp.ai.domain.ingestion.port.MaterializationWorkPort;
+import org.zipp.ai.domain.ingestion.port.MaterialIngestionTelemetry;
+import org.zipp.ai.infrastructure.adapter.telemetry.MaterialOperationsMetrics;
 import org.zipp.ai.domain.ingestion.port.DocumentParserPort;
 import org.zipp.ai.domain.ingestion.port.DocumentProcessingWorkPort;
 import org.zipp.ai.domain.ingestion.port.OcrEnginePort;
@@ -371,12 +374,18 @@ public class WorkerConfig {
     }
 
     @Bean
+    public MaterialIngestionTelemetry materialIngestionTelemetry(MeterRegistry registry) {
+        return new MaterialOperationsMetrics(registry);
+    }
+
+    @Bean
     public WorkerPoller workerPoller(ProcessingQueuePort queue,
                                      SecureUploadJobHandler secureUploadHandler,
                                      ObjectProvider<MaterializationJobHandler> materializationHandler,
                                      ObjectProvider<DocumentProcessingJobHandler> documentProcessingHandler,
                                      ObjectProvider<VectorProjectionJobHandler> vectorProjectionHandler,
                                      ObjectProvider<VectorGenerationProfile> vectorGenerationProfile,
+                                     MaterialIngestionTelemetry telemetry,
                                      Clock clock, DocumentProcessingProfile processingProfile,
                                      @Value("${worker.id}") String workerId,
                                      @Value("${worker.materialization-enabled:false}") boolean materializationEnabled,
@@ -388,6 +397,7 @@ public class WorkerConfig {
                 documentProcessingHandler.getIfAvailable(), vectorProjectionHandler.getIfAvailable(),
                 clock, workerId, materializationEnabled, documentProcessingEnabled,
                 vectorProjectionEnabled, processingProfile.overallFingerprint(),
-                vectorProjectionEnabled ? vectorGenerationProfile.getObject().generationId() : null);
+                vectorProjectionEnabled ? vectorGenerationProfile.getObject().generationId() : null,
+                telemetry);
     }
 }

@@ -5,6 +5,7 @@ import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -46,7 +47,9 @@ import java.util.concurrent.Executors;
 
 /** WP5 online RAG wiring; disabled by default so ordinary text drawing remains independent. */
 @Configuration
-@ConditionalOnProperty(name = {"app.material-rag.enabled", "app.material-lifecycle.enabled"}, havingValue = "true")
+@ConditionalOnExpression("'${app.material-lifecycle.enabled:false}' == 'true' and "
+        + "('${app.material-rag.enabled:false}' == 'true' or "
+        + "'${app.material-operations.retrieval-shadow-enabled:false}' == 'true')")
 public class MaterialRagConfig {
     @Bean
     public CitationQueryService citationQueryService(CitationQueryPort queryPort) {
@@ -64,6 +67,7 @@ public class MaterialRagConfig {
     }
 
     @Bean
+    @ConditionalOnProperty(name = "app.material-rag.citation-commit-enabled", havingValue = "true")
     public CitationGuard groundedCitationGuard(ObjectProvider<ClaimSupportVerifierPort> verifiers) {
         // Exact extractive statements remain locally verifiable. Synthesized statements fail closed
         // until the configured-model verifier adapter is present.
@@ -71,6 +75,7 @@ public class MaterialRagConfig {
     }
 
     @Bean
+    @ConditionalOnProperty(name = "app.material-rag.citation-commit-enabled", havingValue = "true")
     public CanvasCommitModule canvasCommitModule(CanvasMutationGate mutationGate,
                                                  CitationGuard groundedCitationGuard,
                                                  GroundedCanvasCommitPort commitPort) {
@@ -78,11 +83,13 @@ public class MaterialRagConfig {
     }
 
     @Bean
+    @ConditionalOnProperty(name = "app.material-rag.evidence-answer-enabled", havingValue = "true")
     public EvidenceAnswerGuard evidenceAnswerGuard(ObjectProvider<ClaimSupportVerifierPort> verifiers) {
         return new EvidenceAnswerGuard(verifiers.getIfAvailable(() -> requests -> java.util.List.of()));
     }
 
     @Bean
+    @ConditionalOnProperty(name = "app.material-rag.evidence-answer-enabled", havingValue = "true")
     public EvidenceAnswerService evidenceAnswerService(EvidenceAnswerGeneratorPort generator,
                                                        EvidenceAnswerGuard guard,
                                                        EvidenceAnswerCommitPort commitPort) {
@@ -155,6 +162,7 @@ public class MaterialRagConfig {
                                                                ServerCanvasPort canvases,
                                                                @Qualifier("materialRagOrchestrationExecutor") ExecutorService orchestrationExecutor,
                                                                @Qualifier("materialRagIoExecutor") ExecutorService ioExecutor,
+                                                               ObjectProvider<MaterialRetrievalTelemetry> telemetry,
                                                                @Value("${app.material-rag.retrieval-timeout-ms:3000}") long retrievalTimeoutMs,
                                                                @Value("${app.material-rag.hydration-timeout-ms:800}") long hydrationTimeoutMs) {
         TenantKeyPort tenantKey = tenantKeys.getIfAvailable(() -> (ownerType, ownerKey) -> {
@@ -163,7 +171,8 @@ public class MaterialRagConfig {
         return new DefaultEvidencePreparationModule(catalog, lexical,
                 Optional.ofNullable(embeddings.getIfAvailable()), Optional.ofNullable(vectors.getIfAvailable()),
                 tenantKey, leases, blobs, canvases, orchestrationExecutor, ioExecutor,
-                Duration.ofMillis(retrievalTimeoutMs), Duration.ofMillis(hydrationTimeoutMs));
+                Duration.ofMillis(retrievalTimeoutMs), Duration.ofMillis(hydrationTimeoutMs),
+                telemetry.getIfAvailable(() -> MaterialRetrievalTelemetry.NOOP));
     }
 
     @Configuration

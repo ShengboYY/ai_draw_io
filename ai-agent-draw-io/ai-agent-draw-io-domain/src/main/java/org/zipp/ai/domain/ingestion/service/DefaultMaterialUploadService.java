@@ -17,6 +17,13 @@ import org.zipp.ai.domain.ingestion.port.QuarantineObjectPort;
 import org.zipp.ai.domain.ingestion.port.UploadPolicySignerPort;
 import org.zipp.ai.domain.ingestion.port.UploadScopeAuthorizer;
 import org.zipp.ai.domain.ingestion.port.UploadSessionStore;
+import org.zipp.ai.domain.ingestion.port.MaterialUploadTelemetry;
+import org.zipp.ai.domain.operations.CapacityWorkload;
+import org.zipp.ai.domain.operations.MaterialCapacityBreaker;
+import org.zipp.ai.domain.operations.MaterialCapacitySnapshot;
+import org.zipp.ai.domain.operations.MaterialFeatureSet;
+import org.zipp.ai.domain.operations.MaterialReleaseApproval;
+import org.zipp.ai.domain.operations.MaterialRolloutGate;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -39,6 +46,9 @@ public final class DefaultMaterialUploadService implements IMaterialUploadServic
     private final UploadIdFactory idFactory;
     private final Clock clock;
     private final String quarantineBucket;
+    private final MaterialCapacityBreaker capacityBreaker;
+    private final MaterialRolloutGate rolloutGate;
+    private final MaterialUploadTelemetry telemetry;
 
     public DefaultMaterialUploadService(UploadSessionStore sessionStore,
                                         QuarantineObjectPort quarantineObjects,
@@ -48,6 +58,52 @@ public final class DefaultMaterialUploadService implements IMaterialUploadServic
                                         UploadIdFactory idFactory,
                                         Clock clock,
                                         String quarantineBucket) {
+        this(sessionStore, quarantineObjects, policySigner, scopeAuthorizer, admissionPolicy,
+                idFactory, clock, quarantineBucket, new MaterialCapacityBreaker(
+                        () -> new MaterialCapacitySnapshot(0, 0, 0, 0, true)));
+    }
+
+    public DefaultMaterialUploadService(UploadSessionStore sessionStore,
+                                        QuarantineObjectPort quarantineObjects,
+                                        UploadPolicySignerPort policySigner,
+                                        UploadScopeAuthorizer scopeAuthorizer,
+                                        UploadAdmissionPolicy admissionPolicy,
+                                        UploadIdFactory idFactory,
+                                        Clock clock,
+                                        String quarantineBucket,
+                                        MaterialCapacityBreaker capacityBreaker) {
+        this(sessionStore, quarantineObjects, policySigner, scopeAuthorizer, admissionPolicy,
+                idFactory, clock, quarantineBucket, capacityBreaker,
+                new MaterialRolloutGate(MaterialFeatureSet.allEnabled(),
+                        new MaterialReleaseApproval(false, "")),
+                MaterialUploadTelemetry.NOOP);
+    }
+
+    public DefaultMaterialUploadService(UploadSessionStore sessionStore,
+                                        QuarantineObjectPort quarantineObjects,
+                                        UploadPolicySignerPort policySigner,
+                                        UploadScopeAuthorizer scopeAuthorizer,
+                                        UploadAdmissionPolicy admissionPolicy,
+                                        UploadIdFactory idFactory,
+                                        Clock clock,
+                                        String quarantineBucket,
+                                        MaterialCapacityBreaker capacityBreaker,
+                                        MaterialRolloutGate rolloutGate) {
+        this(sessionStore, quarantineObjects, policySigner, scopeAuthorizer, admissionPolicy,
+                idFactory, clock, quarantineBucket, capacityBreaker, rolloutGate, MaterialUploadTelemetry.NOOP);
+    }
+
+    public DefaultMaterialUploadService(UploadSessionStore sessionStore,
+                                        QuarantineObjectPort quarantineObjects,
+                                        UploadPolicySignerPort policySigner,
+                                        UploadScopeAuthorizer scopeAuthorizer,
+                                        UploadAdmissionPolicy admissionPolicy,
+                                        UploadIdFactory idFactory,
+                                        Clock clock,
+                                        String quarantineBucket,
+                                        MaterialCapacityBreaker capacityBreaker,
+                                        MaterialRolloutGate rolloutGate,
+                                        MaterialUploadTelemetry telemetry) {
         this.sessionStore = Objects.requireNonNull(sessionStore, "sessionStore");
         this.quarantineObjects = Objects.requireNonNull(quarantineObjects, "quarantineObjects");
         this.policySigner = Objects.requireNonNull(policySigner, "policySigner");
@@ -56,6 +112,9 @@ public final class DefaultMaterialUploadService implements IMaterialUploadServic
         this.idFactory = Objects.requireNonNull(idFactory, "idFactory");
         this.clock = Objects.requireNonNull(clock, "clock");
         this.quarantineBucket = requireText(quarantineBucket, "quarantineBucket");
+        this.capacityBreaker = Objects.requireNonNull(capacityBreaker, "capacityBreaker");
+        this.rolloutGate = Objects.requireNonNull(rolloutGate, "rolloutGate");
+        this.telemetry = Objects.requireNonNull(telemetry, "telemetry");
     }
 
     @Override
@@ -70,21 +129,35 @@ public final class DefaultMaterialUploadService implements IMaterialUploadServic
             if (session.expire(clock.instant())) {
                 session = sessionStore.expire(session);
             }
+            recordUpload(request, "replay");
             return new InitiateUploadResult(session.id(), session.state(),
                     session.state() == UploadSessionState.CREATED ? policySigner.sign(session) : null);
         }
+        // Rollout and capacity never invalidate an accepted idempotent session or running safety work.
+        if (request.ownerType() == org.zipp.ai.domain.account.model.valobj.OwnerType.ANONYMOUS
+                && !rolloutGate.anonymousUploadAllowed()) {
+            throw rejected(request, UploadErrorCode.ANONYMOUS_RELEASE_NOT_APPROVED);
+        }
+        if (!capacityBreaker.decide(request.ownerType(), CapacityWorkload.NEW_UPLOAD).allowed()) {
+            throw rejected(request, UploadErrorCode.CAPACITY_EXHAUSTED);
+        }
         if (!scopeAuthorizer.canUpload(request.ownerType(), ownerKey, request.target(), request.contextDiagramId(),
                 request.newVersionOfMaterialId())) {
-            throw new UploadAdmissionException(UploadErrorCode.UPLOAD_SCOPE_FORBIDDEN);
+            throw rejected(request, UploadErrorCode.UPLOAD_SCOPE_FORBIDDEN);
         }
         Instant now = clock.instant();
         Instant hourBucket = now.truncatedTo(ChronoUnit.HOURS);
         UploadQuotaSnapshot quota = sessionStore.quotaSnapshot(
                 request.ownerType(), ownerKey, requireText(request.ipRateKey(), "ipRateKey"), hourBucket);
-        admissionPolicy.validate(new UploadAdmissionRequest(
-                request.ownerType(), request.target(), request.declaredMediaType(), request.byteSize(),
-                quota.accountOriginalBytes(), quota.activeFileCount(), quota.processingCount(),
-                quota.workspaceHourlyCount(), quota.ipHourlyCount(), request.batchFileCount()));
+        try {
+            admissionPolicy.validate(new UploadAdmissionRequest(
+                    request.ownerType(), request.target(), request.declaredMediaType(), request.byteSize(),
+                    quota.accountOriginalBytes(), quota.activeFileCount(), quota.processingCount(),
+                    quota.workspaceHourlyCount(), quota.ipHourlyCount(), request.batchFileCount()));
+        } catch (UploadAdmissionException rejected) {
+            recordUpload(request, rejected.code().name());
+            throw rejected;
+        }
 
         String uploadId = idFactory.nextUploadId();
         String objectKey = "incoming/" + idFactory.ownerPathToken(ownerKey) + "/"
@@ -98,6 +171,7 @@ public final class DefaultMaterialUploadService implements IMaterialUploadServic
         // returns the winning aggregate and therefore cannot consume quota twice.
         UploadSession persisted = sessionStore.createAndConsumeRate(
                 session, request.ipRateKey(), hourBucket, admissionPolicy.rateReservation(request.ownerType()));
+        recordUpload(request, "accepted");
         return new InitiateUploadResult(persisted.id(), persisted.state(),
                 persisted.state() == UploadSessionState.CREATED ? policySigner.sign(persisted) : null);
     }
@@ -160,6 +234,19 @@ public final class DefaultMaterialUploadService implements IMaterialUploadServic
             return HexFormat.of().formatHex(digest.digest(value.getBytes(StandardCharsets.UTF_8)));
         } catch (java.security.NoSuchAlgorithmException e) {
             throw new IllegalStateException("SHA-256 is required by the JVM", e);
+        }
+    }
+
+    private UploadAdmissionException rejected(InitiateUploadCommand request, UploadErrorCode code) {
+        recordUpload(request, code.name());
+        return new UploadAdmissionException(code);
+    }
+
+    private void recordUpload(InitiateUploadCommand request, String result) {
+        try {
+            telemetry.record(request.ownerType(), result, request.byteSize(), request.declaredMediaType());
+        } catch (RuntimeException ignored) {
+            // Admission semantics never depend on metric delivery.
         }
     }
 

@@ -1,0 +1,21 @@
+{
+  "schemaVersion": "rag-eval-case-v1",
+  "caseId": "seed-strict-scope-001",
+  "datasetVersion": "rag-beta-v1-seed",
+  "category": "STRICT_VERSION_SCOPE",
+  "language": "en",
+  "locked": true,
+  "ownerFixture": {"ownerType": "USER", "ownerKeyAlias": "owner_a", "scopeType": "DIAGRAM", "scopeKeyAlias": "diagram_a"},
+  "queryShape": "FACT",
+  "targetKind": "NODE",
+  "query": "Using only the selected guide, explain the Product Owner node",
+  "expectedRoute": "TEXT",
+  "allowedSourceVersions": ["version_agile_v1"],
+  "goldEvidenceIds": ["evidence_product_owner"],
+  "hardNegativeIds": ["evidence_other_edition", "evidence_other_owner"],
+  "requiredFacets": ["Product Owner", "value"],
+  "forbiddenSourceIds": ["version_agile_v2", "version_other_owner"],
+  "visualVerificationRequired": false,
+  "canvasMutationAllowed": false,
+  "expectedCitationClaims": ["product_owner_value"]
+}
