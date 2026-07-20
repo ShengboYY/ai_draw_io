@@ -44,6 +44,33 @@ public final class ProcessingRevision {
         return new ProcessingRevision(id, versionId, revisionNo, processingFingerprint, excludedPages);
     }
 
+    /** Restores only the failed state needed for an explicit retry decision. */
+    public static ProcessingRevision rehydrateFailed(String id, String versionId, int revisionNo,
+                                                     String processingFingerprint,
+                                                     Set<Integer> excludedPages,
+                                                     ProcessingStage stage, int progress,
+                                                     String errorCode) {
+        ProcessingRevision revision = new ProcessingRevision(id, versionId, revisionNo,
+                processingFingerprint, excludedPages);
+        revision.state = ProcessingRevisionState.FAILED;
+        revision.stage = Objects.requireNonNull(stage, "stage");
+        if (progress < 0 || progress > 100) {
+            throw new IllegalArgumentException("progress must be between 0 and 100");
+        }
+        revision.progress = progress;
+        revision.errorCode = requireText(errorCode, "errorCode");
+        return revision;
+    }
+
+    /** Reopens a failed immutable revision while preserving its completed-stage checkpoint. */
+    public void retryFailed() {
+        if (state != ProcessingRevisionState.FAILED) {
+            throw new IllegalStateException("only a failed revision can be retried");
+        }
+        state = ProcessingRevisionState.PROCESSING;
+        errorCode = null;
+    }
+
     public void advanceTo(ProcessingStage nextStage, int progressPercent) {
         requireProcessing();
         ProcessingStage requested = Objects.requireNonNull(nextStage, "nextStage");

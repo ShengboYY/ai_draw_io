@@ -5,7 +5,7 @@
         r.id AS revision_id, r.version_id, v.material_id, m.owner_type, m.owner_key,
         r.fence_generation AS revision_fence_generation,
         m.lifecycle_generation AS material_lifecycle_generation,
-        r.fingerprint AS processing_fingerprint,
+        r.worker_profile_fingerprint AS processing_fingerprint,
         manifest.object_key AS retrieval_manifest_key,
         manifest.object_version_id AS retrieval_manifest_version_id,
         manifest.content_sha256 AS retrieval_manifest_sha256,

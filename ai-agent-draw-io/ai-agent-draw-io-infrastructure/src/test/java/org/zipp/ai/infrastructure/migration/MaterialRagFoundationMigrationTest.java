@@ -235,6 +235,21 @@ class MaterialRagFoundationMigrationTest {
     }
 
     @Test
+    void previewReprocessMigrationSeparatesRequestAndWorkerProfileIdentity() throws Exception {
+        Path migration = Path.of("docs/sql/migrations/2026-08-04-create-material-preview-reprocess.sql");
+        if (!Files.exists(migration)) {
+            migration = Path.of("../docs/sql/migrations/2026-08-04-create-material-preview-reprocess.sql");
+        }
+        String sql = Files.readString(migration);
+
+        assertTrue(sql.contains("worker_profile_fingerprint CHAR(64)"));
+        assertTrue(sql.contains("SET worker_profile_fingerprint = fingerprint"));
+        assertTrue(sql.contains("SET fingerprint = SHA2"));
+        assertTrue(sql.contains("CREATE TABLE IF NOT EXISTS material_reprocess_request"));
+        assertTrue(sql.contains("PRIMARY KEY (owner_key, material_id, request_fingerprint)"));
+    }
+
+    @Test
     void workerIamAllowsExactVersionVerificationAndCleanupInBothBuckets() throws Exception {
         Path template = Path.of("../deploy/aws/material-upload/s3-and-iam.template.yml");
         if (!Files.exists(template)) {
@@ -251,7 +266,7 @@ class MaterialRagFoundationMigrationTest {
         Path mapper = Path.of("src/main/resources/mybatis/mapper/material_processing_job_mapper.xml");
         String xml = Files.readString(mapper);
 
-        assertTrue(xml.contains("r.fingerprint = #{processingFingerprint}"));
+        assertTrue(xml.contains("r.worker_profile_fingerprint = #{processingFingerprint}"));
         assertTrue(xml.contains("stage != 'PROMOTE_ORIGINAL'"));
         assertTrue(xml.contains("u.processing_revision_id"));
         assertTrue(xml.contains("projectionGenerationId"));

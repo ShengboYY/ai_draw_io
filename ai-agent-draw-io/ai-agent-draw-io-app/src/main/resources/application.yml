@@ -47,6 +47,19 @@ app:
   material-catalog:
     # Enable only after the WP1 foundation and WP4-A idempotency migration are applied.
     enabled: ${MATERIAL_CATALOG_ENABLED:false}
+  material-preview:
+    # Page rendering and reprocessing remain isolated from ordinary text drawing.
+    enabled: ${MATERIAL_PREVIEW_ENABLED:false}
+    aws-region: ${MATERIAL_PREVIEW_AWS_REGION:${AWS_REGION:ap-southeast-2}}
+    materials-bucket: ${MATERIALS_BUCKET:}
+    processing-profile:
+      # Must match the Worker profile that should own newly requested revisions.
+      fingerprint: ${MATERIAL_PROCESSING_PROFILE_FINGERPRINT:}
+      parser-version: ${MATERIAL_PROCESSING_PARSER_VERSION:}
+      cleaner-version: ${MATERIAL_PROCESSING_CLEANER_VERSION:}
+      chunk-schema-version: ${MATERIAL_PROCESSING_CHUNK_SCHEMA_VERSION:}
+      ocr-version: ${MATERIAL_PROCESSING_OCR_VERSION:}
+      vlm-schema-version: ${MATERIAL_PROCESSING_VLM_SCHEMA_VERSION:}
   material-upload:
     # Fail closed until the quarantine bucket, IAM task role, and HMAC secrets are deployed.
     enabled: ${MATERIAL_UPLOAD_ENABLED:false}
@@ -182,4 +195,5 @@ mybatis:
     - classpath*:/mybatis/mapper/material_upload_session_mapper.xml
     - classpath*:/mybatis/mapper/material_catalog_mapper.xml
     - classpath*:/mybatis/mapper/chartbook_catalog_mapper.xml
+    - classpath*:/mybatis/mapper/material_preview_mapper.xml
   config-location: classpath:/mybatis/config/mybatis-config.xml

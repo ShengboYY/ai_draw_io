@@ -1,11 +1,17 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="org.zipp.ai.infrastructure.dao.material.IVectorProjectionMapper">
+    <sql id="primaryVersionProcessable">
+        (v.ingest_state = 'PROCESSING'
+         OR ((v.ingest_state = 'READY' OR v.ingest_state = 'PARTIAL')
+             AND v.active_revision_id IS NOT NULL AND v.active_revision_id != r.id))
+    </sql>
+
     <sql id="projectionContextColumns">
         r.id AS revision_id, r.version_id, v.material_id, m.owner_type, m.owner_key,
         r.fence_generation AS revision_fence_generation,
         m.lifecycle_generation AS material_lifecycle_generation,
-        r.fingerprint AS processing_fingerprint,
+        r.worker_profile_fingerprint AS processing_fingerprint,
         manifest.object_key AS retrieval_manifest_key,
         manifest.object_version_id AS retrieval_manifest_version_id,
         manifest.content_sha256 AS retrieval_manifest_sha256,
@@ -24,7 +30,7 @@
         JOIN material_processing_job j ON j.revision_id = r.id
         WHERE r.id = #{revisionId} AND r.state = 'PROCESSING' AND r.stage = 'INDEXING'
           AND r.progress = 93
-          AND v.ingest_state = 'PROCESSING' AND m.lifecycle_state = 'ACTIVE'
+          AND <include refid="primaryVersionProcessable"/> AND m.lifecycle_state = 'ACTIVE'
           AND (m.retention_class = 'RETAINED' OR m.expires_at &gt; UTC_TIMESTAMP(3))
           AND j.id = #{jobId} AND j.stage = 'BUILD_LEXICAL_PROJECTION' AND j.work_key = 'root'
           AND j.status = 'RUNNING' AND j.lease_owner = #{workerId}
@@ -83,7 +89,7 @@
         JOIN material_processing_job j ON j.revision_id = r.id
         WHERE r.id = #{revisionId} AND b.state = 'PENDING' AND m.lifecycle_state = 'ACTIVE'
           AND ((rv.projection_role = 'PRIMARY' AND r.state = 'PROCESSING'
-                AND r.stage = 'INDEXING' AND v.ingest_state = 'PROCESSING')
+                AND r.stage = 'INDEXING' AND <include refid="primaryVersionProcessable"/>)
                OR (rv.projection_role = 'COMPATIBILITY'
                    AND (r.state IN ('READY', 'PARTIAL_READY')
                         OR (r.state = 'PROCESSING' AND r.stage IN ('INDEXING', 'PUBLISHING')
@@ -114,7 +120,7 @@
         JOIN material_processing_job j ON j.revision_id = r.id
         WHERE r.id = #{revisionId} AND b.state = 'EMBEDDED' AND m.lifecycle_state = 'ACTIVE'
           AND ((rv.projection_role = 'PRIMARY' AND r.state = 'PROCESSING'
-                AND r.stage = 'INDEXING' AND v.ingest_state = 'PROCESSING')
+                AND r.stage = 'INDEXING' AND <include refid="primaryVersionProcessable"/>)
                OR (rv.projection_role = 'COMPATIBILITY'
                    AND (r.state IN ('READY', 'PARTIAL_READY')
                         OR (r.state = 'PROCESSING' AND r.stage IN ('INDEXING', 'PUBLISHING')
@@ -170,7 +176,7 @@
           AND j.fence_token = #{fenceToken} AND j.lease_until &gt; UTC_TIMESTAMP(3)
           AND m.lifecycle_state = 'ACTIVE'
           AND ((rv.projection_role = 'PRIMARY' AND r.state = 'PROCESSING'
-                AND r.stage = 'INDEXING' AND v.ingest_state = 'PROCESSING')
+                AND r.stage = 'INDEXING' AND <include refid="primaryVersionProcessable"/>)
                OR (rv.projection_role = 'COMPATIBILITY'
                    AND (r.state IN ('READY', 'PARTIAL_READY')
                         OR (r.state = 'PROCESSING' AND r.stage IN ('INDEXING', 'PUBLISHING')
@@ -265,9 +271,7 @@
         WHERE r.id = #{revisionId} AND r.state = 'PROCESSING' AND r.stage = 'PUBLISHING'
           AND r.progress = 98
           <!-- A replacement revision is published while the previous active revision remains readable. -->
-          AND (v.ingest_state = 'PROCESSING'
-               OR (v.ingest_state = 'READY' AND v.active_revision_id IS NOT NULL
-                   AND v.active_revision_id != r.id))
+          AND <include refid="primaryVersionProcessable"/>
           AND m.lifecycle_state = 'ACTIVE'
           AND (m.retention_class = 'RETAINED' OR m.expires_at &gt; UTC_TIMESTAMP(3))
           AND j.id = #{jobId} AND j.stage = 'PUBLISH_REVISION' AND j.work_key = #{workKey}
@@ -416,8 +420,8 @@
         UPDATE material_version SET active_revision_id = #{revisionId}, ingest_state = 'READY'
         WHERE id = #{versionId}
           AND (ingest_state = 'PROCESSING'
-               OR (ingest_state = 'READY' AND active_revision_id IS NOT NULL
-                   AND active_revision_id != #{revisionId}))
+               OR ((ingest_state = 'READY' OR ingest_state = 'PARTIAL')
+                   AND active_revision_id IS NOT NULL AND active_revision_id != #{revisionId}))
     </update>
 
     <insert id="recordInitialProcessingUsage">

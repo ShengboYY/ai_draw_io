@@ -42,6 +42,20 @@ class ProcessingRevisionTest {
     }
 
     @Test
+    void anExplicitRetryReopensOnlyAFailedRevisionAtItsCheckpoint() {
+        ProcessingRevision revision = ProcessingRevision.rehydrateFailed(
+                "rev_1", "ver_1", 1, "sha256:processing", Set.of(),
+                ProcessingStage.OCR_VISUAL, 60, "OCR_FAILED");
+
+        revision.retryFailed();
+
+        assertEquals(ProcessingRevisionState.PROCESSING, revision.state());
+        assertEquals(ProcessingStage.OCR_VISUAL, revision.stage());
+        assertEquals(60, revision.progress());
+        assertThrows(IllegalStateException.class, revision::retryFailed);
+    }
+
+    @Test
     void aRevisionCannotSkipRequiredPipelineStages() {
         ProcessingRevision revision = ProcessingRevision.start(
                 "rev_1", "ver_1", 1, "sha256:processing", Set.of());

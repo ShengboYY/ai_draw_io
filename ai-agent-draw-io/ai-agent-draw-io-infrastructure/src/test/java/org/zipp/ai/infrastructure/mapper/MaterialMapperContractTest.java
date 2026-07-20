@@ -106,10 +106,11 @@ class MaterialMapperContractTest {
         assertTrue(mapper.contains("<select id=\"selectPublicationWork\""));
         assertTrue(mapper.contains("pm.object_version_id AS projection_manifest_version_id"));
         assertTrue(mapper.contains("j.stage = 'PUBLISH_REVISION'"));
-        assertTrue(mapper.contains("v.ingest_state = 'READY' AND v.active_revision_id IS NOT NULL"));
+        assertTrue(mapper.contains("<sql id=\"primaryVersionProcessable\">"));
+        assertTrue(mapper.contains("v.active_revision_id != r.id"));
         assertTrue(mapper.contains("<update id=\"publishRevision\""));
         assertTrue(mapper.contains("active_revision_id = #{revisionId}"));
-        assertTrue(mapper.contains("ingest_state = 'READY' AND active_revision_id IS NOT NULL"));
+        assertTrue(mapper.contains("ingest_state = 'READY' OR ingest_state = 'PARTIAL'"));
         assertTrue(mapper.contains("SET state = #{state}, progress = 100"));
         assertTrue(mapper.contains("<insert id=\"recordInitialProcessingUsage\""));
         assertTrue(mapper.contains("<select id=\"selectCompatibilityCoordinatorWork\""));
@@ -139,6 +140,23 @@ class MaterialMapperContractTest {
         assertTrue(chartbooks.contains("d.user_id = #{ownerKey}"));
         assertTrue(chartbooks.contains("SET d.chartbook_id = c.id"));
         assertTrue(chartbooks.contains("SET chartbook_id = NULL"));
+    }
+
+    @Test
+    void previewAndReprocessUseOwnerFencesExactPinsAndReplacementRevisionEligibility() throws Exception {
+        String preview = resource("mybatis/mapper/material_preview_mapper.xml");
+        String processing = resource("mybatis/mapper/material_document_processing_mapper.xml");
+
+        assertTrue(preview.contains("m.owner_type = #{ownerType}"));
+        assertTrue(preview.contains("m.owner_key = #{ownerKey}"));
+        assertTrue(preview.contains("image.object_version_id"));
+        assertTrue(preview.contains("image.artifact_kind = 'PAGE_IMAGE'"));
+        assertTrue(preview.contains("request.request_fingerprint = #{requestFingerprint}"));
+        assertTrue(preview.contains("r.fingerprint = #{processingFingerprint}"));
+        assertTrue(preview.contains("FOR UPDATE"));
+        assertTrue(processing.contains("r.excluded_pages_json"));
+        assertTrue(processing.contains("v.active_revision_id != r.id"));
+        assertTrue(processing.contains("COALESCE(v.page_count, #{pageCount})"));
     }
 
     private String resource(String path) throws Exception {

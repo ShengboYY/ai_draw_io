@@ -1,0 +1,150 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.zipp.ai.infrastructure.dao.material.IMaterialPreviewMapper">
+    <sql id="ownedActiveVersion">
+        m.owner_type = #{ownerType} AND m.owner_key = #{ownerKey}
+        AND m.id = #{materialId} AND m.lifecycle_state = 'ACTIVE'
+        AND (m.retention_class = 'RETAINED' OR m.expires_at &gt; UTC_TIMESTAMP(3))
+        AND v.id = #{versionId} AND v.material_id = m.id
+        AND v.ingest_state IN ('PROCESSING', 'READY', 'PARTIAL')
+    </sql>
+
+    <sql id="selectedRevision">
+        <choose>
+            <when test="revisionId != null and revisionId != ''">
+                r.id = #{revisionId} AND r.version_id = v.id
+            </when>
+            <otherwise>
+                r.id = (SELECT newest.id FROM material_processing_revision newest
+                        WHERE newest.version_id = v.id
+                        ORDER BY newest.revision_no DESC LIMIT 1)
+            </otherwise>
+        </choose>
+    </sql>
+
+    <select id="selectPages"
+            resultType="org.zipp.ai.infrastructure.dao.material.po.MaterialPageCatalogPO">
+        SELECT m.id AS material_id, v.id AS version_id, r.id AS revision_id,
+               r.revision_no, v.ingest_state, r.state AS revision_state,
+               r.stage AS revision_stage, r.progress, r.excluded_pages_json,
+               p.page_no, p.width, p.height, p.native_text_status, p.ocr_status,
+               p.ocr_quality, p.visual_status, p.error_code,
+               CASE WHEN canonical.id IS NULL THEN 0 ELSE 1 END AS canonical_available,
+               CASE WHEN image.id IS NULL THEN 0 ELSE 1 END AS preview_available
+        FROM material m
+        JOIN material_version v ON v.material_id = m.id
+        JOIN material_processing_revision r ON r.version_id = v.id
+        LEFT JOIN material_page p ON p.revision_id = r.id
+        LEFT JOIN material_page_artifact canonical
+          ON canonical.revision_id = r.id AND canonical.page_no = p.page_no
+         AND canonical.artifact_kind = 'CANONICAL_PAGE'
+        LEFT JOIN material_page_artifact image
+          ON image.revision_id = r.id AND image.page_no = p.page_no
+         AND image.artifact_kind = 'PAGE_IMAGE'
+        WHERE <include refid="ownedActiveVersion"/>
+          AND <include refid="selectedRevision"/>
+        ORDER BY p.page_no
+    </select>
+
+    <select id="selectPreviewArtifact"
+            resultType="org.zipp.ai.infrastructure.dao.material.po.MaterialPreviewArtifactPO">
+        SELECT image.object_key, image.object_version_id, image.content_sha256,
+               image.byte_size, image.content_type
+        FROM material m
+        JOIN material_version v ON v.material_id = m.id
+        JOIN material_processing_revision r ON r.version_id = v.id
+        JOIN material_page p ON p.revision_id = r.id AND p.page_no = #{pageNo}
+        JOIN material_page_artifact image
+          ON image.revision_id = r.id AND image.page_no = p.page_no
+         AND image.artifact_kind = 'PAGE_IMAGE'
+        WHERE <include refid="ownedActiveVersion"/>
+          AND <include refid="selectedRevision"/>
+        LIMIT 1
+    </select>
+
+    <sql id="reprocessSourceSelect">
+        SELECT m.id AS material_id, v.id AS version_id, v.page_count, v.content_sha256,
+               r.id AS latest_revision_id, r.revision_no AS latest_revision_no,
+               r.state AS latest_revision_state, r.fingerprint AS processing_fingerprint,
+               r.worker_profile_fingerprint, r.parser_version, r.cleaner_version,
+               r.chunk_schema_version, r.ocr_version, r.vlm_schema_version,
+               r.excluded_pages_json
+        FROM material m
+        JOIN material_version v ON v.id = m.latest_version_id AND v.material_id = m.id
+        JOIN material_processing_revision r ON r.version_id = v.id
+        WHERE m.owner_type = #{ownerType} AND m.owner_key = #{ownerKey}
+          AND m.id = #{materialId} AND m.lifecycle_state = 'ACTIVE'
+          AND (m.retention_class = 'RETAINED' OR m.expires_at &gt; UTC_TIMESTAMP(3))
+          AND v.ingest_state IN ('READY', 'PARTIAL', 'PROCESSING')
+        ORDER BY r.revision_no DESC
+        LIMIT 1
+    </sql>
+
+    <select id="selectReprocessSource"
+            resultType="org.zipp.ai.infrastructure.dao.material.po.MaterialReprocessSourcePO">
+        <include refid="reprocessSourceSelect"/>
+    </select>
+
+    <select id="selectReprocessSourceForUpdate"
+            resultType="org.zipp.ai.infrastructure.dao.material.po.MaterialReprocessSourcePO">
+        <include refid="reprocessSourceSelect"/>
+        FOR UPDATE
+    </select>
+
+    <select id="selectRequest"
+            resultType="org.zipp.ai.infrastructure.dao.material.po.MaterialReprocessResultPO">
+        SELECT m.id AS material_id, v.id AS version_id, r.id AS revision_id,
+               r.revision_no, v.ingest_state, r.state AS revision_state,
+               r.stage AS revision_stage, r.progress, r.fingerprint AS processing_fingerprint,
+               r.excluded_pages_json, r.error_code
+        FROM material_reprocess_request request
+        JOIN material_processing_revision r ON r.id = request.revision_id
+        JOIN material_version v ON v.id = request.version_id AND v.id = r.version_id
+        JOIN material m ON m.id = request.material_id AND m.id = v.material_id
+        WHERE m.owner_key = #{ownerKey} AND m.lifecycle_state = 'ACTIVE'
+          AND m.id = #{materialId} AND request.owner_key = #{ownerKey}
+          AND request.request_fingerprint = #{requestFingerprint}
+        LIMIT 1
+    </select>
+
+    <update id="restartFailedRevision">
+        UPDATE material_processing_revision
+        SET state = #{state}, error_code = NULL
+        WHERE id = #{revisionId} AND state = 'FAILED'
+    </update>
+
+    <select id="selectByProcessingFingerprint"
+            resultType="org.zipp.ai.infrastructure.dao.material.po.MaterialReprocessResultPO">
+        SELECT m.id AS material_id, v.id AS version_id, r.id AS revision_id,
+               r.revision_no, v.ingest_state, r.state AS revision_state,
+               r.stage AS revision_stage, r.progress, r.fingerprint AS processing_fingerprint,
+               r.excluded_pages_json, r.error_code
+        FROM material_processing_revision r
+        JOIN material_version v ON v.id = r.version_id
+        JOIN material m ON m.id = v.material_id
+        WHERE m.owner_key = #{ownerKey} AND m.lifecycle_state = 'ACTIVE'
+          AND v.id = #{versionId} AND r.fingerprint = #{processingFingerprint}
+        LIMIT 1
+    </select>
+
+    <insert id="insertRequest">
+        INSERT IGNORE INTO material_reprocess_request (
+            owner_key, material_id, request_fingerprint, version_id, revision_id
+        ) VALUES (
+            #{ownerKey}, #{materialId}, #{requestFingerprint}, #{versionId}, #{revisionId}
+        )
+    </insert>
+
+    <select id="selectReprocessResult"
+            resultType="org.zipp.ai.infrastructure.dao.material.po.MaterialReprocessResultPO">
+        SELECT m.id AS material_id, v.id AS version_id, r.id AS revision_id,
+               r.revision_no, v.ingest_state, r.state AS revision_state,
+               r.stage AS revision_stage
+        FROM material_processing_revision r
+        JOIN material_version v ON v.id = r.version_id
+        JOIN material m ON m.id = v.material_id
+        WHERE m.owner_key = #{ownerKey} AND m.lifecycle_state = 'ACTIVE'
+          AND r.id = #{revisionId}
+        LIMIT 1
+    </select>
+</mapper>

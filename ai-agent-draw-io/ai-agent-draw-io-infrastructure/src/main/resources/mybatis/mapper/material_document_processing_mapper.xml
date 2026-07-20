@@ -1,12 +1,19 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="org.zipp.ai.infrastructure.dao.material.IDocumentProcessingMapper">
+    <sql id="processableVersion">
+        (v.ingest_state = 'PROCESSING'
+         OR (v.ingest_state IN ('READY', 'PARTIAL')
+             AND v.active_revision_id IS NOT NULL AND v.active_revision_id != r.id))
+    </sql>
+
     <select id="selectExtractionWork" resultType="org.zipp.ai.infrastructure.dao.material.po.DocumentExtractionWorkPO">
         SELECT r.id AS revision_id,
                v.detected_mime AS detected_media_type,
                r.fence_generation AS revision_fence_generation,
                m.lifecycle_generation AS material_lifecycle_generation,
-               r.fingerprint AS processing_fingerprint,
+               r.worker_profile_fingerprint AS processing_fingerprint,
+               r.excluded_pages_json,
                b.original_object_key AS object_key,
                b.original_object_version_id AS object_version_id,
                b.content_sha256 AS content_sha256,
@@ -20,7 +27,7 @@
         WHERE r.id = #{revisionId}
           AND r.state = 'PROCESSING'
           AND r.stage IN ('CREATED', 'EXTRACTING')
-          AND v.ingest_state = 'PROCESSING'
+          AND <include refid="processableVersion"/>
           AND m.lifecycle_state = 'ACTIVE'
           AND (m.retention_class = 'RETAINED' OR m.expires_at &gt; UTC_TIMESTAMP(3))
           AND b.status = 'AVAILABLE'
@@ -38,7 +45,7 @@
                r.version_id,
                r.fence_generation AS revision_fence_generation,
                m.lifecycle_generation AS material_lifecycle_generation,
-               r.fingerprint AS processing_fingerprint,
+               r.worker_profile_fingerprint AS processing_fingerprint,
                p.id AS page_id,
                p.page_no,
                image.object_key AS page_image_key,
@@ -72,7 +79,7 @@
         WHERE r.id = #{revisionId}
           AND r.state = 'PROCESSING'
           AND r.stage = 'VISUAL_ANALYSIS'
-          AND v.ingest_state = 'PROCESSING'
+          AND <include refid="processableVersion"/>
           AND m.lifecycle_state = 'ACTIVE'
           AND (m.retention_class = 'RETAINED' OR m.expires_at &gt; UTC_TIMESTAMP(3))
           AND j.id = #{jobId}
@@ -91,7 +98,7 @@
                r.version_id,
                r.fence_generation AS revision_fence_generation,
                m.lifecycle_generation AS material_lifecycle_generation,
-               r.fingerprint AS processing_fingerprint,
+               r.worker_profile_fingerprint AS processing_fingerprint,
                p.id AS page_id,
                p.page_no,
                image.object_key AS page_image_key,
@@ -132,7 +139,7 @@
         WHERE r.id = #{revisionId}
           AND r.state = 'PROCESSING'
           AND r.stage = 'EVIDENCE_BUILD'
-          AND v.ingest_state = 'PROCESSING'
+          AND <include refid="processableVersion"/>
           AND m.lifecycle_state = 'ACTIVE'
           AND (m.retention_class = 'RETAINED' OR m.expires_at &gt; UTC_TIMESTAMP(3))
           AND j.id = #{jobId}
@@ -148,14 +155,14 @@
     <select id="selectProcessingGenerations" resultType="org.zipp.ai.infrastructure.dao.material.po.ProcessingGenerationPO">
         SELECT r.fence_generation AS revision_fence_generation,
                m.lifecycle_generation AS material_lifecycle_generation,
-               r.fingerprint AS processing_fingerprint
+               r.worker_profile_fingerprint AS processing_fingerprint
         FROM material_processing_revision r
         JOIN material_version v ON v.id = r.version_id
         JOIN material m ON m.id = v.material_id
         JOIN material_processing_job j ON j.revision_id = r.id
         WHERE r.id = #{revisionId}
           AND r.state = 'PROCESSING'
-          AND v.ingest_state = 'PROCESSING'
+          AND <include refid="processableVersion"/>
           AND m.lifecycle_state = 'ACTIVE'
           AND (m.retention_class = 'RETAINED' OR m.expires_at &gt; UTC_TIMESTAMP(3))
           AND j.id = #{jobId}
@@ -174,7 +181,7 @@
                m.owner_key,
                r.fence_generation AS revision_fence_generation,
                m.lifecycle_generation AS material_lifecycle_generation,
-               r.fingerprint AS processing_fingerprint,
+               r.worker_profile_fingerprint AS processing_fingerprint,
                evidence.object_key AS evidence_manifest_key,
                evidence.object_version_id AS evidence_manifest_version_id,
                evidence.content_sha256 AS evidence_manifest_sha256,
@@ -189,7 +196,7 @@
         WHERE r.id = #{revisionId}
           AND r.state = 'PROCESSING'
           AND r.stage = 'INDEXING'
-          AND v.ingest_state = 'PROCESSING'
+          AND <include refid="processableVersion"/>
           AND m.lifecycle_state = 'ACTIVE'
           AND (m.retention_class = 'RETAINED' OR m.expires_at &gt; UTC_TIMESTAMP(3))
           AND j.id = #{jobId}
@@ -252,7 +259,7 @@
           AND r.fence_generation = #{expectedGeneration}
           AND m.lifecycle_generation = #{materialLifecycleGeneration}
           AND r.state = 'PROCESSING'
-          AND v.ingest_state = 'PROCESSING'
+          AND <include refid="processableVersion"/>
           AND m.lifecycle_state = 'ACTIVE'
           AND (m.retention_class = 'RETAINED' OR m.expires_at &gt; UTC_TIMESTAMP(3))
           AND j.id = #{jobId}
@@ -325,7 +332,7 @@
                r.version_id,
                r.fence_generation AS revision_fence_generation,
                m.lifecycle_generation AS material_lifecycle_generation,
-               r.fingerprint AS processing_fingerprint,
+               r.worker_profile_fingerprint AS processing_fingerprint,
                p.id AS page_id,
                p.page_no,
                image.object_key AS page_image_key,
@@ -352,7 +359,7 @@
         WHERE r.id = #{revisionId}
           AND r.state = 'PROCESSING'
           AND r.stage = 'OCR_VISUAL'
-          AND v.ingest_state = 'PROCESSING'
+          AND <include refid="processableVersion"/>
           AND m.lifecycle_state = 'ACTIVE'
           AND (m.retention_class = 'RETAINED' OR m.expires_at &gt; UTC_TIMESTAMP(3))
           AND j.id = #{jobId}
@@ -543,8 +550,8 @@
     <update id="updatePageCount">
         UPDATE material_version v
         JOIN material_processing_revision r ON r.version_id = v.id
-        SET v.page_count = #{pageCount}
-        WHERE r.id = #{revisionId} AND v.ingest_state = 'PROCESSING'
+        SET v.page_count = COALESCE(v.page_count, #{pageCount})
+        WHERE r.id = #{revisionId} AND <include refid="processableVersion"/>
     </update>
 
     <update id="updateRevisionProgress">

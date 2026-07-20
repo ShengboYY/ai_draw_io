@@ -1,6 +1,7 @@
 package org.zipp.ai.config;
 
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -49,7 +50,8 @@ public class MaterialUploadConfig {
     }
 
     @Bean
-    public QuarantineObjectPort quarantineObjectPort(S3Client s3Client) {
+    public QuarantineObjectPort quarantineObjectPort(
+            @Qualifier("materialUploadS3Client") S3Client s3Client) {
         return new S3QuarantineObjectAdapter(s3Client);
     }
 

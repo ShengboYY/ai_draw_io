@@ -37,6 +37,7 @@ class MySqlDocumentProcessingWorkAdapterTest {
         po.setRevisionFenceGeneration(4);
         po.setMaterialLifecycleGeneration(9);
         po.setProcessingFingerprint("d".repeat(64));
+        po.setExcludedPagesJson("[2]");
         po.setObjectKey("original/blob_1/hash");
         po.setObjectVersionId("version-7");
         po.setContentSha256("a".repeat(64));
@@ -53,6 +54,7 @@ class MySqlDocumentProcessingWorkAdapterTest {
         assertEquals("version-7", result.orElseThrow().original().objectVersionId());
         assertEquals(4, result.orElseThrow().revisionFenceGeneration());
         assertEquals("d".repeat(64), result.orElseThrow().processingFingerprint());
+        assertEquals(java.util.Set.of(2), result.orElseThrow().excludedPages());
     }
 
     @Test

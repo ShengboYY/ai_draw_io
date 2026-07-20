@@ -28,7 +28,7 @@ final class CatalogControllerSupport {
         }
     }
 
-    private static <T> Response<T> failure(String code) {
+    static <T> Response<T> failure(String code) {
         return Response.<T>builder().code(code).info("catalog request rejected").build();
     }
 }

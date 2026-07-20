@@ -28,4 +28,6 @@ public interface IProcessingJobMapper {
     int fail(@Param("id") String id, @Param("workerId") String workerId,
              @Param("fenceToken") long fenceToken, @Param("errorCode") String errorCode);
     int requeueExpiredLeases(@Param("now") Instant now, @Param("limit") int limit);
+    int requeueFailedByRevision(@Param("revisionId") String revisionId,
+                                @Param("retryAt") Instant retryAt);
 }

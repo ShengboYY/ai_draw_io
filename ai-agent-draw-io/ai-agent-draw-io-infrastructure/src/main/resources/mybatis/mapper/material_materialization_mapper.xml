@@ -206,11 +206,11 @@
 
     <insert id="insertRevision">
         INSERT INTO material_processing_revision (
-            id, version_id, revision_no, fingerprint, state, stage, progress,
+            id, version_id, revision_no, fingerprint, worker_profile_fingerprint, state, stage, progress,
             parser_version, cleaner_version, chunk_schema_version, ocr_version, vlm_schema_version,
             excluded_pages_json
         ) VALUES (
-            #{id}, #{versionId}, #{revisionNo}, #{fingerprint}, #{state}, #{stage}, #{progress},
+            #{id}, #{versionId}, #{revisionNo}, #{fingerprint}, #{workerProfileFingerprint}, #{state}, #{stage}, #{progress},
             #{parserVersion}, #{cleanerVersion}, #{chunkSchemaVersion}, #{ocrVersion}, #{vlmSchemaVersion},
             #{excludedPagesJson}
         )
@@ -255,7 +255,7 @@
                b.original_object_key AS destination_key, b.id AS content_blob_id,
                u.material_id, u.version_id, u.processing_revision_id AS revision_id,
                b.detected_mime AS detected_media_type, b.byte_size, b.content_sha256,
-               r.fingerprint AS processing_fingerprint,
+               r.worker_profile_fingerprint AS processing_fingerprint,
                b.original_object_version_id AS formal_object_version_id,
                b.s3_etag AS formal_etag, b.s3_checksum_sha256 AS formal_checksum_sha256
         FROM material_upload_session u

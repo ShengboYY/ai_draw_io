@@ -157,6 +157,8 @@ public final class DocumentProcessingJobHandler {
             var parsed = parser.parse(original, source.detectedMediaType(), temporaryDirectory.resolve("pages"));
             List<NativePageResult> results = new ArrayList<>();
             for (var page : parsed.pages()) {
+                // Exclusion is applied before derivative writes, so a reprocess cannot leak excluded content.
+                if (source.excludedPages().contains(page.extraction().pageNo())) continue;
                 if (!heartbeat(lease)) {
                     return JobOutcome.transientFailure(UploadErrorCode.STALE_FENCE.name());
                 }

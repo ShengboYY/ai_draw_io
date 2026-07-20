@@ -16,6 +16,7 @@ import org.zipp.ai.domain.ingestion.model.valobj.WorkerFence;
 import org.zipp.ai.domain.ingestion.port.MaterializationWorkPort;
 import org.zipp.ai.domain.ingestion.service.ContentMaterializationPolicy;
 import org.zipp.ai.domain.ingestion.service.ProcessingStageFingerprintPolicy;
+import org.zipp.ai.domain.ingestion.service.ProcessingRevisionFingerprintPolicy;
 import org.zipp.ai.domain.material.model.aggregate.Material;
 import org.zipp.ai.domain.material.model.aggregate.MaterialVersion;
 import org.zipp.ai.domain.material.model.valobj.MaterialKind;
@@ -258,7 +259,8 @@ public class MySqlMaterializationWorkAdapter implements MaterializationWorkPort 
         MaterialVersion version = MaterialVersion.create(ids.versionId(), materialId, upload.getOwnerKey(),
                 versionNo, blob.getId(), upload.getActualSha256(), upload.getActualSize());
         ProcessingRevision revision = ProcessingRevision.start(ids.revisionId(), version.id(), 1,
-                processingProfile.fingerprint(), java.util.Set.of());
+                ProcessingRevisionFingerprintPolicy.processingFingerprint(
+                        processingProfile.fingerprint(), java.util.Set.of()), java.util.Set.of());
         mapper.insertVersion(toPo(version, upload, "AVAILABLE".equals(blob.getStatus())
                 ? "PROCESSING" : "PROMOTING"));
         mapper.insertRevision(toPo(revision, processingProfile));
@@ -364,6 +366,7 @@ public class MySqlMaterializationWorkAdapter implements MaterializationWorkPort 
         po.setVersionId(revision.versionId());
         po.setRevisionNo(revision.revisionNo());
         po.setFingerprint(revision.processingFingerprint());
+        po.setWorkerProfileFingerprint(processingProfile.fingerprint());
         po.setState(revision.state().name());
         po.setStage(revision.stage().name());
         po.setProgress(revision.progress());

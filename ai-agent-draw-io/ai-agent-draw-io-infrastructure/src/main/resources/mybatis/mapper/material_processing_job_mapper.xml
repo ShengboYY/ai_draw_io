@@ -43,7 +43,7 @@
           AND (revision_id IS NULL OR stage IN ('BUILD_COMPATIBILITY_PROJECTION', 'REPAIR_VECTOR_BATCH') OR EXISTS (
               SELECT 1 FROM material_processing_revision r
               WHERE r.id = material_processing_job.revision_id
-                AND r.fingerprint = #{processingFingerprint}
+                AND r.worker_profile_fingerprint = #{processingFingerprint}
           ) OR EXISTS (
               SELECT 1 FROM retrieval_revision_vector_projection rv
               WHERE material_processing_job.stage IN ('EMBED_CHUNK_BATCHES', 'UPSERT_VECTOR_BATCHES',
@@ -56,7 +56,7 @@
               SELECT 1 FROM material_upload_session u
               JOIN material_processing_revision r ON r.id = u.processing_revision_id
               WHERE u.id = material_processing_job.upload_session_id
-                AND r.fingerprint = #{processingFingerprint}
+                AND r.worker_profile_fingerprint = #{processingFingerprint}
           ))
         </if>
         <if test="projectionGenerationId != null and projectionGenerationId != ''">
@@ -136,5 +136,12 @@
         WHERE status = 'RUNNING' AND lease_until &lt;= #{now}
         ORDER BY lease_until ASC
         LIMIT #{limit}
+    </update>
+
+    <update id="requeueFailedByRevision">
+        UPDATE material_processing_job
+        SET status = 'RETRY', not_before = #{retryAt}, last_error_code = NULL,
+            lease_owner = NULL, lease_until = NULL
+        WHERE revision_id = #{revisionId} AND status = 'FAILED'
     </update>
 </mapper>

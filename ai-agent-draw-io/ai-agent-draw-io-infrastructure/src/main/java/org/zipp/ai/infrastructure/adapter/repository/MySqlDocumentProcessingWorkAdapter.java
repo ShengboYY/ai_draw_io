@@ -64,6 +64,8 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Map;
+import java.util.Set;
+import java.util.TreeSet;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.UUID;
@@ -618,6 +620,7 @@ public class MySqlDocumentProcessingWorkAdapter implements DocumentProcessingWor
     private RevisionExtractionWork toDomain(DocumentExtractionWorkPO po) {
         return new RevisionExtractionWork(po.getRevisionId(), po.getDetectedMediaType(),
                 po.getRevisionFenceGeneration(), po.getMaterialLifecycleGeneration(), po.getProcessingFingerprint(),
+                excludedPages(po.getExcludedPagesJson()),
                 new StoredArtifact(po.getObjectKey(), po.getObjectVersionId(),
                 po.getContentSha256(), po.getByteSize(), po.getContentType()));
     }
@@ -825,6 +828,19 @@ public class MySqlDocumentProcessingWorkAdapter implements DocumentProcessingWor
             return expectedNode.equals(actualNode);
         } catch (JsonProcessingException e) {
             throw new IllegalStateException("persisted evidence JSON is invalid", e);
+        }
+    }
+
+    private static Set<Integer> excludedPages(String value) {
+        if (value == null || value.isBlank()) return Set.of();
+        try {
+            JsonNode node = JSON.readTree(value);
+            if (!node.isArray()) throw new IllegalStateException("excluded_pages_json must be an array");
+            TreeSet<Integer> pages = new TreeSet<>();
+            node.forEach(page -> pages.add(page.asInt()));
+            return Set.copyOf(pages);
+        } catch (JsonProcessingException e) {
+            throw new IllegalStateException("excluded_pages_json is invalid", e);
         }
     }
 

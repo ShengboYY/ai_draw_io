@@ -10,4 +10,12 @@ public interface CatalogIdFactory {
     default String nextMaterialScopeLinkId() {
         return nextId("msl");
     }
+
+    default String nextProcessingRevisionId() {
+        return nextId("rev");
+    }
+
+    default String nextProcessingJobId() {
+        return nextId("job");
+    }
 }

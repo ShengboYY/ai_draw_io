@@ -24,6 +24,7 @@
 | WP3C-B3e：Index Generation compatibility 与 shadow switch | 已完成 | 当前 WP3C-B3e 阶段提交 |
 | WP3C-B4：Projection reconciliation、repair 与 retired cleanup | 已完成 | 当前 WP3C-B4 阶段提交 |
 | WP4-A：资料库与图表册核心 API | 已完成 | 当前 WP4-A 阶段提交 |
+| WP4-B：页面预览、排除页面与重新处理后端 | 已完成 | 当前 WP4-B 阶段提交 |
 
 ## WP2 交付范围
 
@@ -179,6 +180,17 @@ WP2 不把文件复制到正式 materials bucket，也不提供预览。安全�
 - `MATERIAL_CATALOG_ENABLED` 默认关闭；关闭时不创建资料库/图表册 Controller 与服务，不影响普通文本输入绘图。开启前必须执行 `2026-08-03-create-material-catalog-api.sql`。本地 MySQL 已执行并验证，checksum 为 `11974c396c6bafd7679d5f4a00373962e583e2c5218dbd9c94716bab22b92d94`。
 - 本阶段只交付资料库/图表册的核心后端闭环；页面预览、排除页面、重新处理，以及临时资料提升、TTL、回收站、restore、read lease 和 deletion task 分别留给 WP4-B/WP4-C。
 
+## WP4-B 交付范围
+
+- 新增 owner-fenced 页面目录和预览 API。页面目录返回固定 Version/Revision 的处理状态、进度、页面几何、OCR/视觉状态和可用性，不返回 S3 key、对象 VersionId 或提取正文；用户也可以显式查看历史 Revision。
+- 页面预览只从 `PAGE_IMAGE` 的 exact object `VersionId` 读取并重新校验 SHA-256。在线服务先检查来源字节和像素预算，再把长边限制到 1600 像素并流式返回不透明 PNG；不签发或暴露 S3 URL。首版使用 JVM 原生可稳定编码的 PNG，WebP 转码留待引入经过校准的独立图像运行时后再替换，不改变页面来源 identity。
+- `POST /api/v1/materials/{materialId}/reprocess` 与 `PUT /api/v1/materials/{materialId}/excluded-pages` 都需要 `Idempotency-Key`，并通过 material-scoped 请求表在 MaterialVersion 变化后仍返回首次结果。完整处理指纹由目标 Worker profile 与排序后的排除页共同形成；同一 Source Version 已有相同完整指纹时直接复用，不创建重复 Revision。已失败的相同指纹 Revision 会在原 checkpoint 重新打开，并只重新排队失败阶段。配置真正变化时才创建新的不可变 ProcessingRevision，不创建 MaterialVersion，也不修改旧 Revision。
+- 重新处理期间 Version 继续指向旧 active Revision 并保持可读；新 Revision 只有通过原有 publication gate 才原子替换 active pointer。Document 与 vector Worker 的所有阶段已允许这种 replacement revision，同时继续校验 revision/job fence、Material lifecycle 和 profile 路由。
+- 排除页在解析完成后、写任何 page image/native extraction 派生物之前被过滤，因此不会进入 OCR、canonical、Evidence 或检索投影；不能排除越界页面或整份文档。重新处理不会缩小 MaterialVersion 的原始 page count。
+- ProcessingRevision 的 `fingerprint` 现在表示包含排除页的完整处理 identity；独立 `worker_profile_fingerprint` 只负责旧/新 Worker 路由，HTTP 幂等则由 `material_reprocess_request` 保存，三种身份不会再混用。Revision 和 extraction Job 均由领域策略创建，adapter 只做映射与原子持久化。`2026-08-04-create-material-preview-reprocess.sql` 已在本地 MySQL 应用并验证，checksum 为 `4294d2ddf104b6068446e422b3294d1e89466e0339a8172a2f2dc331c1c25384`。
+- `MATERIAL_PREVIEW_ENABLED` 默认关闭，并且只有与 `MATERIAL_CATALOG_ENABLED` 同时开启才创建预览 Controller、S3 client 和服务。Worker 启动日志会输出非敏感的完整 processing profile；开启前必须把其中 fingerprint 及五项审计版本原样配置到在线 App 的 `MATERIAL_PROCESSING_*` 环境变量。由此配置升级可以创建新 Revision，旧 profile Worker 仍需保留到旧任务排空。关闭或 S3/多模态依赖故障时，普通文本输入绘图路径不依赖本阶段组件。
+- 本阶段是后端闭环：当前预览按需从 exact-version `page.png` 生成受限 PNG，排除页采用安全的全 Revision 重算。技术设计中的持久化 `preview.webp`、按 stage fingerprint 复制未变化页以缩小重建范围，以及资料库前端预览/排除控件尚未交付，不能据此宣称整个 WP4 UI 已完成。
+
 ## 下一阶段
 
-下一阶段进入 WP4-B：提供 canonical 页面/视觉预览、页面处理状态、排除页面和重新处理 API，并保持所有读取绑定固定 Revision 与 exact object VersionId。随后 WP4-C 完成临时资料提升、24 小时 TTL、回收站、restore、read lease 和 deletion task。
+下一阶段进入 WP4-C 后端：完成临时资料提升、24 小时 TTL、回收站、restore、read lease 和 deletion task；清理必须先进入回收站，并在删除前尊重正在进行的 AI 读取。持久化 WebP、增量 revision 复制和资料库 UI 将在对应的媒体优化/前端阶段补齐。

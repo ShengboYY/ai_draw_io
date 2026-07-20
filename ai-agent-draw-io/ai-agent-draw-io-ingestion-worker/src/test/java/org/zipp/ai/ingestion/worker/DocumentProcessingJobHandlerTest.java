@@ -131,6 +131,44 @@ class DocumentProcessingJobHandlerTest {
     }
 
     @Test
+    void extractionSkipsExcludedPagesBeforeWritingDerivatives() {
+        InMemoryArtifacts artifacts = new InMemoryArtifacts();
+        StoredArtifact original = artifacts.putImmutable("original/blob", new byte[]{1}, "application/pdf");
+        InMemoryWork work = new InMemoryWork(new RevisionExtractionWork(
+                "rev_1", "application/pdf", 0, 0, PROFILE.overallFingerprint(), Set.of(1), original));
+        var parser = (org.zipp.ai.domain.ingestion.port.DocumentParserPort) (path, mediaType, directory) -> {
+            try {
+                Files.createDirectories(directory);
+                List<ParsedPage> pages = new ArrayList<>();
+                for (int pageNo = 1; pageNo <= 2; pageNo++) {
+                    Path image = directory.resolve("page-" + pageNo + ".png");
+                    Files.write(image, new byte[]{(byte) pageNo});
+                    pages.add(new ParsedPage(new PageExtraction(pageNo, 100, 200, List.of(),
+                            NativeTextQuality.empty(), null), image));
+                }
+                return new ParsedDocument(pages);
+            } catch (java.io.IOException e) {
+                throw new IllegalStateException(e);
+            }
+        };
+        DocumentProcessingJobHandler handler = new DocumentProcessingJobHandler(work, artifacts, parser,
+                (path, pageNo) -> { throw new AssertionError("OCR must not run during extraction"); },
+                new OcrSelectionPolicy(40, 0.10, 0.20, 0.01), new CanonicalPageAssembler(0.70),
+                new DocumentStructureBuilder(), new VisualCandidateSelectionPolicy(12, 0.15, 3),
+                new EvidenceUnitBuilder(), EVIDENCE_LIMITS, RETRIEVAL_BUILDER,
+                new VisualCropDeriver(25_000_000, 10 * 1024 * 1024),
+                new RevisionPageCodec(new ObjectMapper()), PROFILE, new RecordingQueue(),
+                Clock.fixed(NOW, ZoneOffset.UTC));
+
+        JobOutcome outcome = handler.handle(lease(ProcessingJobStage.EXTRACT_NATIVE,
+                PROFILE.extractionInput(original.contentSha256())));
+
+        assertEquals(JobOutcome.Kind.SUCCEEDED, outcome.kind());
+        assertEquals(2, work.batch.pages().get(0).pageNo());
+        assertTrue(artifacts.artifacts.keySet().stream().noneMatch(key -> key.contains("pages/1/")));
+    }
+
+    @Test
     void extractionWaitsForAWorkerMatchingThePersistedRevisionProfile() {
         InMemoryArtifacts artifacts = new InMemoryArtifacts();
         StoredArtifact original = artifacts.putImmutable("original/blob", new byte[]{1}, "application/pdf");

@@ -1,6 +1,8 @@
 package org.zipp.ai.ingestion.worker;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -60,6 +62,7 @@ import java.nio.file.Path;
 
 @Configuration
 public class WorkerConfig {
+    private static final Logger LOG = LoggerFactory.getLogger(WorkerConfig.class);
 
     @Bean
     public Clock workerClock() {
@@ -159,10 +162,17 @@ public class WorkerConfig {
             @Value("${worker.retrieval.tokenizer-sha256}") String tokenizerSha256) {
         OcrSelectionPolicy selection = new OcrSelectionPolicy(40, 0.10, 0.20, 0.01, 0.03);
         CanonicalPageAssembler canonical = new CanonicalPageAssembler(0.70);
-        return DocumentProcessingProfile.of(renderDpi, executable, languages, timeoutSeconds,
+        DocumentProcessingProfile profile = DocumentProcessingProfile.of(
+                renderDpi, executable, languages, timeoutSeconds,
                 runtimeVersion, selection, canonical, structureBuilder, visualPolicy, visualCropper,
                 evidenceBuilder, evidenceLimits, RetrievalChunkBuilder.fingerprintFor(
                         MultilingualE5TokenCounter.fingerprint(tokenizerSha256)));
+        // Operators copy this non-secret identity into the online app before enabling reprocessing.
+        var audit = profile.revisionProfile();
+        LOG.info("Worker processing profile: fingerprint={}, parser={}, cleaner={}, chunk={}, ocr={}, vlm={}",
+                audit.fingerprint(), audit.parserVersion(), audit.cleanerVersion(),
+                audit.chunkSchemaVersion(), audit.ocrVersion(), audit.vlmSchemaVersion());
+        return profile;
     }
 
     @Bean
