@@ -25,6 +25,7 @@
 | WP3C-B4：Projection reconciliation、repair 与 retired cleanup | 已完成 | 当前 WP3C-B4 阶段提交 |
 | WP4-A：资料库与图表册核心 API | 已完成 | 当前 WP4-A 阶段提交 |
 | WP4-B：页面预览、排除页面与重新处理后端 | 已完成 | 当前 WP4-B 阶段提交 |
+| WP4-C：资料生命周期、读取租约与永久删除后端 | 已完成 | 当前 WP4-C 阶段提交 |
 
 ## WP2 交付范围
 
@@ -191,6 +192,18 @@ WP2 不把文件复制到正式 materials bucket，也不提供预览。安全�
 - `MATERIAL_PREVIEW_ENABLED` 默认关闭，并且只有与 `MATERIAL_CATALOG_ENABLED` 同时开启才创建预览 Controller、S3 client 和服务。Worker 启动日志会输出非敏感的完整 processing profile；开启前必须把其中 fingerprint 及五项审计版本原样配置到在线 App 的 `MATERIAL_PROCESSING_*` 环境变量。由此配置升级可以创建新 Revision，旧 profile Worker 仍需保留到旧任务排空。关闭或 S3/多模态依赖故障时，普通文本输入绘图路径不依赖本阶段组件。
 - 本阶段是后端闭环：当前预览按需从 exact-version `page.png` 生成受限 PNG，排除页采用安全的全 Revision 重算。技术设计中的持久化 `preview.webp`、按 stage fingerprint 复制未变化页以缩小重建范围，以及资料库前端预览/排除控件尚未交付，不能据此宣称整个 WP4 UI 已完成。
 
+## WP4-C 交付范围
+
+- 临时资料可显式提升到个人资料库或本图 scope，原 Material/Version/Evidence/Vector identity 原地保留，不复制内容；提升、移除、恢复和永久删除请求均由 owner、幂等指纹与 Material lifecycle generation 共同保护。
+- 24 小时滑动 TTL 只由显式 meaningful activity 延长。定时任务在同一 Material 行锁协议下重查到期时间：登录用户资料先进入 30 天回收站，匿名资料直接进入不可恢复的 `DELETE_PENDING`；后台轮询、Worker 和 read-lease 心跳不会续期。
+- 登录用户可从回收站恢复：长期资料恢复原 durable scopes；临时资料恢复原 conversation 并获得新的 24 小时。原 conversation 已不存在时拒绝静默恢复，要求用户改为提升或永久删除。
+- 新增 5 分钟 read lease，单次 run 最多延长到首次申请后 15 分钟。同一 grounded run 的多资料租约整批授权并以稳定顺序锁定 Material，任一来源失败会回滚整批；校验覆盖 Owner、ACTIVE/TTL、Version/Revision、READY/PARTIAL_READY 和 scope。生命周期关闭提交后不能再申请新租约，已有租约由 deletion task 等待完成或超时。WP5 在线检索必须先调用这一批量边界再读取 Evidence。
+- 永久删除前提供内容无关的精确影响快照（版本、固定 Revision、图表、图表册和引用 opaque ID 集合及数量），并签发绑定 Material generation、精确身份 fingerprint 和十分钟有效期的 HMAC confirmation token；确认事务会在 Material 行锁下重算身份集合，引用关系变化会使旧 token 失效。30 天自动到期、匿名 TTL 和账户删除不要求人工 token，但仍走同一富领域状态机与 generation fence。
+- Deletion Worker 按 `WAIT_LEASES -> DELETE_VECTORS -> DELETE_OBJECTS -> PURGE_DATABASE` 执行。它只按 MySQL 权威清单删除 Pinecone vector ID 和 S3 bucket/key/exact VersionId（包括未物化完成的 quarantine 对象），记录 provider request ID hash，失败时保留 `DELETING` 并 durable retry。每个 Pinecone profile 只删除本 index 的 pending IDs，fetch 确认不存在后写 provider tombstone；其余 index 由对应旧 profile Worker 续跑。旧任务和迟到 Worker 不能越过 lifecycle generation/fence 复活资料。
+- 删除准备事务先生成不含文件名、摘录、页码、区域或预览的引用 tombstone，再清理 citation evidence。最终清理 lexical/vector projection、Evidence、页面/结构/视觉/retrieval artifacts、revision/job/lease/upload/scope/tag 等内容记录，仅保留 sanitized Material、deletion task/proof、deleted-source/citation tombstone 和历史图表内容。
+- `2026-08-05-create-material-lifecycle-operations.sql` 已在本地 MySQL 应用并验证，checksum 为 `54e24c7621f70a4b029ab5dabcdb9a75af3bfee32c5bfcf297354e0cd28e5914`。在线 App 需同时开启 `MATERIAL_CATALOG_ENABLED=true` 和 `MATERIAL_LIFECYCLE_ENABLED=true`，并配置至少 32 字符的 `MATERIAL_DELETION_CONFIRMATION_SECRET`；Deletion Worker 另由 `MATERIAL_DELETION_ENABLED=true` 控制。存在 Pinecone vectors 时必须同时保留匹配 index profile 的 vector Worker 配置。
+- 所有用户可见组件默认关闭；关闭或 S3/Pinecone/多模态能力故障时，普通文本输入绘图不依赖生命周期 Controller、maintenance job 或 deletion poller。账号删除的 Material bounded-context seam 始终注册并 fail closed，避免关闭页面功能时静默遗留用户资料。
+
 ## 下一阶段
 
-下一阶段进入 WP4-C 后端：完成临时资料提升、24 小时 TTL、回收站、restore、read lease 和 deletion task；清理必须先进入回收站，并在删除前尊重正在进行的 AI 读取。持久化 WebP、增量 revision 复制和资料库 UI 将在对应的媒体优化/前端阶段补齐。
+下一阶段进入 WP5：接入在线 Probe、Intent Router 后的 Retrieval Router、EvidencePreparationModule、混合检索与降级路径。WP4 的资料库/图表册前端页面、持久化 WebP 和增量 revision 复制仍在对应的前端/媒体优化阶段补齐。

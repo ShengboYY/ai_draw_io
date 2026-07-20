@@ -219,6 +219,10 @@ public class MySqlMaterializationWorkAdapter implements MaterializationWorkPort 
         if (resolved == null) {
             throw new IllegalStateException("content identity winner was not readable");
         }
+        if ("DELETE_PENDING".equals(resolved.getStatus())) {
+            // Do not attach a new MaterialVersion while an exact-version object deletion is in flight.
+            throw new IllegalStateException("content identity is pending permanent deletion");
+        }
         if ("DELETED".equals(resolved.getStatus())) {
             candidate.setId(resolved.getId());
             mapper.reviveDeletedBlob(candidate);

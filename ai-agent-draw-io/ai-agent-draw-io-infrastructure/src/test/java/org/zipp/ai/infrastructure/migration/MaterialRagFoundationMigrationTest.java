@@ -250,6 +250,22 @@ class MaterialRagFoundationMigrationTest {
     }
 
     @Test
+    void lifecycleMigrationAddsDurableFencesLeasesAndDeletionProof() throws Exception {
+        Path migration = Path.of("docs/sql/migrations/2026-08-05-create-material-lifecycle-operations.sql");
+        if (!Files.exists(migration)) {
+            migration = Path.of("../docs/sql/migrations/2026-08-05-create-material-lifecycle-operations.sql");
+        }
+        String sql = Files.readString(migration);
+
+        assertTrue(sql.contains("uk_evidence_lease_run_source"));
+        assertTrue(sql.contains("lifecycle_generation BIGINT"));
+        assertTrue(sql.contains("uk_deletion_task_material"));
+        assertTrue(sql.contains("CREATE TABLE material_lifecycle_request"));
+        assertTrue(sql.contains("CREATE TABLE material_deletion_proof"));
+        assertTrue(sql.contains("lifecycle_state = 'DELETED'"));
+    }
+
+    @Test
     void workerIamAllowsExactVersionVerificationAndCleanupInBothBuckets() throws Exception {
         Path template = Path.of("../deploy/aws/material-upload/s3-and-iam.template.yml");
         if (!Files.exists(template)) {

@@ -138,12 +138,16 @@ public final class PineconeVectorClient {
     }
 
     public void delete(String namespace, List<String> ids) {
-        if (ids == null || ids.isEmpty()) return;
+        deleteWithRequestId(namespace, ids);
+    }
+
+    public String deleteWithRequestId(String namespace, List<String> ids) {
+        if (ids == null || ids.isEmpty()) return null;
         ObjectNode body = objectMapper.createObjectNode();
         body.put("namespace", required(namespace, "namespace"));
         ArrayNode idArray = body.putArray("ids");
         ids.forEach(id -> idArray.add(required(id, "vector id")));
-        exchange(indexUri("/vectors/delete"), body);
+        return exchangeResponse("POST", indexUri("/vectors/delete"), body.toString()).requestId();
     }
 
     public Set<String> fetchExisting(String namespace, List<String> ids) {
@@ -186,6 +190,17 @@ public final class PineconeVectorClient {
     }
 
     private JsonNode exchange(String method, URI uri, String body) {
+        PineconeHttpResponse response = exchangeResponse(method, uri, body);
+        try {
+            return response.body() == null || response.body().isBlank()
+                    ? objectMapper.createObjectNode()
+                    : objectMapper.readTree(response.body());
+        } catch (java.io.IOException e) {
+            throw new IllegalStateException("Pinecone response was not valid JSON", e);
+        }
+    }
+
+    private PineconeHttpResponse exchangeResponse(String method, URI uri, String body) {
         try {
             PineconeHttpResponse response = transport.exchange(method, uri, headers(), body);
             if (response.statusCode() == 429 || response.statusCode() >= 500) {
@@ -195,9 +210,7 @@ public final class PineconeVectorClient {
             if (response.statusCode() < 200 || response.statusCode() >= 300) {
                 throw new IllegalStateException("Pinecone returned HTTP " + response.statusCode());
             }
-            return response.body() == null || response.body().isBlank()
-                    ? objectMapper.createObjectNode()
-                    : objectMapper.readTree(response.body());
+            return response;
         } catch (RuntimeException e) {
             throw e;
         } catch (Exception e) {

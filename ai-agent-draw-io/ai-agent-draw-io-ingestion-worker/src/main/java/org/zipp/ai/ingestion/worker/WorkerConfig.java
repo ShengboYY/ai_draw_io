@@ -34,13 +34,18 @@ import org.zipp.ai.domain.retrieval.port.IndexProjectionMaintenancePort;
 import org.zipp.ai.domain.retrieval.service.IndexGenerationActivationGate;
 import org.zipp.ai.domain.retrieval.projection.VectorGenerationProfile;
 import org.zipp.ai.domain.retrieval.projection.VectorProjectionPlanner;
+import org.zipp.ai.domain.material.port.MaterialDeletionObjectPort;
+import org.zipp.ai.domain.material.port.MaterialDeletionVectorPort;
+import org.zipp.ai.domain.material.port.MaterialDeletionWorkPort;
 import org.zipp.ai.infrastructure.adapter.s3.S3OriginalPromotionAdapter;
 import org.zipp.ai.infrastructure.adapter.s3.S3PinnedQuarantineContentAdapter;
 import org.zipp.ai.infrastructure.adapter.s3.S3RevisionArtifactAdapter;
+import org.zipp.ai.infrastructure.adapter.s3.S3MaterialDeletionAdapter;
 import org.zipp.ai.infrastructure.adapter.vector.HmacTenantKeyAdapter;
 import org.zipp.ai.infrastructure.adapter.vector.PineconeEmbeddingAdapter;
 import org.zipp.ai.infrastructure.adapter.vector.PineconeRetrievalVectorIndexAdapter;
 import org.zipp.ai.infrastructure.adapter.vector.PineconeVectorClient;
+import org.zipp.ai.infrastructure.adapter.vector.PineconeMaterialDeletionAdapter;
 import org.zipp.ai.ingestion.worker.document.PdfBoxDocumentParser;
 import org.zipp.ai.ingestion.worker.document.RevisionPageCodec;
 import org.zipp.ai.ingestion.worker.document.TesseractOcrEngine;
@@ -286,6 +291,46 @@ public class WorkerConfig {
     @ConditionalOnProperty(name = "worker.vector-projection-enabled", havingValue = "true")
     public IndexGenerationActivationGate indexGenerationActivationGate() {
         return new IndexGenerationActivationGate();
+    }
+
+    @Bean
+    @ConditionalOnProperty(name = "worker.material-deletion-enabled", havingValue = "true")
+    public MaterialDeletionObjectPort materialDeletionObjectPort(
+            S3Client s3Client, @Value("${worker.materials-bucket}") String materialsBucket) {
+        return new S3MaterialDeletionAdapter(s3Client, materialsBucket);
+    }
+
+    @Bean
+    @ConditionalOnProperty(name = {"worker.material-deletion-enabled", "worker.vector-projection-enabled"},
+            havingValue = "true")
+    public MaterialDeletionVectorPort materialDeletionVectorPort(
+            PineconeVectorClient client, @Value("${worker.pinecone.index-name}") String indexName) {
+        return new PineconeMaterialDeletionAdapter(client, indexName);
+    }
+
+    @Bean
+    @ConditionalOnProperty(name = "worker.material-deletion-enabled", havingValue = "true")
+    public MaterialDeletionTaskHandler materialDeletionTaskHandler(
+            MaterialDeletionWorkPort work,
+            ObjectProvider<MaterialDeletionVectorPort> vectors,
+            MaterialDeletionObjectPort objects, Clock clock) {
+        // If Pinecone is disabled, materials without vectors still delete; vector-bearing tasks retry safely.
+        MaterialDeletionVectorPort vectorPort = locations -> {
+            if (locations.isEmpty()) return org.zipp.ai.domain.material.model.valobj.MaterialDeletionReceipt.from(0,
+                    java.util.List.of());
+            MaterialDeletionVectorPort available = vectors.getIfAvailable();
+            if (available == null) throw new IllegalStateException("Pinecone deletion profile is unavailable");
+            return available.delete(locations);
+        };
+        return new MaterialDeletionTaskHandler(work, vectorPort, objects, clock);
+    }
+
+    @Bean
+    @ConditionalOnProperty(name = "worker.material-deletion-enabled", havingValue = "true")
+    public MaterialDeletionPoller materialDeletionPoller(
+            MaterialDeletionWorkPort work, MaterialDeletionTaskHandler handler, Clock clock,
+            @Value("${worker.id}") String workerId) {
+        return new MaterialDeletionPoller(work, handler, clock, workerId);
     }
 
     @Bean

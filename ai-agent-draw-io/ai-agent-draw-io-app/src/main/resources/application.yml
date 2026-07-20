@@ -47,6 +47,12 @@ app:
   material-catalog:
     # Enable only after the WP1 foundation and WP4-A idempotency migration are applied.
     enabled: ${MATERIAL_CATALOG_ENABLED:false}
+  material-lifecycle:
+    # Keep lifecycle APIs and cleanup isolated from ordinary text drawing.
+    enabled: ${MATERIAL_LIFECYCLE_ENABLED:false}
+    deletion-confirmation-secret: ${MATERIAL_DELETION_CONFIRMATION_SECRET:}
+    maintenance-delay-ms: ${MATERIAL_LIFECYCLE_MAINTENANCE_DELAY_MS:60000}
+    batch-size: ${MATERIAL_LIFECYCLE_BATCH_SIZE:100}
   material-preview:
     # Page rendering and reprocessing remain isolated from ordinary text drawing.
     enabled: ${MATERIAL_PREVIEW_ENABLED:false}
@@ -196,4 +202,7 @@ mybatis:
     - classpath*:/mybatis/mapper/material_catalog_mapper.xml
     - classpath*:/mybatis/mapper/chartbook_catalog_mapper.xml
     - classpath*:/mybatis/mapper/material_preview_mapper.xml
+    - classpath*:/mybatis/mapper/material_lifecycle_mapper.xml
+    - classpath*:/mybatis/mapper/material_read_lease_mapper.xml
+    - classpath*:/mybatis/mapper/material_deletion_mapper.xml
   config-location: classpath:/mybatis/config/mybatis-config.xml

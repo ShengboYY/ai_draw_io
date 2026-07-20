@@ -6,6 +6,7 @@ import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class MaterialMapperContractTest {
@@ -157,6 +158,28 @@ class MaterialMapperContractTest {
         assertTrue(processing.contains("r.excluded_pages_json"));
         assertTrue(processing.contains("v.active_revision_id != r.id"));
         assertTrue(processing.contains("COALESCE(v.page_count, #{pageCount})"));
+    }
+
+    @Test
+    void lifecycleAndDeletionMappersFenceOwnershipGenerationAndExactExternalIds() throws Exception {
+        String lifecycle = resource("mybatis/mapper/material_lifecycle_mapper.xml");
+        String leases = resource("mybatis/mapper/material_read_lease_mapper.xml");
+        String deletion = resource("mybatis/mapper/material_deletion_mapper.xml");
+
+        assertTrue(lifecycle.contains("lifecycle_generation = #{expectedGeneration}"));
+        assertTrue(lifecycle.contains("job.status = 'CANCELLED'"));
+        assertTrue(leases.contains("FOR UPDATE"));
+        assertTrue(leases.contains("m.expires_at &gt; #{now}"));
+        assertTrue(deletion.contains("FOR UPDATE SKIP LOCKED"));
+        assertTrue(deletion.contains("task.lifecycle_generation = m.lifecycle_generation"));
+        assertTrue(deletion.contains("projection.vector_id"));
+        assertTrue(deletion.contains("projection.provider_deleted_at IS NULL"));
+        assertTrue(deletion.contains("markVectorScopeDeleted"));
+        assertTrue(deletion.contains("original_object_version_id"));
+        assertTrue(deletion.contains("upload.quarantine_object_version_id"));
+        assertTrue(deletion.contains("owner_key = SHA2"));
+        assertFalse(deletion.contains("deleteAll"));
+        assertFalse(deletion.contains("metadata"));
     }
 
     private String resource(String path) throws Exception {

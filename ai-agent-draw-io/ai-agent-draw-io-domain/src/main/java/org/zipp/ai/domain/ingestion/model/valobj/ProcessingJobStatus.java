@@ -5,5 +5,6 @@ public enum ProcessingJobStatus {
     RUNNING,
     RETRY,
     SUCCEEDED,
-    FAILED
+    FAILED,
+    CANCELLED
 }

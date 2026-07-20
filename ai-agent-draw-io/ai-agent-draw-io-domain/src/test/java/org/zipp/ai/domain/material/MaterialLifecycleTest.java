@@ -11,6 +11,7 @@ import org.zipp.ai.domain.material.model.valobj.RetentionClass;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -82,6 +83,27 @@ class MaterialLifecycleTest {
                 () -> material.retain(
                         MaterialScopeLink.of(MaterialScopeType.CONVERSATION, "conv_1", "usr_1"), NOW));
         assertEquals(RetentionClass.TEMPORARY, material.retentionClass());
+    }
+
+    @Test
+    void expiredTemporaryMaterialCannotBePromotedAfterItsDeadline() {
+        Material material = Material.rehydrateTemporaryActive(
+                "mat_1", OwnerType.USER, "usr_1", MaterialKind.PDF, "Agile Guide", "conv_1",
+                1, NOW.minus(Duration.ofDays(2)), NOW.minusSeconds(1));
+
+        assertThrows(IllegalStateException.class, () -> material.retain(
+                MaterialScopeLink.of(MaterialScopeType.LIBRARY, "personal", "usr_1"), NOW));
+    }
+
+    @Test
+    void promotedMaterialCanRetainItsConversationLinkAlongsideADurableScope() {
+        Material material = Material.rehydrateRetainedActive(
+                "mat_1", OwnerType.USER, "usr_1", MaterialKind.PDF, "Agile Guide", 2, NOW,
+                Set.of(MaterialScopeLink.of(MaterialScopeType.CONVERSATION, "conv_1", "usr_1"),
+                        MaterialScopeLink.of(MaterialScopeType.LIBRARY, "personal", "usr_1")));
+
+        assertEquals(RetentionClass.RETAINED, material.retentionClass());
+        assertEquals(2, material.scopeLinks().size());
     }
 
     @Test

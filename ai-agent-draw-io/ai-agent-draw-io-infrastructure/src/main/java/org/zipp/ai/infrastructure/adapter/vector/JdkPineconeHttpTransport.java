@@ -30,6 +30,7 @@ final class JdkPineconeHttpTransport implements PineconeHttpTransport {
         HttpResponse<String> response = httpClient.send(
                 request.build(), HttpResponse.BodyHandlers.ofString());
         return new PineconeHttpResponse(response.statusCode(), response.body(),
-                response.headers().firstValue("Retry-After").orElse(null));
+                response.headers().firstValue("Retry-After").orElse(null),
+                response.headers().firstValue("x-pinecone-request-id").orElse(null));
     }
 }

@@ -18,4 +18,12 @@ public interface CatalogIdFactory {
     default String nextProcessingJobId() {
         return nextId("job");
     }
+
+    default String nextDeletionTaskId() {
+        return nextId("del");
+    }
+
+    default String nextReadLeaseId() {
+        return nextId("lease");
+    }
 }

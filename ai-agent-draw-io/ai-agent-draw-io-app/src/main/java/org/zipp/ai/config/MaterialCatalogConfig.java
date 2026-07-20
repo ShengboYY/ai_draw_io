@@ -10,18 +10,12 @@ import org.zipp.ai.domain.material.port.CatalogIdFactory;
 import org.zipp.ai.domain.material.port.MaterialCatalogPort;
 import org.zipp.ai.domain.material.service.MaterialCatalogService;
 import org.zipp.ai.domain.material.service.MaterialScopePolicy;
-import org.zipp.ai.infrastructure.adapter.port.UuidCatalogIdFactory;
 
 import java.time.Clock;
 
 @Configuration
 @ConditionalOnProperty(name = "app.material-catalog.enabled", havingValue = "true")
 public class MaterialCatalogConfig {
-    @Bean
-    public CatalogIdFactory catalogIdFactory() {
-        return new UuidCatalogIdFactory();
-    }
-
     @Bean
     public MaterialCatalogService materialCatalogService(MaterialCatalogPort catalog,
                                                          CatalogIdFactory ids) {

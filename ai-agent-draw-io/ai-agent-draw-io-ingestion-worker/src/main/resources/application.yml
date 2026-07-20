@@ -20,6 +20,9 @@ worker:
   materialization-enabled: ${MATERIAL_MATERIALIZATION_ENABLED:false}
   document-processing-enabled: ${MATERIAL_DOCUMENT_PROCESSING_ENABLED:false}
   vector-projection-enabled: ${MATERIAL_VECTOR_PROJECTION_ENABLED:false}
+  material-deletion-enabled: ${MATERIAL_DELETION_ENABLED:false}
+  deletion-poll-delay-ms: ${MATERIAL_DELETION_POLL_DELAY_MS:1000}
+  deletion-reaper-delay-ms: ${MATERIAL_DELETION_REAPER_DELAY_MS:60000}
   poll-delay-ms: ${WORKER_POLL_DELAY_MS:1000}
   reaper-delay-ms: ${WORKER_REAPER_DELAY_MS:60000}
   generation-sync-delay-ms: ${GENERATION_SYNC_DELAY_MS:5000}
