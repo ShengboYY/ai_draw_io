@@ -26,6 +26,7 @@ import java.time.*;
 import java.util.*;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -118,6 +119,9 @@ class DocumentProcessingJobHandlerTest {
         assertNotNull(work.evidenceResult);
         assertEquals("revisions/rev_1/evidence-manifest.json.gz",
                 work.evidenceResult.manifestArtifact().objectKey());
+        assertFalse(work.evidenceResult.displayArtifacts().isEmpty());
+        assertTrue(work.evidenceResult.displayArtifacts().values().stream()
+                .allMatch(artifact -> artifact.objectKey().endsWith(".txt")));
         assertEquals(JobOutcome.Kind.SUCCEEDED,
                 handler.handle(lease(ProcessingJobStage.BUILD_RETRIEVAL_CHUNKS,
                         PROFILE.retrievalInput(work.evidenceResult.manifestArtifact().contentSha256()))).kind());

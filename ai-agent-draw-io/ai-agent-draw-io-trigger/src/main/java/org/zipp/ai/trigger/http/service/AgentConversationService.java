@@ -39,6 +39,9 @@ import org.zipp.ai.domain.agent.service.usage.AgentUsageTelemetryService;
 import org.zipp.ai.domain.agent.service.visualreview.CanvasVisualReviewPolicy;
 import org.zipp.ai.domain.agent.service.visualreview.ICanvasVisualReviewer;
 import org.zipp.ai.domain.material.model.valobj.CatalogOwner;
+import org.zipp.ai.domain.grounding.EvidenceAccessContext;
+import org.zipp.ai.domain.grounding.EvidencePromptAssembler;
+import org.zipp.ai.domain.grounding.port.GroundedRunControlPort;
 import org.zipp.ai.domain.retrieval.*;
 import org.zipp.ai.types.enums.ResponseCode;
 import org.zipp.ai.types.exception.AppException;
@@ -53,6 +56,9 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseBodyEmitter;
 
 import javax.annotation.Resource;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.util.HexFormat;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -126,6 +132,15 @@ public class AgentConversationService {
     @Autowired(required = false)
     private EvidencePreparationModule evidencePreparationModule;
 
+    @Autowired(required = false)
+    private EvidencePromptAssembler evidencePromptAssembler;
+
+    @Autowired(required = false)
+    private GroundedRunControlPort groundedRunControlPort;
+
+    @Autowired(required = false)
+    private ConfiguredModelClaimSupportVerifier claimSupportVerifier;
+
     @Value("${app.material-rag.enabled:false}")
     private boolean materialRagEnabled;
 
@@ -165,7 +180,7 @@ public class AgentConversationService {
             recordRoutingDecision(runScope, routingResult);
             ChatResponseDTO evidenceResponse = prepareEvidenceResponse(
                     currentRequest, routingResult, requestProbe, evidenceResources,
-                    EvidenceProgressListener.NOOP, CancellationSignal.NEVER);
+                    EvidenceProgressListener.NOOP, CancellationSignal.NEVER, null);
             if (evidenceResponse != null) {
                 attachCorrelation(evidenceResponse, runScope);
                 captureRunOutput(runScope, evidenceResponse, currentRequest.getDiagramId());
@@ -272,16 +287,27 @@ public class AgentConversationService {
                 requestDTO.getUserId(), requestDTO.getAgentId(), requestDTO.getSessionId(), operation,
                 requestDTO.getDiagramId(), credentialSource(requestDTO), requestDTO.getModelCredentialId(), "openai", "unknown");
         RunResourceDomain evidenceResources = new RunResourceDomain();
+        AtomicReference<PreparedEvidence> preparedEvidenceRef = new AtomicReference<>();
+        AtomicReference<GroundedRunControlPort.RunIdentity> groundedRunRef = new AtomicReference<>();
+        String groundedRunId = runScope.getContext().runId();
         AtomicBoolean evidenceCancelled = new AtomicBoolean(false);
         // Register cleanup before probe/retrieval so disconnects cannot strand leases or in-flight work.
-        emitter.onCompletion(() -> evidenceResources.closeExactlyOnce(CloseReason.COMPLETED));
+        emitter.onCompletion(() -> {
+            evidenceResources.closeExactlyOnce(CloseReason.COMPLETED);
+            cancelGroundedRun(groundedRunRef.get());
+            unregisterClaimVerifier(groundedRunId);
+        });
         emitter.onTimeout(() -> {
             evidenceCancelled.set(true);
             evidenceResources.closeExactlyOnce(CloseReason.TIMED_OUT);
+            cancelGroundedRun(groundedRunRef.get());
+            unregisterClaimVerifier(groundedRunId);
         });
         emitter.onError(error -> {
             evidenceCancelled.set(true);
             evidenceResources.closeExactlyOnce(CloseReason.CLIENT_DISCONNECTED);
+            cancelGroundedRun(groundedRunRef.get());
+            unregisterClaimVerifier(groundedRunId);
         });
         requestDTO.setRunId(runScope.getContext().runId());
         BoundedTextCapture streamOutputCapture = new BoundedTextCapture(MAX_BUFFERED_STREAM_CAPTURE_CHARS);
@@ -300,6 +326,9 @@ public class AgentConversationService {
                     Map.of("metaOnly", true));
             captureRunPayload(runScope, DebugTracePayloadKind.INPUT, requestDTO.getMessage());
             CustomApiConfigManager.CustomApiConfig config = buildCustomApiConfig(requestDTO);
+            if (claimSupportVerifier != null) {
+                claimSupportVerifier.register(groundedRunId, requestDTO.getUserId(), config);
+            }
             runScope = telemetryService().withProviderModel(runScope, config.getProvider(), config.getModel());
             configuredScope = AgentUsageTelemetryContext.bind(runScope.getContext());
             consumeAnonymousDemoQuota(requestDTO, config);
@@ -323,6 +352,15 @@ public class AgentConversationService {
             streamResponseWriter.sendRoute(emitter, routingResult.getRouteType(),
                     routingResult.getDiagramType(), routingResult.getSkillName());
             if (forcedRoutingResult == null) {
+                if (routingResult.isDrawAction() && shouldPrepareEvidence(currentRequest, routingResult)
+                        && groundedRunControlPort != null) {
+                    GroundedRunControlPort.RunIdentity identity = new GroundedRunControlPort.RunIdentity(
+                            currentRequest.getUserId(),
+                            StringUtils.defaultIfBlank(currentRequest.getRequestId(), runScope.getContext().requestId()),
+                            runScope.getContext().runId());
+                    groundedRunControlPort.start(identity);
+                    groundedRunRef.set(identity);
+                }
                 ChatResponseDTO evidenceResponse = prepareEvidenceResponse(currentRequest, routingResult,
                         requestProbe, evidenceResources, (stage, completed, total) -> {
                             try {
@@ -330,7 +368,7 @@ public class AgentConversationService {
                             } catch (Exception error) {
                                 evidenceCancelled.set(true);
                             }
-                        }, evidenceCancelled::get);
+                        }, evidenceCancelled::get, preparedEvidenceRef);
                 if (evidenceResponse != null) {
                     captureRunOutput(runScope, evidenceResponse, currentRequest.getDiagramId());
                     streamResponseWriter.sendEvidenceOutcome(emitter,
@@ -409,16 +447,22 @@ public class AgentConversationService {
             final boolean drawerContinuation = forcedRoutingResult != null
                     && mutationIntent != null
                     && mutationIntent.purpose() == CanvasMutationPurpose.VLM_REPAIR;
+            PreparedEvidence preparedEvidence = preparedEvidenceRef.get();
+            EvidenceAccessContext evidenceAccess = preparedEvidence == null
+                    ? null : EvidenceAccessContext.from(preparedEvidence.bundle(), true);
             final RoutedDrawMessage routedMessage = buildRoutedDrawMessage(
                     currentRequest, routingResult, maxRepairRounds,
-                    currentRequest.getUserId(), currentRequest.getSkills(), drawerContinuation);
-            captureDebugTrace(runScope, "ROUTED_MESSAGE", routedMessage.message());
+                    currentRequest.getUserId(), currentRequest.getSkills(), drawerContinuation, evidenceAccess);
+            Object routedTracePayload = evidenceAccess == null
+                    ? traceField("message", routedMessage.message())
+                    : groundedPromptTrace(routedMessage.message(), evidenceAccess);
+            captureDebugTrace(runScope, "ROUTED_MESSAGE", JSON.toJSONString(routedTracePayload));
             // The current canvas travels in the request; keep it so patch_cells can merge a delta
             // without the model re-emitting the whole diagram.
             final String currentCanvasXml = contextBuilder().resolveCanvasXml(currentRequest);
             streamResponseWriter.setCurrentCanvas(emitter, currentCanvasXml);
             drawingStep = telemetryService().startStep("drawing");
-            captureStepPayload(drawingStep, DebugTracePayloadKind.INPUT, traceField("message", routedMessage.message()));
+            captureStepPayload(drawingStep, DebugTracePayloadKind.INPUT, routedTracePayload);
             streamResponseWriter.setCanvasStateContext(
                     emitter,
                     currentRequest.getUserId(),
@@ -431,6 +475,12 @@ public class AgentConversationService {
                     currentRequest.getVisualRepairRound(),
                     runScope.getContext().runId(),
                     drawingStep == null ? runScope.getContext().runId() : drawingStep.getStepContext().spanId());
+            if (evidenceAccess != null) {
+                streamResponseWriter.setEvidenceContext(
+                        emitter, evidenceAccess, evidenceResources, isStrictEvidenceRequest(currentRequest, routingResult),
+                        StringUtils.defaultIfBlank(currentRequest.getRequestId(), runScope.getContext().requestId()),
+                        runScope.getContext().runId());
+            }
             DrawioSkillAccessContext.bindSession(finalSessionId, routedMessage.allowedSkillNames());
             DrawioToolAccessContext.applyToolPolicy(
                     runScope.getContext().runId(), routedMessage.toolPolicy());
@@ -604,6 +654,7 @@ public class AgentConversationService {
             log.error("流式对话失败", e);
             emitter.completeWithError(e);
         } finally {
+            if (evidenceResources.isClosed()) unregisterClaimVerifier(groundedRunId);
             if (configuredScope != null) {
                 configuredScope.close();
             }
@@ -992,6 +1043,26 @@ public class AgentConversationService {
         return field;
     }
 
+    /** Evidence body is model-only; debug storage receives opaque diagnostics, never source text. */
+    private Map<String, Object> groundedPromptTrace(String routedMessage, EvidenceAccessContext access) {
+        Map<String, Object> trace = new LinkedHashMap<>();
+        trace.put("messageSha256", sha256(routedMessage));
+        trace.put("evidenceCount", access.items().size());
+        trace.put("citationKeys", access.allowedCitationKeys());
+        trace.put("modalities", access.items().stream().map(EvidenceBundleItem::modality).distinct().toList());
+        trace.put("supportRoles", access.items().stream().map(EvidenceBundleItem::supportRole).distinct().toList());
+        return trace;
+    }
+
+    private String sha256(String value) {
+        try {
+            return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256")
+                    .digest(StringUtils.defaultString(value).getBytes(StandardCharsets.UTF_8)));
+        } catch (Exception impossible) {
+            throw new IllegalStateException("SHA-256 unavailable", impossible);
+        }
+    }
+
     private Map<String, Object> requestStepInput(ChatRequestDTO requestDTO) {
         Map<String, Object> input = new LinkedHashMap<>();
         input.put("message", requestDTO == null ? null : requestDTO.getMessage());
@@ -1083,11 +1154,10 @@ public class AgentConversationService {
                                                     RequestProbe requestProbe,
                                                     RunResourceDomain resources,
                                                     EvidenceProgressListener progress,
-                                                    CancellationSignal cancellation) {
+                                                    CancellationSignal cancellation,
+                                                    AtomicReference<PreparedEvidence> preparedEvidenceRef) {
         if (!shouldPrepareEvidence(requestDTO, routing)) return null;
-        boolean strict = routing.isEvidenceAnswer() || "REQUIRED".equals(routing.getEvidenceNeed())
-                || sourceMode(requestDTO.getSourceMode()) == SourceMode.EXPLICIT_ONLY
-                || !safeList(requestDTO.getSelectedVersionIds()).isEmpty();
+        boolean strict = isStrictEvidenceRequest(requestDTO, routing);
         if (!materialRagEnabled || evidencePreparationModule == null) {
             return strict ? evidenceResponse("capability_unavailable",
                     "资料检索功能当前不可用，画布未被修改。 / Evidence retrieval is currently unavailable; the canvas was not modified.")
@@ -1137,13 +1207,25 @@ public class AgentConversationService {
         if (outcome instanceof PreparationOutcome.Cancelled) {
             return evidenceResponse("cancelled", "请求已取消。 / Request cancelled.");
         }
+        if (outcome instanceof PreparationOutcome.Ready ready
+                && preparedEvidenceRef != null && routing.isDrawAction()) {
+            preparedEvidenceRef.set(ready.preparedEvidence());
+            return null;
+        }
         if (outcome instanceof PreparationOutcome.Ready) {
-            // WP6/WP7 will consume this bundle; WP5 must never silently send it to the legacy Drawer.
+            // WP7 evidence answers and the synchronous mutation path remain closed until their own
+            // atomic persistence seams are available.
             return evidenceResponse("capability_unavailable",
-                    "资料证据已准备完成，但证据化回答/绘图服务尚未启用，画布未被修改。 / Evidence is ready, but grounded generation is not enabled yet.");
+                    "资料证据已准备完成，但当前请求的证据化服务尚未启用，画布未被修改。 / Evidence is ready, but this grounded capability is not enabled yet.");
         }
         return evidenceResponse("insufficient_evidence",
                 "当前资料不足以安全完成请求，画布未被修改。 / The available evidence is insufficient.");
+    }
+
+    private boolean isStrictEvidenceRequest(ChatRequestDTO requestDTO, IntentRoutingResult routing) {
+        return routing.isEvidenceAnswer() || "REQUIRED".equals(routing.getEvidenceNeed())
+                || sourceMode(requestDTO.getSourceMode()) == SourceMode.EXPLICIT_ONLY
+                || !safeList(requestDTO.getSelectedVersionIds()).isEmpty();
     }
 
     private boolean shouldPrepareEvidence(ChatRequestDTO requestDTO, IntentRoutingResult routing) {
@@ -1331,6 +1413,17 @@ public class AgentConversationService {
                                                      String ownerId,
                                                      List<String> userSkills,
                                                      boolean drawerContinuation) {
+        return buildRoutedDrawMessage(requestDTO, routingResult, maxDeterministicRepairRounds,
+                ownerId, userSkills, drawerContinuation, null);
+    }
+
+    private RoutedDrawMessage buildRoutedDrawMessage(ChatRequestDTO requestDTO,
+                                                     IntentRoutingResult routingResult,
+                                                     int maxDeterministicRepairRounds,
+                                                     String ownerId,
+                                                     List<String> userSkills,
+                                                     boolean drawerContinuation,
+                                                     EvidenceAccessContext evidenceAccess) {
         requestDTO = requestWithStoredCanvas(requestDTO);
         com.alibaba.fastjson.JSONObject routingJson = new com.alibaba.fastjson.JSONObject();
         routingJson.put("routeType", routingResult.getRouteType());
@@ -1357,11 +1450,29 @@ public class AgentConversationService {
                 + routingJson.toJSONString()
                 + "\n\n"
                 + skillSection.text()
-                + contextBuilder().buildDrawingContextMessage(requestDTO, routingResult);
+                + contextBuilder().buildDrawingContextMessage(requestDTO, routingResult)
+                + (evidenceAccess == null ? "" : evidencePromptAssembler().assemble(evidenceAccess));
         return new RoutedDrawMessage(
                 routedMessage,
                 skillSection.requiredSkillNames(),
                 toolPolicy);
+    }
+
+    private EvidencePromptAssembler evidencePromptAssembler() {
+        return evidencePromptAssembler == null ? new EvidencePromptAssembler() : evidencePromptAssembler;
+    }
+
+    private void cancelGroundedRun(GroundedRunControlPort.RunIdentity identity) {
+        if (identity == null || groundedRunControlPort == null) return;
+        try {
+            groundedRunControlPort.cancel(identity);
+        } catch (RuntimeException error) {
+            log.warn("Failed to cancel grounded run. runId={}", logValue(identity.runId()), error);
+        }
+    }
+
+    private void unregisterClaimVerifier(String runId) {
+        if (claimSupportVerifier != null) claimSupportVerifier.unregister(runId);
     }
 
     private record RoutedDrawMessage(String message,
@@ -1439,6 +1550,7 @@ public class AgentConversationService {
             if (!(responseJson instanceof com.alibaba.fastjson.JSONObject json)) {
                 continue;
             }
+            streamResponseWriter.rememberCitationBindings(emitter, json);
 
             String functionName = functionResponse.name().orElse(DrawioCanvasToolNames.CREATE_DIAGRAM);
             // Local patch responses return only the changed fragment; merge it into the canvas we already hold.
@@ -1463,6 +1575,9 @@ public class AgentConversationService {
                 com.alibaba.fastjson.JSONObject toolJson = new com.alibaba.fastjson.JSONObject();
                 toolJson.put("type", functionName);
                 toolJson.put("xml", content);
+                if (json.containsKey("citationBindings")) {
+                    toolJson.put("citationBindings", json.get("citationBindings"));
+                }
                 json = toolJson;
             } else if (StringUtils.isBlank(json.getString("type"))) {
                 continue;

@@ -53,6 +53,15 @@ public class CanvasMutationGate {
     }
 
     public CanvasMutationDecision evaluate(CanvasMutationCommand command) {
+        return evaluate(command, true);
+    }
+
+    /** Validates a final candidate without persisting it, for a wider atomic commit transaction. */
+    public CanvasMutationDecision assess(CanvasMutationCommand command) {
+        return evaluate(command, false);
+    }
+
+    private CanvasMutationDecision evaluate(CanvasMutationCommand command, boolean persist) {
         Optional<CanvasState> stored = canvasStateStore.find(command.userId(), command.diagramId());
         String beforeXml = stored.map(CanvasState::getCurrentXml)
                 .filter(StringUtils::isNotBlank)
@@ -131,6 +140,12 @@ public class CanvasMutationGate {
                         changedFields,
                         stored.orElse(null));
             }
+        }
+        if (!persist) {
+            return new CanvasMutationDecision(
+                    hasIssues(after) ? CanvasMutationStatus.ACCEPTED_WITH_NOTES : CanvasMutationStatus.ACCEPTED,
+                    candidateXml, before, after, changedFields.keySet(), changedFields,
+                    null, null, stored.orElse(null));
         }
         CanvasStateSaveResult saveResult;
         try {

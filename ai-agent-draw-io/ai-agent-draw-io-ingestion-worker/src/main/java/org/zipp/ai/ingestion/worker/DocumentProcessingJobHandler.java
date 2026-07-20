@@ -43,6 +43,7 @@ import org.zipp.ai.ingestion.worker.document.VisualCropDeriver;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.charset.StandardCharsets;
 import java.time.Clock;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -425,7 +426,15 @@ public final class DocumentProcessingJobHandler {
                 structure, pages, visualManifest);
         StoredArtifact manifestArtifact = artifacts.putImmutable(
                 "revisions/" + revisionId + "/evidence-manifest.json.gz", codec.encode(manifest), JSON_GZIP);
-        EvidenceBuildResult result = new EvidenceBuildResult(manifest, manifestArtifact);
+        Map<String, StoredArtifact> displayArtifacts = new HashMap<>();
+        for (var unit : manifest.units()) {
+            if (unit.displayText() == null) continue;
+            StoredArtifact display = artifacts.putImmutable(
+                    "revisions/" + revisionId + "/evidence/" + unit.evidenceId() + ".txt",
+                    unit.displayText().getBytes(StandardCharsets.UTF_8), "text/plain");
+            displayArtifacts.put(unit.evidenceId(), display);
+        }
+        EvidenceBuildResult result = new EvidenceBuildResult(manifest, manifestArtifact, displayArtifacts);
         ProcessingJob successor = nextJob(revisionId, ProcessingJobStage.BUILD_RETRIEVAL_CHUNKS, "root",
                 profile.retrievalInput(manifestArtifact.contentSha256()));
         if (!work.commitEvidence(source, result, successor, fence(lease))) {

@@ -9,6 +9,16 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.zipp.ai.domain.agent.service.ICanvasStateStore;
+import org.zipp.ai.domain.agent.service.canvas.CanvasMutationGate;
+import org.zipp.ai.domain.citation.port.ClaimSupportVerifierPort;
+import org.zipp.ai.domain.citation.port.CitationQueryPort;
+import org.zipp.ai.domain.citation.port.ManualProvenancePort;
+import org.zipp.ai.domain.citation.service.CitationGuard;
+import org.zipp.ai.domain.citation.service.CitationQueryService;
+import org.zipp.ai.domain.citation.service.ManualCitationReconciler;
+import org.zipp.ai.domain.grounding.CanvasCommitModule;
+import org.zipp.ai.domain.grounding.EvidencePromptAssembler;
+import org.zipp.ai.domain.grounding.port.GroundedCanvasCommitPort;
 import org.zipp.ai.domain.ingestion.port.RevisionArtifactPort;
 import org.zipp.ai.domain.material.service.MaterialReadLeaseService;
 import org.zipp.ai.domain.retrieval.*;
@@ -34,6 +44,35 @@ import java.util.concurrent.Executors;
 @Configuration
 @ConditionalOnProperty(name = {"app.material-rag.enabled", "app.material-lifecycle.enabled"}, havingValue = "true")
 public class MaterialRagConfig {
+    @Bean
+    public CitationQueryService citationQueryService(CitationQueryPort queryPort) {
+        return new CitationQueryService(queryPort);
+    }
+
+    @Bean
+    public ManualCitationReconciler manualCitationReconciler(ManualProvenancePort provenancePort) {
+        return new ManualCitationReconciler(provenancePort);
+    }
+
+    @Bean
+    public EvidencePromptAssembler evidencePromptAssembler() {
+        return new EvidencePromptAssembler();
+    }
+
+    @Bean
+    public CitationGuard groundedCitationGuard(ObjectProvider<ClaimSupportVerifierPort> verifiers) {
+        // Exact extractive statements remain locally verifiable. Synthesized statements fail closed
+        // until the configured-model verifier adapter is present.
+        return new CitationGuard(verifiers.getIfAvailable(() -> requests -> java.util.List.of()));
+    }
+
+    @Bean
+    public CanvasCommitModule canvasCommitModule(CanvasMutationGate mutationGate,
+                                                 CitationGuard groundedCitationGuard,
+                                                 GroundedCanvasCommitPort commitPort) {
+        return new CanvasCommitModule(mutationGate, groundedCitationGuard, commitPort);
+    }
+
     @Bean
     public RequestProbeDataPort requestProbeDataPort(IOnlineRetrievalMapper retrieval, ICanvasStateStore canvases) {
         return new OnlineRequestProbeAdapter(retrieval, canvases);

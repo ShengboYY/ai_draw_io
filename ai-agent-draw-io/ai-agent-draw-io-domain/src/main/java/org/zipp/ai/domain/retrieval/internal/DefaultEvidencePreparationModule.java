@@ -416,7 +416,8 @@ public final class DefaultEvidencePreparationModule implements EvidencePreparati
             if (remaining <= 0) break;
             String bounded = text.length() <= remaining ? text : text.substring(0, remaining);
             items.add(new EvidenceBundleItem("cite_" + (items.size() + 1), candidate.evidenceId(),
-                    candidate.materialId(), candidate.sourceLabel(), candidate.pageNumber(),
+                    candidate.materialId(), candidate.versionId(), candidate.revisionId(),
+                    candidate.sourceLabel(), candidate.pageNumber(),
                     candidate.modality(), bounded));
             chars += bounded.length();
             materialCounts.merge(candidate.materialId(), 1, Integer::sum);

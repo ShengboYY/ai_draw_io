@@ -13,6 +13,14 @@ import org.zipp.ai.domain.agent.service.armory.matter.mcp.server.DrawioCanvasXml
 import org.zipp.ai.domain.agent.service.canvas.CanvasMutationGate;
 import org.zipp.ai.domain.agent.service.usage.AgentUsageTelemetryService;
 import org.zipp.ai.domain.agent.service.usage.AgentTelemetryMetrics;
+import org.zipp.ai.domain.citation.service.CitationGuard;
+import org.zipp.ai.domain.grounding.CanvasCommitModule;
+import org.zipp.ai.domain.grounding.EvidenceAccessContext;
+import org.zipp.ai.domain.grounding.port.GroundedCanvasCommitPort;
+import org.zipp.ai.domain.retrieval.EvidenceBundle;
+import org.zipp.ai.domain.retrieval.EvidenceBundleItem;
+import org.zipp.ai.domain.retrieval.RunResourceDomain;
+import org.zipp.ai.domain.retrieval.SourceMode;
 import org.zipp.ai.test.domain.agent.FakeAgentUsageTelemetryStore;
 import org.zipp.ai.trigger.http.service.DrawioStreamResponseWriter;
 import org.zipp.ai.trigger.http.service.DrawioToolCallRenderer;
@@ -23,6 +31,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.time.Clock;
 
 import static org.junit.Assert.assertEquals;
@@ -30,6 +39,49 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 public class DrawioStreamResponseWriterTest {
+
+    @Test
+    public void shouldCommitStrictEvidenceManifestBeforeEmittingFinalCanvas() throws Exception {
+        String before = "<mxGraphModel><root><mxCell id='0'/><mxCell id='1' parent='0'/></root></mxGraphModel>";
+        CanvasState current = CanvasState.builder().userId("alice").diagramId("diagram-1")
+                .diagramType("flowchart").currentXml(before).contentHash("hash-1").version(1L).build();
+        ICanvasStateStore store = new ICanvasStateStore() {
+            @Override public Optional<CanvasState> find(String userId, String diagramId) { return Optional.of(current); }
+            @Override public CanvasState save(CanvasState state) { throw new AssertionError("must use atomic port"); }
+        };
+        AtomicInteger commits = new AtomicInteger();
+        GroundedCanvasCommitPort port = plan -> {
+            commits.incrementAndGet();
+            return org.zipp.ai.domain.agent.model.valobj.canvas.CanvasStateSaveResult.updated(
+                    CanvasState.builder().userId("alice").diagramId("diagram-1").diagramType("flowchart")
+                            .currentXml(plan.canvasXml()).contentHash(plan.contentHash()).version(2L).build());
+        };
+        CanvasMutationGate gate = new CanvasMutationGate(store, new DefaultCanvasAnalyzer());
+        DrawioStreamResponseWriter writer = new DrawioStreamResponseWriter(new DrawioToolCallRenderer());
+        injectMutationGate(writer, gate);
+        injectField(writer, "canvasCommitModule", new CanvasCommitModule(
+                gate, new CitationGuard(requests -> List.of()), port));
+        CapturingEmitter emitter = new CapturingEmitter();
+        RunResourceDomain resources = new RunResourceDomain();
+        resources.markPrepared();
+        EvidenceAccessContext access = EvidenceAccessContext.from(new EvidenceBundle(
+                "bundle-1", "request-1", "run-1", SourceMode.EXPLICIT_ONLY,
+                List.of(new EvidenceBundleItem("E1", "evidence-1", "material-1", "version-1", "revision-1",
+                        "S1", 6, "TEXT", "Product Owner is accountable for maximizing value"))), false);
+        writer.setCurrentCanvas(emitter, before);
+        writer.setCanvasStateContext(emitter, "alice", "diagram-1", 1L, "hash-1", "flowchart", "run-1", "span-1");
+        writer.setEvidenceContext(emitter, access, resources, true, "request-1", "run-1");
+
+        writer.processAndSendLine(emitter, "drawing", """
+                {"type":"create_diagram","xml":"<mxGraphModel><root><mxCell id='0'/><mxCell id='1' parent='0'/><mxCell id='node-1' value='Product Owner is accountable for maximizing value' vertex='1' parent='1'><mxGeometry width='220' height='60' as='geometry'/></mxCell></root></mxGraphModel>","citationBindings":[{"cellId":"node-1","statementKey":"D1","statementKind":"NODE_TEXT","statementText":"Product Owner is accountable for maximizing value","citationKeys":["E1"],"supportAtoms":[{"atomKey":"A1","citationKey":"E1","anchorText":"Product Owner is accountable for maximizing value","role":"PREMISE"}],"supportType":"EVIDENCE"}]}
+                """);
+        writer.flushPendingDiagram(emitter, "done");
+
+        String output = String.join("\n", emitter.sent);
+        assertEquals(1, commits.get());
+        assertTrue(output.contains("zippCitationSchema"));
+        assertFalse(output.contains("grounding_rejected"));
+    }
 
     @Test
     public void shouldSendRouteAsACompactThinkingEvent() throws Exception {
@@ -720,6 +772,12 @@ public class DrawioStreamResponseWriterTest {
         Field field = DrawioStreamResponseWriter.class.getDeclaredField("agentUsageTelemetryService");
         field.setAccessible(true);
         field.set(writer, telemetryService);
+    }
+
+    private void injectField(Object target, String name, Object value) throws Exception {
+        Field field = target.getClass().getDeclaredField(name);
+        field.setAccessible(true);
+        field.set(target, value);
     }
 
     @Test

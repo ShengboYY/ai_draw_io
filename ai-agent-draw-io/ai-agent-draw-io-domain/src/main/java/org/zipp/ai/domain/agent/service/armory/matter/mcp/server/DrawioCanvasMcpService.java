@@ -17,6 +17,7 @@ import org.zipp.ai.domain.agent.model.valobj.canvas.CanvasState;
 import org.zipp.ai.domain.agent.service.ICanvasStateStore;
 import org.zipp.ai.domain.agent.service.canvas.routing.TargetedEdgeRouter;
 import org.zipp.ai.domain.agent.service.usage.AgentUsageTelemetryService;
+import org.zipp.ai.domain.citation.model.valobj.CitationBinding;
 import org.zipp.ai.types.util.SecretLogSanitizer;
 
 import javax.annotation.Resource;
@@ -48,6 +49,7 @@ public class DrawioCanvasMcpService {
     public DrawioToolResponse createDiagram(DrawioXmlRequest request) {
         // Preserve the model's original routing so auto-reroute can be tested independently.
         DrawioToolResponse response = drawioDone(request.getXml());
+        response.setCitationBindings(request.getCitationBindings());
         logXmlToolResult(DrawioCanvasToolNames.CREATE_DIAGRAM, request.getReason(), request.getXml(), response.getType(), response.getContent());
         return response;
     }
@@ -73,12 +75,14 @@ public class DrawioCanvasMcpService {
         DrawioMutationResponse response = new DrawioMutationResponse();
         if ("unsupported".equals(mode)) {
             response = rejectedModifyResponse();
+            response.setCitationBindings(request.getCitationBindings());
             logModifyToolResult(request, mode, response);
             return response;
         }
         if ("patch".equals(mode)) {
             response.setType(DrawioCanvasToolNames.PATCH_CELLS);
             response.setCells(request.getCells());
+            response.setCitationBindings(request.getCitationBindings());
             // Feedback needs the merged canvas; without the current xml the backend merges
             // stream-side and the loop gets a plain applied/finish signal.
             if (StringUtils.isNotBlank(request.getXml())) {
@@ -97,6 +101,7 @@ public class DrawioCanvasMcpService {
             CanvasAnalysis mergedAnalysis = xmlToolkit.analyze(merged);
             response.setType(DrawioCanvasToolNames.PATCH_CELLS);
             response.setCells(request.getCells());
+            response.setCitationBindings(request.getCitationBindings());
             response.setAnalysis(CanvasAnalysisResponse.from(mergedAnalysis));
             response.setRepairBrief(DrawioRepairBriefComposer.compose(mergedAnalysis));
             logModifyToolResult(request, mode, response);
@@ -108,6 +113,7 @@ public class DrawioCanvasMcpService {
         CanvasAnalysis baseAnalysis = xmlToolkit.analyze(base);
         response.setType("drawio_done");
         response.setContent(base);
+        response.setCitationBindings(request.getCitationBindings());
         response.setAnalysis(CanvasAnalysisResponse.from(baseAnalysis));
         response.setRepairBrief(DrawioRepairBriefComposer.compose(baseAnalysis));
         logModifyToolResult(request, mode, response);
@@ -520,6 +526,10 @@ public class DrawioCanvasMcpService {
         @JsonProperty(value = "reason")
         @JsonPropertyDescription("Short internal reason for choosing this drawing tool.")
         private String reason;
+
+        @JsonProperty(value = "citationBindings")
+        @JsonPropertyDescription("Evidence manifest for factual semantic cells. Citation keys must come from the current Evidence Policy.")
+        private List<CitationBinding> citationBindings;
     }
 
     @Data
@@ -548,6 +558,10 @@ public class DrawioCanvasMcpService {
         @JsonProperty(value = "reason")
         @JsonPropertyDescription("Short internal reason for this modification.")
         private String reason;
+
+        @JsonProperty(value = "citationBindings")
+        @JsonPropertyDescription("Evidence manifest for the final changed factual cells.")
+        private List<CitationBinding> citationBindings;
     }
 
     @Data
@@ -593,6 +607,9 @@ public class DrawioCanvasMcpService {
         @JsonProperty(value = "repairBrief")
         @JsonPropertyDescription("Next-step instruction for the drawing loop: numbered repair directives for remaining blocking issues, or the finish signal.")
         private String repairBrief;
+
+        @JsonProperty(value = "citationBindings")
+        private List<CitationBinding> citationBindings;
     }
 
     @Data
@@ -617,6 +634,9 @@ public class DrawioCanvasMcpService {
         @JsonProperty(value = "repairBrief")
         @JsonPropertyDescription("Next-step instruction for the drawing loop: numbered repair directives for remaining blocking issues, or the finish signal.")
         private String repairBrief;
+
+        @JsonProperty(value = "citationBindings")
+        private List<CitationBinding> citationBindings;
 
         @JsonProperty(value = "message")
         @JsonPropertyDescription("Tool error guidance when type=tool_error.")

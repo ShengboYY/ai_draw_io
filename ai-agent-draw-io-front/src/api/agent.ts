@@ -227,6 +227,39 @@ export interface EvidenceOutcomeChunk {
     content: string;
 }
 
+export interface GroundingRejectedChunk {
+    type: 'grounding_rejected';
+    code?: string;
+    content: string;
+}
+
+export interface CellCitationDTO {
+    citationId: string;
+    cellId: string;
+    provenanceRef: string;
+    statementKey?: string;
+    supportType: 'EVIDENCE' | 'AI_KNOWLEDGE' | 'MANUAL' | 'UNATTRIBUTED' | 'NONE';
+    state?: string;
+    sources: Array<{
+        citationKey: string;
+        materialId?: string;
+        displayName?: string;
+        versionId?: string;
+        versionNo?: number;
+        pageNumber?: number;
+        modality?: string;
+        sourceState?: string;
+        processingRevisionId?: string;
+        bboxJson?: string;
+        origin?: string;
+        excerptAvailable: boolean;
+        previewAvailable: boolean;
+        boundedExcerpt?: string;
+        previewUrl?: string;
+        deletedAt?: string;
+    }>;
+}
+
 export interface ReviewResultChunk {
     type: 'review_result';
     approved: boolean;
@@ -296,7 +329,7 @@ export interface MutationRejectedChunk {
     changedCellIds?: string[];
 }
 
-export type StreamChunk = DrawioPreviewChunk | DrawioNodeChunk | DrawioEdgeChunk | DrawioDoneChunk | DrawioLegacyChunk | StatusChunk | ErrorChunk | UserChunk | DoneChunk | TokenChunk | MetaChunk | RouteChunk | EvidenceProgressChunk | EvidenceOutcomeChunk | ReviewStartedChunk | ReviewResultChunk | ReviewStaleChunk | ValidationResultChunk | VersionConflictChunk | MutationRejectedChunk;
+export type StreamChunk = DrawioPreviewChunk | DrawioNodeChunk | DrawioEdgeChunk | DrawioDoneChunk | DrawioLegacyChunk | StatusChunk | ErrorChunk | UserChunk | DoneChunk | TokenChunk | MetaChunk | RouteChunk | EvidenceProgressChunk | EvidenceOutcomeChunk | GroundingRejectedChunk | ReviewStartedChunk | ReviewResultChunk | ReviewStaleChunk | ValidationResultChunk | VersionConflictChunk | MutationRejectedChunk;
 
 export interface StreamEvent {
     phase: 'analyzing' | 'drawing' | 'reviewing' | 'visual_review' | 'revising' | 'thinking' | 'retrieval' | 'error' | 'done' | 'generating';
@@ -1097,6 +1130,36 @@ export const agentApi = {
             credentials: 'include',
         });
         return handleResponse<DiagramCanvasStateResponseDTO | null>(response);
+    },
+
+    getCellCitations: async (
+        userId: string,
+        diagramId: string,
+        cellId: string,
+        canvasVersion?: number,
+        provenanceRef?: string,
+    ): Promise<Response<CellCitationDTO[]>> => {
+        const params = new URLSearchParams();
+        if (Number.isFinite(canvasVersion) && Number(canvasVersion) > 0) {
+            params.set('canvasVersion', String(canvasVersion));
+        }
+        if (provenanceRef) params.set('provenanceRef', provenanceRef);
+        const query = params.size ? `?${params.toString()}` : '';
+        const response = await fetch(
+            `${API_CONFIG.BASE_URL}/diagrams/${encodeURIComponent(diagramId)}/cells/${encodeURIComponent(cellId)}/citations${query}`,
+            { method: 'GET', headers: workspaceHeaders(userId), credentials: 'include' },
+        );
+        const result = await handleResponse<CellCitationDTO[]>(response);
+        result.data = (result.data || []).map(citation => ({
+            ...citation,
+            sources: citation.sources.map(source => ({
+                ...source,
+                previewUrl: source.previewUrl
+                    ? `${API_CONFIG.BASE_URL.replace(/\/$/, '')}${source.previewUrl.replace(/^\/api\/v1/, '')}`
+                    : undefined,
+            })),
+        }));
+        return result;
     },
 
     renameDiagram: async (userId: string, diagramId: string, title: string): Promise<Response<DiagramSummaryResponseDTO | null>> => {

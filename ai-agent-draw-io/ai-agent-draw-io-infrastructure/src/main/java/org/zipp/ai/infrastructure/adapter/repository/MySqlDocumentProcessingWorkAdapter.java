@@ -382,7 +382,8 @@ public class MySqlDocumentProcessingWorkAdapter implements DocumentProcessingWor
             return false;
         }
         persistRevisionArtifact(source.revisionId(), "EVIDENCE_MANIFEST", output.manifestArtifact());
-        output.manifest().units().forEach(unit -> persistEvidenceUnit(source, output.manifestArtifact(), unit));
+        output.manifest().units().forEach(unit -> persistEvidenceUnit(source,
+                output.displayArtifacts().getOrDefault(unit.evidenceId(), output.manifestArtifact()), unit));
         output.manifest().relations().forEach(this::persistEvidenceRelation);
         output.manifest().sectionHeadings().forEach(heading -> {
             mapper.updateSectionHeading(source.revisionId(), heading.sectionId(), heading.evidenceId());
@@ -694,7 +695,7 @@ public class MySqlDocumentProcessingWorkAdapter implements DocumentProcessingWor
         }
     }
 
-    private void persistEvidenceUnit(RevisionEvidenceWork source, StoredArtifact manifestArtifact,
+    private void persistEvidenceUnit(RevisionEvidenceWork source, StoredArtifact displayArtifact,
                                      EvidenceUnit evidence) {
         EvidenceUnitPO po = new EvidenceUnitPO();
         po.setId(evidence.evidenceId());
@@ -706,8 +707,8 @@ public class MySqlDocumentProcessingWorkAdapter implements DocumentProcessingWor
         po.setModality(evidence.modality().name());
         po.setSourceChannel(evidence.sourceChannel());
         if (evidence.displayText() != null) {
-            po.setDisplayTextObjectKey(manifestArtifact.objectKey());
-            po.setDisplayTextObjectVersionId(manifestArtifact.objectVersionId());
+            po.setDisplayTextObjectKey(displayArtifact.objectKey());
+            po.setDisplayTextObjectVersionId(displayArtifact.objectVersionId());
         }
         if (evidence.visualArtifact() != null) {
             po.setVisualObjectKey(evidence.visualArtifact().objectKey());

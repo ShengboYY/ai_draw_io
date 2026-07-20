@@ -27,6 +27,7 @@ import org.zipp.ai.domain.agent.service.canvas.CanvasMutationGate;
 import org.zipp.ai.domain.agent.service.usage.AgentUsageTelemetryService;
 import org.zipp.ai.trigger.http.service.AgentConversationService;
 import org.zipp.ai.trigger.http.service.AnonymousWorkspaceClaimService;
+import org.zipp.ai.trigger.http.service.ManualCanvasCommitCoordinator;
 import org.zipp.ai.types.enums.ResponseCode;
 import org.zipp.ai.types.exception.AppException;
 import org.zipp.ai.types.util.SecretLogSanitizer;
@@ -34,6 +35,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.MDC;
 import org.springframework.http.server.ServerHttpResponse;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseBodyEmitter;
 import org.springframework.web.context.request.RequestContextHolder;
@@ -72,6 +74,9 @@ public class AgentServiceController implements IAgentService {
 
     @Resource
     private CanvasMutationGate canvasMutationGate;
+
+    @Autowired(required = false)
+    private ManualCanvasCommitCoordinator manualCanvasCommitCoordinator;
 
     @Resource
     private IDiagramConversationStore diagramConversationStore;
@@ -304,7 +309,7 @@ public class AgentServiceController implements IAgentService {
             CanvasState current = canvasStateStore.find(workspaceId, diagramId).orElse(null);
             boolean manualEditAfterRepair = isManualEditAfterVisualRepair(
                     requestDTO, workspaceId, diagramId, current);
-            CanvasMutationDecision decision = canvasMutationGate.evaluate(new CanvasMutationCommand(
+            CanvasMutationCommand mutationCommand = new CanvasMutationCommand(
                     current == null ? CanvasMutationPurpose.USER_CREATE : CanvasMutationPurpose.USER_EDIT,
                     current == null ? "" : current.getCurrentXml(),
                     canvasXml,
@@ -313,7 +318,10 @@ public class AgentServiceController implements IAgentService {
                     workspaceId,
                     diagramId,
                     requestDTO.getExpectedVersion(),
-                    requestDTO.getExpectedContentHash()));
+                    requestDTO.getExpectedContentHash());
+            CanvasMutationDecision decision = manualCanvasCommitCoordinator == null
+                    ? canvasMutationGate.evaluate(mutationCommand)
+                    : manualCanvasCommitCoordinator.commit(mutationCommand);
             if (decision.status() == CanvasMutationStatus.STALE_VERSION) {
                 return Response.<DiagramCanvasStateResponseDTO>builder()
                         .code(ResponseCode.CANVAS_VERSION_CONFLICT.getCode())

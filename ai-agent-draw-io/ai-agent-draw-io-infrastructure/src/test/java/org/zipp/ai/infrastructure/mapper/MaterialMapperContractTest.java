@@ -204,6 +204,40 @@ class MaterialMapperContractTest {
         assertFalse(mapper.contains("visual_object_key AS source_label"));
     }
 
+    @Test
+    void groundedCanvasMappersFenceOwnershipAndKeepCitationWritesInsideOneCommitBoundary() throws Exception {
+        String commit = resource("mybatis/mapper/grounded_canvas_commit_mapper.xml");
+        String query = resource("mybatis/mapper/citation_query_mapper.xml");
+        String manual = resource("mybatis/mapper/manual_provenance_mapper.xml");
+        String run = resource("mybatis/mapper/grounded_run_control_mapper.xml");
+
+        assertTrue(commit.contains("FOR UPDATE"));
+        assertTrue(commit.contains("resultType=\"org.zipp.ai.infrastructure.dao.grounding.GroundedRunRowPO\""));
+        assertTrue(commit.contains("selectPersistedProvenance"));
+        assertTrue(commit.contains("provenance.provenance_ref"));
+        assertTrue(commit.contains("diagram.user_id = state.user_id"));
+        assertTrue(commit.contains("state.version = #{plan.expectedVersion}"));
+        assertTrue(commit.contains("JOIN material_version version ON version.id = unit.version_id"));
+        assertTrue(commit.contains("copyInheritedProvenance"));
+        assertTrue(commit.contains("provenance.canvas_version = #{canvasVersion}"));
+        assertTrue(commit.contains("generation = #{plan.expectedRunGeneration}"));
+        assertTrue(query.contains("diagram.user_id = #{ownerKey}"));
+        assertTrue(query.contains("material.owner_key = #{ownerKey}"));
+        assertTrue(query.contains("provenance.current_citation_id"));
+        assertTrue(query.contains("SOURCE_UNAVAILABLE"));
+        assertTrue(query.contains("evidence.revision_id"));
+        assertTrue(query.contains("region.bbox_json"));
+        assertTrue(query.contains("display_text_object_version_id"));
+        assertTrue(manual.contains("previous.support_type"));
+        assertTrue(manual.contains("#{provenance.supportType}, #{provenance.currentCitationId}"));
+        assertTrue(manual.contains("selectOwnedProvenance"));
+        assertTrue(manual.contains("upsertImportedPins"));
+        assertTrue(manual.contains("citation.diagram_id = anchor.diagram_id"));
+        assertTrue(manual.contains("diagram.user_id = #{ownerKey}"));
+        assertTrue(run.contains("generation = generation + 1"));
+        assertTrue(run.contains("generation = #{identity.generation}"));
+    }
+
     private String resource(String path) throws Exception {
         try (InputStream stream = getClass().getClassLoader().getResourceAsStream(path)) {
             assertNotNull(stream, path);

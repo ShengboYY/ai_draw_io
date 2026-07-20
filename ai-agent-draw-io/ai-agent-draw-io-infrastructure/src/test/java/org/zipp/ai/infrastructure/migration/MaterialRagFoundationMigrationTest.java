@@ -12,6 +12,19 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class MaterialRagFoundationMigrationTest {
 
     @Test
+    void provenanceReferenceMigrationBackfillsAndIndexesOpaqueIdentity() throws Exception {
+        Path migration = Path.of("docs/sql/migrations/2026-08-07-add-cell-provenance-reference.sql");
+        if (!Files.exists(migration)) {
+            migration = Path.of("../docs/sql/migrations/2026-08-07-add-cell-provenance-reference.sql");
+        }
+        String sql = Files.readString(migration);
+
+        assertTrue(sql.contains("ADD COLUMN provenance_ref VARCHAR(64)"));
+        assertTrue(sql.contains("MODIFY COLUMN provenance_ref VARCHAR(64) NOT NULL"));
+        assertTrue(sql.contains("idx_cell_provenance_ref"));
+    }
+
+    @Test
     void migrationContainsEveryWp1FoundationTableAndCriticalInvariant() throws Exception {
         Path migration = Path.of("docs/sql/migrations/2026-07-19-create-material-rag-foundation.sql");
         if (!Files.exists(migration)) {

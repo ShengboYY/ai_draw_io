@@ -49,6 +49,6 @@ class EvidenceSufficiencyEvaluatorTest {
 
     private EvidenceBundleItem item(String text) {
         return new EvidenceBundleItem("cite_1", "evidence-1", "material-1",
-                "Agile Practice Guide", 1, "TEXT", text);
+                "version-1", "revision-1", "Agile Practice Guide", 1, "TEXT", text);
     }
 }

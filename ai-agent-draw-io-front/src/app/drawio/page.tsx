@@ -7,7 +7,7 @@ import { Suspense, useRef, useState, useEffect, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { setUserInfo as persistUserInfo } from '@/utils/cookie';
 import { rememberAnonymousWorkspaceHint } from '@/utils/workspace-identity';
-import { agentApi, ApiResponseError, StreamEvent } from '@/api/agent';
+import { agentApi, ApiResponseError, StreamEvent, type CellCitationDTO } from '@/api/agent';
 import type { CanvasVisualReviewEvidenceDTO, CurrentAccountResponseDTO, DiagramCanvasStateResponseDTO, DiagramSummaryResponseDTO, ModelCredentialResponseDTO, ProviderPresetDTO } from '@/types/api';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -287,6 +287,13 @@ const parseDrawioXml = (xml?: string | null) => {
   return doc;
 };
 
+const provenanceRefForCell = (xml: string | null | undefined, cellId: string) => {
+  const cell = Array.from(parseDrawioXml(xml).querySelectorAll('mxCell'))
+    .find(candidate => candidate.getAttribute('id') === cellId);
+  const ref = cell?.getAttribute('zippProvenanceRef') || '';
+  return /^prv_[a-f0-9]{24}$/.test(ref) ? ref : undefined;
+};
+
 const countDrawableCells = (xml?: string | null) => {
   const doc = parseDrawioXml(xml);
   const cells = Array.from(doc.querySelectorAll('mxCell'));
@@ -432,6 +439,7 @@ function DrawioPageContent() {
   const [imgData, setImgData] = useState<string | null>(null);
   const drawioRef = useRef<DrawIoEmbedRef>(null);
   const selectedCellsRef = useRef<DrawioSelection | null>(null);
+  const citationRequestRef = useRef(0);
   const restoredDiagramIdRef = useRef<string | null>(null);
   const hasInitializedSessionsRef = useRef(false);
   
@@ -499,6 +507,9 @@ function DrawioPageContent() {
   const [inputValue, setInputValue] = useState('');
   const promptInputRef = useRef<HTMLTextAreaElement | null>(null);
   const [isSending, setIsSending] = useState(false);
+  const [citationCellId, setCitationCellId] = useState<string | null>(null);
+  const [cellCitations, setCellCitations] = useState<CellCitationDTO[]>([]);
+  const [citationsLoading, setCitationsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // "/" skill picker
@@ -3075,7 +3086,8 @@ function DrawioPageContent() {
             case 'source_wait_started':
             case 'source_not_ready':
             case 'target_clarification':
-            case 'degraded': {
+            case 'degraded':
+            case 'grounding_rejected': {
               const displayContent = normalizeAgentDisplayContent(chunk.content || '');
               if (displayContent) {
                 agentTextContent += displayContent;
@@ -3435,7 +3447,7 @@ function DrawioPageContent() {
           title="Diagram home"
         >
           {/* Match the shared app logo used on the home and auth pages. */}
-          <Image src="/brand/freedraw-logo-dark.png" alt="" fill sizes="36px" className="object-cover" priority />
+          <Image src="/brand/freedraw-logo-dark-v2.svg" alt="" fill sizes="36px" className="object-cover" priority />
         </button>
         <button
           type="button"
@@ -3656,6 +3668,27 @@ function DrawioPageContent() {
               onSelectionChange={(selection) => {
                 // The tuple is sent to the server later; stale selections are never reduced to IDs alone.
                 selectedCellsRef.current = selection;
+                const cellId = selection.cellIds[0];
+                const diagramId = activeCanvasSession?.diagramId;
+                const requestNumber = ++citationRequestRef.current;
+                setCitationCellId(cellId || null);
+                setCellCitations([]);
+                if (!cellId || !diagramId || !currentUser) {
+                  setCitationsLoading(false);
+                  return;
+                }
+                setCitationsLoading(true);
+                agentApi.getCellCitations(currentUser, diagramId, cellId, selection.canvasVersion,
+                  provenanceRefForCell(editorXml, cellId))
+                  .then(response => {
+                    if (requestNumber === citationRequestRef.current) setCellCitations(response.data || []);
+                  })
+                  .catch(() => {
+                    if (requestNumber === citationRequestRef.current) setCellCitations([]);
+                  })
+                  .finally(() => {
+                    if (requestNumber === citationRequestRef.current) setCitationsLoading(false);
+                  });
               }}
               xml={editorXml}
               autosave={true}
@@ -3708,6 +3741,56 @@ function DrawioPageContent() {
               }}
             />
           </div>
+          {citationCellId && (
+            <aside className="absolute bottom-5 right-5 z-30 w-80 max-w-[calc(100%-2.5rem)] rounded-xl border border-stone-200 bg-white/95 p-4 shadow-lg backdrop-blur">
+              <div className="mb-3 flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Sources</p>
+                  <p className="max-w-56 truncate text-sm text-zinc-800">Cell {citationCellId}</p>
+                </div>
+                <button
+                  className="rounded p-1 text-zinc-400 hover:bg-stone-100 hover:text-zinc-700"
+                  onClick={() => { setCitationCellId(null); setCellCitations([]); }}
+                  title="Close sources"
+                >
+                  <Icons.Close className="h-4 w-4" />
+                </button>
+              </div>
+              {citationsLoading && <p className="text-xs text-zinc-500">Loading sources…</p>}
+              {!citationsLoading && cellCitations.length === 0 && (
+                <p className="text-xs leading-5 text-zinc-500">No source is attached to this cell.</p>
+              )}
+              <div className="max-h-64 space-y-3 overflow-y-auto">
+                {cellCitations.map(citation => (
+                  <div key={citation.citationId} className="rounded-lg bg-stone-50 p-3">
+                    <p className="text-xs font-medium text-zinc-700">{citation.supportType.replace('_', ' ')}</p>
+                    {citation.sources.map(source => (
+                      <div key={`${citation.citationId}:${source.citationKey}`} className="mt-2 border-t border-stone-200 pt-2 text-xs text-zinc-600">
+                        <p className="font-medium text-zinc-800">{source.displayName || 'Source unavailable'}</p>
+                        <p>
+                          {source.versionNo ? `v${source.versionNo}` : 'Version'}
+                          {source.pageNumber ? ` · page ${source.pageNumber}` : ''}
+                          {source.modality ? ` · ${source.modality.toLowerCase()}` : ''}
+                          {source.origin ? ` · ${source.origin.toLowerCase()}` : ''}
+                        </p>
+                        {source.sourceState === 'SOURCE_UNAVAILABLE' && (
+                          <p className="mt-1 text-amber-700">Source unavailable{source.deletedAt ? ` · deleted ${source.deletedAt}` : ''}</p>
+                        )}
+                        {source.boundedExcerpt && (
+                          <p className="mt-1 line-clamp-4 text-zinc-600">{source.boundedExcerpt}</p>
+                        )}
+                        {source.previewUrl && (
+                          <a className="mt-1 inline-block text-indigo-600 hover:underline" href={source.previewUrl} target="_blank" rel="noreferrer">
+                            Open bounded page preview
+                          </a>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ))}
+              </div>
+            </aside>
+          )}
         </div>
 
         {isChatOpen && (
