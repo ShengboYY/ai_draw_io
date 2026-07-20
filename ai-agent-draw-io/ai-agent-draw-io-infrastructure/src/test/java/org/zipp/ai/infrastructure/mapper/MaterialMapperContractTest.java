@@ -123,6 +123,24 @@ class MaterialMapperContractTest {
         assertTrue(mapper.contains("<update id=\"restoreRetiredGeneration\""));
     }
 
+    @Test
+    void catalogAndChartbookMutationsRemainOwnerFencedAndNonDestructive() throws Exception {
+        String materials = resource("mybatis/mapper/material_catalog_mapper.xml");
+        String chartbooks = resource("mybatis/mapper/chartbook_catalog_mapper.xml");
+
+        assertTrue(materials.contains("m.owner_type = #{ownerType}"));
+        assertTrue(materials.contains("m.owner_key = #{ownerKey}"));
+        assertTrue(materials.contains("FOR UPDATE"));
+        assertTrue(materials.contains("countOwnedScopes"));
+        assertTrue(materials.contains("c.status = 'ACTIVE'"));
+        assertTrue(materials.contains("library_scope.scope_key IN ('personal', 'library', #{ownerKey})"));
+        assertTrue(materials.contains("MAX(latest_r.revision_no)"));
+        assertTrue(chartbooks.contains("c.owner_key = #{ownerKey}"));
+        assertTrue(chartbooks.contains("d.user_id = #{ownerKey}"));
+        assertTrue(chartbooks.contains("SET d.chartbook_id = c.id"));
+        assertTrue(chartbooks.contains("SET chartbook_id = NULL"));
+    }
+
     private String resource(String path) throws Exception {
         try (InputStream stream = getClass().getClassLoader().getResourceAsStream(path)) {
             assertNotNull(stream, path);

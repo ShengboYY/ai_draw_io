@@ -1,0 +1,71 @@
+package org.zipp.ai.domain.material.service;
+
+import org.zipp.ai.domain.material.model.valobj.*;
+import org.zipp.ai.domain.material.port.CatalogIdFactory;
+import org.zipp.ai.domain.material.port.MaterialCatalogPort;
+
+import java.util.Objects;
+
+/** Application service for metadata-only material browsing and durable scope mutations. */
+public final class MaterialCatalogService {
+    private final MaterialCatalogPort catalog;
+    private final CatalogIdFactory ids;
+    private final MaterialScopePolicy scopePolicy;
+
+    public MaterialCatalogService(MaterialCatalogPort catalog, CatalogIdFactory ids,
+                                  MaterialScopePolicy scopePolicy) {
+        this.catalog = Objects.requireNonNull(catalog, "catalog");
+        this.ids = Objects.requireNonNull(ids, "ids");
+        this.scopePolicy = Objects.requireNonNull(scopePolicy, "scopePolicy");
+    }
+
+    public MaterialCatalogPage findMaterials(MaterialCatalogQuery query) {
+        query.owner().requireRegisteredUser();
+        return catalog.findMaterials(query);
+    }
+
+    public MaterialCatalogDetails findMaterial(CatalogOwner owner, String materialId) {
+        owner.requireRegisteredUser();
+        return catalog.findMaterial(owner, required(materialId, "materialId"))
+                .orElseThrow(() -> new CatalogOperationException(CatalogErrorCode.MATERIAL_NOT_FOUND));
+    }
+
+    public MaterialCatalogDetails addScope(MaterialScopeCommand command) {
+        MaterialScopeCommand normalized = normalize(command);
+        MaterialCatalogDetails material = findMaterial(normalized.owner(), normalized.materialId());
+        boolean targetOwned = catalog.scopeTargetOwned(
+                normalized.owner(), normalized.scopeType(), normalized.scopeKey());
+        scopePolicy.validateAddition(normalized, material, targetOwned);
+        MaterialScopeReference scope = new MaterialScopeReference(ids.nextMaterialScopeLinkId(),
+                normalized.scopeType(), normalized.scopeKey());
+        if (!catalog.addScope(normalized.owner(), normalized.materialId(), scope)) {
+            throw new CatalogOperationException(CatalogErrorCode.CATALOG_CONFLICT);
+        }
+        return findMaterial(normalized.owner(), normalized.materialId());
+    }
+
+    public MaterialCatalogDetails removeScope(CatalogOwner owner, String materialId, String linkId) {
+        owner.requireRegisteredUser();
+        MaterialCatalogDetails material = findMaterial(owner, materialId);
+        String scopeLinkId = required(linkId, "linkId");
+        scopePolicy.validateRemoval(material, scopeLinkId);
+        if (!catalog.removeScope(owner, materialId, scopeLinkId)) {
+            throw new CatalogOperationException(CatalogErrorCode.CATALOG_CONFLICT);
+        }
+        return findMaterial(owner, materialId);
+    }
+
+    private String required(String value, String field) {
+        if (value == null || value.isBlank()) throw new IllegalArgumentException(field + " is required");
+        return value.trim();
+    }
+
+    private MaterialScopeCommand normalize(MaterialScopeCommand command) {
+        // Personal-library identity is tenant-local; one canonical key prevents duplicate aliases.
+        if (command.scopeType() == MaterialScopeType.LIBRARY) {
+            return new MaterialScopeCommand(command.owner(), command.materialId(),
+                    command.scopeType(), MaterialScopeType.PERSONAL_LIBRARY_KEY);
+        }
+        return command;
+    }
+}

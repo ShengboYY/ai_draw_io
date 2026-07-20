@@ -33,7 +33,7 @@ public class MySqlUploadScopeAuthorizer implements UploadScopeAuthorizer {
         MaterialScopeType scope = target.scopeType();
         return switch (scope) {
             case LIBRARY -> ownerType == OwnerType.USER
-                    && ("personal".equals(target.scopeKey()) || ownerKey.equals(target.scopeKey()));
+                    && MaterialScopeType.isPersonalLibraryKey(target.scopeKey(), ownerKey);
             case DIAGRAM -> mapper.countOwnedDiagram(ownerKey, target.scopeKey()) == 1;
             case CHARTBOOK -> ownerType == OwnerType.USER
                     && mapper.countOwnedChartbook(ownerKey, target.scopeKey()) == 1;

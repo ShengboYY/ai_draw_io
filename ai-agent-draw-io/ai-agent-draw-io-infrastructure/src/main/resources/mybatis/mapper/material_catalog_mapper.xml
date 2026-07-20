@@ -1,0 +1,141 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.zipp.ai.infrastructure.dao.material.IMaterialCatalogMapper">
+    <sql id="catalogCardColumns">
+        m.id AS materialId, m.kind, m.display_name AS displayName,
+        m.retention_class AS retentionClass, m.lifecycle_state AS lifecycleState,
+        m.latest_version_id AS latestVersionId, v.version_no AS latestVersionNo,
+        v.ingest_state AS ingestState, r.state AS processingState,
+        r.stage AS processingStage, COALESCE(r.progress, 0) AS progress,
+        v.page_count AS pageCount, m.updated_at AS updatedAt
+    </sql>
+
+    <select id="selectLibraryMaterials"
+            resultType="org.zipp.ai.infrastructure.dao.material.po.MaterialCatalogItemPO">
+        SELECT <include refid="catalogCardColumns"/>
+        FROM material m
+        LEFT JOIN material_version v ON v.id = m.latest_version_id AND v.material_id = m.id
+        LEFT JOIN material_processing_revision r ON r.version_id = v.id
+          AND r.revision_no = (SELECT MAX(latest_r.revision_no)
+                               FROM material_processing_revision latest_r
+                               WHERE latest_r.version_id = v.id)
+        WHERE m.owner_type = #{ownerType} AND m.owner_key = #{ownerKey}
+          AND m.lifecycle_state = #{lifecycleState}
+          AND EXISTS (SELECT 1 FROM material_scope_link library_scope
+                      WHERE library_scope.material_id = m.id
+                        AND library_scope.scope_type = 'LIBRARY'
+                        AND library_scope.scope_key IN ('personal', 'library', #{ownerKey}))
+        <if test="query != null and query != ''">
+          AND m.display_name LIKE CONCAT('%', #{query}, '%')
+        </if>
+        ORDER BY m.updated_at DESC, m.id
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+    <select id="countLibraryMaterials" resultType="long">
+        SELECT COUNT(*) FROM material m
+        WHERE m.owner_type = #{ownerType} AND m.owner_key = #{ownerKey}
+          AND m.lifecycle_state = #{lifecycleState}
+          AND EXISTS (SELECT 1 FROM material_scope_link library_scope
+                      WHERE library_scope.material_id = m.id
+                        AND library_scope.scope_type = 'LIBRARY'
+                        AND library_scope.scope_key IN ('personal', 'library', #{ownerKey}))
+        <if test="query != null and query != ''">
+          AND m.display_name LIKE CONCAT('%', #{query}, '%')
+        </if>
+    </select>
+
+    <select id="selectOwnedMaterial"
+            resultType="org.zipp.ai.infrastructure.dao.material.po.MaterialCatalogItemPO">
+        SELECT <include refid="catalogCardColumns"/>
+        FROM material m
+        LEFT JOIN material_version v ON v.id = m.latest_version_id AND v.material_id = m.id
+        LEFT JOIN material_processing_revision r ON r.version_id = v.id
+          AND r.revision_no = (SELECT MAX(latest_r.revision_no)
+                               FROM material_processing_revision latest_r
+                               WHERE latest_r.version_id = v.id)
+        WHERE m.id = #{materialId} AND m.owner_type = #{ownerType} AND m.owner_key = #{ownerKey}
+          AND m.lifecycle_state != 'DELETED'
+    </select>
+
+    <select id="selectOwnedVersions"
+            resultType="org.zipp.ai.infrastructure.dao.material.po.MaterialCatalogVersionPO">
+        SELECT v.id AS versionId, v.version_no AS versionNo, v.detected_mime AS detectedMime,
+               v.byte_size AS byteSize, v.page_count AS pageCount, v.ingest_state AS ingestState,
+               r.state AS processingState, r.stage AS processingStage,
+               COALESCE(r.progress, 0) AS progress, v.created_at AS createdAt
+        FROM material_version v
+        JOIN material m ON m.id = v.material_id AND m.owner_key = #{ownerKey}
+        LEFT JOIN material_processing_revision r ON r.version_id = v.id
+          AND r.revision_no = (SELECT MAX(latest_r.revision_no)
+                               FROM material_processing_revision latest_r
+                               WHERE latest_r.version_id = v.id)
+        WHERE v.material_id = #{materialId} AND v.owner_key = #{ownerKey}
+        ORDER BY v.version_no DESC
+    </select>
+
+    <select id="selectOwnedScopes"
+            resultType="org.zipp.ai.infrastructure.dao.material.po.MaterialScopeLinkPO">
+        SELECT link.id, link.material_id AS materialId, link.scope_type AS scopeType,
+               link.scope_key AS scopeKey, link.created_by AS createdBy
+        FROM material_scope_link link
+        JOIN material m ON m.id = link.material_id
+        WHERE link.material_id = #{materialId} AND m.owner_type = #{ownerType} AND m.owner_key = #{ownerKey}
+        ORDER BY link.created_at, link.id
+    </select>
+
+    <select id="countOwnedDiagram" resultType="int">
+        SELECT COUNT(*) FROM diagram
+        WHERE id = #{diagramId} AND user_id = #{ownerKey} AND deleted = 0
+    </select>
+
+    <select id="countOwnedActiveChartbook" resultType="int">
+        SELECT COUNT(*) FROM chartbook
+        WHERE id = #{chartbookId} AND owner_key = #{ownerKey} AND status = 'ACTIVE'
+    </select>
+
+    <select id="lockOwnedActiveMaterial" resultType="string">
+        SELECT id FROM material
+        WHERE id = #{materialId} AND owner_type = #{ownerType} AND owner_key = #{ownerKey}
+          AND lifecycle_state = 'ACTIVE'
+        FOR UPDATE
+    </select>
+
+    <select id="countOwnedScopes" resultType="int">
+        SELECT COUNT(*) FROM material_scope_link WHERE material_id = #{materialId}
+    </select>
+
+    <select id="countScope" resultType="int">
+        SELECT COUNT(*) FROM material_scope_link
+        WHERE material_id = #{materialId} AND scope_type = #{scopeType} AND scope_key = #{scopeKey}
+    </select>
+
+    <insert id="insertOwnedScope">
+        INSERT IGNORE INTO material_scope_link (
+            id, material_id, scope_type, scope_key, created_by
+        ) SELECT #{linkId}, m.id, #{scopeType}, #{scopeKey}, #{ownerKey}
+         FROM material m
+         WHERE m.id = #{materialId} AND m.owner_type = #{ownerType} AND m.owner_key = #{ownerKey}
+           AND m.lifecycle_state = 'ACTIVE'
+        <choose>
+            <when test="scopeType == 'LIBRARY'">
+              AND (#{scopeKey} IN ('personal', 'library') OR #{scopeKey} = #{ownerKey})
+            </when>
+            <when test="scopeType == 'DIAGRAM'">
+              AND EXISTS (SELECT 1 FROM diagram d
+                          WHERE d.id = #{scopeKey} AND d.user_id = #{ownerKey} AND d.deleted = 0)
+            </when>
+            <when test="scopeType == 'CHARTBOOK'">
+              AND EXISTS (SELECT 1 FROM chartbook c
+                          WHERE c.id = #{scopeKey} AND c.owner_key = #{ownerKey} AND c.status = 'ACTIVE')
+            </when>
+            <otherwise>
+              AND 1 = 0
+            </otherwise>
+        </choose>
+    </insert>
+
+    <delete id="deleteOwnedScope">
+        DELETE FROM material_scope_link WHERE id = #{linkId} AND material_id = #{materialId}
+    </delete>
+</mapper>

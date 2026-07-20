@@ -44,6 +44,9 @@ app:
   security:
     # Credentialed CORS is restricted to known SPA origins; production should set this env var.
     allowed-origins: ${APP_SECURITY_ALLOWED_ORIGINS:http://localhost:3000,http://127.0.0.1:3000}
+  material-catalog:
+    # Enable only after the WP1 foundation and WP4-A idempotency migration are applied.
+    enabled: ${MATERIAL_CATALOG_ENABLED:false}
   material-upload:
     # Fail closed until the quarantine bucket, IAM task role, and HMAC secrets are deployed.
     enabled: ${MATERIAL_UPLOAD_ENABLED:false}
@@ -177,4 +180,6 @@ mybatis:
     - classpath*:/mybatis/mapper/material_foundation_mapper.xml
     - classpath*:/mybatis/mapper/material_processing_job_mapper.xml
     - classpath*:/mybatis/mapper/material_upload_session_mapper.xml
+    - classpath*:/mybatis/mapper/material_catalog_mapper.xml
+    - classpath*:/mybatis/mapper/chartbook_catalog_mapper.xml
   config-location: classpath:/mybatis/config/mybatis-config.xml

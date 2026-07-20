@@ -23,6 +23,7 @@
 | WP3C-B3d：Revision publication gate | 已完成 | 当前 WP3C-B3d 阶段提交 |
 | WP3C-B3e：Index Generation compatibility 与 shadow switch | 已完成 | 当前 WP3C-B3e 阶段提交 |
 | WP3C-B4：Projection reconciliation、repair 与 retired cleanup | 已完成 | 当前 WP3C-B4 阶段提交 |
+| WP4-A：资料库与图表册核心 API | 已完成 | 当前 WP4-A 阶段提交 |
 
 ## WP2 交付范围
 
@@ -169,6 +170,15 @@ WP2 不把文件复制到正式 materials bucket，也不提供预览。安全�
 - `2026-08-02-create-index-projection-maintenance.sql` 新增 reconciliation cursor、provider deletion tombstone、repair/orphan/target-retry audit 与 generation purge metadata；本地已执行并验证，checksum 为 `0fbd64149d92a2376e1b6c9b61b8c3d7ba0099d48d7ee394a78fa9c3e088d7f4`。
 - maintenance 和 repair job 继续受 `MATERIAL_VECTOR_PROJECTION_ENABLED` 控制。关闭后不实例化 Pinecone maintenance coordinator、不领取 repair job，普通文本输入绘图仍不依赖 Pinecone。
 
+## WP4-A 交付范围
+
+- 新增资料目录的 owner-fenced 查询与 scope 管理：注册用户可以分页检索个人资料库、查看版本和处理状态、添加或移除 `LIBRARY/DIAGRAM/CHARTBOOK` 归属；Owner 始终由服务端凭证解析，匿名会话不能访问长期资料目录 API。
+- 新增图表册富领域模型及核心 API：创建、列表、详情、重命名、归档，向图表册加入/移除资料，以及将图表移入或移出图表册。图表册只共享资料引用，不复制资料或转移所有权；归档图表册会解除图表归属但保留历史资料关联供审计。
+- retained 资料必须保留至少一个 durable scope。移除最后一个 scope 会返回 `LAST_RETAINED_SCOPE`；后续应通过移动、另存或 WP4-C 回收站操作处理，避免出现无法从任何入口发现但仍长期保留的资料。
+- 图表册创建要求 `Idempotency-Key`，并由数据库唯一键 `(owner_key, create_idempotency_key)` 保证同一用户重试只创建一次。资料 scope 写入和图表归属写入在 adapter 层再次验证目标归属与 ACTIVE 状态，避免只依赖事务外预检查。
+- `MATERIAL_CATALOG_ENABLED` 默认关闭；关闭时不创建资料库/图表册 Controller 与服务，不影响普通文本输入绘图。开启前必须执行 `2026-08-03-create-material-catalog-api.sql`。本地 MySQL 已执行并验证，checksum 为 `11974c396c6bafd7679d5f4a00373962e583e2c5218dbd9c94716bab22b92d94`。
+- 本阶段只交付资料库/图表册的核心后端闭环；页面预览、排除页面、重新处理，以及临时资料提升、TTL、回收站、restore、read lease 和 deletion task 分别留给 WP4-B/WP4-C。
+
 ## 下一阶段
 
-WP3 已形成 publish/delete/reconcile 闭环。下一阶段进入 WP4：资料库、图表册、scope link、版本/预览/处理状态，以及临时资料 TTL、回收站、restore 与 deletion task 的 UI/API。
+下一阶段进入 WP4-B：提供 canonical 页面/视觉预览、页面处理状态、排除页面和重新处理 API，并保持所有读取绑定固定 Revision 与 exact object VersionId。随后 WP4-C 完成临时资料提升、24 小时 TTL、回收站、restore、read lease 和 deletion task。

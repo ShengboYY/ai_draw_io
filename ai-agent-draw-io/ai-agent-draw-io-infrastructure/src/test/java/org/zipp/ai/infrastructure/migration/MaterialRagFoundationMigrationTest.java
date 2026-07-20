@@ -223,6 +223,18 @@ class MaterialRagFoundationMigrationTest {
     }
 
     @Test
+    void materialCatalogMigrationMakesChartbookCreationOwnerIdempotent() throws Exception {
+        Path migration = Path.of("docs/sql/migrations/2026-08-03-create-material-catalog-api.sql");
+        if (!Files.exists(migration)) {
+            migration = Path.of("../docs/sql/migrations/2026-08-03-create-material-catalog-api.sql");
+        }
+        String sql = Files.readString(migration);
+
+        assertTrue(sql.contains("create_idempotency_key VARCHAR(128)"));
+        assertTrue(sql.contains("UNIQUE KEY uk_chartbook_owner_idempotency"));
+    }
+
+    @Test
     void workerIamAllowsExactVersionVerificationAndCleanupInBothBuckets() throws Exception {
         Path template = Path.of("../deploy/aws/material-upload/s3-and-iam.template.yml");
         if (!Files.exists(template)) {

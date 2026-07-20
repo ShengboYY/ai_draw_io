@@ -11,7 +11,7 @@ public final class Chartbook {
 
     private final String id;
     private final String ownerKey;
-    private final String name;
+    private String name;
     private final Set<String> diagramIds = new LinkedHashSet<>();
     private final Set<String> sharedMaterialIds = new LinkedHashSet<>();
     private ChartbookStatus status = ChartbookStatus.ACTIVE;
@@ -27,6 +27,20 @@ public final class Chartbook {
 
     public static Chartbook create(String id, OwnerType ownerType, String ownerKey, String name) {
         return new Chartbook(id, ownerType, ownerKey, name);
+    }
+
+    public static Chartbook rehydrate(String id, String ownerKey, String name, ChartbookStatus status,
+                                      Set<String> diagramIds, Set<String> sharedMaterialIds) {
+        Chartbook chartbook = new Chartbook(id, OwnerType.USER, ownerKey, name);
+        chartbook.status = java.util.Objects.requireNonNull(status, "status");
+        chartbook.diagramIds.addAll(Set.copyOf(diagramIds));
+        chartbook.sharedMaterialIds.addAll(Set.copyOf(sharedMaterialIds));
+        return chartbook;
+    }
+
+    public void rename(String newName) {
+        requireActive();
+        name = requireText(newName, "name");
     }
 
     public void addDiagram(String diagramId) {
