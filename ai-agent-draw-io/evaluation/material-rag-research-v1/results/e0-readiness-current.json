@@ -4,63 +4,63 @@
   "readyForFormalComparison": true,
   "readyForE0Freeze": true,
   "counts": {
-    "allGeneratedCases": 379,
-    "coreCases": 240,
+    "allGeneratedCases": 589,
+    "coreCases": 450,
     "coreBySplit": {
-      "development": 120,
-      "holdout": 60,
-      "validation": 60
+      "development": 250,
+      "holdout": 100,
+      "validation": 100
     },
     "coreByLanguage": {
-      "crossLanguage": 48,
-      "en": 96,
-      "zh": 96
+      "crossLanguage": 96,
+      "en": 161,
+      "zh": 193
     },
     "coreByPrimaryCategory": {
-      "crossLanguage": 30,
-      "exactLookup": 30,
-      "failure": 16,
-      "multiEvidence": 28,
-      "noAnswerAndMisleading": 24,
-      "ocr": 30,
-      "retrievalDecision": 18,
-      "versionAndAuthorization": 24,
-      "visual": 40
+      "crossLanguage": 50,
+      "exactLookup": 50,
+      "failure": 50,
+      "multiEvidence": 50,
+      "noAnswerAndMisleading": 50,
+      "ocr": 50,
+      "retrievalDecision": 50,
+      "versionAndAuthorization": 50,
+      "visual": 50
     },
     "coreByModality": {
-      "multi_evidence": 28,
-      "no_answer": 24,
-      "ocr": 30,
-      "table": 28,
-      "text": 90,
-      "visual_chart": 3,
-      "visual_flow": 37
+      "multi_evidence": 50,
+      "no_answer": 50,
+      "ocr": 50,
+      "table": 47,
+      "text": 203,
+      "visual_chart": 4,
+      "visual_flow": 46
     },
-    "anchors": 233,
-    "documents": 24,
-    "reviewedCoreCases": 240
+    "anchors": 334,
+    "documents": 31,
+    "reviewedCoreCases": 450
   },
   "targets": {
     "coreCases": {
-      "development": 120,
-      "validation": 60,
-      "holdout": 60
+      "development": 250,
+      "validation": 100,
+      "holdout": 100
     },
     "primaryCategories": {
-      "exactLookup": 30,
-      "crossLanguage": 30,
-      "multiEvidence": 28,
-      "visual": 40,
-      "ocr": 30,
-      "versionAndAuthorization": 24,
-      "retrievalDecision": 18,
-      "noAnswerAndMisleading": 24,
-      "failure": 16
+      "exactLookup": 50,
+      "crossLanguage": 50,
+      "multiEvidence": 50,
+      "visual": 50,
+      "ocr": 50,
+      "versionAndAuthorization": 50,
+      "retrievalDecision": 50,
+      "noAnswerAndMisleading": 50,
+      "failure": 50
     },
     "languageTargets": {
-      "zh": 96,
-      "en": 96,
-      "crossLanguage": 48
+      "zh": 193,
+      "en": 161,
+      "crossLanguage": 96
     }
   },
   "gaps": {

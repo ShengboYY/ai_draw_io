@@ -52,6 +52,14 @@ from guard_corpus_specs import (
     GUARD_FACTS,
     GUARD_NO_ANSWER_CASES,
 )
+from expansion_corpus_specs import (
+    EXPANSION_DIGITAL_DOCUMENTS,
+    EXPANSION_FACTS,
+    EXPANSION_MULTI_CASES,
+    EXPANSION_NO_ANSWER_CASES,
+    EXPANSION_SCANNED_DOCUMENTS,
+    EXPANSION_SCAN_FACTS,
+)
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -64,8 +72,8 @@ FONT_SHA256 = GENERATION_CONFIG["fixtureFontSha256"]
 PAGE_WIDTH, PAGE_HEIGHT = A4
 RANDOM = random.Random(GENERATION_CONFIG["randomSeed"])
 ALL_DIGITAL_DOCUMENTS = [*DIGITAL_DOCUMENTS, *DRAWIO_DIGITAL_DOCUMENTS, *SCENARIO_DIGITAL_DOCUMENTS,
-                         *GUARD_DIGITAL_DOCUMENTS]
-ALL_SCANNED_DOCUMENTS = [SCANNED_DOCUMENT, DRAWIO_SCANNED_DOCUMENT]
+                         *GUARD_DIGITAL_DOCUMENTS, *EXPANSION_DIGITAL_DOCUMENTS]
+ALL_SCANNED_DOCUMENTS = [SCANNED_DOCUMENT, DRAWIO_SCANNED_DOCUMENT, *EXPANSION_SCANNED_DOCUMENTS]
 OUTAGE_CHART_VALUES = [
     ("Docklands North", 16),
     ("River Berth", 12),
@@ -928,7 +936,7 @@ def facts() -> list[dict]:
          "modality": "image_visual", "goldMatch": "REVIEW--dashed-->INTAKE",
          "queries": ["Where does the whiteboard rework arrow return?", "白板上的返工虚线从 REVIEW 指向哪里？"]},
     ] + ADDITIONAL_FACTS + DRAWIO_FACTS + DRAWIO_SCAN_FACTS + SCENARIO_FACTS + SUPPLEMENT_FACTS \
-        + GUARD_FACTS
+        + GUARD_FACTS + EXPANSION_FACTS + EXPANSION_SCAN_FACTS
 
 
 def generated_documents() -> list[dict]:
@@ -1015,7 +1023,7 @@ def validate_additional_specs() -> None:
     documents = {document["source"]: document for document in ALL_DIGITAL_DOCUMENTS}
     documents.update({document["source"]: document for document in ALL_SCANNED_DOCUMENTS})
     for fact in [*ADDITIONAL_FACTS, *DRAWIO_FACTS, *DRAWIO_SCAN_FACTS, *SCENARIO_FACTS,
-                 *SUPPLEMENT_FACTS, *GUARD_FACTS]:
+                 *SUPPLEMENT_FACTS, *GUARD_FACTS, *EXPANSION_FACTS, *EXPANSION_SCAN_FACTS]:
         document = documents[fact["source"]]
         page = document["pages"][fact["page"] - 1]
         native_parts = [page["title"], page["subtitle"]]
@@ -1153,7 +1161,7 @@ def write_ground_truth(output_root: Path) -> None:
                 ("zh", "升级前后辅助系统的日均能耗分别是多少，降低了多少？"),
             ],
         }, *ADDITIONAL_MULTI_CASES, *DRAWIO_MULTI_CASES, *SCENARIO_MULTI_CASES,
-            *SUPPLEMENT_MULTI_CASES]
+            *SUPPLEMENT_MULTI_CASES, *EXPANSION_MULTI_CASES]
         for case in multi_cases:
             source = case["sourceVersion"].split(":", maxsplit=1)[0]
             for _, query in case["queries"]:
@@ -1225,7 +1233,7 @@ def write_ground_truth(output_root: Path) -> None:
             }, ensure_ascii=False) + "\n")
             ordinal += 1
         for no_answer in [*ADDITIONAL_NO_ANSWER_CASES, *DRAWIO_NO_ANSWER_CASES, *SCENARIO_NO_ANSWER_CASES,
-                          *SUPPLEMENT_NO_ANSWER_CASES, *GUARD_NO_ANSWER_CASES]:
+                          *SUPPLEMENT_NO_ANSWER_CASES, *GUARD_NO_ANSWER_CASES, *EXPANSION_NO_ANSWER_CASES]:
             source, version = no_answer["sourceVersion"].split(":", maxsplit=1)
             document = metadata[source]
             query = no_answer["query"]

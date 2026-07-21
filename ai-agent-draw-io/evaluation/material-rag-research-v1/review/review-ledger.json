@@ -2,9 +2,9 @@
   "schemaVersion": "material-rag-review-ledger-v1",
   "reviewPolicy": "AI-assisted first pass by claude-opus-4.8-review. The audit double-review gate requires a second, independent HUMAN reviewer; add them with --human-reviewer only after they actually confirm.",
   "reviewerCount": 2,
-  "coreCasesReviewed": 240,
+  "coreCasesReviewed": 450,
   "verdicts": {
-    "agreed": 240
+    "agreed": 450
   },
   "cases": [
     {
@@ -58,7 +58,7 @@
         "Shengbo"
       ],
       "status": "agreed",
-      "primaryCategory": "visual",
+      "primaryCategory": "exactLookup",
       "split": "development",
       "notes": "AI first-pass checks passed"
     },
@@ -69,12 +69,89 @@
         "Shengbo"
       ],
       "status": "agreed",
+      "primaryCategory": "exactLookup",
+      "split": "development",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-043",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "exactLookup",
+      "split": "development",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-044",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "exactLookup",
+      "split": "development",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-045",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "exactLookup",
+      "split": "development",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-046",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "exactLookup",
+      "split": "development",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-047",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "exactLookup",
+      "split": "development",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-048",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
       "primaryCategory": "visual",
       "split": "development",
       "notes": "AI first-pass checks passed"
     },
     {
-      "caseId": "controlled-055",
+      "caseId": "controlled-049",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "visual",
+      "split": "development",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-050",
       "reviewers": [
         "claude-opus-4.8-review",
         "Shengbo"
@@ -85,18 +162,7 @@
       "notes": "AI first-pass checks passed"
     },
     {
-      "caseId": "controlled-056",
-      "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
-      ],
-      "status": "agreed",
-      "primaryCategory": "crossLanguage",
-      "split": "development",
-      "notes": "AI first-pass checks passed"
-    },
-    {
-      "caseId": "controlled-057",
+      "caseId": "controlled-051",
       "reviewers": [
         "claude-opus-4.8-review",
         "Shengbo"
@@ -107,102 +173,36 @@
       "notes": "AI first-pass checks passed"
     },
     {
-      "caseId": "controlled-058",
-      "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
-      ],
-      "status": "agreed",
-      "primaryCategory": "crossLanguage",
-      "split": "development",
-      "notes": "AI first-pass checks passed"
-    },
-    {
-      "caseId": "controlled-059",
-      "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
-      ],
-      "status": "agreed",
-      "primaryCategory": "crossLanguage",
-      "split": "development",
-      "notes": "AI first-pass checks passed"
-    },
-    {
-      "caseId": "controlled-060",
-      "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
-      ],
-      "status": "agreed",
-      "primaryCategory": "crossLanguage",
-      "split": "development",
-      "notes": "AI first-pass checks passed"
-    },
-    {
-      "caseId": "controlled-061",
-      "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
-      ],
-      "status": "agreed",
-      "primaryCategory": "crossLanguage",
-      "split": "development",
-      "notes": "AI first-pass checks passed"
-    },
-    {
-      "caseId": "controlled-062",
-      "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
-      ],
-      "status": "agreed",
-      "primaryCategory": "crossLanguage",
-      "split": "development",
-      "notes": "AI first-pass checks passed"
-    },
-    {
-      "caseId": "controlled-063",
-      "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
-      ],
-      "status": "agreed",
-      "primaryCategory": "crossLanguage",
-      "split": "development",
-      "notes": "AI first-pass checks passed"
-    },
-    {
-      "caseId": "controlled-064",
-      "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
-      ],
-      "status": "agreed",
-      "primaryCategory": "crossLanguage",
-      "split": "development",
-      "notes": "AI first-pass checks passed"
-    },
-    {
-      "caseId": "controlled-065",
+      "caseId": "controlled-052",
       "reviewers": [
         "claude-opus-4.8-review",
         "Shengbo"
       ],
       "status": "agreed",
       "primaryCategory": "exactLookup",
-      "split": "validation",
+      "split": "development",
       "notes": "AI first-pass checks passed"
     },
     {
-      "caseId": "controlled-066",
+      "caseId": "controlled-053",
       "reviewers": [
         "claude-opus-4.8-review",
         "Shengbo"
       ],
       "status": "agreed",
       "primaryCategory": "exactLookup",
-      "split": "validation",
+      "split": "development",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-054",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "exactLookup",
+      "split": "development",
       "notes": "AI first-pass checks passed"
     },
     {
@@ -213,7 +213,7 @@
       ],
       "status": "agreed",
       "primaryCategory": "exactLookup",
-      "split": "validation",
+      "split": "development",
       "notes": "AI first-pass checks passed"
     },
     {
@@ -223,8 +223,8 @@
         "Shengbo"
       ],
       "status": "agreed",
-      "primaryCategory": "exactLookup",
-      "split": "validation",
+      "primaryCategory": "crossLanguage",
+      "split": "development",
       "notes": "AI first-pass checks passed"
     },
     {
@@ -234,8 +234,8 @@
         "Shengbo"
       ],
       "status": "agreed",
-      "primaryCategory": "visual",
-      "split": "validation",
+      "primaryCategory": "exactLookup",
+      "split": "development",
       "notes": "AI first-pass checks passed"
     },
     {
@@ -245,8 +245,8 @@
         "Shengbo"
       ],
       "status": "agreed",
-      "primaryCategory": "visual",
-      "split": "validation",
+      "primaryCategory": "crossLanguage",
+      "split": "development",
       "notes": "AI first-pass checks passed"
     },
     {
@@ -256,8 +256,8 @@
         "Shengbo"
       ],
       "status": "agreed",
-      "primaryCategory": "exactLookup",
-      "split": "holdout",
+      "primaryCategory": "crossLanguage",
+      "split": "development",
       "notes": "AI first-pass checks passed"
     },
     {
@@ -268,7 +268,7 @@
       ],
       "status": "agreed",
       "primaryCategory": "crossLanguage",
-      "split": "holdout",
+      "split": "development",
       "notes": "AI first-pass checks passed"
     },
     {
@@ -279,7 +279,7 @@
       ],
       "status": "agreed",
       "primaryCategory": "crossLanguage",
-      "split": "holdout",
+      "split": "development",
       "notes": "AI first-pass checks passed"
     },
     {
@@ -289,7 +289,183 @@
         "Shengbo"
       ],
       "status": "agreed",
+      "primaryCategory": "exactLookup",
+      "split": "development",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-075",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "crossLanguage",
+      "split": "development",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-076",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "exactLookup",
+      "split": "development",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-077",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "crossLanguage",
+      "split": "development",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-078",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "exactLookup",
+      "split": "development",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-079",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "crossLanguage",
+      "split": "development",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-080",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "exactLookup",
+      "split": "validation",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-081",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "exactLookup",
+      "split": "validation",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-082",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
       "primaryCategory": "visual",
+      "split": "validation",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-083",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "exactLookup",
+      "split": "holdout",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-084",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "crossLanguage",
+      "split": "holdout",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-085",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "exactLookup",
+      "split": "holdout",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-086",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "crossLanguage",
+      "split": "holdout",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-087",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "crossLanguage",
+      "split": "holdout",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-088",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "crossLanguage",
+      "split": "holdout",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-089",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "exactLookup",
+      "split": "holdout",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-090",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "crossLanguage",
       "split": "holdout",
       "notes": "AI first-pass checks passed"
     },
@@ -300,8 +476,8 @@
         "Shengbo"
       ],
       "status": "agreed",
-      "primaryCategory": "exactLookup",
-      "split": "validation",
+      "primaryCategory": "visual",
+      "split": "holdout",
       "notes": "AI first-pass checks passed"
     },
     {
@@ -311,8 +487,8 @@
         "Shengbo"
       ],
       "status": "agreed",
-      "primaryCategory": "crossLanguage",
-      "split": "validation",
+      "primaryCategory": "visual",
+      "split": "holdout",
       "notes": "AI first-pass checks passed"
     },
     {
@@ -323,7 +499,7 @@
       ],
       "status": "agreed",
       "primaryCategory": "exactLookup",
-      "split": "validation",
+      "split": "holdout",
       "notes": "AI first-pass checks passed"
     },
     {
@@ -334,7 +510,7 @@
       ],
       "status": "agreed",
       "primaryCategory": "crossLanguage",
-      "split": "validation",
+      "split": "holdout",
       "notes": "AI first-pass checks passed"
     },
     {
@@ -344,8 +520,8 @@
         "Shengbo"
       ],
       "status": "agreed",
-      "primaryCategory": "crossLanguage",
-      "split": "validation",
+      "primaryCategory": "exactLookup",
+      "split": "holdout",
       "notes": "AI first-pass checks passed"
     },
     {
@@ -356,183 +532,7 @@
       ],
       "status": "agreed",
       "primaryCategory": "crossLanguage",
-      "split": "validation",
-      "notes": "AI first-pass checks passed"
-    },
-    {
-      "caseId": "controlled-097",
-      "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
-      ],
-      "status": "agreed",
-      "primaryCategory": "crossLanguage",
-      "split": "validation",
-      "notes": "AI first-pass checks passed"
-    },
-    {
-      "caseId": "controlled-098",
-      "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
-      ],
-      "status": "agreed",
-      "primaryCategory": "exactLookup",
       "split": "holdout",
-      "notes": "AI first-pass checks passed"
-    },
-    {
-      "caseId": "controlled-099",
-      "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
-      ],
-      "status": "agreed",
-      "primaryCategory": "exactLookup",
-      "split": "holdout",
-      "notes": "AI first-pass checks passed"
-    },
-    {
-      "caseId": "controlled-100",
-      "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
-      ],
-      "status": "agreed",
-      "primaryCategory": "exactLookup",
-      "split": "holdout",
-      "notes": "AI first-pass checks passed"
-    },
-    {
-      "caseId": "controlled-101",
-      "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
-      ],
-      "status": "agreed",
-      "primaryCategory": "exactLookup",
-      "split": "development",
-      "notes": "AI first-pass checks passed"
-    },
-    {
-      "caseId": "controlled-102",
-      "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
-      ],
-      "status": "agreed",
-      "primaryCategory": "crossLanguage",
-      "split": "development",
-      "notes": "AI first-pass checks passed"
-    },
-    {
-      "caseId": "controlled-103",
-      "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
-      ],
-      "status": "agreed",
-      "primaryCategory": "exactLookup",
-      "split": "development",
-      "notes": "AI first-pass checks passed"
-    },
-    {
-      "caseId": "controlled-104",
-      "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
-      ],
-      "status": "agreed",
-      "primaryCategory": "crossLanguage",
-      "split": "development",
-      "notes": "AI first-pass checks passed"
-    },
-    {
-      "caseId": "controlled-105",
-      "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
-      ],
-      "status": "agreed",
-      "primaryCategory": "visual",
-      "split": "development",
-      "notes": "AI first-pass checks passed"
-    },
-    {
-      "caseId": "controlled-106",
-      "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
-      ],
-      "status": "agreed",
-      "primaryCategory": "crossLanguage",
-      "split": "development",
-      "notes": "AI first-pass checks passed"
-    },
-    {
-      "caseId": "controlled-107",
-      "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
-      ],
-      "status": "agreed",
-      "primaryCategory": "crossLanguage",
-      "split": "development",
-      "notes": "AI first-pass checks passed"
-    },
-    {
-      "caseId": "controlled-108",
-      "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
-      ],
-      "status": "agreed",
-      "primaryCategory": "crossLanguage",
-      "split": "development",
-      "notes": "AI first-pass checks passed"
-    },
-    {
-      "caseId": "controlled-109",
-      "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
-      ],
-      "status": "agreed",
-      "primaryCategory": "retrievalDecision",
-      "split": "development",
-      "notes": "AI first-pass checks passed"
-    },
-    {
-      "caseId": "controlled-110",
-      "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
-      ],
-      "status": "agreed",
-      "primaryCategory": "retrievalDecision",
-      "split": "development",
-      "notes": "AI first-pass checks passed"
-    },
-    {
-      "caseId": "controlled-111",
-      "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
-      ],
-      "status": "agreed",
-      "primaryCategory": "versionAndAuthorization",
-      "split": "development",
-      "notes": "AI first-pass checks passed"
-    },
-    {
-      "caseId": "controlled-112",
-      "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
-      ],
-      "status": "agreed",
-      "primaryCategory": "versionAndAuthorization",
-      "split": "development",
       "notes": "AI first-pass checks passed"
     },
     {
@@ -542,8 +542,8 @@
         "Shengbo"
       ],
       "status": "agreed",
-      "primaryCategory": "failure",
-      "split": "development",
+      "primaryCategory": "exactLookup",
+      "split": "validation",
       "notes": "AI first-pass checks passed"
     },
     {
@@ -553,8 +553,8 @@
         "Shengbo"
       ],
       "status": "agreed",
-      "primaryCategory": "failure",
-      "split": "development",
+      "primaryCategory": "crossLanguage",
+      "split": "validation",
       "notes": "AI first-pass checks passed"
     },
     {
@@ -564,8 +564,8 @@
         "Shengbo"
       ],
       "status": "agreed",
-      "primaryCategory": "crossLanguage",
-      "split": "development",
+      "primaryCategory": "exactLookup",
+      "split": "validation",
       "notes": "AI first-pass checks passed"
     },
     {
@@ -575,8 +575,8 @@
         "Shengbo"
       ],
       "status": "agreed",
-      "primaryCategory": "exactLookup",
-      "split": "development",
+      "primaryCategory": "crossLanguage",
+      "split": "validation",
       "notes": "AI first-pass checks passed"
     },
     {
@@ -587,7 +587,7 @@
       ],
       "status": "agreed",
       "primaryCategory": "crossLanguage",
-      "split": "development",
+      "split": "validation",
       "notes": "AI first-pass checks passed"
     },
     {
@@ -597,8 +597,8 @@
         "Shengbo"
       ],
       "status": "agreed",
-      "primaryCategory": "retrievalDecision",
-      "split": "development",
+      "primaryCategory": "crossLanguage",
+      "split": "validation",
       "notes": "AI first-pass checks passed"
     },
     {
@@ -608,8 +608,8 @@
         "Shengbo"
       ],
       "status": "agreed",
-      "primaryCategory": "retrievalDecision",
-      "split": "development",
+      "primaryCategory": "crossLanguage",
+      "split": "validation",
       "notes": "AI first-pass checks passed"
     },
     {
@@ -619,8 +619,8 @@
         "Shengbo"
       ],
       "status": "agreed",
-      "primaryCategory": "retrievalDecision",
-      "split": "development",
+      "primaryCategory": "crossLanguage",
+      "split": "validation",
       "notes": "AI first-pass checks passed"
     },
     {
@@ -630,8 +630,8 @@
         "Shengbo"
       ],
       "status": "agreed",
-      "primaryCategory": "exactLookup",
-      "split": "development",
+      "primaryCategory": "crossLanguage",
+      "split": "validation",
       "notes": "AI first-pass checks passed"
     },
     {
@@ -642,7 +642,7 @@
       ],
       "status": "agreed",
       "primaryCategory": "crossLanguage",
-      "split": "development",
+      "split": "validation",
       "notes": "AI first-pass checks passed"
     },
     {
@@ -652,8 +652,8 @@
         "Shengbo"
       ],
       "status": "agreed",
-      "primaryCategory": "crossLanguage",
-      "split": "development",
+      "primaryCategory": "exactLookup",
+      "split": "holdout",
       "notes": "AI first-pass checks passed"
     },
     {
@@ -663,8 +663,8 @@
         "Shengbo"
       ],
       "status": "agreed",
-      "primaryCategory": "visual",
-      "split": "development",
+      "primaryCategory": "exactLookup",
+      "split": "holdout",
       "notes": "AI first-pass checks passed"
     },
     {
@@ -674,8 +674,8 @@
         "Shengbo"
       ],
       "status": "agreed",
-      "primaryCategory": "visual",
-      "split": "development",
+      "primaryCategory": "exactLookup",
+      "split": "holdout",
       "notes": "AI first-pass checks passed"
     },
     {
@@ -685,7 +685,7 @@
         "Shengbo"
       ],
       "status": "agreed",
-      "primaryCategory": "crossLanguage",
+      "primaryCategory": "exactLookup",
       "split": "development",
       "notes": "AI first-pass checks passed"
     },
@@ -696,7 +696,7 @@
         "Shengbo"
       ],
       "status": "agreed",
-      "primaryCategory": "exactLookup",
+      "primaryCategory": "crossLanguage",
       "split": "development",
       "notes": "AI first-pass checks passed"
     },
@@ -707,7 +707,7 @@
         "Shengbo"
       ],
       "status": "agreed",
-      "primaryCategory": "crossLanguage",
+      "primaryCategory": "exactLookup",
       "split": "development",
       "notes": "AI first-pass checks passed"
     },
@@ -718,7 +718,7 @@
         "Shengbo"
       ],
       "status": "agreed",
-      "primaryCategory": "exactLookup",
+      "primaryCategory": "crossLanguage",
       "split": "development",
       "notes": "AI first-pass checks passed"
     },
@@ -729,7 +729,7 @@
         "Shengbo"
       ],
       "status": "agreed",
-      "primaryCategory": "crossLanguage",
+      "primaryCategory": "visual",
       "split": "development",
       "notes": "AI first-pass checks passed"
     },
@@ -740,7 +740,7 @@
         "Shengbo"
       ],
       "status": "agreed",
-      "primaryCategory": "crossLanguage",
+      "primaryCategory": "visual",
       "split": "development",
       "notes": "AI first-pass checks passed"
     },
@@ -752,7 +752,7 @@
       ],
       "status": "agreed",
       "primaryCategory": "exactLookup",
-      "split": "validation",
+      "split": "development",
       "notes": "AI first-pass checks passed"
     },
     {
@@ -763,7 +763,7 @@
       ],
       "status": "agreed",
       "primaryCategory": "crossLanguage",
-      "split": "validation",
+      "split": "development",
       "notes": "AI first-pass checks passed"
     },
     {
@@ -773,8 +773,8 @@
         "Shengbo"
       ],
       "status": "agreed",
-      "primaryCategory": "versionAndAuthorization",
-      "split": "validation",
+      "primaryCategory": "exactLookup",
+      "split": "development",
       "notes": "AI first-pass checks passed"
     },
     {
@@ -784,8 +784,8 @@
         "Shengbo"
       ],
       "status": "agreed",
-      "primaryCategory": "versionAndAuthorization",
-      "split": "validation",
+      "primaryCategory": "crossLanguage",
+      "split": "development",
       "notes": "AI first-pass checks passed"
     },
     {
@@ -795,8 +795,8 @@
         "Shengbo"
       ],
       "status": "agreed",
-      "primaryCategory": "versionAndAuthorization",
-      "split": "validation",
+      "primaryCategory": "exactLookup",
+      "split": "development",
       "notes": "AI first-pass checks passed"
     },
     {
@@ -806,8 +806,8 @@
         "Shengbo"
       ],
       "status": "agreed",
-      "primaryCategory": "retrievalDecision",
-      "split": "validation",
+      "primaryCategory": "crossLanguage",
+      "split": "development",
       "notes": "AI first-pass checks passed"
     },
     {
@@ -817,8 +817,8 @@
         "Shengbo"
       ],
       "status": "agreed",
-      "primaryCategory": "versionAndAuthorization",
-      "split": "validation",
+      "primaryCategory": "retrievalDecision",
+      "split": "development",
       "notes": "AI first-pass checks passed"
     },
     {
@@ -828,8 +828,8 @@
         "Shengbo"
       ],
       "status": "agreed",
-      "primaryCategory": "versionAndAuthorization",
-      "split": "validation",
+      "primaryCategory": "retrievalDecision",
+      "split": "development",
       "notes": "AI first-pass checks passed"
     },
     {
@@ -839,8 +839,8 @@
         "Shengbo"
       ],
       "status": "agreed",
-      "primaryCategory": "visual",
-      "split": "validation",
+      "primaryCategory": "versionAndAuthorization",
+      "split": "development",
       "notes": "AI first-pass checks passed"
     },
     {
@@ -850,8 +850,8 @@
         "Shengbo"
       ],
       "status": "agreed",
-      "primaryCategory": "exactLookup",
-      "split": "holdout",
+      "primaryCategory": "versionAndAuthorization",
+      "split": "development",
       "notes": "AI first-pass checks passed"
     },
     {
@@ -861,8 +861,8 @@
         "Shengbo"
       ],
       "status": "agreed",
-      "primaryCategory": "crossLanguage",
-      "split": "holdout",
+      "primaryCategory": "failure",
+      "split": "development",
       "notes": "AI first-pass checks passed"
     },
     {
@@ -873,7 +873,7 @@
       ],
       "status": "agreed",
       "primaryCategory": "failure",
-      "split": "holdout",
+      "split": "development",
       "notes": "AI first-pass checks passed"
     },
     {
@@ -883,8 +883,8 @@
         "Shengbo"
       ],
       "status": "agreed",
-      "primaryCategory": "failure",
-      "split": "holdout",
+      "primaryCategory": "exactLookup",
+      "split": "development",
       "notes": "AI first-pass checks passed"
     },
     {
@@ -894,8 +894,8 @@
         "Shengbo"
       ],
       "status": "agreed",
-      "primaryCategory": "failure",
-      "split": "holdout",
+      "primaryCategory": "crossLanguage",
+      "split": "development",
       "notes": "AI first-pass checks passed"
     },
     {
@@ -905,8 +905,8 @@
         "Shengbo"
       ],
       "status": "agreed",
-      "primaryCategory": "failure",
-      "split": "holdout",
+      "primaryCategory": "exactLookup",
+      "split": "development",
       "notes": "AI first-pass checks passed"
     },
     {
@@ -916,8 +916,8 @@
         "Shengbo"
       ],
       "status": "agreed",
-      "primaryCategory": "visual",
-      "split": "holdout",
+      "primaryCategory": "crossLanguage",
+      "split": "development",
       "notes": "AI first-pass checks passed"
     },
     {
@@ -927,8 +927,8 @@
         "Shengbo"
       ],
       "status": "agreed",
-      "primaryCategory": "failure",
-      "split": "holdout",
+      "primaryCategory": "retrievalDecision",
+      "split": "development",
       "notes": "AI first-pass checks passed"
     },
     {
@@ -938,8 +938,8 @@
         "Shengbo"
       ],
       "status": "agreed",
-      "primaryCategory": "failure",
-      "split": "holdout",
+      "primaryCategory": "retrievalDecision",
+      "split": "development",
       "notes": "AI first-pass checks passed"
     },
     {
@@ -949,8 +949,8 @@
         "Shengbo"
       ],
       "status": "agreed",
-      "primaryCategory": "failure",
-      "split": "holdout",
+      "primaryCategory": "retrievalDecision",
+      "split": "development",
       "notes": "AI first-pass checks passed"
     },
     {
@@ -960,8 +960,8 @@
         "Shengbo"
       ],
       "status": "agreed",
-      "primaryCategory": "failure",
-      "split": "holdout",
+      "primaryCategory": "retrievalDecision",
+      "split": "development",
       "notes": "AI first-pass checks passed"
     },
     {
@@ -971,8 +971,8 @@
         "Shengbo"
       ],
       "status": "agreed",
-      "primaryCategory": "failure",
-      "split": "holdout",
+      "primaryCategory": "crossLanguage",
+      "split": "development",
       "notes": "AI first-pass checks passed"
     },
     {
@@ -982,8 +982,8 @@
         "Shengbo"
       ],
       "status": "agreed",
-      "primaryCategory": "failure",
-      "split": "holdout",
+      "primaryCategory": "exactLookup",
+      "split": "development",
       "notes": "AI first-pass checks passed"
     },
     {
@@ -993,7 +993,7 @@
         "Shengbo"
       ],
       "status": "agreed",
-      "primaryCategory": "ocr",
+      "primaryCategory": "crossLanguage",
       "split": "development",
       "notes": "AI first-pass checks passed"
     },
@@ -1004,7 +1004,7 @@
         "Shengbo"
       ],
       "status": "agreed",
-      "primaryCategory": "ocr",
+      "primaryCategory": "visual",
       "split": "development",
       "notes": "AI first-pass checks passed"
     },
@@ -1015,7 +1015,7 @@
         "Shengbo"
       ],
       "status": "agreed",
-      "primaryCategory": "ocr",
+      "primaryCategory": "visual",
       "split": "development",
       "notes": "AI first-pass checks passed"
     },
@@ -1026,7 +1026,7 @@
         "Shengbo"
       ],
       "status": "agreed",
-      "primaryCategory": "ocr",
+      "primaryCategory": "crossLanguage",
       "split": "development",
       "notes": "AI first-pass checks passed"
     },
@@ -1037,7 +1037,7 @@
         "Shengbo"
       ],
       "status": "agreed",
-      "primaryCategory": "ocr",
+      "primaryCategory": "crossLanguage",
       "split": "development",
       "notes": "AI first-pass checks passed"
     },
@@ -1048,7 +1048,7 @@
         "Shengbo"
       ],
       "status": "agreed",
-      "primaryCategory": "ocr",
+      "primaryCategory": "crossLanguage",
       "split": "development",
       "notes": "AI first-pass checks passed"
     },
@@ -1059,7 +1059,7 @@
         "Shengbo"
       ],
       "status": "agreed",
-      "primaryCategory": "ocr",
+      "primaryCategory": "crossLanguage",
       "split": "development",
       "notes": "AI first-pass checks passed"
     },
@@ -1070,8 +1070,8 @@
         "Shengbo"
       ],
       "status": "agreed",
-      "primaryCategory": "ocr",
-      "split": "development",
+      "primaryCategory": "exactLookup",
+      "split": "validation",
       "notes": "AI first-pass checks passed"
     },
     {
@@ -1081,8 +1081,8 @@
         "Shengbo"
       ],
       "status": "agreed",
-      "primaryCategory": "ocr",
-      "split": "development",
+      "primaryCategory": "crossLanguage",
+      "split": "validation",
       "notes": "AI first-pass checks passed"
     },
     {
@@ -1092,8 +1092,8 @@
         "Shengbo"
       ],
       "status": "agreed",
-      "primaryCategory": "ocr",
-      "split": "development",
+      "primaryCategory": "versionAndAuthorization",
+      "split": "validation",
       "notes": "AI first-pass checks passed"
     },
     {
@@ -1103,8 +1103,8 @@
         "Shengbo"
       ],
       "status": "agreed",
-      "primaryCategory": "ocr",
-      "split": "development",
+      "primaryCategory": "versionAndAuthorization",
+      "split": "validation",
       "notes": "AI first-pass checks passed"
     },
     {
@@ -1114,8 +1114,8 @@
         "Shengbo"
       ],
       "status": "agreed",
-      "primaryCategory": "ocr",
-      "split": "development",
+      "primaryCategory": "versionAndAuthorization",
+      "split": "validation",
       "notes": "AI first-pass checks passed"
     },
     {
@@ -1125,8 +1125,8 @@
         "Shengbo"
       ],
       "status": "agreed",
-      "primaryCategory": "ocr",
-      "split": "development",
+      "primaryCategory": "versionAndAuthorization",
+      "split": "validation",
       "notes": "AI first-pass checks passed"
     },
     {
@@ -1136,8 +1136,8 @@
         "Shengbo"
       ],
       "status": "agreed",
-      "primaryCategory": "ocr",
-      "split": "development",
+      "primaryCategory": "retrievalDecision",
+      "split": "validation",
       "notes": "AI first-pass checks passed"
     },
     {
@@ -1147,8 +1147,8 @@
         "Shengbo"
       ],
       "status": "agreed",
-      "primaryCategory": "ocr",
-      "split": "development",
+      "primaryCategory": "versionAndAuthorization",
+      "split": "validation",
       "notes": "AI first-pass checks passed"
     },
     {
@@ -1158,8 +1158,8 @@
         "Shengbo"
       ],
       "status": "agreed",
-      "primaryCategory": "ocr",
-      "split": "development",
+      "primaryCategory": "visual",
+      "split": "validation",
       "notes": "AI first-pass checks passed"
     },
     {
@@ -1169,8 +1169,8 @@
         "Shengbo"
       ],
       "status": "agreed",
-      "primaryCategory": "ocr",
-      "split": "development",
+      "primaryCategory": "crossLanguage",
+      "split": "validation",
       "notes": "AI first-pass checks passed"
     },
     {
@@ -1180,8 +1180,8 @@
         "Shengbo"
       ],
       "status": "agreed",
-      "primaryCategory": "ocr",
-      "split": "development",
+      "primaryCategory": "crossLanguage",
+      "split": "validation",
       "notes": "AI first-pass checks passed"
     },
     {
@@ -1191,8 +1191,8 @@
         "Shengbo"
       ],
       "status": "agreed",
-      "primaryCategory": "ocr",
-      "split": "development",
+      "primaryCategory": "crossLanguage",
+      "split": "validation",
       "notes": "AI first-pass checks passed"
     },
     {
@@ -1202,8 +1202,8 @@
         "Shengbo"
       ],
       "status": "agreed",
-      "primaryCategory": "ocr",
-      "split": "development",
+      "primaryCategory": "exactLookup",
+      "split": "holdout",
       "notes": "AI first-pass checks passed"
     },
     {
@@ -1213,8 +1213,8 @@
         "Shengbo"
       ],
       "status": "agreed",
-      "primaryCategory": "ocr",
-      "split": "development",
+      "primaryCategory": "crossLanguage",
+      "split": "holdout",
       "notes": "AI first-pass checks passed"
     },
     {
@@ -1224,8 +1224,8 @@
         "Shengbo"
       ],
       "status": "agreed",
-      "primaryCategory": "ocr",
-      "split": "development",
+      "primaryCategory": "failure",
+      "split": "holdout",
       "notes": "AI first-pass checks passed"
     },
     {
@@ -1235,8 +1235,8 @@
         "Shengbo"
       ],
       "status": "agreed",
-      "primaryCategory": "exactLookup",
-      "split": "development",
+      "primaryCategory": "failure",
+      "split": "holdout",
       "notes": "AI first-pass checks passed"
     },
     {
@@ -1246,8 +1246,8 @@
         "Shengbo"
       ],
       "status": "agreed",
-      "primaryCategory": "exactLookup",
-      "split": "development",
+      "primaryCategory": "failure",
+      "split": "holdout",
       "notes": "AI first-pass checks passed"
     },
     {
@@ -1257,8 +1257,8 @@
         "Shengbo"
       ],
       "status": "agreed",
-      "primaryCategory": "visual",
-      "split": "development",
+      "primaryCategory": "failure",
+      "split": "holdout",
       "notes": "AI first-pass checks passed"
     },
     {
@@ -1269,7 +1269,7 @@
       ],
       "status": "agreed",
       "primaryCategory": "visual",
-      "split": "development",
+      "split": "holdout",
       "notes": "AI first-pass checks passed"
     },
     {
@@ -1279,8 +1279,8 @@
         "Shengbo"
       ],
       "status": "agreed",
-      "primaryCategory": "visual",
-      "split": "development",
+      "primaryCategory": "failure",
+      "split": "holdout",
       "notes": "AI first-pass checks passed"
     },
     {
@@ -1290,8 +1290,8 @@
         "Shengbo"
       ],
       "status": "agreed",
-      "primaryCategory": "retrievalDecision",
-      "split": "development",
+      "primaryCategory": "failure",
+      "split": "holdout",
       "notes": "AI first-pass checks passed"
     },
     {
@@ -1301,8 +1301,8 @@
         "Shengbo"
       ],
       "status": "agreed",
-      "primaryCategory": "retrievalDecision",
-      "split": "development",
+      "primaryCategory": "failure",
+      "split": "holdout",
       "notes": "AI first-pass checks passed"
     },
     {
@@ -1312,8 +1312,8 @@
         "Shengbo"
       ],
       "status": "agreed",
-      "primaryCategory": "versionAndAuthorization",
-      "split": "development",
+      "primaryCategory": "failure",
+      "split": "holdout",
       "notes": "AI first-pass checks passed"
     },
     {
@@ -1323,8 +1323,8 @@
         "Shengbo"
       ],
       "status": "agreed",
-      "primaryCategory": "versionAndAuthorization",
-      "split": "development",
+      "primaryCategory": "failure",
+      "split": "holdout",
       "notes": "AI first-pass checks passed"
     },
     {
@@ -1334,8 +1334,8 @@
         "Shengbo"
       ],
       "status": "agreed",
-      "primaryCategory": "exactLookup",
-      "split": "validation",
+      "primaryCategory": "failure",
+      "split": "holdout",
       "notes": "AI first-pass checks passed"
     },
     {
@@ -1345,8 +1345,8 @@
         "Shengbo"
       ],
       "status": "agreed",
-      "primaryCategory": "exactLookup",
-      "split": "validation",
+      "primaryCategory": "failure",
+      "split": "holdout",
       "notes": "AI first-pass checks passed"
     },
     {
@@ -1356,8 +1356,8 @@
         "Shengbo"
       ],
       "status": "agreed",
-      "primaryCategory": "visual",
-      "split": "validation",
+      "primaryCategory": "failure",
+      "split": "holdout",
       "notes": "AI first-pass checks passed"
     },
     {
@@ -1367,8 +1367,8 @@
         "Shengbo"
       ],
       "status": "agreed",
-      "primaryCategory": "visual",
-      "split": "validation",
+      "primaryCategory": "crossLanguage",
+      "split": "holdout",
       "notes": "AI first-pass checks passed"
     },
     {
@@ -1378,8 +1378,8 @@
         "Shengbo"
       ],
       "status": "agreed",
-      "primaryCategory": "visual",
-      "split": "validation",
+      "primaryCategory": "ocr",
+      "split": "development",
       "notes": "AI first-pass checks passed"
     },
     {
@@ -1389,8 +1389,8 @@
         "Shengbo"
       ],
       "status": "agreed",
-      "primaryCategory": "retrievalDecision",
-      "split": "validation",
+      "primaryCategory": "ocr",
+      "split": "development",
       "notes": "AI first-pass checks passed"
     },
     {
@@ -1400,8 +1400,8 @@
         "Shengbo"
       ],
       "status": "agreed",
-      "primaryCategory": "retrievalDecision",
-      "split": "validation",
+      "primaryCategory": "ocr",
+      "split": "development",
       "notes": "AI first-pass checks passed"
     },
     {
@@ -1411,8 +1411,8 @@
         "Shengbo"
       ],
       "status": "agreed",
-      "primaryCategory": "versionAndAuthorization",
-      "split": "validation",
+      "primaryCategory": "ocr",
+      "split": "development",
       "notes": "AI first-pass checks passed"
     },
     {
@@ -1422,8 +1422,8 @@
         "Shengbo"
       ],
       "status": "agreed",
-      "primaryCategory": "versionAndAuthorization",
-      "split": "validation",
+      "primaryCategory": "ocr",
+      "split": "development",
       "notes": "AI first-pass checks passed"
     },
     {
@@ -1433,8 +1433,8 @@
         "Shengbo"
       ],
       "status": "agreed",
-      "primaryCategory": "versionAndAuthorization",
-      "split": "validation",
+      "primaryCategory": "ocr",
+      "split": "development",
       "notes": "AI first-pass checks passed"
     },
     {
@@ -1444,8 +1444,8 @@
         "Shengbo"
       ],
       "status": "agreed",
-      "primaryCategory": "exactLookup",
-      "split": "holdout",
+      "primaryCategory": "ocr",
+      "split": "development",
       "notes": "AI first-pass checks passed"
     },
     {
@@ -1455,8 +1455,8 @@
         "Shengbo"
       ],
       "status": "agreed",
-      "primaryCategory": "exactLookup",
-      "split": "holdout",
+      "primaryCategory": "ocr",
+      "split": "development",
       "notes": "AI first-pass checks passed"
     },
     {
@@ -1466,8 +1466,8 @@
         "Shengbo"
       ],
       "status": "agreed",
-      "primaryCategory": "visual",
-      "split": "holdout",
+      "primaryCategory": "ocr",
+      "split": "development",
       "notes": "AI first-pass checks passed"
     },
     {
@@ -1477,8 +1477,8 @@
         "Shengbo"
       ],
       "status": "agreed",
-      "primaryCategory": "visual",
-      "split": "holdout",
+      "primaryCategory": "ocr",
+      "split": "development",
       "notes": "AI first-pass checks passed"
     },
     {
@@ -1488,8 +1488,8 @@
         "Shengbo"
       ],
       "status": "agreed",
-      "primaryCategory": "visual",
-      "split": "holdout",
+      "primaryCategory": "ocr",
+      "split": "development",
       "notes": "AI first-pass checks passed"
     },
     {
@@ -1499,8 +1499,8 @@
         "Shengbo"
       ],
       "status": "agreed",
-      "primaryCategory": "visual",
-      "split": "holdout",
+      "primaryCategory": "ocr",
+      "split": "development",
       "notes": "AI first-pass checks passed"
     },
     {
@@ -1510,8 +1510,8 @@
         "Shengbo"
       ],
       "status": "agreed",
-      "primaryCategory": "visual",
-      "split": "holdout",
+      "primaryCategory": "ocr",
+      "split": "development",
       "notes": "AI first-pass checks passed"
     },
     {
@@ -1521,8 +1521,8 @@
         "Shengbo"
       ],
       "status": "agreed",
-      "primaryCategory": "retrievalDecision",
-      "split": "holdout",
+      "primaryCategory": "ocr",
+      "split": "development",
       "notes": "AI first-pass checks passed"
     },
     {
@@ -1532,8 +1532,8 @@
         "Shengbo"
       ],
       "status": "agreed",
-      "primaryCategory": "retrievalDecision",
-      "split": "holdout",
+      "primaryCategory": "ocr",
+      "split": "development",
       "notes": "AI first-pass checks passed"
     },
     {
@@ -1543,8 +1543,8 @@
         "Shengbo"
       ],
       "status": "agreed",
-      "primaryCategory": "retrievalDecision",
-      "split": "holdout",
+      "primaryCategory": "ocr",
+      "split": "development",
       "notes": "AI first-pass checks passed"
     },
     {
@@ -1554,8 +1554,8 @@
         "Shengbo"
       ],
       "status": "agreed",
-      "primaryCategory": "versionAndAuthorization",
-      "split": "holdout",
+      "primaryCategory": "ocr",
+      "split": "development",
       "notes": "AI first-pass checks passed"
     },
     {
@@ -1565,8 +1565,8 @@
         "Shengbo"
       ],
       "status": "agreed",
-      "primaryCategory": "versionAndAuthorization",
-      "split": "holdout",
+      "primaryCategory": "ocr",
+      "split": "development",
       "notes": "AI first-pass checks passed"
     },
     {
@@ -1576,8 +1576,8 @@
         "Shengbo"
       ],
       "status": "agreed",
-      "primaryCategory": "versionAndAuthorization",
-      "split": "holdout",
+      "primaryCategory": "ocr",
+      "split": "development",
       "notes": "AI first-pass checks passed"
     },
     {
@@ -1587,8 +1587,8 @@
         "Shengbo"
       ],
       "status": "agreed",
-      "primaryCategory": "versionAndAuthorization",
-      "split": "holdout",
+      "primaryCategory": "ocr",
+      "split": "development",
       "notes": "AI first-pass checks passed"
     },
     {
@@ -1598,8 +1598,8 @@
         "Shengbo"
       ],
       "status": "agreed",
-      "primaryCategory": "versionAndAuthorization",
-      "split": "holdout",
+      "primaryCategory": "ocr",
+      "split": "development",
       "notes": "AI first-pass checks passed"
     },
     {
@@ -1609,7 +1609,7 @@
         "Shengbo"
       ],
       "status": "agreed",
-      "primaryCategory": "visual",
+      "primaryCategory": "ocr",
       "split": "development",
       "notes": "AI first-pass checks passed"
     },
@@ -1620,7 +1620,7 @@
         "Shengbo"
       ],
       "status": "agreed",
-      "primaryCategory": "visual",
+      "primaryCategory": "ocr",
       "split": "development",
       "notes": "AI first-pass checks passed"
     },
@@ -1631,7 +1631,7 @@
         "Shengbo"
       ],
       "status": "agreed",
-      "primaryCategory": "visual",
+      "primaryCategory": "exactLookup",
       "split": "development",
       "notes": "AI first-pass checks passed"
     },
@@ -1642,7 +1642,7 @@
         "Shengbo"
       ],
       "status": "agreed",
-      "primaryCategory": "visual",
+      "primaryCategory": "exactLookup",
       "split": "development",
       "notes": "AI first-pass checks passed"
     },
@@ -1654,7 +1654,7 @@
       ],
       "status": "agreed",
       "primaryCategory": "visual",
-      "split": "validation",
+      "split": "development",
       "notes": "AI first-pass checks passed"
     },
     {
@@ -1665,7 +1665,7 @@
       ],
       "status": "agreed",
       "primaryCategory": "visual",
-      "split": "validation",
+      "split": "development",
       "notes": "AI first-pass checks passed"
     },
     {
@@ -1676,7 +1676,7 @@
       ],
       "status": "agreed",
       "primaryCategory": "visual",
-      "split": "validation",
+      "split": "development",
       "notes": "AI first-pass checks passed"
     },
     {
@@ -1687,7 +1687,7 @@
       ],
       "status": "agreed",
       "primaryCategory": "visual",
-      "split": "holdout",
+      "split": "development",
       "notes": "AI first-pass checks passed"
     },
     {
@@ -1697,8 +1697,8 @@
         "Shengbo"
       ],
       "status": "agreed",
-      "primaryCategory": "visual",
-      "split": "holdout",
+      "primaryCategory": "retrievalDecision",
+      "split": "development",
       "notes": "AI first-pass checks passed"
     },
     {
@@ -1708,7 +1708,7 @@
         "Shengbo"
       ],
       "status": "agreed",
-      "primaryCategory": "visual",
+      "primaryCategory": "retrievalDecision",
       "split": "development",
       "notes": "AI first-pass checks passed"
     },
@@ -1719,7 +1719,7 @@
         "Shengbo"
       ],
       "status": "agreed",
-      "primaryCategory": "visual",
+      "primaryCategory": "versionAndAuthorization",
       "split": "development",
       "notes": "AI first-pass checks passed"
     },
@@ -1730,8 +1730,8 @@
         "Shengbo"
       ],
       "status": "agreed",
-      "primaryCategory": "visual",
-      "split": "validation",
+      "primaryCategory": "versionAndAuthorization",
+      "split": "development",
       "notes": "AI first-pass checks passed"
     },
     {
@@ -1742,7 +1742,7 @@
       ],
       "status": "agreed",
       "primaryCategory": "visual",
-      "split": "holdout",
+      "split": "validation",
       "notes": "AI first-pass checks passed"
     },
     {
@@ -1752,8 +1752,8 @@
         "Shengbo"
       ],
       "status": "agreed",
-      "primaryCategory": "ocr",
-      "split": "development",
+      "primaryCategory": "visual",
+      "split": "validation",
       "notes": "AI first-pass checks passed"
     },
     {
@@ -1763,8 +1763,8 @@
         "Shengbo"
       ],
       "status": "agreed",
-      "primaryCategory": "ocr",
-      "split": "development",
+      "primaryCategory": "retrievalDecision",
+      "split": "validation",
       "notes": "AI first-pass checks passed"
     },
     {
@@ -1774,78 +1774,12 @@
         "Shengbo"
       ],
       "status": "agreed",
-      "primaryCategory": "ocr",
-      "split": "development",
+      "primaryCategory": "retrievalDecision",
+      "split": "validation",
       "notes": "AI first-pass checks passed"
     },
     {
       "caseId": "controlled-226",
-      "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
-      ],
-      "status": "agreed",
-      "primaryCategory": "ocr",
-      "split": "development",
-      "notes": "AI first-pass checks passed"
-    },
-    {
-      "caseId": "controlled-227",
-      "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
-      ],
-      "status": "agreed",
-      "primaryCategory": "ocr",
-      "split": "development",
-      "notes": "AI first-pass checks passed"
-    },
-    {
-      "caseId": "controlled-228",
-      "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
-      ],
-      "status": "agreed",
-      "primaryCategory": "ocr",
-      "split": "development",
-      "notes": "AI first-pass checks passed"
-    },
-    {
-      "caseId": "controlled-229",
-      "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
-      ],
-      "status": "agreed",
-      "primaryCategory": "ocr",
-      "split": "development",
-      "notes": "AI first-pass checks passed"
-    },
-    {
-      "caseId": "controlled-230",
-      "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
-      ],
-      "status": "agreed",
-      "primaryCategory": "ocr",
-      "split": "development",
-      "notes": "AI first-pass checks passed"
-    },
-    {
-      "caseId": "controlled-231",
-      "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
-      ],
-      "status": "agreed",
-      "primaryCategory": "versionAndAuthorization",
-      "split": "development",
-      "notes": "AI first-pass checks passed"
-    },
-    {
-      "caseId": "controlled-232",
       "reviewers": [
         "claude-opus-4.8-review",
         "Shengbo"
@@ -1856,13 +1790,79 @@
       "notes": "AI first-pass checks passed"
     },
     {
-      "caseId": "controlled-233",
+      "caseId": "controlled-227",
       "reviewers": [
         "claude-opus-4.8-review",
         "Shengbo"
       ],
       "status": "agreed",
       "primaryCategory": "versionAndAuthorization",
+      "split": "validation",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-228",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "versionAndAuthorization",
+      "split": "validation",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-229",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "visual",
+      "split": "holdout",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-230",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "visual",
+      "split": "holdout",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-231",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "visual",
+      "split": "holdout",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-232",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "visual",
+      "split": "holdout",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-233",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "visual",
       "split": "holdout",
       "notes": "AI first-pass checks passed"
     },
@@ -1873,7 +1873,7 @@
         "Shengbo"
       ],
       "status": "agreed",
-      "primaryCategory": "versionAndAuthorization",
+      "primaryCategory": "retrievalDecision",
       "split": "holdout",
       "notes": "AI first-pass checks passed"
     },
@@ -1884,7 +1884,7 @@
         "Shengbo"
       ],
       "status": "agreed",
-      "primaryCategory": "versionAndAuthorization",
+      "primaryCategory": "retrievalDecision",
       "split": "holdout",
       "notes": "AI first-pass checks passed"
     },
@@ -1895,8 +1895,8 @@
         "Shengbo"
       ],
       "status": "agreed",
-      "primaryCategory": "versionAndAuthorization",
-      "split": "development",
+      "primaryCategory": "retrievalDecision",
+      "split": "holdout",
       "notes": "AI first-pass checks passed"
     },
     {
@@ -1907,7 +1907,7 @@
       ],
       "status": "agreed",
       "primaryCategory": "versionAndAuthorization",
-      "split": "validation",
+      "split": "holdout",
       "notes": "AI first-pass checks passed"
     },
     {
@@ -1917,8 +1917,8 @@
         "Shengbo"
       ],
       "status": "agreed",
-      "primaryCategory": "retrievalDecision",
-      "split": "development",
+      "primaryCategory": "versionAndAuthorization",
+      "split": "holdout",
       "notes": "AI first-pass checks passed"
     },
     {
@@ -1928,8 +1928,8 @@
         "Shengbo"
       ],
       "status": "agreed",
-      "primaryCategory": "retrievalDecision",
-      "split": "development",
+      "primaryCategory": "versionAndAuthorization",
+      "split": "holdout",
       "notes": "AI first-pass checks passed"
     },
     {
@@ -1939,8 +1939,8 @@
         "Shengbo"
       ],
       "status": "agreed",
-      "primaryCategory": "retrievalDecision",
-      "split": "validation",
+      "primaryCategory": "versionAndAuthorization",
+      "split": "holdout",
       "notes": "AI first-pass checks passed"
     },
     {
@@ -1950,8 +1950,8 @@
         "Shengbo"
       ],
       "status": "agreed",
-      "primaryCategory": "retrievalDecision",
-      "split": "validation",
+      "primaryCategory": "versionAndAuthorization",
+      "split": "holdout",
       "notes": "AI first-pass checks passed"
     },
     {
@@ -1961,7 +1961,7 @@
         "Shengbo"
       ],
       "status": "agreed",
-      "primaryCategory": "retrievalDecision",
+      "primaryCategory": "visual",
       "split": "development",
       "notes": "AI first-pass checks passed"
     },
@@ -1972,8 +1972,8 @@
         "Shengbo"
       ],
       "status": "agreed",
-      "primaryCategory": "failure",
-      "split": "holdout",
+      "primaryCategory": "visual",
+      "split": "development",
       "notes": "AI first-pass checks passed"
     },
     {
@@ -1983,8 +1983,8 @@
         "Shengbo"
       ],
       "status": "agreed",
-      "primaryCategory": "failure",
-      "split": "holdout",
+      "primaryCategory": "visual",
+      "split": "development",
       "notes": "AI first-pass checks passed"
     },
     {
@@ -1994,8 +1994,8 @@
         "Shengbo"
       ],
       "status": "agreed",
-      "primaryCategory": "failure",
-      "split": "holdout",
+      "primaryCategory": "visual",
+      "split": "development",
       "notes": "AI first-pass checks passed"
     },
     {
@@ -2005,8 +2005,8 @@
         "Shengbo"
       ],
       "status": "agreed",
-      "primaryCategory": "failure",
-      "split": "holdout",
+      "primaryCategory": "visual",
+      "split": "validation",
       "notes": "AI first-pass checks passed"
     },
     {
@@ -2017,7 +2017,7 @@
       ],
       "status": "agreed",
       "primaryCategory": "visual",
-      "split": "development",
+      "split": "validation",
       "notes": "AI first-pass checks passed"
     },
     {
@@ -2028,7 +2028,7 @@
       ],
       "status": "agreed",
       "primaryCategory": "visual",
-      "split": "development",
+      "split": "validation",
       "notes": "AI first-pass checks passed"
     },
     {
@@ -2039,7 +2039,7 @@
       ],
       "status": "agreed",
       "primaryCategory": "visual",
-      "split": "validation",
+      "split": "holdout",
       "notes": "AI first-pass checks passed"
     },
     {
@@ -2050,7 +2050,7 @@
       ],
       "status": "agreed",
       "primaryCategory": "visual",
-      "split": "validation",
+      "split": "holdout",
       "notes": "AI first-pass checks passed"
     },
     {
@@ -2061,7 +2061,7 @@
       ],
       "status": "agreed",
       "primaryCategory": "visual",
-      "split": "holdout",
+      "split": "development",
       "notes": "AI first-pass checks passed"
     },
     {
@@ -2072,315 +2072,359 @@
       ],
       "status": "agreed",
       "primaryCategory": "visual",
+      "split": "development",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-253",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "visual",
       "split": "holdout",
       "notes": "AI first-pass checks passed"
     },
     {
-      "caseId": "controlled-303",
+      "caseId": "controlled-254",
       "reviewers": [
         "claude-opus-4.8-review",
         "Shengbo"
       ],
       "status": "agreed",
-      "primaryCategory": "multiEvidence",
+      "primaryCategory": "ocr",
       "split": "development",
       "notes": "AI first-pass checks passed"
     },
     {
-      "caseId": "controlled-304",
+      "caseId": "controlled-255",
       "reviewers": [
         "claude-opus-4.8-review",
         "Shengbo"
       ],
       "status": "agreed",
-      "primaryCategory": "multiEvidence",
+      "primaryCategory": "ocr",
       "split": "development",
       "notes": "AI first-pass checks passed"
     },
     {
-      "caseId": "controlled-305",
+      "caseId": "controlled-256",
       "reviewers": [
         "claude-opus-4.8-review",
         "Shengbo"
       ],
       "status": "agreed",
-      "primaryCategory": "multiEvidence",
+      "primaryCategory": "ocr",
       "split": "development",
       "notes": "AI first-pass checks passed"
     },
     {
-      "caseId": "controlled-306",
+      "caseId": "controlled-257",
       "reviewers": [
         "claude-opus-4.8-review",
         "Shengbo"
       ],
       "status": "agreed",
-      "primaryCategory": "multiEvidence",
+      "primaryCategory": "ocr",
+      "split": "development",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-258",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "ocr",
+      "split": "development",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-259",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "ocr",
+      "split": "development",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-260",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "ocr",
+      "split": "development",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-261",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "ocr",
+      "split": "development",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-262",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "versionAndAuthorization",
+      "split": "development",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-263",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "versionAndAuthorization",
       "split": "validation",
       "notes": "AI first-pass checks passed"
     },
     {
-      "caseId": "controlled-307",
+      "caseId": "controlled-264",
       "reviewers": [
         "claude-opus-4.8-review",
         "Shengbo"
       ],
       "status": "agreed",
-      "primaryCategory": "multiEvidence",
+      "primaryCategory": "versionAndAuthorization",
       "split": "validation",
       "notes": "AI first-pass checks passed"
     },
     {
-      "caseId": "controlled-308",
+      "caseId": "controlled-265",
       "reviewers": [
         "claude-opus-4.8-review",
         "Shengbo"
       ],
       "status": "agreed",
-      "primaryCategory": "multiEvidence",
+      "primaryCategory": "versionAndAuthorization",
       "split": "holdout",
       "notes": "AI first-pass checks passed"
     },
     {
-      "caseId": "controlled-309",
+      "caseId": "controlled-266",
       "reviewers": [
         "claude-opus-4.8-review",
         "Shengbo"
       ],
       "status": "agreed",
-      "primaryCategory": "multiEvidence",
+      "primaryCategory": "versionAndAuthorization",
       "split": "holdout",
       "notes": "AI first-pass checks passed"
     },
     {
-      "caseId": "controlled-310",
+      "caseId": "controlled-267",
       "reviewers": [
         "claude-opus-4.8-review",
         "Shengbo"
       ],
       "status": "agreed",
-      "primaryCategory": "multiEvidence",
-      "split": "validation",
-      "notes": "AI first-pass checks passed"
-    },
-    {
-      "caseId": "controlled-311",
-      "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
-      ],
-      "status": "agreed",
-      "primaryCategory": "multiEvidence",
+      "primaryCategory": "versionAndAuthorization",
       "split": "holdout",
       "notes": "AI first-pass checks passed"
     },
     {
-      "caseId": "controlled-312",
+      "caseId": "controlled-268",
       "reviewers": [
         "claude-opus-4.8-review",
         "Shengbo"
       ],
       "status": "agreed",
-      "primaryCategory": "multiEvidence",
-      "split": "holdout",
-      "notes": "AI first-pass checks passed"
-    },
-    {
-      "caseId": "controlled-313",
-      "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
-      ],
-      "status": "agreed",
-      "primaryCategory": "multiEvidence",
+      "primaryCategory": "versionAndAuthorization",
       "split": "development",
       "notes": "AI first-pass checks passed"
     },
     {
-      "caseId": "controlled-314",
+      "caseId": "controlled-269",
       "reviewers": [
         "claude-opus-4.8-review",
         "Shengbo"
       ],
       "status": "agreed",
-      "primaryCategory": "multiEvidence",
-      "split": "development",
-      "notes": "AI first-pass checks passed"
-    },
-    {
-      "caseId": "controlled-315",
-      "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
-      ],
-      "status": "agreed",
-      "primaryCategory": "multiEvidence",
+      "primaryCategory": "versionAndAuthorization",
       "split": "validation",
       "notes": "AI first-pass checks passed"
     },
     {
-      "caseId": "controlled-316",
+      "caseId": "controlled-270",
       "reviewers": [
         "claude-opus-4.8-review",
         "Shengbo"
       ],
       "status": "agreed",
-      "primaryCategory": "multiEvidence",
+      "primaryCategory": "retrievalDecision",
+      "split": "development",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-271",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "retrievalDecision",
+      "split": "development",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-272",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "retrievalDecision",
+      "split": "validation",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-273",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "retrievalDecision",
+      "split": "validation",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-274",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "retrievalDecision",
+      "split": "development",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-275",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "failure",
       "split": "holdout",
       "notes": "AI first-pass checks passed"
     },
     {
-      "caseId": "controlled-317",
+      "caseId": "controlled-276",
       "reviewers": [
         "claude-opus-4.8-review",
         "Shengbo"
       ],
       "status": "agreed",
-      "primaryCategory": "multiEvidence",
+      "primaryCategory": "failure",
       "split": "holdout",
       "notes": "AI first-pass checks passed"
     },
     {
-      "caseId": "controlled-318",
+      "caseId": "controlled-277",
       "reviewers": [
         "claude-opus-4.8-review",
         "Shengbo"
       ],
       "status": "agreed",
-      "primaryCategory": "multiEvidence",
-      "split": "development",
-      "notes": "AI first-pass checks passed"
-    },
-    {
-      "caseId": "controlled-319",
-      "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
-      ],
-      "status": "agreed",
-      "primaryCategory": "multiEvidence",
-      "split": "validation",
-      "notes": "AI first-pass checks passed"
-    },
-    {
-      "caseId": "controlled-320",
-      "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
-      ],
-      "status": "agreed",
-      "primaryCategory": "multiEvidence",
+      "primaryCategory": "failure",
       "split": "holdout",
       "notes": "AI first-pass checks passed"
     },
     {
-      "caseId": "controlled-321",
+      "caseId": "controlled-278",
       "reviewers": [
         "claude-opus-4.8-review",
         "Shengbo"
       ],
       "status": "agreed",
-      "primaryCategory": "multiEvidence",
-      "split": "development",
-      "notes": "AI first-pass checks passed"
-    },
-    {
-      "caseId": "controlled-322",
-      "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
-      ],
-      "status": "agreed",
-      "primaryCategory": "multiEvidence",
-      "split": "validation",
-      "notes": "AI first-pass checks passed"
-    },
-    {
-      "caseId": "controlled-323",
-      "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
-      ],
-      "status": "agreed",
-      "primaryCategory": "multiEvidence",
+      "primaryCategory": "failure",
       "split": "holdout",
       "notes": "AI first-pass checks passed"
     },
     {
-      "caseId": "controlled-324",
+      "caseId": "controlled-279",
       "reviewers": [
         "claude-opus-4.8-review",
         "Shengbo"
       ],
       "status": "agreed",
-      "primaryCategory": "multiEvidence",
-      "split": "validation",
+      "primaryCategory": "visual",
+      "split": "development",
       "notes": "AI first-pass checks passed"
     },
     {
-      "caseId": "controlled-325",
+      "caseId": "controlled-280",
       "reviewers": [
         "claude-opus-4.8-review",
         "Shengbo"
       ],
       "status": "agreed",
-      "primaryCategory": "multiEvidence",
+      "primaryCategory": "visual",
+      "split": "development",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-281",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "visual",
       "split": "holdout",
       "notes": "AI first-pass checks passed"
     },
     {
-      "caseId": "controlled-326",
+      "caseId": "controlled-282",
       "reviewers": [
         "claude-opus-4.8-review",
         "Shengbo"
       ],
       "status": "agreed",
-      "primaryCategory": "multiEvidence",
+      "primaryCategory": "visual",
+      "split": "holdout",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-333",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "exactLookup",
       "split": "development",
       "notes": "AI first-pass checks passed"
     },
     {
-      "caseId": "controlled-327",
+      "caseId": "controlled-334",
       "reviewers": [
         "claude-opus-4.8-review",
         "Shengbo"
       ],
       "status": "agreed",
-      "primaryCategory": "multiEvidence",
-      "split": "validation",
-      "notes": "AI first-pass checks passed"
-    },
-    {
-      "caseId": "controlled-328",
-      "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
-      ],
-      "status": "agreed",
-      "primaryCategory": "multiEvidence",
+      "primaryCategory": "exactLookup",
       "split": "development",
-      "notes": "AI first-pass checks passed"
-    },
-    {
-      "caseId": "controlled-329",
-      "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
-      ],
-      "status": "agreed",
-      "primaryCategory": "multiEvidence",
-      "split": "development",
-      "notes": "AI first-pass checks passed"
-    },
-    {
-      "caseId": "controlled-330",
-      "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
-      ],
-      "status": "agreed",
-      "primaryCategory": "multiEvidence",
-      "split": "validation",
       "notes": "AI first-pass checks passed"
     },
     {
@@ -2390,7 +2434,7 @@
         "Shengbo"
       ],
       "status": "agreed",
-      "primaryCategory": "noAnswerAndMisleading",
+      "primaryCategory": "visual",
       "split": "development",
       "notes": "AI first-pass checks passed"
     },
@@ -2401,7 +2445,7 @@
         "Shengbo"
       ],
       "status": "agreed",
-      "primaryCategory": "noAnswerAndMisleading",
+      "primaryCategory": "visual",
       "split": "development",
       "notes": "AI first-pass checks passed"
     },
@@ -2412,8 +2456,8 @@
         "Shengbo"
       ],
       "status": "agreed",
-      "primaryCategory": "noAnswerAndMisleading",
-      "split": "validation",
+      "primaryCategory": "visual",
+      "split": "development",
       "notes": "AI first-pass checks passed"
     },
     {
@@ -2423,8 +2467,8 @@
         "Shengbo"
       ],
       "status": "agreed",
-      "primaryCategory": "noAnswerAndMisleading",
-      "split": "validation",
+      "primaryCategory": "visual",
+      "split": "development",
       "notes": "AI first-pass checks passed"
     },
     {
@@ -2434,8 +2478,19 @@
         "Shengbo"
       ],
       "status": "agreed",
-      "primaryCategory": "noAnswerAndMisleading",
-      "split": "holdout",
+      "primaryCategory": "visual",
+      "split": "development",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-340",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "retrievalDecision",
+      "split": "development",
       "notes": "AI first-pass checks passed"
     },
     {
@@ -2445,7 +2500,7 @@
         "Shengbo"
       ],
       "status": "agreed",
-      "primaryCategory": "noAnswerAndMisleading",
+      "primaryCategory": "retrievalDecision",
       "split": "development",
       "notes": "AI first-pass checks passed"
     },
@@ -2456,7 +2511,7 @@
         "Shengbo"
       ],
       "status": "agreed",
-      "primaryCategory": "noAnswerAndMisleading",
+      "primaryCategory": "retrievalDecision",
       "split": "development",
       "notes": "AI first-pass checks passed"
     },
@@ -2467,7 +2522,7 @@
         "Shengbo"
       ],
       "status": "agreed",
-      "primaryCategory": "noAnswerAndMisleading",
+      "primaryCategory": "retrievalDecision",
       "split": "development",
       "notes": "AI first-pass checks passed"
     },
@@ -2478,7 +2533,7 @@
         "Shengbo"
       ],
       "status": "agreed",
-      "primaryCategory": "noAnswerAndMisleading",
+      "primaryCategory": "versionAndAuthorization",
       "split": "development",
       "notes": "AI first-pass checks passed"
     },
@@ -2489,8 +2544,8 @@
         "Shengbo"
       ],
       "status": "agreed",
-      "primaryCategory": "noAnswerAndMisleading",
-      "split": "validation",
+      "primaryCategory": "versionAndAuthorization",
+      "split": "development",
       "notes": "AI first-pass checks passed"
     },
     {
@@ -2500,8 +2555,8 @@
         "Shengbo"
       ],
       "status": "agreed",
-      "primaryCategory": "noAnswerAndMisleading",
-      "split": "validation",
+      "primaryCategory": "versionAndAuthorization",
+      "split": "development",
       "notes": "AI first-pass checks passed"
     },
     {
@@ -2511,8 +2566,8 @@
         "Shengbo"
       ],
       "status": "agreed",
-      "primaryCategory": "noAnswerAndMisleading",
-      "split": "holdout",
+      "primaryCategory": "failure",
+      "split": "development",
       "notes": "AI first-pass checks passed"
     },
     {
@@ -2522,7 +2577,7 @@
         "Shengbo"
       ],
       "status": "agreed",
-      "primaryCategory": "noAnswerAndMisleading",
+      "primaryCategory": "failure",
       "split": "development",
       "notes": "AI first-pass checks passed"
     },
@@ -2533,7 +2588,7 @@
         "Shengbo"
       ],
       "status": "agreed",
-      "primaryCategory": "noAnswerAndMisleading",
+      "primaryCategory": "failure",
       "split": "development",
       "notes": "AI first-pass checks passed"
     },
@@ -2544,7 +2599,7 @@
         "Shengbo"
       ],
       "status": "agreed",
-      "primaryCategory": "noAnswerAndMisleading",
+      "primaryCategory": "visual",
       "split": "validation",
       "notes": "AI first-pass checks passed"
     },
@@ -2555,7 +2610,7 @@
         "Shengbo"
       ],
       "status": "agreed",
-      "primaryCategory": "noAnswerAndMisleading",
+      "primaryCategory": "visual",
       "split": "validation",
       "notes": "AI first-pass checks passed"
     },
@@ -2566,8 +2621,8 @@
         "Shengbo"
       ],
       "status": "agreed",
-      "primaryCategory": "noAnswerAndMisleading",
-      "split": "holdout",
+      "primaryCategory": "visual",
+      "split": "validation",
       "notes": "AI first-pass checks passed"
     },
     {
@@ -2577,8 +2632,8 @@
         "Shengbo"
       ],
       "status": "agreed",
-      "primaryCategory": "noAnswerAndMisleading",
-      "split": "holdout",
+      "primaryCategory": "retrievalDecision",
+      "split": "validation",
       "notes": "AI first-pass checks passed"
     },
     {
@@ -2588,7 +2643,7 @@
         "Shengbo"
       ],
       "status": "agreed",
-      "primaryCategory": "noAnswerAndMisleading",
+      "primaryCategory": "retrievalDecision",
       "split": "validation",
       "notes": "AI first-pass checks passed"
     },
@@ -2599,8 +2654,8 @@
         "Shengbo"
       ],
       "status": "agreed",
-      "primaryCategory": "noAnswerAndMisleading",
-      "split": "development",
+      "primaryCategory": "retrievalDecision",
+      "split": "validation",
       "notes": "AI first-pass checks passed"
     },
     {
@@ -2610,7 +2665,7 @@
         "Shengbo"
       ],
       "status": "agreed",
-      "primaryCategory": "noAnswerAndMisleading",
+      "primaryCategory": "versionAndAuthorization",
       "split": "validation",
       "notes": "AI first-pass checks passed"
     },
@@ -2621,8 +2676,8 @@
         "Shengbo"
       ],
       "status": "agreed",
-      "primaryCategory": "noAnswerAndMisleading",
-      "split": "development",
+      "primaryCategory": "versionAndAuthorization",
+      "split": "validation",
       "notes": "AI first-pass checks passed"
     },
     {
@@ -2632,8 +2687,8 @@
         "Shengbo"
       ],
       "status": "agreed",
-      "primaryCategory": "noAnswerAndMisleading",
-      "split": "development",
+      "primaryCategory": "failure",
+      "split": "validation",
       "notes": "AI first-pass checks passed"
     },
     {
@@ -2643,8 +2698,2263 @@
         "Shengbo"
       ],
       "status": "agreed",
+      "primaryCategory": "failure",
+      "split": "validation",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-360",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "failure",
+      "split": "validation",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-361",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "visual",
+      "split": "holdout",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-362",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "visual",
+      "split": "holdout",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-363",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "visual",
+      "split": "holdout",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-364",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "visual",
+      "split": "holdout",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-365",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "retrievalDecision",
+      "split": "holdout",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-366",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "retrievalDecision",
+      "split": "holdout",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-367",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "versionAndAuthorization",
+      "split": "holdout",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-368",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "versionAndAuthorization",
+      "split": "holdout",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-369",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "failure",
+      "split": "holdout",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-370",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "failure",
+      "split": "holdout",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-371",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "exactLookup",
+      "split": "development",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-372",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "failure",
+      "split": "development",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-373",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "failure",
+      "split": "development",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-374",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "failure",
+      "split": "development",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-375",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "failure",
+      "split": "development",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-376",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "failure",
+      "split": "development",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-377",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "failure",
+      "split": "development",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-378",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "failure",
+      "split": "development",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-379",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "failure",
+      "split": "development",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-380",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "failure",
+      "split": "development",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-381",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "failure",
+      "split": "development",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-382",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "failure",
+      "split": "development",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-383",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "failure",
+      "split": "development",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-384",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "retrievalDecision",
+      "split": "development",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-385",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "retrievalDecision",
+      "split": "development",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-386",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "retrievalDecision",
+      "split": "development",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-387",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "retrievalDecision",
+      "split": "development",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-388",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "versionAndAuthorization",
+      "split": "development",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-389",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "versionAndAuthorization",
+      "split": "development",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-390",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "exactLookup",
+      "split": "validation",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-391",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "retrievalDecision",
+      "split": "validation",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-392",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "retrievalDecision",
+      "split": "validation",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-393",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "retrievalDecision",
+      "split": "validation",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-394",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "retrievalDecision",
+      "split": "validation",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-395",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "retrievalDecision",
+      "split": "validation",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-396",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "retrievalDecision",
+      "split": "validation",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-397",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "versionAndAuthorization",
+      "split": "validation",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-398",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "versionAndAuthorization",
+      "split": "validation",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-399",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "versionAndAuthorization",
+      "split": "validation",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-400",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "versionAndAuthorization",
+      "split": "validation",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-401",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "versionAndAuthorization",
+      "split": "validation",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-402",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "versionAndAuthorization",
+      "split": "validation",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-403",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "versionAndAuthorization",
+      "split": "validation",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-404",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "versionAndAuthorization",
+      "split": "validation",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-405",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "failure",
+      "split": "development",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-406",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "failure",
+      "split": "development",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-407",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "failure",
+      "split": "development",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-408",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "failure",
+      "split": "development",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-409",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "failure",
+      "split": "development",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-410",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "failure",
+      "split": "development",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-411",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "failure",
+      "split": "development",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-412",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "failure",
+      "split": "development",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-413",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "retrievalDecision",
+      "split": "validation",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-414",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "retrievalDecision",
+      "split": "development",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-415",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "retrievalDecision",
+      "split": "development",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-416",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "versionAndAuthorization",
+      "split": "validation",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-417",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "versionAndAuthorization",
+      "split": "development",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-418",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "crossLanguage",
+      "split": "development",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-419",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "crossLanguage",
+      "split": "development",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-420",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "crossLanguage",
+      "split": "holdout",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-421",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "crossLanguage",
+      "split": "holdout",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-422",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "crossLanguage",
+      "split": "development",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-423",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "crossLanguage",
+      "split": "holdout",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-424",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "exactLookup",
+      "split": "development",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-425",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "retrievalDecision",
+      "split": "development",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-426",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "retrievalDecision",
+      "split": "development",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-427",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "retrievalDecision",
+      "split": "development",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-428",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "retrievalDecision",
+      "split": "development",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-429",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "retrievalDecision",
+      "split": "development",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-430",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "retrievalDecision",
+      "split": "development",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-431",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "retrievalDecision",
+      "split": "development",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-432",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "versionAndAuthorization",
+      "split": "development",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-433",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "versionAndAuthorization",
+      "split": "development",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-434",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "versionAndAuthorization",
+      "split": "development",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-435",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "versionAndAuthorization",
+      "split": "development",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-436",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "failure",
+      "split": "development",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-437",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "failure",
+      "split": "development",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-438",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "failure",
+      "split": "development",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-439",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "failure",
+      "split": "development",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-440",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "crossLanguage",
+      "split": "development",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-441",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "crossLanguage",
+      "split": "holdout",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-442",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "retrievalDecision",
+      "split": "validation",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-443",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "retrievalDecision",
+      "split": "validation",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-444",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "versionAndAuthorization",
+      "split": "development",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-445",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "versionAndAuthorization",
+      "split": "development",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-446",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "ocr",
+      "split": "development",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-447",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "ocr",
+      "split": "development",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-448",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "ocr",
+      "split": "development",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-449",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "ocr",
+      "split": "development",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-450",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "ocr",
+      "split": "development",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-451",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "ocr",
+      "split": "development",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-452",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "ocr",
+      "split": "development",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-453",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "ocr",
+      "split": "development",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-454",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "ocr",
+      "split": "development",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-455",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "ocr",
+      "split": "development",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-456",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "ocr",
+      "split": "development",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-457",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "ocr",
+      "split": "development",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-458",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "ocr",
+      "split": "development",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-459",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "ocr",
+      "split": "development",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-460",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "ocr",
+      "split": "holdout",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-461",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "ocr",
+      "split": "holdout",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-462",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "ocr",
+      "split": "holdout",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-463",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "ocr",
+      "split": "holdout",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-464",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "ocr",
+      "split": "holdout",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-465",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "multiEvidence",
+      "split": "development",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-466",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "multiEvidence",
+      "split": "development",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-467",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "multiEvidence",
+      "split": "development",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-468",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "multiEvidence",
+      "split": "development",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-469",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "multiEvidence",
+      "split": "validation",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-470",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "multiEvidence",
+      "split": "validation",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-471",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "multiEvidence",
+      "split": "holdout",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-472",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "multiEvidence",
+      "split": "holdout",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-473",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "multiEvidence",
+      "split": "validation",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-474",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "multiEvidence",
+      "split": "validation",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-475",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "multiEvidence",
+      "split": "holdout",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-476",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "multiEvidence",
+      "split": "holdout",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-477",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "multiEvidence",
+      "split": "development",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-478",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "multiEvidence",
+      "split": "development",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-479",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "multiEvidence",
+      "split": "development",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-480",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "multiEvidence",
+      "split": "development",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-481",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "multiEvidence",
+      "split": "validation",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-482",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "multiEvidence",
+      "split": "validation",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-483",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "multiEvidence",
+      "split": "holdout",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-484",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "multiEvidence",
+      "split": "holdout",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-485",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "multiEvidence",
+      "split": "development",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-486",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "multiEvidence",
+      "split": "validation",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-487",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "multiEvidence",
+      "split": "holdout",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-488",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "multiEvidence",
+      "split": "development",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-489",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "multiEvidence",
+      "split": "validation",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-490",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "multiEvidence",
+      "split": "holdout",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-491",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "multiEvidence",
+      "split": "validation",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-492",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "multiEvidence",
+      "split": "holdout",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-493",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "multiEvidence",
+      "split": "development",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-494",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "multiEvidence",
+      "split": "validation",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-495",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "multiEvidence",
+      "split": "development",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-496",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "multiEvidence",
+      "split": "development",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-497",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "multiEvidence",
+      "split": "validation",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-498",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "multiEvidence",
+      "split": "development",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-499",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "multiEvidence",
+      "split": "validation",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-500",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "multiEvidence",
+      "split": "holdout",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-501",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "multiEvidence",
+      "split": "development",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-502",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "multiEvidence",
+      "split": "development",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-503",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "multiEvidence",
+      "split": "development",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-504",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "multiEvidence",
+      "split": "validation",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-505",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "multiEvidence",
+      "split": "validation",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-506",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "multiEvidence",
+      "split": "validation",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-507",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "multiEvidence",
+      "split": "holdout",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-508",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "multiEvidence",
+      "split": "development",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-509",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "multiEvidence",
+      "split": "development",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-510",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "multiEvidence",
+      "split": "development",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-511",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "multiEvidence",
+      "split": "development",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-512",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "multiEvidence",
+      "split": "development",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-513",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "multiEvidence",
+      "split": "development",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-514",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "multiEvidence",
+      "split": "development",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-519",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "noAnswerAndMisleading",
+      "split": "development",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-520",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "noAnswerAndMisleading",
+      "split": "development",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-521",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
       "primaryCategory": "noAnswerAndMisleading",
       "split": "validation",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-522",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "noAnswerAndMisleading",
+      "split": "holdout",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-523",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "noAnswerAndMisleading",
+      "split": "validation",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-524",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "noAnswerAndMisleading",
+      "split": "holdout",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-526",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "noAnswerAndMisleading",
+      "split": "development",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-527",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "noAnswerAndMisleading",
+      "split": "development",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-528",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "noAnswerAndMisleading",
+      "split": "development",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-529",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "noAnswerAndMisleading",
+      "split": "development",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-530",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "noAnswerAndMisleading",
+      "split": "development",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-531",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "noAnswerAndMisleading",
+      "split": "development",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-532",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "noAnswerAndMisleading",
+      "split": "validation",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-533",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "noAnswerAndMisleading",
+      "split": "validation",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-534",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "noAnswerAndMisleading",
+      "split": "holdout",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-535",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "noAnswerAndMisleading",
+      "split": "holdout",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-536",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "noAnswerAndMisleading",
+      "split": "development",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-537",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "noAnswerAndMisleading",
+      "split": "development",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-538",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "noAnswerAndMisleading",
+      "split": "validation",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-539",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "noAnswerAndMisleading",
+      "split": "validation",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-540",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "noAnswerAndMisleading",
+      "split": "holdout",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-541",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "noAnswerAndMisleading",
+      "split": "holdout",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-542",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "noAnswerAndMisleading",
+      "split": "validation",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-543",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "noAnswerAndMisleading",
+      "split": "development",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-544",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "noAnswerAndMisleading",
+      "split": "validation",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-545",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "noAnswerAndMisleading",
+      "split": "development",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-546",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "noAnswerAndMisleading",
+      "split": "development",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-547",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "noAnswerAndMisleading",
+      "split": "validation",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-568",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "noAnswerAndMisleading",
+      "split": "development",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-569",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "noAnswerAndMisleading",
+      "split": "development",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-570",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "noAnswerAndMisleading",
+      "split": "validation",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-571",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "noAnswerAndMisleading",
+      "split": "validation",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-572",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "noAnswerAndMisleading",
+      "split": "holdout",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-573",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "noAnswerAndMisleading",
+      "split": "holdout",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-574",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "noAnswerAndMisleading",
+      "split": "development",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-575",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "noAnswerAndMisleading",
+      "split": "holdout",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-576",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "noAnswerAndMisleading",
+      "split": "development",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-577",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "noAnswerAndMisleading",
+      "split": "development",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-578",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "noAnswerAndMisleading",
+      "split": "validation",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-579",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "noAnswerAndMisleading",
+      "split": "validation",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-580",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "noAnswerAndMisleading",
+      "split": "development",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-581",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "noAnswerAndMisleading",
+      "split": "validation",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-582",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "noAnswerAndMisleading",
+      "split": "holdout",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-583",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "noAnswerAndMisleading",
+      "split": "development",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-584",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "noAnswerAndMisleading",
+      "split": "holdout",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-585",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "noAnswerAndMisleading",
+      "split": "development",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-586",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "noAnswerAndMisleading",
+      "split": "validation",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-587",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "noAnswerAndMisleading",
+      "split": "holdout",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-588",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "noAnswerAndMisleading",
+      "split": "development",
+      "notes": "AI first-pass checks passed"
+    },
+    {
+      "caseId": "controlled-589",
+      "reviewers": [
+        "claude-opus-4.8-review",
+        "Shengbo"
+      ],
+      "status": "agreed",
+      "primaryCategory": "noAnswerAndMisleading",
+      "split": "development",
       "notes": "AI first-pass checks passed"
     }
   ]

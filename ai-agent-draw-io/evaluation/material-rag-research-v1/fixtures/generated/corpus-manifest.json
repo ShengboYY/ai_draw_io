@@ -217,6 +217,56 @@
       "filename": "guard-failure-drill-v1.pdf"
     },
     {
+      "source": "expansion-datacenter-change",
+      "documentFamily": "datacenter-capacity-change",
+      "version": "v1",
+      "split": "development",
+      "language": "zh",
+      "role": "realistic",
+      "freezeStatus": "development",
+      "filename": "expansion-datacenter-capacity-change-v1.pdf"
+    },
+    {
+      "source": "expansion-observability",
+      "documentFamily": "microservice-observability",
+      "version": "v1",
+      "split": "validation",
+      "language": "mixed",
+      "role": "realistic",
+      "freezeStatus": "candidate",
+      "filename": "expansion-microservice-observability-v1.pdf"
+    },
+    {
+      "source": "expansion-supply-chain",
+      "documentFamily": "supply-chain-fulfillment",
+      "version": "v1",
+      "split": "holdout",
+      "language": "zh",
+      "role": "realistic",
+      "freezeStatus": "candidate",
+      "filename": "expansion-supply-chain-fulfillment-v1.pdf"
+    },
+    {
+      "source": "expansion-platform-resilience",
+      "documentFamily": "platform-resilience",
+      "version": "v1",
+      "split": "development",
+      "language": "mixed",
+      "role": "realistic",
+      "freezeStatus": "development",
+      "filename": "expansion-platform-resilience-v1.pdf"
+    },
+    {
+      "source": "expansion-material-governance",
+      "documentFamily": "material-governance",
+      "version": "v1",
+      "split": "validation",
+      "language": "mixed",
+      "role": "realistic",
+      "freezeStatus": "candidate",
+      "filename": "expansion-material-governance-v1.pdf"
+    },
+    {
       "source": "realistic-rail-scan",
       "documentFamily": "metro-rail-inspection-scan",
       "version": "v1",
@@ -235,6 +285,26 @@
       "role": "realistic_scan",
       "freezeStatus": "development",
       "filename": "drawio-planning-workshop-scan-v1.pdf"
+    },
+    {
+      "source": "expansion-field-audit-scan",
+      "documentFamily": "field-audit-scan",
+      "version": "v1",
+      "split": "development",
+      "language": "mixed",
+      "role": "realistic_scan",
+      "freezeStatus": "development",
+      "filename": "expansion-field-audit-scan-v1.pdf"
+    },
+    {
+      "source": "expansion-approval-scan",
+      "documentFamily": "approval-record-scan",
+      "version": "v1",
+      "split": "holdout",
+      "language": "mixed",
+      "role": "realistic_scan",
+      "freezeStatus": "development",
+      "filename": "expansion-approval-record-scan-v1.pdf"
     }
   ]
 }

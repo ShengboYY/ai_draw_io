@@ -2752,6 +2752,1363 @@
       "goldMatch": "GAB-2026-02",
       "documentFamily": "guard-abstention-guide",
       "split": "guard_abstention"
+    },
+    {
+      "anchorId": "dcc-id",
+      "source": "expansion-datacenter-change",
+      "version": "v1",
+      "page": 1,
+      "modality": "text",
+      "goldMatch": "DCC-2026-40",
+      "documentFamily": "datacenter-capacity-change",
+      "split": "development"
+    },
+    {
+      "anchorId": "dcc-orchestrate-owner",
+      "source": "expansion-datacenter-change",
+      "version": "v1",
+      "page": 2,
+      "modality": "table",
+      "goldMatch": "发布编排由发布组负责",
+      "documentFamily": "datacenter-capacity-change",
+      "split": "development"
+    },
+    {
+      "anchorId": "dcc-arch-route",
+      "source": "expansion-datacenter-change",
+      "version": "v1",
+      "page": 3,
+      "modality": "visual_flow",
+      "goldMatch": "CAPACITY CHECK->CHANGE ORCHESTRATE",
+      "documentFamily": "datacenter-capacity-change",
+      "split": "development"
+    },
+    {
+      "anchorId": "dcc-arch-apply",
+      "source": "expansion-datacenter-change",
+      "version": "v1",
+      "page": 3,
+      "modality": "visual_flow",
+      "goldMatch": "CHANGE ORCHESTRATE->APPLY",
+      "documentFamily": "datacenter-capacity-change",
+      "split": "development"
+    },
+    {
+      "anchorId": "dcc-seq-promote",
+      "source": "expansion-datacenter-change",
+      "version": "v1",
+      "page": 4,
+      "modality": "visual_flow",
+      "goldMatch": "HEALTH CHECK->PROMOTE",
+      "documentFamily": "datacenter-capacity-change",
+      "split": "development"
+    },
+    {
+      "anchorId": "dcc-layout-retrieve",
+      "source": "expansion-datacenter-change",
+      "version": "v1",
+      "page": 5,
+      "modality": "text",
+      "primaryCategory": "retrievalDecision",
+      "goldMatch": "属于纯图形操作,不需要重新检索",
+      "documentFamily": "datacenter-capacity-change",
+      "split": "development"
+    },
+    {
+      "anchorId": "dcc-explicit-source",
+      "source": "expansion-datacenter-change",
+      "version": "v1",
+      "page": 5,
+      "modality": "text",
+      "primaryCategory": "retrievalDecision",
+      "goldMatch": "只能在该范围内检索",
+      "documentFamily": "datacenter-capacity-change",
+      "split": "development"
+    },
+    {
+      "anchorId": "dcc-clarify",
+      "source": "expansion-datacenter-change",
+      "version": "v1",
+      "page": 5,
+      "modality": "text",
+      "primaryCategory": "retrievalDecision",
+      "goldMatch": "先请求澄清",
+      "documentFamily": "datacenter-capacity-change",
+      "split": "development"
+    },
+    {
+      "anchorId": "dcc-version-pin",
+      "source": "expansion-datacenter-change",
+      "version": "v1",
+      "page": 6,
+      "modality": "table",
+      "primaryCategory": "versionAndAuthorization",
+      "evaluationContext": {
+        "scenarioType": "versionConflict",
+        "actingRole": "图册编辑者",
+        "scopeConstraint": "已有图形引用某容量基线版本,新版本已出现",
+        "expectedDecision": "保持图形固定引用原版本"
+      },
+      "goldMatch": "仍固定引用原版本",
+      "expectedAnswer": "保持固定在原版本;已引用原容量基线版本的图形不因新版本出现而改写。",
+      "documentFamily": "datacenter-capacity-change",
+      "split": "development"
+    },
+    {
+      "anchorId": "dcc-draft-reject",
+      "source": "expansion-datacenter-change",
+      "version": "v1",
+      "page": 6,
+      "modality": "text",
+      "primaryCategory": "versionAndAuthorization",
+      "evaluationContext": {
+        "scenarioType": "draftRejected",
+        "actingRole": "运维治理委员会",
+        "scopeConstraint": "10 月草案允许水位超过 85% 自动扩容",
+        "expectedDecision": "使用批准版本,不自动扩容"
+      },
+      "goldMatch": "评审认为风险过高并删除该规则",
+      "expectedAnswer": "10 月草案的自动扩容规则被否决;不得在 85% 自动扩容。",
+      "documentFamily": "datacenter-capacity-change",
+      "split": "development"
+    },
+    {
+      "anchorId": "dcc-approve-role",
+      "source": "expansion-datacenter-change",
+      "version": "v1",
+      "page": 6,
+      "modality": "table",
+      "primaryCategory": "versionAndAuthorization",
+      "evaluationContext": {
+        "scenarioType": "authorizationScope",
+        "actingRole": "复核者",
+        "scopeConstraint": "尝试单独批准变更",
+        "expectedDecision": "拒绝单独批准,仅可给出建议"
+      },
+      "goldMatch": "复核者",
+      "expectedAnswer": "不能。复核者只能给出建议,变更由运维所有者批准。",
+      "documentFamily": "datacenter-capacity-change",
+      "split": "development"
+    },
+    {
+      "anchorId": "dcc-degrade",
+      "source": "expansion-datacenter-change",
+      "version": "v1",
+      "page": 6,
+      "modality": "text",
+      "primaryCategory": "failure",
+      "evaluationContext": {
+        "injectedDependency": "对象存储",
+        "injectedState": "不可用",
+        "expectedSystemBehavior": "允许编辑已缓存画布并阻止加载新证据",
+        "forbiddenSystemBehavior": "把降级状态伪装成检索成功"
+      },
+      "goldMatch": "不得把降级状态伪装成检索成功",
+      "expectedAnswer": "允许编辑已缓存画布,阻止加载新证据,且不得伪装成检索成功。",
+      "documentFamily": "datacenter-capacity-change",
+      "split": "development"
+    },
+    {
+      "anchorId": "dcc-threshold",
+      "source": "expansion-datacenter-change",
+      "version": "v1",
+      "page": 6,
+      "modality": "text",
+      "primaryCategory": "failure",
+      "evaluationContext": {
+        "injectedDependency": "核心资源池水位",
+        "injectedState": "连续三个采样周期超过 85%",
+        "expectedSystemBehavior": "进入人工复核",
+        "forbiddenSystemBehavior": "凭单次瞬时超限直接扩容"
+      },
+      "goldMatch": "连续三个采样周期超过 85% 才进入人工复核",
+      "expectedAnswer": "连续三个采样周期超过 85% 才进入人工复核,单次瞬时超限只记录观察。",
+      "documentFamily": "datacenter-capacity-change",
+      "split": "development"
+    },
+    {
+      "anchorId": "mso-id",
+      "source": "expansion-observability",
+      "version": "v1",
+      "page": 1,
+      "modality": "text",
+      "goldMatch": "MSO-2026-33",
+      "documentFamily": "microservice-observability",
+      "split": "validation"
+    },
+    {
+      "anchorId": "mso-dispatch-owner",
+      "source": "expansion-observability",
+      "version": "v1",
+      "page": 2,
+      "modality": "table",
+      "goldMatch": "路由分发由值班组负责",
+      "documentFamily": "microservice-observability",
+      "split": "validation"
+    },
+    {
+      "anchorId": "mso-arch-route",
+      "source": "expansion-observability",
+      "version": "v1",
+      "page": 3,
+      "modality": "visual_flow",
+      "goldMatch": "ALERT EVAL->ROUTE DISPATCH",
+      "documentFamily": "microservice-observability",
+      "split": "validation"
+    },
+    {
+      "anchorId": "mso-arch-notify",
+      "source": "expansion-observability",
+      "version": "v1",
+      "page": 3,
+      "modality": "visual_flow",
+      "goldMatch": "ROUTE DISPATCH->NOTIFY",
+      "documentFamily": "microservice-observability",
+      "split": "validation"
+    },
+    {
+      "anchorId": "mso-seq-diagnose",
+      "source": "expansion-observability",
+      "version": "v1",
+      "page": 4,
+      "modality": "visual_flow",
+      "goldMatch": "ACK->DIAGNOSE",
+      "documentFamily": "microservice-observability",
+      "split": "validation"
+    },
+    {
+      "anchorId": "mso-explicit-source",
+      "source": "expansion-observability",
+      "version": "v1",
+      "page": 5,
+      "modality": "text",
+      "primaryCategory": "retrievalDecision",
+      "goldMatch": "只能在该范围内检索",
+      "documentFamily": "microservice-observability",
+      "split": "validation"
+    },
+    {
+      "anchorId": "mso-layout-retrieve",
+      "source": "expansion-observability",
+      "version": "v1",
+      "page": 5,
+      "modality": "text",
+      "primaryCategory": "retrievalDecision",
+      "goldMatch": "属于纯图形操作,不需要重新检索",
+      "documentFamily": "microservice-observability",
+      "split": "validation"
+    },
+    {
+      "anchorId": "mso-version-pin",
+      "source": "expansion-observability",
+      "version": "v1",
+      "page": 6,
+      "modality": "table",
+      "primaryCategory": "versionAndAuthorization",
+      "evaluationContext": {
+        "scenarioType": "versionConflict",
+        "actingRole": "图册编辑者",
+        "scopeConstraint": "已有图形引用某告警基线版本,新版本已出现",
+        "expectedDecision": "保持图形固定引用原版本"
+      },
+      "goldMatch": "仍固定引用原版本",
+      "expectedAnswer": "保持固定在原版本;已引用原告警基线版本的图形不因新版本出现而改写。",
+      "documentFamily": "microservice-observability",
+      "split": "validation"
+    },
+    {
+      "anchorId": "mso-draft-reject",
+      "source": "expansion-observability",
+      "version": "v1",
+      "page": 6,
+      "modality": "text",
+      "primaryCategory": "versionAndAuthorization",
+      "evaluationContext": {
+        "scenarioType": "draftRejected",
+        "actingRole": "可观测性治理委员会",
+        "scopeConstraint": "10 月草案允许错误率超阈值时自动重启实例",
+        "expectedDecision": "使用批准版本,不自动重启"
+      },
+      "goldMatch": "评审认为风险过高并删除该规则",
+      "expectedAnswer": "10 月草案的自动重启规则被否决。",
+      "documentFamily": "microservice-observability",
+      "split": "validation"
+    },
+    {
+      "anchorId": "mso-degrade",
+      "source": "expansion-observability",
+      "version": "v1",
+      "page": 6,
+      "modality": "text",
+      "primaryCategory": "failure",
+      "evaluationContext": {
+        "injectedDependency": "指标采集管道",
+        "injectedState": "不可用",
+        "expectedSystemBehavior": "基于已缓存数据继续绘图并阻止生成新告警结论",
+        "forbiddenSystemBehavior": "把采集中断伪装成无告警"
+      },
+      "goldMatch": "不得把采集中断伪装成「无告警」",
+      "expectedAnswer": "允许基于缓存继续绘图,阻止新告警结论,且不得伪装成无告警。",
+      "documentFamily": "microservice-observability",
+      "split": "validation"
+    },
+    {
+      "anchorId": "mso-slo",
+      "source": "expansion-observability",
+      "version": "v1",
+      "page": 6,
+      "modality": "text",
+      "primaryCategory": "failure",
+      "evaluationContext": {
+        "injectedDependency": "核心接口指标",
+        "injectedState": "连续三个采样周期超过阈值",
+        "expectedSystemBehavior": "触发人工确认",
+        "forbiddenSystemBehavior": "凭单次抖动直接升级"
+      },
+      "goldMatch": "连续三个采样周期超过阈值才触发人工确认",
+      "expectedAnswer": "连续三个采样周期超过阈值才触发人工确认,单次抖动只记录观察。",
+      "documentFamily": "microservice-observability",
+      "split": "validation"
+    },
+    {
+      "anchorId": "scf-id",
+      "source": "expansion-supply-chain",
+      "version": "v1",
+      "page": 1,
+      "modality": "text",
+      "goldMatch": "SCF-2026-28",
+      "documentFamily": "supply-chain-fulfillment",
+      "split": "holdout"
+    },
+    {
+      "anchorId": "scf-orchestrate-owner",
+      "source": "expansion-supply-chain",
+      "version": "v1",
+      "page": 2,
+      "modality": "table",
+      "goldMatch": "履约编排由履约组负责",
+      "documentFamily": "supply-chain-fulfillment",
+      "split": "holdout"
+    },
+    {
+      "anchorId": "scf-arch-route",
+      "source": "expansion-supply-chain",
+      "version": "v1",
+      "page": 3,
+      "modality": "visual_flow",
+      "goldMatch": "STOCK CHECK->FULFILL ORCHESTRATE",
+      "documentFamily": "supply-chain-fulfillment",
+      "split": "holdout"
+    },
+    {
+      "anchorId": "scf-arch-transfer",
+      "source": "expansion-supply-chain",
+      "version": "v1",
+      "page": 3,
+      "modality": "visual_flow",
+      "goldMatch": "FULFILL ORCHESTRATE->TRANSFER",
+      "documentFamily": "supply-chain-fulfillment",
+      "split": "holdout"
+    },
+    {
+      "anchorId": "scf-seq-reconcile",
+      "source": "expansion-supply-chain",
+      "version": "v1",
+      "page": 4,
+      "modality": "visual_flow",
+      "goldMatch": "ARRIVAL CHECK->RECONCILE",
+      "documentFamily": "supply-chain-fulfillment",
+      "split": "holdout"
+    },
+    {
+      "anchorId": "scf-explicit-source",
+      "source": "expansion-supply-chain",
+      "version": "v1",
+      "page": 5,
+      "modality": "text",
+      "primaryCategory": "retrievalDecision",
+      "goldMatch": "只能在该范围内检索",
+      "documentFamily": "supply-chain-fulfillment",
+      "split": "holdout"
+    },
+    {
+      "anchorId": "scf-clarify",
+      "source": "expansion-supply-chain",
+      "version": "v1",
+      "page": 5,
+      "modality": "text",
+      "primaryCategory": "retrievalDecision",
+      "goldMatch": "先请求澄清",
+      "documentFamily": "supply-chain-fulfillment",
+      "split": "holdout"
+    },
+    {
+      "anchorId": "scf-version-pin",
+      "source": "expansion-supply-chain",
+      "version": "v1",
+      "page": 6,
+      "modality": "table",
+      "primaryCategory": "versionAndAuthorization",
+      "evaluationContext": {
+        "scenarioType": "versionConflict",
+        "actingRole": "图册编辑者",
+        "scopeConstraint": "已有图形引用某库存基线版本,新版本已出现",
+        "expectedDecision": "保持图形固定引用原版本"
+      },
+      "goldMatch": "仍固定引用原版本",
+      "expectedAnswer": "保持固定在原版本;已引用原库存基线版本的图形不因新版本出现而改写。",
+      "documentFamily": "supply-chain-fulfillment",
+      "split": "holdout"
+    },
+    {
+      "anchorId": "scf-draft-reject",
+      "source": "expansion-supply-chain",
+      "version": "v1",
+      "page": 6,
+      "modality": "text",
+      "primaryCategory": "versionAndAuthorization",
+      "evaluationContext": {
+        "scenarioType": "draftRejected",
+        "actingRole": "供应链治理委员会",
+        "scopeConstraint": "10 月草案允许库存低于安全线时自动跨区调拨",
+        "expectedDecision": "使用批准版本,不自动跨区调拨"
+      },
+      "goldMatch": "评审认为风险过高并删除该规则",
+      "expectedAnswer": "10 月草案的自动跨区调拨规则被否决。",
+      "documentFamily": "supply-chain-fulfillment",
+      "split": "holdout"
+    },
+    {
+      "anchorId": "scf-degrade",
+      "source": "expansion-supply-chain",
+      "version": "v1",
+      "page": 6,
+      "modality": "text",
+      "primaryCategory": "failure",
+      "evaluationContext": {
+        "injectedDependency": "库存服务",
+        "injectedState": "不可用",
+        "expectedSystemBehavior": "基于已缓存数据继续绘图并阻止生成新调拨结论",
+        "forbiddenSystemBehavior": "把库存中断伪装成有货可调"
+      },
+      "goldMatch": "不得把库存中断伪装成「有货可调」",
+      "expectedAnswer": "允许基于缓存继续绘图,阻止新调拨结论,且不得伪装成有货可调。",
+      "documentFamily": "supply-chain-fulfillment",
+      "split": "holdout"
+    },
+    {
+      "anchorId": "scf-threshold",
+      "source": "expansion-supply-chain",
+      "version": "v1",
+      "page": 6,
+      "modality": "text",
+      "primaryCategory": "failure",
+      "evaluationContext": {
+        "injectedDependency": "核心品类库存",
+        "injectedState": "连续两个盘点周期低于 20%",
+        "expectedSystemBehavior": "触发补货审批",
+        "forbiddenSystemBehavior": "凭单次波动直接跨区调拨"
+      },
+      "goldMatch": "连续两个盘点周期低于 20% 才触发补货审批",
+      "expectedAnswer": "连续两个盘点周期低于 20% 才触发补货审批,单次波动只记录观察。",
+      "documentFamily": "supply-chain-fulfillment",
+      "split": "holdout"
+    },
+    {
+      "anchorId": "pre-id",
+      "source": "expansion-platform-resilience",
+      "version": "v1",
+      "page": 1,
+      "modality": "text",
+      "goldMatch": "PRE-2026-51",
+      "documentFamily": "platform-resilience",
+      "split": "development"
+    },
+    {
+      "anchorId": "pre-vector",
+      "source": "expansion-platform-resilience",
+      "version": "v1",
+      "page": 2,
+      "modality": "table",
+      "primaryCategory": "failure",
+      "evaluationContext": {
+        "injectedDependency": "vector search",
+        "injectedState": "retrieval degraded",
+        "expectedSystemBehavior": "keep manual drawing and block material search",
+        "forbiddenSystemBehavior": "claim no evidence exists"
+      },
+      "goldMatch": "manual drawing remains available but material search is blocked",
+      "expectedAnswer": "Manual drawing stays; material search is blocked.",
+      "documentFamily": "platform-resilience",
+      "split": "development"
+    },
+    {
+      "anchorId": "pre-objstore",
+      "source": "expansion-platform-resilience",
+      "version": "v1",
+      "page": 2,
+      "modality": "table",
+      "primaryCategory": "failure",
+      "evaluationContext": {
+        "injectedDependency": "object store",
+        "injectedState": "hydration failed",
+        "expectedSystemBehavior": "edit saved XML, block open evidence",
+        "forbiddenSystemBehavior": "open evidence as if hydration succeeded"
+      },
+      "goldMatch": "Object store",
+      "expectedAnswer": "Editing saved XML stays; opening evidence is blocked.",
+      "documentFamily": "platform-resilience",
+      "split": "development"
+    },
+    {
+      "anchorId": "pre-canvas",
+      "source": "expansion-platform-resilience",
+      "version": "v1",
+      "page": 2,
+      "modality": "table",
+      "primaryCategory": "failure",
+      "evaluationContext": {
+        "injectedDependency": "canvas save",
+        "injectedState": "save blocked",
+        "expectedSystemBehavior": "download draft, disable publish",
+        "forbiddenSystemBehavior": "publish while save is blocked"
+      },
+      "goldMatch": "canvas-save failure is SEV-1",
+      "expectedAnswer": "SEV-1; download draft stays, publish disabled.",
+      "documentFamily": "platform-resilience",
+      "split": "development"
+    },
+    {
+      "anchorId": "pre-probes",
+      "source": "expansion-platform-resilience",
+      "version": "v1",
+      "page": 3,
+      "modality": "text",
+      "primaryCategory": "failure",
+      "evaluationContext": {
+        "injectedDependency": "vector search",
+        "injectedState": "recovering",
+        "expectedSystemBehavior": "stay degraded until 12 consecutive scoped probes succeed",
+        "forbiddenSystemBehavior": "restore early"
+      },
+      "goldMatch": "12 consecutive scoped probes",
+      "expectedAnswer": "12 consecutive scoped probes across three test tenants.",
+      "documentFamily": "platform-resilience",
+      "split": "development"
+    },
+    {
+      "anchorId": "pre-ocr-gate",
+      "source": "expansion-platform-resilience",
+      "version": "v1",
+      "page": 3,
+      "modality": "text",
+      "primaryCategory": "failure",
+      "evaluationContext": {
+        "injectedDependency": "OCR",
+        "injectedState": "recovering",
+        "expectedSystemBehavior": "gate OCR recovery until anchor recall reaches 0.95",
+        "forbiddenSystemBehavior": "mark OCR healthy below the gate"
+      },
+      "goldMatch": "anchor recall of at least 0.95",
+      "expectedAnswer": "Anchor recall >= 0.95 on the pinned scan suite.",
+      "documentFamily": "platform-resilience",
+      "split": "development"
+    },
+    {
+      "anchorId": "pre-no-evidence",
+      "source": "expansion-platform-resilience",
+      "version": "v1",
+      "page": 3,
+      "modality": "text",
+      "primaryCategory": "failure",
+      "evaluationContext": {
+        "injectedDependency": "material retrieval",
+        "injectedState": "did not execute",
+        "expectedSystemBehavior": "report that search could not run",
+        "forbiddenSystemBehavior": "claim no evidence exists"
+      },
+      "goldMatch": "must not claim that no evidence exists",
+      "expectedAnswer": "Report retrieval did not run; do not claim no evidence exists.",
+      "documentFamily": "platform-resilience",
+      "split": "development"
+    },
+    {
+      "anchorId": "pre-explicit",
+      "source": "expansion-platform-resilience",
+      "version": "v1",
+      "page": 4,
+      "modality": "text",
+      "primaryCategory": "retrievalDecision",
+      "goldMatch": "只能在该范围内检索",
+      "documentFamily": "platform-resilience",
+      "split": "development"
+    },
+    {
+      "anchorId": "pre-layout",
+      "source": "expansion-platform-resilience",
+      "version": "v1",
+      "page": 4,
+      "modality": "text",
+      "primaryCategory": "retrievalDecision",
+      "goldMatch": "属于纯图形操作,不需要重新检索",
+      "documentFamily": "platform-resilience",
+      "split": "development"
+    },
+    {
+      "anchorId": "pre-clarify",
+      "source": "expansion-platform-resilience",
+      "version": "v1",
+      "page": 4,
+      "modality": "text",
+      "primaryCategory": "retrievalDecision",
+      "goldMatch": "先请求澄清",
+      "documentFamily": "platform-resilience",
+      "split": "development"
+    },
+    {
+      "anchorId": "pre-version",
+      "source": "expansion-platform-resilience",
+      "version": "v1",
+      "page": 5,
+      "modality": "text",
+      "primaryCategory": "versionAndAuthorization",
+      "evaluationContext": {
+        "scenarioType": "draftRejected",
+        "actingRole": "可靠性委员会",
+        "scopeConstraint": "10 月草案允许 5 次探测即恢复",
+        "expectedDecision": "使用批准版本的 12 次连续探测"
+      },
+      "goldMatch": "评审认为风险过高并删除该规则",
+      "expectedAnswer": "5 次探测草案被否决,改为 12 次连续探测。",
+      "documentFamily": "platform-resilience",
+      "split": "development"
+    },
+    {
+      "anchorId": "pre-version-pin",
+      "source": "expansion-platform-resilience",
+      "version": "v1",
+      "page": 5,
+      "modality": "text",
+      "primaryCategory": "versionAndAuthorization",
+      "evaluationContext": {
+        "scenarioType": "versionConflict",
+        "actingRole": "图册编辑者",
+        "scopeConstraint": "已有图形引用某处置基线版本,新版本已出现",
+        "expectedDecision": "保持图形固定引用原版本"
+      },
+      "goldMatch": "仍固定引用原版本",
+      "expectedAnswer": "保持固定在原版本。",
+      "documentFamily": "platform-resilience",
+      "split": "development"
+    },
+    {
+      "anchorId": "mgv-id",
+      "source": "expansion-material-governance",
+      "version": "v1",
+      "page": 1,
+      "modality": "text",
+      "goldMatch": "MGV-2026-37",
+      "documentFamily": "material-governance",
+      "split": "validation"
+    },
+    {
+      "anchorId": "mgv-explicit",
+      "source": "expansion-material-governance",
+      "version": "v1",
+      "page": 2,
+      "modality": "text",
+      "primaryCategory": "retrievalDecision",
+      "goldMatch": "只能在该范围内检索",
+      "documentFamily": "material-governance",
+      "split": "validation"
+    },
+    {
+      "anchorId": "mgv-chartbook",
+      "source": "expansion-material-governance",
+      "version": "v1",
+      "page": 2,
+      "modality": "text",
+      "primaryCategory": "retrievalDecision",
+      "goldMatch": "先搜索当前图册允许共享的资料",
+      "documentFamily": "material-governance",
+      "split": "validation"
+    },
+    {
+      "anchorId": "mgv-broader",
+      "source": "expansion-material-governance",
+      "version": "v1",
+      "page": 2,
+      "modality": "text",
+      "primaryCategory": "retrievalDecision",
+      "goldMatch": "considered only when automatic selection is enabled",
+      "documentFamily": "material-governance",
+      "split": "validation"
+    },
+    {
+      "anchorId": "mgv-zero",
+      "source": "expansion-material-governance",
+      "version": "v1",
+      "page": 2,
+      "modality": "text",
+      "primaryCategory": "retrievalDecision",
+      "goldMatch": "an unavailable index produces a degraded state, not a no-answer",
+      "documentFamily": "material-governance",
+      "split": "validation"
+    },
+    {
+      "anchorId": "mgv-chartbook-narrow",
+      "source": "expansion-material-governance",
+      "version": "v1",
+      "page": 3,
+      "modality": "text",
+      "primaryCategory": "versionAndAuthorization",
+      "evaluationContext": {
+        "scenarioType": "authorizationScope",
+        "actingRole": "图册编辑者",
+        "scopeConstraint": "图册内绘图访问用户库中未挂载资料",
+        "expectedDecision": "只能使用图册挂载的资料"
+      },
+      "goldMatch": "只能使用该图册挂载的资料",
+      "expectedAnswer": "只能用图册挂载的资料;图册是收窄不是扩大。",
+      "documentFamily": "material-governance",
+      "split": "validation"
+    },
+    {
+      "anchorId": "mgv-cross-user",
+      "source": "expansion-material-governance",
+      "version": "v1",
+      "page": 3,
+      "modality": "text",
+      "primaryCategory": "versionAndAuthorization",
+      "evaluationContext": {
+        "scenarioType": "authorizationScope",
+        "actingRole": "acting user",
+        "scopeConstraint": "attempt to read another user's uploaded material",
+        "expectedDecision": "deny; always evaluated as the acting user"
+      },
+      "goldMatch": "任何请求都不能检索到其他用户上传的资料",
+      "expectedAnswer": "不能;永远按当前用户评估,不跨用户。",
+      "documentFamily": "material-governance",
+      "split": "validation"
+    },
+    {
+      "anchorId": "mgv-removed",
+      "source": "expansion-material-governance",
+      "version": "v1",
+      "page": 3,
+      "modality": "text",
+      "primaryCategory": "versionAndAuthorization",
+      "evaluationContext": {
+        "scenarioType": "authorizationScope",
+        "actingRole": "former collaborator",
+        "scopeConstraint": "share was removed",
+        "expectedDecision": "block new retrieval of that material"
+      },
+      "goldMatch": "new retrieval cannot use that material",
+      "expectedAnswer": "共享移除后新检索不能再用该资料。",
+      "documentFamily": "material-governance",
+      "split": "validation"
+    },
+    {
+      "anchorId": "mgv-version-pin",
+      "source": "expansion-material-governance",
+      "version": "v1",
+      "page": 4,
+      "modality": "text",
+      "primaryCategory": "versionAndAuthorization",
+      "evaluationContext": {
+        "scenarioType": "versionConflict",
+        "actingRole": "图册编辑者",
+        "scopeConstraint": "图形已引用某版本,新版本已就绪",
+        "expectedDecision": "保持固定引用原版本"
+      },
+      "goldMatch": "仍固定引用该版本",
+      "expectedAnswer": "保持固定;新请求才默认最新版本。",
+      "documentFamily": "material-governance",
+      "split": "validation"
+    },
+    {
+      "anchorId": "mgv-missing",
+      "source": "expansion-material-governance",
+      "version": "v1",
+      "page": 4,
+      "modality": "text",
+      "primaryCategory": "versionAndAuthorization",
+      "evaluationContext": {
+        "scenarioType": "versionMissing",
+        "actingRole": "agent",
+        "scopeConstraint": "请求被固定到不存在的版本",
+        "expectedDecision": "报告版本不可用"
+      },
+      "goldMatch": "必须报告版本不可用",
+      "expectedAnswer": "报告版本不可用,不静默改用最新版本。",
+      "documentFamily": "material-governance",
+      "split": "validation"
+    },
+    {
+      "anchorId": "mgv-draft",
+      "source": "expansion-material-governance",
+      "version": "v1",
+      "page": 4,
+      "modality": "text",
+      "primaryCategory": "versionAndAuthorization",
+      "evaluationContext": {
+        "scenarioType": "draftRejected",
+        "actingRole": "资料治理委员会",
+        "scopeConstraint": "10 月草案允许布局时自动引用最新版本",
+        "expectedDecision": "使用批准版本,布局不自动改引用"
+      },
+      "goldMatch": "评审认为风险过高并删除该规则",
+      "expectedAnswer": "自动引用最新版本的草案被否决。",
+      "documentFamily": "material-governance",
+      "split": "validation"
+    },
+    {
+      "anchorId": "pre-ocr-row",
+      "source": "expansion-platform-resilience",
+      "version": "v1",
+      "page": 2,
+      "modality": "table",
+      "primaryCategory": "failure",
+      "evaluationContext": {
+        "injectedDependency": "OCR",
+        "injectedState": "scan unavailable",
+        "expectedSystemBehavior": "keep native PDF answers and block scan claims",
+        "forbiddenSystemBehavior": "answer scan claims while OCR is down"
+      },
+      "goldMatch": "scan unavailable",
+      "expectedAnswer": "Native PDF stays; scan claims blocked.",
+      "documentFamily": "platform-resilience",
+      "split": "development"
+    },
+    {
+      "anchorId": "pre-visual-row",
+      "source": "expansion-platform-resilience",
+      "version": "v1",
+      "page": 2,
+      "modality": "table",
+      "primaryCategory": "failure",
+      "evaluationContext": {
+        "injectedDependency": "visual verifier",
+        "injectedState": "visual pending",
+        "expectedSystemBehavior": "keep text claims and block pixel relations",
+        "forbiddenSystemBehavior": "confirm pixel relations while pending"
+      },
+      "goldMatch": "visual pending",
+      "expectedAnswer": "Text claims stay; pixel relations blocked.",
+      "documentFamily": "platform-resilience",
+      "split": "development"
+    },
+    {
+      "anchorId": "pre-probe-order",
+      "source": "expansion-platform-resilience",
+      "version": "v1",
+      "page": 3,
+      "modality": "text",
+      "primaryCategory": "failure",
+      "evaluationContext": {
+        "injectedDependency": "recovery probe",
+        "injectedState": "verifying",
+        "expectedSystemBehavior": "verify tenant and chartbook filters first",
+        "forbiddenSystemBehavior": "treat an unfiltered query as a valid probe"
+      },
+      "goldMatch": "先验证租户与图册过滤",
+      "expectedAnswer": "先验证租户与图册过滤,不带过滤的查询不算有效探测。",
+      "documentFamily": "platform-resilience",
+      "split": "development"
+    },
+    {
+      "anchorId": "pre-severity",
+      "source": "expansion-platform-resilience",
+      "version": "v1",
+      "page": 5,
+      "modality": "text",
+      "primaryCategory": "failure",
+      "evaluationContext": {
+        "injectedDependency": "saved canvas",
+        "injectedState": "possible corruption",
+        "expectedSystemBehavior": "classify as SEV-1",
+        "forbiddenSystemBehavior": "treat cross-scope disclosure as low severity"
+      },
+      "goldMatch": "SEV-1 means possible cross-scope disclosure",
+      "expectedAnswer": "SEV-1 = 可能跨域泄漏或画布损坏。",
+      "documentFamily": "platform-resilience",
+      "split": "development"
+    },
+    {
+      "anchorId": "mgv-layout",
+      "source": "expansion-material-governance",
+      "version": "v1",
+      "page": 2,
+      "modality": "text",
+      "primaryCategory": "retrievalDecision",
+      "goldMatch": "纯布局操作不需要检索",
+      "documentFamily": "material-governance",
+      "split": "validation"
+    },
+    {
+      "anchorId": "pre-source-order",
+      "source": "expansion-platform-resilience",
+      "version": "v1",
+      "page": 4,
+      "modality": "text",
+      "primaryCategory": "retrievalDecision",
+      "goldMatch": "先搜索当前图册允许共享的资料",
+      "documentFamily": "platform-resilience",
+      "split": "development"
+    },
+    {
+      "anchorId": "mgv-conflict",
+      "source": "expansion-material-governance",
+      "version": "v1",
+      "page": 4,
+      "modality": "text",
+      "primaryCategory": "versionAndAuthorization",
+      "evaluationContext": {
+        "scenarioType": "versionConflict",
+        "actingRole": "reader",
+        "scopeConstraint": "同一资料多版本数值冲突",
+        "expectedDecision": "锁定被引用版本,不套用新版本数值"
+      },
+      "goldMatch": "不能把新版本数值套用到已固定旧版本的图形",
+      "expectedAnswer": "锁定被引用版本,不把新版本数值套用到旧版图形。",
+      "documentFamily": "material-governance",
+      "split": "validation"
+    },
+    {
+      "anchorId": "dcc-event-degrade",
+      "source": "expansion-datacenter-change",
+      "version": "v1",
+      "page": 2,
+      "modality": "table",
+      "primaryCategory": "versionAndAuthorization",
+      "evaluationContext": {
+        "scenarioType": "authorizationScope",
+        "actingRole": "发布组",
+        "scopeConstraint": "尝试覆盖事件响应的降级结论",
+        "expectedDecision": "拒绝;降级结论不能被发布环节覆盖"
+      },
+      "goldMatch": "降级结论不能被发布环节覆盖",
+      "expectedAnswer": "不能;事件响应的降级结论不被发布覆盖。",
+      "documentFamily": "datacenter-capacity-change",
+      "split": "development"
+    },
+    {
+      "anchorId": "dcc-water-cross",
+      "source": "expansion-datacenter-change",
+      "version": "v1",
+      "page": 6,
+      "modality": "text",
+      "goldMatch": "告警水位为 75%",
+      "documentFamily": "datacenter-capacity-change",
+      "split": "development"
+    },
+    {
+      "anchorId": "dcc-approve-cross",
+      "source": "expansion-datacenter-change",
+      "version": "v1",
+      "page": 6,
+      "modality": "text",
+      "goldMatch": "2026 年 11 月 28 日",
+      "documentFamily": "datacenter-capacity-change",
+      "split": "development"
+    },
+    {
+      "anchorId": "scf-stock-cross",
+      "source": "expansion-supply-chain",
+      "version": "v1",
+      "page": 6,
+      "modality": "text",
+      "goldMatch": "安全库存水位为 30%",
+      "documentFamily": "supply-chain-fulfillment",
+      "split": "holdout"
+    },
+    {
+      "anchorId": "scf-approve-cross",
+      "source": "expansion-supply-chain",
+      "version": "v1",
+      "page": 6,
+      "modality": "text",
+      "goldMatch": "2026 年 12 月 2 日",
+      "documentFamily": "supply-chain-fulfillment",
+      "split": "holdout"
+    },
+    {
+      "anchorId": "dcc-budget-cross",
+      "source": "expansion-datacenter-change",
+      "version": "v1",
+      "page": 5,
+      "modality": "text",
+      "goldMatch": "基线检索 40 个证据候选",
+      "documentFamily": "datacenter-capacity-change",
+      "split": "development"
+    },
+    {
+      "anchorId": "scf-redline-cross",
+      "source": "expansion-supply-chain",
+      "version": "v1",
+      "page": 6,
+      "modality": "text",
+      "goldMatch": "缺货红线为 5%",
+      "documentFamily": "supply-chain-fulfillment",
+      "split": "holdout"
+    },
+    {
+      "anchorId": "pre-cn-approve-cross",
+      "source": "expansion-platform-resilience",
+      "version": "v1",
+      "page": 5,
+      "modality": "text",
+      "goldMatch": "2026 年 12 月 4 日",
+      "documentFamily": "platform-resilience",
+      "split": "development"
+    },
+    {
+      "anchorId": "mso-cn-approve-cross",
+      "source": "expansion-observability",
+      "version": "v1",
+      "page": 6,
+      "modality": "text",
+      "goldMatch": "2026 年 11 月 22 日",
+      "documentFamily": "microservice-observability",
+      "split": "validation"
+    },
+    {
+      "anchorId": "daa-recall-budget",
+      "source": "drawio-agent-architecture",
+      "version": "v1",
+      "page": 4,
+      "modality": "text",
+      "primaryCategory": "retrievalDecision",
+      "goldMatch": "Candidate count is a recall budget",
+      "documentFamily": "drawio-agent-architecture-blueprint",
+      "split": "development"
+    },
+    {
+      "anchorId": "dcc-metadata",
+      "source": "expansion-datacenter-change",
+      "version": "v1",
+      "page": 5,
+      "modality": "text",
+      "primaryCategory": "retrievalDecision",
+      "goldMatch": "范围变化写入回答元数据",
+      "documentFamily": "datacenter-capacity-change",
+      "split": "development"
+    },
+    {
+      "anchorId": "pss-metadata",
+      "source": "scenario-payment-settlement",
+      "version": "v1",
+      "page": 5,
+      "modality": "text",
+      "primaryCategory": "retrievalDecision",
+      "goldMatch": "范围扩大必须写入回答元数据",
+      "documentFamily": "crossborder-payment-settlement",
+      "split": "development"
+    },
+    {
+      "anchorId": "pre-degraded-retrieval",
+      "source": "expansion-platform-resilience",
+      "version": "v1",
+      "page": 3,
+      "modality": "text",
+      "primaryCategory": "retrievalDecision",
+      "goldMatch": "一次不带过滤的成功查询不是有效恢复探测",
+      "documentFamily": "platform-resilience",
+      "split": "development"
+    },
+    {
+      "anchorId": "daa-latest",
+      "source": "drawio-agent-architecture",
+      "version": "v1",
+      "page": 5,
+      "modality": "text",
+      "primaryCategory": "versionAndAuthorization",
+      "evaluationContext": {
+        "scenarioType": "versionDefault",
+        "actingRole": "agent",
+        "scopeConstraint": "new request without explicit version",
+        "expectedDecision": "use the latest ready version"
+      },
+      "goldMatch": "defaults to the latest ready version",
+      "expectedAnswer": "New diagrams use the latest ready version unless the user selects another.",
+      "documentFamily": "drawio-agent-architecture-blueprint",
+      "split": "development"
+    },
+    {
+      "anchorId": "pss-default",
+      "source": "scenario-payment-settlement",
+      "version": "v1",
+      "page": 6,
+      "modality": "text",
+      "primaryCategory": "versionAndAuthorization",
+      "evaluationContext": {
+        "scenarioType": "versionDefault",
+        "actingRole": "agent",
+        "scopeConstraint": "新请求未指定版本",
+        "expectedDecision": "默认使用最新就绪版本"
+      },
+      "goldMatch": "新的请求默认使用最新就绪版本",
+      "expectedAnswer": "新请求默认使用最新就绪版本。",
+      "documentFamily": "crossborder-payment-settlement",
+      "split": "development"
+    },
+    {
+      "anchorId": "dcc-latest",
+      "source": "expansion-datacenter-change",
+      "version": "v1",
+      "page": 6,
+      "modality": "table",
+      "primaryCategory": "versionAndAuthorization",
+      "evaluationContext": {
+        "scenarioType": "versionConflict",
+        "actingRole": "图册编辑者",
+        "scopeConstraint": "已有图形引用原容量基线版本",
+        "expectedDecision": "保持固定引用原版本"
+      },
+      "goldMatch": "仍固定引用原版本",
+      "expectedAnswer": "保持固定在原版本。",
+      "documentFamily": "datacenter-capacity-change",
+      "split": "development"
+    },
+    {
+      "anchorId": "pre-sev2",
+      "source": "expansion-platform-resilience",
+      "version": "v1",
+      "page": 5,
+      "modality": "text",
+      "primaryCategory": "failure",
+      "evaluationContext": {
+        "injectedDependency": "material task",
+        "injectedState": "cannot complete",
+        "expectedSystemBehavior": "classify as SEV-2",
+        "forbiddenSystemBehavior": "lose data silently"
+      },
+      "goldMatch": "SEV-2 means a material task cannot complete without data loss",
+      "expectedAnswer": "SEV-2 = 资料任务无法在不丢数据下完成。",
+      "documentFamily": "platform-resilience",
+      "split": "development"
+    },
+    {
+      "anchorId": "pre-sev3",
+      "source": "expansion-platform-resilience",
+      "version": "v1",
+      "page": 5,
+      "modality": "text",
+      "primaryCategory": "failure",
+      "evaluationContext": {
+        "injectedDependency": "dependency op",
+        "injectedState": "retryable delay",
+        "expectedSystemBehavior": "classify as SEV-3 with preserved work",
+        "forbiddenSystemBehavior": "discard preserved work"
+      },
+      "goldMatch": "SEV-3 means a retryable delay with preserved work",
+      "expectedAnswer": "SEV-3 = 可重试延迟且工作保留。",
+      "documentFamily": "platform-resilience",
+      "split": "development"
+    },
+    {
+      "anchorId": "dcc-review-cross",
+      "source": "expansion-datacenter-change",
+      "version": "v1",
+      "page": 6,
+      "modality": "text",
+      "goldMatch": "人工复核水位为 85%",
+      "documentFamily": "datacenter-capacity-change",
+      "split": "development"
+    },
+    {
+      "anchorId": "scf-restock-cross",
+      "source": "expansion-supply-chain",
+      "version": "v1",
+      "page": 6,
+      "modality": "text",
+      "goldMatch": "补货触发水位为 20%",
+      "documentFamily": "supply-chain-fulfillment",
+      "split": "holdout"
+    },
+    {
+      "anchorId": "mgv-clarify",
+      "source": "expansion-material-governance",
+      "version": "v1",
+      "page": 2,
+      "modality": "text",
+      "primaryCategory": "retrievalDecision",
+      "goldMatch": "指代不明时先请求澄清",
+      "documentFamily": "material-governance",
+      "split": "validation"
+    },
+    {
+      "anchorId": "dwh-draft",
+      "source": "drawio-workflow-handbook",
+      "version": "v1",
+      "page": 6,
+      "modality": "text",
+      "primaryCategory": "versionAndAuthorization",
+      "evaluationContext": {
+        "scenarioType": "draftRejected",
+        "actingRole": "Diagram Experience Lead",
+        "scopeConstraint": "11 月草案允许布局操作时自动补充事实",
+        "expectedDecision": "使用批准版本,布局不自动补事实"
+      },
+      "goldMatch": "评审认为风险过高并删除该规则",
+      "expectedAnswer": "自动补充事实的草案被否决。",
+      "documentFamily": "drawio-diagram-workflow-handbook",
+      "split": "development"
+    },
+    {
+      "anchorId": "fas-id",
+      "page": 1,
+      "goldMatch": "FAS-2026-19",
+      "source": "expansion-field-audit-scan",
+      "version": "v1",
+      "modality": "ocr",
+      "primaryCategory": "ocr",
+      "documentFamily": "field-audit-scan",
+      "split": "development"
+    },
+    {
+      "anchorId": "fas-depth",
+      "page": 2,
+      "goldMatch": "verified wear depth measured 27 mm",
+      "source": "expansion-field-audit-scan",
+      "version": "v1",
+      "modality": "ocr",
+      "primaryCategory": "ocr",
+      "documentFamily": "field-audit-scan",
+      "split": "development"
+    },
+    {
+      "anchorId": "fas-threshold",
+      "page": 2,
+      "goldMatch": "reaches 25 mm or growth exceeds 5 mm",
+      "source": "expansion-field-audit-scan",
+      "version": "v1",
+      "modality": "ocr",
+      "primaryCategory": "ocr",
+      "documentFamily": "field-audit-scan",
+      "split": "development"
+    },
+    {
+      "anchorId": "fas-cn-id",
+      "page": 3,
+      "goldMatch": "CN-AUDIT-53",
+      "source": "expansion-field-audit-scan",
+      "version": "v1",
+      "modality": "ocr",
+      "primaryCategory": "ocr",
+      "documentFamily": "field-audit-scan",
+      "split": "development"
+    },
+    {
+      "anchorId": "fas-cn-recheck",
+      "page": 3,
+      "goldMatch": "2026 年 10 月 21 日 06:30",
+      "source": "expansion-field-audit-scan",
+      "version": "v1",
+      "modality": "ocr",
+      "primaryCategory": "ocr",
+      "documentFamily": "field-audit-scan",
+      "split": "development"
+    },
+    {
+      "anchorId": "fas-row-status",
+      "page": 4,
+      "goldMatch": "B-16 | 27 mm | +6 mm | ENGINEERING REVIEW",
+      "source": "expansion-field-audit-scan",
+      "version": "v1",
+      "modality": "ocr",
+      "primaryCategory": "ocr",
+      "documentFamily": "field-audit-scan",
+      "split": "development"
+    },
+    {
+      "anchorId": "fas-deadline",
+      "page": 5,
+      "goldMatch": "18:00 on 18 October 2026",
+      "source": "expansion-field-audit-scan",
+      "version": "v1",
+      "modality": "ocr",
+      "primaryCategory": "ocr",
+      "documentFamily": "field-audit-scan",
+      "split": "development"
+    },
+    {
+      "anchorId": "fas-approved-threshold",
+      "page": 5,
+      "goldMatch": "approved threshold remains 25 mm",
+      "source": "expansion-field-audit-scan",
+      "version": "v1",
+      "modality": "ocr",
+      "primaryCategory": "ocr",
+      "documentFamily": "field-audit-scan",
+      "split": "development"
+    },
+    {
+      "anchorId": "apr-id",
+      "page": 1,
+      "goldMatch": "APR-2026-24",
+      "source": "expansion-approval-scan",
+      "version": "v1",
+      "modality": "ocr",
+      "primaryCategory": "ocr",
+      "documentFamily": "approval-record-scan",
+      "split": "holdout"
+    },
+    {
+      "anchorId": "apr-window",
+      "page": 2,
+      "goldMatch": "02:00 to 04:00 on 20 November 2026",
+      "source": "expansion-approval-scan",
+      "version": "v1",
+      "modality": "ocr",
+      "primaryCategory": "ocr",
+      "documentFamily": "approval-record-scan",
+      "split": "holdout"
+    },
+    {
+      "anchorId": "apr-approver",
+      "page": 2,
+      "goldMatch": "approved by the Operations Council",
+      "source": "expansion-approval-scan",
+      "version": "v1",
+      "modality": "ocr",
+      "primaryCategory": "ocr",
+      "documentFamily": "approval-record-scan",
+      "split": "holdout"
+    },
+    {
+      "anchorId": "apr-rollback",
+      "page": 2,
+      "goldMatch": "three consecutive health-check failures",
+      "source": "expansion-approval-scan",
+      "version": "v1",
+      "modality": "ocr",
+      "primaryCategory": "ocr",
+      "documentFamily": "approval-record-scan",
+      "split": "holdout"
+    },
+    {
+      "anchorId": "apr-cn-id",
+      "page": 3,
+      "goldMatch": "CN-APR-71",
+      "source": "expansion-approval-scan",
+      "version": "v1",
+      "modality": "ocr",
+      "primaryCategory": "ocr",
+      "documentFamily": "approval-record-scan",
+      "split": "holdout"
+    },
+    {
+      "anchorId": "apr-retain",
+      "page": 3,
+      "goldMatch": "至少留存 48 个月",
+      "source": "expansion-approval-scan",
+      "version": "v1",
+      "modality": "ocr",
+      "primaryCategory": "ocr",
+      "documentFamily": "approval-record-scan",
+      "split": "holdout"
     }
   ]
 }

@@ -4,18 +4,18 @@ Status: **READY**
 
 ## Current corpus
 
-- Core cases: 240 / 240
-- Development: 120 / 120
-- Validation: 60 / 60
-- Holdout: 60 / 60
-- Generated cases including guards: 379
-- Anchors: 233; documents: 24
+- Core cases: 450 / 240
+- Development: 250 / 120
+- Validation: 100 / 60
+- Holdout: 100 / 60
+- Generated cases including guards: 589
+- Anchors: 334; documents: 31
 
 ## Blocking gaps
 
 - Missing core cases: 0
 - Split gaps: `{}`
-- Independently reviewed core cases: 240
+- Independently reviewed core cases: 450
 - Independent human review status: `double_reviewed`
 - Primary-category deltas: `{}`
 - Language-target deltas: `{}`

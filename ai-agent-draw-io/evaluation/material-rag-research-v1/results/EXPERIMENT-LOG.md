@@ -30,15 +30,21 @@
 
 ## 语料与基线状态
 
-- **核心集**:240,三维精确命中(split 120/60/60、9 类别、语言 zh96/en96/cross48),16 项结构
-  检查全 PASS,双人复核(AI 首轮 + 人工确认),**E0 lock FROZEN**。
+- **核心集**:**450**(数据集 v-next),三维精确命中(split 250/100/100、9 类别各 50、语言 zh193/en161/cross96),
+  16 项结构检查全 PASS,双人复核(AI 首轮 + 人工确认),**E0 lock FROZEN**。语言比例按数据集实际构成
+  (中文场景文档偏多)定,每语言仍远超 per-slice 所需。
+- **数据集 240→450 升级**:每类 case 补到 ≥50 以让 per-slice 统计可信(validation 曾证明 n=8~44 时切片结论
+  不稳)。新增 5 篇跨领域 digital 文档 + 2 篇扫描件(补 ocr),用 ILP + `query-selection.json` 精确削减到 450。
+  ⚠️ **E0/E1 的旧结果是在 240 语料上跑的,需在 450 语料上重跑**;test 的 projection 列表已加入 5 篇 expansion 文档。
 - **守门套件**:139(versioning/abstention/authorization/failure/visual-ocr),未达 plan 的 220。
-- 生成确定性可复现;`query-selection.json`(ILP 削减)与 spec 模块纳入 provenance。
-- 关键提交:语料 `14141132`、E0 适配 `c8f4845e`、E1 晋级 `89f8bbfe`、E1 复核 `228eb416`。
+- 生成确定性可复现;`query-selection.json`(ILP 削减)与 spec 模块纳入 provenance。31 篇文档、334 锚点。
+- 关键提交:语料 `14141132`、E0 适配 `c8f4845e`、E1 晋级 `89f8bbfe`、E1 复核 `228eb416`、数据集 v-next(本次)。
 
 ---
 
 ## 实验时间线
+
+> 注:下列 E0/E1 结果在 **240 语料(数据集 v1)** 上得到;数据集已升级到 **450(v-next)**,E0/E1 需在新语料重跑。
 
 ### E0 — 基线(dense, development) · 2026-07-21 · ❌未达门槛(预期)
 

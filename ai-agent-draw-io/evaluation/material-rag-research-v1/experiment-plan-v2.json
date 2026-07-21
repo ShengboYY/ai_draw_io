@@ -1,25 +1,25 @@
 {
   "schemaVersion": "material-rag-experiment-v2",
   "coreCases": {
-    "development": 120,
-    "validation": 60,
-    "holdout": 60
+    "development": 250,
+    "validation": 100,
+    "holdout": 100
   },
   "primaryCategories": {
-    "exactLookup": 30,
-    "crossLanguage": 30,
-    "multiEvidence": 28,
-    "visual": 40,
-    "ocr": 30,
-    "versionAndAuthorization": 24,
-    "retrievalDecision": 18,
-    "noAnswerAndMisleading": 24,
-    "failure": 16
+    "exactLookup": 50,
+    "crossLanguage": 50,
+    "multiEvidence": 50,
+    "visual": 50,
+    "ocr": 50,
+    "versionAndAuthorization": 50,
+    "retrievalDecision": 50,
+    "noAnswerAndMisleading": 50,
+    "failure": 50
   },
   "languageTargets": {
-    "zh": 96,
-    "en": 96,
-    "crossLanguage": 48
+    "zh": 193,
+    "en": 161,
+    "crossLanguage": 96
   },
   "guardSuites": {
     "authorization": 60,
@@ -58,8 +58,8 @@
     "maximumCostRegressionWithoutQualityGain": 0.30
   },
   "preE0": {
-    "minimumReviewedCasesBeforeComparison": 180,
-    "requiredFrozenCoreCasesForBaseline": 240,
+    "minimumReviewedCasesBeforeComparison": 340,
+    "requiredFrozenCoreCasesForBaseline": 450,
     "splitFamiliesBeforeQuestionAuthoring": true,
     "controlledFixturesAreRepresentativeDocuments": false
   },

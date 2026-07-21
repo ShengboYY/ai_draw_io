@@ -25,6 +25,7 @@ PROVENANCE_FILES = (
     "fixtures/drawio_agent_corpus_specs.py",
     "fixtures/scenario_corpus_specs.py",
     "fixtures/guard_corpus_specs.py",
+    "fixtures/expansion_corpus_specs.py",
     "fixtures/query-selection.json",
 )
 CATEGORY_CONTEXT_FIELDS = {

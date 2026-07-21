@@ -316,6 +316,16 @@ class ControlledPdfDenseRecallLiveTest {
                 "scenario-ota-rollout", "v1", "scenario-vehicle-ota-rollout-v1.pdf"));
         result.put("scenario-gmp-change-control:v1", buildProjection(root,
                 "scenario-gmp-change-control", "v1", "scenario-gmp-batch-change-control-v1.pdf"));
+        result.put("expansion-datacenter-change:v1", buildProjection(root,
+                "expansion-datacenter-change", "v1", "expansion-datacenter-capacity-change-v1.pdf"));
+        result.put("expansion-observability:v1", buildProjection(root,
+                "expansion-observability", "v1", "expansion-microservice-observability-v1.pdf"));
+        result.put("expansion-supply-chain:v1", buildProjection(root,
+                "expansion-supply-chain", "v1", "expansion-supply-chain-fulfillment-v1.pdf"));
+        result.put("expansion-platform-resilience:v1", buildProjection(root,
+                "expansion-platform-resilience", "v1", "expansion-platform-resilience-v1.pdf"));
+        result.put("expansion-material-governance:v1", buildProjection(root,
+                "expansion-material-governance", "v1", "expansion-material-governance-v1.pdf"));
         return new ProjectionSet(Map.copyOf(result));
     }
 
