@@ -42,7 +42,8 @@ public final class CanonicalPageAssembler {
     }
 
     public String fingerprint() {
-        return "canonical-v4:source-map-v2:block-region-merge:reading-flow-v1:boilerplate-candidate-v1"
+        return "canonical-v5:source-map-v2:block-region-merge:paragraph-line-merge-gap2.5pct-left8pct"
+                + ":reading-flow-v1:boilerplate-candidate-v1"
                 + ":delimited-row-merge-gap4pct-left3pct-right15pct"
                 + ":" + blockKindPolicy.fingerprint()
                 + ":calibration=" + qualityCalibration.version() + ":low-confidence=" + lowConfidenceThreshold;
@@ -81,7 +82,9 @@ public final class CanonicalPageAssembler {
             }
         }
         selected = orderByReadingFlow(selected);
+        selected = mergeSameLineParagraphRuns(selected);
         selected = mergeDelimitedTableRows(selected);
+        selected = mergeContiguousParagraphLines(selected);
         List<CanonicalBlock> ordered = new ArrayList<>();
         for (int index = 0; index < selected.size(); index++) {
             CanonicalBlock block = selected.get(index);
@@ -157,6 +160,98 @@ public final class CanonicalPageAssembler {
         return new CanonicalBlock("table_" + first.blockId() + "_" + last.blockId(), TextBlockKind.TABLE,
                 first.readingOrder(), regions, first.textSource(), extracted.toString(), display.toString(),
                 sourceMap, confidence, BoilerplatePosition.NONE, 0);
+    }
+
+    private static List<CanonicalBlock> mergeContiguousParagraphLines(List<CanonicalBlock> blocks) {
+        List<CanonicalBlock> merged = new ArrayList<>();
+        for (int index = 0; index < blocks.size();) {
+            CanonicalBlock first = blocks.get(index);
+            List<CanonicalBlock> lines = new ArrayList<>();
+            lines.add(first);
+            int cursor = index + 1;
+            while (cursor < blocks.size() && contiguousParagraphLine(lines.get(lines.size() - 1), blocks.get(cursor))) {
+                lines.add(blocks.get(cursor++));
+            }
+            // Native PDF extraction emits physical lines; join only spatially continuous paragraph lines.
+            merged.add(lines.size() == 1 ? first : mergeParagraphBlocks(lines, "\n", " "));
+            index += lines.size();
+        }
+        return List.copyOf(merged);
+    }
+
+    private static List<CanonicalBlock> mergeSameLineParagraphRuns(List<CanonicalBlock> blocks) {
+        List<CanonicalBlock> merged = new ArrayList<>();
+        for (int index = 0; index < blocks.size();) {
+            CanonicalBlock first = blocks.get(index);
+            List<CanonicalBlock> runs = new ArrayList<>();
+            runs.add(first);
+            int cursor = index + 1;
+            while (cursor < blocks.size() && sameLineParagraphRun(runs.get(runs.size() - 1), blocks.get(cursor))) {
+                runs.add(blocks.get(cursor++));
+            }
+            // PDFBox may split one physical line into adjacent text callbacks.
+            merged.add(runs.size() == 1 ? first : mergeParagraphBlocks(runs, " ", " "));
+            index += runs.size();
+        }
+        return List.copyOf(merged);
+    }
+
+    private static boolean sameLineParagraphRun(CanonicalBlock previous, CanonicalBlock next) {
+        if (previous.kind() != TextBlockKind.PARAGRAPH || next.kind() != TextBlockKind.PARAGRAPH
+                || previous.textSource() != next.textSource()) {
+            return false;
+        }
+        double previousHeight = bottom(previous) - top(previous);
+        double nextHeight = bottom(next) - top(next);
+        return Math.abs((top(previous) + bottom(previous)) / 2 - (top(next) + bottom(next)) / 2)
+                <= Math.min(previousHeight, nextHeight) * 0.50
+                && left(next) >= right(previous) - 0.01 && left(next) - right(previous) <= 0.06;
+    }
+
+    private static boolean contiguousParagraphLine(CanonicalBlock previous, CanonicalBlock next) {
+        if (previous.kind() != TextBlockKind.PARAGRAPH || next.kind() != TextBlockKind.PARAGRAPH
+                || previous.textSource() != next.textSource()) {
+            return false;
+        }
+        double verticalGap = top(next) - bottom(previous);
+        return verticalGap >= -0.003 && verticalGap <= 0.025
+                && Math.abs(left(previous) - left(next)) <= 0.08;
+    }
+
+    private static CanonicalBlock mergeParagraphBlocks(List<CanonicalBlock> lines,
+                                                        String extractedSeparator, String displaySeparator) {
+        StringBuilder extracted = new StringBuilder();
+        StringBuilder display = new StringBuilder();
+        List<SourceMapSpan> sourceMap = new ArrayList<>();
+        List<org.zipp.ai.domain.ingestion.model.valobj.NormalizedBoundingBox> regions = lines.stream()
+                .flatMap(line -> line.regions().stream()).distinct().toList();
+        for (int index = 0; index < lines.size(); index++) {
+            CanonicalBlock line = lines.get(index);
+            if (index > 0) {
+                int extractedStart = extracted.length();
+                int displayStart = display.length();
+                List<org.zipp.ai.domain.ingestion.model.valobj.NormalizedBoundingBox> bridgeRegions = List.of(
+                        lines.get(index - 1).regions().get(0), line.regions().get(0));
+                extracted.append(extractedSeparator);
+                display.append(displaySeparator);
+                sourceMap.add(new SourceMapSpan(displayStart, display.length(), extractedStart,
+                        extracted.length(), bridgeRegions));
+            }
+            int extractedOffset = extracted.length();
+            int displayOffset = display.length();
+            extracted.append(line.extractedText());
+            display.append(line.displayText());
+            line.sourceMap().forEach(span -> sourceMap.add(new SourceMapSpan(
+                    displayOffset + span.displayStart(), displayOffset + span.displayEnd(),
+                    extractedOffset + span.extractedStart(), extractedOffset + span.extractedEnd(),
+                    span.regions())));
+        }
+        CanonicalBlock first = lines.get(0);
+        CanonicalBlock last = lines.get(lines.size() - 1);
+        double confidence = lines.stream().mapToDouble(CanonicalBlock::confidence).min().orElse(0);
+        return new CanonicalBlock("paragraph_" + first.blockId() + "_" + last.blockId(),
+                TextBlockKind.PARAGRAPH, first.readingOrder(), regions, first.textSource(),
+                extracted.toString(), display.toString(), sourceMap, confidence, BoilerplatePosition.NONE, 0);
     }
 
     private static boolean overlaps(CanonicalBlock first, CanonicalBlock second) {

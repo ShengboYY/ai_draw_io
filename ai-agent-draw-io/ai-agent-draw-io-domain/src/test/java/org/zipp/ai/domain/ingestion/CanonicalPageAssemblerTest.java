@@ -147,6 +147,33 @@ class CanonicalPageAssemblerTest {
     }
 
     @Test
+    void assemblesContiguousNativePdfLinesIntoOneCitableParagraph() {
+        List<ExtractedTextBlock> blocks = List.of(
+                block("nist-1", "The AI RMF is intended", new NormalizedBoundingBox(
+                        0.12, 0.20, 0.56, 0.22)),
+                block("nist-1b", "to help", new NormalizedBoundingBox(
+                        0.57, 0.20, 0.68, 0.22)),
+                block("nist-2", "organizations manage risks associated", new NormalizedBoundingBox(
+                        0.12, 0.224, 0.86, 0.244)),
+                block("nist-3", "with AI systems.", new NormalizedBoundingBox(
+                        0.12, 0.248, 0.46, 0.268)),
+                block("next-paragraph", "A separate paragraph starts here.", new NormalizedBoundingBox(
+                        0.12, 0.31, 0.72, 0.33)));
+
+        CanonicalPage canonical = new CanonicalPageAssembler(0.70).assemble(new PageExtraction(
+                1, 1000, 1400, blocks, new NativeTextQuality(100, 0, 0, 0.25), null));
+
+        // NIST-native PDF lines must remain one complete Evidence candidate before chunk projection.
+        assertEquals(List.of("The AI RMF is intended to help organizations manage risks associated with AI systems.",
+                        "A separate paragraph starts here."), canonical.blocks().stream()
+                .map(block -> block.displayText()).toList());
+        assertEquals(4, canonical.blocks().get(0).regions().size());
+        assertTrue(canonical.blocks().get(0).sourceMap().stream().anyMatch(span ->
+                span.displayStart() == "The AI RMF is intended to help".length()
+                        && span.displayEnd() == "The AI RMF is intended to help ".length()));
+    }
+
+    @Test
     void edgeBlocksAreMarkedAsBoilerplateCandidatesForDocumentLevelConfirmation() {
         List<ExtractedTextBlock> blocks = List.of(
                 block("header", "Agile Practice Guide", new NormalizedBoundingBox(0.1, 0.01, 0.9, 0.05)),
