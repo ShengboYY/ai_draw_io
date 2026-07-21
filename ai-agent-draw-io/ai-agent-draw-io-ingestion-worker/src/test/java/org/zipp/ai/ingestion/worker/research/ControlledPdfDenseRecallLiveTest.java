@@ -310,6 +310,12 @@ class ControlledPdfDenseRecallLiveTest {
                 "drawio-collaboration-governance", "v1", "drawio-collaboration-governance-v1.pdf"));
         result.put("drawio-recovery-runbook:v1", buildProjection(root,
                 "drawio-recovery-runbook", "v1", "drawio-agent-recovery-runbook-v1.pdf"));
+        result.put("scenario-payment-settlement:v1", buildProjection(root,
+                "scenario-payment-settlement", "v1", "scenario-crossborder-payment-settlement-v1.pdf"));
+        result.put("scenario-ota-rollout:v1", buildProjection(root,
+                "scenario-ota-rollout", "v1", "scenario-vehicle-ota-rollout-v1.pdf"));
+        result.put("scenario-gmp-change-control:v1", buildProjection(root,
+                "scenario-gmp-change-control", "v1", "scenario-gmp-batch-change-control-v1.pdf"));
         return new ProjectionSet(Map.copyOf(result));
     }
 
@@ -594,7 +600,9 @@ class ControlledPdfDenseRecallLiveTest {
     private void waitUntilSearchable(PineconeVectorClient client, String namespace, String tenantKey,
                                      List<IndexedChunk> indexed, List<float[]> vectors) throws Exception {
         List<String> vectorIds = indexed.stream().map(IndexedChunk::vectorId).toList();
-        for (int attempt = 0; attempt < 24; attempt++) {
+        int maxAttempts = Integer.parseInt(
+                System.getenv().getOrDefault("MATERIAL_RAG_INDEX_WAIT_ATTEMPTS", "24"));
+        for (int attempt = 0; attempt < maxAttempts; attempt++) {
             if (!allExisting(client, namespace, vectorIds)) {
                 Thread.sleep(500L);
                 continue;
@@ -613,13 +621,16 @@ class ControlledPdfDenseRecallLiveTest {
             if (searchable) return;
             Thread.sleep(500L);
         }
-        throw new IllegalStateException("Controlled PDF vectors were not searchable within 12 seconds");
+        throw new IllegalStateException("Controlled PDF vectors were not searchable within "
+                + (maxAttempts / 2) + " seconds");
     }
 
     private void waitUntilDeleted(PineconeVectorClient client, String namespace,
                                   List<String> vectorIds) throws Exception {
         if (vectorIds.isEmpty()) return;
-        for (int attempt = 0; attempt < 20; attempt++) {
+        int maxAttempts = Integer.parseInt(
+                System.getenv().getOrDefault("MATERIAL_RAG_DELETE_WAIT_ATTEMPTS", "20"));
+        for (int attempt = 0; attempt < maxAttempts; attempt++) {
             if (noneExisting(client, namespace, vectorIds)) return;
             Thread.sleep(500L);
         }
