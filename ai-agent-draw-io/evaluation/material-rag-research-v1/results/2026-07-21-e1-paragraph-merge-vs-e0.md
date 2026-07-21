@@ -52,6 +52,32 @@ text/zh and by de-fragmenting abstract-policy anchors. Promote it into the E2
 baseline. Track the multi_evidence dip and the flat English slice as open items
 for later experiments (E2 chunk parent/child, E3 hybrid, E6 context budget).
 
+## Validation cross-check (same canonical-v5, validation split)
+
+| Metric | E1 development | E1 validation | V2 gate |
+|---|--:|--:|:--:|
+| Recall@10 | 0.903 | **0.895** | ≥0.90 (just under) |
+| Recall@40 | 0.952 | **0.921** | ≥0.95 (under) |
+| MRR@10 | 0.744 | 0.751 | ≥0.75 ✅ |
+| chunks | 399 | 399 | |
+
+Reading:
+- **Not overfit.** Dev vs val Recall@10 differ by only 0.008 — the paragraph-merge
+  gain generalizes. E1 is a real improvement, not a development-set artifact.
+- **But dense-only sits on the gate edge.** Validation Recall@10 misses 0.90 by ~1
+  case and Recall@40 is clearly under 0.95. Dense alone is not enough to clear the
+  gates reliably; that's the job of E3 (hybrid) / E5 (rerank).
+- **The multi_evidence dip is NOT systematic.** On validation multi_evidence is
+  0.875 (vs the 0.667 seen on dev), so the dev dip was mostly the single case-303
+  cross-page pair, not a structural regression from merging.
+- **Per-slice numbers are noisy.** Slice directions flip between splits (dev: zh
+  strong / en weak; val: zh weak / en strong), with slice n=8–23. This is direct
+  evidence for the earlier point: per-slice conclusions need n≥50 to be trusted.
+
+Verdict holds: E1 promotes (generalizes, real ranking gain), but the gates are only
+cleared on dev and just-missed on val — the remaining gap is for retrieval-side
+experiments, not more paragraph merging.
+
 ## Reproduce
 
 Same as the E0 baseline command, with `canonical-v5` (paragraph merge) applied in
