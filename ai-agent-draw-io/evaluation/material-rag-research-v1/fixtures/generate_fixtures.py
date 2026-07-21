@@ -38,6 +38,20 @@ from drawio_agent_corpus_specs import (
     DRAWIO_SCAN_FACTS,
     DRAWIO_SCANNED_DOCUMENT,
 )
+from scenario_corpus_specs import (
+    SCENARIO_DIGITAL_DOCUMENTS,
+    SCENARIO_FACTS,
+    SCENARIO_MULTI_CASES,
+    SCENARIO_NO_ANSWER_CASES,
+    SUPPLEMENT_FACTS,
+    SUPPLEMENT_MULTI_CASES,
+    SUPPLEMENT_NO_ANSWER_CASES,
+)
+from guard_corpus_specs import (
+    GUARD_DIGITAL_DOCUMENTS,
+    GUARD_FACTS,
+    GUARD_NO_ANSWER_CASES,
+)
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -49,7 +63,8 @@ FALLBACK_FONT = Path("/System/Library/Fonts/Supplemental/Arial Unicode.ttf")
 FONT_SHA256 = GENERATION_CONFIG["fixtureFontSha256"]
 PAGE_WIDTH, PAGE_HEIGHT = A4
 RANDOM = random.Random(GENERATION_CONFIG["randomSeed"])
-ALL_DIGITAL_DOCUMENTS = [*DIGITAL_DOCUMENTS, *DRAWIO_DIGITAL_DOCUMENTS]
+ALL_DIGITAL_DOCUMENTS = [*DIGITAL_DOCUMENTS, *DRAWIO_DIGITAL_DOCUMENTS, *SCENARIO_DIGITAL_DOCUMENTS,
+                         *GUARD_DIGITAL_DOCUMENTS]
 ALL_SCANNED_DOCUMENTS = [SCANNED_DOCUMENT, DRAWIO_SCANNED_DOCUMENT]
 OUTAGE_CHART_VALUES = [
     ("Docklands North", 16),
@@ -912,7 +927,8 @@ def facts() -> list[dict]:
         {"anchorId": "whiteboard-feedback", "source": "whiteboard-review-feedback", "version": "v1", "page": 1,
          "modality": "image_visual", "goldMatch": "REVIEW--dashed-->INTAKE",
          "queries": ["Where does the whiteboard rework arrow return?", "白板上的返工虚线从 REVIEW 指向哪里？"]},
-    ] + ADDITIONAL_FACTS + DRAWIO_FACTS + DRAWIO_SCAN_FACTS
+    ] + ADDITIONAL_FACTS + DRAWIO_FACTS + DRAWIO_SCAN_FACTS + SCENARIO_FACTS + SUPPLEMENT_FACTS \
+        + GUARD_FACTS
 
 
 def generated_documents() -> list[dict]:
@@ -998,7 +1014,8 @@ def validate_additional_specs() -> None:
     """Fail generation when authored facts drift away from their assigned pages."""
     documents = {document["source"]: document for document in ALL_DIGITAL_DOCUMENTS}
     documents.update({document["source"]: document for document in ALL_SCANNED_DOCUMENTS})
-    for fact in [*ADDITIONAL_FACTS, *DRAWIO_FACTS, *DRAWIO_SCAN_FACTS]:
+    for fact in [*ADDITIONAL_FACTS, *DRAWIO_FACTS, *DRAWIO_SCAN_FACTS, *SCENARIO_FACTS,
+                 *SUPPLEMENT_FACTS, *GUARD_FACTS]:
         document = documents[fact["source"]]
         page = document["pages"][fact["page"] - 1]
         native_parts = [page["title"], page["subtitle"]]
@@ -1049,9 +1066,27 @@ def validate_additional_specs() -> None:
             raise RuntimeError(f"Visual gold is absent from image configuration: {fact['anchorId']}")
 
 
+SELECTION_PATH = ROOT / "fixtures" / "query-selection.json"
+
+
+def load_drop_selection() -> set[str]:
+    """Load the optional case-selection file that trims the corpus to V2 targets.
+
+    The file lists stable case keys to drop. It lets exact category/language/split
+    balancing be expressed as reviewable data instead of deleting authored queries,
+    so every anchor stays available as ground truth even when a query is not used.
+    """
+    if SELECTION_PATH.exists():
+        payload = json.loads(SELECTION_PATH.read_text(encoding="utf-8"))
+        return set(payload.get("drop", []))
+    return set()
+
+
 def write_ground_truth(output_root: Path) -> None:
     anchors = facts()
     metadata = source_metadata()
+    drop_selection = load_drop_selection()
+    case_keys: dict[str, str] = {}
     (output_root / "ground-truth.json").write_text(json.dumps({
         "schemaVersion": "material-rag-ground-truth-v1",
         "anchors": [{
@@ -1070,6 +1105,9 @@ def write_ground_truth(output_root: Path) -> None:
         for fact in anchors:
             document = metadata[fact["source"]]
             for query in fact["queries"]:
+                case_key = f"{fact['anchorId']}::{query}"
+                if case_key in drop_selection:
+                    continue
                 language, tags = language_target(query, document)
                 case_record = {
                     "schemaVersion": "material-rag-research-case-v2",
@@ -1097,6 +1135,7 @@ def write_ground_truth(output_root: Path) -> None:
                 # Scenario categories carry executable conditions instead of relying on labels alone.
                 if fact.get("evaluationContext"):
                     case_record["evaluationContext"] = fact["evaluationContext"]
+                case_keys[case_record["caseId"]] = case_key
                 output.write(json.dumps(case_record, ensure_ascii=False) + "\n")
                 ordinal += 1
         # Each comparison keeps all required pages within one preassigned document family.
@@ -1113,14 +1152,20 @@ def write_ground_truth(output_root: Path) -> None:
                        "and how much did it fall?"),
                 ("zh", "升级前后辅助系统的日均能耗分别是多少，降低了多少？"),
             ],
-        }, *ADDITIONAL_MULTI_CASES, *DRAWIO_MULTI_CASES]
+        }, *ADDITIONAL_MULTI_CASES, *DRAWIO_MULTI_CASES, *SCENARIO_MULTI_CASES,
+            *SUPPLEMENT_MULTI_CASES]
         for case in multi_cases:
             source = case["sourceVersion"].split(":", maxsplit=1)[0]
             for _, query in case["queries"]:
+                case_key = f"multi:{case['sourceVersion']}:{case['groupId']}::{query}"
+                if case_key in drop_selection:
+                    continue
                 language, tags = language_target(query, metadata[source])
+                case_id = f"controlled-{ordinal:03d}"
+                case_keys[case_id] = case_key
                 output.write(json.dumps({
                     "schemaVersion": "material-rag-research-case-v2",
-                    "caseId": f"controlled-{ordinal:03d}",
+                    "caseId": case_id,
                     "category": case["category"],
                     "language": language,
                     "queryLanguage": query_language(query),
@@ -1152,11 +1197,16 @@ def write_ground_truth(output_root: Path) -> None:
             "蓝鲸计划的办公地址在哪里？",
         ]
         for query in no_answer_queries:
+            case_key = f"noanswer:controlled-guide-v1:v1::{query}"
+            if case_key in drop_selection:
+                continue
             document = metadata["controlled-guide-v1"]
             language, tags = language_target(query, document)
+            case_id = f"controlled-{ordinal:03d}"
+            case_keys[case_id] = case_key
             output.write(json.dumps({
                 "schemaVersion": "material-rag-research-case-v2",
-                "caseId": f"controlled-{ordinal:03d}",
+                "caseId": case_id,
                 "category": "no_answer",
                 "language": language,
                 "queryLanguage": query_language(query),
@@ -1174,14 +1224,20 @@ def write_ground_truth(output_root: Path) -> None:
                 "answerable": False,
             }, ensure_ascii=False) + "\n")
             ordinal += 1
-        for no_answer in [*ADDITIONAL_NO_ANSWER_CASES, *DRAWIO_NO_ANSWER_CASES]:
+        for no_answer in [*ADDITIONAL_NO_ANSWER_CASES, *DRAWIO_NO_ANSWER_CASES, *SCENARIO_NO_ANSWER_CASES,
+                          *SUPPLEMENT_NO_ANSWER_CASES, *GUARD_NO_ANSWER_CASES]:
             source, version = no_answer["sourceVersion"].split(":", maxsplit=1)
             document = metadata[source]
             query = no_answer["query"]
+            case_key = f"noanswer:{no_answer['sourceVersion']}::{query}"
+            if case_key in drop_selection:
+                continue
             language, tags = language_target(query, document)
+            case_id = f"controlled-{ordinal:03d}"
+            case_keys[case_id] = case_key
             output.write(json.dumps({
                 "schemaVersion": "material-rag-research-case-v2",
-                "caseId": f"controlled-{ordinal:03d}",
+                "caseId": case_id,
                 "category": "no_answer",
                 "language": language,
                 "queryLanguage": query_language(query),
@@ -1199,6 +1255,8 @@ def write_ground_truth(output_root: Path) -> None:
                 "answerable": False,
             }, ensure_ascii=False) + "\n")
             ordinal += 1
+    (output_root / "case-keys.json").write_text(
+        json.dumps(case_keys, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
 
 def main() -> None:

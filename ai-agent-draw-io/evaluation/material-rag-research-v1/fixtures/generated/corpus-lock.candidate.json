@@ -1,6 +1,6 @@
 {
   "schemaVersion": "material-rag-corpus-lock-v1",
-  "status": "candidate",
+  "status": "frozen",
   "hashAlgorithm": "sha256",
   "coreCaseCount": 240,
   "coreBySplit": {
@@ -8,25 +8,29 @@
     "holdout": 60,
     "validation": 60
   },
-  "independentHumanReview": "pending",
-  "reviewedCoreCases": 0,
-  "reviewLedgerSha256": null,
+  "independentHumanReview": "double_reviewed",
+  "reviewedCoreCases": 240,
+  "reviewLedgerSha256": "ad208f88be4bc7c276038184bab8162ab1cf80c38e2a7ca550d6c463a29464e4",
   "fixtureFontSha256": "876af2cd4854644e7f3e7feb2f688997fdb3343c6df6693611209c9dfb47ccec",
   "provenanceFiles": {
     "EXPERIMENT-PLAN-V2.md": "ee74a617e4c1ec880de5d5c0210c1e2efa3ff294fea6e197641597ab1cd3859a",
     "experiment-plan-v2.json": "688689910b3c3073dd062b48724df9d48daa5d1658f9449a9f53a2d1ddb7984c",
     "requirements.txt": "0043aca3a7381487084576995105e1099e3786ae8add5a6c0951d305b0e0e757",
-    "analysis/audit_corpus.py": "a45510b7ad30c9c489b5d3d231152fcc13ff05933036d7666e93779d19f5e85d",
+    "analysis/audit_corpus.py": "803050118621e4c5ee7a7294089a5df62a49bcbfe8e08afe4750d9338cd3c8e9",
     "analysis/evaluate_ocr.py": "1df3eb9d8619dd258c437cd45504477edf8a4146b96c00c693642efad1c64284",
-    "fixtures/generate_fixtures.py": "22a1e5fa273e9f132932a6f4534138e3a6ebbb1e4eebf143a2d3cd2bd0f14140",
+    "fixtures/generate_fixtures.py": "5dcc9feb9979ff3e119fb5a15c13d86888ef63f4f4f624b53a137b1d1404ffc5",
     "fixtures/generation-config.json": "aabdf2491d269f0c2a62e6c40fe32764e35abe75f4b5efbf9cd55e6d4fbe0c79",
     "fixtures/realistic_corpus_specs.py": "0afebbfaec0de6e8060c466783e3501b35d4b74e778ce7f4351cfd1f4305a14e",
-    "fixtures/drawio_agent_corpus_specs.py": "6196ab35c2735bf2fc21cfb6b055784d5f2eb4513c6f5a2884c6c7841e3d4463"
+    "fixtures/drawio_agent_corpus_specs.py": "6196ab35c2735bf2fc21cfb6b055784d5f2eb4513c6f5a2884c6c7841e3d4463",
+    "fixtures/scenario_corpus_specs.py": "dc9771277e381fdf911344e3e79894c8cfe59fdbf4d99f7288133ffca9835d92",
+    "fixtures/guard_corpus_specs.py": "020c050b8c067b4793c7e0712d8a2b9387e0e90ef2038731002efd32e4aa16fc",
+    "fixtures/query-selection.json": "c4db897531c81478f260bc397a0611ad291b11e88691485577dbd4641780038e"
   },
   "files": {
-    "cases.jsonl": "9b2f61832b97a861bc1253b206e10b91e375c43d944a1fcfcfbf6fb3e7e17a3d",
-    "corpus-manifest.json": "a77a548a76b1ae782f1f5f3cb4bb43b60eac3ba2b9492cec98e62c1f50aadc0a",
-    "ground-truth.json": "72fc0891a278eacc4b1b9940bd72202ba18afa008e988bc06c7c536c9847f41c",
+    "case-keys.json": "746f97771cf16b3b25b89708eb30577a5f57761956538065111bdf970f4eb123",
+    "cases.jsonl": "604c8d89bff44a106577852101c5fa5a4bc036724d552d32beb0e7e8314d5308",
+    "corpus-manifest.json": "07fb1603ef8bcab7e495cb22310345486f78dce6496667ceb0e23535ad141c06",
+    "ground-truth.json": "6926069346a17a6ae862475908e832f981523b6d8873316bc27729db7f9248ca",
     "images/aurora-sensor-position-chart.png": "e2de6ac8af4c8d1d26c5a449982d67daad9e10537fa05e2780e08235c03cc0fd",
     "images/capacity-table.png": "25b1ed23cf3245d5d0a265f961df16aab66e338a81868d4e5d03b1bf5ac77a70",
     "images/drawio-agent-request-route.png": "419f29850cf17fa8ff2f44b6113bf836056f335132fb4e33f5c14feb21faaa1e",
@@ -51,6 +55,12 @@
     "images/scanned-ops-page-1.jpg": "ba6153d6b19eb4d15de615a0e57e05e0fd89c63a7accda3089005b6f1f9f6a94",
     "images/scanned-ops-page-2.jpg": "6fd92baab4420f5c7aca97a846d3e418c3815f7a8c73c0d5bfcf4632de015eaa",
     "images/scanned-ops-page-3.jpg": "fb208a5d8ab19e11a0013c40c7be2a71a2c17a77908873baf91fbe32c2932c28",
+    "images/scenario-gmp-change-route.png": "d2f9d9587cc1abcdfa1447ffb5857beeca6aa5952c27a781fd64142223275666",
+    "images/scenario-gmp-release-sequence.png": "70a98b78a2bb2fa55312a38f2bc5d731bebc761561ab911b150bacc7e262caef",
+    "images/scenario-ota-canary-sequence.png": "f6d24d0ecbdf76473f12f59200a27af7c4cd898a6c6387935f6147667053ac34",
+    "images/scenario-ota-release-route.png": "2f793aee9a3b2809dc44c2218833ecac568db9cd703e7e2512ac8b6f0bbcc63b",
+    "images/scenario-payment-request-route.png": "08b02e95260d40af54fbf8fa0c675760f12fcc5f73f25358a27cc090c510e342",
+    "images/scenario-payment-settle-sequence.png": "d6a584961e1abcf7e138e55a596be7fe9d1fcbb645d6db0589af21df906deea5",
     "images/whiteboard-review-feedback.png": "56481e947bbbcf5947700230fcc2c349b6834694d9955b00b46b5e9974c68d5f",
     "pdfs/controlled-operations-guide-v1.pdf": "dd65891599cb22d2ff515cbae3704b1c71ae85ee754827420780398837569517",
     "pdfs/controlled-operations-guide-v2.pdf": "272917242a6fbeb74346db7c8e9c7954ff1b4176e26b72ba3f7ab74cb45e7d83",
@@ -59,6 +69,11 @@
     "pdfs/drawio-collaboration-governance-v1.pdf": "c583fd2478a7d5d20c4f5e1d80129c55f4ae09c9dcac5b35d865575b260f4fc0",
     "pdfs/drawio-diagram-workflow-handbook-v1.pdf": "d78c0f672ee1d7c98b6a74b6d36a2e741df973ecc1fa0e4499e539675380d1cb",
     "pdfs/drawio-planning-workshop-scan-v1.pdf": "f88645dc9e6deacc60276a54b8cd87c73650129be2da8944037c891876c587a5",
+    "pdfs/guard-abstention-guide-v1.pdf": "a3f2c8bccf978f98ec0be1f942f8a30aff8795bfc855b357fdbcf96b12db55d9",
+    "pdfs/guard-authorization-standard-v1.pdf": "68b74627f73a594b68d8b0b5b6b16bd01d268c82b6217577754c0b6f5e7273aa",
+    "pdfs/guard-failure-drill-v1.pdf": "5b32624883b8e9629592d97326f711f60b1946e67df31f869132c21be731d512",
+    "pdfs/guard-release-policy-v1.pdf": "002ba8ad88ea4b0760dfef0bd30952fdce6fc211ca2c92faefa776c998e3606c",
+    "pdfs/guard-release-policy-v2.pdf": "970a04dd3cb950efcba0e6cf6e614755a3bf12ed99b367a55379dcba33cd7465",
     "pdfs/realistic-arcadia-condition-memo-v1.pdf": "78c33a0bf3a2cc2b58558606de405a2fa928d4aa4e36c3c3bb87ad34c2afcf9a",
     "pdfs/realistic-aurora-cold-chain-validation-v1.pdf": "d353506bd0d1aed27a166a21bec8a7da59e6376d6becf18b81d72abf37c25a63",
     "pdfs/realistic-coastal-water-audit-v1.pdf": "3e633e1a1d20d6baa4b5f59f8c8383709d3e19ac02dc494f8eb52f3fa55eb2eb",
@@ -66,6 +81,9 @@
     "pdfs/realistic-helios-inverter-manual-v1.pdf": "336255de4c379f97d7434af93ce011abebdc52359ee6035aca53f7778a3a6585",
     "pdfs/realistic-meridian-forest-study-v1.pdf": "9d9a30d408d0da288832c491c5166c2ed1a017afb2b7f9f4b802ca8a9ff1447b",
     "pdfs/realistic-metro-rail-inspection-scan-v1.pdf": "eb06b992280f1954704eee2617c72d360bd2718ef4648b4c0dd965db19e3b9f1",
-    "pdfs/scanned-operations-cards.pdf": "26116748a872851bebd8f946c2a315c4e6524f5df9f46e1d80736ae05844d7c6"
+    "pdfs/scanned-operations-cards.pdf": "26116748a872851bebd8f946c2a315c4e6524f5df9f46e1d80736ae05844d7c6",
+    "pdfs/scenario-crossborder-payment-settlement-v1.pdf": "8ee5f827bda794a2edcb6a700ad56bf07c9ce556879a044a6269852b645b6345",
+    "pdfs/scenario-gmp-batch-change-control-v1.pdf": "14c3e9962a1b2e1fe4fcba7298befe8a29883c03ddb9dcf88d6d3e1fdb30c24d",
+    "pdfs/scenario-vehicle-ota-rollout-v1.pdf": "66371fa8537cb2dfc0384d3d71f2c0a4afcb0ddfa2805d19bd48d12b962fda43"
   }
 }

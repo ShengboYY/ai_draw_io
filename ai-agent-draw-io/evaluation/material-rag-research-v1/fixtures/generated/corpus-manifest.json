@@ -137,6 +137,86 @@
       "filename": "drawio-agent-recovery-runbook-v1.pdf"
     },
     {
+      "source": "scenario-payment-settlement",
+      "documentFamily": "crossborder-payment-settlement",
+      "version": "v1",
+      "split": "development",
+      "language": "zh",
+      "role": "realistic",
+      "freezeStatus": "development",
+      "filename": "scenario-crossborder-payment-settlement-v1.pdf"
+    },
+    {
+      "source": "scenario-ota-rollout",
+      "documentFamily": "vehicle-ota-rollout",
+      "version": "v1",
+      "split": "validation",
+      "language": "zh",
+      "role": "realistic",
+      "freezeStatus": "candidate",
+      "filename": "scenario-vehicle-ota-rollout-v1.pdf"
+    },
+    {
+      "source": "scenario-gmp-change-control",
+      "documentFamily": "gmp-batch-change-control",
+      "version": "v1",
+      "split": "holdout",
+      "language": "mixed",
+      "role": "realistic",
+      "freezeStatus": "candidate",
+      "filename": "scenario-gmp-batch-change-control-v1.pdf"
+    },
+    {
+      "source": "guard-release-policy",
+      "documentFamily": "guard-versioning-policy",
+      "version": "v1",
+      "split": "guard_versioning",
+      "language": "mixed",
+      "role": "realistic",
+      "freezeStatus": "development",
+      "filename": "guard-release-policy-v1.pdf"
+    },
+    {
+      "source": "guard-release-policy-v2",
+      "documentFamily": "guard-versioning-policy",
+      "version": "v2",
+      "split": "guard_versioning",
+      "language": "mixed",
+      "role": "realistic",
+      "freezeStatus": "development",
+      "filename": "guard-release-policy-v2.pdf"
+    },
+    {
+      "source": "guard-abstention-guide",
+      "documentFamily": "guard-abstention-guide",
+      "version": "v1",
+      "split": "guard_abstention",
+      "language": "mixed",
+      "role": "realistic",
+      "freezeStatus": "development",
+      "filename": "guard-abstention-guide-v1.pdf"
+    },
+    {
+      "source": "guard-authz-standard",
+      "documentFamily": "guard-authorization-standard",
+      "version": "v1",
+      "split": "guard_authorization",
+      "language": "mixed",
+      "role": "realistic",
+      "freezeStatus": "development",
+      "filename": "guard-authorization-standard-v1.pdf"
+    },
+    {
+      "source": "guard-failure-drill",
+      "documentFamily": "guard-failure-drill",
+      "version": "v1",
+      "split": "guard_failure",
+      "language": "mixed",
+      "role": "realistic",
+      "freezeStatus": "development",
+      "filename": "guard-failure-drill-v1.pdf"
+    },
+    {
       "source": "realistic-rail-scan",
       "documentFamily": "metro-rail-inspection-scan",
       "version": "v1",

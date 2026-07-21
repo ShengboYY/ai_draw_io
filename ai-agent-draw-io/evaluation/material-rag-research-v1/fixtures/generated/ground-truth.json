@@ -1440,6 +1440,1318 @@
       "primaryCategory": "ocr",
       "documentFamily": "drawio-planning-workshop-scan",
       "split": "development"
+    },
+    {
+      "anchorId": "pss-id",
+      "source": "scenario-payment-settlement",
+      "version": "v1",
+      "page": 1,
+      "modality": "text",
+      "goldMatch": "PSS-2026-22",
+      "documentFamily": "crossborder-payment-settlement",
+      "split": "development"
+    },
+    {
+      "anchorId": "pss-clearing-owner",
+      "source": "scenario-payment-settlement",
+      "version": "v1",
+      "page": 2,
+      "modality": "table",
+      "goldMatch": "清算网关由清算组负责",
+      "documentFamily": "crossborder-payment-settlement",
+      "split": "development"
+    },
+    {
+      "anchorId": "pss-arch-route",
+      "source": "scenario-payment-settlement",
+      "version": "v1",
+      "page": 3,
+      "modality": "visual_flow",
+      "goldMatch": "RISK DECISION->FX CONVERT",
+      "documentFamily": "crossborder-payment-settlement",
+      "split": "development"
+    },
+    {
+      "anchorId": "pss-settle-sequence",
+      "source": "scenario-payment-settlement",
+      "version": "v1",
+      "page": 4,
+      "modality": "visual_flow",
+      "goldMatch": "BANK ACK->RECONCILE",
+      "documentFamily": "crossborder-payment-settlement",
+      "split": "development"
+    },
+    {
+      "anchorId": "pss-layout-retrieve",
+      "source": "scenario-payment-settlement",
+      "version": "v1",
+      "page": 5,
+      "modality": "text",
+      "primaryCategory": "retrievalDecision",
+      "goldMatch": "不需要重新检索",
+      "documentFamily": "crossborder-payment-settlement",
+      "split": "development"
+    },
+    {
+      "anchorId": "pss-explicit-source",
+      "source": "scenario-payment-settlement",
+      "version": "v1",
+      "page": 5,
+      "modality": "text",
+      "primaryCategory": "retrievalDecision",
+      "goldMatch": "只能在该范围内检索",
+      "documentFamily": "crossborder-payment-settlement",
+      "split": "development"
+    },
+    {
+      "anchorId": "pss-version-pin",
+      "source": "scenario-payment-settlement",
+      "version": "v1",
+      "page": 6,
+      "modality": "table",
+      "primaryCategory": "versionAndAuthorization",
+      "evaluationContext": {
+        "scenarioType": "versionConflict",
+        "actingRole": "图册编辑者",
+        "scopeConstraint": "已有图形引用 V1，同时 V2 已就绪",
+        "expectedDecision": "保持已有引用固定在 V1"
+      },
+      "goldMatch": "仍固定引用 V1",
+      "expectedAnswer": "保持固定在 V1；已引用 V1 的图形不因 V2 出现而改写，新的请求才默认使用最新版本。",
+      "documentFamily": "crossborder-payment-settlement",
+      "split": "development"
+    },
+    {
+      "anchorId": "pss-reviewer-share",
+      "source": "scenario-payment-settlement",
+      "version": "v1",
+      "page": 6,
+      "modality": "table",
+      "primaryCategory": "versionAndAuthorization",
+      "evaluationContext": {
+        "scenarioType": "authorizationScope",
+        "actingRole": "复核者",
+        "scopeConstraint": "尝试管理图册共享",
+        "expectedDecision": "拒绝管理共享"
+      },
+      "goldMatch": "复核者可以批准证据变更，但不能管理共享",
+      "expectedAnswer": "不能。复核者可以批准证据变更，但无权管理共享。",
+      "documentFamily": "crossborder-payment-settlement",
+      "split": "development"
+    },
+    {
+      "anchorId": "pss-recon-retain",
+      "source": "scenario-payment-settlement",
+      "version": "v1",
+      "page": 7,
+      "modality": "text",
+      "goldMatch": "留存 60 个月",
+      "documentFamily": "crossborder-payment-settlement",
+      "split": "development"
+    },
+    {
+      "anchorId": "ota-id",
+      "source": "scenario-ota-rollout",
+      "version": "v1",
+      "page": 1,
+      "modality": "text",
+      "goldMatch": "OTA-2026-15",
+      "documentFamily": "vehicle-ota-rollout",
+      "split": "validation"
+    },
+    {
+      "anchorId": "ota-distribute-owner",
+      "source": "scenario-ota-rollout",
+      "version": "v1",
+      "page": 2,
+      "modality": "table",
+      "goldMatch": "分发网关由网关组负责",
+      "documentFamily": "vehicle-ota-rollout",
+      "split": "validation"
+    },
+    {
+      "anchorId": "ota-arch-route",
+      "source": "scenario-ota-rollout",
+      "version": "v1",
+      "page": 3,
+      "modality": "visual_flow",
+      "goldMatch": "CANARY CTRL->DISTRIBUTE",
+      "documentFamily": "vehicle-ota-rollout",
+      "split": "validation"
+    },
+    {
+      "anchorId": "ota-canary-sequence",
+      "source": "scenario-ota-rollout",
+      "version": "v1",
+      "page": 4,
+      "modality": "visual_flow",
+      "goldMatch": "HEALTH CHECK->EXPAND",
+      "documentFamily": "vehicle-ota-rollout",
+      "split": "validation"
+    },
+    {
+      "anchorId": "ota-layout-retrieve",
+      "source": "scenario-ota-rollout",
+      "version": "v1",
+      "page": 5,
+      "modality": "text",
+      "primaryCategory": "retrievalDecision",
+      "goldMatch": "属于纯图形操作，不需要重新检索",
+      "documentFamily": "vehicle-ota-rollout",
+      "split": "validation"
+    },
+    {
+      "anchorId": "ota-explicit-source",
+      "source": "scenario-ota-rollout",
+      "version": "v1",
+      "page": 5,
+      "modality": "text",
+      "primaryCategory": "retrievalDecision",
+      "goldMatch": "只能在该范围内检索",
+      "documentFamily": "vehicle-ota-rollout",
+      "split": "validation"
+    },
+    {
+      "anchorId": "ota-version-pin",
+      "source": "scenario-ota-rollout",
+      "version": "v1",
+      "page": 6,
+      "modality": "table",
+      "primaryCategory": "versionAndAuthorization",
+      "evaluationContext": {
+        "scenarioType": "versionConflict",
+        "actingRole": "发布工程师",
+        "scopeConstraint": "已有发布图固定引用原版本，同时新版本已发布",
+        "expectedDecision": "保持发布图固定引用原版本"
+      },
+      "goldMatch": "仍固定引用原版本",
+      "expectedAnswer": "保持固定在原版本；已固定引用的发布图不因新版本发布而改写。",
+      "documentFamily": "vehicle-ota-rollout",
+      "split": "validation"
+    },
+    {
+      "anchorId": "ota-approve-rollout",
+      "source": "scenario-ota-rollout",
+      "version": "v1",
+      "page": 6,
+      "modality": "table",
+      "primaryCategory": "versionAndAuthorization",
+      "evaluationContext": {
+        "scenarioType": "authorizationScope",
+        "actingRole": "质量复核者",
+        "scopeConstraint": "尝试单独批准灰度放量",
+        "expectedDecision": "拒绝单独批准，仅可给出建议"
+      },
+      "goldMatch": "质量复核者可以给出放量与回滚建议，但不能单独批准",
+      "expectedAnswer": "不能。质量复核者只能给出建议，放量与回滚由发布负责人批准。",
+      "documentFamily": "vehicle-ota-rollout",
+      "split": "validation"
+    },
+    {
+      "anchorId": "ota-rollback-trigger",
+      "source": "scenario-ota-rollout",
+      "version": "v1",
+      "page": 7,
+      "modality": "text",
+      "primaryCategory": "versionAndAuthorization",
+      "evaluationContext": {
+        "scenarioType": "versionRollback",
+        "actingRole": "发布负责人",
+        "scopeConstraint": "崩溃率连续两个评估窗口高于批次基线一定幅度",
+        "expectedDecision": "触发回滚并冻结该版本继续放量"
+      },
+      "goldMatch": "触发回滚",
+      "expectedAnswer": "触发回滚，把受影响车辆恢复到上一稳定版本并冻结该版本继续放量。",
+      "documentFamily": "vehicle-ota-rollout",
+      "split": "validation"
+    },
+    {
+      "anchorId": "ota-retain",
+      "source": "scenario-ota-rollout",
+      "version": "v1",
+      "page": 7,
+      "modality": "text",
+      "goldMatch": "留存 36 个月",
+      "documentFamily": "vehicle-ota-rollout",
+      "split": "validation"
+    },
+    {
+      "anchorId": "ccr-id",
+      "source": "scenario-gmp-change-control",
+      "version": "v1",
+      "page": 1,
+      "modality": "text",
+      "goldMatch": "CCR-2026-08",
+      "documentFamily": "gmp-batch-change-control",
+      "split": "holdout"
+    },
+    {
+      "anchorId": "ccr-change-owner",
+      "source": "scenario-gmp-change-control",
+      "version": "v1",
+      "page": 2,
+      "modality": "table",
+      "goldMatch": "质量批准由质量批准人负责",
+      "documentFamily": "gmp-batch-change-control",
+      "split": "holdout"
+    },
+    {
+      "anchorId": "ccr-eval-route",
+      "source": "scenario-gmp-change-control",
+      "version": "v1",
+      "page": 3,
+      "modality": "visual_flow",
+      "goldMatch": "CHANGE REQUEST->IMPACT ASSESS",
+      "documentFamily": "gmp-batch-change-control",
+      "split": "holdout"
+    },
+    {
+      "anchorId": "ccr-eval-route2",
+      "source": "scenario-gmp-change-control",
+      "version": "v1",
+      "page": 3,
+      "modality": "visual_flow",
+      "goldMatch": "IMPACT ASSESS->QA APPROVE",
+      "documentFamily": "gmp-batch-change-control",
+      "split": "holdout"
+    },
+    {
+      "anchorId": "ccr-release-seq",
+      "source": "scenario-gmp-change-control",
+      "version": "v1",
+      "page": 4,
+      "modality": "visual_flow",
+      "goldMatch": "QA REVIEW->DEVIATION CHECK",
+      "documentFamily": "gmp-batch-change-control",
+      "split": "holdout"
+    },
+    {
+      "anchorId": "ccr-explicit-source",
+      "source": "scenario-gmp-change-control",
+      "version": "v1",
+      "page": 5,
+      "modality": "text",
+      "primaryCategory": "retrievalDecision",
+      "goldMatch": "只能在该范围内检索",
+      "documentFamily": "gmp-batch-change-control",
+      "split": "holdout"
+    },
+    {
+      "anchorId": "ccr-layout",
+      "source": "scenario-gmp-change-control",
+      "version": "v1",
+      "page": 5,
+      "modality": "text",
+      "primaryCategory": "retrievalDecision",
+      "goldMatch": "属于纯图形操作，不需要重新检索",
+      "documentFamily": "gmp-batch-change-control",
+      "split": "holdout"
+    },
+    {
+      "anchorId": "ccr-version-pin",
+      "source": "scenario-gmp-change-control",
+      "version": "v1",
+      "page": 6,
+      "modality": "table",
+      "primaryCategory": "versionAndAuthorization",
+      "evaluationContext": {
+        "scenarioType": "versionConflict",
+        "actingRole": "图册编辑者",
+        "scopeConstraint": "已有图形引用某一批记录版本，同时新版本已出现",
+        "expectedDecision": "保持图形固定引用原版本"
+      },
+      "goldMatch": "仍固定引用原版本",
+      "expectedAnswer": "保持固定在原版本；已引用原批记录版本的图形不因新版本出现而改写。",
+      "documentFamily": "gmp-batch-change-control",
+      "split": "holdout"
+    },
+    {
+      "anchorId": "ccr-approve-role",
+      "source": "scenario-gmp-change-control",
+      "version": "v1",
+      "page": 6,
+      "modality": "table",
+      "primaryCategory": "versionAndAuthorization",
+      "evaluationContext": {
+        "scenarioType": "authorizationScope",
+        "actingRole": "复核者",
+        "scopeConstraint": "尝试单独批准批次放行",
+        "expectedDecision": "拒绝单独批准，仅可给出建议"
+      },
+      "goldMatch": "复核者可以给出放行建议，但不能单独批准放行",
+      "expectedAnswer": "不能。复核者只能给出放行建议，放行由质量批准人批准。",
+      "documentFamily": "gmp-batch-change-control",
+      "split": "holdout"
+    },
+    {
+      "anchorId": "ccr-deviation",
+      "source": "scenario-gmp-change-control",
+      "version": "v1",
+      "page": 6,
+      "modality": "text",
+      "primaryCategory": "versionAndAuthorization",
+      "evaluationContext": {
+        "scenarioType": "deviationControl",
+        "actingRole": "质量批准人",
+        "scopeConstraint": "批次存在未关闭的关键偏差",
+        "expectedDecision": "关闭并复核后才能放行"
+      },
+      "goldMatch": "关键偏差必须关闭并经质量批准人复核后才能放行",
+      "expectedAnswer": "不能放行。关键偏差必须先关闭并经质量批准人复核。",
+      "documentFamily": "gmp-batch-change-control",
+      "split": "holdout"
+    },
+    {
+      "anchorId": "daa-route-scope",
+      "source": "drawio-agent-architecture",
+      "version": "v1",
+      "page": 3,
+      "modality": "visual_flow",
+      "goldMatch": "SCOPE SOURCES->RETRIEVE EVIDENCE",
+      "documentFamily": "drawio-agent-architecture-blueprint",
+      "split": "development"
+    },
+    {
+      "anchorId": "daa-route-compose",
+      "source": "drawio-agent-architecture",
+      "version": "v1",
+      "page": 3,
+      "modality": "visual_flow",
+      "goldMatch": "BUILD PLAN->COMPOSE CANVAS",
+      "documentFamily": "drawio-agent-architecture-blueprint",
+      "split": "development"
+    },
+    {
+      "anchorId": "dwh-route-bundle",
+      "source": "drawio-workflow-handbook",
+      "version": "v1",
+      "page": 4,
+      "modality": "visual_flow",
+      "goldMatch": "EVIDENCE BUNDLE->TYPED PLAN",
+      "documentFamily": "drawio-diagram-workflow-handbook",
+      "split": "development"
+    },
+    {
+      "anchorId": "dwh-route-draft",
+      "source": "drawio-workflow-handbook",
+      "version": "v1",
+      "page": 4,
+      "modality": "visual_flow",
+      "goldMatch": "LAYOUT CHECK->CANVAS DRAFT",
+      "documentFamily": "drawio-diagram-workflow-handbook",
+      "split": "development"
+    },
+    {
+      "anchorId": "solar-route-precheck",
+      "source": "realistic-solar-manual",
+      "version": "v1",
+      "page": 4,
+      "modality": "visual_flow",
+      "goldMatch": "PRECHECK->INSULATION TEST",
+      "documentFamily": "helios-inverter-manual",
+      "split": "validation"
+    },
+    {
+      "anchorId": "solar-route-run",
+      "source": "realistic-solar-manual",
+      "version": "v1",
+      "page": 4,
+      "modality": "visual_flow",
+      "goldMatch": "GRID SYNC->RUN",
+      "documentFamily": "helios-inverter-manual",
+      "split": "validation"
+    },
+    {
+      "anchorId": "dcg-route-draft",
+      "source": "drawio-collaboration-governance",
+      "version": "v1",
+      "page": 4,
+      "modality": "visual_flow",
+      "goldMatch": "DRAFT->EVIDENCE REVIEW",
+      "documentFamily": "drawio-collaboration-governance",
+      "split": "validation"
+    },
+    {
+      "anchorId": "dcg-route-publish",
+      "source": "drawio-collaboration-governance",
+      "version": "v1",
+      "page": 4,
+      "modality": "visual_flow",
+      "goldMatch": "OWNER APPROVAL->PUBLISH",
+      "documentFamily": "drawio-collaboration-governance",
+      "split": "validation"
+    },
+    {
+      "anchorId": "drr-route-detect",
+      "source": "drawio-recovery-runbook",
+      "version": "v1",
+      "page": 3,
+      "modality": "visual_flow",
+      "goldMatch": "DETECT->FREEZE MATERIAL TASKS",
+      "documentFamily": "drawio-agent-recovery-runbook",
+      "split": "holdout"
+    },
+    {
+      "anchorId": "drr-route-restore",
+      "source": "drawio-recovery-runbook",
+      "version": "v1",
+      "page": 3,
+      "modality": "visual_flow",
+      "goldMatch": "VERIFY SCOPE->RESTORE SERVICE",
+      "documentFamily": "drawio-agent-recovery-runbook",
+      "split": "holdout"
+    },
+    {
+      "anchorId": "pss-route-acquire",
+      "source": "scenario-payment-settlement",
+      "version": "v1",
+      "page": 3,
+      "modality": "visual_flow",
+      "goldMatch": "ACQUIRE->RISK DECISION",
+      "documentFamily": "crossborder-payment-settlement",
+      "split": "development"
+    },
+    {
+      "anchorId": "pss-settle-clearing",
+      "source": "scenario-payment-settlement",
+      "version": "v1",
+      "page": 4,
+      "modality": "visual_flow",
+      "goldMatch": "CLEARING->BANK ACK",
+      "documentFamily": "crossborder-payment-settlement",
+      "split": "development"
+    },
+    {
+      "anchorId": "ota-route-repo",
+      "source": "scenario-ota-rollout",
+      "version": "v1",
+      "page": 3,
+      "modality": "visual_flow",
+      "goldMatch": "VERSION REPO->CANARY CTRL",
+      "documentFamily": "vehicle-ota-rollout",
+      "split": "validation"
+    },
+    {
+      "anchorId": "ccr-route-implement",
+      "source": "scenario-gmp-change-control",
+      "version": "v1",
+      "page": 3,
+      "modality": "visual_flow",
+      "goldMatch": "QA APPROVE->IMPLEMENT",
+      "documentFamily": "gmp-batch-change-control",
+      "split": "holdout"
+    },
+    {
+      "anchorId": "dpw-scope-scan",
+      "page": 1,
+      "goldMatch": "source selection, evidence grouping, layout choice and citation review",
+      "source": "drawio-planning-workshop-scan",
+      "version": "v1",
+      "modality": "ocr",
+      "primaryCategory": "ocr",
+      "documentFamily": "drawio-planning-workshop-scan",
+      "split": "development"
+    },
+    {
+      "anchorId": "dpw-completeness-scan",
+      "page": 4,
+      "goldMatch": "Comparison questions keep ALL required evidence parts",
+      "source": "drawio-planning-workshop-scan",
+      "version": "v1",
+      "modality": "ocr",
+      "primaryCategory": "ocr",
+      "documentFamily": "drawio-planning-workshop-scan",
+      "split": "development"
+    },
+    {
+      "anchorId": "dpw-visual-scan",
+      "page": 5,
+      "goldMatch": "Arrow direction, containment and raster table cells require pixel verification",
+      "source": "drawio-planning-workshop-scan",
+      "version": "v1",
+      "modality": "ocr",
+      "primaryCategory": "ocr",
+      "documentFamily": "drawio-planning-workshop-scan",
+      "split": "development"
+    },
+    {
+      "anchorId": "dpw-editable-scan",
+      "page": 5,
+      "goldMatch": "Stable cell identifiers and valid draw.io XML are required",
+      "source": "drawio-planning-workshop-scan",
+      "version": "v1",
+      "modality": "ocr",
+      "primaryCategory": "ocr",
+      "documentFamily": "drawio-planning-workshop-scan",
+      "split": "development"
+    },
+    {
+      "anchorId": "water-version-reject",
+      "source": "realistic-water-audit",
+      "version": "v1",
+      "page": 6,
+      "modality": "text",
+      "primaryCategory": "versionAndAuthorization",
+      "evaluationContext": {
+        "scenarioType": "draftRejected",
+        "actingRole": "报告使用者",
+        "scopeConstraint": "5 月草案提出 30% 阈值，批准版本使用 35% 规则",
+        "expectedDecision": "使用批准版本，不复活被否决的草案值"
+      },
+      "goldMatch": "委员会认为误报过多并予以否决",
+      "expectedAnswer": "草案的 30% 阈值被否决，应使用批准版本的连续四个区间超过 35% 规则。",
+      "documentFamily": "coastal-water-audit",
+      "split": "development"
+    },
+    {
+      "anchorId": "solar-firmware-version",
+      "source": "realistic-solar-manual",
+      "version": "v1",
+      "page": 5,
+      "modality": "text",
+      "primaryCategory": "versionAndAuthorization",
+      "evaluationContext": {
+        "scenarioType": "versionConflict",
+        "actingRole": "现场技术人员",
+        "scopeConstraint": "设备运行固件 4.7.1，本版要求 4.7.2",
+        "expectedDecision": "在低于批准固件时不启用新绝缘测试流程"
+      },
+      "goldMatch": "不能启用新的绝缘测试流程",
+      "expectedAnswer": "固件 4.7.1 可读历史记录，但不能启用新的绝缘测试流程。",
+      "documentFamily": "helios-inverter-manual",
+      "split": "validation"
+    },
+    {
+      "anchorId": "forest-version-rule",
+      "source": "realistic-forest-study",
+      "version": "v1",
+      "page": 5,
+      "modality": "text",
+      "primaryCategory": "versionAndAuthorization",
+      "evaluationContext": {
+        "scenarioType": "draftRejected",
+        "actingRole": "evidence author",
+        "scopeConstraint": "draft proposed a 12 percent relative success rule",
+        "expectedDecision": "report absolute percentage-point change from the approved study"
+      },
+      "goldMatch": "The approved study reports absolute percentage-point change",
+      "expectedAnswer": "The relative 12 percent rule was rejected; the approved study reports absolute percentage-point change.",
+      "documentFamily": "meridian-forest-restoration-study",
+      "split": "validation"
+    },
+    {
+      "anchorId": "museum-version-superseded",
+      "source": "realistic-museum-condition-memo",
+      "version": "v1",
+      "page": 5,
+      "modality": "text",
+      "primaryCategory": "versionAndAuthorization",
+      "evaluationContext": {
+        "scenarioType": "versionConflict",
+        "actingRole": "conservation editor",
+        "scopeConstraint": "a 10 October working copy lacked the A2 support requirement",
+        "expectedDecision": "use authorized revision 1.1 and treat the working copy as superseded"
+      },
+      "goldMatch": "is superseded",
+      "expectedAnswer": "The 10 October working copy is superseded by authorized revision 1.1.",
+      "documentFamily": "arcadia-museum-condition-memo",
+      "split": "holdout"
+    },
+    {
+      "anchorId": "cold-version-reject",
+      "source": "realistic-cold-chain-report",
+      "version": "v1",
+      "page": 6,
+      "modality": "text",
+      "primaryCategory": "versionAndAuthorization",
+      "evaluationContext": {
+        "scenarioType": "draftRejected",
+        "actingRole": "validation author",
+        "scopeConstraint": "draft defined excursions above 6.5 C for five minutes",
+        "expectedDecision": "use the approved 7.0 C / ten-minute definition"
+      },
+      "goldMatch": "Reviewers rejected that rule",
+      "expectedAnswer": "The draft 6.5 C / five-minute rule was rejected in favor of the approved 7.0 C / ten-minute definition.",
+      "documentFamily": "aurora-cold-chain-validation",
+      "split": "holdout"
+    },
+    {
+      "anchorId": "drr-version-probes",
+      "source": "drawio-recovery-runbook",
+      "version": "v1",
+      "page": 6,
+      "modality": "text",
+      "primaryCategory": "versionAndAuthorization",
+      "evaluationContext": {
+        "scenarioType": "draftRejected",
+        "actingRole": "reliability approver",
+        "scopeConstraint": "a draft allowed five scoped probes",
+        "expectedDecision": "require twelve consecutive scoped probes per the approved runbook"
+      },
+      "goldMatch": "rejected in favor of twelve consecutive probes",
+      "expectedAnswer": "The five-probe draft was rejected in favor of twelve consecutive probes.",
+      "documentFamily": "drawio-agent-recovery-runbook",
+      "split": "holdout"
+    },
+    {
+      "anchorId": "daa-version-superseded",
+      "source": "drawio-agent-architecture",
+      "version": "v1",
+      "page": 5,
+      "modality": "text",
+      "primaryCategory": "versionAndAuthorization",
+      "evaluationContext": {
+        "scenarioType": "versionConflict",
+        "actingRole": "architecture editor",
+        "scopeConstraint": "an October draft used a 10-item final bundle",
+        "expectedDecision": "use approved version 1.0 and treat the October draft as superseded"
+      },
+      "goldMatch": "is superseded",
+      "expectedAnswer": "The October 10-item-bundle draft is superseded by approved version 1.0.",
+      "documentFamily": "drawio-agent-architecture-blueprint",
+      "split": "development"
+    },
+    {
+      "anchorId": "dcg-version-reject",
+      "source": "drawio-collaboration-governance",
+      "version": "v1",
+      "page": 5,
+      "modality": "text",
+      "primaryCategory": "versionAndAuthorization",
+      "evaluationContext": {
+        "scenarioType": "draftRejected",
+        "actingRole": "governance approver",
+        "scopeConstraint": "a draft proposed 24-month share retention",
+        "expectedDecision": "use the approved 36-month retention value"
+      },
+      "goldMatch": "that value was rejected",
+      "expectedAnswer": "The 24-month draft retention was rejected; the approved retention is 36 months.",
+      "documentFamily": "drawio-collaboration-governance",
+      "split": "validation"
+    },
+    {
+      "anchorId": "daa-chartbook-first",
+      "source": "drawio-agent-architecture",
+      "version": "v1",
+      "page": 4,
+      "modality": "text",
+      "primaryCategory": "retrievalDecision",
+      "goldMatch": "the current chartbook is searched before broader",
+      "documentFamily": "drawio-agent-architecture-blueprint",
+      "split": "development"
+    },
+    {
+      "anchorId": "daa-fallback-label",
+      "source": "drawio-agent-architecture",
+      "version": "v1",
+      "page": 4,
+      "modality": "text",
+      "primaryCategory": "retrievalDecision",
+      "goldMatch": "must label the fallback source",
+      "documentFamily": "drawio-agent-architecture-blueprint",
+      "split": "development"
+    },
+    {
+      "anchorId": "dcg-chartbook-search",
+      "source": "drawio-collaboration-governance",
+      "version": "v1",
+      "page": 3,
+      "modality": "text",
+      "primaryCategory": "retrievalDecision",
+      "goldMatch": "search begins with material attached to the active chartbook",
+      "documentFamily": "drawio-collaboration-governance",
+      "split": "validation"
+    },
+    {
+      "anchorId": "dcg-broader-auto",
+      "source": "drawio-collaboration-governance",
+      "version": "v1",
+      "page": 3,
+      "modality": "text",
+      "primaryCategory": "retrievalDecision",
+      "goldMatch": "considered only when automatic selection is enabled",
+      "documentFamily": "drawio-collaboration-governance",
+      "split": "validation"
+    },
+    {
+      "anchorId": "dwh-auto-scope",
+      "source": "drawio-workflow-handbook",
+      "version": "v1",
+      "page": 2,
+      "modality": "text",
+      "primaryCategory": "retrievalDecision",
+      "goldMatch": "才进入更广的授权资料搜索",
+      "documentFamily": "drawio-diagram-workflow-handbook",
+      "split": "development"
+    },
+    {
+      "anchorId": "drr-objstore-fail",
+      "source": "drawio-recovery-runbook",
+      "version": "v1",
+      "page": 2,
+      "modality": "table",
+      "primaryCategory": "failure",
+      "evaluationContext": {
+        "injectedDependency": "object storage",
+        "injectedState": "hydration failed",
+        "expectedSystemBehavior": "allow editing saved XML and block opening evidence",
+        "forbiddenSystemBehavior": "open evidence artifacts as if hydration succeeded"
+      },
+      "goldMatch": "hydration failed",
+      "expectedAnswer": "Editing saved XML stays available, but opening evidence is blocked.",
+      "documentFamily": "drawio-agent-recovery-runbook",
+      "split": "holdout"
+    },
+    {
+      "anchorId": "drr-ocr-fail",
+      "source": "drawio-recovery-runbook",
+      "version": "v1",
+      "page": 2,
+      "modality": "table",
+      "primaryCategory": "failure",
+      "evaluationContext": {
+        "injectedDependency": "OCR",
+        "injectedState": "scan unavailable",
+        "expectedSystemBehavior": "keep native PDF answers and block scan claims",
+        "forbiddenSystemBehavior": "answer scan claims while OCR is unavailable"
+      },
+      "goldMatch": "scan unavailable",
+      "expectedAnswer": "Native PDF answers stay available, but scan-based claims are blocked.",
+      "documentFamily": "drawio-agent-recovery-runbook",
+      "split": "holdout"
+    },
+    {
+      "anchorId": "drr-visual-fail",
+      "source": "drawio-recovery-runbook",
+      "version": "v1",
+      "page": 2,
+      "modality": "table",
+      "primaryCategory": "failure",
+      "evaluationContext": {
+        "injectedDependency": "visual verifier",
+        "injectedState": "visual pending",
+        "expectedSystemBehavior": "keep text claims and block pixel-relation claims",
+        "forbiddenSystemBehavior": "confirm pixel relations while verification is pending"
+      },
+      "goldMatch": "visual pending",
+      "expectedAnswer": "Text claims stay available, but pixel-relation claims are blocked.",
+      "documentFamily": "drawio-agent-recovery-runbook",
+      "split": "holdout"
+    },
+    {
+      "anchorId": "drr-canvas-fail",
+      "source": "drawio-recovery-runbook",
+      "version": "v1",
+      "page": 2,
+      "modality": "table",
+      "primaryCategory": "failure",
+      "evaluationContext": {
+        "injectedDependency": "canvas save",
+        "injectedState": "save blocked",
+        "expectedSystemBehavior": "allow downloading the draft and block publish",
+        "forbiddenSystemBehavior": "publish while canvas save is blocked"
+      },
+      "goldMatch": "save blocked",
+      "expectedAnswer": "Downloading the draft stays available, but publishing is blocked.",
+      "documentFamily": "drawio-agent-recovery-runbook",
+      "split": "holdout"
+    },
+    {
+      "anchorId": "pss-route-settle",
+      "source": "scenario-payment-settlement",
+      "version": "v1",
+      "page": 3,
+      "modality": "visual_flow",
+      "goldMatch": "FX CONVERT->SETTLE",
+      "documentFamily": "crossborder-payment-settlement",
+      "split": "development"
+    },
+    {
+      "anchorId": "pss-settle-notify",
+      "source": "scenario-payment-settlement",
+      "version": "v1",
+      "page": 4,
+      "modality": "visual_flow",
+      "goldMatch": "RECONCILE->NOTIFY",
+      "documentFamily": "crossborder-payment-settlement",
+      "split": "development"
+    },
+    {
+      "anchorId": "ota-route-vehicle",
+      "source": "scenario-ota-rollout",
+      "version": "v1",
+      "page": 3,
+      "modality": "visual_flow",
+      "goldMatch": "DISTRIBUTE->VEHICLE",
+      "documentFamily": "vehicle-ota-rollout",
+      "split": "validation"
+    },
+    {
+      "anchorId": "ota-canary-batch",
+      "source": "scenario-ota-rollout",
+      "version": "v1",
+      "page": 4,
+      "modality": "visual_flow",
+      "goldMatch": "BATCH START->HEALTH CHECK",
+      "documentFamily": "vehicle-ota-rollout",
+      "split": "validation"
+    },
+    {
+      "anchorId": "ota-canary-complete",
+      "source": "scenario-ota-rollout",
+      "version": "v1",
+      "page": 4,
+      "modality": "visual_flow",
+      "goldMatch": "EXPAND->COMPLETE",
+      "documentFamily": "vehicle-ota-rollout",
+      "split": "validation"
+    },
+    {
+      "anchorId": "ccr-release-record",
+      "source": "scenario-gmp-change-control",
+      "version": "v1",
+      "page": 4,
+      "modality": "visual_flow",
+      "goldMatch": "BATCH RECORD->QA REVIEW",
+      "documentFamily": "gmp-batch-change-control",
+      "split": "holdout"
+    },
+    {
+      "anchorId": "ccr-release-final",
+      "source": "scenario-gmp-change-control",
+      "version": "v1",
+      "page": 4,
+      "modality": "visual_flow",
+      "goldMatch": "DEVIATION CHECK->RELEASE",
+      "documentFamily": "gmp-batch-change-control",
+      "split": "holdout"
+    },
+    {
+      "anchorId": "grp-pin-v1",
+      "source": "guard-release-policy",
+      "version": "v1",
+      "page": 1,
+      "modality": "text",
+      "primaryCategory": "versionAndAuthorization",
+      "evaluationContext": {
+        "scenarioType": "versionConflict",
+        "actingRole": "canvas editor",
+        "scopeConstraint": "canvas cites V1 while V2 exists",
+        "expectedDecision": "keep the citation pinned to V1"
+      },
+      "goldMatch": "stays pinned to V1",
+      "expectedAnswer": "It stays pinned to V1.",
+      "documentFamily": "guard-versioning-policy",
+      "split": "guard_versioning"
+    },
+    {
+      "anchorId": "grp-retention-v1",
+      "source": "guard-release-policy",
+      "version": "v1",
+      "page": 1,
+      "modality": "text",
+      "primaryCategory": "versionAndAuthorization",
+      "evaluationContext": {
+        "scenarioType": "versionSelect",
+        "actingRole": "reader",
+        "scopeConstraint": "question pinned to V1",
+        "expectedDecision": "answer with the V1 value only"
+      },
+      "goldMatch": "retention period is 30 days",
+      "expectedAnswer": "30 days.",
+      "documentFamily": "guard-versioning-policy",
+      "split": "guard_versioning"
+    },
+    {
+      "anchorId": "grp-missing-v3",
+      "source": "guard-release-policy",
+      "version": "v1",
+      "page": 1,
+      "modality": "text",
+      "primaryCategory": "versionAndAuthorization",
+      "evaluationContext": {
+        "scenarioType": "versionMissing",
+        "actingRole": "agent",
+        "scopeConstraint": "request pinned to nonexistent V3",
+        "expectedDecision": "report the version is unavailable"
+      },
+      "goldMatch": "Version V3 does not exist",
+      "expectedAnswer": "V3 does not exist; report it as unavailable.",
+      "documentFamily": "guard-versioning-policy",
+      "split": "guard_versioning"
+    },
+    {
+      "anchorId": "grp-conflict",
+      "source": "guard-release-policy",
+      "version": "v1",
+      "page": 1,
+      "modality": "text",
+      "primaryCategory": "versionAndAuthorization",
+      "evaluationContext": {
+        "scenarioType": "versionConflict",
+        "actingRole": "canvas editor",
+        "scopeConstraint": "V1 pinned, V2 shows 45 days",
+        "expectedDecision": "do not rewrite V1 to 45 days"
+      },
+      "goldMatch": "不得因为 V2 存在而改写为 45 天",
+      "expectedAnswer": "不改写；V1 仍为 30 天。",
+      "documentFamily": "guard-versioning-policy",
+      "split": "guard_versioning"
+    },
+    {
+      "anchorId": "grp-default-v2",
+      "source": "guard-release-policy-v2",
+      "version": "v2",
+      "page": 1,
+      "modality": "text",
+      "primaryCategory": "versionAndAuthorization",
+      "evaluationContext": {
+        "scenarioType": "versionDefault",
+        "actingRole": "agent",
+        "scopeConstraint": "new request without explicit version",
+        "expectedDecision": "default to latest ready V2"
+      },
+      "goldMatch": "defaults to V2",
+      "expectedAnswer": "A new request defaults to V2.",
+      "documentFamily": "guard-versioning-policy",
+      "split": "guard_versioning"
+    },
+    {
+      "anchorId": "grp-retention-v2",
+      "source": "guard-release-policy-v2",
+      "version": "v2",
+      "page": 1,
+      "modality": "text",
+      "primaryCategory": "versionAndAuthorization",
+      "evaluationContext": {
+        "scenarioType": "versionSelect",
+        "actingRole": "reader",
+        "scopeConstraint": "question pinned to V2",
+        "expectedDecision": "answer with the V2 value only"
+      },
+      "goldMatch": "retention period is 45 days",
+      "expectedAnswer": "45 days.",
+      "documentFamily": "guard-versioning-policy",
+      "split": "guard_versioning"
+    },
+    {
+      "anchorId": "grp-approver-v2",
+      "source": "guard-release-policy-v2",
+      "version": "v2",
+      "page": 1,
+      "modality": "text",
+      "primaryCategory": "versionAndAuthorization",
+      "evaluationContext": {
+        "scenarioType": "versionSelect",
+        "actingRole": "reader",
+        "scopeConstraint": "question pinned to V2",
+        "expectedDecision": "answer with the V2 approver"
+      },
+      "goldMatch": "final approval role is Reliability Council",
+      "expectedAnswer": "Reliability Council.",
+      "documentFamily": "guard-versioning-policy",
+      "split": "guard_versioning"
+    },
+    {
+      "anchorId": "gaz-cross-space",
+      "source": "guard-authz-standard",
+      "version": "v1",
+      "page": 1,
+      "modality": "text",
+      "primaryCategory": "versionAndAuthorization",
+      "evaluationContext": {
+        "scenarioType": "authorizationScope",
+        "actingRole": "user from another workspace",
+        "scopeConstraint": "material never shared with them",
+        "expectedDecision": "deny access"
+      },
+      "goldMatch": "no access to material that was never shared",
+      "expectedAnswer": "Denied; they have no access.",
+      "documentFamily": "guard-authorization-standard",
+      "split": "guard_authorization"
+    },
+    {
+      "anchorId": "gaz-removed",
+      "source": "guard-authz-standard",
+      "version": "v1",
+      "page": 1,
+      "modality": "text",
+      "primaryCategory": "versionAndAuthorization",
+      "evaluationContext": {
+        "scenarioType": "authorizationScope",
+        "actingRole": "former collaborator",
+        "scopeConstraint": "share was removed",
+        "expectedDecision": "block new retrieval of that material"
+      },
+      "goldMatch": "new retrieval cannot use that material",
+      "expectedAnswer": "New retrieval is blocked after the share is removed.",
+      "documentFamily": "guard-authorization-standard",
+      "split": "guard_authorization"
+    },
+    {
+      "anchorId": "gaz-cross-owner",
+      "source": "guard-authz-standard",
+      "version": "v1",
+      "page": 1,
+      "modality": "text",
+      "primaryCategory": "versionAndAuthorization",
+      "evaluationContext": {
+        "scenarioType": "authorizationScope",
+        "actingRole": "acting user",
+        "scopeConstraint": "names another owner's private material id",
+        "expectedDecision": "deny; ownership checked first"
+      },
+      "goldMatch": "cannot read another owner's private material",
+      "expectedAnswer": "Denied; naming an id does not grant access.",
+      "documentFamily": "guard-authorization-standard",
+      "split": "guard_authorization"
+    },
+    {
+      "anchorId": "gaz-cache",
+      "source": "guard-authz-standard",
+      "version": "v1",
+      "page": 1,
+      "modality": "text",
+      "primaryCategory": "versionAndAuthorization",
+      "evaluationContext": {
+        "scenarioType": "authorizationScope",
+        "actingRole": "cross-space user",
+        "scopeConstraint": "a cached citation is visible",
+        "expectedDecision": "deny; cache does not widen scope"
+      },
+      "goldMatch": "缓存引用或旧截图不扩大当前用户的访问范围",
+      "expectedAnswer": "不扩大；缓存或截图不授予访问权。",
+      "documentFamily": "guard-authorization-standard",
+      "split": "guard_authorization"
+    },
+    {
+      "anchorId": "gfd-pinecone",
+      "source": "guard-failure-drill",
+      "version": "v1",
+      "page": 1,
+      "modality": "text",
+      "primaryCategory": "failure",
+      "evaluationContext": {
+        "injectedDependency": "Pinecone",
+        "injectedState": "unavailable",
+        "expectedSystemBehavior": "keep text drawing and mark retrieval degraded",
+        "forbiddenSystemBehavior": "claim no evidence exists"
+      },
+      "goldMatch": "must not claim that no evidence exists",
+      "expectedAnswer": "Text drawing stays; retrieval is degraded, not 'no evidence'.",
+      "documentFamily": "guard-failure-drill",
+      "split": "guard_failure"
+    },
+    {
+      "anchorId": "gfd-objstore",
+      "source": "guard-failure-drill",
+      "version": "v1",
+      "page": 1,
+      "modality": "text",
+      "primaryCategory": "failure",
+      "evaluationContext": {
+        "injectedDependency": "object storage",
+        "injectedState": "hydration failed",
+        "expectedSystemBehavior": "edit saved XML, block opening evidence",
+        "forbiddenSystemBehavior": "publish a partial grounded answer"
+      },
+      "goldMatch": "opening evidence is blocked",
+      "expectedAnswer": "Editing saved XML stays; opening evidence is blocked.",
+      "documentFamily": "guard-failure-drill",
+      "split": "guard_failure"
+    },
+    {
+      "anchorId": "gfd-canvas",
+      "source": "guard-failure-drill",
+      "version": "v1",
+      "page": 1,
+      "modality": "text",
+      "primaryCategory": "failure",
+      "evaluationContext": {
+        "injectedDependency": "canvas save",
+        "injectedState": "save blocked",
+        "expectedSystemBehavior": "allow draft download, disable publish",
+        "forbiddenSystemBehavior": "publish while save is blocked"
+      },
+      "goldMatch": "publishing is disabled",
+      "expectedAnswer": "Draft download stays; publishing is disabled.",
+      "documentFamily": "guard-failure-drill",
+      "split": "guard_failure"
+    },
+    {
+      "anchorId": "gfd-visual",
+      "source": "guard-failure-drill",
+      "version": "v1",
+      "page": 1,
+      "modality": "text",
+      "primaryCategory": "failure",
+      "evaluationContext": {
+        "injectedDependency": "visual verifier",
+        "injectedState": "verification pending",
+        "expectedSystemBehavior": "give text claims, block pixel relations",
+        "forbiddenSystemBehavior": "confirm pixel relations while pending"
+      },
+      "goldMatch": "视觉验证待定时可给出文本结论但不得确认像素关系",
+      "expectedAnswer": "可给文本结论；不得确认像素关系。",
+      "documentFamily": "guard-failure-drill",
+      "split": "guard_failure"
+    },
+    {
+      "anchorId": "grail-method",
+      "page": 1,
+      "goldMatch": "measured twice by different operators",
+      "source": "realistic-rail-scan",
+      "version": "v1",
+      "modality": "ocr",
+      "primaryCategory": "ocr",
+      "documentFamily": "metro-rail-inspection-scan",
+      "split": "guard_visual_ocr"
+    },
+    {
+      "anchorId": "grail-restriction",
+      "page": 2,
+      "goldMatch": "protected by an interim speed restriction",
+      "source": "realistic-rail-scan",
+      "version": "v1",
+      "modality": "ocr",
+      "primaryCategory": "ocr",
+      "documentFamily": "metro-rail-inspection-scan",
+      "split": "guard_visual_ocr"
+    },
+    {
+      "anchorId": "grail-row-16",
+      "page": 4,
+      "goldMatch": "EL-16.1 | 12 mm | +1 mm | MONITOR",
+      "source": "realistic-rail-scan",
+      "version": "v1",
+      "modality": "ocr",
+      "primaryCategory": "ocr",
+      "documentFamily": "metro-rail-inspection-scan",
+      "split": "guard_visual_ocr"
+    },
+    {
+      "anchorId": "grail-row-18",
+      "page": 4,
+      "goldMatch": "EL-18.4 | 8 mm | NEW | VERIFY",
+      "source": "realistic-rail-scan",
+      "version": "v1",
+      "modality": "ocr",
+      "primaryCategory": "ocr",
+      "documentFamily": "metro-rail-inspection-scan",
+      "split": "guard_visual_ocr"
+    },
+    {
+      "anchorId": "grail-cn-owner",
+      "page": 3,
+      "goldMatch": "由轨道完整性组负责",
+      "source": "realistic-rail-scan",
+      "version": "v1",
+      "modality": "ocr",
+      "primaryCategory": "ocr",
+      "documentFamily": "metro-rail-inspection-scan",
+      "split": "guard_visual_ocr"
+    },
+    {
+      "anchorId": "grail-cn-condition",
+      "page": 3,
+      "goldMatch": "达到 20 毫米或两次检查增长超过 4 毫米",
+      "source": "realistic-rail-scan",
+      "version": "v1",
+      "modality": "ocr",
+      "primaryCategory": "ocr",
+      "documentFamily": "metro-rail-inspection-scan",
+      "split": "guard_visual_ocr"
+    },
+    {
+      "anchorId": "grail-approved-threshold",
+      "page": 6,
+      "goldMatch": "approved threshold remains 20 mm",
+      "source": "realistic-rail-scan",
+      "version": "v1",
+      "modality": "ocr",
+      "primaryCategory": "ocr",
+      "documentFamily": "metro-rail-inspection-scan",
+      "split": "guard_visual_ocr"
+    },
+    {
+      "anchorId": "grp-id",
+      "source": "guard-release-policy",
+      "version": "v1",
+      "page": 1,
+      "modality": "text",
+      "primaryCategory": "exactLookup",
+      "goldMatch": "GRP-2026-01",
+      "documentFamily": "guard-versioning-policy",
+      "split": "guard_versioning"
+    },
+    {
+      "anchorId": "grp-review-v1",
+      "source": "guard-release-policy",
+      "version": "v1",
+      "page": 1,
+      "modality": "text",
+      "primaryCategory": "versionAndAuthorization",
+      "evaluationContext": {
+        "scenarioType": "versionSelect",
+        "actingRole": "reader",
+        "scopeConstraint": "question pinned to V1",
+        "expectedDecision": "answer with the V1 review score"
+      },
+      "goldMatch": "manual-review score is 85",
+      "expectedAnswer": "85.",
+      "documentFamily": "guard-versioning-policy",
+      "split": "guard_versioning"
+    },
+    {
+      "anchorId": "grp-review-v2",
+      "source": "guard-release-policy-v2",
+      "version": "v2",
+      "page": 1,
+      "modality": "text",
+      "primaryCategory": "versionAndAuthorization",
+      "evaluationContext": {
+        "scenarioType": "versionSelect",
+        "actingRole": "reader",
+        "scopeConstraint": "question pinned to V2",
+        "expectedDecision": "answer with the V2 review score"
+      },
+      "goldMatch": "manual-review score is 90",
+      "expectedAnswer": "90.",
+      "documentFamily": "guard-versioning-policy",
+      "split": "guard_versioning"
+    },
+    {
+      "anchorId": "gaz-id",
+      "source": "guard-authz-standard",
+      "version": "v1",
+      "page": 1,
+      "modality": "text",
+      "primaryCategory": "exactLookup",
+      "goldMatch": "GAZ-2026-03",
+      "documentFamily": "guard-authorization-standard",
+      "split": "guard_authorization"
+    },
+    {
+      "anchorId": "gfd-id",
+      "source": "guard-failure-drill",
+      "version": "v1",
+      "page": 1,
+      "modality": "text",
+      "primaryCategory": "exactLookup",
+      "goldMatch": "GFD-2026-04",
+      "documentFamily": "guard-failure-drill",
+      "split": "guard_failure"
+    },
+    {
+      "anchorId": "gab-id",
+      "source": "guard-abstention-guide",
+      "version": "v1",
+      "page": 1,
+      "modality": "text",
+      "primaryCategory": "exactLookup",
+      "goldMatch": "GAB-2026-02",
+      "documentFamily": "guard-abstention-guide",
+      "split": "guard_abstention"
     }
   ]
 }

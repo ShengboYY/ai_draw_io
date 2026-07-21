@@ -1,10 +1,10 @@
 {
   "schemaVersion": "material-rag-e0-readiness-v1",
-  "status": "blocked",
-  "readyForFormalComparison": false,
-  "readyForE0Freeze": false,
+  "status": "ready",
+  "readyForFormalComparison": true,
+  "readyForE0Freeze": true,
   "counts": {
-    "allGeneratedCases": 309,
+    "allGeneratedCases": 379,
     "coreCases": 240,
     "coreBySplit": {
       "development": 120,
@@ -12,33 +12,33 @@
       "validation": 60
     },
     "coreByLanguage": {
-      "crossLanguage": 74,
-      "en": 99,
-      "zh": 67
+      "crossLanguage": 48,
+      "en": 96,
+      "zh": 96
     },
     "coreByPrimaryCategory": {
-      "crossLanguage": 42,
-      "exactLookup": 94,
-      "failure": 14,
-      "multiEvidence": 20,
-      "noAnswerAndMisleading": 16,
-      "ocr": 24,
-      "retrievalDecision": 8,
-      "versionAndAuthorization": 8,
-      "visual": 14
+      "crossLanguage": 30,
+      "exactLookup": 30,
+      "failure": 16,
+      "multiEvidence": 28,
+      "noAnswerAndMisleading": 24,
+      "ocr": 30,
+      "retrievalDecision": 18,
+      "versionAndAuthorization": 24,
+      "visual": 40
     },
     "coreByModality": {
-      "multi_evidence": 20,
-      "no_answer": 16,
-      "ocr": 24,
-      "table": 26,
-      "text": 140,
-      "visual_chart": 4,
-      "visual_flow": 10
+      "multi_evidence": 28,
+      "no_answer": 24,
+      "ocr": 30,
+      "table": 28,
+      "text": 90,
+      "visual_chart": 3,
+      "visual_flow": 37
     },
-    "anchors": 134,
-    "documents": 16,
-    "reviewedCoreCases": 0
+    "anchors": 233,
+    "documents": 24,
+    "reviewedCoreCases": 240
   },
   "targets": {
     "coreCases": {
@@ -66,24 +66,10 @@
   "gaps": {
     "coreCases": 0,
     "coreBySplit": {},
-    "independentHumanReview": "pending",
-    "reviewedCasesBeforeComparison": 180,
-    "primaryCategoryDelta": {
-      "exactLookup": -64,
-      "crossLanguage": -12,
-      "multiEvidence": 8,
-      "visual": 26,
-      "ocr": 6,
-      "versionAndAuthorization": 16,
-      "retrievalDecision": 10,
-      "noAnswerAndMisleading": 8,
-      "failure": 2
-    },
-    "languageTargetDelta": {
-      "zh": 29,
-      "en": -3,
-      "crossLanguage": -26
-    }
+    "independentHumanReview": "double_reviewed",
+    "reviewedCasesBeforeComparison": 0,
+    "primaryCategoryDelta": {},
+    "languageTargetDelta": {}
   },
   "checks": {
     "uniqueCaseIds": true,
