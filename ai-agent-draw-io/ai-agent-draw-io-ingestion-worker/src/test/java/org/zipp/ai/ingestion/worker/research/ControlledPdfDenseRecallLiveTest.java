@@ -122,17 +122,15 @@ class ControlledPdfDenseRecallLiveTest {
     }
 
     @Test
-    void parentModeShouldCreditAChildWhoseParentContainsTheGoldText() {
+    void parentModeShouldKeepGoldBoundToTheFixedChildProjection() {
         RetrievalChunkProjection chunk = chunkWithParentContext("neighbor evidence\n\nleaf text");
-        ResearchAnchor anchor = new ResearchAnchor(
-                "anchor-1", "source", "v1", "text", "neighbor evidence", 1, false);
+        IndexedChunk indexed = new IndexedChunk("parent-vector", "source:v1", chunk,
+                ChunkMode.PARENT_CONTEXT_500.embeddingText(chunk));
 
-        assertTrue(goldVectorIds(List.of(new IndexedChunk(
-                "flat-vector", "source:v1", chunk, ChunkMode.FLAT_LEAF.embeddingText(chunk))),
-                anchor).isEmpty());
-        assertEquals(Set.of("parent-vector"), goldVectorIds(List.of(new IndexedChunk(
-                "parent-vector", "source:v1", chunk,
-                ChunkMode.PARENT_CONTEXT_500.embeddingText(chunk))), anchor));
+        assertTrue(fixedGoldVectorIds(
+                List.of(indexed), "source:v1", Set.of("neighbor-chunk")).isEmpty());
+        assertEquals(Set.of("parent-vector"), fixedGoldVectorIds(
+                List.of(indexed), "source:v1", Set.of("chunk-1")));
     }
 
     @Test
@@ -360,7 +358,7 @@ class ControlledPdfDenseRecallLiveTest {
             waitUntilSearchable(client, namespace, tenantKey, indexed, passageVectors);
             System.out.println("Research index is searchable: " + runId);
             return new ExperimentResult(runId, canonicalAssembler().fingerprint(), evaluate(
-                    client, namespace, tenantKey, cases, anchors, indexed), indexed.size(),
+                    client, namespace, tenantKey, cases, anchors, projections, indexed), indexed.size(),
                     embeddingProfile);
         } finally {
             // Pinecone limits delete-by-id payloads, so large open PDFs must be cleaned in batches.
@@ -559,6 +557,7 @@ class ControlledPdfDenseRecallLiveTest {
 
     private DenseMetrics evaluate(PineconeVectorClient client, String namespace, String tenantKey,
                                   List<ResearchCase> cases, Map<String, ResearchAnchor> anchors,
+                                  ProjectionSet projections,
                                   List<IndexedChunk> indexed) throws InterruptedException {
         List<CaseRank> ranks = new ArrayList<>();
         Map<String, IndexedChunk> indexedByVectorId = indexed.stream().collect(
@@ -584,9 +583,15 @@ class ControlledPdfDenseRecallLiveTest {
             }
             String sourceVersion = sourceVersions.iterator().next();
             Map<String, Set<String>> requiredGoldVectorIds = new LinkedHashMap<>();
+            Map<String, List<String>> fixedGoldChunkIdsByAnchor = new LinkedHashMap<>();
             for (EvidenceRequirement requirement : requirements) {
                 ResearchAnchor anchor = anchors.get(requirement.anchorId());
-                requiredGoldVectorIds.put(requirement.anchorId(), goldVectorIds(indexed, anchor));
+                Set<String> fixedGoldChunkIds = goldChunkIds(
+                        projections.bySourceVersion().get(sourceVersion), anchor);
+                fixedGoldChunkIdsByAnchor.put(requirement.anchorId(),
+                        fixedGoldChunkIds.stream().sorted().toList());
+                requiredGoldVectorIds.put(requirement.anchorId(), fixedGoldVectorIds(
+                        indexed, sourceVersion, fixedGoldChunkIds));
             }
             int queryIndex = caseIndex;
             List<String> matches = retryPinecone("query research vectors", () -> client.query(
@@ -603,7 +608,7 @@ class ControlledPdfDenseRecallLiveTest {
             ranks.add(new CaseRank(researchCase, completeEvidenceRank(
                     matches, researchCase.requiredEvidenceGroups(), requiredGoldVectorIds),
                     isMappable(researchCase.requiredEvidenceGroups(), requiredGoldVectorIds),
-                    List.copyOf(candidates)));
+                    Map.copyOf(fixedGoldChunkIdsByAnchor), List.copyOf(candidates)));
             if ((caseIndex + 1) % 10 == 0 || caseIndex + 1 == cases.size()) {
                 System.out.printf("Research cases evaluated: %d/%d%n", caseIndex + 1, cases.size());
             }
@@ -630,7 +635,8 @@ class ControlledPdfDenseRecallLiveTest {
         List<CaseResult> caseResults = ranks.stream().map(value -> new CaseResult(
                 value.researchCase().caseId(), value.rank(), value.researchCase().category(),
                 value.researchCase().primaryCategory(), value.researchCase().language(),
-                value.researchCase().goldAnchorIds(), value.mappable(), value.candidates())).toList();
+                value.researchCase().goldAnchorIds(), value.fixedGoldChunkIdsByAnchor(),
+                value.mappable(), value.candidates())).toList();
         return new DenseMetrics((double) mappedRanks.size() / ranks.size(), mappedRanks.size(),
                 total.recallAt1(), total.recallAt5(), total.recallAt10(), total.recallAt40(),
                 total.mrrAt10(), conditional, misses, List.copyOf(slices), weak, caseResults);
@@ -696,17 +702,11 @@ class ControlledPdfDenseRecallLiveTest {
         return 0;
     }
 
-    private Set<String> goldVectorIds(List<IndexedChunk> indexed, ResearchAnchor anchor) {
-        String needle = normalize(anchor.goldMatch());
-        Set<String> exact = indexed.stream()
-                .filter(value -> value.sourceVersion().equals(anchor.sourceVersion()))
-                .filter(value -> normalize(value.embeddingText()).contains(needle))
-                .map(IndexedChunk::vectorId)
-                .collect(java.util.stream.Collectors.toUnmodifiableSet());
-        if (!exact.isEmpty() || anchor.pageNo() <= 0 || !anchor.allowPageFallback()) return exact;
+    private Set<String> fixedGoldVectorIds(List<IndexedChunk> indexed, String sourceVersion,
+                                           Set<String> fixedGoldChunkIds) {
         return indexed.stream()
-                .filter(value -> value.sourceVersion().equals(anchor.sourceVersion())
-                        && pageNo(value.chunk().pageId()) == anchor.pageNo())
+                .filter(value -> value.sourceVersion().equals(sourceVersion)
+                        && fixedGoldChunkIds.contains(value.chunk().chunkId()))
                 .map(IndexedChunk::vectorId)
                 .collect(java.util.stream.Collectors.toUnmodifiableSet());
     }
@@ -997,12 +997,14 @@ class ControlledPdfDenseRecallLiveTest {
     }
 
     private record CaseRank(ResearchCase researchCase, int rank, boolean mappable,
+                            Map<String, List<String>> fixedGoldChunkIdsByAnchor,
                             List<CandidateResult> candidates) { }
 
     private record CandidateResult(int rank, String vectorId, String sourceVersion, String chunkId) { }
 
     private record CaseResult(String caseId, int rank, String category, String primaryCategory,
-                              String language, List<String> goldAnchorIds, boolean mappable,
+                              String language, List<String> goldAnchorIds,
+                              Map<String, List<String>> fixedGoldChunkIdsByAnchor, boolean mappable,
                               List<CandidateResult> candidates) { }
 
     private record SliceMetric(String label, int count, double recallAt1, double recallAt5,

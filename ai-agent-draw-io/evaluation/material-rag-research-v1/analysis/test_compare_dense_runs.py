@@ -12,6 +12,7 @@ from compare_dense_runs import attach_corpus_lock_snapshot, compare
 def run(mode: str, ranks: list[int]) -> dict:
     cases = [{"caseId": f"case-{index}", "rank": rank, "category": "text",
               "primaryCategory": "exactLookup", "language": "en", "goldAnchorIds": ["a"],
+              "fixedGoldChunkIdsByAnchor": {"a": ["chunk"]},
               "mappable": True, "candidates": [{"rank": 1, "vectorId": "v",
               "sourceVersion": "source:v1", "chunkId": "chunk"}]}
              for index, rank in enumerate(ranks)]
@@ -57,6 +58,15 @@ class CompareDenseRunsTest(unittest.TestCase):
         parent["chunkMode"] = "parent-context-500-v1"
 
         with self.assertRaisesRegex(ValueError, "canonicalMode"):
+            compare(flat, parent, "chunkMode")
+
+    def test_chunk_experiment_rejects_gold_to_child_drift(self) -> None:
+        flat = run("e1-v5", [1])
+        parent = run("e1-v5", [1])
+        parent["chunkMode"] = "parent-context-500-v1"
+        parent["metrics"]["caseResults"][0]["fixedGoldChunkIdsByAnchor"]["a"] = ["neighbor"]
+
+        with self.assertRaisesRegex(ValueError, "fixedGoldChunkIdsByAnchor"):
             compare(flat, parent, "chunkMode")
 
     def test_missing_raw_candidate_sequence_is_rejected(self) -> None:

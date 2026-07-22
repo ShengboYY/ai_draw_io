@@ -85,9 +85,15 @@ def compare(e0: dict, e1: dict, variable_field: str = "canonicalMode") -> dict:
         raise ValueError("Paired runs do not contain the same case IDs")
     case_ids = sorted(e0_cases)
     for case_id in case_ids:
-        for field in ("category", "primaryCategory", "language", "goldAnchorIds"):
+        for field in ("category", "primaryCategory", "language", "goldAnchorIds",
+                      "fixedGoldChunkIdsByAnchor"):
             if e0_cases[case_id].get(field) != e1_cases[case_id].get(field):
                 raise ValueError(f"Case metadata drift for {case_id}: {field}")
+        if variable_field == "chunkMode":
+            fixed_gold = e0_cases[case_id].get("fixedGoldChunkIdsByAnchor")
+            if not isinstance(fixed_gold, dict) or set(fixed_gold) != set(
+                    e0_cases[case_id]["goldAnchorIds"]):
+                raise ValueError(f"Missing fixed gold-to-child mapping for {case_id}")
         for run_label, case in (("e0", e0_cases[case_id]), ("e1", e1_cases[case_id])):
             candidates = case.get("candidates")
             if not isinstance(candidates, list) or len(candidates) > e0["candidateLimit"]:

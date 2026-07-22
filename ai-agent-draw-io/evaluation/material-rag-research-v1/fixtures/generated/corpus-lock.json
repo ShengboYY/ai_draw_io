@@ -17,7 +17,7 @@
     "experiment-plan-v2.json": "804a9dbef077b78db1a287888050e71ca0c8ace3696edb8ef0d37e8231d59b09",
     "requirements.txt": "0043aca3a7381487084576995105e1099e3786ae8add5a6c0951d305b0e0e757",
     "analysis/audit_corpus.py": "83667d09bfb942ffe27430529ded73d76797c26c8a5ec2b525dcf1bffa86008b",
-    "analysis/compare_dense_runs.py": "f060575686dcbd91fc3720399ab16d03b2daa552211610ee4bba235a7afa1cdd",
+    "analysis/compare_dense_runs.py": "210bb4793405f62ef099f490620ff7b5b7a53cd251d79a6b7b2c921a2911dae9",
     "analysis/evaluate_guard_suites.py": "e2ded7e4289fe4b7bfd1883e37e53c4543dccd69ab2c571aff6e54291daf4aa0",
     "analysis/evaluate_ocr.py": "1df3eb9d8619dd258c437cd45504477edf8a4146b96c00c693642efad1c64284",
     "fixtures/generate_fixtures.py": "38f01b4ca18e1892d987ca03d63e94e3fa24b21472cc4ff2d0a6362def40a16c",
