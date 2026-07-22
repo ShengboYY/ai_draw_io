@@ -262,3 +262,11 @@ E3 的首个候选在运行前固定如下：控制组为 `dense-v1`；候选组
 近分候选有名次互换，因此这两个 run 不进入质量结论。修订后的 runner 在同一次 passage/query embedding
 和 Pinecone query 上同时计算 dense 与 hybrid 两份结果，确保两组共享逐 case 完全相同的 dense 与
 lexical lane；检索算法、RRF 参数、数据和晋级标准均不改变。
+
+E3 的第二个候选在运行前固定为 query-only `evidence-focused-v1`。控制组直接嵌入原始问题；候选组不读取
+gold、expected answer、case category 或文档语言，只检测 query 是否含汉字并添加对应语言的直接证据指令：
+中文要求查找“包含可直接回答该请求的事实、规则、数值或步骤的原文”，英文要求查找包含同类直接答案
+证据的 source passage。两组共享同一次 passage upsert，但分别生成 query embedding 和 dense top 40；
+E1 canonical、flat chunk、固定 gold child、模型、tokenizer、source filter 和候选上限均不变，不启用
+lexical/RRF、query decomposition 或 target labels。主指标仍为 Development Recall@10 配对差值；提升至少
+0.02、Recall@40 不降低且没有样本量至少 20 的主要切片显著退化，才进入 Validation。

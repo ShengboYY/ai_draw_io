@@ -83,7 +83,11 @@
     "primaryDecisionMetric": "development.recallAt10.pairedDelta",
     "minimumPromotionGain": 0.02,
     "firstCandidateDecision": "retain dense-v1; hybrid recallAt10 delta 0.0065 did not meet +0.02 and exactLookup recallAt10 delta -0.0571",
-    "nextCandidate": "query rewrite with dense and flat chunks fixed"
+    "secondCandidateMode": "evidence-focused-v1",
+    "secondCandidateFingerprint": "evidence-focused-v1:han-aware-direct-source-evidence-prefix",
+    "secondCandidateUsesGoldOrExpectedAnswer": false,
+    "secondCandidateChanges": "query text only",
+    "nextCandidate": "run original-v1 vs evidence-focused-v1 with dense and flat chunks fixed"
   },
   "preE0": {
     "minimumReviewedCasesBeforeComparison": 340,

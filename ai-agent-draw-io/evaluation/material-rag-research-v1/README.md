@@ -266,6 +266,11 @@ emulation of MySQL natural-language FULLTEXT, so a promoted candidate still requ
 For a strict one-query paired run, set both `MATERIAL_RAG_PAIRED_DENSE_RESULT_JSON` and
 `MATERIAL_RAG_PAIRED_HYBRID_RESULT_JSON`; the runner writes both modes from the same Pinecone query results.
 
+For the E3 query-only candidate, keep retrieval at `dense-v1` and set both
+`MATERIAL_RAG_PAIRED_ORIGINAL_QUERY_RESULT_JSON` and
+`MATERIAL_RAG_PAIRED_REWRITTEN_QUERY_RESULT_JSON`. The runner shares one passage index and writes original vs
+`evidence-focused-v1` query results. Compare them with `--variable-field queryMode`.
+
 Evaluate OCR output named `page-1.txt` through `page-3.txt` with:
 
 ```bash
