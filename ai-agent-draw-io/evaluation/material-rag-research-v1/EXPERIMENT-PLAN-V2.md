@@ -338,6 +338,11 @@ governance），Holdout 27 例（agent recovery runbook）。资料家族不跨 
 不再单独决定 draw.io 功能晋级。下一批 fixture 将补充资料驱动的制图、结构编辑、图/扫描件转可编辑 XML 与
 citation-bound 输出；在此之前，先对既有 `drawio-core-v1` 重跑 dense/E1 基线。
 
+生成层补充：`fixtures/drawio-generation-tasks-v1.json` 冻结 12 个端到端任务（Development 6、Validation 3、
+Holdout 3），覆盖资料驱动制图、结构编辑、版本安全编辑、扫描件转可编辑 XML、权限安全编辑、故障恢复图与
+citation-bound 输出。每个任务声明 source version、必需 evidence anchor、最小 XML vertices/edges/labels 和
+必需 citations；它们将作为 E7/E8 的主质量集，而不是混入纯 retrieval Recall 分母。
+
 E6 预注册：在扩充后的 `drawio-core` 上，控制组使用 E1 dense top-40 的原始 rank 前 8 条；候选只改变
 context selection，先按 evidence 去重、再以 source-aware coverage 选择最多 8 条，并保留每条的 chunk ID 与
 source citation。检索、授权过滤、gold、生成模型和输出 XML 评估器全部冻结。Development 需同时满足：引用

@@ -38,6 +38,7 @@ PROVENANCE_FILES = (
     "fixtures/expansion_corpus_specs.py",
     "fixtures/e4_chartbook_specs.py",
     "fixtures/query-selection.json",
+    "fixtures/drawio-generation-tasks-v1.json",
 )
 CATEGORY_CONTEXT_FIELDS = {
     "failure": (

@@ -13,10 +13,10 @@
   "reviewLedgerSha256": "060d402284ef11775fd31b2860d42002d7d5d9a525e316c75a35c57938dc9437",
   "fixtureFontSha256": "876af2cd4854644e7f3e7feb2f688997fdb3343c6df6693611209c9dfb47ccec",
   "provenanceFiles": {
-    "EXPERIMENT-PLAN-V2.md": "dc5a8adcfd8cf0f9a40f35f4c6ff5313ec52f29cd14bca584a8467c620f95d63",
+    "EXPERIMENT-PLAN-V2.md": "392be4e0e66b842bccd8295a8cb9b0c0e92acbbca86aeab0634589fb71a720d8",
     "experiment-plan-v2.json": "b8db1b428211385d4bd108a9dc37f06cf833350d19b09b380911dd28165bed0d",
     "requirements.txt": "0043aca3a7381487084576995105e1099e3786ae8add5a6c0951d305b0e0e757",
-    "analysis/audit_corpus.py": "ed2818452a8a105b1efaa983a9efa054bf3d8d11306a0e67771ff65326620442",
+    "analysis/audit_corpus.py": "805807c73c2cf624d8d1a5fbd7d6d47c5746133ebee05ad57c6303434a5ae61f",
     "analysis/compare_dense_runs.py": "762b83b97c14011b7b8081c859407973c7626252abc67e5f8773673bdda8ea59",
     "analysis/audit_e4_chartbook.py": "1785c3e3085810b269ae9d5c1975f7357b2a982bb1f321c9be12fdb6f5a86f9b",
     "analysis/evaluate_guard_suites.py": "e2ded7e4289fe4b7bfd1883e37e53c4543dccd69ab2c571aff6e54291daf4aa0",
@@ -29,7 +29,8 @@
     "fixtures/guard_corpus_specs.py": "2bca433037990500ce5813aaf8953f19a6bc15067feeaf2c0250ef9978e8e493",
     "fixtures/expansion_corpus_specs.py": "d18eb83d95e07c801712e863b354b23f4005f81d7feacd6abc0daca3c905809d",
     "fixtures/e4_chartbook_specs.py": "08f81dcfddd157e73c26ee7e40d4383abe42f31858338f919771d7dfc31a7d95",
-    "fixtures/query-selection.json": "2053782f1f699b2bd6a880a3cfcbb4aa57829275ea02c3928248d636183d2f60"
+    "fixtures/query-selection.json": "2053782f1f699b2bd6a880a3cfcbb4aa57829275ea02c3928248d636183d2f60",
+    "fixtures/drawio-generation-tasks-v1.json": "76cd0285b4418257121f452a801d8e1a04f9ab2a9646986fbdd09d876062a160"
   },
   "files": {
     "case-keys.json": "5ea4e73e5880d59d75fc4e16804e5b78b7a7c716d5f5d7e902af3a45bda0763a",

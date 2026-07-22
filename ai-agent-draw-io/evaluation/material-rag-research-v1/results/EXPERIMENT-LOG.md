@@ -237,6 +237,12 @@
 - 所有配对 95% 区间仍跨 0，不能用这次小样本复测打开 Validation 或替代原 450-case 结论。
 - **决策**:保留 E1 工作表示；先补 draw.io 制图/XML/结构编辑案例，扩大 `drawio-core` 后重跑 E0/E1。
 
+### draw.io generation-task expansion · 2026-07-22 · ✅已冻结
+
+- 新增 12 个端到端任务：Development 6、Validation 3、Holdout 3，按资料家族隔离。
+- 覆盖资料驱动制图、结构编辑、扫描/OCR 转可编辑 XML、版本与权限约束、故障恢复及 citation-bound 输出。
+- 每例固定 source version、anchor、XML 结构断言和引用断言；用于 E7/E8，不稀释纯 retrieval 主指标。
+
 ---
 
 ## 当前状态与下一步
