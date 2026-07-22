@@ -8,7 +8,7 @@ import unittest
 from pathlib import Path
 
 from audit_corpus import (audit, evidence_shape_errors, generation_context_errors,
-                          generation_task_errors, reviewed_case_ids)
+                          generation_task_errors, reviewed_case_ids, sha256)
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -135,6 +135,42 @@ class GenerationTaskAuditTest(unittest.TestCase):
         errors = generation_context_errors([], tasks, {}, ROOT)
 
         self.assertEqual("development task contexts are incomplete", errors[0]["error"])
+
+    def test_rejects_visual_artifact_without_matching_hash(self) -> None:
+        tasks = {"task-1": {"taskId": "task-1", "split": "development",
+                            "sourceVersion": "source-a:v1", "requiredAnchors": ["anchor-a"]}}
+        anchors = {"anchor-a": {"source": "source-a", "version": "v1", "page": 1}}
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            image = root / "fixtures" / "generated" / "images" / "visual.png"
+            image.parent.mkdir(parents=True)
+            image.write_bytes(b"synthetic image")
+            contexts = [{"taskId": "task-1", "arm": "fixed", "evidence": [{
+                "anchorId": "anchor-a", "sourceVersion": "source-a:v1", "page": 1,
+                "text": "evidence", "imagePath": "fixtures/generated/images/visual.png",
+                "imageSha256": "wrong",
+            }]}]
+
+            errors = generation_context_errors(contexts, tasks, anchors, root)
+
+        self.assertEqual("visual artifact hash mismatch", errors[0]["error"])
+
+    def test_rejects_visual_artifact_outside_frozen_directory(self) -> None:
+        tasks = {"task-1": {"taskId": "task-1", "split": "development",
+                            "sourceVersion": "source-a:v1", "requiredAnchors": ["anchor-a"]}}
+        anchors = {"anchor-a": {"source": "source-a", "version": "v1", "page": 1}}
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            outside = root / "outside.png"
+            outside.write_bytes(b"synthetic image")
+            contexts = [{"taskId": "task-1", "arm": "fixed", "evidence": [{
+                "anchorId": "anchor-a", "sourceVersion": "source-a:v1", "page": 1,
+                "text": "evidence", "imagePath": "outside.png", "imageSha256": sha256(outside),
+            }]}]
+
+            errors = generation_context_errors(contexts, tasks, anchors, root)
+
+        self.assertEqual("visual artifact outside frozen directory", errors[0]["error"])
 
 
 if __name__ == "__main__":

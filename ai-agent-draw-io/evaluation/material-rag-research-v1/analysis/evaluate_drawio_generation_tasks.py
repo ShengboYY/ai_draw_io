@@ -34,6 +34,8 @@ def citation_anchor_ids(citations: object, task: dict, anchors: dict[str, dict])
         if not isinstance(citation, dict):
             continue
         anchor_id = citation.get("anchorId")
+        if not isinstance(anchor_id, str):
+            continue
         anchor = anchors.get(anchor_id)
         if anchor is not None and citation.get("sourceVersion") == task["sourceVersion"] \
                 and citation["sourceVersion"] == f"{anchor['source']}:{anchor['version']}" \
@@ -47,27 +49,40 @@ def normalized_label(value: str) -> str:
     return " ".join(re.sub(r"<[^>]+>", " ", html.unescape(value)).split()).casefold()
 
 
+def label_matches(required_label: str, cell_label: str) -> bool:
+    """Match a normalized label as words, without confusing V1 with V10."""
+    required = normalized_label(required_label)
+    return bool(re.search(r"(?<!\w)" + re.escape(required) + r"(?!\w)", cell_label))
+
+
 def evaluate(task: dict, response: dict, anchors: dict[str, dict]) -> dict:
+    """Score malformed model payloads as failures instead of aborting the batch."""
+    if not isinstance(response, dict):
+        response = {}
     citations = citation_anchor_ids(response.get("citations", []), task, anchors)
     required = set(task["citationAssertions"]["mustCiteAnchors"])
     result = {"taskId": task["taskId"], "xmlParseable": False, "xmlAssertionsPassed": False,
               "citationAssertionsPassed": False, "completed": False}
-    try:
-        graph_cells = cells(response.get("xml", ""))
-    except ET.ParseError:
+    xml = response.get("xml", "")
+    if not isinstance(xml, str):
         graph_cells = []
     else:
-        result["xmlParseable"] = True
-        vertices = [cell for cell in graph_cells if cell.get("vertex") == "1"]
-        edges = [cell for cell in graph_cells if cell.get("edge") == "1"]
-        assertion = task["xmlAssertions"]
-        labels = [normalized_label(cell.get("value", "")) for cell in graph_cells]
-        result["xmlAssertionsPassed"] = (
-            len(vertices) >= assertion.get("minVertices", 0)
-            and len(edges) >= assertion.get("minEdges", 0)
-            and all(any(normalized_label(label) in value for value in labels)
-                    for label in assertion.get("requiredLabels", []))
-        )
+        try:
+            graph_cells = cells(xml)
+        except (ET.ParseError, TypeError):
+            graph_cells = []
+        else:
+            result["xmlParseable"] = True
+            vertices = [cell for cell in graph_cells if cell.get("vertex") == "1"]
+            edges = [cell for cell in graph_cells if cell.get("edge") == "1"]
+            assertion = task["xmlAssertions"]
+            labels = [normalized_label(cell.get("value", "")) for cell in graph_cells]
+            result["xmlAssertionsPassed"] = (
+                len(vertices) >= assertion.get("minVertices", 0)
+                and len(edges) >= assertion.get("minEdges", 0)
+                and all(any(label_matches(label, value) for value in labels)
+                        for label in assertion.get("requiredLabels", []))
+            )
     citation_assertion = task["citationAssertions"]
     result["citationAssertionsPassed"] = (
         len(citations) >= citation_assertion["minimumCitations"] and required.issubset(citations)

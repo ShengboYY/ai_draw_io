@@ -273,8 +273,10 @@
   或 expected answer。模型 6/6 返回可解析 draw.io XML，结构断言也为 6/6；但严格 citation（anchor、版本、页码）
   只有 2/6，完整任务为 2/6=33.3%。
 - 两个视觉/OCR 任务均只在成功附带合成图片后计分；第一次路径错误产生的 HTTP 400 在模型返回前终止，随后各重试一次。
-- **决策**:citation completeness 远低于 0.90，不晋级、不打开 Validation。该实验只测固定 context 下的
-  E7 生成/引用，**不是** E6 的 raw-top8 对 candidate-top8 比较；Holdout 继续密封。
+- **决策**:必需引用契约符合率为 2/6，远低于计划的 0.90 citation-completeness 目标，故不晋级、不打开
+  Validation。该评分尚未逐条评估 claim-level completeness、citation precision、claim correctness 或
+  faithfulness，因此不能外推为一般性的生成/引用失败。实验只测固定 context 下的 E7 生成/引用，**不是**
+  E6 的 raw-top8 对 candidate-top8 比较；Holdout 继续密封。
 - 详见 [2026-07-22-e7-gpt-5-5-fixed-development.md](2026-07-22-e7-gpt-5-5-fixed-development.md)。
 
 ---

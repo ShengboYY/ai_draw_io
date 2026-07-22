@@ -14,8 +14,8 @@
       "taskId": "dgt-dev-02",
       "arm": "fixed",
       "evidence": [
-        {"anchorId": "daa-route-scope", "sourceVersion": "drawio-agent-architecture:v1", "page": 3, "text": "Inspect the attached request-route visual and preserve arrow direction.", "imagePath": "fixtures/generated/images/drawio-agent-request-route.png"},
-        {"anchorId": "daa-route-compose", "sourceVersion": "drawio-agent-architecture:v1", "page": 3, "text": "Inspect the attached request-route visual and preserve arrow direction.", "imagePath": "fixtures/generated/images/drawio-agent-request-route.png"}
+        {"anchorId": "daa-route-scope", "sourceVersion": "drawio-agent-architecture:v1", "page": 3, "text": "Inspect the attached request-route visual and preserve arrow direction.", "imagePath": "fixtures/generated/images/drawio-agent-request-route.png", "imageSha256": "419f29850cf17fa8ff2f44b6113bf836056f335132fb4e33f5c14feb21faaa1e"},
+        {"anchorId": "daa-route-compose", "sourceVersion": "drawio-agent-architecture:v1", "page": 3, "text": "Inspect the attached request-route visual and preserve arrow direction.", "imagePath": "fixtures/generated/images/drawio-agent-request-route.png", "imageSha256": "419f29850cf17fa8ff2f44b6113bf836056f335132fb4e33f5c14feb21faaa1e"}
       ]
     },
     {
@@ -37,7 +37,7 @@
       "taskId": "dgt-dev-05",
       "arm": "fixed",
       "evidence": [
-        {"anchorId": "dpw-budgets", "sourceVersion": "drawio-planning-workshop-scan:v1", "page": 4, "text": "Inspect the attached scanned workshop page for the three written evidence budgets.", "imagePath": "fixtures/generated/images/drawio-workshop-scan-page-4.jpg"}
+        {"anchorId": "dpw-budgets", "sourceVersion": "drawio-planning-workshop-scan:v1", "page": 4, "text": "Inspect the attached scanned workshop page for the three written evidence budgets.", "imagePath": "fixtures/generated/images/drawio-workshop-scan-page-4.jpg", "imageSha256": "93aa3c336815060031f286a65e1cbf5e403fe6eeafd1b29eb58c1768ba2d3d8a"}
       ]
     },
     {

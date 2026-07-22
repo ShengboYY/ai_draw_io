@@ -136,6 +136,7 @@ def generation_context_errors(contexts: list[dict], tasks: dict[str, dict],
     """Ensure fixed E7 inputs expose only the task's locatable source evidence."""
     errors: list[dict] = []
     seen_task_ids: set[str] = set()
+    artifact_root = (root / "fixtures" / "generated" / "images").resolve()
     for context in contexts:
         task_id = context.get("taskId", "unknown")
         task = tasks.get(task_id)
@@ -155,8 +156,14 @@ def generation_context_errors(contexts: list[dict], tasks: dict[str, dict],
                     or evidence.get("page") != anchor.get("page") or not evidence.get("text", "").strip():
                 errors.append({"taskId": task_id, "error": "invalid evidence location or text"})
             image_path = evidence.get("imagePath")
-            if image_path and not (root / image_path).is_file():
-                errors.append({"taskId": task_id, "error": "missing visual artifact"})
+            if image_path:
+                artifact = (root / image_path).resolve() if isinstance(image_path, str) else None
+                if artifact is None or not artifact.is_relative_to(artifact_root):
+                    errors.append({"taskId": task_id, "error": "visual artifact outside frozen directory"})
+                elif not artifact.is_file():
+                    errors.append({"taskId": task_id, "error": "missing visual artifact"})
+                elif evidence.get("imageSha256") != sha256(artifact):
+                    errors.append({"taskId": task_id, "error": "visual artifact hash mismatch"})
     expected_task_ids = {task_id for task_id, task in tasks.items()
                          if task.get("split") == "development"}
     if seen_task_ids != expected_task_ids:

@@ -55,3 +55,19 @@ class GenerationTaskEvaluatorTest(unittest.TestCase):
         result = MODULE.evaluate(task, response, {})
 
         self.assertTrue(result["xmlAssertionsPassed"])
+
+    def test_rejects_non_string_model_fields_and_v1_inside_v10(self):
+        task = {"taskId": "x", "sourceVersion": "source:v1", "xmlAssertions": {
+                "minVertices": 1, "requiredLabels": ["V1"]},
+                "citationAssertions": {"minimumCitations": 1, "mustCiteAnchors": ["anchor-a"]}}
+        anchors = {"anchor-a": {"source": "source", "version": "v1", "page": 1}}
+
+        result = MODULE.evaluate(task, {"xml": None, "citations": [{
+            "anchorId": ["anchor-a"], "sourceVersion": "source:v1", "page": 1,
+        }]}, anchors)
+        v10 = MODULE.evaluate(task, {"xml": "<mxGraphModel><mxCell vertex='1' value='V10'/></mxGraphModel>",
+                                     "citations": []}, anchors)
+
+        self.assertFalse(result["xmlParseable"])
+        self.assertFalse(result["citationAssertionsPassed"])
+        self.assertFalse(v10["xmlAssertionsPassed"])
