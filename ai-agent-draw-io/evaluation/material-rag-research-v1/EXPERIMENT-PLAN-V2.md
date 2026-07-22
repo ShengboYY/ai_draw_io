@@ -256,3 +256,8 @@ E3 的首个候选在运行前固定如下：控制组为 `dense-v1`；候选组
 产品的 projection 信号和 exact boost，但不宣称逐分数复刻 MySQL `NATURAL LANGUAGE MODE`；若候选晋级，
 仍须做线上 MySQL 复核。查询改写不在本候选中改变。主指标为 Development Recall@10 配对差值；只有
 提升至少 0.02、Recall@40 不降低，且没有样本量至少 20 的主要切片显著退化时才进入 Validation。
+
+配对执行修订：首次按两个独立 Pinecone run 执行时，比较器在计算置信区间前发现同一 dense lane 的
+近分候选有名次互换，因此这两个 run 不进入质量结论。修订后的 runner 在同一次 passage/query embedding
+和 Pinecone query 上同时计算 dense 与 hybrid 两份结果，确保两组共享逐 case 完全相同的 dense 与
+lexical lane；检索算法、RRF 参数、数据和晋级标准均不改变。

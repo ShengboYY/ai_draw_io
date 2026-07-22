@@ -263,6 +263,8 @@ For the first E3 candidate, keep `MATERIAL_RAG_CANONICAL_MODE=e1-v5` and
 `--variable-field retrievalMode`; the comparator then also requires identical raw dense and shadow lexical
 lanes in both runs. The research lexical lane is deterministic and projection-backed, but it is not a score-level
 emulation of MySQL natural-language FULLTEXT, so a promoted candidate still requires an online MySQL check.
+For a strict one-query paired run, set both `MATERIAL_RAG_PAIRED_DENSE_RESULT_JSON` and
+`MATERIAL_RAG_PAIRED_HYBRID_RESULT_JSON`; the runner writes both modes from the same Pinecone query results.
 
 Evaluate OCR output named `page-1.txt` through `page-3.txt` with:
 
