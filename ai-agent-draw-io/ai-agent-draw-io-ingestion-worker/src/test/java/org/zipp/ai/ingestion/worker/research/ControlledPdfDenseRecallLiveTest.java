@@ -260,6 +260,8 @@ class ControlledPdfDenseRecallLiveTest {
         String tenantKey = runId + "_tenant";
         List<IndexedChunk> indexed = indexedChunks(runId, projections);
         List<String> vectorIds = indexed.stream().map(IndexedChunk::vectorId).toList();
+        System.out.printf("Research run started: %s cases=%d chunks=%d%n",
+                runId, cases.size(), indexed.size());
         try {
             List<float[]> passageVectors = embedPassages(client,
                     indexed.stream().map(value -> value.chunk().retrievalText()).toList());
@@ -274,6 +276,7 @@ class ControlledPdfDenseRecallLiveTest {
                 client.upsert(namespace, records.subList(start, Math.min(start + 100, records.size())));
             }
             waitUntilSearchable(client, namespace, tenantKey, indexed, passageVectors);
+            System.out.println("Research index is searchable: " + runId);
             return new ExperimentResult(runId, canonicalAssembler().fingerprint(), evaluate(
                     client, namespace, tenantKey, cases, anchors, projections, indexed), indexed.size());
         } finally {
@@ -282,6 +285,7 @@ class ControlledPdfDenseRecallLiveTest {
                 client.delete(namespace, vectorIds.subList(start, Math.min(start + 100, vectorIds.size())));
             }
             waitUntilDeleted(client, namespace, vectorIds);
+            System.out.println("Research vectors deleted: " + runId);
         }
     }
 
@@ -457,7 +461,13 @@ class ControlledPdfDenseRecallLiveTest {
         List<CaseRank> ranks = new ArrayList<>();
         Map<String, IndexedChunk> indexedByVectorId = indexed.stream().collect(
                 java.util.stream.Collectors.toMap(IndexedChunk::vectorId, value -> value));
-        for (ResearchCase researchCase : cases) {
+        List<float[]> queryVectors = new ArrayList<>();
+        for (int start = 0; start < cases.size(); start += 3) {
+            queryVectors.addAll(client.embed(cases.subList(start, Math.min(start + 3, cases.size()))
+                    .stream().map(ResearchCase::query).toList(), "query"));
+        }
+        for (int caseIndex = 0; caseIndex < cases.size(); caseIndex++) {
+            ResearchCase researchCase = cases.get(caseIndex);
             List<EvidenceRequirement> requirements = researchCase.requiredEvidenceGroups().stream()
                     .flatMap(group -> group.evidence().stream()).toList();
             List<ResearchAnchor> required = requirements.stream()
@@ -479,8 +489,8 @@ class ControlledPdfDenseRecallLiveTest {
                                 && goldChunkIds.contains(value.chunk().chunkId()))
                         .map(IndexedChunk::vectorId).collect(java.util.stream.Collectors.toSet()));
             }
-            float[] query = client.embedOne(researchCase.query(), "query");
-            List<String> matches = client.query(namespace, query, 40, Map.of("$and", List.of(
+            List<String> matches = client.query(namespace, queryVectors.get(caseIndex), 40,
+                    Map.of("$and", List.of(
                     Map.of("tenant_key", Map.of("$eq", tenantKey)),
                     Map.of("version_id", Map.of("$eq", sourceVersion)))));
             List<CandidateResult> candidates = new ArrayList<>();
@@ -494,6 +504,9 @@ class ControlledPdfDenseRecallLiveTest {
                     matches, researchCase.requiredEvidenceGroups(), requiredGoldVectorIds),
                     isMappable(researchCase.requiredEvidenceGroups(), requiredGoldVectorIds),
                     List.copyOf(candidates)));
+            if ((caseIndex + 1) % 10 == 0 || caseIndex + 1 == cases.size()) {
+                System.out.printf("Research cases evaluated: %d/%d%n", caseIndex + 1, cases.size());
+            }
         }
         SliceMetric total = summarize("all", ranks);
         List<CaseRank> mappedRanks = ranks.stream().filter(CaseRank::mappable).toList();
