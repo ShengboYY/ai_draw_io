@@ -143,13 +143,15 @@ def source_diversity(cases: dict[str, dict], case_ids: list[str]) -> dict:
 def compare(e0: dict, e1: dict, variable_field: str = "canonicalMode") -> dict:
     """Compare paired case ranks after rejecting any experiment-control drift."""
     supported_variables = {"canonicalMode", "chunkMode", "retrievalMode", "queryMode",
-                           "postprocessMode"}
+                           "postprocessMode", "rerankerMode"}
     if variable_field not in supported_variables:
         raise ValueError(f"Unsupported experiment variable: {variable_field}")
     fixed_fields = ["gitCommit", "corpusLockSha256", "split", "embeddingModel",
                     "tokenizerFingerprint", "candidateLimit", "canonicalMode", "chunkMode",
                     "retrievalMode", "queryMode", "queryRewriteFingerprint",
                     "postprocessMode", "dedupFingerprint", "retrievalPoolLimit",
+                    "rerankerMode", "rerankerFingerprint", "rerankerModel",
+                    "rerankerEndpointFingerprint", "rerankerCandidateLimit",
                     "caseProfile", "sourceDiversityFingerprint", "sourceDiversityHeadLimit",
                     "sourceDiversityPerSourceHeadCap",
                     "lexicalRankerFingerprint", "fusionFingerprint"]
@@ -168,7 +170,8 @@ def compare(e0: dict, e1: dict, variable_field: str = "canonicalMode") -> dict:
                       "unmountedSourceVersions", "goldSourceVersions"):
             if e0_cases[case_id].get(field) != e1_cases[case_id].get(field):
                 raise ValueError(f"Case metadata drift for {case_id}: {field}")
-        if variable_field in {"chunkMode", "retrievalMode", "queryMode", "postprocessMode"}:
+        if variable_field in {"chunkMode", "retrievalMode", "queryMode", "postprocessMode",
+                              "rerankerMode"}:
             fixed_gold = e0_cases[case_id].get("fixedGoldChunkIdsByAnchor")
             if not isinstance(fixed_gold, dict) or set(fixed_gold) != set(
                     e0_cases[case_id]["goldAnchorIds"]):
@@ -192,7 +195,7 @@ def compare(e0: dict, e1: dict, variable_field: str = "canonicalMode") -> dict:
                 after_chunks = [candidate.get("chunkId") for candidate in after]
                 if before_chunks != after_chunks:
                     raise ValueError(f"{lane} drift for {case_id}")
-        if variable_field == "postprocessMode":
+        if variable_field in {"postprocessMode", "rerankerMode"}:
             before = e0_cases[case_id].get("retrievalPoolCandidates")
             after = e1_cases[case_id].get("retrievalPoolCandidates")
             if not isinstance(before, list) or not isinstance(after, list):
@@ -269,6 +272,7 @@ def compare(e0: dict, e1: dict, variable_field: str = "canonicalMode") -> dict:
             "postprocess": {
                 "e0": e0.get("postprocessMode"), "e1": e1.get("postprocessMode")
             },
+            "reranker": {"e0": e0.get("rerankerMode"), "e1": e1.get("rerankerMode")},
         },
         "chunkCounts": {"e0": e0["chunkCount"], "e1": e1["chunkCount"]},
         "mapping": {

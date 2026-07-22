@@ -140,6 +140,21 @@
     "decision": "retain ranked-raw-v1; source-diversity-v1 evidence Recall@10 delta -0.0385 exceeded the allowed -0.02 loss despite improved source coverage",
     "status": "completed; candidate not promoted, Validation and Holdout sealed"
   },
+  "e5Reranking": {
+    "baselineMode": "none-v1",
+    "candidateMode": "llm-listwise-v1",
+    "candidateFingerprint": "llm-listwise-rerank-v1:top40:json-ranked-ids:temperature0",
+    "candidateLimit": 40,
+    "maxCandidateTextChars": 800,
+    "developmentCaseProfile": "core-v1",
+    "developmentDenseEligibleCases": 155,
+    "minimumAcceptedJsonRate": 0.95,
+    "minimumDevelopmentRecallAt10Gain": 0.02,
+    "requireNoRecallAt40Loss": true,
+    "requireNoSignificantMrrRegression": true,
+    "requireNoMajorSliceRegression": true,
+    "status": "preregistered; awaiting opt-in LLM Development run"
+  },
   "preE0": {
     "minimumReviewedCasesBeforeComparison": 340,
     "requiredFrozenCoreCasesForBaseline": 450,
@@ -166,6 +181,7 @@
     "e3SecondCandidateDecision": "retain original-v1; evidence-focused recallAt10 delta -0.0194 and mrrAt10 delta -0.0488 regressed",
     "e4FirstCandidateDecision": "retain ranked-raw-v1; evidence-dedup activation 2.72% on Development but 0.25% on Validation",
     "e4SecondCandidateDecision": "retain ranked-raw-v1; source-diversity-v1 improved mounted coverage@10 by 0.1731 but evidence recallAt10 delta -0.0385 violated the -0.02 gate",
-    "e4Status": "completed: neither single-source deduplication nor multi-source fixed-cap diversity qualified; proceed to E5 reranking"
+    "e4Status": "completed: neither single-source deduplication nor multi-source fixed-cap diversity qualified; proceed to E5 reranking",
+    "e5Status": "preregistered: opt-in OpenAI-compatible listwise reranker over fixed dense top-40"
   }
 }

@@ -218,8 +218,16 @@ class ControlledPdfDenseRecallLiveTest {
 
         PineconeVectorClient client = new PineconeVectorClient(
                 apiKey, indexHost, "multilingual-e5-large", 1024, JSON);
+        String pairedDenseRerank = System.getenv("MATERIAL_RAG_PAIRED_DENSE_RERANK_RESULT_JSON");
+        String pairedLlmRerank = System.getenv("MATERIAL_RAG_PAIRED_LLM_RERANK_RESULT_JSON");
+        boolean runLlmReranker = pairedDenseRerank != null && !pairedDenseRerank.isBlank()
+                && pairedLlmRerank != null && !pairedLlmRerank.isBlank();
+        ResearchLlmReranker reranker = runLlmReranker ? rerankerFromEnvironment() : null;
+        String rerankerModel = runLlmReranker
+                ? requiredEnvironment("MATERIAL_RAG_RERANKER_MODEL") : "none";
         ExperimentResult result = runRetrievalExperiment(
-                "controlled", client, namespace, projections, cases, anchors, chunkMode);
+                "controlled", client, namespace, projections, cases, anchors, chunkMode,
+                reranker, rerankerModel);
         String pairedRawPostprocess = System.getenv("MATERIAL_RAG_PAIRED_RAW_POSTPROCESS_RESULT_JSON");
         String pairedDedupPostprocess = System.getenv("MATERIAL_RAG_PAIRED_DEDUP_RESULT_JSON");
         String pairedChartbookRaw = System.getenv("MATERIAL_RAG_PAIRED_CHARTBOOK_RAW_RESULT_JSON");
@@ -229,17 +237,27 @@ class ControlledPdfDenseRecallLiveTest {
         String pairedRewrittenQuery = System.getenv("MATERIAL_RAG_PAIRED_REWRITTEN_QUERY_RESULT_JSON");
         String pairedDense = System.getenv("MATERIAL_RAG_PAIRED_DENSE_RESULT_JSON");
         String pairedHybrid = System.getenv("MATERIAL_RAG_PAIRED_HYBRID_RESULT_JSON");
-        if (pairedChartbookRaw != null && !pairedChartbookRaw.isBlank()
+        if (runLlmReranker) {
+            report("Controlled PDF", RerankerMode.NONE.id(), result.metrics(RerankerMode.NONE), result);
+            report("Controlled PDF", RerankerMode.LLM_LISTWISE.id(),
+                    result.metrics(RerankerMode.LLM_LISTWISE), result);
+            writeRawResult(root, researchSplit, canonicalMode, chunkMode, RetrievalMode.DENSE,
+                    QueryMode.ORIGINAL, PostprocessMode.RANKED_RAW, RerankerMode.NONE,
+                    result.metrics(RerankerMode.NONE), result, pairedDenseRerank);
+            writeRawResult(root, researchSplit, canonicalMode, chunkMode, RetrievalMode.DENSE,
+                    QueryMode.ORIGINAL, PostprocessMode.RANKED_RAW, RerankerMode.LLM_LISTWISE,
+                    result.metrics(RerankerMode.LLM_LISTWISE), result, pairedLlmRerank);
+        } else if (pairedChartbookRaw != null && !pairedChartbookRaw.isBlank()
                 && pairedChartbookDiversified != null && !pairedChartbookDiversified.isBlank()) {
             report("Controlled PDF", PostprocessMode.RANKED_RAW.id(),
                     result.metrics(PostprocessMode.RANKED_RAW), result);
             report("Controlled PDF", PostprocessMode.SOURCE_DIVERSITY.id(),
                     result.metrics(PostprocessMode.SOURCE_DIVERSITY), result);
             writeRawResult(root, researchSplit, canonicalMode, chunkMode, RetrievalMode.DENSE,
-                    QueryMode.ORIGINAL, PostprocessMode.RANKED_RAW,
+                    QueryMode.ORIGINAL, PostprocessMode.RANKED_RAW, RerankerMode.NONE,
                     result.metrics(PostprocessMode.RANKED_RAW), result, pairedChartbookRaw);
             writeRawResult(root, researchSplit, canonicalMode, chunkMode, RetrievalMode.DENSE,
-                    QueryMode.ORIGINAL, PostprocessMode.SOURCE_DIVERSITY,
+                    QueryMode.ORIGINAL, PostprocessMode.SOURCE_DIVERSITY, RerankerMode.NONE,
                     result.metrics(PostprocessMode.SOURCE_DIVERSITY), result,
                     pairedChartbookDiversified);
         } else if (pairedRawPostprocess != null && !pairedRawPostprocess.isBlank()
@@ -249,10 +267,10 @@ class ControlledPdfDenseRecallLiveTest {
             report("Controlled PDF", PostprocessMode.EVIDENCE_DEDUP.id(),
                     result.metrics(PostprocessMode.EVIDENCE_DEDUP), result);
             writeRawResult(root, researchSplit, canonicalMode, chunkMode, RetrievalMode.DENSE,
-                    QueryMode.ORIGINAL, PostprocessMode.RANKED_RAW,
+                    QueryMode.ORIGINAL, PostprocessMode.RANKED_RAW, RerankerMode.NONE,
                     result.metrics(PostprocessMode.RANKED_RAW), result, pairedRawPostprocess);
             writeRawResult(root, researchSplit, canonicalMode, chunkMode, RetrievalMode.DENSE,
-                    QueryMode.ORIGINAL, PostprocessMode.EVIDENCE_DEDUP,
+                    QueryMode.ORIGINAL, PostprocessMode.EVIDENCE_DEDUP, RerankerMode.NONE,
                     result.metrics(PostprocessMode.EVIDENCE_DEDUP), result, pairedDedupPostprocess);
         } else if (pairedOriginalQuery != null && !pairedOriginalQuery.isBlank()
                 && pairedRewrittenQuery != null && !pairedRewrittenQuery.isBlank()) {
@@ -260,10 +278,10 @@ class ControlledPdfDenseRecallLiveTest {
             report("Controlled PDF", QueryMode.EVIDENCE_FOCUSED.id(),
                     result.metrics(QueryMode.EVIDENCE_FOCUSED), result);
             writeRawResult(root, researchSplit, canonicalMode, chunkMode, RetrievalMode.DENSE,
-                    QueryMode.ORIGINAL, PostprocessMode.RANKED_RAW,
+                    QueryMode.ORIGINAL, PostprocessMode.RANKED_RAW, RerankerMode.NONE,
                     result.metrics(QueryMode.ORIGINAL), result, pairedOriginalQuery);
             writeRawResult(root, researchSplit, canonicalMode, chunkMode, RetrievalMode.DENSE,
-                    QueryMode.EVIDENCE_FOCUSED, PostprocessMode.RANKED_RAW,
+                    QueryMode.EVIDENCE_FOCUSED, PostprocessMode.RANKED_RAW, RerankerMode.NONE,
                     result.metrics(QueryMode.EVIDENCE_FOCUSED), result, pairedRewrittenQuery);
         } else if (pairedDense != null && !pairedDense.isBlank()
                 && pairedHybrid != null && !pairedHybrid.isBlank()) {
@@ -271,16 +289,17 @@ class ControlledPdfDenseRecallLiveTest {
             report("Controlled PDF", RetrievalMode.HYBRID_PROJECTION_RRF.id(),
                     result.metrics(RetrievalMode.HYBRID_PROJECTION_RRF), result);
             writeRawResult(root, researchSplit, canonicalMode, chunkMode, RetrievalMode.DENSE,
-                    QueryMode.ORIGINAL, PostprocessMode.RANKED_RAW,
+                    QueryMode.ORIGINAL, PostprocessMode.RANKED_RAW, RerankerMode.NONE,
                     result.metrics(RetrievalMode.DENSE), result, pairedDense);
             writeRawResult(root, researchSplit, canonicalMode, chunkMode,
                     RetrievalMode.HYBRID_PROJECTION_RRF, QueryMode.ORIGINAL,
-                    PostprocessMode.RANKED_RAW, result.metrics(RetrievalMode.HYBRID_PROJECTION_RRF),
+                    PostprocessMode.RANKED_RAW, RerankerMode.NONE,
+                    result.metrics(RetrievalMode.HYBRID_PROJECTION_RRF),
                     result, pairedHybrid);
         } else {
             report("Controlled PDF", retrievalMode.id(), result.metrics(retrievalMode), result);
             writeRawResult(root, researchSplit, canonicalMode, chunkMode, retrievalMode,
-                    QueryMode.ORIGINAL, PostprocessMode.RANKED_RAW,
+                    QueryMode.ORIGINAL, PostprocessMode.RANKED_RAW, RerankerMode.NONE,
                     result.metrics(retrievalMode), result,
                     System.getenv("MATERIAL_RAG_RESULT_JSON"));
         }
@@ -329,7 +348,7 @@ class ControlledPdfDenseRecallLiveTest {
                 apiKey, indexHost, "multilingual-e5-large", 1024, JSON);
         ExperimentResult result = runRetrievalExperiment(
                 "open", client, namespace, projections, List.copyOf(cases), Map.copyOf(anchors),
-                ChunkMode.FLAT_LEAF);
+                ChunkMode.FLAT_LEAF, null, "none");
         report("Open PDF", RetrievalMode.DENSE.id(), result.metrics(RetrievalMode.DENSE), result);
         assertTrue(result.metrics(RetrievalMode.DENSE).recallAt10() >= 0.85,
                 "Open PDF Recall@10 fell below research baseline");
@@ -414,7 +433,9 @@ class ControlledPdfDenseRecallLiveTest {
                                                     String namespace, ProjectionSet projections,
                                                     List<ResearchCase> cases,
                                                     Map<String, ResearchAnchor> anchors,
-                                                    ChunkMode chunkMode) throws Exception {
+                                                    ChunkMode chunkMode,
+                                                    ResearchLlmReranker reranker,
+                                                    String rerankerModel) throws Exception {
         String runId = prefix + "pdfresearch_" + UUID.randomUUID().toString().replace("-", "");
         String tenantKey = runId + "_tenant";
         List<IndexedChunk> indexed = indexedChunks(runId, projections, chunkMode);
@@ -449,7 +470,8 @@ class ControlledPdfDenseRecallLiveTest {
             waitUntilSearchable(client, namespace, tenantKey, indexed, passageVectors);
             System.out.println("Research index is searchable: " + runId);
             return new ExperimentResult(runId, canonicalAssembler().fingerprint(), evaluate(
-                    client, namespace, tenantKey, cases, anchors, projections, indexed),
+                    client, namespace, tenantKey, cases, anchors, projections, indexed,
+                    reranker, rerankerModel),
                     indexed.size(), embeddingProfile);
         } finally {
             // Pinecone limits delete-by-id payloads, so large open PDFs must be cleaned in batches.
@@ -489,7 +511,8 @@ class ControlledPdfDenseRecallLiveTest {
 
     private void writeRawResult(Path root, String split, String canonicalMode,
                                 ChunkMode chunkMode, RetrievalMode retrievalMode,
-                                QueryMode queryMode, PostprocessMode postprocessMode, DenseMetrics metrics,
+                                QueryMode queryMode, PostprocessMode postprocessMode,
+                                RerankerMode rerankerMode, DenseMetrics metrics,
                                 ExperimentResult result, String configured) throws Exception {
         if (configured == null || configured.isBlank()) return;
         Path output = Path.of(configured).toAbsolutePath().normalize();
@@ -510,6 +533,13 @@ class ControlledPdfDenseRecallLiveTest {
         raw.put("queryMode", queryMode.id());
         raw.put("queryRewriteFingerprint", ResearchQueryRewriter.FINGERPRINT);
         raw.put("postprocessMode", postprocessMode.id());
+        raw.put("rerankerMode", rerankerMode.id());
+        raw.put("rerankerFingerprint", ResearchLlmReranker.FINGERPRINT);
+        // Record the candidate model in both arms so the paired comparator can freeze it.
+        raw.put("rerankerModel", System.getenv().getOrDefault("MATERIAL_RAG_RERANKER_MODEL", "none"));
+        raw.put("rerankerEndpointFingerprint", rerankerEndpointFingerprint());
+        raw.put("rerankerCandidateLimit", 40);
+        raw.put("rerankerUsage", result.rerankerUsage());
         raw.put("dedupFingerprint", ResearchEvidenceDeduplicator.FINGERPRINT);
         raw.put("caseProfile", System.getenv().getOrDefault("MATERIAL_RAG_CASE_PROFILE", "core-v1"));
         raw.put("sourceDiversityFingerprint", ResearchSourceDiversifier.FINGERPRINT);
@@ -531,6 +561,17 @@ class ControlledPdfDenseRecallLiveTest {
 
     private String sha256(Path path) throws Exception {
         return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(Files.readAllBytes(path)));
+    }
+
+    private String rerankerEndpointFingerprint() throws Exception {
+        String baseUrl = System.getenv("MATERIAL_RAG_RERANKER_BASE_URL");
+        String completionPath = System.getenv("MATERIAL_RAG_RERANKER_COMPLETIONS_PATH");
+        if (baseUrl == null || baseUrl.isBlank() || completionPath == null || completionPath.isBlank()) {
+            return "none";
+        }
+        return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(
+                (baseUrl.replaceAll("/+$", "") + "/" + completionPath.replaceFirst("^/+", ""))
+                        .getBytes(java.nio.charset.StandardCharsets.UTF_8)));
     }
 
     private ProjectionSet buildControlledProjections(Path root) throws Exception {
@@ -650,6 +691,19 @@ class ControlledPdfDenseRecallLiveTest {
                 "MATERIAL_RAG_RETRIEVAL_MODE", RetrievalMode.DENSE.id()));
     }
 
+    private ResearchLlmReranker rerankerFromEnvironment() {
+        return new ResearchLlmReranker(JSON, new ResearchOpenAiCompletionClient(
+                requiredEnvironment("MATERIAL_RAG_RERANKER_BASE_URL"),
+                requiredEnvironment("MATERIAL_RAG_RERANKER_COMPLETIONS_PATH"),
+                requiredEnvironment("MATERIAL_RAG_RERANKER_API_KEY"), JSON));
+    }
+
+    private String requiredEnvironment(String name) {
+        String value = System.getenv(name);
+        if (value == null || value.isBlank()) throw new IllegalArgumentException(name + " is required");
+        return value;
+    }
+
     private List<float[]> embedPassages(PineconeVectorClient client,
                                         List<String> passages) throws InterruptedException {
         List<float[]> result = new ArrayList<>();
@@ -666,7 +720,9 @@ class ControlledPdfDenseRecallLiveTest {
                                        String tenantKey, List<ResearchCase> cases,
                                        Map<String, ResearchAnchor> anchors,
                                        ProjectionSet projections,
-                                       List<IndexedChunk> indexed) throws InterruptedException {
+                                       List<IndexedChunk> indexed,
+                                       ResearchLlmReranker reranker,
+                                       String rerankerModel) throws InterruptedException {
         List<CaseRank> originalRanks = new ArrayList<>();
         Map<RetrievalMode, List<CaseRank>> ranksByMode = new LinkedHashMap<>();
         ranksByMode.put(RetrievalMode.DENSE, originalRanks);
@@ -678,6 +734,10 @@ class ControlledPdfDenseRecallLiveTest {
         ranksByPostprocessMode.put(PostprocessMode.RANKED_RAW, originalRanks);
         ranksByPostprocessMode.put(PostprocessMode.EVIDENCE_DEDUP, new ArrayList<>());
         ranksByPostprocessMode.put(PostprocessMode.SOURCE_DIVERSITY, new ArrayList<>());
+        Map<RerankerMode, List<CaseRank>> ranksByRerankerMode = new LinkedHashMap<>();
+        ranksByRerankerMode.put(RerankerMode.NONE, originalRanks);
+        ranksByRerankerMode.put(RerankerMode.LLM_LISTWISE, new ArrayList<>());
+        List<ResearchLlmReranker.Result> rerankerResults = new ArrayList<>();
         Map<String, IndexedChunk> indexedByVectorId = indexed.stream().collect(
                 java.util.stream.Collectors.toMap(IndexedChunk::vectorId, value -> value));
         Map<QueryMode, List<float[]>> queryVectors = new LinkedHashMap<>();
@@ -774,6 +834,19 @@ class ControlledPdfDenseRecallLiveTest {
             ranksByPostprocessMode.get(PostprocessMode.SOURCE_DIVERSITY).add(caseRank(
                     researchCase, diversifiedMatches, requiredGoldVectorIds, fixedGoldChunkIdsByAnchor,
                     indexedByVectorId, denseCandidates, List.of(), densePoolCandidates));
+            if (reranker != null) {
+                List<ResearchLlmReranker.Candidate> rerankerCandidates = denseCandidates.stream()
+                        .map(candidate -> new ResearchLlmReranker.Candidate(candidate.vectorId(),
+                                candidate.sourceVersion(), indexedByVectorId.get(candidate.vectorId())
+                                .chunk().retrievalText())).toList();
+                ResearchLlmReranker.Result rerankerResult = reranker.rerank(researchCase.query(),
+                        rerankerCandidates, rerankerModel);
+                rerankerResults.add(rerankerResult);
+                List<String> rerankedMatches = rerankerResult.vectorIds();
+                ranksByRerankerMode.get(RerankerMode.LLM_LISTWISE).add(caseRank(
+                        researchCase, rerankedMatches, requiredGoldVectorIds, fixedGoldChunkIdsByAnchor,
+                        indexedByVectorId, denseCandidates, List.of(), densePoolCandidates));
+            }
             if ((caseIndex + 1) % 10 == 0 || caseIndex + 1 == cases.size()) {
                 System.out.printf("Research cases evaluated: %d/%d%n", caseIndex + 1, cases.size());
             }
@@ -785,8 +858,19 @@ class ControlledPdfDenseRecallLiveTest {
         Map<PostprocessMode, DenseMetrics> postprocessMetrics = new LinkedHashMap<>();
         ranksByPostprocessMode.forEach((mode, ranks) ->
                 postprocessMetrics.put(mode, summarizeMetrics(ranks)));
+        Map<RerankerMode, DenseMetrics> rerankerMetrics = new LinkedHashMap<>();
+        ranksByRerankerMode.forEach((mode, ranks) -> {
+            if (mode == RerankerMode.NONE || reranker != null) {
+                rerankerMetrics.put(mode, summarizeMetrics(ranks));
+            }
+        });
         return new EvaluationMetrics(Map.copyOf(retrievalMetrics), Map.copyOf(queryMetrics),
-                Map.copyOf(postprocessMetrics));
+                Map.copyOf(postprocessMetrics), Map.copyOf(rerankerMetrics),
+                new RerankerUsage(rerankerResults.size(), (int) rerankerResults.stream()
+                        .filter(ResearchLlmReranker.Result::modelOutputAccepted).count(),
+                        rerankerResults.stream().mapToLong(ResearchLlmReranker.Result::latencyMillis).sum(),
+                        rerankerResults.stream().mapToInt(ResearchLlmReranker.Result::promptTokens).sum(),
+                        rerankerResults.stream().mapToInt(ResearchLlmReranker.Result::completionTokens).sum()));
     }
 
     private Map<String, Object> researchFilter(String tenantKey, Set<String> mountedSourceVersions) {
@@ -1303,6 +1387,19 @@ class ControlledPdfDenseRecallLiveTest {
         String id() { return id; }
     }
 
+    private enum RerankerMode {
+        NONE("none-v1"),
+        LLM_LISTWISE("llm-listwise-v1");
+
+        private final String id;
+
+        RerankerMode(String id) {
+            this.id = id;
+        }
+
+        String id() { return id; }
+    }
+
     private record CaseRank(ResearchCase researchCase, int rank, boolean mappable,
                             Map<String, List<String>> fixedGoldChunkIdsByAnchor,
                             List<CandidateResult> candidates,
@@ -1333,9 +1430,14 @@ class ControlledPdfDenseRecallLiveTest {
 
     private record EmbeddingProfile(int p50, int p95, int max) { }
 
+    private record RerankerUsage(int callCount, int acceptedOutputCount, long totalLatencyMillis,
+                                 int totalPromptTokens, int totalCompletionTokens) { }
+
     private record EvaluationMetrics(Map<RetrievalMode, DenseMetrics> retrieval,
                                      Map<QueryMode, DenseMetrics> query,
-                                     Map<PostprocessMode, DenseMetrics> postprocess) { }
+                                     Map<PostprocessMode, DenseMetrics> postprocess,
+                                     Map<RerankerMode, DenseMetrics> reranker,
+                                     RerankerUsage rerankerUsage) { }
 
     private record ExperimentResult(String runId, String canonicalFingerprint,
                                     EvaluationMetrics evaluation, int chunkCount,
@@ -1350,6 +1452,14 @@ class ControlledPdfDenseRecallLiveTest {
 
         DenseMetrics metrics(PostprocessMode mode) {
             return evaluation.postprocess().get(mode);
+        }
+
+        DenseMetrics metrics(RerankerMode mode) {
+            return evaluation.reranker().get(mode);
+        }
+
+        RerankerUsage rerankerUsage() {
+            return evaluation.rerankerUsage();
         }
     }
 }

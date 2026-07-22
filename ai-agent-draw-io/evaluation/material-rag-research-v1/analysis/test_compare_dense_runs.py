@@ -31,6 +31,9 @@ def run(mode: str, ranks: list[int]) -> dict:
         "canonicalMode": mode, "chunkMode": "flat-leaf-v1", "retrievalMode": "dense-v1",
         "queryMode": "original-v1", "queryRewriteFingerprint": "rewrite",
         "postprocessMode": "ranked-raw-v1", "dedupFingerprint": "dedup",
+        "rerankerMode": "none-v1", "rerankerFingerprint": "llm-listwise-rerank-v1",
+        "rerankerModel": "test-model", "rerankerEndpointFingerprint": "endpoint",
+        "rerankerCandidateLimit": 40,
         "retrievalPoolLimit": 80,
         "lexicalRankerFingerprint": "lexical", "fusionFingerprint": "rrf", "chunkCount": 10,
         "metrics": {"caseResults": cases},
@@ -209,6 +212,27 @@ class CompareDenseRunsTest(unittest.TestCase):
 
         with self.assertRaisesRegex(ValueError, "retrievalPoolCandidates drift"):
             compare(raw, deduplicated, "postprocessMode")
+
+    def test_reranker_experiment_keeps_the_dense_pool_fixed(self) -> None:
+        dense = run("e1-v5", [5])
+        reranked = run("e1-v5", [1])
+        reranked["rerankerMode"] = "llm-listwise-v1"
+
+        result = compare(dense, reranked, "rerankerMode")
+
+        self.assertEqual("rerankerMode", result["experimentVariable"]["field"])
+        self.assertEqual("none-v1", result["experimentVariable"]["baseline"])
+        self.assertEqual("llm-listwise-v1", result["experimentVariable"]["candidate"])
+
+    def test_reranker_experiment_rejects_dense_pool_drift(self) -> None:
+        dense = run("e1-v5", [1])
+        reranked = run("e1-v5", [1])
+        reranked["rerankerMode"] = "llm-listwise-v1"
+        reranked["metrics"]["caseResults"][0]["retrievalPoolCandidates"][0][
+            "chunkId"] = "other"
+
+        with self.assertRaisesRegex(ValueError, "retrievalPoolCandidates drift"):
+            compare(dense, reranked, "rerankerMode")
 
     def test_postprocess_experiment_reports_chartbook_source_diversity(self) -> None:
         raw = run("e1-v5", [1])

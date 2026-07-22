@@ -212,6 +212,25 @@ export MATERIAL_RAG_TOKENIZER_PATH="$PWD/tmp/material-rag-tokenizer/tokenizer.js
 export MATERIAL_RAG_OPEN_SOURCE_DIR="$PWD/tmp/material-rag-open-sources"
 ```
 
+### E5 listwise reranking (opt-in)
+
+E5 calls an OpenAI-compatible completion endpoint once per Development case. It sends only the synthetic query
+and the already-authorized dense top-40 snippets; it never sends gold labels or production data. Set explicit
+reranker credentials rather than reusing them implicitly, and archive both paired raw outputs:
+
+```bash
+export MATERIAL_RAG_PAIRED_DENSE_RERANK_RESULT_JSON="$PWD/evaluation/material-rag-research-v1/results/e5-dense-raw.json"
+export MATERIAL_RAG_PAIRED_LLM_RERANK_RESULT_JSON="$PWD/evaluation/material-rag-research-v1/results/e5-llm-rerank-raw.json"
+export MATERIAL_RAG_RERANKER_API_KEY="..."
+export MATERIAL_RAG_RERANKER_BASE_URL="https://provider.example"
+export MATERIAL_RAG_RERANKER_COMPLETIONS_PATH="v1/chat/completions"
+export MATERIAL_RAG_RERANKER_MODEL="provider-model"
+```
+
+The runner rejects missing settings, keeps only returned IDs already present in the dense top-40, and backfills
+invalid or omitted IDs in dense order. The paired comparison uses `--variable-field rerankerMode` and rejects any
+top-80 retrieval-pool drift.
+
 Generated-corpus retrieval defaults to `development`. Set `MATERIAL_RAG_RESEARCH_SPLIT` explicitly
 to `validation` for checkpointing. Use `holdout` only after the manifest status has been independently
 frozen; do not tune against either split.

@@ -309,3 +309,17 @@ coverage@10 从 0.683 提升到 0.856，max-source-share@10 从 0.619 降到 0.4
 持平、MRR 无显著下降。因此不打开 Validation、不晋级 `source-diversity-v1`，并保持 Holdout 密封。E4
 至此完成；下一个单变量实验是 E5 reranking。完整结果与运行锁见
 `results/2026-07-22-e4b-chartbook-source-diversity-vs-ranked-raw.md`。
+
+E5 在运行前固定为 OpenAI-compatible `llm-listwise-v1` reranker。控制组保留同一次 original-query
+dense top-40；候选只接收用户问题及这 40 个已授权 chunk 的 source version、opaque vector ID 与最多 800
+字符 retrieval text，并以 temperature 0 返回 JSON `rankedIds`。它不可读取 gold anchor、expected answer、
+case category、split 或未挂载资料；未知、重复、遗漏或非 JSON ID 均丢弃，再按 dense 原顺序回填，因此候选
+只能重排同一 top-40、不能制造或移除证据。Development 使用冻结 core 的 155 个 dense-eligible case；模型、
+endpoint fingerprint、prompt fingerprint、top-40 和 tokenizer 均写入两臂 raw，且比较器逐 case 验证
+top-80 完全相同。每次调用记录 JSON 接受数、总延迟、prompt/completion token；这些只作成本与可用性报告，
+不作为质量晋级替代。
+
+Development 只有在有效 JSON 输出至少覆盖 95% case、Recall@10 至少提高 0.02、Recall@40 不下降、MRR 无
+显著下降，且没有样本量至少 20 的主要 Recall@10 切片显著退化时才打开 Validation。由于候选固定重排同一
+40 个候选，Recall@40 必须精确持平；否则输出或比较器无效。Validation 需要复现正向 Recall@10 方向且无
+质量回退，候选才晋级。此实验不改变 dense 召回、chunk、query、授权过滤或后处理，Holdout 继续密封。
