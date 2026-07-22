@@ -1,0 +1,2398 @@
+{
+  "selector": "source-aware-top8-v1",
+  "bundles": [
+    {
+      "caseId": "controlled-126",
+      "context": [
+        {
+          "rank": 1,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_469",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_915ea5b3302cc7dcaeaf4b46fcbda1df6c692eab"
+        },
+        {
+          "rank": 2,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_472",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_d104c59cc153cd7ad28dacc5b2be63db710c467c"
+        },
+        {
+          "rank": 3,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_470",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_cbb27d63475913895c3738f3d487931e3d7e281d"
+        },
+        {
+          "rank": 4,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_468",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_6929301716535bc76e76f8999e7263a5780ea8ac"
+        },
+        {
+          "rank": 5,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_467",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_32e11f0f4d21f3e4cf77704d37aaa9e11fd783d7"
+        },
+        {
+          "rank": 6,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_488",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_927317f7f8dd8d0a6ba8fe1fa5c9ed56c3153a48"
+        },
+        {
+          "rank": 7,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_471",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_22b9c4b329d8785e0d10ededf894c9c190ff4474"
+        },
+        {
+          "rank": 8,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_491",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_817029167a08cb77c74a713a9c6b7a0daa92800a"
+        }
+      ]
+    },
+    {
+      "caseId": "controlled-127",
+      "context": [
+        {
+          "rank": 1,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_469",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_915ea5b3302cc7dcaeaf4b46fcbda1df6c692eab"
+        },
+        {
+          "rank": 2,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_470",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_cbb27d63475913895c3738f3d487931e3d7e281d"
+        },
+        {
+          "rank": 3,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_471",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_22b9c4b329d8785e0d10ededf894c9c190ff4474"
+        },
+        {
+          "rank": 4,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_467",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_32e11f0f4d21f3e4cf77704d37aaa9e11fd783d7"
+        },
+        {
+          "rank": 5,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_468",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_6929301716535bc76e76f8999e7263a5780ea8ac"
+        },
+        {
+          "rank": 6,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_488",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_927317f7f8dd8d0a6ba8fe1fa5c9ed56c3153a48"
+        },
+        {
+          "rank": 7,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_491",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_817029167a08cb77c74a713a9c6b7a0daa92800a"
+        },
+        {
+          "rank": 8,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_472",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_d104c59cc153cd7ad28dacc5b2be63db710c467c"
+        }
+      ]
+    },
+    {
+      "caseId": "controlled-128",
+      "context": [
+        {
+          "rank": 1,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_479",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_1de5ebffee7d67d1fdf1d9f65abe97096fd11ecc"
+        },
+        {
+          "rank": 2,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_476",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_612a05305e157feea8c74405f7b8e348b90f9481"
+        },
+        {
+          "rank": 3,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_473",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_aeae2f0d849684648cee6f4ddcb89e0e5c387592"
+        },
+        {
+          "rank": 4,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_489",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_e0d4269549d699d9bf3e3d097d79392b96ac01e1"
+        },
+        {
+          "rank": 5,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_480",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_9ae8a223a084e9498c1354eccc0a7061dc4f5940"
+        },
+        {
+          "rank": 6,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_474",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_998f9cf15865e028a0a23e0c581492ad50fe51e2"
+        },
+        {
+          "rank": 7,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_491",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_817029167a08cb77c74a713a9c6b7a0daa92800a"
+        },
+        {
+          "rank": 8,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_475",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_03bdee065e0125032bd159599d2f50e1afb7dc13"
+        }
+      ]
+    },
+    {
+      "caseId": "controlled-129",
+      "context": [
+        {
+          "rank": 1,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_479",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_1de5ebffee7d67d1fdf1d9f65abe97096fd11ecc"
+        },
+        {
+          "rank": 2,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_476",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_612a05305e157feea8c74405f7b8e348b90f9481"
+        },
+        {
+          "rank": 3,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_489",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_e0d4269549d699d9bf3e3d097d79392b96ac01e1"
+        },
+        {
+          "rank": 4,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_474",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_998f9cf15865e028a0a23e0c581492ad50fe51e2"
+        },
+        {
+          "rank": 5,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_491",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_817029167a08cb77c74a713a9c6b7a0daa92800a"
+        },
+        {
+          "rank": 6,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_475",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_03bdee065e0125032bd159599d2f50e1afb7dc13"
+        },
+        {
+          "rank": 7,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_488",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_927317f7f8dd8d0a6ba8fe1fa5c9ed56c3153a48"
+        },
+        {
+          "rank": 8,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_473",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_aeae2f0d849684648cee6f4ddcb89e0e5c387592"
+        }
+      ]
+    },
+    {
+      "caseId": "controlled-132",
+      "context": [
+        {
+          "rank": 1,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_481",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_6f523a3c1d794467034275584bcf1ff39fb46768"
+        },
+        {
+          "rank": 2,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_486",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_1f22bb5106b2df45d635fe73f202ad957766bc92"
+        },
+        {
+          "rank": 3,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_487",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_c645d8b9ce9c937fe149605cb8e573b4050d68ba"
+        },
+        {
+          "rank": 4,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_483",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_f532eb7d5a57f72f8e0064cd6145e29c2973414d"
+        },
+        {
+          "rank": 5,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_490",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_8599eb5c1924cc06982befbe5644021a4e70eb00"
+        },
+        {
+          "rank": 6,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_467",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_32e11f0f4d21f3e4cf77704d37aaa9e11fd783d7"
+        },
+        {
+          "rank": 7,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_475",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_03bdee065e0125032bd159599d2f50e1afb7dc13"
+        },
+        {
+          "rank": 8,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_472",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_d104c59cc153cd7ad28dacc5b2be63db710c467c"
+        }
+      ]
+    },
+    {
+      "caseId": "controlled-133",
+      "context": [
+        {
+          "rank": 1,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_481",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_6f523a3c1d794467034275584bcf1ff39fb46768"
+        },
+        {
+          "rank": 2,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_475",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_03bdee065e0125032bd159599d2f50e1afb7dc13"
+        },
+        {
+          "rank": 3,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_490",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_8599eb5c1924cc06982befbe5644021a4e70eb00"
+        },
+        {
+          "rank": 4,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_478",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_5b42455b6705b6ba4c9a2f3256d888de4e26f7f2"
+        },
+        {
+          "rank": 5,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_467",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_32e11f0f4d21f3e4cf77704d37aaa9e11fd783d7"
+        },
+        {
+          "rank": 6,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_489",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_e0d4269549d699d9bf3e3d097d79392b96ac01e1"
+        },
+        {
+          "rank": 7,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_472",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_d104c59cc153cd7ad28dacc5b2be63db710c467c"
+        },
+        {
+          "rank": 8,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_491",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_817029167a08cb77c74a713a9c6b7a0daa92800a"
+        }
+      ]
+    },
+    {
+      "caseId": "controlled-134",
+      "context": [
+        {
+          "rank": 1,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_481",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_6f523a3c1d794467034275584bcf1ff39fb46768"
+        },
+        {
+          "rank": 2,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_472",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_d104c59cc153cd7ad28dacc5b2be63db710c467c"
+        },
+        {
+          "rank": 3,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_484",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_b132b2cb3b43369e48319f497c75ac6c0d930073"
+        },
+        {
+          "rank": 4,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_480",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_9ae8a223a084e9498c1354eccc0a7061dc4f5940"
+        },
+        {
+          "rank": 5,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_486",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_1f22bb5106b2df45d635fe73f202ad957766bc92"
+        },
+        {
+          "rank": 6,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_490",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_8599eb5c1924cc06982befbe5644021a4e70eb00"
+        },
+        {
+          "rank": 7,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_487",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_c645d8b9ce9c937fe149605cb8e573b4050d68ba"
+        },
+        {
+          "rank": 8,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_483",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_f532eb7d5a57f72f8e0064cd6145e29c2973414d"
+        }
+      ]
+    },
+    {
+      "caseId": "controlled-135",
+      "context": [
+        {
+          "rank": 1,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_481",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_6f523a3c1d794467034275584bcf1ff39fb46768"
+        },
+        {
+          "rank": 2,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_484",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_b132b2cb3b43369e48319f497c75ac6c0d930073"
+        },
+        {
+          "rank": 3,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_470",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_cbb27d63475913895c3738f3d487931e3d7e281d"
+        },
+        {
+          "rank": 4,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_472",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_d104c59cc153cd7ad28dacc5b2be63db710c467c"
+        },
+        {
+          "rank": 5,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_488",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_927317f7f8dd8d0a6ba8fe1fa5c9ed56c3153a48"
+        },
+        {
+          "rank": 6,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_467",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_32e11f0f4d21f3e4cf77704d37aaa9e11fd783d7"
+        },
+        {
+          "rank": 7,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_490",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_8599eb5c1924cc06982befbe5644021a4e70eb00"
+        },
+        {
+          "rank": 8,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_469",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_915ea5b3302cc7dcaeaf4b46fcbda1df6c692eab"
+        }
+      ]
+    },
+    {
+      "caseId": "controlled-136",
+      "context": [
+        {
+          "rank": 1,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_481",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_6f523a3c1d794467034275584bcf1ff39fb46768"
+        },
+        {
+          "rank": 2,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_487",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_c645d8b9ce9c937fe149605cb8e573b4050d68ba"
+        },
+        {
+          "rank": 3,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_486",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_1f22bb5106b2df45d635fe73f202ad957766bc92"
+        },
+        {
+          "rank": 4,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_480",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_9ae8a223a084e9498c1354eccc0a7061dc4f5940"
+        },
+        {
+          "rank": 5,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_475",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_03bdee065e0125032bd159599d2f50e1afb7dc13"
+        },
+        {
+          "rank": 6,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_485",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_fc989456e1202c5de9387554a22cbaf773fb9dcc"
+        },
+        {
+          "rank": 7,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_472",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_d104c59cc153cd7ad28dacc5b2be63db710c467c"
+        },
+        {
+          "rank": 8,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_479",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_1de5ebffee7d67d1fdf1d9f65abe97096fd11ecc"
+        }
+      ]
+    },
+    {
+      "caseId": "controlled-137",
+      "context": [
+        {
+          "rank": 1,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_475",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_03bdee065e0125032bd159599d2f50e1afb7dc13"
+        },
+        {
+          "rank": 2,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_481",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_6f523a3c1d794467034275584bcf1ff39fb46768"
+        },
+        {
+          "rank": 3,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_478",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_5b42455b6705b6ba4c9a2f3256d888de4e26f7f2"
+        },
+        {
+          "rank": 4,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_476",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_612a05305e157feea8c74405f7b8e348b90f9481"
+        },
+        {
+          "rank": 5,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_477",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_83aeeedc170f5bf44ba4a79ddf6305e2d14287d0"
+        },
+        {
+          "rank": 6,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_467",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_32e11f0f4d21f3e4cf77704d37aaa9e11fd783d7"
+        },
+        {
+          "rank": 7,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_485",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_fc989456e1202c5de9387554a22cbaf773fb9dcc"
+        },
+        {
+          "rank": 8,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_482",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_c59278abb1960e1eda66a48d5db90db22739d41c"
+        }
+      ]
+    },
+    {
+      "caseId": "controlled-138",
+      "context": [
+        {
+          "rank": 1,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_472",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_d104c59cc153cd7ad28dacc5b2be63db710c467c"
+        },
+        {
+          "rank": 2,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_483",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_f532eb7d5a57f72f8e0064cd6145e29c2973414d"
+        },
+        {
+          "rank": 3,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_473",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_aeae2f0d849684648cee6f4ddcb89e0e5c387592"
+        },
+        {
+          "rank": 4,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_479",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_1de5ebffee7d67d1fdf1d9f65abe97096fd11ecc"
+        },
+        {
+          "rank": 5,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_481",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_6f523a3c1d794467034275584bcf1ff39fb46768"
+        },
+        {
+          "rank": 6,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_487",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_c645d8b9ce9c937fe149605cb8e573b4050d68ba"
+        },
+        {
+          "rank": 7,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_474",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_998f9cf15865e028a0a23e0c581492ad50fe51e2"
+        },
+        {
+          "rank": 8,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_480",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_9ae8a223a084e9498c1354eccc0a7061dc4f5940"
+        }
+      ]
+    },
+    {
+      "caseId": "controlled-139",
+      "context": [
+        {
+          "rank": 1,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_477",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_83aeeedc170f5bf44ba4a79ddf6305e2d14287d0"
+        },
+        {
+          "rank": 2,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_478",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_5b42455b6705b6ba4c9a2f3256d888de4e26f7f2"
+        },
+        {
+          "rank": 3,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_479",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_1de5ebffee7d67d1fdf1d9f65abe97096fd11ecc"
+        },
+        {
+          "rank": 4,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_475",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_03bdee065e0125032bd159599d2f50e1afb7dc13"
+        },
+        {
+          "rank": 5,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_472",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_d104c59cc153cd7ad28dacc5b2be63db710c467c"
+        },
+        {
+          "rank": 6,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_476",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_612a05305e157feea8c74405f7b8e348b90f9481"
+        },
+        {
+          "rank": 7,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_489",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_e0d4269549d699d9bf3e3d097d79392b96ac01e1"
+        },
+        {
+          "rank": 8,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_474",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_998f9cf15865e028a0a23e0c581492ad50fe51e2"
+        }
+      ]
+    },
+    {
+      "caseId": "controlled-140",
+      "context": [
+        {
+          "rank": 1,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_483",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_f532eb7d5a57f72f8e0064cd6145e29c2973414d"
+        },
+        {
+          "rank": 2,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_490",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_8599eb5c1924cc06982befbe5644021a4e70eb00"
+        },
+        {
+          "rank": 3,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_484",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_b132b2cb3b43369e48319f497c75ac6c0d930073"
+        },
+        {
+          "rank": 4,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_486",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_1f22bb5106b2df45d635fe73f202ad957766bc92"
+        },
+        {
+          "rank": 5,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_480",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_9ae8a223a084e9498c1354eccc0a7061dc4f5940"
+        },
+        {
+          "rank": 6,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_487",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_c645d8b9ce9c937fe149605cb8e573b4050d68ba"
+        },
+        {
+          "rank": 7,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_481",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_6f523a3c1d794467034275584bcf1ff39fb46768"
+        },
+        {
+          "rank": 8,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_485",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_fc989456e1202c5de9387554a22cbaf773fb9dcc"
+        }
+      ]
+    },
+    {
+      "caseId": "controlled-141",
+      "context": [
+        {
+          "rank": 1,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_484",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_b132b2cb3b43369e48319f497c75ac6c0d930073"
+        },
+        {
+          "rank": 2,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_483",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_f532eb7d5a57f72f8e0064cd6145e29c2973414d"
+        },
+        {
+          "rank": 3,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_490",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_8599eb5c1924cc06982befbe5644021a4e70eb00"
+        },
+        {
+          "rank": 4,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_482",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_c59278abb1960e1eda66a48d5db90db22739d41c"
+        },
+        {
+          "rank": 5,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_477",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_83aeeedc170f5bf44ba4a79ddf6305e2d14287d0"
+        },
+        {
+          "rank": 6,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_485",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_fc989456e1202c5de9387554a22cbaf773fb9dcc"
+        },
+        {
+          "rank": 7,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_474",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_998f9cf15865e028a0a23e0c581492ad50fe51e2"
+        },
+        {
+          "rank": 8,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_479",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_1de5ebffee7d67d1fdf1d9f65abe97096fd11ecc"
+        }
+      ]
+    },
+    {
+      "caseId": "controlled-142",
+      "context": [
+        {
+          "rank": 1,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_486",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_1f22bb5106b2df45d635fe73f202ad957766bc92"
+        },
+        {
+          "rank": 2,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_483",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_f532eb7d5a57f72f8e0064cd6145e29c2973414d"
+        },
+        {
+          "rank": 3,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_481",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_6f523a3c1d794467034275584bcf1ff39fb46768"
+        },
+        {
+          "rank": 4,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_485",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_fc989456e1202c5de9387554a22cbaf773fb9dcc"
+        },
+        {
+          "rank": 5,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_490",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_8599eb5c1924cc06982befbe5644021a4e70eb00"
+        },
+        {
+          "rank": 6,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_480",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_9ae8a223a084e9498c1354eccc0a7061dc4f5940"
+        },
+        {
+          "rank": 7,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_472",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_d104c59cc153cd7ad28dacc5b2be63db710c467c"
+        },
+        {
+          "rank": 8,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_482",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_c59278abb1960e1eda66a48d5db90db22739d41c"
+        }
+      ]
+    },
+    {
+      "caseId": "controlled-143",
+      "context": [
+        {
+          "rank": 1,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_485",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_fc989456e1202c5de9387554a22cbaf773fb9dcc"
+        },
+        {
+          "rank": 2,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_472",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_d104c59cc153cd7ad28dacc5b2be63db710c467c"
+        },
+        {
+          "rank": 3,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_490",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_8599eb5c1924cc06982befbe5644021a4e70eb00"
+        },
+        {
+          "rank": 4,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_489",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_e0d4269549d699d9bf3e3d097d79392b96ac01e1"
+        },
+        {
+          "rank": 5,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_482",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_c59278abb1960e1eda66a48d5db90db22739d41c"
+        },
+        {
+          "rank": 6,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_480",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_9ae8a223a084e9498c1354eccc0a7061dc4f5940"
+        },
+        {
+          "rank": 7,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_484",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_b132b2cb3b43369e48319f497c75ac6c0d930073"
+        },
+        {
+          "rank": 8,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_475",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_03bdee065e0125032bd159599d2f50e1afb7dc13"
+        }
+      ]
+    },
+    {
+      "caseId": "controlled-144",
+      "context": [
+        {
+          "rank": 1,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_484",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_b132b2cb3b43369e48319f497c75ac6c0d930073"
+        },
+        {
+          "rank": 2,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_470",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_cbb27d63475913895c3738f3d487931e3d7e281d"
+        },
+        {
+          "rank": 3,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_468",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_6929301716535bc76e76f8999e7263a5780ea8ac"
+        },
+        {
+          "rank": 4,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_472",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_d104c59cc153cd7ad28dacc5b2be63db710c467c"
+        },
+        {
+          "rank": 5,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_469",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_915ea5b3302cc7dcaeaf4b46fcbda1df6c692eab"
+        },
+        {
+          "rank": 6,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_467",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_32e11f0f4d21f3e4cf77704d37aaa9e11fd783d7"
+        },
+        {
+          "rank": 7,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_490",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_8599eb5c1924cc06982befbe5644021a4e70eb00"
+        },
+        {
+          "rank": 8,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_471",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_22b9c4b329d8785e0d10ededf894c9c190ff4474"
+        }
+      ]
+    },
+    {
+      "caseId": "controlled-145",
+      "context": [
+        {
+          "rank": 1,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_470",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_cbb27d63475913895c3738f3d487931e3d7e281d"
+        },
+        {
+          "rank": 2,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_484",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_b132b2cb3b43369e48319f497c75ac6c0d930073"
+        },
+        {
+          "rank": 3,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_469",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_915ea5b3302cc7dcaeaf4b46fcbda1df6c692eab"
+        },
+        {
+          "rank": 4,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_467",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_32e11f0f4d21f3e4cf77704d37aaa9e11fd783d7"
+        },
+        {
+          "rank": 5,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_468",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_6929301716535bc76e76f8999e7263a5780ea8ac"
+        },
+        {
+          "rank": 6,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_471",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_22b9c4b329d8785e0d10ededf894c9c190ff4474"
+        },
+        {
+          "rank": 7,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_472",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_d104c59cc153cd7ad28dacc5b2be63db710c467c"
+        },
+        {
+          "rank": 8,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_491",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_817029167a08cb77c74a713a9c6b7a0daa92800a"
+        }
+      ]
+    },
+    {
+      "caseId": "controlled-146",
+      "context": [
+        {
+          "rank": 1,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_97",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_05db09c8c7c9d88cc70c71c0c6631d94f0c27b1a"
+        },
+        {
+          "rank": 2,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_77",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_5f72e51d8f8a0bc791c824f794804adef0a46e31"
+        },
+        {
+          "rank": 3,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_93",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_ca19c5b974cdabf9ad6342ea859692f8094e4ebc"
+        },
+        {
+          "rank": 4,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_89",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_9049fb6fcf478ffae28e2627fe5be4a346f68966"
+        },
+        {
+          "rank": 5,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_94",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_36639f3dab267f910437c5b77d13414de7a53e46"
+        },
+        {
+          "rank": 6,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_96",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_eefe875336cbf614cedfc990b4ad6f65fac8b360"
+        },
+        {
+          "rank": 7,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_85",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_3cb83e7893b5251abfb4bb7a6efe24ccad318095"
+        },
+        {
+          "rank": 8,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_82",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_87ecfaf95e44d6c22726ba57a6b519f35d05d973"
+        }
+      ]
+    },
+    {
+      "caseId": "controlled-147",
+      "context": [
+        {
+          "rank": 1,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_97",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_05db09c8c7c9d88cc70c71c0c6631d94f0c27b1a"
+        },
+        {
+          "rank": 2,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_77",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_5f72e51d8f8a0bc791c824f794804adef0a46e31"
+        },
+        {
+          "rank": 3,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_93",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_ca19c5b974cdabf9ad6342ea859692f8094e4ebc"
+        },
+        {
+          "rank": 4,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_94",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_36639f3dab267f910437c5b77d13414de7a53e46"
+        },
+        {
+          "rank": 5,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_89",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_9049fb6fcf478ffae28e2627fe5be4a346f68966"
+        },
+        {
+          "rank": 6,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_96",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_eefe875336cbf614cedfc990b4ad6f65fac8b360"
+        },
+        {
+          "rank": 7,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_82",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_87ecfaf95e44d6c22726ba57a6b519f35d05d973"
+        },
+        {
+          "rank": 8,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_87",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_6c0308d6009c734b0a27a390c42e944d3244954d"
+        }
+      ]
+    },
+    {
+      "caseId": "controlled-148",
+      "context": [
+        {
+          "rank": 1,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_78",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_bc3ffd6d4dc00778ea03b7cdb1c21360cd451b97"
+        },
+        {
+          "rank": 2,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_79",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_654b4967c2b7253dccf97458167d2857ab8d3af6"
+        },
+        {
+          "rank": 3,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_94",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_36639f3dab267f910437c5b77d13414de7a53e46"
+        },
+        {
+          "rank": 4,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_77",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_5f72e51d8f8a0bc791c824f794804adef0a46e31"
+        },
+        {
+          "rank": 5,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_88",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_bcee9a6a835eb8f9fa2be7db308022356700ee9d"
+        },
+        {
+          "rank": 6,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_87",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_6c0308d6009c734b0a27a390c42e944d3244954d"
+        },
+        {
+          "rank": 7,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_85",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_3cb83e7893b5251abfb4bb7a6efe24ccad318095"
+        },
+        {
+          "rank": 8,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_97",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_05db09c8c7c9d88cc70c71c0c6631d94f0c27b1a"
+        }
+      ]
+    },
+    {
+      "caseId": "controlled-149",
+      "context": [
+        {
+          "rank": 1,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_78",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_bc3ffd6d4dc00778ea03b7cdb1c21360cd451b97"
+        },
+        {
+          "rank": 2,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_79",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_654b4967c2b7253dccf97458167d2857ab8d3af6"
+        },
+        {
+          "rank": 3,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_92",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_552102f85251918b6d860569fbcd8123f5fd09c9"
+        },
+        {
+          "rank": 4,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_89",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_9049fb6fcf478ffae28e2627fe5be4a346f68966"
+        },
+        {
+          "rank": 5,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_94",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_36639f3dab267f910437c5b77d13414de7a53e46"
+        },
+        {
+          "rank": 6,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_93",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_ca19c5b974cdabf9ad6342ea859692f8094e4ebc"
+        },
+        {
+          "rank": 7,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_80",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_ea5da80924e4e944cd23a7603fe76a07fea9b8c9"
+        },
+        {
+          "rank": 8,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_90",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_bad0269dddc69a10061329a97477228133611a6b"
+        }
+      ]
+    },
+    {
+      "caseId": "controlled-150",
+      "context": [
+        {
+          "rank": 1,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_79",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_654b4967c2b7253dccf97458167d2857ab8d3af6"
+        },
+        {
+          "rank": 2,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_92",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_552102f85251918b6d860569fbcd8123f5fd09c9"
+        },
+        {
+          "rank": 3,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_90",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_bad0269dddc69a10061329a97477228133611a6b"
+        },
+        {
+          "rank": 4,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_96",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_eefe875336cbf614cedfc990b4ad6f65fac8b360"
+        },
+        {
+          "rank": 5,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_91",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_25ce31e33801deca2484f10ddb4fa492c4d4045e"
+        },
+        {
+          "rank": 6,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_78",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_bc3ffd6d4dc00778ea03b7cdb1c21360cd451b97"
+        },
+        {
+          "rank": 7,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_86",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_670161b8b8a51e8484b7958f3ac35a75bbd91c5d"
+        },
+        {
+          "rank": 8,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_81",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_b0dd3078cf670ab0336d31698d48d14dc1c2c993"
+        }
+      ]
+    },
+    {
+      "caseId": "controlled-151",
+      "context": [
+        {
+          "rank": 1,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_79",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_654b4967c2b7253dccf97458167d2857ab8d3af6"
+        },
+        {
+          "rank": 2,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_90",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_bad0269dddc69a10061329a97477228133611a6b"
+        },
+        {
+          "rank": 3,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_86",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_670161b8b8a51e8484b7958f3ac35a75bbd91c5d"
+        },
+        {
+          "rank": 4,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_82",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_87ecfaf95e44d6c22726ba57a6b519f35d05d973"
+        },
+        {
+          "rank": 5,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_80",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_ea5da80924e4e944cd23a7603fe76a07fea9b8c9"
+        },
+        {
+          "rank": 6,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_84",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_c4d29714b04fae6733a29ba6a4163498a21d95e7"
+        },
+        {
+          "rank": 7,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_88",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_bcee9a6a835eb8f9fa2be7db308022356700ee9d"
+        },
+        {
+          "rank": 8,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_95",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_9b54aa030800f2114b0656aa3d4e35a99284b55e"
+        }
+      ]
+    },
+    {
+      "caseId": "controlled-152",
+      "context": [
+        {
+          "rank": 1,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_82",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_87ecfaf95e44d6c22726ba57a6b519f35d05d973"
+        },
+        {
+          "rank": 2,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_88",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_bcee9a6a835eb8f9fa2be7db308022356700ee9d"
+        },
+        {
+          "rank": 3,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_89",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_9049fb6fcf478ffae28e2627fe5be4a346f68966"
+        },
+        {
+          "rank": 4,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_95",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_9b54aa030800f2114b0656aa3d4e35a99284b55e"
+        },
+        {
+          "rank": 5,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_83",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_8530ce0e2edbe172034c5386c24c0d58ef2501d5"
+        },
+        {
+          "rank": 6,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_86",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_670161b8b8a51e8484b7958f3ac35a75bbd91c5d"
+        },
+        {
+          "rank": 7,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_87",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_6c0308d6009c734b0a27a390c42e944d3244954d"
+        },
+        {
+          "rank": 8,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_80",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_ea5da80924e4e944cd23a7603fe76a07fea9b8c9"
+        }
+      ]
+    },
+    {
+      "caseId": "controlled-153",
+      "context": [
+        {
+          "rank": 1,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_88",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_bcee9a6a835eb8f9fa2be7db308022356700ee9d"
+        },
+        {
+          "rank": 2,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_84",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_c4d29714b04fae6733a29ba6a4163498a21d95e7"
+        },
+        {
+          "rank": 3,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_80",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_ea5da80924e4e944cd23a7603fe76a07fea9b8c9"
+        },
+        {
+          "rank": 4,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_86",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_670161b8b8a51e8484b7958f3ac35a75bbd91c5d"
+        },
+        {
+          "rank": 5,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_95",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_9b54aa030800f2114b0656aa3d4e35a99284b55e"
+        },
+        {
+          "rank": 6,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_83",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_8530ce0e2edbe172034c5386c24c0d58ef2501d5"
+        },
+        {
+          "rank": 7,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_87",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_6c0308d6009c734b0a27a390c42e944d3244954d"
+        },
+        {
+          "rank": 8,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_82",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_87ecfaf95e44d6c22726ba57a6b519f35d05d973"
+        }
+      ]
+    },
+    {
+      "caseId": "controlled-154",
+      "context": [
+        {
+          "rank": 1,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_88",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_bcee9a6a835eb8f9fa2be7db308022356700ee9d"
+        },
+        {
+          "rank": 2,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_84",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_c4d29714b04fae6733a29ba6a4163498a21d95e7"
+        },
+        {
+          "rank": 3,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_80",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_ea5da80924e4e944cd23a7603fe76a07fea9b8c9"
+        },
+        {
+          "rank": 4,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_96",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_eefe875336cbf614cedfc990b4ad6f65fac8b360"
+        },
+        {
+          "rank": 5,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_89",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_9049fb6fcf478ffae28e2627fe5be4a346f68966"
+        },
+        {
+          "rank": 6,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_86",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_670161b8b8a51e8484b7958f3ac35a75bbd91c5d"
+        },
+        {
+          "rank": 7,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_87",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_6c0308d6009c734b0a27a390c42e944d3244954d"
+        },
+        {
+          "rank": 8,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_95",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_9b54aa030800f2114b0656aa3d4e35a99284b55e"
+        }
+      ]
+    },
+    {
+      "caseId": "controlled-157",
+      "context": [
+        {
+          "rank": 1,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_79",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_654b4967c2b7253dccf97458167d2857ab8d3af6"
+        },
+        {
+          "rank": 2,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_93",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_ca19c5b974cdabf9ad6342ea859692f8094e4ebc"
+        },
+        {
+          "rank": 3,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_92",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_552102f85251918b6d860569fbcd8123f5fd09c9"
+        },
+        {
+          "rank": 4,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_91",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_25ce31e33801deca2484f10ddb4fa492c4d4045e"
+        },
+        {
+          "rank": 5,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_78",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_bc3ffd6d4dc00778ea03b7cdb1c21360cd451b97"
+        },
+        {
+          "rank": 6,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_94",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_36639f3dab267f910437c5b77d13414de7a53e46"
+        },
+        {
+          "rank": 7,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_96",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_eefe875336cbf614cedfc990b4ad6f65fac8b360"
+        },
+        {
+          "rank": 8,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_89",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_9049fb6fcf478ffae28e2627fe5be4a346f68966"
+        }
+      ]
+    },
+    {
+      "caseId": "controlled-158",
+      "context": [
+        {
+          "rank": 1,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_92",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_552102f85251918b6d860569fbcd8123f5fd09c9"
+        },
+        {
+          "rank": 2,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_93",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_ca19c5b974cdabf9ad6342ea859692f8094e4ebc"
+        },
+        {
+          "rank": 3,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_79",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_654b4967c2b7253dccf97458167d2857ab8d3af6"
+        },
+        {
+          "rank": 4,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_84",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_c4d29714b04fae6733a29ba6a4163498a21d95e7"
+        },
+        {
+          "rank": 5,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_78",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_bc3ffd6d4dc00778ea03b7cdb1c21360cd451b97"
+        },
+        {
+          "rank": 6,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_87",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_6c0308d6009c734b0a27a390c42e944d3244954d"
+        },
+        {
+          "rank": 7,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_89",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_9049fb6fcf478ffae28e2627fe5be4a346f68966"
+        },
+        {
+          "rank": 8,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_85",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_3cb83e7893b5251abfb4bb7a6efe24ccad318095"
+        }
+      ]
+    },
+    {
+      "caseId": "controlled-159",
+      "context": [
+        {
+          "rank": 1,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_93",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_ca19c5b974cdabf9ad6342ea859692f8094e4ebc"
+        },
+        {
+          "rank": 2,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_94",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_36639f3dab267f910437c5b77d13414de7a53e46"
+        },
+        {
+          "rank": 3,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_77",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_5f72e51d8f8a0bc791c824f794804adef0a46e31"
+        },
+        {
+          "rank": 4,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_97",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_05db09c8c7c9d88cc70c71c0c6631d94f0c27b1a"
+        },
+        {
+          "rank": 5,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_91",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_25ce31e33801deca2484f10ddb4fa492c4d4045e"
+        },
+        {
+          "rank": 6,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_78",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_bc3ffd6d4dc00778ea03b7cdb1c21360cd451b97"
+        },
+        {
+          "rank": 7,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_96",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_eefe875336cbf614cedfc990b4ad6f65fac8b360"
+        },
+        {
+          "rank": 8,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_89",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_9049fb6fcf478ffae28e2627fe5be4a346f68966"
+        }
+      ]
+    },
+    {
+      "caseId": "controlled-160",
+      "context": [
+        {
+          "rank": 1,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_93",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_ca19c5b974cdabf9ad6342ea859692f8094e4ebc"
+        },
+        {
+          "rank": 2,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_90",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_bad0269dddc69a10061329a97477228133611a6b"
+        },
+        {
+          "rank": 3,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_96",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_eefe875336cbf614cedfc990b4ad6f65fac8b360"
+        },
+        {
+          "rank": 4,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_92",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_552102f85251918b6d860569fbcd8123f5fd09c9"
+        },
+        {
+          "rank": 5,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_79",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_654b4967c2b7253dccf97458167d2857ab8d3af6"
+        },
+        {
+          "rank": 6,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_77",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_5f72e51d8f8a0bc791c824f794804adef0a46e31"
+        },
+        {
+          "rank": 7,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_91",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_25ce31e33801deca2484f10ddb4fa492c4d4045e"
+        },
+        {
+          "rank": 8,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_97",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_05db09c8c7c9d88cc70c71c0c6631d94f0c27b1a"
+        }
+      ]
+    },
+    {
+      "caseId": "controlled-268",
+      "context": [
+        {
+          "rank": 1,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_485",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_fc989456e1202c5de9387554a22cbaf773fb9dcc"
+        },
+        {
+          "rank": 2,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_470",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_cbb27d63475913895c3738f3d487931e3d7e281d"
+        },
+        {
+          "rank": 3,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_469",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_915ea5b3302cc7dcaeaf4b46fcbda1df6c692eab"
+        },
+        {
+          "rank": 4,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_467",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_32e11f0f4d21f3e4cf77704d37aaa9e11fd783d7"
+        },
+        {
+          "rank": 5,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_472",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_d104c59cc153cd7ad28dacc5b2be63db710c467c"
+        },
+        {
+          "rank": 6,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_484",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_b132b2cb3b43369e48319f497c75ac6c0d930073"
+        },
+        {
+          "rank": 7,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_481",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_6f523a3c1d794467034275584bcf1ff39fb46768"
+        },
+        {
+          "rank": 8,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_491",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_817029167a08cb77c74a713a9c6b7a0daa92800a"
+        }
+      ]
+    },
+    {
+      "caseId": "controlled-270",
+      "context": [
+        {
+          "rank": 1,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_486",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_1f22bb5106b2df45d635fe73f202ad957766bc92"
+        },
+        {
+          "rank": 2,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_481",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_6f523a3c1d794467034275584bcf1ff39fb46768"
+        },
+        {
+          "rank": 3,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_480",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_9ae8a223a084e9498c1354eccc0a7061dc4f5940"
+        },
+        {
+          "rank": 4,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_483",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_f532eb7d5a57f72f8e0064cd6145e29c2973414d"
+        },
+        {
+          "rank": 5,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_475",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_03bdee065e0125032bd159599d2f50e1afb7dc13"
+        },
+        {
+          "rank": 6,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_472",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_d104c59cc153cd7ad28dacc5b2be63db710c467c"
+        },
+        {
+          "rank": 7,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_487",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_c645d8b9ce9c937fe149605cb8e573b4050d68ba"
+        },
+        {
+          "rank": 8,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_490",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_8599eb5c1924cc06982befbe5644021a4e70eb00"
+        }
+      ]
+    },
+    {
+      "caseId": "controlled-271",
+      "context": [
+        {
+          "rank": 1,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_481",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_6f523a3c1d794467034275584bcf1ff39fb46768"
+        },
+        {
+          "rank": 2,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_483",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_f532eb7d5a57f72f8e0064cd6145e29c2973414d"
+        },
+        {
+          "rank": 3,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_486",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_1f22bb5106b2df45d635fe73f202ad957766bc92"
+        },
+        {
+          "rank": 4,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_480",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_9ae8a223a084e9498c1354eccc0a7061dc4f5940"
+        },
+        {
+          "rank": 5,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_490",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_8599eb5c1924cc06982befbe5644021a4e70eb00"
+        },
+        {
+          "rank": 6,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_482",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_c59278abb1960e1eda66a48d5db90db22739d41c"
+        },
+        {
+          "rank": 7,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_472",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_d104c59cc153cd7ad28dacc5b2be63db710c467c"
+        },
+        {
+          "rank": 8,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_485",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_fc989456e1202c5de9387554a22cbaf773fb9dcc"
+        }
+      ]
+    },
+    {
+      "caseId": "controlled-274",
+      "context": []
+    },
+    {
+      "caseId": "controlled-523",
+      "context": [
+        {
+          "rank": 1,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_481",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_6f523a3c1d794467034275584bcf1ff39fb46768"
+        },
+        {
+          "rank": 2,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_483",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_f532eb7d5a57f72f8e0064cd6145e29c2973414d"
+        },
+        {
+          "rank": 3,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_486",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_1f22bb5106b2df45d635fe73f202ad957766bc92"
+        },
+        {
+          "rank": 4,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_490",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_8599eb5c1924cc06982befbe5644021a4e70eb00"
+        },
+        {
+          "rank": 5,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_473",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_aeae2f0d849684648cee6f4ddcb89e0e5c387592"
+        },
+        {
+          "rank": 6,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_475",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_03bdee065e0125032bd159599d2f50e1afb7dc13"
+        },
+        {
+          "rank": 7,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_489",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_e0d4269549d699d9bf3e3d097d79392b96ac01e1"
+        },
+        {
+          "rank": 8,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_480",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_9ae8a223a084e9498c1354eccc0a7061dc4f5940"
+        }
+      ]
+    },
+    {
+      "caseId": "controlled-524",
+      "context": [
+        {
+          "rank": 1,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_481",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_6f523a3c1d794467034275584bcf1ff39fb46768"
+        },
+        {
+          "rank": 2,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_475",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_03bdee065e0125032bd159599d2f50e1afb7dc13"
+        },
+        {
+          "rank": 3,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_484",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_b132b2cb3b43369e48319f497c75ac6c0d930073"
+        },
+        {
+          "rank": 4,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_489",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_e0d4269549d699d9bf3e3d097d79392b96ac01e1"
+        },
+        {
+          "rank": 5,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_473",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_aeae2f0d849684648cee6f4ddcb89e0e5c387592"
+        },
+        {
+          "rank": 6,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_477",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_83aeeedc170f5bf44ba4a79ddf6305e2d14287d0"
+        },
+        {
+          "rank": 7,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_478",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_5b42455b6705b6ba4c9a2f3256d888de4e26f7f2"
+        },
+        {
+          "rank": 8,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_470",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_cbb27d63475913895c3738f3d487931e3d7e281d"
+        }
+      ]
+    },
+    {
+      "caseId": "controlled-530",
+      "context": [
+        {
+          "rank": 1,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_470",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_cbb27d63475913895c3738f3d487931e3d7e281d"
+        },
+        {
+          "rank": 2,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_483",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_f532eb7d5a57f72f8e0064cd6145e29c2973414d"
+        },
+        {
+          "rank": 3,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_484",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_b132b2cb3b43369e48319f497c75ac6c0d930073"
+        },
+        {
+          "rank": 4,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_467",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_32e11f0f4d21f3e4cf77704d37aaa9e11fd783d7"
+        },
+        {
+          "rank": 5,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_486",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_1f22bb5106b2df45d635fe73f202ad957766bc92"
+        },
+        {
+          "rank": 6,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_487",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_c645d8b9ce9c937fe149605cb8e573b4050d68ba"
+        },
+        {
+          "rank": 7,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_490",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_8599eb5c1924cc06982befbe5644021a4e70eb00"
+        },
+        {
+          "rank": 8,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_479",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_1de5ebffee7d67d1fdf1d9f65abe97096fd11ecc"
+        }
+      ]
+    },
+    {
+      "caseId": "controlled-531",
+      "context": [
+        {
+          "rank": 1,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_484",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_b132b2cb3b43369e48319f497c75ac6c0d930073"
+        },
+        {
+          "rank": 2,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_470",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_cbb27d63475913895c3738f3d487931e3d7e281d"
+        },
+        {
+          "rank": 3,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_469",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_915ea5b3302cc7dcaeaf4b46fcbda1df6c692eab"
+        },
+        {
+          "rank": 4,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_490",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_8599eb5c1924cc06982befbe5644021a4e70eb00"
+        },
+        {
+          "rank": 5,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_488",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_927317f7f8dd8d0a6ba8fe1fa5c9ed56c3153a48"
+        },
+        {
+          "rank": 6,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_491",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_817029167a08cb77c74a713a9c6b7a0daa92800a"
+        },
+        {
+          "rank": 7,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_483",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_f532eb7d5a57f72f8e0064cd6145e29c2973414d"
+        },
+        {
+          "rank": 8,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_471",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_22b9c4b329d8785e0d10ededf894c9c190ff4474"
+        }
+      ]
+    },
+    {
+      "caseId": "controlled-542",
+      "context": [
+        {
+          "rank": 1,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_93",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_ca19c5b974cdabf9ad6342ea859692f8094e4ebc"
+        },
+        {
+          "rank": 2,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_91",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_25ce31e33801deca2484f10ddb4fa492c4d4045e"
+        },
+        {
+          "rank": 3,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_77",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_5f72e51d8f8a0bc791c824f794804adef0a46e31"
+        },
+        {
+          "rank": 4,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_97",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_05db09c8c7c9d88cc70c71c0c6631d94f0c27b1a"
+        },
+        {
+          "rank": 5,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_96",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_eefe875336cbf614cedfc990b4ad6f65fac8b360"
+        },
+        {
+          "rank": 6,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_79",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_654b4967c2b7253dccf97458167d2857ab8d3af6"
+        },
+        {
+          "rank": 7,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_94",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_36639f3dab267f910437c5b77d13414de7a53e46"
+        },
+        {
+          "rank": 8,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_92",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_552102f85251918b6d860569fbcd8123f5fd09c9"
+        }
+      ]
+    },
+    {
+      "caseId": "controlled-543",
+      "context": [
+        {
+          "rank": 1,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_93",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_ca19c5b974cdabf9ad6342ea859692f8094e4ebc"
+        },
+        {
+          "rank": 2,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_97",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_05db09c8c7c9d88cc70c71c0c6631d94f0c27b1a"
+        },
+        {
+          "rank": 3,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_77",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_5f72e51d8f8a0bc791c824f794804adef0a46e31"
+        },
+        {
+          "rank": 4,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_94",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_36639f3dab267f910437c5b77d13414de7a53e46"
+        },
+        {
+          "rank": 5,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_78",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_bc3ffd6d4dc00778ea03b7cdb1c21360cd451b97"
+        },
+        {
+          "rank": 6,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_92",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_552102f85251918b6d860569fbcd8123f5fd09c9"
+        },
+        {
+          "rank": 7,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_91",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_25ce31e33801deca2484f10ddb4fa492c4d4045e"
+        },
+        {
+          "rank": 8,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_79",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_654b4967c2b7253dccf97458167d2857ab8d3af6"
+        }
+      ]
+    },
+    {
+      "caseId": "controlled-575",
+      "context": [
+        {
+          "rank": 1,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_481",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_6f523a3c1d794467034275584bcf1ff39fb46768"
+        },
+        {
+          "rank": 2,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_480",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_9ae8a223a084e9498c1354eccc0a7061dc4f5940"
+        },
+        {
+          "rank": 3,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_485",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_fc989456e1202c5de9387554a22cbaf773fb9dcc"
+        },
+        {
+          "rank": 4,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_472",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_d104c59cc153cd7ad28dacc5b2be63db710c467c"
+        },
+        {
+          "rank": 5,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_483",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_f532eb7d5a57f72f8e0064cd6145e29c2973414d"
+        },
+        {
+          "rank": 6,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_470",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_cbb27d63475913895c3738f3d487931e3d7e281d"
+        },
+        {
+          "rank": 7,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_486",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_1f22bb5106b2df45d635fe73f202ad957766bc92"
+        },
+        {
+          "rank": 8,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_490",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_8599eb5c1924cc06982befbe5644021a4e70eb00"
+        }
+      ]
+    },
+    {
+      "caseId": "controlled-576",
+      "context": []
+    },
+    {
+      "caseId": "controlled-577",
+      "context": [
+        {
+          "rank": 1,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_88",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_bcee9a6a835eb8f9fa2be7db308022356700ee9d"
+        },
+        {
+          "rank": 2,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_84",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_c4d29714b04fae6733a29ba6a4163498a21d95e7"
+        },
+        {
+          "rank": 3,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_80",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_ea5da80924e4e944cd23a7603fe76a07fea9b8c9"
+        },
+        {
+          "rank": 4,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_82",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_87ecfaf95e44d6c22726ba57a6b519f35d05d973"
+        },
+        {
+          "rank": 5,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_83",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_8530ce0e2edbe172034c5386c24c0d58ef2501d5"
+        },
+        {
+          "rank": 6,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_95",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_9b54aa030800f2114b0656aa3d4e35a99284b55e"
+        },
+        {
+          "rank": 7,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_86",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_670161b8b8a51e8484b7958f3ac35a75bbd91c5d"
+        },
+        {
+          "rank": 8,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_87",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_6c0308d6009c734b0a27a390c42e944d3244954d"
+        }
+      ]
+    },
+    {
+      "caseId": "controlled-578",
+      "context": [
+        {
+          "rank": 1,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_88",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_bcee9a6a835eb8f9fa2be7db308022356700ee9d"
+        },
+        {
+          "rank": 2,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_84",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_c4d29714b04fae6733a29ba6a4163498a21d95e7"
+        },
+        {
+          "rank": 3,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_82",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_87ecfaf95e44d6c22726ba57a6b519f35d05d973"
+        },
+        {
+          "rank": 4,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_83",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_8530ce0e2edbe172034c5386c24c0d58ef2501d5"
+        },
+        {
+          "rank": 5,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_95",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_9b54aa030800f2114b0656aa3d4e35a99284b55e"
+        },
+        {
+          "rank": 6,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_89",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_9049fb6fcf478ffae28e2627fe5be4a346f68966"
+        },
+        {
+          "rank": 7,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_80",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_ea5da80924e4e944cd23a7603fe76a07fea9b8c9"
+        },
+        {
+          "rank": 8,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_87",
+          "sourceVersion": "drawio-workflow-handbook:v1",
+          "chunkId": "rc_6c0308d6009c734b0a27a390c42e944d3244954d"
+        }
+      ]
+    },
+    {
+      "caseId": "controlled-591",
+      "context": [
+        {
+          "rank": 1,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_479",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_1de5ebffee7d67d1fdf1d9f65abe97096fd11ecc"
+        },
+        {
+          "rank": 2,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_473",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_aeae2f0d849684648cee6f4ddcb89e0e5c387592"
+        },
+        {
+          "rank": 3,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_476",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_612a05305e157feea8c74405f7b8e348b90f9481"
+        },
+        {
+          "rank": 4,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_489",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_e0d4269549d699d9bf3e3d097d79392b96ac01e1"
+        },
+        {
+          "rank": 5,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_474",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_998f9cf15865e028a0a23e0c581492ad50fe51e2"
+        },
+        {
+          "rank": 6,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_480",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_9ae8a223a084e9498c1354eccc0a7061dc4f5940"
+        },
+        {
+          "rank": 7,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_472",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_d104c59cc153cd7ad28dacc5b2be63db710c467c"
+        },
+        {
+          "rank": 8,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_475",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_03bdee065e0125032bd159599d2f50e1afb7dc13"
+        }
+      ]
+    },
+    {
+      "caseId": "controlled-609",
+      "context": [
+        {
+          "rank": 1,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_481",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_6f523a3c1d794467034275584bcf1ff39fb46768"
+        },
+        {
+          "rank": 2,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_483",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_f532eb7d5a57f72f8e0064cd6145e29c2973414d"
+        },
+        {
+          "rank": 3,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_490",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_8599eb5c1924cc06982befbe5644021a4e70eb00"
+        },
+        {
+          "rank": 4,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_486",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_1f22bb5106b2df45d635fe73f202ad957766bc92"
+        },
+        {
+          "rank": 5,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_487",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_c645d8b9ce9c937fe149605cb8e573b4050d68ba"
+        },
+        {
+          "rank": 6,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_472",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_d104c59cc153cd7ad28dacc5b2be63db710c467c"
+        },
+        {
+          "rank": 7,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_473",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_aeae2f0d849684648cee6f4ddcb89e0e5c387592"
+        },
+        {
+          "rank": 8,
+          "vectorId": "controlledpdfresearch_a71175b71bfb4c1b8c87384471b569ce_470",
+          "sourceVersion": "drawio-agent-architecture:v1",
+          "chunkId": "rc_cbb27d63475913895c3738f3d487931e3d7e281d"
+        }
+      ]
+    }
+  ]
+}
