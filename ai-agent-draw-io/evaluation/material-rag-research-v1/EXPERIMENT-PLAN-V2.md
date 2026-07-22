@@ -324,3 +324,10 @@ Development 只有在有效 JSON 输出至少覆盖 95% case、Recall@10 至少�
 显著下降，且没有样本量至少 20 的主要 Recall@10 切片显著退化时才打开 Validation。由于候选固定重排同一
 40 个候选，Recall@40 必须精确持平；否则输出或比较器无效。Validation 需要复现正向 Recall@10 方向且无
 质量回退，候选才晋级。此实验不改变 dense 召回、chunk、query、授权过滤或后处理，Holdout 继续密封。
+
+E5 结果：使用 `deepseek-v4-pro` 的 Development 完整运行覆盖 155 例，两个臂的 top-80、533 chunks 和
+所有固定控制项逐 case 一致。候选只有 5/155（3.23%）次返回有效 JSON，低于 95% 可用性门槛；其余响应安全
+回填 dense 顺序。Recall@10 为 0.8968→0.8968（+0.0000），Recall@40 持平，MRR@10 为
+0.7160→0.7209（+0.0048，95% 配对区间 [0.0000, 0.0145]），所有 n≥20 的主要 Recall@10 切片持平。
+因此不打开 Validation、不晋级 `llm-listwise-v1`，并继续密封 Holdout。完整结果、raw 与运行时 corpus-lock
+snapshot 见 `results/2026-07-22-e5-deepseek-v4-pro-reranking.md`。

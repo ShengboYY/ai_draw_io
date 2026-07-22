@@ -206,6 +206,24 @@
   `ranked-raw-v1` 并按计划进入 E5 reranking。
 - 详见 [2026-07-22-e4b-chartbook-source-diversity-vs-ranked-raw.md](2026-07-22-e4b-chartbook-source-diversity-vs-ranked-raw.md)。
 
+### E5 — DeepSeek V4 Pro listwise reranking · 2026-07-22 · ❌不晋级，E5 完成
+
+- **假设**:在不改变 original-query dense top-40 成员的前提下，以 LLM listwise 重排可将直接证据提前，提升
+  Recall@10。
+- **控制变量**:提交 `55d1d756`、Development `core-v1` 155 例、E1 canonical、flat leaf、original query、
+  dense-only、ranked raw、533 chunks；两臂共享同一次 Pinecone top-80，并逐 case 验证完全相同。候选使用
+  `deepseek-v4-pro`、temperature 0、`thinking=disabled`、短 opaque ID 与每候选最多 800 字符，不读取 gold 或
+  split metadata。Holdout 未打开。
+- **可用性失败**:模型只产生 5/155=**3.23%** 个有效 JSON，远低于预注册的 95%。无效或空输出安全回填 dense
+  顺序，因此没有夸大质量结果。
+- **质量**:R@10 为 **0.8968→0.8968（+0.0000）**，R@40 持平；MRR@10
+  **0.7160→0.7209（+0.0048，95% 配对区间 [0.0000, 0.0145]）**。所有 n≥20 的主要 R@10 切片均持平。
+- **运维**:155 次调用共 603,561 prompt token、14,558 completion token，模型累计延迟 357,625 ms。运行后 exact-prefix
+  cleanup 返回 0，确认无 synthetic Pinecone vector 残留。
+- **决策**:**不晋级 `llm-listwise-v1`，不运行 Validation**。它未达到 JSON 可用性和 +0.02 R@10 的双重硬门槛；
+  保留 `none-v1`，Holdout 继续密封，下一步转 E6 或另行预注册不同 reranker 协议。
+- 详见 [2026-07-22-e5-deepseek-v4-pro-reranking.md](2026-07-22-e5-deepseek-v4-pro-reranking.md)。
+
 ---
 
 ## 当前状态与下一步
@@ -213,7 +231,7 @@
 - 已完成:E0 基线 → E1 表示层改进 → 核心集升级并冻结到 450 → Development 与 Validation
   配对重跑 → 守门最低数补齐并执行 fixture-contract。Validation 证明 E1 提升真实,也证明
   dense-only 尚未达门槛。
-- **下一步**:E4 已完成且两个候选都不晋级；开始 E5 reranking 的单变量设计。original query、dense、
+- **下一步**:E5 已完成且候选不晋级；进入 E6 context selection 的单变量设计。original query、dense、
   flat chunk 和 `ranked-raw-v1` 保持冻结，Holdout 继续密封。
 
 ## 开放问题 / 待办

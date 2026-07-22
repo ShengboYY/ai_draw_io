@@ -154,7 +154,14 @@
     "requireNoRecallAt40Loss": true,
     "requireNoSignificantMrrRegression": true,
     "requireNoMajorSliceRegression": true,
-    "status": "preregistered; awaiting opt-in LLM Development run"
+    "developmentAcceptedJsonRate": 0.03225806451612903,
+    "developmentRecallAt10Delta": 0.0,
+    "developmentRecallAt40Delta": 0.0,
+    "developmentMrrAt10Delta": 0.004838709677419355,
+    "developmentPromptTokens": 603561,
+    "developmentCompletionTokens": 14558,
+    "decision": "retain none-v1; DeepSeek V4 Pro accepted JSON rate 5/155 was below the required 95% and Recall@10 gain was 0.0",
+    "status": "completed; candidate not promoted, Validation and Holdout sealed"
   },
   "preE0": {
     "minimumReviewedCasesBeforeComparison": 340,
