@@ -9,6 +9,9 @@ import org.zipp.ai.domain.ingestion.model.valobj.CanonicalPage;
 import org.zipp.ai.domain.ingestion.model.valobj.EvidenceModality;
 import org.zipp.ai.domain.ingestion.model.valobj.EvidenceManifest;
 import org.zipp.ai.domain.ingestion.model.valobj.EvidenceSourcePage;
+import org.zipp.ai.domain.ingestion.model.valobj.NormalizedBoundingBox;
+import org.zipp.ai.domain.ingestion.model.valobj.OcrResult;
+import org.zipp.ai.domain.ingestion.model.valobj.OcrWord;
 import org.zipp.ai.domain.ingestion.model.valobj.ParsedDocument;
 import org.zipp.ai.domain.ingestion.model.valobj.ParsedPage;
 import org.zipp.ai.domain.ingestion.model.valobj.StoredArtifact;
@@ -195,13 +198,41 @@ class ControlledPdfDenseRecallLiveTest {
 
     @Test
     void architectureVisualHydrationProjectionShouldIndexTheRasterRouteOnPageThree() throws Exception {
+        Set<Integer> ocrPageNumbers = new HashSet<>();
         RetrievalProjectionManifest projection = buildVisualProjection(researchRoot(),
-                "drawio-agent-architecture", "v1", "drawio-agent-architecture-blueprint-v1.pdf");
+                "drawio-agent-architecture", "v1", "drawio-agent-architecture-blueprint-v1.pdf",
+                (pageImage, pageNo) -> {
+                    ocrPageNumbers.add(pageNo);
+                    return new OcrResult(pageNo,
+                        "SCOPE SOURCES RETRIEVE EVIDENCE BUILD PLAN COMPOSE CANVAS", 0.99,
+                        List.of(
+                                new OcrWord("SCOPE", new NormalizedBoundingBox(0.10, 0.28, 0.20, 0.34),
+                                        0.99, "line:1"),
+                                new OcrWord("SOURCES", new NormalizedBoundingBox(0.22, 0.28, 0.34, 0.34),
+                                        0.99, "line:2"),
+                                new OcrWord("RETRIEVE", new NormalizedBoundingBox(0.36, 0.28, 0.48, 0.34),
+                                        0.99, "line:3"),
+                                new OcrWord("EVIDENCE", new NormalizedBoundingBox(0.50, 0.28, 0.62, 0.34),
+                                        0.99, "line:4"),
+                                new OcrWord("BUILD", new NormalizedBoundingBox(0.22, 0.58, 0.32, 0.64),
+                                        0.99, "line:5"),
+                                new OcrWord("PLAN", new NormalizedBoundingBox(0.38, 0.58, 0.46, 0.64),
+                                        0.99, "line:6"),
+                                new OcrWord("COMPOSE", new NormalizedBoundingBox(0.52, 0.58, 0.64, 0.64),
+                                        0.99, "line:7"),
+                                new OcrWord("CANVAS", new NormalizedBoundingBox(0.68, 0.58, 0.78, 0.64),
+                                        0.99, "line:8")));
+                });
 
+        assertEquals(Set.of(3), ocrPageNumbers);
         assertTrue(projection.chunks().stream().anyMatch(chunk -> chunk.modality() == EvidenceModality.VISUAL
                 && pageNo(chunk.pageId()) == 3 && chunk.indexMode() == RetrievalIndexMode.DENSE_AND_LEXICAL
                 && chunk.retrievalText().contains(
                 "Figure 2. Evidence-to-canvas request route for an editable draw.io flow.")));
+        assertTrue(projection.chunks().stream().anyMatch(chunk -> chunk.modality() == EvidenceModality.TEXT
+                && pageNo(chunk.pageId()) == 3 && chunk.indexMode() == RetrievalIndexMode.DENSE_AND_LEXICAL
+                && chunk.retrievalText().contains(
+                "EVIDENCE")));
     }
 
     private RetrievalChunkProjection chunkWithParentContext(String parentContext) {
@@ -772,7 +803,7 @@ class ControlledPdfDenseRecallLiveTest {
     private ProjectionSet buildDrawioTaskHydrationProjections(Path root, OcrEnginePort ocr) throws Exception {
         Map<String, RetrievalProjectionManifest> result = new LinkedHashMap<>();
         result.put("drawio-agent-architecture:v1", buildVisualProjection(root,
-                "drawio-agent-architecture", "v1", "drawio-agent-architecture-blueprint-v1.pdf"));
+                "drawio-agent-architecture", "v1", "drawio-agent-architecture-blueprint-v1.pdf", ocr));
         result.put("drawio-workflow-handbook:v1", buildProjection(root,
                 "drawio-workflow-handbook", "v1", "drawio-diagram-workflow-handbook-v1.pdf"));
         result.put("drawio-planning-workshop-scan:v1", buildOcrProjection(root,
@@ -780,17 +811,31 @@ class ControlledPdfDenseRecallLiveTest {
         return new ProjectionSet(Map.copyOf(result));
     }
 
-    /** Mirrors the worker's visual selection/crop path so raster-only figures become retrieval chunks. */
+    /**
+     * Mirrors visual selection/crop processing, then OCRs only selected visual pages before final evidence build.
+     * Candidate selection remains independent of task answers, anchors, and evaluator assertions.
+     */
     private RetrievalProjectionManifest buildVisualProjection(Path root, String source, String version,
-                                                              String filename) throws Exception {
+                                                              String filename, OcrEnginePort ocr) throws Exception {
         ParsedDocument parsed = new PdfBoxDocumentParser(150).parse(
                 root.resolve("fixtures/generated/pdfs").resolve(filename), "application/pdf",
                 temporaryDirectory.resolve(source + "-visual"));
-        List<CanonicalPage> pages = parsed.pages().stream()
+        List<CanonicalPage> nativePages = parsed.pages().stream()
                 .map(page -> canonicalAssembler().assemble(page.extraction())).toList();
-        var structure = new DocumentStructureBuilder().build(pages);
+        var nativeStructure = new DocumentStructureBuilder().build(nativePages);
         VisualCandidateSelectionPolicy selectionPolicy = new VisualCandidateSelectionPolicy(12, 0.15, 3);
-        var selection = selectionPolicy.select(structure, parsed.pageCount());
+        var selection = selectionPolicy.select(nativeStructure, parsed.pageCount());
+        Set<Integer> selectedVisualPages = selection.selectedCandidates().stream()
+                .map(candidate -> candidate.pageNo()).collect(java.util.stream.Collectors.toSet());
+        List<CanonicalPage> pages = new ArrayList<>();
+        for (ParsedPage page : parsed.pages()) {
+            var extraction = page.extraction();
+            if (selectedVisualPages.contains(extraction.pageNo())) {
+                extraction = extraction.withOcr(ocr.recognize(page.renderedImage(), extraction.pageNo()));
+            }
+            pages.add(canonicalAssembler().assemble(extraction));
+        }
+        var structure = new DocumentStructureBuilder().build(pages);
         VisualCropDeriver cropper = new VisualCropDeriver(25_000_000, 10 * 1024 * 1024);
         Map<Integer, ParsedPage> parsedByPage = new HashMap<>();
         parsed.pages().forEach(page -> parsedByPage.put(page.extraction().pageNo(), page));
@@ -818,7 +863,7 @@ class ControlledPdfDenseRecallLiveTest {
             sources.add(new EvidenceSourcePage(source + "-page-" + page.pageNo(), page, artifact));
         }
         VisualCropManifest visuals = new VisualCropManifest("visual-crop-manifest-v1", structure.structureHash(),
-                selectionPolicy.fingerprint(), selection.totalCandidateCount(),
+                selectionPolicy.fingerprint() + ":selected-page-ocr-v1", selection.totalCandidateCount(),
                 selection.skippedCandidateCount(), crops);
         EvidenceManifest evidence = new EvidenceUnitBuilder().build("revision-" + source,
                 source + ":" + version, structure, sources, visuals);

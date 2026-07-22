@@ -378,8 +378,12 @@ E6b 的本地导出合同已冻结为 `fixtures/drawio-generation-paired-hydrati
 `analysis/export_drawio_paired_hydration.py`。active Development 图册明确挂载 architecture、workflow handbook
 与 planning-workshop scan 三个版本；导出器从同一 retrieval trace 的 raw top-8 和 source-aware top-8 产生一任务
 一对 context，并拒绝非 top-40 pool、漏 task、越权来源、空正文、越界/哈希不符的视觉 artifact，以及少于
-20% task 改变的伪对照；architecture flow 和 planning scan 两任务的两臂还必须都有已验证 artifact。此合同不是结果：当前 runner 还未产出 visual/OCR-capable task hydration，故尚未生成
-E6b context、prompt 或模型请求。
+20% task 改变的伪对照；architecture flow 和 planning scan 两任务的两臂还必须都有已验证 artifact。visual crop
+rerun 1/2 证明 page-3 artifact 可被索引但未进入 broad-chartbook raw top-8；因此 r4 预注册为一次独立
+representation 干预：先只用 native structure 选出 visual page，再只对这些已选真实页面运行本地 Tesseract，随后
+在最终 canonical evidence/chunk 中加入 OCR 文本，同时保留原始图像 artifact 给模型判断箭头与结构。它不读取 task
+`requiredAnchors`、XML assertions 或 expected answer，不修改 raw top-8 的排序规则。此合同仍不是生成结果：r4 trace
+导出前没有 E6b context、prompt 或模型请求。
 
 真实 hydration 的 producer 是 ingestion worker 的 opt-in live test
 `ControlledPdfDenseRecallLiveTest#shouldExportDrawioDevelopmentTaskHydrationFromTheRealMultimodalPipeline`。
