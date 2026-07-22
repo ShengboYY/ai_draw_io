@@ -231,8 +231,8 @@ Pre-E0 已完成：450 个核心案例、独立复核、三分区和语料 prove
 Validation 配对复核与守门 fixture-contract 也已完成；E2 parent-context-500 的 Development
 Recall@10 与 flat 持平,MRR@10 低 0.062,未晋级。当前顺序：
 
-1. E3 首个 dense + lexical hybrid 已完成但未晋级；下一候选只比较当前 dense 与一个预先定义的
-   query-rewrite 方案，不同时调整 RRF。
+1. E3 的 dense + lexical hybrid 与 evidence-focused query rewrite 均已完成但未晋级；下一步进入 E4，
+   比较当前 top 40 与一个预先定义的去重/来源多样性方案。
 2. 后续 E9 必须执行在线授权、版本、故障注入与恢复；当前 fixture-contract 通过不能替代它。
 3. Holdout 保持密封，直到基线与最终候选均冻结后只比较一次。
 

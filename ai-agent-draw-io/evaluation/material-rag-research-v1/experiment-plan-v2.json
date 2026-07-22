@@ -87,7 +87,8 @@
     "secondCandidateFingerprint": "evidence-focused-v1:han-aware-direct-source-evidence-prefix",
     "secondCandidateUsesGoldOrExpectedAnswer": false,
     "secondCandidateChanges": "query text only",
-    "nextCandidate": "run original-v1 vs evidence-focused-v1 with dense and flat chunks fixed"
+    "secondCandidateDecision": "retain original-v1; evidence-focused recallAt10 delta -0.0194 and mrrAt10 delta -0.0488 regressed",
+    "nextCandidate": "E4 deduplication and source diversity with original dense flat baseline"
   },
   "preE0": {
     "minimumReviewedCasesBeforeComparison": 340,
@@ -108,9 +109,10 @@
     "E9_SAFETY_AND_RECOVERY"
   ],
   "progress": {
-    "completed": ["E0_BASELINE", "E1_REPRESENTATION", "E2_CHUNKING"],
-    "currentNext": "E3_RETRIEVAL",
+    "completed": ["E0_BASELINE", "E1_REPRESENTATION", "E2_CHUNKING", "E3_RETRIEVAL"],
+    "currentNext": "E4_DEDUPLICATION",
     "e2Decision": "retain flat-leaf-v1; parent-context-500-v1 recallAt10 delta 0.0000 did not meet +0.02 and mrrAt10 delta -0.0618 regressed",
-    "e3FirstCandidateDecision": "retain dense-v1; projection hybrid recallAt10 delta 0.0065 did not meet +0.02"
+    "e3FirstCandidateDecision": "retain dense-v1; projection hybrid recallAt10 delta 0.0065 did not meet +0.02",
+    "e3SecondCandidateDecision": "retain original-v1; evidence-focused recallAt10 delta -0.0194 and mrrAt10 delta -0.0488 regressed"
   }
 }

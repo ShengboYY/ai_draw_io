@@ -151,6 +151,22 @@
   单独测试 query rewrite；后续 lexical 只能考虑意图门控/重排,不能无条件以 1.2 权重融合。
 - 详见 [2026-07-22-e3-projection-hybrid-vs-dense.md](2026-07-22-e3-projection-hybrid-vs-dense.md)。
 
+### E3 — original vs evidence-focused query · 2026-07-22 · ❌不晋级
+
+- **假设**:不猜答案,只把问题改写成寻找直接 source evidence 的指令,可缩小抽象 query 与证据段落的
+  表述差距。中文/英文各用同语言固定前缀,不读取 gold、答案、类别或文档语言。
+- **控制变量**:提交 `cf22d679`、Development 155 例、E1 canonical、flat leaf、dense-only、533
+  chunks、同一次 passage index、`multilingual-e5-large`、top 40、固定 gold child;唯一变量是 query text。
+  Validation/Holdout 未打开,运行后删除 533 个向量。
+- **结果**:original→evidence-focused 的 R@1 **0.600→0.548**、R@5 **0.877→0.826**、R@10
+  **0.890→0.871**、R@40 0.961→0.961、MRR **0.720→0.671**。R@1、R@5、MRR 的退化区间
+  均不跨 0;R@10 差值 -0.019(95% CI [-0.052,0.013])。
+- **切片**:retrieval-decision +0.036,但 Chinese -0.043、table -0.040、failure -0.069、
+  version/authorization -0.056。通用前缀帮助抽象规则,却稀释了数值、故障和多证据 query 的具体词。
+- **决策**:**不晋级 `evidence-focused-v1`**,保留 original dense baseline。E3 的 hybrid 与 query rewrite
+  均无合格提升,按顺序进入 E4 去重/来源多样性。未来 rewrite 只能作为另行预注册的意图门控方案。
+- 详见 [2026-07-22-e3-evidence-focused-query-vs-original.md](2026-07-22-e3-evidence-focused-query-vs-original.md)。
+
 ---
 
 ## 当前状态与下一步
@@ -158,8 +174,8 @@
 - 已完成:E0 基线 → E1 表示层改进 → 核心集升级并冻结到 450 → Development 与 Validation
   配对重跑 → 守门最低数补齐并执行 fixture-contract。Validation 证明 E1 提升真实,也证明
   dense-only 尚未达门槛。
-- **下一步**:E3 首个 hybrid 候选未达到 +0.02,继续在 E3 里预注册一个单变量 query-rewrite 候选。
-  dense、flat chunk 保持冻结,Holdout 与 Validation 继续密封。
+- **下一步**:E3 hybrid 与 query rewrite 均未晋级,按预注册顺序进入 E4 去重/来源多样性。
+  original query、dense、flat chunk 保持冻结,Holdout 与 Validation 继续密封。
 
 ## 开放问题 / 待办
 
@@ -169,6 +185,7 @@
 - [x] E0/E1 在 450 Validation 配对复核——E1 的提升区间不跨 0,但绝对门槛未通过。
 - [x] E2 flat vs parent-context-500——R@10 +0.000、MRR -0.062,不晋级,转 E3。
 - [x] E3 projection hybrid——R@10 +0.006、R@40 +0.000,exact lookup 退化,不晋级。
+- [x] E3 evidence-focused query——R@10 -0.019、MRR -0.049,不晋级,转 E4。
 - [x] 英文切片小样本噪声——450 上 en(n=47)R@10 0.894,与其他语言接近,非真问题。
 - [ ] E6/E7(上下文选择、生成引用)尚未开跑。
 
