@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 from pathlib import Path
 
@@ -19,12 +20,14 @@ def build_prompt(task: dict, context: dict) -> str:
             f"{evidence['text']}{artifact}"
         )
     material = "\n\n".join(evidence_lines) or "(No material was retrieved.)"
+    input_xml = task.get("inputXml")
+    edit_material = f"\n\nExisting editable XML to modify:\n{input_xml}" if input_xml else ""
     return (
         "Return JSON only with keys xml and citations. xml must be editable draw.io XML "
         "using mxGraphModel/mxCell. citations must be an array of objects with anchorId, "
         "sourceVersion and page. Use only the material below; do not invent material-backed "
         "claims or citations.\n\n"
-        f"Task: {task['request']}\n\n"
+        f"Task: {task['request']}{edit_material}\n\n"
         f"Retrieved material:\n{material}"
     )
 
@@ -53,15 +56,22 @@ def build_bundles(tasks: list[dict], contexts: list[dict], split: str, arm: str)
         context = selected.get(task["taskId"])
         if context is None:
             raise ValueError(f"missing {arm} context for {task['taskId']}")
+        allowed_sources = set(task.get("allowedSourceVersions", [task.get("sourceVersion")]))
         for evidence in context.get("evidence", []):
-            if evidence["sourceVersion"] != task["sourceVersion"]:
+            if evidence["sourceVersion"] not in allowed_sources:
                 raise ValueError(f"out-of-scope evidence for {task['taskId']}")
+        prompt = build_prompt(task, context)
         bundles.append({
             "taskId": task["taskId"],
             "arm": arm,
-            "prompt": build_prompt(task, context),
+            "prompt": prompt,
+            "promptSha256": hashlib.sha256(prompt.encode()).hexdigest(),
             "evidence": context.get("evidence", []),
             "imagePaths": image_paths(context),
+            "imageSha256s": list(dict.fromkeys(
+                evidence["imageSha256"] for evidence in context.get("evidence", [])
+                if evidence.get("imageSha256")
+            )),
         })
     return bundles
 

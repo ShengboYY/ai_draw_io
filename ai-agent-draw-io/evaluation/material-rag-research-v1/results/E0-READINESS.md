@@ -40,6 +40,9 @@ Status: **READY**
 - PASS - `primaryCategoryLabelsValid`
 - PASS - `scenarioCategoryContextsValid`
 - PASS - `guardSuiteMinimumsMet`
+- PASS - `generationTasksValid`
+- PASS - `generationContextsValid`
 
 The corpus lock is frozen: core targets, guard-suite minimums, structural checks and
-independent review all pass. Validation comparisons may proceed; Holdout remains sealed.
+independent review all pass. Validation comparisons may proceed. The repository-visible
+legacy holdout has not been run here; the external final holdout is not yet materialized.

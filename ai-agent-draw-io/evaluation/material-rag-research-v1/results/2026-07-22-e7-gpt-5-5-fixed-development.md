@@ -7,13 +7,13 @@ Six frozen synthetic Development tasks were run with the fixed E7 evidence bundl
 | HTTP-successful model responses | 6/6 |
 | Parseable editable draw.io XML | 6/6 (100.0%) |
 | Frozen XML structure assertions | 6/6 (100.0%) |
-| Citation assertion: anchor + source version + page | 2/6 (33.3%) |
+| Required-citation contract: anchor + source version + page | 2/6 (33.3%) |
 | Full task completion | 2/6 (33.3%) |
 
 The visual request-route task (`dgt-dev-02`) and the V1-pinning task (`dgt-dev-04`) completed. The other four outputs had usable XML but missing or nonconforming citations. In particular, the scanned-workshop output cited generated cell IDs rather than the provided evidence anchor. The XML evaluator strips draw.io HTML formatting and matches required labels on word boundaries, so styling variations are accepted but `V1` cannot match `V10`.
 
 The first attachment attempt for the two image tasks returned HTTP 400 before a model response was created because the local artifact path was resolved relative to the wrong directory. They were retried once with the verified synthetic images attached; no text-only image task was scored.
 
-**Decision:** do not promote or open Validation. Required-citation contract conformance is 2/6, well below the plan's 0.90 citation-completeness target. This result does not measure claim-level citation completeness, citation precision, claim correctness, or faithfulness, so it cannot establish a general generation/citation failure. It is not an E6 context-selection result and says nothing about raw top-8 versus selected top-8 quality.
+**Decision:** do not promote or open Validation. Required-citation contract conformance is 2/6. This is a minimum output-contract failure, not a measurement of the plan's 0.90 claim-level citation-completeness target. Claim-level citation completeness, citation precision, claim correctness and faithfulness were not evaluated, so this run cannot establish a general generation/citation failure. It is not an E6 context-selection result and says nothing about raw top-8 versus selected top-8 quality.
 
-Raw normalized responses: `2026-07-22-e7-gpt-5-5-fixed-development-responses.json`; strict evaluator output: `2026-07-22-e7-gpt-5-5-fixed-development-evaluation.json`.
+Raw normalized responses: `2026-07-22-e7-gpt-5-5-fixed-development-responses.json`; historical strict evaluator output: `2026-07-22-e7-gpt-5-5-fixed-development-evaluation.json`; the same historical v1 task fixture with corrected metric naming: `2026-07-22-e7-gpt-5-5-fixed-development-historical-v1-tasks-evaluation-v2.json`. The old responses were never run against the active v2 edit tasks and are not compatible with those input-XML assertions.

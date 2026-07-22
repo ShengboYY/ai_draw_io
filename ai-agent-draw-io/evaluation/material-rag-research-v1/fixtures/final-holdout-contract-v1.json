@@ -1,0 +1,21 @@
+{
+  "schemaVersion": "material-rag-final-holdout-contract-v1",
+  "status": "not_materialized",
+  "purpose": "Protocol for the one-time final draw.io RAG comparison. Expected answers and task payloads must not be committed to this repository before release.",
+  "minimumTaskCount": 20,
+  "requiredTaskFamilies": [
+    "material_grounded_creation",
+    "structural_edit",
+    "layout_only_edit",
+    "visual_or_ocr_to_editable_xml",
+    "version_and_authorization_safe_edit",
+    "failure_and_recovery"
+  ],
+  "releaseRequirements": [
+    "An independent owner stores the payload outside the development repository.",
+    "Baseline and final candidate commits, task fixture hash, evaluator hash and model manifest are frozen before release.",
+    "The payload is used once for the final paired comparison and is not used for further tuning.",
+    "Only the released payload hash and final aggregate result are committed afterward."
+  ],
+  "legacyHoldoutDisposition": "Repository-visible v1 holdout tasks and the 100 core holdout cases remain historical evaluation fixtures, but are not claimed as unseen final holdout data."
+}

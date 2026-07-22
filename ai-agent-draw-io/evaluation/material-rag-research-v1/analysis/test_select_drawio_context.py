@@ -17,3 +17,38 @@ class ContextSelectionTest(unittest.TestCase):
         ]
         selected = MODULE.select(candidates, limit=3)
         self.assertEqual(["a", "c", "b"], [value["chunkId"] for value in selected])
+
+    def test_compares_both_arms_and_passes_only_when_context_changes(self):
+        raw = {"metrics": {"caseResults": [{
+            "caseId": "multi-source",
+            "fixedGoldChunkIdsByAnchor": {"gold-a": ["c"]},
+            "candidates": [
+                {"chunkId": "a", "sourceVersion": "one"},
+                {"chunkId": "b", "sourceVersion": "one"},
+                {"chunkId": "c", "sourceVersion": "two"},
+            ],
+        }]}}
+
+        result = MODULE.compare(raw, limit=2, minimum_change_rate=0.2)
+
+        self.assertTrue(result["effectiveExperiment"])
+        self.assertEqual(["a", "b"], [value["chunkId"] for value in result["bundles"][0]["controlContext"]])
+        self.assertEqual(["a", "c"], [value["chunkId"] for value in result["bundles"][0]["candidateContext"]])
+        self.assertEqual(0.0, result["metrics"]["controlMeanGoldEvidenceRecall"])
+        self.assertEqual(1.0, result["metrics"]["candidateMeanGoldEvidenceRecall"])
+        self.assertEqual([1.0, 1.0], result["metrics"]["pairedGoldEvidenceRecallDelta95CI"])
+
+    def test_marks_single_source_no_op_as_ineffective(self):
+        raw = {"metrics": {"caseResults": [{
+            "caseId": "single-source",
+            "fixedGoldChunkIdsByAnchor": {},
+            "candidates": [
+                {"chunkId": "a", "sourceVersion": "one"},
+                {"chunkId": "b", "sourceVersion": "one"},
+            ],
+        }]}}
+
+        result = MODULE.compare(raw, limit=2)
+
+        self.assertFalse(result["effectiveExperiment"])
+        self.assertEqual(0, result["changedCaseCount"])

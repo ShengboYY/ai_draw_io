@@ -1,0 +1,33 @@
+{
+  "schemaVersion": "material-rag-generation-run-manifest-v1",
+  "qualification": "diagnostic",
+  "formalEligible": false,
+  "split": "development",
+  "gitCommit": "d019832f",
+  "corpusLockSha256": null,
+  "taskFixtureSha256": "76cd0285b4418257121f452a801d8e1a04f9ab2a9646986fbdd09d876062a160",
+  "promptBundlesSha256": "37216f2f0877b8f64231f83935fe279942127db5fcf8fc9dfe1908f700bc9752",
+  "responsesSha256": "214caaaf4f5317beb33566b046af34a566f393dc2aec31323570641c89e35a15",
+  "model": {
+    "provider": "OpenAI",
+    "name": "gpt-5.5",
+    "endpointFingerprint": null
+  },
+  "requestParameters": null,
+  "taskIds": [],
+  "calls": [],
+  "artifacts": [
+    {"role": "taskFixture", "path": "fixtures/drawio-generation-tasks-v1.json", "sha256": "76cd0285b4418257121f452a801d8e1a04f9ab2a9646986fbdd09d876062a160"},
+    {"role": "promptBundles", "path": "results/2026-07-22-e7-fixed-development-prompt-bundles.json", "sha256": "37216f2f0877b8f64231f83935fe279942127db5fcf8fc9dfe1908f700bc9752"},
+    {"role": "responses", "path": "results/2026-07-22-e7-gpt-5-5-fixed-development-responses.json", "sha256": "214caaaf4f5317beb33566b046af34a566f393dc2aec31323570641c89e35a15"},
+    {"role": "evaluation", "path": "results/2026-07-22-e7-gpt-5-5-fixed-development-evaluation.json", "sha256": "992d9455a8dff1ce910c9e4ba66cc1d17aef84f1d8d56ed50fe3f605f4155538"}
+  ],
+  "missingFormalFields": [
+    "corpusLockSha256",
+    "model.endpointFingerprint",
+    "requestParameters",
+    "taskIds",
+    "per-call request identifier, attempts, prompt hash, token usage and latency"
+  ],
+  "note": "Backfilled from preserved artifacts. This records the historical pilot honestly but cannot upgrade it to a formal reproducible model run."
+}

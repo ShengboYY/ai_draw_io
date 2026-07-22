@@ -45,6 +45,20 @@
     "citationCompleteness": 0.90,
     "unauthorizedOrWrongVersionCitations": 0
   },
+  "citationMeasurement": {
+    "requiredCitationContractMetric": "requiredCitationContractRate",
+    "requiredCitationContractIsClaimCompleteness": false,
+    "claimReviewSchema": "material-rag-claim-review-v1",
+    "minimumDistinctReviewers": 2,
+    "requiresAdjudicationMethod": true,
+    "requiresExactFrozenTaskAndClaimCoverage": true
+  },
+  "holdoutGovernance": {
+    "repositoryHoldoutRole": "legacy evaluation split; not claimed as unseen",
+    "externalFinalHoldoutContract": "fixtures/final-holdout-contract-v1.json",
+    "externalFinalHoldoutStatus": "not_materialized",
+    "releasePolicy": "release once after baseline, candidate, evaluator and run manifest are frozen"
+  },
   "statistics": {
     "confidenceLevel": 0.95,
     "pairedBootstrapSamples": 10000,
@@ -138,7 +152,7 @@
     "developmentUnmountedLeakagePositions": 0,
     "validationRun": false,
     "decision": "retain ranked-raw-v1; source-diversity-v1 evidence Recall@10 delta -0.0385 exceeded the allowed -0.02 loss despite improved source coverage",
-    "status": "completed; candidate not promoted, Validation and Holdout sealed"
+    "status": "completed; candidate not promoted, Validation and repository legacy holdout not run"
   },
   "e5Reranking": {
     "baselineMode": "none-v1",
@@ -161,7 +175,32 @@
     "developmentPromptTokens": 603561,
     "developmentCompletionTokens": 14558,
     "decision": "retain none-v1; DeepSeek V4 Pro accepted JSON rate 5/155 was below the required 95% and Recall@10 gain was 0.0",
-    "status": "completed; candidate not promoted, Validation and Holdout sealed"
+    "status": "completed; candidate not promoted, Validation and repository legacy holdout not run"
+  },
+  "e6ContextSelection": {
+    "phase": "E6a selector effectiveness",
+    "caseProfile": "e4-chartbook-v1",
+    "developmentCases": 26,
+    "baselineMode": "raw-top8",
+    "candidateMode": "chunk-id-dedup-source-aware-top8-v1",
+    "minimumChangedCaseRate": 0.20,
+    "changedCaseRate": 1.0,
+    "controlMeanGoldEvidenceRecall": 0.5096153846153846,
+    "candidateMeanGoldEvidenceRecall": 0.5673076923076923,
+    "pairedGoldEvidenceRecallDelta95CI": [0.0, 0.1346153846153846],
+    "controlMeanSourceCount": 2.4615384615384617,
+    "candidateMeanSourceCount": 3.9615384615384617,
+    "decision": "valid contrast check; source coverage improved, recall direction descriptive only; no generation promotion claim",
+    "next": "export task-level paired control/candidate hydration for active v2 Development tasks"
+  },
+  "e7Generation": {
+    "activeTaskFixture": "fixtures/drawio-generation-tasks-v2.json",
+    "activeDevelopmentTasks": 6,
+    "activeValidationTasks": 3,
+    "requiresInputXmlAndEditAssertionsForEditTasks": true,
+    "requiresFormalRunManifest": "material-rag-generation-run-manifest-v1",
+    "historicalFixedRunQualification": "diagnostic; v1 tasks only; not compatible with active v2 edit assertions",
+    "next": "paired Development generation only after E6b hydration and manifest freeze"
   },
   "preE0": {
     "minimumReviewedCasesBeforeComparison": 340,
@@ -183,13 +222,15 @@
   ],
   "progress": {
     "completed": ["E0_BASELINE", "E1_REPRESENTATION", "E2_CHUNKING", "E3_RETRIEVAL", "E4_DEDUPLICATION", "E5_RERANKING"],
-    "currentNext": "E6_CONTEXT_SELECTION",
+    "currentNext": "E6B_E7_PAIRED_DEVELOPMENT",
     "e2Decision": "retain flat-leaf-v1; parent-context-500-v1 recallAt10 delta 0.0000 did not meet +0.02 and mrrAt10 delta -0.0618 regressed",
     "e3FirstCandidateDecision": "retain dense-v1; projection hybrid recallAt10 delta 0.0065 did not meet +0.02",
     "e3SecondCandidateDecision": "retain original-v1; evidence-focused recallAt10 delta -0.0194 and mrrAt10 delta -0.0488 regressed",
     "e4FirstCandidateDecision": "retain ranked-raw-v1; evidence-dedup activation 2.72% on Development but 0.25% on Validation",
     "e4SecondCandidateDecision": "retain ranked-raw-v1; source-diversity-v1 improved mounted coverage@10 by 0.1731 but evidence recallAt10 delta -0.0385 violated the -0.02 gate",
     "e4Status": "completed: neither single-source deduplication nor multi-source fixed-cap diversity qualified",
-    "e5Status": "completed: DeepSeek V4 Pro listwise reranker accepted JSON for 5/155 cases and Recall@10 gain was 0.0; not promoted"
+    "e5Status": "completed: DeepSeek V4 Pro listwise reranker accepted JSON for 5/155 cases and Recall@10 gain was 0.0; not promoted",
+    "e6aStatus": "completed: 26/26 contexts changed; source coverage improved; recall interval touched zero; no promotion claim",
+    "e7Status": "historical fixed-context v1 run remains diagnostic; active v2 paired run not started"
   }
 }

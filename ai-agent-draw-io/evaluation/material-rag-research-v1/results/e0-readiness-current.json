@@ -103,7 +103,9 @@
     "reviewLedgerReferencesKnownCases": true,
     "primaryCategoryLabelsValid": true,
     "scenarioCategoryContextsValid": true,
-    "guardSuiteMinimumsMet": true
+    "guardSuiteMinimumsMet": true,
+    "generationTasksValid": true,
+    "generationContextsValid": true
   },
   "details": {
     "duplicateCaseIds": [],
@@ -120,6 +122,8 @@
     "missingExpectedAnswers": [],
     "missingAbstentionConditions": [],
     "splitLeakage": {},
-    "unknownReviewedCaseIds": []
+    "unknownReviewedCaseIds": [],
+    "generationTaskErrors": [],
+    "generationContextErrors": []
   }
 }

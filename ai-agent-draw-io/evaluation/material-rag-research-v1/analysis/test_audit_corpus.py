@@ -85,6 +85,21 @@ class AuditCorpusTest(unittest.TestCase):
 
 class GenerationTaskAuditTest(unittest.TestCase):
 
+    def test_rejects_edit_task_without_input_or_preservation_assertions(self) -> None:
+        task = {
+            "taskId": "task-1", "split": "development", "type": "structural_edit",
+            "sourceVersion": "source-a:v1", "requiredAnchors": ["anchor-a"],
+            "citationAssertions": {"mustCiteAnchors": ["anchor-a"]},
+            "claimAssertions": {"requiredClaims": [{"claimId": "claim-1", "description": "Claim",
+                                                       "requiresCitation": True}]},
+        }
+        anchors = {"anchor-a": {"source": "source-a", "version": "v1", "split": "development"}}
+
+        errors = generation_task_errors([task], anchors, {"source-a:v1"})
+
+        self.assertEqual(["edit task has no input XML", "edit task has no edit assertions"],
+                         [error["error"] for error in errors])
+
     def test_rejects_anchor_from_another_source_or_split(self) -> None:
         task = {
             "taskId": "task-1",

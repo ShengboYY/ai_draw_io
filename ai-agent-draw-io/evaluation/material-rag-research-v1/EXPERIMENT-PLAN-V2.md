@@ -26,10 +26,14 @@
 |---|---:|---|
 | Development | 250 | 调试、分析、选择候选方案 |
 | Validation | 100 | 从候选中选择晋级方案 |
-| Holdout | 100 | 只比较冻结基线和最终方案 |
+| Legacy holdout | 100 | 仓库内冻结的历史评估分区；不再声称对开发者不可见 |
 
 340 个完成独立复核的案例可以开始正式比较，完成结论必须冻结全部 450 个核心案例。
 旧的 38/240 案例结果只保留为历史基线，不用于当前 v-next 的晋级结论。
+
+真正的一次性 final holdout 不把题目或答案提交到开发仓库，由独立保管人按
+`fixtures/final-holdout-contract-v1.json` 在基线、候选、评测器和运行 manifest 全部冻结后释放。
+仓库里的 legacy holdout 可做回归或历史比较，但不能支撑“完全未见数据”的最终结论。
 
 必须先按 document family、version family 和 fact family 分组，再划分数据集，最后生成
 问题。相同资料、不同版本及同一事实的改写不能跨分区。
@@ -153,6 +157,11 @@ Evidence Group Recall 和 Complete Evidence Rate，并记录：
 - Citation completeness：需要引用的 claim 是否都有引用。
 - Citation location accuracy：页码、区域和版本是否正确。
 
+任务预先指定的 required anchor/source version/page 全部出现，只记作
+`requiredCitationContractRate`。它是机器可执行的最低输出契约，不等于 claim-level Citation
+completeness 或 precision；后两者只有在逐条 atomic claim 独立复核后才报告。没有 claim review 时，
+结果必须明确写 `claimMetricsStatus=not_evaluated`，不得用契约分数代替完整引用质量。
+
 建议门限：
 
 - Claim correctness >= 0.90。
@@ -231,11 +240,13 @@ Pre-E0 已完成：450 个核心案例、独立复核、三分区和语料 prove
 Validation 配对复核与守门 fixture-contract 也已完成；E2 parent-context-500 的 Development
 Recall@10 与 flat 持平,MRR@10 低 0.062,未晋级。当前顺序：
 
-1. E4 已完成：E4a 单资料 `evidence-dedup-v1` 在 Validation 的生效率仅 0.25%，不晋级；E4b 真正的
-   多资料图册挂载实验使来源覆盖改善，但 evidence Recall@10 降低 0.038，超过 0.02 的硬门槛，亦不晋级。
-   下一步是 E5 reranking；`ranked-raw-v1` 保持冻结。
+1. E4/E5 已完成且候选均未晋级；`ranked-raw-v1` 保持冻结。E6a 已在 26 个冻结的多资料
+   Development case 上验证 source-aware selector：26/26 上下文发生变化，gold-evidence recall
+   0.5096→0.5673，平均来源数 2.46→3.96。下一步是为 active v2 generation tasks 导出成对的
+   task-level control/candidate hydration，再运行 E6b/E7 Development。
 2. 后续 E9 必须执行在线授权、版本、故障注入与恢复；当前 fixture-contract 通过不能替代它。
-3. Holdout 保持密封，直到基线与最终候选均冻结后只比较一次。
+3. Validation 暂不打开。仓库可见的 legacy holdout 不再用于“未见最终结论”；外部 final holdout
+   按独立保管协议只释放一次。
 
 E2 的 parent-child 方案在运行前固定如下：flat 控制组嵌入 child chunk 的 `retrievalText`；
 parent-child 候选组仍以同一个 child chunk ID 检索和计分，但优先嵌入该 child 已持久化的
@@ -338,16 +349,24 @@ governance），Holdout 27 例（agent recovery runbook）。资料家族不跨 
 不再单独决定 draw.io 功能晋级。下一批 fixture 将补充资料驱动的制图、结构编辑、图/扫描件转可编辑 XML 与
 citation-bound 输出；在此之前，先对既有 `drawio-core-v1` 重跑 dense/E1 基线。
 
-生成层补充：`fixtures/drawio-generation-tasks-v1.json` 冻结 12 个端到端任务（Development 6、Validation 3、
-Holdout 3），覆盖资料驱动制图、结构编辑、版本安全编辑、扫描件转可编辑 XML、权限安全编辑、故障恢复图与
-citation-bound 输出。每个任务声明 source version、必需 evidence anchor、最小 XML vertices/edges/labels 和
-必需 citations；它们将作为 E7/E8 的主质量集，而不是混入纯 retrieval Recall 分母。
+生成层补充：`fixtures/drawio-generation-tasks-v1.json` 作为历史 12-task fixture 保留；其中 repository-visible
+holdout 不再充当 final unseen set。active `drawio-generation-tasks-v2.json` 只含 Development/Validation，且
+结构编辑、版本安全、布局、权限与 citation-bound edit 都提供模型可见的 input XML。评测器另行检查稳定 cell ID、
+受保护 label/attribute、指定修改、禁止 edge 和两列 geometry；这些 evaluator-only assertions 不进入 prompt。
 
-E6 预注册：在扩充后的 `drawio-core` 上，控制组使用 E1 dense top-40 的原始 rank 前 8 条；候选只改变
-context selection，先按 evidence 去重、再以 source-aware coverage 选择最多 8 条，并保留每条的 chunk ID 与
-source citation。检索、授权过滤、gold、生成模型和输出 XML 评估器全部冻结。Development 需同时满足：引用
-支持率不下降、draw.io XML 可解析率不下降、任务完成率至少 +0.02，且无 n>=20 主要切片显著退化，才打开
-Validation；Holdout 保持密封。
+E6 修订预注册分两步。E6a 只判断 selector 是否形成有效实验臂：复用冻结的 26 个 E4b 多资料 Development
+retrieval pool，控制组为 raw top-8，候选先按完全相同 chunk ID 去重、再做 source-aware top-8。当前 raw
+并未携带所有 candidate 的 Evidence ID，因此 E6a 不声称执行 Evidence-level dedup。至少 20% case 的 chunk 顺序或
+集合必须变化，否则实验直接判无效，不进入质量解释。E6a 已达到 26/26，并报告 anchor-level gold-evidence recall
+和来源覆盖；旧 47-case 单资料导出因 47/47 两臂相同而退役为 negative diagnostic。
+
+E6b/E7 才做生成比较：先为同一批 v2 task 导出一一对应的 hydrated control/candidate context，冻结 task、context、
+prompt bundle、model/request 参数和完整 run manifest。检索、授权过滤、gold、模型和输出评测器保持一致，只改变
+context selection。Development 比较 XML parse、edit assertions、required citation contract 与经独立 claim review
+得到的 answer completeness/citation completeness/precision/correctness/faithfulness；claim review 必须由
+两名不同的具名 reviewer 逐 task 覆盖 v2 fixture 冻结的全部 required claim ID，并记录仲裁方法；评测器拒绝
+缺 task、重复或挑选 claim。当前样本少于 20 时只报 exact paired case 结果，不作
+n>=20 slice 推断；满足预注册门槛后才打开 Validation。
 
 E6/E7 接线约束：实际传给生成模型的每条 context 必须保留 chunk 的正文或可验证视觉/OCR artifact、anchor ID、
 source version 和页码/区域。任务的 XML 断言、required anchor 和 expected answer 只能由评测器读取，不能进入

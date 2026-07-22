@@ -1,4 +1,5 @@
 import importlib.util
+import hashlib
 import unittest
 from pathlib import Path
 
@@ -34,6 +35,20 @@ class DrawioGenerationPromptTest(unittest.TestCase):
         self.assertIn("route-a | architecture:v1 | page 3", prompt)
         self.assertIn("SCOPE SOURCES is followed by RETRIEVE EVIDENCE.", prompt)
         self.assertNotIn("PRIVATE EXPECTED LABEL", prompt)
+
+    def test_includes_existing_xml_but_keeps_edit_assertions_private(self):
+        task = {
+            "taskId": "edit",
+            "request": "Change only the fact node.",
+            "inputXml": "<mxGraphModel><root><mxCell id='fact' value='old'/></root></mxGraphModel>",
+            "editAssertions": {"requiredCellValues": {"fact": "PRIVATE NEW VALUE"}},
+        }
+
+        prompt = MODULE.build_prompt(task, {"evidence": []})
+
+        self.assertIn("Existing editable XML to modify", prompt)
+        self.assertIn("id='fact'", prompt)
+        self.assertNotIn("PRIVATE NEW VALUE", prompt)
 
     def test_builds_only_the_requested_split_and_arm(self):
         tasks = [
@@ -72,6 +87,7 @@ class DrawioGenerationPromptTest(unittest.TestCase):
 
         self.assertIn("Attached visual artifact", bundle["prompt"])
         self.assertEqual(["fixtures/generated/images/route.png"], bundle["imagePaths"])
+        self.assertEqual(hashlib.sha256(bundle["prompt"].encode()).hexdigest(), bundle["promptSha256"])
 
 
 if __name__ == "__main__":

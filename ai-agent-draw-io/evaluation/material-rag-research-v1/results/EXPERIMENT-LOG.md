@@ -13,7 +13,8 @@
 - **单变量**:一次只改一处,其余全冻结,这样提升能干净归因。
 - **干净基线**:跑某实验前,把不属于该实验的在途改动 `git stash` 掉,保证 pipeline 纯净。
 - **门槛**(dense 文本检索,来自 plan §3.2):Recall@10 ≥ 0.90、Recall@40 ≥ 0.95、MRR@10 ≥ 0.75。
-- **数据集划分**:development 调试/选型,validation 复核晋级,holdout 只在冻结后比较一次。
+- **数据集划分**:development 调试/选型,validation 复核晋级。仓库可见的 legacy holdout 只作历史评估；
+  真正 final holdout 由独立保管人按 contract 在全部冻结后释放一次。
 - **切片**:不只看总分,按语言/类别切片看,防止「整体赢、局部退化」。240 语料上切片 n=8~44 时结论不稳
   (E1 validation 曾出现噪声性「退化」);**升级到 450 后 dev 切片 n=20~110,per-slice 已可信**。
 - **真实检索**:live Pinecone(integrated `multilingual-e5-large`, dim 1024),真索引真查询,
@@ -31,7 +32,7 @@
 ## 语料与基线状态
 
 - **核心集**:**450**(数据集 v-next),三维精确命中(split 250/100/100、9 类别各 50、语言 zh193/en161/cross96),
-  17 项结构检查全 PASS,双人复核(AI 首轮 + 人工确认),**E0 lock FROZEN**。语言比例按数据集实际构成
+  19 项结构检查全 PASS,双人复核(AI 首轮 + 人工确认),**E0 lock FROZEN**。语言比例按数据集实际构成
   (中文场景文档偏多)定,每语言仍远超 per-slice 所需。
 - **数据集 240→450 升级**:每类 case 补到 ≥50 以让 per-slice 统计可信(validation 曾证明 n=8~44 时切片结论
   不稳)。新增 5 篇跨领域 digital 文档 + 2 篇扫描件(补 ocr),用 ILP + `query-selection.json` 精确削减到 450。
@@ -270,14 +271,38 @@
 - 已冻结 6 个 Development prompt bundle：每条证据保留 anchor、source version、页码和摘要；架构流程与
   扫描工作流两个任务分别附带原始视觉流程图、扫描页 artifact path。
 - fixture-contract 验证 context anchor 与任务完全一致、来源版本/页码可解析，且 prompt 不含 XML assertion
-  或 expected answer。模型 6/6 返回可解析 draw.io XML，结构断言也为 6/6；但严格 citation（anchor、版本、页码）
-  只有 2/6，完整任务为 2/6=33.3%。
+  或 expected answer。模型 6/6 返回可解析 draw.io XML，历史 v1 结构断言也为 6/6；但 required citation
+  contract（anchor、版本、页码）只有 2/6，历史 v1 contract-completion 为 2/6=33.3%。
 - 两个视觉/OCR 任务均只在成功附带合成图片后计分；第一次路径错误产生的 HTTP 400 在模型返回前终止，随后各重试一次。
-- **决策**:必需引用契约符合率为 2/6，远低于计划的 0.90 citation-completeness 目标，故不晋级、不打开
-  Validation。该评分尚未逐条评估 claim-level completeness、citation precision、claim correctness 或
+- **决策**:必需引用契约符合率为 2/6，说明最低输出契约未稳定满足，故该诊断 run 不晋级、不打开
+  Validation；不能把 2/6 与计划的 claim-level 0.90 citation-completeness 门槛直接比较。该评分尚未逐条评估
+  claim-level completeness、citation precision、claim correctness 或
   faithfulness，因此不能外推为一般性的生成/引用失败。实验只测固定 context 下的 E7 生成/引用，**不是**
-  E6 的 raw-top8 对 candidate-top8 比较；Holdout 继续密封。
+  E6 的 raw-top8 对 candidate-top8 比较；仓库内 legacy holdout 未运行。
 - 详见 [2026-07-22-e7-gpt-5-5-fixed-development.md](2026-07-22-e7-gpt-5-5-fixed-development.md)。
+
+### E6/E7 pre-next-stage hardening · 2026-07-22 · ✅本地评测契约已修正
+
+- **E6 有效实验臂**:复核发现旧 `e6-drawio-core` 的 47 个单资料 case 上 control/candidate 47/47
+  完全相同，故明确退役为 negative diagnostic。E6a 改用已冻结的 26 个 E4b 多资料 Development pool；
+  26/26 context 改变，anchor-level gold-evidence recall 0.5096→0.5673，平均来源数 2.46→3.96，超过
+  20% effectiveness gate。recall 配对 95% 区间 [0.0000, 0.1346] 触及 0，故只作描述性方向；来源数
+  delta 区间 [1.1923, 1.8077]。该结果证明 selector 有效且来源覆盖改善，不冒充晋级或生成实验。
+- **真实 draw.io edit**:新增 active v2 任务；结构编辑、版本 pin、两列布局、Reviewer 权限和临时 reviewer
+  任务均带 input draw.io XML，并以 stable cell ID、保留 label/attribute、指定变更、禁止 edge 或 geometry
+  断言评分。v1 保留作历史数据；其中 repository-visible holdout 不再声称是 unseen final holdout。
+- **引用指标**:历史 2/6 重新定性为 `requiredCitationContractRate`，即必需 anchor+version+page 输出契约；
+  它不是 claim-level citation completeness/precision。新 evaluator 在没有人工 atomic-claim review 时明确输出
+  `claimMetricsStatus=not_evaluated`。
+- **运行可复现性**:新增 generation run manifest validator，formal run 必须记录 corpus/task/prompt/response
+  SHA-256、provider/model/endpoint、request 参数、冻结 task ID 全覆盖和逐 call request ID、prompt hash、
+  attempts、usage、latency。旧 GPT-5.5
+  fixed run 仅能回填部分字段，已保存为 `qualification=diagnostic, formalEligible=false`，不追溯伪造成 formal。
+- **分区治理**:新增外部 final-holdout contract（至少 20 个紧扣 draw.io 的 creation/edit/visual-OCR/
+  version-authorization/recovery task）；题目与答案在最终释放前不得进入本仓库。当前状态为
+  `not_materialized`，因此还不能声称已有真正盲测集。
+- **外部调用**:本轮只做本地 fixture、selector 与 evaluator；没有发送资料、没有调用模型、没有打开 Validation。
+- 详见 [2026-07-22-e6a-chartbook-context-selection.md](2026-07-22-e6a-chartbook-context-selection.md)。
 
 ---
 
@@ -286,9 +311,9 @@
 - 已完成:E0 基线 → E1 表示层改进 → 核心集升级并冻结到 450 → Development 与 Validation
   配对重跑 → 守门最低数补齐并执行 fixture-contract。Validation 证明 E1 提升真实,也证明
   dense-only 尚未达门槛。
-- **下一步**:E6 selector 与 E7 evaluator 已实现；把 control/candidate context bundle 接入 generation prompt，
-  在 Development 做首次可比的 E6/E7 联合测试。original query、dense、flat chunk 和 `ranked-raw-v1`
-  保持冻结，Holdout 继续密封。
+- **下一步**:为 active v2 Development task 导出一一对应的 multimodal control/candidate hydration；先验证
+  task 覆盖完整、两臂变化率和 artifact hash，再冻结 prompt bundles 与 formal run manifest。获得新的明确授权后，
+  才向同一模型发送 Development，做首次可比的 E6b/E7 paired generation；Validation 暂不打开。
 
 ## 开放问题 / 待办
 
@@ -304,7 +329,10 @@
 - [x] 英文切片小样本噪声——450 上 en(n=47)R@10 0.894,与其他语言接近,非真问题。
 - [x] E6 selector 与 E7 XML/citation evaluator——已实现，并完成一次仅 Development 的 response-contract pilot；
   该 pilot 不含证据正文，不能作为 E6/E7 质量结论。
-- [ ] E6/E7 evidence-grounded control/candidate Development 比较——待把冻结 context bundle 注入 generation prompt。
+- [x] E6a 多资料 selector effectiveness——26/26 context 改变，retrieval 指标已记录；不含模型调用。
+- [x] active v2 真实 edit fixture、引用指标分层与 generation-run manifest contract。
+- [ ] E6b/E7 evidence-grounded control/candidate Development 比较——待导出与 v2 task 一一对应的 paired hydration。
+- [ ] 外部 final holdout——contract 已定，payload 尚未由独立保管人生成和隔离。
 
 ## 如何跑一个实验(运行手册)
 

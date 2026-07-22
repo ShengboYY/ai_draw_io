@@ -70,8 +70,10 @@ cross-language cases. Together with the 14 pinned open-document cases, 736 cases
 
 `fixtures/generated/corpus-manifest.json` records each generated document family and its preassigned
 Development, Validation, Holdout or guard-suite split. Questions from one family never cross splits.
-Validation and Holdout questions and corpus hashes are frozen. Validation may be used for promotion;
-Holdout remains sealed until the baseline and final candidate are both frozen.
+Validation questions and corpus hashes are frozen and may be used for promotion. The repository-visible
+`holdout` split is retained for historical evaluation but is no longer described as unseen: developers and
+agents can inspect it. A genuine one-time final holdout must be stored outside this repository and released
+under `fixtures/final-holdout-contract-v1.json` only after the baseline, candidate and evaluators are frozen.
 
 ### E0 readiness
 
@@ -122,6 +124,12 @@ those behaviors are executed at their corresponding later experiment stages.
 | Hydration | Recall@16, object-read success | Detects timeout and missing-artifact loss |
 | Final bundle | evidence Recall@8, facet coverage | Measures actual context delivered to the model |
 | Answer/citation | claim support and citation precision | Measures grounded answer quality |
+
+The machine-checkable presence of each task's required anchor, source version and page is reported as
+`requiredCitationContractRate`. It is not citation completeness. Full citation completeness, precision,
+answer completeness, claim correctness and faithfulness remain `not_evaluated` until two distinct named
+reviewers cover every frozen `claimAssertions.requiredClaims` ID exactly once and record their adjudication
+method. The evaluator rejects missing tasks, cherry-picked or duplicate claims, and single-reviewer records.
 
 All aggregate recall results must include Wilson or bootstrap 95% confidence intervals and per-slice
 counts. A single total score is not accepted.
@@ -231,9 +239,47 @@ The runner rejects missing settings, keeps only returned IDs already present in 
 invalid or omitted IDs in dense order. The paired comparison uses `--variable-field rerankerMode` and rejects any
 top-80 retrieval-pool drift.
 
+### E6/E7 draw.io context and generation contracts
+
+The active task fixture is `fixtures/drawio-generation-tasks-v2.json`. Edit tasks include model-visible input
+draw.io XML; preservation/change assertions remain evaluator-only. First verify that a selector creates real arms:
+
+```bash
+python3 evaluation/material-rag-research-v1/analysis/select_drawio_context.py \
+  evaluation/material-rag-research-v1/results/2026-07-22-e4b-ranked-raw-development-raw.json \
+  --json-out evaluation/material-rag-research-v1/results/e6a-contexts.json \
+  --minimum-change-rate 0.2
+```
+
+The command exits non-zero when fewer than 20% of cases change. E6a is retrieval-only; do not map its 26 cases
+onto unrelated generation tasks. E6b requires separately exported task-level control and candidate hydration.
+Build prompt bundles only after every task has one frozen context in each arm:
+
+```bash
+python3 evaluation/material-rag-research-v1/analysis/build_drawio_generation_prompts.py \
+  --tasks evaluation/material-rag-research-v1/fixtures/drawio-generation-tasks-v2.json \
+  --contexts evaluation/material-rag-research-v1/results/e6b-paired-contexts.json \
+  --split development --arm candidate \
+  --json-out evaluation/material-rag-research-v1/results/e6b-candidate-prompts.json
+```
+
+Every external generation run must have a `material-rag-generation-run-manifest-v1`. Validate it before using
+the result for a formal comparison:
+
+```bash
+python3 evaluation/material-rag-research-v1/analysis/validate_generation_run_manifest.py \
+  evaluation/material-rag-research-v1/results/generation-run-manifest.json
+```
+
+A formal manifest records the exact commit, role-specific corpus/task/prompt/response artifacts and hashes,
+provider/model/endpoint, request parameters, and per-call attempts, request ID, prompt hash, usage and latency.
+The validator parses the task fixture, prompt bundles and responses to require exact task-ID coverage and checks
+each call's prompt hash against its frozen bundle. Backfilled historical manifests may be valid diagnostics but
+are never formal-eligible when these fields are unavailable.
+
 Generated-corpus retrieval defaults to `development`. Set `MATERIAL_RAG_RESEARCH_SPLIT` explicitly
 to `validation` for checkpointing. Use `holdout` only after the manifest status has been independently
-frozen; do not tune against either split.
+frozen; do not tune against either split. This legacy split still does not replace the external final holdout.
 
 Then load `.env` and run either the controlled or pinned open-PDF method:
 

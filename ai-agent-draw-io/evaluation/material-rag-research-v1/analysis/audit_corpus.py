@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import xml.etree.ElementTree as ET
 from collections import Counter, defaultdict
 from pathlib import Path
 
@@ -30,6 +31,7 @@ PROVENANCE_FILES = (
     "analysis/evaluate_guard_suites.py",
     "analysis/build_drawio_generation_prompts.py",
     "analysis/evaluate_drawio_generation_tasks.py",
+    "analysis/validate_generation_run_manifest.py",
     "analysis/evaluate_ocr.py",
     "analysis/select_drawio_context.py",
     "fixtures/generate_fixtures.py",
@@ -42,7 +44,9 @@ PROVENANCE_FILES = (
     "fixtures/e4_chartbook_specs.py",
     "fixtures/query-selection.json",
     "fixtures/drawio-generation-tasks-v1.json",
+    "fixtures/drawio-generation-tasks-v2.json",
     "fixtures/drawio-generation-development-evidence-v1.json",
+    "fixtures/final-holdout-contract-v1.json",
 )
 CATEGORY_CONTEXT_FIELDS = {
     "failure": (
@@ -109,13 +113,43 @@ def generation_task_errors(tasks: list[dict], anchors: dict[str, dict],
                            known_source_versions: set[str]) -> list[dict]:
     """Keep the generation suite tied to real, split-safe evidence before it is run."""
     errors: list[dict] = []
+    seen_task_ids: set[str] = set()
     for task in tasks:
         task_id = task.get("taskId", "unknown")
+        if task_id in seen_task_ids:
+            errors.append({"taskId": task_id, "error": "duplicate task ID"})
+        seen_task_ids.add(task_id)
         source_version = task.get("sourceVersion")
         if source_version not in known_source_versions:
             errors.append({"taskId": task_id, "error": "unknown source version"})
         if task.get("split") not in CORE_SPLITS:
             errors.append({"taskId": task_id, "error": "unknown split"})
+        if task.get("type", "").endswith("edit") or task.get("type") == "structural_edit":
+            input_xml = str(task.get("inputXml", "")).strip()
+            if not input_xml:
+                errors.append({"taskId": task_id, "error": "edit task has no input XML"})
+            if not task.get("editAssertions"):
+                errors.append({"taskId": task_id, "error": "edit task has no edit assertions"})
+            if input_xml:
+                try:
+                    root = ET.fromstring(input_xml)
+                except ET.ParseError:
+                    errors.append({"taskId": task_id, "error": "edit task input XML is malformed"})
+                else:
+                    if root.tag != "mxGraphModel":
+                        errors.append({"taskId": task_id, "error": "edit task input is not draw.io XML"})
+                    input_ids = {cell.get("id") for cell in root.iter("mxCell") if cell.get("id")}
+                    assertion = task.get("editAssertions", {})
+                    referenced_input_ids = set(assertion.get("preserveCellIds", []))
+                    referenced_input_ids.update(assertion.get("preserveCellValues", {}))
+                    referenced_input_ids.update(assertion.get("preserveCellAttributes", {}))
+                    referenced_input_ids.update(assertion.get("forbiddenCellIds", []))
+                    columns = assertion.get("columns", {})
+                    referenced_input_ids.update(columns.get("leftCellIds", []))
+                    referenced_input_ids.update(columns.get("rightCellIds", []))
+                    if not referenced_input_ids.issubset(input_ids):
+                        errors.append({"taskId": task_id,
+                                       "error": "edit assertion references a missing input cell"})
         required = set(task.get("requiredAnchors", []))
         cited = set(task.get("citationAssertions", {}).get("mustCiteAnchors", []))
         if required != cited:
@@ -128,6 +162,13 @@ def generation_task_errors(tasks: list[dict], anchors: dict[str, dict],
                     or anchor.get("split") != task.get("split"):
                 errors.append({"taskId": task_id, "anchorId": anchor_id,
                                "error": "anchor source or split mismatch"})
+        claims = task.get("claimAssertions", {}).get("requiredClaims", [])
+        claim_ids = [claim.get("claimId") for claim in claims]
+        if not claims or len(set(claim_ids)) != len(claim_ids) \
+                or any(not str(claim.get("claimId", "")).strip()
+                       or not str(claim.get("description", "")).strip()
+                       or not isinstance(claim.get("requiresCitation"), bool) for claim in claims):
+            errors.append({"taskId": task_id, "error": "invalid frozen claim universe"})
     return errors
 
 
@@ -199,7 +240,7 @@ def audit(root: Path, review_ledger: Path | None) -> tuple[dict, dict]:
     }
     anchor_by_id = {anchor["anchorId"]: anchor for anchor in anchors}
     generation_tasks = json.loads(
-        (root / "fixtures" / "drawio-generation-tasks-v1.json").read_text(encoding="utf-8")
+        (root / "fixtures" / "drawio-generation-tasks-v2.json").read_text(encoding="utf-8")
     )["tasks"]
     generation_contexts = json.loads(
         (root / "fixtures" / "drawio-generation-development-evidence-v1.json").read_text(encoding="utf-8")
@@ -502,7 +543,8 @@ def markdown_report(result: dict) -> str:
     if result["readyForE0Freeze"]:
         lines.extend([
             "The corpus lock is frozen: core targets, guard-suite minimums, structural checks and",
-            "independent review all pass. Validation comparisons may proceed; Holdout remains sealed.",
+            "independent review all pass. Validation comparisons may proceed. The repository-visible",
+            "legacy holdout has not been run here; the external final holdout is not yet materialized.",
             "",
         ])
     else:
