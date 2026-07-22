@@ -332,6 +332,18 @@
 - **未运行原因**:本机当前没有 Tesseract executable；而且本轮尚未取得针对这次新的 Pinecone Development trace 的
   运行授权。因此没有上传/删除向量、没有生成 trace、没有调用生成模型，也没有 token 消耗。
 
+### E6b real task hydration · 2026-07-23 · ❌输入 readiness gate 未通过
+
+- **执行**:在临时 `material-rag-e6b-dev-20260723` namespace 运行真实 PDFBox → Tesseract (`eng+chi_sim`) →
+  canonical evidence → Pinecone top-40；6/6 Development task 完成，59 个向量已在 finally cleanup 后删除。原始 trace
+  SHA-256 为 `aa24952b2720005615658503917e94bfd58c82fed83cd6c64fa68ac535a3f523`。
+- **失败一（视觉）**:`dgt-dev-02` 的 top-40 中没有 architecture source 的 page-3 candidate，因此 control/candidate
+  都不能携带必需的 request-route artifact；exporter 正确拒绝，未降级成 text-only。
+- **失败二（对照）**:source-aware top-8 只改变 `dgt-dev-05`，即 1/6 = 16.67%，低于预注册 20% changed-task gate。
+- **结论**:这是 input-readiness / representation failure，不是生成模型质量结论；没有 prompt、模型调用、token usage、
+  Validation 或晋级决定。下一步先改善不依赖 evaluator gold 的 architecture visual-route retrieval/hydration，再重跑
+  Development trace。详见 [2026-07-23-e6b-task-hydration-run.md](2026-07-23-e6b-task-hydration-run.md)。
+
 ---
 
 ## 当前状态与下一步
