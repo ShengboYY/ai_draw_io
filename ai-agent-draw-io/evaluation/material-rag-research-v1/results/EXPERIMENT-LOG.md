@@ -224,6 +224,13 @@
   保留 `none-v1`，Holdout 继续密封，下一步转 E6 或另行预注册不同 reranker 协议。
 - 详见 [2026-07-22-e5-deepseek-v4-pro-reranking.md](2026-07-22-e5-deepseek-v4-pro-reranking.md)。
 
+### E5b — GPT-5.5 listwise reranking · 2026-07-22 · ❌不晋级
+
+- **控制变量**:同 E5 的 155 Development case、E1 canonical、flat leaf、original query、dense top-80 与 top-40 成员；GPT-5.5 因 API 仅允许默认 temperature、使用 `max_completion_tokens`，单独记录为 E5b。
+- **结果**:有效 JSON 21/155=**13.55%**；R@10 与 R@40 均持平，MRR@10 +0.0129（95% 配对区间 [0.0032, 0.0258]）。
+- **决策**:未达到 95% JSON 可用性与 +0.02 R@10 门槛，**不运行 Validation**；exact-prefix cleanup 为 0，Holdout 密封。
+- 详见 [2026-07-22-e5b-gpt-5-5-reranking.md](2026-07-22-e5b-gpt-5-5-reranking.md)。
+
 ---
 
 ## 当前状态与下一步

@@ -331,3 +331,9 @@ E5 结果：使用 `deepseek-v4-pro` 的 Development 完整运行覆盖 155 例�
 0.7160→0.7209（+0.0048，95% 配对区间 [0.0000, 0.0145]），所有 n≥20 的主要 Recall@10 切片持平。
 因此不打开 Validation、不晋级 `llm-listwise-v1`，并继续密封 Holdout。完整结果、raw 与运行时 corpus-lock
 snapshot 见 `results/2026-07-22-e5-deepseek-v4-pro-reranking.md`。
+
+为使后续晋级反映 draw.io agent 的真实价值，新增 `fixtures/drawio-core-v1.json` 作为主指标集：Development
+93 例（architecture blueprint、workflow handbook、planning workshop scan），Validation 22 例（collaboration
+governance），Holdout 27 例（agent recovery runbook）。资料家族不跨 split；泛领域 case 保留为鲁棒性指标，
+不再单独决定 draw.io 功能晋级。下一批 fixture 将补充资料驱动的制图、结构编辑、图/扫描件转可编辑 XML 与
+citation-bound 输出；在此之前，先对既有 `drawio-core-v1` 重跑 dense/E1 基线。

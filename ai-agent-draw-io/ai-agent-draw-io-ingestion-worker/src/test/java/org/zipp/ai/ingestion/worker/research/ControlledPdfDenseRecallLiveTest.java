@@ -36,6 +36,7 @@ import java.security.MessageDigest;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.HexFormat;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -204,6 +205,7 @@ class ControlledPdfDenseRecallLiveTest {
         String caseProfile = System.getenv().getOrDefault("MATERIAL_RAG_CASE_PROFILE", "core-v1");
         List<ResearchCase> authoredCases = switch (caseProfile) {
             case "core-v1" -> cases(root);
+            case "drawio-core-v1" -> drawioCoreCases(root, researchSplit);
             case "e4-chartbook-v1" -> chartbookCases(root);
             default -> throw new IllegalArgumentException("Unknown case profile: " + caseProfile);
         };
@@ -1118,6 +1120,27 @@ class ControlledPdfDenseRecallLiveTest {
                     stringList(value, "goldSourceVersions")));
         }
         return List.copyOf(result);
+    }
+
+    /** Keeps promotion metrics tied to draw.io agent documents without crossing frozen families. */
+    private List<ResearchCase> drawioCoreCases(Path root, String split) throws Exception {
+        Set<String> families = switch (split) {
+            case "development" -> Set.of("drawio-agent-architecture-blueprint",
+                    "drawio-diagram-workflow-handbook", "drawio-planning-workshop-scan");
+            case "validation" -> Set.of("drawio-collaboration-governance");
+            case "holdout" -> Set.of("drawio-agent-recovery-runbook");
+            default -> throw new IllegalArgumentException("Unknown drawio-core split: " + split);
+        };
+        Set<String> caseIds = new HashSet<>();
+        try (Stream<String> lines = Files.lines(root.resolve("fixtures/generated/cases.jsonl"))) {
+            for (String line : lines.filter(value -> !value.isBlank()).toList()) {
+                JsonNode value = JSON.readTree(line);
+                if (families.contains(value.path("documentFamily").asText())) {
+                    caseIds.add(value.path("caseId").asText());
+                }
+            }
+        }
+        return cases(root).stream().filter(value -> caseIds.contains(value.caseId())).toList();
     }
 
     private List<String> stringList(JsonNode value, String field) {

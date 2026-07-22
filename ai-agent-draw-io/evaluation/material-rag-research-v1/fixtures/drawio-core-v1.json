@@ -1,0 +1,20 @@
+{
+  "schemaVersion": "material-rag-drawio-core-v1",
+  "purpose": "Primary promotion metric for draw.io-agent material RAG; general-domain cases remain robustness-only.",
+  "familiesBySplit": {
+    "development": [
+      "drawio-agent-architecture-blueprint",
+      "drawio-diagram-workflow-handbook",
+      "drawio-planning-workshop-scan"
+    ],
+    "validation": ["drawio-collaboration-governance"],
+    "holdout": ["drawio-agent-recovery-runbook"]
+  },
+  "expectedCaseCounts": {"development": 93, "validation": 22, "holdout": 27},
+  "gapsToAddBeforeGenerationEvaluation": [
+    "material-grounded diagram creation",
+    "existing diagram structural edit",
+    "diagram or scan to editable draw.io XML",
+    "citation-bound diagram output"
+  ]
+}
