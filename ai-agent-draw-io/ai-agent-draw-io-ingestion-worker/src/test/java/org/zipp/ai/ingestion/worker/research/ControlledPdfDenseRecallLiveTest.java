@@ -19,6 +19,7 @@ import org.zipp.ai.domain.ingestion.service.OcrSelectionPolicy;
 import org.zipp.ai.domain.retrieval.model.valobj.ChunkEvidenceRole;
 import org.zipp.ai.domain.retrieval.model.valobj.RetrievalChunkType;
 import org.zipp.ai.domain.retrieval.model.valobj.RetrievalIndexMode;
+import org.zipp.ai.domain.retrieval.port.RetryableRetrievalException;
 import org.zipp.ai.domain.retrieval.projection.RetrievalChunkBuilder;
 import org.zipp.ai.domain.retrieval.projection.RetrievalChunkProjection;
 import org.zipp.ai.domain.retrieval.projection.RetrievalEvidenceMapping;
@@ -32,6 +33,7 @@ import org.zipp.ai.ingestion.worker.document.MultilingualE5TokenCounter;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.MessageDigest;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HexFormat;
@@ -41,6 +43,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.function.Supplier;
 import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -137,6 +140,21 @@ class ControlledPdfDenseRecallLiveTest {
         RetrievalChunkProjection chunk = chunkWithParentContext("x".repeat(501));
 
         assertEquals("leaf text", ChunkMode.PARENT_CONTEXT_500.embeddingText(chunk));
+    }
+
+    @Test
+    void transientResearchCallShouldHonorABoundedRetry() throws Exception {
+        int[] attempts = {0};
+
+        String result = retryPinecone("test", 2, () -> {
+            if (attempts[0]++ == 0) {
+                throw new RetryableRetrievalException("rate limited", Duration.ZERO);
+            }
+            return "ok";
+        });
+
+        assertEquals("ok", result);
+        assertEquals(2, attempts[0]);
     }
 
     private RetrievalChunkProjection chunkWithParentContext(String parentContext) {
@@ -286,12 +304,19 @@ class ControlledPdfDenseRecallLiveTest {
         List<String> ids = new ArrayList<>();
         String token = null;
         do {
-            var page = client.listVectorIds(namespace, token, 100);
+            String currentToken = token;
+            var page = retryPinecone("list cleanup vectors", () ->
+                    client.listVectorIds(namespace, currentToken, 100));
             ids.addAll(page.vectorIds().stream().filter(value -> value.startsWith(cleanupPrefix)).toList());
             token = page.nextToken();
         } while (token != null);
         for (int start = 0; start < ids.size(); start += 100) {
-            client.delete(namespace, ids.subList(start, Math.min(start + 100, ids.size())));
+            int batchStart = start;
+            retryPinecone("delete cleanup vectors", () -> {
+                client.delete(namespace, ids.subList(
+                        batchStart, Math.min(batchStart + 100, ids.size())));
+                return null;
+            });
         }
         waitUntilDeleted(client, namespace, ids);
         System.out.println("Removed interrupted research vectors: " + ids.size());
@@ -325,7 +350,12 @@ class ControlledPdfDenseRecallLiveTest {
             }
             // Keep live experiments within Pinecone's request-size limits for long PDFs.
             for (int start = 0; start < records.size(); start += 100) {
-                client.upsert(namespace, records.subList(start, Math.min(start + 100, records.size())));
+                int batchStart = start;
+                retryPinecone("upsert research vectors", () -> {
+                    client.upsert(namespace, records.subList(
+                            batchStart, Math.min(batchStart + 100, records.size())));
+                    return null;
+                });
             }
             waitUntilSearchable(client, namespace, tenantKey, indexed, passageVectors);
             System.out.println("Research index is searchable: " + runId);
@@ -335,7 +365,12 @@ class ControlledPdfDenseRecallLiveTest {
         } finally {
             // Pinecone limits delete-by-id payloads, so large open PDFs must be cleaned in batches.
             for (int start = 0; start < vectorIds.size(); start += 100) {
-                client.delete(namespace, vectorIds.subList(start, Math.min(start + 100, vectorIds.size())));
+                int batchStart = start;
+                retryPinecone("delete research vectors", () -> {
+                    client.delete(namespace, vectorIds.subList(
+                            batchStart, Math.min(batchStart + 100, vectorIds.size())));
+                    return null;
+                });
             }
             waitUntilDeleted(client, namespace, vectorIds);
             System.out.println("Research vectors deleted: " + runId);
@@ -510,24 +545,30 @@ class ControlledPdfDenseRecallLiveTest {
                 "MATERIAL_RAG_CHUNK_MODE", ChunkMode.FLAT_LEAF.id()));
     }
 
-    private List<float[]> embedPassages(PineconeVectorClient client, List<String> passages) {
+    private List<float[]> embedPassages(PineconeVectorClient client,
+                                        List<String> passages) throws InterruptedException {
         List<float[]> result = new ArrayList<>();
         for (int start = 0; start < passages.size(); start += 96) {
-            result.addAll(client.embed(passages.subList(start, Math.min(start + 96, passages.size())), "passage"));
+            int batchStart = start;
+            result.addAll(retryPinecone("embed research passages", () -> client.embed(
+                    passages.subList(batchStart, Math.min(batchStart + 96, passages.size())),
+                    "passage")));
         }
         return List.copyOf(result);
     }
 
     private DenseMetrics evaluate(PineconeVectorClient client, String namespace, String tenantKey,
                                   List<ResearchCase> cases, Map<String, ResearchAnchor> anchors,
-                                  List<IndexedChunk> indexed) {
+                                  List<IndexedChunk> indexed) throws InterruptedException {
         List<CaseRank> ranks = new ArrayList<>();
         Map<String, IndexedChunk> indexedByVectorId = indexed.stream().collect(
                 java.util.stream.Collectors.toMap(IndexedChunk::vectorId, value -> value));
         List<float[]> queryVectors = new ArrayList<>();
         for (int start = 0; start < cases.size(); start += 3) {
-            queryVectors.addAll(client.embed(cases.subList(start, Math.min(start + 3, cases.size()))
-                    .stream().map(ResearchCase::query).toList(), "query"));
+            int batchStart = start;
+            queryVectors.addAll(retryPinecone("embed research queries", () -> client.embed(
+                    cases.subList(batchStart, Math.min(batchStart + 3, cases.size()))
+                            .stream().map(ResearchCase::query).toList(), "query")));
         }
         for (int caseIndex = 0; caseIndex < cases.size(); caseIndex++) {
             ResearchCase researchCase = cases.get(caseIndex);
@@ -547,10 +588,11 @@ class ControlledPdfDenseRecallLiveTest {
                 ResearchAnchor anchor = anchors.get(requirement.anchorId());
                 requiredGoldVectorIds.put(requirement.anchorId(), goldVectorIds(indexed, anchor));
             }
-            List<String> matches = client.query(namespace, queryVectors.get(caseIndex), 40,
-                    Map.of("$and", List.of(
-                    Map.of("tenant_key", Map.of("$eq", tenantKey)),
-                    Map.of("version_id", Map.of("$eq", sourceVersion)))));
+            int queryIndex = caseIndex;
+            List<String> matches = retryPinecone("query research vectors", () -> client.query(
+                    namespace, queryVectors.get(queryIndex), 40, Map.of("$and", List.of(
+                            Map.of("tenant_key", Map.of("$eq", tenantKey)),
+                            Map.of("version_id", Map.of("$eq", sourceVersion))))));
             List<CandidateResult> candidates = new ArrayList<>();
             for (int index = 0; index < matches.size(); index++) {
                 IndexedChunk candidate = indexedByVectorId.get(matches.get(index));
@@ -809,7 +851,8 @@ class ControlledPdfDenseRecallLiveTest {
             if (attempt > 0 && attempt % 20 == 0) {
                 System.out.printf("Index visibility checks: %d/%d%n", attempt, maxAttempts);
             }
-            if (!allExisting(client, namespace, vectorIds)) {
+            if (!retryPinecone("check research vector visibility", () ->
+                    allExisting(client, namespace, vectorIds))) {
                 Thread.sleep(500L);
                 continue;
             }
@@ -818,8 +861,10 @@ class ControlledPdfDenseRecallLiveTest {
             for (int sample = 0; sample < sampleCount; sample++) {
                 int index = sampleCount == 1 ? 0
                         : sample * (indexed.size() - 1) / (sampleCount - 1);
-                if (!client.query(namespace, vectors.get(index), 1,
-                        Map.of("tenant_key", Map.of("$eq", tenantKey))).contains(indexed.get(index).vectorId())) {
+                if (!retryPinecone("check research searchability", () -> client.query(
+                        namespace, vectors.get(index), 1,
+                        Map.of("tenant_key", Map.of("$eq", tenantKey))))
+                        .contains(indexed.get(index).vectorId())) {
                     searchable = false;
                     break;
                 }
@@ -837,7 +882,8 @@ class ControlledPdfDenseRecallLiveTest {
         int maxAttempts = Integer.parseInt(
                 System.getenv().getOrDefault("MATERIAL_RAG_DELETE_WAIT_ATTEMPTS", "20"));
         for (int attempt = 0; attempt < maxAttempts; attempt++) {
-            if (noneExisting(client, namespace, vectorIds)) return;
+            if (retryPinecone("check research vector deletion", () ->
+                    noneExisting(client, namespace, vectorIds))) return;
             Thread.sleep(500L);
         }
         throw new IllegalStateException("Controlled PDF research vectors remained after cleanup");
@@ -857,6 +903,31 @@ class ControlledPdfDenseRecallLiveTest {
             if (!client.fetchExisting(namespace, batch).isEmpty()) return false;
         }
         return true;
+    }
+
+    private <T> T retryPinecone(String operation, Supplier<T> action) throws InterruptedException {
+        int attempts = Integer.parseInt(System.getenv().getOrDefault(
+                "MATERIAL_RAG_TRANSIENT_RETRY_ATTEMPTS", "5"));
+        return retryPinecone(operation, attempts, action);
+    }
+
+    private <T> T retryPinecone(String operation, int attempts,
+                                Supplier<T> action) throws InterruptedException {
+        for (int attempt = 1; attempt <= attempts; attempt++) {
+            try {
+                return action.get();
+            } catch (RetryableRetrievalException failure) {
+                if (attempt == attempts) throw failure;
+                long providerDelay = failure.retryAfter() == null
+                        ? 1_000L << Math.min(attempt - 1, 4)
+                        : failure.retryAfter().toMillis();
+                long delay = Math.max(0L, Math.min(providerDelay, 30_000L));
+                System.out.printf("Transient Pinecone failure during %s; retry %d/%d in %dms%n",
+                        operation, attempt + 1, attempts, delay);
+                Thread.sleep(delay);
+            }
+        }
+        throw new IllegalStateException("Transient Pinecone retry loop exhausted unexpectedly");
     }
 
     private Path researchRoot() {
