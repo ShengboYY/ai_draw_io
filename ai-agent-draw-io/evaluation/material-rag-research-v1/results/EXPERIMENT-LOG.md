@@ -14,8 +14,8 @@
 - **干净基线**:跑某实验前,把不属于该实验的在途改动 `git stash` 掉,保证 pipeline 纯净。
 - **门槛**(dense 文本检索,来自 plan §3.2):Recall@10 ≥ 0.90、Recall@40 ≥ 0.95、MRR@10 ≥ 0.75。
 - **数据集划分**:development 调试/选型,validation 复核晋级,holdout 只在冻结后比较一次。
-- **切片**:不只看总分,按语言/类别切片看,防止「整体赢、局部退化」。当前每切片样本偏小
-  (n=8~44),**per-slice 只能看大趋势,不能当精确结论**(见 E1 validation)。
+- **切片**:不只看总分,按语言/类别切片看,防止「整体赢、局部退化」。240 语料上切片 n=8~44 时结论不稳
+  (E1 validation 曾出现噪声性「退化」);**升级到 450 后 dev 切片 n=20~110,per-slice 已可信**。
 - **真实检索**:live Pinecone(integrated `multilingual-e5-large`, dim 1024),真索引真查询,
   跑完 `finally` 删向量。**starter/serverless 层索引延迟大**,需 `MATERIAL_RAG_INDEX_WAIT_ATTEMPTS=240`
   (默认 12s 会误报 not-searchable)。
@@ -40,8 +40,9 @@
   检索不得触达用户库中其他未挂载资料」这条收窄不变量)。各套件:authorization 58、versioning 36、
   abstention 40、visual-ocr 57、failure 18、chartbook_scope 12、regression 40——abstention 达标,其余接近
   plan 下限(差 2-4,pass/fail 判断已足够)。
-- 生成确定性可复现;`query-selection.json`(ILP 削减)与 spec 模块纳入 provenance。31 篇文档、334 锚点。
-- 关键提交:语料 `14141132`、E0 适配 `c8f4845e`、E1 晋级 `89f8bbfe`、E1 复核 `228eb416`、数据集 v-next(本次)。
+- 生成确定性可复现;`query-selection.json`(ILP 削减)与 spec 模块纳入 provenance。**39 篇文档、402 锚点**。
+- 关键提交:语料 `14141132`、E0 适配 `c8f4845e`、E1 晋级 `89f8bbfe`、E1 复核 `228eb416`、
+  数据集 v-next `74caf0e7`、守门 261 `c1398181`、E0/E1@450 `6af49385`。
 
 ---
 
@@ -89,19 +90,19 @@
 
 ## 当前状态与下一步
 
-- 已完成:E0 基线 → E1(表示层)晋级并复核。表示层这条路已走到 dense 上限(门槛边缘)。
+- 已完成:E0 基线 → E1(表示层)晋级并复核 → 数据集升级到 450 → E0/E1 在 450 重跑(E1 更强晋级、无退化)
+  → 守门补到 261 + 图册收窄套件。表示层这条路已走到 dense 上限(R@10 0.897 门槛边缘)。
 - **下一步候选**:
   1. **E3 hybrid(推荐)**:dense+lexical 融合。E1 剩下的 miss 是精确标识符/时间戳/抽象规则,
      正是 BM25 能补、dense 补不上的 → 投入产出比最高,最可能稳过门槛。
   2. **E2 chunk 父子结构**:plan 顺序在 E3 前,或能顺带改善 Recall@40 与多证据。
-  3. **补数据集**(进行中):每切片补到 ≥50,让后续 per-slice 结论可信。
 
 ## 开放问题 / 待办
 
-- [ ] 核心集每切片补到 n≥50(validation 已证明当前切片不可信)。
+- [x] 核心集扩到 450、每类 50——per-slice 已可信(450 E0/E1 上 multi 的"退化"被证实是噪声)。
 - [x] 守门补 **「图册收窄」** 套件——已建 `guard_chartbook_scope`(12 例)。
 - [x] 守门套件补齐——总量 261 超 plan 220;各套件接近下限(authz 58/ver 36/visualOcr 57/failure 18,差 2-4,可后续小补)。
-- [ ] 英文单语切片在 dev 偏弱、在 val 偏强 —— 小样本噪声,补量后再判断是否真问题。
+- [x] 英文切片小样本噪声——450 上 en(n=47)R@10 0.894,与其他语言接近,非真问题。
 - [ ] E6/E7(上下文选择、生成引用)尚未开跑。
 
 ## 如何跑一个实验(运行手册)
@@ -112,7 +113,7 @@
    set -a; source .env; set +a
    export MATERIAL_RAG_TOKENIZER_PATH="$PWD/tmp/material-rag-tokenizer/tokenizer.json"
    export MATERIAL_RAG_RESEARCH_SPLIT=development   # 复核用 validation;holdout 只最后一次
-   export MATERIAL_RAG_INDEX_WAIT_ATTEMPTS=240 MATERIAL_RAG_DELETE_WAIT_ATTEMPTS=120  # starter 层
+   export MATERIAL_RAG_INDEX_WAIT_ATTEMPTS=300 MATERIAL_RAG_DELETE_WAIT_ATTEMPTS=150  # starter 层(450 语料)
    ```
 3. **跑**:
    ```bash
