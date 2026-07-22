@@ -206,6 +206,11 @@ def compare(e0: dict, e1: dict, variable_field: str = "canonicalMode") -> dict:
             after_chunks = [candidate.get("chunkId") for candidate in after]
             if before_chunks != after_chunks:
                 raise ValueError(f"retrievalPoolCandidates drift for {case_id}")
+        if variable_field == "rerankerMode":
+            before_chunks = {candidate.get("chunkId") for candidate in e0_cases[case_id]["candidates"]}
+            after_chunks = {candidate.get("chunkId") for candidate in e1_cases[case_id]["candidates"]}
+            if before_chunks != after_chunks:
+                raise ValueError(f"reranker candidates drift for {case_id}")
 
     aggregates = {}
     for metric_index, metric in enumerate(METRICS):

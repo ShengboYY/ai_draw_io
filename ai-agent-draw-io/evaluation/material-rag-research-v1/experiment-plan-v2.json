@@ -182,14 +182,14 @@
     "E9_SAFETY_AND_RECOVERY"
   ],
   "progress": {
-    "completed": ["E0_BASELINE", "E1_REPRESENTATION", "E2_CHUNKING", "E3_RETRIEVAL", "E4_DEDUPLICATION"],
-    "currentNext": "E5_RERANKING",
+    "completed": ["E0_BASELINE", "E1_REPRESENTATION", "E2_CHUNKING", "E3_RETRIEVAL", "E4_DEDUPLICATION", "E5_RERANKING"],
+    "currentNext": "E6_CONTEXT_SELECTION",
     "e2Decision": "retain flat-leaf-v1; parent-context-500-v1 recallAt10 delta 0.0000 did not meet +0.02 and mrrAt10 delta -0.0618 regressed",
     "e3FirstCandidateDecision": "retain dense-v1; projection hybrid recallAt10 delta 0.0065 did not meet +0.02",
     "e3SecondCandidateDecision": "retain original-v1; evidence-focused recallAt10 delta -0.0194 and mrrAt10 delta -0.0488 regressed",
     "e4FirstCandidateDecision": "retain ranked-raw-v1; evidence-dedup activation 2.72% on Development but 0.25% on Validation",
     "e4SecondCandidateDecision": "retain ranked-raw-v1; source-diversity-v1 improved mounted coverage@10 by 0.1731 but evidence recallAt10 delta -0.0385 violated the -0.02 gate",
-    "e4Status": "completed: neither single-source deduplication nor multi-source fixed-cap diversity qualified; proceed to E5 reranking",
-    "e5Status": "preregistered: opt-in OpenAI-compatible listwise reranker over fixed dense top-40"
+    "e4Status": "completed: neither single-source deduplication nor multi-source fixed-cap diversity qualified",
+    "e5Status": "completed: DeepSeek V4 Pro listwise reranker accepted JSON for 5/155 cases and Recall@10 gain was 0.0; not promoted"
   }
 }

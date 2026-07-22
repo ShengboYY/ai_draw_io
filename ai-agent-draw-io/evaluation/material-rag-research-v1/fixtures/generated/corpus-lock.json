@@ -14,10 +14,10 @@
   "fixtureFontSha256": "876af2cd4854644e7f3e7feb2f688997fdb3343c6df6693611209c9dfb47ccec",
   "provenanceFiles": {
     "EXPERIMENT-PLAN-V2.md": "042346669c9aaa39790c455603cf3905054ea5b3f6b1bdbd2e38c8522204c731",
-    "experiment-plan-v2.json": "6f071112e6769fc5adb4d3e2bc2c87d4f52a049ea560156e5ed7d192500f3823",
+    "experiment-plan-v2.json": "b8db1b428211385d4bd108a9dc37f06cf833350d19b09b380911dd28165bed0d",
     "requirements.txt": "0043aca3a7381487084576995105e1099e3786ae8add5a6c0951d305b0e0e757",
     "analysis/audit_corpus.py": "ed2818452a8a105b1efaa983a9efa054bf3d8d11306a0e67771ff65326620442",
-    "analysis/compare_dense_runs.py": "b7ee2396041eb056b3afc1545b3c95d25ec8c1d0e204ca1c43f62dd125e627d7",
+    "analysis/compare_dense_runs.py": "9e3db4d932ccfadbd7ed20378afdff4b48e91f23b22589ca7a973461d93706e4",
     "analysis/audit_e4_chartbook.py": "1785c3e3085810b269ae9d5c1975f7357b2a982bb1f321c9be12fdb6f5a86f9b",
     "analysis/evaluate_guard_suites.py": "e2ded7e4289fe4b7bfd1883e37e53c4543dccd69ab2c571aff6e54291daf4aa0",
     "analysis/evaluate_ocr.py": "1df3eb9d8619dd258c437cd45504477edf8a4146b96c00c693642efad1c64284",
