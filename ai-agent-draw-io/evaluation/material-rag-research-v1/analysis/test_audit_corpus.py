@@ -7,7 +7,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from audit_corpus import audit, evidence_shape_errors, generation_task_errors, reviewed_case_ids
+from audit_corpus import (audit, evidence_shape_errors, generation_context_errors,
+                          generation_task_errors, reviewed_case_ids)
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -111,6 +112,29 @@ class GenerationTaskAuditTest(unittest.TestCase):
         errors = generation_task_errors([task], anchors, {"source-a:v1"})
 
         self.assertEqual("citation anchors differ from required anchors", errors[0]["error"])
+
+    def test_rejects_context_with_an_anchor_outside_the_task(self) -> None:
+        tasks = {"task-1": {"taskId": "task-1", "split": "development",
+                            "sourceVersion": "source-a:v1", "requiredAnchors": ["anchor-a"]}}
+        contexts = [{"taskId": "task-1", "arm": "fixed", "evidence": [{
+            "anchorId": "anchor-b", "sourceVersion": "source-a:v1", "page": 1, "text": "evidence",
+        }]}]
+        anchors = {
+            "anchor-a": {"source": "source-a", "version": "v1", "page": 1},
+            "anchor-b": {"source": "source-a", "version": "v1", "page": 1},
+        }
+
+        errors = generation_context_errors(contexts, tasks, anchors, ROOT)
+
+        self.assertEqual("context anchors differ from task anchors", errors[0]["error"])
+
+    def test_rejects_missing_development_task_context(self) -> None:
+        tasks = {"task-1": {"taskId": "task-1", "split": "development",
+                            "sourceVersion": "source-a:v1", "requiredAnchors": ["anchor-a"]}}
+
+        errors = generation_context_errors([], tasks, {}, ROOT)
+
+        self.assertEqual("development task contexts are incomplete", errors[0]["error"])
 
 
 if __name__ == "__main__":

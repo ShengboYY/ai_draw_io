@@ -13,9 +13,10 @@ def build_prompt(task: dict, context: dict) -> str:
     evidence_lines = []
     for evidence in context.get("evidence", []):
         # Citation metadata remains beside the excerpt so model output is independently traceable.
+        artifact = "\nAttached visual artifact for this evidence." if evidence.get("imagePath") else ""
         evidence_lines.append(
             f"[{evidence['anchorId']} | {evidence['sourceVersion']} | page {evidence['page']}]\n"
-            f"{evidence['text']}"
+            f"{evidence['text']}{artifact}"
         )
     material = "\n\n".join(evidence_lines) or "(No material was retrieved.)"
     return (
@@ -26,6 +27,13 @@ def build_prompt(task: dict, context: dict) -> str:
         f"Task: {task['request']}\n\n"
         f"Retrieved material:\n{material}"
     )
+
+
+def image_paths(context: dict) -> list[str]:
+    """Keep each local visual artifact once so the multimodal runner can attach it exactly once."""
+    return list(dict.fromkeys(
+        evidence["imagePath"] for evidence in context.get("evidence", []) if evidence.get("imagePath")
+    ))
 
 
 def build_bundles(tasks: list[dict], contexts: list[dict], split: str, arm: str) -> list[dict]:
@@ -53,6 +61,7 @@ def build_bundles(tasks: list[dict], contexts: list[dict], split: str, arm: str)
             "arm": arm,
             "prompt": build_prompt(task, context),
             "evidence": context.get("evidence", []),
+            "imagePaths": image_paths(context),
         })
     return bundles
 
@@ -62,7 +71,7 @@ def main() -> None:
     parser.add_argument("--tasks", type=Path, required=True)
     parser.add_argument("--contexts", type=Path, required=True)
     parser.add_argument("--split", choices=("development", "validation", "holdout"), required=True)
-    parser.add_argument("--arm", choices=("control", "candidate"), required=True)
+    parser.add_argument("--arm", choices=("control", "candidate", "fixed"), required=True)
     parser.add_argument("--json-out", type=Path, required=True)
     args = parser.parse_args()
     tasks = json.loads(args.tasks.read_text())["tasks"]

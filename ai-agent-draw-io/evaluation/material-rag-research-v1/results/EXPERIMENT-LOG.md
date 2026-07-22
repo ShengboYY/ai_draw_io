@@ -265,6 +265,16 @@
   做 E6/E7 成对比较。
 - 详见 [2026-07-22-e6-e7-prompt-wiring.md](2026-07-22-e6-e7-prompt-wiring.md)。
 
+### E7 — fixed multimodal Development contexts · 2026-07-22 · ✅待运行
+
+- 已冻结 6 个 Development prompt bundle：每条证据保留 anchor、source version、页码和摘要；架构流程与
+  扫描工作流两个任务分别附带原始视觉流程图、扫描页 artifact path。
+- fixture-contract 验证 context anchor 与任务完全一致、来源版本/页码可解析，且 prompt 不含 XML assertion
+  或 expected answer。44 项 analysis tests 通过；尚未向模型发送这些新 bundle。
+- 这用于固定证据下的 E7 生成/引用测评；**不是** E6 的 raw-top8 对 candidate-top8 比较。Validation/Holdout
+  继续密封。
+- 详见 [2026-07-22-e7-fixed-development-contexts.md](2026-07-22-e7-fixed-development-contexts.md)。
+
 ---
 
 ## 当前状态与下一步

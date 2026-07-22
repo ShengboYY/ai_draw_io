@@ -42,6 +42,7 @@ PROVENANCE_FILES = (
     "fixtures/e4_chartbook_specs.py",
     "fixtures/query-selection.json",
     "fixtures/drawio-generation-tasks-v1.json",
+    "fixtures/drawio-generation-development-evidence-v1.json",
 )
 CATEGORY_CONTEXT_FIELDS = {
     "failure": (
@@ -130,6 +131,39 @@ def generation_task_errors(tasks: list[dict], anchors: dict[str, dict],
     return errors
 
 
+def generation_context_errors(contexts: list[dict], tasks: dict[str, dict],
+                              anchors: dict[str, dict], root: Path) -> list[dict]:
+    """Ensure fixed E7 inputs expose only the task's locatable source evidence."""
+    errors: list[dict] = []
+    seen_task_ids: set[str] = set()
+    for context in contexts:
+        task_id = context.get("taskId", "unknown")
+        task = tasks.get(task_id)
+        if task_id in seen_task_ids:
+            errors.append({"taskId": task_id, "error": "duplicate context"})
+            continue
+        seen_task_ids.add(task_id)
+        if task is None or task.get("split") != "development" or context.get("arm") != "fixed":
+            errors.append({"taskId": task_id, "error": "unknown or non-development task"})
+            continue
+        evidence_ids = {evidence.get("anchorId") for evidence in context.get("evidence", [])}
+        if evidence_ids != set(task.get("requiredAnchors", [])):
+            errors.append({"taskId": task_id, "error": "context anchors differ from task anchors"})
+        for evidence in context.get("evidence", []):
+            anchor = anchors.get(evidence.get("anchorId"))
+            if anchor is None or evidence.get("sourceVersion") != task.get("sourceVersion") \
+                    or evidence.get("page") != anchor.get("page") or not evidence.get("text", "").strip():
+                errors.append({"taskId": task_id, "error": "invalid evidence location or text"})
+            image_path = evidence.get("imagePath")
+            if image_path and not (root / image_path).is_file():
+                errors.append({"taskId": task_id, "error": "missing visual artifact"})
+    expected_task_ids = {task_id for task_id, task in tasks.items()
+                         if task.get("split") == "development"}
+    if seen_task_ids != expected_task_ids:
+        errors.append({"error": "development task contexts are incomplete"})
+    return errors
+
+
 def reviewed_case_ids(review_ledger: Path | None) -> tuple[set[str], str, str | None]:
     """Count only auditable agreements from two distinct named reviewers."""
     if review_ledger is None or not review_ledger.exists():
@@ -160,6 +194,9 @@ def audit(root: Path, review_ledger: Path | None) -> tuple[dict, dict]:
     generation_tasks = json.loads(
         (root / "fixtures" / "drawio-generation-tasks-v1.json").read_text(encoding="utf-8")
     )["tasks"]
+    generation_contexts = json.loads(
+        (root / "fixtures" / "drawio-generation-development-evidence-v1.json").read_text(encoding="utf-8")
+    )["contexts"]
     core_targets = plan["coreCases"]
     core_cases = [case for case in cases if case.get("split") in CORE_SPLITS]
     guard_counts = Counter(
@@ -190,6 +227,9 @@ def audit(root: Path, review_ledger: Path | None) -> tuple[dict, dict]:
     missing_abstention_conditions: list[str] = []
     family_splits: defaultdict[str, set[str]] = defaultdict(set)
     task_errors = generation_task_errors(generation_tasks, anchor_by_id, known_source_versions)
+    context_errors = generation_context_errors(
+        generation_contexts, {task["taskId"]: task for task in generation_tasks}, anchor_by_id, root
+    )
 
     for case in cases:
         family_splits[case["documentFamily"]].add(case["split"])
@@ -317,6 +357,7 @@ def audit(root: Path, review_ledger: Path | None) -> tuple[dict, dict]:
         "scenarioCategoryContextsValid": not invalid_category_contexts,
         "guardSuiteMinimumsMet": guard_suite_minimums_met,
         "generationTasksValid": not task_errors,
+        "generationContextsValid": not context_errors,
     }
     structural_pass = all(structural_checks.values())
     reviewed_threshold = len(reviewed_core_ids) >= plan["preE0"]["minimumReviewedCasesBeforeComparison"]
@@ -395,6 +436,7 @@ def audit(root: Path, review_ledger: Path | None) -> tuple[dict, dict]:
             "splitLeakage": split_leakage,
             "unknownReviewedCaseIds": unknown_reviewed_case_ids,
             "generationTaskErrors": task_errors,
+            "generationContextErrors": context_errors,
         },
     }
     lock = {

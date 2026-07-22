@@ -61,6 +61,18 @@ class DrawioGenerationPromptTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "duplicate candidate context"):
             MODULE.build_bundles([task], contexts, split="development", arm="candidate")
 
+    def test_preserves_attached_visual_artifact_paths(self):
+        task = {"taskId": "visual", "split": "development", "sourceVersion": "source:v1", "request": "Inspect route"}
+        contexts = [{"taskId": "visual", "arm": "fixed", "evidence": [{
+            "anchorId": "route-a", "sourceVersion": "source:v1", "page": 3,
+            "text": "Inspect the attached route image.", "imagePath": "fixtures/generated/images/route.png",
+        }]}]
+
+        bundle = MODULE.build_bundles([task], contexts, split="development", arm="fixed")[0]
+
+        self.assertIn("Attached visual artifact", bundle["prompt"])
+        self.assertEqual(["fixtures/generated/images/route.png"], bundle["imagePaths"])
+
 
 if __name__ == "__main__":
     unittest.main()
