@@ -50,6 +50,7 @@ from scenario_corpus_specs import (
 from guard_corpus_specs import (
     GUARD_DIGITAL_DOCUMENTS,
     GUARD_FACTS,
+    GUARD_LATE_CASES,
     GUARD_NO_ANSWER_CASES,
 )
 from expansion_corpus_specs import (
@@ -1262,6 +1263,44 @@ def write_ground_truth(output_root: Path) -> None:
                 "expectedPage": None,
                 "answerable": False,
             }, ensure_ascii=False) + "\n")
+            ordinal += 1
+
+        # Guard growth is deliberately last: the reviewed core keeps its frozen ordinal IDs.
+        anchor_by_id = {fact["anchorId"]: fact for fact in anchors}
+        for late_case in GUARD_LATE_CASES:
+            fact = anchor_by_id[late_case["anchorId"]]
+            document = metadata[fact["source"]]
+            query = late_case["query"]
+            language, tags = language_target(query, document)
+            case_id = f"controlled-{ordinal:03d}"
+            case_key = f"guard:{fact['anchorId']}::{query}"
+            case_keys[case_id] = case_key
+            case_record = {
+                "schemaVersion": "material-rag-research-case-v2",
+                "caseId": case_id,
+                "category": fact["modality"],
+                "language": language,
+                "queryLanguage": query_language(query),
+                "primaryCategory": fact_primary_category(fact, language),
+                "tags": [f"modality:{fact['modality']}", *tags],
+                "split": document["split"],
+                "documentFamily": document["documentFamily"],
+                "query": query,
+                "allowedSourceVersions": [f"{fact['source']}:{fact['version']}"],
+                "goldAnchorIds": [fact["anchorId"]],
+                "requiredEvidenceGroups": [{
+                    "groupId": "answer",
+                    "operator": "ANY",
+                    "evidence": [{"anchorId": fact["anchorId"], "grade": 3, "minimumGrade": 3}],
+                }],
+                "expectedAnswer": fact.get("expectedAnswer", fact["goldMatch"]),
+                "abstentionCondition": None,
+                "expectedPage": fact["page"],
+                "answerable": True,
+            }
+            if fact.get("evaluationContext"):
+                case_record["evaluationContext"] = fact["evaluationContext"]
+            output.write(json.dumps(case_record, ensure_ascii=False) + "\n")
             ordinal += 1
     (output_root / "case-keys.json").write_text(
         json.dumps(case_keys, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")

@@ -4,7 +4,7 @@
   "readyForFormalComparison": true,
   "readyForE0Freeze": true,
   "counts": {
-    "allGeneratedCases": 711,
+    "allGeneratedCases": 722,
     "coreCases": 450,
     "coreBySplit": {
       "development": 250,
@@ -38,7 +38,14 @@
     },
     "anchors": 402,
     "documents": 39,
-    "reviewedCoreCases": 450
+    "reviewedCoreCases": 450,
+    "guardSuites": {
+      "abstention": 40,
+      "authorization": 60,
+      "failureAndRecovery": 20,
+      "versioning": 40,
+      "visualAndOcr": 60
+    }
   },
   "targets": {
     "coreCases": {
@@ -61,6 +68,13 @@
       "zh": 193,
       "en": 161,
       "crossLanguage": 96
+    },
+    "guardSuites": {
+      "authorization": 60,
+      "versioning": 40,
+      "abstention": 40,
+      "visualAndOcr": 60,
+      "failureAndRecovery": 20
     }
   },
   "gaps": {
@@ -69,7 +83,8 @@
     "independentHumanReview": "double_reviewed",
     "reviewedCasesBeforeComparison": 0,
     "primaryCategoryDelta": {},
-    "languageTargetDelta": {}
+    "languageTargetDelta": {},
+    "guardSuiteDelta": {}
   },
   "checks": {
     "uniqueCaseIds": true,
@@ -87,7 +102,8 @@
     "documentFamiliesDoNotCrossSplits": true,
     "reviewLedgerReferencesKnownCases": true,
     "primaryCategoryLabelsValid": true,
-    "scenarioCategoryContextsValid": true
+    "scenarioCategoryContextsValid": true,
+    "guardSuiteMinimumsMet": true
   },
   "details": {
     "duplicateCaseIds": [],

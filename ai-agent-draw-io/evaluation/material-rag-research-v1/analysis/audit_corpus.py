@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Audit material-RAG corpus readiness and emit a deterministic candidate lock."""
+"""Audit material-RAG corpus readiness and emit a deterministic corpus lock."""
 
 from __future__ import annotations
 
@@ -12,12 +12,20 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 CORE_SPLITS = ("development", "validation", "holdout")
-LOCK_FILENAME = "corpus-lock.candidate.json"
+LOCK_FILENAME = "corpus-lock.json"
+GUARD_SPLITS = {
+    "authorization": "guard_authorization",
+    "versioning": "guard_versioning",
+    "abstention": "guard_abstention",
+    "visualAndOcr": "guard_visual_ocr",
+    "failureAndRecovery": "guard_failure",
+}
 PROVENANCE_FILES = (
     "EXPERIMENT-PLAN-V2.md",
     "experiment-plan-v2.json",
     "requirements.txt",
     "analysis/audit_corpus.py",
+    "analysis/evaluate_guard_suites.py",
     "analysis/evaluate_ocr.py",
     "fixtures/generate_fixtures.py",
     "fixtures/generation-config.json",
@@ -55,7 +63,7 @@ def generated_hashes(generated_root: Path) -> dict[str, str]:
     return {
         path.relative_to(generated_root).as_posix(): sha256(path)
         for path in sorted(generated_root.rglob("*"))
-        if path.is_file() and path.name != LOCK_FILENAME
+        if path.is_file() and path.name not in {LOCK_FILENAME, "corpus-lock.candidate.json"}
     }
 
 
@@ -118,6 +126,9 @@ def audit(root: Path, review_ledger: Path | None) -> tuple[dict, dict]:
     anchor_by_id = {anchor["anchorId"]: anchor for anchor in anchors}
     core_targets = plan["coreCases"]
     core_cases = [case for case in cases if case.get("split") in CORE_SPLITS]
+    guard_counts = Counter(
+        case.get("split") for case in cases if case.get("split", "").startswith("guard_")
+    )
     core_case_ids = {case["caseId"] for case in core_cases}
     reviewed_core_ids = reviewed_ids & core_case_ids
     human_review_status = (
@@ -241,6 +252,15 @@ def audit(root: Path, review_ledger: Path | None) -> tuple[dict, dict]:
         language_counts[language] == target
         for language, target in plan["languageTargets"].items()
     )
+    guard_suite_counts = {
+        suite: guard_counts[split] for suite, split in GUARD_SPLITS.items()
+    }
+    guard_suite_gaps = {
+        suite: target - guard_suite_counts[suite]
+        for suite, target in plan["guardSuites"].items()
+        if guard_suite_counts[suite] < target
+    }
+    guard_suite_minimums_met = not guard_suite_gaps
     structural_checks = {
         "uniqueCaseIds": not duplicate_values([case["caseId"] for case in cases]),
         "uniqueAnchorIds": not duplicate_values([anchor["anchorId"] for anchor in anchors]),
@@ -258,6 +278,7 @@ def audit(root: Path, review_ledger: Path | None) -> tuple[dict, dict]:
         "reviewLedgerReferencesKnownCases": not unknown_reviewed_case_ids,
         "primaryCategoryLabelsValid": primary_categories_valid,
         "scenarioCategoryContextsValid": not invalid_category_contexts,
+        "guardSuiteMinimumsMet": guard_suite_minimums_met,
     }
     structural_pass = all(structural_checks.values())
     reviewed_threshold = len(reviewed_core_ids) >= plan["preE0"]["minimumReviewedCasesBeforeComparison"]
@@ -278,7 +299,9 @@ def audit(root: Path, review_ledger: Path | None) -> tuple[dict, dict]:
     result = {
         "schemaVersion": "material-rag-e0-readiness-v1",
         "status": "ready" if ready_for_e0 else "blocked",
-        "readyForFormalComparison": structural_pass and len(core_cases) >= 180 and reviewed_threshold,
+        "readyForFormalComparison": structural_pass
+        and len(core_cases) >= plan["preE0"]["minimumReviewedCasesBeforeComparison"]
+        and reviewed_threshold,
         "readyForE0Freeze": ready_for_e0,
         "counts": {
             "allGeneratedCases": len(cases),
@@ -290,11 +313,13 @@ def audit(root: Path, review_ledger: Path | None) -> tuple[dict, dict]:
             "anchors": len(anchors),
             "documents": len(documents),
             "reviewedCoreCases": len(reviewed_core_ids),
+            "guardSuites": dict(sorted(guard_suite_counts.items())),
         },
         "targets": {
             "coreCases": core_targets,
             "primaryCategories": plan["primaryCategories"],
             "languageTargets": plan["languageTargets"],
+            "guardSuites": plan["guardSuites"],
         },
         "gaps": {
             "coreCases": plan["preE0"]["requiredFrozenCoreCasesForBaseline"] - len(core_cases),
@@ -312,6 +337,7 @@ def audit(root: Path, review_ledger: Path | None) -> tuple[dict, dict]:
                 for language, target in plan["languageTargets"].items()
                 if target != language_counts[language]
             },
+            "guardSuiteDelta": guard_suite_gaps,
         },
         "checks": structural_checks,
         "details": {
@@ -350,7 +376,9 @@ def audit(root: Path, review_ledger: Path | None) -> tuple[dict, dict]:
 
 def markdown_report(result: dict) -> str:
     counts = result["counts"]
+    targets = result["targets"]
     gaps = result["gaps"]
+    core_target = sum(targets["coreCases"].values())
     lines = [
         "# E0 readiness audit",
         "",
@@ -358,10 +386,10 @@ def markdown_report(result: dict) -> str:
         "",
         "## Current corpus",
         "",
-        f"- Core cases: {counts['coreCases']} / 240",
-        f"- Development: {counts['coreBySplit'].get('development', 0)} / 120",
-        f"- Validation: {counts['coreBySplit'].get('validation', 0)} / 60",
-        f"- Holdout: {counts['coreBySplit'].get('holdout', 0)} / 60",
+        f"- Core cases: {counts['coreCases']} / {core_target}",
+        f"- Development: {counts['coreBySplit'].get('development', 0)} / {targets['coreCases']['development']}",
+        f"- Validation: {counts['coreBySplit'].get('validation', 0)} / {targets['coreCases']['validation']}",
+        f"- Holdout: {counts['coreBySplit'].get('holdout', 0)} / {targets['coreCases']['holdout']}",
         f"- Generated cases including guards: {counts['allGeneratedCases']}",
         f"- Anchors: {counts['anchors']}; documents: {counts['documents']}",
         "",
@@ -373,6 +401,7 @@ def markdown_report(result: dict) -> str:
         f"- Independent human review status: `{gaps['independentHumanReview']}`",
         f"- Primary-category deltas: `{json.dumps(gaps['primaryCategoryDelta'], sort_keys=True)}`",
         f"- Language-target deltas: `{json.dumps(gaps['languageTargetDelta'], sort_keys=True)}`",
+        f"- Guard-suite deltas: `{json.dumps(gaps['guardSuiteDelta'], sort_keys=True)}`",
         "",
         "## Structural checks",
         "",
@@ -381,12 +410,19 @@ def markdown_report(result: dict) -> str:
         f"- {'PASS' if passed else 'FAIL'} - `{name}`"
         for name, passed in result["checks"].items()
     )
-    lines.extend([
-        "",
-        "The candidate lock records current SHA-256 inputs but is not a frozen E0 lock. Do not run",
-        "E0 or resume E1 until the case-count, label and independent-review gaps are closed.",
-        "",
-    ])
+    lines.append("")
+    if result["readyForE0Freeze"]:
+        lines.extend([
+            "The corpus lock is frozen: core targets, guard-suite minimums, structural checks and",
+            "independent review all pass. Validation comparisons may proceed; Holdout remains sealed.",
+            "",
+        ])
+    else:
+        lines.extend([
+            "The corpus lock is still a candidate. Do not run formal comparisons until all listed",
+            "count, label, guard-suite and independent-review gaps are closed.",
+            "",
+        ])
     return "\n".join(lines)
 
 
@@ -396,7 +432,7 @@ def main() -> None:
     parser.add_argument("--review-ledger", type=Path)
     parser.add_argument("--json-out", type=Path)
     parser.add_argument("--markdown-out", type=Path)
-    parser.add_argument("--candidate-lock", type=Path)
+    parser.add_argument("--lock", "--candidate-lock", dest="lock", type=Path)
     args = parser.parse_args()
     review_ledger = args.review_ledger.resolve() if args.review_ledger else None
     result, lock = audit(args.root.resolve(), review_ledger)
@@ -405,7 +441,7 @@ def main() -> None:
     for path, content in [
         (args.json_out, output),
         (args.markdown_out, markdown_report(result)),
-        (args.candidate_lock, json.dumps(lock, ensure_ascii=False, indent=2) + "\n"),
+        (args.lock, json.dumps(lock, ensure_ascii=False, indent=2) + "\n"),
     ]:
         if path:
             path.parent.mkdir(parents=True, exist_ok=True)

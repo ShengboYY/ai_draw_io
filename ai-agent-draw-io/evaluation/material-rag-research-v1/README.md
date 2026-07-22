@@ -64,14 +64,14 @@ The generated corpus intentionally contains two different levels of realism:
     degraded-mode behavior.
 
 Do not use the small controlled documents alone to claim real-document quality. The current generated
-cohort contains 309 cases: exactly 240 core cases split 120/60/60, plus 69 guard/regression cases.
-Together with the 14 pinned open-document cases, 323 cases are defined. Quantity and family isolation
-now meet the E0 plan, but category/language balancing and independent human review still block freeze.
+cohort contains 722 cases: exactly 450 frozen core cases split 250/100/100, plus 272 guard/regression
+cases. The core has 50 cases in each primary category and 193 Chinese, 161 English and 96
+cross-language cases. Together with the 14 pinned open-document cases, 736 cases are defined.
 
 `fixtures/generated/corpus-manifest.json` records each generated document family and its preassigned
 Development, Validation, Holdout or guard-suite split. Questions from one family never cross splits.
-Validation and Holdout documents are marked `candidate` until an independent reviewer freezes the
-questions and corpus hashes; the visible repository copy is not yet a sealed holdout.
+Validation and Holdout questions and corpus hashes are frozen. Validation may be used for promotion;
+Holdout remains sealed until the baseline and final candidate are both frozen.
 
 ### E0 readiness
 
@@ -79,22 +79,35 @@ Run the structural audit after generating fixtures:
 
 ```bash
 python3 evaluation/material-rag-research-v1/analysis/audit_corpus.py \
+  --review-ledger evaluation/material-rag-research-v1/review/review-ledger.json \
   --json-out evaluation/material-rag-research-v1/results/e0-readiness-current.json \
   --markdown-out evaluation/material-rag-research-v1/results/E0-READINESS.md \
-  --candidate-lock evaluation/material-rag-research-v1/fixtures/generated/corpus-lock.candidate.json
+  --lock evaluation/material-rag-research-v1/fixtures/generated/corpus-lock.json
 ```
 
-The candidate lock records deterministic SHA-256 values for generated inputs plus the authored plan,
-generator/specs, evaluators, dependency declaration and pinned font hash, but it is not a frozen E0 lock. The auditor
+The frozen lock records deterministic SHA-256 values for generated inputs plus the authored plan,
+generator/specs, evaluators, dependency declaration and pinned font hash. The auditor
 only counts a case as independently reviewed when an optional `--review-ledger` JSON entry names two
 distinct reviewers and has status `agreed` or `arbitrated`; a command-line count cannot self-certify
 review. Controlled regression cases are assigned to `guard_regression` and do not inflate the core
-count. The current audit reaches 240/240 core cases and exact 120/60/60 splits, but it remains blocked:
-V2 primary-category and language targets are not yet balanced, and independent review is pending.
+count. The current audit reaches 450/450 core cases, exact 250/100/100 splits and the required
+category/language targets. Guard-suite minimums are also part of readiness rather than being offset by
+the aggregate guard count.
 Failure and version/authorization labels also require executable scenario context; static approval-date
 lookups do not satisfy those categories. Run formal E0 only from a clean committed worktree so stopped
 E1 experiments or unrelated local changes cannot alter the baseline pipeline.
-E0 and subsequent E1 experiments must not be presented as formal results until those checks pass.
+
+Run the deterministic guard fixture contracts and keep both the summary and per-case raw output:
+
+```bash
+python3 evaluation/material-rag-research-v1/analysis/evaluate_guard_suites.py \
+  --json-out evaluation/material-rag-research-v1/results/guard-contract-current.json \
+  --markdown-out evaluation/material-rag-research-v1/results/GUARD-CONTRACTS.md
+```
+
+This is the corpus-level gate for counts, grounding links and scenario contracts. It deliberately does
+not label online authorization, injected dependency failures, retrieval or answer generation as passed;
+those behaviors are executed at their corresponding later experiment stages.
 
 ## Evaluation stages
 

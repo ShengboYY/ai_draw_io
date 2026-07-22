@@ -174,6 +174,23 @@ class CanonicalPageAssemblerTest {
     }
 
     @Test
+    void legacyExperimentModeKeepsPhysicalPdfLinesSeparate() {
+        List<ExtractedTextBlock> blocks = List.of(
+                block("line-1", "Evidence remains", new NormalizedBoundingBox(
+                        0.12, 0.20, 0.56, 0.22)),
+                block("line-2", "split in E0.", new NormalizedBoundingBox(
+                        0.12, 0.224, 0.46, 0.244)));
+
+        CanonicalPage canonical = new CanonicalPageAssembler(0.70, false).assemble(new PageExtraction(
+                1, 1000, 1400, blocks, new NativeTextQuality(100, 0, 0, 0.25), null));
+
+        // The experiment seam reproduces canonical-v4 without checking out an older corpus commit.
+        assertEquals(List.of("Evidence remains", "split in E0."), canonical.blocks().stream()
+                .map(block -> block.displayText()).toList());
+        assertTrue(new CanonicalPageAssembler(0.70, false).fingerprint().startsWith("canonical-v4:"));
+    }
+
+    @Test
     void edgeBlocksAreMarkedAsBoilerplateCandidatesForDocumentLevelConfirmation() {
         List<ExtractedTextBlock> blocks = List.of(
                 block("header", "Agile Practice Guide", new NormalizedBoundingBox(0.1, 0.01, 0.9, 0.05)),

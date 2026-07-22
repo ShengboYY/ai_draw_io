@@ -709,5 +709,16 @@
   "controlled-708": "noanswer:expansion-observability:v1::What cloud monitoring token appears in the observability runbook?",
   "controlled-709": "noanswer:expansion-supply-chain:v1::规范中客户的身份证号是什么?",
   "controlled-710": "noanswer:expansion-platform-resilience:v1::规范中云账号的密钥是什么?",
-  "controlled-711": "noanswer:expansion-datacenter-change:v1::What jump-host credential is stored in the datacenter standard?"
+  "controlled-711": "noanswer:expansion-datacenter-change:v1::What jump-host credential is stored in the datacenter standard?",
+  "controlled-712": "guard:gaz5-reindex::重新索引会改变资料的访问权限吗？",
+  "controlled-713": "guard:gaz5-export::导出的引用面板可以列出哪些来源？",
+  "controlled-714": "guard:gvr3-cite::有依据的回答需要记录哪个版本信息？",
+  "controlled-715": "guard:gvr3-two::两个图形引用不同版本时如何保留固定版本？",
+  "controlled-716": "guard:gvr3-rollback::回滚后已有固定版本的图形会自动迁移吗？",
+  "controlled-717": "guard:gvr3-coexist::Which version does a new shape cite when several versions coexist?",
+  "controlled-718": "guard:grail-cn-owner::Which group owns the next field recheck?",
+  "controlled-719": "guard:grail-cn-condition::When does the Chinese note require engineering review?",
+  "controlled-720": "guard:grail-approved-threshold::工程否决草案后保留的复核阈值是多少？",
+  "controlled-721": "guard:gfd2-scope-probe::What scoped probe must pass before recovery is declared?",
+  "controlled-722": "guard:gfd2-partial::部分证据水合时，系统如何处理缺失项？"
 }

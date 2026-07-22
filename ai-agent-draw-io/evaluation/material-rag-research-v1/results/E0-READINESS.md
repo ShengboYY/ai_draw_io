@@ -4,11 +4,11 @@ Status: **READY**
 
 ## Current corpus
 
-- Core cases: 450 / 240
-- Development: 250 / 120
-- Validation: 100 / 60
-- Holdout: 100 / 60
-- Generated cases including guards: 711
+- Core cases: 450 / 450
+- Development: 250 / 250
+- Validation: 100 / 100
+- Holdout: 100 / 100
+- Generated cases including guards: 722
 - Anchors: 402; documents: 39
 
 ## Blocking gaps
@@ -19,6 +19,7 @@ Status: **READY**
 - Independent human review status: `double_reviewed`
 - Primary-category deltas: `{}`
 - Language-target deltas: `{}`
+- Guard-suite deltas: `{}`
 
 ## Structural checks
 
@@ -38,6 +39,7 @@ Status: **READY**
 - PASS - `reviewLedgerReferencesKnownCases`
 - PASS - `primaryCategoryLabelsValid`
 - PASS - `scenarioCategoryContextsValid`
+- PASS - `guardSuiteMinimumsMet`
 
-The candidate lock records current SHA-256 inputs but is not a frozen E0 lock. Do not run
-E0 or resume E1 until the case-count, label and independent-review gaps are closed.
+The corpus lock is frozen: core targets, guard-suite minimums, structural checks and
+independent review all pass. Validation comparisons may proceed; Holdout remains sealed.

@@ -562,3 +562,19 @@ for aid,pg,ctx,gold,qs in _GAZ5:
     GUARD_FACTS.append({"anchorId": aid, "source": "guard-access-scope-5", "version": "v1", "page": pg,
                         "modality": "text", "primaryCategory": "versionAndAuthorization",
                         "evaluationContext": _v(*ctx), "goldMatch": gold, "queries": qs})
+
+
+# Appended after every pre-existing case so frozen core case IDs never drift when guards grow.
+GUARD_LATE_CASES = [
+    {"anchorId": "gaz5-reindex", "query": "重新索引会改变资料的访问权限吗？"},
+    {"anchorId": "gaz5-export", "query": "导出的引用面板可以列出哪些来源？"},
+    {"anchorId": "gvr3-cite", "query": "有依据的回答需要记录哪个版本信息？"},
+    {"anchorId": "gvr3-two", "query": "两个图形引用不同版本时如何保留固定版本？"},
+    {"anchorId": "gvr3-rollback", "query": "回滚后已有固定版本的图形会自动迁移吗？"},
+    {"anchorId": "gvr3-coexist", "query": "Which version does a new shape cite when several versions coexist?"},
+    {"anchorId": "grail-cn-owner", "query": "Which group owns the next field recheck?"},
+    {"anchorId": "grail-cn-condition", "query": "When does the Chinese note require engineering review?"},
+    {"anchorId": "grail-approved-threshold", "query": "工程否决草案后保留的复核阈值是多少？"},
+    {"anchorId": "gfd2-scope-probe", "query": "What scoped probe must pass before recovery is declared?"},
+    {"anchorId": "gfd2-partial", "query": "部分证据水合时，系统如何处理缺失项？"},
+]

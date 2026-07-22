@@ -22,19 +22,31 @@ public final class CanonicalPageAssembler {
     private final double lowConfidenceThreshold;
     private final TextSourceQualityCalibration qualityCalibration;
     private final TextBlockKindPolicy blockKindPolicy;
+    private final boolean paragraphLineMergeEnabled;
 
     public CanonicalPageAssembler(double lowConfidenceThreshold) {
-        this(lowConfidenceThreshold, TextSourceQualityCalibration.goldenV1());
+        this(lowConfidenceThreshold, TextSourceQualityCalibration.goldenV1(), true);
+    }
+
+    public CanonicalPageAssembler(double lowConfidenceThreshold, boolean paragraphLineMergeEnabled) {
+        this(lowConfidenceThreshold, TextSourceQualityCalibration.goldenV1(), paragraphLineMergeEnabled);
     }
 
     public CanonicalPageAssembler(double lowConfidenceThreshold,
                                   TextSourceQualityCalibration qualityCalibration) {
+        this(lowConfidenceThreshold, qualityCalibration, true);
+    }
+
+    public CanonicalPageAssembler(double lowConfidenceThreshold,
+                                  TextSourceQualityCalibration qualityCalibration,
+                                  boolean paragraphLineMergeEnabled) {
         if (lowConfidenceThreshold < 0 || lowConfidenceThreshold > 1) {
             throw new IllegalArgumentException("lowConfidenceThreshold must be a ratio");
         }
         this.lowConfidenceThreshold = lowConfidenceThreshold;
         this.qualityCalibration = java.util.Objects.requireNonNull(qualityCalibration, "qualityCalibration");
         this.blockKindPolicy = new TextBlockKindPolicy();
+        this.paragraphLineMergeEnabled = paragraphLineMergeEnabled;
     }
 
     public double lowConfidenceThreshold() {
@@ -42,8 +54,10 @@ public final class CanonicalPageAssembler {
     }
 
     public String fingerprint() {
-        return "canonical-v5:source-map-v2:block-region-merge:paragraph-line-merge-gap2.5pct-left8pct"
-                + ":reading-flow-v1:boilerplate-candidate-v1"
+        String version = paragraphLineMergeEnabled
+                ? "canonical-v5:source-map-v2:block-region-merge:paragraph-line-merge-gap2.5pct-left8pct"
+                : "canonical-v4:source-map-v2:block-region-merge";
+        return version + ":reading-flow-v1:boilerplate-candidate-v1"
                 + ":delimited-row-merge-gap4pct-left3pct-right15pct"
                 + ":" + blockKindPolicy.fingerprint()
                 + ":calibration=" + qualityCalibration.version() + ":low-confidence=" + lowConfidenceThreshold;
@@ -82,9 +96,9 @@ public final class CanonicalPageAssembler {
             }
         }
         selected = orderByReadingFlow(selected);
-        selected = mergeSameLineParagraphRuns(selected);
+        if (paragraphLineMergeEnabled) selected = mergeSameLineParagraphRuns(selected);
         selected = mergeDelimitedTableRows(selected);
-        selected = mergeContiguousParagraphLines(selected);
+        if (paragraphLineMergeEnabled) selected = mergeContiguousParagraphLines(selected);
         List<CanonicalBlock> ordered = new ArrayList<>();
         for (int index = 0; index < selected.size(); index++) {
             CanonicalBlock block = selected.get(index);

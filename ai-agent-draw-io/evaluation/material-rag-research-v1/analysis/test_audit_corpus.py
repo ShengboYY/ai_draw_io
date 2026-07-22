@@ -11,25 +11,31 @@ from audit_corpus import audit, evidence_shape_errors, reviewed_case_ids
 
 
 ROOT = Path(__file__).resolve().parents[1]
+REVIEW_LEDGER = ROOT / "review/review-ledger.json"
+LOCK = ROOT / "fixtures/generated/corpus-lock.json"
 
 
 class AuditCorpusTest(unittest.TestCase):
 
-    def test_current_corpus_is_structurally_valid_but_not_e0_ready(self) -> None:
-        result, lock = audit(ROOT, None)
+    def test_current_corpus_matches_the_machine_readable_plan(self) -> None:
+        result, lock = audit(ROOT, REVIEW_LEDGER)
+        plan = json.loads((ROOT / "experiment-plan-v2.json").read_text(encoding="utf-8"))
 
         self.assertTrue(all(result["checks"].values()))
-        self.assertEqual(240, result["counts"]["coreCases"])
-        self.assertEqual({"development": 120, "holdout": 60, "validation": 60},
-                         result["counts"]["coreBySplit"])
+        self.assertEqual(sum(plan["coreCases"].values()), result["counts"]["coreCases"])
+        self.assertEqual(dict(sorted(plan["coreCases"].items())), result["counts"]["coreBySplit"])
+        self.assertTrue(result["readyForE0Freeze"])
+        self.assertEqual("frozen", lock["status"])
+
+    def test_without_review_ledger_the_lock_remains_a_candidate(self) -> None:
+        result, lock = audit(ROOT, None)
+
         self.assertFalse(result["readyForE0Freeze"])
         self.assertEqual("candidate", lock["status"])
 
-    def test_committed_candidate_lock_matches_a_fresh_audit(self) -> None:
-        _, expected_lock = audit(ROOT, None)
-        committed_lock = json.loads(
-            (ROOT / "fixtures/generated/corpus-lock.candidate.json").read_text(encoding="utf-8")
-        )
+    def test_committed_lock_matches_a_fresh_reviewed_audit(self) -> None:
+        _, expected_lock = audit(ROOT, REVIEW_LEDGER)
+        committed_lock = json.loads(LOCK.read_text(encoding="utf-8"))
 
         self.assertEqual(expected_lock, committed_lock)
 
