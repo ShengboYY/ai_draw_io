@@ -382,8 +382,9 @@ E6b 的本地导出合同已冻结为 `fixtures/drawio-generation-paired-hydrati
 rerun 1/2 证明 page-3 artifact 可被索引但未进入 broad-chartbook raw top-8；因此 r4 预注册为一次独立
 representation 干预：先只用 native structure 选出 visual page，再只对这些已选真实页面运行本地 Tesseract，随后
 在最终 canonical evidence/chunk 中加入 OCR 文本，同时保留原始图像 artifact 给模型判断箭头与结构。它不读取 task
-`requiredAnchors`、XML assertions 或 expected answer，不修改 raw top-8 的排序规则。此合同仍不是生成结果：r4 trace
-导出前没有 E6b context、prompt 或模型请求。
+`requiredAnchors`、XML assertions 或 expected answer，不修改 raw top-8 的排序规则。r4 已在临时 Development
+namespace 成功导出 6 个 paired context：`dgt-dev-02` 的 OCR companion chunk 位于 raw rank 4 并带冻结图像，3/5
+retrieval-required task 的 context 改变（60%，超过 20% gate）。这仍不是生成结果：尚无 prompt、模型请求或 Validation。
 
 真实 hydration 的 producer 是 ingestion worker 的 opt-in live test
 `ControlledPdfDenseRecallLiveTest#shouldExportDrawioDevelopmentTaskHydrationFromTheRealMultimodalPipeline`。

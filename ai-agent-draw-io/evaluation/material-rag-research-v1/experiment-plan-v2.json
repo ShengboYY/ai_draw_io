@@ -191,7 +191,7 @@
     "controlMeanSourceCount": 2.4615384615384617,
     "candidateMeanSourceCount": 3.9615384615384617,
     "decision": "valid contrast check; source coverage improved, recall direction descriptive only; no generation promotion claim",
-    "next": "rerun E6b Development after the pre-registered selected-visual-page local OCR representation intervention; reruns 1 and 2 showed a source-visible visual chunk outside raw top-8 under broad chartbook-only dense ordering"
+    "next": "freeze paired prompt bundles and a formal E7 generation manifest for the successful E6b r4 Development hydration; request a separate model-call authorization before generation"
   },
   "e7Generation": {
     "activeTaskFixture": "fixtures/drawio-generation-tasks-v2.json",
@@ -199,7 +199,7 @@
     "activeValidationTasks": 3,
     "requiresInputXmlAndEditAssertionsForEditTasks": true,
     "requiresFormalRunManifest": "material-rag-generation-run-manifest-v1",
-    "pairedHydrationContract": "fixtures/drawio-generation-paired-hydration-contract-v1.json; reruns 1 and 2 were rejected because broad chartbook-only raw top-8 omitted dgt-dev-02 architecture artifact; r4 adds local OCR text only for native-policy-selected visual pages while retaining the original image artifact; no-retrieval task handling is fixed separately",
+    "pairedHydrationContract": "fixtures/drawio-generation-paired-hydration-contract-v1.json; r4 successfully exported six Development paired contexts after native-policy-selected visual-page OCR placed the dgt-dev-02 architecture artifact in raw top-8; the original image artifact is retained and no-retrieval task handling is fixed separately",
     "historicalFixedRunQualification": "diagnostic; v1 tasks only; not compatible with active v2 edit assertions",
     "next": "paired Development generation only after E6b hydration and manifest freeze"
   },
@@ -232,7 +232,7 @@
     "e4Status": "completed: neither single-source deduplication nor multi-source fixed-cap diversity qualified",
     "e5Status": "completed: DeepSeek V4 Pro listwise reranker accepted JSON for 5/155 cases and Recall@10 gain was 0.0; not promoted",
     "e6aStatus": "completed: 26/26 contexts changed; source coverage improved; recall interval touched zero; no promotion claim",
-    "e6bStatus": "reruns 1 and 2 made dgt-dev-02 page-3 visual evidence searchable but broad chartbook-only raw ranking still omitted it from top-8; r4 selected-visual-page local OCR representation is locally tested and pending Development rerun; no prompt bundle, model call or Validation run",
+    "e6bStatus": "completed input hydration only: r4 selected-visual-page local OCR placed dgt-dev-02 page-3 source image in raw top-8 and exporter produced six paired Development contexts with 3/5 retrieval-required tasks changed (60%); no prompt bundle, model call or Validation run",
     "e7Status": "historical fixed-context v1 run remains diagnostic; active v2 paired run not started"
   }
 }

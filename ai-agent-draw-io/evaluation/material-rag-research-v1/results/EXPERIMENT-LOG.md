@@ -372,7 +372,7 @@
 - **后续**:审查否决了把 selected-source-first 混入 E6b raw control 的方案；保留 no-retrieval task 的两臂空 context
   修复，并先实现真正改变 broad-chartbook visual retrieval 的独立干预后再重跑。
 
-### E6b selected-visual-page OCR representation · 2026-07-23 · ✅本地契约通过，⏸Development trace 待运行
+### E6b selected-visual-page OCR representation · 2026-07-23 · ✅Development input gate 通过
 
 - **变量（唯一）**:architecture visual projection 仍先依照 native document structure 的固定 visual-selection
   policy 选择真实图像页；仅对这些已选页调用本地 Tesseract，再以含 OCR 的页面重建 canonical evidence/chunk。
@@ -383,9 +383,14 @@
 - **本地验证**:新增契约测试，使用坐标化 OCR word stub 证明被选的 architecture 第 3 页同时产出可检索 visual
   chunk 与 OCR TEXT chunk；`ControlledPdfDenseRecallLiveTest` 目标测试通过。此前单一大 OCR region 会被 canonical
   overlap 规则与 native caption 合并而不产出检索块，已通过按 OCR 实际 word/line 边界的测试覆盖该风险。
-- **下一步**:在新的临时 Pinecone Development namespace 运行真实 PDFBox → selected-page Tesseract → canonical
-  evidence → top-40；只在 exporter 的 artifact 与 20% contrast gate 都通过后，才生成 E6b paired contexts。没有模型调用、
-  token 消耗或 Validation。
+- **真实 Development r4**:在临时 `material-rag-e6b-dev-20260723-r4` namespace 对 5 个需检索 task 运行真实
+  PDFBox → selected-page Tesseract → canonical evidence → Pinecone top-40；62 个 synthetic vectors 由 runner 的
+  `finally` cleanup 删除。`dgt-dev-02` 的 architecture page-3 OCR companion chunk 升至 raw rank 4 并携带冻结
+  request-route image；这让 control 和 candidate 两臂都通过 required-artifact gate。
+- **导出与决策**:exporter 生成 6 条 task 的 paired context；显式 layout-only/no-retrieval 的 `dgt-dev-06` 两臂为空，
+  未计入 contrast 分母。其余 5 task 中有 3 个 context 改变，**60%** 超过 20% gate。E6b 的 input stage 因而完成，
+  但尚无 prompt、模型调用、token 消耗、质量结论或 Validation；下一步冻结 prompt bundle 与 formal run manifest，
+  再取得单独的模型调用授权。详见 [2026-07-23-e6b-task-hydration-r4-run.md](2026-07-23-e6b-task-hydration-r4-run.md)。
 
 ---
 
