@@ -128,7 +128,17 @@
     "minimumValidationCoverageGainOrConcentrationDrop": 0.05,
     "requireNoGoldSourceRecallLoss": true,
     "requireZeroUnmountedLeakage": true,
-    "status": "preregistered; Development not yet run"
+    "developmentActivationRate": 0.8076923076923077,
+    "developmentEvidenceRecallAt10Delta": -0.038461538461538464,
+    "developmentEvidenceRecallAt40Delta": 0.0,
+    "developmentMrrAt10Delta": -0.001648351648351648,
+    "developmentMountedCoverageAt10Delta": 0.17307692307692302,
+    "developmentMaxSourceShareAt10Delta": -0.21923076923076923,
+    "developmentGoldSourceRecallAt10Delta": 0.19230769230769235,
+    "developmentUnmountedLeakagePositions": 0,
+    "validationRun": false,
+    "decision": "retain ranked-raw-v1; source-diversity-v1 evidence Recall@10 delta -0.0385 exceeded the allowed -0.02 loss despite improved source coverage",
+    "status": "completed; candidate not promoted, Validation and Holdout sealed"
   },
   "preE0": {
     "minimumReviewedCasesBeforeComparison": 340,
@@ -149,12 +159,13 @@
     "E9_SAFETY_AND_RECOVERY"
   ],
   "progress": {
-    "completed": ["E0_BASELINE", "E1_REPRESENTATION", "E2_CHUNKING", "E3_RETRIEVAL"],
-    "currentNext": "E4_DEDUPLICATION",
+    "completed": ["E0_BASELINE", "E1_REPRESENTATION", "E2_CHUNKING", "E3_RETRIEVAL", "E4_DEDUPLICATION"],
+    "currentNext": "E5_RERANKING",
     "e2Decision": "retain flat-leaf-v1; parent-context-500-v1 recallAt10 delta 0.0000 did not meet +0.02 and mrrAt10 delta -0.0618 regressed",
     "e3FirstCandidateDecision": "retain dense-v1; projection hybrid recallAt10 delta 0.0065 did not meet +0.02",
     "e3SecondCandidateDecision": "retain original-v1; evidence-focused recallAt10 delta -0.0194 and mrrAt10 delta -0.0488 regressed",
     "e4FirstCandidateDecision": "retain ranked-raw-v1; evidence-dedup activation 2.72% on Development but 0.25% on Validation",
-    "e4Status": "in progress: multi-source chartbook-mounted diversity fixture required"
+    "e4SecondCandidateDecision": "retain ranked-raw-v1; source-diversity-v1 improved mounted coverage@10 by 0.1731 but evidence recallAt10 delta -0.0385 violated the -0.02 gate",
+    "e4Status": "completed: neither single-source deduplication nor multi-source fixed-cap diversity qualified; proceed to E5 reranking"
   }
 }

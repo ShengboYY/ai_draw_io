@@ -11,6 +11,7 @@
     "uniqueCaseIds": true,
     "everyCaseHasMultipleGoldSources": true,
     "mountedAndUnmountedAreDisjoint": true,
+    "caseScopeMatchesChartbook": true,
     "allGoldSourcesAreMounted": true,
     "allSourcesStayWithinSplit": true,
     "allGoldAnchorsResolve": true,

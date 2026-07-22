@@ -27,6 +27,7 @@ def audit_chartbook_cases(root: Path) -> dict:
         "uniqueCaseIds": not duplicate_case_ids,
         "everyCaseHasMultipleGoldSources": True,
         "mountedAndUnmountedAreDisjoint": True,
+        "caseScopeMatchesChartbook": True,
         "allGoldSourcesAreMounted": True,
         "allSourcesStayWithinSplit": True,
         "allGoldAnchorsResolve": True,
@@ -46,6 +47,10 @@ def audit_chartbook_cases(root: Path) -> dict:
         case_errors = []
         if chartbook is None or case["split"] != chartbook.get("split"):
             case_errors.append("unknown chartbook or split mismatch")
+        elif (case["mountedSourceVersions"] != chartbook["mountedSourceVersions"]
+              or case["unmountedSourceVersions"] != chartbook["unmountedSourceVersions"]):
+            checks["caseScopeMatchesChartbook"] = False
+            case_errors.append("mounted or unmounted scope differs from chartbook")
         if len(gold_sources) < 2:
             checks["everyCaseHasMultipleGoldSources"] = False
             case_errors.append("fewer than two gold sources")

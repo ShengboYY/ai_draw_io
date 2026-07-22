@@ -186,6 +186,26 @@
   source diversity。Holdout 继续密封。
 - 详见 [2026-07-22-e4-evidence-dedup-vs-ranked-raw.md](2026-07-22-e4-evidence-dedup-vs-ranked-raw.md)。
 
+### E4b — 多资料图册来源多样性 · 2026-07-22 · ❌不晋级，E4 完成
+
+- **假设**:draw.io 图册同时挂载多份资料时，dense top 10 可能被单一资料占据；top-10 每来源最多 4 条的
+  soft cap 应提高互补资料覆盖，并且不损失直接证据。
+- **控制变量**:提交 `72f817ed`、独立 `e4-chartbook-v1` Development 26 例、每例 4 份挂载长资料与
+  至少 2 个 gold 来源、E1 canonical、flat leaf、original query、dense-only、533 chunks、同一 Pinecone
+  top-80、相同 mounted-source filter。只切换 `ranked-raw-v1 → source-diversity-v1`；两臂 top-80
+  逐 case 验证一致。Validation/Holdout 未打开。
+- **来源目标实现**:候选重排 21/26=**80.8%** 的前 40；mounted coverage@10 **+0.173**
+  (0.683→0.856)，unique sources@10 2.731→3.423，max-source-share@10 **-0.219**
+  (0.619→0.400)，gold-source Recall@10 **+0.192** (0.423→0.615)，两臂均为 0 未挂载泄漏。
+- **质量失败**:evidence R@10 **0.231→0.192（-0.038）**，超过预注册最多 -0.02 的损失；R@40 持平，
+  MRR -0.0016 且区间跨 0。英文 `e4cb-dev-025` 被从 rank 10 重排至 11，是唯一 top-10 evidence loss。
+- **运维**:两次意外重叠启动使用不同 run prefix；最终只归档一套完整的成对输出。两个 exact-prefix cleanup
+  查询均返回 0，确认没有残留 synthetic vectors。
+- **决策**:**不晋级 `source-diversity-v1`，不运行 Validation**。固定的每来源上限以相关证据的早期排序
+  换取了更好的来源覆盖，不适合作为 draw.io agent 的默认候选后处理。E4 至此完成，保留
+  `ranked-raw-v1` 并按计划进入 E5 reranking。
+- 详见 [2026-07-22-e4b-chartbook-source-diversity-vs-ranked-raw.md](2026-07-22-e4b-chartbook-source-diversity-vs-ranked-raw.md)。
+
 ---
 
 ## 当前状态与下一步
@@ -193,9 +213,8 @@
 - 已完成:E0 基线 → E1 表示层改进 → 核心集升级并冻结到 450 → Development 与 Validation
   配对重跑 → 守门最低数补齐并执行 fixture-contract。Validation 证明 E1 提升真实,也证明
   dense-only 尚未达门槛。
-- **下一步**:E4a 单资料去重在 Development 生效 2.72%，但 Validation 仅 0.25%，不晋级。
-  E4 继续：补图册挂载的多资料 fixture 与 source-diversity 指标；original query、dense、flat chunk
-  和 ranked-raw 保持冻结，Holdout 继续密封。
+- **下一步**:E4 已完成且两个候选都不晋级；开始 E5 reranking 的单变量设计。original query、dense、
+  flat chunk 和 `ranked-raw-v1` 保持冻结，Holdout 继续密封。
 
 ## 开放问题 / 待办
 
@@ -207,7 +226,7 @@
 - [x] E3 projection hybrid——R@10 +0.006、R@40 +0.000,exact lookup 退化,不晋级。
 - [x] E3 evidence-focused query——R@10 -0.019、MRR -0.049,不晋级,转 E4。
 - [x] E4a 单资料 evidence dedup——质量持平，但生效率 2.72%→0.25% 未在 Validation 复现，不晋级。
-- [ ] E4b 多资料图册挂载 fixture 与来源多样性评估——当前单来源 case 无法回答。
+- [x] E4b 多资料图册挂载 fixture 与来源多样性评估——来源覆盖改善，但 R@10 -0.038 超过硬门槛，未晋级。
 - [x] 英文切片小样本噪声——450 上 en(n=47)R@10 0.894,与其他语言接近,非真问题。
 - [ ] E6/E7(上下文选择、生成引用)尚未开跑。
 

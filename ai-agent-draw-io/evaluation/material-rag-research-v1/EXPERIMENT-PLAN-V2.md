@@ -231,8 +231,9 @@ Pre-E0 已完成：450 个核心案例、独立复核、三分区和语料 prove
 Validation 配对复核与守门 fixture-contract 也已完成；E2 parent-context-500 的 Development
 Recall@10 与 flat 持平,MRR@10 低 0.062,未晋级。当前顺序：
 
-1. E4a 单资料 `evidence-dedup-v1` 已完成：Development 生效率 2.72% 且质量持平，Validation
-   生效率仅 0.25%，不晋级。E4 继续补多资料图册挂载 fixture，并预注册来源多样性指标。
+1. E4 已完成：E4a 单资料 `evidence-dedup-v1` 在 Validation 的生效率仅 0.25%，不晋级；E4b 真正的
+   多资料图册挂载实验使来源覆盖改善，但 evidence Recall@10 降低 0.038，超过 0.02 的硬门槛，亦不晋级。
+   下一步是 E5 reranking；`ranked-raw-v1` 保持冻结。
 2. 后续 E9 必须执行在线授权、版本、故障注入与恢复；当前 fixture-contract 通过不能替代它。
 3. Holdout 保持密封，直到基线与最终候选均冻结后只比较一次。
 
@@ -301,3 +302,10 @@ Recall@10/40 下降均不超过 0.02；MRR 无显著下降；gold-source Recall@
 coverage@10 至少提高 0.10，或 mean max-source-share@10 至少下降 0.10。Validation 必须保持泄漏为 0、
 证据与 gold-source recall 不退化，并至少复现 0.05 的 coverage 提升或 concentration 降低，候选才晋级。
 本实验只改变候选后处理；E1 canonical、flat chunk、original query、dense 模型与挂载过滤全部冻结。
+
+E4b 结果：Development 26 例中，候选重排 21/26=80.8% 的前 40，未挂载泄漏为 0；mounted-source
+coverage@10 从 0.683 提升到 0.856，max-source-share@10 从 0.619 降到 0.400，gold-source Recall@10 从
+0.423 提升到 0.615。但 evidence Recall@10 从 0.231 降到 0.192（-0.038，超过允许 -0.02），Recall@40
+持平、MRR 无显著下降。因此不打开 Validation、不晋级 `source-diversity-v1`，并保持 Holdout 密封。E4
+至此完成；下一个单变量实验是 E5 reranking。完整结果与运行锁见
+`results/2026-07-22-e4b-chartbook-source-diversity-vs-ranked-raw.md`。

@@ -171,6 +171,26 @@ class CompareDenseRunsTest(unittest.TestCase):
         self.assertEqual(1, result["postprocessActivation"]["removedBaselinePositions"])
         self.assertAlmostEqual(1 / 3, result["postprocessActivation"]["replacementRate"])
 
+    def test_postprocess_activation_counts_a_rank_only_change(self) -> None:
+        raw = run("e1-v5", [1])
+        diversified = run("e1-v5", [1])
+        diversified["postprocessMode"] = "source-diversity-v1"
+        raw["metrics"]["caseResults"][0]["candidates"] = [
+            {"rank": rank, "vectorId": f"v-{chunk}", "sourceVersion": "source:v1",
+             "chunkId": chunk}
+            for rank, chunk in enumerate(("a", "b", "c"), start=1)
+        ]
+        diversified["metrics"]["caseResults"][0]["candidates"] = [
+            {"rank": rank, "vectorId": f"v-{chunk}", "sourceVersion": "source:v1",
+             "chunkId": chunk}
+            for rank, chunk in enumerate(("b", "a", "c"), start=1)
+        ]
+
+        result = compare(raw, diversified, "postprocessMode")
+
+        self.assertEqual(1, result["postprocessActivation"]["changedCases"])
+        self.assertEqual(0, result["postprocessActivation"]["removedBaselinePositions"])
+
     def test_postprocess_experiment_rejects_query_drift(self) -> None:
         raw = run("e1-v5", [1])
         deduplicated = run("e1-v5", [1])

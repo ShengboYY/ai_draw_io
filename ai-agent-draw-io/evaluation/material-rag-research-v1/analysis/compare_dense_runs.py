@@ -70,7 +70,7 @@ def slices(case: dict) -> list[str]:
 
 def postprocess_activation(e0_cases: dict[str, dict], e1_cases: dict[str, dict],
                            case_ids: list[str]) -> dict:
-    """Measure how often postprocessing removes a baseline candidate position."""
+    """Measure postprocessing changes, including rank-only diversification."""
     changed_case_ids = []
     baseline_positions = 0
     candidate_positions = 0
@@ -78,9 +78,12 @@ def postprocess_activation(e0_cases: dict[str, dict], e1_cases: dict[str, dict],
     top10_removed_positions = 0
     for case_id in case_ids:
         baseline = [candidate["chunkId"] for candidate in e0_cases[case_id]["candidates"]]
-        candidate = {item["chunkId"] for item in e1_cases[case_id]["candidates"]}
+        candidate_order = [item["chunkId"] for item in e1_cases[case_id]["candidates"]]
+        candidate = set(candidate_order)
         removed = [chunk_id for chunk_id in baseline if chunk_id not in candidate]
-        if removed:
+        # A source cap normally reorders the same top-40 candidates, so removal alone
+        # cannot represent whether this postprocessor activated.
+        if baseline != candidate_order:
             changed_case_ids.append(case_id)
         baseline_positions += len(baseline)
         candidate_positions += len(e1_cases[case_id]["candidates"])
