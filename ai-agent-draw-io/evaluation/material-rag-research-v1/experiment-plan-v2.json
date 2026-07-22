@@ -69,6 +69,22 @@
     "minimumPromotionGain": 0.02,
     "rejectOnSignificantMajorSliceRegression": true
   },
+  "e3Retrieval": {
+    "baselineMode": "dense-v1",
+    "firstCandidateMode": "hybrid-projection-rrf-v1",
+    "canonicalMode": "e1-v5",
+    "chunkMode": "flat-leaf-v1",
+    "denseCandidateLimit": 40,
+    "lexicalCandidateLimit": 40,
+    "lexicalProfile": "projection-tfidf-exact-v1:word-min2:cjk-bigram:exact2",
+    "fusionProfile": "weighted-rrf-v1:k60:lexical1.2:dense1.0",
+    "pairedOnSameDenseAndLexicalLanes": true,
+    "mysqlNaturalLanguageScoreEquivalent": false,
+    "primaryDecisionMetric": "development.recallAt10.pairedDelta",
+    "minimumPromotionGain": 0.02,
+    "firstCandidateDecision": "retain dense-v1; hybrid recallAt10 delta 0.0065 did not meet +0.02 and exactLookup recallAt10 delta -0.0571",
+    "nextCandidate": "query rewrite with dense and flat chunks fixed"
+  },
   "preE0": {
     "minimumReviewedCasesBeforeComparison": 340,
     "requiredFrozenCoreCasesForBaseline": 450,
@@ -90,6 +106,7 @@
   "progress": {
     "completed": ["E0_BASELINE", "E1_REPRESENTATION", "E2_CHUNKING"],
     "currentNext": "E3_RETRIEVAL",
-    "e2Decision": "retain flat-leaf-v1; parent-context-500-v1 recallAt10 delta 0.0000 did not meet +0.02 and mrrAt10 delta -0.0618 regressed"
+    "e2Decision": "retain flat-leaf-v1; parent-context-500-v1 recallAt10 delta 0.0000 did not meet +0.02 and mrrAt10 delta -0.0618 regressed",
+    "e3FirstCandidateDecision": "retain dense-v1; projection hybrid recallAt10 delta 0.0065 did not meet +0.02"
   }
 }

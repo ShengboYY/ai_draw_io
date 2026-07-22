@@ -94,6 +94,15 @@ class CompareDenseRunsTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "denseCandidates"):
             compare(dense, hybrid, "retrievalMode")
 
+    def test_retrieval_experiment_rejects_lexical_lane_drift(self) -> None:
+        dense = run("e1-v5", [1])
+        hybrid = run("e1-v5", [1])
+        hybrid["retrievalMode"] = "hybrid-projection-rrf-v1"
+        hybrid["metrics"]["caseResults"][0]["lexicalCandidates"][0]["chunkId"] = "other"
+
+        with self.assertRaisesRegex(ValueError, "lexicalCandidates"):
+            compare(dense, hybrid, "retrievalMode")
+
     def test_missing_raw_candidate_sequence_is_rejected(self) -> None:
         e0 = run("e0-v4", [1])
         e1 = run("e1-v5", [1])

@@ -132,6 +132,25 @@
 - **决策**:**不晋级 parent-context-500**,保留 flat leaf,按预注册顺序转 E3 dense + lexical hybrid。
 - 详见 [2026-07-22-e2-parent-context-vs-flat.md](2026-07-22-e2-parent-context-vs-flat.md)。
 
+### E3 — dense vs projection-backed hybrid RRF · 2026-07-22 · ❌不晋级
+
+- **假设**:现有 lexical projection 可补足 dense 对多证据、版本/授权规则的语义错位；候选使用
+  TF-IDF/CJK bigram/exact +2 的确定性离线 lexical top 40，再按线上参数 `lexical=1.2`、
+  `dense=1.0`、`k=60` 融合。该 lexical scorer 不冒充 MySQL FULLTEXT 的逐分数复刻。
+- **控制变量**:提交 `df6b9f46`、Development 155 例、E1 canonical、flat leaf、533 chunks、
+  `multilingual-e5-large`、top 40、固定 gold child；仅切换 dense 与 hybrid。Validation/Holdout 未打开。
+- **配对修订**:首次两个独立 run 被比较器发现 dense 近分名次互换，在统计前判为不可比较；最终从同一次
+  passage/query embedding 和 Pinecone query 同时产出两组结果，155/155 dense/lexical lanes 完全一致。
+  所有运行均删除各自 533 个向量。
+- **结果**:dense→hybrid 的 R@1 0.600→0.613、R@5 0.877→0.871、R@10
+  **0.890→0.897**、R@40 0.961→0.961、MRR 0.718→0.723。R@10 差值仅 **+0.006**
+  (95% CI [-0.019,0.032]),未达到 +0.02。
+- **切片**:multi-evidence +0.100,但 exact lookup -0.057;两个询问“未知 identifier/date”的 case
+  从 dense rank 3/2 被 broad lexical overlap 推到 rank 22。English -0.021、Chinese +0.029,区间均跨 0。
+- **决策**:**不晋级 `hybrid-projection-rrf-v1`**,保留 dense baseline,不打开 Validation。E3 下一候选
+  单独测试 query rewrite；后续 lexical 只能考虑意图门控/重排,不能无条件以 1.2 权重融合。
+- 详见 [2026-07-22-e3-projection-hybrid-vs-dense.md](2026-07-22-e3-projection-hybrid-vs-dense.md)。
+
 ---
 
 ## 当前状态与下一步
@@ -139,8 +158,8 @@
 - 已完成:E0 基线 → E1 表示层改进 → 核心集升级并冻结到 450 → Development 与 Validation
   配对重跑 → 守门最低数补齐并执行 fixture-contract。Validation 证明 E1 提升真实,也证明
   dense-only 尚未达门槛。
-- **下一步**:E2 parent-context 未达到 +0.02,按预注册顺序执行 E3 dense + lexical 混合召回。
-  Holdout 与 Validation 继续密封。
+- **下一步**:E3 首个 hybrid 候选未达到 +0.02,继续在 E3 里预注册一个单变量 query-rewrite 候选。
+  dense、flat chunk 保持冻结,Holdout 与 Validation 继续密封。
 
 ## 开放问题 / 待办
 
@@ -149,6 +168,7 @@
 - [x] 守门套件补齐——总量 272;计划内五套件均达到最低数并完成 272/272 fixture-contract。
 - [x] E0/E1 在 450 Validation 配对复核——E1 的提升区间不跨 0,但绝对门槛未通过。
 - [x] E2 flat vs parent-context-500——R@10 +0.000、MRR -0.062,不晋级,转 E3。
+- [x] E3 projection hybrid——R@10 +0.006、R@40 +0.000,exact lookup 退化,不晋级。
 - [x] 英文切片小样本噪声——450 上 en(n=47)R@10 0.894,与其他语言接近,非真问题。
 - [ ] E6/E7(上下文选择、生成引用)尚未开跑。
 
