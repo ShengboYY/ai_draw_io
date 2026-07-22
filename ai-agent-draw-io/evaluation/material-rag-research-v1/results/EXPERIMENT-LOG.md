@@ -246,8 +246,9 @@
 ### E7 — GPT-5.5 draw.io XML/citation contract pilot · 2026-07-22 · ⚠️仅验证评测管线
 
 - **范围**:只发送了 6 个冻结的 Development 合成任务；Validation 和 Holdout 没有发送。
-- **结果**:可解析 XML 3/6=50.0%，citation assertions 3/6=50.0%，同时满足 XML 与引用断言 1/6=16.7%。
-  一个模型响应将 citation 写为 `{"anchorId":"…"}`；评测器现同时规范化 string 与 object 两种无歧义表示，避免输出形状被误判为引用缺失。
+- **严格复核**:可解析 XML 3/6=50.0%；按 anchor、source version 与页码同时匹配计算的 citation assertions
+  为 0/6=0.0%，任务完成为 0/6。原 pilot prompt 只要求 anchor ID，因此其输出不能被当作 citation-location
+  质量结果。
 - **边界**:提示只给任务文字和 anchor ID，尚未提供检索到的证据正文、版本或位置；这只能验证 XML/citation evaluator 和模型响应契约，**不能**评估 RAG faithfulness、E6 上下文选择或 candidate/control 差异。
 - **决策**:不晋级、不打开 Validation。下一步把冻结的 control/candidate context bundle（来源文本、版本、citation location）接入相同任务，先在 Development 比较任务完成、citation completeness 与可人工复核的 faithfulness。
 - 详见 [2026-07-22-e7-gpt-5-5-development-pilot.md](2026-07-22-e7-gpt-5-5-development-pilot.md)。

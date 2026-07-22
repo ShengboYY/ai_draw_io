@@ -2,8 +2,8 @@
 
 This local-only change prepares a valid generation comparison without calling a model.
 
-- `build_drawio_generation_prompts.py` accepts a frozen task plus hydrated evidence records and emits one prompt bundle per arm. Each record retains anchor ID, source version, page and excerpt.
-- XML assertions, expected answers and evaluator-only required-anchor fields are not rendered into the model prompt. Citation output must identify `anchorId`, `sourceVersion` and `page`.
+- `build_drawio_generation_prompts.py` accepts a frozen task plus hydrated evidence records and emits one prompt bundle per arm. Each record retains anchor ID, source version, page and excerpt; duplicate task/arm bundles are rejected.
+- XML assertions, expected answers and evaluator-only required-anchor fields are not rendered into the model prompt. Citation output must identify `anchorId`, `sourceVersion` and `page`; the evaluator rejects foreign XML and citation locations that do not match the frozen evidence.
 - The corpus audit now verifies that every generation task anchor resolves to the task's declared source version and split, and that its citation assertion matches the task's required anchor set. The current v1 task suite passes this check.
 
 ## Readiness boundary

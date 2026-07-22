@@ -30,11 +30,14 @@ def build_prompt(task: dict, context: dict) -> str:
 
 def build_bundles(tasks: list[dict], contexts: list[dict], split: str, arm: str) -> list[dict]:
     """Pair each task with exactly one frozen context bundle from the selected experiment arm."""
-    selected = {
-        context["taskId"]: context
-        for context in contexts
-        if context.get("arm") == arm
-    }
+    selected = {}
+    for context in contexts:
+        if context.get("arm") != arm:
+            continue
+        task_id = context["taskId"]
+        if task_id in selected:
+            raise ValueError(f"duplicate {arm} context for {task_id}")
+        selected[task_id] = context
     bundles = []
     for task in tasks:
         if task.get("split") != split:

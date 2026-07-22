@@ -10,24 +10,38 @@ from pathlib import Path
 
 
 def cells(xml: str) -> list[ET.Element]:
-    """Parse only local model output; malformed XML is a scored failure, never repaired."""
+    """Parse only editable draw.io XML; malformed or foreign XML is a scored failure."""
     root = ET.fromstring(xml)
-    return list(root.iter("mxCell"))
+    if root.tag == "mxGraphModel":
+        graph = root
+    elif root.tag == "mxfile":
+        graph = root.find(".//mxGraphModel")
+        if graph is None:
+            raise ET.ParseError("mxfile contains no mxGraphModel")
+    else:
+        raise ET.ParseError("root is not draw.io XML")
+    return list(graph.iter("mxCell"))
 
 
-def citation_anchor_ids(citations: object) -> set[str]:
-    """Normalize the two citation shapes accepted by the generation response contract."""
+def citation_anchor_ids(citations: object, task: dict, anchors: dict[str, dict]) -> set[str]:
+    """Accept only citations whose anchor, version and page match hydrated source evidence."""
     if not isinstance(citations, list):
         return set()
-    return {
-        value if isinstance(value, str) else value.get("anchorId", "")
-        for value in citations
-        if isinstance(value, str) or isinstance(value, dict)
-    } - {""}
+    valid = set()
+    for citation in citations:
+        if not isinstance(citation, dict):
+            continue
+        anchor_id = citation.get("anchorId")
+        anchor = anchors.get(anchor_id)
+        if anchor is not None and citation.get("sourceVersion") == task["sourceVersion"] \
+                and citation["sourceVersion"] == f"{anchor['source']}:{anchor['version']}" \
+                and citation.get("page") == anchor.get("page"):
+            valid.add(anchor_id)
+    return valid
 
 
-def evaluate(task: dict, response: dict) -> dict:
-    citations = citation_anchor_ids(response.get("citations", []))
+def evaluate(task: dict, response: dict, anchors: dict[str, dict]) -> dict:
+    citations = citation_anchor_ids(response.get("citations", []), task, anchors)
     required = set(task["citationAssertions"]["mustCiteAnchors"])
     result = {"taskId": task["taskId"], "xmlParseable": False, "xmlAssertionsPassed": False,
               "citationAssertionsPassed": False, "completed": False}
@@ -59,12 +73,15 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--tasks", type=Path, required=True)
     parser.add_argument("--responses", type=Path, required=True)
+    parser.add_argument("--ground-truth", type=Path, required=True)
     parser.add_argument("--split", choices=("development", "validation", "holdout"), required=True)
     parser.add_argument("--json-out", type=Path, required=True)
     args = parser.parse_args()
     tasks = [task for task in json.loads(args.tasks.read_text())["tasks"] if task["split"] == args.split]
     responses = {value["taskId"]: value for value in json.loads(args.responses.read_text())["responses"]}
-    results = [evaluate(task, responses.get(task["taskId"], {})) for task in tasks]
+    anchors = {anchor["anchorId"]: anchor
+               for anchor in json.loads(args.ground_truth.read_text())["anchors"]}
+    results = [evaluate(task, responses.get(task["taskId"], {}), anchors) for task in tasks]
     count = len(results)
     args.json_out.write_text(json.dumps({"split": args.split, "taskCount": count, "results": results,
         "xmlParseRate": sum(value["xmlParseable"] for value in results) / count if count else 0,

@@ -8,10 +8,10 @@
 | --- | ---: |
 | Tasks | 6 |
 | Parseable XML | 3/6 (50.0%) |
-| Citation assertions | 3/6 (50.0%) |
-| Full XML + citation completion | 1/6 (16.7%) |
+| Citation assertions (anchor + version + page) | 0/6 (0.0%) |
+| Full XML + citation completion | 0/6 (0.0%) |
 
-Only `dgt-dev-06` met its frozen XML and citation assertions. `dgt-dev-02` and `dgt-dev-03` produced parseable editable XML and complete citations but failed exact required-label assertions. Three responses were empty under the requested JSON contract. One successful response used citation objects (`{"anchorId": "..."}`) rather than strings; the evaluator now normalizes both documented forms so that output-shape variation is not miscounted as a citation failure.
+Three responses contained parseable editable XML, but none provided a complete citation object with matching anchor ID, source version and page. `dgt-dev-02` and `dgt-dev-03` also failed exact required-label assertions. Three responses were empty under the requested JSON contract. The original pilot prompt only requested anchor IDs, so this outcome confirms that it was not a valid citation-location test.
 
 **Decision:** no promotion, no Validation run, and no E6 conclusion. The next valid experiment must construct control and candidate prompts from the corresponding frozen retrieved context bundles (including source text, version and citation locations), then compare their task completion and citation/faithfulness outcomes on Development before opening Validation.
 

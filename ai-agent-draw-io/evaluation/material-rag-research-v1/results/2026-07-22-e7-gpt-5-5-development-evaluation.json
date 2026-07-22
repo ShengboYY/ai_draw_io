@@ -13,14 +13,14 @@
       "taskId": "dgt-dev-02",
       "xmlParseable": true,
       "xmlAssertionsPassed": false,
-      "citationAssertionsPassed": true,
+      "citationAssertionsPassed": false,
       "completed": false
     },
     {
       "taskId": "dgt-dev-03",
       "xmlParseable": true,
       "xmlAssertionsPassed": false,
-      "citationAssertionsPassed": true,
+      "citationAssertionsPassed": false,
       "completed": false
     },
     {
@@ -41,11 +41,11 @@
       "taskId": "dgt-dev-06",
       "xmlParseable": true,
       "xmlAssertionsPassed": true,
-      "citationAssertionsPassed": true,
-      "completed": true
+      "citationAssertionsPassed": false,
+      "completed": false
     }
   ],
   "xmlParseRate": 0.5,
-  "citationCompletenessRate": 0.5,
-  "completionRate": 0.16666666666666666
+  "citationCompletenessRate": 0.0,
+  "completionRate": 0.0
 }

@@ -51,6 +51,16 @@ class DrawioGenerationPromptTest(unittest.TestCase):
         self.assertEqual(["dev"], [bundle["taskId"] for bundle in bundles])
         self.assertEqual("candidate", bundles[0]["arm"])
 
+    def test_rejects_duplicate_context_for_the_same_task_and_arm(self):
+        task = {"taskId": "dev", "split": "development", "sourceVersion": "source:v1", "request": "Dev"}
+        contexts = [
+            {"taskId": "dev", "arm": "candidate", "evidence": []},
+            {"taskId": "dev", "arm": "candidate", "evidence": []},
+        ]
+
+        with self.assertRaisesRegex(ValueError, "duplicate candidate context"):
+            MODULE.build_bundles([task], contexts, split="development", arm="candidate")
+
 
 if __name__ == "__main__":
     unittest.main()
