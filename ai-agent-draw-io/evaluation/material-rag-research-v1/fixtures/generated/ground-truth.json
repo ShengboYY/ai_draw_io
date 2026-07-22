@@ -2754,6 +2754,1149 @@
       "split": "guard_abstention"
     },
     {
+      "anchorId": "gaz2-id",
+      "source": "guard-access-scope-2",
+      "version": "v1",
+      "page": 1,
+      "modality": "text",
+      "primaryCategory": "versionAndAuthorization",
+      "evaluationContext": {
+        "scenarioType": "authorizationScope",
+        "actingRole": "foreign-workspace user",
+        "scopeConstraint": "material never shared",
+        "expectedDecision": "deny access"
+      },
+      "goldMatch": "cannot read material that was never shared",
+      "expectedAnswer": "Denied.",
+      "documentFamily": "guard-access-scope-2",
+      "split": "guard_authorization"
+    },
+    {
+      "anchorId": "gaz2-cache",
+      "source": "guard-access-scope-2",
+      "version": "v1",
+      "page": 1,
+      "modality": "text",
+      "primaryCategory": "versionAndAuthorization",
+      "evaluationContext": {
+        "scenarioType": "authorizationScope",
+        "actingRole": "acting user",
+        "scopeConstraint": "a cached citation is visible",
+        "expectedDecision": "deny; cache is not access"
+      },
+      "goldMatch": "does not grant the acting user access",
+      "expectedAnswer": "No; a cached citation is not access.",
+      "documentFamily": "guard-access-scope-2",
+      "split": "guard_authorization"
+    },
+    {
+      "anchorId": "gaz2-named",
+      "source": "guard-access-scope-2",
+      "version": "v1",
+      "page": 1,
+      "modality": "text",
+      "primaryCategory": "versionAndAuthorization",
+      "evaluationContext": {
+        "scenarioType": "authorizationScope",
+        "actingRole": "acting user",
+        "scopeConstraint": "names another owner's private id",
+        "expectedDecision": "deny; ownership checked first"
+      },
+      "goldMatch": "does not grant read access",
+      "expectedAnswer": "No.",
+      "documentFamily": "guard-access-scope-2",
+      "split": "guard_authorization"
+    },
+    {
+      "anchorId": "gaz2-cross",
+      "source": "guard-access-scope-2",
+      "version": "v1",
+      "page": 1,
+      "modality": "text",
+      "primaryCategory": "versionAndAuthorization",
+      "evaluationContext": {
+        "scenarioType": "authorizationScope",
+        "actingRole": "acting user",
+        "scopeConstraint": "attempt to reach another user's material",
+        "expectedDecision": "deny; always the acting user"
+      },
+      "goldMatch": "任何请求都不能检索到其他用户上传的资料",
+      "expectedAnswer": "不能。",
+      "documentFamily": "guard-access-scope-2",
+      "split": "guard_authorization"
+    },
+    {
+      "anchorId": "gaz2-screenshot",
+      "source": "guard-access-scope-2",
+      "version": "v1",
+      "page": 1,
+      "modality": "text",
+      "primaryCategory": "versionAndAuthorization",
+      "evaluationContext": {
+        "scenarioType": "authorizationScope",
+        "actingRole": "acting user",
+        "scopeConstraint": "re-imports another user's screenshot",
+        "expectedDecision": "deny; screenshot is not access"
+      },
+      "goldMatch": "does not restore access to their material",
+      "expectedAnswer": "No.",
+      "documentFamily": "guard-access-scope-2",
+      "split": "guard_authorization"
+    },
+    {
+      "anchorId": "gaz2-removed",
+      "source": "guard-access-scope-2",
+      "version": "v1",
+      "page": 2,
+      "modality": "text",
+      "primaryCategory": "versionAndAuthorization",
+      "evaluationContext": {
+        "scenarioType": "authorizationScope",
+        "actingRole": "former collaborator",
+        "scopeConstraint": "share was removed",
+        "expectedDecision": "block new retrieval"
+      },
+      "goldMatch": "new retrieval cannot use that material",
+      "expectedAnswer": "Blocked.",
+      "documentFamily": "guard-access-scope-2",
+      "split": "guard_authorization"
+    },
+    {
+      "anchorId": "gaz2-expired",
+      "source": "guard-access-scope-2",
+      "version": "v1",
+      "page": 2,
+      "modality": "text",
+      "primaryCategory": "versionAndAuthorization",
+      "evaluationContext": {
+        "scenarioType": "authorizationScope",
+        "actingRole": "invited user",
+        "scopeConstraint": "invite expired",
+        "expectedDecision": "treat as unauthorized"
+      },
+      "goldMatch": "expired invite does not authorize new retrieval",
+      "expectedAnswer": "Unauthorized.",
+      "documentFamily": "guard-access-scope-2",
+      "split": "guard_authorization"
+    },
+    {
+      "anchorId": "gaz2-temp",
+      "source": "guard-access-scope-2",
+      "version": "v1",
+      "page": 2,
+      "modality": "text",
+      "primaryCategory": "versionAndAuthorization",
+      "evaluationContext": {
+        "scenarioType": "authorizationScope",
+        "actingRole": "temporary reviewer",
+        "scopeConstraint": "attempt to access unrelated material",
+        "expectedDecision": "grant review rights only"
+      },
+      "goldMatch": "does not grant access to unrelated materials",
+      "expectedAnswer": "Review rights only.",
+      "documentFamily": "guard-access-scope-2",
+      "split": "guard_authorization"
+    },
+    {
+      "anchorId": "gaz2-downgrade",
+      "source": "guard-access-scope-2",
+      "version": "v1",
+      "page": 2,
+      "modality": "text",
+      "primaryCategory": "versionAndAuthorization",
+      "evaluationContext": {
+        "scenarioType": "authorizationScope",
+        "actingRole": "downgraded editor",
+        "scopeConstraint": "lost edit rights",
+        "expectedDecision": "remove protected-evidence hydration"
+      },
+      "goldMatch": "removes the ability to hydrate protected evidence",
+      "expectedAnswer": "Yes, hydration is removed.",
+      "documentFamily": "guard-access-scope-2",
+      "split": "guard_authorization"
+    },
+    {
+      "anchorId": "gcb-mounted",
+      "source": "guard-chartbook-scope",
+      "version": "v1",
+      "page": 1,
+      "modality": "text",
+      "primaryCategory": "versionAndAuthorization",
+      "evaluationContext": {
+        "scenarioType": "chartbookNarrowing",
+        "actingRole": "chartbook editor",
+        "scopeConstraint": "drawing inside a chartbook",
+        "expectedDecision": "use only mounted material"
+      },
+      "goldMatch": "may use only the material mounted to that chartbook",
+      "expectedAnswer": "Only mounted material.",
+      "documentFamily": "guard-chartbook-scope",
+      "split": "guard_chartbook_scope"
+    },
+    {
+      "anchorId": "gcb-no-reach",
+      "source": "guard-chartbook-scope",
+      "version": "v1",
+      "page": 1,
+      "modality": "text",
+      "primaryCategory": "versionAndAuthorization",
+      "evaluationContext": {
+        "scenarioType": "chartbookNarrowing",
+        "actingRole": "chartbook editor",
+        "scopeConstraint": "unmounted same-user library material",
+        "expectedDecision": "must not reach it"
+      },
+      "goldMatch": "must not reach the user's other, unmounted library material",
+      "expectedAnswer": "No; it must not reach unmounted library material.",
+      "documentFamily": "guard-chartbook-scope",
+      "split": "guard_chartbook_scope"
+    },
+    {
+      "anchorId": "gcb-narrow",
+      "source": "guard-chartbook-scope",
+      "version": "v1",
+      "page": 1,
+      "modality": "text",
+      "primaryCategory": "versionAndAuthorization",
+      "evaluationContext": {
+        "scenarioType": "chartbookNarrowing",
+        "actingRole": "agent",
+        "scopeConstraint": "chartbook scope decision",
+        "expectedDecision": "narrow, never widen"
+      },
+      "goldMatch": "图册是收窄范围而不是扩大",
+      "expectedAnswer": "图册收窄,不扩大。",
+      "documentFamily": "guard-chartbook-scope",
+      "split": "guard_chartbook_scope"
+    },
+    {
+      "anchorId": "gcb-unmounted-miss",
+      "source": "guard-chartbook-scope",
+      "version": "v1",
+      "page": 1,
+      "modality": "text",
+      "primaryCategory": "versionAndAuthorization",
+      "evaluationContext": {
+        "scenarioType": "chartbookNarrowing",
+        "actingRole": "chartbook editor",
+        "scopeConstraint": "answer only in unmounted material",
+        "expectedDecision": "report insufficient evidence"
+      },
+      "goldMatch": "reports insufficient evidence rather than using it",
+      "expectedAnswer": "Reports insufficient evidence.",
+      "documentFamily": "guard-chartbook-scope",
+      "split": "guard_chartbook_scope"
+    },
+    {
+      "anchorId": "gcb-explicit-bounded",
+      "source": "guard-chartbook-scope",
+      "version": "v1",
+      "page": 1,
+      "modality": "text",
+      "primaryCategory": "versionAndAuthorization",
+      "evaluationContext": {
+        "scenarioType": "chartbookNarrowing",
+        "actingRole": "chartbook editor",
+        "scopeConstraint": "explicit source inside a chartbook",
+        "expectedDecision": "bounded to mounted"
+      },
+      "goldMatch": "bounded to what is mounted to that chartbook",
+      "expectedAnswer": "Bounded to mounted material.",
+      "documentFamily": "guard-chartbook-scope",
+      "split": "guard_chartbook_scope"
+    },
+    {
+      "anchorId": "gcb-unmount",
+      "source": "guard-chartbook-scope",
+      "version": "v1",
+      "page": 2,
+      "modality": "text",
+      "primaryCategory": "versionAndAuthorization",
+      "evaluationContext": {
+        "scenarioType": "chartbookNarrowing",
+        "actingRole": "chartbook owner",
+        "scopeConstraint": "unmount a material",
+        "expectedDecision": "remove from chartbook scope immediately"
+      },
+      "goldMatch": "immediately removes it from that chartbook's retrieval scope",
+      "expectedAnswer": "Removed immediately.",
+      "documentFamily": "guard-chartbook-scope",
+      "split": "guard_chartbook_scope"
+    },
+    {
+      "anchorId": "gcb-two",
+      "source": "guard-chartbook-scope",
+      "version": "v1",
+      "page": 2,
+      "modality": "text",
+      "primaryCategory": "versionAndAuthorization",
+      "evaluationContext": {
+        "scenarioType": "chartbookNarrowing",
+        "actingRole": "chartbook editor",
+        "scopeConstraint": "material mounted to chartbook A only",
+        "expectedDecision": "not retrievable from chartbook B"
+      },
+      "goldMatch": "not retrievable from chartbook B unless also mounted",
+      "expectedAnswer": "Not retrievable from B.",
+      "documentFamily": "guard-chartbook-scope",
+      "split": "guard_chartbook_scope"
+    },
+    {
+      "anchorId": "gcb-leak",
+      "source": "guard-chartbook-scope",
+      "version": "v1",
+      "page": 2,
+      "modality": "text",
+      "primaryCategory": "versionAndAuthorization",
+      "evaluationContext": {
+        "scenarioType": "chartbookNarrowing",
+        "actingRole": "agent",
+        "scopeConstraint": "chartbook retrieved unmounted material",
+        "expectedDecision": "flag as a narrowing defect"
+      },
+      "goldMatch": "is a scope-narrowing defect, even when same-user",
+      "expectedAnswer": "It is a defect.",
+      "documentFamily": "guard-chartbook-scope",
+      "split": "guard_chartbook_scope"
+    },
+    {
+      "anchorId": "gcb-nonchart",
+      "source": "guard-chartbook-scope",
+      "version": "v1",
+      "page": 2,
+      "modality": "text",
+      "primaryCategory": "versionAndAuthorization",
+      "evaluationContext": {
+        "scenarioType": "chartbookNarrowing",
+        "actingRole": "user",
+        "scopeConstraint": "non-chartbook drawing",
+        "expectedDecision": "search full library but only own material"
+      },
+      "goldMatch": "search the user's full library, but still only that user's own material",
+      "expectedAnswer": "Own full library only.",
+      "documentFamily": "guard-chartbook-scope",
+      "split": "guard_chartbook_scope"
+    },
+    {
+      "anchorId": "gvr2-pin",
+      "source": "guard-versioning-2",
+      "version": "v1",
+      "page": 1,
+      "modality": "text",
+      "primaryCategory": "versionAndAuthorization",
+      "evaluationContext": {
+        "scenarioType": "versionConflict",
+        "actingRole": "editor",
+        "scopeConstraint": "shape cites V1 reopened",
+        "expectedDecision": "stay pinned to V1"
+      },
+      "goldMatch": "stays pinned to V1 when reopened",
+      "expectedAnswer": "Pinned to V1.",
+      "documentFamily": "guard-versioning-2",
+      "split": "guard_versioning"
+    },
+    {
+      "anchorId": "gvr2-default",
+      "source": "guard-versioning-2",
+      "version": "v1",
+      "page": 1,
+      "modality": "text",
+      "primaryCategory": "versionAndAuthorization",
+      "evaluationContext": {
+        "scenarioType": "versionDefault",
+        "actingRole": "agent",
+        "scopeConstraint": "new request no version",
+        "expectedDecision": "latest ready"
+      },
+      "goldMatch": "defaults to the latest ready version",
+      "expectedAnswer": "Latest ready.",
+      "documentFamily": "guard-versioning-2",
+      "split": "guard_versioning"
+    },
+    {
+      "anchorId": "gvr2-missing",
+      "source": "guard-versioning-2",
+      "version": "v1",
+      "page": 1,
+      "modality": "text",
+      "primaryCategory": "versionAndAuthorization",
+      "evaluationContext": {
+        "scenarioType": "versionMissing",
+        "actingRole": "agent",
+        "scopeConstraint": "pinned to nonexistent version",
+        "expectedDecision": "report unavailable"
+      },
+      "goldMatch": "must report the version unavailable",
+      "expectedAnswer": "Report unavailable.",
+      "documentFamily": "guard-versioning-2",
+      "split": "guard_versioning"
+    },
+    {
+      "anchorId": "gvr2-conflict",
+      "source": "guard-versioning-2",
+      "version": "v1",
+      "page": 1,
+      "modality": "text",
+      "primaryCategory": "versionAndAuthorization",
+      "evaluationContext": {
+        "scenarioType": "versionConflict",
+        "actingRole": "reader",
+        "scopeConstraint": "multi-version value conflict",
+        "expectedDecision": "lock the cited version"
+      },
+      "goldMatch": "不能把新版本数值套用到已固定旧版本的图形",
+      "expectedAnswer": "锁定被引用版本。",
+      "documentFamily": "guard-versioning-2",
+      "split": "guard_versioning"
+    },
+    {
+      "anchorId": "gvr2-older",
+      "source": "guard-versioning-2",
+      "version": "v1",
+      "page": 1,
+      "modality": "text",
+      "primaryCategory": "versionAndAuthorization",
+      "evaluationContext": {
+        "scenarioType": "versionSelect",
+        "actingRole": "user",
+        "scopeConstraint": "explicitly selects an older version",
+        "expectedDecision": "use that version, not latest"
+      },
+      "goldMatch": "then uses that version, not latest",
+      "expectedAnswer": "Uses the selected older version.",
+      "documentFamily": "guard-versioning-2",
+      "split": "guard_versioning"
+    },
+    {
+      "anchorId": "gfd2-index",
+      "source": "guard-failure-2",
+      "version": "v1",
+      "page": 1,
+      "modality": "text",
+      "primaryCategory": "failure",
+      "evaluationContext": {
+        "injectedDependency": "vector index",
+        "injectedState": "down",
+        "expectedSystemBehavior": "report degraded state",
+        "forbiddenSystemBehavior": "claim no evidence exists"
+      },
+      "goldMatch": "must not claim no evidence exists",
+      "expectedAnswer": "Report degraded, not no-evidence.",
+      "documentFamily": "guard-failure-2",
+      "split": "guard_failure"
+    },
+    {
+      "anchorId": "gfd2-partial",
+      "source": "guard-failure-2",
+      "version": "v1",
+      "page": 1,
+      "modality": "text",
+      "primaryCategory": "failure",
+      "evaluationContext": {
+        "injectedDependency": "object store",
+        "injectedState": "partial hydration",
+        "expectedSystemBehavior": "mark missing items",
+        "forbiddenSystemBehavior": "silently drop them"
+      },
+      "goldMatch": "marks the missing items rather than silently dropping",
+      "expectedAnswer": "Mark missing items.",
+      "documentFamily": "guard-failure-2",
+      "split": "guard_failure"
+    },
+    {
+      "anchorId": "gfd2-probe",
+      "source": "guard-failure-2",
+      "version": "v1",
+      "page": 1,
+      "modality": "text",
+      "primaryCategory": "failure",
+      "evaluationContext": {
+        "injectedDependency": "recovery",
+        "injectedState": "probing",
+        "expectedSystemBehavior": "require scoped probes",
+        "forbiddenSystemBehavior": "count unfiltered query as recovery"
+      },
+      "goldMatch": "不带过滤的成功查询不算恢复",
+      "expectedAnswer": "需带过滤的探测。",
+      "documentFamily": "guard-failure-2",
+      "split": "guard_failure"
+    },
+    {
+      "anchorId": "gfd2-retry",
+      "source": "guard-failure-2",
+      "version": "v1",
+      "page": 1,
+      "modality": "text",
+      "primaryCategory": "failure",
+      "evaluationContext": {
+        "injectedDependency": "SEV-3 op",
+        "injectedState": "failed",
+        "expectedSystemBehavior": "retry twice with bounded backoff",
+        "forbiddenSystemBehavior": "retry unbounded"
+      },
+      "goldMatch": "retry twice with bounded backoff",
+      "expectedAnswer": "Twice, bounded.",
+      "documentFamily": "guard-failure-2",
+      "split": "guard_failure"
+    },
+    {
+      "anchorId": "gaz3-prompt",
+      "source": "guard-access-scope-3",
+      "version": "v1",
+      "page": 1,
+      "modality": "text",
+      "primaryCategory": "versionAndAuthorization",
+      "evaluationContext": {
+        "scenarioType": "authorizationScope",
+        "actingRole": "agent",
+        "scopeConstraint": "unauthorized item before prompt",
+        "expectedDecision": "block before it enters the prompt"
+      },
+      "goldMatch": "checked before evidence enters the prompt",
+      "expectedAnswer": "Blocked before the prompt.",
+      "documentFamily": "guard-access-scope-3",
+      "split": "guard_authorization"
+    },
+    {
+      "anchorId": "gaz3-readonly",
+      "source": "guard-access-scope-3",
+      "version": "v1",
+      "page": 1,
+      "modality": "text",
+      "primaryCategory": "versionAndAuthorization",
+      "evaluationContext": {
+        "scenarioType": "authorizationScope",
+        "actingRole": "read-only grantee",
+        "scopeConstraint": "attempt to edit or re-share",
+        "expectedDecision": "allow retrieval only"
+      },
+      "goldMatch": "not editing or re-sharing",
+      "expectedAnswer": "Retrieval only.",
+      "documentFamily": "guard-access-scope-3",
+      "split": "guard_authorization"
+    },
+    {
+      "anchorId": "gaz3-revoke",
+      "source": "guard-access-scope-3",
+      "version": "v1",
+      "page": 1,
+      "modality": "text",
+      "primaryCategory": "versionAndAuthorization",
+      "evaluationContext": {
+        "scenarioType": "authorizationScope",
+        "actingRole": "owner",
+        "scopeConstraint": "revoke a share",
+        "expectedDecision": "block new retrieval immediately"
+      },
+      "goldMatch": "revocation blocks new retrieval immediately",
+      "expectedAnswer": "Blocked immediately.",
+      "documentFamily": "guard-access-scope-3",
+      "split": "guard_authorization"
+    },
+    {
+      "anchorId": "gaz3-leak",
+      "source": "guard-access-scope-3",
+      "version": "v1",
+      "page": 1,
+      "modality": "text",
+      "primaryCategory": "versionAndAuthorization",
+      "evaluationContext": {
+        "scenarioType": "authorizationScope",
+        "actingRole": "agent",
+        "scopeConstraint": "cached inaccessible content",
+        "expectedDecision": "must not appear in the answer"
+      },
+      "goldMatch": "回答中不得出现无权用户不可访问资料的内容",
+      "expectedAnswer": "不得出现。",
+      "documentFamily": "guard-access-scope-3",
+      "split": "guard_authorization"
+    },
+    {
+      "anchorId": "gaz3-deleg",
+      "source": "guard-access-scope-3",
+      "version": "v1",
+      "page": 2,
+      "modality": "text",
+      "primaryCategory": "versionAndAuthorization",
+      "evaluationContext": {
+        "scenarioType": "authorizationScope",
+        "actingRole": "delegated editor",
+        "scopeConstraint": "attempt to exceed delegator scope",
+        "expectedDecision": "bounded to delegator scope"
+      },
+      "goldMatch": "cannot exceed it",
+      "expectedAnswer": "Bounded to the delegator's scope.",
+      "documentFamily": "guard-access-scope-3",
+      "split": "guard_authorization"
+    },
+    {
+      "anchorId": "gaz3-service",
+      "source": "guard-access-scope-3",
+      "version": "v1",
+      "page": 2,
+      "modality": "text",
+      "primaryCategory": "versionAndAuthorization",
+      "evaluationContext": {
+        "scenarioType": "authorizationScope",
+        "actingRole": "service account",
+        "scopeConstraint": "request as superuser",
+        "expectedDecision": "evaluate against a concrete user scope"
+      },
+      "goldMatch": "never as a superuser",
+      "expectedAnswer": "Concrete user scope, never superuser.",
+      "documentFamily": "guard-access-scope-3",
+      "split": "guard_authorization"
+    },
+    {
+      "anchorId": "gaz3-isolation",
+      "source": "guard-access-scope-3",
+      "version": "v1",
+      "page": 2,
+      "modality": "text",
+      "primaryCategory": "versionAndAuthorization",
+      "evaluationContext": {
+        "scenarioType": "authorizationScope",
+        "actingRole": "cross-space user",
+        "scopeConstraint": "no explicit share",
+        "expectedDecision": "default full isolation"
+      },
+      "goldMatch": "不同空间之间默认完全隔离",
+      "expectedAnswer": "默认完全隔离。",
+      "documentFamily": "guard-access-scope-3",
+      "split": "guard_authorization"
+    },
+    {
+      "anchorId": "gaz3-stale",
+      "source": "guard-access-scope-3",
+      "version": "v1",
+      "page": 2,
+      "modality": "text",
+      "primaryCategory": "versionAndAuthorization",
+      "evaluationContext": {
+        "scenarioType": "authorizationScope",
+        "actingRole": "user",
+        "scopeConstraint": "stale session token",
+        "expectedDecision": "no access beyond current state"
+      },
+      "goldMatch": "does not extend access beyond the current authorization state",
+      "expectedAnswer": "No extension.",
+      "documentFamily": "guard-access-scope-3",
+      "split": "guard_authorization"
+    },
+    {
+      "anchorId": "gaz3-copyout",
+      "source": "guard-access-scope-3",
+      "version": "v1",
+      "page": 2,
+      "modality": "text",
+      "primaryCategory": "versionAndAuthorization",
+      "evaluationContext": {
+        "scenarioType": "authorizationScope",
+        "actingRole": "exporter",
+        "scopeConstraint": "export a diagram",
+        "expectedDecision": "do not copy protected material to unauthorized users"
+      },
+      "goldMatch": "does not copy protected material to users who cannot access it",
+      "expectedAnswer": "No copy to unauthorized users.",
+      "documentFamily": "guard-access-scope-3",
+      "split": "guard_authorization"
+    },
+    {
+      "anchorId": "gvr3-superseded",
+      "source": "guard-versioning-3",
+      "version": "v1",
+      "page": 1,
+      "modality": "text",
+      "primaryCategory": "versionAndAuthorization",
+      "evaluationContext": {
+        "scenarioType": "draftRejected",
+        "actingRole": "agent",
+        "scopeConstraint": "superseded draft value",
+        "expectedDecision": "cite the approved version"
+      },
+      "goldMatch": "must not be revived",
+      "expectedAnswer": "Cite the approved version.",
+      "documentFamily": "guard-versioning-3",
+      "split": "guard_versioning"
+    },
+    {
+      "anchorId": "gvr3-cite",
+      "source": "guard-versioning-3",
+      "version": "v1",
+      "page": 1,
+      "modality": "text",
+      "primaryCategory": "versionAndAuthorization",
+      "evaluationContext": {
+        "scenarioType": "versionSelect",
+        "actingRole": "agent",
+        "scopeConstraint": "grounded answer",
+        "expectedDecision": "record the source version used"
+      },
+      "goldMatch": "records which source version it used",
+      "expectedAnswer": "Records the version used.",
+      "documentFamily": "guard-versioning-3",
+      "split": "guard_versioning"
+    },
+    {
+      "anchorId": "gvr3-two",
+      "source": "guard-versioning-3",
+      "version": "v1",
+      "page": 1,
+      "modality": "text",
+      "primaryCategory": "versionAndAuthorization",
+      "evaluationContext": {
+        "scenarioType": "versionConflict",
+        "actingRole": "editor",
+        "scopeConstraint": "two shapes cite different versions",
+        "expectedDecision": "each keeps its own pin"
+      },
+      "goldMatch": "each keeps its own pin",
+      "expectedAnswer": "Each keeps its own pin.",
+      "documentFamily": "guard-versioning-3",
+      "split": "guard_versioning"
+    },
+    {
+      "anchorId": "gvr3-rollback",
+      "source": "guard-versioning-3",
+      "version": "v1",
+      "page": 1,
+      "modality": "text",
+      "primaryCategory": "versionAndAuthorization",
+      "evaluationContext": {
+        "scenarioType": "versionRollback",
+        "actingRole": "agent",
+        "scopeConstraint": "after a rollback",
+        "expectedDecision": "keep existing pins; only new requests move"
+      },
+      "goldMatch": "existing pinned shapes keep their citation",
+      "expectedAnswer": "Existing pins stay.",
+      "documentFamily": "guard-versioning-3",
+      "split": "guard_versioning"
+    },
+    {
+      "anchorId": "gvr3-draftmark",
+      "source": "guard-versioning-3",
+      "version": "v1",
+      "page": 1,
+      "modality": "text",
+      "primaryCategory": "versionAndAuthorization",
+      "evaluationContext": {
+        "scenarioType": "draftRejected",
+        "actingRole": "agent",
+        "scopeConstraint": "mentions a rejected draft",
+        "expectedDecision": "mark it rejected and cite the approved value"
+      },
+      "goldMatch": "必须明确标注其为已否决",
+      "expectedAnswer": "标注为已否决并引用批准值。",
+      "documentFamily": "guard-versioning-3",
+      "split": "guard_versioning"
+    },
+    {
+      "anchorId": "grail2-scope",
+      "page": 1,
+      "goldMatch": "between chainage 14.2 km and 19.8 km",
+      "source": "realistic-rail-scan",
+      "version": "v1",
+      "modality": "ocr",
+      "primaryCategory": "ocr",
+      "documentFamily": "metro-rail-inspection-scan",
+      "split": "guard_visual_ocr"
+    },
+    {
+      "anchorId": "grail2-review",
+      "page": 2,
+      "goldMatch": "Manual engineering review is required when a verified indication reaches 20 mm",
+      "source": "realistic-rail-scan",
+      "version": "v1",
+      "modality": "ocr",
+      "primaryCategory": "ocr",
+      "documentFamily": "metro-rail-inspection-scan",
+      "split": "guard_visual_ocr"
+    },
+    {
+      "anchorId": "grail2-queue",
+      "page": 2,
+      "goldMatch": "entered into the engineering queue",
+      "source": "realistic-rail-scan",
+      "version": "v1",
+      "modality": "ocr",
+      "primaryCategory": "ocr",
+      "documentFamily": "metro-rail-inspection-scan",
+      "split": "guard_visual_ocr"
+    },
+    {
+      "anchorId": "grail2-cn-recheck",
+      "page": 3,
+      "goldMatch": "2026 年 8 月 23 日 05:40",
+      "source": "realistic-rail-scan",
+      "version": "v1",
+      "modality": "ocr",
+      "primaryCategory": "ocr",
+      "documentFamily": "metro-rail-inspection-scan",
+      "split": "guard_visual_ocr"
+    },
+    {
+      "anchorId": "grail2-row-el16",
+      "page": 4,
+      "goldMatch": "EL-16.1 | 12 mm | +1 mm | MONITOR",
+      "source": "realistic-rail-scan",
+      "version": "v1",
+      "modality": "ocr",
+      "primaryCategory": "ocr",
+      "documentFamily": "metro-rail-inspection-scan",
+      "split": "guard_visual_ocr"
+    },
+    {
+      "anchorId": "grail2-deadline",
+      "page": 5,
+      "goldMatch": "18:00 on 20 August 2026",
+      "source": "realistic-rail-scan",
+      "version": "v1",
+      "modality": "ocr",
+      "primaryCategory": "ocr",
+      "documentFamily": "metro-rail-inspection-scan",
+      "split": "guard_visual_ocr"
+    },
+    {
+      "anchorId": "grail2-evidence",
+      "page": 5,
+      "goldMatch": "signed disposition",
+      "source": "realistic-rail-scan",
+      "version": "v1",
+      "modality": "ocr",
+      "primaryCategory": "ocr",
+      "documentFamily": "metro-rail-inspection-scan",
+      "split": "guard_visual_ocr"
+    },
+    {
+      "anchorId": "gaz4-hydration",
+      "source": "guard-access-scope-4",
+      "version": "v1",
+      "page": 1,
+      "modality": "text",
+      "primaryCategory": "versionAndAuthorization",
+      "goldMatch": "cannot hydrate protected bytes for an unauthorized viewer",
+      "evaluationContext": {
+        "scenarioType": "authorizationScope",
+        "actingRole": "unauthorized viewer",
+        "scopeConstraint": "shared citation only",
+        "expectedDecision": "do not hydrate protected bytes"
+      },
+      "documentFamily": "guard-access-scope-4",
+      "split": "guard_authorization"
+    },
+    {
+      "anchorId": "gaz4-group",
+      "source": "guard-access-scope-4",
+      "version": "v1",
+      "page": 1,
+      "modality": "text",
+      "primaryCategory": "versionAndAuthorization",
+      "goldMatch": "must not include material the acting user cannot access",
+      "evaluationContext": {
+        "scenarioType": "authorizationScope",
+        "actingRole": "acting user",
+        "scopeConstraint": "group node citations",
+        "expectedDecision": "exclude inaccessible material"
+      },
+      "documentFamily": "guard-access-scope-4",
+      "split": "guard_authorization"
+    },
+    {
+      "anchorId": "gaz4-filter",
+      "source": "guard-access-scope-4",
+      "version": "v1",
+      "page": 1,
+      "modality": "text",
+      "primaryCategory": "versionAndAuthorization",
+      "goldMatch": "applied at query time, not after ranking",
+      "evaluationContext": {
+        "scenarioType": "authorizationScope",
+        "actingRole": "agent",
+        "scopeConstraint": "query-time filters",
+        "expectedDecision": "apply before ranking"
+      },
+      "documentFamily": "guard-access-scope-4",
+      "split": "guard_authorization"
+    },
+    {
+      "anchorId": "gaz4-preorder",
+      "source": "guard-access-scope-4",
+      "version": "v1",
+      "page": 1,
+      "modality": "text",
+      "primaryCategory": "versionAndAuthorization",
+      "goldMatch": "在进入排序前被过滤",
+      "evaluationContext": {
+        "scenarioType": "authorizationScope",
+        "actingRole": "agent",
+        "scopeConstraint": "unauthorized retrieval",
+        "expectedDecision": "filter before ranking"
+      },
+      "documentFamily": "guard-access-scope-4",
+      "split": "guard_authorization"
+    },
+    {
+      "anchorId": "gaz4-fallback",
+      "source": "guard-access-scope-4",
+      "version": "v1",
+      "page": 1,
+      "modality": "text",
+      "primaryCategory": "versionAndAuthorization",
+      "goldMatch": "still bounded by the acting user's authorization",
+      "evaluationContext": {
+        "scenarioType": "authorizationScope",
+        "actingRole": "agent",
+        "scopeConstraint": "policy fallback source",
+        "expectedDecision": "bounded by authorization"
+      },
+      "documentFamily": "guard-access-scope-4",
+      "split": "guard_authorization"
+    },
+    {
+      "anchorId": "gaz4-deleted",
+      "source": "guard-access-scope-4",
+      "version": "v1",
+      "page": 2,
+      "modality": "text",
+      "primaryCategory": "versionAndAuthorization",
+      "goldMatch": "Deleted material cannot be retrieved",
+      "evaluationContext": {
+        "scenarioType": "authorizationScope",
+        "actingRole": "agent",
+        "scopeConstraint": "deleted material with cached vector",
+        "expectedDecision": "honor deletion first"
+      },
+      "documentFamily": "guard-access-scope-4",
+      "split": "guard_authorization"
+    },
+    {
+      "anchorId": "gaz4-sharedcb",
+      "source": "guard-access-scope-4",
+      "version": "v1",
+      "page": 2,
+      "modality": "text",
+      "primaryCategory": "versionAndAuthorization",
+      "goldMatch": "only when an active share grants the acting user access",
+      "evaluationContext": {
+        "scenarioType": "authorizationScope",
+        "actingRole": "acting user",
+        "scopeConstraint": "shared chartbook",
+        "expectedDecision": "expose only with active share"
+      },
+      "documentFamily": "guard-access-scope-4",
+      "split": "guard_authorization"
+    },
+    {
+      "anchorId": "gaz4-audit",
+      "source": "guard-access-scope-4",
+      "version": "v1",
+      "page": 2,
+      "modality": "text",
+      "primaryCategory": "versionAndAuthorization",
+      "goldMatch": "记录当前用户与被评估范围",
+      "evaluationContext": {
+        "scenarioType": "authorizationScope",
+        "actingRole": "platform",
+        "scopeConstraint": "authorization decision",
+        "expectedDecision": "record user and scope"
+      },
+      "documentFamily": "guard-access-scope-4",
+      "split": "guard_authorization"
+    },
+    {
+      "anchorId": "gaz4-crosstenant",
+      "source": "guard-access-scope-4",
+      "version": "v1",
+      "page": 2,
+      "modality": "text",
+      "primaryCategory": "versionAndAuthorization",
+      "goldMatch": "never used as a recovery shortcut",
+      "evaluationContext": {
+        "scenarioType": "authorizationScope",
+        "actingRole": "agent",
+        "scopeConstraint": "another tenant's cached result",
+        "expectedDecision": "never use as recovery"
+      },
+      "documentFamily": "guard-access-scope-4",
+      "split": "guard_authorization"
+    },
+    {
+      "anchorId": "gaz4-minimal",
+      "source": "guard-access-scope-4",
+      "version": "v1",
+      "page": 2,
+      "modality": "text",
+      "primaryCategory": "versionAndAuthorization",
+      "goldMatch": "only material within the acting user's authorized scope",
+      "evaluationContext": {
+        "scenarioType": "authorizationScope",
+        "actingRole": "agent",
+        "scopeConstraint": "answer disclosure",
+        "expectedDecision": "only authorized scope"
+      },
+      "documentFamily": "guard-access-scope-4",
+      "split": "guard_authorization"
+    },
+    {
+      "anchorId": "gvr3-coexist",
+      "source": "guard-versioning-3",
+      "version": "v1",
+      "page": 1,
+      "modality": "text",
+      "primaryCategory": "versionAndAuthorization",
+      "goldMatch": "新增形状默认引用最新就绪版本",
+      "evaluationContext": {
+        "scenarioType": "versionDefault",
+        "actingRole": "agent",
+        "scopeConstraint": "multiple versions coexist",
+        "expectedDecision": "new shape uses latest ready"
+      },
+      "documentFamily": "guard-versioning-3",
+      "split": "guard_versioning"
+    },
+    {
+      "anchorId": "gvr2-migrate",
+      "source": "guard-versioning-2",
+      "version": "v1",
+      "page": 1,
+      "modality": "text",
+      "primaryCategory": "versionAndAuthorization",
+      "goldMatch": "只有用户显式迁移后",
+      "evaluationContext": {
+        "scenarioType": "versionSelect",
+        "actingRole": "user",
+        "scopeConstraint": "explicit migration",
+        "expectedDecision": "only then move pinned shape"
+      },
+      "documentFamily": "guard-versioning-2",
+      "split": "guard_versioning"
+    },
+    {
+      "anchorId": "gfd2-scope-probe",
+      "source": "guard-failure-2",
+      "version": "v1",
+      "page": 1,
+      "modality": "text",
+      "primaryCategory": "failure",
+      "goldMatch": "恢复只有在带租户与图册过滤的探测通过后才成立",
+      "evaluationContext": {
+        "injectedDependency": "recovery",
+        "injectedState": "validating",
+        "expectedSystemBehavior": "require scoped probe pass",
+        "forbiddenSystemBehavior": "accept unfiltered as recovery"
+      },
+      "documentFamily": "guard-failure-2",
+      "split": "guard_failure"
+    },
+    {
+      "anchorId": "grail3-defect-el18",
+      "source": "realistic-rail-scan",
+      "page": 4,
+      "goldMatch": "EL-18.4 | 8 mm | NEW | VERIFY",
+      "version": "v1",
+      "modality": "ocr",
+      "primaryCategory": "ocr",
+      "documentFamily": "metro-rail-inspection-scan",
+      "split": "guard_visual_ocr"
+    },
+    {
+      "anchorId": "grail3-restriction",
+      "source": "realistic-rail-scan",
+      "page": 5,
+      "goldMatch": "interim restriction remains until engineering signs",
+      "version": "v1",
+      "modality": "ocr",
+      "primaryCategory": "ocr",
+      "documentFamily": "metro-rail-inspection-scan",
+      "split": "guard_visual_ocr"
+    },
+    {
+      "anchorId": "gaz5-link",
+      "source": "guard-access-scope-5",
+      "version": "v1",
+      "page": 1,
+      "modality": "text",
+      "primaryCategory": "versionAndAuthorization",
+      "evaluationContext": {
+        "scenarioType": "authorizationScope",
+        "actingRole": "link recipient",
+        "scopeConstraint": "share link",
+        "expectedDecision": "only the intended material"
+      },
+      "goldMatch": "grants access only to the intended material",
+      "documentFamily": "guard-access-scope-5",
+      "split": "guard_authorization"
+    },
+    {
+      "anchorId": "gaz5-reindex",
+      "source": "guard-access-scope-5",
+      "version": "v1",
+      "page": 1,
+      "modality": "text",
+      "primaryCategory": "versionAndAuthorization",
+      "evaluationContext": {
+        "scenarioType": "authorizationScope",
+        "actingRole": "agent",
+        "scopeConstraint": "reindexed material",
+        "expectedDecision": "re-evaluate per request"
+      },
+      "goldMatch": "does not change who may access it",
+      "documentFamily": "guard-access-scope-5",
+      "split": "guard_authorization"
+    },
+    {
+      "anchorId": "gaz5-borrow",
+      "source": "guard-access-scope-5",
+      "version": "v1",
+      "page": 1,
+      "modality": "text",
+      "primaryCategory": "versionAndAuthorization",
+      "evaluationContext": {
+        "scenarioType": "authorizationScope",
+        "actingRole": "unauthorized user",
+        "scopeConstraint": "borrow another's citation label",
+        "expectedDecision": "deny"
+      },
+      "goldMatch": "无权用户不能借用他人的引用标签",
+      "documentFamily": "guard-access-scope-5",
+      "split": "guard_authorization"
+    },
+    {
+      "anchorId": "gaz5-nested",
+      "source": "guard-access-scope-5",
+      "version": "v1",
+      "page": 1,
+      "modality": "text",
+      "primaryCategory": "versionAndAuthorization",
+      "evaluationContext": {
+        "scenarioType": "chartbookNarrowing",
+        "actingRole": "chartbook editor",
+        "scopeConstraint": "nested chartbook",
+        "expectedDecision": "no inherited mounts"
+      },
+      "goldMatch": "does not inherit the parent's mounted material",
+      "documentFamily": "guard-access-scope-5",
+      "split": "guard_authorization"
+    },
+    {
+      "anchorId": "gaz5-export",
+      "source": "guard-access-scope-5",
+      "version": "v1",
+      "page": 1,
+      "modality": "text",
+      "primaryCategory": "versionAndAuthorization",
+      "evaluationContext": {
+        "scenarioType": "authorizationScope",
+        "actingRole": "recipient",
+        "scopeConstraint": "exported citation panel",
+        "expectedDecision": "list only authorized sources"
+      },
+      "goldMatch": "lists only sources the recipient is authorized to open",
+      "documentFamily": "guard-access-scope-5",
+      "split": "guard_authorization"
+    },
+    {
       "anchorId": "dcc-id",
       "source": "expansion-datacenter-change",
       "version": "v1",

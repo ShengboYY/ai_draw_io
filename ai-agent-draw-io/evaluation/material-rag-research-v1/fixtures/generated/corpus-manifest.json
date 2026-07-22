@@ -217,6 +217,86 @@
       "filename": "guard-failure-drill-v1.pdf"
     },
     {
+      "source": "guard-access-scope-2",
+      "documentFamily": "guard-access-scope-2",
+      "version": "v1",
+      "split": "guard_authorization",
+      "language": "mixed",
+      "role": "realistic",
+      "freezeStatus": "development",
+      "filename": "guard-access-scope-2-v1.pdf"
+    },
+    {
+      "source": "guard-chartbook-scope",
+      "documentFamily": "guard-chartbook-scope",
+      "version": "v1",
+      "split": "guard_chartbook_scope",
+      "language": "mixed",
+      "role": "realistic",
+      "freezeStatus": "development",
+      "filename": "guard-chartbook-scope-v1.pdf"
+    },
+    {
+      "source": "guard-versioning-2",
+      "documentFamily": "guard-versioning-2",
+      "version": "v1",
+      "split": "guard_versioning",
+      "language": "mixed",
+      "role": "realistic",
+      "freezeStatus": "development",
+      "filename": "guard-versioning-2-v1.pdf"
+    },
+    {
+      "source": "guard-failure-2",
+      "documentFamily": "guard-failure-2",
+      "version": "v1",
+      "split": "guard_failure",
+      "language": "mixed",
+      "role": "realistic",
+      "freezeStatus": "development",
+      "filename": "guard-failure-2-v1.pdf"
+    },
+    {
+      "source": "guard-access-scope-3",
+      "documentFamily": "guard-access-scope-3",
+      "version": "v1",
+      "split": "guard_authorization",
+      "language": "mixed",
+      "role": "realistic",
+      "freezeStatus": "development",
+      "filename": "guard-access-scope-3-v1.pdf"
+    },
+    {
+      "source": "guard-versioning-3",
+      "documentFamily": "guard-versioning-3",
+      "version": "v1",
+      "split": "guard_versioning",
+      "language": "mixed",
+      "role": "realistic",
+      "freezeStatus": "development",
+      "filename": "guard-versioning-3-v1.pdf"
+    },
+    {
+      "source": "guard-access-scope-4",
+      "documentFamily": "guard-access-scope-4",
+      "version": "v1",
+      "split": "guard_authorization",
+      "language": "mixed",
+      "role": "realistic",
+      "freezeStatus": "development",
+      "filename": "guard-access-scope-4-v1.pdf"
+    },
+    {
+      "source": "guard-access-scope-5",
+      "documentFamily": "guard-access-scope-5",
+      "version": "v1",
+      "split": "guard_authorization",
+      "language": "mixed",
+      "role": "realistic",
+      "freezeStatus": "development",
+      "filename": "guard-access-scope-5-v1.pdf"
+    },
+    {
       "source": "expansion-datacenter-change",
       "documentFamily": "datacenter-capacity-change",
       "version": "v1",

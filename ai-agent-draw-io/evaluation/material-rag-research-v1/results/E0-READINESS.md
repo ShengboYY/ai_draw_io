@@ -8,8 +8,8 @@ Status: **READY**
 - Development: 250 / 120
 - Validation: 100 / 60
 - Holdout: 100 / 60
-- Generated cases including guards: 589
-- Anchors: 334; documents: 31
+- Generated cases including guards: 711
+- Anchors: 402; documents: 39
 
 ## Blocking gaps
 

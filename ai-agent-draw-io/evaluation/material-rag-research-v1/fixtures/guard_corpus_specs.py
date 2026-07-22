@@ -287,3 +287,278 @@ GUARD_NO_ANSWER_CASES = GUARD_NO_ANSWER_CASES + [
     {"sourceVersion": "guard-failure-drill:v1", "query": "What is the pager escalation PIN in the failure drill?"},
     {"sourceVersion": "guard-authz-standard:v1", "query": "What is the admin recovery password in the access standard?"},
 ]
+
+
+# ============================================================================
+# Guard-suite expansion toward plan targets (auth 60 / ver 40 / abst 40 /
+# visualOcr 60 / failure 20) + a dedicated CHARTBOOK-NARROWING suite:
+# inside a chartbook, retrieval must not reach the user's other, unmounted
+# material (scope narrows, never widens). Terse rule docs, one fact per rule.
+# ============================================================================
+GUARD_DIGITAL_DOCUMENTS += [
+    {"source": "guard-access-scope-2", "documentFamily": "guard-access-scope-2", "version": "v1",
+     "split": "guard_authorization", "language": "mixed", "filename": "guard-access-scope-2-v1.pdf",
+     "pages": [
+        {"title": "Access Scope Cases A", "subtitle": "GAZ2-2026-11 | cross-user gates", "sections": [
+            ("Foreign workspace", "A request from a foreign workspace cannot read material that was never shared with the acting user. The standard id is GAZ2-2026-11."),
+            ("Cached citation", "A visible cached citation does not grant the acting user access to the underlying material."),
+            ("Named id", "Naming another owner's private material identifier does not grant read access; ownership is checked before evidence enters the prompt."),
+            ("跨用户", "任何请求都不能检索到其他用户上传的资料;系统永远按当前用户评估。"),
+            ("Screenshot", "Re-importing another user's screenshot does not restore access to their material."),
+        ]},
+        {"title": "Access Scope Cases B", "subtitle": "removal and expiry", "sections": [
+            ("Removed share", "When a share is removed, new retrieval cannot use that material even if an old canvas still shows its citation label."),
+            ("Expired invite", "An expired invite does not authorize new retrieval; the acting user is treated as unauthorized."),
+            ("Temporary reviewer", "A temporary reviewer appointment grants review rights only and does not grant access to unrelated materials."),
+            ("越权尝试", "无权用户请求受保护内容时,系统必须拒绝并说明无权限,而不是返回缓存内容。"),
+            ("Downgrade", "Losing edit rights also removes the ability to hydrate protected evidence for new requests."),
+        ]},
+     ]},
+    {"source": "guard-chartbook-scope", "documentFamily": "guard-chartbook-scope", "version": "v1",
+     "split": "guard_chartbook_scope", "language": "mixed", "filename": "guard-chartbook-scope-v1.pdf",
+     "pages": [
+        {"title": "Chartbook Narrowing A", "subtitle": "GCB-2026-06 | mounted-only retrieval", "sections": [
+            ("Mounted only", "Inside a chartbook, drawing may use only the material mounted to that chartbook. The standard id is GCB-2026-06."),
+            ("No library reach", "A chartbook request must not reach the user's other, unmounted library material, even though it belongs to the same user."),
+            ("收窄不扩大", "图册是收窄范围而不是扩大;图册内检索绝不触达图册外资料。"),
+            ("Unmounted miss", "If the answer exists only in unmounted library material, the chartbook request reports insufficient evidence rather than using it."),
+            ("Explicit still bounded", "Even an explicit source selection inside a chartbook is bounded to what is mounted to that chartbook."),
+        ]},
+        {"title": "Chartbook Narrowing B", "subtitle": "mount changes and non-chartbook", "sections": [
+            ("Unmount", "Unmounting a material immediately removes it from that chartbook's retrieval scope for new requests."),
+            ("挂载新增", "新挂载资料后才进入该图册的检索范围;挂载前的请求不得使用它。"),
+            ("Non-chartbook", "A non-chartbook drawing may search the user's full library, but still only that user's own material."),
+            ("Two chartbooks", "Material mounted to chartbook A is not retrievable from chartbook B unless also mounted there."),
+            ("Leak is defect", "A chartbook request that retrieves unmounted material is a scope-narrowing defect, even when same-user."),
+        ]},
+     ]},
+    {"source": "guard-versioning-2", "documentFamily": "guard-versioning-2", "version": "v1",
+     "split": "guard_versioning", "language": "mixed", "filename": "guard-versioning-2-v1.pdf",
+     "pages": [
+        {"title": "Version Cases", "subtitle": "GVR2-2026-08 | pin/default/missing", "sections": [
+            ("Pinned reopen", "A shape citing version V1 stays pinned to V1 when reopened. The id is GVR2-2026-08."),
+            ("New default", "A new request without an explicit version defaults to the latest ready version."),
+            ("Missing pin", "A request pinned to a nonexistent version must report the version unavailable, not silently use latest."),
+            ("冲突", "同一资料多版本数值冲突时,回答锁定被引用版本,不能把新版本数值套用到已固定旧版本的图形。"),
+            ("Explicit older", "A user may explicitly select an older ready version; the agent then uses that version, not latest."),
+            ("迁移", "只有用户显式迁移后,已固定图形才改用新版本。"),
+        ]},
+     ]},
+    {"source": "guard-failure-2", "documentFamily": "guard-failure-2", "version": "v1",
+     "split": "guard_failure", "language": "mixed", "filename": "guard-failure-2-v1.pdf",
+     "pages": [
+        {"title": "Failure Cases", "subtitle": "GFD2-2026-12 | degraded expectations", "sections": [
+            ("Index down", "When the vector index is down, the system reports a degraded state and must not claim no evidence exists. Id GFD2-2026-12."),
+            ("Partial hydration", "When only some evidence hydrates, the answer marks the missing items rather than silently dropping them."),
+            ("恢复探测", "恢复只有在带租户与图册过滤的探测通过后才成立;不带过滤的成功查询不算恢复。"),
+            ("Retry bound", "SEV-3 operations retry twice with bounded backoff, then surface the failure."),
+        ]},
+     ]},
+]
+
+GUARD_FACTS += [
+    # authorization (guard-access-scope-2)
+    {"anchorId": "gaz2-id", "source": "guard-access-scope-2", "version": "v1", "page": 1, "modality": "text", "primaryCategory": "versionAndAuthorization", "evaluationContext": _v("authorizationScope", "foreign-workspace user", "material never shared", "deny access"), "goldMatch": "cannot read material that was never shared", "expectedAnswer": "Denied.", "queries": ["Can a foreign-workspace request read never-shared material?", "外部空间请求能否读取未共享资料?"]},
+    {"anchorId": "gaz2-cache", "source": "guard-access-scope-2", "version": "v1", "page": 1, "modality": "text", "primaryCategory": "versionAndAuthorization", "evaluationContext": _v("authorizationScope", "acting user", "a cached citation is visible", "deny; cache is not access"), "goldMatch": "does not grant the acting user access", "expectedAnswer": "No; a cached citation is not access.", "queries": ["Does a cached citation grant access?", "缓存引用是否授予访问权?"]},
+    {"anchorId": "gaz2-named", "source": "guard-access-scope-2", "version": "v1", "page": 1, "modality": "text", "primaryCategory": "versionAndAuthorization", "evaluationContext": _v("authorizationScope", "acting user", "names another owner's private id", "deny; ownership checked first"), "goldMatch": "does not grant read access", "expectedAnswer": "No.", "queries": ["Does naming another owner's material id grant access?", "报出他人资料编号能否获得访问权?"]},
+    {"anchorId": "gaz2-cross", "source": "guard-access-scope-2", "version": "v1", "page": 1, "modality": "text", "primaryCategory": "versionAndAuthorization", "evaluationContext": _v("authorizationScope", "acting user", "attempt to reach another user's material", "deny; always the acting user"), "goldMatch": "任何请求都不能检索到其他用户上传的资料", "expectedAnswer": "不能。", "queries": ["一个用户能否检索其他用户上传的资料?"]},
+    {"anchorId": "gaz2-screenshot", "source": "guard-access-scope-2", "version": "v1", "page": 1, "modality": "text", "primaryCategory": "versionAndAuthorization", "evaluationContext": _v("authorizationScope", "acting user", "re-imports another user's screenshot", "deny; screenshot is not access"), "goldMatch": "does not restore access to their material", "expectedAnswer": "No.", "queries": ["Does re-importing another user's screenshot restore access?"]},
+    {"anchorId": "gaz2-removed", "source": "guard-access-scope-2", "version": "v1", "page": 2, "modality": "text", "primaryCategory": "versionAndAuthorization", "evaluationContext": _v("authorizationScope", "former collaborator", "share was removed", "block new retrieval"), "goldMatch": "new retrieval cannot use that material", "expectedAnswer": "Blocked.", "queries": ["After a share is removed, can new retrieval use it?", "共享移除后新检索能否使用?"]},
+    {"anchorId": "gaz2-expired", "source": "guard-access-scope-2", "version": "v1", "page": 2, "modality": "text", "primaryCategory": "versionAndAuthorization", "evaluationContext": _v("authorizationScope", "invited user", "invite expired", "treat as unauthorized"), "goldMatch": "expired invite does not authorize new retrieval", "expectedAnswer": "Unauthorized.", "queries": ["Does an expired invite authorize retrieval?", "过期邀请能否授权检索?"]},
+    {"anchorId": "gaz2-temp", "source": "guard-access-scope-2", "version": "v1", "page": 2, "modality": "text", "primaryCategory": "versionAndAuthorization", "evaluationContext": _v("authorizationScope", "temporary reviewer", "attempt to access unrelated material", "grant review rights only"), "goldMatch": "does not grant access to unrelated materials", "expectedAnswer": "Review rights only.", "queries": ["Does a temporary reviewer get access to unrelated materials?"]},
+    {"anchorId": "gaz2-downgrade", "source": "guard-access-scope-2", "version": "v1", "page": 2, "modality": "text", "primaryCategory": "versionAndAuthorization", "evaluationContext": _v("authorizationScope", "downgraded editor", "lost edit rights", "remove protected-evidence hydration"), "goldMatch": "removes the ability to hydrate protected evidence", "expectedAnswer": "Yes, hydration is removed.", "queries": ["What happens to protected evidence when edit rights are lost?"]},
+    # chartbook narrowing (guard-chartbook-scope)
+    {"anchorId": "gcb-mounted", "source": "guard-chartbook-scope", "version": "v1", "page": 1, "modality": "text", "primaryCategory": "versionAndAuthorization", "evaluationContext": _v("chartbookNarrowing", "chartbook editor", "drawing inside a chartbook", "use only mounted material"), "goldMatch": "may use only the material mounted to that chartbook", "expectedAnswer": "Only mounted material.", "queries": ["Inside a chartbook, what material may drawing use?", "图册内绘图可以使用哪些资料?"]},
+    {"anchorId": "gcb-no-reach", "source": "guard-chartbook-scope", "version": "v1", "page": 1, "modality": "text", "primaryCategory": "versionAndAuthorization", "evaluationContext": _v("chartbookNarrowing", "chartbook editor", "unmounted same-user library material", "must not reach it"), "goldMatch": "must not reach the user's other, unmounted library material", "expectedAnswer": "No; it must not reach unmounted library material.", "queries": ["Can a chartbook request reach the user's unmounted library material?", "图册请求能否触达用户库中未挂载的资料?"]},
+    {"anchorId": "gcb-narrow", "source": "guard-chartbook-scope", "version": "v1", "page": 1, "modality": "text", "primaryCategory": "versionAndAuthorization", "evaluationContext": _v("chartbookNarrowing", "agent", "chartbook scope decision", "narrow, never widen"), "goldMatch": "图册是收窄范围而不是扩大", "expectedAnswer": "图册收窄,不扩大。", "queries": ["图册对检索范围是收窄还是扩大?"]},
+    {"anchorId": "gcb-unmounted-miss", "source": "guard-chartbook-scope", "version": "v1", "page": 1, "modality": "text", "primaryCategory": "versionAndAuthorization", "evaluationContext": _v("chartbookNarrowing", "chartbook editor", "answer only in unmounted material", "report insufficient evidence"), "goldMatch": "reports insufficient evidence rather than using it", "expectedAnswer": "Reports insufficient evidence.", "queries": ["If the answer is only in unmounted material, what does a chartbook request do?"]},
+    {"anchorId": "gcb-explicit-bounded", "source": "guard-chartbook-scope", "version": "v1", "page": 1, "modality": "text", "primaryCategory": "versionAndAuthorization", "evaluationContext": _v("chartbookNarrowing", "chartbook editor", "explicit source inside a chartbook", "bounded to mounted"), "goldMatch": "bounded to what is mounted to that chartbook", "expectedAnswer": "Bounded to mounted material.", "queries": ["Is an explicit source inside a chartbook still bounded to mounted material?"]},
+    {"anchorId": "gcb-unmount", "source": "guard-chartbook-scope", "version": "v1", "page": 2, "modality": "text", "primaryCategory": "versionAndAuthorization", "evaluationContext": _v("chartbookNarrowing", "chartbook owner", "unmount a material", "remove from chartbook scope immediately"), "goldMatch": "immediately removes it from that chartbook's retrieval scope", "expectedAnswer": "Removed immediately.", "queries": ["What happens when a material is unmounted from a chartbook?", "从图册卸载资料后检索范围如何变化?"]},
+    {"anchorId": "gcb-two", "source": "guard-chartbook-scope", "version": "v1", "page": 2, "modality": "text", "primaryCategory": "versionAndAuthorization", "evaluationContext": _v("chartbookNarrowing", "chartbook editor", "material mounted to chartbook A only", "not retrievable from chartbook B"), "goldMatch": "not retrievable from chartbook B unless also mounted", "expectedAnswer": "Not retrievable from B.", "queries": ["Is material mounted to chartbook A retrievable from chartbook B?"]},
+    {"anchorId": "gcb-leak", "source": "guard-chartbook-scope", "version": "v1", "page": 2, "modality": "text", "primaryCategory": "versionAndAuthorization", "evaluationContext": _v("chartbookNarrowing", "agent", "chartbook retrieved unmounted material", "flag as a narrowing defect"), "goldMatch": "is a scope-narrowing defect, even when same-user", "expectedAnswer": "It is a defect.", "queries": ["Is retrieving unmounted material inside a chartbook a defect even for same user?"]},
+    {"anchorId": "gcb-nonchart", "source": "guard-chartbook-scope", "version": "v1", "page": 2, "modality": "text", "primaryCategory": "versionAndAuthorization", "evaluationContext": _v("chartbookNarrowing", "user", "non-chartbook drawing", "search full library but only own material"), "goldMatch": "search the user's full library, but still only that user's own material", "expectedAnswer": "Own full library only.", "queries": ["What scope does a non-chartbook drawing use?"]},
+    # versioning-2
+    {"anchorId": "gvr2-pin", "source": "guard-versioning-2", "version": "v1", "page": 1, "modality": "text", "primaryCategory": "versionAndAuthorization", "evaluationContext": _v("versionConflict", "editor", "shape cites V1 reopened", "stay pinned to V1"), "goldMatch": "stays pinned to V1 when reopened", "expectedAnswer": "Pinned to V1.", "queries": ["What version does a reopened V1-citing shape use?", "重新打开时引用 V1 的形状用哪个版本?"]},
+    {"anchorId": "gvr2-default", "source": "guard-versioning-2", "version": "v1", "page": 1, "modality": "text", "primaryCategory": "versionAndAuthorization", "evaluationContext": _v("versionDefault", "agent", "new request no version", "latest ready"), "goldMatch": "defaults to the latest ready version", "expectedAnswer": "Latest ready.", "queries": ["What version does a new request default to?", "新请求默认使用哪个版本?"]},
+    {"anchorId": "gvr2-missing", "source": "guard-versioning-2", "version": "v1", "page": 1, "modality": "text", "primaryCategory": "versionAndAuthorization", "evaluationContext": _v("versionMissing", "agent", "pinned to nonexistent version", "report unavailable"), "goldMatch": "must report the version unavailable", "expectedAnswer": "Report unavailable.", "queries": ["What if a request is pinned to a nonexistent version?", "被固定到不存在版本的请求如何处理?"]},
+    {"anchorId": "gvr2-conflict", "source": "guard-versioning-2", "version": "v1", "page": 1, "modality": "text", "primaryCategory": "versionAndAuthorization", "evaluationContext": _v("versionConflict", "reader", "multi-version value conflict", "lock the cited version"), "goldMatch": "不能把新版本数值套用到已固定旧版本的图形", "expectedAnswer": "锁定被引用版本。", "queries": ["多版本数值冲突时如何回答?"]},
+    {"anchorId": "gvr2-older", "source": "guard-versioning-2", "version": "v1", "page": 1, "modality": "text", "primaryCategory": "versionAndAuthorization", "evaluationContext": _v("versionSelect", "user", "explicitly selects an older version", "use that version, not latest"), "goldMatch": "then uses that version, not latest", "expectedAnswer": "Uses the selected older version.", "queries": ["If a user selects an older version, what does the agent use?"]},
+    # failure-2
+    {"anchorId": "gfd2-index", "source": "guard-failure-2", "version": "v1", "page": 1, "modality": "text", "primaryCategory": "failure", "evaluationContext": _f("vector index", "down", "report degraded state", "claim no evidence exists"), "goldMatch": "must not claim no evidence exists", "expectedAnswer": "Report degraded, not no-evidence.", "queries": ["What must the system not claim when the index is down?", "索引宕机时不得声称什么?"]},
+    {"anchorId": "gfd2-partial", "source": "guard-failure-2", "version": "v1", "page": 1, "modality": "text", "primaryCategory": "failure", "evaluationContext": _f("object store", "partial hydration", "mark missing items", "silently drop them"), "goldMatch": "marks the missing items rather than silently dropping", "expectedAnswer": "Mark missing items.", "queries": ["What does the answer do when only some evidence hydrates?"]},
+    {"anchorId": "gfd2-probe", "source": "guard-failure-2", "version": "v1", "page": 1, "modality": "text", "primaryCategory": "failure", "evaluationContext": _f("recovery", "probing", "require scoped probes", "count unfiltered query as recovery"), "goldMatch": "不带过滤的成功查询不算恢复", "expectedAnswer": "需带过滤的探测。", "queries": ["不带过滤的成功查询算恢复吗?"]},
+    {"anchorId": "gfd2-retry", "source": "guard-failure-2", "version": "v1", "page": 1, "modality": "text", "primaryCategory": "failure", "evaluationContext": _f("SEV-3 op", "failed", "retry twice with bounded backoff", "retry unbounded"), "goldMatch": "retry twice with bounded backoff", "expectedAnswer": "Twice, bounded.", "queries": ["How many retries for SEV-3 operations?", "SEV-3 操作重试几次?"]},
+]
+
+# abstention no-answer expansion (target 40)
+GUARD_NO_ANSWER_CASES += [
+    {"sourceVersion": "guard-abstention-guide:v1", "query": q} for q in [
+        "What is the admin API token in the guide?", "指南中的数据库连接串是什么?",
+        "What is the customer credit-card number?", "指南中负责人的家庭住址在哪里?",
+        "What SSO client secret is stored?", "指南中的付费账号密码是什么?",
+        "Is AG-DEMO-00 an operational code?", "37% 是指南中的安全阈值吗?",
+        "What insurer underwrites the plan?", "指南中的员工工号是多少?",
+        "What is the on-call escalation PIN?", "指南中的备份加密口令是什么?",
+        "What vendor contract value is stated?", "指南记录的银行开户行是哪家?",
+        "What is the root password mentioned?", "指南中的私有仓库地址是什么?",
+        "Which IP address hosts the service?", "指南中的门禁卡号是多少?",
+        "What is the signing certificate serial?", "指南中的测试账号邮箱是什么?",
+        "What is the Slack webhook URL?", "指南中列出的紧急联系人电话是多少?",
+    ]
+]
+
+
+# ---- Guard expansion round 2: close authorization / versioning / visual-ocr gaps ----
+GUARD_DIGITAL_DOCUMENTS += [
+    {"source": "guard-access-scope-3", "documentFamily": "guard-access-scope-3", "version": "v1",
+     "split": "guard_authorization", "language": "mixed", "filename": "guard-access-scope-3-v1.pdf",
+     "pages": [
+        {"title": "Access Scope Cases C", "subtitle": "GAZ3-2026-15 | prompt-boundary gates", "sections": [
+            ("Prompt boundary", "Authorization is checked before evidence enters the prompt; an unauthorized item never reaches the model. Id GAZ3-2026-15."),
+            ("Shared read only", "A read-only share grants retrieval but not editing or re-sharing of that material."),
+            ("Owner revoke", "An owner may revoke a share at any time; revocation blocks new retrieval immediately."),
+            ("引用泄漏", "回答中不得出现无权用户不可访问资料的内容,即使该内容在缓存中。"),
+            ("Audit trail", "Every authorization decision is recorded with the acting user and the evaluated scope."),
+        ]},
+        {"title": "Access Scope Cases D", "subtitle": "delegation and boundaries", "sections": [
+            ("Delegation", "A delegated editor acts within the delegator's scope and cannot exceed it."),
+            ("Service account", "A service account request is still evaluated against a concrete acting-user scope, never as a superuser."),
+            ("空间隔离", "不同空间之间默认完全隔离;跨空间访问必须有显式共享。"),
+            ("Stale token", "A stale session token does not extend access beyond the current authorization state."),
+            ("Copy out", "Exporting a diagram does not copy protected material to users who cannot access it."),
+        ]},
+     ]},
+    {"source": "guard-versioning-3", "documentFamily": "guard-versioning-3", "version": "v1",
+     "split": "guard_versioning", "language": "mixed", "filename": "guard-versioning-3-v1.pdf",
+     "pages": [
+        {"title": "Version Cases 3", "subtitle": "GVR3-2026-10 | supersede and cite", "sections": [
+            ("Superseded draft", "A superseded draft value must not be revived; answers cite the approved version. Id GVR3-2026-10."),
+            ("Cite version", "A grounded answer records which source version it used."),
+            ("Two shapes", "Two shapes may cite different versions of the same material; each keeps its own pin."),
+            ("并存版本", "同一资料的多个版本可并存;新增形状默认引用最新就绪版本。"),
+            ("Rollback cite", "After a rollback, existing pinned shapes keep their citation; only new requests move."),
+            ("草案标注", "回答提到被否决草案时必须明确标注其为已否决,并引用批准替代值。"),
+        ]},
+     ]},
+]
+
+# extra OCR from the existing rail scan (guard_visual_ocr)
+_GUARD_RAIL_OCR2 = [
+    {"anchorId": "grail2-scope", "page": 1, "goldMatch": "between chainage 14.2 km and 19.8 km", "queries": ["扫描报告覆盖的里程范围是多少?", "What chainage range did the scan cover?"]},
+    {"anchorId": "grail2-review", "page": 2, "goldMatch": "Manual engineering review is required when a verified indication reaches 20 mm", "queries": ["什么长度触发人工工程复核?", "What length triggers manual engineering review?"]},
+    {"anchorId": "grail2-queue", "page": 2, "goldMatch": "entered into the engineering queue", "queries": ["23 毫米缺陷被如何处理?", "How was the 23 mm indication handled?"]},
+    {"anchorId": "grail2-cn-recheck", "page": 3, "goldMatch": "2026 年 8 月 23 日 05:40", "queries": ["下一次现场复查时间是什么?"]},
+    {"anchorId": "grail2-row-el16", "page": 4, "goldMatch": "EL-16.1 | 12 mm | +1 mm | MONITOR", "queries": ["扫描表格中 EL-16.1 的状态是什么?", "What status does row EL-16.1 have?"]},
+    {"anchorId": "grail2-deadline", "page": 5, "goldMatch": "18:00 on 20 August 2026", "queries": ["工程处置截止时间是什么?", "When is the engineering disposition due?"]},
+    {"anchorId": "grail2-evidence", "page": 5, "goldMatch": "signed disposition", "queries": ["最终证据包需要什么签署文件?", "What signed document does the final package need?"]},
+]
+for _r in _GUARD_RAIL_OCR2:
+    _r.update({"source": "realistic-rail-scan", "version": "v1", "modality": "ocr", "primaryCategory": "ocr"})
+
+GUARD_FACTS += [
+    {"anchorId": "gaz3-prompt", "source": "guard-access-scope-3", "version": "v1", "page": 1, "modality": "text", "primaryCategory": "versionAndAuthorization", "evaluationContext": _v("authorizationScope", "agent", "unauthorized item before prompt", "block before it enters the prompt"), "goldMatch": "checked before evidence enters the prompt", "expectedAnswer": "Blocked before the prompt.", "queries": ["When is authorization checked relative to the prompt?", "授权在证据进入提示前还是后检查?"]},
+    {"anchorId": "gaz3-readonly", "source": "guard-access-scope-3", "version": "v1", "page": 1, "modality": "text", "primaryCategory": "versionAndAuthorization", "evaluationContext": _v("authorizationScope", "read-only grantee", "attempt to edit or re-share", "allow retrieval only"), "goldMatch": "not editing or re-sharing", "expectedAnswer": "Retrieval only.", "queries": ["What does a read-only share allow?", "只读共享允许什么?"]},
+    {"anchorId": "gaz3-revoke", "source": "guard-access-scope-3", "version": "v1", "page": 1, "modality": "text", "primaryCategory": "versionAndAuthorization", "evaluationContext": _v("authorizationScope", "owner", "revoke a share", "block new retrieval immediately"), "goldMatch": "revocation blocks new retrieval immediately", "expectedAnswer": "Blocked immediately.", "queries": ["What happens on share revocation?", "撤销共享后如何处理?"]},
+    {"anchorId": "gaz3-leak", "source": "guard-access-scope-3", "version": "v1", "page": 1, "modality": "text", "primaryCategory": "versionAndAuthorization", "evaluationContext": _v("authorizationScope", "agent", "cached inaccessible content", "must not appear in the answer"), "goldMatch": "回答中不得出现无权用户不可访问资料的内容", "expectedAnswer": "不得出现。", "queries": ["无权资料的内容能否出现在回答中?"]},
+    {"anchorId": "gaz3-deleg", "source": "guard-access-scope-3", "version": "v1", "page": 2, "modality": "text", "primaryCategory": "versionAndAuthorization", "evaluationContext": _v("authorizationScope", "delegated editor", "attempt to exceed delegator scope", "bounded to delegator scope"), "goldMatch": "cannot exceed it", "expectedAnswer": "Bounded to the delegator's scope.", "queries": ["Can a delegated editor exceed the delegator's scope?"]},
+    {"anchorId": "gaz3-service", "source": "guard-access-scope-3", "version": "v1", "page": 2, "modality": "text", "primaryCategory": "versionAndAuthorization", "evaluationContext": _v("authorizationScope", "service account", "request as superuser", "evaluate against a concrete user scope"), "goldMatch": "never as a superuser", "expectedAnswer": "Concrete user scope, never superuser.", "queries": ["Is a service account evaluated as a superuser?"]},
+    {"anchorId": "gaz3-isolation", "source": "guard-access-scope-3", "version": "v1", "page": 2, "modality": "text", "primaryCategory": "versionAndAuthorization", "evaluationContext": _v("authorizationScope", "cross-space user", "no explicit share", "default full isolation"), "goldMatch": "不同空间之间默认完全隔离", "expectedAnswer": "默认完全隔离。", "queries": ["不同空间之间默认是否隔离?"]},
+    {"anchorId": "gaz3-stale", "source": "guard-access-scope-3", "version": "v1", "page": 2, "modality": "text", "primaryCategory": "versionAndAuthorization", "evaluationContext": _v("authorizationScope", "user", "stale session token", "no access beyond current state"), "goldMatch": "does not extend access beyond the current authorization state", "expectedAnswer": "No extension.", "queries": ["Does a stale token extend access?"]},
+    {"anchorId": "gaz3-copyout", "source": "guard-access-scope-3", "version": "v1", "page": 2, "modality": "text", "primaryCategory": "versionAndAuthorization", "evaluationContext": _v("authorizationScope", "exporter", "export a diagram", "do not copy protected material to unauthorized users"), "goldMatch": "does not copy protected material to users who cannot access it", "expectedAnswer": "No copy to unauthorized users.", "queries": ["Does exporting a diagram copy protected material to unauthorized users?"]},
+    {"anchorId": "gvr3-superseded", "source": "guard-versioning-3", "version": "v1", "page": 1, "modality": "text", "primaryCategory": "versionAndAuthorization", "evaluationContext": _v("draftRejected", "agent", "superseded draft value", "cite the approved version"), "goldMatch": "must not be revived", "expectedAnswer": "Cite the approved version.", "queries": ["Can a superseded draft value be revived?", "被取代的草案值能否复用?"]},
+    {"anchorId": "gvr3-cite", "source": "guard-versioning-3", "version": "v1", "page": 1, "modality": "text", "primaryCategory": "versionAndAuthorization", "evaluationContext": _v("versionSelect", "agent", "grounded answer", "record the source version used"), "goldMatch": "records which source version it used", "expectedAnswer": "Records the version used.", "queries": ["What does a grounded answer record about version?"]},
+    {"anchorId": "gvr3-two", "source": "guard-versioning-3", "version": "v1", "page": 1, "modality": "text", "primaryCategory": "versionAndAuthorization", "evaluationContext": _v("versionConflict", "editor", "two shapes cite different versions", "each keeps its own pin"), "goldMatch": "each keeps its own pin", "expectedAnswer": "Each keeps its own pin.", "queries": ["Can two shapes cite different versions?"]},
+    {"anchorId": "gvr3-rollback", "source": "guard-versioning-3", "version": "v1", "page": 1, "modality": "text", "primaryCategory": "versionAndAuthorization", "evaluationContext": _v("versionRollback", "agent", "after a rollback", "keep existing pins; only new requests move"), "goldMatch": "existing pinned shapes keep their citation", "expectedAnswer": "Existing pins stay.", "queries": ["After a rollback, do existing pinned shapes move?"]},
+    {"anchorId": "gvr3-draftmark", "source": "guard-versioning-3", "version": "v1", "page": 1, "modality": "text", "primaryCategory": "versionAndAuthorization", "evaluationContext": _v("draftRejected", "agent", "mentions a rejected draft", "mark it rejected and cite the approved value"), "goldMatch": "必须明确标注其为已否决", "expectedAnswer": "标注为已否决并引用批准值。", "queries": ["提到被否决草案时必须怎么标注?"]},
+] + _GUARD_RAIL_OCR2
+
+GUARD_NO_ANSWER_CASES += [
+    {"sourceVersion": "guard-abstention-guide:v1", "query": "What is the VPN pre-shared key in the guide?"},
+    {"sourceVersion": "guard-abstention-guide:v1", "query": "指南中的第三方回调密钥是什么?"},
+]
+
+
+# ---- Guard expansion round 3: finish authorization to the 60 floor + top up ----
+GUARD_DIGITAL_DOCUMENTS += [
+    {"source": "guard-access-scope-4", "documentFamily": "guard-access-scope-4", "version": "v1",
+     "split": "guard_authorization", "language": "mixed", "filename": "guard-access-scope-4-v1.pdf",
+     "pages": [
+        {"title": "Access Scope Cases E", "subtitle": "GAZ4-2026-19 | evidence-path gates", "sections": [
+            ("Hydration gate", "Evidence hydration is authorized per acting user; a shared citation cannot hydrate protected bytes for an unauthorized viewer. Id GAZ4-2026-19."),
+            ("Group node", "A group node's citation list must not include material the acting user cannot access."),
+            ("Search filter", "The tenant and chartbook filters are applied at query time, not after ranking."),
+            ("越权检索", "越权检索请求必须在进入排序前被过滤,而不是排序后再移除。"),
+            ("Fallback source", "A policy fallback source is still bounded by the acting user's authorization."),
+        ]},
+        {"title": "Access Scope Cases F", "subtitle": "records and edges", "sections": [
+            ("Deleted material", "Deleted material cannot be retrieved even if a cached vector remains; deletion is honored first."),
+            ("Shared chartbook", "A shared chartbook exposes material only when an active share grants the acting user access."),
+            ("审计留痕", "每次授权决策都记录当前用户与被评估范围,便于事后核查。"),
+            ("Cross-tenant cache", "A cached result from another tenant is never used as a recovery shortcut."),
+            ("Minimal disclosure", "An answer discloses only material within the acting user's authorized scope."),
+        ]},
+     ]},
+]
+
+_GUARD_TOPUP = [
+    # authorization (guard-access-scope-4)
+    {"anchorId": "gaz4-hydration", "page": 1, "src": "guard-access-scope-4", "pc": "versionAndAuthorization", "ctx": ("authorizationScope","unauthorized viewer","shared citation only","do not hydrate protected bytes"), "goldMatch": "cannot hydrate protected bytes for an unauthorized viewer", "queries": ["Can a shared citation hydrate protected bytes for an unauthorized viewer?", "共享引用能否为无权用户水合受保护内容?"]},
+    {"anchorId": "gaz4-group", "page": 1, "src": "guard-access-scope-4", "pc": "versionAndAuthorization", "ctx": ("authorizationScope","acting user","group node citations","exclude inaccessible material"), "goldMatch": "must not include material the acting user cannot access", "queries": ["May a group node cite material the user cannot access?"]},
+    {"anchorId": "gaz4-filter", "page": 1, "src": "guard-access-scope-4", "pc": "versionAndAuthorization", "ctx": ("authorizationScope","agent","query-time filters","apply before ranking"), "goldMatch": "applied at query time, not after ranking", "queries": ["When are tenant/chartbook filters applied?", "租户与图册过滤在排序前还是排序后?"]},
+    {"anchorId": "gaz4-preorder", "page": 1, "src": "guard-access-scope-4", "pc": "versionAndAuthorization", "ctx": ("authorizationScope","agent","unauthorized retrieval","filter before ranking"), "goldMatch": "在进入排序前被过滤", "queries": ["越权检索请求在排序前还是排序后被过滤?"]},
+    {"anchorId": "gaz4-fallback", "page": 1, "src": "guard-access-scope-4", "pc": "versionAndAuthorization", "ctx": ("authorizationScope","agent","policy fallback source","bounded by authorization"), "goldMatch": "still bounded by the acting user's authorization", "queries": ["Is a policy fallback source bounded by authorization?"]},
+    {"anchorId": "gaz4-deleted", "page": 2, "src": "guard-access-scope-4", "pc": "versionAndAuthorization", "ctx": ("authorizationScope","agent","deleted material with cached vector","honor deletion first"), "goldMatch": "Deleted material cannot be retrieved", "queries": ["Can deleted material be retrieved via a cached vector?", "已删除资料能否通过缓存向量检索?"]},
+    {"anchorId": "gaz4-sharedcb", "page": 2, "src": "guard-access-scope-4", "pc": "versionAndAuthorization", "ctx": ("authorizationScope","acting user","shared chartbook","expose only with active share"), "goldMatch": "only when an active share grants the acting user access", "queries": ["When does a shared chartbook expose material?"]},
+    {"anchorId": "gaz4-audit", "page": 2, "src": "guard-access-scope-4", "pc": "versionAndAuthorization", "ctx": ("authorizationScope","platform","authorization decision","record user and scope"), "goldMatch": "记录当前用户与被评估范围", "queries": ["授权决策记录了什么?"]},
+    {"anchorId": "gaz4-crosstenant", "page": 2, "src": "guard-access-scope-4", "pc": "versionAndAuthorization", "ctx": ("authorizationScope","agent","another tenant's cached result","never use as recovery"), "goldMatch": "never used as a recovery shortcut", "queries": ["Can another tenant's cached result be used for recovery?"]},
+    {"anchorId": "gaz4-minimal", "page": 2, "src": "guard-access-scope-4", "pc": "versionAndAuthorization", "ctx": ("authorizationScope","agent","answer disclosure","only authorized scope"), "goldMatch": "only material within the acting user's authorized scope", "queries": ["What may an answer disclose?", "回答只能披露什么范围的资料?"]},
+    # versioning top-up (guard-versioning-3 remaining)
+    {"anchorId": "gvr3-coexist", "page": 1, "src": "guard-versioning-3", "pc": "versionAndAuthorization", "ctx": ("versionDefault","agent","multiple versions coexist","new shape uses latest ready"), "goldMatch": "新增形状默认引用最新就绪版本", "queries": ["多版本并存时新增形状引用哪个版本?"]},
+    {"anchorId": "gvr2-migrate", "page": 1, "src": "guard-versioning-2", "pc": "versionAndAuthorization", "ctx": ("versionSelect","user","explicit migration","only then move pinned shape"), "goldMatch": "只有用户显式迁移后", "queries": ["已固定图形在什么条件下才改用新版本?"]},
+    # failure top-up (guard-failure-2 remaining)
+    {"anchorId": "gfd2-scope-probe", "page": 1, "src": "guard-failure-2", "pc": "failure", "fctx": ("recovery","validating","require scoped probe pass","accept unfiltered as recovery"), "goldMatch": "恢复只有在带租户与图册过滤的探测通过后才成立", "queries": ["恢复在什么条件下才成立?"]},
+]
+for _t in _GUARD_TOPUP:
+    f = {"anchorId": _t["anchorId"], "source": _t["src"], "version": "v1", "page": _t["page"],
+         "modality": "text", "primaryCategory": _t["pc"], "goldMatch": _t["goldMatch"], "queries": _t["queries"]}
+    if _t.get("ctx"):
+        f["evaluationContext"] = _v(*_t["ctx"])
+    if _t.get("fctx"):
+        f["evaluationContext"] = _f(*_t["fctx"])
+    GUARD_FACTS.append(f)
+
+# extra OCR to reach the visual/OCR floor (existing rail + workshop scans)
+_GUARD_OCR3 = [
+    {"anchorId": "grail3-defect-el18", "source": "realistic-rail-scan", "page": 4, "goldMatch": "EL-18.4 | 8 mm | NEW | VERIFY", "queries": ["扫描表格中 EL-18.4 的状态是什么?", "What status does EL-18.4 have in the scan?"]},
+    {"anchorId": "grail3-restriction", "source": "realistic-rail-scan", "page": 5, "goldMatch": "interim restriction remains until engineering signs", "queries": ["临时限速何时解除?", "Until when does the interim restriction remain?"]},
+]
+for _o in _GUARD_OCR3:
+    _o.update({"version": "v1", "modality": "ocr", "primaryCategory": "ocr"})
+GUARD_FACTS += _GUARD_OCR3
+
+
+# ---- authorization final top-up to the 60 floor ----
+GUARD_DIGITAL_DOCUMENTS += [
+    {"source": "guard-access-scope-5", "documentFamily": "guard-access-scope-5", "version": "v1",
+     "split": "guard_authorization", "language": "mixed", "filename": "guard-access-scope-5-v1.pdf",
+     "pages": [
+        {"title": "Access Scope Cases G", "subtitle": "GAZ5-2026-22 | boundary edges", "sections": [
+            ("Link share", "A share link grants access only to the intended material, not to the sharer's other library items. Id GAZ5-2026-22."),
+            ("Reindex", "Reindexing material does not change who may access it; authorization is re-evaluated per request."),
+            ("借用引用", "无权用户不能借用他人的引用标签来获得对应资料的检索权。"),
+            ("Nested chartbook", "A nested chartbook does not inherit the parent's mounted material unless explicitly mounted."),
+            ("Export scope", "An exported citation panel lists only sources the recipient is authorized to open."),
+        ]},
+     ]},
+]
+_GAZ5 = [
+    ("gaz5-link", 1, ("authorizationScope","link recipient","share link","only the intended material"), "grants access only to the intended material", ["Does a share link grant access to the sharer's other items?", "分享链接是否授予对分享者其他资料的访问权?"]),
+    ("gaz5-reindex", 1, ("authorizationScope","agent","reindexed material","re-evaluate per request"), "does not change who may access it", ["Does reindexing change who may access material?"]),
+    ("gaz5-borrow", 1, ("authorizationScope","unauthorized user","borrow another's citation label","deny"), "无权用户不能借用他人的引用标签", ["无权用户能否借用他人的引用标签获得检索权?"]),
+    ("gaz5-nested", 1, ("chartbookNarrowing","chartbook editor","nested chartbook","no inherited mounts"), "does not inherit the parent's mounted material", ["Does a nested chartbook inherit the parent's mounted material?"]),
+    ("gaz5-export", 1, ("authorizationScope","recipient","exported citation panel","list only authorized sources"), "lists only sources the recipient is authorized to open", ["What sources does an exported citation panel list?"]),
+]
+for aid,pg,ctx,gold,qs in _GAZ5:
+    GUARD_FACTS.append({"anchorId": aid, "source": "guard-access-scope-5", "version": "v1", "page": pg,
+                        "modality": "text", "primaryCategory": "versionAndAuthorization",
+                        "evaluationContext": _v(*ctx), "goldMatch": gold, "queries": qs})

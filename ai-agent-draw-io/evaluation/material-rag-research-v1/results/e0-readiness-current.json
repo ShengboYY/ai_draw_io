@@ -4,7 +4,7 @@
   "readyForFormalComparison": true,
   "readyForE0Freeze": true,
   "counts": {
-    "allGeneratedCases": 589,
+    "allGeneratedCases": 711,
     "coreCases": 450,
     "coreBySplit": {
       "development": 250,
@@ -36,8 +36,8 @@
       "visual_chart": 4,
       "visual_flow": 46
     },
-    "anchors": 334,
-    "documents": 31,
+    "anchors": 402,
+    "documents": 39,
     "reviewedCoreCases": 450
   },
   "targets": {

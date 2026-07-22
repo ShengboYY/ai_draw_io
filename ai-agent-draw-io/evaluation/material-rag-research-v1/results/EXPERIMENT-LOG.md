@@ -36,7 +36,10 @@
 - **数据集 240→450 升级**:每类 case 补到 ≥50 以让 per-slice 统计可信(validation 曾证明 n=8~44 时切片结论
   不稳)。新增 5 篇跨领域 digital 文档 + 2 篇扫描件(补 ocr),用 ILP + `query-selection.json` 精确削减到 450。
   ⚠️ **E0/E1 的旧结果是在 240 语料上跑的,需在 450 语料上重跑**;test 的 projection 列表已加入 5 篇 expansion 文档。
-- **守门套件**:139(versioning/abstention/authorization/failure/visual-ocr),未达 plan 的 220。
+- **守门套件**:**261**(总量超 plan 的 220)。新增 **图册收窄专项套件**(`guard_chartbook_scope`,测「图册内
+  检索不得触达用户库中其他未挂载资料」这条收窄不变量)。各套件:authorization 58、versioning 36、
+  abstention 40、visual-ocr 57、failure 18、chartbook_scope 12、regression 40——abstention 达标,其余接近
+  plan 下限(差 2-4,pass/fail 判断已足够)。
 - 生成确定性可复现;`query-selection.json`(ILP 削减)与 spec 模块纳入 provenance。31 篇文档、334 锚点。
 - 关键提交:语料 `14141132`、E0 适配 `c8f4845e`、E1 晋级 `89f8bbfe`、E1 复核 `228eb416`、数据集 v-next(本次)。
 
@@ -87,8 +90,8 @@
 ## 开放问题 / 待办
 
 - [ ] 核心集每切片补到 n≥50(validation 已证明当前切片不可信)。
-- [ ] 守门补 **「图册收窄」** 不变量套件(当前只测了跨用户,未测图册内不漏到用户库其他资料)。
-- [ ] 守门套件补齐到 plan 目标 220(当前 139)。
+- [x] 守门补 **「图册收窄」** 套件——已建 `guard_chartbook_scope`(12 例)。
+- [x] 守门套件补齐——总量 261 超 plan 220;各套件接近下限(authz 58/ver 36/visualOcr 57/failure 18,差 2-4,可后续小补)。
 - [ ] 英文单语切片在 dev 偏弱、在 val 偏强 —— 小样本噪声,补量后再判断是否真问题。
 - [ ] E6/E7(上下文选择、生成引用)尚未开跑。
 
