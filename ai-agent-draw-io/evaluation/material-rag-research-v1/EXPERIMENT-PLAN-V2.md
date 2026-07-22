@@ -388,4 +388,6 @@ E6b context、prompt 或模型请求。
 Pinecone top-40 路径生成 trace。planning scan 必须由 `MATERIAL_RAG_TESSERACT_EXECUTABLE` 指向实际可执行的
 Tesseract；缺少 OCR、Pinecone test/dev namespace 或显式 `MATERIAL_RAG_TASK_HYDRATION_JSON` 输出路径时 test
 直接 skip，不能降级为 text-only 结果。hydrate trace 的候选文本只在与冻结 ground-truth anchor 的 source/page/
-extractive text 同时一致时附带 citation metadata；视觉与扫描 artifact 使用 frozen 原始页面图并记录 SHA-256。
+extractive text 同时一致时使用该 anchor 作为 citation label；其余每个 top-40 chunk 仍以稳定的
+`retrieved:<chunkId>` citation ID 完整导出，绝不因未命中 evaluator gold 而丢弃正文。视觉与扫描 artifact 使用
+frozen 原始页面图并记录 SHA-256。

@@ -46,7 +46,14 @@ def evidence_for_context(candidates: list[dict], task: dict, artifact_root: Path
                 raise ValueError(f"candidate/evidence source mismatch for {task['taskId']}")
             if not item.get("anchorId") or not isinstance(item.get("page"), int):
                 raise ValueError(f"unlocatable evidence for {task['taskId']}")
-            if anchors is not None:
+            if (candidate.get("page") != item["page"]
+                    or candidate.get("retrievalTextSha256")
+                    != hashlib.sha256(item["text"].encode()).hexdigest()):
+                raise ValueError(f"candidate evidence provenance mismatch for {task['taskId']}")
+            if item["anchorId"].startswith("retrieved:"):
+                if item["anchorId"] != f"retrieved:{candidate['chunkId']}":
+                    raise ValueError(f"retrieved citation ID mismatch for {task['taskId']}")
+            elif anchors is not None:
                 anchor = anchors.get(item["anchorId"])
                 expected_source = f"{anchor['source']}:{anchor['version']}" if anchor else None
                 if (anchor is None or expected_source != item["sourceVersion"]

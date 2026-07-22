@@ -348,7 +348,7 @@ class ControlledPdfDenseRecallLiveTest {
         Path root = researchRoot();
         ProjectionSet projections = buildDrawioTaskHydrationProjections(root,
                 new TesseractOcrEngine(tesseract, "eng+chi_sim", Duration.ofSeconds(30)));
-        Map<String, ResearchAnchor> anchorById = new HashMap<>();
+        Map<String, ResearchAnchor> anchorById = new LinkedHashMap<>();
         anchors(root).forEach(anchor -> anchorById.put(anchor.anchorId(), anchor));
         PineconeVectorClient client = new PineconeVectorClient(
                 apiKey, indexHost, "multilingual-e5-large", 1024, JSON);
@@ -621,6 +621,8 @@ class ControlledPdfDenseRecallLiveTest {
                 value.put("rank", candidate.rank());
                 value.put("chunkId", candidate.chunkId());
                 value.put("sourceVersion", candidate.sourceVersion());
+                value.put("page", pageNo(candidate.pageId()));
+                value.put("retrievalTextSha256", sha256(candidate.retrievalText()));
                 value.put("evidence", hydratedEvidence(root, candidate, anchors));
                 candidates.add(value);
             }
@@ -635,18 +637,26 @@ class ControlledPdfDenseRecallLiveTest {
         JSON.writerWithDefaultPrettyPrinter().writeValue(output.toFile(), trace);
     }
 
-    /** Keeps only exact, source/page-bound anchor metadata beside the retrieved chunk text. */
+    /** Exports every retrieved chunk; a known anchor changes only its citation label, never inclusion. */
     private List<Map<String, Object>> hydratedEvidence(Path root, CandidateResult candidate,
                                                         Map<String, ResearchAnchor> anchors) throws Exception {
         int page = pageNo(candidate.pageId());
-        List<Map<String, Object>> result = new ArrayList<>();
-        for (ResearchAnchor anchor : anchors.values()) {
+        List<ResearchAnchor> matched = new ArrayList<>();
+        for (ResearchAnchor anchor : anchors.values().stream()
+                .sorted(java.util.Comparator.comparing(ResearchAnchor::anchorId)).toList()) {
             if (!candidate.sourceVersion().equals(anchor.sourceVersion()) || page != anchor.pageNo()
                     || !normalize(candidate.retrievalText()).contains(normalize(anchor.goldMatch()))) {
                 continue;
             }
+            matched.add(anchor);
+        }
+        List<String> citationIds = matched.isEmpty()
+                ? List.of("retrieved:" + candidate.chunkId())
+                : matched.stream().map(ResearchAnchor::anchorId).toList();
+        List<Map<String, Object>> result = new ArrayList<>();
+        for (String citationId : citationIds) {
             Map<String, Object> evidence = new LinkedHashMap<>();
-            evidence.put("anchorId", anchor.anchorId());
+            evidence.put("anchorId", citationId);
             evidence.put("sourceVersion", candidate.sourceVersion());
             evidence.put("page", page);
             evidence.put("text", candidate.retrievalText());
@@ -675,6 +685,11 @@ class ControlledPdfDenseRecallLiveTest {
 
     private String sha256(Path path) throws Exception {
         return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(Files.readAllBytes(path)));
+    }
+
+    private String sha256(String value) throws Exception {
+        return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(
+                value.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
     }
 
     private String rerankerEndpointFingerprint() throws Exception {
@@ -1107,7 +1122,6 @@ class ControlledPdfDenseRecallLiveTest {
                     candidate == null ? "unknown" : candidate.sourceVersion(),
                     candidate == null ? "unknown" : candidate.chunk().chunkId(),
                     candidate == null ? "unknown" : candidate.chunk().pageId(),
-                    candidate == null ? "unknown" : candidate.chunk().modality().name(),
                     candidate == null ? "" : candidate.chunk().retrievalText()));
         }
         return List.copyOf(candidates);
@@ -1609,7 +1623,7 @@ class ControlledPdfDenseRecallLiveTest {
                             List<CandidateResult> retrievalPoolCandidates) { }
 
     private record CandidateResult(int rank, String vectorId, String sourceVersion, String chunkId,
-                                   String pageId, String modality, String retrievalText) { }
+                                   String pageId, String retrievalText) { }
 
     private record CaseResult(String caseId, int rank, String category, String primaryCategory,
                               String language, List<String> goldAnchorIds,

@@ -13,7 +13,7 @@
   "reviewLedgerSha256": "060d402284ef11775fd31b2860d42002d7d5d9a525e316c75a35c57938dc9437",
   "fixtureFontSha256": "876af2cd4854644e7f3e7feb2f688997fdb3343c6df6693611209c9dfb47ccec",
   "provenanceFiles": {
-    "EXPERIMENT-PLAN-V2.md": "fe5bb450237f5fcc8211463b1b94142daa37449cd8a4ae1ab87b2bfa74ac6c0a",
+    "EXPERIMENT-PLAN-V2.md": "f180ab55c91a14c13e81a08f2052f00f814f7e2f76c60a6e7a659167eb65ff9c",
     "experiment-plan-v2.json": "dc9f634813b4778317aa2b4a43650149a6718e41633b114a05b1c32a5ed43c59",
     "requirements.txt": "0043aca3a7381487084576995105e1099e3786ae8add5a6c0951d305b0e0e757",
     "analysis/audit_corpus.py": "0d518b17d914c61bcb3ff6d9538fc6123b2e862175031c6043089bd0683e2e21",
@@ -21,7 +21,7 @@
     "analysis/audit_e4_chartbook.py": "1785c3e3085810b269ae9d5c1975f7357b2a982bb1f321c9be12fdb6f5a86f9b",
     "analysis/evaluate_guard_suites.py": "e2ded7e4289fe4b7bfd1883e37e53c4543dccd69ab2c571aff6e54291daf4aa0",
     "analysis/build_drawio_generation_prompts.py": "3f6a0dcf379956a18c781be35ce9b9dae31b22e36bb945cac319fa01cdcdcef1",
-    "analysis/export_drawio_paired_hydration.py": "d940ec0438679d762977bd287f7daef2f2f19904f07444f2559bebbf3fed3e59",
+    "analysis/export_drawio_paired_hydration.py": "f75687535630b92b0cf9c109053c8351b8cf8fde04bd1b225968b428e88ec4e4",
     "analysis/evaluate_drawio_generation_tasks.py": "29bd996daa4afcf4118e585d441aed26fa64c3cfa42b2cf43695553d6f1e4a34",
     "analysis/validate_generation_run_manifest.py": "d9894ad51d03576d3cd7b80f02675ed07d6664b6d57361bc2edd222d58c4ee01",
     "analysis/evaluate_ocr.py": "1df3eb9d8619dd258c437cd45504477edf8a4146b96c00c693642efad1c64284",
@@ -38,7 +38,7 @@
     "fixtures/drawio-generation-tasks-v1.json": "76cd0285b4418257121f452a801d8e1a04f9ab2a9646986fbdd09d876062a160",
     "fixtures/drawio-generation-tasks-v2.json": "2ceebaec0e71bf9a47cfa61a800ff24dc1f2246c8584d0959ee7a8d176aa889f",
     "fixtures/drawio-generation-development-evidence-v1.json": "0c4259a3f22d2c1c0eee8625b3ba2b58ae38b674cd5be29e8bdd8b63f3992d74",
-    "fixtures/drawio-generation-paired-hydration-contract-v1.json": "338108a6eb3d23241858ca8ae42a3ee82679f2df6eee9270e2755ad3433a8283",
+    "fixtures/drawio-generation-paired-hydration-contract-v1.json": "50a99627d6fb52bbb39f71c71c706fd4d50edebcf03672777d4738b2188b69e0",
     "fixtures/final-holdout-contract-v1.json": "2c84a7fd4537d8aa3ea47d9654d68c39e31fce61a234ac44cb081375cace0bad"
   },
   "files": {

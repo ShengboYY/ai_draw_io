@@ -1,4 +1,5 @@
 import importlib.util
+import hashlib
 import json
 import tempfile
 import unittest
@@ -18,9 +19,10 @@ def task(task_id: str, source: str, anchor: str) -> dict:
 
 
 def candidate(chunk_id: str, source: str, anchor: str, rank: int) -> dict:
+    text = f"Evidence {anchor}."
     return {"chunkId": chunk_id, "sourceVersion": source, "rank": rank,
-            "evidence": [{"anchorId": anchor, "sourceVersion": source, "page": 1,
-                          "text": f"Evidence {anchor}."}]}
+            "page": 1, "retrievalTextSha256": hashlib.sha256(text.encode()).hexdigest(),
+            "evidence": [{"anchorId": anchor, "sourceVersion": source, "page": 1, "text": text}]}
 
 
 class PairedHydrationExportTest(unittest.TestCase):
@@ -75,6 +77,49 @@ class PairedHydrationExportTest(unittest.TestCase):
                  "tasks": [{"taskId": "a", "candidates": [candidate("a1", "one:v1", "anchor-a", 1)]}]}
         anchors = {"anchor-a": {"source": "one", "version": "v1", "page": 2, "split": "development"}}
         with self.assertRaisesRegex(ValueError, "anchor provenance mismatch"):
+            MODULE.export(trace, [task("a", "one:v1", "anchor-a")], "development", 1, 0.0,
+                          Path.cwd(), anchors=anchors, candidate_pool_size=1)
+
+    def test_keeps_retrieved_chunk_evidence_without_an_evaluator_anchor(self):
+        trace = {"schemaVersion": "material-rag-drawio-task-hydration-candidates-v1",
+                 "retrievalRun": {"runId": "r", "gitCommit": "c", "corpusLockSha256": "l"},
+                "tasks": [{"taskId": "a", "candidates": [{
+                     "chunkId": "a1", "sourceVersion": "one:v1", "rank": 1, "page": 1,
+                     "retrievalTextSha256": hashlib.sha256(
+                         b"Retrieved but not evaluator-gold text.").hexdigest(),
+                     "evidence": [{"anchorId": "retrieved:a1", "sourceVersion": "one:v1",
+                                   "page": 1, "text": "Retrieved but not evaluator-gold text."}],
+                 }]}]}
+        result = MODULE.export(trace, [task("a", "one:v1", "anchor-a")], "development", 1, 0.0,
+                               Path.cwd(), anchors={}, candidate_pool_size=1)
+        self.assertEqual("retrieved:a1", result["contexts"][0]["evidence"][0]["anchorId"])
+
+    def test_rejects_retrieved_evidence_with_a_page_other_than_its_candidate(self):
+        text = "Retrieved text."
+        trace = {"schemaVersion": "material-rag-drawio-task-hydration-candidates-v1",
+                 "retrievalRun": {"runId": "r", "gitCommit": "c", "corpusLockSha256": "l"},
+                 "tasks": [{"taskId": "a", "candidates": [{
+                     "chunkId": "a1", "sourceVersion": "one:v1", "rank": 1, "page": 1,
+                     "retrievalTextSha256": hashlib.sha256(text.encode()).hexdigest(),
+                     "evidence": [{"anchorId": "retrieved:a1", "sourceVersion": "one:v1",
+                                   "page": 2, "text": text}],
+                 }]}]}
+        with self.assertRaisesRegex(ValueError, "candidate evidence provenance mismatch"):
+            MODULE.export(trace, [task("a", "one:v1", "anchor-a")], "development", 1, 0.0,
+                          Path.cwd(), anchors={}, candidate_pool_size=1)
+
+    def test_rejects_a_known_anchor_with_text_other_than_its_candidate(self):
+        candidate_text = "Retrieved text."
+        trace = {"schemaVersion": "material-rag-drawio-task-hydration-candidates-v1",
+                 "retrievalRun": {"runId": "r", "gitCommit": "c", "corpusLockSha256": "l"},
+                 "tasks": [{"taskId": "a", "candidates": [{
+                     "chunkId": "a1", "sourceVersion": "one:v1", "rank": 1, "page": 1,
+                     "retrievalTextSha256": hashlib.sha256(candidate_text.encode()).hexdigest(),
+                     "evidence": [{"anchorId": "anchor-a", "sourceVersion": "one:v1",
+                                   "page": 1, "text": "Substituted text."}],
+                 }]}]}
+        anchors = {"anchor-a": {"source": "one", "version": "v1", "page": 1, "split": "development"}}
+        with self.assertRaisesRegex(ValueError, "candidate evidence provenance mismatch"):
             MODULE.export(trace, [task("a", "one:v1", "anchor-a")], "development", 1, 0.0,
                           Path.cwd(), anchors=anchors, candidate_pool_size=1)
 
