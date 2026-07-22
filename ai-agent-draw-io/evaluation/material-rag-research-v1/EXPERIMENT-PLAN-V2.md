@@ -229,7 +229,7 @@ E1 内也必须拆分执行，例如先只改变文本块合并，再只改变 O
 
 Pre-E0 已完成：450 个核心案例、独立复核、三分区和语料 provenance 均已冻结。E0/E1
 Validation 配对复核与守门 fixture-contract 也已完成；E2 parent-context-500 的 Development
-Recall@10 比 flat 低 0.013,未晋级。当前顺序：
+Recall@10 与 flat 持平,MRR@10 低 0.062,未晋级。当前顺序：
 
 1. 进入 E3,比较当前 dense 与一个预先定义的 dense + lexical hybrid 方案。
 2. 后续 E9 必须执行在线授权、版本、故障注入与恢复；当前 fixture-contract 通过不能替代它。

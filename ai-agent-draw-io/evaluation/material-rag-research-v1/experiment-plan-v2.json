@@ -90,6 +90,6 @@
   "progress": {
     "completed": ["E0_BASELINE", "E1_REPRESENTATION", "E2_CHUNKING"],
     "currentNext": "E3_RETRIEVAL",
-    "e2Decision": "retain flat-leaf-v1; parent-context-500-v1 recallAt10 delta -0.0129 did not meet +0.02"
+    "e2Decision": "retain flat-leaf-v1; parent-context-500-v1 recallAt10 delta 0.0000 did not meet +0.02 and mrrAt10 delta -0.0618 regressed"
   }
 }
