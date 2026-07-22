@@ -15,8 +15,19 @@ def cells(xml: str) -> list[ET.Element]:
     return list(root.iter("mxCell"))
 
 
+def citation_anchor_ids(citations: object) -> set[str]:
+    """Normalize the two citation shapes accepted by the generation response contract."""
+    if not isinstance(citations, list):
+        return set()
+    return {
+        value if isinstance(value, str) else value.get("anchorId", "")
+        for value in citations
+        if isinstance(value, str) or isinstance(value, dict)
+    } - {""}
+
+
 def evaluate(task: dict, response: dict) -> dict:
-    citations = set(response.get("citations", []))
+    citations = citation_anchor_ids(response.get("citations", []))
     required = set(task["citationAssertions"]["mustCiteAnchors"])
     result = {"taskId": task["taskId"], "xmlParseable": False, "xmlAssertionsPassed": False,
               "citationAssertionsPassed": False, "completed": False}
@@ -57,6 +68,7 @@ def main() -> None:
     count = len(results)
     args.json_out.write_text(json.dumps({"split": args.split, "taskCount": count, "results": results,
         "xmlParseRate": sum(value["xmlParseable"] for value in results) / count if count else 0,
+        "citationCompletenessRate": sum(value["citationAssertionsPassed"] for value in results) / count if count else 0,
         "completionRate": sum(value["completed"] for value in results) / count if count else 0}, indent=2) + "\n")
 
 

@@ -24,3 +24,10 @@ class GenerationTaskEvaluatorTest(unittest.TestCase):
         result = MODULE.evaluate(task, {"xml": "<broken", "citations": []})
         self.assertFalse(result["xmlParseable"])
         self.assertFalse(result["completed"])
+
+    def test_accepts_object_shaped_citation_anchor(self):
+        task = {"taskId": "x", "xmlAssertions": {"minVertices": 1},
+                "citationAssertions": {"minimumCitations": 1, "mustCiteAnchors": ["anchor-a"]}}
+        response = {"xml": "<mxGraphModel><mxCell vertex='1'/></mxGraphModel>",
+                    "citations": [{"anchorId": "anchor-a"}]}
+        self.assertTrue(MODULE.evaluate(task, response)["citationAssertionsPassed"])

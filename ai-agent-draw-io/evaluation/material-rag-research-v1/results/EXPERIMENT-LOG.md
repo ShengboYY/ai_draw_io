@@ -243,6 +243,15 @@
 - 覆盖资料驱动制图、结构编辑、扫描/OCR 转可编辑 XML、版本与权限约束、故障恢复及 citation-bound 输出。
 - 每例固定 source version、anchor、XML 结构断言和引用断言；用于 E7/E8，不稀释纯 retrieval 主指标。
 
+### E7 — GPT-5.5 draw.io XML/citation contract pilot · 2026-07-22 · ⚠️仅验证评测管线
+
+- **范围**:只发送了 6 个冻结的 Development 合成任务；Validation 和 Holdout 没有发送。
+- **结果**:可解析 XML 3/6=50.0%，citation assertions 3/6=50.0%，同时满足 XML 与引用断言 1/6=16.7%。
+  一个模型响应将 citation 写为 `{"anchorId":"…"}`；评测器现同时规范化 string 与 object 两种无歧义表示，避免输出形状被误判为引用缺失。
+- **边界**:提示只给任务文字和 anchor ID，尚未提供检索到的证据正文、版本或位置；这只能验证 XML/citation evaluator 和模型响应契约，**不能**评估 RAG faithfulness、E6 上下文选择或 candidate/control 差异。
+- **决策**:不晋级、不打开 Validation。下一步把冻结的 control/candidate context bundle（来源文本、版本、citation location）接入相同任务，先在 Development 比较任务完成、citation completeness 与可人工复核的 faithfulness。
+- 详见 [2026-07-22-e7-gpt-5-5-development-pilot.md](2026-07-22-e7-gpt-5-5-development-pilot.md)。
+
 ---
 
 ## 当前状态与下一步
@@ -250,8 +259,9 @@
 - 已完成:E0 基线 → E1 表示层改进 → 核心集升级并冻结到 450 → Development 与 Validation
   配对重跑 → 守门最低数补齐并执行 fixture-contract。Validation 证明 E1 提升真实,也证明
   dense-only 尚未达门槛。
-- **下一步**:E5 已完成且候选不晋级；进入 E6 context selection 的单变量设计。original query、dense、
-  flat chunk 和 `ranked-raw-v1` 保持冻结，Holdout 继续密封。
+- **下一步**:E6 selector 与 E7 evaluator 已实现；把 control/candidate context bundle 接入 generation prompt，
+  在 Development 做首次可比的 E6/E7 联合测试。original query、dense、flat chunk 和 `ranked-raw-v1`
+  保持冻结，Holdout 继续密封。
 
 ## 开放问题 / 待办
 
@@ -265,7 +275,9 @@
 - [x] E4a 单资料 evidence dedup——质量持平，但生效率 2.72%→0.25% 未在 Validation 复现，不晋级。
 - [x] E4b 多资料图册挂载 fixture 与来源多样性评估——来源覆盖改善，但 R@10 -0.038 超过硬门槛，未晋级。
 - [x] 英文切片小样本噪声——450 上 en(n=47)R@10 0.894,与其他语言接近,非真问题。
-- [ ] E6/E7(上下文选择、生成引用)尚未开跑。
+- [x] E6 selector 与 E7 XML/citation evaluator——已实现，并完成一次仅 Development 的 response-contract pilot；
+  该 pilot 不含证据正文，不能作为 E6/E7 质量结论。
+- [ ] E6/E7 evidence-grounded control/candidate Development 比较——待把冻结 context bundle 注入 generation prompt。
 
 ## 如何跑一个实验(运行手册)
 
