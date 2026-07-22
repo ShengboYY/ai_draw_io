@@ -1,0 +1,10 @@
+SCANNED OPERATIONS CARD
+Document code: OCR-AX9-771
+
+Emergency load threshold: 73%
+
+Escalation owner: Night Operations Lead
+Recovery window: 18 minutes
+
+The nearby value 37% is a training example, not the threshold.
+

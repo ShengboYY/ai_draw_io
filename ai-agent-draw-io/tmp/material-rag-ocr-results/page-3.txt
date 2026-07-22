@@ -1,0 +1,8 @@
+SCANNED ZONE TABLE
+
+Zone | Limit | Owner
+North | 91 | Team Cedar
+South | 84 | Team Birch
+East | 76 | Team Maple
+West | 68 | Team Ash
+

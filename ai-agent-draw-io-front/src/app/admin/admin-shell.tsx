@@ -37,7 +37,7 @@ export function AdminShell({ active, children }: AdminShellProps) {
         <div className="relative flex min-h-16 flex-wrap items-center gap-x-3 gap-y-2 px-4 py-2 sm:h-16 sm:flex-nowrap sm:gap-4 sm:px-6 sm:py-0 lg:px-8">
           <Link href="/diagrams" className="flex shrink-0 items-center gap-2.5" aria-label="FreeDraw workspace">
             <span className="relative block h-9 w-9 overflow-hidden rounded-xl shadow-sm" aria-hidden="true">
-              <Image src="/brand/freedraw-logo-dark.png" alt="" fill sizes="36px" className="object-cover" priority />
+              <Image src="/brand/freedraw-logo-dark-v2.svg" alt="" fill sizes="36px" className="object-cover" priority />
             </span>
             <span className="font-display text-lg font-semibold text-zinc-800">FreeDraw</span>
           </Link>

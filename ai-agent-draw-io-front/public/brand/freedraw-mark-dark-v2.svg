@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title">
+  <title id="title">FreeDraw mark</title>
+  <!-- Transparent mark for light or neutral surfaces. -->
+  <g fill="none" stroke="#34333D" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M150 350C184 314 216 274 250 236M250 236C279 207 300 181 316 151M250 236C291 230 329 245 362 278" stroke-width="38"/>
+    <path d="M380 112V154M359 133H401" stroke-width="15"/>
+  </g>
+  <g fill="#34333D">
+    <circle cx="150" cy="350" r="28"/>
+    <circle cx="250" cy="236" r="31"/>
+    <circle cx="316" cy="151" r="28"/>
+    <circle cx="362" cy="278" r="28"/>
+  </g>
+</svg>

@@ -303,7 +303,7 @@ export default function Home() {
         <div className="flex h-auto flex-wrap items-center gap-3 px-4 py-3 sm:h-16 sm:flex-nowrap sm:gap-4 sm:px-6 sm:py-0">
           <Link href="/diagrams" className="order-1 flex shrink-0 items-center gap-2.5 sm:order-none" aria-label="FreeDraw home">
             <span className="relative block h-9 w-9 overflow-hidden rounded-xl shadow-sm" aria-hidden="true">
-              <Image src="/brand/freedraw-logo-dark.png" alt="" fill sizes="36px" className="object-cover" priority />
+              <Image src="/brand/freedraw-logo-dark-v2.svg" alt="" fill sizes="36px" className="object-cover" priority />
             </span>
             <span className="font-display text-lg font-semibold tracking-tight text-zinc-800">FreeDraw</span>
           </Link>
