@@ -286,3 +286,18 @@ E4a 结果：Development 的 46/155 个 case 共去掉 112/4,121=2.72% 的基线
 `ranked-raw-v1`。这不完成 E4 的来源多样性目标。下一候选必须先构造多资料、图册挂载范围内的 fixture，
 覆盖重复证据、互补证据、版本冲突和未授权干扰项；在运行前冻结来源覆盖率、重复占位率、gold-source
 recall 与授权泄漏等指标。Holdout 继续密封。
+
+E4b 在运行前固定为真正的多资料图册实验。新增独立 case profile `e4-chartbook-v1`，复用现有长文档而
+不制造短摘要：Development 26 例挂载 architecture、workflow、platform-resilience、datacenter-change
+四份资料；Validation 20 例挂载 collaboration-governance、material-governance、observability、OTA
+四份资料。每例要求至少两个不同挂载来源的 gold evidence，并声明两个同分区、未挂载的干扰来源；fixture
+审计必须保证 gold 全在 mounted、mounted/unmounted 不相交且没有跨 split。控制组为同一次 original-query
+dense top-80 的原始前 40；候选 `source-diversity-v1` 先执行 E4a evidence dedup，再对 top 10 施加每来源
+最多 4 条的软上限，其他来源不足时按原始 rank 回填，最终最多 40。两臂 raw 必须保存完全相同的 top-80，
+比较器逐 case 验证。
+
+Development 只有同时满足以下条件才打开 Validation：未挂载泄漏位置为 0；top-40 改变至少 2%；证据
+Recall@10/40 下降均不超过 0.02；MRR 无显著下降；gold-source Recall@10 不下降；并且 mean mounted-source
+coverage@10 至少提高 0.10，或 mean max-source-share@10 至少下降 0.10。Validation 必须保持泄漏为 0、
+证据与 gold-source recall 不退化，并至少复现 0.05 的 coverage 提升或 concentration 降低，候选才晋级。
+本实验只改变候选后处理；E1 canonical、flat chunk、original query、dense 模型与挂载过滤全部冻结。

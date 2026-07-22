@@ -109,6 +109,27 @@
     "sourceDiversityStatus": "not measurable: every authored case and evaluated candidate pool has one source version",
     "nextCandidate": "multi-source chartbook-mounted fixture and preregistered source-diversity policy"
   },
+  "e4SourceDiversity": {
+    "caseProfile": "e4-chartbook-v1",
+    "developmentCases": 26,
+    "validationCases": 20,
+    "mountedSourcesPerChartbook": 4,
+    "minimumGoldSourcesPerCase": 2,
+    "baselineMode": "ranked-raw-v1",
+    "candidateMode": "source-diversity-v1",
+    "candidateFingerprint": "source-diversity-v1:evidence-dedup-v1:top10-max4-per-source:rank-fill",
+    "retrievalPoolLimit": 80,
+    "finalCandidateLimit": 40,
+    "sourceDiversityHeadLimit": 10,
+    "perSourceHeadCap": 4,
+    "minimumDevelopmentActivationRate": 0.02,
+    "maximumRecallAt10And40Loss": 0.02,
+    "minimumDevelopmentCoverageGainOrConcentrationDrop": 0.10,
+    "minimumValidationCoverageGainOrConcentrationDrop": 0.05,
+    "requireNoGoldSourceRecallLoss": true,
+    "requireZeroUnmountedLeakage": true,
+    "status": "preregistered; Development not yet run"
+  },
   "preE0": {
     "minimumReviewedCasesBeforeComparison": 340,
     "requiredFrozenCoreCasesForBaseline": 450,

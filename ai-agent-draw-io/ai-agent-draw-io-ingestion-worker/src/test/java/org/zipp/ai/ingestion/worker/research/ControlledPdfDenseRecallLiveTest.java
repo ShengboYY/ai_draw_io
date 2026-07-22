@@ -155,6 +155,23 @@ class ControlledPdfDenseRecallLiveTest {
         assertEquals(2, attempts[0]);
     }
 
+    @Test
+    void e4ChartbookCasesShouldKeepEveryGoldSourceInsideTheMountedScope() throws Exception {
+        Map<String, ResearchAnchor> anchors = anchors(researchRoot()).stream()
+                .collect(java.util.stream.Collectors.toMap(ResearchAnchor::anchorId, value -> value));
+        List<ResearchCase> cases = chartbookCases(researchRoot());
+
+        assertEquals(26, cases.stream().filter(value -> "development".equals(value.split())).count());
+        assertEquals(20, cases.stream().filter(value -> "validation".equals(value.split())).count());
+        for (ResearchCase researchCase : cases) {
+            Set<String> resolvedGoldSources = researchCase.goldAnchorIds().stream()
+                    .map(anchors::get).map(ResearchAnchor::sourceVersion)
+                    .collect(java.util.stream.Collectors.toSet());
+            assertEquals(Set.copyOf(researchCase.goldSourceVersions()), resolvedGoldSources);
+            assertTrue(Set.copyOf(researchCase.mountedSourceVersions()).containsAll(resolvedGoldSources));
+        }
+    }
+
     private RetrievalChunkProjection chunkWithParentContext(String parentContext) {
         return new RetrievalChunkProjection(
                 "chunk-1", "page-1", "section-1", RetrievalChunkType.CONTENT,
@@ -184,7 +201,13 @@ class ControlledPdfDenseRecallLiveTest {
         String researchSplit = System.getenv().getOrDefault("MATERIAL_RAG_RESEARCH_SPLIT", "development");
         assertTrue(Set.of("development", "validation", "holdout").contains(researchSplit),
                 "Unknown research split: " + researchSplit);
-        List<ResearchCase> cases = cases(root).stream()
+        String caseProfile = System.getenv().getOrDefault("MATERIAL_RAG_CASE_PROFILE", "core-v1");
+        List<ResearchCase> authoredCases = switch (caseProfile) {
+            case "core-v1" -> cases(root);
+            case "e4-chartbook-v1" -> chartbookCases(root);
+            default -> throw new IllegalArgumentException("Unknown case profile: " + caseProfile);
+        };
+        List<ResearchCase> cases = authoredCases.stream()
                 .filter(ResearchCase::answerable)
                 .filter(value -> researchSplit.equals(value.split()))
                 .filter(value -> !value.goldAnchorIds().isEmpty()
@@ -199,11 +222,27 @@ class ControlledPdfDenseRecallLiveTest {
                 "controlled", client, namespace, projections, cases, anchors, chunkMode);
         String pairedRawPostprocess = System.getenv("MATERIAL_RAG_PAIRED_RAW_POSTPROCESS_RESULT_JSON");
         String pairedDedupPostprocess = System.getenv("MATERIAL_RAG_PAIRED_DEDUP_RESULT_JSON");
+        String pairedChartbookRaw = System.getenv("MATERIAL_RAG_PAIRED_CHARTBOOK_RAW_RESULT_JSON");
+        String pairedChartbookDiversified = System.getenv(
+                "MATERIAL_RAG_PAIRED_CHARTBOOK_DIVERSIFIED_RESULT_JSON");
         String pairedOriginalQuery = System.getenv("MATERIAL_RAG_PAIRED_ORIGINAL_QUERY_RESULT_JSON");
         String pairedRewrittenQuery = System.getenv("MATERIAL_RAG_PAIRED_REWRITTEN_QUERY_RESULT_JSON");
         String pairedDense = System.getenv("MATERIAL_RAG_PAIRED_DENSE_RESULT_JSON");
         String pairedHybrid = System.getenv("MATERIAL_RAG_PAIRED_HYBRID_RESULT_JSON");
-        if (pairedRawPostprocess != null && !pairedRawPostprocess.isBlank()
+        if (pairedChartbookRaw != null && !pairedChartbookRaw.isBlank()
+                && pairedChartbookDiversified != null && !pairedChartbookDiversified.isBlank()) {
+            report("Controlled PDF", PostprocessMode.RANKED_RAW.id(),
+                    result.metrics(PostprocessMode.RANKED_RAW), result);
+            report("Controlled PDF", PostprocessMode.SOURCE_DIVERSITY.id(),
+                    result.metrics(PostprocessMode.SOURCE_DIVERSITY), result);
+            writeRawResult(root, researchSplit, canonicalMode, chunkMode, RetrievalMode.DENSE,
+                    QueryMode.ORIGINAL, PostprocessMode.RANKED_RAW,
+                    result.metrics(PostprocessMode.RANKED_RAW), result, pairedChartbookRaw);
+            writeRawResult(root, researchSplit, canonicalMode, chunkMode, RetrievalMode.DENSE,
+                    QueryMode.ORIGINAL, PostprocessMode.SOURCE_DIVERSITY,
+                    result.metrics(PostprocessMode.SOURCE_DIVERSITY), result,
+                    pairedChartbookDiversified);
+        } else if (pairedRawPostprocess != null && !pairedRawPostprocess.isBlank()
                 && pairedDedupPostprocess != null && !pairedDedupPostprocess.isBlank()) {
             report("Controlled PDF", PostprocessMode.RANKED_RAW.id(),
                     result.metrics(PostprocessMode.RANKED_RAW), result);
@@ -282,7 +321,9 @@ class ControlledPdfDenseRecallLiveTest {
                     value.query(), "open_diagnostic", true, List.of(value.caseId()),
                     List.of(new RequiredEvidenceGroup(
                     "answer", EvidenceGroupOperator.ANY,
-                    List.of(new EvidenceRequirement(value.caseId(), 3, 3))))));
+                    List.of(new EvidenceRequirement(value.caseId(), 3, 3)))),
+                    List.of(value.sourceId() + ":pinned"), List.of(),
+                    List.of(value.sourceId() + ":pinned")));
         }
         PineconeVectorClient client = new PineconeVectorClient(
                 apiKey, indexHost, "multilingual-e5-large", 1024, JSON);
@@ -470,6 +511,10 @@ class ControlledPdfDenseRecallLiveTest {
         raw.put("queryRewriteFingerprint", ResearchQueryRewriter.FINGERPRINT);
         raw.put("postprocessMode", postprocessMode.id());
         raw.put("dedupFingerprint", ResearchEvidenceDeduplicator.FINGERPRINT);
+        raw.put("caseProfile", System.getenv().getOrDefault("MATERIAL_RAG_CASE_PROFILE", "core-v1"));
+        raw.put("sourceDiversityFingerprint", ResearchSourceDiversifier.FINGERPRINT);
+        raw.put("sourceDiversityHeadLimit", 10);
+        raw.put("sourceDiversityPerSourceHeadCap", 4);
         raw.put("lexicalRankerFingerprint", ResearchHybridRanker.FINGERPRINT);
         raw.put("fusionFingerprint", "weighted-rrf-v1:k60:lexical1.2:dense1.0");
         raw.put("canonicalFingerprint", result.canonicalFingerprint());
@@ -632,6 +677,7 @@ class ControlledPdfDenseRecallLiveTest {
         Map<PostprocessMode, List<CaseRank>> ranksByPostprocessMode = new LinkedHashMap<>();
         ranksByPostprocessMode.put(PostprocessMode.RANKED_RAW, originalRanks);
         ranksByPostprocessMode.put(PostprocessMode.EVIDENCE_DEDUP, new ArrayList<>());
+        ranksByPostprocessMode.put(PostprocessMode.SOURCE_DIVERSITY, new ArrayList<>());
         Map<String, IndexedChunk> indexedByVectorId = indexed.stream().collect(
                 java.util.stream.Collectors.toMap(IndexedChunk::vectorId, value -> value));
         Map<QueryMode, List<float[]>> queryVectors = new LinkedHashMap<>();
@@ -645,17 +691,19 @@ class ControlledPdfDenseRecallLiveTest {
                     .flatMap(group -> group.evidence().stream()).toList();
             List<ResearchAnchor> required = requirements.stream()
                     .map(requirement -> anchors.get(requirement.anchorId())).toList();
-            Set<String> sourceVersions = required.stream().map(ResearchAnchor::sourceVersion)
+            Set<String> goldSourceVersions = required.stream().map(ResearchAnchor::sourceVersion)
                     .collect(java.util.stream.Collectors.toSet());
-            if (sourceVersions.size() != 1) {
-                throw new IllegalStateException("A controlled case must use one source version: "
+            Set<String> mountedSourceVersions = researchCase.mountedSourceVersions().isEmpty()
+                    ? goldSourceVersions : Set.copyOf(researchCase.mountedSourceVersions());
+            if (!mountedSourceVersions.containsAll(goldSourceVersions)) {
+                throw new IllegalStateException("Gold source is outside the mounted chartbook: "
                         + researchCase.caseId());
             }
-            String sourceVersion = sourceVersions.iterator().next();
             Map<String, Set<String>> requiredGoldVectorIds = new LinkedHashMap<>();
             Map<String, List<String>> fixedGoldChunkIdsByAnchor = new LinkedHashMap<>();
             for (EvidenceRequirement requirement : requirements) {
                 ResearchAnchor anchor = anchors.get(requirement.anchorId());
+                String sourceVersion = anchor.sourceVersion();
                 Set<String> fixedGoldChunkIds = goldChunkIds(
                         projections.bySourceVersion().get(sourceVersion), anchor);
                 fixedGoldChunkIdsByAnchor.put(requirement.anchorId(),
@@ -665,26 +713,25 @@ class ControlledPdfDenseRecallLiveTest {
             }
             int queryIndex = caseIndex;
             List<String> densePool = retryPinecone("query original research vectors", () -> client.query(
-                    namespace, queryVectors.get(QueryMode.ORIGINAL).get(queryIndex), 80, Map.of("$and", List.of(
-                            Map.of("tenant_key", Map.of("$eq", tenantKey)),
-                            Map.of("version_id", Map.of("$eq", sourceVersion))))));
+                    namespace, queryVectors.get(QueryMode.ORIGINAL).get(queryIndex), 80,
+                    researchFilter(tenantKey, mountedSourceVersions)));
             List<String> denseMatches = densePool.stream().limit(40).toList();
             List<String> rewrittenPool = retryPinecone("query rewritten research vectors", () -> client.query(
                     namespace, queryVectors.get(QueryMode.EVIDENCE_FOCUSED).get(queryIndex), 80,
-                    Map.of("$and", List.of(
-                            Map.of("tenant_key", Map.of("$eq", tenantKey)),
-                            Map.of("version_id", Map.of("$eq", sourceVersion))))));
+                    researchFilter(tenantKey, mountedSourceVersions)));
             List<String> rewrittenMatches = rewrittenPool.stream().limit(40).toList();
             List<String> denseChunkIds = denseMatches.stream()
                     .map(indexedByVectorId::get).map(value -> value.chunk().chunkId()).toList();
             List<String> lexicalChunkIds = ResearchHybridRanker.lexicalRank(researchCase.query(),
-                    projections.bySourceVersion().get(sourceVersion).lexicalProjections());
+                    mountedSourceVersions.stream().sorted()
+                            .flatMap(source -> projections.bySourceVersion().get(source)
+                                    .lexicalProjections().stream()).toList());
             List<String> hybridChunkIds = ResearchHybridRanker.fuse(
                     lexicalChunkIds, denseChunkIds, 40);
             Map<String, IndexedChunk> indexedByChunkId = indexed.stream()
-                    .filter(value -> sourceVersion.equals(value.sourceVersion()))
+                    .filter(value -> mountedSourceVersions.contains(value.sourceVersion()))
                     .collect(java.util.stream.Collectors.toMap(
-                            value -> value.chunk().chunkId(), value -> value));
+                            value -> value.chunk().chunkId(), value -> value, (left, right) -> left));
             List<CandidateResult> denseCandidates = candidateResults(denseMatches, indexedByVectorId);
             // Preserve the exact dedup input so the paired postprocess comparison is replayable.
             List<CandidateResult> densePoolCandidates = candidateResults(densePool, indexedByVectorId);
@@ -716,6 +763,17 @@ class ControlledPdfDenseRecallLiveTest {
             ranksByPostprocessMode.get(PostprocessMode.EVIDENCE_DEDUP).add(caseRank(
                     researchCase, deduplicatedMatches, requiredGoldVectorIds, fixedGoldChunkIdsByAnchor,
                     indexedByVectorId, denseCandidates, List.of(), densePoolCandidates));
+            List<String> diversifiedMatches = ResearchSourceDiversifier.diversify(
+                    densePool.stream().map(indexedByVectorId::get).map(value ->
+                            new ResearchSourceDiversifier.Candidate(
+                                    value.vectorId(), value.sourceVersion(), value.chunk().citable(),
+                                    value.chunk().retrievalTextSha256(), value.chunk().evidenceMappings().stream()
+                                    .map(RetrievalEvidenceMapping::evidenceId)
+                                    .collect(java.util.stream.Collectors.toUnmodifiableSet()))).toList(),
+                    40, 10, 4);
+            ranksByPostprocessMode.get(PostprocessMode.SOURCE_DIVERSITY).add(caseRank(
+                    researchCase, diversifiedMatches, requiredGoldVectorIds, fixedGoldChunkIdsByAnchor,
+                    indexedByVectorId, denseCandidates, List.of(), densePoolCandidates));
             if ((caseIndex + 1) % 10 == 0 || caseIndex + 1 == cases.size()) {
                 System.out.printf("Research cases evaluated: %d/%d%n", caseIndex + 1, cases.size());
             }
@@ -729,6 +787,15 @@ class ControlledPdfDenseRecallLiveTest {
                 postprocessMetrics.put(mode, summarizeMetrics(ranks)));
         return new EvaluationMetrics(Map.copyOf(retrievalMetrics), Map.copyOf(queryMetrics),
                 Map.copyOf(postprocessMetrics));
+    }
+
+    private Map<String, Object> researchFilter(String tenantKey, Set<String> mountedSourceVersions) {
+        Map<String, Object> versionFilter = mountedSourceVersions.size() == 1
+                ? Map.of("$eq", mountedSourceVersions.iterator().next())
+                : Map.of("$in", mountedSourceVersions.stream().sorted().toList());
+        return Map.of("$and", List.of(
+                Map.of("tenant_key", Map.of("$eq", tenantKey)),
+                Map.of("version_id", versionFilter)));
     }
 
     private List<float[]> embedQueries(PineconeVectorClient client,
@@ -781,7 +848,10 @@ class ControlledPdfDenseRecallLiveTest {
                 value.researchCase().primaryCategory(), value.researchCase().language(),
                 value.researchCase().goldAnchorIds(), value.fixedGoldChunkIdsByAnchor(),
                 value.mappable(), value.candidates(), value.denseCandidates(),
-                value.lexicalCandidates(), value.retrievalPoolCandidates())).toList();
+                value.lexicalCandidates(), value.retrievalPoolCandidates(),
+                value.researchCase().mountedSourceVersions(),
+                value.researchCase().unmountedSourceVersions(),
+                value.researchCase().goldSourceVersions())).toList();
         return new DenseMetrics((double) mappedRanks.size() / ranks.size(), mappedRanks.size(),
                 total.recallAt1(), total.recallAt5(), total.recallAt10(), total.recallAt40(),
                 total.mrrAt10(), conditional, misses, List.copyOf(slices), weak, caseResults);
@@ -934,14 +1004,41 @@ class ControlledPdfDenseRecallLiveTest {
                 List<String> goldAnchorIds = gold.isEmpty() ? List.of() : JSON.convertValue(gold,
                         JSON.getTypeFactory().constructCollectionType(List.class, String.class));
                 List<RequiredEvidenceGroup> groups = requiredEvidenceGroups(value, goldAnchorIds);
+                List<String> allowedSources = stringList(value, "allowedSourceVersions");
                 result.add(new ResearchCase(value.path("caseId").asText(), value.path("category").asText(),
                         value.path("primaryCategory").asText(), value.path("language").asText(),
                         value.path("query").asText(),
                         value.path("split").asText("development"), value.path("answerable").asBoolean(),
-                        goldAnchorIds, groups));
+                        goldAnchorIds, groups, allowedSources, List.of(), allowedSources));
             }
         }
         return List.copyOf(result);
+    }
+
+    private List<ResearchCase> chartbookCases(Path root) throws Exception {
+        JsonNode values = JSON.readTree(
+                root.resolve("fixtures/generated/e4-chartbook-cases.json").toFile()).path("cases");
+        List<ResearchCase> result = new ArrayList<>();
+        for (JsonNode value : values) {
+            List<String> goldAnchorIds = stringList(value, "goldAnchorIds");
+            result.add(new ResearchCase(
+                    value.path("caseId").asText(), value.path("category").asText(),
+                    value.path("primaryCategory").asText(), value.path("language").asText(),
+                    value.path("query").asText(), value.path("split").asText(),
+                    value.path("answerable").asBoolean(), goldAnchorIds,
+                    requiredEvidenceGroups(value, goldAnchorIds),
+                    stringList(value, "mountedSourceVersions"),
+                    stringList(value, "unmountedSourceVersions"),
+                    stringList(value, "goldSourceVersions")));
+        }
+        return List.copyOf(result);
+    }
+
+    private List<String> stringList(JsonNode value, String field) {
+        JsonNode values = value.path(field);
+        if (!values.isArray()) return List.of();
+        return JSON.convertValue(values,
+                JSON.getTypeFactory().constructCollectionType(List.class, String.class));
     }
 
     private List<RequiredEvidenceGroup> requiredEvidenceGroups(JsonNode value, List<String> fallbackAnchors) {
@@ -1106,7 +1203,10 @@ class ControlledPdfDenseRecallLiveTest {
     private record ResearchCase(String caseId, String category, String primaryCategory,
                                 String language, String query, String split, boolean answerable,
                                 List<String> goldAnchorIds,
-                                List<RequiredEvidenceGroup> requiredEvidenceGroups) { }
+                                List<RequiredEvidenceGroup> requiredEvidenceGroups,
+                                List<String> mountedSourceVersions,
+                                List<String> unmountedSourceVersions,
+                                List<String> goldSourceVersions) { }
 
     private record EvidenceRequirement(String anchorId, int grade, int minimumGrade) { }
 
@@ -1191,7 +1291,8 @@ class ControlledPdfDenseRecallLiveTest {
 
     private enum PostprocessMode {
         RANKED_RAW("ranked-raw-v1"),
-        EVIDENCE_DEDUP("evidence-dedup-v1");
+        EVIDENCE_DEDUP("evidence-dedup-v1"),
+        SOURCE_DIVERSITY("source-diversity-v1");
 
         private final String id;
 
@@ -1216,7 +1317,10 @@ class ControlledPdfDenseRecallLiveTest {
                               Map<String, List<String>> fixedGoldChunkIdsByAnchor, boolean mappable,
                               List<CandidateResult> candidates, List<CandidateResult> denseCandidates,
                               List<CandidateResult> lexicalCandidates,
-                              List<CandidateResult> retrievalPoolCandidates) { }
+                              List<CandidateResult> retrievalPoolCandidates,
+                              List<String> mountedSourceVersions,
+                              List<String> unmountedSourceVersions,
+                              List<String> goldSourceVersions) { }
 
     private record SliceMetric(String label, int count, double recallAt1, double recallAt5,
                                double recallAt10, double recallAt40, double mrrAt10) { }

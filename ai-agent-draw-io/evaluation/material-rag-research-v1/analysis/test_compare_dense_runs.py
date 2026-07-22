@@ -13,6 +13,9 @@ def run(mode: str, ranks: list[int]) -> dict:
     cases = [{"caseId": f"case-{index}", "rank": rank, "category": "text",
               "primaryCategory": "exactLookup", "language": "en", "goldAnchorIds": ["a"],
               "fixedGoldChunkIdsByAnchor": {"a": ["chunk"]},
+              "mountedSourceVersions": ["source:v1"],
+              "unmountedSourceVersions": [],
+              "goldSourceVersions": ["source:v1"],
               "mappable": True, "candidates": [{"rank": 1, "vectorId": "v",
               "sourceVersion": "source:v1", "chunkId": "chunk"}],
               "retrievalPoolCandidates": [{"rank": 1, "vectorId": "v",
@@ -32,6 +35,14 @@ def run(mode: str, ranks: list[int]) -> dict:
         "lexicalRankerFingerprint": "lexical", "fusionFingerprint": "rrf", "chunkCount": 10,
         "metrics": {"caseResults": cases},
     }
+
+
+def candidates(source_versions: list[str]) -> list[dict]:
+    return [
+        {"rank": rank, "vectorId": f"v-{rank}", "sourceVersion": source,
+         "chunkId": f"chunk-{rank}"}
+        for rank, source in enumerate(source_versions, start=1)
+    ]
 
 
 class CompareDenseRunsTest(unittest.TestCase):
@@ -178,6 +189,28 @@ class CompareDenseRunsTest(unittest.TestCase):
 
         with self.assertRaisesRegex(ValueError, "retrievalPoolCandidates drift"):
             compare(raw, deduplicated, "postprocessMode")
+
+    def test_postprocess_experiment_reports_chartbook_source_diversity(self) -> None:
+        raw = run("e1-v5", [1])
+        diversified = run("e1-v5", [1])
+        diversified["postprocessMode"] = "source-diversity-v1"
+        for value in (raw, diversified):
+            case = value["metrics"]["caseResults"][0]
+            case["mountedSourceVersions"] = ["source-a:v1", "source-b:v1"]
+            case["goldSourceVersions"] = ["source-a:v1", "source-b:v1"]
+            case["retrievalPoolCandidates"] = candidates(
+                ["source-a:v1"] * 10 + ["source-b:v1"])
+        raw["metrics"]["caseResults"][0]["candidates"] = candidates(["source-a:v1"] * 10)
+        diversified["metrics"]["caseResults"][0]["candidates"] = candidates(
+            ["source-a:v1"] * 4 + ["source-b:v1"] * 6)
+
+        result = compare(raw, diversified, "postprocessMode")
+
+        self.assertAlmostEqual(0.5, result["sourceDiversity"]["e0"]["meanMountedCoverageAt10"])
+        self.assertAlmostEqual(1.0, result["sourceDiversity"]["e1"]["meanMountedCoverageAt10"])
+        self.assertAlmostEqual(0.0, result["sourceDiversity"]["e0"]["goldSourceRecallAt10"])
+        self.assertAlmostEqual(1.0, result["sourceDiversity"]["e1"]["goldSourceRecallAt10"])
+        self.assertEqual(0, result["sourceDiversity"]["e1"]["unmountedLeakagePositions"])
 
     def test_missing_raw_candidate_sequence_is_rejected(self) -> None:
         e0 = run("e0-v4", [1])

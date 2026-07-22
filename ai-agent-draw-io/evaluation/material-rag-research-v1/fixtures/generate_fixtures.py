@@ -61,6 +61,7 @@ from expansion_corpus_specs import (
     EXPANSION_SCANNED_DOCUMENTS,
     EXPANSION_SCAN_FACTS,
 )
+from e4_chartbook_specs import E4_CHARTBOOKS, E4_CHARTBOOK_CASE_FAMILIES
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -1078,6 +1079,65 @@ def validate_additional_specs() -> None:
 SELECTION_PATH = ROOT / "fixtures" / "query-selection.json"
 
 
+def build_e4_chartbook_payload() -> dict:
+    """Expand authored E4 families into split-safe multi-source retrieval cases."""
+    anchor_by_id = {fact["anchorId"]: fact for fact in facts()}
+    chartbook_by_id = {value["chartbookId"]: value for value in E4_CHARTBOOKS}
+    counters = {"development": 0, "validation": 0}
+    cases = []
+    for family in E4_CHARTBOOK_CASE_FAMILIES:
+        chartbook = chartbook_by_id[family["chartbookId"]]
+        anchors = [anchor_by_id[anchor_id] for anchor_id in family["anchorIds"]]
+        gold_sources = sorted({f"{anchor['source']}:{anchor['version']}" for anchor in anchors})
+        if len(gold_sources) < 2 or not set(gold_sources).issubset(chartbook["mountedSourceVersions"]):
+            raise RuntimeError(f"E4 family is not grounded in multiple mounted sources: {family['familyId']}")
+        for language, query in family["queries"]:
+            split = chartbook["split"]
+            counters[split] += 1
+            cases.append({
+                "schemaVersion": "material-rag-chartbook-case-v1",
+                "caseId": f"e4cb-{'dev' if split == 'development' else 'val'}-{counters[split]:03d}",
+                "familyId": family["familyId"],
+                "chartbookId": family["chartbookId"],
+                "category": "multi_evidence",
+                "primaryCategory": "multiEvidence",
+                "language": language,
+                "queryLanguage": language,
+                "split": split,
+                "query": query,
+                "allowedSourceVersions": list(chartbook["mountedSourceVersions"]),
+                "mountedSourceVersions": list(chartbook["mountedSourceVersions"]),
+                "unmountedSourceVersions": list(chartbook["unmountedSourceVersions"]),
+                "goldSourceVersions": gold_sources,
+                "goldAnchorIds": list(family["anchorIds"]),
+                "requiredEvidenceGroups": [{
+                    "groupId": "chartbook_answer",
+                    "operator": "ALL_PARTS",
+                    "evidence": [
+                        {"anchorId": anchor_id, "grade": 2, "minimumGrade": 2}
+                        for anchor_id in family["anchorIds"]
+                    ],
+                }],
+                "expectedAnswer": "; ".join(anchor["goldMatch"] for anchor in anchors),
+                "abstentionCondition": None,
+                "answerable": True,
+            })
+    return {
+        "schemaVersion": "material-rag-e4-chartbook-suite-v1",
+        "chartbooks": E4_CHARTBOOKS,
+        "cases": cases,
+    }
+
+
+def write_e4_chartbook_payload(output_root: Path) -> None:
+    """Write only the small E4 case manifest without regenerating PDF binaries."""
+    output_root.mkdir(parents=True, exist_ok=True)
+    (output_root / "e4-chartbook-cases.json").write_text(
+        json.dumps(build_e4_chartbook_payload(), ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+
+
 def load_drop_selection() -> set[str]:
     """Load the optional case-selection file that trims the corpus to V2 targets.
 
@@ -1304,13 +1364,18 @@ def write_ground_truth(output_root: Path) -> None:
             ordinal += 1
     (output_root / "case-keys.json").write_text(
         json.dumps(case_keys, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    write_e4_chartbook_payload(output_root)
 
 
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--output-root", type=Path, default=ROOT / "fixtures" / "generated")
+    parser.add_argument("--e4-only", action="store_true")
     args = parser.parse_args()
     output_root = args.output_root.resolve()
+    if args.e4_only:
+        write_e4_chartbook_payload(output_root)
+        return
     pdf_dir = output_root / "pdfs"
     image_dir = output_root / "images"
     pdf_dir.mkdir(parents=True, exist_ok=True)

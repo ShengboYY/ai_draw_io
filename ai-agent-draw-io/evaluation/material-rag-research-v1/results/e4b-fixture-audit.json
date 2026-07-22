@@ -1,0 +1,23 @@
+{
+  "schemaVersion": "material-rag-e4-chartbook-audit-v1",
+  "status": "ready",
+  "caseCounts": {
+    "development": 26,
+    "validation": 20
+  },
+  "chartbookCount": 2,
+  "invalidCaseCount": 0,
+  "checks": {
+    "uniqueCaseIds": true,
+    "everyCaseHasMultipleGoldSources": true,
+    "mountedAndUnmountedAreDisjoint": true,
+    "allGoldSourcesAreMounted": true,
+    "allSourcesStayWithinSplit": true,
+    "allGoldAnchorsResolve": true,
+    "evidenceGroupsMatchGold": true
+  },
+  "details": {
+    "duplicateCaseIds": [],
+    "invalidCases": []
+  }
+}

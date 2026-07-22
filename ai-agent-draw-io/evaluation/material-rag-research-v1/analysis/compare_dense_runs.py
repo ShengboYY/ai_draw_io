@@ -97,6 +97,46 @@ def postprocess_activation(e0_cases: dict[str, dict], e1_cases: dict[str, dict],
     }
 
 
+def source_diversity(cases: dict[str, dict], case_ids: list[str]) -> dict:
+    """Summarize mounted-source coverage, concentration, gold coverage and leakage."""
+    mounted_coverage = []
+    max_source_share = []
+    unique_sources = []
+    gold_at10 = []
+    gold_at40 = []
+    leakage_positions = 0
+    for case_id in case_ids:
+        case = cases[case_id]
+        mounted = set(case.get("mountedSourceVersions", []))
+        unmounted = set(case.get("unmountedSourceVersions", []))
+        gold = set(case.get("goldSourceVersions", []))
+        top40 = [candidate.get("sourceVersion") for candidate in case["candidates"][:40]]
+        top10 = top40[:10]
+        top10_sources = set(top10)
+        if mounted:
+            mounted_coverage.append(len(top10_sources & mounted) / len(mounted))
+            leakage_positions += sum(source not in mounted for source in top40)
+        else:
+            leakage_positions += sum(source in unmounted for source in top40)
+        unique_sources.append(len(top10_sources))
+        counts = {source: top10.count(source) for source in top10_sources}
+        max_source_share.append(max(counts.values()) / len(top10) if top10 else 0.0)
+        if gold:
+            gold_at10.append(1.0 if gold.issubset(top10_sources) else 0.0)
+            gold_at40.append(1.0 if gold.issubset(set(top40)) else 0.0)
+    return {
+        "caseCount": len(case_ids),
+        "goldSourceCaseCount": len(gold_at10),
+        "meanMountedCoverageAt10": sum(mounted_coverage) / len(mounted_coverage)
+        if mounted_coverage else 0.0,
+        "meanUniqueSourcesAt10": sum(unique_sources) / len(unique_sources),
+        "meanMaxSourceShareAt10": sum(max_source_share) / len(max_source_share),
+        "goldSourceRecallAt10": sum(gold_at10) / len(gold_at10) if gold_at10 else 0.0,
+        "goldSourceRecallAt40": sum(gold_at40) / len(gold_at40) if gold_at40 else 0.0,
+        "unmountedLeakagePositions": leakage_positions,
+    }
+
+
 def compare(e0: dict, e1: dict, variable_field: str = "canonicalMode") -> dict:
     """Compare paired case ranks after rejecting any experiment-control drift."""
     supported_variables = {"canonicalMode", "chunkMode", "retrievalMode", "queryMode",
@@ -107,6 +147,8 @@ def compare(e0: dict, e1: dict, variable_field: str = "canonicalMode") -> dict:
                     "tokenizerFingerprint", "candidateLimit", "canonicalMode", "chunkMode",
                     "retrievalMode", "queryMode", "queryRewriteFingerprint",
                     "postprocessMode", "dedupFingerprint", "retrievalPoolLimit",
+                    "caseProfile", "sourceDiversityFingerprint", "sourceDiversityHeadLimit",
+                    "sourceDiversityPerSourceHeadCap",
                     "lexicalRankerFingerprint", "fusionFingerprint"]
     fixed_fields.remove(variable_field)
     drift = [field for field in fixed_fields if e0.get(field) != e1.get(field)]
@@ -119,7 +161,8 @@ def compare(e0: dict, e1: dict, variable_field: str = "canonicalMode") -> dict:
     case_ids = sorted(e0_cases)
     for case_id in case_ids:
         for field in ("category", "primaryCategory", "language", "goldAnchorIds",
-                      "fixedGoldChunkIdsByAnchor"):
+                      "fixedGoldChunkIdsByAnchor", "mountedSourceVersions",
+                      "unmountedSourceVersions", "goldSourceVersions"):
             if e0_cases[case_id].get(field) != e1_cases[case_id].get(field):
                 raise ValueError(f"Case metadata drift for {case_id}: {field}")
         if variable_field in {"chunkMode", "retrievalMode", "queryMode", "postprocessMode"}:
@@ -241,6 +284,18 @@ def compare(e0: dict, e1: dict, variable_field: str = "canonicalMode") -> dict:
     if variable_field == "postprocessMode":
         # Activation is a separate gate from relevance quality for deduplication experiments.
         result["postprocessActivation"] = postprocess_activation(e0_cases, e1_cases, case_ids)
+        e0_diversity = source_diversity(e0_cases, case_ids)
+        e1_diversity = source_diversity(e1_cases, case_ids)
+        result["sourceDiversity"] = {
+            "e0": e0_diversity,
+            "e1": e1_diversity,
+            "deltas": {
+                metric: e1_diversity[metric] - e0_diversity[metric]
+                for metric in ("meanMountedCoverageAt10", "meanUniqueSourcesAt10",
+                               "meanMaxSourceShareAt10", "goldSourceRecallAt10",
+                               "goldSourceRecallAt40")
+            },
+        }
     return result
 
 

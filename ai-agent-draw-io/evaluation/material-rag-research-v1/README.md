@@ -276,6 +276,27 @@ For E4 evidence deduplication, set `MATERIAL_RAG_PAIRED_RAW_POSTPROCESS_RESULT_J
 uses its first 40 and `evidence-dedup-v1` suppresses duplicate Evidence families before backfilling to 40. Compare
 with `--variable-field postprocessMode`. The current single-source fixtures do not measure source diversity.
 
+E4b uses the authored multi-source chartbook profile. Every case mounts four existing long documents and requires
+evidence from at least two of them; unmounted same-split documents remain indexed as leakage controls:
+
+```bash
+export MATERIAL_RAG_CASE_PROFILE=e4-chartbook-v1
+export MATERIAL_RAG_PAIRED_CHARTBOOK_RAW_RESULT_JSON="$PWD/evaluation/material-rag-research-v1/results/e4b-raw.json"
+export MATERIAL_RAG_PAIRED_CHARTBOOK_DIVERSIFIED_RESULT_JSON="$PWD/evaluation/material-rag-research-v1/results/e4b-diversified.json"
+```
+
+Both outputs preserve the same top-80 pool. The candidate deduplicates evidence, applies a soft maximum of four
+results per source in the top 10, then fills from original rank order. The Pinecone query is filtered to the four
+mounted source versions; comparison reports mounted coverage, source concentration, gold-source recall and any
+unmounted leakage.
+
+Audit the multi-source fixture before a live E4b run:
+
+```bash
+python3 evaluation/material-rag-research-v1/analysis/audit_e4_chartbook.py \
+  --json-out evaluation/material-rag-research-v1/results/e4b-fixture-audit.json
+```
+
 Evaluate OCR output named `page-1.txt` through `page-3.txt` with:
 
 ```bash

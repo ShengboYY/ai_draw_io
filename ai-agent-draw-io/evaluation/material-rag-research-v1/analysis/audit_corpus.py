@@ -26,6 +26,7 @@ PROVENANCE_FILES = (
     "requirements.txt",
     "analysis/audit_corpus.py",
     "analysis/compare_dense_runs.py",
+    "analysis/audit_e4_chartbook.py",
     "analysis/evaluate_guard_suites.py",
     "analysis/evaluate_ocr.py",
     "fixtures/generate_fixtures.py",
@@ -35,6 +36,7 @@ PROVENANCE_FILES = (
     "fixtures/scenario_corpus_specs.py",
     "fixtures/guard_corpus_specs.py",
     "fixtures/expansion_corpus_specs.py",
+    "fixtures/e4_chartbook_specs.py",
     "fixtures/query-selection.json",
 )
 CATEGORY_CONTEXT_FIELDS = {
