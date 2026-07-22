@@ -16,7 +16,7 @@ class ResearchLlmRerankerTest {
     void shouldKeepOnlyPermittedIdsAndBackfillTheDenseOrder() throws InterruptedException {
         ResearchLlmReranker reranker = new ResearchLlmReranker(json, (request, model) ->
                 new ResearchLlmReranker.Completion(
-                        "{\"rankedIds\":[\"vector-3\",\"unknown\",\"vector-1\",\"vector-3\"]}",
+                        "{\"rankedIds\":[\"c03\",\"unknown\",\"c01\",\"c03\"]}",
                         120, 80, 12));
         List<ResearchLlmReranker.Candidate> candidates = List.of(
                 new ResearchLlmReranker.Candidate("vector-1", "source:v1", "first"),
@@ -35,7 +35,7 @@ class ResearchLlmRerankerTest {
     @Test
     void shouldRejectNonJsonOutputWithoutChangingDenseOrder() throws InterruptedException {
         ResearchLlmReranker reranker = new ResearchLlmReranker(json, (request, model) ->
-                new ResearchLlmReranker.Completion("vector-2, vector-1", 9, 0, 0));
+                new ResearchLlmReranker.Completion("c02, c01", 9, 0, 0));
         List<ResearchLlmReranker.Candidate> candidates = List.of(
                 new ResearchLlmReranker.Candidate("vector-1", "source:v1", "first"),
                 new ResearchLlmReranker.Candidate("vector-2", "source:v1", "second"));

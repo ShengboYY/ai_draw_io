@@ -143,7 +143,7 @@
   "e5Reranking": {
     "baselineMode": "none-v1",
     "candidateMode": "llm-listwise-v1",
-    "candidateFingerprint": "llm-listwise-rerank-v1:top40:json-ranked-ids:temperature0",
+    "candidateFingerprint": "llm-listwise-rerank-v2:top40:short-candidate-ids:json-ranked-ids:temperature0",
     "candidateLimit": 40,
     "maxCandidateTextChars": 800,
     "developmentCaseProfile": "core-v1",

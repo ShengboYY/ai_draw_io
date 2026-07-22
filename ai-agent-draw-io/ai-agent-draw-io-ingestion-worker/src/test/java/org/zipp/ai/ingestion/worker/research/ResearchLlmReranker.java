@@ -4,8 +4,10 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -13,7 +15,7 @@ import java.util.Set;
  */
 final class ResearchLlmReranker {
 
-    static final String FINGERPRINT = "llm-listwise-rerank-v1:top40:json-ranked-ids:temperature0";
+    static final String FINGERPRINT = "llm-listwise-rerank-v2:top40:short-candidate-ids:json-ranked-ids:temperature0";
     private static final int MAX_CANDIDATE_TEXT_CHARS = 800;
 
     private final ObjectMapper json;
@@ -25,23 +27,25 @@ final class ResearchLlmReranker {
     }
 
     Result rerank(String query, List<Candidate> candidates, String model) throws InterruptedException {
+        Map<String, String> vectorIdsByPromptId = promptIds(candidates);
         Completion completion = completionClient.complete(prompt(query, candidates), model);
         List<String> denseOrder = candidates.stream().map(Candidate::vectorId).toList();
-        List<String> reranked = parseRankedIds(completion.content(), denseOrder);
-        boolean accepted = !reranked.equals(denseOrder) || isAcceptedJson(completion.content(), denseOrder);
+        List<String> reranked = parseRankedIds(completion.content(), vectorIdsByPromptId, denseOrder);
+        boolean accepted = isAcceptedJson(completion.content(), vectorIdsByPromptId);
         return new Result(reranked, accepted, completion.latencyMillis(), completion.promptTokens(),
                 completion.completionTokens());
     }
 
-    private List<String> parseRankedIds(String content, List<String> denseOrder) {
+    private List<String> parseRankedIds(String content, Map<String, String> vectorIdsByPromptId,
+                                        List<String> denseOrder) {
         try {
             JsonNode ids = json.readTree(content).path("rankedIds");
             if (!ids.isArray()) return denseOrder;
-            Set<String> permitted = Set.copyOf(denseOrder);
+            Set<String> permitted = vectorIdsByPromptId.keySet();
             LinkedHashSet<String> ordered = new LinkedHashSet<>();
             ids.forEach(value -> {
-                String id = value.asText();
-                if (permitted.contains(id)) ordered.add(id);
+                String promptId = value.asText();
+                if (permitted.contains(promptId)) ordered.add(vectorIdsByPromptId.get(promptId));
             });
             ordered.addAll(denseOrder);
             return List.copyOf(ordered);
@@ -50,10 +54,10 @@ final class ResearchLlmReranker {
         }
     }
 
-    private boolean isAcceptedJson(String content, List<String> denseOrder) {
+    private boolean isAcceptedJson(String content, Map<String, String> vectorIdsByPromptId) {
         try {
             JsonNode ids = json.readTree(content).path("rankedIds");
-            Set<String> permitted = Set.copyOf(denseOrder);
+            Set<String> permitted = vectorIdsByPromptId.keySet();
             if (!ids.isArray() || ids.isEmpty()) return false;
             for (JsonNode id : ids) {
                 if (permitted.contains(id.asText())) return true;
@@ -64,16 +68,25 @@ final class ResearchLlmReranker {
         }
     }
 
+    private Map<String, String> promptIds(List<Candidate> candidates) {
+        Map<String, String> result = new LinkedHashMap<>();
+        for (int index = 0; index < candidates.size(); index++) {
+            result.put("c%02d".formatted(index + 1), candidates.get(index).vectorId());
+        }
+        return Map.copyOf(result);
+    }
+
     private String prompt(String query, List<Candidate> candidates) {
         StringBuilder prompt = new StringBuilder("""
                 You rerank synthetic evidence passages for a draw.io RAG agent. Return JSON only:
-                {"rankedIds":["candidate-id",...]}. Rank every supplied candidate by direct support for the
+                {"rankedIds":["c01",...]}. Rank every supplied candidate by direct support for the
                 user request. Use only supplied IDs. Do not answer the request and do not invent facts.
 
                 User request:
                 """).append(query).append("\n\nCandidates:\n");
-        for (Candidate candidate : candidates) {
-            prompt.append("id=").append(candidate.vectorId())
+        for (int index = 0; index < candidates.size(); index++) {
+            Candidate candidate = candidates.get(index);
+            prompt.append("id=").append("c%02d".formatted(index + 1))
                     .append(" source=").append(candidate.sourceVersion())
                     .append("\ntext=").append(clip(candidate.retrievalText())).append("\n\n");
         }
