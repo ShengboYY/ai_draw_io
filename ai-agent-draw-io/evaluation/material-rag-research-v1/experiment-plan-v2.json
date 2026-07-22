@@ -191,7 +191,7 @@
     "controlMeanSourceCount": 2.4615384615384617,
     "candidateMeanSourceCount": 3.9615384615384617,
     "decision": "valid contrast check; source coverage improved, recall direction descriptive only; no generation promotion claim",
-    "next": "improve architecture visual-route retrieval/hydration, then rerun the Development task trace; 2026-07-23 real trace changed 1/6 tasks and lacked dgt-dev-02 page-3 artifact"
+    "next": "rerun the Development task trace after the 2026-07-23 architecture visual-crop projection repair; the prior trace changed 1/6 tasks and lacked dgt-dev-02 page-3 artifact"
   },
   "e7Generation": {
     "activeTaskFixture": "fixtures/drawio-generation-tasks-v2.json",
@@ -232,7 +232,7 @@
     "e4Status": "completed: neither single-source deduplication nor multi-source fixed-cap diversity qualified",
     "e5Status": "completed: DeepSeek V4 Pro listwise reranker accepted JSON for 5/155 cases and Recall@10 gain was 0.0; not promoted",
     "e6aStatus": "completed: 26/26 contexts changed; source coverage improved; recall interval touched zero; no promotion claim",
-    "e6bStatus": "real Development hydration trace completed and temporary vectors deleted; exporter rejected it because dgt-dev-02 lacked architecture page-3 artifact and 1/6 changed-task rate was below 20%; no prompt bundle, model call or Validation run",
+    "e6bStatus": "first real Development trace was rejected because dgt-dev-02 lacked architecture page-3 artifact and 1/6 changed-task rate was below 20%; visual-crop projection repair is locally tested and awaiting a rerun; no prompt bundle, model call or Validation run",
     "e7Status": "historical fixed-context v1 run remains diagnostic; active v2 paired run not started"
   }
 }

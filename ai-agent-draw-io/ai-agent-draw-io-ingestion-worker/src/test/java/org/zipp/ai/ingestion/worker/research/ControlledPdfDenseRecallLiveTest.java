@@ -13,6 +13,8 @@ import org.zipp.ai.domain.ingestion.model.valobj.ParsedDocument;
 import org.zipp.ai.domain.ingestion.model.valobj.ParsedPage;
 import org.zipp.ai.domain.ingestion.model.valobj.StoredArtifact;
 import org.zipp.ai.domain.ingestion.model.valobj.VisualCropManifest;
+import org.zipp.ai.domain.ingestion.model.valobj.VisualCropArtifact;
+import org.zipp.ai.domain.ingestion.service.VisualCandidateSelectionPolicy;
 import org.zipp.ai.domain.ingestion.service.CanonicalPageAssembler;
 import org.zipp.ai.domain.ingestion.service.DocumentStructureBuilder;
 import org.zipp.ai.domain.ingestion.service.EvidenceUnitBuilder;
@@ -32,6 +34,7 @@ import org.zipp.ai.infrastructure.adapter.vector.PineconeVectorRecord;
 import org.zipp.ai.ingestion.worker.document.PdfBoxDocumentParser;
 import org.zipp.ai.ingestion.worker.document.MultilingualE5TokenCounter;
 import org.zipp.ai.ingestion.worker.document.TesseractOcrEngine;
+import org.zipp.ai.ingestion.worker.document.VisualCropDeriver;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -60,6 +63,7 @@ class ControlledPdfDenseRecallLiveTest {
     private static final ObjectMapper JSON = new ObjectMapper();
     private static final RetrievalTokenCounter RESEARCH_COUNTER = researchTokenCounter();
     private static final Set<String> CANONICAL_MODES = Set.of("e0-v4", "e1-v5");
+    private static final long MAX_RESEARCH_PAGE_ARTIFACT_BYTES = 20L * 1024 * 1024;
 
     @TempDir
     Path temporaryDirectory;
@@ -185,6 +189,16 @@ class ControlledPdfDenseRecallLiveTest {
         assertTrue(tasks.stream().allMatch(value -> value.mountedSourceVersions().equals(List.of(
                 "drawio-agent-architecture:v1", "drawio-planning-workshop-scan:v1",
                 "drawio-workflow-handbook:v1"))));
+    }
+
+    @Test
+    void architectureVisualHydrationProjectionShouldIndexTheRasterRouteOnPageThree() throws Exception {
+        RetrievalProjectionManifest projection = buildVisualProjection(researchRoot(),
+                "drawio-agent-architecture", "v1", "drawio-agent-architecture-blueprint-v1.pdf");
+
+        assertTrue(projection.chunks().stream().anyMatch(chunk -> chunk.modality() == EvidenceModality.VISUAL
+                && pageNo(chunk.pageId()) == 3 && chunk.indexMode() == RetrievalIndexMode.DENSE_AND_LEXICAL
+                && chunk.retrievalText().contains("Figure 2. Draw.io agent request-to-canvas route.")));
     }
 
     private RetrievalChunkProjection chunkWithParentContext(String parentContext) {
@@ -751,13 +765,58 @@ class ControlledPdfDenseRecallLiveTest {
     /** Builds the three mounted Development sources, applying OCR to the scan before chunking. */
     private ProjectionSet buildDrawioTaskHydrationProjections(Path root, OcrEnginePort ocr) throws Exception {
         Map<String, RetrievalProjectionManifest> result = new LinkedHashMap<>();
-        result.put("drawio-agent-architecture:v1", buildProjection(root,
+        result.put("drawio-agent-architecture:v1", buildVisualProjection(root,
                 "drawio-agent-architecture", "v1", "drawio-agent-architecture-blueprint-v1.pdf"));
         result.put("drawio-workflow-handbook:v1", buildProjection(root,
                 "drawio-workflow-handbook", "v1", "drawio-diagram-workflow-handbook-v1.pdf"));
         result.put("drawio-planning-workshop-scan:v1", buildOcrProjection(root,
                 "drawio-planning-workshop-scan", "v1", "drawio-planning-workshop-scan-v1.pdf", ocr));
         return new ProjectionSet(Map.copyOf(result));
+    }
+
+    /** Mirrors the worker's visual selection/crop path so raster-only figures become retrieval chunks. */
+    private RetrievalProjectionManifest buildVisualProjection(Path root, String source, String version,
+                                                              String filename) throws Exception {
+        ParsedDocument parsed = new PdfBoxDocumentParser(150).parse(
+                root.resolve("fixtures/generated/pdfs").resolve(filename), "application/pdf",
+                temporaryDirectory.resolve(source + "-visual"));
+        List<CanonicalPage> pages = parsed.pages().stream()
+                .map(page -> canonicalAssembler().assemble(page.extraction())).toList();
+        var structure = new DocumentStructureBuilder().build(pages);
+        VisualCandidateSelectionPolicy selectionPolicy = new VisualCandidateSelectionPolicy(12, 0.15, 3);
+        var selection = selectionPolicy.select(structure, parsed.pageCount());
+        VisualCropDeriver cropper = new VisualCropDeriver(25_000_000, 10 * 1024 * 1024);
+        Map<Integer, ParsedPage> parsedByPage = new HashMap<>();
+        parsed.pages().forEach(page -> parsedByPage.put(page.extraction().pageNo(), page));
+        List<VisualCropArtifact> crops = new ArrayList<>();
+        for (var candidate : selection.selectedCandidates()) {
+            ParsedPage page = parsedByPage.get(candidate.pageNo());
+            if (page == null) {
+                throw new IllegalArgumentException("visual candidate does not reference a parsed page");
+            }
+            Path renderedImage = page.renderedImage();
+            long imageBytes = Files.size(renderedImage);
+            if (imageBytes > MAX_RESEARCH_PAGE_ARTIFACT_BYTES) {
+                throw new IllegalArgumentException("rendered page image exceeds the research artifact limit");
+            }
+            byte[] crop = cropper.derive(Files.readAllBytes(renderedImage), candidate);
+            String cropHash = HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(crop));
+            StoredArtifact artifact = new StoredArtifact("research/" + source + "/visual/"
+                    + candidate.candidateId() + ".png", "object-version-1", cropHash, crop.length, "image/png");
+            crops.add(new VisualCropArtifact(source + "-page-" + candidate.pageNo(), candidate, artifact));
+        }
+        List<EvidenceSourcePage> sources = new ArrayList<>();
+        for (CanonicalPage page : pages) {
+            StoredArtifact artifact = new StoredArtifact("research/" + source + "/page-" + page.pageNo(),
+                    "object-version-1", "a".repeat(64), 1, "application/json+gzip");
+            sources.add(new EvidenceSourcePage(source + "-page-" + page.pageNo(), page, artifact));
+        }
+        VisualCropManifest visuals = new VisualCropManifest("visual-crop-manifest-v1", structure.structureHash(),
+                selectionPolicy.fingerprint(), selection.totalCandidateCount(),
+                selection.skippedCandidateCount(), crops);
+        EvidenceManifest evidence = new EvidenceUnitBuilder().build("revision-" + source,
+                source + ":" + version, structure, sources, visuals);
+        return new RetrievalChunkBuilder(RESEARCH_COUNTER).build(evidence);
     }
 
     /** Uses the worker's OCR boundary before canonicalisation; no fixture answer text is injected. */

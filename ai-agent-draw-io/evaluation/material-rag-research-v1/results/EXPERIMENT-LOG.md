@@ -344,6 +344,16 @@
   Validation 或晋级决定。下一步先改善不依赖 evaluator gold 的 architecture visual-route retrieval/hydration，再重跑
   Development trace。详见 [2026-07-23-e6b-task-hydration-run.md](2026-07-23-e6b-task-hydration-run.md)。
 
+### E6b architecture visual projection repair · 2026-07-23 · ✅本地修复完成，⏸待重跑
+
+- **根因**:architecture PDF 第 3 页明确是 raster-only route；旧 task producer 对该 source 调用
+  `buildProjection`，其 visual manifest 固定为空，因此只索引 surrounding prose，完全没有第 3 页图的 visual chunk。
+- **修复**:task producer 现复用 worker 的 visual-candidate selection 与 `VisualCropDeriver`，把选中的真实 raster
+  crop 作为 `VISUAL` evidence/chunk 建入 architecture projection。Figure 2 增加不重复节点顺序的标准 caption，令 visual
+  chunk 获得 source-backed retrieval context；新增本地契约测试，要求 page 3 visual chunk 为可检索并包含该 caption；测试通过。
+- **边界**:该修复没有用 task required anchor、预期节点或答案来选择图；下一次仍只运行 Development top-40 trace，
+  由既有 artifact/contrast gate 决定能否继续。
+
 ---
 
 ## 当前状态与下一步

@@ -58,6 +58,7 @@ DRAWIO_DIGITAL_DOCUMENTS = [
                 "diagram": {
                     "filename": "drawio-agent-request-route.png",
                     "title": "DRAW.IO AGENT REQUEST ROUTE",
+                    "caption": "Figure 2. Draw.io agent request-to-canvas route.",
                     "nodes": ["SCOPE SOURCES", "RETRIEVE EVIDENCE", "BUILD PLAN", "COMPOSE CANVAS"],
                     "edgeLabels": ["authorized", "ranked", "validated"],
                 },

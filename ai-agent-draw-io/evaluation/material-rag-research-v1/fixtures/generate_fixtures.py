@@ -403,6 +403,10 @@ def generate_spec_document(path: Path, document: dict, image_dir: Path) -> None:
             generate_spec_diagram(asset, page["diagram"])
             pdf.drawImage(ImageReader(str(asset)), 48, 90, PAGE_WIDTH - 96, 330,
                           preserveAspectRatio=True, anchor="c")
+            if "caption" in page["diagram"]:
+                pdf.setFillColorRGB(0.20, 0.24, 0.30)
+                pdf.setFont(font, 9)
+                pdf.drawString(48, 435, page["diagram"]["caption"])
         if "chart" in page:
             asset = image_dir / page["chart"]["filename"]
             generate_spec_bar_chart(asset, page["chart"])
