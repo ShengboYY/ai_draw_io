@@ -18,7 +18,8 @@ def run(mode: str, ranks: list[int]) -> dict:
     return {
         "gitCommit": "abc", "corpusLockSha256": "lock", "split": "validation",
         "embeddingModel": "model", "tokenizerFingerprint": "tokenizer", "candidateLimit": 40,
-        "canonicalMode": mode, "chunkCount": 10, "metrics": {"caseResults": cases},
+        "canonicalMode": mode, "chunkMode": "flat-leaf-v1", "chunkCount": 10,
+        "metrics": {"caseResults": cases},
     }
 
 
@@ -38,6 +39,25 @@ class CompareDenseRunsTest(unittest.TestCase):
 
         with self.assertRaisesRegex(ValueError, "controls differ"):
             compare(e0, e1)
+
+    def test_chunk_experiment_keeps_canonical_mode_fixed(self) -> None:
+        flat = run("e1-v5", [5, 1])
+        parent = run("e1-v5", [1, 1])
+        parent["chunkMode"] = "parent-context-v1"
+
+        result = compare(flat, parent, "chunkMode")
+
+        self.assertEqual("chunkMode", result["experimentVariable"]["field"])
+        self.assertEqual("flat-leaf-v1", result["experimentVariable"]["baseline"])
+        self.assertEqual("parent-context-v1", result["experimentVariable"]["candidate"])
+
+    def test_chunk_experiment_rejects_canonical_drift(self) -> None:
+        flat = run("e1-v5", [1])
+        parent = run("e0-v4", [1])
+        parent["chunkMode"] = "parent-context-v1"
+
+        with self.assertRaisesRegex(ValueError, "canonicalMode"):
+            compare(flat, parent, "chunkMode")
 
     def test_missing_raw_candidate_sequence_is_rejected(self) -> None:
         e0 = run("e0-v4", [1])

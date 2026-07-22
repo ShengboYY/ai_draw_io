@@ -68,10 +68,14 @@ def slices(case: dict) -> list[str]:
     ]
 
 
-def compare(e0: dict, e1: dict) -> dict:
+def compare(e0: dict, e1: dict, variable_field: str = "canonicalMode") -> dict:
     """Compare paired case ranks after rejecting any experiment-control drift."""
-    fixed_fields = ("gitCommit", "corpusLockSha256", "split", "embeddingModel",
-                    "tokenizerFingerprint", "candidateLimit")
+    supported_variables = {"canonicalMode", "chunkMode"}
+    if variable_field not in supported_variables:
+        raise ValueError(f"Unsupported experiment variable: {variable_field}")
+    fixed_fields = ["gitCommit", "corpusLockSha256", "split", "embeddingModel",
+                    "tokenizerFingerprint", "candidateLimit", "canonicalMode", "chunkMode"]
+    fixed_fields.remove(variable_field)
     drift = [field for field in fixed_fields if e0.get(field) != e1.get(field)]
     if drift:
         raise ValueError(f"Experiment controls differ: {drift}")
@@ -146,7 +150,12 @@ def compare(e0: dict, e1: dict) -> dict:
         "status": "comparable",
         "scope": "answerable-dense-eligible-text-table-and-multi-evidence",
         "caseCount": len(case_ids),
-        "controls": {field: e0[field] for field in fixed_fields},
+        "controls": {field: e0.get(field) for field in fixed_fields},
+        "experimentVariable": {
+            "field": variable_field,
+            "baseline": e0.get(variable_field),
+            "candidate": e1.get(variable_field),
+        },
         "modes": {"e0": e0["canonicalMode"], "e1": e1["canonicalMode"]},
         "chunkCounts": {"e0": e0["chunkCount"], "e1": e1["chunkCount"]},
         "mapping": {
@@ -258,10 +267,12 @@ def main() -> None:
     parser.add_argument("--json-out", type=Path)
     parser.add_argument("--markdown-out", type=Path)
     parser.add_argument("--corpus-lock-snapshot", type=Path)
+    parser.add_argument("--variable-field", choices=("canonicalMode", "chunkMode"),
+                        default="canonicalMode")
     args = parser.parse_args()
     e0 = json.loads(args.e0.read_text(encoding="utf-8"))
     e1 = json.loads(args.e1.read_text(encoding="utf-8"))
-    result = compare(e0, e1)
+    result = compare(e0, e1, args.variable_field)
     if args.corpus_lock_snapshot:
         # Keep results tied to the exact historical lock even after analysis tools evolve.
         attach_corpus_lock_snapshot(result, args.corpus_lock_snapshot)

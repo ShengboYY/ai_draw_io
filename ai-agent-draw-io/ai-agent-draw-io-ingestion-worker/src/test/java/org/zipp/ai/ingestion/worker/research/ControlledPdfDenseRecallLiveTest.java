@@ -6,6 +6,7 @@ import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.zipp.ai.domain.ingestion.model.valobj.CanonicalPage;
+import org.zipp.ai.domain.ingestion.model.valobj.EvidenceModality;
 import org.zipp.ai.domain.ingestion.model.valobj.EvidenceManifest;
 import org.zipp.ai.domain.ingestion.model.valobj.EvidenceSourcePage;
 import org.zipp.ai.domain.ingestion.model.valobj.ParsedDocument;
@@ -15,9 +16,12 @@ import org.zipp.ai.domain.ingestion.service.CanonicalPageAssembler;
 import org.zipp.ai.domain.ingestion.service.DocumentStructureBuilder;
 import org.zipp.ai.domain.ingestion.service.EvidenceUnitBuilder;
 import org.zipp.ai.domain.ingestion.service.OcrSelectionPolicy;
+import org.zipp.ai.domain.retrieval.model.valobj.ChunkEvidenceRole;
+import org.zipp.ai.domain.retrieval.model.valobj.RetrievalChunkType;
 import org.zipp.ai.domain.retrieval.model.valobj.RetrievalIndexMode;
 import org.zipp.ai.domain.retrieval.projection.RetrievalChunkBuilder;
 import org.zipp.ai.domain.retrieval.projection.RetrievalChunkProjection;
+import org.zipp.ai.domain.retrieval.projection.RetrievalEvidenceMapping;
 import org.zipp.ai.domain.retrieval.projection.RetrievalProjectionManifest;
 import org.zipp.ai.domain.retrieval.projection.RetrievalTokenCounter;
 import org.zipp.ai.infrastructure.adapter.vector.PineconeVectorClient;
@@ -107,6 +111,37 @@ class ControlledPdfDenseRecallLiveTest {
     }
 
     @Test
+    void chunkModeShouldSelectLeafOrExistingParentText() {
+        RetrievalChunkProjection chunk = chunkWithParentContext("parent text");
+
+        assertEquals("leaf text", ChunkMode.FLAT_LEAF.embeddingText(chunk));
+        assertEquals("parent text", ChunkMode.PARENT_CONTEXT.embeddingText(chunk));
+    }
+
+    @Test
+    void parentModeShouldCreditAChildWhoseParentContainsTheGoldText() {
+        RetrievalChunkProjection chunk = chunkWithParentContext("neighbor evidence\n\nleaf text");
+        ResearchAnchor anchor = new ResearchAnchor(
+                "anchor-1", "source", "v1", "text", "neighbor evidence", 1, false);
+
+        assertTrue(goldVectorIds(List.of(new IndexedChunk(
+                "flat-vector", "source:v1", chunk, ChunkMode.FLAT_LEAF.embeddingText(chunk))),
+                anchor).isEmpty());
+        assertEquals(Set.of("parent-vector"), goldVectorIds(List.of(new IndexedChunk(
+                "parent-vector", "source:v1", chunk,
+                ChunkMode.PARENT_CONTEXT.embeddingText(chunk))), anchor));
+    }
+
+    private RetrievalChunkProjection chunkWithParentContext(String parentContext) {
+        return new RetrievalChunkProjection(
+                "chunk-1", "page-1", "section-1", RetrievalChunkType.CONTENT,
+                EvidenceModality.TEXT, "en", true, RetrievalIndexMode.DENSE_AND_LEXICAL,
+                "leaf text", "a".repeat(64), parentContext, List.of("evidence-1"),
+                2, 1.0, 1, List.of(new RetrievalEvidenceMapping(
+                "evidence-1", ChunkEvidenceRole.PRIMARY, 0, null, null)));
+    }
+
+    @Test
     void shouldMeasureDenseRecallAfterTheRealPdfAndChunkPipeline() throws Exception {
         String apiKey = System.getenv("PINECONE_API_KEY");
         String indexHost = System.getenv("PINECONE_INDEX_HOST");
@@ -118,6 +153,7 @@ class ControlledPdfDenseRecallLiveTest {
 
         Path root = researchRoot();
         String canonicalMode = canonicalMode();
+        ChunkMode chunkMode = chunkMode();
         ProjectionSet projections = buildControlledProjections(root);
         Map<String, ResearchAnchor> anchors = new HashMap<>();
         anchors(root).forEach(anchor -> anchors.put(anchor.anchorId(), anchor));
@@ -136,9 +172,9 @@ class ControlledPdfDenseRecallLiveTest {
         PineconeVectorClient client = new PineconeVectorClient(
                 apiKey, indexHost, "multilingual-e5-large", 1024, JSON);
         ExperimentResult result = runDenseExperiment(
-                "controlled", client, namespace, projections, cases, anchors);
+                "controlled", client, namespace, projections, cases, anchors, chunkMode);
         report("Controlled PDF", result);
-        writeRawResultIfRequested(root, researchSplit, canonicalMode, result);
+        writeRawResultIfRequested(root, researchSplit, canonicalMode, chunkMode, result);
         if (Boolean.parseBoolean(System.getenv().getOrDefault("MATERIAL_RAG_ENFORCE_GATES", "true"))) {
             assertTrue(result.metrics().recallAt10() >= 0.90,
                     "Dense PDF Recall@10 fell below the text gate");
@@ -181,7 +217,8 @@ class ControlledPdfDenseRecallLiveTest {
         PineconeVectorClient client = new PineconeVectorClient(
                 apiKey, indexHost, "multilingual-e5-large", 1024, JSON);
         ExperimentResult result = runDenseExperiment(
-                "open", client, namespace, projections, List.copyOf(cases), Map.copyOf(anchors));
+                "open", client, namespace, projections, List.copyOf(cases), Map.copyOf(anchors),
+                ChunkMode.FLAT_LEAF);
         report("Open PDF", result);
         assertTrue(result.metrics().recallAt10() >= 0.85, "Open PDF Recall@10 fell below research baseline");
         assertTrue(result.metrics().recallAt40() >= 0.95, "Open PDF Recall@40 fell below research baseline");
@@ -255,16 +292,24 @@ class ControlledPdfDenseRecallLiveTest {
 
     private ExperimentResult runDenseExperiment(String prefix, PineconeVectorClient client, String namespace,
                                                 ProjectionSet projections, List<ResearchCase> cases,
-                                                Map<String, ResearchAnchor> anchors) throws Exception {
+                                                Map<String, ResearchAnchor> anchors,
+                                                ChunkMode chunkMode) throws Exception {
         String runId = prefix + "pdfresearch_" + UUID.randomUUID().toString().replace("-", "");
         String tenantKey = runId + "_tenant";
-        List<IndexedChunk> indexed = indexedChunks(runId, projections);
+        List<IndexedChunk> indexed = indexedChunks(runId, projections, chunkMode);
         List<String> vectorIds = indexed.stream().map(IndexedChunk::vectorId).toList();
-        System.out.printf("Research run started: %s cases=%d chunks=%d%n",
-                runId, cases.size(), indexed.size());
+        List<Integer> embeddingTokens = indexed.stream()
+                .map(value -> RESEARCH_COUNTER.count(value.embeddingText())).sorted().toList();
+        EmbeddingProfile embeddingProfile = new EmbeddingProfile(
+                percentile(embeddingTokens, 0.50), percentile(embeddingTokens, 0.95),
+                embeddingTokens.get(embeddingTokens.size() - 1));
+        System.out.printf("Research run started: %s cases=%d chunks=%d "
+                        + "embeddingTokens[p50=%d,p95=%d,max=%d]%n",
+                runId, cases.size(), indexed.size(), embeddingProfile.p50(),
+                embeddingProfile.p95(), embeddingProfile.max());
         try {
             List<float[]> passageVectors = embedPassages(client,
-                    indexed.stream().map(value -> value.chunk().retrievalText()).toList());
+                    indexed.stream().map(IndexedChunk::embeddingText).toList());
             List<PineconeVectorRecord> records = new ArrayList<>();
             for (int index = 0; index < indexed.size(); index++) {
                 IndexedChunk value = indexed.get(index);
@@ -278,7 +323,8 @@ class ControlledPdfDenseRecallLiveTest {
             waitUntilSearchable(client, namespace, tenantKey, indexed, passageVectors);
             System.out.println("Research index is searchable: " + runId);
             return new ExperimentResult(runId, canonicalAssembler().fingerprint(), evaluate(
-                    client, namespace, tenantKey, cases, anchors, projections, indexed), indexed.size());
+                    client, namespace, tenantKey, cases, anchors, indexed), indexed.size(),
+                    embeddingProfile);
         } finally {
             // Pinecone limits delete-by-id payloads, so large open PDFs must be cleaned in batches.
             for (int start = 0; start < vectorIds.size(); start += 100) {
@@ -312,6 +358,7 @@ class ControlledPdfDenseRecallLiveTest {
     }
 
     private void writeRawResultIfRequested(Path root, String split, String canonicalMode,
+                                           ChunkMode chunkMode,
                                            ExperimentResult result) throws Exception {
         String configured = System.getenv("MATERIAL_RAG_RESULT_JSON");
         if (configured == null || configured.isBlank()) return;
@@ -327,11 +374,14 @@ class ControlledPdfDenseRecallLiveTest {
         raw.put("corpusLockSha256", sha256(lock));
         raw.put("split", split);
         raw.put("canonicalMode", canonicalMode);
+        raw.put("chunkMode", chunkMode.id());
+        raw.put("chunkEmbeddingFingerprint", chunkMode.fingerprint());
         raw.put("canonicalFingerprint", result.canonicalFingerprint());
         raw.put("embeddingModel", "multilingual-e5-large");
         raw.put("tokenizerFingerprint", RESEARCH_COUNTER.fingerprint());
         raw.put("candidateLimit", 40);
         raw.put("chunkCount", result.chunkCount());
+        raw.put("embeddingTokenProfile", result.embeddingTokenProfile());
         raw.put("metrics", result.metrics());
         Files.createDirectories(output.getParent());
         JSON.writerWithDefaultPrettyPrinter().writeValue(output.toFile(), raw);
@@ -438,13 +488,19 @@ class ControlledPdfDenseRecallLiveTest {
         return mode;
     }
 
-    private List<IndexedChunk> indexedChunks(String runId, ProjectionSet projections) {
+    private List<IndexedChunk> indexedChunks(String runId, ProjectionSet projections,
+                                             ChunkMode chunkMode) {
         List<IndexedChunk> result = new ArrayList<>();
         projections.bySourceVersion().forEach((sourceVersion, manifest) -> manifest.chunks().stream()
                 .filter(chunk -> chunk.indexMode() == RetrievalIndexMode.DENSE_AND_LEXICAL)
                 .forEach(chunk -> result.add(new IndexedChunk(runId + "_" + result.size(),
-                        sourceVersion, chunk))));
+                        sourceVersion, chunk, chunkMode.embeddingText(chunk)))));
         return List.copyOf(result);
+    }
+
+    private ChunkMode chunkMode() {
+        return ChunkMode.fromId(System.getenv().getOrDefault(
+                "MATERIAL_RAG_CHUNK_MODE", ChunkMode.FLAT_LEAF.id()));
     }
 
     private List<float[]> embedPassages(PineconeVectorClient client, List<String> passages) {
@@ -457,7 +513,7 @@ class ControlledPdfDenseRecallLiveTest {
 
     private DenseMetrics evaluate(PineconeVectorClient client, String namespace, String tenantKey,
                                   List<ResearchCase> cases, Map<String, ResearchAnchor> anchors,
-                                  ProjectionSet projections, List<IndexedChunk> indexed) {
+                                  List<IndexedChunk> indexed) {
         List<CaseRank> ranks = new ArrayList<>();
         Map<String, IndexedChunk> indexedByVectorId = indexed.stream().collect(
                 java.util.stream.Collectors.toMap(IndexedChunk::vectorId, value -> value));
@@ -482,12 +538,7 @@ class ControlledPdfDenseRecallLiveTest {
             Map<String, Set<String>> requiredGoldVectorIds = new LinkedHashMap<>();
             for (EvidenceRequirement requirement : requirements) {
                 ResearchAnchor anchor = anchors.get(requirement.anchorId());
-                Set<String> goldChunkIds = goldChunkIds(
-                        projections.bySourceVersion().get(sourceVersion), anchor);
-                requiredGoldVectorIds.put(requirement.anchorId(), indexed.stream()
-                        .filter(value -> value.sourceVersion().equals(sourceVersion)
-                                && goldChunkIds.contains(value.chunk().chunkId()))
-                        .map(IndexedChunk::vectorId).collect(java.util.stream.Collectors.toSet()));
+                requiredGoldVectorIds.put(requirement.anchorId(), goldVectorIds(indexed, anchor));
             }
             List<String> matches = client.query(namespace, queryVectors.get(caseIndex), 40,
                     Map.of("$and", List.of(
@@ -594,6 +645,21 @@ class ControlledPdfDenseRecallLiveTest {
             if (gold.contains(matches.get(index))) return index + 1;
         }
         return 0;
+    }
+
+    private Set<String> goldVectorIds(List<IndexedChunk> indexed, ResearchAnchor anchor) {
+        String needle = normalize(anchor.goldMatch());
+        Set<String> exact = indexed.stream()
+                .filter(value -> value.sourceVersion().equals(anchor.sourceVersion()))
+                .filter(value -> normalize(value.embeddingText()).contains(needle))
+                .map(IndexedChunk::vectorId)
+                .collect(java.util.stream.Collectors.toUnmodifiableSet());
+        if (!exact.isEmpty() || anchor.pageNo() <= 0 || !anchor.allowPageFallback()) return exact;
+        return indexed.stream()
+                .filter(value -> value.sourceVersion().equals(anchor.sourceVersion())
+                        && pageNo(value.chunk().pageId()) == anchor.pageNo())
+                .map(IndexedChunk::vectorId)
+                .collect(java.util.stream.Collectors.toUnmodifiableSet());
     }
 
     private Set<String> goldChunkIds(RetrievalProjectionManifest manifest, ResearchAnchor anchor) {
@@ -817,7 +883,38 @@ class ControlledPdfDenseRecallLiveTest {
     private record OpenCase(String caseId, String sourceId, int page, String language,
                             String query, String goldMatch) { }
 
-    private record IndexedChunk(String vectorId, String sourceVersion, RetrievalChunkProjection chunk) { }
+    private record IndexedChunk(String vectorId, String sourceVersion, RetrievalChunkProjection chunk,
+                                String embeddingText) { }
+
+    private enum ChunkMode {
+        FLAT_LEAF("flat-leaf-v1", "flat-leaf-v1:retrieval-text"),
+        PARENT_CONTEXT("parent-context-v1", "parent-context-v1:existing-neighbor-window-max900");
+
+        private final String id;
+        private final String fingerprint;
+
+        ChunkMode(String id, String fingerprint) {
+            this.id = id;
+            this.fingerprint = fingerprint;
+        }
+
+        String id() { return id; }
+
+        String fingerprint() { return fingerprint; }
+
+        String embeddingText(RetrievalChunkProjection chunk) {
+            if (this == PARENT_CONTEXT && chunk.parentContext() != null) {
+                return chunk.parentContext();
+            }
+            return chunk.retrievalText();
+        }
+
+        static ChunkMode fromId(String id) {
+            return Stream.of(values()).filter(value -> value.id.equals(id)).findFirst()
+                    .orElseThrow(() -> new IllegalArgumentException(
+                            "Unknown MATERIAL_RAG_CHUNK_MODE: " + id));
+        }
+    }
 
     private record CaseRank(ResearchCase researchCase, int rank, boolean mappable,
                             List<CandidateResult> candidates) { }
@@ -837,6 +934,9 @@ class ControlledPdfDenseRecallLiveTest {
                                 List<SliceMetric> slices, List<String> weakCases,
                                 List<CaseResult> caseResults) { }
 
+    private record EmbeddingProfile(int p50, int p95, int max) { }
+
     private record ExperimentResult(String runId, String canonicalFingerprint,
-                                    DenseMetrics metrics, int chunkCount) { }
+                                    DenseMetrics metrics, int chunkCount,
+                                    EmbeddingProfile embeddingTokenProfile) { }
 }
