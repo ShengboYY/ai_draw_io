@@ -198,7 +198,8 @@ class ControlledPdfDenseRecallLiveTest {
 
         assertTrue(projection.chunks().stream().anyMatch(chunk -> chunk.modality() == EvidenceModality.VISUAL
                 && pageNo(chunk.pageId()) == 3 && chunk.indexMode() == RetrievalIndexMode.DENSE_AND_LEXICAL
-                && chunk.retrievalText().contains("Figure 2. Draw.io agent request-to-canvas route.")));
+                && chunk.retrievalText().contains(
+                "Figure 2. Evidence-to-canvas request route for an editable draw.io flow.")));
     }
 
     private RetrievalChunkProjection chunkWithParentContext(String parentContext) {

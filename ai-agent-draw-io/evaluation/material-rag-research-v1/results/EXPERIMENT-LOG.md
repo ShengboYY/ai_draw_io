@@ -354,6 +354,15 @@
 - **边界**:该修复没有用 task required anchor、预期节点或答案来选择图；下一次仍只运行 Development top-40 trace，
   由既有 artifact/contrast gate 决定能否继续。
 
+### E6b visual hydration rerun 1 · 2026-07-23 · ❌输入 gate 未通过，已定位
+
+- **运行**:真实 Development trace `drawiohydrationpdfresearch_9021e47dab45433db7ae53e0c6ca8f89`，commit `916fd9af`；
+  61 chunks 建入临时 dev namespace 后删除。无模型调用、无 Validation。
+- **结果**:Figure 2 visual chunk 已可检索并带有冻结的 route image，但对 `dgt-dev-02` 排名第 10，E6b 每臂只取
+  top-8，故 exporter 正确拒绝缺少 required image artifact 的 paired context。
+- **后续**:caption 已改为更准确的任务描述（仍不复述节点顺序或 gold）；重新生成锁定 source 后待重跑同一 Development
+  trace。详见 [2026-07-23-e6b-task-hydration-r2-run.md](2026-07-23-e6b-task-hydration-r2-run.md)。
+
 ---
 
 ## 当前状态与下一步
