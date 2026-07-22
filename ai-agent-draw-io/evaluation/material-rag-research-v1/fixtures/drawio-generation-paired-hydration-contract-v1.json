@@ -4,7 +4,7 @@
   "purpose": "Required input contract for E6b paired Development generation; this file is not an experimental result or a model input.",
   "traceSchemaVersion": "material-rag-drawio-task-hydration-candidates-v1",
   "requirements": [
-    "Exactly one ranked top-40, hydrated candidate list for every active Development v2 task from a single frozen retrieval run; raw top-8 is control and source-aware top-8 is candidate.",
+    "Every retrieval-required active Development v2 task has one ranked top-40, hydrated candidate list from a single frozen run; raw top-8 is control and source-aware top-8 is candidate. Explicit no-retrieval tasks retain empty contexts in both arms and do not enter the selector-change denominator.",
     "Each selected chunk retains non-empty evidence text, a source/page-bound citation ID, source version, page and retrieval-text SHA-256. A verified evaluator anchor may be used when it exactly matches, otherwise the producer emits retrieved:<chunkId>; the exporter verifies that fallback ID, page and text digest against its candidate metadata, verifies declared evaluator anchors against frozen ground truth, and requires visual/OCR evidence to retain an in-root artifact path and SHA-256.",
     "Architecture visual-flow and planning-scan tasks require a verified visual/OCR artifact in both arms. The trace records retrieval run ID, Git commit and corpus-lock SHA-256; the CLI verifies that hash against the supplied frozen corpus lock and rejects task gaps, out-of-scope sources, malformed artifacts and a changed-task rate below 20%.",
     "Only after the exporter has produced paired contexts may prompts, a model request manifest and E6b/E7 Development calls be frozen."

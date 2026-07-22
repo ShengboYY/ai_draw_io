@@ -363,6 +363,15 @@
 - **后续**:caption 已改为更准确的任务描述（仍不复述节点顺序或 gold）；重新生成锁定 source 后待重跑同一 Development
   trace。详见 [2026-07-23-e6b-task-hydration-r2-run.md](2026-07-23-e6b-task-hydration-r2-run.md)。
 
+### E6b visual hydration rerun 2 · 2026-07-23 · ❌输入 gate 未通过，路由修订待重跑
+
+- **运行**:真实 Development trace `drawiohydrationpdfresearch_c467437f68a54548acc201520d02b2f0`，commit `6a7cd904`；
+  61 chunks 建入临时 dev namespace 后删除。无模型调用、无 Validation。
+- **结果**:Figure 2 visual chunk 仍可检索并带有冻结图像，但 broad chartbook dense raw top-8 继续遗漏该 artifact；同时
+  layout-only `dgt-dev-06` 明确没有检索上下文，不能被错误地要求 40 个候选。
+- **后续**:审查否决了把 selected-source-first 混入 E6b raw control 的方案；保留 no-retrieval task 的两臂空 context
+  修复，并先实现真正改变 broad-chartbook visual retrieval 的独立干预后再重跑。
+
 ---
 
 ## 当前状态与下一步

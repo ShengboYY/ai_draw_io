@@ -90,7 +90,8 @@ def export(trace: dict, tasks: list[dict], split: str, limit: int,
            minimum_change_rate: float, artifact_root: Path,
            chartbook_sources: set[str] | None = None,
            anchors: dict[str, dict] | None = None, candidate_pool_size: int = 40,
-           artifact_task_ids: set[str] | None = None) -> dict:
+           artifact_task_ids: set[str] | None = None,
+           no_retrieval_task_ids: set[str] | None = None) -> dict:
     """Build both arms from one frozen trace and apply the E6b contrast gate."""
     if trace.get("schemaVersion") != "material-rag-drawio-task-hydration-candidates-v1":
         raise ValueError("unexpected hydration trace schema")
@@ -103,6 +104,7 @@ def export(trace: dict, tasks: list[dict], split: str, limit: int,
         raise ValueError("context limit must be within the frozen candidate pool")
     chartbook_sources = chartbook_sources or set()
     artifact_task_ids = artifact_task_ids or set()
+    no_retrieval_task_ids = no_retrieval_task_ids or set()
     trace_by_task = {item.get("taskId"): item for item in trace.get("tasks", [])}
     if len(trace_by_task) != len(trace.get("tasks", [])):
         raise ValueError("duplicate task hydration trace")
@@ -113,6 +115,19 @@ def export(trace: dict, tasks: list[dict], split: str, limit: int,
     contexts, summaries = [], []
     for task in active:
         candidates = trace_by_task[task["taskId"]].get("candidates", [])
+        if task["taskId"] in no_retrieval_task_ids:
+            if candidates:
+                raise ValueError(f"no-retrieval task has hydrated candidates: {task['taskId']}")
+            contexts.extend((
+                {"taskId": task["taskId"], "arm": "control",
+                 "allowedSourceVersions": sorted(allowed_sources(task, chartbook_sources)), "evidence": []},
+                {"taskId": task["taskId"], "arm": "candidate",
+                 "allowedSourceVersions": sorted(allowed_sources(task, chartbook_sources)), "evidence": []},
+            ))
+            summaries.append({"taskId": task["taskId"], "changed": False,
+                              "rawCandidateChunkIds": [], "rawCandidateChunkIdsSha256": hashlib.sha256(b"[]").hexdigest(),
+                              "controlChunkIds": [], "candidateChunkIds": []})
+            continue
         if len(candidates) != candidate_pool_size:
             raise ValueError(f"candidate pool size is not {candidate_pool_size} for {task['taskId']}")
         for rank, candidate in enumerate(candidates, start=1):
@@ -141,12 +156,13 @@ def export(trace: dict, tasks: list[dict], split: str, limit: int,
             ).hexdigest(),
             "controlChunkIds": control_ids, "candidateChunkIds": candidate_ids,
         })
-    changed = sum(summary["changed"] for summary in summaries)
-    changed_rate = changed / len(active) if active else 0.0
+    retrieval_required = [summary for summary in summaries if summary["taskId"] not in no_retrieval_task_ids]
+    changed = sum(summary["changed"] for summary in retrieval_required)
+    changed_rate = changed / len(retrieval_required) if retrieval_required else 0.0
     result = {
         "schemaVersion": "material-rag-drawio-paired-hydration-v1", "split": split,
         "selector": "source-aware-top8-v1", "candidatePoolSize": candidate_pool_size,
-        "limit": limit, "taskCount": len(active),
+        "limit": limit, "taskCount": len(active), "retrievalRequiredTaskCount": len(retrieval_required),
         "changedTaskCount": changed, "changedTaskRate": changed_rate,
         "minimumChangeRate": minimum_change_rate,
         "effectiveExperiment": changed_rate >= minimum_change_rate,
@@ -190,13 +206,15 @@ def main() -> None:
         if args.split == "development" else set()
     artifact_task_ids = set(task_fixture.get("developmentMultimodalArtifactTaskIds", [])) \
         if args.split == "development" else set()
+    no_retrieval_task_ids = set(task_fixture.get("developmentNoRetrievalTaskIds", [])) \
+        if args.split == "development" else set()
     anchor_by_id = {item["anchorId"]: item for item in json.loads(args.ground_truth.read_text())["anchors"]}
     trace = json.loads(args.hydration_candidates.read_text())
     verify_provenance(trace, args.corpus_lock, args.tasks, args.ground_truth)
     result = export(trace, task_fixture["tasks"],
                     args.split, 8, 0.2,
                     args.artifact_root.resolve(), chartbook_sources, anchor_by_id,
-                    40, artifact_task_ids)
+                    40, artifact_task_ids, no_retrieval_task_ids)
     result["hydrationCandidates"]["path"] = args.hydration_candidates.as_posix()
     result["hydrationCandidates"]["sha256"] = sha256(args.hydration_candidates)
     result["groundTruth"] = {"path": args.ground_truth.as_posix(), "sha256": sha256(args.ground_truth)}

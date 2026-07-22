@@ -43,9 +43,7 @@
     {
       "taskId": "dgt-dev-06",
       "arm": "fixed",
-      "evidence": [
-        {"anchorId": "dwh-layout-only", "sourceVersion": "drawio-workflow-handbook:v1", "page": 2, "text": "纯布局操作，例如把已有节点改成两列，不需要重新检索。"}
-      ]
+      "evidence": []
     }
   ]
 }

@@ -183,9 +183,11 @@ class ControlledPdfDenseRecallLiveTest {
     @Test
     void drawioGenerationCasesShouldUseTheFrozenDevelopmentChartbook() throws Exception {
         List<ResearchCase> tasks = drawioGenerationCases(researchRoot());
+        Set<String> noRetrievalTasks = drawioGenerationNoRetrievalTaskIds(researchRoot());
 
-        assertEquals(6, tasks.size());
+        assertEquals(5, tasks.size());
         assertTrue(tasks.stream().allMatch(value -> "development".equals(value.split())));
+        assertEquals(Set.of("dgt-dev-06"), noRetrievalTasks);
         assertTrue(tasks.stream().allMatch(value -> value.mountedSourceVersions().equals(List.of(
                 "drawio-agent-architecture:v1", "drawio-planning-workshop-scan:v1",
                 "drawio-workflow-handbook:v1"))));
@@ -369,7 +371,7 @@ class ControlledPdfDenseRecallLiveTest {
                 apiKey, indexHost, "multilingual-e5-large", 1024, JSON);
         ExperimentResult result = runRetrievalExperiment("drawiohydration", client, namespace, projections,
                 drawioGenerationCases(root), anchorById, chunkMode(), null, "none");
-        writeTaskHydrationTrace(root, result, anchorById, Path.of(output));
+        writeTaskHydrationTrace(root, result, anchorById, drawioGenerationNoRetrievalTaskIds(root), Path.of(output));
     }
 
     @Test
@@ -622,7 +624,8 @@ class ControlledPdfDenseRecallLiveTest {
 
     /** Serialises only retrieved material; task assertions and required anchors are never consulted here. */
     private void writeTaskHydrationTrace(Path root, ExperimentResult result,
-                                         Map<String, ResearchAnchor> anchors, Path output) throws Exception {
+                                         Map<String, ResearchAnchor> anchors, Set<String> noRetrievalTasks,
+                                         Path output) throws Exception {
         Path lock = root.resolve("fixtures/generated/corpus-lock.json");
         String commit = requiredEnvironment("MATERIAL_RAG_COMMIT_SHA");
         if (!commit.matches("[0-9a-f]{7,64}")) {
@@ -643,6 +646,7 @@ class ControlledPdfDenseRecallLiveTest {
             }
             tasks.add(Map.of("taskId", caseResult.caseId(), "candidates", candidates));
         }
+        noRetrievalTasks.stream().sorted().forEach(taskId -> tasks.add(Map.of("taskId", taskId, "candidates", List.of())));
         Map<String, Object> trace = new LinkedHashMap<>();
         trace.put("schemaVersion", "material-rag-drawio-task-hydration-candidates-v1");
         trace.put("retrievalRun", Map.of("runId", result.runId(), "gitCommit", commit,
@@ -651,6 +655,7 @@ class ControlledPdfDenseRecallLiveTest {
         Files.createDirectories(output.toAbsolutePath().normalize().getParent());
         JSON.writerWithDefaultPrettyPrinter().writeValue(output.toFile(), trace);
     }
+
 
     /** Exports every retrieved chunk; a known anchor changes only its citation label, never inclusion. */
     private List<Map<String, Object>> hydratedEvidence(Path root, CandidateResult candidate,
@@ -1360,9 +1365,13 @@ class ControlledPdfDenseRecallLiveTest {
         if (mounted.isEmpty()) {
             throw new IllegalArgumentException("draw.io generation fixture has no Development chartbook");
         }
+        Set<String> noRetrieval = drawioGenerationNoRetrievalTaskIds(root);
         List<ResearchCase> result = new ArrayList<>();
         for (JsonNode task : fixture.path("tasks")) {
             if (!"development".equals(task.path("split").asText())) {
+                continue;
+            }
+            if (noRetrieval.contains(task.path("taskId").asText())) {
                 continue;
             }
             result.add(new ResearchCase(task.path("taskId").asText(), "drawio_generation",
@@ -1371,6 +1380,23 @@ class ControlledPdfDenseRecallLiveTest {
         }
         return List.copyOf(result);
     }
+
+    /** Keeps explicitly structural-only tasks out of retrieval while preserving their paired empty contexts. */
+    private Set<String> drawioGenerationNoRetrievalTaskIds(Path root) throws Exception {
+        JsonNode fixture = JSON.readTree(root.resolve("fixtures/drawio-generation-tasks-v2.json").toFile());
+        Set<String> developmentIds = new HashSet<>();
+        for (JsonNode task : fixture.path("tasks")) {
+            if ("development".equals(task.path("split").asText())) {
+                developmentIds.add(task.path("taskId").asText());
+            }
+        }
+        Set<String> noRetrieval = Set.copyOf(stringList(fixture, "developmentNoRetrievalTaskIds"));
+        if (!developmentIds.containsAll(noRetrieval)) {
+            throw new IllegalArgumentException("no-retrieval task is not in the Development fixture");
+        }
+        return noRetrieval;
+    }
+
 
     /** Keeps promotion metrics tied to draw.io agent documents without crossing frozen families. */
     private List<ResearchCase> drawioCoreCases(Path root, String split) throws Exception {

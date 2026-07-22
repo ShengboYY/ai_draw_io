@@ -137,7 +137,30 @@ class PairedHydrationExportTest(unittest.TestCase):
                  "tasks": [{"taskId": "a", "candidates": [candidate("a1", "one:v1", "anchor-a", 1)]}]}
         with self.assertRaisesRegex(ValueError, "missing required visual/OCR artifact"):
             MODULE.export(trace, [task("a", "one:v1", "anchor-a")], "development", 1, 0.0,
-                          Path.cwd(), candidate_pool_size=1, artifact_task_ids={"a"})
+                              Path.cwd(), candidate_pool_size=1, artifact_task_ids={"a"})
+
+    def test_exports_an_explicit_no_retrieval_task_without_fabricated_candidates(self):
+        trace = {"schemaVersion": "material-rag-drawio-task-hydration-candidates-v1",
+                 "retrievalRun": {"runId": "r", "gitCommit": "c", "corpusLockSha256": "l"},
+                 "tasks": [{"taskId": "a", "candidates": []}]}
+        result = MODULE.export(trace, [task("a", "one:v1", "anchor-a")], "development", 1, 0.0,
+                               Path.cwd(), candidate_pool_size=1, no_retrieval_task_ids={"a"})
+        self.assertEqual([], result["contexts"][0]["evidence"])
+        self.assertFalse(result["taskSummaries"][0]["changed"])
+
+    def test_excludes_no_retrieval_tasks_from_the_contrast_denominator(self):
+        trace = {"schemaVersion": "material-rag-drawio-task-hydration-candidates-v1",
+                 "retrievalRun": {"runId": "r", "gitCommit": "c", "corpusLockSha256": "l"},
+                 "tasks": [
+                     {"taskId": "a", "candidates": [candidate("a1", "one:v1", "anchor-a", 1),
+                         candidate("a2", "one:v1", "anchor-a", 2), candidate("a3", "shared:v1", "anchor-a", 3)]},
+                     {"taskId": "b", "candidates": []},
+                 ]}
+        result = MODULE.export(trace, [task("a", "one:v1", "anchor-a"), task("b", "two:v1", "anchor-b")],
+                               "development", 2, 0.2, Path.cwd(), candidate_pool_size=3,
+                               no_retrieval_task_ids={"b"})
+        self.assertEqual(1, result["retrievalRequiredTaskCount"])
+        self.assertEqual(1.0, result["changedTaskRate"])
 
     def test_requires_the_multimodal_artifact_to_match_the_task_source(self):
         with tempfile.TemporaryDirectory() as temporary:
