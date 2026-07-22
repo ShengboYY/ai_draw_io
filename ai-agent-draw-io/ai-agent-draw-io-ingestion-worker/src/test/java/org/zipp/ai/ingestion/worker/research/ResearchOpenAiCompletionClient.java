@@ -51,7 +51,8 @@ final class ResearchOpenAiCompletionClient implements ResearchLlmReranker.Comple
             }
             JsonNode payload = json.readTree(response.body());
             String content = payload.path("choices").path(0).path("message").path("content").asText();
-            if (content.isBlank()) throw new IllegalStateException("Reranker completion has no message content");
+            // A successful provider response may still omit final content after its reasoning budget.
+            // The reranker records that as an invalid JSON result and safely keeps dense order.
             JsonNode usage = payload.path("usage");
             return new ResearchLlmReranker.Completion(content, elapsedMillis,
                     usage.path("prompt_tokens").asInt(0), usage.path("completion_tokens").asInt(0));
