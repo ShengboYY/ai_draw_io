@@ -102,7 +102,12 @@
     "minimumDuplicateReplacementRate": 0.02,
     "maximumRecallAt10And40Loss": 0.02,
     "rejectOnSignificantMrrOrMajorSliceRegression": true,
-    "sourceDiversityStatus": "not measurable: every authored case and evaluated candidate pool has one source version"
+    "developmentActivationRate": 0.027177869449162825,
+    "validationActivationRate": 0.0025789813023855577,
+    "qualityDelta": "all aggregate and slice deltas were 0.000 on Development and Validation",
+    "firstCandidateDecision": "retain ranked-raw-v1; Development activation 2.72% did not replicate on Validation at 0.26%",
+    "sourceDiversityStatus": "not measurable: every authored case and evaluated candidate pool has one source version",
+    "nextCandidate": "multi-source chartbook-mounted fixture and preregistered source-diversity policy"
   },
   "preE0": {
     "minimumReviewedCasesBeforeComparison": 340,
@@ -127,6 +132,8 @@
     "currentNext": "E4_DEDUPLICATION",
     "e2Decision": "retain flat-leaf-v1; parent-context-500-v1 recallAt10 delta 0.0000 did not meet +0.02 and mrrAt10 delta -0.0618 regressed",
     "e3FirstCandidateDecision": "retain dense-v1; projection hybrid recallAt10 delta 0.0065 did not meet +0.02",
-    "e3SecondCandidateDecision": "retain original-v1; evidence-focused recallAt10 delta -0.0194 and mrrAt10 delta -0.0488 regressed"
+    "e3SecondCandidateDecision": "retain original-v1; evidence-focused recallAt10 delta -0.0194 and mrrAt10 delta -0.0488 regressed",
+    "e4FirstCandidateDecision": "retain ranked-raw-v1; evidence-dedup activation 2.72% on Development but 0.26% on Validation",
+    "e4Status": "in progress: multi-source chartbook-mounted diversity fixture required"
   }
 }

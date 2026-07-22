@@ -686,21 +686,26 @@ class ControlledPdfDenseRecallLiveTest {
                     .collect(java.util.stream.Collectors.toMap(
                             value -> value.chunk().chunkId(), value -> value));
             List<CandidateResult> denseCandidates = candidateResults(denseMatches, indexedByVectorId);
+            // Preserve the exact dedup input so the paired postprocess comparison is replayable.
+            List<CandidateResult> densePoolCandidates = candidateResults(densePool, indexedByVectorId);
             List<CandidateResult> lexicalCandidates = candidateResults(lexicalChunkIds.stream()
                     .map(indexedByChunkId::get).map(IndexedChunk::vectorId).toList(), indexedByVectorId);
             CaseRank originalRank = caseRank(researchCase, denseMatches, requiredGoldVectorIds,
-                    fixedGoldChunkIdsByAnchor, indexedByVectorId, denseCandidates, lexicalCandidates);
+                    fixedGoldChunkIdsByAnchor, indexedByVectorId, denseCandidates, lexicalCandidates,
+                    densePoolCandidates);
             originalRanks.add(originalRank);
             List<String> hybridMatches = hybridChunkIds.stream().map(indexedByChunkId::get)
                     .map(IndexedChunk::vectorId).toList();
             ranksByMode.get(RetrievalMode.HYBRID_PROJECTION_RRF).add(caseRank(
                     researchCase, hybridMatches, requiredGoldVectorIds, fixedGoldChunkIdsByAnchor,
-                    indexedByVectorId, denseCandidates, lexicalCandidates));
+                    indexedByVectorId, denseCandidates, lexicalCandidates, densePoolCandidates));
             List<CandidateResult> rewrittenCandidates = candidateResults(
                     rewrittenMatches, indexedByVectorId);
+            List<CandidateResult> rewrittenPoolCandidates = candidateResults(
+                    rewrittenPool, indexedByVectorId);
             ranksByQueryMode.get(QueryMode.EVIDENCE_FOCUSED).add(caseRank(
                     researchCase, rewrittenMatches, requiredGoldVectorIds, fixedGoldChunkIdsByAnchor,
-                    indexedByVectorId, rewrittenCandidates, List.of()));
+                    indexedByVectorId, rewrittenCandidates, List.of(), rewrittenPoolCandidates));
             List<String> deduplicatedMatches = ResearchEvidenceDeduplicator.deduplicate(
                     densePool.stream().map(indexedByVectorId::get).map(value ->
                             new ResearchEvidenceDeduplicator.Candidate(
@@ -710,7 +715,7 @@ class ControlledPdfDenseRecallLiveTest {
                                     .collect(java.util.stream.Collectors.toUnmodifiableSet()))).toList(), 40);
             ranksByPostprocessMode.get(PostprocessMode.EVIDENCE_DEDUP).add(caseRank(
                     researchCase, deduplicatedMatches, requiredGoldVectorIds, fixedGoldChunkIdsByAnchor,
-                    indexedByVectorId, denseCandidates, List.of()));
+                    indexedByVectorId, denseCandidates, List.of(), densePoolCandidates));
             if ((caseIndex + 1) % 10 == 0 || caseIndex + 1 == cases.size()) {
                 System.out.printf("Research cases evaluated: %d/%d%n", caseIndex + 1, cases.size());
             }
@@ -742,12 +747,13 @@ class ControlledPdfDenseRecallLiveTest {
                               Map<String, List<String>> fixedGoldChunkIdsByAnchor,
                               Map<String, IndexedChunk> indexedByVectorId,
                               List<CandidateResult> denseCandidates,
-                              List<CandidateResult> lexicalCandidates) {
+                              List<CandidateResult> lexicalCandidates,
+                              List<CandidateResult> retrievalPoolCandidates) {
         return new CaseRank(researchCase, completeEvidenceRank(
                 matches, researchCase.requiredEvidenceGroups(), requiredGoldVectorIds),
                 isMappable(researchCase.requiredEvidenceGroups(), requiredGoldVectorIds),
                 Map.copyOf(fixedGoldChunkIdsByAnchor), candidateResults(matches, indexedByVectorId),
-                denseCandidates, lexicalCandidates);
+                denseCandidates, lexicalCandidates, retrievalPoolCandidates);
     }
 
     private DenseMetrics summarizeMetrics(List<CaseRank> ranks) {
@@ -775,7 +781,7 @@ class ControlledPdfDenseRecallLiveTest {
                 value.researchCase().primaryCategory(), value.researchCase().language(),
                 value.researchCase().goldAnchorIds(), value.fixedGoldChunkIdsByAnchor(),
                 value.mappable(), value.candidates(), value.denseCandidates(),
-                value.lexicalCandidates())).toList();
+                value.lexicalCandidates(), value.retrievalPoolCandidates())).toList();
         return new DenseMetrics((double) mappedRanks.size() / ranks.size(), mappedRanks.size(),
                 total.recallAt1(), total.recallAt5(), total.recallAt10(), total.recallAt40(),
                 total.mrrAt10(), conditional, misses, List.copyOf(slices), weak, caseResults);
@@ -1200,7 +1206,8 @@ class ControlledPdfDenseRecallLiveTest {
                             Map<String, List<String>> fixedGoldChunkIdsByAnchor,
                             List<CandidateResult> candidates,
                             List<CandidateResult> denseCandidates,
-                            List<CandidateResult> lexicalCandidates) { }
+                            List<CandidateResult> lexicalCandidates,
+                            List<CandidateResult> retrievalPoolCandidates) { }
 
     private record CandidateResult(int rank, String vectorId, String sourceVersion, String chunkId) { }
 
@@ -1208,7 +1215,8 @@ class ControlledPdfDenseRecallLiveTest {
                               String language, List<String> goldAnchorIds,
                               Map<String, List<String>> fixedGoldChunkIdsByAnchor, boolean mappable,
                               List<CandidateResult> candidates, List<CandidateResult> denseCandidates,
-                              List<CandidateResult> lexicalCandidates) { }
+                              List<CandidateResult> lexicalCandidates,
+                              List<CandidateResult> retrievalPoolCandidates) { }
 
     private record SliceMetric(String label, int count, double recallAt1, double recallAt5,
                                double recallAt10, double recallAt40, double mrrAt10) { }

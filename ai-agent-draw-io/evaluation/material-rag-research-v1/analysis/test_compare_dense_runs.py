@@ -15,6 +15,8 @@ def run(mode: str, ranks: list[int]) -> dict:
               "fixedGoldChunkIdsByAnchor": {"a": ["chunk"]},
               "mappable": True, "candidates": [{"rank": 1, "vectorId": "v",
               "sourceVersion": "source:v1", "chunkId": "chunk"}],
+              "retrievalPoolCandidates": [{"rank": 1, "vectorId": "v",
+              "sourceVersion": "source:v1", "chunkId": "chunk"}],
               "denseCandidates": [{"rank": 1, "vectorId": "v",
               "sourceVersion": "source:v1", "chunkId": "chunk"}],
               "lexicalCandidates": [{"rank": 1, "vectorId": "v",
@@ -137,6 +139,27 @@ class CompareDenseRunsTest(unittest.TestCase):
         self.assertEqual("ranked-raw-v1", result["experimentVariable"]["baseline"])
         self.assertEqual("evidence-dedup-v1", result["experimentVariable"]["candidate"])
 
+    def test_postprocess_experiment_reports_candidate_activation(self) -> None:
+        raw = run("e1-v5", [1])
+        deduplicated = run("e1-v5", [1])
+        deduplicated["postprocessMode"] = "evidence-dedup-v1"
+        raw["metrics"]["caseResults"][0]["candidates"] = [
+            {"rank": rank, "vectorId": f"v-{chunk}", "sourceVersion": "source:v1",
+             "chunkId": chunk}
+            for rank, chunk in enumerate(("a", "b", "c"), start=1)
+        ]
+        deduplicated["metrics"]["caseResults"][0]["candidates"] = [
+            {"rank": rank, "vectorId": f"v-{chunk}", "sourceVersion": "source:v1",
+             "chunkId": chunk}
+            for rank, chunk in enumerate(("a", "c", "d"), start=1)
+        ]
+
+        result = compare(raw, deduplicated, "postprocessMode")
+
+        self.assertEqual(1, result["postprocessActivation"]["changedCases"])
+        self.assertEqual(1, result["postprocessActivation"]["removedBaselinePositions"])
+        self.assertAlmostEqual(1 / 3, result["postprocessActivation"]["replacementRate"])
+
     def test_postprocess_experiment_rejects_query_drift(self) -> None:
         raw = run("e1-v5", [1])
         deduplicated = run("e1-v5", [1])
@@ -144,6 +167,16 @@ class CompareDenseRunsTest(unittest.TestCase):
         deduplicated["queryMode"] = "evidence-focused-v1"
 
         with self.assertRaisesRegex(ValueError, "queryMode"):
+            compare(raw, deduplicated, "postprocessMode")
+
+    def test_postprocess_experiment_rejects_retrieval_pool_drift(self) -> None:
+        raw = run("e1-v5", [1])
+        deduplicated = run("e1-v5", [1])
+        deduplicated["postprocessMode"] = "evidence-dedup-v1"
+        deduplicated["metrics"]["caseResults"][0]["retrievalPoolCandidates"][0][
+            "chunkId"] = "other"
+
+        with self.assertRaisesRegex(ValueError, "retrievalPoolCandidates drift"):
             compare(raw, deduplicated, "postprocessMode")
 
     def test_missing_raw_candidate_sequence_is_rejected(self) -> None:

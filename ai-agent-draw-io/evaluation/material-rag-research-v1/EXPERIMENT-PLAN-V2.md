@@ -231,8 +231,8 @@ Pre-E0 已完成：450 个核心案例、独立复核、三分区和语料 prove
 Validation 配对复核与守门 fixture-contract 也已完成；E2 parent-context-500 的 Development
 Recall@10 与 flat 持平,MRR@10 低 0.062,未晋级。当前顺序：
 
-1. E3 的 dense + lexical hybrid 与 evidence-focused query rewrite 均已完成但未晋级；下一步进入 E4，
-   比较当前 top 40 与一个预先定义的去重/来源多样性方案。
+1. E4a 单资料 `evidence-dedup-v1` 已完成：Development 生效率 2.72% 且质量持平，Validation
+   生效率仅 0.26%，不晋级。E4 继续补多资料图册挂载 fixture，并预注册来源多样性指标。
 2. 后续 E9 必须执行在线授权、版本、故障注入与恢复；当前 fixture-contract 通过不能替代它。
 3. Holdout 保持密封，直到基线与最终候选均冻结后只比较一次。
 
@@ -279,3 +279,10 @@ source-backed Evidence ID 集合 Jaccard 至少 0.8 的候选视为重复族，�
 非重复候选回填到 40。E1 canonical、flat chunk、模型、tokenizer 与 source filter 不变，不启用 lexical、
 rewrite 或 reranker。只有当 top-40 被替换的重复位置至少占 2%，Recall@10/40 的下降均不超过 0.02、MRR
 无显著下降且没有样本量至少 20 的主要切片显著退化时，才进入 Validation。
+
+E4a 结果：Development 的 46/155 个 case 共去掉 112/4,121=2.72% 的基线位置，五个总体质量指标与
+所有切片均持平，因此按规则打开 Validation。Validation 的质量仍完全持平，但只有 4/73 个 case、
+4/1,551=0.26% 的位置变化，且都在 top 10 之外；去重的实际作用没有复现，故不晋级并保留
+`ranked-raw-v1`。这不完成 E4 的来源多样性目标。下一候选必须先构造多资料、图册挂载范围内的 fixture，
+覆盖重复证据、互补证据、版本冲突和未授权干扰项；在运行前冻结来源覆盖率、重复占位率、gold-source
+recall 与授权泄漏等指标。Holdout 继续密封。

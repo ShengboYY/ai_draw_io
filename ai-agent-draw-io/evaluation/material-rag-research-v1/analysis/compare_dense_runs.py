@@ -68,6 +68,35 @@ def slices(case: dict) -> list[str]:
     ]
 
 
+def postprocess_activation(e0_cases: dict[str, dict], e1_cases: dict[str, dict],
+                           case_ids: list[str]) -> dict:
+    """Measure how often postprocessing removes a baseline candidate position."""
+    changed_case_ids = []
+    baseline_positions = 0
+    candidate_positions = 0
+    removed_positions = 0
+    top10_removed_positions = 0
+    for case_id in case_ids:
+        baseline = [candidate["chunkId"] for candidate in e0_cases[case_id]["candidates"]]
+        candidate = {item["chunkId"] for item in e1_cases[case_id]["candidates"]}
+        removed = [chunk_id for chunk_id in baseline if chunk_id not in candidate]
+        if removed:
+            changed_case_ids.append(case_id)
+        baseline_positions += len(baseline)
+        candidate_positions += len(e1_cases[case_id]["candidates"])
+        removed_positions += len(removed)
+        top10_removed_positions += sum(chunk_id not in candidate for chunk_id in baseline[:10])
+    return {
+        "changedCases": len(changed_case_ids),
+        "changedCaseIds": changed_case_ids,
+        "baselinePositions": baseline_positions,
+        "candidatePositions": candidate_positions,
+        "removedBaselinePositions": removed_positions,
+        "replacementRate": removed_positions / baseline_positions if baseline_positions else 0.0,
+        "top10RemovedBaselinePositions": top10_removed_positions,
+    }
+
+
 def compare(e0: dict, e1: dict, variable_field: str = "canonicalMode") -> dict:
     """Compare paired case ranks after rejecting any experiment-control drift."""
     supported_variables = {"canonicalMode", "chunkMode", "retrievalMode", "queryMode",
@@ -117,6 +146,17 @@ def compare(e0: dict, e1: dict, variable_field: str = "canonicalMode") -> dict:
                 after_chunks = [candidate.get("chunkId") for candidate in after]
                 if before_chunks != after_chunks:
                     raise ValueError(f"{lane} drift for {case_id}")
+        if variable_field == "postprocessMode":
+            before = e0_cases[case_id].get("retrievalPoolCandidates")
+            after = e1_cases[case_id].get("retrievalPoolCandidates")
+            if not isinstance(before, list) or not isinstance(after, list):
+                raise ValueError(f"Missing retrievalPoolCandidates for postprocess experiment: {case_id}")
+            if len(before) > e0["retrievalPoolLimit"] or len(after) > e0["retrievalPoolLimit"]:
+                raise ValueError(f"Invalid retrievalPoolCandidates size for {case_id}")
+            before_chunks = [candidate.get("chunkId") for candidate in before]
+            after_chunks = [candidate.get("chunkId") for candidate in after]
+            if before_chunks != after_chunks:
+                raise ValueError(f"retrievalPoolCandidates drift for {case_id}")
 
     aggregates = {}
     for metric_index, metric in enumerate(METRICS):
@@ -165,7 +205,7 @@ def compare(e0: dict, e1: dict, variable_field: str = "canonicalMode") -> dict:
             "e1Ci95": interval(e1_values, metric, 2026072410 + metric_index),
         }
 
-    return {
+    result = {
         "schemaVersion": "material-rag-dense-paired-comparison-v1",
         "status": "comparable",
         "scope": "answerable-dense-eligible-text-table-and-multi-evidence",
@@ -198,6 +238,10 @@ def compare(e0: dict, e1: dict, variable_field: str = "canonicalMode") -> dict:
         "aggregates": aggregates,
         "slices": slice_results,
     }
+    if variable_field == "postprocessMode":
+        # Activation is a separate gate from relevance quality for deduplication experiments.
+        result["postprocessActivation"] = postprocess_activation(e0_cases, e1_cases, case_ids)
+    return result
 
 
 def attach_corpus_lock_snapshot(result: dict, snapshot: Path) -> None:

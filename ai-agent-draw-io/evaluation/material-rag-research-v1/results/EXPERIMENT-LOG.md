@@ -167,6 +167,25 @@
   均无合格提升,按顺序进入 E4 去重/来源多样性。未来 rewrite 只能作为另行预注册的意图门控方案。
 - 详见 [2026-07-22-e3-evidence-focused-query-vs-original.md](2026-07-22-e3-evidence-focused-query-vs-original.md)。
 
+### E4a — ranked raw vs evidence deduplication · 2026-07-22 · ❌不晋级，E4 继续
+
+- **假设**:同一资料内重复或高度重叠的证据块会浪费 top 40；按 retrieval-text SHA 或 source-backed
+  Evidence-ID Jaccard≥0.8 合并重复族、优先保留可引用块，可在不损失召回的前提下释放候选位置。
+- **控制变量**:提交 `5389e846`、E1 canonical、flat leaf、original query、dense-only、533 chunks、
+  固定 gold child；两组共享同一次 Pinecone top-80，唯一变量是取原始前 40 或执行
+  `evidence-dedup-v1` 后处理。Holdout 未打开。
+- **Development**:46/155 case 发生变化，去掉 112/4,121=**2.72%** 的基线位置，达到预注册 2%
+  生效门槛；R@1/5/10/40 与 MRR 的配对差值均为 **0.000**，因此进入 Validation。
+- **Validation**:质量指标与所有切片仍全部持平，但只有 4/73 case 发生变化，去掉
+  4/1,551=**0.26%**，且都在 top 10 之外；Development 的去重发生率没有复现。
+- **边界**:当前所有 case 的 allowed source 与实际候选池都只有一个 source version，本实验只验证
+  单资料内部去重，**没有验证跨资料来源多样性**。两次完成运行均删除 533 个临时向量；一次 Validation
+  DNS 失败发生在 upsert/计分之前，不计入结果。
+- **决策**:**不晋级 `evidence-dedup-v1`**，保留 `ranked-raw-v1`。E4 尚未完成；下一步先构造紧扣
+  draw.io 图册挂载场景的多资料 fixture，覆盖重叠、互补、已取代与未授权资料，再预注册并评估
+  source diversity。Holdout 继续密封。
+- 详见 [2026-07-22-e4-evidence-dedup-vs-ranked-raw.md](2026-07-22-e4-evidence-dedup-vs-ranked-raw.md)。
+
 ---
 
 ## 当前状态与下一步
@@ -174,8 +193,9 @@
 - 已完成:E0 基线 → E1 表示层改进 → 核心集升级并冻结到 450 → Development 与 Validation
   配对重跑 → 守门最低数补齐并执行 fixture-contract。Validation 证明 E1 提升真实,也证明
   dense-only 尚未达门槛。
-- **下一步**:E3 hybrid 与 query rewrite 均未晋级,按预注册顺序进入 E4 去重/来源多样性。
-  original query、dense、flat chunk 保持冻结,Holdout 与 Validation 继续密封。
+- **下一步**:E4a 单资料去重在 Development 生效 2.72%，但 Validation 仅 0.26%，不晋级。
+  E4 继续：补图册挂载的多资料 fixture 与 source-diversity 指标；original query、dense、flat chunk
+  和 ranked-raw 保持冻结，Holdout 继续密封。
 
 ## 开放问题 / 待办
 
@@ -186,6 +206,8 @@
 - [x] E2 flat vs parent-context-500——R@10 +0.000、MRR -0.062,不晋级,转 E3。
 - [x] E3 projection hybrid——R@10 +0.006、R@40 +0.000,exact lookup 退化,不晋级。
 - [x] E3 evidence-focused query——R@10 -0.019、MRR -0.049,不晋级,转 E4。
+- [x] E4a 单资料 evidence dedup——质量持平，但生效率 2.72%→0.26% 未在 Validation 复现，不晋级。
+- [ ] E4b 多资料图册挂载 fixture 与来源多样性评估——当前单来源 case 无法回答。
 - [x] 英文切片小样本噪声——450 上 en(n=47)R@10 0.894,与其他语言接近,非真问题。
 - [ ] E6/E7(上下文选择、生成引用)尚未开跑。
 
