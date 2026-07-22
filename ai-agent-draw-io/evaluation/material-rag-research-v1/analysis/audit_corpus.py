@@ -112,9 +112,11 @@ def evidence_shape_errors(case: dict) -> list[str]:
 
 
 def generation_task_errors(tasks: list[dict], anchors: dict[str, dict],
-                           known_source_versions: set[str]) -> list[dict]:
+                           known_source_versions: set[str],
+                           no_retrieval_task_ids: set[str] | None = None) -> list[dict]:
     """Keep the generation suite tied to real, split-safe evidence before it is run."""
     errors: list[dict] = []
+    no_retrieval_task_ids = no_retrieval_task_ids or set()
     seen_task_ids: set[str] = set()
     for task in tasks:
         task_id = task.get("taskId", "unknown")
@@ -171,6 +173,15 @@ def generation_task_errors(tasks: list[dict], anchors: dict[str, dict],
                        or not str(claim.get("description", "")).strip()
                        or not isinstance(claim.get("requiresCitation"), bool) for claim in claims):
             errors.append({"taskId": task_id, "error": "invalid frozen claim universe"})
+        if task_id in no_retrieval_task_ids:
+            citations = task.get("citationAssertions", {})
+            if task.get("type") != "layout_only_edit" or required or cited \
+                    or citations.get("minimumCitations") != 0 \
+                    or any(claim.get("requiresCitation") for claim in claims):
+                errors.append({"taskId": task_id, "error": "invalid no-retrieval task contract"})
+    known_task_ids = {task.get("taskId") for task in tasks}
+    for task_id in no_retrieval_task_ids - known_task_ids:
+        errors.append({"taskId": task_id, "error": "unknown no-retrieval task"})
     return errors
 
 
@@ -277,7 +288,9 @@ def audit(root: Path, review_ledger: Path | None) -> tuple[dict, dict]:
     missing_answers: list[str] = []
     missing_abstention_conditions: list[str] = []
     family_splits: defaultdict[str, set[str]] = defaultdict(set)
-    task_errors = generation_task_errors(generation_tasks, anchor_by_id, known_source_versions)
+    no_retrieval_task_ids = set(generation_fixture.get("developmentNoRetrievalTaskIds", []))
+    task_errors = generation_task_errors(generation_tasks, anchor_by_id, known_source_versions,
+                                         no_retrieval_task_ids)
     chartbook_sources = set(generation_fixture.get("developmentChartbookSourceVersions", []))
     if not chartbook_sources or not chartbook_sources.issubset(known_source_versions):
         task_errors.append({"taskId": "development-chartbook", "error": "invalid mounted source versions"})

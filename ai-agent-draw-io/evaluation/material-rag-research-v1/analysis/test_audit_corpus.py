@@ -128,6 +128,20 @@ class GenerationTaskAuditTest(unittest.TestCase):
 
         self.assertEqual("citation anchors differ from required anchors", errors[0]["error"])
 
+    def test_rejects_a_no_retrieval_task_with_material_citation_requirements(self) -> None:
+        task = {
+            "taskId": "task-1", "split": "development", "type": "layout_only_edit",
+            "sourceVersion": "source-a:v1", "requiredAnchors": ["anchor-a"],
+            "citationAssertions": {"minimumCitations": 1, "mustCiteAnchors": ["anchor-a"]},
+            "claimAssertions": {"requiredClaims": [{"claimId": "claim-1", "description": "Claim",
+                                                       "requiresCitation": True}]},
+        }
+        anchors = {"anchor-a": {"source": "source-a", "version": "v1", "split": "development"}}
+
+        errors = generation_task_errors([task], anchors, {"source-a:v1"}, {"task-1"})
+
+        self.assertIn("invalid no-retrieval task contract", [error["error"] for error in errors])
+
     def test_rejects_context_with_an_anchor_outside_the_task(self) -> None:
         tasks = {"task-1": {"taskId": "task-1", "split": "development",
                             "sourceVersion": "source-a:v1", "requiredAnchors": ["anchor-a"]}}
