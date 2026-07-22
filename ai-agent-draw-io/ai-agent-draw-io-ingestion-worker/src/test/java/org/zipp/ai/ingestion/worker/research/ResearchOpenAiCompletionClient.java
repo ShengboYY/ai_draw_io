@@ -18,12 +18,14 @@ final class ResearchOpenAiCompletionClient implements ResearchLlmReranker.Comple
     private final String apiKey;
     private final ObjectMapper json;
     private final HttpClient http;
+    private final boolean disableThinking;
 
     ResearchOpenAiCompletionClient(String baseUrl, String completionsPath, String apiKey,
-                                   ObjectMapper json) {
+                                   ObjectMapper json, boolean disableThinking) {
         this.endpoint = endpoint(baseUrl, completionsPath);
         this.apiKey = required(apiKey, "MATERIAL_RAG_RERANKER_API_KEY");
         this.json = json;
+        this.disableThinking = disableThinking;
         this.http = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(30)).build();
     }
 
@@ -32,9 +34,10 @@ final class ResearchOpenAiCompletionClient implements ResearchLlmReranker.Comple
             throws InterruptedException {
         ObjectNode body = json.createObjectNode();
         body.put("model", required(model, "MATERIAL_RAG_RERANKER_MODEL"));
-        body.put("temperature", 0);
-        body.put("max_tokens", 512);
-        body.putObject("thinking").put("type", "disabled");
+        String temperature = System.getenv().getOrDefault("MATERIAL_RAG_RERANKER_TEMPERATURE", "0");
+        if (!temperature.isBlank()) body.put("temperature", Double.parseDouble(temperature));
+        body.put(System.getenv().getOrDefault("MATERIAL_RAG_RERANKER_TOKEN_FIELD", "max_tokens"), 512);
+        if (disableThinking) body.putObject("thinking").put("type", "disabled");
         body.putArray("messages")
                 .addObject().put("role", "user").put("content", request);
         HttpRequest httpRequest = HttpRequest.newBuilder(endpoint)

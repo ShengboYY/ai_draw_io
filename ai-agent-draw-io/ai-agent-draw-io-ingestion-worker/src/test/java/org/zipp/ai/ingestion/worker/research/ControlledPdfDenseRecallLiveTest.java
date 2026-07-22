@@ -695,7 +695,9 @@ class ControlledPdfDenseRecallLiveTest {
         return new ResearchLlmReranker(JSON, new ResearchOpenAiCompletionClient(
                 requiredEnvironment("MATERIAL_RAG_RERANKER_BASE_URL"),
                 requiredEnvironment("MATERIAL_RAG_RERANKER_COMPLETIONS_PATH"),
-                requiredEnvironment("MATERIAL_RAG_RERANKER_API_KEY"), JSON));
+                requiredEnvironment("MATERIAL_RAG_RERANKER_API_KEY"), JSON,
+                Boolean.parseBoolean(System.getenv().getOrDefault(
+                        "MATERIAL_RAG_RERANKER_DISABLE_THINKING", "false"))));
     }
 
     private String requiredEnvironment(String name) {
