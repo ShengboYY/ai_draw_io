@@ -402,7 +402,7 @@ def main() -> None:
     parser.add_argument("--corpus-lock-snapshot", type=Path)
     parser.add_argument("--variable-field",
                         choices=("canonicalMode", "chunkMode", "retrievalMode", "queryMode",
-                                 "postprocessMode"),
+                                 "postprocessMode", "rerankerMode"),
                         default="canonicalMode")
     args = parser.parse_args()
     e0 = json.loads(args.e0.read_text(encoding="utf-8"))
