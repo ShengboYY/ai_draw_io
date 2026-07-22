@@ -70,12 +70,14 @@ def slices(case: dict) -> list[str]:
 
 def compare(e0: dict, e1: dict, variable_field: str = "canonicalMode") -> dict:
     """Compare paired case ranks after rejecting any experiment-control drift."""
-    supported_variables = {"canonicalMode", "chunkMode", "retrievalMode", "queryMode"}
+    supported_variables = {"canonicalMode", "chunkMode", "retrievalMode", "queryMode",
+                           "postprocessMode"}
     if variable_field not in supported_variables:
         raise ValueError(f"Unsupported experiment variable: {variable_field}")
     fixed_fields = ["gitCommit", "corpusLockSha256", "split", "embeddingModel",
                     "tokenizerFingerprint", "candidateLimit", "canonicalMode", "chunkMode",
                     "retrievalMode", "queryMode", "queryRewriteFingerprint",
+                    "postprocessMode", "dedupFingerprint", "retrievalPoolLimit",
                     "lexicalRankerFingerprint", "fusionFingerprint"]
     fixed_fields.remove(variable_field)
     drift = [field for field in fixed_fields if e0.get(field) != e1.get(field)]
@@ -91,7 +93,7 @@ def compare(e0: dict, e1: dict, variable_field: str = "canonicalMode") -> dict:
                       "fixedGoldChunkIdsByAnchor"):
             if e0_cases[case_id].get(field) != e1_cases[case_id].get(field):
                 raise ValueError(f"Case metadata drift for {case_id}: {field}")
-        if variable_field in {"chunkMode", "retrievalMode", "queryMode"}:
+        if variable_field in {"chunkMode", "retrievalMode", "queryMode", "postprocessMode"}:
             fixed_gold = e0_cases[case_id].get("fixedGoldChunkIdsByAnchor")
             if not isinstance(fixed_gold, dict) or set(fixed_gold) != set(
                     e0_cases[case_id]["goldAnchorIds"]):
@@ -178,6 +180,9 @@ def compare(e0: dict, e1: dict, variable_field: str = "canonicalMode") -> dict:
             "canonical": {"e0": e0["canonicalMode"], "e1": e1["canonicalMode"]},
             "retrieval": {"e0": e0.get("retrievalMode"), "e1": e1.get("retrievalMode")},
             "query": {"e0": e0.get("queryMode"), "e1": e1.get("queryMode")},
+            "postprocess": {
+                "e0": e0.get("postprocessMode"), "e1": e1.get("postprocessMode")
+            },
         },
         "chunkCounts": {"e0": e0["chunkCount"], "e1": e1["chunkCount"]},
         "mapping": {
@@ -290,7 +295,8 @@ def main() -> None:
     parser.add_argument("--markdown-out", type=Path)
     parser.add_argument("--corpus-lock-snapshot", type=Path)
     parser.add_argument("--variable-field",
-                        choices=("canonicalMode", "chunkMode", "retrievalMode", "queryMode"),
+                        choices=("canonicalMode", "chunkMode", "retrievalMode", "queryMode",
+                                 "postprocessMode"),
                         default="canonicalMode")
     args = parser.parse_args()
     e0 = json.loads(args.e0.read_text(encoding="utf-8"))

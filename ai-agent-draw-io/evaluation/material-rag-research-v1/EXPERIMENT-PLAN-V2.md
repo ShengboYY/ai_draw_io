@@ -270,3 +270,12 @@ gold、expected answer、case category 或文档语言，只检测 query 是否�
 E1 canonical、flat chunk、固定 gold child、模型、tokenizer、source filter 和候选上限均不变，不启用
 lexical/RRF、query decomposition 或 target labels。主指标仍为 Development Recall@10 配对差值；提升至少
 0.02、Recall@40 不降低且没有样本量至少 20 的主要切片显著退化，才进入 Validation。
+
+E4 的第一个候选在运行前固定为 `evidence-dedup-v1`。当前 722 个 case 的 allowed source 和 155 个
+Development dense case 的实际候选均只有一个 source version，因此本候选只回答“单来源内部去重”，不对
+来源多样性作结论；后者必须先补多资料挂载 case。两组共享 original query、同一次 passage/query embedding、
+同一次 Pinecone dense top-80 与固定 gold child。控制组取前 40；候选组把 retrieval text SHA 相同或
+source-backed Evidence ID 集合 Jaccard 至少 0.8 的候选视为重复族，优先保留可引用 chunk，并用更深的
+非重复候选回填到 40。E1 canonical、flat chunk、模型、tokenizer 与 source filter 不变，不启用 lexical、
+rewrite 或 reranker。只有当 top-40 被替换的重复位置至少占 2%，Recall@10/40 的下降均不超过 0.02、MRR
+无显著下降且没有样本量至少 20 的主要切片显著退化时，才进入 Validation。

@@ -271,6 +271,11 @@ For the E3 query-only candidate, keep retrieval at `dense-v1` and set both
 `MATERIAL_RAG_PAIRED_REWRITTEN_QUERY_RESULT_JSON`. The runner shares one passage index and writes original vs
 `evidence-focused-v1` query results. Compare them with `--variable-field queryMode`.
 
+For E4 evidence deduplication, set `MATERIAL_RAG_PAIRED_RAW_POSTPROCESS_RESULT_JSON` and
+`MATERIAL_RAG_PAIRED_DEDUP_RESULT_JSON`. Both modes share one original-query dense top-80 pool; the baseline
+uses its first 40 and `evidence-dedup-v1` suppresses duplicate Evidence families before backfilling to 40. Compare
+with `--variable-field postprocessMode`. The current single-source fixtures do not measure source diversity.
+
 Evaluate OCR output named `page-1.txt` through `page-3.txt` with:
 
 ```bash

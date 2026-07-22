@@ -25,6 +25,8 @@ def run(mode: str, ranks: list[int]) -> dict:
         "embeddingModel": "model", "tokenizerFingerprint": "tokenizer", "candidateLimit": 40,
         "canonicalMode": mode, "chunkMode": "flat-leaf-v1", "retrievalMode": "dense-v1",
         "queryMode": "original-v1", "queryRewriteFingerprint": "rewrite",
+        "postprocessMode": "ranked-raw-v1", "dedupFingerprint": "dedup",
+        "retrievalPoolLimit": 80,
         "lexicalRankerFingerprint": "lexical", "fusionFingerprint": "rrf", "chunkCount": 10,
         "metrics": {"caseResults": cases},
     }
@@ -123,6 +125,26 @@ class CompareDenseRunsTest(unittest.TestCase):
 
         with self.assertRaisesRegex(ValueError, "retrievalMode"):
             compare(original, rewritten, "queryMode")
+
+    def test_postprocess_experiment_keeps_query_and_retrieval_fixed(self) -> None:
+        raw = run("e1-v5", [5, 1])
+        deduplicated = run("e1-v5", [1, 1])
+        deduplicated["postprocessMode"] = "evidence-dedup-v1"
+
+        result = compare(raw, deduplicated, "postprocessMode")
+
+        self.assertEqual("postprocessMode", result["experimentVariable"]["field"])
+        self.assertEqual("ranked-raw-v1", result["experimentVariable"]["baseline"])
+        self.assertEqual("evidence-dedup-v1", result["experimentVariable"]["candidate"])
+
+    def test_postprocess_experiment_rejects_query_drift(self) -> None:
+        raw = run("e1-v5", [1])
+        deduplicated = run("e1-v5", [1])
+        deduplicated["postprocessMode"] = "evidence-dedup-v1"
+        deduplicated["queryMode"] = "evidence-focused-v1"
+
+        with self.assertRaisesRegex(ValueError, "queryMode"):
+            compare(raw, deduplicated, "postprocessMode")
 
     def test_missing_raw_candidate_sequence_is_rejected(self) -> None:
         e0 = run("e0-v4", [1])

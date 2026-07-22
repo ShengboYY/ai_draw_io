@@ -197,34 +197,52 @@ class ControlledPdfDenseRecallLiveTest {
                 apiKey, indexHost, "multilingual-e5-large", 1024, JSON);
         ExperimentResult result = runRetrievalExperiment(
                 "controlled", client, namespace, projections, cases, anchors, chunkMode);
+        String pairedRawPostprocess = System.getenv("MATERIAL_RAG_PAIRED_RAW_POSTPROCESS_RESULT_JSON");
+        String pairedDedupPostprocess = System.getenv("MATERIAL_RAG_PAIRED_DEDUP_RESULT_JSON");
         String pairedOriginalQuery = System.getenv("MATERIAL_RAG_PAIRED_ORIGINAL_QUERY_RESULT_JSON");
         String pairedRewrittenQuery = System.getenv("MATERIAL_RAG_PAIRED_REWRITTEN_QUERY_RESULT_JSON");
         String pairedDense = System.getenv("MATERIAL_RAG_PAIRED_DENSE_RESULT_JSON");
         String pairedHybrid = System.getenv("MATERIAL_RAG_PAIRED_HYBRID_RESULT_JSON");
-        if (pairedOriginalQuery != null && !pairedOriginalQuery.isBlank()
+        if (pairedRawPostprocess != null && !pairedRawPostprocess.isBlank()
+                && pairedDedupPostprocess != null && !pairedDedupPostprocess.isBlank()) {
+            report("Controlled PDF", PostprocessMode.RANKED_RAW.id(),
+                    result.metrics(PostprocessMode.RANKED_RAW), result);
+            report("Controlled PDF", PostprocessMode.EVIDENCE_DEDUP.id(),
+                    result.metrics(PostprocessMode.EVIDENCE_DEDUP), result);
+            writeRawResult(root, researchSplit, canonicalMode, chunkMode, RetrievalMode.DENSE,
+                    QueryMode.ORIGINAL, PostprocessMode.RANKED_RAW,
+                    result.metrics(PostprocessMode.RANKED_RAW), result, pairedRawPostprocess);
+            writeRawResult(root, researchSplit, canonicalMode, chunkMode, RetrievalMode.DENSE,
+                    QueryMode.ORIGINAL, PostprocessMode.EVIDENCE_DEDUP,
+                    result.metrics(PostprocessMode.EVIDENCE_DEDUP), result, pairedDedupPostprocess);
+        } else if (pairedOriginalQuery != null && !pairedOriginalQuery.isBlank()
                 && pairedRewrittenQuery != null && !pairedRewrittenQuery.isBlank()) {
             report("Controlled PDF", QueryMode.ORIGINAL.id(), result.metrics(QueryMode.ORIGINAL), result);
             report("Controlled PDF", QueryMode.EVIDENCE_FOCUSED.id(),
                     result.metrics(QueryMode.EVIDENCE_FOCUSED), result);
             writeRawResult(root, researchSplit, canonicalMode, chunkMode, RetrievalMode.DENSE,
-                    QueryMode.ORIGINAL, result.metrics(QueryMode.ORIGINAL), result, pairedOriginalQuery);
+                    QueryMode.ORIGINAL, PostprocessMode.RANKED_RAW,
+                    result.metrics(QueryMode.ORIGINAL), result, pairedOriginalQuery);
             writeRawResult(root, researchSplit, canonicalMode, chunkMode, RetrievalMode.DENSE,
-                    QueryMode.EVIDENCE_FOCUSED, result.metrics(QueryMode.EVIDENCE_FOCUSED), result,
-                    pairedRewrittenQuery);
+                    QueryMode.EVIDENCE_FOCUSED, PostprocessMode.RANKED_RAW,
+                    result.metrics(QueryMode.EVIDENCE_FOCUSED), result, pairedRewrittenQuery);
         } else if (pairedDense != null && !pairedDense.isBlank()
                 && pairedHybrid != null && !pairedHybrid.isBlank()) {
             report("Controlled PDF", RetrievalMode.DENSE.id(), result.metrics(RetrievalMode.DENSE), result);
             report("Controlled PDF", RetrievalMode.HYBRID_PROJECTION_RRF.id(),
                     result.metrics(RetrievalMode.HYBRID_PROJECTION_RRF), result);
             writeRawResult(root, researchSplit, canonicalMode, chunkMode, RetrievalMode.DENSE,
-                    QueryMode.ORIGINAL, result.metrics(RetrievalMode.DENSE), result, pairedDense);
+                    QueryMode.ORIGINAL, PostprocessMode.RANKED_RAW,
+                    result.metrics(RetrievalMode.DENSE), result, pairedDense);
             writeRawResult(root, researchSplit, canonicalMode, chunkMode,
                     RetrievalMode.HYBRID_PROJECTION_RRF, QueryMode.ORIGINAL,
-                    result.metrics(RetrievalMode.HYBRID_PROJECTION_RRF), result, pairedHybrid);
+                    PostprocessMode.RANKED_RAW, result.metrics(RetrievalMode.HYBRID_PROJECTION_RRF),
+                    result, pairedHybrid);
         } else {
             report("Controlled PDF", retrievalMode.id(), result.metrics(retrievalMode), result);
             writeRawResult(root, researchSplit, canonicalMode, chunkMode, retrievalMode,
-                    QueryMode.ORIGINAL, result.metrics(retrievalMode), result,
+                    QueryMode.ORIGINAL, PostprocessMode.RANKED_RAW,
+                    result.metrics(retrievalMode), result,
                     System.getenv("MATERIAL_RAG_RESULT_JSON"));
         }
         if (Boolean.parseBoolean(System.getenv().getOrDefault("MATERIAL_RAG_ENFORCE_GATES", "true"))) {
@@ -430,7 +448,7 @@ class ControlledPdfDenseRecallLiveTest {
 
     private void writeRawResult(Path root, String split, String canonicalMode,
                                 ChunkMode chunkMode, RetrievalMode retrievalMode,
-                                QueryMode queryMode, DenseMetrics metrics,
+                                QueryMode queryMode, PostprocessMode postprocessMode, DenseMetrics metrics,
                                 ExperimentResult result, String configured) throws Exception {
         if (configured == null || configured.isBlank()) return;
         Path output = Path.of(configured).toAbsolutePath().normalize();
@@ -450,12 +468,15 @@ class ControlledPdfDenseRecallLiveTest {
         raw.put("retrievalMode", retrievalMode.id());
         raw.put("queryMode", queryMode.id());
         raw.put("queryRewriteFingerprint", ResearchQueryRewriter.FINGERPRINT);
+        raw.put("postprocessMode", postprocessMode.id());
+        raw.put("dedupFingerprint", ResearchEvidenceDeduplicator.FINGERPRINT);
         raw.put("lexicalRankerFingerprint", ResearchHybridRanker.FINGERPRINT);
         raw.put("fusionFingerprint", "weighted-rrf-v1:k60:lexical1.2:dense1.0");
         raw.put("canonicalFingerprint", result.canonicalFingerprint());
         raw.put("embeddingModel", "multilingual-e5-large");
         raw.put("tokenizerFingerprint", RESEARCH_COUNTER.fingerprint());
         raw.put("candidateLimit", 40);
+        raw.put("retrievalPoolLimit", 80);
         raw.put("chunkCount", result.chunkCount());
         raw.put("embeddingTokenProfile", result.embeddingTokenProfile());
         raw.put("metrics", metrics);
@@ -608,6 +629,9 @@ class ControlledPdfDenseRecallLiveTest {
         Map<QueryMode, List<CaseRank>> ranksByQueryMode = new LinkedHashMap<>();
         ranksByQueryMode.put(QueryMode.ORIGINAL, originalRanks);
         ranksByQueryMode.put(QueryMode.EVIDENCE_FOCUSED, new ArrayList<>());
+        Map<PostprocessMode, List<CaseRank>> ranksByPostprocessMode = new LinkedHashMap<>();
+        ranksByPostprocessMode.put(PostprocessMode.RANKED_RAW, originalRanks);
+        ranksByPostprocessMode.put(PostprocessMode.EVIDENCE_DEDUP, new ArrayList<>());
         Map<String, IndexedChunk> indexedByVectorId = indexed.stream().collect(
                 java.util.stream.Collectors.toMap(IndexedChunk::vectorId, value -> value));
         Map<QueryMode, List<float[]>> queryVectors = new LinkedHashMap<>();
@@ -640,15 +664,17 @@ class ControlledPdfDenseRecallLiveTest {
                         indexed, sourceVersion, fixedGoldChunkIds));
             }
             int queryIndex = caseIndex;
-            List<String> denseMatches = retryPinecone("query original research vectors", () -> client.query(
-                    namespace, queryVectors.get(QueryMode.ORIGINAL).get(queryIndex), 40, Map.of("$and", List.of(
+            List<String> densePool = retryPinecone("query original research vectors", () -> client.query(
+                    namespace, queryVectors.get(QueryMode.ORIGINAL).get(queryIndex), 80, Map.of("$and", List.of(
                             Map.of("tenant_key", Map.of("$eq", tenantKey)),
                             Map.of("version_id", Map.of("$eq", sourceVersion))))));
-            List<String> rewrittenMatches = retryPinecone("query rewritten research vectors", () -> client.query(
-                    namespace, queryVectors.get(QueryMode.EVIDENCE_FOCUSED).get(queryIndex), 40,
+            List<String> denseMatches = densePool.stream().limit(40).toList();
+            List<String> rewrittenPool = retryPinecone("query rewritten research vectors", () -> client.query(
+                    namespace, queryVectors.get(QueryMode.EVIDENCE_FOCUSED).get(queryIndex), 80,
                     Map.of("$and", List.of(
                             Map.of("tenant_key", Map.of("$eq", tenantKey)),
                             Map.of("version_id", Map.of("$eq", sourceVersion))))));
+            List<String> rewrittenMatches = rewrittenPool.stream().limit(40).toList();
             List<String> denseChunkIds = denseMatches.stream()
                     .map(indexedByVectorId::get).map(value -> value.chunk().chunkId()).toList();
             List<String> lexicalChunkIds = ResearchHybridRanker.lexicalRank(researchCase.query(),
@@ -675,6 +701,16 @@ class ControlledPdfDenseRecallLiveTest {
             ranksByQueryMode.get(QueryMode.EVIDENCE_FOCUSED).add(caseRank(
                     researchCase, rewrittenMatches, requiredGoldVectorIds, fixedGoldChunkIdsByAnchor,
                     indexedByVectorId, rewrittenCandidates, List.of()));
+            List<String> deduplicatedMatches = ResearchEvidenceDeduplicator.deduplicate(
+                    densePool.stream().map(indexedByVectorId::get).map(value ->
+                            new ResearchEvidenceDeduplicator.Candidate(
+                                    value.vectorId(), value.chunk().citable(),
+                                    value.chunk().retrievalTextSha256(), value.chunk().evidenceMappings().stream()
+                                    .map(RetrievalEvidenceMapping::evidenceId)
+                                    .collect(java.util.stream.Collectors.toUnmodifiableSet()))).toList(), 40);
+            ranksByPostprocessMode.get(PostprocessMode.EVIDENCE_DEDUP).add(caseRank(
+                    researchCase, deduplicatedMatches, requiredGoldVectorIds, fixedGoldChunkIdsByAnchor,
+                    indexedByVectorId, denseCandidates, List.of()));
             if ((caseIndex + 1) % 10 == 0 || caseIndex + 1 == cases.size()) {
                 System.out.printf("Research cases evaluated: %d/%d%n", caseIndex + 1, cases.size());
             }
@@ -683,7 +719,11 @@ class ControlledPdfDenseRecallLiveTest {
         ranksByMode.forEach((mode, ranks) -> retrievalMetrics.put(mode, summarizeMetrics(ranks)));
         Map<QueryMode, DenseMetrics> queryMetrics = new LinkedHashMap<>();
         ranksByQueryMode.forEach((mode, ranks) -> queryMetrics.put(mode, summarizeMetrics(ranks)));
-        return new EvaluationMetrics(Map.copyOf(retrievalMetrics), Map.copyOf(queryMetrics));
+        Map<PostprocessMode, DenseMetrics> postprocessMetrics = new LinkedHashMap<>();
+        ranksByPostprocessMode.forEach((mode, ranks) ->
+                postprocessMetrics.put(mode, summarizeMetrics(ranks)));
+        return new EvaluationMetrics(Map.copyOf(retrievalMetrics), Map.copyOf(queryMetrics),
+                Map.copyOf(postprocessMetrics));
     }
 
     private List<float[]> embedQueries(PineconeVectorClient client,
@@ -1143,6 +1183,19 @@ class ControlledPdfDenseRecallLiveTest {
         }
     }
 
+    private enum PostprocessMode {
+        RANKED_RAW("ranked-raw-v1"),
+        EVIDENCE_DEDUP("evidence-dedup-v1");
+
+        private final String id;
+
+        PostprocessMode(String id) {
+            this.id = id;
+        }
+
+        String id() { return id; }
+    }
+
     private record CaseRank(ResearchCase researchCase, int rank, boolean mappable,
                             Map<String, List<String>> fixedGoldChunkIdsByAnchor,
                             List<CandidateResult> candidates,
@@ -1169,7 +1222,8 @@ class ControlledPdfDenseRecallLiveTest {
     private record EmbeddingProfile(int p50, int p95, int max) { }
 
     private record EvaluationMetrics(Map<RetrievalMode, DenseMetrics> retrieval,
-                                     Map<QueryMode, DenseMetrics> query) { }
+                                     Map<QueryMode, DenseMetrics> query,
+                                     Map<PostprocessMode, DenseMetrics> postprocess) { }
 
     private record ExperimentResult(String runId, String canonicalFingerprint,
                                     EvaluationMetrics evaluation, int chunkCount,
@@ -1180,6 +1234,10 @@ class ControlledPdfDenseRecallLiveTest {
 
         DenseMetrics metrics(QueryMode mode) {
             return evaluation.query().get(mode);
+        }
+
+        DenseMetrics metrics(PostprocessMode mode) {
+            return evaluation.postprocess().get(mode);
         }
     }
 }

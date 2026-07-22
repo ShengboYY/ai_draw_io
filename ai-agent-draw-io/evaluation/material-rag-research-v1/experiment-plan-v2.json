@@ -90,6 +90,20 @@
     "secondCandidateDecision": "retain original-v1; evidence-focused recallAt10 delta -0.0194 and mrrAt10 delta -0.0488 regressed",
     "nextCandidate": "E4 deduplication and source diversity with original dense flat baseline"
   },
+  "e4Deduplication": {
+    "baselineMode": "ranked-raw-v1",
+    "firstCandidateMode": "evidence-dedup-v1",
+    "candidateFingerprint": "evidence-dedup-v1:text-sha-or-evidence-jaccard-0.8:citable-first",
+    "queryMode": "original-v1",
+    "retrievalMode": "dense-v1",
+    "chunkMode": "flat-leaf-v1",
+    "retrievalPoolLimit": 80,
+    "finalCandidateLimit": 40,
+    "minimumDuplicateReplacementRate": 0.02,
+    "maximumRecallAt10And40Loss": 0.02,
+    "rejectOnSignificantMrrOrMajorSliceRegression": true,
+    "sourceDiversityStatus": "not measurable: every authored case and evaluated candidate pool has one source version"
+  },
   "preE0": {
     "minimumReviewedCasesBeforeComparison": 340,
     "requiredFrozenCoreCasesForBaseline": 450,
