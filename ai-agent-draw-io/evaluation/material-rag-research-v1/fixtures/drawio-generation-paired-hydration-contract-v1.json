@@ -1,0 +1,12 @@
+{
+  "schemaVersion": "material-rag-drawio-task-hydration-contract-v1",
+  "status": "pending_live_hydration",
+  "purpose": "Required input contract for E6b paired Development generation; this file is not an experimental result or a model input.",
+  "traceSchemaVersion": "material-rag-drawio-task-hydration-candidates-v1",
+  "requirements": [
+    "Exactly one ranked top-40, hydrated candidate list for every active Development v2 task from a single frozen retrieval run; raw top-8 is control and source-aware top-8 is candidate.",
+    "Each selected chunk retains non-empty evidence text, anchor ID, source version and page; the exporter verifies anchor/source/page/split against frozen ground truth, and visual/OCR evidence additionally retains an in-root artifact path and SHA-256.",
+    "Architecture visual-flow and planning-scan tasks require a verified visual/OCR artifact in both arms. The trace records retrieval run ID, Git commit and corpus-lock SHA-256; the CLI verifies that hash against the supplied frozen corpus lock and rejects task gaps, out-of-scope sources, malformed artifacts and a changed-task rate below 20%.",
+    "Only after the exporter has produced paired contexts may prompts, a model request manifest and E6b/E7 Development calls be frozen."
+  ]
+}

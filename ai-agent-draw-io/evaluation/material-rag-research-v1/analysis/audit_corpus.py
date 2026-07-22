@@ -30,6 +30,7 @@ PROVENANCE_FILES = (
     "analysis/audit_e4_chartbook.py",
     "analysis/evaluate_guard_suites.py",
     "analysis/build_drawio_generation_prompts.py",
+    "analysis/export_drawio_paired_hydration.py",
     "analysis/evaluate_drawio_generation_tasks.py",
     "analysis/validate_generation_run_manifest.py",
     "analysis/evaluate_ocr.py",
@@ -46,6 +47,7 @@ PROVENANCE_FILES = (
     "fixtures/drawio-generation-tasks-v1.json",
     "fixtures/drawio-generation-tasks-v2.json",
     "fixtures/drawio-generation-development-evidence-v1.json",
+    "fixtures/drawio-generation-paired-hydration-contract-v1.json",
     "fixtures/final-holdout-contract-v1.json",
 )
 CATEGORY_CONTEXT_FIELDS = {
@@ -239,9 +241,10 @@ def audit(root: Path, review_ledger: Path | None) -> tuple[dict, dict]:
         f"{document['source']}:{document['version']}" for document in manifest["documents"]
     }
     anchor_by_id = {anchor["anchorId"]: anchor for anchor in anchors}
-    generation_tasks = json.loads(
+    generation_fixture = json.loads(
         (root / "fixtures" / "drawio-generation-tasks-v2.json").read_text(encoding="utf-8")
-    )["tasks"]
+    )
+    generation_tasks = generation_fixture["tasks"]
     generation_contexts = json.loads(
         (root / "fixtures" / "drawio-generation-development-evidence-v1.json").read_text(encoding="utf-8")
     )["contexts"]
@@ -275,6 +278,9 @@ def audit(root: Path, review_ledger: Path | None) -> tuple[dict, dict]:
     missing_abstention_conditions: list[str] = []
     family_splits: defaultdict[str, set[str]] = defaultdict(set)
     task_errors = generation_task_errors(generation_tasks, anchor_by_id, known_source_versions)
+    chartbook_sources = set(generation_fixture.get("developmentChartbookSourceVersions", []))
+    if not chartbook_sources or not chartbook_sources.issubset(known_source_versions):
+        task_errors.append({"taskId": "development-chartbook", "error": "invalid mounted source versions"})
     context_errors = generation_context_errors(
         generation_contexts, {task["taskId"]: task for task in generation_tasks}, anchor_by_id, root
     )

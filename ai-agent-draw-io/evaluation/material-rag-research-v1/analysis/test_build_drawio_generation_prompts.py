@@ -76,6 +76,15 @@ class DrawioGenerationPromptTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "duplicate candidate context"):
             MODULE.build_bundles([task], contexts, split="development", arm="candidate")
 
+    def test_rejects_a_context_that_expands_the_frozen_chartbook_scope(self):
+        task = {"taskId": "dev", "split": "development", "sourceVersion": "source:v1", "request": "Dev"}
+        contexts = [{"taskId": "dev", "arm": "candidate", "allowedSourceVersions": ["source:v1", "other:v1"],
+                     "evidence": []}]
+
+        with self.assertRaisesRegex(ValueError, "context scope mismatch"):
+            MODULE.build_bundles([task], contexts, split="development", arm="candidate",
+                                 chartbook_sources={"source:v1"})
+
     def test_preserves_attached_visual_artifact_paths(self):
         task = {"taskId": "visual", "split": "development", "sourceVersion": "source:v1", "request": "Inspect route"}
         contexts = [{"taskId": "visual", "arm": "fixed", "evidence": [{

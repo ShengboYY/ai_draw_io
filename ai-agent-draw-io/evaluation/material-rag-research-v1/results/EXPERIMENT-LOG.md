@@ -304,6 +304,21 @@
 - **外部调用**:本轮只做本地 fixture、selector 与 evaluator；没有发送资料、没有调用模型、没有打开 Validation。
 - 详见 [2026-07-22-e6a-chartbook-context-selection.md](2026-07-22-e6a-chartbook-context-selection.md)。
 
+### E6b paired multimodal hydration export · 2026-07-22 · ✅本地 gate 完成，⏸真实 trace 待接入
+
+- **已实现**:`export_drawio_paired_hydration.py` 只接受同一 retrieval run 的 active v2 Development 任务级
+  hydration trace，输出每任务一条 control/raw-top8 和 candidate/source-aware-top8 context，并把冻结图册的
+  source 范围写入输出，供 prompt builder 再次校验。
+- **完整性 gate**:导出要求同一 run 为每个任务提供恰好 top-40 候选（raw top-8 对 source-aware top-8），并拒绝
+  缺失/重复 task、非连续 rank、跨图册来源、空 evidence text、缺 anchor/page/source 定位信息、visual/OCR artifact
+  路径逃逸或 SHA-256 不符；architecture flow 与 planning scan 任务的两个实验臂还必须都有 verified artifact。若少于
+  20% task 的 chunk list 改变，也拒绝产出 E6b 输入。required anchor 仍只归 evaluator 使用，不参与导出选择。
+- **如实状态**:这不是一次 E6b/E7 运行。现有 Java live runner 只导出 text/table candidate ID，且未挂载
+  architecture visual flow 与 planning scan OCR hydration；因此没有伪造 context、prompt、manifest、模型调用、
+  token 消耗或 Validation 结果。
+- **下一依赖**:把 production retrieval/hydration trace 扩展为该合同（包括真实 visual/OCR artifact）后，本地导出
+  control/candidate JSON，冻结 prompt bundles 与 manifest；再另行取得明确的 Development 模型调用授权。
+
 ---
 
 ## 当前状态与下一步
@@ -311,9 +326,9 @@
 - 已完成:E0 基线 → E1 表示层改进 → 核心集升级并冻结到 450 → Development 与 Validation
   配对重跑 → 守门最低数补齐并执行 fixture-contract。Validation 证明 E1 提升真实,也证明
   dense-only 尚未达门槛。
-- **下一步**:为 active v2 Development task 导出一一对应的 multimodal control/candidate hydration；先验证
-  task 覆盖完整、两臂变化率和 artifact hash，再冻结 prompt bundles 与 formal run manifest。获得新的明确授权后，
-  才向同一模型发送 Development，做首次可比的 E6b/E7 paired generation；Validation 暂不打开。
+- **下一步**:接入 visual/OCR-capable 的 task hydration trace，再用已冻结的 exporter 导出一一对应的 multimodal
+  control/candidate contexts；随后冻结 prompt bundles 与 formal run manifest。获得新的明确授权后，才向同一模型发送
+  Development，做首次可比的 E6b/E7 paired generation；Validation 暂不打开。
 
 ## 开放问题 / 待办
 
@@ -331,7 +346,8 @@
   该 pilot 不含证据正文，不能作为 E6/E7 质量结论。
 - [x] E6a 多资料 selector effectiveness——26/26 context 改变，retrieval 指标已记录；不含模型调用。
 - [x] active v2 真实 edit fixture、引用指标分层与 generation-run manifest contract。
-- [ ] E6b/E7 evidence-grounded control/candidate Development 比较——待导出与 v2 task 一一对应的 paired hydration。
+- [x] E6b paired hydration export contract——已完成本地 exporter、artifact/source/contrast gates 与审计记录；未运行。
+- [ ] E6b/E7 evidence-grounded control/candidate Development 比较——待 production visual/OCR hydration trace 后导出。
 - [ ] 外部 final holdout——contract 已定，payload 尚未由独立保管人生成和隔离。
 
 ## 如何跑一个实验(运行手册)

@@ -39,7 +39,8 @@ def image_paths(context: dict) -> list[str]:
     ))
 
 
-def build_bundles(tasks: list[dict], contexts: list[dict], split: str, arm: str) -> list[dict]:
+def build_bundles(tasks: list[dict], contexts: list[dict], split: str, arm: str,
+                  chartbook_sources: set[str] | None = None) -> list[dict]:
     """Pair each task with exactly one frozen context bundle from the selected experiment arm."""
     selected = {}
     for context in contexts:
@@ -57,6 +58,11 @@ def build_bundles(tasks: list[dict], contexts: list[dict], split: str, arm: str)
         if context is None:
             raise ValueError(f"missing {arm} context for {task['taskId']}")
         allowed_sources = set(task.get("allowedSourceVersions", [task.get("sourceVersion")]))
+        if chartbook_sources and split == "development":
+            allowed_sources |= chartbook_sources
+        declared_sources = context.get("allowedSourceVersions")
+        if declared_sources is not None and set(declared_sources) != allowed_sources:
+            raise ValueError(f"context scope mismatch for {task['taskId']}")
         for evidence in context.get("evidence", []):
             if evidence["sourceVersion"] not in allowed_sources:
                 raise ValueError(f"out-of-scope evidence for {task['taskId']}")
@@ -84,12 +90,16 @@ def main() -> None:
     parser.add_argument("--arm", choices=("control", "candidate", "fixed"), required=True)
     parser.add_argument("--json-out", type=Path, required=True)
     args = parser.parse_args()
-    tasks = json.loads(args.tasks.read_text())["tasks"]
+    task_fixture = json.loads(args.tasks.read_text())
+    tasks = task_fixture["tasks"]
     contexts = json.loads(args.contexts.read_text())["contexts"]
     result = {
         "split": args.split,
         "arm": args.arm,
-        "bundles": build_bundles(tasks, contexts, args.split, args.arm),
+        "bundles": build_bundles(
+            tasks, contexts, args.split, args.arm,
+            set(task_fixture.get("developmentChartbookSourceVersions", [])),
+        ),
     }
     args.json_out.write_text(json.dumps(result, indent=2) + "\n")
 

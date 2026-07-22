@@ -373,3 +373,10 @@ source version 和页码/区域。任务的 XML 断言、required anchor 和 exp
 模型提示。此前 text/table-only 的 E0/E1 runner 明确排除了 `visual_flow` 与 OCR anchor，因而不能单独作为
 含流程图或扫描件任务的多模态生成上下文；这些任务必须先通过对应的 visual/OCR hydration 路径，才能与控制组
 做有效比较。
+
+E6b 的本地导出合同已冻结为 `fixtures/drawio-generation-paired-hydration-contract-v1.json` 与
+`analysis/export_drawio_paired_hydration.py`。active Development 图册明确挂载 architecture、workflow handbook
+与 planning-workshop scan 三个版本；导出器从同一 retrieval trace 的 raw top-8 和 source-aware top-8 产生一任务
+一对 context，并拒绝非 top-40 pool、漏 task、越权来源、空正文、越界/哈希不符的视觉 artifact，以及少于
+20% task 改变的伪对照；architecture flow 和 planning scan 两任务的两臂还必须都有已验证 artifact。此合同不是结果：当前 runner 还未产出 visual/OCR-capable task hydration，故尚未生成
+E6b context、prompt 或模型请求。

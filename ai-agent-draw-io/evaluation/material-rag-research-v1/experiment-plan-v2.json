@@ -191,7 +191,7 @@
     "controlMeanSourceCount": 2.4615384615384617,
     "candidateMeanSourceCount": 3.9615384615384617,
     "decision": "valid contrast check; source coverage improved, recall direction descriptive only; no generation promotion claim",
-    "next": "export task-level paired control/candidate hydration for active v2 Development tasks"
+    "next": "run visual/OCR-capable task hydration and export the paired Development contexts with export_drawio_paired_hydration.py"
   },
   "e7Generation": {
     "activeTaskFixture": "fixtures/drawio-generation-tasks-v2.json",
@@ -199,6 +199,7 @@
     "activeValidationTasks": 3,
     "requiresInputXmlAndEditAssertionsForEditTasks": true,
     "requiresFormalRunManifest": "material-rag-generation-run-manifest-v1",
+    "pairedHydrationContract": "fixtures/drawio-generation-paired-hydration-contract-v1.json; local exporter implemented, live trace pending",
     "historicalFixedRunQualification": "diagnostic; v1 tasks only; not compatible with active v2 edit assertions",
     "next": "paired Development generation only after E6b hydration and manifest freeze"
   },
@@ -231,6 +232,7 @@
     "e4Status": "completed: neither single-source deduplication nor multi-source fixed-cap diversity qualified",
     "e5Status": "completed: DeepSeek V4 Pro listwise reranker accepted JSON for 5/155 cases and Recall@10 gain was 0.0; not promoted",
     "e6aStatus": "completed: 26/26 contexts changed; source coverage improved; recall interval touched zero; no promotion claim",
+    "e6bStatus": "local paired-hydration export and gates completed; no live visual/OCR trace, prompt bundle, model call or Validation run",
     "e7Status": "historical fixed-context v1 run remains diagnostic; active v2 paired run not started"
   }
 }
