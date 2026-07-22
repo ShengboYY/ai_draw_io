@@ -110,7 +110,7 @@ export default function EvalCaseStudioPage({ params }: { params: Promise<{ worki
               <h2 className="text-sm font-semibold text-violet-900">Source Finding (restricted)</h2>
               <p className="mt-1 text-xs leading-5 text-violet-800">Compare this synthetic Case with the original analysis evidence before approval. This backlink is never copied into the published artifact.</p>
               <div className="mt-2 text-xs text-violet-800">{sourceFinding.analyzerType} · {sourceFinding.failureFamily} · {sourceFinding.analysisSummary}</div>
-              <a href={`/admin/runs/${encodeURIComponent(sourceFinding.sourceRunId)}`} className="mt-2 inline-flex text-xs font-semibold text-violet-800 hover:underline">Open audited source Trace →</a>
+              <a href={`/admin/runs?run=${encodeURIComponent(sourceFinding.sourceRunId)}`} className="mt-2 inline-flex text-xs font-semibold text-violet-800 hover:underline">Open audited source Trace →</a>
             </div>
           )}
           <div className="rounded-xl border border-stone-200 bg-white p-4 shadow-sm">

@@ -17,17 +17,17 @@ export function TracePayloadPanel({
   const buckets = useMemo(() => groupPayloads(payloads || []), [payloads]);
 
   if (loading) {
-    return <div className="mt-4 rounded-lg bg-stone-50 px-3 py-4 text-xs text-zinc-500">Loading span I/O…</div>;
+    return <div className="mt-4 rounded-md bg-stone-50 px-3 py-4 text-xs text-zinc-500">Loading span I/O…</div>;
   }
   if (error) {
-    return <div className="mt-4 rounded-lg bg-rose-50 px-3 py-3 text-xs text-rose-700">{error}</div>;
+    return <div className="mt-4 rounded-md bg-rose-50 px-3 py-3 text-xs text-rose-700">{error}</div>;
   }
   if (!payloads) {
     return null;
   }
   if (payloads.length === 0) {
     return (
-      <div className="mt-4 rounded-lg border border-dashed border-stone-200 px-3 py-4 text-xs text-zinc-500">
+      <div className="mt-4 rounded-md border border-dashed border-stone-200 px-3 py-4 text-xs text-zinc-500">
         <span className="mr-2 rounded bg-stone-100 px-1.5 py-0.5 font-medium text-zinc-600">Not captured</span>
         Enable payload capture and run the request again to record this span&apos;s input and output.
       </div>
@@ -53,7 +53,7 @@ function PayloadSection({
   empty?: string;
 }) {
   return (
-    <details open className="group rounded-lg border border-stone-200 bg-white">
+    <details open className="group rounded-md border border-stone-200 bg-white">
       <summary className="flex cursor-pointer list-none items-center justify-between px-3 py-2 text-xs font-semibold text-zinc-700">
         <span>{title}</span>
         <span className="font-mono text-[10px] font-normal text-zinc-400">{items.length}</span>
@@ -166,7 +166,7 @@ function SmartPayload({
                 type="button"
                 onClick={() => setView(mode)}
                 className={`rounded px-2 py-1 text-[10px] font-medium capitalize ${
-                  view === mode ? 'bg-white text-zinc-800 shadow-sm' : 'text-zinc-500'
+                  view === mode ? 'bg-white text-zinc-800' : 'text-zinc-500'
                 }`}
               >
                 {mode}
@@ -199,7 +199,7 @@ function SmartPayload({
 
       {fullscreen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" role="dialog" aria-modal="true" aria-label={`${payloadLabel} fullscreen payload`}>
-          <div className="flex max-h-[92vh] w-full max-w-6xl flex-col overflow-hidden rounded-xl bg-white shadow-2xl">
+          <div className="flex max-h-[92vh] w-full max-w-6xl flex-col overflow-hidden rounded-md bg-white shadow-2xl">
             <div className="flex items-center justify-between gap-3 border-b border-stone-200 px-4 py-3">
               <div>
                 <div className="text-sm font-semibold text-zinc-900">{payloadLabel}</div>

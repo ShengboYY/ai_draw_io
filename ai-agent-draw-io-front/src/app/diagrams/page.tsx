@@ -301,11 +301,9 @@ export default function Home() {
     <main className="app-page text-zinc-800">
       <header className="sticky top-0 z-20 border-b border-stone-200 bg-white/95 backdrop-blur">
         <div className="flex h-auto flex-wrap items-center gap-3 px-4 py-3 sm:h-16 sm:flex-nowrap sm:gap-4 sm:px-6 sm:py-0">
-          <Link href="/diagrams" className="order-1 flex shrink-0 items-center gap-2.5 sm:order-none" aria-label="FreeDraw home">
-            <span className="relative block h-9 w-9 overflow-hidden rounded-xl shadow-sm" aria-hidden="true">
-              <Image src="/brand/freedraw-logo-dark-v2.svg" alt="" fill sizes="36px" className="object-cover" priority />
-            </span>
-            <span className="font-display text-lg font-semibold tracking-tight text-zinc-800">FreeDraw</span>
+          <Link href="/" className="order-1 flex shrink-0 items-center gap-2.5 sm:order-none" aria-label="FreeDraw home">
+            {/* Use the supplied horizontal artwork so the wordmark stays consistent across product surfaces. */}
+            <Image src="/brand/freedraw-wordmark-on-light-v2.png" alt="" width={122} height={21} priority />
           </Link>
 
           {/* Client-side search over the fully-loaded workspace list — instant, no round trips. */}

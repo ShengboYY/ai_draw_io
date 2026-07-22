@@ -39,6 +39,7 @@ import org.zipp.ai.domain.account.service.ITokenHasher;
 import org.zipp.ai.domain.account.service.IUserAccountStore;
 import org.zipp.ai.domain.account.service.UsageCounterRateLimiter;
 import org.zipp.ai.trigger.http.AuthController;
+import org.zipp.ai.trigger.http.service.AdminAuthorizationService;
 
 import java.lang.reflect.Field;
 import java.time.Clock;
@@ -54,8 +55,10 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
 
 /**
  * Integration-lite coverage for the login/logout/me controller path. Uses in-memory fakes for the
@@ -91,7 +94,11 @@ public class AuthControllerLoginTest {
                 usageCounterRateLimiter);
         contextRepository = new HttpSessionSecurityContextRepository();
         controller = new AuthController();
+        AdminAuthorizationService adminAuthorization = new AdminAuthorizationService();
+        inject(adminAuthorization, "accountService", service);
+        inject(adminAuthorization, "adminEmails", "admin@example.com");
         inject(controller, "accountService", service);
+        inject(controller, "adminAuthorizationService", adminAuthorization);
         inject(controller, "securityContextRepository", contextRepository);
         inject(controller, "usageCounterRateLimiter", usageCounterRateLimiter);
     }
@@ -111,6 +118,7 @@ public class AuthControllerLoginTest {
 
         assertEquals("0000", body.getCode());
         assertEquals(LoginResult.Outcome.SUCCESS.name(), body.getData().getStatus());
+        assertFalse(body.getData().isAdmin());
         HttpSession session = request.getSession(false);
         assertNotNull("login must create an HTTP session", session);
         // Reload the security context from the session repository to verify it was persisted.
@@ -121,6 +129,19 @@ public class AuthControllerLoginTest {
         assertNotNull(authentication);
         assertEquals(users.findByEmailNormalized("alice@example.com").orElseThrow().getId(),
                 authentication.getPrincipal().toString());
+    }
+
+    @Test
+    public void loginAndMeExposeConfiguredAdminStatus() {
+        registerAndVerify("admin@example.com", "password123");
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        MockHttpServletResponse response = new MockHttpServletResponse();
+
+        Response<LoginResponseDTO> login = controller.login(
+                loginRequest("admin@example.com", "password123"), request, response);
+
+        assertTrue(login.getData().isAdmin());
+        assertTrue(controller.me().getData().isAdmin());
     }
 
     @Test

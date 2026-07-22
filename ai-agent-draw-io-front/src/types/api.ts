@@ -459,6 +459,7 @@ export interface LoginResponseDTO {
   userId?: string;
   email?: string;
   accountStatus?: 'ANONYMOUS' | 'PENDING_VERIFICATION' | 'ACTIVE' | 'DISABLED' | 'DELETED';
+  admin?: boolean;
 }
 
 export interface RegisterAccountRequestDTO {

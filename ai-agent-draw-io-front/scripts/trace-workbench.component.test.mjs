@@ -23,23 +23,7 @@ load.extensions['.tsx'] = (module, filename) => {
   module._compile(result.outputText, filename);
 };
 
-const { TracePayloadPanel } = load('../src/app/admin/runs/[runId]/trace-payload-panel.tsx');
-const { TraceWorkbench } = load('../src/app/admin/runs/[runId]/trace-workbench.tsx');
-
-test('renders the real three-column trace workbench in tree-inspector-preview order', () => {
-  const html = renderToStaticMarkup(React.createElement(
-    TraceWorkbench,
-    { showDiagramPreview: true },
-    React.createElement('section', { 'data-pane': 'tree' }, 'Tree'),
-    React.createElement('section', { 'data-pane': 'inspector' }, 'Inspector'),
-    React.createElement('aside', { 'data-pane': 'preview' }, 'Preview'),
-  ));
-
-  assert.match(html, /data-testid="trace-workbench"/);
-  assert.match(html, /xl:grid-cols-\[minmax\(260px,0\.8fr\)_minmax\(420px,1\.25fr\)_minmax\(320px,0\.9fr\)\]/);
-  assert.ok(html.indexOf('data-pane="tree"') < html.indexOf('data-pane="inspector"'));
-  assert.ok(html.indexOf('data-pane="inspector"') < html.indexOf('data-pane="preview"'));
-});
+const { TracePayloadPanel } = load('../src/app/admin/runs/trace-payload-panel.tsx');
 
 test('renders real span input/output controls and retention states', () => {
   const payloads = [

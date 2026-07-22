@@ -325,7 +325,7 @@ export default function AdminEvalCandidatesPage() {
                       <div className="mt-1 font-mono text-[10px] text-violet-500">{finding.analyzerVersion}</div>
                     </div>
                   )}
-                  {finding && <div className="mt-2 rounded-lg border border-stone-200 bg-stone-50 px-3 py-2 text-xs text-zinc-700"><div className="font-medium">Original Trace evidence</div><div className="mt-1 flex flex-wrap gap-2">{finding.evidenceRefs.map((ref) => <Link key={ref} href={`/admin/runs/${encodeURIComponent(finding.sourceRunId)}`} className="font-mono text-[10px] text-indigo-700 hover:underline">{ref}</Link>)}</div></div>}
+                  {finding && <div className="mt-2 rounded-lg border border-stone-200 bg-stone-50 px-3 py-2 text-xs text-zinc-700"><div className="font-medium">Original Trace evidence</div><div className="mt-1 flex flex-wrap gap-2">{finding.evidenceRefs.map((ref) => <Link key={ref} href={`/admin/runs?run=${encodeURIComponent(finding.sourceRunId)}`} className="font-mono text-[10px] text-indigo-700 hover:underline">{ref}</Link>)}</div></div>}
                   {draftNotes[candidate.id] && <p className="mt-2 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800">{draftNotes[candidate.id]}</p>}
                   {candidate.status === 'DRAFT_READY' && (
                     <DraftCaseIdentity
@@ -336,7 +336,7 @@ export default function AdminEvalCandidatesPage() {
                     />
                   )}
                   <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-zinc-400">
-                    <Link className="font-medium text-zinc-600 hover:underline" href={`/admin/runs/${encodeURIComponent(candidate.sourceRunId)}`}>Open source trace →</Link>
+                    <Link className="font-medium text-zinc-600 hover:underline" href={`/admin/runs?run=${encodeURIComponent(candidate.sourceRunId)}`}>Open source trace →</Link>
                     <span>{finding?.routeType || 'unknown route'} · {finding?.sourceAgentId || 'unknown agent'} · {finding?.sourceLatencyMs != null ? `${finding.sourceLatencyMs}ms` : 'latency unavailable'}</span>
                     <span>{formatTime(candidate.discoveredAt)}</span>
                     {finding?.reviewedBy && <span>Reviewed by {finding.reviewedBy} · {formatTime(finding.reviewedAt)}</span>}

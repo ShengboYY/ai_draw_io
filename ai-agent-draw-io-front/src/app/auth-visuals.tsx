@@ -1,4 +1,5 @@
 import Image from 'next/image';
+import Link from 'next/link';
 
 type IconProps = {
   className?: string;
@@ -13,19 +14,22 @@ type BrandMarkProps = IconProps & {
 // Keep the auth logo consistent across sign-in, sign-up, and follow-up states.
 export function AuthBrandMark({ className = '' }: BrandMarkProps) {
   return (
-    <span
-      className={`relative block overflow-hidden shadow-[0_18px_45px_rgba(52,51,61,0.18)] ${className}`}
-      aria-hidden="true"
-    >
-      <Image
-        src="/brand/freedraw-logo-dark-v2.svg"
-        alt=""
-        fill
-        sizes="48px"
-        className="object-cover"
-        priority
-      />
-    </span>
+    // Client-side home navigation leaves the authenticated session cookie untouched.
+    <Link href="/" aria-label="FreeDraw home" className="block">
+      <span
+        className={`relative block overflow-hidden shadow-[0_18px_45px_rgba(52,51,61,0.18)] ${className}`}
+        aria-hidden="true"
+      >
+        <Image
+          src="/brand/freedraw-app-icon-v2.png"
+          alt=""
+          fill
+          sizes="48px"
+          className="object-cover"
+          priority
+        />
+      </span>
+    </Link>
   );
 }
 

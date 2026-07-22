@@ -1,11 +1,12 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
 import { agentApi } from '@/api/agent';
-import { AuthBrandMark, EnvelopeIcon, LockIcon } from '@/app/auth-visuals';
+import { EnvelopeIcon, LockIcon } from '@/app/auth-visuals';
 import type { LoginStatus } from '@/types/api';
 import {
   clearImportedAnonymousWorkspace,
@@ -182,10 +183,9 @@ export default function Login() {
     <main className="app-page flex min-h-[100dvh] items-center justify-center bg-[#faf9f7] px-4 py-6 text-[#202024] sm:px-6 sm:py-8">
       <section className="grid w-full max-w-[420px] lg:max-w-[880px] overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-[0_18px_44px_rgba(24,24,27,0.08)] lg:grid-cols-[1.02fr_1fr]">
         <div className="hidden lg:flex flex-col justify-between gap-10 bg-[#fbfaf8] px-8 py-9 lg:px-10 lg:py-11">
-          <div className="flex items-center gap-3">
-            <AuthBrandMark className="h-10 w-10 rounded-xl" iconClassName="h-5 w-5" />
-            <strong className="font-display text-lg font-semibold tracking-tight text-[#242329]">FreeDraw</strong>
-          </div>
+          <Link href="/" aria-label="FreeDraw home" className="flex items-center gap-3">
+            <Image src="/brand/freedraw-wordmark-on-light-v2.png" alt="FreeDraw" width={130} height={22} priority />
+          </Link>
 
           <div className="max-w-[360px]">
             <h1 className="m-0 text-2xl font-semibold leading-[1.15] tracking-tight text-[#202024] sm:text-[28px]">
@@ -199,10 +199,9 @@ export default function Login() {
 
         <div className="flex items-center px-6 py-7 sm:px-8 sm:py-9 lg:border-l lg:border-t-0 lg:px-10 lg:py-11">
           <div className="mx-auto w-full max-w-[340px]">
-            <div className="mb-7 flex items-center gap-3 lg:hidden">
-              <AuthBrandMark className="h-10 w-10 rounded-xl" iconClassName="h-5 w-5" />
-              <strong className="font-display text-lg font-semibold tracking-tight text-[#242329]">FreeDraw</strong>
-            </div>
+            <Link href="/" aria-label="FreeDraw home" className="mb-7 flex items-center gap-3 lg:hidden">
+              <Image src="/brand/freedraw-wordmark-on-light-v2.png" alt="FreeDraw" width={130} height={22} priority />
+            </Link>
             <h2 className="m-0 text-2xl font-semibold leading-tight tracking-tight text-[#202024]">
               Welcome back
             </h2>

@@ -3,6 +3,7 @@
 import { DrawIoEmbed, type DrawIoEmbedRef } from './secure-drawio-embed';
 import type { DrawioSelection } from './secure-drawio-bridge';
 import Image from 'next/image';
+import Link from 'next/link';
 import { Suspense, useRef, useState, useEffect, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { setUserInfo as persistUserInfo } from '@/utils/cookie';
@@ -3507,15 +3508,15 @@ function DrawioPageContent() {
     <div className="relative flex h-[100dvh] w-full overflow-hidden bg-[var(--app-bg)] pb-14 font-sans text-zinc-800 sm:h-screen sm:pb-0">
       {/* Narrow rail keeps workspace navigation available without crowding the canvas. */}
       <aside className="fixed inset-x-0 bottom-0 z-50 flex h-14 w-full shrink-0 flex-row items-center justify-around gap-2 border-t border-stone-200 bg-[var(--app-bg)] px-3 py-2 text-zinc-500 sm:relative sm:inset-auto sm:z-30 sm:h-auto sm:w-14 sm:flex-col sm:justify-start sm:border-r sm:border-t-0 sm:px-2 sm:py-3">
-        <button
-          type="button"
-          onClick={() => { window.location.href = '/diagrams'; }}
+        <Link
+          href="/"
+          aria-label="FreeDraw home"
           className="relative grid h-10 w-10 place-items-center overflow-hidden rounded-lg bg-zinc-700 shadow-sm sm:h-9 sm:w-9"
-          title="Diagram home"
+          title="FreeDraw home"
         >
           {/* Match the shared app logo used on the home and auth pages. */}
-          <Image src="/brand/freedraw-logo-dark-v2.svg" alt="" fill sizes="36px" className="object-cover" priority />
-        </button>
+          <Image src="/brand/freedraw-app-icon-v2.png" alt="" fill sizes="36px" className="object-cover" priority />
+        </Link>
         <button
           type="button"
           onClick={handleNewChat}
