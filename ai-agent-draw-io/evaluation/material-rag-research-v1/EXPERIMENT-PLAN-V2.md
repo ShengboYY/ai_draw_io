@@ -228,13 +228,12 @@ E1 内也必须拆分执行，例如先只改变文本块合并，再只改变 O
 ## 7. 当前下一步
 
 Pre-E0 已完成：450 个核心案例、独立复核、三分区和语料 provenance 均已冻结。E0/E1
-Validation 配对复核与守门 fixture-contract 也已完成；E1 明显提升，但 dense-only 仍未达到
-0.90/0.95/0.75 门槛。当前顺序：
+Validation 配对复核与守门 fixture-contract 也已完成；E2 parent-context-500 的 Development
+Recall@10 比 flat 低 0.013,未晋级。当前顺序：
 
-1. 进入 E2，只比较当前 flat chunk 与一个预先定义的 parent-child 方案。
-2. E2 未达到 0.02 提升则记录不晋级，转入 E3 dense + lexical 混合召回。
-3. 后续 E9 必须执行在线授权、版本、故障注入与恢复；当前 fixture-contract 通过不能替代它。
-4. Holdout 保持密封，直到基线与最终候选均冻结后只比较一次。
+1. 进入 E3,比较当前 dense 与一个预先定义的 dense + lexical hybrid 方案。
+2. 后续 E9 必须执行在线授权、版本、故障注入与恢复；当前 fixture-contract 通过不能替代它。
+3. Holdout 保持密封，直到基线与最终候选均冻结后只比较一次。
 
 E2 的 parent-child 方案在运行前固定如下：flat 控制组嵌入 child chunk 的 `retrievalText`；
 parent-child 候选组仍以同一个 child chunk ID 检索和计分，但优先嵌入该 child 已持久化的

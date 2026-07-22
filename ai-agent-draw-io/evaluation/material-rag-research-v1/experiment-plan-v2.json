@@ -86,5 +86,10 @@
     "E7_GENERATION_AND_CITATION",
     "E8_MULTIMODAL_END_TO_END",
     "E9_SAFETY_AND_RECOVERY"
-  ]
+  ],
+  "progress": {
+    "completed": ["E0_BASELINE", "E1_REPRESENTATION", "E2_CHUNKING"],
+    "currentNext": "E3_RETRIEVAL",
+    "e2Decision": "retain flat-leaf-v1; parent-context-500-v1 recallAt10 delta -0.0129 did not meet +0.02"
+  }
 }

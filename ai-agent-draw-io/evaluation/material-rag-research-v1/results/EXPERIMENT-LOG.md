@@ -110,6 +110,26 @@
 - 详见 [2026-07-22-e0-e1-validation.md](2026-07-22-e0-e1-validation.md),原始逐用例结果保存在
   `2026-07-22-e0-validation-raw.json` 与 `2026-07-22-e1-validation-raw.json`。
 
+### E2 — flat leaf vs parent-context-500 · 2026-07-22 · ❌不晋级
+
+- **假设**:对 child vector 嵌入现有相邻 parent context,可能降低抽象/多证据 query 与局部 leaf 的
+  语义错位,同时继续用 child ID 做 gold/citation 边界。
+- **控制变量**:同一提交 `0daa5d3e`、同一运行锁、Development 155 个 dense-eligible 用例、E1
+  `canonical-v5`、`multilingual-e5-large`、top 40、533 个 child ID;唯一变量是嵌入 flat
+  `retrievalText` 或 ≤500-token `parentContext`(超限/缺失退回 leaf)。Holdout 与 Validation 未打开。
+- **可行性修订**:最初直接嵌入现有 parent 的方案实际达到 512 tokens,在 `truncate=NONE` 下被
+  Pinecone HTTP 400 拒绝且未进入 upsert/计分;因此在看候选质量前改为 500-token 安全上限。
+- **结果**:mapping 两组均为 149/155=0.961;flat→parent 的 R@1 0.600→0.619、R@5
+  0.877→0.858、R@10 **0.897→0.884**、R@40 0.961→0.961、MRR 0.718→0.710。
+  R@10 配对差值 **-0.013**(95% CI [-0.045,0.019]),未达到 +0.02 晋级线。
+- **切片**:English、exact lookup、version/authorization 名义提升;multi-evidence -0.050、failure
+  -0.069、retrieval-decision -0.036。各 paired CI 均未严格排除 0,但方向不支持在 draw.io agent
+  场景中用更长 parent 替换 flat leaf。
+- **运维观察**:首次边界输入 400、两次可见性调用卡住及一次 429 均用精确 run prefix 清理;
+  research runner 增加了遵守 `Retry-After` 的有界 transient retry。最终两组各删除 533 个向量。
+- **决策**:**不晋级 parent-context-500**,保留 flat leaf,按预注册顺序转 E3 dense + lexical hybrid。
+- 详见 [2026-07-22-e2-parent-context-vs-flat.md](2026-07-22-e2-parent-context-vs-flat.md)。
+
 ---
 
 ## 当前状态与下一步
@@ -117,8 +137,8 @@
 - 已完成:E0 基线 → E1 表示层改进 → 核心集升级并冻结到 450 → Development 与 Validation
   配对重跑 → 守门最低数补齐并执行 fixture-contract。Validation 证明 E1 提升真实,也证明
   dense-only 尚未达门槛。
-- **下一步**:按预注册顺序执行 E2 flat chunk vs 一个 parent-child 方案;若提升 <0.02 则不晋级,
-  转入 E3 dense + lexical 混合召回。Holdout 继续密封。
+- **下一步**:E2 parent-context 未达到 +0.02,按预注册顺序执行 E3 dense + lexical 混合召回。
+  Holdout 与 Validation 继续密封。
 
 ## 开放问题 / 待办
 
@@ -126,6 +146,7 @@
 - [x] 守门补 **「图册收窄」** 套件——已建 `guard_chartbook_scope`(12 例)。
 - [x] 守门套件补齐——总量 272;计划内五套件均达到最低数并完成 272/272 fixture-contract。
 - [x] E0/E1 在 450 Validation 配对复核——E1 的提升区间不跨 0,但绝对门槛未通过。
+- [x] E2 flat vs parent-context-500——R@10 -0.013,不晋级,转 E3。
 - [x] 英文切片小样本噪声——450 上 en(n=47)R@10 0.894,与其他语言接近,非真问题。
 - [ ] E6/E7(上下文选择、生成引用)尚未开跑。
 
