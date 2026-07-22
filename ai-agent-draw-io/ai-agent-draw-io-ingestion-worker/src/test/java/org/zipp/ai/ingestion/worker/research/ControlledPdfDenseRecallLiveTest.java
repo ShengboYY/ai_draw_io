@@ -733,6 +733,9 @@ class ControlledPdfDenseRecallLiveTest {
         int maxAttempts = Integer.parseInt(
                 System.getenv().getOrDefault("MATERIAL_RAG_INDEX_WAIT_ATTEMPTS", "24"));
         for (int attempt = 0; attempt < maxAttempts; attempt++) {
+            if (attempt > 0 && attempt % 20 == 0) {
+                System.out.printf("Index visibility checks: %d/%d%n", attempt, maxAttempts);
+            }
             if (!allExisting(client, namespace, vectorIds)) {
                 Thread.sleep(500L);
                 continue;
@@ -751,8 +754,8 @@ class ControlledPdfDenseRecallLiveTest {
             if (searchable) return;
             Thread.sleep(500L);
         }
-        throw new IllegalStateException("Controlled PDF vectors were not searchable within "
-                + (maxAttempts / 2) + " seconds");
+        throw new IllegalStateException("Controlled PDF vectors were not searchable after "
+                + maxAttempts + " visibility checks");
     }
 
     private void waitUntilDeleted(PineconeVectorClient client, String namespace,

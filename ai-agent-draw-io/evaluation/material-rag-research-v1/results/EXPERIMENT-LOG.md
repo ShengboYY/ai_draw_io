@@ -89,15 +89,22 @@
 
 ### E0/E1 Validation 配对复核 @ 450 · 2026-07-22 · ✅提升泛化,❌ dense-only 未过门槛
 
-- **控制变量**:同一提交 `70cb75e7`、同一冻结锁、Validation、`multilingual-e5-large`、top 40;
-  只切换 `canonical-v4 → canonical-v5`。73 个 text/table/multi-evidence 用例进入 dense 评估,
-  Holdout 未打开。
-- **E0**:R@10 0.699、R@40 0.726、MRR@10 0.545、920 chunks、20 个 rank-0 miss。
-- **E1**:R@10 **0.836**、R@40 **0.849**、MRR@10 **0.651**、533 chunks、11 个 rank-0 miss。
-- **配对提升**:R@10 **+0.137**(95% CI [0.068, 0.219])、R@40 **+0.123**
-  ([0.055, 0.205])、MRR@10 **+0.106**([0.019, 0.197])。提升在 Validation 泛化且总体区间不跨 0。
-- **切片**:R@10 没有负向切片;cross-language、exact lookup 与 table 保持不变,English、Chinese、
-  multi-evidence、retrieval-decision 均提升。failure 只有 n=3,不可据此作稳定结论。
+- **控制变量**:同一提交 `b78f014c`、同一冻结锁、Validation、`multilingual-e5-large`、top 40;
+  只切换 `canonical-v4 → canonical-v5`。100 个 Validation 核心用例中,73 个 answerable
+  text/table/multi-evidence 用例进入本次 dense 评估;其余 visual/OCR/no-answer 必须在对应阶段评估。
+  Holdout 未打开。运行时锁 SHA-256 为 `40891a8b…`,精确快照保存在
+  `2026-07-22-e0-e1-run-corpus-lock.json`;当前工作树的 lock 会因比较器等 provenance 脚本后续修订而变化,
+  不用于冒充这两次历史运行的锁。
+- **E0**:mapping 53/73=0.726;端到端 R@10 0.699、R@40 0.726、MRR@10 0.547、920 chunks、
+  20 个 rank-0 miss;conditional-on-mapping R@10 0.962、R@40 1.000。
+- **E1**:mapping **62/73=0.849**;端到端 R@10 **0.822**、R@40 **0.836**、MRR@10 **0.646**、
+  533 chunks、12 个 rank-0 miss;conditional-on-mapping R@10 0.968、R@40 0.984。
+- **配对提升**:mapping **+0.123**;端到端 R@10 **+0.123**(95% CI [0.041, 0.205])、
+  R@40 **+0.110**([0.027, 0.192])、MRR@10 **+0.099**([0.014, 0.189])。
+  提升在 Validation 泛化且三个主要差值区间不跨 0;机制主要是多 9 个 case 被正确映射。
+- **切片**:English、Chinese、multi-evidence、retrieval-decision 提升;cross-language 与 exact lookup
+  持平。table 从 1.000 降到 0.875(n=8,配对区间 [-0.375,0.000]),未显著但列为 E2 观察项;
+  failure 只有 n=3,不可据此作稳定结论。
 - **决策**:保留 E1 作为已证实的表示层组件,但 E1 本身仍低于 0.90/0.95/0.75 门槛,
   不能宣称 dense-only pipeline 完成。按计划进入 E2,若提升 <0.02 再转 E3。
 - 详见 [2026-07-22-e0-e1-validation.md](2026-07-22-e0-e1-validation.md),原始逐用例结果保存在

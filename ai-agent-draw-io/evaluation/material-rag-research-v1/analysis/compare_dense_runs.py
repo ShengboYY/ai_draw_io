@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import math
 import random
@@ -83,6 +84,15 @@ def compare(e0: dict, e1: dict) -> dict:
         for field in ("category", "primaryCategory", "language", "goldAnchorIds"):
             if e0_cases[case_id].get(field) != e1_cases[case_id].get(field):
                 raise ValueError(f"Case metadata drift for {case_id}: {field}")
+        for run_label, case in (("e0", e0_cases[case_id]), ("e1", e1_cases[case_id])):
+            candidates = case.get("candidates")
+            if not isinstance(candidates, list) or len(candidates) > e0["candidateLimit"]:
+                raise ValueError(f"Missing or invalid raw candidates for {run_label}:{case_id}")
+            if [candidate.get("rank") for candidate in candidates] != list(
+                    range(1, len(candidates) + 1)):
+                raise ValueError(f"Candidate ranks are not contiguous for {run_label}:{case_id}")
+            if any(candidate.get("chunkId") == "unknown" for candidate in candidates):
+                raise ValueError(f"Unknown candidate chunk for {run_label}:{case_id}")
 
     aggregates = {}
     for metric_index, metric in enumerate(METRICS):
@@ -118,16 +128,49 @@ def compare(e0: dict, e1: dict) -> dict:
             ),
         })
 
+    e0_mapped = [case_id for case_id in case_ids if e0_cases[case_id].get("mappable")]
+    e1_mapped = [case_id for case_id in case_ids if e1_cases[case_id].get("mappable")]
+    conditional = {"e0CaseCount": len(e0_mapped), "e1CaseCount": len(e1_mapped), "metrics": {}}
+    for metric_index, metric in enumerate(METRICS):
+        e0_values = [case_value(e0_cases[case_id]["rank"], metric) for case_id in e0_mapped]
+        e1_values = [case_value(e1_cases[case_id]["rank"], metric) for case_id in e1_mapped]
+        conditional["metrics"][metric] = {
+            "e0": sum(e0_values) / len(e0_values),
+            "e0Ci95": interval(e0_values, metric, 2026072400 + metric_index),
+            "e1": sum(e1_values) / len(e1_values),
+            "e1Ci95": interval(e1_values, metric, 2026072410 + metric_index),
+        }
+
     return {
         "schemaVersion": "material-rag-dense-paired-comparison-v1",
         "status": "comparable",
+        "scope": "answerable-dense-eligible-text-table-and-multi-evidence",
         "caseCount": len(case_ids),
         "controls": {field: e0[field] for field in fixed_fields},
         "modes": {"e0": e0["canonicalMode"], "e1": e1["canonicalMode"]},
         "chunkCounts": {"e0": e0["chunkCount"], "e1": e1["chunkCount"]},
+        "mapping": {
+            "e0Count": len(e0_mapped),
+            "e0Rate": len(e0_mapped) / len(case_ids),
+            "e0Ci95": wilson(len(e0_mapped), len(case_ids)),
+            "e1Count": len(e1_mapped),
+            "e1Rate": len(e1_mapped) / len(case_ids),
+            "e1Ci95": wilson(len(e1_mapped), len(case_ids)),
+            "delta": (len(e1_mapped) - len(e0_mapped)) / len(case_ids),
+        },
+        "conditionalOnMapping": conditional,
         "aggregates": aggregates,
         "slices": slice_results,
     }
+
+
+def attach_corpus_lock_snapshot(result: dict, snapshot: Path) -> None:
+    """Attach a run lock only after verifying it matches the paired raw results."""
+    actual = hashlib.sha256(snapshot.read_bytes()).hexdigest()
+    expected = result["controls"]["corpusLockSha256"]
+    if actual != expected:
+        raise ValueError(f"Corpus-lock snapshot hash differs: expected {expected}, got {actual}")
+    result["controls"]["corpusLockSnapshot"] = str(snapshot)
 
 
 def percent(value: float) -> str:
@@ -143,6 +186,9 @@ def markdown_report(result: dict) -> str:
         "# E0/E1 paired validation comparison on the frozen 450-case corpus",
         "",
         f"Paired dense-retrieval cases: **{result['caseCount']}**. Holdout remained sealed.",
+        "This is the answerable dense-eligible subset, not a score over visual, OCR or no-answer cases.",
+        f"Run corpus lock: `{result['controls'].get('corpusLockSnapshot', 'not supplied')}`",
+        f"(SHA-256 `{result['controls']['corpusLockSha256']}`).",
         "All intervals below are 95%; recall uses Wilson intervals and paired deltas/MRR use a",
         "deterministic 10,000-sample percentile bootstrap.",
         "",
@@ -154,6 +200,23 @@ def markdown_report(result: dict) -> str:
             f"| {metric} | {percent(value['e0'])} | {ci(value['e0Ci95'])} | "
             f"{percent(value['e1'])} | {ci(value['e1Ci95'])} | "
             f"{percent(value['delta'])} | {ci(value['deltaCi95'])} |"
+        )
+    lines.extend([
+        "",
+        "## Mapping and conditional retrieval",
+        "",
+        "| Stage | E0 | E1 | Delta |",
+        "|---|---:|---:|---:|",
+        f"| Gold mapping | {result['mapping']['e0Count']}/{result['caseCount']} "
+        f"({percent(result['mapping']['e0Rate'])}) | {result['mapping']['e1Count']}/"
+        f"{result['caseCount']} ({percent(result['mapping']['e1Rate'])}) | "
+        f"{percent(result['mapping']['delta'])} |",
+    ])
+    for metric in ("recallAt10", "recallAt40", "mrrAt10"):
+        value = result["conditionalOnMapping"]["metrics"][metric]
+        lines.append(
+            f"| Conditional {metric} | {percent(value['e0'])} {ci(value['e0Ci95'])} | "
+            f"{percent(value['e1'])} {ci(value['e1Ci95'])} | — |"
         )
     lines.extend([
         "",
@@ -178,9 +241,11 @@ def markdown_report(result: dict) -> str:
         "",
         f"E1 improves Recall@10 by {percent(r10['delta'])}, Recall@40 by "
         f"{percent(r40['delta'])}, and MRR@10 by {percent(mrr['delta'])}. The improvement "
-        "generalizes to Validation, but E1 remains below the 0.90/0.95/0.75 promotion gates. "
+        f"generalizes to Validation and mapping improves by {percent(result['mapping']['delta'])}, "
+        "but E1 remains below the 0.90/0.95/0.75 end-to-end promotion gates. "
         "Keep the representation change as a proven component; do not declare the dense-only "
-        "pipeline complete. Continue with E2 or E3 on Development, then return to Validation.",
+        "pipeline complete. Run E2 on Development; if its gain is below 0.02, continue with E3, "
+        "then return to Validation.",
         "",
     ])
     return "\n".join(lines)
@@ -192,10 +257,14 @@ def main() -> None:
     parser.add_argument("e1", type=Path)
     parser.add_argument("--json-out", type=Path)
     parser.add_argument("--markdown-out", type=Path)
+    parser.add_argument("--corpus-lock-snapshot", type=Path)
     args = parser.parse_args()
     e0 = json.loads(args.e0.read_text(encoding="utf-8"))
     e1 = json.loads(args.e1.read_text(encoding="utf-8"))
     result = compare(e0, e1)
+    if args.corpus_lock_snapshot:
+        # Keep results tied to the exact historical lock even after analysis tools evolve.
+        attach_corpus_lock_snapshot(result, args.corpus_lock_snapshot)
     output = json.dumps(result, ensure_ascii=False, indent=2) + "\n"
     print(output, end="")
     for path, content in ((args.json_out, output),

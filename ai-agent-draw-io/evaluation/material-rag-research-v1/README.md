@@ -246,9 +246,13 @@ Compare paired E0/E1 raw files with deterministic Wilson and 10,000-sample paire
 python3 evaluation/material-rag-research-v1/analysis/compare_dense_runs.py \
   evaluation/material-rag-research-v1/results/e0-raw.json \
   evaluation/material-rag-research-v1/results/e1-raw.json \
+  --corpus-lock-snapshot evaluation/material-rag-research-v1/results/e0-e1-run-corpus-lock.json \
   --json-out evaluation/material-rag-research-v1/results/e0-e1-comparison.json \
   --markdown-out evaluation/material-rag-research-v1/results/e0-e1-comparison.md
 ```
+
+The snapshot must be the exact lock used by both live runs. Keep it beside the raw results so later
+analysis-tool changes can regenerate the current readiness lock without rewriting historical provenance.
 
 Evaluate OCR output named `page-1.txt` through `page-3.txt` with:
 
