@@ -70,11 +70,12 @@ def slices(case: dict) -> list[str]:
 
 def compare(e0: dict, e1: dict, variable_field: str = "canonicalMode") -> dict:
     """Compare paired case ranks after rejecting any experiment-control drift."""
-    supported_variables = {"canonicalMode", "chunkMode"}
+    supported_variables = {"canonicalMode", "chunkMode", "retrievalMode"}
     if variable_field not in supported_variables:
         raise ValueError(f"Unsupported experiment variable: {variable_field}")
     fixed_fields = ["gitCommit", "corpusLockSha256", "split", "embeddingModel",
-                    "tokenizerFingerprint", "candidateLimit", "canonicalMode", "chunkMode"]
+                    "tokenizerFingerprint", "candidateLimit", "canonicalMode", "chunkMode",
+                    "retrievalMode", "lexicalRankerFingerprint", "fusionFingerprint"]
     fixed_fields.remove(variable_field)
     drift = [field for field in fixed_fields if e0.get(field) != e1.get(field)]
     if drift:
@@ -89,7 +90,7 @@ def compare(e0: dict, e1: dict, variable_field: str = "canonicalMode") -> dict:
                       "fixedGoldChunkIdsByAnchor"):
             if e0_cases[case_id].get(field) != e1_cases[case_id].get(field):
                 raise ValueError(f"Case metadata drift for {case_id}: {field}")
-        if variable_field == "chunkMode":
+        if variable_field in {"chunkMode", "retrievalMode"}:
             fixed_gold = e0_cases[case_id].get("fixedGoldChunkIdsByAnchor")
             if not isinstance(fixed_gold, dict) or set(fixed_gold) != set(
                     e0_cases[case_id]["goldAnchorIds"]):
@@ -103,6 +104,16 @@ def compare(e0: dict, e1: dict, variable_field: str = "canonicalMode") -> dict:
                 raise ValueError(f"Candidate ranks are not contiguous for {run_label}:{case_id}")
             if any(candidate.get("chunkId") == "unknown" for candidate in candidates):
                 raise ValueError(f"Unknown candidate chunk for {run_label}:{case_id}")
+        if variable_field == "retrievalMode":
+            for lane in ("denseCandidates", "lexicalCandidates"):
+                before = e0_cases[case_id].get(lane)
+                after = e1_cases[case_id].get(lane)
+                if not isinstance(before, list) or not isinstance(after, list):
+                    raise ValueError(f"Missing {lane} for retrieval experiment: {case_id}")
+                before_chunks = [candidate.get("chunkId") for candidate in before]
+                after_chunks = [candidate.get("chunkId") for candidate in after]
+                if before_chunks != after_chunks:
+                    raise ValueError(f"{lane} drift for {case_id}")
 
     aggregates = {}
     for metric_index, metric in enumerate(METRICS):
@@ -162,7 +173,10 @@ def compare(e0: dict, e1: dict, variable_field: str = "canonicalMode") -> dict:
             "baseline": e0.get(variable_field),
             "candidate": e1.get(variable_field),
         },
-        "modes": {"e0": e0["canonicalMode"], "e1": e1["canonicalMode"]},
+        "modes": {
+            "canonical": {"e0": e0["canonicalMode"], "e1": e1["canonicalMode"]},
+            "retrieval": {"e0": e0.get("retrievalMode"), "e1": e1.get("retrievalMode")},
+        },
         "chunkCounts": {"e0": e0["chunkCount"], "e1": e1["chunkCount"]},
         "mapping": {
             "e0Count": len(e0_mapped),
@@ -273,7 +287,7 @@ def main() -> None:
     parser.add_argument("--json-out", type=Path)
     parser.add_argument("--markdown-out", type=Path)
     parser.add_argument("--corpus-lock-snapshot", type=Path)
-    parser.add_argument("--variable-field", choices=("canonicalMode", "chunkMode"),
+    parser.add_argument("--variable-field", choices=("canonicalMode", "chunkMode", "retrievalMode"),
                         default="canonicalMode")
     args = parser.parse_args()
     e0 = json.loads(args.e0.read_text(encoding="utf-8"))

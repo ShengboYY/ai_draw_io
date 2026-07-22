@@ -257,6 +257,13 @@ For E2, set `MATERIAL_RAG_CANONICAL_MODE=e1-v5` in both runs and vary only
 `MATERIAL_RAG_CHUNK_MODE=flat-leaf-v1|parent-context-500-v1`; pass `--variable-field chunkMode` to the
 comparison command so canonical-mode drift is rejected.
 
+For the first E3 candidate, keep `MATERIAL_RAG_CANONICAL_MODE=e1-v5` and
+`MATERIAL_RAG_CHUNK_MODE=flat-leaf-v1`, then vary only
+`MATERIAL_RAG_RETRIEVAL_MODE=dense-v1|hybrid-projection-rrf-v1`. Pass
+`--variable-field retrievalMode`; the comparator then also requires identical raw dense and shadow lexical
+lanes in both runs. The research lexical lane is deterministic and projection-backed, but it is not a score-level
+emulation of MySQL natural-language FULLTEXT, so a promoted candidate still requires an online MySQL check.
+
 Evaluate OCR output named `page-1.txt` through `page-3.txt` with:
 
 ```bash

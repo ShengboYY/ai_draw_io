@@ -246,3 +246,13 @@ tokenizer 计数不超过 500 时使用，超过 500 或缺失时退回 child `r
 和质量计分前被 Pinecone HTTP 400 拒绝，观测到实际最大输入为 512 tokens，而客户端固定
 `truncate=NONE`。因此只做上述 500-token 上限修正，并从同一新 commit 重跑控制组和候选组；失败运行
 不进入质量比较。
+
+E3 的首个候选在运行前固定如下：控制组为 `dense-v1`；候选组为
+`hybrid-projection-rrf-v1`。两组都使用 E1 canonical、flat child、固定 gold child、同一
+`multilingual-e5-large` dense top 40。候选组另从现有 `LexicalProjection` 取 top 40：拉丁字母/数字
+使用确定性 TF-IDF、汉字使用 bigram、任一 exact term 命中加 2；随后按线上同一组参数
+`lexical=1.2`、`dense=1.0`、`k=60` 做 weighted RRF 并截断 top 40。控制组也输出 shadow lexical lane，
+比较器必须验证两次运行的 dense lane、lexical lane、gold mapping 均逐 case 相同。此离线词法排序覆盖
+产品的 projection 信号和 exact boost，但不宣称逐分数复刻 MySQL `NATURAL LANGUAGE MODE`；若候选晋级，
+仍须做线上 MySQL 复核。查询改写不在本候选中改变。主指标为 Development Recall@10 配对差值；只有
+提升至少 0.02、Recall@40 不降低，且没有样本量至少 20 的主要切片显著退化时才进入 Validation。

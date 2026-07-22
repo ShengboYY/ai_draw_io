@@ -177,6 +177,7 @@ class ControlledPdfDenseRecallLiveTest {
         Path root = researchRoot();
         String canonicalMode = canonicalMode();
         ChunkMode chunkMode = chunkMode();
+        RetrievalMode retrievalMode = retrievalMode();
         ProjectionSet projections = buildControlledProjections(root);
         Map<String, ResearchAnchor> anchors = new HashMap<>();
         anchors(root).forEach(anchor -> anchors.put(anchor.anchorId(), anchor));
@@ -194,10 +195,10 @@ class ControlledPdfDenseRecallLiveTest {
 
         PineconeVectorClient client = new PineconeVectorClient(
                 apiKey, indexHost, "multilingual-e5-large", 1024, JSON);
-        ExperimentResult result = runDenseExperiment(
-                "controlled", client, namespace, projections, cases, anchors, chunkMode);
+        ExperimentResult result = runRetrievalExperiment(
+                "controlled", client, namespace, projections, cases, anchors, chunkMode, retrievalMode);
         report("Controlled PDF", result);
-        writeRawResultIfRequested(root, researchSplit, canonicalMode, chunkMode, result);
+        writeRawResultIfRequested(root, researchSplit, canonicalMode, chunkMode, retrievalMode, result);
         if (Boolean.parseBoolean(System.getenv().getOrDefault("MATERIAL_RAG_ENFORCE_GATES", "true"))) {
             assertTrue(result.metrics().recallAt10() >= 0.90,
                     "Dense PDF Recall@10 fell below the text gate");
@@ -239,9 +240,9 @@ class ControlledPdfDenseRecallLiveTest {
         }
         PineconeVectorClient client = new PineconeVectorClient(
                 apiKey, indexHost, "multilingual-e5-large", 1024, JSON);
-        ExperimentResult result = runDenseExperiment(
+        ExperimentResult result = runRetrievalExperiment(
                 "open", client, namespace, projections, List.copyOf(cases), Map.copyOf(anchors),
-                ChunkMode.FLAT_LEAF);
+                ChunkMode.FLAT_LEAF, RetrievalMode.DENSE);
         report("Open PDF", result);
         assertTrue(result.metrics().recallAt10() >= 0.85, "Open PDF Recall@10 fell below research baseline");
         assertTrue(result.metrics().recallAt40() >= 0.95, "Open PDF Recall@40 fell below research baseline");
@@ -320,10 +321,12 @@ class ControlledPdfDenseRecallLiveTest {
         System.out.println("Removed interrupted research vectors: " + ids.size());
     }
 
-    private ExperimentResult runDenseExperiment(String prefix, PineconeVectorClient client, String namespace,
-                                                ProjectionSet projections, List<ResearchCase> cases,
-                                                Map<String, ResearchAnchor> anchors,
-                                                ChunkMode chunkMode) throws Exception {
+    private ExperimentResult runRetrievalExperiment(String prefix, PineconeVectorClient client,
+                                                    String namespace, ProjectionSet projections,
+                                                    List<ResearchCase> cases,
+                                                    Map<String, ResearchAnchor> anchors,
+                                                    ChunkMode chunkMode,
+                                                    RetrievalMode retrievalMode) throws Exception {
         String runId = prefix + "pdfresearch_" + UUID.randomUUID().toString().replace("-", "");
         String tenantKey = runId + "_tenant";
         List<IndexedChunk> indexed = indexedChunks(runId, projections, chunkMode);
@@ -357,9 +360,9 @@ class ControlledPdfDenseRecallLiveTest {
             }
             waitUntilSearchable(client, namespace, tenantKey, indexed, passageVectors);
             System.out.println("Research index is searchable: " + runId);
-            return new ExperimentResult(runId, canonicalAssembler().fingerprint(), evaluate(
-                    client, namespace, tenantKey, cases, anchors, projections, indexed), indexed.size(),
-                    embeddingProfile);
+            return new ExperimentResult(runId, canonicalAssembler().fingerprint(), retrievalMode, evaluate(
+                    client, namespace, tenantKey, cases, anchors, projections, indexed, retrievalMode),
+                    indexed.size(), embeddingProfile);
         } finally {
             // Pinecone limits delete-by-id payloads, so large open PDFs must be cleaned in batches.
             for (int start = 0; start < vectorIds.size(); start += 100) {
@@ -378,9 +381,9 @@ class ControlledPdfDenseRecallLiveTest {
     private void report(String label, ExperimentResult result) {
         DenseMetrics metrics = result.metrics();
         System.out.printf(Locale.ROOT,
-                "%s dense pipeline: Mapping=%.4f Recall@1=%.4f Recall@5=%.4f Recall@10=%.4f "
+                "%s %s pipeline: Mapping=%.4f Recall@1=%.4f Recall@5=%.4f Recall@10=%.4f "
                         + "Recall@40=%.4f MRR@10=%.4f chunks=%d%n",
-                label, metrics.mappingRate(), metrics.recallAt1(), metrics.recallAt5(),
+                label, result.retrievalMode().id(), metrics.mappingRate(), metrics.recallAt1(), metrics.recallAt5(),
                 metrics.recallAt10(),
                 metrics.recallAt40(), metrics.mrrAt10(), result.chunkCount());
         System.out.printf(Locale.ROOT,
@@ -398,7 +401,7 @@ class ControlledPdfDenseRecallLiveTest {
     }
 
     private void writeRawResultIfRequested(Path root, String split, String canonicalMode,
-                                           ChunkMode chunkMode,
+                                           ChunkMode chunkMode, RetrievalMode retrievalMode,
                                            ExperimentResult result) throws Exception {
         String configured = System.getenv("MATERIAL_RAG_RESULT_JSON");
         if (configured == null || configured.isBlank()) return;
@@ -408,7 +411,7 @@ class ControlledPdfDenseRecallLiveTest {
             lock = root.resolve("fixtures/generated/corpus-lock.candidate.json");
         }
         Map<String, Object> raw = new LinkedHashMap<>();
-        raw.put("schemaVersion", "material-rag-dense-run-v1");
+        raw.put("schemaVersion", "material-rag-retrieval-run-v2");
         raw.put("runId", result.runId());
         raw.put("gitCommit", System.getenv().getOrDefault("MATERIAL_RAG_COMMIT_SHA", "unknown"));
         raw.put("corpusLockSha256", sha256(lock));
@@ -416,6 +419,9 @@ class ControlledPdfDenseRecallLiveTest {
         raw.put("canonicalMode", canonicalMode);
         raw.put("chunkMode", chunkMode.id());
         raw.put("chunkEmbeddingFingerprint", chunkMode.fingerprint());
+        raw.put("retrievalMode", retrievalMode.id());
+        raw.put("lexicalRankerFingerprint", ResearchHybridRanker.FINGERPRINT);
+        raw.put("fusionFingerprint", "weighted-rrf-v1:k60:lexical1.2:dense1.0");
         raw.put("canonicalFingerprint", result.canonicalFingerprint());
         raw.put("embeddingModel", "multilingual-e5-large");
         raw.put("tokenizerFingerprint", RESEARCH_COUNTER.fingerprint());
@@ -543,6 +549,11 @@ class ControlledPdfDenseRecallLiveTest {
                 "MATERIAL_RAG_CHUNK_MODE", ChunkMode.FLAT_LEAF.id()));
     }
 
+    private RetrievalMode retrievalMode() {
+        return RetrievalMode.fromId(System.getenv().getOrDefault(
+                "MATERIAL_RAG_RETRIEVAL_MODE", RetrievalMode.DENSE.id()));
+    }
+
     private List<float[]> embedPassages(PineconeVectorClient client,
                                         List<String> passages) throws InterruptedException {
         List<float[]> result = new ArrayList<>();
@@ -557,8 +568,8 @@ class ControlledPdfDenseRecallLiveTest {
 
     private DenseMetrics evaluate(PineconeVectorClient client, String namespace, String tenantKey,
                                   List<ResearchCase> cases, Map<String, ResearchAnchor> anchors,
-                                  ProjectionSet projections,
-                                  List<IndexedChunk> indexed) throws InterruptedException {
+                                  ProjectionSet projections, List<IndexedChunk> indexed,
+                                  RetrievalMode retrievalMode) throws InterruptedException {
         List<CaseRank> ranks = new ArrayList<>();
         Map<String, IndexedChunk> indexedByVectorId = indexed.stream().collect(
                 java.util.stream.Collectors.toMap(IndexedChunk::vectorId, value -> value));
@@ -594,21 +605,31 @@ class ControlledPdfDenseRecallLiveTest {
                         indexed, sourceVersion, fixedGoldChunkIds));
             }
             int queryIndex = caseIndex;
-            List<String> matches = retryPinecone("query research vectors", () -> client.query(
+            List<String> denseMatches = retryPinecone("query research vectors", () -> client.query(
                     namespace, queryVectors.get(queryIndex), 40, Map.of("$and", List.of(
                             Map.of("tenant_key", Map.of("$eq", tenantKey)),
                             Map.of("version_id", Map.of("$eq", sourceVersion))))));
-            List<CandidateResult> candidates = new ArrayList<>();
-            for (int index = 0; index < matches.size(); index++) {
-                IndexedChunk candidate = indexedByVectorId.get(matches.get(index));
-                candidates.add(new CandidateResult(index + 1, matches.get(index),
-                        candidate == null ? "unknown" : candidate.sourceVersion(),
-                        candidate == null ? "unknown" : candidate.chunk().chunkId()));
-            }
+            List<String> denseChunkIds = denseMatches.stream()
+                    .map(indexedByVectorId::get).map(value -> value.chunk().chunkId()).toList();
+            List<String> lexicalChunkIds = ResearchHybridRanker.lexicalRank(researchCase.query(),
+                    projections.bySourceVersion().get(sourceVersion).lexicalProjections());
+            List<String> selectedChunkIds = retrievalMode == RetrievalMode.HYBRID_PROJECTION_RRF
+                    ? ResearchHybridRanker.fuse(lexicalChunkIds, denseChunkIds, 40) : denseChunkIds;
+            Map<String, IndexedChunk> indexedByChunkId = indexed.stream()
+                    .filter(value -> sourceVersion.equals(value.sourceVersion()))
+                    .collect(java.util.stream.Collectors.toMap(
+                            value -> value.chunk().chunkId(), value -> value));
+            List<String> matches = selectedChunkIds.stream()
+                    .map(indexedByChunkId::get).map(IndexedChunk::vectorId).toList();
+            List<CandidateResult> candidates = candidateResults(matches, indexedByVectorId);
+            List<CandidateResult> denseCandidates = candidateResults(denseMatches, indexedByVectorId);
+            List<CandidateResult> lexicalCandidates = candidateResults(lexicalChunkIds.stream()
+                    .map(indexedByChunkId::get).map(IndexedChunk::vectorId).toList(), indexedByVectorId);
             ranks.add(new CaseRank(researchCase, completeEvidenceRank(
                     matches, researchCase.requiredEvidenceGroups(), requiredGoldVectorIds),
                     isMappable(researchCase.requiredEvidenceGroups(), requiredGoldVectorIds),
-                    Map.copyOf(fixedGoldChunkIdsByAnchor), List.copyOf(candidates)));
+                    Map.copyOf(fixedGoldChunkIdsByAnchor), List.copyOf(candidates),
+                    List.copyOf(denseCandidates), List.copyOf(lexicalCandidates)));
             if ((caseIndex + 1) % 10 == 0 || caseIndex + 1 == cases.size()) {
                 System.out.printf("Research cases evaluated: %d/%d%n", caseIndex + 1, cases.size());
             }
@@ -636,10 +657,23 @@ class ControlledPdfDenseRecallLiveTest {
                 value.researchCase().caseId(), value.rank(), value.researchCase().category(),
                 value.researchCase().primaryCategory(), value.researchCase().language(),
                 value.researchCase().goldAnchorIds(), value.fixedGoldChunkIdsByAnchor(),
-                value.mappable(), value.candidates())).toList();
+                value.mappable(), value.candidates(), value.denseCandidates(),
+                value.lexicalCandidates())).toList();
         return new DenseMetrics((double) mappedRanks.size() / ranks.size(), mappedRanks.size(),
                 total.recallAt1(), total.recallAt5(), total.recallAt10(), total.recallAt40(),
                 total.mrrAt10(), conditional, misses, List.copyOf(slices), weak, caseResults);
+    }
+
+    private List<CandidateResult> candidateResults(List<String> vectorIds,
+                                                   Map<String, IndexedChunk> indexedByVectorId) {
+        List<CandidateResult> candidates = new ArrayList<>();
+        for (int index = 0; index < vectorIds.size(); index++) {
+            IndexedChunk candidate = indexedByVectorId.get(vectorIds.get(index));
+            candidates.add(new CandidateResult(index + 1, vectorIds.get(index),
+                    candidate == null ? "unknown" : candidate.sourceVersion(),
+                    candidate == null ? "unknown" : candidate.chunk().chunkId()));
+        }
+        return List.copyOf(candidates);
     }
 
     private SliceMetric summarize(String label, List<CaseRank> ranks) {
@@ -996,16 +1030,38 @@ class ControlledPdfDenseRecallLiveTest {
         }
     }
 
+    private enum RetrievalMode {
+        DENSE("dense-v1"),
+        HYBRID_PROJECTION_RRF("hybrid-projection-rrf-v1");
+
+        private final String id;
+
+        RetrievalMode(String id) {
+            this.id = id;
+        }
+
+        String id() { return id; }
+
+        static RetrievalMode fromId(String id) {
+            return Stream.of(values()).filter(value -> value.id.equals(id)).findFirst()
+                    .orElseThrow(() -> new IllegalArgumentException(
+                            "Unknown MATERIAL_RAG_RETRIEVAL_MODE: " + id));
+        }
+    }
+
     private record CaseRank(ResearchCase researchCase, int rank, boolean mappable,
                             Map<String, List<String>> fixedGoldChunkIdsByAnchor,
-                            List<CandidateResult> candidates) { }
+                            List<CandidateResult> candidates,
+                            List<CandidateResult> denseCandidates,
+                            List<CandidateResult> lexicalCandidates) { }
 
     private record CandidateResult(int rank, String vectorId, String sourceVersion, String chunkId) { }
 
     private record CaseResult(String caseId, int rank, String category, String primaryCategory,
                               String language, List<String> goldAnchorIds,
                               Map<String, List<String>> fixedGoldChunkIdsByAnchor, boolean mappable,
-                              List<CandidateResult> candidates) { }
+                              List<CandidateResult> candidates, List<CandidateResult> denseCandidates,
+                              List<CandidateResult> lexicalCandidates) { }
 
     private record SliceMetric(String label, int count, double recallAt1, double recallAt5,
                                double recallAt10, double recallAt40, double mrrAt10) { }
@@ -1019,6 +1075,6 @@ class ControlledPdfDenseRecallLiveTest {
     private record EmbeddingProfile(int p50, int p95, int max) { }
 
     private record ExperimentResult(String runId, String canonicalFingerprint,
-                                    DenseMetrics metrics, int chunkCount,
+                                    RetrievalMode retrievalMode, DenseMetrics metrics, int chunkCount,
                                     EmbeddingProfile embeddingTokenProfile) { }
 }

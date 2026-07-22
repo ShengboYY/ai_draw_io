@@ -14,12 +14,17 @@ def run(mode: str, ranks: list[int]) -> dict:
               "primaryCategory": "exactLookup", "language": "en", "goldAnchorIds": ["a"],
               "fixedGoldChunkIdsByAnchor": {"a": ["chunk"]},
               "mappable": True, "candidates": [{"rank": 1, "vectorId": "v",
+              "sourceVersion": "source:v1", "chunkId": "chunk"}],
+              "denseCandidates": [{"rank": 1, "vectorId": "v",
+              "sourceVersion": "source:v1", "chunkId": "chunk"}],
+              "lexicalCandidates": [{"rank": 1, "vectorId": "v",
               "sourceVersion": "source:v1", "chunkId": "chunk"}]}
              for index, rank in enumerate(ranks)]
     return {
         "gitCommit": "abc", "corpusLockSha256": "lock", "split": "validation",
         "embeddingModel": "model", "tokenizerFingerprint": "tokenizer", "candidateLimit": 40,
-        "canonicalMode": mode, "chunkMode": "flat-leaf-v1", "chunkCount": 10,
+        "canonicalMode": mode, "chunkMode": "flat-leaf-v1", "retrievalMode": "dense-v1",
+        "lexicalRankerFingerprint": "lexical", "fusionFingerprint": "rrf", "chunkCount": 10,
         "metrics": {"caseResults": cases},
     }
 
@@ -68,6 +73,26 @@ class CompareDenseRunsTest(unittest.TestCase):
 
         with self.assertRaisesRegex(ValueError, "fixedGoldChunkIdsByAnchor"):
             compare(flat, parent, "chunkMode")
+
+    def test_retrieval_experiment_keeps_dense_lane_fixed(self) -> None:
+        dense = run("e1-v5", [5, 1])
+        hybrid = run("e1-v5", [1, 1])
+        hybrid["retrievalMode"] = "hybrid-projection-rrf-v1"
+
+        result = compare(dense, hybrid, "retrievalMode")
+
+        self.assertEqual("retrievalMode", result["experimentVariable"]["field"])
+        self.assertEqual("dense-v1", result["experimentVariable"]["baseline"])
+        self.assertEqual("hybrid-projection-rrf-v1", result["experimentVariable"]["candidate"])
+
+    def test_retrieval_experiment_rejects_dense_lane_drift(self) -> None:
+        dense = run("e1-v5", [1])
+        hybrid = run("e1-v5", [1])
+        hybrid["retrievalMode"] = "hybrid-projection-rrf-v1"
+        hybrid["metrics"]["caseResults"][0]["denseCandidates"][0]["chunkId"] = "other"
+
+        with self.assertRaisesRegex(ValueError, "denseCandidates"):
+            compare(dense, hybrid, "retrievalMode")
 
     def test_missing_raw_candidate_sequence_is_rejected(self) -> None:
         e0 = run("e0-v4", [1])
