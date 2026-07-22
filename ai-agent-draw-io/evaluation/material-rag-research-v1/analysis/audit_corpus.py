@@ -25,6 +25,7 @@ PROVENANCE_FILES = (
     "experiment-plan-v2.json",
     "requirements.txt",
     "analysis/audit_corpus.py",
+    "analysis/compare_dense_runs.py",
     "analysis/evaluate_guard_suites.py",
     "analysis/evaluate_ocr.py",
     "fixtures/generate_fixtures.py",

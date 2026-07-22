@@ -288,10 +288,15 @@ class ControlledPdfDenseRecallLiveTest {
     private void report(String label, ExperimentResult result) {
         DenseMetrics metrics = result.metrics();
         System.out.printf(Locale.ROOT,
-                "%s dense pipeline: Recall@1=%.4f Recall@5=%.4f Recall@10=%.4f "
+                "%s dense pipeline: Mapping=%.4f Recall@1=%.4f Recall@5=%.4f Recall@10=%.4f "
                         + "Recall@40=%.4f MRR@10=%.4f chunks=%d%n",
-                label, metrics.recallAt1(), metrics.recallAt5(), metrics.recallAt10(),
+                label, metrics.mappingRate(), metrics.recallAt1(), metrics.recallAt5(),
+                metrics.recallAt10(),
                 metrics.recallAt40(), metrics.mrrAt10(), result.chunkCount());
+        System.out.printf(Locale.ROOT,
+                "%s conditional-on-mapping: n=%d Recall@10=%.4f Recall@40=%.4f MRR@10=%.4f%n",
+                label, metrics.mappableCaseCount(), metrics.conditional().recallAt10(),
+                metrics.conditional().recallAt40(), metrics.conditional().mrrAt10());
         if (!metrics.misses().isEmpty()) System.out.println(label + " dense misses: " + metrics.misses());
         metrics.slices().forEach(slice -> System.out.printf(Locale.ROOT,
                 "%s slice %-24s n=%d R@1=%.4f R@5=%.4f R@10=%.4f MRR@10=%.4f%n",
@@ -450,6 +455,8 @@ class ControlledPdfDenseRecallLiveTest {
                                   List<ResearchCase> cases, Map<String, ResearchAnchor> anchors,
                                   ProjectionSet projections, List<IndexedChunk> indexed) {
         List<CaseRank> ranks = new ArrayList<>();
+        Map<String, IndexedChunk> indexedByVectorId = indexed.stream().collect(
+                java.util.stream.Collectors.toMap(IndexedChunk::vectorId, value -> value));
         for (ResearchCase researchCase : cases) {
             List<EvidenceRequirement> requirements = researchCase.requiredEvidenceGroups().stream()
                     .flatMap(group -> group.evidence().stream()).toList();
@@ -476,10 +483,21 @@ class ControlledPdfDenseRecallLiveTest {
             List<String> matches = client.query(namespace, query, 40, Map.of("$and", List.of(
                     Map.of("tenant_key", Map.of("$eq", tenantKey)),
                     Map.of("version_id", Map.of("$eq", sourceVersion)))));
+            List<CandidateResult> candidates = new ArrayList<>();
+            for (int index = 0; index < matches.size(); index++) {
+                IndexedChunk candidate = indexedByVectorId.get(matches.get(index));
+                candidates.add(new CandidateResult(index + 1, matches.get(index),
+                        candidate == null ? "unknown" : candidate.sourceVersion(),
+                        candidate == null ? "unknown" : candidate.chunk().chunkId()));
+            }
             ranks.add(new CaseRank(researchCase, completeEvidenceRank(
-                    matches, researchCase.requiredEvidenceGroups(), requiredGoldVectorIds)));
+                    matches, researchCase.requiredEvidenceGroups(), requiredGoldVectorIds),
+                    isMappable(researchCase.requiredEvidenceGroups(), requiredGoldVectorIds),
+                    List.copyOf(candidates)));
         }
         SliceMetric total = summarize("all", ranks);
+        List<CaseRank> mappedRanks = ranks.stream().filter(CaseRank::mappable).toList();
+        SliceMetric conditional = summarize("conditional-on-mapping", mappedRanks);
         List<SliceMetric> slices = new ArrayList<>();
         ranks.stream().map(value -> "language:" + value.researchCase().language()).distinct().sorted()
                 .forEach(label -> slices.add(summarize(label, ranks.stream().filter(value ->
@@ -499,9 +517,10 @@ class ControlledPdfDenseRecallLiveTest {
         List<CaseResult> caseResults = ranks.stream().map(value -> new CaseResult(
                 value.researchCase().caseId(), value.rank(), value.researchCase().category(),
                 value.researchCase().primaryCategory(), value.researchCase().language(),
-                value.researchCase().goldAnchorIds())).toList();
-        return new DenseMetrics(total.recallAt1(), total.recallAt5(), total.recallAt10(),
-                total.recallAt40(), total.mrrAt10(), misses, List.copyOf(slices), weak, caseResults);
+                value.researchCase().goldAnchorIds(), value.mappable(), value.candidates())).toList();
+        return new DenseMetrics((double) mappedRanks.size() / ranks.size(), mappedRanks.size(),
+                total.recallAt1(), total.recallAt5(), total.recallAt10(), total.recallAt40(),
+                total.mrrAt10(), conditional, misses, List.copyOf(slices), weak, caseResults);
     }
 
     private SliceMetric summarize(String label, List<CaseRank> ranks) {
@@ -536,6 +555,25 @@ class ControlledPdfDenseRecallLiveTest {
             completeRank = Math.max(completeRank, groupRank);
         }
         return completeRank;
+    }
+
+    private boolean isMappable(List<RequiredEvidenceGroup> groups,
+                               Map<String, Set<String>> vectorsByAnchor) {
+        for (RequiredEvidenceGroup group : groups) {
+            List<Boolean> mapped = group.evidence().stream().map(requirement ->
+                    requirement.grade() >= requirement.minimumGrade()
+                            && !vectorsByAnchor.getOrDefault(requirement.anchorId(), Set.of()).isEmpty())
+                    .toList();
+            if (group.operator() == EvidenceGroupOperator.ANY
+                    && mapped.stream().noneMatch(Boolean::booleanValue)) {
+                return false;
+            }
+            if (group.operator() == EvidenceGroupOperator.ALL_PARTS
+                    && mapped.stream().anyMatch(value -> !value)) {
+                return false;
+            }
+        }
+        return true;
     }
 
     private int firstEvidenceRank(List<String> matches, Set<String> gold) {
@@ -765,16 +803,21 @@ class ControlledPdfDenseRecallLiveTest {
 
     private record IndexedChunk(String vectorId, String sourceVersion, RetrievalChunkProjection chunk) { }
 
-    private record CaseRank(ResearchCase researchCase, int rank) { }
+    private record CaseRank(ResearchCase researchCase, int rank, boolean mappable,
+                            List<CandidateResult> candidates) { }
+
+    private record CandidateResult(int rank, String vectorId, String sourceVersion, String chunkId) { }
 
     private record CaseResult(String caseId, int rank, String category, String primaryCategory,
-                              String language, List<String> goldAnchorIds) { }
+                              String language, List<String> goldAnchorIds, boolean mappable,
+                              List<CandidateResult> candidates) { }
 
     private record SliceMetric(String label, int count, double recallAt1, double recallAt5,
                                double recallAt10, double recallAt40, double mrrAt10) { }
 
-    private record DenseMetrics(double recallAt1, double recallAt5, double recallAt10,
-                                double recallAt40, double mrrAt10, List<String> misses,
+    private record DenseMetrics(double mappingRate, int mappableCaseCount, double recallAt1,
+                                double recallAt5, double recallAt10, double recallAt40, double mrrAt10,
+                                SliceMetric conditional, List<String> misses,
                                 List<SliceMetric> slices, List<String> weakCases,
                                 List<CaseResult> caseResults) { }
 

@@ -219,6 +219,12 @@ frozen; do not tune against either split.
 Then load `.env` and run either the controlled or pinned open-PDF method:
 
 ```bash
+export MATERIAL_RAG_CANONICAL_MODE=e1-v5 # use e0-v4 for the no-paragraph-merge baseline
+export MATERIAL_RAG_RESULT_JSON="$PWD/evaluation/material-rag-research-v1/results/run-raw.json"
+export MATERIAL_RAG_COMMIT_SHA="$(git rev-parse HEAD)"
+```
+
+```bash
 mvn -q -pl ai-agent-draw-io-ingestion-worker -am \
   -Dtest=ControlledPdfDenseRecallLiveTest#shouldMeasureDenseRecallAfterTheRealPdfAndChunkPipeline \
   -Dsurefire.failIfNoSpecifiedTests=false test
@@ -233,6 +239,16 @@ mvn -q -pl ai-agent-draw-io-ingestion-worker -am \
 The open-source files must match `sources/manifest.json`. The live tests refuse namespaces whose
 names do not contain `test` or `dev`, and clean vectors in `finally`. Large upserts and deletes are
 batched to stay within Pinecone request limits.
+
+Compare paired E0/E1 raw files with deterministic Wilson and 10,000-sample paired-bootstrap intervals:
+
+```bash
+python3 evaluation/material-rag-research-v1/analysis/compare_dense_runs.py \
+  evaluation/material-rag-research-v1/results/e0-raw.json \
+  evaluation/material-rag-research-v1/results/e1-raw.json \
+  --json-out evaluation/material-rag-research-v1/results/e0-e1-comparison.json \
+  --markdown-out evaluation/material-rag-research-v1/results/e0-e1-comparison.md
+```
 
 Evaluate OCR output named `page-1.txt` through `page-3.txt` with:
 

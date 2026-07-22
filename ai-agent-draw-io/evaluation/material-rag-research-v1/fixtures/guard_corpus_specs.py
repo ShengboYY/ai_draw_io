@@ -565,7 +565,7 @@ for aid,pg,ctx,gold,qs in _GAZ5:
 
 
 # Appended after every pre-existing case so frozen core case IDs never drift when guards grow.
-GUARD_LATE_CASES = [
+GUARD_QUERY_VARIANTS_AFTER_FROZEN_CASES = [
     {"anchorId": "gaz5-reindex", "query": "重新索引会改变资料的访问权限吗？"},
     {"anchorId": "gaz5-export", "query": "导出的引用面板可以列出哪些来源？"},
     {"anchorId": "gvr3-cite", "query": "有依据的回答需要记录哪个版本信息？"},

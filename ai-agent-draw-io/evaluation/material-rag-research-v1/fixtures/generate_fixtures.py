@@ -50,7 +50,7 @@ from scenario_corpus_specs import (
 from guard_corpus_specs import (
     GUARD_DIGITAL_DOCUMENTS,
     GUARD_FACTS,
-    GUARD_LATE_CASES,
+    GUARD_QUERY_VARIANTS_AFTER_FROZEN_CASES,
     GUARD_NO_ANSWER_CASES,
 )
 from expansion_corpus_specs import (
@@ -1267,7 +1267,7 @@ def write_ground_truth(output_root: Path) -> None:
 
         # Guard growth is deliberately last: the reviewed core keeps its frozen ordinal IDs.
         anchor_by_id = {fact["anchorId"]: fact for fact in anchors}
-        for late_case in GUARD_LATE_CASES:
+        for late_case in GUARD_QUERY_VARIANTS_AFTER_FROZEN_CASES:
             fact = anchor_by_id[late_case["anchorId"]]
             document = metadata[fact["source"]]
             query = late_case["query"]

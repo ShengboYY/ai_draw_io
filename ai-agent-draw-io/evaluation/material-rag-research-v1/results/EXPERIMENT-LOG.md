@@ -31,18 +31,19 @@
 ## 语料与基线状态
 
 - **核心集**:**450**(数据集 v-next),三维精确命中(split 250/100/100、9 类别各 50、语言 zh193/en161/cross96),
-  16 项结构检查全 PASS,双人复核(AI 首轮 + 人工确认),**E0 lock FROZEN**。语言比例按数据集实际构成
+  17 项结构检查全 PASS,双人复核(AI 首轮 + 人工确认),**E0 lock FROZEN**。语言比例按数据集实际构成
   (中文场景文档偏多)定,每语言仍远超 per-slice 所需。
 - **数据集 240→450 升级**:每类 case 补到 ≥50 以让 per-slice 统计可信(validation 曾证明 n=8~44 时切片结论
   不稳)。新增 5 篇跨领域 digital 文档 + 2 篇扫描件(补 ocr),用 ILP + `query-selection.json` 精确削减到 450。
-  ⚠️ **E0/E1 的旧结果是在 240 语料上跑的,需在 450 语料上重跑**;test 的 projection 列表已加入 5 篇 expansion 文档。
-- **守门套件**:**261**(总量超 plan 的 220)。新增 **图册收窄专项套件**(`guard_chartbook_scope`,测「图册内
-  检索不得触达用户库中其他未挂载资料」这条收窄不变量)。各套件:authorization 58、versioning 36、
-  abstention 40、visual-ocr 57、failure 18、chartbook_scope 12、regression 40——abstention 达标,其余接近
-  plan 下限(差 2-4,pass/fail 判断已足够)。
+  E0/E1 已在 450 的 Development 与 Validation 重跑;test 的 projection 列表已加入 5 篇 expansion 文档。
+- **守门套件**:**272**。五个计划内最低数全部精确达到:authorization 60、versioning 40、
+  abstention 40、visual-ocr 60、failure 20;另有 `guard_chartbook_scope` 12 与 regression 40。
+  fixture-contract **272/272 PASS**,但它只执行计数、grounding link 与场景契约,不替代 E9 的在线授权、
+  故障注入、检索和生成测试。
 - 生成确定性可复现;`query-selection.json`(ILP 削减)与 spec 模块纳入 provenance。**39 篇文档、402 锚点**。
 - 关键提交:语料 `14141132`、E0 适配 `c8f4845e`、E1 晋级 `89f8bbfe`、E1 复核 `228eb416`、
-  数据集 v-next `74caf0e7`、守门 261 `c1398181`、E0/E1@450 `6af49385`。
+  数据集 v-next `74caf0e7`、守门 261 `c1398181`、E0/E1@450-dev `6af49385`、
+  冻结与可复现实验 seam `70cb75e7`。
 
 ---
 
@@ -86,22 +87,38 @@
 - **关键**:multi_evidence 0.55→**0.85**(240 上"退化"到 0.67 被证实是小样本噪声);**所有切片都提升、无退化**,E1 干净晋级。R@10/MRR 的剩余差距是检索侧(E3)的活。
 - 详见 [2026-07-22-e0-e1-on-450-corpus.md](2026-07-22-e0-e1-on-450-corpus.md)。
 
+### E0/E1 Validation 配对复核 @ 450 · 2026-07-22 · ✅提升泛化,❌ dense-only 未过门槛
+
+- **控制变量**:同一提交 `70cb75e7`、同一冻结锁、Validation、`multilingual-e5-large`、top 40;
+  只切换 `canonical-v4 → canonical-v5`。73 个 text/table/multi-evidence 用例进入 dense 评估,
+  Holdout 未打开。
+- **E0**:R@10 0.699、R@40 0.726、MRR@10 0.545、920 chunks、20 个 rank-0 miss。
+- **E1**:R@10 **0.836**、R@40 **0.849**、MRR@10 **0.651**、533 chunks、11 个 rank-0 miss。
+- **配对提升**:R@10 **+0.137**(95% CI [0.068, 0.219])、R@40 **+0.123**
+  ([0.055, 0.205])、MRR@10 **+0.106**([0.019, 0.197])。提升在 Validation 泛化且总体区间不跨 0。
+- **切片**:R@10 没有负向切片;cross-language、exact lookup 与 table 保持不变,English、Chinese、
+  multi-evidence、retrieval-decision 均提升。failure 只有 n=3,不可据此作稳定结论。
+- **决策**:保留 E1 作为已证实的表示层组件,但 E1 本身仍低于 0.90/0.95/0.75 门槛,
+  不能宣称 dense-only pipeline 完成。按计划进入 E2,若提升 <0.02 再转 E3。
+- 详见 [2026-07-22-e0-e1-validation.md](2026-07-22-e0-e1-validation.md),原始逐用例结果保存在
+  `2026-07-22-e0-validation-raw.json` 与 `2026-07-22-e1-validation-raw.json`。
+
 ---
 
 ## 当前状态与下一步
 
-- 已完成:E0 基线 → E1(表示层)晋级并复核 → 数据集升级到 450 → E0/E1 在 450 重跑(E1 更强晋级、无退化)
-  → 守门补到 261 + 图册收窄套件。表示层这条路已走到 dense 上限(R@10 0.897 门槛边缘)。
-- **下一步候选**:
-  1. **E3 hybrid(推荐)**:dense+lexical 融合。E1 剩下的 miss 是精确标识符/时间戳/抽象规则,
-     正是 BM25 能补、dense 补不上的 → 投入产出比最高,最可能稳过门槛。
-  2. **E2 chunk 父子结构**:plan 顺序在 E3 前,或能顺带改善 Recall@40 与多证据。
+- 已完成:E0 基线 → E1 表示层改进 → 核心集升级并冻结到 450 → Development 与 Validation
+  配对重跑 → 守门最低数补齐并执行 fixture-contract。Validation 证明 E1 提升真实,也证明
+  dense-only 尚未达门槛。
+- **下一步**:按预注册顺序执行 E2 flat chunk vs 一个 parent-child 方案;若提升 <0.02 则不晋级,
+  转入 E3 dense + lexical 混合召回。Holdout 继续密封。
 
 ## 开放问题 / 待办
 
 - [x] 核心集扩到 450、每类 50——per-slice 已可信(450 E0/E1 上 multi 的"退化"被证实是噪声)。
 - [x] 守门补 **「图册收窄」** 套件——已建 `guard_chartbook_scope`(12 例)。
-- [x] 守门套件补齐——总量 261 超 plan 220;各套件接近下限(authz 58/ver 36/visualOcr 57/failure 18,差 2-4,可后续小补)。
+- [x] 守门套件补齐——总量 272;计划内五套件均达到最低数并完成 272/272 fixture-contract。
+- [x] E0/E1 在 450 Validation 配对复核——E1 的提升区间不跨 0,但绝对门槛未通过。
 - [x] 英文切片小样本噪声——450 上 en(n=47)R@10 0.894,与其他语言接近,非真问题。
 - [ ] E6/E7(上下文选择、生成引用)尚未开跑。
 
@@ -113,6 +130,9 @@
    set -a; source .env; set +a
    export MATERIAL_RAG_TOKENIZER_PATH="$PWD/tmp/material-rag-tokenizer/tokenizer.json"
    export MATERIAL_RAG_RESEARCH_SPLIT=development   # 复核用 validation;holdout 只最后一次
+   export MATERIAL_RAG_CANONICAL_MODE=e1-v5         # E0 用 e0-v4
+   export MATERIAL_RAG_RESULT_JSON="$PWD/evaluation/material-rag-research-v1/results/run-raw.json"
+   export MATERIAL_RAG_COMMIT_SHA="$(git rev-parse HEAD)"
    export MATERIAL_RAG_INDEX_WAIT_ATTEMPTS=300 MATERIAL_RAG_DELETE_WAIT_ATTEMPTS=150  # starter 层(450 语料)
    ```
 3. **跑**:

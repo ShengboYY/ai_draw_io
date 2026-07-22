@@ -1,0 +1,631 @@
+{
+  "schemaVersion" : "material-rag-dense-run-v1",
+  "runId" : "controlledpdfresearch_63e3245890e24af2a2c7273a6f40c442",
+  "gitCommit" : "70cb75e71970dfa765abfca8611e8cbf0b12aece",
+  "corpusLockSha256" : "400a973d2d51ec93d9eed5b5b9637dd49b33892b10c24b51e6c9e2c0ace9a942",
+  "split" : "validation",
+  "canonicalMode" : "e0-v4",
+  "canonicalFingerprint" : "canonical-v4:source-map-v2:block-region-merge:reading-flow-v1:boilerplate-candidate-v1:delimited-row-merge-gap4pct-left3pct-right15pct:text-block-kind-v2:caption-prefix:consistent-multiline-table:bullet-prefix:heading-height=.018-max120:ordered-list-prefix:calibration=tesseract-lstm-eng-chi_sim-golden-2026-07-v1:low-confidence=0.7",
+  "embeddingModel" : "multilingual-e5-large",
+  "tokenizerFingerprint" : "intfloat/multilingual-e5-large:tokenizer-json-sha256=62c24cdc13d4c9952d63718d6c9fa4c287974249e16b7ade6d5a85e7bbb75626",
+  "candidateLimit" : 40,
+  "chunkCount" : 920,
+  "metrics" : {
+    "recallAt1" : 0.4657534246575342,
+    "recallAt5" : 0.6438356164383562,
+    "recallAt10" : 0.6986301369863014,
+    "recallAt40" : 0.726027397260274,
+    "mrrAt10" : 0.5447271145901283,
+    "misses" : [ "controlled-224", "controlled-228", "controlled-264", "controlled-272", "controlled-273", "controlled-451", "controlled-452", "controlled-453", "controlled-456", "controlled-457", "controlled-458", "controlled-492", "controlled-493", "controlled-494", "controlled-497", "controlled-498", "controlled-499", "controlled-502", "controlled-602", "controlled-604" ],
+    "slices" : [ {
+      "label" : "language:crossLanguage",
+      "count" : 16,
+      "recallAt1" : 0.625,
+      "recallAt5" : 1.0,
+      "recallAt10" : 1.0,
+      "recallAt40" : 1.0,
+      "mrrAt10" : 0.7729166666666667
+    }, {
+      "label" : "language:en",
+      "count" : 26,
+      "recallAt1" : 0.38461538461538464,
+      "recallAt5" : 0.6153846153846154,
+      "recallAt10" : 0.6923076923076923,
+      "recallAt40" : 0.7307692307692307,
+      "mrrAt10" : 0.49181929181929185
+    }, {
+      "label" : "language:zh",
+      "count" : 31,
+      "recallAt1" : 0.45161290322580644,
+      "recallAt5" : 0.4838709677419355,
+      "recallAt10" : 0.5483870967741935,
+      "recallAt40" : 0.5806451612903226,
+      "mrrAt10" : 0.471326164874552
+    }, {
+      "label" : "category:multi_evidence",
+      "count" : 13,
+      "recallAt1" : 0.23076923076923078,
+      "recallAt5" : 0.6153846153846154,
+      "recallAt10" : 0.6923076923076923,
+      "recallAt40" : 0.8461538461538461,
+      "mrrAt10" : 0.37008547008547005
+    }, {
+      "label" : "category:table",
+      "count" : 8,
+      "recallAt1" : 0.875,
+      "recallAt5" : 0.875,
+      "recallAt10" : 1.0,
+      "recallAt40" : 1.0,
+      "mrrAt10" : 0.8958333333333334
+    }, {
+      "label" : "category:text",
+      "count" : 52,
+      "recallAt1" : 0.46153846153846156,
+      "recallAt5" : 0.6153846153846154,
+      "recallAt10" : 0.6538461538461539,
+      "recallAt40" : 0.6538461538461539,
+      "mrrAt10" : 0.5343711843711844
+    }, {
+      "label" : "primaryCategory:crossLanguage",
+      "count" : 12,
+      "recallAt1" : 0.5833333333333334,
+      "recallAt5" : 1.0,
+      "recallAt10" : 1.0,
+      "recallAt40" : 1.0,
+      "mrrAt10" : 0.7527777777777778
+    }, {
+      "label" : "primaryCategory:exactLookup",
+      "count" : 6,
+      "recallAt1" : 0.6666666666666666,
+      "recallAt5" : 0.8333333333333334,
+      "recallAt10" : 1.0,
+      "recallAt40" : 1.0,
+      "mrrAt10" : 0.7738095238095237
+    }, {
+      "label" : "primaryCategory:failure",
+      "count" : 3,
+      "recallAt1" : 0.0,
+      "recallAt5" : 0.0,
+      "recallAt10" : 0.0,
+      "recallAt40" : 0.0,
+      "mrrAt10" : 0.0
+    }, {
+      "label" : "primaryCategory:multiEvidence",
+      "count" : 13,
+      "recallAt1" : 0.23076923076923078,
+      "recallAt5" : 0.6153846153846154,
+      "recallAt10" : 0.6923076923076923,
+      "recallAt40" : 0.8461538461538461,
+      "mrrAt10" : 0.37008547008547005
+    }, {
+      "label" : "primaryCategory:retrievalDecision",
+      "count" : 17,
+      "recallAt1" : 0.4117647058823529,
+      "recallAt5" : 0.4117647058823529,
+      "recallAt10" : 0.47058823529411764,
+      "recallAt40" : 0.47058823529411764,
+      "mrrAt10" : 0.4183006535947712
+    }, {
+      "label" : "primaryCategory:versionAndAuthorization",
+      "count" : 22,
+      "recallAt1" : 0.5909090909090909,
+      "recallAt5" : 0.6818181818181818,
+      "recallAt10" : 0.7272727272727273,
+      "recallAt40" : 0.7272727272727273,
+      "mrrAt10" : 0.6439393939393939
+    } ],
+    "weakCases" : [ "controlled-115:rank=7:anchors=[forest-sample]", "controlled-224:rank=0:anchors=[ota-layout-retrieve]", "controlled-228:rank=0:anchors=[ota-rollback-trigger]", "controlled-264:rank=0:anchors=[forest-version-rule]", "controlled-272:rank=0:anchors=[dcg-chartbook-search]", "controlled-273:rank=0:anchors=[dcg-broader-auto]", "controlled-451:rank=0:anchors=[mso-explicit-source]", "controlled-452:rank=0:anchors=[mso-explicit-source]", "controlled-453:rank=0:anchors=[mso-layout-retrieve]", "controlled-454:rank=6:anchors=[mso-version-pin]", "controlled-456:rank=0:anchors=[mso-degrade]", "controlled-457:rank=0:anchors=[mso-degrade]", "controlled-458:rank=0:anchors=[mso-slo]", "controlled-492:rank=0:anchors=[mgv-broader]", "controlled-493:rank=0:anchors=[mgv-broader]", "controlled-494:rank=0:anchors=[mgv-zero]", "controlled-497:rank=0:anchors=[mgv-cross-user]", "controlled-498:rank=0:anchors=[mgv-removed]", "controlled-499:rank=0:anchors=[mgv-removed]", "controlled-502:rank=0:anchors=[mgv-draft]", "controlled-541:rank=9:anchors=[mgv-clarify]", "controlled-567:rank=12:anchors=[solar-wait, solar-torque]", "controlled-568:rank=14:anchors=[solar-wait, solar-torque]", "controlled-587:rank=9:anchors=[solar-current, solar-firmware]", "controlled-602:rank=0:anchors=[mgv-chartbook-narrow, mgv-cross-user]", "controlled-604:rank=0:anchors=[mso-id, mso-slo]" ],
+    "caseResults" : [ {
+      "caseId" : "controlled-080",
+      "rank" : 1,
+      "category" : "text",
+      "primaryCategory" : "exactLookup",
+      "language" : "en",
+      "goldAnchorIds" : [ "solar-model" ]
+    }, {
+      "caseId" : "controlled-081",
+      "rank" : 1,
+      "category" : "text",
+      "primaryCategory" : "exactLookup",
+      "language" : "en",
+      "goldAnchorIds" : [ "solar-edition" ]
+    }, {
+      "caseId" : "controlled-113",
+      "rank" : 2,
+      "category" : "text",
+      "primaryCategory" : "exactLookup",
+      "language" : "en",
+      "goldAnchorIds" : [ "forest-id" ]
+    }, {
+      "caseId" : "controlled-114",
+      "rank" : 1,
+      "category" : "text",
+      "primaryCategory" : "crossLanguage",
+      "language" : "crossLanguage",
+      "goldAnchorIds" : [ "forest-id" ]
+    }, {
+      "caseId" : "controlled-115",
+      "rank" : 7,
+      "category" : "text",
+      "primaryCategory" : "exactLookup",
+      "language" : "en",
+      "goldAnchorIds" : [ "forest-sample" ]
+    }, {
+      "caseId" : "controlled-116",
+      "rank" : 5,
+      "category" : "text",
+      "primaryCategory" : "crossLanguage",
+      "language" : "crossLanguage",
+      "goldAnchorIds" : [ "forest-sample" ]
+    }, {
+      "caseId" : "controlled-117",
+      "rank" : 1,
+      "category" : "text",
+      "primaryCategory" : "crossLanguage",
+      "language" : "crossLanguage",
+      "goldAnchorIds" : [ "forest-baseline" ]
+    }, {
+      "caseId" : "controlled-118",
+      "rank" : 1,
+      "category" : "text",
+      "primaryCategory" : "crossLanguage",
+      "language" : "crossLanguage",
+      "goldAnchorIds" : [ "forest-outcome" ]
+    }, {
+      "caseId" : "controlled-119",
+      "rank" : 2,
+      "category" : "text",
+      "primaryCategory" : "crossLanguage",
+      "language" : "crossLanguage",
+      "goldAnchorIds" : [ "forest-change" ]
+    }, {
+      "caseId" : "controlled-120",
+      "rank" : 1,
+      "category" : "table",
+      "primaryCategory" : "crossLanguage",
+      "language" : "crossLanguage",
+      "goldAnchorIds" : [ "forest-block" ]
+    }, {
+      "caseId" : "controlled-121",
+      "rank" : 2,
+      "category" : "text",
+      "primaryCategory" : "crossLanguage",
+      "language" : "crossLanguage",
+      "goldAnchorIds" : [ "forest-approval" ]
+    }, {
+      "caseId" : "controlled-122",
+      "rank" : 3,
+      "category" : "text",
+      "primaryCategory" : "crossLanguage",
+      "language" : "crossLanguage",
+      "goldAnchorIds" : [ "forest-rejected-rule" ]
+    }, {
+      "caseId" : "controlled-161",
+      "rank" : 1,
+      "category" : "text",
+      "primaryCategory" : "exactLookup",
+      "language" : "en",
+      "goldAnchorIds" : [ "dcg-id" ]
+    }, {
+      "caseId" : "controlled-162",
+      "rank" : 1,
+      "category" : "text",
+      "primaryCategory" : "crossLanguage",
+      "language" : "crossLanguage",
+      "goldAnchorIds" : [ "dcg-id" ]
+    }, {
+      "caseId" : "controlled-163",
+      "rank" : 1,
+      "category" : "table",
+      "primaryCategory" : "versionAndAuthorization",
+      "language" : "en",
+      "goldAnchorIds" : [ "dcg-reviewer-share" ]
+    }, {
+      "caseId" : "controlled-164",
+      "rank" : 1,
+      "category" : "table",
+      "primaryCategory" : "versionAndAuthorization",
+      "language" : "crossLanguage",
+      "goldAnchorIds" : [ "dcg-reviewer-share" ]
+    }, {
+      "caseId" : "controlled-165",
+      "rank" : 1,
+      "category" : "table",
+      "primaryCategory" : "versionAndAuthorization",
+      "language" : "en",
+      "goldAnchorIds" : [ "dcg-editor-approve" ]
+    }, {
+      "caseId" : "controlled-166",
+      "rank" : 1,
+      "category" : "table",
+      "primaryCategory" : "versionAndAuthorization",
+      "language" : "crossLanguage",
+      "goldAnchorIds" : [ "dcg-editor-approve" ]
+    }, {
+      "caseId" : "controlled-167",
+      "rank" : 1,
+      "category" : "text",
+      "primaryCategory" : "retrievalDecision",
+      "language" : "en",
+      "goldAnchorIds" : [ "dcg-explicit" ]
+    }, {
+      "caseId" : "controlled-168",
+      "rank" : 1,
+      "category" : "text",
+      "primaryCategory" : "versionAndAuthorization",
+      "language" : "en",
+      "goldAnchorIds" : [ "dcg-removed" ]
+    }, {
+      "caseId" : "controlled-170",
+      "rank" : 2,
+      "category" : "text",
+      "primaryCategory" : "crossLanguage",
+      "language" : "crossLanguage",
+      "goldAnchorIds" : [ "dcg-retention" ]
+    }, {
+      "caseId" : "controlled-171",
+      "rank" : 1,
+      "category" : "text",
+      "primaryCategory" : "crossLanguage",
+      "language" : "crossLanguage",
+      "goldAnchorIds" : [ "dcg-approval" ]
+    }, {
+      "caseId" : "controlled-172",
+      "rank" : 1,
+      "category" : "text",
+      "primaryCategory" : "crossLanguage",
+      "language" : "crossLanguage",
+      "goldAnchorIds" : [ "dcg-temp-reviewer" ]
+    }, {
+      "caseId" : "controlled-224",
+      "rank" : 0,
+      "category" : "text",
+      "primaryCategory" : "retrievalDecision",
+      "language" : "zh",
+      "goldAnchorIds" : [ "ota-layout-retrieve" ]
+    }, {
+      "caseId" : "controlled-225",
+      "rank" : 1,
+      "category" : "text",
+      "primaryCategory" : "retrievalDecision",
+      "language" : "zh",
+      "goldAnchorIds" : [ "ota-explicit-source" ]
+    }, {
+      "caseId" : "controlled-226",
+      "rank" : 1,
+      "category" : "table",
+      "primaryCategory" : "versionAndAuthorization",
+      "language" : "zh",
+      "goldAnchorIds" : [ "ota-version-pin" ]
+    }, {
+      "caseId" : "controlled-227",
+      "rank" : 1,
+      "category" : "table",
+      "primaryCategory" : "versionAndAuthorization",
+      "language" : "zh",
+      "goldAnchorIds" : [ "ota-approve-rollout" ]
+    }, {
+      "caseId" : "controlled-228",
+      "rank" : 0,
+      "category" : "text",
+      "primaryCategory" : "versionAndAuthorization",
+      "language" : "zh",
+      "goldAnchorIds" : [ "ota-rollback-trigger" ]
+    }, {
+      "caseId" : "controlled-263",
+      "rank" : 1,
+      "category" : "text",
+      "primaryCategory" : "versionAndAuthorization",
+      "language" : "zh",
+      "goldAnchorIds" : [ "solar-firmware-version" ]
+    }, {
+      "caseId" : "controlled-264",
+      "rank" : 0,
+      "category" : "text",
+      "primaryCategory" : "versionAndAuthorization",
+      "language" : "en",
+      "goldAnchorIds" : [ "forest-version-rule" ]
+    }, {
+      "caseId" : "controlled-269",
+      "rank" : 2,
+      "category" : "text",
+      "primaryCategory" : "versionAndAuthorization",
+      "language" : "en",
+      "goldAnchorIds" : [ "dcg-version-reject" ]
+    }, {
+      "caseId" : "controlled-272",
+      "rank" : 0,
+      "category" : "text",
+      "primaryCategory" : "retrievalDecision",
+      "language" : "en",
+      "goldAnchorIds" : [ "dcg-chartbook-search" ]
+    }, {
+      "caseId" : "controlled-273",
+      "rank" : 0,
+      "category" : "text",
+      "primaryCategory" : "retrievalDecision",
+      "language" : "en",
+      "goldAnchorIds" : [ "dcg-broader-auto" ]
+    }, {
+      "caseId" : "controlled-451",
+      "rank" : 0,
+      "category" : "text",
+      "primaryCategory" : "retrievalDecision",
+      "language" : "zh",
+      "goldAnchorIds" : [ "mso-explicit-source" ]
+    }, {
+      "caseId" : "controlled-452",
+      "rank" : 0,
+      "category" : "text",
+      "primaryCategory" : "retrievalDecision",
+      "language" : "en",
+      "goldAnchorIds" : [ "mso-explicit-source" ]
+    }, {
+      "caseId" : "controlled-453",
+      "rank" : 0,
+      "category" : "text",
+      "primaryCategory" : "retrievalDecision",
+      "language" : "zh",
+      "goldAnchorIds" : [ "mso-layout-retrieve" ]
+    }, {
+      "caseId" : "controlled-454",
+      "rank" : 6,
+      "category" : "table",
+      "primaryCategory" : "versionAndAuthorization",
+      "language" : "zh",
+      "goldAnchorIds" : [ "mso-version-pin" ]
+    }, {
+      "caseId" : "controlled-455",
+      "rank" : 1,
+      "category" : "text",
+      "primaryCategory" : "versionAndAuthorization",
+      "language" : "zh",
+      "goldAnchorIds" : [ "mso-draft-reject" ]
+    }, {
+      "caseId" : "controlled-456",
+      "rank" : 0,
+      "category" : "text",
+      "primaryCategory" : "failure",
+      "language" : "zh",
+      "goldAnchorIds" : [ "mso-degrade" ]
+    }, {
+      "caseId" : "controlled-457",
+      "rank" : 0,
+      "category" : "text",
+      "primaryCategory" : "failure",
+      "language" : "en",
+      "goldAnchorIds" : [ "mso-degrade" ]
+    }, {
+      "caseId" : "controlled-458",
+      "rank" : 0,
+      "category" : "text",
+      "primaryCategory" : "failure",
+      "language" : "zh",
+      "goldAnchorIds" : [ "mso-slo" ]
+    }, {
+      "caseId" : "controlled-488",
+      "rank" : 1,
+      "category" : "text",
+      "primaryCategory" : "exactLookup",
+      "language" : "en",
+      "goldAnchorIds" : [ "mgv-id" ]
+    }, {
+      "caseId" : "controlled-489",
+      "rank" : 1,
+      "category" : "text",
+      "primaryCategory" : "retrievalDecision",
+      "language" : "zh",
+      "goldAnchorIds" : [ "mgv-explicit" ]
+    }, {
+      "caseId" : "controlled-490",
+      "rank" : 1,
+      "category" : "text",
+      "primaryCategory" : "retrievalDecision",
+      "language" : "en",
+      "goldAnchorIds" : [ "mgv-explicit" ]
+    }, {
+      "caseId" : "controlled-491",
+      "rank" : 1,
+      "category" : "text",
+      "primaryCategory" : "retrievalDecision",
+      "language" : "zh",
+      "goldAnchorIds" : [ "mgv-chartbook" ]
+    }, {
+      "caseId" : "controlled-492",
+      "rank" : 0,
+      "category" : "text",
+      "primaryCategory" : "retrievalDecision",
+      "language" : "en",
+      "goldAnchorIds" : [ "mgv-broader" ]
+    }, {
+      "caseId" : "controlled-493",
+      "rank" : 0,
+      "category" : "text",
+      "primaryCategory" : "retrievalDecision",
+      "language" : "zh",
+      "goldAnchorIds" : [ "mgv-broader" ]
+    }, {
+      "caseId" : "controlled-494",
+      "rank" : 0,
+      "category" : "text",
+      "primaryCategory" : "retrievalDecision",
+      "language" : "zh",
+      "goldAnchorIds" : [ "mgv-zero" ]
+    }, {
+      "caseId" : "controlled-495",
+      "rank" : 1,
+      "category" : "text",
+      "primaryCategory" : "versionAndAuthorization",
+      "language" : "zh",
+      "goldAnchorIds" : [ "mgv-chartbook-narrow" ]
+    }, {
+      "caseId" : "controlled-496",
+      "rank" : 2,
+      "category" : "text",
+      "primaryCategory" : "versionAndAuthorization",
+      "language" : "en",
+      "goldAnchorIds" : [ "mgv-chartbook-narrow" ]
+    }, {
+      "caseId" : "controlled-497",
+      "rank" : 0,
+      "category" : "text",
+      "primaryCategory" : "versionAndAuthorization",
+      "language" : "zh",
+      "goldAnchorIds" : [ "mgv-cross-user" ]
+    }, {
+      "caseId" : "controlled-498",
+      "rank" : 0,
+      "category" : "text",
+      "primaryCategory" : "versionAndAuthorization",
+      "language" : "en",
+      "goldAnchorIds" : [ "mgv-removed" ]
+    }, {
+      "caseId" : "controlled-499",
+      "rank" : 0,
+      "category" : "text",
+      "primaryCategory" : "versionAndAuthorization",
+      "language" : "zh",
+      "goldAnchorIds" : [ "mgv-removed" ]
+    }, {
+      "caseId" : "controlled-500",
+      "rank" : 1,
+      "category" : "text",
+      "primaryCategory" : "versionAndAuthorization",
+      "language" : "zh",
+      "goldAnchorIds" : [ "mgv-version-pin" ]
+    }, {
+      "caseId" : "controlled-501",
+      "rank" : 1,
+      "category" : "text",
+      "primaryCategory" : "versionAndAuthorization",
+      "language" : "zh",
+      "goldAnchorIds" : [ "mgv-missing" ]
+    }, {
+      "caseId" : "controlled-502",
+      "rank" : 0,
+      "category" : "text",
+      "primaryCategory" : "versionAndAuthorization",
+      "language" : "zh",
+      "goldAnchorIds" : [ "mgv-draft" ]
+    }, {
+      "caseId" : "controlled-511",
+      "rank" : 1,
+      "category" : "text",
+      "primaryCategory" : "retrievalDecision",
+      "language" : "zh",
+      "goldAnchorIds" : [ "mgv-layout" ]
+    }, {
+      "caseId" : "controlled-514",
+      "rank" : 1,
+      "category" : "text",
+      "primaryCategory" : "versionAndAuthorization",
+      "language" : "zh",
+      "goldAnchorIds" : [ "mgv-conflict" ]
+    }, {
+      "caseId" : "controlled-540",
+      "rank" : 1,
+      "category" : "text",
+      "primaryCategory" : "retrievalDecision",
+      "language" : "zh",
+      "goldAnchorIds" : [ "mgv-clarify" ]
+    }, {
+      "caseId" : "controlled-541",
+      "rank" : 9,
+      "category" : "text",
+      "primaryCategory" : "retrievalDecision",
+      "language" : "en",
+      "goldAnchorIds" : [ "mgv-clarify" ]
+    }, {
+      "caseId" : "controlled-567",
+      "rank" : 12,
+      "category" : "multi_evidence",
+      "primaryCategory" : "multiEvidence",
+      "language" : "en",
+      "goldAnchorIds" : [ "solar-wait", "solar-torque" ]
+    }, {
+      "caseId" : "controlled-568",
+      "rank" : 14,
+      "category" : "multi_evidence",
+      "primaryCategory" : "multiEvidence",
+      "language" : "zh",
+      "goldAnchorIds" : [ "solar-wait", "solar-torque" ]
+    }, {
+      "caseId" : "controlled-571",
+      "rank" : 5,
+      "category" : "multi_evidence",
+      "primaryCategory" : "multiEvidence",
+      "language" : "en",
+      "goldAnchorIds" : [ "forest-baseline", "forest-outcome" ]
+    }, {
+      "caseId" : "controlled-572",
+      "rank" : 3,
+      "category" : "multi_evidence",
+      "primaryCategory" : "multiEvidence",
+      "language" : "crossLanguage",
+      "goldAnchorIds" : [ "forest-baseline", "forest-outcome" ]
+    }, {
+      "caseId" : "controlled-579",
+      "rank" : 1,
+      "category" : "multi_evidence",
+      "primaryCategory" : "multiEvidence",
+      "language" : "en",
+      "goldAnchorIds" : [ "dcg-reviewer-share", "dcg-editor-approve" ]
+    }, {
+      "caseId" : "controlled-580",
+      "rank" : 1,
+      "category" : "multi_evidence",
+      "primaryCategory" : "multiEvidence",
+      "language" : "crossLanguage",
+      "goldAnchorIds" : [ "dcg-reviewer-share", "dcg-editor-approve" ]
+    }, {
+      "caseId" : "controlled-587",
+      "rank" : 9,
+      "category" : "multi_evidence",
+      "primaryCategory" : "multiEvidence",
+      "language" : "zh",
+      "goldAnchorIds" : [ "solar-current", "solar-firmware" ]
+    }, {
+      "caseId" : "controlled-589",
+      "rank" : 2,
+      "category" : "multi_evidence",
+      "primaryCategory" : "multiEvidence",
+      "language" : "en",
+      "goldAnchorIds" : [ "forest-change", "forest-block" ]
+    }, {
+      "caseId" : "controlled-592",
+      "rank" : 3,
+      "category" : "multi_evidence",
+      "primaryCategory" : "multiEvidence",
+      "language" : "en",
+      "goldAnchorIds" : [ "dcg-retention", "dcg-temp-reviewer" ]
+    }, {
+      "caseId" : "controlled-595",
+      "rank" : 1,
+      "category" : "multi_evidence",
+      "primaryCategory" : "multiEvidence",
+      "language" : "zh",
+      "goldAnchorIds" : [ "solar-model", "solar-edition" ]
+    }, {
+      "caseId" : "controlled-602",
+      "rank" : 0,
+      "category" : "multi_evidence",
+      "primaryCategory" : "multiEvidence",
+      "language" : "zh",
+      "goldAnchorIds" : [ "mgv-chartbook-narrow", "mgv-cross-user" ]
+    }, {
+      "caseId" : "controlled-603",
+      "rank" : 3,
+      "category" : "multi_evidence",
+      "primaryCategory" : "multiEvidence",
+      "language" : "zh",
+      "goldAnchorIds" : [ "mgv-version-pin", "mgv-missing" ]
+    }, {
+      "caseId" : "controlled-604",
+      "rank" : 0,
+      "category" : "multi_evidence",
+      "primaryCategory" : "multiEvidence",
+      "language" : "zh",
+      "goldAnchorIds" : [ "mso-id", "mso-slo" ]
+    } ]
+  }
+}
