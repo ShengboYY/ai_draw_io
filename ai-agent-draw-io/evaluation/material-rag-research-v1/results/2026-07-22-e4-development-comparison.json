@@ -1,0 +1,505 @@
+{
+  "schemaVersion": "material-rag-dense-paired-comparison-v1",
+  "status": "comparable",
+  "scope": "answerable-dense-eligible-text-table-and-multi-evidence",
+  "caseCount": 155,
+  "controls": {
+    "gitCommit": "068d7550",
+    "corpusLockSha256": "9626abed4bed73ff20545fe5c0eb817d8351d2dd1aa83592ba1fa23db53d4371",
+    "split": "development",
+    "embeddingModel": "multilingual-e5-large",
+    "tokenizerFingerprint": "intfloat/multilingual-e5-large:tokenizer-json-sha256=62c24cdc13d4c9952d63718d6c9fa4c287974249e16b7ade6d5a85e7bbb75626",
+    "candidateLimit": 40,
+    "canonicalMode": "e1-v5",
+    "chunkMode": "flat-leaf-v1",
+    "retrievalMode": "dense-v1",
+    "queryMode": "original-v1",
+    "queryRewriteFingerprint": "evidence-focused-v1:han-aware-direct-source-evidence-prefix",
+    "dedupFingerprint": "evidence-dedup-v1:text-sha-or-evidence-jaccard-0.8:citable-first",
+    "retrievalPoolLimit": 80,
+    "lexicalRankerFingerprint": "projection-tfidf-exact-v1:word-min2:cjk-bigram:exact2:rrf-k60-lex1.2-dense1.0",
+    "fusionFingerprint": "weighted-rrf-v1:k60:lexical1.2:dense1.0",
+    "corpusLockSnapshot": "evaluation/material-rag-research-v1/results/2026-07-22-e4-run-corpus-lock.json"
+  },
+  "experimentVariable": {
+    "field": "postprocessMode",
+    "baseline": "ranked-raw-v1",
+    "candidate": "evidence-dedup-v1"
+  },
+  "modes": {
+    "canonical": {
+      "e0": "e1-v5",
+      "e1": "e1-v5"
+    },
+    "retrieval": {
+      "e0": "dense-v1",
+      "e1": "dense-v1"
+    },
+    "query": {
+      "e0": "original-v1",
+      "e1": "original-v1"
+    },
+    "postprocess": {
+      "e0": "ranked-raw-v1",
+      "e1": "evidence-dedup-v1"
+    }
+  },
+  "chunkCounts": {
+    "e0": 533,
+    "e1": 533
+  },
+  "mapping": {
+    "e0Count": 149,
+    "e0Rate": 0.9612903225806452,
+    "e0Ci95": [
+      0.9181284248322602,
+      0.9821403152164162
+    ],
+    "e1Count": 149,
+    "e1Rate": 0.9612903225806452,
+    "e1Ci95": [
+      0.9181284248322602,
+      0.9821403152164162
+    ],
+    "delta": 0.0
+  },
+  "conditionalOnMapping": {
+    "e0CaseCount": 149,
+    "e1CaseCount": 149,
+    "metrics": {
+      "recallAt1": {
+        "e0": 0.610738255033557,
+        "e0Ci95": [
+          0.53060554577487,
+          0.6853044583210339
+        ],
+        "e1": 0.610738255033557,
+        "e1Ci95": [
+          0.53060554577487,
+          0.6853044583210339
+        ]
+      },
+      "recallAt5": {
+        "e0": 0.912751677852349,
+        "e0Ci95": [
+          0.856452134172779,
+          0.9483033356392266
+        ],
+        "e1": 0.912751677852349,
+        "e1Ci95": [
+          0.856452134172779,
+          0.9483033356392266
+        ]
+      },
+      "recallAt10": {
+        "e0": 0.9328859060402684,
+        "e0Ci95": [
+          0.8808721748001737,
+          0.9631396593929052
+        ],
+        "e1": 0.9328859060402684,
+        "e1Ci95": [
+          0.8808721748001737,
+          0.9631396593929052
+        ]
+      },
+      "recallAt40": {
+        "e0": 1.0,
+        "e0Ci95": [
+          0.9748663821299904,
+          0.9999999999999999
+        ],
+        "e1": 1.0,
+        "e1Ci95": [
+          0.9748663821299904,
+          0.9999999999999999
+        ]
+      },
+      "mrrAt10": {
+        "e0": 0.7414429530201342,
+        "e0Ci95": [
+          0.6850671140939597,
+          0.7973168344519015
+        ],
+        "e1": 0.7414429530201342,
+        "e1Ci95": [
+          0.6844505033557047,
+          0.7951915548098434
+        ]
+      }
+    }
+  },
+  "aggregates": {
+    "recallAt1": {
+      "e0": 0.5870967741935483,
+      "e0Ci95": [
+        0.5083938189432099,
+        0.6615869921149317
+      ],
+      "e1": 0.5870967741935483,
+      "e1Ci95": [
+        0.5083938189432099,
+        0.6615869921149317
+      ],
+      "delta": 0.0,
+      "deltaCi95": [
+        0.0,
+        0.0
+      ]
+    },
+    "recallAt5": {
+      "e0": 0.8774193548387097,
+      "e0Ci95": [
+        0.8164801826833787,
+        0.9201033319019019
+      ],
+      "e1": 0.8774193548387097,
+      "e1Ci95": [
+        0.8164801826833787,
+        0.9201033319019019
+      ],
+      "delta": 0.0,
+      "deltaCi95": [
+        0.0,
+        0.0
+      ]
+    },
+    "recallAt10": {
+      "e0": 0.896774193548387,
+      "e0Ci95": [
+        0.8388999755296505,
+        0.9354570526241062
+      ],
+      "e1": 0.896774193548387,
+      "e1Ci95": [
+        0.8388999755296505,
+        0.9354570526241062
+      ],
+      "delta": 0.0,
+      "deltaCi95": [
+        0.0,
+        0.0
+      ]
+    },
+    "recallAt40": {
+      "e0": 0.9612903225806452,
+      "e0Ci95": [
+        0.9181284248322602,
+        0.9821403152164162
+      ],
+      "e1": 0.9612903225806452,
+      "e1Ci95": [
+        0.9181284248322602,
+        0.9821403152164162
+      ],
+      "delta": 0.0,
+      "deltaCi95": [
+        0.0,
+        0.0
+      ]
+    },
+    "mrrAt10": {
+      "e0": 0.7127419354838709,
+      "e0Ci95": [
+        0.6540322580645161,
+        0.7701612903225806
+      ],
+      "e1": 0.7127419354838709,
+      "e1Ci95": [
+        0.6542459677419354,
+        0.7708077956989247
+      ],
+      "delta": 0.0,
+      "deltaCi95": [
+        0.0,
+        0.0
+      ]
+    }
+  },
+  "slices": [
+    {
+      "label": "category:multi_evidence",
+      "count": 20,
+      "e0RecallAt10": 0.85,
+      "e0Ci95": [
+        0.6395811352592431,
+        0.9476312541037835
+      ],
+      "e1RecallAt10": 0.85,
+      "e1Ci95": [
+        0.6395811352592431,
+        0.9476312541037835
+      ],
+      "delta": 0.0,
+      "deltaCi95": [
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "label": "category:table",
+      "count": 25,
+      "e0RecallAt10": 0.96,
+      "e0Ci95": [
+        0.8045593626380625,
+        0.9929037664980127
+      ],
+      "e1RecallAt10": 0.96,
+      "e1Ci95": [
+        0.8045593626380625,
+        0.9929037664980127
+      ],
+      "delta": 0.0,
+      "deltaCi95": [
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "label": "category:text",
+      "count": 110,
+      "e0RecallAt10": 0.8909090909090909,
+      "e0Ci95": [
+        0.8189511686524213,
+        0.9364853910235593
+      ],
+      "e1RecallAt10": 0.8909090909090909,
+      "e1Ci95": [
+        0.8189511686524213,
+        0.9364853910235593
+      ],
+      "delta": 0.0,
+      "deltaCi95": [
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "label": "language:crossLanguage",
+      "count": 39,
+      "e0RecallAt10": 0.8974358974358975,
+      "e0Ci95": [
+        0.7642114553714348,
+        0.9593866865533163
+      ],
+      "e1RecallAt10": 0.8974358974358975,
+      "e1Ci95": [
+        0.7642114553714348,
+        0.9593866865533163
+      ],
+      "delta": 0.0,
+      "deltaCi95": [
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "label": "language:en",
+      "count": 47,
+      "e0RecallAt10": 0.8936170212765957,
+      "e0Ci95": [
+        0.7740573065626163,
+        0.9536952178189183
+      ],
+      "e1RecallAt10": 0.8936170212765957,
+      "e1Ci95": [
+        0.7740573065626163,
+        0.9536952178189183
+      ],
+      "delta": 0.0,
+      "deltaCi95": [
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "label": "language:zh",
+      "count": 69,
+      "e0RecallAt10": 0.8985507246376812,
+      "e0Ci95": [
+        0.8050811424505202,
+        0.9499833618915401
+      ],
+      "e1RecallAt10": 0.8985507246376812,
+      "e1Ci95": [
+        0.8050811424505202,
+        0.9499833618915401
+      ],
+      "delta": 0.0,
+      "deltaCi95": [
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "label": "primaryCategory:crossLanguage",
+      "count": 25,
+      "e0RecallAt10": 0.92,
+      "e0Ci95": [
+        0.7503389104960468,
+        0.9777795987151524
+      ],
+      "e1RecallAt10": 0.92,
+      "e1Ci95": [
+        0.7503389104960468,
+        0.9777795987151524
+      ],
+      "delta": 0.0,
+      "deltaCi95": [
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "label": "primaryCategory:exactLookup",
+      "count": 35,
+      "e0RecallAt10": 0.9142857142857143,
+      "e0Ci95": [
+        0.7762072603410349,
+        0.9704176317330301
+      ],
+      "e1RecallAt10": 0.9142857142857143,
+      "e1Ci95": [
+        0.7762072603410349,
+        0.9704176317330301
+      ],
+      "delta": 0.0,
+      "deltaCi95": [
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "label": "primaryCategory:failure",
+      "count": 29,
+      "e0RecallAt10": 1.0,
+      "e0Ci95": [
+        0.8830302015002593,
+        1.0
+      ],
+      "e1RecallAt10": 1.0,
+      "e1Ci95": [
+        0.8830302015002593,
+        1.0
+      ],
+      "delta": 0.0,
+      "deltaCi95": [
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "label": "primaryCategory:multiEvidence",
+      "count": 20,
+      "e0RecallAt10": 0.85,
+      "e0Ci95": [
+        0.6395811352592431,
+        0.9476312541037835
+      ],
+      "e1RecallAt10": 0.85,
+      "e1Ci95": [
+        0.6395811352592431,
+        0.9476312541037835
+      ],
+      "delta": 0.0,
+      "deltaCi95": [
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "label": "primaryCategory:retrievalDecision",
+      "count": 28,
+      "e0RecallAt10": 0.7857142857142857,
+      "e0Ci95": [
+        0.6046141434627812,
+        0.8978753966710211
+      ],
+      "e1RecallAt10": 0.7857142857142857,
+      "e1Ci95": [
+        0.6046141434627812,
+        0.8978753966710211
+      ],
+      "delta": 0.0,
+      "deltaCi95": [
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "label": "primaryCategory:versionAndAuthorization",
+      "count": 18,
+      "e0RecallAt10": 0.8888888888888888,
+      "e0Ci95": [
+        0.672002348698212,
+        0.9689804773543876
+      ],
+      "e1RecallAt10": 0.8888888888888888,
+      "e1Ci95": [
+        0.672002348698212,
+        0.9689804773543876
+      ],
+      "delta": 0.0,
+      "deltaCi95": [
+        0.0,
+        0.0
+      ]
+    }
+  ],
+  "postprocessActivation": {
+    "changedCases": 46,
+    "changedCaseIds": [
+      "controlled-037",
+      "controlled-038",
+      "controlled-039",
+      "controlled-040",
+      "controlled-041",
+      "controlled-042",
+      "controlled-043",
+      "controlled-044",
+      "controlled-045",
+      "controlled-046",
+      "controlled-047",
+      "controlled-050",
+      "controlled-051",
+      "controlled-052",
+      "controlled-053",
+      "controlled-054",
+      "controlled-067",
+      "controlled-068",
+      "controlled-069",
+      "controlled-070",
+      "controlled-071",
+      "controlled-072",
+      "controlled-073",
+      "controlled-074",
+      "controlled-075",
+      "controlled-076",
+      "controlled-077",
+      "controlled-078",
+      "controlled-079",
+      "controlled-212",
+      "controlled-213",
+      "controlled-218",
+      "controlled-219",
+      "controlled-220",
+      "controlled-221",
+      "controlled-262",
+      "controlled-527",
+      "controlled-532",
+      "controlled-563",
+      "controlled-564",
+      "controlled-565",
+      "controlled-566",
+      "controlled-586",
+      "controlled-593",
+      "controlled-594",
+      "controlled-610"
+    ],
+    "baselinePositions": 4121,
+    "candidatePositions": 4027,
+    "removedBaselinePositions": 112,
+    "replacementRate": 0.027177869449162825,
+    "top10RemovedBaselinePositions": 10
+  }
+}

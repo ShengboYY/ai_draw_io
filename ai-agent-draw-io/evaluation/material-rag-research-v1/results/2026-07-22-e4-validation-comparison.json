@@ -1,0 +1,463 @@
+{
+  "schemaVersion": "material-rag-dense-paired-comparison-v1",
+  "status": "comparable",
+  "scope": "answerable-dense-eligible-text-table-and-multi-evidence",
+  "caseCount": 73,
+  "controls": {
+    "gitCommit": "068d7550",
+    "corpusLockSha256": "9626abed4bed73ff20545fe5c0eb817d8351d2dd1aa83592ba1fa23db53d4371",
+    "split": "validation",
+    "embeddingModel": "multilingual-e5-large",
+    "tokenizerFingerprint": "intfloat/multilingual-e5-large:tokenizer-json-sha256=62c24cdc13d4c9952d63718d6c9fa4c287974249e16b7ade6d5a85e7bbb75626",
+    "candidateLimit": 40,
+    "canonicalMode": "e1-v5",
+    "chunkMode": "flat-leaf-v1",
+    "retrievalMode": "dense-v1",
+    "queryMode": "original-v1",
+    "queryRewriteFingerprint": "evidence-focused-v1:han-aware-direct-source-evidence-prefix",
+    "dedupFingerprint": "evidence-dedup-v1:text-sha-or-evidence-jaccard-0.8:citable-first",
+    "retrievalPoolLimit": 80,
+    "lexicalRankerFingerprint": "projection-tfidf-exact-v1:word-min2:cjk-bigram:exact2:rrf-k60-lex1.2-dense1.0",
+    "fusionFingerprint": "weighted-rrf-v1:k60:lexical1.2:dense1.0",
+    "corpusLockSnapshot": "evaluation/material-rag-research-v1/results/2026-07-22-e4-run-corpus-lock.json"
+  },
+  "experimentVariable": {
+    "field": "postprocessMode",
+    "baseline": "ranked-raw-v1",
+    "candidate": "evidence-dedup-v1"
+  },
+  "modes": {
+    "canonical": {
+      "e0": "e1-v5",
+      "e1": "e1-v5"
+    },
+    "retrieval": {
+      "e0": "dense-v1",
+      "e1": "dense-v1"
+    },
+    "query": {
+      "e0": "original-v1",
+      "e1": "original-v1"
+    },
+    "postprocess": {
+      "e0": "ranked-raw-v1",
+      "e1": "evidence-dedup-v1"
+    }
+  },
+  "chunkCounts": {
+    "e0": 533,
+    "e1": 533
+  },
+  "mapping": {
+    "e0Count": 62,
+    "e0Rate": 0.8493150684931506,
+    "e0Ci95": [
+      0.7499809802559176,
+      0.9137232333640508
+    ],
+    "e1Count": 62,
+    "e1Rate": 0.8493150684931506,
+    "e1Ci95": [
+      0.7499809802559176,
+      0.9137232333640508
+    ],
+    "delta": 0.0
+  },
+  "conditionalOnMapping": {
+    "e0CaseCount": 62,
+    "e1CaseCount": 62,
+    "metrics": {
+      "recallAt1": {
+        "e0": 0.6290322580645161,
+        "e0Ci95": [
+          0.5045796412346053,
+          0.7384283401585889
+        ],
+        "e1": 0.6290322580645161,
+        "e1Ci95": [
+          0.5045796412346053,
+          0.7384283401585889
+        ]
+      },
+      "recallAt5": {
+        "e0": 0.8709677419354839,
+        "e0Ci95": [
+          0.7655067270982637,
+          0.9331412194071697
+        ],
+        "e1": 0.8709677419354839,
+        "e1Ci95": [
+          0.7655067270982637,
+          0.9331412194071697
+        ]
+      },
+      "recallAt10": {
+        "e0": 0.967741935483871,
+        "e0Ci95": [
+          0.8897953040501456,
+          0.9911086285001833
+        ],
+        "e1": 0.967741935483871,
+        "e1Ci95": [
+          0.8897953040501456,
+          0.9911086285001833
+        ]
+      },
+      "recallAt40": {
+        "e0": 0.9838709677419355,
+        "e0Ci95": [
+          0.9141327973931,
+          0.9971471328313782
+        ],
+        "e1": 0.9838709677419355,
+        "e1Ci95": [
+          0.9141327973931,
+          0.9971471328313782
+        ]
+      },
+      "mrrAt10": {
+        "e0": 0.7502176139272914,
+        "e0Ci95": [
+          0.6641049027137738,
+          0.8334869431643626
+        ],
+        "e1": 0.7502176139272914,
+        "e1Ci95": [
+          0.6641314644137225,
+          0.832171658986175
+        ]
+      }
+    }
+  },
+  "aggregates": {
+    "recallAt1": {
+      "e0": 0.5342465753424658,
+      "e0Ci95": [
+        0.42098945719045805,
+        0.6440795833605193
+      ],
+      "e1": 0.5342465753424658,
+      "e1Ci95": [
+        0.42098945719045805,
+        0.6440795833605193
+      ],
+      "delta": 0.0,
+      "deltaCi95": [
+        0.0,
+        0.0
+      ]
+    },
+    "recallAt5": {
+      "e0": 0.7397260273972602,
+      "e0Ci95": [
+        0.6289051184932242,
+        0.8265781653636171
+      ],
+      "e1": 0.7397260273972602,
+      "e1Ci95": [
+        0.6289051184932242,
+        0.8265781653636171
+      ],
+      "delta": 0.0,
+      "deltaCi95": [
+        0.0,
+        0.0
+      ]
+    },
+    "recallAt10": {
+      "e0": 0.821917808219178,
+      "e0Ci95": [
+        0.7187827114087395,
+        0.8928662697704473
+      ],
+      "e1": 0.821917808219178,
+      "e1Ci95": [
+        0.7187827114087395,
+        0.8928662697704473
+      ],
+      "delta": 0.0,
+      "deltaCi95": [
+        0.0,
+        0.0
+      ]
+    },
+    "recallAt40": {
+      "e0": 0.8356164383561644,
+      "e0Ci95": [
+        0.7342895643180931,
+        0.9033870330814846
+      ],
+      "e1": 0.8356164383561644,
+      "e1Ci95": [
+        0.7342895643180931,
+        0.9033870330814846
+      ],
+      "delta": 0.0,
+      "deltaCi95": [
+        0.0,
+        0.0
+      ]
+    },
+    "mrrAt10": {
+      "e0": 0.6371711241574256,
+      "e0Ci95": [
+        0.5420615894759732,
+        0.7321175799086758
+      ],
+      "e1": 0.6371711241574256,
+      "e1Ci95": [
+        0.5389432485322896,
+        0.731463905196782
+      ],
+      "delta": 0.0,
+      "deltaCi95": [
+        0.0,
+        0.0
+      ]
+    }
+  },
+  "slices": [
+    {
+      "label": "category:multi_evidence",
+      "count": 13,
+      "e0RecallAt10": 0.8461538461538461,
+      "e0Ci95": [
+        0.5776536898051745,
+        0.9567418216419186
+      ],
+      "e1RecallAt10": 0.8461538461538461,
+      "e1Ci95": [
+        0.5776536898051745,
+        0.9567418216419186
+      ],
+      "delta": 0.0,
+      "deltaCi95": [
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "label": "category:table",
+      "count": 8,
+      "e0RecallAt10": 0.875,
+      "e0Ci95": [
+        0.5291118177871464,
+        0.9775825085499433
+      ],
+      "e1RecallAt10": 0.875,
+      "e1Ci95": [
+        0.5291118177871464,
+        0.9775825085499433
+      ],
+      "delta": 0.0,
+      "deltaCi95": [
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "label": "category:text",
+      "count": 52,
+      "e0RecallAt10": 0.8076923076923077,
+      "e0Ci95": [
+        0.6810113918634199,
+        0.8920395397526649
+      ],
+      "e1RecallAt10": 0.8076923076923077,
+      "e1Ci95": [
+        0.6810113918634199,
+        0.8920395397526649
+      ],
+      "delta": 0.0,
+      "deltaCi95": [
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "label": "language:crossLanguage",
+      "count": 16,
+      "e0RecallAt10": 0.9375,
+      "e0Ci95": [
+        0.7167126242970107,
+        0.9888806552353576
+      ],
+      "e1RecallAt10": 0.9375,
+      "e1Ci95": [
+        0.7167126242970107,
+        0.9888806552353576
+      ],
+      "delta": 0.0,
+      "deltaCi95": [
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "label": "language:en",
+      "count": 26,
+      "e0RecallAt10": 0.8846153846153846,
+      "e0Ci95": [
+        0.7102409678828635,
+        0.9599675537638938
+      ],
+      "e1RecallAt10": 0.8846153846153846,
+      "e1Ci95": [
+        0.7102409678828635,
+        0.9599675537638938
+      ],
+      "delta": 0.0,
+      "deltaCi95": [
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "label": "language:zh",
+      "count": 31,
+      "e0RecallAt10": 0.7096774193548387,
+      "e0Ci95": [
+        0.5340767066925007,
+        0.8390419984369939
+      ],
+      "e1RecallAt10": 0.7096774193548387,
+      "e1Ci95": [
+        0.5340767066925007,
+        0.8390419984369939
+      ],
+      "delta": 0.0,
+      "deltaCi95": [
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "label": "primaryCategory:crossLanguage",
+      "count": 12,
+      "e0RecallAt10": 0.9166666666666666,
+      "e0Ci95": [
+        0.646120088858883,
+        0.9851349055950829
+      ],
+      "e1RecallAt10": 0.9166666666666666,
+      "e1Ci95": [
+        0.646120088858883,
+        0.9851349055950829
+      ],
+      "delta": 0.0,
+      "deltaCi95": [
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "label": "primaryCategory:exactLookup",
+      "count": 6,
+      "e0RecallAt10": 1.0,
+      "e0Ci95": [
+        0.6096657120978346,
+        1.0
+      ],
+      "e1RecallAt10": 1.0,
+      "e1Ci95": [
+        0.6096657120978346,
+        1.0
+      ],
+      "delta": 0.0,
+      "deltaCi95": [
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "label": "primaryCategory:failure",
+      "count": 3,
+      "e0RecallAt10": 1.0,
+      "e0Ci95": [
+        0.4385029682449546,
+        1.0
+      ],
+      "e1RecallAt10": 1.0,
+      "e1Ci95": [
+        0.4385029682449546,
+        1.0
+      ],
+      "delta": 0.0,
+      "deltaCi95": [
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "label": "primaryCategory:multiEvidence",
+      "count": 13,
+      "e0RecallAt10": 0.8461538461538461,
+      "e0Ci95": [
+        0.5776536898051745,
+        0.9567418216419186
+      ],
+      "e1RecallAt10": 0.8461538461538461,
+      "e1Ci95": [
+        0.5776536898051745,
+        0.9567418216419186
+      ],
+      "delta": 0.0,
+      "deltaCi95": [
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "label": "primaryCategory:retrievalDecision",
+      "count": 17,
+      "e0RecallAt10": 0.7058823529411765,
+      "e0Ci95": [
+        0.4686688993346016,
+        0.8672001038970478
+      ],
+      "e1RecallAt10": 0.7058823529411765,
+      "e1Ci95": [
+        0.4686688993346016,
+        0.8672001038970478
+      ],
+      "delta": 0.0,
+      "deltaCi95": [
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "label": "primaryCategory:versionAndAuthorization",
+      "count": 22,
+      "e0RecallAt10": 0.7727272727272727,
+      "e0Ci95": [
+        0.5656004682477829,
+        0.8987696001475147
+      ],
+      "e1RecallAt10": 0.7727272727272727,
+      "e1Ci95": [
+        0.5656004682477829,
+        0.8987696001475147
+      ],
+      "delta": 0.0,
+      "deltaCi95": [
+        0.0,
+        0.0
+      ]
+    }
+  ],
+  "postprocessActivation": {
+    "changedCases": 4,
+    "changedCaseIds": [
+      "controlled-225",
+      "controlled-226",
+      "controlled-227",
+      "controlled-228"
+    ],
+    "baselinePositions": 1575,
+    "candidatePositions": 1575,
+    "removedBaselinePositions": 4,
+    "replacementRate": 0.0025396825396825397,
+    "top10RemovedBaselinePositions": 0
+  }
+}
