@@ -165,9 +165,11 @@ def compare(e0: dict, e1: dict, variable_field: str = "canonicalMode") -> dict:
         raise ValueError("Paired runs do not contain the same case IDs")
     case_ids = sorted(e0_cases)
     for case_id in case_ids:
-        for field in ("category", "primaryCategory", "language", "goldAnchorIds",
-                      "fixedGoldChunkIdsByAnchor", "mountedSourceVersions",
-                      "unmountedSourceVersions", "goldSourceVersions"):
+        metadata_fields = ["category", "primaryCategory", "language", "goldAnchorIds",
+                           "mountedSourceVersions", "unmountedSourceVersions", "goldSourceVersions"]
+        if variable_field != "canonicalMode":
+            metadata_fields.append("fixedGoldChunkIdsByAnchor")
+        for field in metadata_fields:
             if e0_cases[case_id].get(field) != e1_cases[case_id].get(field):
                 raise ValueError(f"Case metadata drift for {case_id}: {field}")
         if variable_field in {"chunkMode", "retrievalMode", "queryMode", "postprocessMode",

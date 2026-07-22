@@ -337,3 +337,9 @@ snapshot 见 `results/2026-07-22-e5-deepseek-v4-pro-reranking.md`。
 governance），Holdout 27 例（agent recovery runbook）。资料家族不跨 split；泛领域 case 保留为鲁棒性指标，
 不再单独决定 draw.io 功能晋级。下一批 fixture 将补充资料驱动的制图、结构编辑、图/扫描件转可编辑 XML 与
 citation-bound 输出；在此之前，先对既有 `drawio-core-v1` 重跑 dense/E1 基线。
+
+E6 预注册：在扩充后的 `drawio-core` 上，控制组使用 E1 dense top-40 的原始 rank 前 8 条；候选只改变
+context selection，先按 evidence 去重、再以 source-aware coverage 选择最多 8 条，并保留每条的 chunk ID 与
+source citation。检索、授权过滤、gold、生成模型和输出 XML 评估器全部冻结。Development 需同时满足：引用
+支持率不下降、draw.io XML 可解析率不下降、任务完成率至少 +0.02，且无 n>=20 主要切片显著退化，才打开
+Validation；Holdout 保持密封。

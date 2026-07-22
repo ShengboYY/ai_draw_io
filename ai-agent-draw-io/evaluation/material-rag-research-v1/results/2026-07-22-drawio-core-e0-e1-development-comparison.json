@@ -1,0 +1,462 @@
+{
+  "schemaVersion": "material-rag-dense-paired-comparison-v1",
+  "status": "comparable",
+  "scope": "answerable-dense-eligible-text-table-and-multi-evidence",
+  "caseCount": 47,
+  "controls": {
+    "gitCommit": "64a6306f",
+    "corpusLockSha256": "8346e743b1949efad7ed5e683f08736cb85e9f1e66fb9ff569cbbd00482b3bac",
+    "split": "development",
+    "embeddingModel": "multilingual-e5-large",
+    "tokenizerFingerprint": "intfloat/multilingual-e5-large:tokenizer-json-sha256=62c24cdc13d4c9952d63718d6c9fa4c287974249e16b7ade6d5a85e7bbb75626",
+    "candidateLimit": 40,
+    "chunkMode": "flat-leaf-v1",
+    "retrievalMode": "dense-v1",
+    "queryMode": "original-v1",
+    "queryRewriteFingerprint": "evidence-focused-v1:han-aware-direct-source-evidence-prefix",
+    "postprocessMode": "ranked-raw-v1",
+    "dedupFingerprint": "evidence-dedup-v1:text-sha-or-evidence-jaccard-0.8:citable-first",
+    "retrievalPoolLimit": 80,
+    "rerankerMode": "none-v1",
+    "rerankerFingerprint": "llm-listwise-rerank-v3:top40:short-candidate-ids:thinking-disabled:json-ranked-ids:temperature0",
+    "rerankerModel": "none",
+    "rerankerEndpointFingerprint": "none",
+    "rerankerCandidateLimit": 40,
+    "caseProfile": "drawio-core-v1",
+    "sourceDiversityFingerprint": "source-diversity-v1:evidence-dedup-v1:top10-max4-per-source:rank-fill",
+    "sourceDiversityHeadLimit": 10,
+    "sourceDiversityPerSourceHeadCap": 4,
+    "lexicalRankerFingerprint": "projection-tfidf-exact-v1:word-min2:cjk-bigram:exact2:rrf-k60-lex1.2-dense1.0",
+    "fusionFingerprint": "weighted-rrf-v1:k60:lexical1.2:dense1.0",
+    "corpusLockSnapshot": "evaluation/material-rag-research-v1/results/2026-07-22-drawio-core-run-corpus-lock.json"
+  },
+  "experimentVariable": {
+    "field": "canonicalMode",
+    "baseline": "e0-v4",
+    "candidate": "e1-v5"
+  },
+  "modes": {
+    "canonical": {
+      "e0": "e0-v4",
+      "e1": "e1-v5"
+    },
+    "retrieval": {
+      "e0": "dense-v1",
+      "e1": "dense-v1"
+    },
+    "query": {
+      "e0": "original-v1",
+      "e1": "original-v1"
+    },
+    "postprocess": {
+      "e0": "ranked-raw-v1",
+      "e1": "ranked-raw-v1"
+    },
+    "reranker": {
+      "e0": "none-v1",
+      "e1": "none-v1"
+    }
+  },
+  "chunkCounts": {
+    "e0": 920,
+    "e1": 533
+  },
+  "mapping": {
+    "e0Count": 42,
+    "e0Rate": 0.8936170212765957,
+    "e0Ci95": [
+      0.7740573065626163,
+      0.9536952178189183
+    ],
+    "e1Count": 46,
+    "e1Rate": 0.9787234042553191,
+    "e1Ci95": [
+      0.8888701895837066,
+      0.996234231961403
+    ],
+    "delta": 0.0851063829787234
+  },
+  "conditionalOnMapping": {
+    "e0CaseCount": 42,
+    "e1CaseCount": 46,
+    "metrics": {
+      "recallAt1": {
+        "e0": 0.6666666666666666,
+        "e0Ci95": [
+          0.5155250737683379,
+          0.7898753292764273
+        ],
+        "e1": 0.6739130434782609,
+        "e1Ci95": [
+          0.5296773241932241,
+          0.7913405669074435
+        ]
+      },
+      "recallAt5": {
+        "e0": 0.9285714285714286,
+        "e0Ci95": [
+          0.8099057319884169,
+          0.9754095901266941
+        ],
+        "e1": 0.8695652173913043,
+        "e1Ci95": [
+          0.74334142220927,
+          0.9388215963796489
+        ]
+      },
+      "recallAt10": {
+        "e0": 0.9523809523809523,
+        "e0Ci95": [
+          0.8421014760304114,
+          0.9868424750910944
+        ],
+        "e1": 0.8913043478260869,
+        "e1Ci95": [
+          0.7696217135574916,
+          0.9526685414190106
+        ]
+      },
+      "recallAt40": {
+        "e0": 1.0,
+        "e0Ci95": [
+          0.916201209134296,
+          0.9999999999999999
+        ],
+        "e1": 0.9565217391304348,
+        "e1Ci95": [
+          0.8546774097378094,
+          0.9879945544014435
+        ]
+      },
+      "mrrAt10": {
+        "e0": 0.7673280423280422,
+        "e0Ci95": [
+          0.6601851851851852,
+          0.8665343915343916
+        ],
+        "e1": 0.7528985507246376,
+        "e1Ci95": [
+          0.6420289855072464,
+          0.8568840579710144
+        ]
+      }
+    }
+  },
+  "aggregates": {
+    "recallAt1": {
+      "e0": 0.5957446808510638,
+      "e0Ci95": [
+        0.4534212295011096,
+        0.7235996548079124
+      ],
+      "e1": 0.6595744680851063,
+      "e1Ci95": [
+        0.5167092456194193,
+        0.7783255615622839
+      ],
+      "delta": 0.06382978723404255,
+      "deltaCi95": [
+        -0.0851063829787234,
+        0.2127659574468085
+      ]
+    },
+    "recallAt5": {
+      "e0": 0.8297872340425532,
+      "e0Ci95": [
+        0.6986022402737561,
+        0.9111363612350974
+      ],
+      "e1": 0.851063829787234,
+      "e1Ci95": [
+        0.7231437757640644,
+        0.9259328000356828
+      ],
+      "delta": 0.02127659574468085,
+      "deltaCi95": [
+        -0.0851063829787234,
+        0.1276595744680851
+      ]
+    },
+    "recallAt10": {
+      "e0": 0.851063829787234,
+      "e0Ci95": [
+        0.7231437757640644,
+        0.9259328000356828
+      ],
+      "e1": 0.8723404255319149,
+      "e1Ci95": [
+        0.748260592072075,
+        0.9401539580185662
+      ],
+      "delta": 0.02127659574468085,
+      "deltaCi95": [
+        -0.0851063829787234,
+        0.1276595744680851
+      ]
+    },
+    "recallAt40": {
+      "e0": 0.8936170212765957,
+      "e0Ci95": [
+        0.7740573065626163,
+        0.9536952178189183
+      ],
+      "e1": 0.9361702127659575,
+      "e1Ci95": [
+        0.8283738581687556,
+        0.9780546147945668
+      ],
+      "delta": 0.0425531914893617,
+      "deltaCi95": [
+        -0.06382978723404255,
+        0.14893617021276595
+      ]
+    },
+    "mrrAt10": {
+      "e0": 0.6856973995271867,
+      "e0Ci95": [
+        0.5677275413711584,
+        0.7968085106382979
+      ],
+      "e1": 0.7368794326241135,
+      "e1Ci95": [
+        0.6209219858156029,
+        0.8422074468085106
+      ],
+      "delta": 0.05118203309692671,
+      "deltaCi95": [
+        -0.06253250591016549,
+        0.16608451536643012
+      ]
+    }
+  },
+  "slices": [
+    {
+      "label": "category:multi_evidence",
+      "count": 6,
+      "e0RecallAt10": 0.8333333333333334,
+      "e0Ci95": [
+        0.43649717781352987,
+        0.9699466302516935
+      ],
+      "e1RecallAt10": 0.6666666666666666,
+      "e1Ci95": [
+        0.299993315138392,
+        0.9032285888942195
+      ],
+      "delta": -0.16666666666666666,
+      "deltaCi95": [
+        -0.6666666666666666,
+        0.3333333333333333
+      ]
+    },
+    {
+      "label": "category:table",
+      "count": 5,
+      "e0RecallAt10": 1.0,
+      "e0Ci95": [
+        0.5655175352168251,
+        1.0
+      ],
+      "e1RecallAt10": 1.0,
+      "e1Ci95": [
+        0.5655175352168251,
+        1.0
+      ],
+      "delta": 0.0,
+      "deltaCi95": [
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "label": "category:text",
+      "count": 36,
+      "e0RecallAt10": 0.8333333333333334,
+      "e0Ci95": [
+        0.6810920568872054,
+        0.9212955240498188
+      ],
+      "e1RecallAt10": 0.8888888888888888,
+      "e1Ci95": [
+        0.7468519140963513,
+        0.9559335969968435
+      ],
+      "delta": 0.05555555555555555,
+      "deltaCi95": [
+        -0.05555555555555555,
+        0.16666666666666666
+      ]
+    },
+    {
+      "label": "language:crossLanguage",
+      "count": 23,
+      "e0RecallAt10": 0.9130434782608695,
+      "e0Ci95": [
+        0.7320401892425634,
+        0.9758199955157796
+      ],
+      "e1RecallAt10": 0.9130434782608695,
+      "e1Ci95": [
+        0.7320401892425634,
+        0.9758199955157796
+      ],
+      "delta": 0.0,
+      "deltaCi95": [
+        -0.13043478260869565,
+        0.13043478260869565
+      ]
+    },
+    {
+      "label": "language:en",
+      "count": 17,
+      "e0RecallAt10": 0.7058823529411765,
+      "e0Ci95": [
+        0.4686688993346016,
+        0.8672001038970478
+      ],
+      "e1RecallAt10": 0.8235294117647058,
+      "e1Ci95": [
+        0.5897054143116588,
+        0.9380887336237901
+      ],
+      "delta": 0.11764705882352941,
+      "deltaCi95": [
+        -0.11764705882352941,
+        0.35294117647058826
+      ]
+    },
+    {
+      "label": "language:zh",
+      "count": 7,
+      "e0RecallAt10": 1.0,
+      "e0Ci95": [
+        0.6456695649333126,
+        1.0
+      ],
+      "e1RecallAt10": 0.8571428571428571,
+      "e1Ci95": [
+        0.4868721707256811,
+        0.9743203756552565
+      ],
+      "delta": -0.14285714285714285,
+      "deltaCi95": [
+        -0.42857142857142855,
+        0.0
+      ]
+    },
+    {
+      "label": "primaryCategory:crossLanguage",
+      "count": 13,
+      "e0RecallAt10": 0.9230769230769231,
+      "e0Ci95": [
+        0.6668604907890041,
+        0.9862895787574435
+      ],
+      "e1RecallAt10": 0.9230769230769231,
+      "e1Ci95": [
+        0.6668604907890041,
+        0.9862895787574435
+      ],
+      "delta": 0.0,
+      "deltaCi95": [
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "label": "primaryCategory:exactLookup",
+      "count": 8,
+      "e0RecallAt10": 0.875,
+      "e0Ci95": [
+        0.5291118177871464,
+        0.9775825085499433
+      ],
+      "e1RecallAt10": 0.875,
+      "e1Ci95": [
+        0.5291118177871464,
+        0.9775825085499433
+      ],
+      "delta": 0.0,
+      "deltaCi95": [
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "label": "primaryCategory:failure",
+      "count": 2,
+      "e0RecallAt10": 1.0,
+      "e0Ci95": [
+        0.34238022750665303,
+        1.0
+      ],
+      "e1RecallAt10": 1.0,
+      "e1Ci95": [
+        0.34238022750665303,
+        1.0
+      ],
+      "delta": 0.0,
+      "deltaCi95": [
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "label": "primaryCategory:multiEvidence",
+      "count": 6,
+      "e0RecallAt10": 0.8333333333333334,
+      "e0Ci95": [
+        0.43649717781352987,
+        0.9699466302516935
+      ],
+      "e1RecallAt10": 0.6666666666666666,
+      "e1Ci95": [
+        0.299993315138392,
+        0.9032285888942195
+      ],
+      "delta": -0.16666666666666666,
+      "deltaCi95": [
+        -0.6666666666666666,
+        0.3333333333333333
+      ]
+    },
+    {
+      "label": "primaryCategory:retrievalDecision",
+      "count": 11,
+      "e0RecallAt10": 0.7272727272727273,
+      "e0Ci95": [
+        0.43435469882387084,
+        0.902539407099751
+      ],
+      "e1RecallAt10": 0.9090909090909091,
+      "e1Ci95": [
+        0.6226415635484043,
+        0.9837678271141151
+      ],
+      "delta": 0.18181818181818182,
+      "deltaCi95": [
+        -0.18181818181818182,
+        0.5454545454545454
+      ]
+    },
+    {
+      "label": "primaryCategory:versionAndAuthorization",
+      "count": 7,
+      "e0RecallAt10": 0.8571428571428571,
+      "e0Ci95": [
+        0.4868721707256811,
+        0.9743203756552565
+      ],
+      "e1RecallAt10": 0.8571428571428571,
+      "e1Ci95": [
+        0.4868721707256811,
+        0.9743203756552565
+      ],
+      "delta": 0.0,
+      "deltaCi95": [
+        0.0,
+        0.0
+      ]
+    }
+  ]
+}

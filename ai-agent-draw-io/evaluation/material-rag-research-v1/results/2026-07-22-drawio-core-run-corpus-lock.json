@@ -13,11 +13,11 @@
   "reviewLedgerSha256": "060d402284ef11775fd31b2860d42002d7d5d9a525e316c75a35c57938dc9437",
   "fixtureFontSha256": "876af2cd4854644e7f3e7feb2f688997fdb3343c6df6693611209c9dfb47ccec",
   "provenanceFiles": {
-    "EXPERIMENT-PLAN-V2.md": "dc5a8adcfd8cf0f9a40f35f4c6ff5313ec52f29cd14bca584a8467c620f95d63",
+    "EXPERIMENT-PLAN-V2.md": "11f85f2b9653a966dd852a3f50ba1fa840e082491cfc17e87e7606bceff6a0ae",
     "experiment-plan-v2.json": "b8db1b428211385d4bd108a9dc37f06cf833350d19b09b380911dd28165bed0d",
     "requirements.txt": "0043aca3a7381487084576995105e1099e3786ae8add5a6c0951d305b0e0e757",
     "analysis/audit_corpus.py": "ed2818452a8a105b1efaa983a9efa054bf3d8d11306a0e67771ff65326620442",
-    "analysis/compare_dense_runs.py": "762b83b97c14011b7b8081c859407973c7626252abc67e5f8773673bdda8ea59",
+    "analysis/compare_dense_runs.py": "9e3db4d932ccfadbd7ed20378afdff4b48e91f23b22589ca7a973461d93706e4",
     "analysis/audit_e4_chartbook.py": "1785c3e3085810b269ae9d5c1975f7357b2a982bb1f321c9be12fdb6f5a86f9b",
     "analysis/evaluate_guard_suites.py": "e2ded7e4289fe4b7bfd1883e37e53c4543dccd69ab2c571aff6e54291daf4aa0",
     "analysis/evaluate_ocr.py": "1df3eb9d8619dd258c437cd45504477edf8a4146b96c00c693642efad1c64284",

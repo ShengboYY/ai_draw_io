@@ -231,6 +231,12 @@
 - **决策**:未达到 95% JSON 可用性与 +0.02 R@10 门槛，**不运行 Validation**；exact-prefix cleanup 为 0，Holdout 密封。
 - 详见 [2026-07-22-e5b-gpt-5-5-reranking.md](2026-07-22-e5b-gpt-5-5-reranking.md)。
 
+### drawio-core-v1 — E0/E1 Development check · 2026-07-22 · ⚠️方向一致，样本不足
+
+- 新主指标集的 dense-eligible Development 子集为 47 例；E1 R@10 0.8511→0.8723（+0.0213）、R@40 +0.0426、MRR +0.0512。
+- 所有配对 95% 区间仍跨 0，不能用这次小样本复测打开 Validation 或替代原 450-case 结论。
+- **决策**:保留 E1 工作表示；先补 draw.io 制图/XML/结构编辑案例，扩大 `drawio-core` 后重跑 E0/E1。
+
 ---
 
 ## 当前状态与下一步
