@@ -7,7 +7,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from audit_corpus import audit, evidence_shape_errors, reviewed_case_ids
+from audit_corpus import audit, evidence_shape_errors, generation_task_errors, reviewed_case_ids
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -80,6 +80,37 @@ class AuditCorpusTest(unittest.TestCase):
             "unsupported evidence-group operator",
             "evidence group is empty",
         ], evidence_shape_errors(case))
+
+
+class GenerationTaskAuditTest(unittest.TestCase):
+
+    def test_rejects_anchor_from_another_source_or_split(self) -> None:
+        task = {
+            "taskId": "task-1",
+            "split": "development",
+            "sourceVersion": "source-a:v1",
+            "requiredAnchors": ["anchor-b"],
+            "citationAssertions": {"mustCiteAnchors": ["anchor-b"]},
+        }
+        anchors = {"anchor-b": {"source": "source-b", "version": "v1", "split": "validation"}}
+
+        errors = generation_task_errors([task], anchors, {"source-a:v1", "source-b:v1"})
+
+        self.assertEqual("anchor source or split mismatch", errors[0]["error"])
+
+    def test_rejects_divergent_required_and_citation_anchors(self) -> None:
+        task = {
+            "taskId": "task-1",
+            "split": "development",
+            "sourceVersion": "source-a:v1",
+            "requiredAnchors": ["anchor-a"],
+            "citationAssertions": {"mustCiteAnchors": []},
+        }
+        anchors = {"anchor-a": {"source": "source-a", "version": "v1", "split": "development"}}
+
+        errors = generation_task_errors([task], anchors, {"source-a:v1"})
+
+        self.assertEqual("citation anchors differ from required anchors", errors[0]["error"])
 
 
 if __name__ == "__main__":

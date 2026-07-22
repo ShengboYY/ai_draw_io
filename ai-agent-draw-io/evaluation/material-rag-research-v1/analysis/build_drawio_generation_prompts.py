@@ -1,0 +1,76 @@
+#!/usr/bin/env python3
+"""Build evidence-grounded draw.io generation prompts without exposing evaluator gold."""
+
+from __future__ import annotations
+
+import argparse
+import json
+from pathlib import Path
+
+
+def build_prompt(task: dict, context: dict) -> str:
+    """Render one task and its hydrated context as the model-visible contract."""
+    evidence_lines = []
+    for evidence in context.get("evidence", []):
+        # Citation metadata remains beside the excerpt so model output is independently traceable.
+        evidence_lines.append(
+            f"[{evidence['anchorId']} | {evidence['sourceVersion']} | page {evidence['page']}]\n"
+            f"{evidence['text']}"
+        )
+    material = "\n\n".join(evidence_lines) or "(No material was retrieved.)"
+    return (
+        "Return JSON only with keys xml and citations. xml must be editable draw.io XML "
+        "using mxGraphModel/mxCell. citations must be an array of objects with anchorId, "
+        "sourceVersion and page. Use only the material below; do not invent material-backed "
+        "claims or citations.\n\n"
+        f"Task: {task['request']}\n\n"
+        f"Retrieved material:\n{material}"
+    )
+
+
+def build_bundles(tasks: list[dict], contexts: list[dict], split: str, arm: str) -> list[dict]:
+    """Pair each task with exactly one frozen context bundle from the selected experiment arm."""
+    selected = {
+        context["taskId"]: context
+        for context in contexts
+        if context.get("arm") == arm
+    }
+    bundles = []
+    for task in tasks:
+        if task.get("split") != split:
+            continue
+        context = selected.get(task["taskId"])
+        if context is None:
+            raise ValueError(f"missing {arm} context for {task['taskId']}")
+        for evidence in context.get("evidence", []):
+            if evidence["sourceVersion"] != task["sourceVersion"]:
+                raise ValueError(f"out-of-scope evidence for {task['taskId']}")
+        bundles.append({
+            "taskId": task["taskId"],
+            "arm": arm,
+            "prompt": build_prompt(task, context),
+            "evidence": context.get("evidence", []),
+        })
+    return bundles
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--tasks", type=Path, required=True)
+    parser.add_argument("--contexts", type=Path, required=True)
+    parser.add_argument("--split", choices=("development", "validation", "holdout"), required=True)
+    parser.add_argument("--arm", choices=("control", "candidate"), required=True)
+    parser.add_argument("--json-out", type=Path, required=True)
+    args = parser.parse_args()
+    tasks = json.loads(args.tasks.read_text())["tasks"]
+    contexts = json.loads(args.contexts.read_text())["contexts"]
+    result = {
+        "split": args.split,
+        "arm": args.arm,
+        "bundles": build_bundles(tasks, contexts, args.split, args.arm),
+    }
+    args.json_out.write_text(json.dumps(result, indent=2) + "\n")
+
+
+if __name__ == "__main__":
+    main()

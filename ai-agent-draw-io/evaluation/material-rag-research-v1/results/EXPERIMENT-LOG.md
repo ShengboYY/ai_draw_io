@@ -252,6 +252,18 @@
 - **决策**:不晋级、不打开 Validation。下一步把冻结的 control/candidate context bundle（来源文本、版本、citation location）接入相同任务，先在 Development 比较任务完成、citation completeness 与可人工复核的 faithfulness。
 - 详见 [2026-07-22-e7-gpt-5-5-development-pilot.md](2026-07-22-e7-gpt-5-5-development-pilot.md)。
 
+### E6/E7 — evidence-grounded prompt wiring · 2026-07-22 · ✅本地接线完成
+
+- 提示构建器只向模型传入 hydrated evidence 的正文/visual-OCR artifact、anchor、source version 和位置；
+  XML assertions、expected answer 与评测用 required anchor 不进入 prompt，防止真值泄漏。
+- corpus audit 现验证 12 个 generation task 的 anchor、资料版本、split 与 citation assertion；当前 v1 任务全部通过。
+- **阻塞边界**:现有 drawio-core E0/E1 live runner 只纳入 text/table anchor，明确排除了 visual-flow 与 OCR；
+  因此它不能为架构流程和扫描件制图任务生成真正的多模态 context。没有发送新资料给模型，也没有运行
+  control/candidate 或打开 Validation/Holdout。
+- 下一实现是导出带 source location 的 multimodal hydration context，再用本 prompt builder 对 Development
+  做 E6/E7 成对比较。
+- 详见 [2026-07-22-e6-e7-prompt-wiring.md](2026-07-22-e6-e7-prompt-wiring.md)。
+
 ---
 
 ## 当前状态与下一步

@@ -28,6 +28,7 @@ PROVENANCE_FILES = (
     "analysis/compare_dense_runs.py",
     "analysis/audit_e4_chartbook.py",
     "analysis/evaluate_guard_suites.py",
+    "analysis/build_drawio_generation_prompts.py",
     "analysis/evaluate_ocr.py",
     "fixtures/generate_fixtures.py",
     "fixtures/generation-config.json",
@@ -101,6 +102,32 @@ def evidence_shape_errors(case: dict) -> list[str]:
     return errors
 
 
+def generation_task_errors(tasks: list[dict], anchors: dict[str, dict],
+                           known_source_versions: set[str]) -> list[dict]:
+    """Keep the generation suite tied to real, split-safe evidence before it is run."""
+    errors: list[dict] = []
+    for task in tasks:
+        task_id = task.get("taskId", "unknown")
+        source_version = task.get("sourceVersion")
+        if source_version not in known_source_versions:
+            errors.append({"taskId": task_id, "error": "unknown source version"})
+        if task.get("split") not in CORE_SPLITS:
+            errors.append({"taskId": task_id, "error": "unknown split"})
+        required = set(task.get("requiredAnchors", []))
+        cited = set(task.get("citationAssertions", {}).get("mustCiteAnchors", []))
+        if required != cited:
+            errors.append({"taskId": task_id, "error": "citation anchors differ from required anchors"})
+        for anchor_id in required:
+            anchor = anchors.get(anchor_id)
+            if anchor is None:
+                errors.append({"taskId": task_id, "anchorId": anchor_id, "error": "unknown anchor"})
+            elif f"{anchor['source']}:{anchor['version']}" != source_version \
+                    or anchor.get("split") != task.get("split"):
+                errors.append({"taskId": task_id, "anchorId": anchor_id,
+                               "error": "anchor source or split mismatch"})
+    return errors
+
+
 def reviewed_case_ids(review_ledger: Path | None) -> tuple[set[str], str, str | None]:
     """Count only auditable agreements from two distinct named reviewers."""
     if review_ledger is None or not review_ledger.exists():
@@ -128,6 +155,9 @@ def audit(root: Path, review_ledger: Path | None) -> tuple[dict, dict]:
         f"{document['source']}:{document['version']}" for document in manifest["documents"]
     }
     anchor_by_id = {anchor["anchorId"]: anchor for anchor in anchors}
+    generation_tasks = json.loads(
+        (root / "fixtures" / "drawio-generation-tasks-v1.json").read_text(encoding="utf-8")
+    )["tasks"]
     core_targets = plan["coreCases"]
     core_cases = [case for case in cases if case.get("split") in CORE_SPLITS]
     guard_counts = Counter(
@@ -157,6 +187,7 @@ def audit(root: Path, review_ledger: Path | None) -> tuple[dict, dict]:
     missing_answers: list[str] = []
     missing_abstention_conditions: list[str] = []
     family_splits: defaultdict[str, set[str]] = defaultdict(set)
+    task_errors = generation_task_errors(generation_tasks, anchor_by_id, known_source_versions)
 
     for case in cases:
         family_splits[case["documentFamily"]].add(case["split"])
@@ -283,6 +314,7 @@ def audit(root: Path, review_ledger: Path | None) -> tuple[dict, dict]:
         "primaryCategoryLabelsValid": primary_categories_valid,
         "scenarioCategoryContextsValid": not invalid_category_contexts,
         "guardSuiteMinimumsMet": guard_suite_minimums_met,
+        "generationTasksValid": not task_errors,
     }
     structural_pass = all(structural_checks.values())
     reviewed_threshold = len(reviewed_core_ids) >= plan["preE0"]["minimumReviewedCasesBeforeComparison"]
@@ -360,6 +392,7 @@ def audit(root: Path, review_ledger: Path | None) -> tuple[dict, dict]:
             "missingAbstentionConditions": missing_abstention_conditions,
             "splitLeakage": split_leakage,
             "unknownReviewedCaseIds": unknown_reviewed_case_ids,
+            "generationTaskErrors": task_errors,
         },
     }
     lock = {

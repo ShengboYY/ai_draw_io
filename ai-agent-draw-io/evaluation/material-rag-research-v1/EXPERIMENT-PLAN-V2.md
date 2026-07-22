@@ -348,3 +348,9 @@ context selection，先按 evidence 去重、再以 source-aware coverage 选择
 source citation。检索、授权过滤、gold、生成模型和输出 XML 评估器全部冻结。Development 需同时满足：引用
 支持率不下降、draw.io XML 可解析率不下降、任务完成率至少 +0.02，且无 n>=20 主要切片显著退化，才打开
 Validation；Holdout 保持密封。
+
+E6/E7 接线约束：实际传给生成模型的每条 context 必须保留 chunk 的正文或可验证视觉/OCR artifact、anchor ID、
+source version 和页码/区域。任务的 XML 断言、required anchor 和 expected answer 只能由评测器读取，不能进入
+模型提示。此前 text/table-only 的 E0/E1 runner 明确排除了 `visual_flow` 与 OCR anchor，因而不能单独作为
+含流程图或扫描件任务的多模态生成上下文；这些任务必须先通过对应的 visual/OCR hydration 路径，才能与控制组
+做有效比较。
