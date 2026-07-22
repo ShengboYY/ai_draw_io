@@ -10,12 +10,14 @@ import org.zipp.ai.domain.ingestion.model.valobj.EvidenceModality;
 import org.zipp.ai.domain.ingestion.model.valobj.EvidenceManifest;
 import org.zipp.ai.domain.ingestion.model.valobj.EvidenceSourcePage;
 import org.zipp.ai.domain.ingestion.model.valobj.ParsedDocument;
+import org.zipp.ai.domain.ingestion.model.valobj.ParsedPage;
 import org.zipp.ai.domain.ingestion.model.valobj.StoredArtifact;
 import org.zipp.ai.domain.ingestion.model.valobj.VisualCropManifest;
 import org.zipp.ai.domain.ingestion.service.CanonicalPageAssembler;
 import org.zipp.ai.domain.ingestion.service.DocumentStructureBuilder;
 import org.zipp.ai.domain.ingestion.service.EvidenceUnitBuilder;
 import org.zipp.ai.domain.ingestion.service.OcrSelectionPolicy;
+import org.zipp.ai.domain.ingestion.port.OcrEnginePort;
 import org.zipp.ai.domain.retrieval.model.valobj.ChunkEvidenceRole;
 import org.zipp.ai.domain.retrieval.model.valobj.RetrievalChunkType;
 import org.zipp.ai.domain.retrieval.model.valobj.RetrievalIndexMode;
@@ -29,6 +31,7 @@ import org.zipp.ai.infrastructure.adapter.vector.PineconeVectorClient;
 import org.zipp.ai.infrastructure.adapter.vector.PineconeVectorRecord;
 import org.zipp.ai.ingestion.worker.document.PdfBoxDocumentParser;
 import org.zipp.ai.ingestion.worker.document.MultilingualE5TokenCounter;
+import org.zipp.ai.ingestion.worker.document.TesseractOcrEngine;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -173,6 +176,17 @@ class ControlledPdfDenseRecallLiveTest {
         }
     }
 
+    @Test
+    void drawioGenerationCasesShouldUseTheFrozenDevelopmentChartbook() throws Exception {
+        List<ResearchCase> tasks = drawioGenerationCases(researchRoot());
+
+        assertEquals(6, tasks.size());
+        assertTrue(tasks.stream().allMatch(value -> "development".equals(value.split())));
+        assertTrue(tasks.stream().allMatch(value -> value.mountedSourceVersions().equals(List.of(
+                "drawio-agent-architecture:v1", "drawio-planning-workshop-scan:v1",
+                "drawio-workflow-handbook:v1"))));
+    }
+
     private RetrievalChunkProjection chunkWithParentContext(String parentContext) {
         return new RetrievalChunkProjection(
                 "chunk-1", "page-1", "section-1", RetrievalChunkType.CONTENT,
@@ -311,6 +325,36 @@ class ControlledPdfDenseRecallLiveTest {
             assertTrue(result.metrics(retrievalMode).recallAt40() >= 0.95,
                     "Dense PDF candidate Recall@40 fell below the gate");
         }
+    }
+
+    /**
+     * Opt-in E6b input producer. It deliberately requires a real OCR executable and an explicit
+     * output path, so a text-only baseline can never be mistaken for multimodal hydration.
+     */
+    @Test
+    void shouldExportDrawioDevelopmentTaskHydrationFromTheRealMultimodalPipeline() throws Exception {
+        String apiKey = System.getenv("PINECONE_API_KEY");
+        String indexHost = System.getenv("PINECONE_INDEX_HOST");
+        String namespace = System.getenv().getOrDefault("PINECONE_NAMESPACE", "recall-test");
+        String output = System.getenv("MATERIAL_RAG_TASK_HYDRATION_JSON");
+        String tesseract = System.getenv("MATERIAL_RAG_TESSERACT_EXECUTABLE");
+        Assumptions.assumeTrue(apiKey != null && !apiKey.isBlank()
+                && indexHost != null && !indexHost.isBlank()
+                && (namespace.toLowerCase(Locale.ROOT).contains("test")
+                || namespace.toLowerCase(Locale.ROOT).contains("dev"))
+                && output != null && !output.isBlank()
+                && tesseract != null && !tesseract.isBlank() && Files.isExecutable(Path.of(tesseract)));
+
+        Path root = researchRoot();
+        ProjectionSet projections = buildDrawioTaskHydrationProjections(root,
+                new TesseractOcrEngine(tesseract, "eng+chi_sim", Duration.ofSeconds(30)));
+        Map<String, ResearchAnchor> anchorById = new HashMap<>();
+        anchors(root).forEach(anchor -> anchorById.put(anchor.anchorId(), anchor));
+        PineconeVectorClient client = new PineconeVectorClient(
+                apiKey, indexHost, "multilingual-e5-large", 1024, JSON);
+        ExperimentResult result = runRetrievalExperiment("drawiohydration", client, namespace, projections,
+                drawioGenerationCases(root), anchorById, chunkMode(), null, "none");
+        writeTaskHydrationTrace(root, result, anchorById, Path.of(output));
     }
 
     @Test
@@ -561,6 +605,74 @@ class ControlledPdfDenseRecallLiveTest {
         JSON.writerWithDefaultPrettyPrinter().writeValue(output.toFile(), raw);
     }
 
+    /** Serialises only retrieved material; task assertions and required anchors are never consulted here. */
+    private void writeTaskHydrationTrace(Path root, ExperimentResult result,
+                                         Map<String, ResearchAnchor> anchors, Path output) throws Exception {
+        Path lock = root.resolve("fixtures/generated/corpus-lock.json");
+        String commit = requiredEnvironment("MATERIAL_RAG_COMMIT_SHA");
+        if (!commit.matches("[0-9a-f]{7,64}")) {
+            throw new IllegalArgumentException("MATERIAL_RAG_COMMIT_SHA must be a Git commit hash");
+        }
+        List<Map<String, Object>> tasks = new ArrayList<>();
+        for (CaseResult caseResult : result.metrics(PostprocessMode.RANKED_RAW).caseResults()) {
+            List<Map<String, Object>> candidates = new ArrayList<>();
+            for (CandidateResult candidate : caseResult.denseCandidates()) {
+                Map<String, Object> value = new LinkedHashMap<>();
+                value.put("rank", candidate.rank());
+                value.put("chunkId", candidate.chunkId());
+                value.put("sourceVersion", candidate.sourceVersion());
+                value.put("evidence", hydratedEvidence(root, candidate, anchors));
+                candidates.add(value);
+            }
+            tasks.add(Map.of("taskId", caseResult.caseId(), "candidates", candidates));
+        }
+        Map<String, Object> trace = new LinkedHashMap<>();
+        trace.put("schemaVersion", "material-rag-drawio-task-hydration-candidates-v1");
+        trace.put("retrievalRun", Map.of("runId", result.runId(), "gitCommit", commit,
+                "corpusLockSha256", sha256(lock)));
+        trace.put("tasks", tasks);
+        Files.createDirectories(output.toAbsolutePath().normalize().getParent());
+        JSON.writerWithDefaultPrettyPrinter().writeValue(output.toFile(), trace);
+    }
+
+    /** Keeps only exact, source/page-bound anchor metadata beside the retrieved chunk text. */
+    private List<Map<String, Object>> hydratedEvidence(Path root, CandidateResult candidate,
+                                                        Map<String, ResearchAnchor> anchors) throws Exception {
+        int page = pageNo(candidate.pageId());
+        List<Map<String, Object>> result = new ArrayList<>();
+        for (ResearchAnchor anchor : anchors.values()) {
+            if (!candidate.sourceVersion().equals(anchor.sourceVersion()) || page != anchor.pageNo()
+                    || !normalize(candidate.retrievalText()).contains(normalize(anchor.goldMatch()))) {
+                continue;
+            }
+            Map<String, Object> evidence = new LinkedHashMap<>();
+            evidence.put("anchorId", anchor.anchorId());
+            evidence.put("sourceVersion", candidate.sourceVersion());
+            evidence.put("page", page);
+            evidence.put("text", candidate.retrievalText());
+            Path artifact = hydrationArtifact(root, candidate.sourceVersion(), page);
+            if (artifact != null) {
+                evidence.put("imagePath", root.relativize(artifact).toString().replace('\\', '/'));
+                evidence.put("imageSha256", sha256(artifact));
+            }
+            result.add(evidence);
+        }
+        return List.copyOf(result);
+    }
+
+    /** The image files are frozen source-page artifacts, not model-generated descriptions. */
+    private Path hydrationArtifact(Path root, String sourceVersion, int page) {
+        String filename = switch (sourceVersion) {
+            case "drawio-agent-architecture:v1" -> page == 3 ? "drawio-agent-request-route.png" : null;
+            case "drawio-planning-workshop-scan:v1" -> page >= 1 && page <= 6
+                    ? "drawio-workshop-scan-page-" + page + ".jpg" : null;
+            default -> null;
+        };
+        if (filename == null) return null;
+        Path artifact = root.resolve("fixtures/generated/images").resolve(filename);
+        return Files.isRegularFile(artifact) ? artifact : null;
+    }
+
     private String sha256(Path path) throws Exception {
         return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(Files.readAllBytes(path)));
     }
@@ -619,6 +731,47 @@ class ControlledPdfDenseRecallLiveTest {
         result.put("expansion-material-governance:v1", buildProjection(root,
                 "expansion-material-governance", "v1", "expansion-material-governance-v1.pdf"));
         return new ProjectionSet(Map.copyOf(result));
+    }
+
+    /** Builds the three mounted Development sources, applying OCR to the scan before chunking. */
+    private ProjectionSet buildDrawioTaskHydrationProjections(Path root, OcrEnginePort ocr) throws Exception {
+        Map<String, RetrievalProjectionManifest> result = new LinkedHashMap<>();
+        result.put("drawio-agent-architecture:v1", buildProjection(root,
+                "drawio-agent-architecture", "v1", "drawio-agent-architecture-blueprint-v1.pdf"));
+        result.put("drawio-workflow-handbook:v1", buildProjection(root,
+                "drawio-workflow-handbook", "v1", "drawio-diagram-workflow-handbook-v1.pdf"));
+        result.put("drawio-planning-workshop-scan:v1", buildOcrProjection(root,
+                "drawio-planning-workshop-scan", "v1", "drawio-planning-workshop-scan-v1.pdf", ocr));
+        return new ProjectionSet(Map.copyOf(result));
+    }
+
+    /** Uses the worker's OCR boundary before canonicalisation; no fixture answer text is injected. */
+    private RetrievalProjectionManifest buildOcrProjection(Path root, String source, String version,
+                                                            String filename, OcrEnginePort ocr) throws Exception {
+        ParsedDocument parsed = new PdfBoxDocumentParser(150).parse(
+                root.resolve("fixtures/generated/pdfs").resolve(filename), "application/pdf",
+                temporaryDirectory.resolve(source + "-ocr"));
+        OcrSelectionPolicy policy = new OcrSelectionPolicy(40, 0.10, 0.20, 0.01, 0.03);
+        List<CanonicalPage> pages = new ArrayList<>();
+        for (ParsedPage page : parsed.pages()) {
+            var extraction = page.extraction();
+            if (policy.requiresOcr("application/pdf", extraction.nativeTextQuality(), extraction.rasterRegions())) {
+                extraction = extraction.withOcr(ocr.recognize(page.renderedImage(), extraction.pageNo()));
+            }
+            pages.add(canonicalAssembler().assemble(extraction));
+        }
+        var structure = new DocumentStructureBuilder().build(pages);
+        List<EvidenceSourcePage> sources = new ArrayList<>();
+        for (CanonicalPage page : pages) {
+            StoredArtifact artifact = new StoredArtifact("research/" + source + "/page-" + page.pageNo(),
+                    "object-version-1", "a".repeat(64), 1, "application/json+gzip");
+            sources.add(new EvidenceSourcePage(source + "-page-" + page.pageNo(), page, artifact));
+        }
+        VisualCropManifest visuals = new VisualCropManifest("visual-crop-manifest-v1",
+                structure.structureHash(), "research-no-visual-crops", 0, 0, List.of());
+        EvidenceManifest evidence = new EvidenceUnitBuilder().build("revision-" + source,
+                source + ":" + version, structure, sources, visuals);
+        return new RetrievalChunkBuilder(RESEARCH_COUNTER).build(evidence);
     }
 
     private void assertImageOnlyPdfRequiresOcr(Path root, String filename, String temporaryName,
@@ -952,7 +1105,10 @@ class ControlledPdfDenseRecallLiveTest {
             IndexedChunk candidate = indexedByVectorId.get(vectorIds.get(index));
             candidates.add(new CandidateResult(index + 1, vectorIds.get(index),
                     candidate == null ? "unknown" : candidate.sourceVersion(),
-                    candidate == null ? "unknown" : candidate.chunk().chunkId()));
+                    candidate == null ? "unknown" : candidate.chunk().chunkId(),
+                    candidate == null ? "unknown" : candidate.chunk().pageId(),
+                    candidate == null ? "unknown" : candidate.chunk().modality().name(),
+                    candidate == null ? "" : candidate.chunk().retrievalText()));
         }
         return List.copyOf(candidates);
     }
@@ -1118,6 +1274,26 @@ class ControlledPdfDenseRecallLiveTest {
                     stringList(value, "mountedSourceVersions"),
                     stringList(value, "unmountedSourceVersions"),
                     stringList(value, "goldSourceVersions")));
+        }
+        return List.copyOf(result);
+    }
+
+    /** Loads only model-visible task requests; evaluator anchors remain outside this retrieval input. */
+    private List<ResearchCase> drawioGenerationCases(Path root) throws Exception {
+        JsonNode fixture = JSON.readTree(root.resolve("fixtures/drawio-generation-tasks-v2.json").toFile());
+        List<String> mounted = stringList(fixture, "developmentChartbookSourceVersions").stream()
+                .sorted().toList();
+        if (mounted.isEmpty()) {
+            throw new IllegalArgumentException("draw.io generation fixture has no Development chartbook");
+        }
+        List<ResearchCase> result = new ArrayList<>();
+        for (JsonNode task : fixture.path("tasks")) {
+            if (!"development".equals(task.path("split").asText())) {
+                continue;
+            }
+            result.add(new ResearchCase(task.path("taskId").asText(), "drawio_generation",
+                    task.path("type").asText(), "mixed", task.path("request").asText(),
+                    "development", true, List.of(), List.of(), mounted, List.of(), List.of()));
         }
         return List.copyOf(result);
     }
@@ -1432,7 +1608,8 @@ class ControlledPdfDenseRecallLiveTest {
                             List<CandidateResult> lexicalCandidates,
                             List<CandidateResult> retrievalPoolCandidates) { }
 
-    private record CandidateResult(int rank, String vectorId, String sourceVersion, String chunkId) { }
+    private record CandidateResult(int rank, String vectorId, String sourceVersion, String chunkId,
+                                   String pageId, String modality, String retrievalText) { }
 
     private record CaseResult(String caseId, int rank, String category, String primaryCategory,
                               String language, List<String> goldAnchorIds,

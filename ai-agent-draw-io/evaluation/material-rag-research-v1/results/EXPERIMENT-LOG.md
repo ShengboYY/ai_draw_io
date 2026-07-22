@@ -319,6 +319,18 @@
 - **下一依赖**:把 production retrieval/hydration trace 扩展为该合同（包括真实 visual/OCR artifact）后，本地导出
   control/candidate JSON，冻结 prompt bundles 与 manifest；再另行取得明确的 Development 模型调用授权。
 
+### E6b real task hydration producer · 2026-07-22 · ✅入口完成，⏸未运行
+
+- **真实路径**:新增 ingestion worker opt-in live test，读取 active v2 Development 的 model-visible task request 与
+  frozen 三资料 chartbook，在同一次 run 中为每个 task 查询 top-40；trace 只基于实际 chunk text、source/page 和
+  source-page visual/OCR artifact 生成 hydration evidence。任务的 evaluator `requiredAnchors`、XML assertions 与
+  claim universe 不参与查询或选择。
+- **OCR/视觉约束**:planning scan 在 canonical chunk 前经过 worker 的 `TesseractOcrEngine`；architecture route 与
+  scan 页只使用 fixture 中冻结的原始视觉 artifact，并写入 SHA-256。没有可执行 Tesseract、明确输出路径或 test/dev
+  Pinecone namespace 时 live test skip，禁止把 text-only run 误写成 multimodal trace。
+- **未运行原因**:本机当前没有 Tesseract executable；而且本轮尚未取得针对这次新的 Pinecone Development trace 的
+  运行授权。因此没有上传/删除向量、没有生成 trace、没有调用生成模型，也没有 token 消耗。
+
 ---
 
 ## 当前状态与下一步

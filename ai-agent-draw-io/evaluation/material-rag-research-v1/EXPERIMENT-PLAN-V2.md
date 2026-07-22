@@ -380,3 +380,12 @@ E6b 的本地导出合同已冻结为 `fixtures/drawio-generation-paired-hydrati
 一对 context，并拒绝非 top-40 pool、漏 task、越权来源、空正文、越界/哈希不符的视觉 artifact，以及少于
 20% task 改变的伪对照；architecture flow 和 planning scan 两任务的两臂还必须都有已验证 artifact。此合同不是结果：当前 runner 还未产出 visual/OCR-capable task hydration，故尚未生成
 E6b context、prompt 或模型请求。
+
+真实 hydration 的 producer 是 ingestion worker 的 opt-in live test
+`ControlledPdfDenseRecallLiveTest#shouldExportDrawioDevelopmentTaskHydrationFromTheRealMultimodalPipeline`。
+它只读取 v2 Development task 的 model-visible request 和 frozen chartbook source scope，不读取 task 的
+`requiredAnchors` 或 evaluator XML assertions；它通过真实 PDFBox → OCR → canonical evidence → chunk →
+Pinecone top-40 路径生成 trace。planning scan 必须由 `MATERIAL_RAG_TESSERACT_EXECUTABLE` 指向实际可执行的
+Tesseract；缺少 OCR、Pinecone test/dev namespace 或显式 `MATERIAL_RAG_TASK_HYDRATION_JSON` 输出路径时 test
+直接 skip，不能降级为 text-only 结果。hydrate trace 的候选文本只在与冻结 ground-truth anchor 的 source/page/
+extractive text 同时一致时附带 citation metadata；视觉与扫描 artifact 使用 frozen 原始页面图并记录 SHA-256。
