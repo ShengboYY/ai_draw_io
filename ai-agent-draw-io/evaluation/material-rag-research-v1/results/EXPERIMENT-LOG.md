@@ -392,6 +392,20 @@
   但尚无 prompt、模型调用、token 消耗、质量结论或 Validation；下一步冻结 prompt bundle 与 formal run manifest，
   再取得单独的模型调用授权。详见 [2026-07-23-e6b-task-hydration-r4-run.md](2026-07-23-e6b-task-hydration-r4-run.md)。
 
+### E7 r4 paired prompt freeze · 2026-07-23 · ✅本地准备完成，⏸模型授权待获取
+
+- **冻结输入**:从同一 r4 paired hydration 导出 control/raw-top8 与 candidate/source-aware-top8 各 6 个
+  Development prompt；每条保留 task request、适用的 editable input XML、evidence text、citation location 和
+  验证过的 visual/OCR artifact path。两份 bundle SHA-256 分别为
+  `ed38cfda2bd3a2d6ffe3793bcf094ab4fa9ae4916b0df4d29ec31d2b3ded74a0` 和
+  `897dd3dd6e63d961177f23c36b471833bfedbd0b8d7d77c9cb7ff96a61e1dc51`。
+- **边界检查**:builder unit tests 通过；prompt 不渲染 evaluator-only 的 `requiredAnchors` 或 expected answer。
+  `dgt-dev-02` 两臂都附带 architecture route image，`dgt-dev-06` 依合同没有 evidence/image。
+- **未发生事项**:未向任何 provider 发送 bundle；因此还没有 response、token usage、cost、formal manifest、评分、
+  晋级或 Validation。取得对同一 provider/model 的 12 个 synthetic Development request 的明确授权后，才会为每个 arm
+  生成独立 formal manifest 并运行 E7 paired evaluation。详见
+  [2026-07-23-e7-r4-development-prompt-bundles.md](2026-07-23-e7-r4-development-prompt-bundles.md)。
+
 ---
 
 ## 当前状态与下一步
