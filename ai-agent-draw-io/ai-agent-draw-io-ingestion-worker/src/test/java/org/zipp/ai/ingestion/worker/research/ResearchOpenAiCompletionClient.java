@@ -34,6 +34,7 @@ final class ResearchOpenAiCompletionClient implements ResearchLlmReranker.Comple
         body.put("model", required(model, "MATERIAL_RAG_RERANKER_MODEL"));
         body.put("temperature", 0);
         body.put("max_tokens", 512);
+        body.putObject("thinking").put("type", "disabled");
         body.putArray("messages")
                 .addObject().put("role", "user").put("content", request);
         HttpRequest httpRequest = HttpRequest.newBuilder(endpoint)

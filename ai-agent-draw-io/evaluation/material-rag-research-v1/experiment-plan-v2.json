@@ -143,9 +143,10 @@
   "e5Reranking": {
     "baselineMode": "none-v1",
     "candidateMode": "llm-listwise-v1",
-    "candidateFingerprint": "llm-listwise-rerank-v2:top40:short-candidate-ids:json-ranked-ids:temperature0",
+    "candidateFingerprint": "llm-listwise-rerank-v3:top40:short-candidate-ids:thinking-disabled:json-ranked-ids:temperature0",
     "candidateLimit": 40,
     "maxCandidateTextChars": 800,
+    "thinkingMode": "disabled",
     "developmentCaseProfile": "core-v1",
     "developmentDenseEligibleCases": 155,
     "minimumAcceptedJsonRate": 0.95,

@@ -312,7 +312,7 @@ coverage@10 从 0.683 提升到 0.856，max-source-share@10 从 0.619 降到 0.4
 
 E5 在运行前固定为 OpenAI-compatible `llm-listwise-v1` reranker。控制组保留同一次 original-query
 dense top-40；候选只接收用户问题及这 40 个已授权 chunk 的 source version、每次调用临时映射的短 opaque
-候选 ID（`c01` 至 `c40`）与最多 800 字符 retrieval text，并以 temperature 0 返回 JSON `rankedIds`。短 ID
+候选 ID（`c01` 至 `c40`）与最多 800 字符 retrieval text，并以 temperature 0、`thinking=disabled` 返回 JSON `rankedIds`。短 ID
 只在本次调用中映射回真实向量 ID，避免长向量 ID 挤占模型输出长度；它不可读取 gold anchor、expected answer、
 case category、split 或未挂载资料；未知、重复、遗漏或非 JSON ID 均丢弃，再按 dense 原顺序回填，因此候选
 只能重排同一 top-40、不能制造或移除证据。Development 使用冻结 core 的 155 个 dense-eligible case；模型、

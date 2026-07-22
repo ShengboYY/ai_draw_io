@@ -15,7 +15,7 @@ import java.util.Set;
  */
 final class ResearchLlmReranker {
 
-    static final String FINGERPRINT = "llm-listwise-rerank-v2:top40:short-candidate-ids:json-ranked-ids:temperature0";
+    static final String FINGERPRINT = "llm-listwise-rerank-v3:top40:short-candidate-ids:thinking-disabled:json-ranked-ids:temperature0";
     private static final int MAX_CANDIDATE_TEXT_CHARS = 800;
 
     private final ObjectMapper json;
