@@ -1,5 +1,6 @@
 package org.zipp.ai.infrastructure.adapter.repository;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Repository;
 import org.zipp.ai.domain.operations.MaterialOperationalSnapshot;
 import org.zipp.ai.domain.operations.MaterialOperationsSnapshotPort;
@@ -23,6 +24,8 @@ public class MySqlMaterialOperationsSnapshotAdapter implements MaterialOperation
     private final Clock clock;
     private volatile MaterialOperationalSnapshot cached;
 
+    // Explicit because the package-private Clock constructor is retained for deterministic tests.
+    @Autowired
     public MySqlMaterialOperationsSnapshotAdapter(IMaterialOperationsMapper mapper) {
         this(mapper, Clock.systemUTC());
     }
