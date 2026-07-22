@@ -43,18 +43,18 @@ class CompareDenseRunsTest(unittest.TestCase):
     def test_chunk_experiment_keeps_canonical_mode_fixed(self) -> None:
         flat = run("e1-v5", [5, 1])
         parent = run("e1-v5", [1, 1])
-        parent["chunkMode"] = "parent-context-v1"
+        parent["chunkMode"] = "parent-context-500-v1"
 
         result = compare(flat, parent, "chunkMode")
 
         self.assertEqual("chunkMode", result["experimentVariable"]["field"])
         self.assertEqual("flat-leaf-v1", result["experimentVariable"]["baseline"])
-        self.assertEqual("parent-context-v1", result["experimentVariable"]["candidate"])
+        self.assertEqual("parent-context-500-v1", result["experimentVariable"]["candidate"])
 
     def test_chunk_experiment_rejects_canonical_drift(self) -> None:
         flat = run("e1-v5", [1])
         parent = run("e0-v4", [1])
-        parent["chunkMode"] = "parent-context-v1"
+        parent["chunkMode"] = "parent-context-500-v1"
 
         with self.assertRaisesRegex(ValueError, "canonicalMode"):
             compare(flat, parent, "chunkMode")

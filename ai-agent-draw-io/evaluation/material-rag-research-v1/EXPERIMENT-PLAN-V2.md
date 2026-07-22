@@ -237,8 +237,13 @@ Validation 配对复核与守门 fixture-contract 也已完成；E1 明显提升
 4. Holdout 保持密封，直到基线与最终候选均冻结后只比较一次。
 
 E2 的 parent-child 方案在运行前固定如下：flat 控制组嵌入 child chunk 的 `retrievalText`；
-parent-child 候选组仍以同一个 child chunk ID 检索和计分，但嵌入该 child 已持久化的
-`parentContext`。该 context 由当前 child 加同页、同 section 的直接相邻 child 组成，上限 900 tokens；
-没有 parent context 的 auxiliary chunk 保持嵌入自身文本。两组 chunk 数、gold-to-child 映射、模型、
-top 40 与 E1 canonical 表示均保持一致。主决策指标为 Development Recall@10 的配对差值；提升
-小于 0.02 或任一主要切片显著退化则不晋级。
+parent-child 候选组仍以同一个 child chunk ID 检索和计分，但优先嵌入该 child 已持久化的
+`parentContext`。该 context 由当前 child 加同页、同 section 的直接相邻 child 组成；只有在本地
+tokenizer 计数不超过 500 时使用，超过 500 或缺失时退回 child `retrievalText`，为模型特殊 token
+保留输入余量。两组 chunk 数、gold-to-child 映射、模型、top 40 与 E1 canonical 表示均保持一致。
+主决策指标为 Development Recall@10 的配对差值；提升小于 0.02 或任一主要切片显著退化则不晋级。
+
+可行性修订：最初预注册为直接嵌入现有最大 900-token parent context；首次候选运行在任何向量 upsert
+和质量计分前被 Pinecone HTTP 400 拒绝，观测到实际最大输入为 512 tokens，而客户端固定
+`truncate=NONE`。因此只做上述 500-token 上限修正，并从同一新 commit 重跑控制组和候选组；失败运行
+不进入质量比较。

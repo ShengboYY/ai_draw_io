@@ -115,7 +115,7 @@ class ControlledPdfDenseRecallLiveTest {
         RetrievalChunkProjection chunk = chunkWithParentContext("parent text");
 
         assertEquals("leaf text", ChunkMode.FLAT_LEAF.embeddingText(chunk));
-        assertEquals("parent text", ChunkMode.PARENT_CONTEXT.embeddingText(chunk));
+        assertEquals("parent text", ChunkMode.PARENT_CONTEXT_500.embeddingText(chunk));
     }
 
     @Test
@@ -129,7 +129,14 @@ class ControlledPdfDenseRecallLiveTest {
                 anchor).isEmpty());
         assertEquals(Set.of("parent-vector"), goldVectorIds(List.of(new IndexedChunk(
                 "parent-vector", "source:v1", chunk,
-                ChunkMode.PARENT_CONTEXT.embeddingText(chunk))), anchor));
+                ChunkMode.PARENT_CONTEXT_500.embeddingText(chunk))), anchor));
+    }
+
+    @Test
+    void parentModeShouldFallBackToLeafAboveTheSafeEmbeddingLimit() {
+        RetrievalChunkProjection chunk = chunkWithParentContext("x".repeat(501));
+
+        assertEquals("leaf text", ChunkMode.PARENT_CONTEXT_500.embeddingText(chunk));
     }
 
     private RetrievalChunkProjection chunkWithParentContext(String parentContext) {
@@ -888,7 +895,8 @@ class ControlledPdfDenseRecallLiveTest {
 
     private enum ChunkMode {
         FLAT_LEAF("flat-leaf-v1", "flat-leaf-v1:retrieval-text"),
-        PARENT_CONTEXT("parent-context-v1", "parent-context-v1:existing-neighbor-window-max900");
+        PARENT_CONTEXT_500("parent-context-500-v1",
+                "parent-context-500-v1:existing-neighbor-window-max500:leaf-fallback");
 
         private final String id;
         private final String fingerprint;
@@ -903,7 +911,8 @@ class ControlledPdfDenseRecallLiveTest {
         String fingerprint() { return fingerprint; }
 
         String embeddingText(RetrievalChunkProjection chunk) {
-            if (this == PARENT_CONTEXT && chunk.parentContext() != null) {
+            if (this == PARENT_CONTEXT_500 && chunk.parentContext() != null
+                    && RESEARCH_COUNTER.count(chunk.parentContext()) <= 500) {
                 return chunk.parentContext();
             }
             return chunk.retrievalText();

@@ -254,7 +254,7 @@ python3 evaluation/material-rag-research-v1/analysis/compare_dense_runs.py \
 The snapshot must be the exact lock used by both live runs. Keep it beside the raw results so later
 analysis-tool changes can regenerate the current readiness lock without rewriting historical provenance.
 For E2, set `MATERIAL_RAG_CANONICAL_MODE=e1-v5` in both runs and vary only
-`MATERIAL_RAG_CHUNK_MODE=flat-leaf-v1|parent-context-v1`; pass `--variable-field chunkMode` to the
+`MATERIAL_RAG_CHUNK_MODE=flat-leaf-v1|parent-context-500-v1`; pass `--variable-field chunkMode` to the
 comparison command so canonical-mode drift is rejected.
 
 Evaluate OCR output named `page-1.txt` through `page-3.txt` with:
