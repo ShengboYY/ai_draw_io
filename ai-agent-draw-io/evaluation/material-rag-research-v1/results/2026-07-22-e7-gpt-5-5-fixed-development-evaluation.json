@@ -1,0 +1,51 @@
+{
+  "split": "development",
+  "taskCount": 6,
+  "results": [
+    {
+      "taskId": "dgt-dev-01",
+      "xmlParseable": true,
+      "xmlAssertionsPassed": true,
+      "citationAssertionsPassed": false,
+      "completed": false
+    },
+    {
+      "taskId": "dgt-dev-02",
+      "xmlParseable": true,
+      "xmlAssertionsPassed": true,
+      "citationAssertionsPassed": true,
+      "completed": true
+    },
+    {
+      "taskId": "dgt-dev-03",
+      "xmlParseable": true,
+      "xmlAssertionsPassed": true,
+      "citationAssertionsPassed": false,
+      "completed": false
+    },
+    {
+      "taskId": "dgt-dev-04",
+      "xmlParseable": true,
+      "xmlAssertionsPassed": true,
+      "citationAssertionsPassed": true,
+      "completed": true
+    },
+    {
+      "taskId": "dgt-dev-05",
+      "xmlParseable": true,
+      "xmlAssertionsPassed": true,
+      "citationAssertionsPassed": false,
+      "completed": false
+    },
+    {
+      "taskId": "dgt-dev-06",
+      "xmlParseable": true,
+      "xmlAssertionsPassed": true,
+      "citationAssertionsPassed": false,
+      "completed": false
+    }
+  ],
+  "xmlParseRate": 1.0,
+  "citationCompletenessRate": 0.3333333333333333,
+  "completionRate": 0.3333333333333333
+}

@@ -4,7 +4,9 @@
 from __future__ import annotations
 
 import argparse
+import html
 import json
+import re
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
@@ -40,6 +42,11 @@ def citation_anchor_ids(citations: object, task: dict, anchors: dict[str, dict])
     return valid
 
 
+def normalized_label(value: str) -> str:
+    """Compare draw.io label text without treating HTML styling as diagram content."""
+    return " ".join(re.sub(r"<[^>]+>", " ", html.unescape(value)).split()).casefold()
+
+
 def evaluate(task: dict, response: dict, anchors: dict[str, dict]) -> dict:
     citations = citation_anchor_ids(response.get("citations", []), task, anchors)
     required = set(task["citationAssertions"]["mustCiteAnchors"])
@@ -54,11 +61,12 @@ def evaluate(task: dict, response: dict, anchors: dict[str, dict]) -> dict:
         vertices = [cell for cell in graph_cells if cell.get("vertex") == "1"]
         edges = [cell for cell in graph_cells if cell.get("edge") == "1"]
         assertion = task["xmlAssertions"]
-        labels = {cell.get("value", "") for cell in graph_cells}
+        labels = [normalized_label(cell.get("value", "")) for cell in graph_cells]
         result["xmlAssertionsPassed"] = (
             len(vertices) >= assertion.get("minVertices", 0)
             and len(edges) >= assertion.get("minEdges", 0)
-            and set(assertion.get("requiredLabels", [])).issubset(labels)
+            and all(any(normalized_label(label) in value for value in labels)
+                    for label in assertion.get("requiredLabels", []))
         )
     citation_assertion = task["citationAssertions"]
     result["citationAssertionsPassed"] = (

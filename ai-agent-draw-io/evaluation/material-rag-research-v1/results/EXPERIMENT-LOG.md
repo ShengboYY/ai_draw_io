@@ -265,15 +265,17 @@
   做 E6/E7 成对比较。
 - 详见 [2026-07-22-e6-e7-prompt-wiring.md](2026-07-22-e6-e7-prompt-wiring.md)。
 
-### E7 — fixed multimodal Development contexts · 2026-07-22 · ✅待运行
+### E7 — GPT-5.5 fixed multimodal evidence · 2026-07-22 · ❌不晋级
 
 - 已冻结 6 个 Development prompt bundle：每条证据保留 anchor、source version、页码和摘要；架构流程与
   扫描工作流两个任务分别附带原始视觉流程图、扫描页 artifact path。
 - fixture-contract 验证 context anchor 与任务完全一致、来源版本/页码可解析，且 prompt 不含 XML assertion
-  或 expected answer。44 项 analysis tests 通过；尚未向模型发送这些新 bundle。
-- 这用于固定证据下的 E7 生成/引用测评；**不是** E6 的 raw-top8 对 candidate-top8 比较。Validation/Holdout
-  继续密封。
-- 详见 [2026-07-22-e7-fixed-development-contexts.md](2026-07-22-e7-fixed-development-contexts.md)。
+  或 expected answer。模型 6/6 返回可解析 draw.io XML，结构断言也为 6/6；但严格 citation（anchor、版本、页码）
+  只有 2/6，完整任务为 2/6=33.3%。
+- 两个视觉/OCR 任务均只在成功附带合成图片后计分；第一次路径错误产生的 HTTP 400 在模型返回前终止，随后各重试一次。
+- **决策**:citation completeness 远低于 0.90，不晋级、不打开 Validation。该实验只测固定 context 下的
+  E7 生成/引用，**不是** E6 的 raw-top8 对 candidate-top8 比较；Holdout 继续密封。
+- 详见 [2026-07-22-e7-gpt-5-5-fixed-development.md](2026-07-22-e7-gpt-5-5-fixed-development.md)。
 
 ---
 

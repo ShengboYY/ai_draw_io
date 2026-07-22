@@ -44,3 +44,14 @@ class GenerationTaskEvaluatorTest(unittest.TestCase):
                                                  "citations": [{"anchorId": "anchor-a", "sourceVersion": "source:v0", "page": 99}]}, anchors)
         self.assertFalse(malformed["xmlParseable"])
         self.assertFalse(wrong_location["citationAssertionsPassed"])
+
+    def test_accepts_required_label_inside_drawio_html_label(self):
+        task = {"taskId": "x", "sourceVersion": "source:v1", "xmlAssertions": {
+                "minVertices": 1, "requiredLabels": ["Candidate retrieval"]},
+                "citationAssertions": {"minimumCitations": 0, "mustCiteAnchors": []}}
+        response = {"xml": "<mxGraphModel><mxCell vertex='1' value='Candidate retrieval&lt;br&gt;&lt;b&gt;40&lt;/b&gt;'/></mxGraphModel>",
+                    "citations": []}
+
+        result = MODULE.evaluate(task, response, {})
+
+        self.assertTrue(result["xmlAssertionsPassed"])

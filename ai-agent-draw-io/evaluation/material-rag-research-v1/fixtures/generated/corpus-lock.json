@@ -21,7 +21,7 @@
     "analysis/audit_e4_chartbook.py": "1785c3e3085810b269ae9d5c1975f7357b2a982bb1f321c9be12fdb6f5a86f9b",
     "analysis/evaluate_guard_suites.py": "e2ded7e4289fe4b7bfd1883e37e53c4543dccd69ab2c571aff6e54291daf4aa0",
     "analysis/build_drawio_generation_prompts.py": "b1dd02dfed06fbf6d5d8af623c80d40ae5e1eed603a9af4c0f666c70c30ea7a4",
-    "analysis/evaluate_drawio_generation_tasks.py": "ccad41095c7430a4c59f9176589609755c935e78fcfc8082bee3d3182ef14693",
+    "analysis/evaluate_drawio_generation_tasks.py": "81f2e4dc4e6630c3a0a3483985068ddd599bbf6d989a47dd2d5009baf270535b",
     "analysis/evaluate_ocr.py": "1df3eb9d8619dd258c437cd45504477edf8a4146b96c00c693642efad1c64284",
     "analysis/select_drawio_context.py": "4e474b65e2accba39375ce65beef10bfc65049c697ec6f2a814cfd38d212fd9b",
     "fixtures/generate_fixtures.py": "769971a8cc832f6bb5e42fa7f9bd921e97e45b64479d37211c86692e1eca44fb",
