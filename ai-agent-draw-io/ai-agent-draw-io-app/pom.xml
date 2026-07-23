@@ -187,8 +187,8 @@
                 <configuration>
                     <skipTests>${skipTests}</skipTests>
                     <testFailureIgnore>false</testFailureIgnore>
-                    <!-- Synthetic visual-review PNG fixtures must render in CI without a display server. -->
-                    <argLine>-Djava.awt.headless=true</argLine>
+                    <!-- Keep visual fixtures headless and preload Mockito because newer JDKs restrict self-attachment. -->
+                    <argLine>-Djava.awt.headless=true -javaagent:${settings.localRepository}/org/mockito/mockito-core/${mockito.version}/mockito-core-${mockito.version}.jar</argLine>
                     <!-- Demo/live tests require a database or model credentials and stay opt-in via -Dtest. -->
                     <excludes>
                         <exclude>**/ApiTest.java</exclude>
