@@ -1356,3 +1356,12 @@
   或引用失败；需由两位 reviewer 审核实际 Draw.io 可用性，详见
   [output review packet](../review/stage-e-postcalibration-validation-output-review-packet-v1.md)。不得事后改 policy、
   重跑或将人工判断倒灌为任一 strict score。
+
+### Stage E preserved-output product-owner review · 2026-07-24 · ✅ reviewer 1/2 diagnostic verdict recorded
+
+- **审核结论**:product-owner 审阅有完整 raw XML 的 late-observed execution：接受 `stge-val-09`、`10`、`11`；
+  拒绝 `stge-val-04`，原因是两个长句节点没有换行，尽管事实存在但实际可读性不足。
+- **工件**:[product-owner output review](../review/stage-e-postcalibration-validation-late-observed-output-product-owner-v1.json)
+  绑定 preserved response SHA-256 `647a00c532ce0af4765102d9057290addebd4dff039b558fd9a42dfdf18c987b`。
+- **限制**:这是重复执行诊断中的 reviewer 1/2；保全输出的实践可接受性为 `3/4`，但不改变 strict `8/12`，不选择
+  唯一正式结果，也不替代 `alice-qa` 的独立输出审核。
