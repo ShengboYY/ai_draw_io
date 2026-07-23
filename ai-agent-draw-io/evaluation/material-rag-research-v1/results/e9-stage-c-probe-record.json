@@ -1,0 +1,87 @@
+{
+  "schemaVersion": "material-rag-e9-stage-c-probe-record-v1",
+  "stage": "E9",
+  "recordedAt": "2026-07-24T00:28:08+10:00",
+  "overallStatus": "partially_executed",
+  "scope": "Synthetic test/dev evidence only; no real user material was sent to an external service.",
+  "onlineProbes": [
+    {
+      "id": "pinecone-embed-upsert-query-delete",
+      "status": "passed",
+      "command": "PINECONE_NAMESPACE=test-dev-e9-guard mvn -pl ai-agent-draw-io-infrastructure -Dtest=PineconeVectorClientLiveContractTest test",
+      "evidence": "One synthetic 1024-dimensional vector was embedded, uploaded to the disposable test/dev namespace, retrieved through a tenant filter, and deleted in the test finally block.",
+      "cleanup": "passed",
+      "limitations": "This establishes live Pinecone connectivity, tenant-filter retrieval, and cleanup only. It does not exercise source authorization or the application evidence pipeline end to end."
+    }
+  ],
+  "localServiceBoundaryProbes": [
+    {
+      "id": "evidence-decision-fail-closed",
+      "status": "passed",
+      "tests": 34,
+      "coverage": [
+        "authorization and reauthorization failure maps to DegradedDependency",
+        "stale selection blocks before source loading",
+        "Pinecone/retrieval lane failure maps to DegradedDependency rather than InsufficientEvidence",
+        "visual/OCR provider failure maps to DegradedDependency and releases the source lease",
+        "blob hydration failure maps to DegradedDependency",
+        "resource lease lifecycle for Ready evidence"
+      ]
+    },
+    {
+      "id": "request-probe-version-and-stale-canvas",
+      "status": "passed",
+      "tests": 4,
+      "coverage": [
+        "fixed source snapshot is not resolved again",
+        "server canvas facts are authoritative",
+        "unavailable server canvas never falls back to client canvas",
+        "dependency deadline is bounded"
+      ]
+    },
+    {
+      "id": "grounded-canvas-save-guard",
+      "status": "passed",
+      "tests": 3,
+      "coverage": [
+        "atomic grounded canvas commit closes resources on success",
+        "invalid citation manifest cannot commit",
+        "retrieved evidence cannot overwrite immutable direct-source cells"
+      ]
+    },
+    {
+      "id": "authorization-lease",
+      "status": "passed",
+      "tests": 3,
+      "coverage": [
+        "authorized source lease is bounded",
+        "denied or expired source has no readable lease",
+        "renewal cannot exceed its hard limit"
+      ]
+    }
+  ],
+  "aggregateLocalRun": {
+    "status": "passed",
+    "command": "mvn -pl ai-agent-draw-io-domain -Dtest=EvidencePreparationModuleTest,RequestProbeServiceTest,CanvasCommitModuleTest,MaterialReadLeaseServiceTest test",
+    "tests": 44,
+    "failures": 0,
+    "errors": 0
+  },
+  "fixtureContract": {
+    "status": "passed",
+    "artifact": "results/e9-guard-contract-baseline.json",
+    "limitations": "Fixture-contract results validate expected case decisions only; they are not online dependency evidence."
+  },
+  "notExecutedOnline": [
+    "real source revocation through a deployed authorization service",
+    "version pin/latest against a deployed material catalog",
+    "real OCR provider failure and recovery",
+    "real object-storage/blob failure and recovery",
+    "deployed canvas save failure and retry/recovery"
+  ],
+  "blocker": {
+    "status": "environment_not_configured",
+    "detail": "The available evaluation environment contains Pinecone and LLM configuration, but no disposable deployed authorization-service endpoint, object-store/OCR test credentials, or application test endpoint. Running the remaining items as 'online' would therefore be misleading."
+  },
+  "decision": "E9 is not complete. The live Pinecone baseline and local fail-closed service contracts pass; a disposable integrated environment is required for the remaining online probes."
+}

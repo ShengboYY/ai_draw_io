@@ -1202,3 +1202,20 @@
 
 - `product-owner` 与 `alice-qa` 接受 12/12 输出、18 条 claim occurrence；输出 claim/citation 指标均为 1.0。
 - Stage B 已完成；下一阶段为 E9 online authorization/version/failure/recovery。
+
+### E9 Stage C authorization/version/recovery probes · 2026-07-24 · ⏳ partial, no false online claim
+
+- **live Pinecone baseline**:`PineconeVectorClientLiveContractTest` 在临时 `test-dev-e9-guard` namespace
+  成功完成 1 个合成向量的 embedding、upsert、带 tenant filter 的 query 和 `finally` delete。测试通过，且临时
+  向量已删除。它证明的是在线 Pinecone 连通性、过滤检索与清理；不证明端到端授权或 evidence pipeline。
+- **本地服务边界**:`EvidencePreparationModuleTest`、`RequestProbeServiceTest`、
+  `CanvasCommitModuleTest`、`MaterialReadLeaseServiceTest` 共 **44/44** 通过。覆盖 reauthorization、固定
+  source snapshot、stale canvas、Pinecone/retrieval lane、visual/OCR、blob hydration、lease、citation/save
+  guard 的 fail-closed 行为。依赖均为确定性注入，故其结果不能标作线上恢复测试。
+- **fixture contract**:guard suites 保持 authorization 60/60、versioning 40/40、abstention 40/40、
+  visual/OCR 60/60、failure/recovery 20/20；这只验证 fixture 决策和链接，不增加线上证据。
+- **未运行且原因**:当前 `.env` 仅具备 Pinecone/LLM 等配置，没有可一次性隔离的 deployed authorization
+  endpoint、object-store/OCR test credentials 或 application test endpoint。因此尚未运行真实 source revocation、
+  deployed catalog version pin/latest、OCR/blob/save failure and recovery；不能声称 E9 完成。
+- **工件**:[E9 probe record](e9-stage-c-probe-record.json) 区分 live、本地和 fixture 证据；后续只需在可销毁
+  的 integrated 环境补齐该文件所列五类 online probes，结果不得与当前 44 项本地测试混合计数。
