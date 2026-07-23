@@ -683,6 +683,25 @@ task hydration 唯一候选 lane。trace 与 exporter 同时绑定 query mode、
 fingerprint。完整 ingestion-worker 测试为 94/94（其中 6 个 live 测试按设计跳过），analysis 为
 122/122，E0 corpus audit 仍为 READY；尚未进行 R22 Pinecone 正式运行。
 
+### R22 结果与 R23a 诊断预注册：保留双 lane 排名谱系
+
+R22 从 clean commit `9b68c322` 完成唯一一次正式 Development trace，一次 original 空结果经冻结 retry
+恢复，186 个临时向量已删除。scoped pool 与 7/7 visual/OCR artifact gate 通过，changed-rate 为
+14/19；raw canonical availability 为 17/19，candidate 为 16/19，未达到两个 19/19 gate，因此禁止
+prompt、模型和 Validation。
+
+失败分层为：`dgt-dev-01`、`dgt-dev-19` 的 required identities 不在 fused top-40；`dgt-dev-17`
+的三个 required identities 均在 fused rank 28，但未进入 selector top-8。当前 trace 没有分别保存
+original/rewrite top-80 rank，不能区分前两个缺口是单 lane retrieval miss 还是 RRF truncation。
+
+R23a 只允许增加诊断谱系，不改变 R22 candidates：
+
+- trace 为每个 task 记录 original top-80、rewritten top-80 的 ordered chunk IDs，以及 fused top-40
+  对应的两条 lane rank；字段只来自 provider 返回结果，不读取 target source、gold、assertions 或 answers；
+- RRF、query、embedding、top-k、retry、identity、selector、artifact 和所有 gate 保持不变；
+- 只允许一次显式授权的 Development diagnostic trace，结果不能替代 R22，也不能择优；
+- 根据 `dgt-dev-01/19` 的 lane ranks 再预注册 R23 正式 intervention；诊断前不得猜测新的 fusion 权重。
+
 E6b 的本地导出合同已冻结为 `fixtures/drawio-generation-paired-hydration-contract-v1.json` 与
 `analysis/export_drawio_paired_hydration.py`。active Development 图册明确挂载 architecture、workflow handbook
 与 planning-workshop scan 三个版本；导出器从同一 retrieval trace 的 raw top-8 和 source-aware top-8 产生一任务

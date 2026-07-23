@@ -816,6 +816,23 @@
 - **下一步**:获得单独授权后，从包含本记录与刷新 corpus lock 的 clean commit 运行唯一一次 R22
   Development trace；结束后删除临时向量，再按预注册 gate 决定是否允许生成 prompt。
 
+### R22 formal gate / R23a rank-lineage diagnostic preregistration · 2026-07-23 · ❌ R22 未晋级
+
+- **固定输入**:clean commit `9b68c322`，186 chunks；trace 绑定
+  `candidateQueryMode=original-evidence-rrf-v1` 与冻结 rewrite/fusion fingerprints。
+- **运行完整性**:19/19 task 完成；一次 original 空结果经 bounded retry 恢复；18 个自动图册任务
+  40/40、selected-only 为 28/28；临时 Pinecone vectors 已删除。
+- **正式结果**:raw canonical 17/19；control 完整 4/19、candidate 16/19、changed 14/19
+  （73.68%）；7/7 declared visual/OCR artifact task 通过。
+- **失败分层**:`dgt-dev-01`、`dgt-dev-19` 的 required identities 不在 fused top-40；
+  `dgt-dev-17` 的三个 required identities 均在 fused rank 28，但 selector 未提升到 top-8。
+- **决策**:raw/candidate 19/19 gate 均失败，不生成 prompt，不调用模型，不进入 Validation。
+- **R23a 诊断唯一变量**:仅在 trace 保存 original/rewrite top-80 ordered chunk IDs 和 fused item 的
+  lane ranks，不改变输出 candidates、RRF、selector 或 gate；下一次外部 Development diagnostic
+  仍需单独授权，且不能替代或择优覆盖 R22。
+- **外部使用**:1 次授权 Pinecone Development trace；0 模型请求、0 model token、
+  0 Validation/holdout case。
+
 ### R17 trace / R18 indexed-vector denominator · 2026-07-23 · ⏸ 修复后重跑
 
 - **固定输入**:clean commit `b419a70a`，Development only；两次空查询均经 R16 retry 恢复，19/19 完成，
