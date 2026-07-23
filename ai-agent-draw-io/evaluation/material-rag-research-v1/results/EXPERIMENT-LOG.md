@@ -1316,3 +1316,10 @@
   调用模型、Pinecone 或其他外部服务。完整 SHA-256 清单见
   [Stage E freeze record](stage-e-postcalibration-validation-freeze.json)。
 - **下一步**:两位具名 reviewer 需先审核 12 个 source/evidence/claim package；之后才能请求用户授权一次固定模型运行。
+
+### Stage E case-review packet · 2026-07-24 · ✅ prepared; human decisions pending
+
+- **审核材料**:已生成 [Stage E review packet](../review/stage-e-postcalibration-validation-case-review-packet-v1.md)，列出
+  12 个任务、20 条 frozen claim、两项 visual/OCR 资料、严格 layout-only 的审核边界，以及与 Stage B/D 隔离的范围。
+- **边界**:packet 只帮助两位 reviewer 完成真实逐项审核；它不包含、也不声称任何 reviewer 的批准结论，不构成模型
+  运行授权。下一步必须收到两位具名人员对这 12 个 package 的实际 verdict。
