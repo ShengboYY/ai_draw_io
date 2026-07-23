@@ -480,12 +480,17 @@ class ControlledPdfDenseRecallLiveTest {
     }
 
     @Test
-    void shouldExportTheFusedOriginalAndEvidenceFocusedLaneForDrawioHydration() {
-        assertEquals(QueryMode.FUSED, taskHydrationQueryMode());
+    void shouldExportTheLexicallyStabilizedDenseUnionForDrawioHydration() {
+        assertEquals(QueryMode.STABILIZED, taskHydrationQueryMode());
         assertEquals("drawio-bilingual-evidence-focused-v2:han-aware-prefix:frozen-domain-terms",
                 ResearchQueryRewriter.FINGERPRINT);
         assertEquals("equal-rrf-v1:k60:original1.0:rewritten1.0",
                 ResearchQueryRankFusion.FINGERPRINT);
+        assertEquals("dense-union-lexical-stabilization-v1|"
+                        + "equal-rrf-v1:k60:original1.0:rewritten1.0|"
+                        + "projection-tfidf-exact-v1:word-min2:cjk-bigram:"
+                        + "exact2:rrf-k60-lex1.2-dense1.0",
+                ResearchDenseUnionLexicalStabilizer.FINGERPRINT);
         assertEquals("original-rewrite-top80-fused-ranks-v1",
                 ResearchQueryRankLineage.FINGERPRINT);
     }
@@ -888,6 +893,8 @@ class ControlledPdfDenseRecallLiveTest {
         retrievalRun.put("candidateQueryMode", taskHydrationQueryMode().id());
         retrievalRun.put("queryRewriteFingerprint", ResearchQueryRewriter.FINGERPRINT);
         retrievalRun.put("queryFusionFingerprint", ResearchQueryRankFusion.FINGERPRINT);
+        retrievalRun.put("queryStabilizationFingerprint",
+                ResearchDenseUnionLexicalStabilizer.FINGERPRINT);
         retrievalRun.put("queryRankLineageFingerprint", ResearchQueryRankLineage.FINGERPRINT);
         // Bind scoped top-k completeness to the vectors that were actually indexed in Pinecone.
         retrievalRun.put("sourceIndexedVectorCounts", sourceIndexedVectorCounts(projections));
@@ -902,7 +909,7 @@ class ControlledPdfDenseRecallLiveTest {
     }
 
     private QueryMode taskHydrationQueryMode() {
-        return QueryMode.FUSED;
+        return QueryMode.STABILIZED;
     }
 
 
@@ -982,7 +989,7 @@ class ControlledPdfDenseRecallLiveTest {
 
     private List<EmbeddingQueryInput> embeddingQueryInputs(List<ResearchCase> cases) {
         List<EmbeddingQueryInput> result = new ArrayList<>();
-        // FUSED is derived from the two ranked lanes and therefore has no independent embedding input.
+        // STABILIZED is derived from the two ranked lanes and therefore has no independent embedding input.
         for (QueryMode mode : List.of(QueryMode.ORIGINAL, QueryMode.EVIDENCE_FOCUSED)) {
             for (ResearchCase researchCase : cases) {
                 result.add(new EmbeddingQueryInput(mode.id(), researchCase.caseId(),
@@ -1312,7 +1319,7 @@ class ControlledPdfDenseRecallLiveTest {
         Map<QueryMode, List<CaseRank>> ranksByQueryMode = new LinkedHashMap<>();
         ranksByQueryMode.put(QueryMode.ORIGINAL, originalRanks);
         ranksByQueryMode.put(QueryMode.EVIDENCE_FOCUSED, new ArrayList<>());
-        ranksByQueryMode.put(QueryMode.FUSED, new ArrayList<>());
+        ranksByQueryMode.put(QueryMode.STABILIZED, new ArrayList<>());
         Map<PostprocessMode, List<CaseRank>> ranksByPostprocessMode = new LinkedHashMap<>();
         ranksByPostprocessMode.put(PostprocessMode.RANKED_RAW, originalRanks);
         ranksByPostprocessMode.put(PostprocessMode.EVIDENCE_DEDUP, new ArrayList<>());
@@ -1325,7 +1332,7 @@ class ControlledPdfDenseRecallLiveTest {
                 java.util.stream.Collectors.toMap(IndexedChunk::vectorId, value -> value));
         Map<String, IndexedChunk> searchableByChunkId = searchableChunksByChunkId(projections);
         Map<QueryMode, List<float[]>> queryVectors = new LinkedHashMap<>();
-        // Only the two retrieval lanes are embedded; FUSED is a deterministic rank-only intervention.
+        // Only the two retrieval lanes are embedded; STABILIZED is a deterministic rank-only intervention.
         for (QueryMode mode : List.of(QueryMode.ORIGINAL, QueryMode.EVIDENCE_FOCUSED)) {
             queryVectors.put(mode, embedQueries(client,
                     cases.stream().map(value -> mode.query(value.query())).toList()));
@@ -1366,14 +1373,18 @@ class ControlledPdfDenseRecallLiveTest {
                     namespace, queryVectors.get(QueryMode.EVIDENCE_FOCUSED).get(queryIndex), 80,
                     researchFilter(tenantKey, mountedSourceVersions)));
             List<String> rewrittenMatches = rewrittenPool.stream().limit(40).toList();
-            // Fuse both complete top-80 pools before truncation so neither query lane is privileged.
-            List<String> fusedMatches = ResearchQueryRankFusion.fuse(densePool, rewrittenPool, 40);
             List<String> denseChunkIds = denseMatches.stream()
                     .map(indexedByVectorId::get).map(value -> value.chunk().chunkId()).toList();
             List<String> lexicalChunkIds = ResearchHybridRanker.lexicalRank(researchCase.query(),
                     mountedSourceVersions.stream().sorted()
                             .flatMap(source -> projections.bySourceVersion().get(source)
                                     .lexicalProjections().stream()).toList());
+            Map<String, String> chunkIdByVectorId = indexedByVectorId.entrySet().stream()
+                    .collect(java.util.stream.Collectors.toMap(
+                            Map.Entry::getKey, entry -> entry.getValue().chunk().chunkId()));
+            // Lexical stabilization can reorder only the complete provider-returned dense union.
+            List<String> fusedMatches = ResearchDenseUnionLexicalStabilizer.stabilize(
+                    densePool, rewrittenPool, chunkIdByVectorId, lexicalChunkIds, 40);
             List<String> hybridChunkIds = ResearchHybridRanker.fuse(
                     lexicalChunkIds, denseChunkIds, 40);
             Map<String, IndexedChunk> indexedByChunkId = indexed.stream()
@@ -1404,7 +1415,7 @@ class ControlledPdfDenseRecallLiveTest {
                     indexedByVectorId, rewrittenCandidates, List.of(), rewrittenPoolCandidates));
             List<CandidateResult> fusedCandidates = candidateResults(
                     fusedMatches, indexedByVectorId);
-            ranksByQueryMode.get(QueryMode.FUSED).add(caseRank(
+            ranksByQueryMode.get(QueryMode.STABILIZED).add(caseRank(
                     researchCase, fusedMatches, requiredGoldVectorIds, fixedGoldChunkIdsByAnchor,
                     indexedByVectorId, fusedCandidates, List.of(), fusedCandidates));
             List<String> deduplicatedMatches = ResearchEvidenceDeduplicator.deduplicate(
@@ -2102,7 +2113,7 @@ class ControlledPdfDenseRecallLiveTest {
     private enum QueryMode {
         ORIGINAL("original-v1"),
         EVIDENCE_FOCUSED("evidence-focused-v1"),
-        FUSED("original-evidence-rrf-v1");
+        STABILIZED("original-evidence-lexical-stabilized-v1");
 
         private final String id;
 
@@ -2113,8 +2124,8 @@ class ControlledPdfDenseRecallLiveTest {
         String id() { return id; }
 
         String query(String original) {
-            if (this == FUSED) {
-                throw new IllegalStateException("Fused query mode has no independent embedding query");
+            if (this == STABILIZED) {
+                throw new IllegalStateException("Stabilized query mode has no independent embedding query");
             }
             return this == EVIDENCE_FOCUSED ? ResearchQueryRewriter.rewrite(original) : original;
         }

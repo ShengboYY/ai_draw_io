@@ -17,11 +17,17 @@ from select_drawio_context import select
 
 ROOT = Path(__file__).resolve().parents[1]
 IDENTITY_RESERVATION_LIMIT = 6
-HYDRATION_QUERY_MODE = "original-evidence-rrf-v1"
+HYDRATION_QUERY_MODE = "original-evidence-lexical-stabilized-v1"
 QUERY_REWRITE_FINGERPRINT = (
     "drawio-bilingual-evidence-focused-v2:han-aware-prefix:frozen-domain-terms"
 )
 QUERY_FUSION_FINGERPRINT = "equal-rrf-v1:k60:original1.0:rewritten1.0"
+QUERY_STABILIZATION_FINGERPRINT = (
+    "dense-union-lexical-stabilization-v1|"
+    "equal-rrf-v1:k60:original1.0:rewritten1.0|"
+    "projection-tfidf-exact-v1:word-min2:cjk-bigram:"
+    "exact2:rrf-k60-lex1.2-dense1.0"
+)
 QUERY_RANK_LINEAGE_FINGERPRINT = "original-rewrite-top80-fused-ranks-v1"
 IDENTITY_STOPWORDS = {
     "create", "diagram", "draw", "editable", "existing", "from", "into", "make",
@@ -383,8 +389,9 @@ def verify_provenance(trace: dict, corpus_lock: Path, tasks: Path, ground_truth:
     run = trace["retrievalRun"]
     if (run.get("candidateQueryMode") != HYDRATION_QUERY_MODE
             or run.get("queryRewriteFingerprint") != QUERY_REWRITE_FINGERPRINT
-            or run.get("queryFusionFingerprint") != QUERY_FUSION_FINGERPRINT):
-        raise ValueError("retrieval trace candidate query lane is not the frozen original/rewrite fusion")
+            or run.get("queryFusionFingerprint") != QUERY_FUSION_FINGERPRINT
+            or run.get("queryStabilizationFingerprint") != QUERY_STABILIZATION_FINGERPRINT):
+        raise ValueError("retrieval trace candidate query lane is not the frozen lexical-stabilized union")
     if not re.fullmatch(r"[0-9a-f]{7,64}", run["gitCommit"]):
         raise ValueError("retrieval trace has an invalid Git commit")
     if not re.fullmatch(r"[0-9a-f]{64}", run["corpusLockSha256"]):

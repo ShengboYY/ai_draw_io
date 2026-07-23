@@ -454,21 +454,35 @@ class PairedHydrationExportTest(unittest.TestCase):
             }), encoding="utf-8")
             trace = {"retrievalRun": {
                 "gitCommit": "abc1234", "corpusLockSha256": MODULE.sha256(lock),
-                "candidateQueryMode": "original-evidence-rrf-v1",
+                "candidateQueryMode": "original-evidence-lexical-stabilized-v1",
                 "queryRewriteFingerprint":
                     "drawio-bilingual-evidence-focused-v2:han-aware-prefix:frozen-domain-terms",
                 "queryFusionFingerprint": "equal-rrf-v1:k60:original1.0:rewritten1.0",
+                "queryStabilizationFingerprint":
+                    "dense-union-lexical-stabilization-v1|"
+                    "equal-rrf-v1:k60:original1.0:rewritten1.0|"
+                    "projection-tfidf-exact-v1:word-min2:cjk-bigram:"
+                    "exact2:rrf-k60-lex1.2-dense1.0",
             }}
             MODULE.verify_provenance(trace, lock, task_fixture, ground_truth, identities)
             trace["retrievalRun"]["candidateQueryMode"] = "original-v1"
             with self.assertRaisesRegex(ValueError, "candidate query lane"):
                 MODULE.verify_provenance(trace, lock, task_fixture, ground_truth, identities)
-            trace["retrievalRun"]["candidateQueryMode"] = "original-evidence-rrf-v1"
+            trace["retrievalRun"]["candidateQueryMode"] = "original-evidence-lexical-stabilized-v1"
             trace["retrievalRun"]["queryFusionFingerprint"] = "unknown"
             with self.assertRaisesRegex(ValueError, "candidate query lane"):
                 MODULE.verify_provenance(trace, lock, task_fixture, ground_truth, identities)
             trace["retrievalRun"]["queryFusionFingerprint"] = (
                 "equal-rrf-v1:k60:original1.0:rewritten1.0"
+            )
+            trace["retrievalRun"]["queryStabilizationFingerprint"] = "unknown"
+            with self.assertRaisesRegex(ValueError, "candidate query lane"):
+                MODULE.verify_provenance(trace, lock, task_fixture, ground_truth, identities)
+            trace["retrievalRun"]["queryStabilizationFingerprint"] = (
+                "dense-union-lexical-stabilization-v1|"
+                "equal-rrf-v1:k60:original1.0:rewritten1.0|"
+                "projection-tfidf-exact-v1:word-min2:cjk-bigram:"
+                "exact2:rrf-k60-lex1.2-dense1.0"
             )
             trace["retrievalRun"]["corpusLockSha256"] = "0" * 64
             with self.assertRaisesRegex(ValueError, "does not match"):

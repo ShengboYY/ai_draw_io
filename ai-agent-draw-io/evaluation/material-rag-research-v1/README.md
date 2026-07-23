@@ -328,6 +328,10 @@ and rewritten top-80 chunk IDs plus each fused top-40 item's ranks in those lane
 this lineage exactly reproduces the unchanged candidate order. These fields are diagnostic only: they do not
 change fusion, selection, context, or any readiness gate.
 
+R23 keeps the complete original/rewrite dense union and applies the frozen lexical weighted-RRF only within
+that union before selecting top-40. `queryStabilizationFingerprint` binds this final intervention; lexical
+ranking cannot introduce a chunk that the authorized Pinecone queries did not return.
+
 The live research runner treats an empty Pinecone response as transient when the scoped projection contains
 chunks. It retries with bounded exponential backoff and fails the run after exhaustion; exception retries,
 query/filter/ranking semantics and the final scoped-pool gate remain unchanged.
