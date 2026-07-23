@@ -323,6 +323,8 @@ class ControlledPdfDenseRecallLiveTest {
         assertTrue(hydratedParent.vectorId().startsWith("lexical:"));
         assertEquals(denseByChunkId.get(visual.chunkId()).vectorId(), hydrated.stream().filter(candidate ->
                 candidate.chunkId().equals(visual.chunkId())).findFirst().orElseThrow().vectorId());
+        assertEquals(Map.of("drawio-agent-architecture:v1", indexed.size()),
+                sourceIndexedVectorCounts(projections));
     }
 
     private RetrievalChunkProjection chunkWithParentContext(String parentContext) {
@@ -849,11 +851,8 @@ class ControlledPdfDenseRecallLiveTest {
         retrievalRun.put("gitCommit", commit);
         retrievalRun.put("corpusLockSha256", sha256(lock));
         retrievalRun.put("embeddingInputManifest", result.embeddingInputManifest());
-        Map<String, Integer> sourceChunkCounts = new LinkedHashMap<>();
-        projections.bySourceVersion().forEach(
-                (sourceVersion, manifest) -> sourceChunkCounts.put(sourceVersion, manifest.chunks().size()));
-        // Bind scoped top-k completeness to the number of chunks that were actually projected.
-        retrievalRun.put("sourceProjectionChunkCounts", sourceChunkCounts);
+        // Bind scoped top-k completeness to the vectors that were actually indexed in Pinecone.
+        retrievalRun.put("sourceIndexedVectorCounts", sourceIndexedVectorCounts(projections));
         trace.put("retrievalRun", retrievalRun);
         // Persist the source-owned identity input so hydration cannot silently substitute evaluator data.
         trace.put("sourceEvidenceIdentityManifest", Map.of(
@@ -1194,6 +1193,16 @@ class ControlledPdfDenseRecallLiveTest {
                 .forEach(chunk -> result.add(new IndexedChunk(runId + "_" + result.size(),
                         sourceVersion, chunk, chunkMode.embeddingText(chunk)))));
         return stableIndexedChunks(runId, result);
+    }
+
+    private Map<String, Integer> sourceIndexedVectorCounts(ProjectionSet projections) {
+        Map<String, Integer> result = new LinkedHashMap<>();
+        projections.bySourceVersion().forEach(
+                (sourceVersion, manifest) -> result.put(sourceVersion, Math.toIntExact(
+                        manifest.chunks().stream()
+                                .filter(chunk -> chunk.indexMode() == RetrievalIndexMode.DENSE_AND_LEXICAL)
+                                .count())));
+        return Map.copyOf(result);
     }
 
     private List<IndexedChunk> stableIndexedChunks(String runId, List<IndexedChunk> indexed) {

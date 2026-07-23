@@ -534,6 +534,23 @@ R17 仍属于同一 source-independent artifact-availability 变量族：
 R16 trace 只作诊断。更新计划、合同、测试与 corpus lock 并提交后，从新 clean commit 重跑 Development；
 仍不得调用模型或打开 Validation。
 
+## 2026-07-23 R18 预注册：indexed-vector completeness denominator
+
+R17 live run 的检索与清理成功，但 scoped-pool gate 报 `dgt-dev-20` 实际 28、期望 35。根因是 R15 manifest
+统计了 projection manifest 的全部 chunks，其中 7 个为 lexical-only；Pinecone 只 upsert
+`DENSE_AND_LEXICAL`，所以 completeness 分母必须是实际 indexed dense vectors，而不是所有 projections。
+
+R18 只修正 provenance 口径：
+
+- producer 写入 `sourceIndexedVectorCounts`，逐 source 仅统计与 upsert 相同的
+  `RetrievalIndexMode.DENSE_AND_LEXICAL`；
+- exporter 要求精确 `min(40, sum(允许资料的 indexed vectors))`；
+- 新字段优先，旧 `sourceProjectionChunkCounts` 只用于历史诊断 trace 的兼容读取；
+- embedding、query、filter、retry、visual registry、selector、context 和 gate 均不改变。
+
+R17 trace 只作诊断。新 commit 的 Development trace 必须使用 indexed-vector 字段并通过全部输入 gate 后，
+才允许构建 prompt；Validation 继续关闭。
+
 E6b 的本地导出合同已冻结为 `fixtures/drawio-generation-paired-hydration-contract-v1.json` 与
 `analysis/export_drawio_paired_hydration.py`。active Development 图册明确挂载 architecture、workflow handbook
 与 planning-workshop scan 三个版本；导出器从同一 retrieval trace 的 raw top-8 和 source-aware top-8 产生一任务

@@ -195,7 +195,9 @@ def export(trace: dict, tasks: list[dict], split: str, limit: int,
     chartbook_sources = chartbook_sources or set()
     artifact_task_ids = artifact_task_ids or set()
     no_retrieval_task_ids = no_retrieval_task_ids or set()
-    source_chunk_counts = run.get("sourceProjectionChunkCounts")
+    source_chunk_counts = run.get(
+        "sourceIndexedVectorCounts", run.get("sourceProjectionChunkCounts")
+    )
     if source_chunk_counts is not None and (
             not isinstance(source_chunk_counts, dict)
             or any(not isinstance(value, int) or value < 0 for value in source_chunk_counts.values())

@@ -201,7 +201,7 @@
     "requiresFormalRunManifest": "material-rag-generation-run-manifest-v1",
     "pairedHydrationContract": "fixtures/drawio-generation-paired-hydration-contract-v1.json; r4 successfully exported six Development paired contexts after native-policy-selected visual-page OCR placed the dgt-dev-02 architecture artifact in raw top-8; the original image artifact is retained and no-retrieval task handling is fixed separately",
     "historicalFixedRunQualification": "diagnostic; v1 tasks only; not compatible with active v2 edit assertions",
-    "next": "commit the R17 publisher source-page artifact registry and source-diverse four-artifact selector, freeze the updated corpus lock, then rerun Development from a clean commit; require every input gate before generation"
+    "next": "commit the R18 indexed-vector completeness denominator, freeze the updated corpus lock, then rerun Development from a clean commit; require every input gate before generation"
   },
   "preE0": {
     "minimumReviewedCasesBeforeComparison": 340,
@@ -226,7 +226,7 @@
   ],
   "progress": {
     "completed": ["E0_BASELINE", "E1_REPRESENTATION", "E2_CHUNKING", "E3_RETRIEVAL", "E4_DEDUPLICATION", "E5_RERANKING"],
-    "currentNext": "R17_ARTIFACT_REGISTRY_RERUN",
+    "currentNext": "R18_INDEXED_VECTOR_DENOMINATOR_RERUN",
     "e2Decision": "retain flat-leaf-v1; parent-context-500-v1 recallAt10 delta 0.0000 did not meet +0.02 and mrrAt10 delta -0.0618 regressed",
     "e3FirstCandidateDecision": "retain dense-v1; projection hybrid recallAt10 delta 0.0065 did not meet +0.02",
     "e3SecondCandidateDecision": "retain original-v1; evidence-focused recallAt10 delta -0.0194 and mrrAt10 delta -0.0488 regressed",
@@ -236,6 +236,6 @@
     "e5Status": "completed: DeepSeek V4 Pro listwise reranker accepted JSON for 5/155 cases and Recall@10 gain was 0.0; not promoted",
     "e6aStatus": "completed: 26/26 contexts changed; source coverage improved; recall interval touched zero; no promotion claim",
     "e6bStatus": "completed: r4 selected-visual-page local OCR placed dgt-dev-02 page-3 source image in raw top-8 and exporter produced six paired Development contexts with 3/5 retrieval-required tasks changed (60%); its paired GPT-5.5 Development run is recorded separately under E7",
-    "e7Status": "R12 repaired the active 20+20 draw.io task contract and R13 froze owner-spot-checked governance. R14 added bounded visual coverage; R15 added exact scoped pool completeness; R16 added bounded retry and recovered a real transient empty query. The complete R16 pool then exposed an incomplete publisher artifact registry. R17 preregisters all active Development source/page artifacts plus a source-diverse four-artifact candidate reservation. No model or Validation call has been made."
+    "e7Status": "R12 repaired the active 20+20 draw.io task contract and R13 froze owner-spot-checked governance. R14-R17 established bounded visual coverage, exact scoped pools, empty-query retry, full Development artifact registry and source-diverse reservation. R17 then exposed that the pool denominator counted lexical-only projections. R18 preregisters per-source indexed dense-vector counts matching the actual Pinecone upsert filter. No model or Validation call has been made."
   }
 }

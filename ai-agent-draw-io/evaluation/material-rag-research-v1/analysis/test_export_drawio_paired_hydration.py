@@ -257,7 +257,7 @@ class PairedHydrationExportTest(unittest.TestCase):
         trace = {"schemaVersion": "material-rag-drawio-task-hydration-candidates-v1",
                  "retrievalRun": {
                      "runId": "r", "gitCommit": "c", "corpusLockSha256": "l",
-                     "sourceProjectionChunkCounts": {"one:v1": 3, "shared:v1": 7},
+                     "sourceIndexedVectorCounts": {"one:v1": 3, "shared:v1": 7},
                  },
                  "tasks": [{"taskId": "a", "candidates": candidates}]}
 
@@ -272,7 +272,7 @@ class PairedHydrationExportTest(unittest.TestCase):
         trace = {"schemaVersion": "material-rag-drawio-task-hydration-candidates-v1",
                  "retrievalRun": {
                      "runId": "r", "gitCommit": "c", "corpusLockSha256": "l",
-                     "sourceProjectionChunkCounts": {"one:v1": 50, "shared:v1": 20},
+                     "sourceIndexedVectorCounts": {"one:v1": 50, "shared:v1": 20},
                  },
                  "tasks": [{"taskId": "a", "candidates": []}]}
 

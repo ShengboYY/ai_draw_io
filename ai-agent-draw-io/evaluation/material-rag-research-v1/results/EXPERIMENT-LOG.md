@@ -702,6 +702,19 @@
 - **外部使用**:1 次 Pinecone Development trace，临时向量已清理；0 次模型请求、0 model token、
   0 Validation/holdout case。
 
+### R17 trace / R18 indexed-vector denominator · 2026-07-23 · ⏸ 修复后重跑
+
+- **固定输入**:clean commit `b419a70a`，Development only；两次空查询均经 R16 retry 恢复，19/19 完成，
+  临时向量已删除。
+- **artifact registry**:producer 已能按 source/page 写入 datacenter、payment、field-audit 等冻结原图；
+  source-diverse selector 与路径/SHA gate 保持启用。
+- **scoped-pool gate**:`dgt-dev-20` 返回 28，manifest 却期望 35。35 是该 source 的全部 projection chunks，
+  其中 7 个 lexical-only 从未 upsert 到 Pinecone；实际 dense indexed vectors 正是 28。
+- **R18 预注册变量**:manifest 改为逐 source `sourceIndexedVectorCounts`，与实际 upsert 的
+  `DENSE_AND_LEXICAL` 过滤完全一致；exporter 使用该字段计算精确 scoped pool。
+- **外部使用**:1 次 Pinecone Development trace，临时向量已清理；0 次模型请求、0 model token、
+  0 Validation/holdout case。
+
 ### R16 trace / R17 artifact-registry preregistration · 2026-07-23 · ⏸ 修复后重跑
 
 - **固定输入**:clean commit `2e74d385`，Development only；所有自动图册任务 40/40，
