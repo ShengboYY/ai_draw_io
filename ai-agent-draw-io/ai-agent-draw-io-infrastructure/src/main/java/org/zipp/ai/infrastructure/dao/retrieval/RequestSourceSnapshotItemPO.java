@@ -1,10 +1,10 @@
-package org.zipp.ai.infrastructure.dao.retrieval.po;
+package org.zipp.ai.infrastructure.dao.retrieval;
 
 import lombok.Data;
 
 @Data
-public class OnlineSourcePO {
-    private String declarationId;
+public class RequestSourceSnapshotItemPO {
+    private int ordinal;
     private String materialId;
     private String versionId;
     private String revisionId;
@@ -12,8 +12,7 @@ public class OnlineSourcePO {
     private String scopeType;
     private String scopeKey;
     private String state;
-    private String uploadState;
-    private boolean conversationScoped;
+    private String origin;
     private boolean hasText;
     private boolean hasVisual;
     private boolean pinned;

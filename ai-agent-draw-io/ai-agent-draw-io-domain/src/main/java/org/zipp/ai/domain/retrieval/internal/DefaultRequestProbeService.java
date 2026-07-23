@@ -20,7 +20,9 @@ public final class DefaultRequestProbeService implements RequestProbeService {
     @Override
     public RequestProbe probe(RequestProbeCommand command) {
         Objects.requireNonNull(command, "command");
-        SourceProbe sources = data.probeSources(command);
+        SourceProbe sources = command.resolvedSources() == null
+                ? data.probeSources(command)
+                : command.resolvedSources().toProbe();
         CanvasProbe canvas = data.loadCanvasFacts(command.owner(), command.diagramId(), command.selectedCellIds())
                 .map(facts -> new CanvasProbe(facts.nodeCount() + facts.edgeCount() > 0,
                         facts.nodeCount(), facts.edgeCount(), facts.version(), facts.contentHash(),

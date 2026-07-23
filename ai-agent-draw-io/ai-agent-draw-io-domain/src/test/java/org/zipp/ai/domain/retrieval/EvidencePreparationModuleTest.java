@@ -67,6 +67,26 @@ class EvidencePreparationModuleTest {
     }
 
     @Test
+    void requestSnapshotControlsReadinessWithoutResolvingRawIdsAgain() {
+        AtomicInteger catalogCalls = new AtomicInteger();
+        EvidenceCatalog catalog = catalog(command -> {
+            catalogCalls.incrementAndGet();
+            return new SourceResolution(SourceMode.AUTO, List.of(), List.of());
+        });
+        EvidencePreparationCommand command = new EvidencePreparationCommand(owner, "diagram-1", "conversation-1",
+                "request-1", "run-1", "根据所选附件回答", CanvasProbe.unavailableProbe(),
+                ValidatedSelection.empty(), SourceMode.NONE,
+                new ResolvedSourceSet(SourceMode.EXPLICIT, List.of(), 1, 0),
+                List.of(), "OPTIONAL", "NONE");
+
+        PreparationOutcome outcome = module(catalog, List.of()).prepare(command, new RunResourceDomain(),
+                EvidenceProgressListener.NOOP, CancellationSignal.NEVER).toCompletableFuture().join();
+
+        assertInstanceOf(PreparationOutcome.Waiting.class, outcome);
+        assertEquals(0, catalogCalls.get());
+    }
+
+    @Test
     void readyOutcomeUsesBatchLeaseAndClosesItWithTheRun() {
         AtomicInteger leaseCloses = new AtomicInteger();
         AuthorizedSource ready = source("READY", false);

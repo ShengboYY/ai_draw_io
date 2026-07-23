@@ -9,6 +9,7 @@ import java.util.Objects;
 public record EvidencePreparationCommand(CatalogOwner owner, String diagramId, String conversationId, String requestId,
                                          String runId, String userMessage, CanvasProbe canvasProbe,
                                          ValidatedSelection selection, SourceMode sourceMode,
+                                         ResolvedSourceSet resolvedSources,
                                          List<String> selectedVersionIds, String evidenceNeed,
                                          String targetNeed) {
     public EvidencePreparationCommand {
@@ -25,10 +26,34 @@ public record EvidencePreparationCommand(CatalogOwner owner, String diagramId, S
                 .filter(value -> value != null && !value.isBlank()).map(String::trim).distinct().toList();
         evidenceNeed = normalizedNeed(evidenceNeed, "OPTIONAL");
         targetNeed = normalizedNeed(targetNeed, "NONE");
-        // Explicit sources are an authoritative server-side signal. A conflicting client mode
-        // cannot suppress retrieval and accidentally send the request to the legacy Drawer.
-        if (!selectedVersionIds.isEmpty() && sourceMode == SourceMode.NONE) sourceMode = SourceMode.EXPLICIT;
-        if (!selectedVersionIds.isEmpty()) evidenceNeed = "REQUIRED";
+        boolean snapshotHasDeclaration = resolvedSources != null
+                && (!resolvedSources.declaredVersionIds().isEmpty()
+                || resolvedSources.processingSourceCount() > 0
+                || resolvedSources.unavailableSourceCount() > 0);
+        // The trusted snapshot is authoritative. A contradictory legacy client mode cannot
+        // suppress a declared attachment/version or send it to the evidence-free Drawer.
+        if (snapshotHasDeclaration) sourceMode = resolvedSources.mode();
+        if ((!selectedVersionIds.isEmpty() || snapshotHasDeclaration)
+                && sourceMode == SourceMode.NONE) sourceMode = SourceMode.EXPLICIT;
+        if (!selectedVersionIds.isEmpty() || snapshotHasDeclaration) evidenceNeed = "REQUIRED";
+    }
+
+    /** Compatibility constructor for isolated callers that still exercise the catalog seam directly. */
+    public EvidencePreparationCommand(CatalogOwner owner, String diagramId, String conversationId,
+                                      String requestId, String runId, String userMessage,
+                                      CanvasProbe canvasProbe, ValidatedSelection selection,
+                                      SourceMode sourceMode, List<String> selectedVersionIds,
+                                      String evidenceNeed, String targetNeed) {
+        this(owner, diagramId, conversationId, requestId, runId, userMessage, canvasProbe, selection,
+                sourceMode, null, selectedVersionIds, evidenceNeed, targetNeed);
+    }
+
+    public boolean hasResolvedSources() {
+        return resolvedSources != null;
+    }
+
+    public List<String> declaredVersionIds() {
+        return resolvedSources == null ? selectedVersionIds : resolvedSources.declaredVersionIds();
     }
 
     public boolean requiresEvidence() {

@@ -60,10 +60,12 @@ import java.util.Optional;
 import java.util.ArrayList;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 
 public class AgentConversationServiceTest {
@@ -907,6 +909,77 @@ public class AgentConversationServiceTest {
         assertEquals("evidence_answer", response.getType());
         assertTrue(response.getContent().contains("[C1]"));
         assertEquals(1, commits.get());
+        assertEquals(0, chatService.handleMessageCalls);
+        assertEquals(0, chatService.handleMessageStreamCalls);
+    }
+
+    @Test
+    public void probeAndEvidencePreparationShareOneResolvedSourceSnapshot() throws Exception {
+        AgentConversationService service = quotaAwareService();
+        AtomicInteger resolutions = new AtomicInteger();
+        AtomicReference<org.zipp.ai.domain.retrieval.ResolvedSourceSet> probed = new AtomicReference<>();
+        AtomicReference<org.zipp.ai.domain.retrieval.ResolvedSourceSet> prepared = new AtomicReference<>();
+        org.zipp.ai.domain.retrieval.ResolvedSourceSet snapshot =
+                new org.zipp.ai.domain.retrieval.ResolvedSourceSet(
+                        org.zipp.ai.domain.retrieval.SourceMode.EXPLICIT_ONLY, List.of(), 1, 0);
+        injectField(service, "chatService", new CountingChatService());
+        injectField(service, "intentRoutingService", new EvidenceRoutingService());
+        injectField(service, "materialRagEnabled", true);
+        injectField(service, "requestSourceResolutionService",
+                (org.zipp.ai.domain.retrieval.RequestSourceResolutionService) command -> {
+                    resolutions.incrementAndGet();
+                    return snapshot;
+                });
+        injectField(service, "requestProbeService",
+                (org.zipp.ai.domain.retrieval.RequestProbeService) command -> {
+                    probed.set(command.resolvedSources());
+                    return new org.zipp.ai.domain.retrieval.RequestProbe(
+                            snapshot.toProbe(), org.zipp.ai.domain.retrieval.CanvasProbe.unavailableProbe());
+                });
+        injectField(service, "groundedRunControlPort", new org.zipp.ai.domain.grounding.port.GroundedRunControlPort() {
+            @Override public void start(RunIdentity identity) { }
+            @Override public CancelResult cancel(RunIdentity identity) { return CancelResult.ALREADY_CANCELLED; }
+        });
+        injectField(service, "evidencePreparationModule",
+                (org.zipp.ai.domain.retrieval.EvidencePreparationModule) (command, resources, progress, cancellation) -> {
+                    prepared.set(command.resolvedSources());
+                    return java.util.concurrent.CompletableFuture.completedFuture(
+                            new org.zipp.ai.domain.retrieval.PreparationOutcome.Waiting(List.of()));
+                });
+        ChatRequestDTO request = platformRequest();
+        request.setRequestId("request-source-snapshot-1");
+        request.setMessage("answer from the selected upload");
+        request.setSourceMode("NONE");
+        request.setAttachmentUploadIds(List.of("upl-1"));
+
+        org.zipp.ai.api.dto.ChatResponseDTO response = service.chat(request);
+
+        assertEquals("material_waiting", response.getType());
+        assertEquals(1, resolutions.get());
+        assertSame(snapshot, probed.get());
+        assertSame(snapshot, prepared.get());
+    }
+
+    @Test
+    public void sourceSnapshotInfrastructureFailureStopsBeforeLegacyDrawing() throws Exception {
+        AgentConversationService service = quotaAwareService();
+        CountingChatService chatService = new CountingChatService();
+        injectField(service, "chatService", chatService);
+        injectField(service, "intentRoutingService", new CountingIntentRoutingService());
+        injectField(service, "materialRagEnabled", true);
+        injectField(service, "requestSourceResolutionService",
+                (org.zipp.ai.domain.retrieval.RequestSourceResolutionService) command -> {
+                    throw new IllegalStateException("snapshot store unavailable");
+                });
+        injectField(service, "requestProbeService",
+                (org.zipp.ai.domain.retrieval.RequestProbeService) command ->
+                        new org.zipp.ai.domain.retrieval.RequestProbe(
+                                command.resolvedSources().toProbe(),
+                                org.zipp.ai.domain.retrieval.CanvasProbe.unavailableProbe()));
+
+        org.zipp.ai.api.dto.ChatResponseDTO response = service.chat(platformRequest());
+
+        assertEquals("source_resolution_failed", response.getType());
         assertEquals(0, chatService.handleMessageCalls);
         assertEquals(0, chatService.handleMessageStreamCalls);
     }

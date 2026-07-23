@@ -207,6 +207,26 @@ class MaterialMapperContractTest {
     }
 
     @Test
+    void requestSourceSnapshotsAreOwnerFencedImmutableAndConversationUploadsAreOptIn() throws Exception {
+        String onlineMapper = resource("mybatis/mapper/online_retrieval_mapper.xml");
+        String snapshotMapper = resource("mybatis/mapper/request_source_snapshot_mapper.xml");
+
+        // Conversation attachments are admitted through the opaque upload declaration and owner fence.
+        assertTrue(onlineMapper.contains("<select id=\"selectConversationAttachmentSources\""));
+        assertTrue(onlineMapper.contains("u.owner_type = #{ownerType}"));
+        assertTrue(onlineMapper.contains("u.owner_key = #{ownerKey}"));
+        assertTrue(onlineMapper.contains("u.target_scope_type = 'CONVERSATION'"));
+        assertTrue(onlineMapper.contains("u.target_scope_key = #{conversationId}"));
+        assertTrue(onlineMapper.contains("u.policy_expires_at &lt;= UTC_TIMESTAMP(3)"));
+
+        // Run snapshots are append-once and may only be replayed by their original owner.
+        assertTrue(snapshotMapper.contains("INSERT IGNORE INTO request_source_snapshot"));
+        assertTrue(snapshotMapper.contains("snapshot.owner_type = #{owner.ownerType}"));
+        assertTrue(snapshotMapper.contains("snapshot.owner_key = #{owner.ownerKey}"));
+        assertFalse(snapshotMapper.contains("UPDATE request_source_snapshot"));
+    }
+
+    @Test
     void groundedCanvasMappersFenceOwnershipAndKeepCitationWritesInsideOneCommitBoundary() throws Exception {
         String commit = resource("mybatis/mapper/grounded_canvas_commit_mapper.xml");
         String query = resource("mybatis/mapper/citation_query_mapper.xml");

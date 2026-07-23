@@ -158,8 +158,9 @@ public final class DefaultEvidencePreparationModule implements EvidencePreparati
             if (target.stop() != null) return target.stop();
 
             progress.onProgress("SOURCE_POLICY", 0, 1);
-            SourceResolution resolution = callWithinDeadline(
-                    () -> catalog.resolveSources(command), deadline, cancellation, resources);
+            SourceResolution resolution = command.hasResolvedSources()
+                    ? command.resolvedSources().toSourceResolution()
+                    : callWithinDeadline(() -> catalog.resolveSources(command), deadline, cancellation, resources);
             PreparationOutcome readinessStop = readiness(command, resolution);
             if (readinessStop != null) return readinessStop;
             AuthorizedSourceSet sources = readySources(command, resolution);
@@ -248,7 +249,7 @@ public final class DefaultEvidencePreparationModule implements EvidencePreparati
 
             progress.onProgress("HYDRATION", 0, Math.min(HYDRATE_LIMIT, authorized.size()));
             List<EvidenceBundleItem> items = hydrate(authorized, fusedIds, existingChunkIds,
-                    !target.cellIds().isEmpty(), Set.copyOf(command.selectedVersionIds()),
+                    !target.cellIds().isEmpty(), Set.copyOf(command.declaredVersionIds()),
                     progress, cancellation, resources, deadline, diagnostics);
             if (items.isEmpty()) {
                 resources.closeExactlyOnce(CloseReason.FAILED);
@@ -302,7 +303,7 @@ public final class DefaultEvidencePreparationModule implements EvidencePreparati
             return null;
         }, deadline, cancellation, resources);
         List<EvidenceBundleItem> items = hydrate(authorized, rankedIds, existingChunkIds, true,
-                Set.copyOf(command.selectedVersionIds()), progress, cancellation, resources, deadline, diagnostics);
+                Set.copyOf(command.declaredVersionIds()), progress, cancellation, resources, deadline, diagnostics);
         if (items.isEmpty() || !sufficiency.evaluate(command.userMessage(), route, items).sufficient()) {
             return null;
         }
@@ -358,7 +359,7 @@ public final class DefaultEvidencePreparationModule implements EvidencePreparati
             return new PreparationOutcome.Waiting(List.of(new MaterialReadiness(
                     "pending-conversation-upload", "PROCESSING", true)));
         }
-        if (!resolution.unavailableExplicitVersionIds().isEmpty()
+        if (resolution.unavailableExplicitSourceCount() > 0
                 && (command.requiresEvidence() || resolution.mode() == SourceMode.EXPLICIT_ONLY)) {
             return new PreparationOutcome.InsufficientEvidence(List.of("EXPLICIT_SOURCE_UNAVAILABLE"));
         }
@@ -389,7 +390,7 @@ public final class DefaultEvidencePreparationModule implements EvidencePreparati
         if (contains(value, "颜色", "配色", "字体", "移动", "布局", "排版", "color", "font", "layout")) {
             return RetrievalRoute.NONE;
         }
-        if (command.selectedVersionIds().size() == 1 && contains(value, "这张图片", "这幅图", "this image")) {
+        if (command.declaredVersionIds().size() == 1 && contains(value, "这张图片", "这幅图", "this image")) {
             return RetrievalRoute.VISUAL_EXACT;
         }
         if (contains(value, "图片", "图中", "箭头", "图例", "扫描", "表格布局", "image", "arrow", "legend")) {

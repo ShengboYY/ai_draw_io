@@ -29,6 +29,7 @@ import org.zipp.ai.domain.material.service.MaterialReadLeaseService;
 import org.zipp.ai.domain.retrieval.*;
 import org.zipp.ai.domain.retrieval.internal.DefaultEvidencePreparationModule;
 import org.zipp.ai.domain.retrieval.internal.DefaultRequestProbeService;
+import org.zipp.ai.domain.retrieval.internal.DefaultRequestSourceResolutionService;
 import org.zipp.ai.domain.retrieval.internal.DeadlineRequestProbeService;
 import org.zipp.ai.domain.retrieval.port.*;
 import org.zipp.ai.infrastructure.adapter.repository.*;
@@ -108,6 +109,13 @@ public class MaterialRagConfig {
             @Value("${app.material-rag.probe-timeout-ms:300}") long timeoutMs) {
         return new DeadlineRequestProbeService(new DefaultRequestProbeService(data), executor,
                 Duration.ofMillis(timeoutMs));
+    }
+
+    @Bean
+    public RequestSourceResolutionService requestSourceResolutionService(
+            RequestSourceResolutionPort catalog,
+            RequestSourceSnapshotStore snapshots) {
+        return new DefaultRequestSourceResolutionService(catalog, snapshots);
     }
 
     @Bean

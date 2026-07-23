@@ -134,6 +134,9 @@ public class AgentConversationService {
     private RequestProbeService requestProbeService;
 
     @Autowired(required = false)
+    private RequestSourceResolutionService requestSourceResolutionService;
+
+    @Autowired(required = false)
     private EvidencePreparationModule evidencePreparationModule;
 
     @Autowired(required = false)
@@ -197,7 +200,9 @@ public class AgentConversationService {
             CustomApiConfigManager.setConfig(sessionId, config);
             requestDTO = requestWithStoredCanvas(requestDTO);
             final ChatRequestDTO currentRequest = requestDTO;
-            RequestProbe requestProbe = probeRequest(currentRequest);
+            ResolvedSourceSet sourceSnapshot = materialRagEnabled
+                    ? resolveRequestSources(currentRequest) : null;
+            RequestProbe requestProbe = probeRequest(currentRequest, sourceSnapshot);
             IntentRoutingResult routingResult = recordCapturedStep(
                     "routing", requestStepInput(currentRequest), AgentConversationService::routingStepOutput,
                     () -> routeIntent(currentRequest, config, requestProbe));
@@ -212,7 +217,7 @@ public class AgentConversationService {
                 groundedRunRef.set(identity);
             }
             ChatResponseDTO evidenceResponse = prepareEvidenceResponse(
-                    currentRequest, routingResult, requestProbe, evidenceResources,
+                    currentRequest, routingResult, requestProbe, sourceSnapshot, evidenceResources,
                     EvidenceProgressListener.NOOP, CancellationSignal.NEVER,
                     routingResult.isEvidenceAnswer() ? preparedEvidenceRef : null);
             if (evidenceResponse != null) {
@@ -399,7 +404,9 @@ public class AgentConversationService {
 
             requestDTO = requestWithStoredCanvas(requestDTO);
             final ChatRequestDTO currentRequest = requestDTO;
-            RequestProbe requestProbe = probeRequest(currentRequest);
+            ResolvedSourceSet sourceSnapshot = materialRagEnabled
+                    ? resolveRequestSources(currentRequest) : null;
+            RequestProbe requestProbe = probeRequest(currentRequest, sourceSnapshot);
             IntentRoutingResult routingResult = forcedRoutingResult == null
                     ? recordCapturedStep(
                     "routing", requestStepInput(currentRequest), AgentConversationService::routingStepOutput,
@@ -421,7 +428,7 @@ public class AgentConversationService {
                     groundedRunRef.set(identity);
                 }
                 ChatResponseDTO evidenceResponse = prepareEvidenceResponse(currentRequest, routingResult,
-                        requestProbe, evidenceResources, (stage, completed, total) -> {
+                        requestProbe, sourceSnapshot, evidenceResources, (stage, completed, total) -> {
                             try {
                                 streamResponseWriter.sendEvidenceProgress(emitter, stage, completed, total);
                             } catch (Exception error) {
@@ -1192,7 +1199,7 @@ public class AgentConversationService {
                 .build());
     }
 
-    private RequestProbe probeRequest(ChatRequestDTO requestDTO) {
+    private RequestProbe probeRequest(ChatRequestDTO requestDTO, ResolvedSourceSet sourceSnapshot) {
         SourceMode mode = sourceMode(requestDTO == null ? null : requestDTO.getSourceMode());
         if (requestDTO == null) {
             return new RequestProbe(SourceProbe.empty(mode), new CanvasProbe(false, 0, 0,
@@ -1203,6 +1210,7 @@ public class AgentConversationService {
                 return requestProbeService.probe(new RequestProbeCommand(owner(requestDTO),
                         requestDTO.getDiagramId(), requestDTO.getSessionId(), mode,
                         safeList(requestDTO.getAttachmentUploadIds()), safeList(requestDTO.getSelectedVersionIds()),
+                        sourceSnapshot,
                         safeList(requestDTO.getSelectedCellIds()),
                         requestDTO.getSelectionCanvasVersion(), requestDTO.getSelectionContentHash()));
             } catch (RuntimeException exception) {
@@ -1239,10 +1247,15 @@ public class AgentConversationService {
     private ChatResponseDTO prepareEvidenceResponse(ChatRequestDTO requestDTO,
                                                     IntentRoutingResult routing,
                                                     RequestProbe requestProbe,
+                                                    ResolvedSourceSet sourceSnapshot,
                                                     RunResourceDomain resources,
                                                     EvidenceProgressListener progress,
                                                     CancellationSignal cancellation,
                                                     AtomicReference<PreparedEvidence> preparedEvidenceRef) {
+        if (sourceSnapshot != null && sourceSnapshot.resolutionFailed()) {
+            return evidenceResponse("source_resolution_failed",
+                    "无法固定本轮资料来源，已安全停止请求，请稍后重试。 / Could not freeze this request's sources; retry later.");
+        }
         if (!shouldPrepareEvidence(requestDTO, routing)) return null;
         boolean strict = isStrictEvidenceRequest(requestDTO, routing);
         boolean shadowOnly = !materialRagEnabled && materialRetrievalShadowEnabled
@@ -1252,13 +1265,19 @@ public class AgentConversationService {
                     "资料检索功能当前不可用，画布未被修改。 / Evidence retrieval is currently unavailable; the canvas was not modified.")
                     : null;
         }
+        ResolvedSourceSet effectiveSnapshot = sourceSnapshot;
+        if (effectiveSnapshot == null && shadowOnly) {
+            // Shadow resolution starts after routing so it cannot delay or influence the primary router.
+            effectiveSnapshot = resolveRequestSources(requestDTO);
+        }
         EvidencePreparationCommand command = new EvidencePreparationCommand(owner(requestDTO),
                 requestDTO.getDiagramId(), requestDTO.getSessionId(),
                 StringUtils.defaultIfBlank(requestDTO.getRequestId(), requestDTO.getRunId()), requestDTO.getRunId(),
                 requestDTO.getMessage(), requestProbe.canvas(),
                 new ValidatedSelection(safeList(requestDTO.getSelectedCellIds()),
                         requestDTO.getSelectionCanvasVersion(), requestDTO.getSelectionContentHash()),
-                sourceMode(requestDTO.getSourceMode()), safeList(requestDTO.getSelectedVersionIds()),
+                sourceMode(requestDTO.getSourceMode()), effectiveSnapshot,
+                safeList(requestDTO.getSelectedVersionIds()),
                 StringUtils.defaultIfBlank(routing.getEvidenceNeed(), "OPTIONAL"),
                 StringUtils.defaultIfBlank(routing.getTargetNeed(), "NONE"));
         if (shadowOnly) {
@@ -1332,16 +1351,36 @@ public class AgentConversationService {
                 "当前资料不足以安全完成请求，画布未被修改。 / The available evidence is insufficient.");
     }
 
+    private ResolvedSourceSet resolveRequestSources(ChatRequestDTO requestDTO) {
+        SourceMode mode = sourceMode(requestDTO == null ? null : requestDTO.getSourceMode());
+        if (requestDTO == null || requestSourceResolutionService == null) return null;
+        List<String> attachments = safeList(requestDTO.getAttachmentUploadIds());
+        List<String> versions = safeList(requestDTO.getSelectedVersionIds());
+        try {
+            return requestSourceResolutionService.resolve(new RequestSourceResolutionCommand(
+                    owner(requestDTO), requestDTO.getDiagramId(), requestDTO.getSessionId(),
+                    requestDTO.getRunId(), mode, attachments, versions));
+        } catch (RuntimeException exception) {
+            // Infrastructure/conflict failures must remain distinguishable from an unavailable opaque ID.
+            log.warn("Request source resolution failed closed. diagramId={}",
+                    SecretLogSanitizer.maskCapability(requestDTO.getDiagramId()), exception);
+            return ResolvedSourceSet.failed(mode);
+        }
+    }
+
     private boolean isStrictEvidenceRequest(ChatRequestDTO requestDTO, IntentRoutingResult routing) {
         return routing.isEvidenceAnswer() || "REQUIRED".equals(routing.getEvidenceNeed())
                 || sourceMode(requestDTO.getSourceMode()) == SourceMode.EXPLICIT_ONLY
-                || !safeList(requestDTO.getSelectedVersionIds()).isEmpty();
+                || !safeList(requestDTO.getSelectedVersionIds()).isEmpty()
+                || !safeList(requestDTO.getAttachmentUploadIds()).isEmpty();
     }
 
     private boolean shouldPrepareEvidence(ChatRequestDTO requestDTO, IntentRoutingResult routing) {
         if (routing == null || requestDTO == null) return false;
         if (routing.isEvidenceAnswer() || "REQUIRED".equals(routing.getEvidenceNeed())) return true;
-        if (!safeList(requestDTO.getSelectedVersionIds()).isEmpty()) return true;
+        // Per-message attachment declarations are explicit even when a legacy client sends NONE/AUTO.
+        if (!safeList(requestDTO.getSelectedVersionIds()).isEmpty()
+                || !safeList(requestDTO.getAttachmentUploadIds()).isEmpty()) return true;
         SourceMode mode = sourceMode(requestDTO.getSourceMode());
         if (!materialRagEnabled && materialRetrievalShadowEnabled) {
             return routing.isDrawAction() && mode != SourceMode.NONE;
@@ -1361,6 +1400,7 @@ public class AgentConversationService {
         return switch (StringUtils.defaultString(responseType)) {
             case "material_waiting" -> "source_wait_started";
             case "material_not_ready" -> "source_not_ready";
+            case "source_resolution_failed" -> "source_not_ready";
             case "target_clarification" -> "target_clarification";
             case "stale_canvas_selection" -> "stale_canvas_selection";
             default -> "degraded";

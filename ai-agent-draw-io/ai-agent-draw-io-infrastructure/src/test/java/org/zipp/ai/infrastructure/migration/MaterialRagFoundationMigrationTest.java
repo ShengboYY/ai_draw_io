@@ -12,6 +12,22 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class MaterialRagFoundationMigrationTest {
 
     @Test
+    void requestSourceSnapshotMigrationDefinesImmutableRunAndVersionKeys() throws Exception {
+        Path migration = Path.of("docs/sql/migrations/2026-08-10-create-request-source-snapshots.sql");
+        if (!Files.exists(migration)) {
+            migration = Path.of("../docs/sql/migrations/2026-08-10-create-request-source-snapshots.sql");
+        }
+        String sql = Files.readString(migration);
+
+        assertTrue(sql.contains("CREATE TABLE IF NOT EXISTS request_source_snapshot"));
+        assertTrue(sql.contains("CREATE TABLE IF NOT EXISTS request_source_snapshot_item"));
+        assertTrue(sql.contains("declaration_fingerprint"));
+        assertTrue(sql.contains("PRIMARY KEY (run_id)"));
+        assertTrue(sql.contains("UNIQUE KEY uk_request_source_snapshot_version (run_id, version_id)"));
+        assertTrue(sql.contains("ON DELETE CASCADE"));
+    }
+
+    @Test
     void operationsMigrationAddsCoveringIndexesForBoundedDashboardAggregates() throws Exception {
         Path migration = Path.of("docs/sql/migrations/2026-08-09-add-material-operations-indexes.sql");
         if (!Files.exists(migration)) {

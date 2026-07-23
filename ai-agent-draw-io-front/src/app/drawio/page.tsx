@@ -28,7 +28,11 @@ import { SourceModeControl } from '@/features/sources/SourceModeControl';
 import { SourcePicker, type SourceOption } from '@/features/sources/SourcePicker';
 import { type SourceMode } from '@/features/sources/source-selection';
 import {
+  readConversationAttachmentSelection,
   readConversationAttachments,
+  reconcileAttachmentSelection,
+  selectedAttachmentIdsForRequest,
+  writeConversationAttachmentSelection,
   writeConversationAttachments,
   type ConversationAttachment,
 } from '@/features/sources/conversation-attachments';
@@ -746,6 +750,7 @@ function DrawioPageContent() {
   const capabilitiesClient = useMemo(() => createMaterialCapabilitiesClient({ baseUrl: API_CONFIG.BASE_URL }), []);
   const chartbookClient = useMemo(() => createChartbookClient({ baseUrl: API_CONFIG.BASE_URL }), []);
   const [conversationAttachments, setConversationAttachments] = useState<ConversationAttachment[]>([]);
+  const [selectedAttachmentUploadIds, setSelectedAttachmentUploadIds] = useState<string[]>([]);
   const [attachmentSessionLoaded, setAttachmentSessionLoaded] = useState('');
   const [restoredAttachments, setRestoredAttachments] = useState<ConversationAttachment[]>([]);
   const [sourceMode, setSourceMode] = useState<SourceMode>('AUTO');
@@ -1424,12 +1429,19 @@ function DrawioPageContent() {
     const attachmentSessionId = sessionId.trim();
     if (!attachmentSessionId) {
       setConversationAttachments([]);
+      setSelectedAttachmentUploadIds([]);
       setAttachmentSessionLoaded('');
       setRestoredAttachments([]);
       return;
     }
     const restored = readConversationAttachments(window.sessionStorage, attachmentSessionId);
+    const restoredSelection = readConversationAttachmentSelection(window.sessionStorage, attachmentSessionId);
     setConversationAttachments(restored);
+    // Existing sessions created before R3.1 keep their previous "all attachments" behavior.
+    setSelectedAttachmentUploadIds(reconcileAttachmentSelection(
+      restored,
+      restoredSelection ?? restored.map(attachment => attachment.uploadId),
+    ));
     setRestoredAttachments(restored);
     setAttachmentSessionLoaded(attachmentSessionId);
   }, [sessionId]);
@@ -1438,7 +1450,16 @@ function DrawioPageContent() {
     const attachmentSessionId = sessionId.trim();
     if (!attachmentSessionId || attachmentSessionLoaded !== attachmentSessionId) return;
     writeConversationAttachments(window.sessionStorage, attachmentSessionId, conversationAttachments);
-  }, [attachmentSessionLoaded, conversationAttachments, sessionId]);
+    writeConversationAttachmentSelection(
+      window.sessionStorage,
+      attachmentSessionId,
+      reconcileAttachmentSelection(conversationAttachments, selectedAttachmentUploadIds),
+    );
+  }, [attachmentSessionLoaded, conversationAttachments, selectedAttachmentUploadIds, sessionId]);
+
+  useEffect(() => {
+    setSelectedAttachmentUploadIds(previous => reconcileAttachmentSelection(conversationAttachments, previous));
+  }, [conversationAttachments]);
 
   useEffect(() => {
     if (!attachmentSessionLoaded || restoredAttachments.length === 0) return;
@@ -2409,9 +2430,10 @@ function DrawioPageContent() {
           canvasImageDataUrl: canvasContext.canvasImageDataUrl,
           canvasImageRendererVersion: canvasContext.canvasImageRendererVersion,
           modelCredentialId: activeModelConfig?.modelCredentialId || undefined,
-          attachmentUploadIds: conversationAttachments
-            .filter(attachment => !['FAILED', 'REJECTED', 'CANCELLED'].includes(attachment.state))
-            .map(attachment => attachment.uploadId),
+          attachmentUploadIds: selectedAttachmentIdsForRequest(
+            conversationAttachments,
+            selectedAttachmentUploadIds,
+          ),
           sourceMode,
           selectedVersionIds,
           selectedCellIds: selectedCellsRef.current?.cellIds,
@@ -3658,7 +3680,7 @@ function DrawioPageContent() {
           title="FreeDraw home"
         >
           {/* Match the shared app logo used on the home and auth pages. */}
-          <Image src="/brand/freedraw-app-icon-v2.png" alt="" fill sizes="36px" className="object-cover" priority />
+          <Image src="/brand/freedraw-app-icon-brush.png" alt="" fill sizes="36px" className="object-cover" priority />
         </Link>
         <button
           type="button"
@@ -4334,7 +4356,9 @@ function DrawioPageContent() {
               sessionId={sessionId}
               acceptedMimeTypes={acceptedMaterialMimeTypes}
               attachments={conversationAttachments}
+              selectedUploadIds={selectedAttachmentUploadIds}
               onChange={setConversationAttachments}
+              onSelectedUploadIdsChange={setSelectedAttachmentUploadIds}
               onInitializeSession={() => void initializeAttachmentSession()}
               disabled={isSending || !selectedAgentId}
             />
@@ -4349,7 +4373,7 @@ function DrawioPageContent() {
                 selectedVersionIds={selectedVersionIds}
                 onChange={setSelectedVersionIds}
                 activeScopeLabels={[
-                  ...(conversationAttachments.length > 0 ? ['本次会话附件'] : []),
+                  ...(selectedAttachmentUploadIds.length > 0 ? ['本次选择的会话附件'] : []),
                   ...activeSourceScopes,
                 ]}
                 disabled={isSending}

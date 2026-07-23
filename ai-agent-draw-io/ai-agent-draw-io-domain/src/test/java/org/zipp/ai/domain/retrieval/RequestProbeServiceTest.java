@@ -12,6 +12,7 @@ import java.util.Optional;
 import java.time.Duration;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -73,6 +74,33 @@ class RequestProbeServiceTest {
     }
 
     @Test
+    void requestProbeUsesTheFixedSourceSnapshotWithoutResolvingIdsAgain() {
+        AtomicInteger sourceCalls = new AtomicInteger();
+        RequestProbeDataPort data = new RequestProbeDataPort() {
+            @Override
+            public SourceProbe probeSources(RequestProbeCommand command) {
+                sourceCalls.incrementAndGet();
+                return SourceProbe.empty(SourceMode.AUTO);
+            }
+
+            @Override
+            public Optional<ServerCanvasFacts> loadCanvasFacts(CatalogOwner owner, String diagramId,
+                                                                List<String> selectedCellIds) {
+                return Optional.empty();
+            }
+        };
+        ResolvedSourceSet snapshot = new ResolvedSourceSet(SourceMode.EXPLICIT_ONLY, List.of(), 1, 0);
+        RequestProbeCommand command = new RequestProbeCommand(owner(), "diagram-1", "conversation-1",
+                SourceMode.EXPLICIT_ONLY, List.of("upl-1"), List.of(), snapshot,
+                List.of(), null, "");
+
+        RequestProbe result = new DefaultRequestProbeService(data).probe(command);
+
+        assertEquals(1, result.sources().pendingConversationUploadCount());
+        assertEquals(0, sourceCalls.get());
+    }
+
+    @Test
     void boundsProbeDependencyWait() {
         ExecutorService executor = Executors.newSingleThreadExecutor();
         try {
@@ -92,5 +120,9 @@ class RequestProbeServiceTest {
         } finally {
             executor.shutdownNow();
         }
+    }
+
+    private CatalogOwner owner() {
+        return new CatalogOwner(OwnerType.USER, "alice");
     }
 }

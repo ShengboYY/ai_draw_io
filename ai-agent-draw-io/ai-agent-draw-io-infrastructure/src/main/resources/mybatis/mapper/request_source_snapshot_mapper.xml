@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.zipp.ai.infrastructure.dao.retrieval.IRequestSourceSnapshotMapper">
+    <insert id="insertSnapshot">
+        INSERT IGNORE INTO request_source_snapshot
+            (run_id, owner_type, owner_key, declaration_fingerprint, source_mode,
+             processing_source_count, unavailable_source_count)
+        VALUES
+            (#{runId}, #{owner.ownerType}, #{owner.ownerKey}, #{fingerprint}, #{sources.mode},
+             #{sources.processingSourceCount}, #{sources.unavailableSourceCount})
+    </insert>
+
+    <insert id="insertSnapshotItem">
+        INSERT INTO request_source_snapshot_item
+            (run_id, ordinal, material_id, version_id, revision_id, kind, scope_type, scope_key,
+             source_state, source_origin, has_text, has_visual, pinned)
+        VALUES
+            (#{runId}, #{ordinal}, #{source.materialId}, #{source.versionId}, #{source.revisionId},
+             #{source.kind}, #{source.scopeType}, #{source.scopeKey}, #{source.state}, #{source.origin},
+             #{source.hasText}, #{source.hasVisual}, #{source.pinned})
+    </insert>
+
+    <select id="selectSnapshot" resultType="org.zipp.ai.infrastructure.dao.retrieval.RequestSourceSnapshotPO">
+        SELECT run_id, declaration_fingerprint, source_mode,
+               processing_source_count, unavailable_source_count
+        FROM request_source_snapshot
+        WHERE run_id = #{runId} AND owner_type = #{owner.ownerType} AND owner_key = #{owner.ownerKey}
+    </select>
+
+    <select id="selectSnapshotItems" resultType="org.zipp.ai.infrastructure.dao.retrieval.RequestSourceSnapshotItemPO">
+        SELECT item.ordinal, item.material_id, item.version_id, item.revision_id, item.kind,
+               item.scope_type, item.scope_key, item.source_state AS state,
+               item.source_origin AS origin, item.has_text, item.has_visual, item.pinned
+        FROM request_source_snapshot_item item
+        JOIN request_source_snapshot snapshot ON snapshot.run_id = item.run_id
+        WHERE item.run_id = #{runId}
+          AND snapshot.owner_type = #{owner.ownerType} AND snapshot.owner_key = #{owner.ownerKey}
+        ORDER BY item.ordinal
+    </select>
+</mapper>
