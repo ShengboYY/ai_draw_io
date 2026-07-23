@@ -1130,3 +1130,14 @@
   未调用模型、Pinecone 或任何外部服务。
 - **下一步**:先完成两个具名独立 reviewer 的 claim review；再冻结一套从未运行过的 Validation tasks、其
   v2 rubric 和 evaluator hash，之后才可进行一次新的模型验证运行。
+
+### Stage B unqualified-output preservation and claim-review preparation · 2026-07-23 · ✅ 本地完成
+
+- **非正式输出保全**:工作树中与 formal E7/E8 不同的 responses/manifest 已按 SHA-256 原样复制至
+  `stage-a-e7e8-gpt-5-5-development-unqualified-diagnostic-{responses,manifest}.json`，并由
+  [diagnostic record](stage-a-e7e8-gpt-5-5-development-unqualified-diagnostic.json) 标记为
+  `archived_not_scored_not_qualified`。原工作树文件没有被删除或改写。
+- **claim review 准备**:[review packet](../review/stage-b-claim-review-packet-v1.md) 已列出 formal commit
+  `3926c012` 的 12 tasks、20 个 frozen claims、审核输入与五项布尔判断。当前仍没有两位具名独立 reviewer 的
+  结论，不能进入 Validation。
+- **外部使用**:0 模型调用、0 Pinecone、0 token。
