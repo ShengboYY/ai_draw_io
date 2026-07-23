@@ -702,6 +702,12 @@ R23a 只允许增加诊断谱系，不改变 R22 candidates：
 - 只允许一次显式授权的 Development diagnostic trace，结果不能替代 R22，也不能择优；
 - 根据 `dgt-dev-01/19` 的 lane ranks 再预注册 R23 正式 intervention；诊断前不得猜测新的 fusion 权重。
 
+R23a 已在实现 commit `ef77bbdc` 完成。trace 为每个 task 写入两条 provider-ordered top-80 chunk ID
+序列与 fused top-40 的原/改写 lane ranks；exporter 验证 fingerprint、上限、lane 去重、fused 顺序和
+每个 rank。实现不改变原有 candidates。完整 ingestion-worker 测试为 95 tests、0 failures、6 live
+skips，analysis 为 124/124，E0 audit 仍为 READY；Standards/Spec 双轴代码审阅均为 0 个实质问题。
+尚未进行 R23a Pinecone diagnostic trace。
+
 E6b 的本地导出合同已冻结为 `fixtures/drawio-generation-paired-hydration-contract-v1.json` 与
 `analysis/export_drawio_paired_hydration.py`。active Development 图册明确挂载 architecture、workflow handbook
 与 planning-workshop scan 三个版本；导出器从同一 retrieval trace 的 raw top-8 和 source-aware top-8 产生一任务

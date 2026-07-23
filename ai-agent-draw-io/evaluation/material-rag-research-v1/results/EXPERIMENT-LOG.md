@@ -833,6 +833,22 @@
 - **外部使用**:1 次授权 Pinecone Development trace；0 模型请求、0 model token、
   0 Validation/holdout case。
 
+### R23a local diagnostic implementation gate · 2026-07-23 · ✅ 可申请诊断运行
+
+- **实现比较点**:commit `ef77bbdc`。
+- **唯一变量**:task trace 新增 original/rewrite provider-ordered top-80 chunk IDs，以及 fused top-40
+  每项的 original/rewrite lane rank；不改变 R22 candidates、RRF、query、embedding 或 selector。
+- **fail-closed 验证**:exporter 校验
+  `queryRankLineageFingerprint=original-rewrite-top80-fused-ranks-v1`、80/40 上限、lane 内唯一性、
+  fused/candidate 顺序一致性及每个 lane rank。
+- **本地验证**:ingestion-worker 95 tests、0 failures、6 live skips；analysis 124 tests、0 failures；
+  corpus audit 为 READY，`git diff --check` 通过。
+- **代码审阅**:Standards 0 findings；Spec 0 findings。确认未读取 target source、gold、assertions 或
+  answers，且没有提前改变 fusion 权重。
+- **外部使用**:0 Pinecone 写入、0 模型请求、0 model token、0 Validation/holdout case。
+- **下一步**:获得单独授权后，从包含本记录与刷新 corpus lock 的 clean commit 运行唯一一次 R23a
+  Development diagnostic trace；只解释 `dgt-dev-01/19` 的 lane ranks，不重判 R22。
+
 ### R17 trace / R18 indexed-vector denominator · 2026-07-23 · ⏸ 修复后重跑
 
 - **固定输入**:clean commit `b419a70a`，Development only；两次空查询均经 R16 retry 恢复，19/19 完成，
