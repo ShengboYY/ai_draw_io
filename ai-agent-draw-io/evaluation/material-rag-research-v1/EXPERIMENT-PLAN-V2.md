@@ -484,6 +484,22 @@ R13 的首个正式 Development trace 来自 commit `5c24c10a`。真实 PDF/OCR/
 top-40 完整、candidate required evidence 全部可见、paired context change rate 至少 20%。任一失败都不调用模型；
 Validation 继续关闭。
 
+## 2026-07-23 R15 预注册：scoped candidate-pool completeness
+
+R14 的 clean-commit rerun 成功生成 trace 并清理向量，但 exporter 在 prompt/model 前发现：
+`dgt-dev-04` 与 `dgt-dev-12` 异常返回 0 条，而 `selected_only` 的 `dgt-dev-20` 稳定返回 28 条。后者不是
+缺失——该唯一允许资料本身只有 28 个 projected chunks；旧的“所有任务必须 40”无法区分合法小范围与远端空结果。
+
+R15 不改变检索、排序、视觉覆盖或任务内容，只补齐 producer/exporter completeness contract：
+
+- trace 的 retrieval manifest 记录每个 mounted source 的 projected chunk count；
+- 每个检索任务必须精确返回 `min(40, sum(允许资料的 projected chunks))`；
+- 因此 `selected_only` 的 28/28 合法，图册自动任务的 0/40 仍 fail-closed；
+- 缺少 source count、负数、零 projected chunks、排名不连续或重复 chunk 仍拒绝。
+
+R14 的空结果 trace 保留为诊断，不用于 generation。更新代码、测试、计划和 corpus lock 后，必须从新的 clean
+commit 再跑 Development；仍不得调用模型或打开 Validation，直到全部输入 gate 通过。
+
 E6b 的本地导出合同已冻结为 `fixtures/drawio-generation-paired-hydration-contract-v1.json` 与
 `analysis/export_drawio_paired_hydration.py`。active Development 图册明确挂载 architecture、workflow handbook
 与 planning-workshop scan 三个版本；导出器从同一 retrieval trace 的 raw top-8 和 source-aware top-8 产生一任务

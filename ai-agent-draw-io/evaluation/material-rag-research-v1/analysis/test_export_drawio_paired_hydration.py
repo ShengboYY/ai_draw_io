@@ -226,6 +226,41 @@ class PairedHydrationExportTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "candidate pool size is not 40"):
             MODULE.export(trace, [task("a", "one:v1", "anchor-a")], "development", 8, 0.0, Path.cwd())
 
+    def test_accepts_exact_smaller_pool_for_selected_only_source(self):
+        selected_task = {
+            **task("a", "one:v1", "anchor-a"),
+            "sourceScopeMode": "selected_only",
+            "selectedMaterialVersion": "one:v1",
+        }
+        candidates = [candidate(f"a{rank}", "one:v1", "anchor-a", rank) for rank in range(1, 4)]
+        trace = {"schemaVersion": "material-rag-drawio-task-hydration-candidates-v1",
+                 "retrievalRun": {
+                     "runId": "r", "gitCommit": "c", "corpusLockSha256": "l",
+                     "sourceProjectionChunkCounts": {"one:v1": 3, "shared:v1": 7},
+                 },
+                 "tasks": [{"taskId": "a", "candidates": candidates}]}
+
+        result = MODULE.export(
+            trace, [selected_task], "development", 2, 0.0, Path.cwd(),
+            chartbook_sources={"one:v1", "shared:v1"}, candidate_pool_size=40,
+        )
+
+        self.assertEqual(3, result["taskSummaries"][0]["scopedCandidateCount"])
+
+    def test_rejects_empty_pool_when_allowed_sources_have_projected_chunks(self):
+        trace = {"schemaVersion": "material-rag-drawio-task-hydration-candidates-v1",
+                 "retrievalRun": {
+                     "runId": "r", "gitCommit": "c", "corpusLockSha256": "l",
+                     "sourceProjectionChunkCounts": {"one:v1": 50, "shared:v1": 20},
+                 },
+                 "tasks": [{"taskId": "a", "candidates": []}]}
+
+        with self.assertRaisesRegex(ValueError, "candidate pool size is not 40"):
+            MODULE.export(
+                trace, [task("a", "one:v1", "anchor-a")], "development", 8, 0.0,
+                Path.cwd(), chartbook_sources={"one:v1", "shared:v1"},
+            )
+
     def test_requires_a_visual_artifact_for_a_declared_multimodal_task(self):
         trace = {"schemaVersion": "material-rag-drawio-task-hydration-candidates-v1",
                  "retrievalRun": {"runId": "r", "gitCommit": "c", "corpusLockSha256": "l"},

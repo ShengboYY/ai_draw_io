@@ -703,3 +703,15 @@
   0 Validation/holdout case。
 - **下一步**:更新 corpus lock 并提交新的 clean commit，从该 commit 重跑 Development trace；旧 R13 trace
   保留为诊断证据，不用于正式 generation。
+
+### R14 trace / R15 scoped-pool preregistration · 2026-07-23 · ⏸ 修复后重跑
+
+- **固定输入**:clean commit `42380d28`，R14 source-independent visual coverage，Development only。
+- **运行结果**:19/19 查询执行，186 chunks；Pinecone 临时向量已明确删除。
+- **输入 gate**:`dgt-dev-04=0`、`dgt-dev-12=0`，属于异常空结果；`dgt-dev-20=28`，其
+  `selected_only` 唯一资料实际只有 28 chunks。旧 exporter 统一要求 40，不能正确区分两者。
+- **R15 预注册变量**:producer 写入 mounted-source projected chunk counts；exporter 要求每个任务精确
+  `min(40, allowed-source chunks)`。不改变 embedding、query、ranking、selector、task 或视觉覆盖。
+- **外部使用**:1 次 Pinecone Development trace，临时向量已清理；0 次模型请求、0 model token、
+  0 Validation/holdout case。
+- **决策**:R14 trace 仅诊断；提交 R15 后从新 clean commit 重跑。0/40 必须继续失败，28/28 才可通过。

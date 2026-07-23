@@ -182,6 +182,12 @@ def export(trace: dict, tasks: list[dict], split: str, limit: int,
     chartbook_sources = chartbook_sources or set()
     artifact_task_ids = artifact_task_ids or set()
     no_retrieval_task_ids = no_retrieval_task_ids or set()
+    source_chunk_counts = run.get("sourceProjectionChunkCounts")
+    if source_chunk_counts is not None and (
+            not isinstance(source_chunk_counts, dict)
+            or any(not isinstance(value, int) or value < 0 for value in source_chunk_counts.values())
+    ):
+        raise ValueError("invalid source projection chunk counts")
     trace_by_task = {item.get("taskId"): item for item in trace.get("tasks", [])}
     if len(trace_by_task) != len(trace.get("tasks", [])):
         raise ValueError("duplicate task hydration trace")
@@ -205,12 +211,25 @@ def export(trace: dict, tasks: list[dict], split: str, limit: int,
                               "rawCandidateChunkIds": [], "rawCandidateChunkIdsSha256": hashlib.sha256(b"[]").hexdigest(),
                               "controlChunkIds": [], "candidateChunkIds": []})
             continue
-        if len(candidates) != candidate_pool_size:
-            raise ValueError(f"candidate pool size is not {candidate_pool_size} for {task['taskId']}")
+        permitted = allowed_sources(task, chartbook_sources)
+        expected_candidate_count = candidate_pool_size
+        if source_chunk_counts is not None:
+            missing_counts = permitted - set(source_chunk_counts)
+            if missing_counts:
+                raise ValueError(f"source projection chunk count is missing for {task['taskId']}")
+            expected_candidate_count = min(
+                candidate_pool_size,
+                sum(source_chunk_counts[source] for source in permitted),
+            )
+            if expected_candidate_count == 0:
+                raise ValueError(f"retrieval task has no projected chunks: {task['taskId']}")
+        if len(candidates) != expected_candidate_count:
+            raise ValueError(
+                f"candidate pool size is not {expected_candidate_count} for {task['taskId']}"
+            )
         for rank, candidate in enumerate(candidates, start=1):
             if candidate.get("rank") != rank or not candidate.get("chunkId"):
                 raise ValueError(f"invalid rank order for {task['taskId']}")
-        permitted = allowed_sources(task, chartbook_sources)
         if any(item.get("sourceVersion") not in permitted for item in candidates):
             raise ValueError(f"out-of-scope candidate for {task['taskId']}")
         scoped_candidates = candidates

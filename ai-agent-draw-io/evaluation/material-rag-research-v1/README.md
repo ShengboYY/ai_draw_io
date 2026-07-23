@@ -306,6 +306,11 @@ controlled short-document hydration profile covers every locally detected visual
 three-regions-per-page ceiling. The raw top-8 control remains unchanged and may fail visually as a measured
 baseline, but candidate artifact and required-evidence readiness are mandatory before model calls.
 
+The live trace also records projected chunk counts per mounted source. Pool completeness is scoped:
+each retrieval task must return exactly `min(40, chunks across its allowed sources)`. This permits a
+`selected_only` source with fewer than 40 chunks while still rejecting transient empty results for a
+chartbook that has at least 40 available chunks.
+
 Generated-corpus retrieval defaults to `development`. Set `MATERIAL_RAG_RESEARCH_SPLIT` explicitly
 to `validation` for checkpointing. Use `holdout` only after the manifest status has been independently
 frozen; do not tune against either split. This legacy split still does not replace the external final holdout.

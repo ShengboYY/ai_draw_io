@@ -502,7 +502,8 @@ class ControlledPdfDenseRecallLiveTest {
                 apiKey, indexHost, "multilingual-e5-large", 1024, JSON);
         ExperimentResult result = runRetrievalExperiment("drawiohydration", client, namespace, projections,
                 drawioGenerationCases(root), anchorById, chunkMode(), null, "none");
-        writeTaskHydrationTrace(root, result, sourceIdentities, drawioGenerationNoRetrievalTaskIds(root), Path.of(output));
+        writeTaskHydrationTrace(root, result, projections, sourceIdentities,
+                drawioGenerationNoRetrievalTaskIds(root), Path.of(output));
     }
 
     @Test
@@ -530,7 +531,7 @@ class ControlledPdfDenseRecallLiveTest {
                 apiKey, indexHost, "multilingual-e5-large", 1024, JSON);
         ExperimentResult result = runRetrievalExperiment("drawiovalhydration", client, namespace, projections,
                 drawioGenerationCases(root, "validation"), anchorById, chunkMode(), null, "none");
-        writeTaskHydrationTrace(root, result, sourceIdentities,
+        writeTaskHydrationTrace(root, result, projections, sourceIdentities,
                 drawioGenerationNoRetrievalTaskIds(root, "validation"), Path.of(output));
     }
 
@@ -785,7 +786,7 @@ class ControlledPdfDenseRecallLiveTest {
     }
 
     /** Serialises only retrieved material; task assertions and required anchors are never consulted here. */
-    private void writeTaskHydrationTrace(Path root, ExperimentResult result,
+    private void writeTaskHydrationTrace(Path root, ExperimentResult result, ProjectionSet projections,
                                          SourceEvidenceIdentityManifest sourceIdentities,
                                          Set<String> noRetrievalTasks,
                                          Path output) throws Exception {
@@ -819,6 +820,11 @@ class ControlledPdfDenseRecallLiveTest {
         retrievalRun.put("gitCommit", commit);
         retrievalRun.put("corpusLockSha256", sha256(lock));
         retrievalRun.put("embeddingInputManifest", result.embeddingInputManifest());
+        Map<String, Integer> sourceChunkCounts = new LinkedHashMap<>();
+        projections.bySourceVersion().forEach(
+                (sourceVersion, manifest) -> sourceChunkCounts.put(sourceVersion, manifest.chunks().size()));
+        // Bind scoped top-k completeness to the number of chunks that were actually projected.
+        retrievalRun.put("sourceProjectionChunkCounts", sourceChunkCounts);
         trace.put("retrievalRun", retrievalRun);
         // Persist the source-owned identity input so hydration cannot silently substitute evaluator data.
         trace.put("sourceEvidenceIdentityManifest", Map.of(
