@@ -143,7 +143,8 @@ class DirectSourcePreparationModuleTest {
     private DirectSourceCommand command() {
         return new DirectSourceCommand(new CatalogOwner(OwnerType.USER, "alice"),
                 "request-1", "run-1", "diagram-1", "conversation-1", "upload-1",
-                List.of("selected-version-1"), SourceMode.EXPLICIT_ONLY,
+                java.util.Arrays.asList(null, " selected-version-1 ", "", "selected-version-1"),
+                SourceMode.EXPLICIT_ONLY,
                 "Reconstruct the uploaded diagram");
     }
 

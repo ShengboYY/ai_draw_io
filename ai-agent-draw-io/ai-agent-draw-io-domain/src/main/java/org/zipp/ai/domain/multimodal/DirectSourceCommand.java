@@ -19,7 +19,7 @@ public record DirectSourceCommand(CatalogOwner owner, String requestId, String r
         diagramId = required(diagramId, "diagramId");
         conversationId = required(conversationId, "conversationId");
         attachmentUploadId = required(attachmentUploadId, "attachmentUploadId");
-        selectedVersionIds = selectedVersionIds == null ? List.of() : List.copyOf(selectedVersionIds);
+        selectedVersionIds = ids(selectedVersionIds);
         sourceMode = sourceMode == null ? SourceMode.AUTO : sourceMode;
         question = required(question, "question");
         if (question.length() > 2_000) throw new IllegalArgumentException("question is too long");
@@ -28,5 +28,12 @@ public record DirectSourceCommand(CatalogOwner owner, String requestId, String r
     private static String required(String value, String field) {
         if (value == null || value.isBlank()) throw new IllegalArgumentException(field + " is required");
         return value.trim();
+    }
+
+    // Match request-source declaration canonicalization so the second resolution has the same fingerprint.
+    private static List<String> ids(List<String> values) {
+        if (values == null) return List.of();
+        return values.stream().filter(value -> value != null && !value.isBlank())
+                .map(String::trim).distinct().toList();
     }
 }
