@@ -300,7 +300,7 @@ public final class RetrievalChunkBuilder {
                     completeEvidence ? null : fragment.range().start(), completeEvidence ? null : fragment.range().end()));
         }
         RetrievalChunkProjection parent = chunk(revisionId, pageId, null, RetrievalChunkType.PAGE_PARENT,
-                EvidenceModality.TEXT, RetrievalIndexMode.DENSE_AND_LEXICAL, text, null,
+                EvidenceModality.TEXT, RetrievalIndexMode.LEXICAL_ONLY, text, null,
                 fragments.stream().mapToDouble(fragment -> fragment.unit().quality()).min().orElseThrow(), ordinal,
                 mappings);
         List<String> evidenceIds = mappings.stream().map(RetrievalEvidenceMapping::evidenceId).distinct().toList();

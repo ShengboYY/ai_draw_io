@@ -235,7 +235,7 @@ class ControlledPdfDenseRecallLiveTest {
                 "EVIDENCE")));
         assertTrue(projection.chunks().stream().anyMatch(chunk -> chunk.chunkType() == RetrievalChunkType.PAGE_PARENT
                 && pageNo(chunk.pageId()) == 3 && chunk.citable()
-                && chunk.indexMode() == RetrievalIndexMode.DENSE_AND_LEXICAL));
+                && chunk.indexMode() == RetrievalIndexMode.LEXICAL_ONLY));
     }
 
     private RetrievalChunkProjection chunkWithParentContext(String parentContext) {

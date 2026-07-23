@@ -512,6 +512,19 @@
 - **结论**:R8 不晋级。下一变量必须在不读取 evaluator anchor、expected answer 或 XML claim 的前提下恢复必要的
   visual/OCR artifact availability。详见 [2026-07-23-e7-r8-development-hydration-run.md](2026-07-23-e7-r8-development-hydration-run.md)。
 
+### E7 r9 — visual-safe page-parent routing · 2026-07-23 · ✅本地预注册与实现完成，⏸真实 trace 待授权
+
+- **单一变量**:保留 `PAGE_PARENT` 的 source-page provenance、citation 与 lexical projection，但将其 index mode 改为
+  `LEXICAL_ONLY`，不再进入 dense candidate pool。R8 的可检索页级文本不再直接挤占 visual/OCR vector 的 dense 名额。
+- **安全边界**:不读取 task 的 required anchor、expected answer、XML assertion、evaluator ground truth、模型输出或
+  selected source version；leaf、visual/OCR、source identity、query、chartbook scope、ranker 与 top-8 budget 均不变。
+- **本地核验**:TDD 先证明原 parent 为 dense 会失败；随后验证 parent 仍 citable 且存在 lexical projection、但实际
+  PDF/OCR projection 的 parent 为 lexical-only。domain 12 项和 worker 14 项定向测试通过（5 项 opt-in Pinecone tests
+  按设计跳过）。无 Pinecone、模型、Validation 或 holdout。
+- **下一步**:经授权运行新的 opt-in Development hydration trace；必须先通过 `dgt-dev-02` 多模态 artifact contract，
+  再检查 contrast 与 r6 model-visible-required-evidence gate。详见
+  [2026-07-23-e7-r9-visual-safe-page-parent-pre-registration.md](2026-07-23-e7-r9-visual-safe-page-parent-pre-registration.md)。
+
 ---
 
 ## 当前状态与下一步
@@ -519,8 +532,8 @@
 - 已完成:E0 基线 → E1 表示层改进 → 核心集升级并冻结到 450 → Development 与 Validation
   配对重跑 → 守门最低数补齐并执行 fixture-contract。Validation 证明 E1 提升真实,也证明
   dense-only 尚未达门槛。
-- **下一步**:r8 trace 未通过 `dgt-dev-02` 多模态 artifact input contract；下一变量须先恢复该 artifact availability，
-  再重新预注册并运行 opt-in Development trace。Validation 暂不打开。
+- **下一步**:r9 visual-safe routing 已本地预注册和实现；下一步是经授权运行新的 opt-in Development trace，先验证
+  `dgt-dev-02` artifact contract，再验证 contrast 与 r6 readiness。Validation 暂不打开。
 
 ## 开放问题 / 待办
 
@@ -548,6 +561,8 @@
   已完成；5/5 contrast 通过但 model-visible required-evidence gate 未过，未发送模型请求。
 - [x] E7 r8 page-parent evidence availability——Development trace 已运行并清理 80 个临时向量；因 `dgt-dev-02`
   required visual/OCR artifact 不在任一 top-8 而止步，未发送模型请求。
+- [x] E7 r9 visual-safe page-parent routing——local TDD 与 PDF/OCR projection contract 已通过；尚未发送模型请求。
+- [ ] E7 r9 新 Development hydration trace——需要 Pinecone test/dev namespace 授权；通过全部 gate 前不调用模型。
 - [ ] 外部 final holdout——contract 已定，payload 尚未由独立保管人生成和隔离。
 
 ## 如何跑一个实验(运行手册)

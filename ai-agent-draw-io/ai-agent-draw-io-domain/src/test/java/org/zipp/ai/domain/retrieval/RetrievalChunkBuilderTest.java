@@ -183,7 +183,8 @@ class RetrievalChunkBuilderTest {
                                 || mapping.evidenceId().equals("bare-footer")))
                 .allMatch(chunk -> chunk.indexMode() == RetrievalIndexMode.UNSEARCHABLE));
         assertTrue(projection.chunks().stream()
-                .filter(chunk -> chunk.evidenceMappings().stream()
+                .filter(chunk -> chunk.chunkType() != RetrievalChunkType.PAGE_PARENT
+                        && chunk.evidenceMappings().stream()
                         .anyMatch(mapping -> mapping.evidenceId().equals("year")))
                 .allMatch(chunk -> chunk.indexMode() == RetrievalIndexMode.DENSE_AND_LEXICAL));
     }
@@ -216,9 +217,11 @@ class RetrievalChunkBuilderTest {
 
         assertEquals("page-1", parent.pageId());
         assertTrue(parent.citable());
-        assertEquals(RetrievalIndexMode.DENSE_AND_LEXICAL, parent.indexMode());
+        assertEquals(RetrievalIndexMode.LEXICAL_ONLY, parent.indexMode());
         assertTrue(parent.retrievalText().contains("Existing evidence remains pinned to V1."));
         assertTrue(parent.retrievalText().contains("New requests use the latest ready material version."));
+        assertTrue(new RetrievalChunkBuilder(CHARACTER_COUNTER).build(evidence).lexicalProjections().stream()
+                .anyMatch(lexical -> lexical.chunkId().equals(parent.chunkId())));
         assertEquals(List.of("page-fact", "page-policy"), parent.evidenceMappings().stream()
                 .filter(mapping -> mapping.role() == ChunkEvidenceRole.PRIMARY)
                 .map(mapping -> mapping.evidenceId()).toList());
