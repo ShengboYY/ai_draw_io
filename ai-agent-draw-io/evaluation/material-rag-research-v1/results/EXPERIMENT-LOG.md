@@ -1180,3 +1180,12 @@
   结构断言；禁止将 Development 的 post-hoc equivalence policy 用于 Validation。
 - **下一步**:获得外部模型授权后，使用冻结 prompt bundles 对 12 个合成 Validation cases 运行一次 GPT-5.5，
   并在结果后不调参、不重跑。
+
+### Stage B Validation output adjudication · 2026-07-24 · ⏳ reviewer 1/2
+
+- **严格自动结果**:XML parse 12/12、citation contract 12/12、completion 10/12；`stgb-val-03` 因
+  `five years`/`5 years` 格式差异失败，`stgb-val-04` 因 `AC-771` 位于 editable edge label 而非 vertex 失败。
+- **产品审核**:`product-owner` 接受两例 Draw.io 输出的实际可编辑性与信息完整性；记录见
+  `review/stage-b-validation-output-product-owner-v1.json`。自动结果不被改写。
+- **待完成**:`alice-qa` 对同两例独立复核后，才能记录输出人工可接受性 12/12；其后完成 Validation claim/citation
+  review，再进入 E9。

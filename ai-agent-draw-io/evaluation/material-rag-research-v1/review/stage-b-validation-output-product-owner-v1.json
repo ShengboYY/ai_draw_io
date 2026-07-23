@@ -1,0 +1,12 @@
+{
+  "schemaVersion": "material-rag-validation-output-review-v1",
+  "reviewerId": "product-owner",
+  "formalRunCommit": "c98260e2",
+  "reviewedTaskIds": ["stgb-val-03", "stgb-val-04"],
+  "verdict": "accept",
+  "findings": [
+    {"taskId": "stgb-val-03", "reason": "Evidence Vault → Secure Disposal flow is correct; 'five years' is an acceptable rendering of '5 years'."},
+    {"taskId": "stgb-val-04", "reason": "AC-771 is correctly present on editable approval edges; edge-label placement is acceptable for Draw.io."}
+  ],
+  "limit": "This records practical output acceptability only. The frozen deterministic Validation result remains 10/12."
+}
