@@ -157,22 +157,38 @@ class ControlledPdfDenseRecallLiveTest {
     void hydrationTraceShouldFingerprintTheExactEmbeddingInputs() throws Exception {
         RetrievalChunkProjection chunk = chunkWithParentContext("parent text");
         IndexedChunk indexed = new IndexedChunk("vector-1", "source:v1", chunk, "embedding passage");
-        ResearchCase researchCase = new ResearchCase("case-1", "drawio_generation", "structural_edit",
-                "en", "Create an editable flow.", "development", true, List.of(), List.of(),
-                List.of("source:v1"), List.of(), List.of());
+        IndexedChunk secondIndexed = new IndexedChunk("vector-2", "source:v2", chunk, "second passage");
+        List<EmbeddingQueryInput> queries = List.of(
+                new EmbeddingQueryInput("original-v1", "case-1", "Create an editable flow."),
+                new EmbeddingQueryInput("evidence-focused-v1", "case-1", "Create a flow with evidence."));
 
-        EmbeddingInputManifest baseline = embeddingInputManifest(List.of(indexed), List.of(researchCase));
+        EmbeddingInputManifest baseline = embeddingInputManifest(List.of(indexed, secondIndexed), queries);
         EmbeddingInputManifest changedPassage = embeddingInputManifest(List.of(
-                new IndexedChunk("vector-1", "source:v1", chunk, "different passage")), List.of(researchCase));
-        EmbeddingInputManifest changedQuery = embeddingInputManifest(List.of(indexed), List.of(
-                new ResearchCase("case-1", "drawio_generation", "structural_edit", "en",
-                        "Create a sequence diagram.", "development", true, List.of(), List.of(),
-                        List.of("source:v1"), List.of(), List.of())));
+                new IndexedChunk("vector-1", "source:v1", chunk, "different passage"), secondIndexed), queries);
+        EmbeddingInputManifest changedFocusedQuery = embeddingInputManifest(List.of(indexed, secondIndexed), List.of(
+                queries.get(0), new EmbeddingQueryInput("evidence-focused-v1", "case-1",
+                "Create an evidence-backed sequence diagram.")));
+        EmbeddingInputManifest reorderedInputs = embeddingInputManifest(List.of(secondIndexed, indexed), List.of(
+                queries.get(1), queries.get(0)));
 
         assertEquals("multilingual-e5-large", baseline.model());
         assertEquals(1024, baseline.vectorDimension());
         assertFalse(baseline.passagesSha256().equals(changedPassage.passagesSha256()));
-        assertFalse(baseline.queriesSha256().equals(changedQuery.queriesSha256()));
+        assertFalse(baseline.queriesSha256().equals(changedFocusedQuery.queriesSha256()));
+        assertFalse(baseline.passagesSha256().equals(reorderedInputs.passagesSha256()));
+        assertFalse(baseline.queriesSha256().equals(reorderedInputs.queriesSha256()));
+    }
+
+    @Test
+    void indexingShouldUseAStableSourceAndChunkOrderBeforeEmbedding() {
+        RetrievalChunkProjection chunk = chunkWithParentContext("parent text");
+        List<IndexedChunk> ordered = stableIndexedChunks("run", List.of(
+                new IndexedChunk("ignored-1", "source:v2", chunk, "second"),
+                new IndexedChunk("ignored-2", "source:v1", chunk, "first")));
+
+        assertEquals(List.of("source:v1", "source:v2"), ordered.stream()
+                .map(IndexedChunk::sourceVersion).toList());
+        assertEquals(List.of("run_0", "run_1"), ordered.stream().map(IndexedChunk::vectorId).toList());
     }
 
     @Test
@@ -585,7 +601,7 @@ class ControlledPdfDenseRecallLiveTest {
         String runId = prefix + "pdfresearch_" + UUID.randomUUID().toString().replace("-", "");
         String tenantKey = runId + "_tenant";
         List<IndexedChunk> indexed = indexedChunks(runId, projections, chunkMode);
-        EmbeddingInputManifest embeddingInputManifest = embeddingInputManifest(indexed, cases);
+        EmbeddingInputManifest embeddingInputManifest = embeddingInputManifest(indexed, embeddingQueryInputs(cases));
         List<String> vectorIds = indexed.stream().map(IndexedChunk::vectorId).toList();
         List<Integer> embeddingTokens = indexed.stream()
                 .map(value -> RESEARCH_COUNTER.count(value.embeddingText())).sorted().toList();
@@ -803,17 +819,29 @@ class ControlledPdfDenseRecallLiveTest {
 
     /** Fingerprints model inputs without recording task assertions or embedding vectors. */
     private EmbeddingInputManifest embeddingInputManifest(List<IndexedChunk> indexed,
-                                                          List<ResearchCase> cases) throws Exception {
+                                                          List<EmbeddingQueryInput> queries) throws Exception {
         List<String> passageEntries = new ArrayList<>();
         for (IndexedChunk value : indexed) {
             passageEntries.add(value.sourceVersion() + "\t" + value.chunk().chunkId() + "\t"
                     + sha256(value.embeddingText()));
         }
         String passages = String.join("\n", passageEntries);
-        String queries = cases.stream().map(value -> value.caseId() + "\t" + value.query())
+        String queryInputs = queries.stream().map(value -> value.queryMode() + "\t" + value.caseId() + "\t"
+                        + value.query())
                 .collect(java.util.stream.Collectors.joining("\n"));
         return new EmbeddingInputManifest("pinecone-integrated-inference-v1", EMBEDDING_MODEL,
-                EMBEDDING_VECTOR_DIMENSION, sha256(passages), sha256(queries));
+                EMBEDDING_VECTOR_DIMENSION, sha256(passages), sha256(queryInputs));
+    }
+
+    private List<EmbeddingQueryInput> embeddingQueryInputs(List<ResearchCase> cases) {
+        List<EmbeddingQueryInput> result = new ArrayList<>();
+        for (QueryMode mode : QueryMode.values()) {
+            for (ResearchCase researchCase : cases) {
+                result.add(new EmbeddingQueryInput(mode.id(), researchCase.caseId(),
+                        mode.query(researchCase.query())));
+            }
+        }
+        return List.copyOf(result);
     }
 
     private String rerankerEndpointFingerprint() throws Exception {
@@ -1031,6 +1059,18 @@ class ControlledPdfDenseRecallLiveTest {
                 .filter(chunk -> chunk.indexMode() == RetrievalIndexMode.DENSE_AND_LEXICAL)
                 .forEach(chunk -> result.add(new IndexedChunk(runId + "_" + result.size(),
                         sourceVersion, chunk, chunkMode.embeddingText(chunk)))));
+        return stableIndexedChunks(runId, result);
+    }
+
+    private List<IndexedChunk> stableIndexedChunks(String runId, List<IndexedChunk> indexed) {
+        List<IndexedChunk> ordered = indexed.stream().sorted(java.util.Comparator
+                .comparing(IndexedChunk::sourceVersion).thenComparing(value -> value.chunk().chunkId())).toList();
+        List<IndexedChunk> result = new ArrayList<>();
+        for (int index = 0; index < ordered.size(); index++) {
+            IndexedChunk value = ordered.get(index);
+            result.add(new IndexedChunk(runId + "_" + index, value.sourceVersion(), value.chunk(),
+                    value.embeddingText()));
+        }
         return List.copyOf(result);
     }
 
@@ -1896,6 +1936,8 @@ class ControlledPdfDenseRecallLiveTest {
 
     private record EmbeddingInputManifest(String provider, String model, int vectorDimension,
                                          String passagesSha256, String queriesSha256) { }
+
+    private record EmbeddingQueryInput(String queryMode, String caseId, String query) { }
 
     private record RerankerUsage(int callCount, int acceptedOutputCount, long totalLatencyMillis,
                                  int totalPromptTokens, int totalCompletionTokens) { }

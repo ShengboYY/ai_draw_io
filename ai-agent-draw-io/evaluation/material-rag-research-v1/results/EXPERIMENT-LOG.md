@@ -538,9 +538,10 @@
 - **动机**:R8→R9 少了 18 个 dense page parent，且 `dgt-dev-02` 的 query 与 architecture page-3 VISUAL chunk ID 不变，
   但 VISUAL rank 由 24 变为 28。旧 trace 未持久化 embedding input/model identity，不能把此差异归因于页面 parent routing。
 - **单一变量**:未来 retrieval result 与 hydration trace 持久化 provider、model、vector dimension，以及按顺序构成的
-  passage/query 输入 SHA-256。不保存 embedding vector、凭证、evaluator anchor、expected answer、XML assertion 或模型输出。
-- **本地核验**:同一输入稳定；只改变 passage 或 query 会改变对应 hash。worker 15 项定向测试通过（5 项 opt-in Pinecone tests
-  按设计跳过）。无 Pinecone、模型、Validation 或 holdout。
+  passage/query 输入 SHA-256。passage 的实际 embedding 顺序固定为 source version、chunk ID；query 覆盖 ORIGINAL 与
+  EVIDENCE_FOCUSED 两个真实请求序列。不保存 embedding vector、凭证、evaluator anchor、expected answer、XML assertion 或模型输出。
+- **本地核验**:同一输入稳定；只改变或重排 passage、只改变 evidence-focused query 时都会改变对应 hash。worker 16 项定向测试
+  通过（5 项 opt-in Pinecone tests 按设计跳过）。无 Pinecone、模型、Validation 或 holdout。
 - **使用约束**:后续视觉/OCR retrieval intervention 的 trace 必须含此 manifest；只有 model 与两类 input hash 一致的重复臂
   才能解释为 ranking effect。详见
   [2026-07-23-e7-r10-embedding-input-manifest-pre-registration.md](2026-07-23-e7-r10-embedding-input-manifest-pre-registration.md)。

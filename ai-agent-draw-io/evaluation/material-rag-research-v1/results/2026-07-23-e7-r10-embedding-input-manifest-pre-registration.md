@@ -13,9 +13,10 @@ difference cannot be attributed solely to page-parent routing.
 ## Single intervention
 
 Every future retrieval result and Development hydration trace records an `embeddingInputManifest` with the provider,
-model, vector dimension, SHA-256 of ordered passage inputs, and SHA-256 of ordered task-query inputs. The hashes use
-source version, chunk ID and embedding-text hash for passages, and task ID plus query text for queries. It does not
-record vectors, credentials, evaluator anchors, expected answers, XML assertions, or model outputs.
+model, vector dimension, SHA-256 of ordered passage inputs, and SHA-256 of ordered task-query inputs. Passage embedding
+order is fixed by source version then chunk ID; the query hash includes each actual ORIGINAL and EVIDENCE_FOCUSED query,
+tagged by mode and task ID. The hashes do not record vectors, credentials, evaluator anchors, expected answers, XML
+assertions, or model outputs.
 
 ## Gate
 
