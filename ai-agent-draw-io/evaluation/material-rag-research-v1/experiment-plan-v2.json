@@ -191,7 +191,7 @@
     "controlMeanSourceCount": 2.4615384615384617,
     "candidateMeanSourceCount": 3.9615384615384617,
     "decision": "valid contrast check; source coverage improved, recall direction descriptive only; no generation promotion claim",
-    "next": "freeze paired prompt bundles and a formal E7 generation manifest for the successful E6b r4 Development hydration; request a separate model-call authorization before generation"
+    "next": "pre-register and test an E7 citation-output contract repair before another Development generation run; the formal r4 GPT-5.5 arms tied at 0/6 completion because generated cell IDs were used as citations"
   },
   "e7Generation": {
     "activeTaskFixture": "fixtures/drawio-generation-tasks-v2.json",
@@ -201,7 +201,7 @@
     "requiresFormalRunManifest": "material-rag-generation-run-manifest-v1",
     "pairedHydrationContract": "fixtures/drawio-generation-paired-hydration-contract-v1.json; r4 successfully exported six Development paired contexts after native-policy-selected visual-page OCR placed the dgt-dev-02 architecture artifact in raw top-8; the original image artifact is retained and no-retrieval task handling is fixed separately",
     "historicalFixedRunQualification": "diagnostic; v1 tasks only; not compatible with active v2 edit assertions",
-    "next": "paired Development generation only after user authorizes a provider/model; r4 control and candidate prompt bundles are frozen, while formal manifests await real per-call response provenance"
+    "next": "repair the citation-output prompt contract, re-freeze paired Development prompts, then request authorization for a new Development-only generation run"
   },
   "preE0": {
     "minimumReviewedCasesBeforeComparison": 340,
@@ -233,6 +233,6 @@
     "e5Status": "completed: DeepSeek V4 Pro listwise reranker accepted JSON for 5/155 cases and Recall@10 gain was 0.0; not promoted",
     "e6aStatus": "completed: 26/26 contexts changed; source coverage improved; recall interval touched zero; no promotion claim",
     "e6bStatus": "completed input hydration only: r4 selected-visual-page local OCR placed dgt-dev-02 page-3 source image in raw top-8 and exporter produced six paired Development contexts with 3/5 retrieval-required tasks changed (60%); no prompt bundle, model call or Validation run",
-    "e7Status": "historical fixed-context v1 run remains diagnostic; active v2 r4 control/candidate Development prompt bundles are frozen, but no model call, formal manifest, score or Validation run exists"
+    "e7Status": "active v2 r4 formal GPT-5.5 paired Development run completed: both arms parsed XML 6/6, required citation contract 1/6 and task completion 0/6; claim metrics were not independently reviewed; no promotion or Validation"
   }
 }

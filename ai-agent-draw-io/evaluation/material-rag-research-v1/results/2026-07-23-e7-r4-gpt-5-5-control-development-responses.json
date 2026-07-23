@@ -1,0 +1,170 @@
+{
+  "responses": [
+    {
+      "taskId": "dgt-dev-01",
+      "xml": "<mxGraphModel dx=\"1200\" dy=\"800\" grid=\"1\" gridSize=\"10\" guides=\"1\" tooltips=\"1\" connect=\"1\" arrows=\"1\" fold=\"1\" page=\"1\" pageScale=\"1\" pageWidth=\"1100\" pageHeight=\"850\" math=\"0\" shadow=\"0\"><root><mxCell id=\"0\"/><mxCell id=\"1\" parent=\"0\"/><mxCell id=\"title\" value=\"Diagram type recommendations: system interactions and responsibility handoffs\" style=\"rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontStyle=1;fontSize=16;\" vertex=\"1\" parent=\"1\"><mxGeometry x=\"220\" y=\"40\" width=\"660\" height=\"60\" as=\"geometry\"/></mxCell><mxCell id=\"principle\" value=\"Start by identifying the relationship the user wants to express; do not default to an architecture diagram just because many terms appear, and do not turn sequential text into a parallel process.\" style=\"rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=12;\" vertex=\"1\" parent=\"1\"><mxGeometry x=\"280\" y=\"130\" width=\"540\" height=\"80\" as=\"geometry\"/></mxCell><mxCell id=\"decision\" value=\"What relationship is being expressed?\" style=\"rhombus;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontStyle=1;\" vertex=\"1\" parent=\"1\"><mxGeometry x=\"450\" y=\"250\" width=\"200\" height=\"120\" as=\"geometry\"/></mxCell><mxCell id=\"sys_interactions\" value=\"System interactions&#xa;Recommended diagram type: component interaction / ownership flow&#xa;Use when showing components, inputs, responsibilities, and outputs such as Material Gateway, Evidence Index, Plan Builder, and Canvas Composer.\" style=\"rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;\" vertex=\"1\" parent=\"1\"><mxGeometry x=\"90\" y=\"430\" width=\"310\" height=\"130\" as=\"geometry\"/></mxCell><mxCell id=\"resp_handoff\" value=\"Responsibility handoffs&#xa;Recommended diagram type: service-to-responsibility mapping table&#xa;Ownership follows the component that makes the decision, not the component that transports the result.\" style=\"rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;\" vertex=\"1\" parent=\"1\"><mxGeometry x=\"700\" y=\"430\" width=\"310\" height=\"130\" as=\"geometry\"/></mxCell><mxCell id=\"editable_output\" value=\"Deliverable rule&#xa;Generate editable draw.io XML as the formal result; SVG is for web, PNG for preview, and PDF for review.\" style=\"rounded=1;whiteSpace=wrap;html=1;fillColor=#e6e6e6;strokeColor=#666666;\" vertex=\"1\" parent=\"1\"><mxGeometry x=\"180\" y=\"640\" width=\"330\" height=\"90\" as=\"geometry\"/></mxCell><mxCell id=\"citation_rule\" value=\"Evidence rule&#xa;Grounded shapes need stable identifiers and source version/page evidence; factual label changes require renewed evidence validation.\" style=\"rounded=1;whiteSpace=wrap;html=1;fillColor=#e6e6e6;strokeColor=#666666;\" vertex=\"1\" parent=\"1\"><mxGeometry x=\"590\" y=\"640\" width=\"330\" height=\"90\" as=\"geometry\"/></mxCell><mxCell id=\"e1\" value=\"\" style=\"endArrow=block;html=1;rounded=0;strokeWidth=2;\" edge=\"1\" parent=\"1\" source=\"title\" target=\"principle\"><mxGeometry relative=\"1\" as=\"geometry\"/></mxCell><mxCell id=\"e2\" value=\"\" style=\"endArrow=block;html=1;rounded=0;strokeWidth=2;\" edge=\"1\" parent=\"1\" source=\"principle\" target=\"decision\"><mxGeometry relative=\"1\" as=\"geometry\"/></mxCell><mxCell id=\"e3\" value=\"components / inputs / outputs\" style=\"endArrow=block;html=1;rounded=0;strokeWidth=2;\" edge=\"1\" parent=\"1\" source=\"decision\" target=\"sys_interactions\"><mxGeometry relative=\"1\" as=\"geometry\"/></mxCell><mxCell id=\"e4\" value=\"decision responsibility\" style=\"endArrow=block;html=1;rounded=0;strokeWidth=2;\" edge=\"1\" parent=\"1\" source=\"decision\" target=\"resp_handoff\"><mxGeometry relative=\"1\" as=\"geometry\"/></mxCell><mxCell id=\"e5\" value=\"formal output\" style=\"endArrow=block;html=1;rounded=0;strokeWidth=2;\" edge=\"1\" parent=\"1\" source=\"sys_interactions\" target=\"editable_output\"><mxGeometry relative=\"1\" as=\"geometry\"/></mxCell><mxCell id=\"e6\" value=\"formal output\" style=\"endArrow=block;html=1;rounded=0;strokeWidth=2;\" edge=\"1\" parent=\"1\" source=\"resp_handoff\" target=\"citation_rule\"><mxGeometry relative=\"1\" as=\"geometry\"/></mxCell><mxCell id=\"e7\" value=\"must preserve\" style=\"endArrow=block;html=1;rounded=0;strokeWidth=2;dashed=1;\" edge=\"1\" parent=\"1\" source=\"editable_output\" target=\"citation_rule\"><mxGeometry relative=\"1\" as=\"geometry\"/></mxCell></root></mxGraphModel>",
+      "citations": [
+        {
+          "anchorId": "title",
+          "page": 0,
+          "sourceVersion": "drawio-workflow-handbook:v1"
+        },
+        {
+          "anchorId": "principle",
+          "page": 0,
+          "sourceVersion": "drawio-workflow-handbook:v1"
+        },
+        {
+          "anchorId": "sys_interactions",
+          "page": 0,
+          "sourceVersion": "drawio-agent-architecture:v1"
+        },
+        {
+          "anchorId": "resp_handoff",
+          "page": 0,
+          "sourceVersion": "drawio-agent-architecture:v1"
+        },
+        {
+          "anchorId": "editable_output",
+          "page": 5,
+          "sourceVersion": "drawio-workflow-handbook:v1"
+        },
+        {
+          "anchorId": "citation_rule",
+          "page": 6,
+          "sourceVersion": "drawio-agent-architecture:v1"
+        }
+      ],
+      "httpStatus": 200,
+      "error": null
+    },
+    {
+      "taskId": "dgt-dev-02",
+      "xml": "<mxGraphModel dx=\"1440\" dy=\"900\" grid=\"1\" gridSize=\"10\" guides=\"1\" tooltips=\"1\" connect=\"1\" arrows=\"1\" fold=\"1\" page=\"1\" pageScale=\"1\" pageWidth=\"1600\" pageHeight=\"900\" math=\"0\" shadow=\"0\"><root><mxCell id=\"0\"/><mxCell id=\"1\" parent=\"0\"/><mxCell id=\"title\" value=\"DRAW.IO AGENT REQUEST ROUTE\" style=\"text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=34;fontColor=#17233B;fontStyle=0\" vertex=\"1\" parent=\"1\"><mxGeometry x=\"70\" y=\"60\" width=\"720\" height=\"60\" as=\"geometry\"/></mxCell><mxCell id=\"scope\" value=\"SCOPE SOURCES\" style=\"rounded=1;whiteSpace=wrap;html=1;arcSize=12;strokeWidth=4;strokeColor=#2B5CAA;fillColor=#FFFFFF;fontColor=#17233B;fontSize=26;fontStyle=0\" vertex=\"1\" parent=\"1\"><mxGeometry x=\"55\" y=\"333\" width=\"300\" height=\"165\" as=\"geometry\"/></mxCell><mxCell id=\"retrieve\" value=\"RETRIEVE EVIDENCE\" style=\"rounded=1;whiteSpace=wrap;html=1;arcSize=12;strokeWidth=4;strokeColor=#2B5CAA;fillColor=#FFFFFF;fontColor=#17233B;fontSize=26;fontStyle=0\" vertex=\"1\" parent=\"1\"><mxGeometry x=\"465\" y=\"333\" width=\"300\" height=\"165\" as=\"geometry\"/></mxCell><mxCell id=\"build\" value=\"BUILD PLAN\" style=\"rounded=1;whiteSpace=wrap;html=1;arcSize=12;strokeWidth=4;strokeColor=#2B5CAA;fillColor=#FFFFFF;fontColor=#17233B;fontSize=26;fontStyle=0\" vertex=\"1\" parent=\"1\"><mxGeometry x=\"875\" y=\"333\" width=\"300\" height=\"165\" as=\"geometry\"/></mxCell><mxCell id=\"compose\" value=\"COMPOSE CANVAS\" style=\"rounded=1;whiteSpace=wrap;html=1;arcSize=12;strokeWidth=4;strokeColor=#2B5CAA;fillColor=#FFFFFF;fontColor=#17233B;fontSize=26;fontStyle=0\" vertex=\"1\" parent=\"1\"><mxGeometry x=\"1285\" y=\"333\" width=\"300\" height=\"165\" as=\"geometry\"/></mxCell><mxCell id=\"edge_authorized\" value=\"authorized\" style=\"edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#0B7A3B;strokeWidth=6;endArrow=block;endFill=1;fontSize=20;fontColor=#0B7A3B;labelBackgroundColor=none\" edge=\"1\" parent=\"1\" source=\"scope\" target=\"retrieve\"><mxGeometry relative=\"1\" as=\"geometry\"><mxPoint x=\"410\" y=\"360\" as=\"offset\"/></mxGeometry></mxCell><mxCell id=\"edge_ranked\" value=\"ranked\" style=\"edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#0B7A3B;strokeWidth=6;endArrow=block;endFill=1;fontSize=20;fontColor=#0B7A3B;labelBackgroundColor=none\" edge=\"1\" parent=\"1\" source=\"retrieve\" target=\"build\"><mxGeometry relative=\"1\" as=\"geometry\"><mxPoint x=\"820\" y=\"360\" as=\"offset\"/></mxGeometry></mxCell><mxCell id=\"edge_validated\" value=\"validated\" style=\"edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#0B7A3B;strokeWidth=6;endArrow=block;endFill=1;fontSize=20;fontColor=#0B7A3B;labelBackgroundColor=none\" edge=\"1\" parent=\"1\" source=\"build\" target=\"compose\"><mxGeometry relative=\"1\" as=\"geometry\"><mxPoint x=\"1228\" y=\"360\" as=\"offset\"/></mxGeometry></mxCell><mxCell id=\"note_editable_xml\" value=\"Canonical deliverable: editable draw.io XML, not a screenshot.\" style=\"rounded=1;whiteSpace=wrap;html=1;arcSize=8;strokeWidth=2;strokeColor=#B8C2CC;fillColor=#F7F9FB;fontColor=#17233B;fontSize=16;align=left;spacing=12\" vertex=\"1\" parent=\"1\"><mxGeometry x=\"55\" y=\"625\" width=\"495\" height=\"70\" as=\"geometry\"/></mxCell><mxCell id=\"note_evidence_links\" value=\"Design invariant: material-backed shapes preserve evidence references that resolve to source version and page.\" style=\"rounded=1;whiteSpace=wrap;html=1;arcSize=8;strokeWidth=2;strokeColor=#B8C2CC;fillColor=#F7F9FB;fontColor=#17233B;fontSize=16;align=left;spacing=12\" vertex=\"1\" parent=\"1\"><mxGeometry x=\"585\" y=\"625\" width=\"620\" height=\"70\" as=\"geometry\"/></mxCell></root></mxGraphModel>",
+      "citations": [
+        {
+          "anchorId": "title",
+          "page": 3,
+          "sourceVersion": "drawio-agent-architecture:v1"
+        },
+        {
+          "anchorId": "scope",
+          "page": 3,
+          "sourceVersion": "drawio-agent-architecture:v1"
+        },
+        {
+          "anchorId": "retrieve",
+          "page": 3,
+          "sourceVersion": "drawio-agent-architecture:v1"
+        },
+        {
+          "anchorId": "build",
+          "page": 3,
+          "sourceVersion": "drawio-agent-architecture:v1"
+        },
+        {
+          "anchorId": "compose",
+          "page": 3,
+          "sourceVersion": "drawio-agent-architecture:v1"
+        },
+        {
+          "anchorId": "edge_authorized",
+          "page": 3,
+          "sourceVersion": "drawio-agent-architecture:v1"
+        },
+        {
+          "anchorId": "edge_ranked",
+          "page": 3,
+          "sourceVersion": "drawio-agent-architecture:v1"
+        },
+        {
+          "anchorId": "edge_validated",
+          "page": 3,
+          "sourceVersion": "drawio-agent-architecture:v1"
+        },
+        {
+          "anchorId": "note_editable_xml",
+          "page": 0,
+          "sourceVersion": "drawio-planning-workshop-scan:v1"
+        },
+        {
+          "anchorId": "note_evidence_links",
+          "page": 0,
+          "sourceVersion": "drawio-agent-architecture:v1"
+        }
+      ],
+      "httpStatus": 200,
+      "error": null
+    },
+    {
+      "taskId": "dgt-dev-03",
+      "xml": "<mxGraphModel><root><mxCell id=\"0\"/><mxCell id=\"1\" parent=\"0\"/><mxCell id=\"fact-1\" value=\"draw.io XML is the canonical editable result\" vertex=\"1\" parent=\"1\" evidenceSourceVersion=\"drawio-workflow-handbook:v1\"/><mxCell id=\"export-1\" value=\"PNG and SVG are delivery formats\" vertex=\"1\" parent=\"1\"/><mxCell id=\"edge-1\" edge=\"1\" source=\"fact-1\" target=\"export-1\" parent=\"1\"/><mxCell id=\"revalidation-note\" value=\"Factual edits require evidence revalidation\" vertex=\"1\" parent=\"1\"/></root></mxGraphModel>",
+      "citations": [
+        {
+          "anchorId": "fact-1",
+          "page": 0,
+          "sourceVersion": "drawio-planning-workshop-scan:v1"
+        },
+        {
+          "anchorId": "revalidation-note",
+          "page": 0,
+          "sourceVersion": "drawio-workflow-handbook:v1"
+        }
+      ],
+      "httpStatus": 200,
+      "error": null
+    },
+    {
+      "taskId": "dgt-dev-04",
+      "xml": "<mxGraphModel><root><mxCell id=\"0\"/><mxCell id=\"1\" parent=\"0\"/><mxCell id=\"policy-v1\" value=\"Existing evidence remains pinned to V1\" evidenceSourceVersion=\"drawio-agent-architecture:v1\" vertex=\"1\" parent=\"1\"/><mxCell id=\"review-note\" value=\"Review note\" vertex=\"1\" parent=\"1\"><mxGeometry x=\"20\" y=\"20\" width=\"120\" height=\"60\" as=\"geometry\"/></mxCell></root></mxGraphModel>",
+      "citations": [],
+      "httpStatus": 200,
+      "error": null
+    },
+    {
+      "taskId": "dgt-dev-05",
+      "xml": "<mxGraphModel dx=\"1200\" dy=\"800\" grid=\"1\" gridSize=\"10\" guides=\"1\" tooltips=\"1\" connect=\"1\" arrows=\"1\" fold=\"1\" page=\"1\" pageScale=\"1\" pageWidth=\"1100\" pageHeight=\"850\" math=\"0\" shadow=\"0\"><root><mxCell id=\"0\"/><mxCell id=\"1\" parent=\"0\"/><mxCell id=\"title\" value=\"DRAW.IO PLANNING WORKSHOP DPW-2026-33&#xa;How a material-backed request becomes an editable diagram\" style=\"rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=none;fontSize=22;fontStyle=1;align=center;verticalAlign=middle;\" vertex=\"1\" parent=\"1\"><mxGeometry x=\"120\" y=\"30\" width=\"860\" height=\"70\" as=\"geometry\"/></mxCell><mxCell id=\"n_goal\" value=\"Goal&#xa;Material-backed request becomes an editable diagram\" style=\"rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=14;fontStyle=1;\" vertex=\"1\" parent=\"1\"><mxGeometry x=\"60\" y=\"150\" width=\"210\" height=\"90\" as=\"geometry\"/></mxCell><mxCell id=\"n_triage\" value=\"1. Request triage&#xa;Layout only: no retrieval if factual labels do not change&#xa;Material fact: retrieval and evidence validation&#xa;Clarify ambiguous pronouns before searching\" style=\"rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=13;align=left;spacing=10;\" vertex=\"1\" parent=\"1\"><mxGeometry x=\"330\" y=\"130\" width=\"300\" height=\"130\" as=\"geometry\"/></mxCell><mxCell id=\"n_source\" value=\"2. Source order&#xa;Explicit source first&#xa;Then current-chartbook material&#xa;Then broader allowed material when automatic selection is enabled&#xa;Removed share not used for new request&#xa;Index failure = DEGRADED SEARCH\" style=\"rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=13;align=left;spacing=10;\" vertex=\"1\" parent=\"1\"><mxGeometry x=\"690\" y=\"115\" width=\"330\" height=\"160\" as=\"geometry\"/></mxCell><mxCell id=\"n_evidence\" value=\"3. Evidence board&#xa;Budgets: Candidate retrieval 40 | Hydration 16 | Final bundle 8&#xa;Completeness: comparison questions keep ALL required evidence parts; one matching page is incomplete when answer spans two pages&#xa;Owner: Trust reviewer resolves unsupported citation findings\" style=\"rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=13;align=left;spacing=10;\" vertex=\"1\" parent=\"1\"><mxGeometry x=\"230\" y=\"350\" width=\"430\" height=\"170\" as=\"geometry\"/></mxCell><mxCell id=\"n_deliverable\" value=\"Canonical deliverable&#xa;Editable draw.io XML, not a screenshot\" style=\"rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=14;fontStyle=1;\" vertex=\"1\" parent=\"1\"><mxGeometry x=\"760\" y=\"390\" width=\"260\" height=\"100\" as=\"geometry\"/></mxCell><mxCell id=\"note_scope\" value=\"Scope covered source selection, evidence grouping, layout choice and citation review. No production credentials or customer data were used.\" style=\"shape=note;whiteSpace=wrap;html=1;backgroundOutline=1;darkOpacity=0.05;fillColor=#f5f5f5;strokeColor=#666666;fontSize=12;align=left;spacing=10;\" vertex=\"1\" parent=\"1\"><mxGeometry x=\"60\" y=\"585\" width=\"360\" height=\"100\" as=\"geometry\"/></mxCell><mxCell id=\"e1\" value=\"\" style=\"endArrow=block;html=1;rounded=0;strokeWidth=2;\" edge=\"1\" parent=\"1\" source=\"n_goal\" target=\"n_triage\"><mxGeometry relative=\"1\" as=\"geometry\"/></mxCell><mxCell id=\"e2\" value=\"\" style=\"endArrow=block;html=1;rounded=0;strokeWidth=2;\" edge=\"1\" parent=\"1\" source=\"n_triage\" target=\"n_source\"><mxGeometry relative=\"1\" as=\"geometry\"/></mxCell><mxCell id=\"e3\" value=\"selected sources\" style=\"endArrow=block;html=1;rounded=0;strokeWidth=2;fontSize=12;\" edge=\"1\" parent=\"1\" source=\"n_source\" target=\"n_evidence\"><mxGeometry relative=\"1\" as=\"geometry\"><mxPoint x=\"760\" y=\"320\" as=\"targetPoint\"/></mxGeometry></mxCell><mxCell id=\"e4\" value=\"reviewed evidence\" style=\"endArrow=block;html=1;rounded=0;strokeWidth=2;fontSize=12;\" edge=\"1\" parent=\"1\" source=\"n_evidence\" target=\"n_deliverable\"><mxGeometry relative=\"1\" as=\"geometry\"/></mxCell><mxCell id=\"e5\" value=\"\" style=\"endArrow=open;html=1;rounded=0;dashed=1;strokeColor=#666666;\" edge=\"1\" parent=\"1\" source=\"note_scope\" target=\"n_source\"><mxGeometry relative=\"1\" as=\"geometry\"/></mxCell></root></mxGraphModel>",
+      "citations": [
+        {
+          "anchorId": "scan_title",
+          "page": 0,
+          "sourceVersion": "drawio-planning-workshop-scan:v1"
+        },
+        {
+          "anchorId": "scan_goal",
+          "page": 0,
+          "sourceVersion": "drawio-planning-workshop-scan:v1"
+        },
+        {
+          "anchorId": "request_triage",
+          "page": 0,
+          "sourceVersion": "drawio-planning-workshop-scan:v1"
+        },
+        {
+          "anchorId": "source_order",
+          "page": 0,
+          "sourceVersion": "drawio-planning-workshop-scan:v1"
+        },
+        {
+          "anchorId": "evidence_board",
+          "page": 4,
+          "sourceVersion": "drawio-planning-workshop-scan:v1"
+        },
+        {
+          "anchorId": "canonical_deliverable",
+          "page": 0,
+          "sourceVersion": "drawio-planning-workshop-scan:v1"
+        }
+      ],
+      "httpStatus": 200,
+      "error": null
+    },
+    {
+      "taskId": "dgt-dev-06",
+      "xml": "<mxGraphModel><root><mxCell id='0'/><mxCell id='1' parent='0'/><mxCell id='a' value='Scope' vertex='1' parent='1'><mxGeometry x='20' y='20' width='120' height='40' as='geometry'/></mxCell><mxCell id='b' value='Retrieve' vertex='1' parent='1'><mxGeometry x='180' y='20' width='120' height='40' as='geometry'/></mxCell><mxCell id='c' value='Plan' vertex='1' parent='1'><mxGeometry x='20' y='100' width='120' height='40' as='geometry'/></mxCell><mxCell id='d' value='Compose' vertex='1' parent='1'><mxGeometry x='180' y='100' width='120' height='40' as='geometry'/></mxCell></root></mxGraphModel>",
+      "citations": [],
+      "httpStatus": 200,
+      "error": null
+    }
+  ]
+}

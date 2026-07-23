@@ -406,6 +406,23 @@
   生成独立 formal manifest 并运行 E7 paired evaluation。详见
   [2026-07-23-e7-r4-development-prompt-bundles.md](2026-07-23-e7-r4-development-prompt-bundles.md)。
 
+### E7 r4 — GPT-5.5 paired Development generation · 2026-07-23 · ❌不晋级
+
+- **正式运行**:control/raw-top8 与 candidate/source-aware-top8 各发送 6 个 synthetic Development prompt 到
+  OpenAI GPT-5.5；两臂 formal manifest 均通过 validator（prompt/response/task/corpus hash、逐 call request ID、
+  usage、latency 完整）。合计 12/12 HTTP 200、54,795 input + 12,685 output tokens、139,713 ms；按标准文本单价
+  粗估约 **$0.65**，不含税或账户差异。Validation 与 holdout 均未发送。
+- **结果**:两臂 XML parse 都是 6/6，required citation contract 都是 1/6，complete task 都是 0/6；因此没有
+  可归因给 source-aware selector 的差异。`dgt-dev-02` 两臂均能生成四节点 editable request route，说明 r4 的
+  visual/OCR artifact 已真实进入模型上下文，但模型把 `scope`/`scope_sources` 等生成 cell ID 当 citation，而非
+  evidence 中的 `daa-route-scope` 等精确 anchor，评测器正确拒绝。
+- **解释边界**:唯一 citation pass 是不要求 citation 的 layout-only `dgt-dev-06`，它的 geometry-only edit assertion
+  仍失败。独立双 reviewer claim review 尚未做，故 claim correctness、faithfulness、citation precision/completeness
+  明确为 `not_evaluated`。这是一项 prompt-output contract failure，不是对 RAG retrieval 质量的负面结论。
+- **决策**:不晋级、不打开 Validation。下一步先预注册并本地测试 citation-output contract repair——要求模型仅从
+  supplied evidence 的精确 `anchorId` 选择 citation、不得使用 diagram cell ID；冻结新 bundle 后才可另行授权重跑
+  Development。详见 [2026-07-23-e7-r4-gpt-5-5-development.md](2026-07-23-e7-r4-gpt-5-5-development.md)。
+
 ---
 
 ## 当前状态与下一步
