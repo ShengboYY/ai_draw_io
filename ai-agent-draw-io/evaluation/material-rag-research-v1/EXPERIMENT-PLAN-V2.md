@@ -258,9 +258,9 @@ Recall@10 与 flat 持平,MRR@10 低 0.062,未晋级。当前顺序：
    material version 已挂载（不据此过滤 chartbook source 或改变排名）；不读取 evaluator 数据。r8 的真实
    Development trace 已清理 80 个临时向量，raw source-aware contrast 为 4/5（80%），但 `dgt-dev-02` 的 architecture
    page-3 visual/OCR artifact 落在 top-8 外（text rank 22、VISUAL rank 24），paired exporter 因而拒绝生成 context。
-   该变量不晋级、不能冻结 bundle。r9 已预注册为 visual-safe page-parent routing：保留 page parent 的引用和 lexical
-   检索，但不再让其进入 dense candidate pool，以避免挤出已验证的 visual/OCR chunk；仍须重新运行 Development gate。
-   Validation 继续关闭。
+   该变量不晋级、不能冻结 bundle。r9 保留 page parent 的引用和 lexical 检索、将其排除于 dense candidate pool；真实
+   Development trace 已清理 62 个临时向量，但 `dgt-dev-02` control top-8 仍缺 architecture page-3 visual/OCR artifact
+   （VISUAL rank 28、TEXT rank 34），因此 paired exporter 在生成 context 前停止。R9 不晋级，Validation 继续关闭。
 2. 后续 E9 必须执行在线授权、版本、故障注入与恢复；当前 fixture-contract 通过不能替代它。
 3. Validation 暂不打开。仓库可见的 legacy holdout 不再用于“未见最终结论”；外部 final holdout
    按独立保管协议只释放一次。
