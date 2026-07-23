@@ -917,6 +917,7 @@ public class AgentConversationServiceTest {
     public void singleReadyImageDirectRequestCommitsBeforeReturningAndNeverCallsDrawer() throws Exception {
         AgentConversationService service = quotaAwareService();
         CountingChatService chatService = new CountingChatService();
+        DirectImageRoutingService routingService = new DirectImageRoutingService();
         AtomicReference<org.zipp.ai.domain.multimodal.DirectImageConversionCommand> executed =
                 new AtomicReference<>();
         String convertedXml = "<mxGraphModel><root><mxCell id=\"0\"/><mxCell id=\"1\" parent=\"0\"/>"
@@ -926,7 +927,7 @@ public class AgentConversationServiceTest {
                 .diagramId("diagram-1").diagramType("flowchart").currentXml(convertedXml)
                 .contentHash("direct-hash").version(1L).build();
         injectField(service, "chatService", chatService);
-        injectField(service, "intentRoutingService", new DirectImageRoutingService());
+        injectField(service, "intentRoutingService", routingService);
         injectField(service, "canvasStateStore", new FixedCanvasStateStore(""));
         injectField(service, "requestSourceResolutionService",
                 (org.zipp.ai.domain.retrieval.RequestSourceResolutionService) command ->
@@ -944,8 +945,10 @@ public class AgentConversationServiceTest {
                                                     .created(saved)));
                         });
         ChatRequestDTO request = platformRequest();
+        request.setSessionId(null);
         request.setRequestId("request-direct-1");
         request.setAttachmentUploadIds(List.of("upload-1"));
+        request.setSelectedVersionIds(List.of("selected-version-1"));
         request.setSourceMode("EXPLICIT_ONLY");
 
         org.zipp.ai.api.dto.ChatResponseDTO response = service.chat(request);
@@ -956,6 +959,9 @@ public class AgentConversationServiceTest {
         assertEquals("direct-hash", response.getContentHash());
         assertEquals("upload-1", executed.get().source().attachmentUploadId());
         assertEquals("session-1", executed.get().source().conversationId());
+        assertEquals(List.of("selected-version-1"), executed.get().source().selectedVersionIds());
+        assertTrue(routingService.lastCommand.getRequestProbe().hasSingleReadyImageAttachment());
+        assertEquals(1, routingService.lastCommand.getRequestProbe().readyAttachmentCount());
         assertEquals(0, chatService.handleMessageCalls);
         assertEquals(0, chatService.handleMessageStreamCalls);
     }
@@ -964,6 +970,8 @@ public class AgentConversationServiceTest {
     public void singleReadyImageDirectStreamEmitsPersistedCanvasWithoutCallingDrawer() throws Exception {
         AgentConversationService service = quotaAwareService();
         CountingChatService chatService = new CountingChatService();
+        AtomicReference<org.zipp.ai.domain.multimodal.DirectImageConversionCommand> executed =
+                new AtomicReference<>();
         String convertedXml = "<mxGraphModel><root><mxCell id=\"0\"/><mxCell id=\"1\" parent=\"0\"/>"
                 + "<mxCell id=\"direct-node-a\" value=\"A\" vertex=\"1\" parent=\"1\"/>"
                 + "</root></mxGraphModel>";
@@ -980,13 +988,16 @@ public class AgentConversationServiceTest {
                 new org.zipp.ai.domain.multimodal.DefaultTaskSourcePlanner());
         injectField(service, "directImageConversionExecutionModule",
                 (org.zipp.ai.domain.multimodal.DirectImageConversionExecutionModule)
-                        (command, progress, cancellation) ->
-                                java.util.concurrent.CompletableFuture.completedFuture(
+                        (command, progress, cancellation) -> {
+                            executed.set(command);
+                            return java.util.concurrent.CompletableFuture.completedFuture(
                                         new org.zipp.ai.domain.multimodal.DirectImageConversionOutcome.Committed(
                                                 convertedXml,
                                                 org.zipp.ai.domain.agent.model.valobj.canvas.CanvasStateSaveResult
-                                                        .updated(saved))));
+                                                        .updated(saved)));
+                        });
         ChatRequestDTO request = platformRequest();
+        request.setSessionId(null);
         request.setRequestId("request-direct-stream-1");
         request.setAttachmentUploadIds(List.of("upload-1"));
         request.setSourceMode("EXPLICIT_ONLY");
@@ -998,6 +1009,40 @@ public class AgentConversationServiceTest {
         assertTrue(output.contains("\"type\":\"drawio_done\""));
         assertTrue(output.contains("\"version\":2"));
         assertTrue(output.contains("\"contentHash\":\"direct-hash\""));
+        assertTrue(output.contains("\"type\":\"done\""));
+        assertEquals("session-1", executed.get().source().conversationId());
+        assertEquals(0, chatService.handleMessageCalls);
+        assertEquals(0, chatService.handleMessageStreamCalls);
+    }
+
+    @Test
+    public void directConfirmationStreamPreservesTypedOutcomeAndDoesNotCallDrawer() throws Exception {
+        AgentConversationService service = quotaAwareService();
+        CountingChatService chatService = new CountingChatService();
+        injectField(service, "chatService", chatService);
+        injectField(service, "intentRoutingService", new DirectImageRoutingService());
+        injectField(service, "canvasStateStore", new FixedCanvasStateStore(""));
+        injectField(service, "requestSourceResolutionService",
+                (org.zipp.ai.domain.retrieval.RequestSourceResolutionService) command ->
+                        readyImageSourceSnapshot());
+        injectField(service, "taskSourcePlanner",
+                new org.zipp.ai.domain.multimodal.DefaultTaskSourcePlanner());
+        injectField(service, "directImageConversionExecutionModule",
+                (org.zipp.ai.domain.multimodal.DirectImageConversionExecutionModule)
+                        (command, progress, cancellation) ->
+                                java.util.concurrent.CompletableFuture.completedFuture(
+                                        new org.zipp.ai.domain.multimodal.DirectImageConversionOutcome
+                                                .NeedsConfirmation(List.of("AMBIGUOUS_DIRECTION"))));
+        ChatRequestDTO request = platformRequest();
+        request.setRequestId("request-direct-confirmation");
+        request.setAttachmentUploadIds(List.of("upload-1"));
+        CapturingEmitter emitter = new CapturingEmitter();
+
+        service.stream(request, emitter);
+
+        String output = String.join("\n", emitter.sent);
+        assertTrue(output.contains("\"type\":\"degraded\""));
+        assertTrue(output.contains("\"outcomeType\":\"direct_confirmation_required\""));
         assertTrue(output.contains("\"type\":\"done\""));
         assertEquals(0, chatService.handleMessageCalls);
         assertEquals(0, chatService.handleMessageStreamCalls);
@@ -1523,8 +1568,11 @@ public class AgentConversationServiceTest {
     }
 
     private static class DirectImageRoutingService implements IIntentRoutingService {
+        private IntentRoutingCommand lastCommand;
+
         @Override
         public IntentRoutingResult route(IntentRoutingCommand command) {
+            lastCommand = command;
             IntentRoutingResult result = drawRoutingResult("create_new");
             result.setDiagramType("flowchart");
             result.setSourceUse("DIRECT");

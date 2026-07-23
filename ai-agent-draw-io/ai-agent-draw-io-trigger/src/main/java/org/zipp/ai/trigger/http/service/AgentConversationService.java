@@ -209,6 +209,8 @@ public class AgentConversationService {
             consumeAnonymousDemoQuota(requestDTO, config);
             consumeVerifiedUserPlatformQuota(requestDTO, config);
             sessionId = ensureSession(requestDTO);
+            // Downstream source authorization must use the validated/recreated conversation identity.
+            requestDTO.setSessionId(sessionId);
             // Claim the reusable ADK session before installing any session-scoped configuration;
             // a concurrent request must not overwrite or clear another run's tool policy.
             DrawioToolAccessContext.openSession(sessionId, runScope.getContext().runId());
@@ -220,7 +222,7 @@ public class AgentConversationService {
             RequestProbe requestProbe = probeRequest(currentRequest, sourceSnapshot);
             IntentRoutingResult routingResult = recordCapturedStep(
                     "routing", requestStepInput(currentRequest), AgentConversationService::routingStepOutput,
-                    () -> routeIntent(currentRequest, config, requestProbe));
+                    () -> routeIntent(currentRequest, config, requestProbe, sourceSnapshot));
             recordRoutingDecision(runScope, routingResult);
             DirectImageConversionOutcome directOutcome =
                     executeDirectImageConversion(currentRequest, routingResult, sourceSnapshot,
@@ -421,6 +423,8 @@ public class AgentConversationService {
             consumeAnonymousDemoQuota(requestDTO, config);
             consumeVerifiedUserPlatformQuota(requestDTO, config);
             sessionId = ensureSession(requestDTO);
+            // Downstream source authorization must use the validated/recreated conversation identity.
+            requestDTO.setSessionId(sessionId);
             final String finalSessionId = sessionId;
             // Keep all session-scoped model, skill, and tool configuration owned by one run.
             DrawioToolAccessContext.openSession(finalSessionId, runScope.getContext().runId());
@@ -434,7 +438,7 @@ public class AgentConversationService {
             IntentRoutingResult routingResult = forcedRoutingResult == null
                     ? recordCapturedStep(
                     "routing", requestStepInput(currentRequest), AgentConversationService::routingStepOutput,
-                    () -> routeIntent(currentRequest, config, requestProbe))
+                    () -> routeIntent(currentRequest, config, requestProbe, sourceSnapshot))
                     : forcedRoutingResult;
             recordRoutingDecision(runScope, routingResult);
             // The UI uses this compact event to describe the selected route without exposing model reasoning.
@@ -1234,12 +1238,13 @@ public class AgentConversationService {
 
     private IntentRoutingResult routeIntent(ChatRequestDTO requestDTO,
                                             CustomApiConfigManager.CustomApiConfig config,
-                                            RequestProbe requestProbe) {
+                                            RequestProbe requestProbe,
+                                            ResolvedSourceSet sourceSnapshot) {
         DrawioPromptContextBuilder contextBuilder = contextBuilder();
         return intentRoutingService.route(IntentRoutingCommand.builder()
                 .userId(requestDTO.getUserId())
                 .message(contextBuilder.buildIntentMessage(requestDTO))
-                .requestProbe(intentProbe(requestProbe))
+                .requestProbe(intentProbe(requestProbe, requestDTO, sourceSnapshot))
                 .customApiConfig(config)
                 .build());
     }
@@ -1281,14 +1286,33 @@ public class AgentConversationService {
                 .orElseGet(() -> new RequestProbe(sourceProbe, CanvasProbe.unavailableProbe()));
     }
 
-    private IntentRoutingProbe intentProbe(RequestProbe requestProbe) {
+    private IntentRoutingProbe intentProbe(RequestProbe requestProbe, ChatRequestDTO request,
+                                           ResolvedSourceSet sourceSnapshot) {
         SourceProbe source = requestProbe.sources();
         CanvasProbe canvas = requestProbe.canvas();
+        int attachmentCount = safeList(request == null ? null : request.getAttachmentUploadIds()).size();
+        List<ResolvedSource> attachments = (sourceSnapshot == null ? List.<ResolvedSource>of()
+                : sourceSnapshot.sources()).stream()
+                .filter(candidate -> candidate.origin() == RequestSourceOrigin.ATTACHMENT)
+                .toList();
+        int readyAttachmentCount = (int) attachments.stream()
+                .filter(candidate -> "READY".equals(candidate.state())).count();
+        int pendingAttachmentCount = (int) attachments.stream()
+                .filter(candidate -> !"READY".equals(candidate.state())
+                        && !"PARTIAL_READY".equals(candidate.state())).count();
+        boolean singleReadyImage = attachmentCount == 1 && attachments.size() == 1
+                && "READY".equals(attachments.get(0).state())
+                && "IMAGE".equals(attachments.get(0).kind())
+                && attachments.get(0).hasVisual();
+        boolean hasPdfAttachment = attachments.stream()
+                .anyMatch(candidate -> "PDF".equals(candidate.kind()));
         return new IntentRoutingProbe(canvas.hasCanvas(), canvas.nodeCount(), canvas.edgeCount(),
                 source.selectedCount(), source.pendingConversationUploadCount(),
                 source.hasReadyDiagramSources() || source.hasReadyChartbookSources()
                         || source.hasReadyLibrarySources(),
-                source.hasVisualEvidence(), canvas.selectionVersionMismatch(), source.effectiveSourceMode());
+                source.hasVisualEvidence(), canvas.selectionVersionMismatch(), source.effectiveSourceMode(),
+                attachmentCount, readyAttachmentCount, pendingAttachmentCount,
+                singleReadyImage, hasPdfAttachment);
     }
 
     private ChatResponseDTO prepareEvidenceResponse(ChatRequestDTO requestDTO,
@@ -1432,7 +1456,8 @@ public class AgentConversationService {
         DirectSourceCommand source = new DirectSourceCommand(
                 owner(request), requestId, request.getRunId(), request.getDiagramId(),
                 request.getSessionId(), safeList(request.getAttachmentUploadIds()).get(0),
-                sourceMode(request.getSourceMode()), request.getMessage());
+                safeList(request.getSelectedVersionIds()), sourceMode(request.getSourceMode()),
+                request.getMessage());
         DirectImageConversionCommand command = new DirectImageConversionCommand(
                 source, request.getUserId(), request.getDiagramId(),
                 contextBuilder().resolveCanvasXml(request),
@@ -1530,7 +1555,8 @@ public class AgentConversationService {
         ChatResponseDTO response = directConversionResponse(outcome);
         String streamEvent = outcome instanceof DirectImageConversionOutcome.Rejected
                 ? "grounding_rejected" : "degraded";
-        streamResponseWriter.sendEvidenceOutcome(emitter, streamEvent, response.getContent());
+        streamResponseWriter.sendEvidenceOutcome(
+                emitter, streamEvent, response.getType(), response.getContent());
     }
 
     private boolean isStrictEvidenceRequest(ChatRequestDTO requestDTO, IntentRoutingResult routing) {

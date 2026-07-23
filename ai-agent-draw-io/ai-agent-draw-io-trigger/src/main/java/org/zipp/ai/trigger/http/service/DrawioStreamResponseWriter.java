@@ -111,8 +111,15 @@ public class DrawioStreamResponseWriter {
 
     /** Sends a terminal evidence-path event without reusing the clarification-oriented user chunk. */
     public void sendEvidenceOutcome(ResponseBodyEmitter emitter, String eventType, String content) throws Exception {
+        sendEvidenceOutcome(emitter, eventType, eventType, content);
+    }
+
+    /** Keeps the compatible terminal event while preserving the domain outcome for typed clients. */
+    public void sendEvidenceOutcome(ResponseBodyEmitter emitter, String eventType,
+                                    String outcomeType, String content) throws Exception {
         com.alibaba.fastjson.JSONObject chunk = new com.alibaba.fastjson.JSONObject();
         chunk.put("type", StringUtils.defaultString(eventType, "degraded"));
+        chunk.put("outcomeType", StringUtils.defaultString(outcomeType, eventType));
         chunk.put("content", StringUtils.defaultString(content));
         sendWrappedChunk(emitter, "retrieval", chunk);
         sendDone(emitter);

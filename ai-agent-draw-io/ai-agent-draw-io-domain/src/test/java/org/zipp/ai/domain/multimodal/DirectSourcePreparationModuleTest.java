@@ -143,7 +143,8 @@ class DirectSourcePreparationModuleTest {
     private DirectSourceCommand command() {
         return new DirectSourceCommand(new CatalogOwner(OwnerType.USER, "alice"),
                 "request-1", "run-1", "diagram-1", "conversation-1", "upload-1",
-                SourceMode.EXPLICIT_ONLY, "Reconstruct the uploaded diagram");
+                List.of("selected-version-1"), SourceMode.EXPLICIT_ONLY,
+                "Reconstruct the uploaded diagram");
     }
 
     private DirectSourcePreparationModule module(VisualObservationModule observations,
@@ -160,6 +161,7 @@ class DirectSourcePreparationModuleTest {
         return new DefaultDirectSourcePreparationModule(observations,
                 new DefaultImageToDiagramModule(), command -> {
                     assertEquals(List.of("upload-1"), command.attachmentUploadIds());
+                    assertEquals(List.of("selected-version-1"), command.selectedVersionIds());
                     assertEquals("conversation-1", command.conversationId());
                     return sources;
                 }, leases, pageAccess(storedArtifact));
