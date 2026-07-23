@@ -15,7 +15,8 @@ SPEC.loader.exec_module(MODULE)
 def task(task_id: str, source: str, anchor: str) -> dict:
     """Keep test fixtures small while exercising the full task contract."""
     return {"taskId": task_id, "split": "development", "sourceVersion": source,
-            "allowedSourceVersions": [source, "shared:v1"], "requiredAnchors": [anchor]}
+            "allowedSourceVersions": [source, "shared:v1"], "requiredAnchors": [anchor],
+            "citationAssertions": {"mustCiteAnchors": [anchor]}}
 
 
 def candidate(chunk_id: str, source: str, anchor: str, rank: int) -> dict:
@@ -93,6 +94,47 @@ class PairedHydrationExportTest(unittest.TestCase):
         result = MODULE.export(trace, [task("a", "one:v1", "anchor-a")], "development", 1, 0.0,
                                Path.cwd(), anchors={}, candidate_pool_size=1)
         self.assertEqual("retrieved:a1", result["contexts"][0]["evidence"][0]["anchorId"])
+
+    def test_keeps_ocr_degraded_evidence_as_fallback_without_source_identity(self):
+        text = "SCOPE SOURCES ETRIEVE EVIDENCI BUILD PLAN COMPOSE CANVAS"
+        trace = {"schemaVersion": "material-rag-drawio-task-hydration-candidates-v1",
+                 "retrievalRun": {"runId": "r", "gitCommit": "c", "corpusLockSha256": "l"},
+                 "tasks": [{"taskId": "a", "candidates": [{
+                     "chunkId": "a1", "sourceVersion": "one:v1", "rank": 1, "page": 3,
+                     "retrievalTextSha256": hashlib.sha256(text.encode()).hexdigest(),
+                     "evidence": [{"anchorId": "retrieved:a1", "sourceVersion": "one:v1",
+                                   "page": 3, "text": text}],
+                 }]}]}
+        anchors = {
+            "route-scope": {"source": "one", "version": "v1", "page": 3, "split": "development",
+                            "goldMatch": "SCOPE SOURCES->RETRIEVE EVIDENCE"},
+            "route-compose": {"source": "one", "version": "v1", "page": 3, "split": "development",
+                              "goldMatch": "BUILD PLAN->COMPOSE CANVAS"},
+        }
+        evaluator_task = task("a", "one:v1", "PRIVATE-EVALUATOR-ANCHOR")
+
+        result = MODULE.export(trace, [evaluator_task], "development", 1, 0.0, Path.cwd(), anchors=anchors,
+                               candidate_pool_size=1)
+
+        self.assertEqual(["retrieved:a1"], [item["anchorId"] for item in result["contexts"][0]["evidence"]])
+
+    def test_reports_when_required_evidence_is_not_model_visible(self):
+        text = "Retrieved but not canonical."
+        trace = {"schemaVersion": "material-rag-drawio-task-hydration-candidates-v1",
+                 "retrievalRun": {"runId": "r", "gitCommit": "c", "corpusLockSha256": "l"},
+                 "tasks": [{"taskId": "a", "candidates": [{
+                     "chunkId": "a1", "sourceVersion": "one:v1", "rank": 1, "page": 1,
+                     "retrievalTextSha256": hashlib.sha256(text.encode()).hexdigest(),
+                     "evidence": [{"anchorId": "retrieved:a1", "sourceVersion": "one:v1", "page": 1,
+                                   "text": text}],
+                 }]}]}
+        evaluator_task = task("a", "one:v1", "missing-anchor")
+
+        result = MODULE.export(trace, [evaluator_task], "development", 1, 0.0, Path.cwd(), anchors={},
+                               candidate_pool_size=1)
+
+        self.assertFalse(result["modelVisibleRequiredEvidence"]["ready"])
+        self.assertEqual(["missing-anchor"], result["modelVisibleRequiredEvidence"]["tasks"][0]["controlMissing"])
 
     def test_rejects_retrieved_evidence_with_a_page_other_than_its_candidate(self):
         text = "Retrieved text."

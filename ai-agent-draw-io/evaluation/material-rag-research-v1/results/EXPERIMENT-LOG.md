@@ -458,6 +458,20 @@
   model-visible required-evidence readiness gate、冻结新 Development bundles，再另行请求模型授权。详见
   [2026-07-23-e7-r5-gpt-5-5-development.md](2026-07-23-e7-r5-gpt-5-5-development.md)。
 
+### E7 r6 — citation-identity safety boundary and readiness gate · 2026-07-23 · ❌input readiness gate 未通过
+
+- **安全边界**:fallback `retrieved:<chunkId>` 不会由 exporter 依据 `ground-truth.json`、task required anchor、expected
+  answer、OCR 相似度或 ranking signal 猜测为 canonical anchor；只有 ingestion trace 自身未来持久化的 source-evidence
+  identity/span 才可提供 canonical citation。这避免 evaluator gold 进入模型可见上下文。
+- **readiness 决策**:r4 frozen trace 的 5 个 retrieval-required task 均只保留 fallback identifier，因而均在两臂缺少
+  required canonical evidence。`--require-model-visible-required-evidence` 如预注册非零退出；prompt builder 与 runner
+  也强制拒绝未通过 gate 的 context/bundle。未来 bundle 会绑定 hydration export 的 path/SHA-256，runner 在任何请求前重新
+  校验该 export 的 `ready`、task/arm 和 model-visible evidence，不能仅靠手工 `true` 字段绕过。没有 Pinecone、provider
+  token、Validation 或 holdout。
+- **下一步**:不运行 r6 generation。须预注册 ingestion source-identity persistence 与 retrieval/hydration
+  evidence-availability intervention，保留 r6 readiness gate，在本地通过后才可冻结新 Development bundle。详见
+  [2026-07-23-e7-r6-citation-identity-readiness.md](2026-07-23-e7-r6-citation-identity-readiness.md)。
+
 ---
 
 ## 当前状态与下一步
@@ -465,9 +479,8 @@
 - 已完成:E0 基线 → E1 表示层改进 → 核心集升级并冻结到 450 → Development 与 Validation
   配对重跑 → 守门最低数补齐并执行 fixture-contract。Validation 证明 E1 提升真实,也证明
   dense-only 尚未达门槛。
-- **下一步**:r5 已证明模型可遵守 citationOptions，但关键 canonical anchor 未进入 model-visible context，故仍不晋级。
-  下一步是预注册并本地测试 citation-identity/hydration repair，再以 model-visible required-evidence gate 冻结新的
-  Development bundles；Validation 暂不打开。
+- **下一步**:r6 证明 r4 trace 未持久化可用 canonical identity，且 readiness gate 正确阻止模型调用。下一步是预注册
+  ingestion source-identity persistence 与 retrieval/hydration evidence-availability intervention；Validation 暂不打开。
 
 ## 开放问题 / 待办
 
@@ -489,7 +502,9 @@
 - [x] E7 r4 evidence-grounded control/candidate Development 比较——已运行但 citation contract 1/6、task completion 0/6，未晋级。
 - [x] E7 r5 citation-output contract Development 比较——模型不再输出 cell ID，但 required canonical anchor 未进上下文，
   1/6 citation、0/6 completion，未晋级。
-- [ ] E7 下一候选：citation-identity/hydration repair 与 model-visible required-evidence gate。
+- [x] E7 r6 citation-identity safety boundary/readiness gate——不以 evaluator gold 推断 identity，5/5 grounded task
+  gate 未过；未发送模型请求。
+- [ ] E7 下一候选：ingestion source-identity persistence 与 retrieval/hydration evidence-availability intervention。
 - [ ] 外部 final holdout——contract 已定，payload 尚未由独立保管人生成和隔离。
 
 ## 如何跑一个实验(运行手册)

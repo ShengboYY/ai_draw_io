@@ -9,6 +9,9 @@ import json
 from pathlib import Path
 
 
+ROOT = Path(__file__).resolve().parents[1]
+
+
 def citation_options(context: dict) -> list[dict]:
     """Freeze the exact visible evidence rows that the model may cite."""
     options = {
@@ -58,9 +61,25 @@ def image_paths(context: dict) -> list[str]:
     ))
 
 
+def hydration_artifact_reference(contexts_path: Path) -> dict:
+    """Bind generated bundles to the exact readiness-checked hydration export."""
+    contexts_path = contexts_path.resolve()
+    if ROOT not in contexts_path.parents or not contexts_path.is_file():
+        raise ValueError("hydration contexts must be an ordinary file inside the research directory")
+    return {
+        "path": contexts_path.relative_to(ROOT).as_posix(),
+        "sha256": hashlib.sha256(contexts_path.read_bytes()).hexdigest(),
+    }
+
+
 def build_bundles(tasks: list[dict], contexts: list[dict], split: str, arm: str,
-                  chartbook_sources: set[str] | None = None) -> list[dict]:
+                  chartbook_sources: set[str] | None = None,
+                  hydration_artifact: dict | None = None) -> list[dict]:
     """Pair each task with exactly one frozen context bundle from the selected experiment arm."""
+    if not isinstance(hydration_artifact, dict) \
+            or not isinstance(hydration_artifact.get("path"), str) \
+            or not isinstance(hydration_artifact.get("sha256"), str):
+        raise ValueError("model-visible required evidence readiness gate failed")
     selected = {}
     for context in contexts:
         if context.get("arm") != arm:
@@ -93,6 +112,8 @@ def build_bundles(tasks: list[dict], contexts: list[dict], split: str, arm: str,
             "promptSha256": hashlib.sha256(prompt.encode()).hexdigest(),
             "evidence": context.get("evidence", []),
             "citationOptions": citation_options(context),
+            "modelVisibleRequiredEvidenceReady": True,
+            "hydrationArtifact": hydration_artifact,
             "imagePaths": image_paths(context),
             "imageSha256s": list(dict.fromkeys(
                 evidence["imageSha256"] for evidence in context.get("evidence", [])
@@ -112,13 +133,19 @@ def main() -> None:
     args = parser.parse_args()
     task_fixture = json.loads(args.tasks.read_text())
     tasks = task_fixture["tasks"]
-    contexts = json.loads(args.contexts.read_text())["contexts"]
+    contexts_payload = json.loads(args.contexts.read_text())
+    readiness = contexts_payload.get("modelVisibleRequiredEvidence", {})
+    if readiness.get("ready") is not True:
+        raise ValueError("model-visible required evidence readiness gate failed")
+    contexts = contexts_payload["contexts"]
+    hydration_artifact = hydration_artifact_reference(args.contexts)
     result = {
         "split": args.split,
         "arm": args.arm,
         "bundles": build_bundles(
             tasks, contexts, args.split, args.arm,
             set(task_fixture.get("developmentChartbookSourceVersions", [])),
+            hydration_artifact,
         ),
     }
     args.json_out.write_text(json.dumps(result, indent=2) + "\n")

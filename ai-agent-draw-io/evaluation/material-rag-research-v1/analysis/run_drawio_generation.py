@@ -129,13 +129,38 @@ def image_content(image_path: Path) -> dict:
     }}
 
 
-def validate_bundle(bundle: dict, artifact_root: Path) -> None:
+def hydration_artifact(bundle: dict, artifact_root: Path) -> Path:
+    """Recheck the exact exported context rather than trusting a bundle readiness flag."""
+    reference = bundle.get("hydrationArtifact")
+    if not isinstance(reference, dict) or not isinstance(reference.get("path"), str) \
+            or not isinstance(reference.get("sha256"), str):
+        raise ValueError(f"model-visible required evidence readiness gate failed for {bundle['taskId']}")
+    path = (artifact_root / reference["path"]).resolve()
+    if artifact_root not in path.parents or not path.is_file() or sha256_file(path) != reference["sha256"]:
+        raise ValueError(f"hydration artifact provenance mismatch for {bundle['taskId']}")
+    try:
+        exported = json.loads(path.read_text())
+    except (OSError, json.JSONDecodeError) as error:
+        raise ValueError(f"hydration artifact is unreadable for {bundle['taskId']}") from error
+    if exported.get("modelVisibleRequiredEvidence", {}).get("ready") is not True:
+        raise ValueError(f"model-visible required evidence readiness gate failed for {bundle['taskId']}")
+    contexts = [context for context in exported.get("contexts", [])
+                if context.get("taskId") == bundle["taskId"] and context.get("arm") == bundle.get("arm")]
+    if len(contexts) != 1 or contexts[0].get("evidence", []) != bundle.get("evidence", []):
+        raise ValueError(f"hydration artifact does not match visible evidence for {bundle['taskId']}")
+    return path
+
+
+def validate_bundle(bundle: dict, artifact_root: Path) -> Path:
     """Validate every frozen prompt/artifact before any API request leaves the workstation."""
     artifact_root = artifact_root.resolve()
     if not str(bundle.get("taskId", "")).strip() or not isinstance(bundle.get("prompt"), str):
         raise ValueError("prompt bundle requires taskId and prompt")
     if sha256_bytes(bundle["prompt"].encode()) != bundle.get("promptSha256"):
         raise ValueError(f"prompt hash mismatch for {bundle['taskId']}")
+    if bundle.get("modelVisibleRequiredEvidenceReady") is not True:
+        raise ValueError(f"model-visible required evidence readiness gate failed for {bundle['taskId']}")
+    hydration_path = hydration_artifact(bundle, artifact_root)
     visible_options = [
         {"anchorId": evidence["anchorId"], "sourceVersion": evidence["sourceVersion"], "page": evidence["page"]}
         for evidence in bundle.get("evidence", [])
@@ -154,6 +179,7 @@ def validate_bundle(bundle: dict, artifact_root: Path) -> None:
         path = (artifact_root / relative_path).resolve()
         if artifact_root not in path.parents or not path.is_file() or sha256_file(path) != expected_hash:
             raise ValueError(f"image provenance mismatch for {bundle['taskId']}")
+    return hydration_path
 
 
 def request_body(bundle: dict, artifact_root: Path, model: str, max_completion_tokens: int) -> dict:
@@ -255,10 +281,14 @@ def run(bundle_file: Path, responses_out: Path, manifest_out: Path, artifact_roo
     # Complete deterministic validation and output checks before the first external request.
     input_artifacts = {bundle_file, (ROOT / "fixtures/generated/corpus-lock.json").resolve(),
                        (ROOT / "fixtures/drawio-generation-tasks-v2.json").resolve()}
+    hydration_paths = set()
     for bundle in bundles:
-        validate_bundle(bundle, artifact_root)
+        hydration_paths.add(validate_bundle(bundle, artifact_root))
         input_artifacts.update((artifact_root / relative_path).resolve()
                                for relative_path in bundle["imagePaths"])
+    if len(hydration_paths) != 1:
+        raise ValueError("prompt bundles must bind one shared hydration artifact")
+    input_artifacts.update(hydration_paths)
     for required in (ROOT / "fixtures/generated/corpus-lock.json",
                      ROOT / "fixtures/drawio-generation-tasks-v2.json"):
         if not required.is_file():
@@ -297,6 +327,7 @@ def run(bundle_file: Path, responses_out: Path, manifest_out: Path, artifact_roo
         ("corpusLock", ROOT / "fixtures/generated/corpus-lock.json"),
         ("taskFixture", ROOT / "fixtures/drawio-generation-tasks-v2.json"),
         ("promptBundles", bundle_file),
+        ("hydration", hydration_paths.pop()),
         ("responses", responses_out),
     ]
     manifest = {

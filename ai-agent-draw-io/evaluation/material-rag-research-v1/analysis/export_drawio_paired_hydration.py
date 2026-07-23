@@ -86,6 +86,24 @@ def evidence_for_context(candidates: list[dict], task: dict, artifact_root: Path
     return evidence
 
 
+def required_evidence_readiness(tasks: list[dict], contexts: list[dict], no_retrieval_task_ids: set[str]) -> dict:
+    """Report evaluator-only availability after export without using it to select or rewrite context."""
+    by_context = {(context["taskId"], context["arm"]): context for context in contexts}
+    task_reports = []
+    for task in tasks:
+        if task["taskId"] in no_retrieval_task_ids:
+            continue
+        required = sorted(task.get("citationAssertions", {}).get("mustCiteAnchors", []))
+        missing = {}
+        for arm in ("control", "candidate"):
+            visible = {item["anchorId"] for item in by_context[(task["taskId"], arm)]["evidence"]}
+            missing[arm] = sorted(set(required) - visible)
+        task_reports.append({"taskId": task["taskId"], "requiredAnchors": required,
+                             "controlMissing": missing["control"], "candidateMissing": missing["candidate"]})
+    return {"ready": all(not report["controlMissing"] and not report["candidateMissing"]
+                          for report in task_reports), "tasks": task_reports}
+
+
 def export(trace: dict, tasks: list[dict], split: str, limit: int,
            minimum_change_rate: float, artifact_root: Path,
            chartbook_sources: set[str] | None = None,
@@ -168,6 +186,8 @@ def export(trace: dict, tasks: list[dict], split: str, limit: int,
         "effectiveExperiment": changed_rate >= minimum_change_rate,
         "hydrationCandidates": run, "contexts": contexts, "taskSummaries": summaries,
     }
+    result["modelVisibleRequiredEvidence"] = required_evidence_readiness(
+        active, contexts, no_retrieval_task_ids)
     if not result["effectiveExperiment"]:
         raise ValueError("paired hydration effectiveness gate failed")
     return result
@@ -200,6 +220,7 @@ def main() -> None:
     parser.add_argument("--artifact-root", type=Path, default=ROOT)
     parser.add_argument("--ground-truth", type=Path, default=ROOT / "fixtures/generated/ground-truth.json")
     parser.add_argument("--corpus-lock", type=Path, default=ROOT / "fixtures/generated/corpus-lock.json")
+    parser.add_argument("--require-model-visible-required-evidence", action="store_true")
     args = parser.parse_args()
     task_fixture = json.loads(args.tasks.read_text())
     chartbook_sources = set(task_fixture.get("developmentChartbookSourceVersions", [])) \
@@ -222,6 +243,8 @@ def main() -> None:
     result["corpusLock"] = {"path": args.corpus_lock.as_posix(), "sha256": sha256(args.corpus_lock)}
     result["exporterScriptSha256"] = sha256(Path(__file__))
     args.json_out.write_text(json.dumps(result, indent=2) + "\n")
+    if args.require_model_visible_required_evidence and not result["modelVisibleRequiredEvidence"]["ready"]:
+        raise SystemExit("model-visible required evidence readiness gate failed")
 
 
 if __name__ == "__main__":

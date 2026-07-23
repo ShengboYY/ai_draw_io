@@ -246,7 +246,11 @@ Recall@10 与 flat 持平,MRR@10 低 0.062,未晋级。当前顺序：
    Development，但两臂均因将 cell ID 写作 citation 而 0/6 completion。r5 的完整 citation-output contract
    repair 已完成 formal GPT-5.5 Development 重跑：模型不再返回 cell ID，却因 required canonical anchor 不在各 task
    的 model-visible top-8 evidence 中而仍为 1/6 citation、0/6 completion。下一变量只能是预注册的
-   citation-identity/hydration repair，并须先通过 model-visible required-evidence readiness gate；Validation 继续关闭。
+   citation-identity/hydration repair。r6 code review 已拒绝从 evaluator gold 推断 canonical anchor；冻结 r4 trace
+   因而在 5/5 grounded task 缺 model-visible required evidence，readiness gate 阻止 prompt/model run。通过 gate 的未来
+   bundle 必须绑定 hydration export 的路径/SHA-256，runner 在请求前复核其 readiness 与 task/arm/evidence 一致性。下一变量只能是
+   预注册的 ingestion source-identity persistence 与 retrieval/hydration evidence-availability intervention；Validation
+   继续关闭。
 2. 后续 E9 必须执行在线授权、版本、故障注入与恢复；当前 fixture-contract 通过不能替代它。
 3. Validation 暂不打开。仓库可见的 legacy holdout 不再用于“未见最终结论”；外部 final holdout
    按独立保管协议只释放一次。

@@ -7,6 +7,7 @@ SCRIPT = Path(__file__).with_name("build_drawio_generation_prompts.py")
 SPEC = importlib.util.spec_from_file_location("generation_prompts", SCRIPT)
 MODULE = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(MODULE)
+READY_HYDRATION_ARTIFACT = {"path": "results/ready-hydration.json", "sha256": "a" * 64}
 
 
 class DrawioGenerationPromptTest(unittest.TestCase):
@@ -64,10 +65,21 @@ class DrawioGenerationPromptTest(unittest.TestCase):
             {"taskId": "val", "arm": "candidate", "evidence": []},
         ]
 
-        bundles = MODULE.build_bundles(tasks, contexts, split="development", arm="candidate")
+        bundles = MODULE.build_bundles(tasks, contexts, split="development", arm="candidate",
+                                       hydration_artifact=READY_HYDRATION_ARTIFACT)
 
         self.assertEqual(["dev"], [bundle["taskId"] for bundle in bundles])
         self.assertEqual("candidate", bundles[0]["arm"])
+        self.assertTrue(bundles[0]["modelVisibleRequiredEvidenceReady"])
+        self.assertEqual(READY_HYDRATION_ARTIFACT, bundles[0]["hydrationArtifact"])
+
+    def test_rejects_bundle_freeze_when_model_visible_evidence_is_not_ready(self):
+        tasks = [{"taskId": "dev", "split": "development", "sourceVersion": "source:v1", "request": "Dev"}]
+        contexts = [{"taskId": "dev", "arm": "candidate", "evidence": []}]
+
+        with self.assertRaisesRegex(ValueError, "required evidence readiness gate"):
+            MODULE.build_bundles(tasks, contexts, split="development", arm="candidate",
+                                 hydration_artifact=None)
 
     def test_rejects_duplicate_context_for_the_same_task_and_arm(self):
         task = {"taskId": "dev", "split": "development", "sourceVersion": "source:v1", "request": "Dev"}
@@ -77,7 +89,8 @@ class DrawioGenerationPromptTest(unittest.TestCase):
         ]
 
         with self.assertRaisesRegex(ValueError, "duplicate candidate context"):
-            MODULE.build_bundles([task], contexts, split="development", arm="candidate")
+            MODULE.build_bundles([task], contexts, split="development", arm="candidate",
+                                 hydration_artifact=READY_HYDRATION_ARTIFACT)
 
     def test_rejects_a_context_that_expands_the_frozen_chartbook_scope(self):
         task = {"taskId": "dev", "split": "development", "sourceVersion": "source:v1", "request": "Dev"}
@@ -86,7 +99,8 @@ class DrawioGenerationPromptTest(unittest.TestCase):
 
         with self.assertRaisesRegex(ValueError, "context scope mismatch"):
             MODULE.build_bundles([task], contexts, split="development", arm="candidate",
-                                 chartbook_sources={"source:v1"})
+                                 chartbook_sources={"source:v1"},
+                                 hydration_artifact=READY_HYDRATION_ARTIFACT)
 
     def test_preserves_attached_visual_artifact_paths(self):
         task = {"taskId": "visual", "split": "development", "sourceVersion": "source:v1", "request": "Inspect route"}
@@ -95,7 +109,8 @@ class DrawioGenerationPromptTest(unittest.TestCase):
             "text": "Inspect the attached route image.", "imagePath": "fixtures/generated/images/route.png",
         }]}]
 
-        bundle = MODULE.build_bundles([task], contexts, split="development", arm="fixed")[0]
+        bundle = MODULE.build_bundles([task], contexts, split="development", arm="fixed",
+                                      hydration_artifact=READY_HYDRATION_ARTIFACT)[0]
 
         self.assertIn("Attached visual artifact", bundle["prompt"])
         self.assertEqual(["fixtures/generated/images/route.png"], bundle["imagePaths"])
@@ -112,7 +127,8 @@ class DrawioGenerationPromptTest(unittest.TestCase):
             "text": "Use this visible material only.",
         }]}]
 
-        bundle = MODULE.build_bundles([task], contexts, split="development", arm="candidate")[0]
+        bundle = MODULE.build_bundles([task], contexts, split="development", arm="candidate",
+                                      hydration_artifact=READY_HYDRATION_ARTIFACT)[0]
 
         self.assertEqual([{"anchorId": "visible-a", "sourceVersion": "source:v1", "page": 2}],
                          bundle["citationOptions"])

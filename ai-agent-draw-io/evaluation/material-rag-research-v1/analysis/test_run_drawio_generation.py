@@ -13,6 +13,19 @@ SPEC.loader.exec_module(MODULE)
 
 
 class DrawioGenerationRunnerTest(unittest.TestCase):
+    @staticmethod
+    def ready_hydration(root: Path, task_id: str, arm: str, evidence: list[dict],
+                        artifact_root: Path | None = None) -> dict:
+        """Create a minimal exported hydration artifact for local runner contract tests."""
+        hydration = root / "hydration.json"
+        hydration.write_text(json.dumps({
+            "modelVisibleRequiredEvidence": {"ready": True},
+            "contexts": [{"taskId": task_id, "arm": arm, "evidence": evidence}],
+        }))
+        artifact_root = artifact_root or root
+        return {"path": hydration.relative_to(artifact_root).as_posix(),
+                "sha256": hashlib.sha256(hydration.read_bytes()).hexdigest()}
+
     def test_builds_strict_multimodal_request_from_the_frozen_bundle(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -20,12 +33,15 @@ class DrawioGenerationRunnerTest(unittest.TestCase):
             image.write_bytes(b"synthetic-image")
             digest = hashlib.sha256(image.read_bytes()).hexdigest()
             prompt = "Return editable draw.io XML."
+            evidence = [{"anchorId": "route-a", "sourceVersion": "architecture:v1", "page": 3}]
             bundle = {
                 "taskId": "task-1", "prompt": prompt,
                 "promptSha256": hashlib.sha256(prompt.encode()).hexdigest(),
-                "evidence": [{"anchorId": "route-a", "sourceVersion": "architecture:v1", "page": 3}],
+                "arm": "candidate", "evidence": evidence,
                 "imagePaths": ["route.png"], "imageSha256s": [digest],
                 "citationOptions": [{"anchorId": "route-a", "sourceVersion": "architecture:v1", "page": 3}],
+                "modelVisibleRequiredEvidenceReady": True,
+                "hydrationArtifact": self.ready_hydration(root, "task-1", "candidate", evidence),
             }
 
             request = MODULE.request_body(bundle, root, "gpt-5.5", 6000)
@@ -85,10 +101,15 @@ class DrawioGenerationRunnerTest(unittest.TestCase):
             root = Path(directory)
             bundle_file = root / "bundles.json"
             prompt = "Frozen"
+            evidence = []
+            hydration = self.ready_hydration(root, "task-1", "control", evidence, MODULE.ROOT)
             bundle_file.write_text(json.dumps({"split": "development", "arm": "control", "bundles": [{
                 "taskId": "task-1", "prompt": prompt,
                 "promptSha256": hashlib.sha256(prompt.encode()).hexdigest(),
+                "arm": "control", "evidence": evidence,
                 "imagePaths": [], "imageSha256s": [], "citationOptions": [],
+                "modelVisibleRequiredEvidenceReady": True,
+                "hydrationArtifact": hydration,
             }]}))
             original = MODULE.call
             MODULE.call = lambda *_args: self.fail("provider must not be called before output preflight")
@@ -118,17 +139,60 @@ class DrawioGenerationRunnerTest(unittest.TestCase):
                 MODULE.response_payload(body, bundle)
 
     def test_requires_empty_citations_when_no_evidence_is_visible(self):
-        prompt = "Return an editable layout without evidence."
-        bundle = {
-            "taskId": "layout", "prompt": prompt,
-            "promptSha256": hashlib.sha256(prompt.encode()).hexdigest(),
-            "evidence": [], "citationOptions": [], "imagePaths": [], "imageSha256s": [],
-        }
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            prompt = "Return an editable layout without evidence."
+            bundle = {
+                "taskId": "layout", "arm": "candidate", "prompt": prompt,
+                "promptSha256": hashlib.sha256(prompt.encode()).hexdigest(),
+                "evidence": [], "citationOptions": [], "imagePaths": [], "imageSha256s": [],
+                "modelVisibleRequiredEvidenceReady": True,
+                "hydrationArtifact": self.ready_hydration(root, "layout", "candidate", []),
+            }
 
-        request = MODULE.request_body(bundle, Path.cwd(), "gpt-5.5", 6000)
+            request = MODULE.request_body(bundle, root, "gpt-5.5", 6000)
 
         citations = request["response_format"]["json_schema"]["schema"]["properties"]["citations"]
         self.assertEqual(0, citations["maxItems"])
+
+    def test_rejects_a_bundle_without_a_passed_model_visible_evidence_gate(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            prompt = "Frozen"
+            hydration = root / "hydration.json"
+            hydration.write_text(json.dumps({
+                "modelVisibleRequiredEvidence": {"ready": False},
+                "contexts": [{"taskId": "task-1", "arm": "candidate", "evidence": []}],
+            }))
+            bundle = {"taskId": "task-1", "arm": "candidate", "prompt": prompt,
+                      "promptSha256": hashlib.sha256(prompt.encode()).hexdigest(),
+                      "evidence": [], "citationOptions": [], "imagePaths": [], "imageSha256s": [],
+                      "modelVisibleRequiredEvidenceReady": True,
+                      "hydrationArtifact": {
+                          "path": hydration.name,
+                          "sha256": hashlib.sha256(hydration.read_bytes()).hexdigest(),
+                      }}
+
+            with self.assertRaisesRegex(ValueError, "required evidence readiness gate"):
+                MODULE.request_body(bundle, root, "gpt-5.5", 6000)
+
+    def test_rejects_a_ready_hydration_artifact_with_different_visible_evidence(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            prompt = "Frozen"
+            evidence = [{"anchorId": "route-a", "sourceVersion": "architecture:v1", "page": 3}]
+            bundle = {
+                "taskId": "task-1", "arm": "candidate", "prompt": prompt,
+                "promptSha256": hashlib.sha256(prompt.encode()).hexdigest(),
+                "evidence": evidence,
+                "citationOptions": evidence,
+                "imagePaths": [], "imageSha256s": [],
+                "modelVisibleRequiredEvidenceReady": True,
+                "hydrationArtifact": self.ready_hydration(root, "task-1", "candidate", []),
+            }
+
+            with self.assertRaisesRegex(ValueError, "does not match visible evidence"):
+                MODULE.request_body(bundle, root, "gpt-5.5", 6000)
 
 
 if __name__ == "__main__":
