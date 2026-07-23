@@ -637,6 +637,27 @@ query 与 v1 完全一致。R20 的 Development gate 要求 raw top-40 canonical
 readiness 19/19、7/7 artifact、scoped pools 完整且 changed-rate ≥20%。提交后从新 clean commit 重跑；
 失败则继续禁止 prompt、模型和 Validation。
 
+### R20 wiring audit 与 R21 预注册：evidence-focused hydration lane
+
+R20 从 clean commit `52c6ade9` 正式运行并清理向量，但不能解释为双语 query 效果。代码审计确认
+`writeTaskHydrationTrace` 固定读取 `result.metrics(PostprocessMode.RANKED_RAW)`；该 map 与 original-query
+lane 共用 `originalRanks`。R20 rewritten query 的 hash 已改变且请求确实执行，但其 candidates 只保存在
+`QueryMode.EVIDENCE_FOCUSED`，没有进入 hydration trace。此次 raw 16/19、candidate 15/19 仅作 wiring
+失败诊断，不作为 R20 效果结论。
+
+R21 只修复 producer lane：
+
+- task hydration trace 从 `QueryMode.EVIDENCE_FOCUSED` 序列化 candidates，不再从 original
+  `PostprocessMode.RANKED_RAW` 取值；
+- retrievalRun 新增 `candidateQueryMode` 与 `queryRewriteFingerprint`，exporter 必须验证两者为冻结值；
+- original 与 rewritten query、embedding、top-80 provider request、top-40 pool、retry、identity、
+  selector、task、artifact 和 gate 全部不变；
+- 新单元测试固定 hydration lane，防止 rewritten intervention 再次被静默丢弃。
+
+R21 Development gate 仍为 raw 19/19、candidate 19/19、artifact 7/7、scoped pools 完整与 changed-rate
+≥20%。不得挑选多次运行中的最好结果；只接受预注册 clean commit 的一次正式 trace。失败则模型和
+Validation 继续关闭。
+
 E6b 的本地导出合同已冻结为 `fixtures/drawio-generation-paired-hydration-contract-v1.json` 与
 `analysis/export_drawio_paired_hydration.py`。active Development 图册明确挂载 architecture、workflow handbook
 与 planning-workshop scan 三个版本；导出器从同一 retrieval trace 的 raw top-8 和 source-aware top-8 产生一任务

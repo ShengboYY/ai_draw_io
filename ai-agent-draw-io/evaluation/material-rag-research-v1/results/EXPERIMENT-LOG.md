@@ -774,6 +774,19 @@
 - **实现状态**:commit `b49f4443` 已实现 `drawio-bilingual-evidence-focused-v2` 与 5 个 rewrite
   合同测试；ingestion-worker 90 个测试通过、6 个 live test 按环境正常跳过。正式 Pinecone R20 尚未运行。
 
+### R20 formal run / R21 lane wiring preregistration · 2026-07-23 · ⚠️ intervention 未接入
+
+- **固定输入**:clean commit `52c6ade9`，186 chunks，scoped pools 完整；original 与 rewritten lane
+  各有一次空结果经 retry 恢复，向量已删除。
+- **表面结果**:raw canonical availability 16/19；control 3/19、candidate 15/19、changed 18/19。
+  gate 失败，未生成 prompt、未调用模型。
+- **wiring 根因**:`writeTaskHydrationTrace` 序列化 `PostprocessMode.RANKED_RAW`，而该 map 指向
+  original-query ranks；R20 双语 candidates 位于 `QueryMode.EVIDENCE_FOCUSED`，虽已请求但未输出。
+- **结论边界**:本次不能评价 R20 query expansion，也不能据此继续扩词；只保留为 intervention wiring
+  诊断。
+- **R21 唯一变量**:hydration producer 改为输出 evidence-focused lane，并在 trace 记录 query mode 与
+  rewrite fingerprint；exporter 验证冻结值。其余 retrieval/selector/gate 不变，只允许一次正式运行。
+
 ### R17 trace / R18 indexed-vector denominator · 2026-07-23 · ⏸ 修复后重跑
 
 - **固定输入**:clean commit `b419a70a`，Development only；两次空查询均经 R16 retry 恢复，19/19 完成，
