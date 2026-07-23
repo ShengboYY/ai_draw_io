@@ -489,7 +489,7 @@
   或 expected answer 的前提下，改善 source-side retrieval/ranking 或 evidence availability。详见
   [2026-07-23-e7-r7-development-hydration-run.md](2026-07-23-e7-r7-development-hydration-run.md)。
 
-### E7 r8 — page-parent evidence availability · 2026-07-23 · ✅本地预注册与实现完成，⏸真实 trace 待授权
+### E7 r8 — page-parent evidence availability · 2026-07-23 · ❌Development 多模态输入合同未通过
 
 - **单一变量**:在已有细粒度 leaf 之外增加可检索、可引用的 `PAGE_PARENT`；每个 parent 只含同一 source page 的
   canonical text Evidence、原 page ID 与全部 copied Evidence ID。超过 900 tokenizer units 时分为连续同页 parent，
@@ -502,9 +502,15 @@
   heading/table header 进入页级引用；TDD 覆盖 source-page locality、超过 900 的连续拆分、citable/searchable 状态和
   copied Evidence ID，并在实际 PDF/OCR projection 中确认 selected visual page 的 parent。另覆盖空或未挂载 selected
   material 直接拒绝。无 Pinecone、模型、Validation 或 holdout。
-- **下一步**:经授权运行新的 opt-in Development hydration trace；仅同时通过 paired contrast 与 r6
-  model-visible-required-evidence gate 后，才冻结 prompt 或请求 GPT-5.5。详见
-  [2026-07-23-e7-r8-page-parent-pre-registration.md](2026-07-23-e7-r8-page-parent-pre-registration.md)。
+- **真实运行与清理**:授权后在临时 `material-rag-e7r8-dev-20260723` namespace 运行 PDFBox → Tesseract →
+  canonical evidence → Pinecone top-40；80 个本次向量由成功完成的 live test 在 `finally` 中删除。trace 绑定
+  `b0e06ce5`、当时的 corpus-lock 和 source identity manifest；没有模型调用、Validation 或 holdout。
+- **gate**:raw source-aware selector 改变 4/5 retrieval-required task（80%），但 paired exporter 在生成 context 前
+  拒绝 `dgt-dev-02`：architecture page-3 的 visual/OCR artifact 在 R8 raw top-8 与 candidate top-8 均缺失（text rank
+  22、VISUAL rank 24；r7 对应为 rank 4、3）。因此是多模态输入合同失败，尚未执行 model-visible-required-evidence
+  gate，不能冻结 prompt 或调用 GPT-5.5。
+- **结论**:R8 不晋级。下一变量必须在不读取 evaluator anchor、expected answer 或 XML claim 的前提下恢复必要的
+  visual/OCR artifact availability。详见 [2026-07-23-e7-r8-development-hydration-run.md](2026-07-23-e7-r8-development-hydration-run.md)。
 
 ---
 
@@ -513,8 +519,8 @@
 - 已完成:E0 基线 → E1 表示层改进 → 核心集升级并冻结到 450 → Development 与 Validation
   配对重跑 → 守门最低数补齐并执行 fixture-contract。Validation 证明 E1 提升真实,也证明
   dense-only 尚未达门槛。
-- **下一步**:r8 page-parent evidence availability 已本地预注册和实现；下一步是经授权运行新的 opt-in Development
-  hydration trace。它仍须通过 contrast 与 r6 readiness gate，Validation 暂不打开。
+- **下一步**:r8 trace 未通过 `dgt-dev-02` 多模态 artifact input contract；下一变量须先恢复该 artifact availability，
+  再重新预注册并运行 opt-in Development trace。Validation 暂不打开。
 
 ## 开放问题 / 待办
 
@@ -540,9 +546,8 @@
   gate 未过；未发送模型请求。
 - [x] E7 r7 source-evidence identity persistence——source-owned manifest、exact-match/visual-page contract 与真实 trace hash
   已完成；5/5 contrast 通过但 model-visible required-evidence gate 未过，未发送模型请求。
-- [x] E7 r8 page-parent evidence availability——本地预注册、source/page provenance 与 selected-material scope
-  contract 已完成；尚未发送模型请求。
-- [ ] E7 r8 新 Development hydration trace——需要 Pinecone test/dev namespace 授权；通过所有本地 gate 前不调用模型。
+- [x] E7 r8 page-parent evidence availability——Development trace 已运行并清理 80 个临时向量；因 `dgt-dev-02`
+  required visual/OCR artifact 不在任一 top-8 而止步，未发送模型请求。
 - [ ] 外部 final holdout——contract 已定，payload 尚未由独立保管人生成和隔离。
 
 ## 如何跑一个实验(运行手册)
