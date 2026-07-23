@@ -318,6 +318,10 @@ each retrieval task must return exactly `min(40, indexed vectors across its allo
 `selected_only` source with fewer than 40 chunks while still rejecting transient empty results for a
 chartbook that has at least 40 available chunks.
 
+Task hydration serializes the frozen evidence-focused query lane and records both `candidateQueryMode` and
+`queryRewriteFingerprint`. The exporter rejects original-lane or unknown-rewrite traces, preventing a query
+intervention from being executed but silently omitted from the model-visible candidate pool.
+
 The live research runner treats an empty Pinecone response as transient when the scoped projection contains
 chunks. It retries with bounded exponential backoff and fails the run after exhaustion; exception retries,
 query/filter/ranking semantics and the final scoped-pool gate remain unchanged.

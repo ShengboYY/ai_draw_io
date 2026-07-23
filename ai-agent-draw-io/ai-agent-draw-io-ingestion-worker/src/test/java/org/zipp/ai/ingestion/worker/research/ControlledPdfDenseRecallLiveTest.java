@@ -480,6 +480,13 @@ class ControlledPdfDenseRecallLiveTest {
     }
 
     @Test
+    void shouldExportTheEvidenceFocusedLaneForDrawioHydration() {
+        assertEquals(QueryMode.EVIDENCE_FOCUSED, taskHydrationQueryMode());
+        assertEquals("drawio-bilingual-evidence-focused-v2:han-aware-prefix:frozen-domain-terms",
+                ResearchQueryRewriter.FINGERPRINT);
+    }
+
+    @Test
     void shouldRetryTransientEmptyResearchQueries() throws Exception {
         int[] calls = {0};
 
@@ -830,7 +837,7 @@ class ControlledPdfDenseRecallLiveTest {
             throw new IllegalArgumentException("MATERIAL_RAG_COMMIT_SHA must be a Git commit hash");
         }
         List<Map<String, Object>> tasks = new ArrayList<>();
-        for (CaseResult caseResult : result.metrics(PostprocessMode.RANKED_RAW).caseResults()) {
+        for (CaseResult caseResult : result.metrics(taskHydrationQueryMode()).caseResults()) {
             List<Map<String, Object>> candidates = new ArrayList<>();
             for (CandidateResult candidate : caseResult.denseCandidates()) {
                 Map<String, Object> value = new LinkedHashMap<>();
@@ -853,6 +860,9 @@ class ControlledPdfDenseRecallLiveTest {
         retrievalRun.put("gitCommit", commit);
         retrievalRun.put("corpusLockSha256", sha256(lock));
         retrievalRun.put("embeddingInputManifest", result.embeddingInputManifest());
+        // Make the candidate lane explicit so rewritten-query interventions cannot be silently discarded.
+        retrievalRun.put("candidateQueryMode", taskHydrationQueryMode().id());
+        retrievalRun.put("queryRewriteFingerprint", ResearchQueryRewriter.FINGERPRINT);
         // Bind scoped top-k completeness to the vectors that were actually indexed in Pinecone.
         retrievalRun.put("sourceIndexedVectorCounts", sourceIndexedVectorCounts(projections));
         trace.put("retrievalRun", retrievalRun);
@@ -863,6 +873,10 @@ class ControlledPdfDenseRecallLiveTest {
         trace.put("tasks", tasks);
         Files.createDirectories(output.toAbsolutePath().normalize().getParent());
         JSON.writerWithDefaultPrettyPrinter().writeValue(output.toFile(), trace);
+    }
+
+    private QueryMode taskHydrationQueryMode() {
+        return QueryMode.EVIDENCE_FOCUSED;
     }
 
 

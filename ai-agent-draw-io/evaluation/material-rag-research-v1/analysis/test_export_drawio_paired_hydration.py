@@ -409,8 +409,17 @@ class PairedHydrationExportTest(unittest.TestCase):
                 "provenanceFiles": {"fixtures/tasks.json": MODULE.sha256(task_fixture)},
                 "files": {"ground-truth.json": MODULE.sha256(ground_truth)},
             }), encoding="utf-8")
-            trace = {"retrievalRun": {"gitCommit": "abc1234", "corpusLockSha256": MODULE.sha256(lock)}}
+            trace = {"retrievalRun": {
+                "gitCommit": "abc1234", "corpusLockSha256": MODULE.sha256(lock),
+                "candidateQueryMode": "evidence-focused-v1",
+                "queryRewriteFingerprint":
+                    "drawio-bilingual-evidence-focused-v2:han-aware-prefix:frozen-domain-terms",
+            }}
             MODULE.verify_provenance(trace, lock, task_fixture, ground_truth, identities)
+            trace["retrievalRun"]["candidateQueryMode"] = "original-v1"
+            with self.assertRaisesRegex(ValueError, "candidate query lane"):
+                MODULE.verify_provenance(trace, lock, task_fixture, ground_truth, identities)
+            trace["retrievalRun"]["candidateQueryMode"] = "evidence-focused-v1"
             trace["retrievalRun"]["corpusLockSha256"] = "0" * 64
             with self.assertRaisesRegex(ValueError, "does not match"):
                 MODULE.verify_provenance(trace, lock, task_fixture, ground_truth, identities)
