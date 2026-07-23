@@ -7,17 +7,17 @@ import java.util.Map;
 
 /** Serialises provider rank lineage without consulting task assertions or evaluator data. */
 final class ResearchQueryRankLineage {
-    static final String FINGERPRINT = "original-rewrite-top80-fused-ranks-v1";
+    static final String FINGERPRINT = "original-rewrite-top80-stabilized-ranks-v1";
 
     private ResearchQueryRankLineage() { }
 
     static Map<String, Object> trace(List<String> original, List<String> rewritten,
-                                     List<String> fused) {
+                                     List<String> stabilized) {
         Map<String, Integer> originalRanks = ranks(original);
         Map<String, Integer> rewrittenRanks = ranks(rewritten);
-        List<Map<String, Object>> fusedRanks = new ArrayList<>();
-        for (int index = 0; index < fused.size(); index++) {
-            String chunkId = fused.get(index);
+        List<Map<String, Object>> stabilizedRanks = new ArrayList<>();
+        for (int index = 0; index < stabilized.size(); index++) {
+            String chunkId = stabilized.get(index);
             Map<String, Object> item = new LinkedHashMap<>();
             item.put("rank", index + 1);
             item.put("chunkId", chunkId);
@@ -27,12 +27,12 @@ final class ResearchQueryRankLineage {
             if (rewrittenRanks.containsKey(chunkId)) {
                 item.put("rewrittenRank", rewrittenRanks.get(chunkId));
             }
-            fusedRanks.add(Map.copyOf(item));
+            stabilizedRanks.add(Map.copyOf(item));
         }
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("originalTop80ChunkIds", List.copyOf(original));
         result.put("rewrittenTop80ChunkIds", List.copyOf(rewritten));
-        result.put("fusedTop40", List.copyOf(fusedRanks));
+        result.put("stabilizedTop40", List.copyOf(stabilizedRanks));
         return Map.copyOf(result);
     }
 

@@ -27,6 +27,7 @@ import org.zipp.ai.domain.retrieval.model.valobj.ChunkEvidenceRole;
 import org.zipp.ai.domain.retrieval.model.valobj.RetrievalChunkType;
 import org.zipp.ai.domain.retrieval.model.valobj.RetrievalIndexMode;
 import org.zipp.ai.domain.retrieval.port.RetryableRetrievalException;
+import org.zipp.ai.domain.retrieval.projection.LexicalProjection;
 import org.zipp.ai.domain.retrieval.projection.RetrievalChunkBuilder;
 import org.zipp.ai.domain.retrieval.projection.RetrievalChunkProjection;
 import org.zipp.ai.domain.retrieval.projection.RetrievalEvidenceMapping;
@@ -491,7 +492,7 @@ class ControlledPdfDenseRecallLiveTest {
                         + "projection-tfidf-exact-v1:word-min2:cjk-bigram:"
                         + "exact2:rrf-k60-lex1.2-dense1.0",
                 ResearchDenseUnionLexicalStabilizer.FINGERPRINT);
-        assertEquals("original-rewrite-top80-fused-ranks-v1",
+        assertEquals("original-rewrite-top80-stabilized-ranks-v1",
                 ResearchQueryRankLineage.FINGERPRINT);
     }
 
@@ -871,7 +872,7 @@ class ControlledPdfDenseRecallLiveTest {
             Map<String, Object> task = new LinkedHashMap<>();
             task.put("taskId", caseResult.caseId());
             task.put("candidates", candidates);
-            // Preserve provider rank lineage without changing the fused candidates exported above.
+            // Preserve provider rank lineage without changing the stabilized candidates exported above.
             task.put("queryRankLineage", ResearchQueryRankLineage.trace(
                     original.retrievalPoolCandidates().stream().map(CandidateResult::chunkId).toList(),
                     rewritten.retrievalPoolCandidates().stream().map(CandidateResult::chunkId).toList(),
@@ -1375,16 +1376,18 @@ class ControlledPdfDenseRecallLiveTest {
             List<String> rewrittenMatches = rewrittenPool.stream().limit(40).toList();
             List<String> denseChunkIds = denseMatches.stream()
                     .map(indexedByVectorId::get).map(value -> value.chunk().chunkId()).toList();
-            List<String> lexicalChunkIds = ResearchHybridRanker.lexicalRank(researchCase.query(),
-                    mountedSourceVersions.stream().sorted()
-                            .flatMap(source -> projections.bySourceVersion().get(source)
-                                    .lexicalProjections().stream()).toList());
+            List<LexicalProjection> lexicalProjections = mountedSourceVersions.stream().sorted()
+                    .flatMap(source -> projections.bySourceVersion().get(source)
+                            .lexicalProjections().stream()).toList();
+            List<String> lexicalChunkIds = ResearchHybridRanker.lexicalRank(
+                    researchCase.query(), lexicalProjections);
             Map<String, String> chunkIdByVectorId = indexedByVectorId.entrySet().stream()
                     .collect(java.util.stream.Collectors.toMap(
                             Map.Entry::getKey, entry -> entry.getValue().chunk().chunkId()));
             // Lexical stabilization can reorder only the complete provider-returned dense union.
-            List<String> fusedMatches = ResearchDenseUnionLexicalStabilizer.stabilize(
-                    densePool, rewrittenPool, chunkIdByVectorId, lexicalChunkIds, 40);
+            List<String> stabilizedMatches = ResearchDenseUnionLexicalStabilizer.stabilize(
+                    densePool, rewrittenPool, chunkIdByVectorId,
+                    researchCase.query(), lexicalProjections, 40);
             List<String> hybridChunkIds = ResearchHybridRanker.fuse(
                     lexicalChunkIds, denseChunkIds, 40);
             Map<String, IndexedChunk> indexedByChunkId = indexed.stream()
@@ -1413,11 +1416,11 @@ class ControlledPdfDenseRecallLiveTest {
             ranksByQueryMode.get(QueryMode.EVIDENCE_FOCUSED).add(caseRank(
                     researchCase, rewrittenMatches, requiredGoldVectorIds, fixedGoldChunkIdsByAnchor,
                     indexedByVectorId, rewrittenCandidates, List.of(), rewrittenPoolCandidates));
-            List<CandidateResult> fusedCandidates = candidateResults(
-                    fusedMatches, indexedByVectorId);
+            List<CandidateResult> stabilizedCandidates = candidateResults(
+                    stabilizedMatches, indexedByVectorId);
             ranksByQueryMode.get(QueryMode.STABILIZED).add(caseRank(
-                    researchCase, fusedMatches, requiredGoldVectorIds, fixedGoldChunkIdsByAnchor,
-                    indexedByVectorId, fusedCandidates, List.of(), fusedCandidates));
+                    researchCase, stabilizedMatches, requiredGoldVectorIds, fixedGoldChunkIdsByAnchor,
+                    indexedByVectorId, stabilizedCandidates, List.of(), stabilizedCandidates));
             List<String> deduplicatedMatches = ResearchEvidenceDeduplicator.deduplicate(
                     densePool.stream().map(indexedByVectorId::get).map(value ->
                             new ResearchEvidenceDeduplicator.Candidate(

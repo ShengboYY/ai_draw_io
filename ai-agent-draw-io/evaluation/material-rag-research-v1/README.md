@@ -323,10 +323,9 @@ lanes. It records `candidateQueryMode`, `queryRewriteFingerprint`, and `queryFus
 rejects an unfused lane or unknown rewrite/fusion fingerprint, preventing an intervention from being
 executed but silently omitted from the model-visible candidate pool.
 
-R23a diagnostic traces additionally record `queryRankLineageFingerprint` and, per task, the ordered original
-and rewritten top-80 chunk IDs plus each fused top-40 item's ranks in those lanes. The exporter verifies that
-this lineage exactly reproduces the unchanged candidate order. These fields are diagnostic only: they do not
-change fusion, selection, context, or any readiness gate.
+R23a diagnostic traces record the ordered original and rewritten top-80 chunk IDs plus each final candidate's
+ranks in those lanes. R23 advances that schema to `original-rewrite-top80-stabilized-ranks-v1` and
+`stabilizedTop40`; the exporter verifies that lineage exactly reproduces the stabilized candidate order.
 
 R23 keeps the complete original/rewrite dense union and applies the frozen lexical weighted-RRF only within
 that union before selecting top-40. `queryStabilizationFingerprint` binds this final intervention; lexical

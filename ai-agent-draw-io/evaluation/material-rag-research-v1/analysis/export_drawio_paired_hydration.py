@@ -28,7 +28,7 @@ QUERY_STABILIZATION_FINGERPRINT = (
     "projection-tfidf-exact-v1:word-min2:cjk-bigram:"
     "exact2:rrf-k60-lex1.2-dense1.0"
 )
-QUERY_RANK_LINEAGE_FINGERPRINT = "original-rewrite-top80-fused-ranks-v1"
+QUERY_RANK_LINEAGE_FINGERPRINT = "original-rewrite-top80-stabilized-ranks-v1"
 IDENTITY_STOPWORDS = {
     "create", "diagram", "draw", "editable", "existing", "from", "into", "make",
     "material", "only", "policy", "showing", "that", "using", "with", "workflow",
@@ -416,7 +416,7 @@ def verify_provenance(trace: dict, corpus_lock: Path, tasks: Path, ground_truth:
 
 
 def verify_rank_lineage(trace: dict) -> None:
-    """Require diagnostic ranks to reproduce the unchanged fused candidate order."""
+    """Require diagnostic ranks to reproduce the stabilized candidate order."""
     run = trace.get("retrievalRun", {})
     if run.get("queryRankLineageFingerprint") != QUERY_RANK_LINEAGE_FINGERPRINT:
         raise ValueError("retrieval trace rank lineage fingerprint is not frozen")
@@ -426,20 +426,23 @@ def verify_rank_lineage(trace: dict) -> None:
             raise ValueError(f"missing query rank lineage for {task.get('taskId', 'unknown')}")
         original = lineage.get("originalTop80ChunkIds")
         rewritten = lineage.get("rewrittenTop80ChunkIds")
-        fused = lineage.get("fusedTop40")
-        if not isinstance(original, list) or not isinstance(rewritten, list) or not isinstance(fused, list):
+        stabilized = lineage.get("stabilizedTop40")
+        if (not isinstance(original, list) or not isinstance(rewritten, list)
+                or not isinstance(stabilized, list)):
             raise ValueError(f"invalid query rank lineage for {task.get('taskId', 'unknown')}")
-        if len(original) > 80 or len(rewritten) > 80 or len(fused) > 40:
+        if len(original) > 80 or len(rewritten) > 80 or len(stabilized) > 40:
             raise ValueError(f"query rank lineage exceeds frozen limits for {task.get('taskId', 'unknown')}")
         if len(set(original)) != len(original) or len(set(rewritten)) != len(rewritten):
             raise ValueError(f"query rank lineage contains duplicate lane chunks for {task.get('taskId', 'unknown')}")
-        fused_ids = [item.get("chunkId") for item in fused if isinstance(item, dict)]
+        stabilized_ids = [item.get("chunkId") for item in stabilized if isinstance(item, dict)]
         candidate_ids = [item.get("chunkId") for item in task.get("candidates", [])]
-        if len(fused_ids) != len(fused) or fused_ids != candidate_ids:
-            raise ValueError(f"query rank lineage fused candidate order mismatch for {task.get('taskId', 'unknown')}")
+        if len(stabilized_ids) != len(stabilized) or stabilized_ids != candidate_ids:
+            raise ValueError(
+                f"query rank lineage stabilized candidate order mismatch for {task.get('taskId', 'unknown')}"
+            )
         original_ranks = {chunk_id: rank for rank, chunk_id in enumerate(original, start=1)}
         rewritten_ranks = {chunk_id: rank for rank, chunk_id in enumerate(rewritten, start=1)}
-        for rank, item in enumerate(fused, start=1):
+        for rank, item in enumerate(stabilized, start=1):
             chunk_id = item["chunkId"]
             if (item.get("rank") != rank
                     or item.get("originalRank") != original_ranks.get(chunk_id)

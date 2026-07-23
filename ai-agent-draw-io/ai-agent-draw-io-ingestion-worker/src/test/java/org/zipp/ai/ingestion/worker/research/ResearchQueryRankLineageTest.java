@@ -10,7 +10,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 class ResearchQueryRankLineageTest {
 
     @Test
-    void shouldExposeOrderedLanePoolsAndBothRanksForEveryFusedCandidate() {
+    void shouldExposeOrderedLanePoolsAndBothRanksForEveryStabilizedCandidate() {
         Map<String, Object> trace = ResearchQueryRankLineage.trace(
                 List.of("shared", "original-only", "late"),
                 List.of("rewritten-only", "shared", "late"),
@@ -22,6 +22,6 @@ class ResearchQueryRankLineageTest {
                 Map.of("rank", 1, "chunkId", "shared", "originalRank", 1, "rewrittenRank", 2),
                 Map.of("rank", 2, "chunkId", "rewritten-only", "rewrittenRank", 1),
                 Map.of("rank", 3, "chunkId", "original-only", "originalRank", 2)
-        ), trace.get("fusedTop40"));
+        ), trace.get("stabilizedTop40"));
     }
 }

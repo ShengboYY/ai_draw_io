@@ -31,7 +31,7 @@ class PairedHydrationExportTest(unittest.TestCase):
     def test_accepts_rank_lineage_that_reproduces_exported_candidates(self):
         trace = {
             "retrievalRun": {
-                "queryRankLineageFingerprint": "original-rewrite-top80-fused-ranks-v1",
+                "queryRankLineageFingerprint": "original-rewrite-top80-stabilized-ranks-v1",
             },
             "tasks": [{
                 "taskId": "task-1",
@@ -39,7 +39,7 @@ class PairedHydrationExportTest(unittest.TestCase):
                 "queryRankLineage": {
                     "originalTop80ChunkIds": ["shared"],
                     "rewrittenTop80ChunkIds": ["rewritten-only", "shared"],
-                    "fusedTop40": [
+                    "stabilizedTop40": [
                         {"rank": 1, "chunkId": "shared", "originalRank": 1, "rewrittenRank": 2},
                         {"rank": 2, "chunkId": "rewritten-only", "rewrittenRank": 1},
                     ],
@@ -52,7 +52,7 @@ class PairedHydrationExportTest(unittest.TestCase):
     def test_rejects_rank_lineage_that_does_not_match_exported_candidates(self):
         trace = {
             "retrievalRun": {
-                "queryRankLineageFingerprint": "original-rewrite-top80-fused-ranks-v1",
+                "queryRankLineageFingerprint": "original-rewrite-top80-stabilized-ranks-v1",
             },
             "tasks": [{
                 "taskId": "task-1",
@@ -60,7 +60,7 @@ class PairedHydrationExportTest(unittest.TestCase):
                 "queryRankLineage": {
                     "originalTop80ChunkIds": ["fused-a"],
                     "rewrittenTop80ChunkIds": ["fused-b"],
-                    "fusedTop40": [
+                    "stabilizedTop40": [
                         {"rank": 1, "chunkId": "fused-b", "rewrittenRank": 1},
                         {"rank": 2, "chunkId": "fused-a", "originalRank": 1},
                     ],
@@ -68,7 +68,7 @@ class PairedHydrationExportTest(unittest.TestCase):
             }],
         }
 
-        with self.assertRaisesRegex(ValueError, "fused candidate order"):
+        with self.assertRaisesRegex(ValueError, "stabilized candidate order"):
             MODULE.verify_rank_lineage(trace)
 
     def test_publisher_identity_selector_reserves_request_relevant_identity(self):
