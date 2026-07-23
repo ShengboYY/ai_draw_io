@@ -551,6 +551,29 @@ R18 只修正 provenance 口径：
 R17 trace 只作诊断。新 commit 的 Development trace 必须使用 indexed-vector 字段并通过全部输入 gate 后，
 才允许构建 prompt；Validation 继续关闭。
 
+## 2026-07-23 R18 结果与 R19 下一变量：relevance-preserving selection
+
+R18 clean-commit Development trace 首次通过完整 scoped-pool 口径：18 个 chartbook-auto task 为 40/40，
+`dgt-dev-20` 为 28/28；一次 rewritten empty query 经 R16 retry 恢复，运行后向量已删除。exporter 同时通过
+provenance、source scope、artifact path/SHA、task coverage 和 paired-effectiveness（18/19 changed，
+94.74%）。但最终 candidate-required evidence gate 失败：
+
+- candidate 完整：2/19（`dgt-dev-03`、`dgt-dev-11`）；
+- raw top-8 control 完整：4/19（`dgt-dev-02`、`dgt-dev-05`、`dgt-dev-10`、`dgt-dev-11`）；
+- 14/19 task 的全部 canonical required evidence 存在于 raw top-40，但现 selector 多数未保留进 top-8；
+- 5/19（`dgt-dev-07/08/12/14/15`）在 raw top-40 的 publisher canonical identity 本身不完整。
+
+因此 `source-aware-with-artifact-coverage-top8-v1` 明确不晋级，禁止生成 prompt 或调用模型。R19 必须拆分两个
+不混淆的 Development-only 变量：
+
+1. publisher identity availability：修复 source-owned exact/visual identity 与真实 hydrated evidence 的绑定，
+   不读取 task required anchors；目标是 raw top-40 canonical availability 19/19。
+2. relevance-preserving context selection：从 raw ranking 出发保留 query relevance，再施加 bounded artifact
+   coverage；不能使用 task target source、required anchors、XML assertions 或 expected answer。candidate
+   complete-task count 必须至少高于 control 的 4/19，且 7 个 multimodal task 全部保留可验证 artifact。
+
+两个变量必须分别预注册、测试和比较；在 candidate readiness 19/19 前不得调用模型，Validation 保持关闭。
+
 E6b 的本地导出合同已冻结为 `fixtures/drawio-generation-paired-hydration-contract-v1.json` 与
 `analysis/export_drawio_paired_hydration.py`。active Development 图册明确挂载 architecture、workflow handbook
 与 planning-workshop scan 三个版本；导出器从同一 retrieval trace 的 raw top-8 和 source-aware top-8 产生一任务

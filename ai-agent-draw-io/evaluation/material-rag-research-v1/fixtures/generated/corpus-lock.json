@@ -14,8 +14,8 @@
   "reviewLedgerSha256": "1a2f19caeee3961531beee0a82aea2a70d9af2d072c026efd23e61479a71317b",
   "fixtureFontSha256": "876af2cd4854644e7f3e7feb2f688997fdb3343c6df6693611209c9dfb47ccec",
   "provenanceFiles": {
-    "EXPERIMENT-PLAN-V2.md": "8f1edd521b5a6adbac08049319bafa3f4c3bfd0df2a35b76735cd6a58bed32b9",
-    "experiment-plan-v2.json": "834061c2c5263859194404a2043945e763c4c4341724cf934c38f342e8592ae6",
+    "EXPERIMENT-PLAN-V2.md": "533b48e1c7a25f3b455073b06b4a44c331090391f91e051766afffbab702a493",
+    "experiment-plan-v2.json": "a82dcaf51dabfbe25173a8efad1e9404cb40e1d13cfe49418623e29886d22c5e",
     "requirements.txt": "0043aca3a7381487084576995105e1099e3786ae8add5a6c0951d305b0e0e757",
     "analysis/audit_corpus.py": "765eaefe1ef61d5fbb291fb322d3fd92aa5e51e6d8182bc35759f96a1b677085",
     "analysis/compare_dense_runs.py": "762b83b97c14011b7b8081c859407973c7626252abc67e5f8773673bdda8ea59",

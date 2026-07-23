@@ -702,6 +702,22 @@
 - **外部使用**:1 次 Pinecone Development trace，临时向量已清理；0 次模型请求、0 model token、
   0 Validation/holdout case。
 
+### R18 indexed-vector trace + paired gate · 2026-07-23 · ❌ candidate 未晋级
+
+- **固定输入**:clean commit `ce917431`，Development only；`sourceIndexedVectorCounts` 与实际 Pinecone
+  upsert 口径一致。
+- **真实运行**:18 个 chartbook-auto task 40/40，`dgt-dev-20` 28/28；一次 rewritten empty query
+  重试恢复；19/19 查询完成并删除全部临时向量。
+- **已通过 gate**:20/20 task coverage、commit/corpus-lock/embedding provenance、source scope、
+  artifact path/SHA、scoped pool completeness、paired contrast。18/19 检索任务改变，94.74%。
+- **最终失败**:`modelVisibleRequiredEvidence.ready=false`。candidate 仅 `dgt-dev-03`、`dgt-dev-11`
+  完整（2/19）；control 有 `dgt-dev-02/05/10/11` 完整（4/19），candidate 反而更差。
+- **故障分层**:14/19 的全部 required canonical evidence 已在 raw top-40，主要是 selector 丢失；
+  `dgt-dev-07/08/12/14/15` 的 publisher canonical identity 在 raw top-40 仍不完整。
+- **决策**:`source-aware-with-artifact-coverage-top8-v1` 不晋级；未构建 prompt、未调用模型。
+  R19 先分开修复 publisher identity availability 与 relevance-preserving selector，再用同一 Development
+  gate 比较。Validation/holdout 继续关闭。
+
 ### R17 trace / R18 indexed-vector denominator · 2026-07-23 · ⏸ 修复后重跑
 
 - **固定输入**:clean commit `b419a70a`，Development only；两次空查询均经 R16 retry 恢复，19/19 完成，
