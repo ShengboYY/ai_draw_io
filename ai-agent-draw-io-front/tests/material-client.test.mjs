@@ -71,3 +71,49 @@ test('material client polls processing uploads through partial-ready', async () 
   assert.equal(terminal.state, 'PARTIAL_READY');
   assert.deepEqual(observed, ['PROCESSING', 'PARTIAL_READY']);
 });
+
+test('material client requests details and page metadata without fetching source bytes', async () => {
+  const calls = [];
+  const responses = [
+    { code: '0000', data: { material: { materialId: 'mat-1', displayName: 'guide.pdf' }, versions: [{ versionId: 'ver-1', versionNo: 1 }], scopes: [] } },
+    { code: '0000', data: { materialId: 'mat-1', versionId: 'ver-1', revisionId: 'rev-1', revisionNo: 1, processingStatus: 'READY', progress: 100, excludedPages: [], pages: [{ pageNo: 1, previewAvailable: true }] } },
+  ];
+  const client = createMaterialClient({
+    baseUrl: 'https://app.example/api/v1',
+    fetch: async (url, options = {}) => {
+      calls.push({ url, options });
+      return new Response(JSON.stringify(responses.shift()), { status: 200 });
+    },
+  });
+
+  const details = await client.details('mat-1');
+  const pages = await client.pageSet('mat-1', 'ver-1');
+
+  assert.equal(details.versions[0].versionId, 'ver-1');
+  assert.equal(pages.pages[0].pageNo, 1);
+  assert.deepEqual(calls.map(call => call.url), [
+    'https://app.example/api/v1/materials/mat-1',
+    'https://app.example/api/v1/materials/mat-1/versions/ver-1/pages',
+  ]);
+  assert.equal(calls.every(call => call.options.method === undefined), true);
+});
+
+test('material client protects scope and recycle-bin mutations with CSRF and idempotency', async () => {
+  const calls = [];
+  const client = createMaterialClient({
+    baseUrl: 'https://app.example/api/v1',
+    csrfHeaders: async () => ({ 'X-XSRF-TOKEN': 'csrf' }),
+    fetch: async (url, options = {}) => {
+      calls.push({ url, options });
+      return new Response(JSON.stringify({ code: '0000', data: { materialId: 'mat-1', lifecycleState: 'TRASHED' } }));
+    },
+  });
+
+  await client.addScope('mat-1', 'CHARTBOOK', 'cb-1');
+  await client.remove('mat-1', 'idem-remove');
+  await client.restore('mat-1', 'idem-restore');
+
+  assert.equal(calls[0].options.headers['X-XSRF-TOKEN'], 'csrf');
+  assert.equal(calls[1].options.headers['Idempotency-Key'], 'idem-remove');
+  assert.equal(calls[2].options.headers['Idempotency-Key'], 'idem-restore');
+});

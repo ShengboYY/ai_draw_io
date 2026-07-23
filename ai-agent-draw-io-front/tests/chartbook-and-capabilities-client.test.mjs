@@ -41,6 +41,16 @@ test('chartbook client leaves CSRF off read-only requests', async () => {
   assert.equal(csrfCalls, 0);
 });
 
+test('chartbook client accepts empty successful archive responses', async () => {
+  const client = createChartbookClient({
+    baseUrl: 'https://app.example/api/v1',
+    csrfHeaders: async () => ({ 'X-XSRF-TOKEN': 'csrf' }),
+    fetch: async () => new Response(JSON.stringify({ code: '0000' })),
+  });
+
+  await assert.doesNotReject(() => client.archive('cb-1'));
+});
+
 test('capability client reads stable disabled states without CSRF', async () => {
   const client = createMaterialCapabilitiesClient({
     baseUrl: 'https://app.example/api/v1',

@@ -306,6 +306,12 @@ export default function Home() {
             <Image src="/brand/freedraw-wordmark-on-light-v2.png" alt="" width={122} height={21} priority />
           </Link>
 
+          {/* Material routes explain unavailable capabilities instead of silently hiding the product entry. */}
+          <nav className="order-4 flex w-full gap-3 text-sm font-medium text-zinc-600 sm:order-none sm:w-auto" aria-label="Workspace resources">
+            <Link href="/library" className="hover:text-zinc-900 hover:underline">资料库</Link>
+            <Link href="/chartbooks" className="hover:text-zinc-900 hover:underline">图表册</Link>
+          </nav>
+
           {/* Client-side search over the fully-loaded workspace list — instant, no round trips. */}
           <div className="order-3 relative mx-0 flex w-full max-w-none basis-full items-center sm:order-none sm:mx-auto sm:max-w-xl sm:basis-auto">
             <svg

@@ -1,7 +1,12 @@
 import type {
   BrowserPostPolicy,
+  MaterialCatalogDetails,
+  MaterialDeletionImpact,
   InitiateMaterialUploadRequest,
   MaterialCatalogPage,
+  MaterialLifecycleResult,
+  MaterialPageSet,
+  MaterialReprocessResult,
   MaterialUploadStatus,
 } from '../features/materials/material-types';
 import { createCsrfHeadersProvider, type CsrfHeadersProvider } from './csrf.ts';
@@ -94,5 +99,64 @@ export const createMaterialClient = (options: MaterialClientOptions) => {
       const suffix = parameters.size ? `?${parameters}` : '';
       return request<MaterialCatalogPage>(`/materials${suffix}`);
     },
+
+    details: (materialId: string) => request<MaterialCatalogDetails>(
+      `/materials/${encodeURIComponent(materialId)}`),
+
+    pageSet: (materialId: string, versionId: string, revisionId?: string) => {
+      const parameters = revisionId ? `?revisionId=${encodeURIComponent(revisionId)}` : '';
+      return request<MaterialPageSet>(
+        `/materials/${encodeURIComponent(materialId)}/versions/${encodeURIComponent(versionId)}/pages${parameters}`);
+    },
+
+    addScope: (materialId: string, scopeType: string, scopeId: string) => request<MaterialCatalogDetails>(
+      `/materials/${encodeURIComponent(materialId)}/scope-links`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ scopeType, scopeId }),
+      }, true),
+
+    removeScope: (materialId: string, linkId: string) => request<MaterialCatalogDetails>(
+      `/materials/${encodeURIComponent(materialId)}/scope-links/${encodeURIComponent(linkId)}`,
+      { method: 'DELETE' }, true),
+
+    reprocess: (materialId: string, idempotencyKey: string) => request<MaterialReprocessResult>(
+      `/materials/${encodeURIComponent(materialId)}/reprocess`,
+      { method: 'POST', headers: { 'Idempotency-Key': idempotencyKey } }, true),
+
+    replaceExcludedPages: (materialId: string, pageNumbers: number[], idempotencyKey: string) =>
+      request<MaterialReprocessResult>(`/materials/${encodeURIComponent(materialId)}/excluded-pages`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'Idempotency-Key': idempotencyKey },
+        body: JSON.stringify({ pageNumbers }),
+      }, true),
+
+    promote: (materialId: string, scopeType: string, scopeId: string, idempotencyKey: string) =>
+      request<MaterialLifecycleResult>(`/materials/${encodeURIComponent(materialId)}/promote`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Idempotency-Key': idempotencyKey },
+        body: JSON.stringify({ scopeType, scopeId }),
+      }, true),
+
+    remove: (materialId: string, idempotencyKey: string) => request<MaterialLifecycleResult>(
+      `/materials/${encodeURIComponent(materialId)}`,
+      { method: 'DELETE', headers: { 'Idempotency-Key': idempotencyKey } }, true),
+
+    restore: (materialId: string, idempotencyKey: string) => request<MaterialLifecycleResult>(
+      `/materials/${encodeURIComponent(materialId)}/restore`,
+      { method: 'POST', headers: { 'Idempotency-Key': idempotencyKey } }, true),
+
+    deletionImpact: (materialId: string) => request<MaterialDeletionImpact>(
+      `/materials/${encodeURIComponent(materialId)}/deletion-impact`),
+
+    permanentlyDelete: (materialId: string, impact: MaterialDeletionImpact, idempotencyKey: string) =>
+      request<MaterialLifecycleResult>(`/materials/${encodeURIComponent(materialId)}/permanent`, {
+        method: 'DELETE',
+        headers: {
+          'Idempotency-Key': idempotencyKey,
+          'X-Material-Generation': String(impact.lifecycleGeneration),
+          'X-Deletion-Confirmation': impact.deletionConfirmationToken,
+        },
+      }, true),
   };
 };

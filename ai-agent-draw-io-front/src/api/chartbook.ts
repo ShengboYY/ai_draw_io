@@ -27,7 +27,8 @@ const request = async <T>(
   path: string,
   init: RequestInit = {},
   write = false,
-) => {
+  allowEmptyData = false,
+): Promise<T> => {
   const response = await fetchImplementation(`${baseUrl}${path}`, {
     ...init,
     headers: { ...(init.headers || {}), ...(write ? await csrfHeaders() : {}) },
@@ -35,10 +36,10 @@ const request = async <T>(
   });
   if (!response.ok) throw new ChartbookApiError('HTTP_ERROR', `Chartbook request failed with ${response.status}`);
   const envelope = await response.json() as ApiEnvelope<T>;
-  if (envelope.code !== '0000' || envelope.data === undefined) {
+  if (envelope.code !== '0000' || (envelope.data === undefined && !allowEmptyData)) {
     throw new ChartbookApiError(envelope.code || 'UNKNOWN', envelope.info || 'Chartbook request failed');
   }
-  return envelope.data;
+  return envelope.data as T;
 };
 
 export const createChartbookClient = (options: ChartbookClientOptions) => {
@@ -66,7 +67,7 @@ export const createChartbookClient = (options: ChartbookClientOptions) => {
         `/chartbooks/${encodeURIComponent(chartbookId)}`, { method: 'PATCH', headers, body: payload }, true);
     },
     archive: (chartbookId: string) => request<void>(baseUrl, fetchImplementation, csrfHeaders,
-      `/chartbooks/${encodeURIComponent(chartbookId)}`, { method: 'DELETE' }, true),
+      `/chartbooks/${encodeURIComponent(chartbookId)}`, { method: 'DELETE' }, true, true),
     addMaterial: (chartbookId: string, materialId: string) => {
       const [headers, payload] = body({ materialId });
       return request<Chartbook>(baseUrl, fetchImplementation, csrfHeaders,
@@ -81,6 +82,6 @@ export const createChartbookClient = (options: ChartbookClientOptions) => {
         `/diagrams/${encodeURIComponent(diagramId)}/chartbook`, { method: 'PUT', headers, body: payload }, true);
     },
     removeDiagram: (diagramId: string) => request<void>(baseUrl, fetchImplementation, csrfHeaders,
-      `/diagrams/${encodeURIComponent(diagramId)}/chartbook`, { method: 'DELETE' }, true),
+      `/diagrams/${encodeURIComponent(diagramId)}/chartbook`, { method: 'DELETE' }, true, true),
   };
 };

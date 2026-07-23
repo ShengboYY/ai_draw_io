@@ -1,7 +1,7 @@
 export type MaterialUploadTarget = {
   scopeType: 'CONVERSATION' | 'DIAGRAM' | 'CHARTBOOK' | 'LIBRARY';
   scopeId: string;
-  retentionClass: 'TEMPORARY' | 'PERSISTENT';
+  retentionClass: 'TEMPORARY' | 'RETAINED';
   diagramId?: string;
 };
 
@@ -63,6 +63,82 @@ export type MaterialCatalogPage = {
   total: number;
   limit: number;
   offset: number;
+};
+
+export type MaterialVersion = {
+  versionId: string;
+  versionNo: number;
+  detectedMime: string;
+  byteSize: number;
+  pageCount?: number;
+  processingStatus: string;
+  progress: number;
+  createdAt: string;
+};
+
+export type MaterialScope = {
+  linkId: string;
+  scopeType: string;
+  scopeKey: string;
+};
+
+export type MaterialCatalogDetails = {
+  material: MaterialCatalogCard;
+  versions: MaterialVersion[];
+  scopes: MaterialScope[];
+};
+
+export type MaterialPage = {
+  pageNo: number;
+  width: number;
+  height: number;
+  nativeTextStatus: string;
+  ocrStatus: string;
+  ocrQuality?: number;
+  visualStatus: string;
+  errorCode?: string;
+  canonicalAvailable: boolean;
+  previewAvailable: boolean;
+};
+
+export type MaterialPageSet = {
+  materialId: string;
+  versionId: string;
+  revisionId: string;
+  revisionNo: number;
+  processingStatus: string;
+  progress: number;
+  excludedPages: number[];
+  pages: MaterialPage[];
+};
+
+export type MaterialLifecycleResult = {
+  materialId: string;
+  retentionClass: string;
+  lifecycleState: string;
+  lifecycleGeneration: number;
+  expiresAt?: string;
+  trashExpiresAt?: string;
+};
+
+export type MaterialDeletionImpact = {
+  materialId: string;
+  lifecycleGeneration: number;
+  versionCount: number;
+  diagramCount: number;
+  chartbookCount: number;
+  citationCount: number;
+  deletionConfirmationToken: string;
+  confirmationExpiresAt: string;
+};
+
+export type MaterialReprocessResult = {
+  materialId: string;
+  versionId: string;
+  revisionId: string;
+  revisionNo: number;
+  processingStatus: string;
+  reused: boolean;
 };
 
 export type Chartbook = {
