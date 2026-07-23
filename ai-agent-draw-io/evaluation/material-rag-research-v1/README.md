@@ -306,9 +306,11 @@ controlled short-document hydration profile covers every locally detected visual
 three-regions-per-page ceiling. The raw top-8 control remains unchanged and may fail visually as a measured
 baseline, but candidate artifact and required-evidence readiness are mandatory before model calls.
 
-The Development publisher registry exposes frozen source-page artifacts for architecture page 3, planning
-scan pages 1–6, datacenter page 3, payment pages 3–4 and field-audit pages 1–5. Registry lookup uses only source
-version and page; missing files or hash mismatches fail closed.
+The Development publisher registry exposes frozen source-page artifacts for workflow-handbook page 4,
+architecture page 3, planning scan pages 1–6, datacenter page 3, payment pages 3–4 and field-audit pages 1–5.
+Registry lookup uses only source version and page; missing files or hash mismatches fail closed. A text
+projection may inherit a publisher `visual_page` identity only when that exact source page has a verified
+artifact; text identities still require source-owned text matching.
 
 The live trace records actually indexed dense-vector counts per mounted source. Pool completeness is scoped:
 each retrieval task must return exactly `min(40, indexed vectors across its allowed sources)`. This permits a

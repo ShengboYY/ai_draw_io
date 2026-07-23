@@ -574,6 +574,22 @@ provenance、source scope、artifact path/SHA、task coverage 和 paired-effecti
 
 两个变量必须分别预注册、测试和比较；在 candidate readiness 19/19 前不得调用模型，Validation 保持关闭。
 
+### R19a 预注册：verified source-page visual identity binding
+
+先只处理 4/5 个已定位为 publisher hydration 身份绑定缺口的任务，不改变 query、embedding、ranking 或
+selector：
+
+- `visual_page` 身份可以由同 source version + page 的真实冻结图片证明，即使 Pinecone 返回的是该页的
+  TEXT projection；只有 artifact registry 找到常规文件时才允许绑定，缺文件继续 fail-closed；
+- publisher registry 新增已存在的 handbook page 4 原图 `drawio-workflow-plan-route.png`，其余 registry
+  保持不变；运行时不读取 task required anchors、XML assertions 或 expected answer；
+- `dgt-dev-08` 属于另一类 text candidate recall 缺口，本轮不得用 page-only text identity 或 task gold
+  兜底。R19a 目标是 raw top-40 canonical availability 从 14/19 提升到至少 18/19；达到后再单独处理
+  text retrieval 与 relevance-preserving selector。
+
+R19a 从新的 clean commit 仅重跑 Development trace；运行后删除临时 Pinecone vectors。若 candidate
+readiness 仍非 19/19，继续禁止构建 prompt、调用模型和打开 Validation。
+
 E6b 的本地导出合同已冻结为 `fixtures/drawio-generation-paired-hydration-contract-v1.json` 与
 `analysis/export_drawio_paired_hydration.py`。active Development 图册明确挂载 architecture、workflow handbook
 与 planning-workshop scan 三个版本；导出器从同一 retrieval trace 的 raw top-8 和 source-aware top-8 产生一任务

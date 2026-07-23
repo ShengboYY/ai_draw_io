@@ -494,6 +494,8 @@ class ControlledPdfDenseRecallLiveTest {
     void shouldExposeFrozenArtifactsForEveryDevelopmentMultimodalSource() {
         Path root = researchRoot();
 
+        assertEquals("drawio-workflow-plan-route.png",
+                hydrationArtifact(root, "drawio-workflow-handbook:v1", 4).getFileName().toString());
         assertEquals("drawio-agent-request-route.png",
                 hydrationArtifact(root, "drawio-agent-architecture:v1", 3).getFileName().toString());
         assertEquals("drawio-workshop-scan-page-5.jpg",
@@ -868,8 +870,9 @@ class ControlledPdfDenseRecallLiveTest {
     private List<Map<String, Object>> hydratedEvidence(Path root, CandidateResult candidate,
                                                         SourceEvidenceIdentityManifest sourceIdentities) throws Exception {
         int page = pageNo(candidate.pageId());
+        Path artifact = hydrationArtifact(root, candidate.sourceVersion(), page);
         List<String> sourceEvidenceIds = sourceIdentities.resolve(
-                candidate.sourceVersion(), page, candidate.modality(), candidate.retrievalText());
+                candidate.sourceVersion(), page, candidate.modality(), candidate.retrievalText(), artifact != null);
         List<String> citationIds = sourceEvidenceIds.isEmpty()
                 ? List.of("retrieved:" + candidate.chunkId())
                 : sourceEvidenceIds;
@@ -880,7 +883,6 @@ class ControlledPdfDenseRecallLiveTest {
             evidence.put("sourceVersion", candidate.sourceVersion());
             evidence.put("page", page);
             evidence.put("text", candidate.retrievalText());
-            Path artifact = hydrationArtifact(root, candidate.sourceVersion(), page);
             if (artifact != null) {
                 evidence.put("imagePath", root.relativize(artifact).toString().replace('\\', '/'));
                 evidence.put("imageSha256", sha256(artifact));
@@ -893,6 +895,7 @@ class ControlledPdfDenseRecallLiveTest {
     /** The image files are frozen source-page artifacts, not model-generated descriptions. */
     private Path hydrationArtifact(Path root, String sourceVersion, int page) {
         String filename = switch (sourceVersion) {
+            case "drawio-workflow-handbook:v1" -> page == 4 ? "drawio-workflow-plan-route.png" : null;
             case "drawio-agent-architecture:v1" -> page == 3 ? "drawio-agent-request-route.png" : null;
             case "drawio-planning-workshop-scan:v1" -> page >= 1 && page <= 6
                     ? "drawio-workshop-scan-page-" + page + ".jpg" : null;

@@ -42,12 +42,14 @@ final class SourceEvidenceIdentityManifest {
         return new SourceEvidenceIdentityManifest(identities);
     }
 
-    List<String> resolve(String sourceVersion, int page, String modality, String retrievalText) {
+    List<String> resolve(String sourceVersion, int page, String modality, String retrievalText,
+                         boolean verifiedVisualArtifact) {
         String normalizedText = normalize(retrievalText);
         return identities.stream()
                 .filter(identity -> identity.sourceVersion().equals(sourceVersion) && identity.page() == page)
                 .filter(identity -> "visual_page".equals(identity.kind())
-                        ? "VISUAL".equals(modality)
+                        // Text projections may represent the same frozen page image after hydration.
+                        ? "VISUAL".equals(modality) || verifiedVisualArtifact
                         : normalizedText.contains(normalize(identity.text())))
                 .map(Identity::sourceEvidenceId)
                 .sorted(Comparator.naturalOrder())

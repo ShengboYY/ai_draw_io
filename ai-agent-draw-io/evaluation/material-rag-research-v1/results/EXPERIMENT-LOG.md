@@ -718,6 +718,18 @@
   R19 先分开修复 publisher identity availability 与 relevance-preserving selector，再用同一 Development
   gate 比较。Validation/holdout 继续关闭。
 
+### R19a verified visual identity preregistration · 2026-07-23 · ⏳ 待重跑
+
+- **定位结果**:`dgt-dev-07/12/14/15` 的相关 source/page 已在 raw top-40，且仓库中存在对应冻结原图，
+  但 TEXT projection 不能继承 publisher `visual_page` identity；`dgt-dev-08` 则是相关 handbook page-2
+  text chunk 未进入本次 top-40，必须留给独立 retrieval 变量。
+- **唯一变量**:当且仅当 source/page artifact registry 返回真实常规文件时，允许该页 TEXT projection
+  绑定 publisher `visual_page` identity；同时登记已存在的 handbook page-4 planning-route 原图。
+- **防泄漏**:resolver 与 registry 不读取 task、required anchors、expected answer 或 Validation；
+  exact-text identity 仍必须匹配 publisher 文本，禁止 page-only 兜底。
+- **预期 gate**:raw top-40 canonical availability 至少从 14/19 提升到 18/19；candidate readiness
+  未达 19/19 时不构建 prompt、不调用模型、不打开 Validation。
+
 ### R17 trace / R18 indexed-vector denominator · 2026-07-23 · ⏸ 修复后重跑
 
 - **固定输入**:clean commit `b419a70a`，Development only；两次空查询均经 R16 retry 恢复，19/19 完成，
