@@ -440,6 +440,24 @@
   manifest 和未变 evaluator 比较；仍不得把结果直接解释为 retrieval 差异。详见
   [2026-07-23-e7-r5-citation-contract-repair.md](2026-07-23-e7-r5-citation-contract-repair.md)。
 
+### E7 r5 — GPT-5.5 paired Development generation · 2026-07-23 · ❌不晋级
+
+- **正式运行**:control/raw-top8 与 candidate/source-aware-top8 各 6 条 synthetic Development request 均为 HTTP
+  200；两臂 formal manifest 均 `valid=true`、`formalEligible=true`。记录的 12 calls 合计 65,217 input + 13,140
+  output tokens、148,415 ms，按标准价粗估 **$0.72**。首次 candidate 进程未写 response/manifest，无法形成 formal
+  artifact；经用户明确允许后只补发一次 candidate，当前 manifest 记录的是可复现的 12 calls。Validation/holdout
+  未发送。
+- **结果**:两臂 XML parse 都为 6/6、required citation contract 都为 1/6、completed task 都为 0/6。r5 的完整三元组
+  schema/local boundary 已生效：返回的非空 citation 都来自模型可见的 `citationOptions`，不再出现 cell ID。
+- **根因**:五个需检索任务的 evaluator-required anchor 均不在各自 top-8 的 model-visible citationOptions 中；模型只
+  能引用 alternate/fallback `retrieved:<chunkId>` evidence 或留空。`dgt-dev-02` 的 page-3 OCR chunk 已进上下文但仍为
+  fallback ID，未保留 `daa-route-scope`/`daa-route-compose`；这是 input identity-propagation/evidence-availability
+  failure，而非模型不遵守 r5 输出契约或 selector 的质量结论。
+- **决策**:不晋级、不打开 Validation。下一变量必须是本地预注册的 citation-identity/hydration repair：不读取 task
+  required anchor 或 expected answer，但让 selected source/page 的可验证 evidence span 保留 canonical anchor；先通过
+  model-visible required-evidence readiness gate、冻结新 Development bundles，再另行请求模型授权。详见
+  [2026-07-23-e7-r5-gpt-5-5-development.md](2026-07-23-e7-r5-gpt-5-5-development.md)。
+
 ---
 
 ## 当前状态与下一步
@@ -447,9 +465,9 @@
 - 已完成:E0 基线 → E1 表示层改进 → 核心集升级并冻结到 450 → Development 与 Validation
   配对重跑 → 守门最低数补齐并执行 fixture-contract。Validation 证明 E1 提升真实,也证明
   dense-only 尚未达门槛。
-- **下一步**:r4 visual/OCR hydration 和首次 formal paired Development 已完成，但 r4 因 citation-output contract
-  失败不晋级。r5 已冻结唯一的 citation-contract repair；获得新的明确授权后，才向同一模型发送 12 个 synthetic
-  Development request，重跑可比 E7。Validation 暂不打开。
+- **下一步**:r5 已证明模型可遵守 citationOptions，但关键 canonical anchor 未进入 model-visible context，故仍不晋级。
+  下一步是预注册并本地测试 citation-identity/hydration repair，再以 model-visible required-evidence gate 冻结新的
+  Development bundles；Validation 暂不打开。
 
 ## 开放问题 / 待办
 
@@ -469,7 +487,9 @@
 - [x] active v2 真实 edit fixture、引用指标分层与 generation-run manifest contract。
 - [x] E6b paired hydration export contract——r4 visual/OCR trace、artifact/source/contrast gates 与审计记录已完成。
 - [x] E7 r4 evidence-grounded control/candidate Development 比较——已运行但 citation contract 1/6、task completion 0/6，未晋级。
-- [ ] E7 r5 citation-output contract Development 比较——prompt/schema/local response guard 已冻结，待新的模型调用授权。
+- [x] E7 r5 citation-output contract Development 比较——模型不再输出 cell ID，但 required canonical anchor 未进上下文，
+  1/6 citation、0/6 completion，未晋级。
+- [ ] E7 下一候选：citation-identity/hydration repair 与 model-visible required-evidence gate。
 - [ ] 外部 final holdout——contract 已定，payload 尚未由独立保管人生成和隔离。
 
 ## 如何跑一个实验(运行手册)
