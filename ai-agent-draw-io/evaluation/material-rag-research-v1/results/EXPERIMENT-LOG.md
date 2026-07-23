@@ -866,6 +866,30 @@
 - **外部使用**:1 次授权 Pinecone Development diagnostic；0 模型请求、0 model token、
   0 Validation/holdout case。
 
+### R23 local implementation gate · 2026-07-23 · ✅ 可申请最后一次正式运行
+
+- **实现提交**:`7d6bde16`；审查修复提交 `cf704368`。
+- **唯一变量**:保留同一次运行的 original/rewrite provider top-80 完整去重 union，只在该 union 内
+  重新计算冻结 lexical score 与 IDF，再以
+  `weighted-rrf-v1:k60:lexical1.2:dense1.0` 选最终 top-40。
+- **边界**:lexical lane 不能引入 provider union 外 chunk；不增加 Pinecone query；不读取 target
+  source、gold、assertions、expected answer 或 Validation；query、embedding、retry、selector 与 gate
+  不变。
+- **provenance**:`candidateQueryMode=original-evidence-lexical-stabilized-v1`；
+  `queryStabilizationFingerprint` 冻结完整算法链；
+  `queryRankLineageFingerprint=original-rewrite-top80-stabilized-ranks-v1`，并以
+  `stabilizedTop40` 验证最终 candidate 顺序。
+- **回归保护**:45-candidate 单测证明先保留完整 union、再选 top-40；union 外 lexical projection 在
+  score、IDF 与 rank 计算前即被排除。
+- **本地验证**:ingestion-worker 98 tests、0 failures、6 live skips；analysis 124/124；E0 audit
+  READY；`git diff --check` 通过。
+- **代码审阅**:Spec/Standards 双轴复核均为 0 findings；此前发现的 union 外 IDF 污染、
+  `>40 union` 回归覆盖缺口与 stale fused lineage 命名均已修复。
+- **外部使用**:0 Pinecone 写入、0 模型请求、0 model token、0 Validation/holdout case。
+- **下一步与停止规则**:从包含本记录与刷新 corpus lock 的 clean commit 获得单独授权后，仅运行一次
+  R23 Development trace并删除临时向量。若 raw/candidate 19/19 与 artifact 7/7 gate 仍失败，停止
+  retrieval tuning，不开启 R24；只有全部通过才生成 prompt。
+
 ### R17 trace / R18 indexed-vector denominator · 2026-07-23 · ⏸ 修复后重跑
 
 - **固定输入**:clean commit `b419a70a`，Development only；两次空查询均经 R16 retry 恢复，19/19 完成，

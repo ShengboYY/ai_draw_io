@@ -731,6 +731,13 @@ R23 是最后一次 retrieval intervention：
 - 只允许一个 clean commit 的一次正式 Development run。若仍失败，停止 retrieval tuning，记录残余
   case，不再开启 R24；若通过，才允许生成 prompt。
 
+R23 已在实现 commit `7d6bde16` 完成，并在审查修复 commit `cf704368` 将 lexical score、IDF 与
+lexical rank 的计算域严格限制为完整 dense union，同时把 lineage schema 更新为
+`original-rewrite-top80-stabilized-ranks-v1` / `stabilizedTop40`。超过 40 个 union candidate 的回归测试
+证明不会在 lexical stabilization 前提前截断。完整 ingestion-worker 测试为 98 tests、0 failures、
+6 live skips，analysis 为 124/124，E0 corpus audit 仍为 READY。尚未进行 R23 Pinecone 正式运行；
+正式运行仍须从包含本记录与刷新 corpus lock 的 clean commit 获得单独授权。
+
 E6b 的本地导出合同已冻结为 `fixtures/drawio-generation-paired-hydration-contract-v1.json` 与
 `analysis/export_drawio_paired_hydration.py`。active Development 图册明确挂载 architecture、workflow handbook
 与 planning-workshop scan 三个版本；导出器从同一 retrieval trace 的 raw top-8 和 source-aware top-8 产生一任务
