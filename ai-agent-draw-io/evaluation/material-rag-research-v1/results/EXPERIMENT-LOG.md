@@ -786,6 +786,8 @@
   诊断。
 - **R21 唯一变量**:hydration producer 改为输出 evidence-focused lane，并在 trace 记录 query mode 与
   rewrite fingerprint；exporter 验证冻结值。其余 retrieval/selector/gate 不变，只允许一次正式运行。
+- **实现状态**:commit `5a2c40c0` 已完成 lane wiring 与 fail-closed provenance gate；91 个
+  ingestion-worker 测试（6 个 live skip）及 122 个 analysis 测试通过，E0 仍为 READY。正式 R21 尚未运行。
 
 ### R17 trace / R18 indexed-vector denominator · 2026-07-23 · ⏸ 修复后重跑
 
