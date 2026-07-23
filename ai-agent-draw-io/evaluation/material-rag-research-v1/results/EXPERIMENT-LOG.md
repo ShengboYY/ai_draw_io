@@ -1150,3 +1150,13 @@
   SHA-256 `4b436e01c915d0e6d3af6eacb5712e9e173bc88ee581076fa358f9c77f1c8dee` 与 task fixture SHA-256。
 - **限制**:这只是第一位 reviewer。仍需第二位具名独立 reviewer 使用同一 formal source 完成复核与分歧裁决，
   之后才可生成可由 evaluator 消费的双 reviewer claim-review JSON。
+
+### Stage B independent claim review complete · 2026-07-23 · ✅ Validation 前置条件解除
+
+- **第二 reviewer**:`alice-qa` 以独立同事身份审核同一 formal E7/E8 工件，并接受全部 20 条 claim 的五项判断。
+- **合并结论**:[claim review](../review/stage-b-claim-review-v1.json) 有 `product-owner` 与 `alice-qa` 两位具名
+  reviewer；没有分歧，20/20 claim 均为 answered/cited/supported/correct/faithful。
+- **可复现汇总**:[claim-reviewed evaluation](stage-a-e7e8-gpt-5-5-development-claim-reviewed-evaluation.json)
+  记录 claim metrics 均为 `1.0`；原始 v1 XML completion 仍为 `8/12`，不被 claim review 改写。
+- **阶段边界**:claim-review 前置条件现已完成；这不会追溯性改变 E7/E8 的 Development 诊断性质。下一步必须
+  冻结一套未运行的 Validation tasks 与 v2 rubric，再进行新的正式模型运行。
