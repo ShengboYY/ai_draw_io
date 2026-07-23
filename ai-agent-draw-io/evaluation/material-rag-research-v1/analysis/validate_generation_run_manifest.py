@@ -27,8 +27,8 @@ def validate(manifest: dict, root: Path | None = None) -> dict:
     errors: list[str] = []
     if manifest.get("schemaVersion") != "material-rag-generation-run-manifest-v1":
         errors.append("unsupported schemaVersion")
-    if manifest.get("split") != "development":
-        errors.append("only development runs may be recorded before promotion")
+    if manifest.get("split") not in {"development", "validation"}:
+        errors.append("split must be development or validation")
     if not COMMIT.fullmatch(str(manifest.get("gitCommit", ""))):
         errors.append("gitCommit must be a 7-40 character lowercase hex commit")
     if manifest.get("qualification") not in {"diagnostic", "formal"}:

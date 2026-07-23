@@ -228,12 +228,32 @@ class ControlledPdfDenseRecallLiveTest {
         List<ResearchCase> tasks = drawioGenerationCases(researchRoot());
         Set<String> noRetrievalTasks = drawioGenerationNoRetrievalTaskIds(researchRoot());
 
-        assertEquals(5, tasks.size());
+        assertEquals(19, tasks.size());
         assertTrue(tasks.stream().allMatch(value -> "development".equals(value.split())));
         assertEquals(Set.of("dgt-dev-06"), noRetrievalTasks);
-        assertTrue(tasks.stream().allMatch(value -> value.mountedSourceVersions().equals(List.of(
+        assertEquals(18, tasks.stream().filter(value -> value.mountedSourceVersions().equals(List.of(
                 "drawio-agent-architecture:v1", "drawio-planning-workshop-scan:v1",
-                "drawio-workflow-handbook:v1"))));
+                "drawio-workflow-handbook:v1", "expansion-datacenter-change:v1",
+                "expansion-field-audit-scan:v1", "expansion-platform-resilience:v1",
+                "scenario-payment-settlement:v1"))).count());
+        assertEquals(List.of("drawio-agent-architecture:v1"), tasks.stream()
+                .filter(value -> "dgt-dev-20".equals(value.caseId()))
+                .findFirst().orElseThrow().mountedSourceVersions());
+    }
+
+    @Test
+    void drawioValidationCasesShouldUseTheFrozenValidationChartbook() throws Exception {
+        List<ResearchCase> tasks = drawioGenerationCases(researchRoot(), "validation");
+
+        assertEquals(20, tasks.size());
+        assertTrue(tasks.stream().allMatch(value -> "validation".equals(value.split())));
+        assertEquals(19, tasks.stream().filter(value -> value.mountedSourceVersions().equals(List.of(
+                "drawio-collaboration-governance:v1", "expansion-material-governance:v1",
+                "expansion-observability:v1", "realistic-solar-manual:v1",
+                "scenario-ota-rollout:v1"))).count());
+        assertEquals(List.of("drawio-collaboration-governance:v1"), tasks.stream()
+                .filter(value -> "dgt-val-18".equals(value.caseId()))
+                .findFirst().orElseThrow().mountedSourceVersions());
     }
 
     @Test
@@ -475,6 +495,35 @@ class ControlledPdfDenseRecallLiveTest {
         ExperimentResult result = runRetrievalExperiment("drawiohydration", client, namespace, projections,
                 drawioGenerationCases(root), anchorById, chunkMode(), null, "none");
         writeTaskHydrationTrace(root, result, sourceIdentities, drawioGenerationNoRetrievalTaskIds(root), Path.of(output));
+    }
+
+    @Test
+    void shouldExportDrawioValidationTaskHydrationFromTheRealMultimodalPipeline() throws Exception {
+        String apiKey = System.getenv("PINECONE_API_KEY");
+        String indexHost = System.getenv("PINECONE_INDEX_HOST");
+        String namespace = System.getenv().getOrDefault("PINECONE_NAMESPACE", "recall-test");
+        String output = System.getenv("MATERIAL_RAG_VALIDATION_TASK_HYDRATION_JSON");
+        String tesseract = System.getenv("MATERIAL_RAG_TESSERACT_EXECUTABLE");
+        Assumptions.assumeTrue(apiKey != null && !apiKey.isBlank()
+                && indexHost != null && !indexHost.isBlank()
+                && (namespace.toLowerCase(Locale.ROOT).contains("test")
+                || namespace.toLowerCase(Locale.ROOT).contains("dev"))
+                && output != null && !output.isBlank()
+                && tesseract != null && !tesseract.isBlank() && Files.isExecutable(Path.of(tesseract)));
+
+        Path root = researchRoot();
+        ProjectionSet projections = buildDrawioValidationHydrationProjections(root,
+                new TesseractOcrEngine(tesseract, "eng+chi_sim", Duration.ofSeconds(30)));
+        Map<String, ResearchAnchor> anchorById = new LinkedHashMap<>();
+        anchors(root).forEach(anchor -> anchorById.put(anchor.anchorId(), anchor));
+        SourceEvidenceIdentityManifest sourceIdentities = SourceEvidenceIdentityManifest.load(
+                root.resolve("fixtures/generated/source-evidence-identities-v1.json"), JSON);
+        PineconeVectorClient client = new PineconeVectorClient(
+                apiKey, indexHost, "multilingual-e5-large", 1024, JSON);
+        ExperimentResult result = runRetrievalExperiment("drawiovalhydration", client, namespace, projections,
+                drawioGenerationCases(root, "validation"), anchorById, chunkMode(), null, "none");
+        writeTaskHydrationTrace(root, result, sourceIdentities,
+                drawioGenerationNoRetrievalTaskIds(root, "validation"), Path.of(output));
     }
 
     @Test
@@ -904,7 +953,7 @@ class ControlledPdfDenseRecallLiveTest {
         return new ProjectionSet(Map.copyOf(result));
     }
 
-    /** Builds the three mounted Development sources, applying OCR to the scan before chunking. */
+    /** Builds the seven mounted Development sources, applying OCR/visual hydration where required. */
     private ProjectionSet buildDrawioTaskHydrationProjections(Path root, OcrEnginePort ocr) throws Exception {
         Map<String, RetrievalProjectionManifest> result = new LinkedHashMap<>();
         result.put("drawio-agent-architecture:v1", buildVisualProjection(root,
@@ -913,6 +962,30 @@ class ControlledPdfDenseRecallLiveTest {
                 "drawio-workflow-handbook", "v1", "drawio-diagram-workflow-handbook-v1.pdf"));
         result.put("drawio-planning-workshop-scan:v1", buildOcrProjection(root,
                 "drawio-planning-workshop-scan", "v1", "drawio-planning-workshop-scan-v1.pdf", ocr));
+        result.put("expansion-datacenter-change:v1", buildVisualProjection(root,
+                "expansion-datacenter-change", "v1", "expansion-datacenter-capacity-change-v1.pdf", ocr));
+        result.put("scenario-payment-settlement:v1", buildVisualProjection(root,
+                "scenario-payment-settlement", "v1", "scenario-crossborder-payment-settlement-v1.pdf", ocr));
+        result.put("expansion-platform-resilience:v1", buildProjection(root,
+                "expansion-platform-resilience", "v1", "expansion-platform-resilience-v1.pdf"));
+        result.put("expansion-field-audit-scan:v1", buildOcrProjection(root,
+                "expansion-field-audit-scan", "v1", "expansion-field-audit-scan-v1.pdf", ocr));
+        return new ProjectionSet(Map.copyOf(result));
+    }
+
+    /** Builds the isolated five-source Validation chartbook with the same real hydration path. */
+    private ProjectionSet buildDrawioValidationHydrationProjections(Path root, OcrEnginePort ocr) throws Exception {
+        Map<String, RetrievalProjectionManifest> result = new LinkedHashMap<>();
+        result.put("drawio-collaboration-governance:v1", buildVisualProjection(root,
+                "drawio-collaboration-governance", "v1", "drawio-collaboration-governance-v1.pdf", ocr));
+        result.put("scenario-ota-rollout:v1", buildVisualProjection(root,
+                "scenario-ota-rollout", "v1", "scenario-vehicle-ota-rollout-v1.pdf", ocr));
+        result.put("expansion-observability:v1", buildVisualProjection(root,
+                "expansion-observability", "v1", "expansion-microservice-observability-v1.pdf", ocr));
+        result.put("expansion-material-governance:v1", buildProjection(root,
+                "expansion-material-governance", "v1", "expansion-material-governance-v1.pdf"));
+        result.put("realistic-solar-manual:v1", buildVisualProjection(root,
+                "realistic-solar-manual", "v1", "realistic-helios-inverter-manual-v1.pdf", ocr));
         return new ProjectionSet(Map.copyOf(result));
     }
 
@@ -1563,42 +1636,60 @@ class ControlledPdfDenseRecallLiveTest {
 
     /** Loads only model-visible task requests; evaluator anchors remain outside this retrieval input. */
     private List<ResearchCase> drawioGenerationCases(Path root) throws Exception {
-        JsonNode fixture = JSON.readTree(root.resolve("fixtures/drawio-generation-tasks-v2.json").toFile());
-        List<String> mounted = stringList(fixture, "developmentChartbookSourceVersions").stream()
+        return drawioGenerationCases(root, "development");
+    }
+
+    private List<ResearchCase> drawioGenerationCases(Path root, String split) throws Exception {
+        JsonNode fixture = JSON.readTree(root.resolve("fixtures/drawio-generation-tasks-v3.json").toFile());
+        String chartbookField = switch (split) {
+            case "development" -> "developmentChartbookSourceVersions";
+            case "validation" -> "validationChartbookSourceVersions";
+            default -> throw new IllegalArgumentException("unsupported generation split: " + split);
+        };
+        List<String> mounted = stringList(fixture, chartbookField).stream()
                 .sorted().toList();
         if (mounted.isEmpty()) {
-            throw new IllegalArgumentException("draw.io generation fixture has no Development chartbook");
+            throw new IllegalArgumentException("draw.io generation fixture has no chartbook for " + split);
         }
-        Set<String> noRetrieval = drawioGenerationNoRetrievalTaskIds(root);
+        Set<String> noRetrieval = drawioGenerationNoRetrievalTaskIds(root, split);
         List<ResearchCase> result = new ArrayList<>();
         for (JsonNode task : fixture.path("tasks")) {
-            if (!"development".equals(task.path("split").asText())) {
+            if (!split.equals(task.path("split").asText())) {
                 continue;
             }
             if (noRetrieval.contains(task.path("taskId").asText())) {
                 continue;
             }
-            // Selection validation is distinct from retrieval ranking and evaluator citation assertions.
-            SelectedMaterialVersionValidator.requireMounted(task.path("selectedMaterialVersion").asText(), mounted);
+            // Task scope is model-visible product behavior; evaluator anchors never influence it.
+            List<String> allowedSources = SelectedMaterialVersionValidator.resolveAllowedSources(
+                    task.path("sourceScopeMode").asText(),
+                    task.path("selectedMaterialVersion").asText(),
+                    mounted);
             result.add(new ResearchCase(task.path("taskId").asText(), "drawio_generation",
                     task.path("type").asText(), "mixed", task.path("request").asText(),
-                    "development", true, List.of(), List.of(), mounted, List.of(), List.of()));
+                    split, true, List.of(), List.of(), allowedSources, List.of(), List.of()));
         }
         return List.copyOf(result);
     }
 
     /** Keeps explicitly structural-only tasks out of retrieval while preserving their paired empty contexts. */
     private Set<String> drawioGenerationNoRetrievalTaskIds(Path root) throws Exception {
-        JsonNode fixture = JSON.readTree(root.resolve("fixtures/drawio-generation-tasks-v2.json").toFile());
-        Set<String> developmentIds = new HashSet<>();
+        return drawioGenerationNoRetrievalTaskIds(root, "development");
+    }
+
+    private Set<String> drawioGenerationNoRetrievalTaskIds(Path root, String split) throws Exception {
+        JsonNode fixture = JSON.readTree(root.resolve("fixtures/drawio-generation-tasks-v3.json").toFile());
+        Set<String> splitTaskIds = new HashSet<>();
         for (JsonNode task : fixture.path("tasks")) {
-            if ("development".equals(task.path("split").asText())) {
-                developmentIds.add(task.path("taskId").asText());
+            if (split.equals(task.path("split").asText())) {
+                splitTaskIds.add(task.path("taskId").asText());
             }
         }
-        Set<String> noRetrieval = Set.copyOf(stringList(fixture, "developmentNoRetrievalTaskIds"));
-        if (!developmentIds.containsAll(noRetrieval)) {
-            throw new IllegalArgumentException("no-retrieval task is not in the Development fixture");
+        String field = "development".equals(split)
+                ? "developmentNoRetrievalTaskIds" : "validationNoRetrievalTaskIds";
+        Set<String> noRetrieval = Set.copyOf(stringList(fixture, field));
+        if (!splitTaskIds.containsAll(noRetrieval)) {
+            throw new IllegalArgumentException("no-retrieval task is not in the " + split + " fixture");
         }
         return noRetrieval;
     }

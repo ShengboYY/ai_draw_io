@@ -1,7 +1,13 @@
 {
-  "schemaVersion": "material-rag-review-ledger-v1",
-  "reviewPolicy": "AI-assisted first pass by claude-opus-4.8-review. The audit double-review gate requires a second, independent HUMAN reviewer; add them with --human-reviewer only after they actually confirm.",
-  "reviewerCount": 2,
+  "schemaVersion": "material-rag-review-ledger-v2",
+  "reviewPolicy": "AI-assisted first pass by automated-contract-review-v1. The audit double-review gate requires a pair of complete, independent HUMAN per-case review artifacts; a reviewer name alone never qualifies.",
+  "reviewerRegistry": {
+    "automated-contract-review-v1": {
+      "kind": "ai"
+    }
+  },
+  "humanReviewArtifacts": [],
+  "reviewerCount": 1,
   "coreCasesReviewed": 450,
   "verdicts": {
     "agreed": 450
@@ -10,8 +16,7 @@
     {
       "caseId": "controlled-037",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "exactLookup",
@@ -21,8 +26,7 @@
     {
       "caseId": "controlled-038",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "exactLookup",
@@ -32,8 +36,7 @@
     {
       "caseId": "controlled-039",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "exactLookup",
@@ -43,8 +46,7 @@
     {
       "caseId": "controlled-040",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "exactLookup",
@@ -54,8 +56,7 @@
     {
       "caseId": "controlled-041",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "exactLookup",
@@ -65,8 +66,7 @@
     {
       "caseId": "controlled-042",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "exactLookup",
@@ -76,8 +76,7 @@
     {
       "caseId": "controlled-043",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "exactLookup",
@@ -87,8 +86,7 @@
     {
       "caseId": "controlled-044",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "exactLookup",
@@ -98,8 +96,7 @@
     {
       "caseId": "controlled-045",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "exactLookup",
@@ -109,8 +106,7 @@
     {
       "caseId": "controlled-046",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "exactLookup",
@@ -120,8 +116,7 @@
     {
       "caseId": "controlled-047",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "exactLookup",
@@ -131,8 +126,7 @@
     {
       "caseId": "controlled-048",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "visual",
@@ -142,8 +136,7 @@
     {
       "caseId": "controlled-049",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "visual",
@@ -153,8 +146,7 @@
     {
       "caseId": "controlled-050",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "exactLookup",
@@ -164,8 +156,7 @@
     {
       "caseId": "controlled-051",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "exactLookup",
@@ -175,8 +166,7 @@
     {
       "caseId": "controlled-052",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "exactLookup",
@@ -186,8 +176,7 @@
     {
       "caseId": "controlled-053",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "exactLookup",
@@ -197,8 +186,7 @@
     {
       "caseId": "controlled-054",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "exactLookup",
@@ -208,8 +196,7 @@
     {
       "caseId": "controlled-067",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "exactLookup",
@@ -219,8 +206,7 @@
     {
       "caseId": "controlled-068",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "crossLanguage",
@@ -230,8 +216,7 @@
     {
       "caseId": "controlled-069",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "exactLookup",
@@ -241,8 +226,7 @@
     {
       "caseId": "controlled-070",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "crossLanguage",
@@ -252,8 +236,7 @@
     {
       "caseId": "controlled-071",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "crossLanguage",
@@ -263,8 +246,7 @@
     {
       "caseId": "controlled-072",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "crossLanguage",
@@ -274,8 +256,7 @@
     {
       "caseId": "controlled-073",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "crossLanguage",
@@ -285,8 +266,7 @@
     {
       "caseId": "controlled-074",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "exactLookup",
@@ -296,8 +276,7 @@
     {
       "caseId": "controlled-075",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "crossLanguage",
@@ -307,8 +286,7 @@
     {
       "caseId": "controlled-076",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "exactLookup",
@@ -318,8 +296,7 @@
     {
       "caseId": "controlled-077",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "crossLanguage",
@@ -329,8 +306,7 @@
     {
       "caseId": "controlled-078",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "exactLookup",
@@ -340,8 +316,7 @@
     {
       "caseId": "controlled-079",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "crossLanguage",
@@ -351,8 +326,7 @@
     {
       "caseId": "controlled-080",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "exactLookup",
@@ -362,8 +336,7 @@
     {
       "caseId": "controlled-081",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "exactLookup",
@@ -373,8 +346,7 @@
     {
       "caseId": "controlled-082",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "visual",
@@ -384,8 +356,7 @@
     {
       "caseId": "controlled-083",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "exactLookup",
@@ -395,8 +366,7 @@
     {
       "caseId": "controlled-084",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "crossLanguage",
@@ -406,8 +376,7 @@
     {
       "caseId": "controlled-085",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "exactLookup",
@@ -417,8 +386,7 @@
     {
       "caseId": "controlled-086",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "crossLanguage",
@@ -428,8 +396,7 @@
     {
       "caseId": "controlled-087",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "crossLanguage",
@@ -439,8 +406,7 @@
     {
       "caseId": "controlled-088",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "crossLanguage",
@@ -450,8 +416,7 @@
     {
       "caseId": "controlled-089",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "exactLookup",
@@ -461,8 +426,7 @@
     {
       "caseId": "controlled-090",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "crossLanguage",
@@ -472,8 +436,7 @@
     {
       "caseId": "controlled-091",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "visual",
@@ -483,8 +446,7 @@
     {
       "caseId": "controlled-092",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "visual",
@@ -494,8 +456,7 @@
     {
       "caseId": "controlled-093",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "exactLookup",
@@ -505,8 +466,7 @@
     {
       "caseId": "controlled-094",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "crossLanguage",
@@ -516,8 +476,7 @@
     {
       "caseId": "controlled-095",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "exactLookup",
@@ -527,8 +486,7 @@
     {
       "caseId": "controlled-096",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "crossLanguage",
@@ -538,8 +496,7 @@
     {
       "caseId": "controlled-113",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "exactLookup",
@@ -549,8 +506,7 @@
     {
       "caseId": "controlled-114",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "crossLanguage",
@@ -560,8 +516,7 @@
     {
       "caseId": "controlled-115",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "exactLookup",
@@ -571,8 +526,7 @@
     {
       "caseId": "controlled-116",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "crossLanguage",
@@ -582,8 +536,7 @@
     {
       "caseId": "controlled-117",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "crossLanguage",
@@ -593,8 +546,7 @@
     {
       "caseId": "controlled-118",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "crossLanguage",
@@ -604,8 +556,7 @@
     {
       "caseId": "controlled-119",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "crossLanguage",
@@ -615,8 +566,7 @@
     {
       "caseId": "controlled-120",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "crossLanguage",
@@ -626,8 +576,7 @@
     {
       "caseId": "controlled-121",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "crossLanguage",
@@ -637,8 +586,7 @@
     {
       "caseId": "controlled-122",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "crossLanguage",
@@ -648,8 +596,7 @@
     {
       "caseId": "controlled-123",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "exactLookup",
@@ -659,8 +606,7 @@
     {
       "caseId": "controlled-124",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "exactLookup",
@@ -670,8 +616,7 @@
     {
       "caseId": "controlled-125",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "exactLookup",
@@ -681,8 +626,7 @@
     {
       "caseId": "controlled-126",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "exactLookup",
@@ -692,8 +636,7 @@
     {
       "caseId": "controlled-127",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "crossLanguage",
@@ -703,8 +646,7 @@
     {
       "caseId": "controlled-128",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "exactLookup",
@@ -714,8 +656,7 @@
     {
       "caseId": "controlled-129",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "crossLanguage",
@@ -725,8 +666,7 @@
     {
       "caseId": "controlled-130",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "visual",
@@ -736,8 +676,7 @@
     {
       "caseId": "controlled-131",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "visual",
@@ -747,8 +686,7 @@
     {
       "caseId": "controlled-132",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "exactLookup",
@@ -758,8 +696,7 @@
     {
       "caseId": "controlled-133",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "crossLanguage",
@@ -769,8 +706,7 @@
     {
       "caseId": "controlled-134",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "exactLookup",
@@ -780,8 +716,7 @@
     {
       "caseId": "controlled-135",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "crossLanguage",
@@ -791,8 +726,7 @@
     {
       "caseId": "controlled-136",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "exactLookup",
@@ -802,8 +736,7 @@
     {
       "caseId": "controlled-137",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "crossLanguage",
@@ -813,8 +746,7 @@
     {
       "caseId": "controlled-138",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "retrievalDecision",
@@ -824,8 +756,7 @@
     {
       "caseId": "controlled-139",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "retrievalDecision",
@@ -835,8 +766,7 @@
     {
       "caseId": "controlled-140",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "versionAndAuthorization",
@@ -846,8 +776,7 @@
     {
       "caseId": "controlled-141",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "versionAndAuthorization",
@@ -857,8 +786,7 @@
     {
       "caseId": "controlled-142",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "failure",
@@ -868,8 +796,7 @@
     {
       "caseId": "controlled-143",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "failure",
@@ -879,8 +806,7 @@
     {
       "caseId": "controlled-144",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "exactLookup",
@@ -890,8 +816,7 @@
     {
       "caseId": "controlled-145",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "crossLanguage",
@@ -901,8 +826,7 @@
     {
       "caseId": "controlled-146",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "exactLookup",
@@ -912,8 +836,7 @@
     {
       "caseId": "controlled-147",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "crossLanguage",
@@ -923,8 +846,7 @@
     {
       "caseId": "controlled-148",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "retrievalDecision",
@@ -934,8 +856,7 @@
     {
       "caseId": "controlled-149",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "retrievalDecision",
@@ -945,8 +866,7 @@
     {
       "caseId": "controlled-150",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "retrievalDecision",
@@ -956,8 +876,7 @@
     {
       "caseId": "controlled-151",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "retrievalDecision",
@@ -967,8 +886,7 @@
     {
       "caseId": "controlled-152",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "crossLanguage",
@@ -978,8 +896,7 @@
     {
       "caseId": "controlled-153",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "exactLookup",
@@ -989,8 +906,7 @@
     {
       "caseId": "controlled-154",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "crossLanguage",
@@ -1000,8 +916,7 @@
     {
       "caseId": "controlled-155",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "visual",
@@ -1011,8 +926,7 @@
     {
       "caseId": "controlled-156",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "visual",
@@ -1022,8 +936,7 @@
     {
       "caseId": "controlled-157",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "crossLanguage",
@@ -1033,8 +946,7 @@
     {
       "caseId": "controlled-158",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "crossLanguage",
@@ -1044,8 +956,7 @@
     {
       "caseId": "controlled-159",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "crossLanguage",
@@ -1055,8 +966,7 @@
     {
       "caseId": "controlled-160",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "crossLanguage",
@@ -1066,8 +976,7 @@
     {
       "caseId": "controlled-161",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "exactLookup",
@@ -1077,8 +986,7 @@
     {
       "caseId": "controlled-162",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "crossLanguage",
@@ -1088,8 +996,7 @@
     {
       "caseId": "controlled-163",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "versionAndAuthorization",
@@ -1099,8 +1006,7 @@
     {
       "caseId": "controlled-164",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "versionAndAuthorization",
@@ -1110,8 +1016,7 @@
     {
       "caseId": "controlled-165",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "versionAndAuthorization",
@@ -1121,8 +1026,7 @@
     {
       "caseId": "controlled-166",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "versionAndAuthorization",
@@ -1132,8 +1036,7 @@
     {
       "caseId": "controlled-167",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "retrievalDecision",
@@ -1143,8 +1046,7 @@
     {
       "caseId": "controlled-168",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "versionAndAuthorization",
@@ -1154,8 +1056,7 @@
     {
       "caseId": "controlled-169",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "visual",
@@ -1165,8 +1066,7 @@
     {
       "caseId": "controlled-170",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "crossLanguage",
@@ -1176,8 +1076,7 @@
     {
       "caseId": "controlled-171",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "crossLanguage",
@@ -1187,8 +1086,7 @@
     {
       "caseId": "controlled-172",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "crossLanguage",
@@ -1198,8 +1096,7 @@
     {
       "caseId": "controlled-173",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "exactLookup",
@@ -1209,8 +1106,7 @@
     {
       "caseId": "controlled-174",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "crossLanguage",
@@ -1220,8 +1116,7 @@
     {
       "caseId": "controlled-175",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "failure",
@@ -1231,8 +1126,7 @@
     {
       "caseId": "controlled-176",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "failure",
@@ -1242,8 +1136,7 @@
     {
       "caseId": "controlled-177",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "failure",
@@ -1253,8 +1146,7 @@
     {
       "caseId": "controlled-178",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "failure",
@@ -1264,8 +1156,7 @@
     {
       "caseId": "controlled-179",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "visual",
@@ -1275,8 +1166,7 @@
     {
       "caseId": "controlled-180",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "failure",
@@ -1286,8 +1176,7 @@
     {
       "caseId": "controlled-181",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "failure",
@@ -1297,8 +1186,7 @@
     {
       "caseId": "controlled-182",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "failure",
@@ -1308,8 +1196,7 @@
     {
       "caseId": "controlled-183",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "failure",
@@ -1319,8 +1206,7 @@
     {
       "caseId": "controlled-184",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "failure",
@@ -1330,8 +1216,7 @@
     {
       "caseId": "controlled-185",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "failure",
@@ -1341,8 +1226,7 @@
     {
       "caseId": "controlled-186",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "failure",
@@ -1352,8 +1236,7 @@
     {
       "caseId": "controlled-187",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "failure",
@@ -1363,8 +1246,7 @@
     {
       "caseId": "controlled-188",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "crossLanguage",
@@ -1374,8 +1256,7 @@
     {
       "caseId": "controlled-189",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "ocr",
@@ -1385,8 +1266,7 @@
     {
       "caseId": "controlled-190",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "ocr",
@@ -1396,8 +1276,7 @@
     {
       "caseId": "controlled-191",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "ocr",
@@ -1407,8 +1286,7 @@
     {
       "caseId": "controlled-192",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "ocr",
@@ -1418,8 +1296,7 @@
     {
       "caseId": "controlled-193",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "ocr",
@@ -1429,8 +1306,7 @@
     {
       "caseId": "controlled-194",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "ocr",
@@ -1440,8 +1316,7 @@
     {
       "caseId": "controlled-195",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "ocr",
@@ -1451,8 +1326,7 @@
     {
       "caseId": "controlled-196",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "ocr",
@@ -1462,8 +1336,7 @@
     {
       "caseId": "controlled-197",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "ocr",
@@ -1473,8 +1346,7 @@
     {
       "caseId": "controlled-198",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "ocr",
@@ -1484,8 +1356,7 @@
     {
       "caseId": "controlled-199",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "ocr",
@@ -1495,8 +1366,7 @@
     {
       "caseId": "controlled-200",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "ocr",
@@ -1506,8 +1376,7 @@
     {
       "caseId": "controlled-201",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "ocr",
@@ -1517,8 +1386,7 @@
     {
       "caseId": "controlled-202",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "ocr",
@@ -1528,8 +1396,7 @@
     {
       "caseId": "controlled-203",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "ocr",
@@ -1539,8 +1406,7 @@
     {
       "caseId": "controlled-204",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "ocr",
@@ -1550,8 +1416,7 @@
     {
       "caseId": "controlled-205",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "ocr",
@@ -1561,8 +1426,7 @@
     {
       "caseId": "controlled-206",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "ocr",
@@ -1572,8 +1436,7 @@
     {
       "caseId": "controlled-207",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "ocr",
@@ -1583,8 +1446,7 @@
     {
       "caseId": "controlled-208",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "ocr",
@@ -1594,8 +1456,7 @@
     {
       "caseId": "controlled-209",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "ocr",
@@ -1605,8 +1466,7 @@
     {
       "caseId": "controlled-210",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "ocr",
@@ -1616,8 +1476,7 @@
     {
       "caseId": "controlled-211",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "ocr",
@@ -1627,8 +1486,7 @@
     {
       "caseId": "controlled-212",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "exactLookup",
@@ -1638,8 +1496,7 @@
     {
       "caseId": "controlled-213",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "exactLookup",
@@ -1649,8 +1506,7 @@
     {
       "caseId": "controlled-214",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "visual",
@@ -1660,8 +1516,7 @@
     {
       "caseId": "controlled-215",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "visual",
@@ -1671,8 +1526,7 @@
     {
       "caseId": "controlled-216",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "visual",
@@ -1682,8 +1536,7 @@
     {
       "caseId": "controlled-217",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "visual",
@@ -1693,8 +1546,7 @@
     {
       "caseId": "controlled-218",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "retrievalDecision",
@@ -1704,8 +1556,7 @@
     {
       "caseId": "controlled-219",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "retrievalDecision",
@@ -1715,8 +1566,7 @@
     {
       "caseId": "controlled-220",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "versionAndAuthorization",
@@ -1726,8 +1576,7 @@
     {
       "caseId": "controlled-221",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "versionAndAuthorization",
@@ -1737,8 +1586,7 @@
     {
       "caseId": "controlled-222",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "visual",
@@ -1748,8 +1596,7 @@
     {
       "caseId": "controlled-223",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "visual",
@@ -1759,8 +1606,7 @@
     {
       "caseId": "controlled-224",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "retrievalDecision",
@@ -1770,8 +1616,7 @@
     {
       "caseId": "controlled-225",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "retrievalDecision",
@@ -1781,8 +1626,7 @@
     {
       "caseId": "controlled-226",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "versionAndAuthorization",
@@ -1792,8 +1636,7 @@
     {
       "caseId": "controlled-227",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "versionAndAuthorization",
@@ -1803,8 +1646,7 @@
     {
       "caseId": "controlled-228",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "versionAndAuthorization",
@@ -1814,8 +1656,7 @@
     {
       "caseId": "controlled-229",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "visual",
@@ -1825,8 +1666,7 @@
     {
       "caseId": "controlled-230",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "visual",
@@ -1836,8 +1676,7 @@
     {
       "caseId": "controlled-231",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "visual",
@@ -1847,8 +1686,7 @@
     {
       "caseId": "controlled-232",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "visual",
@@ -1858,8 +1696,7 @@
     {
       "caseId": "controlled-233",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "visual",
@@ -1869,8 +1706,7 @@
     {
       "caseId": "controlled-234",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "retrievalDecision",
@@ -1880,8 +1716,7 @@
     {
       "caseId": "controlled-235",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "retrievalDecision",
@@ -1891,8 +1726,7 @@
     {
       "caseId": "controlled-236",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "retrievalDecision",
@@ -1902,8 +1736,7 @@
     {
       "caseId": "controlled-237",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "versionAndAuthorization",
@@ -1913,8 +1746,7 @@
     {
       "caseId": "controlled-238",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "versionAndAuthorization",
@@ -1924,8 +1756,7 @@
     {
       "caseId": "controlled-239",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "versionAndAuthorization",
@@ -1935,8 +1766,7 @@
     {
       "caseId": "controlled-240",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "versionAndAuthorization",
@@ -1946,8 +1776,7 @@
     {
       "caseId": "controlled-241",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "versionAndAuthorization",
@@ -1957,8 +1786,7 @@
     {
       "caseId": "controlled-242",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "visual",
@@ -1968,8 +1796,7 @@
     {
       "caseId": "controlled-243",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "visual",
@@ -1979,8 +1806,7 @@
     {
       "caseId": "controlled-244",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "visual",
@@ -1990,8 +1816,7 @@
     {
       "caseId": "controlled-245",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "visual",
@@ -2001,8 +1826,7 @@
     {
       "caseId": "controlled-246",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "visual",
@@ -2012,8 +1836,7 @@
     {
       "caseId": "controlled-247",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "visual",
@@ -2023,8 +1846,7 @@
     {
       "caseId": "controlled-248",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "visual",
@@ -2034,8 +1856,7 @@
     {
       "caseId": "controlled-249",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "visual",
@@ -2045,8 +1866,7 @@
     {
       "caseId": "controlled-250",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "visual",
@@ -2056,8 +1876,7 @@
     {
       "caseId": "controlled-251",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "visual",
@@ -2067,8 +1886,7 @@
     {
       "caseId": "controlled-252",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "visual",
@@ -2078,8 +1896,7 @@
     {
       "caseId": "controlled-253",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "visual",
@@ -2089,8 +1906,7 @@
     {
       "caseId": "controlled-254",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "ocr",
@@ -2100,8 +1916,7 @@
     {
       "caseId": "controlled-255",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "ocr",
@@ -2111,8 +1926,7 @@
     {
       "caseId": "controlled-256",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "ocr",
@@ -2122,8 +1936,7 @@
     {
       "caseId": "controlled-257",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "ocr",
@@ -2133,8 +1946,7 @@
     {
       "caseId": "controlled-258",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "ocr",
@@ -2144,8 +1956,7 @@
     {
       "caseId": "controlled-259",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "ocr",
@@ -2155,8 +1966,7 @@
     {
       "caseId": "controlled-260",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "ocr",
@@ -2166,8 +1976,7 @@
     {
       "caseId": "controlled-261",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "ocr",
@@ -2177,8 +1986,7 @@
     {
       "caseId": "controlled-262",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "versionAndAuthorization",
@@ -2188,8 +1996,7 @@
     {
       "caseId": "controlled-263",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "versionAndAuthorization",
@@ -2199,8 +2006,7 @@
     {
       "caseId": "controlled-264",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "versionAndAuthorization",
@@ -2210,8 +2016,7 @@
     {
       "caseId": "controlled-265",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "versionAndAuthorization",
@@ -2221,8 +2026,7 @@
     {
       "caseId": "controlled-266",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "versionAndAuthorization",
@@ -2232,8 +2036,7 @@
     {
       "caseId": "controlled-267",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "versionAndAuthorization",
@@ -2243,8 +2046,7 @@
     {
       "caseId": "controlled-268",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "versionAndAuthorization",
@@ -2254,8 +2056,7 @@
     {
       "caseId": "controlled-269",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "versionAndAuthorization",
@@ -2265,8 +2066,7 @@
     {
       "caseId": "controlled-270",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "retrievalDecision",
@@ -2276,8 +2076,7 @@
     {
       "caseId": "controlled-271",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "retrievalDecision",
@@ -2287,8 +2086,7 @@
     {
       "caseId": "controlled-272",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "retrievalDecision",
@@ -2298,8 +2096,7 @@
     {
       "caseId": "controlled-273",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "retrievalDecision",
@@ -2309,8 +2106,7 @@
     {
       "caseId": "controlled-274",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "retrievalDecision",
@@ -2320,8 +2116,7 @@
     {
       "caseId": "controlled-275",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "failure",
@@ -2331,8 +2126,7 @@
     {
       "caseId": "controlled-276",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "failure",
@@ -2342,8 +2136,7 @@
     {
       "caseId": "controlled-277",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "failure",
@@ -2353,8 +2146,7 @@
     {
       "caseId": "controlled-278",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "failure",
@@ -2364,8 +2156,7 @@
     {
       "caseId": "controlled-279",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "visual",
@@ -2375,8 +2166,7 @@
     {
       "caseId": "controlled-280",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "visual",
@@ -2386,8 +2176,7 @@
     {
       "caseId": "controlled-281",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "visual",
@@ -2397,8 +2186,7 @@
     {
       "caseId": "controlled-282",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "visual",
@@ -2408,8 +2196,7 @@
     {
       "caseId": "controlled-431",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "exactLookup",
@@ -2419,8 +2206,7 @@
     {
       "caseId": "controlled-432",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "exactLookup",
@@ -2430,8 +2216,7 @@
     {
       "caseId": "controlled-433",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "visual",
@@ -2441,8 +2226,7 @@
     {
       "caseId": "controlled-434",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "visual",
@@ -2452,8 +2236,7 @@
     {
       "caseId": "controlled-435",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "visual",
@@ -2463,8 +2246,7 @@
     {
       "caseId": "controlled-436",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "visual",
@@ -2474,8 +2256,7 @@
     {
       "caseId": "controlled-437",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "visual",
@@ -2485,8 +2266,7 @@
     {
       "caseId": "controlled-438",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "retrievalDecision",
@@ -2496,8 +2276,7 @@
     {
       "caseId": "controlled-439",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "retrievalDecision",
@@ -2507,8 +2286,7 @@
     {
       "caseId": "controlled-440",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "retrievalDecision",
@@ -2518,8 +2296,7 @@
     {
       "caseId": "controlled-441",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "retrievalDecision",
@@ -2529,8 +2306,7 @@
     {
       "caseId": "controlled-442",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "versionAndAuthorization",
@@ -2540,8 +2316,7 @@
     {
       "caseId": "controlled-443",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "versionAndAuthorization",
@@ -2551,8 +2326,7 @@
     {
       "caseId": "controlled-444",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "versionAndAuthorization",
@@ -2562,8 +2336,7 @@
     {
       "caseId": "controlled-445",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "failure",
@@ -2573,8 +2346,7 @@
     {
       "caseId": "controlled-446",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "failure",
@@ -2584,8 +2356,7 @@
     {
       "caseId": "controlled-447",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "failure",
@@ -2595,8 +2366,7 @@
     {
       "caseId": "controlled-448",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "visual",
@@ -2606,8 +2376,7 @@
     {
       "caseId": "controlled-449",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "visual",
@@ -2617,8 +2386,7 @@
     {
       "caseId": "controlled-450",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "visual",
@@ -2628,8 +2396,7 @@
     {
       "caseId": "controlled-451",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "retrievalDecision",
@@ -2639,8 +2406,7 @@
     {
       "caseId": "controlled-452",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "retrievalDecision",
@@ -2650,8 +2416,7 @@
     {
       "caseId": "controlled-453",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "retrievalDecision",
@@ -2661,8 +2426,7 @@
     {
       "caseId": "controlled-454",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "versionAndAuthorization",
@@ -2672,8 +2436,7 @@
     {
       "caseId": "controlled-455",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "versionAndAuthorization",
@@ -2683,8 +2446,7 @@
     {
       "caseId": "controlled-456",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "failure",
@@ -2694,8 +2456,7 @@
     {
       "caseId": "controlled-457",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "failure",
@@ -2705,8 +2466,7 @@
     {
       "caseId": "controlled-458",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "failure",
@@ -2716,8 +2476,7 @@
     {
       "caseId": "controlled-459",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "visual",
@@ -2727,8 +2486,7 @@
     {
       "caseId": "controlled-460",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "visual",
@@ -2738,8 +2496,7 @@
     {
       "caseId": "controlled-461",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "visual",
@@ -2749,8 +2506,7 @@
     {
       "caseId": "controlled-462",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "visual",
@@ -2760,8 +2516,7 @@
     {
       "caseId": "controlled-463",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "retrievalDecision",
@@ -2771,8 +2526,7 @@
     {
       "caseId": "controlled-464",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "retrievalDecision",
@@ -2782,8 +2536,7 @@
     {
       "caseId": "controlled-465",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "versionAndAuthorization",
@@ -2793,8 +2546,7 @@
     {
       "caseId": "controlled-466",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "versionAndAuthorization",
@@ -2804,8 +2556,7 @@
     {
       "caseId": "controlled-467",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "failure",
@@ -2815,8 +2566,7 @@
     {
       "caseId": "controlled-468",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "failure",
@@ -2826,8 +2576,7 @@
     {
       "caseId": "controlled-469",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "exactLookup",
@@ -2837,8 +2586,7 @@
     {
       "caseId": "controlled-470",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "failure",
@@ -2848,8 +2596,7 @@
     {
       "caseId": "controlled-471",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "failure",
@@ -2859,8 +2606,7 @@
     {
       "caseId": "controlled-472",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "failure",
@@ -2870,8 +2616,7 @@
     {
       "caseId": "controlled-473",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "failure",
@@ -2881,8 +2626,7 @@
     {
       "caseId": "controlled-474",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "failure",
@@ -2892,8 +2636,7 @@
     {
       "caseId": "controlled-475",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "failure",
@@ -2903,8 +2646,7 @@
     {
       "caseId": "controlled-476",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "failure",
@@ -2914,8 +2656,7 @@
     {
       "caseId": "controlled-477",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "failure",
@@ -2925,8 +2666,7 @@
     {
       "caseId": "controlled-478",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "failure",
@@ -2936,8 +2676,7 @@
     {
       "caseId": "controlled-479",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "failure",
@@ -2947,8 +2686,7 @@
     {
       "caseId": "controlled-480",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "failure",
@@ -2958,8 +2696,7 @@
     {
       "caseId": "controlled-481",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "failure",
@@ -2969,8 +2706,7 @@
     {
       "caseId": "controlled-482",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "retrievalDecision",
@@ -2980,8 +2716,7 @@
     {
       "caseId": "controlled-483",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "retrievalDecision",
@@ -2991,8 +2726,7 @@
     {
       "caseId": "controlled-484",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "retrievalDecision",
@@ -3002,8 +2736,7 @@
     {
       "caseId": "controlled-485",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "retrievalDecision",
@@ -3013,8 +2746,7 @@
     {
       "caseId": "controlled-486",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "versionAndAuthorization",
@@ -3024,8 +2756,7 @@
     {
       "caseId": "controlled-487",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "versionAndAuthorization",
@@ -3035,8 +2766,7 @@
     {
       "caseId": "controlled-488",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "exactLookup",
@@ -3046,8 +2776,7 @@
     {
       "caseId": "controlled-489",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "retrievalDecision",
@@ -3057,8 +2786,7 @@
     {
       "caseId": "controlled-490",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "retrievalDecision",
@@ -3068,8 +2796,7 @@
     {
       "caseId": "controlled-491",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "retrievalDecision",
@@ -3079,8 +2806,7 @@
     {
       "caseId": "controlled-492",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "retrievalDecision",
@@ -3090,8 +2816,7 @@
     {
       "caseId": "controlled-493",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "retrievalDecision",
@@ -3101,8 +2826,7 @@
     {
       "caseId": "controlled-494",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "retrievalDecision",
@@ -3112,8 +2836,7 @@
     {
       "caseId": "controlled-495",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "versionAndAuthorization",
@@ -3123,8 +2846,7 @@
     {
       "caseId": "controlled-496",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "versionAndAuthorization",
@@ -3134,8 +2856,7 @@
     {
       "caseId": "controlled-497",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "versionAndAuthorization",
@@ -3145,8 +2866,7 @@
     {
       "caseId": "controlled-498",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "versionAndAuthorization",
@@ -3156,8 +2876,7 @@
     {
       "caseId": "controlled-499",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "versionAndAuthorization",
@@ -3167,8 +2886,7 @@
     {
       "caseId": "controlled-500",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "versionAndAuthorization",
@@ -3178,8 +2896,7 @@
     {
       "caseId": "controlled-501",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "versionAndAuthorization",
@@ -3189,8 +2906,7 @@
     {
       "caseId": "controlled-502",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "versionAndAuthorization",
@@ -3200,8 +2916,7 @@
     {
       "caseId": "controlled-503",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "failure",
@@ -3211,8 +2926,7 @@
     {
       "caseId": "controlled-504",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "failure",
@@ -3222,8 +2936,7 @@
     {
       "caseId": "controlled-505",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "failure",
@@ -3233,8 +2946,7 @@
     {
       "caseId": "controlled-506",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "failure",
@@ -3244,8 +2956,7 @@
     {
       "caseId": "controlled-507",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "failure",
@@ -3255,8 +2966,7 @@
     {
       "caseId": "controlled-508",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "failure",
@@ -3266,8 +2976,7 @@
     {
       "caseId": "controlled-509",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "failure",
@@ -3277,8 +2986,7 @@
     {
       "caseId": "controlled-510",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "failure",
@@ -3288,8 +2996,7 @@
     {
       "caseId": "controlled-511",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "retrievalDecision",
@@ -3299,8 +3006,7 @@
     {
       "caseId": "controlled-512",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "retrievalDecision",
@@ -3310,8 +3016,7 @@
     {
       "caseId": "controlled-513",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "retrievalDecision",
@@ -3321,8 +3026,7 @@
     {
       "caseId": "controlled-514",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "versionAndAuthorization",
@@ -3332,8 +3036,7 @@
     {
       "caseId": "controlled-515",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "versionAndAuthorization",
@@ -3343,8 +3046,7 @@
     {
       "caseId": "controlled-516",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "crossLanguage",
@@ -3354,8 +3056,7 @@
     {
       "caseId": "controlled-517",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "crossLanguage",
@@ -3365,8 +3066,7 @@
     {
       "caseId": "controlled-518",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "crossLanguage",
@@ -3376,8 +3076,7 @@
     {
       "caseId": "controlled-519",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "crossLanguage",
@@ -3387,8 +3086,7 @@
     {
       "caseId": "controlled-520",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "crossLanguage",
@@ -3398,8 +3096,7 @@
     {
       "caseId": "controlled-521",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "crossLanguage",
@@ -3409,8 +3106,7 @@
     {
       "caseId": "controlled-522",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "exactLookup",
@@ -3420,8 +3116,7 @@
     {
       "caseId": "controlled-523",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "retrievalDecision",
@@ -3431,8 +3126,7 @@
     {
       "caseId": "controlled-524",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "retrievalDecision",
@@ -3442,8 +3136,7 @@
     {
       "caseId": "controlled-525",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "retrievalDecision",
@@ -3453,8 +3146,7 @@
     {
       "caseId": "controlled-526",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "retrievalDecision",
@@ -3464,8 +3156,7 @@
     {
       "caseId": "controlled-527",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "retrievalDecision",
@@ -3475,8 +3166,7 @@
     {
       "caseId": "controlled-528",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "retrievalDecision",
@@ -3486,8 +3176,7 @@
     {
       "caseId": "controlled-529",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "retrievalDecision",
@@ -3497,8 +3186,7 @@
     {
       "caseId": "controlled-530",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "versionAndAuthorization",
@@ -3508,8 +3196,7 @@
     {
       "caseId": "controlled-531",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "versionAndAuthorization",
@@ -3519,8 +3206,7 @@
     {
       "caseId": "controlled-532",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "versionAndAuthorization",
@@ -3530,8 +3216,7 @@
     {
       "caseId": "controlled-533",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "versionAndAuthorization",
@@ -3541,8 +3226,7 @@
     {
       "caseId": "controlled-534",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "failure",
@@ -3552,8 +3236,7 @@
     {
       "caseId": "controlled-535",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "failure",
@@ -3563,8 +3246,7 @@
     {
       "caseId": "controlled-536",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "failure",
@@ -3574,8 +3256,7 @@
     {
       "caseId": "controlled-537",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "failure",
@@ -3585,8 +3266,7 @@
     {
       "caseId": "controlled-538",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "crossLanguage",
@@ -3596,8 +3276,7 @@
     {
       "caseId": "controlled-539",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "crossLanguage",
@@ -3607,8 +3286,7 @@
     {
       "caseId": "controlled-540",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "retrievalDecision",
@@ -3618,8 +3296,7 @@
     {
       "caseId": "controlled-541",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "retrievalDecision",
@@ -3629,8 +3306,7 @@
     {
       "caseId": "controlled-542",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "versionAndAuthorization",
@@ -3640,8 +3316,7 @@
     {
       "caseId": "controlled-543",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "versionAndAuthorization",
@@ -3651,8 +3326,7 @@
     {
       "caseId": "controlled-544",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "ocr",
@@ -3662,8 +3336,7 @@
     {
       "caseId": "controlled-545",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "ocr",
@@ -3673,8 +3346,7 @@
     {
       "caseId": "controlled-546",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "ocr",
@@ -3684,8 +3356,7 @@
     {
       "caseId": "controlled-547",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "ocr",
@@ -3695,8 +3366,7 @@
     {
       "caseId": "controlled-548",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "ocr",
@@ -3706,8 +3376,7 @@
     {
       "caseId": "controlled-549",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "ocr",
@@ -3717,8 +3386,7 @@
     {
       "caseId": "controlled-550",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "ocr",
@@ -3728,8 +3396,7 @@
     {
       "caseId": "controlled-551",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "ocr",
@@ -3739,8 +3406,7 @@
     {
       "caseId": "controlled-552",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "ocr",
@@ -3750,8 +3416,7 @@
     {
       "caseId": "controlled-553",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "ocr",
@@ -3761,8 +3426,7 @@
     {
       "caseId": "controlled-554",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "ocr",
@@ -3772,8 +3436,7 @@
     {
       "caseId": "controlled-555",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "ocr",
@@ -3783,8 +3446,7 @@
     {
       "caseId": "controlled-556",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "ocr",
@@ -3794,8 +3456,7 @@
     {
       "caseId": "controlled-557",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "ocr",
@@ -3805,8 +3466,7 @@
     {
       "caseId": "controlled-558",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "ocr",
@@ -3816,8 +3476,7 @@
     {
       "caseId": "controlled-559",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "ocr",
@@ -3827,8 +3486,7 @@
     {
       "caseId": "controlled-560",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "ocr",
@@ -3838,8 +3496,7 @@
     {
       "caseId": "controlled-561",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "ocr",
@@ -3849,8 +3506,7 @@
     {
       "caseId": "controlled-562",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "ocr",
@@ -3860,8 +3516,7 @@
     {
       "caseId": "controlled-563",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "multiEvidence",
@@ -3871,8 +3526,7 @@
     {
       "caseId": "controlled-564",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "multiEvidence",
@@ -3882,8 +3536,7 @@
     {
       "caseId": "controlled-565",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "multiEvidence",
@@ -3893,8 +3546,7 @@
     {
       "caseId": "controlled-566",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "multiEvidence",
@@ -3904,8 +3556,7 @@
     {
       "caseId": "controlled-567",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "multiEvidence",
@@ -3915,8 +3566,7 @@
     {
       "caseId": "controlled-568",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "multiEvidence",
@@ -3926,8 +3576,7 @@
     {
       "caseId": "controlled-569",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "multiEvidence",
@@ -3937,8 +3586,7 @@
     {
       "caseId": "controlled-570",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "multiEvidence",
@@ -3948,8 +3596,7 @@
     {
       "caseId": "controlled-571",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "multiEvidence",
@@ -3959,8 +3606,7 @@
     {
       "caseId": "controlled-572",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "multiEvidence",
@@ -3970,8 +3616,7 @@
     {
       "caseId": "controlled-573",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "multiEvidence",
@@ -3981,8 +3626,7 @@
     {
       "caseId": "controlled-574",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "multiEvidence",
@@ -3992,8 +3636,7 @@
     {
       "caseId": "controlled-575",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "multiEvidence",
@@ -4003,8 +3646,7 @@
     {
       "caseId": "controlled-576",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "multiEvidence",
@@ -4014,8 +3656,7 @@
     {
       "caseId": "controlled-577",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "multiEvidence",
@@ -4025,8 +3666,7 @@
     {
       "caseId": "controlled-578",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "multiEvidence",
@@ -4036,8 +3676,7 @@
     {
       "caseId": "controlled-579",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "multiEvidence",
@@ -4047,8 +3686,7 @@
     {
       "caseId": "controlled-580",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "multiEvidence",
@@ -4058,8 +3696,7 @@
     {
       "caseId": "controlled-581",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "multiEvidence",
@@ -4069,8 +3706,7 @@
     {
       "caseId": "controlled-582",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "multiEvidence",
@@ -4080,8 +3716,7 @@
     {
       "caseId": "controlled-583",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "multiEvidence",
@@ -4091,8 +3726,7 @@
     {
       "caseId": "controlled-584",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "multiEvidence",
@@ -4102,8 +3736,7 @@
     {
       "caseId": "controlled-585",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "multiEvidence",
@@ -4113,8 +3746,7 @@
     {
       "caseId": "controlled-586",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "multiEvidence",
@@ -4124,8 +3756,7 @@
     {
       "caseId": "controlled-587",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "multiEvidence",
@@ -4135,8 +3766,7 @@
     {
       "caseId": "controlled-588",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "multiEvidence",
@@ -4146,8 +3776,7 @@
     {
       "caseId": "controlled-589",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "multiEvidence",
@@ -4157,8 +3786,7 @@
     {
       "caseId": "controlled-590",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "multiEvidence",
@@ -4168,8 +3796,7 @@
     {
       "caseId": "controlled-591",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "multiEvidence",
@@ -4179,8 +3806,7 @@
     {
       "caseId": "controlled-592",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "multiEvidence",
@@ -4190,8 +3816,7 @@
     {
       "caseId": "controlled-593",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "multiEvidence",
@@ -4201,8 +3826,7 @@
     {
       "caseId": "controlled-594",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "multiEvidence",
@@ -4212,8 +3836,7 @@
     {
       "caseId": "controlled-595",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "multiEvidence",
@@ -4223,8 +3846,7 @@
     {
       "caseId": "controlled-596",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "multiEvidence",
@@ -4234,8 +3856,7 @@
     {
       "caseId": "controlled-597",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "multiEvidence",
@@ -4245,8 +3866,7 @@
     {
       "caseId": "controlled-598",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "multiEvidence",
@@ -4256,8 +3876,7 @@
     {
       "caseId": "controlled-599",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "multiEvidence",
@@ -4267,8 +3886,7 @@
     {
       "caseId": "controlled-600",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "multiEvidence",
@@ -4278,8 +3896,7 @@
     {
       "caseId": "controlled-601",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "multiEvidence",
@@ -4289,8 +3906,7 @@
     {
       "caseId": "controlled-602",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "multiEvidence",
@@ -4300,8 +3916,7 @@
     {
       "caseId": "controlled-603",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "multiEvidence",
@@ -4311,8 +3926,7 @@
     {
       "caseId": "controlled-604",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "multiEvidence",
@@ -4322,8 +3936,7 @@
     {
       "caseId": "controlled-605",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "multiEvidence",
@@ -4333,8 +3946,7 @@
     {
       "caseId": "controlled-606",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "multiEvidence",
@@ -4344,8 +3956,7 @@
     {
       "caseId": "controlled-607",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "multiEvidence",
@@ -4355,8 +3966,7 @@
     {
       "caseId": "controlled-608",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "multiEvidence",
@@ -4366,8 +3976,7 @@
     {
       "caseId": "controlled-609",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "multiEvidence",
@@ -4377,8 +3986,7 @@
     {
       "caseId": "controlled-610",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "multiEvidence",
@@ -4388,8 +3996,7 @@
     {
       "caseId": "controlled-611",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "multiEvidence",
@@ -4399,8 +4006,7 @@
     {
       "caseId": "controlled-612",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "multiEvidence",
@@ -4410,8 +4016,7 @@
     {
       "caseId": "controlled-617",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "noAnswerAndMisleading",
@@ -4421,8 +4026,7 @@
     {
       "caseId": "controlled-618",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "noAnswerAndMisleading",
@@ -4432,8 +4036,7 @@
     {
       "caseId": "controlled-619",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "noAnswerAndMisleading",
@@ -4443,8 +4046,7 @@
     {
       "caseId": "controlled-620",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "noAnswerAndMisleading",
@@ -4454,8 +4056,7 @@
     {
       "caseId": "controlled-621",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "noAnswerAndMisleading",
@@ -4465,8 +4066,7 @@
     {
       "caseId": "controlled-622",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "noAnswerAndMisleading",
@@ -4476,8 +4076,7 @@
     {
       "caseId": "controlled-624",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "noAnswerAndMisleading",
@@ -4487,8 +4086,7 @@
     {
       "caseId": "controlled-625",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "noAnswerAndMisleading",
@@ -4498,8 +4096,7 @@
     {
       "caseId": "controlled-626",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "noAnswerAndMisleading",
@@ -4509,8 +4106,7 @@
     {
       "caseId": "controlled-627",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "noAnswerAndMisleading",
@@ -4520,8 +4116,7 @@
     {
       "caseId": "controlled-628",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "noAnswerAndMisleading",
@@ -4531,8 +4126,7 @@
     {
       "caseId": "controlled-629",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "noAnswerAndMisleading",
@@ -4542,8 +4136,7 @@
     {
       "caseId": "controlled-630",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "noAnswerAndMisleading",
@@ -4553,8 +4146,7 @@
     {
       "caseId": "controlled-631",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "noAnswerAndMisleading",
@@ -4564,8 +4156,7 @@
     {
       "caseId": "controlled-632",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "noAnswerAndMisleading",
@@ -4575,8 +4166,7 @@
     {
       "caseId": "controlled-633",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "noAnswerAndMisleading",
@@ -4586,8 +4176,7 @@
     {
       "caseId": "controlled-634",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "noAnswerAndMisleading",
@@ -4597,8 +4186,7 @@
     {
       "caseId": "controlled-635",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "noAnswerAndMisleading",
@@ -4608,8 +4196,7 @@
     {
       "caseId": "controlled-636",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "noAnswerAndMisleading",
@@ -4619,8 +4206,7 @@
     {
       "caseId": "controlled-637",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "noAnswerAndMisleading",
@@ -4630,8 +4216,7 @@
     {
       "caseId": "controlled-638",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "noAnswerAndMisleading",
@@ -4641,8 +4226,7 @@
     {
       "caseId": "controlled-639",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "noAnswerAndMisleading",
@@ -4652,8 +4236,7 @@
     {
       "caseId": "controlled-640",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "noAnswerAndMisleading",
@@ -4663,8 +4246,7 @@
     {
       "caseId": "controlled-641",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "noAnswerAndMisleading",
@@ -4674,8 +4256,7 @@
     {
       "caseId": "controlled-642",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "noAnswerAndMisleading",
@@ -4685,8 +4266,7 @@
     {
       "caseId": "controlled-643",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "noAnswerAndMisleading",
@@ -4696,8 +4276,7 @@
     {
       "caseId": "controlled-644",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "noAnswerAndMisleading",
@@ -4707,8 +4286,7 @@
     {
       "caseId": "controlled-645",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "noAnswerAndMisleading",
@@ -4718,8 +4296,7 @@
     {
       "caseId": "controlled-690",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "noAnswerAndMisleading",
@@ -4729,8 +4306,7 @@
     {
       "caseId": "controlled-691",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "noAnswerAndMisleading",
@@ -4740,8 +4316,7 @@
     {
       "caseId": "controlled-692",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "noAnswerAndMisleading",
@@ -4751,8 +4326,7 @@
     {
       "caseId": "controlled-693",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "noAnswerAndMisleading",
@@ -4762,8 +4336,7 @@
     {
       "caseId": "controlled-694",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "noAnswerAndMisleading",
@@ -4773,8 +4346,7 @@
     {
       "caseId": "controlled-695",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "noAnswerAndMisleading",
@@ -4784,8 +4356,7 @@
     {
       "caseId": "controlled-696",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "noAnswerAndMisleading",
@@ -4795,8 +4366,7 @@
     {
       "caseId": "controlled-697",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "noAnswerAndMisleading",
@@ -4806,8 +4376,7 @@
     {
       "caseId": "controlled-698",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "noAnswerAndMisleading",
@@ -4817,8 +4386,7 @@
     {
       "caseId": "controlled-699",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "noAnswerAndMisleading",
@@ -4828,8 +4396,7 @@
     {
       "caseId": "controlled-700",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "noAnswerAndMisleading",
@@ -4839,8 +4406,7 @@
     {
       "caseId": "controlled-701",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "noAnswerAndMisleading",
@@ -4850,8 +4416,7 @@
     {
       "caseId": "controlled-702",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "noAnswerAndMisleading",
@@ -4861,8 +4426,7 @@
     {
       "caseId": "controlled-703",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "noAnswerAndMisleading",
@@ -4872,8 +4436,7 @@
     {
       "caseId": "controlled-704",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "noAnswerAndMisleading",
@@ -4883,8 +4446,7 @@
     {
       "caseId": "controlled-705",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "noAnswerAndMisleading",
@@ -4894,8 +4456,7 @@
     {
       "caseId": "controlled-706",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "noAnswerAndMisleading",
@@ -4905,8 +4466,7 @@
     {
       "caseId": "controlled-707",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "noAnswerAndMisleading",
@@ -4916,8 +4476,7 @@
     {
       "caseId": "controlled-708",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "noAnswerAndMisleading",
@@ -4927,8 +4486,7 @@
     {
       "caseId": "controlled-709",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "noAnswerAndMisleading",
@@ -4938,8 +4496,7 @@
     {
       "caseId": "controlled-710",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "noAnswerAndMisleading",
@@ -4949,8 +4506,7 @@
     {
       "caseId": "controlled-711",
       "reviewers": [
-        "claude-opus-4.8-review",
-        "Shengbo"
+        "automated-contract-review-v1"
       ],
       "status": "agreed",
       "primaryCategory": "noAnswerAndMisleading",

@@ -33,11 +33,12 @@ class DrawioGenerationPromptTest(unittest.TestCase):
         prompt = MODULE.build_prompt(task, context)
 
         self.assertIn("Create an editable evidence route.", prompt)
-        self.assertIn("route-a | architecture:v1 | page 3", prompt)
+        self.assertIn("CIT-001 | architecture:v1 | page 3", prompt)
         self.assertIn("SCOPE SOURCES is followed by RETRIEVE EVIDENCE.", prompt)
         self.assertIn("Allowed citations", prompt)
-        self.assertIn("anchorId=route-a; sourceVersion=architecture:v1; page=3", prompt)
+        self.assertIn("citationId=CIT-001; sourceVersion=architecture:v1; page=3", prompt)
         self.assertIn("must not use draw.io mxCell IDs", prompt)
+        self.assertNotIn("route-a", prompt)
         self.assertNotIn("PRIVATE EXPECTED LABEL", prompt)
 
     def test_includes_existing_xml_but_keeps_edit_assertions_private(self):
@@ -102,6 +103,43 @@ class DrawioGenerationPromptTest(unittest.TestCase):
                                  chartbook_sources={"source:v1"},
                                  hydration_artifact=READY_HYDRATION_ARTIFACT)
 
+    def test_selected_only_bundle_does_not_inherit_other_chartbook_sources(self):
+        task = {
+            "taskId": "dev", "split": "development", "sourceVersion": "source:v1",
+            "selectedMaterialVersion": "source:v1", "sourceScopeMode": "selected_only",
+            "request": "Dev",
+        }
+        contexts = [{
+            "taskId": "dev", "arm": "candidate",
+            "allowedSourceVersions": ["source:v1"], "evidence": [],
+        }]
+
+        bundles = MODULE.build_bundles(
+            [task], contexts, split="development", arm="candidate",
+            chartbook_sources={"source:v1", "other:v1"},
+            hydration_artifact=READY_HYDRATION_ARTIFACT,
+        )
+
+        self.assertEqual(["dev"], [bundle["taskId"] for bundle in bundles])
+
+    def test_validation_bundle_uses_its_frozen_chartbook_scope(self):
+        task = {
+            "taskId": "val", "split": "validation", "sourceVersion": "val-source:v1",
+            "sourceScopeMode": "chartbook_auto", "request": "Validation",
+        }
+        contexts = [{
+            "taskId": "val", "arm": "candidate",
+            "allowedSourceVersions": ["other-val:v1", "val-source:v1"], "evidence": [],
+        }]
+
+        bundles = MODULE.build_bundles(
+            [task], contexts, split="validation", arm="candidate",
+            chartbook_sources={"val-source:v1", "other-val:v1"},
+            hydration_artifact=READY_HYDRATION_ARTIFACT,
+        )
+
+        self.assertEqual(["val"], [bundle["taskId"] for bundle in bundles])
+
     def test_preserves_attached_visual_artifact_paths(self):
         task = {"taskId": "visual", "split": "development", "sourceVersion": "source:v1", "request": "Inspect route"}
         contexts = [{"taskId": "visual", "arm": "fixed", "evidence": [{
@@ -130,9 +168,14 @@ class DrawioGenerationPromptTest(unittest.TestCase):
         bundle = MODULE.build_bundles([task], contexts, split="development", arm="candidate",
                                       hydration_artifact=READY_HYDRATION_ARTIFACT)[0]
 
-        self.assertEqual([{"anchorId": "visible-a", "sourceVersion": "source:v1", "page": 2}],
+        self.assertEqual([{"citationId": "CIT-001", "sourceVersion": "source:v1", "page": 2}],
                          bundle["citationOptions"])
-        self.assertIn("anchorId=visible-a; sourceVersion=source:v1; page=2", bundle["prompt"])
+        self.assertEqual([{
+            "citationId": "CIT-001", "anchorId": "visible-a",
+            "sourceVersion": "source:v1", "page": 2,
+        }], bundle["citationResolution"])
+        self.assertIn("citationId=CIT-001; sourceVersion=source:v1; page=2", bundle["prompt"])
+        self.assertNotIn("visible-a", bundle["prompt"])
         self.assertNotIn("PRIVATE-EVALUATOR-ANCHOR", bundle["prompt"])
 
 

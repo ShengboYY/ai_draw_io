@@ -1,6 +1,6 @@
 {
   "schemaVersion": "material-rag-corpus-lock-v1",
-  "status": "frozen",
+  "status": "candidate",
   "hashAlgorithm": "sha256",
   "coreCaseCount": 450,
   "coreBySplit": {
@@ -8,25 +8,26 @@
     "holdout": 100,
     "validation": 100
   },
-  "independentHumanReview": "double_reviewed",
-  "reviewedCoreCases": 450,
-  "reviewLedgerSha256": "060d402284ef11775fd31b2860d42002d7d5d9a525e316c75a35c57938dc9437",
+  "independentHumanReview": "pending",
+  "reviewedCoreCases": 0,
+  "reviewLedgerSha256": "00f91010ae13f7b3b80ef32d46c94c94fb4b1d1944d9b78ab060400cb8d7e1cd",
   "fixtureFontSha256": "876af2cd4854644e7f3e7feb2f688997fdb3343c6df6693611209c9dfb47ccec",
   "provenanceFiles": {
-    "EXPERIMENT-PLAN-V2.md": "895b72df8d962075eee7e5dc71607c6f41aa346ff047a2f173e9acbe0e9fdea8",
-    "experiment-plan-v2.json": "c938c5a41a1497b30b305306d0b37da49102ea33b69fb70cb7ded7da0bd4524b",
+    "EXPERIMENT-PLAN-V2.md": "fd3bd1e4dc3d60896e3175476f5f574e691e18de0132bcca8f8eb4df01126a7a",
+    "experiment-plan-v2.json": "0998bfdbb4ac8bf0682dc4e3f18770da81a3b6bbdf25647cba033ec59576460c",
     "requirements.txt": "0043aca3a7381487084576995105e1099e3786ae8add5a6c0951d305b0e0e757",
-    "analysis/audit_corpus.py": "2b113fb20122a63676fc8db22894427b0b7882511e6870358236cda687cf6228",
+    "analysis/audit_corpus.py": "176f42a0ee71e653a9f0b61f2ccfe4b56ea60e6435e6a36074ff05c30fb3221e",
     "analysis/compare_dense_runs.py": "762b83b97c14011b7b8081c859407973c7626252abc67e5f8773673bdda8ea59",
     "analysis/audit_e4_chartbook.py": "1785c3e3085810b269ae9d5c1975f7357b2a982bb1f321c9be12fdb6f5a86f9b",
     "analysis/evaluate_guard_suites.py": "e2ded7e4289fe4b7bfd1883e37e53c4543dccd69ab2c571aff6e54291daf4aa0",
-    "analysis/build_drawio_generation_prompts.py": "b9a9444c0988504654539c35bef6e14ff260da6193e9bef4a15d0efd3c452a69",
-    "analysis/run_drawio_generation.py": "23b0583137496e255283e01d7520dcb859da4af6ee49e345c8ec24e610410fe0",
-    "analysis/export_drawio_paired_hydration.py": "e94ed15c81fdc14c703835f62357856eb24b6f49334f30a60532201676491ba7",
+    "analysis/build_drawio_generation_prompts.py": "841148c671b4df9d6afc1fa5a9aad643122bc2189aab08c29f19ebdd631aeb35",
+    "analysis/run_drawio_generation.py": "3e060bd31573c1a766ec0cebdc74b59d66e4f25769f65ecc1c6e0074a9fb02e9",
+    "analysis/export_drawio_paired_hydration.py": "7442f1db448bd1996e25b030a891fa090169daf352d6c5a2c2520aa83b71dc12",
     "analysis/evaluate_drawio_generation_tasks.py": "29bd996daa4afcf4118e585d441aed26fa64c3cfa42b2cf43695553d6f1e4a34",
-    "analysis/validate_generation_run_manifest.py": "d9894ad51d03576d3cd7b80f02675ed07d6664b6d57361bc2edd222d58c4ee01",
+    "analysis/validate_generation_run_manifest.py": "e139c62d651194b936f3affcaf4daee61765f8a360c6be7b2418809ffad1cf60",
     "analysis/evaluate_ocr.py": "1df3eb9d8619dd258c437cd45504477edf8a4146b96c00c693642efad1c64284",
     "analysis/select_drawio_context.py": "f1350510d8fc409eeced5891317f20c3c8e3687a481777eed810381a477bbc97",
+    "review/make_review_ledger.py": "864d2e482fd0071e34f108cabb33f9c6eee8cd17b6e41e5296b9968cea6cec7f",
     "fixtures/generate_fixtures.py": "d78e4ff7d94edbbff81509828d4490949ce63830f7a2906fef3b8ec1b718822c",
     "fixtures/generation-config.json": "aabdf2491d269f0c2a62e6c40fe32764e35abe75f4b5efbf9cd55e6d4fbe0c79",
     "fixtures/realistic_corpus_specs.py": "0afebbfaec0de6e8060c466783e3501b35d4b74e778ce7f4351cfd1f4305a14e",
@@ -35,10 +36,12 @@
     "fixtures/guard_corpus_specs.py": "2bca433037990500ce5813aaf8953f19a6bc15067feeaf2c0250ef9978e8e493",
     "fixtures/expansion_corpus_specs.py": "d18eb83d95e07c801712e863b354b23f4005f81d7feacd6abc0daca3c905809d",
     "fixtures/e4_chartbook_specs.py": "08f81dcfddd157e73c26ee7e40d4383abe42f31858338f919771d7dfc31a7d95",
-    "fixtures/source_evidence_identity_specs.py": "cbf76a899074871f9eca18ab3eb7861b77bfd6651b965c772819d28b24bce3eb",
+    "fixtures/source_evidence_identity_specs.py": "b6d3aa47da2f368a4fada6365c9631f41ffd7254a8f5f5326891ffedc4df689a",
+    "fixtures/build_drawio_generation_tasks_v3.py": "a12a7af9f621bca5b10c9ef1bfcaa2261594c1d4c5664c6785e4805f1e8c8892",
     "fixtures/query-selection.json": "2053782f1f699b2bd6a880a3cfcbb4aa57829275ea02c3928248d636183d2f60",
     "fixtures/drawio-generation-tasks-v1.json": "76cd0285b4418257121f452a801d8e1a04f9ab2a9646986fbdd09d876062a160",
-    "fixtures/drawio-generation-tasks-v2.json": "1b3174a973dba93a3a3bfb9fcc00dbdd9973d118a904734cd4b3e33fe4756c64",
+    "fixtures/drawio-generation-tasks-v2.json": "80a7dd0d64376fb827021b15dcf4e810f1668f8bc48ce54c9b89982e7f91f5a8",
+    "fixtures/drawio-generation-tasks-v3.json": "5fe7b32313b1fc3a77d3ed7354c65e521faf98b0d3abdfb5668763e5fdf9fd05",
     "fixtures/drawio-generation-development-evidence-v1.json": "e63a573473a93e218ff7b939158fef18c571eb3c8a4a6283a4b1129973190a67",
     "fixtures/drawio-generation-paired-hydration-contract-v1.json": "c08e7dde6ecc574a8a5a9880c1f76134a5801baa1c74ac6c100453d66e83e582",
     "fixtures/final-holdout-contract-v1.json": "2c84a7fd4537d8aa3ea47d9654d68c39e31fce61a234ac44cb081375cace0bad"
@@ -133,6 +136,6 @@
     "pdfs/scenario-crossborder-payment-settlement-v1.pdf": "8ee5f827bda794a2edcb6a700ad56bf07c9ce556879a044a6269852b645b6345",
     "pdfs/scenario-gmp-batch-change-control-v1.pdf": "14c3e9962a1b2e1fe4fcba7298befe8a29883c03ddb9dcf88d6d3e1fdb30c24d",
     "pdfs/scenario-vehicle-ota-rollout-v1.pdf": "66371fa8537cb2dfc0384d3d71f2c0a4afcb0ddfa2805d19bd48d12b962fda43",
-    "source-evidence-identities-v1.json": "373b050bed6e32749c329590d8228bd6b11cd801af17f5053f6c34deb86efe8e"
+    "source-evidence-identities-v1.json": "92b31fcc08d9163768564a90ffd79ed5368f5f32aebb1e4ffcad59f32fd6806f"
   }
 }

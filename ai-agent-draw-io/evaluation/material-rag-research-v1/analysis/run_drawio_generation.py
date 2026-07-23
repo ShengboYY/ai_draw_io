@@ -23,7 +23,7 @@ OPENAI_BASE_URL = "https://api.openai.com"
 OPENAI_COMPLETIONS_PATH = "v1/chat/completions"
 OPENAI_MODEL = "gpt-5.5"
 JSON_SCHEMA = {
-    "name": "drawio_generation_response_v2",
+    "name": "drawio_generation_response_v3",
     "strict": True,
     "schema": {
         "type": "object",
@@ -36,11 +36,11 @@ JSON_SCHEMA = {
                     "type": "object",
                     "additionalProperties": False,
                     "properties": {
-                        "anchorId": {"type": "string"},
+                        "citationId": {"type": "string"},
                         "sourceVersion": {"type": "string"},
                         "page": {"type": "integer"},
                     },
-                    "required": ["anchorId", "sourceVersion", "page"],
+                    "required": ["citationId", "sourceVersion", "page"],
                 },
             },
         },
@@ -50,19 +50,36 @@ JSON_SCHEMA = {
 
 
 def citation_options(bundle: dict) -> list[dict]:
-    """Return the frozen evidence triples allowed in this model response."""
+    """Return the frozen opaque evidence handles allowed in this model response."""
     options = bundle.get("citationOptions")
     if not isinstance(options, list):
         raise ValueError(f"citation options are missing for {bundle.get('taskId', 'unknown')}")
     triples = []
     for option in options:
-        if not isinstance(option, dict) or not isinstance(option.get("anchorId"), str) \
+        if not isinstance(option, dict) or not isinstance(option.get("citationId"), str) \
                 or not isinstance(option.get("sourceVersion"), str) or not isinstance(option.get("page"), int):
             raise ValueError(f"citation options are malformed for {bundle.get('taskId', 'unknown')}")
-        triples.append((option["anchorId"], option["sourceVersion"], option["page"]))
+        triples.append((option["citationId"], option["sourceVersion"], option["page"]))
     if len(set(triples)) != len(triples):
         raise ValueError(f"citation options are duplicated for {bundle.get('taskId', 'unknown')}")
     return options
+
+
+def citation_resolution(bundle: dict) -> list[dict]:
+    """Return the evaluator-private mapping from opaque handles to canonical anchors."""
+    resolution = bundle.get("citationResolution")
+    if not isinstance(resolution, list):
+        raise ValueError(f"citation resolution is missing for {bundle.get('taskId', 'unknown')}")
+    keys = []
+    for item in resolution:
+        if not isinstance(item, dict) or not isinstance(item.get("citationId"), str) \
+                or not isinstance(item.get("anchorId"), str) \
+                or not isinstance(item.get("sourceVersion"), str) or not isinstance(item.get("page"), int):
+            raise ValueError(f"citation resolution is malformed for {bundle.get('taskId', 'unknown')}")
+        keys.append((item["citationId"], item["sourceVersion"], item["page"]))
+    if len(set(keys)) != len(keys):
+        raise ValueError(f"citation resolution is duplicated for {bundle.get('taskId', 'unknown')}")
+    return resolution
 
 
 def response_schema(bundle: dict) -> dict:
@@ -78,11 +95,11 @@ def response_schema(bundle: dict) -> dict:
             "type": "object",
             "additionalProperties": False,
             "properties": {
-                "anchorId": {"type": "string", "enum": [option["anchorId"]]},
+                "citationId": {"type": "string", "enum": [option["citationId"]]},
                 "sourceVersion": {"type": "string", "enum": [option["sourceVersion"]]},
                 "page": {"type": "integer", "enum": [option["page"]]},
             },
-            "required": ["anchorId", "sourceVersion", "page"],
+            "required": ["citationId", "sourceVersion", "page"],
         }
         for option in options
     ]}
@@ -161,15 +178,22 @@ def validate_bundle(bundle: dict, artifact_root: Path) -> Path:
     if bundle.get("modelVisibleRequiredEvidenceReady") is not True:
         raise ValueError(f"model-visible required evidence readiness gate failed for {bundle['taskId']}")
     hydration_path = hydration_artifact(bundle, artifact_root)
-    visible_options = [
-        {"anchorId": evidence["anchorId"], "sourceVersion": evidence["sourceVersion"], "page": evidence["page"]}
+    resolutions = citation_resolution(bundle)
+    if citation_options(bundle) != [{
+            "citationId": item["citationId"],
+            "sourceVersion": item["sourceVersion"],
+            "page": item["page"],
+    } for item in resolutions]:
+        raise ValueError(f"citation options do not match private resolution for {bundle['taskId']}")
+    visible_canonical = sorted({
+        (evidence["anchorId"], evidence["sourceVersion"], evidence["page"])
         for evidence in bundle.get("evidence", [])
-    ]
-    if citation_options(bundle) != [
-            {"anchorId": anchor_id, "sourceVersion": source_version, "page": page}
-            for anchor_id, source_version, page in sorted({
-                (option["anchorId"], option["sourceVersion"], option["page"]) for option in visible_options
-            })]:
+    })
+    resolved_canonical = sorted({
+        (item["anchorId"], item["sourceVersion"], item["page"])
+        for item in resolutions
+    })
+    if resolved_canonical != visible_canonical:
         raise ValueError(f"citation options do not match visible evidence for {bundle['taskId']}")
     paths = bundle.get("imagePaths", [])
     hashes = bundle.get("imageSha256s", [])
@@ -206,15 +230,23 @@ def response_payload(body: dict, bundle: dict) -> tuple[str, list[dict]]:
     if not isinstance(parsed, dict) or not isinstance(parsed.get("xml"), str) \
             or not isinstance(parsed.get("citations"), list):
         raise ValueError("response does not match the expected XML/citations contract")
-    allowed = {
-        (option["anchorId"], option["sourceVersion"], option["page"])
-        for option in citation_options(bundle)
+    resolved = {
+        (item["citationId"], item["sourceVersion"], item["page"]): {
+            "anchorId": item["anchorId"],
+            "sourceVersion": item["sourceVersion"],
+            "page": item["page"],
+        }
+        for item in citation_resolution(bundle)
     }
+    citations = []
     for citation in parsed["citations"]:
-        if not isinstance(citation, dict) or (
-                citation.get("anchorId"), citation.get("sourceVersion"), citation.get("page")) not in allowed:
+        key = (
+            citation.get("citationId"), citation.get("sourceVersion"), citation.get("page")
+        ) if isinstance(citation, dict) else None
+        if key not in resolved:
             raise ValueError("response citation is not a frozen evidence citation option")
-    return parsed["xml"], parsed["citations"]
+        citations.append(resolved[key])
+    return parsed["xml"], citations
 
 
 def safe_error(body: bytes) -> str:
@@ -270,8 +302,10 @@ def run(bundle_file: Path, responses_out: Path, manifest_out: Path, artifact_roo
             raise ValueError("responses and manifest outputs must be ordinary files inside results")
     bundles_payload = json.loads(bundle_file.read_text())
     bundles = bundles_payload.get("bundles", [])
-    if bundles_payload.get("split") != "development" or bundles_payload.get("arm") not in {"control", "candidate"}:
-        raise ValueError("only one frozen Development control or candidate bundle may be run")
+    split = bundles_payload.get("split")
+    if split not in {"development", "validation"} \
+            or bundles_payload.get("arm") not in {"control", "candidate"}:
+        raise ValueError("only one frozen Development or Validation control/candidate bundle may be run")
     task_ids = [bundle.get("taskId") for bundle in bundles]
     if not task_ids or len(set(task_ids)) != len(task_ids):
         raise ValueError("prompt bundle task IDs must be present and unique")
@@ -280,7 +314,7 @@ def run(bundle_file: Path, responses_out: Path, manifest_out: Path, artifact_roo
         raise ValueError("git commit must be a lowercase 7-40 character hex value")
     # Complete deterministic validation and output checks before the first external request.
     input_artifacts = {bundle_file, (ROOT / "fixtures/generated/corpus-lock.json").resolve(),
-                       (ROOT / "fixtures/drawio-generation-tasks-v2.json").resolve()}
+                       (ROOT / "fixtures/drawio-generation-tasks-v3.json").resolve()}
     hydration_paths = set()
     for bundle in bundles:
         hydration_paths.add(validate_bundle(bundle, artifact_root))
@@ -290,7 +324,7 @@ def run(bundle_file: Path, responses_out: Path, manifest_out: Path, artifact_roo
         raise ValueError("prompt bundles must bind one shared hydration artifact")
     input_artifacts.update(hydration_paths)
     for required in (ROOT / "fixtures/generated/corpus-lock.json",
-                     ROOT / "fixtures/drawio-generation-tasks-v2.json"):
+                     ROOT / "fixtures/drawio-generation-tasks-v3.json"):
         if not required.is_file():
             raise ValueError(f"required formal artifact is missing: {required}")
     if responses_out == manifest_out:
@@ -325,14 +359,14 @@ def run(bundle_file: Path, responses_out: Path, manifest_out: Path, artifact_roo
     responses_out.write_text(json.dumps({"responses": responses}, indent=2) + "\n")
     artifacts = [
         ("corpusLock", ROOT / "fixtures/generated/corpus-lock.json"),
-        ("taskFixture", ROOT / "fixtures/drawio-generation-tasks-v2.json"),
+        ("taskFixture", ROOT / "fixtures/drawio-generation-tasks-v3.json"),
         ("promptBundles", bundle_file),
         ("hydration", hydration_paths.pop()),
         ("responses", responses_out),
     ]
     manifest = {
         "schemaVersion": "material-rag-generation-run-manifest-v1", "qualification": "formal",
-        "split": "development", "gitCommit": git_commit,
+        "split": split, "gitCommit": git_commit,
         "corpusLockSha256": sha256_file(artifacts[0][1]), "taskFixtureSha256": sha256_file(artifacts[1][1]),
         "promptBundlesSha256": sha256_file(bundle_file), "responsesSha256": sha256_file(responses_out),
         "model": {"provider": "OpenAI", "name": model,

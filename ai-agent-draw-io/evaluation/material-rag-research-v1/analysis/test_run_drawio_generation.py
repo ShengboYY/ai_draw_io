@@ -14,6 +14,19 @@ SPEC.loader.exec_module(MODULE)
 
 class DrawioGenerationRunnerTest(unittest.TestCase):
     @staticmethod
+    def citation_contract(anchor_id: str, source_version: str, page: int) -> dict:
+        """Create the model-visible handle and evaluator-private resolution as one contract."""
+        return {
+            "citationOptions": [{
+                "citationId": "CIT-001", "sourceVersion": source_version, "page": page,
+            }],
+            "citationResolution": [{
+                "citationId": "CIT-001", "anchorId": anchor_id,
+                "sourceVersion": source_version, "page": page,
+            }],
+        }
+
+    @staticmethod
     def ready_hydration(root: Path, task_id: str, arm: str, evidence: list[dict],
                         artifact_root: Path | None = None) -> dict:
         """Create a minimal exported hydration artifact for local runner contract tests."""
@@ -39,7 +52,7 @@ class DrawioGenerationRunnerTest(unittest.TestCase):
                 "promptSha256": hashlib.sha256(prompt.encode()).hexdigest(),
                 "arm": "candidate", "evidence": evidence,
                 "imagePaths": ["route.png"], "imageSha256s": [digest],
-                "citationOptions": [{"anchorId": "route-a", "sourceVersion": "architecture:v1", "page": 3}],
+                **self.citation_contract("route-a", "architecture:v1", 3),
                 "modelVisibleRequiredEvidenceReady": True,
                 "hydrationArtifact": self.ready_hydration(root, "task-1", "candidate", evidence),
             }
@@ -50,16 +63,16 @@ class DrawioGenerationRunnerTest(unittest.TestCase):
         self.assertEqual(6000, request["max_completion_tokens"])
         self.assertEqual("json_schema", request["response_format"]["type"])
         citation_schema = request["response_format"]["json_schema"]["schema"]["properties"]["citations"]["items"]
-        self.assertEqual(["route-a"], citation_schema["anyOf"][0]["properties"]["anchorId"]["enum"])
+        self.assertEqual(["CIT-001"], citation_schema["anyOf"][0]["properties"]["citationId"]["enum"])
         self.assertEqual(["architecture:v1"], citation_schema["anyOf"][0]["properties"]["sourceVersion"]["enum"])
         self.assertEqual([3], citation_schema["anyOf"][0]["properties"]["page"]["enum"])
-        self.assertEqual("json_schema:drawio_generation_response_v2", MODULE.response_format_name())
+        self.assertEqual("json_schema:drawio_generation_response_v3", MODULE.response_format_name())
         self.assertEqual("Return editable draw.io XML.", request["messages"][0]["content"][0]["text"])
         self.assertTrue(request["messages"][0]["content"][1]["image_url"]["url"].startswith(
             "data:image/png;base64,"))
 
     def test_rejects_malformed_generation_content(self):
-        bundle = {"taskId": "task-1", "citationOptions": []}
+        bundle = {"taskId": "task-1", "citationOptions": [], "citationResolution": []}
         with self.assertRaises(json.JSONDecodeError):
             MODULE.response_payload({"choices": [{"message": {"content": "not JSON"}}]}, bundle)
         with self.assertRaisesRegex(ValueError, "expected XML/citations"):
@@ -69,7 +82,8 @@ class DrawioGenerationRunnerTest(unittest.TestCase):
 
     def test_rejects_tampered_prompt_or_non_frozen_provider_contract(self):
         bundle = {"taskId": "task-1", "prompt": "Frozen", "promptSha256": "a" * 64,
-                  "imagePaths": [], "imageSha256s": [], "citationOptions": []}
+                  "imagePaths": [], "imageSha256s": [], "citationOptions": [],
+                  "citationResolution": []}
 
         with self.assertRaisesRegex(ValueError, "prompt hash mismatch"):
             MODULE.request_body(bundle, Path.cwd(), "gpt-5.5", 6000)
@@ -85,6 +99,7 @@ class DrawioGenerationRunnerTest(unittest.TestCase):
             bundle_file.write_text(json.dumps({"split": "development", "arm": "control", "bundles": [{
                 "taskId": "task-1", "prompt": "tampered", "promptSha256": "a" * 64,
                 "imagePaths": [], "imageSha256s": [], "citationOptions": [],
+                "citationResolution": [],
             }]}))
             original = MODULE.call
             MODULE.call = lambda *_args: self.fail("provider must not be called before preflight")
@@ -108,6 +123,7 @@ class DrawioGenerationRunnerTest(unittest.TestCase):
                 "promptSha256": hashlib.sha256(prompt.encode()).hexdigest(),
                 "arm": "control", "evidence": evidence,
                 "imagePaths": [], "imageSha256s": [], "citationOptions": [],
+                "citationResolution": [],
                 "modelVisibleRequiredEvidenceReady": True,
                 "hydrationArtifact": hydration,
             }]}))
@@ -126,11 +142,11 @@ class DrawioGenerationRunnerTest(unittest.TestCase):
             "taskId": "task-1", "prompt": "Frozen",
             "promptSha256": hashlib.sha256(b"Frozen").hexdigest(),
             "imagePaths": [], "imageSha256s": [],
-            "citationOptions": [{"anchorId": "route-a", "sourceVersion": "architecture:v1", "page": 3}],
+            **self.citation_contract("route-a", "architecture:v1", 3),
         }
         for citation in (
-                {"anchorId": "scope", "sourceVersion": "architecture:v1", "page": 3},
-                {"anchorId": "route-a", "sourceVersion": "architecture:v1", "page": 4}):
+                {"citationId": "scope", "sourceVersion": "architecture:v1", "page": 3},
+                {"citationId": "CIT-001", "sourceVersion": "architecture:v1", "page": 4}):
             body = {"choices": [{"message": {"content": json.dumps({
                 "xml": "<mxGraphModel/>", "citations": [citation],
             })}}]}
@@ -145,7 +161,8 @@ class DrawioGenerationRunnerTest(unittest.TestCase):
             bundle = {
                 "taskId": "layout", "arm": "candidate", "prompt": prompt,
                 "promptSha256": hashlib.sha256(prompt.encode()).hexdigest(),
-                "evidence": [], "citationOptions": [], "imagePaths": [], "imageSha256s": [],
+                "evidence": [], "citationOptions": [], "citationResolution": [],
+                "imagePaths": [], "imageSha256s": [],
                 "modelVisibleRequiredEvidenceReady": True,
                 "hydrationArtifact": self.ready_hydration(root, "layout", "candidate", []),
             }
@@ -166,7 +183,8 @@ class DrawioGenerationRunnerTest(unittest.TestCase):
             }))
             bundle = {"taskId": "task-1", "arm": "candidate", "prompt": prompt,
                       "promptSha256": hashlib.sha256(prompt.encode()).hexdigest(),
-                      "evidence": [], "citationOptions": [], "imagePaths": [], "imageSha256s": [],
+                      "evidence": [], "citationOptions": [], "citationResolution": [],
+                      "imagePaths": [], "imageSha256s": [],
                       "modelVisibleRequiredEvidenceReady": True,
                       "hydrationArtifact": {
                           "path": hydration.name,
@@ -185,7 +203,7 @@ class DrawioGenerationRunnerTest(unittest.TestCase):
                 "taskId": "task-1", "arm": "candidate", "prompt": prompt,
                 "promptSha256": hashlib.sha256(prompt.encode()).hexdigest(),
                 "evidence": evidence,
-                "citationOptions": evidence,
+                **self.citation_contract("route-a", "architecture:v1", 3),
                 "imagePaths": [], "imageSha256s": [],
                 "modelVisibleRequiredEvidenceReady": True,
                 "hydrationArtifact": self.ready_hydration(root, "task-1", "candidate", []),
@@ -193,6 +211,25 @@ class DrawioGenerationRunnerTest(unittest.TestCase):
 
             with self.assertRaisesRegex(ValueError, "does not match visible evidence"):
                 MODULE.request_body(bundle, root, "gpt-5.5", 6000)
+
+    def test_resolves_opaque_model_citation_to_canonical_evaluator_anchor(self):
+        bundle = {
+            "taskId": "task-1",
+            **self.citation_contract("route-a", "architecture:v1", 3),
+        }
+        body = {"choices": [{"message": {"content": json.dumps({
+            "xml": "<mxGraphModel/>",
+            "citations": [{
+                "citationId": "CIT-001", "sourceVersion": "architecture:v1", "page": 3,
+            }],
+        })}}]}
+
+        xml, citations = MODULE.response_payload(body, bundle)
+
+        self.assertEqual("<mxGraphModel/>", xml)
+        self.assertEqual([{
+            "anchorId": "route-a", "sourceVersion": "architecture:v1", "page": 3,
+        }], citations)
 
 
 if __name__ == "__main__":

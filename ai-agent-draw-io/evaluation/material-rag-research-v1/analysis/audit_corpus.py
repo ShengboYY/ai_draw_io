@@ -36,6 +36,7 @@ PROVENANCE_FILES = (
     "analysis/validate_generation_run_manifest.py",
     "analysis/evaluate_ocr.py",
     "analysis/select_drawio_context.py",
+    "review/make_review_ledger.py",
     "fixtures/generate_fixtures.py",
     "fixtures/generation-config.json",
     "fixtures/realistic_corpus_specs.py",
@@ -45,9 +46,11 @@ PROVENANCE_FILES = (
     "fixtures/expansion_corpus_specs.py",
     "fixtures/e4_chartbook_specs.py",
     "fixtures/source_evidence_identity_specs.py",
+    "fixtures/build_drawio_generation_tasks_v3.py",
     "fixtures/query-selection.json",
     "fixtures/drawio-generation-tasks-v1.json",
     "fixtures/drawio-generation-tasks-v2.json",
+    "fixtures/drawio-generation-tasks-v3.json",
     "fixtures/drawio-generation-development-evidence-v1.json",
     "fixtures/drawio-generation-paired-hydration-contract-v1.json",
     "fixtures/final-holdout-contract-v1.json",
@@ -130,6 +133,21 @@ def generation_task_errors(tasks: list[dict], anchors: dict[str, dict],
             errors.append({"taskId": task_id, "error": "unknown source version"})
         if task.get("split") not in CORE_SPLITS:
             errors.append({"taskId": task_id, "error": "unknown split"})
+        source_scope_mode = task.get("sourceScopeMode")
+        selected_material_version = task.get("selectedMaterialVersion")
+        if source_scope_mode == "selected_only" \
+                and selected_material_version != source_version:
+            errors.append({
+                "taskId": task_id,
+                "error": "selected-only task has no matching selected material version",
+            })
+        elif source_scope_mode == "chartbook_auto" and selected_material_version:
+            errors.append({
+                "taskId": task_id,
+                "error": "automatic task must not declare a selected material version",
+            })
+        elif source_scope_mode not in {None, "selected_only", "chartbook_auto", "none"}:
+            errors.append({"taskId": task_id, "error": "unknown generation source scope mode"})
         if task.get("type", "").endswith("edit") or task.get("type") == "structural_edit":
             input_xml = str(task.get("inputXml", "")).strip()
             if not input_xml:
@@ -177,7 +195,8 @@ def generation_task_errors(tasks: list[dict], anchors: dict[str, dict],
             errors.append({"taskId": task_id, "error": "invalid frozen claim universe"})
         if task_id in no_retrieval_task_ids:
             citations = task.get("citationAssertions", {})
-            if task.get("type") != "layout_only_edit" or required or cited \
+            if source_scope_mode not in {None, "none"} \
+                    or task.get("type") != "layout_only_edit" or required or cited \
                     or citations.get("minimumCitations") != 0 \
                     or any(claim.get("requiresCitation") for claim in claims):
                 errors.append({"taskId": task_id, "error": "invalid no-retrieval task contract"})
@@ -227,18 +246,78 @@ def generation_context_errors(contexts: list[dict], tasks: dict[str, dict],
     return errors
 
 
-def reviewed_case_ids(review_ledger: Path | None) -> tuple[set[str], str, str | None]:
-    """Count only auditable agreements from two distinct named reviewers."""
+def reviewed_case_ids(review_ledger: Path | None,
+                      expected_case_ids: set[str] | None = None) -> tuple[set[str], str, str | None]:
+    """Count only auditable agreements from two distinct registered human reviewers."""
     if review_ledger is None or not review_ledger.exists():
         return set(), "pending", None
     ledger = json.loads(review_ledger.read_text(encoding="utf-8"))
+    ledger_sha = sha256(review_ledger)
+    if ledger.get("schemaVersion") != "material-rag-review-ledger-v2":
+        return set(), "pending", ledger_sha
+    registry = ledger.get("reviewerRegistry", {})
+    ledger_root = review_ledger.parent.resolve()
+    verified_human_accepts: dict[str, set[str]] = {}
+    for artifact in ledger.get("humanReviewArtifacts", []):
+        reviewer_id = str(artifact.get("reviewerId", "")).strip()
+        relative_path = artifact.get("path")
+        expected_sha = artifact.get("sha256")
+        if not reviewer_id or not isinstance(relative_path, str) or not isinstance(expected_sha, str):
+            continue
+        path = (ledger_root / relative_path).resolve()
+        if not path.is_relative_to(ledger_root) or not path.is_file() or sha256(path) != expected_sha:
+            continue
+        try:
+            payload = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            continue
+        if payload.get("schemaVersion") != "material-rag-human-review-v1" \
+                or payload.get("reviewerId") != reviewer_id \
+                or registry.get(reviewer_id, {}).get("kind") != "human":
+            continue
+        decisions: dict[str, str] = {}
+        valid = True
+        for decision in payload.get("cases", []):
+            case_id = str(decision.get("caseId", "")).strip()
+            verdict = decision.get("verdict")
+            notes = str(decision.get("notes", "")).strip()
+            if not case_id or case_id in decisions or verdict not in {"accept", "needs_fix"} \
+                    or verdict == "needs_fix" and not notes:
+                valid = False
+                break
+            decisions[case_id] = verdict
+        if valid and decisions and (
+                expected_case_ids is None or set(decisions) == expected_case_ids
+        ):
+            verified_human_accepts[reviewer_id] = {
+                case_id for case_id, verdict in decisions.items() if verdict == "accept"
+            }
+
+    def human_reviewers(entry: dict) -> set[str]:
+        """Resolve reviewer kinds from the ledger instead of guessing from reviewer names."""
+        case_id = entry.get("caseId")
+        return {
+            reviewer_id
+            for reviewer_id in entry.get("reviewers", [])
+            if case_id in verified_human_accepts.get(reviewer_id, set())
+        }
+
     reviewed = {
         entry["caseId"]
         for entry in ledger.get("cases", [])
         if entry.get("status") in {"agreed", "arbitrated"}
-        and len(set(entry.get("reviewers", []))) >= 2
+        and len(human_reviewers(entry)) >= 2
     }
-    return reviewed, "double_reviewed" if reviewed else "pending", sha256(review_ledger)
+    has_single_human_review = any(
+        entry.get("status") in {"agreed", "arbitrated"} and human_reviewers(entry)
+        for entry in ledger.get("cases", [])
+    )
+    status = (
+        "double_reviewed" if reviewed
+        else "single_human_reviewed" if has_single_human_review
+        else "pending"
+    )
+    return reviewed, status, ledger_sha
 
 
 def audit(root: Path, review_ledger: Path | None) -> tuple[dict, dict]:
@@ -247,7 +326,10 @@ def audit(root: Path, review_ledger: Path | None) -> tuple[dict, dict]:
     manifest = json.loads((generated / "corpus-manifest.json").read_text(encoding="utf-8"))
     anchors = json.loads((generated / "ground-truth.json").read_text(encoding="utf-8"))["anchors"]
     cases = read_jsonl(generated / "cases.jsonl")
-    reviewed_ids, _, review_ledger_sha = reviewed_case_ids(review_ledger)
+    core_case_ids = {case["caseId"] for case in cases if case.get("split") in CORE_SPLITS}
+    reviewed_ids, ledger_review_status, review_ledger_sha = reviewed_case_ids(
+        review_ledger, core_case_ids
+    )
 
     documents = {document["source"]: document for document in manifest["documents"]}
     known_source_versions = {
@@ -255,9 +337,12 @@ def audit(root: Path, review_ledger: Path | None) -> tuple[dict, dict]:
     }
     anchor_by_id = {anchor["anchorId"]: anchor for anchor in anchors}
     generation_fixture = json.loads(
-        (root / "fixtures" / "drawio-generation-tasks-v2.json").read_text(encoding="utf-8")
+        (root / "fixtures" / "drawio-generation-tasks-v3.json").read_text(encoding="utf-8")
     )
     generation_tasks = generation_fixture["tasks"]
+    legacy_fixed_generation_fixture = json.loads(
+        (root / "fixtures" / "drawio-generation-tasks-v2.json").read_text(encoding="utf-8")
+    )
     generation_contexts = json.loads(
         (root / "fixtures" / "drawio-generation-development-evidence-v1.json").read_text(encoding="utf-8")
     )["contexts"]
@@ -266,11 +351,11 @@ def audit(root: Path, review_ledger: Path | None) -> tuple[dict, dict]:
     guard_counts = Counter(
         case.get("split") for case in cases if case.get("split", "").startswith("guard_")
     )
-    core_case_ids = {case["caseId"] for case in core_cases}
     reviewed_core_ids = reviewed_ids & core_case_ids
     human_review_status = (
         "double_reviewed" if core_case_ids and reviewed_core_ids == core_case_ids
-        else "partial" if reviewed_core_ids else "pending"
+        else "partial" if reviewed_core_ids
+        else ledger_review_status
     )
     unknown_reviewed_case_ids = sorted(reviewed_ids - {case["caseId"] for case in cases})
     split_counts = Counter(case["split"] for case in core_cases)
@@ -296,8 +381,14 @@ def audit(root: Path, review_ledger: Path | None) -> tuple[dict, dict]:
     chartbook_sources = set(generation_fixture.get("developmentChartbookSourceVersions", []))
     if not chartbook_sources or not chartbook_sources.issubset(known_source_versions):
         task_errors.append({"taskId": "development-chartbook", "error": "invalid mounted source versions"})
+    validation_sources = set(generation_fixture.get("validationChartbookSourceVersions", []))
+    if not validation_sources or not validation_sources.issubset(known_source_versions):
+        task_errors.append({"taskId": "validation-chartbook", "error": "invalid mounted source versions"})
     context_errors = generation_context_errors(
-        generation_contexts, {task["taskId"]: task for task in generation_tasks}, anchor_by_id, root
+        generation_contexts,
+        {task["taskId"]: task for task in legacy_fixed_generation_fixture["tasks"]},
+        anchor_by_id,
+        root,
     )
 
     for case in cases:
@@ -430,7 +521,10 @@ def audit(root: Path, review_ledger: Path | None) -> tuple[dict, dict]:
     }
     structural_pass = all(structural_checks.values())
     reviewed_threshold = len(reviewed_core_ids) >= plan["preE0"]["minimumReviewedCasesBeforeComparison"]
-    fully_reviewed = reviewed_core_ids == core_case_ids and human_review_status == "double_reviewed"
+    fully_reviewed = (
+        reviewed_core_ids == core_case_ids
+        and human_review_status == "double_reviewed"
+    )
     ready_for_e0 = structural_pass and exact_split_counts and exact_category_counts \
         and exact_language_counts and fully_reviewed
 

@@ -25,6 +25,18 @@ class GenerationRunManifestTest(unittest.TestCase):
         self.assertFalse(result["formalEligible"])
         self.assertIn("calls", result["missingFormalFields"])
 
+    def test_accepts_validation_manifest_after_promotion(self):
+        result = MODULE.validate({
+            "schemaVersion": "material-rag-generation-run-manifest-v1",
+            "qualification": "diagnostic",
+            "split": "validation",
+            "gitCommit": "d019832f",
+            "artifacts": [],
+        })
+
+        self.assertTrue(result["valid"])
+        self.assertFalse(result["formalEligible"])
+
     def test_rejects_formal_run_with_missing_reproducibility_fields(self):
         result = MODULE.validate({
             "schemaVersion": "material-rag-generation-run-manifest-v1",

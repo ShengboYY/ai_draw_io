@@ -104,6 +104,588 @@
         "kind": "exact_text",
         "text": "up to 8 hours"
       }
+    },
+    {
+      "sourceEvidenceId": "daa-bundle",
+      "sourceVersion": "drawio-agent-architecture:v1",
+      "page": 4,
+      "match": {
+        "kind": "exact_text",
+        "text": "final evidence bundle contains at most 8 items"
+      }
+    },
+    {
+      "sourceEvidenceId": "daa-candidates",
+      "sourceVersion": "drawio-agent-architecture:v1",
+      "page": 4,
+      "match": {
+        "kind": "exact_text",
+        "text": "retrieves 40 evidence candidates"
+      }
+    },
+    {
+      "sourceEvidenceId": "daa-explicit-source",
+      "sourceVersion": "drawio-agent-architecture:v1",
+      "page": 4,
+      "match": {
+        "kind": "exact_text",
+        "text": "explicit selection wins"
+      }
+    },
+    {
+      "sourceEvidenceId": "daa-hydration",
+      "sourceVersion": "drawio-agent-architecture:v1",
+      "page": 4,
+      "match": {
+        "kind": "exact_text",
+        "text": "At most 16 authorized candidates are hydrated"
+      }
+    },
+    {
+      "sourceEvidenceId": "daa-latest",
+      "sourceVersion": "drawio-agent-architecture:v1",
+      "page": 5,
+      "match": {
+        "kind": "exact_text",
+        "text": "defaults to the latest ready version"
+      }
+    },
+    {
+      "sourceEvidenceId": "dcc-threshold",
+      "sourceVersion": "expansion-datacenter-change:v1",
+      "page": 6,
+      "match": {
+        "kind": "exact_text",
+        "text": "连续三个采样周期超过 85% 才进入人工复核"
+      }
+    },
+    {
+      "sourceEvidenceId": "dcg-broader-auto",
+      "sourceVersion": "drawio-collaboration-governance:v1",
+      "page": 3,
+      "match": {
+        "kind": "exact_text",
+        "text": "considered only when automatic selection is enabled"
+      }
+    },
+    {
+      "sourceEvidenceId": "dcg-chartbook-search",
+      "sourceVersion": "drawio-collaboration-governance:v1",
+      "page": 3,
+      "match": {
+        "kind": "exact_text",
+        "text": "search begins with material attached to the active chartbook"
+      }
+    },
+    {
+      "sourceEvidenceId": "dcg-editor-approve",
+      "sourceVersion": "drawio-collaboration-governance:v1",
+      "page": 2,
+      "match": {
+        "kind": "exact_text",
+        "text": "cannot approve a release"
+      }
+    },
+    {
+      "sourceEvidenceId": "dcg-explicit",
+      "sourceVersion": "drawio-collaboration-governance:v1",
+      "page": 3,
+      "match": {
+        "kind": "exact_text",
+        "text": "limits the request"
+      }
+    },
+    {
+      "sourceEvidenceId": "dcg-removed",
+      "sourceVersion": "drawio-collaboration-governance:v1",
+      "page": 3,
+      "match": {
+        "kind": "exact_text",
+        "text": "blocks new retrieval"
+      }
+    },
+    {
+      "sourceEvidenceId": "dcg-retention",
+      "sourceVersion": "drawio-collaboration-governance:v1",
+      "page": 5,
+      "match": {
+        "kind": "exact_text",
+        "text": "retained for 36 months"
+      }
+    },
+    {
+      "sourceEvidenceId": "dpw-degraded",
+      "sourceVersion": "drawio-planning-workshop-scan:v1",
+      "page": 3,
+      "match": {
+        "kind": "exact_text",
+        "text": "DEGRADED SEARCH, not NO EVIDENCE"
+      }
+    },
+    {
+      "sourceEvidenceId": "dpw-editable-scan",
+      "sourceVersion": "drawio-planning-workshop-scan:v1",
+      "page": 5,
+      "match": {
+        "kind": "exact_text",
+        "text": "Stable cell identifiers and valid draw.io XML are required"
+      }
+    },
+    {
+      "sourceEvidenceId": "dpw-removed",
+      "sourceVersion": "drawio-planning-workshop-scan:v1",
+      "page": 3,
+      "match": {
+        "kind": "exact_text",
+        "text": "cannot be used for a new request"
+      }
+    },
+    {
+      "sourceEvidenceId": "dpw-source-order",
+      "sourceVersion": "drawio-planning-workshop-scan:v1",
+      "page": 3,
+      "match": {
+        "kind": "exact_text",
+        "text": "explicit source first"
+      }
+    },
+    {
+      "sourceEvidenceId": "dpw-visual-scan",
+      "sourceVersion": "drawio-planning-workshop-scan:v1",
+      "page": 5,
+      "match": {
+        "kind": "exact_text",
+        "text": "Arrow direction, containment and raster table cells require pixel verification"
+      }
+    },
+    {
+      "sourceEvidenceId": "dwh-auto-scope",
+      "sourceVersion": "drawio-workflow-handbook:v1",
+      "page": 2,
+      "match": {
+        "kind": "exact_text",
+        "text": "才进入更广的授权资料搜索"
+      }
+    },
+    {
+      "sourceEvidenceId": "dwh-explicit",
+      "sourceVersion": "drawio-workflow-handbook:v1",
+      "page": 2,
+      "match": {
+        "kind": "exact_text",
+        "text": "只能在该范围内检索"
+      }
+    },
+    {
+      "sourceEvidenceId": "fas-depth",
+      "sourceVersion": "expansion-field-audit-scan:v1",
+      "page": 2,
+      "match": {
+        "kind": "exact_text",
+        "text": "verified wear depth measured 27 mm"
+      }
+    },
+    {
+      "sourceEvidenceId": "fas-row-status",
+      "sourceVersion": "expansion-field-audit-scan:v1",
+      "page": 4,
+      "match": {
+        "kind": "exact_text",
+        "text": "B-16 | 27 mm | +6 mm | ENGINEERING REVIEW"
+      }
+    },
+    {
+      "sourceEvidenceId": "fas-threshold",
+      "sourceVersion": "expansion-field-audit-scan:v1",
+      "page": 2,
+      "match": {
+        "kind": "exact_text",
+        "text": "reaches 25 mm or growth exceeds 5 mm"
+      }
+    },
+    {
+      "sourceEvidenceId": "mgv-broader",
+      "sourceVersion": "expansion-material-governance:v1",
+      "page": 2,
+      "match": {
+        "kind": "exact_text",
+        "text": "considered only when automatic selection is enabled"
+      }
+    },
+    {
+      "sourceEvidenceId": "mgv-chartbook",
+      "sourceVersion": "expansion-material-governance:v1",
+      "page": 2,
+      "match": {
+        "kind": "exact_text",
+        "text": "先搜索当前图册允许共享的资料"
+      }
+    },
+    {
+      "sourceEvidenceId": "mgv-chartbook-narrow",
+      "sourceVersion": "expansion-material-governance:v1",
+      "page": 3,
+      "match": {
+        "kind": "exact_text",
+        "text": "只能使用该图册挂载的资料"
+      }
+    },
+    {
+      "sourceEvidenceId": "mgv-conflict",
+      "sourceVersion": "expansion-material-governance:v1",
+      "page": 4,
+      "match": {
+        "kind": "exact_text",
+        "text": "不能把新版本数值套用到已固定旧版本的图形"
+      }
+    },
+    {
+      "sourceEvidenceId": "mgv-cross-user",
+      "sourceVersion": "expansion-material-governance:v1",
+      "page": 3,
+      "match": {
+        "kind": "exact_text",
+        "text": "任何请求都不能检索到其他用户上传的资料"
+      }
+    },
+    {
+      "sourceEvidenceId": "mgv-explicit",
+      "sourceVersion": "expansion-material-governance:v1",
+      "page": 2,
+      "match": {
+        "kind": "exact_text",
+        "text": "只能在该范围内检索"
+      }
+    },
+    {
+      "sourceEvidenceId": "mgv-missing",
+      "sourceVersion": "expansion-material-governance:v1",
+      "page": 4,
+      "match": {
+        "kind": "exact_text",
+        "text": "必须报告版本不可用"
+      }
+    },
+    {
+      "sourceEvidenceId": "mgv-removed",
+      "sourceVersion": "expansion-material-governance:v1",
+      "page": 3,
+      "match": {
+        "kind": "exact_text",
+        "text": "new retrieval cannot use that material"
+      }
+    },
+    {
+      "sourceEvidenceId": "mgv-version-pin",
+      "sourceVersion": "expansion-material-governance:v1",
+      "page": 4,
+      "match": {
+        "kind": "exact_text",
+        "text": "仍固定引用该版本"
+      }
+    },
+    {
+      "sourceEvidenceId": "mso-degrade",
+      "sourceVersion": "expansion-observability:v1",
+      "page": 6,
+      "match": {
+        "kind": "exact_text",
+        "text": "不得把采集中断伪装成「无告警」"
+      }
+    },
+    {
+      "sourceEvidenceId": "mso-slo",
+      "sourceVersion": "expansion-observability:v1",
+      "page": 6,
+      "match": {
+        "kind": "exact_text",
+        "text": "连续三个采样周期超过阈值才触发人工确认"
+      }
+    },
+    {
+      "sourceEvidenceId": "ota-approve-rollout",
+      "sourceVersion": "scenario-ota-rollout:v1",
+      "page": 6,
+      "match": {
+        "kind": "exact_text",
+        "text": "质量复核者可以给出放量与回滚建议，但不能单独批准"
+      }
+    },
+    {
+      "sourceEvidenceId": "ota-version-pin",
+      "sourceVersion": "scenario-ota-rollout:v1",
+      "page": 6,
+      "match": {
+        "kind": "exact_text",
+        "text": "仍固定引用原版本"
+      }
+    },
+    {
+      "sourceEvidenceId": "pre-canvas",
+      "sourceVersion": "expansion-platform-resilience:v1",
+      "page": 2,
+      "match": {
+        "kind": "exact_text",
+        "text": "canvas-save failure is SEV-1"
+      }
+    },
+    {
+      "sourceEvidenceId": "pre-objstore",
+      "sourceVersion": "expansion-platform-resilience:v1",
+      "page": 2,
+      "match": {
+        "kind": "exact_text",
+        "text": "Object store"
+      }
+    },
+    {
+      "sourceEvidenceId": "pre-sev2",
+      "sourceVersion": "expansion-platform-resilience:v1",
+      "page": 5,
+      "match": {
+        "kind": "exact_text",
+        "text": "SEV-2 means a material task cannot complete without data loss"
+      }
+    },
+    {
+      "sourceEvidenceId": "pre-sev3",
+      "sourceVersion": "expansion-platform-resilience:v1",
+      "page": 5,
+      "match": {
+        "kind": "exact_text",
+        "text": "SEV-3 means a retryable delay with preserved work"
+      }
+    },
+    {
+      "sourceEvidenceId": "pre-severity",
+      "sourceVersion": "expansion-platform-resilience:v1",
+      "page": 5,
+      "match": {
+        "kind": "exact_text",
+        "text": "SEV-1 means possible cross-scope disclosure"
+      }
+    },
+    {
+      "sourceEvidenceId": "pre-vector",
+      "sourceVersion": "expansion-platform-resilience:v1",
+      "page": 2,
+      "match": {
+        "kind": "exact_text",
+        "text": "manual drawing remains available but material search is blocked"
+      }
+    },
+    {
+      "sourceEvidenceId": "solar-current",
+      "sourceVersion": "realistic-solar-manual:v1",
+      "page": 3,
+      "match": {
+        "kind": "exact_text",
+        "text": "maximum continuous AC current is 69 A"
+      }
+    },
+    {
+      "sourceEvidenceId": "solar-firmware",
+      "sourceVersion": "realistic-solar-manual:v1",
+      "page": 5,
+      "match": {
+        "kind": "exact_text",
+        "text": "最低固件版本为 4.7.2"
+      }
+    },
+    {
+      "sourceEvidenceId": "solar-temperature",
+      "sourceVersion": "realistic-solar-manual:v1",
+      "page": 5,
+      "match": {
+        "kind": "exact_text",
+        "text": "连续三个采样周期达到或超过 82 摄氏度"
+      }
+    },
+    {
+      "sourceEvidenceId": "solar-torque",
+      "sourceVersion": "realistic-solar-manual:v1",
+      "page": 3,
+      "match": {
+        "kind": "exact_text",
+        "text": "6.2 N m"
+      }
+    },
+    {
+      "sourceEvidenceId": "solar-wait",
+      "sourceVersion": "realistic-solar-manual:v1",
+      "page": 2,
+      "match": {
+        "kind": "exact_text",
+        "text": "wait 7 minutes"
+      }
+    },
+    {
+      "sourceEvidenceId": "dcc-arch-apply",
+      "sourceVersion": "expansion-datacenter-change:v1",
+      "page": 3,
+      "match": {
+        "kind": "visual_page"
+      }
+    },
+    {
+      "sourceEvidenceId": "dcc-arch-route",
+      "sourceVersion": "expansion-datacenter-change:v1",
+      "page": 3,
+      "match": {
+        "kind": "visual_page"
+      }
+    },
+    {
+      "sourceEvidenceId": "dwh-route-bundle",
+      "sourceVersion": "drawio-workflow-handbook:v1",
+      "page": 4,
+      "match": {
+        "kind": "visual_page"
+      }
+    },
+    {
+      "sourceEvidenceId": "dwh-route-draft",
+      "sourceVersion": "drawio-workflow-handbook:v1",
+      "page": 4,
+      "match": {
+        "kind": "visual_page"
+      }
+    },
+    {
+      "sourceEvidenceId": "mso-arch-notify",
+      "sourceVersion": "expansion-observability:v1",
+      "page": 3,
+      "match": {
+        "kind": "visual_page"
+      }
+    },
+    {
+      "sourceEvidenceId": "mso-arch-route",
+      "sourceVersion": "expansion-observability:v1",
+      "page": 3,
+      "match": {
+        "kind": "visual_page"
+      }
+    },
+    {
+      "sourceEvidenceId": "mso-seq-diagnose",
+      "sourceVersion": "expansion-observability:v1",
+      "page": 4,
+      "match": {
+        "kind": "visual_page"
+      }
+    },
+    {
+      "sourceEvidenceId": "ota-arch-route",
+      "sourceVersion": "scenario-ota-rollout:v1",
+      "page": 3,
+      "match": {
+        "kind": "visual_page"
+      }
+    },
+    {
+      "sourceEvidenceId": "ota-canary-batch",
+      "sourceVersion": "scenario-ota-rollout:v1",
+      "page": 4,
+      "match": {
+        "kind": "visual_page"
+      }
+    },
+    {
+      "sourceEvidenceId": "ota-canary-complete",
+      "sourceVersion": "scenario-ota-rollout:v1",
+      "page": 4,
+      "match": {
+        "kind": "visual_page"
+      }
+    },
+    {
+      "sourceEvidenceId": "ota-canary-sequence",
+      "sourceVersion": "scenario-ota-rollout:v1",
+      "page": 4,
+      "match": {
+        "kind": "visual_page"
+      }
+    },
+    {
+      "sourceEvidenceId": "ota-route-repo",
+      "sourceVersion": "scenario-ota-rollout:v1",
+      "page": 3,
+      "match": {
+        "kind": "visual_page"
+      }
+    },
+    {
+      "sourceEvidenceId": "ota-route-vehicle",
+      "sourceVersion": "scenario-ota-rollout:v1",
+      "page": 3,
+      "match": {
+        "kind": "visual_page"
+      }
+    },
+    {
+      "sourceEvidenceId": "pss-arch-route",
+      "sourceVersion": "scenario-payment-settlement:v1",
+      "page": 3,
+      "match": {
+        "kind": "visual_page"
+      }
+    },
+    {
+      "sourceEvidenceId": "pss-route-acquire",
+      "sourceVersion": "scenario-payment-settlement:v1",
+      "page": 3,
+      "match": {
+        "kind": "visual_page"
+      }
+    },
+    {
+      "sourceEvidenceId": "pss-route-settle",
+      "sourceVersion": "scenario-payment-settlement:v1",
+      "page": 3,
+      "match": {
+        "kind": "visual_page"
+      }
+    },
+    {
+      "sourceEvidenceId": "pss-settle-clearing",
+      "sourceVersion": "scenario-payment-settlement:v1",
+      "page": 4,
+      "match": {
+        "kind": "visual_page"
+      }
+    },
+    {
+      "sourceEvidenceId": "pss-settle-notify",
+      "sourceVersion": "scenario-payment-settlement:v1",
+      "page": 4,
+      "match": {
+        "kind": "visual_page"
+      }
+    },
+    {
+      "sourceEvidenceId": "pss-settle-sequence",
+      "sourceVersion": "scenario-payment-settlement:v1",
+      "page": 4,
+      "match": {
+        "kind": "visual_page"
+      }
+    },
+    {
+      "sourceEvidenceId": "solar-route-precheck",
+      "sourceVersion": "realistic-solar-manual:v1",
+      "page": 4,
+      "match": {
+        "kind": "visual_page"
+      }
+    },
+    {
+      "sourceEvidenceId": "solar-route-run",
+      "sourceVersion": "realistic-solar-manual:v1",
+      "page": 4,
+      "match": {
+        "kind": "visual_page"
+      }
     }
   ]
 }

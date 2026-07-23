@@ -27,6 +27,23 @@ def candidate(chunk_id: str, source: str, anchor: str, rank: int) -> dict:
 
 
 class PairedHydrationExportTest(unittest.TestCase):
+    def test_source_scope_distinguishes_selected_material_from_automatic_chartbook(self):
+        selected = {
+            "taskId": "selected",
+            "sourceVersion": "one:v1",
+            "selectedMaterialVersion": "one:v1",
+            "sourceScopeMode": "selected_only",
+        }
+        automatic = {
+            "taskId": "automatic",
+            "sourceVersion": "one:v1",
+            "sourceScopeMode": "chartbook_auto",
+        }
+
+        self.assertEqual({"one:v1"}, MODULE.allowed_sources(selected, {"one:v1", "two:v1"}))
+        self.assertEqual({"one:v1", "two:v1"},
+                         MODULE.allowed_sources(automatic, {"one:v1", "two:v1"}))
+
     def test_exports_one_control_and_candidate_context_per_task(self):
         tasks = [task("a", "one:v1", "anchor-a"), task("b", "two:v1", "anchor-b")]
         trace = {"schemaVersion": "material-rag-drawio-task-hydration-candidates-v1",
@@ -136,6 +153,21 @@ class PairedHydrationExportTest(unittest.TestCase):
         self.assertFalse(result["modelVisibleRequiredEvidence"]["ready"])
         self.assertEqual(["missing-anchor"], result["modelVisibleRequiredEvidence"]["tasks"][0]["controlMissing"])
 
+    def test_candidate_readiness_allows_control_missing_evidence_for_end_to_end_comparison(self):
+        evaluator_task = task("a", "one:v1", "anchor-a")
+        contexts = [
+            {"taskId": "a", "arm": "control", "evidence": []},
+            {"taskId": "a", "arm": "candidate", "evidence": [{
+                "anchorId": "anchor-a", "sourceVersion": "one:v1", "page": 1, "text": "Evidence.",
+            }]},
+        ]
+
+        readiness = MODULE.required_evidence_readiness([evaluator_task], contexts, set())
+
+        self.assertTrue(readiness["ready"])
+        self.assertFalse(readiness["controlReady"])
+        self.assertTrue(readiness["candidateReady"])
+
     def test_rejects_retrieved_evidence_with_a_page_other_than_its_candidate(self):
         text = "Retrieved text."
         trace = {"schemaVersion": "material-rag-drawio-task-hydration-candidates-v1",
@@ -240,7 +272,7 @@ class PairedHydrationExportTest(unittest.TestCase):
             }), encoding="utf-8")
             lock.write_text(json.dumps({
                 "schemaVersion": "material-rag-corpus-lock-v1", "status": "frozen",
-                "provenanceFiles": {"fixtures/drawio-generation-tasks-v2.json": MODULE.sha256(task_fixture)},
+                "provenanceFiles": {"fixtures/tasks.json": MODULE.sha256(task_fixture)},
                 "files": {"ground-truth.json": MODULE.sha256(ground_truth)},
             }), encoding="utf-8")
             trace = {"retrievalRun": {"gitCommit": "abc1234", "corpusLockSha256": MODULE.sha256(lock)}}

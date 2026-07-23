@@ -1,6 +1,6 @@
 # E0 readiness audit
 
-Status: **READY**
+Status: **BLOCKED**
 
 ## Current corpus
 
@@ -15,8 +15,8 @@ Status: **READY**
 
 - Missing core cases: 0
 - Split gaps: `{}`
-- Independently reviewed core cases: 450
-- Independent human review status: `double_reviewed`
+- Independently reviewed core cases: 0
+- Independent human review status: `pending`
 - Primary-category deltas: `{}`
 - Language-target deltas: `{}`
 - Guard-suite deltas: `{}`
@@ -43,6 +43,5 @@ Status: **READY**
 - PASS - `generationTasksValid`
 - PASS - `generationContextsValid`
 
-The corpus lock is frozen: core targets, guard-suite minimums, structural checks and
-independent review all pass. Validation comparisons may proceed. The repository-visible
-legacy holdout has not been run here; the external final holdout is not yet materialized.
+The corpus lock is still a candidate. Do not run formal comparisons until all listed
+count, label, guard-suite and independent-review gaps are closed.

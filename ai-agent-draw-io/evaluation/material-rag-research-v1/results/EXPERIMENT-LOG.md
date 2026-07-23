@@ -638,3 +638,36 @@
 4. **记录**:把指标写进 `results/YYYY-MM-DD-<实验>.md`,并在本文件「实验时间线」追加一节。
 5. **决策**:提升 ≥0.02 且不显著退化任何主要切片 → 晋级(提交变量);否则记录后回滚。
 6. 向量在带 `test`/`dev` 前缀的 namespace 中 upsert,同一次运行内删除。
+
+### R12 — evaluation-contract repair and v3 draw.io task expansion · 2026-07-23 · ⏸ 等待双人审阅
+
+- **审阅治理修复**:旧 `material-rag-review-ledger-v1` 允许把 AI reviewer 与一名人类计作 double review。
+  新 v2 ledger 只有在两个不同注册人类 reviewer 各自提交完整 `material-rag-human-review-v1` 文件后才计数；
+  auditor 校验相对路径、SHA-256、reviewer ID、450 个 core case 的精确覆盖以及逐 case verdict。当前 ledger
+  未绑定两个人类文件，因此 E0 readiness 正确保持 BLOCKED，corpus-lock 为 candidate。
+- **历史结论勘误**:此前依赖旧 ledger 的“正式”与 Validation 结论全部降级为 provisional diagnostic；
+  已归档的 dated result/lock 不改写。R11 可在 commit `22152510` 恢复原锁，SHA-256 为
+  `872642afc468ce94e741ef7374c6f9752885ef91b6d1e941600d3acde0cc6db4`。R8 page-3
+  text/VISUAL rank 为 22/24，R9 为 34/28，属于不同 chunk/channel。
+- **v3 Draw.io 核心任务**:`drawio-generation-tasks-v3.json` 扩为 20 Development + 20 Validation，
+  Development 覆盖 7 个资料家族，Validation 覆盖 5 个隔离家族；任务包含资料生成图、结构编辑、流程/时序、
+  OCR/扫描转 editable XML、来源范围、版本、权限、阈值和降级状态。v2 保留作历史复现。
+- **来源范围**:统一 `selected_only`、`chartbook_auto`、`none` 合同。producer、exporter 与 prompt builder
+  都按同一 mounted scope 计算；越权候选直接拒绝，不再静默过滤。
+- **readiness**:candidate 必须具备全部 required evidence 与多模态 artifact；control 缺失作为 baseline
+  测量结果保留。这样既不会因 control 较弱而阻止实验，也不会让不完整 candidate 调用模型。
+- **引用安全**:模型只见 `CIT-###` opaque handle、source version 和 page。私有 resolution map 在响应后
+  解析 canonical source-evidence ID；evaluator anchor 不进入 prompt。
+- **本轮外部使用**:0 次 Pinecone、0 次模型请求、0 个 Validation/holdout case；只生成本地 fixture、
+  identity manifest、readiness 与测试产物。
+
+#### R12 后续固定流程
+
+1. 两名人类独立完成 450-case review artifact；任何 `needs_fix` 先修 fixture 后重新审阅。
+2. 重跑 E0 audit，要求 `READY`、`double_reviewed` 和 frozen corpus-lock，然后提交固定 commit。
+3. 在临时 Pinecone test/dev namespace 跑 v3 Development hydration，保存 provenance/embedding manifest，
+   并在 `finally` 删除本次向量。
+4. 通过 scope、artifact、candidate readiness、20% paired contrast 后，冻结两臂 prompt。
+5. 运行同一模型的 20+20 Development；做 XML/edit/citation 自动评测和双人 claim review。
+6. Development 晋级后才开一次 Validation；通过后依次跑 E8、E9。
+7. 全部配置冻结后由独立保管人生成仓库外 final holdout，并且最多运行一次。

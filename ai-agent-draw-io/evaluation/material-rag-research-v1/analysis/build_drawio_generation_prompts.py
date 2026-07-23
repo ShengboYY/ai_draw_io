@@ -12,42 +12,84 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def citation_options(context: dict) -> list[dict]:
-    """Freeze the exact visible evidence rows that the model may cite."""
-    options = {
+def allowed_sources(task: dict, chartbook_sources: set[str]) -> set[str]:
+    """Resolve the same explicit-versus-automatic source contract used by hydration export."""
+    mode = task.get("sourceScopeMode")
+    if mode == "selected_only":
+        selected = str(task.get("selectedMaterialVersion", "")).strip()
+        if not selected:
+            raise ValueError(f"selected source is missing for {task.get('taskId', 'unknown')}")
+        return {selected}
+    if mode == "chartbook_auto":
+        if task.get("selectedMaterialVersion") or not chartbook_sources:
+            raise ValueError(f"invalid automatic source scope for {task.get('taskId', 'unknown')}")
+        return set(chartbook_sources)
+    if mode == "none":
+        return set()
+    if mode is not None:
+        raise ValueError(f"unknown source scope mode for {task.get('taskId', 'unknown')}")
+    # Historical prompt fixtures keep their pre-contract behavior.
+    return set(task.get("allowedSourceVersions", [task.get("sourceVersion")])) | chartbook_sources
+
+
+def citation_resolution(context: dict) -> list[dict]:
+    """Map deterministic opaque handles to canonical evidence outside the model-visible prompt."""
+    canonical = sorted({
         (evidence["anchorId"], evidence["sourceVersion"], evidence["page"])
         for evidence in context.get("evidence", [])
-    }
+    })
     return [
-        {"anchorId": anchor_id, "sourceVersion": source_version, "page": page}
-        for anchor_id, source_version, page in sorted(options)
+        {
+            "citationId": f"CIT-{index:03d}",
+            "anchorId": anchor_id,
+            "sourceVersion": source_version,
+            "page": page,
+        }
+        for index, (anchor_id, source_version, page) in enumerate(canonical, start=1)
+    ]
+
+
+def citation_options(context: dict) -> list[dict]:
+    """Return only the opaque citation fields exposed to the model."""
+    return [
+        {
+            "citationId": item["citationId"],
+            "sourceVersion": item["sourceVersion"],
+            "page": item["page"],
+        }
+        for item in citation_resolution(context)
     ]
 
 
 def build_prompt(task: dict, context: dict) -> str:
     """Render one task and its hydrated context as the model-visible contract."""
+    handles = {
+        (item["anchorId"], item["sourceVersion"], item["page"]): item["citationId"]
+        for item in citation_resolution(context)
+    }
     evidence_lines = []
     for evidence in context.get("evidence", []):
         # Citation metadata remains beside the excerpt so model output is independently traceable.
         artifact = "\nAttached visual artifact for this evidence." if evidence.get("imagePath") else ""
+        citation_id = handles[(evidence["anchorId"], evidence["sourceVersion"], evidence["page"])]
         evidence_lines.append(
-            f"[{evidence['anchorId']} | {evidence['sourceVersion']} | page {evidence['page']}]\n"
+            f"[{citation_id} | {evidence['sourceVersion']} | page {evidence['page']}]\n"
             f"{evidence['text']}{artifact}"
         )
     material = "\n\n".join(evidence_lines) or "(No material was retrieved.)"
     options = citation_options(context)
     allowed_citations = "\n".join(
-        f"- anchorId={option['anchorId']}; sourceVersion={option['sourceVersion']}; page={option['page']}"
+        f"- citationId={option['citationId']}; sourceVersion={option['sourceVersion']}; page={option['page']}"
         for option in options
     ) or "- None; return citations as an empty array."
     input_xml = task.get("inputXml")
     edit_material = f"\n\nExisting editable XML to modify:\n{input_xml}" if input_xml else ""
     return (
         "Return JSON only with keys xml and citations. xml must be editable draw.io XML "
-        "using mxGraphModel/mxCell. citations must be an array of objects with anchorId, "
+        "using mxGraphModel/mxCell. citations must be an array of objects with citationId, "
         "sourceVersion and page. Use only the material below; do not invent material-backed "
         "claims or citations. Every citation must copy one complete row from Allowed citations "
-        "exactly; anchorId must not use draw.io mxCell IDs, XML IDs, labels or generated diagram IDs.\n\n"
+        "exactly; citationId must not use draw.io mxCell IDs, XML IDs, labels or generated diagram IDs.\n\n"
         f"Task: {task['request']}{edit_material}\n\n"
         f"Allowed citations:\n{allowed_citations}\n\n"
         f"Retrieved material:\n{material}"
@@ -80,6 +122,7 @@ def build_bundles(tasks: list[dict], contexts: list[dict], split: str, arm: str,
             or not isinstance(hydration_artifact.get("path"), str) \
             or not isinstance(hydration_artifact.get("sha256"), str):
         raise ValueError("model-visible required evidence readiness gate failed")
+    chartbook_sources = chartbook_sources or set()
     selected = {}
     for context in contexts:
         if context.get("arm") != arm:
@@ -95,14 +138,12 @@ def build_bundles(tasks: list[dict], contexts: list[dict], split: str, arm: str,
         context = selected.get(task["taskId"])
         if context is None:
             raise ValueError(f"missing {arm} context for {task['taskId']}")
-        allowed_sources = set(task.get("allowedSourceVersions", [task.get("sourceVersion")]))
-        if chartbook_sources and split == "development":
-            allowed_sources |= chartbook_sources
+        task_allowed_sources = allowed_sources(task, chartbook_sources)
         declared_sources = context.get("allowedSourceVersions")
-        if declared_sources is not None and set(declared_sources) != allowed_sources:
+        if declared_sources is not None and set(declared_sources) != task_allowed_sources:
             raise ValueError(f"context scope mismatch for {task['taskId']}")
         for evidence in context.get("evidence", []):
-            if evidence["sourceVersion"] not in allowed_sources:
+            if evidence["sourceVersion"] not in task_allowed_sources:
                 raise ValueError(f"out-of-scope evidence for {task['taskId']}")
         prompt = build_prompt(task, context)
         bundles.append({
@@ -112,6 +153,7 @@ def build_bundles(tasks: list[dict], contexts: list[dict], split: str, arm: str,
             "promptSha256": hashlib.sha256(prompt.encode()).hexdigest(),
             "evidence": context.get("evidence", []),
             "citationOptions": citation_options(context),
+            "citationResolution": citation_resolution(context),
             "modelVisibleRequiredEvidenceReady": True,
             "hydrationArtifact": hydration_artifact,
             "imagePaths": image_paths(context),
@@ -144,7 +186,12 @@ def main() -> None:
         "arm": args.arm,
         "bundles": build_bundles(
             tasks, contexts, args.split, args.arm,
-            set(task_fixture.get("developmentChartbookSourceVersions", [])),
+            set(task_fixture.get(
+                "developmentChartbookSourceVersions" if args.split == "development"
+                else "validationChartbookSourceVersions" if args.split == "validation"
+                else "",
+                [],
+            )),
             hydration_artifact,
         ),
     }

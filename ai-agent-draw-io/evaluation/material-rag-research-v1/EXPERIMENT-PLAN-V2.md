@@ -397,6 +397,48 @@ source version 和页码/区域。任务的 XML 断言、required anchor 和 exp
 含流程图或扫描件任务的多模态生成上下文；这些任务必须先通过对应的 visual/OCR hydration 路径，才能与控制组
 做有效比较。
 
+## 2026-07-23 R12 修订：评测合同修复与 v3 Draw.io 核心任务
+
+本节是当前有效的增量修订；上文 v1/v2 与 R4-R11 描述保留用于历史复现，不再作为新正式运行的输入合同。
+
+- active fixture 升级为 `fixtures/drawio-generation-tasks-v3.json`，包含 20 个 Development 和 20 个
+  Validation 任务。覆盖资料生成图、结构编辑、扫描/OCR 转可编辑 XML、流程/时序重建、版本固定、资料范围、
+  权限、降级状态与阈值图；Development 使用 7 个资料家族，Validation 使用 5 个互不重叠家族。
+- 每个任务显式声明 `sourceScopeMode`：`selected_only` 只能检索该次点名的资料版本，
+  `chartbook_auto` 只能在当前分区冻结的图册挂载资料内自动选择，`none` 禁止资料检索。producer、exporter
+  与 prompt builder 使用同一规则；不再把“显式选择”仅当作校验后仍搜索全图册。
+- source evidence identity 由资料发布侧的 exact-text 或 visual-page manifest 提供。模型只看到
+  `CIT-###`、source version 与 page；canonical anchor ID 留在私有 resolution map，响应返回后才解析，
+  防止 evaluator identity 泄漏。
+- paired readiness 改为 candidate-required/control-measured：candidate 必须完整具备所有必要证据和视觉/OCR
+  artifact，否则禁止模型调用；control 缺失保留为基线实验结果，不再导致整组实验无法开始。两臂仍需达到
+  20% context change、来源范围和 provenance gate。
+- corpus-lock 只有在两个不同注册人类 reviewer 分别提交覆盖全部 450 core case 的
+  `material-rag-human-review-v1` 文件，且 ledger 校验文件路径、SHA-256、reviewer ID、完整 case coverage
+  与逐 case verdict 后才能为 `frozen`。AI reviewer 加一名人类、仅写 reviewer 名称或旧 v1 ledger 均不满足。
+
+新的执行顺序固定如下：
+
+1. 生成 v3 fixture 与 publisher source identity manifest，运行离线结构审计；此时锁只能是 `candidate`。
+2. 两名人类独立审阅全部 core case；修复任何 `needs_fix` 后重新生成、重新审阅并形成 v2 ledger。
+3. 重新运行 E0 readiness，确认 `READY` 且 corpus-lock 为 `frozen`，提交干净 commit。
+4. 只在 Pinecone test/dev 临时 namespace 运行 v3 Development hydration；保存 embedding/provenance manifest，
+   在 `finally` 删除本次向量并验证清理。
+5. exporter 先验证 source scope、artifact、candidate readiness 与 paired contrast；全部通过才构建 control/
+   candidate prompt bundle。
+6. 使用同一 GPT 模型与冻结参数运行 20+20 Development paired generation，先做确定性 XML/edit/citation
+   评测，再由两名不同 reviewer 覆盖全部 frozen claim ID。Development 未过门槛不得打开 Validation。
+7. 只有 Development 晋级才执行一次 Validation hydration/generation；不得据此调参。通过后执行 E8
+   multimodal end-to-end 与 E9 safety/recovery。
+8. baseline、candidate、evaluators、manifest 与代码全部冻结后，才由独立保管人生成仓库外 final holdout，
+   最多运行一次。
+
+历史勘误：旧 ledger 将 AI+human 误计为“双人审阅”，因此此前依赖该锁的正式/Validation 结论降级为
+provisional diagnostic；dated result 与 dated lock 不改写。R11 的原始运行锁可从 commit `22152510`
+恢复，其 SHA-256 为 `872642afc468ce94e741ef7374c6f9752885ef91b6d1e941600d3acde0cc6db4`。R8 的
+architecture page-3 text/VISUAL rank 为 22/24，R9 为
+34/28；它们来自不同 chunk/channel，不能简写成同一个排名的前后变化。
+
 E6b 的本地导出合同已冻结为 `fixtures/drawio-generation-paired-hydration-contract-v1.json` 与
 `analysis/export_drawio_paired_hydration.py`。active Development 图册明确挂载 architecture、workflow handbook
 与 planning-workshop scan 三个版本；导出器从同一 retrieval trace 的 raw top-8 和 source-aware top-8 产生一任务

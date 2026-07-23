@@ -87,13 +87,22 @@ python3 evaluation/material-rag-research-v1/analysis/audit_corpus.py \
   --lock evaluation/material-rag-research-v1/fixtures/generated/corpus-lock.json
 ```
 
-The frozen lock records deterministic SHA-256 values for generated inputs plus the authored plan,
-generator/specs, evaluators, dependency declaration and pinned font hash. The auditor
-only counts a case as independently reviewed when an optional `--review-ledger` JSON entry names two
-distinct reviewers and has status `agreed` or `arbitrated`; a command-line count cannot self-certify
-review. Controlled regression cases are assigned to `guard_regression` and do not inflate the core
-count. The current audit reaches 450/450 core cases, exact 250/100/100 splits and the required
-category/language targets. Guard-suite minimums are also part of readiness rather than being offset by
+The lock records deterministic SHA-256 values for generated inputs plus the authored plan,
+generator/specs, evaluators, dependency declaration and pinned font hash. It remains a `candidate`
+until the ledger binds two complete `material-rag-human-review-v1` artifacts from distinct registered
+human reviewers. Reviewer names, an AI pass, or an un-hashed assertion cannot self-certify review.
+Create the ledger only after both independent review artifacts are stored below `review/`:
+
+```bash
+python3 evaluation/material-rag-research-v1/review/make_review_ledger.py \
+  --human-review evaluation/material-rag-research-v1/review/human-review-a.json \
+  --human-review evaluation/material-rag-research-v1/review/human-review-b.json
+```
+
+Controlled regression cases are assigned to `guard_regression` and do not inflate the core
+count. The current audit structurally reaches 450/450 core cases, exact 250/100/100 splits and the required
+category/language targets, but remains `BLOCKED` until two human artifacts are bound. Guard-suite minimums
+are also part of readiness rather than being offset by
 the aggregate guard count.
 Failure and version/authorization labels also require executable scenario context; static approval-date
 lookups do not satisfy those categories. Run formal E0 only from a clean committed worktree so stopped
@@ -241,8 +250,12 @@ top-80 retrieval-pool drift.
 
 ### E6/E7 draw.io context and generation contracts
 
-The active task fixture is `fixtures/drawio-generation-tasks-v2.json`. Edit tasks include model-visible input
-draw.io XML; preservation/change assertions remain evaluator-only. First verify that a selector creates real arms:
+The active task fixture is `fixtures/drawio-generation-tasks-v3.json`: 20 Development and 20 Validation
+draw.io-agent tasks spanning creation, structural edits, visual/OCR reconstruction, version safety, source
+scope, permissions, failure states, flows and sequences. v2 is retained only for replaying historical runs.
+Edit tasks include model-visible input draw.io XML; preservation/change assertions remain evaluator-only.
+Every retrieval task declares `selected_only` or `chartbook_auto`; layout-only work declares `none`.
+First verify that a selector creates real arms:
 
 ```bash
 python3 evaluation/material-rag-research-v1/analysis/select_drawio_context.py \
@@ -257,7 +270,7 @@ Build prompt bundles only after every task has one frozen context in each arm:
 
 ```bash
 python3 evaluation/material-rag-research-v1/analysis/build_drawio_generation_prompts.py \
-  --tasks evaluation/material-rag-research-v1/fixtures/drawio-generation-tasks-v2.json \
+  --tasks evaluation/material-rag-research-v1/fixtures/drawio-generation-tasks-v3.json \
   --contexts evaluation/material-rag-research-v1/results/e6b-paired-contexts.json \
   --split development --arm candidate \
   --json-out evaluation/material-rag-research-v1/results/e6b-candidate-prompts.json
@@ -276,6 +289,12 @@ provider/model/endpoint, request parameters, and per-call attempts, request ID, 
 The validator parses the task fixture, prompt bundles and responses to require exact task-ID coverage and checks
 each call's prompt hash against its frozen bundle. Backfilled historical manifests may be valid diagnostics but
 are never formal-eligible when these fields are unavailable.
+
+Model-visible prompts expose opaque citation handles such as `CIT-001`, source version and page only. The
+private prompt bundle maps those handles back to canonical source-evidence IDs after the response; canonical
+anchor IDs are never shown to the model. The paired readiness gate requires complete candidate evidence.
+A missing control item is measured as the baseline outcome rather than making the experiment impossible, while
+a missing candidate item blocks model calls.
 
 Generated-corpus retrieval defaults to `development`. Set `MATERIAL_RAG_RESEARCH_SPLIT` explicitly
 to `validation` for checkpointing. Use `holdout` only after the manifest status has been independently

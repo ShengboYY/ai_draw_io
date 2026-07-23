@@ -18,15 +18,16 @@ LOCK = ROOT / "fixtures/generated/corpus-lock.json"
 
 class AuditCorpusTest(unittest.TestCase):
 
-    def test_current_corpus_matches_the_machine_readable_plan(self) -> None:
+    def test_current_corpus_remains_candidate_until_auditable_human_reviews_exist(self) -> None:
         result, lock = audit(ROOT, REVIEW_LEDGER)
         plan = json.loads((ROOT / "experiment-plan-v2.json").read_text(encoding="utf-8"))
 
         self.assertTrue(all(result["checks"].values()))
         self.assertEqual(sum(plan["coreCases"].values()), result["counts"]["coreCases"])
         self.assertEqual(dict(sorted(plan["coreCases"].items())), result["counts"]["coreBySplit"])
-        self.assertTrue(result["readyForE0Freeze"])
-        self.assertEqual("frozen", lock["status"])
+        self.assertFalse(result["readyForE0Freeze"])
+        self.assertEqual("pending", result["gaps"]["independentHumanReview"])
+        self.assertEqual("candidate", lock["status"])
 
     def test_without_review_ledger_the_lock_remains_a_candidate(self) -> None:
         result, lock = audit(ROOT, None)
@@ -40,15 +41,55 @@ class AuditCorpusTest(unittest.TestCase):
 
         self.assertEqual(expected_lock, committed_lock)
 
-    def test_review_ledger_requires_two_distinct_reviewers(self) -> None:
+    def test_review_ledger_requires_two_distinct_human_reviewers(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             ledger = Path(directory) / "review-ledger.json"
+            human_1 = Path(directory) / "human-1.json"
+            human_2 = Path(directory) / "human-2.json"
+            human_1.write_text(
+                json.dumps({
+                    "schemaVersion": "material-rag-human-review-v1", "reviewerId": "human-1",
+                    "cases": [
+                        {"caseId": case_id, "verdict": "accept", "notes": ""}
+                        for case_id in ("accepted", "ai-plus-one-human", "one-reviewer",
+                                        "duplicate-reviewer", "not-agreed")
+                    ],
+                }),
+                encoding="utf-8",
+            )
+            human_2.write_text(
+                json.dumps({
+                    "schemaVersion": "material-rag-human-review-v1", "reviewerId": "human-2",
+                    "cases": [
+                        {"caseId": case_id, "verdict": "accept", "notes": ""}
+                        for case_id in ("accepted", "ai-plus-one-human", "one-reviewer",
+                                        "duplicate-reviewer", "not-agreed")
+                    ],
+                }),
+                encoding="utf-8",
+            )
             ledger.write_text(json.dumps({
+                "schemaVersion": "material-rag-review-ledger-v2",
+                "reviewerRegistry": {
+                    "ai": {"kind": "ai"},
+                    "human-1": {"kind": "human"},
+                    "human-2": {"kind": "human"},
+                },
+                "humanReviewArtifacts": [
+                    {"reviewerId": "human-1", "path": human_1.name, "sha256": sha256(human_1)},
+                    {"reviewerId": "human-2", "path": human_2.name, "sha256": sha256(human_2)},
+                ],
                 "cases": [
-                    {"caseId": "accepted", "status": "agreed", "reviewers": ["r1", "r2"]},
-                    {"caseId": "one-reviewer", "status": "agreed", "reviewers": ["r1"]},
-                    {"caseId": "duplicate-reviewer", "status": "agreed", "reviewers": ["r1", "r1"]},
-                    {"caseId": "not-agreed", "status": "pending", "reviewers": ["r1", "r2"]},
+                    {"caseId": "accepted", "status": "agreed",
+                     "reviewers": ["human-1", "human-2"]},
+                    {"caseId": "ai-plus-one-human", "status": "agreed",
+                     "reviewers": ["ai", "human-1"]},
+                    {"caseId": "one-reviewer", "status": "agreed",
+                     "reviewers": ["human-1"]},
+                    {"caseId": "duplicate-reviewer", "status": "agreed",
+                     "reviewers": ["human-1", "human-1"]},
+                    {"caseId": "not-agreed", "status": "pending",
+                     "reviewers": ["human-1", "human-2"]},
                 ],
             }), encoding="utf-8")
 
@@ -57,6 +98,141 @@ class AuditCorpusTest(unittest.TestCase):
         self.assertEqual({"accepted"}, reviewed)
         self.assertEqual("double_reviewed", status)
         self.assertEqual(64, len(ledger_sha or ""))
+
+    def test_ai_plus_one_human_is_not_reported_as_double_human_review(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            ledger = Path(directory) / "review-ledger.json"
+            human = Path(directory) / "human.json"
+            human.write_text(
+                json.dumps({
+                    "schemaVersion": "material-rag-human-review-v1", "reviewerId": "human",
+                    "cases": [{"caseId": "case-1", "verdict": "accept", "notes": ""}],
+                }),
+                encoding="utf-8",
+            )
+            ledger.write_text(json.dumps({
+                "schemaVersion": "material-rag-review-ledger-v2",
+                "reviewerRegistry": {
+                    "ai": {"kind": "ai"},
+                    "human": {"kind": "human"},
+                },
+                "humanReviewArtifacts": [{
+                    "reviewerId": "human", "path": human.name, "sha256": sha256(human),
+                }],
+                "cases": [{
+                    "caseId": "case-1",
+                    "status": "agreed",
+                    "reviewers": ["ai", "human"],
+                }],
+            }), encoding="utf-8")
+
+            reviewed, status, _ = reviewed_case_ids(ledger)
+
+        self.assertEqual(set(), reviewed)
+        self.assertEqual("single_human_reviewed", status)
+
+    def test_legacy_untyped_review_ledger_fails_closed(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            ledger = Path(directory) / "review-ledger.json"
+            ledger.write_text(json.dumps({
+                "schemaVersion": "material-rag-review-ledger-v1",
+                "cases": [{
+                    "caseId": "case-1",
+                    "status": "agreed",
+                    "reviewers": ["reviewer-1", "reviewer-2"],
+                }],
+            }), encoding="utf-8")
+
+            reviewed, status, ledger_sha = reviewed_case_ids(ledger)
+
+        self.assertEqual(set(), reviewed)
+        self.assertEqual("pending", status)
+        self.assertEqual(64, len(ledger_sha or ""))
+
+    def test_human_artifact_without_per_case_decisions_fails_closed(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            ledger = Path(directory) / "review-ledger.json"
+            artifacts = []
+            for reviewer in ("human-1", "human-2"):
+                path = Path(directory) / f"{reviewer}.json"
+                path.write_text(json.dumps({
+                    "schemaVersion": "material-rag-human-review-v1",
+                    "reviewerId": reviewer,
+                    "cases": [],
+                }), encoding="utf-8")
+                artifacts.append({
+                    "reviewerId": reviewer, "path": path.name, "sha256": sha256(path),
+                })
+            ledger.write_text(json.dumps({
+                "schemaVersion": "material-rag-review-ledger-v2",
+                "reviewerRegistry": {
+                    "human-1": {"kind": "human"}, "human-2": {"kind": "human"},
+                },
+                "humanReviewArtifacts": artifacts,
+                "cases": [{
+                    "caseId": "case-1", "status": "agreed",
+                    "reviewers": ["human-1", "human-2"],
+                }],
+            }), encoding="utf-8")
+
+            reviewed, status, _ = reviewed_case_ids(ledger)
+
+        self.assertEqual(set(), reviewed)
+        self.assertEqual("pending", status)
+
+    def test_partial_human_artifacts_do_not_satisfy_a_complete_core_review(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            ledger = Path(directory) / "review-ledger.json"
+            artifacts = []
+            for reviewer in ("human-1", "human-2"):
+                path = Path(directory) / f"{reviewer}.json"
+                path.write_text(json.dumps({
+                    "schemaVersion": "material-rag-human-review-v1",
+                    "reviewerId": reviewer,
+                    "cases": [{"caseId": "case-1", "verdict": "accept", "notes": ""}],
+                }), encoding="utf-8")
+                artifacts.append({
+                    "reviewerId": reviewer, "path": path.name, "sha256": sha256(path),
+                })
+            ledger.write_text(json.dumps({
+                "schemaVersion": "material-rag-review-ledger-v2",
+                "reviewerRegistry": {
+                    "human-1": {"kind": "human"}, "human-2": {"kind": "human"},
+                },
+                "humanReviewArtifacts": artifacts,
+                "cases": [{
+                    "caseId": "case-1", "status": "agreed",
+                    "reviewers": ["human-1", "human-2"],
+                }],
+            }), encoding="utf-8")
+
+            reviewed, status, _ = reviewed_case_ids(
+                ledger, expected_case_ids={"case-1", "case-2"}
+            )
+
+        self.assertEqual(set(), reviewed)
+        self.assertEqual("pending", status)
+
+    def test_human_reviewer_without_a_hash_verified_artifact_fails_closed(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            ledger = Path(directory) / "review-ledger.json"
+            ledger.write_text(json.dumps({
+                "schemaVersion": "material-rag-review-ledger-v2",
+                "reviewerRegistry": {
+                    "human-1": {"kind": "human"},
+                    "human-2": {"kind": "human"},
+                },
+                "cases": [{
+                    "caseId": "case-1",
+                    "status": "agreed",
+                    "reviewers": ["human-1", "human-2"],
+                }],
+            }), encoding="utf-8")
+
+            reviewed, status, _ = reviewed_case_ids(ledger)
+
+        self.assertEqual(set(), reviewed)
+        self.assertEqual("pending", status)
 
     def test_answerable_case_without_evidence_is_rejected(self) -> None:
         case = {
@@ -84,6 +260,32 @@ class AuditCorpusTest(unittest.TestCase):
 
 
 class GenerationTaskAuditTest(unittest.TestCase):
+
+    def test_rejects_conflicting_generation_source_scope_contracts(self) -> None:
+        base = {
+            "split": "development",
+            "sourceVersion": "source-a:v1",
+            "requiredAnchors": ["anchor-a"],
+            "citationAssertions": {"mustCiteAnchors": ["anchor-a"]},
+            "claimAssertions": {"requiredClaims": [{
+                "claimId": "claim-1", "description": "Claim", "requiresCitation": True,
+            }]},
+        }
+        tasks = [
+            {**base, "taskId": "selected", "sourceScopeMode": "selected_only"},
+            {**base, "taskId": "automatic", "sourceScopeMode": "chartbook_auto",
+             "selectedMaterialVersion": "source-a:v1"},
+        ]
+        anchors = {"anchor-a": {
+            "source": "source-a", "version": "v1", "split": "development",
+        }}
+
+        errors = generation_task_errors(tasks, anchors, {"source-a:v1"})
+
+        self.assertEqual([
+            "selected-only task has no matching selected material version",
+            "automatic task must not declare a selected material version",
+        ], [error["error"] for error in errors])
 
     def test_rejects_edit_task_without_input_or_preservation_assertions(self) -> None:
         task = {

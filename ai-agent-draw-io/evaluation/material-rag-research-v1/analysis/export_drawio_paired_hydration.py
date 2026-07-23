@@ -24,7 +24,24 @@ def sha256(path: Path) -> str:
 
 
 def allowed_sources(task: dict, chartbook_sources: set[str]) -> set[str]:
-    """Use the explicitly mounted chartbook sources, falling back to the task source."""
+    """Resolve the task's declared source policy without broadening explicit selection."""
+    mode = task.get("sourceScopeMode")
+    if mode == "selected_only":
+        selected = str(task.get("selectedMaterialVersion", "")).strip()
+        if not selected or chartbook_sources and selected not in chartbook_sources:
+            raise ValueError(f"selected source is not mounted for {task.get('taskId', 'unknown')}")
+        return {selected}
+    if mode == "chartbook_auto":
+        if task.get("selectedMaterialVersion"):
+            raise ValueError(f"automatic source task declares an explicit selection: {task.get('taskId', 'unknown')}")
+        if not chartbook_sources:
+            raise ValueError(f"automatic source task has no mounted chartbook: {task.get('taskId', 'unknown')}")
+        return set(chartbook_sources)
+    if mode == "none":
+        return set()
+    if mode is not None:
+        raise ValueError(f"unknown source scope mode for {task.get('taskId', 'unknown')}")
+    # Historical fixtures predate sourceScopeMode and retain their original mounted-scope behavior.
     return set(task.get("allowedSourceVersions", [task["sourceVersion"]])) | chartbook_sources
 
 
@@ -87,7 +104,7 @@ def evidence_for_context(candidates: list[dict], task: dict, artifact_root: Path
 
 
 def required_evidence_readiness(tasks: list[dict], contexts: list[dict], no_retrieval_task_ids: set[str]) -> dict:
-    """Report evaluator-only availability after export without using it to select or rewrite context."""
+    """Require the treatment to be answerable while measuring control evidence loss as an outcome."""
     by_context = {(context["taskId"], context["arm"]): context for context in contexts}
     task_reports = []
     for task in tasks:
@@ -100,8 +117,15 @@ def required_evidence_readiness(tasks: list[dict], contexts: list[dict], no_retr
             missing[arm] = sorted(set(required) - visible)
         task_reports.append({"taskId": task["taskId"], "requiredAnchors": required,
                              "controlMissing": missing["control"], "candidateMissing": missing["candidate"]})
-    return {"ready": all(not report["controlMissing"] and not report["candidateMissing"]
-                          for report in task_reports), "tasks": task_reports}
+    control_ready = all(not report["controlMissing"] for report in task_reports)
+    candidate_ready = all(not report["candidateMissing"] for report in task_reports)
+    return {
+        "policy": "candidate-required-control-measured-v2",
+        "ready": candidate_ready,
+        "controlReady": control_ready,
+        "candidateReady": candidate_ready,
+        "tasks": task_reports,
+    }
 
 
 def export(trace: dict, tasks: list[dict], split: str, limit: int,
@@ -151,8 +175,12 @@ def export(trace: dict, tasks: list[dict], split: str, limit: int,
         for rank, candidate in enumerate(candidates, start=1):
             if candidate.get("rank") != rank or not candidate.get("chunkId"):
                 raise ValueError(f"invalid rank order for {task['taskId']}")
-        control = candidates[:limit]
-        candidate = select(candidates, limit)
+        permitted = allowed_sources(task, chartbook_sources)
+        if any(item.get("sourceVersion") not in permitted for item in candidates):
+            raise ValueError(f"out-of-scope candidate for {task['taskId']}")
+        scoped_candidates = candidates
+        control = scoped_candidates[:limit]
+        candidate = select(scoped_candidates, limit)
         control_ids = [item["chunkId"] for item in control]
         candidate_ids = [item["chunkId"] for item in candidate]
         contexts.extend((
@@ -172,6 +200,7 @@ def export(trace: dict, tasks: list[dict], split: str, limit: int,
             "rawCandidateChunkIdsSha256": hashlib.sha256(
                 json.dumps(raw_chunk_ids, separators=(",", ":")).encode()
             ).hexdigest(),
+            "scopedCandidateCount": len(scoped_candidates),
             "controlChunkIds": control_ids, "candidateChunkIds": candidate_ids,
         })
     retrieval_required = [summary for summary in summaries if summary["taskId"] not in no_retrieval_task_ids]
@@ -206,7 +235,8 @@ def verify_provenance(trace: dict, corpus_lock: Path, tasks: Path, ground_truth:
     lock = json.loads(corpus_lock.read_text())
     if lock.get("schemaVersion") != "material-rag-corpus-lock-v1" or lock.get("status") != "frozen":
         raise ValueError("corpus lock is not a frozen material-RAG lock")
-    if lock.get("provenanceFiles", {}).get("fixtures/drawio-generation-tasks-v2.json") != sha256(tasks):
+    task_fixture_key = f"fixtures/{tasks.name}"
+    if lock.get("provenanceFiles", {}).get(task_fixture_key) != sha256(tasks):
         raise ValueError("corpus lock does not bind the supplied task fixture")
     if lock.get("files", {}).get("ground-truth.json") != sha256(ground_truth):
         raise ValueError("corpus lock does not bind the supplied ground truth")
@@ -223,7 +253,7 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--tasks", type=Path, required=True)
     parser.add_argument("--hydration-candidates", type=Path, required=True)
-    parser.add_argument("--split", choices=("development",), default="development")
+    parser.add_argument("--split", choices=("development", "validation"), default="development")
     parser.add_argument("--json-out", type=Path, required=True)
     parser.add_argument("--artifact-root", type=Path, default=ROOT)
     parser.add_argument("--ground-truth", type=Path, default=ROOT / "fixtures/generated/ground-truth.json")
@@ -233,12 +263,10 @@ def main() -> None:
     parser.add_argument("--require-model-visible-required-evidence", action="store_true")
     args = parser.parse_args()
     task_fixture = json.loads(args.tasks.read_text())
-    chartbook_sources = set(task_fixture.get("developmentChartbookSourceVersions", [])) \
-        if args.split == "development" else set()
-    artifact_task_ids = set(task_fixture.get("developmentMultimodalArtifactTaskIds", [])) \
-        if args.split == "development" else set()
-    no_retrieval_task_ids = set(task_fixture.get("developmentNoRetrievalTaskIds", [])) \
-        if args.split == "development" else set()
+    prefix = "development" if args.split == "development" else "validation"
+    chartbook_sources = set(task_fixture.get(f"{prefix}ChartbookSourceVersions", []))
+    artifact_task_ids = set(task_fixture.get(f"{prefix}MultimodalArtifactTaskIds", []))
+    no_retrieval_task_ids = set(task_fixture.get(f"{prefix}NoRetrievalTaskIds", []))
     anchor_by_id = {item["anchorId"]: item for item in json.loads(args.ground_truth.read_text())["anchors"]}
     trace = json.loads(args.hydration_candidates.read_text())
     verify_provenance(trace, args.corpus_lock, args.tasks, args.ground_truth, args.source_evidence_identities)
