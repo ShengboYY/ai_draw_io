@@ -16,6 +16,14 @@ public interface IChatService {
 
     List<AiAgentConfigTableVO.Agent> queryAiAgentConfigList();
 
+    /**
+     * Security boundary for callers that pass untrusted image or document content to an agent.
+     * Implementations must return true only when every reachable LLM agent has an empty tool set.
+     */
+    default boolean isAgentToolFree(String agentId) {
+        return false;
+    }
+
     String createSession(String agentId, String userId);
 
     /**

@@ -29,6 +29,10 @@ public final class ChatVisionModelPortAdapter implements VisionModelPort {
             throw new IllegalArgumentException("visual observation agentId is required");
         }
         this.agentId = agentId.trim();
+        // Image content is untrusted data, so the configured internal agent must expose no tools.
+        if (!chat.isAgentToolFree(this.agentId)) {
+            throw new IllegalArgumentException("visual observation agent must be tool-free");
+        }
     }
 
     @Override
@@ -75,12 +79,12 @@ public final class ChatVisionModelPortAdapter implements VisionModelPort {
                 JsonNode bounds = node.path("bounds");
                 requireFields(bounds, BOUNDS_FIELDS);
                 observations.add(new VerifiedObservation(
-                        node.path("evidenceId").asText(),
-                        ObservationKind.valueOf(node.path("kind").asText()),
-                        node.path("text").asText(),
+                        text(node, "evidenceId", 128, false),
+                        ObservationKind.valueOf(text(node, "kind", 32, false)),
+                        text(node, "text", 2_000, false),
                         new ObservationBounds(number(bounds, "x"), number(bounds, "y"),
                                 number(bounds, "width"), number(bounds, "height")),
-                        node.path("direction").asText(""),
+                        text(node, "direction", 64, true),
                         number(node, "confidence")));
             });
             List<String> gaps = new ArrayList<>();
@@ -108,5 +112,14 @@ public final class ChatVisionModelPortAdapter implements VisionModelPort {
     private double number(JsonNode node, String field) {
         if (!node.path(field).isNumber()) throw new IllegalArgumentException(field + " must be numeric");
         return node.path(field).asDouble();
+    }
+
+    private String text(JsonNode node, String field, int maximumLength, boolean allowEmpty) {
+        JsonNode value = node.path(field);
+        if (!value.isTextual() || value.asText().length() > maximumLength
+                || (!allowEmpty && value.asText().isBlank())) {
+            throw new IllegalArgumentException(field + " must be textual");
+        }
+        return value.asText();
     }
 }

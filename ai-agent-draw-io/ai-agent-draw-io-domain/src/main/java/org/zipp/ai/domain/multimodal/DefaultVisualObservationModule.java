@@ -9,9 +9,9 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ForkJoinPool;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.Future;
 
 /** Reads exact image versions and accepts only bounded, source-anchored model observations. */
 public final class DefaultVisualObservationModule implements VisualObservationModule {
@@ -21,7 +21,7 @@ public final class DefaultVisualObservationModule implements VisualObservationMo
 
     private final VisualArtifactReaderPort artifacts;
     private final VisionModelPort model;
-    private final Executor executor;
+    private final ExecutorService executor;
     private final long timeoutMillis;
 
     public DefaultVisualObservationModule(VisualArtifactReaderPort artifacts, VisionModelPort model) {
@@ -29,7 +29,7 @@ public final class DefaultVisualObservationModule implements VisualObservationMo
     }
 
     public DefaultVisualObservationModule(VisualArtifactReaderPort artifacts, VisionModelPort model,
-                                          Executor executor, long timeoutMillis) {
+                                          ExecutorService executor, long timeoutMillis) {
         this.artifacts = Objects.requireNonNull(artifacts, "artifacts");
         this.model = Objects.requireNonNull(model, "model");
         this.executor = Objects.requireNonNull(executor, "executor");
@@ -43,17 +43,29 @@ public final class DefaultVisualObservationModule implements VisualObservationMo
         Objects.requireNonNull(command, "command");
         Objects.requireNonNull(resources, "resources");
         CancellationSignal signal = cancellation == null ? CancellationSignal.NEVER : cancellation;
-        if (signal.isCancelled()) return CompletableFuture.completedFuture(new VisualObservationOutcome.Cancelled());
-        return CompletableFuture.supplyAsync(() -> observeNow(command, signal), executor)
-                .orTimeout(timeoutMillis, TimeUnit.MILLISECONDS)
-                .exceptionally(failure -> new VisualObservationOutcome.Unavailable("VISUAL_PROVIDER_UNAVAILABLE"));
+        if (stopped(resources, signal)) {
+            return CompletableFuture.completedFuture(new VisualObservationOutcome.Cancelled());
+        }
+
+        CompletableFuture<VisualObservationOutcome> result = new CompletableFuture<>();
+        Future<?> task = executor.submit(() -> result.complete(observeNow(command, resources, signal)));
+        // Closing a run interrupts a visual provider call that is still in flight.
+        resources.attach(() -> task.cancel(true));
+        CompletableFuture.delayedExecutor(timeoutMillis, java.util.concurrent.TimeUnit.MILLISECONDS).execute(() -> {
+            if (result.complete(new VisualObservationOutcome.Unavailable("VISUAL_PROVIDER_UNAVAILABLE"))) {
+                task.cancel(true);
+            }
+        });
+        return result;
     }
 
-    private VisualObservationOutcome observeNow(VisualObservationCommand command, CancellationSignal signal) {
+    private VisualObservationOutcome observeNow(VisualObservationCommand command, RunResourceDomain resources,
+                                                CancellationSignal signal) {
         try {
             List<VisionModelPort.ImageInput> images = new ArrayList<>();
             long totalBytes = 0;
             for (VisualObservationTarget target : command.targets()) {
+                if (stopped(resources, signal)) return new VisualObservationOutcome.Cancelled();
                 if (target.artifact().byteSize() > MAX_IMAGE_BYTES
                         || totalBytes + target.artifact().byteSize() > MAX_TOTAL_BYTES) {
                     return new VisualObservationOutcome.Rejected("VISUAL_PIXEL_BUDGET_EXCEEDED");
@@ -62,13 +74,12 @@ public final class DefaultVisualObservationModule implements VisualObservationMo
                 totalBytes += bytes.length;
                 images.add(new VisionModelPort.ImageInput(
                         target.evidenceId(), target.artifact().contentType(), bytes));
-                if (signal.isCancelled()) {
-                    return new VisualObservationOutcome.Cancelled();
-                }
+                if (stopped(resources, signal)) return new VisualObservationOutcome.Cancelled();
             }
+            if (stopped(resources, signal)) return new VisualObservationOutcome.Cancelled();
             VisionModelPort.Response response = model.observe(new VisionModelPort.Request(
                     command.purpose(), command.question(), images, command.maximumObservations()));
-            if (signal.isCancelled()) return new VisualObservationOutcome.Cancelled();
+            if (stopped(resources, signal)) return new VisualObservationOutcome.Cancelled();
             Set<String> allowedEvidence = new HashSet<>(
                     command.targets().stream().map(VisualObservationTarget::evidenceId).toList());
             List<VerifiedObservation> verified = response.observations().stream()
@@ -86,7 +97,12 @@ public final class DefaultVisualObservationModule implements VisualObservationMo
         } catch (IllegalArgumentException exception) {
             return new VisualObservationOutcome.Rejected("INVALID_VISUAL_INPUT");
         } catch (RuntimeException exception) {
+            if (stopped(resources, signal)) return new VisualObservationOutcome.Cancelled();
             return new VisualObservationOutcome.Unavailable("VISUAL_PROVIDER_UNAVAILABLE");
         }
+    }
+
+    private boolean stopped(RunResourceDomain resources, CancellationSignal signal) {
+        return resources.isClosed() || signal.isCancelled() || Thread.currentThread().isInterrupted();
     }
 }

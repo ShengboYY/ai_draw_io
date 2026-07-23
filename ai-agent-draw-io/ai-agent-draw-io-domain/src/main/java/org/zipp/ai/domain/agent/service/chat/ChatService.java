@@ -68,6 +68,22 @@ public class ChatService implements IChatService {
         return agentList;
     }
 
+    @Override
+    public boolean isAgentToolFree(String agentId) {
+        Map<String, AiAgentConfigTableVO> tables = aiAgentAutoConfigProperties.getTables();
+        if (agentId == null || tables == null) return false;
+        return tables.values().stream()
+                .filter(table -> table.getAgent() != null && agentId.equals(table.getAgent().getAgentId()))
+                .map(AiAgentConfigTableVO::getModule)
+                .filter(java.util.Objects::nonNull)
+                .map(AiAgentConfigTableVO.Module::getAgents)
+                .filter(java.util.Objects::nonNull)
+                .filter(agents -> !agents.isEmpty())
+                // An explicit empty allowlist physically removes all configured MCP/skill tools.
+                .anyMatch(agents -> agents.stream().allMatch(agent ->
+                        agent.getAllowedTools() != null && agent.getAllowedTools().isEmpty()));
+    }
+
     private boolean isInternalAgent(AiAgentConfigTableVO.Agent agent) {
         String agentDesc = agent.getAgentDesc();
         return null != agentDesc && agentDesc.startsWith("[internal]");

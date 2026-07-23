@@ -165,6 +165,13 @@ public class MaterialRagConfig {
     @Configuration
     @ConditionalOnProperty(name = "app.material-visual-observation.enabled", havingValue = "true")
     static class VisualObservationConfig {
+        @Bean(destroyMethod = "shutdown")
+        public ExecutorService visualObservationExecutor(
+                @Value("${app.material-visual-observation.parallelism:2}") int parallelism) {
+            // Isolate slow vision providers from retrieval and hydration capacity.
+            return Executors.newFixedThreadPool(Math.max(1, Math.min(4, parallelism)));
+        }
+
         @Bean
         public VisualArtifactReaderPort visualArtifactReader(
                 @Qualifier("materialRagRevisionArtifactPort") RevisionArtifactPort artifacts) {
@@ -180,7 +187,7 @@ public class MaterialRagConfig {
         @Bean
         public VisualObservationModule visualObservationModule(
                 VisualArtifactReaderPort artifacts, VisionModelPort model,
-                @Qualifier("materialRagIoExecutor") ExecutorService executor,
+                @Qualifier("visualObservationExecutor") ExecutorService executor,
                 @Value("${app.material-visual-observation.timeout-ms:30000}") long timeoutMs) {
             return new DefaultVisualObservationModule(artifacts, model, executor, timeoutMs);
         }
