@@ -521,9 +521,10 @@
 - **本地核验与审查修正**:TDD 先证明原 parent 为 dense 会失败；随后验证 parent 仍 citable 且存在 lexical projection、但实际
   PDF/OCR projection 的 parent 为 lexical-only。P1 审查后将 `page-parent-lexical-only` 写入 processing fingerprint，避免
   沿用 R8 的 projection profile；同时让 trace 的 lexical candidate 导出直接解析所有 searchable chunk。hybrid lane 保留
-  lexical-only parent 的原 RRF 顺序和 source/page provenance，只有该 parent 不被误当成 Pinecone vector；无网络回归覆盖
-  parent 不进 dense candidates、但仍进入 lexical/hybrid hydration。domain 12 项和 worker 14 项定向测试通过（5 项 opt-in
-  Pinecone tests 按设计跳过）。无 Pinecone、模型、Validation 或 holdout。
+  lexical-only parent 的原 RRF 顺序和 source/page provenance，只有该 parent 不被误当成 Pinecone vector；无网络回归从
+  实际 PDF/OCR projection 构建 dense index，执行 lexical rank 与 RRF，覆盖 parent 不进 dense candidates、但仍进入
+  lexical/hybrid hydration。domain 12 项和 worker 14 项定向测试通过（5 项 opt-in Pinecone tests 按设计跳过）。无
+  Pinecone、模型、Validation 或 holdout。
 - **下一步**:经授权运行新的 opt-in Development hydration trace；必须先通过 `dgt-dev-02` 多模态 artifact contract，
   再检查 contrast 与 r6 model-visible-required-evidence gate。详见
   [2026-07-23-e7-r9-visual-safe-page-parent-pre-registration.md](2026-07-23-e7-r9-visual-safe-page-parent-pre-registration.md)。

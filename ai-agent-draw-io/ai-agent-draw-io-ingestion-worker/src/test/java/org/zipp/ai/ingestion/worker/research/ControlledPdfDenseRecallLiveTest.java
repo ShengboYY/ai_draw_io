@@ -237,18 +237,28 @@ class ControlledPdfDenseRecallLiveTest {
                 && pageNo(chunk.pageId()) == 3 && chunk.citable()
                 && chunk.indexMode() == RetrievalIndexMode.LEXICAL_ONLY).findFirst().orElseThrow();
 
-        Map<String, IndexedChunk> denseByChunkId = Map.of(visual.chunkId(),
-                new IndexedChunk("dense:" + visual.chunkId(), "drawio-agent-architecture:v1", visual, ""));
-        Map<String, IndexedChunk> searchableByChunkId = searchableChunksByChunkId(new ProjectionSet(Map.of(
-                "drawio-agent-architecture:v1", projection)));
+        ProjectionSet projections = new ProjectionSet(Map.of("drawio-agent-architecture:v1", projection));
+        List<IndexedChunk> indexed = indexedChunks("local-hydration", projections, ChunkMode.FLAT_LEAF);
+        Map<String, IndexedChunk> denseByChunkId = indexed.stream().collect(
+                java.util.stream.Collectors.toMap(value -> value.chunk().chunkId(), value -> value));
+        Map<String, IndexedChunk> searchableByChunkId = searchableChunksByChunkId(projections);
+        List<String> lexicalChunkIds = ResearchHybridRanker.lexicalRank(pageParent.retrievalText(),
+                projection.lexicalProjections());
+        assertTrue(lexicalChunkIds.contains(pageParent.chunkId()));
+        assertFalse(denseByChunkId.containsKey(pageParent.chunkId()));
+        List<String> hybridChunkIds = ResearchHybridRanker.fuse(lexicalChunkIds,
+                List.of(visual.chunkId()), 40);
+        assertTrue(hybridChunkIds.contains(pageParent.chunkId()));
         List<CandidateResult> hydrated = candidateResultsByChunkIds(
-                List.of(pageParent.chunkId(), visual.chunkId()), searchableByChunkId, denseByChunkId);
-        assertEquals(List.of(pageParent.chunkId(), visual.chunkId()), hydrated.stream()
-                .map(CandidateResult::chunkId).toList());
-        assertEquals("drawio-agent-architecture:v1", hydrated.get(0).sourceVersion());
-        assertEquals(pageParent.pageId(), hydrated.get(0).pageId());
-        assertTrue(hydrated.get(0).vectorId().startsWith("lexical:"));
-        assertEquals("dense:" + visual.chunkId(), hydrated.get(1).vectorId());
+                hybridChunkIds, searchableByChunkId, denseByChunkId);
+        assertEquals(hybridChunkIds, hydrated.stream().map(CandidateResult::chunkId).toList());
+        CandidateResult hydratedParent = hydrated.stream().filter(candidate ->
+                candidate.chunkId().equals(pageParent.chunkId())).findFirst().orElseThrow();
+        assertEquals("drawio-agent-architecture:v1", hydratedParent.sourceVersion());
+        assertEquals(pageParent.pageId(), hydratedParent.pageId());
+        assertTrue(hydratedParent.vectorId().startsWith("lexical:"));
+        assertEquals(denseByChunkId.get(visual.chunkId()).vectorId(), hydrated.stream().filter(candidate ->
+                candidate.chunkId().equals(visual.chunkId())).findFirst().orElseThrow().vectorId());
     }
 
     private RetrievalChunkProjection chunkWithParentContext(String parentContext) {
