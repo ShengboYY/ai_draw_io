@@ -160,6 +160,61 @@ class CanvasCommitModuleTest {
         assertEquals(List.of("DIRECT_SOURCE_CONFLICT"), result.errors());
     }
 
+    @Test
+    void rejectsSemanticDirectSourceConflictWithoutOpeningTheCommitTransaction() {
+        ICanvasStateStore readStore = new ICanvasStateStore() {
+            @Override public Optional<CanvasState> find(String userId, String diagramId) {
+                return Optional.empty();
+            }
+            @Override public CanvasState save(CanvasState state) { throw new AssertionError(); }
+        };
+        AtomicReference<GroundedCanvasCommitPort.CommitPlan> captured = new AtomicReference<>();
+        CanvasCommitModule module = new CanvasCommitModule(
+                new CanvasMutationGate(readStore, new DefaultCanvasAnalyzer()),
+                new CitationGuard(requests -> List.of()), new GroundedCanvasCommitPort() {
+                    @Override public java.util.Map<String, InheritedProvenance> findPersistedProvenance(
+                            InheritanceQuery query) {
+                        return java.util.Map.of();
+                    }
+                    @Override public CanvasStateSaveResult commit(CommitPlan plan) {
+                        captured.set(plan);
+                        throw new AssertionError("semantic conflict must not commit");
+                    }
+                });
+        String direct = """
+                <mxGraphModel><root><mxCell id="0"/><mxCell id="1" parent="0"/>
+                <mxCell id="direct-node-a" value="Approve" vertex="1" parent="1">
+                <mxGeometry x="0" y="0" width="180" height="60" as="geometry"/></mxCell>
+                </root></mxGraphModel>
+                """;
+        String duplicate = direct.replace("</root>", """
+                <mxCell id="retrieved-node" value="Approve" vertex="1" parent="1">
+                <mxGeometry x="260" y="0" width="180" height="60" as="geometry"/></mxCell>
+                </root>""");
+        EvidenceAccessContext access = EvidenceAccessContext.from(new EvidenceBundle(
+                "bundle-1", "request-1", "run-1", SourceMode.EXPLICIT_ONLY,
+                List.of(item("E1", "evidence-used"))), false);
+        CitationBinding binding = new CitationBinding(
+                "retrieved-node", "retrieved-statement", StatementKind.NODE_TEXT,
+                "Approve", null, null, List.of("E1"),
+                List.of(new SupportAtom("retrieved-atom", "E1", "Approve",
+                        SupportAtomRole.DIRECT_QUOTE)), SupportType.EVIDENCE);
+        RunResourceDomain resources = new RunResourceDomain();
+        resources.markPrepared();
+
+        CanvasCommitResult result = module.commit(new CanvasCommitCommand(
+                new CanvasMutationCommand(CanvasMutationPurpose.USER_CREATE, direct, duplicate,
+                        DiagramType.FLOWCHART, CanvasMutationAuthorization.unrestricted(),
+                        "alice", "diagram-1", null, null),
+                "request-1", "run-1", access, List.of(binding), true, true,
+                java.util.Set.of("direct-node-a")), resources);
+
+        assertFalse(result.committed());
+        assertEquals(List.of("DIRECT_LABEL_CONFLICT"), result.errors());
+        assertNull(captured.get());
+        assertEquals(CloseReason.FAILED, resources.closeReason().orElseThrow());
+    }
+
     private EvidenceBundleItem item(String key, String evidenceId) {
         return new EvidenceBundleItem(key, evidenceId, "material-1", "version-1", "revision-1",
                 "S1", 6, "TEXT", "Product Owner is accountable for maximizing value.");

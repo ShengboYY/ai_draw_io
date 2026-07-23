@@ -27,6 +27,8 @@ public final class CanvasCommitModule {
     private final CanvasMutationGate mutationGate;
     private final CitationGuard citationGuard;
     private final GroundedCanvasCommitPort commitPort;
+    private final DirectSourceConflictPolicy directSourceConflictPolicy =
+            new DirectSourceConflictPolicy();
 
     public CanvasCommitModule(CanvasMutationGate mutationGate, CitationGuard citationGuard,
                               GroundedCanvasCommitPort commitPort) {
@@ -55,6 +57,12 @@ public final class CanvasCommitModule {
             resources.closeExactlyOnce(CloseReason.FAILED);
             return CanvasCommitResult.rejected(
                     mutation.resultingXml(), List.of("DIRECT_SOURCE_CONFLICT"));
+        }
+        List<String> directConflicts = directSourceConflictPolicy.conflicts(
+                mutation, command.immutableCellIds(), command.bindings());
+        if (!directConflicts.isEmpty()) {
+            resources.closeExactlyOnce(CloseReason.FAILED);
+            return CanvasCommitResult.rejected(mutation.resultingXml(), directConflicts);
         }
         Set<String> inheritanceCandidates = inheritedCellIds(mutation, command.bindings());
         Map<String, GroundedCanvasCommitPort.InheritedProvenance> inherited = inheritanceCandidates.isEmpty()

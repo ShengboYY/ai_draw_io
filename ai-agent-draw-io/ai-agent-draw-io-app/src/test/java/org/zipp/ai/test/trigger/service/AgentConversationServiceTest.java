@@ -56,6 +56,7 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.List;
+import java.util.LinkedHashMap;
 import java.util.Optional;
 import java.util.ArrayList;
 import java.util.Map;
@@ -1351,14 +1352,45 @@ public class AgentConversationServiceTest {
     @Test
     public void directAndRetrievalStreamUsesTheDirectCanvasAndExcludesAttachmentFromRetrieval() throws Exception {
         AgentConversationService service = quotaAwareService();
-        InitialStateCapturingChatService chatService = new InitialStateCapturingChatService();
+        CompositeDiagramChatService chatService = new CompositeDiagramChatService();
         AtomicReference<org.zipp.ai.domain.retrieval.ResolvedSourceSet> retrievedSources =
                 new AtomicReference<>();
+        AtomicReference<org.zipp.ai.domain.grounding.port.GroundedCanvasCommitPort.CommitPlan> committed =
+                new AtomicReference<>();
+        AtomicInteger commitCalls = new AtomicInteger();
         org.zipp.ai.domain.retrieval.ResolvedSourceSet frozenSources =
                 directAndLibrarySourceSnapshot();
         injectField(service, "chatService", chatService);
         injectField(service, "intentRoutingService", new DirectAndRetrievalRoutingService());
-        injectField(service, "canvasStateStore", new FixedCanvasStateStore(""));
+        FixedCanvasStateStore canvasStore = new FixedCanvasStateStore("");
+        injectField(service, "canvasStateStore", canvasStore);
+        DrawioStreamResponseWriter writer = new DrawioStreamResponseWriter(new DrawioToolCallRenderer());
+        org.zipp.ai.domain.agent.service.canvas.CanvasMutationGate mutationGate =
+                new org.zipp.ai.domain.agent.service.canvas.CanvasMutationGate(
+                        canvasStore, new org.zipp.ai.domain.agent.service.analysis.DefaultCanvasAnalyzer());
+        injectField(writer, "canvasMutationGate", mutationGate);
+        injectField(writer, "canvasCommitModule", new org.zipp.ai.domain.grounding.CanvasCommitModule(
+                mutationGate,
+                new org.zipp.ai.domain.citation.service.CitationGuard(requests -> List.of()),
+                new org.zipp.ai.domain.grounding.port.GroundedCanvasCommitPort() {
+                    @Override
+                    public Map<String, InheritedProvenance> findPersistedProvenance(InheritanceQuery query) {
+                        return Map.of();
+                    }
+
+                    @Override
+                    public org.zipp.ai.domain.agent.model.valobj.canvas.CanvasStateSaveResult commit(
+                            CommitPlan plan) {
+                        commitCalls.incrementAndGet();
+                        committed.set(plan);
+                        return org.zipp.ai.domain.agent.model.valobj.canvas.CanvasStateSaveResult.created(
+                                CanvasState.builder().userId("anon_123e4567-e89b-42d3-a456-426614174000")
+                                        .diagramId("diagram-1").diagramType("flowchart")
+                                        .currentXml(plan.canvasXml()).contentHash(plan.contentHash())
+                                        .version(1L).build());
+                    }
+                }));
+        injectField(service, "streamResponseWriter", writer);
         injectField(service, "requestSourceResolutionService",
                 (org.zipp.ai.domain.retrieval.RequestSourceResolutionService) command ->
                         frozenSources);
@@ -1404,7 +1436,8 @@ public class AgentConversationServiceTest {
         request.setSelectedVersionIds(List.of("library-version"));
         request.setSourceMode("EXPLICIT_ONLY");
 
-        service.stream(request, new CapturingEmitter());
+        CapturingEmitter emitter = new CapturingEmitter();
+        service.stream(request, emitter);
 
         assertEquals(1, chatService.streamCalls());
         assertTrue(chatService.streamMessage().contains("[Direct + Retrieval Composition Contract]"));
@@ -1413,6 +1446,21 @@ public class AgentConversationServiceTest {
         assertEquals(List.of("library-version"),
                 retrievedSources.get().sources().stream()
                         .map(org.zipp.ai.domain.retrieval.ResolvedSource::versionId).toList());
+        assertEquals(String.join("\n", emitter.sent), 1, commitCalls.get());
+        assertEquals(List.of("direct-node-a", "retrieved-node"),
+                committed.get().citations().stream()
+                        .map(org.zipp.ai.domain.grounding.port.GroundedCanvasCommitPort.CitationWrite::cellId)
+                        .toList());
+        assertEquals(List.of(
+                        org.zipp.ai.domain.retrieval.EvidenceOrigin.DIRECT_ATTACHMENT,
+                        org.zipp.ai.domain.retrieval.EvidenceOrigin.SEARCH),
+                committed.get().citations().stream()
+                        .flatMap(citation -> citation.evidenceLinks().stream())
+                        .map(org.zipp.ai.domain.grounding.port.GroundedCanvasCommitPort.EvidenceLink::origin)
+                        .toList());
+        assertTrue(committed.get().canvasXml().contains("id=\"direct-node-a\""));
+        assertTrue(committed.get().canvasXml().contains("id=\"retrieved-node\""));
+        assertTrue(String.join("\n", emitter.sent).contains("\"type\":\"drawio_done\""));
     }
 
     @Test
@@ -1910,7 +1958,9 @@ public class AgentConversationServiceTest {
                                 "", "direct-evidence", 0.99)),
                         List.of(), List.of(), List.of()),
                 "<mxGraphModel><root><mxCell id=\"0\"/><mxCell id=\"1\" parent=\"0\"/>"
-                        + "<mxCell id=\"direct-node-a\" value=\"A\" vertex=\"1\" parent=\"1\"/>"
+                        + "<mxCell id=\"direct-node-a\" value=\"A\" vertex=\"1\" parent=\"1\">"
+                        + "<mxGeometry x=\"0\" y=\"0\" width=\"160\" height=\"60\" as=\"geometry\"/>"
+                        + "</mxCell>"
                         + "</root></mxGraphModel>",
                 List.of("direct-node-a"),
                 org.zipp.ai.domain.grounding.EvidenceAccessContext.from(bundle, false),
@@ -2231,6 +2281,61 @@ public class AgentConversationServiceTest {
             this.initialState = initialState;
             super.handleMessageStream(agentId, userId, sessionId, message, runContext);
             return Flowable.empty();
+        }
+    }
+
+    private static final class CompositeDiagramChatService extends CountingChatService {
+        private Map<String, Object> initialState = Map.of();
+
+        private int streamCalls() {
+            return super.handleMessageStreamCalls;
+        }
+
+        private String streamMessage() {
+            return super.lastStreamMessage;
+        }
+
+        @Override
+        public Flowable<Event> handleMessageStream(String agentId,
+                                                   String userId,
+                                                   String sessionId,
+                                                   String message,
+                                                   AgentUsageTelemetryContext.RunContext runContext,
+                                                   Map<String, Object> initialState) {
+            this.initialState = initialState;
+            super.handleMessageStream(agentId, userId, sessionId, message, runContext);
+            String xml = "<mxGraphModel><root><mxCell id=\"0\"/><mxCell id=\"1\" parent=\"0\"/>"
+                    + "<mxCell id=\"direct-node-a\" value=\"A\" vertex=\"1\" parent=\"1\">"
+                    + "<mxGeometry x=\"0\" y=\"0\" width=\"160\" height=\"60\" as=\"geometry\"/>"
+                    + "</mxCell><mxCell id=\"retrieved-node\" value=\"Supplemental fact\" "
+                    + "vertex=\"1\" parent=\"1\"><mxGeometry x=\"260\" y=\"0\" width=\"180\" "
+                    + "height=\"60\" as=\"geometry\"/></mxCell></root></mxGraphModel>";
+            Map<String, Object> response = new LinkedHashMap<>();
+            response.put("content", xml);
+            response.put("citationBindings", List.of(Map.of(
+                    "cellId", "retrieved-node",
+                    "statementKey", "retrieved-statement",
+                    "statementKind", "NODE_TEXT",
+                    "statementText", "Supplemental fact",
+                    "citationKeys", List.of("E1"),
+                    "supportAtoms", List.of(Map.of(
+                            "atomKey", "retrieved-atom",
+                            "citationKey", "E1",
+                            "anchorText", "Supplemental fact",
+                            "role", "DIRECT_QUOTE")),
+                    "supportType", "EVIDENCE")));
+            Event event = Event.builder()
+                    .id("evt_composite_diagram")
+                    .invocationId("inv_composite_diagram")
+                    .author("drawing_agent")
+                    .content(com.google.genai.types.Content.builder()
+                            .role("model")
+                            .parts(List.of(com.google.genai.types.Part.fromFunctionResponse(
+                                    "create_diagram", response)))
+                            .build())
+                    .partial(false)
+                    .build();
+            return Flowable.just(event);
         }
     }
 
