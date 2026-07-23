@@ -2,6 +2,7 @@ package org.zipp.ai.domain.multimodal;
 
 import org.zipp.ai.domain.material.model.valobj.CatalogOwner;
 import org.zipp.ai.domain.retrieval.SourceMode;
+import org.zipp.ai.domain.retrieval.ResolvedSourceSet;
 
 import java.util.List;
 import java.util.Objects;
@@ -11,7 +12,8 @@ public record DirectSourceCommand(CatalogOwner owner, String requestId, String r
                                   String diagramId, String conversationId,
                                   String attachmentUploadId, List<String> selectedVersionIds,
                                   SourceMode sourceMode,
-                                  String question) {
+                                  String question,
+                                  ResolvedSourceSet resolvedSources) {
     public DirectSourceCommand {
         owner = Objects.requireNonNull(owner, "owner");
         requestId = required(requestId, "requestId");
@@ -25,12 +27,21 @@ public record DirectSourceCommand(CatalogOwner owner, String requestId, String r
         if (question.length() > 2_000) throw new IllegalArgumentException("question is too long");
     }
 
+    /** Compatibility constructor for callers that have not frozen the request source snapshot. */
+    public DirectSourceCommand(CatalogOwner owner, String requestId, String runId,
+                               String diagramId, String conversationId,
+                               String attachmentUploadId, List<String> selectedVersionIds,
+                               SourceMode sourceMode, String question) {
+        this(owner, requestId, runId, diagramId, conversationId, attachmentUploadId,
+                selectedVersionIds, sourceMode, question, null);
+    }
+
     private static String required(String value, String field) {
         if (value == null || value.isBlank()) throw new IllegalArgumentException(field + " is required");
         return value.trim();
     }
 
-    // Match request-source declaration canonicalization so the second resolution has the same fingerprint.
+    // Match request-source declaration canonicalization for compatibility callers that still resolve here.
     private static List<String> ids(List<String> values) {
         if (values == null) return List.of();
         return values.stream().filter(value -> value != null && !value.isBlank())

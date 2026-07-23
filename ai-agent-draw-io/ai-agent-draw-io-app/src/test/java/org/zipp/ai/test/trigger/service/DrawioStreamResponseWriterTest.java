@@ -104,6 +104,48 @@ public class DrawioStreamResponseWriterTest {
     }
 
     @Test
+    public void shouldRejectModelCitationBindingsForImmutableDirectCells() throws Exception {
+        DrawioStreamResponseWriter writer = new DrawioStreamResponseWriter(new DrawioToolCallRenderer());
+        CapturingEmitter emitter = new CapturingEmitter();
+        org.zipp.ai.domain.citation.model.valobj.CitationBinding directBinding =
+                new org.zipp.ai.domain.citation.model.valobj.CitationBinding(
+                        "direct-node-a", "direct-statement-a",
+                        org.zipp.ai.domain.citation.model.valobj.StatementKind.NODE_TEXT,
+                        "A", null, null, List.of("D1"),
+                        List.of(new org.zipp.ai.domain.citation.model.valobj.SupportAtom(
+                                "direct-atom-a", "D1", "A",
+                                org.zipp.ai.domain.citation.model.valobj.SupportAtomRole.DIRECT_QUOTE)),
+                        org.zipp.ai.domain.citation.model.valobj.SupportType.EVIDENCE);
+        writer.setDirectCompositionContext(
+                emitter, List.of(directBinding), Set.of("direct-node-a"));
+        com.alibaba.fastjson.JSONObject candidate = com.alibaba.fastjson.JSON.parseObject("""
+                {"citationBindings":[{"cellId":"direct-node-a","statementKey":"model-rewrite",
+                "statementKind":"NODE_TEXT","statementText":"changed","citationKeys":["E1"],
+                "supportAtoms":[],"supportType":"EVIDENCE"}]}
+                """);
+
+        writer.rememberCitationBindings(emitter, candidate);
+
+        @SuppressWarnings("unchecked")
+        Set<ResponseBodyEmitter> invalid = (Set<ResponseBodyEmitter>)
+                readField(writer, "invalidCitationManifestEmitters");
+        assertTrue(invalid.contains(emitter));
+
+        CapturingEmitter supplementalEmitter = new CapturingEmitter();
+        writer.setDirectCompositionContext(
+                supplementalEmitter, List.of(directBinding), Set.of("direct-node-a"));
+        com.alibaba.fastjson.JSONObject directCitationReuse = com.alibaba.fastjson.JSON.parseObject("""
+                {"citationBindings":[{"cellId":"new-node","statementKey":"new-statement",
+                "statementKind":"NODE_TEXT","statementText":"new","citationKeys":["D1"],
+                "supportAtoms":[],"supportType":"EVIDENCE"}]}
+                """);
+
+        writer.rememberCitationBindings(supplementalEmitter, directCitationReuse);
+
+        assertTrue(invalid.contains(supplementalEmitter));
+    }
+
+    @Test
     public void shouldStreamVisualWarningsImmediately() throws Exception {
         DrawioStreamResponseWriter writer = new DrawioStreamResponseWriter(new DrawioToolCallRenderer());
         CapturingEmitter emitter = new CapturingEmitter();
@@ -783,6 +825,12 @@ public class DrawioStreamResponseWriterTest {
         Field field = target.getClass().getDeclaredField(name);
         field.setAccessible(true);
         field.set(target, value);
+    }
+
+    private Object readField(Object target, String name) throws Exception {
+        Field field = target.getClass().getDeclaredField(name);
+        field.setAccessible(true);
+        return field.get(target);
     }
 
     @Test

@@ -128,14 +128,19 @@ public final class DefaultDirectSourcePreparationModule implements DirectSourceP
     private SourceResolutionResult resolve(DirectSourceCommand command,
                                            RunResourceDomain resources) {
         ResolvedSourceSet resolved;
-        try {
-            resolved = sourceResolution.resolve(new RequestSourceResolutionCommand(
-                    command.owner(), command.diagramId(), command.conversationId(), command.runId(),
-                    command.sourceMode(), List.of(command.attachmentUploadId()),
-                    command.selectedVersionIds()));
-        } catch (RuntimeException failure) {
-            return SourceResolutionResult.failed(
-                    new DirectSourceOutcome.Unavailable("DIRECT_SOURCE_RESOLUTION_UNAVAILABLE"));
+        if (command.resolvedSources() != null) {
+            // One frozen authorization snapshot must be shared by routing, Direct, and Retrieval.
+            resolved = command.resolvedSources();
+        } else {
+            try {
+                resolved = sourceResolution.resolve(new RequestSourceResolutionCommand(
+                        command.owner(), command.diagramId(), command.conversationId(), command.runId(),
+                        command.sourceMode(), List.of(command.attachmentUploadId()),
+                        command.selectedVersionIds()));
+            } catch (RuntimeException failure) {
+                return SourceResolutionResult.failed(
+                        new DirectSourceOutcome.Unavailable("DIRECT_SOURCE_RESOLUTION_UNAVAILABLE"));
+            }
         }
         if (resolved.resolutionFailed()) {
             return SourceResolutionResult.failed(

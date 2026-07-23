@@ -69,6 +69,9 @@ public class DrawioStreamResponseWriter {
     // translate citation keys into durable evidence identities.
     private final ConcurrentMap<ResponseBodyEmitter, EvidenceCommitContext> evidenceContextByEmitter = new ConcurrentHashMap<>();
     private final ConcurrentMap<ResponseBodyEmitter, List<CitationBinding>> citationBindingsByEmitter = new ConcurrentHashMap<>();
+    // Composite runs seed immutable direct-image bindings before the model adds retrieval-backed cells.
+    private final ConcurrentMap<ResponseBodyEmitter, List<CitationBinding>> fixedCitationBindingsByEmitter = new ConcurrentHashMap<>();
+    private final ConcurrentMap<ResponseBodyEmitter, Set<String>> immutableCellIdsByEmitter = new ConcurrentHashMap<>();
     private final Set<ResponseBodyEmitter> invalidCitationManifestEmitters = ConcurrentHashMap.newKeySet();
     // Last localized merge emitted per stream; multiple author buffers can carry the same patch, so skip
     // re-rendering an identical result.
@@ -500,6 +503,8 @@ public class DrawioStreamResponseWriter {
         canvasStateContextByEmitter.remove(emitter);
         evidenceContextByEmitter.remove(emitter);
         citationBindingsByEmitter.remove(emitter);
+        fixedCitationBindingsByEmitter.remove(emitter);
+        immutableCellIdsByEmitter.remove(emitter);
         invalidCitationManifestEmitters.remove(emitter);
     }
 
@@ -515,6 +520,24 @@ public class DrawioStreamResponseWriter {
         }
         evidenceContextByEmitter.put(emitter,
                 new EvidenceCommitContext(evidenceAccess, resources, strict, requestId, runId));
+    }
+
+    /** Installs server-authored direct-image bindings that the model is not allowed to replace. */
+    public void setDirectCompositionContext(ResponseBodyEmitter emitter,
+                                            List<CitationBinding> directBindings,
+                                            Set<String> immutableCellIds) {
+        if (emitter == null) return;
+        List<CitationBinding> fixed = List.copyOf(directBindings == null ? List.of() : directBindings);
+        Set<String> immutable = Set.copyOf(immutableCellIds == null ? Set.of() : immutableCellIds);
+        Set<String> boundCells = fixed.stream().map(CitationBinding::cellId)
+                .collect(java.util.stream.Collectors.toSet());
+        if (fixed.isEmpty() || !boundCells.equals(immutable)) {
+            invalidCitationManifestEmitters.add(emitter);
+            return;
+        }
+        fixedCitationBindingsByEmitter.put(emitter, fixed);
+        immutableCellIdsByEmitter.put(emitter, immutable);
+        citationBindingsByEmitter.put(emitter, fixed);
     }
 
     /** Captures only the current mutation candidate's manifest; malformed manifests fail closed later. */
@@ -547,7 +570,28 @@ public class DrawioStreamResponseWriter {
                         value.getString("targetCellId"), stringList(value.getJSONArray("citationKeys")),
                         atoms, enumValue(SupportType.class, value.getString("supportType"))));
             }
-            citationBindingsByEmitter.put(emitter, List.copyOf(bindings));
+            Set<String> immutable = immutableCellIdsByEmitter.getOrDefault(emitter, Set.of());
+            if (bindings.stream().anyMatch(binding -> immutable.contains(binding.cellId()))) {
+                throw new IllegalArgumentException("model manifest rewrites an immutable direct cell");
+            }
+            Set<String> directCitationKeys = fixedCitationBindingsByEmitter
+                    .getOrDefault(emitter, List.of()).stream()
+                    .flatMap(binding -> binding.citationKeys().stream())
+                    .collect(java.util.stream.Collectors.toSet());
+            if (bindings.stream().flatMap(binding -> binding.citationKeys().stream())
+                    .anyMatch(directCitationKeys::contains)) {
+                throw new IllegalArgumentException("supplemental cells cite direct-image evidence");
+            }
+            java.util.ArrayList<CitationBinding> combined = new java.util.ArrayList<>(
+                    fixedCitationBindingsByEmitter.getOrDefault(emitter, List.of()));
+            combined.addAll(bindings);
+            Set<String> cellIds = new java.util.HashSet<>();
+            Set<String> statementKeys = new java.util.HashSet<>();
+            if (combined.stream().anyMatch(binding -> !cellIds.add(binding.cellId())
+                    || !statementKeys.add(binding.statementKey()))) {
+                throw new IllegalArgumentException("duplicate composite citation binding");
+            }
+            citationBindingsByEmitter.put(emitter, List.copyOf(combined));
             invalidCitationManifestEmitters.remove(emitter);
         } catch (RuntimeException malformed) {
             // Malformed and legitimately absent manifests are distinct; malformed always fails closed.
@@ -687,7 +731,8 @@ public class DrawioStreamResponseWriter {
                     CanvasCommitResult grounded = canvasCommitModule.commit(new CanvasCommitCommand(
                             mutationCommand, evidence.requestId(), evidence.runId(), evidence.evidenceAccess(),
                             citationBindingsByEmitter.getOrDefault(emitter, List.of()),
-                            !invalidCitationManifestEmitters.contains(emitter), evidence.strict()),
+                            !invalidCitationManifestEmitters.contains(emitter), evidence.strict(),
+                            immutableCellIdsByEmitter.getOrDefault(emitter, Set.of())),
                             evidence.resources());
                     if (!grounded.committed()) {
                         sendGroundingRejected(emitter, phase, grounded.errors());

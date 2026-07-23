@@ -45,6 +45,9 @@ public final class RunResourceDomain implements AutoCloseable {
     }
 
     public synchronized void markPrepared() {
+        // Direct and retrieval branches may prepare sequentially under one run owner. Each branch
+        // may report completion, but the shared lifecycle advances to PREPARED only once.
+        if (state == RunResourceState.PREPARED) return;
         if (state != RunResourceState.OPEN) {
             throw new IllegalStateException("run resources must be OPEN before preparation completes");
         }

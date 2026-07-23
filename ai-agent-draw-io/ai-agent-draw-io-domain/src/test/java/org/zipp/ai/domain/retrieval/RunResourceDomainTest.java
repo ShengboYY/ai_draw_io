@@ -41,6 +41,7 @@ class RunResourceDomainTest {
 
         assertThrows(IllegalStateException.class, resources::beginCommit);
         resources.markPrepared();
+        resources.markPrepared();
         resources.beginCommit();
         resources.closeExactlyOnce(CloseReason.COMMITTED);
 

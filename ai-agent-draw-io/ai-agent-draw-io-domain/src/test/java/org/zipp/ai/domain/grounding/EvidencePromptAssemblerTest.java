@@ -3,6 +3,7 @@ package org.zipp.ai.domain.grounding;
 import org.junit.jupiter.api.Test;
 import org.zipp.ai.domain.retrieval.EvidenceBundle;
 import org.zipp.ai.domain.retrieval.EvidenceBundleItem;
+import org.zipp.ai.domain.retrieval.EvidenceOrigin;
 import org.zipp.ai.domain.retrieval.SourceMode;
 
 import java.util.List;
@@ -47,5 +48,23 @@ class EvidencePromptAssemblerTest {
         assertTrue(prompt.contains("\"supportType\":\"EVIDENCE\""));
         assertTrue(prompt.contains("Never use singular citationKey or string-valued supportAtoms."));
         assertTrue(prompt.contains("For an unlabeled edge, statementText must use the exact source and target labels"));
+    }
+
+    @Test
+    void protectsTheDirectImageBaselineWhenRetrievalEvidenceIsAlsoPresent() {
+        EvidenceBundle bundle = new EvidenceBundle("bundle-1", "request-1", "run-1", SourceMode.EXPLICIT,
+                List.of(
+                        new EvidenceBundleItem("D1", "direct-1", "material-1", "version-1",
+                                "revision-1", "original image", 1, "VISUAL", "direct graph",
+                                null, EvidenceOrigin.DIRECT_ATTACHMENT),
+                        new EvidenceBundleItem("E1", "evidence-1", "material-2", "version-2",
+                                "revision-2", "library", 2, "TEXT", "supplemental fact")));
+
+        String prompt = new EvidencePromptAssembler().assemble(EvidenceAccessContext.from(bundle, false));
+
+        assertTrue(prompt.contains("[Direct + Retrieval Composition Contract]"));
+        assertTrue(prompt.contains("Preserve every existing cell identity"));
+        assertTrue(prompt.contains("Only add new cells supported by non-direct citation keys."));
+        assertTrue(prompt.contains("make no canvas mutation"));
     }
 }

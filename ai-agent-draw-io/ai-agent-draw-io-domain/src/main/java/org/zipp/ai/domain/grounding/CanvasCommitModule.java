@@ -49,6 +49,13 @@ public final class CanvasCommitModule {
             return CanvasCommitResult.rejected(mutation.resultingXml(), List.of(
                     mutation.rejectionReason() == null ? mutation.status().name() : mutation.rejectionReason().name()));
         }
+        if (mutation.changedCellIds().stream().anyMatch(command.immutableCellIds()::contains)) {
+            // Retrieved evidence may add new cells, but it cannot rewrite topology copied from
+            // the direct source image without an explicit user-confirmed conflict resolution.
+            resources.closeExactlyOnce(CloseReason.FAILED);
+            return CanvasCommitResult.rejected(
+                    mutation.resultingXml(), List.of("DIRECT_SOURCE_CONFLICT"));
+        }
         Set<String> inheritanceCandidates = inheritedCellIds(mutation, command.bindings());
         Map<String, GroundedCanvasCommitPort.InheritedProvenance> inherited = inheritanceCandidates.isEmpty()
                 ? Map.of() : commitPort.findPersistedProvenance(new GroundedCanvasCommitPort.InheritanceQuery(
