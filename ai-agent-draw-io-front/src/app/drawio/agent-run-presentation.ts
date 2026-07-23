@@ -200,11 +200,13 @@ export const buildRouteStepDetail = ({
   routeType,
   diagramType,
   skillName,
+  sourceUse,
   useChinese = false,
 }: {
   routeType?: string;
   diagramType?: string;
   skillName?: string;
+  sourceUse?: string;
   useChinese?: boolean;
 }) => {
   const route = routeType as AgentRouteType;
@@ -212,24 +214,32 @@ export const buildRouteStepDetail = ({
   const diagramLabel = useChinese
     ? diagramTypeLabelsChinese[(diagramType || '').toLowerCase()] || '图表'
     : (diagramType && diagramType !== 'none' ? diagramType.replace(/[_-]+/g, ' ') : 'diagram');
+  const sourceDetail = sourceUse === 'DIRECT'
+    ? (useChinese ? '来源方式：按原图还原。' : 'Source route: original image reconstruction.')
+    : sourceUse === 'DIRECT_AND_RETRIEVAL'
+      ? (useChinese ? '来源方式：原图还原并允许资料补充。' : 'Source route: original image with material supplementation.')
+      : '';
+  const withSourceDetail = (detail: string) => sourceDetail
+    ? `${detail}${useChinese ? '' : ' '}${sourceDetail}`
+    : detail;
 
   if (useChinese) {
     if (route === 'create_new') {
-      return `识别为新建${diagramLabel}任务${usableSkill ? `，将使用 ${usableSkill} 技能` : ''}生成画布。`;
+      return withSourceDetail(`识别为新建${diagramLabel}任务${usableSkill ? `，将使用 ${usableSkill} 技能` : ''}生成画布。`);
     }
-    if (route === 'edit_existing') return `识别为修改现有${diagramLabel}${usableSkill ? `，将使用 ${usableSkill} 技能并` : '，将'}保留未涉及的画布内容。`;
-    if (route === 'optimize_layout') return `识别为${diagramLabel}布局优化${usableSkill ? `，将使用 ${usableSkill} 技能` : ''}，只调整排版和连线路径。`;
-    if (route === 'review_only') return `识别为${diagramLabel}审阅任务${usableSkill ? `，将使用 ${usableSkill} 技能` : ''}，只检查画布，不直接修改。`;
+    if (route === 'edit_existing') return withSourceDetail(`识别为修改现有${diagramLabel}${usableSkill ? `，将使用 ${usableSkill} 技能并` : '，将'}保留未涉及的画布内容。`);
+    if (route === 'optimize_layout') return withSourceDetail(`识别为${diagramLabel}布局优化${usableSkill ? `，将使用 ${usableSkill} 技能` : ''}，只调整排版和连线路径。`);
+    if (route === 'review_only') return withSourceDetail(`识别为${diagramLabel}审阅任务${usableSkill ? `，将使用 ${usableSkill} 技能` : ''}，只检查画布，不直接修改。`);
     if (route === 'clarify') return '当前信息不足以安全修改画布，将先确认具体需求。';
     return '这是一个无需修改画布的问题，将直接组织回答。';
   }
 
   if (route === 'create_new') {
-    return `Classified as a new ${diagramLabel}${usableSkill ? ` using the ${usableSkill} skill` : ''}.`;
+    return withSourceDetail(`Classified as a new ${diagramLabel}${usableSkill ? ` using the ${usableSkill} skill` : ''}.`);
   }
-  if (route === 'edit_existing') return `Classified as an edit to the existing ${diagramLabel}${usableSkill ? ` using the ${usableSkill} skill` : ''}; unrelated canvas content will be preserved.`;
-  if (route === 'optimize_layout') return `Classified as a ${diagramLabel} layout optimization${usableSkill ? ` using the ${usableSkill} skill` : ''}.`;
-  if (route === 'review_only') return `Classified as a review-only pass over the current ${diagramLabel}${usableSkill ? ` using the ${usableSkill} skill` : ''}.`;
+  if (route === 'edit_existing') return withSourceDetail(`Classified as an edit to the existing ${diagramLabel}${usableSkill ? ` using the ${usableSkill} skill` : ''}; unrelated canvas content will be preserved.`);
+  if (route === 'optimize_layout') return withSourceDetail(`Classified as a ${diagramLabel} layout optimization${usableSkill ? ` using the ${usableSkill} skill` : ''}.`);
+  if (route === 'review_only') return withSourceDetail(`Classified as a review-only pass over the current ${diagramLabel}${usableSkill ? ` using the ${usableSkill} skill` : ''}.`);
   if (route === 'clarify') return 'More information is needed before the canvas can be changed safely.';
   return 'No canvas mutation is needed; preparing a direct answer.';
 };

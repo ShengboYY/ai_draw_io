@@ -364,6 +364,8 @@ export interface ChatRequestDTO {
   /** Opaque ids for uploads attached to this message; the server revalidates each one. */
   attachmentUploadIds?: string[];
   sourceMode?: 'NONE' | 'AUTO' | 'EXPLICIT' | 'EXPLICIT_ONLY';
+  /** Optional image-conversion preference; omitted when the Router should decide. */
+  sourceUseOverride?: 'DIRECT' | 'DIRECT_AND_RETRIEVAL';
   selectedVersionIds?: string[];
   selectedCellIds?: string[];
   selectionCanvasVersion?: number;

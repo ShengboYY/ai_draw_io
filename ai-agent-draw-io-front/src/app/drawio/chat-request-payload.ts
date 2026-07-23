@@ -21,6 +21,7 @@ type BuildDrawioChatRequestPayloadInput = {
   canvasSummary?: string;
   attachmentUploadIds?: string[];
   sourceMode?: 'NONE' | 'AUTO' | 'EXPLICIT' | 'EXPLICIT_ONLY';
+  sourceUseOverride?: 'DIRECT' | 'DIRECT_AND_RETRIEVAL';
   selectedVersionIds?: string[];
   selectedCellIds?: string[];
   selectionCanvasVersion?: number;
@@ -88,6 +89,7 @@ export const buildDrawioChatRequestPayload = ({
   canvasSummary,
   attachmentUploadIds,
   sourceMode,
+  sourceUseOverride,
   selectedVersionIds,
   selectedCellIds,
   selectionCanvasVersion,
@@ -127,6 +129,7 @@ export const buildDrawioChatRequestPayload = ({
     ...(canvasXml && { canvasXml }),
     ...(canvasSummary && { canvasSummary }),
     ...sourceDeclaration,
+    ...(sourceUseOverride && { sourceUseOverride }),
     ...(selectedCellIds?.length && { selectedCellIds }),
     ...(selectionCanvasVersion !== undefined && { selectionCanvasVersion }),
     ...(selectionContentHash?.trim() && { selectionContentHash: selectionContentHash.trim() }),

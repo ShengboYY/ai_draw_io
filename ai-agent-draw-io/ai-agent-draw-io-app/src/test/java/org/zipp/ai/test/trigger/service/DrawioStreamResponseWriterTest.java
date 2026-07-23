@@ -93,7 +93,7 @@ public class DrawioStreamResponseWriterTest {
         DrawioStreamResponseWriter writer = new DrawioStreamResponseWriter(new DrawioToolCallRenderer());
         CapturingEmitter emitter = new CapturingEmitter();
 
-        writer.sendRoute(emitter, "edit_existing", "flowchart", "drawio-flowchart");
+        writer.sendRoute(emitter, "edit_existing", "flowchart", "drawio-flowchart", "DIRECT");
 
         String output = String.join("\n", emitter.sent);
         assertTrue(output.contains("\"phase\":\"thinking\""));
@@ -101,6 +101,7 @@ public class DrawioStreamResponseWriterTest {
         assertTrue(output.contains("\"routeType\":\"edit_existing\""));
         assertTrue(output.contains("\"diagramType\":\"flowchart\""));
         assertTrue(output.contains("\"skillName\":\"drawio-flowchart\""));
+        assertTrue(output.contains("\"sourceUse\":\"DIRECT\""));
     }
 
     @Test

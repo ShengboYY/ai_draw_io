@@ -27,6 +27,8 @@ public class ChatRequestDTO {
     // Current-message uploads are opaque IDs; the server resolves readiness and ownership before use.
     private java.util.List<String> attachmentUploadIds;
     private String sourceMode;
+    // Optional direct-conversion preference; the server still verifies source readiness and authorization.
+    private String sourceUseOverride;
     private java.util.List<String> selectedVersionIds;
     private java.util.List<String> selectedCellIds;
     private Long selectionCanvasVersion;

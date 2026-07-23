@@ -32,18 +32,20 @@ test('route step describes the actual diagram type and selected skill', () => {
       routeType: 'create_new',
       diagramType: 'flowchart',
       skillName: 'drawio-flowchart',
+      sourceUse: 'DIRECT',
       useChinese: true,
     }),
-    '识别为新建流程图任务，将使用 drawio-flowchart 技能生成画布。',
+    '识别为新建流程图任务，将使用 drawio-flowchart 技能生成画布。来源方式：按原图还原。',
   );
   assert.equal(
     buildRouteStepDetail({
       routeType: 'edit_existing',
       diagramType: 'flowchart',
       skillName: 'drawio-flowchart',
+      sourceUse: 'DIRECT_AND_RETRIEVAL',
       useChinese: true,
     }),
-    '识别为修改现有流程图，将使用 drawio-flowchart 技能并保留未涉及的画布内容。',
+    '识别为修改现有流程图，将使用 drawio-flowchart 技能并保留未涉及的画布内容。来源方式：原图还原并允许资料补充。',
   );
 });
 

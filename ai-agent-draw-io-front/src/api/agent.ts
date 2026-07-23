@@ -213,6 +213,8 @@ export interface RouteChunk {
     routeType: string;
     diagramType?: string;
     skillName?: string;
+    /** Effective source route after applying any validated user preference. */
+    sourceUse?: 'NONE' | 'DIRECT' | 'RETRIEVAL' | 'DIRECT_AND_RETRIEVAL';
 }
 
 export interface EvidenceProgressChunk {

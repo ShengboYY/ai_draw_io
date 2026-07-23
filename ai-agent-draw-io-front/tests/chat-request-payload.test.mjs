@@ -88,6 +88,25 @@ test('buildDrawioChatRequestPayload carries the selected source declaration with
   assert.equal('selectedVersionIds' in withoutSources, false);
 });
 
+test('buildDrawioChatRequestPayload sends only an explicit direct source-use override', () => {
+  const direct = buildDrawioChatRequestPayload({
+    agentId: '300000',
+    userId: 'usr_alice',
+    sessionId: 'session-1',
+    userMessage: 'Restore this image exactly',
+    sourceUseOverride: 'DIRECT',
+  });
+  const automatic = buildDrawioChatRequestPayload({
+    agentId: '300000',
+    userId: 'usr_alice',
+    sessionId: 'session-1',
+    userMessage: 'Use the best source route',
+  });
+
+  assert.equal(direct.sourceUseOverride, 'DIRECT');
+  assert.equal('sourceUseOverride' in automatic, false);
+});
+
 test('buildDrawioChatRequestPayload carries the current rendered PNG for review-only routing', () => {
   const request = buildDrawioChatRequestPayload({
     agentId: '300000',

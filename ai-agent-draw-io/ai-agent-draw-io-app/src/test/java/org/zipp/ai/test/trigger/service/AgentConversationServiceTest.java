@@ -1251,6 +1251,7 @@ public class AgentConversationServiceTest {
         request.setAttachmentUploadIds(List.of("upload-1"));
         request.setSelectedVersionIds(List.of("selected-version-1"));
         request.setSourceMode("EXPLICIT_ONLY");
+        request.setSourceUseOverride("RETRIEVAL");
 
         org.zipp.ai.api.dto.ChatResponseDTO response = service.chat(request);
 
@@ -1361,7 +1362,7 @@ public class AgentConversationServiceTest {
         org.zipp.ai.domain.retrieval.ResolvedSourceSet frozenSources =
                 directAndLibrarySourceSnapshot();
         injectField(service, "chatService", chatService);
-        injectField(service, "intentRoutingService", new DirectAndRetrievalRoutingService());
+        injectField(service, "intentRoutingService", new DirectImageRoutingService());
         FixedCanvasStateStore canvasStore = new FixedCanvasStateStore("");
         injectField(service, "canvasStateStore", canvasStore);
         DrawioStreamResponseWriter writer = new DrawioStreamResponseWriter(new DrawioToolCallRenderer());
@@ -1435,6 +1436,7 @@ public class AgentConversationServiceTest {
         request.setAttachmentUploadIds(List.of("upload-1"));
         request.setSelectedVersionIds(List.of("library-version"));
         request.setSourceMode("EXPLICIT_ONLY");
+        request.setSourceUseOverride("DIRECT_AND_RETRIEVAL");
 
         CapturingEmitter emitter = new CapturingEmitter();
         service.stream(request, emitter);

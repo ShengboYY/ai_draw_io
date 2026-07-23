@@ -25,8 +25,14 @@ import { createMaterialCapabilitiesClient } from '@/api/material-capabilities';
 import { createChartbookClient } from '@/api/chartbook';
 import { ConversationAttachmentTray } from '@/features/sources/ConversationAttachmentTray';
 import { SourceModeControl } from '@/features/sources/SourceModeControl';
+import { SourceUseControl } from '@/features/sources/SourceUseControl';
 import { SourcePicker, type SourceOption } from '@/features/sources/SourcePicker';
 import { type SourceMode } from '@/features/sources/source-selection';
+import {
+  buildSourceUseOverride,
+  hasSingleReadyImageSelection,
+  type SourceUsePreference,
+} from '@/features/sources/source-intent';
 import {
   readConversationAttachmentSelection,
   readConversationAttachments,
@@ -755,6 +761,7 @@ function DrawioPageContent() {
   const [attachmentSessionLoaded, setAttachmentSessionLoaded] = useState('');
   const [restoredAttachments, setRestoredAttachments] = useState<ConversationAttachment[]>([]);
   const [sourceMode, setSourceMode] = useState<SourceMode>('AUTO');
+  const [sourceUsePreference, setSourceUsePreference] = useState<SourceUsePreference>('AUTO');
   const [selectedVersionIds, setSelectedVersionIds] = useState<string[]>([]);
   const [sourceOptions, setSourceOptions] = useState<SourceOption[]>([]);
   const [activeSourceScopes, setActiveSourceScopes] = useState<string[]>([]);
@@ -2436,6 +2443,10 @@ function DrawioPageContent() {
             selectedAttachmentUploadIds,
           ),
           sourceMode,
+          ...buildSourceUseOverride(
+            sourceUsePreference,
+            hasSingleReadyImageSelection(conversationAttachments, selectedAttachmentUploadIds),
+          ),
           selectedVersionIds,
           selectedCellIds: selectedCellsRef.current?.cellIds,
           selectionCanvasVersion: selectedCellsRef.current?.canvasVersion,
@@ -2926,6 +2937,7 @@ function DrawioPageContent() {
               routeType: chunk.routeType,
               diagramType: chunk.diagramType,
               skillName: chunk.skillName,
+              sourceUse: chunk.sourceUse,
               useChinese,
             });
             updateStep('route', 'analyzing', routeStepLabel, routeDetail, true, true);
@@ -4365,6 +4377,14 @@ function DrawioPageContent() {
               onInitializeSession={() => void initializeAttachmentSession()}
               disabled={isSending || !selectedAgentId}
             />
+
+            {hasSingleReadyImageSelection(conversationAttachments, selectedAttachmentUploadIds) && (
+              <SourceUseControl
+                value={sourceUsePreference}
+                onChange={setSourceUsePreference}
+                disabled={isSending}
+              />
+            )}
 
             <div className="mb-2 flex flex-wrap items-center gap-2">
               <SourceModeControl value={sourceMode} onChange={setSourceMode} disabled={isSending} />

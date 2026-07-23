@@ -460,11 +460,16 @@ public class AgentConversationService {
                     () -> routeIntent(currentRequest, config, requestProbe, sourceSnapshot))
                     : forcedRoutingResult;
             recordRoutingDecision(runScope, routingResult);
+            TaskSourcePlan sourcePlan = forcedRoutingResult == null
+                    ? directSourcePlan(currentRequest, routingResult, sourceSnapshot)
+                    : null;
+            String selectedSourceUse = sourcePlan == null
+                    ? requestedSourceUse(currentRequest, routingResult).name()
+                    : sourcePlan.sourceUse().name();
             // The UI uses this compact event to describe the selected route without exposing model reasoning.
             streamResponseWriter.sendRoute(emitter, routingResult.getRouteType(),
-                    routingResult.getDiagramType(), routingResult.getSkillName());
+                    routingResult.getDiagramType(), routingResult.getSkillName(), selectedSourceUse);
             if (forcedRoutingResult == null) {
-                TaskSourcePlan sourcePlan = directSourcePlan(currentRequest, routingResult, sourceSnapshot);
                 DirectImageConversionOutcome directOutcome =
                         executeDirectImageConversion(currentRequest, routingResult, sourceSnapshot, sourcePlan,
                                 (stage, completed, total) -> {
@@ -1712,11 +1717,19 @@ public class AgentConversationService {
                 .filter(ResolvedSource::hasVisual)
                 .toList();
         return taskSourcePlanner.plan(new TaskSourcePlanningCommand(
-                canvasAction(routing), sourceUse(routing.getSourceUse()),
+                canvasAction(routing), requestedSourceUse(request, routing),
                 sourceMode(request.getSourceMode()),
                 readyImages.stream().map(ResolvedSource::versionId).toList(),
                 safeList(request.getSelectedVersionIds()),
                 sources.processingSourceCount(), readyImages.size() == 1));
+    }
+
+    private SourceUse requestedSourceUse(ChatRequestDTO request, IntentRoutingResult routing) {
+        SourceUse routed = sourceUse(routing == null ? null : routing.getSourceUse());
+        String override = request == null ? null : StringUtils.trimToNull(request.getSourceUseOverride());
+        if ("DIRECT".equals(override)) return SourceUse.DIRECT;
+        if ("DIRECT_AND_RETRIEVAL".equals(override)) return SourceUse.DIRECT_AND_RETRIEVAL;
+        return routed;
     }
 
     private ChatResponseDTO directSourceResponse(DirectSourceOutcome outcome) {
