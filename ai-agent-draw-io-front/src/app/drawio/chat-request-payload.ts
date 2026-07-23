@@ -1,4 +1,5 @@
 import { buildSourceDeclaration } from '../../features/sources/source-selection.ts';
+import type { DirectClarification } from '../../features/sources/direct-confirmation.ts';
 
 type ConversationMessageInput = {
   id?: string;
@@ -22,6 +23,7 @@ type BuildDrawioChatRequestPayloadInput = {
   attachmentUploadIds?: string[];
   sourceMode?: 'NONE' | 'AUTO' | 'EXPLICIT' | 'EXPLICIT_ONLY';
   sourceUseOverride?: 'DIRECT' | 'DIRECT_AND_RETRIEVAL';
+  directClarifications?: DirectClarification[];
   selectedVersionIds?: string[];
   selectedCellIds?: string[];
   selectionCanvasVersion?: number;
@@ -90,6 +92,7 @@ export const buildDrawioChatRequestPayload = ({
   attachmentUploadIds,
   sourceMode,
   sourceUseOverride,
+  directClarifications,
   selectedVersionIds,
   selectedCellIds,
   selectionCanvasVersion,
@@ -130,6 +133,7 @@ export const buildDrawioChatRequestPayload = ({
     ...(canvasSummary && { canvasSummary }),
     ...sourceDeclaration,
     ...(sourceUseOverride && { sourceUseOverride }),
+    ...(directClarifications?.length && { directClarifications }),
     ...(selectedCellIds?.length && { selectedCellIds }),
     ...(selectionCanvasVersion !== undefined && { selectionCanvasVersion }),
     ...(selectionContentHash?.trim() && { selectionContentHash: selectionContentHash.trim() }),

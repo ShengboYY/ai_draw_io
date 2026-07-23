@@ -29,6 +29,8 @@ public class ChatRequestDTO {
     private String sourceMode;
     // Optional direct-conversion preference; the server still verifies source readiness and authorization.
     private String sourceUseOverride;
+    // Prior direct-image reason codes and bounded user choices; never treated as free-form prompt text.
+    private java.util.List<DirectClarificationDTO> directClarifications;
     private java.util.List<String> selectedVersionIds;
     private java.util.List<String> selectedCellIds;
     private Long selectionCanvasVersion;
@@ -58,6 +60,12 @@ public class ChatRequestDTO {
 
     // 用户手动指定要使用的技能(名),覆盖意图路由的自动选择;可多选(组合)。为空则走自动选择。
     private java.util.List<String> skills;
+
+    @Data
+    public static class DirectClarificationDTO {
+        private String reasonCode;
+        private String resolution;
+    }
 
     @Data
     public static class CanvasSnapshotDTO {

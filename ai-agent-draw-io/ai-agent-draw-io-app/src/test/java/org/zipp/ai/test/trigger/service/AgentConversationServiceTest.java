@@ -1252,6 +1252,11 @@ public class AgentConversationServiceTest {
         request.setSelectedVersionIds(List.of("selected-version-1"));
         request.setSourceMode("EXPLICIT_ONLY");
         request.setSourceUseOverride("RETRIEVAL");
+        ChatRequestDTO.DirectClarificationDTO clarification =
+                new ChatRequestDTO.DirectClarificationDTO();
+        clarification.setReasonCode("UNRESOLVED_EDGE_DIRECTION:e1");
+        clarification.setResolution("FORWARD");
+        request.setDirectClarifications(List.of(clarification));
 
         org.zipp.ai.api.dto.ChatResponseDTO response = service.chat(request);
 
@@ -1262,6 +1267,10 @@ public class AgentConversationServiceTest {
         assertEquals("upload-1", executed.get().source().attachmentUploadId());
         assertEquals("session-1", executed.get().source().conversationId());
         assertEquals(List.of("selected-version-1"), executed.get().source().selectedVersionIds());
+        assertEquals("UNRESOLVED_EDGE_DIRECTION:e1",
+                executed.get().source().clarifications().get(0).reasonCode());
+        assertEquals(org.zipp.ai.domain.multimodal.DirectClarification.Resolution.FORWARD,
+                executed.get().source().clarifications().get(0).resolution());
         assertTrue(routingService.lastCommand.getRequestProbe().hasSingleReadyImageAttachment());
         assertEquals(1, routingService.lastCommand.getRequestProbe().readyAttachmentCount());
         assertEquals(0, chatService.handleMessageCalls);
@@ -1343,8 +1352,8 @@ public class AgentConversationServiceTest {
         service.stream(request, emitter);
 
         String output = String.join("\n", emitter.sent);
-        assertTrue(output.contains("\"type\":\"degraded\""));
-        assertTrue(output.contains("\"outcomeType\":\"direct_confirmation_required\""));
+        assertTrue(output.contains("\"type\":\"direct_confirmation_required\""));
+        assertTrue(output.contains("\"reasons\":[\"AMBIGUOUS_DIRECTION\"]"));
         assertTrue(output.contains("\"type\":\"done\""));
         assertEquals(0, chatService.handleMessageCalls);
         assertEquals(0, chatService.handleMessageStreamCalls);

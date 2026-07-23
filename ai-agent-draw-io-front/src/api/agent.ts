@@ -230,6 +230,12 @@ export interface EvidenceOutcomeChunk {
     content: string;
 }
 
+export interface DirectConfirmationChunk {
+    type: 'direct_confirmation_required';
+    content: string;
+    reasons: string[];
+}
+
 export interface TargetClarificationChunk {
     type: 'target_clarification';
     content: string;
@@ -360,7 +366,7 @@ export interface MutationRejectedChunk {
     changedCellIds?: string[];
 }
 
-export type StreamChunk = DrawioPreviewChunk | DrawioNodeChunk | DrawioEdgeChunk | DrawioDoneChunk | DrawioLegacyChunk | StatusChunk | ErrorChunk | UserChunk | DoneChunk | TokenChunk | MetaChunk | RouteChunk | EvidenceProgressChunk | EvidenceOutcomeChunk | TargetClarificationChunk | EvidenceAnswerChunk | GroundingRejectedChunk | ReviewStartedChunk | ReviewResultChunk | ReviewStaleChunk | ValidationResultChunk | VersionConflictChunk | MutationRejectedChunk;
+export type StreamChunk = DrawioPreviewChunk | DrawioNodeChunk | DrawioEdgeChunk | DrawioDoneChunk | DrawioLegacyChunk | StatusChunk | ErrorChunk | UserChunk | DoneChunk | TokenChunk | MetaChunk | RouteChunk | EvidenceProgressChunk | EvidenceOutcomeChunk | DirectConfirmationChunk | TargetClarificationChunk | EvidenceAnswerChunk | GroundingRejectedChunk | ReviewStartedChunk | ReviewResultChunk | ReviewStaleChunk | ValidationResultChunk | VersionConflictChunk | MutationRejectedChunk;
 
 export interface StreamEvent {
     phase: 'analyzing' | 'drawing' | 'reviewing' | 'visual_review' | 'revising' | 'thinking' | 'retrieval' | 'answer' | 'error' | 'done' | 'generating';

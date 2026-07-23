@@ -366,6 +366,11 @@ export interface ChatRequestDTO {
   sourceMode?: 'NONE' | 'AUTO' | 'EXPLICIT' | 'EXPLICIT_ONLY';
   /** Optional image-conversion preference; omitted when the Router should decide. */
   sourceUseOverride?: 'DIRECT' | 'DIRECT_AND_RETRIEVAL';
+  /** Explicit bounded answers to issues from a prior direct-image attempt. */
+  directClarifications?: Array<{
+    reasonCode: string;
+    resolution: 'ACCEPT_OBSERVED' | 'FORWARD' | 'REVERSE' | 'BIDIRECTIONAL' | 'UNDIRECTED';
+  }>;
   selectedVersionIds?: string[];
   selectedCellIds?: string[];
   selectionCanvasVersion?: number;

@@ -69,11 +69,22 @@ public final class DefaultDirectSourcePreparationModule implements DirectSourceP
         }
         VisualObservationCommand observationCommand = new VisualObservationCommand(
                 command.owner(), command.requestId(), command.runId(),
-                VisualObservationPurpose.DIAGRAM_RECONSTRUCTION, command.question(),
+                VisualObservationPurpose.DIAGRAM_RECONSTRUCTION, observationQuestion(command),
                 List.of(resolved.target()), 32);
         return observations.observe(observationCommand, resources, signal)
                 .thenApply(outcome -> prepareObserved(command, resolved.target(), resources,
                         listener, signal, outcome));
+    }
+
+    private String observationQuestion(DirectSourceCommand command) {
+        if (command.clarifications().isEmpty()) return command.question();
+        // Values are domain enums and reason codes are restricted, so this remains bounded user data.
+        String resolved = command.clarifications().stream()
+                .map(value -> value.reasonCode() + "=" + value.resolution().name())
+                .collect(java.util.stream.Collectors.joining(", "));
+        return command.question()
+                + "\n\nUser-confirmed image clarifications (constraints, not source facts): "
+                + resolved;
     }
 
     private DirectSourceOutcome prepareObserved(DirectSourceCommand command,

@@ -107,6 +107,22 @@ test('buildDrawioChatRequestPayload sends only an explicit direct source-use ove
   assert.equal('sourceUseOverride' in automatic, false);
 });
 
+test('buildDrawioChatRequestPayload carries bounded direct image clarifications', () => {
+  const payload = buildDrawioChatRequestPayload({
+    agentId: '300000',
+    userId: 'usr_alice',
+    sessionId: 'session-1',
+    userMessage: 'Restore this image',
+    directClarifications: [
+      { reasonCode: 'UNRESOLVED_EDGE_DIRECTION:e1', resolution: 'FORWARD' },
+    ],
+  });
+
+  assert.deepEqual(payload.directClarifications, [
+    { reasonCode: 'UNRESOLVED_EDGE_DIRECTION:e1', resolution: 'FORWARD' },
+  ]);
+});
+
 test('buildDrawioChatRequestPayload carries the current rendered PNG for review-only routing', () => {
   const request = buildDrawioChatRequestPayload({
     agentId: '300000',

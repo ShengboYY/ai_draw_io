@@ -83,6 +83,36 @@ class DirectSourcePreparationModuleTest {
     }
 
     @Test
+    void passesBoundedUserClarificationsToTheRepeatObservation() {
+        VisualObservationModule observations = (request, resources, cancellation) -> {
+            assertTrue(request.question().contains(
+                    "UNRESOLVED_EDGE_DIRECTION:e1=FORWARD"));
+            assertTrue(request.question().contains(
+                    "LOW_CONFIDENCE_NODE_TEXT:n2=ACCEPT_OBSERVED"));
+            return java.util.concurrent.CompletableFuture.completedFuture(
+                    new VisualObservationOutcome.DiagramVerified(graph(0.94)));
+        };
+        DirectSourcePreparationModule module = module(
+                observations, readySources(), new AtomicBoolean(), Optional.of(artifact));
+        DirectSourceCommand confirmed = new DirectSourceCommand(
+                new CatalogOwner(OwnerType.USER, "alice"),
+                "request-1", "run-1", "diagram-1", "conversation-1", "upload-1",
+                List.of("selected-version-1"), SourceMode.EXPLICIT_ONLY,
+                "Reconstruct the uploaded diagram",
+                List.of(
+                        new DirectClarification("UNRESOLVED_EDGE_DIRECTION:e1",
+                                DirectClarification.Resolution.FORWARD),
+                        new DirectClarification("LOW_CONFIDENCE_NODE_TEXT:n2",
+                                DirectClarification.Resolution.ACCEPT_OBSERVED)),
+                null);
+
+        DirectSourceOutcome outcome = module.prepare(confirmed, new RunResourceDomain(),
+                null, CancellationSignal.NEVER).toCompletableFuture().join();
+
+        assertInstanceOf(DirectSourceOutcome.Prepared.class, outcome);
+    }
+
+    @Test
     void cancellationStopsBeforeReadingPixels() {
         int[] observations = {0};
         DirectSourcePreparationModule module = module(

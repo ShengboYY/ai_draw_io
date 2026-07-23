@@ -26,6 +26,7 @@ import { createChartbookClient } from '@/api/chartbook';
 import { ConversationAttachmentTray } from '@/features/sources/ConversationAttachmentTray';
 import { SourceModeControl } from '@/features/sources/SourceModeControl';
 import { SourceUseControl } from '@/features/sources/SourceUseControl';
+import { DirectConfirmationPanel } from '@/features/sources/DirectConfirmationPanel';
 import { SourcePicker, type SourceOption } from '@/features/sources/SourcePicker';
 import { type SourceMode } from '@/features/sources/source-selection';
 import {
@@ -33,6 +34,11 @@ import {
   hasSingleReadyImageSelection,
   type SourceUsePreference,
 } from '@/features/sources/source-intent';
+import {
+  buildDirectClarifications,
+  type DirectClarification,
+  type DirectClarificationResolution,
+} from '@/features/sources/direct-confirmation';
 import {
   readConversationAttachmentSelection,
   readConversationAttachments,
@@ -156,6 +162,17 @@ type TargetClarification = {
   candidates: Array<{ cellId: string; kind: string; shortLabel: string; reasonCode: string }>;
   canvasVersion: number;
   contentHash: string;
+};
+
+type DirectConfirmation = {
+  reasons: string[];
+  originalPrompt: string;
+  selections: Record<string, DirectClarificationResolution>;
+};
+
+type SendContentOptions = {
+  requestContent?: string;
+  directClarifications?: DirectClarification[];
 };
 
 const CHAT_WIDTH_STORAGE_KEY = 'ai_drawio_chat_width';
@@ -554,6 +571,7 @@ function DrawioPageContent() {
   const [cellCitations, setCellCitations] = useState<CellCitationDTO[]>([]);
   const [citationsLoading, setCitationsLoading] = useState(false);
   const [targetClarification, setTargetClarification] = useState<TargetClarification | null>(null);
+  const [directConfirmation, setDirectConfirmation] = useState<DirectConfirmation | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // "/" skill picker
@@ -1420,6 +1438,7 @@ function DrawioPageContent() {
   // Update ref
   useEffect(() => {
     currentSessionRef.current = currentSessionId;
+    setDirectConfirmation(null);
     const staleWaiters = canvasLoadWaitersRef.current.filter(waiter => waiter.sessionId !== currentSessionId);
     canvasLoadWaitersRef.current = canvasLoadWaitersRef.current.filter(waiter => waiter.sessionId === currentSessionId);
     staleWaiters.forEach(waiter => {
@@ -1432,6 +1451,11 @@ function DrawioPageContent() {
       diagramId: activeSession?.diagramId,
     });
   }, [currentSessionId]);
+
+  useEffect(() => {
+    // A confirmation only applies while the exact attachment selection remains active.
+    setDirectConfirmation(null);
+  }, [selectedAttachmentUploadIds]);
 
   useEffect(() => {
     const attachmentSessionId = sessionId.trim();
@@ -2114,7 +2138,11 @@ function DrawioPageContent() {
     }]);
   };
 
-  const performSendMessage = async (displayContent: string, canvasContext: StructuredCanvasContext = {}) => {
+  const performSendMessage = async (
+    displayContent: string,
+    canvasContext: StructuredCanvasContext = {},
+    options: SendContentOptions = {},
+  ) => {
     if (!selectedAgentId) {
       setMessages(prev => [...prev, {
         id: Date.now().toString(),
@@ -2426,7 +2454,7 @@ function DrawioPageContent() {
           userId: currentUser,
           sessionId: activeBackendSessionId,
           responseMessageId: agentMsgId,
-          userMessage: displayContent,
+          userMessage: options.requestContent || displayContent,
           diagramId,
           expectedVersion: latestCanvasVersion(
             diagramId ? manualCanvasVersionsRef.current.get(diagramId) : undefined,
@@ -2447,6 +2475,7 @@ function DrawioPageContent() {
             sourceUsePreference,
             hasSingleReadyImageSelection(conversationAttachments, selectedAttachmentUploadIds),
           ),
+          directClarifications: options.directClarifications,
           selectedVersionIds,
           selectedCellIds: selectedCellsRef.current?.cellIds,
           selectionCanvasVersion: selectedCellsRef.current?.canvasVersion,
@@ -3274,6 +3303,32 @@ function DrawioPageContent() {
               break;
             }
 
+            case 'direct_confirmation_required': {
+              const reasons = Array.from(new Set((chunk.reasons || []).filter(Boolean))).slice(0, 5);
+              if (reasons.length > 0) {
+                setDirectConfirmation({
+                  reasons,
+                  originalPrompt: options.requestContent || displayContent,
+                  selections: {},
+                });
+              }
+              const clarificationContent = normalizeAgentDisplayContent(chunk.content || '');
+              if (clarificationContent) {
+                accumulatedContent += (accumulatedContent ? '\n\n' : '') + clarificationContent;
+                setMessages(prev => prev.map(m => m.id === agentMsgId
+                  ? { ...m, content: accumulatedContent, steps: [...accumulatedSteps] }
+                  : m));
+              }
+              upsertRunEvent('direct-confirmation', {
+                phase: 'drawing',
+                title: '等待图片确认',
+                detail: clarificationContent,
+                status: 'warning',
+                tone: 'validation',
+              });
+              break;
+            }
+
             case 'source_wait_started':
             case 'source_not_ready':
             case 'source_clarification':
@@ -3552,7 +3607,7 @@ function DrawioPageContent() {
     }
   };
 
-  const sendContent = async (content: string) => {
+  const sendContent = async (content: string, options: SendContentOptions = {}) => {
     if (!content.trim() || isSending) return;
     if (demoQuotaState.exhausted) {
       setMessages(prev => [...prev, {
@@ -3568,7 +3623,7 @@ function DrawioPageContent() {
 
     const activeSession = sessionsRef.current.find(session => session.id === currentSessionRef.current);
     if (!drawioRef.current || !isDrawIoReady || !activeSession) {
-      await performSendMessage(content);
+      await performSendMessage(content, {}, options);
       return;
     }
 
@@ -3626,7 +3681,22 @@ function DrawioPageContent() {
       console.warn('Canvas context export failed; using the latest stored canvas:', error);
     }
 
-    await performSendMessage(content, canvasContext);
+    await performSendMessage(content, canvasContext, options);
+  };
+
+  const handleDirectConfirmation = () => {
+    if (!directConfirmation || isSending) return;
+    const clarifications = buildDirectClarifications(
+      directConfirmation.reasons,
+      directConfirmation.selections,
+    );
+    if (!clarifications) return;
+    const originalPrompt = directConfirmation.originalPrompt;
+    setDirectConfirmation(null);
+    void sendContent('已确认图片中的不确定项，请继续转换。', {
+      requestContent: originalPrompt,
+      directClarifications: clarifications,
+    });
   };
 
   const initializeAttachmentSession = async () => {
@@ -3651,6 +3721,7 @@ function DrawioPageContent() {
     setInputValue('');
     setSelectedSkills([]);
     setSlashOpen(false);
+    setDirectConfirmation(null);
     // Reset textarea height
     const textarea = promptInputRef.current;
     if (textarea) textarea.style.height = '80px';
@@ -4031,6 +4102,21 @@ function DrawioPageContent() {
                 ))}
               </div>
             </aside>
+          )}
+          {directConfirmation && (
+            <DirectConfirmationPanel
+              reasons={directConfirmation.reasons}
+              selections={directConfirmation.selections}
+              onSelectionChange={(reasonCode, value) => setDirectConfirmation(current => (
+                current ? {
+                  ...current,
+                  selections: { ...current.selections, [reasonCode]: value },
+                } : null
+              ))}
+              onConfirm={handleDirectConfirmation}
+              onCancel={() => setDirectConfirmation(null)}
+              disabled={isSending}
+            />
           )}
           {citationCellId && (
             <aside className="absolute bottom-5 right-5 z-30 w-80 max-w-[calc(100%-2.5rem)] rounded-xl border border-stone-200 bg-white/95 p-4 shadow-lg backdrop-blur">

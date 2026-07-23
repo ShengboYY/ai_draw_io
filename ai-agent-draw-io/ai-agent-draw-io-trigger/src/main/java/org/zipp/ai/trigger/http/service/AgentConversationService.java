@@ -515,8 +515,13 @@ public class AgentConversationService {
                     if (!(directPreparation instanceof DirectSourceOutcome.Prepared prepared)) {
                         ChatResponseDTO response = directSourceResponse(directPreparation);
                         captureRunOutput(runScope, response, currentRequest.getDiagramId());
-                        streamResponseWriter.sendEvidenceOutcome(emitter,
-                                "grounding_rejected", response.getType(), response.getContent());
+                        if (directPreparation instanceof DirectSourceOutcome.NeedsConfirmation confirmation) {
+                            streamResponseWriter.sendDirectConfirmation(
+                                    emitter, response.getContent(), confirmation.reasons());
+                        } else {
+                            streamResponseWriter.sendEvidenceOutcome(emitter,
+                                    "grounding_rejected", response.getType(), response.getContent());
+                        }
                         completeStreamTelemetry(streamTelemetryCompleted, null, runScope, null);
                         return;
                     }
@@ -1677,7 +1682,24 @@ public class AgentConversationService {
                 owner(request), requestId, request.getRunId(), request.getDiagramId(),
                 request.getSessionId(), safeList(request.getAttachmentUploadIds()).get(0),
                 safeList(request.getSelectedVersionIds()), sourceMode(request.getSourceMode()),
-                request.getMessage(), onlyAttachmentSources(sources));
+                request.getMessage(), directClarifications(request), onlyAttachmentSources(sources));
+    }
+
+    private List<org.zipp.ai.domain.multimodal.DirectClarification> directClarifications(
+            ChatRequestDTO request) {
+        if (request == null || request.getDirectClarifications() == null) return List.of();
+        return request.getDirectClarifications().stream().limit(5).map(value -> {
+            if (value == null || StringUtils.isBlank(value.getReasonCode())
+                    || StringUtils.isBlank(value.getResolution())) return null;
+            try {
+                return new org.zipp.ai.domain.multimodal.DirectClarification(
+                        value.getReasonCode(),
+                        org.zipp.ai.domain.multimodal.DirectClarification.Resolution.valueOf(
+                                value.getResolution().trim().toUpperCase(java.util.Locale.ROOT)));
+            } catch (IllegalArgumentException invalid) {
+                return null;
+            }
+        }).filter(java.util.Objects::nonNull).distinct().toList();
     }
 
     private ResolvedSourceSet onlyAttachmentSources(ResolvedSourceSet sources) {
@@ -1818,6 +1840,11 @@ public class AgentConversationService {
             return;
         }
         ChatResponseDTO response = directConversionResponse(outcome);
+        if (outcome instanceof DirectImageConversionOutcome.NeedsConfirmation confirmation) {
+            streamResponseWriter.sendDirectConfirmation(
+                    emitter, response.getContent(), confirmation.reasons());
+            return;
+        }
         String streamEvent = outcome instanceof DirectImageConversionOutcome.Rejected
                 ? "grounding_rejected" : "degraded";
         streamResponseWriter.sendEvidenceOutcome(

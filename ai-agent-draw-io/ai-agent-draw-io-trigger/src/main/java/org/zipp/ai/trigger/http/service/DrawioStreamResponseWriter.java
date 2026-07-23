@@ -129,6 +129,19 @@ public class DrawioStreamResponseWriter {
         emitter.complete();
     }
 
+    /** Sends bounded reason codes so the client can collect explicit image clarifications. */
+    public void sendDirectConfirmation(ResponseBodyEmitter emitter, String content,
+                                       java.util.List<String> reasons) throws Exception {
+        com.alibaba.fastjson.JSONObject chunk = new com.alibaba.fastjson.JSONObject();
+        chunk.put("type", "direct_confirmation_required");
+        chunk.put("content", StringUtils.defaultString(content));
+        chunk.put("reasons", reasons == null ? java.util.List.of() : reasons.stream()
+                .filter(StringUtils::isNotBlank).limit(5).toList());
+        sendWrappedChunk(emitter, "drawing", chunk);
+        sendDone(emitter);
+        emitter.complete();
+    }
+
     /** Terminal evidence answer event is emitted only after message and claim citations commit. */
     public void sendEvidenceAnswer(ResponseBodyEmitter emitter, EvidenceAnswerResult result) throws Exception {
         com.alibaba.fastjson.JSONObject chunk = new com.alibaba.fastjson.JSONObject();
