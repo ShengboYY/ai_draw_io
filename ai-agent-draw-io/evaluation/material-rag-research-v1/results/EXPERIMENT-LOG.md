@@ -802,6 +802,20 @@
 - **正式 gate**:raw/candidate 19/19、artifact 7/7、scoped pools 与 changed-rate 全部通过前，模型和
   Validation 保持关闭。
 
+### R22 local implementation gate · 2026-07-23 · ✅ 可申请正式运行
+
+- **实现比较点**:commit `08fe2566`。
+- **唯一变量**:对同一次 live run 已有的 original top-80 与 evidence-focused top-80 执行等权
+  RRF（k=60），按 fused score、最佳单 lane rank、vector ID 排序并取 top-40；不增加 Pinecone 请求。
+- **wiring/provenance**:task hydration 改为输出 `original-evidence-rrf-v1`，并冻结
+  `queryRewriteFingerprint` 与
+  `queryFusionFingerprint=equal-rrf-v1:k60:original1.0:rewritten1.0`；exporter 对三者 fail closed。
+- **本地验证**:ingestion-worker 94 tests、0 failures、6 live skips；analysis 122 tests、0 failures；
+  corpus audit 为 READY，`git diff --check` 通过。
+- **外部使用**:0 Pinecone 写入、0 模型请求、0 model token、0 Validation/holdout case。
+- **下一步**:获得单独授权后，从包含本记录与刷新 corpus lock 的 clean commit 运行唯一一次 R22
+  Development trace；结束后删除临时向量，再按预注册 gate 决定是否允许生成 prompt。
+
 ### R17 trace / R18 indexed-vector denominator · 2026-07-23 · ⏸ 修复后重跑
 
 - **固定输入**:clean commit `b419a70a`，Development only；两次空查询均经 R16 retry 恢复，19/19 完成，

@@ -677,6 +677,12 @@ R22 不再在 original 与 rewritten lane 中二选一，而只复用同一次�
 R22 只允许预注册 clean commit 的一次正式 Development trace。gate 仍为 raw 19/19、candidate 19/19、
 artifact 7/7、scoped pools 完整和 changed-rate ≥20%；失败则禁止 prompt、模型与 Validation。
 
+R22 已在实现 commit `08fe2566` 完成：runner 仅嵌入 original 与 evidence-focused 两条 query lane，
+用固定 `equal-rrf-v1:k60:original1.0:rewritten1.0` 对两组 top-80 排名融合，并将 fused top-40 作为
+task hydration 唯一候选 lane。trace 与 exporter 同时绑定 query mode、rewrite fingerprint 和 fusion
+fingerprint。完整 ingestion-worker 测试为 94/94（其中 6 个 live 测试按设计跳过），analysis 为
+122/122，E0 corpus audit 仍为 READY；尚未进行 R22 Pinecone 正式运行。
+
 E6b 的本地导出合同已冻结为 `fixtures/drawio-generation-paired-hydration-contract-v1.json` 与
 `analysis/export_drawio_paired_hydration.py`。active Development 图册明确挂载 architecture、workflow handbook
 与 planning-workshop scan 三个版本；导出器从同一 retrieval trace 的 raw top-8 和 source-aware top-8 产生一任务
