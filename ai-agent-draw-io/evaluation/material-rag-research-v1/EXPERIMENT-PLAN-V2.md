@@ -744,6 +744,14 @@ passage embedding batch 被 Pinecone HTTP 429 阻断。最小配额探针确认�
 `multilingual-e5-large` 的 5,000,000 embedding-token 限额。因此 R23 仍未评分，不能记为 gate 失败；
 额度重置或升级前不得换 embedding、用旧 lane 冒充正式结果或开启 R24。
 
+额度恢复后，R23 已从固定 commit `4081a4a9` 完成唯一有效的正式 Development trace
+`drawiohydrationpdfresearch_b66e8ef83edf4367883b330a683d1a56`。passage/query hashes 与 R22/R23a
+完全一致，19/19 retrieval tasks 完成，186 个临时向量已删除。正式 gate 为 raw 17/19、candidate
+16/19、artifact 7/7；未达到 19/19。残余 raw miss 为 `dgt-dev-07/08`，两题所需 workflow chunks
+都在 original/rewrite top-80 内但被 lexical stabilization 排出最终 top-40；`dgt-dev-16` 的
+`pre-objstore` 位于 stabilized rank 24，但 selector 未提升到 top-8。按预注册停止规则，retrieval
+tuning 至此结束，不开启 R24、不生成 prompt、不调用模型，Validation/holdout 继续关闭。
+
 E6b 的本地导出合同已冻结为 `fixtures/drawio-generation-paired-hydration-contract-v1.json` 与
 `analysis/export_drawio_paired_hydration.py`。active Development 图册明确挂载 architecture、workflow handbook
 与 planning-workshop scan 三个版本；导出器从同一 retrieval trace 的 raw top-8 和 source-aware top-8 产生一任务

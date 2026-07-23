@@ -906,6 +906,25 @@
 - **外部使用**:0 有效 R23 trace、0 模型请求、0 model token；所有临时向量已删除。
 - **详记**:[2026-07-23-r23-formal-run-blocked-by-pinecone-quota.md](2026-07-23-r23-formal-run-blocked-by-pinecone-quota.md)。
 
+### R23 formal result / retrieval tuning stop · 2026-07-23 · ❌ 未晋级，停止检索调优
+
+- **固定输入**:commit `4081a4a9`；run
+  `drawiohydrationpdfresearch_b66e8ef83edf4367883b330a683d1a56`；冻结 tokenizer、`e1-v5`、
+  `flat-leaf-v1`、Development、186 chunks。passage/query hashes 与 R22/R23a 完全一致。
+- **运行完整性**:19/19 retrieval tasks 完成；一次 rewritten 空结果经冻结 retry 恢复；临时 Pinecone
+  vectors 已确认删除。
+- **正式 gate**:raw top-40 **17/19**；source-aware top-8 candidate **16/19**；declared visual/OCR
+  artifact **7/7**；selector changed 12/19（63.16%）。
+- **残余 raw miss**:`dgt-dev-07/08` 的 required workflow chunks 均在 original/rewrite top-80，
+  但被 lexical stabilization 排出最终 top-40。代表性 lane ranks 分别为 26/30、28/33。
+- **残余 selector miss**:`dgt-dev-16` 的 `pre-objstore` 位于 original 4 / rewritten 11 /
+  stabilized 24，未被 unchanged selector 提升到 top-8。
+- **决策**:raw/candidate 19/19 gate 均失败，R23 不晋级。执行预注册停止规则：不打开 R24、不构建
+  generation prompt、不调用模型，Validation/holdout 保持关闭。后续只允许重新设计评测/系统边界，
+  不能继续针对这 19 个 Development cases 调检索参数。
+- **外部使用**:1 个有效 Development trace；0 模型请求、0 model token、0 Validation/holdout case。
+- **详记**:[2026-07-23-r23-v3-development-run.md](2026-07-23-r23-v3-development-run.md)。
+
 ### R17 trace / R18 indexed-vector denominator · 2026-07-23 · ⏸ 修复后重跑
 
 - **固定输入**:clean commit `b419a70a`，Development only；两次空查询均经 R16 retry 恢复，19/19 完成，
