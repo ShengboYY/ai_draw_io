@@ -478,6 +478,17 @@ class ControlledPdfDenseRecallLiveTest {
     }
 
     @Test
+    void shouldRetryTransientEmptyResearchQueries() throws Exception {
+        int[] calls = {0};
+
+        List<String> result = retryNonEmptyPineconeQuery(
+                "test query", 3, 0, () -> ++calls[0] < 3 ? List.of() : List.of("vector-1"));
+
+        assertEquals(List.of("vector-1"), result);
+        assertEquals(3, calls[0]);
+    }
+
+    @Test
     void shouldExportDrawioDevelopmentTaskHydrationFromTheRealMultimodalPipeline() throws Exception {
         String apiKey = System.getenv("PINECONE_API_KEY");
         String indexHost = System.getenv("PINECONE_INDEX_HOST");
@@ -1264,11 +1275,12 @@ class ControlledPdfDenseRecallLiveTest {
                         indexed, sourceVersion, fixedGoldChunkIds));
             }
             int queryIndex = caseIndex;
-            List<String> densePool = retryPinecone("query original research vectors", () -> client.query(
+            List<String> densePool = retryNonEmptyPineconeQuery("query original research vectors", () -> client.query(
                     namespace, queryVectors.get(QueryMode.ORIGINAL).get(queryIndex), 80,
                     researchFilter(tenantKey, mountedSourceVersions)));
             List<String> denseMatches = densePool.stream().limit(40).toList();
-            List<String> rewrittenPool = retryPinecone("query rewritten research vectors", () -> client.query(
+            List<String> rewrittenPool = retryNonEmptyPineconeQuery(
+                    "query rewritten research vectors", () -> client.query(
                     namespace, queryVectors.get(QueryMode.EVIDENCE_FOCUSED).get(queryIndex), 80,
                     researchFilter(tenantKey, mountedSourceVersions)));
             List<String> rewrittenMatches = rewrittenPool.stream().limit(40).toList();
@@ -1864,6 +1876,31 @@ class ControlledPdfDenseRecallLiveTest {
         int attempts = Integer.parseInt(System.getenv().getOrDefault(
                 "MATERIAL_RAG_TRANSIENT_RETRY_ATTEMPTS", "5"));
         return retryPinecone(operation, attempts, action);
+    }
+
+    private List<String> retryNonEmptyPineconeQuery(
+            String operation, Supplier<List<String>> action) throws InterruptedException {
+        int attempts = Integer.parseInt(System.getenv().getOrDefault(
+                "MATERIAL_RAG_EMPTY_QUERY_RETRY_ATTEMPTS", "5"));
+        return retryNonEmptyPineconeQuery(operation, attempts, 1_000, action);
+    }
+
+    private List<String> retryNonEmptyPineconeQuery(
+            String operation, int attempts, long initialDelayMillis,
+            Supplier<List<String>> action) throws InterruptedException {
+        for (int attempt = 1; attempt <= attempts; attempt++) {
+            List<String> result = retryPinecone(operation, action);
+            if (!result.isEmpty()) return result;
+            if (attempt == attempts) {
+                throw new IllegalStateException(operation + " returned an empty result after "
+                        + attempts + " attempts");
+            }
+            long delay = Math.min(initialDelayMillis << Math.min(attempt - 1, 4), 30_000L);
+            System.out.printf("Empty Pinecone result during %s; retry %d/%d in %dms%n",
+                    operation, attempt + 1, attempts, delay);
+            Thread.sleep(delay);
+        }
+        throw new IllegalStateException("Empty Pinecone retry loop exhausted unexpectedly");
     }
 
     private <T> T retryPinecone(String operation, int attempts,

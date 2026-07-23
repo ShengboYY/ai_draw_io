@@ -14,8 +14,8 @@
   "reviewLedgerSha256": "1a2f19caeee3961531beee0a82aea2a70d9af2d072c026efd23e61479a71317b",
   "fixtureFontSha256": "876af2cd4854644e7f3e7feb2f688997fdb3343c6df6693611209c9dfb47ccec",
   "provenanceFiles": {
-    "EXPERIMENT-PLAN-V2.md": "042e8a68cc7303ba87251e1c4aed21a117566771502e3ee19a96701081a0a9a2",
-    "experiment-plan-v2.json": "f2b29f3e0cd04829ef119dcd38166c3321dd80f350179d43a13fc65019331718",
+    "EXPERIMENT-PLAN-V2.md": "76f7481103f89c9fe4b70ad9b61012648da175f4a201b4ce342269e361d319e4",
+    "experiment-plan-v2.json": "9d388d724808077c6a971f22e2861f0a3d14f6b86682185230352fe9c816c9ba",
     "requirements.txt": "0043aca3a7381487084576995105e1099e3786ae8add5a6c0951d305b0e0e757",
     "analysis/audit_corpus.py": "765eaefe1ef61d5fbb291fb322d3fd92aa5e51e6d8182bc35759f96a1b677085",
     "analysis/compare_dense_runs.py": "762b83b97c14011b7b8081c859407973c7626252abc67e5f8773673bdda8ea59",
@@ -46,7 +46,7 @@
     "fixtures/drawio-generation-tasks-v2.json": "80a7dd0d64376fb827021b15dcf4e810f1668f8bc48ce54c9b89982e7f91f5a8",
     "fixtures/drawio-generation-tasks-v3.json": "5fe7b32313b1fc3a77d3ed7354c65e521faf98b0d3abdfb5668763e5fdf9fd05",
     "fixtures/drawio-generation-development-evidence-v1.json": "e63a573473a93e218ff7b939158fef18c571eb3c8a4a6283a4b1129973190a67",
-    "fixtures/drawio-generation-paired-hydration-contract-v1.json": "a61970e5c94af62d8126802911001bdfee558d6c565057c2c40623a1328c3e3f",
+    "fixtures/drawio-generation-paired-hydration-contract-v1.json": "15a26e1c0553ebbdbcb7f221b5d20a9a697ca0e601d65fd6a08e07e1b35916d6",
     "fixtures/final-holdout-contract-v1.json": "2c84a7fd4537d8aa3ea47d9654d68c39e31fce61a234ac44cb081375cace0bad"
   },
   "files": {

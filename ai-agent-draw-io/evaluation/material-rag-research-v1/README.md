@@ -311,6 +311,10 @@ each retrieval task must return exactly `min(40, chunks across its allowed sourc
 `selected_only` source with fewer than 40 chunks while still rejecting transient empty results for a
 chartbook that has at least 40 available chunks.
 
+The live research runner treats an empty Pinecone response as transient when the scoped projection contains
+chunks. It retries with bounded exponential backoff and fails the run after exhaustion; exception retries,
+query/filter/ranking semantics and the final scoped-pool gate remain unchanged.
+
 Generated-corpus retrieval defaults to `development`. Set `MATERIAL_RAG_RESEARCH_SPLIT` explicitly
 to `validation` for checkpointing. Use `holdout` only after the manifest status has been independently
 frozen; do not tune against either split. This legacy split still does not replace the external final holdout.

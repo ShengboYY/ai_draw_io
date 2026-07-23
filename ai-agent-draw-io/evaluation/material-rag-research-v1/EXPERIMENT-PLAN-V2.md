@@ -500,6 +500,18 @@ R15 不改变检索、排序、视觉覆盖或任务内容，只补齐 producer/
 R14 的空结果 trace 保留为诊断，不用于 generation。更新代码、测试、计划和 corpus lock 后，必须从新的 clean
 commit 再跑 Development；仍不得调用模型或打开 Validation，直到全部输入 gate 通过。
 
+## 2026-07-23 R16 预注册：empty-query retry
+
+R15 trace 正确记录 source chunk counts：17 个自动图册任务返回 40，`dgt-dev-20` 返回合法 28/28，但
+`dgt-dev-03` 随机返回 0/40。结合 R14 中随机落在另两个 task 的 0/40，根因是 Pinecone 对刚建立并已通过
+全局 searchability probe 的 namespace，个别带 source filter 的查询仍可能暂时返回空列表；空列表不是异常，
+所以旧 transient-exception retry 不会重试。
+
+R16 仅改变 live research runner 的可靠性边界：original 与 rewritten query 若返回空列表，按冻结次数做有限
+指数退避；非空立即继续；耗尽仍空则抛错，由 `finally` 清理向量且不写正式 trace。正常非空结果、query、
+embedding、filter、top-k、ranking、selector 和所有评测门槛均不改变。R15 trace 只作诊断；提交后仍须从新
+clean commit 重跑 Development，模型和 Validation 保持关闭。
+
 E6b 的本地导出合同已冻结为 `fixtures/drawio-generation-paired-hydration-contract-v1.json` 与
 `analysis/export_drawio_paired_hydration.py`。active Development 图册明确挂载 architecture、workflow handbook
 与 planning-workshop scan 三个版本；导出器从同一 retrieval trace 的 raw top-8 和 source-aware top-8 产生一任务

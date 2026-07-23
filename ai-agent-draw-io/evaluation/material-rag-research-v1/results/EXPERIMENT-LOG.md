@@ -715,3 +715,15 @@
 - **外部使用**:1 次 Pinecone Development trace，临时向量已清理；0 次模型请求、0 model token、
   0 Validation/holdout case。
 - **决策**:R14 trace 仅诊断；提交 R15 后从新 clean commit 重跑。0/40 必须继续失败，28/28 才可通过。
+
+### R15 trace / R16 empty-query preregistration · 2026-07-23 · ⏸ 修复后重跑
+
+- **固定输入**:clean commit `d71f8e04`，Development only，trace 已记录 7 个 mounted source 的
+  projected chunk counts（总计 247；本次索引 186 个去重向量）。
+- **scoped pool**:17 个自动图册任务为 40/40，`dgt-dev-20` 为合法 28/28；`dgt-dev-03` 为异常 0/40。
+- **跨运行证据**:R14 的随机空结果在 `dgt-dev-04`、`dgt-dev-12`，R15 转移到 `dgt-dev-03`，说明不是
+  task/query 固定失败，而是刚建 namespace 的带过滤查询偶发返回空列表。
+- **R16 预注册变量**:original/rewritten Pinecone query 对空列表做有限指数退避；耗尽抛错并由 `finally`
+  清理，不写可用于 generation 的 trace。异常重试、query/filter/top-k/ranking 均不变。
+- **外部使用**:1 次 Pinecone Development trace，临时向量已清理；0 次模型请求、0 model token、
+  0 Validation/holdout case。
