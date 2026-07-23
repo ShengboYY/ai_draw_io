@@ -97,6 +97,7 @@ app:
   material-visual-observation:
     # Online visual fact verification remains independently fail-closed until its model adapter is deployed.
     enabled: ${MATERIAL_VISUAL_OBSERVATION_ENABLED:false}
+    timeout-ms: ${MATERIAL_VISUAL_OBSERVATION_TIMEOUT_MS:30000}
   material-direct-image-conversion:
     # Image reconstruction depends on verified visual observation and never enables retrieval by itself.
     enabled: ${MATERIAL_DIRECT_IMAGE_CONVERSION_ENABLED:false}

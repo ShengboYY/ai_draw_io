@@ -10,6 +10,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.zipp.ai.domain.agent.service.ICanvasStateStore;
+import org.zipp.ai.domain.agent.service.IChatService;
 import org.zipp.ai.domain.agent.service.canvas.CanvasMutationGate;
 import org.zipp.ai.domain.citation.port.ClaimSupportVerifierPort;
 import org.zipp.ai.domain.citation.answer.EvidenceAnswerCommitPort;
@@ -26,6 +27,7 @@ import org.zipp.ai.domain.grounding.EvidencePromptAssembler;
 import org.zipp.ai.domain.grounding.port.GroundedCanvasCommitPort;
 import org.zipp.ai.domain.ingestion.port.RevisionArtifactPort;
 import org.zipp.ai.domain.material.service.MaterialReadLeaseService;
+import org.zipp.ai.domain.multimodal.*;
 import org.zipp.ai.domain.retrieval.*;
 import org.zipp.ai.domain.retrieval.internal.DefaultEvidencePreparationModule;
 import org.zipp.ai.domain.retrieval.internal.DefaultRequestProbeService;
@@ -35,6 +37,7 @@ import org.zipp.ai.domain.retrieval.port.*;
 import org.zipp.ai.infrastructure.adapter.repository.*;
 import org.zipp.ai.infrastructure.adapter.s3.S3EvidenceBlobStoreAdapter;
 import org.zipp.ai.infrastructure.adapter.s3.S3RevisionArtifactAdapter;
+import org.zipp.ai.infrastructure.adapter.s3.RevisionVisualArtifactReaderAdapter;
 import org.zipp.ai.infrastructure.adapter.vector.*;
 import org.zipp.ai.infrastructure.dao.retrieval.IOnlineRetrievalMapper;
 import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
@@ -157,6 +160,30 @@ public class MaterialRagConfig {
     public EvidenceBlobStore evidenceBlobStore(
             @Qualifier("materialRagRevisionArtifactPort") RevisionArtifactPort artifacts) {
         return new S3EvidenceBlobStoreAdapter(artifacts);
+    }
+
+    @Configuration
+    @ConditionalOnProperty(name = "app.material-visual-observation.enabled", havingValue = "true")
+    static class VisualObservationConfig {
+        @Bean
+        public VisualArtifactReaderPort visualArtifactReader(
+                @Qualifier("materialRagRevisionArtifactPort") RevisionArtifactPort artifacts) {
+            return new RevisionVisualArtifactReaderAdapter(artifacts);
+        }
+
+        @Bean
+        public VisionModelPort visionModelPort(IChatService chat, ObjectMapper mapper,
+                                               @Value("${MATERIAL_VISUAL_OBSERVATION_AGENT_ID:}") String agentId) {
+            return new ChatVisionModelPortAdapter(chat, mapper, agentId);
+        }
+
+        @Bean
+        public VisualObservationModule visualObservationModule(
+                VisualArtifactReaderPort artifacts, VisionModelPort model,
+                @Qualifier("materialRagIoExecutor") ExecutorService executor,
+                @Value("${app.material-visual-observation.timeout-ms:30000}") long timeoutMs) {
+            return new DefaultVisualObservationModule(artifacts, model, executor, timeoutMs);
+        }
     }
 
     @Bean
