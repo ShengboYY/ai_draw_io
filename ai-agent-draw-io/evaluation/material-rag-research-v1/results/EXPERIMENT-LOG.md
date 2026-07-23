@@ -423,6 +423,23 @@
   supplied evidence 的精确 `anchorId` 选择 citation、不得使用 diagram cell ID；冻结新 bundle 后才可另行授权重跑
   Development。详见 [2026-07-23-e7-r4-gpt-5-5-development.md](2026-07-23-e7-r4-gpt-5-5-development.md)。
 
+### E7 r5 — citation-output contract repair and Development freeze · 2026-07-23 · ✅本地完成，⏸模型授权待获取
+
+- **单一变量**:r5 从模型已可见的 hydrated evidence 行确定性导出 `citationOptions`，在 prompt 中列出唯一允许的
+  `anchorId`/`sourceVersion`/page 三元组，并明确禁止使用 mxCell/XML/label/generated diagram ID。它不读取
+  `requiredAnchors`、expected answer 或 XML/edit evaluator assertion；检索、r4 hydration、两臂 context、任务、
+  模型参数和 evaluator 都不变。
+- **双重执行契约**:GPT structured-output schema 的每个 citation 仅接受 bundle 中可见 evidence 的完整三元组；无检索
+  task 强制空 citations。runner 的本地 response boundary 独立验证同一三元组，因此即使 anchor 名称正确但页码或版本错误
+  也会作为 failure，不能因模型返回 JSON 而绕过。
+- **冻结与测试**:control 6-task bundle SHA-256 为
+  `d0ca377caac7de398cc17995991544e551cb44c385770761ecfa7d6eeb1ae768`，candidate 为
+  `51ff96d79847946530135f4ff40e30ce53c04b49c9aef51e664659d8fa598b87`。91 个 analysis 本地测试通过；无 provider
+  调用、token、Validation 或 holdout 访问。
+- **下一边界**:取得新的明确授权后，才向相同 GPT-5.5 endpoint 发送这 12 个合成 Development request，并用 formal
+  manifest 和未变 evaluator 比较；仍不得把结果直接解释为 retrieval 差异。详见
+  [2026-07-23-e7-r5-citation-contract-repair.md](2026-07-23-e7-r5-citation-contract-repair.md)。
+
 ---
 
 ## 当前状态与下一步
@@ -430,9 +447,9 @@
 - 已完成:E0 基线 → E1 表示层改进 → 核心集升级并冻结到 450 → Development 与 Validation
   配对重跑 → 守门最低数补齐并执行 fixture-contract。Validation 证明 E1 提升真实,也证明
   dense-only 尚未达门槛。
-- **下一步**:接入 visual/OCR-capable 的 task hydration trace，再用已冻结的 exporter 导出一一对应的 multimodal
-  control/candidate contexts；随后冻结 prompt bundles 与 formal run manifest。获得新的明确授权后，才向同一模型发送
-  Development，做首次可比的 E6b/E7 paired generation；Validation 暂不打开。
+- **下一步**:r4 visual/OCR hydration 和首次 formal paired Development 已完成，但 r4 因 citation-output contract
+  失败不晋级。r5 已冻结唯一的 citation-contract repair；获得新的明确授权后，才向同一模型发送 12 个 synthetic
+  Development request，重跑可比 E7。Validation 暂不打开。
 
 ## 开放问题 / 待办
 
@@ -450,8 +467,9 @@
   该 pilot 不含证据正文，不能作为 E6/E7 质量结论。
 - [x] E6a 多资料 selector effectiveness——26/26 context 改变，retrieval 指标已记录；不含模型调用。
 - [x] active v2 真实 edit fixture、引用指标分层与 generation-run manifest contract。
-- [x] E6b paired hydration export contract——已完成本地 exporter、artifact/source/contrast gates 与审计记录；未运行。
-- [ ] E6b/E7 evidence-grounded control/candidate Development 比较——待 production visual/OCR hydration trace 后导出。
+- [x] E6b paired hydration export contract——r4 visual/OCR trace、artifact/source/contrast gates 与审计记录已完成。
+- [x] E7 r4 evidence-grounded control/candidate Development 比较——已运行但 citation contract 1/6、task completion 0/6，未晋级。
+- [ ] E7 r5 citation-output contract Development 比较——prompt/schema/local response guard 已冻结，待新的模型调用授权。
 - [ ] 外部 final holdout——contract 已定，payload 尚未由独立保管人生成和隔离。
 
 ## 如何跑一个实验(运行手册)

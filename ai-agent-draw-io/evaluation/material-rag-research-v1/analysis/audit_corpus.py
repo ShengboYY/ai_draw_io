@@ -30,6 +30,7 @@ PROVENANCE_FILES = (
     "analysis/audit_e4_chartbook.py",
     "analysis/evaluate_guard_suites.py",
     "analysis/build_drawio_generation_prompts.py",
+    "analysis/run_drawio_generation.py",
     "analysis/export_drawio_paired_hydration.py",
     "analysis/evaluate_drawio_generation_tasks.py",
     "analysis/validate_generation_run_manifest.py",

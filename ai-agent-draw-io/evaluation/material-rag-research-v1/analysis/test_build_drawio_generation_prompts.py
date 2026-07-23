@@ -34,6 +34,9 @@ class DrawioGenerationPromptTest(unittest.TestCase):
         self.assertIn("Create an editable evidence route.", prompt)
         self.assertIn("route-a | architecture:v1 | page 3", prompt)
         self.assertIn("SCOPE SOURCES is followed by RETRIEVE EVIDENCE.", prompt)
+        self.assertIn("Allowed citations", prompt)
+        self.assertIn("anchorId=route-a; sourceVersion=architecture:v1; page=3", prompt)
+        self.assertIn("must not use draw.io mxCell IDs", prompt)
         self.assertNotIn("PRIVATE EXPECTED LABEL", prompt)
 
     def test_includes_existing_xml_but_keeps_edit_assertions_private(self):
@@ -97,6 +100,24 @@ class DrawioGenerationPromptTest(unittest.TestCase):
         self.assertIn("Attached visual artifact", bundle["prompt"])
         self.assertEqual(["fixtures/generated/images/route.png"], bundle["imagePaths"])
         self.assertEqual(hashlib.sha256(bundle["prompt"].encode()).hexdigest(), bundle["promptSha256"])
+
+    def test_freezes_only_visible_evidence_as_exact_citation_options(self):
+        task = {
+            "taskId": "citations", "split": "development", "sourceVersion": "source:v1",
+            "request": "Create an evidence-backed route.",
+            "citationAssertions": {"mustCiteAnchors": ["PRIVATE-EVALUATOR-ANCHOR"]},
+        }
+        contexts = [{"taskId": "citations", "arm": "candidate", "evidence": [{
+            "anchorId": "visible-a", "sourceVersion": "source:v1", "page": 2,
+            "text": "Use this visible material only.",
+        }]}]
+
+        bundle = MODULE.build_bundles([task], contexts, split="development", arm="candidate")[0]
+
+        self.assertEqual([{"anchorId": "visible-a", "sourceVersion": "source:v1", "page": 2}],
+                         bundle["citationOptions"])
+        self.assertIn("anchorId=visible-a; sourceVersion=source:v1; page=2", bundle["prompt"])
+        self.assertNotIn("PRIVATE-EVALUATOR-ANCHOR", bundle["prompt"])
 
 
 if __name__ == "__main__":

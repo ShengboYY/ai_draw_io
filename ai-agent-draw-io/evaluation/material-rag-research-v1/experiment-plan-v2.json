@@ -191,7 +191,7 @@
     "controlMeanSourceCount": 2.4615384615384617,
     "candidateMeanSourceCount": 3.9615384615384617,
     "decision": "valid contrast check; source coverage improved, recall direction descriptive only; no generation promotion claim",
-    "next": "pre-register and test an E7 citation-output contract repair before another Development generation run; the formal r4 GPT-5.5 arms tied at 0/6 completion because generated cell IDs were used as citations"
+    "next": "r5 citation-output contract repair is locally pre-registered and frozen; request authorization for a new Development-only generation run"
   },
   "e7Generation": {
     "activeTaskFixture": "fixtures/drawio-generation-tasks-v2.json",
@@ -201,7 +201,7 @@
     "requiresFormalRunManifest": "material-rag-generation-run-manifest-v1",
     "pairedHydrationContract": "fixtures/drawio-generation-paired-hydration-contract-v1.json; r4 successfully exported six Development paired contexts after native-policy-selected visual-page OCR placed the dgt-dev-02 architecture artifact in raw top-8; the original image artifact is retained and no-retrieval task handling is fixed separately",
     "historicalFixedRunQualification": "diagnostic; v1 tasks only; not compatible with active v2 edit assertions",
-    "next": "repair the citation-output prompt contract, re-freeze paired Development prompts, then request authorization for a new Development-only generation run"
+    "next": "r5 citation-output contract repair is locally pre-registered and frozen; request authorization for a new Development-only generation run"
   },
   "preE0": {
     "minimumReviewedCasesBeforeComparison": 340,
@@ -223,7 +223,7 @@
   ],
   "progress": {
     "completed": ["E0_BASELINE", "E1_REPRESENTATION", "E2_CHUNKING", "E3_RETRIEVAL", "E4_DEDUPLICATION", "E5_RERANKING"],
-    "currentNext": "E6B_E7_PAIRED_DEVELOPMENT",
+    "currentNext": "E7_R5_CITATION_CONTRACT_DEVELOPMENT",
     "e2Decision": "retain flat-leaf-v1; parent-context-500-v1 recallAt10 delta 0.0000 did not meet +0.02 and mrrAt10 delta -0.0618 regressed",
     "e3FirstCandidateDecision": "retain dense-v1; projection hybrid recallAt10 delta 0.0065 did not meet +0.02",
     "e3SecondCandidateDecision": "retain original-v1; evidence-focused recallAt10 delta -0.0194 and mrrAt10 delta -0.0488 regressed",
@@ -232,7 +232,7 @@
     "e4Status": "completed: neither single-source deduplication nor multi-source fixed-cap diversity qualified",
     "e5Status": "completed: DeepSeek V4 Pro listwise reranker accepted JSON for 5/155 cases and Recall@10 gain was 0.0; not promoted",
     "e6aStatus": "completed: 26/26 contexts changed; source coverage improved; recall interval touched zero; no promotion claim",
-    "e6bStatus": "completed input hydration only: r4 selected-visual-page local OCR placed dgt-dev-02 page-3 source image in raw top-8 and exporter produced six paired Development contexts with 3/5 retrieval-required tasks changed (60%); no prompt bundle, model call or Validation run",
-    "e7Status": "active v2 r4 formal GPT-5.5 paired Development run completed: both arms parsed XML 6/6, required citation contract 1/6 and task completion 0/6; claim metrics were not independently reviewed; no promotion or Validation"
+    "e6bStatus": "completed: r4 selected-visual-page local OCR placed dgt-dev-02 page-3 source image in raw top-8 and exporter produced six paired Development contexts with 3/5 retrieval-required tasks changed (60%); its paired GPT-5.5 Development run is recorded separately under E7",
+    "e7Status": "r4 formal GPT-5.5 paired Development run completed: both arms parsed XML 6/6, required citation contract 1/6 and task completion 0/6; no promotion or Validation. r5 is a locally frozen citation-output contract repair derived only from model-visible evidence, awaiting separate Development-only model authorization"
   }
 }

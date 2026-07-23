@@ -9,6 +9,18 @@ import json
 from pathlib import Path
 
 
+def citation_options(context: dict) -> list[dict]:
+    """Freeze the exact visible evidence rows that the model may cite."""
+    options = {
+        (evidence["anchorId"], evidence["sourceVersion"], evidence["page"])
+        for evidence in context.get("evidence", [])
+    }
+    return [
+        {"anchorId": anchor_id, "sourceVersion": source_version, "page": page}
+        for anchor_id, source_version, page in sorted(options)
+    ]
+
+
 def build_prompt(task: dict, context: dict) -> str:
     """Render one task and its hydrated context as the model-visible contract."""
     evidence_lines = []
@@ -20,14 +32,21 @@ def build_prompt(task: dict, context: dict) -> str:
             f"{evidence['text']}{artifact}"
         )
     material = "\n\n".join(evidence_lines) or "(No material was retrieved.)"
+    options = citation_options(context)
+    allowed_citations = "\n".join(
+        f"- anchorId={option['anchorId']}; sourceVersion={option['sourceVersion']}; page={option['page']}"
+        for option in options
+    ) or "- None; return citations as an empty array."
     input_xml = task.get("inputXml")
     edit_material = f"\n\nExisting editable XML to modify:\n{input_xml}" if input_xml else ""
     return (
         "Return JSON only with keys xml and citations. xml must be editable draw.io XML "
         "using mxGraphModel/mxCell. citations must be an array of objects with anchorId, "
         "sourceVersion and page. Use only the material below; do not invent material-backed "
-        "claims or citations.\n\n"
+        "claims or citations. Every citation must copy one complete row from Allowed citations "
+        "exactly; anchorId must not use draw.io mxCell IDs, XML IDs, labels or generated diagram IDs.\n\n"
         f"Task: {task['request']}{edit_material}\n\n"
+        f"Allowed citations:\n{allowed_citations}\n\n"
         f"Retrieved material:\n{material}"
     )
 
@@ -73,6 +92,7 @@ def build_bundles(tasks: list[dict], contexts: list[dict], split: str, arm: str,
             "prompt": prompt,
             "promptSha256": hashlib.sha256(prompt.encode()).hexdigest(),
             "evidence": context.get("evidence", []),
+            "citationOptions": citation_options(context),
             "imagePaths": image_paths(context),
             "imageSha256s": list(dict.fromkeys(
                 evidence["imageSha256"] for evidence in context.get("evidence", [])

@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import base64
+import copy
 import hashlib
 import json
 import mimetypes
@@ -22,7 +23,7 @@ OPENAI_BASE_URL = "https://api.openai.com"
 OPENAI_COMPLETIONS_PATH = "v1/chat/completions"
 OPENAI_MODEL = "gpt-5.5"
 JSON_SCHEMA = {
-    "name": "drawio_generation_response_v1",
+    "name": "drawio_generation_response_v2",
     "strict": True,
     "schema": {
         "type": "object",
@@ -46,6 +47,51 @@ JSON_SCHEMA = {
         "required": ["xml", "citations"],
     },
 }
+
+
+def citation_options(bundle: dict) -> list[dict]:
+    """Return the frozen evidence triples allowed in this model response."""
+    options = bundle.get("citationOptions")
+    if not isinstance(options, list):
+        raise ValueError(f"citation options are missing for {bundle.get('taskId', 'unknown')}")
+    triples = []
+    for option in options:
+        if not isinstance(option, dict) or not isinstance(option.get("anchorId"), str) \
+                or not isinstance(option.get("sourceVersion"), str) or not isinstance(option.get("page"), int):
+            raise ValueError(f"citation options are malformed for {bundle.get('taskId', 'unknown')}")
+        triples.append((option["anchorId"], option["sourceVersion"], option["page"]))
+    if len(set(triples)) != len(triples):
+        raise ValueError(f"citation options are duplicated for {bundle.get('taskId', 'unknown')}")
+    return options
+
+
+def response_schema(bundle: dict) -> dict:
+    """Constrain citation IDs to evidence supplied in the frozen prompt bundle."""
+    schema = copy.deepcopy(JSON_SCHEMA)
+    options = citation_options(bundle)
+    citations = schema["schema"]["properties"]["citations"]
+    if not options:
+        citations["maxItems"] = 0
+        return schema
+    citations["items"] = {"anyOf": [
+        {
+            "type": "object",
+            "additionalProperties": False,
+            "properties": {
+                "anchorId": {"type": "string", "enum": [option["anchorId"]]},
+                "sourceVersion": {"type": "string", "enum": [option["sourceVersion"]]},
+                "page": {"type": "integer", "enum": [option["page"]]},
+            },
+            "required": ["anchorId", "sourceVersion", "page"],
+        }
+        for option in options
+    ]}
+    return schema
+
+
+def response_format_name() -> str:
+    """Keep the manifest label coupled to the actual structured-output schema version."""
+    return f"json_schema:{JSON_SCHEMA['name']}"
 
 
 def sha256_bytes(value: bytes) -> str:
@@ -90,6 +136,16 @@ def validate_bundle(bundle: dict, artifact_root: Path) -> None:
         raise ValueError("prompt bundle requires taskId and prompt")
     if sha256_bytes(bundle["prompt"].encode()) != bundle.get("promptSha256"):
         raise ValueError(f"prompt hash mismatch for {bundle['taskId']}")
+    visible_options = [
+        {"anchorId": evidence["anchorId"], "sourceVersion": evidence["sourceVersion"], "page": evidence["page"]}
+        for evidence in bundle.get("evidence", [])
+    ]
+    if citation_options(bundle) != [
+            {"anchorId": anchor_id, "sourceVersion": source_version, "page": page}
+            for anchor_id, source_version, page in sorted({
+                (option["anchorId"], option["sourceVersion"], option["page"]) for option in visible_options
+            })]:
+        raise ValueError(f"citation options do not match visible evidence for {bundle['taskId']}")
     paths = bundle.get("imagePaths", [])
     hashes = bundle.get("imageSha256s", [])
     if not isinstance(paths, list) or not isinstance(hashes, list) or len(paths) != len(hashes):
@@ -113,17 +169,25 @@ def request_body(bundle: dict, artifact_root: Path, model: str, max_completion_t
         "messages": [{"role": "user", "content": content}],
         "max_completion_tokens": max_completion_tokens,
         "reasoning_effort": "low",
-        "response_format": {"type": "json_schema", "json_schema": JSON_SCHEMA},
+        "response_format": {"type": "json_schema", "json_schema": response_schema(bundle)},
     }
 
 
-def response_payload(body: dict) -> tuple[str, list[dict]]:
+def response_payload(body: dict, bundle: dict) -> tuple[str, list[dict]]:
     """Extract the strict JSON message content, treating malformed output as a scored failure."""
     content = body.get("choices", [{}])[0].get("message", {}).get("content", "")
     parsed = json.loads(content)
     if not isinstance(parsed, dict) or not isinstance(parsed.get("xml"), str) \
             or not isinstance(parsed.get("citations"), list):
         raise ValueError("response does not match the expected XML/citations contract")
+    allowed = {
+        (option["anchorId"], option["sourceVersion"], option["page"])
+        for option in citation_options(bundle)
+    }
+    for citation in parsed["citations"]:
+        if not isinstance(citation, dict) or (
+                citation.get("anchorId"), citation.get("sourceVersion"), citation.get("page")) not in allowed:
+            raise ValueError("response citation is not a frozen evidence citation option")
     return parsed["xml"], parsed["citations"]
 
 
@@ -214,7 +278,7 @@ def run(bundle_file: Path, responses_out: Path, manifest_out: Path, artifact_roo
         xml, citations, status = "", [], "error"
         if error is None and 200 <= http_status < 300:
             try:
-                xml, citations = response_payload(body)
+                xml, citations = response_payload(body, bundle)
                 status = "success"
             except (ValueError, json.JSONDecodeError, IndexError, TypeError) as parse_error:
                 error = str(parse_error)[:500]
@@ -244,7 +308,7 @@ def run(bundle_file: Path, responses_out: Path, manifest_out: Path, artifact_roo
                   "endpointFingerprint": "sha256:" + sha256_bytes(endpoint_url.encode())},
         # GPT-5.5 uses its provider default temperature; the field is deliberately omitted from the API request.
         "requestParameters": {"temperature": "provider-default", "maxCompletionTokens": max_completion_tokens,
-                              "responseFormat": "json_schema:drawio_generation_response_v1",
+                              "responseFormat": response_format_name(),
                               "reasoningEffort": "low", "imageDetail": "high"},
         "taskIds": task_ids, "calls": calls,
         "artifacts": [{"role": role, "path": path.relative_to(ROOT).as_posix(), "sha256": sha256_file(path)}

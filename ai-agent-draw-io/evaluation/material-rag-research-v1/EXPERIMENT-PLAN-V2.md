@@ -242,8 +242,10 @@ Recall@10 与 flat 持平,MRR@10 低 0.062,未晋级。当前顺序：
 
 1. E4/E5 已完成且候选均未晋级；`ranked-raw-v1` 保持冻结。E6a 已在 26 个冻结的多资料
    Development case 上验证 source-aware selector：26/26 上下文发生变化，gold-evidence recall
-   0.5096→0.5673，平均来源数 2.46→3.96。下一步是为 active v2 generation tasks 导出成对的
-   task-level control/candidate hydration，再运行 E6b/E7 Development。
+   0.5096→0.5673，平均来源数 2.46→3.96。r4 已完成真实 visual/OCR hydration 和 GPT-5.5 paired
+   Development，但两臂均因将 cell ID 写作 citation 而 0/6 completion。r5 已预注册并冻结唯一的
+   citation-output contract repair：citation 只能从模型可见 evidence 的精确三元组选取；待单独授权后重跑
+   Development。
 2. 后续 E9 必须执行在线授权、版本、故障注入与恢复；当前 fixture-contract 通过不能替代它。
 3. Validation 暂不打开。仓库可见的 legacy holdout 不再用于“未见最终结论”；外部 final holdout
    按独立保管协议只释放一次。
