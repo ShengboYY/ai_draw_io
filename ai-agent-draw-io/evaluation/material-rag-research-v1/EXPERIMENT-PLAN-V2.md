@@ -708,6 +708,29 @@ R23a 已在实现 commit `ef77bbdc` 完成。trace 为每个 task 写入两条 p
 skips，analysis 为 124/124，E0 audit 仍为 READY；Standards/Spec 双轴代码审阅均为 0 个实质问题。
 尚未进行 R23a Pinecone diagnostic trace。
 
+### R23a 结果与 R23 最终检索干预预注册：dense union lexical stabilization
+
+R23a 从 clean commit `31b4d99a` 完成唯一一次 Development diagnostic trace；19/19 tasks 完成，两次
+transient empty response 经冻结 retry 恢复，186 个临时向量已删除。passage/query input hashes 与 R22
+完全相同，但 fused top-40 每题仅重合 24–35 项（median 29、mean 28.63），19 个 top-8 head 无一完全
+相同。R23a candidate 仍为 16/19，但缺失任务从 R22 的 `01/17/19` 变为 `07/16/17`，不能用来重判 R22。
+
+R22 的两个 raw miss 在 R23a 两条 lane 中均存在：`dgt-dev-01` 为 original 15 / rewritten 19 /
+fused 7，`dgt-dev-19` 为 26 / 17 / 17。`dgt-dev-17` 的 severity chunk 为 16 / 45 / 21。结论是当前
+主要问题为 provider/ranking 跨运行波动与 top-40/top-8 稳定性，而不是某个固定 query fusion 权重。
+
+R23 是最后一次 retrieval intervention：
+
+- 保留 original 与 rewritten provider top-80，并先用 R22 等权 RRF 对完整去重 union 排序，不在此步
+  截断为 40；
+- 只在该 dense union 内使用现有冻结 lexical ranker 对 request 做确定性
+  `weighted-rrf-v1:k60:lexical1.2:dense1.0`，取最终 top-40；
+- lexical lane 不得引入 provider 未返回的 chunk，不增加 Pinecone 请求，不读取 target source、gold、
+  assertions 或 answers；
+- query、embedding、provider top-80、retry、identity、selector、artifact、task 与 19/19 gate 不变；
+- 只允许一个 clean commit 的一次正式 Development run。若仍失败，停止 retrieval tuning，记录残余
+  case，不再开启 R24；若通过，才允许生成 prompt。
+
 E6b 的本地导出合同已冻结为 `fixtures/drawio-generation-paired-hydration-contract-v1.json` 与
 `analysis/export_drawio_paired_hydration.py`。active Development 图册明确挂载 architecture、workflow handbook
 与 planning-workshop scan 三个版本；导出器从同一 retrieval trace 的 raw top-8 和 source-aware top-8 产生一任务

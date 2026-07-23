@@ -849,6 +849,23 @@
 - **下一步**:获得单独授权后，从包含本记录与刷新 corpus lock 的 clean commit 运行唯一一次 R23a
   Development diagnostic trace；只解释 `dgt-dev-01/19` 的 lane ranks，不重判 R22。
 
+### R23a formal diagnostic / R23 final retrieval preregistration · 2026-07-23 · ✅ 根因已定位
+
+- **固定输入**:clean commit `31b4d99a`；passage/query hashes 与 R22 完全一致；186 chunks、19/19 tasks。
+- **完整性**:一次 rewritten 与一次 original 空结果均经 bounded retry 恢复；临时 Pinecone vectors
+  已确认删除；未调用模型。
+- **lane 结果**:`dgt-dev-01` required chunk 为 original 15 / rewritten 19 / fused 7；
+  `dgt-dev-19` 为 26 / 17 / 17；`dgt-dev-17` severity chunk 为 16 / 45 / 21。
+- **稳定性诊断**:R22/R23a fused top-40 每题 overlap 为 24–35（median 29、mean 28.63），19 个
+  top-8 head 均不同。R23a candidate 仍为 16/19，但缺失 case 改为 `07/16/17`；不得据此重判 R22。
+- **结论**:主要故障是 provider/ranking 跨运行波动及截断稳定性，不支持继续猜 query weight。
+- **R23 唯一变量**:在 original/rewrite top-80 完整 union 内先做现有 query RRF，再用冻结 lexical
+  ranker 做确定性 weighted RRF 后取 top-40；lexical 不得引入 union 外 chunk，不增加 provider 请求。
+- **停止规则**:R23 是最后一次 retrieval tuning；一次 Development run 仍失败则报告残余 case 并停止，
+  不开启 R24。
+- **外部使用**:1 次授权 Pinecone Development diagnostic；0 模型请求、0 model token、
+  0 Validation/holdout case。
+
 ### R17 trace / R18 indexed-vector denominator · 2026-07-23 · ⏸ 修复后重跑
 
 - **固定输入**:clean commit `b419a70a`，Development only；两次空查询均经 R16 retry 恢复，19/19 完成，
