@@ -98,6 +98,8 @@ app:
     # Online visual fact verification remains independently fail-closed until its model adapter is deployed.
     enabled: ${MATERIAL_VISUAL_OBSERVATION_ENABLED:false}
     timeout-ms: ${MATERIAL_VISUAL_OBSERVATION_TIMEOUT_MS:30000}
+    aws-region: ${MATERIAL_VISUAL_AWS_REGION:${MATERIAL_RAG_AWS_REGION:${AWS_REGION:ap-southeast-2}}}
+    materials-bucket: ${MATERIAL_VISUAL_MATERIALS_BUCKET:${MATERIALS_BUCKET:}}
   material-direct-image-conversion:
     # Image reconstruction depends on verified visual observation and never enables retrieval by itself.
     enabled: ${MATERIAL_DIRECT_IMAGE_CONVERSION_ENABLED:false}
