@@ -218,7 +218,11 @@ export const buildRouteStepDetail = ({
     ? (useChinese ? '来源方式：按原图还原。' : 'Source route: original image reconstruction.')
     : sourceUse === 'DIRECT_AND_RETRIEVAL'
       ? (useChinese ? '来源方式：原图还原并允许资料补充。' : 'Source route: original image with material supplementation.')
-      : '';
+      : sourceUse === 'RETRIEVAL'
+        ? (useChinese ? '来源方式：仅检索授权资料。' : 'Source route: authorized material retrieval only.')
+        : sourceUse === 'NONE'
+          ? (useChinese ? '来源方式：不使用外部来源。' : 'Source route: no external sources.')
+          : '';
   const withSourceDetail = (detail: string) => sourceDetail
     ? `${detail}${useChinese ? '' : ' '}${sourceDetail}`
     : detail;

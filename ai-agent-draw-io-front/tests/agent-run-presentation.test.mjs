@@ -47,6 +47,24 @@ test('route step describes the actual diagram type and selected skill', () => {
     }),
     '识别为修改现有流程图，将使用 drawio-flowchart 技能并保留未涉及的画布内容。来源方式：原图还原并允许资料补充。',
   );
+  assert.match(
+    buildRouteStepDetail({
+      routeType: 'create_new',
+      diagramType: 'flowchart',
+      sourceUse: 'RETRIEVAL',
+      useChinese: true,
+    }),
+    /来源方式：仅检索授权资料/,
+  );
+  assert.match(
+    buildRouteStepDetail({
+      routeType: 'create_new',
+      diagramType: 'flowchart',
+      sourceUse: 'NONE',
+      useChinese: true,
+    }),
+    /来源方式：不使用外部来源/,
+  );
 });
 
 test('visual review lifecycle uses explicit user-facing stage labels', () => {
