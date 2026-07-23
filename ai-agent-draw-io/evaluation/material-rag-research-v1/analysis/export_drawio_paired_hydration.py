@@ -16,6 +16,11 @@ from select_drawio_context import select
 
 
 ROOT = Path(__file__).resolve().parents[1]
+IDENTITY_RESERVATION_LIMIT = 6
+IDENTITY_STOPWORDS = {
+    "create", "diagram", "draw", "editable", "existing", "from", "into", "make",
+    "material", "only", "policy", "showing", "that", "using", "with", "workflow",
+}
 
 
 def sha256(path: Path) -> str:
@@ -90,6 +95,62 @@ def select_with_artifact_coverage(candidates: list[dict], limit: int,
         selected_ids.remove(selected[replacement]["chunkId"])
         selected[replacement] = artifact
         selected_ids.add(artifact["chunkId"])
+    return sorted(selected, key=lambda item: item["rank"])
+
+
+def _identity_tokens(value: str) -> set[str]:
+    """Tokenize publisher identity labels without reading evaluator assertions."""
+    return {
+        token for token in re.findall(r"[a-z0-9]+", value.lower())
+        if len(token) >= 3 and token not in IDENTITY_STOPWORDS
+    }
+
+
+def _identity_overlap(request_tokens: set[str], identity_tokens: set[str]) -> int:
+    """Allow exact terms and stable English prefixes such as auto/automatic."""
+    return sum(any(
+        request == identity
+        or (len(request) >= 4 and len(identity) >= 4
+            and (request.startswith(identity) or identity.startswith(request)))
+        for identity in identity_tokens
+    ) for request in request_tokens)
+
+
+def select_with_publisher_identity_relevance(candidates: list[dict], request: str, limit: int,
+                                             reservation_limit: int = IDENTITY_RESERVATION_LIMIT) -> list[dict]:
+    """Preserve raw relevance while reserving request-matched publisher identity groups."""
+    selected = list(candidates[:limit])
+    request_tokens = _identity_tokens(request)
+    scored, seen_groups = [], set()
+    for candidate in candidates:
+        identity_group = tuple(sorted({
+            item["anchorId"] for item in candidate.get("evidence", [])
+            if item.get("anchorId") and not item["anchorId"].startswith("retrieved:")
+        }))
+        if not identity_group or identity_group in seen_groups:
+            continue
+        seen_groups.add(identity_group)
+        overlap = _identity_overlap(request_tokens, _identity_tokens(" ".join(identity_group)))
+        if overlap:
+            scored.append((-overlap, candidate["rank"], candidate))
+    reservations = [item[2] for item in sorted(scored)[:reservation_limit]]
+
+    # Replace unreserved tail entries only, then restore the frozen retrieval order.
+    reserved_ids = {item["chunkId"] for item in reservations}
+    selected_ids = {item["chunkId"] for item in selected}
+    for reservation in reservations:
+        if reservation["chunkId"] in selected_ids:
+            continue
+        replacement = next(
+            (index for index in range(len(selected) - 1, -1, -1)
+             if selected[index]["chunkId"] not in reserved_ids),
+            None,
+        )
+        if replacement is None:
+            break
+        selected_ids.remove(selected[replacement]["chunkId"])
+        selected[replacement] = reservation
+        selected_ids.add(reservation["chunkId"])
     return sorted(selected, key=lambda item: item["rank"])
 
 
@@ -249,10 +310,8 @@ def export(trace: dict, tasks: list[dict], split: str, limit: int,
             raise ValueError(f"out-of-scope candidate for {task['taskId']}")
         scoped_candidates = candidates
         control = scoped_candidates[:limit]
-        candidate = (
-            select_with_artifact_coverage(scoped_candidates, limit)
-            if task["taskId"] in artifact_task_ids
-            else select(scoped_candidates, limit)
+        candidate = select_with_publisher_identity_relevance(
+            scoped_candidates, task.get("request", ""), limit
         )
         control_ids = [item["chunkId"] for item in control]
         candidate_ids = [item["chunkId"] for item in candidate]
@@ -283,11 +342,19 @@ def export(trace: dict, tasks: list[dict], split: str, limit: int,
     changed_rate = changed / len(retrieval_required) if retrieval_required else 0.0
     result = {
         "schemaVersion": "material-rag-drawio-paired-hydration-v1", "split": split,
-        "selector": "source-aware-with-artifact-coverage-top8-v1",
+        "selector": "publisher-identity-lexical-reservation-top8-v1",
+        "publisherIdentityRelevancePolicy": {
+            "reservationLimit": IDENTITY_RESERVATION_LIMIT,
+            "minimumTokenLength": 3,
+            "minimumPrefixLength": 4,
+            "stopwords": sorted(IDENTITY_STOPWORDS),
+            "usesEvaluatorGold": False,
+            "usesTaskTargetSource": False,
+        },
         "artifactCoveragePolicy": {
             "appliesToDeclaredMultimodalTasksOnly": True,
-            "reservedDistinctArtifactPages": 4,
-            "prioritizesFirstArtifactPerSource": True,
+            "reservedDistinctArtifactPages": 0,
+            "requiresSourceMatchingArtifact": True,
             "usesEvaluatorGold": False,
         },
         "candidatePoolSize": candidate_pool_size,

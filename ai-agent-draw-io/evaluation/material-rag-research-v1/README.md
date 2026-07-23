@@ -299,12 +299,13 @@ anchor IDs are never shown to the model. The paired readiness gate requires comp
 A missing control item is measured as the baseline outcome rather than making the experiment impossible, while
 a missing candidate item blocks model calls.
 
-For declared multimodal tasks, the active Development candidate selector reserves up to four source-diverse,
-distinct image artifacts from the frozen top-40 and fills the remaining slots with the source-aware selector.
-Artifact identity uses only publisher path/SHA metadata; it never reads evaluator anchors or answers. The
-controlled short-document hydration profile covers every locally detected visual page within a 12-page,
-three-regions-per-page ceiling. The raw top-8 control remains unchanged and may fail visually as a measured
-baseline, but candidate artifact and required-evidence readiness are mandatory before model calls.
+The active Development candidate selector starts from raw top-8 and may reserve up to six distinct publisher
+identity groups whose source-owned identity labels have exact or stable English-prefix token overlap with the
+model-visible request. It replaces only unreserved tail entries and restores raw rank order. The selector never
+reads the task target source, required anchors, evaluator assertions, answers, ground truth or Validation.
+Fallback `retrieved:<chunkId>` labels do not enter identity relevance. Declared multimodal tasks must still
+retain a source-matching artifact with a verified path/SHA. The raw top-8 control remains unchanged, and
+candidate artifact and required-evidence readiness are mandatory before model calls.
 
 The Development publisher registry exposes frozen source-page artifacts for workflow-handbook page 4,
 architecture page 3, planning scan pages 1–6, datacenter page 3, payment pages 3–4 and field-audit pages 1–5.

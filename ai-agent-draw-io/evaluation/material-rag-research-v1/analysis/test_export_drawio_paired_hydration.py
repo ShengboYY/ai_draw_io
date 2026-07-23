@@ -16,6 +16,7 @@ def task(task_id: str, source: str, anchor: str) -> dict:
     """Keep test fixtures small while exercising the full task contract."""
     return {"taskId": task_id, "split": "development", "sourceVersion": source,
             "allowedSourceVersions": [source, "shared:v1"], "requiredAnchors": [anchor],
+            "request": f"Use {anchor} evidence.",
             "citationAssertions": {"mustCiteAnchors": [anchor]}}
 
 
@@ -27,6 +28,33 @@ def candidate(chunk_id: str, source: str, anchor: str, rank: int) -> dict:
 
 
 class PairedHydrationExportTest(unittest.TestCase):
+    def test_publisher_identity_selector_reserves_request_relevant_identity(self):
+        candidates = [
+            candidate(f"a{rank}", "one:v1", f"noise-{rank}", rank)
+            for rank in range(1, 10)
+        ]
+        candidates[8]["evidence"][0]["anchorId"] = "dwh-auto-scope"
+
+        selected = MODULE.select_with_publisher_identity_relevance(
+            candidates, "Contrast automatic wider search with the selected scope.", 8
+        )
+
+        # "automatic" matches the publisher's "auto" token by the frozen prefix rule.
+        self.assertEqual([1, 2, 3, 4, 5, 6, 7, 9], [item["rank"] for item in selected])
+
+    def test_publisher_identity_selector_ignores_fallback_retrieved_ids(self):
+        candidates = [
+            candidate(f"a{rank}", "one:v1", f"noise-{rank}", rank)
+            for rank in range(1, 10)
+        ]
+        candidates[8]["evidence"][0]["anchorId"] = "retrieved:explicit-policy"
+
+        selected = MODULE.select_with_publisher_identity_relevance(
+            candidates, "Use the explicit policy.", 8
+        )
+
+        self.assertEqual(list(range(1, 9)), [item["rank"] for item in selected])
+
     def test_artifact_selector_reserves_top_distinct_images_without_using_gold(self):
         candidates = [
             candidate(f"a{rank}", f"source-{rank}:v1", f"anchor-{rank}", rank)
@@ -87,14 +115,16 @@ class PairedHydrationExportTest(unittest.TestCase):
                          MODULE.allowed_sources(automatic, {"one:v1", "two:v1"}))
 
     def test_exports_one_control_and_candidate_context_per_task(self):
-        tasks = [task("a", "one:v1", "anchor-a"), task("b", "two:v1", "anchor-b")]
+        tasks = [task("a", "one:v1", "shared-policy"), task("b", "two:v1", "shared-rule")]
         trace = {"schemaVersion": "material-rag-drawio-task-hydration-candidates-v1",
                  "retrievalRun": {"runId": "r", "gitCommit": "c", "corpusLockSha256": "l"},
                  "tasks": [
                      {"taskId": "a", "candidates": [candidate("a1", "one:v1", "anchor-a", 1),
-                         candidate("a2", "one:v1", "anchor-a", 2), candidate("a3", "shared:v1", "anchor-a", 3)]},
+                         candidate("a2", "one:v1", "anchor-a", 2),
+                         candidate("a3", "shared:v1", "shared-policy", 3)]},
                      {"taskId": "b", "candidates": [candidate("b1", "two:v1", "anchor-b", 1),
-                         candidate("b2", "two:v1", "anchor-b", 2), candidate("b3", "shared:v1", "anchor-b", 3)]},
+                         candidate("b2", "two:v1", "anchor-b", 2),
+                         candidate("b3", "shared:v1", "shared-rule", 3)]},
                  ]}
         result = MODULE.export(trace, tasks, "development", 2, 0.2, Path(__file__).parents[1],
                                candidate_pool_size=3)
@@ -297,7 +327,7 @@ class PairedHydrationExportTest(unittest.TestCase):
             candidates = [
                 candidate("a1", "one:v1", "anchor-a", 1),
                 candidate("a2", "one:v1", "anchor-a", 2),
-                candidate("a3", "one:v1", "anchor-a", 3),
+                candidate("a3", "one:v1", "visual-policy", 3),
             ]
             candidates[2]["evidence"][0].update({
                 "imagePath": "visual.png",
@@ -308,7 +338,7 @@ class PairedHydrationExportTest(unittest.TestCase):
                      "tasks": [{"taskId": "a", "candidates": candidates}]}
 
             result = MODULE.export(
-                trace, [task("a", "one:v1", "anchor-a")], "development", 2, 0.2, root,
+                trace, [task("a", "one:v1", "visual-policy")], "development", 2, 0.2, root,
                 candidate_pool_size=3, artifact_task_ids={"a"},
             )
 
@@ -329,10 +359,12 @@ class PairedHydrationExportTest(unittest.TestCase):
                  "retrievalRun": {"runId": "r", "gitCommit": "c", "corpusLockSha256": "l"},
                  "tasks": [
                      {"taskId": "a", "candidates": [candidate("a1", "one:v1", "anchor-a", 1),
-                         candidate("a2", "one:v1", "anchor-a", 2), candidate("a3", "shared:v1", "anchor-a", 3)]},
+                         candidate("a2", "one:v1", "anchor-a", 2),
+                         candidate("a3", "shared:v1", "shared-policy", 3)]},
                      {"taskId": "b", "candidates": []},
                  ]}
-        result = MODULE.export(trace, [task("a", "one:v1", "anchor-a"), task("b", "two:v1", "anchor-b")],
+        result = MODULE.export(trace, [task("a", "one:v1", "shared-policy"),
+                                      task("b", "two:v1", "anchor-b")],
                                "development", 2, 0.2, Path.cwd(), candidate_pool_size=3,
                                no_retrieval_task_ids={"b"})
         self.assertEqual(1, result["retrievalRequiredTaskCount"])
