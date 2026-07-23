@@ -546,7 +546,7 @@
   才能解释为 ranking effect。详见
   [2026-07-23-e7-r10-embedding-input-manifest-pre-registration.md](2026-07-23-e7-r10-embedding-input-manifest-pre-registration.md)。
 
-### E7 r11 — visual same-page OCR representation · 2026-07-23 · ⏸本地实现完成，Development trace 待授权
+### E7 r11 — visual text-context representation · 2026-07-23 · ❌r6 model-visible-evidence gate 未通过
 
 - **动机**:R9 的 `dgt-dev-02` 在导出上下文前失败：architecture page-3 的 VISUAL/OCR artifact 不在 top-8
   （VISUAL rank 28、TEXT rank 34）。诊断发现 VISUAL chunk 的 dense 表示实质是 caption，而同页流程词由独立 OCR TEXT
@@ -562,10 +562,15 @@
   后，`RetrievalChunkBuilderTest` 13/13、`ControlledPdfDenseRecallLiveTest` 16/16 通过（后者 5 项 opt-in Pinecone
   tests 按设计跳过）；ingestion-worker reactor main-code package build、Python analysis 97 项也通过。无 Pinecone、模型、
   Validation 或 holdout。
-- **下一步**:完成修订后的最终独立代码审查；随后需要新的明确授权，才可在临时 Pinecone
-  Development namespace 运行 R11 trace（绑定 R10 embeddingInputManifest、run-time corpus lock 与 source identity manifest）。
-  只有 visual/OCR artifact、20% contrast 与 r6 model-visible-evidence 三个 gate 都通过，才可冻结 prompt 或请求模型。详见
-  [2026-07-23-e7-r11-visual-same-page-ocr-pre-registration.md](2026-07-23-e7-r11-visual-same-page-ocr-pre-registration.md)。
+- **真实运行与清理**:授权后从隔离的 `22152510` worktree 在临时
+  `material-rag-e7r11-dev-20260723` namespace 运行 PDFBox → Tesseract → canonical evidence → Pinecone top-40；
+  成功 run 索引 106 个向量，`finally` 删除并等待清理完成。首次 run 因本地 commit-provenance 环境变量缺失而在写 trace 前
+  停止，但 retrieval cleanup 已完成；成功的第二次 run 写入 trace。全程无模型、Validation 或 holdout。
+- **gate**:`dgt-dev-02` 的 route visual/OCR artifact 现在在 control/candidate top-8 均可见，multimodal artifact
+  contract 通过；paired selector 改变 5/5 retrieval-required task（100%，有效实验）。但 r6 model-visible gate 仍失败：
+  control 缺 `dgt-dev-01` 的两个 anchor、`dgt-dev-03` 的两个 anchor、`dgt-dev-05` 的 budget anchor，candidate 也缺
+  `dgt-dev-05` budget。因此不冻结 prompt，不调用模型，不打开 Validation。详见
+  [2026-07-23-e7-r11-development-hydration-run.md](2026-07-23-e7-r11-development-hydration-run.md)。
 
 ---
 
@@ -574,8 +579,8 @@
 - 已完成:E0 基线 → E1 表示层改进 → 核心集升级并冻结到 450 → Development 与 Validation
   配对重跑 → 守门最低数补齐并执行 fixture-contract。Validation 证明 E1 提升真实,也证明
   dense-only 尚未达门槛。
-- **下一步**:R11 已预注册并完成本地实现；收紧真实 PDF seam 的流程标签断言并完成最终独立代码审查后，才申请临时
-  Pinecone Development trace 授权。Validation 暂不打开。
+- **下一步**:R11 已修复 architecture route visual availability，但完整 r6 model-visible-evidence gate 未通过；下一变量
+  必须预注册为不读取 evaluator 数据的 broader evidence-availability intervention。Validation 暂不打开。
 
 ## 开放问题 / 待办
 

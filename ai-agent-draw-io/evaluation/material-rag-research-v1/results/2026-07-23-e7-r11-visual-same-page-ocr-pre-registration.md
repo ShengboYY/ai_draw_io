@@ -1,7 +1,7 @@
 # E7 r11 visual same-page OCR representation — pre-registration
 
 - Date: 2026-07-23
-- Status: local implementation and review repair complete; no Pinecone, model provider, Validation, or holdout run.
+- Status: Development hydration trace completed; stopped at the unchanged r6 model-visible required-evidence gate.
 
 ## Purpose
 
@@ -48,3 +48,10 @@ manifest, then require all of:
 
 Failure stops before prompt bundles, GPT/DeepSeek, Validation, or holdout. R11 is not a system-quality promotion and
 does not change the agent's production behavior unless a later pre-registered evaluation passes.
+
+## Development result
+
+The authorized R11 Development trace passed the declared architecture visual/OCR artifact contract and produced a
+5/5 (100%) changed-task paired experiment. It did not pass the unchanged r6 model-visible required-evidence gate for
+the complete task set, so it stopped before prompts or a provider call. The recorded run and exact provenance are in
+[2026-07-23-e7-r11-development-hydration-run.md](2026-07-23-e7-r11-development-hydration-run.md).
