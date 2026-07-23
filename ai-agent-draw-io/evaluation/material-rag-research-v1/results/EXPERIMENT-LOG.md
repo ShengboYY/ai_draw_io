@@ -1160,3 +1160,14 @@
   记录 claim metrics 均为 `1.0`；原始 v1 XML completion 仍为 `8/12`，不被 claim review 改写。
 - **阶段边界**:claim-review 前置条件现已完成；这不会追溯性改变 E7/E8 的 Development 诊断性质。下一步必须
   冻结一套未运行的 Validation tasks 与 v2 rubric，再进行新的正式模型运行。
+
+### Stage B Validation cohort freeze · 2026-07-23 · ⏳ case review pending
+
+- **冻结输入**:`fixtures/generated/stage-b-validation/` 含 12 个仅 Validation 的合成 Draw.io tasks、contexts、
+  ground truth、12 个 fixed prompt bundles 和两项新视觉/OCR source artifact。
+- **隔离性**:12/12 均为 `validation` split；与 Stage B Development source version overlap 为 0；没有模型调用。
+- **规则**:rubric-v2 已冻结 XML/citation/safety hard gates 与一次性 stopping rule；运行 manifest 明确禁止
+  Development response reuse 与结果后重跑/调参。
+- **验证**:corpus audit 使用既有 review ledger 后重新冻结，analysis 137 tests、0 failures。
+- **阻塞**:新 cohort 尚缺两位具名独立 reviewer 的 source/evidence/claim 预审，因此尚未创建可运行的
+  Validation policy 或发出模型请求。

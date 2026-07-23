@@ -17,7 +17,7 @@
     "EXPERIMENT-PLAN-V2.md": "184dc257a4590d77da9b51e5a9024235f00bf357dbe4eadffab694af38e7c37b",
     "experiment-plan-v2.json": "a82dcaf51dabfbe25173a8efad1e9404cb40e1d13cfe49418623e29886d22c5e",
     "requirements.txt": "0043aca3a7381487084576995105e1099e3786ae8add5a6c0951d305b0e0e757",
-    "analysis/audit_corpus.py": "bdb541db1fcc19c902cf6e67456cf535945df4ec6a0ec5de638fa9201e3e6e80",
+    "analysis/audit_corpus.py": "404ff5a81930a6d2b4840ff62ced311eada53165581d4d0ab05cadd67a4fe246",
     "analysis/compare_dense_runs.py": "762b83b97c14011b7b8081c859407973c7626252abc67e5f8773673bdda8ea59",
     "analysis/audit_e4_chartbook.py": "1785c3e3085810b269ae9d5c1975f7357b2a982bb1f321c9be12fdb6f5a86f9b",
     "analysis/evaluate_guard_suites.py": "e2ded7e4289fe4b7bfd1883e37e53c4543dccd69ab2c571aff6e54291daf4aa0",
@@ -45,6 +45,7 @@
     "fixtures/source_evidence_identity_specs.py": "b6d3aa47da2f368a4fada6365c9631f41ffd7254a8f5f5326891ffedc4df689a",
     "fixtures/build_drawio_generation_tasks_v3.py": "a12a7af9f621bca5b10c9ef1bfcaa2261594c1d4c5664c6785e4805f1e8c8892",
     "fixtures/build_stage_a_generation_inputs.py": "e566421efaf60c19c6cc3c1704860372cb8c980e15ad1a24775827149267be87",
+    "fixtures/build_stage_b_validation_inputs.py": "d77b36f7c7c684363576a5ff75cf6bb0a7bdeeacc3355a73d151a05a41c32dbb",
     "fixtures/query-selection.json": "2053782f1f699b2bd6a880a3cfcbb4aa57829275ea02c3928248d636183d2f60",
     "fixtures/drawio-generation-tasks-v1.json": "76cd0285b4418257121f452a801d8e1a04f9ab2a9646986fbdd09d876062a160",
     "fixtures/drawio-generation-tasks-v2.json": "80a7dd0d64376fb827021b15dcf4e810f1668f8bc48ce54c9b89982e7f91f5a8",
@@ -153,6 +154,14 @@
     "stage-a-generation/prompt-bundles.json": "d4fd6cf18c526481e06c90c02180482b577bf5163f989a0979652f62f82369cf",
     "stage-a-generation/rubric-v2.json": "e18ffb7f83a65d02b2e769e32cd2a21bb3842f142ff917b7db5536e6997d166e",
     "stage-a-generation/rubric.json": "2be0f6229ea5fa2fb8a21961448091b6d51b913783c4c6b8e350a36b5ffef4d9",
-    "stage-a-generation/tasks.json": "39d66d7b8722716110bbc2e90573d051528b8909795a254ea145472728a7b440"
+    "stage-a-generation/tasks.json": "39d66d7b8722716110bbc2e90573d051528b8909795a254ea145472728a7b440",
+    "stage-b-validation/contexts.json": "fe2036792adf312442ec4bce62c6f0517e414ced6ec9ffb889bc797907a8b5b3",
+    "stage-b-validation/ground-truth.json": "4787503a20943b65fa3c6a5e720720a2cefb88678bcf13088f2ec6c4e8d99471",
+    "stage-b-validation/images/maintenance-source.png": "b120ab5363abfe92bb3880fa83d8201f4eb026a697454079c93f07e0f6a902ed",
+    "stage-b-validation/images/procurement-source.png": "c69a0bbda87a867455f621971e4778209a56d922a29da7b96f545869753cd335",
+    "stage-b-validation/prompt-bundles.json": "38fc7a2acf1a3299a8de854eda735235336f0b6c1d75928222717f3257e0688d",
+    "stage-b-validation/rubric-v2.json": "2b98d2196690caa3648fccee27a9f7241e8f52d2c6c4fcedfb6fd8d6889ac35a",
+    "stage-b-validation/run-manifest-template.json": "a32d6a9a00a1bfc9b0520d5ae1eeb4c1119dc63926cc20b2d08f6a163e6bcc57",
+    "stage-b-validation/tasks.json": "e4e4b8aa49250df450e971b1c8ec8d683d90356ead7c79a67fb36249050a965a"
   }
 }

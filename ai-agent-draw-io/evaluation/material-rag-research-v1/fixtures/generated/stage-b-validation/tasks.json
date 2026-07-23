@@ -1,0 +1,485 @@
+{
+  "schemaVersion": "material-rag-stage-b-validation-tasks-v1",
+  "purpose": "Frozen unseen Validation inputs, disjoint from Stage B Development.",
+  "tasks": [
+    {
+      "taskId": "stgb-val-01",
+      "split": "validation",
+      "sourceVersion": "sv-release-control:v1",
+      "selectedMaterialVersion": "sv-release-control:v1",
+      "sourceScopeMode": "selected_only",
+      "type": "stage_b_validation_01",
+      "request": "Draw an approved release control flow.",
+      "requiredAnchors": [
+        "rc-design",
+        "rc-audit"
+      ],
+      "xmlAssertions": {
+        "minVertices": 4,
+        "minEdges": 3,
+        "requiredLabels": [
+          "Design Review",
+          "Deployment Package",
+          "Release Authorization",
+          "Control Ledger"
+        ]
+      },
+      "citationAssertions": {
+        "minimumCitations": 2,
+        "mustCiteAnchors": [
+          "rc-design",
+          "rc-audit"
+        ]
+      },
+      "claimAssertions": {
+        "requiredClaims": [
+          {
+            "claimId": "rc-design",
+            "description": "Design Review approves Deployment Package before Release Authorization.",
+            "requiresCitation": true
+          },
+          {
+            "claimId": "rc-audit",
+            "description": "Release Authorization writes the approval event to Control Ledger.",
+            "requiresCitation": true
+          }
+        ]
+      }
+    },
+    {
+      "taskId": "stgb-val-02",
+      "split": "validation",
+      "sourceVersion": "sv-incident-bridge:v1",
+      "selectedMaterialVersion": "sv-incident-bridge:v1",
+      "sourceScopeMode": "selected_only",
+      "type": "stage_b_validation_02",
+      "request": "Create an incident bridge escalation diagram.",
+      "requiredAnchors": [
+        "ib-lead",
+        "ib-window"
+      ],
+      "xmlAssertions": {
+        "minVertices": 3,
+        "minEdges": 2,
+        "requiredLabels": [
+          "Bridge Lead",
+          "Investigation Owner",
+          "10 minutes"
+        ]
+      },
+      "citationAssertions": {
+        "minimumCitations": 2,
+        "mustCiteAnchors": [
+          "ib-lead",
+          "ib-window"
+        ]
+      },
+      "claimAssertions": {
+        "requiredClaims": [
+          {
+            "claimId": "ib-lead",
+            "description": "Bridge Lead coordinates the incident bridge and assigns an Investigation Owner.",
+            "requiresCitation": true
+          },
+          {
+            "claimId": "ib-window",
+            "description": "Unacknowledged critical alerts escalate to Bridge Lead within 10 minutes.",
+            "requiresCitation": true
+          }
+        ]
+      }
+    },
+    {
+      "taskId": "stgb-val-03",
+      "split": "validation",
+      "sourceVersion": "sv-record-disposal:v1",
+      "selectedMaterialVersion": "sv-record-disposal:v1",
+      "sourceScopeMode": "selected_only",
+      "type": "stage_b_validation_03",
+      "request": "Update the record lifecycle diagram.",
+      "requiredAnchors": [
+        "rd-disposal"
+      ],
+      "xmlAssertions": {
+        "minVertices": 3,
+        "minEdges": 2,
+        "requiredLabels": [
+          "Evidence Vault",
+          "5 years",
+          "Secure Disposal"
+        ]
+      },
+      "citationAssertions": {
+        "minimumCitations": 1,
+        "mustCiteAnchors": [
+          "rd-disposal"
+        ]
+      },
+      "claimAssertions": {
+        "requiredClaims": [
+          {
+            "claimId": "rd-disposal",
+            "description": "Evidence Vault retains closed investigation records for five years before Secure Disposal.",
+            "requiresCitation": true
+          }
+        ]
+      }
+    },
+    {
+      "taskId": "stgb-val-04",
+      "split": "validation",
+      "sourceVersion": "sv-access-approval:v1",
+      "selectedMaterialVersion": "sv-access-approval:v1",
+      "sourceScopeMode": "selected_only",
+      "type": "stage_b_validation_04",
+      "request": "Draw the privileged access approval path.",
+      "requiredAnchors": [
+        "aa-dual",
+        "aa-ticket"
+      ],
+      "xmlAssertions": {
+        "minVertices": 2,
+        "minEdges": 1,
+        "requiredLabels": [
+          "Security Reviewer",
+          "System Owner",
+          "AC-771"
+        ]
+      },
+      "citationAssertions": {
+        "minimumCitations": 2,
+        "mustCiteAnchors": [
+          "aa-dual",
+          "aa-ticket"
+        ]
+      },
+      "claimAssertions": {
+        "requiredClaims": [
+          {
+            "claimId": "aa-dual",
+            "description": "Security Reviewer and System Owner must both approve a privileged access request.",
+            "requiresCitation": true
+          },
+          {
+            "claimId": "aa-ticket",
+            "description": "The approval relationship must carry control ticket AC-771.",
+            "requiresCitation": true
+          }
+        ]
+      }
+    },
+    {
+      "taskId": "stgb-val-05",
+      "split": "validation",
+      "sourceVersion": "sv-data-boundary:v1",
+      "selectedMaterialVersion": "sv-data-boundary:v1",
+      "sourceScopeMode": "selected_only",
+      "type": "stage_b_validation_05",
+      "request": "Create the data boundary routing diagram.",
+      "requiredAnchors": [
+        "db-route"
+      ],
+      "xmlAssertions": {
+        "minVertices": 3,
+        "minEdges": 2,
+        "requiredLabels": [
+          "External Intake",
+          "Redaction Service",
+          "Trusted Analytics"
+        ]
+      },
+      "citationAssertions": {
+        "minimumCitations": 1,
+        "mustCiteAnchors": [
+          "db-route"
+        ]
+      },
+      "claimAssertions": {
+        "requiredClaims": [
+          {
+            "claimId": "db-route",
+            "description": "External Intake data must pass through Redaction Service before entering Trusted Analytics.",
+            "requiresCitation": true
+          }
+        ]
+      }
+    },
+    {
+      "taskId": "stgb-val-06",
+      "split": "validation",
+      "sourceVersion": "sv-platform-catalog:v1",
+      "selectedMaterialVersion": "sv-platform-catalog:v1",
+      "sourceScopeMode": "selected_only",
+      "type": "stage_b_validation_06",
+      "request": "Create a service ownership map.",
+      "requiredAnchors": [
+        "pc-owner"
+      ],
+      "xmlAssertions": {
+        "minVertices": 3,
+        "minEdges": 0,
+        "requiredLabels": [
+          "Event Router",
+          "Invoice Processor",
+          "Compliance Archive"
+        ]
+      },
+      "citationAssertions": {
+        "minimumCitations": 1,
+        "mustCiteAnchors": [
+          "pc-owner"
+        ]
+      },
+      "claimAssertions": {
+        "requiredClaims": [
+          {
+            "claimId": "pc-owner",
+            "description": "Canonical services are Event Router, Invoice Processor and Compliance Archive, owned by Integration Team, Revenue Team and Risk Team respectively.",
+            "requiresCitation": true
+          }
+        ]
+      }
+    },
+    {
+      "taskId": "stgb-val-07",
+      "split": "validation",
+      "sourceVersion": "sv-change-window:v1",
+      "selectedMaterialVersion": "sv-change-window:v1",
+      "sourceScopeMode": "selected_only",
+      "type": "stage_b_validation_07",
+      "request": "Draw the maintenance calendar responsibilities.",
+      "requiredAnchors": [
+        "cw-owner",
+        "cw-window"
+      ],
+      "xmlAssertions": {
+        "minVertices": 3,
+        "minEdges": 1,
+        "requiredLabels": [
+          "Operations Owner",
+          "Data Owner",
+          "Thu 13:00\u201315:00"
+        ]
+      },
+      "citationAssertions": {
+        "minimumCitations": 2,
+        "mustCiteAnchors": [
+          "cw-owner",
+          "cw-window"
+        ]
+      },
+      "claimAssertions": {
+        "requiredClaims": [
+          {
+            "claimId": "cw-owner",
+            "description": "Infrastructure Change is assigned to Operations Owner and Schema Change to Data Owner.",
+            "requiresCitation": true
+          },
+          {
+            "claimId": "cw-window",
+            "description": "Both changes use the approval window Thu 13:00\u201315:00.",
+            "requiresCitation": true
+          }
+        ]
+      }
+    },
+    {
+      "taskId": "stgb-val-08",
+      "split": "validation",
+      "sourceVersion": "sv-procurement-visual:v1",
+      "selectedMaterialVersion": "sv-procurement-visual:v1",
+      "sourceScopeMode": "selected_only",
+      "type": "stage_b_validation_08",
+      "request": "Reconstruct the selected procurement exception figure as editable draw.io XML.",
+      "requiredAnchors": [
+        "pv-flow"
+      ],
+      "xmlAssertions": {
+        "minVertices": 6,
+        "minEdges": 6,
+        "requiredLabels": [
+          "Request",
+          "Procurement Review",
+          "Budget available?",
+          "Issue PO",
+          "Finance Escalation"
+        ]
+      },
+      "citationAssertions": {
+        "minimumCitations": 1,
+        "mustCiteAnchors": [
+          "pv-flow"
+        ]
+      },
+      "claimAssertions": {
+        "requiredClaims": [
+          {
+            "claimId": "pv-flow",
+            "description": "Request goes to Procurement Review. If Budget available? is Yes, Issue PO then Supplier Confirmation. If No, Finance Escalation then Reprioritize Request.",
+            "requiresCitation": true
+          }
+        ]
+      }
+    },
+    {
+      "taskId": "stgb-val-09",
+      "split": "validation",
+      "sourceVersion": "sv-maintenance-scan:v1",
+      "selectedMaterialVersion": "sv-maintenance-scan:v1",
+      "sourceScopeMode": "selected_only",
+      "type": "stage_b_validation_09",
+      "request": "Convert the scanned maintenance handoff into editable draw.io XML.",
+      "requiredAnchors": [
+        "ms-flow"
+      ],
+      "xmlAssertions": {
+        "minVertices": 6,
+        "minEdges": 6,
+        "requiredLabels": [
+          "Technician",
+          "Capture readings",
+          "Within tolerance?",
+          "Engineering Triage",
+          "Schedule follow-up"
+        ]
+      },
+      "citationAssertions": {
+        "minimumCitations": 1,
+        "mustCiteAnchors": [
+          "ms-flow"
+        ]
+      },
+      "claimAssertions": {
+        "requiredClaims": [
+          {
+            "claimId": "ms-flow",
+            "description": "Technician captures readings. If Within tolerance? is Yes, Close work order. If No, Engineering Triage then Schedule follow-up.",
+            "requiresCitation": true
+          }
+        ]
+      }
+    },
+    {
+      "taskId": "stgb-val-10",
+      "split": "validation",
+      "sourceVersion": "sv-release-recovery:v1",
+      "selectedMaterialVersion": "sv-release-recovery:v1",
+      "sourceScopeMode": "selected_only",
+      "type": "stage_b_validation_10",
+      "request": "Add a release recovery condition.",
+      "requiredAnchors": [
+        "rr-rollback"
+      ],
+      "xmlAssertions": {
+        "minVertices": 2,
+        "minEdges": 1,
+        "requiredLabels": [
+          "Release Decision",
+          "last verified deployment"
+        ]
+      },
+      "citationAssertions": {
+        "minimumCitations": 1,
+        "mustCiteAnchors": [
+          "rr-rollback"
+        ]
+      },
+      "claimAssertions": {
+        "requiredClaims": [
+          {
+            "claimId": "rr-rollback",
+            "description": "When smoke verification fails, Release Decision rolls back to the last verified deployment.",
+            "requiresCitation": true
+          }
+        ]
+      }
+    },
+    {
+      "taskId": "stgb-val-11",
+      "split": "validation",
+      "sourceVersion": "sv-capacity-envelope:v1",
+      "selectedMaterialVersion": "sv-capacity-envelope:v1",
+      "sourceScopeMode": "selected_only",
+      "type": "stage_b_validation_11",
+      "request": "Create a capacity comparison diagram.",
+      "requiredAnchors": [
+        "ce-normal",
+        "ce-surge"
+      ],
+      "xmlAssertions": {
+        "minVertices": 4,
+        "minEdges": 0,
+        "requiredLabels": [
+          "Normal Operation",
+          "650",
+          "Surge Operation",
+          "950"
+        ]
+      },
+      "citationAssertions": {
+        "minimumCitations": 2,
+        "mustCiteAnchors": [
+          "ce-normal",
+          "ce-surge"
+        ]
+      },
+      "claimAssertions": {
+        "requiredClaims": [
+          {
+            "claimId": "ce-normal",
+            "description": "Normal operation supports 650 events per second.",
+            "requiresCitation": true
+          },
+          {
+            "claimId": "ce-surge",
+            "description": "Surge operation supports 950 events per second.",
+            "requiresCitation": true
+          }
+        ]
+      }
+    },
+    {
+      "taskId": "stgb-val-12",
+      "split": "validation",
+      "sourceVersion": "sv-escalation-handoff:v1",
+      "selectedMaterialVersion": "sv-escalation-handoff:v1",
+      "sourceScopeMode": "selected_only",
+      "type": "stage_b_validation_12",
+      "request": "Edit the selected escalation subgraph only.",
+      "requiredAnchors": [
+        "eh-coordinator",
+        "eh-liaison"
+      ],
+      "xmlAssertions": {
+        "minVertices": 2,
+        "minEdges": 1,
+        "requiredLabels": [
+          "Escalation Coordinator",
+          "Customer Liaison"
+        ]
+      },
+      "citationAssertions": {
+        "minimumCitations": 2,
+        "mustCiteAnchors": [
+          "eh-coordinator",
+          "eh-liaison"
+        ]
+      },
+      "claimAssertions": {
+        "requiredClaims": [
+          {
+            "claimId": "eh-coordinator",
+            "description": "Escalation Coordinator owns triage priority and hands the case to Customer Liaison.",
+            "requiresCitation": true
+          },
+          {
+            "claimId": "eh-liaison",
+            "description": "Customer Liaison owns customer updates after the handoff.",
+            "requiresCitation": true
+          }
+        ]
+      },
+      "inputXml": "<mxGraphModel><root><mxCell id='0'/><mxCell id='1' parent='0'/><mxCell id='selected-escalation' value='Selected escalation' vertex='1' parent='1'/></root></mxGraphModel>"
+    }
+  ]
+}
