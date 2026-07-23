@@ -3263,6 +3263,8 @@ function DrawioPageContent() {
 
             case 'source_wait_started':
             case 'source_not_ready':
+            case 'source_clarification':
+            case 'claim_clarification':
             case 'degraded':
             case 'stale_canvas_selection':
             case 'grounding_rejected': {

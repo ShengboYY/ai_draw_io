@@ -27,8 +27,21 @@ public sealed interface PreparationOutcome permits PreparationOutcome.NotRequire
     record CanvasChangedRetry(Long expectedVersion, Long actualVersion) implements PreparationOutcome { }
     record StaleCanvasSelection(String errorCode) implements PreparationOutcome { }
     record CanvasUnavailable(String errorCode) implements PreparationOutcome { }
-    record InsufficientEvidence(List<String> gaps) implements PreparationOutcome {
-        public InsufficientEvidence { gaps = List.copyOf(gaps); }
+    record InsufficientEvidence(List<String> gaps, String missingSubject) implements PreparationOutcome {
+        public InsufficientEvidence(List<String> gaps) {
+            this(gaps, "requested fact or relationship");
+        }
+
+        public InsufficientEvidence {
+            gaps = List.copyOf(gaps == null ? List.of() : gaps);
+            // The subject may be shown to the user, so keep it bounded and remove markup controls.
+            String safe = missingSubject == null ? "" : missingSubject
+                    .replaceAll("[\\p{Cntrl}<>]", " ")
+                    .replaceAll("\\s+", " ")
+                    .trim();
+            if (safe.isEmpty()) safe = "requested fact or relationship";
+            missingSubject = safe.length() <= 120 ? safe : safe.substring(0, 120);
+        }
     }
     record DegradedDependency(List<String> gaps) implements PreparationOutcome {
         public DegradedDependency { gaps = List.copyOf(gaps); }

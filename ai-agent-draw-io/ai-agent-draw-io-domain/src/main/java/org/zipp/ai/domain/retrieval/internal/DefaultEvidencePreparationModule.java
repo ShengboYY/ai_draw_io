@@ -189,7 +189,8 @@ public final class DefaultEvidencePreparationModule implements EvidencePreparati
         RetrievalDeadline deadline = RetrievalDeadline.start(retrievalTimeout);
         try {
             if (command.selectedVersionIds().size() > 500) {
-                return new PreparationOutcome.InsufficientEvidence(List.of("EXPLICIT_SOURCE_LIMIT_EXCEEDED"));
+                return new PreparationOutcome.InsufficientEvidence(
+                        List.of("EXPLICIT_SOURCE_LIMIT_EXCEEDED"), "selected sources");
             }
             TargetResolution target = resolveTarget(command, deadline, cancellation, resources);
             if (target.stop() != null) return target.stop();
@@ -203,7 +204,8 @@ public final class DefaultEvidencePreparationModule implements EvidencePreparati
             AuthorizedSourceSet sources = readySources(command, resolution);
             if (sources.sources().isEmpty()) {
                 return command.needsEvidence() || resolution.mode() == SourceMode.EXPLICIT_ONLY
-                        ? new PreparationOutcome.InsufficientEvidence(List.of("NO_AUTHORIZED_READY_SOURCE"))
+                        ? new PreparationOutcome.InsufficientEvidence(
+                                List.of("NO_AUTHORIZED_READY_SOURCE"), "selected or mounted source")
                         : new PreparationOutcome.NotRequired();
             }
 
@@ -253,7 +255,10 @@ public final class DefaultEvidencePreparationModule implements EvidencePreparati
                     () -> catalog.reauthorize(fusedIds, sources, FINAL_CANDIDATE_LIMIT),
                     deadline, cancellation, resources);
             authorized = authorized.stream().filter(candidate -> candidate.qualityScore() >= 0.20).toList();
-            if (authorized.isEmpty()) return insufficient(command, "NO_AUTHORIZED_CANDIDATE");
+            if (authorized.isEmpty()) {
+                PreparationOutcome degraded = retrievalDegraded(diagnostics);
+                return degraded != null ? degraded : insufficient(command, "NO_AUTHORIZED_CANDIDATE");
+            }
             if (shadowOnly) {
                 return new PreparationOutcome.ShadowObserved(
                         new RetrievalDiagnostics(route, List.copyOf(diagnostics)), authorized.size());
@@ -261,7 +266,8 @@ public final class DefaultEvidencePreparationModule implements EvidencePreparati
             List<AuthorizedCandidate> visualCandidates = authorized.stream()
                     .filter(candidate -> "VISUAL".equals(candidate.modality())).limit(4).toList();
             if (hybridRequiresVisual && visualCandidates.isEmpty()) {
-                return insufficient(command, "VISUAL_VERIFICATION_REQUIRED");
+                PreparationOutcome degraded = retrievalDegraded(diagnostics);
+                return degraded != null ? degraded : insufficient(command, "VISUAL_VERIFICATION_REQUIRED");
             }
             // Lease only source revisions that survived final MySQL re-authorization. Discovery may
             // inspect a wider set, but unused library material must not gain a read lease.
@@ -319,12 +325,16 @@ public final class DefaultEvidencePreparationModule implements EvidencePreparati
                 if (!hydrationGaps.isEmpty()) {
                     return new PreparationOutcome.DegradedDependency(hydrationGaps);
                 }
+                PreparationOutcome degraded = retrievalDegraded(diagnostics);
+                if (degraded != null) return degraded;
                 return insufficient(command, "NO_DISPLAY_EVIDENCE");
             }
             EvidenceSufficiencyEvaluator.Result support = sufficiency.evaluate(command.userMessage(), route, items);
             if (!support.sufficient()) {
                 resources.closeExactlyOnce(CloseReason.FAILED);
-                return insufficient(command, support.gap());
+                PreparationOutcome degraded = retrievalDegraded(diagnostics);
+                if (degraded != null) return degraded;
+                return insufficient(command, support.gap(), support.missingSubject());
             }
             EvidenceBundle bundle = new EvidenceBundle(bundleId(command), command.requestId(), command.runId(),
                     resolution.mode(), items);
@@ -334,6 +344,12 @@ public final class DefaultEvidencePreparationModule implements EvidencePreparati
         } catch (RetrievalCancelledException cancelled) {
             resources.closeExactlyOnce(CloseReason.CANCELLED);
             return new PreparationOutcome.Cancelled();
+        } catch (RetrievalDeadlineExceededException timeout) {
+            resources.closeExactlyOnce(CloseReason.FAILED);
+            return new PreparationOutcome.DegradedDependency(List.of("ONLINE_RETRIEVAL_TIMEOUT"));
+        } catch (OnlineRetrievalDependencyException unavailable) {
+            resources.closeExactlyOnce(CloseReason.FAILED);
+            return new PreparationOutcome.DegradedDependency(List.of("ONLINE_RETRIEVAL_DEPENDENCY_FAILED"));
         } catch (Exception exception) {
             resources.closeExactlyOnce(CloseReason.FAILED);
             return new PreparationOutcome.Failed("EVIDENCE_PREPARATION_FAILED");
@@ -428,7 +444,8 @@ public final class DefaultEvidencePreparationModule implements EvidencePreparati
         }
         if (resolution.unavailableExplicitSourceCount() > 0
                 && (command.requiresEvidence() || resolution.mode() == SourceMode.EXPLICIT_ONLY)) {
-            return new PreparationOutcome.InsufficientEvidence(List.of("EXPLICIT_SOURCE_UNAVAILABLE"));
+            return new PreparationOutcome.InsufficientEvidence(
+                    List.of("EXPLICIT_SOURCE_UNAVAILABLE"), "selected source");
         }
         List<AuthorizedSource> notReady = resolution.sources().stream()
                 .filter(source -> !"READY".equals(source.state())).filter(AuthorizedSource::required).toList();
@@ -558,9 +575,16 @@ public final class DefaultEvidencePreparationModule implements EvidencePreparati
                 .distinct().toList();
     }
 
+    private PreparationOutcome retrievalDegraded(List<String> diagnostics) {
+        // A negative evidence conclusion is valid only when every configured search lane completed.
+        List<String> gaps = retrievalDependencyGaps(snapshotDiagnostics(diagnostics));
+        return gaps.isEmpty() ? null : new PreparationOutcome.DegradedDependency(gaps);
+    }
+
     private boolean isVisualDependencyGap(String gap) {
         return "VISUAL_PROVIDER_TIMEOUT".equals(gap)
-                || "VISUAL_PROVIDER_UNAVAILABLE".equals(gap);
+                || "VISUAL_PROVIDER_UNAVAILABLE".equals(gap)
+                || "VISUAL_VERIFICATION_UNAVAILABLE".equals(gap);
     }
 
     private List<String> hydrationDependencyGaps(List<String> diagnostics) {
@@ -824,7 +848,12 @@ public final class DefaultEvidencePreparationModule implements EvidencePreparati
     }
 
     private PreparationOutcome insufficient(EvidencePreparationCommand command, String gap) {
-        return new PreparationOutcome.InsufficientEvidence(List.of(gap));
+        return insufficient(command, gap, "requested fact or relationship");
+    }
+
+    private PreparationOutcome insufficient(EvidencePreparationCommand command, String gap,
+                                            String missingSubject) {
+        return new PreparationOutcome.InsufficientEvidence(List.of(gap), missingSubject);
     }
 
     private List<CandidateRef> await(Future<List<CandidateRef>> future, RetrievalDeadline deadline,
@@ -844,8 +873,8 @@ public final class DefaultEvidencePreparationModule implements EvidencePreparati
         } catch (InterruptedException interrupted) {
             future.cancel(true);
             Thread.currentThread().interrupt();
-            diagnostics.add("RETRIEVAL_CANCELLED");
-            return List.of();
+            // Executor interruption is a cancellation signal, not evidence that retrieval found no support.
+            throw new RetrievalCancelledException();
         } catch (ExecutionException failed) {
             diagnostics.add(timeoutCode.replace("TIMEOUT", "FAILED"));
             return List.of();
@@ -883,7 +912,7 @@ public final class DefaultEvidencePreparationModule implements EvidencePreparati
             Thread.currentThread().interrupt();
             throw new RetrievalCancelledException();
         } catch (ExecutionException failed) {
-            throw new IllegalStateException("ONLINE_RETRIEVAL_DEPENDENCY_FAILED", failed.getCause());
+            throw new OnlineRetrievalDependencyException(failed.getCause());
         }
     }
 
@@ -947,4 +976,9 @@ public final class DefaultEvidencePreparationModule implements EvidencePreparati
 
     private static final class RetrievalDeadlineExceededException extends RuntimeException { }
     private static final class RetrievalCancelledException extends RuntimeException { }
+    private static final class OnlineRetrievalDependencyException extends RuntimeException {
+        private OnlineRetrievalDependencyException(Throwable cause) {
+            super(cause);
+        }
+    }
 }

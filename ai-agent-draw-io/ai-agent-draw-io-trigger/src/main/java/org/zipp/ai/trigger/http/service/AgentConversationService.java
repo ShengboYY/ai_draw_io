@@ -1366,8 +1366,10 @@ public class AgentConversationService {
                     .toCompletableFuture().join();
         } catch (RuntimeException failure) {
             resources.closeExactlyOnce(CloseReason.FAILED);
-            log.warn("Evidence preparation failed closed. failureClass={}",
-                    failure.getClass().getSimpleName());
+            // Log only stable class names: they aid dependency diagnosis without exposing provider text.
+            Throwable cause = failure.getCause() == null ? failure : failure.getCause();
+            log.warn("Evidence preparation failed closed. failureClass={} causeClass={}",
+                    failure.getClass().getSimpleName(), cause.getClass().getSimpleName());
             return retrievalDegradedResponse();
         }
         if (outcome instanceof PreparationOutcome.NotRequired) return null;
@@ -1449,23 +1451,30 @@ public class AgentConversationService {
 
     private ChatResponseDTO insufficientEvidenceResponse(PreparationOutcome.InsufficientEvidence insufficient) {
         List<String> gaps = insufficient.gaps();
+        String missingSubject = insufficient.missingSubject();
         boolean sourceGap = gaps.stream().anyMatch(code ->
                 code.contains("SOURCE") || code.contains("AUTHORIZED"));
         boolean visualGap = gaps.stream().anyMatch(code ->
                 code.startsWith("VISUAL_") || code.startsWith("NO_VERIFIED_"));
         if (sourceGap) {
             return evidenceResponse("insufficient_evidence",
-                    "缺少可用或已授权的资料来源，画布未被修改。请选择其他来源、缩小请求范围或上传补充资料。 / "
-                            + "A usable authorized source is missing; select another source, narrow the request, or upload supporting material.");
+                    "缺少可用或已授权的资料来源（" + missingSubject + "），画布未被修改。"
+                            + "请选择其他来源、缩小请求范围或上传补充资料。 / "
+                            + "A usable authorized source is missing (" + missingSubject
+                            + "); select another source, narrow the request, or upload supporting material.");
         }
         if (visualGap) {
             return evidenceResponse("insufficient_evidence",
-                    "资料中缺少可验证的图像结构，画布未被修改。请缩小请求范围或上传更清晰的图片。 / "
-                            + "Verifiable visual structure is missing; narrow the request or upload a clearer image.");
+                    "资料中缺少可验证的图像结构（" + missingSubject + "），画布未被修改。"
+                            + "请缩小请求范围或上传更清晰的图片。 / "
+                            + "Verifiable visual structure is missing (" + missingSubject
+                            + "); narrow the request or upload a clearer image.");
         }
         return evidenceResponse("insufficient_evidence",
-                "所请求的事实或关系缺少完整支持，画布未被修改。请缩小请求范围、选择其他来源或上传补充资料。 / "
-                        + "The requested fact or relationship is not fully supported; narrow the request, select another source, or upload supporting material.");
+                "所请求的事实或关系缺少完整支持（缺失项：" + missingSubject + "），画布未被修改。"
+                        + "请缩小请求范围、选择其他来源或上传补充资料。 / "
+                        + "The missing support is: " + missingSubject
+                        + "; narrow the request, select another source, or upload supporting material.");
     }
 
     private ResolvedSourceSet resolveRequestSources(ChatRequestDTO requestDTO) {

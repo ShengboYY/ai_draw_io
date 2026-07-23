@@ -287,6 +287,18 @@ class EvidencePreparationModuleTest {
     }
 
     @Test
+    void missingVisualVerificationModuleIsADegradedDependency() {
+        PreparationOutcome outcome = visualModule(null, Duration.ofSeconds(1), new AtomicInteger())
+                .prepare(command("图中箭头指向哪里？", "REQUIRED", SourceMode.EXPLICIT_ONLY),
+                        new RunResourceDomain(), EvidenceProgressListener.NOOP, CancellationSignal.NEVER)
+                .toCompletableFuture().join();
+
+        PreparationOutcome.DegradedDependency degraded =
+                assertInstanceOf(PreparationOutcome.DegradedDependency.class, outcome);
+        assertEquals(List.of("VISUAL_VERIFICATION_UNAVAILABLE"), degraded.gaps());
+    }
+
+    @Test
     void visualModelGapTextIsMappedToAServerOwnedCode() {
         VisualObservationModule injectedGap = (command, resources, cancellation) ->
                 java.util.concurrent.CompletableFuture.completedFuture(
@@ -327,7 +339,7 @@ class EvidencePreparationModuleTest {
             }
         };
 
-        PreparationOutcome outcome = module(catalog,
+        PreparationOutcome outcome = moduleWithCompletedDenseLane(catalog,
                 List.of(new CandidateRef("chunk-text", "TEXT", 1.0)))
                 .prepare(command("总结整份流程图", "REQUIRED", SourceMode.EXPLICIT_ONLY),
                         new RunResourceDomain(), EvidenceProgressListener.NOOP, CancellationSignal.NEVER)
@@ -454,6 +466,33 @@ class EvidencePreparationModuleTest {
     }
 
     @Test
+    void incompleteRetrievalLaneDoesNotTurnARejectedCandidateIntoInsufficientEvidence() {
+        AuthorizedSource ready = source("READY", false);
+        EvidenceCatalog catalog = new EvidenceCatalog() {
+            @Override public SourceResolution resolveSources(EvidencePreparationCommand command) {
+                return new SourceResolution(SourceMode.EXPLICIT_ONLY, List.of(ready), List.of());
+            }
+            @Override public List<CandidateRef> resolveVectorCandidates(List<String> vectorIds,
+                                                                         AuthorizedSourceSet sources) {
+                return List.of();
+            }
+            @Override public List<AuthorizedCandidate> reauthorize(List<String> chunkIds,
+                                                                   AuthorizedSourceSet sources, int limit) {
+                return List.of();
+            }
+        };
+
+        PreparationOutcome outcome = module(catalog, List.of(new CandidateRef("chunk-1", "TEXT", 1.0)))
+                .prepare(command("根据资料创建架构图", "REQUIRED", SourceMode.EXPLICIT_ONLY),
+                        new RunResourceDomain(), EvidenceProgressListener.NOOP, CancellationSignal.NEVER)
+                .toCompletableFuture().join();
+
+        PreparationOutcome.DegradedDependency degraded =
+                assertInstanceOf(PreparationOutcome.DegradedDependency.class, outcome);
+        assertEquals(List.of("DENSE_UNAVAILABLE"), degraded.gaps());
+    }
+
+    @Test
     void completeBlobHydrationFailureIsADegradedDependency() {
         AuthorizedSource ready = source("READY", false);
         CandidateRef candidate = new CandidateRef("chunk-1", "TEXT", 1.0);
@@ -491,6 +530,90 @@ class EvidencePreparationModuleTest {
         PreparationOutcome.DegradedDependency degraded =
                 assertInstanceOf(PreparationOutcome.DegradedDependency.class, outcome);
         assertTrue(degraded.gaps().contains("S3_EVIDENCE_DEGRADED"));
+    }
+
+    @Test
+    void sourcePolicyFailureIsADegradedDependency() {
+        EvidenceCatalog catalog = catalog(command -> {
+            throw new IllegalStateException("catalog unavailable");
+        });
+
+        PreparationOutcome outcome = module(catalog, List.of()).prepare(
+                command("根据资料创建架构图", "REQUIRED", SourceMode.EXPLICIT_ONLY),
+                new RunResourceDomain(), EvidenceProgressListener.NOOP, CancellationSignal.NEVER)
+                .toCompletableFuture().join();
+
+        PreparationOutcome.DegradedDependency degraded =
+                assertInstanceOf(PreparationOutcome.DegradedDependency.class, outcome);
+        assertEquals(List.of("ONLINE_RETRIEVAL_DEPENDENCY_FAILED"), degraded.gaps());
+    }
+
+    @Test
+    void reauthorizationFailureIsADegradedDependency() {
+        AuthorizedSource ready = source("READY", false);
+        EvidenceCatalog catalog = new EvidenceCatalog() {
+            @Override public SourceResolution resolveSources(EvidencePreparationCommand command) {
+                return new SourceResolution(SourceMode.EXPLICIT_ONLY, List.of(ready), List.of());
+            }
+            @Override public List<CandidateRef> resolveVectorCandidates(List<String> vectorIds,
+                                                                         AuthorizedSourceSet sources) {
+                return List.of();
+            }
+            @Override public List<AuthorizedCandidate> reauthorize(List<String> chunkIds,
+                                                                   AuthorizedSourceSet sources, int limit) {
+                throw new IllegalStateException("authorization unavailable");
+            }
+        };
+
+        PreparationOutcome outcome = module(catalog,
+                List.of(new CandidateRef("chunk-1", "TEXT", 1.0))).prepare(
+                command("根据资料创建架构图", "REQUIRED", SourceMode.EXPLICIT_ONLY),
+                new RunResourceDomain(), EvidenceProgressListener.NOOP, CancellationSignal.NEVER)
+                .toCompletableFuture().join();
+
+        PreparationOutcome.DegradedDependency degraded =
+                assertInstanceOf(PreparationOutcome.DegradedDependency.class, outcome);
+        assertEquals(List.of("ONLINE_RETRIEVAL_DEPENDENCY_FAILED"), degraded.gaps());
+    }
+
+    @Test
+    void interruptedRetrievalReturnsCancelledInsteadOfInsufficientEvidence() throws Exception {
+        AuthorizedSource ready = source("READY", false);
+        java.util.concurrent.CountDownLatch lexicalStarted = new java.util.concurrent.CountDownLatch(1);
+        java.util.concurrent.ExecutorService orchestration =
+                java.util.concurrent.Executors.newSingleThreadExecutor();
+        java.util.concurrent.ExecutorService io = java.util.concurrent.Executors.newFixedThreadPool(2);
+        try {
+            EvidencePreparationModule module = new DefaultEvidencePreparationModule(
+                    catalog(command -> new SourceResolution(
+                            SourceMode.EXPLICIT_ONLY, List.of(ready), List.of())),
+                    (queries, sources, route, limit) -> {
+                        lexicalStarted.countDown();
+                        try {
+                            new java.util.concurrent.CountDownLatch(1).await();
+                            return List.of();
+                        } catch (InterruptedException interrupted) {
+                            Thread.currentThread().interrupt();
+                            return List.of();
+                        }
+                    },
+                    Optional.empty(), Optional.empty(), (ownerType, ownerKey) -> "opaque-tenant",
+                    (owner, runId, sources) -> () -> { }, (candidate, maximumBytes) -> "text",
+                    (owner, diagramId) -> Optional.empty(), orchestration, io,
+                    Duration.ofSeconds(3), Duration.ofMillis(800));
+
+            java.util.concurrent.CompletionStage<PreparationOutcome> stage = module.prepare(
+                    command("根据资料创建架构图", "REQUIRED", SourceMode.EXPLICIT_ONLY),
+                    new RunResourceDomain(), EvidenceProgressListener.NOOP, CancellationSignal.NEVER);
+            assertTrue(lexicalStarted.await(1, java.util.concurrent.TimeUnit.SECONDS));
+            orchestration.shutdownNow();
+
+            assertInstanceOf(PreparationOutcome.Cancelled.class,
+                    stage.toCompletableFuture().get(2, java.util.concurrent.TimeUnit.SECONDS));
+        } finally {
+            orchestration.shutdownNow();
+            io.shutdownNow();
+        }
     }
 
     @Test
@@ -600,6 +723,17 @@ class EvidencePreparationModuleTest {
                 ForkJoinPool.commonPool());
     }
 
+    private DefaultEvidencePreparationModule moduleWithCompletedDenseLane(
+            EvidenceCatalog catalog, List<CandidateRef> lexicalCandidates) {
+        return new DefaultEvidencePreparationModule(catalog,
+                (queries, sources, route, limit) -> new ArrayList<>(lexicalCandidates),
+                Optional.of((texts, inputType) -> List.of(new float[]{1.0f})),
+                Optional.of(emptyVectorIndex()), (ownerType, ownerKey) -> "opaque-tenant",
+                (owner, runId, sources) -> () -> { },
+                (candidate, maximumBytes) -> "text", (owner, diagramId) -> Optional.empty(),
+                ForkJoinPool.commonPool());
+    }
+
     private DefaultEvidencePreparationModule visualModule(VisualObservationModule observations,
                                                           Duration retrievalTimeout,
                                                           AtomicInteger leaseCloses) {
@@ -633,7 +767,7 @@ class EvidencePreparationModuleTest {
                 (candidate, maximumBytes) -> fail("visual crops must not be decoded as text"),
                 (requestedOwner, diagramId) -> Optional.empty(), ForkJoinPool.commonPool(),
                 ForkJoinPool.commonPool(), Duration.ofSeconds(1), Duration.ofMillis(800),
-                MaterialRetrievalTelemetry.NOOP, Optional.of(observations), retrievalTimeout);
+                MaterialRetrievalTelemetry.NOOP, Optional.ofNullable(observations), retrievalTimeout);
     }
 
     private EvidenceCatalog catalog(java.util.function.Function<EvidencePreparationCommand, SourceResolution> resolver) {

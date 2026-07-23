@@ -848,6 +848,28 @@ public class AgentConversationServiceTest {
     }
 
     @Test
+    public void insufficientEvidenceNamesTheSafeMissingSubject() throws Exception {
+        AgentConversationService service = quotaAwareService();
+        CountingChatService chatService = new CountingChatService();
+        injectField(service, "chatService", chatService);
+        injectField(service, "intentRoutingService", new OptionalEvidenceRoutingService());
+        injectField(service, "materialRagEnabled", true);
+        injectField(service, "evidencePreparationModule",
+                (org.zipp.ai.domain.retrieval.EvidencePreparationModule) (command, resources, progress, cancellation) ->
+                        java.util.concurrent.CompletableFuture.completedFuture(
+                                new org.zipp.ai.domain.retrieval.PreparationOutcome.InsufficientEvidence(
+                                        List.of("REQUIRED_EXACT_TERM_MISSING"), "version 2.1")));
+        ChatRequestDTO request = platformRequest();
+        request.setSourceMode("AUTO");
+
+        org.zipp.ai.api.dto.ChatResponseDTO response = service.chat(request);
+
+        assertEquals("insufficient_evidence", response.getType());
+        assertTrue(response.getContent().contains("version 2.1"));
+        assertEquals(0, chatService.handleMessageCalls);
+    }
+
+    @Test
     public void degradedRetrievalStopsBeforeDrawerWithRetryableResponse() throws Exception {
         AgentConversationService service = quotaAwareService();
         CountingChatService chatService = new CountingChatService();

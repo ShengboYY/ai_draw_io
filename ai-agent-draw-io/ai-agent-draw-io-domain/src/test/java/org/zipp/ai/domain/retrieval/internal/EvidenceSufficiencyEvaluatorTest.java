@@ -7,6 +7,7 @@ import org.zipp.ai.domain.retrieval.RetrievalRoute;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class EvidenceSufficiencyEvaluatorTest {
@@ -26,6 +27,7 @@ class EvidenceSufficiencyEvaluatorTest {
                 List.of(item("Version 2.0 introduced the workflow.")));
 
         assertFalse(result.sufficient());
+        assertEquals("2.1", result.missingSubject());
     }
 
     @Test
@@ -45,6 +47,7 @@ class EvidenceSufficiencyEvaluatorTest {
                 List.of(item("Kafka is an event streaming platform with partitioned logs.")));
 
         assertFalse(result.sufficient());
+        assertEquals("rabbitmq", result.missingSubject());
     }
 
     private EvidenceBundleItem item(String text) {
