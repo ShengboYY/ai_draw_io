@@ -370,6 +370,7 @@ export interface ChatRequestDTO {
   directClarifications?: Array<{
     reasonCode: string;
     resolution: 'ACCEPT_OBSERVED' | 'FORWARD' | 'REVERSE' | 'BIDIRECTIONAL' | 'UNDIRECTED';
+    observedValue: string;
   }>;
   directConfirmationSourceVersionId?: string;
   selectedVersionIds?: string[];

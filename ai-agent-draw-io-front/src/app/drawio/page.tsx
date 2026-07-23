@@ -3697,7 +3697,7 @@ function DrawioPageContent() {
   const handleDirectConfirmation = () => {
     if (!directConfirmation || isSending) return;
     const clarifications = buildDirectClarifications(
-      directConfirmation.issues.map(issue => issue.reasonCode),
+      directConfirmation.issues,
       directConfirmation.selections,
     );
     if (!clarifications) return;

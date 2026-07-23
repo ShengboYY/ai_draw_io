@@ -119,14 +119,32 @@ class ImageToDiagramModuleTest {
                                 graph,
                                 List.of(
                                         new DirectClarification("LOW_CONFIDENCE_NODE_TEXT:unclear",
-                                                DirectClarification.Resolution.ACCEPT_OBSERVED),
+                                                DirectClarification.Resolution.ACCEPT_OBSERVED,
+                                                "Possible label"),
                                         new DirectClarification(
                                                 "UNRESOLVED_EDGE_DIRECTION:unknown-direction",
-                                                DirectClarification.Resolution.REVERSE)))));
+                                                DirectClarification.Resolution.REVERSE,
+                                                "unclear → right")))));
 
         assertTrue(confirmed.mxGraphModelXml().contains(
                 "source=\"direct-node-right\" target=\"direct-node-unclear\""));
         assertTrue(confirmed.mxGraphModelXml().contains("endArrow=block"));
+
+        ImageToDiagramOutcome changedObservation =
+                new DefaultImageToDiagramModule().convert(new ImageToDiagramCommand(
+                        new ObservedDiagramGraph(
+                                List.of(
+                                        new ObservedDiagramGraph.Node("unclear", "Different label",
+                                                ObservedDiagramGraph.Shape.RECTANGLE,
+                                                new ObservationBounds(0.1, 0.2, 0.2, 0.1),
+                                                "", "evidence-node", 0.40),
+                                        node("right", 0.60, "evidence-right")),
+                                graph.edges(), List.of(), List.of()),
+                        List.of(new DirectClarification(
+                                "LOW_CONFIDENCE_NODE_TEXT:unclear",
+                                DirectClarification.Resolution.ACCEPT_OBSERVED,
+                                "Possible label"))));
+        assertInstanceOf(ImageToDiagramOutcome.NeedsConfirmation.class, changedObservation);
     }
 
     private ObservedDiagramGraph.Node node(String id, double x, String evidenceId) {

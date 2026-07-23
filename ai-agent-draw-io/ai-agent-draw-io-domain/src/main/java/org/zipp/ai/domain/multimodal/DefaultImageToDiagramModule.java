@@ -20,38 +20,38 @@ public final class DefaultImageToDiagramModule implements ImageToDiagramModule {
         ObservedDiagramGraph graph = command.graph();
         List<String> invalid = validateReferences(graph);
         if (!invalid.isEmpty()) return new ImageToDiagramOutcome.Rejected(invalid);
-        Map<String, DirectClarification.Resolution> clarifications = command.clarifications().stream()
+        Map<String, DirectClarification> clarifications = command.clarifications().stream()
                 .collect(java.util.stream.Collectors.toMap(
                         DirectClarification::reasonCode,
-                        DirectClarification::resolution,
+                        value -> value,
                         (first, ignored) -> first,
                         LinkedHashMap::new));
         ObservedDiagramGraph effectiveGraph = applyDirectionClarifications(graph, clarifications);
 
         List<String> confirmation = graph.unresolvedItems().stream()
                 .map(item -> "UNRESOLVED:" + item.reason())
-                .filter(reason -> !accepted(clarifications, reason))
+                .filter(reason -> !accepted(clarifications, reason, observedValue(graph, reason)))
                 .collect(
                         java.util.stream.Collectors.toCollection(ArrayList::new));
         graph.nodes().stream()
                 .filter(node -> node.confidence() < CRITICAL_EDGE_CONFIDENCE)
                 .map(node -> "LOW_CONFIDENCE_NODE_TEXT:" + node.id())
-                .filter(reason -> !accepted(clarifications, reason))
+                .filter(reason -> !accepted(clarifications, reason, observedValue(graph, reason)))
                 .forEach(confirmation::add);
         graph.groups().stream()
                 .filter(group -> group.confidence() < CRITICAL_EDGE_CONFIDENCE)
                 .map(group -> "LOW_CONFIDENCE_GROUP_TEXT:" + group.id())
-                .filter(reason -> !accepted(clarifications, reason))
+                .filter(reason -> !accepted(clarifications, reason, observedValue(graph, reason)))
                 .forEach(confirmation::add);
         graph.edges().stream()
                 .filter(edge -> edge.confidence() < CRITICAL_EDGE_CONFIDENCE)
                 .map(edge -> "LOW_CONFIDENCE_EDGE:" + edge.id())
-                .filter(reason -> !accepted(clarifications, reason))
+                .filter(reason -> !accepted(clarifications, reason, observedValue(graph, reason)))
                 .forEach(confirmation::add);
         effectiveGraph.edges().stream()
                 .filter(edge -> edge.direction() == ObservedDiagramGraph.EdgeDirection.NONE)
                 .map(edge -> "UNRESOLVED_EDGE_DIRECTION:" + edge.id())
-                .filter(reason -> !undirected(clarifications, reason))
+                .filter(reason -> !undirected(clarifications, reason, observedValue(graph, reason)))
                 .forEach(confirmation::add);
         if (!confirmation.isEmpty()) {
             return new ImageToDiagramOutcome.NeedsConfirmation(
@@ -79,23 +79,35 @@ public final class DefaultImageToDiagramModule implements ImageToDiagramModule {
         return new ImageToDiagramOutcome.Converted(xml.toString(), cellIds, effectiveGraph);
     }
 
-    private boolean accepted(Map<String, DirectClarification.Resolution> clarifications,
-                             String reason) {
-        return clarifications.get(reason) == DirectClarification.Resolution.ACCEPT_OBSERVED;
+    private boolean accepted(Map<String, DirectClarification> clarifications,
+                             String reason, String observedValue) {
+        DirectClarification clarification = clarifications.get(reason);
+        return matchesObservation(clarification, observedValue)
+                && clarification.resolution() == DirectClarification.Resolution.ACCEPT_OBSERVED;
     }
 
-    private boolean undirected(Map<String, DirectClarification.Resolution> clarifications,
-                               String reason) {
-        return clarifications.get(reason) == DirectClarification.Resolution.UNDIRECTED;
+    private boolean undirected(Map<String, DirectClarification> clarifications,
+                               String reason, String observedValue) {
+        DirectClarification clarification = clarifications.get(reason);
+        return matchesObservation(clarification, observedValue)
+                && clarification.resolution() == DirectClarification.Resolution.UNDIRECTED;
+    }
+
+    private boolean matchesObservation(DirectClarification clarification, String observedValue) {
+        // A changed recognition result must be shown and confirmed again.
+        return clarification != null && clarification.observedValue().equals(observedValue);
     }
 
     private ObservedDiagramGraph applyDirectionClarifications(
             ObservedDiagramGraph graph,
-            Map<String, DirectClarification.Resolution> clarifications) {
+            Map<String, DirectClarification> clarifications) {
         List<ObservedDiagramGraph.Edge> edges = graph.edges().stream().map(edge -> {
             if (edge.direction() != ObservedDiagramGraph.EdgeDirection.NONE) return edge;
-            DirectClarification.Resolution resolution =
+            DirectClarification clarification =
                     clarifications.get("UNRESOLVED_EDGE_DIRECTION:" + edge.id());
+            DirectClarification.Resolution resolution = !matchesObservation(
+                    clarification, edge.sourceId() + " → " + edge.targetId())
+                    ? null : clarification.resolution();
             ObservedDiagramGraph.EdgeDirection direction =
                     resolution == null || resolution == DirectClarification.Resolution.ACCEPT_OBSERVED
                             ? edge.direction()
@@ -122,13 +134,20 @@ public final class DefaultImageToDiagramModule implements ImageToDiagramModule {
         graph.groups().forEach(group -> putObserved(values, requested,
                 "LOW_CONFIDENCE_GROUP_TEXT:" + group.id(), group.label()));
         graph.edges().forEach(edge -> {
-            putObserved(values, requested, "LOW_CONFIDENCE_EDGE:" + edge.id(), edge.label());
+            putObserved(values, requested, "LOW_CONFIDENCE_EDGE:" + edge.id(),
+                    edge.label().isBlank()
+                            ? edge.sourceId() + " → " + edge.targetId()
+                            : edge.label());
             putObserved(values, requested, "UNRESOLVED_EDGE_DIRECTION:" + edge.id(),
                     edge.sourceId() + " → " + edge.targetId());
         });
         graph.unresolvedItems().forEach(item -> putObserved(values, requested,
                 "UNRESOLVED:" + item.reason(), item.suggestedConfirmation()));
         return Map.copyOf(values);
+    }
+
+    private String observedValue(ObservedDiagramGraph graph, String reason) {
+        return observedValues(graph, List.of(reason)).getOrDefault(reason, "");
     }
 
     private void putObserved(Map<String, String> values, Set<String> requested,

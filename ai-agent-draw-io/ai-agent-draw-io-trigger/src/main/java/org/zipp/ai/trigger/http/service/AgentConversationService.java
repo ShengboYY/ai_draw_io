@@ -1700,7 +1700,8 @@ public class AgentConversationService {
                 return new org.zipp.ai.domain.multimodal.DirectClarification(
                         value.getReasonCode(),
                         org.zipp.ai.domain.multimodal.DirectClarification.Resolution.valueOf(
-                                value.getResolution().trim().toUpperCase(java.util.Locale.ROOT)));
+                                value.getResolution().trim().toUpperCase(java.util.Locale.ROOT)),
+                        value.getObservedValue());
             } catch (IllegalArgumentException invalid) {
                 return null;
             }

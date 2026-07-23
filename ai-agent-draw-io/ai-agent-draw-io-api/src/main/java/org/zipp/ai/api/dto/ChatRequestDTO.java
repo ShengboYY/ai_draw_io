@@ -67,6 +67,7 @@ public class ChatRequestDTO {
     public static class DirectClarificationDTO {
         private String reasonCode;
         private String resolution;
+        private String observedValue;
     }
 
     @Data

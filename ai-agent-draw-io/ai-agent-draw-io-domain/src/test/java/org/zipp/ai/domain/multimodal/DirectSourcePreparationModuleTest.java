@@ -102,9 +102,9 @@ class DirectSourcePreparationModuleTest {
                 "version-1",
                 List.of(
                         new DirectClarification("UNRESOLVED_EDGE_DIRECTION:e1",
-                                DirectClarification.Resolution.FORWARD),
+                                DirectClarification.Resolution.FORWARD, "a → b"),
                         new DirectClarification("LOW_CONFIDENCE_NODE_TEXT:n2",
-                                DirectClarification.Resolution.ACCEPT_OBSERVED)),
+                                DirectClarification.Resolution.ACCEPT_OBSERVED, "Approve order")),
                 null);
 
         DirectSourceOutcome outcome = module.prepare(confirmed, new RunResourceDomain(),
@@ -146,7 +146,7 @@ class DirectSourcePreparationModuleTest {
                 List.of("selected-version-1"), SourceMode.EXPLICIT_ONLY, "Reconstruct",
                 "another-version",
                 List.of(new DirectClarification("LOW_CONFIDENCE_NODE_TEXT:n2",
-                        DirectClarification.Resolution.ACCEPT_OBSERVED)),
+                        DirectClarification.Resolution.ACCEPT_OBSERVED, "Approve order")),
                 null);
 
         DirectSourceOutcome outcome = module.prepare(stale, new RunResourceDomain(),

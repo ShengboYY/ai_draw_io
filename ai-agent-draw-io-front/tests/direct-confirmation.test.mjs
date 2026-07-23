@@ -24,20 +24,20 @@ test('direction ambiguity requires an explicit bounded direction choice', () => 
 });
 
 test('confirmation request is withheld until every issue has a selected resolution', () => {
-  const reasons = [
-    'UNRESOLVED_EDGE_DIRECTION:e1',
-    'LOW_CONFIDENCE_NODE_TEXT:n2',
+  const issues = [
+    { reasonCode: 'UNRESOLVED_EDGE_DIRECTION:e1', observedValue: 'a → b' },
+    { reasonCode: 'LOW_CONFIDENCE_NODE_TEXT:n2', observedValue: 'Approve order' },
   ];
 
-  assert.equal(buildDirectClarifications(reasons, {
+  assert.equal(buildDirectClarifications(issues, {
     'UNRESOLVED_EDGE_DIRECTION:e1': 'FORWARD',
   }), null);
-  assert.deepEqual(buildDirectClarifications(reasons, {
+  assert.deepEqual(buildDirectClarifications(issues, {
     'UNRESOLVED_EDGE_DIRECTION:e1': 'FORWARD',
     'LOW_CONFIDENCE_NODE_TEXT:n2': 'ACCEPT_OBSERVED',
   }), [
-    { reasonCode: 'UNRESOLVED_EDGE_DIRECTION:e1', resolution: 'FORWARD' },
-    { reasonCode: 'LOW_CONFIDENCE_NODE_TEXT:n2', resolution: 'ACCEPT_OBSERVED' },
+    { reasonCode: 'UNRESOLVED_EDGE_DIRECTION:e1', resolution: 'FORWARD', observedValue: 'a → b' },
+    { reasonCode: 'LOW_CONFIDENCE_NODE_TEXT:n2', resolution: 'ACCEPT_OBSERVED', observedValue: 'Approve order' },
   ]);
 });
 

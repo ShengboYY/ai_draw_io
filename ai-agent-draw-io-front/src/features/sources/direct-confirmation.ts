@@ -8,10 +8,12 @@ export type DirectClarificationResolution =
 export type DirectClarification = {
   reasonCode: string;
   resolution: DirectClarificationResolution;
+  observedValue: string;
 };
 
-type DirectConfirmationIssue = {
+export type DirectConfirmationIssue = {
   reasonCode: string;
+  observedValue?: string;
   targetLabel: string;
   prompt: string;
   options: Array<{ value: DirectClarificationResolution; label: string }>;
@@ -78,13 +80,17 @@ export const directConfirmationIssue = (
 
 /** Returns null until the user has explicitly resolved every reported issue. */
 export const buildDirectClarifications = (
-  reasons: string[],
+  issues: Array<{ reasonCode: string; observedValue?: string }>,
   selections: Record<string, DirectClarificationResolution>,
 ): DirectClarification[] | null => {
-  const uniqueReasons = Array.from(new Set(reasons.filter(Boolean)));
-  const values = uniqueReasons.map(reasonCode => ({
-    reasonCode,
-    resolution: selections[reasonCode],
+  const uniqueIssues = Array.from(new Map(
+    issues.filter(issue => Boolean(issue.reasonCode))
+      .map(issue => [issue.reasonCode, issue]),
+  ).values());
+  const values = uniqueIssues.map(issue => ({
+    reasonCode: issue.reasonCode,
+    resolution: selections[issue.reasonCode],
+    observedValue: issue.observedValue || '',
   }));
   return values.every(value => Boolean(value.resolution))
     ? values as DirectClarification[]

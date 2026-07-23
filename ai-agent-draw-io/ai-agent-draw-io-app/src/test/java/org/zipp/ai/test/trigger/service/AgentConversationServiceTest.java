@@ -1256,6 +1256,7 @@ public class AgentConversationServiceTest {
                 new ChatRequestDTO.DirectClarificationDTO();
         clarification.setReasonCode("UNRESOLVED_EDGE_DIRECTION:e1");
         clarification.setResolution("FORWARD");
+        clarification.setObservedValue("a → b");
         request.setDirectClarifications(List.of(clarification));
         request.setDirectConfirmationSourceVersionId("version-1");
 
@@ -1272,6 +1273,7 @@ public class AgentConversationServiceTest {
                 executed.get().source().clarifications().get(0).reasonCode());
         assertEquals(org.zipp.ai.domain.multimodal.DirectClarification.Resolution.FORWARD,
                 executed.get().source().clarifications().get(0).resolution());
+        assertEquals("a → b", executed.get().source().clarifications().get(0).observedValue());
         assertEquals("version-1", executed.get().source().confirmationSourceVersionId());
         assertTrue(routingService.lastCommand.getRequestProbe().hasSingleReadyImageAttachment());
         assertEquals(1, routingService.lastCommand.getRequestProbe().readyAttachmentCount());
