@@ -1,0 +1,104 @@
+{
+  "schemaVersion": "material-rag-drawio-generation-acceptance-policy-v2",
+  "status": "frozen_posthoc_development_calibration",
+  "scope": "Only the committed E7/E8 Development artifact may be re-scored with this policy. It must not be used to qualify the observed Development run or to alter its v1 result.",
+  "sourceRun": {
+    "gitCommit": "3926c012",
+    "taskFixtureSha256": "39d66d7b8722716110bbc2e90573d051528b8909795a254ea145472728a7b440",
+    "responsesSha256": "4b436e01c915d0e6d3af6eacb5712e9e173bc88ee581076fa358f9c77f1c8dee"
+  },
+  "rules": {
+    "visibleLocations": ["vertex", "edge"],
+    "normalization": ["strip_html", "collapse_whitespace", "casefold", "treat_hyphen_variants_as_spaces"],
+    "boundary": "Only listed task facts and listed label alternatives may use non-exact matching. The policy does not use model-based semantic judging."
+  },
+  "taskOverrides": {
+    "stagb-dev-02": {
+      "minVertices": 3,
+      "minEdges": 1,
+      "requiredFacts": [
+        {
+          "factId": "incident-commander-role",
+          "locations": ["vertex"],
+          "acceptedLabels": [{"text": "Incident Commander", "matchMode": "word"}]
+        },
+        {
+          "factId": "communications-lead-role",
+          "locations": ["vertex"],
+          "acceptedLabels": [{"text": "Communications Lead", "matchMode": "word"}]
+        },
+        {
+          "factId": "sev1-escalation-window",
+          "locations": ["vertex"],
+          "acceptedLabels": [
+            {"text": "15 minutes", "matchMode": "word"},
+            {"text": "15分钟", "matchMode": "substring"}
+          ]
+        }
+      ]
+    },
+    "stagb-dev-03": {
+      "minVertices": 1,
+      "minEdges": 0,
+      "requiredFacts": [
+        {
+          "factId": "archive-destination",
+          "locations": ["vertex"],
+          "acceptedLabels": [{"text": "Archive", "matchMode": "word"}]
+        },
+        {
+          "factId": "retention-period",
+          "locations": ["vertex"],
+          "acceptedLabels": [{"text": "7 years", "matchMode": "word"}]
+        }
+      ]
+    },
+    "stagb-dev-04": {
+      "minVertices": 2,
+      "minEdges": 1,
+      "requiredFacts": [
+        {
+          "factId": "review-step",
+          "locations": ["vertex"],
+          "acceptedLabels": [{"text": "Review", "matchMode": "word"}]
+        },
+        {
+          "factId": "release-step",
+          "locations": ["vertex"],
+          "acceptedLabels": [{"text": "Release", "matchMode": "word"}]
+        },
+        {
+          "factId": "payment-control-number",
+          "locations": ["edge"],
+          "acceptedLabels": [{"text": "PC-204", "matchMode": "word"}]
+        }
+      ]
+    },
+    "stagb-dev-11": {
+      "minVertices": 4,
+      "minEdges": 0,
+      "requiredFacts": [
+        {
+          "factId": "steady-state-capacity-mode",
+          "locations": ["vertex"],
+          "acceptedLabels": [{"text": "Steady State", "matchMode": "word"}]
+        },
+        {
+          "factId": "steady-state-limit",
+          "locations": ["vertex"],
+          "acceptedLabels": [{"text": "800", "matchMode": "word"}]
+        },
+        {
+          "factId": "failover-capacity-mode",
+          "locations": ["vertex"],
+          "acceptedLabels": [{"text": "Failover", "matchMode": "word"}]
+        },
+        {
+          "factId": "failover-limit",
+          "locations": ["vertex"],
+          "acceptedLabels": [{"text": "1200", "matchMode": "word"}]
+        }
+      ]
+    }
+  }
+}

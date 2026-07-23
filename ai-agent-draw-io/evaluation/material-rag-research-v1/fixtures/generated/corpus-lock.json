@@ -24,7 +24,7 @@
     "analysis/build_drawio_generation_prompts.py": "841148c671b4df9d6afc1fa5a9aad643122bc2189aab08c29f19ebdd631aeb35",
     "analysis/run_drawio_generation.py": "a83febecd3c5378b5651b782b4ca23b2300d33a221d19224a05f1591a5561045",
     "analysis/export_drawio_paired_hydration.py": "318cf7b232985166f285029530507fb51c13a1537b72d9f6baf953b3f65c6621",
-    "analysis/evaluate_drawio_generation_tasks.py": "29bd996daa4afcf4118e585d441aed26fa64c3cfa42b2cf43695553d6f1e4a34",
+    "analysis/evaluate_drawio_generation_tasks.py": "c6da45cbf20538091ae27897e4ad237e98afeeafda0a41f9354bf444303eb3b6",
     "analysis/audit_stage_a_decision_cohort.py": "0c5cff04d3b6a9165b93bf0349a5bd68b129b00cd93e8ed16f9714663502a255",
     "analysis/validate_generation_run_manifest.py": "e139c62d651194b936f3affcaf4daee61765f8a360c6be7b2418809ffad1cf60",
     "analysis/evaluate_ocr.py": "1df3eb9d8619dd258c437cd45504477edf8a4146b96c00c693642efad1c64284",
@@ -145,11 +145,13 @@
     "pdfs/scenario-gmp-batch-change-control-v1.pdf": "14c3e9962a1b2e1fe4fcba7298befe8a29883c03ddb9dcf88d6d3e1fdb30c24d",
     "pdfs/scenario-vehicle-ota-rollout-v1.pdf": "66371fa8537cb2dfc0384d3d71f2c0a4afcb0ddfa2805d19bd48d12b962fda43",
     "source-evidence-identities-v1.json": "92b31fcc08d9163768564a90ffd79ed5368f5f32aebb1e4ffcad59f32fd6806f",
+    "stage-a-generation/acceptance-policy-v2.json": "e1d994906b9489898606b172bb9e95b4510d29d1615b939125c07ff56bee0a71",
     "stage-a-generation/contexts.json": "ed81cdc06ebea696c503af5e68e2c67999170a723c30964018e9906c9a13e7ab",
     "stage-a-generation/ground-truth.json": "eac98c289b8aec53676ec40a63c116abaa86f7b1dcd288af8bc775a0054fe3cc",
     "stage-a-generation/images/field-source.png": "114251873031ea5e9d2d39bcd2bfadb9079a37c93ca5b1e1a49d7096dbd7f0df",
     "stage-a-generation/images/warehouse-source.png": "c72070bf8a3ba8d751c449acf6d3f9696a557a182fcf33b9d7276fda57bf8dc6",
     "stage-a-generation/prompt-bundles.json": "d4fd6cf18c526481e06c90c02180482b577bf5163f989a0979652f62f82369cf",
+    "stage-a-generation/rubric-v2.json": "e18ffb7f83a65d02b2e769e32cd2a21bb3842f142ff917b7db5536e6997d166e",
     "stage-a-generation/rubric.json": "2be0f6229ea5fa2fb8a21961448091b6d51b913783c4c6b8e350a36b5ffef4d9",
     "stage-a-generation/tasks.json": "39d66d7b8722716110bbc2e90573d051528b8909795a254ea145472728a7b440"
   }

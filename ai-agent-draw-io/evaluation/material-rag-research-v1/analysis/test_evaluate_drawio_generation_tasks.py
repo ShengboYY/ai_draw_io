@@ -56,6 +56,42 @@ class GenerationTaskEvaluatorTest(unittest.TestCase):
 
         self.assertTrue(result["xmlAssertionsPassed"])
 
+    def test_accepts_policy_declared_equivalence_and_editable_edge_label(self):
+        task = {"taskId": "policy", "sourceVersion": "source:v1", "xmlAssertions": {
+                "minVertices": 2, "minEdges": 1, "requiredLabels": ["15 minutes", "PC-204"]},
+                "citationAssertions": {"minimumCitations": 0, "mustCiteAnchors": []}}
+        response = {"xml": "<mxGraphModel><root><mxCell id='a' vertex='1' parent='1' value='15分钟内升级'/><mxCell id='b' vertex='1' parent='1' value='Review'/><mxCell id='edge' edge='1' parent='1' value='Control: PC-204'/></root></mxGraphModel>",
+                    "citations": []}
+        policy = {"taskOverrides": {"policy": {"requiredFacts": [
+            {"factId": "escalation-window", "locations": ["vertex"], "acceptedLabels": [
+                {"text": "15 minutes", "matchMode": "word"},
+                {"text": "15分钟", "matchMode": "substring"},
+            ]},
+            {"factId": "control-number", "locations": ["edge"], "acceptedLabels": [
+                {"text": "PC-204", "matchMode": "word"},
+            ]},
+        ]}}}
+
+        result = MODULE.evaluate(task, response, {}, acceptance_policy=policy)
+
+        self.assertTrue(result["xmlAssertionsPassed"])
+
+    def test_rejects_policy_for_a_different_frozen_task_fixture(self):
+        policy = {"schemaVersion": "material-rag-drawio-generation-acceptance-policy-v2",
+                  "sourceRun": {"taskFixtureSha256": "a" * 64}, "taskOverrides": {}}
+
+        with self.assertRaisesRegex(ValueError, "different frozen task fixture"):
+            MODULE.validate_acceptance_policy(policy, "b" * 64)
+
+    def test_legacy_evaluator_keeps_hyphenated_labels_distinct_without_policy(self):
+        task = {"taskId": "legacy", "sourceVersion": "source:v1", "xmlAssertions": {
+                "minVertices": 1, "requiredLabels": ["Steady State"]},
+                "citationAssertions": {"minimumCitations": 0, "mustCiteAnchors": []}}
+        response = {"xml": "<mxGraphModel><mxCell vertex='1' parent='1' value='Steady-state'/></mxGraphModel>",
+                    "citations": []}
+
+        self.assertFalse(MODULE.evaluate(task, response, {})["xmlAssertionsPassed"])
+
     def test_rejects_non_string_model_fields_and_v1_inside_v10(self):
         task = {"taskId": "x", "sourceVersion": "source:v1", "xmlAssertions": {
                 "minVertices": 1, "requiredLabels": ["V1"]},

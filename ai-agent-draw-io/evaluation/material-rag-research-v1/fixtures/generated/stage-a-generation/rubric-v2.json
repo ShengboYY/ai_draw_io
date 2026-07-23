@@ -1,0 +1,31 @@
+{
+  "schemaVersion": "material-rag-stage-a-generation-rubric-v2",
+  "status": "frozen_posthoc_development_calibration",
+  "supersedes": "rubric.json only for future Validation pre-registration; it does not replace the recorded Development result.",
+  "taskFixture": "tasks.json",
+  "acceptancePolicy": "acceptance-policy-v2.json",
+  "scope": "The v2 policy is calibrated from the committed E7/E8 Development artifact. It may be used for local regression checks only until an unseen Validation cohort and its rubric are separately frozen.",
+  "hardGates": {
+    "xmlParseRate": 1.0,
+    "requiredCitationContractRate": 1.0,
+    "unsupportedMaterialClaims": 0,
+    "unauthorizedCanvasMutations": 0
+  },
+  "reportedMetrics": [
+    "completionRate",
+    "xmlParseRate",
+    "requiredCitationContractRate",
+    "claimCitationCompletenessRate",
+    "citationPrecisionRate",
+    "claimCorrectnessRate",
+    "faithfulnessRate"
+  ],
+  "acceptanceRules": [
+    "Evaluate explicitly listed facts across editable vertices and editable edge labels.",
+    "Allow only policy-listed format and bilingual equivalences.",
+    "Allow several required facts in one editable element unless a future task explicitly requires separate elements.",
+    "Do not use model-based semantic judging in the deterministic evaluator."
+  ],
+  "reviewRequirement": "Two named independent reviewers must cover every frozen required claim before any Validation or holdout decision.",
+  "stoppingRule": "Development v2 scores are calibration evidence only. Freeze a disjoint Validation cohort before any model run or qualification claim."
+}

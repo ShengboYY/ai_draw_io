@@ -52,13 +52,64 @@ def citation_anchor_ids(citations: object, task: dict, anchors: dict[str, dict])
 
 def normalized_label(value: str) -> str:
     """Compare draw.io label text without treating HTML styling as diagram content."""
-    return " ".join(re.sub(r"<[^>]+>", " ", html.unescape(value)).split()).casefold()
+    visible = re.sub(r"<[^>]+>", " ", html.unescape(value))
+    return " ".join(visible.split()).casefold()
+
+
+def normalized_policy_label(value: str) -> str:
+    """Apply v2's explicitly opted-in presentation normalization to a visible label."""
+    # Hyphen variants are presentation differences only when a v2 policy opts in.
+    return re.sub(r"[-‐‑‒–—―]", " ", normalized_label(value))
 
 
 def label_matches(required_label: str, cell_label: str) -> bool:
     """Match a normalized label as words, without confusing V1 with V10."""
     required = normalized_label(required_label)
     return bool(re.search(r"(?<!\w)" + re.escape(required) + r"(?!\w)", cell_label))
+
+
+def fact_matches(fact: dict, vertices: list[ET.Element], edges: list[ET.Element]) -> bool:
+    """Check an explicitly frozen fact against editable vertices and/or edge labels."""
+    locations = set(fact.get("locations", ("vertex",)))
+    scoped_cells = ([] if "vertex" not in locations else vertices) \
+        + ([] if "edge" not in locations else edges)
+    values = [normalized_policy_label(cell.get("value", "")) for cell in scoped_cells]
+    for accepted in fact.get("acceptedLabels", []):
+        label = normalized_policy_label(str(accepted.get("text", "")))
+        if not label:
+            continue
+        if accepted.get("matchMode", "word") == "substring":
+            if any(label in value for value in values):
+                return True
+        elif any(label_matches(label, value) for value in values):
+            return True
+    return False
+
+
+def xml_assertions_pass(task: dict, vertices: list[ET.Element], edges: list[ET.Element],
+                        acceptance_policy: dict | None) -> bool:
+    """Apply legacy assertions unless a frozen task policy defines fact-level acceptance."""
+    assertion = task["xmlAssertions"]
+    override = (acceptance_policy or {}).get("taskOverrides", {}).get(task["taskId"], {})
+    min_vertices = override.get("minVertices", assertion.get("minVertices", 0))
+    min_edges = override.get("minEdges", assertion.get("minEdges", 0))
+    if len(vertices) < min_vertices or len(edges) < min_edges:
+        return False
+    required_facts = override.get("requiredFacts")
+    if required_facts is not None:
+        return all(fact_matches(fact, vertices, edges) for fact in required_facts)
+    labels = [normalized_label(cell.get("value", "")) for cell in vertices]
+    return all(any(label_matches(label, value) for value in labels)
+               for label in assertion.get("requiredLabels", []))
+
+
+def validate_acceptance_policy(policy: dict, task_fixture_sha256: str) -> None:
+    """Reject a post-hoc policy when it is aimed at a different frozen task set."""
+    if policy.get("schemaVersion") != "material-rag-drawio-generation-acceptance-policy-v2":
+        raise ValueError("unsupported acceptance policy schema")
+    policy_fixture_sha = policy.get("sourceRun", {}).get("taskFixtureSha256")
+    if policy_fixture_sha != task_fixture_sha256:
+        raise ValueError("acceptance policy targets a different frozen task fixture")
 
 
 def cell_map(graph_cells: list[ET.Element]) -> dict[str, ET.Element]:
@@ -130,7 +181,8 @@ def edit_assertions_pass(task: dict, graph_cells: list[ET.Element]) -> bool:
     return True
 
 
-def evaluate(task: dict, response: dict, anchors: dict[str, dict]) -> dict:
+def evaluate(task: dict, response: dict, anchors: dict[str, dict],
+             acceptance_policy: dict | None = None) -> dict:
     """Score malformed model payloads as failures instead of aborting the batch."""
     if not isinstance(response, dict):
         response = {}
@@ -152,13 +204,8 @@ def evaluate(task: dict, response: dict, anchors: dict[str, dict]) -> dict:
             vertices = [cell for cell in graph_cells
                         if cell.get("vertex") == "1" and cell.get("parent")]
             edges = [cell for cell in graph_cells if cell.get("edge") == "1" and cell.get("parent")]
-            assertion = task["xmlAssertions"]
-            labels = [normalized_label(cell.get("value", "")) for cell in vertices]
-            result["xmlAssertionsPassed"] = (
-                len(vertices) >= assertion.get("minVertices", 0)
-                and len(edges) >= assertion.get("minEdges", 0)
-                and all(any(label_matches(label, value) for value in labels)
-                        for label in assertion.get("requiredLabels", []))
+            result["xmlAssertionsPassed"] = xml_assertions_pass(
+                task, vertices, edges, acceptance_policy
             )
             result["editAssertionsPassed"] = edit_assertions_pass(task, graph_cells)
     citation_assertion = task["citationAssertions"]
@@ -253,15 +300,19 @@ def main() -> None:
     parser.add_argument("--ground-truth", type=Path, required=True)
     parser.add_argument("--split", choices=("development", "validation", "holdout"), required=True)
     parser.add_argument("--claim-reviews", type=Path)
+    parser.add_argument("--acceptance-policy", type=Path)
     parser.add_argument("--json-out", type=Path, required=True)
     args = parser.parse_args()
     tasks = [task for task in json.loads(args.tasks.read_text())["tasks"] if task["split"] == args.split]
     responses = response_map(json.loads(args.responses.read_text())["responses"])
     anchors = {anchor["anchorId"]: anchor
                for anchor in json.loads(args.ground_truth.read_text())["anchors"]}
-    results = [evaluate(task, responses.get(task["taskId"], {}), anchors) for task in tasks]
-    reviews = json.loads(args.claim_reviews.read_text()) if args.claim_reviews else None
     task_fixture_sha256 = hashlib.sha256(args.tasks.read_bytes()).hexdigest()
+    policy = json.loads(args.acceptance_policy.read_text()) if args.acceptance_policy else None
+    if policy is not None:
+        validate_acceptance_policy(policy, task_fixture_sha256)
+    results = [evaluate(task, responses.get(task["taskId"], {}), anchors, policy) for task in tasks]
+    reviews = json.loads(args.claim_reviews.read_text()) if args.claim_reviews else None
     args.json_out.write_text(json.dumps(
         summarize(results, args.split, reviews, tasks, task_fixture_sha256), indent=2
     ) + "\n")

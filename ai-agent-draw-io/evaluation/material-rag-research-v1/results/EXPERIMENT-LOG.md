@@ -1106,3 +1106,27 @@
   尚未完成，因而不能断言 unsupported-claim=0 或进入 Validation；E7/E8 仅作为冻结的 Development 诊断结果。
 - **工件**:`results/stage-a-e7e8-gpt-5-5-development-{responses,manifest,manifest-validation,evaluation}.json`。
 - **外部使用**:1 次 GPT-5.5 Development run；0 Pinecone、0 Validation/holdout case。
+
+### Stage B evaluator-v2 calibration and provenance correction · 2026-07-23 · ✅ 本地完成，不构成晋级
+
+- **原始工件保护**:正式 E7/E8 的可追溯来源固定为提交 `3926c012` 中的 response SHA-256
+  `4b436e01c915d0e6d3af6eacb5712e9e173bc88ee581076fa358f9c77f1c8dee`。工作树中出现了未提交的
+  同路径 responses/manifest 变更，包含不同 request ID、token 用量与 XML；它们未被合并、未被记录为
+  E7/E8，也不用于本节任何结论。
+- **可复现性更正**:对上述固定 response 与冻结 tasks 重新执行 v1 evaluator，得到 `8/12` completion，
+  而非旧 evaluation artifact 所写的 `7/12`；实际 v1 失败为 `stagb-dev-02`、`03`、`04`、`11`。
+  旧 evaluation artifact 保留，作为已发现的历史计分不一致证据，不得用任一数字宣称 Stage B 晋级。
+- **产品复核结论**:产品评审确认下列 Draw.io 表达在本应用中可接受：显式列出的中英文等价标签、同一可编辑
+  节点内的关联事实、带语义的可编辑连线标签，以及连字符/空格等格式变化。该结论不替代尚未完成的双 reviewer
+  claim review，亦不对未固定工作树输出作正式评分。
+- **v2 评测器**:`evaluate_drawio_generation_tasks.py` 新增可选、确定性的 acceptance policy。它只接受
+  policy 中逐 task 冻结的事实、位置（vertex/edge）、等价文本和匹配模式；HTML、空白、大小写及连字符做
+  规范化，但不调用模型做语义裁决。`acceptance-policy-v2.json` 与 `rubric-v2.json` 明确标记为
+  `frozen_posthoc_development_calibration`。
+- **本地校准**:固定原始 response 在 v2 policy 下为 XML parse `12/12`、引用契约 `12/12`、completion
+  `12/12`；详见 [v2 calibration](stage-a-e7e8-gpt-5-5-development-v2-calibration.json)。此结果仅证明
+  新规则覆盖了已观察到的合理表达，不能作为正式 E7/E8 通过率。
+- **验证**:`python3 -m unittest analysis/test_evaluate_drawio_generation_tasks.py`，18 tests、0 failures；
+  未调用模型、Pinecone 或任何外部服务。
+- **下一步**:先完成两个具名独立 reviewer 的 claim review；再冻结一套从未运行过的 Validation tasks、其
+  v2 rubric 和 evaluator hash，之后才可进行一次新的模型验证运行。
