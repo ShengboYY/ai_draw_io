@@ -12,6 +12,7 @@ from pathlib import Path
 
 SHA256 = re.compile(r"^[0-9a-f]{64}$")
 COMMIT = re.compile(r"^[0-9a-f]{7,40}$")
+INTERNAL_RELEASE_HOLDOUT_QUALIFICATION = "internal_release_style_not_independent_final_holdout"
 
 
 def file_sha256(path: Path) -> str:
@@ -27,12 +28,16 @@ def validate(manifest: dict, root: Path | None = None) -> dict:
     errors: list[str] = []
     if manifest.get("schemaVersion") != "material-rag-generation-run-manifest-v1":
         errors.append("unsupported schemaVersion")
-    if manifest.get("split") not in {"development", "validation"}:
-        errors.append("split must be development or validation")
+    split = manifest.get("split")
+    qualification = manifest.get("qualification")
+    if split not in {"development", "validation", "holdout"}:
+        errors.append("split must be development, validation or holdout")
+    elif split == "holdout" and qualification != INTERNAL_RELEASE_HOLDOUT_QUALIFICATION:
+        errors.append("holdout requires the internal release qualification")
     if not COMMIT.fullmatch(str(manifest.get("gitCommit", ""))):
         errors.append("gitCommit must be a 7-40 character lowercase hex commit")
-    if manifest.get("qualification") not in {"diagnostic", "formal"}:
-        errors.append("qualification must be diagnostic or formal")
+    if qualification not in {"diagnostic", "formal", INTERNAL_RELEASE_HOLDOUT_QUALIFICATION}:
+        errors.append("qualification must be diagnostic, formal or the internal release qualification")
     resolved_artifacts: dict[str, Path] = {}
     for artifact in manifest.get("artifacts", []):
         if not artifact.get("path") or not SHA256.fullmatch(str(artifact.get("sha256", ""))):

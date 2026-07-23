@@ -37,6 +37,16 @@ class GenerationRunManifestTest(unittest.TestCase):
         self.assertTrue(result["valid"])
         self.assertFalse(result["formalEligible"])
 
+    def test_accepts_labeled_internal_release_holdout_but_never_marks_it_formal(self):
+        result = MODULE.validate({
+            "schemaVersion": "material-rag-generation-run-manifest-v1",
+            "qualification": "internal_release_style_not_independent_final_holdout",
+            "split": "holdout", "gitCommit": "d019832f", "artifacts": [],
+        })
+
+        self.assertTrue(result["valid"])
+        self.assertFalse(result["formalEligible"])
+
     def test_rejects_formal_run_with_missing_reproducibility_fields(self):
         result = MODULE.validate({
             "schemaVersion": "material-rag-generation-run-manifest-v1",
