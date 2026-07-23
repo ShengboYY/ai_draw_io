@@ -1259,3 +1259,18 @@
   internal cohort。manifest 会保留该 qualification，避免混入 formal Validation 或声称独立 final holdout。
 - **验证**:runner/prompt/evaluator 相关单测 **39/39** 通过。此次调用后不调 prompt、任务、evidence、模型参数或
   evaluator；网络失败若未发送成功请求，将单独记录，不能以新输出取代本次结果。
+
+### Stage D internal release-style GPT-5.5 runs · 2026-07-24 · ⚠️ completed twice; diagnostic only
+
+- **执行异常**:首次 20-call run 和一次授权 retry 的 artifact visibility 均延迟；在第二次调用前，前一轮的
+  response/manifest 尚不可见。随后两组文件都出现，因此实际总计为 40 calls。此后停止所有模型调用，不再尝试
+  第三次，也不从两次中挑选一个伪装为唯一正式 run。
+- **initial**:20/20 API success，input 10,655、output 15,893 tokens；manifest valid=true、
+  formalEligible=false；XML parse 20/20、citation contract 20/20、strict completion 14/20（70%）。
+- **retry-1**:20/20 API success，input 10,655、output 16,241 tokens；同样 XML parse 20/20、citation
+  contract 20/20、strict completion 14/20（70%）。
+- **失败形态**:两轮共有的严格失败为 `stgd-int-02`、`09`、`11`、`12`、`13`；`09`、`11` 的 XML/citation
+  已通过而 geometry-only layout assertion 未通过，视觉/OCR 两题（`12`、`13`）属于结构/标签断言失败。所有
+  输出均保留，详见 [run summary](stage-d-internal-release-gpt-5-5-run-summary.json)。
+- **范围结论**:该 cohort 由本地创作且发生重复运行，即使模型此前未见过，也只能作为内部诊断。它不改变 Development、
+  Validation 或 E9 的已记录结论，不能作为 independent final holdout 或正式 release gate。

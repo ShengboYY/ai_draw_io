@@ -1,0 +1,333 @@
+{
+  "schemaVersion": "material-rag-generation-run-manifest-v1",
+  "qualification": "internal_release_style_not_independent_final_holdout",
+  "split": "holdout",
+  "gitCommit": "68ab2a29",
+  "corpusLockSha256": "6920462f2401a25f5afe25cf7d20c0929b838c1aa9c60f4727ebde7a69a3d935",
+  "taskFixtureSha256": "ef88b9b961b51632c3ab1d7385431a9b21f15191f1de434b0a1441810c6dfcd7",
+  "promptBundlesSha256": "2ca455dda4d52b263e5826d5247b86b92f46989de5b55e6e53817f2dfd3d87cf",
+  "responsesSha256": "41821532eefbe4b495e1a629e12e99b89fee6e085265b6901c87545c668da27b",
+  "model": {
+    "provider": "OpenAI",
+    "name": "gpt-5.5",
+    "endpointFingerprint": "sha256:82141e272189210ab931267ec91313de3460102092ac4f85b284b44db52b0caf"
+  },
+  "requestParameters": {
+    "temperature": "provider-default",
+    "maxCompletionTokens": 3000,
+    "responseFormat": "json_schema:drawio_generation_response_v3",
+    "reasoningEffort": "low",
+    "imageDetail": "high"
+  },
+  "taskIds": [
+    "stgd-int-01",
+    "stgd-int-02",
+    "stgd-int-03",
+    "stgd-int-04",
+    "stgd-int-05",
+    "stgd-int-06",
+    "stgd-int-07",
+    "stgd-int-08",
+    "stgd-int-09",
+    "stgd-int-10",
+    "stgd-int-11",
+    "stgd-int-12",
+    "stgd-int-13",
+    "stgd-int-14",
+    "stgd-int-15",
+    "stgd-int-16",
+    "stgd-int-17",
+    "stgd-int-18",
+    "stgd-int-19",
+    "stgd-int-20"
+  ],
+  "calls": [
+    {
+      "taskId": "stgd-int-01",
+      "status": "success",
+      "attempts": 1,
+      "httpStatus": 200,
+      "requestId": "req_1dfb6c538e71419aa695e922e9449c35",
+      "promptSha256": "a5e768905508e559f303a45bde882a430aa870e87ea1b51bbbf4664ca17b77c6",
+      "usage": {
+        "inputTokens": 357,
+        "outputTokens": 803
+      },
+      "latencyMs": 7917
+    },
+    {
+      "taskId": "stgd-int-02",
+      "status": "success",
+      "attempts": 1,
+      "httpStatus": 200,
+      "requestId": "req_af0d150fad3e422785b8526561c26bc8",
+      "promptSha256": "eca4f68dce827f6c9ba88b2cd4c1bcb6724e723d3058b6d06ffd3786111ebc8d",
+      "usage": {
+        "inputTokens": 357,
+        "outputTokens": 687
+      },
+      "latencyMs": 7178
+    },
+    {
+      "taskId": "stgd-int-03",
+      "status": "success",
+      "attempts": 1,
+      "httpStatus": 200,
+      "requestId": "req_f78ed7f723bb441b8d07ae68cd71b3d4",
+      "promptSha256": "1d2e23e498c34b492b6fb0c0d5a3f6416e5a57c10dca318d815259e8aff0afbd",
+      "usage": {
+        "inputTokens": 348,
+        "outputTokens": 936
+      },
+      "latencyMs": 8336
+    },
+    {
+      "taskId": "stgd-int-04",
+      "status": "success",
+      "attempts": 1,
+      "httpStatus": 200,
+      "requestId": "req_3b0925d5a40845c385d347a61c011140",
+      "promptSha256": "bc70cfe90989342cb6d38e49cf86731bbfbfff00784a7b2180d571a1b44b3827",
+      "usage": {
+        "inputTokens": 268,
+        "outputTokens": 1124
+      },
+      "latencyMs": 9914
+    },
+    {
+      "taskId": "stgd-int-05",
+      "status": "success",
+      "attempts": 1,
+      "httpStatus": 200,
+      "requestId": "req_ba59602505e44f1395151415efe0b323",
+      "promptSha256": "d3d96461cf8d3fdf19dd066d0e5293cb6b061da04c933980dddd623e9a390331",
+      "usage": {
+        "inputTokens": 351,
+        "outputTokens": 1105
+      },
+      "latencyMs": 9381
+    },
+    {
+      "taskId": "stgd-int-06",
+      "status": "success",
+      "attempts": 1,
+      "httpStatus": 200,
+      "requestId": "req_6b1726f1ed4d41c9a989369f06b1818d",
+      "promptSha256": "395ecacadf0ee9bfae016d479bc908149e636898fed596cc61f44bc2ea58e82a",
+      "usage": {
+        "inputTokens": 345,
+        "outputTokens": 289
+      },
+      "latencyMs": 3634
+    },
+    {
+      "taskId": "stgd-int-07",
+      "status": "success",
+      "attempts": 1,
+      "httpStatus": 200,
+      "requestId": "req_e2ccf8bb30d447219bca2ae261360338",
+      "promptSha256": "0cc1c6b2f633f78107503f939ed3cb73ecd9d3224c477304d19656f0fc93f60a",
+      "usage": {
+        "inputTokens": 439,
+        "outputTokens": 401
+      },
+      "latencyMs": 4198
+    },
+    {
+      "taskId": "stgd-int-08",
+      "status": "success",
+      "attempts": 1,
+      "httpStatus": 200,
+      "requestId": "req_30b09aac72a24f2aaab1a78d3ec85a26",
+      "promptSha256": "3cbe5ca0f37c780d78691dac4784c0d1291306e9d37ff26e4b462ef668b24628",
+      "usage": {
+        "inputTokens": 344,
+        "outputTokens": 378
+      },
+      "latencyMs": 4251
+    },
+    {
+      "taskId": "stgd-int-09",
+      "status": "success",
+      "attempts": 1,
+      "httpStatus": 200,
+      "requestId": "req_2cfd443fad144c8f8ee3bcad2c43ccc5",
+      "promptSha256": "b1bb4d428549e2605bae70bb0228b2906a3e583cf2bf937765226f963af63cbb",
+      "usage": {
+        "inputTokens": 391,
+        "outputTokens": 197
+      },
+      "latencyMs": 2608
+    },
+    {
+      "taskId": "stgd-int-10",
+      "status": "success",
+      "attempts": 1,
+      "httpStatus": 200,
+      "requestId": "req_f3d52e8bb65441fa804e873c61ff3919",
+      "promptSha256": "db6cf7ebd475b998809264caeef74dd212003d3c3965ca9c95348ff99f56c6e3",
+      "usage": {
+        "inputTokens": 435,
+        "outputTokens": 257
+      },
+      "latencyMs": 3991
+    },
+    {
+      "taskId": "stgd-int-11",
+      "status": "success",
+      "attempts": 1,
+      "httpStatus": 200,
+      "requestId": "req_5b19e9d6cc9346a6b8cb7272846a76d7",
+      "promptSha256": "f77c2312ebee85249308c8126c93657dfe0e8a4c644e71a34d039877793df2e7",
+      "usage": {
+        "inputTokens": 432,
+        "outputTokens": 418
+      },
+      "latencyMs": 4092
+    },
+    {
+      "taskId": "stgd-int-12",
+      "status": "success",
+      "attempts": 1,
+      "httpStatus": 200,
+      "requestId": "req_535e76606bce40a199ea67dec2cf043f",
+      "promptSha256": "135aaeee4a4cb2eeecc6c0f26f353f322b097ac7be5647d42455ae0f73702888",
+      "usage": {
+        "inputTokens": 2151,
+        "outputTokens": 1751
+      },
+      "latencyMs": 14055
+    },
+    {
+      "taskId": "stgd-int-13",
+      "status": "success",
+      "attempts": 1,
+      "httpStatus": 200,
+      "requestId": "req_cc30a2bae9314092b0a4015027a43638",
+      "promptSha256": "d56f4e8a80320106e4e4e9679ec602d307af34d5dceeabb9fbe6932489ea56b4",
+      "usage": {
+        "inputTokens": 2132,
+        "outputTokens": 1222
+      },
+      "latencyMs": 13515
+    },
+    {
+      "taskId": "stgd-int-14",
+      "status": "success",
+      "attempts": 1,
+      "httpStatus": 200,
+      "requestId": "req_697b8372d78849a98b678a881a60d332",
+      "promptSha256": "2759e71a95287755ac076cd2ad7172cdff9c10c83222a31e062bd0c57c94edd6",
+      "usage": {
+        "inputTokens": 256,
+        "outputTokens": 869
+      },
+      "latencyMs": 8778
+    },
+    {
+      "taskId": "stgd-int-15",
+      "status": "success",
+      "attempts": 1,
+      "httpStatus": 200,
+      "requestId": "req_9fdfe03eee204c649cca29492986411c",
+      "promptSha256": "57892bfe84b5e473068adeaac555db598e9ff15c6f9e6351df853dfa14091f29",
+      "usage": {
+        "inputTokens": 258,
+        "outputTokens": 699
+      },
+      "latencyMs": 6252
+    },
+    {
+      "taskId": "stgd-int-16",
+      "status": "success",
+      "attempts": 1,
+      "httpStatus": 200,
+      "requestId": "req_8326d791b4e34a6b9ba6453075bfe35d",
+      "promptSha256": "9e7d7ef54c40306f4f8bbb4576d2a94d23e9deb7e01bc64a4710301e69ed2337",
+      "usage": {
+        "inputTokens": 343,
+        "outputTokens": 563
+      },
+      "latencyMs": 6240
+    },
+    {
+      "taskId": "stgd-int-17",
+      "status": "success",
+      "attempts": 1,
+      "httpStatus": 200,
+      "requestId": "req_be36fa7478f24453993814e7d52e62fc",
+      "promptSha256": "6ab17415c6824deec36f970e5b86e631e57f0864cbafc1499e256b2e811696de",
+      "usage": {
+        "inputTokens": 361,
+        "outputTokens": 995
+      },
+      "latencyMs": 10136
+    },
+    {
+      "taskId": "stgd-int-18",
+      "status": "success",
+      "attempts": 1,
+      "httpStatus": 200,
+      "requestId": "req_b10d213fd012493d8e244c3b260e7e0a",
+      "promptSha256": "b9f3e18d733e0d84dee0e2553a775e02e6bc19f1bd778f0ff288bcfd4b5deb91",
+      "usage": {
+        "inputTokens": 357,
+        "outputTokens": 1194
+      },
+      "latencyMs": 9855
+    },
+    {
+      "taskId": "stgd-int-19",
+      "status": "success",
+      "attempts": 1,
+      "httpStatus": 200,
+      "requestId": "req_a51ff886f328489aa42ddb8c8b5dfd96",
+      "promptSha256": "ded878ce5b4c81c6a491a442ed804f366010c4bf95c2f6190b93ea92f70dbb29",
+      "usage": {
+        "inputTokens": 369,
+        "outputTokens": 1271
+      },
+      "latencyMs": 11923
+    },
+    {
+      "taskId": "stgd-int-20",
+      "status": "success",
+      "attempts": 1,
+      "httpStatus": 200,
+      "requestId": "req_e0fef0132f66466aba83ee9d752d7e4e",
+      "promptSha256": "61086cd71675cfa8f2a5613d356b1243bf4a523133bb4d925636a55224b2453b",
+      "usage": {
+        "inputTokens": 361,
+        "outputTokens": 1082
+      },
+      "latencyMs": 9304
+    }
+  ],
+  "artifacts": [
+    {
+      "role": "corpusLock",
+      "path": "fixtures/generated/corpus-lock.json",
+      "sha256": "6920462f2401a25f5afe25cf7d20c0929b838c1aa9c60f4727ebde7a69a3d935"
+    },
+    {
+      "role": "taskFixture",
+      "path": "fixtures/generated/stage-d-internal-release/tasks.json",
+      "sha256": "ef88b9b961b51632c3ab1d7385431a9b21f15191f1de434b0a1441810c6dfcd7"
+    },
+    {
+      "role": "promptBundles",
+      "path": "fixtures/generated/stage-d-internal-release/prompt-bundles.json",
+      "sha256": "2ca455dda4d52b263e5826d5247b86b92f46989de5b55e6e53817f2dfd3d87cf"
+    },
+    {
+      "role": "hydration",
+      "path": "fixtures/generated/stage-d-internal-release/contexts.json",
+      "sha256": "9154e49e029b0ffcaced1909d2a0ba0576813ce1891cdcb958478ea1e499f8e0"
+    },
+    {
+      "role": "responses",
+      "path": "results/stage-d-internal-release-gpt-5-5-retry-1-responses.json",
+      "sha256": "41821532eefbe4b495e1a629e12e99b89fee6e085265b6901c87545c668da27b"
+    }
+  ]
+}

@@ -1,0 +1,47 @@
+{
+  "schemaVersion": "material-rag-stage-d-internal-release-run-summary-v1",
+  "qualification": "internal_release_style_not_independent_final_holdout",
+  "status": "completed_with_duplicate_execution_not_formal",
+  "reason": "The execution environment delayed artifact visibility. The first 20-call run and one authorized retry both completed before their result files became visible; neither run is selected as a unique formal result.",
+  "frozenInputCommit": "68ab2a29",
+  "runs": [
+    {
+      "id": "initial",
+      "responses": "results/stage-d-internal-release-gpt-5-5-responses.json",
+      "manifest": "results/stage-d-internal-release-gpt-5-5-manifest.json",
+      "manifestValidation": "results/stage-d-internal-release-gpt-5-5-manifest-validation.json",
+      "evaluation": "results/stage-d-internal-release-gpt-5-5-evaluation.json",
+      "calls": 20,
+      "successfulCalls": 20,
+      "inputTokens": 10655,
+      "outputTokens": 15893,
+      "xmlParseRate": 1.0,
+      "requiredCitationContractRate": 1.0,
+      "strictCompletionRate": 0.7,
+      "strictFailures": ["stgd-int-01", "stgd-int-02", "stgd-int-09", "stgd-int-11", "stgd-int-12", "stgd-int-13"]
+    },
+    {
+      "id": "retry-1",
+      "responses": "results/stage-d-internal-release-gpt-5-5-retry-1-responses.json",
+      "manifest": "results/stage-d-internal-release-gpt-5-5-retry-1-manifest.json",
+      "manifestValidation": "results/stage-d-internal-release-gpt-5-5-retry-1-manifest-validation.json",
+      "evaluation": "results/stage-d-internal-release-gpt-5-5-retry-1-evaluation.json",
+      "calls": 20,
+      "successfulCalls": 20,
+      "inputTokens": 10655,
+      "outputTokens": 16241,
+      "xmlParseRate": 1.0,
+      "requiredCitationContractRate": 1.0,
+      "strictCompletionRate": 0.7,
+      "strictFailures": ["stgd-int-02", "stgd-int-09", "stgd-int-11", "stgd-int-12", "stgd-int-13", "stgd-int-14"]
+    }
+  ],
+  "aggregate": {
+    "totalCalls": 40,
+    "successfulCalls": 40,
+    "inputTokens": 21310,
+    "outputTokens": 32134,
+    "modelRunStatus": "do_not_rerun"
+  },
+  "interpretation": "Both runs show complete XML parsing and citation contracts. Strict completion is 14/20 in each run. The repeated execution, local authorship and absent independent review mean these outputs are diagnostic only; they cannot be used for a one-shot final-release claim."
+}
