@@ -752,6 +752,22 @@ passage embedding batch 被 Pinecone HTTP 429 阻断。最小配额探针确认�
 `pre-objstore` 位于 stabilized rank 24，但 selector 未提升到 top-8。按预注册停止规则，retrieval
 tuning 至此结束，不开启 R24、不生成 prompt、不调用模型，Validation/holdout 继续关闭。
 
+### Post-R23 阶段转换：evidence-decision seam
+
+R23 后不再把 19/19 当作继续调 ranker 的目标。生产代码已有深模块
+`EvidencePreparationModule`，下一阶段加深其 closed outcome interface，在 evidence preparation 与
+canvas mutation 之间明确区分 `NotRequired`、`Ready`、`ClarificationNeeded`、
+`InsufficientEvidence` 与 `DegradedDependency`。只有前两者允许进入绘图，其中
+`NotRequired` 只能处理不改变事实的 layout/style 操作。optional retrieval 对事实性请求不得在失败后
+静默回退到无证据 Drawer。
+
+新的 post-R23 Development cohort 使用与当前 19 题、Validation、holdout 不重叠的 document families，
+预注册 30 个 Draw.io-specific cases：12 Ready、6 InsufficientEvidence、4 ClarificationNeeded、
+4 DegradedDependency、4 NotRequired。在任何模型调用前，必须达到 30/30 outcome classification、
+14/14 blocked cases 零画布写入、12/12 Ready identity/artifact 完整和 4/4 NotRequired 无检索完成。
+之后才依次进入 E7/E8 grounded generation、E9 在线授权/版本/故障恢复和独立 final holdout。完整接口、
+gate 与停止规则见 `POST-R23-EVIDENCE-DECISION-PLAN.md`。
+
 E6b 的本地导出合同已冻结为 `fixtures/drawio-generation-paired-hydration-contract-v1.json` 与
 `analysis/export_drawio_paired_hydration.py`。active Development 图册明确挂载 architecture、workflow handbook
 与 planning-workshop scan 三个版本；导出器从同一 retrieval trace 的 raw top-8 和 source-aware top-8 产生一任务

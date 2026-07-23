@@ -612,8 +612,13 @@
   仍缺 required visual/OCR artifact（VISUAL rank 28、TEXT rank 34），未发送模型请求。
 - [x] E7 r10 embedding-input provenance——未来 trace 记录 embedding model、dimension、ordered passage/query input hash；
   仅本地测试，未发送模型请求。
-- [ ] 下一项 source-independent visual/OCR availability intervention——需预注册、TDD 和新的 Development artifact gate；
-  通过全部 gate 前不调用模型。
+- [x] source-independent visual/OCR availability intervention——R11 修复 architecture visual availability，
+  后续 R12–R23 扩展到完整 retrieval/hydration gate；R23 最终为 raw 17/19、candidate 16/19、
+  artifact 7/7，按预注册规则停止 retrieval tuning。
+- [ ] Post-R23 evidence-decision seam 与全新 30-case Development cohort——不再调当前 19 题；
+  先验证 Ready/NotRequired/Clarification/Insufficient/Degraded 决策和零越权画布写入。
+- [ ] E7/E8 grounded Draw.io generation——只允许通过新 decision gate 的 Ready cases 调用模型。
+- [ ] E9 在线授权、版本、故障与恢复——必须执行真实依赖注入，fixture-contract 不能替代。
 - [ ] 外部 final holdout——contract 已定，payload 尚未由独立保管人生成和隔离。
 
 ## 如何跑一个实验(运行手册)
@@ -924,6 +929,27 @@
   不能继续针对这 19 个 Development cases 调检索参数。
 - **外部使用**:1 个有效 Development trace；0 模型请求、0 model token、0 Validation/holdout case。
 - **详记**:[2026-07-23-r23-v3-development-run.md](2026-07-23-r23-v3-development-run.md)。
+
+### Post-R23 phase transition preregistration · 2026-07-23 · ⏳ evidence-decision seam
+
+- **阶段结论**:当前 19 个 Development tasks 冻结为诊断回归集，不再用于选择 query terms、weights、
+  candidate limits 或 selector rules；不开启 R24。
+- **现有 seam**:`EvidencePreparationModule` 已把 source policy、authorization、retrieval、visual
+  observation、hydration、sufficiency、lease 与 bundle 隐藏在一个小 interface 后。下一步加深其 closed
+  outcomes，不新增 pass-through policy module。
+- **行为状态**:`NotRequired` 与 `Ready` 可进入绘图；`ClarificationNeeded`、
+  `InsufficientEvidence`、`DegradedDependency`、等待/重试/取消状态均禁止画布 mutation。
+  `NotRequired` 只允许不改变事实的 layout/style 操作。
+- **安全修订**:事实性 material-backed request 的 optional retrieval 失败后，不得静默回退到
+  evidence-free Drawer；普通绘图必须成为用户明确选择的新请求。
+- **新 cohort**:使用新 document families 冻结 30 个 Draw.io-specific Development cases：
+  Ready 12、InsufficientEvidence 6、ClarificationNeeded 4、DegradedDependency 4、NotRequired 4。
+- **模型前 gate**:30/30 outcome classification；14/14 blocked cases 零画布写入；12/12 Ready
+  source-owned identity/artifact 完整；4/4 NotRequired 无检索完成；独立 case review 与 corpus lock 冻结。
+- **后续顺序**:Stage A decision implementation → E7/E8 grounded generation → E9 online
+  authorization/version/failure/recovery → independent final holdout。
+- **外部使用**:本节仅设计与预注册；0 Pinecone、0 模型请求、0 token、0 Validation/holdout。
+- **详记**:[POST-R23-EVIDENCE-DECISION-PLAN.md](../POST-R23-EVIDENCE-DECISION-PLAN.md)。
 
 ### R17 trace / R18 indexed-vector denominator · 2026-07-23 · ⏸ 修复后重跑
 
