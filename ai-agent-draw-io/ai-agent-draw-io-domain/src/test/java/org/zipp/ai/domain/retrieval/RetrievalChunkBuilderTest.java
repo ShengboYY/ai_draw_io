@@ -93,8 +93,12 @@ class RetrievalChunkBuilderTest {
                 text("caption", EvidenceUnitType.CAPTION, "Figure 2. Editable draw.io request route.",
                         "section-1", 1, 0.90),
                 visual("visual", "section-1", 2),
+                text("page-one-label", EvidenceUnitType.CONTENT, "SOURCES RETRIEVE BUILD PLAN",
+                        "section-1", 2, 0.90),
                 ocrText("page-one-ocr", "SCOPE SOURCES RETRIEVE EVIDENCE BUILD PLAN COMPOSE CANVAS",
                         "section-1", "page-1", 1, 3, 0.90),
+                text("off-visual-native", EvidenceUnitType.CONTENT, "UNRELATED SAME PAGE CONTENT",
+                        "section-1", 5, 0.90),
                 ocrText("other-page-ocr", "UNRELATED SECOND PAGE CONTENT", "section-2", "page-2", 2,
                         4, 0.90));
         EvidenceManifest evidence = manifest(units, List.of(
@@ -107,14 +111,17 @@ class RetrievalChunkBuilderTest {
         assertEquals(RetrievalIndexMode.DENSE_AND_LEXICAL, visual.indexMode());
         assertTrue(visual.citable());
         assertTrue(visual.retrievalText().contains("Figure 2. Editable draw.io request route."));
+        assertTrue(visual.retrievalText().contains("SOURCES RETRIEVE BUILD PLAN"));
         assertTrue(visual.retrievalText().contains("SCOPE SOURCES RETRIEVE EVIDENCE BUILD PLAN COMPOSE CANVAS"));
+        assertFalse(visual.retrievalText().contains("UNRELATED SAME PAGE CONTENT"));
         assertFalse(visual.retrievalText().contains("UNRELATED SECOND PAGE CONTENT"));
-        assertEquals(List.of("visual", "caption", "page-one-ocr"), visual.evidenceMappings().stream()
+        assertEquals(List.of("visual", "caption", "page-one-label", "page-one-ocr"), visual.evidenceMappings().stream()
                 .map(mapping -> mapping.evidenceId()).toList());
-        assertEquals(List.of(ChunkEvidenceRole.PRIMARY, ChunkEvidenceRole.CAPTION, ChunkEvidenceRole.CONTEXT),
+        assertEquals(List.of(ChunkEvidenceRole.PRIMARY, ChunkEvidenceRole.CAPTION,
+                        ChunkEvidenceRole.CONTEXT, ChunkEvidenceRole.CONTEXT),
                 visual.evidenceMappings().stream().map(mapping -> mapping.role()).toList());
         assertTrue(new RetrievalChunkBuilder(CHARACTER_COUNTER).fingerprint()
-                .contains("visual-same-page-ocr-v1"));
+                .contains("visual-same-page-text-context-v2"));
     }
 
     @Test
