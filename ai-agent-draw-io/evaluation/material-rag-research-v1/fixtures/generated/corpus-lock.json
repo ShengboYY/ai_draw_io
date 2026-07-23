@@ -14,10 +14,10 @@
   "reviewLedgerSha256": "1a2f19caeee3961531beee0a82aea2a70d9af2d072c026efd23e61479a71317b",
   "fixtureFontSha256": "876af2cd4854644e7f3e7feb2f688997fdb3343c6df6693611209c9dfb47ccec",
   "provenanceFiles": {
-    "EXPERIMENT-PLAN-V2.md": "7808eba2e66665d479a63d2857b38502d3ec83066fc4e69f62ee88aa2b7cada6",
+    "EXPERIMENT-PLAN-V2.md": "fb5fab31613ee44499512625e3136275bb62991a579236d538ff0133b8bb85b3",
     "experiment-plan-v2.json": "a82dcaf51dabfbe25173a8efad1e9404cb40e1d13cfe49418623e29886d22c5e",
     "requirements.txt": "0043aca3a7381487084576995105e1099e3786ae8add5a6c0951d305b0e0e757",
-    "analysis/audit_corpus.py": "765eaefe1ef61d5fbb291fb322d3fd92aa5e51e6d8182bc35759f96a1b677085",
+    "analysis/audit_corpus.py": "1480ef39eb1633226bfdbdae4afa67dc79b76b49b326d2d41ad66de185d7ebc5",
     "analysis/compare_dense_runs.py": "762b83b97c14011b7b8081c859407973c7626252abc67e5f8773673bdda8ea59",
     "analysis/audit_e4_chartbook.py": "1785c3e3085810b269ae9d5c1975f7357b2a982bb1f321c9be12fdb6f5a86f9b",
     "analysis/evaluate_guard_suites.py": "e2ded7e4289fe4b7bfd1883e37e53c4543dccd69ab2c571aff6e54291daf4aa0",
@@ -25,6 +25,7 @@
     "analysis/run_drawio_generation.py": "3e060bd31573c1a766ec0cebdc74b59d66e4f25769f65ecc1c6e0074a9fb02e9",
     "analysis/export_drawio_paired_hydration.py": "318cf7b232985166f285029530507fb51c13a1537b72d9f6baf953b3f65c6621",
     "analysis/evaluate_drawio_generation_tasks.py": "29bd996daa4afcf4118e585d441aed26fa64c3cfa42b2cf43695553d6f1e4a34",
+    "analysis/audit_stage_a_decision_cohort.py": "a6911e879e74d77c6a1a4d1da5decb8a25815481a48c6b81c10d5c1f63a97ccb",
     "analysis/validate_generation_run_manifest.py": "e139c62d651194b936f3affcaf4daee61765f8a360c6be7b2418809ffad1cf60",
     "analysis/evaluate_ocr.py": "1df3eb9d8619dd258c437cd45504477edf8a4146b96c00c693642efad1c64284",
     "analysis/select_drawio_context.py": "f1350510d8fc409eeced5891317f20c3c8e3687a481777eed810381a477bbc97",
@@ -47,7 +48,8 @@
     "fixtures/drawio-generation-tasks-v3.json": "5fe7b32313b1fc3a77d3ed7354c65e521faf98b0d3abdfb5668763e5fdf9fd05",
     "fixtures/drawio-generation-development-evidence-v1.json": "e63a573473a93e218ff7b939158fef18c571eb3c8a4a6283a4b1129973190a67",
     "fixtures/drawio-generation-paired-hydration-contract-v1.json": "4025a6e171c517108832e55edb6bf55e2c1ad73cd9b517bf50f14889d730a640",
-    "fixtures/final-holdout-contract-v1.json": "2c84a7fd4537d8aa3ea47d9654d68c39e31fce61a234ac44cb081375cace0bad"
+    "fixtures/final-holdout-contract-v1.json": "2c84a7fd4537d8aa3ea47d9654d68c39e31fce61a234ac44cb081375cace0bad",
+    "fixtures/stage-a-evidence-decision-cohort-v1.json": "641770c1b79dfb1665f7e980526ea51638824daabefd8163884787e520196de4"
   },
   "files": {
     "case-keys.json": "5ea4e73e5880d59d75fc4e16804e5b78b7a7c716d5f5d7e902af3a45bda0763a",

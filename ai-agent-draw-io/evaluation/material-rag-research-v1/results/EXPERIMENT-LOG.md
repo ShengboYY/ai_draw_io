@@ -1024,3 +1024,25 @@
 - **下一步**:创建并冻结 12 Ready、6 Insufficient、4 Clarification、4 Degraded、4 NotRequired，
   本地运行 outcome/no-mutation audit；通过后才进入 E7/E8 grounded generation。
 - **外部使用**:0 Pinecone、0 模型请求、0 model token、0 Validation/holdout case。
+
+### Post-R23 Stage A cohort draft · 2026-07-23 · ⏳ 独立复核前，不得冻结
+
+- **fixture**:`fixtures/stage-a-evidence-decision-cohort-v1.json`，固定实现提交
+  `37a2e2c3`，状态 `draft_pending_independent_review`。
+- **分布**:30 cases；Ready 12、InsufficientEvidence 6、ClarificationNeeded 4、
+  DegradedDependency 4、NotRequired 4；其中 blocked 合计 14。
+- **Draw.io 覆盖**:创建 architecture/swimlane/ownership/comparison、事实节点与关系编辑、
+  selected-subgraph 局部编辑、表格转泳道、visual flow 与 OCR scan 转 editable XML，以及
+  layout/spacing/style/geometry-only 操作。
+- **隔离性**:material-backed cases 使用 12 个不在现有 corpus、R23 Development、
+  Validation 或 holdout 中的新 document families；Ready 含 2 个需要真实 visual/OCR artifact 的 case。
+- **fail-closed audit**:`audit_stage_a_decision_cohort.py` 验证精确分布、14 blocked 零 mutation
+  声明、NotRequired 零检索、Ready completed retrieval、Degraded attempted retrieval、family
+  overlap 与最少 visual/family 覆盖；当前结果为 `structuralReady=true`、
+  `status=review_pending`、0 errors。
+- **本地验证**:analysis 132 tests、0 failures。corpus provenance 纳入 cohort fixture 与 audit
+  script。
+- **未完成**:这不是 30/30 production outcome run。必须先由独立 reviewer 检查请求是否自然、
+  expected outcome 是否唯一、document-family 隔离是否合理，并完成冻结；随后才实现/运行 production
+  seam 的 classification/no-mutation harness。
+- **外部使用**:0 Pinecone、0 模型请求、0 model token、0 Validation/holdout case。

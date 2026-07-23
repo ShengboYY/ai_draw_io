@@ -33,6 +33,7 @@ PROVENANCE_FILES = (
     "analysis/run_drawio_generation.py",
     "analysis/export_drawio_paired_hydration.py",
     "analysis/evaluate_drawio_generation_tasks.py",
+    "analysis/audit_stage_a_decision_cohort.py",
     "analysis/validate_generation_run_manifest.py",
     "analysis/evaluate_ocr.py",
     "analysis/select_drawio_context.py",
@@ -56,6 +57,7 @@ PROVENANCE_FILES = (
     "fixtures/drawio-generation-development-evidence-v1.json",
     "fixtures/drawio-generation-paired-hydration-contract-v1.json",
     "fixtures/final-holdout-contract-v1.json",
+    "fixtures/stage-a-evidence-decision-cohort-v1.json",
 )
 CATEGORY_CONTEXT_FIELDS = {
     "failure": (
