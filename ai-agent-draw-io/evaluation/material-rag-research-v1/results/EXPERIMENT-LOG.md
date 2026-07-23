@@ -718,7 +718,7 @@
   R19 先分开修复 publisher identity availability 与 relevance-preserving selector，再用同一 Development
   gate 比较。Validation/holdout 继续关闭。
 
-### R19a verified visual identity preregistration · 2026-07-23 · ⏳ 待重跑
+### R19a verified visual identity preregistration · 2026-07-23 · ⏳ 待正式重跑
 
 - **定位结果**:`dgt-dev-07/12/14/15` 的相关 source/page 已在 raw top-40，且仓库中存在对应冻结原图，
   但 TEXT projection 不能继承 publisher `visual_page` identity；`dgt-dev-08` 则是相关 handbook page-2
@@ -729,6 +729,11 @@
   exact-text identity 仍必须匹配 publisher 文本，禁止 page-only 兜底。
 - **预期 gate**:raw top-40 canonical availability 至少从 14/19 提升到 18/19；candidate readiness
   未达 19/19 时不构建 prompt、不调用模型、不打开 Validation。
+- **本地诊断**:在不改写 R18 trace 的前提下，按提交 `7d597ed8` 的 source/page registry 与 publisher
+  visual identities 重新计算，raw top-40 canonical availability 为 18/19；唯一剩余缺口是
+  `dgt-dev-08` 的 `dwh-explicit` 与 `dwh-auto-scope`。该结果仅验证绑定逻辑，不替代新的 Pinecone trace。
+- **外部运行状态**:Development OCR/text 派生向量的 Pinecone 上传尚未获得本轮明确授权，因此未执行；
+  当前新增 Pinecone/model token 消耗均为 0，Validation/holdout 仍关闭。
 
 ### R17 trace / R18 indexed-vector denominator · 2026-07-23 · ⏸ 修复后重跑
 
