@@ -738,6 +738,12 @@ lexical rank 的计算域严格限制为完整 dense union，同时把 lineage s
 6 live skips，analysis 为 124/124，E0 corpus audit 仍为 READY。尚未进行 R23 Pinecone 正式运行；
 正式运行仍须从包含本记录与刷新 corpus lock 的 clean commit 获得单独授权。
 
+2026-07-23 的 R23 外部执行未产生有效 trace。第一次操作因未绑定冻结 tokenizer 而得到 283 chunks，
+在查看 gate 前即按输入不一致作废并删除向量；随后两次纠正执行都恢复为冻结的 186 chunks，但在首个
+passage embedding batch 被 Pinecone HTTP 429 阻断。最小配额探针确认组织已耗尽当月
+`multilingual-e5-large` 的 5,000,000 embedding-token 限额。因此 R23 仍未评分，不能记为 gate 失败；
+额度重置或升级前不得换 embedding、用旧 lane 冒充正式结果或开启 R24。
+
 E6b 的本地导出合同已冻结为 `fixtures/drawio-generation-paired-hydration-contract-v1.json` 与
 `analysis/export_drawio_paired_hydration.py`。active Development 图册明确挂载 architecture、workflow handbook
 与 planning-workshop scan 三个版本；导出器从同一 retrieval trace 的 raw top-8 和 source-aware top-8 产生一任务

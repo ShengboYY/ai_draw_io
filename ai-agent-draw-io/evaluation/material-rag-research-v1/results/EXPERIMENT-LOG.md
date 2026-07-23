@@ -890,6 +890,22 @@
   R23 Development trace并删除临时向量。若 raw/candidate 19/19 与 artifact 7/7 gate 仍失败，停止
   retrieval tuning，不开启 R24；只有全部通过才生成 prompt。
 
+### R23 formal execution · 2026-07-23 · ⏸ Pinecone 月度 embedding 配额阻塞
+
+- **固定输入**:commit `4081a4a9`、Development、`e1-v5`、`flat-leaf-v1`、冻结 tokenizer。
+- **作废操作**:`drawiohydrationpdfresearch_3b032e5da9e84c2a92a153fcaeab3389` 因遗漏 tokenizer
+  环境变量产生 283 chunks，与冻结的 186 chunks / passage hash 不一致；在查看 gate 前作废，向量已删除。
+- **纠正执行**:`drawiohydrationpdfresearch_ec1a060e5f5d4011926e7d068bbf2927` 与
+  `drawiohydrationpdfresearch_d78357d8f9eb4bc880498935c424bbc3` 均恢复为 186 chunks，但首个 passage
+  embedding batch 的 HTTP 429 经冻结的 5 次 retry 后仍失败；均未到达 upsert、query、gate 或 trace export，
+  `finally` 清理已完成。
+- **根因证据**:一条最小 Pinecone quota probe 返回 `RESOURCE_EXHAUSTED`，明确指出组织已耗尽本月
+  `multilingual-e5-large` 的 5,000,000 embedding-token 限额。这不是 R23 指标失败。
+- **决策**:R23 保持未评分；不换 embedding、不使用旧 trace post-hoc 冒充正式结果、不调用模型、不触碰
+  Validation/holdout、不开启 R24。等待月度额度重置或升级计划后，继续同一冻结 R23。
+- **外部使用**:0 有效 R23 trace、0 模型请求、0 model token；所有临时向量已删除。
+- **详记**:[2026-07-23-r23-formal-run-blocked-by-pinecone-quota.md](2026-07-23-r23-formal-run-blocked-by-pinecone-quota.md)。
+
 ### R17 trace / R18 indexed-vector denominator · 2026-07-23 · ⏸ 修复后重跑
 
 - **固定输入**:clean commit `b419a70a`，Development only；两次空查询均经 R16 retry 恢复，19/19 完成，
