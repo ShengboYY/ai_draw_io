@@ -4,7 +4,7 @@ import { DrawIoEmbed, type DrawIoEmbedRef } from './secure-drawio-embed';
 import type { DrawioSelection } from './secure-drawio-bridge';
 import Image from 'next/image';
 import Link from 'next/link';
-import { Suspense, useRef, useState, useEffect, useCallback } from 'react';
+import { Suspense, useRef, useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { setUserInfo as persistUserInfo } from '@/utils/cookie';
 import { rememberAnonymousWorkspaceHint } from '@/utils/workspace-identity';
@@ -19,6 +19,19 @@ import {
   planFinalDiagramDelivery,
 } from './streaming-preview';
 import { buildDrawioChatRequestPayload } from './chat-request-payload';
+import { API_CONFIG } from '@/config/api-config';
+import { createMaterialClient } from '@/api/material';
+import { createMaterialCapabilitiesClient } from '@/api/material-capabilities';
+import { createChartbookClient } from '@/api/chartbook';
+import { ConversationAttachmentTray } from '@/features/sources/ConversationAttachmentTray';
+import { SourceModeControl } from '@/features/sources/SourceModeControl';
+import { SourcePicker, type SourceOption } from '@/features/sources/SourcePicker';
+import { type SourceMode } from '@/features/sources/source-selection';
+import {
+  readConversationAttachments,
+  writeConversationAttachments,
+  type ConversationAttachment,
+} from '@/features/sources/conversation-attachments';
 import {
   CanvasStateMetadata,
   makeLocalDiagramId,
@@ -728,6 +741,20 @@ function DrawioPageContent() {
   const sessionsRef = useRef<Session[]>([]);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   const currentSessionRef = useRef(currentSessionId);
+  const currentDiagramId = sessions.find(session => session.id === currentSessionId)?.diagramId;
+  const materialClient = useMemo(() => createMaterialClient({ baseUrl: API_CONFIG.BASE_URL }), []);
+  const capabilitiesClient = useMemo(() => createMaterialCapabilitiesClient({ baseUrl: API_CONFIG.BASE_URL }), []);
+  const chartbookClient = useMemo(() => createChartbookClient({ baseUrl: API_CONFIG.BASE_URL }), []);
+  const [conversationAttachments, setConversationAttachments] = useState<ConversationAttachment[]>([]);
+  const [attachmentSessionLoaded, setAttachmentSessionLoaded] = useState('');
+  const [restoredAttachments, setRestoredAttachments] = useState<ConversationAttachment[]>([]);
+  const [sourceMode, setSourceMode] = useState<SourceMode>('AUTO');
+  const [selectedVersionIds, setSelectedVersionIds] = useState<string[]>([]);
+  const [sourceOptions, setSourceOptions] = useState<SourceOption[]>([]);
+  const [activeSourceScopes, setActiveSourceScopes] = useState<string[]>([]);
+  const [acceptedMaterialMimeTypes, setAcceptedMaterialMimeTypes] = useState<string[]>([
+    'application/pdf', 'image/png', 'image/jpeg',
+  ]);
   const [historyDiagrams, setHistoryDiagrams] = useState<DiagramSummaryResponseDTO[]>([]);
   const [isHistoryLoading, setIsHistoryLoading] = useState(false);
   const [historyError, setHistoryError] = useState('');
@@ -1392,6 +1419,95 @@ function DrawioPageContent() {
       diagramId: activeSession?.diagramId,
     });
   }, [currentSessionId]);
+
+  useEffect(() => {
+    const attachmentSessionId = sessionId.trim();
+    if (!attachmentSessionId) {
+      setConversationAttachments([]);
+      setAttachmentSessionLoaded('');
+      setRestoredAttachments([]);
+      return;
+    }
+    const restored = readConversationAttachments(window.sessionStorage, attachmentSessionId);
+    setConversationAttachments(restored);
+    setRestoredAttachments(restored);
+    setAttachmentSessionLoaded(attachmentSessionId);
+  }, [sessionId]);
+
+  useEffect(() => {
+    const attachmentSessionId = sessionId.trim();
+    if (!attachmentSessionId || attachmentSessionLoaded !== attachmentSessionId) return;
+    writeConversationAttachments(window.sessionStorage, attachmentSessionId, conversationAttachments);
+  }, [attachmentSessionLoaded, conversationAttachments, sessionId]);
+
+  useEffect(() => {
+    if (!attachmentSessionLoaded || restoredAttachments.length === 0) return;
+    let cancelled = false;
+    restoredAttachments
+      .filter(attachment => !['READY', 'PARTIAL_READY', 'FAILED', 'REJECTED', 'CANCELLED'].includes(attachment.state))
+      .forEach(attachment => {
+        // Resume status polling after a reload without retaining file bytes in browser storage.
+        void materialClient.pollStatus(attachment.uploadId, status => {
+          if (cancelled || sessionId !== attachmentSessionLoaded) return;
+          setConversationAttachments(previous => previous.map(item => item.uploadId === attachment.uploadId ? {
+            ...item,
+            state: status.state,
+            errorCode: status.errorCode,
+          } : item));
+        }).catch(() => {
+          if (cancelled || sessionId !== attachmentSessionLoaded) return;
+          setConversationAttachments(previous => previous.map(item => item.uploadId === attachment.uploadId ? {
+            ...item,
+            state: 'FAILED',
+          } : item));
+        });
+      });
+    return () => { cancelled = true; };
+  }, [attachmentSessionLoaded, materialClient, restoredAttachments, sessionId]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const loadSources = async () => {
+      try {
+        const [capabilities, library, chartbooks] = await Promise.all([
+          capabilitiesClient.get(),
+          materialClient.list({ lifecycleState: 'ACTIVE', limit: 100 }),
+          chartbookClient.list(),
+        ]);
+        const currentChartbook = currentDiagramId
+          ? chartbooks.find(chartbook => chartbook.diagramIds.includes(currentDiagramId))
+          : undefined;
+        const chartbookMaterials = await Promise.all((currentChartbook?.materialIds || []).map(async materialId => {
+          try { return await materialClient.details(materialId); } catch { return null; }
+        }));
+        if (cancelled) return;
+        const chartbookOptions = chartbookMaterials.flatMap(details => {
+          const version = details?.versions.slice().sort((left, right) => right.versionNo - left.versionNo)[0];
+          return details && version ? [{
+            versionId: version.versionId,
+            label: details.material.displayName,
+            group: 'CHARTBOOK' as const,
+          }] : [];
+        });
+        const chartbookMaterialIds = new Set(currentChartbook?.materialIds || []);
+        const libraryOptions = library.items.flatMap(material => material.latestVersionId && !chartbookMaterialIds.has(material.materialId) ? [{
+          versionId: material.latestVersionId,
+          label: material.displayName,
+          group: 'PERSONAL_LIBRARY' as const,
+        }] : []);
+        setAcceptedMaterialMimeTypes(capabilities.acceptedMimeTypes);
+        setSourceOptions([...chartbookOptions, ...libraryOptions]);
+        setActiveSourceScopes([
+          ...(currentDiagramId ? ['当前图表'] : []),
+          ...(currentChartbook ? [`图表册「${currentChartbook.name}」`] : []),
+        ]);
+      } catch (error) {
+        if (!cancelled) console.warn('Failed to load selectable material sources:', error);
+      }
+    };
+    void loadSources();
+    return () => { cancelled = true; };
+  }, [capabilitiesClient, chartbookClient, currentDiagramId, materialClient]);
 
   useEffect(() => {
     currentUserRef.current = currentUser;
@@ -2285,6 +2401,11 @@ function DrawioPageContent() {
           canvasImageDataUrl: canvasContext.canvasImageDataUrl,
           canvasImageRendererVersion: canvasContext.canvasImageRendererVersion,
           modelCredentialId: activeModelConfig?.modelCredentialId || undefined,
+          attachmentUploadIds: conversationAttachments
+            .filter(attachment => !['FAILED', 'REJECTED', 'CANCELLED'].includes(attachment.state))
+            .map(attachment => attachment.uploadId),
+          sourceMode,
+          selectedVersionIds,
           selectedCellIds: selectedCellsRef.current?.cellIds,
           selectionCanvasVersion: selectedCellsRef.current?.canvasVersion,
           selectionContentHash: selectedCellsRef.current?.contentHash,
@@ -3463,6 +3584,21 @@ function DrawioPageContent() {
     await performSendMessage(content, canvasContext);
   };
 
+  const initializeAttachmentSession = async () => {
+    if (sessionId || !selectedAgentId || !currentUser) return;
+    try {
+      const created = await agentApi.createSession(selectedAgentId, currentUser);
+      setSessionId(created.data.sessionId);
+    } catch (error) {
+      setMessages(prev => [...prev, {
+        id: `${Date.now()}-attachment-session`,
+        role: 'agent',
+        content: error instanceof Error ? `无法创建附件会话：${error.message}` : '无法创建附件会话，请重试。',
+        timestamp: Date.now(),
+      }]);
+    }
+  };
+
   const handleSendMessage = async () => {
     const content = inputValue;
     // Capture user-picked skills for this message, then clear the chips.
@@ -3497,7 +3633,6 @@ function DrawioPageContent() {
     { label: 'Flowchart', text: 'Create a flowchart' }
   ];
   const historyEntries = buildDiagramHistoryEntries(historyDiagrams);
-  const currentDiagramId = sessions.find(session => session.id === currentSessionId)?.diagramId;
   const activeCanvasSession = sessions.find(session => session.id === currentSessionId);
   const formatHistoryUpdatedAt = (updatedAtMs: number) => {
     if (!updatedAtMs) return 'No updates yet';
@@ -4185,6 +4320,33 @@ function DrawioPageContent() {
                 )}
               </div>
             )}
+
+            <ConversationAttachmentTray
+              client={materialClient}
+              sessionId={sessionId}
+              acceptedMimeTypes={acceptedMaterialMimeTypes}
+              attachments={conversationAttachments}
+              onChange={setConversationAttachments}
+              onInitializeSession={() => void initializeAttachmentSession()}
+              disabled={isSending || !selectedAgentId}
+            />
+
+            <div className="mb-2 flex flex-wrap items-center gap-2">
+              <SourceModeControl value={sourceMode} onChange={setSourceMode} disabled={isSending} />
+              <span className="text-[11px] text-zinc-500">选择的资料仅以版本 ID 发送，权限由服务端校验。</span>
+            </div>
+            <div className="mb-2">
+              <SourcePicker
+                options={sourceOptions}
+                selectedVersionIds={selectedVersionIds}
+                onChange={setSelectedVersionIds}
+                activeScopeLabels={[
+                  ...(conversationAttachments.length > 0 ? ['本次会话附件'] : []),
+                  ...activeSourceScopes,
+                ]}
+                disabled={isSending}
+              />
+            </div>
 
             {selectedSkills.length > 0 && (
               <div className="flex flex-wrap gap-1.5 mb-2">

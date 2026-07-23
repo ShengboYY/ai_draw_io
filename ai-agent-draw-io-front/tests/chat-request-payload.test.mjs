@@ -71,6 +71,23 @@ test('buildDrawioChatRequestPayload keeps current-message attachment ids opaque'
   assert.equal(JSON.stringify(request).includes('data:image'), false);
 });
 
+test('buildDrawioChatRequestPayload carries the selected source declaration without changing empty requests', () => {
+  const withSources = buildDrawioChatRequestPayload({
+    agentId: '300000', userId: 'usr_alice', sessionId: 'session-1', userMessage: 'use the selected guide',
+    attachmentUploadIds: ['upl-1'], sourceMode: 'EXPLICIT_ONLY', selectedVersionIds: ['ver-1'],
+  });
+  const withoutSources = buildDrawioChatRequestPayload({
+    agentId: '300000', userId: 'usr_alice', sessionId: 'session-1', userMessage: 'draw a flowchart',
+  });
+
+  assert.deepEqual(withSources.attachmentUploadIds, ['upl-1']);
+  assert.equal(withSources.sourceMode, 'EXPLICIT_ONLY');
+  assert.deepEqual(withSources.selectedVersionIds, ['ver-1']);
+  assert.equal('attachmentUploadIds' in withoutSources, false);
+  assert.equal('sourceMode' in withoutSources, false);
+  assert.equal('selectedVersionIds' in withoutSources, false);
+});
+
 test('buildDrawioChatRequestPayload carries the current rendered PNG for review-only routing', () => {
   const request = buildDrawioChatRequestPayload({
     agentId: '300000',

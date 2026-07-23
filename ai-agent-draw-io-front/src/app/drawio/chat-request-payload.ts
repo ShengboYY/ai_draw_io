@@ -1,3 +1,5 @@
+import { buildSourceDeclaration } from '../../features/sources/source-selection.ts';
+
 type ConversationMessageInput = {
   id?: string;
   clientMessageId?: string;
@@ -104,6 +106,11 @@ export const buildDrawioChatRequestPayload = ({
       }
       : undefined;
   const compactConversationMessages = toConversationContextMessages(conversationMessages);
+  const sourceDeclaration = buildSourceDeclaration({
+    attachmentUploadIds: attachmentUploadIds || [],
+    sourceMode: sourceMode || 'AUTO',
+    selectedVersionIds: selectedVersionIds || [],
+  });
 
   return {
     agentId,
@@ -119,9 +126,7 @@ export const buildDrawioChatRequestPayload = ({
     message: userMessage,
     ...(canvasXml && { canvasXml }),
     ...(canvasSummary && { canvasSummary }),
-    ...(attachmentUploadIds?.length && { attachmentUploadIds }),
-    ...(sourceMode && { sourceMode }),
-    ...(selectedVersionIds?.length && { selectedVersionIds }),
+    ...sourceDeclaration,
     ...(selectedCellIds?.length && { selectedCellIds }),
     ...(selectionCanvasVersion !== undefined && { selectionCanvasVersion }),
     ...(selectionContentHash?.trim() && { selectionContentHash: selectionContentHash.trim() }),

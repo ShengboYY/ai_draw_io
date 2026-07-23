@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { type BrowserPostPolicy, type MaterialUploadTarget } from './material-types';
 import { MaterialGapDialog } from './MaterialGapDialog';
 import { MaterialProcessingBadge } from './MaterialProcessingBadge';
@@ -24,6 +24,9 @@ export const MaterialUploader = ({
   disabled,
   newVersionOfMaterialId,
   onReady,
+  onUploadInitiated,
+  onUploadStatus,
+  suppressedUploadIds = [],
 }: {
   client: MaterialClient;
   target: MaterialUploadTarget;
@@ -31,10 +34,22 @@ export const MaterialUploader = ({
   disabled?: boolean;
   newVersionOfMaterialId?: string;
   onReady?: () => void;
+  onUploadInitiated?: (upload: { uploadId: string; fileName: string }) => void;
+  onUploadStatus?: (upload: { uploadId: string; fileName: string; state: string; errorCode?: string }) => void;
+  suppressedUploadIds?: string[];
 }) => {
   const [items, setItems] = useState<UploadItem[]>([]);
   const [dismissedGaps, setDismissedGaps] = useState<Set<File>>(() => new Set());
   const inputRef = useRef<HTMLInputElement>(null);
+  const suppressedIds = new Set(suppressedUploadIds);
+  const suppressedIdsRef = useRef(new Set<string>());
+  useEffect(() => {
+    suppressedIdsRef.current = new Set(suppressedUploadIds);
+  }, [suppressedUploadIds]);
+
+  const reportUploadStatus = (upload: { uploadId: string; fileName: string; state: string; errorCode?: string }) => {
+    if (!suppressedIdsRef.current.has(upload.uploadId)) onUploadStatus?.(upload);
+  };
 
   const update = (file: File, event: Parameters<typeof transitionUpload>[1], details?: Partial<UploadItem>) => {
     setItems(previous => previous.map(item => item.file === file
@@ -45,8 +60,10 @@ export const MaterialUploader = ({
   const completeAndPoll = async (file: File, uploadId: string) => {
     const completed = await client.complete(uploadId);
     update(file, { type: 'COMPLETED', status: completed.state, errorCode: completed.errorCode });
+    reportUploadStatus({ uploadId, fileName: file.name, state: completed.state, errorCode: completed.errorCode });
     const terminal = await client.pollStatus(uploadId, status => {
       update(file, { type: 'COMPLETED', status: status.state, errorCode: status.errorCode });
+      reportUploadStatus({ uploadId, fileName: file.name, state: status.state, errorCode: status.errorCode });
     });
     if (terminal.state === 'READY') onReady?.();
   };
@@ -58,27 +75,39 @@ export const MaterialUploader = ({
   };
 
   const initiateAndUpload = async (file: File, knownHash?: string) => {
-    const hash = knownHash || await sha256(file);
-    const initiated = await client.initiate({
-      displayName: file.name,
-      mediaType: file.type as 'application/pdf' | 'image/png' | 'image/jpeg',
-      byteSize: file.size,
-      sha256: hash,
-      target,
-      newVersionOfMaterialId,
-    }, idempotencyKey());
-    update(file, { type: 'INITIATED', uploadId: initiated.uploadId }, { postPolicy: initiated.postPolicy });
-    await uploadBytesAndComplete(file, initiated.uploadId, initiated.postPolicy);
+    let uploadId = '';
+    try {
+      const hash = knownHash || await sha256(file);
+      const initiated = await client.initiate({
+        displayName: file.name,
+        mediaType: file.type as 'application/pdf' | 'image/png' | 'image/jpeg',
+        byteSize: file.size,
+        sha256: hash,
+        target,
+        newVersionOfMaterialId,
+      }, idempotencyKey());
+      uploadId = initiated.uploadId;
+      update(file, { type: 'INITIATED', uploadId }, { postPolicy: initiated.postPolicy });
+      // Expose the opaque upload ID to a parent without exposing the file bytes to chat payloads.
+      onUploadInitiated?.({ uploadId, fileName: file.name });
+      await uploadBytesAndComplete(file, uploadId, initiated.postPolicy);
+      return uploadId;
+    } catch (error) {
+      if (uploadId) reportUploadStatus({ uploadId, fileName: file.name, state: 'FAILED' });
+      throw error;
+    }
   };
 
   const upload = async (file: File) => {
+    let uploadId = '';
     try {
       update(file, { type: 'START' });
       const hash = await sha256(file);
       update(file, { type: 'HASHED' });
-      await initiateAndUpload(file, hash);
+      uploadId = await initiateAndUpload(file, hash);
     } catch (error) {
       update(file, { type: 'FAILED', message: error instanceof Error ? error.message : '上传失败' });
+      if (uploadId) reportUploadStatus({ uploadId, fileName: file.name, state: 'FAILED' });
     }
   };
 
@@ -95,10 +124,16 @@ export const MaterialUploader = ({
     setItems(previous => previous.map(current => current.file === item.file ? { ...current, ...retryState } : current));
     if (retryState.stage === 'COMPLETING' && retryState.uploadId) {
       void completeAndPoll(item.file, retryState.uploadId)
-        .catch(error => update(item.file, { type: 'FAILED', message: error instanceof Error ? error.message : '上传失败' }));
+        .catch(error => {
+          update(item.file, { type: 'FAILED', message: error instanceof Error ? error.message : '上传失败' });
+          reportUploadStatus({ uploadId: retryState.uploadId!, fileName: item.file.name, state: 'FAILED' });
+        });
     } else if (retryState.stage === 'UPLOADING_BYTES' && retryState.uploadId && item.postPolicy) {
       void uploadBytesAndComplete(item.file, retryState.uploadId, item.postPolicy)
-        .catch(error => update(item.file, { type: 'FAILED', message: error instanceof Error ? error.message : '上传失败' }));
+        .catch(error => {
+          update(item.file, { type: 'FAILED', message: error instanceof Error ? error.message : '上传失败' });
+          reportUploadStatus({ uploadId: retryState.uploadId!, fileName: item.file.name, state: 'FAILED' });
+        });
     } else if (retryState.stage === 'INITIATING') {
       void initiateAndUpload(item.file)
         .catch(error => update(item.file, { type: 'FAILED', message: error instanceof Error ? error.message : '上传失败' }));
@@ -116,7 +151,7 @@ export const MaterialUploader = ({
         <input ref={inputRef} type="file" multiple hidden accept={acceptedMimeTypes.join(',')} onChange={event => chooseFiles(event.target.files)} />
       </div>
       {items.length > 0 && <ul className="mt-4 space-y-2">
-        {items.map(item => <li key={`${item.file.name}-${item.file.lastModified}`} className="rounded-lg bg-white p-3 text-sm shadow-sm">
+        {items.filter(item => !item.uploadId || !suppressedIds.has(item.uploadId)).map(item => <li key={`${item.file.name}-${item.file.lastModified}`} className="rounded-lg bg-white p-3 text-sm shadow-sm">
           <div className="flex items-center justify-between gap-3"><span className="truncate">{item.fileName}</span><MaterialProcessingBadge stage={item.stage} /></div>
           {item.errorMessage && <p className="mt-2 text-rose-700">{item.errorMessage}</p>}
           {item.stage === 'PARTIAL_READY' && !dismissedGaps.has(item.file) && <div className="mt-2"><MaterialGapDialog gapCode={item.gapCode} onClose={() => setDismissedGaps(previous => new Set(previous).add(item.file))} /></div>}
