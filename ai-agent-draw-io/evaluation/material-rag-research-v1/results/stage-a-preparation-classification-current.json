@@ -1,0 +1,29 @@
+{
+  "schemaVersion": "material-rag-stage-a-preparation-classification-v1",
+  "runDate": "2026-07-23",
+  "fixture": "fixtures/stage-a-evidence-decision-cohort-v1.json",
+  "fixtureStatus": "frozen_independently_reviewed",
+  "test": "org.zipp.ai.test.trigger.service.StageAEvidencePreparationClassificationTest",
+  "command": "mvn -pl ai-agent-draw-io-app -Dtest=StageAEvidencePreparationClassificationTest test",
+  "implementation": "DefaultEvidencePreparationModule",
+  "externalServices": {
+    "pinecone": 0,
+    "generationModels": 0,
+    "modelTokens": 0
+  },
+  "results": {
+    "casesClassified": 30,
+    "outcomeCounts": {
+      "Ready": 12,
+      "InsufficientEvidence": 6,
+      "ClarificationNeeded": 4,
+      "DegradedDependency": 4,
+      "NotRequired": 4
+    },
+    "readyCasesWithFrozenSourceVersionAndAnchor": 12,
+    "readyVisualOrOcrCasesWithVisualEvidence": 2,
+    "notRequiredCasesWithoutSourceResolution": 4
+  },
+  "status": "passed_with_deterministic_port_adapter",
+  "scopeLimit": "The real production classification module ran, while source resolution, lexical/dense retrieval, blob hydration, and visual observation were deterministic local ports built from the frozen setup. This is not an online authorization, real Pinecone, or grounded canvas-commit run."
+}

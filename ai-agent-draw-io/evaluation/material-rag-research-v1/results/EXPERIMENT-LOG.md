@@ -1067,3 +1067,23 @@
 - **下一步**:将 frozen executable setup 接入真实 `EvidencePreparationModule` 测试适配器，先完成
   30/30 classification、12/12 Ready identity/artifact 完整与 4/4 NotRequired 零检索，随后才可开始 E7/E8。
 - **外部使用**:0 Pinecone、0 模型请求、0 model token、0 Validation/holdout case。
+
+### Post-R23 Stage A preparation classification · 2026-07-23 · ✅ 本地 Stage A gate 通过
+
+- **运行**:`mvn -pl ai-agent-draw-io-app -Dtest=StageAEvidencePreparationClassificationTest test`；新增
+  `StageAEvidencePreparationClassificationTest`，读取同一份已冻结 cohort，并以 fixture setup 驱动
+  source resolution、lexical/dense retrieval、blob hydration、visual observation 的确定性本地端口，实际执行
+  `DefaultEvidencePreparationModule`。
+- **分类结果**:30/30 与预注册 outcome 一致：Ready 12、InsufficientEvidence 6、ClarificationNeeded 4、
+  DegradedDependency 4、NotRequired 4。12/12 Ready bundle 至少包含冻结 setup 中的 source version 与
+  required anchor；2/2 visual/OCR Ready 还包含 `VISUAL` evidence item。4/4 NotRequired 未调用 source
+  resolution。
+- **合并安全 gate**:与前一条 HTTP outcome gate 合并后，14/14 blocked case 均在 Drawer/model seam 前停止；
+  12/12 Ready 在 E7/E8 commit seam 未启用时仍 fail-closed，没有提前修改画布。
+- **范围限制**:本次真实运行的是生产 classification module，不是外部生产依赖。source、retrieval、blob 和
+  visual 端口均是基于冻结 setup 的确定性本地适配器；因此它不替代 E9 的在线授权、真实 Pinecone、真实 provider
+  故障恢复，也不替代 E7/E8 的模型生成和 grounded canvas commit。
+- **工件**:`results/stage-a-preparation-classification-current.json` 保存命令、计数、外部使用量和 scope limit。
+- **阶段判定**:local Stage A evidence-decision gate 达标，可进入 E7/E8。开始 E7/E8 前必须冻结 Ready-only
+  generation rubric 和运行 manifest；任何模型调用都只能使用这 12 个 Ready Development case。
+- **外部使用**:0 Pinecone、0 模型请求、0 model token、0 Validation/holdout case。

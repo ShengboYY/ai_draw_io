@@ -38,9 +38,12 @@ Section 5 now exists as `stage-a-evidence-decision-cohort-v1.json`: it has the p
 families. Its executable setup contract binds source versions/anchors, artifacts, canvas or
 conversation state, absence contracts, and dependency injections. An `independent_ai` reviewer
 approved all 30 cases; the ledger and report bind the exact cohort SHA-256, so any later fixture
-edit invalidates the freeze. The frozen cohort has passed the HTTP-to-evidence rendering and
-no-drawer boundary with injected typed outcomes. It has not yet classified the executable setup
-through the real `EvidencePreparationModule`; therefore the full 30/30 classification gate remains pending.
+edit invalidates the freeze. The frozen cohort has passed both local Stage A seams: the HTTP-to-evidence
+rendering/no-drawer boundary and real `DefaultEvidencePreparationModule` classification through a deterministic
+port adapter. The combined result is 30/30 expected outcomes, 14/14 blocked cases stopped before Drawer/model
+invocation, 12/12 Ready bundles carrying the frozen source version plus required anchor (including two visual/OCR
+bundles), and 4/4 NotRequired cases without source resolution. This permits entry to E7/E8; it does not replace
+the E9 online authorization, real vector store, or failure-recovery run.
 
 ## 2. Existing seam
 
