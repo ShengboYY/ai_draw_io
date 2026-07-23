@@ -155,6 +155,7 @@
     "stage-a-generation/rubric-v2.json": "e18ffb7f83a65d02b2e769e32cd2a21bb3842f142ff917b7db5536e6997d166e",
     "stage-a-generation/rubric.json": "2be0f6229ea5fa2fb8a21961448091b6d51b913783c4c6b8e350a36b5ffef4d9",
     "stage-a-generation/tasks.json": "39d66d7b8722716110bbc2e90573d051528b8909795a254ea145472728a7b440",
+    "stage-b-validation/acceptance-policy-v2.json": "41a99415e5125b334934464b0dec51090bb2149dfeb5e9c6cbf36cd64691e375",
     "stage-b-validation/contexts.json": "fe2036792adf312442ec4bce62c6f0517e414ced6ec9ffb889bc797907a8b5b3",
     "stage-b-validation/ground-truth.json": "4787503a20943b65fa3c6a5e720720a2cefb88678bcf13088f2ec6c4e8d99471",
     "stage-b-validation/images/maintenance-source.png": "b120ab5363abfe92bb3880fa83d8201f4eb026a697454079c93f07e0f6a902ed",

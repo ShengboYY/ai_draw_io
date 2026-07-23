@@ -1171,3 +1171,12 @@
 - **验证**:corpus audit 使用既有 review ledger 后重新冻结，analysis 137 tests、0 failures。
 - **阻塞**:新 cohort 尚缺两位具名独立 reviewer 的 source/evidence/claim 预审，因此尚未创建可运行的
   Validation policy 或发出模型请求。
+
+### Stage B Validation case review and policy freeze · 2026-07-23 · ✅ ready for one formal run
+
+- **预审**:`product-owner` 与 `alice-qa` 已独立审核并通过 12/12 Validation source/evidence/claim packages；
+  记录绑定 task fixture SHA-256。
+- **policy**:Validation-specific `acceptance-policy-v2.json` 在模型输出前冻结，严格保留 task 的原有
+  结构断言；禁止将 Development 的 post-hoc equivalence policy 用于 Validation。
+- **下一步**:获得外部模型授权后，使用冻结 prompt bundles 对 12 个合成 Validation cases 运行一次 GPT-5.5，
+  并在结果后不调参、不重跑。
