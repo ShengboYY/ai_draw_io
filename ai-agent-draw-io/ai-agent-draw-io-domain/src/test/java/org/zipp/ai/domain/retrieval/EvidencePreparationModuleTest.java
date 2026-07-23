@@ -42,6 +42,23 @@ class EvidencePreparationModuleTest {
     }
 
     @Test
+    void optionalFactualRequestWithoutReadySourcesIsNotExemptFromEvidence() {
+        EvidencePreparationCommand evidenceCommand = new EvidencePreparationCommand(owner, "diagram-1", "conversation-1",
+                "request-1", "run-1", "根据资料创建架构图", CanvasProbe.unavailableProbe(),
+                ValidatedSelection.empty(), SourceMode.AUTO, List.of(), "OPTIONAL", "NONE");
+
+        PreparationOutcome outcome = module(catalog(command -> new SourceResolution(
+                SourceMode.AUTO, List.of(), List.of())), List.of())
+                .prepare(evidenceCommand,
+                        new RunResourceDomain(), EvidenceProgressListener.NOOP, CancellationSignal.NEVER)
+                .toCompletableFuture().join();
+
+        PreparationOutcome.InsufficientEvidence insufficient =
+                assertInstanceOf(PreparationOutcome.InsufficientEvidence.class, outcome);
+        assertEquals(List.of("NO_AUTHORIZED_READY_SOURCE"), insufficient.gaps());
+    }
+
+    @Test
     void conversationPendingAndLibraryPendingHaveDifferentTypedStops() {
         AuthorizedSource conversation = source("PROCESSING", true);
         AuthorizedSource library = source("PROCESSING", false);
@@ -340,6 +357,64 @@ class EvidencePreparationModuleTest {
                 EvidenceProgressListener.NOOP, CancellationSignal.NEVER).toCompletableFuture().join();
 
         assertInstanceOf(PreparationOutcome.StaleCanvasSelection.class, outcome);
+        assertEquals(0, catalogCalls.get());
+    }
+
+    @Test
+    void unavailableRetrievalDependenciesAreNotReportedAsMissingEvidence() {
+        AuthorizedSource ready = source("READY", false);
+        EvidenceCatalog catalog = catalog(command -> new SourceResolution(
+                SourceMode.EXPLICIT_ONLY, List.of(ready), List.of()));
+        EvidencePreparationModule module = new DefaultEvidencePreparationModule(catalog,
+                (queries, sources, route, limit) -> {
+                    throw new IllegalStateException("lexical provider unavailable");
+                },
+                Optional.empty(), Optional.empty(), (ownerType, ownerKey) -> "opaque-tenant",
+                (owner, runId, sources) -> () -> { }, (candidate, maximumBytes) -> "text",
+                (owner, diagramId) -> Optional.empty(), ForkJoinPool.commonPool());
+
+        PreparationOutcome outcome = module.prepare(
+                command("根据资料创建架构图", "REQUIRED", SourceMode.EXPLICIT_ONLY),
+                new RunResourceDomain(), EvidenceProgressListener.NOOP, CancellationSignal.NEVER)
+                .toCompletableFuture().join();
+
+        PreparationOutcome.DegradedDependency degraded =
+                assertInstanceOf(PreparationOutcome.DegradedDependency.class, outcome);
+        assertEquals(List.of("DENSE_UNAVAILABLE", "LEXICAL_DEGRADED"),
+                degraded.gaps().stream().sorted().toList());
+    }
+
+    @Test
+    void ambiguousCanvasTargetReturnsClarificationBeforeLoadingSources() {
+        AtomicInteger catalogCalls = new AtomicInteger();
+        EvidenceCatalog catalog = catalog(command -> {
+            catalogCalls.incrementAndGet();
+            return new SourceResolution(SourceMode.AUTO, List.of(), List.of());
+        });
+        String xml = "<mxGraphModel><root><mxCell id='0'/><mxCell id='1' parent='0'/>"
+                + "<mxCell id='api-a' value='API' vertex='1' parent='1'/>"
+                + "<mxCell id='api-b' value='API' vertex='1' parent='1'/>"
+                + "</root></mxGraphModel>";
+        EvidencePreparationModule module = new DefaultEvidencePreparationModule(catalog,
+                (queries, sources, route, limit) -> List.of(), Optional.empty(), Optional.empty(),
+                (ownerType, ownerKey) -> "opaque-tenant", (owner, runId, sources) -> () -> { },
+                (candidate, maximumBytes) -> "text",
+                (requestedOwner, diagramId) -> Optional.of(
+                        new ServerCanvasPort.ServerCanvasSnapshot(7L, "hash-7", xml)),
+                ForkJoinPool.commonPool());
+        EvidencePreparationCommand command = new EvidencePreparationCommand(owner, "diagram-1", "conversation-1",
+                "request-1", "run-1", "Change the API node label",
+                new CanvasProbe(true, 2, 0, 7L, "hash-7", 0, List.of(), false, false),
+                ValidatedSelection.empty(), SourceMode.AUTO, List.of(), "REQUIRED", "REQUIRED");
+
+        PreparationOutcome outcome = module.prepare(command, new RunResourceDomain(),
+                EvidenceProgressListener.NOOP, CancellationSignal.NEVER).toCompletableFuture().join();
+
+        PreparationOutcome.ClarificationNeeded clarification =
+                assertInstanceOf(PreparationOutcome.ClarificationNeeded.class, outcome);
+        assertEquals("AMBIGUOUS_TARGET", clarification.reason());
+        assertEquals(List.of("api-a", "api-b"),
+                clarification.candidates().stream().map(TargetCandidate::cellId).sorted().toList());
         assertEquals(0, catalogCalls.get());
     }
 

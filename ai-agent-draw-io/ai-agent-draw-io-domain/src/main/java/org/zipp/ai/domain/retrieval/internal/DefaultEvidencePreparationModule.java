@@ -202,7 +202,7 @@ public final class DefaultEvidencePreparationModule implements EvidencePreparati
             if (readinessStop != null) return readinessStop;
             AuthorizedSourceSet sources = readySources(command, resolution);
             if (sources.sources().isEmpty()) {
-                return command.requiresEvidence() || resolution.mode() == SourceMode.EXPLICIT_ONLY
+                return command.needsEvidence() || resolution.mode() == SourceMode.EXPLICIT_ONLY
                         ? new PreparationOutcome.InsufficientEvidence(List.of("NO_AUTHORIZED_READY_SOURCE"))
                         : new PreparationOutcome.NotRequired();
             }
@@ -243,7 +243,13 @@ public final class DefaultEvidencePreparationModule implements EvidencePreparati
             fuse(lexicalCandidates, denseCandidates).stream().limit(40)
                     .map(ScoredChunk::chunkId).forEach(rankedIds::add);
             List<String> fusedIds = rankedIds.stream().limit(40).toList();
-            if (fusedIds.isEmpty()) return insufficient(command, "NO_RETRIEVAL_MATCH");
+            if (fusedIds.isEmpty()) {
+                // Missing evidence is meaningful only when at least one retrieval lane completed normally.
+                if (retrievalDependenciesUnavailable(diagnostics)) {
+                    return new PreparationOutcome.DegradedDependency(List.copyOf(diagnostics));
+                }
+                return insufficient(command, "NO_RETRIEVAL_MATCH");
+            }
             List<AuthorizedCandidate> authorized = callWithinDeadline(
                     () -> catalog.reauthorize(fusedIds, sources, FINAL_CANDIDATE_LIMIT),
                     deadline, cancellation, resources);
@@ -394,10 +400,11 @@ public final class DefaultEvidencePreparationModule implements EvidencePreparati
         DiagramTargetResolver.TargetResult result = targets.resolve(
                 snapshot.xml(), command.selection(), command.userMessage());
         if (result instanceof DiagramTargetResolver.TargetResult.Ambiguous ambiguous) {
-            return TargetResolution.stop(new PreparationOutcome.TargetClarification(ambiguous.candidates()));
+            return TargetResolution.stop(new PreparationOutcome.ClarificationNeeded(
+                    "AMBIGUOUS_TARGET", ambiguous.candidates()));
         }
         if (result instanceof DiagramTargetResolver.TargetResult.Missing missing && command.requiresTarget()) {
-            return TargetResolution.stop(new PreparationOutcome.TargetClarification(List.of(
+            return TargetResolution.stop(new PreparationOutcome.ClarificationNeeded(missing.errorCode(), List.of(
                     new TargetCandidate("", "UNKNOWN", "", missing.errorCode()))));
         }
         if (result instanceof DiagramTargetResolver.TargetResult.Resolved resolved) {
@@ -531,6 +538,14 @@ public final class DefaultEvidencePreparationModule implements EvidencePreparati
             diagnostics.add("DENSE_DEGRADED");
             return List.of();
         }
+    }
+
+    private boolean retrievalDependenciesUnavailable(List<String> diagnostics) {
+        boolean lexicalUnavailable = diagnostics.stream().anyMatch(code ->
+                "LEXICAL_DEGRADED".equals(code) || "LEXICAL_TIMEOUT".equals(code));
+        boolean denseUnavailable = diagnostics.stream().anyMatch(code ->
+                code.startsWith("DENSE_"));
+        return lexicalUnavailable && denseUnavailable;
     }
 
     private List<ScoredChunk> fuse(List<CandidateRef> lexicalCandidates, List<CandidateRef> denseCandidates) {

@@ -1362,10 +1362,11 @@ public class AgentConversationService {
         PreparationOutcome outcome = evidencePreparationModule.prepare(command, resources, progress, cancellation)
                 .toCompletableFuture().join();
         if (outcome instanceof PreparationOutcome.NotRequired) return null;
-        if (!strict && (outcome instanceof PreparationOutcome.InsufficientEvidence
-                || outcome instanceof PreparationOutcome.Failed)) {
-            // Optional AUTO retrieval may degrade to the existing text-only Drawer path.
-            return null;
+        if (outcome instanceof PreparationOutcome.DegradedDependency
+                || outcome instanceof PreparationOutcome.Failed) {
+            // Factual drawing must fail closed when retrieval did not complete, including legacy failures.
+            return evidenceResponse("retrieval_degraded",
+                    "资料检索或验证未完成，画布未被修改，请稍后重试。 / Evidence retrieval or verification did not complete; the canvas was not modified. Retry later.");
         }
         if (outcome instanceof PreparationOutcome.Waiting) {
             return evidenceResponse("material_waiting",
@@ -1375,9 +1376,9 @@ public class AgentConversationService {
             return evidenceResponse("material_not_ready",
                     "所选资料尚未就绪，请稍后重试。 / The selected library material is not ready yet.");
         }
-        if (outcome instanceof PreparationOutcome.TargetClarification) {
-            PreparationOutcome.TargetClarification clarification =
-                    (PreparationOutcome.TargetClarification) outcome;
+        if (outcome instanceof PreparationOutcome.ClarificationNeeded) {
+            PreparationOutcome.ClarificationNeeded clarification =
+                    (PreparationOutcome.ClarificationNeeded) outcome;
             ChatResponseDTO response = evidenceResponse("target_clarification",
                     "无法唯一确定要处理的画布对象，请先明确选择节点或连线。 / Please select the intended canvas target.");
             response.setTargetCandidates(clarification.candidates().stream().map(candidate -> {

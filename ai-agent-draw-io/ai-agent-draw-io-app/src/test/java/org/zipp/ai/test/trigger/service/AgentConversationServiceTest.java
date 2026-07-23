@@ -823,6 +823,105 @@ public class AgentConversationServiceTest {
     }
 
     @Test
+    public void factualOptionalRetrievalStopsBeforeDrawerWhenEvidenceIsInsufficient() throws Exception {
+        AgentConversationService service = quotaAwareService();
+        CountingChatService chatService = new CountingChatService();
+        injectField(service, "chatService", chatService);
+        injectField(service, "intentRoutingService", new CountingIntentRoutingService());
+        injectField(service, "materialRagEnabled", true);
+        injectField(service, "evidencePreparationModule",
+                (org.zipp.ai.domain.retrieval.EvidencePreparationModule) (command, resources, progress, cancellation) ->
+                        java.util.concurrent.CompletableFuture.completedFuture(
+                                new org.zipp.ai.domain.retrieval.PreparationOutcome.InsufficientEvidence(
+                                        List.of("REQUEST_SUPPORT_INCOMPLETE"))));
+        ChatRequestDTO request = platformRequest();
+        request.setMessage("Create a factual architecture diagram from the available material.");
+        request.setSourceMode("AUTO");
+
+        org.zipp.ai.api.dto.ChatResponseDTO response = service.chat(request);
+
+        assertEquals("insufficient_evidence", response.getType());
+        assertEquals(0, chatService.handleMessageCalls);
+        assertEquals(0, chatService.handleMessageStreamCalls);
+    }
+
+    @Test
+    public void degradedRetrievalStopsBeforeDrawerWithRetryableResponse() throws Exception {
+        AgentConversationService service = quotaAwareService();
+        CountingChatService chatService = new CountingChatService();
+        injectField(service, "chatService", chatService);
+        injectField(service, "intentRoutingService", new CountingIntentRoutingService());
+        injectField(service, "materialRagEnabled", true);
+        injectField(service, "evidencePreparationModule",
+                (org.zipp.ai.domain.retrieval.EvidencePreparationModule) (command, resources, progress, cancellation) ->
+                        java.util.concurrent.CompletableFuture.completedFuture(
+                                new org.zipp.ai.domain.retrieval.PreparationOutcome.DegradedDependency(
+                                        List.of("DENSE_UNAVAILABLE", "LEXICAL_DEGRADED"))));
+        ChatRequestDTO request = platformRequest();
+        request.setMessage("Create a factual architecture diagram from the available material.");
+        request.setSourceMode("AUTO");
+
+        org.zipp.ai.api.dto.ChatResponseDTO response = service.chat(request);
+
+        assertEquals("retrieval_degraded", response.getType());
+        assertEquals(0, chatService.handleMessageCalls);
+        assertEquals(0, chatService.handleMessageStreamCalls);
+    }
+
+    @Test
+    public void unexpectedEvidenceFailureFailsClosedBeforeDrawer() throws Exception {
+        AgentConversationService service = quotaAwareService();
+        CountingChatService chatService = new CountingChatService();
+        injectField(service, "chatService", chatService);
+        injectField(service, "intentRoutingService", new CountingIntentRoutingService());
+        injectField(service, "materialRagEnabled", true);
+        injectField(service, "evidencePreparationModule",
+                (org.zipp.ai.domain.retrieval.EvidencePreparationModule) (command, resources, progress, cancellation) ->
+                        java.util.concurrent.CompletableFuture.completedFuture(
+                                new org.zipp.ai.domain.retrieval.PreparationOutcome.Failed(
+                                        "EVIDENCE_PREPARATION_FAILED")));
+        ChatRequestDTO request = platformRequest();
+        request.setMessage("Create a factual architecture diagram from the available material.");
+        request.setSourceMode("AUTO");
+
+        org.zipp.ai.api.dto.ChatResponseDTO response = service.chat(request);
+
+        assertEquals("retrieval_degraded", response.getType());
+        assertEquals(0, chatService.handleMessageCalls);
+        assertEquals(0, chatService.handleMessageStreamCalls);
+    }
+
+    @Test
+    public void ambiguousEvidenceTargetReturnsCandidatesWithoutCallingDrawer() throws Exception {
+        AgentConversationService service = quotaAwareService();
+        CountingChatService chatService = new CountingChatService();
+        injectField(service, "chatService", chatService);
+        injectField(service, "intentRoutingService", new CountingIntentRoutingService());
+        injectField(service, "materialRagEnabled", true);
+        injectField(service, "evidencePreparationModule",
+                (org.zipp.ai.domain.retrieval.EvidencePreparationModule) (command, resources, progress, cancellation) ->
+                        java.util.concurrent.CompletableFuture.completedFuture(
+                                new org.zipp.ai.domain.retrieval.PreparationOutcome.ClarificationNeeded(
+                                        "AMBIGUOUS_TARGET", List.of(
+                                        new org.zipp.ai.domain.retrieval.TargetCandidate(
+                                                "api-a", "NODE", "API", "LABEL_MATCH"),
+                                        new org.zipp.ai.domain.retrieval.TargetCandidate(
+                                                "api-b", "NODE", "API", "LABEL_MATCH")))));
+        ChatRequestDTO request = platformRequest();
+        request.setMessage("Update the API node from the available material.");
+        request.setSourceMode("AUTO");
+
+        org.zipp.ai.api.dto.ChatResponseDTO response = service.chat(request);
+
+        assertEquals("target_clarification", response.getType());
+        assertEquals(List.of("api-a", "api-b"),
+                response.getTargetCandidates().stream()
+                        .map(org.zipp.ai.api.dto.ChatResponseDTO.TargetCandidateDTO::getCellId).toList());
+        assertEquals(0, chatService.handleMessageCalls);
+        assertEquals(0, chatService.handleMessageStreamCalls);
+    }
+
+    @Test
     public void shadowRetrievalRecordsAnAttemptWithoutChangingTheDrawingResponse() throws Exception {
         AgentConversationService service = quotaAwareService();
         CountingChatService chatService = new CountingChatService();
