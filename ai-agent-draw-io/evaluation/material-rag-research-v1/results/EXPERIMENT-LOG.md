@@ -574,8 +574,8 @@
 - 已完成:E0 基线 → E1 表示层改进 → 核心集升级并冻结到 450 → Development 与 Validation
   配对重跑 → 守门最低数补齐并执行 fixture-contract。Validation 证明 E1 提升真实,也证明
   dense-only 尚未达门槛。
-- **下一步**:R11 已预注册并完成本地实现；先完成独立代码审查并等待无关 Java test 编译阻断解除，再申请临时 Pinecone
-  Development trace 授权。Validation 暂不打开。
+- **下一步**:R11 已预注册并完成本地实现；收紧真实 PDF seam 的流程标签断言并完成最终独立代码审查后，才申请临时
+  Pinecone Development trace 授权。Validation 暂不打开。
 
 ## 开放问题 / 待办
 

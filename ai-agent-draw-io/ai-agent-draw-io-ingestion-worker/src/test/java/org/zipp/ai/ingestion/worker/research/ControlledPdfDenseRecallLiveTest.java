@@ -269,6 +269,8 @@ class ControlledPdfDenseRecallLiveTest {
                 && pageNo(chunk.pageId()) == 3 && chunk.indexMode() == RetrievalIndexMode.DENSE_AND_LEXICAL
                 && chunk.retrievalText().contains(
                 "Figure 2. Evidence-to-canvas request route for an editable draw.io flow.")).findFirst().orElseThrow();
+        assertTrue(visual.retrievalText().contains("[同页视觉文本] SCOPE"));
+        assertTrue(visual.retrievalText().contains("[同页视觉文本] CANVAS"));
         assertTrue(visual.evidenceMappings().stream()
                 .anyMatch(mapping -> mapping.role() == ChunkEvidenceRole.CONTEXT));
         assertTrue(projection.chunks().stream().anyMatch(chunk -> chunk.modality() == EvidenceModality.TEXT

@@ -93,6 +93,7 @@ class RetrievalChunkBuilderTest {
                 text("caption", EvidenceUnitType.CAPTION, "Figure 2. Editable draw.io request route.",
                         "section-1", 1, 0.90),
                 visual("visual", "section-1", 2),
+                ocrText("oversized-page-one-ocr", "x".repeat(500), "section-1", "page-1", 1, 2, 0.90),
                 text("page-one-label", EvidenceUnitType.CONTENT, "SOURCES RETRIEVE BUILD PLAN",
                         "section-1", 2, 0.90),
                 ocrText("page-one-ocr", "SCOPE SOURCES RETRIEVE EVIDENCE BUILD PLAN COMPOSE CANVAS",
@@ -113,6 +114,7 @@ class RetrievalChunkBuilderTest {
         assertTrue(visual.retrievalText().contains("Figure 2. Editable draw.io request route."));
         assertTrue(visual.retrievalText().contains("SOURCES RETRIEVE BUILD PLAN"));
         assertTrue(visual.retrievalText().contains("SCOPE SOURCES RETRIEVE EVIDENCE BUILD PLAN COMPOSE CANVAS"));
+        assertFalse(visual.retrievalText().contains("x".repeat(500)));
         assertFalse(visual.retrievalText().contains("UNRELATED SAME PAGE CONTENT"));
         assertFalse(visual.retrievalText().contains("UNRELATED SECOND PAGE CONTENT"));
         assertEquals(List.of("visual", "caption", "page-one-label", "page-one-ocr"), visual.evidenceMappings().stream()

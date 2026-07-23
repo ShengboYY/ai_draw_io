@@ -180,7 +180,7 @@ public final class RetrievalChunkBuilder {
             }
             String candidate = result + "\n\n[同页视觉文本] " + text.displayText().strip();
             if (tokenCounter.count(candidate) > VISUAL_LIMIT) {
-                break;
+                continue;
             }
             result = candidate;
             included.add(text);
