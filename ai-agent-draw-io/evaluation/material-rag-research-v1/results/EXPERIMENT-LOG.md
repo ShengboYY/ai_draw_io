@@ -1087,3 +1087,22 @@
 - **阶段判定**:local Stage A evidence-decision gate 达标，可进入 E7/E8。开始 E7/E8 前必须冻结 Ready-only
   generation rubric 和运行 manifest；任何模型调用都只能使用这 12 个 Ready Development case。
 - **外部使用**:0 Pinecone、0 模型请求、0 model token、0 Validation/holdout case。
+
+### Post-R23 Stage B E7/E8 Ready-only Development run · 2026-07-23 · ⏸️ 已运行，禁止调优
+
+- **冻结输入**:提交 `1d1b5676`；12 个 Stage A `Ready` Development case 的合成正文、anchor/source-version、
+  2 个合成 visual/OCR 流程图、ground truth、rubric 与 prompt bundles 已由 corpus lock 绑定。未使用旧 20-task
+  E7 fixture，未发送 Validation、holdout 或真实用户资料。
+- **模型运行**:OpenAI GPT-5.5，12/12 API success、0 provider errors；实际输入 8,044 tokens、输出
+  10,900 tokens。formal manifest 与 prompt/artifact hash validation 通过。
+- **确定性结果**:XML parse rate `12/12 (100%)`；required citation contract `12/12 (100%)`；完整 task
+  completion `7/12 (58.3%)`。其中 5 个未完成均是 XML assertion 失败，引用契约均通过。
+- **失败诊断（仅记录，不用于本次重跑）**:`stagb-dev-02` 使用“15分钟”而非冻结标签“15 minutes”；
+  `stagb-dev-03` 将 Archive 与 7 years 合在同一节点；`stagb-dev-04` 漏掉 control number `PC-204`；
+  `stagb-dev-10` 将 Release Gate 与 rollback condition 合在同一节点；`stagb-dev-11` 使用
+  `Steady-state` 而非冻结的 `Steady State`。前四项显示 label granularity/locality 的弱点；`PC-204` 是明确
+  的 material-fact omission。
+- **阶段判定**:不修改 prompt、rubric、任务或模型参数，也不重跑这 12 个用例。独立的双 reviewer claim review
+  尚未完成，因而不能断言 unsupported-claim=0 或进入 Validation；E7/E8 仅作为冻结的 Development 诊断结果。
+- **工件**:`results/stage-a-e7e8-gpt-5-5-development-{responses,manifest,manifest-validation,evaluation}.json`。
+- **外部使用**:1 次 GPT-5.5 Development run；0 Pinecone、0 Validation/holdout case。
