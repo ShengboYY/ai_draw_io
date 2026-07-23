@@ -4,6 +4,7 @@ import org.zipp.ai.domain.citation.model.valobj.CitationBinding;
 import org.zipp.ai.domain.grounding.EvidenceAccessContext;
 
 import java.util.List;
+import java.util.Map;
 
 /** Prepared is commit-ready; confirmation and rejection never contain a canvas candidate. */
 public sealed interface DirectSourceOutcome {
@@ -22,9 +23,15 @@ public sealed interface DirectSourceOutcome {
         }
     }
 
-    record NeedsConfirmation(List<String> reasons) implements DirectSourceOutcome {
+    record NeedsConfirmation(List<String> reasons,
+                             Map<String, String> observedValues) implements DirectSourceOutcome {
         public NeedsConfirmation {
             reasons = List.copyOf(reasons == null ? List.of() : reasons);
+            observedValues = Map.copyOf(observedValues == null ? Map.of() : observedValues);
+        }
+
+        public NeedsConfirmation(List<String> reasons) {
+            this(reasons, Map.of());
         }
     }
 

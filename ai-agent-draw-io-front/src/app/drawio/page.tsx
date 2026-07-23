@@ -165,7 +165,8 @@ type TargetClarification = {
 };
 
 type DirectConfirmation = {
-  reasons: string[];
+  issues: Array<{ reasonCode: string; observedValue?: string }>;
+  sourceVersionId: string;
   originalPrompt: string;
   selections: Record<string, DirectClarificationResolution>;
 };
@@ -173,6 +174,7 @@ type DirectConfirmation = {
 type SendContentOptions = {
   requestContent?: string;
   directClarifications?: DirectClarification[];
+  directConfirmationSourceVersionId?: string;
 };
 
 const CHAT_WIDTH_STORAGE_KEY = 'ai_drawio_chat_width';
@@ -2476,6 +2478,7 @@ function DrawioPageContent() {
             hasSingleReadyImageSelection(conversationAttachments, selectedAttachmentUploadIds),
           ),
           directClarifications: options.directClarifications,
+          directConfirmationSourceVersionId: options.directConfirmationSourceVersionId,
           selectedVersionIds,
           selectedCellIds: selectedCellsRef.current?.cellIds,
           selectionCanvasVersion: selectedCellsRef.current?.canvasVersion,
@@ -3305,9 +3308,16 @@ function DrawioPageContent() {
 
             case 'direct_confirmation_required': {
               const reasons = Array.from(new Set((chunk.reasons || []).filter(Boolean))).slice(0, 5);
-              if (reasons.length > 0) {
+              const issueByReason = new Map((chunk.issues || []).map(issue => [
+                issue.reasonCode,
+                issue,
+              ]));
+              if (reasons.length > 0 && chunk.sourceVersionId) {
                 setDirectConfirmation({
-                  reasons,
+                  issues: reasons.map(reasonCode => (
+                    issueByReason.get(reasonCode) || { reasonCode }
+                  )),
+                  sourceVersionId: chunk.sourceVersionId,
                   originalPrompt: options.requestContent || displayContent,
                   selections: {},
                 });
@@ -3687,7 +3697,7 @@ function DrawioPageContent() {
   const handleDirectConfirmation = () => {
     if (!directConfirmation || isSending) return;
     const clarifications = buildDirectClarifications(
-      directConfirmation.reasons,
+      directConfirmation.issues.map(issue => issue.reasonCode),
       directConfirmation.selections,
     );
     if (!clarifications) return;
@@ -3696,6 +3706,7 @@ function DrawioPageContent() {
     void sendContent('已确认图片中的不确定项，请继续转换。', {
       requestContent: originalPrompt,
       directClarifications: clarifications,
+      directConfirmationSourceVersionId: directConfirmation.sourceVersionId,
     });
   };
 
@@ -4105,7 +4116,7 @@ function DrawioPageContent() {
           )}
           {directConfirmation && (
             <DirectConfirmationPanel
-              reasons={directConfirmation.reasons}
+              issues={directConfirmation.issues}
               selections={directConfirmation.selections}
               onSelectionChange={(reasonCode, value) => setDirectConfirmation(current => (
                 current ? {

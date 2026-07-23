@@ -3,6 +3,7 @@ package org.zipp.ai.domain.multimodal;
 import org.zipp.ai.domain.agent.model.valobj.canvas.CanvasStateSaveResult;
 
 import java.util.List;
+import java.util.Map;
 
 /** Only Committed exposes a persisted canvas; all other outcomes are non-mutating. */
 public sealed interface DirectImageConversionOutcome {
@@ -16,9 +17,15 @@ public sealed interface DirectImageConversionOutcome {
         }
     }
 
-    record NeedsConfirmation(List<String> reasons) implements DirectImageConversionOutcome {
+    record NeedsConfirmation(List<String> reasons,
+                             Map<String, String> observedValues) implements DirectImageConversionOutcome {
         public NeedsConfirmation {
             reasons = List.copyOf(reasons == null ? List.of() : reasons);
+            observedValues = Map.copyOf(observedValues == null ? Map.of() : observedValues);
+        }
+
+        public NeedsConfirmation(List<String> reasons) {
+            this(reasons, Map.of());
         }
     }
 

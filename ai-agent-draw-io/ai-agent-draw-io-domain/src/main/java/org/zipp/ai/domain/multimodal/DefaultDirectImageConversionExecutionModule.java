@@ -82,7 +82,8 @@ public final class DefaultDirectImageConversionExecutionModule
         if (outcome instanceof DirectSourceOutcome.NeedsConfirmation confirmation) {
             resources.closeExactlyOnce(CloseReason.COMPLETED);
             cancel(identity);
-            return new DirectImageConversionOutcome.NeedsConfirmation(confirmation.reasons());
+            return new DirectImageConversionOutcome.NeedsConfirmation(
+                    confirmation.reasons(), confirmation.observedValues());
         }
         if (outcome instanceof DirectSourceOutcome.Rejected rejected) {
             resources.closeExactlyOnce(CloseReason.FAILED);

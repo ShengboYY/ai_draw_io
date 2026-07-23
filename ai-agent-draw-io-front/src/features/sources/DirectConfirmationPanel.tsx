@@ -7,21 +7,24 @@ import {
 
 /** Collects one explicit bounded resolution for every unsafe image observation. */
 export const DirectConfirmationPanel = ({
-  reasons,
+  issues: rawIssues,
   selections,
   onSelectionChange,
   onConfirm,
   onCancel,
   disabled,
 }: {
-  reasons: string[];
+  issues: Array<{ reasonCode: string; observedValue?: string }>;
   selections: Record<string, DirectClarificationResolution>;
   onSelectionChange: (reasonCode: string, value: DirectClarificationResolution) => void;
   onConfirm: () => void;
   onCancel: () => void;
   disabled?: boolean;
 }) => {
-  const issues = reasons.map(directConfirmationIssue);
+  const issues = rawIssues.map(issue => directConfirmationIssue(
+    issue.reasonCode,
+    issue.observedValue,
+  ));
   const complete = issues.length > 0 && issues.every(issue => Boolean(selections[issue.reasonCode]));
 
   return (

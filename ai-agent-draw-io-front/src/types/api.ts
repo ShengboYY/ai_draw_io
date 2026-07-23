@@ -371,6 +371,7 @@ export interface ChatRequestDTO {
     reasonCode: string;
     resolution: 'ACCEPT_OBSERVED' | 'FORWARD' | 'REVERSE' | 'BIDIRECTIONAL' | 'UNDIRECTED';
   }>;
+  directConfirmationSourceVersionId?: string;
   selectedVersionIds?: string[];
   selectedCellIds?: string[];
   selectionCanvasVersion?: number;

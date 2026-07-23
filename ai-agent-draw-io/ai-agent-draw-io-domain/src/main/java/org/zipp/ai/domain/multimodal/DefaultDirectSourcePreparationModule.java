@@ -67,6 +67,11 @@ public final class DefaultDirectSourcePreparationModule implements DirectSourceP
         if (resolved.outcome() != null) {
             return CompletableFuture.completedFuture(resolved.outcome());
         }
+        if (!command.clarifications().isEmpty()
+                && !resolved.target().versionId().equals(command.confirmationSourceVersionId())) {
+            return CompletableFuture.completedFuture(
+                    new DirectSourceOutcome.Rejected(List.of("DIRECT_CONFIRMATION_SOURCE_MISMATCH")));
+        }
         VisualObservationCommand observationCommand = new VisualObservationCommand(
                 command.owner(), command.requestId(), command.runId(),
                 VisualObservationPurpose.DIAGRAM_RECONSTRUCTION, observationQuestion(command),
@@ -113,20 +118,23 @@ public final class DefaultDirectSourcePreparationModule implements DirectSourceP
             }
             ObservedDiagramGraph graph = verified.graph();
             ImageToDiagramOutcome conversion =
-                    converter.convert(new ImageToDiagramCommand(graph));
+                    converter.convert(new ImageToDiagramCommand(graph, command.clarifications()));
             progress.onProgress("direct_diagram_projection", 1, 1);
             if (conversion instanceof ImageToDiagramOutcome.NeedsConfirmation needs) {
-                return new DirectSourceOutcome.NeedsConfirmation(needs.reasons());
+                return new DirectSourceOutcome.NeedsConfirmation(
+                        needs.reasons(), needs.observedValues());
             }
             if (conversion instanceof ImageToDiagramOutcome.Rejected rejected) {
                 return new DirectSourceOutcome.Rejected(rejected.reasons());
             }
             ImageToDiagramOutcome.Converted converted =
                     (ImageToDiagramOutcome.Converted) conversion;
-            CitationProjection citations = citations(command, target, graph);
+            ObservedDiagramGraph convertedGraph =
+                    converted.graph() == null ? graph : converted.graph();
+            CitationProjection citations = citations(command, target, convertedGraph);
             resources.markPrepared();
             return new DirectSourceOutcome.Prepared(
-                    graph, converted.mxGraphModelXml(), converted.cellIds(),
+                    convertedGraph, converted.mxGraphModelXml(), converted.cellIds(),
                     citations.access(), citations.bindings());
         } catch (IllegalArgumentException exception) {
             return new DirectSourceOutcome.Rejected(List.of("INVALID_DIRECT_VISUAL_INPUT"));

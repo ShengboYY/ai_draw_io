@@ -31,6 +31,8 @@ public class ChatRequestDTO {
     private String sourceUseOverride;
     // Prior direct-image reason codes and bounded user choices; never treated as free-form prompt text.
     private java.util.List<DirectClarificationDTO> directClarifications;
+    // Exact version from the confirmation event; the server rejects stale-image confirmation reuse.
+    private String directConfirmationSourceVersionId;
     private java.util.List<String> selectedVersionIds;
     private java.util.List<String> selectedCellIds;
     private Long selectionCanvasVersion;

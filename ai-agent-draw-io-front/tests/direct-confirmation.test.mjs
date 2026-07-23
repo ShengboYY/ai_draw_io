@@ -40,3 +40,10 @@ test('confirmation request is withheld until every issue has a selected resoluti
     { reasonCode: 'LOW_CONFIDENCE_NODE_TEXT:n2', resolution: 'ACCEPT_OBSERVED' },
   ]);
 });
+
+test('low-confidence text shows the exact observed value before acceptance', () => {
+  assert.equal(
+    directConfirmationIssue('LOW_CONFIDENCE_NODE_TEXT:n2', 'Approve order').prompt,
+    '是否接受当前识别出的节点文字“Approve order”？',
+  );
+});

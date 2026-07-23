@@ -132,11 +132,31 @@ public class DrawioStreamResponseWriter {
     /** Sends bounded reason codes so the client can collect explicit image clarifications. */
     public void sendDirectConfirmation(ResponseBodyEmitter emitter, String content,
                                        java.util.List<String> reasons) throws Exception {
+        sendDirectConfirmation(emitter, content, "", reasons, java.util.Map.of());
+    }
+
+    /** Binds the choices to one exact source version and exposes only bounded observed values. */
+    public void sendDirectConfirmation(ResponseBodyEmitter emitter, String content,
+                                       String sourceVersionId,
+                                       java.util.List<String> reasons,
+                                       java.util.Map<String, String> observedValues) throws Exception {
         com.alibaba.fastjson.JSONObject chunk = new com.alibaba.fastjson.JSONObject();
         chunk.put("type", "direct_confirmation_required");
         chunk.put("content", StringUtils.defaultString(content));
-        chunk.put("reasons", reasons == null ? java.util.List.of() : reasons.stream()
-                .filter(StringUtils::isNotBlank).limit(5).toList());
+        java.util.List<String> safeReasons = reasons == null ? java.util.List.of() : reasons.stream()
+                .filter(StringUtils::isNotBlank).limit(5).toList();
+        chunk.put("reasons", safeReasons);
+        chunk.put("sourceVersionId", StringUtils.defaultString(sourceVersionId));
+        com.alibaba.fastjson.JSONArray issues = new com.alibaba.fastjson.JSONArray();
+        for (String reason : safeReasons) {
+            com.alibaba.fastjson.JSONObject issue = new com.alibaba.fastjson.JSONObject();
+            issue.put("reasonCode", reason);
+            String observed = observedValues == null ? "" :
+                    StringUtils.abbreviate(StringUtils.defaultString(observedValues.get(reason)), 200);
+            issue.put("observedValue", observed);
+            issues.add(issue);
+        }
+        chunk.put("issues", issues);
         sendWrappedChunk(emitter, "drawing", chunk);
         sendDone(emitter);
         emitter.complete();

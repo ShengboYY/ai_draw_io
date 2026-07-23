@@ -13,6 +13,7 @@ public record DirectSourceCommand(CatalogOwner owner, String requestId, String r
                                   String attachmentUploadId, List<String> selectedVersionIds,
                                   SourceMode sourceMode,
                                   String question,
+                                  String confirmationSourceVersionId,
                                   List<DirectClarification> clarifications,
                                   ResolvedSourceSet resolvedSources) {
     public DirectSourceCommand {
@@ -26,6 +27,8 @@ public record DirectSourceCommand(CatalogOwner owner, String requestId, String r
         sourceMode = sourceMode == null ? SourceMode.AUTO : sourceMode;
         question = required(question, "question");
         if (question.length() > 2_000) throw new IllegalArgumentException("question is too long");
+        confirmationSourceVersionId =
+                confirmationSourceVersionId == null ? "" : confirmationSourceVersionId.trim();
         clarifications = List.copyOf(clarifications == null ? List.of() : clarifications.stream()
                 .filter(Objects::nonNull).distinct().limit(5).toList());
     }
@@ -35,9 +38,20 @@ public record DirectSourceCommand(CatalogOwner owner, String requestId, String r
                                String diagramId, String conversationId,
                                String attachmentUploadId, List<String> selectedVersionIds,
                                SourceMode sourceMode, String question,
+                               List<DirectClarification> clarifications,
                                ResolvedSourceSet resolvedSources) {
         this(owner, requestId, runId, diagramId, conversationId, attachmentUploadId,
-                selectedVersionIds, sourceMode, question, List.of(), resolvedSources);
+                selectedVersionIds, sourceMode, question, "", clarifications, resolvedSources);
+    }
+
+    /** Compatibility constructor for callers without a confirmation response. */
+    public DirectSourceCommand(CatalogOwner owner, String requestId, String runId,
+                               String diagramId, String conversationId,
+                               String attachmentUploadId, List<String> selectedVersionIds,
+                               SourceMode sourceMode, String question,
+                               ResolvedSourceSet resolvedSources) {
+        this(owner, requestId, runId, diagramId, conversationId, attachmentUploadId,
+                selectedVersionIds, sourceMode, question, "", List.of(), resolvedSources);
     }
 
     /** Compatibility constructor for callers that have not frozen the request source snapshot. */
@@ -46,7 +60,7 @@ public record DirectSourceCommand(CatalogOwner owner, String requestId, String r
                                String attachmentUploadId, List<String> selectedVersionIds,
                                SourceMode sourceMode, String question) {
         this(owner, requestId, runId, diagramId, conversationId, attachmentUploadId,
-                selectedVersionIds, sourceMode, question, List.of(), null);
+                selectedVersionIds, sourceMode, question, "", List.of(), null);
     }
 
     private static String required(String value, String field) {

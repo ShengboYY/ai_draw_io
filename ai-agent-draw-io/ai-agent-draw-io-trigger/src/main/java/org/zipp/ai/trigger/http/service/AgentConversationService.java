@@ -482,7 +482,9 @@ public class AgentConversationService {
                                 }, evidenceCancelled::get);
                 if (directOutcome != null) {
                     try {
-                        sendDirectConversionOutcome(emitter, directOutcome);
+                        sendDirectConversionOutcome(
+                                emitter, directOutcome,
+                                sourcePlan.directAttachmentVersionIds().get(0));
                         captureRunOutput(runScope, directConversionResponse(directOutcome),
                                 currentRequest.getDiagramId());
                         completeStreamTelemetry(streamTelemetryCompleted, null, runScope, null);
@@ -517,7 +519,9 @@ public class AgentConversationService {
                         captureRunOutput(runScope, response, currentRequest.getDiagramId());
                         if (directPreparation instanceof DirectSourceOutcome.NeedsConfirmation confirmation) {
                             streamResponseWriter.sendDirectConfirmation(
-                                    emitter, response.getContent(), confirmation.reasons());
+                                    emitter, response.getContent(),
+                                    sourcePlan.directAttachmentVersionIds().get(0),
+                                    confirmation.reasons(), confirmation.observedValues());
                         } else {
                             streamResponseWriter.sendEvidenceOutcome(emitter,
                                     "grounding_rejected", response.getType(), response.getContent());
@@ -1682,7 +1686,8 @@ public class AgentConversationService {
                 owner(request), requestId, request.getRunId(), request.getDiagramId(),
                 request.getSessionId(), safeList(request.getAttachmentUploadIds()).get(0),
                 safeList(request.getSelectedVersionIds()), sourceMode(request.getSourceMode()),
-                request.getMessage(), directClarifications(request), onlyAttachmentSources(sources));
+                request.getMessage(), request.getDirectConfirmationSourceVersionId(),
+                directClarifications(request), onlyAttachmentSources(sources));
     }
 
     private List<org.zipp.ai.domain.multimodal.DirectClarification> directClarifications(
@@ -1831,7 +1836,8 @@ public class AgentConversationService {
     }
 
     private void sendDirectConversionOutcome(ResponseBodyEmitter emitter,
-                                             DirectImageConversionOutcome outcome) throws Exception {
+                                             DirectImageConversionOutcome outcome,
+                                             String sourceVersionId) throws Exception {
         if (outcome instanceof DirectImageConversionOutcome.Committed committed) {
             streamResponseWriter.sendPersistedDrawioDone(
                     emitter, "drawing", committed.canvasXml(), committed.saveResult());
@@ -1842,7 +1848,8 @@ public class AgentConversationService {
         ChatResponseDTO response = directConversionResponse(outcome);
         if (outcome instanceof DirectImageConversionOutcome.NeedsConfirmation confirmation) {
             streamResponseWriter.sendDirectConfirmation(
-                    emitter, response.getContent(), confirmation.reasons());
+                    emitter, response.getContent(), sourceVersionId,
+                    confirmation.reasons(), confirmation.observedValues());
             return;
         }
         String streamEvent = outcome instanceof DirectImageConversionOutcome.Rejected

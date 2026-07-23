@@ -99,6 +99,7 @@ class DirectSourcePreparationModuleTest {
                 "request-1", "run-1", "diagram-1", "conversation-1", "upload-1",
                 List.of("selected-version-1"), SourceMode.EXPLICIT_ONLY,
                 "Reconstruct the uploaded diagram",
+                "version-1",
                 List.of(
                         new DirectClarification("UNRESOLVED_EDGE_DIRECTION:e1",
                                 DirectClarification.Resolution.FORWARD),
@@ -127,6 +128,32 @@ class DirectSourcePreparationModuleTest {
                 null, () -> true).toCompletableFuture().join();
 
         assertInstanceOf(DirectSourceOutcome.Cancelled.class, outcome);
+        assertEquals(0, observations[0]);
+    }
+
+    @Test
+    void staleImageConfirmationStopsBeforeReadingPixels() {
+        int[] observations = {0};
+        DirectSourcePreparationModule module = module(
+                (request, resources, cancellation) -> {
+                    observations[0]++;
+                    throw new AssertionError("stale confirmation must not read pixels");
+                },
+                readySources(), new AtomicBoolean(), Optional.of(artifact));
+        DirectSourceCommand stale = new DirectSourceCommand(
+                new CatalogOwner(OwnerType.USER, "alice"),
+                "request-1", "run-1", "diagram-1", "conversation-1", "upload-1",
+                List.of("selected-version-1"), SourceMode.EXPLICIT_ONLY, "Reconstruct",
+                "another-version",
+                List.of(new DirectClarification("LOW_CONFIDENCE_NODE_TEXT:n2",
+                        DirectClarification.Resolution.ACCEPT_OBSERVED)),
+                null);
+
+        DirectSourceOutcome outcome = module.prepare(stale, new RunResourceDomain(),
+                null, CancellationSignal.NEVER).toCompletableFuture().join();
+
+        assertEquals(List.of("DIRECT_CONFIRMATION_SOURCE_MISMATCH"),
+                assertInstanceOf(DirectSourceOutcome.Rejected.class, outcome).reasons());
         assertEquals(0, observations[0]);
     }
 

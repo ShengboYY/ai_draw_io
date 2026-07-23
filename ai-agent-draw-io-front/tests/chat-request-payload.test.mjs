@@ -116,11 +116,13 @@ test('buildDrawioChatRequestPayload carries bounded direct image clarifications'
     directClarifications: [
       { reasonCode: 'UNRESOLVED_EDGE_DIRECTION:e1', resolution: 'FORWARD' },
     ],
+    directConfirmationSourceVersionId: 'version-1',
   });
 
   assert.deepEqual(payload.directClarifications, [
     { reasonCode: 'UNRESOLVED_EDGE_DIRECTION:e1', resolution: 'FORWARD' },
   ]);
+  assert.equal(payload.directConfirmationSourceVersionId, 'version-1');
 });
 
 test('buildDrawioChatRequestPayload carries the current rendered PNG for review-only routing', () => {

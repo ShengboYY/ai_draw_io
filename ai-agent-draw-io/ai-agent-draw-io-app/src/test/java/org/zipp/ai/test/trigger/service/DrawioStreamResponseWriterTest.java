@@ -109,12 +109,15 @@ public class DrawioStreamResponseWriterTest {
         DrawioStreamResponseWriter writer = new DrawioStreamResponseWriter(new DrawioToolCallRenderer());
         CapturingEmitter emitter = new CapturingEmitter();
 
-        writer.sendDirectConfirmation(emitter, "请确认图片结构。",
-                List.of("UNRESOLVED_EDGE_DIRECTION:e1", "LOW_CONFIDENCE_NODE_TEXT:n2"));
+        writer.sendDirectConfirmation(emitter, "请确认图片结构。", "version-1",
+                List.of("UNRESOLVED_EDGE_DIRECTION:e1", "LOW_CONFIDENCE_NODE_TEXT:n2"),
+                java.util.Map.of("LOW_CONFIDENCE_NODE_TEXT:n2", "Approve order"));
 
         String output = String.join("\n", emitter.sent);
         assertTrue(output.contains("\"type\":\"direct_confirmation_required\""));
         assertTrue(output.contains("\"reasons\":[\"UNRESOLVED_EDGE_DIRECTION:e1\",\"LOW_CONFIDENCE_NODE_TEXT:n2\"]"));
+        assertTrue(output.contains("\"sourceVersionId\":\"version-1\""));
+        assertTrue(output.contains("\"observedValue\":\"Approve order\""));
         assertTrue(output.contains("\"type\":\"done\""));
     }
 

@@ -1257,6 +1257,7 @@ public class AgentConversationServiceTest {
         clarification.setReasonCode("UNRESOLVED_EDGE_DIRECTION:e1");
         clarification.setResolution("FORWARD");
         request.setDirectClarifications(List.of(clarification));
+        request.setDirectConfirmationSourceVersionId("version-1");
 
         org.zipp.ai.api.dto.ChatResponseDTO response = service.chat(request);
 
@@ -1271,6 +1272,7 @@ public class AgentConversationServiceTest {
                 executed.get().source().clarifications().get(0).reasonCode());
         assertEquals(org.zipp.ai.domain.multimodal.DirectClarification.Resolution.FORWARD,
                 executed.get().source().clarifications().get(0).resolution());
+        assertEquals("version-1", executed.get().source().confirmationSourceVersionId());
         assertTrue(routingService.lastCommand.getRequestProbe().hasSingleReadyImageAttachment());
         assertEquals(1, routingService.lastCommand.getRequestProbe().readyAttachmentCount());
         assertEquals(0, chatService.handleMessageCalls);
@@ -1354,6 +1356,7 @@ public class AgentConversationServiceTest {
         String output = String.join("\n", emitter.sent);
         assertTrue(output.contains("\"type\":\"direct_confirmation_required\""));
         assertTrue(output.contains("\"reasons\":[\"AMBIGUOUS_DIRECTION\"]"));
+        assertTrue(output.contains("\"sourceVersionId\":\"version-1\""));
         assertTrue(output.contains("\"type\":\"done\""));
         assertEquals(0, chatService.handleMessageCalls);
         assertEquals(0, chatService.handleMessageStreamCalls);

@@ -24,6 +24,7 @@ type BuildDrawioChatRequestPayloadInput = {
   sourceMode?: 'NONE' | 'AUTO' | 'EXPLICIT' | 'EXPLICIT_ONLY';
   sourceUseOverride?: 'DIRECT' | 'DIRECT_AND_RETRIEVAL';
   directClarifications?: DirectClarification[];
+  directConfirmationSourceVersionId?: string;
   selectedVersionIds?: string[];
   selectedCellIds?: string[];
   selectionCanvasVersion?: number;
@@ -93,6 +94,7 @@ export const buildDrawioChatRequestPayload = ({
   sourceMode,
   sourceUseOverride,
   directClarifications,
+  directConfirmationSourceVersionId,
   selectedVersionIds,
   selectedCellIds,
   selectionCanvasVersion,
@@ -134,6 +136,7 @@ export const buildDrawioChatRequestPayload = ({
     ...sourceDeclaration,
     ...(sourceUseOverride && { sourceUseOverride }),
     ...(directClarifications?.length && { directClarifications }),
+    ...(directConfirmationSourceVersionId && { directConfirmationSourceVersionId }),
     ...(selectedCellIds?.length && { selectedCellIds }),
     ...(selectionCanvasVersion !== undefined && { selectionCanvasVersion }),
     ...(selectionContentHash?.trim() && { selectionContentHash: selectionContentHash.trim() }),

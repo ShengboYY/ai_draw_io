@@ -27,7 +27,10 @@ const directionOptions: DirectConfirmationIssue['options'] = [
 const reasonTarget = (reasonCode: string) => reasonCode.split(':', 2)[1] || '未命名区域';
 
 /** Converts bounded backend reason codes into user-facing choices without exposing model prose. */
-export const directConfirmationIssue = (reasonCode: string): DirectConfirmationIssue => {
+export const directConfirmationIssue = (
+  reasonCode: string,
+  observedValue = '',
+): DirectConfirmationIssue => {
   const target = reasonTarget(reasonCode);
   if (reasonCode.startsWith('UNRESOLVED_EDGE_DIRECTION:')) {
     return {
@@ -41,7 +44,9 @@ export const directConfirmationIssue = (reasonCode: string): DirectConfirmationI
     return {
       reasonCode,
       targetLabel: `节点 ${target}`,
-      prompt: '是否接受当前识别出的节点文字？',
+      prompt: observedValue
+        ? `是否接受当前识别出的节点文字“${observedValue}”？`
+        : '是否接受当前识别出的节点文字？',
       options: [{ value: 'ACCEPT_OBSERVED', label: '接受当前识别' }],
     };
   }
@@ -49,7 +54,9 @@ export const directConfirmationIssue = (reasonCode: string): DirectConfirmationI
     return {
       reasonCode,
       targetLabel: `分组 ${target}`,
-      prompt: '是否接受当前识别出的分组文字？',
+      prompt: observedValue
+        ? `是否接受当前识别出的分组文字“${observedValue}”？`
+        : '是否接受当前识别出的分组文字？',
       options: [{ value: 'ACCEPT_OBSERVED', label: '接受当前识别' }],
     };
   }

@@ -110,6 +110,23 @@ class ImageToDiagramModuleTest {
 
         assertEquals(List.of("LOW_CONFIDENCE_NODE_TEXT:unclear",
                 "UNRESOLVED_EDGE_DIRECTION:unknown-direction"), outcome.reasons());
+        assertEquals("Possible label",
+                outcome.observedValues().get("LOW_CONFIDENCE_NODE_TEXT:unclear"));
+
+        ImageToDiagramOutcome.Converted confirmed =
+                assertInstanceOf(ImageToDiagramOutcome.Converted.class,
+                        new DefaultImageToDiagramModule().convert(new ImageToDiagramCommand(
+                                graph,
+                                List.of(
+                                        new DirectClarification("LOW_CONFIDENCE_NODE_TEXT:unclear",
+                                                DirectClarification.Resolution.ACCEPT_OBSERVED),
+                                        new DirectClarification(
+                                                "UNRESOLVED_EDGE_DIRECTION:unknown-direction",
+                                                DirectClarification.Resolution.REVERSE)))));
+
+        assertTrue(confirmed.mxGraphModelXml().contains(
+                "source=\"direct-node-right\" target=\"direct-node-unclear\""));
+        assertTrue(confirmed.mxGraphModelXml().contains("endArrow=block"));
     }
 
     private ObservedDiagramGraph.Node node(String id, double x, String evidenceId) {

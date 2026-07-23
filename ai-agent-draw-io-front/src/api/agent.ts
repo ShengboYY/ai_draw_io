@@ -234,6 +234,8 @@ export interface DirectConfirmationChunk {
     type: 'direct_confirmation_required';
     content: string;
     reasons: string[];
+    sourceVersionId: string;
+    issues?: Array<{ reasonCode: string; observedValue?: string }>;
 }
 
 export interface TargetClarificationChunk {
