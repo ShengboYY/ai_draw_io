@@ -8,9 +8,9 @@ Parameters:
     Type: String
   WorkerTaskRoleName:
     Type: String
-  BrowserOrigin:
-    Type: String
-    Description: Exact HTTPS origin of the web application.
+  BrowserOrigins:
+    Type: CommaDelimitedList
+    Description: Exact HTTPS origins of the web application.
 
 Resources:
   QuarantineBucket:
@@ -27,7 +27,8 @@ Resources:
         RestrictPublicBuckets: true
       CorsConfiguration:
         CorsRules:
-          - AllowedOrigins: [!Ref BrowserOrigin]
+          # Keep direct browser uploads limited to the two production application origins.
+          - AllowedOrigins: !Ref BrowserOrigins
             AllowedMethods: [POST]
             AllowedHeaders: ['*']
             ExposedHeaders: [ETag, x-amz-version-id]
