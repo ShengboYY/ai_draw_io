@@ -261,6 +261,10 @@ Recall@10 与 flat 持平,MRR@10 低 0.062,未晋级。当前顺序：
    该变量不晋级、不能冻结 bundle。r9 保留 page parent 的引用和 lexical 检索、将其排除于 dense candidate pool；真实
    Development trace 已清理 62 个临时向量，但 `dgt-dev-02` control top-8 仍缺 architecture page-3 visual/OCR artifact
    （VISUAL rank 28、TEXT rank 34），因此 paired exporter 在生成 context 前停止。R9 不晋级，Validation 继续关闭。
+   R10 已补齐未来 trace 的 embedding 输入 provenance。R11 已预注册为 source-independent 的 visual same-page OCR
+   representation：只在 420-token visual 上限内把同页 OCR TEXT 作为 CONTEXT 附到 VISUAL retrieval text，保留
+   visual primary citation 与 caption identity，不读取 evaluator 数据。须先完成独立代码审查并修复工作区中无关的
+   Java test 编译阻断，再另行授权一个临时 Pinecone Development trace；其 trace 必须带 R10 embeddingInputManifest。
 2. 后续 E9 必须执行在线授权、版本、故障注入与恢复；当前 fixture-contract 通过不能替代它。
 3. Validation 暂不打开。仓库可见的 legacy holdout 不再用于“未见最终结论”；外部 final holdout
    按独立保管协议只释放一次。

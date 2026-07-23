@@ -546,6 +546,25 @@
   才能解释为 ranking effect。详见
   [2026-07-23-e7-r10-embedding-input-manifest-pre-registration.md](2026-07-23-e7-r10-embedding-input-manifest-pre-registration.md)。
 
+### E7 r11 — visual same-page OCR representation · 2026-07-23 · ⏸本地实现完成，Development trace 待授权
+
+- **动机**:R9 的 `dgt-dev-02` 在导出上下文前失败：architecture page-3 的 VISUAL/OCR artifact 不在 top-8
+  （VISUAL rank 28、TEXT rank 34）。诊断发现 VISUAL chunk 的 dense 表示实质是 caption，而同页流程词由独立 OCR TEXT
+  chunk 承载，未进入 visual representation。
+- **单一变量**:对每个 VISUAL Evidence，只在完整文本仍不超过既有 420-token 上限时追加同页非空 OCR TEXT；VISUAL 保持
+  `PRIMARY` citation、caption 保持 `CAPTION`，每条 OCR 以 `CONTEXT` mapping 明示。跨页 OCR 不会加入。fingerprint
+  增加 `visual-same-page-ocr-v1`，让未来 trace 可与 R9 区分。
+- **安全边界**:不读取 task ID、required anchor、expected answer、XML/edit assertion、evaluator ground truth、selected
+  source version、模型输出或当前 rank；不改变 source identity、chartbook scope、ranker、top-8 budget 或 citation boundary。
+- **本地核验**:实现了 page-locality/citation-role 单测与实际 architecture PDF/OCR projection 断言；ingestion-worker
+  reactor main-code package build、Python analysis 97 项通过。受无关的未完成 source-resolution 工作影响，
+  `EvidencePreparationModuleTest` 目前以 `EvidencePreparationCommand` 构造参数不匹配阻断 test compile，故这两条
+  JUnit 暂不能执行；没有修改或绕过该工作。无 Pinecone、模型、Validation 或 holdout。
+- **下一步**:完成独立代码审查并在 Java test 编译恢复后执行定向测试；随后需要新的明确授权，才可在临时 Pinecone
+  Development namespace 运行 R11 trace（绑定 R10 embeddingInputManifest、run-time corpus lock 与 source identity manifest）。
+  只有 visual/OCR artifact、20% contrast 与 r6 model-visible-evidence 三个 gate 都通过，才可冻结 prompt 或请求模型。详见
+  [2026-07-23-e7-r11-visual-same-page-ocr-pre-registration.md](2026-07-23-e7-r11-visual-same-page-ocr-pre-registration.md)。
+
 ---
 
 ## 当前状态与下一步
@@ -553,8 +572,8 @@
 - 已完成:E0 基线 → E1 表示层改进 → 核心集升级并冻结到 450 → Development 与 Validation
   配对重跑 → 守门最低数补齐并执行 fixture-contract。Validation 证明 E1 提升真实,也证明
   dense-only 尚未达门槛。
-- **下一步**:R10 已补齐 trace 的 embedding-input provenance；随后预注册新的 source-independent dense visual/OCR
-  availability intervention。Validation 暂不打开。
+- **下一步**:R11 已预注册并完成本地实现；先完成独立代码审查并等待无关 Java test 编译阻断解除，再申请临时 Pinecone
+  Development trace 授权。Validation 暂不打开。
 
 ## 开放问题 / 待办
 

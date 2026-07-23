@@ -88,6 +88,36 @@ class RetrievalChunkBuilderTest {
     }
 
     @Test
+    void enrichesVisualRetrievalWithSamePageOcrWhileKeepingTheVisualCitationPrimary() {
+        List<EvidenceUnit> units = List.of(
+                text("caption", EvidenceUnitType.CAPTION, "Figure 2. Editable draw.io request route.",
+                        "section-1", 1, 0.90),
+                visual("visual", "section-1", 2),
+                ocrText("page-one-ocr", "SCOPE SOURCES RETRIEVE EVIDENCE BUILD PLAN COMPOSE CANVAS",
+                        "section-1", "page-1", 1, 3, 0.90),
+                ocrText("other-page-ocr", "UNRELATED SECOND PAGE CONTENT", "section-2", "page-2", 2,
+                        4, 0.90));
+        EvidenceManifest evidence = manifest(units, List.of(
+                new EvidenceRelation("caption", "visual", EvidenceRelationType.CAPTION_OF, 1)));
+
+        var visual = new RetrievalChunkBuilder(CHARACTER_COUNTER).build(evidence).chunks().stream()
+                .filter(chunk -> chunk.chunkType() == RetrievalChunkType.VISUAL_DESCRIPTION)
+                .findFirst().orElseThrow();
+
+        assertEquals(RetrievalIndexMode.DENSE_AND_LEXICAL, visual.indexMode());
+        assertTrue(visual.citable());
+        assertTrue(visual.retrievalText().contains("Figure 2. Editable draw.io request route."));
+        assertTrue(visual.retrievalText().contains("SCOPE SOURCES RETRIEVE EVIDENCE BUILD PLAN COMPOSE CANVAS"));
+        assertFalse(visual.retrievalText().contains("UNRELATED SECOND PAGE CONTENT"));
+        assertEquals(List.of("visual", "caption", "page-one-ocr"), visual.evidenceMappings().stream()
+                .map(mapping -> mapping.evidenceId()).toList());
+        assertEquals(List.of(ChunkEvidenceRole.PRIMARY, ChunkEvidenceRole.CAPTION, ChunkEvidenceRole.CONTEXT),
+                visual.evidenceMappings().stream().map(mapping -> mapping.role()).toList());
+        assertTrue(new RetrievalChunkBuilder(CHARACTER_COUNTER).fingerprint()
+                .contains("visual-same-page-ocr-v1"));
+    }
+
+    @Test
     void splitsOversizedEvidenceAtCodePointBoundariesAndKeepsExactCharacterMappings() {
         String body = "a".repeat(390) + "🚀" + "b".repeat(390);
         EvidenceManifest evidence = manifest(List.of(
@@ -345,6 +375,15 @@ class RetrievalChunkBuilderTest {
                 0.9, Math.min(0.99, ordinal * 0.01 + 0.005));
         return new EvidenceUnit(id, pageId, pageNo, sectionId, type, EvidenceModality.TEXT,
                 "NATIVE", text, sha(text), artifact("canonical.json.gz"), null,
+                List.of(new EvidenceRegion(pageId, pageNo, box, 0, text.length(), id)), quality);
+    }
+
+    private static EvidenceUnit ocrText(String id, String text, String sectionId, String pageId, int pageNo,
+                                        int ordinal, double quality) {
+        NormalizedBoundingBox box = new NormalizedBoundingBox(0.1, ordinal * 0.01,
+                0.9, Math.min(0.99, ordinal * 0.01 + 0.005));
+        return new EvidenceUnit(id, pageId, pageNo, sectionId, EvidenceUnitType.CONTENT, EvidenceModality.TEXT,
+                "OCR", text, sha(text), artifact("canonical.json.gz"), null,
                 List.of(new EvidenceRegion(pageId, pageNo, box, 0, text.length(), id)), quality);
     }
 

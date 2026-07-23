@@ -69,6 +69,7 @@ public final class RetrievalChunkBuilder {
         }
         return SCHEMA_VERSION + ":leaf-by-evidence:sentence-safe-split:parent-neighbor-max900:page-parent-max900:"
                 + "page-parent-lexical-only:"
+                + "visual-same-page-ocr-v1:"
                 + "section-bridge-min3-or500:aux-hard20pct:extractive-profile:lexical-v2:tokenizer="
                 + tokenCounterFingerprint.trim();
     }
@@ -84,6 +85,7 @@ public final class RetrievalChunkBuilder {
                 EvidenceRelationType.TABLE_HEADER_FOR);
         Map<String, EvidenceUnit> captionByVisual = relatedEvidence(source, byId,
                 EvidenceRelationType.CAPTION_OF);
+        Map<String, List<EvidenceUnit>> ocrByPage = samePageOcr(source);
 
         List<RetrievalChunkProjection> leaves = new ArrayList<>();
         for (EvidenceUnit unit : source.units()) {
@@ -108,6 +110,10 @@ public final class RetrievalChunkBuilder {
                 TextRange exactRange = trimRange(body, range);
                 String fragment = body.substring(exactRange.start(), exactRange.end());
                 String retrievalText = prefix + fragment;
+                VisualOcrContext visualOcr = unit.modality() == EvidenceModality.VISUAL
+                        ? appendSamePageOcr(retrievalText, ocrByPage.get(unit.pageId()))
+                        : VisualOcrContext.empty(retrievalText);
+                retrievalText = visualOcr.retrievalText();
                 List<RetrievalEvidenceMapping> mappings = new ArrayList<>();
                 mappings.add(new RetrievalEvidenceMapping(unit.evidenceId(), ChunkEvidenceRole.PRIMARY, 0,
                         ranges.size() == 1 || unit.displayText() == null ? null : exactRange.start(),
@@ -117,6 +123,10 @@ public final class RetrievalChunkBuilder {
                             unit.modality() == EvidenceModality.VISUAL
                                     ? ChunkEvidenceRole.CAPTION : ChunkEvidenceRole.HEADER,
                             1, null, null));
+                }
+                for (EvidenceUnit ocr : visualOcr.evidence()) {
+                    mappings.add(new RetrievalEvidenceMapping(ocr.evidenceId(), ChunkEvidenceRole.CONTEXT,
+                            mappings.size(), null, null));
                 }
                 if (heading != null && (context == null || !heading.evidenceId().equals(context.evidenceId()))) {
                     mappings.add(new RetrievalEvidenceMapping(heading.evidenceId(),
@@ -141,6 +151,38 @@ public final class RetrievalChunkBuilder {
         String projectionHash = sha256(fingerprint() + ":" + source.evidenceHash() + ":" + chunks + ":" + lexical);
         return new RetrievalProjectionManifest(SCHEMA_VERSION, source.revisionId(), source.versionId(),
                 source.evidenceHash(), fingerprint(), chunks, lexical, projectionHash);
+    }
+
+    /**
+     * OCR is added only as page-local retrieval context; the visual evidence remains the primary citation target.
+     */
+    private static Map<String, List<EvidenceUnit>> samePageOcr(EvidenceManifest source) {
+        Map<String, List<EvidenceUnit>> byPage = new LinkedHashMap<>();
+        for (EvidenceUnit unit : source.units()) {
+            if (unit.modality() != EvidenceModality.TEXT || !"OCR".equals(unit.sourceChannel())
+                    || unit.displayText() == null || unit.displayText().isBlank()) {
+                continue;
+            }
+            byPage.computeIfAbsent(unit.pageId(), ignored -> new ArrayList<>()).add(unit);
+        }
+        return byPage;
+    }
+
+    private VisualOcrContext appendSamePageOcr(String retrievalText, List<EvidenceUnit> pageOcr) {
+        if (pageOcr == null || pageOcr.isEmpty()) {
+            return VisualOcrContext.empty(retrievalText);
+        }
+        String result = retrievalText;
+        List<EvidenceUnit> included = new ArrayList<>();
+        for (EvidenceUnit ocr : pageOcr) {
+            String candidate = result + "\n\n[同页 OCR] " + ocr.displayText().strip();
+            if (tokenCounter.count(candidate) > VISUAL_LIMIT) {
+                break;
+            }
+            result = candidate;
+            included.add(ocr);
+        }
+        return new VisualOcrContext(result, List.copyOf(included));
     }
 
     private List<RetrievalChunkProjection> mergeShortLeaves(String revisionId,
@@ -730,6 +772,17 @@ public final class RetrievalChunkBuilder {
     }
 
     private record TextRange(int start, int end) { }
+
+    private record VisualOcrContext(String retrievalText, List<EvidenceUnit> evidence) {
+        private VisualOcrContext {
+            retrievalText = Objects.requireNonNull(retrievalText, "retrievalText");
+            evidence = List.copyOf(Objects.requireNonNull(evidence, "evidence"));
+        }
+
+        private static VisualOcrContext empty(String retrievalText) {
+            return new VisualOcrContext(retrievalText, List.of());
+        }
+    }
 
     private record PageEvidenceFragment(EvidenceUnit unit, TextRange range, String text) { }
 
