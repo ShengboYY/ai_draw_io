@@ -1,0 +1,221 @@
+{
+  "schemaVersion": "material-rag-generation-run-manifest-v1",
+  "qualification": "formal",
+  "split": "validation",
+  "gitCommit": "b137c82e",
+  "corpusLockSha256": "6920462f2401a25f5afe25cf7d20c0929b838c1aa9c60f4727ebde7a69a3d935",
+  "taskFixtureSha256": "802d84d23a84798d47e3ca36560f16c4c1c995de0c6a81f1402a8b226f71b2ee",
+  "promptBundlesSha256": "c2fbb953ca080dfe3cf4b471c471c3fcbad3882588bf430983e15ca97575e136",
+  "responsesSha256": "647a00c532ce0af4765102d9057290addebd4dff039b558fd9a42dfdf18c987b",
+  "model": {
+    "provider": "OpenAI",
+    "name": "gpt-5.5",
+    "endpointFingerprint": "sha256:82141e272189210ab931267ec91313de3460102092ac4f85b284b44db52b0caf"
+  },
+  "requestParameters": {
+    "temperature": "provider-default",
+    "maxCompletionTokens": 3000,
+    "responseFormat": "json_schema:drawio_generation_response_v3",
+    "reasoningEffort": "low",
+    "imageDetail": "high"
+  },
+  "taskIds": [
+    "stge-val-01",
+    "stge-val-02",
+    "stge-val-03",
+    "stge-val-04",
+    "stge-val-05",
+    "stge-val-06",
+    "stge-val-07",
+    "stge-val-08",
+    "stge-val-09",
+    "stge-val-10",
+    "stge-val-11",
+    "stge-val-12"
+  ],
+  "calls": [
+    {
+      "taskId": "stge-val-01",
+      "status": "success",
+      "attempts": 1,
+      "httpStatus": 200,
+      "requestId": "req_3abead4c83304badaf8d4c52ff996a44",
+      "promptSha256": "4278f246da58812453d4cf200c7e309244774fd689d54f86bc03f4b4bcd3a8ed",
+      "usage": {
+        "inputTokens": 359,
+        "outputTokens": 990
+      },
+      "latencyMs": 8820
+    },
+    {
+      "taskId": "stge-val-02",
+      "status": "success",
+      "attempts": 1,
+      "httpStatus": 200,
+      "requestId": "req_d036b1b1a6834bb7948f544bf115c527",
+      "promptSha256": "371c40c76cca95026948c9a6d6f170e230e69a6524d8130e28bc59ca9605d289",
+      "usage": {
+        "inputTokens": 360,
+        "outputTokens": 871
+      },
+      "latencyMs": 7886
+    },
+    {
+      "taskId": "stge-val-03",
+      "status": "success",
+      "attempts": 1,
+      "httpStatus": 200,
+      "requestId": "req_e51358923cad4fc1ba8c4c3a640d25bf",
+      "promptSha256": "595ef6bfde1dfb9c13788980d5a8a0095fd91527a7b1c2bef508589226936b75",
+      "usage": {
+        "inputTokens": 355,
+        "outputTokens": 1168
+      },
+      "latencyMs": 10317
+    },
+    {
+      "taskId": "stge-val-04",
+      "status": "success",
+      "attempts": 1,
+      "httpStatus": 200,
+      "requestId": "req_46f3497e6ed645c598bb3cd397a268b6",
+      "promptSha256": "44a7102d0212566a94760e952e9cff71c262013864c84ca6bfb7932e81b8be27",
+      "usage": {
+        "inputTokens": 458,
+        "outputTokens": 293
+      },
+      "latencyMs": 3786
+    },
+    {
+      "taskId": "stge-val-05",
+      "status": "success",
+      "attempts": 1,
+      "httpStatus": 200,
+      "requestId": "req_ab1810cd0f1e49b2a1d611aa5b9a6a73",
+      "promptSha256": "9097fcb3d823abce8a9e3ad01c110bc117686f3b4064b2e12792ab448c0db8ed",
+      "usage": {
+        "inputTokens": 449,
+        "outputTokens": 464
+      },
+      "latencyMs": 5041
+    },
+    {
+      "taskId": "stge-val-06",
+      "status": "success",
+      "attempts": 1,
+      "httpStatus": 200,
+      "requestId": "req_660581c7b7a14c2a995ec7e504e80103",
+      "promptSha256": "de60957b7fff6aa43cafa686b745beb95ca88366661a43c30c696b83ad6f1a53",
+      "usage": {
+        "inputTokens": 440,
+        "outputTokens": 250
+      },
+      "latencyMs": 3051
+    },
+    {
+      "taskId": "stge-val-07",
+      "status": "success",
+      "attempts": 1,
+      "httpStatus": 200,
+      "requestId": "req_be8da0473ead480a9117913b97ef4ce3",
+      "promptSha256": "d63167041cc16b126f05ee320775f84a3df31381c379ef04ca44f798cfc12fef",
+      "usage": {
+        "inputTokens": 437,
+        "outputTokens": 211
+      },
+      "latencyMs": 2580
+    },
+    {
+      "taskId": "stge-val-08",
+      "status": "success",
+      "attempts": 1,
+      "httpStatus": 200,
+      "requestId": "req_16995e9dd08441c09d2bb13e2eaf9267",
+      "promptSha256": "02f81504311a168a8c5a2066795c27d2f0f096353288d477199275b843829f92",
+      "usage": {
+        "inputTokens": 364,
+        "outputTokens": 944
+      },
+      "latencyMs": 7370
+    },
+    {
+      "taskId": "stge-val-09",
+      "status": "success",
+      "attempts": 1,
+      "httpStatus": 200,
+      "requestId": "req_e86e959a0dc0440681aece0df042b1b2",
+      "promptSha256": "c96a1571a1ac6900bbf08b33cfecfd6dace430a47ef707bb7ef1b69a7cb80da1",
+      "usage": {
+        "inputTokens": 378,
+        "outputTokens": 1173
+      },
+      "latencyMs": 9862
+    },
+    {
+      "taskId": "stge-val-10",
+      "status": "success",
+      "attempts": 1,
+      "httpStatus": 200,
+      "requestId": "req_e65540733d3e4fa69b5af5a88dc4030b",
+      "promptSha256": "668de97ee5fcd31eb4f8cdb04e140102b1fa2a5997744788945b1fee61878f79",
+      "usage": {
+        "inputTokens": 2164,
+        "outputTokens": 1328
+      },
+      "latencyMs": 11517
+    },
+    {
+      "taskId": "stge-val-11",
+      "status": "success",
+      "attempts": 1,
+      "httpStatus": 200,
+      "requestId": "req_8b244f4212644a4490a3d6d200b6fa31",
+      "promptSha256": "b470f41ae9400e351faf2490e1ccf76a37111f6a7797b6102e234984fb6db722",
+      "usage": {
+        "inputTokens": 2186,
+        "outputTokens": 1615
+      },
+      "latencyMs": 13568
+    },
+    {
+      "taskId": "stge-val-12",
+      "status": "success",
+      "attempts": 1,
+      "httpStatus": 200,
+      "requestId": "req_db117f1252d54e8d996285a539072e7f",
+      "promptSha256": "86549a7c7e01153940e9377214ea6668516decac7b1afd1856c863d900eea994",
+      "usage": {
+        "inputTokens": 360,
+        "outputTokens": 1374
+      },
+      "latencyMs": 11205
+    }
+  ],
+  "artifacts": [
+    {
+      "role": "corpusLock",
+      "path": "fixtures/generated/corpus-lock.json",
+      "sha256": "6920462f2401a25f5afe25cf7d20c0929b838c1aa9c60f4727ebde7a69a3d935"
+    },
+    {
+      "role": "taskFixture",
+      "path": "fixtures/generated/stage-e-postcalibration-validation/tasks.json",
+      "sha256": "802d84d23a84798d47e3ca36560f16c4c1c995de0c6a81f1402a8b226f71b2ee"
+    },
+    {
+      "role": "promptBundles",
+      "path": "fixtures/generated/stage-e-postcalibration-validation/prompt-bundles.json",
+      "sha256": "c2fbb953ca080dfe3cf4b471c471c3fcbad3882588bf430983e15ca97575e136"
+    },
+    {
+      "role": "hydration",
+      "path": "fixtures/generated/stage-e-postcalibration-validation/contexts.json",
+      "sha256": "b045781ef929512d8ba96419832638b21faeff9d72b273151378c62657a03bf2"
+    },
+    {
+      "role": "responses",
+      "path": "results/stage-e-postcalibration-validation-gpt-5-5-responses.json",
+      "sha256": "647a00c532ce0af4765102d9057290addebd4dff039b558fd9a42dfdf18c987b"
+    }
+  ]
+}

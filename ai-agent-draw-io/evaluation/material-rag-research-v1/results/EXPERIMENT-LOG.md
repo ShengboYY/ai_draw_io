@@ -1341,3 +1341,18 @@
   [alice-qa review](../review/stage-e-postcalibration-validation-alice-qa-v1.json)。
 - **下一步**:pre-run case-review requirement 已满足；仍需用户明确授权，才可将这 12 个合成 inputs 与两张合成
   视觉图发送至固定模型运行**一次**。运行后不得改 prompt、任务、证据、policy 或 rubric。
+
+### Stage E GPT-5.5 Validation runs · 2026-07-24 · ⚠️ completed twice; diagnostic only
+
+- **执行异常**:首次调用的 artifact visibility 延迟。用户在未看到 response/manifest 后明确授权一次重试；随后两个
+  12-call artifact pair 先后写入同一路径，后者覆盖了前者。没有第三次调用，且不从两次中挑选或宣称唯一正式结果。
+- **保全**:一份执行的 raw responses 被覆盖前未能保留，只留下其 manifest validation 与 evaluation（strict `7/12`）；
+  后到达的一份 raw responses/manifest 已保全且彼此哈希一致（strict `8/12`）。两份均为 XML parse `12/12`、
+  citation contract `12/12`；完整说明及 aggregate `24` calls、input `16,620`、output `20,441` tokens 见
+  [run summary](stage-e-postcalibration-validation-gpt-5-5-run-summary.json)。
+- **范围**:后到达 manifest 单独验证为 `valid=true`、`formalEligible=true`，仅说明该文件字段完整；重复执行、local
+  authorship 与一份 raw artifact 缺失意味着 Stage E 只能作为诊断，不能支持唯一正式 Validation 或 final holdout claim。
+- **失败解释与下一步**:保全执行的 4 个严格失败均为 linking word、rich vertex 或 Yes/No edge-label 形式，不是 XML
+  或引用失败；需由两位 reviewer 审核实际 Draw.io 可用性，详见
+  [output review packet](../review/stage-e-postcalibration-validation-output-review-packet-v1.md)。不得事后改 policy、
+  重跑或将人工判断倒灌为任一 strict score。

@@ -1,0 +1,108 @@
+{
+  "schemaVersion": "material-rag-drawio-generation-evaluation-v2",
+  "split": "validation",
+  "taskCount": 12,
+  "taskFixtureSha256": "802d84d23a84798d47e3ca36560f16c4c1c995de0c6a81f1402a8b226f71b2ee",
+  "results": [
+    {
+      "taskId": "stge-val-01",
+      "xmlParseable": true,
+      "xmlAssertionsPassed": true,
+      "editAssertionsPassed": true,
+      "requiredCitationContractPassed": true,
+      "completed": true
+    },
+    {
+      "taskId": "stge-val-02",
+      "xmlParseable": true,
+      "xmlAssertionsPassed": false,
+      "editAssertionsPassed": true,
+      "requiredCitationContractPassed": true,
+      "completed": false
+    },
+    {
+      "taskId": "stge-val-03",
+      "xmlParseable": true,
+      "xmlAssertionsPassed": true,
+      "editAssertionsPassed": true,
+      "requiredCitationContractPassed": true,
+      "completed": true
+    },
+    {
+      "taskId": "stge-val-04",
+      "xmlParseable": true,
+      "xmlAssertionsPassed": false,
+      "editAssertionsPassed": true,
+      "requiredCitationContractPassed": true,
+      "completed": false
+    },
+    {
+      "taskId": "stge-val-05",
+      "xmlParseable": true,
+      "xmlAssertionsPassed": true,
+      "editAssertionsPassed": true,
+      "requiredCitationContractPassed": true,
+      "completed": true
+    },
+    {
+      "taskId": "stge-val-06",
+      "xmlParseable": true,
+      "xmlAssertionsPassed": true,
+      "editAssertionsPassed": true,
+      "requiredCitationContractPassed": true,
+      "completed": true
+    },
+    {
+      "taskId": "stge-val-07",
+      "xmlParseable": true,
+      "xmlAssertionsPassed": true,
+      "editAssertionsPassed": true,
+      "requiredCitationContractPassed": true,
+      "completed": true
+    },
+    {
+      "taskId": "stge-val-08",
+      "xmlParseable": true,
+      "xmlAssertionsPassed": false,
+      "editAssertionsPassed": true,
+      "requiredCitationContractPassed": true,
+      "completed": false
+    },
+    {
+      "taskId": "stge-val-09",
+      "xmlParseable": true,
+      "xmlAssertionsPassed": true,
+      "editAssertionsPassed": true,
+      "requiredCitationContractPassed": true,
+      "completed": true
+    },
+    {
+      "taskId": "stge-val-10",
+      "xmlParseable": true,
+      "xmlAssertionsPassed": false,
+      "editAssertionsPassed": true,
+      "requiredCitationContractPassed": true,
+      "completed": false
+    },
+    {
+      "taskId": "stge-val-11",
+      "xmlParseable": true,
+      "xmlAssertionsPassed": false,
+      "editAssertionsPassed": true,
+      "requiredCitationContractPassed": true,
+      "completed": false
+    },
+    {
+      "taskId": "stge-val-12",
+      "xmlParseable": true,
+      "xmlAssertionsPassed": true,
+      "editAssertionsPassed": true,
+      "requiredCitationContractPassed": true,
+      "completed": true
+    }
+  ],
+  "xmlParseRate": 1.0,
+  "requiredCitationContractRate": 1.0,
+  "completionRate": 0.5833333333333334,
+  "claimMetricsStatus": "not_evaluated"
+}
