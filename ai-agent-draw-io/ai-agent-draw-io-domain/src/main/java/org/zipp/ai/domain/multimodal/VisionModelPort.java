@@ -16,7 +16,12 @@ public interface VisionModelPort {
         @Override public byte[] bytes() { return bytes.clone(); }
     }
 
-    record Response(List<VerifiedObservation> observations, List<String> gaps) {
+    record Response(List<VerifiedObservation> observations, ObservedDiagramGraph diagramGraph,
+                    List<String> gaps) {
+        public Response(List<VerifiedObservation> observations, List<String> gaps) {
+            this(observations, null, gaps);
+        }
+
         public Response {
             observations = List.copyOf(observations == null ? List.of() : observations);
             gaps = List.copyOf(gaps == null ? List.of() : gaps);

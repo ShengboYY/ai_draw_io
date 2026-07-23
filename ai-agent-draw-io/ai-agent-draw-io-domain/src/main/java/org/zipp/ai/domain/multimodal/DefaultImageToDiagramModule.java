@@ -1,0 +1,186 @@
+package org.zipp.ai.domain.multimodal;
+
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
+
+/** Deterministic projection from explicit observed topology to editable mxGraph cells. */
+public final class DefaultImageToDiagramModule implements ImageToDiagramModule {
+    private static final int CANVAS_WIDTH = 1_200;
+    private static final int CANVAS_HEIGHT = 800;
+    private static final double CRITICAL_EDGE_CONFIDENCE = 0.75;
+
+    @Override
+    public ImageToDiagramOutcome convert(ImageToDiagramCommand command) {
+        Objects.requireNonNull(command, "command");
+        ObservedDiagramGraph graph = command.graph();
+        List<String> invalid = validateReferences(graph);
+        if (!invalid.isEmpty()) return new ImageToDiagramOutcome.Rejected(invalid);
+
+        List<String> confirmation = new ArrayList<>(graph.unresolvedItems());
+        graph.edges().stream()
+                .filter(edge -> edge.confidence() < CRITICAL_EDGE_CONFIDENCE)
+                .map(edge -> "LOW_CONFIDENCE_EDGE:" + edge.id())
+                .forEach(confirmation::add);
+        if (!confirmation.isEmpty()) {
+            return new ImageToDiagramOutcome.NeedsConfirmation(confirmation);
+        }
+
+        Map<String, ObservedDiagramGraph.Group> groups = indexGroups(graph.groups());
+        List<String> cellIds = new ArrayList<>();
+        StringBuilder xml = new StringBuilder(1_024);
+        xml.append("<mxGraphModel><root><mxCell id=\"0\"/>")
+                .append("<mxCell id=\"1\" parent=\"0\"/>");
+        for (ObservedDiagramGraph.Group group : graph.groups()) {
+            appendGroup(xml, group);
+            cellIds.add(groupCellId(group.id()));
+        }
+        for (ObservedDiagramGraph.Node node : graph.nodes()) {
+            appendNode(xml, node, groups.get(node.groupId()));
+            cellIds.add(nodeCellId(node.id()));
+        }
+        for (ObservedDiagramGraph.Edge edge : graph.edges()) {
+            appendEdge(xml, edge);
+            cellIds.add(edgeCellId(edge.id()));
+        }
+        xml.append("</root></mxGraphModel>");
+        return new ImageToDiagramOutcome.Converted(xml.toString(), cellIds);
+    }
+
+    private List<String> validateReferences(ObservedDiagramGraph graph) {
+        List<String> errors = new ArrayList<>();
+        if (graph.nodes().isEmpty()) errors.add("NO_NODES");
+        Set<String> nodeIds = new LinkedHashSet<>();
+        for (ObservedDiagramGraph.Node node : graph.nodes()) {
+            if (!nodeIds.add(node.id())) errors.add("DUPLICATE_NODE_ID:" + node.id());
+        }
+        Set<String> groupIds = new LinkedHashSet<>();
+        for (ObservedDiagramGraph.Group group : graph.groups()) {
+            if (!groupIds.add(group.id())) errors.add("DUPLICATE_GROUP_ID:" + group.id());
+        }
+        for (ObservedDiagramGraph.Node node : graph.nodes()) {
+            if (!node.groupId().isBlank() && !groupIds.contains(node.groupId())) {
+                errors.add("UNKNOWN_NODE_GROUP:" + node.id() + ":" + node.groupId());
+            }
+        }
+        Set<String> edgeIds = new LinkedHashSet<>();
+        for (ObservedDiagramGraph.Edge edge : graph.edges()) {
+            if (!edgeIds.add(edge.id())) errors.add("DUPLICATE_EDGE_ID:" + edge.id());
+            if (!nodeIds.contains(edge.sourceId())) {
+                errors.add("UNKNOWN_EDGE_SOURCE:" + edge.id() + ":" + edge.sourceId());
+            }
+            if (!nodeIds.contains(edge.targetId())) {
+                errors.add("UNKNOWN_EDGE_TARGET:" + edge.id() + ":" + edge.targetId());
+            }
+        }
+        return List.copyOf(errors);
+    }
+
+    private Map<String, ObservedDiagramGraph.Group> indexGroups(List<ObservedDiagramGraph.Group> groups) {
+        Map<String, ObservedDiagramGraph.Group> indexed = new LinkedHashMap<>();
+        groups.forEach(group -> indexed.put(group.id(), group));
+        return indexed;
+    }
+
+    private void appendGroup(StringBuilder xml, ObservedDiagramGraph.Group group) {
+        xml.append("<mxCell id=\"").append(attribute(groupCellId(group.id())))
+                .append("\" value=\"").append(attribute(group.label()))
+                .append("\" style=\"group;\" vertex=\"1\" connectable=\"0\" parent=\"1\">");
+        appendGeometry(xml, group.bounds(), null);
+        xml.append("</mxCell>");
+    }
+
+    private void appendNode(StringBuilder xml, ObservedDiagramGraph.Node node,
+                            ObservedDiagramGraph.Group parentGroup) {
+        String parent = parentGroup == null ? "1" : groupCellId(parentGroup.id());
+        xml.append("<mxCell id=\"").append(attribute(nodeCellId(node.id())))
+                .append("\" value=\"").append(attribute(node.label()))
+                .append("\" style=\"").append(shapeStyle(node.shape()))
+                .append("\" parent=\"").append(attribute(parent))
+                .append("\" vertex=\"1\">");
+        appendGeometry(xml, node.bounds(), parentGroup == null ? null : parentGroup.bounds());
+        xml.append("</mxCell>");
+    }
+
+    private void appendEdge(StringBuilder xml, ObservedDiagramGraph.Edge edge) {
+        String source = edge.direction() == ObservedDiagramGraph.EdgeDirection.REVERSE
+                ? edge.targetId() : edge.sourceId();
+        String target = edge.direction() == ObservedDiagramGraph.EdgeDirection.REVERSE
+                ? edge.sourceId() : edge.targetId();
+        xml.append("<mxCell id=\"").append(attribute(edgeCellId(edge.id())))
+                .append("\" edge=\"1\" parent=\"1\" source=\"").append(attribute(nodeCellId(source)))
+                .append("\" target=\"").append(attribute(nodeCellId(target)))
+                .append("\" value=\"").append(attribute(edge.label()))
+                .append("\" style=\"").append(edgeStyle(edge.direction())).append("\">")
+                .append("<mxGeometry relative=\"1\" as=\"geometry\">");
+        if (!edge.waypoints().isEmpty()) {
+            xml.append("<Array as=\"points\">");
+            for (ObservedDiagramGraph.Point point : edge.waypoints()) {
+                xml.append("<mxPoint x=\"").append(scale(point.x(), CANVAS_WIDTH))
+                        .append("\" y=\"").append(scale(point.y(), CANVAS_HEIGHT)).append("\"/>");
+            }
+            xml.append("</Array>");
+        }
+        xml.append("</mxGeometry></mxCell>");
+    }
+
+    private void appendGeometry(StringBuilder xml, ObservationBounds bounds,
+                                ObservationBounds parentBounds) {
+        double originX = parentBounds == null ? 0 : parentBounds.x();
+        double originY = parentBounds == null ? 0 : parentBounds.y();
+        xml.append("<mxGeometry x=\"").append(scale(bounds.x() - originX, CANVAS_WIDTH))
+                .append("\" y=\"").append(scale(bounds.y() - originY, CANVAS_HEIGHT))
+                .append("\" width=\"").append(scale(bounds.width(), CANVAS_WIDTH))
+                .append("\" height=\"").append(scale(bounds.height(), CANVAS_HEIGHT))
+                .append("\" as=\"geometry\"/>");
+    }
+
+    private String shapeStyle(ObservedDiagramGraph.Shape shape) {
+        return switch (shape) {
+            case RECTANGLE -> "whiteSpace=wrap;html=1;";
+            case ROUNDED_RECTANGLE -> "rounded=1;whiteSpace=wrap;html=1;";
+            case ELLIPSE -> "ellipse;whiteSpace=wrap;html=1;";
+            case DIAMOND -> "rhombus;whiteSpace=wrap;html=1;";
+            case CYLINDER -> "shape=cylinder3;whiteSpace=wrap;html=1;";
+            case ACTOR -> "shape=umlActor;verticalLabelPosition=bottom;verticalAlign=top;html=1;";
+        };
+    }
+
+    private String edgeStyle(ObservedDiagramGraph.EdgeDirection direction) {
+        return switch (direction) {
+            case FORWARD, REVERSE -> "edgeStyle=orthogonalEdgeStyle;rounded=0;endArrow=block;html=1;";
+            case BIDIRECTIONAL ->
+                    "edgeStyle=orthogonalEdgeStyle;rounded=0;startArrow=block;endArrow=block;html=1;";
+            case NONE -> "edgeStyle=orthogonalEdgeStyle;rounded=0;endArrow=none;html=1;";
+        };
+    }
+
+    private int scale(double value, int extent) {
+        return (int) Math.round(value * extent);
+    }
+
+    private String nodeCellId(String id) {
+        return DirectDiagramCellIds.node(id);
+    }
+
+    private String edgeCellId(String id) {
+        return DirectDiagramCellIds.edge(id);
+    }
+
+    private String groupCellId(String id) {
+        return DirectDiagramCellIds.group(id);
+    }
+
+    private String attribute(String value) {
+        // Escape every XML attribute boundary character; labels never become markup.
+        return value.replace("&", "&amp;")
+                .replace("\"", "&quot;")
+                .replace("<", "&lt;")
+                .replace(">", "&gt;")
+                .replace("'", "&apos;");
+    }
+}

@@ -227,11 +227,22 @@ public final class CitationGuard {
 
     private boolean covers(String label, String statement) {
         List<String> required = tokens(label);
-        if (required.isEmpty()) return false;
+        // Single-character node labels (common in diagrams and CJK) have no normal token.
+        // Match them only as a complete normalized display term, never as a substring.
+        if (required.isEmpty()) return containsDisplayTerm(statement, label);
         Set<String> actual = new HashSet<>(tokens(statement));
         long matches = required.stream().filter(actual::contains).count();
         int minimum = required.size() <= 3 ? required.size() : (int) Math.ceil(required.size() * 0.60);
         return matches >= minimum && exactTerms(label).stream().allMatch(normalize(statement)::contains);
+    }
+
+    private boolean containsDisplayTerm(String statement, String label) {
+        String term = normalizeDisplay(label);
+        String display = normalizeDisplay(statement);
+        if (term.isBlank()) return false;
+        if (term.matches("\\p{IsHan}")) return display.contains(term);
+        return Pattern.compile("(^|\\s)" + Pattern.quote(term) + "($|\\s)")
+                .matcher(display).find();
     }
 
     private List<String> tokens(String value) {

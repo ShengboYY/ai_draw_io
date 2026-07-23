@@ -61,6 +61,31 @@ class ChatVisionModelPortAdapterTest {
                 () -> new ChatVisionModelPortAdapter(chat, new ObjectMapper(), "agent-visual"));
     }
 
+    @Test
+    void parsesExplicitDiagramTopologyWithoutAcceptingXml() {
+        FakeChat chat = new FakeChat("""
+                {"diagramGraph":{"nodes":[
+                  {"id":"a","label":"A","shape":"RECTANGLE",
+                   "bounds":{"x":0.1,"y":0.2,"width":0.2,"height":0.1},
+                   "groupId":"","evidenceId":"E1","confidence":0.96},
+                  {"id":"b","label":"B","shape":"ELLIPSE",
+                   "bounds":{"x":0.6,"y":0.2,"width":0.2,"height":0.1},
+                   "groupId":"","evidenceId":"E1","confidence":0.97}],
+                  "edges":[{"id":"a-to-b","sourceId":"a","targetId":"b","label":"",
+                   "direction":"FORWARD","waypoints":[],"evidenceId":"E1","confidence":0.92}],
+                  "groups":[],"unresolvedItems":[]},"gaps":[]}
+                """);
+        VisionModelPort adapter = new ChatVisionModelPortAdapter(chat, new ObjectMapper(), "agent-visual");
+
+        VisionModelPort.Response response = adapter.observe(new VisionModelPort.Request(
+                VisualObservationPurpose.DIAGRAM_RECONSTRUCTION, "Reconstruct this diagram",
+                List.of(new VisionModelPort.ImageInput("E1", "image/png", new byte[]{1})), 32));
+
+        assertEquals("a", response.diagramGraph().nodes().get(0).id());
+        assertEquals("b", response.diagramGraph().edges().get(0).targetId());
+        assertTrue(chat.lastCommand.getTexts().get(0).getMessage().contains("Never return XML"));
+    }
+
     private VisionModelPort.Request request() {
         return new VisionModelPort.Request(VisualObservationPurpose.FACT_VERIFICATION,
                 "Where does the arrow point?",
