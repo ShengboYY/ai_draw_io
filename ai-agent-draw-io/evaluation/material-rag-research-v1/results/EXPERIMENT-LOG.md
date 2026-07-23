@@ -718,7 +718,7 @@
   R19 先分开修复 publisher identity availability 与 relevance-preserving selector，再用同一 Development
   gate 比较。Validation/holdout 继续关闭。
 
-### R19a verified visual identity preregistration · 2026-07-23 · ⏳ 待正式重跑
+### R19a verified visual identity binding · 2026-07-23 · ✅ raw top-40 gate
 
 - **定位结果**:`dgt-dev-07/12/14/15` 的相关 source/page 已在 raw top-40，且仓库中存在对应冻结原图，
   但 TEXT projection 不能继承 publisher `visual_page` identity；`dgt-dev-08` 则是相关 handbook page-2
@@ -732,8 +732,24 @@
 - **本地诊断**:在不改写 R18 trace 的前提下，按提交 `7d597ed8` 的 source/page registry 与 publisher
   visual identities 重新计算，raw top-40 canonical availability 为 18/19；唯一剩余缺口是
   `dgt-dev-08` 的 `dwh-explicit` 与 `dwh-auto-scope`。该结果仅验证绑定逻辑，不替代新的 Pinecone trace。
-- **外部运行状态**:Development OCR/text 派生向量的 Pinecone 上传尚未获得本轮明确授权，因此未执行；
-  当前新增 Pinecone/model token 消耗均为 0，Validation/holdout 仍关闭。
+- **正式运行**:用户明确授权 Development 临时向量后，从 clean commit `a4924c84` 运行。第一次启动遗漏
+  冻结 tokenizer，产生 283 chunks，识别为混入第二变量后仅作无效诊断并清理；未保留为正式 trace。
+  随后显式加载 SHA-256=`62c24cdc…5626` 的 tokenizer 重跑，得到与 R18 相同的 186 chunks、
+  passage/query hashes 与 token 分布。
+- **正式结果**:18 个 chartbook-auto task 为 40/40，selected-only 为 28/28；raw top-40 publisher
+  canonical availability 为 19/19。两个运行的临时 Pinecone vectors 均由 runner 明确删除。
+- **下游 gate**:旧 selector 的 control 完整 13/19、candidate 完整 12/19，因此仍未构建 prompt、未调用
+  模型；Validation/holdout 继续关闭。
+
+### R19b publisher-identity lexical selector preregistration · 2026-07-23 · ⏳ 待实现
+
+- **唯一变量**:raw top-8 上最多预留 6 个与 model-visible request 存在 exact/prefix token overlap 的
+  publisher identity group；按 overlap 与 raw rank 排序，替换 tail 后恢复原 rank。
+- **防泄漏**:只读取 request 和 source-owned `sourceEvidenceId`；不读取 task target source、required
+  anchors、assertions、expected answer、ground truth 或 Validation。fallback retrieved ID 不参与匹配。
+- **Development 诊断**:12/19 task 改变（63.16%），required-evidence 19/19，7 个 multimodal artifact
+  task 全部通过 source-matching artifact gate。
+- **决策边界**:实现和独立测试通过后只对已冻结 R19a trace 导出；正式 gate 失败则不生成 prompt或调用模型。
 
 ### R17 trace / R18 indexed-vector denominator · 2026-07-23 · ⏸ 修复后重跑
 

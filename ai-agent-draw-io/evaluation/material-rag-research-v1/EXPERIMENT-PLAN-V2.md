@@ -590,6 +590,27 @@ selector：
 R19a 从新的 clean commit 仅重跑 Development trace；运行后删除临时 Pinecone vectors。若 candidate
 readiness 仍非 19/19，继续禁止构建 prompt、调用模型和打开 Validation。
 
+### R19a 结果与 R19b 预注册：publisher-identity lexical reservation
+
+R19a 在 clean commit `a4924c84` 使用冻结生产 tokenizer 重跑，passage/query hashes 与 R18 相同，19 个检索
+任务的 scoped pools 全部完整，raw top-40 publisher canonical availability 达到 19/19；临时 Pinecone vectors
+已删除。旧 selector 仍不晋级：raw top-8 control 完整 13/19，candidate 完整 12/19。模型、Validation 与
+holdout 继续关闭。
+
+R19b 只改变 top-40 → top-8 selector，并冻结为 `publisher-identity-lexical-reservation-top8-v1`：
+
+- 从 raw top-8 开始，最多预留 6 个具有 publisher canonical identity 的不同 identity group；
+- relevance 只比较 model-visible request 的 ASCII token 与 publisher `sourceEvidenceId` 的连字符 token；
+  token 至少 3 字符，冻结通用指令/图形 stopword；exact match 计分，双方至少 4 字符时允许前缀 match；
+- 按 overlap 降序、raw rank 升序决定 reservation，替换未被预留的 raw tail，最终恢复 raw rank 顺序；
+- selector 不读取 task `sourceVersion`、required anchors、citation/XML assertions、expected answer、
+  ground truth 或 Validation；`retrieved:<chunkId>` 不参与 identity relevance；
+- Development 诊断预期 12/19 task 改变（63.16%）、candidate required-evidence 19/19，并通过 7 个 declared
+  multimodal task 的 source-matching artifact gate。任一 gate 未通过则不生成 prompt、不调用模型。
+
+R19b 只在已冻结的 R19a trace 上做本地确定性导出，不重新上传 Pinecone vectors。实现、测试、计划、日志和
+corpus lock 提交后，才允许生成正式 paired context；Validation 仍关闭。
+
 E6b 的本地导出合同已冻结为 `fixtures/drawio-generation-paired-hydration-contract-v1.json` 与
 `analysis/export_drawio_paired_hydration.py`。active Development 图册明确挂载 architecture、workflow handbook
 与 planning-workshop scan 三个版本；导出器从同一 retrieval trace 的 raw top-8 和 source-aware top-8 产生一任务
