@@ -1,0 +1,145 @@
+{
+  "schemaVersion": "material-rag-stage-a-generation-ground-truth-v1",
+  "anchors": [
+    {
+      "anchorId": "rg-gateway",
+      "source": "sta-release-governance",
+      "version": "v1",
+      "page": 1,
+      "text": "Approved deployment responsibility: Gateway validates ingress and forwards approved traffic to Worker."
+    },
+    {
+      "anchorId": "rg-worker",
+      "source": "sta-release-governance",
+      "version": "v1",
+      "page": 1,
+      "text": "Approved deployment responsibility: Worker executes the release workload after Gateway validation."
+    },
+    {
+      "anchorId": "rg-audit-store",
+      "source": "sta-release-governance",
+      "version": "v1",
+      "page": 1,
+      "text": "Approved deployment responsibility: Audit Store records the immutable release audit event from Worker."
+    },
+    {
+      "anchorId": "ic-commander",
+      "source": "sta-incident-command",
+      "version": "v1",
+      "page": 1,
+      "text": "Incident Commander owns the incident decision lane and assigns the response priority."
+    },
+    {
+      "anchorId": "ic-communications",
+      "source": "sta-incident-command",
+      "version": "v1",
+      "page": 1,
+      "text": "Communications Lead owns stakeholder updates and receives the Commander handoff."
+    },
+    {
+      "anchorId": "ic-escalation-window",
+      "source": "sta-incident-command",
+      "version": "v1",
+      "page": 1,
+      "text": "Escalate an unresolved severity-one incident to the Incident Commander within 15 minutes."
+    },
+    {
+      "anchorId": "dr-archive-retention",
+      "source": "sta-data-retention",
+      "version": "v1",
+      "page": 1,
+      "text": "The Archive node retention period is seven years. The record must state Retention: 7 years."
+    },
+    {
+      "anchorId": "pc-two-person",
+      "source": "sta-payment-controls",
+      "version": "v1",
+      "page": 1,
+      "text": "Review must approve Release using a two-person approval control."
+    },
+    {
+      "anchorId": "pc-control-number",
+      "source": "sta-payment-controls",
+      "version": "v1",
+      "page": 1,
+      "text": "The required control identifier for the Review to Release relationship is PC-204."
+    },
+    {
+      "anchorId": "nz-v3-quarantine",
+      "source": "sta-network-zones",
+      "version": "v3",
+      "page": 1,
+      "text": "Version 3 segmentation requires Public Zone to Private Zone traffic to pass through the Quarantine Path."
+    },
+    {
+      "anchorId": "so-canonical-name",
+      "source": "sta-service-ownership",
+      "version": "v1",
+      "page": 1,
+      "text": "Use the canonical English service names API Gateway, Billing Worker, and Audit Store. Ownership is Platform Team, Payments Team, and Governance Team respectively."
+    },
+    {
+      "anchorId": "cc-owner",
+      "source": "sta-change-calendar",
+      "version": "v1",
+      "page": 1,
+      "text": "The change calendar assigns Database Change to DBA Owner and Application Change to Application Owner."
+    },
+    {
+      "anchorId": "cc-approval-window",
+      "source": "sta-change-calendar",
+      "version": "v1",
+      "page": 1,
+      "text": "Both changes require the approval window Tue 10:00\u201312:00."
+    },
+    {
+      "anchorId": "wv-exception-flow",
+      "source": "sta-warehouse-visual",
+      "version": "v1",
+      "page": 1,
+      "text": "Selected warehouse figure: Intake goes to Inspect; an exception goes to Supervisor Review; a cleared item goes to Dispatch."
+    },
+    {
+      "anchorId": "fs-handoff-flow",
+      "source": "sta-field-scan",
+      "version": "v1",
+      "page": 1,
+      "text": "Scanned field handoff: Field Technician records the handoff, Decision: complete?, No returns to Field Technician, Yes goes to Operations Lead."
+    },
+    {
+      "anchorId": "rg-rollback",
+      "source": "sta-release-governance",
+      "version": "v1",
+      "page": 1,
+      "text": "The cited Release Gate rollback condition is: rollback to the prior stable version when post-release verification fails."
+    },
+    {
+      "anchorId": "cp-steady-limit",
+      "source": "sta-capacity-planning",
+      "version": "v1",
+      "page": 1,
+      "text": "The documented steady-state capacity limit is 800 requests per second."
+    },
+    {
+      "anchorId": "cp-failover-limit",
+      "source": "sta-capacity-planning",
+      "version": "v1",
+      "page": 1,
+      "text": "The documented failover capacity limit is 1200 requests per second."
+    },
+    {
+      "anchorId": "ic-commander",
+      "source": "sta-incident-command",
+      "version": "v1",
+      "page": 1,
+      "text": "Incident Commander owns the incident decision lane and assigns the response priority."
+    },
+    {
+      "anchorId": "ic-communications",
+      "source": "sta-incident-command",
+      "version": "v1",
+      "page": 1,
+      "text": "Communications Lead receives the Incident Commander handoff and owns stakeholder updates."
+    }
+  ]
+}

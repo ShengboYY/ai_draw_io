@@ -17,12 +17,12 @@
     "EXPERIMENT-PLAN-V2.md": "184dc257a4590d77da9b51e5a9024235f00bf357dbe4eadffab694af38e7c37b",
     "experiment-plan-v2.json": "a82dcaf51dabfbe25173a8efad1e9404cb40e1d13cfe49418623e29886d22c5e",
     "requirements.txt": "0043aca3a7381487084576995105e1099e3786ae8add5a6c0951d305b0e0e757",
-    "analysis/audit_corpus.py": "75d63267164f185fd60043cb47e2834b1caebfbe91e0bfe320fc2bb585939ad5",
+    "analysis/audit_corpus.py": "bdb541db1fcc19c902cf6e67456cf535945df4ec6a0ec5de638fa9201e3e6e80",
     "analysis/compare_dense_runs.py": "762b83b97c14011b7b8081c859407973c7626252abc67e5f8773673bdda8ea59",
     "analysis/audit_e4_chartbook.py": "1785c3e3085810b269ae9d5c1975f7357b2a982bb1f321c9be12fdb6f5a86f9b",
     "analysis/evaluate_guard_suites.py": "e2ded7e4289fe4b7bfd1883e37e53c4543dccd69ab2c571aff6e54291daf4aa0",
     "analysis/build_drawio_generation_prompts.py": "841148c671b4df9d6afc1fa5a9aad643122bc2189aab08c29f19ebdd631aeb35",
-    "analysis/run_drawio_generation.py": "3e060bd31573c1a766ec0cebdc74b59d66e4f25769f65ecc1c6e0074a9fb02e9",
+    "analysis/run_drawio_generation.py": "a83febecd3c5378b5651b782b4ca23b2300d33a221d19224a05f1591a5561045",
     "analysis/export_drawio_paired_hydration.py": "318cf7b232985166f285029530507fb51c13a1537b72d9f6baf953b3f65c6621",
     "analysis/evaluate_drawio_generation_tasks.py": "29bd996daa4afcf4118e585d441aed26fa64c3cfa42b2cf43695553d6f1e4a34",
     "analysis/audit_stage_a_decision_cohort.py": "0c5cff04d3b6a9165b93bf0349a5bd68b129b00cd93e8ed16f9714663502a255",
@@ -44,6 +44,7 @@
     "fixtures/e4_chartbook_specs.py": "08f81dcfddd157e73c26ee7e40d4383abe42f31858338f919771d7dfc31a7d95",
     "fixtures/source_evidence_identity_specs.py": "b6d3aa47da2f368a4fada6365c9631f41ffd7254a8f5f5326891ffedc4df689a",
     "fixtures/build_drawio_generation_tasks_v3.py": "a12a7af9f621bca5b10c9ef1bfcaa2261594c1d4c5664c6785e4805f1e8c8892",
+    "fixtures/build_stage_a_generation_inputs.py": "e566421efaf60c19c6cc3c1704860372cb8c980e15ad1a24775827149267be87",
     "fixtures/query-selection.json": "2053782f1f699b2bd6a880a3cfcbb4aa57829275ea02c3928248d636183d2f60",
     "fixtures/drawio-generation-tasks-v1.json": "76cd0285b4418257121f452a801d8e1a04f9ab2a9646986fbdd09d876062a160",
     "fixtures/drawio-generation-tasks-v2.json": "80a7dd0d64376fb827021b15dcf4e810f1668f8bc48ce54c9b89982e7f91f5a8",
@@ -143,6 +144,13 @@
     "pdfs/scenario-crossborder-payment-settlement-v1.pdf": "8ee5f827bda794a2edcb6a700ad56bf07c9ce556879a044a6269852b645b6345",
     "pdfs/scenario-gmp-batch-change-control-v1.pdf": "14c3e9962a1b2e1fe4fcba7298befe8a29883c03ddb9dcf88d6d3e1fdb30c24d",
     "pdfs/scenario-vehicle-ota-rollout-v1.pdf": "66371fa8537cb2dfc0384d3d71f2c0a4afcb0ddfa2805d19bd48d12b962fda43",
-    "source-evidence-identities-v1.json": "92b31fcc08d9163768564a90ffd79ed5368f5f32aebb1e4ffcad59f32fd6806f"
+    "source-evidence-identities-v1.json": "92b31fcc08d9163768564a90ffd79ed5368f5f32aebb1e4ffcad59f32fd6806f",
+    "stage-a-generation/contexts.json": "ed81cdc06ebea696c503af5e68e2c67999170a723c30964018e9906c9a13e7ab",
+    "stage-a-generation/ground-truth.json": "eac98c289b8aec53676ec40a63c116abaa86f7b1dcd288af8bc775a0054fe3cc",
+    "stage-a-generation/images/field-source.png": "114251873031ea5e9d2d39bcd2bfadb9079a37c93ca5b1e1a49d7096dbd7f0df",
+    "stage-a-generation/images/warehouse-source.png": "c72070bf8a3ba8d751c449acf6d3f9696a557a182fcf33b9d7276fda57bf8dc6",
+    "stage-a-generation/prompt-bundles.json": "d4fd6cf18c526481e06c90c02180482b577bf5163f989a0979652f62f82369cf",
+    "stage-a-generation/rubric.json": "2be0f6229ea5fa2fb8a21961448091b6d51b913783c4c6b8e350a36b5ffef4d9",
+    "stage-a-generation/tasks.json": "39d66d7b8722716110bbc2e90573d051528b8909795a254ea145472728a7b440"
   }
 }

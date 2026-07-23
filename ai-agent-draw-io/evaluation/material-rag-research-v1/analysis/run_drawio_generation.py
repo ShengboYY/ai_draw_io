@@ -288,11 +288,12 @@ def call(endpoint_url: str, api_key: str, request: dict) -> tuple[int, str | Non
 
 def run(bundle_file: Path, responses_out: Path, manifest_out: Path, artifact_root: Path,
         api_key: str, base_url: str, completions_path: str, model: str, max_completion_tokens: int,
-        git_commit: str) -> None:
+        git_commit: str, task_fixture: Path | None = None) -> None:
     """Run exactly one arm and write a validator-compatible formal manifest and normalized responses."""
     bundle_file, responses_out, manifest_out = (bundle_file.resolve(), responses_out.resolve(), manifest_out.resolve())
     research_root = ROOT.resolve()
     results_root = (ROOT / "results").resolve()
+    task_fixture = (task_fixture or ROOT / "fixtures/drawio-generation-tasks-v3.json").resolve()
     if artifact_root != research_root:
         raise ValueError("formal E7 artifacts must be rooted in the frozen research directory")
     if research_root not in bundle_file.parents or not bundle_file.is_file():
@@ -304,8 +305,8 @@ def run(bundle_file: Path, responses_out: Path, manifest_out: Path, artifact_roo
     bundles = bundles_payload.get("bundles", [])
     split = bundles_payload.get("split")
     if split not in {"development", "validation"} \
-            or bundles_payload.get("arm") not in {"control", "candidate"}:
-        raise ValueError("only one frozen Development or Validation control/candidate bundle may be run")
+            or bundles_payload.get("arm") not in {"control", "candidate", "fixed"}:
+        raise ValueError("only one frozen Development or Validation control/candidate/fixed bundle may be run")
     task_ids = [bundle.get("taskId") for bundle in bundles]
     if not task_ids or len(set(task_ids)) != len(task_ids):
         raise ValueError("prompt bundle task IDs must be present and unique")
@@ -313,8 +314,7 @@ def run(bundle_file: Path, responses_out: Path, manifest_out: Path, artifact_roo
     if not re.fullmatch(r"[0-9a-f]{7,40}", git_commit):
         raise ValueError("git commit must be a lowercase 7-40 character hex value")
     # Complete deterministic validation and output checks before the first external request.
-    input_artifacts = {bundle_file, (ROOT / "fixtures/generated/corpus-lock.json").resolve(),
-                       (ROOT / "fixtures/drawio-generation-tasks-v3.json").resolve()}
+    input_artifacts = {bundle_file, (ROOT / "fixtures/generated/corpus-lock.json").resolve(), task_fixture}
     hydration_paths = set()
     for bundle in bundles:
         hydration_paths.add(validate_bundle(bundle, artifact_root))
@@ -323,8 +323,7 @@ def run(bundle_file: Path, responses_out: Path, manifest_out: Path, artifact_roo
     if len(hydration_paths) != 1:
         raise ValueError("prompt bundles must bind one shared hydration artifact")
     input_artifacts.update(hydration_paths)
-    for required in (ROOT / "fixtures/generated/corpus-lock.json",
-                     ROOT / "fixtures/drawio-generation-tasks-v3.json"):
+    for required in (ROOT / "fixtures/generated/corpus-lock.json", task_fixture):
         if not required.is_file():
             raise ValueError(f"required formal artifact is missing: {required}")
     if responses_out == manifest_out:
@@ -359,7 +358,7 @@ def run(bundle_file: Path, responses_out: Path, manifest_out: Path, artifact_roo
     responses_out.write_text(json.dumps({"responses": responses}, indent=2) + "\n")
     artifacts = [
         ("corpusLock", ROOT / "fixtures/generated/corpus-lock.json"),
-        ("taskFixture", ROOT / "fixtures/drawio-generation-tasks-v3.json"),
+        ("taskFixture", task_fixture),
         ("promptBundles", bundle_file),
         ("hydration", hydration_paths.pop()),
         ("responses", responses_out),
@@ -387,6 +386,7 @@ def main() -> None:
     parser.add_argument("--prompt-bundles", type=Path, required=True)
     parser.add_argument("--responses-out", type=Path, required=True)
     parser.add_argument("--manifest-out", type=Path, required=True)
+    parser.add_argument("--task-fixture", type=Path, default=ROOT / "fixtures/drawio-generation-tasks-v3.json")
     parser.add_argument("--artifact-root", type=Path, default=ROOT)
     parser.add_argument("--model", default="gpt-5.5")
     parser.add_argument("--max-completion-tokens", type=int, default=6000)
@@ -400,7 +400,7 @@ def main() -> None:
     if not all((api_key, base_url, completions_path, git_commit)):
         raise ValueError("LLM_API_KEY, LLM_BASE_URL, LLM_COMPLETIONS_PATH and MATERIAL_RAG_COMMIT_SHA are required")
     run(args.prompt_bundles, args.responses_out, args.manifest_out, args.artifact_root.resolve(), api_key,
-        base_url, completions_path, args.model, args.max_completion_tokens, git_commit)
+        base_url, completions_path, args.model, args.max_completion_tokens, git_commit, args.task_fixture)
 
 
 if __name__ == "__main__":
