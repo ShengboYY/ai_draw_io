@@ -29,6 +29,24 @@ class MaterialCatalogServiceTest {
     }
 
     @Test
+    void scopedBrowseRequiresAnOwnedDiagramAndReturnsOnlyThatScope() {
+        FakeCatalog catalog = new FakeCatalog(details(scopes("scope_1")));
+        MaterialCatalogService service = service(catalog);
+
+        MaterialCatalogPage page = service.findMaterialsForScope(new MaterialScopeCatalogQuery(
+                USER, MaterialScopeType.DIAGRAM, "diagram_1", MaterialLifecycleState.ACTIVE, 20, 0));
+
+        assertEquals("diagram_1", catalog.lastScopeKey);
+        assertEquals(1, page.items().size());
+
+        catalog.targetOwned = false;
+        CatalogOperationException error = assertThrows(CatalogOperationException.class,
+                () -> service.findMaterialsForScope(new MaterialScopeCatalogQuery(
+                        USER, MaterialScopeType.DIAGRAM, "other_diagram", MaterialLifecycleState.ACTIVE, 20, 0)));
+        assertEquals(CatalogErrorCode.SCOPE_TARGET_NOT_FOUND, error.code());
+    }
+
+    @Test
     void scopeAdditionRequiresAnOwnedDurableTarget() {
         FakeCatalog catalog = new FakeCatalog(details(scopes("scope_1")));
         catalog.targetOwned = false;
@@ -114,6 +132,11 @@ class MaterialCatalogServiceTest {
 
         @Override
         public MaterialCatalogPage findMaterials(MaterialCatalogQuery query) {
+            return new MaterialCatalogPage(List.of(details.material()), 1, query.limit(), query.offset());
+        }
+
+        @Override
+        public MaterialCatalogPage findMaterialsForScope(MaterialScopeCatalogQuery query) {
             return new MaterialCatalogPage(List.of(details.material()), 1, query.limit(), query.offset());
         }
 

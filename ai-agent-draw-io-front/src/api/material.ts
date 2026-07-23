@@ -100,6 +100,16 @@ export const createMaterialClient = (options: MaterialClientOptions) => {
       return request<MaterialCatalogPage>(`/materials${suffix}`);
     },
 
+    listScope: (scopeType: 'DIAGRAM' | 'CHARTBOOK', scopeId: string,
+      query?: { lifecycleState?: string; limit?: number; offset?: number }) => {
+      const parameters = new URLSearchParams();
+      if (query?.lifecycleState) parameters.set('lifecycleState', query.lifecycleState);
+      if (query?.limit !== undefined) parameters.set('limit', String(query.limit));
+      if (query?.offset !== undefined) parameters.set('offset', String(query.offset));
+      const suffix = parameters.size ? `?${parameters}` : '';
+      return request<MaterialCatalogPage>(`/materials/scopes/${encodeURIComponent(scopeType)}/${encodeURIComponent(scopeId)}${suffix}`);
+    },
+
     details: (materialId: string) => request<MaterialCatalogDetails>(
       `/materials/${encodeURIComponent(materialId)}`),
 

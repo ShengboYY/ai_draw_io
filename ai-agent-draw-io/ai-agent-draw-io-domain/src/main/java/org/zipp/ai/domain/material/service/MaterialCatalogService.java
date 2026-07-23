@@ -24,6 +24,14 @@ public final class MaterialCatalogService {
         return catalog.findMaterials(query);
     }
 
+    public MaterialCatalogPage findMaterialsForScope(MaterialScopeCatalogQuery query) {
+        query.owner().requireRegisteredUser();
+        if (!catalog.scopeTargetOwned(query.owner(), query.scopeType(), query.scopeKey())) {
+            throw new CatalogOperationException(CatalogErrorCode.SCOPE_TARGET_NOT_FOUND);
+        }
+        return catalog.findMaterialsForScope(query);
+    }
+
     public MaterialCatalogDetails findMaterial(CatalogOwner owner, String materialId) {
         owner.requireRegisteredUser();
         return catalog.findMaterial(owner, required(materialId, "materialId"))

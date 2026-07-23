@@ -1469,10 +1469,13 @@ function DrawioPageContent() {
     let cancelled = false;
     const loadSources = async () => {
       try {
-        const [capabilities, library, chartbooks] = await Promise.all([
+        const [capabilities, library, chartbooks, diagramMaterials] = await Promise.all([
           capabilitiesClient.get(),
           materialClient.list({ lifecycleState: 'ACTIVE', limit: 100 }),
           chartbookClient.list(),
+          currentDiagramId
+            ? materialClient.listScope('DIAGRAM', currentDiagramId, { lifecycleState: 'ACTIVE', limit: 100 }).catch(() => null)
+            : Promise.resolve(null),
         ]);
         const currentChartbook = currentDiagramId
           ? chartbooks.find(chartbook => chartbook.diagramIds.includes(currentDiagramId))
@@ -1490,13 +1493,18 @@ function DrawioPageContent() {
           }] : [];
         });
         const chartbookMaterialIds = new Set(currentChartbook?.materialIds || []);
+        const diagramOptions = (diagramMaterials?.items || []).flatMap(material => material.latestVersionId ? [{
+          versionId: material.latestVersionId,
+          label: material.displayName,
+          group: 'CURRENT_DIAGRAM' as const,
+        }] : []);
         const libraryOptions = library.items.flatMap(material => material.latestVersionId && !chartbookMaterialIds.has(material.materialId) ? [{
           versionId: material.latestVersionId,
           label: material.displayName,
           group: 'PERSONAL_LIBRARY' as const,
         }] : []);
         setAcceptedMaterialMimeTypes(capabilities.acceptedMimeTypes);
-        setSourceOptions([...chartbookOptions, ...libraryOptions]);
+        setSourceOptions([...diagramOptions, ...chartbookOptions, ...libraryOptions]);
         setActiveSourceScopes([
           ...(currentDiagramId ? ['当前图表'] : []),
           ...(currentChartbook ? [`图表册「${currentChartbook.name}」`] : []),

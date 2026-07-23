@@ -45,6 +45,31 @@
         </if>
     </select>
 
+    <select id="selectScopedMaterials"
+            resultType="org.zipp.ai.infrastructure.dao.material.po.MaterialCatalogItemPO">
+        SELECT <include refid="catalogCardColumns"/>
+        FROM material m
+        JOIN material_scope_link scoped_scope ON scoped_scope.material_id = m.id
+          AND scoped_scope.scope_type = #{scopeType} AND scoped_scope.scope_key = #{scopeKey}
+        LEFT JOIN material_version v ON v.id = m.latest_version_id AND v.material_id = m.id
+        LEFT JOIN material_processing_revision r ON r.version_id = v.id
+          AND r.revision_no = (SELECT MAX(latest_r.revision_no)
+                               FROM material_processing_revision latest_r
+                               WHERE latest_r.version_id = v.id)
+        WHERE m.owner_type = #{ownerType} AND m.owner_key = #{ownerKey}
+          AND m.lifecycle_state = #{lifecycleState}
+        ORDER BY m.updated_at DESC, m.id
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+    <select id="countScopedMaterials" resultType="long">
+        SELECT COUNT(*) FROM material m
+        JOIN material_scope_link scoped_scope ON scoped_scope.material_id = m.id
+          AND scoped_scope.scope_type = #{scopeType} AND scoped_scope.scope_key = #{scopeKey}
+        WHERE m.owner_type = #{ownerType} AND m.owner_key = #{ownerKey}
+          AND m.lifecycle_state = #{lifecycleState}
+    </select>
+
     <select id="selectOwnedMaterial"
             resultType="org.zipp.ai.infrastructure.dao.material.po.MaterialCatalogItemPO">
         SELECT <include refid="catalogCardColumns"/>

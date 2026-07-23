@@ -39,6 +39,20 @@ public class MaterialCatalogController {
         });
     }
 
+    @GetMapping("/scopes/{scopeType}/{scopeId}")
+    public Response<MaterialCatalogPageDTO> listScope(@PathVariable String scopeType, @PathVariable String scopeId,
+            @RequestParam(required = false) String lifecycleState,
+            @RequestParam(defaultValue = "20") int limit, @RequestParam(defaultValue = "0") int offset) {
+        return CatalogControllerSupport.execute(() -> {
+            MaterialCatalogPage page = materials.findMaterialsForScope(new MaterialScopeCatalogQuery(
+                    CatalogControllerSupport.requiredOwner(ownerResolver),
+                    enumValue(MaterialScopeType.class, scopeType, null), scopeId,
+                    enumValue(MaterialLifecycleState.class, lifecycleState, MaterialLifecycleState.ACTIVE), limit, offset));
+            return new MaterialCatalogPageDTO(page.items().stream().map(this::card).toList(),
+                    page.total(), page.limit(), page.offset());
+        });
+    }
+
     @GetMapping("/{materialId}")
     public Response<MaterialCatalogDetailsDTO> details(@PathVariable String materialId) {
         return CatalogControllerSupport.execute(() -> details(materials.findMaterial(

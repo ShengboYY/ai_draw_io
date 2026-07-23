@@ -32,6 +32,17 @@ public class MySqlMaterialCatalogAdapter implements MaterialCatalogPort {
     }
 
     @Override
+    public MaterialCatalogPage findMaterialsForScope(MaterialScopeCatalogQuery query) {
+        CatalogOwner owner = query.owner();
+        List<MaterialCatalogItem> items = mapper.selectScopedMaterials(owner.ownerType().name(), owner.ownerKey(),
+                query.scopeType().name(), query.scopeKey(), query.lifecycleState().name(), query.limit(), query.offset())
+                .stream().map(this::item).toList();
+        long total = mapper.countScopedMaterials(owner.ownerType().name(), owner.ownerKey(),
+                query.scopeType().name(), query.scopeKey(), query.lifecycleState().name());
+        return new MaterialCatalogPage(items, total, query.limit(), query.offset());
+    }
+
+    @Override
     public Optional<MaterialCatalogDetails> findMaterial(CatalogOwner owner, String materialId) {
         MaterialCatalogItemPO material = mapper.selectOwnedMaterial(
                 owner.ownerType().name(), owner.ownerKey(), materialId);

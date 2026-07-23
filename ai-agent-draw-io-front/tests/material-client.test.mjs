@@ -98,6 +98,22 @@ test('material client requests details and page metadata without fetching source
   assert.equal(calls.every(call => call.options.method === undefined), true);
 });
 
+test('material client lists only metadata in an owned diagram scope', async () => {
+  const calls = [];
+  const client = createMaterialClient({
+    baseUrl: 'https://app.example/api/v1',
+    fetch: async (url, options = {}) => {
+      calls.push({ url, options });
+      return new Response(JSON.stringify({ code: '0000', data: { items: [], total: 0, limit: 100, offset: 0 } }));
+    },
+  });
+
+  await client.listScope('DIAGRAM', 'diagram-1', { lifecycleState: 'ACTIVE', limit: 100 });
+
+  assert.equal(calls[0].url, 'https://app.example/api/v1/materials/scopes/DIAGRAM/diagram-1?lifecycleState=ACTIVE&limit=100');
+  assert.equal(calls[0].options.method, undefined);
+});
+
 test('material client protects scope and recycle-bin mutations with CSRF and idempotency', async () => {
   const calls = [];
   const client = createMaterialClient({
