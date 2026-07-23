@@ -1234,3 +1234,19 @@
   基线仍单独成立。完整线上 E9 只有在有可销毁集成环境时才需要补做，不能把本条 5 项本地探针记作线上结果。
 - **回归**:新增探针与既有 authorization/version/stale-canvas/fail-closed 边界共同运行 **50/50**，0 failures，
   0 errors；JSON record 与 Git whitespace check 均通过。
+
+### Stage D internal release-style cohort freeze · 2026-07-24 · ✅ frozen; model run not authorized
+
+- **性质**:用户明确选择跳过外部独立保管流程，因此本组是 *internal release-style cohort*，不是 independent
+  final holdout。它在本地创建，尚未发送给 generation model；任何结果只能表示“新合成内部测试”，不可宣称为
+  独立最终泛化结论。
+- **范围**:20 个新的合成 Draw.io cases；source version 与 Stage A Development、Stage B Validation overlap 均为
+  0。覆盖 creation 5、structural edit 3、layout-only 3、visual/OCR→editable XML 2、version/authorization-safe
+  edit 3、failure/recovery 4。两张新视觉资料为 telemetry calibration 与 site-safety 流程图。
+- **冻结输入**:`fixtures/generated/stage-d-internal-release/` 内含 tasks、contexts、ground truth、20 个 prompt
+  bundles、rubric、acceptance policy、manifest template 和两张视觉 artifact。所有 SHA-256 见
+  [freeze record](stage-d-internal-release-freeze.json)。
+- **preflight**:20/20 prompt bundle 的 evidence/image provenance validation 通过；隔离性 audit 通过；analysis
+  prompt/evaluator 单测 28/28 通过。没有模型/Pinecone 调用，没有真实用户资料。
+- **下一步**:至少由两位 reviewer 审核 20 个 source/evidence/claim package；之后在明确模型授权下，用冻结的
+  GPT-5.5 配置运行**一次**，不得根据结果再调 prompt、任务、证据、模型参数或 evaluator。

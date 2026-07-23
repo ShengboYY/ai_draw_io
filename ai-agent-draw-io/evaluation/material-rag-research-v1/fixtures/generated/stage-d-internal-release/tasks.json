@@ -1,0 +1,814 @@
+{
+  "schemaVersion": "material-rag-stage-d-internal-release-tasks-v1",
+  "purpose": "Locally authored once-only internal release-style cohort; not an independent final holdout.",
+  "tasks": [
+    {
+      "taskId": "stgd-int-01",
+      "split": "holdout",
+      "sourceVersion": "ir-customer-onboarding:v1",
+      "selectedMaterialVersion": "ir-customer-onboarding:v1",
+      "sourceScopeMode": "selected_only",
+      "type": "material_grounded_creation",
+      "request": "Create an editable customer onboarding flow.",
+      "requiredAnchors": [
+        "co-intake",
+        "co-owner"
+      ],
+      "xmlAssertions": {
+        "minVertices": 4,
+        "minEdges": 3,
+        "requiredLabels": [
+          "Customer Intake",
+          "Identity Check",
+          "Account Activation",
+          "Customer Operations"
+        ]
+      },
+      "citationAssertions": {
+        "minimumCitations": 2,
+        "mustCiteAnchors": [
+          "co-intake",
+          "co-owner"
+        ]
+      },
+      "claimAssertions": {
+        "requiredClaims": [
+          {
+            "claimId": "co-intake",
+            "description": "Customer Intake is followed by Identity Check before Account Activation.",
+            "requiresCitation": true
+          },
+          {
+            "claimId": "co-owner",
+            "description": "Account Activation is owned by Customer Operations.",
+            "requiresCitation": true
+          }
+        ]
+      }
+    },
+    {
+      "taskId": "stgd-int-02",
+      "split": "holdout",
+      "sourceVersion": "ir-data-retention:v1",
+      "selectedMaterialVersion": "ir-data-retention:v1",
+      "sourceScopeMode": "selected_only",
+      "type": "material_grounded_creation",
+      "request": "Draw the approved data retention lifecycle.",
+      "requiredAnchors": [
+        "dr-store",
+        "dr-delete"
+      ],
+      "xmlAssertions": {
+        "minVertices": 4,
+        "minEdges": 3,
+        "requiredLabels": [
+          "Raw Archive",
+          "30 days",
+          "Curated Archive",
+          "Verified Deletion"
+        ]
+      },
+      "citationAssertions": {
+        "minimumCitations": 2,
+        "mustCiteAnchors": [
+          "dr-store",
+          "dr-delete"
+        ]
+      },
+      "claimAssertions": {
+        "requiredClaims": [
+          {
+            "claimId": "dr-store",
+            "description": "Raw Archive retains approved records for 30 days before Curated Archive.",
+            "requiresCitation": true
+          },
+          {
+            "claimId": "dr-delete",
+            "description": "Curated Archive sends expired records to Verified Deletion.",
+            "requiresCitation": true
+          }
+        ]
+      }
+    },
+    {
+      "taskId": "stgd-int-03",
+      "split": "holdout",
+      "sourceVersion": "ir-release-ownership:v1",
+      "selectedMaterialVersion": "ir-release-ownership:v1",
+      "sourceScopeMode": "selected_only",
+      "type": "material_grounded_creation",
+      "request": "Create the release ownership map.",
+      "requiredAnchors": [
+        "ro-build",
+        "ro-approve"
+      ],
+      "xmlAssertions": {
+        "minVertices": 3,
+        "minEdges": 2,
+        "requiredLabels": [
+          "Build Steward",
+          "Release Manager",
+          "Production Gateway"
+        ]
+      },
+      "citationAssertions": {
+        "minimumCitations": 2,
+        "mustCiteAnchors": [
+          "ro-build",
+          "ro-approve"
+        ]
+      },
+      "claimAssertions": {
+        "requiredClaims": [
+          {
+            "claimId": "ro-build",
+            "description": "Build Steward owns the signed package.",
+            "requiresCitation": true
+          },
+          {
+            "claimId": "ro-approve",
+            "description": "Release Manager approves the signed package before Production Gateway.",
+            "requiresCitation": true
+          }
+        ]
+      }
+    },
+    {
+      "taskId": "stgd-int-04",
+      "split": "holdout",
+      "sourceVersion": "ir-fraud-route:v1",
+      "selectedMaterialVersion": "ir-fraud-route:v1",
+      "sourceScopeMode": "selected_only",
+      "type": "material_grounded_creation",
+      "request": "Create a payment review decision flow.",
+      "requiredAnchors": [
+        "fr-route"
+      ],
+      "xmlAssertions": {
+        "minVertices": 4,
+        "minEdges": 3,
+        "requiredLabels": [
+          "Payment Intake",
+          "Risk Screening",
+          "Analyst Review",
+          "Settlement Queue"
+        ]
+      },
+      "citationAssertions": {
+        "minimumCitations": 1,
+        "mustCiteAnchors": [
+          "fr-route"
+        ]
+      },
+      "claimAssertions": {
+        "requiredClaims": [
+          {
+            "claimId": "fr-route",
+            "description": "Payment Intake goes to Risk Screening. A flagged payment goes to Analyst Review; an unflagged payment goes to Settlement Queue.",
+            "requiresCitation": true
+          }
+        ]
+      }
+    },
+    {
+      "taskId": "stgd-int-05",
+      "split": "holdout",
+      "sourceVersion": "ir-vendor-access:v1",
+      "selectedMaterialVersion": "ir-vendor-access:v1",
+      "sourceScopeMode": "selected_only",
+      "type": "material_grounded_creation",
+      "request": "Draw the vendor access approval route.",
+      "requiredAnchors": [
+        "va-sponsor",
+        "va-expiry"
+      ],
+      "xmlAssertions": {
+        "minVertices": 3,
+        "minEdges": 2,
+        "requiredLabels": [
+          "Vendor Sponsor",
+          "Security Validation",
+          "14 days"
+        ]
+      },
+      "citationAssertions": {
+        "minimumCitations": 2,
+        "mustCiteAnchors": [
+          "va-sponsor",
+          "va-expiry"
+        ]
+      },
+      "claimAssertions": {
+        "requiredClaims": [
+          {
+            "claimId": "va-sponsor",
+            "description": "Vendor Sponsor submits the access request to Security Validation.",
+            "requiresCitation": true
+          },
+          {
+            "claimId": "va-expiry",
+            "description": "Approved vendor access expires after 14 days.",
+            "requiresCitation": true
+          }
+        ]
+      }
+    },
+    {
+      "taskId": "stgd-int-06",
+      "split": "holdout",
+      "sourceVersion": "ir-customer-onboarding-edit:v1",
+      "selectedMaterialVersion": "ir-customer-onboarding-edit:v1",
+      "sourceScopeMode": "selected_only",
+      "type": "structural_edit",
+      "request": "Update the selected onboarding step using the approved source.",
+      "requiredAnchors": [
+        "ce-verify"
+      ],
+      "xmlAssertions": {
+        "minVertices": 2,
+        "minEdges": 1,
+        "requiredLabels": [
+          "Identity Check",
+          "Account Activation"
+        ]
+      },
+      "citationAssertions": {
+        "minimumCitations": 1,
+        "mustCiteAnchors": [
+          "ce-verify"
+        ]
+      },
+      "claimAssertions": {
+        "requiredClaims": [
+          {
+            "claimId": "ce-verify",
+            "description": "Identity Check hands verified customers to Account Activation.",
+            "requiresCitation": true
+          }
+        ]
+      },
+      "inputXml": "<mxGraphModel><root><mxCell id='0'/><mxCell id='1' parent='0'/><mxCell id='selected-onboarding' value='Identity Check' vertex='1' parent='1'><mxGeometry x='40' y='40' width='180' height='60' as='geometry'/></mxCell></root></mxGraphModel>"
+    },
+    {
+      "taskId": "stgd-int-07",
+      "split": "holdout",
+      "sourceVersion": "ir-incident-routing-edit:v1",
+      "selectedMaterialVersion": "ir-incident-routing-edit:v1",
+      "sourceScopeMode": "selected_only",
+      "type": "structural_edit",
+      "request": "Edit the selected incident escalation subgraph.",
+      "requiredAnchors": [
+        "ie-escalate",
+        "ie-update"
+      ],
+      "xmlAssertions": {
+        "minVertices": 3,
+        "minEdges": 2,
+        "requiredLabels": [
+          "Service Owner",
+          "Incident Commander",
+          "Communications Lead"
+        ]
+      },
+      "citationAssertions": {
+        "minimumCitations": 2,
+        "mustCiteAnchors": [
+          "ie-escalate",
+          "ie-update"
+        ]
+      },
+      "claimAssertions": {
+        "requiredClaims": [
+          {
+            "claimId": "ie-escalate",
+            "description": "Service Owner escalates unresolved incidents to Incident Commander.",
+            "requiresCitation": true
+          },
+          {
+            "claimId": "ie-update",
+            "description": "Incident Commander assigns Communications Lead.",
+            "requiresCitation": true
+          }
+        ]
+      },
+      "inputXml": "<mxGraphModel><root><mxCell id='0'/><mxCell id='1' parent='0'/><mxCell id='selected-incident' value='Service Owner' vertex='1' parent='1'><mxGeometry x='40' y='40' width='180' height='60' as='geometry'/></mxCell></root></mxGraphModel>"
+    },
+    {
+      "taskId": "stgd-int-08",
+      "split": "holdout",
+      "sourceVersion": "ir-invoice-reconcile-edit:v1",
+      "selectedMaterialVersion": "ir-invoice-reconcile-edit:v1",
+      "sourceScopeMode": "selected_only",
+      "type": "structural_edit",
+      "request": "Update the selected reconciliation branch.",
+      "requiredAnchors": [
+        "ir-match"
+      ],
+      "xmlAssertions": {
+        "minVertices": 3,
+        "minEdges": 2,
+        "requiredLabels": [
+          "Invoice Match",
+          "Finance Investigation",
+          "Supplier Query"
+        ]
+      },
+      "citationAssertions": {
+        "minimumCitations": 1,
+        "mustCiteAnchors": [
+          "ir-match"
+        ]
+      },
+      "claimAssertions": {
+        "requiredClaims": [
+          {
+            "claimId": "ir-match",
+            "description": "Invoice Match routes mismatches to Finance Investigation before Supplier Query.",
+            "requiresCitation": true
+          }
+        ]
+      },
+      "inputXml": "<mxGraphModel><root><mxCell id='0'/><mxCell id='1' parent='0'/><mxCell id='selected-invoice' value='Invoice Match' vertex='1' parent='1'><mxGeometry x='40' y='40' width='180' height='60' as='geometry'/></mxCell></root></mxGraphModel>"
+    },
+    {
+      "taskId": "stgd-int-09",
+      "split": "holdout",
+      "sourceVersion": "ir-layout-lanes:v1",
+      "selectedMaterialVersion": "ir-layout-lanes:v1",
+      "sourceScopeMode": "selected_only",
+      "type": "layout_only_edit",
+      "request": "Arrange the existing roles as two clear swimlanes without changing their factual labels.",
+      "requiredAnchors": [
+        "ll-roles"
+      ],
+      "xmlAssertions": {
+        "minVertices": 2,
+        "minEdges": 0,
+        "requiredLabels": [
+          "Requester",
+          "Reviewer"
+        ]
+      },
+      "citationAssertions": {
+        "minimumCitations": 1,
+        "mustCiteAnchors": [
+          "ll-roles"
+        ]
+      },
+      "claimAssertions": {
+        "requiredClaims": [
+          {
+            "claimId": "ll-roles",
+            "description": "Requester and Reviewer are the two existing process roles.",
+            "requiresCitation": true
+          }
+        ]
+      },
+      "editAssertions": {
+        "geometryOnly": true
+      },
+      "inputXml": "<mxGraphModel><root><mxCell id='0'/><mxCell id='1' parent='0'/><mxCell id='layout-1' value='Requester' vertex='1' parent='1'><mxGeometry x='40' y='40' width='180' height='60' as='geometry'/></mxCell><mxCell id='layout-2' value='Reviewer' vertex='1' parent='1'><mxGeometry x='80' y='40' width='180' height='60' as='geometry'/></mxCell></root></mxGraphModel>"
+    },
+    {
+      "taskId": "stgd-int-10",
+      "split": "holdout",
+      "sourceVersion": "ir-layout-sequence:v1",
+      "selectedMaterialVersion": "ir-layout-sequence:v1",
+      "sourceScopeMode": "selected_only",
+      "type": "layout_only_edit",
+      "request": "Improve spacing of the existing approval sequence without changing its labels.",
+      "requiredAnchors": [
+        "ls-roles"
+      ],
+      "xmlAssertions": {
+        "minVertices": 3,
+        "minEdges": 0,
+        "requiredLabels": [
+          "Draft",
+          "Review",
+          "Publish"
+        ]
+      },
+      "citationAssertions": {
+        "minimumCitations": 1,
+        "mustCiteAnchors": [
+          "ls-roles"
+        ]
+      },
+      "claimAssertions": {
+        "requiredClaims": [
+          {
+            "claimId": "ls-roles",
+            "description": "Draft, Review and Publish are the existing approval sequence labels.",
+            "requiresCitation": true
+          }
+        ]
+      },
+      "editAssertions": {
+        "geometryOnly": true
+      },
+      "inputXml": "<mxGraphModel><root><mxCell id='0'/><mxCell id='1' parent='0'/><mxCell id='layout-1' value='Draft' vertex='1' parent='1'><mxGeometry x='40' y='40' width='180' height='60' as='geometry'/></mxCell><mxCell id='layout-2' value='Review' vertex='1' parent='1'><mxGeometry x='80' y='40' width='180' height='60' as='geometry'/></mxCell><mxCell id='layout-3' value='Publish' vertex='1' parent='1'><mxGeometry x='120' y='40' width='180' height='60' as='geometry'/></mxCell></root></mxGraphModel>"
+    },
+    {
+      "taskId": "stgd-int-11",
+      "split": "holdout",
+      "sourceVersion": "ir-layout-status:v1",
+      "selectedMaterialVersion": "ir-layout-status:v1",
+      "sourceScopeMode": "selected_only",
+      "type": "layout_only_edit",
+      "request": "Make the existing status diagram easier to read without changing its facts.",
+      "requiredAnchors": [
+        "lt-status"
+      ],
+      "xmlAssertions": {
+        "minVertices": 3,
+        "minEdges": 0,
+        "requiredLabels": [
+          "Queued",
+          "Running",
+          "Complete"
+        ]
+      },
+      "citationAssertions": {
+        "minimumCitations": 1,
+        "mustCiteAnchors": [
+          "lt-status"
+        ]
+      },
+      "claimAssertions": {
+        "requiredClaims": [
+          {
+            "claimId": "lt-status",
+            "description": "Queued, Running and Complete are the existing status labels.",
+            "requiresCitation": true
+          }
+        ]
+      },
+      "editAssertions": {
+        "geometryOnly": true
+      },
+      "inputXml": "<mxGraphModel><root><mxCell id='0'/><mxCell id='1' parent='0'/><mxCell id='layout-1' value='Queued' vertex='1' parent='1'><mxGeometry x='40' y='40' width='180' height='60' as='geometry'/></mxCell><mxCell id='layout-2' value='Running' vertex='1' parent='1'><mxGeometry x='80' y='40' width='180' height='60' as='geometry'/></mxCell><mxCell id='layout-3' value='Complete' vertex='1' parent='1'><mxGeometry x='120' y='40' width='180' height='60' as='geometry'/></mxCell></root></mxGraphModel>"
+    },
+    {
+      "taskId": "stgd-int-12",
+      "split": "holdout",
+      "sourceVersion": "ir-telemetry-visual:v1",
+      "selectedMaterialVersion": "ir-telemetry-visual:v1",
+      "sourceScopeMode": "selected_only",
+      "type": "visual_or_ocr_to_editable_xml",
+      "request": "Reconstruct the selected telemetry calibration figure as editable draw.io XML.",
+      "requiredAnchors": [
+        "tv-flow"
+      ],
+      "xmlAssertions": {
+        "minVertices": 7,
+        "minEdges": 7,
+        "requiredLabels": [
+          "Sensor Intake",
+          "Calibration Check",
+          "Reading valid?",
+          "Publish Telemetry",
+          "Quarantine Sample",
+          "Lab Review"
+        ]
+      },
+      "citationAssertions": {
+        "minimumCitations": 1,
+        "mustCiteAnchors": [
+          "tv-flow"
+        ]
+      },
+      "claimAssertions": {
+        "requiredClaims": [
+          {
+            "claimId": "tv-flow",
+            "description": "Sensor Intake goes to Calibration Check. If Reading valid? is Yes, Publish Telemetry then Operations Dashboard. If No, Quarantine Sample then Lab Review.",
+            "requiresCitation": true
+          }
+        ]
+      }
+    },
+    {
+      "taskId": "stgd-int-13",
+      "split": "holdout",
+      "sourceVersion": "ir-site-safety-scan:v1",
+      "selectedMaterialVersion": "ir-site-safety-scan:v1",
+      "sourceScopeMode": "selected_only",
+      "type": "visual_or_ocr_to_editable_xml",
+      "request": "Convert the scanned site-safety handoff into editable draw.io XML.",
+      "requiredAnchors": [
+        "ss-flow"
+      ],
+      "xmlAssertions": {
+        "minVertices": 7,
+        "minEdges": 7,
+        "requiredLabels": [
+          "Field Technician",
+          "Attach Site Photo",
+          "Safety cleared?",
+          "Close Visit",
+          "Dispatch Supervisor",
+          "Arrange Return"
+        ]
+      },
+      "citationAssertions": {
+        "minimumCitations": 1,
+        "mustCiteAnchors": [
+          "ss-flow"
+        ]
+      },
+      "claimAssertions": {
+        "requiredClaims": [
+          {
+            "claimId": "ss-flow",
+            "description": "Field Technician attaches Site Photo. If Safety cleared? is Yes, Close Visit. If No, Dispatch Supervisor then Arrange Return.",
+            "requiresCitation": true
+          }
+        ]
+      }
+    },
+    {
+      "taskId": "stgd-int-14",
+      "split": "holdout",
+      "sourceVersion": "ir-price-book:v2",
+      "selectedMaterialVersion": "ir-price-book:v2",
+      "sourceScopeMode": "selected_only",
+      "type": "version_and_authorization_safe_edit",
+      "request": "Draw the currently authorized price-book approval flow.",
+      "requiredAnchors": [
+        "pb-v2"
+      ],
+      "xmlAssertions": {
+        "minVertices": 4,
+        "minEdges": 3,
+        "requiredLabels": [
+          "Price Analyst",
+          "Version 2",
+          "Commercial Approver",
+          "Catalog Publish"
+        ]
+      },
+      "citationAssertions": {
+        "minimumCitations": 1,
+        "mustCiteAnchors": [
+          "pb-v2"
+        ]
+      },
+      "claimAssertions": {
+        "requiredClaims": [
+          {
+            "claimId": "pb-v2",
+            "description": "Price Analyst submits Version 2 to Commercial Approver before Catalog Publish.",
+            "requiresCitation": true
+          }
+        ]
+      }
+    },
+    {
+      "taskId": "stgd-int-15",
+      "split": "holdout",
+      "sourceVersion": "ir-policy-exception:v3",
+      "selectedMaterialVersion": "ir-policy-exception:v3",
+      "sourceScopeMode": "selected_only",
+      "type": "version_and_authorization_safe_edit",
+      "request": "Create the authorized policy-exception routing diagram.",
+      "requiredAnchors": [
+        "pe-auth"
+      ],
+      "xmlAssertions": {
+        "minVertices": 3,
+        "minEdges": 2,
+        "requiredLabels": [
+          "Policy Owner",
+          "EX-903",
+          "Compliance Register"
+        ]
+      },
+      "citationAssertions": {
+        "minimumCitations": 1,
+        "mustCiteAnchors": [
+          "pe-auth"
+        ]
+      },
+      "claimAssertions": {
+        "requiredClaims": [
+          {
+            "claimId": "pe-auth",
+            "description": "Policy Owner approves exception EX-903 before Compliance Register records it.",
+            "requiresCitation": true
+          }
+        ]
+      }
+    },
+    {
+      "taskId": "stgd-int-16",
+      "split": "holdout",
+      "sourceVersion": "ir-contract-change:v2",
+      "selectedMaterialVersion": "ir-contract-change:v2",
+      "sourceScopeMode": "selected_only",
+      "type": "version_and_authorization_safe_edit",
+      "request": "Update the selected contract-change approval route from the selected version.",
+      "requiredAnchors": [
+        "cc-v2"
+      ],
+      "xmlAssertions": {
+        "minVertices": 4,
+        "minEdges": 3,
+        "requiredLabels": [
+          "Legal Reviewer",
+          "Procurement Lead",
+          "Change Set B",
+          "Supplier Notice"
+        ]
+      },
+      "citationAssertions": {
+        "minimumCitations": 1,
+        "mustCiteAnchors": [
+          "cc-v2"
+        ]
+      },
+      "claimAssertions": {
+        "requiredClaims": [
+          {
+            "claimId": "cc-v2",
+            "description": "Legal Reviewer and Procurement Lead must approve Change Set B before Supplier Notice.",
+            "requiresCitation": true
+          }
+        ]
+      },
+      "inputXml": "<mxGraphModel><root><mxCell id='0'/><mxCell id='1' parent='0'/><mxCell id='selected-contract' value='Change Set B' vertex='1' parent='1'><mxGeometry x='40' y='40' width='180' height='60' as='geometry'/></mxCell></root></mxGraphModel>"
+    },
+    {
+      "taskId": "stgd-int-17",
+      "split": "holdout",
+      "sourceVersion": "ir-search-recovery:v1",
+      "selectedMaterialVersion": "ir-search-recovery:v1",
+      "sourceScopeMode": "selected_only",
+      "type": "failure_and_recovery",
+      "request": "Draw the safe material-search recovery path.",
+      "requiredAnchors": [
+        "sr-safe",
+        "sr-retry"
+      ],
+      "xmlAssertions": {
+        "minVertices": 3,
+        "minEdges": 2,
+        "requiredLabels": [
+          "Vector Search Unavailable",
+          "Manual Drawing",
+          "Retry Retrieval"
+        ]
+      },
+      "citationAssertions": {
+        "minimumCitations": 2,
+        "mustCiteAnchors": [
+          "sr-safe",
+          "sr-retry"
+        ]
+      },
+      "claimAssertions": {
+        "requiredClaims": [
+          {
+            "claimId": "sr-safe",
+            "description": "During Vector Search Unavailable, material-backed drawing is blocked while Manual Drawing remains available.",
+            "requiresCitation": true
+          },
+          {
+            "claimId": "sr-retry",
+            "description": "Retry Retrieval may continue only after Vector Search is restored.",
+            "requiresCitation": true
+          }
+        ]
+      }
+    },
+    {
+      "taskId": "stgd-int-18",
+      "split": "holdout",
+      "sourceVersion": "ir-save-recovery:v1",
+      "selectedMaterialVersion": "ir-save-recovery:v1",
+      "sourceScopeMode": "selected_only",
+      "type": "failure_and_recovery",
+      "request": "Create the safe canvas-save recovery diagram.",
+      "requiredAnchors": [
+        "cr-save",
+        "cr-escalate"
+      ],
+      "xmlAssertions": {
+        "minVertices": 3,
+        "minEdges": 2,
+        "requiredLabels": [
+          "Canvas Save Failed",
+          "Retry Save",
+          "Storage Support"
+        ]
+      },
+      "citationAssertions": {
+        "minimumCitations": 2,
+        "mustCiteAnchors": [
+          "cr-save",
+          "cr-escalate"
+        ]
+      },
+      "claimAssertions": {
+        "requiredClaims": [
+          {
+            "claimId": "cr-save",
+            "description": "Canvas Save Failed must preserve the current canvas and offer Retry Save.",
+            "requiresCitation": true
+          },
+          {
+            "claimId": "cr-escalate",
+            "description": "A repeated save failure is escalated to Storage Support.",
+            "requiresCitation": true
+          }
+        ]
+      }
+    },
+    {
+      "taskId": "stgd-int-19",
+      "split": "holdout",
+      "sourceVersion": "ir-ocr-recovery:v1",
+      "selectedMaterialVersion": "ir-ocr-recovery:v1",
+      "sourceScopeMode": "selected_only",
+      "type": "failure_and_recovery",
+      "request": "Draw the OCR recovery route for a scanned source.",
+      "requiredAnchors": [
+        "or-ocr",
+        "or-manual"
+      ],
+      "xmlAssertions": {
+        "minVertices": 3,
+        "minEdges": 2,
+        "requiredLabels": [
+          "OCR Unavailable",
+          "Retry OCR",
+          "manual source excerpt"
+        ]
+      },
+      "citationAssertions": {
+        "minimumCitations": 2,
+        "mustCiteAnchors": [
+          "or-ocr",
+          "or-manual"
+        ]
+      },
+      "claimAssertions": {
+        "requiredClaims": [
+          {
+            "claimId": "or-ocr",
+            "description": "OCR Unavailable blocks source-grounded extraction and offers Retry OCR.",
+            "requiresCitation": true
+          },
+          {
+            "claimId": "or-manual",
+            "description": "After a completed OCR failure, the user may provide a manual source excerpt.",
+            "requiresCitation": true
+          }
+        ]
+      }
+    },
+    {
+      "taskId": "stgd-int-20",
+      "split": "holdout",
+      "sourceVersion": "ir-blob-recovery:v1",
+      "selectedMaterialVersion": "ir-blob-recovery:v1",
+      "sourceScopeMode": "selected_only",
+      "type": "failure_and_recovery",
+      "request": "Create the evidence blob recovery flow.",
+      "requiredAnchors": [
+        "br-blob",
+        "br-audit"
+      ],
+      "xmlAssertions": {
+        "minVertices": 3,
+        "minEdges": 2,
+        "requiredLabels": [
+          "Evidence Blob Unavailable",
+          "Blob Read",
+          "Retrieval Audit"
+        ]
+      },
+      "citationAssertions": {
+        "minimumCitations": 2,
+        "mustCiteAnchors": [
+          "br-blob",
+          "br-audit"
+        ]
+      },
+      "claimAssertions": {
+        "requiredClaims": [
+          {
+            "claimId": "br-blob",
+            "description": "Evidence Blob Unavailable blocks cited material generation until Blob Read is restored.",
+            "requiresCitation": true
+          },
+          {
+            "claimId": "br-audit",
+            "description": "The recovery event is recorded in Retrieval Audit.",
+            "requiresCitation": true
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,18 @@
+{
+  "schemaVersion": "material-rag-generation-run-manifest-v1",
+  "qualification": "internal_release_style_not_independent_final_holdout",
+  "split": "holdout",
+  "status": "template_not_runnable_until_case_review_and_authorization",
+  "taskFixture": "tasks.json",
+  "contextFixture": "contexts.json",
+  "groundTruthFixture": "ground-truth.json",
+  "promptBundles": "prompt-bundles.json",
+  "rubric": "rubric-v1.json",
+  "acceptancePolicy": "acceptance-policy-v2.json",
+  "forbidden": [
+    "Development response reuse",
+    "Validation response reuse",
+    "prompt tuning after output",
+    "second run after observed output"
+  ]
+}
