@@ -15,6 +15,10 @@ public interface IOnlineRetrievalMapper {
                                                @Param("diagramId") String diagramId,
                                                @Param("conversationId") String conversationId,
                                                @Param("versionIds") List<String> versionIds);
+    List<OnlineSourcePO> selectConversationAttachmentSources(@Param("ownerType") String ownerType,
+                                                             @Param("ownerKey") String ownerKey,
+                                                             @Param("conversationId") String conversationId,
+                                                             @Param("uploadIds") List<String> uploadIds);
     List<OnlineSourcePO> selectAutomaticSources(@Param("ownerType") String ownerType,
                                                 @Param("ownerKey") String ownerKey,
                                                 @Param("diagramId") String diagramId,

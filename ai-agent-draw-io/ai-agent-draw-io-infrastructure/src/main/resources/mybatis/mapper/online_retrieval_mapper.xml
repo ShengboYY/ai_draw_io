@@ -36,6 +36,29 @@
         SELECT * FROM ranked WHERE rn = 1
     </select>
 
+    <select id="selectConversationAttachmentSources" resultType="org.zipp.ai.infrastructure.dao.retrieval.po.OnlineSourcePO">
+        SELECT m.id AS material_id, v.id AS version_id, r.id AS revision_id, m.kind,
+               'CONVERSATION' AS scope_type, #{conversationId} AS scope_key, r.state,
+               TRUE AS conversation_scoped,
+               EXISTS (SELECT 1 FROM retrieval_chunk c WHERE c.revision_id = r.id
+                       AND c.status = 'ACTIVE' AND c.modality IN ('TEXT', 'TABLE')) AS has_text,
+               EXISTS (SELECT 1 FROM retrieval_chunk c WHERE c.revision_id = r.id
+                       AND c.status = 'ACTIVE' AND c.modality = 'VISUAL') AS has_visual,
+               FALSE AS pinned
+        FROM material_upload_session u
+        JOIN material m ON m.id = u.material_id
+        JOIN material_version v ON v.id = u.version_id AND v.material_id = m.id
+        JOIN material_processing_revision r ON r.id = u.processing_revision_id AND r.version_id = v.id
+        JOIN material_scope_link link ON link.material_id = m.id
+          AND link.scope_type = 'CONVERSATION' AND link.scope_key = #{conversationId}
+        WHERE u.id IN <foreach collection="uploadIds" item="id" open="(" separator="," close=")">#{id}</foreach>
+          AND u.owner_type = #{ownerType} AND u.owner_key = #{ownerKey}
+          AND u.target_scope_type = 'CONVERSATION' AND u.target_scope_key = #{conversationId}
+          AND u.state = 'SUCCEEDED'
+          AND <include refid="activeOwnerMaterial"/>
+          AND r.state IN ('READY', 'PARTIAL_READY')
+    </select>
+
     <select id="selectAutomaticSources" resultType="org.zipp.ai.infrastructure.dao.retrieval.po.OnlineSourcePO">
         WITH candidates AS (
             SELECT m.id AS material_id, v.id AS version_id, r.id AS revision_id, m.kind,

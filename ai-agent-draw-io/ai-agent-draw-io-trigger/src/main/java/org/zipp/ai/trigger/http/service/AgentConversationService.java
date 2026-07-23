@@ -1202,7 +1202,8 @@ public class AgentConversationService {
             try {
                 return requestProbeService.probe(new RequestProbeCommand(owner(requestDTO),
                         requestDTO.getDiagramId(), requestDTO.getSessionId(), mode,
-                        safeList(requestDTO.getSelectedVersionIds()), safeList(requestDTO.getSelectedCellIds()),
+                        safeList(requestDTO.getAttachmentUploadIds()), safeList(requestDTO.getSelectedVersionIds()),
+                        safeList(requestDTO.getSelectedCellIds()),
                         requestDTO.getSelectionCanvasVersion(), requestDTO.getSelectionContentHash()));
             } catch (RuntimeException exception) {
                 log.warn("Request probe failed closed. diagramId={}",

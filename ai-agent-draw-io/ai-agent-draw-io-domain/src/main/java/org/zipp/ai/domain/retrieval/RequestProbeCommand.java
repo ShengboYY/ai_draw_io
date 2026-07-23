@@ -7,7 +7,7 @@ import java.util.Objects;
 
 /** Probe input contains opaque identifiers only; client canvas content is intentionally impossible to pass. */
 public record RequestProbeCommand(CatalogOwner owner, String diagramId, String conversationId,
-                                  SourceMode sourceMode, List<String> selectedVersionIds,
+                                  SourceMode sourceMode, List<String> attachmentUploadIds, List<String> selectedVersionIds,
                                   List<String> selectedCellIds, Long selectionCanvasVersion,
                                   String selectionContentHash) {
     public RequestProbeCommand {
@@ -15,11 +15,21 @@ public record RequestProbeCommand(CatalogOwner owner, String diagramId, String c
         diagramId = normalize(diagramId);
         conversationId = normalize(conversationId);
         sourceMode = sourceMode == null ? SourceMode.AUTO : sourceMode;
+        attachmentUploadIds = immutableIds(attachmentUploadIds);
         selectedVersionIds = immutableIds(selectedVersionIds);
         selectedCellIds = immutableIds(selectedCellIds);
         selectionContentHash = normalize(selectionContentHash);
         // An explicit selection always wins over a contradictory NONE hint.
         if (!selectedVersionIds.isEmpty() && sourceMode == SourceMode.NONE) sourceMode = SourceMode.EXPLICIT;
+    }
+
+    /** Keeps existing server callers source-compatible while attachments are optional. */
+    public RequestProbeCommand(CatalogOwner owner, String diagramId, String conversationId,
+                               SourceMode sourceMode, List<String> selectedVersionIds,
+                               List<String> selectedCellIds, Long selectionCanvasVersion,
+                               String selectionContentHash) {
+        this(owner, diagramId, conversationId, sourceMode, List.of(), selectedVersionIds,
+                selectedCellIds, selectionCanvasVersion, selectionContentHash);
     }
 
     private static List<String> immutableIds(List<String> values) {

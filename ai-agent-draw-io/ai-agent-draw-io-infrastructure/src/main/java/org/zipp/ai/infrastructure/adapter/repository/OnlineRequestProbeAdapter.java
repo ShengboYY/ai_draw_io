@@ -31,18 +31,22 @@ public final class OnlineRequestProbeAdapter implements RequestProbeDataPort {
         List<OnlineSourcePO> selected = command.selectedVersionIds().isEmpty() ? List.of()
                 : retrieval.selectExplicitSources(command.owner().ownerType().name(), command.owner().ownerKey(),
                 command.diagramId(), command.conversationId(), command.selectedVersionIds());
+        List<OnlineSourcePO> attachments = command.attachmentUploadIds().isEmpty() ? List.of()
+                : retrieval.selectConversationAttachmentSources(command.owner().ownerType().name(), command.owner().ownerKey(),
+                command.conversationId(), command.attachmentUploadIds());
         List<OnlineSourcePO> automatic = retrieval.selectAutomaticSources(command.owner().ownerType().name(),
                 command.owner().ownerKey(), command.diagramId(), command.conversationId(), 20);
         Integer pending = retrieval.countPendingConversationUploads(command.owner().ownerKey(), command.conversationId());
-        return new SourceProbe(selected.size(), selected.stream().map(OnlineSourcePO::getKind).distinct().toList(),
-                selected.stream().map(OnlineSourcePO::getState).distinct().toList(),
+        List<OnlineSourcePO> declared = java.util.stream.Stream.concat(selected.stream(), attachments.stream()).toList();
+        return new SourceProbe(declared.size(), declared.stream().map(OnlineSourcePO::getKind).distinct().toList(),
+                declared.stream().map(OnlineSourcePO::getState).distinct().toList(),
                 pending == null ? 0 : pending,
                 automatic.stream().anyMatch(row -> "DIAGRAM".equals(row.getScopeType()) && ready(row)),
                 automatic.stream().anyMatch(row -> "CHARTBOOK".equals(row.getScopeType()) && ready(row)),
                 automatic.stream().anyMatch(row -> "LIBRARY".equals(row.getScopeType()) && ready(row)),
                 automatic.stream().anyMatch(OnlineSourcePO::isPinned),
-                java.util.stream.Stream.concat(selected.stream(), automatic.stream()).anyMatch(OnlineSourcePO::isHasVisual),
-                (int) selected.stream().filter(row -> "PARTIAL_READY".equals(row.getState())).count(),
+                java.util.stream.Stream.concat(declared.stream(), automatic.stream()).anyMatch(OnlineSourcePO::isHasVisual),
+                (int) declared.stream().filter(row -> "PARTIAL_READY".equals(row.getState())).count(),
                 command.sourceMode());
     }
 
