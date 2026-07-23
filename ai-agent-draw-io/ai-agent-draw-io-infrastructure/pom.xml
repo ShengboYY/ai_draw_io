@@ -41,6 +41,17 @@
             <artifactId>s3</artifactId>
             <version>${aws.sdk.version}</version>
         </dependency>
+        <!-- DefaultCredentialsProvider needs this module to resolve local AWS CLI SSO profiles. -->
+        <dependency>
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>sso</artifactId>
+            <version>${aws.sdk.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>ssooidc</artifactId>
+            <version>${aws.sdk.version}</version>
+        </dependency>
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter</artifactId>

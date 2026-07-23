@@ -719,21 +719,35 @@ public class MySqlDocumentProcessingWorkAdapter implements DocumentProcessingWor
         po.setStatus("ACTIVE");
         mapper.insertEvidenceUnit(po);
         EvidenceUnitPO persisted = mapper.selectEvidenceUnit(po.getId());
-        if (persisted == null || !po.getVersionId().equals(persisted.getVersionId())
+        if (persisted == null) {
+            throw new IllegalStateException("immutable evidence unit was not readable after insert");
+        }
+        // Report only the mismatched field group; evidence values and object keys must not enter logs.
+        if (!po.getVersionId().equals(persisted.getVersionId())
                 || !po.getRevisionId().equals(persisted.getRevisionId())
                 || !po.getPageId().equals(persisted.getPageId())
-                || !Objects.equals(po.getSectionId(), persisted.getSectionId())
-                || !po.getUnitType().equals(persisted.getUnitType())
+                || !Objects.equals(po.getSectionId(), persisted.getSectionId())) {
+            throw new IllegalStateException("immutable evidence unit identity collided");
+        }
+        if (!po.getUnitType().equals(persisted.getUnitType())
                 || !po.getModality().equals(persisted.getModality())
-                || !po.getSourceChannel().equals(persisted.getSourceChannel())
-                || !Objects.equals(po.getDisplayTextObjectKey(), persisted.getDisplayTextObjectKey())
+                || !po.getSourceChannel().equals(persisted.getSourceChannel())) {
+            throw new IllegalStateException("immutable evidence unit classification collided");
+        }
+        if (!Objects.equals(po.getDisplayTextObjectKey(), persisted.getDisplayTextObjectKey())
                 || !Objects.equals(po.getDisplayTextObjectVersionId(), persisted.getDisplayTextObjectVersionId())
                 || !Objects.equals(po.getVisualObjectKey(), persisted.getVisualObjectKey())
-                || !Objects.equals(po.getVisualObjectVersionId(), persisted.getVisualObjectVersionId())
-                || !Objects.equals(po.getDisplayTextSha256(), persisted.getDisplayTextSha256())
-                || !sameJson(po.getQualityJson(), persisted.getQualityJson())
-                || !po.getStatus().equals(persisted.getStatus())) {
-            throw new IllegalStateException("immutable evidence unit collided with different content");
+                || !Objects.equals(po.getVisualObjectVersionId(), persisted.getVisualObjectVersionId())) {
+            throw new IllegalStateException("immutable evidence unit artifact pins collided");
+        }
+        if (!Objects.equals(po.getDisplayTextSha256(), persisted.getDisplayTextSha256())) {
+            throw new IllegalStateException("immutable evidence unit text digest collided");
+        }
+        if (!sameJson(po.getQualityJson(), persisted.getQualityJson())) {
+            throw new IllegalStateException("immutable evidence unit quality metadata collided");
+        }
+        if (!po.getStatus().equals(persisted.getStatus())) {
+            throw new IllegalStateException("immutable evidence unit status collided");
         }
         evidence.regions().forEach(region -> persistEvidenceRegion(evidence.evidenceId(), region));
     }
@@ -828,7 +842,18 @@ public class MySqlDocumentProcessingWorkAdapter implements DocumentProcessingWor
         try {
             JsonNode expectedNode = JSON.readTree(expected);
             JsonNode actualNode = JSON.readTree(actual);
-            return expectedNode.equals(actualNode);
+            return expectedNode.equals((left, right) -> {
+                // MySQL JSON may normalize 1.0 to 1; numeric value, not node representation, defines identity.
+                if (left.isNumber() && right.isNumber()) {
+                    double leftValue = left.doubleValue();
+                    double rightValue = right.doubleValue();
+                    double tolerance = 1.0e-12 * Math.max(1.0,
+                            Math.max(Math.abs(leftValue), Math.abs(rightValue)));
+                    return Math.abs(leftValue - rightValue) <= tolerance
+                            ? 0 : Double.compare(leftValue, rightValue);
+                }
+                return left.equals(right) ? 0 : 1;
+            }, actualNode);
         } catch (JsonProcessingException e) {
             throw new IllegalStateException("persisted evidence JSON is invalid", e);
         }

@@ -310,7 +310,7 @@ class MySqlDocumentProcessingWorkAdapterTest {
                     case "insertRevisionArtifact" -> { persistedManifest.set((DocumentStructureArtifactPO) args[0]); yield 1; }
                     case "selectRevisionArtifact" -> persistedManifest.get();
                     case "insertEvidenceUnit" -> { persistedUnit.set((EvidenceUnitPO) args[0]); yield 1; }
-                    case "selectEvidenceUnit" -> persistedUnit.get();
+                    case "selectEvidenceUnit" -> unitWithMysqlNumericNormalization(persistedUnit.get());
                     case "insertEvidenceRegion" -> { persistedRegion.set((EvidenceRegionPO) args[0]); yield 1; }
                     case "selectEvidenceRegion" -> regionWithMysqlJsonKeyOrder(persistedRegion.get());
                     case "insertEvidenceRelation" -> { persistedRelation.set((EvidenceRelationPO) args[0]); yield 1; }
@@ -342,7 +342,8 @@ class MySqlDocumentProcessingWorkAdapterTest {
                 new NormalizedBoundingBox(0.1, 0.1, 0.9, 0.2), 0, 7, "heading");
         EvidenceUnit heading = new EvidenceUnit("evi_heading", "page_1", 1, "sec_1",
                 EvidenceUnitType.HEADING, EvidenceModality.TEXT, "NATIVE", "Heading", "a".repeat(64),
-                artifact("canonical.json.gz", "canonical-version"), null, List.of(textRegion), 0.95);
+                artifact("canonical.json.gz", "canonical-version"), null, List.of(textRegion),
+                0.9408207900000001);
         EvidenceRegion visualRegion = new EvidenceRegion("page_1", 1,
                 new NormalizedBoundingBox(0.1, 0.3, 0.9, 0.8), null, null, "vis_1");
         EvidenceUnit visual = new EvidenceUnit("evi_visual", "page_1", 1, "sec_1",
@@ -371,6 +372,29 @@ class MySqlDocumentProcessingWorkAdapterTest {
 
     private static StoredArtifact artifact(String key, String version) {
         return new StoredArtifact(key, version, "a".repeat(64), 10, "application/octet-stream");
+    }
+
+    private static EvidenceUnitPO unitWithMysqlNumericNormalization(EvidenceUnitPO source) {
+        EvidenceUnitPO row = new EvidenceUnitPO();
+        row.setId(source.getId());
+        row.setVersionId(source.getVersionId());
+        row.setRevisionId(source.getRevisionId());
+        row.setPageId(source.getPageId());
+        row.setSectionId(source.getSectionId());
+        row.setUnitType(source.getUnitType());
+        row.setModality(source.getModality());
+        row.setSourceChannel(source.getSourceChannel());
+        row.setDisplayTextObjectKey(source.getDisplayTextObjectKey());
+        row.setDisplayTextObjectVersionId(source.getDisplayTextObjectVersionId());
+        row.setVisualObjectKey(source.getVisualObjectKey());
+        row.setVisualObjectVersionId(source.getVisualObjectVersionId());
+        row.setDisplayTextSha256(source.getDisplayTextSha256());
+        // Match MySQL JSON's valid normalization of a whole-valued floating-point number.
+        row.setQualityJson(source.getQualityJson()
+                .replace("0.9408207900000001", "0.94082079")
+                .replace("1.0", "1"));
+        row.setStatus(source.getStatus());
+        return row;
     }
 
     private static EvidenceRegionPO regionWithMysqlJsonKeyOrder(EvidenceRegionPO source) {

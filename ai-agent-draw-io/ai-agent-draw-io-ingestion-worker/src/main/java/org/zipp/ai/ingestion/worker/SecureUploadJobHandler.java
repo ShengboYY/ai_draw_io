@@ -1,5 +1,7 @@
 package org.zipp.ai.ingestion.worker;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.zipp.ai.domain.ingestion.model.aggregate.UploadSession;
 import org.zipp.ai.domain.ingestion.model.aggregate.ProcessingJob;
 import org.zipp.ai.domain.ingestion.model.valobj.ProcessingJobLease;
@@ -27,6 +29,7 @@ import java.io.IOException;
 
 public final class SecureUploadJobHandler {
 
+    private static final Logger LOG = LoggerFactory.getLogger(SecureUploadJobHandler.class);
     private static final Duration HEARTBEAT_EXTENSION = Duration.ofMinutes(5);
 
     private final SecureUploadWorkPort uploads;
@@ -116,8 +119,11 @@ public final class SecureUploadJobHandler {
             return rejected ? JobOutcome.permanent(e.errorCode().name())
                     : JobOutcome.transientFailure(UploadErrorCode.STALE_FENCE.name());
         } catch (RuntimeException e) {
+            // Avoid logging user or object identifiers; the exception still identifies the failed dependency.
+            LOG.error("Secure upload processing failed at stage {}", job.stage(), e);
             return JobOutcome.transientFailure(UploadErrorCode.TRANSIENT_DEPENDENCY.name());
         } catch (IOException e) {
+            LOG.error("Secure upload temporary-file handling failed at stage {}", job.stage(), e);
             return JobOutcome.transientFailure(UploadErrorCode.TRANSIENT_DEPENDENCY.name());
         } finally {
             if (temporaryFile != null) {

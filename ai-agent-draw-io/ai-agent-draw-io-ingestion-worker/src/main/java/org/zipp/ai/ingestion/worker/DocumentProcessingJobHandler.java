@@ -1,5 +1,7 @@
 package org.zipp.ai.ingestion.worker;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.zipp.ai.domain.ingestion.model.aggregate.ProcessingJob;
 import org.zipp.ai.domain.ingestion.model.valobj.CanonicalPage;
 import org.zipp.ai.domain.ingestion.model.valobj.CanonicalPageResult;
@@ -56,6 +58,7 @@ import java.util.UUID;
 
 public final class DocumentProcessingJobHandler {
 
+    private static final Logger LOG = LoggerFactory.getLogger(DocumentProcessingJobHandler.class);
     private static final long MAX_ORIGINAL_BYTES = 100L * 1024 * 1024;
     private static final long MAX_PAGE_ARTIFACT_BYTES = 20L * 1024 * 1024;
     private static final Duration HEARTBEAT_EXTENSION = Duration.ofMinutes(30);
@@ -130,6 +133,8 @@ public final class DocumentProcessingJobHandler {
         } catch (IllegalArgumentException e) {
             return JobOutcome.permanent("INVALID_DOCUMENT_CONTENT");
         } catch (RuntimeException e) {
+            // Log only the controlled stage; source names, object keys, and extracted content stay out of logs.
+            LOG.error("Document processing failed at stage {}", job.stage(), e);
             return JobOutcome.transientFailure(UploadErrorCode.TRANSIENT_DEPENDENCY.name());
         }
     }

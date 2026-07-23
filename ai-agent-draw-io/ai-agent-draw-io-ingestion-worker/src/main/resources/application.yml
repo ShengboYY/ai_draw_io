@@ -12,6 +12,9 @@ spring:
 mybatis:
   mapper-locations:
     - classpath*:/mybatis/mapper/*.xml
+  configuration:
+    # Mapper queries alias database snake_case columns while persistence objects use camelCase fields.
+    map-underscore-to-camel-case: true
 
 worker:
   id: ${WORKER_ID:${HOSTNAME:worker-local}}

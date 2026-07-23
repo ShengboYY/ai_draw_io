@@ -15,6 +15,8 @@ import org.zipp.ai.domain.ingestion.model.valobj.UploadTarget;
 import org.zipp.ai.domain.material.model.valobj.MaterialScopeType;
 import org.zipp.ai.domain.material.model.valobj.RetentionClass;
 
+import javax.imageio.ImageIO;
+import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
 import java.security.MessageDigest;
 import java.time.Instant;
@@ -28,6 +30,22 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 class SecureFileValidatorTest {
 
     private static final Instant NOW = Instant.parse("2026-07-20T00:00:00Z");
+
+    @Test
+    void singleFramePngIsAcceptedAndItsPixelsAreCounted() throws Exception {
+        byte[] content;
+        // Generate a real PNG so this test exercises the JDK image reader configuration.
+        try (ByteArrayOutputStream output = new ByteArrayOutputStream()) {
+            ImageIO.write(new BufferedImage(3, 2, BufferedImage.TYPE_INT_RGB), "png", output);
+            content = output.toByteArray();
+        }
+        SecureFileValidator validator = new SecureFileValidator(ignored -> new ScanResult(true, null));
+
+        var result = validator.validate(session("diagram.png", "image/png", content), object(content));
+
+        assertEquals("image/png", result.detectedMediaType());
+        assertEquals(6L, result.pixelCount());
+    }
 
     @Test
     void malwareIsRejectedBeforeDocumentParsing() throws Exception {

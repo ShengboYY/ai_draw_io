@@ -1,6 +1,8 @@
 package org.zipp.ai.trigger.http;
 
 import jakarta.servlet.http.HttpServletRequest;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -30,6 +32,7 @@ import java.util.Locale;
 @RequestMapping("/api/v1/material-uploads")
 @ConditionalOnProperty(name = "app.material-upload.enabled", havingValue = "true")
 public class MaterialUploadController {
+    private static final Logger LOG = LoggerFactory.getLogger(MaterialUploadController.class);
 
     private final CurrentOwnerHttpResolver ownerResolver;
     private final IMaterialUploadService uploadService;
@@ -60,10 +63,14 @@ public class MaterialUploadController {
                     body.batchFileCount() == null ? 1 : body.batchFileCount()));
             return success(from(result));
         } catch (UploadAdmissionException e) {
+            LOG.warn("Material upload initiation rejected: {}", e.code());
             return failure(e.code().name());
         } catch (IllegalArgumentException e) {
+            LOG.warn("Material upload initiation request was invalid");
             return failure("UPLOAD_REQUEST_INVALID");
         } catch (RuntimeException e) {
+            // Keep user-controlled upload details out of logs while retaining the dependency stack trace.
+            LOG.error("Material upload initiation failed unexpectedly", e);
             return failure("TRANSIENT_DEPENDENCY");
         }
     }

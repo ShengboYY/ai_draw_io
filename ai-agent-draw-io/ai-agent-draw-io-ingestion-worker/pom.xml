@@ -20,6 +20,13 @@
         <dependency>
             <groupId>org.zipp.ai</groupId>
             <artifactId>ai-agent-draw-io-domain</artifactId>
+            <exclusions>
+                <!-- The Worker does not run agents; this legacy shaded jar embeds incompatible Spring classes. -->
+                <exclusion>
+                    <groupId>cn.bugstack.wrench</groupId>
+                    <artifactId>xfg-wrench-starter-design-framework</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
         <dependency>
             <groupId>org.zipp.ai</groupId>

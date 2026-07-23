@@ -146,7 +146,8 @@ public final class SecureFileValidator {
             }
             ImageReader reader = readers.next();
             try {
-                reader.setInput(input, true, true);
+                // Frame counting may search backwards, so the reader cannot be configured as seek-forward-only.
+                reader.setInput(input, false, true);
                 if (reader.getNumImages(true) != 1) {
                     reject(UploadErrorCode.REJECTED_FORMAT, "multi-frame images are not accepted");
                 }

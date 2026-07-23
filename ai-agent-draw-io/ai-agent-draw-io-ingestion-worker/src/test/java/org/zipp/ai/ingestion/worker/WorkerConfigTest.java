@@ -29,6 +29,7 @@ class WorkerConfigTest {
             assertTrue(configuration.contains("materialization-enabled: ${MATERIAL_MATERIALIZATION_ENABLED:false}"));
             assertTrue(configuration.contains(
                     "document-processing-enabled: ${MATERIAL_DOCUMENT_PROCESSING_ENABLED:false}"));
+            assertTrue(configuration.contains("map-underscore-to-camel-case: true"));
         }
     }
 

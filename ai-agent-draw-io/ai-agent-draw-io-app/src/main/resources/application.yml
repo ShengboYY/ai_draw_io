@@ -238,8 +238,15 @@ mybatis:
     - classpath:/mybatis/mapper/eval_catalog_mapper.xml
     - classpath:/mybatis/mapper/eval_run_mapper.xml
     - classpath:/mybatis/mapper/usage_counter_mapper.xml
+    - classpath*:/mybatis/mapper/grounded_run_control_mapper.xml
+    - classpath*:/mybatis/mapper/request_source_snapshot_mapper.xml
+    - classpath*:/mybatis/mapper/grounded_canvas_commit_mapper.xml
+    - classpath*:/mybatis/mapper/evidence_answer_commit_mapper.xml
+    - classpath*:/mybatis/mapper/citation_query_mapper.xml
+    - classpath*:/mybatis/mapper/manual_provenance_mapper.xml
     - classpath*:/mybatis/mapper/material_foundation_mapper.xml
     - classpath*:/mybatis/mapper/material_processing_job_mapper.xml
+    - classpath*:/mybatis/mapper/material_document_processing_mapper.xml
     - classpath*:/mybatis/mapper/material_upload_session_mapper.xml
     - classpath*:/mybatis/mapper/material_catalog_mapper.xml
     - classpath*:/mybatis/mapper/chartbook_catalog_mapper.xml
@@ -247,6 +254,9 @@ mybatis:
     - classpath*:/mybatis/mapper/material_lifecycle_mapper.xml
     - classpath*:/mybatis/mapper/material_read_lease_mapper.xml
     - classpath*:/mybatis/mapper/material_deletion_mapper.xml
+    - classpath*:/mybatis/mapper/material_materialization_mapper.xml
+    - classpath*:/mybatis/mapper/material_vector_projection_mapper.xml
+    - classpath*:/mybatis/mapper/index_projection_maintenance_mapper.xml
     - classpath*:/mybatis/mapper/online_retrieval_mapper.xml
     - classpath*:/mybatis/mapper/material_operations_mapper.xml
   config-location: classpath:/mybatis/config/mybatis-config.xml
