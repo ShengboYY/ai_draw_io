@@ -222,6 +222,8 @@ class RetrievalChunkBuilderTest {
         assertTrue(parent.retrievalText().contains("New requests use the latest ready material version."));
         assertTrue(new RetrievalChunkBuilder(CHARACTER_COUNTER).build(evidence).lexicalProjections().stream()
                 .anyMatch(lexical -> lexical.chunkId().equals(parent.chunkId())));
+        assertTrue(new RetrievalChunkBuilder(CHARACTER_COUNTER).fingerprint()
+                .contains("page-parent-lexical-only"));
         assertEquals(List.of("page-fact", "page-policy"), parent.evidenceMappings().stream()
                 .filter(mapping -> mapping.role() == ChunkEvidenceRole.PRIMARY)
                 .map(mapping -> mapping.evidenceId()).toList());

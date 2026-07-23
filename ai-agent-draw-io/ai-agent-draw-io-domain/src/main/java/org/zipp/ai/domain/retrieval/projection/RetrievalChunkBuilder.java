@@ -68,6 +68,7 @@ public final class RetrievalChunkBuilder {
             throw new IllegalArgumentException("tokenCounterFingerprint is required");
         }
         return SCHEMA_VERSION + ":leaf-by-evidence:sentence-safe-split:parent-neighbor-max900:page-parent-max900:"
+                + "page-parent-lexical-only:"
                 + "section-bridge-min3-or500:aux-hard20pct:extractive-profile:lexical-v2:tokenizer="
                 + tokenCounterFingerprint.trim();
     }

@@ -1027,6 +1027,7 @@ class ControlledPdfDenseRecallLiveTest {
         List<ResearchLlmReranker.Result> rerankerResults = new ArrayList<>();
         Map<String, IndexedChunk> indexedByVectorId = indexed.stream().collect(
                 java.util.stream.Collectors.toMap(IndexedChunk::vectorId, value -> value));
+        Map<String, IndexedChunk> searchableByChunkId = searchableChunksByChunkId(projections);
         Map<QueryMode, List<float[]>> queryVectors = new LinkedHashMap<>();
         for (QueryMode mode : QueryMode.values()) {
             queryVectors.put(mode, embedQueries(client,
@@ -1082,13 +1083,16 @@ class ControlledPdfDenseRecallLiveTest {
             List<CandidateResult> denseCandidates = candidateResults(denseMatches, indexedByVectorId);
             // Preserve the exact dedup input so the paired postprocess comparison is replayable.
             List<CandidateResult> densePoolCandidates = candidateResults(densePool, indexedByVectorId);
-            List<CandidateResult> lexicalCandidates = candidateResults(lexicalChunkIds.stream()
-                    .map(indexedByChunkId::get).map(IndexedChunk::vectorId).toList(), indexedByVectorId);
+            List<CandidateResult> lexicalCandidates = candidateResultsByChunkIds(
+                    lexicalChunkIds, searchableByChunkId);
             CaseRank originalRank = caseRank(researchCase, denseMatches, requiredGoldVectorIds,
                     fixedGoldChunkIdsByAnchor, indexedByVectorId, denseCandidates, lexicalCandidates,
                     densePoolCandidates);
             originalRanks.add(originalRank);
+            // Hybrid metrics are defined over Pinecone vector IDs. Lexical-only chunks remain exported
+            // through lexicalCandidates, but cannot be scored as dense matches because they have no vector.
             List<String> hybridMatches = hybridChunkIds.stream().map(indexedByChunkId::get)
+                    .filter(java.util.Objects::nonNull)
                     .map(IndexedChunk::vectorId).toList();
             ranksByMode.get(RetrievalMode.HYBRID_PROJECTION_RRF).add(caseRank(
                     researchCase, hybridMatches, requiredGoldVectorIds, fixedGoldChunkIdsByAnchor,
@@ -1233,14 +1237,40 @@ class ControlledPdfDenseRecallLiveTest {
         List<CandidateResult> candidates = new ArrayList<>();
         for (int index = 0; index < vectorIds.size(); index++) {
             IndexedChunk candidate = indexedByVectorId.get(vectorIds.get(index));
-            candidates.add(new CandidateResult(index + 1, vectorIds.get(index),
-                    candidate == null ? "unknown" : candidate.sourceVersion(),
-                    candidate == null ? "unknown" : candidate.chunk().chunkId(),
-                    candidate == null ? "unknown" : candidate.chunk().pageId(),
-                    candidate == null ? "UNKNOWN" : candidate.chunk().modality().name(),
-                    candidate == null ? "" : candidate.chunk().retrievalText()));
+            candidates.add(candidateResult(index + 1, vectorIds.get(index), candidate));
         }
         return List.copyOf(candidates);
+    }
+
+    private Map<String, IndexedChunk> searchableChunksByChunkId(ProjectionSet projections) {
+        Map<String, IndexedChunk> searchable = new HashMap<>();
+        projections.bySourceVersion().forEach((sourceVersion, manifest) -> manifest.chunks().stream()
+                .filter(chunk -> chunk.indexMode() != RetrievalIndexMode.UNSEARCHABLE)
+                .forEach(chunk -> searchable.putIfAbsent(chunk.chunkId(), new IndexedChunk(
+                        "lexical:" + sourceVersion + ":" + chunk.chunkId(), sourceVersion, chunk,
+                        chunk.retrievalText()))));
+        return Map.copyOf(searchable);
+    }
+
+    private List<CandidateResult> candidateResultsByChunkIds(List<String> chunkIds,
+                                                               Map<String, IndexedChunk> searchableByChunkId) {
+        List<CandidateResult> candidates = new ArrayList<>();
+        for (int index = 0; index < chunkIds.size(); index++) {
+            String chunkId = chunkIds.get(index);
+            IndexedChunk candidate = searchableByChunkId.get(chunkId);
+            candidates.add(candidateResult(index + 1,
+                    candidate == null ? "lexical:" + chunkId : candidate.vectorId(), candidate));
+        }
+        return List.copyOf(candidates);
+    }
+
+    private CandidateResult candidateResult(int rank, String vectorId, IndexedChunk candidate) {
+        return new CandidateResult(rank, vectorId,
+                candidate == null ? "unknown" : candidate.sourceVersion(),
+                candidate == null ? "unknown" : candidate.chunk().chunkId(),
+                candidate == null ? "unknown" : candidate.chunk().pageId(),
+                candidate == null ? "UNKNOWN" : candidate.chunk().modality().name(),
+                candidate == null ? "" : candidate.chunk().retrievalText());
     }
 
     private SliceMetric summarize(String label, List<CaseRank> ranks) {

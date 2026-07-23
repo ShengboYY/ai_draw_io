@@ -518,9 +518,11 @@
   `LEXICAL_ONLY`，不再进入 dense candidate pool。R8 的可检索页级文本不再直接挤占 visual/OCR vector 的 dense 名额。
 - **安全边界**:不读取 task 的 required anchor、expected answer、XML assertion、evaluator ground truth、模型输出或
   selected source version；leaf、visual/OCR、source identity、query、chartbook scope、ranker 与 top-8 budget 均不变。
-- **本地核验**:TDD 先证明原 parent 为 dense 会失败；随后验证 parent 仍 citable 且存在 lexical projection、但实际
-  PDF/OCR projection 的 parent 为 lexical-only。domain 12 项和 worker 14 项定向测试通过（5 项 opt-in Pinecone tests
-  按设计跳过）。无 Pinecone、模型、Validation 或 holdout。
+- **本地核验与审查修正**:TDD 先证明原 parent 为 dense 会失败；随后验证 parent 仍 citable 且存在 lexical projection、但实际
+  PDF/OCR projection 的 parent 为 lexical-only。P1 审查后将 `page-parent-lexical-only` 写入 processing fingerprint，避免
+  沿用 R8 的 projection profile；同时让 trace 的 lexical candidate 导出直接解析所有 searchable chunk，并在 hybrid 的
+  Pinecone-vector 指标中显式排除无 dense vector 的 lexical-only parent，避免空引用。domain 12 项和 worker 14 项定向测试
+  通过（5 项 opt-in Pinecone tests 按设计跳过）。无 Pinecone、模型、Validation 或 holdout。
 - **下一步**:经授权运行新的 opt-in Development hydration trace；必须先通过 `dgt-dev-02` 多模态 artifact contract，
   再检查 contrast 与 r6 model-visible-required-evidence gate。详见
   [2026-07-23-e7-r9-visual-safe-page-parent-pre-registration.md](2026-07-23-e7-r9-visual-safe-page-parent-pre-registration.md)。
