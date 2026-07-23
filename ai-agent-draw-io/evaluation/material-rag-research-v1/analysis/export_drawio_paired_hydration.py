@@ -17,10 +17,11 @@ from select_drawio_context import select
 
 ROOT = Path(__file__).resolve().parents[1]
 IDENTITY_RESERVATION_LIMIT = 6
-HYDRATION_QUERY_MODE = "evidence-focused-v1"
+HYDRATION_QUERY_MODE = "original-evidence-rrf-v1"
 QUERY_REWRITE_FINGERPRINT = (
     "drawio-bilingual-evidence-focused-v2:han-aware-prefix:frozen-domain-terms"
 )
+QUERY_FUSION_FINGERPRINT = "equal-rrf-v1:k60:original1.0:rewritten1.0"
 IDENTITY_STOPWORDS = {
     "create", "diagram", "draw", "editable", "existing", "from", "into", "make",
     "material", "only", "policy", "showing", "that", "using", "with", "workflow",
@@ -380,8 +381,9 @@ def verify_provenance(trace: dict, corpus_lock: Path, tasks: Path, ground_truth:
     """Bind the live trace to this exact frozen corpus lock before export."""
     run = trace["retrievalRun"]
     if (run.get("candidateQueryMode") != HYDRATION_QUERY_MODE
-            or run.get("queryRewriteFingerprint") != QUERY_REWRITE_FINGERPRINT):
-        raise ValueError("retrieval trace candidate query lane is not the frozen evidence-focused rewrite")
+            or run.get("queryRewriteFingerprint") != QUERY_REWRITE_FINGERPRINT
+            or run.get("queryFusionFingerprint") != QUERY_FUSION_FINGERPRINT):
+        raise ValueError("retrieval trace candidate query lane is not the frozen original/rewrite fusion")
     if not re.fullmatch(r"[0-9a-f]{7,64}", run["gitCommit"]):
         raise ValueError("retrieval trace has an invalid Git commit")
     if not re.fullmatch(r"[0-9a-f]{64}", run["corpusLockSha256"]):
