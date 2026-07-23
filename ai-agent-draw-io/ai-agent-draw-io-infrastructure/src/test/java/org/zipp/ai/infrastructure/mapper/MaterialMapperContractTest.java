@@ -242,10 +242,13 @@ class MaterialMapperContractTest {
         assertTrue(commit.contains("JOIN material_version version ON version.id = unit.version_id"));
         assertTrue(commit.contains("copyInheritedProvenance"));
         assertTrue(commit.contains("provenance.canvas_version = #{canvasVersion}"));
+        assertTrue(commit.contains("citation_key, use_role, source_origin"));
+        assertTrue(commit.contains("#{link.useRole}, #{link.origin}"));
         assertTrue(commit.contains("generation = #{plan.expectedRunGeneration}"));
         assertTrue(query.contains("diagram.user_id = #{ownerKey}"));
         assertTrue(query.contains("material.owner_key = #{ownerKey}"));
         assertTrue(query.contains("provenance.current_citation_id"));
+        assertTrue(query.contains("COALESCE(evidence.source_origin, unit.source_channel)"));
         assertTrue(query.contains("SOURCE_UNAVAILABLE"));
         assertTrue(query.contains("evidence.revision_id"));
         assertTrue(query.contains("region.bbox_json"));

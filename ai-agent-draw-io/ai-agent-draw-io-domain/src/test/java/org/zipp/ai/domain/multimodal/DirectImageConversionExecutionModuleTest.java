@@ -45,6 +45,8 @@ class DirectImageConversionExecutionModuleTest {
         assertEquals("run-1", committed.get().runId());
         assertEquals(List.of("evidence-image"), committed.get().citations().get(0)
                 .evidenceLinks().stream().map(GroundedCanvasCommitPort.EvidenceLink::evidenceId).toList());
+        assertEquals(List.of(EvidenceOrigin.DIRECT_ATTACHMENT), committed.get().citations().get(0)
+                .evidenceLinks().stream().map(GroundedCanvasCommitPort.EvidenceLink::origin).toList());
         assertEquals("run-1", runs.started.runId());
         assertNull(runs.cancelled);
     }
@@ -132,7 +134,8 @@ class DirectImageConversionExecutionModuleTest {
                     """;
             EvidenceBundleItem item = new EvidenceBundleItem("direct-node-start", "evidence-image",
                     "material-1", "version-1", "revision-1", "uploaded diagram", 1,
-                    "VISUAL", "Start", EvidenceSupportRole.SUPPORT, EvidenceOrigin.EXPLICIT);
+                    "VISUAL", "Start", EvidenceSupportRole.SUPPORT,
+                    EvidenceOrigin.DIRECT_ATTACHMENT);
             EvidenceAccessContext access = EvidenceAccessContext.from(new EvidenceBundle(
                     "direct-bundle-run-1", "request-1", "run-1", SourceMode.EXPLICIT_ONLY,
                     List.of(item)), false);

@@ -243,7 +243,8 @@ public final class DefaultDirectSourcePreparationModule implements DirectSourceP
                                     String evidenceId, String statement) {
         return new EvidenceBundleItem(citationKey, evidenceId, target.materialId(),
                 target.versionId(), target.revisionId(), target.sourceLabel(), target.pageNumber(),
-                "VISUAL", statement, EvidenceSupportRole.SUPPORT, EvidenceOrigin.EXPLICIT);
+                "VISUAL", statement, EvidenceSupportRole.SUPPORT,
+                EvidenceOrigin.DIRECT_ATTACHMENT);
     }
 
     private boolean stopped(RunResourceDomain resources, CancellationSignal signal) {

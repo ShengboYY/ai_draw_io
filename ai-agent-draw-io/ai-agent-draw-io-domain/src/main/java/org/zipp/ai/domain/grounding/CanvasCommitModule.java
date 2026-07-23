@@ -89,7 +89,8 @@ public final class CanvasCommitModule {
             List<GroundedCanvasCommitPort.EvidenceLink> links = binding.citationKeys().stream()
                     .map(key -> command.evidenceAccess().item(key).map(item ->
                             new GroundedCanvasCommitPort.EvidenceLink(key, item.evidenceId(), item.materialId(),
-                                    item.versionId(), item.revisionId(), "SUPPORT")).orElseThrow())
+                                    item.versionId(), item.revisionId(), "SUPPORT",
+                                    item.origin())).orElseThrow())
                     .toList();
             writes.add(new GroundedCanvasCommitPort.CitationWrite(citationId, provenanceRef,
                     binding.cellId(), binding.statementKey(), binding.supportType(),

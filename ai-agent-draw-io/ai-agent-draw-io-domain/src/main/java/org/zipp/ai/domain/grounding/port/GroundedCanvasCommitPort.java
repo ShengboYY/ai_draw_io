@@ -2,6 +2,7 @@ package org.zipp.ai.domain.grounding.port;
 
 import org.zipp.ai.domain.agent.model.valobj.canvas.CanvasStateSaveResult;
 import org.zipp.ai.domain.citation.model.valobj.SupportType;
+import org.zipp.ai.domain.retrieval.EvidenceOrigin;
 
 import java.util.List;
 import java.util.Set;
@@ -39,5 +40,6 @@ public interface GroundedCanvasCommitPort {
     }
 
     record EvidenceLink(String citationKey, String evidenceId, String materialId,
-                        String versionId, String revisionId, String useRole) { }
+                        String versionId, String revisionId, String useRole,
+                        EvidenceOrigin origin) { }
 }

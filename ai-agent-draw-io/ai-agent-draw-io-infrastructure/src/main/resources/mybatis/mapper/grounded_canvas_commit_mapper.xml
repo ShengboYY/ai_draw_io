@@ -87,9 +87,9 @@
 
     <insert id="insertCitationEvidence">
         INSERT INTO citation_evidence
-            (citation_id, evidence_id, version_id, revision_id, citation_key, use_role)
+            (citation_id, evidence_id, version_id, revision_id, citation_key, use_role, source_origin)
         VALUES (#{citationId}, #{link.evidenceId}, #{link.versionId}, #{link.revisionId},
-                #{link.citationKey}, #{link.useRole})
+                #{link.citationKey}, #{link.useRole}, #{link.origin})
     </insert>
 
     <insert id="upsertCellProvenance">

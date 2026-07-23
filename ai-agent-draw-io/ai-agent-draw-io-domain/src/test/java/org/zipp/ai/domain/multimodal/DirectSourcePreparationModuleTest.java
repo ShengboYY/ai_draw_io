@@ -50,6 +50,8 @@ class DirectSourcePreparationModuleTest {
         assertEquals(List.of("direct-node-a", "direct-node-b", "direct-edge-a-to-b"),
                 prepared.citationBindings().stream().map(binding -> binding.cellId()).toList());
         assertEquals(3, prepared.evidenceAccess().items().size());
+        assertTrue(prepared.evidenceAccess().items().stream()
+                .allMatch(item -> item.origin() == EvidenceOrigin.DIRECT_ATTACHMENT));
         var citationValidation = new CitationGuard(requests -> List.of()).validate(
                 prepared.mxGraphModelXml(), prepared.citationBindings(),
                 prepared.evidenceAccess(), true);

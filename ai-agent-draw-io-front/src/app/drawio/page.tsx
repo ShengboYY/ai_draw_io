@@ -60,6 +60,7 @@ import { buildDiagramHistoryEntries } from './diagram-history';
 import { buildRestoredDiagramState, normalizeRestoredDrawioXml } from './diagram-restore';
 import { buildDiagramTitleFromPrompt, DEFAULT_DIAGRAM_TITLE } from './diagram-title';
 import { buildRestoredConversationMessages } from './conversation-restore';
+import { citationOriginLabel } from './citation-origin';
 import {
   applyDemoQuotaConsumption,
   buildDemoQuotaState,
@@ -4049,7 +4050,7 @@ function DrawioPageContent() {
                           {source.versionNo ? `v${source.versionNo}` : 'Version'}
                           {source.pageNumber ? ` · page ${source.pageNumber}` : ''}
                           {source.modality ? ` · ${source.modality.toLowerCase()}` : ''}
-                          {source.origin ? ` · ${source.origin.toLowerCase()}` : ''}
+                          {source.origin ? ` · ${citationOriginLabel(source.origin)}` : ''}
                         </p>
                         {source.sourceState === 'SOURCE_UNAVAILABLE' && (
                           <p className="mt-1 text-amber-700">Source unavailable{source.deletedAt ? ` · deleted ${source.deletedAt}` : ''}</p>

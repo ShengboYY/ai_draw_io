@@ -17,7 +17,8 @@
                     WHEN tombstone.id IS NOT NULL THEN 'SOURCE_UNAVAILABLE' END AS source_state,
                CASE WHEN material.id IS NOT NULL THEN evidence.revision_id END AS processing_revision_id,
                CASE WHEN material.id IS NOT NULL THEN region.bbox_json END AS bbox_json,
-               CASE WHEN material.id IS NOT NULL THEN unit.source_channel END AS origin,
+               CASE WHEN material.id IS NOT NULL
+                    THEN COALESCE(evidence.source_origin, unit.source_channel) END AS origin,
                CASE WHEN material.id IS NOT NULL AND unit.display_text_object_key IS NOT NULL THEN TRUE ELSE FALSE END AS excerpt_available,
                CASE WHEN material.id IS NOT NULL AND (unit.visual_object_key IS NOT NULL OR page.page_image_key IS NOT NULL)
                     THEN TRUE ELSE FALSE END AS preview_available,
