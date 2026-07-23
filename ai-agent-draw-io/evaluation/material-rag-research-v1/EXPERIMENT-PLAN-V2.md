@@ -782,9 +782,10 @@ gate 与停止规则见 `POST-R23-EVIDENCE-DECISION-PLAN.md`。
 结构审计得到 30 cases、14 blocked、12 个新 document families、2 个 Ready visual/OCR cases，
 12/6/4/4/4 分布完全匹配。source version/anchor、artifact、canvas/conversation、absence contract 与
 dependency injection 已纳入 executable setup；review report/ledger 绑定 cohort SHA-256，任何后续改动都会
-使 freeze 失效。134 项 analysis tests 通过。下一步是在不调用生成模型的前提下运行 30/30 outcome
-classification、14/14 blocked 零画布写入、
-12/12 Ready identity/artifact 完整和 4/4 NotRequired 零检索。
+使 freeze 失效。134 项 analysis tests 与 HTTP-to-evidence 30-case rendering/no-drawer test 已通过；后者确认
+14/14 blocked cases 在 Drawer 前停止、4/4 NotRequired 可走无资料普通绘图、12/12 Ready 在 grounded commit
+未启用时 fail-closed。下一步是在不调用生成模型的前提下，以真实 `EvidencePreparationModule` 对 executable setup
+完成 30/30 outcome classification、12/12 Ready identity/artifact 完整和 4/4 NotRequired 零检索。
 当前 19 个 R23 tasks 继续只作为冻结诊断集，不用于选择或调优这些新用例的生产决策。
 
 E6b 的本地导出合同已冻结为 `fixtures/drawio-generation-paired-hydration-contract-v1.json` 与

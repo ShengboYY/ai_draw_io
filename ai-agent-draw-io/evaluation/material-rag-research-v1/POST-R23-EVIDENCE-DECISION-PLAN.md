@@ -38,8 +38,9 @@ Section 5 now exists as `stage-a-evidence-decision-cohort-v1.json`: it has the p
 families. Its executable setup contract binds source versions/anchors, artifacts, canvas or
 conversation state, absence contracts, and dependency injections. An `independent_ai` reviewer
 approved all 30 cases; the ledger and report bind the exact cohort SHA-256, so any later fixture
-edit invalidates the freeze. The cohort is now frozen, but has not been executed against the
-production seam. Therefore the 30/30 classification and 14/14 no-mutation gates remain pending.
+edit invalidates the freeze. The frozen cohort has passed the HTTP-to-evidence rendering and
+no-drawer boundary with injected typed outcomes. It has not yet classified the executable setup
+through the real `EvidencePreparationModule`; therefore the full 30/30 classification gate remains pending.
 
 ## 2. Existing seam
 

@@ -1050,3 +1050,20 @@
 - **未完成**:这不是 30/30 production outcome run。下一步实现并运行 production seam 的
   classification/no-mutation harness。
 - **外部使用**:0 Pinecone、0 模型请求、0 model token、0 Validation/holdout case。
+
+### Post-R23 Stage A HTTP outcome gate · 2026-07-23 · ✅ 边界渲染通过，真实分类待运行
+
+- **运行**:`mvn -pl ai-agent-draw-io-app -Dtest=StageAEvidenceDecisionCohortTest test`；新增独立测试
+  `StageAEvidenceDecisionCohortTest` 逐一读取冻结的 30-case fixture，并在 HTTP 到 evidence module 的生产边界
+  注入对应 typed outcome。结果为 1 test、0 failures、0 errors。
+- **结果**:12 Ready、6 InsufficientEvidence、4 ClarificationNeeded、4 DegradedDependency、4 NotRequired
+  均渲染为明确 API response；14/14 blocked case 在 `IChatService`（Drawer/model seam）之前停止，且 stream
+  调用数为零。4/4 NotRequired 走无资料普通绘图分支；12/12 Ready 因 grounded commit 尚未启用而安全返回
+  `capability_unavailable`，没有提前落盘或调用模型。
+- **严格边界**:这是 production HTTP outcome/no-drawer gate，不是对真实 source、anchor、visual/OCR artifact、
+  absence contract 和 dependency injection 的检索分类。因 outcome 是测试注入的，不能据此声称 30/30
+  `EvidencePreparationModule` classification 已通过。
+- **工件**:`results/stage-a-http-outcome-gate-current.json` 保存命令、分布、门控计数与 scope limit。
+- **下一步**:将 frozen executable setup 接入真实 `EvidencePreparationModule` 测试适配器，先完成
+  30/30 classification、12/12 Ready identity/artifact 完整与 4/4 NotRequired 零检索，随后才可开始 E7/E8。
+- **外部使用**:0 Pinecone、0 模型请求、0 model token、0 Validation/holdout case。
