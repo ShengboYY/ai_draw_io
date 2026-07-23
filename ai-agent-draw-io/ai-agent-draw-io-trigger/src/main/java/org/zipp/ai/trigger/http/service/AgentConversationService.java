@@ -490,7 +490,8 @@ public class AgentConversationService {
                         streamResponseWriter.sendTargetClarification(emitter, evidenceResponse);
                     } else {
                         streamResponseWriter.sendEvidenceOutcome(emitter,
-                                evidenceStreamEvent(evidenceResponse.getType()), evidenceResponse.getContent());
+                                evidenceStreamEvent(evidenceResponse.getType()),
+                                evidenceResponse.getType(), evidenceResponse.getContent());
                     }
                     completeStreamTelemetry(streamTelemetryCompleted, null, runScope, null);
                     return;
@@ -1351,7 +1352,8 @@ public class AgentConversationService {
                 sourceMode(requestDTO.getSourceMode()), effectiveSnapshot,
                 safeList(requestDTO.getSelectedVersionIds()),
                 evidenceNeed,
-                StringUtils.defaultIfBlank(routing.getTargetNeed(), "NONE"));
+                StringUtils.defaultIfBlank(routing.getTargetNeed(), "NONE"),
+                StringUtils.defaultIfBlank(routing.getClarificationNeed(), "NONE"));
         if (shadowOnly) {
             // Candidate-only observation owns its resources and never delays or mutates the primary request.
             evidencePreparationModule.observe(command).exceptionally(failure -> {

@@ -37,12 +37,13 @@ ai:
 
                   Output contract:
                   - Output exactly one single-line JSON object. Do not output markdown, code fences, extra explanations, or multi-line text.
-                  - JSON fields must include routeType, diagramType, skillName, evidenceNeed, targetNeed, sourceUse, answer, and reason.
+                  - JSON fields must include routeType, diagramType, skillName, evidenceNeed, targetNeed, clarificationNeed, sourceUse, answer, and reason.
                   - routeType must be answer_only, answer_with_evidence, clarify, create_new, edit_existing, optimize_layout, or review_only.
                   - diagramType must be none, basic, uml_class, flowchart, architecture, sequence, er, usecase, state, or concept.
                   - skillName must be "none" or exactly one of the skill names listed in [Available Skills]. Choose the skill whose description best matches the request; if none fit, use "none". Do not invent skill names.
                   - evidenceNeed must be NONE, OPTIONAL, or REQUIRED. Use REQUIRED for answer_with_evidence and when selectedSourceCount is greater than zero or sourceMode is EXPLICIT/EXPLICIT_ONLY. Use OPTIONAL for content-bearing drawing requests that may benefit from available sources. Use NONE for small talk and purely visual/style/layout work.
                   - targetNeed must be NONE, OPTIONAL, or REQUIRED. Use REQUIRED when a named/selected canvas target is necessary to perform an edit, OPTIONAL when the whole canvas can safely be used, and NONE when no canvas target is needed.
+                  - clarificationNeed must be NONE, SOURCE, or CLAIM. Use SOURCE when the request refers to an ambiguous material/source, CLAIM when the factual relationship to draw is ambiguous, and NONE otherwise. Do not guess through an ambiguity.
                   - sourceUse must be NONE, DIRECT, RETRIEVAL, or DIRECT_AND_RETRIEVAL. Use DIRECT only for a single ready image attachment that the user asks to reconstruct; use DIRECT_AND_RETRIEVAL only when the user also asks to use materials. This is an intent hint, not an authorization grant.
                   - When routeType=create_new, edit_existing, or optimize_layout, answer must be an empty string.
                   - When routeType=answer_with_evidence, diagramType and skillName must be none, evidenceNeed must be REQUIRED, and answer must be empty. A later evidence-aware agent owns the answer.
@@ -90,7 +91,7 @@ ai:
                   - For unrelated general questions, answer briefly and gently redirect to Draw.io work. Do not invent real-time facts.
 
                   Output exactly this single-line JSON shape:
-                  {"routeType":"answer_only|answer_with_evidence|clarify|create_new|edit_existing|optimize_layout|review_only","diagramType":"none|basic|uml_class|flowchart|architecture|sequence|er|usecase|state|concept","skillName":"none or one of the [Available Skills] names","evidenceNeed":"NONE|OPTIONAL|REQUIRED","targetNeed":"NONE|OPTIONAL|REQUIRED","sourceUse":"NONE|DIRECT|RETRIEVAL|DIRECT_AND_RETRIEVAL","answer":"Direct reply for answer_only or clarify; empty string for answer_with_evidence, review_only, or canvas-mutating routes","reason":"One short sentence explaining the decision"}
+                  {"routeType":"answer_only|answer_with_evidence|clarify|create_new|edit_existing|optimize_layout|review_only","diagramType":"none|basic|uml_class|flowchart|architecture|sequence|er|usecase|state|concept","skillName":"none or one of the [Available Skills] names","evidenceNeed":"NONE|OPTIONAL|REQUIRED","targetNeed":"NONE|OPTIONAL|REQUIRED","clarificationNeed":"NONE|SOURCE|CLAIM","sourceUse":"NONE|DIRECT|RETRIEVAL|DIRECT_AND_RETRIEVAL","answer":"Direct reply for answer_only or clarify; empty string for answer_with_evidence, review_only, or canvas-mutating routes","reason":"One short sentence explaining the decision"}
                 output-key: intent_result
             runner:
               agent-name: agent_intent

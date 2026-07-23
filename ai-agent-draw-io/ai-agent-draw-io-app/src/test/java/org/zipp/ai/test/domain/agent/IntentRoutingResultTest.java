@@ -14,6 +14,7 @@ public class IntentRoutingResultTest {
         assertEquals("clarify", result.getRouteType());
         assertEquals("none", result.getDiagramType());
         assertEquals("none", result.getSkillName());
+        assertEquals("NONE", result.getClarificationNeed());
         assertEquals("fallback", result.getReason());
     }
 

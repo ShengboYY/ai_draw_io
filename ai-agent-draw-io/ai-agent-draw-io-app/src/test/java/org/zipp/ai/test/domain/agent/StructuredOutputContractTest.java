@@ -77,6 +77,8 @@ public class StructuredOutputContractTest {
         JSONArray routeTypeEnum = properties.getJSONObject("routeType").getJSONArray("enum");
 
         assertEquals(IntentRoutingContract.ROUTE_TYPES, routeTypeEnum.toJavaList(String.class));
+        assertEquals(IntentRoutingContract.CLARIFICATION_NEEDS,
+                properties.getJSONObject("clarificationNeed").getJSONArray("enum").toJavaList(String.class));
 
         for (String routeType : IntentRoutingContract.ROUTE_TYPES) {
             assertTrue("schema missing routeType " + routeType, schema.contains(routeType));

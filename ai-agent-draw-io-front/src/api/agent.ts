@@ -224,6 +224,7 @@ export interface EvidenceProgressChunk {
 
 export interface EvidenceOutcomeChunk {
     type: 'source_wait_started' | 'source_not_ready' | 'source_clarification' | 'claim_clarification' | 'degraded' | 'stale_canvas_selection';
+    outcomeType: string;
     content: string;
 }
 

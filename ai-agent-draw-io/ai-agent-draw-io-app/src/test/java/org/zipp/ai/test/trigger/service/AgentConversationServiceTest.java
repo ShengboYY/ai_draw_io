@@ -893,6 +893,55 @@ public class AgentConversationServiceTest {
     }
 
     @Test
+    public void evidenceStreamPreservesInsufficientAndDegradedOutcomeTypes() throws Exception {
+        AgentConversationService insufficientService = quotaAwareService();
+        CountingChatService insufficientChat = new CountingChatService();
+        injectField(insufficientService, "chatService", insufficientChat);
+        injectField(insufficientService, "intentRoutingService", new OptionalEvidenceRoutingService());
+        injectField(insufficientService, "materialRagEnabled", true);
+        injectField(insufficientService, "evidencePreparationModule",
+                (org.zipp.ai.domain.retrieval.EvidencePreparationModule) (command, resources, progress, cancellation) ->
+                        java.util.concurrent.CompletableFuture.completedFuture(
+                                new org.zipp.ai.domain.retrieval.PreparationOutcome.InsufficientEvidence(
+                                        List.of("NO_RETRIEVAL_MATCH"), "Kafka retention policy")));
+        ChatRequestDTO insufficientRequest = verifiedPlatformRequest();
+        insufficientRequest.setSessionId("session-insufficient");
+        insufficientRequest.setDiagramId("diagram-insufficient");
+        insufficientRequest.setSourceMode("AUTO");
+        CapturingEmitter insufficientEmitter = new CapturingEmitter();
+
+        insufficientService.stream(insufficientRequest, insufficientEmitter);
+
+        String insufficientOutput = String.join("\n", insufficientEmitter.sent);
+        assertTrue(insufficientOutput.contains("\"type\":\"degraded\""));
+        assertTrue(insufficientOutput.contains("\"outcomeType\":\"insufficient_evidence\""));
+        assertEquals(0, insufficientChat.handleMessageStreamCalls);
+
+        AgentConversationService degradedService = quotaAwareService();
+        CountingChatService degradedChat = new CountingChatService();
+        injectField(degradedService, "chatService", degradedChat);
+        injectField(degradedService, "intentRoutingService", new OptionalEvidenceRoutingService());
+        injectField(degradedService, "materialRagEnabled", true);
+        injectField(degradedService, "evidencePreparationModule",
+                (org.zipp.ai.domain.retrieval.EvidencePreparationModule) (command, resources, progress, cancellation) ->
+                        java.util.concurrent.CompletableFuture.completedFuture(
+                                new org.zipp.ai.domain.retrieval.PreparationOutcome.DegradedDependency(
+                                        List.of("DENSE_DEGRADED"))));
+        ChatRequestDTO degradedRequest = verifiedPlatformRequest();
+        degradedRequest.setSessionId("session-degraded");
+        degradedRequest.setDiagramId("diagram-degraded");
+        degradedRequest.setSourceMode("AUTO");
+        CapturingEmitter degradedEmitter = new CapturingEmitter();
+
+        degradedService.stream(degradedRequest, degradedEmitter);
+
+        String degradedOutput = String.join("\n", degradedEmitter.sent);
+        assertTrue(degradedOutput.contains("\"type\":\"degraded\""));
+        assertTrue(degradedOutput.contains("\"outcomeType\":\"retrieval_degraded\""));
+        assertEquals(0, degradedChat.handleMessageStreamCalls);
+    }
+
+    @Test
     public void unexpectedEvidenceFailureFailsClosedBeforeDrawer() throws Exception {
         AgentConversationService service = quotaAwareService();
         CountingChatService chatService = new CountingChatService();

@@ -11,7 +11,7 @@ public record EvidencePreparationCommand(CatalogOwner owner, String diagramId, S
                                          ValidatedSelection selection, SourceMode sourceMode,
                                          ResolvedSourceSet resolvedSources,
                                          List<String> selectedVersionIds, String evidenceNeed,
-                                         String targetNeed) {
+                                         String targetNeed, String clarificationNeed) {
     public EvidencePreparationCommand {
         Objects.requireNonNull(owner, "owner");
         diagramId = text(diagramId);
@@ -26,6 +26,7 @@ public record EvidencePreparationCommand(CatalogOwner owner, String diagramId, S
                 .filter(value -> value != null && !value.isBlank()).map(String::trim).distinct().toList();
         evidenceNeed = normalizedNeed(evidenceNeed, "OPTIONAL");
         targetNeed = normalizedNeed(targetNeed, "NONE");
+        clarificationNeed = normalizedClarification(clarificationNeed);
         boolean snapshotHasDeclaration = resolvedSources != null
                 && (!resolvedSources.declaredVersionIds().isEmpty()
                 || resolvedSources.processingSourceCount() > 0
@@ -38,6 +39,17 @@ public record EvidencePreparationCommand(CatalogOwner owner, String diagramId, S
         if (!selectedVersionIds.isEmpty() || snapshotHasDeclaration) evidenceNeed = "REQUIRED";
     }
 
+    /** Compatibility constructor for callers that already supply a trusted source snapshot. */
+    public EvidencePreparationCommand(CatalogOwner owner, String diagramId, String conversationId,
+                                      String requestId, String runId, String userMessage,
+                                      CanvasProbe canvasProbe, ValidatedSelection selection,
+                                      SourceMode sourceMode, ResolvedSourceSet resolvedSources,
+                                      List<String> selectedVersionIds, String evidenceNeed,
+                                      String targetNeed) {
+        this(owner, diagramId, conversationId, requestId, runId, userMessage, canvasProbe, selection,
+                sourceMode, resolvedSources, selectedVersionIds, evidenceNeed, targetNeed, "NONE");
+    }
+
     /** Compatibility constructor for isolated callers that still exercise the catalog seam directly. */
     public EvidencePreparationCommand(CatalogOwner owner, String diagramId, String conversationId,
                                       String requestId, String runId, String userMessage,
@@ -45,7 +57,7 @@ public record EvidencePreparationCommand(CatalogOwner owner, String diagramId, S
                                       SourceMode sourceMode, List<String> selectedVersionIds,
                                       String evidenceNeed, String targetNeed) {
         this(owner, diagramId, conversationId, requestId, runId, userMessage, canvasProbe, selection,
-                sourceMode, null, selectedVersionIds, evidenceNeed, targetNeed);
+                sourceMode, null, selectedVersionIds, evidenceNeed, targetNeed, "NONE");
     }
 
     public boolean hasResolvedSources() {
@@ -68,10 +80,24 @@ public record EvidencePreparationCommand(CatalogOwner owner, String diagramId, S
         return "REQUIRED".equals(targetNeed);
     }
 
+    public boolean needsSourceClarification() {
+        return "SOURCE".equals(clarificationNeed);
+    }
+
+    public boolean needsClaimClarification() {
+        return "CLAIM".equals(clarificationNeed);
+    }
+
     private static String normalizedNeed(String value, String fallback) {
         if (value == null || value.isBlank()) return fallback;
         String normalized = value.trim().toUpperCase(java.util.Locale.ROOT);
         return List.of("NONE", "OPTIONAL", "REQUIRED").contains(normalized) ? normalized : fallback;
+    }
+
+    private static String normalizedClarification(String value) {
+        if (value == null || value.isBlank()) return "NONE";
+        String normalized = value.trim().toUpperCase(java.util.Locale.ROOT);
+        return List.of("NONE", "SOURCE", "CLAIM").contains(normalized) ? normalized : "NONE";
     }
 
     private static String required(String value, String field) {

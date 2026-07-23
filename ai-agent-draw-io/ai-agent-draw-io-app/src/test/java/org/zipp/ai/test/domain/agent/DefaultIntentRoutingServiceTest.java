@@ -232,6 +232,25 @@ public class DefaultIntentRoutingServiceTest {
     }
 
     @Test
+    public void structuredSourceAndClaimAmbiguityForceTheEvidenceDecisionSeam() throws Exception {
+        IntentRoutingResult source = routeWithStubbedLlm("Use the other guide",
+                "{\"routeType\":\"create_new\",\"diagramType\":\"flowchart\",\"skillName\":\"none\","
+                        + "\"evidenceNeed\":\"OPTIONAL\",\"targetNeed\":\"NONE\","
+                        + "\"clarificationNeed\":\"SOURCE\",\"sourceUse\":\"RETRIEVAL\","
+                        + "\"answer\":\"\",\"reason\":\"ambiguous source\"}");
+        IntentRoutingResult claim = routeWithStubbedLlm("Add its relationship",
+                "{\"routeType\":\"edit_existing\",\"diagramType\":\"architecture\",\"skillName\":\"none\","
+                        + "\"evidenceNeed\":\"OPTIONAL\",\"targetNeed\":\"OPTIONAL\","
+                        + "\"clarificationNeed\":\"CLAIM\",\"sourceUse\":\"RETRIEVAL\","
+                        + "\"answer\":\"\",\"reason\":\"ambiguous relationship\"}");
+
+        assertEquals("SOURCE", source.getClarificationNeed());
+        assertEquals("REQUIRED", source.getEvidenceNeed());
+        assertEquals("CLAIM", claim.getClarificationNeed());
+        assertEquals("REQUIRED", claim.getEvidenceNeed());
+    }
+
+    @Test
     public void directSourceUseRequiresOneServerVerifiedReadyImage() throws Exception {
         IntentRoutingResult unavailable = routeWithStubbedLlm("把图片转成 Draw.io",
                 "{\"routeType\":\"create_new\",\"diagramType\":\"flowchart\",\"skillName\":\"none\","

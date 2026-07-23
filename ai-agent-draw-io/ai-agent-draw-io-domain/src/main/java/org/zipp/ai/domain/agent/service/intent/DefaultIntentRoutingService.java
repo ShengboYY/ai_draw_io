@@ -106,6 +106,8 @@ public class DefaultIntentRoutingService implements IIntentRoutingService {
     private static final Set<String> ALLOWED_ROUTE_TYPES = Set.copyOf(IntentRoutingContract.ROUTE_TYPES);
     private static final Set<String> ALLOWED_EVIDENCE_NEEDS = Set.copyOf(IntentRoutingContract.EVIDENCE_NEEDS);
     private static final Set<String> ALLOWED_TARGET_NEEDS = Set.copyOf(IntentRoutingContract.TARGET_NEEDS);
+    private static final Set<String> ALLOWED_CLARIFICATION_NEEDS =
+            Set.copyOf(IntentRoutingContract.CLARIFICATION_NEEDS);
     private static final Set<String> ALLOWED_SOURCE_USES = Set.copyOf(IntentRoutingContract.SOURCE_USES);
     // Canonical diagram types seen downstream. Router-friendly aliases (uml_class, concept, diagram,
     // basic) are mapped into this set by normalizeDiagramType; nothing else is allowed.
@@ -346,7 +348,13 @@ public class DefaultIntentRoutingService implements IIntentRoutingService {
         result.setRouteType(routeType);
 
         normalizeNeeds(result);
+        result.setClarificationNeed(normalizeNeed(
+                result.getClarificationNeed(), "NONE", ALLOWED_CLARIFICATION_NEEDS));
         result.setSourceUse(normalizeSourceUse(result.getSourceUse(), probe));
+        if (!"NONE".equals(result.getClarificationNeed())) {
+            // Structured ambiguity must reach the evidence seam before any drawing agent is invoked.
+            result.setEvidenceNeed("REQUIRED");
+        }
         if (hasExplicitSources(probe)) {
             result.setEvidenceNeed("REQUIRED");
         }
@@ -361,6 +369,7 @@ public class DefaultIntentRoutingService implements IIntentRoutingService {
 
         if (result.isDirectReply()) {
             result.setSourceUse("NONE");
+            result.setClarificationNeed("NONE");
             if ("review_only".equals(routeType)) {
                 result.setDiagramType(normalizeDiagramType(result.getDiagramType(), userInstruction));
                 result.setAnswer("");
@@ -386,6 +395,7 @@ public class DefaultIntentRoutingService implements IIntentRoutingService {
         if ("optimize_layout".equals(routeType) || isPureStyleRequest(userInstruction)) {
             result.setEvidenceNeed("NONE");
             result.setSourceUse("NONE");
+            result.setClarificationNeed("NONE");
         }
         validateSkillName(result, allowedSkills);
         result.setAnswer("");
@@ -406,6 +416,7 @@ public class DefaultIntentRoutingService implements IIntentRoutingService {
             result.setSkillName("none");
             result.setEvidenceNeed("REQUIRED");
             result.setTargetNeed("NONE");
+            result.setClarificationNeed("NONE");
             result.setSourceUse("NONE");
             result.setAnswer("");
             result.setReason(reason);
@@ -418,6 +429,7 @@ public class DefaultIntentRoutingService implements IIntentRoutingService {
             result.setSkillName("none");
             result.setEvidenceNeed("NONE");
             result.setTargetNeed("OPTIONAL");
+            result.setClarificationNeed("NONE");
             result.setSourceUse("NONE");
             result.setAnswer("");
             result.setReason(reason);

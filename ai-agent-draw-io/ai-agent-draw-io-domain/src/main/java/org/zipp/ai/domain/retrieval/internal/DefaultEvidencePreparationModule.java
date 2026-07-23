@@ -133,6 +133,8 @@ public final class DefaultEvidencePreparationModule implements EvidencePreparati
         CancellationSignal signal = cancellation == null ? CancellationSignal.NEVER : cancellation;
         long startedNanos = System.nanoTime();
         CompletionStage<PreparationOutcome> outcome = !command.needsEvidence()
+                && !command.needsSourceClarification()
+                && !command.needsClaimClarification()
                 ? CompletableFuture.completedFuture(new PreparationOutcome.NotRequired())
                 : CompletableFuture.supplyAsync(
                         () -> prepareNow(command, resources, listener, signal, false), orchestrationExecutor);
@@ -186,6 +188,12 @@ public final class DefaultEvidencePreparationModule implements EvidencePreparati
                                           EvidenceProgressListener progress, CancellationSignal cancellation,
                                           boolean shadowOnly) {
         if (cancelled(cancellation, resources)) return new PreparationOutcome.Cancelled();
+        if (command.needsSourceClarification()) {
+            return new PreparationOutcome.ClarificationNeeded("AMBIGUOUS_SOURCE", List.of());
+        }
+        if (command.needsClaimClarification()) {
+            return new PreparationOutcome.ClarificationNeeded("AMBIGUOUS_CLAIM", List.of());
+        }
         RetrievalDeadline deadline = RetrievalDeadline.start(retrievalTimeout);
         try {
             if (command.selectedVersionIds().size() > 500) {
@@ -228,16 +236,25 @@ public final class DefaultEvidencePreparationModule implements EvidencePreparati
             progress.onProgress("RETRIEVAL", 0, 2);
 
             List<String> diagnostics = Collections.synchronizedList(new ArrayList<>());
-            Future<List<CandidateRef>> lexicalFuture = ioExecutor.submit(
-                    () -> safeLexical(queries, sources, route, diagnostics));
-            Future<List<CandidateRef>> denseFuture = ioExecutor.submit(
-                    () -> safeDense(command, queries, sources, route, diagnostics));
-            List<CandidateRef> lexicalCandidates = await(lexicalFuture, deadline,
-                    diagnostics, "LEXICAL_TIMEOUT");
-            progress.onProgress("RETRIEVAL", 1, 2);
-            List<CandidateRef> denseCandidates = await(denseFuture, deadline,
-                    diagnostics, "DENSE_TIMEOUT");
-            progress.onProgress("RETRIEVAL", 2, 2);
+            Future<List<CandidateRef>> lexicalFuture = null;
+            Future<List<CandidateRef>> denseFuture = null;
+            List<CandidateRef> lexicalCandidates;
+            List<CandidateRef> denseCandidates;
+            try {
+                // Guard task submission too: a rejected second lane must not strand the first.
+                lexicalFuture = ioExecutor.submit(
+                        () -> safeLexical(queries, sources, route, diagnostics));
+                denseFuture = ioExecutor.submit(
+                        () -> safeDense(command, queries, sources, route, diagnostics));
+                lexicalCandidates = await(lexicalFuture, deadline, diagnostics, "LEXICAL_TIMEOUT");
+                progress.onProgress("RETRIEVAL", 1, 2);
+                denseCandidates = await(denseFuture, deadline, diagnostics, "DENSE_TIMEOUT");
+                progress.onProgress("RETRIEVAL", 2, 2);
+            } finally {
+                // An interrupted orchestration must not leave its sibling provider task running.
+                cancelIfRunning(lexicalFuture);
+                cancelIfRunning(denseFuture);
+            }
             if (cancelled(cancellation, resources)) return new PreparationOutcome.Cancelled();
 
             LinkedHashSet<String> rankedIds = new LinkedHashSet<>();
@@ -307,6 +324,8 @@ public final class DefaultEvidencePreparationModule implements EvidencePreparati
                         if (isVisualDependencyGap(projection.gap())) {
                             return new PreparationOutcome.DegradedDependency(List.of(projection.gap()));
                         }
+                        PreparationOutcome degraded = dependencyDegraded(diagnostics);
+                        if (degraded != null) return degraded;
                         return insufficient(command, projection.gap());
                     }
                 }
@@ -321,20 +340,21 @@ public final class DefaultEvidencePreparationModule implements EvidencePreparati
             List<EvidenceBundleItem> items = combineEvidence(visualItems, hydrated);
             if (items.isEmpty()) {
                 resources.closeExactlyOnce(CloseReason.FAILED);
-                List<String> hydrationGaps = hydrationDependencyGaps(snapshotDiagnostics(diagnostics));
-                if (!hydrationGaps.isEmpty()) {
-                    return new PreparationOutcome.DegradedDependency(hydrationGaps);
-                }
-                PreparationOutcome degraded = retrievalDegraded(diagnostics);
+                PreparationOutcome degraded = dependencyDegraded(diagnostics);
                 if (degraded != null) return degraded;
                 return insufficient(command, "NO_DISPLAY_EVIDENCE");
             }
             EvidenceSufficiencyEvaluator.Result support = sufficiency.evaluate(command.userMessage(), route, items);
             if (!support.sufficient()) {
                 resources.closeExactlyOnce(CloseReason.FAILED);
-                PreparationOutcome degraded = retrievalDegraded(diagnostics);
+                PreparationOutcome degraded = dependencyDegraded(diagnostics);
                 if (degraded != null) return degraded;
                 return insufficient(command, support.gap(), support.missingSubject());
+            }
+            PreparationOutcome degraded = dependencyDegraded(diagnostics);
+            if (degraded != null) {
+                resources.closeExactlyOnce(CloseReason.FAILED);
+                return degraded;
             }
             EvidenceBundle bundle = new EvidenceBundle(bundleId(command), command.requestId(), command.runId(),
                     resolution.mode(), items);
@@ -348,6 +368,9 @@ public final class DefaultEvidencePreparationModule implements EvidencePreparati
             resources.closeExactlyOnce(CloseReason.FAILED);
             return new PreparationOutcome.DegradedDependency(List.of("ONLINE_RETRIEVAL_TIMEOUT"));
         } catch (OnlineRetrievalDependencyException unavailable) {
+            resources.closeExactlyOnce(CloseReason.FAILED);
+            return new PreparationOutcome.DegradedDependency(List.of("ONLINE_RETRIEVAL_DEPENDENCY_FAILED"));
+        } catch (RejectedExecutionException unavailable) {
             resources.closeExactlyOnce(CloseReason.FAILED);
             return new PreparationOutcome.DegradedDependency(List.of("ONLINE_RETRIEVAL_DEPENDENCY_FAILED"));
         } catch (Exception exception) {
@@ -386,6 +409,12 @@ public final class DefaultEvidencePreparationModule implements EvidencePreparati
         }, deadline, cancellation, resources);
         List<EvidenceBundleItem> items = hydrate(authorized, rankedIds, existingChunkIds, true,
                 Set.copyOf(command.declaredVersionIds()), progress, cancellation, resources, deadline, diagnostics);
+        PreparationOutcome degraded = dependencyDegraded(diagnostics);
+        if (degraded != null) {
+            // Persisted citations are an optimization, not permission to hide unreadable evidence.
+            resources.closeExactlyOnce(CloseReason.FAILED);
+            return degraded;
+        }
         if (items.isEmpty() || !sufficiency.evaluate(command.userMessage(), route, items).sufficient()) {
             return null;
         }
@@ -578,6 +607,15 @@ public final class DefaultEvidencePreparationModule implements EvidencePreparati
     private PreparationOutcome retrievalDegraded(List<String> diagnostics) {
         // A negative evidence conclusion is valid only when every configured search lane completed.
         List<String> gaps = retrievalDependencyGaps(snapshotDiagnostics(diagnostics));
+        return gaps.isEmpty() ? null : new PreparationOutcome.DegradedDependency(gaps);
+    }
+
+    private PreparationOutcome dependencyDegraded(List<String> diagnostics) {
+        List<String> snapshot = snapshotDiagnostics(diagnostics);
+        List<String> gaps = java.util.stream.Stream.concat(
+                        retrievalDependencyGaps(snapshot).stream(),
+                        hydrationDependencyGaps(snapshot).stream())
+                .distinct().toList();
         return gaps.isEmpty() ? null : new PreparationOutcome.DegradedDependency(gaps);
     }
 
@@ -848,7 +886,8 @@ public final class DefaultEvidencePreparationModule implements EvidencePreparati
     }
 
     private PreparationOutcome insufficient(EvidencePreparationCommand command, String gap) {
-        return insufficient(command, gap, "requested fact or relationship");
+        // The outcome sanitizes and bounds this user-owned phrase before it reaches a response.
+        return insufficient(command, gap, command.userMessage());
     }
 
     private PreparationOutcome insufficient(EvidencePreparationCommand command, String gap,
@@ -972,6 +1011,10 @@ public final class DefaultEvidencePreparationModule implements EvidencePreparati
                 .filter(label -> label != null && !label.isBlank()).distinct().limit(8).toList(); }
         static TargetResolution none() { return new TargetResolution(null, List.of()); }
         static TargetResolution stop(PreparationOutcome stop) { return new TargetResolution(stop, List.of()); }
+    }
+
+    private void cancelIfRunning(Future<?> future) {
+        if (future != null && !future.isDone()) future.cancel(true);
     }
 
     private static final class RetrievalDeadlineExceededException extends RuntimeException { }
