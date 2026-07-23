@@ -67,6 +67,32 @@
     "failures": 0,
     "errors": 0
   },
+  "minimalLocalIntegration": {
+    "status": "passed",
+    "command": "mvn -pl ai-agent-draw-io-domain -Dtest=E9LocalEvidenceRecoveryProbeTest,E9LocalCanvasCommitRecoveryProbeTest test",
+    "tests": 5,
+    "failures": 0,
+    "errors": 0,
+    "seams": [
+      "EvidencePreparationModule.prepare(...)",
+      "CanvasCommitModule.commit(...)"
+    ],
+    "probes": [
+      "revoked source stops evidence preparation; restored access allows a new Ready bundle",
+      "each request carries the version resolved for its own source snapshot",
+      "synthetic vector-mapping and blob-read outages return DegradedDependency; a later new run recovers to Ready",
+      "stale canvas is rejected before the atomic save port is called",
+      "synthetic atomic-save outage returns CANVAS_COMMIT_FAILED; a later retry commits after recovery"
+    ],
+    "limitations": "The external port adapters are deterministic local substitutes. This is the requested minimal local E9 implementation, not a claim that an external authorization, OCR, object-storage, or deployed save service was exercised."
+  },
+  "combinedRegressionVerification": {
+    "status": "passed",
+    "command": "mvn -pl ai-agent-draw-io-domain -Dtest=EvidencePreparationModuleTest,RequestProbeServiceTest,CanvasCommitModuleTest,MaterialReadLeaseServiceTest,E9LocalEvidenceRecoveryProbeTest,E9LocalCanvasCommitRecoveryProbeTest test",
+    "tests": 50,
+    "failures": 0,
+    "errors": 0
+  },
   "fixtureContract": {
     "status": "passed",
     "artifact": "results/e9-guard-contract-baseline.json",
@@ -83,5 +109,5 @@
     "status": "environment_not_configured",
     "detail": "The available evaluation environment contains Pinecone and LLM configuration, but no disposable deployed authorization-service endpoint, object-store/OCR test credentials, or application test endpoint. Running the remaining items as 'online' would therefore be misleading."
   },
-  "decision": "E9 is not complete. The live Pinecone baseline and local fail-closed service contracts pass; a disposable integrated environment is required for the remaining online probes."
+  "decision": "The requested minimal local E9 is complete: five public-seam integration probes, the broader 44-test local contract suite, and the live Pinecone baseline pass. The original full online E9 remains intentionally incomplete until a disposable integrated environment is available."
 }

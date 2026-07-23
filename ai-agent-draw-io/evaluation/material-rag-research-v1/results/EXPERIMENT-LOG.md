@@ -1219,3 +1219,18 @@
   deployed catalog version pin/latest、OCR/blob/save failure and recovery；不能声称 E9 完成。
 - **工件**:[E9 probe record](e9-stage-c-probe-record.json) 区分 live、本地和 fixture 证据；后续只需在可销毁
   的 integrated 环境补齐该文件所列五类 online probes，结果不得与当前 44 项本地测试混合计数。
+
+### E9 minimal local integration implementation · 2026-07-24 · ✅ complete (not a full online E9)
+
+- **实现**:新增 `E9LocalEvidenceRecoveryProbeTest` 与 `E9LocalCanvasCommitRecoveryProbeTest`；不增加
+  production feature 或外部服务调用。测试只替换 catalog/retrieval/blob/save ports，真实执行两个已确认的公开
+  seam：`EvidencePreparationModule.prepare(...)` 和 `CanvasCommitModule.commit(...)`。
+- **运行**:`mvn -pl ai-agent-draw-io-domain -Dtest=E9LocalEvidenceRecoveryProbeTest,`
+  `E9LocalCanvasCommitRecoveryProbeTest test`；**5/5** 通过，0 failures，0 errors。
+- **结果**:撤权先返回安全停止、恢复后新的 run 才会产生 `Ready`；每次请求的 bundle 带自身解析到的 version；
+  synthetic vector/blob 故障返回 `DegradedDependency`，恢复后新的 run 可 `Ready`；stale canvas 在 save port
+  前拒绝；synthetic save 故障返回 `CANVAS_COMMIT_FAILED`，恢复后的独立 retry 可提交。
+- **范围**:这完成了用户要求的最小本地 E9，不调用 Pinecone、模型、OCR 或 object storage。此前的 live Pinecone
+  基线仍单独成立。完整线上 E9 只有在有可销毁集成环境时才需要补做，不能把本条 5 项本地探针记作线上结果。
+- **回归**:新增探针与既有 authorization/version/stale-canvas/fail-closed 边界共同运行 **50/50**，0 failures，
+  0 errors；JSON record 与 Git whitespace check 均通过。
