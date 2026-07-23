@@ -1323,3 +1323,21 @@
   12 个任务、20 条 frozen claim、两项 visual/OCR 资料、严格 layout-only 的审核边界，以及与 Stage B/D 隔离的范围。
 - **边界**:packet 只帮助两位 reviewer 完成真实逐项审核；它不包含、也不声称任何 reviewer 的批准结论，不构成模型
   运行授权。下一步必须收到两位具名人员对这 12 个 package 的实际 verdict。
+
+### Stage E product-owner case review · 2026-07-24 · ✅ reviewer 1/2 recorded
+
+- **审核结论**:product-owner 已审核并通过全部 12 个冻结 source/evidence/claim package，包括两张合成视觉/OCR
+  source、source-scope 隔离与 layout-only 的 geometry-only 保护。
+- **工件**:[product-owner review](../review/stage-e-postcalibration-validation-product-owner-v1.json) 绑定 Stage E
+  task fixture SHA-256 `802d84d23a84798d47e3ca36560f16c4c1c995de0c6a81f1402a8b226f71b2ee`。
+- **限制**:这是 reviewer 1/2；仍需 `alice-qa` 或另一位具名独立 reviewer 审核同一冻结 package。此前任何
+  Stage B/D 审核均不能替代本轮审核，且当前记录不构成模型调用授权。
+
+### Stage E independent case review complete · 2026-07-24 · ✅ pre-run review requirement met
+
+- **第二 reviewer**:`alice-qa` 已独立审核并通过同一 12 个冻结 Stage E source/evidence/claim package；没有报告分歧。
+- **合并结论**:两位具名 reviewer（`product-owner`、`alice-qa`）均接受 12/12 package。合并记录见
+  [case review](../review/stage-e-postcalibration-validation-case-review-v1.json)，第二 reviewer 的独立记录见
+  [alice-qa review](../review/stage-e-postcalibration-validation-alice-qa-v1.json)。
+- **下一步**:pre-run case-review requirement 已满足；仍需用户明确授权，才可将这 12 个合成 inputs 与两张合成
+  视觉图发送至固定模型运行**一次**。运行后不得改 prompt、任务、证据、policy 或 rubric。
