@@ -741,7 +741,7 @@
 - **下游 gate**:旧 selector 的 control 完整 13/19、candidate 完整 12/19，因此仍未构建 prompt、未调用
   模型；Validation/holdout 继续关闭。
 
-### R19b publisher-identity lexical selector preregistration · 2026-07-23 · ⏳ 待实现
+### R19b publisher-identity lexical selector · 2026-07-23 · ⏳ 待正式重跑
 
 - **唯一变量**:raw top-8 上最多预留 6 个与 model-visible request 存在 exact/prefix token overlap 的
   publisher identity group；按 overlap 与 raw rank 排序，替换 tail 后恢复原 rank。
@@ -750,6 +750,13 @@
 - **Development 诊断**:12/19 task 改变（63.16%），required-evidence 19/19，7 个 multimodal artifact
   task 全部通过 source-matching artifact gate。
 - **决策边界**:实现和独立测试通过后只对已冻结 R19a trace 导出；正式 gate 失败则不生成 prompt或调用模型。
+- **实现状态**:commit `67d56413` 已完成 selector、合同与测试；25/25 exporter 专项测试及 122/122
+  analysis 全套测试通过，E0 audit 仍为 READY。
+- **本地结果**:对 R19a trace 的确定性诊断为 candidate 19/19、control 13/19、changed 12/19，
+  artifact 7/7。由于实现与合同刷新了 corpus lock，旧 trace 不能冒充新 commit 的正式输入；必须从新的
+  clean commit 重跑同一 Development producer 后才能写正式 paired artifact。
+- **外部状态**:尚未获得 R19b 新 commit 的临时 Pinecone 重跑授权；新增模型调用仍为 0，
+  Validation/holdout 保持关闭。
 
 ### R17 trace / R18 indexed-vector denominator · 2026-07-23 · ⏸ 修复后重跑
 
