@@ -1365,3 +1365,14 @@
   绑定 preserved response SHA-256 `647a00c532ce0af4765102d9057290addebd4dff039b558fd9a42dfdf18c987b`。
 - **限制**:这是重复执行诊断中的 reviewer 1/2；保全输出的实践可接受性为 `3/4`，但不改变 strict `8/12`，不选择
   唯一正式结果，也不替代 `alice-qa` 的独立输出审核。
+
+### Stage E case 04 real-render verification · 2026-07-24 · ✅ diagnostic usability observation confirmed
+
+- **验证**:将 preserved late-observed execution 的 `stge-val-04` 原始 `mxGraphModel` 不作改动地加载至实际
+  diagrams.net。两个 `260×70` 的长句节点均显示为单行，文字越过节点边界并相互遮挡；这确认 product-owner 对
+  “未换行、不可读”的拒绝并非本地简化 SVG 预览器造成。
+- **工件**:[real-render verification](../review/stage-e-postcalibration-validation-late-observed-output-render-verification-v1.json)
+  绑定 response SHA-256 `647a00c532ce0af4765102d9057290addebd4dff039b558fd9a42dfdf18c987b` 与该题 XML SHA-256
+  `76b2f74fb76eba4a8938ab30dae42135b5db7bf232271b3cf318f82e2a503c43`。
+- **边界**:本条只确认 `stge-val-04` 的实际可读性，不回写 rubric，不改变 strict `8/12` 或 duplicate-run 的
+  diagnostic-only 结论。

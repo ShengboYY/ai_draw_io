@@ -1,0 +1,19 @@
+{
+  "schemaVersion": "material-rag-drawio-render-verification-v1",
+  "status": "verified",
+  "reviewer": "product-owner",
+  "scope": {
+    "run": "stage-e late-observed execution only",
+    "responsesSha256": "647a00c532ce0af4765102d9057290addebd4dff039b558fd9a42dfdf18c987b",
+    "taskId": "stge-val-04",
+    "rawXmlSha256": "76b2f74fb76eba4a8938ab30dae42135b5db7bf232271b3cf318f82e2a503c43"
+  },
+  "renderer": {
+    "name": "diagrams.net",
+    "url": "https://app.diagrams.net/",
+    "loadMethod": "the exact raw mxGraphModel was loaded through the diagrams.net compressed URL format; no XML, style, geometry, or text was changed"
+  },
+  "observation": "Both 260 by 70 vertex labels render as single unwrapped lines. The text extends beyond the node bounds and overlaps, so the handoff diagram is not sufficiently readable.",
+  "reviewDecision": "confirms_product_owner_rejection",
+  "limitations": "This renderer verification only confirms the usability observation for stge-val-04. It is diagnostic evidence from a duplicate-run incident; it does not alter the frozen rubric, strict 8/12 result, formal eligibility, or model-run history."
+}
