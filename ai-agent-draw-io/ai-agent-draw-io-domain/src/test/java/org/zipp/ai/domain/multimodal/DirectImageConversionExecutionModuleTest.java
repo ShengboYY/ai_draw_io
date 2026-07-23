@@ -21,6 +21,7 @@ import org.zipp.ai.domain.retrieval.*;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -91,6 +92,30 @@ class DirectImageConversionExecutionModuleTest {
                 assertInstanceOf(DirectImageConversionOutcome.Rejected.class, outcome);
         assertEquals(List.of("VERSION_MISMATCH"), rejected.reasons());
         assertNull(committed.get());
+    }
+
+    @Test
+    void cancellationAfterPreparationStopsBeforeAtomicCommit() {
+        AtomicBoolean cancelled = new AtomicBoolean();
+        AtomicReference<GroundedCanvasCommitPort.CommitPlan> committed = new AtomicReference<>();
+        TrackingRuns runs = new TrackingRuns();
+        DirectSourcePreparationModule preparation = (command, resources, progress, cancellation) -> {
+            DirectSourceOutcome prepared = preparedSource()
+                    .prepare(command, resources, progress, cancellation)
+                    .toCompletableFuture().join();
+            // Model cancellation arriving after source preparation but before the completion handler commits.
+            cancelled.set(true);
+            return java.util.concurrent.CompletableFuture.completedFuture(prepared);
+        };
+        DirectImageConversionExecutionModule module = new DefaultDirectImageConversionExecutionModule(
+                preparation, commitModule(emptyCanvasStore(), committed), runs);
+
+        DirectImageConversionOutcome outcome = module.execute(command(), null, cancelled::get)
+                .toCompletableFuture().join();
+
+        assertInstanceOf(DirectImageConversionOutcome.Cancelled.class, outcome);
+        assertNull(committed.get());
+        assertEquals("run-1", runs.cancelled.runId());
     }
 
     private DirectSourcePreparationModule preparedSource() {

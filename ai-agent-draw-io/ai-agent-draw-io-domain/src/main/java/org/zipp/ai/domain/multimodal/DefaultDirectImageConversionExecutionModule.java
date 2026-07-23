@@ -50,7 +50,7 @@ public final class DefaultDirectImageConversionExecutionModule
             runs.start(identity);
             return preparation.prepare(command.source(), resources, listener, signal)
                     .handle((outcome, failure) ->
-                            finish(command, identity, resources, outcome, failure));
+                            finish(command, identity, resources, signal, outcome, failure));
         } catch (RuntimeException failure) {
             resources.closeExactlyOnce(CloseReason.FAILED);
             return CompletableFuture.completedFuture(
@@ -61,6 +61,7 @@ public final class DefaultDirectImageConversionExecutionModule
     private DirectImageConversionOutcome finish(DirectImageConversionCommand command,
                                                 GroundedRunControlPort.RunIdentity identity,
                                                 RunResourceDomain resources,
+                                                CancellationSignal cancellation,
                                                 DirectSourceOutcome outcome,
                                                 Throwable failure) {
         if (failure != null || outcome == null) {
@@ -87,6 +88,12 @@ public final class DefaultDirectImageConversionExecutionModule
             resources.closeExactlyOnce(CloseReason.FAILED);
             cancel(identity);
             return new DirectImageConversionOutcome.Rejected(rejected.reasons());
+        }
+        if (cancellation.isCancelled()) {
+            // Close the last race window between preparation completion and durable commit.
+            resources.closeExactlyOnce(CloseReason.CANCELLED);
+            cancel(identity);
+            return new DirectImageConversionOutcome.Cancelled();
         }
         DirectSourceOutcome.Prepared prepared = (DirectSourceOutcome.Prepared) outcome;
         CanvasCommitResult committed = commits.commit(commitCommand(command, prepared), resources);
