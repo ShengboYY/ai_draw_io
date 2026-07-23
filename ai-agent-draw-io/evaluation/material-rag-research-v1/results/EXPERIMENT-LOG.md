@@ -1002,3 +1002,25 @@
   清理，不写可用于 generation 的 trace。异常重试、query/filter/top-k/ranking 均不变。
 - **外部使用**:1 次 Pinecone Development trace，临时向量已清理；0 次模型请求、0 model token、
   0 Validation/holdout case。
+
+### Post-R23 Stage A implementation foundation · 2026-07-23 · ✅ 实现完成，cohort gate 待运行
+
+- **固定比较点**:`bfdceddf`；实现提交链为 `59ef21bc`、`947f9eac`、`9bd7f67e`、
+  `37a2e2c3`。
+- **生产行为**:`EvidencePreparationModule` 与 stream 明确区分 `NotRequired`、`Ready`、
+  `ClarificationNeeded`、`InsufficientEvidence`、`DegradedDependency`；只有 `Ready` 与有效
+  `NotRequired` 可继续绘图。
+- **fail-closed 边界**:source/claim 歧义在检索前阻断；配置过但未完成的 lexical/dense lane、
+  visual verification、executor submission、blob hydration 和 existing-citation hydration 都返回 typed
+  degraded outcome，不得被残余证据转换成 Ready 或 false insufficiency。
+- **用户反馈**:insufficient 会返回经过边界处理的具体缺失主题；stream 额外保留原始
+  `outcomeType`，不再把 insufficient 与 degraded 合并为同一语义。
+- **固定提交验证**:隔离的 staged/commit tree 上 domain 228 tests、0 failures；
+  `EvidencePreparationModuleTest` 33/33；`AgentConversationServiceTest` 61/61；
+  routing/schema 25/25；frontend API eslint 通过；`git diff --check` 通过。
+- **代码审阅**:以 `bfdceddf` 为固定比较点的 Spec 与 Standards 最终复审均为 0 findings。
+- **阶段判定**:这里只完成 Stage A implementation foundation。新的 30-case Draw.io-specific
+  cohort 尚未创建、独立复核、冻结或执行，因此不能声称 30/30 classification 或 Stage A 晋级。
+- **下一步**:创建并冻结 12 Ready、6 Insufficient、4 Clarification、4 Degraded、4 NotRequired，
+  本地运行 outcome/no-mutation audit；通过后才进入 E7/E8 grounded generation。
+- **外部使用**:0 Pinecone、0 模型请求、0 model token、0 Validation/holdout case。

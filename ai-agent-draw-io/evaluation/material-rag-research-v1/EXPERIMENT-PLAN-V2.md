@@ -768,6 +768,21 @@ canvas mutation 之间明确区分 `NotRequired`、`Ready`、`ClarificationNeede
 之后才依次进入 E7/E8 grounded generation、E9 在线授权/版本/故障恢复和独立 final holdout。完整接口、
 gate 与停止规则见 `POST-R23-EVIDENCE-DECISION-PLAN.md`。
 
+### Stage A evidence-decision 实现状态
+
+以 `bfdceddf` 为固定比较点，Stage A 生产实现已在 `59ef21bc`、`947f9eac`、`9bd7f67e` 和
+`37a2e2c3` 完成。当前系统会区分并保留 `NotRequired`、`Ready`、`ClarificationNeeded`、
+`InsufficientEvidence`、`DegradedDependency`；结构化 source/claim 歧义、检索 lane 未完成、
+视觉验证不可用、executor 拒绝和 blob hydration 失败都不能进入无证据 Drawer 或误判为 Ready。
+已有 citation 也必须通过当前 hydration/dependency 检查，stream 会保留 insufficient 与 degraded
+的原始 outcome type。固定提交树验证为 domain 228/228、AgentConversationService 61/61、routing/schema
+25/25；Spec 与 Standards 最终独立复审均为 0 findings。
+
+这只完成实现基础，不代表 Stage A gate 已通过。下一步仍是创建、独立复核并冻结新的 30-case
+Draw.io-specific cohort，然后在不调用生成模型的前提下验证 30/30 outcome classification、
+14/14 blocked 零画布写入、12/12 Ready identity/artifact 完整和 4/4 NotRequired 零检索。
+当前 19 个 R23 tasks 继续只作为冻结诊断集，不用于选择或调优这些新用例的生产决策。
+
 E6b 的本地导出合同已冻结为 `fixtures/drawio-generation-paired-hydration-contract-v1.json` 与
 `analysis/export_drawio_paired_hydration.py`。active Development 图册明确挂载 architecture、workflow handbook
 与 planning-workshop scan 三个版本；导出器从同一 retrieval trace 的 raw top-8 和 source-aware top-8 产生一任务

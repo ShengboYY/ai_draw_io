@@ -15,6 +15,27 @@ must remain distinguishable user-visible states.
 The current 19 tasks are frozen as a diagnostic regression set. They must not be reused to choose
 new query terms, weights, candidate limits, or selector rules.
 
+## 1.1 Implementation status
+
+The Stage A production foundation is complete at commit `37a2e2c3`, compared against the fixed
+pre-implementation point `bfdceddf`. The implementation was delivered through `59ef21bc`,
+`947f9eac`, `9bd7f67e`, and `37a2e2c3`.
+
+- evidence preparation now emits distinct `NotRequired`, `Ready`, `ClarificationNeeded`,
+  `InsufficientEvidence`, and `DegradedDependency` outcomes;
+- source and claim ambiguity are structured router outputs and block before retrieval, including
+  when `SourceMode.NONE` would otherwise qualify for the evidence-free path;
+- configured retrieval, visual-verification, executor, and blob-hydration failures cannot be
+  converted into `Ready` or false insufficiency;
+- existing citations remain subject to current readable-evidence checks;
+- user-visible streaming preserves the original insufficient/degraded outcome type;
+- only `Ready` and valid `NotRequired` paths may reach drawing, with regression coverage for
+  blocked paths and zero model invocation.
+
+The implementation foundation is not the Stage A evaluation result. The fresh 30-case cohort in
+Section 5 has not yet been created, independently reviewed, frozen, or executed. Therefore the
+30/30 classification and 14/14 no-mutation gates remain pending.
+
 ## 2. Existing seam
 
 `EvidencePreparationModule` is already the correct external seam. It owns source policy,
