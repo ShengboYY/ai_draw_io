@@ -83,6 +83,14 @@ class GenerationTaskEvaluatorTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "different frozen task fixture"):
             MODULE.validate_acceptance_policy(policy, "b" * 64)
 
+    def test_rejects_posthoc_policy_for_a_different_frozen_responses_fixture(self):
+        policy = {"schemaVersion": "material-rag-drawio-generation-acceptance-policy-v2",
+                  "sourceRun": {"taskFixtureSha256": "a" * 64, "responsesSha256": "b" * 64},
+                  "taskOverrides": {}}
+
+        with self.assertRaisesRegex(ValueError, "different frozen responses fixture"):
+            MODULE.validate_acceptance_policy(policy, "a" * 64, "c" * 64)
+
     def test_legacy_evaluator_keeps_hyphenated_labels_distinct_without_policy(self):
         task = {"taskId": "legacy", "sourceVersion": "source:v1", "xmlAssertions": {
                 "minVertices": 1, "requiredLabels": ["Steady State"]},
@@ -175,6 +183,14 @@ class GenerationTaskEvaluatorTest(unittest.TestCase):
         task = {"taskId": "layout", "inputXml": "<mxGraphModel><root><mxCell id='a' vertex='1'><mxGeometry x='0'/></mxCell></root></mxGraphModel>",
                 "editAssertions": {"geometryOnly": True}}
         output = MODULE.cells("<mxGraphModel><root><mxCell id='a' vertex='1'><mxGeometry x='20'/></mxCell><mxCell id='extra' vertex='1'/></root></mxGraphModel>")
+
+        self.assertFalse(MODULE.edit_assertions_pass(task, output))
+
+    def test_geometry_only_edit_rejects_style_mutation(self):
+        # A layout-only request may move a cell, but cannot silently restyle it.
+        task = {"taskId": "layout", "inputXml": "<mxGraphModel><root><mxCell id='a' vertex='1' parent='1'><mxGeometry x='0'/></mxCell></root></mxGraphModel>",
+                "editAssertions": {"geometryOnly": True}}
+        output = MODULE.cells("<mxGraphModel><root><mxCell id='a' vertex='1' parent='1' style='rounded=1'><mxGeometry x='20'/></mxCell></root></mxGraphModel>")
 
         self.assertFalse(MODULE.edit_assertions_pass(task, output))
 

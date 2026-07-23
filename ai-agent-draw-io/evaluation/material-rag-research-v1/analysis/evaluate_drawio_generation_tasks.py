@@ -103,13 +103,17 @@ def xml_assertions_pass(task: dict, vertices: list[ET.Element], edges: list[ET.E
                for label in assertion.get("requiredLabels", []))
 
 
-def validate_acceptance_policy(policy: dict, task_fixture_sha256: str) -> None:
-    """Reject a post-hoc policy when it is aimed at a different frozen task set."""
+def validate_acceptance_policy(policy: dict, task_fixture_sha256: str,
+                               response_fixture_sha256: str | None = None) -> None:
+    """Reject a post-hoc policy when it is aimed at different frozen inputs or output."""
     if policy.get("schemaVersion") != "material-rag-drawio-generation-acceptance-policy-v2":
         raise ValueError("unsupported acceptance policy schema")
     policy_fixture_sha = policy.get("sourceRun", {}).get("taskFixtureSha256")
     if policy_fixture_sha != task_fixture_sha256:
         raise ValueError("acceptance policy targets a different frozen task fixture")
+    policy_response_sha = policy.get("sourceRun", {}).get("responsesSha256")
+    if policy_response_sha is not None and policy_response_sha != response_fixture_sha256:
+        raise ValueError("acceptance policy targets a different frozen responses fixture")
 
 
 def cell_map(graph_cells: list[ET.Element]) -> dict[str, ET.Element]:
@@ -308,9 +312,10 @@ def main() -> None:
     anchors = {anchor["anchorId"]: anchor
                for anchor in json.loads(args.ground_truth.read_text())["anchors"]}
     task_fixture_sha256 = hashlib.sha256(args.tasks.read_bytes()).hexdigest()
+    response_fixture_sha256 = hashlib.sha256(args.responses.read_bytes()).hexdigest()
     policy = json.loads(args.acceptance_policy.read_text()) if args.acceptance_policy else None
     if policy is not None:
-        validate_acceptance_policy(policy, task_fixture_sha256)
+        validate_acceptance_policy(policy, task_fixture_sha256, response_fixture_sha256)
     results = [evaluate(task, responses.get(task["taskId"], {}), anchors, policy) for task in tasks]
     reviews = json.loads(args.claim_reviews.read_text()) if args.claim_reviews else None
     args.json_out.write_text(json.dumps(
