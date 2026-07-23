@@ -771,6 +771,8 @@
   incident/SEV。query 以外的 embedding、ranking、selector、task 和 gate 不变。
 - **防泄漏与 gate**:不读取 target source、required anchors、assertions、answers、ground truth 或
   Validation。正式目标为 raw 19/19、candidate 19/19、artifact 7/7；未满足前模型保持关闭。
+- **实现状态**:commit `b49f4443` 已实现 `drawio-bilingual-evidence-focused-v2` 与 5 个 rewrite
+  合同测试；ingestion-worker 90 个测试通过、6 个 live test 按环境正常跳过。正式 Pinecone R20 尚未运行。
 
 ### R17 trace / R18 indexed-vector denominator · 2026-07-23 · ⏸ 修复后重跑
 
