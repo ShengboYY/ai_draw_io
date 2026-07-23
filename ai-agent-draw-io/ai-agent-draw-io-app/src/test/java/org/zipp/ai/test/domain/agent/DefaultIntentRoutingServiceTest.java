@@ -232,6 +232,24 @@ public class DefaultIntentRoutingServiceTest {
     }
 
     @Test
+    public void directSourceUseRequiresOneServerVerifiedReadyImage() throws Exception {
+        IntentRoutingResult unavailable = routeWithStubbedLlm("把图片转成 Draw.io",
+                "{\"routeType\":\"create_new\",\"diagramType\":\"flowchart\",\"skillName\":\"none\","
+                        + "\"evidenceNeed\":\"OPTIONAL\",\"targetNeed\":\"NONE\",\"sourceUse\":\"DIRECT\","
+                        + "\"answer\":\"\",\"reason\":\"reconstruct\"}",
+                IntentRoutingProbe.empty());
+        IntentRoutingResult readyImage = routeWithStubbedLlm("把图片转成 Draw.io",
+                "{\"routeType\":\"create_new\",\"diagramType\":\"flowchart\",\"skillName\":\"none\","
+                        + "\"evidenceNeed\":\"OPTIONAL\",\"targetNeed\":\"NONE\",\"sourceUse\":\"DIRECT\","
+                        + "\"answer\":\"\",\"reason\":\"reconstruct\"}",
+                new IntentRoutingProbe(false, 0, 0, 0, 0, false, true,
+                        false, SourceMode.AUTO, 1, 1, 0, true, false));
+
+        assertEquals("NONE", unavailable.getSourceUse());
+        assertEquals("DIRECT", readyImage.getSourceUse());
+    }
+
+    @Test
     public void invalidEvidenceQuestionFallsBackToEvidenceWithoutMutation() throws Exception {
         IntentRoutingResult result = routeWithStubbedLlm("请根据资料回答 Agile 的流程",
                 "{\"routeType\":\"WAT\",\"diagramType\":\"none\",\"skillName\":\"none\","
@@ -239,6 +257,7 @@ public class DefaultIntentRoutingServiceTest {
 
         assertEquals("answer_with_evidence", result.getRouteType());
         assertEquals("REQUIRED", result.getEvidenceNeed());
+        assertEquals("NONE", result.getSourceUse());
     }
 
     @Test

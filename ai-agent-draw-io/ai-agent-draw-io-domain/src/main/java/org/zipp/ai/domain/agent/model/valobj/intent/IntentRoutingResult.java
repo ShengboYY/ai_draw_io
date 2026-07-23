@@ -15,6 +15,9 @@ public class IntentRoutingResult {
 
     private String targetNeed;
 
+    // Source-use is a user-intent hint only; TaskSourcePlanner validates it against trusted facts.
+    private String sourceUse;
+
     private String answer;
 
     private String reason;
@@ -43,6 +46,7 @@ public class IntentRoutingResult {
         result.setSkillName("none");
         result.setEvidenceNeed("NONE");
         result.setTargetNeed("NONE");
+        result.setSourceUse("NONE");
         result.setAnswer("抱歉，我没能理解这次请求。请再说清楚一点你想对 Draw.io 画布做什么（新建 / 修改 / 查看）。\n"
                 + "Sorry, I couldn't parse that request - please clarify what you'd like to do with the Draw.io canvas (create / edit / review).");
         result.setReason(reason);

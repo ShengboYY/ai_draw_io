@@ -58,6 +58,19 @@ test('buildDrawioChatRequestPayload includes canvas state version fields', () =>
   assert.equal(request.expectedVersion, 4);
 });
 
+test('buildDrawioChatRequestPayload keeps current-message attachment ids opaque', () => {
+  const request = buildDrawioChatRequestPayload({
+    agentId: '300000',
+    userId: 'usr_alice',
+    sessionId: 'session-1',
+    userMessage: 'Turn this image into Draw.io',
+    attachmentUploadIds: ['upl-image-1'],
+  });
+
+  assert.deepEqual(request.attachmentUploadIds, ['upl-image-1']);
+  assert.equal(JSON.stringify(request).includes('data:image'), false);
+});
+
 test('buildDrawioChatRequestPayload carries the current rendered PNG for review-only routing', () => {
   const request = buildDrawioChatRequestPayload({
     agentId: '300000',

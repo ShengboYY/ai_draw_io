@@ -106,6 +106,7 @@ public class DefaultIntentRoutingService implements IIntentRoutingService {
     private static final Set<String> ALLOWED_ROUTE_TYPES = Set.copyOf(IntentRoutingContract.ROUTE_TYPES);
     private static final Set<String> ALLOWED_EVIDENCE_NEEDS = Set.copyOf(IntentRoutingContract.EVIDENCE_NEEDS);
     private static final Set<String> ALLOWED_TARGET_NEEDS = Set.copyOf(IntentRoutingContract.TARGET_NEEDS);
+    private static final Set<String> ALLOWED_SOURCE_USES = Set.copyOf(IntentRoutingContract.SOURCE_USES);
     // Canonical diagram types seen downstream. Router-friendly aliases (uml_class, concept, diagram,
     // basic) are mapped into this set by normalizeDiagramType; nothing else is allowed.
     private static final Set<String> CANONICAL_DIAGRAM_TYPES = IntentRoutingContract.CANONICAL_DIAGRAM_TYPES;
@@ -191,6 +192,7 @@ public class DefaultIntentRoutingService implements IIntentRoutingService {
         result.setSkillName("none");
         result.setEvidenceNeed("NONE");
         result.setTargetNeed("NONE");
+        result.setSourceUse("NONE");
         result.setAnswer("");
         result.setReason("Rule-based fast path: existing canvas with a localized relabel/recolor edit.");
         return result;
@@ -231,6 +233,7 @@ public class DefaultIntentRoutingService implements IIntentRoutingService {
         result.setSkillName("none");
         result.setEvidenceNeed("NONE");
         result.setTargetNeed("NONE");
+        result.setSourceUse("NONE");
         result.setAnswer(smallTalkAnswer(instruction));
         result.setReason("Rule-based fast path: greeting/small talk with no canvas task.");
         return result;
@@ -303,6 +306,11 @@ public class DefaultIntentRoutingService implements IIntentRoutingService {
         facts.put("hasVisualEvidence", safe.hasVisualEvidence());
         facts.put("selectionVersionMismatch", safe.selectionVersionMismatch());
         facts.put("sourceMode", safe.sourceMode().name());
+        facts.put("attachmentCount", safe.attachmentCount());
+        facts.put("readyAttachmentCount", safe.readyAttachmentCount());
+        facts.put("pendingAttachmentCount", safe.pendingAttachmentCount());
+        facts.put("hasSingleReadyImageAttachment", safe.hasSingleReadyImageAttachment());
+        facts.put("hasPdfAttachment", safe.hasPdfAttachment());
         return "[Trusted Request Probe]\n" + JSON.toJSONString(facts) + "\n\n" + (message == null ? "" : message);
     }
 
@@ -338,6 +346,7 @@ public class DefaultIntentRoutingService implements IIntentRoutingService {
         result.setRouteType(routeType);
 
         normalizeNeeds(result);
+        result.setSourceUse(normalizeSourceUse(result.getSourceUse(), probe));
         if (hasExplicitSources(probe)) {
             result.setEvidenceNeed("REQUIRED");
         }
@@ -351,6 +360,7 @@ public class DefaultIntentRoutingService implements IIntentRoutingService {
         }
 
         if (result.isDirectReply()) {
+            result.setSourceUse("NONE");
             if ("review_only".equals(routeType)) {
                 result.setDiagramType(normalizeDiagramType(result.getDiagramType(), userInstruction));
                 result.setAnswer("");
@@ -375,6 +385,7 @@ public class DefaultIntentRoutingService implements IIntentRoutingService {
         result.setDiagramType(normalizeDiagramType(result.getDiagramType(), userInstruction));
         if ("optimize_layout".equals(routeType) || isPureStyleRequest(userInstruction)) {
             result.setEvidenceNeed("NONE");
+            result.setSourceUse("NONE");
         }
         validateSkillName(result, allowedSkills);
         result.setAnswer("");
@@ -395,6 +406,7 @@ public class DefaultIntentRoutingService implements IIntentRoutingService {
             result.setSkillName("none");
             result.setEvidenceNeed("REQUIRED");
             result.setTargetNeed("NONE");
+            result.setSourceUse("NONE");
             result.setAnswer("");
             result.setReason(reason);
             return result;
@@ -406,6 +418,7 @@ public class DefaultIntentRoutingService implements IIntentRoutingService {
             result.setSkillName("none");
             result.setEvidenceNeed("NONE");
             result.setTargetNeed("OPTIONAL");
+            result.setSourceUse("NONE");
             result.setAnswer("");
             result.setReason(reason);
             return result;
@@ -418,6 +431,16 @@ public class DefaultIntentRoutingService implements IIntentRoutingService {
                 result.isDrawAction() ? "OPTIONAL" : "NONE", ALLOWED_EVIDENCE_NEEDS));
         result.setTargetNeed(normalizeNeed(result.getTargetNeed(),
                 "edit_existing".equals(result.getRouteType()) ? "OPTIONAL" : "NONE", ALLOWED_TARGET_NEEDS));
+    }
+
+    private String normalizeSourceUse(String value, IntentRoutingProbe probe) {
+        String normalized = value == null ? "" : value.trim().toUpperCase(Locale.ROOT);
+        if (!ALLOWED_SOURCE_USES.contains(normalized)) return "NONE";
+        boolean directRequested = "DIRECT".equals(normalized) || "DIRECT_AND_RETRIEVAL".equals(normalized);
+        if (directRequested && (probe == null || !probe.hasSingleReadyImageAttachment())) {
+            return "DIRECT_AND_RETRIEVAL".equals(normalized) ? "RETRIEVAL" : "NONE";
+        }
+        return normalized;
     }
 
     private String normalizeNeed(String value, String fallback, Set<String> allowed) {

@@ -804,6 +804,23 @@ public class AgentConversationServiceTest {
     }
 
     @Test
+    public void ordinaryDrawingContinuesWhenMaterialRetrievalAndShadowFlagsAreDisabled() throws Exception {
+        AgentConversationService service = quotaAwareService();
+        CountingChatService chatService = new CountingChatService();
+        injectField(service, "chatService", chatService);
+        injectField(service, "intentRoutingService", new CountingIntentRoutingService());
+        injectField(service, "materialRagEnabled", false);
+        injectField(service, "materialRetrievalShadowEnabled", false);
+        ChatRequestDTO request = platformRequest();
+        request.setSourceMode("NONE");
+
+        org.zipp.ai.api.dto.ChatResponseDTO response = service.chat(request);
+
+        assertEquals("user", response.getType());
+        assertEquals(1, chatService.handleMessageCalls);
+    }
+
+    @Test
     public void shadowRetrievalRecordsAnAttemptWithoutChangingTheDrawingResponse() throws Exception {
         AgentConversationService service = quotaAwareService();
         CountingChatService chatService = new CountingChatService();

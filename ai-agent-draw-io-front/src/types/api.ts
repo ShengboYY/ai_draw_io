@@ -361,6 +361,8 @@ export interface ChatRequestDTO {
   canvasXml?: string;
   /** Legacy drawer-only summary; Intent Router V2 never receives it. */
   canvasSummary?: string;
+  /** Opaque ids for uploads attached to this message; the server revalidates each one. */
+  attachmentUploadIds?: string[];
   sourceMode?: 'NONE' | 'AUTO' | 'EXPLICIT' | 'EXPLICIT_ONLY';
   selectedVersionIds?: string[];
   selectedCellIds?: string[];

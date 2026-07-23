@@ -93,6 +93,13 @@ app:
     quarantine-bucket: ${MATERIAL_UPLOAD_QUARANTINE_BUCKET:}
     owner-path-secret: ${MATERIAL_UPLOAD_OWNER_PATH_SECRET:}
     rate-key-secret: ${MATERIAL_UPLOAD_RATE_KEY_SECRET:}
+    max-batch-files: ${MATERIAL_UPLOAD_MAX_BATCH_FILES:10}
+  material-visual-observation:
+    # Online visual fact verification remains independently fail-closed until its model adapter is deployed.
+    enabled: ${MATERIAL_VISUAL_OBSERVATION_ENABLED:false}
+  material-direct-image-conversion:
+    # Image reconstruction depends on verified visual observation and never enables retrieval by itself.
+    enabled: ${MATERIAL_DIRECT_IMAGE_CONVERSION_ENABLED:false}
   material-operations:
     # Anonymous upload is admitted only after the pinned WP8 release report is approved.
     enabled: ${MATERIAL_OPERATIONS_ENABLED:false}
