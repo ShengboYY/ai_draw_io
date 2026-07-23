@@ -533,6 +533,18 @@
 - **结论**:R9 不晋级。详见
   [2026-07-23-e7-r9-development-hydration-run.md](2026-07-23-e7-r9-development-hydration-run.md)。
 
+### E7 r10 — embedding-input provenance · 2026-07-23 · ✅本地 trace 合同完成
+
+- **动机**:R8→R9 少了 18 个 dense page parent，且 `dgt-dev-02` 的 query 与 architecture page-3 VISUAL chunk ID 不变，
+  但 VISUAL rank 由 24 变为 28。旧 trace 未持久化 embedding input/model identity，不能把此差异归因于页面 parent routing。
+- **单一变量**:未来 retrieval result 与 hydration trace 持久化 provider、model、vector dimension，以及按顺序构成的
+  passage/query 输入 SHA-256。不保存 embedding vector、凭证、evaluator anchor、expected answer、XML assertion 或模型输出。
+- **本地核验**:同一输入稳定；只改变 passage 或 query 会改变对应 hash。worker 15 项定向测试通过（5 项 opt-in Pinecone tests
+  按设计跳过）。无 Pinecone、模型、Validation 或 holdout。
+- **使用约束**:后续视觉/OCR retrieval intervention 的 trace 必须含此 manifest；只有 model 与两类 input hash 一致的重复臂
+  才能解释为 ranking effect。详见
+  [2026-07-23-e7-r10-embedding-input-manifest-pre-registration.md](2026-07-23-e7-r10-embedding-input-manifest-pre-registration.md)。
+
 ---
 
 ## 当前状态与下一步
@@ -540,8 +552,8 @@
 - 已完成:E0 基线 → E1 表示层改进 → 核心集升级并冻结到 450 → Development 与 Validation
   配对重跑 → 守门最低数补齐并执行 fixture-contract。Validation 证明 E1 提升真实,也证明
   dense-only 尚未达门槛。
-- **下一步**:R9 未恢复 `dgt-dev-02` 的 architecture page-3 visual/OCR artifact availability；应先预注册新的
-  source-independent dense visual/OCR availability intervention。Validation 暂不打开。
+- **下一步**:R10 已补齐 trace 的 embedding-input provenance；随后预注册新的 source-independent dense visual/OCR
+  availability intervention。Validation 暂不打开。
 
 ## 开放问题 / 待办
 
@@ -571,6 +583,8 @@
   required visual/OCR artifact 不在任一 top-8 而止步，未发送模型请求。
 - [x] E7 r9 visual-safe page-parent routing——Development trace 已运行并清理 62 个临时向量；`dgt-dev-02` control top-8
   仍缺 required visual/OCR artifact（VISUAL rank 28、TEXT rank 34），未发送模型请求。
+- [x] E7 r10 embedding-input provenance——未来 trace 记录 embedding model、dimension、ordered passage/query input hash；
+  仅本地测试，未发送模型请求。
 - [ ] 下一项 source-independent visual/OCR availability intervention——需预注册、TDD 和新的 Development artifact gate；
   通过全部 gate 前不调用模型。
 - [ ] 外部 final holdout——contract 已定，payload 尚未由独立保管人生成和隔离。

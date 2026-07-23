@@ -67,6 +67,8 @@ class ControlledPdfDenseRecallLiveTest {
     private static final RetrievalTokenCounter RESEARCH_COUNTER = researchTokenCounter();
     private static final Set<String> CANONICAL_MODES = Set.of("e0-v4", "e1-v5");
     private static final long MAX_RESEARCH_PAGE_ARTIFACT_BYTES = 20L * 1024 * 1024;
+    private static final String EMBEDDING_MODEL = "multilingual-e5-large";
+    private static final int EMBEDDING_VECTOR_DIMENSION = 1024;
 
     @TempDir
     Path temporaryDirectory;
@@ -149,6 +151,28 @@ class ControlledPdfDenseRecallLiveTest {
         RetrievalChunkProjection chunk = chunkWithParentContext("x".repeat(501));
 
         assertEquals("leaf text", ChunkMode.PARENT_CONTEXT_500.embeddingText(chunk));
+    }
+
+    @Test
+    void hydrationTraceShouldFingerprintTheExactEmbeddingInputs() throws Exception {
+        RetrievalChunkProjection chunk = chunkWithParentContext("parent text");
+        IndexedChunk indexed = new IndexedChunk("vector-1", "source:v1", chunk, "embedding passage");
+        ResearchCase researchCase = new ResearchCase("case-1", "drawio_generation", "structural_edit",
+                "en", "Create an editable flow.", "development", true, List.of(), List.of(),
+                List.of("source:v1"), List.of(), List.of());
+
+        EmbeddingInputManifest baseline = embeddingInputManifest(List.of(indexed), List.of(researchCase));
+        EmbeddingInputManifest changedPassage = embeddingInputManifest(List.of(
+                new IndexedChunk("vector-1", "source:v1", chunk, "different passage")), List.of(researchCase));
+        EmbeddingInputManifest changedQuery = embeddingInputManifest(List.of(indexed), List.of(
+                new ResearchCase("case-1", "drawio_generation", "structural_edit", "en",
+                        "Create a sequence diagram.", "development", true, List.of(), List.of(),
+                        List.of("source:v1"), List.of(), List.of())));
+
+        assertEquals("multilingual-e5-large", baseline.model());
+        assertEquals(1024, baseline.vectorDimension());
+        assertFalse(baseline.passagesSha256().equals(changedPassage.passagesSha256()));
+        assertFalse(baseline.queriesSha256().equals(changedQuery.queriesSha256()));
     }
 
     @Test
@@ -561,6 +585,7 @@ class ControlledPdfDenseRecallLiveTest {
         String runId = prefix + "pdfresearch_" + UUID.randomUUID().toString().replace("-", "");
         String tenantKey = runId + "_tenant";
         List<IndexedChunk> indexed = indexedChunks(runId, projections, chunkMode);
+        EmbeddingInputManifest embeddingInputManifest = embeddingInputManifest(indexed, cases);
         List<String> vectorIds = indexed.stream().map(IndexedChunk::vectorId).toList();
         List<Integer> embeddingTokens = indexed.stream()
                 .map(value -> RESEARCH_COUNTER.count(value.embeddingText())).sorted().toList();
@@ -594,7 +619,7 @@ class ControlledPdfDenseRecallLiveTest {
             return new ExperimentResult(runId, canonicalAssembler().fingerprint(), evaluate(
                     client, namespace, tenantKey, cases, anchors, projections, indexed,
                     reranker, rerankerModel),
-                    indexed.size(), embeddingProfile);
+                    indexed.size(), embeddingProfile, embeddingInputManifest);
         } finally {
             // Pinecone limits delete-by-id payloads, so large open PDFs must be cleaned in batches.
             for (int start = 0; start < vectorIds.size(); start += 100) {
@@ -670,7 +695,8 @@ class ControlledPdfDenseRecallLiveTest {
         raw.put("lexicalRankerFingerprint", ResearchHybridRanker.FINGERPRINT);
         raw.put("fusionFingerprint", "weighted-rrf-v1:k60:lexical1.2:dense1.0");
         raw.put("canonicalFingerprint", result.canonicalFingerprint());
-        raw.put("embeddingModel", "multilingual-e5-large");
+        raw.put("embeddingModel", EMBEDDING_MODEL);
+        raw.put("embeddingInputManifest", result.embeddingInputManifest());
         raw.put("tokenizerFingerprint", RESEARCH_COUNTER.fingerprint());
         raw.put("candidateLimit", 40);
         raw.put("retrievalPoolLimit", 80);
@@ -711,8 +737,12 @@ class ControlledPdfDenseRecallLiveTest {
         noRetrievalTasks.stream().sorted().forEach(taskId -> tasks.add(Map.of("taskId", taskId, "candidates", List.of())));
         Map<String, Object> trace = new LinkedHashMap<>();
         trace.put("schemaVersion", "material-rag-drawio-task-hydration-candidates-v1");
-        trace.put("retrievalRun", Map.of("runId", result.runId(), "gitCommit", commit,
-                "corpusLockSha256", sha256(lock)));
+        Map<String, Object> retrievalRun = new LinkedHashMap<>();
+        retrievalRun.put("runId", result.runId());
+        retrievalRun.put("gitCommit", commit);
+        retrievalRun.put("corpusLockSha256", sha256(lock));
+        retrievalRun.put("embeddingInputManifest", result.embeddingInputManifest());
+        trace.put("retrievalRun", retrievalRun);
         // Persist the source-owned identity input so hydration cannot silently substitute evaluator data.
         trace.put("sourceEvidenceIdentityManifest", Map.of(
                 "path", root.relativize(identityManifest).toString().replace('\\', '/'),
@@ -769,6 +799,21 @@ class ControlledPdfDenseRecallLiveTest {
     private String sha256(String value) throws Exception {
         return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(
                 value.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+    }
+
+    /** Fingerprints model inputs without recording task assertions or embedding vectors. */
+    private EmbeddingInputManifest embeddingInputManifest(List<IndexedChunk> indexed,
+                                                          List<ResearchCase> cases) throws Exception {
+        List<String> passageEntries = new ArrayList<>();
+        for (IndexedChunk value : indexed) {
+            passageEntries.add(value.sourceVersion() + "\t" + value.chunk().chunkId() + "\t"
+                    + sha256(value.embeddingText()));
+        }
+        String passages = String.join("\n", passageEntries);
+        String queries = cases.stream().map(value -> value.caseId() + "\t" + value.query())
+                .collect(java.util.stream.Collectors.joining("\n"));
+        return new EmbeddingInputManifest("pinecone-integrated-inference-v1", EMBEDDING_MODEL,
+                EMBEDDING_VECTOR_DIMENSION, sha256(passages), sha256(queries));
     }
 
     private String rerankerEndpointFingerprint() throws Exception {
@@ -1849,6 +1894,9 @@ class ControlledPdfDenseRecallLiveTest {
 
     private record EmbeddingProfile(int p50, int p95, int max) { }
 
+    private record EmbeddingInputManifest(String provider, String model, int vectorDimension,
+                                         String passagesSha256, String queriesSha256) { }
+
     private record RerankerUsage(int callCount, int acceptedOutputCount, long totalLatencyMillis,
                                  int totalPromptTokens, int totalCompletionTokens) { }
 
@@ -1860,7 +1908,8 @@ class ControlledPdfDenseRecallLiveTest {
 
     private record ExperimentResult(String runId, String canonicalFingerprint,
                                     EvaluationMetrics evaluation, int chunkCount,
-                                    EmbeddingProfile embeddingTokenProfile) {
+                                    EmbeddingProfile embeddingTokenProfile,
+                                    EmbeddingInputManifest embeddingInputManifest) {
         DenseMetrics metrics(RetrievalMode mode) {
             return evaluation.retrieval().get(mode);
         }
