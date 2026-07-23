@@ -35,10 +35,11 @@ pre-implementation point `bfdceddf`. The implementation was delivered through `5
 The implementation foundation is not the Stage A evaluation result. The fresh 30-case cohort in
 Section 5 now exists as `stage-a-evidence-decision-cohort-v1.json`: it has the preregistered
 12/6/4/4/4 outcome distribution, 14 blocked cases, two Ready visual/OCR cases, and 12 new document
-families. Its structural audit is clean, but its status is deliberately
-`draft_pending_independent_review`. It has not been independently reviewed, frozen, or executed
-against the production seam. Therefore the 30/30 classification and 14/14 no-mutation gates remain
-pending.
+families. Its executable setup contract binds source versions/anchors, artifacts, canvas or
+conversation state, absence contracts, and dependency injections. An `independent_ai` reviewer
+approved all 30 cases; the ledger and report bind the exact cohort SHA-256, so any later fixture
+edit invalidates the freeze. The cohort is now frozen, but has not been executed against the
+production seam. Therefore the 30/30 classification and 14/14 no-mutation gates remain pending.
 
 ## 2. Existing seam
 

@@ -2,7 +2,7 @@
   "schemaVersion": "material-rag-stage-a-evidence-decision-cohort-v1",
   "cohortId": "post-r23-stage-a-development-v1",
   "authorId": "codex-primary",
-  "status": "draft_pending_independent_review",
+  "status": "frozen_independently_reviewed",
   "fixedImplementationCommit": "37a2e2c3",
   "purpose": "Evaluate Draw.io-specific evidence outcomes and canvas-mutation safety without generation-model calls.",
   "requiredDistribution": {
@@ -11,6 +11,66 @@
     "ClarificationNeeded": 4,
     "DegradedDependency": 4,
     "NotRequired": 4
+  },
+  "setupCatalog": {
+    "sources": {
+      "sta-release-governance:v1": {"family": "stage-a-release-governance", "state": "READY", "anchors": ["rg-gateway", "rg-worker", "rg-audit-store", "rg-rollback", "rg-v1-release-flow"]},
+      "sta-release-governance:v2": {"family": "stage-a-release-governance", "state": "READY", "anchors": ["rg-v2-conflicting-release-flow"]},
+      "sta-incident-command:v1": {"family": "stage-a-incident-command", "state": "READY", "anchors": ["ic-commander", "ic-communications", "ic-escalation-window"]},
+      "sta-data-retention:v1": {"family": "stage-a-data-retention", "state": "READY", "anchors": ["dr-archive-retention"]},
+      "sta-payment-controls:v1": {"family": "stage-a-payment-controls", "state": "READY", "anchors": ["pc-two-person", "pc-control-number"]},
+      "sta-network-zones:v3": {"family": "stage-a-network-zones", "state": "READY", "anchors": ["nz-v3-quarantine"]},
+      "sta-service-ownership:v1": {"family": "stage-a-service-ownership", "state": "READY", "anchors": ["so-api-a-owner", "so-api-b-owner", "so-canonical-name"]},
+      "sta-change-calendar:v1": {"family": "stage-a-change-calendar", "state": "READY", "anchors": ["cc-owner", "cc-approval-window"]},
+      "sta-warehouse-visual:v1": {"family": "stage-a-warehouse-visual", "state": "READY", "anchors": ["wv-exception-flow"]},
+      "sta-field-scan:v1": {"family": "stage-a-field-scan", "state": "READY", "anchors": ["fs-handoff-flow"]},
+      "sta-capacity-planning:v1": {"family": "stage-a-capacity-planning", "state": "READY", "anchors": ["cp-steady-limit", "cp-failover-limit"]},
+      "sta-vendor-handoff:v1": {"family": "stage-a-vendor-handoff", "state": "UNMOUNTED", "anchors": []},
+      "sta-restricted-audit:v1": {"family": "stage-a-restricted-audit", "state": "ACCESS_DENIED", "anchors": []},
+      "sta-audit-verification:v1": {"family": "stage-a-restricted-audit", "state": "READY", "anchors": ["av-escalation"]}
+    },
+    "visualArtifacts": {
+      "warehouse-exception-flow": {"sourceVersion": "sta-warehouse-visual:v1", "mode": "VISUAL", "anchorId": "wv-exception-flow", "verified": true},
+      "field-handoff-scan": {"sourceVersion": "sta-field-scan:v1", "mode": "OCR_VISUAL", "anchorId": "fs-handoff-flow", "verified": true}
+    },
+    "canvases": {
+      "canvas-archive": {"selectedCellIds": ["archive-node"], "existingCitationAnchorIds": ["dr-archive-retention"]},
+      "canvas-review-release": {"selectedCellIds": ["review-release-edge"], "existingEdge": "Review->Release"},
+      "canvas-api-ambiguous": {"selectedCellIds": [], "candidateCellIds": ["api-a", "api-b"]},
+      "canvas-release-gate": {"selectedCellIds": ["release-gate"], "existingCitationAnchorIds": ["rg-rollback"]},
+      "canvas-incident-subgraph": {"selectedCellIds": ["escalation-subgraph"], "existingEdge": "Incident Commander->Communications Lead"}
+    },
+    "conversations": {
+      "conversation-ambiguous-pronoun": {"priorReferences": ["Incident Commander", "Communications Lead"], "nextOwnerCandidates": ["Operations Lead", "Vendor Lead"]}
+    },
+    "caseSetups": {
+      "sta-ready-01": {"sourceVersions": ["sta-release-governance:v1"], "requiredAnchorIds": ["rg-gateway", "rg-worker", "rg-audit-store"], "sourceResolution": "completed_ready"},
+      "sta-ready-02": {"sourceVersions": ["sta-incident-command:v1"], "requiredAnchorIds": ["ic-commander", "ic-communications", "ic-escalation-window"], "sourceResolution": "completed_ready"},
+      "sta-ready-03": {"sourceVersions": ["sta-data-retention:v1"], "requiredAnchorIds": ["dr-archive-retention"], "canvasId": "canvas-archive", "sourceResolution": "completed_ready"},
+      "sta-ready-04": {"sourceVersions": ["sta-payment-controls:v1"], "requiredAnchorIds": ["pc-two-person", "pc-control-number"], "canvasId": "canvas-review-release", "sourceResolution": "completed_ready"},
+      "sta-ready-05": {"sourceVersions": ["sta-network-zones:v3"], "requiredAnchorIds": ["nz-v3-quarantine"], "sourceResolution": "completed_ready"},
+      "sta-ready-06": {"sourceVersions": ["sta-service-ownership:v1"], "requiredAnchorIds": ["so-canonical-name"], "sourceResolution": "completed_ready"},
+      "sta-ready-07": {"sourceVersions": ["sta-change-calendar:v1"], "requiredAnchorIds": ["cc-owner", "cc-approval-window"], "sourceResolution": "completed_ready"},
+      "sta-ready-08": {"sourceVersions": ["sta-warehouse-visual:v1"], "requiredAnchorIds": ["wv-exception-flow"], "visualArtifactIds": ["warehouse-exception-flow"], "selectedVisualArtifactId": "warehouse-exception-flow", "sourceResolution": "completed_ready"},
+      "sta-ready-09": {"sourceVersions": ["sta-field-scan:v1"], "requiredAnchorIds": ["fs-handoff-flow"], "visualArtifactIds": ["field-handoff-scan"], "selectedVisualArtifactId": "field-handoff-scan", "sourceResolution": "completed_ready"},
+      "sta-ready-10": {"sourceVersions": ["sta-release-governance:v1"], "requiredAnchorIds": ["rg-rollback"], "canvasId": "canvas-release-gate", "sourceResolution": "completed_ready"},
+      "sta-ready-11": {"sourceVersions": ["sta-capacity-planning:v1"], "requiredAnchorIds": ["cp-steady-limit", "cp-failover-limit"], "sourceResolution": "completed_ready"},
+      "sta-ready-12": {"sourceVersions": ["sta-incident-command:v1"], "requiredAnchorIds": ["ic-commander", "ic-communications"], "canvasId": "canvas-incident-subgraph", "sourceResolution": "completed_ready"},
+      "sta-insufficient-01": {"sourceVersions": ["sta-release-governance:v1"], "requiredAnchorIds": [], "sourceResolution": "completed_ready", "absenceContract": "retry_count_is_absent_after_completed_search"},
+      "sta-insufficient-02": {"sourceVersions": ["sta-vendor-handoff:v1"], "requiredAnchorIds": [], "sourceResolution": "completed_no_mounted_source"},
+      "sta-insufficient-03": {"sourceVersions": ["sta-capacity-planning:v1"], "requiredAnchorIds": ["cp-steady-limit", "cp-failover-limit"], "sourceResolution": "completed_ready", "absenceContract": "disaster_recovery_limit_is_absent_after_completed_search"},
+      "sta-insufficient-04": {"sourceVersions": ["sta-network-zones:v3"], "requiredAnchorIds": ["nz-v3-quarantine"], "sourceResolution": "completed_ready", "absenceContract": "requested_v4_is_absent_after_completed_search"},
+      "sta-insufficient-05": {"sourceVersions": ["sta-warehouse-visual:v1"], "requiredAnchorIds": ["wv-exception-flow"], "visualArtifactIds": ["warehouse-exception-flow"], "selectedVisualArtifactId": "warehouse-exception-flow", "sourceResolution": "completed_ready", "absenceContract": "exception_owner_labels_are_absent_after_completed_visual_ocr"},
+      "sta-insufficient-06": {"sourceVersions": ["sta-restricted-audit:v1"], "requiredAnchorIds": [], "sourceResolution": "completed_no_readable_source"},
+      "sta-clarify-01": {"sourceVersions": ["sta-service-ownership:v1"], "requiredAnchorIds": ["so-api-a-owner", "so-api-b-owner"], "canvasId": "canvas-api-ambiguous", "initialSourceState": "ready", "clarificationFocus": "target"},
+      "sta-clarify-02": {"sourceVersions": ["sta-incident-command:v1"], "requiredAnchorIds": ["ic-commander", "ic-communications"], "conversationId": "conversation-ambiguous-pronoun", "initialSourceState": "ready", "clarificationFocus": "claim"},
+      "sta-clarify-03": {"sourceVersions": ["sta-release-governance:v1", "sta-release-governance:v2"], "requiredAnchorIds": ["rg-v1-release-flow", "rg-v2-conflicting-release-flow"], "initialSourceState": "two_ready_conflicting_release_guides", "clarificationFocus": "source"},
+      "sta-clarify-04": {"sourceVersions": ["sta-payment-controls:v1"], "requiredAnchorIds": ["pc-two-person"], "canvasId": "canvas-review-release", "initialSourceState": "ready", "clarificationFocus": "claim", "absenceContract": "desired_relationship_is_unspecified"},
+      "sta-degraded-01": {"sourceVersions": ["sta-release-governance:v1"], "requiredAnchorIds": ["rg-gateway"], "sourceResolution": "completed_ready", "dependencyInjection": "dense_vector_lane_attempted_then_unavailable"},
+      "sta-degraded-02": {"sourceVersions": ["sta-field-scan:v1"], "requiredAnchorIds": ["fs-handoff-flow"], "visualArtifactIds": ["field-handoff-scan"], "selectedVisualArtifactId": "field-handoff-scan", "sourceResolution": "completed_ready", "dependencyInjection": "ocr_provider_attempted_then_unavailable"},
+      "sta-degraded-03": {"sourceVersions": ["sta-data-retention:v1"], "requiredAnchorIds": ["dr-archive-retention"], "canvasId": "canvas-archive", "sourceResolution": "completed_ready", "dependencyInjection": "blob_hydration_attempted_then_failed"},
+      "sta-degraded-04": {"sourceVersions": ["sta-audit-verification:v1"], "requiredAnchorIds": ["av-escalation"], "sourceResolution": "completed_ready", "dependencyInjection": "authorization_verifier_attempted_then_unavailable"}
+    }
   },
   "cases": [
     {
@@ -78,7 +138,7 @@
       "language": "crossLanguage",
       "documentFamily": "stage-a-service-ownership",
       "operation": "create_ownership_map",
-      "request": "用中文创建服务所有权图，但节点名称保留资料中的英文正式名称。",
+      "request": "根据服务所有权目录，用中文创建服务所有权图，但节点名称保留资料中的英文正式名称。",
       "scenario": "ready_cross_language",
       "expectedOutcome": "Ready",
       "expectedRetrieval": "completed",
@@ -258,7 +318,7 @@
       "language": "en",
       "documentFamily": "stage-a-release-governance",
       "operation": "create_architecture_diagram",
-      "request": "Draw the approved release flow from the guide.",
+      "request": "Draw the approved release flow from the applicable guide.",
       "scenario": "ambiguous_source",
       "expectedOutcome": "ClarificationNeeded",
       "expectedRetrieval": "none",

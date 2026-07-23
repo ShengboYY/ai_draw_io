@@ -40,6 +40,8 @@ PROVENANCE_FILES = (
     "review/make_review_ledger.py",
     "review/owner-spot-check-policy-v1.json",
     "review/owner-spot-check.json",
+    "review/stage-a-independent-review-report-v1.json",
+    "review/stage-a-independent-review-ledger-v1.json",
     "fixtures/generate_fixtures.py",
     "fixtures/generation-config.json",
     "fixtures/realistic_corpus_specs.py",

@@ -21,6 +21,29 @@ class StageADecisionCohortAuditTest(unittest.TestCase):
         generation = json.loads(GENERATION_TASKS.read_text(encoding="utf-8"))
         cls.reserved = forbidden_families(manifest, generation)
 
+    @staticmethod
+    def approved_review(cohort):
+        reviewer = {"reviewerId": "independent-reviewer", "kind": "human"}
+        review = {
+            "schemaVersion": "material-rag-stage-a-independent-review-v1",
+            "cohortId": cohort["cohortId"],
+            "cohortSha256": cohort_sha256(cohort),
+            "reviewer": reviewer,
+            "reviewReport": "stage-a-independent-review-report-v1.json",
+            "caseDecisions": [
+                {"caseId": case["caseId"], "decision": "approve"}
+                for case in cohort["cases"]
+            ],
+        }
+        report = {
+            "schemaVersion": "material-rag-stage-a-independent-review-report-v1",
+            "cohortId": cohort["cohortId"],
+            "cohortSha256": cohort_sha256(cohort),
+            "reviewer": reviewer,
+            "result": "approve",
+        }
+        return review, report
+
     def test_draft_cohort_is_structurally_ready_but_not_frozen(self):
         result = audit_cohort(self.cohort, self.reserved)
         self.assertTrue(result["structuralReady"])
@@ -48,35 +71,17 @@ class StageADecisionCohortAuditTest(unittest.TestCase):
     def test_complete_independent_review_ledger_allows_ready(self):
         frozen = copy.deepcopy(self.cohort)
         frozen["status"] = "frozen_independently_reviewed"
-        review = {
-            "schemaVersion": "material-rag-stage-a-independent-review-v1",
-            "cohortId": frozen["cohortId"],
-            "cohortSha256": cohort_sha256(frozen),
-            "reviewer": {"reviewerId": "independent-reviewer", "kind": "human"},
-            "caseDecisions": [
-                {"caseId": case["caseId"], "decision": "approve"}
-                for case in frozen["cases"]
-            ],
-        }
-        result = audit_cohort(frozen, self.reserved, review)
+        review, report = self.approved_review(frozen)
+        result = audit_cohort(frozen, self.reserved, review, report)
         self.assertEqual("ready", result["status"])
         self.assertTrue(result["independentReviewComplete"])
 
     def test_review_ledger_cannot_be_reused_after_fixture_change(self):
         frozen = copy.deepcopy(self.cohort)
         frozen["status"] = "frozen_independently_reviewed"
-        review = {
-            "schemaVersion": "material-rag-stage-a-independent-review-v1",
-            "cohortId": frozen["cohortId"],
-            "cohortSha256": cohort_sha256(frozen),
-            "reviewer": {"reviewerId": "independent-reviewer", "kind": "human"},
-            "caseDecisions": [
-                {"caseId": case["caseId"], "decision": "approve"}
-                for case in frozen["cases"]
-            ],
-        }
+        review, report = self.approved_review(frozen)
         frozen["cases"][0]["request"] += " Changed after review."
-        result = audit_cohort(frozen, self.reserved, review)
+        result = audit_cohort(frozen, self.reserved, review, report)
         self.assertEqual("review_pending", result["status"])
         self.assertIn("independent review ledger cohort hash does not match", result["reviewErrors"])
 
@@ -107,6 +112,20 @@ class StageADecisionCohortAuditTest(unittest.TestCase):
         result = audit_cohort(changed, self.reserved)
         self.assertFalse(result["structuralReady"])
         self.assertTrue(any("NotRequired must have no retrieval" in error for error in result["errors"]))
+
+    def test_material_case_without_executable_setup_fails_closed(self):
+        changed = copy.deepcopy(self.cohort)
+        del changed["setupCatalog"]["caseSetups"]["sta-ready-01"]
+        result = audit_cohort(changed, self.reserved)
+        self.assertFalse(result["structuralReady"])
+        self.assertIn("sta-ready-01: material-backed case requires an executable setup", result["errors"])
+
+    def test_setup_anchor_must_resolve_in_its_declared_source(self):
+        changed = copy.deepcopy(self.cohort)
+        changed["setupCatalog"]["caseSetups"]["sta-ready-01"]["requiredAnchorIds"] = ["invented-anchor"]
+        result = audit_cohort(changed, self.reserved)
+        self.assertFalse(result["structuralReady"])
+        self.assertIn("sta-ready-01: requiredAnchorIds must resolve in setup sources", result["errors"])
 
 
 if __name__ == "__main__":

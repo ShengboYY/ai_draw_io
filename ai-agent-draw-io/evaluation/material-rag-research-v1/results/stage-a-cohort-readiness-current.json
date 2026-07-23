@@ -1,8 +1,8 @@
 {
   "schemaVersion": "material-rag-stage-a-cohort-audit-v1",
-  "status": "review_pending",
+  "status": "ready",
   "structuralReady": true,
-  "independentReviewComplete": false,
+  "independentReviewComplete": true,
   "counts": {
     "cases": 30,
     "blockedCases": 14,
@@ -17,7 +17,5 @@
     }
   },
   "errors": [],
-  "reviewErrors": [
-    "independent review ledger is missing"
-  ]
+  "reviewErrors": []
 }

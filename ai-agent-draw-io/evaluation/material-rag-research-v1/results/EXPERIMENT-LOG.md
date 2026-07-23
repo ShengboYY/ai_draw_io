@@ -1019,16 +1019,16 @@
   `EvidencePreparationModuleTest` 33/33；`AgentConversationServiceTest` 61/61；
   routing/schema 25/25；frontend API eslint 通过；`git diff --check` 通过。
 - **代码审阅**:以 `bfdceddf` 为固定比较点的 Spec 与 Standards 最终复审均为 0 findings。
-- **阶段判定**:这里只完成 Stage A implementation foundation。新的 30-case Draw.io-specific
-  cohort 尚未创建、独立复核、冻结或执行，因此不能声称 30/30 classification 或 Stage A 晋级。
-- **下一步**:创建并冻结 12 Ready、6 Insufficient、4 Clarification、4 Degraded、4 NotRequired，
-  本地运行 outcome/no-mutation audit；通过后才进入 E7/E8 grounded generation。
+- **阶段判定**:这里只完成 Stage A implementation foundation。随后 cohort 已创建并冻结；production-seam
+  30/30 classification/no-mutation run 仍未执行，因此不能声称 Stage A 晋级。
+- **下一步**:运行冻结的 12 Ready、6 Insufficient、4 Clarification、4 Degraded、4 NotRequired cohort
+  的 outcome/no-mutation harness；通过后才进入 E7/E8 grounded generation。
 - **外部使用**:0 Pinecone、0 模型请求、0 model token、0 Validation/holdout case。
 
-### Post-R23 Stage A cohort draft · 2026-07-23 · ⏳ 独立复核前，不得冻结
+### Post-R23 Stage A cohort review and freeze · 2026-07-23 · ✅ 已冻结，runtime gate 待运行
 
 - **fixture**:`fixtures/stage-a-evidence-decision-cohort-v1.json`，固定实现提交
-  `37a2e2c3`，状态 `draft_pending_independent_review`。
+  `37a2e2c3`，状态 `frozen_independently_reviewed`。
 - **分布**:30 cases；Ready 12、InsufficientEvidence 6、ClarificationNeeded 4、
   DegradedDependency 4、NotRequired 4；其中 blocked 合计 14。
 - **Draw.io 覆盖**:创建 architecture/swimlane/ownership/comparison、事实节点与关系编辑、
@@ -1036,13 +1036,17 @@
   layout/spacing/style/geometry-only 操作。
 - **隔离性**:material-backed cases 使用 12 个不在现有 corpus、R23 Development、
   Validation 或 holdout 中的新 document families；Ready 含 2 个需要真实 visual/OCR artifact 的 case。
+- **可执行 setup**:26 个资料相关 case 现在显式绑定 source version/anchor、visual artifact、canvas 或
+  conversation 初始状态、正常完成后的 absence contract 或 attempted dependency injection。`ACCESS_DENIED`
+  的 completed insufficiency 与 authorization verifier unavailable 的 degraded case 分离。
+- **独立复核**:`review/stage-a-independent-review-report-v1.json` 与对应 ledger 由
+  `independent_ai` 审查；初审 P0（缺 setup）及两条 P1（source ambiguity、authorization state）均已修正，
+  30/30 approve。两份工件绑定 frozen cohort SHA-256。
 - **fail-closed audit**:`audit_stage_a_decision_cohort.py` 验证精确分布、14 blocked 零 mutation
-  声明、NotRequired 零检索、Ready completed retrieval、Degraded attempted retrieval、family
-  overlap 与最少 visual/family 覆盖；当前结果为 `structuralReady=true`、
-  `status=review_pending`、0 errors。
-- **本地验证**:analysis 132 tests、0 failures。corpus provenance 纳入 cohort fixture 与 audit
+  声明、NotRequired 零检索、source/anchor/artifact/canvas/conversation setup、absence/dependency
+  contract、family overlap 和 review hash；当前结果为 `structuralReady=true`、`status=ready`、0 errors。
+- **本地验证**:analysis 134 tests、0 failures。corpus provenance 纳入 cohort fixture 与 audit
   script。
-- **未完成**:这不是 30/30 production outcome run。必须先由独立 reviewer 检查请求是否自然、
-  expected outcome 是否唯一、document-family 隔离是否合理，并完成冻结；随后才实现/运行 production
-  seam 的 classification/no-mutation harness。
+- **未完成**:这不是 30/30 production outcome run。下一步实现并运行 production seam 的
+  classification/no-mutation harness。
 - **外部使用**:0 Pinecone、0 模型请求、0 model token、0 Validation/holdout case。

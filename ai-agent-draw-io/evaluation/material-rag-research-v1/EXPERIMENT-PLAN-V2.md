@@ -778,11 +778,12 @@ gate 与停止规则见 `POST-R23-EVIDENCE-DECISION-PLAN.md`。
 的原始 outcome type。固定提交树验证为 domain 228/228、AgentConversationService 61/61、routing/schema
 25/25；Spec 与 Standards 最终独立复审均为 0 findings。
 
-这只完成实现基础，不代表 Stage A gate 已通过。30-case Draw.io-specific cohort 草案已经创建，
+这只完成实现基础，不代表 Stage A gate 已通过。30-case Draw.io-specific cohort 已完成独立 AI 内容复核并冻结：
 结构审计得到 30 cases、14 blocked、12 个新 document families、2 个 Ready visual/OCR cases，
-12/6/4/4/4 分布完全匹配且 132 项 analysis tests 通过；但 fixture 状态仍为
-`draft_pending_independent_review`，不能提前标记 frozen。下一步是独立内容复核与冻结，然后在不调用
-生成模型的前提下验证 30/30 outcome classification、14/14 blocked 零画布写入、
+12/6/4/4/4 分布完全匹配。source version/anchor、artifact、canvas/conversation、absence contract 与
+dependency injection 已纳入 executable setup；review report/ledger 绑定 cohort SHA-256，任何后续改动都会
+使 freeze 失效。134 项 analysis tests 通过。下一步是在不调用生成模型的前提下运行 30/30 outcome
+classification、14/14 blocked 零画布写入、
 12/12 Ready identity/artifact 完整和 4/4 NotRequired 零检索。
 当前 19 个 R23 tasks 继续只作为冻结诊断集，不用于选择或调优这些新用例的生产决策。
 
