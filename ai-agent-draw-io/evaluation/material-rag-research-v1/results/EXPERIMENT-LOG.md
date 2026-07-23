@@ -494,11 +494,14 @@
 - **单一变量**:在已有细粒度 leaf 之外增加可检索、可引用的 `PAGE_PARENT`；每个 parent 只含同一 source page 的
   canonical text Evidence、原 page ID 与全部 copied Evidence ID。超过 900 tokenizer units 时分为连续同页 parent，
   不截断、不跨页混合。它不同于 E2 的邻居窗口：E2 改 leaf embedding text，r8 新增独立的页级 projection。
-- **安全边界**:active Development task 显式提供 agent-visible `selectedMaterialVersion`，producer 仅接受已挂载版本；
-  parent 构建与 source identity resolver 均不读取 `requiredAnchors`、expected answer、claim/XML assertion 或
-  `ground-truth.json`。exact-text/visual-page identity 与 r6 gate 保持不变。
-- **本地核验**:TDD 覆盖 parent 的 source/page、citable/searchable 状态和 copied Evidence ID；另覆盖空或未挂载
-  selected material 直接拒绝。无 Pinecone、模型、Validation 或 holdout。
+- **安全边界**:active Development task 显式提供 agent-visible `selectedMaterialVersion`，producer 仅验证其为已挂载版本，
+  不据此过滤 chartbook sources 或改变排名，以保持 r8 只有 page-parent 一个变量；parent 构建与 source identity
+  resolver 均不读取 `requiredAnchors`、expected answer、claim/XML assertion 或 `ground-truth.json`。exact-text/
+  visual-page identity 与 r6 gate 保持不变。
+- **本地核验与审查修正**:P1 审查后，parent 改为直接读取 source-page text Evidence，避免 leaf 为检索便利附带的跨页
+  heading/table header 进入页级引用；TDD 覆盖 source-page locality、超过 900 的连续拆分、citable/searchable 状态和
+  copied Evidence ID，并在实际 PDF/OCR projection 中确认 selected visual page 的 parent。另覆盖空或未挂载 selected
+  material 直接拒绝。无 Pinecone、模型、Validation 或 holdout。
 - **下一步**:经授权运行新的 opt-in Development hydration trace；仅同时通过 paired contrast 与 r6
   model-visible-required-evidence gate 后，才冻结 prompt 或请求 GPT-5.5。详见
   [2026-07-23-e7-r8-page-parent-pre-registration.md](2026-07-23-e7-r8-page-parent-pre-registration.md)。

@@ -4,16 +4,15 @@ import java.util.Collection;
 import java.util.Objects;
 
 /** Validates the agent-visible material selection before retrieval touches a chartbook. */
-final class SelectedMaterialScope {
+final class SelectedMaterialVersionValidator {
 
-    private SelectedMaterialScope() { }
+    private SelectedMaterialVersionValidator() { }
 
-    static String requireMounted(String selectedMaterialVersion, Collection<String> mountedSourceVersions) {
+    static void requireMounted(String selectedMaterialVersion, Collection<String> mountedSourceVersions) {
         String selected = selectedMaterialVersion == null ? "" : selectedMaterialVersion.trim();
         Collection<String> mounted = Objects.requireNonNull(mountedSourceVersions, "mountedSourceVersions");
         if (selected.isEmpty() || !mounted.contains(selected)) {
             throw new IllegalArgumentException("selected material version must be mounted in the chartbook");
         }
-        return selected;
     }
 }

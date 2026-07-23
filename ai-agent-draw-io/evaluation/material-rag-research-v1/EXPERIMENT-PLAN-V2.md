@@ -254,8 +254,8 @@ Recall@10 与 flat 持平,MRR@10 低 0.062,未晋级。当前顺序：
    VISUAL page 身份写入 trace，并持久化 manifest hash；未匹配证据保留 fallback。r7 的真实 Development trace 已证明
    identity 能在 top-40 解析，但 5/5 task 虽通过 contrast，仍有多条 canonical evidence 位于 top-8 外，故 r6 readiness
    gate 阻止 prompt/model run。r8 已预注册为独立的 page-parent evidence availability 干预：在每个 source page
-   新增受 900-token 上限约束、保留 Evidence identity 的 citable parent projection，并拒绝未挂载的 agent-selected
-   material version；不读取 evaluator 数据。它仍须用新的 Development trace 通过 contrast 与 r6 readiness gate 后
+   新增受 900-token 上限约束、保留 Evidence identity 的 citable parent projection，并验证 agent-selected
+   material version 已挂载（不据此过滤 chartbook source 或改变排名）；不读取 evaluator 数据。它仍须用新的 Development trace 通过 contrast 与 r6 readiness gate 后
    才能冻结 bundle；Validation 继续关闭。
 2. 后续 E9 必须执行在线授权、版本、故障注入与恢复；当前 fixture-contract 通过不能替代它。
 3. Validation 暂不打开。仓库可见的 legacy holdout 不再用于“未见最终结论”；外部 final holdout

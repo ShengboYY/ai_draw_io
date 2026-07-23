@@ -59,7 +59,8 @@ class RetrievalChunkBuilderTest {
                 .allMatch(chunk -> chunk.parentContext() != null && !chunk.parentEvidenceIds().isEmpty()
                         && chunk.evidenceMappings().stream()
                         .anyMatch(mapping -> mapping.role() == ChunkEvidenceRole.PRIMARY)));
-        assertTrue(projection.chunks().stream().filter(chunk -> chunk.citable())
+        assertTrue(projection.chunks().stream().filter(chunk -> chunk.citable()
+                        && chunk.chunkType() != RetrievalChunkType.PAGE_PARENT)
                 .allMatch(chunk -> chunk.evidenceMappings().stream()
                         .anyMatch(mapping -> mapping.evidenceId().equals("heading")
                                 && mapping.role() == ChunkEvidenceRole.HEADER)));
@@ -224,6 +225,36 @@ class RetrievalChunkBuilderTest {
     }
 
     @Test
+    void keepsPageParentsSourcePageLocalAndSplitsOversizedPagesWithoutLosingEvidence() {
+        String first = "a".repeat(400);
+        String second = "b".repeat(400);
+        String third = "c".repeat(400);
+        EvidenceManifest evidence = manifest(List.of(
+                textOnPage("earlier-heading", EvidenceUnitType.HEADING, "Earlier page heading", "section-1",
+                        "page-1", 1, 1, 0.95),
+                textOnPage("first", EvidenceUnitType.CONTENT, first, "section-1", "page-2", 2, 2, 0.90),
+                textOnPage("second", EvidenceUnitType.CONTENT, second, "section-1", "page-2", 2, 3, 0.90),
+                textOnPage("third", EvidenceUnitType.CONTENT, third, "section-1", "page-2", 2, 4, 0.90),
+                textOnPage("other-page", EvidenceUnitType.CONTENT, "Independent page evidence", "section-2",
+                        "page-3", 3, 5, 0.90)), List.of());
+
+        var parents = new RetrievalChunkBuilder(CHARACTER_COUNTER).build(evidence).chunks().stream()
+                .filter(chunk -> chunk.chunkType() == RetrievalChunkType.PAGE_PARENT).toList();
+        var pageTwoParents = parents.stream().filter(chunk -> chunk.pageId().equals("page-2")).toList();
+
+        assertTrue(pageTwoParents.size() > 1);
+        assertTrue(pageTwoParents.stream().allMatch(chunk -> chunk.tokenCount() <= 900));
+        assertTrue(pageTwoParents.stream().noneMatch(chunk -> chunk.retrievalText().contains("Earlier page heading")));
+        assertEquals(List.of("first", "second", "third"), pageTwoParents.stream()
+                .flatMap(chunk -> chunk.evidenceMappings().stream())
+                .filter(mapping -> mapping.role() == ChunkEvidenceRole.PRIMARY)
+                .map(mapping -> mapping.evidenceId()).toList());
+        assertTrue(parents.stream().filter(chunk -> chunk.pageId().equals("page-3"))
+                .allMatch(chunk -> chunk.evidenceMappings().stream()
+                        .allMatch(mapping -> mapping.evidenceId().equals("other-page"))));
+    }
+
+    @Test
     void splitMappingsExactlyMatchTheTrimmedRetrievalFragmentsWithoutQuadraticSuffixCopies() {
         String body = "a".repeat(390) + "   " + "b".repeat(20_000);
         EvidenceManifest evidence = manifest(List.of(
@@ -300,11 +331,16 @@ class RetrievalChunkBuilderTest {
 
     private static EvidenceUnit text(String id, EvidenceUnitType type, String text,
                                      String sectionId, int ordinal, double quality) {
+        return textOnPage(id, type, text, sectionId, "page-1", 1, ordinal, quality);
+    }
+
+    private static EvidenceUnit textOnPage(String id, EvidenceUnitType type, String text, String sectionId,
+                                           String pageId, int pageNo, int ordinal, double quality) {
         NormalizedBoundingBox box = new NormalizedBoundingBox(0.1, ordinal * 0.01,
                 0.9, Math.min(0.99, ordinal * 0.01 + 0.005));
-        return new EvidenceUnit(id, "page-1", 1, sectionId, type, EvidenceModality.TEXT,
+        return new EvidenceUnit(id, pageId, pageNo, sectionId, type, EvidenceModality.TEXT,
                 "NATIVE", text, sha(text), artifact("canonical.json.gz"), null,
-                List.of(new EvidenceRegion("page-1", 1, box, 0, text.length(), id)), quality);
+                List.of(new EvidenceRegion(pageId, pageNo, box, 0, text.length(), id)), quality);
     }
 
     private static EvidenceUnit bottomText(String id, EvidenceUnitType type, String text,

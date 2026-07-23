@@ -233,6 +233,9 @@ class ControlledPdfDenseRecallLiveTest {
                 && pageNo(chunk.pageId()) == 3 && chunk.indexMode() == RetrievalIndexMode.DENSE_AND_LEXICAL
                 && chunk.retrievalText().contains(
                 "EVIDENCE")));
+        assertTrue(projection.chunks().stream().anyMatch(chunk -> chunk.chunkType() == RetrievalChunkType.PAGE_PARENT
+                && pageNo(chunk.pageId()) == 3 && chunk.citable()
+                && chunk.indexMode() == RetrievalIndexMode.DENSE_AND_LEXICAL));
     }
 
     private RetrievalChunkProjection chunkWithParentContext(String parentContext) {
@@ -1422,8 +1425,8 @@ class ControlledPdfDenseRecallLiveTest {
             if (noRetrieval.contains(task.path("taskId").asText())) {
                 continue;
             }
-            // This is session-owned retrieval scope, distinct from evaluator citation assertions.
-            SelectedMaterialScope.requireMounted(task.path("selectedMaterialVersion").asText(), mounted);
+            // Selection validation is distinct from retrieval ranking and evaluator citation assertions.
+            SelectedMaterialVersionValidator.requireMounted(task.path("selectedMaterialVersion").asText(), mounted);
             result.add(new ResearchCase(task.path("taskId").asText(), "drawio_generation",
                     task.path("type").asText(), "mixed", task.path("request").asText(),
                     "development", true, List.of(), List.of(), mounted, List.of(), List.of()));

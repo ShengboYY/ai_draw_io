@@ -1,7 +1,8 @@
 # E7 r8 page-parent evidence availability — pre-registration
 
 - Date: 2026-07-23
-- Status: local implementation and contract checks complete; no Pinecone, model provider, Validation, or holdout run.
+- Status: local implementation, P1 review fixes, and contract checks complete; no Pinecone, model provider,
+  Validation, or holdout run.
 
 ## Single intervention
 
@@ -15,10 +16,18 @@ adds a separately retrievable page-level projection whose model-visible text con
 The source-identity resolver remains unchanged: it can assign an ID only when the parent text itself satisfies an
 exact publisher-owned source phrase, or when the existing visual chunk satisfies its exact visual-page rule.
 
-For the active Development retrieval tasks, the fixture now declares `selectedMaterialVersion` as agent-visible
-session scope. The producer rejects a blank or unmounted selected version before retrieval; it does not use task
-required anchors, expected answers, claims, XML assertions, or `ground-truth.json` to construct or select a
-parent.
+For the active Development retrieval tasks, the fixture now declares `selectedMaterialVersion` as an agent-visible
+selection-validation field. The producer rejects a blank or unmounted selected version before retrieval, but it does
+not filter the chartbook's mounted sources or alter their ranking: doing so would introduce a second intervention to
+the paired chartbook comparison. It also does not use task required anchors, expected answers, claims, XML
+assertions, or `ground-truth.json` to construct or select a parent.
+
+## Review-fix verification
+
+The parent builder now reads source-page text Evidence directly, rather than reusing leaf retrieval text. That preserves
+source-page locality when a leaf's convenience heading or table-header context originates on a different page. The
+local contract covers that cross-page case, multiple parent chunks for an oversized page, exact copied primary
+Evidence IDs, and an actual PDF/OCR projection containing a searchable, citable parent on the selected visual page.
 
 ## Pre-registered gates
 
