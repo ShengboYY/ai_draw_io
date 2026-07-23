@@ -1329,12 +1329,13 @@ public class AgentConversationService {
         }
         if (!shouldPrepareEvidence(requestDTO, routing)) return null;
         boolean strict = isStrictEvidenceRequest(requestDTO, routing);
+        String evidenceNeed = StringUtils.defaultIfBlank(routing.getEvidenceNeed(), "NONE")
+                .trim().toUpperCase(java.util.Locale.ROOT);
         boolean shadowOnly = !materialRagEnabled && materialRetrievalShadowEnabled
-                && !strict && routing.isDrawAction();
+                && !strict && routing.isDrawAction() && "NONE".equals(evidenceNeed);
         if (evidencePreparationModule == null || (!materialRagEnabled && !shadowOnly)) {
-            return strict ? evidenceResponse("capability_unavailable",
-                    "资料检索功能当前不可用，画布未被修改。 / Evidence retrieval is currently unavailable; the canvas was not modified.")
-                    : null;
+            return evidenceResponse("capability_unavailable",
+                    "资料检索功能当前不可用，画布未被修改。 / Evidence retrieval is currently unavailable; the canvas was not modified.");
         }
         ResolvedSourceSet effectiveSnapshot = sourceSnapshot;
         if (effectiveSnapshot == null && shadowOnly) {
@@ -1349,7 +1350,7 @@ public class AgentConversationService {
                         requestDTO.getSelectionCanvasVersion(), requestDTO.getSelectionContentHash()),
                 sourceMode(requestDTO.getSourceMode()), effectiveSnapshot,
                 safeList(requestDTO.getSelectedVersionIds()),
-                StringUtils.defaultIfBlank(routing.getEvidenceNeed(), "OPTIONAL"),
+                evidenceNeed,
                 StringUtils.defaultIfBlank(routing.getTargetNeed(), "NONE"));
         if (shadowOnly) {
             // Candidate-only observation owns its resources and never delays or mutates the primary request.
@@ -1359,14 +1360,21 @@ public class AgentConversationService {
             });
             return null;
         }
-        PreparationOutcome outcome = evidencePreparationModule.prepare(command, resources, progress, cancellation)
-                .toCompletableFuture().join();
+        PreparationOutcome outcome;
+        try {
+            outcome = evidencePreparationModule.prepare(command, resources, progress, cancellation)
+                    .toCompletableFuture().join();
+        } catch (RuntimeException failure) {
+            resources.closeExactlyOnce(CloseReason.FAILED);
+            log.warn("Evidence preparation failed closed. failureClass={}",
+                    failure.getClass().getSimpleName());
+            return retrievalDegradedResponse();
+        }
         if (outcome instanceof PreparationOutcome.NotRequired) return null;
         if (outcome instanceof PreparationOutcome.DegradedDependency
                 || outcome instanceof PreparationOutcome.Failed) {
             // Factual drawing must fail closed when retrieval did not complete, including legacy failures.
-            return evidenceResponse("retrieval_degraded",
-                    "资料检索或验证未完成，画布未被修改，请稍后重试。 / Evidence retrieval or verification did not complete; the canvas was not modified. Retry later.");
+            return retrievalDegradedResponse();
         }
         if (outcome instanceof PreparationOutcome.Waiting) {
             return evidenceResponse("material_waiting",
@@ -1379,6 +1387,14 @@ public class AgentConversationService {
         if (outcome instanceof PreparationOutcome.ClarificationNeeded) {
             PreparationOutcome.ClarificationNeeded clarification =
                     (PreparationOutcome.ClarificationNeeded) outcome;
+            if ("AMBIGUOUS_SOURCE".equals(clarification.reason())) {
+                return evidenceResponse("source_clarification",
+                        "无法确定应使用哪份资料，请选择一个明确来源。 / Please select the source to use.");
+            }
+            if ("AMBIGUOUS_CLAIM".equals(clarification.reason())) {
+                return evidenceResponse("claim_clarification",
+                        "无法确定要在图中表达哪项事实或关系，请明确所需 claim。 / Please clarify the claim or relationship to draw.");
+            }
             ChatResponseDTO response = evidenceResponse("target_clarification",
                     "无法唯一确定要处理的画布对象，请先明确选择节点或连线。 / Please select the intended canvas target.");
             response.setTargetCandidates(clarification.candidates().stream().map(candidate -> {
@@ -1408,6 +1424,9 @@ public class AgentConversationService {
         if (outcome instanceof PreparationOutcome.Cancelled) {
             return evidenceResponse("cancelled", "请求已取消。 / Request cancelled.");
         }
+        if (outcome instanceof PreparationOutcome.InsufficientEvidence insufficient) {
+            return insufficientEvidenceResponse(insufficient);
+        }
         if (outcome instanceof PreparationOutcome.Ready ready
                 && preparedEvidenceRef != null && (routing.isDrawAction() || routing.isEvidenceAnswer())) {
             preparedEvidenceRef.set(ready.preparedEvidence());
@@ -1421,6 +1440,32 @@ public class AgentConversationService {
         }
         return evidenceResponse("insufficient_evidence",
                 "当前资料不足以安全完成请求，画布未被修改。 / The available evidence is insufficient.");
+    }
+
+    private ChatResponseDTO retrievalDegradedResponse() {
+        return evidenceResponse("retrieval_degraded",
+                "资料检索或验证未完成，画布未被修改，请稍后重试。 / Evidence retrieval or verification did not complete; the canvas was not modified. Retry later.");
+    }
+
+    private ChatResponseDTO insufficientEvidenceResponse(PreparationOutcome.InsufficientEvidence insufficient) {
+        List<String> gaps = insufficient.gaps();
+        boolean sourceGap = gaps.stream().anyMatch(code ->
+                code.contains("SOURCE") || code.contains("AUTHORIZED"));
+        boolean visualGap = gaps.stream().anyMatch(code ->
+                code.startsWith("VISUAL_") || code.startsWith("NO_VERIFIED_"));
+        if (sourceGap) {
+            return evidenceResponse("insufficient_evidence",
+                    "缺少可用或已授权的资料来源，画布未被修改。请选择其他来源、缩小请求范围或上传补充资料。 / "
+                            + "A usable authorized source is missing; select another source, narrow the request, or upload supporting material.");
+        }
+        if (visualGap) {
+            return evidenceResponse("insufficient_evidence",
+                    "资料中缺少可验证的图像结构，画布未被修改。请缩小请求范围或上传更清晰的图片。 / "
+                            + "Verifiable visual structure is missing; narrow the request or upload a clearer image.");
+        }
+        return evidenceResponse("insufficient_evidence",
+                "所请求的事实或关系缺少完整支持，画布未被修改。请缩小请求范围、选择其他来源或上传补充资料。 / "
+                        + "The requested fact or relationship is not fully supported; narrow the request, select another source, or upload supporting material.");
     }
 
     private ResolvedSourceSet resolveRequestSources(ChatRequestDTO requestDTO) {
@@ -1574,11 +1619,13 @@ public class AgentConversationService {
         if (!safeList(requestDTO.getSelectedVersionIds()).isEmpty()
                 || !safeList(requestDTO.getAttachmentUploadIds()).isEmpty()) return true;
         SourceMode mode = sourceMode(requestDTO.getSourceMode());
+        String evidenceNeed = StringUtils.defaultIfBlank(routing.getEvidenceNeed(), "NONE")
+                .trim().toUpperCase(java.util.Locale.ROOT);
         if (!materialRagEnabled && materialRetrievalShadowEnabled) {
-            return routing.isDrawAction() && mode != SourceMode.NONE;
+            return routing.isDrawAction() && mode != SourceMode.NONE
+                    && ("NONE".equals(evidenceNeed) || "OPTIONAL".equals(evidenceNeed));
         }
-        return materialRagEnabled && routing.isDrawAction() && !"NONE".equals(routing.getEvidenceNeed())
-                && mode != SourceMode.NONE;
+        return routing.isDrawAction() && "OPTIONAL".equals(evidenceNeed) && mode != SourceMode.NONE;
     }
 
     private ChatResponseDTO evidenceResponse(String type, String content) {
@@ -1594,6 +1641,8 @@ public class AgentConversationService {
             case "material_not_ready" -> "source_not_ready";
             case "source_resolution_failed" -> "source_not_ready";
             case "target_clarification" -> "target_clarification";
+            case "source_clarification" -> "source_clarification";
+            case "claim_clarification" -> "claim_clarification";
             case "stale_canvas_selection" -> "stale_canvas_selection";
             default -> "degraded";
         };

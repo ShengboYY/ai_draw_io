@@ -42,6 +42,19 @@ class EvidencePreparationModuleTest {
     }
 
     @Test
+    void mixedFactualAndStyleRequestCannotSkipEvidencePreparation() {
+        AuthorizedSource ready = source("READY", false);
+        PreparationOutcome outcome = module(catalog(command -> new SourceResolution(
+                SourceMode.EXPLICIT_ONLY, List.of(ready), List.of())), List.of())
+                .prepare(command("Rename API to Gateway and change the color to blue", "REQUIRED",
+                                SourceMode.EXPLICIT_ONLY),
+                        new RunResourceDomain(), EvidenceProgressListener.NOOP, CancellationSignal.NEVER)
+                .toCompletableFuture().join();
+
+        assertFalse(outcome instanceof PreparationOutcome.NotRequired);
+    }
+
+    @Test
     void optionalFactualRequestWithoutReadySourcesIsNotExemptFromEvidence() {
         EvidencePreparationCommand evidenceCommand = new EvidencePreparationCommand(owner, "diagram-1", "conversation-1",
                 "request-1", "run-1", "根据资料创建架构图", CanvasProbe.unavailableProbe(),
@@ -250,11 +263,27 @@ class EvidencePreparationModuleTest {
                         resources, EvidenceProgressListener.NOOP, CancellationSignal.NEVER)
                 .toCompletableFuture().join();
 
-        PreparationOutcome.InsufficientEvidence insufficient =
-                assertInstanceOf(PreparationOutcome.InsufficientEvidence.class, outcome);
-        assertEquals(List.of("VISUAL_PROVIDER_TIMEOUT"), insufficient.gaps());
+        PreparationOutcome.DegradedDependency degraded =
+                assertInstanceOf(PreparationOutcome.DegradedDependency.class, outcome);
+        assertEquals(List.of("VISUAL_PROVIDER_TIMEOUT"), degraded.gaps());
         assertTrue(resources.isClosed());
         assertEquals(1, leaseCloses.get());
+    }
+
+    @Test
+    void unavailableVisualProviderIsADegradedDependency() {
+        VisualObservationModule unavailable = (command, resources, cancellation) ->
+                java.util.concurrent.CompletableFuture.completedFuture(
+                        new VisualObservationOutcome.Unavailable("provider offline"));
+
+        PreparationOutcome outcome = visualModule(unavailable, Duration.ofSeconds(1), new AtomicInteger())
+                .prepare(command("图中箭头指向哪里？", "REQUIRED", SourceMode.EXPLICIT_ONLY),
+                        new RunResourceDomain(), EvidenceProgressListener.NOOP, CancellationSignal.NEVER)
+                .toCompletableFuture().join();
+
+        PreparationOutcome.DegradedDependency degraded =
+                assertInstanceOf(PreparationOutcome.DegradedDependency.class, outcome);
+        assertEquals(List.of("VISUAL_PROVIDER_UNAVAILABLE"), degraded.gaps());
     }
 
     @Test
@@ -382,6 +411,86 @@ class EvidencePreparationModuleTest {
                 assertInstanceOf(PreparationOutcome.DegradedDependency.class, outcome);
         assertEquals(List.of("DENSE_UNAVAILABLE", "LEXICAL_DEGRADED"),
                 degraded.gaps().stream().sorted().toList());
+    }
+
+    @Test
+    void oneUnavailableRetrievalLaneKeepsAnEmptySearchFromClaimingNoMatch() {
+        AuthorizedSource ready = source("READY", false);
+        EvidenceCatalog catalog = catalog(command -> new SourceResolution(
+                SourceMode.EXPLICIT_ONLY, List.of(ready), List.of()));
+
+        PreparationOutcome outcome = module(catalog, List.of()).prepare(
+                        command("根据资料创建架构图", "REQUIRED", SourceMode.EXPLICIT_ONLY),
+                        new RunResourceDomain(), EvidenceProgressListener.NOOP, CancellationSignal.NEVER)
+                .toCompletableFuture().join();
+
+        PreparationOutcome.DegradedDependency degraded =
+                assertInstanceOf(PreparationOutcome.DegradedDependency.class, outcome);
+        assertEquals(List.of("DENSE_UNAVAILABLE"), degraded.gaps());
+    }
+
+    @Test
+    void lexicalFailureWithCompletedEmptyDenseLaneIsStillDegraded() {
+        AuthorizedSource ready = source("READY", false);
+        EvidenceCatalog catalog = catalog(command -> new SourceResolution(
+                SourceMode.EXPLICIT_ONLY, List.of(ready), List.of()));
+        EvidencePreparationModule module = new DefaultEvidencePreparationModule(catalog,
+                (queries, sources, route, limit) -> {
+                    throw new IllegalStateException("lexical provider unavailable");
+                },
+                Optional.of((texts, inputType) -> List.of(new float[]{1.0f})),
+                Optional.of(emptyVectorIndex()), (ownerType, ownerKey) -> "opaque-tenant",
+                (owner, runId, sources) -> () -> { }, (candidate, maximumBytes) -> "text",
+                (owner, diagramId) -> Optional.empty(), ForkJoinPool.commonPool());
+
+        PreparationOutcome outcome = module.prepare(
+                command("根据资料创建架构图", "REQUIRED", SourceMode.EXPLICIT_ONLY),
+                new RunResourceDomain(), EvidenceProgressListener.NOOP, CancellationSignal.NEVER)
+                .toCompletableFuture().join();
+
+        PreparationOutcome.DegradedDependency degraded =
+                assertInstanceOf(PreparationOutcome.DegradedDependency.class, outcome);
+        assertEquals(List.of("LEXICAL_DEGRADED"), degraded.gaps());
+    }
+
+    @Test
+    void completeBlobHydrationFailureIsADegradedDependency() {
+        AuthorizedSource ready = source("READY", false);
+        CandidateRef candidate = new CandidateRef("chunk-1", "TEXT", 1.0);
+        StoredArtifact artifact = new StoredArtifact("retrieval/chunk-1.txt", "s3-version-1",
+                "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", 32, "text/plain");
+        AuthorizedCandidate authorized = new AuthorizedCandidate("chunk-1", "evidence-1", "material-1",
+                "version-1", "revision-1", "TEXT", 1, 0.9, artifact, "Architecture Guide");
+        EvidenceCatalog catalog = new EvidenceCatalog() {
+            @Override public SourceResolution resolveSources(EvidencePreparationCommand command) {
+                return new SourceResolution(SourceMode.EXPLICIT_ONLY, List.of(ready), List.of());
+            }
+            @Override public List<CandidateRef> resolveVectorCandidates(List<String> vectorIds,
+                                                                         AuthorizedSourceSet sources) {
+                return List.of();
+            }
+            @Override public List<AuthorizedCandidate> reauthorize(List<String> chunkIds,
+                                                                   AuthorizedSourceSet sources, int limit) {
+                return List.of(authorized);
+            }
+        };
+        EvidencePreparationModule module = new DefaultEvidencePreparationModule(catalog,
+                (queries, sources, route, limit) -> List.of(candidate),
+                Optional.empty(), Optional.empty(), (ownerType, ownerKey) -> "opaque-tenant",
+                (owner, runId, sources) -> () -> { },
+                (ignored, maximumBytes) -> {
+                    throw new IllegalStateException("blob unavailable");
+                },
+                (owner, diagramId) -> Optional.empty(), ForkJoinPool.commonPool());
+
+        PreparationOutcome outcome = module.prepare(
+                command("根据资料创建架构图", "REQUIRED", SourceMode.EXPLICIT_ONLY),
+                new RunResourceDomain(), EvidenceProgressListener.NOOP, CancellationSignal.NEVER)
+                .toCompletableFuture().join();
+
+        PreparationOutcome.DegradedDependency degraded =
+                assertInstanceOf(PreparationOutcome.DegradedDependency.class, outcome);
+        assertTrue(degraded.gaps().contains("S3_EVIDENCE_DEGRADED"));
     }
 
     @Test
@@ -546,6 +655,27 @@ class EvidencePreparationModuleTest {
     private AuthorizedSource source(String state, boolean conversationScoped) {
         return new AuthorizedSource("material-1", "version-1", "revision-1", MaterialScopeType.LIBRARY,
                 MaterialScopeType.PERSONAL_LIBRARY_KEY, state, conversationScoped, true, true, false);
+    }
+
+    private RetrievalVectorIndex emptyVectorIndex() {
+        return new RetrievalVectorIndex() {
+            @Override public void upsert(List<org.zipp.ai.domain.retrieval.model.valobj.VectorProjection> projections) {
+                throw new UnsupportedOperationException();
+            }
+            @Override public java.util.Set<String> existingVectorIds(List<String> vectorIds) {
+                throw new UnsupportedOperationException();
+            }
+            @Override public org.zipp.ai.domain.retrieval.model.valobj.VectorIdPage listVectorIds(
+                    String paginationToken, int limit) {
+                throw new UnsupportedOperationException();
+            }
+            @Override public List<String> query(float[] vector, String tenantKey, int topK) {
+                return List.of();
+            }
+            @Override public void delete(List<String> vectorIds) {
+                throw new UnsupportedOperationException();
+            }
+        };
     }
 
     private EvidencePreparationCommand command(String message, String evidenceNeed, SourceMode mode) {

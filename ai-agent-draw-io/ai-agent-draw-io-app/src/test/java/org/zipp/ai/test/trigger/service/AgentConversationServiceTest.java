@@ -827,7 +827,7 @@ public class AgentConversationServiceTest {
         AgentConversationService service = quotaAwareService();
         CountingChatService chatService = new CountingChatService();
         injectField(service, "chatService", chatService);
-        injectField(service, "intentRoutingService", new CountingIntentRoutingService());
+        injectField(service, "intentRoutingService", new OptionalEvidenceRoutingService());
         injectField(service, "materialRagEnabled", true);
         injectField(service, "evidencePreparationModule",
                 (org.zipp.ai.domain.retrieval.EvidencePreparationModule) (command, resources, progress, cancellation) ->
@@ -841,6 +841,8 @@ public class AgentConversationServiceTest {
         org.zipp.ai.api.dto.ChatResponseDTO response = service.chat(request);
 
         assertEquals("insufficient_evidence", response.getType());
+        assertTrue(response.getContent().contains("narrow"));
+        assertTrue(response.getContent().contains("upload"));
         assertEquals(0, chatService.handleMessageCalls);
         assertEquals(0, chatService.handleMessageStreamCalls);
     }
@@ -850,7 +852,7 @@ public class AgentConversationServiceTest {
         AgentConversationService service = quotaAwareService();
         CountingChatService chatService = new CountingChatService();
         injectField(service, "chatService", chatService);
-        injectField(service, "intentRoutingService", new CountingIntentRoutingService());
+        injectField(service, "intentRoutingService", new OptionalEvidenceRoutingService());
         injectField(service, "materialRagEnabled", true);
         injectField(service, "evidencePreparationModule",
                 (org.zipp.ai.domain.retrieval.EvidencePreparationModule) (command, resources, progress, cancellation) ->
@@ -873,7 +875,7 @@ public class AgentConversationServiceTest {
         AgentConversationService service = quotaAwareService();
         CountingChatService chatService = new CountingChatService();
         injectField(service, "chatService", chatService);
-        injectField(service, "intentRoutingService", new CountingIntentRoutingService());
+        injectField(service, "intentRoutingService", new OptionalEvidenceRoutingService());
         injectField(service, "materialRagEnabled", true);
         injectField(service, "evidencePreparationModule",
                 (org.zipp.ai.domain.retrieval.EvidencePreparationModule) (command, resources, progress, cancellation) ->
@@ -896,7 +898,7 @@ public class AgentConversationServiceTest {
         AgentConversationService service = quotaAwareService();
         CountingChatService chatService = new CountingChatService();
         injectField(service, "chatService", chatService);
-        injectField(service, "intentRoutingService", new CountingIntentRoutingService());
+        injectField(service, "intentRoutingService", new OptionalEvidenceRoutingService());
         injectField(service, "materialRagEnabled", true);
         injectField(service, "evidencePreparationModule",
                 (org.zipp.ai.domain.retrieval.EvidencePreparationModule) (command, resources, progress, cancellation) ->
@@ -919,6 +921,134 @@ public class AgentConversationServiceTest {
                         .map(org.zipp.ai.api.dto.ChatResponseDTO.TargetCandidateDTO::getCellId).toList());
         assertEquals(0, chatService.handleMessageCalls);
         assertEquals(0, chatService.handleMessageStreamCalls);
+    }
+
+    @Test
+    public void optionalFactualRequestStopsWhenMaterialRagIsDisabled() throws Exception {
+        AgentConversationService service = quotaAwareService();
+        CountingChatService chatService = new CountingChatService();
+        injectField(service, "chatService", chatService);
+        injectField(service, "intentRoutingService", new OptionalEvidenceRoutingService());
+        injectField(service, "materialRagEnabled", false);
+        injectField(service, "materialRetrievalShadowEnabled", false);
+        ChatRequestDTO request = platformRequest();
+        request.setMessage("Create a factual architecture diagram from the available material.");
+        request.setSourceMode("AUTO");
+
+        org.zipp.ai.api.dto.ChatResponseDTO response = service.chat(request);
+
+        assertEquals("capability_unavailable", response.getType());
+        assertEquals(0, chatService.handleMessageCalls);
+        assertEquals(0, chatService.handleMessageStreamCalls);
+    }
+
+    @Test
+    public void optionalFactualRequestStopsWhenEvidenceModuleIsMissing() throws Exception {
+        AgentConversationService service = quotaAwareService();
+        CountingChatService chatService = new CountingChatService();
+        injectField(service, "chatService", chatService);
+        injectField(service, "intentRoutingService", new OptionalEvidenceRoutingService());
+        injectField(service, "materialRagEnabled", true);
+        injectField(service, "evidencePreparationModule", null);
+        ChatRequestDTO request = platformRequest();
+        request.setMessage("Create a factual architecture diagram from the available material.");
+        request.setSourceMode("AUTO");
+
+        org.zipp.ai.api.dto.ChatResponseDTO response = service.chat(request);
+
+        assertEquals("capability_unavailable", response.getType());
+        assertEquals(0, chatService.handleMessageCalls);
+        assertEquals(0, chatService.handleMessageStreamCalls);
+    }
+
+    @Test
+    public void exceptionalEvidenceFutureFailsClosedBeforeDrawer() throws Exception {
+        AgentConversationService service = quotaAwareService();
+        CountingChatService chatService = new CountingChatService();
+        injectField(service, "chatService", chatService);
+        injectField(service, "intentRoutingService", new OptionalEvidenceRoutingService());
+        injectField(service, "materialRagEnabled", true);
+        injectField(service, "evidencePreparationModule",
+                (org.zipp.ai.domain.retrieval.EvidencePreparationModule) (command, resources, progress, cancellation) ->
+                        java.util.concurrent.CompletableFuture.failedFuture(
+                                new IllegalStateException("provider unavailable")));
+        ChatRequestDTO request = platformRequest();
+        request.setMessage("Create a factual architecture diagram from the available material.");
+        request.setSourceMode("AUTO");
+
+        org.zipp.ai.api.dto.ChatResponseDTO response = service.chat(request);
+
+        assertEquals("retrieval_degraded", response.getType());
+        assertEquals(0, chatService.handleMessageCalls);
+        assertEquals(0, chatService.handleMessageStreamCalls);
+    }
+
+    @Test
+    public void synchronousEvidenceFailureFailsClosedBeforeDrawer() throws Exception {
+        AgentConversationService service = quotaAwareService();
+        CountingChatService chatService = new CountingChatService();
+        injectField(service, "chatService", chatService);
+        injectField(service, "intentRoutingService", new OptionalEvidenceRoutingService());
+        injectField(service, "materialRagEnabled", true);
+        injectField(service, "evidencePreparationModule",
+                (org.zipp.ai.domain.retrieval.EvidencePreparationModule) (command, resources, progress, cancellation) -> {
+                    throw new IllegalStateException("module unavailable");
+                });
+        ChatRequestDTO request = platformRequest();
+        request.setMessage("Create a factual architecture diagram from the available material.");
+        request.setSourceMode("AUTO");
+
+        org.zipp.ai.api.dto.ChatResponseDTO response = service.chat(request);
+
+        assertEquals("retrieval_degraded", response.getType());
+        assertEquals(0, chatService.handleMessageCalls);
+        assertEquals(0, chatService.handleMessageStreamCalls);
+    }
+
+    @Test
+    public void sourceClarificationAsksForASourceWithoutTargetCandidates() throws Exception {
+        AgentConversationService service = quotaAwareService();
+        CountingChatService chatService = new CountingChatService();
+        injectField(service, "chatService", chatService);
+        injectField(service, "intentRoutingService", new OptionalEvidenceRoutingService());
+        injectField(service, "materialRagEnabled", true);
+        injectField(service, "evidencePreparationModule",
+                (org.zipp.ai.domain.retrieval.EvidencePreparationModule) (command, resources, progress, cancellation) ->
+                        java.util.concurrent.CompletableFuture.completedFuture(
+                                new org.zipp.ai.domain.retrieval.PreparationOutcome.ClarificationNeeded(
+                                        "AMBIGUOUS_SOURCE", List.of())));
+        ChatRequestDTO request = platformRequest();
+        request.setSourceMode("AUTO");
+
+        org.zipp.ai.api.dto.ChatResponseDTO response = service.chat(request);
+
+        assertEquals("source_clarification", response.getType());
+        assertTrue(response.getContent().contains("source"));
+        assertTrue(response.getTargetCandidates() == null || response.getTargetCandidates().isEmpty());
+        assertEquals(0, chatService.handleMessageCalls);
+    }
+
+    @Test
+    public void claimClarificationAsksForTheClaimWithoutTargetCandidates() throws Exception {
+        AgentConversationService service = quotaAwareService();
+        CountingChatService chatService = new CountingChatService();
+        injectField(service, "chatService", chatService);
+        injectField(service, "intentRoutingService", new OptionalEvidenceRoutingService());
+        injectField(service, "materialRagEnabled", true);
+        injectField(service, "evidencePreparationModule",
+                (org.zipp.ai.domain.retrieval.EvidencePreparationModule) (command, resources, progress, cancellation) ->
+                        java.util.concurrent.CompletableFuture.completedFuture(
+                                new org.zipp.ai.domain.retrieval.PreparationOutcome.ClarificationNeeded(
+                                        "AMBIGUOUS_CLAIM", List.of())));
+        ChatRequestDTO request = platformRequest();
+        request.setSourceMode("AUTO");
+
+        org.zipp.ai.api.dto.ChatResponseDTO response = service.chat(request);
+
+        assertEquals("claim_clarification", response.getType());
+        assertTrue(response.getContent().contains("claim"));
+        assertTrue(response.getTargetCandidates() == null || response.getTargetCandidates().isEmpty());
+        assertEquals(0, chatService.handleMessageCalls);
     }
 
     @Test
@@ -1626,6 +1756,17 @@ public class AgentConversationServiceTest {
             calls++;
             lastCommand = command;
             return drawRoutingResult("create_new");
+        }
+    }
+
+    private static class OptionalEvidenceRoutingService implements IIntentRoutingService {
+        @Override
+        public IntentRoutingResult route(IntentRoutingCommand command) {
+            IntentRoutingResult result = drawRoutingResult("create_new");
+            result.setEvidenceNeed("OPTIONAL");
+            result.setTargetNeed("NONE");
+            result.setSourceUse("RETRIEVAL");
+            return result;
         }
     }
 

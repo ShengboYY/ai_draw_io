@@ -245,9 +245,8 @@ public final class DefaultEvidencePreparationModule implements EvidencePreparati
             List<String> fusedIds = rankedIds.stream().limit(40).toList();
             if (fusedIds.isEmpty()) {
                 // Missing evidence is meaningful only when at least one retrieval lane completed normally.
-                if (retrievalDependenciesUnavailable(diagnostics)) {
-                    return new PreparationOutcome.DegradedDependency(List.copyOf(diagnostics));
-                }
+                List<String> dependencyGaps = retrievalDependencyGaps(snapshotDiagnostics(diagnostics));
+                if (!dependencyGaps.isEmpty()) return new PreparationOutcome.DegradedDependency(dependencyGaps);
                 return insufficient(command, "NO_RETRIEVAL_MATCH");
             }
             List<AuthorizedCandidate> authorized = callWithinDeadline(
@@ -299,6 +298,9 @@ public final class DefaultEvidencePreparationModule implements EvidencePreparati
                     if (route == RetrievalRoute.VISUAL || route == RetrievalRoute.VISUAL_EXACT
                             || hybridRequiresVisual) {
                         resources.closeExactlyOnce(CloseReason.FAILED);
+                        if (isVisualDependencyGap(projection.gap())) {
+                            return new PreparationOutcome.DegradedDependency(List.of(projection.gap()));
+                        }
                         return insufficient(command, projection.gap());
                     }
                 }
@@ -313,6 +315,10 @@ public final class DefaultEvidencePreparationModule implements EvidencePreparati
             List<EvidenceBundleItem> items = combineEvidence(visualItems, hydrated);
             if (items.isEmpty()) {
                 resources.closeExactlyOnce(CloseReason.FAILED);
+                List<String> hydrationGaps = hydrationDependencyGaps(snapshotDiagnostics(diagnostics));
+                if (!hydrationGaps.isEmpty()) {
+                    return new PreparationOutcome.DegradedDependency(hydrationGaps);
+                }
                 return insufficient(command, "NO_DISPLAY_EVIDENCE");
             }
             EvidenceSufficiencyEvaluator.Result support = sufficiency.evaluate(command.userMessage(), route, items);
@@ -448,9 +454,8 @@ public final class DefaultEvidencePreparationModule implements EvidencePreparati
 
     private RetrievalRoute route(EvidencePreparationCommand command, AuthorizedSourceSet sources) {
         String value = command.userMessage().toLowerCase(Locale.ROOT);
-        if (contains(value, "颜色", "配色", "字体", "移动", "布局", "排版", "color", "font", "layout")) {
-            return RetrievalRoute.NONE;
-        }
+        // Non-factual work exits through evidenceNeed=NONE before routing; message keywords cannot
+        // safely exempt a mixed factual/style request from evidence preparation.
         if (command.declaredVersionIds().size() == 1 && contains(value, "这张图片", "这幅图", "this image")) {
             return RetrievalRoute.VISUAL_EXACT;
         }
@@ -540,12 +545,29 @@ public final class DefaultEvidencePreparationModule implements EvidencePreparati
         }
     }
 
-    private boolean retrievalDependenciesUnavailable(List<String> diagnostics) {
-        boolean lexicalUnavailable = diagnostics.stream().anyMatch(code ->
-                "LEXICAL_DEGRADED".equals(code) || "LEXICAL_TIMEOUT".equals(code));
-        boolean denseUnavailable = diagnostics.stream().anyMatch(code ->
-                code.startsWith("DENSE_"));
-        return lexicalUnavailable && denseUnavailable;
+    private List<String> snapshotDiagnostics(List<String> diagnostics) {
+        // Cancelled provider tasks may finish late, so snapshot the synchronized list before classifying.
+        synchronized (diagnostics) {
+            return List.copyOf(diagnostics);
+        }
+    }
+
+    private List<String> retrievalDependencyGaps(List<String> diagnostics) {
+        return diagnostics.stream()
+                .filter(code -> code.startsWith("LEXICAL_") || code.startsWith("DENSE_"))
+                .distinct().toList();
+    }
+
+    private boolean isVisualDependencyGap(String gap) {
+        return "VISUAL_PROVIDER_TIMEOUT".equals(gap)
+                || "VISUAL_PROVIDER_UNAVAILABLE".equals(gap);
+    }
+
+    private List<String> hydrationDependencyGaps(List<String> diagnostics) {
+        return diagnostics.stream()
+                .filter(code -> "S3_EVIDENCE_TIMEOUT".equals(code)
+                        || "S3_EVIDENCE_DEGRADED".equals(code))
+                .distinct().toList();
     }
 
     private List<ScoredChunk> fuse(List<CandidateRef> lexicalCandidates, List<CandidateRef> denseCandidates) {
