@@ -4,14 +4,17 @@ import org.zipp.ai.domain.material.model.valobj.CatalogOwner;
 
 import java.util.Objects;
 
-/** Exact authorized image target and run identity for one direct reconstruction. */
+/** Untrusted attachment declaration plus trusted request identity for one direct reconstruction. */
 public record DirectSourceCommand(CatalogOwner owner, String requestId, String runId,
-                                  VisualObservationTarget target, String question) {
+                                  String diagramId, String conversationId,
+                                  String attachmentUploadId, String question) {
     public DirectSourceCommand {
         owner = Objects.requireNonNull(owner, "owner");
         requestId = required(requestId, "requestId");
         runId = required(runId, "runId");
-        target = Objects.requireNonNull(target, "target");
+        diagramId = required(diagramId, "diagramId");
+        conversationId = required(conversationId, "conversationId");
+        attachmentUploadId = required(attachmentUploadId, "attachmentUploadId");
         question = required(question, "question");
         if (question.length() > 2_000) throw new IllegalArgumentException("question is too long");
     }

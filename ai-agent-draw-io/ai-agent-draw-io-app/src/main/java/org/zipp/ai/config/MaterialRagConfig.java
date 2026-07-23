@@ -115,6 +115,7 @@ public class MaterialRagConfig {
     }
 
     @Bean
+    @ConditionalOnMissingBean(RequestSourceResolutionService.class)
     public RequestSourceResolutionService requestSourceResolutionService(
             RequestSourceResolutionPort catalog,
             RequestSourceSnapshotStore snapshots) {
@@ -127,6 +128,7 @@ public class MaterialRagConfig {
     }
 
     @Bean
+    @ConditionalOnMissingBean(EvidenceReadLeaseCoordinator.class)
     public EvidenceReadLeaseCoordinator evidenceReadLeaseCoordinator(MaterialReadLeaseService leases) {
         return new MaterialEvidenceReadLeaseCoordinator(leases);
     }

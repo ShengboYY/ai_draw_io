@@ -14,7 +14,6 @@ import org.zipp.ai.domain.grounding.CanvasCommitModule;
 import org.zipp.ai.domain.grounding.EvidenceAccessContext;
 import org.zipp.ai.domain.grounding.port.GroundedCanvasCommitPort;
 import org.zipp.ai.domain.grounding.port.GroundedRunControlPort;
-import org.zipp.ai.domain.ingestion.model.valobj.StoredArtifact;
 import org.zipp.ai.domain.material.model.valobj.CatalogOwner;
 import org.zipp.ai.domain.retrieval.*;
 
@@ -53,11 +52,15 @@ class DirectImageConversionExecutionModuleTest {
     @Test
     void confirmationStopsBeforeAtomicCommit() {
         AtomicReference<GroundedCanvasCommitPort.CommitPlan> committed = new AtomicReference<>();
+        AtomicBoolean leaseClosed = new AtomicBoolean();
         DirectSourcePreparationModule confirmation =
-                (command, resources, progress, cancellation) ->
-                        java.util.concurrent.CompletableFuture.completedFuture(
-                                new DirectSourceOutcome.NeedsConfirmation(
-                                        List.of("UNRESOLVED_EDGE_DIRECTION:e1")));
+                (command, resources, progress, cancellation) -> {
+                    // The execution owner must release preparation resources on non-commit outcomes.
+                    resources.attach(() -> leaseClosed.set(true));
+                    return java.util.concurrent.CompletableFuture.completedFuture(
+                            new DirectSourceOutcome.NeedsConfirmation(
+                                    List.of("UNRESOLVED_EDGE_DIRECTION:e1")));
+                };
         DirectImageConversionExecutionModule module = new DefaultDirectImageConversionExecutionModule(
                 confirmation, commitModule(emptyCanvasStore(), committed), new TrackingRuns());
 
@@ -68,6 +71,7 @@ class DirectImageConversionExecutionModuleTest {
                 assertInstanceOf(DirectImageConversionOutcome.NeedsConfirmation.class,
                         outcome).reasons());
         assertNull(committed.get());
+        assertTrue(leaseClosed.get());
     }
 
     @Test
@@ -187,11 +191,7 @@ class DirectImageConversionExecutionModuleTest {
     private DirectImageConversionCommand command() {
         DirectSourceCommand source = new DirectSourceCommand(
                 new CatalogOwner(OwnerType.USER, "alice"), "request-1", "run-1",
-                new VisualObservationTarget("evidence-image", "material-1", "version-1",
-                        "revision-1", 1, "uploaded diagram",
-                        new StoredArtifact("visual/source.png", "object-version-1",
-                                "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-                                4, "image/png")),
+                "diagram-1", "conversation-1", "upload-1",
                 "Reconstruct the uploaded diagram");
         return new DirectImageConversionCommand(source, "alice", "diagram-1", "",
                 DiagramType.FLOWCHART, null, null);
