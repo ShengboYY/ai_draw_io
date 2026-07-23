@@ -143,7 +143,7 @@ class DirectSourcePreparationModuleTest {
     private DirectSourceCommand command() {
         return new DirectSourceCommand(new CatalogOwner(OwnerType.USER, "alice"),
                 "request-1", "run-1", "diagram-1", "conversation-1", "upload-1",
-                "Reconstruct the uploaded diagram");
+                SourceMode.EXPLICIT_ONLY, "Reconstruct the uploaded diagram");
     }
 
     private DirectSourcePreparationModule module(VisualObservationModule observations,

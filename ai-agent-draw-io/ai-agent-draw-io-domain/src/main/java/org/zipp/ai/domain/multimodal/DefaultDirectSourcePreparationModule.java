@@ -131,7 +131,7 @@ public final class DefaultDirectSourcePreparationModule implements DirectSourceP
         try {
             resolved = sourceResolution.resolve(new RequestSourceResolutionCommand(
                     command.owner(), command.diagramId(), command.conversationId(), command.runId(),
-                    SourceMode.EXPLICIT_ONLY, List.of(command.attachmentUploadId()), List.of()));
+                    command.sourceMode(), List.of(command.attachmentUploadId()), List.of()));
         } catch (RuntimeException failure) {
             return SourceResolutionResult.failed(
                     new DirectSourceOutcome.Unavailable("DIRECT_SOURCE_RESOLUTION_UNAVAILABLE"));

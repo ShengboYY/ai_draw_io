@@ -40,6 +40,15 @@ import org.zipp.ai.domain.agent.service.usage.AgentUsageTelemetryService;
 import org.zipp.ai.domain.agent.service.visualreview.CanvasVisualReviewPolicy;
 import org.zipp.ai.domain.agent.service.visualreview.ICanvasVisualReviewer;
 import org.zipp.ai.domain.material.model.valobj.CatalogOwner;
+import org.zipp.ai.domain.multimodal.CanvasAction;
+import org.zipp.ai.domain.multimodal.DirectImageConversionCommand;
+import org.zipp.ai.domain.multimodal.DirectImageConversionExecutionModule;
+import org.zipp.ai.domain.multimodal.DirectImageConversionOutcome;
+import org.zipp.ai.domain.multimodal.DirectSourceCommand;
+import org.zipp.ai.domain.multimodal.SourceUse;
+import org.zipp.ai.domain.multimodal.TaskSourcePlan;
+import org.zipp.ai.domain.multimodal.TaskSourcePlanner;
+import org.zipp.ai.domain.multimodal.TaskSourcePlanningCommand;
 import org.zipp.ai.domain.citation.answer.EvidenceAnswerCommand;
 import org.zipp.ai.domain.citation.answer.EvidenceAnswerResult;
 import org.zipp.ai.domain.citation.answer.EvidenceAnswerService;
@@ -155,6 +164,12 @@ public class AgentConversationService {
     private EvidenceAnswerService evidenceAnswerService;
 
     @Autowired(required = false)
+    private TaskSourcePlanner taskSourcePlanner;
+
+    @Autowired(required = false)
+    private DirectImageConversionExecutionModule directImageConversionExecutionModule;
+
+    @Autowired(required = false)
     private IDiagramConversationStore diagramConversationStore;
 
     @Value("${app.material-rag.enabled:false}")
@@ -200,13 +215,22 @@ public class AgentConversationService {
             CustomApiConfigManager.setConfig(sessionId, config);
             requestDTO = requestWithStoredCanvas(requestDTO);
             final ChatRequestDTO currentRequest = requestDTO;
-            ResolvedSourceSet sourceSnapshot = materialRagEnabled
+            ResolvedSourceSet sourceSnapshot = shouldResolveRequestSources(currentRequest)
                     ? resolveRequestSources(currentRequest) : null;
             RequestProbe requestProbe = probeRequest(currentRequest, sourceSnapshot);
             IntentRoutingResult routingResult = recordCapturedStep(
                     "routing", requestStepInput(currentRequest), AgentConversationService::routingStepOutput,
                     () -> routeIntent(currentRequest, config, requestProbe));
             recordRoutingDecision(runScope, routingResult);
+            DirectImageConversionOutcome directOutcome =
+                    executeDirectImageConversion(currentRequest, routingResult, sourceSnapshot,
+                            EvidenceProgressListener.NOOP, CancellationSignal.NEVER);
+            if (directOutcome != null) {
+                ChatResponseDTO responseDTO = directConversionResponse(directOutcome);
+                attachCorrelation(responseDTO, runScope);
+                captureRunOutput(runScope, responseDTO, currentRequest.getDiagramId());
+                return responseDTO;
+            }
             if (routingResult.isEvidenceAnswer() && shouldPrepareEvidence(currentRequest, routingResult)
                     && groundedRunControlPort != null) {
                 GroundedRunControlPort.RunIdentity identity = new GroundedRunControlPort.RunIdentity(
@@ -404,7 +428,7 @@ public class AgentConversationService {
 
             requestDTO = requestWithStoredCanvas(requestDTO);
             final ChatRequestDTO currentRequest = requestDTO;
-            ResolvedSourceSet sourceSnapshot = materialRagEnabled
+            ResolvedSourceSet sourceSnapshot = shouldResolveRequestSources(currentRequest)
                     ? resolveRequestSources(currentRequest) : null;
             RequestProbe requestProbe = probeRequest(currentRequest, sourceSnapshot);
             IntentRoutingResult routingResult = forcedRoutingResult == null
@@ -417,6 +441,27 @@ public class AgentConversationService {
             streamResponseWriter.sendRoute(emitter, routingResult.getRouteType(),
                     routingResult.getDiagramType(), routingResult.getSkillName());
             if (forcedRoutingResult == null) {
+                DirectImageConversionOutcome directOutcome =
+                        executeDirectImageConversion(currentRequest, routingResult, sourceSnapshot,
+                                (stage, completed, total) -> {
+                                    try {
+                                        streamResponseWriter.sendEvidenceProgress(
+                                                emitter, stage, completed, total);
+                                    } catch (Exception error) {
+                                        evidenceCancelled.set(true);
+                                    }
+                                }, evidenceCancelled::get);
+                if (directOutcome != null) {
+                    try {
+                        sendDirectConversionOutcome(emitter, directOutcome);
+                        captureRunOutput(runScope, directConversionResponse(directOutcome),
+                                currentRequest.getDiagramId());
+                        completeStreamTelemetry(streamTelemetryCompleted, null, runScope, null);
+                    } finally {
+                        clearSessionConfig(finalSessionId, runScope.getContext().runId());
+                    }
+                    return;
+                }
                 if ((routingResult.isDrawAction() || routingResult.isEvidenceAnswer())
                         && shouldPrepareEvidence(currentRequest, routingResult)
                         && groundedRunControlPort != null) {
@@ -1201,8 +1246,10 @@ public class AgentConversationService {
 
     private RequestProbe probeRequest(ChatRequestDTO requestDTO, ResolvedSourceSet sourceSnapshot) {
         SourceMode mode = sourceMode(requestDTO == null ? null : requestDTO.getSourceMode());
+        SourceProbe sourceProbe = sourceSnapshot == null
+                ? SourceProbe.empty(mode) : sourceSnapshot.toProbe();
         if (requestDTO == null) {
-            return new RequestProbe(SourceProbe.empty(mode), new CanvasProbe(false, 0, 0,
+            return new RequestProbe(sourceProbe, new CanvasProbe(false, 0, 0,
                     null, "", 0, List.of(), false, false));
         }
         if (materialRagEnabled && requestProbeService != null) {
@@ -1221,17 +1268,17 @@ public class AgentConversationService {
         }
         // Legacy drawing still uses server state, but only the content-free existence bit reaches the router.
         if (canvasStateStore == null) {
-            return new RequestProbe(SourceProbe.empty(mode), CanvasProbe.unavailableProbe());
+            return new RequestProbe(sourceProbe, CanvasProbe.unavailableProbe());
         }
         if (StringUtils.isBlank(requestDTO.getDiagramId())) {
-            return new RequestProbe(SourceProbe.empty(mode), CanvasProbe.unavailableProbe());
+            return new RequestProbe(sourceProbe, CanvasProbe.unavailableProbe());
         }
         return canvasStateStore.find(requestDTO.getUserId(), requestDTO.getDiagramId())
-                .map(state -> new RequestProbe(SourceProbe.empty(mode),
+                .map(state -> new RequestProbe(sourceProbe,
                         new CanvasProbe(hasDrawableCell(state.getCurrentXml()),
                                 hasDrawableCell(state.getCurrentXml()) ? 1 : 0, 0, state.getVersion(),
                                 StringUtils.defaultString(state.getContentHash()), 0, List.of(), false, false)))
-                .orElseGet(() -> new RequestProbe(SourceProbe.empty(mode), CanvasProbe.unavailableProbe()));
+                .orElseGet(() -> new RequestProbe(sourceProbe, CanvasProbe.unavailableProbe()));
     }
 
     private IntentRoutingProbe intentProbe(RequestProbe requestProbe) {
@@ -1366,6 +1413,124 @@ public class AgentConversationService {
                     SecretLogSanitizer.maskCapability(requestDTO.getDiagramId()), exception);
             return ResolvedSourceSet.failed(mode);
         }
+    }
+
+    private boolean shouldResolveRequestSources(ChatRequestDTO requestDTO) {
+        return materialRagEnabled || (directImageConversionExecutionModule != null
+                && requestDTO != null && !safeList(requestDTO.getAttachmentUploadIds()).isEmpty());
+    }
+
+    private DirectImageConversionOutcome executeDirectImageConversion(
+            ChatRequestDTO request, IntentRoutingResult routing, ResolvedSourceSet sources,
+            EvidenceProgressListener progress, CancellationSignal cancellation) {
+        TaskSourcePlan plan = directSourcePlan(request, routing, sources);
+        if (plan == null || plan.sourceUse() != SourceUse.DIRECT
+                || plan.directAttachmentVersionIds().size() != 1) {
+            return null;
+        }
+        String requestId = StringUtils.defaultIfBlank(request.getRequestId(), request.getRunId());
+        DirectSourceCommand source = new DirectSourceCommand(
+                owner(request), requestId, request.getRunId(), request.getDiagramId(),
+                request.getSessionId(), safeList(request.getAttachmentUploadIds()).get(0),
+                sourceMode(request.getSourceMode()), request.getMessage());
+        DirectImageConversionCommand command = new DirectImageConversionCommand(
+                source, request.getUserId(), request.getDiagramId(),
+                contextBuilder().resolveCanvasXml(request),
+                org.zipp.ai.domain.agent.model.valobj.analysis.DiagramType.from(routing.getDiagramType()),
+                request.getExpectedVersion(), request.getExpectedContentHash());
+        return directImageConversionExecutionModule.execute(command, progress, cancellation)
+                .toCompletableFuture().join();
+    }
+
+    private TaskSourcePlan directSourcePlan(ChatRequestDTO request, IntentRoutingResult routing,
+                                            ResolvedSourceSet sources) {
+        if (directImageConversionExecutionModule == null || taskSourcePlanner == null
+                || request == null || routing == null || sources == null
+                || sources.resolutionFailed()
+                || safeList(request.getAttachmentUploadIds()).size() != 1) {
+            return null;
+        }
+        List<ResolvedSource> readyImages = sources.sources().stream()
+                .filter(source -> source.origin() == RequestSourceOrigin.ATTACHMENT)
+                .filter(source -> "READY".equals(source.state()) && "IMAGE".equals(source.kind()))
+                .filter(ResolvedSource::hasVisual)
+                .toList();
+        return taskSourcePlanner.plan(new TaskSourcePlanningCommand(
+                canvasAction(routing), sourceUse(routing.getSourceUse()),
+                sourceMode(request.getSourceMode()),
+                readyImages.stream().map(ResolvedSource::versionId).toList(),
+                safeList(request.getSelectedVersionIds()),
+                sources.processingSourceCount(), readyImages.size() == 1));
+    }
+
+    private CanvasAction canvasAction(IntentRoutingResult routing) {
+        return switch (StringUtils.defaultString(routing.getRouteType())) {
+            case "create_new" -> CanvasAction.CREATE;
+            case "edit_existing" -> CanvasAction.EDIT;
+            case "optimize_layout" -> CanvasAction.OPTIMIZE_LAYOUT;
+            case "answer_with_evidence", "answer_only" -> CanvasAction.ANSWER;
+            default -> CanvasAction.REVIEW;
+        };
+    }
+
+    private SourceUse sourceUse(String value) {
+        if (StringUtils.isBlank(value)) return SourceUse.NONE;
+        try {
+            return SourceUse.valueOf(value.trim().toUpperCase(java.util.Locale.ROOT));
+        } catch (IllegalArgumentException invalid) {
+            return SourceUse.NONE;
+        }
+    }
+
+    private ChatResponseDTO directConversionResponse(DirectImageConversionOutcome outcome) {
+        if (outcome instanceof DirectImageConversionOutcome.Committed committed) {
+            ChatResponseDTO response = evidenceResponse("drawio", committed.canvasXml());
+            CanvasState saved = committed.saveResult().getState();
+            if (saved != null) {
+                response.setCanvasVersion(saved.getVersion());
+                response.setContentHash(saved.getContentHash());
+            }
+            return response;
+        }
+        if (outcome instanceof DirectImageConversionOutcome.NeedsConfirmation confirmation) {
+            return evidenceResponse("direct_confirmation_required",
+                    "图片中有结构需要确认，画布未被修改。 / Please confirm ambiguous image structure before conversion."
+                            + directReasons(confirmation.reasons()));
+        }
+        if (outcome instanceof DirectImageConversionOutcome.Rejected rejected) {
+            return evidenceResponse("direct_conversion_rejected",
+                    "该附件无法安全转换为画布。 / The attachment could not be safely converted."
+                            + directReasons(rejected.reasons()));
+        }
+        if (outcome instanceof DirectImageConversionOutcome.Cancelled) {
+            return evidenceResponse("cancelled", "请求已取消。 / Request cancelled.");
+        }
+        DirectImageConversionOutcome.Unavailable unavailable =
+                (DirectImageConversionOutcome.Unavailable) outcome;
+        return evidenceResponse("direct_conversion_unavailable",
+                "图片转换服务当前不可用，请稍后重试。 / Image conversion is currently unavailable."
+                        + directReasons(List.of(unavailable.reason())));
+    }
+
+    private String directReasons(List<String> reasons) {
+        List<String> safe = reasons == null ? List.of() : reasons.stream()
+                .filter(StringUtils::isNotBlank).limit(5).toList();
+        return safe.isEmpty() ? "" : " [" + String.join(", ", safe) + "]";
+    }
+
+    private void sendDirectConversionOutcome(ResponseBodyEmitter emitter,
+                                             DirectImageConversionOutcome outcome) throws Exception {
+        if (outcome instanceof DirectImageConversionOutcome.Committed committed) {
+            streamResponseWriter.sendPersistedDrawioDone(
+                    emitter, "drawing", committed.canvasXml(), committed.saveResult());
+            streamResponseWriter.sendDone(emitter);
+            emitter.complete();
+            return;
+        }
+        ChatResponseDTO response = directConversionResponse(outcome);
+        String streamEvent = outcome instanceof DirectImageConversionOutcome.Rejected
+                ? "grounding_rejected" : "degraded";
+        streamResponseWriter.sendEvidenceOutcome(emitter, streamEvent, response.getContent());
     }
 
     private boolean isStrictEvidenceRequest(ChatRequestDTO requestDTO, IntentRoutingResult routing) {

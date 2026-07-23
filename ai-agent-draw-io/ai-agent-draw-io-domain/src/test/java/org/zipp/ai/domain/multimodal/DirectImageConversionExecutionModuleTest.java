@@ -192,7 +192,7 @@ class DirectImageConversionExecutionModuleTest {
         DirectSourceCommand source = new DirectSourceCommand(
                 new CatalogOwner(OwnerType.USER, "alice"), "request-1", "run-1",
                 "diagram-1", "conversation-1", "upload-1",
-                "Reconstruct the uploaded diagram");
+                SourceMode.EXPLICIT_ONLY, "Reconstruct the uploaded diagram");
         return new DirectImageConversionCommand(source, "alice", "diagram-1", "",
                 DiagramType.FLOWCHART, null, null);
     }

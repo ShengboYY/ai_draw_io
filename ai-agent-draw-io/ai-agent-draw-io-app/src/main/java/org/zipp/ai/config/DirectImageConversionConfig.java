@@ -34,6 +34,11 @@ public class DirectImageConversionConfig {
     }
 
     @Bean
+    public TaskSourcePlanner taskSourcePlanner() {
+        return new DefaultTaskSourcePlanner();
+    }
+
+    @Bean
     public DirectSourcePreparationModule directSourcePreparationModule(
             VisualObservationModule observations, ImageToDiagramModule converter,
             RequestSourceResolutionService sourceResolution,

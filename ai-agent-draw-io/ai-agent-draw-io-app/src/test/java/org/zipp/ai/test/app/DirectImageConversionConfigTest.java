@@ -9,6 +9,7 @@ import org.zipp.ai.domain.agent.service.IChatService;
 import org.zipp.ai.domain.grounding.CanvasCommitModule;
 import org.zipp.ai.domain.grounding.port.GroundedRunControlPort;
 import org.zipp.ai.domain.multimodal.DirectImageConversionExecutionModule;
+import org.zipp.ai.domain.multimodal.TaskSourcePlanner;
 import org.zipp.ai.domain.multimodal.VisualObservationModule;
 import org.zipp.ai.domain.material.port.MaterialPageAccessPort;
 import org.zipp.ai.domain.material.service.MaterialReadLeaseService;
@@ -47,6 +48,7 @@ class DirectImageConversionConfigTest {
                 .run(context -> {
                     context.assertThat().hasNotFailed();
                     context.assertThat().hasSingleBean(DirectImageConversionExecutionModule.class);
+                    context.assertThat().hasSingleBean(TaskSourcePlanner.class);
                     context.assertThat().hasSingleBean(RequestSourceResolutionService.class);
                     context.assertThat().hasSingleBean(EvidenceReadLeaseCoordinator.class);
                 });

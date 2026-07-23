@@ -449,6 +449,20 @@ public class DrawioStreamResponseWriter {
         sendDrawioDone(emitter, phase, xml, true, null);
     }
 
+    /** Emits a canvas already committed by an application module without running mutation gates twice. */
+    public void sendPersistedDrawioDone(ResponseBodyEmitter emitter, String phase, String xml,
+                                        CanvasStateSaveResult saveResult) throws Exception {
+        com.alibaba.fastjson.JSONObject wrapper = new com.alibaba.fastjson.JSONObject();
+        wrapper.put("phase", StringUtils.defaultIfBlank(phase, "drawing"));
+        com.alibaba.fastjson.JSONObject chunk = new com.alibaba.fastjson.JSONObject();
+        chunk.put("type", "drawio_done");
+        chunk.put("content", StringUtils.defaultString(xml));
+        chunk.put("mode", "full");
+        appendCanvasStateMetadata(chunk, saveResult, canvasStateContextByEmitter.get(emitter));
+        wrapper.put("chunk", chunk);
+        emitter.send(wrapper.toJSONString() + "\n");
+    }
+
     public void sendDrawioStream(ResponseBodyEmitter emitter, String phase, String xml) throws Exception {
         com.alibaba.fastjson.JSONObject toolCall = new com.alibaba.fastjson.JSONObject();
         toolCall.put("type", DrawioCanvasToolNames.CREATE_DIAGRAM);
