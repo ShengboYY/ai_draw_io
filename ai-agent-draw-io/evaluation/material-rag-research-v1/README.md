@@ -299,6 +299,13 @@ anchor IDs are never shown to the model. The paired readiness gate requires comp
 A missing control item is measured as the baseline outcome rather than making the experiment impossible, while
 a missing candidate item blocks model calls.
 
+For declared multimodal tasks, the active Development candidate selector reserves the highest-ranked three
+distinct image artifacts from the frozen top-40 and fills the remaining slots with the source-aware selector.
+Artifact identity uses only publisher path/SHA metadata; it never reads evaluator anchors or answers. The
+controlled short-document hydration profile covers every locally detected visual page within a 12-page,
+three-regions-per-page ceiling. The raw top-8 control remains unchanged and may fail visually as a measured
+baseline, but candidate artifact and required-evidence readiness are mandatory before model calls.
+
 Generated-corpus retrieval defaults to `development`. Set `MATERIAL_RAG_RESEARCH_SPLIT` explicitly
 to `validation` for checkpointing. Use `holdout` only after the manifest status has been independently
 frozen; do not tune against either split. This legacy split still does not replace the external final holdout.

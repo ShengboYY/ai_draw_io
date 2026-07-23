@@ -685,3 +685,21 @@
   lock 明确记录 `independentHumanReview=not_claimed`；后续报告必须保持该措辞。
 - **决策**:450/450 自动合同审计与 owner sample gate 均满足；允许冻结新的 corpus-lock 并进入
   v3 Development hydration。Validation、模型调用与 final holdout 仍未打开。
+
+### R13 trace / R14 visual-coverage preregistration · 2026-07-23 · ⏸ 修复后重跑
+
+- **固定输入**:R13 trace 来自 clean commit `5c24c10a13d4f41a584c96e270022eba45f6f88f`，
+  split=`development`、canonical=`e1-v5`、chunk=`flat-leaf-v1`、真实 Tesseract 与生产一致 tokenizer。
+- **真实管线**:19 个检索任务、186 chunks、embedding token p50=105/p95=338/max=380；第 20 个
+  `sourceScopeMode=none` 任务按合同不检索。Pinecone 临时 namespace 的本次向量已由 runner 明确删除。
+- **首次 gate**:`dgt-dev-10` 所需 planning scan page 5 artifact 位于 raw rank 19，未进入旧 candidate top-8；
+  因此 exporter 在 prompt/model 前退出。
+- **第二层原因**:加入不读 gold 的 distinct-artifact reservation 诊断后，`dgt-dev-12` 仍失败。其 datacenter
+  page 3 visual artifact 根本未进入 top-40；原 visual policy 对 7 页资料按 15% 只选择 2 页。
+- **R14 预注册变量**:controlled chartbook 在 12 页硬上限内覆盖全部本地检测视觉页；multimodal candidate
+  top-8 保留 top-3 distinct image artifacts；control 缺 artifact 作为 baseline 测量，candidate 继续 fail-closed。
+  两项选择都不读取 task answer、required anchor、XML assertion 或 Validation。
+- **外部使用**:1 次 Pinecone Development trace，临时向量已清理；0 次模型请求、0 model token、
+  0 Validation/holdout case。
+- **下一步**:更新 corpus lock 并提交新的 clean commit，从该 commit 重跑 Development trace；旧 R13 trace
+  保留为诊断证据，不用于正式 generation。

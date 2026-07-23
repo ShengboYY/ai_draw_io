@@ -458,6 +458,32 @@ architecture page-3 text/VISUAL rank 为 22/24，R9 为
 本修订取代 R12 的 active 双人完整审阅阻塞项；R12 仍保留为更严格的可选替代路径。下一步为从新的干净
 frozen commit 运行 v3 Development hydration，仍不得提前读取或调参 Validation。
 
+## 2026-07-23 R14 预注册：source-independent visual coverage
+
+R13 的首个正式 Development trace 来自 commit `5c24c10a`。真实 PDF/OCR/Pinecone 路径完成 19 个检索任务、
+186 个 chunks 并在 `finally` 删除临时向量，但输入 gate 在模型调用前发现两个选择缺口：
+
+- `dgt-dev-10` 的正确 planning scan page 5 artifact 已在 top-40，但位于 rank 19；原
+  `source-aware-top8-v1` 没有为必须看图的任务保留多个不同视觉页。
+- 修复该选择缺口后的诊断探针继续在 `dgt-dev-12` 失败；datacenter page 3 的 canonical visual identity
+  未出现在 top-40，因为 7 页资料按 15% page fraction 只选了 2 个视觉页。
+
+这是 Development 调参，未读取 Validation，且两次 gate 都发生在 prompt/model 前。R14 只改变一个变量族：
+视觉 artifact 的 source-independent availability。
+
+1. controlled chartbook 的 visual hydration 仍受 12-page 和每页 3-region 上限约束，但在这些短文档中覆盖所有
+   本地检测出的视觉候选页；选择过程不读取 task、required anchor、XML assertion 或 expected answer。
+2. 对 fixture 明确声明为 multimodal 的任务，candidate top-8 从冻结 top-40 中保留排名最高的 3 个不同图像
+   artifact，再以原 source-aware selector 填满；图像去重只使用 publisher artifact path/SHA，不使用 gold。
+3. control 保持 raw top-8，缺 artifact 作为 baseline 失败测量；candidate 仍必须含匹配资料的 artifact，并通过
+   required canonical evidence readiness。
+4. 代码、计划、测试和 corpus lock 提交后，必须从新 commit 重新跑 Development hydration；旧 R13 trace 只作
+   诊断，不得直接作为正式模型输入。
+
+晋级条件保持不变：20 个任务精确覆盖、retrieval provenance/source scope/artifact hash 全部有效、19 个检索任务
+top-40 完整、candidate required evidence 全部可见、paired context change rate 至少 20%。任一失败都不调用模型；
+Validation 继续关闭。
+
 E6b 的本地导出合同已冻结为 `fixtures/drawio-generation-paired-hydration-contract-v1.json` 与
 `analysis/export_drawio_paired_hydration.py`。active Development 图册明确挂载 architecture、workflow handbook
 与 planning-workshop scan 三个版本；导出器从同一 retrieval trace 的 raw top-8 和 source-aware top-8 产生一任务

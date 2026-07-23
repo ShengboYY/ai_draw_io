@@ -470,6 +470,14 @@ class ControlledPdfDenseRecallLiveTest {
      * output path, so a text-only baseline can never be mistaken for multimodal hydration.
      */
     @Test
+    void shouldUseSourceIndependentVisualCoverageForDrawioHydration() {
+        String fingerprint = drawioHydrationVisualSelectionPolicy().fingerprint();
+
+        assertTrue(fingerprint.contains("max-pages=12"));
+        assertTrue(fingerprint.contains("page-fraction=1.0"));
+    }
+
+    @Test
     void shouldExportDrawioDevelopmentTaskHydrationFromTheRealMultimodalPipeline() throws Exception {
         String apiKey = System.getenv("PINECONE_API_KEY");
         String indexHost = System.getenv("PINECONE_INDEX_HOST");
@@ -1001,7 +1009,7 @@ class ControlledPdfDenseRecallLiveTest {
         List<CanonicalPage> nativePages = parsed.pages().stream()
                 .map(page -> canonicalAssembler().assemble(page.extraction())).toList();
         var nativeStructure = new DocumentStructureBuilder().build(nativePages);
-        VisualCandidateSelectionPolicy selectionPolicy = new VisualCandidateSelectionPolicy(12, 0.15, 3);
+        VisualCandidateSelectionPolicy selectionPolicy = drawioHydrationVisualSelectionPolicy();
         var selection = selectionPolicy.select(nativeStructure, parsed.pageCount());
         Set<Integer> selectedVisualPages = selection.selectedCandidates().stream()
                 .map(candidate -> candidate.pageNo()).collect(java.util.stream.Collectors.toSet());
@@ -1046,6 +1054,11 @@ class ControlledPdfDenseRecallLiveTest {
         EvidenceManifest evidence = new EvidenceUnitBuilder().build("revision-" + source,
                 source + ":" + version, structure, sources, visuals);
         return new RetrievalChunkBuilder(RESEARCH_COUNTER).build(evidence);
+    }
+
+    private VisualCandidateSelectionPolicy drawioHydrationVisualSelectionPolicy() {
+        // Controlled chartbooks are at most 12 pages; cover every detected visual page without task/gold routing.
+        return new VisualCandidateSelectionPolicy(12, 1.0, 3);
     }
 
     /** Uses the worker's OCR boundary before canonicalisation; no fixture answer text is injected. */

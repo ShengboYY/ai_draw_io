@@ -27,6 +27,27 @@ def candidate(chunk_id: str, source: str, anchor: str, rank: int) -> dict:
 
 
 class PairedHydrationExportTest(unittest.TestCase):
+    def test_artifact_selector_reserves_top_distinct_images_without_using_gold(self):
+        candidates = [
+            candidate(f"a{rank}", f"source-{rank}:v1", f"anchor-{rank}", rank)
+            for rank in range(1, 9)
+        ]
+        candidates.extend([
+            candidate("a9", "source-1:v1", "anchor-9", 9),
+            candidate("a10", "source-1:v1", "anchor-10", 10),
+        ])
+        for index, image_candidate in enumerate(
+                (candidates[1], candidates[5], candidates[8], candidates[9]), start=1):
+            image_candidate["evidence"][0].update({
+                "imagePath": f"image-{index if index < 4 else 3}.png",
+                "imageSha256": f"hash-{index if index < 4 else 3}",
+            })
+
+        selected = MODULE.select_with_artifact_coverage(candidates, 8)
+
+        # The third distinct visual page is rank 9; the rank-10 duplicate must not consume a slot.
+        self.assertEqual([1, 2, 3, 4, 5, 6, 7, 9], [item["rank"] for item in selected])
+
     def test_source_scope_distinguishes_selected_material_from_automatic_chartbook(self):
         selected = {
             "taskId": "selected",
@@ -212,6 +233,31 @@ class PairedHydrationExportTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "missing required visual/OCR artifact"):
             MODULE.export(trace, [task("a", "one:v1", "anchor-a")], "development", 1, 0.0,
                               Path.cwd(), candidate_pool_size=1, artifact_task_ids={"a"})
+
+    def test_allows_control_to_miss_artifact_when_candidate_has_it(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            (root / "visual.png").write_bytes(b"visual")
+            candidates = [
+                candidate("a1", "one:v1", "anchor-a", 1),
+                candidate("a2", "one:v1", "anchor-a", 2),
+                candidate("a3", "one:v1", "anchor-a", 3),
+            ]
+            candidates[2]["evidence"][0].update({
+                "imagePath": "visual.png",
+                "imageSha256": MODULE.sha256(root / "visual.png"),
+            })
+            trace = {"schemaVersion": "material-rag-drawio-task-hydration-candidates-v1",
+                     "retrievalRun": {"runId": "r", "gitCommit": "c", "corpusLockSha256": "l"},
+                     "tasks": [{"taskId": "a", "candidates": candidates}]}
+
+            result = MODULE.export(
+                trace, [task("a", "one:v1", "anchor-a")], "development", 2, 0.2, root,
+                candidate_pool_size=3, artifact_task_ids={"a"},
+            )
+
+            self.assertFalse(any("imagePath" in item for item in result["contexts"][0]["evidence"]))
+            self.assertTrue(any("imagePath" in item for item in result["contexts"][1]["evidence"]))
 
     def test_exports_an_explicit_no_retrieval_task_without_fabricated_candidates(self):
         trace = {"schemaVersion": "material-rag-drawio-task-hydration-candidates-v1",

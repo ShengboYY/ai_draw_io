@@ -45,6 +45,41 @@ def allowed_sources(task: dict, chartbook_sources: set[str]) -> set[str]:
     return set(task.get("allowedSourceVersions", [task["sourceVersion"]])) | chartbook_sources
 
 
+def select_with_artifact_coverage(candidates: list[dict], limit: int,
+                                  reserved_artifact_pages: int = 3) -> list[dict]:
+    """Reserve distinct high-ranked visual pages without consulting evaluator gold."""
+    selected = select(candidates, limit)
+    artifact_candidates, seen_artifacts = [], set()
+    for candidate in candidates:
+        artifact_keys = {
+            (item.get("imagePath"), item.get("imageSha256"))
+            for item in candidate.get("evidence", [])
+            if item.get("imagePath") and item.get("imageSha256")
+        }
+        unseen = artifact_keys - seen_artifacts
+        if not unseen:
+            continue
+        artifact_candidates.append(candidate)
+        seen_artifacts.update(unseen)
+        if len(artifact_candidates) == min(reserved_artifact_pages, limit):
+            break
+
+    # Replace only non-reserved tail entries, then restore the frozen retrieval order.
+    reserved_ids = {item["chunkId"] for item in artifact_candidates}
+    selected_ids = {item["chunkId"] for item in selected}
+    for artifact in artifact_candidates:
+        if artifact["chunkId"] in selected_ids:
+            continue
+        replacement = next(
+            index for index in range(len(selected) - 1, -1, -1)
+            if selected[index]["chunkId"] not in reserved_ids
+        )
+        selected_ids.remove(selected[replacement]["chunkId"])
+        selected[replacement] = artifact
+        selected_ids.add(artifact["chunkId"])
+    return sorted(selected, key=lambda item: item["rank"])
+
+
 def evidence_for_context(candidates: list[dict], task: dict, artifact_root: Path,
                          chartbook_sources: set[str], anchors: dict[str, dict] | None,
                          requires_artifact: bool) -> list[dict]:
@@ -180,14 +215,20 @@ def export(trace: dict, tasks: list[dict], split: str, limit: int,
             raise ValueError(f"out-of-scope candidate for {task['taskId']}")
         scoped_candidates = candidates
         control = scoped_candidates[:limit]
-        candidate = select(scoped_candidates, limit)
+        candidate = (
+            select_with_artifact_coverage(scoped_candidates, limit)
+            if task["taskId"] in artifact_task_ids
+            else select(scoped_candidates, limit)
+        )
         control_ids = [item["chunkId"] for item in control]
         candidate_ids = [item["chunkId"] for item in candidate]
         contexts.extend((
             {"taskId": task["taskId"], "arm": "control",
              "allowedSourceVersions": sorted(allowed_sources(task, chartbook_sources)),
-             "evidence": evidence_for_context(control, task, artifact_root, chartbook_sources, anchors,
-                                              task["taskId"] in artifact_task_ids)},
+             # Missing control artifacts remain a measurable baseline failure.
+             "evidence": evidence_for_context(
+                 control, task, artifact_root, chartbook_sources, anchors, False
+             )},
             {"taskId": task["taskId"], "arm": "candidate",
              "allowedSourceVersions": sorted(allowed_sources(task, chartbook_sources)),
              "evidence": evidence_for_context(candidate, task, artifact_root, chartbook_sources, anchors,
@@ -208,7 +249,13 @@ def export(trace: dict, tasks: list[dict], split: str, limit: int,
     changed_rate = changed / len(retrieval_required) if retrieval_required else 0.0
     result = {
         "schemaVersion": "material-rag-drawio-paired-hydration-v1", "split": split,
-        "selector": "source-aware-top8-v1", "candidatePoolSize": candidate_pool_size,
+        "selector": "source-aware-with-artifact-coverage-top8-v1",
+        "artifactCoveragePolicy": {
+            "appliesToDeclaredMultimodalTasksOnly": True,
+            "reservedDistinctArtifactPages": 3,
+            "usesEvaluatorGold": False,
+        },
+        "candidatePoolSize": candidate_pool_size,
         "limit": limit, "taskCount": len(active), "retrievalRequiredTaskCount": len(retrieval_required),
         "changedTaskCount": changed, "changedTaskRate": changed_rate,
         "minimumChangeRate": minimum_change_rate,
