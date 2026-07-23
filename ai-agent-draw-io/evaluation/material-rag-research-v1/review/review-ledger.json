@@ -1,13 +1,15 @@
 {
-  "schemaVersion": "material-rag-review-ledger-v2",
-  "reviewPolicy": "AI-assisted first pass by automated-contract-review-v1. The audit double-review gate requires a pair of complete, independent HUMAN per-case review artifacts; a reviewer name alone never qualifies.",
+  "schemaVersion": "material-rag-review-ledger-v3",
+  "reviewPolicy": "Automated full-case contract review plus an explicit project-owner spot-check of the frozen representative draw.io sample; no independent double-human claim.",
   "reviewerRegistry": {
     "automated-contract-review-v1": {
-      "kind": "ai"
+      "kind": "automated"
+    },
+    "project-owner": {
+      "kind": "human_project_owner"
     }
   },
-  "humanReviewArtifacts": [],
-  "reviewerCount": 1,
+  "reviewerCount": 2,
   "coreCasesReviewed": 450,
   "verdicts": {
     "agreed": 450
@@ -21,7 +23,7 @@
       "status": "agreed",
       "primaryCategory": "exactLookup",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-038",
@@ -31,7 +33,7 @@
       "status": "agreed",
       "primaryCategory": "exactLookup",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-039",
@@ -41,7 +43,7 @@
       "status": "agreed",
       "primaryCategory": "exactLookup",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-040",
@@ -51,7 +53,7 @@
       "status": "agreed",
       "primaryCategory": "exactLookup",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-041",
@@ -61,7 +63,7 @@
       "status": "agreed",
       "primaryCategory": "exactLookup",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-042",
@@ -71,7 +73,7 @@
       "status": "agreed",
       "primaryCategory": "exactLookup",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-043",
@@ -81,7 +83,7 @@
       "status": "agreed",
       "primaryCategory": "exactLookup",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-044",
@@ -91,7 +93,7 @@
       "status": "agreed",
       "primaryCategory": "exactLookup",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-045",
@@ -101,7 +103,7 @@
       "status": "agreed",
       "primaryCategory": "exactLookup",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-046",
@@ -111,7 +113,7 @@
       "status": "agreed",
       "primaryCategory": "exactLookup",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-047",
@@ -121,7 +123,7 @@
       "status": "agreed",
       "primaryCategory": "exactLookup",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-048",
@@ -131,7 +133,7 @@
       "status": "agreed",
       "primaryCategory": "visual",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-049",
@@ -141,7 +143,7 @@
       "status": "agreed",
       "primaryCategory": "visual",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-050",
@@ -151,7 +153,7 @@
       "status": "agreed",
       "primaryCategory": "exactLookup",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-051",
@@ -161,7 +163,7 @@
       "status": "agreed",
       "primaryCategory": "exactLookup",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-052",
@@ -171,7 +173,7 @@
       "status": "agreed",
       "primaryCategory": "exactLookup",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-053",
@@ -181,7 +183,7 @@
       "status": "agreed",
       "primaryCategory": "exactLookup",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-054",
@@ -191,7 +193,7 @@
       "status": "agreed",
       "primaryCategory": "exactLookup",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-067",
@@ -201,7 +203,7 @@
       "status": "agreed",
       "primaryCategory": "exactLookup",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-068",
@@ -211,7 +213,7 @@
       "status": "agreed",
       "primaryCategory": "crossLanguage",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-069",
@@ -221,7 +223,7 @@
       "status": "agreed",
       "primaryCategory": "exactLookup",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-070",
@@ -231,7 +233,7 @@
       "status": "agreed",
       "primaryCategory": "crossLanguage",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-071",
@@ -241,7 +243,7 @@
       "status": "agreed",
       "primaryCategory": "crossLanguage",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-072",
@@ -251,7 +253,7 @@
       "status": "agreed",
       "primaryCategory": "crossLanguage",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-073",
@@ -261,7 +263,7 @@
       "status": "agreed",
       "primaryCategory": "crossLanguage",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-074",
@@ -271,7 +273,7 @@
       "status": "agreed",
       "primaryCategory": "exactLookup",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-075",
@@ -281,7 +283,7 @@
       "status": "agreed",
       "primaryCategory": "crossLanguage",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-076",
@@ -291,7 +293,7 @@
       "status": "agreed",
       "primaryCategory": "exactLookup",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-077",
@@ -301,7 +303,7 @@
       "status": "agreed",
       "primaryCategory": "crossLanguage",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-078",
@@ -311,7 +313,7 @@
       "status": "agreed",
       "primaryCategory": "exactLookup",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-079",
@@ -321,7 +323,7 @@
       "status": "agreed",
       "primaryCategory": "crossLanguage",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-080",
@@ -331,7 +333,7 @@
       "status": "agreed",
       "primaryCategory": "exactLookup",
       "split": "validation",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-081",
@@ -341,7 +343,7 @@
       "status": "agreed",
       "primaryCategory": "exactLookup",
       "split": "validation",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-082",
@@ -351,7 +353,7 @@
       "status": "agreed",
       "primaryCategory": "visual",
       "split": "validation",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-083",
@@ -361,7 +363,7 @@
       "status": "agreed",
       "primaryCategory": "exactLookup",
       "split": "holdout",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-084",
@@ -371,7 +373,7 @@
       "status": "agreed",
       "primaryCategory": "crossLanguage",
       "split": "holdout",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-085",
@@ -381,7 +383,7 @@
       "status": "agreed",
       "primaryCategory": "exactLookup",
       "split": "holdout",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-086",
@@ -391,7 +393,7 @@
       "status": "agreed",
       "primaryCategory": "crossLanguage",
       "split": "holdout",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-087",
@@ -401,7 +403,7 @@
       "status": "agreed",
       "primaryCategory": "crossLanguage",
       "split": "holdout",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-088",
@@ -411,7 +413,7 @@
       "status": "agreed",
       "primaryCategory": "crossLanguage",
       "split": "holdout",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-089",
@@ -421,7 +423,7 @@
       "status": "agreed",
       "primaryCategory": "exactLookup",
       "split": "holdout",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-090",
@@ -431,7 +433,7 @@
       "status": "agreed",
       "primaryCategory": "crossLanguage",
       "split": "holdout",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-091",
@@ -441,7 +443,7 @@
       "status": "agreed",
       "primaryCategory": "visual",
       "split": "holdout",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-092",
@@ -451,7 +453,7 @@
       "status": "agreed",
       "primaryCategory": "visual",
       "split": "holdout",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-093",
@@ -461,7 +463,7 @@
       "status": "agreed",
       "primaryCategory": "exactLookup",
       "split": "holdout",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-094",
@@ -471,7 +473,7 @@
       "status": "agreed",
       "primaryCategory": "crossLanguage",
       "split": "holdout",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-095",
@@ -481,7 +483,7 @@
       "status": "agreed",
       "primaryCategory": "exactLookup",
       "split": "holdout",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-096",
@@ -491,7 +493,7 @@
       "status": "agreed",
       "primaryCategory": "crossLanguage",
       "split": "holdout",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-113",
@@ -501,7 +503,7 @@
       "status": "agreed",
       "primaryCategory": "exactLookup",
       "split": "validation",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-114",
@@ -511,7 +513,7 @@
       "status": "agreed",
       "primaryCategory": "crossLanguage",
       "split": "validation",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-115",
@@ -521,7 +523,7 @@
       "status": "agreed",
       "primaryCategory": "exactLookup",
       "split": "validation",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-116",
@@ -531,7 +533,7 @@
       "status": "agreed",
       "primaryCategory": "crossLanguage",
       "split": "validation",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-117",
@@ -541,7 +543,7 @@
       "status": "agreed",
       "primaryCategory": "crossLanguage",
       "split": "validation",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-118",
@@ -551,7 +553,7 @@
       "status": "agreed",
       "primaryCategory": "crossLanguage",
       "split": "validation",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-119",
@@ -561,7 +563,7 @@
       "status": "agreed",
       "primaryCategory": "crossLanguage",
       "split": "validation",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-120",
@@ -571,7 +573,7 @@
       "status": "agreed",
       "primaryCategory": "crossLanguage",
       "split": "validation",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-121",
@@ -581,7 +583,7 @@
       "status": "agreed",
       "primaryCategory": "crossLanguage",
       "split": "validation",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-122",
@@ -591,7 +593,7 @@
       "status": "agreed",
       "primaryCategory": "crossLanguage",
       "split": "validation",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-123",
@@ -601,7 +603,7 @@
       "status": "agreed",
       "primaryCategory": "exactLookup",
       "split": "holdout",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-124",
@@ -611,7 +613,7 @@
       "status": "agreed",
       "primaryCategory": "exactLookup",
       "split": "holdout",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-125",
@@ -621,7 +623,7 @@
       "status": "agreed",
       "primaryCategory": "exactLookup",
       "split": "holdout",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-126",
@@ -631,7 +633,7 @@
       "status": "agreed",
       "primaryCategory": "exactLookup",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-127",
@@ -641,7 +643,7 @@
       "status": "agreed",
       "primaryCategory": "crossLanguage",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-128",
@@ -651,7 +653,7 @@
       "status": "agreed",
       "primaryCategory": "exactLookup",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-129",
@@ -661,7 +663,7 @@
       "status": "agreed",
       "primaryCategory": "crossLanguage",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-130",
@@ -671,7 +673,7 @@
       "status": "agreed",
       "primaryCategory": "visual",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-131",
@@ -681,7 +683,7 @@
       "status": "agreed",
       "primaryCategory": "visual",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-132",
@@ -691,7 +693,7 @@
       "status": "agreed",
       "primaryCategory": "exactLookup",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-133",
@@ -701,7 +703,7 @@
       "status": "agreed",
       "primaryCategory": "crossLanguage",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-134",
@@ -711,7 +713,7 @@
       "status": "agreed",
       "primaryCategory": "exactLookup",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-135",
@@ -721,7 +723,7 @@
       "status": "agreed",
       "primaryCategory": "crossLanguage",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-136",
@@ -731,7 +733,7 @@
       "status": "agreed",
       "primaryCategory": "exactLookup",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-137",
@@ -741,7 +743,7 @@
       "status": "agreed",
       "primaryCategory": "crossLanguage",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-138",
@@ -751,7 +753,7 @@
       "status": "agreed",
       "primaryCategory": "retrievalDecision",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-139",
@@ -761,7 +763,7 @@
       "status": "agreed",
       "primaryCategory": "retrievalDecision",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-140",
@@ -771,7 +773,7 @@
       "status": "agreed",
       "primaryCategory": "versionAndAuthorization",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-141",
@@ -781,7 +783,7 @@
       "status": "agreed",
       "primaryCategory": "versionAndAuthorization",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-142",
@@ -791,7 +793,7 @@
       "status": "agreed",
       "primaryCategory": "failure",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-143",
@@ -801,7 +803,7 @@
       "status": "agreed",
       "primaryCategory": "failure",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-144",
@@ -811,7 +813,7 @@
       "status": "agreed",
       "primaryCategory": "exactLookup",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-145",
@@ -821,7 +823,7 @@
       "status": "agreed",
       "primaryCategory": "crossLanguage",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-146",
@@ -831,7 +833,7 @@
       "status": "agreed",
       "primaryCategory": "exactLookup",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-147",
@@ -841,7 +843,7 @@
       "status": "agreed",
       "primaryCategory": "crossLanguage",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-148",
@@ -851,7 +853,7 @@
       "status": "agreed",
       "primaryCategory": "retrievalDecision",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-149",
@@ -861,7 +863,7 @@
       "status": "agreed",
       "primaryCategory": "retrievalDecision",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-150",
@@ -871,7 +873,7 @@
       "status": "agreed",
       "primaryCategory": "retrievalDecision",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-151",
@@ -881,7 +883,7 @@
       "status": "agreed",
       "primaryCategory": "retrievalDecision",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-152",
@@ -891,7 +893,7 @@
       "status": "agreed",
       "primaryCategory": "crossLanguage",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-153",
@@ -901,7 +903,7 @@
       "status": "agreed",
       "primaryCategory": "exactLookup",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-154",
@@ -911,7 +913,7 @@
       "status": "agreed",
       "primaryCategory": "crossLanguage",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-155",
@@ -921,7 +923,7 @@
       "status": "agreed",
       "primaryCategory": "visual",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-156",
@@ -931,7 +933,7 @@
       "status": "agreed",
       "primaryCategory": "visual",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-157",
@@ -941,7 +943,7 @@
       "status": "agreed",
       "primaryCategory": "crossLanguage",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-158",
@@ -951,7 +953,7 @@
       "status": "agreed",
       "primaryCategory": "crossLanguage",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-159",
@@ -961,7 +963,7 @@
       "status": "agreed",
       "primaryCategory": "crossLanguage",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-160",
@@ -971,7 +973,7 @@
       "status": "agreed",
       "primaryCategory": "crossLanguage",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-161",
@@ -981,7 +983,7 @@
       "status": "agreed",
       "primaryCategory": "exactLookup",
       "split": "validation",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-162",
@@ -991,7 +993,7 @@
       "status": "agreed",
       "primaryCategory": "crossLanguage",
       "split": "validation",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-163",
@@ -1001,7 +1003,7 @@
       "status": "agreed",
       "primaryCategory": "versionAndAuthorization",
       "split": "validation",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-164",
@@ -1011,7 +1013,7 @@
       "status": "agreed",
       "primaryCategory": "versionAndAuthorization",
       "split": "validation",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-165",
@@ -1021,7 +1023,7 @@
       "status": "agreed",
       "primaryCategory": "versionAndAuthorization",
       "split": "validation",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-166",
@@ -1031,7 +1033,7 @@
       "status": "agreed",
       "primaryCategory": "versionAndAuthorization",
       "split": "validation",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-167",
@@ -1041,7 +1043,7 @@
       "status": "agreed",
       "primaryCategory": "retrievalDecision",
       "split": "validation",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-168",
@@ -1051,7 +1053,7 @@
       "status": "agreed",
       "primaryCategory": "versionAndAuthorization",
       "split": "validation",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-169",
@@ -1061,7 +1063,7 @@
       "status": "agreed",
       "primaryCategory": "visual",
       "split": "validation",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-170",
@@ -1071,7 +1073,7 @@
       "status": "agreed",
       "primaryCategory": "crossLanguage",
       "split": "validation",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-171",
@@ -1081,7 +1083,7 @@
       "status": "agreed",
       "primaryCategory": "crossLanguage",
       "split": "validation",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-172",
@@ -1091,7 +1093,7 @@
       "status": "agreed",
       "primaryCategory": "crossLanguage",
       "split": "validation",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-173",
@@ -1101,7 +1103,7 @@
       "status": "agreed",
       "primaryCategory": "exactLookup",
       "split": "holdout",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-174",
@@ -1111,7 +1113,7 @@
       "status": "agreed",
       "primaryCategory": "crossLanguage",
       "split": "holdout",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-175",
@@ -1121,7 +1123,7 @@
       "status": "agreed",
       "primaryCategory": "failure",
       "split": "holdout",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-176",
@@ -1131,7 +1133,7 @@
       "status": "agreed",
       "primaryCategory": "failure",
       "split": "holdout",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-177",
@@ -1141,7 +1143,7 @@
       "status": "agreed",
       "primaryCategory": "failure",
       "split": "holdout",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-178",
@@ -1151,7 +1153,7 @@
       "status": "agreed",
       "primaryCategory": "failure",
       "split": "holdout",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-179",
@@ -1161,7 +1163,7 @@
       "status": "agreed",
       "primaryCategory": "visual",
       "split": "holdout",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-180",
@@ -1171,7 +1173,7 @@
       "status": "agreed",
       "primaryCategory": "failure",
       "split": "holdout",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-181",
@@ -1181,7 +1183,7 @@
       "status": "agreed",
       "primaryCategory": "failure",
       "split": "holdout",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-182",
@@ -1191,7 +1193,7 @@
       "status": "agreed",
       "primaryCategory": "failure",
       "split": "holdout",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-183",
@@ -1201,7 +1203,7 @@
       "status": "agreed",
       "primaryCategory": "failure",
       "split": "holdout",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-184",
@@ -1211,7 +1213,7 @@
       "status": "agreed",
       "primaryCategory": "failure",
       "split": "holdout",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-185",
@@ -1221,7 +1223,7 @@
       "status": "agreed",
       "primaryCategory": "failure",
       "split": "holdout",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-186",
@@ -1231,7 +1233,7 @@
       "status": "agreed",
       "primaryCategory": "failure",
       "split": "holdout",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-187",
@@ -1241,7 +1243,7 @@
       "status": "agreed",
       "primaryCategory": "failure",
       "split": "holdout",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-188",
@@ -1251,7 +1253,7 @@
       "status": "agreed",
       "primaryCategory": "crossLanguage",
       "split": "holdout",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-189",
@@ -1261,7 +1263,7 @@
       "status": "agreed",
       "primaryCategory": "ocr",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-190",
@@ -1271,7 +1273,7 @@
       "status": "agreed",
       "primaryCategory": "ocr",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-191",
@@ -1281,7 +1283,7 @@
       "status": "agreed",
       "primaryCategory": "ocr",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-192",
@@ -1291,7 +1293,7 @@
       "status": "agreed",
       "primaryCategory": "ocr",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-193",
@@ -1301,7 +1303,7 @@
       "status": "agreed",
       "primaryCategory": "ocr",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-194",
@@ -1311,7 +1313,7 @@
       "status": "agreed",
       "primaryCategory": "ocr",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-195",
@@ -1321,7 +1323,7 @@
       "status": "agreed",
       "primaryCategory": "ocr",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-196",
@@ -1331,7 +1333,7 @@
       "status": "agreed",
       "primaryCategory": "ocr",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-197",
@@ -1341,7 +1343,7 @@
       "status": "agreed",
       "primaryCategory": "ocr",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-198",
@@ -1351,7 +1353,7 @@
       "status": "agreed",
       "primaryCategory": "ocr",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-199",
@@ -1361,7 +1363,7 @@
       "status": "agreed",
       "primaryCategory": "ocr",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-200",
@@ -1371,7 +1373,7 @@
       "status": "agreed",
       "primaryCategory": "ocr",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-201",
@@ -1381,7 +1383,7 @@
       "status": "agreed",
       "primaryCategory": "ocr",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-202",
@@ -1391,7 +1393,7 @@
       "status": "agreed",
       "primaryCategory": "ocr",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-203",
@@ -1401,7 +1403,7 @@
       "status": "agreed",
       "primaryCategory": "ocr",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-204",
@@ -1411,7 +1413,7 @@
       "status": "agreed",
       "primaryCategory": "ocr",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-205",
@@ -1421,7 +1423,7 @@
       "status": "agreed",
       "primaryCategory": "ocr",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-206",
@@ -1431,7 +1433,7 @@
       "status": "agreed",
       "primaryCategory": "ocr",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-207",
@@ -1441,7 +1443,7 @@
       "status": "agreed",
       "primaryCategory": "ocr",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-208",
@@ -1451,7 +1453,7 @@
       "status": "agreed",
       "primaryCategory": "ocr",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-209",
@@ -1461,7 +1463,7 @@
       "status": "agreed",
       "primaryCategory": "ocr",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-210",
@@ -1471,7 +1473,7 @@
       "status": "agreed",
       "primaryCategory": "ocr",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-211",
@@ -1481,7 +1483,7 @@
       "status": "agreed",
       "primaryCategory": "ocr",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-212",
@@ -1491,7 +1493,7 @@
       "status": "agreed",
       "primaryCategory": "exactLookup",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-213",
@@ -1501,7 +1503,7 @@
       "status": "agreed",
       "primaryCategory": "exactLookup",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-214",
@@ -1511,7 +1513,7 @@
       "status": "agreed",
       "primaryCategory": "visual",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-215",
@@ -1521,7 +1523,7 @@
       "status": "agreed",
       "primaryCategory": "visual",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-216",
@@ -1531,7 +1533,7 @@
       "status": "agreed",
       "primaryCategory": "visual",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-217",
@@ -1541,7 +1543,7 @@
       "status": "agreed",
       "primaryCategory": "visual",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-218",
@@ -1551,7 +1553,7 @@
       "status": "agreed",
       "primaryCategory": "retrievalDecision",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-219",
@@ -1561,7 +1563,7 @@
       "status": "agreed",
       "primaryCategory": "retrievalDecision",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-220",
@@ -1571,7 +1573,7 @@
       "status": "agreed",
       "primaryCategory": "versionAndAuthorization",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-221",
@@ -1581,7 +1583,7 @@
       "status": "agreed",
       "primaryCategory": "versionAndAuthorization",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-222",
@@ -1591,7 +1593,7 @@
       "status": "agreed",
       "primaryCategory": "visual",
       "split": "validation",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-223",
@@ -1601,7 +1603,7 @@
       "status": "agreed",
       "primaryCategory": "visual",
       "split": "validation",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-224",
@@ -1611,7 +1613,7 @@
       "status": "agreed",
       "primaryCategory": "retrievalDecision",
       "split": "validation",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-225",
@@ -1621,7 +1623,7 @@
       "status": "agreed",
       "primaryCategory": "retrievalDecision",
       "split": "validation",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-226",
@@ -1631,7 +1633,7 @@
       "status": "agreed",
       "primaryCategory": "versionAndAuthorization",
       "split": "validation",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-227",
@@ -1641,7 +1643,7 @@
       "status": "agreed",
       "primaryCategory": "versionAndAuthorization",
       "split": "validation",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-228",
@@ -1651,7 +1653,7 @@
       "status": "agreed",
       "primaryCategory": "versionAndAuthorization",
       "split": "validation",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-229",
@@ -1661,7 +1663,7 @@
       "status": "agreed",
       "primaryCategory": "visual",
       "split": "holdout",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-230",
@@ -1671,7 +1673,7 @@
       "status": "agreed",
       "primaryCategory": "visual",
       "split": "holdout",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-231",
@@ -1681,7 +1683,7 @@
       "status": "agreed",
       "primaryCategory": "visual",
       "split": "holdout",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-232",
@@ -1691,7 +1693,7 @@
       "status": "agreed",
       "primaryCategory": "visual",
       "split": "holdout",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-233",
@@ -1701,7 +1703,7 @@
       "status": "agreed",
       "primaryCategory": "visual",
       "split": "holdout",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-234",
@@ -1711,7 +1713,7 @@
       "status": "agreed",
       "primaryCategory": "retrievalDecision",
       "split": "holdout",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-235",
@@ -1721,7 +1723,7 @@
       "status": "agreed",
       "primaryCategory": "retrievalDecision",
       "split": "holdout",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-236",
@@ -1731,7 +1733,7 @@
       "status": "agreed",
       "primaryCategory": "retrievalDecision",
       "split": "holdout",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-237",
@@ -1741,7 +1743,7 @@
       "status": "agreed",
       "primaryCategory": "versionAndAuthorization",
       "split": "holdout",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-238",
@@ -1751,7 +1753,7 @@
       "status": "agreed",
       "primaryCategory": "versionAndAuthorization",
       "split": "holdout",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-239",
@@ -1761,7 +1763,7 @@
       "status": "agreed",
       "primaryCategory": "versionAndAuthorization",
       "split": "holdout",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-240",
@@ -1771,7 +1773,7 @@
       "status": "agreed",
       "primaryCategory": "versionAndAuthorization",
       "split": "holdout",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-241",
@@ -1781,7 +1783,7 @@
       "status": "agreed",
       "primaryCategory": "versionAndAuthorization",
       "split": "holdout",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-242",
@@ -1791,7 +1793,7 @@
       "status": "agreed",
       "primaryCategory": "visual",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-243",
@@ -1801,7 +1803,7 @@
       "status": "agreed",
       "primaryCategory": "visual",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-244",
@@ -1811,7 +1813,7 @@
       "status": "agreed",
       "primaryCategory": "visual",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-245",
@@ -1821,7 +1823,7 @@
       "status": "agreed",
       "primaryCategory": "visual",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-246",
@@ -1831,7 +1833,7 @@
       "status": "agreed",
       "primaryCategory": "visual",
       "split": "validation",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-247",
@@ -1841,7 +1843,7 @@
       "status": "agreed",
       "primaryCategory": "visual",
       "split": "validation",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-248",
@@ -1851,7 +1853,7 @@
       "status": "agreed",
       "primaryCategory": "visual",
       "split": "validation",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-249",
@@ -1861,7 +1863,7 @@
       "status": "agreed",
       "primaryCategory": "visual",
       "split": "holdout",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-250",
@@ -1871,7 +1873,7 @@
       "status": "agreed",
       "primaryCategory": "visual",
       "split": "holdout",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-251",
@@ -1881,7 +1883,7 @@
       "status": "agreed",
       "primaryCategory": "visual",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-252",
@@ -1891,7 +1893,7 @@
       "status": "agreed",
       "primaryCategory": "visual",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-253",
@@ -1901,7 +1903,7 @@
       "status": "agreed",
       "primaryCategory": "visual",
       "split": "holdout",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-254",
@@ -1911,7 +1913,7 @@
       "status": "agreed",
       "primaryCategory": "ocr",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-255",
@@ -1921,7 +1923,7 @@
       "status": "agreed",
       "primaryCategory": "ocr",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-256",
@@ -1931,7 +1933,7 @@
       "status": "agreed",
       "primaryCategory": "ocr",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-257",
@@ -1941,7 +1943,7 @@
       "status": "agreed",
       "primaryCategory": "ocr",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-258",
@@ -1951,7 +1953,7 @@
       "status": "agreed",
       "primaryCategory": "ocr",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-259",
@@ -1961,7 +1963,7 @@
       "status": "agreed",
       "primaryCategory": "ocr",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-260",
@@ -1971,7 +1973,7 @@
       "status": "agreed",
       "primaryCategory": "ocr",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-261",
@@ -1981,7 +1983,7 @@
       "status": "agreed",
       "primaryCategory": "ocr",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-262",
@@ -1991,7 +1993,7 @@
       "status": "agreed",
       "primaryCategory": "versionAndAuthorization",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-263",
@@ -2001,7 +2003,7 @@
       "status": "agreed",
       "primaryCategory": "versionAndAuthorization",
       "split": "validation",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-264",
@@ -2011,7 +2013,7 @@
       "status": "agreed",
       "primaryCategory": "versionAndAuthorization",
       "split": "validation",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-265",
@@ -2021,7 +2023,7 @@
       "status": "agreed",
       "primaryCategory": "versionAndAuthorization",
       "split": "holdout",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-266",
@@ -2031,7 +2033,7 @@
       "status": "agreed",
       "primaryCategory": "versionAndAuthorization",
       "split": "holdout",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-267",
@@ -2041,7 +2043,7 @@
       "status": "agreed",
       "primaryCategory": "versionAndAuthorization",
       "split": "holdout",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-268",
@@ -2051,7 +2053,7 @@
       "status": "agreed",
       "primaryCategory": "versionAndAuthorization",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-269",
@@ -2061,7 +2063,7 @@
       "status": "agreed",
       "primaryCategory": "versionAndAuthorization",
       "split": "validation",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-270",
@@ -2071,7 +2073,7 @@
       "status": "agreed",
       "primaryCategory": "retrievalDecision",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-271",
@@ -2081,7 +2083,7 @@
       "status": "agreed",
       "primaryCategory": "retrievalDecision",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-272",
@@ -2091,7 +2093,7 @@
       "status": "agreed",
       "primaryCategory": "retrievalDecision",
       "split": "validation",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-273",
@@ -2101,7 +2103,7 @@
       "status": "agreed",
       "primaryCategory": "retrievalDecision",
       "split": "validation",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-274",
@@ -2111,7 +2113,7 @@
       "status": "agreed",
       "primaryCategory": "retrievalDecision",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-275",
@@ -2121,7 +2123,7 @@
       "status": "agreed",
       "primaryCategory": "failure",
       "split": "holdout",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-276",
@@ -2131,7 +2133,7 @@
       "status": "agreed",
       "primaryCategory": "failure",
       "split": "holdout",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-277",
@@ -2141,7 +2143,7 @@
       "status": "agreed",
       "primaryCategory": "failure",
       "split": "holdout",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-278",
@@ -2151,7 +2153,7 @@
       "status": "agreed",
       "primaryCategory": "failure",
       "split": "holdout",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-279",
@@ -2161,7 +2163,7 @@
       "status": "agreed",
       "primaryCategory": "visual",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-280",
@@ -2171,7 +2173,7 @@
       "status": "agreed",
       "primaryCategory": "visual",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-281",
@@ -2181,7 +2183,7 @@
       "status": "agreed",
       "primaryCategory": "visual",
       "split": "holdout",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-282",
@@ -2191,7 +2193,7 @@
       "status": "agreed",
       "primaryCategory": "visual",
       "split": "holdout",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-431",
@@ -2201,7 +2203,7 @@
       "status": "agreed",
       "primaryCategory": "exactLookup",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-432",
@@ -2211,7 +2213,7 @@
       "status": "agreed",
       "primaryCategory": "exactLookup",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-433",
@@ -2221,7 +2223,7 @@
       "status": "agreed",
       "primaryCategory": "visual",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-434",
@@ -2231,7 +2233,7 @@
       "status": "agreed",
       "primaryCategory": "visual",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-435",
@@ -2241,7 +2243,7 @@
       "status": "agreed",
       "primaryCategory": "visual",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-436",
@@ -2251,7 +2253,7 @@
       "status": "agreed",
       "primaryCategory": "visual",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-437",
@@ -2261,7 +2263,7 @@
       "status": "agreed",
       "primaryCategory": "visual",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-438",
@@ -2271,7 +2273,7 @@
       "status": "agreed",
       "primaryCategory": "retrievalDecision",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-439",
@@ -2281,7 +2283,7 @@
       "status": "agreed",
       "primaryCategory": "retrievalDecision",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-440",
@@ -2291,7 +2293,7 @@
       "status": "agreed",
       "primaryCategory": "retrievalDecision",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-441",
@@ -2301,7 +2303,7 @@
       "status": "agreed",
       "primaryCategory": "retrievalDecision",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-442",
@@ -2311,7 +2313,7 @@
       "status": "agreed",
       "primaryCategory": "versionAndAuthorization",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-443",
@@ -2321,7 +2323,7 @@
       "status": "agreed",
       "primaryCategory": "versionAndAuthorization",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-444",
@@ -2331,7 +2333,7 @@
       "status": "agreed",
       "primaryCategory": "versionAndAuthorization",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-445",
@@ -2341,7 +2343,7 @@
       "status": "agreed",
       "primaryCategory": "failure",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-446",
@@ -2351,7 +2353,7 @@
       "status": "agreed",
       "primaryCategory": "failure",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-447",
@@ -2361,7 +2363,7 @@
       "status": "agreed",
       "primaryCategory": "failure",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-448",
@@ -2371,7 +2373,7 @@
       "status": "agreed",
       "primaryCategory": "visual",
       "split": "validation",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-449",
@@ -2381,7 +2383,7 @@
       "status": "agreed",
       "primaryCategory": "visual",
       "split": "validation",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-450",
@@ -2391,7 +2393,7 @@
       "status": "agreed",
       "primaryCategory": "visual",
       "split": "validation",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-451",
@@ -2401,7 +2403,7 @@
       "status": "agreed",
       "primaryCategory": "retrievalDecision",
       "split": "validation",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-452",
@@ -2411,7 +2413,7 @@
       "status": "agreed",
       "primaryCategory": "retrievalDecision",
       "split": "validation",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-453",
@@ -2421,7 +2423,7 @@
       "status": "agreed",
       "primaryCategory": "retrievalDecision",
       "split": "validation",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-454",
@@ -2431,7 +2433,7 @@
       "status": "agreed",
       "primaryCategory": "versionAndAuthorization",
       "split": "validation",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-455",
@@ -2441,7 +2443,7 @@
       "status": "agreed",
       "primaryCategory": "versionAndAuthorization",
       "split": "validation",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-456",
@@ -2451,7 +2453,7 @@
       "status": "agreed",
       "primaryCategory": "failure",
       "split": "validation",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-457",
@@ -2461,7 +2463,7 @@
       "status": "agreed",
       "primaryCategory": "failure",
       "split": "validation",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-458",
@@ -2471,7 +2473,7 @@
       "status": "agreed",
       "primaryCategory": "failure",
       "split": "validation",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-459",
@@ -2481,7 +2483,7 @@
       "status": "agreed",
       "primaryCategory": "visual",
       "split": "holdout",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-460",
@@ -2491,7 +2493,7 @@
       "status": "agreed",
       "primaryCategory": "visual",
       "split": "holdout",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-461",
@@ -2501,7 +2503,7 @@
       "status": "agreed",
       "primaryCategory": "visual",
       "split": "holdout",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-462",
@@ -2511,7 +2513,7 @@
       "status": "agreed",
       "primaryCategory": "visual",
       "split": "holdout",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-463",
@@ -2521,7 +2523,7 @@
       "status": "agreed",
       "primaryCategory": "retrievalDecision",
       "split": "holdout",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-464",
@@ -2531,7 +2533,7 @@
       "status": "agreed",
       "primaryCategory": "retrievalDecision",
       "split": "holdout",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-465",
@@ -2541,7 +2543,7 @@
       "status": "agreed",
       "primaryCategory": "versionAndAuthorization",
       "split": "holdout",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-466",
@@ -2551,7 +2553,7 @@
       "status": "agreed",
       "primaryCategory": "versionAndAuthorization",
       "split": "holdout",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-467",
@@ -2561,7 +2563,7 @@
       "status": "agreed",
       "primaryCategory": "failure",
       "split": "holdout",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-468",
@@ -2571,7 +2573,7 @@
       "status": "agreed",
       "primaryCategory": "failure",
       "split": "holdout",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-469",
@@ -2581,7 +2583,7 @@
       "status": "agreed",
       "primaryCategory": "exactLookup",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-470",
@@ -2591,7 +2593,7 @@
       "status": "agreed",
       "primaryCategory": "failure",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-471",
@@ -2601,7 +2603,7 @@
       "status": "agreed",
       "primaryCategory": "failure",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-472",
@@ -2611,7 +2613,7 @@
       "status": "agreed",
       "primaryCategory": "failure",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-473",
@@ -2621,7 +2623,7 @@
       "status": "agreed",
       "primaryCategory": "failure",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-474",
@@ -2631,7 +2633,7 @@
       "status": "agreed",
       "primaryCategory": "failure",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-475",
@@ -2641,7 +2643,7 @@
       "status": "agreed",
       "primaryCategory": "failure",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-476",
@@ -2651,7 +2653,7 @@
       "status": "agreed",
       "primaryCategory": "failure",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-477",
@@ -2661,7 +2663,7 @@
       "status": "agreed",
       "primaryCategory": "failure",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-478",
@@ -2671,7 +2673,7 @@
       "status": "agreed",
       "primaryCategory": "failure",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-479",
@@ -2681,7 +2683,7 @@
       "status": "agreed",
       "primaryCategory": "failure",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-480",
@@ -2691,7 +2693,7 @@
       "status": "agreed",
       "primaryCategory": "failure",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-481",
@@ -2701,7 +2703,7 @@
       "status": "agreed",
       "primaryCategory": "failure",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-482",
@@ -2711,7 +2713,7 @@
       "status": "agreed",
       "primaryCategory": "retrievalDecision",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-483",
@@ -2721,7 +2723,7 @@
       "status": "agreed",
       "primaryCategory": "retrievalDecision",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-484",
@@ -2731,7 +2733,7 @@
       "status": "agreed",
       "primaryCategory": "retrievalDecision",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-485",
@@ -2741,7 +2743,7 @@
       "status": "agreed",
       "primaryCategory": "retrievalDecision",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-486",
@@ -2751,7 +2753,7 @@
       "status": "agreed",
       "primaryCategory": "versionAndAuthorization",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-487",
@@ -2761,7 +2763,7 @@
       "status": "agreed",
       "primaryCategory": "versionAndAuthorization",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-488",
@@ -2771,7 +2773,7 @@
       "status": "agreed",
       "primaryCategory": "exactLookup",
       "split": "validation",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-489",
@@ -2781,7 +2783,7 @@
       "status": "agreed",
       "primaryCategory": "retrievalDecision",
       "split": "validation",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-490",
@@ -2791,7 +2793,7 @@
       "status": "agreed",
       "primaryCategory": "retrievalDecision",
       "split": "validation",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-491",
@@ -2801,7 +2803,7 @@
       "status": "agreed",
       "primaryCategory": "retrievalDecision",
       "split": "validation",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-492",
@@ -2811,7 +2813,7 @@
       "status": "agreed",
       "primaryCategory": "retrievalDecision",
       "split": "validation",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-493",
@@ -2821,7 +2823,7 @@
       "status": "agreed",
       "primaryCategory": "retrievalDecision",
       "split": "validation",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-494",
@@ -2831,7 +2833,7 @@
       "status": "agreed",
       "primaryCategory": "retrievalDecision",
       "split": "validation",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-495",
@@ -2841,7 +2843,7 @@
       "status": "agreed",
       "primaryCategory": "versionAndAuthorization",
       "split": "validation",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-496",
@@ -2851,7 +2853,7 @@
       "status": "agreed",
       "primaryCategory": "versionAndAuthorization",
       "split": "validation",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-497",
@@ -2861,7 +2863,7 @@
       "status": "agreed",
       "primaryCategory": "versionAndAuthorization",
       "split": "validation",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-498",
@@ -2871,7 +2873,7 @@
       "status": "agreed",
       "primaryCategory": "versionAndAuthorization",
       "split": "validation",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-499",
@@ -2881,7 +2883,7 @@
       "status": "agreed",
       "primaryCategory": "versionAndAuthorization",
       "split": "validation",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-500",
@@ -2891,7 +2893,7 @@
       "status": "agreed",
       "primaryCategory": "versionAndAuthorization",
       "split": "validation",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-501",
@@ -2901,7 +2903,7 @@
       "status": "agreed",
       "primaryCategory": "versionAndAuthorization",
       "split": "validation",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-502",
@@ -2911,7 +2913,7 @@
       "status": "agreed",
       "primaryCategory": "versionAndAuthorization",
       "split": "validation",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-503",
@@ -2921,7 +2923,7 @@
       "status": "agreed",
       "primaryCategory": "failure",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-504",
@@ -2931,7 +2933,7 @@
       "status": "agreed",
       "primaryCategory": "failure",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-505",
@@ -2941,7 +2943,7 @@
       "status": "agreed",
       "primaryCategory": "failure",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-506",
@@ -2951,7 +2953,7 @@
       "status": "agreed",
       "primaryCategory": "failure",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-507",
@@ -2961,7 +2963,7 @@
       "status": "agreed",
       "primaryCategory": "failure",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-508",
@@ -2971,7 +2973,7 @@
       "status": "agreed",
       "primaryCategory": "failure",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-509",
@@ -2981,7 +2983,7 @@
       "status": "agreed",
       "primaryCategory": "failure",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-510",
@@ -2991,7 +2993,7 @@
       "status": "agreed",
       "primaryCategory": "failure",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-511",
@@ -3001,7 +3003,7 @@
       "status": "agreed",
       "primaryCategory": "retrievalDecision",
       "split": "validation",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-512",
@@ -3011,7 +3013,7 @@
       "status": "agreed",
       "primaryCategory": "retrievalDecision",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-513",
@@ -3021,7 +3023,7 @@
       "status": "agreed",
       "primaryCategory": "retrievalDecision",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-514",
@@ -3031,7 +3033,7 @@
       "status": "agreed",
       "primaryCategory": "versionAndAuthorization",
       "split": "validation",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-515",
@@ -3041,7 +3043,7 @@
       "status": "agreed",
       "primaryCategory": "versionAndAuthorization",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-516",
@@ -3051,7 +3053,7 @@
       "status": "agreed",
       "primaryCategory": "crossLanguage",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-517",
@@ -3061,7 +3063,7 @@
       "status": "agreed",
       "primaryCategory": "crossLanguage",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-518",
@@ -3071,7 +3073,7 @@
       "status": "agreed",
       "primaryCategory": "crossLanguage",
       "split": "holdout",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-519",
@@ -3081,7 +3083,7 @@
       "status": "agreed",
       "primaryCategory": "crossLanguage",
       "split": "holdout",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-520",
@@ -3091,7 +3093,7 @@
       "status": "agreed",
       "primaryCategory": "crossLanguage",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-521",
@@ -3101,7 +3103,7 @@
       "status": "agreed",
       "primaryCategory": "crossLanguage",
       "split": "holdout",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-522",
@@ -3111,7 +3113,7 @@
       "status": "agreed",
       "primaryCategory": "exactLookup",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-523",
@@ -3121,7 +3123,7 @@
       "status": "agreed",
       "primaryCategory": "retrievalDecision",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-524",
@@ -3131,7 +3133,7 @@
       "status": "agreed",
       "primaryCategory": "retrievalDecision",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-525",
@@ -3141,7 +3143,7 @@
       "status": "agreed",
       "primaryCategory": "retrievalDecision",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-526",
@@ -3151,7 +3153,7 @@
       "status": "agreed",
       "primaryCategory": "retrievalDecision",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-527",
@@ -3161,7 +3163,7 @@
       "status": "agreed",
       "primaryCategory": "retrievalDecision",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-528",
@@ -3171,7 +3173,7 @@
       "status": "agreed",
       "primaryCategory": "retrievalDecision",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-529",
@@ -3181,7 +3183,7 @@
       "status": "agreed",
       "primaryCategory": "retrievalDecision",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-530",
@@ -3191,7 +3193,7 @@
       "status": "agreed",
       "primaryCategory": "versionAndAuthorization",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-531",
@@ -3201,7 +3203,7 @@
       "status": "agreed",
       "primaryCategory": "versionAndAuthorization",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-532",
@@ -3211,7 +3213,7 @@
       "status": "agreed",
       "primaryCategory": "versionAndAuthorization",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-533",
@@ -3221,7 +3223,7 @@
       "status": "agreed",
       "primaryCategory": "versionAndAuthorization",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-534",
@@ -3231,7 +3233,7 @@
       "status": "agreed",
       "primaryCategory": "failure",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-535",
@@ -3241,7 +3243,7 @@
       "status": "agreed",
       "primaryCategory": "failure",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-536",
@@ -3251,7 +3253,7 @@
       "status": "agreed",
       "primaryCategory": "failure",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-537",
@@ -3261,7 +3263,7 @@
       "status": "agreed",
       "primaryCategory": "failure",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-538",
@@ -3271,7 +3273,7 @@
       "status": "agreed",
       "primaryCategory": "crossLanguage",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-539",
@@ -3281,7 +3283,7 @@
       "status": "agreed",
       "primaryCategory": "crossLanguage",
       "split": "holdout",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-540",
@@ -3291,7 +3293,7 @@
       "status": "agreed",
       "primaryCategory": "retrievalDecision",
       "split": "validation",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-541",
@@ -3301,7 +3303,7 @@
       "status": "agreed",
       "primaryCategory": "retrievalDecision",
       "split": "validation",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-542",
@@ -3311,7 +3313,7 @@
       "status": "agreed",
       "primaryCategory": "versionAndAuthorization",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-543",
@@ -3321,7 +3323,7 @@
       "status": "agreed",
       "primaryCategory": "versionAndAuthorization",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-544",
@@ -3331,7 +3333,7 @@
       "status": "agreed",
       "primaryCategory": "ocr",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-545",
@@ -3341,7 +3343,7 @@
       "status": "agreed",
       "primaryCategory": "ocr",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-546",
@@ -3351,7 +3353,7 @@
       "status": "agreed",
       "primaryCategory": "ocr",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-547",
@@ -3361,7 +3363,7 @@
       "status": "agreed",
       "primaryCategory": "ocr",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-548",
@@ -3371,7 +3373,7 @@
       "status": "agreed",
       "primaryCategory": "ocr",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-549",
@@ -3381,7 +3383,7 @@
       "status": "agreed",
       "primaryCategory": "ocr",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-550",
@@ -3391,7 +3393,7 @@
       "status": "agreed",
       "primaryCategory": "ocr",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-551",
@@ -3401,7 +3403,7 @@
       "status": "agreed",
       "primaryCategory": "ocr",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-552",
@@ -3411,7 +3413,7 @@
       "status": "agreed",
       "primaryCategory": "ocr",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-553",
@@ -3421,7 +3423,7 @@
       "status": "agreed",
       "primaryCategory": "ocr",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-554",
@@ -3431,7 +3433,7 @@
       "status": "agreed",
       "primaryCategory": "ocr",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-555",
@@ -3441,7 +3443,7 @@
       "status": "agreed",
       "primaryCategory": "ocr",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-556",
@@ -3451,7 +3453,7 @@
       "status": "agreed",
       "primaryCategory": "ocr",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-557",
@@ -3461,7 +3463,7 @@
       "status": "agreed",
       "primaryCategory": "ocr",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-558",
@@ -3471,7 +3473,7 @@
       "status": "agreed",
       "primaryCategory": "ocr",
       "split": "holdout",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-559",
@@ -3481,7 +3483,7 @@
       "status": "agreed",
       "primaryCategory": "ocr",
       "split": "holdout",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-560",
@@ -3491,7 +3493,7 @@
       "status": "agreed",
       "primaryCategory": "ocr",
       "split": "holdout",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-561",
@@ -3501,7 +3503,7 @@
       "status": "agreed",
       "primaryCategory": "ocr",
       "split": "holdout",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-562",
@@ -3511,7 +3513,7 @@
       "status": "agreed",
       "primaryCategory": "ocr",
       "split": "holdout",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-563",
@@ -3521,7 +3523,7 @@
       "status": "agreed",
       "primaryCategory": "multiEvidence",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-564",
@@ -3531,7 +3533,7 @@
       "status": "agreed",
       "primaryCategory": "multiEvidence",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-565",
@@ -3541,7 +3543,7 @@
       "status": "agreed",
       "primaryCategory": "multiEvidence",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-566",
@@ -3551,7 +3553,7 @@
       "status": "agreed",
       "primaryCategory": "multiEvidence",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-567",
@@ -3561,7 +3563,7 @@
       "status": "agreed",
       "primaryCategory": "multiEvidence",
       "split": "validation",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-568",
@@ -3571,7 +3573,7 @@
       "status": "agreed",
       "primaryCategory": "multiEvidence",
       "split": "validation",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-569",
@@ -3581,7 +3583,7 @@
       "status": "agreed",
       "primaryCategory": "multiEvidence",
       "split": "holdout",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-570",
@@ -3591,7 +3593,7 @@
       "status": "agreed",
       "primaryCategory": "multiEvidence",
       "split": "holdout",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-571",
@@ -3601,7 +3603,7 @@
       "status": "agreed",
       "primaryCategory": "multiEvidence",
       "split": "validation",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-572",
@@ -3611,7 +3613,7 @@
       "status": "agreed",
       "primaryCategory": "multiEvidence",
       "split": "validation",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-573",
@@ -3621,7 +3623,7 @@
       "status": "agreed",
       "primaryCategory": "multiEvidence",
       "split": "holdout",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-574",
@@ -3631,7 +3633,7 @@
       "status": "agreed",
       "primaryCategory": "multiEvidence",
       "split": "holdout",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-575",
@@ -3641,7 +3643,7 @@
       "status": "agreed",
       "primaryCategory": "multiEvidence",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-576",
@@ -3651,7 +3653,7 @@
       "status": "agreed",
       "primaryCategory": "multiEvidence",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-577",
@@ -3661,7 +3663,7 @@
       "status": "agreed",
       "primaryCategory": "multiEvidence",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-578",
@@ -3671,7 +3673,7 @@
       "status": "agreed",
       "primaryCategory": "multiEvidence",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-579",
@@ -3681,7 +3683,7 @@
       "status": "agreed",
       "primaryCategory": "multiEvidence",
       "split": "validation",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-580",
@@ -3691,7 +3693,7 @@
       "status": "agreed",
       "primaryCategory": "multiEvidence",
       "split": "validation",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-581",
@@ -3701,7 +3703,7 @@
       "status": "agreed",
       "primaryCategory": "multiEvidence",
       "split": "holdout",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-582",
@@ -3711,7 +3713,7 @@
       "status": "agreed",
       "primaryCategory": "multiEvidence",
       "split": "holdout",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-583",
@@ -3721,7 +3723,7 @@
       "status": "agreed",
       "primaryCategory": "multiEvidence",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-584",
@@ -3731,7 +3733,7 @@
       "status": "agreed",
       "primaryCategory": "multiEvidence",
       "split": "validation",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-585",
@@ -3741,7 +3743,7 @@
       "status": "agreed",
       "primaryCategory": "multiEvidence",
       "split": "holdout",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-586",
@@ -3751,7 +3753,7 @@
       "status": "agreed",
       "primaryCategory": "multiEvidence",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-587",
@@ -3761,7 +3763,7 @@
       "status": "agreed",
       "primaryCategory": "multiEvidence",
       "split": "validation",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-588",
@@ -3771,7 +3773,7 @@
       "status": "agreed",
       "primaryCategory": "multiEvidence",
       "split": "holdout",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-589",
@@ -3781,7 +3783,7 @@
       "status": "agreed",
       "primaryCategory": "multiEvidence",
       "split": "validation",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-590",
@@ -3791,7 +3793,7 @@
       "status": "agreed",
       "primaryCategory": "multiEvidence",
       "split": "holdout",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-591",
@@ -3801,7 +3803,7 @@
       "status": "agreed",
       "primaryCategory": "multiEvidence",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-592",
@@ -3811,7 +3813,7 @@
       "status": "agreed",
       "primaryCategory": "multiEvidence",
       "split": "validation",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-593",
@@ -3821,7 +3823,7 @@
       "status": "agreed",
       "primaryCategory": "multiEvidence",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-594",
@@ -3831,7 +3833,7 @@
       "status": "agreed",
       "primaryCategory": "multiEvidence",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-595",
@@ -3841,7 +3843,7 @@
       "status": "agreed",
       "primaryCategory": "multiEvidence",
       "split": "validation",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-596",
@@ -3851,7 +3853,7 @@
       "status": "agreed",
       "primaryCategory": "multiEvidence",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-597",
@@ -3861,7 +3863,7 @@
       "status": "agreed",
       "primaryCategory": "multiEvidence",
       "split": "validation",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-598",
@@ -3871,7 +3873,7 @@
       "status": "agreed",
       "primaryCategory": "multiEvidence",
       "split": "holdout",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-599",
@@ -3881,7 +3883,7 @@
       "status": "agreed",
       "primaryCategory": "multiEvidence",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-600",
@@ -3891,7 +3893,7 @@
       "status": "agreed",
       "primaryCategory": "multiEvidence",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-601",
@@ -3901,7 +3903,7 @@
       "status": "agreed",
       "primaryCategory": "multiEvidence",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-602",
@@ -3911,7 +3913,7 @@
       "status": "agreed",
       "primaryCategory": "multiEvidence",
       "split": "validation",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-603",
@@ -3921,7 +3923,7 @@
       "status": "agreed",
       "primaryCategory": "multiEvidence",
       "split": "validation",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-604",
@@ -3931,7 +3933,7 @@
       "status": "agreed",
       "primaryCategory": "multiEvidence",
       "split": "validation",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-605",
@@ -3941,7 +3943,7 @@
       "status": "agreed",
       "primaryCategory": "multiEvidence",
       "split": "holdout",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-606",
@@ -3951,7 +3953,7 @@
       "status": "agreed",
       "primaryCategory": "multiEvidence",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-607",
@@ -3961,7 +3963,7 @@
       "status": "agreed",
       "primaryCategory": "multiEvidence",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-608",
@@ -3971,7 +3973,7 @@
       "status": "agreed",
       "primaryCategory": "multiEvidence",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-609",
@@ -3981,7 +3983,7 @@
       "status": "agreed",
       "primaryCategory": "multiEvidence",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-610",
@@ -3991,7 +3993,7 @@
       "status": "agreed",
       "primaryCategory": "multiEvidence",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-611",
@@ -4001,7 +4003,7 @@
       "status": "agreed",
       "primaryCategory": "multiEvidence",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-612",
@@ -4011,7 +4013,7 @@
       "status": "agreed",
       "primaryCategory": "multiEvidence",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-617",
@@ -4021,7 +4023,7 @@
       "status": "agreed",
       "primaryCategory": "noAnswerAndMisleading",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-618",
@@ -4031,7 +4033,7 @@
       "status": "agreed",
       "primaryCategory": "noAnswerAndMisleading",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-619",
@@ -4041,7 +4043,7 @@
       "status": "agreed",
       "primaryCategory": "noAnswerAndMisleading",
       "split": "validation",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-620",
@@ -4051,7 +4053,7 @@
       "status": "agreed",
       "primaryCategory": "noAnswerAndMisleading",
       "split": "holdout",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-621",
@@ -4061,7 +4063,7 @@
       "status": "agreed",
       "primaryCategory": "noAnswerAndMisleading",
       "split": "validation",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-622",
@@ -4071,7 +4073,7 @@
       "status": "agreed",
       "primaryCategory": "noAnswerAndMisleading",
       "split": "holdout",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-624",
@@ -4081,7 +4083,7 @@
       "status": "agreed",
       "primaryCategory": "noAnswerAndMisleading",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-625",
@@ -4091,7 +4093,7 @@
       "status": "agreed",
       "primaryCategory": "noAnswerAndMisleading",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-626",
@@ -4101,7 +4103,7 @@
       "status": "agreed",
       "primaryCategory": "noAnswerAndMisleading",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-627",
@@ -4111,7 +4113,7 @@
       "status": "agreed",
       "primaryCategory": "noAnswerAndMisleading",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-628",
@@ -4121,7 +4123,7 @@
       "status": "agreed",
       "primaryCategory": "noAnswerAndMisleading",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-629",
@@ -4131,7 +4133,7 @@
       "status": "agreed",
       "primaryCategory": "noAnswerAndMisleading",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-630",
@@ -4141,7 +4143,7 @@
       "status": "agreed",
       "primaryCategory": "noAnswerAndMisleading",
       "split": "validation",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-631",
@@ -4151,7 +4153,7 @@
       "status": "agreed",
       "primaryCategory": "noAnswerAndMisleading",
       "split": "validation",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-632",
@@ -4161,7 +4163,7 @@
       "status": "agreed",
       "primaryCategory": "noAnswerAndMisleading",
       "split": "holdout",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-633",
@@ -4171,7 +4173,7 @@
       "status": "agreed",
       "primaryCategory": "noAnswerAndMisleading",
       "split": "holdout",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-634",
@@ -4181,7 +4183,7 @@
       "status": "agreed",
       "primaryCategory": "noAnswerAndMisleading",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-635",
@@ -4191,7 +4193,7 @@
       "status": "agreed",
       "primaryCategory": "noAnswerAndMisleading",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-636",
@@ -4201,7 +4203,7 @@
       "status": "agreed",
       "primaryCategory": "noAnswerAndMisleading",
       "split": "validation",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-637",
@@ -4211,7 +4213,7 @@
       "status": "agreed",
       "primaryCategory": "noAnswerAndMisleading",
       "split": "validation",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-638",
@@ -4221,7 +4223,7 @@
       "status": "agreed",
       "primaryCategory": "noAnswerAndMisleading",
       "split": "holdout",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-639",
@@ -4231,7 +4233,7 @@
       "status": "agreed",
       "primaryCategory": "noAnswerAndMisleading",
       "split": "holdout",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-640",
@@ -4241,7 +4243,7 @@
       "status": "agreed",
       "primaryCategory": "noAnswerAndMisleading",
       "split": "validation",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-641",
@@ -4251,7 +4253,7 @@
       "status": "agreed",
       "primaryCategory": "noAnswerAndMisleading",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-642",
@@ -4261,7 +4263,7 @@
       "status": "agreed",
       "primaryCategory": "noAnswerAndMisleading",
       "split": "validation",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-643",
@@ -4271,7 +4273,7 @@
       "status": "agreed",
       "primaryCategory": "noAnswerAndMisleading",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-644",
@@ -4281,7 +4283,7 @@
       "status": "agreed",
       "primaryCategory": "noAnswerAndMisleading",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-645",
@@ -4291,7 +4293,7 @@
       "status": "agreed",
       "primaryCategory": "noAnswerAndMisleading",
       "split": "validation",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-690",
@@ -4301,7 +4303,7 @@
       "status": "agreed",
       "primaryCategory": "noAnswerAndMisleading",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-691",
@@ -4311,7 +4313,7 @@
       "status": "agreed",
       "primaryCategory": "noAnswerAndMisleading",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-692",
@@ -4321,7 +4323,7 @@
       "status": "agreed",
       "primaryCategory": "noAnswerAndMisleading",
       "split": "validation",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-693",
@@ -4331,7 +4333,7 @@
       "status": "agreed",
       "primaryCategory": "noAnswerAndMisleading",
       "split": "validation",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-694",
@@ -4341,7 +4343,7 @@
       "status": "agreed",
       "primaryCategory": "noAnswerAndMisleading",
       "split": "holdout",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-695",
@@ -4351,7 +4353,7 @@
       "status": "agreed",
       "primaryCategory": "noAnswerAndMisleading",
       "split": "holdout",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-696",
@@ -4361,7 +4363,7 @@
       "status": "agreed",
       "primaryCategory": "noAnswerAndMisleading",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-697",
@@ -4371,7 +4373,7 @@
       "status": "agreed",
       "primaryCategory": "noAnswerAndMisleading",
       "split": "holdout",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-698",
@@ -4381,7 +4383,7 @@
       "status": "agreed",
       "primaryCategory": "noAnswerAndMisleading",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-699",
@@ -4391,7 +4393,7 @@
       "status": "agreed",
       "primaryCategory": "noAnswerAndMisleading",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-700",
@@ -4401,7 +4403,7 @@
       "status": "agreed",
       "primaryCategory": "noAnswerAndMisleading",
       "split": "validation",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-701",
@@ -4411,7 +4413,7 @@
       "status": "agreed",
       "primaryCategory": "noAnswerAndMisleading",
       "split": "validation",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-702",
@@ -4421,7 +4423,7 @@
       "status": "agreed",
       "primaryCategory": "noAnswerAndMisleading",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-703",
@@ -4431,7 +4433,7 @@
       "status": "agreed",
       "primaryCategory": "noAnswerAndMisleading",
       "split": "validation",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-704",
@@ -4441,7 +4443,7 @@
       "status": "agreed",
       "primaryCategory": "noAnswerAndMisleading",
       "split": "holdout",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-705",
@@ -4451,7 +4453,7 @@
       "status": "agreed",
       "primaryCategory": "noAnswerAndMisleading",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-706",
@@ -4461,7 +4463,7 @@
       "status": "agreed",
       "primaryCategory": "noAnswerAndMisleading",
       "split": "holdout",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-707",
@@ -4471,7 +4473,7 @@
       "status": "agreed",
       "primaryCategory": "noAnswerAndMisleading",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-708",
@@ -4481,7 +4483,7 @@
       "status": "agreed",
       "primaryCategory": "noAnswerAndMisleading",
       "split": "validation",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-709",
@@ -4491,7 +4493,7 @@
       "status": "agreed",
       "primaryCategory": "noAnswerAndMisleading",
       "split": "holdout",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-710",
@@ -4501,7 +4503,7 @@
       "status": "agreed",
       "primaryCategory": "noAnswerAndMisleading",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     },
     {
       "caseId": "controlled-711",
@@ -4511,7 +4513,15 @@
       "status": "agreed",
       "primaryCategory": "noAnswerAndMisleading",
       "split": "development",
-      "notes": "AI first-pass checks passed"
+      "notes": "Automated contract checks passed"
     }
-  ]
+  ],
+  "reviewMethod": "automated-full-owner-spot-check-v1",
+  "ownerSpotCheckArtifact": {
+    "reviewerId": "project-owner",
+    "path": "owner-spot-check.json",
+    "sha256": "45d2b199edbc9fedcb00ae593887720cb76638a4f016a49db7820bf6d5410ce0",
+    "policyPath": "owner-spot-check-policy-v1.json",
+    "policySha256": "cf8261abd24a0e40cbec690941af893ea1c60aac22d5e1e38e420610d318d8ac"
+  }
 }

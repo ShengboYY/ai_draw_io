@@ -88,21 +88,24 @@ python3 evaluation/material-rag-research-v1/analysis/audit_corpus.py \
 ```
 
 The lock records deterministic SHA-256 values for generated inputs plus the authored plan,
-generator/specs, evaluators, dependency declaration and pinned font hash. It remains a `candidate`
-until the ledger binds two complete `material-rag-human-review-v1` artifacts from distinct registered
-human reviewers. Reviewer names, an AI pass, or an un-hashed assertion cannot self-certify review.
-Create the ledger only after both independent review artifacts are stored below `review/`:
+generator/specs, evaluators, dependency declaration and pinned font hash. The active pragmatic
+governance method is `automated-full-owner-spot-check-v1`: deterministic checks cover all 450 core
+cases, while the project owner explicitly approves the frozen representative Draw.io sample. The
+ledger hashes both the policy and approval artifact and expressly makes no independent double-human
+claim:
 
 ```bash
 python3 evaluation/material-rag-research-v1/review/make_review_ledger.py \
-  --human-review evaluation/material-rag-research-v1/review/human-review-a.json \
-  --human-review evaluation/material-rag-research-v1/review/human-review-b.json
+  --ai-reviewer automated-contract-review-v1 \
+  --owner-spot-check evaluation/material-rag-research-v1/review/owner-spot-check.json \
+  --owner-spot-check-policy evaluation/material-rag-research-v1/review/owner-spot-check-policy-v1.json
 ```
 
-Controlled regression cases are assigned to `guard_regression` and do not inflate the core
-count. The current audit structurally reaches 450/450 core cases, exact 250/100/100 splits and the required
-category/language targets, but remains `BLOCKED` until two human artifacts are bound. Guard-suite minimums
-are also part of readiness rather than being offset by
+The stricter two-complete-human-artifact path remains supported as an alternative, but is not claimed
+by the active run. Reviewer names or an unhashed assertion alone never qualify. Controlled regression
+cases are assigned to `guard_regression` and do not inflate the core count. The current audit reaches
+450/450 core cases, exact 250/100/100 splits and the required category/language targets. Guard-suite
+minimums are also part of readiness rather than being offset by
 the aggregate guard count.
 Failure and version/authorization labels also require executable scenario context; static approval-date
 lookups do not satisfy those categories. Run formal E0 only from a clean committed worktree so stopped

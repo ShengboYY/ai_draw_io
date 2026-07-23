@@ -671,3 +671,17 @@
 5. 运行同一模型的 20+20 Development；做 XML/edit/citation 自动评测和双人 claim review。
 6. Development 晋级后才开一次 Validation；通过后依次跑 E8、E9。
 7. 全部配置冻结后由独立保管人生成仓库外 final holdout，并且最多运行一次。
+
+### R13 — owner spot-check governance · 2026-07-23 · ✅E0 解锁
+
+- **用户决策**:项目负责人确认可以由 Codex 做全量自动审阅，并在查看代表样例后批准继续。
+- **冻结样例**:`controlled-130`、`controlled-624`、`dgt-dev-03`、`dgt-dev-10`、
+  `dgt-dev-17`、`dgt-val-04`、`dgt-val-17`。它们覆盖流程箭头、无答案、稳定 cell/edge 编辑、
+  OCR/扫描转 editable XML、安全图例、Validation 新流程和权限矩阵。
+- **可审计记录**:`owner-spot-check-policy-v1.json` 与 `owner-spot-check.json` 分别保存并由
+  ledger v3 绑定 SHA-256。auditor 不只信 ledger，独立重验 policy、artifact、reviewer kind、
+  required IDs 与 approve decision。
+- **声明边界**:本方法为 `automated-full-owner-spot-check-v1`，不是 independent double-human review。
+  lock 明确记录 `independentHumanReview=not_claimed`；后续报告必须保持该措辞。
+- **决策**:450/450 自动合同审计与 owner sample gate 均满足；允许冻结新的 corpus-lock 并进入
+  v3 Development hydration。Validation、模型调用与 final holdout 仍未打开。

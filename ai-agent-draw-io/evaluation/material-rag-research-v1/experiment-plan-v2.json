@@ -201,11 +201,14 @@
     "requiresFormalRunManifest": "material-rag-generation-run-manifest-v1",
     "pairedHydrationContract": "fixtures/drawio-generation-paired-hydration-contract-v1.json; r4 successfully exported six Development paired contexts after native-policy-selected visual-page OCR placed the dgt-dev-02 architecture artifact in raw top-8; the original image artifact is retained and no-retrieval task handling is fixed separately",
     "historicalFixedRunQualification": "diagnostic; v1 tasks only; not compatible with active v2 edit assertions",
-    "next": "obtain two complete independent human review artifacts, freeze the candidate corpus lock, then run a fresh v3 Development hydration trace; require provenance, source-scope, multimodal-artifact, candidate-readiness and paired-contrast gates before generation"
+    "next": "freeze the owner-spot-checked corpus lock, then run a fresh v3 Development hydration trace; require provenance, source-scope, multimodal-artifact, candidate-readiness and paired-contrast gates before generation"
   },
   "preE0": {
     "minimumReviewedCasesBeforeComparison": 340,
     "requiredFrozenCoreCasesForBaseline": 450,
+    "reviewGovernance": "automated-full-owner-spot-check-v1",
+    "ownerSpotCheckPolicy": "review/owner-spot-check-policy-v1.json",
+    "independentDoubleHumanReviewClaim": false,
     "splitFamiliesBeforeQuestionAuthoring": true,
     "controlledFixturesAreRepresentativeDocuments": false
   },
@@ -223,7 +226,7 @@
   ],
   "progress": {
     "completed": ["E0_BASELINE", "E1_REPRESENTATION", "E2_CHUNKING", "E3_RETRIEVAL", "E4_DEDUPLICATION", "E5_RERANKING"],
-    "currentNext": "R12_DOUBLE_HUMAN_REVIEW_AND_V3_CORPUS_FREEZE",
+    "currentNext": "R13_FRESH_V3_DEVELOPMENT_HYDRATION",
     "e2Decision": "retain flat-leaf-v1; parent-context-500-v1 recallAt10 delta 0.0000 did not meet +0.02 and mrrAt10 delta -0.0618 regressed",
     "e3FirstCandidateDecision": "retain dense-v1; projection hybrid recallAt10 delta 0.0065 did not meet +0.02",
     "e3SecondCandidateDecision": "retain original-v1; evidence-focused recallAt10 delta -0.0194 and mrrAt10 delta -0.0488 regressed",
@@ -233,6 +236,6 @@
     "e5Status": "completed: DeepSeek V4 Pro listwise reranker accepted JSON for 5/155 cases and Recall@10 gain was 0.0; not promoted",
     "e6aStatus": "completed: 26/26 contexts changed; source coverage improved; recall interval touched zero; no promotion claim",
     "e6bStatus": "completed: r4 selected-visual-page local OCR placed dgt-dev-02 page-3 source image in raw top-8 and exporter produced six paired Development contexts with 3/5 retrieval-required tasks changed (60%); its paired GPT-5.5 Development run is recorded separately under E7",
-    "e7Status": "Historical v2 R4/R5 model runs remain diagnostic. R6-R11 established source-owned citation identity and real visual/OCR hydration but did not clear every input gate. R12 repairs the evaluation contract: v3 has 20 Development and 20 Validation draw.io-agent tasks, explicit selected-only/chartbook-auto/none scope, candidate-required readiness, opaque model citation handles, and auditable two-human corpus review. Formal Pinecone/model work is blocked until the v3 candidate lock is independently reviewed and frozen."
+    "e7Status": "Historical v2 R4/R5 model runs remain diagnostic. R6-R11 established source-owned citation identity and real visual/OCR hydration but did not clear every input gate. R12 repaired the evaluation contract with 20 Development and 20 Validation draw.io-agent tasks, explicit source scope, candidate-required readiness and opaque citation handles. R13 records automated full-case review plus a hashed project-owner representative spot-check without claiming independent double-human review. The next formal action is a fresh v3 Development hydration trace from the frozen commit."
   }
 }

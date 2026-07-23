@@ -37,6 +37,8 @@ PROVENANCE_FILES = (
     "analysis/evaluate_ocr.py",
     "analysis/select_drawio_context.py",
     "review/make_review_ledger.py",
+    "review/owner-spot-check-policy-v1.json",
+    "review/owner-spot-check.json",
     "fixtures/generate_fixtures.py",
     "fixtures/generation-config.json",
     "fixtures/realistic_corpus_specs.py",
@@ -247,16 +249,73 @@ def generation_context_errors(contexts: list[dict], tasks: dict[str, dict],
 
 
 def reviewed_case_ids(review_ledger: Path | None,
-                      expected_case_ids: set[str] | None = None) -> tuple[set[str], str, str | None]:
-    """Count only auditable agreements from two distinct registered human reviewers."""
+                      expected_case_ids: set[str] | None = None,
+                      owner_spot_check_policy: Path | None = None,
+                      expected_generation_task_ids: set[str] | None = None
+                      ) -> tuple[set[str], str, str | None]:
+    """Resolve the declared review method and fail closed when its artifacts are incomplete."""
     if review_ledger is None or not review_ledger.exists():
         return set(), "pending", None
     ledger = json.loads(review_ledger.read_text(encoding="utf-8"))
     ledger_sha = sha256(review_ledger)
+    ledger_root = review_ledger.parent.resolve()
+    registry = ledger.get("reviewerRegistry", {})
+    if ledger.get("schemaVersion") == "material-rag-review-ledger-v3":
+        if owner_spot_check_policy is None or not owner_spot_check_policy.is_file():
+            return set(), "pending", ledger_sha
+        owner_reference = ledger.get("ownerSpotCheckArtifact", {})
+        artifact_path = (ledger_root / str(owner_reference.get("path", ""))).resolve()
+        policy_path = (ledger_root / str(owner_reference.get("policyPath", ""))).resolve()
+        expected_policy_path = owner_spot_check_policy.resolve()
+        if not artifact_path.is_relative_to(ledger_root) or not policy_path.is_relative_to(ledger_root) \
+                or policy_path != expected_policy_path or not artifact_path.is_file() \
+                or sha256(artifact_path) != owner_reference.get("sha256") \
+                or sha256(policy_path) != owner_reference.get("policySha256"):
+            return set(), "pending", ledger_sha
+        try:
+            policy = json.loads(policy_path.read_text(encoding="utf-8"))
+            artifact = json.loads(artifact_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            return set(), "pending", ledger_sha
+        reviewer_id = str(artifact.get("reviewerId", "")).strip()
+        required_core = set(policy.get("requiredCoreCaseIds", []))
+        required_tasks = set(policy.get("requiredGenerationTaskIds", []))
+        confirmed_core = set(artifact.get("confirmedCoreCaseIds", []))
+        confirmed_tasks = set(artifact.get("confirmedGenerationTaskIds", []))
+        if policy.get("schemaVersion") != "material-rag-owner-spot-check-policy-v1" \
+                or policy.get("reviewMethod") != "automated-full-owner-spot-check-v1" \
+                or ledger.get("reviewMethod") != policy.get("reviewMethod") \
+                or artifact.get("schemaVersion") != "material-rag-owner-spot-check-v1" \
+                or artifact.get("decision") != "approve" or not artifact.get("confirmationNote") \
+                or owner_reference.get("reviewerId") != reviewer_id \
+                or registry.get(reviewer_id, {}).get("kind") != "human_project_owner" \
+                or not required_core or not required_tasks \
+                or not required_core.issubset(confirmed_core) \
+                or not required_tasks.issubset(confirmed_tasks):
+            return set(), "pending", ledger_sha
+        entries = ledger.get("cases", [])
+        entry_ids = {entry.get("caseId") for entry in entries}
+        expected = expected_case_ids if expected_case_ids is not None else entry_ids
+        expected_tasks = expected_generation_task_ids or set()
+        automated_reviewers = {
+            reviewer for reviewer, metadata in registry.items()
+            if metadata.get("kind") == "automated"
+        }
+        if len(entries) != len(entry_ids) or entry_ids != expected \
+                or not required_core.issubset(expected) \
+                or not confirmed_core.issubset(expected) \
+                or not expected_tasks or not required_tasks.issubset(expected_tasks) \
+                or not confirmed_tasks.issubset(expected_tasks) \
+                or not automated_reviewers or any(
+                    entry.get("status") != "agreed"
+                    or not automated_reviewers.intersection(entry.get("reviewers", []))
+                    for entry in entries
+                ):
+            return set(), "pending", ledger_sha
+        return set(expected), "owner_spot_checked", ledger_sha
+
     if ledger.get("schemaVersion") != "material-rag-review-ledger-v2":
         return set(), "pending", ledger_sha
-    registry = ledger.get("reviewerRegistry", {})
-    ledger_root = review_ledger.parent.resolve()
     verified_human_accepts: dict[str, set[str]] = {}
     for artifact in ledger.get("humanReviewArtifacts", []):
         reviewer_id = str(artifact.get("reviewerId", "")).strip()
@@ -327,10 +386,6 @@ def audit(root: Path, review_ledger: Path | None) -> tuple[dict, dict]:
     anchors = json.loads((generated / "ground-truth.json").read_text(encoding="utf-8"))["anchors"]
     cases = read_jsonl(generated / "cases.jsonl")
     core_case_ids = {case["caseId"] for case in cases if case.get("split") in CORE_SPLITS}
-    reviewed_ids, ledger_review_status, review_ledger_sha = reviewed_case_ids(
-        review_ledger, core_case_ids
-    )
-
     documents = {document["source"]: document for document in manifest["documents"]}
     known_source_versions = {
         f"{document['source']}:{document['version']}" for document in manifest["documents"]
@@ -340,6 +395,21 @@ def audit(root: Path, review_ledger: Path | None) -> tuple[dict, dict]:
         (root / "fixtures" / "drawio-generation-tasks-v3.json").read_text(encoding="utf-8")
     )
     generation_tasks = generation_fixture["tasks"]
+    reviewed_ids, ledger_review_status, review_ledger_sha = reviewed_case_ids(
+        review_ledger,
+        core_case_ids,
+        root / "review" / "owner-spot-check-policy-v1.json",
+        {task["taskId"] for task in generation_tasks},
+    )
+    owner_policy_path = root / "review" / "owner-spot-check-policy-v1.json"
+    owner_policy = json.loads(owner_policy_path.read_text(encoding="utf-8"))
+    owner_policy_valid = (
+        owner_policy.get("schemaVersion") == "material-rag-owner-spot-check-policy-v1"
+        and set(owner_policy.get("requiredCoreCaseIds", [])).issubset(core_case_ids)
+        and set(owner_policy.get("requiredGenerationTaskIds", [])).issubset({
+            task["taskId"] for task in generation_tasks
+        })
+    )
     legacy_fixed_generation_fixture = json.loads(
         (root / "fixtures" / "drawio-generation-tasks-v2.json").read_text(encoding="utf-8")
     )
@@ -353,7 +423,7 @@ def audit(root: Path, review_ledger: Path | None) -> tuple[dict, dict]:
     )
     reviewed_core_ids = reviewed_ids & core_case_ids
     human_review_status = (
-        "double_reviewed" if core_case_ids and reviewed_core_ids == core_case_ids
+        ledger_review_status if core_case_ids and reviewed_core_ids == core_case_ids
         else "partial" if reviewed_core_ids
         else ledger_review_status
     )
@@ -513,6 +583,7 @@ def audit(root: Path, review_ledger: Path | None) -> tuple[dict, dict]:
         "noAnswerCasesHaveAbstentionCondition": not missing_abstention_conditions,
         "documentFamiliesDoNotCrossSplits": not split_leakage,
         "reviewLedgerReferencesKnownCases": not unknown_reviewed_case_ids,
+        "reviewGovernancePolicyValid": owner_policy_valid,
         "primaryCategoryLabelsValid": primary_categories_valid,
         "scenarioCategoryContextsValid": not invalid_category_contexts,
         "guardSuiteMinimumsMet": guard_suite_minimums_met,
@@ -521,12 +592,12 @@ def audit(root: Path, review_ledger: Path | None) -> tuple[dict, dict]:
     }
     structural_pass = all(structural_checks.values())
     reviewed_threshold = len(reviewed_core_ids) >= plan["preE0"]["minimumReviewedCasesBeforeComparison"]
-    fully_reviewed = (
+    review_governance_satisfied = (
         reviewed_core_ids == core_case_ids
-        and human_review_status == "double_reviewed"
+        and human_review_status in {"double_reviewed", "owner_spot_checked"}
     )
     ready_for_e0 = structural_pass and exact_split_counts and exact_category_counts \
-        and exact_language_counts and fully_reviewed
+        and exact_language_counts and review_governance_satisfied
 
     gaps = {
         split: core_targets[split] - split_counts[split]
@@ -566,7 +637,12 @@ def audit(root: Path, review_ledger: Path | None) -> tuple[dict, dict]:
         "gaps": {
             "coreCases": plan["preE0"]["requiredFrozenCoreCasesForBaseline"] - len(core_cases),
             "coreBySplit": gaps,
-            "independentHumanReview": human_review_status,
+            "reviewGovernance": human_review_status,
+            "independentHumanReview": (
+                human_review_status if human_review_status == "double_reviewed"
+                else "not_claimed" if human_review_status == "owner_spot_checked"
+                else human_review_status
+            ),
             "reviewedCasesBeforeComparison": max(
                 0, plan["preE0"]["minimumReviewedCasesBeforeComparison"] - len(reviewed_core_ids)),
             "primaryCategoryDelta": {
@@ -608,7 +684,12 @@ def audit(root: Path, review_ledger: Path | None) -> tuple[dict, dict]:
         "hashAlgorithm": "sha256",
         "coreCaseCount": len(core_cases),
         "coreBySplit": dict(sorted(split_counts.items())),
-        "independentHumanReview": human_review_status,
+        "reviewGovernance": human_review_status,
+        "independentHumanReview": (
+            human_review_status if human_review_status == "double_reviewed"
+            else "not_claimed" if human_review_status == "owner_spot_checked"
+            else human_review_status
+        ),
         "reviewedCoreCases": len(reviewed_core_ids),
         "reviewLedgerSha256": review_ledger_sha,
         "fixtureFontSha256": generation_config["fixtureFontSha256"],
@@ -637,12 +718,13 @@ def markdown_report(result: dict) -> str:
         f"- Generated cases including guards: {counts['allGeneratedCases']}",
         f"- Anchors: {counts['anchors']}; documents: {counts['documents']}",
         "",
-        "## Blocking gaps",
+        "## Readiness gaps",
         "",
         f"- Missing core cases: {gaps['coreCases']}",
         f"- Split gaps: `{json.dumps(gaps['coreBySplit'], sort_keys=True)}`",
-        f"- Independently reviewed core cases: {counts['reviewedCoreCases']}",
-        f"- Independent human review status: `{gaps['independentHumanReview']}`",
+        f"- Review-governed core cases: {counts['reviewedCoreCases']}",
+        f"- Review governance: `{gaps['reviewGovernance']}`",
+        f"- Independent human review claim: `{gaps['independentHumanReview']}`",
         f"- Primary-category deltas: `{json.dumps(gaps['primaryCategoryDelta'], sort_keys=True)}`",
         f"- Language-target deltas: `{json.dumps(gaps['languageTargetDelta'], sort_keys=True)}`",
         f"- Guard-suite deltas: `{json.dumps(gaps['guardSuiteDelta'], sort_keys=True)}`",
@@ -658,14 +740,15 @@ def markdown_report(result: dict) -> str:
     if result["readyForE0Freeze"]:
         lines.extend([
             "The corpus lock is frozen: core targets, guard-suite minimums, structural checks and",
-            "independent review all pass. Validation comparisons may proceed. The repository-visible",
-            "legacy holdout has not been run here; the external final holdout is not yet materialized.",
+            "the declared review-governance contract all pass. Development comparisons may proceed;",
+            "Validation remains closed until Development promotion. No independent double-human review",
+            "is claimed, and the external final holdout is not yet materialized.",
             "",
         ])
     else:
         lines.extend([
             "The corpus lock is still a candidate. Do not run formal comparisons until all listed",
-            "count, label, guard-suite and independent-review gaps are closed.",
+            "count, label, guard-suite and review-governance gaps are closed.",
             "",
         ])
     return "\n".join(lines)

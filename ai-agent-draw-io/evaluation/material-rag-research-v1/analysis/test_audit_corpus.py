@@ -18,16 +18,17 @@ LOCK = ROOT / "fixtures/generated/corpus-lock.json"
 
 class AuditCorpusTest(unittest.TestCase):
 
-    def test_current_corpus_remains_candidate_until_auditable_human_reviews_exist(self) -> None:
+    def test_current_corpus_freezes_with_automated_full_review_and_owner_spot_check(self) -> None:
         result, lock = audit(ROOT, REVIEW_LEDGER)
         plan = json.loads((ROOT / "experiment-plan-v2.json").read_text(encoding="utf-8"))
 
         self.assertTrue(all(result["checks"].values()))
         self.assertEqual(sum(plan["coreCases"].values()), result["counts"]["coreCases"])
         self.assertEqual(dict(sorted(plan["coreCases"].items())), result["counts"]["coreBySplit"])
-        self.assertFalse(result["readyForE0Freeze"])
-        self.assertEqual("pending", result["gaps"]["independentHumanReview"])
-        self.assertEqual("candidate", lock["status"])
+        self.assertTrue(result["readyForE0Freeze"])
+        self.assertEqual("owner_spot_checked", result["gaps"]["reviewGovernance"])
+        self.assertEqual("not_claimed", result["gaps"]["independentHumanReview"])
+        self.assertEqual("frozen", lock["status"])
 
     def test_without_review_ledger_the_lock_remains_a_candidate(self) -> None:
         result, lock = audit(ROOT, None)
@@ -208,6 +209,104 @@ class AuditCorpusTest(unittest.TestCase):
 
             reviewed, status, _ = reviewed_case_ids(
                 ledger, expected_case_ids={"case-1", "case-2"}
+            )
+
+        self.assertEqual(set(), reviewed)
+        self.assertEqual("pending", status)
+
+    def test_owner_spot_check_unlocks_only_the_frozen_representative_sample(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            policy = root / "owner-spot-check-policy-v1.json"
+            artifact = root / "owner-spot-check.json"
+            ledger = root / "review-ledger.json"
+            policy.write_text(json.dumps({
+                "schemaVersion": "material-rag-owner-spot-check-policy-v1",
+                "reviewMethod": "automated-full-owner-spot-check-v1",
+                "requiredCoreCaseIds": ["case-visual", "case-no-answer"],
+                "requiredGenerationTaskIds": ["task-edit", "task-scan"],
+            }), encoding="utf-8")
+            artifact.write_text(json.dumps({
+                "schemaVersion": "material-rag-owner-spot-check-v1",
+                "reviewerId": "project-owner",
+                "decision": "approve",
+                "confirmedCoreCaseIds": ["case-visual", "case-no-answer"],
+                "confirmedGenerationTaskIds": ["task-edit", "task-scan"],
+                "confirmationNote": "Approved after representative cases were displayed.",
+            }), encoding="utf-8")
+            ledger.write_text(json.dumps({
+                "schemaVersion": "material-rag-review-ledger-v3",
+                "reviewMethod": "automated-full-owner-spot-check-v1",
+                "reviewerRegistry": {
+                    "automated-review": {"kind": "automated"},
+                    "project-owner": {"kind": "human_project_owner"},
+                },
+                "ownerSpotCheckArtifact": {
+                    "reviewerId": "project-owner",
+                    "path": artifact.name,
+                    "sha256": sha256(artifact),
+                    "policyPath": policy.name,
+                    "policySha256": sha256(policy),
+                },
+                "cases": [
+                    {"caseId": "case-visual", "status": "agreed",
+                     "reviewers": ["automated-review"]},
+                    {"caseId": "case-no-answer", "status": "agreed",
+                     "reviewers": ["automated-review"]},
+                ],
+            }), encoding="utf-8")
+
+            reviewed, status, _ = reviewed_case_ids(
+                ledger,
+                expected_case_ids={"case-visual", "case-no-answer"},
+                owner_spot_check_policy=policy,
+                expected_generation_task_ids={"task-edit", "task-scan"},
+            )
+
+        self.assertEqual({"case-visual", "case-no-answer"}, reviewed)
+        self.assertEqual("owner_spot_checked", status)
+
+    def test_owner_spot_check_fails_closed_when_a_required_task_was_not_confirmed(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            policy = root / "owner-spot-check-policy-v1.json"
+            artifact = root / "owner-spot-check.json"
+            ledger = root / "review-ledger.json"
+            policy.write_text(json.dumps({
+                "schemaVersion": "material-rag-owner-spot-check-policy-v1",
+                "reviewMethod": "automated-full-owner-spot-check-v1",
+                "requiredCoreCaseIds": ["case-visual"],
+                "requiredGenerationTaskIds": ["task-edit", "task-scan"],
+            }), encoding="utf-8")
+            artifact.write_text(json.dumps({
+                "schemaVersion": "material-rag-owner-spot-check-v1",
+                "reviewerId": "project-owner",
+                "decision": "approve",
+                "confirmedCoreCaseIds": ["case-visual"],
+                "confirmedGenerationTaskIds": ["task-edit"],
+                "confirmationNote": "Incomplete sample.",
+            }), encoding="utf-8")
+            ledger.write_text(json.dumps({
+                "schemaVersion": "material-rag-review-ledger-v3",
+                "reviewMethod": "automated-full-owner-spot-check-v1",
+                "reviewerRegistry": {
+                    "automated-review": {"kind": "automated"},
+                    "project-owner": {"kind": "human_project_owner"},
+                },
+                "ownerSpotCheckArtifact": {
+                    "reviewerId": "project-owner", "path": artifact.name,
+                    "sha256": sha256(artifact), "policyPath": policy.name,
+                    "policySha256": sha256(policy),
+                },
+                "cases": [{"caseId": "case-visual", "status": "agreed",
+                           "reviewers": ["automated-review"]}],
+            }), encoding="utf-8")
+
+            reviewed, status, _ = reviewed_case_ids(
+                ledger,
+                expected_case_ids={"case-visual"},
+                owner_spot_check_policy=policy,
+                expected_generation_task_ids={"task-edit", "task-scan"},
             )
 
         self.assertEqual(set(), reviewed)

@@ -439,6 +439,25 @@ provisional diagnostic；dated result 与 dated lock 不改写。R11 的原始�
 architecture page-3 text/VISUAL rank 为 22/24，R9 为
 34/28；它们来自不同 chunk/channel，不能简写成同一个排名的前后变化。
 
+## 2026-07-23 R13 修订：自动全量审计 + 项目负责人抽样确认
+
+项目负责人在当前任务中查看并批准了 7 个已展示的代表样例。为避免不必要的 450×2 人工负担，同时不伪造
+“双人独立审阅”，active review governance 改为 `automated-full-owner-spot-check-v1`：
+
+- 自动合同审计逐一覆盖全部 450 core case；任何 query、answerability、gold anchor、evidence group、
+  split/source、category context 或 generation contract 错误都会阻止冻结。
+- owner spot-check policy 固定 `controlled-130`（流程视觉）、`controlled-624`（无答案），以及
+  `dgt-dev-03`（结构编辑）、`dgt-dev-10`（扫描转 XML）、`dgt-dev-17`（SEV 图例）、
+  `dgt-val-04`（OTA 流程）和 `dgt-val-17`（权限矩阵）。
+- owner approval 与 policy 分别保存、哈希并由 ledger v3 绑定；auditor 独立校验必需 ID、文件路径、
+  SHA-256、reviewer kind 和 approve decision。
+- corpus lock 写入 `reviewGovernance=owner_spot_checked` 与
+  `independentHumanReview=not_claimed`。这足以用于本项目的正式内部比较，但发布结果时不得描述成
+  independent double-human reviewed。
+
+本修订取代 R12 的 active 双人完整审阅阻塞项；R12 仍保留为更严格的可选替代路径。下一步为从新的干净
+frozen commit 运行 v3 Development hydration，仍不得提前读取或调参 Validation。
+
 E6b 的本地导出合同已冻结为 `fixtures/drawio-generation-paired-hydration-contract-v1.json` 与
 `analysis/export_drawio_paired_hydration.py`。active Development 图册明确挂载 architecture、workflow handbook
 与 planning-workshop scan 三个版本；导出器从同一 retrieval trace 的 raw top-8 和 source-aware top-8 产生一任务

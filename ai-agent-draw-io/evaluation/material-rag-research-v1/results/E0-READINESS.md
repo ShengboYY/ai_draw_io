@@ -1,6 +1,6 @@
 # E0 readiness audit
 
-Status: **BLOCKED**
+Status: **READY**
 
 ## Current corpus
 
@@ -11,12 +11,13 @@ Status: **BLOCKED**
 - Generated cases including guards: 722
 - Anchors: 402; documents: 39
 
-## Blocking gaps
+## Readiness gaps
 
 - Missing core cases: 0
 - Split gaps: `{}`
-- Independently reviewed core cases: 0
-- Independent human review status: `pending`
+- Review-governed core cases: 450
+- Review governance: `owner_spot_checked`
+- Independent human review claim: `not_claimed`
 - Primary-category deltas: `{}`
 - Language-target deltas: `{}`
 - Guard-suite deltas: `{}`
@@ -37,11 +38,14 @@ Status: **BLOCKED**
 - PASS - `noAnswerCasesHaveAbstentionCondition`
 - PASS - `documentFamiliesDoNotCrossSplits`
 - PASS - `reviewLedgerReferencesKnownCases`
+- PASS - `reviewGovernancePolicyValid`
 - PASS - `primaryCategoryLabelsValid`
 - PASS - `scenarioCategoryContextsValid`
 - PASS - `guardSuiteMinimumsMet`
 - PASS - `generationTasksValid`
 - PASS - `generationContextsValid`
 
-The corpus lock is still a candidate. Do not run formal comparisons until all listed
-count, label, guard-suite and independent-review gaps are closed.
+The corpus lock is frozen: core targets, guard-suite minimums, structural checks and
+the declared review-governance contract all pass. Development comparisons may proceed;
+Validation remains closed until Development promotion. No independent double-human review
+is claimed, and the external final holdout is not yet materialized.
