@@ -13,8 +13,8 @@
   "reviewLedgerSha256": "060d402284ef11775fd31b2860d42002d7d5d9a525e316c75a35c57938dc9437",
   "fixtureFontSha256": "876af2cd4854644e7f3e7feb2f688997fdb3343c6df6693611209c9dfb47ccec",
   "provenanceFiles": {
-    "EXPERIMENT-PLAN-V2.md": "a168c3d8a286d1c88352635f003319276ea8687f6cb98fae3702fce17ce66eee",
-    "experiment-plan-v2.json": "4b59bfa7fe04f0a09af97ce802f2ed286d8e5dd07717653ceaa204d4c64bcd95",
+    "EXPERIMENT-PLAN-V2.md": "96c720f9061ffeb9e6ca236624deb5b3658c141d4b01a1ed9b1ec1877e3ec67d",
+    "experiment-plan-v2.json": "7e12f6ce846f5f86bf0b70516f926b4f8b7e0422d053a87e62aceff7eede82d1",
     "requirements.txt": "0043aca3a7381487084576995105e1099e3786ae8add5a6c0951d305b0e0e757",
     "analysis/audit_corpus.py": "2b113fb20122a63676fc8db22894427b0b7882511e6870358236cda687cf6228",
     "analysis/compare_dense_runs.py": "762b83b97c14011b7b8081c859407973c7626252abc67e5f8773673bdda8ea59",
@@ -38,7 +38,7 @@
     "fixtures/source_evidence_identity_specs.py": "cbf76a899074871f9eca18ab3eb7861b77bfd6651b965c772819d28b24bce3eb",
     "fixtures/query-selection.json": "2053782f1f699b2bd6a880a3cfcbb4aa57829275ea02c3928248d636183d2f60",
     "fixtures/drawio-generation-tasks-v1.json": "76cd0285b4418257121f452a801d8e1a04f9ab2a9646986fbdd09d876062a160",
-    "fixtures/drawio-generation-tasks-v2.json": "e69f654383f9fd85376a8b79df81a0c3417ad9f805def7ac38e244c579e2981a",
+    "fixtures/drawio-generation-tasks-v2.json": "1b3174a973dba93a3a3bfb9fcc00dbdd9973d118a904734cd4b3e33fe4756c64",
     "fixtures/drawio-generation-development-evidence-v1.json": "e63a573473a93e218ff7b939158fef18c571eb3c8a4a6283a4b1129973190a67",
     "fixtures/drawio-generation-paired-hydration-contract-v1.json": "c08e7dde6ecc574a8a5a9880c1f76134a5801baa1c74ac6c100453d66e83e582",
     "fixtures/final-holdout-contract-v1.json": "2c84a7fd4537d8aa3ea47d9654d68c39e31fce61a234ac44cb081375cace0bad"

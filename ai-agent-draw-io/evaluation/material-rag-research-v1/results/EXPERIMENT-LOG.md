@@ -489,6 +489,20 @@
   或 expected answer 的前提下，改善 source-side retrieval/ranking 或 evidence availability。详见
   [2026-07-23-e7-r7-development-hydration-run.md](2026-07-23-e7-r7-development-hydration-run.md)。
 
+### E7 r8 — page-parent evidence availability · 2026-07-23 · ✅本地预注册与实现完成，⏸真实 trace 待授权
+
+- **单一变量**:在已有细粒度 leaf 之外增加可检索、可引用的 `PAGE_PARENT`；每个 parent 只含同一 source page 的
+  canonical text Evidence、原 page ID 与全部 copied Evidence ID。超过 900 tokenizer units 时分为连续同页 parent，
+  不截断、不跨页混合。它不同于 E2 的邻居窗口：E2 改 leaf embedding text，r8 新增独立的页级 projection。
+- **安全边界**:active Development task 显式提供 agent-visible `selectedMaterialVersion`，producer 仅接受已挂载版本；
+  parent 构建与 source identity resolver 均不读取 `requiredAnchors`、expected answer、claim/XML assertion 或
+  `ground-truth.json`。exact-text/visual-page identity 与 r6 gate 保持不变。
+- **本地核验**:TDD 覆盖 parent 的 source/page、citable/searchable 状态和 copied Evidence ID；另覆盖空或未挂载
+  selected material 直接拒绝。无 Pinecone、模型、Validation 或 holdout。
+- **下一步**:经授权运行新的 opt-in Development hydration trace；仅同时通过 paired contrast 与 r6
+  model-visible-required-evidence gate 后，才冻结 prompt 或请求 GPT-5.5。详见
+  [2026-07-23-e7-r8-page-parent-pre-registration.md](2026-07-23-e7-r8-page-parent-pre-registration.md)。
+
 ---
 
 ## 当前状态与下一步
@@ -496,9 +510,8 @@
 - 已完成:E0 基线 → E1 表示层改进 → 核心集升级并冻结到 450 → Development 与 Validation
   配对重跑 → 守门最低数补齐并执行 fixture-contract。Validation 证明 E1 提升真实,也证明
   dense-only 尚未达门槛。
-- **下一步**:r7 的真实 Development hydration trace 已完成并通过 contrast，但因 top-8 evidence availability 未通过 r6
-  readiness gate。下一步是预注册一个不读取 evaluator 数据的 source-side retrieval/ranking 或 evidence-availability
-  干预；Validation 暂不打开。
+- **下一步**:r8 page-parent evidence availability 已本地预注册和实现；下一步是经授权运行新的 opt-in Development
+  hydration trace。它仍须通过 contrast 与 r6 readiness gate，Validation 暂不打开。
 
 ## 开放问题 / 待办
 
@@ -524,7 +537,9 @@
   gate 未过；未发送模型请求。
 - [x] E7 r7 source-evidence identity persistence——source-owned manifest、exact-match/visual-page contract 与真实 trace hash
   已完成；5/5 contrast 通过但 model-visible required-evidence gate 未过，未发送模型请求。
-- [ ] E7 r8 retrieval/evidence-availability intervention——需先本地预注册；通过所有本地 gate 前不调用模型。
+- [x] E7 r8 page-parent evidence availability——本地预注册、source/page provenance 与 selected-material scope
+  contract 已完成；尚未发送模型请求。
+- [ ] E7 r8 新 Development hydration trace——需要 Pinecone test/dev namespace 授权；通过所有本地 gate 前不调用模型。
 - [ ] 外部 final holdout——contract 已定，payload 尚未由独立保管人生成和隔离。
 
 ## 如何跑一个实验(运行手册)

@@ -191,7 +191,7 @@
     "controlMeanSourceCount": 2.4615384615384617,
     "candidateMeanSourceCount": 3.9615384615384617,
     "decision": "valid contrast check; source coverage improved, recall direction descriptive only; no generation promotion claim",
-    "next": "run a fresh opt-in Development hydration trace using the r7 publisher-owned source evidence identity manifest; require its manifest hash, paired contrast gate, and r6 model-visible required-evidence gate before another generation run"
+    "next": "run a fresh opt-in Development hydration trace with r8 searchable citable page-parent projections and the r7 publisher-owned source evidence identity manifest; require its manifest hash, paired contrast gate, and r6 model-visible required-evidence gate before another generation run"
   },
   "e7Generation": {
     "activeTaskFixture": "fixtures/drawio-generation-tasks-v2.json",
@@ -201,7 +201,7 @@
     "requiresFormalRunManifest": "material-rag-generation-run-manifest-v1",
     "pairedHydrationContract": "fixtures/drawio-generation-paired-hydration-contract-v1.json; r4 successfully exported six Development paired contexts after native-policy-selected visual-page OCR placed the dgt-dev-02 architecture artifact in raw top-8; the original image artifact is retained and no-retrieval task handling is fixed separately",
     "historicalFixedRunQualification": "diagnostic; v1 tasks only; not compatible with active v2 edit assertions",
-    "next": "run a fresh opt-in Development hydration trace using the r7 publisher-owned source evidence identity manifest; require its manifest hash, paired contrast gate, and r6 model-visible required-evidence gate before another generation run"
+    "next": "run a fresh opt-in Development hydration trace with r8 searchable citable page-parent projections and the r7 publisher-owned source evidence identity manifest; require its manifest hash, paired contrast gate, and r6 model-visible required-evidence gate before another generation run"
   },
   "preE0": {
     "minimumReviewedCasesBeforeComparison": 340,
@@ -233,6 +233,6 @@
     "e5Status": "completed: DeepSeek V4 Pro listwise reranker accepted JSON for 5/155 cases and Recall@10 gain was 0.0; not promoted",
     "e6aStatus": "completed: 26/26 contexts changed; source coverage improved; recall interval touched zero; no promotion claim",
     "e6bStatus": "completed: r4 selected-visual-page local OCR placed dgt-dev-02 page-3 source image in raw top-8 and exporter produced six paired Development contexts with 3/5 retrieval-required tasks changed (60%); its paired GPT-5.5 Development run is recorded separately under E7",
-    "e7Status": "r4 formal GPT-5.5 paired Development run completed: both arms parsed XML 6/6, required citation contract 1/6 and task completion 0/6. r5 formal GPT-5.5 paired Development run constrained citations to complete model-visible evidence triples and removed cell-ID citations, but both arms remained at required citation contract 1/6 and task completion 0/6 because the evaluator-required canonical anchors were not present in each task's model-visible top-8 evidence. r6 rejects evaluator-gold identity inference and blocks bundle/model generation when the frozen trace lacks canonical identity. r7 pre-registers a publisher-owned source-evidence identity manifest: only exact source text or exact VISUAL page matching may assign an ID, its hash is persisted in a fresh trace, and unmatched evidence remains fallback. A fresh Development trace must still pass contrast and r6 readiness before any provider request; no promotion or Validation"
+    "e7Status": "r4 formal GPT-5.5 paired Development run completed: both arms parsed XML 6/6, required citation contract 1/6 and task completion 0/6. r5 formal GPT-5.5 paired Development run constrained citations to complete model-visible evidence triples and removed cell-ID citations, but both arms remained at required citation contract 1/6 and task completion 0/6 because the evaluator-required canonical anchors were not present in each task's model-visible top-8 evidence. r6 rejects evaluator-gold identity inference and blocks bundle/model generation when the frozen trace lacks canonical identity. r7 persisted publisher-owned source identities, but its fresh trace still left needed evidence outside top-8. R8 adds searchable, citable source-page parent projections and validates agent-selected material scope without reading evaluator data. A fresh Development trace must still pass contrast and r6 readiness before any provider request; no promotion or Validation"
   }
 }

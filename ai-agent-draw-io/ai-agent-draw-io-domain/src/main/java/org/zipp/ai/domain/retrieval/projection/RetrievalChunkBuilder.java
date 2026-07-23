@@ -67,7 +67,7 @@ public final class RetrievalChunkBuilder {
         if (tokenCounterFingerprint == null || tokenCounterFingerprint.isBlank()) {
             throw new IllegalArgumentException("tokenCounterFingerprint is required");
         }
-        return SCHEMA_VERSION + ":leaf-by-evidence:sentence-safe-split:parent-neighbor-max900:"
+        return SCHEMA_VERSION + ":leaf-by-evidence:sentence-safe-split:parent-neighbor-max900:page-parent-max900:"
                 + "section-bridge-min3-or500:aux-hard20pct:extractive-profile:lexical-v2:tokenizer="
                 + tokenCounterFingerprint.trim();
     }
@@ -130,6 +130,7 @@ public final class RetrievalChunkBuilder {
         leaves = mergeShortLeaves(source.revisionId(), leaves);
         leaves = withParentContexts(leaves);
         List<RetrievalChunkProjection> chunks = new ArrayList<>(leaves);
+        chunks.addAll(pageParents(source.revisionId(), leaves));
         List<RetrievalChunkProjection> searchableLeaves = leaves.stream()
                 .filter(chunk -> chunk.indexMode() != RetrievalIndexMode.UNSEARCHABLE).toList();
         chunks.addAll(auxiliaryChunks(source, searchableLeaves, headingBySection, byId));
@@ -247,6 +248,52 @@ public final class RetrievalChunkBuilder {
                     current.evidenceMappings()));
         }
         return List.copyOf(result);
+    }
+
+    /** Adds bounded, source-page-local parents so a retrieved leaf can retain its page's evidence context. */
+    private List<RetrievalChunkProjection> pageParents(String revisionId,
+                                                       List<RetrievalChunkProjection> leaves) {
+        Map<String, List<RetrievalChunkProjection>> byPage = new LinkedHashMap<>();
+        leaves.stream().filter(chunk -> chunk.modality() == EvidenceModality.TEXT)
+                .filter(chunk -> chunk.indexMode() == RetrievalIndexMode.DENSE_AND_LEXICAL)
+                .forEach(chunk -> byPage.computeIfAbsent(chunk.pageId(), ignored -> new ArrayList<>()).add(chunk));
+        List<RetrievalChunkProjection> parents = new ArrayList<>();
+        for (var entry : byPage.entrySet()) {
+            List<RetrievalChunkProjection> group = new ArrayList<>();
+            for (RetrievalChunkProjection leaf : entry.getValue()) {
+                String candidate = group.isEmpty() ? leaf.retrievalText()
+                        : pageParentText(group) + "\n\n" + leaf.retrievalText();
+                if (!group.isEmpty() && tokenCounter.count(candidate) > PARENT_LIMIT) {
+                    parents.add(pageParent(revisionId, entry.getKey(), group, parents.size() + 1));
+                    group.clear();
+                }
+                group.add(leaf);
+            }
+            if (!group.isEmpty()) {
+                parents.add(pageParent(revisionId, entry.getKey(), group, parents.size() + 1));
+            }
+        }
+        return List.copyOf(parents);
+    }
+
+    private RetrievalChunkProjection pageParent(String revisionId, String pageId,
+                                                List<RetrievalChunkProjection> leaves, int ordinal) {
+        String text = pageParentText(leaves);
+        List<RetrievalEvidenceMapping> mappings = deduplicateMappings(leaves.stream()
+                .flatMap(leaf -> leaf.evidenceMappings().stream()).toList());
+        RetrievalChunkProjection parent = chunk(revisionId, pageId, null, RetrievalChunkType.PAGE_PARENT,
+                EvidenceModality.TEXT, RetrievalIndexMode.DENSE_AND_LEXICAL, text, null,
+                leaves.stream().mapToDouble(RetrievalChunkProjection::quality).min().orElseThrow(), ordinal,
+                mappings);
+        List<String> evidenceIds = mappings.stream().map(RetrievalEvidenceMapping::evidenceId).distinct().toList();
+        return new RetrievalChunkProjection(parent.chunkId(), parent.pageId(), parent.sectionId(),
+                parent.chunkType(), parent.modality(), parent.languagePrimary(), parent.citable(),
+                parent.indexMode(), parent.retrievalText(), parent.retrievalTextSha256(), text, evidenceIds,
+                parent.tokenCount(), parent.quality(), parent.structuralOrdinal(), parent.evidenceMappings());
+    }
+
+    private static String pageParentText(List<RetrievalChunkProjection> leaves) {
+        return leaves.stream().map(RetrievalChunkProjection::retrievalText).collect(java.util.stream.Collectors.joining("\n\n"));
     }
 
     private List<RetrievalChunkProjection> auxiliaryChunks(EvidenceManifest source,
@@ -560,6 +607,7 @@ public final class RetrievalChunkBuilder {
             case VISUAL_DESCRIPTION -> VISUAL_LIMIT;
             case LIST_GROUP, TABLE_ROW_GROUP -> LIST_TABLE_LIMIT;
             case CAPTION_CONTEXT -> CAPTION_LIMIT;
+            case PAGE_PARENT -> PARENT_LIMIT;
             case SECTION_BRIDGE, DOCUMENT_PROFILE -> 380;
         };
     }
@@ -570,6 +618,7 @@ public final class RetrievalChunkBuilder {
             case LIST_GROUP, VISUAL_DESCRIPTION -> 50;
             case TABLE_ROW_GROUP -> 40;
             case CAPTION_CONTEXT -> 30;
+            case PAGE_PARENT -> 80;
             case SECTION_BRIDGE, DOCUMENT_PROFILE -> 80;
         };
     }

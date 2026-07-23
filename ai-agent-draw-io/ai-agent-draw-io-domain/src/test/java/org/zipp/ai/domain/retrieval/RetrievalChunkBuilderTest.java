@@ -52,6 +52,7 @@ class RetrievalChunkBuilderTest {
             case CAPTION_CONTEXT -> 320;
             case LIST_GROUP, TABLE_ROW_GROUP -> 400;
             case CONTENT, VISUAL_DESCRIPTION -> 420;
+            case PAGE_PARENT -> 900;
             case SECTION_BRIDGE, DOCUMENT_PROFILE -> 380;
         }));
         assertTrue(projection.chunks().stream().filter(chunk -> chunk.citable())
@@ -197,6 +198,27 @@ class RetrievalChunkBuilderTest {
 
         assertEquals(1, content.size());
         assertEquals(List.of("content-main", "content-tail"), content.get(0).evidenceMappings().stream()
+                .filter(mapping -> mapping.role() == ChunkEvidenceRole.PRIMARY)
+                .map(mapping -> mapping.evidenceId()).toList());
+    }
+
+    @Test
+    void projectsOneSearchableCitableParentForTheWholeSourcePage() {
+        EvidenceManifest evidence = manifest(List.of(
+                text("page-fact", EvidenceUnitType.CONTENT,
+                        "Existing evidence remains pinned to V1.", "section-1", 1, 0.90),
+                text("page-policy", EvidenceUnitType.CONTENT,
+                        "New requests use the latest ready material version.", "section-2", 2, 0.90)), List.of());
+
+        var parent = new RetrievalChunkBuilder(CHARACTER_COUNTER).build(evidence).chunks().stream()
+                .filter(chunk -> chunk.chunkType() == RetrievalChunkType.PAGE_PARENT).findFirst().orElseThrow();
+
+        assertEquals("page-1", parent.pageId());
+        assertTrue(parent.citable());
+        assertEquals(RetrievalIndexMode.DENSE_AND_LEXICAL, parent.indexMode());
+        assertTrue(parent.retrievalText().contains("Existing evidence remains pinned to V1."));
+        assertTrue(parent.retrievalText().contains("New requests use the latest ready material version."));
+        assertEquals(List.of("page-fact", "page-policy"), parent.evidenceMappings().stream()
                 .filter(mapping -> mapping.role() == ChunkEvidenceRole.PRIMARY)
                 .map(mapping -> mapping.evidenceId()).toList());
     }

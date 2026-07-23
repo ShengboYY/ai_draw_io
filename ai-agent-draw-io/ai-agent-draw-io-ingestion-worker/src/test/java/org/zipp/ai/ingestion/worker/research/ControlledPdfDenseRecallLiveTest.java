@@ -1422,6 +1422,8 @@ class ControlledPdfDenseRecallLiveTest {
             if (noRetrieval.contains(task.path("taskId").asText())) {
                 continue;
             }
+            // This is session-owned retrieval scope, distinct from evaluator citation assertions.
+            SelectedMaterialScope.requireMounted(task.path("selectedMaterialVersion").asText(), mounted);
             result.add(new ResearchCase(task.path("taskId").asText(), "drawio_generation",
                     task.path("type").asText(), "mixed", task.path("request").asText(),
                     "development", true, List.of(), List.of(), mounted, List.of(), List.of()));

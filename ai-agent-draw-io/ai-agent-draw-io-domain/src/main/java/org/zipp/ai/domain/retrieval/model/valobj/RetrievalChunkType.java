@@ -6,6 +6,7 @@ public enum RetrievalChunkType {
     TABLE_ROW_GROUP(true),
     VISUAL_DESCRIPTION(true),
     CAPTION_CONTEXT(true),
+    PAGE_PARENT(true),
     SECTION_BRIDGE(false),
     DOCUMENT_PROFILE(false);
 
