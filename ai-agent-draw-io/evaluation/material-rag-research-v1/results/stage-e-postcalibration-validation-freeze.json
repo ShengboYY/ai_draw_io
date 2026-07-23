@@ -1,0 +1,39 @@
+{
+  "schemaVersion": "material-rag-stage-e-postcalibration-validation-freeze-v1",
+  "status": "frozen_pending_two_reviewer_case_review_and_model_authorization",
+  "qualification": "new_internal_validation_not_independent_final_holdout",
+  "reason": "The cohort is newly authored after Stage D acceptance calibration and unseen by the generation model, but its assets remain in the local repository rather than with an external keeper.",
+  "taskCount": 12,
+  "taskFamilies": {
+    "material_grounded_creation": 3,
+    "structural_edit": 2,
+    "layout_only_edit": 2,
+    "version_and_authorization_safe_edit": 1,
+    "failure_and_recovery": 2,
+    "visual_or_ocr_to_editable_xml": 2
+  },
+  "isolation": {
+    "sourceVersionOverlapWithStageBValidation": 0,
+    "sourceVersionOverlapWithStageDInternalRelease": 0,
+    "modelGenerationCallsBeforeFreeze": 0,
+    "realUserData": false
+  },
+  "artifacts": {
+    "builder": {"path": "fixtures/build_stage_e_postcalibration_validation_inputs.py", "sha256": "6e7694004f45eb61e777b72d2c795be0e613f0b1b887a4a90e41af8a028eafa1"},
+    "tasks": {"path": "fixtures/generated/stage-e-postcalibration-validation/tasks.json", "sha256": "802d84d23a84798d47e3ca36560f16c4c1c995de0c6a81f1402a8b226f71b2ee"},
+    "contexts": {"path": "fixtures/generated/stage-e-postcalibration-validation/contexts.json", "sha256": "b045781ef929512d8ba96419832638b21faeff9d72b273151378c62657a03bf2"},
+    "groundTruth": {"path": "fixtures/generated/stage-e-postcalibration-validation/ground-truth.json", "sha256": "b5e48c6ae0a304823b76b0b9f6b8bbe4c4f16e6574bedd3ab16edced4dcbd9ff"},
+    "promptBundles": {"path": "fixtures/generated/stage-e-postcalibration-validation/prompt-bundles.json", "sha256": "c2fbb953ca080dfe3cf4b471c471c3fcbad3882588bf430983e15ca97575e136"},
+    "acceptancePolicy": {"path": "fixtures/generated/stage-e-postcalibration-validation/acceptance-policy-v2.json", "sha256": "6560203b72759092919cc6f90deafa8459572190ccc8a4a3e0ab33637f1ce82c"},
+    "rubric": {"path": "fixtures/generated/stage-e-postcalibration-validation/rubric-v1.json", "sha256": "af9405253b981a2f648bec34c59061d6f5713bb4fc6325f26dfa8f2d0f060245"},
+    "runManifestTemplate": {"path": "fixtures/generated/stage-e-postcalibration-validation/run-manifest-template.json", "sha256": "90621338ab64285c36047efabc73d76377fff0eb07d19d5d8fdde25bcd540950"},
+    "evidenceCompletenessImage": {"path": "fixtures/generated/stage-e-postcalibration-validation/images/evidence-completeness-source.png", "sha256": "4744fd908e4977c288cf00f420ef0da2710518b472160256320c61c68ab139a4"},
+    "serviceRecoveryImage": {"path": "fixtures/generated/stage-e-postcalibration-validation/images/service-recovery-source.png", "sha256": "369c48020515f091cdf24642b08ac2669c7c79793378007853024b16c54b1a55"}
+  },
+  "preflight": {
+    "sourceIsolationAudit": "passed",
+    "promptBundleReadiness": "12/12 passed",
+    "analysisUnitTests": "30/30 passed",
+    "stoppingRule": "Do not send these inputs to a model until two named reviewers approve every source/evidence/claim package and the user explicitly authorizes one run. After output, do not alter prompts, task data, source material, assertions, evaluator or policy."
+  }
+}

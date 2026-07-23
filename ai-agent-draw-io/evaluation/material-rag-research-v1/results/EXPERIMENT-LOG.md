@@ -1301,3 +1301,18 @@
   Pinecone 或任何外部服务。
 - **限制与下一步**:这是已观察输出的内部校准，不能用于正式分数、模型选择或 release claim。后续必须在模型调用前
   冻结全新的 Validation cohort、rubric 和 policy，再运行一次模型验证。
+
+### Stage E post-calibration internal Validation freeze · 2026-07-24 · ✅ frozen; model run not authorized
+
+- **新 cohort**:已创建 12 个此前未发送给生成模型的合成 Draw.io 验证任务，覆盖创建 3、结构编辑 2、严格布局编辑
+  2、版本/授权安全编辑 1、故障恢复 2、视觉/OCR→可编辑 XML 2。两张新视觉资料分别测试 evidence-completeness
+  分支与 service-recovery 分支；生成后人工检查并重生成了后一张，避免将错误分支顺序冻结为 source evidence。
+- **隔离性**:与 Stage B Validation、Stage D internal release 的 source version overlap 均为 `0`；无真实用户资料，
+  冻结前 generation model calls 为 `0`。因资料仍由本地创作，这是一套新的内部 Validation，不是外部独立 final holdout。
+- **预运行规则**:任务、contexts、ground truth、12 个 fixed prompt bundles、两张图、acceptance policy、rubric 与
+  一次性 run-manifest template 均已冻结。policy 在模型输出前冻结，保留 geometry-only 的 content/structure/style
+  保护，且禁止 Stage D 的事后 policy 进入本轮。
+- **验证**:source-isolation 与 prompt readiness `12/12` 通过；prompt/evaluator 相关单元测试 `30/30` 通过；没有
+  调用模型、Pinecone 或其他外部服务。完整 SHA-256 清单见
+  [Stage E freeze record](stage-e-postcalibration-validation-freeze.json)。
+- **下一步**:两位具名 reviewer 需先审核 12 个 source/evidence/claim package；之后才能请求用户授权一次固定模型运行。

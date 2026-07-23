@@ -1,0 +1,19 @@
+{
+  "schemaVersion": "material-rag-stage-e-postcalibration-validation-rubric-v1",
+  "status": "frozen_pending_case_review_and_model_authorization",
+  "qualification": "internal_validation_not_independent_final_holdout",
+  "scope": "12 new locally authored synthetic Draw.io tasks, created after Stage D calibration and unseen by the generation model. This is not an externally independent final holdout.",
+  "taskFixtureSha256": "802d84d23a84798d47e3ca36560f16c4c1c995de0c6a81f1402a8b226f71b2ee",
+  "contextFixtureSha256": "b045781ef929512d8ba96419832638b21faeff9d72b273151378c62657a03bf2",
+  "groundTruthSha256": "b5e48c6ae0a304823b76b0b9f6b8bbe4c4f16e6574bedd3ab16edced4dcbd9ff",
+  "promptBundlesSha256": "c2fbb953ca080dfe3cf4b471c471c3fcbad3882588bf430983e15ca97575e136",
+  "hardGates": {
+    "xmlParseRate": 1.0,
+    "requiredCitationContractRate": 1.0,
+    "unsupportedMaterialClaims": 0,
+    "unauthorizedCanvasMutations": 0
+  },
+  "acceptancePolicy": "Use only the sibling pre-run acceptance-policy-v2.json; no Stage D post-hoc policy is eligible.",
+  "reviewRequirement": "Two named reviewers must approve every source/evidence/claim package before a model call.",
+  "stoppingRule": "After reviewer approval and explicit model authorization, run the frozen cohort once. Do not tune prompts, model parameters, task data, sources, assertions, evaluator or policy after observing output."
+}

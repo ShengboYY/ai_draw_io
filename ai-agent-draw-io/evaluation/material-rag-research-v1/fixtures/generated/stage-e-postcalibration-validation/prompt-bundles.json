@@ -1,0 +1,586 @@
+{
+  "split": "validation",
+  "arm": "fixed",
+  "bundles": [
+    {
+      "taskId": "stge-val-01",
+      "arm": "fixed",
+      "prompt": "Return JSON only with keys xml and citations. xml must be editable draw.io XML using mxGraphModel/mxCell. citations must be an array of objects with citationId, sourceVersion and page. Use only the material below; do not invent material-backed claims or citations. Every citation must copy one complete row from Allowed citations exactly; citationId must not use draw.io mxCell IDs, XML IDs, labels or generated diagram IDs.\n\nTask: Create an editable governed release flow.\n\nAllowed citations:\n- citationId=CIT-001; sourceVersion=pe-release-governance:v1; page=1\n- citationId=CIT-002; sourceVersion=pe-release-governance:v1; page=1\n\nRetrieved material:\n[CIT-002 | pe-release-governance:v1 | page 1]\nRelease Coordinator sends a Signed Build to Change Approval before Authorized Deployment.\n\n[CIT-001 | pe-release-governance:v1 | page 1]\nAuthorized Deployment is owned by Platform Operations.",
+      "promptSha256": "4278f246da58812453d4cf200c7e309244774fd689d54f86bc03f4b4bcd3a8ed",
+      "evidence": [
+        {
+          "anchorId": "rg-route",
+          "sourceVersion": "pe-release-governance:v1",
+          "page": 1,
+          "text": "Release Coordinator sends a Signed Build to Change Approval before Authorized Deployment."
+        },
+        {
+          "anchorId": "rg-owner",
+          "sourceVersion": "pe-release-governance:v1",
+          "page": 1,
+          "text": "Authorized Deployment is owned by Platform Operations."
+        }
+      ],
+      "citationOptions": [
+        {
+          "citationId": "CIT-001",
+          "sourceVersion": "pe-release-governance:v1",
+          "page": 1
+        },
+        {
+          "citationId": "CIT-002",
+          "sourceVersion": "pe-release-governance:v1",
+          "page": 1
+        }
+      ],
+      "citationResolution": [
+        {
+          "citationId": "CIT-001",
+          "anchorId": "rg-owner",
+          "sourceVersion": "pe-release-governance:v1",
+          "page": 1
+        },
+        {
+          "citationId": "CIT-002",
+          "anchorId": "rg-route",
+          "sourceVersion": "pe-release-governance:v1",
+          "page": 1
+        }
+      ],
+      "modelVisibleRequiredEvidenceReady": true,
+      "hydrationArtifact": {
+        "path": "fixtures/generated/stage-e-postcalibration-validation/contexts.json",
+        "sha256": "b045781ef929512d8ba96419832638b21faeff9d72b273151378c62657a03bf2"
+      },
+      "imagePaths": [],
+      "imageSha256s": []
+    },
+    {
+      "taskId": "stge-val-02",
+      "arm": "fixed",
+      "prompt": "Return JSON only with keys xml and citations. xml must be editable draw.io XML using mxGraphModel/mxCell. citations must be an array of objects with citationId, sourceVersion and page. Use only the material below; do not invent material-backed claims or citations. Every citation must copy one complete row from Allowed citations exactly; citationId must not use draw.io mxCell IDs, XML IDs, labels or generated diagram IDs.\n\nTask: Draw the approved evidence retention lifecycle.\n\nAllowed citations:\n- citationId=CIT-001; sourceVersion=pe-evidence-retention:v1; page=1\n- citationId=CIT-002; sourceVersion=pe-evidence-retention:v1; page=1\n\nRetrieved material:\n[CIT-002 | pe-evidence-retention:v1 | page 1]\nCase Archive retains closed evidence for 90 days before Review Archive.\n\n[CIT-001 | pe-evidence-retention:v1 | page 1]\nReview Archive sends expired evidence to Certified Disposal.",
+      "promptSha256": "371c40c76cca95026948c9a6d6f170e230e69a6524d8130e28bc59ca9605d289",
+      "evidence": [
+        {
+          "anchorId": "er-retain",
+          "sourceVersion": "pe-evidence-retention:v1",
+          "page": 1,
+          "text": "Case Archive retains closed evidence for 90 days before Review Archive."
+        },
+        {
+          "anchorId": "er-dispose",
+          "sourceVersion": "pe-evidence-retention:v1",
+          "page": 1,
+          "text": "Review Archive sends expired evidence to Certified Disposal."
+        }
+      ],
+      "citationOptions": [
+        {
+          "citationId": "CIT-001",
+          "sourceVersion": "pe-evidence-retention:v1",
+          "page": 1
+        },
+        {
+          "citationId": "CIT-002",
+          "sourceVersion": "pe-evidence-retention:v1",
+          "page": 1
+        }
+      ],
+      "citationResolution": [
+        {
+          "citationId": "CIT-001",
+          "anchorId": "er-dispose",
+          "sourceVersion": "pe-evidence-retention:v1",
+          "page": 1
+        },
+        {
+          "citationId": "CIT-002",
+          "anchorId": "er-retain",
+          "sourceVersion": "pe-evidence-retention:v1",
+          "page": 1
+        }
+      ],
+      "modelVisibleRequiredEvidenceReady": true,
+      "hydrationArtifact": {
+        "path": "fixtures/generated/stage-e-postcalibration-validation/contexts.json",
+        "sha256": "b045781ef929512d8ba96419832638b21faeff9d72b273151378c62657a03bf2"
+      },
+      "imagePaths": [],
+      "imageSha256s": []
+    },
+    {
+      "taskId": "stge-val-03",
+      "arm": "fixed",
+      "prompt": "Return JSON only with keys xml and citations. xml must be editable draw.io XML using mxGraphModel/mxCell. citations must be an array of objects with citationId, sourceVersion and page. Use only the material below; do not invent material-backed claims or citations. Every citation must copy one complete row from Allowed citations exactly; citationId must not use draw.io mxCell IDs, XML IDs, labels or generated diagram IDs.\n\nTask: Create a customer-impact change approval diagram.\n\nAllowed citations:\n- citationId=CIT-001; sourceVersion=pe-customer-change:v1; page=1\n- citationId=CIT-002; sourceVersion=pe-customer-change:v1; page=1\n\nRetrieved material:\n[CIT-002 | pe-customer-change:v1 | page 1]\nChange Request is assessed by Impact Review before Customer Notice.\n\n[CIT-001 | pe-customer-change:v1 | page 1]\nCustomer Notice may be issued only after Change Authority approval.",
+      "promptSha256": "595ef6bfde1dfb9c13788980d5a8a0095fd91527a7b1c2bef508589226936b75",
+      "evidence": [
+        {
+          "anchorId": "cc-impact",
+          "sourceVersion": "pe-customer-change:v1",
+          "page": 1,
+          "text": "Change Request is assessed by Impact Review before Customer Notice."
+        },
+        {
+          "anchorId": "cc-approval",
+          "sourceVersion": "pe-customer-change:v1",
+          "page": 1,
+          "text": "Customer Notice may be issued only after Change Authority approval."
+        }
+      ],
+      "citationOptions": [
+        {
+          "citationId": "CIT-001",
+          "sourceVersion": "pe-customer-change:v1",
+          "page": 1
+        },
+        {
+          "citationId": "CIT-002",
+          "sourceVersion": "pe-customer-change:v1",
+          "page": 1
+        }
+      ],
+      "citationResolution": [
+        {
+          "citationId": "CIT-001",
+          "anchorId": "cc-approval",
+          "sourceVersion": "pe-customer-change:v1",
+          "page": 1
+        },
+        {
+          "citationId": "CIT-002",
+          "anchorId": "cc-impact",
+          "sourceVersion": "pe-customer-change:v1",
+          "page": 1
+        }
+      ],
+      "modelVisibleRequiredEvidenceReady": true,
+      "hydrationArtifact": {
+        "path": "fixtures/generated/stage-e-postcalibration-validation/contexts.json",
+        "sha256": "b045781ef929512d8ba96419832638b21faeff9d72b273151378c62657a03bf2"
+      },
+      "imagePaths": [],
+      "imageSha256s": []
+    },
+    {
+      "taskId": "stge-val-04",
+      "arm": "fixed",
+      "prompt": "Return JSON only with keys xml and citations. xml must be editable draw.io XML using mxGraphModel/mxCell. citations must be an array of objects with citationId, sourceVersion and page. Use only the material below; do not invent material-backed claims or citations. Every citation must copy one complete row from Allowed citations exactly; citationId must not use draw.io mxCell IDs, XML IDs, labels or generated diagram IDs.\n\nTask: Update the selected on-call handoff subgraph from the approved material.\n\nExisting editable XML to modify:\n<mxGraphModel><root><mxCell id='0'/><mxCell id='1' parent='0'/><mxCell id='selected' value='Selected step' vertex='1' parent='1'><mxGeometry x='40' y='40' width='180' height='60' as='geometry'/></mxCell></root></mxGraphModel>\n\nAllowed citations:\n- citationId=CIT-001; sourceVersion=pe-oncall-handoff-edit:v1; page=1\n- citationId=CIT-002; sourceVersion=pe-oncall-handoff-edit:v1; page=1\n\nRetrieved material:\n[CIT-001 | pe-oncall-handoff-edit:v1 | page 1]\nPrimary Responder hands an acknowledged incident to the Secondary Responder.\n\n[CIT-002 | pe-oncall-handoff-edit:v1 | page 1]\nSecondary Responder records the handoff note before shift close.",
+      "promptSha256": "44a7102d0212566a94760e952e9cff71c262013864c84ca6bfb7932e81b8be27",
+      "evidence": [
+        {
+          "anchorId": "oh-handoff",
+          "sourceVersion": "pe-oncall-handoff-edit:v1",
+          "page": 1,
+          "text": "Primary Responder hands an acknowledged incident to the Secondary Responder."
+        },
+        {
+          "anchorId": "oh-note",
+          "sourceVersion": "pe-oncall-handoff-edit:v1",
+          "page": 1,
+          "text": "Secondary Responder records the handoff note before shift close."
+        }
+      ],
+      "citationOptions": [
+        {
+          "citationId": "CIT-001",
+          "sourceVersion": "pe-oncall-handoff-edit:v1",
+          "page": 1
+        },
+        {
+          "citationId": "CIT-002",
+          "sourceVersion": "pe-oncall-handoff-edit:v1",
+          "page": 1
+        }
+      ],
+      "citationResolution": [
+        {
+          "citationId": "CIT-001",
+          "anchorId": "oh-handoff",
+          "sourceVersion": "pe-oncall-handoff-edit:v1",
+          "page": 1
+        },
+        {
+          "citationId": "CIT-002",
+          "anchorId": "oh-note",
+          "sourceVersion": "pe-oncall-handoff-edit:v1",
+          "page": 1
+        }
+      ],
+      "modelVisibleRequiredEvidenceReady": true,
+      "hydrationArtifact": {
+        "path": "fixtures/generated/stage-e-postcalibration-validation/contexts.json",
+        "sha256": "b045781ef929512d8ba96419832638b21faeff9d72b273151378c62657a03bf2"
+      },
+      "imagePaths": [],
+      "imageSha256s": []
+    },
+    {
+      "taskId": "stge-val-05",
+      "arm": "fixed",
+      "prompt": "Return JSON only with keys xml and citations. xml must be editable draw.io XML using mxGraphModel/mxCell. citations must be an array of objects with citationId, sourceVersion and page. Use only the material below; do not invent material-backed claims or citations. Every citation must copy one complete row from Allowed citations exactly; citationId must not use draw.io mxCell IDs, XML IDs, labels or generated diagram IDs.\n\nTask: Edit the selected billing-exception branch using the selected source.\n\nExisting editable XML to modify:\n<mxGraphModel><root><mxCell id='0'/><mxCell id='1' parent='0'/><mxCell id='selected' value='Selected step' vertex='1' parent='1'><mxGeometry x='40' y='40' width='180' height='60' as='geometry'/></mxCell></root></mxGraphModel>\n\nAllowed citations:\n- citationId=CIT-001; sourceVersion=pe-billing-exception-edit:v1; page=1\n- citationId=CIT-002; sourceVersion=pe-billing-exception-edit:v1; page=1\n\nRetrieved material:\n[CIT-002 | pe-billing-exception-edit:v1 | page 1]\nBilling Exception goes to Revenue Review before Account Correction.\n\n[CIT-001 | pe-billing-exception-edit:v1 | page 1]\nAccount Correction is owned by Revenue Operations.",
+      "promptSha256": "9097fcb3d823abce8a9e3ad01c110bc117686f3b4064b2e12792ab448c0db8ed",
+      "evidence": [
+        {
+          "anchorId": "be-route",
+          "sourceVersion": "pe-billing-exception-edit:v1",
+          "page": 1,
+          "text": "Billing Exception goes to Revenue Review before Account Correction."
+        },
+        {
+          "anchorId": "be-owner",
+          "sourceVersion": "pe-billing-exception-edit:v1",
+          "page": 1,
+          "text": "Account Correction is owned by Revenue Operations."
+        }
+      ],
+      "citationOptions": [
+        {
+          "citationId": "CIT-001",
+          "sourceVersion": "pe-billing-exception-edit:v1",
+          "page": 1
+        },
+        {
+          "citationId": "CIT-002",
+          "sourceVersion": "pe-billing-exception-edit:v1",
+          "page": 1
+        }
+      ],
+      "citationResolution": [
+        {
+          "citationId": "CIT-001",
+          "anchorId": "be-owner",
+          "sourceVersion": "pe-billing-exception-edit:v1",
+          "page": 1
+        },
+        {
+          "citationId": "CIT-002",
+          "anchorId": "be-route",
+          "sourceVersion": "pe-billing-exception-edit:v1",
+          "page": 1
+        }
+      ],
+      "modelVisibleRequiredEvidenceReady": true,
+      "hydrationArtifact": {
+        "path": "fixtures/generated/stage-e-postcalibration-validation/contexts.json",
+        "sha256": "b045781ef929512d8ba96419832638b21faeff9d72b273151378c62657a03bf2"
+      },
+      "imagePaths": [],
+      "imageSha256s": []
+    },
+    {
+      "taskId": "stge-val-06",
+      "arm": "fixed",
+      "prompt": "Return JSON only with keys xml and citations. xml must be editable draw.io XML using mxGraphModel/mxCell. citations must be an array of objects with citationId, sourceVersion and page. Use only the material below; do not invent material-backed claims or citations. Every citation must copy one complete row from Allowed citations exactly; citationId must not use draw.io mxCell IDs, XML IDs, labels or generated diagram IDs.\n\nTask: Separate the existing process roles for readability without changing their content or style.\n\nExisting editable XML to modify:\n<mxGraphModel><root><mxCell id='0'/><mxCell id='1' parent='0'/><mxCell id='layout-1' value='Submitter' vertex='1' parent='1'><mxGeometry x='45' y='45' width='180' height='60' as='geometry'/></mxCell><mxCell id='layout-2' value='Approver' vertex='1' parent='1'><mxGeometry x='90' y='45' width='180' height='60' as='geometry'/></mxCell><mxCell id='layout-3' value='Observer' vertex='1' parent='1'><mxGeometry x='135' y='45' width='180' height='60' as='geometry'/></mxCell></root></mxGraphModel>\n\nAllowed citations:\n- citationId=CIT-001; sourceVersion=pe-layout-roles:v1; page=1\n\nRetrieved material:\n[CIT-001 | pe-layout-roles:v1 | page 1]\nSubmitter, Approver and Observer are the existing process roles.",
+      "promptSha256": "de60957b7fff6aa43cafa686b745beb95ca88366661a43c30c696b83ad6f1a53",
+      "evidence": [
+        {
+          "anchorId": "lr-roles",
+          "sourceVersion": "pe-layout-roles:v1",
+          "page": 1,
+          "text": "Submitter, Approver and Observer are the existing process roles."
+        }
+      ],
+      "citationOptions": [
+        {
+          "citationId": "CIT-001",
+          "sourceVersion": "pe-layout-roles:v1",
+          "page": 1
+        }
+      ],
+      "citationResolution": [
+        {
+          "citationId": "CIT-001",
+          "anchorId": "lr-roles",
+          "sourceVersion": "pe-layout-roles:v1",
+          "page": 1
+        }
+      ],
+      "modelVisibleRequiredEvidenceReady": true,
+      "hydrationArtifact": {
+        "path": "fixtures/generated/stage-e-postcalibration-validation/contexts.json",
+        "sha256": "b045781ef929512d8ba96419832638b21faeff9d72b273151378c62657a03bf2"
+      },
+      "imagePaths": [],
+      "imageSha256s": []
+    },
+    {
+      "taskId": "stge-val-07",
+      "arm": "fixed",
+      "prompt": "Return JSON only with keys xml and citations. xml must be editable draw.io XML using mxGraphModel/mxCell. citations must be an array of objects with citationId, sourceVersion and page. Use only the material below; do not invent material-backed claims or citations. Every citation must copy one complete row from Allowed citations exactly; citationId must not use draw.io mxCell IDs, XML IDs, labels or generated diagram IDs.\n\nTask: Improve spacing of the existing states without changing their content or style.\n\nExisting editable XML to modify:\n<mxGraphModel><root><mxCell id='0'/><mxCell id='1' parent='0'/><mxCell id='layout-1' value='Pending' vertex='1' parent='1'><mxGeometry x='45' y='45' width='180' height='60' as='geometry'/></mxCell><mxCell id='layout-2' value='Validated' vertex='1' parent='1'><mxGeometry x='90' y='45' width='180' height='60' as='geometry'/></mxCell><mxCell id='layout-3' value='Archived' vertex='1' parent='1'><mxGeometry x='135' y='45' width='180' height='60' as='geometry'/></mxCell></root></mxGraphModel>\n\nAllowed citations:\n- citationId=CIT-001; sourceVersion=pe-layout-states:v1; page=1\n\nRetrieved material:\n[CIT-001 | pe-layout-states:v1 | page 1]\nPending, Validated, and Archived are the existing lifecycle states.",
+      "promptSha256": "d63167041cc16b126f05ee320775f84a3df31381c379ef04ca44f798cfc12fef",
+      "evidence": [
+        {
+          "anchorId": "ls-states",
+          "sourceVersion": "pe-layout-states:v1",
+          "page": 1,
+          "text": "Pending, Validated, and Archived are the existing lifecycle states."
+        }
+      ],
+      "citationOptions": [
+        {
+          "citationId": "CIT-001",
+          "sourceVersion": "pe-layout-states:v1",
+          "page": 1
+        }
+      ],
+      "citationResolution": [
+        {
+          "citationId": "CIT-001",
+          "anchorId": "ls-states",
+          "sourceVersion": "pe-layout-states:v1",
+          "page": 1
+        }
+      ],
+      "modelVisibleRequiredEvidenceReady": true,
+      "hydrationArtifact": {
+        "path": "fixtures/generated/stage-e-postcalibration-validation/contexts.json",
+        "sha256": "b045781ef929512d8ba96419832638b21faeff9d72b273151378c62657a03bf2"
+      },
+      "imagePaths": [],
+      "imageSha256s": []
+    },
+    {
+      "taskId": "stge-val-08",
+      "arm": "fixed",
+      "prompt": "Return JSON only with keys xml and citations. xml must be editable draw.io XML using mxGraphModel/mxCell. citations must be an array of objects with citationId, sourceVersion and page. Use only the material below; do not invent material-backed claims or citations. Every citation must copy one complete row from Allowed citations exactly; citationId must not use draw.io mxCell IDs, XML IDs, labels or generated diagram IDs.\n\nTask: Draw the selected, authorized catalog approval route.\n\nAllowed citations:\n- citationId=CIT-001; sourceVersion=pe-catalog-approval:v4; page=1\n- citationId=CIT-002; sourceVersion=pe-catalog-approval:v4; page=1\n\nRetrieved material:\n[CIT-002 | pe-catalog-approval:v4 | page 1]\nCatalog Analyst submits Version 4 to Product Approver before Catalog Publish.\n\n[CIT-001 | pe-catalog-approval:v4 | page 1]\nOnly Version 4 is authorized for this edit.",
+      "promptSha256": "02f81504311a168a8c5a2066795c27d2f0f096353288d477199275b843829f92",
+      "evidence": [
+        {
+          "anchorId": "ca-v4",
+          "sourceVersion": "pe-catalog-approval:v4",
+          "page": 1,
+          "text": "Catalog Analyst submits Version 4 to Product Approver before Catalog Publish."
+        },
+        {
+          "anchorId": "ca-scope",
+          "sourceVersion": "pe-catalog-approval:v4",
+          "page": 1,
+          "text": "Only Version 4 is authorized for this edit."
+        }
+      ],
+      "citationOptions": [
+        {
+          "citationId": "CIT-001",
+          "sourceVersion": "pe-catalog-approval:v4",
+          "page": 1
+        },
+        {
+          "citationId": "CIT-002",
+          "sourceVersion": "pe-catalog-approval:v4",
+          "page": 1
+        }
+      ],
+      "citationResolution": [
+        {
+          "citationId": "CIT-001",
+          "anchorId": "ca-scope",
+          "sourceVersion": "pe-catalog-approval:v4",
+          "page": 1
+        },
+        {
+          "citationId": "CIT-002",
+          "anchorId": "ca-v4",
+          "sourceVersion": "pe-catalog-approval:v4",
+          "page": 1
+        }
+      ],
+      "modelVisibleRequiredEvidenceReady": true,
+      "hydrationArtifact": {
+        "path": "fixtures/generated/stage-e-postcalibration-validation/contexts.json",
+        "sha256": "b045781ef929512d8ba96419832638b21faeff9d72b273151378c62657a03bf2"
+      },
+      "imagePaths": [],
+      "imageSha256s": []
+    },
+    {
+      "taskId": "stge-val-09",
+      "arm": "fixed",
+      "prompt": "Return JSON only with keys xml and citations. xml must be editable draw.io XML using mxGraphModel/mxCell. citations must be an array of objects with citationId, sourceVersion and page. Use only the material below; do not invent material-backed claims or citations. Every citation must copy one complete row from Allowed citations exactly; citationId must not use draw.io mxCell IDs, XML IDs, labels or generated diagram IDs.\n\nTask: Create the safe source-retrieval recovery diagram.\n\nAllowed citations:\n- citationId=CIT-001; sourceVersion=pe-retrieval-recovery:v1; page=1\n- citationId=CIT-002; sourceVersion=pe-retrieval-recovery:v1; page=1\n\nRetrieved material:\n[CIT-001 | pe-retrieval-recovery:v1 | page 1]\nWhen Evidence Retrieval is Unavailable, source-grounded generation is blocked while Manual Diagramming remains available.\n\n[CIT-002 | pe-retrieval-recovery:v1 | page 1]\nRetry Retrieval may continue only after Evidence Retrieval is restored.",
+      "promptSha256": "c96a1571a1ac6900bbf08b33cfecfd6dace430a47ef707bb7ef1b69a7cb80da1",
+      "evidence": [
+        {
+          "anchorId": "rr-block",
+          "sourceVersion": "pe-retrieval-recovery:v1",
+          "page": 1,
+          "text": "When Evidence Retrieval is Unavailable, source-grounded generation is blocked while Manual Diagramming remains available."
+        },
+        {
+          "anchorId": "rr-resume",
+          "sourceVersion": "pe-retrieval-recovery:v1",
+          "page": 1,
+          "text": "Retry Retrieval may continue only after Evidence Retrieval is restored."
+        }
+      ],
+      "citationOptions": [
+        {
+          "citationId": "CIT-001",
+          "sourceVersion": "pe-retrieval-recovery:v1",
+          "page": 1
+        },
+        {
+          "citationId": "CIT-002",
+          "sourceVersion": "pe-retrieval-recovery:v1",
+          "page": 1
+        }
+      ],
+      "citationResolution": [
+        {
+          "citationId": "CIT-001",
+          "anchorId": "rr-block",
+          "sourceVersion": "pe-retrieval-recovery:v1",
+          "page": 1
+        },
+        {
+          "citationId": "CIT-002",
+          "anchorId": "rr-resume",
+          "sourceVersion": "pe-retrieval-recovery:v1",
+          "page": 1
+        }
+      ],
+      "modelVisibleRequiredEvidenceReady": true,
+      "hydrationArtifact": {
+        "path": "fixtures/generated/stage-e-postcalibration-validation/contexts.json",
+        "sha256": "b045781ef929512d8ba96419832638b21faeff9d72b273151378c62657a03bf2"
+      },
+      "imagePaths": [],
+      "imageSha256s": []
+    },
+    {
+      "taskId": "stge-val-10",
+      "arm": "fixed",
+      "prompt": "Return JSON only with keys xml and citations. xml must be editable draw.io XML using mxGraphModel/mxCell. citations must be an array of objects with citationId, sourceVersion and page. Use only the material below; do not invent material-backed claims or citations. Every citation must copy one complete row from Allowed citations exactly; citationId must not use draw.io mxCell IDs, XML IDs, labels or generated diagram IDs.\n\nTask: Reconstruct the selected evidence-completeness figure as editable draw.io XML.\n\nAllowed citations:\n- citationId=CIT-001; sourceVersion=pe-evidence-completeness-visual:v1; page=1\n\nRetrieved material:\n[CIT-001 | pe-evidence-completeness-visual:v1 | page 1]\nField Request goes to Evidence Check. If Evidence complete? is Yes, Approve Request then Issue Work Order. If No, Request Missing Evidence then Await Resubmission.\nAttached visual artifact for this evidence.",
+      "promptSha256": "668de97ee5fcd31eb4f8cdb04e140102b1fa2a5997744788945b1fee61878f79",
+      "evidence": [
+        {
+          "anchorId": "ec-flow",
+          "sourceVersion": "pe-evidence-completeness-visual:v1",
+          "page": 1,
+          "text": "Field Request goes to Evidence Check. If Evidence complete? is Yes, Approve Request then Issue Work Order. If No, Request Missing Evidence then Await Resubmission.",
+          "imagePath": "fixtures/generated/stage-e-postcalibration-validation/images/evidence-completeness-source.png",
+          "imageSha256": "4744fd908e4977c288cf00f420ef0da2710518b472160256320c61c68ab139a4"
+        }
+      ],
+      "citationOptions": [
+        {
+          "citationId": "CIT-001",
+          "sourceVersion": "pe-evidence-completeness-visual:v1",
+          "page": 1
+        }
+      ],
+      "citationResolution": [
+        {
+          "citationId": "CIT-001",
+          "anchorId": "ec-flow",
+          "sourceVersion": "pe-evidence-completeness-visual:v1",
+          "page": 1
+        }
+      ],
+      "modelVisibleRequiredEvidenceReady": true,
+      "hydrationArtifact": {
+        "path": "fixtures/generated/stage-e-postcalibration-validation/contexts.json",
+        "sha256": "b045781ef929512d8ba96419832638b21faeff9d72b273151378c62657a03bf2"
+      },
+      "imagePaths": [
+        "fixtures/generated/stage-e-postcalibration-validation/images/evidence-completeness-source.png"
+      ],
+      "imageSha256s": [
+        "4744fd908e4977c288cf00f420ef0da2710518b472160256320c61c68ab139a4"
+      ]
+    },
+    {
+      "taskId": "stge-val-11",
+      "arm": "fixed",
+      "prompt": "Return JSON only with keys xml and citations. xml must be editable draw.io XML using mxGraphModel/mxCell. citations must be an array of objects with citationId, sourceVersion and page. Use only the material below; do not invent material-backed claims or citations. Every citation must copy one complete row from Allowed citations exactly; citationId must not use draw.io mxCell IDs, XML IDs, labels or generated diagram IDs.\n\nTask: Convert the selected service-recovery figure into editable draw.io XML.\n\nAllowed citations:\n- citationId=CIT-001; sourceVersion=pe-service-recovery-visual:v1; page=1\n\nRetrieved material:\n[CIT-001 | pe-service-recovery-visual:v1 | page 1]\nAlert Received goes to Assess Service. If Service restored? is Yes, Record Resolution. If No, Start Recovery then Notify Incident Lead then Reassess Service.\nAttached visual artifact for this evidence.",
+      "promptSha256": "b470f41ae9400e351faf2490e1ccf76a37111f6a7797b6102e234984fb6db722",
+      "evidence": [
+        {
+          "anchorId": "sr-flow",
+          "sourceVersion": "pe-service-recovery-visual:v1",
+          "page": 1,
+          "text": "Alert Received goes to Assess Service. If Service restored? is Yes, Record Resolution. If No, Start Recovery then Notify Incident Lead then Reassess Service.",
+          "imagePath": "fixtures/generated/stage-e-postcalibration-validation/images/service-recovery-source.png",
+          "imageSha256": "369c48020515f091cdf24642b08ac2669c7c79793378007853024b16c54b1a55"
+        }
+      ],
+      "citationOptions": [
+        {
+          "citationId": "CIT-001",
+          "sourceVersion": "pe-service-recovery-visual:v1",
+          "page": 1
+        }
+      ],
+      "citationResolution": [
+        {
+          "citationId": "CIT-001",
+          "anchorId": "sr-flow",
+          "sourceVersion": "pe-service-recovery-visual:v1",
+          "page": 1
+        }
+      ],
+      "modelVisibleRequiredEvidenceReady": true,
+      "hydrationArtifact": {
+        "path": "fixtures/generated/stage-e-postcalibration-validation/contexts.json",
+        "sha256": "b045781ef929512d8ba96419832638b21faeff9d72b273151378c62657a03bf2"
+      },
+      "imagePaths": [
+        "fixtures/generated/stage-e-postcalibration-validation/images/service-recovery-source.png"
+      ],
+      "imageSha256s": [
+        "369c48020515f091cdf24642b08ac2669c7c79793378007853024b16c54b1a55"
+      ]
+    },
+    {
+      "taskId": "stge-val-12",
+      "arm": "fixed",
+      "prompt": "Return JSON only with keys xml and citations. xml must be editable draw.io XML using mxGraphModel/mxCell. citations must be an array of objects with citationId, sourceVersion and page. Use only the material below; do not invent material-backed claims or citations. Every citation must copy one complete row from Allowed citations exactly; citationId must not use draw.io mxCell IDs, XML IDs, labels or generated diagram IDs.\n\nTask: Draw the safe diagram-save recovery path.\n\nAllowed citations:\n- citationId=CIT-001; sourceVersion=pe-save-recovery:v1; page=1\n- citationId=CIT-002; sourceVersion=pe-save-recovery:v1; page=1\n\nRetrieved material:\n[CIT-002 | pe-save-recovery:v1 | page 1]\nDiagram Save Failed preserves the editable canvas and offers Retry Save.\n\n[CIT-001 | pe-save-recovery:v1 | page 1]\nAfter a repeated save failure, the agent routes the case to Storage Support.",
+      "promptSha256": "86549a7c7e01153940e9377214ea6668516decac7b1afd1856c863d900eea994",
+      "evidence": [
+        {
+          "anchorId": "ss-preserve",
+          "sourceVersion": "pe-save-recovery:v1",
+          "page": 1,
+          "text": "Diagram Save Failed preserves the editable canvas and offers Retry Save."
+        },
+        {
+          "anchorId": "ss-escalate",
+          "sourceVersion": "pe-save-recovery:v1",
+          "page": 1,
+          "text": "After a repeated save failure, the agent routes the case to Storage Support."
+        }
+      ],
+      "citationOptions": [
+        {
+          "citationId": "CIT-001",
+          "sourceVersion": "pe-save-recovery:v1",
+          "page": 1
+        },
+        {
+          "citationId": "CIT-002",
+          "sourceVersion": "pe-save-recovery:v1",
+          "page": 1
+        }
+      ],
+      "citationResolution": [
+        {
+          "citationId": "CIT-001",
+          "anchorId": "ss-escalate",
+          "sourceVersion": "pe-save-recovery:v1",
+          "page": 1
+        },
+        {
+          "citationId": "CIT-002",
+          "anchorId": "ss-preserve",
+          "sourceVersion": "pe-save-recovery:v1",
+          "page": 1
+        }
+      ],
+      "modelVisibleRequiredEvidenceReady": true,
+      "hydrationArtifact": {
+        "path": "fixtures/generated/stage-e-postcalibration-validation/contexts.json",
+        "sha256": "b045781ef929512d8ba96419832638b21faeff9d72b273151378c62657a03bf2"
+      },
+      "imagePaths": [],
+      "imageSha256s": []
+    }
+  ]
+}
