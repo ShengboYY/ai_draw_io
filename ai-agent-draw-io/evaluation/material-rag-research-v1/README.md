@@ -323,6 +323,11 @@ lanes. It records `candidateQueryMode`, `queryRewriteFingerprint`, and `queryFus
 rejects an unfused lane or unknown rewrite/fusion fingerprint, preventing an intervention from being
 executed but silently omitted from the model-visible candidate pool.
 
+R23a diagnostic traces additionally record `queryRankLineageFingerprint` and, per task, the ordered original
+and rewritten top-80 chunk IDs plus each fused top-40 item's ranks in those lanes. The exporter verifies that
+this lineage exactly reproduces the unchanged candidate order. These fields are diagnostic only: they do not
+change fusion, selection, context, or any readiness gate.
+
 The live research runner treats an empty Pinecone response as transient when the scoped projection contains
 chunks. It retries with bounded exponential backoff and fails the run after exhaustion; exception retries,
 query/filter/ranking semantics and the final scoped-pool gate remain unchanged.

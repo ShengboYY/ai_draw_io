@@ -22,6 +22,7 @@ QUERY_REWRITE_FINGERPRINT = (
     "drawio-bilingual-evidence-focused-v2:han-aware-prefix:frozen-domain-terms"
 )
 QUERY_FUSION_FINGERPRINT = "equal-rrf-v1:k60:original1.0:rewritten1.0"
+QUERY_RANK_LINEAGE_FINGERPRINT = "original-rewrite-top80-fused-ranks-v1"
 IDENTITY_STOPWORDS = {
     "create", "diagram", "draw", "editable", "existing", "from", "into", "make",
     "material", "only", "policy", "showing", "that", "using", "with", "workflow",
@@ -407,6 +408,39 @@ def verify_provenance(trace: dict, corpus_lock: Path, tasks: Path, ground_truth:
             raise ValueError("source evidence identity manifest has an unexpected schema")
 
 
+def verify_rank_lineage(trace: dict) -> None:
+    """Require diagnostic ranks to reproduce the unchanged fused candidate order."""
+    run = trace.get("retrievalRun", {})
+    if run.get("queryRankLineageFingerprint") != QUERY_RANK_LINEAGE_FINGERPRINT:
+        raise ValueError("retrieval trace rank lineage fingerprint is not frozen")
+    for task in trace.get("tasks", []):
+        lineage = task.get("queryRankLineage")
+        if not isinstance(lineage, dict):
+            raise ValueError(f"missing query rank lineage for {task.get('taskId', 'unknown')}")
+        original = lineage.get("originalTop80ChunkIds")
+        rewritten = lineage.get("rewrittenTop80ChunkIds")
+        fused = lineage.get("fusedTop40")
+        if not isinstance(original, list) or not isinstance(rewritten, list) or not isinstance(fused, list):
+            raise ValueError(f"invalid query rank lineage for {task.get('taskId', 'unknown')}")
+        if len(original) > 80 or len(rewritten) > 80 or len(fused) > 40:
+            raise ValueError(f"query rank lineage exceeds frozen limits for {task.get('taskId', 'unknown')}")
+        if len(set(original)) != len(original) or len(set(rewritten)) != len(rewritten):
+            raise ValueError(f"query rank lineage contains duplicate lane chunks for {task.get('taskId', 'unknown')}")
+        fused_ids = [item.get("chunkId") for item in fused if isinstance(item, dict)]
+        candidate_ids = [item.get("chunkId") for item in task.get("candidates", [])]
+        if len(fused_ids) != len(fused) or fused_ids != candidate_ids:
+            raise ValueError(f"query rank lineage fused candidate order mismatch for {task.get('taskId', 'unknown')}")
+        original_ranks = {chunk_id: rank for rank, chunk_id in enumerate(original, start=1)}
+        rewritten_ranks = {chunk_id: rank for rank, chunk_id in enumerate(rewritten, start=1)}
+        for rank, item in enumerate(fused, start=1):
+            chunk_id = item["chunkId"]
+            if (item.get("rank") != rank
+                    or item.get("originalRank") != original_ranks.get(chunk_id)
+                    or item.get("rewrittenRank") != rewritten_ranks.get(chunk_id)
+                    or chunk_id not in original_ranks and chunk_id not in rewritten_ranks):
+                raise ValueError(f"query rank lineage lane rank mismatch for {task.get('taskId', 'unknown')}")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--tasks", type=Path, required=True)
@@ -428,6 +462,7 @@ def main() -> None:
     anchor_by_id = {item["anchorId"]: item for item in json.loads(args.ground_truth.read_text())["anchors"]}
     trace = json.loads(args.hydration_candidates.read_text())
     verify_provenance(trace, args.corpus_lock, args.tasks, args.ground_truth, args.source_evidence_identities)
+    verify_rank_lineage(trace)
     result = export(trace, task_fixture["tasks"],
                     args.split, 8, 0.2,
                     args.artifact_root.resolve(), chartbook_sources, anchor_by_id,

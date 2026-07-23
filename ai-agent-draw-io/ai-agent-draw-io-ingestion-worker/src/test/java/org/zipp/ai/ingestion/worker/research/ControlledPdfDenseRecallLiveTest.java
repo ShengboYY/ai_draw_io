@@ -486,6 +486,8 @@ class ControlledPdfDenseRecallLiveTest {
                 ResearchQueryRewriter.FINGERPRINT);
         assertEquals("equal-rrf-v1:k60:original1.0:rewritten1.0",
                 ResearchQueryRankFusion.FINGERPRINT);
+        assertEquals("original-rewrite-top80-fused-ranks-v1",
+                ResearchQueryRankLineage.FINGERPRINT);
     }
 
     @Test
@@ -838,6 +840,10 @@ class ControlledPdfDenseRecallLiveTest {
         if (!commit.matches("[0-9a-f]{7,64}")) {
             throw new IllegalArgumentException("MATERIAL_RAG_COMMIT_SHA must be a Git commit hash");
         }
+        Map<String, CaseResult> originalByTask = result.metrics(QueryMode.ORIGINAL).caseResults().stream()
+                .collect(java.util.stream.Collectors.toMap(CaseResult::caseId, value -> value));
+        Map<String, CaseResult> rewrittenByTask = result.metrics(QueryMode.EVIDENCE_FOCUSED).caseResults().stream()
+                .collect(java.util.stream.Collectors.toMap(CaseResult::caseId, value -> value));
         List<Map<String, Object>> tasks = new ArrayList<>();
         for (CaseResult caseResult : result.metrics(taskHydrationQueryMode()).caseResults()) {
             List<Map<String, Object>> candidates = new ArrayList<>();
@@ -852,9 +858,25 @@ class ControlledPdfDenseRecallLiveTest {
                 value.put("evidence", hydratedEvidence(root, candidate, sourceIdentities));
                 candidates.add(value);
             }
-            tasks.add(Map.of("taskId", caseResult.caseId(), "candidates", candidates));
+            CaseResult original = originalByTask.get(caseResult.caseId());
+            CaseResult rewritten = rewrittenByTask.get(caseResult.caseId());
+            if (original == null || rewritten == null) {
+                throw new IllegalStateException("Missing query lane for task " + caseResult.caseId());
+            }
+            Map<String, Object> task = new LinkedHashMap<>();
+            task.put("taskId", caseResult.caseId());
+            task.put("candidates", candidates);
+            // Preserve provider rank lineage without changing the fused candidates exported above.
+            task.put("queryRankLineage", ResearchQueryRankLineage.trace(
+                    original.retrievalPoolCandidates().stream().map(CandidateResult::chunkId).toList(),
+                    rewritten.retrievalPoolCandidates().stream().map(CandidateResult::chunkId).toList(),
+                    caseResult.denseCandidates().stream().map(CandidateResult::chunkId).toList()));
+            tasks.add(Map.copyOf(task));
         }
-        noRetrievalTasks.stream().sorted().forEach(taskId -> tasks.add(Map.of("taskId", taskId, "candidates", List.of())));
+        noRetrievalTasks.stream().sorted().forEach(taskId -> tasks.add(Map.of(
+                "taskId", taskId,
+                "candidates", List.of(),
+                "queryRankLineage", ResearchQueryRankLineage.trace(List.of(), List.of(), List.of()))));
         Map<String, Object> trace = new LinkedHashMap<>();
         trace.put("schemaVersion", "material-rag-drawio-task-hydration-candidates-v1");
         Map<String, Object> retrievalRun = new LinkedHashMap<>();
@@ -866,6 +888,7 @@ class ControlledPdfDenseRecallLiveTest {
         retrievalRun.put("candidateQueryMode", taskHydrationQueryMode().id());
         retrievalRun.put("queryRewriteFingerprint", ResearchQueryRewriter.FINGERPRINT);
         retrievalRun.put("queryFusionFingerprint", ResearchQueryRankFusion.FINGERPRINT);
+        retrievalRun.put("queryRankLineageFingerprint", ResearchQueryRankLineage.FINGERPRINT);
         // Bind scoped top-k completeness to the vectors that were actually indexed in Pinecone.
         retrievalRun.put("sourceIndexedVectorCounts", sourceIndexedVectorCounts(projections));
         trace.put("retrievalRun", retrievalRun);
