@@ -1260,18 +1260,24 @@
 - **验证**:runner/prompt/evaluator 相关单测 **39/39** 通过。此次调用后不调 prompt、任务、evidence、模型参数或
   evaluator；网络失败若未发送成功请求，将单独记录，不能以新输出取代本次结果。
 
-### Stage D internal release-style GPT-5.5 runs · 2026-07-24 · ⚠️ completed twice; diagnostic only
+### Stage D internal release-style GPT-5.5 runs · 2026-07-24 · ⚠️ completed three times; diagnostic only
 
-- **执行异常**:首次 20-call run 和一次授权 retry 的 artifact visibility 均延迟；在第二次调用前，前一轮的
-  response/manifest 尚不可见。随后两组文件都出现，因此实际总计为 40 calls。此后停止所有模型调用，不再尝试
-  第三次，也不从两次中挑选一个伪装为唯一正式 run。
+- **执行异常**:三个 20-call run 的 artifact visibility 延迟导致重复执行未被及时发现，最终产生 60 calls。
+  三组结果全部保留，不挑选其中一组伪装为唯一正式 run；模型状态固定为 `do_not_rerun`。
 - **initial**:20/20 API success，input 10,655、output 15,893 tokens；manifest valid=true、
   formalEligible=false；XML parse 20/20、citation contract 20/20、strict completion 14/20（70%）。
 - **retry-1**:20/20 API success，input 10,655、output 16,241 tokens；同样 XML parse 20/20、citation
   contract 20/20、strict completion 14/20（70%）。
-- **失败形态**:两轮共有的严格失败为 `stgd-int-02`、`09`、`11`、`12`、`13`；`09`、`11` 的 XML/citation
-  已通过而 geometry-only layout assertion 未通过，视觉/OCR 两题（`12`、`13`）属于结构/标签断言失败。所有
-  输出均保留，详见 [run summary](stage-d-internal-release-gpt-5-5-run-summary.json)。
+- **retry-2**:20/20 API success，input 10,655、output 15,627 tokens；manifest valid=true、
+  formalEligible=false；XML parse 20/20、citation contract 20/20、strict completion 13/20（65%）。
+- **跨轮诊断**:`stgd-int-02`、`09`、`11`、`12`、`13` 三轮均失败；`01` 两轮失败；`06` 与 `14`
+  各只失败一轮。`09`、`11` 三轮均违反 geometry-only 边界，修改了受保护的 style/节点属性，属于稳定真实越界。
+  `02`、`12`、`13` 是稳定严格结构断言失败；其中 initial 的 `12`、`13` 只在后续 post-hoc 内部可用性校准中
+  被视为可编辑表达，不改写严格分数。具体缺口为：`02` 三轮均为 2 edges（要求 3），retry-1 另只有
+  3 vertices（要求 4）；`12` 三轮均为 6 edges（要求 7）；`13` 三轮均为 6 vertices、5 edges
+  （要求 7/7）。`01`、`06`、`14` 表现为缺边、合并节点或标签位置的输出波动。
+- **总消耗**:60/60 API success，input 31,965、output 47,761 tokens；所有后续分析均为离线，不再发起模型调用。
+  详见 [run summary](stage-d-internal-release-gpt-5-5-run-summary.json)。
 - **范围结论**:该 cohort 由本地创作且发生重复运行，即使模型此前未见过，也只能作为内部诊断。它不改变 Development、
   Validation 或 E9 的已记录结论，不能作为 independent final holdout 或正式 release gate。
 
@@ -1285,10 +1291,10 @@
   [acceptance policy](stage-d-internal-release-initial-posthoc-drawio-acceptance-policy-v2.json)。它们逐 task 明确事实
   可出现的可编辑位置及合理表达；没有放宽 geometry-only 的内容、结构或样式保护。该 policy 明确标记为
   `posthoc_internal_diagnostic_calibration_not_formal`，不得替换 pre-run 的 strict rubric。
-- **重评分**:evaluator 额外校验 post-hoc policy 绑定的 responses SHA-256，确保该 policy 不能误用于 retry-1；
+- **重评分**:evaluator 额外校验 post-hoc policy 绑定的 responses SHA-256，确保该 policy 不能误用于任一 retry；
   随后对 initial 原始 responses 重评分为 XML parse `20/20`、citation contract
   `20/20`、post-hoc practical completion `18/20`（90%）；失败只剩 `stgd-int-09`、`stgd-int-11`。原始 strict
-  completion `14/20`（70%）及 retry-1 的结果均保留不变。结果见
+  completion `14/20`（70%）及 retry-1/retry-2 的结果均保留不变。结果见
   [practical evaluation](stage-d-internal-release-initial-posthoc-practical-evaluation.json)。
 - **验证**:`python3 -m unittest analysis/test_evaluate_drawio_generation_tasks.py`，`20/20` 通过；新增测试确认
   policy 不能用于不同 responses fixture，且 geometry-only 编辑即使仅增加 `style` 属性也会失败。未调用模型、

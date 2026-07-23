@@ -1,8 +1,8 @@
 {
   "schemaVersion": "material-rag-stage-d-internal-release-run-summary-v1",
   "qualification": "internal_release_style_not_independent_final_holdout",
-  "status": "completed_with_duplicate_execution_not_formal",
-  "reason": "The execution environment delayed artifact visibility. The first 20-call run and one authorized retry both completed before their result files became visible; neither run is selected as a unique formal result.",
+  "status": "completed_with_triple_execution_not_formal",
+  "reason": "The execution environment delayed artifact visibility. Three 20-call runs completed before the duplicate execution was fully reconciled; no run is selected as a unique formal result.",
   "frozenInputCommit": "68ab2a29",
   "runs": [
     {
@@ -34,14 +34,40 @@
       "requiredCitationContractRate": 1.0,
       "strictCompletionRate": 0.7,
       "strictFailures": ["stgd-int-02", "stgd-int-09", "stgd-int-11", "stgd-int-12", "stgd-int-13", "stgd-int-14"]
+    },
+    {
+      "id": "retry-2",
+      "responses": "results/stage-d-internal-release-gpt-5-5-retry-2-responses.json",
+      "manifest": "results/stage-d-internal-release-gpt-5-5-retry-2-manifest.json",
+      "manifestValidation": "results/stage-d-internal-release-gpt-5-5-retry-2-manifest-validation.json",
+      "evaluation": "results/stage-d-internal-release-gpt-5-5-retry-2-evaluation.json",
+      "calls": 20,
+      "successfulCalls": 20,
+      "inputTokens": 10655,
+      "outputTokens": 15627,
+      "xmlParseRate": 1.0,
+      "requiredCitationContractRate": 1.0,
+      "strictCompletionRate": 0.65,
+      "strictFailures": ["stgd-int-01", "stgd-int-02", "stgd-int-06", "stgd-int-09", "stgd-int-11", "stgd-int-12", "stgd-int-13"]
     }
   ],
   "aggregate": {
-    "totalCalls": 40,
-    "successfulCalls": 40,
-    "inputTokens": 21310,
-    "outputTokens": 32134,
+    "totalCalls": 60,
+    "successfulCalls": 60,
+    "inputTokens": 31965,
+    "outputTokens": 47761,
     "modelRunStatus": "do_not_rerun"
   },
-  "interpretation": "Both runs show complete XML parsing and citation contracts. Strict completion is 14/20 in each run. The repeated execution, local authorship and absent independent review mean these outputs are diagnostic only; they cannot be used for a one-shot final-release claim."
+  "crossRunDiagnostics": {
+    "failuresInAllRuns": ["stgd-int-02", "stgd-int-09", "stgd-int-11", "stgd-int-12", "stgd-int-13"],
+    "failuresInTwoRuns": ["stgd-int-01"],
+    "singleRunFailures": ["stgd-int-06", "stgd-int-14"],
+    "stableGeometryOnlyScopeViolations": ["stgd-int-09", "stgd-int-11"],
+    "stableStrictStructureDeficits": {
+      "stgd-int-02": "all runs have 2/3 edges; retry-1 also has 3/4 vertices",
+      "stgd-int-12": "all runs have 6/7 edges",
+      "stgd-int-13": "all runs have 6/7 vertices and 5/7 edges"
+    }
+  },
+  "interpretation": "All three runs show complete XML parsing and citation contracts. Strict completion is 14/20, 14/20 and 13/20. The repeated execution, local authorship and absent independent review mean these outputs are diagnostic only; they cannot be used for a one-shot final-release claim."
 }
