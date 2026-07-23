@@ -22,6 +22,7 @@ ROOT = Path(__file__).resolve().parents[1]
 OPENAI_BASE_URL = "https://api.openai.com"
 OPENAI_COMPLETIONS_PATH = "v1/chat/completions"
 OPENAI_MODEL = "gpt-5.5"
+INTERNAL_RELEASE_HOLDOUT_QUALIFICATION = "internal_release_style_not_independent_final_holdout"
 JSON_SCHEMA = {
     "name": "drawio_generation_response_v3",
     "strict": True,
@@ -135,6 +136,20 @@ def verify_frozen_openai_contract(base_url: str, completions_path: str, model: s
     if resolved != f"{OPENAI_BASE_URL}/{OPENAI_COMPLETIONS_PATH}" or model != OPENAI_MODEL:
         raise ValueError("E7 r4 is frozen to OpenAI gpt-5.5 at v1/chat/completions")
     return resolved
+
+
+def validate_run_scope(split: object, arm: object, qualification: object,
+                       internal_release_holdout: bool) -> None:
+    """Keep ordinary formal runs closed to holdout; allow only the explicitly labeled internal cohort."""
+    if split in {"development", "validation"} and arm in {"control", "candidate", "fixed"}:
+        return
+    if split == "holdout" and arm == "fixed":
+        if not internal_release_holdout:
+            raise ValueError("internal release holdout flag is required")
+        if qualification != INTERNAL_RELEASE_HOLDOUT_QUALIFICATION:
+            raise ValueError("internal release holdout qualification is required")
+        return
+    raise ValueError("unsupported split or arm")
 
 
 def image_content(image_path: Path) -> dict:
@@ -288,7 +303,8 @@ def call(endpoint_url: str, api_key: str, request: dict) -> tuple[int, str | Non
 
 def run(bundle_file: Path, responses_out: Path, manifest_out: Path, artifact_root: Path,
         api_key: str, base_url: str, completions_path: str, model: str, max_completion_tokens: int,
-        git_commit: str, task_fixture: Path | None = None) -> None:
+        git_commit: str, task_fixture: Path | None = None,
+        internal_release_holdout: bool = False) -> None:
     """Run exactly one arm and write a validator-compatible formal manifest and normalized responses."""
     bundle_file, responses_out, manifest_out = (bundle_file.resolve(), responses_out.resolve(), manifest_out.resolve())
     research_root = ROOT.resolve()
@@ -304,9 +320,9 @@ def run(bundle_file: Path, responses_out: Path, manifest_out: Path, artifact_roo
     bundles_payload = json.loads(bundle_file.read_text())
     bundles = bundles_payload.get("bundles", [])
     split = bundles_payload.get("split")
-    if split not in {"development", "validation"} \
-            or bundles_payload.get("arm") not in {"control", "candidate", "fixed"}:
-        raise ValueError("only one frozen Development or Validation control/candidate/fixed bundle may be run")
+    qualification = (INTERNAL_RELEASE_HOLDOUT_QUALIFICATION
+                     if internal_release_holdout else "formal")
+    validate_run_scope(split, bundles_payload.get("arm"), qualification, internal_release_holdout)
     task_ids = [bundle.get("taskId") for bundle in bundles]
     if not task_ids or len(set(task_ids)) != len(task_ids):
         raise ValueError("prompt bundle task IDs must be present and unique")
@@ -364,7 +380,7 @@ def run(bundle_file: Path, responses_out: Path, manifest_out: Path, artifact_roo
         ("responses", responses_out),
     ]
     manifest = {
-        "schemaVersion": "material-rag-generation-run-manifest-v1", "qualification": "formal",
+        "schemaVersion": "material-rag-generation-run-manifest-v1", "qualification": qualification,
         "split": split, "gitCommit": git_commit,
         "corpusLockSha256": sha256_file(artifacts[0][1]), "taskFixtureSha256": sha256_file(artifacts[1][1]),
         "promptBundlesSha256": sha256_file(bundle_file), "responsesSha256": sha256_file(responses_out),
@@ -390,6 +406,8 @@ def main() -> None:
     parser.add_argument("--artifact-root", type=Path, default=ROOT)
     parser.add_argument("--model", default="gpt-5.5")
     parser.add_argument("--max-completion-tokens", type=int, default=6000)
+    parser.add_argument("--internal-release-holdout", action="store_true",
+                        help="Run only the explicitly labeled local internal release-style holdout once.")
     args = parser.parse_args()
     if args.max_completion_tokens < 1:
         raise ValueError("max completion tokens must be positive")
@@ -400,7 +418,8 @@ def main() -> None:
     if not all((api_key, base_url, completions_path, git_commit)):
         raise ValueError("LLM_API_KEY, LLM_BASE_URL, LLM_COMPLETIONS_PATH and MATERIAL_RAG_COMMIT_SHA are required")
     run(args.prompt_bundles, args.responses_out, args.manifest_out, args.artifact_root.resolve(), api_key,
-        base_url, completions_path, args.model, args.max_completion_tokens, git_commit, args.task_fixture)
+        base_url, completions_path, args.model, args.max_completion_tokens, git_commit, args.task_fixture,
+        args.internal_release_holdout)
 
 
 if __name__ == "__main__":

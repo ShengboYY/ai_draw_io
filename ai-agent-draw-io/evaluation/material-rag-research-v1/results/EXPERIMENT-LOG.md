@@ -1250,3 +1250,12 @@
   prompt/evaluator 单测 28/28 通过。没有模型/Pinecone 调用，没有真实用户资料。
 - **下一步**:至少由两位 reviewer 审核 20 个 source/evidence/claim package；之后在明确模型授权下，用冻结的
   GPT-5.5 配置运行**一次**，不得根据结果再调 prompt、任务、证据、模型参数或 evaluator。
+
+### Stage D internal runner scope · 2026-07-24 · ✅ frozen before one authorized run
+
+- **授权**:用户允许将本组 20 个合成内部 release-style inputs 与两张合成流程图发送至 GPT-5.5，运行一次。
+- **运行器边界**:`run_drawio_generation.py` 的 holdout 默认仍拒绝；只有显式
+  `--internal-release-holdout` 且固定为 `internal_release_style_not_independent_final_holdout` 时才允许 fixed-arm
+  internal cohort。manifest 会保留该 qualification，避免混入 formal Validation 或声称独立 final holdout。
+- **验证**:runner/prompt/evaluator 相关单测 **39/39** 通过。此次调用后不调 prompt、任务、evidence、模型参数或
+  evaluator；网络失败若未发送成功请求，将单独记录，不能以新输出取代本次结果。

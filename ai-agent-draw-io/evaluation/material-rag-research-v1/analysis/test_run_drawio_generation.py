@@ -92,6 +92,15 @@ class DrawioGenerationRunnerTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "frozen to OpenAI"):
             MODULE.verify_frozen_openai_contract("https://api.openai.com", "v1/chat/completions", "gpt-5.4")
 
+    def test_allows_holdout_only_with_the_explicit_internal_release_qualification(self):
+        with self.assertRaisesRegex(ValueError, "internal release holdout flag"):
+            MODULE.validate_run_scope("holdout", "fixed", "internal_release_style_not_independent_final_holdout", False)
+        with self.assertRaisesRegex(ValueError, "qualification"):
+            MODULE.validate_run_scope("holdout", "fixed", "formal", True)
+        MODULE.validate_run_scope("holdout", "fixed", "internal_release_style_not_independent_final_holdout", True)
+        with self.assertRaisesRegex(ValueError, "unsupported split"):
+            MODULE.validate_run_scope("other", "fixed", None, False)
+
     def test_preflight_rejects_every_invalid_bundle_before_calling_the_provider(self):
         with tempfile.TemporaryDirectory(dir=MODULE.ROOT / "results") as directory:
             root = Path(directory)
