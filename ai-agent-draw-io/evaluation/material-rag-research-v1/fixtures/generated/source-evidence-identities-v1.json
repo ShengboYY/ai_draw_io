@@ -1,0 +1,109 @@
+{
+  "schemaVersion": "material-rag-source-evidence-identities-v1",
+  "identities": [
+    {
+      "sourceEvidenceId": "daa-route-scope",
+      "sourceVersion": "drawio-agent-architecture:v1",
+      "page": 3,
+      "match": {
+        "kind": "visual_page"
+      }
+    },
+    {
+      "sourceEvidenceId": "daa-route-compose",
+      "sourceVersion": "drawio-agent-architecture:v1",
+      "page": 3,
+      "match": {
+        "kind": "visual_page"
+      }
+    },
+    {
+      "sourceEvidenceId": "daa-version-pin",
+      "sourceVersion": "drawio-agent-architecture:v1",
+      "page": 5,
+      "match": {
+        "kind": "exact_text",
+        "text": "remains pinned to V1"
+      }
+    },
+    {
+      "sourceEvidenceId": "dwh-sequence-type",
+      "sourceVersion": "drawio-workflow-handbook:v1",
+      "page": 3,
+      "match": {
+        "kind": "exact_text",
+        "text": "描述系统交互时首选时序图"
+      }
+    },
+    {
+      "sourceEvidenceId": "dwh-handoff-type",
+      "sourceVersion": "drawio-workflow-handbook:v1",
+      "page": 3,
+      "match": {
+        "kind": "exact_text",
+        "text": "责任交接则首选泳道图"
+      }
+    },
+    {
+      "sourceEvidenceId": "dwh-factual-edit",
+      "sourceVersion": "drawio-workflow-handbook:v1",
+      "page": 5,
+      "match": {
+        "kind": "exact_text",
+        "text": "重新检查证据"
+      }
+    },
+    {
+      "sourceEvidenceId": "dwh-canonical",
+      "sourceVersion": "drawio-workflow-handbook:v1",
+      "page": 5,
+      "match": {
+        "kind": "exact_text",
+        "text": "draw.io XML 是可继续编辑的正式结果"
+      }
+    },
+    {
+      "sourceEvidenceId": "dpw-budgets",
+      "sourceVersion": "drawio-planning-workshop-scan:v1",
+      "page": 4,
+      "match": {
+        "kind": "exact_text",
+        "text": "Candidate retrieval: 40 | Hydration: 16 | Final bundle: 8"
+      }
+    },
+    {
+      "sourceEvidenceId": "dcg-reviewer-share",
+      "sourceVersion": "drawio-collaboration-governance:v1",
+      "page": 2,
+      "match": {
+        "kind": "exact_text",
+        "text": "Reviewer may approve evidence changes but cannot manage shares"
+      }
+    },
+    {
+      "sourceEvidenceId": "dcg-route-draft",
+      "sourceVersion": "drawio-collaboration-governance:v1",
+      "page": 4,
+      "match": {
+        "kind": "visual_page"
+      }
+    },
+    {
+      "sourceEvidenceId": "dcg-route-publish",
+      "sourceVersion": "drawio-collaboration-governance:v1",
+      "page": 4,
+      "match": {
+        "kind": "visual_page"
+      }
+    },
+    {
+      "sourceEvidenceId": "dcg-temp-reviewer",
+      "sourceVersion": "drawio-collaboration-governance:v1",
+      "page": 6,
+      "match": {
+        "kind": "exact_text",
+        "text": "up to 8 hours"
+      }
+    }
+  ]
+}

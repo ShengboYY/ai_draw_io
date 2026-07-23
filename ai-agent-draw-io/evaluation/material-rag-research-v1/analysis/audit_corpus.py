@@ -44,6 +44,7 @@ PROVENANCE_FILES = (
     "fixtures/guard_corpus_specs.py",
     "fixtures/expansion_corpus_specs.py",
     "fixtures/e4_chartbook_specs.py",
+    "fixtures/source_evidence_identity_specs.py",
     "fixtures/query-selection.json",
     "fixtures/drawio-generation-tasks-v1.json",
     "fixtures/drawio-generation-tasks-v2.json",

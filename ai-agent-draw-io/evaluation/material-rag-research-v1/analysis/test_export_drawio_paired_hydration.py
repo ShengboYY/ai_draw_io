@@ -232,18 +232,22 @@ class PairedHydrationExportTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             task_fixture, ground_truth, lock = root / "tasks.json", root / "ground-truth.json", root / "corpus-lock.json"
+            identities = root / "source-evidence-identities.json"
             task_fixture.write_text("tasks", encoding="utf-8")
             ground_truth.write_text("ground truth", encoding="utf-8")
+            identities.write_text(json.dumps({
+                "schemaVersion": "material-rag-source-evidence-identities-v1", "identities": [],
+            }), encoding="utf-8")
             lock.write_text(json.dumps({
                 "schemaVersion": "material-rag-corpus-lock-v1", "status": "frozen",
                 "provenanceFiles": {"fixtures/drawio-generation-tasks-v2.json": MODULE.sha256(task_fixture)},
                 "files": {"ground-truth.json": MODULE.sha256(ground_truth)},
             }), encoding="utf-8")
             trace = {"retrievalRun": {"gitCommit": "abc1234", "corpusLockSha256": MODULE.sha256(lock)}}
-            MODULE.verify_provenance(trace, lock, task_fixture, ground_truth)
+            MODULE.verify_provenance(trace, lock, task_fixture, ground_truth, identities)
             trace["retrievalRun"]["corpusLockSha256"] = "0" * 64
             with self.assertRaisesRegex(ValueError, "does not match"):
-                MODULE.verify_provenance(trace, lock, task_fixture, ground_truth)
+                MODULE.verify_provenance(trace, lock, task_fixture, ground_truth, identities)
 
 
 if __name__ == "__main__":

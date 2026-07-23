@@ -62,6 +62,7 @@ from expansion_corpus_specs import (
     EXPANSION_SCAN_FACTS,
 )
 from e4_chartbook_specs import E4_CHARTBOOKS, E4_CHARTBOOK_CASE_FAMILIES
+from source_evidence_identity_specs import SOURCE_EVIDENCE_IDENTITIES
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -1080,6 +1081,28 @@ def validate_additional_specs() -> None:
             raise RuntimeError(f"Visual gold is absent from image configuration: {fact['anchorId']}")
 
 
+def validate_source_evidence_identity_specs() -> None:
+    """Ensure publisher identity metadata refers to actual source content, not evaluator-only text."""
+    documents = {document["source"]: document for document in ALL_DIGITAL_DOCUMENTS}
+    documents.update({document["source"]: document for document in ALL_SCANNED_DOCUMENTS})
+    for identity in SOURCE_EVIDENCE_IDENTITIES:
+        document = documents[identity["source"]]
+        page = document["pages"][identity["page"] - 1]
+        match = identity["match"]
+        if match["kind"] == "visual_page":
+            if "diagram" not in page:
+                raise RuntimeError(f"source visual identity lacks a diagram page: {identity['sourceEvidenceId']}")
+            continue
+        native_parts = [page["title"], page["subtitle"]]
+        for heading, body in [*page.get("sections", []), *page.get("afterSections", [])]:
+            native_parts.extend([heading, body])
+        if "table" in page:
+            native_parts.extend(page["table"]["headers"])
+            native_parts.extend(cell for row in page["table"]["rows"] for cell in row)
+        if normalize_authored_text(match["text"]) not in normalize_authored_text(" ".join(native_parts)):
+            raise RuntimeError(f"source identity text is absent from its source page: {identity['sourceEvidenceId']}")
+
+
 SELECTION_PATH = ROOT / "fixtures" / "query-selection.json"
 
 
@@ -1140,6 +1163,32 @@ def write_e4_chartbook_payload(output_root: Path) -> None:
         json.dumps(build_e4_chartbook_payload(), ensure_ascii=False, indent=2) + "\n",
         encoding="utf-8",
     )
+
+
+def write_source_evidence_identities(output_root: Path) -> None:
+    """Emit source-side IDs separately from evaluator cases and expected answers."""
+    identities = []
+    seen = set()
+    for identity in SOURCE_EVIDENCE_IDENTITIES:
+        source_evidence_id = identity["sourceEvidenceId"]
+        if source_evidence_id in seen:
+            raise RuntimeError(f"duplicate source evidence identity: {source_evidence_id}")
+        seen.add(source_evidence_id)
+        match = dict(identity["match"])
+        if match.get("kind") not in {"exact_text", "visual_page"}:
+            raise RuntimeError(f"unsupported source evidence match: {source_evidence_id}")
+        if match["kind"] == "exact_text" and not str(match.get("text", "")).strip():
+            raise RuntimeError(f"source evidence text is blank: {source_evidence_id}")
+        identities.append({
+            "sourceEvidenceId": source_evidence_id,
+            "sourceVersion": f"{identity['source']}:{identity['version']}",
+            "page": identity["page"],
+            "match": match,
+        })
+    (output_root / "source-evidence-identities-v1.json").write_text(json.dumps({
+        "schemaVersion": "material-rag-source-evidence-identities-v1",
+        "identities": identities,
+    }, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
 
 def load_drop_selection() -> set[str]:
@@ -1369,6 +1418,7 @@ def write_ground_truth(output_root: Path) -> None:
     (output_root / "case-keys.json").write_text(
         json.dumps(case_keys, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     write_e4_chartbook_payload(output_root)
+    write_source_evidence_identities(output_root)
 
 
 def main() -> None:
@@ -1385,6 +1435,7 @@ def main() -> None:
     pdf_dir.mkdir(parents=True, exist_ok=True)
     image_dir.mkdir(parents=True, exist_ok=True)
     validate_additional_specs()
+    validate_source_evidence_identity_specs()
 
     risk_flow = image_dir / "risk-escalation-flow.png"
     capacity_table = image_dir / "capacity-table.png"

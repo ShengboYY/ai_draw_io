@@ -398,11 +398,13 @@ class ControlledPdfDenseRecallLiveTest {
                 new TesseractOcrEngine(tesseract, "eng+chi_sim", Duration.ofSeconds(30)));
         Map<String, ResearchAnchor> anchorById = new LinkedHashMap<>();
         anchors(root).forEach(anchor -> anchorById.put(anchor.anchorId(), anchor));
+        SourceEvidenceIdentityManifest sourceIdentities = SourceEvidenceIdentityManifest.load(
+                root.resolve("fixtures/generated/source-evidence-identities-v1.json"), JSON);
         PineconeVectorClient client = new PineconeVectorClient(
                 apiKey, indexHost, "multilingual-e5-large", 1024, JSON);
         ExperimentResult result = runRetrievalExperiment("drawiohydration", client, namespace, projections,
                 drawioGenerationCases(root), anchorById, chunkMode(), null, "none");
-        writeTaskHydrationTrace(root, result, anchorById, drawioGenerationNoRetrievalTaskIds(root), Path.of(output));
+        writeTaskHydrationTrace(root, result, sourceIdentities, drawioGenerationNoRetrievalTaskIds(root), Path.of(output));
     }
 
     @Test
@@ -655,9 +657,11 @@ class ControlledPdfDenseRecallLiveTest {
 
     /** Serialises only retrieved material; task assertions and required anchors are never consulted here. */
     private void writeTaskHydrationTrace(Path root, ExperimentResult result,
-                                         Map<String, ResearchAnchor> anchors, Set<String> noRetrievalTasks,
+                                         SourceEvidenceIdentityManifest sourceIdentities,
+                                         Set<String> noRetrievalTasks,
                                          Path output) throws Exception {
         Path lock = root.resolve("fixtures/generated/corpus-lock.json");
+        Path identityManifest = root.resolve("fixtures/generated/source-evidence-identities-v1.json");
         String commit = requiredEnvironment("MATERIAL_RAG_COMMIT_SHA");
         if (!commit.matches("[0-9a-f]{7,64}")) {
             throw new IllegalArgumentException("MATERIAL_RAG_COMMIT_SHA must be a Git commit hash");
@@ -671,8 +675,9 @@ class ControlledPdfDenseRecallLiveTest {
                 value.put("chunkId", candidate.chunkId());
                 value.put("sourceVersion", candidate.sourceVersion());
                 value.put("page", pageNo(candidate.pageId()));
+                value.put("modality", candidate.modality());
                 value.put("retrievalTextSha256", sha256(candidate.retrievalText()));
-                value.put("evidence", hydratedEvidence(root, candidate, anchors));
+                value.put("evidence", hydratedEvidence(root, candidate, sourceIdentities));
                 candidates.add(value);
             }
             tasks.add(Map.of("taskId", caseResult.caseId(), "candidates", candidates));
@@ -682,28 +687,25 @@ class ControlledPdfDenseRecallLiveTest {
         trace.put("schemaVersion", "material-rag-drawio-task-hydration-candidates-v1");
         trace.put("retrievalRun", Map.of("runId", result.runId(), "gitCommit", commit,
                 "corpusLockSha256", sha256(lock)));
+        // Persist the source-owned identity input so hydration cannot silently substitute evaluator data.
+        trace.put("sourceEvidenceIdentityManifest", Map.of(
+                "path", root.relativize(identityManifest).toString().replace('\\', '/'),
+                "sha256", sha256(identityManifest)));
         trace.put("tasks", tasks);
         Files.createDirectories(output.toAbsolutePath().normalize().getParent());
         JSON.writerWithDefaultPrettyPrinter().writeValue(output.toFile(), trace);
     }
 
 
-    /** Exports every retrieved chunk; a known anchor changes only its citation label, never inclusion. */
+    /** Exports every retrieved chunk; only source-registered identity may replace the fallback label. */
     private List<Map<String, Object>> hydratedEvidence(Path root, CandidateResult candidate,
-                                                        Map<String, ResearchAnchor> anchors) throws Exception {
+                                                        SourceEvidenceIdentityManifest sourceIdentities) throws Exception {
         int page = pageNo(candidate.pageId());
-        List<ResearchAnchor> matched = new ArrayList<>();
-        for (ResearchAnchor anchor : anchors.values().stream()
-                .sorted(java.util.Comparator.comparing(ResearchAnchor::anchorId)).toList()) {
-            if (!candidate.sourceVersion().equals(anchor.sourceVersion()) || page != anchor.pageNo()
-                    || !normalize(candidate.retrievalText()).contains(normalize(anchor.goldMatch()))) {
-                continue;
-            }
-            matched.add(anchor);
-        }
-        List<String> citationIds = matched.isEmpty()
+        List<String> sourceEvidenceIds = sourceIdentities.resolve(
+                candidate.sourceVersion(), page, candidate.modality(), candidate.retrievalText());
+        List<String> citationIds = sourceEvidenceIds.isEmpty()
                 ? List.of("retrieved:" + candidate.chunkId())
-                : matched.stream().map(ResearchAnchor::anchorId).toList();
+                : sourceEvidenceIds;
         List<Map<String, Object>> result = new ArrayList<>();
         for (String citationId : citationIds) {
             Map<String, Object> evidence = new LinkedHashMap<>();
@@ -1232,6 +1234,7 @@ class ControlledPdfDenseRecallLiveTest {
                     candidate == null ? "unknown" : candidate.sourceVersion(),
                     candidate == null ? "unknown" : candidate.chunk().chunkId(),
                     candidate == null ? "unknown" : candidate.chunk().pageId(),
+                    candidate == null ? "UNKNOWN" : candidate.chunk().modality().name(),
                     candidate == null ? "" : candidate.chunk().retrievalText()));
         }
         return List.copyOf(candidates);
@@ -1754,7 +1757,7 @@ class ControlledPdfDenseRecallLiveTest {
                             List<CandidateResult> retrievalPoolCandidates) { }
 
     private record CandidateResult(int rank, String vectorId, String sourceVersion, String chunkId,
-                                   String pageId, String retrievalText) { }
+                                   String pageId, String modality, String retrievalText) { }
 
     private record CaseResult(String caseId, int rank, String category, String primaryCategory,
                               String language, List<String> goldAnchorIds,

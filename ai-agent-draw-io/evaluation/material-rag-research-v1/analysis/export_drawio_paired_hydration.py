@@ -193,7 +193,8 @@ def export(trace: dict, tasks: list[dict], split: str, limit: int,
     return result
 
 
-def verify_provenance(trace: dict, corpus_lock: Path, tasks: Path, ground_truth: Path) -> None:
+def verify_provenance(trace: dict, corpus_lock: Path, tasks: Path, ground_truth: Path,
+                      source_evidence_identities: Path) -> None:
     """Bind the live trace to this exact frozen corpus lock before export."""
     run = trace["retrievalRun"]
     if not re.fullmatch(r"[0-9a-f]{7,64}", run["gitCommit"]):
@@ -209,6 +210,13 @@ def verify_provenance(trace: dict, corpus_lock: Path, tasks: Path, ground_truth:
         raise ValueError("corpus lock does not bind the supplied task fixture")
     if lock.get("files", {}).get("ground-truth.json") != sha256(ground_truth):
         raise ValueError("corpus lock does not bind the supplied ground truth")
+    source_reference = trace.get("sourceEvidenceIdentityManifest")
+    if source_reference is not None:
+        if source_reference.get("sha256") != sha256(source_evidence_identities):
+            raise ValueError("retrieval trace source evidence identity manifest does not match")
+        identities = json.loads(source_evidence_identities.read_text())
+        if identities.get("schemaVersion") != "material-rag-source-evidence-identities-v1":
+            raise ValueError("source evidence identity manifest has an unexpected schema")
 
 
 def main() -> None:
@@ -219,6 +227,8 @@ def main() -> None:
     parser.add_argument("--json-out", type=Path, required=True)
     parser.add_argument("--artifact-root", type=Path, default=ROOT)
     parser.add_argument("--ground-truth", type=Path, default=ROOT / "fixtures/generated/ground-truth.json")
+    parser.add_argument("--source-evidence-identities", type=Path,
+                        default=ROOT / "fixtures/generated/source-evidence-identities-v1.json")
     parser.add_argument("--corpus-lock", type=Path, default=ROOT / "fixtures/generated/corpus-lock.json")
     parser.add_argument("--require-model-visible-required-evidence", action="store_true")
     args = parser.parse_args()
@@ -231,7 +241,7 @@ def main() -> None:
         if args.split == "development" else set()
     anchor_by_id = {item["anchorId"]: item for item in json.loads(args.ground_truth.read_text())["anchors"]}
     trace = json.loads(args.hydration_candidates.read_text())
-    verify_provenance(trace, args.corpus_lock, args.tasks, args.ground_truth)
+    verify_provenance(trace, args.corpus_lock, args.tasks, args.ground_truth, args.source_evidence_identities)
     result = export(trace, task_fixture["tasks"],
                     args.split, 8, 0.2,
                     args.artifact_root.resolve(), chartbook_sources, anchor_by_id,
@@ -239,6 +249,11 @@ def main() -> None:
     result["hydrationCandidates"]["path"] = args.hydration_candidates.as_posix()
     result["hydrationCandidates"]["sha256"] = sha256(args.hydration_candidates)
     result["groundTruth"] = {"path": args.ground_truth.as_posix(), "sha256": sha256(args.ground_truth)}
+    if trace.get("sourceEvidenceIdentityManifest") is not None:
+        result["sourceEvidenceIdentityManifest"] = {
+            "path": args.source_evidence_identities.as_posix(),
+            "sha256": sha256(args.source_evidence_identities),
+        }
     result["taskFixture"] = {"path": args.tasks.as_posix(), "sha256": sha256(args.tasks)}
     result["corpusLock"] = {"path": args.corpus_lock.as_posix(), "sha256": sha256(args.corpus_lock)}
     result["exporterScriptSha256"] = sha256(Path(__file__))

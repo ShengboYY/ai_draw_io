@@ -13,21 +13,21 @@
   "reviewLedgerSha256": "060d402284ef11775fd31b2860d42002d7d5d9a525e316c75a35c57938dc9437",
   "fixtureFontSha256": "876af2cd4854644e7f3e7feb2f688997fdb3343c6df6693611209c9dfb47ccec",
   "provenanceFiles": {
-    "EXPERIMENT-PLAN-V2.md": "ee272eae6aab7d4213c8bbf8fbbbb2ad9836860248a617faa87817c1e489c272",
-    "experiment-plan-v2.json": "2906713924fbc0c431006afce8f42f05c4f0271f3ab2694502ad1808b5d4581c",
+    "EXPERIMENT-PLAN-V2.md": "a7adcf6cf407ce02318f57b2f16b7286b89890a4af9d24500982f9e2cdfa10d4",
+    "experiment-plan-v2.json": "4b59bfa7fe04f0a09af97ce802f2ed286d8e5dd07717653ceaa204d4c64bcd95",
     "requirements.txt": "0043aca3a7381487084576995105e1099e3786ae8add5a6c0951d305b0e0e757",
-    "analysis/audit_corpus.py": "1b3d54daf54c05254560876cef1f50f3ad46323f5ecc35ca52ae789de441c395",
+    "analysis/audit_corpus.py": "2b113fb20122a63676fc8db22894427b0b7882511e6870358236cda687cf6228",
     "analysis/compare_dense_runs.py": "762b83b97c14011b7b8081c859407973c7626252abc67e5f8773673bdda8ea59",
     "analysis/audit_e4_chartbook.py": "1785c3e3085810b269ae9d5c1975f7357b2a982bb1f321c9be12fdb6f5a86f9b",
     "analysis/evaluate_guard_suites.py": "e2ded7e4289fe4b7bfd1883e37e53c4543dccd69ab2c571aff6e54291daf4aa0",
     "analysis/build_drawio_generation_prompts.py": "b9a9444c0988504654539c35bef6e14ff260da6193e9bef4a15d0efd3c452a69",
     "analysis/run_drawio_generation.py": "23b0583137496e255283e01d7520dcb859da4af6ee49e345c8ec24e610410fe0",
-    "analysis/export_drawio_paired_hydration.py": "4f0432e7f444423a30adad8cf6cb131aee8bb78395dda330644143389a7edd6f",
+    "analysis/export_drawio_paired_hydration.py": "e94ed15c81fdc14c703835f62357856eb24b6f49334f30a60532201676491ba7",
     "analysis/evaluate_drawio_generation_tasks.py": "29bd996daa4afcf4118e585d441aed26fa64c3cfa42b2cf43695553d6f1e4a34",
     "analysis/validate_generation_run_manifest.py": "d9894ad51d03576d3cd7b80f02675ed07d6664b6d57361bc2edd222d58c4ee01",
     "analysis/evaluate_ocr.py": "1df3eb9d8619dd258c437cd45504477edf8a4146b96c00c693642efad1c64284",
     "analysis/select_drawio_context.py": "f1350510d8fc409eeced5891317f20c3c8e3687a481777eed810381a477bbc97",
-    "fixtures/generate_fixtures.py": "2907cdc849d8d813aec93964681a6713b577651224c249d778e8b88ccdda70cc",
+    "fixtures/generate_fixtures.py": "d78e4ff7d94edbbff81509828d4490949ce63830f7a2906fef3b8ec1b718822c",
     "fixtures/generation-config.json": "aabdf2491d269f0c2a62e6c40fe32764e35abe75f4b5efbf9cd55e6d4fbe0c79",
     "fixtures/realistic_corpus_specs.py": "0afebbfaec0de6e8060c466783e3501b35d4b74e778ce7f4351cfd1f4305a14e",
     "fixtures/drawio_agent_corpus_specs.py": "a4c9ad603f2992c278967c1227bc37df2df5623cf70e6a3aa28be4a865424e1f",
@@ -35,6 +35,7 @@
     "fixtures/guard_corpus_specs.py": "2bca433037990500ce5813aaf8953f19a6bc15067feeaf2c0250ef9978e8e493",
     "fixtures/expansion_corpus_specs.py": "d18eb83d95e07c801712e863b354b23f4005f81d7feacd6abc0daca3c905809d",
     "fixtures/e4_chartbook_specs.py": "08f81dcfddd157e73c26ee7e40d4383abe42f31858338f919771d7dfc31a7d95",
+    "fixtures/source_evidence_identity_specs.py": "cbf76a899074871f9eca18ab3eb7861b77bfd6651b965c772819d28b24bce3eb",
     "fixtures/query-selection.json": "2053782f1f699b2bd6a880a3cfcbb4aa57829275ea02c3928248d636183d2f60",
     "fixtures/drawio-generation-tasks-v1.json": "76cd0285b4418257121f452a801d8e1a04f9ab2a9646986fbdd09d876062a160",
     "fixtures/drawio-generation-tasks-v2.json": "e69f654383f9fd85376a8b79df81a0c3417ad9f805def7ac38e244c579e2981a",
@@ -131,6 +132,7 @@
     "pdfs/scanned-operations-cards.pdf": "26116748a872851bebd8f946c2a315c4e6524f5df9f46e1d80736ae05844d7c6",
     "pdfs/scenario-crossborder-payment-settlement-v1.pdf": "8ee5f827bda794a2edcb6a700ad56bf07c9ce556879a044a6269852b645b6345",
     "pdfs/scenario-gmp-batch-change-control-v1.pdf": "14c3e9962a1b2e1fe4fcba7298befe8a29883c03ddb9dcf88d6d3e1fdb30c24d",
-    "pdfs/scenario-vehicle-ota-rollout-v1.pdf": "66371fa8537cb2dfc0384d3d71f2c0a4afcb0ddfa2805d19bd48d12b962fda43"
+    "pdfs/scenario-vehicle-ota-rollout-v1.pdf": "66371fa8537cb2dfc0384d3d71f2c0a4afcb0ddfa2805d19bd48d12b962fda43",
+    "source-evidence-identities-v1.json": "373b050bed6e32749c329590d8228bd6b11cd801af17f5053f6c34deb86efe8e"
   }
 }
