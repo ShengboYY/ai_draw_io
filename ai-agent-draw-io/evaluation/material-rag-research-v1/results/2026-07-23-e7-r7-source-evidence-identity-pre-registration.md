@@ -1,7 +1,8 @@
 # E7 r7 source-evidence identity persistence — pre-registration
 
 - Date: 2026-07-23
-- Status: local implementation and contract checks complete; no Pinecone, model provider, Validation, or holdout run.
+- Status: pre-registration recorded before the live trace; the subsequent Development hydration result is recorded in
+  [2026-07-23-e7-r7-development-hydration-run.md](2026-07-23-e7-r7-development-hydration-run.md).
 
 ## Single intervention
 

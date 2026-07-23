@@ -251,8 +251,10 @@ Recall@10 与 flat 持平,MRR@10 低 0.062,未晋级。当前顺序：
    bundle 必须绑定 hydration export 的路径/SHA-256，runner 在请求前复核其 readiness 与 task/arm/evidence 一致性。下一变量只能是
    预注册的 ingestion source-identity persistence 与 retrieval/hydration evidence-availability intervention。r7 已将
    publisher-owned `source-evidence-identities-v1.json` 接入真实 hydration producer：只允许 exact source text 或 exact
-   VISUAL page 身份写入 trace，并持久化 manifest hash；未匹配证据保留 fallback。必须用全新 opt-in Development trace 同时
-   通过 contrast 与 r6 readiness gate 后才可冻结 bundle；Validation 继续关闭。
+   VISUAL page 身份写入 trace，并持久化 manifest hash；未匹配证据保留 fallback。r7 的真实 Development trace 已证明
+   identity 能在 top-40 解析，但 5/5 task 虽通过 contrast，仍有多条 canonical evidence 位于 top-8 外，故 r6 readiness
+   gate 阻止 prompt/model run。下一变量必须是预注册的、不读取 evaluator 数据的 source-side retrieval/ranking 或
+   evidence-availability 干预；Validation 继续关闭。
 2. 后续 E9 必须执行在线授权、版本、故障注入与恢复；当前 fixture-contract 通过不能替代它。
 3. Validation 暂不打开。仓库可见的 legacy holdout 不再用于“未见最终结论”；外部 final holdout
    按独立保管协议只释放一次。
@@ -404,7 +406,7 @@ completion 都为 0/6，故未晋级且 Validation 继续关闭；下一变量�
 `requiredAnchors` 或 evaluator XML assertions；它通过真实 PDFBox → OCR → canonical evidence → chunk →
 Pinecone top-40 路径生成 trace。planning scan 必须由 `MATERIAL_RAG_TESSERACT_EXECUTABLE` 指向实际可执行的
 Tesseract；缺少 OCR、Pinecone test/dev namespace 或显式 `MATERIAL_RAG_TASK_HYDRATION_JSON` 输出路径时 test
-直接 skip，不能降级为 text-only 结果。hydrate trace 的候选文本只在与冻结 ground-truth anchor 的 source/page/
-extractive text 同时一致时使用该 anchor 作为 citation label；其余每个 top-40 chunk 仍以稳定的
-`retrieved:<chunkId>` citation ID 完整导出，绝不因未命中 evaluator gold 而丢弃正文。视觉与扫描 artifact 使用
-frozen 原始页面图并记录 SHA-256。
+直接 skip，不能降级为 text-only 结果。hydrate trace 只按 publisher-owned source identity manifest 的 exact
+source-text 或 exact VISUAL-page 规则写入 canonical citation ID；该路径不读取 evaluator ground truth。其余每个
+top-40 chunk 仍以稳定的 `retrieved:<chunkId>` citation ID 完整导出，绝不因未命中身份而丢弃正文。视觉与扫描
+artifact 使用 frozen 原始页面图并记录 SHA-256。

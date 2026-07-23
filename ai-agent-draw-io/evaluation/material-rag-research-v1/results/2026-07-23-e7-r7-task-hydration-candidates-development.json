@@ -1,0 +1,2804 @@
+{
+  "schemaVersion" : "material-rag-drawio-task-hydration-candidates-v1",
+  "retrievalRun" : {
+    "corpusLockSha256" : "fb4758d7da4174649eb26f2389443f56c3d0e5e17a82ced2bd7b7c9b092978f0",
+    "gitCommit" : "81a2824d4199aedc146095f8ab4573d2e2f4627d",
+    "runId" : "drawiohydrationpdfresearch_d6eabdb94562432fa8a60e178f9aa46f"
+  },
+  "sourceEvidenceIdentityManifest" : {
+    "sha256" : "373b050bed6e32749c329590d8228bd6b11cd801af17f5053f6c34deb86efe8e",
+    "path" : "fixtures/generated/source-evidence-identities-v1.json"
+  },
+  "tasks" : [ {
+    "taskId" : "dgt-dev-01",
+    "candidates" : [ {
+      "rank" : 1,
+      "chunkId" : "rc_3de681ed507004a326e0b11b3f3b7ca5fa03cbe8",
+      "sourceVersion" : "drawio-agent-architecture:v1",
+      "page" : 3,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "ef980ca1e7fff2886f9a95f21892088ddf170a040fede568ba7ba1d7ced9a63b",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_3de681ed507004a326e0b11b3f3b7ca5fa03cbe8",
+        "sourceVersion" : "drawio-agent-architecture:v1",
+        "page" : 3,
+        "text" : "[章节] 2. Request-to-canvas route\n[内容类型] content\n[正文] Raster-only architecture relationship",
+        "imagePath" : "fixtures/generated/images/drawio-agent-request-route.png",
+        "imageSha256" : "419f29850cf17fa8ff2f44b6113bf836056f335132fb4e33f5c14feb21faaa1e"
+      } ]
+    }, {
+      "rank" : 2,
+      "chunkId" : "rc_99d00ea3b0263bddc66d0d335b211217e31af60f",
+      "sourceVersion" : "drawio-agent-architecture:v1",
+      "page" : 1,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "ffdab61d44f2b8f8a5cf734d3729c48aa1794259d7600c1381513fe17ec94f42",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_99d00ea3b0263bddc66d0d335b211217e31af60f",
+        "sourceVersion" : "drawio-agent-architecture:v1",
+        "page" : 1,
+        "text" : "[章节] Draw.io Agent Architecture Blueprint\n[内容类型] content\n[正文] This synthetic blueprint contains no production"
+      } ]
+    }, {
+      "rank" : 3,
+      "chunkId" : "rc_a1d111141eff5ae60759c09974aafe3baba0fc2c",
+      "sourceVersion" : "drawio-agent-architecture:v1",
+      "page" : 1,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "7e9be96dae9e24dfde91cc9a5d7b4d391399c165ba0d8e7960223745cab87624",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_a1d111141eff5ae60759c09974aafe3baba0fc2c",
+        "sourceVersion" : "drawio-agent-architecture:v1",
+        "page" : 1,
+        "text" : "[章节] Draw.io Agent Architecture Blueprint\n[内容类型] content\n[正文] Out of scope\n\n[章节] Draw.io Agent Architecture Blueprint\n[内容类型] content\n[正文] Product boundary"
+      } ]
+    }, {
+      "rank" : 4,
+      "chunkId" : "rc_00c3407200b907f309fa4a05c5ab6eb39a9320eb",
+      "sourceVersion" : "drawio-agent-architecture:v1",
+      "page" : 2,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "407fdc60c666c292d7d6fa4c1c5e414580be38759de601eb8b64665884318a5c",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_00c3407200b907f309fa4a05c5ab6eb39a9320eb",
+        "sourceVersion" : "drawio-agent-architecture:v1",
+        "page" : 2,
+        "text" : "[章节] 1. Component ownership\n[内容类型] content\n[正文] Trust\n\n[章节] 1. Component ownership\n[内容类型] content\n[正文] Canvas Composer is owned by the Diagram team. Citation Binder can reject an unresolved reference but cannot change the selected source version."
+      } ]
+    }, {
+      "rank" : 5,
+      "chunkId" : "rc_9087330c22064f0501619c66b8ffd222552fec7f",
+      "sourceVersion" : "drawio-planning-workshop-scan:v1",
+      "page" : 1,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "c70628580b46f4feb2e212d90a74bf490483c4a181b65028a1194652486b6604",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_9087330c22064f0501619c66b8ffd222552fec7f",
+        "sourceVersion" : "drawio-planning-workshop-scan:v1",
+        "page" : 1,
+        "text" : "[内容类型] content\n[正文] DRAW.IO PLANNING WORKSHOP DPW-2026-33 | scanned design notes",
+        "imagePath" : "fixtures/generated/images/drawio-workshop-scan-page-1.jpg",
+        "imageSha256" : "fadf0c19b947a9cb578188ab06a442cd46b09b2bbc1362588be6576fad834b2b"
+      } ]
+    }, {
+      "rank" : 6,
+      "chunkId" : "rc_bdb2fc980f00cc04d93c162166c231d3e22157ae",
+      "sourceVersion" : "drawio-planning-workshop-scan:v1",
+      "page" : 1,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "b8794fd23d1d1a2afff5aa2b6e43a12f4211b39fb69e6a48a85829132df3667a",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_bdb2fc980f00cc04d93c162166c231d3e22157ae",
+        "sourceVersion" : "drawio-planning-workshop-scan:v1",
+        "page" : 1,
+        "text" : "[内容类型] content\n[正文] Goal The workshop defined how a material-backed request becomes an editable diagram. The workshop identifier is DPW-2026-33; DPW-2026-03 is a room booking. Scope Participants covered source selection, evidence grouping, layout choice and citation review. No production credentials or customer data were used. Decision The canonical deliverable is editable draw.io XML, not a screenshot.",
+        "imagePath" : "fixtures/generated/images/drawio-workshop-scan-page-1.jpg",
+        "imageSha256" : "fadf0c19b947a9cb578188ab06a442cd46b09b2bbc1362588be6576fad834b2b"
+      } ]
+    }, {
+      "rank" : 7,
+      "chunkId" : "rc_9a2aefeaa62d413479ea9ab2fea1224987adfa87",
+      "sourceVersion" : "drawio-planning-workshop-scan:v1",
+      "page" : 5,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "4b0c19ade44bc18f52d7c186e6db33dc3d72f8f673a7d4713f61589edcf64fc0",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_9a2aefeaa62d413479ea9ab2fea1224987adfa87",
+        "sourceVersion" : "drawio-planning-workshop-scan:v1",
+        "page" : 5,
+        "text" : "[内容类型] list_group\n[正文] 4. CANVAS REVIEW",
+        "imagePath" : "fixtures/generated/images/drawio-workshop-scan-page-5.jpg",
+        "imageSha256" : "8c76275e4f93335426a3195de97d0247f704712e3932837338ac4519d253611a"
+      } ]
+    }, {
+      "rank" : 8,
+      "chunkId" : "rc_8d11c7aca3ae1ebcf39532a642a7ed48e5a223e5",
+      "sourceVersion" : "drawio-agent-architecture:v1",
+      "page" : 0,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "29a536f6ba1e96562c8b0c6e1157e16081099ffe692f99e91930a576b3776d8c",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_8d11c7aca3ae1ebcf39532a642a7ed48e5a223e5",
+        "sourceVersion" : "drawio-agent-architecture:v1",
+        "page" : 0,
+        "text" : "[文档结构] Draw.io Agent Architecture Blueprint; 1. Component ownership; 2. Request-to-canvas rout\n[内容] [章节] Draw.io Agent Architecture Blueprint\n[内容类型] content\n[正文] DAA-2026-17 | evidence-grounded diagram generation"
+      } ]
+    }, {
+      "rank" : 9,
+      "chunkId" : "rc_469150b37cce98766191521376835b5426edc534",
+      "sourceVersion" : "drawio-planning-workshop-scan:v1",
+      "page" : 0,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "e7ede3812a2840f59e1d2cfa6d0bcc454d7b969de32521a3a3435cb421aa588d",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_469150b37cce98766191521376835b5426edc534",
+        "sourceVersion" : "drawio-planning-workshop-scan:v1",
+        "page" : 0,
+        "text" : "[章节] sec_239a801ecaa47a1e42e87d17\n[内容] [内容类型] content\n[正文] DRAW.IO PLANNING WORKSHOP DPW-2026-33 | scanned design notes"
+      } ]
+    }, {
+      "rank" : 10,
+      "chunkId" : "rc_3f9a11599a8dee4dde0c151a98880ba068cdceaa",
+      "sourceVersion" : "drawio-agent-architecture:v1",
+      "page" : 1,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "0e7fb5d7245073ceb2efb5b87acb6106f040d15092baf32d50d452906286c779",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_3f9a11599a8dee4dde0c151a98880ba068cdceaa",
+        "sourceVersion" : "drawio-agent-architecture:v1",
+        "page" : 1,
+        "text" : "[章节] Draw.io Agent Architecture Blueprint\n[内容类型] content\n[正文] This blueprint defines how the draw.io agent turns"
+      } ]
+    }, {
+      "rank" : 11,
+      "chunkId" : "rc_5efa7f841462e5b7183c790917e32c5cb03564b4",
+      "sourceVersion" : "drawio-agent-architecture:v1",
+      "page" : 1,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "632f74073bd09df71b77cdb8c916388d93eefeca26b737a01512bd5e933777ef",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_5efa7f841462e5b7183c790917e32c5cb03564b4",
+        "sourceVersion" : "drawio-agent-architecture:v1",
+        "page" : 1,
+        "text" : "[章节] Draw.io Agent Architecture Blueprint\n[内容类型] content\n[正文] DAA-2026-17 | evidence-grounded diagram generation"
+      } ]
+    }, {
+      "rank" : 12,
+      "chunkId" : "rc_d609600c06eadde132ffc6bb1e17f3e13d2e6d1b",
+      "sourceVersion" : "drawio-workflow-handbook:v1",
+      "page" : 3,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "5c0d2c7bf29e3acc6331702cc127d9b0628eac820103f4c75d4b7f1355caaa44",
+      "evidence" : [ {
+        "anchorId" : "dwh-handoff-type",
+        "sourceVersion" : "drawio-workflow-handbook:v1",
+        "page" : 3,
+        "text" : "[章节] 2. 图型选择与规划\n[内容类型] content\n[正文] 业务负责人\n\n[章节] 2. 图型选择与规划\n[内容类型] content\n[正文] 描述系统交互时首选时序图；责任交接则首选泳道图。两者都可能包含箭头，但箭头的语义不同。"
+      }, {
+        "anchorId" : "dwh-sequence-type",
+        "sourceVersion" : "drawio-workflow-handbook:v1",
+        "page" : 3,
+        "text" : "[章节] 2. 图型选择与规划\n[内容类型] content\n[正文] 业务负责人\n\n[章节] 2. 图型选择与规划\n[内容类型] content\n[正文] 描述系统交互时首选时序图；责任交接则首选泳道图。两者都可能包含箭头，但箭头的语义不同。"
+      } ]
+    }, {
+      "rank" : 13,
+      "chunkId" : "rc_68989de7ffd607cde249652cd4ef3434cb13de9a",
+      "sourceVersion" : "drawio-workflow-handbook:v1",
+      "page" : 0,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "b561df723c4806333f255038c20f0d56aff05130641de1af5c85fbb86233eb37",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_68989de7ffd607cde249652cd4ef3434cb13de9a",
+        "sourceVersion" : "drawio-workflow-handbook:v1",
+        "page" : 0,
+        "text" : "[文档结构] Draw.io Agent 制图工作流手册; 1. 需求与资料范围; 2. 图型选择与规划; 3. 规划到画布; 4. 编辑、引用与导出; 5. 审批与版本说明\n[内容] DWH-2026-12 | 从资料检索到可编辑画布"
+      } ]
+    }, {
+      "rank" : 14,
+      "chunkId" : "rc_adbec943643ebbe550cba02a3233e52c27376c0a",
+      "sourceVersion" : "drawio-agent-architecture:v1",
+      "page" : 3,
+      "modality" : "VISUAL",
+      "retrievalTextSha256" : "6bfd4aaeb789fe4071970fb5019a24e30eca69c43866cabcf033717f011e63d4",
+      "evidence" : [ {
+        "anchorId" : "daa-route-compose",
+        "sourceVersion" : "drawio-agent-architecture:v1",
+        "page" : 3,
+        "text" : "[章节] 2. Request-to-canvas route\n[内容类型] visual_description\n[正文] Figure 2. Evidence-to-canvas request route for an editable draw.io flow.",
+        "imagePath" : "fixtures/generated/images/drawio-agent-request-route.png",
+        "imageSha256" : "419f29850cf17fa8ff2f44b6113bf836056f335132fb4e33f5c14feb21faaa1e"
+      }, {
+        "anchorId" : "daa-route-scope",
+        "sourceVersion" : "drawio-agent-architecture:v1",
+        "page" : 3,
+        "text" : "[章节] 2. Request-to-canvas route\n[内容类型] visual_description\n[正文] Figure 2. Evidence-to-canvas request route for an editable draw.io flow.",
+        "imagePath" : "fixtures/generated/images/drawio-agent-request-route.png",
+        "imageSha256" : "419f29850cf17fa8ff2f44b6113bf836056f335132fb4e33f5c14feb21faaa1e"
+      } ]
+    }, {
+      "rank" : 15,
+      "chunkId" : "rc_e42815134f60a4540624c77db20b1bf7ed89076c",
+      "sourceVersion" : "drawio-agent-architecture:v1",
+      "page" : 1,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "f600852b00625e97eaf9e603d1eab74fa928dd7070965b78afc8d9eed2cd1bbc",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_e42815134f60a4540624c77db20b1bf7ed89076c",
+        "sourceVersion" : "drawio-agent-architecture:v1",
+        "page" : 1,
+        "text" : "[章节] Draw.io Agent Architecture Blueprint\n[内容类型] content\n[正文] generation; exporting an image does not replace"
+      } ]
+    }, {
+      "rank" : 16,
+      "chunkId" : "rc_e3b1639d83f1783c4604ed320727b13a79a2f2b7",
+      "sourceVersion" : "drawio-agent-architecture:v1",
+      "page" : 1,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "8b90ea833e650dd05723ca8de1b6ceae1a8033a6ddd8c9dcb5ebd8e05c081983",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_e3b1639d83f1783c4604ed320727b13a79a2f2b7",
+        "sourceVersion" : "drawio-agent-architecture:v1",
+        "page" : 1,
+        "text" : "[章节] Draw.io Agent Architecture Blueprint\n[内容类型] content\n[正文] Purpose\n\n[章节] Draw.io Agent Architecture Blueprint\n[内容类型] content\n[正文] Design invariant Every material-backed shape keeps an evidence"
+      } ]
+    }, {
+      "rank" : 17,
+      "chunkId" : "rc_831d641dca01c5538049f6f9e33a35163dacdc4e",
+      "sourceVersion" : "drawio-agent-architecture:v1",
+      "page" : 1,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "50fd708be56f1afd4bb214eba76509b333a24c679d854b0ba1c8e92fef17da77",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_831d641dca01c5538049f6f9e33a35163dacdc4e",
+        "sourceVersion" : "drawio-agent-architecture:v1",
+        "page" : 1,
+        "text" : "[章节] Draw.io Agent Architecture Blueprint\n[内容类型] content\n[正文] covers ingestion, retrieval, diagram planning, XML"
+      } ]
+    }, {
+      "rank" : 18,
+      "chunkId" : "rc_6a36b6f14e022f326053602c0940bfecfd278f49",
+      "sourceVersion" : "drawio-agent-architecture:v1",
+      "page" : 3,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "93e9d74dcd52f570e4dc381f5f23b7ca249a70a2603fac1c01b58b1feab08e6c",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_6a36b6f14e022f326053602c0940bfecfd278f49",
+        "sourceVersion" : "drawio-agent-architecture:v1",
+        "page" : 3,
+        "text" : "[章节] 2. Request-to-canvas route\n[内容类型] content\n[正文] DRAW.IO AGENT REQUEST ROUTE\n\n[章节] 2. Request-to-canvas route\n[内容类型] content\n[正文] authorizfa ranked validated",
+        "imagePath" : "fixtures/generated/images/drawio-agent-request-route.png",
+        "imageSha256" : "419f29850cf17fa8ff2f44b6113bf836056f335132fb4e33f5c14feb21faaa1e"
+      } ]
+    }, {
+      "rank" : 19,
+      "chunkId" : "rc_056ec7c27e913447d49226c2957744170dd5097b",
+      "sourceVersion" : "drawio-agent-architecture:v1",
+      "page" : 1,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "8493c2949848cd44615712f9a2708d3c47fcaa13adc8e7f17ca61067997399e5",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_056ec7c27e913447d49226c2957744170dd5097b",
+        "sourceVersion" : "drawio-agent-architecture:v1",
+        "page" : 1,
+        "text" : "[章节] Draw.io Agent Architecture Blueprint\n[内容类型] content\n[正文] A user may select explicit material, search the tenant identifier, private user email, database current chartbook or allow automatic source password or live Pinecone host. Questions selection."
+      } ]
+    }, {
+      "rank" : 20,
+      "chunkId" : "rc_0e0008bc59d3fccea97c8a38ccfdf2c0bebe04d4",
+      "sourceVersion" : "drawio-agent-architecture:v1",
+      "page" : 1,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "87743fab175d613c48df85642891b647d47dc38746743fb2c34c0b3dc5bd2013",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_0e0008bc59d3fccea97c8a38ccfdf2c0bebe04d4",
+        "sourceVersion" : "drawio-agent-architecture:v1",
+        "page" : 1,
+        "text" : "[章节] Draw.io Agent Architecture Blueprint\n[内容类型] content\n[正文] the prompt.\n\n[章节] Draw.io Agent Architecture Blueprint\n[内容类型] content\n[正文] assembly and citation display rather than general chat behavior."
+      } ]
+    }, {
+      "rank" : 21,
+      "chunkId" : "rc_57f0b1f02c6bfb66f109890f2087ee71d52ad9c7",
+      "sourceVersion" : "drawio-agent-architecture:v1",
+      "page" : 0,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "f03aab491d47b65bf97e1bb33a17d7493035ea83fdf2fd5ce760e5e5ade87e1f",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_57f0b1f02c6bfb66f109890f2087ee71d52ad9c7",
+        "sourceVersion" : "drawio-agent-architecture:v1",
+        "page" : 0,
+        "text" : "[章节] Draw.io Agent Architecture Blueprint\n[内容] [章节] Draw.io Agent Architecture Blueprint\n[内容类型] content\n[正文] DAA-2026-17 | evidence-grounded diagram generation\n[章节] Draw.io Agent Architecture Blueprint\n[内容类型] content\n[正文] Purpose\n\n[章节] Draw.io Agent Architecture Blueprint\n[内容类型] content\n[正文] Design invariant Every material-backed shape keeps an evidence"
+      } ]
+    }, {
+      "rank" : 22,
+      "chunkId" : "rc_40e415a8536e28b787ea9183314b81f21950db96",
+      "sourceVersion" : "drawio-agent-architecture:v1",
+      "page" : 3,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "9b3d91339eef2c750eec3880de44b78e0752fae9554465924d9cf670492432e6",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_40e415a8536e28b787ea9183314b81f21950db96",
+        "sourceVersion" : "drawio-agent-architecture:v1",
+        "page" : 3,
+        "text" : "[章节] 2. Request-to-canvas route\n[内容类型] caption_context\n[正文] Figure 2. Evidence-to-canvas request route for an editable draw.io flow.",
+        "imagePath" : "fixtures/generated/images/drawio-agent-request-route.png",
+        "imageSha256" : "419f29850cf17fa8ff2f44b6113bf836056f335132fb4e33f5c14feb21faaa1e"
+      } ]
+    }, {
+      "rank" : 23,
+      "chunkId" : "rc_91eece36c95af8e0139b5d29d995a3ae0ddd6fdd",
+      "sourceVersion" : "drawio-agent-architecture:v1",
+      "page" : 1,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "c6168b406c43ba1dfae881d21ad7c207b5d6bbd9facc34a6b7eb19576ee5d534",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_91eece36c95af8e0139b5d29d995a3ae0ddd6fdd",
+        "sourceVersion" : "drawio-agent-architecture:v1",
+        "page" : 1,
+        "text" : "[章节] Draw.io Agent Architecture Blueprint\n[内容类型] content\n[正文] the canonical draw.io XML. Authorization and"
+      } ]
+    }, {
+      "rank" : 24,
+      "chunkId" : "rc_67aa9782417bc32f67ee09479f9afe5532625837",
+      "sourceVersion" : "drawio-agent-architecture:v1",
+      "page" : 1,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "b70c3437a41785cba55e8d43b37993a9cf3641b4fe6437eaf7eaf41565b23473",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_67aa9782417bc32f67ee09479f9afe5532625837",
+        "sourceVersion" : "drawio-agent-architecture:v1",
+        "page" : 1,
+        "text" : "[章节] Draw.io Agent Architecture Blueprint\n[内容类型] content\n[正文] user material into an editable diagram while preserving evidence links. The controlled and region. A diagram remains editable after"
+      } ]
+    }, {
+      "rank" : 25,
+      "chunkId" : "rc_da7f3ff54006830247690bb8ed7d729617f45c52",
+      "sourceVersion" : "drawio-agent-architecture:v1",
+      "page" : 3,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "728350eb9f0447cd1e2168e244fb51e6768c690fb8d1efe5a902723648df07fb",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_da7f3ff54006830247690bb8ed7d729617f45c52",
+        "sourceVersion" : "drawio-agent-architecture:v1",
+        "page" : 3,
+        "text" : "[章节] 2. Request-to-canvas route\n[内容类型] content\n[正文] SCOPE SOURCES ETRIEVE EVIDENCI BUILD PLAN COMPOSE CANVAS",
+        "imagePath" : "fixtures/generated/images/drawio-agent-request-route.png",
+        "imageSha256" : "419f29850cf17fa8ff2f44b6113bf836056f335132fb4e33f5c14feb21faaa1e"
+      } ]
+    }, {
+      "rank" : 26,
+      "chunkId" : "rc_ffeed257e0a0f56a323d9e98e46e3f3f2225a668",
+      "sourceVersion" : "drawio-workflow-handbook:v1",
+      "page" : 3,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "57b98284fd049c51ec96c8225d7d8cdcc04ac3bd449016437d282206b4d33e01",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_ffeed257e0a0f56a323d9e98e46e3f3f2225a668",
+        "sourceVersion" : "drawio-workflow-handbook:v1",
+        "page" : 3,
+        "text" : "[章节] 2. 图型选择与规划\n[内容类型] content\n[正文] 系统交互\n\n[章节] 2. 图型选择与规划\n[内容类型] content\n[正文] 时序图"
+      } ]
+    }, {
+      "rank" : 27,
+      "chunkId" : "rc_34e8b38d925c0862114095c46383664bfdd8c65f",
+      "sourceVersion" : "drawio-planning-workshop-scan:v1",
+      "page" : 0,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "c2ad81c08f8b58cc4443be51389976e42c44721e09b92bf804e446e666ca6416",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_34e8b38d925c0862114095c46383664bfdd8c65f",
+        "sourceVersion" : "drawio-planning-workshop-scan:v1",
+        "page" : 0,
+        "text" : "[文档结构] Document\n[内容] [内容类型] content\n[正文] DRAW.IO PLANNING WORKSHOP DPW-2026-33 | scanned design notes"
+      } ]
+    }, {
+      "rank" : 28,
+      "chunkId" : "rc_64da2d05b874413ba7c79736b755e2170672ae97",
+      "sourceVersion" : "drawio-agent-architecture:v1",
+      "page" : 1,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "3326c8db57f5a69cea1c23f7b97eed052886c0b9dc07b698bd08eb5a015d4bbb",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_64da2d05b874413ba7c79736b755e2170672ae97",
+        "sourceVersion" : "drawio-agent-architecture:v1",
+        "page" : 1,
+        "text" : "[章节] Draw.io Agent Architecture Blueprint\n[内容类型] content\n[正文] DAA-2026-71 is a retired prototype. The document"
+      } ]
+    }, {
+      "rank" : 29,
+      "chunkId" : "rc_e40a61d8a5816cca057a4eb6669293ba0f99ce40",
+      "sourceVersion" : "drawio-planning-workshop-scan:v1",
+      "page" : 5,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "15cb1fbbd9f993a11197d383248739a1d8dfa8b01ba3f428a9b786154b0ae9da",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_e40a61d8a5816cca057a4eb6669293ba0f99ce40",
+        "sourceVersion" : "drawio-planning-workshop-scan:v1",
+        "page" : 5,
+        "text" : "[内容类型] content\n[正文] visual and editable-output checks\n\n[内容类型] content\n[正文] Visual Arrow direction, containment and raster table cells require pixel verification. Editable Stable cell identifiers and valid draw.io XML are required before completion. Export PNG is a preview. It does not preserve semantic groups or evidence bindings.",
+        "imagePath" : "fixtures/generated/images/drawio-workshop-scan-page-5.jpg",
+        "imageSha256" : "8c76275e4f93335426a3195de97d0247f704712e3932837338ac4519d253611a"
+      } ]
+    }, {
+      "rank" : 30,
+      "chunkId" : "rc_b9b857aaed9c17b6b012dec5e70a385102d28d1a",
+      "sourceVersion" : "drawio-agent-architecture:v1",
+      "page" : 1,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "6eb7598e7dbb2872d3d3375316156c0d6f2df9807d76c2c25c20a099178db37a",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_b9b857aaed9c17b6b012dec5e70a385102d28d1a",
+        "sourceVersion" : "drawio-agent-architecture:v1",
+        "page" : 1,
+        "text" : "[章节] Draw.io Agent Architecture Blueprint\n[内容类型] content\n[正文] reference that can resolve to source version, page"
+      } ]
+    }, {
+      "rank" : 31,
+      "chunkId" : "rc_9120245bf85ce17c92c320f0d57497249e52b29a",
+      "sourceVersion" : "drawio-agent-architecture:v1",
+      "page" : 1,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "9d03927f8a96f774701bd29890d5c71041eff42c087f471392c27e036ae55761",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_9120245bf85ce17c92c320f0d57497249e52b29a",
+        "sourceVersion" : "drawio-agent-architecture:v1",
+        "page" : 1,
+        "text" : "[章节] Draw.io Agent Architecture Blueprint\n[内容类型] content\n[正文] The agent may use model knowledge requesting them require abstention. only when product policy permits and must distinguish that content from material-backed claims. It never treats a visually plausible node label as evidence by itself."
+      } ]
+    }, {
+      "rank" : 32,
+      "chunkId" : "rc_125f87c1814e8b8ec14cfb4d7ae165cee8e60ce8",
+      "sourceVersion" : "drawio-agent-architecture:v1",
+      "page" : 2,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "622bc5c8ae147dba7e9e8fe182f21bc304d7e903d295498417932f39a8ca81ab",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_125f87c1814e8b8ec14cfb4d7ae165cee8e60ce8",
+        "sourceVersion" : "drawio-agent-architecture:v1",
+        "page" : 2,
+        "text" : "[章节] 1. Component ownership\n[内容类型] content\n[正文] Native table for service-to-responsibility mapping"
+      } ]
+    }, {
+      "rank" : 33,
+      "chunkId" : "rc_38c788f72c5a68b4e33700d681ec4b9e8ea8043e",
+      "sourceVersion" : "drawio-agent-architecture:v1",
+      "page" : 1,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "7056e324bfda9fce4edd3dd80be7d42aac94686655ae99916c971c5aa1f9a881",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_38c788f72c5a68b4e33700d681ec4b9e8ea8043e",
+        "sourceVersion" : "drawio-agent-architecture:v1",
+        "page" : 1,
+        "text" : "[章节] Draw.io Agent Architecture Blueprint\n[内容类型] content\n[正文] version rules are checked before evidence enters"
+      } ]
+    }, {
+      "rank" : 34,
+      "chunkId" : "rc_9d284179ce1c90d58cda3e68525e1ed2128cfda6",
+      "sourceVersion" : "drawio-planning-workshop-scan:v1",
+      "page" : 6,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "81c5cae75ba13251d64c07dea791a46dbafbeffe0671e1d7aab4c50a021f2646",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_9d284179ce1c90d58cda3e68525e1ed2128cfda6",
+        "sourceVersion" : "drawio-planning-workshop-scan:v1",
+        "page" : 6,
+        "text" : "[内容类型] content\n[正文] dates, roles and negative evidence\n\n[内容类型] content\n[正文] Deadline The typed-plan validation checklist is due on 14 January 2027. The 10 January date is a template-review meeting. Approval The Agent UX Lead approves the checklist; the workshop facilitator records comments. Unsupported No password, user phone number, tenant key or production endpoint appears in these notes.",
+        "imagePath" : "fixtures/generated/images/drawio-workshop-scan-page-6.jpg",
+        "imageSha256" : "c4d0450958594f6f0ae2b1ab3d8286506f8a59f7b45feee19108b21115121ee2"
+      } ]
+    }, {
+      "rank" : 35,
+      "chunkId" : "rc_22d2c1b1e92a018cbc92187d305b7728e568ed6a",
+      "sourceVersion" : "drawio-agent-architecture:v1",
+      "page" : 1,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "2d10600a7f0503fc85c3b22a2178998c51e30a9dd65c9caecc0f0fbe7a57e064",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_22d2c1b1e92a018cbc92187d305b7728e568ed6a",
+        "sourceVersion" : "drawio-agent-architecture:v1",
+        "page" : 1,
+        "text" : "[章节] Draw.io Agent Architecture Blueprint\n[内容类型] content\n[正文] architecture identifier is DAA-2026-17."
+      } ]
+    }, {
+      "rank" : 36,
+      "chunkId" : "rc_9aa6d4f022221c413e16c4f3db566052877058a2",
+      "sourceVersion" : "drawio-agent-architecture:v1",
+      "page" : 3,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "d699638468091367f1bbe1c734dc92c7dba41f2813db0425b8c5494560047929",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_9aa6d4f022221c413e16c4f3db566052877058a2",
+        "sourceVersion" : "drawio-agent-architecture:v1",
+        "page" : 3,
+        "text" : "[章节] 2. Request-to-canvas route\n[内容类型] content\n[正文] The system must not silently publish a canvas with missing source references.",
+        "imagePath" : "fixtures/generated/images/drawio-agent-request-route.png",
+        "imageSha256" : "419f29850cf17fa8ff2f44b6113bf836056f335132fb4e33f5c14feb21faaa1e"
+      } ]
+    }, {
+      "rank" : 37,
+      "chunkId" : "rc_ae089d46ddf413ca74287d4dfb31586b0d09a921",
+      "sourceVersion" : "drawio-workflow-handbook:v1",
+      "page" : 3,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "1e56bba09bae7839fec68abc7364078275213a6f716c9eebd9c3266b0b2ad02d",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_ae089d46ddf413ca74287d4dfb31586b0d09a921",
+        "sourceVersion" : "drawio-workflow-handbook:v1",
+        "page" : 3,
+        "text" : "[章节] 2. 图型选择与规划\n[内容类型] content\n[正文] 参与者与消息\n\n[章节] 2. 图型选择与规划\n[内容类型] content\n[正文] 包含关系"
+      } ]
+    }, {
+      "rank" : 38,
+      "chunkId" : "rc_65e31e762e72da207eeb7a5712a42a62177c39f2",
+      "sourceVersion" : "drawio-workflow-handbook:v1",
+      "page" : 3,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "7cd81a4b6ae15a375ceff9833aeb393534844318ceb4c52a926f12ab2bda76dc",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_65e31e762e72da207eeb7a5712a42a62177c39f2",
+        "sourceVersion" : "drawio-workflow-handbook:v1",
+        "page" : 3,
+        "text" : "[章节] 2. 图型选择与规划\n[内容类型] content\n[正文] 数据关系\n\n[章节] 2. 图型选择与规划\n[内容类型] content\n[正文] ER 图"
+      } ]
+    }, {
+      "rank" : 39,
+      "chunkId" : "rc_8f495e7a8f911a9fd5e674e74b03dee10439b826",
+      "sourceVersion" : "drawio-agent-architecture:v1",
+      "page" : 6,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "e1bdfedd0cbe9e708cab02a05efd9aca90bebe4104973383d4d5b55cfc5d9eb9",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_8f495e7a8f911a9fd5e674e74b03dee10439b826",
+        "sourceVersion" : "drawio-agent-architecture:v1",
+        "page" : 6,
+        "text" : "[章节] 5. Evidence-to-shape contract\n[内容类型] content\n[正文] Unsupported requests The blueprint does not reveal credentials, tenant secrets, private user contact details or production endpoints. Related architectural terms are not evidence for those values."
+      } ]
+    }, {
+      "rank" : 40,
+      "chunkId" : "rc_5edf6e338fb1cb57c4e4190532978fbdb854ffb8",
+      "sourceVersion" : "drawio-planning-workshop-scan:v1",
+      "page" : 2,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "5419afe1c332658069301e927074f7bd1b369c9d4998644cdfdf9e2f9fbb0ca1",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_5edf6e338fb1cb57c4e4190532978fbdb854ffb8",
+        "sourceVersion" : "drawio-planning-workshop-scan:v1",
+        "page" : 2,
+        "text" : "[内容类型] content\n[正文] scan of retrieval-decision notes\n\n[内容类型] content\n[正文] Layout only Moving existing shapes or changing colors does not require retrieval when no factual label changes. Material fact Adding a new fact, numeric comparison or source-backed relationship requires retrieval and evidence validation. Clarify If a pronoun could refer to two diagrams, ask the user before searching.",
+        "imagePath" : "fixtures/generated/images/drawio-workshop-scan-page-2.jpg",
+        "imageSha256" : "24e4bb847db8abda91deaf54df1d86c5e723d7c07507717e836030390bb28b3d"
+      } ]
+    } ]
+  }, {
+    "taskId" : "dgt-dev-02",
+    "candidates" : [ {
+      "rank" : 1,
+      "chunkId" : "rc_5f72e51d8f8a0bc791c824f794804adef0a46e31",
+      "sourceVersion" : "drawio-workflow-handbook:v1",
+      "page" : 1,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "a27ab64e060ab1904654fa3d13db6e647d3557f154b5ff875daafe1eda62371e",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_5f72e51d8f8a0bc791c824f794804adef0a46e31",
+        "sourceVersion" : "drawio-workflow-handbook:v1",
+        "page" : 1,
+        "text" : "[章节] Draw.io Agent 制图工作流手册\n[内容类型] content\n[正文] DWH-2026-12 | 从资料检索到可编辑画布\n\n[章节] Draw.io Agent 制图工作流手册\n[内容类型] content\n[正文] 适用范围 本手册用于规范 Agent 根据 PDF、图片和已有资料生成 draw.io 图的工作流。正式编号为 DWH-2026-12； 培训样例 DWH-2026-21 不属于本版本。工作流覆盖需求澄清、资料范围、证据选择、图形规划、画布生成 和引用复核。 基本原则 先确定用户要表达的关系，再选择图型。系统不能因为资料中出现许多名词就默认生成架构图，也不能把一 段顺序文字直接解释成并行流程。每个关键节点应能追溯到资料证据或明确标注为用户提供。 拒答边界 手册没有记录用户密码、付费账号、私人电话号码、生产租户编号或内部访问令牌。相关问题必须拒答，不 能从截图、文件名或常识中猜测。"
+      } ]
+    }, {
+      "rank" : 2,
+      "chunkId" : "rc_5efa7f841462e5b7183c790917e32c5cb03564b4",
+      "sourceVersion" : "drawio-agent-architecture:v1",
+      "page" : 1,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "632f74073bd09df71b77cdb8c916388d93eefeca26b737a01512bd5e933777ef",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_5efa7f841462e5b7183c790917e32c5cb03564b4",
+        "sourceVersion" : "drawio-agent-architecture:v1",
+        "page" : 1,
+        "text" : "[章节] Draw.io Agent Architecture Blueprint\n[内容类型] content\n[正文] DAA-2026-17 | evidence-grounded diagram generation"
+      } ]
+    }, {
+      "rank" : 3,
+      "chunkId" : "rc_adbec943643ebbe550cba02a3233e52c27376c0a",
+      "sourceVersion" : "drawio-agent-architecture:v1",
+      "page" : 3,
+      "modality" : "VISUAL",
+      "retrievalTextSha256" : "6bfd4aaeb789fe4071970fb5019a24e30eca69c43866cabcf033717f011e63d4",
+      "evidence" : [ {
+        "anchorId" : "daa-route-compose",
+        "sourceVersion" : "drawio-agent-architecture:v1",
+        "page" : 3,
+        "text" : "[章节] 2. Request-to-canvas route\n[内容类型] visual_description\n[正文] Figure 2. Evidence-to-canvas request route for an editable draw.io flow.",
+        "imagePath" : "fixtures/generated/images/drawio-agent-request-route.png",
+        "imageSha256" : "419f29850cf17fa8ff2f44b6113bf836056f335132fb4e33f5c14feb21faaa1e"
+      }, {
+        "anchorId" : "daa-route-scope",
+        "sourceVersion" : "drawio-agent-architecture:v1",
+        "page" : 3,
+        "text" : "[章节] 2. Request-to-canvas route\n[内容类型] visual_description\n[正文] Figure 2. Evidence-to-canvas request route for an editable draw.io flow.",
+        "imagePath" : "fixtures/generated/images/drawio-agent-request-route.png",
+        "imageSha256" : "419f29850cf17fa8ff2f44b6113bf836056f335132fb4e33f5c14feb21faaa1e"
+      } ]
+    }, {
+      "rank" : 4,
+      "chunkId" : "rc_40e415a8536e28b787ea9183314b81f21950db96",
+      "sourceVersion" : "drawio-agent-architecture:v1",
+      "page" : 3,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "9b3d91339eef2c750eec3880de44b78e0752fae9554465924d9cf670492432e6",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_40e415a8536e28b787ea9183314b81f21950db96",
+        "sourceVersion" : "drawio-agent-architecture:v1",
+        "page" : 3,
+        "text" : "[章节] 2. Request-to-canvas route\n[内容类型] caption_context\n[正文] Figure 2. Evidence-to-canvas request route for an editable draw.io flow.",
+        "imagePath" : "fixtures/generated/images/drawio-agent-request-route.png",
+        "imageSha256" : "419f29850cf17fa8ff2f44b6113bf836056f335132fb4e33f5c14feb21faaa1e"
+      } ]
+    }, {
+      "rank" : 5,
+      "chunkId" : "rc_9d284179ce1c90d58cda3e68525e1ed2128cfda6",
+      "sourceVersion" : "drawio-planning-workshop-scan:v1",
+      "page" : 6,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "81c5cae75ba13251d64c07dea791a46dbafbeffe0671e1d7aab4c50a021f2646",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_9d284179ce1c90d58cda3e68525e1ed2128cfda6",
+        "sourceVersion" : "drawio-planning-workshop-scan:v1",
+        "page" : 6,
+        "text" : "[内容类型] content\n[正文] dates, roles and negative evidence\n\n[内容类型] content\n[正文] Deadline The typed-plan validation checklist is due on 14 January 2027. The 10 January date is a template-review meeting. Approval The Agent UX Lead approves the checklist; the workshop facilitator records comments. Unsupported No password, user phone number, tenant key or production endpoint appears in these notes.",
+        "imagePath" : "fixtures/generated/images/drawio-workshop-scan-page-6.jpg",
+        "imageSha256" : "c4d0450958594f6f0ae2b1ab3d8286506f8a59f7b45feee19108b21115121ee2"
+      } ]
+    }, {
+      "rank" : 6,
+      "chunkId" : "rc_e7341d059d57f50a6991f798b880debd689d036f",
+      "sourceVersion" : "drawio-agent-architecture:v1",
+      "page" : 0,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "a491b14c57f230d3cb07243355d6a2de86a2c838068cd5bb57c3c1bd697839c6",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_e7341d059d57f50a6991f798b880debd689d036f",
+        "sourceVersion" : "drawio-agent-architecture:v1",
+        "page" : 0,
+        "text" : "[章节] 5. Evidence-to-shape contract\n[内容] [章节] 5. Evidence-to-shape contract\n[内容类型] content\n[正文] Required fields and unsupported shortcuts"
+      } ]
+    }, {
+      "rank" : 7,
+      "chunkId" : "rc_22d2c1b1e92a018cbc92187d305b7728e568ed6a",
+      "sourceVersion" : "drawio-agent-architecture:v1",
+      "page" : 1,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "2d10600a7f0503fc85c3b22a2178998c51e30a9dd65c9caecc0f0fbe7a57e064",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_22d2c1b1e92a018cbc92187d305b7728e568ed6a",
+        "sourceVersion" : "drawio-agent-architecture:v1",
+        "page" : 1,
+        "text" : "[章节] Draw.io Agent Architecture Blueprint\n[内容类型] content\n[正文] architecture identifier is DAA-2026-17."
+      } ]
+    }, {
+      "rank" : 8,
+      "chunkId" : "rc_8f495e7a8f911a9fd5e674e74b03dee10439b826",
+      "sourceVersion" : "drawio-agent-architecture:v1",
+      "page" : 6,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "e1bdfedd0cbe9e708cab02a05efd9aca90bebe4104973383d4d5b55cfc5d9eb9",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_8f495e7a8f911a9fd5e674e74b03dee10439b826",
+        "sourceVersion" : "drawio-agent-architecture:v1",
+        "page" : 6,
+        "text" : "[章节] 5. Evidence-to-shape contract\n[内容类型] content\n[正文] Unsupported requests The blueprint does not reveal credentials, tenant secrets, private user contact details or production endpoints. Related architectural terms are not evidence for those values."
+      } ]
+    }, {
+      "rank" : 9,
+      "chunkId" : "rc_df5d3ead47982a2fda8369d890be6dc6d1c35bc5",
+      "sourceVersion" : "drawio-agent-architecture:v1",
+      "page" : 6,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "1deb54781f4d77b02892d20184044f4e5d287f5078ae9dd077154e3df07b29fe",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_df5d3ead47982a2fda8369d890be6dc6d1c35bc5",
+        "sourceVersion" : "drawio-agent-architecture:v1",
+        "page" : 6,
+        "text" : "[章节] 5. Evidence-to-shape contract\n[内容类型] content\n[正文] Required fields and unsupported shortcuts"
+      } ]
+    }, {
+      "rank" : 10,
+      "chunkId" : "rc_9120245bf85ce17c92c320f0d57497249e52b29a",
+      "sourceVersion" : "drawio-agent-architecture:v1",
+      "page" : 1,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "9d03927f8a96f774701bd29890d5c71041eff42c087f471392c27e036ae55761",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_9120245bf85ce17c92c320f0d57497249e52b29a",
+        "sourceVersion" : "drawio-agent-architecture:v1",
+        "page" : 1,
+        "text" : "[章节] Draw.io Agent Architecture Blueprint\n[内容类型] content\n[正文] The agent may use model knowledge requesting them require abstention. only when product policy permits and must distinguish that content from material-backed claims. It never treats a visually plausible node label as evidence by itself."
+      } ]
+    }, {
+      "rank" : 11,
+      "chunkId" : "rc_da7f3ff54006830247690bb8ed7d729617f45c52",
+      "sourceVersion" : "drawio-agent-architecture:v1",
+      "page" : 3,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "728350eb9f0447cd1e2168e244fb51e6768c690fb8d1efe5a902723648df07fb",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_da7f3ff54006830247690bb8ed7d729617f45c52",
+        "sourceVersion" : "drawio-agent-architecture:v1",
+        "page" : 3,
+        "text" : "[章节] 2. Request-to-canvas route\n[内容类型] content\n[正文] SCOPE SOURCES ETRIEVE EVIDENCI BUILD PLAN COMPOSE CANVAS",
+        "imagePath" : "fixtures/generated/images/drawio-agent-request-route.png",
+        "imageSha256" : "419f29850cf17fa8ff2f44b6113bf836056f335132fb4e33f5c14feb21faaa1e"
+      } ]
+    }, {
+      "rank" : 12,
+      "chunkId" : "rc_744d41c802051d3da5a0233ce505b9eb4a3388e0",
+      "sourceVersion" : "drawio-agent-architecture:v1",
+      "page" : 3,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "c605ba9b94fc80b5e184b3737f42a01ecd4c89fb17582b8b1efacd78e677aa4d",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_744d41c802051d3da5a0233ce505b9eb4a3388e0",
+        "sourceVersion" : "drawio-agent-architecture:v1",
+        "page" : 3,
+        "text" : "[章节] 2. Request-to-canvas route\n[内容类型] content\n[正文] Figure scope The route between planning and citation is encoded only in Figure 2. Surrounding prose does not repeat the node sequence. Visual cases must inspect the diagram and preserve arrow direction. Failure boundary If citation binding fails, the request remains a draft and the user sees an evidence warning.",
+        "imagePath" : "fixtures/generated/images/drawio-agent-request-route.png",
+        "imageSha256" : "419f29850cf17fa8ff2f44b6113bf836056f335132fb4e33f5c14feb21faaa1e"
+      } ]
+    }, {
+      "rank" : 13,
+      "chunkId" : "rc_64da2d05b874413ba7c79736b755e2170672ae97",
+      "sourceVersion" : "drawio-agent-architecture:v1",
+      "page" : 1,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "3326c8db57f5a69cea1c23f7b97eed052886c0b9dc07b698bd08eb5a015d4bbb",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_64da2d05b874413ba7c79736b755e2170672ae97",
+        "sourceVersion" : "drawio-agent-architecture:v1",
+        "page" : 1,
+        "text" : "[章节] Draw.io Agent Architecture Blueprint\n[内容类型] content\n[正文] DAA-2026-71 is a retired prototype. The document"
+      } ]
+    }, {
+      "rank" : 14,
+      "chunkId" : "rc_b9b857aaed9c17b6b012dec5e70a385102d28d1a",
+      "sourceVersion" : "drawio-agent-architecture:v1",
+      "page" : 1,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "6eb7598e7dbb2872d3d3375316156c0d6f2df9807d76c2c25c20a099178db37a",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_b9b857aaed9c17b6b012dec5e70a385102d28d1a",
+        "sourceVersion" : "drawio-agent-architecture:v1",
+        "page" : 1,
+        "text" : "[章节] Draw.io Agent Architecture Blueprint\n[内容类型] content\n[正文] reference that can resolve to source version, page"
+      } ]
+    }, {
+      "rank" : 15,
+      "chunkId" : "rc_67aa9782417bc32f67ee09479f9afe5532625837",
+      "sourceVersion" : "drawio-agent-architecture:v1",
+      "page" : 1,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "b70c3437a41785cba55e8d43b37993a9cf3641b4fe6437eaf7eaf41565b23473",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_67aa9782417bc32f67ee09479f9afe5532625837",
+        "sourceVersion" : "drawio-agent-architecture:v1",
+        "page" : 1,
+        "text" : "[章节] Draw.io Agent Architecture Blueprint\n[内容类型] content\n[正文] user material into an editable diagram while preserving evidence links. The controlled and region. A diagram remains editable after"
+      } ]
+    }, {
+      "rank" : 16,
+      "chunkId" : "rc_bdb2fc980f00cc04d93c162166c231d3e22157ae",
+      "sourceVersion" : "drawio-planning-workshop-scan:v1",
+      "page" : 1,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "b8794fd23d1d1a2afff5aa2b6e43a12f4211b39fb69e6a48a85829132df3667a",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_bdb2fc980f00cc04d93c162166c231d3e22157ae",
+        "sourceVersion" : "drawio-planning-workshop-scan:v1",
+        "page" : 1,
+        "text" : "[内容类型] content\n[正文] Goal The workshop defined how a material-backed request becomes an editable diagram. The workshop identifier is DPW-2026-33; DPW-2026-03 is a room booking. Scope Participants covered source selection, evidence grouping, layout choice and citation review. No production credentials or customer data were used. Decision The canonical deliverable is editable draw.io XML, not a screenshot.",
+        "imagePath" : "fixtures/generated/images/drawio-workshop-scan-page-1.jpg",
+        "imageSha256" : "fadf0c19b947a9cb578188ab06a442cd46b09b2bbc1362588be6576fad834b2b"
+      } ]
+    }, {
+      "rank" : 17,
+      "chunkId" : "rc_34e8b38d925c0862114095c46383664bfdd8c65f",
+      "sourceVersion" : "drawio-planning-workshop-scan:v1",
+      "page" : 0,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "c2ad81c08f8b58cc4443be51389976e42c44721e09b92bf804e446e666ca6416",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_34e8b38d925c0862114095c46383664bfdd8c65f",
+        "sourceVersion" : "drawio-planning-workshop-scan:v1",
+        "page" : 0,
+        "text" : "[文档结构] Document\n[内容] [内容类型] content\n[正文] DRAW.IO PLANNING WORKSHOP DPW-2026-33 | scanned design notes"
+      } ]
+    }, {
+      "rank" : 18,
+      "chunkId" : "rc_552102f85251918b6d860569fbcd8123f5fd09c9",
+      "sourceVersion" : "drawio-workflow-handbook:v1",
+      "page" : 5,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "5d0fe4cc2a3011fbef49bd6468388ba1a6ba02f7c3c78570a88ec3dc2b58db05",
+      "evidence" : [ {
+        "anchorId" : "dwh-canonical",
+        "sourceVersion" : "drawio-workflow-handbook:v1",
+        "page" : 5,
+        "text" : "[章节] 4. 编辑、引用与导出\n[内容类型] content\n[正文] 中文长段落与对象边界\n\n[章节] 4. 编辑、引用与导出\n[内容类型] content\n[正文] 编辑 用户可以移动、分组或重新着色节点而不改变事实。若修改节点名称、数值、箭头方向或责任角色，系统必 须重新检查证据。仅改变字体大小不需要重新检索。 引用 引用面板按形状显示资料名称、版本、页码和证据区域。跨页比较必须保留两个来源位置。摘要节点可以合 并展示，但不能把多个证据压缩成一个不可追溯的页码。 导出 draw.io XML 是可继续编辑的正式结果；SVG 适合网页，PNG 适合预览，PDF 适合审阅。导出格式不会改 变资料权限，也不能把已失效引用重新变成有效引用。 回退 画布生成失败时保留已验证的 typed plan，并显示可重试状态。系统不能用无引用的旧截图假装生成成功。"
+      }, {
+        "anchorId" : "dwh-factual-edit",
+        "sourceVersion" : "drawio-workflow-handbook:v1",
+        "page" : 5,
+        "text" : "[章节] 4. 编辑、引用与导出\n[内容类型] content\n[正文] 中文长段落与对象边界\n\n[章节] 4. 编辑、引用与导出\n[内容类型] content\n[正文] 编辑 用户可以移动、分组或重新着色节点而不改变事实。若修改节点名称、数值、箭头方向或责任角色，系统必 须重新检查证据。仅改变字体大小不需要重新检索。 引用 引用面板按形状显示资料名称、版本、页码和证据区域。跨页比较必须保留两个来源位置。摘要节点可以合 并展示，但不能把多个证据压缩成一个不可追溯的页码。 导出 draw.io XML 是可继续编辑的正式结果；SVG 适合网页，PNG 适合预览，PDF 适合审阅。导出格式不会改 变资料权限，也不能把已失效引用重新变成有效引用。 回退 画布生成失败时保留已验证的 typed plan，并显示可重试状态。系统不能用无引用的旧截图假装生成成功。"
+      } ]
+    }, {
+      "rank" : 19,
+      "chunkId" : "rc_0e0008bc59d3fccea97c8a38ccfdf2c0bebe04d4",
+      "sourceVersion" : "drawio-agent-architecture:v1",
+      "page" : 1,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "87743fab175d613c48df85642891b647d47dc38746743fb2c34c0b3dc5bd2013",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_0e0008bc59d3fccea97c8a38ccfdf2c0bebe04d4",
+        "sourceVersion" : "drawio-agent-architecture:v1",
+        "page" : 1,
+        "text" : "[章节] Draw.io Agent Architecture Blueprint\n[内容类型] content\n[正文] the prompt.\n\n[章节] Draw.io Agent Architecture Blueprint\n[内容类型] content\n[正文] assembly and citation display rather than general chat behavior."
+      } ]
+    }, {
+      "rank" : 20,
+      "chunkId" : "rc_e3b1639d83f1783c4604ed320727b13a79a2f2b7",
+      "sourceVersion" : "drawio-agent-architecture:v1",
+      "page" : 1,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "8b90ea833e650dd05723ca8de1b6ceae1a8033a6ddd8c9dcb5ebd8e05c081983",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_e3b1639d83f1783c4604ed320727b13a79a2f2b7",
+        "sourceVersion" : "drawio-agent-architecture:v1",
+        "page" : 1,
+        "text" : "[章节] Draw.io Agent Architecture Blueprint\n[内容类型] content\n[正文] Purpose\n\n[章节] Draw.io Agent Architecture Blueprint\n[内容类型] content\n[正文] Design invariant Every material-backed shape keeps an evidence"
+      } ]
+    }, {
+      "rank" : 21,
+      "chunkId" : "rc_44c5445f647c14e29e27ac00a8e19a74942c1685",
+      "sourceVersion" : "drawio-agent-architecture:v1",
+      "page" : 5,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "19f38f5f52dc354b9fb1543cdfde6017f8d577b3bb72d7402176ce85a950cf84",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_44c5445f647c14e29e27ac00a8e19a74942c1685",
+        "sourceVersion" : "drawio-agent-architecture:v1",
+        "page" : 5,
+        "text" : "[章节] 4. Version and degraded behavior\n[内容类型] content\n[正文] superseded.\n\n[章节] 4. Version and degraded behavior\n[内容类型] content\n[正文] drawing remains available but material-backed retrieval enters an explicit degraded state. The agent must not claim that no evidence exists when search could not run. Visual verification A relationship found only in pixels requires verified visual evidence."
+      } ]
+    }, {
+      "rank" : 22,
+      "chunkId" : "rc_831d641dca01c5538049f6f9e33a35163dacdc4e",
+      "sourceVersion" : "drawio-agent-architecture:v1",
+      "page" : 1,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "50fd708be56f1afd4bb214eba76509b333a24c679d854b0ba1c8e92fef17da77",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_831d641dca01c5538049f6f9e33a35163dacdc4e",
+        "sourceVersion" : "drawio-agent-architecture:v1",
+        "page" : 1,
+        "text" : "[章节] Draw.io Agent Architecture Blueprint\n[内容类型] content\n[正文] covers ingestion, retrieval, diagram planning, XML"
+      } ]
+    }, {
+      "rank" : 23,
+      "chunkId" : "rc_38c788f72c5a68b4e33700d681ec4b9e8ea8043e",
+      "sourceVersion" : "drawio-agent-architecture:v1",
+      "page" : 1,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "7056e324bfda9fce4edd3dd80be7d42aac94686655ae99916c971c5aa1f9a881",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_38c788f72c5a68b4e33700d681ec4b9e8ea8043e",
+        "sourceVersion" : "drawio-agent-architecture:v1",
+        "page" : 1,
+        "text" : "[章节] Draw.io Agent Architecture Blueprint\n[内容类型] content\n[正文] version rules are checked before evidence enters"
+      } ]
+    }, {
+      "rank" : 24,
+      "chunkId" : "rc_469150b37cce98766191521376835b5426edc534",
+      "sourceVersion" : "drawio-planning-workshop-scan:v1",
+      "page" : 0,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "e7ede3812a2840f59e1d2cfa6d0bcc454d7b969de32521a3a3435cb421aa588d",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_469150b37cce98766191521376835b5426edc534",
+        "sourceVersion" : "drawio-planning-workshop-scan:v1",
+        "page" : 0,
+        "text" : "[章节] sec_239a801ecaa47a1e42e87d17\n[内容] [内容类型] content\n[正文] DRAW.IO PLANNING WORKSHOP DPW-2026-33 | scanned design notes"
+      } ]
+    }, {
+      "rank" : 25,
+      "chunkId" : "rc_9087330c22064f0501619c66b8ffd222552fec7f",
+      "sourceVersion" : "drawio-planning-workshop-scan:v1",
+      "page" : 1,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "c70628580b46f4feb2e212d90a74bf490483c4a181b65028a1194652486b6604",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_9087330c22064f0501619c66b8ffd222552fec7f",
+        "sourceVersion" : "drawio-planning-workshop-scan:v1",
+        "page" : 1,
+        "text" : "[内容类型] content\n[正文] DRAW.IO PLANNING WORKSHOP DPW-2026-33 | scanned design notes",
+        "imagePath" : "fixtures/generated/images/drawio-workshop-scan-page-1.jpg",
+        "imageSha256" : "fadf0c19b947a9cb578188ab06a442cd46b09b2bbc1362588be6576fad834b2b"
+      } ]
+    }, {
+      "rank" : 26,
+      "chunkId" : "rc_68989de7ffd607cde249652cd4ef3434cb13de9a",
+      "sourceVersion" : "drawio-workflow-handbook:v1",
+      "page" : 0,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "b561df723c4806333f255038c20f0d56aff05130641de1af5c85fbb86233eb37",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_68989de7ffd607cde249652cd4ef3434cb13de9a",
+        "sourceVersion" : "drawio-workflow-handbook:v1",
+        "page" : 0,
+        "text" : "[文档结构] Draw.io Agent 制图工作流手册; 1. 需求与资料范围; 2. 图型选择与规划; 3. 规划到画布; 4. 编辑、引用与导出; 5. 审批与版本说明\n[内容] DWH-2026-12 | 从资料检索到可编辑画布"
+      } ]
+    }, {
+      "rank" : 27,
+      "chunkId" : "rc_5edf6e338fb1cb57c4e4190532978fbdb854ffb8",
+      "sourceVersion" : "drawio-planning-workshop-scan:v1",
+      "page" : 2,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "5419afe1c332658069301e927074f7bd1b369c9d4998644cdfdf9e2f9fbb0ca1",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_5edf6e338fb1cb57c4e4190532978fbdb854ffb8",
+        "sourceVersion" : "drawio-planning-workshop-scan:v1",
+        "page" : 2,
+        "text" : "[内容类型] content\n[正文] scan of retrieval-decision notes\n\n[内容类型] content\n[正文] Layout only Moving existing shapes or changing colors does not require retrieval when no factual label changes. Material fact Adding a new fact, numeric comparison or source-backed relationship requires retrieval and evidence validation. Clarify If a pronoun could refer to two diagrams, ask the user before searching.",
+        "imagePath" : "fixtures/generated/images/drawio-workshop-scan-page-2.jpg",
+        "imageSha256" : "24e4bb847db8abda91deaf54df1d86c5e723d7c07507717e836030390bb28b3d"
+      } ]
+    }, {
+      "rank" : 28,
+      "chunkId" : "rc_21d08c089f12113d111492915856d76297d89b20",
+      "sourceVersion" : "drawio-planning-workshop-scan:v1",
+      "page" : 3,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "8563316f55b45c1e3bbece374a63086ce8eec510724e2280ceaa548e679aa8f1",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_21d08c089f12113d111492915856d76297d89b20",
+        "sourceVersion" : "drawio-planning-workshop-scan:v1",
+        "page" : 3,
+        "text" : "[内容类型] content\n[正文] explicit source and chartbook scope\n\n[内容类型] content\n[正文] Order Use an explicit source first, then current-chartbook material, then broader allowed material when automatic selection is enabled. Removed material A removed share cannot be used for a new request even when an old canvas still displays its citation label. No result Index failure is DEGRADED SEARCH, not NO EVIDENCE.",
+        "imagePath" : "fixtures/generated/images/drawio-workshop-scan-page-3.jpg",
+        "imageSha256" : "47b30420b454ce2326de169f1a960d82b880cbd7f6aebbe1e3d6be76bcf0dbff"
+      } ]
+    }, {
+      "rank" : 29,
+      "chunkId" : "rc_471b7fa8f02e429cebd81722869556e304825363",
+      "sourceVersion" : "drawio-agent-architecture:v1",
+      "page" : 6,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "24e412bcaa46728938f12b2e43c3259f63c8c3ae8a44b3df675936da33b55715",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_471b7fa8f02e429cebd81722869556e304825363",
+        "sourceVersion" : "drawio-agent-architecture:v1",
+        "page" : 6,
+        "text" : "[章节] 5. Evidence-to-shape contract\n[内容类型] content\n[正文] Shape contract Each grounded shape stores a stable shape identifier, source version, page or visual region and evidence grade. A group node can summarize several facts, but its citation list must still cover every material-backed claim. Editable output The canonical output is draw.io XML with stable cell identifiers. PNG and SVG exports are delivery formats."
+      } ]
+    }, {
+      "rank" : 30,
+      "chunkId" : "rc_8d11c7aca3ae1ebcf39532a642a7ed48e5a223e5",
+      "sourceVersion" : "drawio-agent-architecture:v1",
+      "page" : 0,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "29a536f6ba1e96562c8b0c6e1157e16081099ffe692f99e91930a576b3776d8c",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_8d11c7aca3ae1ebcf39532a642a7ed48e5a223e5",
+        "sourceVersion" : "drawio-agent-architecture:v1",
+        "page" : 0,
+        "text" : "[文档结构] Draw.io Agent Architecture Blueprint; 1. Component ownership; 2. Request-to-canvas rout\n[内容] [章节] Draw.io Agent Architecture Blueprint\n[内容类型] content\n[正文] DAA-2026-17 | evidence-grounded diagram generation"
+      } ]
+    }, {
+      "rank" : 31,
+      "chunkId" : "rc_9aa6d4f022221c413e16c4f3db566052877058a2",
+      "sourceVersion" : "drawio-agent-architecture:v1",
+      "page" : 3,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "d699638468091367f1bbe1c734dc92c7dba41f2813db0425b8c5494560047929",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_9aa6d4f022221c413e16c4f3db566052877058a2",
+        "sourceVersion" : "drawio-agent-architecture:v1",
+        "page" : 3,
+        "text" : "[章节] 2. Request-to-canvas route\n[内容类型] content\n[正文] The system must not silently publish a canvas with missing source references.",
+        "imagePath" : "fixtures/generated/images/drawio-agent-request-route.png",
+        "imageSha256" : "419f29850cf17fa8ff2f44b6113bf836056f335132fb4e33f5c14feb21faaa1e"
+      } ]
+    }, {
+      "rank" : 32,
+      "chunkId" : "rc_e40a61d8a5816cca057a4eb6669293ba0f99ce40",
+      "sourceVersion" : "drawio-planning-workshop-scan:v1",
+      "page" : 5,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "15cb1fbbd9f993a11197d383248739a1d8dfa8b01ba3f428a9b786154b0ae9da",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_e40a61d8a5816cca057a4eb6669293ba0f99ce40",
+        "sourceVersion" : "drawio-planning-workshop-scan:v1",
+        "page" : 5,
+        "text" : "[内容类型] content\n[正文] visual and editable-output checks\n\n[内容类型] content\n[正文] Visual Arrow direction, containment and raster table cells require pixel verification. Editable Stable cell identifiers and valid draw.io XML are required before completion. Export PNG is a preview. It does not preserve semantic groups or evidence bindings.",
+        "imagePath" : "fixtures/generated/images/drawio-workshop-scan-page-5.jpg",
+        "imageSha256" : "8c76275e4f93335426a3195de97d0247f704712e3932837338ac4519d253611a"
+      } ]
+    }, {
+      "rank" : 33,
+      "chunkId" : "rc_c5c909ee12eca7c2f76543c6a3bbc206bc06cf92",
+      "sourceVersion" : "drawio-agent-architecture:v1",
+      "page" : 0,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "cd8eaf4100e48a5a3883f3726a28c8441ee851620ab1769ca21f96f2677b43ef",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_c5c909ee12eca7c2f76543c6a3bbc206bc06cf92",
+        "sourceVersion" : "drawio-agent-architecture:v1",
+        "page" : 0,
+        "text" : "[章节] 2. Request-to-canvas route\n[内容] [章节] 2. Request-to-canvas route\n[内容类型] content\n[正文] Raster-only architecture relationship"
+      } ]
+    }, {
+      "rank" : 34,
+      "chunkId" : "rc_00c3407200b907f309fa4a05c5ab6eb39a9320eb",
+      "sourceVersion" : "drawio-agent-architecture:v1",
+      "page" : 2,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "407fdc60c666c292d7d6fa4c1c5e414580be38759de601eb8b64665884318a5c",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_00c3407200b907f309fa4a05c5ab6eb39a9320eb",
+        "sourceVersion" : "drawio-agent-architecture:v1",
+        "page" : 2,
+        "text" : "[章节] 1. Component ownership\n[内容类型] content\n[正文] Trust\n\n[章节] 1. Component ownership\n[内容类型] content\n[正文] Canvas Composer is owned by the Diagram team. Citation Binder can reject an unresolved reference but cannot change the selected source version."
+      } ]
+    }, {
+      "rank" : 35,
+      "chunkId" : "rc_5b407874925c06cb6a212db6c476f90b83a682b5",
+      "sourceVersion" : "drawio-agent-architecture:v1",
+      "page" : 6,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "dee0f5e0195fb7eff5e1cbab7b8d6bfc4122bf9fdd8c496675b77fd61144e02e",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_5b407874925c06cb6a212db6c476f90b83a682b5",
+        "sourceVersion" : "drawio-agent-architecture:v1",
+        "page" : 6,
+        "text" : "[章节] 5. Evidence-to-shape contract\n[内容类型] content\n[正文] Re-importing a screenshot does not restore evidence bindings or semantic group structure. Review rule A reviewer may accept layout changes without changing evidence. A factual label change requires renewed evidence validation. Removing a cited shape may remove its citation, but citations used by remaining shapes must stay resolvable."
+      } ]
+    }, {
+      "rank" : 36,
+      "chunkId" : "rc_25ce31e33801deca2484f10ddb4fa492c4d4045e",
+      "sourceVersion" : "drawio-workflow-handbook:v1",
+      "page" : 4,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "b24118b91ada64c8dfeaa79d75462f2b08963ffdad714072a9e430628418d6e3",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_25ce31e33801deca2484f10ddb4fa492c4d4045e",
+        "sourceVersion" : "drawio-workflow-handbook:v1",
+        "page" : 4,
+        "text" : "[章节] 3. 规划到画布\n[内容类型] content\n[正文] 真正参与。 校验规则 计划必须先通过范围、版本和证据完整性检查，才能交给画布生成器。布局检查通过不代表事实检查通过。"
+      } ]
+    }, {
+      "rank" : 37,
+      "chunkId" : "rc_99d00ea3b0263bddc66d0d335b211217e31af60f",
+      "sourceVersion" : "drawio-agent-architecture:v1",
+      "page" : 1,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "ffdab61d44f2b8f8a5cf734d3729c48aa1794259d7600c1381513fe17ec94f42",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_99d00ea3b0263bddc66d0d335b211217e31af60f",
+        "sourceVersion" : "drawio-agent-architecture:v1",
+        "page" : 1,
+        "text" : "[章节] Draw.io Agent Architecture Blueprint\n[内容类型] content\n[正文] This synthetic blueprint contains no production"
+      } ]
+    }, {
+      "rank" : 38,
+      "chunkId" : "rc_6a36b6f14e022f326053602c0940bfecfd278f49",
+      "sourceVersion" : "drawio-agent-architecture:v1",
+      "page" : 3,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "93e9d74dcd52f570e4dc381f5f23b7ca249a70a2603fac1c01b58b1feab08e6c",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_6a36b6f14e022f326053602c0940bfecfd278f49",
+        "sourceVersion" : "drawio-agent-architecture:v1",
+        "page" : 3,
+        "text" : "[章节] 2. Request-to-canvas route\n[内容类型] content\n[正文] DRAW.IO AGENT REQUEST ROUTE\n\n[章节] 2. Request-to-canvas route\n[内容类型] content\n[正文] authorizfa ranked validated",
+        "imagePath" : "fixtures/generated/images/drawio-agent-request-route.png",
+        "imageSha256" : "419f29850cf17fa8ff2f44b6113bf836056f335132fb4e33f5c14feb21faaa1e"
+      } ]
+    }, {
+      "rank" : 39,
+      "chunkId" : "rc_169b86c02ff6b13fc85b932c7e1d2a921aaf87cd",
+      "sourceVersion" : "drawio-agent-architecture:v1",
+      "page" : 2,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "166aaba296118908711eff8a48ee63c54c4f29215bc8ecd14c101f5f80f437df",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_169b86c02ff6b13fc85b932c7e1d2a921aaf87cd",
+        "sourceVersion" : "drawio-agent-architecture:v1",
+        "page" : 2,
+        "text" : "[章节] 1. Component ownership\n[内容类型] content\n[正文] Canvas Composer draw.io XML\n\n[章节] 1. Component ownership\n[内容类型] content\n[正文] typed plan"
+      } ]
+    }, {
+      "rank" : 40,
+      "chunkId" : "rc_e42815134f60a4540624c77db20b1bf7ed89076c",
+      "sourceVersion" : "drawio-agent-architecture:v1",
+      "page" : 1,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "f600852b00625e97eaf9e603d1eab74fa928dd7070965b78afc8d9eed2cd1bbc",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_e42815134f60a4540624c77db20b1bf7ed89076c",
+        "sourceVersion" : "drawio-agent-architecture:v1",
+        "page" : 1,
+        "text" : "[章节] Draw.io Agent Architecture Blueprint\n[内容类型] content\n[正文] generation; exporting an image does not replace"
+      } ]
+    } ]
+  }, {
+    "taskId" : "dgt-dev-03",
+    "candidates" : [ {
+      "rank" : 1,
+      "chunkId" : "rc_e42815134f60a4540624c77db20b1bf7ed89076c",
+      "sourceVersion" : "drawio-agent-architecture:v1",
+      "page" : 1,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "f600852b00625e97eaf9e603d1eab74fa928dd7070965b78afc8d9eed2cd1bbc",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_e42815134f60a4540624c77db20b1bf7ed89076c",
+        "sourceVersion" : "drawio-agent-architecture:v1",
+        "page" : 1,
+        "text" : "[章节] Draw.io Agent Architecture Blueprint\n[内容类型] content\n[正文] generation; exporting an image does not replace"
+      } ]
+    }, {
+      "rank" : 2,
+      "chunkId" : "rc_9d284179ce1c90d58cda3e68525e1ed2128cfda6",
+      "sourceVersion" : "drawio-planning-workshop-scan:v1",
+      "page" : 6,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "81c5cae75ba13251d64c07dea791a46dbafbeffe0671e1d7aab4c50a021f2646",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_9d284179ce1c90d58cda3e68525e1ed2128cfda6",
+        "sourceVersion" : "drawio-planning-workshop-scan:v1",
+        "page" : 6,
+        "text" : "[内容类型] content\n[正文] dates, roles and negative evidence\n\n[内容类型] content\n[正文] Deadline The typed-plan validation checklist is due on 14 January 2027. The 10 January date is a template-review meeting. Approval The Agent UX Lead approves the checklist; the workshop facilitator records comments. Unsupported No password, user phone number, tenant key or production endpoint appears in these notes.",
+        "imagePath" : "fixtures/generated/images/drawio-workshop-scan-page-6.jpg",
+        "imageSha256" : "c4d0450958594f6f0ae2b1ab3d8286506f8a59f7b45feee19108b21115121ee2"
+      } ]
+    }, {
+      "rank" : 3,
+      "chunkId" : "rc_8f495e7a8f911a9fd5e674e74b03dee10439b826",
+      "sourceVersion" : "drawio-agent-architecture:v1",
+      "page" : 6,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "e1bdfedd0cbe9e708cab02a05efd9aca90bebe4104973383d4d5b55cfc5d9eb9",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_8f495e7a8f911a9fd5e674e74b03dee10439b826",
+        "sourceVersion" : "drawio-agent-architecture:v1",
+        "page" : 6,
+        "text" : "[章节] 5. Evidence-to-shape contract\n[内容类型] content\n[正文] Unsupported requests The blueprint does not reveal credentials, tenant secrets, private user contact details or production endpoints. Related architectural terms are not evidence for those values."
+      } ]
+    }, {
+      "rank" : 4,
+      "chunkId" : "rc_e40a61d8a5816cca057a4eb6669293ba0f99ce40",
+      "sourceVersion" : "drawio-planning-workshop-scan:v1",
+      "page" : 5,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "15cb1fbbd9f993a11197d383248739a1d8dfa8b01ba3f428a9b786154b0ae9da",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_e40a61d8a5816cca057a4eb6669293ba0f99ce40",
+        "sourceVersion" : "drawio-planning-workshop-scan:v1",
+        "page" : 5,
+        "text" : "[内容类型] content\n[正文] visual and editable-output checks\n\n[内容类型] content\n[正文] Visual Arrow direction, containment and raster table cells require pixel verification. Editable Stable cell identifiers and valid draw.io XML are required before completion. Export PNG is a preview. It does not preserve semantic groups or evidence bindings.",
+        "imagePath" : "fixtures/generated/images/drawio-workshop-scan-page-5.jpg",
+        "imageSha256" : "8c76275e4f93335426a3195de97d0247f704712e3932837338ac4519d253611a"
+      } ]
+    }, {
+      "rank" : 5,
+      "chunkId" : "rc_b9b857aaed9c17b6b012dec5e70a385102d28d1a",
+      "sourceVersion" : "drawio-agent-architecture:v1",
+      "page" : 1,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "6eb7598e7dbb2872d3d3375316156c0d6f2df9807d76c2c25c20a099178db37a",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_b9b857aaed9c17b6b012dec5e70a385102d28d1a",
+        "sourceVersion" : "drawio-agent-architecture:v1",
+        "page" : 1,
+        "text" : "[章节] Draw.io Agent Architecture Blueprint\n[内容类型] content\n[正文] reference that can resolve to source version, page"
+      } ]
+    }, {
+      "rank" : 6,
+      "chunkId" : "rc_5efa7f841462e5b7183c790917e32c5cb03564b4",
+      "sourceVersion" : "drawio-agent-architecture:v1",
+      "page" : 1,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "632f74073bd09df71b77cdb8c916388d93eefeca26b737a01512bd5e933777ef",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_5efa7f841462e5b7183c790917e32c5cb03564b4",
+        "sourceVersion" : "drawio-agent-architecture:v1",
+        "page" : 1,
+        "text" : "[章节] Draw.io Agent Architecture Blueprint\n[内容类型] content\n[正文] DAA-2026-17 | evidence-grounded diagram generation"
+      } ]
+    }, {
+      "rank" : 7,
+      "chunkId" : "rc_38c788f72c5a68b4e33700d681ec4b9e8ea8043e",
+      "sourceVersion" : "drawio-agent-architecture:v1",
+      "page" : 1,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "7056e324bfda9fce4edd3dd80be7d42aac94686655ae99916c971c5aa1f9a881",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_38c788f72c5a68b4e33700d681ec4b9e8ea8043e",
+        "sourceVersion" : "drawio-agent-architecture:v1",
+        "page" : 1,
+        "text" : "[章节] Draw.io Agent Architecture Blueprint\n[内容类型] content\n[正文] version rules are checked before evidence enters"
+      } ]
+    }, {
+      "rank" : 8,
+      "chunkId" : "rc_9087330c22064f0501619c66b8ffd222552fec7f",
+      "sourceVersion" : "drawio-planning-workshop-scan:v1",
+      "page" : 1,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "c70628580b46f4feb2e212d90a74bf490483c4a181b65028a1194652486b6604",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_9087330c22064f0501619c66b8ffd222552fec7f",
+        "sourceVersion" : "drawio-planning-workshop-scan:v1",
+        "page" : 1,
+        "text" : "[内容类型] content\n[正文] DRAW.IO PLANNING WORKSHOP DPW-2026-33 | scanned design notes",
+        "imagePath" : "fixtures/generated/images/drawio-workshop-scan-page-1.jpg",
+        "imageSha256" : "fadf0c19b947a9cb578188ab06a442cd46b09b2bbc1362588be6576fad834b2b"
+      } ]
+    }, {
+      "rank" : 9,
+      "chunkId" : "rc_6fecb961db640b7e42976ef5ce37b8a5492d1671",
+      "sourceVersion" : "drawio-agent-architecture:v1",
+      "page" : 5,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "a176644b2eb5a7dc49295180940d46095eccf4bd405620e1ca600da7af095f8f",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_6fecb961db640b7e42976ef5ce37b8a5492d1671",
+        "sourceVersion" : "drawio-agent-architecture:v1",
+        "page" : 5,
+        "text" : "[章节] 4. Version and degraded behavior\n[内容类型] content\n[正文] Blueprint version 1.0 was approved on 28"
+      } ]
+    }, {
+      "rank" : 10,
+      "chunkId" : "rc_471b7fa8f02e429cebd81722869556e304825363",
+      "sourceVersion" : "drawio-agent-architecture:v1",
+      "page" : 6,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "24e412bcaa46728938f12b2e43c3259f63c8c3ae8a44b3df675936da33b55715",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_471b7fa8f02e429cebd81722869556e304825363",
+        "sourceVersion" : "drawio-agent-architecture:v1",
+        "page" : 6,
+        "text" : "[章节] 5. Evidence-to-shape contract\n[内容类型] content\n[正文] Shape contract Each grounded shape stores a stable shape identifier, source version, page or visual region and evidence grade. A group node can summarize several facts, but its citation list must still cover every material-backed claim. Editable output The canonical output is draw.io XML with stable cell identifiers. PNG and SVG exports are delivery formats."
+      } ]
+    }, {
+      "rank" : 11,
+      "chunkId" : "rc_04ecd3fb07a7210f43f12ddd1d3a73bdb113d7c7",
+      "sourceVersion" : "drawio-agent-architecture:v1",
+      "page" : 5,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "0a24c2420a48a3a79d1a7ba2b381d3e606fc6335c979d29af694813691888da2",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_04ecd3fb07a7210f43f12ddd1d3a73bdb113d7c7",
+        "sourceVersion" : "drawio-agent-architecture:v1",
+        "page" : 5,
+        "text" : "[章节] 4. Version and degraded behavior\n[内容类型] content\n[正文] Text extraction alone cannot confirm arrow direction, containment or the row-column association of a raster table."
+      } ]
+    }, {
+      "rank" : 12,
+      "chunkId" : "rc_34e8b38d925c0862114095c46383664bfdd8c65f",
+      "sourceVersion" : "drawio-planning-workshop-scan:v1",
+      "page" : 0,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "c2ad81c08f8b58cc4443be51389976e42c44721e09b92bf804e446e666ca6416",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_34e8b38d925c0862114095c46383664bfdd8c65f",
+        "sourceVersion" : "drawio-planning-workshop-scan:v1",
+        "page" : 0,
+        "text" : "[文档结构] Document\n[内容] [内容类型] content\n[正文] DRAW.IO PLANNING WORKSHOP DPW-2026-33 | scanned design notes"
+      } ]
+    }, {
+      "rank" : 13,
+      "chunkId" : "rc_67aa9782417bc32f67ee09479f9afe5532625837",
+      "sourceVersion" : "drawio-agent-architecture:v1",
+      "page" : 1,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "b70c3437a41785cba55e8d43b37993a9cf3641b4fe6437eaf7eaf41565b23473",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_67aa9782417bc32f67ee09479f9afe5532625837",
+        "sourceVersion" : "drawio-agent-architecture:v1",
+        "page" : 1,
+        "text" : "[章节] Draw.io Agent Architecture Blueprint\n[内容类型] content\n[正文] user material into an editable diagram while preserving evidence links. The controlled and region. A diagram remains editable after"
+      } ]
+    }, {
+      "rank" : 14,
+      "chunkId" : "rc_21d08c089f12113d111492915856d76297d89b20",
+      "sourceVersion" : "drawio-planning-workshop-scan:v1",
+      "page" : 3,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "8563316f55b45c1e3bbece374a63086ce8eec510724e2280ceaa548e679aa8f1",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_21d08c089f12113d111492915856d76297d89b20",
+        "sourceVersion" : "drawio-planning-workshop-scan:v1",
+        "page" : 3,
+        "text" : "[内容类型] content\n[正文] explicit source and chartbook scope\n\n[内容类型] content\n[正文] Order Use an explicit source first, then current-chartbook material, then broader allowed material when automatic selection is enabled. Removed material A removed share cannot be used for a new request even when an old canvas still displays its citation label. No result Index failure is DEGRADED SEARCH, not NO EVIDENCE.",
+        "imagePath" : "fixtures/generated/images/drawio-workshop-scan-page-3.jpg",
+        "imageSha256" : "47b30420b454ce2326de169f1a960d82b880cbd7f6aebbe1e3d6be76bcf0dbff"
+      } ]
+    }, {
+      "rank" : 15,
+      "chunkId" : "rc_40e415a8536e28b787ea9183314b81f21950db96",
+      "sourceVersion" : "drawio-agent-architecture:v1",
+      "page" : 3,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "9b3d91339eef2c750eec3880de44b78e0752fae9554465924d9cf670492432e6",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_40e415a8536e28b787ea9183314b81f21950db96",
+        "sourceVersion" : "drawio-agent-architecture:v1",
+        "page" : 3,
+        "text" : "[章节] 2. Request-to-canvas route\n[内容类型] caption_context\n[正文] Figure 2. Evidence-to-canvas request route for an editable draw.io flow.",
+        "imagePath" : "fixtures/generated/images/drawio-agent-request-route.png",
+        "imageSha256" : "419f29850cf17fa8ff2f44b6113bf836056f335132fb4e33f5c14feb21faaa1e"
+      } ]
+    }, {
+      "rank" : 16,
+      "chunkId" : "rc_5b407874925c06cb6a212db6c476f90b83a682b5",
+      "sourceVersion" : "drawio-agent-architecture:v1",
+      "page" : 6,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "dee0f5e0195fb7eff5e1cbab7b8d6bfc4122bf9fdd8c496675b77fd61144e02e",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_5b407874925c06cb6a212db6c476f90b83a682b5",
+        "sourceVersion" : "drawio-agent-architecture:v1",
+        "page" : 6,
+        "text" : "[章节] 5. Evidence-to-shape contract\n[内容类型] content\n[正文] Re-importing a screenshot does not restore evidence bindings or semantic group structure. Review rule A reviewer may accept layout changes without changing evidence. A factual label change requires renewed evidence validation. Removing a cited shape may remove its citation, but citations used by remaining shapes must stay resolvable."
+      } ]
+    }, {
+      "rank" : 17,
+      "chunkId" : "rc_056ec7c27e913447d49226c2957744170dd5097b",
+      "sourceVersion" : "drawio-agent-architecture:v1",
+      "page" : 1,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "8493c2949848cd44615712f9a2708d3c47fcaa13adc8e7f17ca61067997399e5",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_056ec7c27e913447d49226c2957744170dd5097b",
+        "sourceVersion" : "drawio-agent-architecture:v1",
+        "page" : 1,
+        "text" : "[章节] Draw.io Agent Architecture Blueprint\n[内容类型] content\n[正文] A user may select explicit material, search the tenant identifier, private user email, database current chartbook or allow automatic source password or live Pinecone host. Questions selection."
+      } ]
+    }, {
+      "rank" : 18,
+      "chunkId" : "rc_5edf6e338fb1cb57c4e4190532978fbdb854ffb8",
+      "sourceVersion" : "drawio-planning-workshop-scan:v1",
+      "page" : 2,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "5419afe1c332658069301e927074f7bd1b369c9d4998644cdfdf9e2f9fbb0ca1",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_5edf6e338fb1cb57c4e4190532978fbdb854ffb8",
+        "sourceVersion" : "drawio-planning-workshop-scan:v1",
+        "page" : 2,
+        "text" : "[内容类型] content\n[正文] scan of retrieval-decision notes\n\n[内容类型] content\n[正文] Layout only Moving existing shapes or changing colors does not require retrieval when no factual label changes. Material fact Adding a new fact, numeric comparison or source-backed relationship requires retrieval and evidence validation. Clarify If a pronoun could refer to two diagrams, ask the user before searching.",
+        "imagePath" : "fixtures/generated/images/drawio-workshop-scan-page-2.jpg",
+        "imageSha256" : "24e4bb847db8abda91deaf54df1d86c5e723d7c07507717e836030390bb28b3d"
+      } ]
+    }, {
+      "rank" : 19,
+      "chunkId" : "rc_9120245bf85ce17c92c320f0d57497249e52b29a",
+      "sourceVersion" : "drawio-agent-architecture:v1",
+      "page" : 1,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "9d03927f8a96f774701bd29890d5c71041eff42c087f471392c27e036ae55761",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_9120245bf85ce17c92c320f0d57497249e52b29a",
+        "sourceVersion" : "drawio-agent-architecture:v1",
+        "page" : 1,
+        "text" : "[章节] Draw.io Agent Architecture Blueprint\n[内容类型] content\n[正文] The agent may use model knowledge requesting them require abstention. only when product policy permits and must distinguish that content from material-backed claims. It never treats a visually plausible node label as evidence by itself."
+      } ]
+    }, {
+      "rank" : 20,
+      "chunkId" : "rc_903826562d291119704bc89c05ed762b0da5cbac",
+      "sourceVersion" : "drawio-agent-architecture:v1",
+      "page" : 4,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "68827145395a9f4e19e31638bb5d5d6f5024c9976b041153323e4265d3394e64",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_903826562d291119704bc89c05ed762b0da5cbac",
+        "sourceVersion" : "drawio-agent-architecture:v1",
+        "page" : 4,
+        "text" : "[章节] 3. Retrieval and context budgets\n[内容类型] content\n[正文] Multi-part comparisons are complete only when every required evidence group survives. The nearby value 12 belongs to an experimental layout branch and is not the baseline bundle limit. Source selection When the user names a material, explicit selection wins. Without an explicit source, the current chartbook is searched before broader allowed material."
+      } ]
+    }, {
+      "rank" : 21,
+      "chunkId" : "rc_552102f85251918b6d860569fbcd8123f5fd09c9",
+      "sourceVersion" : "drawio-workflow-handbook:v1",
+      "page" : 5,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "5d0fe4cc2a3011fbef49bd6468388ba1a6ba02f7c3c78570a88ec3dc2b58db05",
+      "evidence" : [ {
+        "anchorId" : "dwh-canonical",
+        "sourceVersion" : "drawio-workflow-handbook:v1",
+        "page" : 5,
+        "text" : "[章节] 4. 编辑、引用与导出\n[内容类型] content\n[正文] 中文长段落与对象边界\n\n[章节] 4. 编辑、引用与导出\n[内容类型] content\n[正文] 编辑 用户可以移动、分组或重新着色节点而不改变事实。若修改节点名称、数值、箭头方向或责任角色，系统必 须重新检查证据。仅改变字体大小不需要重新检索。 引用 引用面板按形状显示资料名称、版本、页码和证据区域。跨页比较必须保留两个来源位置。摘要节点可以合 并展示，但不能把多个证据压缩成一个不可追溯的页码。 导出 draw.io XML 是可继续编辑的正式结果；SVG 适合网页，PNG 适合预览，PDF 适合审阅。导出格式不会改 变资料权限，也不能把已失效引用重新变成有效引用。 回退 画布生成失败时保留已验证的 typed plan，并显示可重试状态。系统不能用无引用的旧截图假装生成成功。"
+      }, {
+        "anchorId" : "dwh-factual-edit",
+        "sourceVersion" : "drawio-workflow-handbook:v1",
+        "page" : 5,
+        "text" : "[章节] 4. 编辑、引用与导出\n[内容类型] content\n[正文] 中文长段落与对象边界\n\n[章节] 4. 编辑、引用与导出\n[内容类型] content\n[正文] 编辑 用户可以移动、分组或重新着色节点而不改变事实。若修改节点名称、数值、箭头方向或责任角色，系统必 须重新检查证据。仅改变字体大小不需要重新检索。 引用 引用面板按形状显示资料名称、版本、页码和证据区域。跨页比较必须保留两个来源位置。摘要节点可以合 并展示，但不能把多个证据压缩成一个不可追溯的页码。 导出 draw.io XML 是可继续编辑的正式结果；SVG 适合网页，PNG 适合预览，PDF 适合审阅。导出格式不会改 变资料权限，也不能把已失效引用重新变成有效引用。 回退 画布生成失败时保留已验证的 typed plan，并显示可重试状态。系统不能用无引用的旧截图假装生成成功。"
+      } ]
+    }, {
+      "rank" : 22,
+      "chunkId" : "rc_91eece36c95af8e0139b5d29d995a3ae0ddd6fdd",
+      "sourceVersion" : "drawio-agent-architecture:v1",
+      "page" : 1,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "c6168b406c43ba1dfae881d21ad7c207b5d6bbd9facc34a6b7eb19576ee5d534",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_91eece36c95af8e0139b5d29d995a3ae0ddd6fdd",
+        "sourceVersion" : "drawio-agent-architecture:v1",
+        "page" : 1,
+        "text" : "[章节] Draw.io Agent Architecture Blueprint\n[内容类型] content\n[正文] the canonical draw.io XML. Authorization and"
+      } ]
+    }, {
+      "rank" : 23,
+      "chunkId" : "rc_ca19c5b974cdabf9ad6342ea859692f8094e4ebc",
+      "sourceVersion" : "drawio-workflow-handbook:v1",
+      "page" : 6,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "3567fddf6f8686576974ad37ebfbef0f9f2709012b1f9f4fc52b065fed6571d4",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_ca19c5b974cdabf9ad6342ea859692f8094e4ebc",
+        "sourceVersion" : "drawio-workflow-handbook:v1",
+        "page" : 6,
+        "text" : "[章节] 5. 审批与版本说明\n[内容类型] content\n[正文] 草案冲突、完成标准与无答案控制\n\n[章节] 5. 审批与版本说明\n[内容类型] content\n[正文] 批准版本 手册 1.0 版于 2026 年 12 月 6 日由 Diagram Experience Lead 批准。11 月草案允许在布局操作 时自动补充事实，评审认为风险过高并删除该规则。 完成标准 正式完成需要可编辑 XML、通过的布局检查、全部 关键形状的证据绑定以及无未解决的权限警告。只 有 PNG 预览不算完成。 复核抽样 每次发布至少抽查 12 个复杂图，其中中文、英文 和图像证据案例均需覆盖。抽查通过不替代专项权 限守门测试。"
+      } ]
+    }, {
+      "rank" : 24,
+      "chunkId" : "rc_44c5445f647c14e29e27ac00a8e19a74942c1685",
+      "sourceVersion" : "drawio-agent-architecture:v1",
+      "page" : 5,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "19f38f5f52dc354b9fb1543cdfde6017f8d577b3bb72d7402176ce85a950cf84",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_44c5445f647c14e29e27ac00a8e19a74942c1685",
+        "sourceVersion" : "drawio-agent-architecture:v1",
+        "page" : 5,
+        "text" : "[章节] 4. Version and degraded behavior\n[内容类型] content\n[正文] superseded.\n\n[章节] 4. Version and degraded behavior\n[内容类型] content\n[正文] drawing remains available but material-backed retrieval enters an explicit degraded state. The agent must not claim that no evidence exists when search could not run. Visual verification A relationship found only in pixels requires verified visual evidence."
+      } ]
+    }, {
+      "rank" : 25,
+      "chunkId" : "rc_bdb2fc980f00cc04d93c162166c231d3e22157ae",
+      "sourceVersion" : "drawio-planning-workshop-scan:v1",
+      "page" : 1,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "b8794fd23d1d1a2afff5aa2b6e43a12f4211b39fb69e6a48a85829132df3667a",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_bdb2fc980f00cc04d93c162166c231d3e22157ae",
+        "sourceVersion" : "drawio-planning-workshop-scan:v1",
+        "page" : 1,
+        "text" : "[内容类型] content\n[正文] Goal The workshop defined how a material-backed request becomes an editable diagram. The workshop identifier is DPW-2026-33; DPW-2026-03 is a room booking. Scope Participants covered source selection, evidence grouping, layout choice and citation review. No production credentials or customer data were used. Decision The canonical deliverable is editable draw.io XML, not a screenshot.",
+        "imagePath" : "fixtures/generated/images/drawio-workshop-scan-page-1.jpg",
+        "imageSha256" : "fadf0c19b947a9cb578188ab06a442cd46b09b2bbc1362588be6576fad834b2b"
+      } ]
+    }, {
+      "rank" : 26,
+      "chunkId" : "rc_46def08281d969ff490c484fd10526554693c710",
+      "sourceVersion" : "drawio-agent-architecture:v1",
+      "page" : 5,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "811b89f4799b1dfece0d995231801f3453837aaf43da61d867865775c6bee329",
+      "evidence" : [ {
+        "anchorId" : "daa-version-pin",
+        "sourceVersion" : "drawio-agent-architecture:v1",
+        "page" : 5,
+        "text" : "[章节] 4. Version and degraded behavior\n[内容类型] content\n[正文] A shape that already cites material version V1 Recovered retrieval is tested with the same tenant remains pinned to V1 when reopened. A new and version filters before normal status returns. request defaults to the latest ready version unless Cached results from another user or chartbook are the user explicitly chooses an older one."
+      } ]
+    }, {
+      "rank" : 27,
+      "chunkId" : "rc_df5d3ead47982a2fda8369d890be6dc6d1c35bc5",
+      "sourceVersion" : "drawio-agent-architecture:v1",
+      "page" : 6,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "1deb54781f4d77b02892d20184044f4e5d287f5078ae9dd077154e3df07b29fe",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_df5d3ead47982a2fda8369d890be6dc6d1c35bc5",
+        "sourceVersion" : "drawio-agent-architecture:v1",
+        "page" : 6,
+        "text" : "[章节] 5. Evidence-to-shape contract\n[内容类型] content\n[正文] Required fields and unsupported shortcuts"
+      } ]
+    }, {
+      "rank" : 28,
+      "chunkId" : "rc_e7341d059d57f50a6991f798b880debd689d036f",
+      "sourceVersion" : "drawio-agent-architecture:v1",
+      "page" : 0,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "a491b14c57f230d3cb07243355d6a2de86a2c838068cd5bb57c3c1bd697839c6",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_e7341d059d57f50a6991f798b880debd689d036f",
+        "sourceVersion" : "drawio-agent-architecture:v1",
+        "page" : 0,
+        "text" : "[章节] 5. Evidence-to-shape contract\n[内容] [章节] 5. Evidence-to-shape contract\n[内容类型] content\n[正文] Required fields and unsupported shortcuts"
+      } ]
+    }, {
+      "rank" : 29,
+      "chunkId" : "rc_469150b37cce98766191521376835b5426edc534",
+      "sourceVersion" : "drawio-planning-workshop-scan:v1",
+      "page" : 0,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "e7ede3812a2840f59e1d2cfa6d0bcc454d7b969de32521a3a3435cb421aa588d",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_469150b37cce98766191521376835b5426edc534",
+        "sourceVersion" : "drawio-planning-workshop-scan:v1",
+        "page" : 0,
+        "text" : "[章节] sec_239a801ecaa47a1e42e87d17\n[内容] [内容类型] content\n[正文] DRAW.IO PLANNING WORKSHOP DPW-2026-33 | scanned design notes"
+      } ]
+    }, {
+      "rank" : 30,
+      "chunkId" : "rc_adbec943643ebbe550cba02a3233e52c27376c0a",
+      "sourceVersion" : "drawio-agent-architecture:v1",
+      "page" : 3,
+      "modality" : "VISUAL",
+      "retrievalTextSha256" : "6bfd4aaeb789fe4071970fb5019a24e30eca69c43866cabcf033717f011e63d4",
+      "evidence" : [ {
+        "anchorId" : "daa-route-compose",
+        "sourceVersion" : "drawio-agent-architecture:v1",
+        "page" : 3,
+        "text" : "[章节] 2. Request-to-canvas route\n[内容类型] visual_description\n[正文] Figure 2. Evidence-to-canvas request route for an editable draw.io flow.",
+        "imagePath" : "fixtures/generated/images/drawio-agent-request-route.png",
+        "imageSha256" : "419f29850cf17fa8ff2f44b6113bf836056f335132fb4e33f5c14feb21faaa1e"
+      }, {
+        "anchorId" : "daa-route-scope",
+        "sourceVersion" : "drawio-agent-architecture:v1",
+        "page" : 3,
+        "text" : "[章节] 2. Request-to-canvas route\n[内容类型] visual_description\n[正文] Figure 2. Evidence-to-canvas request route for an editable draw.io flow.",
+        "imagePath" : "fixtures/generated/images/drawio-agent-request-route.png",
+        "imageSha256" : "419f29850cf17fa8ff2f44b6113bf836056f335132fb4e33f5c14feb21faaa1e"
+      } ]
+    }, {
+      "rank" : 31,
+      "chunkId" : "rc_744d41c802051d3da5a0233ce505b9eb4a3388e0",
+      "sourceVersion" : "drawio-agent-architecture:v1",
+      "page" : 3,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "c605ba9b94fc80b5e184b3737f42a01ecd4c89fb17582b8b1efacd78e677aa4d",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_744d41c802051d3da5a0233ce505b9eb4a3388e0",
+        "sourceVersion" : "drawio-agent-architecture:v1",
+        "page" : 3,
+        "text" : "[章节] 2. Request-to-canvas route\n[内容类型] content\n[正文] Figure scope The route between planning and citation is encoded only in Figure 2. Surrounding prose does not repeat the node sequence. Visual cases must inspect the diagram and preserve arrow direction. Failure boundary If citation binding fails, the request remains a draft and the user sees an evidence warning.",
+        "imagePath" : "fixtures/generated/images/drawio-agent-request-route.png",
+        "imageSha256" : "419f29850cf17fa8ff2f44b6113bf836056f335132fb4e33f5c14feb21faaa1e"
+      } ]
+    }, {
+      "rank" : 32,
+      "chunkId" : "rc_5629a9bbee71406d39a753eca442e74bb9cca217",
+      "sourceVersion" : "drawio-planning-workshop-scan:v1",
+      "page" : 4,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "647183213c4c228a8e528d4d39a716e76324bb308c6708f0c33ca41a57c6e28a",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_5629a9bbee71406d39a753eca442e74bb9cca217",
+        "sourceVersion" : "drawio-planning-workshop-scan:v1",
+        "page" : 4,
+        "text" : "[内容类型] list_group\n[正文] 3. EVIDENCE BOARD",
+        "imagePath" : "fixtures/generated/images/drawio-workshop-scan-page-4.jpg",
+        "imageSha256" : "93aa3c336815060031f286a65e1cbf5e403fe6eeafd1b29eb58c1768ba2d3d8a"
+      } ]
+    }, {
+      "rank" : 33,
+      "chunkId" : "rc_25ce31e33801deca2484f10ddb4fa492c4d4045e",
+      "sourceVersion" : "drawio-workflow-handbook:v1",
+      "page" : 4,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "b24118b91ada64c8dfeaa79d75462f2b08963ffdad714072a9e430628418d6e3",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_25ce31e33801deca2484f10ddb4fa492c4d4045e",
+        "sourceVersion" : "drawio-workflow-handbook:v1",
+        "page" : 4,
+        "text" : "[章节] 3. 规划到画布\n[内容类型] content\n[正文] 真正参与。 校验规则 计划必须先通过范围、版本和证据完整性检查，才能交给画布生成器。布局检查通过不代表事实检查通过。"
+      } ]
+    }, {
+      "rank" : 34,
+      "chunkId" : "rc_bad0269dddc69a10061329a97477228133611a6b",
+      "sourceVersion" : "drawio-workflow-handbook:v1",
+      "page" : 4,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "4f37e10232fae4133ed548f09cb412cef76a68189b0da20c576ac97e5b37e9b4",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_bad0269dddc69a10061329a97477228133611a6b",
+        "sourceVersion" : "drawio-workflow-handbook:v1",
+        "page" : 4,
+        "text" : "[章节] 3. 规划到画布\n[内容类型] caption_context\n[正文] 图 3 只在像素中给出从证据包到画布草稿的节点顺序。正文故意不复述相邻关系，用于检查视觉理解是否"
+      } ]
+    }, {
+      "rank" : 35,
+      "chunkId" : "rc_0c04ffa1d52272ea72dbe1a1a0837d07a6178417",
+      "sourceVersion" : "drawio-agent-architecture:v1",
+      "page" : 4,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "fa37b7f86bcb99d6e67093b5ec2a93cbc5c4eb1db879ccc8c2effecec8aedc0f",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_0c04ffa1d52272ea72dbe1a1a0837d07a6178417",
+        "sourceVersion" : "drawio-agent-architecture:v1",
+        "page" : 4,
+        "text" : "[章节] 3. Retrieval and context budgets\n[内容类型] content\n[正文] Hydration At most 16 authorized candidates are hydrated from object storage for the baseline context-selection stage. A timeout produces an explicit missing-artifact record. Hydration does not expand the user scope or switch to a newer version. Final bundle The final evidence bundle contains at most 8 items."
+      } ]
+    }, {
+      "rank" : 36,
+      "chunkId" : "rc_8005e856479484bd3be369662ff9c2029e7ec67e",
+      "sourceVersion" : "drawio-agent-architecture:v1",
+      "page" : 4,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "169312ad058f92667e3c132033fda1ffbcd6e963a6a42c644fb79b98d45922fc",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_8005e856479484bd3be369662ff9c2029e7ec67e",
+        "sourceVersion" : "drawio-agent-architecture:v1",
+        "page" : 4,
+        "text" : "[章节] 3. Retrieval and context budgets\n[内容类型] content\n[正文] Candidate retrieval The baseline retrieves 40 evidence candidates before reauthorization. Authorization may remove a candidate but may not replace it with evidence from an unapproved source. Candidate count is a recall budget, not the number of shapes shown to the user."
+      } ]
+    }, {
+      "rank" : 37,
+      "chunkId" : "rc_56ec93ca17587894fb71f8de4718f3ee272b9fa0",
+      "sourceVersion" : "drawio-agent-architecture:v1",
+      "page" : 4,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "a470534fc76aa635d9bda5cae09ea73901a88663ad99fafc68c00cb9932a9461",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_56ec93ca17587894fb71f8de4718f3ee272b9fa0",
+        "sourceVersion" : "drawio-agent-architecture:v1",
+        "page" : 4,
+        "text" : "[章节] 3. Retrieval and context budgets\n[内容类型] content\n[正文] A zero-result search may trigger the policy-defined fallback, but the response must label the fallback source."
+      } ]
+    }, {
+      "rank" : 38,
+      "chunkId" : "rc_970d1dd8cf1e3b3a7178d4427216a6140882ef51",
+      "sourceVersion" : "drawio-planning-workshop-scan:v1",
+      "page" : 2,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "788e56510f5064f8da77129cff4f563996e4e4e90739405433c60af0a9f3647e",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_970d1dd8cf1e3b3a7178d4427216a6140882ef51",
+        "sourceVersion" : "drawio-planning-workshop-scan:v1",
+        "page" : 2,
+        "text" : "[内容类型] list_group\n[正文] 1. REQUEST TRIAGE",
+        "imagePath" : "fixtures/generated/images/drawio-workshop-scan-page-2.jpg",
+        "imageSha256" : "24e4bb847db8abda91deaf54df1d86c5e723d7c07507717e836030390bb28b3d"
+      } ]
+    }, {
+      "rank" : 39,
+      "chunkId" : "rc_4887482dec2f7ebc3128fcb2ba7c054e0d155d09",
+      "sourceVersion" : "drawio-agent-architecture:v1",
+      "page" : 2,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "d80706ced7353b1b0b82f6a195c9f70cad9245067df5e6924a5216505bd7c796",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_4887482dec2f7ebc3128fcb2ba7c054e0d155d09",
+        "sourceVersion" : "drawio-agent-architecture:v1",
+        "page" : 2,
+        "text" : "[章节] 1. Component ownership\n[内容类型] content\n[正文] allowed sources Platform ranked evidence Retrieval typed plan"
+      } ]
+    }, {
+      "rank" : 40,
+      "chunkId" : "rc_57f0b1f02c6bfb66f109890f2087ee71d52ad9c7",
+      "sourceVersion" : "drawio-agent-architecture:v1",
+      "page" : 0,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "f03aab491d47b65bf97e1bb33a17d7493035ea83fdf2fd5ce760e5e5ade87e1f",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_57f0b1f02c6bfb66f109890f2087ee71d52ad9c7",
+        "sourceVersion" : "drawio-agent-architecture:v1",
+        "page" : 0,
+        "text" : "[章节] Draw.io Agent Architecture Blueprint\n[内容] [章节] Draw.io Agent Architecture Blueprint\n[内容类型] content\n[正文] DAA-2026-17 | evidence-grounded diagram generation\n[章节] Draw.io Agent Architecture Blueprint\n[内容类型] content\n[正文] Purpose\n\n[章节] Draw.io Agent Architecture Blueprint\n[内容类型] content\n[正文] Design invariant Every material-backed shape keeps an evidence"
+      } ]
+    } ]
+  }, {
+    "taskId" : "dgt-dev-04",
+    "candidates" : [ {
+      "rank" : 1,
+      "chunkId" : "rc_9a2aefeaa62d413479ea9ab2fea1224987adfa87",
+      "sourceVersion" : "drawio-planning-workshop-scan:v1",
+      "page" : 5,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "4b0c19ade44bc18f52d7c186e6db33dc3d72f8f673a7d4713f61589edcf64fc0",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_9a2aefeaa62d413479ea9ab2fea1224987adfa87",
+        "sourceVersion" : "drawio-planning-workshop-scan:v1",
+        "page" : 5,
+        "text" : "[内容类型] list_group\n[正文] 4. CANVAS REVIEW",
+        "imagePath" : "fixtures/generated/images/drawio-workshop-scan-page-5.jpg",
+        "imageSha256" : "8c76275e4f93335426a3195de97d0247f704712e3932837338ac4519d253611a"
+      } ]
+    }, {
+      "rank" : 2,
+      "chunkId" : "rc_9d284179ce1c90d58cda3e68525e1ed2128cfda6",
+      "sourceVersion" : "drawio-planning-workshop-scan:v1",
+      "page" : 6,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "81c5cae75ba13251d64c07dea791a46dbafbeffe0671e1d7aab4c50a021f2646",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_9d284179ce1c90d58cda3e68525e1ed2128cfda6",
+        "sourceVersion" : "drawio-planning-workshop-scan:v1",
+        "page" : 6,
+        "text" : "[内容类型] content\n[正文] dates, roles and negative evidence\n\n[内容类型] content\n[正文] Deadline The typed-plan validation checklist is due on 14 January 2027. The 10 January date is a template-review meeting. Approval The Agent UX Lead approves the checklist; the workshop facilitator records comments. Unsupported No password, user phone number, tenant key or production endpoint appears in these notes.",
+        "imagePath" : "fixtures/generated/images/drawio-workshop-scan-page-6.jpg",
+        "imageSha256" : "c4d0450958594f6f0ae2b1ab3d8286506f8a59f7b45feee19108b21115121ee2"
+      } ]
+    }, {
+      "rank" : 3,
+      "chunkId" : "rc_bfca8d3e17c4cd44712829ccc5bd7953ec7b1a0f",
+      "sourceVersion" : "drawio-agent-architecture:v1",
+      "page" : 5,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "1d565af729685aacb83027508f7939eae7a41458cf8500a87810445d8091026a",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_bfca8d3e17c4cd44712829ccc5bd7953ec7b1a0f",
+        "sourceVersion" : "drawio-agent-architecture:v1",
+        "page" : 5,
+        "text" : "[章节] 4. Version and degraded behavior\n[内容类型] content\n[正文] Version pinning\n\n[章节] 4. Version and degraded behavior\n[内容类型] content\n[正文] Recovery"
+      } ]
+    }, {
+      "rank" : 4,
+      "chunkId" : "rc_04ecd3fb07a7210f43f12ddd1d3a73bdb113d7c7",
+      "sourceVersion" : "drawio-agent-architecture:v1",
+      "page" : 5,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "0a24c2420a48a3a79d1a7ba2b381d3e606fc6335c979d29af694813691888da2",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_04ecd3fb07a7210f43f12ddd1d3a73bdb113d7c7",
+        "sourceVersion" : "drawio-agent-architecture:v1",
+        "page" : 5,
+        "text" : "[章节] 4. Version and degraded behavior\n[内容类型] content\n[正文] Text extraction alone cannot confirm arrow direction, containment or the row-column association of a raster table."
+      } ]
+    }, {
+      "rank" : 5,
+      "chunkId" : "rc_e42815134f60a4540624c77db20b1bf7ed89076c",
+      "sourceVersion" : "drawio-agent-architecture:v1",
+      "page" : 1,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "f600852b00625e97eaf9e603d1eab74fa928dd7070965b78afc8d9eed2cd1bbc",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_e42815134f60a4540624c77db20b1bf7ed89076c",
+        "sourceVersion" : "drawio-agent-architecture:v1",
+        "page" : 1,
+        "text" : "[章节] Draw.io Agent Architecture Blueprint\n[内容类型] content\n[正文] generation; exporting an image does not replace"
+      } ]
+    }, {
+      "rank" : 6,
+      "chunkId" : "rc_adbec943643ebbe550cba02a3233e52c27376c0a",
+      "sourceVersion" : "drawio-agent-architecture:v1",
+      "page" : 3,
+      "modality" : "VISUAL",
+      "retrievalTextSha256" : "6bfd4aaeb789fe4071970fb5019a24e30eca69c43866cabcf033717f011e63d4",
+      "evidence" : [ {
+        "anchorId" : "daa-route-compose",
+        "sourceVersion" : "drawio-agent-architecture:v1",
+        "page" : 3,
+        "text" : "[章节] 2. Request-to-canvas route\n[内容类型] visual_description\n[正文] Figure 2. Evidence-to-canvas request route for an editable draw.io flow.",
+        "imagePath" : "fixtures/generated/images/drawio-agent-request-route.png",
+        "imageSha256" : "419f29850cf17fa8ff2f44b6113bf836056f335132fb4e33f5c14feb21faaa1e"
+      }, {
+        "anchorId" : "daa-route-scope",
+        "sourceVersion" : "drawio-agent-architecture:v1",
+        "page" : 3,
+        "text" : "[章节] 2. Request-to-canvas route\n[内容类型] visual_description\n[正文] Figure 2. Evidence-to-canvas request route for an editable draw.io flow.",
+        "imagePath" : "fixtures/generated/images/drawio-agent-request-route.png",
+        "imageSha256" : "419f29850cf17fa8ff2f44b6113bf836056f335132fb4e33f5c14feb21faaa1e"
+      } ]
+    }, {
+      "rank" : 7,
+      "chunkId" : "rc_ca19c5b974cdabf9ad6342ea859692f8094e4ebc",
+      "sourceVersion" : "drawio-workflow-handbook:v1",
+      "page" : 6,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "3567fddf6f8686576974ad37ebfbef0f9f2709012b1f9f4fc52b065fed6571d4",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_ca19c5b974cdabf9ad6342ea859692f8094e4ebc",
+        "sourceVersion" : "drawio-workflow-handbook:v1",
+        "page" : 6,
+        "text" : "[章节] 5. 审批与版本说明\n[内容类型] content\n[正文] 草案冲突、完成标准与无答案控制\n\n[章节] 5. 审批与版本说明\n[内容类型] content\n[正文] 批准版本 手册 1.0 版于 2026 年 12 月 6 日由 Diagram Experience Lead 批准。11 月草案允许在布局操作 时自动补充事实，评审认为风险过高并删除该规则。 完成标准 正式完成需要可编辑 XML、通过的布局检查、全部 关键形状的证据绑定以及无未解决的权限警告。只 有 PNG 预览不算完成。 复核抽样 每次发布至少抽查 12 个复杂图，其中中文、英文 和图像证据案例均需覆盖。抽查通过不替代专项权 限守门测试。"
+      } ]
+    }, {
+      "rank" : 8,
+      "chunkId" : "rc_34e8b38d925c0862114095c46383664bfdd8c65f",
+      "sourceVersion" : "drawio-planning-workshop-scan:v1",
+      "page" : 0,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "c2ad81c08f8b58cc4443be51389976e42c44721e09b92bf804e446e666ca6416",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_34e8b38d925c0862114095c46383664bfdd8c65f",
+        "sourceVersion" : "drawio-planning-workshop-scan:v1",
+        "page" : 0,
+        "text" : "[文档结构] Document\n[内容] [内容类型] content\n[正文] DRAW.IO PLANNING WORKSHOP DPW-2026-33 | scanned design notes"
+      } ]
+    }, {
+      "rank" : 9,
+      "chunkId" : "rc_40e415a8536e28b787ea9183314b81f21950db96",
+      "sourceVersion" : "drawio-agent-architecture:v1",
+      "page" : 3,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "9b3d91339eef2c750eec3880de44b78e0752fae9554465924d9cf670492432e6",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_40e415a8536e28b787ea9183314b81f21950db96",
+        "sourceVersion" : "drawio-agent-architecture:v1",
+        "page" : 3,
+        "text" : "[章节] 2. Request-to-canvas route\n[内容类型] caption_context\n[正文] Figure 2. Evidence-to-canvas request route for an editable draw.io flow.",
+        "imagePath" : "fixtures/generated/images/drawio-agent-request-route.png",
+        "imageSha256" : "419f29850cf17fa8ff2f44b6113bf836056f335132fb4e33f5c14feb21faaa1e"
+      } ]
+    }, {
+      "rank" : 10,
+      "chunkId" : "rc_5629a9bbee71406d39a753eca442e74bb9cca217",
+      "sourceVersion" : "drawio-planning-workshop-scan:v1",
+      "page" : 4,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "647183213c4c228a8e528d4d39a716e76324bb308c6708f0c33ca41a57c6e28a",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_5629a9bbee71406d39a753eca442e74bb9cca217",
+        "sourceVersion" : "drawio-planning-workshop-scan:v1",
+        "page" : 4,
+        "text" : "[内容类型] list_group\n[正文] 3. EVIDENCE BOARD",
+        "imagePath" : "fixtures/generated/images/drawio-workshop-scan-page-4.jpg",
+        "imageSha256" : "93aa3c336815060031f286a65e1cbf5e403fe6eeafd1b29eb58c1768ba2d3d8a"
+      } ]
+    }, {
+      "rank" : 11,
+      "chunkId" : "rc_e7341d059d57f50a6991f798b880debd689d036f",
+      "sourceVersion" : "drawio-agent-architecture:v1",
+      "page" : 0,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "a491b14c57f230d3cb07243355d6a2de86a2c838068cd5bb57c3c1bd697839c6",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_e7341d059d57f50a6991f798b880debd689d036f",
+        "sourceVersion" : "drawio-agent-architecture:v1",
+        "page" : 0,
+        "text" : "[章节] 5. Evidence-to-shape contract\n[内容] [章节] 5. Evidence-to-shape contract\n[内容类型] content\n[正文] Required fields and unsupported shortcuts"
+      } ]
+    }, {
+      "rank" : 12,
+      "chunkId" : "rc_8005e856479484bd3be369662ff9c2029e7ec67e",
+      "sourceVersion" : "drawio-agent-architecture:v1",
+      "page" : 4,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "169312ad058f92667e3c132033fda1ffbcd6e963a6a42c644fb79b98d45922fc",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_8005e856479484bd3be369662ff9c2029e7ec67e",
+        "sourceVersion" : "drawio-agent-architecture:v1",
+        "page" : 4,
+        "text" : "[章节] 3. Retrieval and context budgets\n[内容类型] content\n[正文] Candidate retrieval The baseline retrieves 40 evidence candidates before reauthorization. Authorization may remove a candidate but may not replace it with evidence from an unapproved source. Candidate count is a recall budget, not the number of shapes shown to the user."
+      } ]
+    }, {
+      "rank" : 13,
+      "chunkId" : "rc_903826562d291119704bc89c05ed762b0da5cbac",
+      "sourceVersion" : "drawio-agent-architecture:v1",
+      "page" : 4,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "68827145395a9f4e19e31638bb5d5d6f5024c9976b041153323e4265d3394e64",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_903826562d291119704bc89c05ed762b0da5cbac",
+        "sourceVersion" : "drawio-agent-architecture:v1",
+        "page" : 4,
+        "text" : "[章节] 3. Retrieval and context budgets\n[内容类型] content\n[正文] Multi-part comparisons are complete only when every required evidence group survives. The nearby value 12 belongs to an experimental layout branch and is not the baseline bundle limit. Source selection When the user names a material, explicit selection wins. Without an explicit source, the current chartbook is searched before broader allowed material."
+      } ]
+    }, {
+      "rank" : 14,
+      "chunkId" : "rc_056ec7c27e913447d49226c2957744170dd5097b",
+      "sourceVersion" : "drawio-agent-architecture:v1",
+      "page" : 1,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "8493c2949848cd44615712f9a2708d3c47fcaa13adc8e7f17ca61067997399e5",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_056ec7c27e913447d49226c2957744170dd5097b",
+        "sourceVersion" : "drawio-agent-architecture:v1",
+        "page" : 1,
+        "text" : "[章节] Draw.io Agent Architecture Blueprint\n[内容类型] content\n[正文] A user may select explicit material, search the tenant identifier, private user email, database current chartbook or allow automatic source password or live Pinecone host. Questions selection."
+      } ]
+    }, {
+      "rank" : 15,
+      "chunkId" : "rc_0b6ed6fca85c455434fb69f0a4af30ae72dc3aaf",
+      "sourceVersion" : "drawio-agent-architecture:v1",
+      "page" : 5,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "0efe2d90aa6e86415e7ded727aaafd12b846dd4019e2dd2f5337c71a052a8fb5",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_0b6ed6fca85c455434fb69f0a4af30ae72dc3aaf",
+        "sourceVersion" : "drawio-agent-architecture:v1",
+        "page" : 5,
+        "text" : "[章节] 4. Version and degraded behavior\n[内容类型] content\n[正文] Pinned references, latest requests and unavailable dependencies"
+      } ]
+    }, {
+      "rank" : 16,
+      "chunkId" : "rc_21d08c089f12113d111492915856d76297d89b20",
+      "sourceVersion" : "drawio-planning-workshop-scan:v1",
+      "page" : 3,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "8563316f55b45c1e3bbece374a63086ce8eec510724e2280ceaa548e679aa8f1",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_21d08c089f12113d111492915856d76297d89b20",
+        "sourceVersion" : "drawio-planning-workshop-scan:v1",
+        "page" : 3,
+        "text" : "[内容类型] content\n[正文] explicit source and chartbook scope\n\n[内容类型] content\n[正文] Order Use an explicit source first, then current-chartbook material, then broader allowed material when automatic selection is enabled. Removed material A removed share cannot be used for a new request even when an old canvas still displays its citation label. No result Index failure is DEGRADED SEARCH, not NO EVIDENCE.",
+        "imagePath" : "fixtures/generated/images/drawio-workshop-scan-page-3.jpg",
+        "imageSha256" : "47b30420b454ce2326de169f1a960d82b880cbd7f6aebbe1e3d6be76bcf0dbff"
+      } ]
+    }, {
+      "rank" : 17,
+      "chunkId" : "rc_311f54a315fe5c15d48e971171630c6c6f2ae9cf",
+      "sourceVersion" : "drawio-agent-architecture:v1",
+      "page" : 5,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "b34fa7942d87684022ce4752f6e249d170872b3be795e0c243e00697ea2c441d",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_311f54a315fe5c15d48e971171630c6c6f2ae9cf",
+        "sourceVersion" : "drawio-agent-architecture:v1",
+        "page" : 5,
+        "text" : "[章节] 4. Version and degraded behavior\n[内容类型] content\n[正文] The agent never used as a recovery shortcut. never rewrites an existing citation merely because"
+      } ]
+    }, {
+      "rank" : 18,
+      "chunkId" : "rc_b9b857aaed9c17b6b012dec5e70a385102d28d1a",
+      "sourceVersion" : "drawio-agent-architecture:v1",
+      "page" : 1,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "6eb7598e7dbb2872d3d3375316156c0d6f2df9807d76c2c25c20a099178db37a",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_b9b857aaed9c17b6b012dec5e70a385102d28d1a",
+        "sourceVersion" : "drawio-agent-architecture:v1",
+        "page" : 1,
+        "text" : "[章节] Draw.io Agent Architecture Blueprint\n[内容类型] content\n[正文] reference that can resolve to source version, page"
+      } ]
+    }, {
+      "rank" : 19,
+      "chunkId" : "rc_6fecb961db640b7e42976ef5ce37b8a5492d1671",
+      "sourceVersion" : "drawio-agent-architecture:v1",
+      "page" : 5,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "a176644b2eb5a7dc49295180940d46095eccf4bd405620e1ca600da7af095f8f",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_6fecb961db640b7e42976ef5ce37b8a5492d1671",
+        "sourceVersion" : "drawio-agent-architecture:v1",
+        "page" : 5,
+        "text" : "[章节] 4. Version and degraded behavior\n[内容类型] content\n[正文] Blueprint version 1.0 was approved on 28"
+      } ]
+    }, {
+      "rank" : 20,
+      "chunkId" : "rc_df5d3ead47982a2fda8369d890be6dc6d1c35bc5",
+      "sourceVersion" : "drawio-agent-architecture:v1",
+      "page" : 6,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "1deb54781f4d77b02892d20184044f4e5d287f5078ae9dd077154e3df07b29fe",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_df5d3ead47982a2fda8369d890be6dc6d1c35bc5",
+        "sourceVersion" : "drawio-agent-architecture:v1",
+        "page" : 6,
+        "text" : "[章节] 5. Evidence-to-shape contract\n[内容类型] content\n[正文] Required fields and unsupported shortcuts"
+      } ]
+    }, {
+      "rank" : 21,
+      "chunkId" : "rc_654b4967c2b7253dccf97458167d2857ab8d3af6",
+      "sourceVersion" : "drawio-workflow-handbook:v1",
+      "page" : 2,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "b3e42a0ebdda7d069172aa0603789256618b9189ed06fed4ef259437da06df40",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_654b4967c2b7253dccf97458167d2857ab8d3af6",
+        "sourceVersion" : "drawio-workflow-handbook:v1",
+        "page" : 2,
+        "text" : "[章节] 1. 需求与资料范围\n[内容类型] content\n[正文] 是否检索 纯布局操作，例如把已有节点改成两列，不需要重 新检索。新增事实节点、比较数值或解释图片箭头 则必须检索并验证证据。 澄清条件 当“它”“这个流程”等指代可能对应多个对象时，先请 求澄清。不能用最高相似度结果替代用户选择。"
+      } ]
+    }, {
+      "rank" : 22,
+      "chunkId" : "rc_9087330c22064f0501619c66b8ffd222552fec7f",
+      "sourceVersion" : "drawio-planning-workshop-scan:v1",
+      "page" : 1,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "c70628580b46f4feb2e212d90a74bf490483c4a181b65028a1194652486b6604",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_9087330c22064f0501619c66b8ffd222552fec7f",
+        "sourceVersion" : "drawio-planning-workshop-scan:v1",
+        "page" : 1,
+        "text" : "[内容类型] content\n[正文] DRAW.IO PLANNING WORKSHOP DPW-2026-33 | scanned design notes",
+        "imagePath" : "fixtures/generated/images/drawio-workshop-scan-page-1.jpg",
+        "imageSha256" : "fadf0c19b947a9cb578188ab06a442cd46b09b2bbc1362588be6576fad834b2b"
+      } ]
+    }, {
+      "rank" : 23,
+      "chunkId" : "rc_5edf6e338fb1cb57c4e4190532978fbdb854ffb8",
+      "sourceVersion" : "drawio-planning-workshop-scan:v1",
+      "page" : 2,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "5419afe1c332658069301e927074f7bd1b369c9d4998644cdfdf9e2f9fbb0ca1",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_5edf6e338fb1cb57c4e4190532978fbdb854ffb8",
+        "sourceVersion" : "drawio-planning-workshop-scan:v1",
+        "page" : 2,
+        "text" : "[内容类型] content\n[正文] scan of retrieval-decision notes\n\n[内容类型] content\n[正文] Layout only Moving existing shapes or changing colors does not require retrieval when no factual label changes. Material fact Adding a new fact, numeric comparison or source-backed relationship requires retrieval and evidence validation. Clarify If a pronoun could refer to two diagrams, ask the user before searching.",
+        "imagePath" : "fixtures/generated/images/drawio-workshop-scan-page-2.jpg",
+        "imageSha256" : "24e4bb847db8abda91deaf54df1d86c5e723d7c07507717e836030390bb28b3d"
+      } ]
+    }, {
+      "rank" : 24,
+      "chunkId" : "rc_469150b37cce98766191521376835b5426edc534",
+      "sourceVersion" : "drawio-planning-workshop-scan:v1",
+      "page" : 0,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "e7ede3812a2840f59e1d2cfa6d0bcc454d7b969de32521a3a3435cb421aa588d",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_469150b37cce98766191521376835b5426edc534",
+        "sourceVersion" : "drawio-planning-workshop-scan:v1",
+        "page" : 0,
+        "text" : "[章节] sec_239a801ecaa47a1e42e87d17\n[内容] [内容类型] content\n[正文] DRAW.IO PLANNING WORKSHOP DPW-2026-33 | scanned design notes"
+      } ]
+    }, {
+      "rank" : 25,
+      "chunkId" : "rc_471b7fa8f02e429cebd81722869556e304825363",
+      "sourceVersion" : "drawio-agent-architecture:v1",
+      "page" : 6,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "24e412bcaa46728938f12b2e43c3259f63c8c3ae8a44b3df675936da33b55715",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_471b7fa8f02e429cebd81722869556e304825363",
+        "sourceVersion" : "drawio-agent-architecture:v1",
+        "page" : 6,
+        "text" : "[章节] 5. Evidence-to-shape contract\n[内容类型] content\n[正文] Shape contract Each grounded shape stores a stable shape identifier, source version, page or visual region and evidence grade. A group node can summarize several facts, but its citation list must still cover every material-backed claim. Editable output The canonical output is draw.io XML with stable cell identifiers. PNG and SVG exports are delivery formats."
+      } ]
+    }, {
+      "rank" : 26,
+      "chunkId" : "rc_44bea979e12a4313473c55408b163520576ca9b2",
+      "sourceVersion" : "drawio-agent-architecture:v1",
+      "page" : 5,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "0d56a9da5916028e46c1ac43ba77b9dfe9d383cd9be5394f837d8766ce1ad3db",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_44bea979e12a4313473c55408b163520576ca9b2",
+        "sourceVersion" : "drawio-agent-architecture:v1",
+        "page" : 5,
+        "text" : "[章节] 4. Version and degraded behavior\n[内容类型] content\n[正文] If the vector service is unavailable, ordinary text"
+      } ]
+    }, {
+      "rank" : 27,
+      "chunkId" : "rc_8f495e7a8f911a9fd5e674e74b03dee10439b826",
+      "sourceVersion" : "drawio-agent-architecture:v1",
+      "page" : 6,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "e1bdfedd0cbe9e708cab02a05efd9aca90bebe4104973383d4d5b55cfc5d9eb9",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_8f495e7a8f911a9fd5e674e74b03dee10439b826",
+        "sourceVersion" : "drawio-agent-architecture:v1",
+        "page" : 6,
+        "text" : "[章节] 5. Evidence-to-shape contract\n[内容类型] content\n[正文] Unsupported requests The blueprint does not reveal credentials, tenant secrets, private user contact details or production endpoints. Related architectural terms are not evidence for those values."
+      } ]
+    }, {
+      "rank" : 28,
+      "chunkId" : "rc_67aa9782417bc32f67ee09479f9afe5532625837",
+      "sourceVersion" : "drawio-agent-architecture:v1",
+      "page" : 1,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "b70c3437a41785cba55e8d43b37993a9cf3641b4fe6437eaf7eaf41565b23473",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_67aa9782417bc32f67ee09479f9afe5532625837",
+        "sourceVersion" : "drawio-agent-architecture:v1",
+        "page" : 1,
+        "text" : "[章节] Draw.io Agent Architecture Blueprint\n[内容类型] content\n[正文] user material into an editable diagram while preserving evidence links. The controlled and region. A diagram remains editable after"
+      } ]
+    }, {
+      "rank" : 29,
+      "chunkId" : "rc_64da2d05b874413ba7c79736b755e2170672ae97",
+      "sourceVersion" : "drawio-agent-architecture:v1",
+      "page" : 1,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "3326c8db57f5a69cea1c23f7b97eed052886c0b9dc07b698bd08eb5a015d4bbb",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_64da2d05b874413ba7c79736b755e2170672ae97",
+        "sourceVersion" : "drawio-agent-architecture:v1",
+        "page" : 1,
+        "text" : "[章节] Draw.io Agent Architecture Blueprint\n[内容类型] content\n[正文] DAA-2026-71 is a retired prototype. The document"
+      } ]
+    }, {
+      "rank" : 30,
+      "chunkId" : "rc_56ec93ca17587894fb71f8de4718f3ee272b9fa0",
+      "sourceVersion" : "drawio-agent-architecture:v1",
+      "page" : 4,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "a470534fc76aa635d9bda5cae09ea73901a88663ad99fafc68c00cb9932a9461",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_56ec93ca17587894fb71f8de4718f3ee272b9fa0",
+        "sourceVersion" : "drawio-agent-architecture:v1",
+        "page" : 4,
+        "text" : "[章节] 3. Retrieval and context budgets\n[内容类型] content\n[正文] A zero-result search may trigger the policy-defined fallback, but the response must label the fallback source."
+      } ]
+    }, {
+      "rank" : 31,
+      "chunkId" : "rc_bdb2fc980f00cc04d93c162166c231d3e22157ae",
+      "sourceVersion" : "drawio-planning-workshop-scan:v1",
+      "page" : 1,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "b8794fd23d1d1a2afff5aa2b6e43a12f4211b39fb69e6a48a85829132df3667a",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_bdb2fc980f00cc04d93c162166c231d3e22157ae",
+        "sourceVersion" : "drawio-planning-workshop-scan:v1",
+        "page" : 1,
+        "text" : "[内容类型] content\n[正文] Goal The workshop defined how a material-backed request becomes an editable diagram. The workshop identifier is DPW-2026-33; DPW-2026-03 is a room booking. Scope Participants covered source selection, evidence grouping, layout choice and citation review. No production credentials or customer data were used. Decision The canonical deliverable is editable draw.io XML, not a screenshot.",
+        "imagePath" : "fixtures/generated/images/drawio-workshop-scan-page-1.jpg",
+        "imageSha256" : "fadf0c19b947a9cb578188ab06a442cd46b09b2bbc1362588be6576fad834b2b"
+      } ]
+    }, {
+      "rank" : 32,
+      "chunkId" : "rc_9aa6d4f022221c413e16c4f3db566052877058a2",
+      "sourceVersion" : "drawio-agent-architecture:v1",
+      "page" : 3,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "d699638468091367f1bbe1c734dc92c7dba41f2813db0425b8c5494560047929",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_9aa6d4f022221c413e16c4f3db566052877058a2",
+        "sourceVersion" : "drawio-agent-architecture:v1",
+        "page" : 3,
+        "text" : "[章节] 2. Request-to-canvas route\n[内容类型] content\n[正文] The system must not silently publish a canvas with missing source references.",
+        "imagePath" : "fixtures/generated/images/drawio-agent-request-route.png",
+        "imageSha256" : "419f29850cf17fa8ff2f44b6113bf836056f335132fb4e33f5c14feb21faaa1e"
+      } ]
+    }, {
+      "rank" : 33,
+      "chunkId" : "rc_44c5445f647c14e29e27ac00a8e19a74942c1685",
+      "sourceVersion" : "drawio-agent-architecture:v1",
+      "page" : 5,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "19f38f5f52dc354b9fb1543cdfde6017f8d577b3bb72d7402176ce85a950cf84",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_44c5445f647c14e29e27ac00a8e19a74942c1685",
+        "sourceVersion" : "drawio-agent-architecture:v1",
+        "page" : 5,
+        "text" : "[章节] 4. Version and degraded behavior\n[内容类型] content\n[正文] superseded.\n\n[章节] 4. Version and degraded behavior\n[内容类型] content\n[正文] drawing remains available but material-backed retrieval enters an explicit degraded state. The agent must not claim that no evidence exists when search could not run. Visual verification A relationship found only in pixels requires verified visual evidence."
+      } ]
+    }, {
+      "rank" : 34,
+      "chunkId" : "rc_5efa7f841462e5b7183c790917e32c5cb03564b4",
+      "sourceVersion" : "drawio-agent-architecture:v1",
+      "page" : 1,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "632f74073bd09df71b77cdb8c916388d93eefeca26b737a01512bd5e933777ef",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_5efa7f841462e5b7183c790917e32c5cb03564b4",
+        "sourceVersion" : "drawio-agent-architecture:v1",
+        "page" : 1,
+        "text" : "[章节] Draw.io Agent Architecture Blueprint\n[内容类型] content\n[正文] DAA-2026-17 | evidence-grounded diagram generation"
+      } ]
+    }, {
+      "rank" : 35,
+      "chunkId" : "rc_00c3407200b907f309fa4a05c5ab6eb39a9320eb",
+      "sourceVersion" : "drawio-agent-architecture:v1",
+      "page" : 2,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "407fdc60c666c292d7d6fa4c1c5e414580be38759de601eb8b64665884318a5c",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_00c3407200b907f309fa4a05c5ab6eb39a9320eb",
+        "sourceVersion" : "drawio-agent-architecture:v1",
+        "page" : 2,
+        "text" : "[章节] 1. Component ownership\n[内容类型] content\n[正文] Trust\n\n[章节] 1. Component ownership\n[内容类型] content\n[正文] Canvas Composer is owned by the Diagram team. Citation Binder can reject an unresolved reference but cannot change the selected source version."
+      } ]
+    }, {
+      "rank" : 36,
+      "chunkId" : "rc_f65ca66c08720ae7736a0a336201a07a9ca680bf",
+      "sourceVersion" : "drawio-agent-architecture:v1",
+      "page" : 4,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "87224901392a98815f83f10bc285898bd72f8605111c0452fdab29031d1bcfe6",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_f65ca66c08720ae7736a0a336201a07a9ca680bf",
+        "sourceVersion" : "drawio-agent-architecture:v1",
+        "page" : 4,
+        "text" : "[章节] 3. Retrieval and context budgets\n[内容类型] content\n[正文] Stage limits are not interchangeable"
+      } ]
+    }, {
+      "rank" : 37,
+      "chunkId" : "rc_45a7fbe23c5b7ddf76e1b30aa450e3bff2035913",
+      "sourceVersion" : "drawio-planning-workshop-scan:v1",
+      "page" : 3,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "b39c5c526363b8f4e606dad095058e7fdb685883cb8077839a41b7dc4b4c5225",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_45a7fbe23c5b7ddf76e1b30aa450e3bff2035913",
+        "sourceVersion" : "drawio-planning-workshop-scan:v1",
+        "page" : 3,
+        "text" : "[内容类型] list_group\n[正文] 2. SOURCE ORDER",
+        "imagePath" : "fixtures/generated/images/drawio-workshop-scan-page-3.jpg",
+        "imageSha256" : "47b30420b454ce2326de169f1a960d82b880cbd7f6aebbe1e3d6be76bcf0dbff"
+      } ]
+    }, {
+      "rank" : 38,
+      "chunkId" : "rc_46def08281d969ff490c484fd10526554693c710",
+      "sourceVersion" : "drawio-agent-architecture:v1",
+      "page" : 5,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "811b89f4799b1dfece0d995231801f3453837aaf43da61d867865775c6bee329",
+      "evidence" : [ {
+        "anchorId" : "daa-version-pin",
+        "sourceVersion" : "drawio-agent-architecture:v1",
+        "page" : 5,
+        "text" : "[章节] 4. Version and degraded behavior\n[内容类型] content\n[正文] A shape that already cites material version V1 Recovered retrieval is tested with the same tenant remains pinned to V1 when reopened. A new and version filters before normal status returns. request defaults to the latest ready version unless Cached results from another user or chartbook are the user explicitly chooses an older one."
+      } ]
+    }, {
+      "rank" : 39,
+      "chunkId" : "rc_744d41c802051d3da5a0233ce505b9eb4a3388e0",
+      "sourceVersion" : "drawio-agent-architecture:v1",
+      "page" : 3,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "c605ba9b94fc80b5e184b3737f42a01ecd4c89fb17582b8b1efacd78e677aa4d",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_744d41c802051d3da5a0233ce505b9eb4a3388e0",
+        "sourceVersion" : "drawio-agent-architecture:v1",
+        "page" : 3,
+        "text" : "[章节] 2. Request-to-canvas route\n[内容类型] content\n[正文] Figure scope The route between planning and citation is encoded only in Figure 2. Surrounding prose does not repeat the node sequence. Visual cases must inspect the diagram and preserve arrow direction. Failure boundary If citation binding fails, the request remains a draft and the user sees an evidence warning.",
+        "imagePath" : "fixtures/generated/images/drawio-agent-request-route.png",
+        "imageSha256" : "419f29850cf17fa8ff2f44b6113bf836056f335132fb4e33f5c14feb21faaa1e"
+      } ]
+    }, {
+      "rank" : 40,
+      "chunkId" : "rc_a8f2f6bba9210b3c9f11f924ce8c3e32b20359cf",
+      "sourceVersion" : "drawio-agent-architecture:v1",
+      "page" : 5,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "5e4b24e8ea4cc0809796ccab61fa36dec7e95e1340e403c353a78347352ee796",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_a8f2f6bba9210b3c9f11f924ce8c3e32b20359cf",
+        "sourceVersion" : "drawio-agent-architecture:v1",
+        "page" : 5,
+        "text" : "[章节] 4. Version and degraded behavior\n[内容类型] content\n[正文] Approval\n\n[章节] 4. Version and degraded behavior\n[内容类型] content\n[正文] V2 exists."
+      } ]
+    } ]
+  }, {
+    "taskId" : "dgt-dev-05",
+    "candidates" : [ {
+      "rank" : 1,
+      "chunkId" : "rc_9a2aefeaa62d413479ea9ab2fea1224987adfa87",
+      "sourceVersion" : "drawio-planning-workshop-scan:v1",
+      "page" : 5,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "4b0c19ade44bc18f52d7c186e6db33dc3d72f8f673a7d4713f61589edcf64fc0",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_9a2aefeaa62d413479ea9ab2fea1224987adfa87",
+        "sourceVersion" : "drawio-planning-workshop-scan:v1",
+        "page" : 5,
+        "text" : "[内容类型] list_group\n[正文] 4. CANVAS REVIEW",
+        "imagePath" : "fixtures/generated/images/drawio-workshop-scan-page-5.jpg",
+        "imageSha256" : "8c76275e4f93335426a3195de97d0247f704712e3932837338ac4519d253611a"
+      } ]
+    }, {
+      "rank" : 2,
+      "chunkId" : "rc_bdb2fc980f00cc04d93c162166c231d3e22157ae",
+      "sourceVersion" : "drawio-planning-workshop-scan:v1",
+      "page" : 1,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "b8794fd23d1d1a2afff5aa2b6e43a12f4211b39fb69e6a48a85829132df3667a",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_bdb2fc980f00cc04d93c162166c231d3e22157ae",
+        "sourceVersion" : "drawio-planning-workshop-scan:v1",
+        "page" : 1,
+        "text" : "[内容类型] content\n[正文] Goal The workshop defined how a material-backed request becomes an editable diagram. The workshop identifier is DPW-2026-33; DPW-2026-03 is a room booking. Scope Participants covered source selection, evidence grouping, layout choice and citation review. No production credentials or customer data were used. Decision The canonical deliverable is editable draw.io XML, not a screenshot.",
+        "imagePath" : "fixtures/generated/images/drawio-workshop-scan-page-1.jpg",
+        "imageSha256" : "fadf0c19b947a9cb578188ab06a442cd46b09b2bbc1362588be6576fad834b2b"
+      } ]
+    }, {
+      "rank" : 3,
+      "chunkId" : "rc_e3b1639d83f1783c4604ed320727b13a79a2f2b7",
+      "sourceVersion" : "drawio-agent-architecture:v1",
+      "page" : 1,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "8b90ea833e650dd05723ca8de1b6ceae1a8033a6ddd8c9dcb5ebd8e05c081983",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_e3b1639d83f1783c4604ed320727b13a79a2f2b7",
+        "sourceVersion" : "drawio-agent-architecture:v1",
+        "page" : 1,
+        "text" : "[章节] Draw.io Agent Architecture Blueprint\n[内容类型] content\n[正文] Purpose\n\n[章节] Draw.io Agent Architecture Blueprint\n[内容类型] content\n[正文] Design invariant Every material-backed shape keeps an evidence"
+      } ]
+    }, {
+      "rank" : 4,
+      "chunkId" : "rc_6a36b6f14e022f326053602c0940bfecfd278f49",
+      "sourceVersion" : "drawio-agent-architecture:v1",
+      "page" : 3,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "93e9d74dcd52f570e4dc381f5f23b7ca249a70a2603fac1c01b58b1feab08e6c",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_6a36b6f14e022f326053602c0940bfecfd278f49",
+        "sourceVersion" : "drawio-agent-architecture:v1",
+        "page" : 3,
+        "text" : "[章节] 2. Request-to-canvas route\n[内容类型] content\n[正文] DRAW.IO AGENT REQUEST ROUTE\n\n[章节] 2. Request-to-canvas route\n[内容类型] content\n[正文] authorizfa ranked validated",
+        "imagePath" : "fixtures/generated/images/drawio-agent-request-route.png",
+        "imageSha256" : "419f29850cf17fa8ff2f44b6113bf836056f335132fb4e33f5c14feb21faaa1e"
+      } ]
+    }, {
+      "rank" : 5,
+      "chunkId" : "rc_e40a61d8a5816cca057a4eb6669293ba0f99ce40",
+      "sourceVersion" : "drawio-planning-workshop-scan:v1",
+      "page" : 5,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "15cb1fbbd9f993a11197d383248739a1d8dfa8b01ba3f428a9b786154b0ae9da",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_e40a61d8a5816cca057a4eb6669293ba0f99ce40",
+        "sourceVersion" : "drawio-planning-workshop-scan:v1",
+        "page" : 5,
+        "text" : "[内容类型] content\n[正文] visual and editable-output checks\n\n[内容类型] content\n[正文] Visual Arrow direction, containment and raster table cells require pixel verification. Editable Stable cell identifiers and valid draw.io XML are required before completion. Export PNG is a preview. It does not preserve semantic groups or evidence bindings.",
+        "imagePath" : "fixtures/generated/images/drawio-workshop-scan-page-5.jpg",
+        "imageSha256" : "8c76275e4f93335426a3195de97d0247f704712e3932837338ac4519d253611a"
+      } ]
+    }, {
+      "rank" : 6,
+      "chunkId" : "rc_67aa9782417bc32f67ee09479f9afe5532625837",
+      "sourceVersion" : "drawio-agent-architecture:v1",
+      "page" : 1,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "b70c3437a41785cba55e8d43b37993a9cf3641b4fe6437eaf7eaf41565b23473",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_67aa9782417bc32f67ee09479f9afe5532625837",
+        "sourceVersion" : "drawio-agent-architecture:v1",
+        "page" : 1,
+        "text" : "[章节] Draw.io Agent Architecture Blueprint\n[内容类型] content\n[正文] user material into an editable diagram while preserving evidence links. The controlled and region. A diagram remains editable after"
+      } ]
+    }, {
+      "rank" : 7,
+      "chunkId" : "rc_b9b857aaed9c17b6b012dec5e70a385102d28d1a",
+      "sourceVersion" : "drawio-agent-architecture:v1",
+      "page" : 1,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "6eb7598e7dbb2872d3d3375316156c0d6f2df9807d76c2c25c20a099178db37a",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_b9b857aaed9c17b6b012dec5e70a385102d28d1a",
+        "sourceVersion" : "drawio-agent-architecture:v1",
+        "page" : 1,
+        "text" : "[章节] Draw.io Agent Architecture Blueprint\n[内容类型] content\n[正文] reference that can resolve to source version, page"
+      } ]
+    }, {
+      "rank" : 8,
+      "chunkId" : "rc_ca19c5b974cdabf9ad6342ea859692f8094e4ebc",
+      "sourceVersion" : "drawio-workflow-handbook:v1",
+      "page" : 6,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "3567fddf6f8686576974ad37ebfbef0f9f2709012b1f9f4fc52b065fed6571d4",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_ca19c5b974cdabf9ad6342ea859692f8094e4ebc",
+        "sourceVersion" : "drawio-workflow-handbook:v1",
+        "page" : 6,
+        "text" : "[章节] 5. 审批与版本说明\n[内容类型] content\n[正文] 草案冲突、完成标准与无答案控制\n\n[章节] 5. 审批与版本说明\n[内容类型] content\n[正文] 批准版本 手册 1.0 版于 2026 年 12 月 6 日由 Diagram Experience Lead 批准。11 月草案允许在布局操作 时自动补充事实，评审认为风险过高并删除该规则。 完成标准 正式完成需要可编辑 XML、通过的布局检查、全部 关键形状的证据绑定以及无未解决的权限警告。只 有 PNG 预览不算完成。 复核抽样 每次发布至少抽查 12 个复杂图，其中中文、英文 和图像证据案例均需覆盖。抽查通过不替代专项权 限守门测试。"
+      } ]
+    }, {
+      "rank" : 9,
+      "chunkId" : "rc_471b7fa8f02e429cebd81722869556e304825363",
+      "sourceVersion" : "drawio-agent-architecture:v1",
+      "page" : 6,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "24e412bcaa46728938f12b2e43c3259f63c8c3ae8a44b3df675936da33b55715",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_471b7fa8f02e429cebd81722869556e304825363",
+        "sourceVersion" : "drawio-agent-architecture:v1",
+        "page" : 6,
+        "text" : "[章节] 5. Evidence-to-shape contract\n[内容类型] content\n[正文] Shape contract Each grounded shape stores a stable shape identifier, source version, page or visual region and evidence grade. A group node can summarize several facts, but its citation list must still cover every material-backed claim. Editable output The canonical output is draw.io XML with stable cell identifiers. PNG and SVG exports are delivery formats."
+      } ]
+    }, {
+      "rank" : 10,
+      "chunkId" : "rc_e7341d059d57f50a6991f798b880debd689d036f",
+      "sourceVersion" : "drawio-agent-architecture:v1",
+      "page" : 0,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "a491b14c57f230d3cb07243355d6a2de86a2c838068cd5bb57c3c1bd697839c6",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_e7341d059d57f50a6991f798b880debd689d036f",
+        "sourceVersion" : "drawio-agent-architecture:v1",
+        "page" : 0,
+        "text" : "[章节] 5. Evidence-to-shape contract\n[内容] [章节] 5. Evidence-to-shape contract\n[内容类型] content\n[正文] Required fields and unsupported shortcuts"
+      } ]
+    }, {
+      "rank" : 11,
+      "chunkId" : "rc_44c5445f647c14e29e27ac00a8e19a74942c1685",
+      "sourceVersion" : "drawio-agent-architecture:v1",
+      "page" : 5,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "19f38f5f52dc354b9fb1543cdfde6017f8d577b3bb72d7402176ce85a950cf84",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_44c5445f647c14e29e27ac00a8e19a74942c1685",
+        "sourceVersion" : "drawio-agent-architecture:v1",
+        "page" : 5,
+        "text" : "[章节] 4. Version and degraded behavior\n[内容类型] content\n[正文] superseded.\n\n[章节] 4. Version and degraded behavior\n[内容类型] content\n[正文] drawing remains available but material-backed retrieval enters an explicit degraded state. The agent must not claim that no evidence exists when search could not run. Visual verification A relationship found only in pixels requires verified visual evidence."
+      } ]
+    }, {
+      "rank" : 12,
+      "chunkId" : "rc_5edf6e338fb1cb57c4e4190532978fbdb854ffb8",
+      "sourceVersion" : "drawio-planning-workshop-scan:v1",
+      "page" : 2,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "5419afe1c332658069301e927074f7bd1b369c9d4998644cdfdf9e2f9fbb0ca1",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_5edf6e338fb1cb57c4e4190532978fbdb854ffb8",
+        "sourceVersion" : "drawio-planning-workshop-scan:v1",
+        "page" : 2,
+        "text" : "[内容类型] content\n[正文] scan of retrieval-decision notes\n\n[内容类型] content\n[正文] Layout only Moving existing shapes or changing colors does not require retrieval when no factual label changes. Material fact Adding a new fact, numeric comparison or source-backed relationship requires retrieval and evidence validation. Clarify If a pronoun could refer to two diagrams, ask the user before searching.",
+        "imagePath" : "fixtures/generated/images/drawio-workshop-scan-page-2.jpg",
+        "imageSha256" : "24e4bb847db8abda91deaf54df1d86c5e723d7c07507717e836030390bb28b3d"
+      } ]
+    }, {
+      "rank" : 13,
+      "chunkId" : "rc_34e8b38d925c0862114095c46383664bfdd8c65f",
+      "sourceVersion" : "drawio-planning-workshop-scan:v1",
+      "page" : 0,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "c2ad81c08f8b58cc4443be51389976e42c44721e09b92bf804e446e666ca6416",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_34e8b38d925c0862114095c46383664bfdd8c65f",
+        "sourceVersion" : "drawio-planning-workshop-scan:v1",
+        "page" : 0,
+        "text" : "[文档结构] Document\n[内容] [内容类型] content\n[正文] DRAW.IO PLANNING WORKSHOP DPW-2026-33 | scanned design notes"
+      } ]
+    }, {
+      "rank" : 14,
+      "chunkId" : "rc_adbec943643ebbe550cba02a3233e52c27376c0a",
+      "sourceVersion" : "drawio-agent-architecture:v1",
+      "page" : 3,
+      "modality" : "VISUAL",
+      "retrievalTextSha256" : "6bfd4aaeb789fe4071970fb5019a24e30eca69c43866cabcf033717f011e63d4",
+      "evidence" : [ {
+        "anchorId" : "daa-route-compose",
+        "sourceVersion" : "drawio-agent-architecture:v1",
+        "page" : 3,
+        "text" : "[章节] 2. Request-to-canvas route\n[内容类型] visual_description\n[正文] Figure 2. Evidence-to-canvas request route for an editable draw.io flow.",
+        "imagePath" : "fixtures/generated/images/drawio-agent-request-route.png",
+        "imageSha256" : "419f29850cf17fa8ff2f44b6113bf836056f335132fb4e33f5c14feb21faaa1e"
+      }, {
+        "anchorId" : "daa-route-scope",
+        "sourceVersion" : "drawio-agent-architecture:v1",
+        "page" : 3,
+        "text" : "[章节] 2. Request-to-canvas route\n[内容类型] visual_description\n[正文] Figure 2. Evidence-to-canvas request route for an editable draw.io flow.",
+        "imagePath" : "fixtures/generated/images/drawio-agent-request-route.png",
+        "imageSha256" : "419f29850cf17fa8ff2f44b6113bf836056f335132fb4e33f5c14feb21faaa1e"
+      } ]
+    }, {
+      "rank" : 15,
+      "chunkId" : "rc_5efa7f841462e5b7183c790917e32c5cb03564b4",
+      "sourceVersion" : "drawio-agent-architecture:v1",
+      "page" : 1,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "632f74073bd09df71b77cdb8c916388d93eefeca26b737a01512bd5e933777ef",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_5efa7f841462e5b7183c790917e32c5cb03564b4",
+        "sourceVersion" : "drawio-agent-architecture:v1",
+        "page" : 1,
+        "text" : "[章节] Draw.io Agent Architecture Blueprint\n[内容类型] content\n[正文] DAA-2026-17 | evidence-grounded diagram generation"
+      } ]
+    }, {
+      "rank" : 16,
+      "chunkId" : "rc_eefe875336cbf614cedfc990b4ad6f65fac8b360",
+      "sourceVersion" : "drawio-workflow-handbook:v1",
+      "page" : 0,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "e17965b658baf10fa9ed517af1a36c1ecbbd5ae110c9d7aaa7fc1862b17ee429",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_eefe875336cbf614cedfc990b4ad6f65fac8b360",
+        "sourceVersion" : "drawio-workflow-handbook:v1",
+        "page" : 0,
+        "text" : "[章节] 3. 规划到画布\n[内容] [章节] 3. 规划到画布\n[内容类型] content\n[正文] Raster-only 流程关系\n\n[章节] 3. 规划到画布\n[内容类型] content\n[正文] 图示说明\n[章节] 3. 规划到画布\n[内容类型] caption_context\n[正文] 图 3 只在像素中给出从证据包到画布草稿的节点顺序。正文故意不复述相邻关系，用于检查视觉理解是否\n[章节] 3. 规划到画布\n[内容类型] content\n[正文] 真正参与。 校验规则 计划必须先通过范围、版本和证据完整性检查，才能交给画布生成器。布局检查通过不代表事实检查通过。"
+      } ]
+    }, {
+      "rank" : 17,
+      "chunkId" : "rc_5b407874925c06cb6a212db6c476f90b83a682b5",
+      "sourceVersion" : "drawio-agent-architecture:v1",
+      "page" : 6,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "dee0f5e0195fb7eff5e1cbab7b8d6bfc4122bf9fdd8c496675b77fd61144e02e",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_5b407874925c06cb6a212db6c476f90b83a682b5",
+        "sourceVersion" : "drawio-agent-architecture:v1",
+        "page" : 6,
+        "text" : "[章节] 5. Evidence-to-shape contract\n[内容类型] content\n[正文] Re-importing a screenshot does not restore evidence bindings or semantic group structure. Review rule A reviewer may accept layout changes without changing evidence. A factual label change requires renewed evidence validation. Removing a cited shape may remove its citation, but citations used by remaining shapes must stay resolvable."
+      } ]
+    }, {
+      "rank" : 18,
+      "chunkId" : "rc_903826562d291119704bc89c05ed762b0da5cbac",
+      "sourceVersion" : "drawio-agent-architecture:v1",
+      "page" : 4,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "68827145395a9f4e19e31638bb5d5d6f5024c9976b041153323e4265d3394e64",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_903826562d291119704bc89c05ed762b0da5cbac",
+        "sourceVersion" : "drawio-agent-architecture:v1",
+        "page" : 4,
+        "text" : "[章节] 3. Retrieval and context budgets\n[内容类型] content\n[正文] Multi-part comparisons are complete only when every required evidence group survives. The nearby value 12 belongs to an experimental layout branch and is not the baseline bundle limit. Source selection When the user names a material, explicit selection wins. Without an explicit source, the current chartbook is searched before broader allowed material."
+      } ]
+    }, {
+      "rank" : 19,
+      "chunkId" : "rc_169b86c02ff6b13fc85b932c7e1d2a921aaf87cd",
+      "sourceVersion" : "drawio-agent-architecture:v1",
+      "page" : 2,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "166aaba296118908711eff8a48ee63c54c4f29215bc8ecd14c101f5f80f437df",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_169b86c02ff6b13fc85b932c7e1d2a921aaf87cd",
+        "sourceVersion" : "drawio-agent-architecture:v1",
+        "page" : 2,
+        "text" : "[章节] 1. Component ownership\n[内容类型] content\n[正文] Canvas Composer draw.io XML\n\n[章节] 1. Component ownership\n[内容类型] content\n[正文] typed plan"
+      } ]
+    }, {
+      "rank" : 20,
+      "chunkId" : "rc_df5d3ead47982a2fda8369d890be6dc6d1c35bc5",
+      "sourceVersion" : "drawio-agent-architecture:v1",
+      "page" : 6,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "1deb54781f4d77b02892d20184044f4e5d287f5078ae9dd077154e3df07b29fe",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_df5d3ead47982a2fda8369d890be6dc6d1c35bc5",
+        "sourceVersion" : "drawio-agent-architecture:v1",
+        "page" : 6,
+        "text" : "[章节] 5. Evidence-to-shape contract\n[内容类型] content\n[正文] Required fields and unsupported shortcuts"
+      } ]
+    }, {
+      "rank" : 21,
+      "chunkId" : "rc_3f9a11599a8dee4dde0c151a98880ba068cdceaa",
+      "sourceVersion" : "drawio-agent-architecture:v1",
+      "page" : 1,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "0e7fb5d7245073ceb2efb5b87acb6106f040d15092baf32d50d452906286c779",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_3f9a11599a8dee4dde0c151a98880ba068cdceaa",
+        "sourceVersion" : "drawio-agent-architecture:v1",
+        "page" : 1,
+        "text" : "[章节] Draw.io Agent Architecture Blueprint\n[内容类型] content\n[正文] This blueprint defines how the draw.io agent turns"
+      } ]
+    }, {
+      "rank" : 22,
+      "chunkId" : "rc_da7f3ff54006830247690bb8ed7d729617f45c52",
+      "sourceVersion" : "drawio-agent-architecture:v1",
+      "page" : 3,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "728350eb9f0447cd1e2168e244fb51e6768c690fb8d1efe5a902723648df07fb",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_da7f3ff54006830247690bb8ed7d729617f45c52",
+        "sourceVersion" : "drawio-agent-architecture:v1",
+        "page" : 3,
+        "text" : "[章节] 2. Request-to-canvas route\n[内容类型] content\n[正文] SCOPE SOURCES ETRIEVE EVIDENCI BUILD PLAN COMPOSE CANVAS",
+        "imagePath" : "fixtures/generated/images/drawio-agent-request-route.png",
+        "imageSha256" : "419f29850cf17fa8ff2f44b6113bf836056f335132fb4e33f5c14feb21faaa1e"
+      } ]
+    }, {
+      "rank" : 23,
+      "chunkId" : "rc_38c788f72c5a68b4e33700d681ec4b9e8ea8043e",
+      "sourceVersion" : "drawio-agent-architecture:v1",
+      "page" : 1,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "7056e324bfda9fce4edd3dd80be7d42aac94686655ae99916c971c5aa1f9a881",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_38c788f72c5a68b4e33700d681ec4b9e8ea8043e",
+        "sourceVersion" : "drawio-agent-architecture:v1",
+        "page" : 1,
+        "text" : "[章节] Draw.io Agent Architecture Blueprint\n[内容类型] content\n[正文] version rules are checked before evidence enters"
+      } ]
+    }, {
+      "rank" : 24,
+      "chunkId" : "rc_552102f85251918b6d860569fbcd8123f5fd09c9",
+      "sourceVersion" : "drawio-workflow-handbook:v1",
+      "page" : 5,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "5d0fe4cc2a3011fbef49bd6468388ba1a6ba02f7c3c78570a88ec3dc2b58db05",
+      "evidence" : [ {
+        "anchorId" : "dwh-canonical",
+        "sourceVersion" : "drawio-workflow-handbook:v1",
+        "page" : 5,
+        "text" : "[章节] 4. 编辑、引用与导出\n[内容类型] content\n[正文] 中文长段落与对象边界\n\n[章节] 4. 编辑、引用与导出\n[内容类型] content\n[正文] 编辑 用户可以移动、分组或重新着色节点而不改变事实。若修改节点名称、数值、箭头方向或责任角色，系统必 须重新检查证据。仅改变字体大小不需要重新检索。 引用 引用面板按形状显示资料名称、版本、页码和证据区域。跨页比较必须保留两个来源位置。摘要节点可以合 并展示，但不能把多个证据压缩成一个不可追溯的页码。 导出 draw.io XML 是可继续编辑的正式结果；SVG 适合网页，PNG 适合预览，PDF 适合审阅。导出格式不会改 变资料权限，也不能把已失效引用重新变成有效引用。 回退 画布生成失败时保留已验证的 typed plan，并显示可重试状态。系统不能用无引用的旧截图假装生成成功。"
+      }, {
+        "anchorId" : "dwh-factual-edit",
+        "sourceVersion" : "drawio-workflow-handbook:v1",
+        "page" : 5,
+        "text" : "[章节] 4. 编辑、引用与导出\n[内容类型] content\n[正文] 中文长段落与对象边界\n\n[章节] 4. 编辑、引用与导出\n[内容类型] content\n[正文] 编辑 用户可以移动、分组或重新着色节点而不改变事实。若修改节点名称、数值、箭头方向或责任角色，系统必 须重新检查证据。仅改变字体大小不需要重新检索。 引用 引用面板按形状显示资料名称、版本、页码和证据区域。跨页比较必须保留两个来源位置。摘要节点可以合 并展示，但不能把多个证据压缩成一个不可追溯的页码。 导出 draw.io XML 是可继续编辑的正式结果；SVG 适合网页，PNG 适合预览，PDF 适合审阅。导出格式不会改 变资料权限，也不能把已失效引用重新变成有效引用。 回退 画布生成失败时保留已验证的 typed plan，并显示可重试状态。系统不能用无引用的旧截图假装生成成功。"
+      } ]
+    }, {
+      "rank" : 25,
+      "chunkId" : "rc_8d11c7aca3ae1ebcf39532a642a7ed48e5a223e5",
+      "sourceVersion" : "drawio-agent-architecture:v1",
+      "page" : 0,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "29a536f6ba1e96562c8b0c6e1157e16081099ffe692f99e91930a576b3776d8c",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_8d11c7aca3ae1ebcf39532a642a7ed48e5a223e5",
+        "sourceVersion" : "drawio-agent-architecture:v1",
+        "page" : 0,
+        "text" : "[文档结构] Draw.io Agent Architecture Blueprint; 1. Component ownership; 2. Request-to-canvas rout\n[内容] [章节] Draw.io Agent Architecture Blueprint\n[内容类型] content\n[正文] DAA-2026-17 | evidence-grounded diagram generation"
+      } ]
+    }, {
+      "rank" : 26,
+      "chunkId" : "rc_25ce31e33801deca2484f10ddb4fa492c4d4045e",
+      "sourceVersion" : "drawio-workflow-handbook:v1",
+      "page" : 4,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "b24118b91ada64c8dfeaa79d75462f2b08963ffdad714072a9e430628418d6e3",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_25ce31e33801deca2484f10ddb4fa492c4d4045e",
+        "sourceVersion" : "drawio-workflow-handbook:v1",
+        "page" : 4,
+        "text" : "[章节] 3. 规划到画布\n[内容类型] content\n[正文] 真正参与。 校验规则 计划必须先通过范围、版本和证据完整性检查，才能交给画布生成器。布局检查通过不代表事实检查通过。"
+      } ]
+    }, {
+      "rank" : 27,
+      "chunkId" : "rc_9049fb6fcf478ffae28e2627fe5be4a346f68966",
+      "sourceVersion" : "drawio-workflow-handbook:v1",
+      "page" : 4,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "96106ac14719b41c52c30563e1004df8906c999185cd669edf7f4ce24d576821",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_9049fb6fcf478ffae28e2627fe5be4a346f68966",
+        "sourceVersion" : "drawio-workflow-handbook:v1",
+        "page" : 4,
+        "text" : "[章节] 3. 规划到画布\n[内容类型] content\n[正文] Raster-only 流程关系\n\n[章节] 3. 规划到画布\n[内容类型] content\n[正文] 图示说明"
+      } ]
+    }, {
+      "rank" : 28,
+      "chunkId" : "rc_91eece36c95af8e0139b5d29d995a3ae0ddd6fdd",
+      "sourceVersion" : "drawio-agent-architecture:v1",
+      "page" : 1,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "c6168b406c43ba1dfae881d21ad7c207b5d6bbd9facc34a6b7eb19576ee5d534",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_91eece36c95af8e0139b5d29d995a3ae0ddd6fdd",
+        "sourceVersion" : "drawio-agent-architecture:v1",
+        "page" : 1,
+        "text" : "[章节] Draw.io Agent Architecture Blueprint\n[内容类型] content\n[正文] the canonical draw.io XML. Authorization and"
+      } ]
+    }, {
+      "rank" : 29,
+      "chunkId" : "rc_9d284179ce1c90d58cda3e68525e1ed2128cfda6",
+      "sourceVersion" : "drawio-planning-workshop-scan:v1",
+      "page" : 6,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "81c5cae75ba13251d64c07dea791a46dbafbeffe0671e1d7aab4c50a021f2646",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_9d284179ce1c90d58cda3e68525e1ed2128cfda6",
+        "sourceVersion" : "drawio-planning-workshop-scan:v1",
+        "page" : 6,
+        "text" : "[内容类型] content\n[正文] dates, roles and negative evidence\n\n[内容类型] content\n[正文] Deadline The typed-plan validation checklist is due on 14 January 2027. The 10 January date is a template-review meeting. Approval The Agent UX Lead approves the checklist; the workshop facilitator records comments. Unsupported No password, user phone number, tenant key or production endpoint appears in these notes.",
+        "imagePath" : "fixtures/generated/images/drawio-workshop-scan-page-6.jpg",
+        "imageSha256" : "c4d0450958594f6f0ae2b1ab3d8286506f8a59f7b45feee19108b21115121ee2"
+      } ]
+    }, {
+      "rank" : 30,
+      "chunkId" : "rc_056ec7c27e913447d49226c2957744170dd5097b",
+      "sourceVersion" : "drawio-agent-architecture:v1",
+      "page" : 1,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "8493c2949848cd44615712f9a2708d3c47fcaa13adc8e7f17ca61067997399e5",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_056ec7c27e913447d49226c2957744170dd5097b",
+        "sourceVersion" : "drawio-agent-architecture:v1",
+        "page" : 1,
+        "text" : "[章节] Draw.io Agent Architecture Blueprint\n[内容类型] content\n[正文] A user may select explicit material, search the tenant identifier, private user email, database current chartbook or allow automatic source password or live Pinecone host. Questions selection."
+      } ]
+    }, {
+      "rank" : 31,
+      "chunkId" : "rc_04ecd3fb07a7210f43f12ddd1d3a73bdb113d7c7",
+      "sourceVersion" : "drawio-agent-architecture:v1",
+      "page" : 5,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "0a24c2420a48a3a79d1a7ba2b381d3e606fc6335c979d29af694813691888da2",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_04ecd3fb07a7210f43f12ddd1d3a73bdb113d7c7",
+        "sourceVersion" : "drawio-agent-architecture:v1",
+        "page" : 5,
+        "text" : "[章节] 4. Version and degraded behavior\n[内容类型] content\n[正文] Text extraction alone cannot confirm arrow direction, containment or the row-column association of a raster table."
+      } ]
+    }, {
+      "rank" : 32,
+      "chunkId" : "rc_22d2c1b1e92a018cbc92187d305b7728e568ed6a",
+      "sourceVersion" : "drawio-agent-architecture:v1",
+      "page" : 1,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "2d10600a7f0503fc85c3b22a2178998c51e30a9dd65c9caecc0f0fbe7a57e064",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_22d2c1b1e92a018cbc92187d305b7728e568ed6a",
+        "sourceVersion" : "drawio-agent-architecture:v1",
+        "page" : 1,
+        "text" : "[章节] Draw.io Agent Architecture Blueprint\n[内容类型] content\n[正文] architecture identifier is DAA-2026-17."
+      } ]
+    }, {
+      "rank" : 33,
+      "chunkId" : "rc_9087330c22064f0501619c66b8ffd222552fec7f",
+      "sourceVersion" : "drawio-planning-workshop-scan:v1",
+      "page" : 1,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "c70628580b46f4feb2e212d90a74bf490483c4a181b65028a1194652486b6604",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_9087330c22064f0501619c66b8ffd222552fec7f",
+        "sourceVersion" : "drawio-planning-workshop-scan:v1",
+        "page" : 1,
+        "text" : "[内容类型] content\n[正文] DRAW.IO PLANNING WORKSHOP DPW-2026-33 | scanned design notes",
+        "imagePath" : "fixtures/generated/images/drawio-workshop-scan-page-1.jpg",
+        "imageSha256" : "fadf0c19b947a9cb578188ab06a442cd46b09b2bbc1362588be6576fad834b2b"
+      } ]
+    }, {
+      "rank" : 34,
+      "chunkId" : "rc_bad0269dddc69a10061329a97477228133611a6b",
+      "sourceVersion" : "drawio-workflow-handbook:v1",
+      "page" : 4,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "4f37e10232fae4133ed548f09cb412cef76a68189b0da20c576ac97e5b37e9b4",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_bad0269dddc69a10061329a97477228133611a6b",
+        "sourceVersion" : "drawio-workflow-handbook:v1",
+        "page" : 4,
+        "text" : "[章节] 3. 规划到画布\n[内容类型] caption_context\n[正文] 图 3 只在像素中给出从证据包到画布草稿的节点顺序。正文故意不复述相邻关系，用于检查视觉理解是否"
+      } ]
+    }, {
+      "rank" : 35,
+      "chunkId" : "rc_469150b37cce98766191521376835b5426edc534",
+      "sourceVersion" : "drawio-planning-workshop-scan:v1",
+      "page" : 0,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "e7ede3812a2840f59e1d2cfa6d0bcc454d7b969de32521a3a3435cb421aa588d",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_469150b37cce98766191521376835b5426edc534",
+        "sourceVersion" : "drawio-planning-workshop-scan:v1",
+        "page" : 0,
+        "text" : "[章节] sec_239a801ecaa47a1e42e87d17\n[内容] [内容类型] content\n[正文] DRAW.IO PLANNING WORKSHOP DPW-2026-33 | scanned design notes"
+      } ]
+    }, {
+      "rank" : 36,
+      "chunkId" : "rc_744d41c802051d3da5a0233ce505b9eb4a3388e0",
+      "sourceVersion" : "drawio-agent-architecture:v1",
+      "page" : 3,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "c605ba9b94fc80b5e184b3737f42a01ecd4c89fb17582b8b1efacd78e677aa4d",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_744d41c802051d3da5a0233ce505b9eb4a3388e0",
+        "sourceVersion" : "drawio-agent-architecture:v1",
+        "page" : 3,
+        "text" : "[章节] 2. Request-to-canvas route\n[内容类型] content\n[正文] Figure scope The route between planning and citation is encoded only in Figure 2. Surrounding prose does not repeat the node sequence. Visual cases must inspect the diagram and preserve arrow direction. Failure boundary If citation binding fails, the request remains a draft and the user sees an evidence warning.",
+        "imagePath" : "fixtures/generated/images/drawio-agent-request-route.png",
+        "imageSha256" : "419f29850cf17fa8ff2f44b6113bf836056f335132fb4e33f5c14feb21faaa1e"
+      } ]
+    }, {
+      "rank" : 37,
+      "chunkId" : "rc_e42815134f60a4540624c77db20b1bf7ed89076c",
+      "sourceVersion" : "drawio-agent-architecture:v1",
+      "page" : 1,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "f600852b00625e97eaf9e603d1eab74fa928dd7070965b78afc8d9eed2cd1bbc",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_e42815134f60a4540624c77db20b1bf7ed89076c",
+        "sourceVersion" : "drawio-agent-architecture:v1",
+        "page" : 1,
+        "text" : "[章节] Draw.io Agent Architecture Blueprint\n[内容类型] content\n[正文] generation; exporting an image does not replace"
+      } ]
+    }, {
+      "rank" : 38,
+      "chunkId" : "rc_831d641dca01c5538049f6f9e33a35163dacdc4e",
+      "sourceVersion" : "drawio-agent-architecture:v1",
+      "page" : 1,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "50fd708be56f1afd4bb214eba76509b333a24c679d854b0ba1c8e92fef17da77",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_831d641dca01c5538049f6f9e33a35163dacdc4e",
+        "sourceVersion" : "drawio-agent-architecture:v1",
+        "page" : 1,
+        "text" : "[章节] Draw.io Agent Architecture Blueprint\n[内容类型] content\n[正文] covers ingestion, retrieval, diagram planning, XML"
+      } ]
+    }, {
+      "rank" : 39,
+      "chunkId" : "rc_40e415a8536e28b787ea9183314b81f21950db96",
+      "sourceVersion" : "drawio-agent-architecture:v1",
+      "page" : 3,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "9b3d91339eef2c750eec3880de44b78e0752fae9554465924d9cf670492432e6",
+      "evidence" : [ {
+        "anchorId" : "retrieved:rc_40e415a8536e28b787ea9183314b81f21950db96",
+        "sourceVersion" : "drawio-agent-architecture:v1",
+        "page" : 3,
+        "text" : "[章节] 2. Request-to-canvas route\n[内容类型] caption_context\n[正文] Figure 2. Evidence-to-canvas request route for an editable draw.io flow.",
+        "imagePath" : "fixtures/generated/images/drawio-agent-request-route.png",
+        "imageSha256" : "419f29850cf17fa8ff2f44b6113bf836056f335132fb4e33f5c14feb21faaa1e"
+      } ]
+    }, {
+      "rank" : 40,
+      "chunkId" : "rc_264997c737389717f36839a56f76c0a04577b7ad",
+      "sourceVersion" : "drawio-planning-workshop-scan:v1",
+      "page" : 4,
+      "modality" : "TEXT",
+      "retrievalTextSha256" : "bfc40a3ce029ec87e2010fccd1af133c39f7a7ebe3a1b1d722d10addd819d4f9",
+      "evidence" : [ {
+        "anchorId" : "dpw-budgets",
+        "sourceVersion" : "drawio-planning-workshop-scan:v1",
+        "page" : 4,
+        "text" : "[内容类型] content\n[正文] scanned thresholds and owners\n\n[内容类型] content\n[正文] Budgets Candidate retrieval: 40 | Hydration: 16 | Final bundle: 8 Completeness Comparison questions keep ALL required evidence parts. One matching page is incomplete when the answer spans two pages. Owner The Trust reviewer resolves unsupported citation findings.",
+        "imagePath" : "fixtures/generated/images/drawio-workshop-scan-page-4.jpg",
+        "imageSha256" : "93aa3c336815060031f286a65e1cbf5e403fe6eeafd1b29eb58c1768ba2d3d8a"
+      } ]
+    } ]
+  }, {
+    "taskId" : "dgt-dev-06",
+    "candidates" : [ ]
+  } ]
+}

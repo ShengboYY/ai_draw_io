@@ -472,16 +472,22 @@
   evidence-availability intervention，保留 r6 readiness gate，在本地通过后才可冻结新 Development bundle。详见
   [2026-07-23-e7-r6-citation-identity-readiness.md](2026-07-23-e7-r6-citation-identity-readiness.md)。
 
-### E7 r7 — source-evidence identity persistence · 2026-07-23 · ✅本地实现，⏸未运行
+### E7 r7 — source-evidence identity persistence · 2026-07-23 · ❌Development input readiness 未通过
 
 - **单一变量**:新的 publisher-owned source identity manifest 在资料侧声明 `sourceEvidenceId`、source/version/page 与
   exact-text 或 VISUAL-page match；hydration 的 identity-assignment path 只读该 manifest，而不读取 task、
   `ground-truth.json` 或 expected answer。未匹配 evidence 继续使用 `retrieved:<chunkId>`。
-- **可审计性**:每个新 trace 都写入 manifest path/SHA-256；exporter 在该字段存在时重验 hash 与 schema。r6 readiness gate、
-  paired contrast gate 和 bundle/runner hash gate 均保持不变。
-- **未运行**:没有 Pinecone、模型调用、token、Validation 或 holdout。下一步是经授权运行一轮新的 opt-in Development
-  hydration trace；仅在全部本地 gate 通过后才请求 generation 授权。详见
-  [2026-07-23-e7-r7-source-evidence-identity-pre-registration.md](2026-07-23-e7-r7-source-evidence-identity-pre-registration.md)。
+- **真实运行与清理**:授权后在临时 `material-rag-e7r7-dev-20260723` namespace 运行真实 PDFBox → Tesseract →
+  canonical evidence → Pinecone top-40；106 个本次向量在 `finally` cleanup 中删除。trace 绑定 commit
+  `81a2824d`、corpus-lock 与 source identity manifest hash；没有模型调用、Validation 或 holdout。
+- **gate**:paired context 的 5/5 retrieval-required task 改变（100%，超过 20% contrast gate），视觉 artifact 也通过；
+  但 model-visible required-evidence gate 未过。`dgt-dev-01` control 缺 handoff/sequence（canonical chunk rank 12），
+  `dgt-dev-03` control 缺 canonical/factual-edit（rank 21），`dgt-dev-04` 两臂均缺 version-pin（rank 38），
+  `dgt-dev-05` 两臂均缺 budgets（rank 40）。
+- **结论**:source-owned identity 已在 top-40 正确解析，失败是证据排名/availability，不能解释成身份映射或模型质量失败。
+  按预注册不冻结 prompt、不调用 GPT-5.5、不打开 Validation。下一变量必须在不读取 evaluator ground truth、required anchor
+  或 expected answer 的前提下，改善 source-side retrieval/ranking 或 evidence availability。详见
+  [2026-07-23-e7-r7-development-hydration-run.md](2026-07-23-e7-r7-development-hydration-run.md)。
 
 ---
 
@@ -490,8 +496,9 @@
 - 已完成:E0 基线 → E1 表示层改进 → 核心集升级并冻结到 450 → Development 与 Validation
   配对重跑 → 守门最低数补齐并执行 fixture-contract。Validation 证明 E1 提升真实,也证明
   dense-only 尚未达门槛。
-- **下一步**:r7 的 source-owned identity manifest 与 trace-hash contract 已本地完成。下一步是经授权运行新的 opt-in
-  Development hydration trace；它必须通过 contrast 与 r6 readiness gate，Validation 暂不打开。
+- **下一步**:r7 的真实 Development hydration trace 已完成并通过 contrast，但因 top-8 evidence availability 未通过 r6
+  readiness gate。下一步是预注册一个不读取 evaluator 数据的 source-side retrieval/ranking 或 evidence-availability
+  干预；Validation 暂不打开。
 
 ## 开放问题 / 待办
 
@@ -515,9 +522,9 @@
   1/6 citation、0/6 completion，未晋级。
 - [x] E7 r6 citation-identity safety boundary/readiness gate——不以 evaluator gold 推断 identity，5/5 grounded task
   gate 未过；未发送模型请求。
-- [x] E7 r7 source-evidence identity persistence——source-owned manifest、exact-match/visual-page contract 与 trace hash
-  已本地实现；未发送模型请求。
-- [ ] E7 r7 新 Development hydration trace——需要 Pinecone test/dev namespace 授权；通过所有本地 gate 前不调用模型。
+- [x] E7 r7 source-evidence identity persistence——source-owned manifest、exact-match/visual-page contract 与真实 trace hash
+  已完成；5/5 contrast 通过但 model-visible required-evidence gate 未过，未发送模型请求。
+- [ ] E7 r8 retrieval/evidence-availability intervention——需先本地预注册；通过所有本地 gate 前不调用模型。
 - [ ] 外部 final holdout——contract 已定，payload 尚未由独立保管人生成和隔离。
 
 ## 如何跑一个实验(运行手册)
