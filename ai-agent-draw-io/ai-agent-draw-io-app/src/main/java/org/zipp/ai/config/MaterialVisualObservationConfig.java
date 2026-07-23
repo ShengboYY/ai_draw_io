@@ -15,6 +15,7 @@ import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3Client;
 
+import java.net.URI;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -32,9 +33,15 @@ public class MaterialVisualObservationConfig {
 
     @Bean
     public S3Client materialVisualS3Client(
-            @Value("${app.material-visual-observation.aws-region}") String region) {
-        return S3Client.builder().credentialsProvider(DefaultCredentialsProvider.create())
-                .region(Region.of(region)).build();
+            @Value("${app.material-visual-observation.aws-region}") String region,
+            @Value("${MATERIAL_S3_ENDPOINT:}") String endpoint) {
+        var builder = S3Client.builder().credentialsProvider(DefaultCredentialsProvider.create())
+                .region(Region.of(region));
+        if (endpoint != null && !endpoint.isBlank()) {
+            // Local S3-compatible stores use path-style addressing; production leaves this unset.
+            builder.endpointOverride(URI.create(endpoint.trim())).forcePathStyle(true);
+        }
+        return builder.build();
     }
 
     @Bean

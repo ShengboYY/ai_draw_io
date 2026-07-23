@@ -1426,6 +1426,57 @@ public class AgentConversationServiceTest {
     }
 
     @Test
+    public void selectedLibraryImageReconstructionAddsTopologyEvidenceToDrawerPrompt() throws Exception {
+        AgentConversationService service = quotaAwareService();
+        CountingChatService chatService = new CountingChatService();
+        AtomicReference<org.zipp.ai.domain.retrieval.EvidencePreparationCommand> prepared =
+                new AtomicReference<>();
+        injectField(service, "chatService", chatService);
+        injectField(service, "intentRoutingService", new OptionalEvidenceRoutingService());
+        injectField(service, "materialRagEnabled", true);
+        injectField(service, "requestSourceResolutionService",
+                (org.zipp.ai.domain.retrieval.RequestSourceResolutionService) command ->
+                        readyLibraryImageSourceSnapshot());
+        injectField(service, "evidencePreparationModule",
+                (org.zipp.ai.domain.retrieval.EvidencePreparationModule)
+                        (command, resources, progress, cancellation) -> {
+                            prepared.set(command);
+                            resources.markPrepared();
+                            org.zipp.ai.domain.retrieval.EvidenceBundle bundle =
+                                    new org.zipp.ai.domain.retrieval.EvidenceBundle(
+                                            "bundle-graph", command.requestId(), command.runId(),
+                                            org.zipp.ai.domain.retrieval.SourceMode.EXPLICIT_ONLY,
+                                            List.of(new org.zipp.ai.domain.retrieval.EvidenceBundleItem(
+                                                    "cite_1", "evidence-visual", "material-1",
+                                                    "version-1", "revision-1",
+                                                    "risk-escalation-flow.png", 1, "VISUAL",
+                                                    "[DIAGRAM_GRAPH]\n"
+                                                            + "node id=assess label=\"ASSESS RELEASE\"\n"
+                                                            + "node id=review label=\"HUMAN REVIEW\"\n"
+                                                            + "edge id=rejected source=assess target=review "
+                                                            + "lineStyle=DASHED")));
+                            return java.util.concurrent.CompletableFuture.completedFuture(
+                                    new org.zipp.ai.domain.retrieval.PreparationOutcome.Ready(
+                                            new org.zipp.ai.domain.retrieval.PreparedEvidence(bundle, resources),
+                                            new org.zipp.ai.domain.retrieval.RetrievalDiagnostics(
+                                                    org.zipp.ai.domain.retrieval.RetrievalRoute.VISUAL_EXACT,
+                                                    List.of())));
+                        });
+        ChatRequestDTO request = platformRequest();
+        request.setRequestId("request-library-image-reconstruction");
+        request.setMessage("Faithfully reconstruct the selected image.");
+        request.setSourceMode("EXPLICIT_ONLY");
+        request.setSelectedVersionIds(List.of("version-1"));
+
+        service.stream(request, new CapturingEmitter());
+
+        assertTrue(prepared.get().diagramReconstructionRequested());
+        assertTrue(chatService.lastStreamMessage.contains("[DIAGRAM_GRAPH]"));
+        assertTrue(chatService.lastStreamMessage.contains("source=assess target=review"));
+        assertFalse(chatService.lastStreamMessage.contains("Process step"));
+    }
+
+    @Test
     public void sourceSnapshotInfrastructureFailureStopsBeforeLegacyDrawing() throws Exception {
         AgentConversationService service = quotaAwareService();
         CountingChatService chatService = new CountingChatService();
@@ -1737,6 +1788,17 @@ public class AgentConversationServiceTest {
                         org.zipp.ai.domain.material.model.valobj.MaterialScopeType.CONVERSATION,
                         "session-1", "READY",
                         org.zipp.ai.domain.retrieval.RequestSourceOrigin.ATTACHMENT,
+                        false, true, false)), 0, 0);
+    }
+
+    private org.zipp.ai.domain.retrieval.ResolvedSourceSet readyLibraryImageSourceSnapshot() {
+        return new org.zipp.ai.domain.retrieval.ResolvedSourceSet(
+                org.zipp.ai.domain.retrieval.SourceMode.EXPLICIT_ONLY,
+                List.of(new org.zipp.ai.domain.retrieval.ResolvedSource(
+                        "material-1", "version-1", "revision-1", "IMAGE",
+                        org.zipp.ai.domain.material.model.valobj.MaterialScopeType.LIBRARY,
+                        org.zipp.ai.domain.material.model.valobj.MaterialScopeType.PERSONAL_LIBRARY_KEY,
+                        "READY", org.zipp.ai.domain.retrieval.RequestSourceOrigin.EXPLICIT,
                         false, true, false)), 0, 0);
     }
 

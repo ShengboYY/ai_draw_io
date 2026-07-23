@@ -1353,7 +1353,9 @@ public class AgentConversationService {
                 safeList(requestDTO.getSelectedVersionIds()),
                 evidenceNeed,
                 StringUtils.defaultIfBlank(routing.getTargetNeed(), "NONE"),
-                StringUtils.defaultIfBlank(routing.getClarificationNeed(), "NONE"));
+                StringUtils.defaultIfBlank(routing.getClarificationNeed(), "NONE"),
+                shouldReconstructSelectedImage(
+                        routing, effectiveSnapshot, safeList(requestDTO.getSelectedVersionIds())));
         if (shadowOnly) {
             // Candidate-only observation owns its resources and never delays or mutates the primary request.
             evidencePreparationModule.observe(command).exceptionally(failure -> {
@@ -1375,8 +1377,14 @@ public class AgentConversationService {
             return retrievalDegradedResponse();
         }
         if (outcome instanceof PreparationOutcome.NotRequired) return null;
-        if (outcome instanceof PreparationOutcome.DegradedDependency
-                || outcome instanceof PreparationOutcome.Failed) {
+        if (outcome instanceof PreparationOutcome.DegradedDependency degraded) {
+            // Stable gap codes make local and production dependency failures diagnosable without
+            // logging prompts, evidence text, object keys, or provider response bodies.
+            log.warn("Evidence preparation dependency degraded. gaps={}", degraded.gaps());
+            return retrievalDegradedResponse();
+        }
+        if (outcome instanceof PreparationOutcome.Failed failed) {
+            log.warn("Evidence preparation failed. errorCode={}", failed.errorCode());
             // Factual drawing must fail closed when retrieval did not complete, including legacy failures.
             return retrievalDegradedResponse();
         }
@@ -1444,6 +1452,32 @@ public class AgentConversationService {
         }
         return evidenceResponse("insufficient_evidence",
                 "当前资料不足以安全完成请求，画布未被修改。 / The available evidence is insufficient.");
+    }
+
+    private boolean shouldReconstructSelectedImage(IntentRoutingResult routing,
+                                                   ResolvedSourceSet sourceSnapshot,
+                                                   List<String> selectedVersionIds) {
+        if (routing == null || sourceSnapshot == null
+                || !"create_new".equals(routing.getRouteType())
+                || sourceSnapshot.processingSourceCount() != 0
+                || sourceSnapshot.unavailableSourceCount() != 0
+                || selectedVersionIds == null
+                || selectedVersionIds.stream().distinct().count() != 1) {
+            return false;
+        }
+        // Only a trusted, explicit, ready single-image snapshot may switch the VLM from bounded
+        // fact verification to complete topology reconstruction.
+        List<ResolvedSource> declared = sourceSnapshot.sources().stream()
+                .filter(ResolvedSource::declared)
+                .toList();
+        return declared.size() == 1
+                && declared.get(0).origin() == RequestSourceOrigin.EXPLICIT
+                && declared.get(0).scopeType()
+                        == org.zipp.ai.domain.material.model.valobj.MaterialScopeType.LIBRARY
+                && "READY".equals(declared.get(0).state())
+                && "IMAGE".equals(declared.get(0).kind())
+                && declared.get(0).hasVisual()
+                && selectedVersionIds.contains(declared.get(0).versionId());
     }
 
     private ChatResponseDTO retrievalDegradedResponse() {

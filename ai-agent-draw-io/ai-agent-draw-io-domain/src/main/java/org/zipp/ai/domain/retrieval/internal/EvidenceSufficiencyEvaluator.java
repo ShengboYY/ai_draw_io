@@ -17,8 +17,18 @@ final class EvidenceSufficiencyEvaluator {
             "请帮我", "请帮", "帮我", "根据", "资料", "回答", "总结", "梳理", "整份", "文档", "绘图", "流程图", "流程", "比较");
 
     Result evaluate(String request, RetrievalRoute route, List<EvidenceBundleItem> items) {
+        return evaluate(request, route, items, false);
+    }
+
+    Result evaluate(String request, RetrievalRoute route, List<EvidenceBundleItem> items,
+                    boolean diagramReconstructionRequested) {
         if (items == null || items.isEmpty()) {
             return Result.unsupported("NO_DISPLAY_EVIDENCE", "requested fact or relationship");
+        }
+        // A diagram graph is a server-authored visual projection, so reconstruction instructions
+        // need not overlap its labels like a factual question must overlap retrieved prose.
+        if (diagramReconstructionRequested && items.stream().anyMatch(this::isDiagramGraph)) {
+            return Result.supported();
         }
         if (route == RetrievalRoute.VISUAL || route == RetrievalRoute.VISUAL_EXACT) {
             return items.stream().anyMatch(item -> "VISUAL".equals(item.modality()))
@@ -52,6 +62,12 @@ final class EvidenceSufficiencyEvaluator {
             return Result.unsupported("ABSOLUTE_RELEVANCE_TOO_LOW", missingTerm);
         }
         return Result.supported();
+    }
+
+    private boolean isDiagramGraph(EvidenceBundleItem item) {
+        return "VISUAL".equals(item.modality())
+                && item.text() != null
+                && item.text().startsWith("[DIAGRAM_GRAPH]");
     }
 
     private List<String> tokens(String value) {

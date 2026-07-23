@@ -153,7 +153,7 @@ public final class ChatVisionModelPortAdapter implements VisionModelPort {
                     text(node, "label", 1_000, false),
                     ObservedDiagramGraph.Shape.valueOf(text(node, "shape", 32, false)),
                     bounds(node.path("bounds")),
-                    text(node, "groupId", 128, true),
+                    optionalText(node, "groupId", 128),
                     text(node, "evidenceId", 128, false),
                     number(node, "confidence")));
         });
@@ -249,5 +249,12 @@ public final class ChatVisionModelPortAdapter implements VisionModelPort {
             throw new IllegalArgumentException(field + " must be textual");
         }
         return value.asText();
+    }
+
+    private String optionalText(JsonNode node, String field, int maximumLength) {
+        JsonNode value = node.path(field);
+        // JSON null is the natural model representation for a node outside any group.
+        if (value.isNull()) return "";
+        return text(node, field, maximumLength, true);
     }
 }

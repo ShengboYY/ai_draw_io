@@ -42,6 +42,7 @@ import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3Client;
 
+import java.net.URI;
 import java.util.Optional;
 import java.time.Duration;
 import java.util.concurrent.ExecutorService;
@@ -146,9 +147,16 @@ public class MaterialRagConfig {
     }
 
     @Bean
-    public S3Client materialRagS3Client(@Value("${app.material-rag.aws-region}") String region) {
-        return S3Client.builder().credentialsProvider(DefaultCredentialsProvider.create())
-                .region(Region.of(region)).build();
+    public S3Client materialRagS3Client(
+            @Value("${app.material-rag.aws-region}") String region,
+            @Value("${MATERIAL_S3_ENDPOINT:}") String endpoint) {
+        var builder = S3Client.builder().credentialsProvider(DefaultCredentialsProvider.create())
+                .region(Region.of(region));
+        if (endpoint != null && !endpoint.isBlank()) {
+            // Explicit local endpoints avoid relying on SDK-global endpoint discovery.
+            builder.endpointOverride(URI.create(endpoint.trim())).forcePathStyle(true);
+        }
+        return builder.build();
     }
 
     @Bean

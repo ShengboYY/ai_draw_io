@@ -33,6 +33,10 @@ public interface IOnlineRetrievalMapper {
                                           @Param("includeText") boolean includeText,
                                           @Param("includeVisual") boolean includeVisual,
                                           @Param("limit") int limit);
+    List<OnlineCandidatePO> selectExactVisualCandidates(@Param("ownerType") String ownerType,
+                                                        @Param("ownerKey") String ownerKey,
+                                                        @Param("sources") List<AuthorizedSource> sources,
+                                                        @Param("limit") int limit);
     List<OnlineCandidatePO> resolveVectorCandidates(@Param("ownerType") String ownerType,
                                                     @Param("ownerKey") String ownerKey,
                                                     @Param("vectorIds") List<String> vectorIds,

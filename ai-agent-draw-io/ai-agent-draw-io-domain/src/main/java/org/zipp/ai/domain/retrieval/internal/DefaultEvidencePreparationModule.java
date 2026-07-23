@@ -209,25 +209,33 @@ public final class DefaultEvidencePreparationModule implements EvidencePreparati
                     : callWithinDeadline(() -> catalog.resolveSources(command), deadline, cancellation, resources);
             PreparationOutcome readinessStop = readiness(command, resolution);
             if (readinessStop != null) return readinessStop;
-            AuthorizedSourceSet sources = readySources(command, resolution);
-            if (sources.sources().isEmpty()) {
+            AuthorizedSourceSet readySources = readySources(command, resolution);
+            if (readySources.sources().isEmpty()) {
                 return command.needsEvidence() || resolution.mode() == SourceMode.EXPLICIT_ONLY
                         ? new PreparationOutcome.InsufficientEvidence(
                                 List.of("NO_AUTHORIZED_READY_SOURCE"), "selected or mounted source")
                         : new PreparationOutcome.NotRequired();
             }
 
-            RetrievalRoute route = route(command, sources);
+            RetrievalRoute route = route(command, readySources);
             if (route == RetrievalRoute.NONE) return new PreparationOutcome.NotRequired();
-            boolean hybridRequiresVisual = route == RetrievalRoute.HYBRID
-                    && sources.sources().stream().anyMatch(AuthorizedSource::hasVisual);
+            AuthorizedSourceSet sources = route == RetrievalRoute.VISUAL_EXACT
+                    ? exactDeclaredSources(command, readySources)
+                    : readySources;
+            if (sources.sources().isEmpty()) {
+                return insufficient(command, "NO_AUTHORIZED_EXACT_SOURCE");
+            }
+            boolean routeRequiresVisual = route == RetrievalRoute.VISUAL
+                    || route == RetrievalRoute.VISUAL_EXACT
+                    || (route == RetrievalRoute.HYBRID
+                    && sources.sources().stream().anyMatch(AuthorizedSource::hasVisual));
             List<CandidateRef> existing = target.cellIds().isEmpty() ? List.of() : callWithinDeadline(
                     () -> catalog.existingTargetCandidates(command.diagramId(),
                             command.canvasProbe().serverCanvasVersion(), target.cellIds(), sources, 12),
                     deadline, cancellation, resources);
             Set<String> existingChunkIds = existing.stream().map(CandidateRef::chunkId)
                     .collect(java.util.stream.Collectors.toUnmodifiableSet());
-            if (!shadowOnly && !hybridRequiresVisual) {
+            if (!shadowOnly && !routeRequiresVisual) {
                 PreparationOutcome existingOnly = prepareExistingOnly(command, resolution, sources, route,
                         target, existingChunkIds, resources, progress, cancellation, deadline, new ArrayList<>());
                 if (existingOnly != null) return existingOnly;
@@ -245,7 +253,11 @@ public final class DefaultEvidencePreparationModule implements EvidencePreparati
                 lexicalFuture = ioExecutor.submit(
                         () -> safeLexical(queries, sources, route, diagnostics));
                 denseFuture = ioExecutor.submit(
-                        () -> safeDense(command, queries, sources, route, diagnostics));
+                        // Exact reconstruction is already pinned to one authorized visual object;
+                        // dense search cannot improve that identity and must remain optional.
+                        () -> route == RetrievalRoute.VISUAL_EXACT
+                                ? List.of()
+                                : safeDense(command, queries, sources, route, diagnostics));
                 lexicalCandidates = await(lexicalFuture, deadline, diagnostics, "LEXICAL_TIMEOUT");
                 progress.onProgress("RETRIEVAL", 1, 2);
                 denseCandidates = await(denseFuture, deadline, diagnostics, "DENSE_TIMEOUT");
@@ -282,7 +294,7 @@ public final class DefaultEvidencePreparationModule implements EvidencePreparati
             }
             List<AuthorizedCandidate> visualCandidates = authorized.stream()
                     .filter(candidate -> "VISUAL".equals(candidate.modality())).limit(4).toList();
-            if (hybridRequiresVisual && visualCandidates.isEmpty()) {
+            if (routeRequiresVisual && visualCandidates.isEmpty()) {
                 PreparationOutcome degraded = retrievalDegraded(diagnostics);
                 return degraded != null ? degraded : insufficient(command, "VISUAL_VERIFICATION_REQUIRED");
             }
@@ -319,7 +331,7 @@ public final class DefaultEvidencePreparationModule implements EvidencePreparati
                 if (projection.gap() != null) {
                     diagnostics.add(projection.gap());
                     if (route == RetrievalRoute.VISUAL || route == RetrievalRoute.VISUAL_EXACT
-                            || hybridRequiresVisual) {
+                            || routeRequiresVisual) {
                         resources.closeExactlyOnce(CloseReason.FAILED);
                         if (isVisualDependencyGap(projection.gap())) {
                             return new PreparationOutcome.DegradedDependency(List.of(projection.gap()));
@@ -330,6 +342,13 @@ public final class DefaultEvidencePreparationModule implements EvidencePreparati
                     }
                 }
                 visualItems = projection.items();
+            }
+            if (diagramReconstructionRequested(command)
+                    && visualItems.stream().anyMatch(item ->
+                    item.text() != null && item.text().length() > BUNDLE_CHAR_LIMIT)) {
+                // Exact graph evidence is atomic: truncation could silently remove an edge or cell.
+                resources.closeExactlyOnce(CloseReason.FAILED);
+                return insufficient(command, "DIAGRAM_GRAPH_TOO_LARGE");
             }
             List<AuthorizedCandidate> textCandidates = authorized.stream()
                     .filter(candidate -> !"VISUAL".equals(candidate.modality())).toList();
@@ -344,7 +363,8 @@ public final class DefaultEvidencePreparationModule implements EvidencePreparati
                 if (degraded != null) return degraded;
                 return insufficient(command, "NO_DISPLAY_EVIDENCE");
             }
-            EvidenceSufficiencyEvaluator.Result support = sufficiency.evaluate(command.userMessage(), route, items);
+            EvidenceSufficiencyEvaluator.Result support = sufficiency.evaluate(
+                    command.userMessage(), route, items, diagramReconstructionRequested(command));
             if (!support.sufficient()) {
                 resources.closeExactlyOnce(CloseReason.FAILED);
                 PreparationOutcome degraded = dependencyDegraded(diagnostics);
@@ -498,7 +518,22 @@ public final class DefaultEvidencePreparationModule implements EvidencePreparati
         return new AuthorizedSourceSet(command.owner(), resolution.mode(), ready);
     }
 
+    private AuthorizedSourceSet exactDeclaredSources(
+            EvidencePreparationCommand command, AuthorizedSourceSet sources) {
+        Set<String> declaredVersions = Set.copyOf(command.declaredVersionIds());
+        // Exact-image retrieval must never drift to a higher-scoring optional/automatic source.
+        List<AuthorizedSource> exact = sources.sources().stream()
+                .filter(source -> declaredVersions.contains(source.versionId()))
+                .toList();
+        return new AuthorizedSourceSet(command.owner(), sources.mode(), exact);
+    }
+
     private RetrievalRoute route(EvidencePreparationCommand command, AuthorizedSourceSet sources) {
+        // The trusted reconstruction flag is stronger than prompt keywords and always requires the
+        // single selected image to survive authorization as a visual candidate.
+        if (diagramReconstructionRequested(command)) {
+            return RetrievalRoute.VISUAL_EXACT;
+        }
         String value = command.userMessage().toLowerCase(Locale.ROOT);
         // Non-factual work exits through evidenceNeed=NONE before routing; message keywords cannot
         // safely exempt a mixed factual/style request from evidence preparation.
@@ -734,9 +769,12 @@ public final class DefaultEvidencePreparationModule implements EvidencePreparati
                 new VisualObservationTarget(candidate.evidenceId(), candidate.materialId(),
                         candidate.versionId(), candidate.revisionId(), candidate.pageNumber(),
                         candidate.sourceLabel(), candidate.displayArtifact())).toList();
+        VisualObservationPurpose purpose = diagramReconstructionRequested(command)
+                ? VisualObservationPurpose.DIAGRAM_RECONSTRUCTION
+                : VisualObservationPurpose.FACT_VERIFICATION;
         VisualObservationCommand observationCommand = new VisualObservationCommand(
                 command.owner(), command.requestId(), command.runId(),
-                VisualObservationPurpose.FACT_VERIFICATION,
+                purpose,
                 visualQuestion(command.userMessage()), observationTargets, 16);
         VisualObservationOutcome outcome;
         try {
@@ -764,9 +802,17 @@ public final class DefaultEvidencePreparationModule implements EvidencePreparati
         candidates.forEach(candidate -> anchors.put(candidate.evidenceId(), candidate));
         int visualLimit = route == RetrievalRoute.VISUAL || route == RetrievalRoute.VISUAL_EXACT
                 ? BUNDLE_ITEM_LIMIT : 3;
-        List<EvidenceBundleItem> items = projectVisualItems(
-                ((VisualObservationOutcome.Verified) outcome).observations(), anchors,
-                command, existingChunkIds, !target.cellIds().isEmpty(), visualLimit);
+        List<EvidenceBundleItem> items;
+        if (outcome instanceof VisualObservationOutcome.DiagramVerified verified) {
+            items = projectDiagramGraph(
+                    verified.graph(), anchors, command, existingChunkIds, !target.cellIds().isEmpty());
+        } else if (outcome instanceof VisualObservationOutcome.Verified verified) {
+            items = projectVisualItems(
+                    verified.observations(), anchors,
+                    command, existingChunkIds, !target.cellIds().isEmpty(), visualLimit);
+        } else {
+            return VisualProjection.gap("VISUAL_OBSERVATION_GAP");
+        }
         return items.isEmpty() ? VisualProjection.gap("NO_VERIFIED_DISPLAY_EVIDENCE")
                 : VisualProjection.ready(items);
     }
@@ -864,6 +910,42 @@ public final class DefaultEvidencePreparationModule implements EvidencePreparati
                 candidate.pageNumber(), "VISUAL", text, EvidenceSupportRole.SUPPORT, origin);
     }
 
+    private List<EvidenceBundleItem> projectDiagramGraph(
+            ObservedDiagramGraph graph,
+            Map<String, AuthorizedCandidate> anchors,
+            EvidencePreparationCommand command,
+            Set<String> existingChunkIds,
+            boolean hasTarget) {
+        // A reconstruction bundle represents one exact selected image. Refuse to merge topology
+        // from multiple evidence anchors into one citation-bearing graph statement.
+        Set<String> evidenceIds = new LinkedHashSet<>();
+        graph.groups().forEach(group -> evidenceIds.add(group.evidenceId()));
+        graph.nodes().forEach(node -> evidenceIds.add(node.evidenceId()));
+        graph.edges().forEach(edge -> evidenceIds.add(edge.evidenceId()));
+        if (evidenceIds.size() != 1) return List.of();
+        AuthorizedCandidate candidate = anchors.get(evidenceIds.iterator().next());
+        if (candidate == null) return List.of();
+
+        // Reuse the direct-conversion safety boundary so unresolved, low-confidence, or
+        // referentially invalid topology cannot be promoted to citable reconstruction evidence.
+        ImageToDiagramOutcome conversion = new DefaultImageToDiagramModule()
+                .convert(new ImageToDiagramCommand(graph));
+        if (!(conversion instanceof ImageToDiagramOutcome.Converted converted)) return List.of();
+        // The canonical XML projection encodes every model-supplied attribute, avoiding a second
+        // ad-hoc graph syntax that could turn embedded newlines into forged nodes or edges.
+        String text = "[DIAGRAM_GRAPH]\n" + converted.mxGraphModelXml();
+        EvidenceOrigin origin = existingChunkIds.contains(candidate.chunkId())
+                ? EvidenceOrigin.EXISTING_REFERENCE
+                : command.declaredVersionIds().contains(candidate.versionId())
+                        ? EvidenceOrigin.EXPLICIT
+                        : hasTarget ? EvidenceOrigin.SUPPLEMENTAL : EvidenceOrigin.SEARCH;
+        return List.of(new EvidenceBundleItem(
+                "", candidate.evidenceId(), candidate.materialId(),
+                candidate.versionId(), candidate.revisionId(), candidate.sourceLabel(),
+                candidate.pageNumber(), "VISUAL", text,
+                EvidenceSupportRole.SUPPORT, origin));
+    }
+
     private List<EvidenceBundleItem> combineEvidence(List<EvidenceBundleItem> visual,
                                                     List<EvidenceBundleItem> text) {
         List<EvidenceBundleItem> combined = new ArrayList<>();
@@ -920,6 +1002,10 @@ public final class DefaultEvidencePreparationModule implements EvidencePreparati
         }
     }
 
+    private void cancelIfRunning(Future<?> future) {
+        if (future != null && !future.isDone()) future.cancel(true);
+    }
+
     private <T> T callWithinDeadline(Callable<T> call, RetrievalDeadline deadline,
                                      CancellationSignal cancellation, RunResourceDomain resources) {
         Future<T> future = ioExecutor.submit(call);
@@ -973,6 +1059,12 @@ public final class DefaultEvidencePreparationModule implements EvidencePreparati
         return false;
     }
 
+    private boolean diagramReconstructionRequested(EvidencePreparationCommand command) {
+        // Only the request-orchestration layer may set this flag after validating the exact
+        // selected library version and its immutable source snapshot.
+        return command.diagramReconstructionRequested();
+    }
+
     private String bundleId(EvidencePreparationCommand command) {
         try {
             byte[] digest = MessageDigest.getInstance("SHA-256")
@@ -1011,10 +1103,6 @@ public final class DefaultEvidencePreparationModule implements EvidencePreparati
                 .filter(label -> label != null && !label.isBlank()).distinct().limit(8).toList(); }
         static TargetResolution none() { return new TargetResolution(null, List.of()); }
         static TargetResolution stop(PreparationOutcome stop) { return new TargetResolution(stop, List.of()); }
-    }
-
-    private void cancelIfRunning(Future<?> future) {
-        if (future != null && !future.isDone()) future.cancel(true);
     }
 
     private static final class RetrievalDeadlineExceededException extends RuntimeException { }

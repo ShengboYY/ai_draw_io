@@ -31,4 +31,21 @@ class EvidencePromptAssemblerTest {
         assertFalse(prompt.contains("revision-secret"));
         assertFalse(prompt.contains("bundle-secret"));
     }
+
+    @Test
+    void describesTheTypedCitationBindingShapeForDiagramReconstruction() {
+        EvidenceBundle bundle = new EvidenceBundle("bundle-1", "request-1", "run-1", SourceMode.EXPLICIT,
+                List.of(new EvidenceBundleItem("E1", "evidence-1", "material-1",
+                        "version-1", "revision-1", "S1", 1, "VISUAL",
+                        "[DIAGRAM_GRAPH]\nnode id=assess label=\"ASSESS\"")));
+
+        String prompt = new EvidencePromptAssembler().assemble(EvidenceAccessContext.from(bundle, false));
+
+        assertTrue(prompt.contains("\"statementKind\":\"NODE_TEXT|EDGE_RELATION\""));
+        assertTrue(prompt.contains("\"citationKeys\":[\"E1\"]"));
+        assertTrue(prompt.contains("\"supportAtoms\":[{\"atomKey\":\"A1\""));
+        assertTrue(prompt.contains("\"supportType\":\"EVIDENCE\""));
+        assertTrue(prompt.contains("Never use singular citationKey or string-valued supportAtoms."));
+        assertTrue(prompt.contains("For an unlabeled edge, statementText must use the exact source and target labels"));
+    }
 }

@@ -58,6 +58,14 @@ public class MySqlOnlineRetrievalAdapter implements EvidenceCatalog, RetrievalLe
     public List<CandidateRef> search(List<String> queries, AuthorizedSourceSet sources,
                                      RetrievalRoute route, int limit) {
         if (queries.isEmpty() || sources.sources().isEmpty()) return List.of();
+        if (route == RetrievalRoute.VISUAL_EXACT) {
+            // Exact single-image reconstruction is source-scoped, so natural-language overlap
+            // must not hide the authorized visual candidate selected by the user.
+            return mapper.selectExactVisualCandidates(
+                            sources.owner().ownerType().name(), sources.owner().ownerKey(),
+                            sources.sources(), limit)
+                    .stream().map(this::candidate).toList();
+        }
         String query = String.join(" ", queries);
         boolean includeText = route != RetrievalRoute.VISUAL && route != RetrievalRoute.VISUAL_EXACT;
         boolean includeVisual = route != RetrievalRoute.TEXT;

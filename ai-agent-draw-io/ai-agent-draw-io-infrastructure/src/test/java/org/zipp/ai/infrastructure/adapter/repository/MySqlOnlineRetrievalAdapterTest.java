@@ -5,6 +5,7 @@ import org.zipp.ai.domain.account.model.valobj.OwnerType;
 import org.zipp.ai.domain.material.model.valobj.CatalogOwner;
 import org.zipp.ai.domain.material.model.valobj.MaterialScopeType;
 import org.zipp.ai.domain.retrieval.SourceMode;
+import org.zipp.ai.domain.retrieval.RetrievalRoute;
 import org.zipp.ai.domain.retrieval.port.AuthorizedCandidate;
 import org.zipp.ai.domain.retrieval.port.AuthorizedSource;
 import org.zipp.ai.domain.retrieval.port.AuthorizedSourceSet;
@@ -17,6 +18,29 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 class MySqlOnlineRetrievalAdapterTest {
+    @Test
+    void exactVisualSearchDoesNotDependOnPromptTextOverlap() {
+        OnlineCandidatePO row = new OnlineCandidatePO();
+        row.setChunkId("chunk-visual");
+        row.setModality("VISUAL");
+        row.setScore(0.9);
+        StubMapper mapper = new StubMapper(row);
+        MySqlOnlineRetrievalAdapter adapter = new MySqlOnlineRetrievalAdapter(mapper);
+        AuthorizedSource source = new AuthorizedSource("material-1", "version-1", "revision-1",
+                MaterialScopeType.LIBRARY, MaterialScopeType.PERSONAL_LIBRARY_KEY,
+                "READY", false, true, false, true);
+
+        var candidates = adapter.search(
+                List.of("faithfully reconstruct the selected image"),
+                new AuthorizedSourceSet(new CatalogOwner(OwnerType.USER, "alice"),
+                        SourceMode.EXPLICIT_ONLY, List.of(source)),
+                RetrievalRoute.VISUAL_EXACT, 8);
+
+        assertEquals(List.of("chunk-visual"), candidates.stream().map(candidate -> candidate.chunkId()).toList());
+        assertEquals(1, mapper.exactVisualCalls);
+        assertEquals(0, mapper.lexicalCalls);
+    }
+
     @Test
     void visualCandidateUsesExactCropArtifactInsteadOfRetrievalDescription() {
         OnlineCandidatePO row = new OnlineCandidatePO();
@@ -55,6 +79,8 @@ class MySqlOnlineRetrievalAdapterTest {
 
     private static final class StubMapper implements IOnlineRetrievalMapper {
         private final OnlineCandidatePO row;
+        private int exactVisualCalls;
+        private int lexicalCalls;
 
         private StubMapper(OnlineCandidatePO row) {
             this.row = row;
@@ -85,7 +111,13 @@ class MySqlOnlineRetrievalAdapterTest {
         @Override public List<OnlineCandidatePO> lexicalSearch(
                 String ownerType, String ownerKey, String query, List<AuthorizedSource> sources,
                 boolean includeText, boolean includeVisual, int limit) {
+            lexicalCalls++;
             return List.of();
+        }
+        @Override public List<OnlineCandidatePO> selectExactVisualCandidates(
+                String ownerType, String ownerKey, List<AuthorizedSource> sources, int limit) {
+            exactVisualCalls++;
+            return List.of(row);
         }
         @Override public List<OnlineCandidatePO> resolveVectorCandidates(
                 String ownerType, String ownerKey, List<String> vectorIds,

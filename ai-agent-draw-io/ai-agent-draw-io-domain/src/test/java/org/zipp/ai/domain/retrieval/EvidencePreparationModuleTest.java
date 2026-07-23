@@ -354,6 +354,54 @@ class EvidencePreparationModuleTest {
     }
 
     @Test
+    void diagramReconstructionRequiresAnAuthorizedVisualCandidateRegardlessOfPromptWording() {
+        AuthorizedSource ready = new AuthorizedSource("material-1", "version-1", "revision-1",
+                MaterialScopeType.LIBRARY, MaterialScopeType.PERSONAL_LIBRARY_KEY,
+                "READY", false, true, true, true);
+        StoredArtifact textArtifact = new StoredArtifact("retrieval/chunk.txt", "text-version",
+                "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                256, "text/plain");
+        AuthorizedCandidate text = new AuthorizedCandidate("chunk-text", "evidence-text",
+                "material-1", "version-1", "revision-1", "TEXT", 1, 0.95,
+                textArtifact, "Workflow guide");
+        EvidenceCatalog catalog = new EvidenceCatalog() {
+            @Override public SourceResolution resolveSources(EvidencePreparationCommand command) {
+                return new SourceResolution(SourceMode.EXPLICIT_ONLY, List.of(ready), List.of());
+            }
+            @Override public List<CandidateRef> resolveVectorCandidates(List<String> vectorIds,
+                                                                         AuthorizedSourceSet sources) {
+                return List.of();
+            }
+            @Override public List<AuthorizedCandidate> reauthorize(List<String> chunkIds,
+                                                                   AuthorizedSourceSet sources, int limit) {
+                return List.of(text);
+            }
+        };
+        ResolvedSourceSet snapshot = new ResolvedSourceSet(
+                SourceMode.EXPLICIT_ONLY,
+                List.of(new ResolvedSource(
+                        "material-1", "version-1", "revision-1", "IMAGE",
+                        MaterialScopeType.LIBRARY, MaterialScopeType.PERSONAL_LIBRARY_KEY,
+                        "READY", RequestSourceOrigin.EXPLICIT, true, true, false)),
+                0, 0);
+        EvidencePreparationCommand reconstruction = new EvidencePreparationCommand(
+                owner, "diagram-1", "conversation-1", "request-1", "run-1",
+                "Recreate it faithfully.", CanvasProbe.unavailableProbe(), ValidatedSelection.empty(),
+                SourceMode.EXPLICIT_ONLY, snapshot, List.of("version-1"),
+                "REQUIRED", "NONE", true);
+
+        PreparationOutcome outcome = moduleWithCompletedDenseLane(catalog,
+                List.of(new CandidateRef("chunk-text", "TEXT", 1.0)))
+                .prepare(reconstruction, new RunResourceDomain(),
+                        EvidenceProgressListener.NOOP, CancellationSignal.NEVER)
+                .toCompletableFuture().join();
+
+        PreparationOutcome.InsufficientEvidence insufficient =
+                assertInstanceOf(PreparationOutcome.InsufficientEvidence.class, outcome);
+        assertEquals(List.of("VISUAL_VERIFICATION_REQUIRED"), insufficient.gaps());
+    }
+
+    @Test
     void explicitOnlyRejectsOversizedSelectionBeforeCatalogAccess() {
         AtomicInteger catalogCalls = new AtomicInteger();
         EvidenceCatalog catalog = catalog(command -> {

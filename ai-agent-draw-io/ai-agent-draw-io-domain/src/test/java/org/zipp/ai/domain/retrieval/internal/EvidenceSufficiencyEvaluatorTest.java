@@ -50,6 +50,20 @@ class EvidenceSufficiencyEvaluatorTest {
         assertEquals("rabbitmq", result.missingSubject());
     }
 
+    @Test
+    void acceptsServerProjectedDiagramGraphForAnExplicitReconstructionRequest() {
+        var result = evaluator.evaluate(
+                "Create a new editable flowchart that faithfully reconstructs the selected image.",
+                RetrievalRoute.HYBRID,
+                List.of(new EvidenceBundleItem(
+                        "cite_1", "evidence-1", "material-1", "version-1", "revision-1",
+                        "risk-flow.png", 1, "VISUAL",
+                        "[DIAGRAM_GRAPH]\nnode id=assess label=\"ASSESS RELEASE\"")),
+                true);
+
+        assertTrue(result.sufficient());
+    }
+
     private EvidenceBundleItem item(String text) {
         return new EvidenceBundleItem("cite_1", "evidence-1", "material-1",
                 "version-1", "revision-1", "Agile Practice Guide", 1, "TEXT", text);

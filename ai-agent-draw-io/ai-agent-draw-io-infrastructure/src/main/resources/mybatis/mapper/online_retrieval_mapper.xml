@@ -141,6 +141,30 @@
         ORDER BY score DESC, doc.retrieval_chunk_id LIMIT #{limit}
     </select>
 
+    <select id="selectExactVisualCandidates"
+            resultType="org.zipp.ai.infrastructure.dao.retrieval.po.OnlineCandidatePO">
+        SELECT chunk.id AS chunk_id, chunk.modality, chunk.quality_score AS score
+        FROM retrieval_chunk chunk
+        JOIN retrieval_chunk_evidence mapping ON mapping.retrieval_chunk_id = chunk.id
+             AND mapping.role = 'PRIMARY'
+        JOIN evidence_unit evidence ON evidence.id = mapping.evidence_id
+             AND evidence.status = 'ACTIVE'
+        JOIN material_version mv ON mv.id = evidence.version_id
+        JOIN material material ON material.id = mv.material_id
+        WHERE material.owner_type = #{ownerType} AND material.owner_key = #{ownerKey}
+          AND material.lifecycle_state = 'ACTIVE'
+          AND chunk.status = 'ACTIVE' AND chunk.citable = TRUE
+          AND chunk.modality = 'VISUAL'
+          AND (
+            <foreach collection="sources" item="source" separator=" OR ">
+                (evidence.version_id = #{source.versionId}
+                 AND evidence.revision_id = #{source.revisionId})
+            </foreach>
+          )
+        ORDER BY chunk.quality_score DESC, chunk.id
+        LIMIT #{limit}
+    </select>
+
     <select id="resolveVectorCandidates" resultType="org.zipp.ai.infrastructure.dao.retrieval.po.OnlineCandidatePO">
         SELECT chunk.id AS chunk_id, chunk.modality, 1.0 AS score
         FROM retrieval_chunk_vector_projection projection
@@ -160,7 +184,8 @@
     </select>
 
     <select id="reauthorizeCandidates" resultType="org.zipp.ai.infrastructure.dao.retrieval.po.OnlineCandidatePO">
-        SELECT chunk.id AS chunk_id, mapping.evidence_id, doc.material_id, doc.version_id, doc.revision_id,
+        SELECT chunk.id AS chunk_id, mapping.evidence_id, material.id AS material_id,
+               mv.id AS version_id, mr.id AS revision_id,
                chunk.modality, page.page_no AS page_number, chunk.quality_score,
                chunk.retrieval_text_object_key, chunk.retrieval_text_object_version_id,
                chunk.retrieval_text_sha256, chunk.retrieval_text_byte_size,
@@ -172,38 +197,44 @@
                visual.content_type AS visual_content_type,
                material.display_name AS source_label
         FROM retrieval_chunk chunk
-        JOIN retrieval_search_document doc ON doc.retrieval_chunk_id = chunk.id
-        JOIN material material ON material.id = doc.material_id
-        JOIN material_version mv ON mv.id = doc.version_id AND mv.material_id = material.id
-        JOIN material_processing_revision mr ON mr.id = doc.revision_id
-             AND mr.version_id = mv.id
         JOIN retrieval_chunk_evidence mapping ON mapping.retrieval_chunk_id = chunk.id
              AND mapping.role = 'PRIMARY'
-        JOIN evidence_unit evidence ON evidence.id = mapping.evidence_id
-             AND evidence.version_id = mv.id AND evidence.revision_id = mr.id
-             AND evidence.status = 'ACTIVE'
+        JOIN evidence_unit evidence ON evidence.id = mapping.evidence_id AND evidence.status = 'ACTIVE'
+        JOIN material_version mv ON mv.id = evidence.version_id
+        JOIN material material ON material.id = mv.material_id
+        JOIN material_processing_revision mr ON mr.id = evidence.revision_id
+             AND mr.version_id = mv.id
         LEFT JOIN material_visual_artifact visual ON visual.revision_id = mr.id
              AND visual.object_key = evidence.visual_object_key
              AND visual.object_version_id = evidence.visual_object_version_id
         LEFT JOIN material_page page ON page.id = evidence.page_id AND page.revision_id = mr.id
         WHERE chunk.id IN
             <foreach collection="chunkIds" item="id" open="(" separator="," close=")">#{id}</foreach>
-          AND doc.owner_type = #{ownerType} AND doc.owner_key = #{ownerKey}
           AND material.owner_type = #{ownerType} AND material.owner_key = #{ownerKey}
           AND material.lifecycle_state = 'ACTIVE'
           AND (material.retention_class = 'RETAINED' OR material.expires_at &gt; UTC_TIMESTAMP(3))
-          AND mr.state = 'READY' AND doc.status = 'ACTIVE'
+          AND mr.state = 'READY'
           AND chunk.status = 'ACTIVE' AND chunk.citable = TRUE
           AND ((chunk.modality = 'VISUAL'
                 AND visual.byte_size IS NOT NULL AND visual.content_type LIKE 'image/%')
             OR (chunk.modality &lt;&gt; 'VISUAL'
                 AND chunk.retrieval_text_byte_size IS NOT NULL
-                AND chunk.retrieval_text_content_type IS NOT NULL))
+                AND chunk.retrieval_text_content_type IS NOT NULL
+                AND EXISTS (
+                    SELECT 1
+                    FROM retrieval_search_document active_doc
+                    WHERE active_doc.retrieval_chunk_id = chunk.id
+                      AND active_doc.owner_type = #{ownerType}
+                      AND active_doc.owner_key = #{ownerKey}
+                      AND active_doc.version_id = mv.id
+                      AND active_doc.revision_id = mr.id
+                      AND active_doc.status = 'ACTIVE'
+                )))
           AND (page.page_no IS NULL OR NOT JSON_CONTAINS(
                 COALESCE(mr.excluded_pages_json, JSON_ARRAY()), CAST(page.page_no AS JSON)))
           AND (
             <foreach collection="sources" item="source" separator=" OR ">
-                (doc.version_id = #{source.versionId} AND doc.revision_id = #{source.revisionId})
+                (mv.id = #{source.versionId} AND mr.id = #{source.revisionId})
             </foreach>
           )
         ORDER BY FIELD(chunk.id,

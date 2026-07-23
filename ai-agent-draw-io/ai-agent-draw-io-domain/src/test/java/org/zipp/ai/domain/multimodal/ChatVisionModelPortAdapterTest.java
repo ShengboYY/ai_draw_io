@@ -67,7 +67,7 @@ class ChatVisionModelPortAdapterTest {
                 {"diagramGraph":{"nodes":[
                   {"id":"a","label":"A","shape":"RECTANGLE",
                    "bounds":{"x":0.1,"y":0.2,"width":0.2,"height":0.1},
-                   "groupId":"","evidenceId":"E1","confidence":0.96},
+                   "groupId":null,"evidenceId":"E1","confidence":0.96},
                   {"id":"b","label":"B","shape":"ELLIPSE",
                    "bounds":{"x":0.6,"y":0.2,"width":0.2,"height":0.1},
                   "groupId":"","evidenceId":"E1","confidence":0.97}],
