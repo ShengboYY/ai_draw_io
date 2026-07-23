@@ -473,8 +473,9 @@ R13 的首个正式 Development trace 来自 commit `5c24c10a`。真实 PDF/OCR/
 
 1. controlled chartbook 的 visual hydration 仍受 12-page 和每页 3-region 上限约束，但在这些短文档中覆盖所有
    本地检测出的视觉候选页；选择过程不读取 task、required anchor、XML assertion 或 expected answer。
-2. 对 fixture 明确声明为 multimodal 的任务，candidate top-8 从冻结 top-40 中保留排名最高的 3 个不同图像
-   artifact，再以原 source-aware selector 填满；图像去重只使用 publisher artifact path/SHA，不使用 gold。
+2. 对 fixture 明确声明为 multimodal 的任务，candidate top-8 从冻结 top-40 中最多保留 4 个不同图像
+   artifact：先取各有图资料源的最高排名 artifact，再按全局排名补满；图像去重只使用 publisher
+   source/path/SHA，不使用 task 目标源或 gold。
 3. control 保持 raw top-8，缺 artifact 作为 baseline 失败测量；candidate 仍必须含匹配资料的 artifact，并通过
    required canonical evidence readiness。
 4. 代码、计划、测试和 corpus lock 提交后，必须从新 commit 重新跑 Development hydration；旧 R13 trace 只作
@@ -511,6 +512,27 @@ R16 仅改变 live research runner 的可靠性边界：original 与 rewritten q
 指数退避；非空立即继续；耗尽仍空则抛错，由 `finally` 清理向量且不写正式 trace。正常非空结果、query、
 embedding、filter、top-k、ranking、selector 和所有评测门槛均不改变。R15 trace 只作诊断；提交后仍须从新
 clean commit 重跑 Development，模型和 Validation 保持关闭。
+
+## 2026-07-23 R17 预注册：publisher source-page artifact registry
+
+R16 的 bounded empty-query retry 在真实运行中触发并恢复一次 rewritten query；随后全部自动图册任务为
+40/40，selected-only 为 28/28。artifact gate 仍在 `dgt-dev-02` 失败：architecture page 3 artifact 位于
+raw rank 31，但旧 producer 的 source/page registry 只覆盖 architecture 与 planning scan；进一步检查发现
+datacenter、payment 和 field-audit 的冻结原图文件也未注册。视觉选择、OCR 和检索可以运行，但 trace 无法绑定
+这些原图的路径与 SHA。
+
+R17 仍属于同一 source-independent artifact-availability 变量族：
+
+- publisher-side registry 按 source version + page 暴露 active Development 的冻结原图：architecture page 3、
+  planning scan pages 1–6、datacenter page 3、payment pages 3–4、field-audit scan pages 1–5；
+- registry 不读取 task、required anchor、XML assertion、expected answer 或 Validation；
+- multimodal candidate 在 8 个槽位中最多保留 4 个 source-diverse distinct artifacts，先取每个有图来源的
+  首个 artifact，再按全局排名补满；
+- artifact 文件不存在、路径越界、SHA 不匹配、candidate 缺匹配来源 artifact 或 required evidence 不完整
+  继续 fail-closed。
+
+R16 trace 只作诊断。更新计划、合同、测试与 corpus lock 并提交后，从新 clean commit 重跑 Development；
+仍不得调用模型或打开 Validation。
 
 E6b 的本地导出合同已冻结为 `fixtures/drawio-generation-paired-hydration-contract-v1.json` 与
 `analysis/export_drawio_paired_hydration.py`。active Development 图册明确挂载 architecture、workflow handbook

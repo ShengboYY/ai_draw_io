@@ -48,6 +48,27 @@ class PairedHydrationExportTest(unittest.TestCase):
         # The third distinct visual page is rank 9; the rank-10 duplicate must not consume a slot.
         self.assertEqual([1, 2, 3, 4, 5, 6, 7, 9], [item["rank"] for item in selected])
 
+    def test_artifact_selector_reserves_the_first_visual_from_another_source(self):
+        candidates = [
+            candidate(f"a{rank}", f"source-{rank}:v1", f"anchor-{rank}", rank)
+            for rank in range(1, 8)
+        ]
+        candidates.extend([
+            candidate(f"a{rank}", "source-1:v1" if rank < 12 else "source-2:v1",
+                      f"anchor-{rank}", rank)
+            for rank in range(8, 13)
+        ])
+        for index in range(7, 12):
+            candidates[index]["evidence"][0].update({
+                "imagePath": f"image-{index + 1}.png",
+                "imageSha256": f"hash-{index + 1}",
+            })
+
+        selected = MODULE.select_with_artifact_coverage(candidates, 8)
+
+        # Source two's first visual survives even though four source-one images rank above it.
+        self.assertIn(12, [item["rank"] for item in selected])
+
     def test_source_scope_distinguishes_selected_material_from_automatic_chartbook(self):
         selected = {
             "taskId": "selected",

@@ -46,10 +46,10 @@ def allowed_sources(task: dict, chartbook_sources: set[str]) -> set[str]:
 
 
 def select_with_artifact_coverage(candidates: list[dict], limit: int,
-                                  reserved_artifact_pages: int = 3) -> list[dict]:
-    """Reserve distinct high-ranked visual pages without consulting evaluator gold."""
+                                  reserved_artifact_pages: int = 4) -> list[dict]:
+    """Reserve source-diverse, distinct visual pages without consulting evaluator gold."""
     selected = select(candidates, limit)
-    artifact_candidates, seen_artifacts = [], set()
+    distinct_artifacts, seen_artifacts = [], set()
     for candidate in candidates:
         artifact_keys = {
             (item.get("imagePath"), item.get("imageSha256"))
@@ -59,9 +59,22 @@ def select_with_artifact_coverage(candidates: list[dict], limit: int,
         unseen = artifact_keys - seen_artifacts
         if not unseen:
             continue
-        artifact_candidates.append(candidate)
+        distinct_artifacts.append(candidate)
         seen_artifacts.update(unseen)
-        if len(artifact_candidates) == min(reserved_artifact_pages, limit):
+
+    artifact_limit = min(reserved_artifact_pages, limit)
+    artifact_candidates, seen_sources = [], set()
+    for candidate in distinct_artifacts:
+        if candidate["sourceVersion"] in seen_sources:
+            continue
+        artifact_candidates.append(candidate)
+        seen_sources.add(candidate["sourceVersion"])
+        if len(artifact_candidates) == artifact_limit:
+            break
+    for candidate in distinct_artifacts:
+        if candidate not in artifact_candidates:
+            artifact_candidates.append(candidate)
+        if len(artifact_candidates) == artifact_limit:
             break
 
     # Replace only non-reserved tail entries, then restore the frozen retrieval order.
@@ -271,7 +284,8 @@ def export(trace: dict, tasks: list[dict], split: str, limit: int,
         "selector": "source-aware-with-artifact-coverage-top8-v1",
         "artifactCoveragePolicy": {
             "appliesToDeclaredMultimodalTasksOnly": True,
-            "reservedDistinctArtifactPages": 3,
+            "reservedDistinctArtifactPages": 4,
+            "prioritizesFirstArtifactPerSource": True,
             "usesEvaluatorGold": False,
         },
         "candidatePoolSize": candidate_pool_size,

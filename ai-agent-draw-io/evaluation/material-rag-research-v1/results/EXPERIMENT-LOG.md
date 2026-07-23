@@ -701,6 +701,19 @@
   两项选择都不读取 task answer、required anchor、XML assertion 或 Validation。
 - **外部使用**:1 次 Pinecone Development trace，临时向量已清理；0 次模型请求、0 model token、
   0 Validation/holdout case。
+
+### R16 trace / R17 artifact-registry preregistration · 2026-07-23 · ⏸ 修复后重跑
+
+- **固定输入**:clean commit `2e74d385`，Development only；所有自动图册任务 40/40，
+  `dgt-dev-20` 28/28。
+- **重试实证**:一个 rewritten query 首次空结果，1 秒后恢复；19/19 完成，临时向量已删除。
+- **artifact gate**:`dgt-dev-02` 的 architecture page 3 原图位于 raw rank 31，但旧 source/page registry
+  未能在 source-diverse reservation 中稳定保留；检查还发现 datacenter、payment、field-audit 冻结原图未注册。
+- **R17 预注册变量**:补齐 5 个 active Development 多模态 source 的 source/page→frozen artifact registry；
+  candidate 最多保留 4 个 distinct artifact，先保证 artifact-bearing source 多样性，再按排名补满。
+  不读取 task 目标源、gold、XML assertions 或 Validation。
+- **外部使用**:1 次 Pinecone Development trace，临时向量已清理；0 次模型请求、0 model token、
+  0 Validation/holdout case。
 - **下一步**:更新 corpus lock 并提交新的 clean commit，从该 commit 重跑 Development trace；旧 R13 trace
   保留为诊断证据，不用于正式 generation。
 

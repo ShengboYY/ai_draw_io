@@ -489,6 +489,24 @@ class ControlledPdfDenseRecallLiveTest {
     }
 
     @Test
+    void shouldExposeFrozenArtifactsForEveryDevelopmentMultimodalSource() {
+        Path root = researchRoot();
+
+        assertEquals("drawio-agent-request-route.png",
+                hydrationArtifact(root, "drawio-agent-architecture:v1", 3).getFileName().toString());
+        assertEquals("drawio-workshop-scan-page-5.jpg",
+                hydrationArtifact(root, "drawio-planning-workshop-scan:v1", 5).getFileName().toString());
+        assertEquals("expansion-datacenter-release-route.png",
+                hydrationArtifact(root, "expansion-datacenter-change:v1", 3).getFileName().toString());
+        assertEquals("scenario-payment-request-route.png",
+                hydrationArtifact(root, "scenario-payment-settlement:v1", 3).getFileName().toString());
+        assertEquals("scenario-payment-settle-sequence.png",
+                hydrationArtifact(root, "scenario-payment-settlement:v1", 4).getFileName().toString());
+        assertEquals("expansion-field-audit-scan-page-4.jpg",
+                hydrationArtifact(root, "expansion-field-audit-scan:v1", 4).getFileName().toString());
+    }
+
+    @Test
     void shouldExportDrawioDevelopmentTaskHydrationFromTheRealMultimodalPipeline() throws Exception {
         String apiKey = System.getenv("PINECONE_API_KEY");
         String indexHost = System.getenv("PINECONE_INDEX_HOST");
@@ -879,6 +897,15 @@ class ControlledPdfDenseRecallLiveTest {
             case "drawio-agent-architecture:v1" -> page == 3 ? "drawio-agent-request-route.png" : null;
             case "drawio-planning-workshop-scan:v1" -> page >= 1 && page <= 6
                     ? "drawio-workshop-scan-page-" + page + ".jpg" : null;
+            case "expansion-datacenter-change:v1" -> page == 3
+                    ? "expansion-datacenter-release-route.png" : null;
+            case "scenario-payment-settlement:v1" -> switch (page) {
+                case 3 -> "scenario-payment-request-route.png";
+                case 4 -> "scenario-payment-settle-sequence.png";
+                default -> null;
+            };
+            case "expansion-field-audit-scan:v1" -> page >= 1 && page <= 5
+                    ? "expansion-field-audit-scan-page-" + page + ".jpg" : null;
             default -> null;
         };
         if (filename == null) return null;
