@@ -11,6 +11,10 @@ final class RetrievalDeadline {
         this.expiresAtNanos = System.nanoTime() + nanos;
     }
 
+    private RetrievalDeadline(long expiresAtNanos) {
+        this.expiresAtNanos = expiresAtNanos;
+    }
+
     static RetrievalDeadline start(Duration budget) {
         if (budget == null || budget.isZero() || budget.isNegative()) {
             throw new IllegalArgumentException("retrieval budget must be positive");
@@ -24,5 +28,12 @@ final class RetrievalDeadline {
 
     long boundedNanos(Duration stageBudget) {
         return Math.min(remainingNanos(), Math.max(1L, stageBudget.toNanos()));
+    }
+
+    RetrievalDeadline extendedBy(Duration stageBudget) {
+        if (stageBudget == null || stageBudget.isZero() || stageBudget.isNegative()) {
+            throw new IllegalArgumentException("stage budget must be positive");
+        }
+        return new RetrievalDeadline(Math.addExact(expiresAtNanos, stageBudget.toNanos()));
     }
 }

@@ -1,5 +1,6 @@
 package org.zipp.ai.domain.retrieval.internal;
 
+import org.zipp.ai.domain.multimodal.*;
 import org.zipp.ai.domain.retrieval.*;
 import org.zipp.ai.domain.retrieval.model.valobj.EmbeddingInputType;
 import org.zipp.ai.domain.retrieval.port.*;
@@ -33,7 +34,9 @@ public final class DefaultEvidencePreparationModule implements EvidencePreparati
     private final ExecutorService ioExecutor;
     private final Duration retrievalTimeout;
     private final Duration hydrationTimeout;
+    private final Duration visualObservationTimeout;
     private final MaterialRetrievalTelemetry telemetry;
+    private final Optional<VisualObservationModule> visualObservations;
     private final CallCircuitBreaker inferenceCircuit = new CallCircuitBreaker(5, Duration.ofSeconds(30));
     private final CallCircuitBreaker vectorCircuit = new CallCircuitBreaker(5, Duration.ofSeconds(30));
 
@@ -45,7 +48,8 @@ public final class DefaultEvidencePreparationModule implements EvidencePreparati
                                             ServerCanvasPort canvases, ExecutorService executor) {
         this(catalog, lexical, embedding, vectors, tenantKeys, leases, blobs, canvases,
                 ForkJoinPool.commonPool(), executor,
-                Duration.ofSeconds(3), Duration.ofMillis(800), MaterialRetrievalTelemetry.NOOP);
+                Duration.ofSeconds(3), Duration.ofMillis(800), MaterialRetrievalTelemetry.NOOP,
+                Optional.empty());
     }
 
     public DefaultEvidencePreparationModule(EvidenceCatalog catalog, RetrievalLexicalIndex lexical,
@@ -58,7 +62,7 @@ public final class DefaultEvidencePreparationModule implements EvidencePreparati
                                             Duration retrievalTimeout, Duration hydrationTimeout) {
         this(catalog, lexical, embedding, vectors, tenantKeys, leases, blobs, canvases,
                 orchestrationExecutor, ioExecutor, retrievalTimeout, hydrationTimeout,
-                MaterialRetrievalTelemetry.NOOP);
+                MaterialRetrievalTelemetry.NOOP, Optional.empty());
     }
 
     public DefaultEvidencePreparationModule(EvidenceCatalog catalog, RetrievalLexicalIndex lexical,
@@ -70,6 +74,37 @@ public final class DefaultEvidencePreparationModule implements EvidencePreparati
                                             ExecutorService ioExecutor,
                                             Duration retrievalTimeout, Duration hydrationTimeout,
                                             MaterialRetrievalTelemetry telemetry) {
+        this(catalog, lexical, embedding, vectors, tenantKeys, leases, blobs, canvases,
+                orchestrationExecutor, ioExecutor, retrievalTimeout, hydrationTimeout, telemetry,
+                Optional.empty());
+    }
+
+    public DefaultEvidencePreparationModule(EvidenceCatalog catalog, RetrievalLexicalIndex lexical,
+                                            Optional<EmbeddingPort> embedding,
+                                            Optional<RetrievalVectorIndex> vectors,
+                                            TenantKeyPort tenantKeys,
+                                            EvidenceReadLeaseCoordinator leases, EvidenceBlobStore blobs,
+                                            ServerCanvasPort canvases, ExecutorService orchestrationExecutor,
+                                            ExecutorService ioExecutor,
+                                            Duration retrievalTimeout, Duration hydrationTimeout,
+                                            MaterialRetrievalTelemetry telemetry,
+                                            Optional<VisualObservationModule> visualObservations) {
+        this(catalog, lexical, embedding, vectors, tenantKeys, leases, blobs, canvases,
+                orchestrationExecutor, ioExecutor, retrievalTimeout, hydrationTimeout, telemetry,
+                visualObservations, Duration.ofSeconds(30));
+    }
+
+    public DefaultEvidencePreparationModule(EvidenceCatalog catalog, RetrievalLexicalIndex lexical,
+                                            Optional<EmbeddingPort> embedding,
+                                            Optional<RetrievalVectorIndex> vectors,
+                                            TenantKeyPort tenantKeys,
+                                            EvidenceReadLeaseCoordinator leases, EvidenceBlobStore blobs,
+                                            ServerCanvasPort canvases, ExecutorService orchestrationExecutor,
+                                            ExecutorService ioExecutor,
+                                            Duration retrievalTimeout, Duration hydrationTimeout,
+                                            MaterialRetrievalTelemetry telemetry,
+                                            Optional<VisualObservationModule> visualObservations,
+                                            Duration visualObservationTimeout) {
         this.catalog = Objects.requireNonNull(catalog, "catalog");
         this.lexical = Objects.requireNonNull(lexical, "lexical");
         this.embedding = Objects.requireNonNull(embedding, "embedding");
@@ -82,7 +117,9 @@ public final class DefaultEvidencePreparationModule implements EvidencePreparati
         this.ioExecutor = Objects.requireNonNull(ioExecutor, "ioExecutor");
         this.retrievalTimeout = positive(retrievalTimeout, "retrievalTimeout");
         this.hydrationTimeout = positive(hydrationTimeout, "hydrationTimeout");
+        this.visualObservationTimeout = positive(visualObservationTimeout, "visualObservationTimeout");
         this.telemetry = Objects.requireNonNull(telemetry, "telemetry");
+        this.visualObservations = Objects.requireNonNull(visualObservations, "visualObservations");
     }
 
     @Override
@@ -172,19 +209,15 @@ public final class DefaultEvidencePreparationModule implements EvidencePreparati
 
             RetrievalRoute route = route(command, sources);
             if (route == RetrievalRoute.NONE) return new PreparationOutcome.NotRequired();
-            if (!shadowOnly && route == RetrievalRoute.HYBRID
-                    && sources.sources().stream().anyMatch(AuthorizedSource::hasVisual)) {
-                // Whole-document/hybrid requests must not silently ignore figures or tables that
-                // require pixels. A later configured VisualEvidenceVerifier may satisfy this gap.
-                return insufficient(command, "VISUAL_VERIFICATION_REQUIRED");
-            }
+            boolean hybridRequiresVisual = route == RetrievalRoute.HYBRID
+                    && sources.sources().stream().anyMatch(AuthorizedSource::hasVisual);
             List<CandidateRef> existing = target.cellIds().isEmpty() ? List.of() : callWithinDeadline(
                     () -> catalog.existingTargetCandidates(command.diagramId(),
                             command.canvasProbe().serverCanvasVersion(), target.cellIds(), sources, 12),
                     deadline, cancellation, resources);
             Set<String> existingChunkIds = existing.stream().map(CandidateRef::chunkId)
                     .collect(java.util.stream.Collectors.toUnmodifiableSet());
-            if (!shadowOnly) {
+            if (!shadowOnly && !hybridRequiresVisual) {
                 PreparationOutcome existingOnly = prepareExistingOnly(command, resolution, sources, route,
                         target, existingChunkIds, resources, progress, cancellation, deadline, new ArrayList<>());
                 if (existingOnly != null) return existingOnly;
@@ -220,18 +253,11 @@ public final class DefaultEvidencePreparationModule implements EvidencePreparati
                 return new PreparationOutcome.ShadowObserved(
                         new RetrievalDiagnostics(route, List.copyOf(diagnostics)), authorized.size());
             }
-            if (authorized.stream().anyMatch(candidate -> "VISUAL".equals(candidate.modality()))) {
-                // Online visual verification is a separate capability. Until a verified visual
-                // fragment is available, retrieval text/captions cannot support visual facts.
-                diagnostics.add("VISUAL_VERIFICATION_UNAVAILABLE");
-                if (route == RetrievalRoute.VISUAL || route == RetrievalRoute.VISUAL_EXACT) {
-                    return insufficient(command, "VISUAL_VERIFICATION_REQUIRED");
-                }
-                authorized = authorized.stream()
-                        .filter(candidate -> !"VISUAL".equals(candidate.modality())).toList();
-                if (authorized.isEmpty()) return insufficient(command, "NO_VERIFIED_DISPLAY_EVIDENCE");
+            List<AuthorizedCandidate> visualCandidates = authorized.stream()
+                    .filter(candidate -> "VISUAL".equals(candidate.modality())).limit(4).toList();
+            if (hybridRequiresVisual && visualCandidates.isEmpty()) {
+                return insufficient(command, "VISUAL_VERIFICATION_REQUIRED");
             }
-
             // Lease only source revisions that survived final MySQL re-authorization. Discovery may
             // inspect a wider set, but unused library material must not gain a read lease.
             Set<String> usedVersions = authorized.stream().map(AuthorizedCandidate::versionId)
@@ -247,10 +273,38 @@ public final class DefaultEvidencePreparationModule implements EvidencePreparati
             }, deadline, cancellation, resources);
             if (cancelled(cancellation, resources)) return new PreparationOutcome.Cancelled();
 
+            RetrievalDeadline completionDeadline = deadline;
+            List<EvidenceBundleItem> visualItems = List.of();
+            if (!visualCandidates.isEmpty()) {
+                long visualStartedNanos = System.nanoTime();
+                VisualProjection projection = observeVisual(command, visualCandidates, route, target,
+                        existingChunkIds, resources, progress, cancellation,
+                        deadline.extendedBy(visualObservationTimeout));
+                // Preserve the pre-visual retrieval remainder without donating unused visual budget
+                // to hydration: only actual visual elapsed time extends the shared deadline.
+                completionDeadline = deadline.extendedBy(Duration.ofNanos(
+                        Math.max(1L, System.nanoTime() - visualStartedNanos)));
+                if (projection.cancelled()) {
+                    resources.closeExactlyOnce(CloseReason.CANCELLED);
+                    return new PreparationOutcome.Cancelled();
+                }
+                if (projection.gap() != null) {
+                    diagnostics.add(projection.gap());
+                    if (route == RetrievalRoute.VISUAL || route == RetrievalRoute.VISUAL_EXACT
+                            || hybridRequiresVisual) {
+                        resources.closeExactlyOnce(CloseReason.FAILED);
+                        return insufficient(command, projection.gap());
+                    }
+                }
+                visualItems = projection.items();
+            }
+            List<AuthorizedCandidate> textCandidates = authorized.stream()
+                    .filter(candidate -> !"VISUAL".equals(candidate.modality())).toList();
             progress.onProgress("HYDRATION", 0, Math.min(HYDRATE_LIMIT, authorized.size()));
-            List<EvidenceBundleItem> items = hydrate(authorized, fusedIds, existingChunkIds,
+            List<EvidenceBundleItem> hydrated = hydrate(textCandidates, fusedIds, existingChunkIds,
                     !target.cellIds().isEmpty(), Set.copyOf(command.declaredVersionIds()),
-                    progress, cancellation, resources, deadline, diagnostics);
+                    progress, cancellation, resources, completionDeadline, diagnostics);
+            List<EvidenceBundleItem> items = combineEvidence(visualItems, hydrated);
             if (items.isEmpty()) {
                 resources.closeExactlyOnce(CloseReason.FAILED);
                 return insufficient(command, "NO_DISPLAY_EVIDENCE");
@@ -565,6 +619,173 @@ public final class DefaultEvidencePreparationModule implements EvidencePreparati
         return List.copyOf(items);
     }
 
+    private VisualProjection observeVisual(EvidencePreparationCommand command,
+                                           List<AuthorizedCandidate> candidates,
+                                           RetrievalRoute route,
+                                           TargetResolution target,
+                                           Set<String> existingChunkIds,
+                                           RunResourceDomain resources,
+                                           EvidenceProgressListener progress,
+                                           CancellationSignal cancellation,
+                                           RetrievalDeadline deadline) {
+        if (visualObservations.isEmpty()) {
+            return VisualProjection.gap("VISUAL_VERIFICATION_UNAVAILABLE");
+        }
+        List<VisualObservationTarget> observationTargets = candidates.stream().map(candidate ->
+                new VisualObservationTarget(candidate.evidenceId(), candidate.materialId(),
+                        candidate.versionId(), candidate.revisionId(), candidate.pageNumber(),
+                        candidate.sourceLabel(), candidate.displayArtifact())).toList();
+        VisualObservationCommand observationCommand = new VisualObservationCommand(
+                command.owner(), command.requestId(), command.runId(),
+                VisualObservationPurpose.FACT_VERIFICATION,
+                visualQuestion(command.userMessage()), observationTargets, 16);
+        VisualObservationOutcome outcome;
+        try {
+            progress.onProgress("VISUAL_OBSERVATION", 0, 1);
+            CompletionStage<VisualObservationOutcome> stage =
+                    visualObservations.get().observe(observationCommand, resources, cancellation);
+            if (stage == null) return VisualProjection.gap("VISUAL_PROVIDER_UNAVAILABLE");
+            outcome = awaitVisual(stage, resources, cancellation, deadline);
+            progress.onProgress("VISUAL_OBSERVATION", 1, 1);
+        } catch (RuntimeException providerFailure) {
+            return VisualProjection.gap("VISUAL_PROVIDER_UNAVAILABLE");
+        }
+        if (outcome instanceof VisualObservationOutcome.Cancelled) return VisualProjection.cancelledResult();
+        if (outcome instanceof VisualObservationOutcome.Gap) {
+            // Provider text is never exposed as a source_gap; only stable server-owned codes cross the boundary.
+            return VisualProjection.gap("VISUAL_OBSERVATION_GAP");
+        }
+        if (outcome instanceof VisualObservationOutcome.Rejected) {
+            return VisualProjection.gap("VISUAL_INPUT_REJECTED");
+        }
+        if (outcome instanceof VisualObservationOutcome.Unavailable unavailable) {
+            return VisualProjection.gap(safeUnavailableGap(unavailable.reason()));
+        }
+        Map<String, AuthorizedCandidate> anchors = new HashMap<>();
+        candidates.forEach(candidate -> anchors.put(candidate.evidenceId(), candidate));
+        int visualLimit = route == RetrievalRoute.VISUAL || route == RetrievalRoute.VISUAL_EXACT
+                ? BUNDLE_ITEM_LIMIT : 3;
+        List<EvidenceBundleItem> items = projectVisualItems(
+                ((VisualObservationOutcome.Verified) outcome).observations(), anchors,
+                command, existingChunkIds, !target.cellIds().isEmpty(), visualLimit);
+        return items.isEmpty() ? VisualProjection.gap("NO_VERIFIED_DISPLAY_EVIDENCE")
+                : VisualProjection.ready(items);
+    }
+
+    private String visualQuestion(String userMessage) {
+        // Canvas labels are mutable user data and are intentionally excluded from the model instruction.
+        String question = userMessage == null ? "" : userMessage.trim();
+        return question.length() <= 2_000 ? question : question.substring(0, 2_000);
+    }
+
+    private VisualObservationOutcome awaitVisual(CompletionStage<VisualObservationOutcome> stage,
+                                                 RunResourceDomain resources,
+                                                 CancellationSignal cancellation,
+                                                 RetrievalDeadline deadline) {
+        CompletableFuture<VisualObservationOutcome> future = stage.toCompletableFuture();
+        try {
+            while (true) {
+                if (cancelled(cancellation, resources)) {
+                    future.cancel(true);
+                    return new VisualObservationOutcome.Cancelled();
+                }
+                long remaining = deadline.remainingNanos();
+                if (remaining <= 0L) {
+                    future.cancel(true);
+                    // Closing the run propagates interruption to the visual provider task.
+                    resources.closeExactlyOnce(CloseReason.FAILED);
+                    return new VisualObservationOutcome.Unavailable("VISUAL_PROVIDER_TIMEOUT");
+                }
+                try {
+                    return future.get(Math.min(remaining, TimeUnit.MILLISECONDS.toNanos(50)),
+                            TimeUnit.NANOSECONDS);
+                } catch (TimeoutException polling) {
+                    // Polling preserves cancellation and the preparation module's monotonic deadline.
+                }
+            }
+        } catch (InterruptedException interrupted) {
+            future.cancel(true);
+            Thread.currentThread().interrupt();
+            return new VisualObservationOutcome.Cancelled();
+        } catch (ExecutionException failed) {
+            return new VisualObservationOutcome.Unavailable("VISUAL_PROVIDER_UNAVAILABLE");
+        }
+    }
+
+    private String safeUnavailableGap(String reason) {
+        return "VISUAL_PROVIDER_TIMEOUT".equals(reason)
+                ? "VISUAL_PROVIDER_TIMEOUT" : "VISUAL_PROVIDER_UNAVAILABLE";
+    }
+
+    private List<EvidenceBundleItem> projectVisualItems(
+            List<VerifiedObservation> observations,
+            Map<String, AuthorizedCandidate> anchors,
+            EvidencePreparationCommand command,
+            Set<String> existingChunkIds,
+            boolean hasTarget,
+            int limit) {
+        List<EvidenceBundleItem> items = new ArrayList<>();
+        Set<String> unique = new HashSet<>();
+        Map<String, Integer> evidenceCounts = new HashMap<>();
+        Map<String, Integer> materialCounts = new HashMap<>();
+        for (VerifiedObservation observation : observations) {
+            if (items.size() == limit) break;
+            AuthorizedCandidate candidate = anchors.get(observation.evidenceId());
+            if (candidate == null) continue;
+            String identity = observation.evidenceId() + "|" + observation.kind() + "|"
+                    + observation.text() + "|" + observation.direction() + "|" + observation.bounds();
+            if (!unique.add(identity)
+                    || evidenceCounts.getOrDefault(candidate.evidenceId(), 0) >= 3
+                    || materialCounts.getOrDefault(candidate.materialId(), 0) >= 4) {
+                continue;
+            }
+            items.add(visualItem(observation, candidate, command, existingChunkIds, hasTarget));
+            evidenceCounts.merge(candidate.evidenceId(), 1, Integer::sum);
+            materialCounts.merge(candidate.materialId(), 1, Integer::sum);
+        }
+        return List.copyOf(items);
+    }
+
+    private EvidenceBundleItem visualItem(VerifiedObservation observation, AuthorizedCandidate candidate,
+                                          EvidencePreparationCommand command,
+                                          Set<String> existingChunkIds, boolean hasTarget) {
+        String bounds = String.format(Locale.ROOT, "%.4f,%.4f,%.4f,%.4f",
+                observation.bounds().x(), observation.bounds().y(),
+                observation.bounds().width(), observation.bounds().height());
+        String text = "[" + observation.kind().name() + "] " + observation.text()
+                + (observation.direction().isBlank() ? "" : " direction=" + observation.direction())
+                + " bounds=" + bounds;
+        EvidenceOrigin origin = existingChunkIds.contains(candidate.chunkId())
+                ? EvidenceOrigin.EXISTING_REFERENCE
+                : command.declaredVersionIds().contains(candidate.versionId())
+                        ? EvidenceOrigin.EXPLICIT
+                        : hasTarget ? EvidenceOrigin.SUPPLEMENTAL : EvidenceOrigin.SEARCH;
+        return new EvidenceBundleItem("", candidate.evidenceId(), candidate.materialId(),
+                candidate.versionId(), candidate.revisionId(), candidate.sourceLabel(),
+                candidate.pageNumber(), "VISUAL", text, EvidenceSupportRole.SUPPORT, origin);
+    }
+
+    private List<EvidenceBundleItem> combineEvidence(List<EvidenceBundleItem> visual,
+                                                    List<EvidenceBundleItem> text) {
+        List<EvidenceBundleItem> combined = new ArrayList<>();
+        combined.addAll(visual);
+        combined.addAll(text);
+        List<EvidenceBundleItem> bounded = new ArrayList<>();
+        int characters = 0;
+        for (EvidenceBundleItem item : combined) {
+            if (bounded.size() == BUNDLE_ITEM_LIMIT || characters == BUNDLE_CHAR_LIMIT) break;
+            int remaining = BUNDLE_CHAR_LIMIT - characters;
+            String textValue = item.text() == null ? "" : item.text();
+            String boundedText = textValue.length() <= remaining
+                    ? textValue : textValue.substring(0, remaining);
+            bounded.add(new EvidenceBundleItem("cite_" + (bounded.size() + 1), item.evidenceId(),
+                    item.materialId(), item.versionId(), item.revisionId(), item.sourceLabel(),
+                    item.pageNumber(), item.modality(), boundedText, item.supportRole(), item.origin()));
+            characters += boundedText.length();
+        }
+        return List.copyOf(bounded);
+    }
+
     private PreparationOutcome insufficient(EvidencePreparationCommand command, String gap) {
         return new PreparationOutcome.InsufficientEvidence(List.of(gap));
     }
@@ -658,6 +879,21 @@ public final class DefaultEvidencePreparationModule implements EvidencePreparati
     }
 
     private record ScoredChunk(String chunkId, double score) { }
+
+    private record VisualProjection(List<EvidenceBundleItem> items, String gap, boolean cancelled) {
+        private VisualProjection {
+            items = List.copyOf(items == null ? List.of() : items);
+        }
+        static VisualProjection ready(List<EvidenceBundleItem> items) {
+            return new VisualProjection(items, null, false);
+        }
+        static VisualProjection gap(String gap) {
+            return new VisualProjection(List.of(), gap, false);
+        }
+        static VisualProjection cancelledResult() {
+            return new VisualProjection(List.of(), null, true);
+        }
+    }
 
     private record TargetResolution(PreparationOutcome stop, List<EvidenceTarget> targets) {
         private TargetResolution {

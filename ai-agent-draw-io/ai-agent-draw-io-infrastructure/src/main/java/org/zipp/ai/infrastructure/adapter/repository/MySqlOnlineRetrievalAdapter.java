@@ -106,9 +106,13 @@ public class MySqlOnlineRetrievalAdapter implements EvidenceCatalog, RetrievalLe
     }
 
     private AuthorizedCandidate authorized(OnlineCandidatePO row) {
-        StoredArtifact artifact = new StoredArtifact(row.getRetrievalTextObjectKey(),
-                row.getRetrievalTextObjectVersionId(), row.getRetrievalTextSha256(),
-                row.getRetrievalTextByteSize(), row.getRetrievalTextContentType());
+        // Visual candidates must carry the exact immutable crop, not their retrieval description.
+        StoredArtifact artifact = "VISUAL".equals(row.getModality())
+                ? new StoredArtifact(row.getVisualObjectKey(), row.getVisualObjectVersionId(),
+                        row.getVisualContentSha256(), row.getVisualByteSize(), row.getVisualContentType())
+                : new StoredArtifact(row.getRetrievalTextObjectKey(),
+                        row.getRetrievalTextObjectVersionId(), row.getRetrievalTextSha256(),
+                        row.getRetrievalTextByteSize(), row.getRetrievalTextContentType());
         return new AuthorizedCandidate(row.getChunkId(), row.getEvidenceId(), row.getMaterialId(),
                 row.getVersionId(), row.getRevisionId(), row.getModality(), row.getPageNumber(),
                 row.getQualityScore(), artifact, row.getSourceLabel());

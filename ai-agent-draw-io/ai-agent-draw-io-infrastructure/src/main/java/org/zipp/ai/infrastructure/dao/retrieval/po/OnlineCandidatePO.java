@@ -19,5 +19,10 @@ public class OnlineCandidatePO {
     private String retrievalTextSha256;
     private long retrievalTextByteSize;
     private String retrievalTextContentType;
+    private String visualObjectKey;
+    private String visualObjectVersionId;
+    private String visualContentSha256;
+    private long visualByteSize;
+    private String visualContentType;
     private String sourceLabel;
 }

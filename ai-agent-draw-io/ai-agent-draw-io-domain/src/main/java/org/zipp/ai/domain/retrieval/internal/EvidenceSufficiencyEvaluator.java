@@ -19,7 +19,8 @@ final class EvidenceSufficiencyEvaluator {
     Result evaluate(String request, RetrievalRoute route, List<EvidenceBundleItem> items) {
         if (items == null || items.isEmpty()) return Result.unsupported("NO_DISPLAY_EVIDENCE");
         if (route == RetrievalRoute.VISUAL || route == RetrievalRoute.VISUAL_EXACT) {
-            return Result.unsupported("VISUAL_VERIFICATION_REQUIRED");
+            return items.stream().anyMatch(item -> "VISUAL".equals(item.modality()))
+                    ? Result.supported() : Result.unsupported("VISUAL_VERIFICATION_REQUIRED");
         }
         String evidence = normalize(items.stream().map(EvidenceBundleItem::text)
                 .filter(Objects::nonNull).reduce("", (left, right) -> left + " " + right));

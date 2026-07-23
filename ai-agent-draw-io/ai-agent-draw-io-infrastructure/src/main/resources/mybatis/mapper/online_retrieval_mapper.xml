@@ -164,7 +164,13 @@
                chunk.modality, page.page_no AS page_number, chunk.quality_score,
                chunk.retrieval_text_object_key, chunk.retrieval_text_object_version_id,
                chunk.retrieval_text_sha256, chunk.retrieval_text_byte_size,
-               chunk.retrieval_text_content_type, material.display_name AS source_label
+               chunk.retrieval_text_content_type,
+               visual.object_key AS visual_object_key,
+               visual.object_version_id AS visual_object_version_id,
+               visual.content_sha256 AS visual_content_sha256,
+               visual.byte_size AS visual_byte_size,
+               visual.content_type AS visual_content_type,
+               material.display_name AS source_label
         FROM retrieval_chunk chunk
         JOIN retrieval_search_document doc ON doc.retrieval_chunk_id = chunk.id
         JOIN material material ON material.id = doc.material_id
@@ -176,6 +182,9 @@
         JOIN evidence_unit evidence ON evidence.id = mapping.evidence_id
              AND evidence.version_id = mv.id AND evidence.revision_id = mr.id
              AND evidence.status = 'ACTIVE'
+        LEFT JOIN material_visual_artifact visual ON visual.revision_id = mr.id
+             AND visual.object_key = evidence.visual_object_key
+             AND visual.object_version_id = evidence.visual_object_version_id
         LEFT JOIN material_page page ON page.id = evidence.page_id AND page.revision_id = mr.id
         WHERE chunk.id IN
             <foreach collection="chunkIds" item="id" open="(" separator="," close=")">#{id}</foreach>
@@ -185,8 +194,11 @@
           AND (material.retention_class = 'RETAINED' OR material.expires_at &gt; UTC_TIMESTAMP(3))
           AND mr.state = 'READY' AND doc.status = 'ACTIVE'
           AND chunk.status = 'ACTIVE' AND chunk.citable = TRUE
-          AND chunk.retrieval_text_byte_size IS NOT NULL
-          AND chunk.retrieval_text_content_type IS NOT NULL
+          AND ((chunk.modality = 'VISUAL'
+                AND visual.byte_size IS NOT NULL AND visual.content_type LIKE 'image/%')
+            OR (chunk.modality &lt;&gt; 'VISUAL'
+                AND chunk.retrieval_text_byte_size IS NOT NULL
+                AND chunk.retrieval_text_content_type IS NOT NULL))
           AND (page.page_no IS NULL OR NOT JSON_CONTAINS(
                 COALESCE(mr.excluded_pages_json, JSON_ARRAY()), CAST(page.page_no AS JSON)))
           AND (

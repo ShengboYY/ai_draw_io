@@ -198,6 +198,7 @@ public class MaterialRagConfig {
                                                                RetrievalLexicalIndex lexical,
                                                                ObjectProvider<EmbeddingPort> embeddings,
                                                                ObjectProvider<RetrievalVectorIndex> vectors,
+                                                               ObjectProvider<VisualObservationModule> visualObservations,
                                                                ObjectProvider<TenantKeyPort> tenantKeys,
                                                                EvidenceReadLeaseCoordinator leases,
                                                                EvidenceBlobStore blobs,
@@ -206,7 +207,8 @@ public class MaterialRagConfig {
                                                                @Qualifier("materialRagIoExecutor") ExecutorService ioExecutor,
                                                                ObjectProvider<MaterialRetrievalTelemetry> telemetry,
                                                                @Value("${app.material-rag.retrieval-timeout-ms:3000}") long retrievalTimeoutMs,
-                                                               @Value("${app.material-rag.hydration-timeout-ms:800}") long hydrationTimeoutMs) {
+                                                               @Value("${app.material-rag.hydration-timeout-ms:800}") long hydrationTimeoutMs,
+                                                               @Value("${app.material-visual-observation.timeout-ms:30000}") long visualTimeoutMs) {
         TenantKeyPort tenantKey = tenantKeys.getIfAvailable(() -> (ownerType, ownerKey) -> {
             throw new IllegalStateException("dense retrieval is disabled");
         });
@@ -214,7 +216,9 @@ public class MaterialRagConfig {
                 Optional.ofNullable(embeddings.getIfAvailable()), Optional.ofNullable(vectors.getIfAvailable()),
                 tenantKey, leases, blobs, canvases, orchestrationExecutor, ioExecutor,
                 Duration.ofMillis(retrievalTimeoutMs), Duration.ofMillis(hydrationTimeoutMs),
-                telemetry.getIfAvailable(() -> MaterialRetrievalTelemetry.NOOP));
+                telemetry.getIfAvailable(() -> MaterialRetrievalTelemetry.NOOP),
+                Optional.ofNullable(visualObservations.getIfAvailable()),
+                Duration.ofMillis(visualTimeoutMs));
     }
 
     @Configuration
