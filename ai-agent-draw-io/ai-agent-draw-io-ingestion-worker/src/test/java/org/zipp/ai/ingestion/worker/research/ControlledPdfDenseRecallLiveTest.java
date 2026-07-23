@@ -225,17 +225,30 @@ class ControlledPdfDenseRecallLiveTest {
                 });
 
         assertEquals(Set.of(3), ocrPageNumbers);
-        assertTrue(projection.chunks().stream().anyMatch(chunk -> chunk.modality() == EvidenceModality.VISUAL
+        RetrievalChunkProjection visual = projection.chunks().stream().filter(chunk -> chunk.modality() == EvidenceModality.VISUAL
                 && pageNo(chunk.pageId()) == 3 && chunk.indexMode() == RetrievalIndexMode.DENSE_AND_LEXICAL
                 && chunk.retrievalText().contains(
-                "Figure 2. Evidence-to-canvas request route for an editable draw.io flow.")));
+                "Figure 2. Evidence-to-canvas request route for an editable draw.io flow.")).findFirst().orElseThrow();
         assertTrue(projection.chunks().stream().anyMatch(chunk -> chunk.modality() == EvidenceModality.TEXT
                 && pageNo(chunk.pageId()) == 3 && chunk.indexMode() == RetrievalIndexMode.DENSE_AND_LEXICAL
                 && chunk.retrievalText().contains(
                 "EVIDENCE")));
-        assertTrue(projection.chunks().stream().anyMatch(chunk -> chunk.chunkType() == RetrievalChunkType.PAGE_PARENT
+        RetrievalChunkProjection pageParent = projection.chunks().stream().filter(chunk -> chunk.chunkType() == RetrievalChunkType.PAGE_PARENT
                 && pageNo(chunk.pageId()) == 3 && chunk.citable()
-                && chunk.indexMode() == RetrievalIndexMode.LEXICAL_ONLY));
+                && chunk.indexMode() == RetrievalIndexMode.LEXICAL_ONLY).findFirst().orElseThrow();
+
+        Map<String, IndexedChunk> denseByChunkId = Map.of(visual.chunkId(),
+                new IndexedChunk("dense:" + visual.chunkId(), "drawio-agent-architecture:v1", visual, ""));
+        Map<String, IndexedChunk> searchableByChunkId = searchableChunksByChunkId(new ProjectionSet(Map.of(
+                "drawio-agent-architecture:v1", projection)));
+        List<CandidateResult> hydrated = candidateResultsByChunkIds(
+                List.of(pageParent.chunkId(), visual.chunkId()), searchableByChunkId, denseByChunkId);
+        assertEquals(List.of(pageParent.chunkId(), visual.chunkId()), hydrated.stream()
+                .map(CandidateResult::chunkId).toList());
+        assertEquals("drawio-agent-architecture:v1", hydrated.get(0).sourceVersion());
+        assertEquals(pageParent.pageId(), hydrated.get(0).pageId());
+        assertTrue(hydrated.get(0).vectorId().startsWith("lexical:"));
+        assertEquals("dense:" + visual.chunkId(), hydrated.get(1).vectorId());
     }
 
     private RetrievalChunkProjection chunkWithParentContext(String parentContext) {
@@ -1084,19 +1097,17 @@ class ControlledPdfDenseRecallLiveTest {
             // Preserve the exact dedup input so the paired postprocess comparison is replayable.
             List<CandidateResult> densePoolCandidates = candidateResults(densePool, indexedByVectorId);
             List<CandidateResult> lexicalCandidates = candidateResultsByChunkIds(
-                    lexicalChunkIds, searchableByChunkId);
+                    lexicalChunkIds, searchableByChunkId, indexedByChunkId);
             CaseRank originalRank = caseRank(researchCase, denseMatches, requiredGoldVectorIds,
                     fixedGoldChunkIdsByAnchor, indexedByVectorId, denseCandidates, lexicalCandidates,
                     densePoolCandidates);
             originalRanks.add(originalRank);
-            // Hybrid metrics are defined over Pinecone vector IDs. Lexical-only chunks remain exported
-            // through lexicalCandidates, but cannot be scored as dense matches because they have no vector.
-            List<String> hybridMatches = hybridChunkIds.stream().map(indexedByChunkId::get)
-                    .filter(java.util.Objects::nonNull)
-                    .map(IndexedChunk::vectorId).toList();
-            ranksByMode.get(RetrievalMode.HYBRID_PROJECTION_RRF).add(caseRank(
-                    researchCase, hybridMatches, requiredGoldVectorIds, fixedGoldChunkIdsByAnchor,
-                    indexedByVectorId, denseCandidates, lexicalCandidates, densePoolCandidates));
+            // RRF keeps lexical-only parents in their ranked position without treating them as Pinecone vectors.
+            List<CandidateResult> hybridCandidates = candidateResultsByChunkIds(
+                    hybridChunkIds, searchableByChunkId, indexedByChunkId);
+            ranksByMode.get(RetrievalMode.HYBRID_PROJECTION_RRF).add(caseRankWithCandidates(
+                    researchCase, hybridCandidates, requiredGoldVectorIds, fixedGoldChunkIdsByAnchor,
+                    denseCandidates, lexicalCandidates, densePoolCandidates));
             List<CandidateResult> rewrittenCandidates = candidateResults(
                     rewrittenMatches, indexedByVectorId);
             List<CandidateResult> rewrittenPoolCandidates = candidateResults(
@@ -1191,10 +1202,22 @@ class ControlledPdfDenseRecallLiveTest {
                               List<CandidateResult> denseCandidates,
                               List<CandidateResult> lexicalCandidates,
                               List<CandidateResult> retrievalPoolCandidates) {
+        return caseRankWithCandidates(researchCase, candidateResults(matches, indexedByVectorId),
+                requiredGoldVectorIds, fixedGoldChunkIdsByAnchor, denseCandidates, lexicalCandidates,
+                retrievalPoolCandidates);
+    }
+
+    private CaseRank caseRankWithCandidates(ResearchCase researchCase, List<CandidateResult> candidates,
+                                             Map<String, Set<String>> requiredGoldVectorIds,
+                                             Map<String, List<String>> fixedGoldChunkIdsByAnchor,
+                                             List<CandidateResult> denseCandidates,
+                                             List<CandidateResult> lexicalCandidates,
+                                             List<CandidateResult> retrievalPoolCandidates) {
         return new CaseRank(researchCase, completeEvidenceRank(
-                matches, researchCase.requiredEvidenceGroups(), requiredGoldVectorIds),
+                candidates.stream().map(CandidateResult::vectorId).toList(),
+                researchCase.requiredEvidenceGroups(), requiredGoldVectorIds),
                 isMappable(researchCase.requiredEvidenceGroups(), requiredGoldVectorIds),
-                Map.copyOf(fixedGoldChunkIdsByAnchor), candidateResults(matches, indexedByVectorId),
+                Map.copyOf(fixedGoldChunkIdsByAnchor), candidates,
                 denseCandidates, lexicalCandidates, retrievalPoolCandidates);
     }
 
@@ -1253,11 +1276,12 @@ class ControlledPdfDenseRecallLiveTest {
     }
 
     private List<CandidateResult> candidateResultsByChunkIds(List<String> chunkIds,
-                                                               Map<String, IndexedChunk> searchableByChunkId) {
+                                                               Map<String, IndexedChunk> searchableByChunkId,
+                                                               Map<String, IndexedChunk> denseByChunkId) {
         List<CandidateResult> candidates = new ArrayList<>();
         for (int index = 0; index < chunkIds.size(); index++) {
             String chunkId = chunkIds.get(index);
-            IndexedChunk candidate = searchableByChunkId.get(chunkId);
+            IndexedChunk candidate = denseByChunkId.getOrDefault(chunkId, searchableByChunkId.get(chunkId));
             candidates.add(candidateResult(index + 1,
                     candidate == null ? "lexical:" + chunkId : candidate.vectorId(), candidate));
         }
