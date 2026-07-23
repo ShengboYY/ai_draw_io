@@ -70,9 +70,10 @@ class ChatVisionModelPortAdapterTest {
                    "groupId":"","evidenceId":"E1","confidence":0.96},
                   {"id":"b","label":"B","shape":"ELLIPSE",
                    "bounds":{"x":0.6,"y":0.2,"width":0.2,"height":0.1},
-                   "groupId":"","evidenceId":"E1","confidence":0.97}],
+                  "groupId":"","evidenceId":"E1","confidence":0.97}],
                   "edges":[{"id":"a-to-b","sourceId":"a","targetId":"b","label":"",
-                   "direction":"FORWARD","waypoints":[],"evidenceId":"E1","confidence":0.92}],
+                   "direction":"FORWARD","lineStyle":"SOLID","waypoints":[],
+                   "evidenceId":"E1","confidence":0.92}],
                   "groups":[],"unresolvedItems":[]},"gaps":[]}
                 """);
         VisionModelPort adapter = new ChatVisionModelPortAdapter(chat, new ObjectMapper(), "agent-visual");

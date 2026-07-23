@@ -240,7 +240,6 @@ public final class CitationGuard {
         String term = normalizeDisplay(label);
         String display = normalizeDisplay(statement);
         if (term.isBlank()) return false;
-        if (term.matches("\\p{IsHan}")) return display.contains(term);
         return Pattern.compile("(^|\\s)" + Pattern.quote(term) + "($|\\s)")
                 .matcher(display).find();
     }

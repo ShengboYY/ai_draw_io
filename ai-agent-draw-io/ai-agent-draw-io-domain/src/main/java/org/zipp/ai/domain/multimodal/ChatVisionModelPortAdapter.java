@@ -23,10 +23,12 @@ public final class ChatVisionModelPortAdapter implements VisionModelPort {
     private static final Set<String> NODE_FIELDS =
             Set.of("id", "label", "shape", "bounds", "groupId", "evidenceId", "confidence");
     private static final Set<String> EDGE_FIELDS = Set.of("id", "sourceId", "targetId", "label",
-            "direction", "waypoints", "evidenceId", "confidence");
+            "direction", "lineStyle", "waypoints", "evidenceId", "confidence");
     private static final Set<String> GROUP_FIELDS =
-            Set.of("id", "label", "bounds", "evidenceId", "confidence");
+            Set.of("id", "label", "kind", "bounds", "evidenceId", "confidence");
     private static final Set<String> POINT_FIELDS = Set.of("x", "y");
+    private static final Set<String> UNRESOLVED_FIELDS =
+            Set.of("region", "reason", "suggestedConfirmation");
 
     private final IChatService chat;
     private final ObjectMapper mapper;
@@ -125,9 +127,11 @@ public final class ChatVisionModelPortAdapter implements VisionModelPort {
                 + "exactly nodes, edges, groups, unresolvedItems. Every node contains id,label,shape"
                 + "(RECTANGLE|ROUNDED_RECTANGLE|ELLIPSE|DIAMOND|CYLINDER|ACTOR),bounds,groupId,evidenceId,"
                 + "confidence. Every edge contains id,sourceId,targetId,label,direction"
-                + "(FORWARD|REVERSE|BIDIRECTIONAL|NONE),waypoints,evidenceId,confidence. Every group contains "
-                + "id,label,bounds,evidenceId,confidence. Bounds and waypoint coordinates are normalized 0..1. "
-                + "Do not infer a relationship when an endpoint is unclear; add a short unresolvedItems code. "
+                + "(FORWARD|REVERSE|BIDIRECTIONAL|NONE),lineStyle(SOLID|DASHED|DOTTED),waypoints,"
+                + "evidenceId,confidence. Every group contains id,label,kind(GROUP|SWIMLANE|CONTAINER),"
+                + "bounds,evidenceId,confidence. Every unresolved item contains region,reason,"
+                + "suggestedConfirmation. Bounds and waypoint coordinates are normalized 0..1. "
+                + "Do not infer a relationship when an endpoint is unclear; add an unresolved item. "
                 + "Use only this evidenceId anchor: " + anchors
                 + "; maximum elements per category=" + request.maximumObservations()
                 + "; question=" + request.question().replaceAll("[\\r\\n]", " ");
@@ -170,6 +174,8 @@ public final class ChatVisionModelPortAdapter implements VisionModelPort {
                     text(edge, "label", 1_000, true),
                     ObservedDiagramGraph.EdgeDirection.valueOf(
                             text(edge, "direction", 32, false)),
+                    ObservedDiagramGraph.LineStyle.valueOf(
+                            text(edge, "lineStyle", 32, false)),
                     parsedPoints,
                     text(edge, "evidenceId", 128, false),
                     number(edge, "confidence")));
@@ -180,11 +186,19 @@ public final class ChatVisionModelPortAdapter implements VisionModelPort {
             parsedGroups.add(new ObservedDiagramGraph.Group(
                     text(group, "id", 128, false),
                     text(group, "label", 1_000, false),
+                    ObservedDiagramGraph.GroupKind.valueOf(text(group, "kind", 32, false)),
                     bounds(group.path("bounds")),
                     text(group, "evidenceId", 128, false),
                     number(group, "confidence")));
         });
-        List<String> unresolvedItems = textArray(unresolved, 128);
+        List<ObservedDiagramGraph.UnresolvedItem> unresolvedItems = new ArrayList<>();
+        unresolved.forEach(item -> {
+            requireFields(item, UNRESOLVED_FIELDS);
+            unresolvedItems.add(new ObservedDiagramGraph.UnresolvedItem(
+                    bounds(item.path("region")),
+                    text(item, "reason", 128, false),
+                    text(item, "suggestedConfirmation", 240, false)));
+        });
         List<String> gaps = textArray(array(root, "gaps", 16), 128);
         return new Response(List.of(), new ObservedDiagramGraph(
                 parsedNodes, parsedEdges, parsedGroups, unresolvedItems), gaps);

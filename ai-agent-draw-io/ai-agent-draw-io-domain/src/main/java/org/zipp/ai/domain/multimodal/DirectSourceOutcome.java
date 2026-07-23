@@ -5,6 +5,7 @@ import org.zipp.ai.domain.grounding.EvidenceAccessContext;
 
 import java.util.List;
 
+/** Prepared is commit-ready; confirmation and rejection never contain a canvas candidate. */
 public sealed interface DirectSourceOutcome {
     record Prepared(ObservedDiagramGraph graph, String mxGraphModelXml,
                     List<String> cellIds, EvidenceAccessContext evidenceAccess,

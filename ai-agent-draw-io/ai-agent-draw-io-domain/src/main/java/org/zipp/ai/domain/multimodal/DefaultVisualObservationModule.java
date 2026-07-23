@@ -82,6 +82,14 @@ public final class DefaultVisualObservationModule implements VisualObservationMo
             if (stopped(resources, signal)) return new VisualObservationOutcome.Cancelled();
             Set<String> allowedEvidence = new HashSet<>(
                     command.targets().stream().map(VisualObservationTarget::evidenceId).toList());
+            if (command.purpose() == VisualObservationPurpose.DIAGRAM_RECONSTRUCTION) {
+                if (!response.gaps().isEmpty()) return new VisualObservationOutcome.Gap(response.gaps());
+                ObservedDiagramGraph graph = response.diagramGraph();
+                if (graph == null || !hasOnlyAllowedEvidence(graph, allowedEvidence)) {
+                    return new VisualObservationOutcome.Rejected("INVALID_DIAGRAM_EVIDENCE_ANCHOR");
+                }
+                return new VisualObservationOutcome.DiagramVerified(graph);
+            }
             List<VerifiedObservation> verified = response.observations().stream()
                     .filter(observation -> allowedEvidence.contains(observation.evidenceId()))
                     .filter(observation -> observation.confidence() >= MIN_CONFIDENCE)
@@ -104,5 +112,11 @@ public final class DefaultVisualObservationModule implements VisualObservationMo
 
     private boolean stopped(RunResourceDomain resources, CancellationSignal signal) {
         return resources.isClosed() || signal.isCancelled() || Thread.currentThread().isInterrupted();
+    }
+
+    private boolean hasOnlyAllowedEvidence(ObservedDiagramGraph graph, Set<String> allowedEvidence) {
+        return graph.nodes().stream().allMatch(node -> allowedEvidence.contains(node.evidenceId()))
+                && graph.edges().stream().allMatch(edge -> allowedEvidence.contains(edge.evidenceId()))
+                && graph.groups().stream().allMatch(group -> allowedEvidence.contains(group.evidenceId()));
     }
 }

@@ -19,40 +19,18 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.ForkJoinPool;
-import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
 
 /**
  * Prepares a single image directly. It intentionally has no retrieval or index dependency.
  */
 public final class DefaultDirectSourcePreparationModule implements DirectSourcePreparationModule {
-    private static final long MAX_IMAGE_BYTES = 8L * 1024 * 1024;
-
-    private final VisualArtifactReaderPort artifacts;
-    private final VisionModelPort model;
+    private final VisualObservationModule observations;
     private final ImageToDiagramModule converter;
-    private final ExecutorService executor;
-    private final long timeoutMillis;
 
-    public DefaultDirectSourcePreparationModule(VisualArtifactReaderPort artifacts,
-                                                VisionModelPort model,
+    public DefaultDirectSourcePreparationModule(VisualObservationModule observations,
                                                 ImageToDiagramModule converter) {
-        this(artifacts, model, converter, ForkJoinPool.commonPool(), 30_000);
-    }
-
-    public DefaultDirectSourcePreparationModule(VisualArtifactReaderPort artifacts,
-                                                VisionModelPort model,
-                                                ImageToDiagramModule converter,
-                                                ExecutorService executor,
-                                                long timeoutMillis) {
-        this.artifacts = Objects.requireNonNull(artifacts, "artifacts");
-        this.model = Objects.requireNonNull(model, "model");
+        this.observations = Objects.requireNonNull(observations, "observations");
         this.converter = Objects.requireNonNull(converter, "converter");
-        this.executor = Objects.requireNonNull(executor, "executor");
-        if (timeoutMillis < 1) throw new IllegalArgumentException("timeoutMillis must be positive");
-        this.timeoutMillis = timeoutMillis;
     }
 
     @Override
@@ -67,47 +45,38 @@ public final class DefaultDirectSourcePreparationModule implements DirectSourceP
         if (stopped(resources, signal)) {
             return CompletableFuture.completedFuture(new DirectSourceOutcome.Cancelled());
         }
-
-        CompletableFuture<DirectSourceOutcome> result = new CompletableFuture<>();
-        Future<?> task = executor.submit(() ->
-                result.complete(prepareNow(command, resources, listener, signal)));
-        // The run owns interruption of the potentially blocking visual provider call.
-        resources.attach(() -> task.cancel(true));
-        CompletableFuture.delayedExecutor(timeoutMillis, TimeUnit.MILLISECONDS).execute(() -> {
-            if (result.complete(new DirectSourceOutcome.Unavailable("DIRECT_VISUAL_PROVIDER_UNAVAILABLE"))) {
-                task.cancel(true);
-            }
-        });
-        return result;
+        VisualObservationCommand observationCommand = new VisualObservationCommand(
+                command.owner(), command.requestId(), command.runId(),
+                VisualObservationPurpose.DIAGRAM_RECONSTRUCTION, command.question(),
+                List.of(command.target()), 32);
+        return observations.observe(observationCommand, resources, signal)
+                .thenApply(outcome -> prepareObserved(command, resources, listener, signal, outcome));
     }
 
-    private DirectSourceOutcome prepareNow(DirectSourceCommand command, RunResourceDomain resources,
-                                           EvidenceProgressListener progress,
-                                           CancellationSignal signal) {
+    private DirectSourceOutcome prepareObserved(DirectSourceCommand command,
+                                                RunResourceDomain resources,
+                                                EvidenceProgressListener progress,
+                                                CancellationSignal signal,
+                                                VisualObservationOutcome observation) {
         try {
-            if (command.target().artifact().byteSize() > MAX_IMAGE_BYTES) {
-                return new DirectSourceOutcome.Rejected(List.of("DIRECT_IMAGE_PIXEL_BUDGET_EXCEEDED"));
-            }
-            byte[] bytes = artifacts.read(command.target().artifact(), MAX_IMAGE_BYTES);
-            if (bytes.length > MAX_IMAGE_BYTES) {
-                return new DirectSourceOutcome.Rejected(List.of("DIRECT_IMAGE_PIXEL_BUDGET_EXCEEDED"));
-            }
-            if (stopped(resources, signal)) return new DirectSourceOutcome.Cancelled();
-            VisionModelPort.Response response = model.observe(new VisionModelPort.Request(
-                    VisualObservationPurpose.DIAGRAM_RECONSTRUCTION, command.question(),
-                    List.of(new VisionModelPort.ImageInput(command.target().evidenceId(),
-                            command.target().artifact().contentType(), bytes)), 32));
             if (stopped(resources, signal)) return new DirectSourceOutcome.Cancelled();
             progress.onProgress("direct_visual_observation", 1, 1);
-            if (!response.gaps().isEmpty()) {
-                return new DirectSourceOutcome.NeedsConfirmation(response.gaps());
+            if (observation instanceof VisualObservationOutcome.Cancelled) {
+                return new DirectSourceOutcome.Cancelled();
             }
-            ObservedDiagramGraph graph = response.diagramGraph();
-            if (graph == null) {
+            if (observation instanceof VisualObservationOutcome.Unavailable unavailable) {
+                return new DirectSourceOutcome.Unavailable(unavailable.reason());
+            }
+            if (observation instanceof VisualObservationOutcome.Rejected rejected) {
+                return new DirectSourceOutcome.Rejected(List.of(rejected.reason()));
+            }
+            if (observation instanceof VisualObservationOutcome.Gap gap) {
+                return new DirectSourceOutcome.NeedsConfirmation(gap.reasons());
+            }
+            if (!(observation instanceof VisualObservationOutcome.DiagramVerified verified)) {
                 return new DirectSourceOutcome.Rejected(List.of("NO_DIAGRAM_GRAPH"));
             }
-            List<String> invalidAnchors = invalidAnchors(graph, command.target().evidenceId());
-            if (!invalidAnchors.isEmpty()) return new DirectSourceOutcome.Rejected(invalidAnchors);
+            ObservedDiagramGraph graph = verified.graph();
             ImageToDiagramOutcome conversion =
                     converter.convert(new ImageToDiagramCommand(graph));
             progress.onProgress("direct_diagram_projection", 1, 1);
@@ -132,20 +101,6 @@ public final class DefaultDirectSourcePreparationModule implements DirectSourceP
         }
     }
 
-    private List<String> invalidAnchors(ObservedDiagramGraph graph, String allowedEvidenceId) {
-        List<String> errors = new ArrayList<>();
-        graph.nodes().stream()
-                .filter(node -> !allowedEvidenceId.equals(node.evidenceId()))
-                .map(node -> "INVALID_NODE_EVIDENCE:" + node.id()).forEach(errors::add);
-        graph.edges().stream()
-                .filter(edge -> !allowedEvidenceId.equals(edge.evidenceId()))
-                .map(edge -> "INVALID_EDGE_EVIDENCE:" + edge.id()).forEach(errors::add);
-        graph.groups().stream()
-                .filter(group -> !allowedEvidenceId.equals(group.evidenceId()))
-                .map(group -> "INVALID_GROUP_EVIDENCE:" + group.id()).forEach(errors::add);
-        return List.copyOf(errors);
-    }
-
     private CitationProjection citations(DirectSourceCommand command, ObservedDiagramGraph graph) {
         List<EvidenceBundleItem> items = new ArrayList<>();
         List<CitationBinding> bindings = new ArrayList<>();
@@ -160,11 +115,8 @@ public final class DefaultDirectSourcePreparationModule implements DirectSourceP
         java.util.Map<String, ObservedDiagramGraph.Node> nodes = new java.util.LinkedHashMap<>();
         graph.nodes().forEach(node -> nodes.put(node.id(), node));
         for (ObservedDiagramGraph.Edge edge : graph.edges()) {
-            ObservedDiagramGraph.Node observedSource = nodes.get(edge.sourceId());
-            ObservedDiagramGraph.Node observedTarget = nodes.get(edge.targetId());
-            boolean reverse = edge.direction() == ObservedDiagramGraph.EdgeDirection.REVERSE;
-            ObservedDiagramGraph.Node source = reverse ? observedTarget : observedSource;
-            ObservedDiagramGraph.Node target = reverse ? observedSource : observedTarget;
+            ObservedDiagramGraph.Node source = nodes.get(edge.resolvedSourceId());
+            ObservedDiagramGraph.Node target = nodes.get(edge.resolvedTargetId());
             String statement = String.join(" ", List.of(source.label(), edge.label(), target.label()))
                     .replaceAll("\\s+", " ").trim();
             String citationKey = "direct-edge-" + edge.id();

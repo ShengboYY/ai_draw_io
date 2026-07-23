@@ -21,10 +21,24 @@ public final class DefaultImageToDiagramModule implements ImageToDiagramModule {
         List<String> invalid = validateReferences(graph);
         if (!invalid.isEmpty()) return new ImageToDiagramOutcome.Rejected(invalid);
 
-        List<String> confirmation = new ArrayList<>(graph.unresolvedItems());
+        List<String> confirmation = graph.unresolvedItems().stream()
+                .map(item -> "UNRESOLVED:" + item.reason()).collect(
+                        java.util.stream.Collectors.toCollection(ArrayList::new));
+        graph.nodes().stream()
+                .filter(node -> node.confidence() < CRITICAL_EDGE_CONFIDENCE)
+                .map(node -> "LOW_CONFIDENCE_NODE_TEXT:" + node.id())
+                .forEach(confirmation::add);
+        graph.groups().stream()
+                .filter(group -> group.confidence() < CRITICAL_EDGE_CONFIDENCE)
+                .map(group -> "LOW_CONFIDENCE_GROUP_TEXT:" + group.id())
+                .forEach(confirmation::add);
         graph.edges().stream()
                 .filter(edge -> edge.confidence() < CRITICAL_EDGE_CONFIDENCE)
                 .map(edge -> "LOW_CONFIDENCE_EDGE:" + edge.id())
+                .forEach(confirmation::add);
+        graph.edges().stream()
+                .filter(edge -> edge.direction() == ObservedDiagramGraph.EdgeDirection.NONE)
+                .map(edge -> "UNRESOLVED_EDGE_DIRECTION:" + edge.id())
                 .forEach(confirmation::add);
         if (!confirmation.isEmpty()) {
             return new ImageToDiagramOutcome.NeedsConfirmation(confirmation);
@@ -89,7 +103,8 @@ public final class DefaultImageToDiagramModule implements ImageToDiagramModule {
     private void appendGroup(StringBuilder xml, ObservedDiagramGraph.Group group) {
         xml.append("<mxCell id=\"").append(attribute(groupCellId(group.id())))
                 .append("\" value=\"").append(attribute(group.label()))
-                .append("\" style=\"group;\" vertex=\"1\" connectable=\"0\" parent=\"1\">");
+                .append("\" style=\"").append(groupStyle(group.kind()))
+                .append("\" vertex=\"1\" connectable=\"0\" parent=\"1\">");
         appendGeometry(xml, group.bounds(), null);
         xml.append("</mxCell>");
     }
@@ -107,15 +122,13 @@ public final class DefaultImageToDiagramModule implements ImageToDiagramModule {
     }
 
     private void appendEdge(StringBuilder xml, ObservedDiagramGraph.Edge edge) {
-        String source = edge.direction() == ObservedDiagramGraph.EdgeDirection.REVERSE
-                ? edge.targetId() : edge.sourceId();
-        String target = edge.direction() == ObservedDiagramGraph.EdgeDirection.REVERSE
-                ? edge.sourceId() : edge.targetId();
+        String source = edge.resolvedSourceId();
+        String target = edge.resolvedTargetId();
         xml.append("<mxCell id=\"").append(attribute(edgeCellId(edge.id())))
                 .append("\" edge=\"1\" parent=\"1\" source=\"").append(attribute(nodeCellId(source)))
                 .append("\" target=\"").append(attribute(nodeCellId(target)))
                 .append("\" value=\"").append(attribute(edge.label()))
-                .append("\" style=\"").append(edgeStyle(edge.direction())).append("\">")
+                .append("\" style=\"").append(edgeStyle(edge.direction(), edge.lineStyle())).append("\">")
                 .append("<mxGeometry relative=\"1\" as=\"geometry\">");
         if (!edge.waypoints().isEmpty()) {
             xml.append("<Array as=\"points\">");
@@ -150,12 +163,26 @@ public final class DefaultImageToDiagramModule implements ImageToDiagramModule {
         };
     }
 
-    private String edgeStyle(ObservedDiagramGraph.EdgeDirection direction) {
-        return switch (direction) {
+    private String edgeStyle(ObservedDiagramGraph.EdgeDirection direction,
+                             ObservedDiagramGraph.LineStyle lineStyle) {
+        String directionStyle = switch (direction) {
             case FORWARD, REVERSE -> "edgeStyle=orthogonalEdgeStyle;rounded=0;endArrow=block;html=1;";
             case BIDIRECTIONAL ->
                     "edgeStyle=orthogonalEdgeStyle;rounded=0;startArrow=block;endArrow=block;html=1;";
             case NONE -> "edgeStyle=orthogonalEdgeStyle;rounded=0;endArrow=none;html=1;";
+        };
+        return directionStyle + switch (lineStyle) {
+            case SOLID -> "";
+            case DASHED -> "dashed=1;";
+            case DOTTED -> "dashed=1;dashPattern=1 4;";
+        };
+    }
+
+    private String groupStyle(ObservedDiagramGraph.GroupKind kind) {
+        return switch (kind) {
+            case GROUP -> "group;";
+            case SWIMLANE -> "swimlane;html=1;";
+            case CONTAINER -> "container=1;whiteSpace=wrap;html=1;";
         };
     }
 

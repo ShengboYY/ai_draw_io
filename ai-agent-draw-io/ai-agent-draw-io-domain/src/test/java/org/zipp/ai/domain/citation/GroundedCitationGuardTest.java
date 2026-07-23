@@ -121,6 +121,25 @@ class GroundedCitationGuardTest {
         assertTrue(result.errors().contains("CONTEXT_ONLY_CITATION_FORBIDDEN"));
     }
 
+    @Test
+    void singleHanLabelRequiresACompleteDisplayTerm() {
+        String xml = """
+                <mxGraphModel><root><mxCell id="0"/><mxCell id="1" parent="0"/>
+                <mxCell id="node-1" value="审" vertex="1" parent="1"/>
+                </root></mxGraphModel>
+                """;
+        CitationGuard guard = new CitationGuard(requests -> List.of());
+
+        CitationGuardResult exact = guard.validate(xml,
+                List.of(binding("E1", "审", "审")), visualContext("审"), true);
+        CitationGuardResult substring = guard.validate(xml,
+                List.of(binding("E1", "审核", "审核")), visualContext("审核"), true);
+
+        assertTrue(exact.accepted(), exact.errors().toString());
+        assertFalse(substring.accepted());
+        assertTrue(substring.errors().contains("NODE_STATEMENT_MISMATCH"));
+    }
+
     private CitationBinding binding(String citationKey, String statement, String anchor) {
         return new CitationBinding("node-1", "D1", StatementKind.NODE_TEXT, statement,
                 null, null, List.of(citationKey),
@@ -132,5 +151,12 @@ class GroundedCitationGuardTest {
         return EvidenceAccessContext.from(new EvidenceBundle("bundle-1", "request-1", "run-1", mode,
                 List.of(new EvidenceBundleItem("E1", "evidence-1", "material-1", "version-1", "revision-1",
                         "S1", 6, "TEXT", "Product Owner is accountable for maximizing value."))), false);
+    }
+
+    private EvidenceAccessContext visualContext(String text) {
+        return EvidenceAccessContext.from(new EvidenceBundle(
+                "bundle-1", "request-1", "run-1", SourceMode.EXPLICIT_ONLY,
+                List.of(new EvidenceBundleItem("E1", "evidence-1", "material-1",
+                        "version-1", "revision-1", "S1", 1, "VISUAL", text))), false);
     }
 }

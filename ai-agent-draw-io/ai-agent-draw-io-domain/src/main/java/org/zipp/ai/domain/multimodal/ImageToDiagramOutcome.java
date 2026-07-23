@@ -2,6 +2,7 @@ package org.zipp.ai.domain.multimodal;
 
 import java.util.List;
 
+/** A candidate exists only for Converted; unsafe topology stops with a typed outcome. */
 public sealed interface ImageToDiagramOutcome {
     record Converted(String mxGraphModelXml, List<String> cellIds) implements ImageToDiagramOutcome {
         public Converted {

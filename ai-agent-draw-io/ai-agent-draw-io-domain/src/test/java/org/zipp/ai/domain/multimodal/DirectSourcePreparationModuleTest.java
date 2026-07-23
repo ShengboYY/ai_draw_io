@@ -25,14 +25,14 @@ class DirectSourcePreparationModuleTest {
     @Test
     void preparesEditableXmlUsingOnlyTheExactImageAndStructuredModel() {
         List<String> progressStages = new ArrayList<>();
-        VisionModelPort model = request -> {
+        VisualObservationModule observations = (request, resources, cancellation) -> {
             assertEquals(VisualObservationPurpose.DIAGRAM_RECONSTRUCTION, request.purpose());
-            assertEquals("evidence-image", request.images().get(0).evidenceId());
-            return new VisionModelPort.Response(List.of(), graph(0.94), List.of());
+            assertEquals("evidence-image", request.targets().get(0).evidenceId());
+            return java.util.concurrent.CompletableFuture.completedFuture(
+                    new VisualObservationOutcome.DiagramVerified(graph(0.94)));
         };
         DirectSourcePreparationModule module = new DefaultDirectSourcePreparationModule(
-                (artifact, maximumBytes) -> new byte[]{1, 2, 3, 4},
-                model, new DefaultImageToDiagramModule());
+                observations, new DefaultImageToDiagramModule());
 
         DirectSourceOutcome outcome = module.prepare(command(), new RunResourceDomain(),
                 (stage, completed, total) -> progressStages.add(stage),
@@ -56,8 +56,9 @@ class DirectSourcePreparationModuleTest {
     @Test
     void preservesConfirmationBoundaryFromConversion() {
         DirectSourcePreparationModule module = new DefaultDirectSourcePreparationModule(
-                (artifact, maximumBytes) -> new byte[]{1},
-                request -> new VisionModelPort.Response(List.of(), graph(0.40), List.of()),
+                (request, resources, cancellation) ->
+                        java.util.concurrent.CompletableFuture.completedFuture(
+                                new VisualObservationOutcome.DiagramVerified(graph(0.40))),
                 new DefaultImageToDiagramModule());
 
         DirectSourceOutcome outcome = module.prepare(command(), new RunResourceDomain(),
@@ -70,20 +71,20 @@ class DirectSourcePreparationModuleTest {
 
     @Test
     void cancellationStopsBeforeReadingPixels() {
-        int[] reads = {0};
+        int[] observations = {0};
         DirectSourcePreparationModule module = new DefaultDirectSourcePreparationModule(
-                (artifact, maximumBytes) -> {
-                    reads[0]++;
-                    return new byte[]{1};
+                (request, resources, cancellation) -> {
+                    observations[0]++;
+                    return java.util.concurrent.CompletableFuture.completedFuture(
+                            new VisualObservationOutcome.DiagramVerified(graph(0.94)));
                 },
-                request -> new VisionModelPort.Response(List.of(), graph(0.94), List.of()),
                 new DefaultImageToDiagramModule());
 
         DirectSourceOutcome outcome = module.prepare(command(), new RunResourceDomain(),
                 null, () -> true).toCompletableFuture().join();
 
         assertInstanceOf(DirectSourceOutcome.Cancelled.class, outcome);
-        assertEquals(0, reads[0]);
+        assertEquals(0, observations[0]);
     }
 
     private DirectSourceCommand command() {
@@ -101,7 +102,8 @@ class DirectSourcePreparationModuleTest {
                                 new ObservationBounds(0.6, 0.2, 0.2, 0.1),
                                 "", "evidence-image", 0.97)),
                 List.of(new ObservedDiagramGraph.Edge("a-to-b", "a", "b", "",
-                        ObservedDiagramGraph.EdgeDirection.FORWARD, List.of(),
+                        ObservedDiagramGraph.EdgeDirection.FORWARD,
+                        ObservedDiagramGraph.LineStyle.SOLID, List.of(),
                         "evidence-image", edgeConfidence)),
                 List.of(), List.of());
     }

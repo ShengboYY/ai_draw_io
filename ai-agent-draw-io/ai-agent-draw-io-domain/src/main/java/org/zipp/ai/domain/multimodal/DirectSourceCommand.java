@@ -4,6 +4,7 @@ import org.zipp.ai.domain.material.model.valobj.CatalogOwner;
 
 import java.util.Objects;
 
+/** Exact authorized image target and run identity for one direct reconstruction. */
 public record DirectSourceCommand(CatalogOwner owner, String requestId, String runId,
                                   VisualObservationTarget target, String question) {
     public DirectSourceCommand {

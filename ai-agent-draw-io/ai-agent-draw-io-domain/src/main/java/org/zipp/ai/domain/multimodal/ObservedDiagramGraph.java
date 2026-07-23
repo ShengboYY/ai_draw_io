@@ -8,13 +8,12 @@ import java.util.Objects;
  * observation provider; this model deliberately does not infer endpoints from labels.
  */
 public record ObservedDiagramGraph(List<Node> nodes, List<Edge> edges, List<Group> groups,
-                                   List<String> unresolvedItems) {
+                                   List<UnresolvedItem> unresolvedItems) {
     public ObservedDiagramGraph {
         nodes = List.copyOf(nodes == null ? List.of() : nodes);
         edges = List.copyOf(edges == null ? List.of() : edges);
         groups = List.copyOf(groups == null ? List.of() : groups);
-        unresolvedItems = List.copyOf(unresolvedItems == null ? List.of() : unresolvedItems.stream()
-                .filter(value -> value != null && !value.isBlank()).map(String::trim).toList());
+        unresolvedItems = List.copyOf(unresolvedItems == null ? List.of() : unresolvedItems);
     }
 
     public record Node(String id, String label, Shape shape, ObservationBounds bounds,
@@ -31,7 +30,7 @@ public record ObservedDiagramGraph(List<Node> nodes, List<Edge> edges, List<Grou
     }
 
     public record Edge(String id, String sourceId, String targetId, String label,
-                       EdgeDirection direction, List<Point> waypoints,
+                       EdgeDirection direction, LineStyle lineStyle, List<Point> waypoints,
                        String evidenceId, double confidence) {
         public Edge {
             id = required(id, "edge id");
@@ -39,20 +38,40 @@ public record ObservedDiagramGraph(List<Node> nodes, List<Edge> edges, List<Grou
             targetId = required(targetId, "edge targetId");
             label = optional(label);
             direction = Objects.requireNonNull(direction, "edge direction");
+            lineStyle = Objects.requireNonNull(lineStyle, "edge lineStyle");
             waypoints = List.copyOf(waypoints == null ? List.of() : waypoints);
             evidenceId = required(evidenceId, "edge evidenceId");
             confidence = validateConfidence(confidence);
         }
+
+        public String resolvedSourceId() {
+            return direction == EdgeDirection.REVERSE ? targetId : sourceId;
+        }
+
+        public String resolvedTargetId() {
+            return direction == EdgeDirection.REVERSE ? sourceId : targetId;
+        }
     }
 
-    public record Group(String id, String label, ObservationBounds bounds,
+    public record Group(String id, String label, GroupKind kind, ObservationBounds bounds,
                         String evidenceId, double confidence) {
         public Group {
             id = required(id, "group id");
             label = required(label, "group label");
+            kind = Objects.requireNonNull(kind, "group kind");
             bounds = Objects.requireNonNull(bounds, "group bounds");
             evidenceId = required(evidenceId, "group evidenceId");
             confidence = validateConfidence(confidence);
+        }
+    }
+
+    public record UnresolvedItem(ObservationBounds region, String reason,
+                                 String suggestedConfirmation) {
+        public UnresolvedItem {
+            region = Objects.requireNonNull(region, "unresolved region");
+            reason = required(reason, "unresolved reason");
+            suggestedConfirmation = required(
+                    suggestedConfirmation, "unresolved suggestedConfirmation");
         }
     }
 
@@ -78,6 +97,18 @@ public record ObservedDiagramGraph(List<Node> nodes, List<Edge> edges, List<Grou
         REVERSE,
         BIDIRECTIONAL,
         NONE
+    }
+
+    public enum LineStyle {
+        SOLID,
+        DASHED,
+        DOTTED
+    }
+
+    public enum GroupKind {
+        GROUP,
+        SWIMLANE,
+        CONTAINER
     }
 
     private static String required(String value, String field) {

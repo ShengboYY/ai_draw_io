@@ -63,6 +63,28 @@ class VisualObservationModuleTest {
     }
 
     @Test
+    void diagramReconstructionReturnsVerifiedGraphThroughTheSharedBoundary() {
+        ObservedDiagramGraph graph = new ObservedDiagramGraph(
+                List.of(new ObservedDiagramGraph.Node("review", "Review",
+                        ObservedDiagramGraph.Shape.RECTANGLE,
+                        new ObservationBounds(0.1, 0.2, 0.2, 0.1),
+                        "", "evidence-1", 0.95)),
+                List.of(), List.of(), List.of());
+        VisualObservationModule module = new DefaultVisualObservationModule(
+                (artifact, maximumBytes) -> new byte[]{1, 2, 3, 4},
+                request -> new VisionModelPort.Response(List.of(), graph, List.of()));
+        VisualObservationCommand command = new VisualObservationCommand(owner, "request-1", "run-1",
+                VisualObservationPurpose.DIAGRAM_RECONSTRUCTION, "Reconstruct this diagram",
+                List.of(target), 32);
+
+        VisualObservationOutcome outcome = module.observe(command, new RunResourceDomain(),
+                CancellationSignal.NEVER).toCompletableFuture().join();
+
+        assertEquals(graph, assertInstanceOf(
+                VisualObservationOutcome.DiagramVerified.class, outcome).graph());
+    }
+
+    @Test
     void cancellationStopsBeforeReadingPixelsOrCallingTheModel() {
         AtomicInteger reads = new AtomicInteger();
         AtomicInteger calls = new AtomicInteger();

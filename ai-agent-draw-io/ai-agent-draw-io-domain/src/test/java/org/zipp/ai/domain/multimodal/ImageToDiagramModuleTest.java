@@ -24,8 +24,10 @@ class ImageToDiagramModuleTest {
                                 "approval", "evidence-node-done", 0.98)),
                 List.of(new ObservedDiagramGraph.Edge("approved", "review", "done",
                         "approved", ObservedDiagramGraph.EdgeDirection.FORWARD,
+                        ObservedDiagramGraph.LineStyle.SOLID,
                         List.of(), "evidence-edge-approved", 0.94)),
                 List.of(new ObservedDiagramGraph.Group("approval", "Approval",
+                        ObservedDiagramGraph.GroupKind.GROUP,
                         new ObservationBounds(0.05, 0.10, 0.85, 0.40),
                         "evidence-group-approval", 0.93)),
                 List.of());
@@ -55,6 +57,7 @@ class ImageToDiagramModuleTest {
                         node("right", 0.60, "evidence-right")),
                 List.of(new ObservedDiagramGraph.Edge("possible", "left", "right",
                         "", ObservedDiagramGraph.EdgeDirection.FORWARD,
+                        ObservedDiagramGraph.LineStyle.SOLID,
                         List.of(), "evidence-edge", 0.61)),
                 List.of(),
                 List.of());
@@ -73,6 +76,7 @@ class ImageToDiagramModuleTest {
                 List.of(node("left", 0.10, "evidence-left")),
                 List.of(new ObservedDiagramGraph.Edge("dangling", "left", "missing",
                         "", ObservedDiagramGraph.EdgeDirection.FORWARD,
+                        ObservedDiagramGraph.LineStyle.SOLID,
                         List.of(), "evidence-edge", 0.99)),
                 List.of(),
                 List.of());
@@ -83,6 +87,29 @@ class ImageToDiagramModuleTest {
         ImageToDiagramOutcome.Rejected rejected =
                 assertInstanceOf(ImageToDiagramOutcome.Rejected.class, outcome);
         assertEquals(List.of("UNKNOWN_EDGE_TARGET:dangling:missing"), rejected.reasons());
+    }
+
+    @Test
+    void directionlessAndLowConfidenceTextRequireConfirmation() {
+        ObservedDiagramGraph graph = new ObservedDiagramGraph(
+                List.of(
+                        new ObservedDiagramGraph.Node("unclear", "Possible label",
+                                ObservedDiagramGraph.Shape.RECTANGLE,
+                                new ObservationBounds(0.1, 0.2, 0.2, 0.1),
+                                "", "evidence-node", 0.40),
+                        node("right", 0.60, "evidence-right")),
+                List.of(new ObservedDiagramGraph.Edge("unknown-direction", "unclear", "right",
+                        "", ObservedDiagramGraph.EdgeDirection.NONE,
+                        ObservedDiagramGraph.LineStyle.DASHED,
+                        List.of(), "evidence-edge", 0.95)),
+                List.of(), List.of());
+
+        ImageToDiagramOutcome.NeedsConfirmation outcome =
+                assertInstanceOf(ImageToDiagramOutcome.NeedsConfirmation.class,
+                        new DefaultImageToDiagramModule().convert(new ImageToDiagramCommand(graph)));
+
+        assertEquals(List.of("LOW_CONFIDENCE_NODE_TEXT:unclear",
+                "UNRESOLVED_EDGE_DIRECTION:unknown-direction"), outcome.reasons());
     }
 
     private ObservedDiagramGraph.Node node(String id, double x, String evidenceId) {
