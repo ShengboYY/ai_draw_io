@@ -789,6 +789,19 @@
 - **实现状态**:commit `5a2c40c0` 已完成 lane wiring 与 fail-closed provenance gate；91 个
   ingestion-worker 测试（6 个 live skip）及 122 个 analysis 测试通过，E0 仍为 READY。正式 R21 尚未运行。
 
+### R21 formal gate / R22 query-lane fusion preregistration · 2026-07-23 · ❌ R21 未晋级
+
+- **固定输入**:clean commit `c08edce3`，186 chunks，scoped pools 完整；trace 明确记录
+  `candidateQueryMode=evidence-focused-v1` 和 R20 rewrite fingerprint。两次 original 空结果重试恢复，
+  临时向量已删除。
+- **正式结果**:raw canonical 14/19；control 完整 3/19、candidate 13/19、changed 13/19。gate 失败，
+  未生成 prompt、未调用模型。
+- **决策**:evidence-focused-only 不晋级；也不能回退到同样不稳定的 original-only。
+- **R22 唯一变量**:对同次运行已有的 original/rewrite top-80 做等权 RRF（k=60），以最佳 lane rank 与
+  vector ID 确定性打破并列并取 top-40；不新增 Pinecone 请求，不读取 evaluator 数据。
+- **正式 gate**:raw/candidate 19/19、artifact 7/7、scoped pools 与 changed-rate 全部通过前，模型和
+  Validation 保持关闭。
+
 ### R17 trace / R18 indexed-vector denominator · 2026-07-23 · ⏸ 修复后重跑
 
 - **固定输入**:clean commit `b419a70a`，Development only；两次空查询均经 R16 retry 恢复，19/19 完成，

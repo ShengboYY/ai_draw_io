@@ -658,6 +658,25 @@ R21 Development gate 仍为 raw 19/19、candidate 19/19、artifact 7/7、scoped 
 ≥20%。不得挑选多次运行中的最好结果；只接受预注册 clean commit 的一次正式 trace。失败则模型和
 Validation 继续关闭。
 
+### R21 结果与 R22 预注册：original + rewritten query RRF
+
+R21 从 clean commit `c08edce3` 正式运行，trace 与 exporter 均确认 evidence-focused lane 和 R20 rewrite
+fingerprint。scoped pools 完整，original lane 两次空结果经 bounded retry 恢复，向量已删除。raw canonical
+availability 14/19，control 3/19、candidate 13/19，因此 evidence-focused-only 不晋级，模型保持关闭。
+
+R22 不再在 original 与 rewritten lane 中二选一，而只复用同一次运行已经产生的两个 rank list：
+
+- 对 original top-80 与 rewritten top-80 进行等权 reciprocal-rank fusion，`k=60`；
+- 同一 vector 的两个 lane 分数相加，按 fused score 降序、最佳单 lane rank 升序、vector ID 升序确定性
+  打破并列，取前 40；
+- trace 记录 `candidateQueryMode=original-evidence-rrf-v1` 与
+  `queryFusionFingerprint=equal-rrf-v1:k60:original1.0:rewritten1.0`，exporter fail-closed 验证；
+- 不增加 Pinecone 请求，不改变原/改写 query、embedding、provider top-80、retry、identity、selector、
+  artifact、task 或 gate，也不读取 target source、gold、assertions、answers 或 Validation。
+
+R22 只允许预注册 clean commit 的一次正式 Development trace。gate 仍为 raw 19/19、candidate 19/19、
+artifact 7/7、scoped pools 完整和 changed-rate ≥20%；失败则禁止 prompt、模型与 Validation。
+
 E6b 的本地导出合同已冻结为 `fixtures/drawio-generation-paired-hydration-contract-v1.json` 与
 `analysis/export_drawio_paired_hydration.py`。active Development 图册明确挂载 architecture、workflow handbook
 与 planning-workshop scan 三个版本；导出器从同一 retrieval trace 的 raw top-8 和 source-aware top-8 产生一任务
