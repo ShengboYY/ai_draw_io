@@ -758,6 +758,20 @@
 - **外部状态**:尚未获得 R19b 新 commit 的临时 Pinecone 重跑授权；新增模型调用仍为 0，
   Validation/holdout 保持关闭。
 
+### R19b formal gate / R20 bilingual query preregistration · 2026-07-23 · ❌ R19b 未晋级
+
+- **固定输入**:clean commit `b26c0682`，冻结 tokenizer，186 chunks；18 个 chartbook-auto task
+  40/40，selected-only 28/28。一次 original query 空结果经 retry 恢复，临时向量已删除。
+- **R19b 结果**:15/19 task 改变（78.95%）；control 完整 3/19，candidate 完整 16/19。
+  `dgt-dev-16/17` 是 selector loss；`dgt-dev-13` 的 `dcc-threshold` 不在 raw top-40，使 raw canonical
+  availability 只有 18/19。
+- **决策**:R19b 不晋级；未生成 prompt、未调用模型。不能再用 selector 掩盖 raw recall 缺口。
+- **R20 唯一变量**:Latin request 命中冻结 Draw.io 领域短语时，为 evidence-focused rewrite 追加中英
+  retrieval terms，覆盖 threshold/human review/escalation、vector/object storage/canvas save、
+  incident/SEV。query 以外的 embedding、ranking、selector、task 和 gate 不变。
+- **防泄漏与 gate**:不读取 target source、required anchors、assertions、answers、ground truth 或
+  Validation。正式目标为 raw 19/19、candidate 19/19、artifact 7/7；未满足前模型保持关闭。
+
 ### R17 trace / R18 indexed-vector denominator · 2026-07-23 · ⏸ 修复后重跑
 
 - **固定输入**:clean commit `b419a70a`，Development only；两次空查询均经 R16 retry 恢复，19/19 完成，

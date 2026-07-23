@@ -611,6 +611,32 @@ R19b 只改变 top-40 → top-8 selector，并冻结为 `publisher-identity-lexi
 R19b 只在已冻结的 R19a trace 上做本地确定性导出，不重新上传 Pinecone vectors。实现、测试、计划、日志和
 corpus lock 提交后，才允许生成正式 paired context；Validation 仍关闭。
 
+### R19b 结果与 R20 预注册：Draw.io bilingual retrieval terms
+
+R19b 从 clean commit `b26c0682` 正式重跑，186 chunks、passage hash、scoped pools 均与 R19a 一致；一次
+original query 空结果经 bounded retry 恢复，向量已删除。publisher-identity selector 使 15/19 task 改变，
+control 完整 3/19、candidate 完整 16/19，但未达到 19/19，故不晋级且未调用模型。
+
+失败必须分层：
+
+- `dgt-dev-16/17` 的 required canonical evidence 位于 raw top-40，但 selector 未全部保留；
+- `dgt-dev-13` 的 `dcc-threshold` 本次不在 raw top-40，因此不能继续用 selector 修补；
+- raw top-40 publisher canonical availability 为 18/19，证明下一变量必须回到 query retrieval。
+
+R20 只把 `ResearchQueryRewriter` 从 evidence-focused-v1 升级为
+`drawio-bilingual-evidence-focused-v2`。原 query、English/Chinese evidence instruction、embedding、
+top-k、RRF、identity binding、selector 和所有 gate 保持不变。对于 Latin request，仅按出现的 Draw.io
+领域短语追加冻结中英检索词：
+
+- `threshold` / `human review` / `escalation` → `阈值` / `人工复核` / `升级`；
+- `vector search` / `object storage` / `canvas save` → `向量检索` / `对象存储` / `画布保存`；
+- `incident` 或 `SEV-*` → `事件` / `严重级别`。
+
+扩展不读取 task source、required anchors、assertions、answers、ground truth 或 Validation；无匹配短语的
+query 与 v1 完全一致。R20 的 Development gate 要求 raw top-40 canonical availability 19/19、candidate
+readiness 19/19、7/7 artifact、scoped pools 完整且 changed-rate ≥20%。提交后从新 clean commit 重跑；
+失败则继续禁止 prompt、模型和 Validation。
+
 E6b 的本地导出合同已冻结为 `fixtures/drawio-generation-paired-hydration-contract-v1.json` 与
 `analysis/export_drawio_paired_hydration.py`。active Development 图册明确挂载 architecture、workflow handbook
 与 planning-workshop scan 三个版本；导出器从同一 retrieval trace 的 raw top-8 和 source-aware top-8 产生一任务
