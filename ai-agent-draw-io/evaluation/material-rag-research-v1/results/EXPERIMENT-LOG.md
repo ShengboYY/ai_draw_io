@@ -1415,3 +1415,11 @@
 - **下一步**:两位具名 reviewer 必须先逐项批准 source/evidence/claim package；之后仍需用户明确授权，才可向固定模型
   发送这 12 个合成输入和两张合成视觉图运行一次。详见 [freeze record](stage-f-clean-validation-freeze.json) 与
   [case-review packet](../review/stage-f-clean-validation-case-review-packet-v1.md)。
+
+### Stage F independent case review · 2026-07-24 · ✅ reviewer 1/2 recorded
+
+- **审核结论**:`alice-qa` 已独立审核并通过 12/12 个 Stage F source/evidence/claim package，包括两张合成视觉图、
+  长标签 remediation probe 和 layout-only 的 geometry-only 边界。
+- **工件**:[alice-qa review](../review/stage-f-clean-validation-alice-qa-v1.json) 绑定冻结 task fixture SHA-256
+  `d6f836a70b451cc747b252561264060d898a9ca1eb46bdad1b46b871b821447d`。
+- **下一步**:仍需 product-owner 的明确独立审核通过；两人完成后，仍必须获得用户的一次性模型运行授权。

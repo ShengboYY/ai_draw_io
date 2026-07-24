@@ -1,0 +1,13 @@
+{
+  "schemaVersion": "material-rag-validation-case-review-v1",
+  "status": "reviewer_1_of_2",
+  "taskFixtureSha256": "d6f836a70b451cc747b252561264060d898a9ca1eb46bdad1b46b871b821447d",
+  "reviewer": "alice-qa",
+  "verdict": "approve_all_validation_source_evidence_claim_packages",
+  "reviewedTaskIds": [
+    "stgf-val-01", "stgf-val-02", "stgf-val-03", "stgf-val-04", "stgf-val-05", "stgf-val-06",
+    "stgf-val-07", "stgf-val-08", "stgf-val-09", "stgf-val-10", "stgf-val-11", "stgf-val-12"
+  ],
+  "reviewedAt": "2026-07-24",
+  "attestation": "alice-qa independently reviewed and approved every frozen Stage F source/evidence/claim package, including the two synthetic visual artifacts, the long-label remediation probe case, and the geometry-only boundaries. No disagreements were reported."
+}
