@@ -1432,3 +1432,21 @@
   [product-owner review](../review/stage-f-clean-validation-product-owner-v1.json)。
 - **下一步**:pre-run case-review requirement 已满足；仍需用户明确授权，才可将这 12 个合成 inputs 与两张合成视觉图
   发送至固定模型运行**一次**。运行后不得改 prompt、任务、证据、policy 或 rubric。
+
+### Stage F GPT-5.5 execution reconciliation · 2026-07-24 · ⚠️ three completed runs; diagnostic only
+
+- **执行事实**:受管执行环境延迟显示产物；initial、`retry-1` 与通过持久终端完成的 `retry-3` 最终均有完整的
+  12-call response 与 manifest。每份 manifest 单独都通过 formal eligibility 校验，但 cohort 实际发送了三次，故
+  不能选择任一输出作为预先授权的唯一正式 Validation 结果，也不得再次运行此 cohort。
+- **完整性**:12 个冻结 task、12 个 prompt bundle、证据与两张合成视觉图未改。`0d5fb78c..8ea8922c` 在
+  `evaluation/material-rag-research-v1` 下无文件变更；三份运行均绑定 task fixture SHA-256
+  `d6f836a70b451cc747b252561264060d898a9ca1eb46bdad1b46b871b821447d`。
+- **模型输出**:每次均为 12/12 成功 HTTP 调用、XML parse rate `100%`、required citation contract `100%`。
+  严格 completion 分别为 `7/12`、`9/12`、`9/12`；三次共同失败为 `stgf-val-10`、`stgf-val-11`、`stgf-val-12`。
+  可审计 token 合计为 input `17,364`、output `33,808`。
+- **诊断而非事后调参**:`10`、`11` 的 Yes/No 位于可编辑 edge label；冻结 evaluator 的 legacy label 路径只看 vertex，
+  因而判为失败。`12` 缺少 `Affected Component` vertex 且只有 3/4 条所需 edge。以上仅记录，不修改本轮
+  response、task、prompt、证据、policy、rubric 或 evaluator；若要修订规则，必须在新的 Development cohort
+  预注册后再测试。
+- **工件**:三份 raw response、manifest、manifest validation 与 strict evaluation，以及
+  [Stage F run summary](stage-f-clean-validation-gpt-5-5-run-summary.json)。
