@@ -9,6 +9,7 @@ public class RequestSourceSnapshotItemPO {
     private String versionId;
     private String revisionId;
     private String kind;
+    private String displayName;
     private String scopeType;
     private String scopeKey;
     private String state;
@@ -16,4 +17,5 @@ public class RequestSourceSnapshotItemPO {
     private boolean hasText;
     private boolean hasVisual;
     private boolean pinned;
+    private boolean countsAsProcessingSource;
 }

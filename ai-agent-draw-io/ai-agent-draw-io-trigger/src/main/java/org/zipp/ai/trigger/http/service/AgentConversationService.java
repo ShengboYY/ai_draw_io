@@ -233,6 +233,12 @@ public class AgentConversationService {
                     () -> routeIntent(currentRequest, config, requestProbe, sourceSnapshot));
             recordRoutingDecision(runScope, routingResult);
             TaskSourcePlan sourcePlan = directSourcePlan(currentRequest, routingResult, sourceSnapshot);
+            if (sourcePlan != null && sourcePlan.needsClarification()) {
+                ChatResponseDTO responseDTO = directSourceClarificationResponse();
+                attachCorrelation(responseDTO, runScope);
+                captureRunOutput(runScope, responseDTO, currentRequest.getDiagramId());
+                return responseDTO;
+            }
             if (sourcePlan != null && sourcePlan.sourceUse() == SourceUse.DIRECT_AND_RETRIEVAL) {
                 ChatResponseDTO responseDTO = evidenceResponse("capability_unavailable",
                         "直传图片与检索资料的组合绘图仅支持流式接口，画布未被修改。 / "
@@ -469,6 +475,18 @@ public class AgentConversationService {
             // The UI uses this compact event to describe the selected route without exposing model reasoning.
             streamResponseWriter.sendRoute(emitter, routingResult.getRouteType(),
                     routingResult.getDiagramType(), routingResult.getSkillName(), selectedSourceUse);
+            if (sourcePlan != null && sourcePlan.needsClarification()) {
+                try {
+                    ChatResponseDTO response = directSourceClarificationResponse();
+                    captureRunOutput(runScope, response, currentRequest.getDiagramId());
+                    streamResponseWriter.sendEvidenceOutcome(emitter,
+                            "source_clarification", response.getType(), response.getContent());
+                    completeStreamTelemetry(streamTelemetryCompleted, null, runScope, null);
+                } finally {
+                    clearSessionConfig(finalSessionId, runScope.getContext().runId());
+                }
+                return;
+            }
             if (forcedRoutingResult == null) {
                 DirectImageConversionOutcome directOutcome =
                         executeDirectImageConversion(currentRequest, routingResult, sourceSnapshot, sourcePlan,
@@ -484,7 +502,7 @@ public class AgentConversationService {
                     try {
                         sendDirectConversionOutcome(
                                 emitter, directOutcome,
-                                sourcePlan.directAttachmentVersionIds().get(0));
+                                sourcePlan.primaryDirectVersionId());
                         captureRunOutput(runScope, directConversionResponse(directOutcome),
                                 currentRequest.getDiagramId());
                         completeStreamTelemetry(streamTelemetryCompleted, null, runScope, null);
@@ -506,7 +524,8 @@ public class AgentConversationService {
                         groundedRunRef.set(identity);
                     }
                     DirectSourceOutcome directPreparation = prepareDirectSource(
-                            currentRequest, sourceSnapshot, evidenceResources, (stage, completed, total) -> {
+                            currentRequest, sourceSnapshot, sourcePlan, evidenceResources,
+                            (stage, completed, total) -> {
                                 try {
                                     streamResponseWriter.sendEvidenceProgress(
                                             emitter, stage, completed, total);
@@ -520,18 +539,19 @@ public class AgentConversationService {
                         if (directPreparation instanceof DirectSourceOutcome.NeedsConfirmation confirmation) {
                             streamResponseWriter.sendDirectConfirmation(
                                     emitter, response.getContent(),
-                                    sourcePlan.directAttachmentVersionIds().get(0),
                                     confirmation.reasons(), confirmation.observedValues());
                         } else {
                             streamResponseWriter.sendEvidenceOutcome(emitter,
                                     "grounding_rejected", response.getType(), response.getContent());
+                                        sourcePlan.primaryDirectVersionId(),
                         }
                         completeStreamTelemetry(streamTelemetryCompleted, null, runScope, null);
                         return;
                     }
                     directPrepared = prepared;
-                    // Retrieval must not see the attachment already consumed by the direct branch.
-                    retrievalSnapshot = withoutAttachmentSources(sourceSnapshot);
+                    // Retrieval must not reuse the exact image already consumed by the direct branch.
+                    retrievalSnapshot = withoutDirectSource(
+                            sourceSnapshot, sourcePlan.primaryDirectVersionId());
                 }
                 if ((routingResult.isDrawAction() || routingResult.isEvidenceAnswer())
                         && shouldPrepareEvidence(currentRequest, routingResult)
@@ -1405,13 +1425,18 @@ public class AgentConversationService {
                 && attachments.get(0).hasVisual();
         boolean hasPdfAttachment = attachments.stream()
                 .anyMatch(candidate -> "PDF".equals(candidate.kind()));
+        int directReadableImageCandidateCount = (int) (sourceSnapshot == null
+                ? java.util.stream.Stream.<ResolvedSource>empty()
+                : sourceSnapshot.sources().stream())
+                .filter(ResolvedSource::directReadable)
+                .map(ResolvedSource::versionId).distinct().count();
         return new IntentRoutingProbe(canvas.hasCanvas(), canvas.nodeCount(), canvas.edgeCount(),
                 source.selectedCount(), source.pendingConversationUploadCount(),
                 source.hasReadyDiagramSources() || source.hasReadyChartbookSources()
                         || source.hasReadyLibrarySources(),
                 source.hasVisualEvidence(), canvas.selectionVersionMismatch(), source.effectiveSourceMode(),
                 attachmentCount, readyAttachmentCount, pendingAttachmentCount,
-                singleReadyImage, hasPdfAttachment);
+                singleReadyImage, hasPdfAttachment, directReadableImageCandidateCount);
     }
 
     private ChatResponseDTO prepareEvidenceResponse(ChatRequestDTO requestDTO,
@@ -1629,8 +1654,8 @@ public class AgentConversationService {
     }
 
     private boolean shouldResolveRequestSources(ChatRequestDTO requestDTO) {
-        return materialRagEnabled || (directImageConversionExecutionModule != null
-                && requestDTO != null && !safeList(requestDTO.getAttachmentUploadIds()).isEmpty());
+        return materialRagEnabled || requestDTO != null
+                && (directImageConversionExecutionModule != null || directSourcePreparationModule != null);
     }
 
     private DirectImageConversionOutcome executeDirectImageConversion(
@@ -1644,7 +1669,7 @@ public class AgentConversationService {
             ChatRequestDTO request, IntentRoutingResult routing, ResolvedSourceSet sources,
             TaskSourcePlan plan, EvidenceProgressListener progress, CancellationSignal cancellation) {
         if (plan == null || plan.sourceUse() != SourceUse.DIRECT
-                || plan.directAttachmentVersionIds().size() != 1) {
+                || plan.primaryDirectVersionId().isEmpty() || plan.needsClarification()) {
             return null;
         }
         if (directImageConversionExecutionModule == null) {
@@ -1652,7 +1677,7 @@ public class AgentConversationService {
                     "DIRECT_IMAGE_CONVERSION_UNAVAILABLE");
         }
         DirectImageConversionCommand command = new DirectImageConversionCommand(
-                directSourceCommand(request, sources), request.getUserId(), request.getDiagramId(),
+                directSourceCommand(request, sources, plan), request.getUserId(), request.getDiagramId(),
                 contextBuilder().resolveCanvasXml(request),
                 org.zipp.ai.domain.agent.model.valobj.analysis.DiagramType.from(routing.getDiagramType()),
                 request.getExpectedVersion(), request.getExpectedContentHash());
@@ -1662,6 +1687,7 @@ public class AgentConversationService {
 
     private DirectSourceOutcome prepareDirectSource(ChatRequestDTO request,
                                                     ResolvedSourceSet sources,
+                                                    TaskSourcePlan plan,
                                                     RunResourceDomain resources,
                                                     EvidenceProgressListener progress,
                                                     CancellationSignal cancellation) {
@@ -1670,7 +1696,7 @@ public class AgentConversationService {
         }
         try {
             return directSourcePreparationModule.prepare(
-                    directSourceCommand(request, sources), resources, progress, cancellation)
+                    directSourceCommand(request, sources, plan), resources, progress, cancellation)
                     .toCompletableFuture().join();
         } catch (RuntimeException failure) {
             resources.closeExactlyOnce(CloseReason.FAILED);
@@ -1680,14 +1706,18 @@ public class AgentConversationService {
         }
     }
 
-    private DirectSourceCommand directSourceCommand(ChatRequestDTO request, ResolvedSourceSet sources) {
+    private DirectSourceCommand directSourceCommand(ChatRequestDTO request, ResolvedSourceSet sources,
+                                                    TaskSourcePlan plan) {
         String requestId = StringUtils.defaultIfBlank(request.getRequestId(), request.getRunId());
+        String attachmentId = safeList(request.getAttachmentUploadIds()).stream().findFirst().orElse("");
         return new DirectSourceCommand(
                 owner(request), requestId, request.getRunId(), request.getDiagramId(),
-                request.getSessionId(), safeList(request.getAttachmentUploadIds()).get(0),
+                request.getSessionId(), attachmentId,
                 safeList(request.getSelectedVersionIds()), sourceMode(request.getSourceMode()),
                 request.getMessage(), request.getDirectConfirmationSourceVersionId(),
-                directClarifications(request), onlyAttachmentSources(sources));
+                directClarifications(request),
+                directSourceSnapshot(sources, plan == null ? "" : plan.primaryDirectVersionId()),
+                plan == null ? "" : plan.primaryDirectVersionId());
     }
 
     private List<org.zipp.ai.domain.multimodal.DirectClarification> directClarifications(
@@ -1708,26 +1738,30 @@ public class AgentConversationService {
         }).filter(java.util.Objects::nonNull).distinct().toList();
     }
 
-    private ResolvedSourceSet onlyAttachmentSources(ResolvedSourceSet sources) {
+    private ResolvedSourceSet withoutDirectSource(ResolvedSourceSet sources, String directVersionId) {
         if (sources == null) return null;
+        int removedProcessingCount = (int) sources.sources().stream()
+                .filter(source -> source.versionId().equals(directVersionId))
+                .filter(ResolvedSource::countsAsProcessingSource)
+                .count();
         return new ResolvedSourceSet(
                 sources.mode(),
                 sources.sources().stream()
-                        .filter(source -> source.origin() == RequestSourceOrigin.ATTACHMENT)
+                        .filter(source -> !source.versionId().equals(directVersionId))
                         .toList(),
-                0, 0, sources.resolutionFailed());
-    }
-
-    private ResolvedSourceSet withoutAttachmentSources(ResolvedSourceSet sources) {
-        if (sources == null) return null;
-        return new ResolvedSourceSet(
-                sources.mode(),
-                sources.sources().stream()
-                        .filter(source -> source.origin() != RequestSourceOrigin.ATTACHMENT)
-                        .toList(),
-                sources.processingSourceCount(),
+                Math.max(0, sources.processingSourceCount() - removedProcessingCount),
                 sources.unavailableSourceCount(),
                 sources.resolutionFailed());
+    }
+
+    private ResolvedSourceSet directSourceSnapshot(ResolvedSourceSet sources, String directVersionId) {
+        if (sources == null) return null;
+        return new ResolvedSourceSet(
+                sources.mode(),
+                sources.sources().stream()
+                        .filter(source -> source.versionId().equals(directVersionId))
+                        .toList(),
+                0, 0, sources.resolutionFailed());
     }
 
     private TaskSourcePlan directSourcePlan(ChatRequestDTO request, IntentRoutingResult routing,
@@ -1735,21 +1769,39 @@ public class AgentConversationService {
         if ((directImageConversionExecutionModule == null && directSourcePreparationModule == null)
                 || taskSourcePlanner == null
                 || request == null || routing == null || sources == null
-                || sources.resolutionFailed()
-                || safeList(request.getAttachmentUploadIds()).size() != 1) {
+                || sources.resolutionFailed()) {
             return null;
         }
-        List<ResolvedSource> readyImages = sources.sources().stream()
-                .filter(source -> source.origin() == RequestSourceOrigin.ATTACHMENT)
-                .filter(source -> "READY".equals(source.state()) && "IMAGE".equals(source.kind()))
-                .filter(ResolvedSource::hasVisual)
+        List<ResolvedSource> directReadableImages = sources.sources().stream()
+                .filter(ResolvedSource::directReadable)
                 .toList();
+        List<String> newlyUploaded = directReadableImages.stream()
+                .filter(source -> source.origin() == RequestSourceOrigin.ATTACHMENT)
+                .map(ResolvedSource::versionId).distinct().toList();
+        List<String> conversationCandidates = directReadableImages.stream()
+                .filter(source -> source.scopeType()
+                        == org.zipp.ai.domain.material.model.valobj.MaterialScopeType.CONVERSATION)
+                .map(ResolvedSource::versionId).distinct().toList();
         return taskSourcePlanner.plan(new TaskSourcePlanningCommand(
                 canvasAction(routing), requestedSourceUse(request, routing),
                 sourceMode(request.getSourceMode()),
-                readyImages.stream().map(ResolvedSource::versionId).toList(),
+                directReadableImages.stream().map(ResolvedSource::versionId).toList(),
+                newlyUploaded,
+                conversationCandidates,
+                namedDirectCandidateVersionId(request.getMessage(), directReadableImages),
                 safeList(request.getSelectedVersionIds()),
-                sources.processingSourceCount(), readyImages.size() == 1));
+                sources.processingSourceCount()));
+    }
+
+    private String namedDirectCandidateVersionId(String message, List<ResolvedSource> candidates) {
+        String normalizedMessage = StringUtils.defaultString(message)
+                .toLowerCase(java.util.Locale.ROOT);
+        List<String> matches = candidates.stream()
+                .filter(source -> StringUtils.isNotBlank(source.displayName()))
+                .filter(source -> normalizedMessage.contains(
+                        source.displayName().toLowerCase(java.util.Locale.ROOT)))
+                .map(ResolvedSource::versionId).distinct().toList();
+        return matches.size() == 1 ? matches.get(0) : "";
     }
 
     private SourceUse requestedSourceUse(ChatRequestDTO request, IntentRoutingResult routing) {
@@ -1779,6 +1831,12 @@ public class AgentConversationService {
         return evidenceResponse("direct_conversion_unavailable",
                 "图片转换服务当前不可用，请稍后重试。 / Image conversion is currently unavailable."
                         + directReasons(List.of(unavailable.reason())));
+    }
+
+    private ChatResponseDTO directSourceClarificationResponse() {
+        return evidenceResponse("source_clarification",
+                "当前有多张可用图片。请点名要还原的文件，或本轮只上传一张图片。 / "
+                        + "Multiple images are available; name the file to reconstruct or upload one image.");
     }
 
     private CanvasAction canvasAction(IntentRoutingResult routing) {

@@ -9,6 +9,7 @@ public class OnlineSourcePO {
     private String versionId;
     private String revisionId;
     private String kind;
+    private String displayName;
     private String scopeType;
     private String scopeKey;
     private String state;

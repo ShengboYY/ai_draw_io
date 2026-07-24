@@ -14,7 +14,6 @@ import org.zipp.ai.domain.retrieval.EvidenceBundleItem;
 import org.zipp.ai.domain.retrieval.EvidenceOrigin;
 import org.zipp.ai.domain.retrieval.EvidenceProgressListener;
 import org.zipp.ai.domain.retrieval.EvidenceSupportRole;
-import org.zipp.ai.domain.retrieval.RequestSourceOrigin;
 import org.zipp.ai.domain.retrieval.RequestSourceResolutionCommand;
 import org.zipp.ai.domain.retrieval.RequestSourceResolutionService;
 import org.zipp.ai.domain.retrieval.ResolvedSource;
@@ -169,6 +168,9 @@ public final class DefaultDirectSourcePreparationModule implements DirectSourceP
             // One frozen authorization snapshot must be shared by routing, Direct, and Retrieval.
             resolved = command.resolvedSources();
         } else {
+            if (command.attachmentUploadId().isEmpty()) {
+                return unauthorizedOrNotReady();
+            }
             try {
                 resolved = sourceResolution.resolve(new RequestSourceResolutionCommand(
                         command.owner(), command.diagramId(), command.conversationId(), command.runId(),
@@ -183,20 +185,24 @@ public final class DefaultDirectSourcePreparationModule implements DirectSourceP
             return SourceResolutionResult.failed(
                     new DirectSourceOutcome.Unavailable("DIRECT_SOURCE_RESOLUTION_UNAVAILABLE"));
         }
-        if (resolved.processingSourceCount() > 0) {
-            return SourceResolutionResult.failed(
-                    new DirectSourceOutcome.Unavailable("DIRECT_ATTACHMENT_PROCESSING"));
+        String primaryVersionId = command.primaryDirectVersionId();
+        if (primaryVersionId.isEmpty()) {
+            List<String> compatibleCandidates = resolved.sources().stream()
+                    .filter(ResolvedSource::directReadable)
+                    .map(ResolvedSource::versionId).distinct().toList();
+            primaryVersionId = compatibleCandidates.size() == 1 ? compatibleCandidates.get(0) : "";
         }
-        List<ResolvedSource> attachments = resolved.sources().stream()
-                .filter(source -> source.origin() == RequestSourceOrigin.ATTACHMENT)
+        String selectedVersionId = primaryVersionId;
+        List<ResolvedSource> directSources = resolved.sources().stream()
+                // The primary version was selected from this exact authorization snapshot by the Planner.
+                .filter(source -> source.versionId().equals(selectedVersionId))
                 .toList();
-        if (resolved.unavailableSourceCount() > 0 || attachments.size() != 1) {
+        if (directSources.size() != 1) {
             return unauthorizedOrNotReady();
         }
-        ResolvedSource source = attachments.get(0);
+        ResolvedSource source = directSources.get(0);
         // Direct reconstruction is intentionally single-image only; PDF pages use the RAG path.
-        if (!"READY".equals(source.state()) || !"IMAGE".equals(source.kind())
-                || !source.hasVisual()) {
+        if (!source.directReadable()) {
             return unauthorizedOrNotReady();
         }
         try {

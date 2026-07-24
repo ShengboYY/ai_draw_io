@@ -46,8 +46,8 @@ public class MySqlRequestSourceSnapshotStore implements RequestSourceSnapshotSto
 
     private ResolvedSource source(RequestSourceSnapshotItemPO row) {
         return new ResolvedSource(row.getMaterialId(), row.getVersionId(), row.getRevisionId(),
-                row.getKind(), MaterialScopeType.valueOf(row.getScopeType()), row.getScopeKey(),
+                row.getKind(), row.getDisplayName(), MaterialScopeType.valueOf(row.getScopeType()), row.getScopeKey(),
                 row.getState(), RequestSourceOrigin.valueOf(row.getOrigin()), row.isHasText(),
-                row.isHasVisual(), row.isPinned());
+                row.isHasVisual(), row.isPinned(), row.isCountsAsProcessingSource());
     }
 }

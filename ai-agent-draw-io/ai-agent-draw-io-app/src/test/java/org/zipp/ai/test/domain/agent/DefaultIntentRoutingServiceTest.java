@@ -251,7 +251,7 @@ public class DefaultIntentRoutingServiceTest {
     }
 
     @Test
-    public void directSourceUseRequiresOneServerVerifiedReadyImage() throws Exception {
+    public void directSourceUseRequiresAtLeastOneServerVerifiedReadyImage() throws Exception {
         IntentRoutingResult unavailable = routeWithStubbedLlm("把图片转成 Draw.io",
                 "{\"routeType\":\"create_new\",\"diagramType\":\"flowchart\",\"skillName\":\"none\","
                         + "\"evidenceNeed\":\"OPTIONAL\",\"targetNeed\":\"NONE\",\"sourceUse\":\"DIRECT\","
@@ -263,9 +263,16 @@ public class DefaultIntentRoutingServiceTest {
                         + "\"answer\":\"\",\"reason\":\"reconstruct\"}",
                 new IntentRoutingProbe(false, 0, 0, 0, 0, false, true,
                         false, SourceMode.AUTO, 1, 1, 0, true, false));
+        IntentRoutingResult multipleReadyImages = routeWithStubbedLlm("把其中一张图片转成 Draw.io",
+                "{\"routeType\":\"create_new\",\"diagramType\":\"flowchart\",\"skillName\":\"none\","
+                        + "\"evidenceNeed\":\"OPTIONAL\",\"targetNeed\":\"NONE\",\"sourceUse\":\"DIRECT\","
+                        + "\"answer\":\"\",\"reason\":\"reconstruct\"}",
+                new IntentRoutingProbe(false, 0, 0, 0, 0, false, true,
+                        false, SourceMode.AUTO, 0, 0, 0, false, false, 2));
 
         assertEquals("NONE", unavailable.getSourceUse());
         assertEquals("DIRECT", readyImage.getSourceUse());
+        assertEquals("DIRECT", multipleReadyImages.getSourceUse());
     }
 
     @Test

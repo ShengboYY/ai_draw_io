@@ -12,12 +12,13 @@
 
     <insert id="insertSnapshotItem">
         INSERT INTO request_source_snapshot_item
-            (run_id, ordinal, material_id, version_id, revision_id, kind, scope_type, scope_key,
-             source_state, source_origin, has_text, has_visual, pinned)
+            (run_id, ordinal, material_id, version_id, revision_id, kind, display_name, scope_type, scope_key,
+             source_state, source_origin, has_text, has_visual, pinned, counts_as_processing_source)
         VALUES
             (#{runId}, #{ordinal}, #{source.materialId}, #{source.versionId}, #{source.revisionId},
-             #{source.kind}, #{source.scopeType}, #{source.scopeKey}, #{source.state}, #{source.origin},
-             #{source.hasText}, #{source.hasVisual}, #{source.pinned})
+             #{source.kind}, #{source.displayName}, #{source.scopeType}, #{source.scopeKey},
+             #{source.state}, #{source.origin},
+             #{source.hasText}, #{source.hasVisual}, #{source.pinned}, #{source.countsAsProcessingSource})
     </insert>
 
     <select id="selectSnapshot" resultType="org.zipp.ai.infrastructure.dao.retrieval.RequestSourceSnapshotPO">
@@ -28,9 +29,10 @@
     </select>
 
     <select id="selectSnapshotItems" resultType="org.zipp.ai.infrastructure.dao.retrieval.RequestSourceSnapshotItemPO">
-        SELECT item.ordinal, item.material_id, item.version_id, item.revision_id, item.kind,
+        SELECT item.ordinal, item.material_id, item.version_id, item.revision_id, item.kind, item.display_name,
                item.scope_type, item.scope_key, item.source_state AS state,
-               item.source_origin AS origin, item.has_text, item.has_visual, item.pinned
+               item.source_origin AS origin, item.has_text, item.has_visual, item.pinned,
+               item.counts_as_processing_source
         FROM request_source_snapshot_item item
         JOIN request_source_snapshot snapshot ON snapshot.run_id = item.run_id
         WHERE item.run_id = #{runId}

@@ -23,25 +23,44 @@ public final class DefaultTaskSourcePlanner implements TaskSourcePlanner {
             if (use == SourceUse.DIRECT) use = SourceUse.NONE;
             if (use == SourceUse.DIRECT_AND_RETRIEVAL) use = SourceUse.RETRIEVAL;
         }
-        boolean directAvailable = command.hasSingleReadyImageAttachment();
-        if (use == SourceUse.DIRECT && !directAvailable) use = SourceUse.NONE;
-        if (use == SourceUse.DIRECT_AND_RETRIEVAL && !directAvailable) use = SourceUse.RETRIEVAL;
+        DirectSelection direct = usesDirect(use) ? selectDirect(command) : DirectSelection.none();
+        if (usesDirect(use) && direct.unavailable()) {
+            use = use == SourceUse.DIRECT_AND_RETRIEVAL ? SourceUse.RETRIEVAL : SourceUse.NONE;
+        }
         // The explicit no-material declaration is authoritative over a model-provided source-use hint.
         if (command.retrievalMode() == SourceMode.NONE) {
             if (use == SourceUse.RETRIEVAL) use = SourceUse.NONE;
             if (use == SourceUse.DIRECT_AND_RETRIEVAL) use = SourceUse.DIRECT;
         }
 
-        List<String> directIds = usesDirect(use) ? command.readyAttachmentVersionIds() : List.of();
         boolean strict = command.retrievalMode() == SourceMode.EXPLICIT_ONLY;
-        return new TaskSourcePlan(command.action(), use, command.retrievalMode(), directIds,
+        return new TaskSourcePlan(command.action(), use, command.retrievalMode(),
+                usesDirect(use) ? direct.versionId() : "",
                 usesRetrieval(use) ? command.selectedReferenceVersionIds() : List.of(), strict,
-                usesDirect(use));
+                usesDirect(use) && direct.selected(), usesDirect(use) ? direct.clarificationReason() : "");
     }
 
     private TaskSourcePlan none(TaskSourcePlanningCommand command) {
         return new TaskSourcePlan(command.action(), SourceUse.NONE, SourceMode.NONE,
-                List.of(), List.of(), false, false);
+                "", List.of(), false, false, "");
+    }
+
+    private DirectSelection selectDirect(TaskSourcePlanningCommand command) {
+        List<String> newlyUploaded = command.newlyUploadedDirectCandidateVersionIds();
+        if (newlyUploaded.size() == 1) {
+            return DirectSelection.selected(newlyUploaded.get(0));
+        }
+        if (!command.namedDirectCandidateVersionId().isEmpty()) {
+            return DirectSelection.selected(command.namedDirectCandidateVersionId());
+        }
+        if (command.conversationDirectCandidateVersionIds().size() == 1) {
+            return DirectSelection.selected(command.conversationDirectCandidateVersionIds().get(0));
+        }
+        if (!command.directCandidateVersionIds().isEmpty()) {
+            // Diagram and Chartbook images require a unique name; unqualified images are a user choice.
+            return DirectSelection.clarification("AMBIGUOUS_DIRECT_IMAGE");
+        }
+        return DirectSelection.none();
     }
 
     private boolean usesDirect(SourceUse use) {
@@ -50,5 +69,27 @@ public final class DefaultTaskSourcePlanner implements TaskSourcePlanner {
 
     private boolean usesRetrieval(SourceUse use) {
         return use == SourceUse.RETRIEVAL || use == SourceUse.DIRECT_AND_RETRIEVAL;
+    }
+
+    private record DirectSelection(String versionId, String clarificationReason) {
+        private static DirectSelection selected(String versionId) {
+            return new DirectSelection(versionId, "");
+        }
+
+        private static DirectSelection clarification(String reason) {
+            return new DirectSelection("", reason);
+        }
+
+        private static DirectSelection none() {
+            return new DirectSelection("", "");
+        }
+
+        private boolean selected() {
+            return !versionId.isEmpty();
+        }
+
+        private boolean unavailable() {
+            return !selected() && clarificationReason.isEmpty();
+        }
     }
 }

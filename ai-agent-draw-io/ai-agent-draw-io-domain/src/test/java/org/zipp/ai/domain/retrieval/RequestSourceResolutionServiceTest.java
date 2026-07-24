@@ -91,6 +91,29 @@ class RequestSourceResolutionServiceTest {
     }
 
     @Test
+    void keepsReadableImagesInTheSnapshotIndependentOfRetrievalProcessingState() {
+        MutableResolutionPort catalog = new MutableResolutionPort();
+        RequestSourceResolutionService service =
+                new DefaultRequestSourceResolutionService(catalog, new InMemorySnapshotStore());
+        catalog.attachments = List.of(
+                readableImage("upl-processing", "version-processing", "PROCESSING", "PROCESSING"),
+                readableImage("upl-object-processing", "version-object-processing",
+                        "READY", "PROCESSING"));
+        catalog.automatic = List.of(readableImage(
+                "version-failed", "version-failed", "FAILED", ""));
+
+        ResolvedSourceSet result = service.resolve(new RequestSourceResolutionCommand(
+                owner, "diagram-1", "conversation-1", "run-readable",
+                SourceMode.AUTO, List.of("upl-processing", "upl-object-processing"), List.of()));
+
+        assertEquals(List.of("version-processing", "version-object-processing", "version-failed"),
+                result.sources().stream().map(ResolvedSource::versionId).toList());
+        assertEquals(2, result.processingSourceCount());
+        assertEquals(List.of(true, true, false), result.sources().stream()
+                .map(ResolvedSource::countsAsProcessingSource).toList());
+    }
+
+    @Test
     void rejectsAChangedDeclarationWhenTheSameRunIsRetried() {
         MutableResolutionPort catalog = new MutableResolutionPort();
         RequestSourceResolutionService service =
@@ -112,6 +135,13 @@ class RequestSourceResolutionServiceTest {
         return new SourceResolutionCandidate(versionId, "material-1", versionId, revisionId,
                 "PDF", MaterialScopeType.LIBRARY, "personal", "READY", "SUCCEEDED",
                 false, true, false, false);
+    }
+
+    private SourceResolutionCandidate readableImage(String declarationId, String versionId,
+                                                    String state, String uploadState) {
+        return new SourceResolutionCandidate(declarationId, "material-" + versionId, versionId,
+                "revision-" + versionId, "IMAGE", MaterialScopeType.CONVERSATION,
+                "conversation-1", state, uploadState, true, false, true, false);
     }
 
     private static final class MutableResolutionPort implements RequestSourceResolutionPort {

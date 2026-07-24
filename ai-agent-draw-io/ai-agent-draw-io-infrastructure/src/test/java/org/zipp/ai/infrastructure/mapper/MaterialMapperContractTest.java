@@ -232,9 +232,18 @@ class MaterialMapperContractTest {
         assertTrue(onlineMapper.contains("m.owner_type = #{ownerType}"));
         assertTrue(onlineMapper.contains("m.owner_key = #{ownerKey}"));
         assertTrue(onlineMapper.contains("m.expires_at &gt; UTC_TIMESTAMP(3)"));
+        // Direct availability follows the immutable page image, not a vector or retrieval chunk.
+        assertTrue(automatic.contains("<include refid=\"hasVisualArtifact\"/>"));
+        assertTrue(onlineMapper.contains("<sql id=\"hasVisualArtifact\">"));
+        assertTrue(onlineMapper.contains("visual_page.artifact_kind = 'PAGE_IMAGE'"));
+        assertFalse(automatic.contains("c.modality = 'VISUAL'"));
 
         // Run snapshots are append-once and may only be replayed by their original owner.
         assertTrue(snapshotMapper.contains("INSERT IGNORE INTO request_source_snapshot"));
+        assertTrue(snapshotMapper.contains("#{source.displayName}"));
+        assertTrue(snapshotMapper.contains("item.display_name"));
+        assertTrue(snapshotMapper.contains("#{source.countsAsProcessingSource}"));
+        assertTrue(snapshotMapper.contains("item.counts_as_processing_source"));
         assertTrue(snapshotMapper.contains("snapshot.owner_type = #{owner.ownerType}"));
         assertTrue(snapshotMapper.contains("snapshot.owner_key = #{owner.ownerKey}"));
         assertFalse(snapshotMapper.contains("UPDATE request_source_snapshot"));

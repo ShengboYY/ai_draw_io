@@ -66,11 +66,13 @@ public final class DefaultRequestSourceResolutionService implements RequestSourc
             Set<String> found = new HashSet<>();
             for (SourceResolutionCandidate candidate : candidates) {
                 found.add(candidate.declarationId());
-                if (candidate.ready()) {
-                    add(candidate, origin);
-                } else if (candidate.processing()) {
+                boolean contributesProcessing = !candidate.ready() && candidate.processing();
+                if (candidate.ready() || candidate.directReadable()) {
+                    add(candidate, origin, contributesProcessing);
+                }
+                if (contributesProcessing) {
                     processing++;
-                } else {
+                } else if (!candidate.ready() && !candidate.directReadable()) {
                     unavailable++;
                 }
             }
@@ -79,16 +81,18 @@ public final class DefaultRequestSourceResolutionService implements RequestSourc
 
         private void addAutomatic(List<SourceResolutionCandidate> candidates) {
             // AUTO is scoped to the active Conversation, Diagram, and Chartbook, never the whole Library.
-            candidates.stream().filter(SourceResolutionCandidate::ready)
+            candidates.stream().filter(candidate -> candidate.ready() || candidate.directReadable())
                     .filter(candidate -> candidate.scopeType() != MaterialScopeType.LIBRARY).forEach(candidate ->
-                    add(candidate, candidate.pinned() ? RequestSourceOrigin.PINNED : RequestSourceOrigin.AUTOMATIC));
+                    add(candidate, candidate.pinned() ? RequestSourceOrigin.PINNED
+                            : RequestSourceOrigin.AUTOMATIC, false));
         }
 
-        private void add(SourceResolutionCandidate candidate, RequestSourceOrigin origin) {
+        private void add(SourceResolutionCandidate candidate, RequestSourceOrigin origin,
+                         boolean countsAsProcessingSource) {
             sources.putIfAbsent(candidate.versionId(), new ResolvedSource(candidate.materialId(),
-                    candidate.versionId(), candidate.revisionId(), candidate.kind(), candidate.scopeType(),
-                    candidate.scopeKey(), candidate.state(), origin, candidate.hasText(),
-                    candidate.hasVisual(), candidate.pinned()));
+                    candidate.versionId(), candidate.revisionId(), candidate.kind(), candidate.displayName(),
+                    candidate.scopeType(), candidate.scopeKey(), candidate.state(), origin, candidate.hasText(),
+                    candidate.hasVisual(), candidate.pinned(), countsAsProcessingSource));
         }
 
         private ResolvedSourceSet result(SourceMode mode) {

@@ -6,17 +6,21 @@
         AND m.lifecycle_state = 'ACTIVE'
         AND (m.retention_class = 'RETAINED' OR m.expires_at &gt; UTC_TIMESTAMP(3))
     </sql>
+    <sql id="hasVisualArtifact">
+        EXISTS (SELECT 1 FROM material_page_artifact visual_page
+                WHERE visual_page.revision_id = r.id AND visual_page.page_no = 1
+                  AND visual_page.artifact_kind = 'PAGE_IMAGE')
+    </sql>
 
     <select id="selectExplicitSources" resultType="org.zipp.ai.infrastructure.dao.retrieval.po.OnlineSourcePO">
         WITH ranked AS (
             SELECT m.id AS material_id, v.id AS version_id, r.id AS revision_id, m.kind,
-                   v.id AS declaration_id, '' AS upload_state,
+                   m.display_name, v.id AS declaration_id, '' AS upload_state,
                    link.scope_type, link.scope_key, r.state,
                    (link.scope_type = 'CONVERSATION') AS conversation_scoped,
                    EXISTS (SELECT 1 FROM retrieval_chunk c WHERE c.revision_id = r.id
                            AND c.status = 'ACTIVE' AND c.modality IN ('TEXT', 'TABLE')) AS has_text,
-                   EXISTS (SELECT 1 FROM retrieval_chunk c WHERE c.revision_id = r.id
-                           AND c.status = 'ACTIVE' AND c.modality = 'VISUAL') AS has_visual,
+                   <include refid="hasVisualArtifact"/> AS has_visual,
                    FALSE AS pinned,
                    ROW_NUMBER() OVER (PARTITION BY v.id ORDER BY
                        FIELD(link.scope_type, 'CONVERSATION', 'DIAGRAM', 'CHARTBOOK', 'LIBRARY'), link.created_at) AS rn
@@ -40,6 +44,7 @@
     <select id="selectConversationAttachmentSources" resultType="org.zipp.ai.infrastructure.dao.retrieval.po.OnlineSourcePO">
         SELECT u.id AS declaration_id, m.id AS material_id, v.id AS version_id,
                r.id AS revision_id, COALESCE(m.kind, 'UNKNOWN') AS kind,
+               COALESCE(m.display_name, u.display_name, '') AS display_name,
                'CONVERSATION' AS scope_type, #{conversationId} AS scope_key,
                COALESCE(r.state, 'PROCESSING') AS state,
                CASE WHEN u.state = 'CREATED' AND u.policy_expires_at &lt;= UTC_TIMESTAMP(3)
@@ -47,8 +52,7 @@
                TRUE AS conversation_scoped,
                EXISTS (SELECT 1 FROM retrieval_chunk c WHERE c.revision_id = r.id
                        AND c.status = 'ACTIVE' AND c.modality IN ('TEXT', 'TABLE')) AS has_text,
-               EXISTS (SELECT 1 FROM retrieval_chunk c WHERE c.revision_id = r.id
-                       AND c.status = 'ACTIVE' AND c.modality = 'VISUAL') AS has_visual,
+               <include refid="hasVisualArtifact"/> AS has_visual,
                FALSE AS pinned
         FROM material_upload_session u
         LEFT JOIN material m ON m.id = u.material_id
@@ -65,13 +69,12 @@
     <select id="selectAutomaticSources" resultType="org.zipp.ai.infrastructure.dao.retrieval.po.OnlineSourcePO">
         WITH candidates AS (
             SELECT m.id AS material_id, v.id AS version_id, r.id AS revision_id, m.kind,
-                   v.id AS declaration_id, '' AS upload_state,
+                   m.display_name, v.id AS declaration_id, '' AS upload_state,
                    'DIAGRAM' AS scope_type, #{diagramId} AS scope_key, r.state,
                    FALSE AS conversation_scoped,
                    EXISTS (SELECT 1 FROM retrieval_chunk c WHERE c.revision_id = r.id
                            AND c.status = 'ACTIVE' AND c.modality IN ('TEXT', 'TABLE')) AS has_text,
-                   EXISTS (SELECT 1 FROM retrieval_chunk c WHERE c.revision_id = r.id
-                           AND c.status = 'ACTIVE' AND c.modality = 'VISUAL') AS has_visual,
+                   <include refid="hasVisualArtifact"/> AS has_visual,
                    TRUE AS pinned, 1 AS priority
             FROM diagram_source_pin pin
             JOIN material m ON m.id = pin.material_id
@@ -79,12 +82,12 @@
             JOIN material_processing_revision r ON r.id = pin.processing_revision_id
             WHERE pin.diagram_id = #{diagramId} AND <include refid="activeOwnerMaterial"/>
             UNION ALL
-            SELECT m.id, v.id, r.id, m.kind, v.id, '', link.scope_type, link.scope_key, r.state,
+            SELECT m.id, v.id, r.id, m.kind, m.display_name, v.id, '',
+                   link.scope_type, link.scope_key, r.state,
                    (link.scope_type = 'CONVERSATION'),
                    EXISTS (SELECT 1 FROM retrieval_chunk c WHERE c.revision_id = r.id
                            AND c.status = 'ACTIVE' AND c.modality IN ('TEXT', 'TABLE')),
-                   EXISTS (SELECT 1 FROM retrieval_chunk c WHERE c.revision_id = r.id
-                           AND c.status = 'ACTIVE' AND c.modality = 'VISUAL'),
+                   <include refid="hasVisualArtifact"/>,
                    FALSE,
                    CASE link.scope_type WHEN 'CONVERSATION' THEN 2 WHEN 'DIAGRAM' THEN 3
                         WHEN 'CHARTBOOK' THEN 4 ELSE 5 END

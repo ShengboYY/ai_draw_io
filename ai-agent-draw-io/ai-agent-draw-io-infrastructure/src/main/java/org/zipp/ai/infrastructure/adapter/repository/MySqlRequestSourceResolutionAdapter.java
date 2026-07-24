@@ -45,6 +45,7 @@ public class MySqlRequestSourceResolutionAdapter implements RequestSourceResolut
         return new SourceResolutionCandidate(
                 text(row.getDeclarationId()).isBlank() ? row.getVersionId() : row.getDeclarationId(),
                 row.getMaterialId(), row.getVersionId(), row.getRevisionId(), text(row.getKind()),
+                text(row.getDisplayName()),
                 MaterialScopeType.valueOf(row.getScopeType()), text(row.getScopeKey()), text(row.getState()),
                 text(row.getUploadState()), row.isConversationScoped(), row.isHasText(),
                 row.isHasVisual(), row.isPinned());

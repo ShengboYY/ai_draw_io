@@ -312,6 +312,7 @@ public class DefaultIntentRoutingService implements IIntentRoutingService {
         facts.put("readyAttachmentCount", safe.readyAttachmentCount());
         facts.put("pendingAttachmentCount", safe.pendingAttachmentCount());
         facts.put("hasSingleReadyImageAttachment", safe.hasSingleReadyImageAttachment());
+        facts.put("directReadableImageCandidateCount", safe.directReadableImageCandidateCount());
         facts.put("hasPdfAttachment", safe.hasPdfAttachment());
         return "[Trusted Request Probe]\n" + JSON.toJSONString(facts) + "\n\n" + (message == null ? "" : message);
     }
@@ -449,7 +450,8 @@ public class DefaultIntentRoutingService implements IIntentRoutingService {
         String normalized = value == null ? "" : value.trim().toUpperCase(Locale.ROOT);
         if (!ALLOWED_SOURCE_USES.contains(normalized)) return "NONE";
         boolean directRequested = "DIRECT".equals(normalized) || "DIRECT_AND_RETRIEVAL".equals(normalized);
-        if (directRequested && (probe == null || !probe.hasSingleReadyImageAttachment())) {
+        // Authorization and ambiguity stay with TaskSourcePlanner; the router only needs availability.
+        if (directRequested && (probe == null || probe.directReadableImageCandidateCount() == 0)) {
             return "DIRECT_AND_RETRIEVAL".equals(normalized) ? "RETRIEVAL" : "NONE";
         }
         return normalized;

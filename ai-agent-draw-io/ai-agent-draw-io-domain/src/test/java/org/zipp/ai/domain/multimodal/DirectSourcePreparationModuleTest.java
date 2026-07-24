@@ -176,6 +176,32 @@ class DirectSourcePreparationModuleTest {
     }
 
     @Test
+    void preparesAnAuthorizedChartbookImageWithoutAttachmentOrVectorLookup() {
+        AtomicBoolean leaseClosed = new AtomicBoolean();
+        ResolvedSource chartbookImage = new ResolvedSource(
+                "material-1", "version-1", "revision-1", "IMAGE",
+                "incident.png", MaterialScopeType.CHARTBOOK, "chartbook-1", "READY",
+                RequestSourceOrigin.AUTOMATIC, false, true, false);
+        ResolvedSourceSet snapshot = new ResolvedSourceSet(
+                SourceMode.AUTO, List.of(chartbookImage), 0, 0);
+        DirectSourcePreparationModule module = module(
+                (request, resources, cancellation) ->
+                        java.util.concurrent.CompletableFuture.completedFuture(
+                                new VisualObservationOutcome.DiagramVerified(graph(0.94))),
+                snapshot, leaseClosed, Optional.of(artifact));
+        DirectSourceCommand command = new DirectSourceCommand(
+                new CatalogOwner(OwnerType.USER, "alice"),
+                "request-1", "run-1", "diagram-1", "conversation-1", "",
+                List.of(), SourceMode.AUTO, "Reconstruct incident.png", "",
+                List.of(), snapshot, "version-1");
+
+        DirectSourceOutcome outcome = module.prepare(command, new RunResourceDomain(),
+                null, CancellationSignal.NEVER).toCompletableFuture().join();
+
+        assertInstanceOf(DirectSourceOutcome.Prepared.class, outcome);
+    }
+
+    @Test
     void staleImageConfirmationStopsBeforeReadingPixels() {
         int[] observations = {0};
         DirectSourcePreparationModule module = module(
@@ -215,8 +241,19 @@ class DirectSourcePreparationModuleTest {
     }
 
     @Test
-    void partiallyReadyImageIsRejectedBeforeLeaseAcquisition() {
-        assertRejectedBeforeLeaseAndPixelRead(sources("IMAGE", "PARTIAL_READY"));
+    void readableVisualArtifactCanBePreparedIndependentOfRetrievalProcessingState() {
+        for (String state : List.of("PARTIAL_READY", "PROCESSING", "FAILED")) {
+            DirectSourcePreparationModule module = module(
+                    (request, resources, cancellation) ->
+                            java.util.concurrent.CompletableFuture.completedFuture(
+                                    new VisualObservationOutcome.DiagramVerified(graph(0.94))),
+                    sources("IMAGE", state), new AtomicBoolean(), Optional.of(artifact));
+
+            DirectSourceOutcome outcome = module.prepare(command(), new RunResourceDomain(),
+                    null, CancellationSignal.NEVER).toCompletableFuture().join();
+
+            assertInstanceOf(DirectSourceOutcome.Prepared.class, outcome);
+        }
     }
 
     private void assertRejectedBeforeLeaseAndPixelRead(ResolvedSourceSet sources) {
