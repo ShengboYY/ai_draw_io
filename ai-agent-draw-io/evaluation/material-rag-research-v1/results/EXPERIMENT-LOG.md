@@ -1423,3 +1423,12 @@
 - **工件**:[alice-qa review](../review/stage-f-clean-validation-alice-qa-v1.json) 绑定冻结 task fixture SHA-256
   `d6f836a70b451cc747b252561264060d898a9ca1eb46bdad1b46b871b821447d`。
 - **下一步**:仍需 product-owner 的明确独立审核通过；两人完成后，仍必须获得用户的一次性模型运行授权。
+
+### Stage F case review complete · 2026-07-24 · ✅ pre-run review requirement met
+
+- **第二 reviewer**:product-owner 已独立审核并通过同一 12 个 Stage F source/evidence/claim package；没有报告分歧。
+- **合并结论**:两位具名 reviewer（`alice-qa`、`product-owner`）均接受 12/12 package。合并记录见
+  [case review](../review/stage-f-clean-validation-case-review-v1.json)，product-owner 的独立记录见
+  [product-owner review](../review/stage-f-clean-validation-product-owner-v1.json)。
+- **下一步**:pre-run case-review requirement 已满足；仍需用户明确授权，才可将这 12 个合成 inputs 与两张合成视觉图
+  发送至固定模型运行**一次**。运行后不得改 prompt、任务、证据、policy 或 rubric。
