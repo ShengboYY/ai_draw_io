@@ -40,6 +40,8 @@ public final class DefaultRequestSourceResolutionService implements RequestSourc
 
         if (command.sourceMode() == SourceMode.AUTO || command.sourceMode() == SourceMode.EXPLICIT) {
             accumulator.addAutomatic(catalog.resolveAutomatic(command, AUTOMATIC_SOURCE_LIMIT));
+            // Persist the authoritative Conversation upload count so probe and Evidence see one snapshot.
+            accumulator.addProcessing(catalog.countPendingConversationUploads(command));
         }
 
         ResolvedSourceSet resolved = accumulator.result(command.sourceMode());
@@ -85,6 +87,10 @@ public final class DefaultRequestSourceResolutionService implements RequestSourc
                     .filter(candidate -> candidate.scopeType() != MaterialScopeType.LIBRARY).forEach(candidate ->
                     add(candidate, candidate.pinned() ? RequestSourceOrigin.PINNED
                             : RequestSourceOrigin.AUTOMATIC, false));
+        }
+
+        private void addProcessing(int count) {
+            processing += Math.max(0, count);
         }
 
         private void add(SourceResolutionCandidate candidate, RequestSourceOrigin origin,

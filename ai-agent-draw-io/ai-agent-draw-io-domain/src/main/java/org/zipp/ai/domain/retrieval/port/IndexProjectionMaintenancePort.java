@@ -23,8 +23,17 @@ public interface IndexProjectionMaintenancePort {
     Set<String> findKnownVectorIds(List<String> providerVectorIds);
     String recordOrphanDeletionIntent(String generationId, List<String> vectorIds, Instant requestedAt);
     boolean completeOrphanDeletion(String deletionId, Instant completedAt);
-    Optional<RetiredGenerationCleanup> findRetiredCleanup(String generationId, Instant now,
-                                                          Duration minimumGrace, int limit);
+    String findTemporaryCleanupCursor(String generationId, Instant initializedAt);
+    boolean advanceTemporaryCleanupCursor(String generationId, String expectedMaterialId,
+                                          String nextMaterialId, Instant updatedAt);
+    Optional<TemporaryProjectionCleanup> findTemporaryConversationCleanup(
+            String generationId, String afterMaterialId, Instant now, int limit);
+    boolean claimTemporaryConversationVectorsForDeletion(
+            TemporaryProjectionCleanup cleanup, Instant deletedAt);
+    Optional<PendingProjectionDeletion> findTemporaryProviderDeletionRetry(int limit);
+    boolean completeTemporaryProviderDeletion(String generationId, List<String> vectorIds,
+                                              Instant completedAt);
+    Optional<RetiredGenerationCleanup> findRetiredCleanup(Instant now, Duration minimumGrace, int limit);
     boolean markRetiredVectorsDeleted(RetiredGenerationCleanup cleanup, Instant deletedAt);
     boolean completeRetiredGeneration(String generationId, Instant completedAt);
     boolean retryFailedTarget(String generationId, String revisionId, String requestedByHash,

@@ -77,6 +77,16 @@
           AND owner_key = #{material.ownerKey} AND lifecycle_generation = #{expectedGeneration}
     </update>
 
+    <select id="countPendingVectorCleanup" resultType="int">
+        SELECT COUNT(*)
+        FROM retrieval_chunk_vector_projection projection
+        JOIN retrieval_chunk chunk ON chunk.id = projection.retrieval_chunk_id
+        JOIN material_version version ON version.id = chunk.version_id
+        WHERE version.material_id = #{materialId}
+          AND projection.provider_deleted_at IS NOT NULL
+          AND projection.provider_delete_completed_at IS NULL
+    </select>
+
     <update id="cancelQueuedMaterialJobs">
         UPDATE material_processing_job job
         LEFT JOIN material_processing_revision revision ON revision.id = job.revision_id

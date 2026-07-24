@@ -3,6 +3,7 @@ package org.zipp.ai.infrastructure.dao.material;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import org.zipp.ai.infrastructure.dao.material.po.ProcessingJobPO;
+import org.zipp.ai.infrastructure.dao.material.po.RagIndexGenerationPO;
 import org.zipp.ai.infrastructure.dao.material.po.VectorProjectionWorkPO;
 
 import java.time.Instant;
@@ -59,6 +60,35 @@ public interface IIndexProjectionMaintenanceMapper {
                                    @Param("requestedAt") Instant requestedAt);
     int completeOrphanDeletion(@Param("deletionId") String deletionId,
                                @Param("completedAt") Instant completedAt);
+    int insertTemporaryCleanupCursor(@Param("generationId") String generationId,
+                                     @Param("updatedAt") Instant updatedAt);
+    String selectTemporaryCleanupCursor(@Param("generationId") String generationId);
+    int advanceTemporaryCleanupCursor(@Param("generationId") String generationId,
+                                      @Param("expectedMaterialId") String expectedMaterialId,
+                                      @Param("nextMaterialId") String nextMaterialId,
+                                      @Param("updatedAt") Instant updatedAt);
+    String selectTemporaryCleanupMaterial(@Param("generationId") String generationId,
+                                          @Param("afterMaterialId") String afterMaterialId,
+                                          @Param("now") Instant now);
+    List<String> selectTemporaryCleanupVectorIds(@Param("generationId") String generationId,
+                                                  @Param("materialId") String materialId,
+                                                  @Param("now") Instant now,
+                                                  @Param("limit") int limit);
+    String lockExpiredTemporaryCleanupMaterial(@Param("materialId") String materialId,
+                                                @Param("now") Instant now);
+    int claimTemporaryConversationVectorsForDeletion(@Param("generationId") String generationId,
+                                                      @Param("materialId") String materialId,
+                                                      @Param("vectorIds") List<String> vectorIds,
+                                                      @Param("deletedAt") Instant deletedAt);
+    RagIndexGenerationPO selectPendingProviderDeletionGeneration();
+    List<String> selectTemporaryProviderDeletionRetries(@Param("generationId") String generationId,
+                                                        @Param("limit") int limit);
+    int completeTemporaryProviderDeletion(@Param("generationId") String generationId,
+                                          @Param("vectorIds") List<String> vectorIds,
+                                          @Param("completedAt") Instant completedAt);
+    RagIndexGenerationPO selectRetiredCleanupGeneration(
+            @Param("now") Instant now,
+            @Param("minimumGraceSeconds") long minimumGraceSeconds);
     int claimRetiredGenerationCleanup(@Param("generationId") String generationId,
                                       @Param("now") Instant now,
                                       @Param("minimumGraceSeconds") long minimumGraceSeconds);

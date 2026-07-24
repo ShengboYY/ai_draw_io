@@ -271,9 +271,13 @@ class MaterialRagFoundationMigrationTest {
 
         assertTrue(sql.contains("purged_at DATETIME(3)"));
         assertTrue(sql.contains("provider_deleted_at DATETIME(3)"));
+        assertTrue(sql.contains("provider_delete_completed_at DATETIME(3)"));
+        assertTrue(sql.contains("SET provider_delete_completed_at = provider_deleted_at"));
         assertTrue(sql.contains("CREATE TABLE IF NOT EXISTS rag_projection_repair_audit"));
         assertTrue(sql.contains("CREATE TABLE IF NOT EXISTS rag_projection_reconciliation_cursor"));
         assertTrue(sql.contains("pagination_token VARCHAR(2048)"));
+        assertTrue(sql.contains("CREATE TABLE IF NOT EXISTS rag_projection_temporary_cleanup_cursor"));
+        assertTrue(sql.contains("material_cursor VARCHAR(64)"));
         assertTrue(sql.contains("CREATE TABLE IF NOT EXISTS rag_projection_orphan_deletion_audit"));
         assertTrue(sql.contains("requested_at DATETIME(3) NOT NULL"));
         assertTrue(sql.contains("completed_at DATETIME(3) NULL"));

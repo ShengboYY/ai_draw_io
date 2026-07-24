@@ -8,7 +8,14 @@ ALTER TABLE retrieval_vector_batch
 
 ALTER TABLE retrieval_chunk_vector_projection
     ADD COLUMN provider_deleted_at DATETIME(3) NULL AFTER indexed_at,
-    ADD KEY idx_vector_projection_cleanup (index_generation_id, provider_deleted_at);
+    ADD COLUMN provider_delete_completed_at DATETIME(3) NULL AFTER provider_deleted_at,
+    ADD KEY idx_vector_projection_cleanup
+        (index_generation_id, provider_delete_completed_at, provider_deleted_at);
+
+-- Existing tombstones predate the requested/completed split and are already externally complete.
+UPDATE retrieval_chunk_vector_projection
+SET provider_delete_completed_at = provider_deleted_at
+WHERE provider_deleted_at IS NOT NULL;
 
 CREATE TABLE IF NOT EXISTS rag_projection_repair_audit (
     repair_id VARCHAR(64) NOT NULL,
@@ -35,6 +42,13 @@ CREATE TABLE IF NOT EXISTS rag_projection_repair_audit (
 CREATE TABLE IF NOT EXISTS rag_projection_reconciliation_cursor (
     index_generation_id VARCHAR(64) NOT NULL,
     pagination_token VARCHAR(2048) NULL,
+    updated_at DATETIME(3) NOT NULL,
+    PRIMARY KEY (index_generation_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS rag_projection_temporary_cleanup_cursor (
+    index_generation_id VARCHAR(64) NOT NULL,
+    material_cursor VARCHAR(64) NOT NULL DEFAULT '',
     updated_at DATETIME(3) NOT NULL,
     PRIMARY KEY (index_generation_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

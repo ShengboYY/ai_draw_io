@@ -151,7 +151,6 @@ public class StageAEvidenceDecisionCohortTest {
         request.setSessionId("stage-a-" + cohortCase.getString("caseId"));
         request.setDiagramId("diagram-" + cohortCase.getString("caseId"));
         request.setMessage(cohortCase.getString("request"));
-        request.setSourceMode("AUTO");
         return request;
     }
 

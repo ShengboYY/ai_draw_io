@@ -815,7 +815,6 @@ public class AgentConversationServiceTest {
         injectField(service, "materialRagEnabled", false);
         injectField(service, "materialRetrievalShadowEnabled", false);
         ChatRequestDTO request = platformRequest();
-        request.setSourceMode("NONE");
 
         org.zipp.ai.api.dto.ChatResponseDTO response = service.chat(request);
 
@@ -837,7 +836,6 @@ public class AgentConversationServiceTest {
                                         List.of("REQUEST_SUPPORT_INCOMPLETE"))));
         ChatRequestDTO request = platformRequest();
         request.setMessage("Create a factual architecture diagram from the available material.");
-        request.setSourceMode("AUTO");
 
         org.zipp.ai.api.dto.ChatResponseDTO response = service.chat(request);
 
@@ -861,7 +859,6 @@ public class AgentConversationServiceTest {
                                 new org.zipp.ai.domain.retrieval.PreparationOutcome.InsufficientEvidence(
                                         List.of("REQUIRED_EXACT_TERM_MISSING"), "version 2.1")));
         ChatRequestDTO request = platformRequest();
-        request.setSourceMode("AUTO");
 
         org.zipp.ai.api.dto.ChatResponseDTO response = service.chat(request);
 
@@ -884,7 +881,6 @@ public class AgentConversationServiceTest {
                                         List.of("DENSE_UNAVAILABLE", "LEXICAL_DEGRADED"))));
         ChatRequestDTO request = platformRequest();
         request.setMessage("Create a factual architecture diagram from the available material.");
-        request.setSourceMode("AUTO");
 
         org.zipp.ai.api.dto.ChatResponseDTO response = service.chat(request);
 
@@ -908,7 +904,6 @@ public class AgentConversationServiceTest {
         ChatRequestDTO insufficientRequest = verifiedPlatformRequest();
         insufficientRequest.setSessionId("session-insufficient");
         insufficientRequest.setDiagramId("diagram-insufficient");
-        insufficientRequest.setSourceMode("AUTO");
         CapturingEmitter insufficientEmitter = new CapturingEmitter();
 
         insufficientService.stream(insufficientRequest, insufficientEmitter);
@@ -931,7 +926,6 @@ public class AgentConversationServiceTest {
         ChatRequestDTO degradedRequest = verifiedPlatformRequest();
         degradedRequest.setSessionId("session-degraded");
         degradedRequest.setDiagramId("diagram-degraded");
-        degradedRequest.setSourceMode("AUTO");
         CapturingEmitter degradedEmitter = new CapturingEmitter();
 
         degradedService.stream(degradedRequest, degradedEmitter);
@@ -956,7 +950,6 @@ public class AgentConversationServiceTest {
                                         "EVIDENCE_PREPARATION_FAILED")));
         ChatRequestDTO request = platformRequest();
         request.setMessage("Create a factual architecture diagram from the available material.");
-        request.setSourceMode("AUTO");
 
         org.zipp.ai.api.dto.ChatResponseDTO response = service.chat(request);
 
@@ -983,7 +976,6 @@ public class AgentConversationServiceTest {
                                                 "api-b", "NODE", "API", "LABEL_MATCH")))));
         ChatRequestDTO request = platformRequest();
         request.setMessage("Update the API node from the available material.");
-        request.setSourceMode("AUTO");
 
         org.zipp.ai.api.dto.ChatResponseDTO response = service.chat(request);
 
@@ -1005,7 +997,6 @@ public class AgentConversationServiceTest {
         injectField(service, "materialRetrievalShadowEnabled", false);
         ChatRequestDTO request = platformRequest();
         request.setMessage("Create a factual architecture diagram from the available material.");
-        request.setSourceMode("AUTO");
 
         org.zipp.ai.api.dto.ChatResponseDTO response = service.chat(request);
 
@@ -1024,7 +1015,6 @@ public class AgentConversationServiceTest {
         injectField(service, "evidencePreparationModule", null);
         ChatRequestDTO request = platformRequest();
         request.setMessage("Create a factual architecture diagram from the available material.");
-        request.setSourceMode("AUTO");
 
         org.zipp.ai.api.dto.ChatResponseDTO response = service.chat(request);
 
@@ -1046,7 +1036,6 @@ public class AgentConversationServiceTest {
                                 new IllegalStateException("provider unavailable")));
         ChatRequestDTO request = platformRequest();
         request.setMessage("Create a factual architecture diagram from the available material.");
-        request.setSourceMode("AUTO");
 
         org.zipp.ai.api.dto.ChatResponseDTO response = service.chat(request);
 
@@ -1068,7 +1057,6 @@ public class AgentConversationServiceTest {
                 });
         ChatRequestDTO request = platformRequest();
         request.setMessage("Create a factual architecture diagram from the available material.");
-        request.setSourceMode("AUTO");
 
         org.zipp.ai.api.dto.ChatResponseDTO response = service.chat(request);
 
@@ -1090,7 +1078,6 @@ public class AgentConversationServiceTest {
                                 new org.zipp.ai.domain.retrieval.PreparationOutcome.ClarificationNeeded(
                                         "AMBIGUOUS_SOURCE", List.of())));
         ChatRequestDTO request = platformRequest();
-        request.setSourceMode("AUTO");
 
         org.zipp.ai.api.dto.ChatResponseDTO response = service.chat(request);
 
@@ -1113,7 +1100,6 @@ public class AgentConversationServiceTest {
                                 new org.zipp.ai.domain.retrieval.PreparationOutcome.ClarificationNeeded(
                                         "AMBIGUOUS_CLAIM", List.of())));
         ChatRequestDTO request = platformRequest();
-        request.setSourceMode("AUTO");
 
         org.zipp.ai.api.dto.ChatResponseDTO response = service.chat(request);
 
@@ -1248,10 +1234,6 @@ public class AgentConversationServiceTest {
         ChatRequestDTO request = platformRequest();
         request.setSessionId(null);
         request.setRequestId("request-direct-1");
-        request.setAttachmentUploadIds(List.of("upload-1"));
-        request.setSelectedVersionIds(List.of("selected-version-1"));
-        request.setSourceMode("EXPLICIT_ONLY");
-        request.setSourceUseOverride("RETRIEVAL");
         ChatRequestDTO.DirectClarificationDTO clarification =
                 new ChatRequestDTO.DirectClarificationDTO();
         clarification.setReasonCode("UNRESOLVED_EDGE_DIRECTION:e1");
@@ -1267,9 +1249,9 @@ public class AgentConversationServiceTest {
         assertEquals(convertedXml, response.getContent());
         assertEquals(Long.valueOf(1L), response.getCanvasVersion());
         assertEquals("direct-hash", response.getContentHash());
-        assertEquals("upload-1", executed.get().source().attachmentUploadId());
+        assertEquals("", executed.get().source().attachmentUploadId());
         assertEquals("session-1", executed.get().source().conversationId());
-        assertEquals(List.of("selected-version-1"), executed.get().source().selectedVersionIds());
+        assertEquals(List.of(), executed.get().source().selectedVersionIds());
         assertEquals("UNRESOLVED_EDGE_DIRECTION:e1",
                 executed.get().source().clarifications().get(0).reasonCode());
         assertEquals(org.zipp.ai.domain.multimodal.DirectClarification.Resolution.FORWARD,
@@ -1316,8 +1298,6 @@ public class AgentConversationServiceTest {
         ChatRequestDTO request = platformRequest();
         request.setSessionId(null);
         request.setRequestId("request-direct-stream-1");
-        request.setAttachmentUploadIds(List.of("upload-1"));
-        request.setSourceMode("EXPLICIT_ONLY");
         CapturingEmitter emitter = new CapturingEmitter();
 
         service.stream(request, emitter);
@@ -1358,7 +1338,6 @@ public class AgentConversationServiceTest {
                         });
         ChatRequestDTO request = platformRequest();
         request.setRequestId("request-direct-conversation");
-        request.setAttachmentUploadIds(List.of());
         request.setMessage("Reconstruct the image from this conversation.");
 
         service.chat(request);
@@ -1392,7 +1371,6 @@ public class AgentConversationServiceTest {
                         });
         ChatRequestDTO request = platformRequest();
         request.setRequestId("request-direct-chartbook");
-        request.setAttachmentUploadIds(List.of());
         request.setMessage("Reconstruct incident.png exactly.");
 
         service.chat(request);
@@ -1425,7 +1403,6 @@ public class AgentConversationServiceTest {
                         });
         ChatRequestDTO request = platformRequest();
         request.setRequestId("request-direct-conversation-priority");
-        request.setAttachmentUploadIds(List.of());
         request.setMessage("Reconstruct the image from this conversation.");
 
         service.chat(request);
@@ -1454,7 +1431,6 @@ public class AgentConversationServiceTest {
                                                 .NeedsConfirmation(List.of("AMBIGUOUS_DIRECTION"))));
         ChatRequestDTO request = platformRequest();
         request.setRequestId("request-direct-confirmation");
-        request.setAttachmentUploadIds(List.of("upload-1"));
         CapturingEmitter emitter = new CapturingEmitter();
 
         service.stream(request, emitter);
@@ -1480,7 +1456,7 @@ public class AgentConversationServiceTest {
         org.zipp.ai.domain.retrieval.ResolvedSourceSet frozenSources =
                 directAndLibrarySourceSnapshot();
         injectField(service, "chatService", chatService);
-        injectField(service, "intentRoutingService", new DirectImageRoutingService());
+        injectField(service, "intentRoutingService", new DirectAndRetrievalRoutingService());
         FixedCanvasStateStore canvasStore = new FixedCanvasStateStore("");
         injectField(service, "canvasStateStore", canvasStore);
         DrawioStreamResponseWriter writer = new DrawioStreamResponseWriter(new DrawioToolCallRenderer());
@@ -1552,10 +1528,6 @@ public class AgentConversationServiceTest {
         injectField(service, "materialRagEnabled", true);
         ChatRequestDTO request = platformRequest();
         request.setRequestId("request-composite-1");
-        request.setAttachmentUploadIds(List.of("upload-1"));
-        request.setSelectedVersionIds(List.of("library-version"));
-        request.setSourceMode("EXPLICIT_ONLY");
-        request.setSourceUseOverride("DIRECT_AND_RETRIEVAL");
 
         CapturingEmitter emitter = new CapturingEmitter();
         service.stream(request, emitter);
@@ -1594,19 +1566,17 @@ public class AgentConversationServiceTest {
         injectField(service, "canvasStateStore", new FixedCanvasStateStore(""));
         injectField(service, "requestSourceResolutionService",
                 (org.zipp.ai.domain.retrieval.RequestSourceResolutionService) command ->
-                        multipleAttachmentImageSourceSnapshot());
+                        multipleConversationImageSourceSnapshot());
         injectField(service, "taskSourcePlanner",
                 new org.zipp.ai.domain.multimodal.DefaultTaskSourcePlanner());
         injectField(service, "directImageConversionExecutionModule",
                 (org.zipp.ai.domain.multimodal.DirectImageConversionExecutionModule)
                         (command, progress, cancellation) -> {
                             directExecutions.incrementAndGet();
-                            throw new AssertionError("Multiple attachments must not enter direct conversion");
+                            throw new AssertionError("Multiple conversation images must not enter direct conversion");
                         });
         ChatRequestDTO request = platformRequest();
         request.setRequestId("request-direct-multiple");
-        request.setAttachmentUploadIds(List.of("upload-1", "upload-2"));
-        request.setSourceMode("AUTO");
 
         org.zipp.ai.api.dto.ChatResponseDTO response = service.chat(request);
 
@@ -1650,9 +1620,7 @@ public class AgentConversationServiceTest {
                 });
         ChatRequestDTO request = platformRequest();
         request.setRequestId("request-source-snapshot-1");
-        request.setMessage("answer from the selected upload");
-        request.setSourceMode("NONE");
-        request.setAttachmentUploadIds(List.of("upl-1"));
+        request.setMessage("answer from the current conversation");
 
         org.zipp.ai.api.dto.ChatResponseDTO response = service.chat(request);
 
@@ -1663,7 +1631,7 @@ public class AgentConversationServiceTest {
     }
 
     @Test
-    public void selectedLibraryImageReconstructionAddsTopologyEvidenceToDrawerPrompt() throws Exception {
+    public void chartbookImageReconstructionAddsTopologyEvidenceToDrawerPrompt() throws Exception {
         AgentConversationService service = quotaAwareService();
         CountingChatService chatService = new CountingChatService();
         AtomicReference<org.zipp.ai.domain.retrieval.EvidencePreparationCommand> prepared =
@@ -1673,7 +1641,7 @@ public class AgentConversationServiceTest {
         injectField(service, "materialRagEnabled", true);
         injectField(service, "requestSourceResolutionService",
                 (org.zipp.ai.domain.retrieval.RequestSourceResolutionService) command ->
-                        readyLibraryImageSourceSnapshot());
+                        readyChartbookImageSourceSnapshot());
         injectField(service, "evidencePreparationModule",
                 (org.zipp.ai.domain.retrieval.EvidencePreparationModule)
                         (command, resources, progress, cancellation) -> {
@@ -1701,9 +1669,7 @@ public class AgentConversationServiceTest {
                         });
         ChatRequestDTO request = platformRequest();
         request.setRequestId("request-library-image-reconstruction");
-        request.setMessage("Faithfully reconstruct the selected image.");
-        request.setSourceMode("EXPLICIT_ONLY");
-        request.setSelectedVersionIds(List.of("version-1"));
+        request.setMessage("Faithfully reconstruct the chartbook image.");
 
         service.stream(request, new CapturingEmitter());
 
@@ -2024,7 +1990,7 @@ public class AgentConversationServiceTest {
                         "material-1", "version-1", "revision-1", "IMAGE", "upload.png",
                         org.zipp.ai.domain.material.model.valobj.MaterialScopeType.CONVERSATION,
                         "session-1", "READY",
-                        org.zipp.ai.domain.retrieval.RequestSourceOrigin.ATTACHMENT,
+                        org.zipp.ai.domain.retrieval.RequestSourceOrigin.AUTOMATIC,
                         false, true, false)), 0, 0);
     }
 
@@ -2053,7 +2019,7 @@ public class AgentConversationServiceTest {
                 0, 0);
     }
 
-    private org.zipp.ai.domain.retrieval.ResolvedSourceSet multipleAttachmentImageSourceSnapshot() {
+    private org.zipp.ai.domain.retrieval.ResolvedSourceSet multipleConversationImageSourceSnapshot() {
         return new org.zipp.ai.domain.retrieval.ResolvedSourceSet(
                 org.zipp.ai.domain.retrieval.SourceMode.AUTO,
                 List.of(
@@ -2061,25 +2027,25 @@ public class AgentConversationServiceTest {
                                 "material-1", "version-1", "revision-1", "IMAGE", "first.png",
                                 org.zipp.ai.domain.material.model.valobj.MaterialScopeType.CONVERSATION,
                                 "session-1", "READY",
-                                org.zipp.ai.domain.retrieval.RequestSourceOrigin.ATTACHMENT,
+                                org.zipp.ai.domain.retrieval.RequestSourceOrigin.AUTOMATIC,
                                 false, true, false),
                         new org.zipp.ai.domain.retrieval.ResolvedSource(
                                 "material-2", "version-2", "revision-2", "IMAGE", "second.png",
                                 org.zipp.ai.domain.material.model.valobj.MaterialScopeType.CONVERSATION,
                                 "session-1", "READY",
-                                org.zipp.ai.domain.retrieval.RequestSourceOrigin.ATTACHMENT,
+                                org.zipp.ai.domain.retrieval.RequestSourceOrigin.AUTOMATIC,
                                 false, true, false)),
                 0, 0);
     }
 
-    private org.zipp.ai.domain.retrieval.ResolvedSourceSet readyLibraryImageSourceSnapshot() {
+    private org.zipp.ai.domain.retrieval.ResolvedSourceSet readyChartbookImageSourceSnapshot() {
         return new org.zipp.ai.domain.retrieval.ResolvedSourceSet(
-                org.zipp.ai.domain.retrieval.SourceMode.EXPLICIT_ONLY,
+                org.zipp.ai.domain.retrieval.SourceMode.AUTO,
                 List.of(new org.zipp.ai.domain.retrieval.ResolvedSource(
                         "material-1", "version-1", "revision-1", "IMAGE",
-                        org.zipp.ai.domain.material.model.valobj.MaterialScopeType.LIBRARY,
-                        org.zipp.ai.domain.material.model.valobj.MaterialScopeType.PERSONAL_LIBRARY_KEY,
-                        "READY", org.zipp.ai.domain.retrieval.RequestSourceOrigin.EXPLICIT,
+                        org.zipp.ai.domain.material.model.valobj.MaterialScopeType.CHARTBOOK,
+                        "chartbook-1",
+                        "READY", org.zipp.ai.domain.retrieval.RequestSourceOrigin.AUTOMATIC,
                         false, true, false)), 0, 0);
     }
 

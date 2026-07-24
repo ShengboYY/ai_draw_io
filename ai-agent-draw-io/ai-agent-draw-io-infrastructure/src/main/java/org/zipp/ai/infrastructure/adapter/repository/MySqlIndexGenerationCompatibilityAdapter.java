@@ -131,8 +131,12 @@ public class MySqlIndexGenerationCompatibilityAdapter implements IndexGeneration
                 || source.state() != IndexGenerationState.SHADOW || !source.complete()
                 || source.activeGenerationId() == null) return false;
         String activeGenerationId = mapper.selectActiveGenerationForUpdate();
+        RagIndexGenerationPO active = mapper.selectGenerationForUpdate(activeGenerationId);
+        RagIndexGenerationPO candidate = mapper.selectGenerationForUpdate(source.generationId());
+        // One worker client is bound to one Pinecone index host; generations may rotate namespaces only.
         if (!source.activeGenerationId().equals(activeGenerationId)
-                || mapper.selectGenerationForUpdate(source.generationId()) == null) return false;
+                || active == null || candidate == null
+                || !Objects.equals(active.getIndexName(), candidate.getIndexName())) return false;
         String tokenizer = mapper.selectCompatibilityTokenizer(source.generationId());
         int added = mapper.insertRequiredGenerationTargets(source.generationId(), tokenizer, activationTime);
         if (added > 0 && mapper.advanceCompatibilityTargetGeneration(source.generationId(), added) != 1) {

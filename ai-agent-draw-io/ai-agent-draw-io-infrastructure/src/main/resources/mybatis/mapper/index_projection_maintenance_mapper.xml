@@ -176,6 +176,172 @@
         WHERE deletion_id = #{deletionId} AND completed_at IS NULL
     </update>
 
+    <insert id="insertTemporaryCleanupCursor">
+        INSERT IGNORE INTO rag_projection_temporary_cleanup_cursor
+            (index_generation_id, material_cursor, updated_at)
+        VALUES (#{generationId}, '', #{updatedAt})
+    </insert>
+
+    <select id="selectTemporaryCleanupCursor" resultType="string">
+        SELECT material_cursor FROM rag_projection_temporary_cleanup_cursor
+        WHERE index_generation_id = #{generationId}
+    </select>
+
+    <update id="advanceTemporaryCleanupCursor">
+        UPDATE rag_projection_temporary_cleanup_cursor
+        SET material_cursor = #{nextMaterialId}, updated_at = #{updatedAt}
+        WHERE index_generation_id = #{generationId}
+          AND material_cursor = #{expectedMaterialId}
+    </update>
+
+    <select id="selectTemporaryCleanupMaterial" resultType="string">
+        SELECT m.id
+        FROM material m
+        JOIN material_version v ON v.material_id = m.id
+        JOIN material_processing_revision r ON r.version_id = v.id
+        JOIN retrieval_chunk c ON c.revision_id = r.id
+        JOIN retrieval_chunk_vector_projection p
+          ON p.retrieval_chunk_id = c.id AND p.index_generation_id = #{generationId}
+         AND p.provider_deleted_at IS NULL
+        JOIN rag_index_generation g
+          ON g.id = p.index_generation_id AND g.state = 'ACTIVE'
+        WHERE m.lifecycle_state = 'TRASHED' AND m.retention_class = 'TEMPORARY'
+          AND m.expires_at &lt;= #{now}
+        <if test="afterMaterialId != null and afterMaterialId != ''">
+          AND m.id &gt; #{afterMaterialId}
+        </if>
+          AND EXISTS (SELECT 1 FROM material_scope_link conversation_scope
+                      WHERE conversation_scope.material_id = m.id
+                        AND conversation_scope.scope_type = 'CONVERSATION')
+          AND NOT EXISTS (SELECT 1 FROM material_scope_link durable_scope
+                          WHERE durable_scope.material_id = m.id
+                            AND durable_scope.scope_type IN ('LIBRARY', 'DIAGRAM', 'CHARTBOOK'))
+          AND NOT EXISTS (
+              SELECT 1 FROM evidence_read_lease lease
+              JOIN material_version leased_version ON leased_version.id = lease.version_id
+              WHERE leased_version.material_id = m.id AND lease.status = 'ACTIVE'
+                AND lease.expires_at &gt; #{now}
+          )
+        GROUP BY m.id
+        ORDER BY m.id
+        LIMIT 1
+    </select>
+
+    <select id="selectTemporaryCleanupVectorIds" resultType="string">
+        SELECT p.vector_id
+        FROM material m
+        JOIN material_version v ON v.material_id = m.id
+        JOIN material_processing_revision r ON r.version_id = v.id
+        JOIN retrieval_chunk c ON c.revision_id = r.id
+        JOIN retrieval_chunk_vector_projection p
+          ON p.retrieval_chunk_id = c.id AND p.index_generation_id = #{generationId}
+         AND p.provider_deleted_at IS NULL
+        JOIN rag_index_generation g
+          ON g.id = p.index_generation_id AND g.state = 'ACTIVE'
+        WHERE m.id = #{materialId} AND m.lifecycle_state = 'TRASHED'
+          AND m.retention_class = 'TEMPORARY' AND m.expires_at &lt;= #{now}
+          AND EXISTS (SELECT 1 FROM material_scope_link conversation_scope
+                      WHERE conversation_scope.material_id = m.id
+                        AND conversation_scope.scope_type = 'CONVERSATION')
+          AND NOT EXISTS (SELECT 1 FROM material_scope_link durable_scope
+                          WHERE durable_scope.material_id = m.id
+                            AND durable_scope.scope_type IN ('LIBRARY', 'DIAGRAM', 'CHARTBOOK'))
+          AND NOT EXISTS (
+              SELECT 1 FROM evidence_read_lease lease
+              JOIN material_version leased_version ON leased_version.id = lease.version_id
+              WHERE leased_version.material_id = m.id AND lease.status = 'ACTIVE'
+                AND lease.expires_at &gt; #{now}
+          )
+        ORDER BY p.vector_id
+        LIMIT #{limit}
+    </select>
+
+    <select id="lockExpiredTemporaryCleanupMaterial" resultType="string">
+        SELECT m.id FROM material m
+        WHERE m.id = #{materialId} AND m.lifecycle_state = 'TRASHED'
+          AND m.retention_class = 'TEMPORARY' AND m.expires_at &lt;= #{now}
+        FOR UPDATE
+    </select>
+
+    <update id="claimTemporaryConversationVectorsForDeletion">
+        UPDATE retrieval_chunk_vector_projection p
+        JOIN retrieval_chunk c ON c.id = p.retrieval_chunk_id
+        JOIN material_processing_revision r ON r.id = c.revision_id
+        JOIN material_version v ON v.id = r.version_id
+        JOIN material m ON m.id = v.material_id
+        JOIN rag_index_generation g
+          ON g.id = p.index_generation_id AND g.state = 'ACTIVE'
+        SET p.provider_deleted_at = #{deletedAt}
+        WHERE p.index_generation_id = #{generationId}
+          AND p.provider_deleted_at IS NULL AND p.vector_id IN
+        <foreach collection="vectorIds" item="vectorId" open="(" separator="," close=")">
+            #{vectorId}
+        </foreach>
+          AND m.id = #{materialId} AND m.lifecycle_state = 'TRASHED'
+          AND m.retention_class = 'TEMPORARY' AND m.expires_at &lt;= #{deletedAt}
+          AND EXISTS (SELECT 1 FROM material_scope_link conversation_scope
+                      WHERE conversation_scope.material_id = m.id
+                        AND conversation_scope.scope_type = 'CONVERSATION')
+          AND NOT EXISTS (SELECT 1 FROM material_scope_link durable_scope
+                          WHERE durable_scope.material_id = m.id
+                            AND durable_scope.scope_type IN ('LIBRARY', 'DIAGRAM', 'CHARTBOOK'))
+          AND NOT EXISTS (
+              SELECT 1 FROM evidence_read_lease lease
+              JOIN material_version leased_version ON leased_version.id = lease.version_id
+              WHERE leased_version.material_id = m.id AND lease.status = 'ACTIVE'
+                AND lease.expires_at &gt; #{deletedAt}
+          )
+    </update>
+
+    <select id="selectPendingProviderDeletionGeneration"
+            resultType="org.zipp.ai.infrastructure.dao.material.po.RagIndexGenerationPO">
+        SELECT g.*
+        FROM rag_index_generation g
+        WHERE g.state != 'PURGED'
+          AND EXISTS (
+              SELECT 1 FROM retrieval_chunk_vector_projection pending
+              WHERE pending.index_generation_id = g.id
+                AND pending.provider_deleted_at IS NOT NULL
+                AND pending.provider_delete_completed_at IS NULL
+          )
+        ORDER BY COALESCE(g.retired_at, g.activated_at), g.id
+        LIMIT 1
+    </select>
+
+    <select id="selectTemporaryProviderDeletionRetries" resultType="string">
+        SELECT p.vector_id
+        FROM retrieval_chunk_vector_projection p
+        WHERE p.index_generation_id = #{generationId}
+          AND p.provider_deleted_at IS NOT NULL
+          AND p.provider_delete_completed_at IS NULL
+        ORDER BY p.provider_deleted_at, p.vector_id
+        LIMIT #{limit}
+    </select>
+
+    <update id="completeTemporaryProviderDeletion">
+        UPDATE retrieval_chunk_vector_projection
+        SET provider_delete_completed_at = #{completedAt}
+        WHERE index_generation_id = #{generationId}
+          AND provider_deleted_at IS NOT NULL
+          AND provider_delete_completed_at IS NULL
+          AND vector_id IN
+        <foreach collection="vectorIds" item="vectorId" open="(" separator="," close=")">
+            #{vectorId}
+        </foreach>
+    </update>
+
+    <select id="selectRetiredCleanupGeneration"
+            resultType="org.zipp.ai.infrastructure.dao.material.po.RagIndexGenerationPO">
+        SELECT *
+        FROM rag_index_generation
+        WHERE state IN ('RETIRED', 'PURGING') AND purged_at IS NULL
+          AND retired_at IS NOT NULL
+          AND COALESCE(rollback_until,
+              TIMESTAMPADD(SECOND, #{minimumGraceSeconds}, retired_at)) &lt;= #{now}
+        ORDER BY retired_at, id
+        LIMIT 1 FOR UPDATE SKIP LOCKED
+    </select>
+
     <!-- The conditional claim closes the rollback race before any provider-side deletion. -->
     <update id="claimRetiredGenerationCleanup">
         UPDATE rag_index_generation
@@ -193,15 +359,18 @@
 
     <select id="selectRetiredVectorIds" resultType="string">
         SELECT vector_id FROM retrieval_chunk_vector_projection
-        WHERE index_generation_id = #{generationId} AND provider_deleted_at IS NULL
+        WHERE index_generation_id = #{generationId}
+          AND (provider_deleted_at IS NULL OR provider_delete_completed_at IS NULL)
         ORDER BY vector_id LIMIT #{limit}
     </select>
 
     <update id="markRetiredVectorsDeleted">
         UPDATE retrieval_chunk_vector_projection p
         JOIN rag_index_generation g ON g.id = p.index_generation_id
-        SET p.provider_deleted_at = #{deletedAt}
-        WHERE p.index_generation_id = #{generationId} AND p.provider_deleted_at IS NULL
+        SET p.provider_deleted_at = COALESCE(p.provider_deleted_at, #{deletedAt}),
+            p.provider_delete_completed_at = #{deletedAt}
+        WHERE p.index_generation_id = #{generationId}
+          AND (p.provider_deleted_at IS NULL OR p.provider_delete_completed_at IS NULL)
           AND g.state = 'PURGING' AND g.purged_at IS NULL AND p.vector_id IN
         <foreach collection="vectorIds" item="vectorId" open="(" separator="," close=")">
             #{vectorId}
@@ -213,7 +382,9 @@
         UPDATE rag_index_generation g SET g.state = 'PURGED', g.purged_at = #{completedAt}
         WHERE g.id = #{generationId} AND g.state = 'PURGING' AND g.purged_at IS NULL
           AND NOT EXISTS (SELECT 1 FROM retrieval_chunk_vector_projection p
-                          WHERE p.index_generation_id = g.id AND p.provider_deleted_at IS NULL)
+                          WHERE p.index_generation_id = g.id
+                            AND (p.provider_deleted_at IS NULL
+                                 OR p.provider_delete_completed_at IS NULL))
     </update>
 
     <select id="lockTargetState" resultType="string">

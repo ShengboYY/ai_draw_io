@@ -41,6 +41,13 @@ public class MySqlRequestSourceResolutionAdapter implements RequestSourceResolut
                 .stream().map(this::candidate).toList();
     }
 
+    @Override
+    public int countPendingConversationUploads(RequestSourceResolutionCommand command) {
+        Integer count = mapper.countPendingConversationUploads(
+                command.owner().ownerKey(), command.conversationId());
+        return count == null ? 0 : count;
+    }
+
     private SourceResolutionCandidate candidate(OnlineSourcePO row) {
         return new SourceResolutionCandidate(
                 text(row.getDeclarationId()).isBlank() ? row.getVersionId() : row.getDeclarationId(),

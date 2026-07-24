@@ -2,11 +2,14 @@ package org.zipp.ai.infrastructure.adapter.repository;
 
 import org.junit.jupiter.api.Test;
 import org.zipp.ai.domain.ingestion.model.valobj.ProcessingJobStage;
+import org.zipp.ai.domain.retrieval.model.valobj.PendingProjectionDeletion;
 import org.zipp.ai.domain.retrieval.model.valobj.ProjectionBatchInventory;
+import org.zipp.ai.domain.retrieval.model.valobj.TemporaryProjectionCleanup;
 import org.zipp.ai.infrastructure.dao.material.IIndexProjectionMaintenanceMapper;
 import org.zipp.ai.infrastructure.dao.material.IProcessingJobMapper;
 import org.zipp.ai.infrastructure.dao.material.IVectorProjectionMapper;
 import org.zipp.ai.infrastructure.dao.material.po.ProcessingJobPO;
+import org.zipp.ai.infrastructure.dao.material.po.RagIndexGenerationPO;
 
 import java.lang.reflect.Proxy;
 import java.time.Instant;
@@ -80,10 +83,14 @@ class MySqlIndexProjectionMaintenanceAdapterTest {
     @Test
     void retiredCleanupClaimsTheGenerationBeforeReadingExactVectorIds() {
         List<String> calls = new ArrayList<>();
+        RagIndexGenerationPO retired = new RagIndexGenerationPO();
+        retired.setId("ig_retired");
+        retired.setNamespace("retired-namespace");
         IIndexProjectionMaintenanceMapper mapper = proxy(IIndexProjectionMaintenanceMapper.class,
                 (method, args) -> {
                     calls.add(method);
                     return switch (method) {
+                        case "selectRetiredCleanupGeneration" -> retired;
                         case "claimRetiredGenerationCleanup" -> 1;
                         case "selectRetiredEligibleAt" -> NOW;
                         case "selectRetiredVectorIds" -> List.of("vector_old");
@@ -92,11 +99,64 @@ class MySqlIndexProjectionMaintenanceAdapterTest {
                 });
 
         var cleanup = adapter(mapper, unusedJobs()).findRetiredCleanup(
-                "ig_1", NOW, java.time.Duration.ofHours(24), 100).orElseThrow();
+                NOW, java.time.Duration.ofHours(24), 100).orElseThrow();
 
+        assertEquals("ig_retired", cleanup.generationId());
+        assertEquals("retired-namespace", cleanup.namespace());
         assertEquals(List.of("vector_old"), cleanup.vectorIds());
         assertTrue(calls.indexOf("claimRetiredGenerationCleanup")
                 < calls.indexOf("selectRetiredVectorIds"));
+    }
+
+    @Test
+    void temporaryCleanupReadsOneMaterialThenConditionallyTombstonesItsExactIds() {
+        List<String> calls = new ArrayList<>();
+        RagIndexGenerationPO pendingGeneration = new RagIndexGenerationPO();
+        pendingGeneration.setId("ig_1");
+        pendingGeneration.setNamespace("namespace-1");
+        IIndexProjectionMaintenanceMapper mapper = proxy(IIndexProjectionMaintenanceMapper.class,
+                (method, args) -> {
+                    calls.add(method);
+                    return switch (method) {
+                        case "insertTemporaryCleanupCursor", "advanceTemporaryCleanupCursor" -> 1;
+                        case "selectTemporaryCleanupCursor" -> "material_previous";
+                        case "selectTemporaryCleanupMaterial" -> "material_temp";
+                        case "selectTemporaryCleanupVectorIds" -> List.of("vector_1", "vector_2");
+                        case "lockExpiredTemporaryCleanupMaterial" -> "material_temp";
+                        case "claimTemporaryConversationVectorsForDeletion",
+                                "completeTemporaryProviderDeletion" -> 2;
+                        case "selectPendingProviderDeletionGeneration" -> pendingGeneration;
+                        case "selectTemporaryProviderDeletionRetries" -> List.of("vector_1", "vector_2");
+                        default -> unsupported(method);
+                    };
+                });
+        MySqlIndexProjectionMaintenanceAdapter adapter = adapter(mapper, unusedJobs());
+
+        assertEquals("material_previous", adapter.findTemporaryCleanupCursor("ig_1", NOW));
+        assertTrue(adapter.advanceTemporaryCleanupCursor(
+                "ig_1", "material_previous", "material_temp", NOW));
+        TemporaryProjectionCleanup cleanup = adapter.findTemporaryConversationCleanup(
+                "ig_1", "material_previous", NOW, 100).orElseThrow();
+
+        assertEquals("material_temp", cleanup.materialId());
+        assertEquals(List.of("vector_1", "vector_2"), cleanup.vectorIds());
+        assertTrue(adapter.claimTemporaryConversationVectorsForDeletion(cleanup, NOW));
+        PendingProjectionDeletion retry = adapter.findTemporaryProviderDeletionRetry(100).orElseThrow();
+        assertEquals("ig_1", retry.generationId());
+        assertEquals("namespace-1", retry.namespace());
+        assertEquals(List.of("vector_1", "vector_2"), retry.vectorIds());
+        assertTrue(adapter.completeTemporaryProviderDeletion(
+                "ig_1", List.of("vector_1", "vector_2"), NOW));
+        assertTrue(calls.indexOf("insertTemporaryCleanupCursor")
+                < calls.indexOf("selectTemporaryCleanupCursor"));
+        assertTrue(calls.indexOf("selectTemporaryCleanupMaterial")
+                < calls.indexOf("selectTemporaryCleanupVectorIds"));
+        assertTrue(calls.indexOf("selectTemporaryCleanupVectorIds")
+                < calls.indexOf("lockExpiredTemporaryCleanupMaterial"));
+        assertTrue(calls.indexOf("lockExpiredTemporaryCleanupMaterial")
+                < calls.indexOf("claimTemporaryConversationVectorsForDeletion"));
+        assertTrue(calls.indexOf("claimTemporaryConversationVectorsForDeletion")
+                < calls.indexOf("completeTemporaryProviderDeletion"));
     }
 
     @Test

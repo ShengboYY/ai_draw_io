@@ -470,7 +470,7 @@ public class AgentConversationService {
                     ? directSourcePlan(currentRequest, routingResult, sourceSnapshot)
                     : null;
             String selectedSourceUse = sourcePlan == null
-                    ? requestedSourceUse(currentRequest, routingResult).name()
+                    ? requestedSourceUse(routingResult).name()
                     : sourcePlan.sourceUse().name();
             // The UI uses this compact event to describe the selected route without exposing model reasoning.
             streamResponseWriter.sendRoute(emitter, routingResult.getRouteType(),
@@ -1369,7 +1369,7 @@ public class AgentConversationService {
     }
 
     private RequestProbe probeRequest(ChatRequestDTO requestDTO, ResolvedSourceSet sourceSnapshot) {
-        SourceMode mode = sourceMode(requestDTO == null ? null : requestDTO.getSourceMode());
+        SourceMode mode = SourceMode.AUTO;
         SourceProbe sourceProbe = sourceSnapshot == null
                 ? SourceProbe.empty(mode) : sourceSnapshot.toProbe();
         if (requestDTO == null) {
@@ -1380,7 +1380,7 @@ public class AgentConversationService {
             try {
                 return requestProbeService.probe(new RequestProbeCommand(owner(requestDTO),
                         requestDTO.getDiagramId(), requestDTO.getSessionId(), mode,
-                        safeList(requestDTO.getAttachmentUploadIds()), safeList(requestDTO.getSelectedVersionIds()),
+                        List.of(), List.of(),
                         sourceSnapshot,
                         safeList(requestDTO.getSelectedCellIds()),
                         requestDTO.getSelectionCanvasVersion(), requestDTO.getSelectionContentHash()));
@@ -1409,17 +1409,18 @@ public class AgentConversationService {
                                            ResolvedSourceSet sourceSnapshot) {
         SourceProbe source = requestProbe.sources();
         CanvasProbe canvas = requestProbe.canvas();
-        int attachmentCount = safeList(request == null ? null : request.getAttachmentUploadIds()).size();
         List<ResolvedSource> attachments = (sourceSnapshot == null ? List.<ResolvedSource>of()
                 : sourceSnapshot.sources()).stream()
-                .filter(candidate -> candidate.origin() == RequestSourceOrigin.ATTACHMENT)
+                .filter(candidate -> candidate.scopeType()
+                        == org.zipp.ai.domain.material.model.valobj.MaterialScopeType.CONVERSATION)
                 .toList();
+        int attachmentCount = attachments.size();
         int readyAttachmentCount = (int) attachments.stream()
                 .filter(candidate -> "READY".equals(candidate.state())).count();
         int pendingAttachmentCount = (int) attachments.stream()
                 .filter(candidate -> !"READY".equals(candidate.state())
                         && !"PARTIAL_READY".equals(candidate.state())).count();
-        boolean singleReadyImage = attachmentCount == 1 && attachments.size() == 1
+        boolean singleReadyImage = attachments.size() == 1
                 && "READY".equals(attachments.get(0).state())
                 && "IMAGE".equals(attachments.get(0).kind())
                 && attachments.get(0).hasVisual();
@@ -1472,13 +1473,12 @@ public class AgentConversationService {
                 requestDTO.getMessage(), requestProbe.canvas(),
                 new ValidatedSelection(safeList(requestDTO.getSelectedCellIds()),
                         requestDTO.getSelectionCanvasVersion(), requestDTO.getSelectionContentHash()),
-                sourceMode(requestDTO.getSourceMode()), effectiveSnapshot,
-                safeList(requestDTO.getSelectedVersionIds()),
+                SourceMode.AUTO, effectiveSnapshot,
+                List.of(),
                 evidenceNeed,
                 StringUtils.defaultIfBlank(routing.getTargetNeed(), "NONE"),
                 StringUtils.defaultIfBlank(routing.getClarificationNeed(), "NONE"),
-                shouldReconstructSelectedImage(
-                        routing, effectiveSnapshot, safeList(requestDTO.getSelectedVersionIds())));
+                shouldReconstructScopedImage(routing, effectiveSnapshot));
         if (shadowOnly) {
             // Candidate-only observation owns its resources and never delays or mutates the primary request.
             evidencePreparationModule.observe(command).exceptionally(failure -> {
@@ -1577,35 +1577,28 @@ public class AgentConversationService {
                 "当前资料不足以安全完成请求，画布未被修改。 / The available evidence is insufficient.");
     }
 
-    private boolean shouldReconstructSelectedImage(IntentRoutingResult routing,
-                                                   ResolvedSourceSet sourceSnapshot,
-                                                   List<String> selectedVersionIds) {
-        if (routing == null || sourceSnapshot == null
-                || !"create_new".equals(routing.getRouteType())
-                || sourceSnapshot.processingSourceCount() != 0
-                || sourceSnapshot.unavailableSourceCount() != 0
-                || selectedVersionIds == null
-                || selectedVersionIds.stream().distinct().count() != 1) {
-            return false;
-        }
-        // Only a trusted, explicit, ready single-image snapshot may switch the VLM from bounded
-        // fact verification to complete topology reconstruction.
-        List<ResolvedSource> declared = sourceSnapshot.sources().stream()
-                .filter(ResolvedSource::declared)
-                .toList();
-        return declared.size() == 1
-                && declared.get(0).origin() == RequestSourceOrigin.EXPLICIT
-                && declared.get(0).scopeType()
-                        == org.zipp.ai.domain.material.model.valobj.MaterialScopeType.LIBRARY
-                && "READY".equals(declared.get(0).state())
-                && "IMAGE".equals(declared.get(0).kind())
-                && declared.get(0).hasVisual()
-                && selectedVersionIds.contains(declared.get(0).versionId());
-    }
-
     private ChatResponseDTO retrievalDegradedResponse() {
         return evidenceResponse("retrieval_degraded",
                 "资料检索或验证未完成，画布未被修改，请稍后重试。 / Evidence retrieval or verification did not complete; the canvas was not modified. Retry later.");
+    }
+
+    private boolean shouldReconstructScopedImage(IntentRoutingResult routing,
+                                                 ResolvedSourceSet sourceSnapshot) {
+        if (routing == null || sourceSnapshot == null
+                || !"create_new".equals(routing.getRouteType())
+                || sourceSnapshot.processingSourceCount() != 0
+                || sourceSnapshot.unavailableSourceCount() != 0) {
+            return false;
+        }
+        // Chartbook is the durable visual reference scope; a unique ready image is authoritative
+        // without accepting a legacy client-selected version id.
+        List<ResolvedSource> candidates = sourceSnapshot.sources().stream()
+                .filter(source -> "READY".equals(source.state()))
+                .filter(source -> "IMAGE".equals(source.kind()) && source.hasVisual())
+                .toList();
+        return candidates.size() == 1
+                && candidates.get(0).scopeType()
+                == org.zipp.ai.domain.material.model.valobj.MaterialScopeType.CHARTBOOK;
     }
 
     private ChatResponseDTO insufficientEvidenceResponse(PreparationOutcome.InsufficientEvidence insufficient) {
@@ -1637,14 +1630,12 @@ public class AgentConversationService {
     }
 
     private ResolvedSourceSet resolveRequestSources(ChatRequestDTO requestDTO) {
-        SourceMode mode = sourceMode(requestDTO == null ? null : requestDTO.getSourceMode());
+        SourceMode mode = SourceMode.AUTO;
         if (requestDTO == null || requestSourceResolutionService == null) return null;
-        List<String> attachments = safeList(requestDTO.getAttachmentUploadIds());
-        List<String> versions = safeList(requestDTO.getSelectedVersionIds());
         try {
             return requestSourceResolutionService.resolve(new RequestSourceResolutionCommand(
                     owner(requestDTO), requestDTO.getDiagramId(), requestDTO.getSessionId(),
-                    requestDTO.getRunId(), mode, attachments, versions));
+                    requestDTO.getRunId(), mode, List.of(), List.of()));
         } catch (RuntimeException exception) {
             // Infrastructure/conflict failures must remain distinguishable from an unavailable opaque ID.
             log.warn("Request source resolution failed closed. diagramId={}",
@@ -1709,11 +1700,10 @@ public class AgentConversationService {
     private DirectSourceCommand directSourceCommand(ChatRequestDTO request, ResolvedSourceSet sources,
                                                     TaskSourcePlan plan) {
         String requestId = StringUtils.defaultIfBlank(request.getRequestId(), request.getRunId());
-        String attachmentId = safeList(request.getAttachmentUploadIds()).stream().findFirst().orElse("");
         return new DirectSourceCommand(
                 owner(request), requestId, request.getRunId(), request.getDiagramId(),
-                request.getSessionId(), attachmentId,
-                safeList(request.getSelectedVersionIds()), sourceMode(request.getSourceMode()),
+                request.getSessionId(), "",
+                List.of(), SourceMode.AUTO,
                 request.getMessage(), request.getDirectConfirmationSourceVersionId(),
                 directClarifications(request),
                 directSourceSnapshot(sources, plan == null ? "" : plan.primaryDirectVersionId()),
@@ -1783,13 +1773,13 @@ public class AgentConversationService {
                         == org.zipp.ai.domain.material.model.valobj.MaterialScopeType.CONVERSATION)
                 .map(ResolvedSource::versionId).distinct().toList();
         return taskSourcePlanner.plan(new TaskSourcePlanningCommand(
-                canvasAction(routing), requestedSourceUse(request, routing),
-                sourceMode(request.getSourceMode()),
+                canvasAction(routing), requestedSourceUse(routing),
+                SourceMode.AUTO,
                 directReadableImages.stream().map(ResolvedSource::versionId).toList(),
                 newlyUploaded,
                 conversationCandidates,
                 namedDirectCandidateVersionId(request.getMessage(), directReadableImages),
-                safeList(request.getSelectedVersionIds()),
+                List.of(),
                 sources.processingSourceCount()));
     }
 
@@ -1804,12 +1794,8 @@ public class AgentConversationService {
         return matches.size() == 1 ? matches.get(0) : "";
     }
 
-    private SourceUse requestedSourceUse(ChatRequestDTO request, IntentRoutingResult routing) {
-        SourceUse routed = sourceUse(routing == null ? null : routing.getSourceUse());
-        String override = request == null ? null : StringUtils.trimToNull(request.getSourceUseOverride());
-        if ("DIRECT".equals(override)) return SourceUse.DIRECT;
-        if ("DIRECT_AND_RETRIEVAL".equals(override)) return SourceUse.DIRECT_AND_RETRIEVAL;
-        return routed;
+    private SourceUse requestedSourceUse(IntentRoutingResult routing) {
+        return sourceUse(routing == null ? null : routing.getSourceUse());
     }
 
     private ChatResponseDTO directSourceResponse(DirectSourceOutcome outcome) {
@@ -1918,19 +1904,18 @@ public class AgentConversationService {
     }
 
     private boolean isStrictEvidenceRequest(ChatRequestDTO requestDTO, IntentRoutingResult routing) {
-        return routing.isEvidenceAnswer() || "REQUIRED".equals(routing.getEvidenceNeed())
-                || sourceMode(requestDTO.getSourceMode()) == SourceMode.EXPLICIT_ONLY
-                || !safeList(requestDTO.getSelectedVersionIds()).isEmpty()
-                || !safeList(requestDTO.getAttachmentUploadIds()).isEmpty();
+        return routing.isEvidenceAnswer() || "REQUIRED".equals(routing.getEvidenceNeed());
     }
 
     private boolean shouldPrepareEvidence(ChatRequestDTO requestDTO, IntentRoutingResult routing) {
         if (routing == null || requestDTO == null) return false;
         if (routing.isEvidenceAnswer() || "REQUIRED".equals(routing.getEvidenceNeed())) return true;
-        // Per-message attachment declarations are explicit even when a legacy client sends NONE/AUTO.
-        if (!safeList(requestDTO.getSelectedVersionIds()).isEmpty()
-                || !safeList(requestDTO.getAttachmentUploadIds()).isEmpty()) return true;
-        SourceMode mode = sourceMode(requestDTO.getSourceMode());
+        SourceUse requestedUse = requestedSourceUse(routing);
+        if (requestedUse == SourceUse.RETRIEVAL
+                || requestedUse == SourceUse.DIRECT_AND_RETRIEVAL) {
+            return true;
+        }
+        SourceMode mode = SourceMode.AUTO;
         String evidenceNeed = StringUtils.defaultIfBlank(routing.getEvidenceNeed(), "NONE")
                 .trim().toUpperCase(java.util.Locale.ROOT);
         if (!materialRagEnabled && materialRetrievalShadowEnabled) {
@@ -1964,15 +1949,6 @@ public class AgentConversationService {
         String ownerKey = StringUtils.defaultIfBlank(requestDTO.getUserId(), "unknown-owner");
         OwnerType type = ownerKey.startsWith("anon_") ? OwnerType.ANONYMOUS : OwnerType.USER;
         return new CatalogOwner(type, ownerKey);
-    }
-
-    private SourceMode sourceMode(String value) {
-        if (StringUtils.isBlank(value)) return SourceMode.AUTO;
-        try {
-            return SourceMode.valueOf(value.trim().toUpperCase(java.util.Locale.ROOT));
-        } catch (IllegalArgumentException exception) {
-            return SourceMode.AUTO;
-        }
     }
 
     private List<String> safeList(List<String> values) {
@@ -2195,7 +2171,7 @@ public class AgentConversationService {
                 messageId, StringUtils.defaultIfBlank(request.getRequestId(), requestId), request.getRunId(),
                 request.getMessage(), targetContext, answerConversationContext(request),
                 probe.canvas().serverCanvasVersion(),
-                probe.canvas().contentHash(), sourceMode(request.getSourceMode()) != SourceMode.EXPLICIT_ONLY);
+                probe.canvas().contentHash(), true);
     }
 
     private String answerConversationContext(ChatRequestDTO request) {

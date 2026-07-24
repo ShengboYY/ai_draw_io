@@ -71,6 +71,25 @@ class RequestSourceResolutionServiceTest {
     }
 
     @Test
+    void snapshotsAuthoritativePendingConversationUploadsForEveryConsumer() {
+        MutableResolutionPort catalog = new MutableResolutionPort();
+        catalog.pendingConversationUploads = 2;
+        RequestSourceResolutionService service =
+                new DefaultRequestSourceResolutionService(catalog, new InMemorySnapshotStore());
+        RequestSourceResolutionCommand command = new RequestSourceResolutionCommand(
+                owner, "diagram-1", "conversation-1", "run-pending",
+                SourceMode.AUTO, List.of(), List.of());
+
+        ResolvedSourceSet first = service.resolve(command);
+        catalog.pendingConversationUploads = 0;
+        ResolvedSourceSet replay = service.resolve(command);
+
+        assertEquals(2, first.processingSourceCount());
+        assertEquals(first, replay);
+        assertEquals(1, catalog.pendingCalls);
+    }
+
+    @Test
     void reportsProcessingAndMissingDeclarationsWithoutInventingSources() {
         MutableResolutionPort catalog = new MutableResolutionPort();
         RequestSourceResolutionService service =
@@ -149,6 +168,8 @@ class RequestSourceResolutionServiceTest {
         private List<SourceResolutionCandidate> attachments = List.of();
         private List<SourceResolutionCandidate> automatic = List.of();
         private int explicitCalls;
+        private int pendingConversationUploads;
+        private int pendingCalls;
 
         @Override
         public List<SourceResolutionCandidate> resolveAttachments(RequestSourceResolutionCommand command) {
@@ -164,6 +185,12 @@ class RequestSourceResolutionServiceTest {
         @Override
         public List<SourceResolutionCandidate> resolveAutomatic(RequestSourceResolutionCommand command, int limit) {
             return automatic;
+        }
+
+        @Override
+        public int countPendingConversationUploads(RequestSourceResolutionCommand command) {
+            pendingCalls++;
+            return pendingConversationUploads;
         }
     }
 

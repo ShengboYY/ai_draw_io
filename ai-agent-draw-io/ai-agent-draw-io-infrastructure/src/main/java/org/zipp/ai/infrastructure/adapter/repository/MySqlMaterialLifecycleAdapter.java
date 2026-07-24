@@ -72,6 +72,11 @@ public class MySqlMaterialLifecycleAdapter implements MaterialLifecyclePort {
             if (concurrent != null) return result(concurrent);
             throw new CatalogOperationException(CatalogErrorCode.CATALOG_CONFLICT);
         }
+        if (mutation.action() == MaterialLifecycleAction.RESTORE
+                && mapper.countPendingVectorCleanup(mutation.material().id()) > 0) {
+            // Restore must wait until every claimed external vector deletion is durably complete.
+            throw new CatalogOperationException(CatalogErrorCode.CATALOG_CONFLICT);
+        }
         // Meaningful activity does not invalidate processing generations, so TTL must recheck expiry under this lock.
         if (mutation.action() == MaterialLifecycleAction.TTL_EXPIRE
                 && (locked.getExpiresAt() == null || locked.getExpiresAt().isAfter(mutation.requestedAt()))) {

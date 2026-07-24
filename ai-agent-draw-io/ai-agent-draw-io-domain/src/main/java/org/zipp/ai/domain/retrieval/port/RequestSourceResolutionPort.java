@@ -8,4 +8,5 @@ public interface RequestSourceResolutionPort {
     List<SourceResolutionCandidate> resolveAttachments(RequestSourceResolutionCommand command);
     List<SourceResolutionCandidate> resolveExplicitVersions(RequestSourceResolutionCommand command);
     List<SourceResolutionCandidate> resolveAutomatic(RequestSourceResolutionCommand command, int limit);
+    int countPendingConversationUploads(RequestSourceResolutionCommand command);
 }

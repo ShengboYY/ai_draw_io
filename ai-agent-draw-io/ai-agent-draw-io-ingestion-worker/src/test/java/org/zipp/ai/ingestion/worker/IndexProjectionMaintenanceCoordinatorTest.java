@@ -13,8 +13,10 @@ import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class IndexProjectionMaintenanceCoordinatorTest {
@@ -47,27 +49,109 @@ class IndexProjectionMaintenanceCoordinatorTest {
         FakeIndexProjectionMaintenancePort maintenance = new FakeIndexProjectionMaintenancePort();
         maintenance.knownVectorIds = Set.of("vector_old");
         maintenance.retiredCleanup = new RetiredGenerationCleanup(
-                profile.generationId(), NOW.minusSeconds(1), List.of("vector_old"));
+                "ig_retired", "retired-namespace", NOW.minusSeconds(1), List.of("vector_old"));
         FakeRetrievalVectorIndex index = new FakeRetrievalVectorIndex();
         index.upsert(List.of(vector(profile, "vector_old")));
-        IndexProjectionMaintenanceCoordinator coordinator = coordinator(maintenance, index, profile);
+        AtomicReference<String> routedNamespace = new AtomicReference<>();
+        IndexProjectionMaintenanceCoordinator coordinator = new IndexProjectionMaintenanceCoordinator(
+                maintenance, index, namespace -> {
+                    routedNamespace.set(namespace);
+                    return index;
+                }, profile, Duration.ofHours(24), Duration.ofHours(24), 100,
+                Clock.fixed(NOW, ZoneOffset.UTC));
 
         coordinator.maintain();
+        assertEquals("retired-namespace", routedNamespace.get());
         assertTrue(maintenance.retiredMarked.isEmpty());
 
         coordinator.maintain();
         assertEquals(List.of("vector_old"), maintenance.retiredMarked);
 
         maintenance.retiredCleanup = new RetiredGenerationCleanup(
-                profile.generationId(), NOW.minusSeconds(1), List.of());
+                "ig_retired", "retired-namespace", NOW.minusSeconds(1), List.of());
         coordinator.maintain();
         assertTrue(maintenance.retiredCompleted);
+    }
+
+    @Test
+    void deletesTemporaryConversationVectorsAndTombstonesAlreadyAbsentIds() {
+        VectorGenerationProfile profile = profile();
+        FakeIndexProjectionMaintenancePort maintenance = new FakeIndexProjectionMaintenancePort();
+        maintenance.temporaryCleanup = new TemporaryProjectionCleanup(
+                profile.generationId(), "material_temp",
+                List.of("vector_temp", "vector_already_absent"));
+        FakeRetrievalVectorIndex index = new FakeRetrievalVectorIndex();
+        index.upsert(List.of(vector(profile, "vector_temp")));
+
+        coordinator(maintenance, index, profile).maintain();
+
+        assertEquals(Set.of(), index.existingVectorIds(List.of("vector_temp")));
+        assertEquals(List.of("vector_temp", "vector_already_absent"), maintenance.temporaryMarked);
+        assertEquals(List.of("vector_temp", "vector_already_absent"), maintenance.temporaryCompleted);
+    }
+
+    @Test
+    void leavesProviderVectorsUntouchedWhenTemporaryCleanupLosesItsFence() {
+        VectorGenerationProfile profile = profile();
+        FakeIndexProjectionMaintenancePort maintenance = new FakeIndexProjectionMaintenancePort();
+        maintenance.temporaryCleanup = new TemporaryProjectionCleanup(
+                profile.generationId(), "material_promoted", List.of("vector_live"));
+        maintenance.knownVectorIds = Set.of("vector_live");
+        maintenance.temporaryMarkAccepted = false;
+        FakeRetrievalVectorIndex index = new FakeRetrievalVectorIndex();
+        index.upsert(List.of(vector(profile, "vector_live")));
+
+        coordinator(maintenance, index, profile).maintain();
+
+        assertEquals(Set.of("vector_live"), index.existingVectorIds(List.of("vector_live")));
+    }
+
+    @Test
+    void rotatesTemporaryCleanupMaterialCursorBetweenMaintenanceRuns() {
+        VectorGenerationProfile profile = profile();
+        FakeIndexProjectionMaintenancePort maintenance = new FakeIndexProjectionMaintenancePort();
+        maintenance.temporaryCleanup = new TemporaryProjectionCleanup(
+                profile.generationId(), "material_a", List.of("vector_a"));
+        FakeRetrievalVectorIndex index = new FakeRetrievalVectorIndex();
+        coordinator(maintenance, index, profile).maintain();
+        maintenance.temporaryCleanup = new TemporaryProjectionCleanup(
+                profile.generationId(), "material_b", List.of("vector_b"));
+        // A recreated coordinator must continue from the durable port cursor.
+        coordinator(maintenance, index, profile).maintain();
+
+        assertTrue(maintenance.temporaryCleanupCursors.contains("material_a"));
+        assertEquals("material_b", maintenance.temporaryCleanupCursor);
+    }
+
+    @Test
+    void retriesExactClaimedVectorsAfterAProviderDeleteFailure() {
+        VectorGenerationProfile profile = profile();
+        FakeIndexProjectionMaintenancePort maintenance = new FakeIndexProjectionMaintenancePort();
+        maintenance.temporaryCleanup = new TemporaryProjectionCleanup(
+                profile.generationId(), "material_temp", List.of("vector_temp"));
+        FakeRetrievalVectorIndex index = new FakeRetrievalVectorIndex();
+        index.upsert(List.of(vector(profile, "vector_temp")));
+        index.failNextDelete();
+
+        assertThrows(IllegalStateException.class,
+                () -> coordinator(maintenance, index, profile).maintain());
+        assertEquals(List.of(), maintenance.temporaryCompleted);
+
+        maintenance.temporaryCleanup = null;
+        maintenance.temporaryProviderDeletionRetry = new PendingProjectionDeletion(
+                "ig_previous", "previous-namespace", List.of("vector_temp"));
+        coordinator(maintenance, index, profile).maintain();
+
+        assertEquals(Set.of(), index.existingVectorIds(List.of("vector_temp")));
+        assertEquals("ig_previous", maintenance.temporaryCompletedGeneration);
+        assertEquals(List.of("vector_temp"), maintenance.temporaryCompleted);
     }
 
     private IndexProjectionMaintenanceCoordinator coordinator(
             FakeIndexProjectionMaintenancePort maintenance, FakeRetrievalVectorIndex index,
             VectorGenerationProfile profile) {
-        return new IndexProjectionMaintenanceCoordinator(maintenance, index, profile,
+        return new IndexProjectionMaintenanceCoordinator(maintenance, index,
+                ignored -> index, profile,
                 Duration.ofHours(24), Duration.ofHours(24), 100,
                 Clock.fixed(NOW, ZoneOffset.UTC));
     }

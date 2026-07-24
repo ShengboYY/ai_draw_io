@@ -672,6 +672,12 @@
         UPDATE rag_index_generation
         SET state = 'RETIRED', retired_at = #{retiredAt}, rollback_until = #{rollbackUntil}
         WHERE id = #{generationId} AND state = 'ACTIVE'
+          AND NOT EXISTS (
+              SELECT 1 FROM retrieval_chunk_vector_projection pending_delete
+              WHERE pending_delete.index_generation_id = #{generationId}
+                AND pending_delete.provider_deleted_at IS NOT NULL
+                AND pending_delete.provider_delete_completed_at IS NULL
+          )
     </update>
 
     <update id="activateShadowGeneration">
@@ -691,6 +697,12 @@
         UPDATE rag_index_generation
         SET state = 'RETIRED', retired_at = #{retiredAt}, rollback_until = NULL
         WHERE id = #{generationId} AND state = 'ACTIVE'
+          AND NOT EXISTS (
+              SELECT 1 FROM retrieval_chunk_vector_projection pending_delete
+              WHERE pending_delete.index_generation_id = #{generationId}
+                AND pending_delete.provider_deleted_at IS NOT NULL
+                AND pending_delete.provider_delete_completed_at IS NULL
+          )
     </update>
 
     <update id="restoreRetiredGeneration">

@@ -15,6 +15,7 @@ import java.util.stream.Collectors;
 public final class FakeRetrievalVectorIndex implements RetrievalVectorIndex {
     private final Map<String, VectorProjection> records = new LinkedHashMap<>();
     private boolean readinessVisible = true;
+    private boolean failNextDelete;
 
     @Override
     public void upsert(List<VectorProjection> projections) {
@@ -44,6 +45,10 @@ public final class FakeRetrievalVectorIndex implements RetrievalVectorIndex {
 
     @Override
     public void delete(List<String> vectorIds) {
+        if (failNextDelete) {
+            failNextDelete = false;
+            throw new IllegalStateException("provider delete unavailable");
+        }
         vectorIds.forEach(records::remove);
     }
 
@@ -57,5 +62,9 @@ public final class FakeRetrievalVectorIndex implements RetrievalVectorIndex {
 
     public void setReadinessVisible(boolean readinessVisible) {
         this.readinessVisible = readinessVisible;
+    }
+
+    public void failNextDelete() {
+        failNextDelete = true;
     }
 }

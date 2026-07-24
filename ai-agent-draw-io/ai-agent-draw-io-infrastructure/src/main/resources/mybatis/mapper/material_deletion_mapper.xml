@@ -187,7 +187,8 @@
         UPDATE retrieval_chunk_vector_projection projection
         JOIN retrieval_chunk chunk ON chunk.id = projection.retrieval_chunk_id
         JOIN material_version v ON v.id = chunk.version_id
-        SET projection.provider_deleted_at = #{deletedAt}
+        SET projection.provider_deleted_at = #{deletedAt},
+            projection.provider_delete_completed_at = #{deletedAt}
         WHERE v.material_id = #{materialId} AND projection.index_name = #{indexName}
           AND projection.provider_deleted_at IS NULL
     </update>

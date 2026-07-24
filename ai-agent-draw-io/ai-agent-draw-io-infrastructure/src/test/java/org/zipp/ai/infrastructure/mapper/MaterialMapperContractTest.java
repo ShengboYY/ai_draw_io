@@ -142,6 +142,7 @@ class MaterialMapperContractTest {
         assertTrue(mapper.contains("<select id=\"selectGenerationBackfillStatus\""));
         assertTrue(mapper.contains("<insert id=\"insertShadowReport\""));
         assertTrue(mapper.contains("<update id=\"activateShadowGeneration\""));
+        assertTrue(mapper.contains("pending_delete.provider_delete_completed_at IS NULL"));
         assertTrue(mapper.contains("<update id=\"restoreRetiredGeneration\""));
     }
 
@@ -187,6 +188,8 @@ class MaterialMapperContractTest {
         String deletion = resource("mybatis/mapper/material_deletion_mapper.xml");
 
         assertTrue(lifecycle.contains("lifecycle_generation = #{expectedGeneration}"));
+        assertTrue(lifecycle.contains("<select id=\"countPendingVectorCleanup\""));
+        assertTrue(lifecycle.contains("projection.provider_delete_completed_at IS NULL"));
         assertTrue(lifecycle.contains("job.status = 'CANCELLED'"));
         assertTrue(leases.contains("FOR UPDATE"));
         assertTrue(leases.contains("m.expires_at &gt; #{now}"));
@@ -200,6 +203,50 @@ class MaterialMapperContractTest {
         assertTrue(deletion.contains("owner_key = SHA2"));
         assertFalse(deletion.contains("deleteAll"));
         assertFalse(deletion.contains("metadata"));
+    }
+
+    @Test
+    void projectionMaintenanceDeletesOnlyUnleasedConversationOnlyTemporaryVectors() throws Exception {
+        String mapper = resource("mybatis/mapper/index_projection_maintenance_mapper.xml");
+        String cursor = statement(mapper, "update", "advanceTemporaryCleanupCursor");
+        String candidate = statement(mapper, "select", "selectTemporaryCleanupMaterial");
+        String vectors = statement(mapper, "select", "selectTemporaryCleanupVectorIds");
+        String lock = statement(mapper, "select", "lockExpiredTemporaryCleanupMaterial");
+        String claim = statement(mapper, "update", "claimTemporaryConversationVectorsForDeletion");
+        String pendingGeneration = statement(mapper, "select", "selectPendingProviderDeletionGeneration");
+        String retries = statement(mapper, "select", "selectTemporaryProviderDeletionRetries");
+        String completion = statement(mapper, "update", "completeTemporaryProviderDeletion");
+
+        assertTrue(cursor.contains("material_cursor = #{expectedMaterialId}"));
+        assertTrue(candidate.contains("m.id &gt; #{afterMaterialId}"));
+        assertTrue(candidate.contains("m.lifecycle_state = 'TRASHED'"));
+        assertTrue(candidate.contains("m.retention_class = 'TEMPORARY'"));
+        assertTrue(candidate.contains("conversation_scope.scope_type = 'CONVERSATION'"));
+        assertTrue(candidate.contains("durable_scope.scope_type IN ('LIBRARY', 'DIAGRAM', 'CHARTBOOK')"));
+        assertTrue(candidate.contains("FROM evidence_read_lease lease"));
+        assertTrue(vectors.contains("m.expires_at &lt;= #{now}"));
+        assertTrue(vectors.contains("p.index_generation_id = #{generationId}"));
+        assertTrue(vectors.contains("p.provider_deleted_at IS NULL"));
+        assertTrue(lock.contains("m.lifecycle_state = 'TRASHED'"));
+        assertTrue(lock.contains("FOR UPDATE"));
+        assertTrue(claim.contains("m.expires_at &lt;= #{deletedAt}"));
+        assertTrue(claim.contains("conversation_scope.scope_type = 'CONVERSATION'"));
+        assertTrue(claim.contains("durable_scope.scope_type IN ('LIBRARY', 'DIAGRAM', 'CHARTBOOK')"));
+        assertTrue(claim.contains("FROM evidence_read_lease lease"));
+        assertTrue(claim.contains("lease.status = 'ACTIVE'"));
+        assertTrue(pendingGeneration.contains("g.state != 'PURGED'"));
+        assertTrue(pendingGeneration.contains("pending.provider_delete_completed_at IS NULL"));
+        assertTrue(retries.contains("provider_delete_completed_at IS NULL"));
+        assertTrue(completion.contains("provider_delete_completed_at = #{completedAt}"));
+        assertTrue(completion.contains("index_generation_id = #{generationId}"));
+        assertTrue(completion.contains("collection=\"vectorIds\""));
+        String retiredIds = statement(mapper, "select", "selectRetiredVectorIds");
+        String retiredComplete = statement(mapper, "update", "completeRetiredGeneration");
+        String retiredGeneration = statement(mapper, "select", "selectRetiredCleanupGeneration");
+        assertTrue(retiredGeneration.contains("state IN ('RETIRED', 'PURGING')"));
+        assertTrue(retiredGeneration.contains("FOR UPDATE SKIP LOCKED"));
+        assertTrue(retiredIds.contains("provider_delete_completed_at IS NULL"));
+        assertTrue(retiredComplete.contains("provider_delete_completed_at IS NULL"));
     }
 
     @Test
@@ -323,5 +370,14 @@ class MaterialMapperContractTest {
             assertNotNull(stream, path);
             return new String(stream.readAllBytes(), StandardCharsets.UTF_8);
         }
+    }
+
+    private String statement(String mapper, String tag, String id) {
+        String opening = "<" + tag + " id=\"" + id + "\"";
+        int start = mapper.indexOf(opening);
+        assertTrue(start >= 0, opening);
+        int end = mapper.indexOf("</" + tag + ">", start);
+        assertTrue(end > start, id);
+        return mapper.substring(start, end);
     }
 }

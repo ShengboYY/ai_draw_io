@@ -34,6 +34,7 @@ public interface IMaterialLifecycleMapper {
                              @Param("scopeKey") String scopeKey);
     int updateLifecycle(@Param("material") MaterialPO material,
                         @Param("expectedGeneration") long expectedGeneration);
+    int countPendingVectorCleanup(@Param("materialId") String materialId);
     int cancelQueuedMaterialJobs(@Param("materialId") String materialId);
     int insertDeletionTask(@Param("taskId") String taskId,
                            @Param("materialId") String materialId,

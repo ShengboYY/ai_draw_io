@@ -11,6 +11,7 @@ import org.zipp.ai.infrastructure.dao.material.IIndexProjectionMaintenanceMapper
 import org.zipp.ai.infrastructure.dao.material.IProcessingJobMapper;
 import org.zipp.ai.infrastructure.dao.material.IVectorProjectionMapper;
 import org.zipp.ai.infrastructure.dao.material.po.ProcessingJobPO;
+import org.zipp.ai.infrastructure.dao.material.po.RagIndexGenerationPO;
 import org.zipp.ai.infrastructure.dao.material.po.VectorProjectionWorkPO;
 
 import java.time.Duration;
@@ -176,19 +177,98 @@ public class MySqlIndexProjectionMaintenanceAdapter implements IndexProjectionMa
     }
 
     @Override
-    @Transactional
-    public Optional<RetiredGenerationCleanup> findRetiredCleanup(String generationId, Instant now,
-                                                                 Duration minimumGrace, int limit) {
+    public String findTemporaryCleanupCursor(String generationId, Instant initializedAt) {
         String generation = required(generationId, "generationId");
+        mapper.insertTemporaryCleanupCursor(generation, Objects.requireNonNull(initializedAt, "initializedAt"));
+        String cursor = mapper.selectTemporaryCleanupCursor(generation);
+        return cursor == null ? "" : cursor;
+    }
+
+    @Override
+    public boolean advanceTemporaryCleanupCursor(String generationId, String expectedMaterialId,
+                                                 String nextMaterialId, Instant updatedAt) {
+        return mapper.advanceTemporaryCleanupCursor(required(generationId, "generationId"),
+                text(expectedMaterialId), text(nextMaterialId),
+                Objects.requireNonNull(updatedAt, "updatedAt")) == 1;
+    }
+
+    @Override
+    public Optional<TemporaryProjectionCleanup> findTemporaryConversationCleanup(
+            String generationId, String afterMaterialId, Instant now, int limit) {
+        String generation = required(generationId, "generationId");
+        String cursor = afterMaterialId == null ? "" : afterMaterialId.trim();
+        Instant current = Objects.requireNonNull(now, "now");
+        if (limit < 1 || limit > 100) {
+            throw new IllegalArgumentException("temporary cleanup limit must be between 1 and 100");
+        }
+        String materialId = mapper.selectTemporaryCleanupMaterial(generation, cursor, current);
+        if (materialId == null && !cursor.isEmpty()) {
+            // Wrap the round-robin scan after the highest eligible material ID.
+            materialId = mapper.selectTemporaryCleanupMaterial(generation, "", current);
+        }
+        if (materialId == null) return Optional.empty();
+        List<String> vectorIds = mapper.selectTemporaryCleanupVectorIds(
+                generation, materialId, current, limit);
+        if (vectorIds.isEmpty()) return Optional.empty();
+        return Optional.of(new TemporaryProjectionCleanup(generation, materialId, vectorIds));
+    }
+
+    @Override
+    @Transactional
+    public boolean claimTemporaryConversationVectorsForDeletion(
+            TemporaryProjectionCleanup cleanup, Instant deletedAt) {
+        TemporaryProjectionCleanup source = Objects.requireNonNull(cleanup, "cleanup");
+        Instant deleted = Objects.requireNonNull(deletedAt, "deletedAt");
+        // The same material row is locked by promotion and new read-lease authorization.
+        if (mapper.lockExpiredTemporaryCleanupMaterial(source.materialId(), deleted) == null) {
+            return false;
+        }
+        return mapper.claimTemporaryConversationVectorsForDeletion(
+                source.generationId(), source.materialId(), source.vectorIds(),
+                deleted) == source.vectorIds().size();
+    }
+
+    @Override
+    public Optional<PendingProjectionDeletion> findTemporaryProviderDeletionRetry(int limit) {
+        if (limit < 1 || limit > 100) {
+            throw new IllegalArgumentException("temporary retry limit must be between 1 and 100");
+        }
+        RagIndexGenerationPO generation = mapper.selectPendingProviderDeletionGeneration();
+        if (generation == null) return Optional.empty();
+        List<String> ids = mapper.selectTemporaryProviderDeletionRetries(
+                required(generation.getId(), "generationId"), limit);
+        if (ids.isEmpty()) return Optional.empty();
+        return Optional.of(new PendingProjectionDeletion(generation.getId(),
+                required(generation.getNamespace(), "namespace"), ids));
+    }
+
+    @Override
+    public boolean completeTemporaryProviderDeletion(String generationId, List<String> vectorIds,
+                                                     Instant completedAt) {
+        List<String> ids = exactVectorIds(vectorIds, "temporary retry vector IDs");
+        return mapper.completeTemporaryProviderDeletion(
+                required(generationId, "generationId"), ids,
+                Objects.requireNonNull(completedAt, "completedAt")) == ids.size();
+    }
+
+    @Override
+    @Transactional
+    public Optional<RetiredGenerationCleanup> findRetiredCleanup(
+            Instant now, Duration minimumGrace, int limit) {
         Duration grace = Objects.requireNonNull(minimumGrace, "minimumGrace");
         if (grace.isNegative() || limit < 1 || limit > 100) {
             throw new IllegalArgumentException("retired cleanup bounds are invalid");
         }
         Instant current = Objects.requireNonNull(now, "now");
+        RagIndexGenerationPO candidate = mapper.selectRetiredCleanupGeneration(
+                current, grace.toSeconds());
+        if (candidate == null) return Optional.empty();
+        String generation = required(candidate.getId(), "generationId");
         mapper.claimRetiredGenerationCleanup(generation, current, grace.toSeconds());
         Instant eligibleAt = mapper.selectRetiredEligibleAt(generation, current, grace.toSeconds());
         if (eligibleAt == null) return Optional.empty();
-        return Optional.of(new RetiredGenerationCleanup(generation, eligibleAt,
+        return Optional.of(new RetiredGenerationCleanup(generation,
+                required(candidate.getNamespace(), "namespace"), eligibleAt,
                 mapper.selectRetiredVectorIds(generation, limit)));
     }
 
@@ -253,5 +333,18 @@ public class MySqlIndexProjectionMaintenanceAdapter implements IndexProjectionMa
 
     private String normalized(String value) {
         return value == null || value.isBlank() ? null : value.trim();
+    }
+
+    private String text(String value) {
+        return value == null ? "" : value.trim();
+    }
+
+    private List<String> exactVectorIds(List<String> vectorIds, String field) {
+        List<String> ids = Objects.requireNonNull(vectorIds, field).stream()
+                .map(id -> required(id, field)).distinct().sorted().toList();
+        if (ids.isEmpty() || ids.size() > 100 || ids.size() != vectorIds.size()) {
+            throw new IllegalArgumentException(field + " must contain 1-100 unique IDs");
+        }
+        return ids;
     }
 }

@@ -373,11 +373,12 @@ public class WorkerConfig {
     @ConditionalOnProperty(name = "worker.vector-projection-enabled", havingValue = "true")
     public IndexProjectionMaintenanceCoordinator indexProjectionMaintenanceCoordinator(
             IndexProjectionMaintenancePort maintenance, RetrievalVectorIndex vectorIndex,
-            VectorGenerationProfile profile, Clock clock,
+            PineconeVectorClient pineconeClient, VectorGenerationProfile profile, Clock clock,
             @Value("${worker.projection-reconciliation-interval-hours:24}") long reconciliationHours,
             @Value("${worker.retired-generation-cleanup-grace-hours:24}") long cleanupGraceHours,
             @Value("${worker.projection-maintenance-batch-size:100}") int batchSize) {
-        return new IndexProjectionMaintenanceCoordinator(maintenance, vectorIndex, profile,
+        return new IndexProjectionMaintenanceCoordinator(maintenance, vectorIndex,
+                namespace -> new PineconeRetrievalVectorIndexAdapter(pineconeClient, namespace), profile,
                 java.time.Duration.ofHours(reconciliationHours),
                 java.time.Duration.ofHours(cleanupGraceHours), batchSize, clock);
     }

@@ -1,4 +1,3 @@
-import { buildSourceDeclaration } from '../../features/sources/source-selection.ts';
 import type { DirectClarification } from '../../features/sources/direct-confirmation.ts';
 
 type ConversationMessageInput = {
@@ -20,12 +19,8 @@ type BuildDrawioChatRequestPayloadInput = {
   expectedContentHash?: string;
   canvasXml?: string;
   canvasSummary?: string;
-  attachmentUploadIds?: string[];
-  sourceMode?: 'NONE' | 'AUTO' | 'EXPLICIT' | 'EXPLICIT_ONLY';
-  sourceUseOverride?: 'DIRECT' | 'DIRECT_AND_RETRIEVAL';
   directClarifications?: DirectClarification[];
   directConfirmationSourceVersionId?: string;
-  selectedVersionIds?: string[];
   selectedCellIds?: string[];
   selectionCanvasVersion?: number;
   selectionContentHash?: string;
@@ -90,12 +85,8 @@ export const buildDrawioChatRequestPayload = ({
   userMessage,
   canvasXml,
   canvasSummary,
-  attachmentUploadIds,
-  sourceMode,
-  sourceUseOverride,
   directClarifications,
   directConfirmationSourceVersionId,
-  selectedVersionIds,
   selectedCellIds,
   selectionCanvasVersion,
   selectionContentHash,
@@ -113,12 +104,6 @@ export const buildDrawioChatRequestPayload = ({
       }
       : undefined;
   const compactConversationMessages = toConversationContextMessages(conversationMessages);
-  const sourceDeclaration = buildSourceDeclaration({
-    attachmentUploadIds: attachmentUploadIds || [],
-    sourceMode: sourceMode || 'AUTO',
-    selectedVersionIds: selectedVersionIds || [],
-  });
-
   return {
     agentId,
     userId,
@@ -133,8 +118,6 @@ export const buildDrawioChatRequestPayload = ({
     message: userMessage,
     ...(canvasXml && { canvasXml }),
     ...(canvasSummary && { canvasSummary }),
-    ...sourceDeclaration,
-    ...(sourceUseOverride && { sourceUseOverride }),
     ...(directClarifications?.length && { directClarifications }),
     ...(directConfirmationSourceVersionId && { directConfirmationSourceVersionId }),
     ...(selectedCellIds?.length && { selectedCellIds }),

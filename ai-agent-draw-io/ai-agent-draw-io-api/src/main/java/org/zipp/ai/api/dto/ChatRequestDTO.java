@@ -23,17 +23,10 @@ public class ChatRequestDTO {
     private String message;
     private String canvasXml;
     private String canvasSummary;
-    // WP5 source/selection declarations are opaque IDs; authorization and canvas validation stay server-side.
-    // Current-message uploads are opaque IDs; the server resolves readiness and ownership before use.
-    private java.util.List<String> attachmentUploadIds;
-    private String sourceMode;
-    // Optional direct-conversion preference; the server still verifies source readiness and authorization.
-    private String sourceUseOverride;
     // Prior direct-image reason codes and bounded user choices; never treated as free-form prompt text.
     private java.util.List<DirectClarificationDTO> directClarifications;
     // Exact version from the confirmation event; the server rejects stale-image confirmation reuse.
     private String directConfirmationSourceVersionId;
-    private java.util.List<String> selectedVersionIds;
     private java.util.List<String> selectedCellIds;
     private Long selectionCanvasVersion;
     private String selectionContentHash;

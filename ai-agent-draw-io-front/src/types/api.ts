@@ -361,11 +361,6 @@ export interface ChatRequestDTO {
   canvasXml?: string;
   /** Legacy drawer-only summary; Intent Router V2 never receives it. */
   canvasSummary?: string;
-  /** Opaque ids for uploads attached to this message; the server revalidates each one. */
-  attachmentUploadIds?: string[];
-  sourceMode?: 'NONE' | 'AUTO' | 'EXPLICIT' | 'EXPLICIT_ONLY';
-  /** Optional image-conversion preference; omitted when the Router should decide. */
-  sourceUseOverride?: 'DIRECT' | 'DIRECT_AND_RETRIEVAL';
   /** Explicit bounded answers to issues from a prior direct-image attempt. */
   directClarifications?: Array<{
     reasonCode: string;
@@ -373,7 +368,6 @@ export interface ChatRequestDTO {
     observedFingerprint: string;
   }>;
   directConfirmationSourceVersionId?: string;
-  selectedVersionIds?: string[];
   selectedCellIds?: string[];
   selectionCanvasVersion?: number;
   selectionContentHash?: string;

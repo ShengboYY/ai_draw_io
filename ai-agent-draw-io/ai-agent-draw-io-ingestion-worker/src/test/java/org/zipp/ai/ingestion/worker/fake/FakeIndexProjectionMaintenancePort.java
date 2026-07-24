@@ -19,6 +19,14 @@ public final class FakeIndexProjectionMaintenancePort implements IndexProjection
     public final List<String> orphanDeletions = new ArrayList<>();
     public final List<String> completedOrphanDeletions = new ArrayList<>();
     public String providerCursor;
+    public String temporaryCleanupCursor = "";
+    public TemporaryProjectionCleanup temporaryCleanup;
+    public final List<String> temporaryCleanupCursors = new ArrayList<>();
+    public final List<String> temporaryMarked = new ArrayList<>();
+    public PendingProjectionDeletion temporaryProviderDeletionRetry;
+    public final List<String> temporaryCompleted = new ArrayList<>();
+    public String temporaryCompletedGeneration;
+    public boolean temporaryMarkAccepted = true;
     public RetiredGenerationCleanup retiredCleanup;
     public final List<String> retiredMarked = new ArrayList<>();
     public boolean retiredCompleted;
@@ -85,8 +93,50 @@ public final class FakeIndexProjectionMaintenancePort implements IndexProjection
     }
 
     @Override
-    public Optional<RetiredGenerationCleanup> findRetiredCleanup(String generationId, Instant now,
-                                                                 Duration minimumGrace, int limit) {
+    public String findTemporaryCleanupCursor(String generationId, Instant initializedAt) {
+        return temporaryCleanupCursor;
+    }
+
+    @Override
+    public boolean advanceTemporaryCleanupCursor(String generationId, String expectedMaterialId,
+                                                 String nextMaterialId, Instant updatedAt) {
+        if (!java.util.Objects.equals(temporaryCleanupCursor, expectedMaterialId)) return false;
+        temporaryCleanupCursor = nextMaterialId;
+        return true;
+    }
+
+    @Override
+    public Optional<TemporaryProjectionCleanup> findTemporaryConversationCleanup(
+            String generationId, String afterMaterialId, Instant now, int limit) {
+        temporaryCleanupCursors.add(afterMaterialId);
+        return Optional.ofNullable(temporaryCleanup);
+    }
+
+    @Override
+    public boolean claimTemporaryConversationVectorsForDeletion(
+            TemporaryProjectionCleanup cleanup, Instant deletedAt) {
+        if (!temporaryMarkAccepted) return false;
+        temporaryMarked.addAll(cleanup.vectorIds());
+        return true;
+    }
+
+    @Override
+    public Optional<PendingProjectionDeletion> findTemporaryProviderDeletionRetry(int limit) {
+        return Optional.ofNullable(temporaryProviderDeletionRetry);
+    }
+
+    @Override
+    public boolean completeTemporaryProviderDeletion(String generationId, List<String> vectorIds,
+                                                     Instant completedAt) {
+        temporaryCompletedGeneration = generationId;
+        temporaryCompleted.addAll(vectorIds);
+        temporaryProviderDeletionRetry = null;
+        return true;
+    }
+
+    @Override
+    public Optional<RetiredGenerationCleanup> findRetiredCleanup(
+            Instant now, Duration minimumGrace, int limit) {
         return Optional.ofNullable(retiredCleanup);
     }
 

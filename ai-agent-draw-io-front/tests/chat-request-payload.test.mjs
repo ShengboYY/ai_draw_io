@@ -58,53 +58,22 @@ test('buildDrawioChatRequestPayload includes canvas state version fields', () =>
   assert.equal(request.expectedVersion, 4);
 });
 
-test('buildDrawioChatRequestPayload keeps current-message attachment ids opaque', () => {
+test('buildDrawioChatRequestPayload never serializes legacy per-message source controls', () => {
   const request = buildDrawioChatRequestPayload({
     agentId: '300000',
     userId: 'usr_alice',
     sessionId: 'session-1',
-    userMessage: 'Turn this image into Draw.io',
+    userMessage: 'Use the current conversation files',
     attachmentUploadIds: ['upl-image-1'],
-  });
-
-  assert.deepEqual(request.attachmentUploadIds, ['upl-image-1']);
-  assert.equal(JSON.stringify(request).includes('data:image'), false);
-});
-
-test('buildDrawioChatRequestPayload carries the selected source declaration without changing empty requests', () => {
-  const withSources = buildDrawioChatRequestPayload({
-    agentId: '300000', userId: 'usr_alice', sessionId: 'session-1', userMessage: 'use the selected guide',
-    attachmentUploadIds: ['upl-1'], sourceMode: 'EXPLICIT_ONLY', selectedVersionIds: ['ver-1'],
-  });
-  const withoutSources = buildDrawioChatRequestPayload({
-    agentId: '300000', userId: 'usr_alice', sessionId: 'session-1', userMessage: 'draw a flowchart',
-  });
-
-  assert.deepEqual(withSources.attachmentUploadIds, ['upl-1']);
-  assert.equal(withSources.sourceMode, 'EXPLICIT_ONLY');
-  assert.deepEqual(withSources.selectedVersionIds, ['ver-1']);
-  assert.equal('attachmentUploadIds' in withoutSources, false);
-  assert.equal('sourceMode' in withoutSources, false);
-  assert.equal('selectedVersionIds' in withoutSources, false);
-});
-
-test('buildDrawioChatRequestPayload sends only an explicit direct source-use override', () => {
-  const direct = buildDrawioChatRequestPayload({
-    agentId: '300000',
-    userId: 'usr_alice',
-    sessionId: 'session-1',
-    userMessage: 'Restore this image exactly',
+    sourceMode: 'EXPLICIT_ONLY',
+    selectedVersionIds: ['ver-1'],
     sourceUseOverride: 'DIRECT',
   });
-  const automatic = buildDrawioChatRequestPayload({
-    agentId: '300000',
-    userId: 'usr_alice',
-    sessionId: 'session-1',
-    userMessage: 'Use the best source route',
-  });
 
-  assert.equal(direct.sourceUseOverride, 'DIRECT');
-  assert.equal('sourceUseOverride' in automatic, false);
+  assert.equal('attachmentUploadIds' in request, false);
+  assert.equal('sourceMode' in request, false);
+  assert.equal('selectedVersionIds' in request, false);
+  assert.equal('sourceUseOverride' in request, false);
 });
 
 test('buildDrawioChatRequestPayload carries bounded direct image clarifications', () => {
