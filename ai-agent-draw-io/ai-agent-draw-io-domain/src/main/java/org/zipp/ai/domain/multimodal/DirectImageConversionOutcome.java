@@ -35,7 +35,17 @@ public sealed interface DirectImageConversionOutcome {
         }
     }
 
-    record Unavailable(String reason) implements DirectImageConversionOutcome {}
+    record Unavailable(DirectFailureKind failureKind,
+                       String reason) implements DirectImageConversionOutcome {
+        public Unavailable {
+            failureKind = failureKind == null ? DirectFailureKind.UNKNOWN : failureKind;
+            reason = reason == null || reason.isBlank() ? "DIRECT_UNAVAILABLE" : reason;
+        }
+
+        public Unavailable(String reason) {
+            this(DirectFailureKind.UNKNOWN, reason);
+        }
+    }
 
     record Cancelled() implements DirectImageConversionOutcome {}
 }

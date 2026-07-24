@@ -46,15 +46,20 @@ public final class DefaultDirectImageConversionExecutionModule
             return CompletableFuture.completedFuture(new DirectImageConversionOutcome.Cancelled());
         }
         GroundedRunControlPort.RunIdentity identity = identity(command);
+        boolean runStarted = false;
         try {
             runs.start(identity);
+            runStarted = true;
             return preparation.prepare(command.source(), resources, listener, signal)
                     .handle((outcome, failure) ->
                             finish(command, identity, resources, signal, outcome, failure));
-        } catch (RuntimeException failure) {
+        } catch (RuntimeException preparationFailure) {
             resources.closeExactlyOnce(CloseReason.FAILED);
+            // A failed start may refer to another active owner; cancel only a run we started.
+            if (runStarted) cancel(identity);
             return CompletableFuture.completedFuture(
-                    new DirectImageConversionOutcome.Unavailable("DIRECT_PREPARATION_UNAVAILABLE"));
+                    unavailable(DirectFailureKind.DEPENDENCY,
+                            "DIRECT_PREPARATION_UNAVAILABLE"));
         }
     }
 
@@ -67,7 +72,8 @@ public final class DefaultDirectImageConversionExecutionModule
         if (failure != null || outcome == null) {
             resources.closeExactlyOnce(CloseReason.FAILED);
             cancel(identity);
-            return new DirectImageConversionOutcome.Unavailable("DIRECT_PREPARATION_UNAVAILABLE");
+            return unavailable(DirectFailureKind.DEPENDENCY,
+                    "DIRECT_PREPARATION_UNAVAILABLE");
         }
         if (outcome instanceof DirectSourceOutcome.Cancelled) {
             resources.closeExactlyOnce(CloseReason.CANCELLED);
@@ -77,7 +83,7 @@ public final class DefaultDirectImageConversionExecutionModule
         if (outcome instanceof DirectSourceOutcome.Unavailable unavailable) {
             resources.closeExactlyOnce(CloseReason.FAILED);
             cancel(identity);
-            return new DirectImageConversionOutcome.Unavailable(unavailable.reason());
+            return unavailable(unavailable.failureKind(), unavailable.reason());
         }
         if (outcome instanceof DirectSourceOutcome.NeedsConfirmation confirmation) {
             resources.closeExactlyOnce(CloseReason.COMPLETED);
@@ -97,12 +103,25 @@ public final class DefaultDirectImageConversionExecutionModule
             return new DirectImageConversionOutcome.Cancelled();
         }
         DirectSourceOutcome.Prepared prepared = (DirectSourceOutcome.Prepared) outcome;
-        CanvasCommitResult committed = commits.commit(commitCommand(command, prepared), resources);
+        CanvasCommitResult committed;
+        try {
+            committed = commits.commit(commitCommand(command, prepared), resources);
+        } catch (RuntimeException commitFailure) {
+            // Commit policy and infrastructure exceptions share the same terminal cleanup owner.
+            resources.closeExactlyOnce(CloseReason.FAILED);
+            cancel(identity);
+            return unavailable(DirectFailureKind.COMMIT, "CANVAS_COMMIT_FAILED");
+        }
         if (committed.committed()) {
             return new DirectImageConversionOutcome.Committed(
                     committed.canvasXml(), committed.saveResult());
         }
         cancel(identity);
+        if (committed.failureKind() == CanvasCommitResult.FailureKind.UNAVAILABLE) {
+            return unavailable(DirectFailureKind.COMMIT,
+                    committed.errors().isEmpty()
+                            ? "CANVAS_COMMIT_FAILED" : committed.errors().get(0));
+        }
         return new DirectImageConversionOutcome.Rejected(committed.errors());
     }
 
@@ -121,6 +140,11 @@ public final class DefaultDirectImageConversionExecutionModule
     private GroundedRunControlPort.RunIdentity identity(DirectImageConversionCommand command) {
         return new GroundedRunControlPort.RunIdentity(command.userId(),
                 command.source().requestId(), command.source().runId());
+    }
+
+    private DirectImageConversionOutcome.Unavailable unavailable(
+            DirectFailureKind kind, String reason) {
+        return new DirectImageConversionOutcome.Unavailable(kind, reason);
     }
 
     private void cancel(GroundedRunControlPort.RunIdentity identity) {

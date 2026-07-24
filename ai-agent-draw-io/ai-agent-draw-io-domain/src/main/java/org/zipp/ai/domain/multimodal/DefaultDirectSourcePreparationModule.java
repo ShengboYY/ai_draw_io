@@ -34,11 +34,19 @@ import java.util.concurrent.CompletableFuture;
  * Prepares a single image directly. It intentionally has no retrieval or index dependency.
  */
 public final class DefaultDirectSourcePreparationModule implements DirectSourcePreparationModule {
+    private static final int MAX_VISUAL_RETRIES = 1;
+
     private final VisualObservationModule observations;
     private final ImageToDiagramModule converter;
     private final RequestSourceResolutionService sourceResolution;
     private final EvidenceReadLeaseCoordinator leases;
     private final MaterialPageAccessPort pages;
+    private final DirectDiagramProjectionVerifier projectionVerifier =
+            new DirectDiagramProjectionVerifier();
+    private final DirectDiagramGeometryRepairer geometryRepairer =
+            new DirectDiagramGeometryRepairer();
+    private final DefaultImageToDiagramModule projectionRules =
+            new DefaultImageToDiagramModule();
 
     public DefaultDirectSourcePreparationModule(VisualObservationModule observations,
                                                 ImageToDiagramModule converter,
@@ -77,9 +85,41 @@ public final class DefaultDirectSourcePreparationModule implements DirectSourceP
                 command.owner(), command.requestId(), command.runId(),
                 VisualObservationPurpose.DIAGRAM_RECONSTRUCTION, observationQuestion(command),
                 List.of(resolved.target()), 32);
-        return observations.observe(observationCommand, resources, signal)
-                .thenApply(outcome -> prepareObserved(command, resolved.target(), resources,
-                        listener, signal, outcome));
+        return observeAndPrepare(command, resolved.target(), observationCommand, resources,
+                listener, signal, MAX_VISUAL_RETRIES);
+    }
+
+    private java.util.concurrent.CompletionStage<DirectSourceOutcome> observeAndPrepare(
+            DirectSourceCommand command,
+            VisualObservationTarget target,
+            VisualObservationCommand observationCommand,
+            RunResourceDomain resources,
+            EvidenceProgressListener progress,
+            CancellationSignal signal,
+            int remainingRetries) {
+        java.util.concurrent.CompletionStage<VisualObservationOutcome> observationStage;
+        try {
+            observationStage = observations.observe(observationCommand, resources, signal);
+        } catch (RuntimeException failure) {
+            observationStage = CompletableFuture.failedFuture(failure);
+        }
+        return observationStage.handle((observation, failure) -> {
+            if (failure != null) {
+                return stopped(resources, signal)
+                        ? new DirectSourceOutcome.Cancelled()
+                        : unavailable(DirectFailureKind.VISUAL_PROVIDER,
+                                "VISUAL_PROVIDER_UNAVAILABLE");
+            }
+            return prepareObserved(command, target, resources, progress, signal, observation);
+        }).thenCompose(outcome -> {
+            if (remainingRetries > 0 && retryable(outcome) && !stopped(resources, signal)) {
+                // Retry the exact immutable image once; never broaden the source set.
+                progress.onProgress("direct_visual_retry", 1, 1);
+                return observeAndPrepare(command, target, observationCommand, resources,
+                        progress, signal, remainingRetries - 1);
+            }
+            return CompletableFuture.completedFuture(outcome);
+        });
     }
 
     private String observationQuestion(DirectSourceCommand command) {
@@ -106,43 +146,77 @@ public final class DefaultDirectSourcePreparationModule implements DirectSourceP
                 return new DirectSourceOutcome.Cancelled();
             }
             if (observation instanceof VisualObservationOutcome.Unavailable unavailable) {
-                return new DirectSourceOutcome.Unavailable(unavailable.reason());
+                return unavailable(DirectFailureKind.VISUAL_PROVIDER, unavailable.reason());
             }
             if (observation instanceof VisualObservationOutcome.Rejected rejected) {
+                if ("INVALID_DIAGRAM_EVIDENCE_ANCHOR".equals(rejected.reason())) {
+                    return unavailable(DirectFailureKind.VISUAL_PROVIDER,
+                            "VISUAL_PROVIDER_OUTPUT_INVALID");
+                }
                 return new DirectSourceOutcome.Rejected(List.of(rejected.reason()));
             }
             if (observation instanceof VisualObservationOutcome.Gap gap) {
                 return gapConfirmation(gap.reasons());
             }
             if (!(observation instanceof VisualObservationOutcome.DiagramVerified verified)) {
-                return new DirectSourceOutcome.Rejected(List.of("NO_DIAGRAM_GRAPH"));
+                return unavailable(DirectFailureKind.VISUAL_PROVIDER,
+                        "VISUAL_PROVIDER_OUTPUT_INVALID");
             }
             ObservedDiagramGraph graph = verified.graph();
-            ImageToDiagramOutcome conversion =
-                    converter.convert(new ImageToDiagramCommand(graph, command.clarifications()));
-            progress.onProgress("direct_diagram_projection", 1, 1);
-            if (conversion instanceof ImageToDiagramOutcome.NeedsConfirmation needs) {
+            DirectDiagramGeometryRepairer.RepairResult repair = geometryRepairer.repair(graph);
+            if (repair.unresolved()) {
+                return unavailable(DirectFailureKind.PROJECTION,
+                        "DIRECT_GEOMETRY_REPAIR_UNAVAILABLE");
+            }
+            graph = repair.graph();
+            if (repair.changed()) progress.onProgress("direct_geometry_repair", 1, 1);
+            ImageToDiagramCommand projectionCommand =
+                    new ImageToDiagramCommand(graph, command.clarifications());
+            // The trusted canonical decision prevents an injected projector from bypassing
+            // topology validation or a required user-confirmation boundary.
+            ImageToDiagramOutcome canonical = projectionRules.convert(projectionCommand);
+            if (canonical instanceof ImageToDiagramOutcome.NeedsConfirmation needs) {
                 return new DirectSourceOutcome.NeedsConfirmation(
                         needs.reasons(), needs.observedValues());
             }
-            if (conversion instanceof ImageToDiagramOutcome.Rejected rejected) {
-                return new DirectSourceOutcome.Rejected(rejected.reasons());
+            if (canonical instanceof ImageToDiagramOutcome.Rejected) {
+                return unavailable(DirectFailureKind.PROJECTION, "DIRECT_PROJECTION_INVALID");
             }
-            ImageToDiagramOutcome.Converted converted =
-                    (ImageToDiagramOutcome.Converted) conversion;
-            ObservedDiagramGraph convertedGraph =
-                    converted.graph() == null ? graph : converted.graph();
-            CitationProjection citations = citations(command, target, convertedGraph);
+            ImageToDiagramOutcome conversion = converter.convert(projectionCommand);
+            progress.onProgress("direct_diagram_projection", 1, 1);
+            if (!(conversion instanceof ImageToDiagramOutcome.Converted converted)) {
+                // Canonical validation succeeded, so a different projector outcome is a system fault.
+                return unavailable(DirectFailureKind.PROJECTION, "DIRECT_PROJECTION_INVALID");
+            }
+            ObservedDiagramGraph expectedGraph =
+                    ((ImageToDiagramOutcome.Converted) canonical).graph();
+            DirectDiagramProjectionVerification verification = projectionVerifier.verify(
+                    expectedGraph, converted.mxGraphModelXml(), converted.cellIds());
+            progress.onProgress("direct_visual_verification", 1, 1);
+            if (!verification.verified()) {
+                return unavailable(DirectFailureKind.PROJECTION,
+                        "DIRECT_PROJECTION_VERIFICATION_FAILED");
+            }
+            CitationProjection citations = citations(command, target, expectedGraph);
             resources.markPrepared();
             return new DirectSourceOutcome.Prepared(
-                    convertedGraph, converted.mxGraphModelXml(), converted.cellIds(),
+                    expectedGraph, converted.mxGraphModelXml(), converted.cellIds(),
                     citations.access(), citations.bindings());
         } catch (IllegalArgumentException exception) {
-            return new DirectSourceOutcome.Rejected(List.of("INVALID_DIRECT_VISUAL_INPUT"));
+            return unavailable(DirectFailureKind.PROJECTION, "DIRECT_PROJECTION_INVALID");
         } catch (RuntimeException exception) {
             if (stopped(resources, signal)) return new DirectSourceOutcome.Cancelled();
-            return new DirectSourceOutcome.Unavailable("DIRECT_VISUAL_PROVIDER_UNAVAILABLE");
+            return unavailable(DirectFailureKind.PROJECTION, "DIRECT_PROJECTION_UNAVAILABLE");
         }
+    }
+
+    private boolean retryable(DirectSourceOutcome outcome) {
+        return outcome instanceof DirectSourceOutcome.Unavailable unavailable
+                && unavailable.failureKind().retryable();
+    }
+
+    private DirectSourceOutcome.Unavailable unavailable(DirectFailureKind kind, String reason) {
+        return new DirectSourceOutcome.Unavailable(kind, reason);
     }
 
     private DirectSourceOutcome.NeedsConfirmation gapConfirmation(List<String> reasons) {
@@ -178,12 +252,14 @@ public final class DefaultDirectSourcePreparationModule implements DirectSourceP
                         command.selectedVersionIds()));
             } catch (RuntimeException failure) {
                 return SourceResolutionResult.failed(
-                        new DirectSourceOutcome.Unavailable("DIRECT_SOURCE_RESOLUTION_UNAVAILABLE"));
+                        unavailable(DirectFailureKind.DEPENDENCY,
+                                "DIRECT_SOURCE_RESOLUTION_UNAVAILABLE"));
             }
         }
         if (resolved.resolutionFailed()) {
             return SourceResolutionResult.failed(
-                    new DirectSourceOutcome.Unavailable("DIRECT_SOURCE_RESOLUTION_UNAVAILABLE"));
+                    unavailable(DirectFailureKind.DEPENDENCY,
+                            "DIRECT_SOURCE_RESOLUTION_UNAVAILABLE"));
         }
         String primaryVersionId = command.primaryDirectVersionId();
         if (primaryVersionId.isEmpty()) {
@@ -211,18 +287,19 @@ public final class DefaultDirectSourcePreparationModule implements DirectSourceP
                             List.of(source.authorizedSource()))));
         } catch (RuntimeException failure) {
             return SourceResolutionResult.failed(
-                    new DirectSourceOutcome.Unavailable("DIRECT_ATTACHMENT_LEASE_UNAVAILABLE"));
+                    unavailable(DirectFailureKind.DEPENDENCY,
+                            "DIRECT_ATTACHMENT_LEASE_UNAVAILABLE"));
         }
         StoredArtifact artifact;
         try {
             artifact = pages.findPreviewArtifact(command.owner(), source.materialId(),
                     source.versionId(), source.revisionId(), 1).orElse(null);
             if (artifact == null) {
-                return SourceResolutionResult.failed(new DirectSourceOutcome.Unavailable(
+                return SourceResolutionResult.failed(unavailable(DirectFailureKind.DEPENDENCY,
                         "DIRECT_ATTACHMENT_ARTIFACT_UNAVAILABLE"));
             }
         } catch (RuntimeException failure) {
-            return SourceResolutionResult.failed(new DirectSourceOutcome.Unavailable(
+            return SourceResolutionResult.failed(unavailable(DirectFailureKind.DEPENDENCY,
                     "DIRECT_ATTACHMENT_ARTIFACT_UNAVAILABLE"));
         }
         try {

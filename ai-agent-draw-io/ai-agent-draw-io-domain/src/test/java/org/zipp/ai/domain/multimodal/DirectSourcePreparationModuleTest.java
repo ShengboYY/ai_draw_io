@@ -56,7 +56,8 @@ class DirectSourcePreparationModuleTest {
                 prepared.mxGraphModelXml(), prepared.citationBindings(),
                 prepared.evidenceAccess(), true);
         assertTrue(citationValidation.accepted(), citationValidation.errors().toString());
-        assertEquals(List.of("direct_visual_observation", "direct_diagram_projection"),
+        assertEquals(List.of("direct_visual_observation", "direct_diagram_projection",
+                        "direct_visual_verification"),
                 progressStages);
         resources.close();
         assertTrue(leaseClosed.get());
@@ -80,6 +81,333 @@ class DirectSourcePreparationModuleTest {
         assertEquals(List.of("LOW_CONFIDENCE_EDGE:a-to-b"), confirmation.reasons());
         resources.close();
         assertTrue(leaseClosed.get());
+    }
+
+    @Test
+    void projectorCannotBypassTheCanonicalConfirmationBoundary() {
+        int[] conversions = {0};
+        DirectSourcePreparationModule module = new DefaultDirectSourcePreparationModule(
+                (request, resources, cancellation) ->
+                        java.util.concurrent.CompletableFuture.completedFuture(
+                                new VisualObservationOutcome.DiagramVerified(graph(0.40))),
+                command -> {
+                    conversions[0]++;
+                    return new DefaultImageToDiagramModule().projectVerified(command.graph());
+                },
+                command -> readySources(),
+                (owner, runId, authorizedSources) -> () -> { },
+                pageAccess(Optional.of(artifact)));
+
+        DirectSourceOutcome outcome = module.prepare(command(), new RunResourceDomain(),
+                null, CancellationSignal.NEVER).toCompletableFuture().join();
+
+        assertInstanceOf(DirectSourceOutcome.NeedsConfirmation.class, outcome);
+        assertEquals(0, conversions[0]);
+    }
+
+    @Test
+    void retriesInvalidProviderOutputOnceAndThenPreparesTheDiagram() {
+        int[] observations = {0};
+        List<String> progressStages = new ArrayList<>();
+        VisualObservationModule observer = (request, resources, cancellation) -> {
+            observations[0]++;
+            VisualObservationOutcome outcome = observations[0] == 1
+                    ? new VisualObservationOutcome.Unavailable("VISUAL_PROVIDER_OUTPUT_INVALID")
+                    : new VisualObservationOutcome.DiagramVerified(graph(0.94));
+            return java.util.concurrent.CompletableFuture.completedFuture(outcome);
+        };
+        DirectSourcePreparationModule module = module(
+                observer, readySources(), new AtomicBoolean(), Optional.of(artifact));
+
+        DirectSourceOutcome outcome = module.prepare(command(), new RunResourceDomain(),
+                (stage, completed, total) -> progressStages.add(stage),
+                CancellationSignal.NEVER).toCompletableFuture().join();
+
+        assertInstanceOf(DirectSourceOutcome.Prepared.class, outcome);
+        assertEquals(2, observations[0]);
+        assertEquals(1, progressStages.stream()
+                .filter("direct_visual_retry"::equals).count());
+    }
+
+    @Test
+    void retriesAnExceptionallyCompletedProviderCallOnce() {
+        int[] observations = {0};
+        DirectSourcePreparationModule module = module(
+                (request, resources, cancellation) -> {
+                    observations[0]++;
+                    if (observations[0] == 1) {
+                        return java.util.concurrent.CompletableFuture.failedFuture(
+                                new IllegalStateException("provider failed"));
+                    }
+                    return java.util.concurrent.CompletableFuture.completedFuture(
+                            new VisualObservationOutcome.DiagramVerified(graph(0.94)));
+                },
+                readySources(), new AtomicBoolean(), Optional.of(artifact));
+
+        DirectSourceOutcome outcome = module.prepare(command(), new RunResourceDomain(),
+                null, CancellationSignal.NEVER).toCompletableFuture().join();
+
+        assertInstanceOf(DirectSourceOutcome.Prepared.class, outcome);
+        assertEquals(2, observations[0]);
+    }
+
+    @Test
+    void projectionFailureIsRetriedAndNeverReportedAsInvalidUserInput() {
+        int[] observations = {0};
+        VisualObservationModule observer = (request, resources, cancellation) -> {
+            observations[0]++;
+            return java.util.concurrent.CompletableFuture.completedFuture(
+                    new VisualObservationOutcome.DiagramVerified(graph(0.94)));
+        };
+        DirectSourcePreparationModule module = new DefaultDirectSourcePreparationModule(
+                observer,
+                command -> {
+                    throw new IllegalArgumentException("projection failed");
+                },
+                command -> readySources(),
+                (owner, runId, authorizedSources) -> () -> { },
+                pageAccess(Optional.of(artifact)));
+
+        DirectSourceOutcome outcome = module.prepare(command(), new RunResourceDomain(),
+                null, CancellationSignal.NEVER).toCompletableFuture().join();
+
+        assertEquals("DIRECT_PROJECTION_INVALID",
+                assertInstanceOf(DirectSourceOutcome.Unavailable.class, outcome).reason());
+        assertEquals(2, observations[0]);
+    }
+
+    @Test
+    void recoverableTopologyFailureIsReobservedAndRedrawnOnce() {
+        int[] observations = {0};
+        DirectSourcePreparationModule module = module(
+                (request, resources, cancellation) -> {
+                    observations[0]++;
+                    ObservedDiagramGraph observed = observations[0] == 1
+                            ? graphWithUnknownEdgeTarget()
+                            : graph(0.94);
+                    return java.util.concurrent.CompletableFuture.completedFuture(
+                            new VisualObservationOutcome.DiagramVerified(observed));
+                },
+                readySources(), new AtomicBoolean(), Optional.of(artifact));
+
+        DirectSourceOutcome outcome = module.prepare(command(), new RunResourceDomain(),
+                null, CancellationSignal.NEVER).toCompletableFuture().join();
+
+        assertInstanceOf(DirectSourceOutcome.Prepared.class, outcome);
+        assertEquals(2, observations[0]);
+    }
+
+    @Test
+    void failedProjectionVerificationIsRedrawnOnceBeforeCommitPreparation() {
+        int[] conversions = {0};
+        ImageToDiagramModule converter = command -> {
+            conversions[0]++;
+            if (conversions[0] == 1) {
+                return new ImageToDiagramOutcome.Converted(
+                        "<mxGraphModel><root><script/></root></mxGraphModel>",
+                        List.of(), command.graph());
+            }
+            return new DefaultImageToDiagramModule().convert(command);
+        };
+        DirectSourcePreparationModule module = new DefaultDirectSourcePreparationModule(
+                (request, resources, cancellation) ->
+                        java.util.concurrent.CompletableFuture.completedFuture(
+                                new VisualObservationOutcome.DiagramVerified(graph(0.94))),
+                converter,
+                command -> readySources(),
+                (owner, runId, authorizedSources) -> () -> { },
+                pageAccess(Optional.of(artifact)));
+
+        DirectSourceOutcome outcome = module.prepare(command(), new RunResourceDomain(),
+                null, CancellationSignal.NEVER).toCompletableFuture().join();
+
+        assertInstanceOf(DirectSourceOutcome.Prepared.class, outcome);
+        assertEquals(2, conversions[0]);
+    }
+
+    @Test
+    void projectionCannotChangeTheObservedGraphAndItsXmlTogether() {
+        int[] conversions = {0};
+        ImageToDiagramModule converter = command -> {
+            conversions[0]++;
+            if (conversions[0] == 1) {
+                ObservedDiagramGraph tampered = new ObservedDiagramGraph(
+                        List.of(command.graph().nodes().get(0)),
+                        List.of(), List.of(), List.of());
+                return new DefaultImageToDiagramModule().convert(
+                        new ImageToDiagramCommand(tampered));
+            }
+            return new DefaultImageToDiagramModule().convert(command);
+        };
+        DirectSourcePreparationModule module = new DefaultDirectSourcePreparationModule(
+                (request, resources, cancellation) ->
+                        java.util.concurrent.CompletableFuture.completedFuture(
+                                new VisualObservationOutcome.DiagramVerified(graph(0.94))),
+                converter,
+                command -> readySources(),
+                (owner, runId, authorizedSources) -> () -> { },
+                pageAccess(Optional.of(artifact)));
+
+        DirectSourceOutcome.Prepared prepared =
+                assertInstanceOf(DirectSourceOutcome.Prepared.class,
+                        module.prepare(command(), new RunResourceDomain(), null,
+                                CancellationSignal.NEVER).toCompletableFuture().join());
+
+        assertEquals(2, conversions[0]);
+        assertEquals(List.of("a", "b"),
+                prepared.graph().nodes().stream().map(ObservedDiagramGraph.Node::id).toList());
+    }
+
+    @Test
+    void repairsMaterialNodeOverlapBeforeProjection() {
+        List<String> progressStages = new ArrayList<>();
+        ObservedDiagramGraph overlapping = new ObservedDiagramGraph(
+                List.of(
+                        new ObservedDiagramGraph.Node("a", "A",
+                                ObservedDiagramGraph.Shape.RECTANGLE,
+                                new ObservationBounds(0.1, 0.2, 0.2, 0.1),
+                                "", EVIDENCE_ID, 0.96),
+                        new ObservedDiagramGraph.Node("b", "B",
+                                ObservedDiagramGraph.Shape.ELLIPSE,
+                                new ObservationBounds(0.1, 0.2, 0.2, 0.1),
+                                "", EVIDENCE_ID, 0.97)),
+                List.of(), List.of(), List.of());
+        DirectSourcePreparationModule module = module(
+                (request, resources, cancellation) ->
+                        java.util.concurrent.CompletableFuture.completedFuture(
+                                new VisualObservationOutcome.DiagramVerified(overlapping)),
+                readySources(), new AtomicBoolean(), Optional.of(artifact));
+
+        DirectSourceOutcome.Prepared prepared =
+                assertInstanceOf(DirectSourceOutcome.Prepared.class,
+                        module.prepare(command(), new RunResourceDomain(),
+                                (stage, completed, total) -> progressStages.add(stage),
+                                CancellationSignal.NEVER).toCompletableFuture().join());
+
+        assertTrue(progressStages.contains("direct_geometry_repair"));
+        assertEquals(new ObservationBounds(0.1, 0.2, 0.2, 0.1),
+                prepared.graph().nodes().get(0).bounds());
+        assertTrue(!prepared.graph().nodes().get(0).bounds()
+                .equals(prepared.graph().nodes().get(1).bounds()));
+    }
+
+    @Test
+    void repairsGroupedNodeBackInsideItsContainer() {
+        ObservationBounds groupBounds = new ObservationBounds(0.2, 0.2, 0.5, 0.5);
+        ObservedDiagramGraph outsideGroup = new ObservedDiagramGraph(
+                List.of(new ObservedDiagramGraph.Node("a", "A",
+                        ObservedDiagramGraph.Shape.RECTANGLE,
+                        new ObservationBounds(0.05, 0.05, 0.1, 0.1),
+                        "g", EVIDENCE_ID, 0.96)),
+                List.of(),
+                List.of(new ObservedDiagramGraph.Group(
+                        "g", "Group", ObservedDiagramGraph.GroupKind.CONTAINER,
+                        groupBounds, EVIDENCE_ID, 0.97)),
+                List.of());
+        DirectSourcePreparationModule module = module(
+                (request, resources, cancellation) ->
+                        java.util.concurrent.CompletableFuture.completedFuture(
+                                new VisualObservationOutcome.DiagramVerified(outsideGroup)),
+                readySources(), new AtomicBoolean(), Optional.of(artifact));
+
+        DirectSourceOutcome.Prepared prepared =
+                assertInstanceOf(DirectSourceOutcome.Prepared.class,
+                        module.prepare(command(), new RunResourceDomain(), null,
+                                CancellationSignal.NEVER).toCompletableFuture().join());
+
+        ObservationBounds repaired = prepared.graph().nodes().get(0).bounds();
+        assertTrue(repaired.x() >= groupBounds.x());
+        assertTrue(repaired.y() >= groupBounds.y());
+        assertTrue(repaired.x() + repaired.width() <= groupBounds.x() + groupBounds.width());
+        assertTrue(repaired.y() + repaired.height() <= groupBounds.y() + groupBounds.height());
+    }
+
+    @Test
+    void repairsSubpixelGeometryToAVisibleCanvasCell() {
+        ObservedDiagramGraph subpixel = new ObservedDiagramGraph(
+                List.of(new ObservedDiagramGraph.Node("a", "A",
+                        ObservedDiagramGraph.Shape.RECTANGLE,
+                        new ObservationBounds(0.1, 0.2, 0.00001, 0.00001),
+                        "", EVIDENCE_ID, 0.96)),
+                List.of(), List.of(), List.of());
+        DirectSourcePreparationModule module = module(
+                (request, resources, cancellation) ->
+                        java.util.concurrent.CompletableFuture.completedFuture(
+                                new VisualObservationOutcome.DiagramVerified(subpixel)),
+                readySources(), new AtomicBoolean(), Optional.of(artifact));
+
+        DirectSourceOutcome.Prepared prepared =
+                assertInstanceOf(DirectSourceOutcome.Prepared.class,
+                        module.prepare(command(), new RunResourceDomain(), null,
+                                CancellationSignal.NEVER).toCompletableFuture().join());
+
+        assertTrue(prepared.graph().nodes().get(0).bounds().width() >= 1.0 / 1_200);
+        assertTrue(prepared.graph().nodes().get(0).bounds().height() >= 1.0 / 800);
+        assertTrue(prepared.mxGraphModelXml().contains("width=\"1\" height=\"1\""));
+    }
+
+    @Test
+    void separatesOverlappingGroupsAndTheirNodes() {
+        ObservationBounds groupBounds = new ObservationBounds(0.1, 0.1, 0.3, 0.3);
+        ObservedDiagramGraph overlappingGroups = new ObservedDiagramGraph(
+                List.of(
+                        new ObservedDiagramGraph.Node("a", "A",
+                                ObservedDiagramGraph.Shape.RECTANGLE,
+                                new ObservationBounds(0.15, 0.15, 0.1, 0.1),
+                                "g1", EVIDENCE_ID, 0.96),
+                        new ObservedDiagramGraph.Node("b", "B",
+                                ObservedDiagramGraph.Shape.RECTANGLE,
+                                new ObservationBounds(0.15, 0.15, 0.1, 0.1),
+                                "g2", EVIDENCE_ID, 0.96)),
+                List.of(new ObservedDiagramGraph.Edge(
+                        "a-to-b", "a", "b", "",
+                        ObservedDiagramGraph.EdgeDirection.FORWARD,
+                        ObservedDiagramGraph.LineStyle.SOLID,
+                        List.of(new ObservedDiagramGraph.Point(0.2, 0.2)),
+                        EVIDENCE_ID, 0.96)),
+                List.of(
+                        new ObservedDiagramGraph.Group("g1", "One",
+                                ObservedDiagramGraph.GroupKind.CONTAINER,
+                                groupBounds, EVIDENCE_ID, 0.97),
+                        new ObservedDiagramGraph.Group("g2", "Two",
+                                ObservedDiagramGraph.GroupKind.CONTAINER,
+                                groupBounds, EVIDENCE_ID, 0.97)),
+                List.of());
+        DirectSourcePreparationModule module = module(
+                (request, resources, cancellation) ->
+                        java.util.concurrent.CompletableFuture.completedFuture(
+                                new VisualObservationOutcome.DiagramVerified(overlappingGroups)),
+                readySources(), new AtomicBoolean(), Optional.of(artifact));
+
+        DirectSourceOutcome.Prepared prepared =
+                assertInstanceOf(DirectSourceOutcome.Prepared.class,
+                        module.prepare(command(), new RunResourceDomain(), null,
+                                CancellationSignal.NEVER).toCompletableFuture().join());
+
+        assertTrue(!prepared.graph().groups().get(0).bounds()
+                .equals(prepared.graph().groups().get(1).bounds()));
+        assertTrue(!prepared.graph().nodes().get(0).bounds()
+                .equals(prepared.graph().nodes().get(1).bounds()));
+        assertTrue(prepared.graph().edges().get(0).waypoints().isEmpty());
+    }
+
+    @Test
+    void actualInvalidVisualInputIsRejectedWithoutRetry() {
+        int[] observations = {0};
+        DirectSourcePreparationModule module = module(
+                (request, resources, cancellation) -> {
+                    observations[0]++;
+                    return java.util.concurrent.CompletableFuture.completedFuture(
+                            new VisualObservationOutcome.Rejected("INVALID_VISUAL_INPUT"));
+                },
+                readySources(), new AtomicBoolean(), Optional.of(artifact));
+
+        DirectSourceOutcome outcome = module.prepare(command(), new RunResourceDomain(),
+                null, CancellationSignal.NEVER).toCompletableFuture().join();
+
+        assertEquals(List.of("INVALID_VISUAL_INPUT"),
+                assertInstanceOf(DirectSourceOutcome.Rejected.class, outcome).reasons());
+        assertEquals(1, observations[0]);
     }
 
     @Test
@@ -364,5 +692,16 @@ class DirectSourcePreparationModuleTest {
                         ObservedDiagramGraph.LineStyle.SOLID, List.of(),
                         EVIDENCE_ID, edgeConfidence)),
                 List.of(), List.of());
+    }
+
+    private ObservedDiagramGraph graphWithUnknownEdgeTarget() {
+        ObservedDiagramGraph valid = graph(0.94);
+        return new ObservedDiagramGraph(
+                valid.nodes(),
+                List.of(new ObservedDiagramGraph.Edge("a-to-missing", "a", "missing", "",
+                        ObservedDiagramGraph.EdgeDirection.FORWARD,
+                        ObservedDiagramGraph.LineStyle.SOLID, List.of(),
+                        EVIDENCE_ID, 0.94)),
+                valid.groups(), valid.unresolvedItems());
     }
 }

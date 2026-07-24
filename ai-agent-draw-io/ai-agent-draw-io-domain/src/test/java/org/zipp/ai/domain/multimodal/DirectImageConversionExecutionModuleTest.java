@@ -124,6 +124,111 @@ class DirectImageConversionExecutionModuleTest {
         assertEquals("run-1", runs.cancelled.runId());
     }
 
+    @Test
+    void synchronousPreparationFailureClosesResourcesAndCancelsTheActiveRun() {
+        AtomicBoolean resourceClosed = new AtomicBoolean();
+        TrackingRuns runs = new TrackingRuns();
+        DirectSourcePreparationModule failing = (command, resources, progress, cancellation) -> {
+            resources.attach(() -> resourceClosed.set(true));
+            throw new IllegalStateException("preparation failed");
+        };
+        DirectImageConversionExecutionModule module = new DefaultDirectImageConversionExecutionModule(
+                failing, commitModule(emptyCanvasStore(), new AtomicReference<>()), runs);
+
+        DirectImageConversionOutcome outcome = module.execute(command(), null,
+                CancellationSignal.NEVER).toCompletableFuture().join();
+
+        assertEquals("DIRECT_PREPARATION_UNAVAILABLE",
+                assertInstanceOf(DirectImageConversionOutcome.Unavailable.class, outcome).reason());
+        assertTrue(resourceClosed.get());
+        assertEquals("run-1", runs.cancelled.runId());
+    }
+
+    @Test
+    void failedRunStartDoesNotCancelAnotherOwnerRun() {
+        AtomicBoolean cancelled = new AtomicBoolean();
+        GroundedRunControlPort unavailableRuns = new GroundedRunControlPort() {
+            @Override
+            public void start(RunIdentity identity) {
+                throw new IllegalStateException("another run is active");
+            }
+
+            @Override
+            public CancelResult cancel(RunIdentity identity) {
+                cancelled.set(true);
+                return CancelResult.CANCELLED;
+            }
+        };
+        DirectImageConversionExecutionModule module = new DefaultDirectImageConversionExecutionModule(
+                preparedSource(), commitModule(emptyCanvasStore(), new AtomicReference<>()),
+                unavailableRuns);
+
+        DirectImageConversionOutcome outcome = module.execute(command(), null,
+                CancellationSignal.NEVER).toCompletableFuture().join();
+
+        assertInstanceOf(DirectImageConversionOutcome.Unavailable.class, outcome);
+        assertFalse(cancelled.get());
+    }
+
+    @Test
+    void canvasCommitFailureIsUnavailableAndCancelsTheActiveRun() {
+        TrackingRuns runs = new TrackingRuns();
+        GroundedCanvasCommitPort failingPort = new GroundedCanvasCommitPort() {
+            @Override
+            public Map<String, InheritedProvenance> findPersistedProvenance(InheritanceQuery query) {
+                return Map.of();
+            }
+
+            @Override
+            public CanvasStateSaveResult commit(CommitPlan plan) {
+                throw new IllegalStateException("storage unavailable");
+            }
+        };
+        CanvasCommitModule failingCommit = new CanvasCommitModule(
+                new CanvasMutationGate(emptyCanvasStore(), new DefaultCanvasAnalyzer()),
+                new CitationGuard(requests -> List.of()), failingPort);
+        DirectImageConversionExecutionModule module = new DefaultDirectImageConversionExecutionModule(
+                preparedSource(), failingCommit, runs);
+
+        DirectImageConversionOutcome outcome = module.execute(command(), null,
+                CancellationSignal.NEVER).toCompletableFuture().join();
+
+        assertEquals("CANVAS_COMMIT_FAILED",
+                assertInstanceOf(DirectImageConversionOutcome.Unavailable.class, outcome).reason());
+        assertEquals("run-1", runs.cancelled.runId());
+    }
+
+    @Test
+    void commitPolicyExceptionClosesResourcesAndCancelsTheActiveRun() {
+        AtomicBoolean resourceClosed = new AtomicBoolean();
+        TrackingRuns runs = new TrackingRuns();
+        DirectSourcePreparationModule preparation = (command, resources, progress, cancellation) -> {
+            resources.attach(() -> resourceClosed.set(true));
+            return preparedSource().prepare(command, resources, progress, cancellation);
+        };
+        ICanvasStateStore failingStore = new ICanvasStateStore() {
+            @Override
+            public Optional<CanvasState> find(String userId, String diagramId) {
+                throw new IllegalStateException("canvas store unavailable");
+            }
+
+            @Override
+            public CanvasState save(CanvasState state) {
+                throw new AssertionError();
+            }
+        };
+        DirectImageConversionExecutionModule module = new DefaultDirectImageConversionExecutionModule(
+                preparation, commitModule(failingStore, new AtomicReference<>()), runs);
+
+        DirectImageConversionOutcome outcome = module.execute(command(), null,
+                CancellationSignal.NEVER).toCompletableFuture().join();
+
+        assertEquals("CANVAS_COMMIT_FAILED",
+                assertInstanceOf(DirectImageConversionOutcome.Unavailable.class, outcome).reason());
+        assertTrue(resourceClosed.get());
+        assertEquals("run-1", runs.cancelled.runId());
+    }
+
     private DirectSourcePreparationModule preparedSource() {
         return (command, resources, progress, cancellation) -> {
             String xml = """

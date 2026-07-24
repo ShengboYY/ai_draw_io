@@ -58,25 +58,29 @@ public final class DefaultImageToDiagramModule implements ImageToDiagramModule {
                     confirmation, observedValues(graph, confirmation));
         }
 
-        Map<String, ObservedDiagramGraph.Group> groups = indexGroups(effectiveGraph.groups());
+        return projectVerified(effectiveGraph);
+    }
+
+    ImageToDiagramOutcome.Converted projectVerified(ObservedDiagramGraph graph) {
+        Map<String, ObservedDiagramGraph.Group> groups = indexGroups(graph.groups());
         List<String> cellIds = new ArrayList<>();
         StringBuilder xml = new StringBuilder(1_024);
         xml.append("<mxGraphModel><root><mxCell id=\"0\"/>")
                 .append("<mxCell id=\"1\" parent=\"0\"/>");
-        for (ObservedDiagramGraph.Group group : effectiveGraph.groups()) {
+        for (ObservedDiagramGraph.Group group : graph.groups()) {
             appendGroup(xml, group);
             cellIds.add(groupCellId(group.id()));
         }
-        for (ObservedDiagramGraph.Node node : effectiveGraph.nodes()) {
+        for (ObservedDiagramGraph.Node node : graph.nodes()) {
             appendNode(xml, node, groups.get(node.groupId()));
             cellIds.add(nodeCellId(node.id()));
         }
-        for (ObservedDiagramGraph.Edge edge : effectiveGraph.edges()) {
+        for (ObservedDiagramGraph.Edge edge : graph.edges()) {
             appendEdge(xml, edge);
             cellIds.add(edgeCellId(edge.id()));
         }
         xml.append("</root></mxGraphModel>");
-        return new ImageToDiagramOutcome.Converted(xml.toString(), cellIds, effectiveGraph);
+        return new ImageToDiagramOutcome.Converted(xml.toString(), cellIds, graph);
     }
 
     private boolean accepted(Map<String, DirectClarification> clarifications,

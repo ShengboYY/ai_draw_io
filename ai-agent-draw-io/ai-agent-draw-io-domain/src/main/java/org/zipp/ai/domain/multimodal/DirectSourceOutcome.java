@@ -41,7 +41,16 @@ public sealed interface DirectSourceOutcome {
         }
     }
 
-    record Unavailable(String reason) implements DirectSourceOutcome {}
+    record Unavailable(DirectFailureKind failureKind, String reason) implements DirectSourceOutcome {
+        public Unavailable {
+            failureKind = failureKind == null ? DirectFailureKind.UNKNOWN : failureKind;
+            reason = reason == null || reason.isBlank() ? "DIRECT_UNAVAILABLE" : reason;
+        }
+
+        public Unavailable(String reason) {
+            this(DirectFailureKind.UNKNOWN, reason);
+        }
+    }
 
     record Cancelled() implements DirectSourceOutcome {}
 }

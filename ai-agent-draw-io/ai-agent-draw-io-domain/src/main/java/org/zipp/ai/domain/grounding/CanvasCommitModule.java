@@ -91,7 +91,8 @@ public final class CanvasCommitModule {
             return CanvasCommitResult.committed(injected, saved);
         } catch (RuntimeException failure) {
             resources.closeExactlyOnce(CloseReason.FAILED);
-            return CanvasCommitResult.rejected(mutation.resultingXml(), List.of("CANVAS_COMMIT_FAILED"));
+            return CanvasCommitResult.unavailable(
+                    mutation.resultingXml(), "CANVAS_COMMIT_FAILED");
         }
     }
 
