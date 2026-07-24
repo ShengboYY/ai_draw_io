@@ -75,6 +75,15 @@ test('composer plus menu owns local uploads, library selection, and source mode'
   assert.match(composerSourceMenuSource, /if \(!disabled\) return;[\s\S]*setOpen\(false\)/);
 });
 
+test('remaining demo quota sits beside the composer add button', () => {
+  assert.match(
+    pageSource,
+    /<div className="flex items-center gap-1\.5">[\s\S]*<ComposerSourceMenu[\s\S]*demoQuotaState\.visible && !demoQuotaState\.exhausted/,
+  );
+  assert.match(pageSource, /whitespace-nowrap font-mono text-\[11px\][\s\S]*demoQuotaState\.remaining\} left/);
+  assert.doesNotMatch(pageSource, /mb-2 flex justify-end px-1/);
+});
+
 test('composer uses a Codex-style vertical layout', () => {
   const composerTextareaClasses = pageSource.match(
     /<textarea\s+ref=\{promptInputRef\}[\s\S]*?className="([^"]*)"/,

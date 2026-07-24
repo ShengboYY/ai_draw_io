@@ -4360,15 +4360,6 @@ function DrawioPageContent() {
 
           {/* Input Area */}
           <div className="relative z-20 shrink-0 border-t border-stone-200 bg-white p-4 shadow-[0_-4px_12px_rgba(24,24,27,0.03)]">
-            {demoQuotaState.visible && !demoQuotaState.exhausted && (
-              <div className="mb-2 flex justify-end px-1">
-                <span className="flex items-center gap-1.5 font-mono text-[11px] font-medium text-zinc-500" title={demoQuotaState.label}>
-                  <span className={`h-1.5 w-1.5 rounded-full ${demoQuotaState.remaining <= 1 ? 'bg-amber-500' : 'bg-emerald-500'}`} aria-hidden="true" />
-                  {demoQuotaState.remaining} left
-                </span>
-              </div>
-            )}
-
             {demoQuotaState.visible && demoQuotaState.exhausted && (
               <div className="mb-2 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700">
                 <span className="font-medium">{demoQuotaState.label}</span>
@@ -4485,19 +4476,28 @@ function DrawioPageContent() {
               />
 
               <div className="mt-auto flex items-center justify-between gap-3 pt-1">
-                <ComposerSourceMenu
-                  disabled={isSending || !selectedAgentId}
-                  sourceMode={sourceMode}
-                  onSourceModeChange={setSourceMode}
-                  options={sourceOptions}
-                  selectedVersionIds={selectedVersionIds}
-                  onSelectedVersionIdsChange={setSelectedVersionIds}
-                  activeScopeLabels={[
-                    ...(selectedAttachmentUploadIds.length > 0 ? ['Conversation attachments'] : []),
-                    ...activeSourceScopes,
-                  ]}
-                  onUploadLocal={() => attachmentUploaderRef.current?.openPicker()}
-                />
+                {/* Keep the lightweight quota status beside the add-sources trigger. */}
+                <div className="flex items-center gap-1.5">
+                  <ComposerSourceMenu
+                    disabled={isSending || !selectedAgentId}
+                    sourceMode={sourceMode}
+                    onSourceModeChange={setSourceMode}
+                    options={sourceOptions}
+                    selectedVersionIds={selectedVersionIds}
+                    onSelectedVersionIdsChange={setSelectedVersionIds}
+                    activeScopeLabels={[
+                      ...(selectedAttachmentUploadIds.length > 0 ? ['Conversation attachments'] : []),
+                      ...activeSourceScopes,
+                    ]}
+                    onUploadLocal={() => attachmentUploaderRef.current?.openPicker()}
+                  />
+                  {demoQuotaState.visible && !demoQuotaState.exhausted && (
+                    <span className="flex items-center gap-1.5 whitespace-nowrap font-mono text-[11px] font-medium text-zinc-500" title={demoQuotaState.label}>
+                      <span className={`h-1.5 w-1.5 rounded-full ${demoQuotaState.remaining <= 1 ? 'bg-amber-500' : 'bg-emerald-500'}`} aria-hidden="true" />
+                      {demoQuotaState.remaining} left
+                    </span>
+                  )}
+                </div>
 
                 {/* Keep model and repair controls in the same footer as the primary actions. */}
                 <div className="flex min-w-0 shrink items-center justify-end gap-1">
