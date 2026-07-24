@@ -96,9 +96,10 @@
             JOIN material_scope_link link ON link.material_id = m.id
             LEFT JOIN diagram d ON d.id = #{diagramId} AND d.user_id = #{ownerKey} AND d.deleted = 0
             WHERE <include refid="activeOwnerMaterial"/>
-              AND ((link.scope_type = 'DIAGRAM' AND link.scope_key = #{diagramId})
+              AND ((link.scope_type = 'CONVERSATION' AND link.scope_key = #{conversationId})
+                OR (link.scope_type = 'DIAGRAM' AND link.scope_key = #{diagramId})
                 OR (link.scope_type = 'CHARTBOOK' AND link.scope_key = d.chartbook_id)
-                OR (link.scope_type = 'LIBRARY' AND link.scope_key IN ('personal', 'library', #{ownerKey})))
+              )
         ), ranked AS (
             SELECT candidates.*, ROW_NUMBER() OVER (PARTITION BY version_id ORDER BY priority) AS rn
             FROM candidates

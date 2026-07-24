@@ -17,6 +17,7 @@ public class VectorProjectionWorkPO {
     private String retrievalManifestSha256;
     private long retrievalManifestSize;
     private String retrievalManifestContentType;
+    private boolean durableIndexEligible;
     private String indexGenerationId;
     private String indexName;
     private String namespace;

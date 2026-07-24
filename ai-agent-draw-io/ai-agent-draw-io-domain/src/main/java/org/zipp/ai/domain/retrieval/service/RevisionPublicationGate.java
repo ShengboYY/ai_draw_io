@@ -83,7 +83,10 @@ public final class RevisionPublicationGate {
                 || source.exactTermCount() != exactTerms
                 || source.chunkEvidenceMappingCount() != evidenceMappings
                 || source.evidenceUnitCount() != evidenceSeal.units().size()
-                || source.expectedProjectionCount() != denseEligible
+                // Temporary Conversation revisions publish lexical projections with no durable vector targets.
+                || (source.context().durableIndexEligible()
+                ? source.expectedProjectionCount() != denseEligible
+                : source.expectedProjectionCount() != 0)
                 || unknownEvidence || unknownSection) {
             throw new IllegalArgumentException("publication source manifest chain is inconsistent");
         }

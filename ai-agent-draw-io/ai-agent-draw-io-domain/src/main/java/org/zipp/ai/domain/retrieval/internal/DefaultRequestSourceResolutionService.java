@@ -78,10 +78,9 @@ public final class DefaultRequestSourceResolutionService implements RequestSourc
         }
 
         private void addAutomatic(List<SourceResolutionCandidate> candidates) {
-            // Conversation uploads are opt-in per message; automatic scope expansion must not
-            // silently re-add an attachment that the user removed from the current selection.
+            // AUTO is scoped to the active Conversation, Diagram, and Chartbook, never the whole Library.
             candidates.stream().filter(SourceResolutionCandidate::ready)
-                    .filter(candidate -> candidate.scopeType() != MaterialScopeType.CONVERSATION).forEach(candidate ->
+                    .filter(candidate -> candidate.scopeType() != MaterialScopeType.LIBRARY).forEach(candidate ->
                     add(candidate, candidate.pinned() ? RequestSourceOrigin.PINNED : RequestSourceOrigin.AUTOMATIC));
         }
 

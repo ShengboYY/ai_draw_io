@@ -57,7 +57,7 @@ class VectorProjectionJobHandlerTest {
                 codec.encode(evidence), "application/json+gzip");
         RevisionProjectionContext context = new RevisionProjectionContext(
                 "rev_1", "ver_1", "material_1", OwnerType.USER, "user_1", 7, 2,
-                "d".repeat(64), retrievalArtifact);
+                "d".repeat(64), retrievalArtifact, true);
         InMemoryWork work = new InMemoryWork(context, structureArtifact, evidenceArtifact);
         FakeRetrievalVectorIndex index = new FakeRetrievalVectorIndex();
         RecordingQueue queue = new RecordingQueue();
@@ -154,7 +154,7 @@ class VectorProjectionJobHandlerTest {
                 codec.encode(retrievalManifest()), "application/json+gzip");
         RevisionProjectionContext context = new RevisionProjectionContext(
                 "rev_1", "ver_1", "material_1", OwnerType.USER, "user_1", 7, 2,
-                "d".repeat(64), retrievalArtifact);
+                "d".repeat(64), retrievalArtifact, true);
         VectorGenerationProfile profile = new VectorGenerationProfile(
                 "drawio-test", "test", "multilingual-e5-large", "e".repeat(64),
                 4, "cosine", "vector-v1", "tokenizer-v1");

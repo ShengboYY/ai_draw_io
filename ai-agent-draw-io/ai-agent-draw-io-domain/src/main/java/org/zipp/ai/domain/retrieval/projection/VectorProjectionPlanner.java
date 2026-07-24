@@ -22,10 +22,17 @@ public final class VectorProjectionPlanner {
     }
 
     public VectorProjectionPlan plan(RetrievalProjectionManifest manifest, VectorGenerationProfile profile) {
+        return plan(manifest, profile, true);
+    }
+
+    /** Temporary Conversation files keep lexical projections but must not create long-lived vectors. */
+    public VectorProjectionPlan plan(RetrievalProjectionManifest manifest, VectorGenerationProfile profile,
+                                     boolean durableIndexEligible) {
         var source = java.util.Objects.requireNonNull(manifest, "manifest");
         var generation = java.util.Objects.requireNonNull(profile, "profile");
         String generationId = generation.generationId();
         List<VectorProjectionTarget> targets = source.chunks().stream()
+                .filter(ignored -> durableIndexEligible)
                 .filter(chunk -> chunk.indexMode() == RetrievalIndexMode.DENSE_AND_LEXICAL)
                 .sorted(Comparator.comparingInt(RetrievalChunkProjection::structuralOrdinal)
                         .thenComparing(RetrievalChunkProjection::chunkId))

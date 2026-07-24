@@ -40,19 +40,23 @@ class RequestSourceResolutionServiceTest {
     }
 
     @Test
-    void automaticExpansionNeverAddsUnselectedConversationAttachments() {
+    void automaticExpansionIncludesConversationDiagramAndChartbookButExcludesLibrary() {
         MutableResolutionPort catalog = new MutableResolutionPort();
         InMemorySnapshotStore snapshots = new InMemorySnapshotStore();
         RequestSourceResolutionService service = new DefaultRequestSourceResolutionService(catalog, snapshots);
-        catalog.attachments = List.of(new SourceResolutionCandidate(
-                "upl-selected", "material-selected", "version-selected", "revision-selected",
-                "PDF", MaterialScopeType.CONVERSATION, "conversation-1", "READY", "SUCCEEDED",
-                true, true, false, false));
         catalog.automatic = List.of(
-                new SourceResolutionCandidate("version-unselected", "material-unselected",
-                        "version-unselected", "revision-unselected", "PDF",
+                new SourceResolutionCandidate("version-conversation", "material-conversation",
+                        "version-conversation", "revision-conversation", "PDF",
                         MaterialScopeType.CONVERSATION, "conversation-1", "READY", "",
                         true, true, false, false),
+                new SourceResolutionCandidate("version-diagram", "material-diagram",
+                        "version-diagram", "revision-diagram", "PDF",
+                        MaterialScopeType.DIAGRAM, "diagram-1", "READY", "",
+                        false, true, false, true),
+                new SourceResolutionCandidate("version-chartbook", "material-chartbook",
+                        "version-chartbook", "revision-chartbook", "PDF",
+                        MaterialScopeType.CHARTBOOK, "chartbook-1", "READY", "",
+                        false, true, false, false),
                 new SourceResolutionCandidate("version-library", "material-library",
                         "version-library", "revision-library", "PDF",
                         MaterialScopeType.LIBRARY, "personal", "READY", "",
@@ -60,9 +64,9 @@ class RequestSourceResolutionServiceTest {
 
         ResolvedSourceSet result = service.resolve(new RequestSourceResolutionCommand(
                 owner, "diagram-1", "conversation-1", "run-2",
-                SourceMode.AUTO, List.of("upl-selected"), List.of()));
+                SourceMode.AUTO, List.of(), List.of()));
 
-        assertEquals(List.of("version-selected", "version-library"),
+        assertEquals(List.of("version-conversation", "version-diagram", "version-chartbook"),
                 result.sources().stream().map(ResolvedSource::versionId).toList());
     }
 

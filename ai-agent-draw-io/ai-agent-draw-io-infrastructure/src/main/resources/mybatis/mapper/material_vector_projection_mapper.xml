@@ -16,7 +16,12 @@
         manifest.object_version_id AS retrieval_manifest_version_id,
         manifest.content_sha256 AS retrieval_manifest_sha256,
         manifest.byte_size AS retrieval_manifest_size,
-        manifest.content_type AS retrieval_manifest_content_type
+        manifest.content_type AS retrieval_manifest_content_type,
+        (m.retention_class = 'RETAINED' AND EXISTS (
+            SELECT 1 FROM material_scope_link durable_scope
+            WHERE durable_scope.material_id = m.id
+              AND durable_scope.scope_type IN ('LIBRARY', 'DIAGRAM', 'CHARTBOOK')
+        )) AS durable_index_eligible
     </sql>
 
     <select id="selectCoordinatorWork"
@@ -55,7 +60,7 @@
           AND (r.state IN ('READY', 'PARTIAL_READY')
                OR (r.state = 'PROCESSING' AND r.stage IN ('INDEXING', 'PUBLISHING')
                    AND r.progress &gt;= 93))
-          AND target.state = 'PENDING' AND g.state IN ('BUILDING', 'SHADOW')
+          AND target.state = 'PENDING' AND g.state IN ('BUILDING', 'SHADOW', 'ACTIVE')
           AND CONCAT('ig:', g.id, ':compatibility') = #{workKey}
           AND m.lifecycle_state = 'ACTIVE'
           AND (m.retention_class = 'RETAINED' OR m.expires_at &gt; UTC_TIMESTAMP(3))
@@ -94,7 +99,7 @@
                    AND (r.state IN ('READY', 'PARTIAL_READY')
                         OR (r.state = 'PROCESSING' AND r.stage IN ('INDEXING', 'PUBLISHING')
                             AND r.progress &gt;= 93))
-                   AND g.state IN ('BUILDING', 'SHADOW')
+                   AND g.state IN ('BUILDING', 'SHADOW', 'ACTIVE')
                    AND EXISTS (SELECT 1 FROM rag_index_generation_target target
                                WHERE target.revision_id = r.id
                                  AND target.index_generation_id = g.id
@@ -125,7 +130,7 @@
                    AND (r.state IN ('READY', 'PARTIAL_READY')
                         OR (r.state = 'PROCESSING' AND r.stage IN ('INDEXING', 'PUBLISHING')
                             AND r.progress &gt;= 93))
-                   AND g.state IN ('BUILDING', 'SHADOW')
+                   AND g.state IN ('BUILDING', 'SHADOW', 'ACTIVE')
                    AND EXISTS (SELECT 1 FROM rag_index_generation_target target
                                WHERE target.revision_id = r.id
                                  AND target.index_generation_id = g.id
@@ -181,7 +186,7 @@
                    AND (r.state IN ('READY', 'PARTIAL_READY')
                         OR (r.state = 'PROCESSING' AND r.stage IN ('INDEXING', 'PUBLISHING')
                             AND r.progress &gt;= 93))
-                   AND g.state IN ('BUILDING', 'SHADOW')
+                   AND g.state IN ('BUILDING', 'SHADOW', 'ACTIVE')
                    AND EXISTS (SELECT 1 FROM rag_index_generation_target target
                                WHERE target.revision_id = r.id
                                  AND target.index_generation_id = g.id
@@ -307,6 +312,14 @@
         SELECT * FROM retrieval_revision_vector_projection
         WHERE revision_id = #{revisionId} AND index_generation_id = #{generationId}
     </select>
+    <update id="upgradeLexicalOnlyPrimaryProjection">
+        UPDATE retrieval_revision_vector_projection
+        SET tokenizer_fingerprint = #{tokenizerFingerprint}, plan_fingerprint = #{planFingerprint},
+            projection_role = #{projectionRole}, expected_projection_count = #{expectedProjectionCount},
+            state = #{state}
+        WHERE revision_id = #{revisionId} AND index_generation_id = #{indexGenerationId}
+          AND projection_role = 'PRIMARY' AND expected_projection_count = 0 AND state = 'READY'
+    </update>
 
     <insert id="insertBatch">
         INSERT IGNORE INTO retrieval_vector_batch (
@@ -386,6 +399,14 @@
         SELECT * FROM retrieval_projection_manifest
         WHERE revision_id = #{revisionId} AND index_generation_id = #{generationId}
     </select>
+    <update id="replaceLexicalOnlyManifest">
+        UPDATE retrieval_projection_manifest
+        SET object_key = #{objectKey}, object_version_id = #{objectVersionId},
+            content_sha256 = #{contentSha256}, byte_size = #{byteSize}, content_type = #{contentType},
+            manifest_hash = #{manifestHash}, projection_count = #{projectionCount}, state = #{state}
+        WHERE revision_id = #{revisionId} AND index_generation_id = #{indexGenerationId}
+          AND projection_count = 0 AND state = 'READY'
+    </update>
 
     <select id="lockGenerationState" resultType="string">
         SELECT state FROM rag_index_generation WHERE id = #{generationId} FOR UPDATE
@@ -460,7 +481,7 @@
           AND (r.state IN ('READY', 'PARTIAL_READY')
                OR (r.state = 'PROCESSING' AND r.stage IN ('INDEXING', 'PUBLISHING')
                    AND r.progress &gt;= 93))
-          AND g.state IN ('BUILDING', 'SHADOW') AND target.state IN ('PENDING', 'PLANNED')
+          AND g.state IN ('BUILDING', 'SHADOW', 'ACTIVE') AND target.state IN ('PENDING', 'PLANNED')
           AND m.lifecycle_state = 'ACTIVE'
           AND (m.retention_class = 'RETAINED' OR m.expires_at &gt; UTC_TIMESTAMP(3))
           AND j.id = #{jobId} AND j.stage = #{stage} AND j.status = 'RUNNING'
@@ -511,7 +532,18 @@
                    AND r.progress &gt;= 93))
         JOIN material_version v ON v.id = r.version_id
         JOIN material m ON m.id = v.material_id AND m.lifecycle_state = 'ACTIVE'
-          AND (m.retention_class = 'RETAINED' OR m.expires_at &gt; UTC_TIMESTAMP(3))
+          AND m.retention_class = 'RETAINED'
+          AND EXISTS (SELECT 1 FROM material_scope_link durable_scope
+                      WHERE durable_scope.material_id = m.id
+                        AND durable_scope.scope_type IN ('LIBRARY', 'DIAGRAM', 'CHARTBOOK'))
+        WHERE NOT EXISTS (
+            SELECT 1 FROM retrieval_revision_vector_projection existing_projection
+            WHERE existing_projection.revision_id = r.id
+              AND existing_projection.index_generation_id = #{generationId}
+              AND NOT (existing_projection.projection_role = 'PRIMARY'
+                       AND existing_projection.expected_projection_count = 0
+                       AND existing_projection.state = 'READY')
+        )
     </insert>
 
     <update id="advanceCompatibilityTargetGeneration">
@@ -534,7 +566,7 @@
         JOIN material_revision_artifact manifest
           ON manifest.revision_id = r.id AND manifest.artifact_kind = 'RETRIEVAL_MANIFEST'
         WHERE target.index_generation_id = #{generationId} AND target.state = 'PENDING'
-          AND g.state IN ('BUILDING', 'SHADOW')
+          AND g.state IN ('BUILDING', 'SHADOW', 'ACTIVE')
           AND (r.state IN ('READY', 'PARTIAL_READY')
                OR (r.state = 'PROCESSING' AND r.stage IN ('INDEXING', 'PUBLISHING')
                    AND r.progress &gt;= 93))

@@ -116,6 +116,13 @@ class MaterialMapperContractTest {
         assertTrue(mapper.contains("<insert id=\"recordInitialProcessingUsage\""));
         assertTrue(mapper.contains("<select id=\"selectCompatibilityCoordinatorWork\""));
         assertTrue(mapper.contains("target.state = 'PENDING'"));
+        assertTrue(mapper.contains("durable_index_eligible"));
+        assertTrue(mapper.contains("durable_scope.scope_type IN ('LIBRARY', 'DIAGRAM', 'CHARTBOOK')"));
+        assertTrue(mapper.contains("existing_projection.expected_projection_count = 0"));
+        assertTrue(mapper.contains("<update id=\"upgradeLexicalOnlyPrimaryProjection\""));
+        assertTrue(mapper.contains("expected_projection_count = 0 AND state = 'READY'"));
+        assertTrue(mapper.contains("<update id=\"replaceLexicalOnlyManifest\""));
+        assertTrue(mapper.contains("g.state IN ('BUILDING', 'SHADOW', 'ACTIVE')"));
         assertTrue(mapper.contains("in_flight.stage IN ('INDEXING', 'PUBLISHING')"));
         assertTrue(mapper.contains("<select id=\"selectPendingGenerationPublications\""));
         assertTrue(mapper.contains("rv.projection_role = 'COMPATIBILITY'"));
@@ -207,17 +214,24 @@ class MaterialMapperContractTest {
     }
 
     @Test
-    void requestSourceSnapshotsAreOwnerFencedImmutableAndConversationUploadsAreOptIn() throws Exception {
+    void automaticSourcesAreOwnerFencedAndCoverConversationDiagramAndChartbookOnly() throws Exception {
         String onlineMapper = resource("mybatis/mapper/online_retrieval_mapper.xml");
         String snapshotMapper = resource("mybatis/mapper/request_source_snapshot_mapper.xml");
 
-        // Conversation attachments are admitted through the opaque upload declaration and owner fence.
-        assertTrue(onlineMapper.contains("<select id=\"selectConversationAttachmentSources\""));
-        assertTrue(onlineMapper.contains("u.owner_type = #{ownerType}"));
-        assertTrue(onlineMapper.contains("u.owner_key = #{ownerKey}"));
-        assertTrue(onlineMapper.contains("u.target_scope_type = 'CONVERSATION'"));
-        assertTrue(onlineMapper.contains("u.target_scope_key = #{conversationId}"));
-        assertTrue(onlineMapper.contains("u.policy_expires_at &lt;= UTC_TIMESTAMP(3)"));
+        int automaticStart = onlineMapper.indexOf("<select id=\"selectAutomaticSources\"");
+        int automaticEnd = onlineMapper.indexOf("</select>", automaticStart);
+        String automatic = onlineMapper.substring(automaticStart, automaticEnd);
+        assertTrue(automatic.contains("link.scope_type = 'CONVERSATION'"));
+        assertTrue(automatic.contains("link.scope_key = #{conversationId}"));
+        assertTrue(automatic.contains("link.scope_type = 'DIAGRAM'"));
+        assertTrue(automatic.contains("link.scope_key = #{diagramId}"));
+        assertTrue(automatic.contains("link.scope_type = 'CHARTBOOK'"));
+        assertTrue(automatic.contains("link.scope_key = d.chartbook_id"));
+        assertFalse(automatic.contains("link.scope_type = 'LIBRARY'"));
+        assertTrue(automatic.contains("<include refid=\"activeOwnerMaterial\"/>"));
+        assertTrue(onlineMapper.contains("m.owner_type = #{ownerType}"));
+        assertTrue(onlineMapper.contains("m.owner_key = #{ownerKey}"));
+        assertTrue(onlineMapper.contains("m.expires_at &gt; UTC_TIMESTAMP(3)"));
 
         // Run snapshots are append-once and may only be replayed by their original owner.
         assertTrue(snapshotMapper.contains("INSERT IGNORE INTO request_source_snapshot"));

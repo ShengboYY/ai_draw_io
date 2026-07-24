@@ -38,40 +38,44 @@ public class MySqlIndexGenerationCompatibilityAdapter implements IndexGeneration
         GenerationBackfillStatus initial = status(targetProfile.generationId());
         if (initial.state() == IndexGenerationState.ACTIVE
                 && targetProfile.generationId().equals(initial.activeGenerationId())) {
+            synchronizeDurableTargets(targetProfile, batchSize, synchronizedAt);
             enqueuePendingGenerationPublications(targetProfile.generationId(), batchSize, synchronizedAt);
-            return initial;
+            return status(targetProfile.generationId());
         }
         if (targetProfile.generationId().equals(initial.activeGenerationId())) return initial;
         if (initial.state() != IndexGenerationState.BUILDING
                 && initial.state() != IndexGenerationState.SHADOW) {
             return initial;
         }
+        synchronizeDurableTargets(targetProfile, batchSize, synchronizedAt);
+        return status(targetProfile.generationId());
+    }
+
+    /** Promoted Chartbook files enter the active generation on the worker's next reconciliation pass. */
+    private void synchronizeDurableTargets(VectorGenerationProfile profile, int batchSize, Instant now) {
         String campaignFingerprint = VectorGenerationProfile.sha256(
-                targetProfile.generationFingerprint() + ":" + targetProfile.tokenizerFingerprint()
+                profile.generationFingerprint() + ":" + profile.tokenizerFingerprint()
                         + ":COMPATIBILITY_CAMPAIGN_V1");
-        mapper.insertCompatibilityProfile(targetProfile.generationId(),
-                targetProfile.tokenizerFingerprint(), campaignFingerprint, synchronizedAt);
-        if (!targetProfile.tokenizerFingerprint().equals(
-                mapper.selectCompatibilityTokenizer(targetProfile.generationId()))) {
+        mapper.insertCompatibilityProfile(profile.generationId(),
+                profile.tokenizerFingerprint(), campaignFingerprint, now);
+        if (!profile.tokenizerFingerprint().equals(mapper.selectCompatibilityTokenizer(profile.generationId()))) {
             throw new IllegalStateException("generation compatibility profile collided");
         }
-        int added = mapper.insertRequiredGenerationTargets(targetProfile.generationId(),
-                targetProfile.tokenizerFingerprint(), synchronizedAt);
-        if (added > 0 && mapper.advanceCompatibilityTargetGeneration(
-                targetProfile.generationId(), added) != 1) {
+        int added = mapper.insertRequiredGenerationTargets(profile.generationId(),
+                profile.tokenizerFingerprint(), now);
+        if (added > 0 && mapper.advanceCompatibilityTargetGeneration(profile.generationId(), added) != 1) {
             throw new IllegalStateException("compatibility target generation was not advanced");
         }
         for (VectorProjectionWorkPO row : mapper.selectPendingGenerationTargets(
-                targetProfile.generationId(), batchSize)) {
+                profile.generationId(), batchSize)) {
             CompatibilityProjectionWork work = new CompatibilityProjectionWork(
                     persistence.context(row), persistence.profile(row));
             ProcessingJob job = ProcessingJob.enqueue(compatibilityJobId(work),
                     ProcessingJobTarget.forRevision(work.context().revisionId()),
                     ProcessingJobStage.BUILD_COMPATIBILITY_PROJECTION,
-                    work.workKey(), work.inputFingerprint(), 0, synchronizedAt);
+                    work.workKey(), work.inputFingerprint(), 0, now);
             persistence.enqueue(job);
         }
-        return status(targetProfile.generationId());
     }
 
     @Override

@@ -480,6 +480,10 @@ public class MySqlVectorProjectionWorkAdapter implements VectorProjectionWorkPor
         po.setState("READY");
         mapper.insertManifest(po);
         VectorProjectionManifestPO persisted = mapper.selectManifest(po.getRevisionId(), po.getIndexGenerationId());
+        if (persisted != null && persisted.getProjectionCount() == 0 && "READY".equals(persisted.getState())) {
+            mapper.replaceLexicalOnlyManifest(po);
+            persisted = mapper.selectManifest(po.getRevisionId(), po.getIndexGenerationId());
+        }
         if (persisted == null || !po.getObjectKey().equals(persisted.getObjectKey())
                 || !po.getObjectVersionId().equals(persisted.getObjectVersionId())
                 || !po.getContentSha256().equals(persisted.getContentSha256())

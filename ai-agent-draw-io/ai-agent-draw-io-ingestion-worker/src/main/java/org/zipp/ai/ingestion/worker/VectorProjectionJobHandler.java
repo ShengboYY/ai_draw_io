@@ -108,7 +108,7 @@ public final class VectorProjectionJobHandler {
         }
         if (!heartbeat(lease)) return staleFence();
         var retrieval = readRetrievalManifest(context);
-        VectorProjectionPlan plan = planner.plan(retrieval, profile);
+        VectorProjectionPlan plan = planner.plan(retrieval, profile, context.durableIndexEligible());
         List<ProcessingJob> successors = plan.batches().isEmpty()
                 ? List.of(nextJob(revisionId, ProcessingJobStage.VERIFY_PROJECTION_MANIFEST,
                         VectorManifestWork.verificationWorkKey(profile.generationId()),

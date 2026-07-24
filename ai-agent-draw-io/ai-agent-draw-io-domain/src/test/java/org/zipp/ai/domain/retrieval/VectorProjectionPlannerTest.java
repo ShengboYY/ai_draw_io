@@ -52,6 +52,22 @@ class VectorProjectionPlannerTest {
         assertEquals(plan, new VectorProjectionPlanner(96, 1_000_000).plan(manifest, profile));
     }
 
+    @Test
+    void keepsTemporaryConversationRevisionsLexicalOnlyUntilTheyGainADurableScope() {
+        RetrievalProjectionManifest manifest = new RetrievalProjectionManifest(
+                "retrieval-projection-v1", "rev_1", "ver_1", "a".repeat(64), "builder-v1",
+                List.of(chunk("chunk_1", 1, RetrievalIndexMode.DENSE_AND_LEXICAL)),
+                List.of(new LexicalProjection("chunk_1", "agile", null, List.of())), "b".repeat(64));
+        VectorGenerationProfile profile = new VectorGenerationProfile(
+                "drawio-retrieval-v1", "prod", "multilingual-e5-large", "c".repeat(64),
+                1024, "cosine", "vector-v1", "tokenizer-v1");
+
+        var plan = new VectorProjectionPlanner(96, 1_000_000).plan(manifest, profile, false);
+
+        assertEquals(List.of(), plan.projections());
+        assertEquals(List.of(), plan.batches());
+    }
+
     private RetrievalChunkProjection chunk(String id, int ordinal, RetrievalIndexMode mode) {
         String text = "Agile development flow " + ordinal;
         return new RetrievalChunkProjection(id, "page_1", "section_1", RetrievalChunkType.CONTENT,

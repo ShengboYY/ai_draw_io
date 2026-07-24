@@ -231,6 +231,10 @@ class MySqlVectorProjectionWorkAdapterTest {
                 status.setActiveGenerationId(profile().generationId());
                 yield status;
             }
+            case "insertCompatibilityProfile" -> 1;
+            case "selectCompatibilityTokenizer" -> profile().tokenizerFingerprint();
+            case "insertRequiredGenerationTargets" -> 0;
+            case "selectPendingGenerationTargets" -> List.of();
             case "selectPendingGenerationPublications" -> List.of(row);
             default -> unsupported(method);
         });
@@ -251,9 +255,44 @@ class MySqlVectorProjectionWorkAdapterTest {
                 queued.get().getWorkKey());
     }
 
+    @Test
+    void activeGenerationSchedulesACompatibilityBuildForANewlyDurableRevision() {
+        VectorProjectionWorkPO row = workRow();
+        IVectorProjectionMapper mapper = proxy(IVectorProjectionMapper.class, (method, args) -> switch (method) {
+            case "insertGeneration" -> 1;
+            case "selectGeneration" -> generation(IndexGenerationState.ACTIVE, profile().generationId());
+            case "selectGenerationBackfillStatus" -> {
+                GenerationBackfillStatusPO status = status(IndexGenerationState.ACTIVE, 1, 1, 1);
+                status.setActiveGenerationId(profile().generationId());
+                yield status;
+            }
+            case "insertCompatibilityProfile" -> 1;
+            case "selectCompatibilityTokenizer" -> profile().tokenizerFingerprint();
+            case "insertRequiredGenerationTargets" -> 1;
+            case "advanceCompatibilityTargetGeneration" -> 1;
+            case "selectPendingGenerationTargets" -> List.of(row);
+            case "selectPendingGenerationPublications" -> List.of();
+            default -> unsupported(method);
+        });
+        AtomicReference<ProcessingJobPO> queued = new AtomicReference<>();
+        IProcessingJobMapper jobs = proxy(IProcessingJobMapper.class, (method, args) -> {
+            if ("insert".equals(method)) {
+                queued.set((ProcessingJobPO) args[0]);
+                return 1;
+            }
+            return unsupported(method);
+        });
+
+        new MySqlIndexGenerationCompatibilityAdapter(mapper, jobs)
+                .synchronize(profile(), 10, Instant.parse("2026-07-20T00:00:00Z"));
+
+        assertEquals(ProcessingJobStage.BUILD_COMPATIBILITY_PROJECTION.name(), queued.get().getStage());
+        assertEquals("ig:" + profile().generationId() + ":compatibility", queued.get().getWorkKey());
+    }
+
     private VectorUpsertWork upsertWork() {
         RevisionProjectionContext context = new RevisionProjectionContext("rev_1", "ver_1", "mat_1",
-                OwnerType.USER, "owner_1", 7, 8, "d".repeat(64), artifact("manifest"));
+                OwnerType.USER, "owner_1", 7, 8, "d".repeat(64), artifact("manifest"), true);
         return new VectorUpsertWork(context, profile(), 0,
                 "ig:" + profile().generationId() + ":batch:0000", "b".repeat(64), artifact("vectors"),
                 List.of(new VectorProjectionMetadata("chunk_1", "vector_1", "c".repeat(64),
@@ -324,7 +363,7 @@ class MySqlVectorProjectionWorkAdapterTest {
 
     private RevisionPublicationWork publicationWork() {
         RevisionProjectionContext context = new RevisionProjectionContext("rev_1", "ver_1", "mat_1",
-                OwnerType.USER, "owner_1", 7, 8, "d".repeat(64), artifact("manifest"));
+                OwnerType.USER, "owner_1", 7, 8, "d".repeat(64), artifact("manifest"), true);
         StoredArtifact projection = new StoredArtifact("projection-manifest", "v3",
                 "f".repeat(64), 42, "application/json+gzip");
         return new RevisionPublicationWork(context, profile(), artifact("structure"), artifact("evidence"), null,

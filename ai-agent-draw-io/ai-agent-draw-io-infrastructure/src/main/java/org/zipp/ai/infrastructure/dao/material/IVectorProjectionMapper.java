@@ -44,6 +44,7 @@ public interface IVectorProjectionMapper {
     int insertGeneration(RagIndexGenerationPO generation);
     RagIndexGenerationPO selectGeneration(@Param("generationId") String generationId);
     int insertRevisionProjection(RevisionVectorProjectionPO projection);
+    int upgradeLexicalOnlyPrimaryProjection(RevisionVectorProjectionPO projection);
     RevisionVectorProjectionPO selectRevisionProjection(@Param("revisionId") String revisionId,
                                                          @Param("generationId") String generationId);
     int insertBatch(VectorBatchPO batch);
@@ -80,6 +81,7 @@ public interface IVectorProjectionMapper {
                                       @Param("expectedState") String expectedState,
                                       @Param("state") String state);
     int insertManifest(VectorProjectionManifestPO manifest);
+    int replaceLexicalOnlyManifest(VectorProjectionManifestPO manifest);
     VectorProjectionManifestPO selectManifest(@Param("revisionId") String revisionId,
                                               @Param("generationId") String generationId);
     String lockGenerationState(@Param("generationId") String generationId);

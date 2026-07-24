@@ -10,7 +10,8 @@ import java.util.Objects;
 public record RevisionProjectionContext(String revisionId, String versionId, String materialId,
                                         OwnerType ownerType, String ownerKey,
                                         long revisionFenceGeneration, long materialLifecycleGeneration,
-                                        String processingFingerprint, StoredArtifact retrievalManifestArtifact) {
+                                        String processingFingerprint, StoredArtifact retrievalManifestArtifact,
+                                        boolean durableIndexEligible) {
     public RevisionProjectionContext {
         revisionId = required(revisionId, "revisionId");
         versionId = required(versionId, "versionId");

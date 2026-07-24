@@ -71,7 +71,8 @@ final class MySqlVectorProjectionPersistence {
                 po.getRetrievalManifestSize(), po.getRetrievalManifestContentType());
         return new RevisionProjectionContext(po.getRevisionId(), po.getVersionId(), po.getMaterialId(),
                 OwnerType.valueOf(po.getOwnerType()), po.getOwnerKey(), po.getRevisionFenceGeneration(),
-                po.getMaterialLifecycleGeneration(), po.getProcessingFingerprint(), manifest);
+                po.getMaterialLifecycleGeneration(), po.getProcessingFingerprint(), manifest,
+                po.isDurableIndexEligible());
     }
 
     VectorGenerationProfile profile(VectorProjectionWorkPO po) {
@@ -112,6 +113,13 @@ final class MySqlVectorProjectionPersistence {
         po.setState(RevisionVectorProjectionState.BUILDING.name());
         mapper.insertRevisionProjection(po);
         RevisionVectorProjectionPO persisted = mapper.selectRevisionProjection(revisionId, plan.generationId());
+        if (persisted != null && persisted.getExpectedProjectionCount() == 0
+                && VectorProjectionRole.PRIMARY.name().equals(persisted.getProjectionRole())
+                && RevisionVectorProjectionState.READY.name().equals(persisted.getState())
+                && role == VectorProjectionRole.COMPATIBILITY) {
+            mapper.upgradeLexicalOnlyPrimaryProjection(po);
+            persisted = mapper.selectRevisionProjection(revisionId, plan.generationId());
+        }
         if (persisted == null || !po.getTokenizerFingerprint().equals(persisted.getTokenizerFingerprint())
                 || !po.getPlanFingerprint().equals(persisted.getPlanFingerprint())
                 || !po.getProjectionRole().equals(persisted.getProjectionRole())
