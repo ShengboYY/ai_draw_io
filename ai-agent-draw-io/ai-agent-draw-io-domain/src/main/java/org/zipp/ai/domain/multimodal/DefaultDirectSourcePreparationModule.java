@@ -25,7 +25,9 @@ import org.zipp.ai.domain.retrieval.port.AuthorizedSourceSet;
 import org.zipp.ai.domain.retrieval.port.EvidenceReadLeaseCoordinator;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 
@@ -111,7 +113,7 @@ public final class DefaultDirectSourcePreparationModule implements DirectSourceP
                 return new DirectSourceOutcome.Rejected(List.of(rejected.reason()));
             }
             if (observation instanceof VisualObservationOutcome.Gap gap) {
-                return new DirectSourceOutcome.NeedsConfirmation(gap.reasons());
+                return gapConfirmation(gap.reasons());
             }
             if (!(observation instanceof VisualObservationOutcome.DiagramVerified verified)) {
                 return new DirectSourceOutcome.Rejected(List.of("NO_DIAGRAM_GRAPH"));
@@ -142,6 +144,22 @@ public final class DefaultDirectSourcePreparationModule implements DirectSourceP
             if (stopped(resources, signal)) return new DirectSourceOutcome.Cancelled();
             return new DirectSourceOutcome.Unavailable("DIRECT_VISUAL_PROVIDER_UNAVAILABLE");
         }
+    }
+
+    private DirectSourceOutcome.NeedsConfirmation gapConfirmation(List<String> reasons) {
+        Map<String, String> observedValues = new LinkedHashMap<>();
+        reasons.stream()
+                .map(reason -> reason == null ? "" : reason.trim())
+                .filter(reason -> !reason.isBlank())
+                .limit(5)
+                .forEach(reason -> {
+                    // Model prose stays display-only; the protocol receives a bounded stable code.
+                    String reasonCode = "OBSERVATION_GAP:"
+                            + DirectObservationFingerprint.of(reason).substring(0, 24);
+                    observedValues.putIfAbsent(reasonCode, reason);
+                });
+        return new DirectSourceOutcome.NeedsConfirmation(
+                List.copyOf(observedValues.keySet()), observedValues);
     }
 
     private SourceResolutionResult resolve(DirectSourceCommand command,
