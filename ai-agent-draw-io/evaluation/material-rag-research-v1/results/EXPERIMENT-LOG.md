@@ -1394,3 +1394,11 @@
   为 long-label rule，并通过现有 `CanvasCommitModuleTest` 验证该保护仍生效。
 - **验证**:新增回归测试覆盖 04 的未样式长标签；`mvn -q -pl ai-agent-draw-io-domain clean test` 全部通过（`256` tests）。
   未修改任何冻结 Stage E response、prompt、policy 或 rubric；此修复只能在新的 Development/Validation 运行中验证。
+
+### Stage E case 04 independent Development wrap probe · 2026-07-24 · ✅ passed
+
+- **新资料**:创建一份与 `stge-val-04` 不同的本地合成 XML，用新 incident/recovery 语句测试同样的 `260×70`
+  节点约束；未调用模型，input SHA-256 为 `17a5a4a485a9f02be3b17bf156140ff3ffade8bcb0da3775cdd9744f0705325b`。
+- **结果**:规范化单元测试通过；同一 XML 加载进实际 diagrams.net 后，标签在节点内分为三行，没有溢出。
+- **工件**:[Development wrap probe](stage-e-case04-development-wrap-probe-v1.json)。该 probe 仅验证修复的
+  Development 行为；正式 Validation 仍必须使用新的冻结 cohort 和一次性模型运行。
