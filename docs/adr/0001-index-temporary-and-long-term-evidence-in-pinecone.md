@@ -1,8 +1,11 @@
 ---
-status: accepted
+status: superseded
+superseded_by: 0012-persist-chartbook-evidence-and-keep-conversation-evidence-temporary
 ---
 
 # 临时与长期证据统一索引到 Pinecone
+
+本决策已由 [ADR 0012](./0012-persist-chartbook-evidence-and-keep-conversation-evidence-temporary.md) 替代。本文仅保留为历史记录。
 
 所有上传资料，包括匿名和登录用户的临时资料，都使用同一套摄取与 Pinecone 检索链路。MySQL 继续作为所有权、作用域、生命周期和访问权限的事实源，原文件与完整证据保留在现有 AWS 区域。该方案通过放弃单独的本地精确检索路径来减少重复实现，同时接受额外的 Pinecone 写入、容量、删除和供应商留存控制。
 
