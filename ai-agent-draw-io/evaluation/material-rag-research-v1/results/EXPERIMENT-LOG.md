@@ -1450,3 +1450,14 @@
   预注册后再测试。
 - **工件**:三份 raw response、manifest、manifest validation 与 strict evaluation，以及
   [Stage F run summary](stage-f-clean-validation-gpt-5-5-run-summary.json)。
+
+### Multimodal RAG evaluation phase closure · 2026-07-24 · ✅ closed at current diagnostic boundary
+
+- **用户决定**:当前多模态 RAG 测评阶段到此结束；不再对 Stage F 或已完成 cohort 发送模型请求，也不基于这些
+  输出事后修改 production RAG、prompt、任务、证据、policy、rubric 或 evaluator。
+- **已完成范围**:合成资料与视觉/OCR hydration、Draw.io XML 可编辑性、引用合约、故障恢复/guard、本地渲染
+  probe，以及 GPT-5.5 的 Stage F internal Validation 诊断均已有版本化记录。
+- **结论边界**:现有结果支持“系统能稳定返回可解析、带要求引用的 editable draw.io XML”的内部诊断结论；不支持
+  一次性正式 Validation 或 external final holdout claim，原因是 Stage F 产生了三份完整运行。
+- **将来可选工作**:只有重新开启评估时，才应先在新的 Development cohort 预注册 edge-label 断言语义，决定
+  `Affected Component` 是否必须独立成节点，再建立全新、未发送过的 Validation cohort 并进行一次受控运行。
