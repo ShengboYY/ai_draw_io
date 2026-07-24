@@ -18,6 +18,8 @@ import org.zipp.ai.domain.ingestion.service.UploadAdmissionPolicy;
 import org.zipp.ai.domain.ingestion.service.UploadIdFactory;
 import org.zipp.ai.domain.operations.MaterialCapacityBreaker;
 import org.zipp.ai.domain.operations.MaterialRolloutGate;
+import org.zipp.ai.infrastructure.adapter.filesystem.FileSystemQuarantineObjectAdapter;
+import org.zipp.ai.infrastructure.adapter.filesystem.LocalUploadPolicySigner;
 import org.zipp.ai.infrastructure.adapter.s3.S3BrowserPostPolicySigner;
 import org.zipp.ai.infrastructure.adapter.s3.S3QuarantineObjectAdapter;
 import org.zipp.ai.infrastructure.adapter.s3.SecureUploadIdFactory;
@@ -27,6 +29,7 @@ import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3Client;
 
+import java.nio.file.Path;
 import java.time.Clock;
 
 @Configuration
@@ -39,30 +42,48 @@ public class MaterialUploadConfig {
     }
 
     @Bean
+    @ConditionalOnProperty(name = "app.material-upload.storage", havingValue = "s3")
     public AwsCredentialsProvider materialUploadCredentialsProvider() {
         return DefaultCredentialsProvider.create();
     }
 
     @Bean
+    @ConditionalOnProperty(name = "app.material-upload.storage", havingValue = "s3")
     public Region materialUploadRegion(@Value("${app.material-upload.aws-region}") String region) {
         return Region.of(region);
     }
 
     @Bean
+    @ConditionalOnProperty(name = "app.material-upload.storage", havingValue = "s3")
     public S3Client materialUploadS3Client(AwsCredentialsProvider credentialsProvider, Region region) {
         return S3Client.builder().credentialsProvider(credentialsProvider).region(region).build();
     }
 
     @Bean
+    @ConditionalOnProperty(name = "app.material-upload.storage", havingValue = "s3")
     public QuarantineObjectPort quarantineObjectPort(
             @Qualifier("materialUploadS3Client") S3Client s3Client) {
         return new S3QuarantineObjectAdapter(s3Client);
     }
 
     @Bean
+    @ConditionalOnProperty(name = "app.material-upload.storage", havingValue = "s3")
     public UploadPolicySignerPort uploadPolicySigner(AwsCredentialsProvider credentialsProvider,
                                                      Region region, Clock clock) {
         return new S3BrowserPostPolicySigner(credentialsProvider, region, clock);
+    }
+
+    @Bean
+    @ConditionalOnProperty(name = "app.material-upload.storage", havingValue = "local", matchIfMissing = true)
+    public FileSystemQuarantineObjectAdapter localQuarantineObjectAdapter(
+            @Value("${app.material-upload.local-root:./data/material-uploads}") String root) {
+        return new FileSystemQuarantineObjectAdapter(Path.of(root));
+    }
+
+    @Bean
+    @ConditionalOnProperty(name = "app.material-upload.storage", havingValue = "local", matchIfMissing = true)
+    public UploadPolicySignerPort localUploadPolicySigner() {
+        return new LocalUploadPolicySigner();
     }
 
     @Bean
@@ -87,11 +108,14 @@ public class MaterialUploadConfig {
             MaterialCapacityBreaker capacityBreaker,
             MaterialRolloutGate rolloutGate,
             ObjectProvider<MaterialUploadTelemetry> telemetry,
-            @Value("${app.material-upload.quarantine-bucket}") String quarantineBucket,
+            @Value("${app.material-upload.storage:local}") String storage,
+            @Value("${app.material-upload.quarantine-bucket:}") String quarantineBucket,
+            @Value("${app.material-upload.local-bucket:quarantine}") String localBucket,
             @Value("${app.material-upload.anonymous-enabled:false}") boolean anonymousEnabled) {
+        String uploadBucket = "local".equalsIgnoreCase(storage) ? localBucket : quarantineBucket;
         return new DefaultMaterialUploadService(sessionStore, quarantineObjectPort, uploadPolicySignerPort,
                 scopeAuthorizer, new UploadAdmissionPolicy(UploadLimits.defaults(anonymousEnabled)),
-                idFactory, clock, quarantineBucket, capacityBreaker, rolloutGate,
+                idFactory, clock, uploadBucket, capacityBreaker, rolloutGate,
                 telemetry.getIfAvailable(() -> MaterialUploadTelemetry.NOOP));
     }
 }

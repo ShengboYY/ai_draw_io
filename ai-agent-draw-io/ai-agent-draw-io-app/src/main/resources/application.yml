@@ -86,9 +86,12 @@ app:
       dimension: ${PINECONE_DIMENSION:1024}
       tenant-hmac-secret: ${PINECONE_TENANT_HMAC_SECRET:}
   material-upload:
-    # Fail closed until the quarantine bucket, IAM task role, and HMAC secrets are deployed.
+    # Local storage keeps development independent from AWS; production can opt into "s3".
     enabled: ${MATERIAL_UPLOAD_ENABLED:false}
     anonymous-enabled: ${MATERIAL_UPLOAD_ANONYMOUS_ENABLED:false}
+    storage: ${MATERIAL_UPLOAD_STORAGE:local}
+    local-root: ${MATERIAL_UPLOAD_LOCAL_ROOT:./data/material-uploads}
+    local-bucket: ${MATERIAL_UPLOAD_LOCAL_BUCKET:quarantine}
     aws-region: ${MATERIAL_UPLOAD_AWS_REGION:${AWS_REGION:ap-southeast-2}}
     quarantine-bucket: ${MATERIAL_UPLOAD_QUARANTINE_BUCKET:}
     owner-path-secret: ${MATERIAL_UPLOAD_OWNER_PATH_SECRET:}

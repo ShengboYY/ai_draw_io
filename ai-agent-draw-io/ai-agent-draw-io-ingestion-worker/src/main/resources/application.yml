@@ -18,6 +18,8 @@ mybatis:
 
 worker:
   id: ${WORKER_ID:${HOSTNAME:worker-local}}
+  storage: ${MATERIAL_UPLOAD_STORAGE:local}
+  local-upload-root: ${MATERIAL_UPLOAD_LOCAL_ROOT:./data/material-uploads}
   aws-region: ${AWS_REGION:ap-southeast-2}
   materials-bucket: ${MATERIALS_BUCKET:}
   materialization-enabled: ${MATERIAL_MATERIALIZATION_ENABLED:false}

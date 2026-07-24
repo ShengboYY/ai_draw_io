@@ -40,6 +40,7 @@ import org.zipp.ai.domain.retrieval.projection.VectorProjectionPlanner;
 import org.zipp.ai.domain.material.port.MaterialDeletionObjectPort;
 import org.zipp.ai.domain.material.port.MaterialDeletionVectorPort;
 import org.zipp.ai.domain.material.port.MaterialDeletionWorkPort;
+import org.zipp.ai.infrastructure.adapter.filesystem.FileSystemQuarantineObjectAdapter;
 import org.zipp.ai.infrastructure.adapter.s3.S3OriginalPromotionAdapter;
 import org.zipp.ai.infrastructure.adapter.s3.S3PinnedQuarantineContentAdapter;
 import org.zipp.ai.infrastructure.adapter.s3.S3RevisionArtifactAdapter;
@@ -78,14 +79,23 @@ public class WorkerConfig {
     }
 
     @Bean(destroyMethod = "close")
+    @ConditionalOnProperty(name = "worker.storage", havingValue = "s3")
     public S3Client workerS3Client(@Value("${worker.aws-region}") String region) {
         return S3Client.builder().region(Region.of(region))
                 .credentialsProvider(DefaultCredentialsProvider.create()).build();
     }
 
     @Bean
+    @ConditionalOnProperty(name = "worker.storage", havingValue = "s3")
     public PinnedQuarantineContentPort pinnedQuarantineContentPort(S3Client s3Client) {
         return new S3PinnedQuarantineContentAdapter(s3Client);
+    }
+
+    @Bean
+    @ConditionalOnProperty(name = "worker.storage", havingValue = "local", matchIfMissing = true)
+    public PinnedQuarantineContentPort localPinnedQuarantineContentPort(
+            @Value("${worker.local-upload-root:./data/material-uploads}") String root) {
+        return new FileSystemQuarantineObjectAdapter(Path.of(root));
     }
 
     @Bean

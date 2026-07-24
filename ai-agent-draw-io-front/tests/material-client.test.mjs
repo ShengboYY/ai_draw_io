@@ -53,6 +53,31 @@ test('material client exposes S3 upload failures without the signed policy', asy
   );
 });
 
+test('material client uploads local bytes through the API with session and CSRF protection', async () => {
+  const calls = [];
+  const file = new Blob(['local-image']);
+  const client = createMaterialClient({
+    baseUrl: 'https://app.example/api/v1',
+    csrfHeaders: async () => ({ 'X-XSRF-TOKEN': 'csrf' }),
+    fetch: async (url, options = {}) => {
+      calls.push({ url, options });
+      return new Response(null, { status: 204 });
+    },
+  });
+
+  await client.uploadBytes({
+    url: '/material-uploads/upl-local/content',
+    fields: { 'x-ai-upload-mode': 'local' },
+  }, file);
+
+  assert.equal(calls[0].url, 'https://app.example/api/v1/material-uploads/upl-local/content');
+  assert.equal(calls[0].options.method, 'POST');
+  assert.equal(calls[0].options.credentials, 'include');
+  assert.equal(calls[0].options.headers['X-XSRF-TOKEN'], 'csrf');
+  assert.equal(calls[0].options.headers['Content-Type'], 'application/octet-stream');
+  assert.equal(calls[0].options.body, file);
+});
+
 test('material client polls processing uploads through partial-ready', async () => {
   const observed = [];
   const statuses = [

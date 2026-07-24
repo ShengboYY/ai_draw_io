@@ -66,6 +66,19 @@ export const createMaterialClient = (options: MaterialClientOptions) => {
 
     uploadBytes: async (policy: BrowserPostPolicy | undefined, file: Blob) => {
       if (!policy) throw new MaterialApiError('UPLOAD_POLICY_MISSING', 'Upload policy is unavailable');
+      if (policy.fields['x-ai-upload-mode'] === 'local') {
+        const response = await fetchImplementation(`${baseUrl}${policy.url}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/octet-stream',
+            ...await csrfHeaders(),
+          },
+          credentials: 'include',
+          body: file,
+        });
+        if (!response.ok) throw new MaterialApiError('UPLOAD_BYTES_FAILED', 'File upload failed');
+        return;
+      }
       const form = new FormData();
       Object.entries(policy.fields).forEach(([key, value]) => form.append(key, value));
       form.append('file', file);

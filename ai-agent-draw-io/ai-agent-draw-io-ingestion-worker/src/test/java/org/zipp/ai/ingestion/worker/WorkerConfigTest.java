@@ -33,6 +33,20 @@ class WorkerConfigTest {
         }
     }
 
+    @Test
+    void localStorageDoesNotCreateAwsQuarantineBeans() throws Exception {
+        assertStorageConditional("workerS3Client", "s3");
+        assertStorageConditional("pinnedQuarantineContentPort", "s3");
+        assertStorageConditional("localPinnedQuarantineContentPort", "local");
+        try (InputStream stream = getClass().getClassLoader().getResourceAsStream("application.yml")) {
+            assertNotNull(stream);
+            String configuration = new String(stream.readAllBytes(), StandardCharsets.UTF_8);
+            assertTrue(configuration.contains("storage: ${MATERIAL_UPLOAD_STORAGE:local}"));
+            assertTrue(configuration.contains(
+                    "local-upload-root: ${MATERIAL_UPLOAD_LOCAL_ROOT:./data/material-uploads}"));
+        }
+    }
+
     private void assertConditional(String methodName) {
         var method = Arrays.stream(WorkerConfig.class.getDeclaredMethods())
                 .filter(candidate -> candidate.getName().equals(methodName))
@@ -58,5 +72,15 @@ class WorkerConfigTest {
         ConditionalOnProperty condition = method.getAnnotation(ConditionalOnProperty.class);
         assertNotNull(condition, methodName);
         assertTrue(Arrays.asList(condition.name()).contains("worker.vector-projection-enabled"));
+    }
+
+    private void assertStorageConditional(String methodName, String storage) {
+        var method = Arrays.stream(WorkerConfig.class.getDeclaredMethods())
+                .filter(candidate -> candidate.getName().equals(methodName))
+                .findFirst().orElseThrow();
+        ConditionalOnProperty condition = method.getAnnotation(ConditionalOnProperty.class);
+        assertNotNull(condition, methodName);
+        assertTrue(Arrays.asList(condition.name()).contains("worker.storage"));
+        assertTrue(condition.havingValue().equals(storage));
     }
 }
