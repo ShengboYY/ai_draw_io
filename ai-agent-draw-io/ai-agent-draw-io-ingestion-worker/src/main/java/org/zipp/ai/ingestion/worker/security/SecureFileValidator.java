@@ -6,6 +6,7 @@ import org.apache.pdfbox.cos.COSBase;
 import org.apache.pdfbox.cos.COSDictionary;
 import org.apache.pdfbox.cos.COSName;
 import org.apache.pdfbox.cos.COSObject;
+import org.apache.pdfbox.cos.COSString;
 import org.apache.pdfbox.cos.COSStream;
 import org.apache.pdfbox.pdmodel.encryption.InvalidPasswordException;
 import org.apache.pdfbox.pdmodel.PDDocument;
@@ -19,16 +20,19 @@ import javax.imageio.ImageReader;
 import javax.imageio.stream.ImageInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.URI;
 import java.nio.file.Files;
 import java.util.Collections;
 import java.util.IdentityHashMap;
 import java.util.Iterator;
+import java.util.Locale;
 import java.util.Set;
 
 public final class SecureFileValidator {
 
     private static final Set<String> ACTIVE_PDF_KEYS = Set.of(
-            "JS", "JavaScript", "OpenAction", "AA", "Launch", "EmbeddedFiles", "RichMedia", "GoToR", "URI", "XFA");
+            "JS", "JavaScript", "OpenAction", "AA", "Launch", "EmbeddedFiles", "RichMedia", "GoToR", "XFA");
+    private static final Set<String> ACTIVE_PDF_ACTION_TYPES = Set.of("Launch", "GoToR");
     private static final int REGISTERED_PDF_PAGES = 200;
     private static final int ANONYMOUS_PDF_PAGES = 100;
     private static final long REGISTERED_IMAGE_PIXELS = 25_000_000L;
@@ -109,8 +113,16 @@ public final class SecureFileValidator {
         if (node instanceof COSObject object) {
             inspectPdfNode(object.getObject(), visited);
         } else if (node instanceof COSDictionary dictionary) {
+            // Standard PDF actions store Launch and GoToR as the /S value, not as dictionary keys.
+            COSName actionType = dictionary.getCOSName(COSName.S);
+            if (actionType != null && ACTIVE_PDF_ACTION_TYPES.contains(actionType.getName())) {
+                reject(UploadErrorCode.REJECTED_SECURITY, "active PDF content is not accepted");
+            }
             for (COSName key : dictionary.keySet()) {
-                if (ACTIVE_PDF_KEYS.contains(key.getName())) {
+                String keyName = key.getName();
+                if ("URI".equals(keyName)) {
+                    validateWebUri(dictionary.getDictionaryObject(key));
+                } else if (ACTIVE_PDF_KEYS.contains(keyName)) {
                     reject(UploadErrorCode.REJECTED_SECURITY, "active PDF content is not accepted");
                 }
                 inspectPdfNode(dictionary.getDictionaryObject(key), visited);
@@ -119,6 +131,25 @@ public final class SecureFileValidator {
             for (COSBase value : array) {
                 inspectPdfNode(value, visited);
             }
+        }
+    }
+
+    private void validateWebUri(COSBase value) {
+        // Web links are inert until clicked; all other schemes remain blocked as active PDF content.
+        if (!(value instanceof COSString uriValue)) {
+            reject(UploadErrorCode.REJECTED_SECURITY, "PDF link target is not a safe web URI");
+            return;
+        }
+        try {
+            URI uri = URI.create(uriValue.getString().trim());
+            String scheme = uri.getScheme();
+            if (!uri.isAbsolute() || scheme == null || uri.getHost() == null || uri.getHost().isBlank()
+                    || (!"http".equals(scheme.toLowerCase(Locale.ROOT))
+                    && !"https".equals(scheme.toLowerCase(Locale.ROOT)))) {
+                reject(UploadErrorCode.REJECTED_SECURITY, "only HTTP and HTTPS PDF links are accepted");
+            }
+        } catch (IllegalArgumentException e) {
+            reject(UploadErrorCode.REJECTED_SECURITY, "PDF link target is malformed");
         }
     }
 

@@ -2,7 +2,12 @@ package org.zipp.ai.ingestion.worker.security;
 
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.pdmodel.PDPage;
+import org.apache.pdfbox.pdmodel.interactive.action.PDAction;
 import org.apache.pdfbox.pdmodel.interactive.action.PDActionJavaScript;
+import org.apache.pdfbox.pdmodel.interactive.action.PDActionLaunch;
+import org.apache.pdfbox.pdmodel.interactive.action.PDActionRemoteGoTo;
+import org.apache.pdfbox.pdmodel.interactive.action.PDActionURI;
+import org.apache.pdfbox.pdmodel.interactive.annotation.PDAnnotationLink;
 import org.apache.pdfbox.pdmodel.encryption.AccessPermission;
 import org.apache.pdfbox.pdmodel.encryption.StandardProtectionPolicy;
 import org.junit.jupiter.api.Test;
@@ -18,11 +23,12 @@ import org.zipp.ai.domain.material.model.valobj.RetentionClass;
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.security.MessageDigest;
 import java.time.Instant;
 import java.util.HexFormat;
-import java.nio.file.Files;
-import java.nio.file.Path;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -79,6 +85,48 @@ class SecureFileValidatorTest {
     }
 
     @Test
+    void ordinaryHttpAndHttpsPdfLinksAreAccepted() throws Exception {
+        SecureFileValidator validator = new SecureFileValidator(ignored -> new ScanResult(true, null));
+        var httpContent = pdfWithUri("http://example.com");
+
+        var httpResult = validator.validate(
+                session("http-link.pdf", "application/pdf", httpContent),
+                object(httpContent));
+        var httpsContent = pdfWithUri("https://example.com/profile");
+        var httpsResult = validator.validate(
+                session("https-link.pdf", "application/pdf", httpsContent),
+                object(httpsContent));
+
+        assertEquals("application/pdf", httpResult.detectedMediaType());
+        assertEquals("application/pdf", httpsResult.detectedMediaType());
+    }
+
+    @Test
+    void nonWebPdfLinksRemainRejected() {
+        SecureFileValidator validator = new SecureFileValidator(ignored -> new ScanResult(true, null));
+
+        for (String uri : List.of("file:///tmp/private.txt", "javascript:alert('x')", "http:example.com")) {
+            byte[] content = pdfWithUri(uri);
+            UploadSecurityException error = assertThrows(UploadSecurityException.class,
+                    () -> validator.validate(session("unsafe-link.pdf", "application/pdf", content), object(content)));
+            assertEquals(UploadErrorCode.REJECTED_SECURITY, error.errorCode());
+        }
+    }
+
+    @Test
+    void launchAndRemoteGoToActionsRemainRejected() {
+        SecureFileValidator validator = new SecureFileValidator(ignored -> new ScanResult(true, null));
+
+        for (PDAction action : List.of(new PDActionLaunch(), new PDActionRemoteGoTo())) {
+            byte[] content = pdfWithAction(action);
+            UploadSecurityException error = assertThrows(UploadSecurityException.class,
+                    () -> validator.validate(session("unsafe-action.pdf", "application/pdf", content),
+                            object(content)));
+            assertEquals(UploadErrorCode.REJECTED_SECURITY, error.errorCode());
+        }
+    }
+
+    @Test
     void encryptedPdfIsRejectedAsSecurityContent() throws Exception {
         byte[] content;
         try (PDDocument document = new PDDocument(); ByteArrayOutputStream output = new ByteArrayOutputStream()) {
@@ -94,6 +142,26 @@ class SecureFileValidatorTest {
                 () -> validator.validate(session("encrypted.pdf", "application/pdf", content), object(content)));
 
         assertEquals(UploadErrorCode.REJECTED_SECURITY, error.errorCode());
+    }
+
+    private static byte[] pdfWithUri(String uri) {
+        PDActionURI action = new PDActionURI();
+        action.setURI(uri);
+        return pdfWithAction(action);
+    }
+
+    private static byte[] pdfWithAction(PDAction action) {
+        try (PDDocument document = new PDDocument(); ByteArrayOutputStream output = new ByteArrayOutputStream()) {
+            PDPage page = new PDPage();
+            PDAnnotationLink link = new PDAnnotationLink();
+            link.setAction(action);
+            page.getAnnotations().add(link);
+            document.addPage(page);
+            document.save(output);
+            return output.toByteArray();
+        } catch (java.io.IOException e) {
+            throw new IllegalStateException(e);
+        }
     }
 
     private static UploadSession session(String name, String mediaType, byte[] content) {

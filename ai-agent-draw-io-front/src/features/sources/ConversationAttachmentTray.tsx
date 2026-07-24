@@ -12,9 +12,21 @@ import {
 
 type MaterialClient = ReturnType<typeof createMaterialClient>;
 
-const statusLabel = (state: string) => ({
-  SUCCEEDED: '已就绪', READY: '已就绪', PARTIAL_READY: '部分就绪', FAILED: '处理失败', REJECTED: '已拒绝', CANCELLED: '已取消',
-}[state] || '处理中');
+const rejectionLabels: Record<string, string> = {
+  REJECTED_SECURITY: '安全检查未通过',
+  REJECTED_LIMIT: '文件超出处理限制',
+  REJECTED_FORMAT: '文件格式不受支持',
+};
+
+// Prefer the server's rejection category over a generic terminal-state label.
+const statusLabel = (state: string, errorCode?: string) => {
+  if (state === 'REJECTED') {
+    return rejectionLabels[errorCode?.trim().toUpperCase() || ''] || '文件已被拒绝';
+  }
+  return ({
+    SUCCEEDED: '已就绪', READY: '已就绪', PARTIAL_READY: '部分就绪', FAILED: '处理失败', CANCELLED: '已取消',
+  }[state] || '处理中');
+};
 
 /** Uploads temporary conversation material and stores only its server-issued upload ID. */
 export const ConversationAttachmentTray = forwardRef<MaterialUploaderHandle, {
@@ -106,6 +118,7 @@ export const ConversationAttachmentTray = forwardRef<MaterialUploaderHandle, {
               const partial = normalizedState === 'PARTIAL_READY';
               const ready = isReadyUploadStatus(normalizedState) || partial;
               const failed = isTerminalUploadStatus(normalizedState) && !ready;
+              const attachmentStatusLabel = statusLabel(normalizedState, attachment.errorCode);
               return (
                 <li
                   key={attachment.uploadId}
@@ -118,14 +131,14 @@ export const ConversationAttachmentTray = forwardRef<MaterialUploaderHandle, {
                   </span>
                   <span className="min-w-0">
                     <span className="block truncate font-medium text-zinc-700">{attachment.fileName}</span>
-                    <span className="mt-0.5 flex items-center gap-1.5 text-[11px] text-zinc-500">
+                    <span className="mt-0.5 flex min-w-0 items-center gap-1.5 text-[11px] text-zinc-500" title={failed ? attachmentStatusLabel : undefined}>
                       <span
                         className={`h-1.5 w-1.5 rounded-full ${
                           partial ? 'bg-amber-500' : ready ? 'bg-emerald-500' : failed ? 'bg-rose-500' : 'animate-pulse bg-amber-500'
                         }`}
                         aria-hidden="true"
                       />
-                      {statusLabel(normalizedState)}
+                      <span className="truncate">{attachmentStatusLabel}</span>
                     </span>
                   </span>
                   <label className="absolute bottom-2 right-2 flex shrink-0 items-center" title="在本次消息中使用">

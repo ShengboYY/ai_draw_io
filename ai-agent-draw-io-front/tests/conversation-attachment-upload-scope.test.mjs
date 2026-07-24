@@ -43,6 +43,13 @@ test('conversation attachment UI treats a succeeded upload as terminal and ready
   assert.match(pageSource, /isTerminalUploadStatus\(attachment\.state\)/);
 });
 
+test('conversation attachment UI explains terminal rejection categories', () => {
+  assert.match(traySource, /REJECTED_SECURITY:\s*'安全检查未通过'/);
+  assert.match(traySource, /REJECTED_LIMIT:\s*'文件超出处理限制'/);
+  assert.match(traySource, /REJECTED_FORMAT:\s*'文件格式不受支持'/);
+  assert.match(traySource, /statusLabel\(normalizedState,\s*attachment\.errorCode\)/);
+});
+
 test('composer presents conversation files as compact attachments', () => {
   assert.match(uploaderSource, /variant\?: 'panel' \| 'compact'/);
   assert.match(traySource, /variant="compact"/);
