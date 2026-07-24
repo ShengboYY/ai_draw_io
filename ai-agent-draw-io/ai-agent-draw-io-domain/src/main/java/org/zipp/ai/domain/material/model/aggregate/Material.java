@@ -50,15 +50,14 @@ public final class Material {
         this.lastMeaningfulActivityAt = now;
         if (initialRetention == RetentionClass.TEMPORARY) {
             this.expiresAt = now.plus(TEMPORARY_TTL);
-        } else {
+        } else if (initialScope != null) {
             if (ownerType == OwnerType.ANONYMOUS) {
                 throw new IllegalArgumentException("anonymous materials cannot start retained");
             }
-            MaterialScopeLink retainedScope = Objects.requireNonNull(initialScope, "initialScope");
-            if (retainedScope.scopeType() == MaterialScopeType.CONVERSATION) {
+            if (initialScope.scopeType() == MaterialScopeType.CONVERSATION) {
                 throw new IllegalArgumentException("retained material requires a durable scope");
             }
-            scopeLinks.add(retainedScope);
+            scopeLinks.add(initialScope);
         }
     }
 
@@ -70,7 +69,8 @@ public final class Material {
 
     public static Material createRetained(String id, OwnerType ownerType, String ownerKey, MaterialKind kind,
                                           String displayName, MaterialScopeLink initialScope, Instant createdAt) {
-        return new Material(id, ownerType, ownerKey, kind, displayName, null, initialScope,
+        return new Material(id, ownerType, ownerKey, kind, displayName, null,
+                Objects.requireNonNull(initialScope, "initialScope"),
                 RetentionClass.RETAINED, createdAt);
     }
 
@@ -127,10 +127,18 @@ public final class Material {
                     originConversationId, activity);
             material.expiresAt = Objects.requireNonNull(expiresAt, "expiresAt");
         } else {
-            Set<MaterialScopeLink> restoredScopes = requireDurableScopes(scopes);
-            material = createRetained(id, ownerType, ownerKey, kind, displayName,
-                    firstDurableScope(restoredScopes), activity);
-            material.scopeLinks.addAll(restoredScopes);
+            Set<MaterialScopeLink> restoredScopes = new LinkedHashSet<>(
+                    Objects.requireNonNull(scopes, "scopes"));
+            if (restoredScopes.isEmpty()) {
+                // Removing the final durable scope leaves an owner-visible trash record, not an active orphan.
+                material = new Material(id, ownerType, ownerKey, kind, displayName, null,
+                        null, RetentionClass.RETAINED, activity);
+            } else {
+                restoredScopes = requireDurableScopes(restoredScopes);
+                material = createRetained(id, ownerType, ownerKey, kind, displayName,
+                        firstDurableScope(restoredScopes), activity);
+                material.scopeLinks.addAll(restoredScopes);
+            }
         }
         material.lifecycleState = MaterialLifecycleState.TRASHED;
         material.lifecycleGeneration = nonNegative(lifecycleGeneration);
@@ -191,6 +199,9 @@ public final class Material {
     public void restore(Instant restoredAt) {
         if (lifecycleState != MaterialLifecycleState.TRASHED || ownerType != OwnerType.USER) {
             throw new IllegalStateException("only a registered owner's trashed material can be restored");
+        }
+        if (retentionClass == RetentionClass.RETAINED && scopeLinks.isEmpty()) {
+            throw new IllegalStateException("retained trash requires a restore target");
         }
         Instant now = Objects.requireNonNull(restoredAt, "restoredAt");
         lifecycleState = MaterialLifecycleState.ACTIVE;

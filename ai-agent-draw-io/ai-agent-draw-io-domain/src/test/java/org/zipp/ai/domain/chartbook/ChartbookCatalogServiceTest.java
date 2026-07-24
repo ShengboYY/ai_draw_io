@@ -68,6 +68,18 @@ class ChartbookCatalogServiceTest {
         assertEquals(CatalogErrorCode.CHARTBOOK_ARCHIVED, error.code());
     }
 
+    @Test
+    void currentDiagramReturnsItsChartbookOrAnEmptyResult() {
+        FakeChartbooks repository = new FakeChartbooks();
+        ChartbookCatalogService service = service(repository, new FakeMaterials());
+        ChartbookView book = service.create(new CreateChartbookCommand(USER, "request_1", "Agile"));
+        service.assignDiagram(USER, "diagram_1", book.chartbookId());
+
+        assertEquals(book.chartbookId(),
+                service.findForDiagram(USER, "diagram_1").orElseThrow().chartbookId());
+        assertTrue(service.findForDiagram(USER, "diagram_without_book").isEmpty());
+    }
+
     private ChartbookCatalogService service(FakeChartbooks chartbooks, FakeMaterials materials) {
         return service(chartbooks, materials,
                 command -> { throw new AssertionError("unexpected add file"); });
@@ -158,7 +170,7 @@ class ChartbookCatalogServiceTest {
         private MaterialCatalogDetails details = new MaterialCatalogDetails(
                 new MaterialCatalogItem("material_1", MaterialKind.PDF, "Guide", RetentionClass.RETAINED,
                         MaterialLifecycleState.ACTIVE, "version_1", 1,
-                        CatalogProcessingStatus.READY, 100, 10, NOW),
+                        CatalogProcessingStatus.READY, 100, CatalogSearchStatus.SEARCHABLE, 10, NOW),
                 List.of(), new ArrayList<>(List.of(
                         new MaterialScopeReference("scope_1", MaterialScopeType.LIBRARY, "user_1"))));
 

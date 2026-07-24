@@ -1,7 +1,7 @@
 'use client';
 
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react';
-import { type BrowserPostPolicy, type MaterialUploadTarget } from './material-types';
+import { type BrowserPostPolicy, type MaterialUploadStatus, type MaterialUploadTarget } from './material-types';
 import { MaterialGapDialog } from './MaterialGapDialog';
 import { MaterialProcessingBadge } from './MaterialProcessingBadge';
 import { createUploadState, isReadyUploadStatus, transitionUpload, type UploadState } from './upload-machine';
@@ -9,6 +9,14 @@ import type { createMaterialClient } from '@/api/material';
 
 type MaterialClient = ReturnType<typeof createMaterialClient>;
 type UploadItem = UploadState & { file: File; postPolicy?: BrowserPostPolicy };
+type ReportedUploadStatus = {
+  uploadId: string;
+  fileName: string;
+  state: string;
+  materialId?: string;
+  versionId?: string;
+  errorCode?: string;
+};
 export type MaterialUploaderHandle = {
   openPicker: () => void;
   retryUpload: (uploadId: string) => boolean;
@@ -23,7 +31,7 @@ type MaterialUploaderProps = {
   beforeUpload?: () => Promise<MaterialUploadTarget | void>;
   onReady?: () => void;
   onUploadInitiated?: (upload: { uploadId: string; fileName: string }) => void;
-  onUploadStatus?: (upload: { uploadId: string; fileName: string; state: string; errorCode?: string }) => void;
+  onUploadStatus?: (upload: ReportedUploadStatus) => void;
   onRetryableUploadIdsChange?: (uploadIds: string[]) => void;
   suppressedUploadIds?: string[];
   variant?: 'panel' | 'compact';
@@ -67,8 +75,19 @@ export const MaterialUploader = forwardRef<MaterialUploaderHandle, MaterialUploa
     )));
   }, [items, onRetryableUploadIdsChange]);
 
-  const reportUploadStatus = (upload: { uploadId: string; fileName: string; state: string; errorCode?: string }) => {
+  const reportUploadStatus = (upload: ReportedUploadStatus) => {
     if (!suppressedIdsRef.current.has(upload.uploadId)) onUploadStatus?.(upload);
+  };
+  const reportServerStatus = (file: File, status: MaterialUploadStatus) => {
+    // Preserve server identities so Files can replace the pending row with its catalog row.
+    reportUploadStatus({
+      uploadId: status.uploadId,
+      fileName: file.name,
+      state: status.state,
+      materialId: status.materialId,
+      versionId: status.versionId,
+      errorCode: status.errorCode,
+    });
   };
 
   const update = (file: File, event: Parameters<typeof transitionUpload>[1], details?: Partial<UploadItem>) => {
@@ -80,10 +99,10 @@ export const MaterialUploader = forwardRef<MaterialUploaderHandle, MaterialUploa
   const completeAndPoll = async (file: File, uploadId: string) => {
     const completed = await client.complete(uploadId);
     update(file, { type: 'COMPLETED', status: completed.state, errorCode: completed.errorCode });
-    reportUploadStatus({ uploadId, fileName: file.name, state: completed.state, errorCode: completed.errorCode });
+    reportServerStatus(file, completed);
     const terminal = await client.pollStatus(uploadId, status => {
       update(file, { type: 'COMPLETED', status: status.state, errorCode: status.errorCode });
-      reportUploadStatus({ uploadId, fileName: file.name, state: status.state, errorCode: status.errorCode });
+      reportServerStatus(file, status);
     });
     if (isReadyUploadStatus(terminal.state)) onReady?.();
   };

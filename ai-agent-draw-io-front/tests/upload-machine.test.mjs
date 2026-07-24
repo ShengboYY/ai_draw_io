@@ -59,3 +59,14 @@ test('upload machine ignores events that do not match the current stage', () => 
   assert.equal(transitionUpload(idle, { type: 'INITIATED', uploadId: 'upl-invalid' }), idle);
   assert.equal(transitionUpload(idle, { type: 'COMPLETED', status: 'READY' }), idle);
 });
+
+test('upload machine presents a succeeded upload session as ready', () => {
+  let state = createUploadState('diagram.png');
+  state = transitionUpload(state, { type: 'START' });
+  state = transitionUpload(state, { type: 'HASHED' });
+  state = transitionUpload(state, { type: 'INITIATED', uploadId: 'upl-success' });
+  state = transitionUpload(state, { type: 'BYTES_UPLOADED' });
+  state = transitionUpload(state, { type: 'COMPLETED', status: 'SUCCEEDED' });
+
+  assert.equal(state.stage, 'READY');
+});

@@ -61,7 +61,8 @@ public class MySqlMaterialCatalogAdapter implements MaterialCatalogPort {
             case LIBRARY -> MaterialScopeType.isPersonalLibraryKey(scopeKey, owner.ownerKey());
             case DIAGRAM -> mapper.countOwnedDiagram(owner.ownerKey(), scopeKey) == 1;
             case CHARTBOOK -> mapper.countOwnedActiveChartbook(owner.ownerKey(), scopeKey) == 1;
-            case CONVERSATION -> false;
+            // Conversation listings remain owner-fenced by the Material row and exact scope link.
+            case CONVERSATION -> true;
         };
     }
 
@@ -83,7 +84,25 @@ public class MySqlMaterialCatalogAdapter implements MaterialCatalogPort {
                 || mapper.countOwnedScopes(materialId) <= 1) {
             return false;
         }
-        return mapper.deleteOwnedScope(materialId, linkId) == 1;
+        if (mapper.deleteOwnedScope(materialId, linkId) != 1) return false;
+        // A promoted conversation file becomes TTL-bound again after its last durable scope leaves.
+        mapper.restoreTemporaryWhenConversationOnly(materialId);
+        return true;
+    }
+
+    @Override
+    @Transactional
+    public boolean removeLastScopeAndTrash(CatalogOwner owner, String materialId, String linkId) {
+        if (mapper.lockOwnedActiveMaterial(owner.ownerType().name(), owner.ownerKey(), materialId) == null
+                || mapper.countOwnedScopes(materialId) != 1
+                || mapper.deleteOwnedScope(materialId, linkId) != 1) {
+            return false;
+        }
+        if (mapper.trashOwnedMaterial(owner.ownerType().name(), owner.ownerKey(), materialId) != 1) {
+            // Throw so Spring rolls the deleted scope back with the failed lifecycle transition.
+            throw new IllegalStateException("failed to trash material after removing its final scope");
+        }
+        return true;
     }
 
     private MaterialCatalogItem item(MaterialCatalogItemPO po) {
@@ -92,7 +111,7 @@ public class MySqlMaterialCatalogAdapter implements MaterialCatalogPort {
                 MaterialLifecycleState.valueOf(po.getLifecycleState()), po.getLatestVersionId(),
                 po.getLatestVersionNo(), CatalogProcessingStatus.from(po.getIngestState(),
                 po.getProcessingState(), po.getProcessingStage()), po.getProgress(),
-                po.getPageCount(), po.getUpdatedAt());
+                CatalogSearchStatus.valueOf(po.getSearchStatus()), po.getPageCount(), po.getUpdatedAt());
     }
 
     private MaterialVersionSummary version(MaterialCatalogVersionPO po) {

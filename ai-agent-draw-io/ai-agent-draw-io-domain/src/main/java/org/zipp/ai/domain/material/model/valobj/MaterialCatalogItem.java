@@ -7,12 +7,14 @@ public record MaterialCatalogItem(String materialId, MaterialKind kind, String d
                                   RetentionClass retentionClass, MaterialLifecycleState lifecycleState,
                                   String latestVersionId, Integer latestVersionNo,
                                   CatalogProcessingStatus processingStatus, int progress,
+                                  CatalogSearchStatus searchStatus,
                                   Integer pageCount, Instant updatedAt) {
     public MaterialCatalogItem {
         if (materialId == null || materialId.isBlank() || displayName == null || displayName.isBlank()) {
             throw new IllegalArgumentException("material catalog identity is required");
         }
         if (kind == null || retentionClass == null || lifecycleState == null || processingStatus == null
+                || searchStatus == null
                 || progress < 0 || progress > 100) {
             throw new IllegalArgumentException("material catalog card is invalid");
         }

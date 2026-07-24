@@ -10,6 +10,7 @@ import org.zipp.ai.domain.material.service.MaterialCatalogService;
 import java.time.Clock;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 
 /** Application service coordinating chartbook membership without transferring material ownership. */
 public final class ChartbookCatalogService {
@@ -44,6 +45,16 @@ public final class ChartbookCatalogService {
         owner.requireRegisteredUser();
         return chartbooks.find(owner, required(chartbookId, "chartbookId"))
                 .orElseThrow(() -> new CatalogOperationException(CatalogErrorCode.CHARTBOOK_NOT_FOUND));
+    }
+
+    public Optional<ChartbookView> findForDiagram(CatalogOwner owner, String diagramId) {
+        owner.requireRegisteredUser();
+        String targetDiagramId = required(diagramId, "diagramId");
+        // A diagram belongs to at most one chartbook, so the catalog view is already authoritative.
+        return chartbooks.findAll(owner).stream()
+                .filter(chartbook -> chartbook.status() == ChartbookStatus.ACTIVE)
+                .filter(chartbook -> chartbook.diagramIds().contains(targetDiagramId))
+                .findFirst();
     }
 
     public ChartbookView rename(CatalogOwner owner, String chartbookId, String newName) {

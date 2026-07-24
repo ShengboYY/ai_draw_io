@@ -7,6 +7,20 @@
         m.latest_version_id AS latestVersionId, v.version_no AS latestVersionNo,
         v.ingest_state AS ingestState, r.state AS processingState,
         r.stage AS processingStage, COALESCE(r.progress, 0) AS progress,
+        CASE
+          WHEN m.retention_class != 'RETAINED' THEN 'NOT_APPLICABLE'
+          WHEN r.state = 'PROCESSING' AND r.stage IN ('INDEXING', 'PUBLISHING') THEN 'INDEXING'
+          WHEN r.state = 'FAILED' AND r.stage IN ('INDEXING', 'PUBLISHING') THEN 'INDEX_FAILED'
+          WHEN EXISTS (
+            SELECT 1 FROM retrieval_revision_vector_projection search_projection
+            JOIN rag_index_generation search_generation
+              ON search_generation.id = search_projection.index_generation_id
+             AND search_generation.state = 'ACTIVE'
+            WHERE search_projection.revision_id = r.id AND search_projection.state = 'READY'
+          ) THEN 'SEARCHABLE'
+          WHEN r.state IN ('READY', 'PARTIAL_READY') THEN 'SEARCH_LIMITED'
+          ELSE 'PENDING'
+        END AS searchStatus,
         v.page_count AS pageCount, m.updated_at AS updatedAt
     </sql>
 
@@ -58,6 +72,7 @@
                                WHERE latest_r.version_id = v.id)
         WHERE m.owner_type = #{ownerType} AND m.owner_key = #{ownerKey}
           AND m.lifecycle_state = #{lifecycleState}
+          AND (m.retention_class = 'RETAINED' OR m.expires_at &gt; UTC_TIMESTAMP(3))
         ORDER BY m.updated_at DESC, m.id
         LIMIT #{limit} OFFSET #{offset}
     </select>
@@ -68,6 +83,7 @@
           AND scoped_scope.scope_type = #{scopeType} AND scoped_scope.scope_key = #{scopeKey}
         WHERE m.owner_type = #{ownerType} AND m.owner_key = #{ownerKey}
           AND m.lifecycle_state = #{lifecycleState}
+          AND (m.retention_class = 'RETAINED' OR m.expires_at &gt; UTC_TIMESTAMP(3))
     </select>
 
     <select id="selectOwnedMaterial"
@@ -107,6 +123,21 @@
         JOIN material m ON m.id = link.material_id
         WHERE link.material_id = #{materialId} AND m.owner_type = #{ownerType} AND m.owner_key = #{ownerKey}
         ORDER BY link.created_at, link.id
+    </select>
+
+    <select id="selectOwnedDownload"
+            resultType="org.zipp.ai.infrastructure.dao.material.po.MaterialDownloadPO">
+        SELECT m.display_name AS displayName, b.detected_mime AS detectedMime,
+               b.content_sha256 AS contentSha256, b.byte_size AS byteSize,
+               b.original_object_key AS objectKey,
+               b.original_object_version_id AS objectVersionId
+        FROM material m
+        JOIN material_version v ON v.material_id = m.id AND v.id = #{versionId}
+        JOIN material_content_blob b ON b.id = v.content_blob_id AND b.status = 'AVAILABLE'
+        WHERE m.id = #{materialId} AND m.owner_type = #{ownerType} AND m.owner_key = #{ownerKey}
+          AND m.lifecycle_state = 'ACTIVE'
+          AND (m.retention_class = 'RETAINED' OR m.expires_at &gt; UTC_TIMESTAMP(3))
+          AND EXISTS (SELECT 1 FROM material_scope_link link WHERE link.material_id = m.id)
     </select>
 
     <select id="countOwnedDiagram" resultType="int">
@@ -163,4 +194,29 @@
     <delete id="deleteOwnedScope">
         DELETE FROM material_scope_link WHERE id = #{linkId} AND material_id = #{materialId}
     </delete>
+
+    <update id="restoreTemporaryWhenConversationOnly">
+        UPDATE material m
+        SET m.retention_class = 'TEMPORARY',
+            m.expires_at = DATE_ADD(UTC_TIMESTAMP(3), INTERVAL 24 HOUR),
+            m.last_meaningful_activity_at = UTC_TIMESTAMP(3),
+            m.lifecycle_generation = m.lifecycle_generation + 1
+        WHERE m.id = #{materialId} AND m.retention_class = 'RETAINED'
+          AND EXISTS (SELECT 1 FROM material_scope_link conversation_scope
+                      WHERE conversation_scope.material_id = m.id
+                        AND conversation_scope.scope_type = 'CONVERSATION')
+          AND NOT EXISTS (SELECT 1 FROM material_scope_link durable_scope
+                          WHERE durable_scope.material_id = m.id
+                            AND durable_scope.scope_type IN ('LIBRARY', 'DIAGRAM', 'CHARTBOOK'))
+    </update>
+
+    <update id="trashOwnedMaterial">
+        UPDATE material
+        SET lifecycle_state = 'TRASHED',
+            lifecycle_generation = lifecycle_generation + 1,
+            expires_at = NULL,
+            trash_expires_at = DATE_ADD(UTC_TIMESTAMP(3), INTERVAL 30 DAY)
+        WHERE id = #{materialId} AND owner_type = #{ownerType} AND owner_key = #{ownerKey}
+          AND lifecycle_state = 'ACTIVE'
+    </update>
 </mapper>

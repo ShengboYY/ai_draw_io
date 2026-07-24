@@ -75,6 +75,54 @@ class ChartbookFileModuleTest {
                 () -> assertEquals(0, store.lifecycleApplyCount));
     }
 
+    @Test
+    void removeDropsOnlyTheChartbookScopeAndIsIdempotent() {
+        FakeMaterialStore store = new FakeMaterialStore();
+        ChartbookFileModule module = new DefaultChartbookFileModule(
+                new FakeChartbooks(), new MaterialCatalogService(store,
+                prefix -> prefix + "_catalog", new MaterialScopePolicy()),
+                new MaterialLifecycleService(store, prefix -> prefix + "_lifecycle",
+                        Clock.fixed(NOW, ZoneOffset.UTC)));
+        module.add(new AddChartbookFileCommand(
+                USER, "chartbook_1", "material_1", "add-file-3"));
+        RemoveChartbookFileCommand command = new RemoveChartbookFileCommand(
+                USER, "chartbook_1", "material_1", "remove-file-1");
+
+        ChartbookFileResult first = module.remove(command);
+        ChartbookFileResult repeated = module.remove(command);
+
+        assertAll(
+                () -> assertTrue(first.file().findScope(
+                        MaterialScopeType.CHARTBOOK, "chartbook_1").isEmpty()),
+                () -> assertTrue(first.file().findScope(
+                        MaterialScopeType.CONVERSATION, "conversation_1").isPresent()),
+                () -> assertEquals(RetentionClass.TEMPORARY,
+                        first.file().material().retentionClass()),
+                () -> assertEquals(first.file(), repeated.file()),
+                () -> assertEquals(1, store.catalogRemoveCount));
+    }
+
+    @Test
+    void removingTheOnlyChartbookScopeMovesTheMaterialToTrashIdempotently() {
+        FakeMaterialStore store = FakeMaterialStore.retainedWithOnlyChartbookScope();
+        ChartbookFileModule module = new DefaultChartbookFileModule(
+                new FakeChartbooks(), new MaterialCatalogService(store,
+                prefix -> prefix + "_catalog", new MaterialScopePolicy()),
+                new MaterialLifecycleService(store, prefix -> prefix + "_lifecycle",
+                        Clock.fixed(NOW, ZoneOffset.UTC)));
+        RemoveChartbookFileCommand command = new RemoveChartbookFileCommand(
+                USER, "chartbook_1", "material_1", "remove-only-chartbook");
+
+        ChartbookFileResult first = module.remove(command);
+        ChartbookFileResult repeated = module.remove(command);
+
+        assertEquals(MaterialLifecycleState.TRASHED, first.file().material().lifecycleState());
+        assertTrue(first.file().findScope(
+                MaterialScopeType.CHARTBOOK, "chartbook_1").isEmpty());
+        assertEquals(first.file(), repeated.file());
+        assertEquals(1, store.catalogRemoveCount);
+    }
+
     private static final class FakeChartbooks implements ChartbookCatalogPort {
         private final ChartbookView chartbook = new ChartbookView(
                 "chartbook_1", USER.ownerKey(), "Architecture", ChartbookStatus.ACTIVE,
@@ -113,6 +161,7 @@ class ChartbookFileModuleTest {
         private final boolean concurrentScopeWinner;
         private int lifecycleApplyCount;
         private int catalogAddCount;
+        private int catalogRemoveCount;
 
         private FakeMaterialStore() {
             this.concurrentScopeWinner = false;
@@ -135,6 +184,14 @@ class ChartbookFileModuleTest {
 
         private static FakeMaterialStore retainedWithConcurrentScopeWinner() {
             return new FakeMaterialStore(true);
+        }
+
+        private static FakeMaterialStore retainedWithOnlyChartbookScope() {
+            FakeMaterialStore store = new FakeMaterialStore(true);
+            store.scopes.clear();
+            store.scopes.add(new MaterialScopeReference(
+                    "scope_chartbook", MaterialScopeType.CHARTBOOK, "chartbook_1"));
+            return store;
         }
 
         @Override
@@ -163,7 +220,29 @@ class ChartbookFileModuleTest {
 
         @Override
         public boolean removeScope(CatalogOwner owner, String materialId, String linkId) {
-            return false;
+            boolean removed = scopes.removeIf(scope -> scope.linkId().equals(linkId));
+            if (removed) {
+                catalogRemoveCount++;
+                boolean durableScopeRemains = scopes.stream().anyMatch(scope ->
+                        scope.scopeType() != MaterialScopeType.CONVERSATION);
+                if (!durableScopeRemains && material.originConversationId() != null) {
+                    // Mirrors the catalog adapter's atomic conversation-only demotion.
+                    material = Material.rehydrateTemporaryActive(material.id(), material.ownerType(),
+                            material.ownerKey(), material.kind(), material.displayName(),
+                            material.originConversationId(), material.lifecycleGeneration() + 1,
+                            NOW, NOW.plus(Duration.ofHours(24)));
+                }
+            }
+            return removed;
+        }
+
+        @Override
+        public boolean removeLastScopeAndTrash(CatalogOwner owner, String materialId, String linkId) {
+            if (scopes.size() != 1 || !scopes.get(0).linkId().equals(linkId)) return false;
+            scopes.clear();
+            material.remove(NOW);
+            catalogRemoveCount++;
+            return true;
         }
 
         @Override
@@ -182,8 +261,10 @@ class ChartbookFileModuleTest {
         @Override
         public MaterialLifecycleResult apply(MaterialLifecycleMutation mutation) {
             material = mutation.material();
-            scopes.add(new MaterialScopeReference(mutation.scopeLink().linkId(),
-                    mutation.scopeLink().scopeType(), mutation.scopeLink().scopeKey()));
+            if (mutation.scopeLink() != null) {
+                scopes.add(new MaterialScopeReference(mutation.scopeLink().linkId(),
+                        mutation.scopeLink().scopeType(), mutation.scopeLink().scopeKey()));
+            }
             MaterialLifecycleResult result = MaterialLifecycleResult.from(material);
             applied.put(mutation.action() + ":" + mutation.requestFingerprint(), result);
             lifecycleApplyCount++;
@@ -219,7 +300,8 @@ class ChartbookFileModuleTest {
         private MaterialCatalogDetails details() {
             MaterialCatalogItem item = new MaterialCatalogItem(material.id(), material.kind(),
                     material.displayName(), material.retentionClass(), material.lifecycleState(),
-                    "version_1", 1, CatalogProcessingStatus.READY, 100, 1, NOW);
+                    "version_1", 1, CatalogProcessingStatus.READY, 100,
+                    CatalogSearchStatus.SEARCHABLE, 1, NOW);
             return new MaterialCatalogDetails(item, versions, scopes);
         }
     }

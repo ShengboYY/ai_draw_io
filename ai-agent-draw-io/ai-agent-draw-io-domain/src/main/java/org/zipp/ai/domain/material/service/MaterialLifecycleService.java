@@ -75,6 +75,10 @@ public final class MaterialLifecycleService implements MaterialDeletionModule {
                 && !lifecycle.originConversationAvailable(owner, material.originConversationId())) {
             throw new CatalogOperationException(CatalogErrorCode.RESTORE_TARGET_UNAVAILABLE);
         }
+        if (material.retentionClass() == RetentionClass.RETAINED && material.scopeLinks().isEmpty()) {
+            // A last-scope removal is recoverable trash, but restoring it requires an explicit future target.
+            throw new CatalogOperationException(CatalogErrorCode.RESTORE_TARGET_UNAVAILABLE);
+        }
         long expected = material.lifecycleGeneration();
         material.restore(clock.instant());
         return lifecycle.apply(mutation(owner, MaterialLifecycleAction.RESTORE, idempotencyKey,

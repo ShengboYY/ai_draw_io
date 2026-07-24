@@ -7,6 +7,7 @@ import org.zipp.ai.api.response.Response;
 import org.zipp.ai.domain.chartbook.model.valobj.ChartbookView;
 import org.zipp.ai.domain.chartbook.model.valobj.AddChartbookFileCommand;
 import org.zipp.ai.domain.chartbook.model.valobj.CreateChartbookCommand;
+import org.zipp.ai.domain.chartbook.model.valobj.RemoveChartbookFileCommand;
 import org.zipp.ai.domain.chartbook.service.ChartbookCatalogService;
 import org.zipp.ai.domain.chartbook.service.ChartbookFileModule;
 import org.zipp.ai.domain.material.model.valobj.CatalogOwner;
@@ -48,6 +49,13 @@ public class ChartbookCatalogController {
         return CatalogControllerSupport.execute(() -> view(chartbooks.find(owner(), chartbookId)));
     }
 
+    @GetMapping("/diagrams/{diagramId}/chartbook")
+    public Response<ChartbookResponseDTO> diagramChartbook(@PathVariable String diagramId) {
+        return CatalogControllerSupport.execute(() -> chartbooks.findForDiagram(owner(), diagramId)
+                .map(this::view)
+                .orElse(null));
+    }
+
     @PatchMapping("/chartbooks/{chartbookId}")
     public Response<ChartbookResponseDTO> rename(@PathVariable String chartbookId,
                                                  @RequestBody ChartbookRequestDTO body) {
@@ -77,6 +85,15 @@ public class ChartbookCatalogController {
             @RequestHeader("Idempotency-Key") String idempotencyKey) {
         return CatalogControllerSupport.execute(() -> MaterialCatalogDtoMapper.details(files.add(
                 new AddChartbookFileCommand(owner(), chartbookId, materialId, idempotencyKey)).file()));
+    }
+
+    @DeleteMapping("/chartbooks/{chartbookId}/files/{materialId}")
+    public Response<MaterialCatalogDetailsDTO> removeFile(
+            @PathVariable String chartbookId,
+            @PathVariable String materialId,
+            @RequestHeader("Idempotency-Key") String idempotencyKey) {
+        return CatalogControllerSupport.execute(() -> MaterialCatalogDtoMapper.details(files.remove(
+                new RemoveChartbookFileCommand(owner(), chartbookId, materialId, idempotencyKey)).file()));
     }
 
     @DeleteMapping("/chartbooks/{chartbookId}/materials/{materialId}")

@@ -139,6 +139,24 @@ test('material client lists only metadata in an owned diagram scope', async () =
   assert.equal(calls[0].options.method, undefined);
 });
 
+test('material client lists conversation files and builds exact-version download URLs', async () => {
+  const calls = [];
+  const client = createMaterialClient({
+    baseUrl: 'https://app.example/api/v1',
+    fetch: async (url, options = {}) => {
+      calls.push({ url, options });
+      return new Response(JSON.stringify({ code: '0000', data: { items: [], total: 0, limit: 100, offset: 0 } }));
+    },
+  });
+
+  await client.listScope('CONVERSATION', 'conversation/1', { lifecycleState: 'ACTIVE', limit: 100 });
+
+  assert.equal(calls[0].url,
+    'https://app.example/api/v1/materials/scopes/CONVERSATION/conversation%2F1?lifecycleState=ACTIVE&limit=100');
+  assert.equal(client.downloadUrl('material/1', 'version/1'),
+    'https://app.example/api/v1/materials/material%2F1/versions/version%2F1/download');
+});
+
 test('material client protects scope and recycle-bin mutations with CSRF and idempotency', async () => {
   const calls = [];
   const client = createMaterialClient({

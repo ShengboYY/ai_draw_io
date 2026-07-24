@@ -28,6 +28,6 @@ final class MaterialCatalogDtoMapper {
         return new MaterialCatalogCardDTO(source.materialId(), source.kind().name(), source.displayName(),
                 source.retentionClass().name(), source.lifecycleState().name(), source.latestVersionId(),
                 source.latestVersionNo(), source.processingStatus().name(), source.progress(),
-                source.pageCount(), source.updatedAt());
+                source.searchStatus().name(), source.pageCount(), source.updatedAt());
     }
 }

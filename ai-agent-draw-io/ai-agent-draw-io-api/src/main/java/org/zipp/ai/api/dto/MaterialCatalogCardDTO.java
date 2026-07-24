@@ -6,5 +6,6 @@ public record MaterialCatalogCardDTO(String materialId, String kind, String disp
                                      String retentionClass, String lifecycleState,
                                      String latestVersionId, Integer latestVersionNo,
                                      String processingStatus, int progress,
+                                     String searchStatus,
                                      Integer pageCount, Instant updatedAt) {
 }

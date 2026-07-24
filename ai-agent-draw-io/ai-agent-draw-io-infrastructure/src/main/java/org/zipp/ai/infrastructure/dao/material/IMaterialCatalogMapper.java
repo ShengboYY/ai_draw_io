@@ -4,6 +4,7 @@ import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import org.zipp.ai.infrastructure.dao.material.po.MaterialCatalogItemPO;
 import org.zipp.ai.infrastructure.dao.material.po.MaterialCatalogVersionPO;
+import org.zipp.ai.infrastructure.dao.material.po.MaterialDownloadPO;
 import org.zipp.ai.infrastructure.dao.material.po.MaterialScopeLinkPO;
 
 import java.util.List;
@@ -40,6 +41,10 @@ public interface IMaterialCatalogMapper {
     List<MaterialScopeLinkPO> selectOwnedScopes(@Param("ownerType") String ownerType,
                                                 @Param("ownerKey") String ownerKey,
                                                 @Param("materialId") String materialId);
+    MaterialDownloadPO selectOwnedDownload(@Param("ownerType") String ownerType,
+                                           @Param("ownerKey") String ownerKey,
+                                           @Param("materialId") String materialId,
+                                           @Param("versionId") String versionId);
     int countOwnedDiagram(@Param("ownerKey") String ownerKey, @Param("diagramId") String diagramId);
     int countOwnedActiveChartbook(@Param("ownerKey") String ownerKey,
                                   @Param("chartbookId") String chartbookId);
@@ -58,4 +63,8 @@ public interface IMaterialCatalogMapper {
                          @Param("scopeKey") String scopeKey);
     int deleteOwnedScope(@Param("materialId") String materialId,
                          @Param("linkId") String linkId);
+    int restoreTemporaryWhenConversationOnly(@Param("materialId") String materialId);
+    int trashOwnedMaterial(@Param("ownerType") String ownerType,
+                           @Param("ownerKey") String ownerKey,
+                           @Param("materialId") String materialId);
 }

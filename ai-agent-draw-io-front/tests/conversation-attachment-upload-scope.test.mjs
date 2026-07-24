@@ -10,18 +10,6 @@ const traySource = fs.readFileSync(
   new URL('../src/features/sources/ConversationAttachmentTray.tsx', import.meta.url),
   'utf8',
 );
-const composerSourceMenuSource = fs.readFileSync(
-  new URL('../src/features/sources/ComposerSourceMenu.tsx', import.meta.url),
-  'utf8',
-);
-const sourceModeControlSource = fs.readFileSync(
-  new URL('../src/features/sources/SourceModeControl.tsx', import.meta.url),
-  'utf8',
-);
-const sourcePickerSource = fs.readFileSync(
-  new URL('../src/features/sources/SourcePicker.tsx', import.meta.url),
-  'utf8',
-);
 const pageSource = fs.readFileSync(
   new URL('../src/app/drawio/page.tsx', import.meta.url),
   'utf8',
@@ -41,6 +29,14 @@ test('conversation attachment UI treats a succeeded upload as terminal and ready
   assert.match(traySource, /SUCCEEDED:\s*'已就绪'/);
   assert.match(traySource, /isTerminalUploadStatus\(item\.state\)/);
   assert.match(pageSource, /isTerminalUploadStatus\(attachment\.state\)/);
+});
+
+test('server material identity reaches the conversation attachment used for Files deduplication', () => {
+  assert.match(uploaderSource, /materialId:\s*status\.materialId/);
+  assert.match(uploaderSource, /versionId:\s*status\.versionId/);
+  assert.match(uploaderSource, /reportServerStatus\(file,\s*completed\)/);
+  assert.match(uploaderSource, /reportServerStatus\(file,\s*status\)/);
+  assert.match(traySource, /onUploadStatus=\{upload => upsert\(upload\)\}/);
 });
 
 test('conversation attachment UI explains terminal rejection categories', () => {
@@ -63,29 +59,19 @@ test('composer presents conversation files as compact attachments', () => {
   assert.match(traySource, /normalizedState === 'PARTIAL_READY'/);
 });
 
-test('composer plus menu owns local uploads, library selection, and source mode', () => {
-  assert.match(pageSource, /<ComposerSourceMenu/);
-  assert.match(pageSource, /onUploadLocal=\{\(\) => attachmentUploaderRef\.current\?\.openPicker\(\)\}/);
-  assert.doesNotMatch(pageSource, />\s*资料与引用\s*</);
-  assert.match(composerSourceMenuSource, /Local upload/);
-  assert.match(composerSourceMenuSource, /Choose from library/);
-  assert.match(composerSourceMenuSource, /w-72/);
-  assert.match(sourceModeControlSource, /Auto \(Recommended\)/);
-  assert.match(sourcePickerSource, /Choose sources/);
-  assert.doesNotMatch(
-    `${composerSourceMenuSource}\n${sourceModeControlSource}\n${sourcePickerSource}`,
-    /[\u3400-\u9fff]/,
-  );
-  assert.match(composerSourceMenuSource, /sourceModeAfterVersionSelection\(sourceMode, versionIds\.length\)/);
-  assert.match(composerSourceMenuSource, /onUploadLocal\(\);[\s\S]*setOpen\(false\)/);
-  assert.match(composerSourceMenuSource, /firstActionRef\.current\?\.focus\(\)/);
-  assert.match(composerSourceMenuSource, /if \(!disabled\) return;[\s\S]*setOpen\(false\)/);
+test('Files panel owns uploads while the composer has no source controls', () => {
+  assert.match(pageSource, /title="Files"/);
+  assert.match(pageSource, /<FilesPanel[\s\S]*onUpload=\{\(\) => attachmentUploaderRef\.current\?\.openPicker\(\)\}/);
+  assert.doesNotMatch(pageSource, /<ComposerSourceMenu/);
+  assert.doesNotMatch(pageSource, /<SourceModeControl/);
+  assert.doesNotMatch(pageSource, /<SourcePicker/);
+  assert.doesNotMatch(pageSource, /selectedAttachmentUploadIds/);
 });
 
-test('remaining demo quota sits beside the composer add button', () => {
+test('remaining demo quota stays lightweight in the composer footer', () => {
   assert.match(
     pageSource,
-    /<div className="flex items-center gap-1\.5">[\s\S]*<ComposerSourceMenu[\s\S]*demoQuotaState\.visible && !demoQuotaState\.exhausted/,
+    /File management lives in Files[\s\S]*<div className="flex items-center gap-1\.5">[\s\S]*demoQuotaState\.visible && !demoQuotaState\.exhausted/,
   );
   assert.match(pageSource, /whitespace-nowrap font-mono text-\[11px\][\s\S]*demoQuotaState\.remaining\} left/);
   assert.doesNotMatch(pageSource, /mb-2 flex justify-end px-1/);

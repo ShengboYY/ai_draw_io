@@ -21,7 +21,7 @@ class MaterialCatalogControllerTest {
         CurrentOwnerHttpResolver resolver = resolver(ResolvedOwner.authenticated("user_server"));
         MaterialCatalogItem item = new MaterialCatalogItem("material_1", MaterialKind.PDF, "Guide",
                 RetentionClass.RETAINED, MaterialLifecycleState.ACTIVE, "version_1", 1,
-                CatalogProcessingStatus.READY, 100, 10,
+                CatalogProcessingStatus.READY, 100, CatalogSearchStatus.SEARCHABLE, 10,
                 Instant.parse("2026-07-20T00:00:00Z"));
         CapturingMaterialCatalogPort catalog = new CapturingMaterialCatalogPort(
                 new MaterialCatalogPage(List.of(item), 1, 20, 0));
@@ -34,6 +34,7 @@ class MaterialCatalogControllerTest {
         assertEquals("user_server", catalog.query.owner().ownerKey());
         assertEquals("0000", response.getCode());
         assertEquals("material_1", response.getData().items().get(0).materialId());
+        assertEquals("SEARCHABLE", response.getData().items().get(0).searchStatus());
     }
 
     @Test
@@ -50,6 +51,24 @@ class MaterialCatalogControllerTest {
         assertNull(response.getData());
     }
 
+    @Test
+    void conversationFilesAreListedThroughTheOwnerFencedScopeEndpoint() {
+        CurrentOwnerHttpResolver resolver = resolver(ResolvedOwner.authenticated("user_server"));
+        CapturingMaterialCatalogPort catalog = new CapturingMaterialCatalogPort(
+                new MaterialCatalogPage(List.of(), 0, 20, 0));
+        MaterialCatalogController controller = new MaterialCatalogController(resolver,
+                new MaterialCatalogService(catalog, prefix -> prefix + "_1",
+                        new MaterialScopePolicy()));
+
+        var response = controller.listScope("CONVERSATION", "conversation_1",
+                "ACTIVE", 20, 0);
+
+        assertEquals("0000", response.getCode());
+        assertEquals(MaterialScopeType.CONVERSATION, catalog.scopeQuery.scopeType());
+        assertEquals("conversation_1", catalog.scopeQuery.scopeKey());
+        assertEquals("user_server", catalog.scopeQuery.owner().ownerKey());
+    }
+
     private CurrentOwnerHttpResolver resolver(ResolvedOwner owner) {
         // A small override keeps this transport test independent of JVM agent attachment.
         return new CurrentOwnerHttpResolver() {
@@ -63,6 +82,7 @@ class MaterialCatalogControllerTest {
     private static final class CapturingMaterialCatalogPort implements MaterialCatalogPort {
         private final MaterialCatalogPage page;
         private MaterialCatalogQuery query;
+        private MaterialScopeCatalogQuery scopeQuery;
 
         private CapturingMaterialCatalogPort(MaterialCatalogPage page) {
             this.page = page;
@@ -75,13 +95,19 @@ class MaterialCatalogControllerTest {
         }
 
         @Override
+        public MaterialCatalogPage findMaterialsForScope(MaterialScopeCatalogQuery query) {
+            this.scopeQuery = query;
+            return page;
+        }
+
+        @Override
         public Optional<MaterialCatalogDetails> findMaterial(CatalogOwner owner, String materialId) {
             return Optional.empty();
         }
 
         @Override
         public boolean scopeTargetOwned(CatalogOwner owner, MaterialScopeType scopeType, String scopeKey) {
-            return false;
+            return true;
         }
 
         @Override

@@ -25,28 +25,18 @@ import { createMaterialCapabilitiesClient } from '@/api/material-capabilities';
 import { createChartbookClient } from '@/api/chartbook';
 import { ConversationAttachmentTray } from '@/features/sources/ConversationAttachmentTray';
 import type { MaterialUploaderHandle } from '@/features/materials/MaterialUploader';
+import type { Chartbook, MaterialCatalogCard } from '@/features/materials/material-types';
 import { isTerminalUploadStatus } from '@/features/materials/upload-machine';
-import { ComposerSourceMenu } from '@/features/sources/ComposerSourceMenu';
-import { SourceUseControl } from '@/features/sources/SourceUseControl';
+import { FilesPanel } from '@/features/files/FilesPanel';
+import { buildFilesPanelGroups } from '@/features/files/files-panel-model';
 import { DirectConfirmationPanel } from '@/features/sources/DirectConfirmationPanel';
-import { type SourceOption } from '@/features/sources/SourcePicker';
-import { type SourceMode } from '@/features/sources/source-selection';
-import {
-  buildSourceUseOverride,
-  hasSingleReadyImageSelection,
-  type SourceUsePreference,
-} from '@/features/sources/source-intent';
 import {
   buildDirectClarifications,
   type DirectClarification,
   type DirectClarificationResolution,
 } from '@/features/sources/direct-confirmation';
 import {
-  readConversationAttachmentSelection,
   readConversationAttachments,
-  reconcileAttachmentSelection,
-  selectedAttachmentIdsForRequest,
-  writeConversationAttachmentSelection,
   writeConversationAttachments,
   type ConversationAttachment,
 } from '@/features/sources/conversation-attachments';
@@ -644,6 +634,7 @@ function DrawioPageContent() {
 
   // Sidebar State
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isFilesPanelOpen, setIsFilesPanelOpen] = useState(false);
 
   // Stream State
   const streamAbortRef = useRef<AbortController | null>(null);
@@ -790,18 +781,19 @@ function DrawioPageContent() {
   const capabilitiesClient = useMemo(() => createMaterialCapabilitiesClient({ baseUrl: API_CONFIG.BASE_URL }), []);
   const chartbookClient = useMemo(() => createChartbookClient({ baseUrl: API_CONFIG.BASE_URL }), []);
   const [conversationAttachments, setConversationAttachments] = useState<ConversationAttachment[]>([]);
-  const [selectedAttachmentUploadIds, setSelectedAttachmentUploadIds] = useState<string[]>([]);
   const attachmentUploaderRef = useRef<MaterialUploaderHandle>(null);
   const [attachmentSessionLoaded, setAttachmentSessionLoaded] = useState('');
   const [restoredAttachments, setRestoredAttachments] = useState<ConversationAttachment[]>([]);
-  const [sourceMode, setSourceMode] = useState<SourceMode>('AUTO');
-  const [sourceUsePreference, setSourceUsePreference] = useState<SourceUsePreference>('AUTO');
-  const [selectedVersionIds, setSelectedVersionIds] = useState<string[]>([]);
-  const [sourceOptions, setSourceOptions] = useState<SourceOption[]>([]);
-  const [activeSourceScopes, setActiveSourceScopes] = useState<string[]>([]);
   const [acceptedMaterialMimeTypes, setAcceptedMaterialMimeTypes] = useState<string[]>([
     'application/pdf', 'image/png', 'image/jpeg',
   ]);
+  const [filesChartbook, setFilesChartbook] = useState<Chartbook | null>(null);
+  const [conversationFiles, setConversationFiles] = useState<MaterialCatalogCard[]>([]);
+  const [chartbookFiles, setChartbookFiles] = useState<MaterialCatalogCard[]>([]);
+  const [isFilesLoading, setIsFilesLoading] = useState(false);
+  const [filesError, setFilesError] = useState('');
+  const [busyFileId, setBusyFileId] = useState('');
+  const filesRequestRef = useRef(0);
   const [historyDiagrams, setHistoryDiagrams] = useState<DiagramSummaryResponseDTO[]>([]);
   const [isHistoryLoading, setIsHistoryLoading] = useState(false);
   const [historyError, setHistoryError] = useState('');
@@ -1471,27 +1463,15 @@ function DrawioPageContent() {
   }, [currentSessionId]);
 
   useEffect(() => {
-    // A confirmation only applies while the exact attachment selection remains active.
-    setDirectConfirmation(null);
-  }, [selectedAttachmentUploadIds]);
-
-  useEffect(() => {
     const attachmentSessionId = sessionId.trim();
     if (!attachmentSessionId) {
       setConversationAttachments([]);
-      setSelectedAttachmentUploadIds([]);
       setAttachmentSessionLoaded('');
       setRestoredAttachments([]);
       return;
     }
     const restored = readConversationAttachments(window.sessionStorage, attachmentSessionId);
-    const restoredSelection = readConversationAttachmentSelection(window.sessionStorage, attachmentSessionId);
     setConversationAttachments(restored);
-    // Existing sessions created before R3.1 keep their previous "all attachments" behavior.
-    setSelectedAttachmentUploadIds(reconcileAttachmentSelection(
-      restored,
-      restoredSelection ?? restored.map(attachment => attachment.uploadId),
-    ));
     setRestoredAttachments(restored);
     setAttachmentSessionLoaded(attachmentSessionId);
   }, [sessionId]);
@@ -1500,16 +1480,7 @@ function DrawioPageContent() {
     const attachmentSessionId = sessionId.trim();
     if (!attachmentSessionId || attachmentSessionLoaded !== attachmentSessionId) return;
     writeConversationAttachments(window.sessionStorage, attachmentSessionId, conversationAttachments);
-    writeConversationAttachmentSelection(
-      window.sessionStorage,
-      attachmentSessionId,
-      reconcileAttachmentSelection(conversationAttachments, selectedAttachmentUploadIds),
-    );
-  }, [attachmentSessionLoaded, conversationAttachments, selectedAttachmentUploadIds, sessionId]);
-
-  useEffect(() => {
-    setSelectedAttachmentUploadIds(previous => reconcileAttachmentSelection(conversationAttachments, previous));
-  }, [conversationAttachments]);
+  }, [attachmentSessionLoaded, conversationAttachments, sessionId]);
 
   useEffect(() => {
     if (!attachmentSessionLoaded || restoredAttachments.length === 0) return;
@@ -1538,55 +1509,56 @@ function DrawioPageContent() {
 
   useEffect(() => {
     let cancelled = false;
-    const loadSources = async () => {
-      try {
-        const [capabilities, library, chartbooks, diagramMaterials] = await Promise.all([
-          capabilitiesClient.get(),
-          materialClient.list({ lifecycleState: 'ACTIVE', limit: 100 }),
-          chartbookClient.list(),
-          currentDiagramId
-            ? materialClient.listScope('DIAGRAM', currentDiagramId, { lifecycleState: 'ACTIVE', limit: 100 }).catch(() => null)
-            : Promise.resolve(null),
-        ]);
-        const currentChartbook = currentDiagramId
-          ? chartbooks.find(chartbook => chartbook.diagramIds.includes(currentDiagramId))
-          : undefined;
-        const chartbookMaterials = await Promise.all((currentChartbook?.materialIds || []).map(async materialId => {
-          try { return await materialClient.details(materialId); } catch { return null; }
-        }));
-        if (cancelled) return;
-        const chartbookOptions = chartbookMaterials.flatMap(details => {
-          const version = details?.versions.slice().sort((left, right) => right.versionNo - left.versionNo)[0];
-          return details && version ? [{
-            versionId: version.versionId,
-            label: details.material.displayName,
-            group: 'CHARTBOOK' as const,
-          }] : [];
-        });
-        const chartbookMaterialIds = new Set(currentChartbook?.materialIds || []);
-        const diagramOptions = (diagramMaterials?.items || []).flatMap(material => material.latestVersionId ? [{
-          versionId: material.latestVersionId,
-          label: material.displayName,
-          group: 'CURRENT_DIAGRAM' as const,
-        }] : []);
-        const libraryOptions = library.items.flatMap(material => material.latestVersionId && !chartbookMaterialIds.has(material.materialId) ? [{
-          versionId: material.latestVersionId,
-          label: material.displayName,
-          group: 'PERSONAL_LIBRARY' as const,
-        }] : []);
-        setAcceptedMaterialMimeTypes(capabilities.acceptedMimeTypes);
-        setSourceOptions([...diagramOptions, ...chartbookOptions, ...libraryOptions]);
-        setActiveSourceScopes([
-          ...(currentDiagramId ? ['Current diagram'] : []),
-          ...(currentChartbook ? [`Chartbook "${currentChartbook.name}"`] : []),
-        ]);
-      } catch (error) {
-        if (!cancelled) console.warn('Failed to load selectable material sources:', error);
-      }
-    };
-    void loadSources();
+    void capabilitiesClient.get()
+      .then(capabilities => {
+        if (!cancelled) setAcceptedMaterialMimeTypes(capabilities.acceptedMimeTypes);
+      })
+      .catch(error => {
+        if (!cancelled) console.warn('Failed to load material capabilities:', error);
+      });
     return () => { cancelled = true; };
-  }, [capabilitiesClient, chartbookClient, currentDiagramId, materialClient]);
+  }, [capabilitiesClient]);
+
+  const refreshFilesPanel = useCallback(async () => {
+    const requestId = ++filesRequestRef.current;
+    const conversationId = sessionId.trim();
+    if (!conversationId) {
+      setFilesChartbook(null);
+      setConversationFiles([]);
+      setChartbookFiles([]);
+      return;
+    }
+    setIsFilesLoading(true);
+    setFilesError('');
+    try {
+      const chartbook = currentDiagramId
+        ? await chartbookClient.forDiagram(currentDiagramId)
+        : null;
+      const [conversationPage, chartbookPage] = await Promise.all([
+        materialClient.listScope('CONVERSATION', conversationId,
+          { lifecycleState: 'ACTIVE', limit: 100 }),
+        chartbook
+          ? materialClient.listScope('CHARTBOOK', chartbook.chartbookId,
+            { lifecycleState: 'ACTIVE', limit: 100 })
+          : Promise.resolve(null),
+      ]);
+      if (requestId !== filesRequestRef.current) return;
+      setFilesChartbook(chartbook);
+      setConversationFiles(conversationPage.items);
+      setChartbookFiles(chartbookPage?.items || []);
+    } catch (error) {
+      if (requestId !== filesRequestRef.current) return;
+      console.warn('Failed to load files panel:', error);
+      setFilesError('Failed to load files.');
+    } finally {
+      if (requestId === filesRequestRef.current) setIsFilesLoading(false);
+    }
+  }, [chartbookClient, currentDiagramId, materialClient, sessionId]);
+
+  useEffect(() => {
+    if (!isFilesPanelOpen) return;
+    void refreshFilesPanel();
+  }, [conversationAttachments, isFilesPanelOpen, refreshFilesPanel]);
 
   useEffect(() => {
     currentUserRef.current = currentUser;
@@ -2445,18 +2417,8 @@ function DrawioPageContent() {
           canvasImageDataUrl: canvasContext.canvasImageDataUrl,
           canvasImageRendererVersion: canvasContext.canvasImageRendererVersion,
           modelCredentialId: activeModelConfig?.modelCredentialId || undefined,
-          attachmentUploadIds: selectedAttachmentIdsForRequest(
-            conversationAttachments,
-            selectedAttachmentUploadIds,
-          ),
-          sourceMode,
-          ...buildSourceUseOverride(
-            sourceUsePreference,
-            hasSingleReadyImageSelection(conversationAttachments, selectedAttachmentUploadIds),
-          ),
           directClarifications: options.directClarifications,
           directConfirmationSourceVersionId: options.directConfirmationSourceVersionId,
-          selectedVersionIds,
           selectedCellIds: selectedCellsRef.current?.cellIds,
           selectionCanvasVersion: selectedCellsRef.current?.canvasVersion,
           selectionContentHash: selectedCellsRef.current?.contentHash,
@@ -3739,6 +3701,28 @@ function DrawioPageContent() {
     { label: 'Architecture', text: 'Create an architecture diagram' },
     { label: 'Flowchart', text: 'Create a flowchart' }
   ];
+  const filesPanelGroups = buildFilesPanelGroups({
+    hasChartbook: filesChartbook !== null,
+    conversationFiles,
+    chartbookFiles,
+  });
+  const runFileAction = async (file: MaterialCatalogCard, action: () => Promise<unknown>) => {
+    setBusyFileId(file.materialId);
+    setFilesError('');
+    try {
+      await action();
+      await refreshFilesPanel();
+    } catch (error) {
+      console.warn('Files action failed:', error);
+      setFilesError('File action failed. Please try again.');
+    } finally {
+      setBusyFileId('');
+    }
+  };
+  const openFileUrl = (url: string) => {
+    // The API response controls Content-Disposition; storage identities never reach the browser.
+    window.open(url, '_blank', 'noopener,noreferrer');
+  };
   const historyEntries = buildDiagramHistoryEntries(historyDiagrams);
   const activeCanvasSession = sessions.find(session => session.id === currentSessionId);
   const formatHistoryUpdatedAt = (updatedAtMs: number) => {
@@ -3769,7 +3753,10 @@ function DrawioPageContent() {
         </button>
         <button
           type="button"
-          onClick={() => setIsSidebarOpen(prev => !prev)}
+          onClick={() => {
+            setIsSidebarOpen(prev => !prev);
+            setIsFilesPanelOpen(false);
+          }}
           className={`grid h-10 w-10 place-items-center rounded-lg border transition sm:h-9 sm:w-9 ${
             isSidebarOpen
               ? 'border-stone-300 bg-white text-zinc-800 shadow-sm'
@@ -3778,6 +3765,24 @@ function DrawioPageContent() {
           title="Diagram history"
         >
           <Icons.MessageSquare className="h-5 w-5" />
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            setIsFilesPanelOpen(prev => !prev);
+            setIsSidebarOpen(false);
+          }}
+          className={`grid h-10 w-10 place-items-center rounded-lg border transition sm:h-9 sm:w-9 ${
+            isFilesPanelOpen
+              ? 'border-stone-300 bg-white text-zinc-800 shadow-sm'
+              : 'border-transparent text-zinc-500 hover:bg-white hover:text-zinc-800 hover:shadow-sm'
+          }`}
+          title="Files"
+        >
+          <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5" fill="none"
+            stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M4 4h6l2 2h8v14H4z" />
+          </svg>
         </button>
         <button
           type="button"
@@ -3946,6 +3951,74 @@ function DrawioPageContent() {
             )}
           </div>
         </div>
+      )}
+
+      {isFilesPanelOpen && (
+        <FilesPanel
+          groups={filesPanelGroups}
+          uploads={conversationAttachments}
+          chartbookName={filesChartbook?.name}
+          loading={isFilesLoading}
+          error={filesError}
+          disabled={isSending || !selectedAgentId}
+          busyMaterialId={busyFileId}
+          onClose={() => setIsFilesPanelOpen(false)}
+          onUpload={() => attachmentUploaderRef.current?.openPicker()}
+          onRetryUpload={upload => {
+            attachmentUploaderRef.current?.retryUpload(upload.uploadId);
+          }}
+          onPreview={file => {
+            if (!file.latestVersionId) return;
+            openFileUrl(materialClient.previewUrl(file.materialId, file.latestVersionId));
+          }}
+          onDownload={file => {
+            if (!file.latestVersionId) return;
+            openFileUrl(materialClient.downloadUrl(file.materialId, file.latestVersionId));
+          }}
+          onAddToChartbook={file => {
+            if (!filesChartbook) return;
+            void runFileAction(file, () => chartbookClient.addFile(
+              filesChartbook.chartbookId, file.materialId, crypto.randomUUID(),
+            ));
+          }}
+          onRemoveFromConversation={file => {
+            void runFileAction(file, async () => {
+              if (file.retentionClass === 'TEMPORARY') {
+                await materialClient.remove(file.materialId, crypto.randomUUID());
+                setConversationAttachments(previous => previous.filter(
+                  attachment => attachment.materialId !== file.materialId,
+                ));
+                return;
+              }
+              const details = await materialClient.details(file.materialId);
+              const conversationScope = details.scopes.find(scope => (
+                scope.scopeType === 'CONVERSATION' && scope.scopeKey === sessionId
+              ));
+              if (!conversationScope) return;
+              if (details.scopes.length > 1) {
+                await materialClient.removeScope(file.materialId, conversationScope.linkId);
+                setConversationAttachments(previous => previous.filter(
+                  attachment => attachment.materialId !== file.materialId,
+                ));
+                return;
+              }
+              // A sole conversation scope has no other consumer, so normal recycle semantics apply.
+              await materialClient.remove(file.materialId, crypto.randomUUID());
+              setConversationAttachments(previous => previous.filter(
+                attachment => attachment.materialId !== file.materialId,
+              ));
+            });
+          }}
+          onRemoveFromChartbook={file => {
+            if (!filesChartbook) return;
+            void runFileAction(file, () => chartbookClient.removeFile(
+              filesChartbook.chartbookId, file.materialId, crypto.randomUUID(),
+            ));
+          }}
+          onRetry={file => {
+            void runFileAction(file, () => materialClient.reprocess(file.materialId, crypto.randomUUID()));
+          }}
+        />
       )}
 
       {/* Main Layout */}
@@ -4388,14 +4461,6 @@ function DrawioPageContent() {
               </div>
             )}
 
-            {hasSingleReadyImageSelection(conversationAttachments, selectedAttachmentUploadIds) && (
-              <SourceUseControl
-                value={sourceUsePreference}
-                onChange={setSourceUsePreference}
-                disabled={isSending}
-              />
-            )}
-
             {selectedSkills.length > 0 && (
               <div className="flex flex-wrap gap-1.5 mb-2">
                 {selectedSkills.map(name => (
@@ -4434,9 +4499,7 @@ function DrawioPageContent() {
                 diagramId={currentDiagramId}
                 acceptedMimeTypes={acceptedMaterialMimeTypes}
                 attachments={conversationAttachments}
-                selectedUploadIds={selectedAttachmentUploadIds}
                 onChange={setConversationAttachments}
-                onSelectedUploadIdsChange={setSelectedAttachmentUploadIds}
                 onPrepareUpload={async () => {
                   const attachmentSessionId = await initializeAttachmentSession();
                   if (!attachmentSessionId) throw new Error('无法创建附件会话，请重试。');
@@ -4478,21 +4541,8 @@ function DrawioPageContent() {
               />
 
               <div className="mt-auto flex items-center justify-between gap-3 pt-1">
-                {/* Keep the lightweight quota status beside the add-sources trigger. */}
+                {/* File management lives in Files; the composer keeps only lightweight quota status. */}
                 <div className="flex items-center gap-1.5">
-                  <ComposerSourceMenu
-                    disabled={isSending || !selectedAgentId}
-                    sourceMode={sourceMode}
-                    onSourceModeChange={setSourceMode}
-                    options={sourceOptions}
-                    selectedVersionIds={selectedVersionIds}
-                    onSelectedVersionIdsChange={setSelectedVersionIds}
-                    activeScopeLabels={[
-                      ...(selectedAttachmentUploadIds.length > 0 ? ['Conversation attachments'] : []),
-                      ...activeSourceScopes,
-                    ]}
-                    onUploadLocal={() => attachmentUploaderRef.current?.openPicker()}
-                  />
                   {demoQuotaState.visible && !demoQuotaState.exhausted && (
                     <span className="flex items-center gap-1.5 whitespace-nowrap font-mono text-[11px] font-medium text-zinc-500" title={demoQuotaState.label}>
                       <span className={`h-1.5 w-1.5 rounded-full ${demoQuotaState.remaining <= 1 ? 'bg-amber-500' : 'bg-emerald-500'}`} aria-hidden="true" />

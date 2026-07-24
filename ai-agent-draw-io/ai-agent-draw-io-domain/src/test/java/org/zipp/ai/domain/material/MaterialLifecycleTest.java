@@ -123,4 +123,16 @@ class MaterialLifecycleTest {
         assertEquals(MaterialLifecycleState.ACTIVE, registered.lifecycleState());
         assertEquals(NOW.plus(Duration.ofDays(3)), registered.expiresAt());
     }
+
+    @Test
+    void retainedTrashWithoutScopesCanBeRehydratedButNeedsAnExplicitRestoreTarget() {
+        Material material = Material.rehydrateTrashed(
+                "mat_orphaned", OwnerType.USER, "usr_1", MaterialKind.PDF, "Guide",
+                RetentionClass.RETAINED, null, 3, NOW, null,
+                NOW.plus(Duration.ofDays(30)), Set.of());
+
+        assertEquals(MaterialLifecycleState.TRASHED, material.lifecycleState());
+        assertEquals(0, material.scopeLinks().size());
+        assertThrows(IllegalStateException.class, () -> material.restore(NOW.plusSeconds(1)));
+    }
 }

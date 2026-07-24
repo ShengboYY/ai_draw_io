@@ -54,6 +54,7 @@ export type MaterialCatalogCard = {
   latestVersionNo?: number;
   processingStatus: string;
   progress: number;
+  searchStatus: string;
   pageCount?: number;
   updatedAt: string;
 };

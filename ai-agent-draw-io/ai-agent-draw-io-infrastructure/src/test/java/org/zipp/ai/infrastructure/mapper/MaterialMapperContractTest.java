@@ -12,6 +12,19 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class MaterialMapperContractTest {
 
     @Test
+    void catalogScopeReadsFenceExpiryAndProjectIndependentSearchReadiness() throws Exception {
+        String mapper = resource("mybatis/mapper/material_catalog_mapper.xml");
+
+        assertTrue(mapper.contains("m.expires_at &gt; UTC_TIMESTAMP(3)"));
+        assertTrue(mapper.contains("search_projection.state = 'READY'"));
+        assertTrue(mapper.contains("search_generation.state = 'ACTIVE'"));
+        assertTrue(mapper.contains("<update id=\"restoreTemporaryWhenConversationOnly\">"));
+        assertTrue(mapper.contains("<update id=\"trashOwnedMaterial\">"));
+        assertTrue(mapper.contains("INTERVAL 24 HOUR"));
+        assertTrue(mapper.contains("scope_type IN ('LIBRARY', 'DIAGRAM', 'CHARTBOOK')"));
+    }
+
+    @Test
     void materialMapperAlwaysScopesReadsAndTtlWritesByOwnerAndGeneration() throws Exception {
         String mapper = resource("mybatis/mapper/material_foundation_mapper.xml");
 

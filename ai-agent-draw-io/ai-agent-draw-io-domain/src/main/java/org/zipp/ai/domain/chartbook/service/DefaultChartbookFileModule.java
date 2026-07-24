@@ -25,7 +25,7 @@ public final class DefaultChartbookFileModule implements ChartbookFileModule {
     @Override
     public ChartbookFileResult add(AddChartbookFileCommand command) {
         command.owner().requireRegisteredUser();
-        ChartbookView chartbook = activeChartbook(command);
+        ChartbookView chartbook = activeChartbook(command.owner(), command.chartbookId());
         MaterialCatalogDetails file = materials.findMaterial(command.owner(), command.materialId());
         if (file.material().lifecycleState() != MaterialLifecycleState.ACTIVE) {
             throw new CatalogOperationException(CatalogErrorCode.MATERIAL_NOT_ACTIVE);
@@ -41,12 +41,31 @@ public final class DefaultChartbookFileModule implements ChartbookFileModule {
                     MaterialScopeType.CHARTBOOK, command.chartbookId()));
         }
 
-        return new ChartbookFileResult(activeChartbook(command),
+        return new ChartbookFileResult(activeChartbook(command.owner(), command.chartbookId()),
                 materials.findMaterial(command.owner(), command.materialId()));
     }
 
-    private ChartbookView activeChartbook(AddChartbookFileCommand command) {
-        ChartbookView chartbook = chartbooks.find(command.owner(), command.chartbookId())
+    @Override
+    public ChartbookFileResult remove(RemoveChartbookFileCommand command) {
+        command.owner().requireRegisteredUser();
+        activeChartbook(command.owner(), command.chartbookId());
+        MaterialCatalogDetails file = materials.findMaterial(command.owner(), command.materialId());
+        file.findScope(MaterialScopeType.CHARTBOOK, command.chartbookId()).ifPresent(scope -> {
+            if (file.scopes().size() == 1) {
+                // The final association and active lifecycle state change in one catalog transaction.
+                materials.removeLastScopeAndTrash(
+                        command.owner(), command.materialId(), scope.linkId());
+            } else {
+                materials.removeScope(command.owner(), command.materialId(), scope.linkId());
+            }
+        });
+        // Exact scope identity makes a repeated delete return the same final view.
+        return new ChartbookFileResult(activeChartbook(command.owner(), command.chartbookId()),
+                materials.findMaterial(command.owner(), command.materialId()));
+    }
+
+    private ChartbookView activeChartbook(CatalogOwner owner, String chartbookId) {
+        ChartbookView chartbook = chartbooks.find(owner, chartbookId)
                 .orElseThrow(() -> new CatalogOperationException(CatalogErrorCode.CHARTBOOK_NOT_FOUND));
         if (chartbook.status() != ChartbookStatus.ACTIVE) {
             throw new CatalogOperationException(CatalogErrorCode.CHARTBOOK_ARCHIVED);

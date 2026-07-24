@@ -16,6 +16,7 @@ public class MaterialCatalogItemPO {
     private String ingestState;
     private String processingState;
     private String processingStage;
+    private String searchStatus;
     private int progress;
     private Integer pageCount;
     private Instant updatedAt;

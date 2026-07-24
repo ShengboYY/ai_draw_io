@@ -25,7 +25,10 @@ public final class MaterialCatalogService {
     }
 
     public MaterialCatalogPage findMaterialsForScope(MaterialScopeCatalogQuery query) {
-        query.owner().requireRegisteredUser();
+        // Anonymous uploads are visible only through their exact owner-fenced conversation scope.
+        if (query.scopeType() != MaterialScopeType.CONVERSATION) {
+            query.owner().requireRegisteredUser();
+        }
         if (!catalog.scopeTargetOwned(query.owner(), query.scopeType(), query.scopeKey())) {
             throw new CatalogOperationException(CatalogErrorCode.SCOPE_TARGET_NOT_FOUND);
         }
@@ -64,9 +67,37 @@ public final class MaterialCatalogService {
         String scopeLinkId = required(linkId, "linkId");
         scopePolicy.validateRemoval(material, scopeLinkId);
         if (!catalog.removeScope(owner, materialId, scopeLinkId)) {
+            MaterialCatalogDetails concurrent = findMaterial(owner, materialId);
+            if (concurrent.scopes().stream().noneMatch(scope -> scope.linkId().equals(scopeLinkId))) {
+                return concurrent;
+            }
             throw new CatalogOperationException(CatalogErrorCode.CATALOG_CONFLICT);
         }
         return findMaterial(owner, materialId);
+    }
+
+    public MaterialCatalogDetails removeLastScopeAndTrash(
+            CatalogOwner owner, String materialId, String linkId) {
+        owner.requireRegisteredUser();
+        MaterialCatalogDetails material = findMaterial(owner, materialId);
+        String scopeLinkId = required(linkId, "linkId");
+        if (lastScopeRemovalReached(material, scopeLinkId)) return material;
+        if (material.material().retentionClass() != RetentionClass.RETAINED
+                || material.scopes().size() != 1
+                || !material.scopes().get(0).linkId().equals(scopeLinkId)) {
+            throw new CatalogOperationException(CatalogErrorCode.CATALOG_CONFLICT);
+        }
+        if (!catalog.removeLastScopeAndTrash(owner, materialId, scopeLinkId)) {
+            MaterialCatalogDetails concurrent = findMaterial(owner, materialId);
+            if (lastScopeRemovalReached(concurrent, scopeLinkId)) return concurrent;
+            throw new CatalogOperationException(CatalogErrorCode.CATALOG_CONFLICT);
+        }
+        return findMaterial(owner, materialId);
+    }
+
+    private boolean lastScopeRemovalReached(MaterialCatalogDetails material, String scopeLinkId) {
+        return material.material().lifecycleState() == MaterialLifecycleState.TRASHED
+                && material.scopes().stream().noneMatch(scope -> scope.linkId().equals(scopeLinkId));
     }
 
     private String required(String value, String field) {

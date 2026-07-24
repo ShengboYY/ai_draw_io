@@ -59,6 +59,9 @@ export const createChartbookClient = (options: ChartbookClientOptions) => {
       }, true);
     },
     list: () => request<Chartbook[]>(baseUrl, fetchImplementation, csrfHeaders, '/chartbooks', { method: 'GET' }),
+    forDiagram: (diagramId: string) => request<Chartbook | null>(
+      baseUrl, fetchImplementation, csrfHeaders,
+      `/diagrams/${encodeURIComponent(diagramId)}/chartbook`, { method: 'GET' }),
     details: (chartbookId: string) => request<Chartbook>(baseUrl, fetchImplementation, csrfHeaders,
       `/chartbooks/${encodeURIComponent(chartbookId)}`, { method: 'GET' }),
     rename: (chartbookId: string, name: string) => {
@@ -72,6 +75,12 @@ export const createChartbookClient = (options: ChartbookClientOptions) => {
       request<MaterialCatalogDetails>(baseUrl, fetchImplementation, csrfHeaders,
         `/chartbooks/${encodeURIComponent(chartbookId)}/files/${encodeURIComponent(materialId)}`, {
           method: 'POST',
+          headers: { 'Idempotency-Key': idempotencyKey },
+        }, true),
+    removeFile: (chartbookId: string, materialId: string, idempotencyKey: string) =>
+      request<MaterialCatalogDetails>(baseUrl, fetchImplementation, csrfHeaders,
+        `/chartbooks/${encodeURIComponent(chartbookId)}/files/${encodeURIComponent(materialId)}`, {
+          method: 'DELETE',
           headers: { 'Idempotency-Key': idempotencyKey },
         }, true),
     // Retained for one compatibility window while existing Library pages use the legacy contract.

@@ -28,7 +28,8 @@ class MySqlMaterialCatalogAdapterTest {
         assertFalse(adapter.scopeTargetOwned(OWNER, MaterialScopeType.LIBRARY, "user_2"));
         assertTrue(adapter.scopeTargetOwned(OWNER, MaterialScopeType.DIAGRAM, "diagram_1"));
         assertTrue(adapter.scopeTargetOwned(OWNER, MaterialScopeType.CHARTBOOK, "book_1"));
-        assertFalse(adapter.scopeTargetOwned(OWNER, MaterialScopeType.CONVERSATION, "conversation_1"));
+        // Conversation ownership is enforced by the material owner tuple plus its exact scope link.
+        assertTrue(adapter.scopeTargetOwned(OWNER, MaterialScopeType.CONVERSATION, "conversation_1"));
     }
 
     @Test
@@ -40,6 +41,7 @@ class MySqlMaterialCatalogAdapterTest {
                 case "lockOwnedActiveMaterial" -> "material_1";
                 case "countOwnedScopes" -> 2;
                 case "deleteOwnedScope" -> 1;
+                case "restoreTemporaryWhenConversationOnly" -> 1;
                 default -> unsupported(method);
             };
         });
@@ -48,6 +50,8 @@ class MySqlMaterialCatalogAdapterTest {
                 .removeScope(OWNER, "material_1", "scope_2"));
         assertTrue(calls.indexOf("lockOwnedActiveMaterial") < calls.indexOf("countOwnedScopes"));
         assertTrue(calls.indexOf("countOwnedScopes") < calls.indexOf("deleteOwnedScope"));
+        assertTrue(calls.indexOf("deleteOwnedScope")
+                < calls.indexOf("restoreTemporaryWhenConversationOnly"));
     }
 
     @Test
@@ -60,6 +64,36 @@ class MySqlMaterialCatalogAdapterTest {
 
         assertFalse(new MySqlMaterialCatalogAdapter(mapper)
                 .removeScope(OWNER, "material_1", "scope_1"));
+    }
+
+    @Test
+    void finalScopeAndActiveLifecycleAreRemovedInOneTransaction() {
+        List<String> calls = new ArrayList<>();
+        IMaterialCatalogMapper mapper = proxy((method, args) -> {
+            calls.add(method);
+            return switch (method) {
+                case "lockOwnedActiveMaterial" -> "material_1";
+                case "countOwnedScopes", "deleteOwnedScope", "trashOwnedMaterial" -> 1;
+                default -> unsupported(method);
+            };
+        });
+
+        assertTrue(new MySqlMaterialCatalogAdapter(mapper)
+                .removeLastScopeAndTrash(OWNER, "material_1", "scope_1"));
+        assertTrue(calls.indexOf("deleteOwnedScope") < calls.indexOf("trashOwnedMaterial"));
+    }
+
+    @Test
+    void failedFinalLifecycleTransitionDoesNotReportTheDeletedScopeAsCommitted() {
+        IMaterialCatalogMapper mapper = proxy((method, args) -> switch (method) {
+            case "lockOwnedActiveMaterial" -> "material_1";
+            case "countOwnedScopes", "deleteOwnedScope" -> 1;
+            case "trashOwnedMaterial" -> 0;
+            default -> unsupported(method);
+        });
+
+        assertThrows(IllegalStateException.class, () -> new MySqlMaterialCatalogAdapter(mapper)
+                .removeLastScopeAndTrash(OWNER, "material_1", "scope_1"));
     }
 
     private static Object unsupported(String method) {

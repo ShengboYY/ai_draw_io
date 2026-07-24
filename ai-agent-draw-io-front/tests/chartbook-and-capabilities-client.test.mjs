@@ -79,6 +79,40 @@ test('chartbook client adds a file through the idempotent unified endpoint', asy
   assert.equal(calls[0].options.headers['X-XSRF-TOKEN'], 'csrf');
 });
 
+test('chartbook client finds a diagram chartbook and removes files idempotently', async () => {
+  const calls = [];
+  const responses = [
+    { code: '0000', data: { chartbookId: 'cb-1', name: 'Architecture' } },
+    {
+      code: '0000',
+      data: {
+        material: { materialId: 'material-1', retentionClass: 'TEMPORARY' },
+        versions: [],
+        scopes: [{ linkId: 'conversation-scope', scopeType: 'CONVERSATION', scopeKey: 'conversation-1' }],
+      },
+    },
+  ];
+  const client = createChartbookClient({
+    baseUrl: 'https://app.example/api/v1',
+    csrfHeaders: async () => ({ 'X-XSRF-TOKEN': 'csrf' }),
+    fetch: async (url, options = {}) => {
+      calls.push({ url, options });
+      return new Response(JSON.stringify(responses.shift()));
+    },
+  });
+
+  const chartbook = await client.forDiagram('diagram/1');
+  const file = await client.removeFile('cb/1', 'material/1', 'remove-file-1');
+
+  assert.equal(chartbook?.chartbookId, 'cb-1');
+  assert.equal(file.material.retentionClass, 'TEMPORARY');
+  assert.equal(calls[0].url, 'https://app.example/api/v1/diagrams/diagram%2F1/chartbook');
+  assert.equal(calls[1].url, 'https://app.example/api/v1/chartbooks/cb%2F1/files/material%2F1');
+  assert.equal(calls[1].options.method, 'DELETE');
+  assert.equal(calls[1].options.headers['Idempotency-Key'], 'remove-file-1');
+  assert.equal(calls[1].options.headers['X-XSRF-TOKEN'], 'csrf');
+});
+
 test('capability client reads stable disabled states without CSRF', async () => {
   const client = createMaterialCapabilitiesClient({
     baseUrl: 'https://app.example/api/v1',

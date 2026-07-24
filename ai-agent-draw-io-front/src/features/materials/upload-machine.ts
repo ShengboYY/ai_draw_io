@@ -37,6 +37,14 @@ export const createUploadState = (fileName: string): UploadState => ({
   retryable: false,
 });
 
+// The upload API uses SUCCEEDED while the presentation state uses READY.
+export const isReadyUploadStatus = (status: string) =>
+  ['SUCCEEDED', 'READY'].includes(status.trim().toUpperCase());
+
+export const isTerminalUploadStatus = (status: string) =>
+  ['SUCCEEDED', 'READY', 'PARTIAL_READY', 'FAILED', 'REJECTED', 'CANCELLED']
+    .includes(status.trim().toUpperCase());
+
 // The UI only dispatches events; this reducer owns every valid per-file state transition.
 export const transitionUpload = (state: UploadState, event: UploadEvent): UploadState => {
   switch (event.type) {
@@ -79,7 +87,7 @@ export const transitionUpload = (state: UploadState, event: UploadEvent): Upload
 
 const completed = (state: UploadState, status: string, errorCode?: string): UploadState => {
   const normalized = status.trim().toUpperCase();
-  const stage: UploadStage = normalized === 'READY'
+  const stage: UploadStage = isReadyUploadStatus(normalized)
     ? 'READY'
     : normalized === 'PARTIAL_READY'
       ? 'PARTIAL_READY'

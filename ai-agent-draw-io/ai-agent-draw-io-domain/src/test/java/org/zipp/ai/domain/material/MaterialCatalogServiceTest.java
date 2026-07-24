@@ -47,6 +47,26 @@ class MaterialCatalogServiceTest {
     }
 
     @Test
+    void anonymousOwnerCanBrowseOnlyItsCurrentConversationScope() {
+        CatalogOwner anonymous = new CatalogOwner(OwnerType.ANONYMOUS, "anon_1");
+        FakeCatalog catalog = new FakeCatalog(details(scopes("scope_1")));
+        MaterialCatalogService service = service(catalog);
+
+        MaterialCatalogPage page = service.findMaterialsForScope(new MaterialScopeCatalogQuery(
+                anonymous, MaterialScopeType.CONVERSATION, "conversation_1",
+                MaterialLifecycleState.ACTIVE, 20, 0));
+
+        assertEquals(1, page.items().size());
+        assertEquals("conversation_1", catalog.lastScopeKey);
+
+        CatalogOperationException error = assertThrows(CatalogOperationException.class,
+                () -> service.findMaterialsForScope(new MaterialScopeCatalogQuery(
+                        anonymous, MaterialScopeType.CHARTBOOK, "book_1",
+                        MaterialLifecycleState.ACTIVE, 20, 0)));
+        assertEquals(CatalogErrorCode.REGISTERED_USER_REQUIRED, error.code());
+    }
+
+    @Test
     void scopeAdditionRequiresAnOwnedDurableTarget() {
         FakeCatalog catalog = new FakeCatalog(details(scopes("scope_1")));
         catalog.targetOwned = false;
@@ -88,6 +108,33 @@ class MaterialCatalogServiceTest {
     }
 
     @Test
+    void concurrentScopeRemovalReturnsTheAlreadyReachedFinalState() {
+        FakeCatalog catalog = new FakeCatalog(details(List.of(
+                new MaterialScopeReference("scope_1", MaterialScopeType.LIBRARY, "user_1"),
+                new MaterialScopeReference("scope_2", MaterialScopeType.CHARTBOOK, "book_1"))));
+        catalog.removeSucceedsAfterMutation = false;
+        MaterialCatalogService service = service(catalog);
+
+        MaterialCatalogDetails removed = service.removeScope(USER, "material_1", "scope_2");
+
+        assertTrue(removed.scopes().stream().noneMatch(scope -> scope.linkId().equals("scope_2")));
+    }
+
+    @Test
+    void lateFinalScopeRemovalReturnsTheAlreadyTrashedStateWithoutAnotherWrite() {
+        FakeCatalog catalog = new FakeCatalog(details(
+                List.of(), MaterialLifecycleState.TRASHED));
+        MaterialCatalogService service = service(catalog);
+
+        MaterialCatalogDetails removed = service.removeLastScopeAndTrash(
+                USER, "material_1", "scope_1");
+
+        assertEquals(MaterialLifecycleState.TRASHED, removed.material().lifecycleState());
+        assertEquals(0, removed.scopes().size());
+        assertEquals(0, catalog.lastScopeRemovalCalls);
+    }
+
+    @Test
     void personalLibraryAliasesAreCanonicalizedAndFailedWritesAreNotReportedAsSuccess() {
         FakeCatalog catalog = new FakeCatalog(details(scopes("scope_1")));
         MaterialCatalogService service = service(catalog);
@@ -108,9 +155,15 @@ class MaterialCatalogServiceTest {
     }
 
     private static MaterialCatalogDetails details(List<MaterialScopeReference> scopes) {
+        return details(scopes, MaterialLifecycleState.ACTIVE);
+    }
+
+    private static MaterialCatalogDetails details(
+            List<MaterialScopeReference> scopes, MaterialLifecycleState lifecycleState) {
         MaterialCatalogItem item = new MaterialCatalogItem("material_1", MaterialKind.PDF, "Guide",
-                RetentionClass.RETAINED, MaterialLifecycleState.ACTIVE, "version_1", 1,
-                CatalogProcessingStatus.READY, 100, 10, Instant.parse("2026-07-20T00:00:00Z"));
+                RetentionClass.RETAINED, lifecycleState, "version_1", 1,
+                CatalogProcessingStatus.READY, 100, CatalogSearchStatus.SEARCHABLE,
+                10, Instant.parse("2026-07-20T00:00:00Z"));
         return new MaterialCatalogDetails(item, List.of(new MaterialVersionSummary(
                 "version_1", 1, "application/pdf", 100, 10,
                 CatalogProcessingStatus.READY, 100, Instant.parse("2026-07-20T00:00:00Z"))), scopes);
@@ -124,6 +177,8 @@ class MaterialCatalogServiceTest {
         private MaterialCatalogDetails details;
         private boolean targetOwned = true;
         private boolean addSucceeds = true;
+        private boolean removeSucceedsAfterMutation = true;
+        private int lastScopeRemovalCalls;
         private String lastScopeKey;
 
         private FakeCatalog(MaterialCatalogDetails details) {
@@ -168,7 +223,14 @@ class MaterialCatalogServiceTest {
                     .filter(scope -> !scope.linkId().equals(linkId)).toList();
             if (updated.size() == details.scopes().size()) return false;
             details = new MaterialCatalogDetails(details.material(), details.versions(), updated);
-            return true;
+            return removeSucceedsAfterMutation;
+        }
+
+        @Override
+        public boolean removeLastScopeAndTrash(
+                CatalogOwner owner, String materialId, String linkId) {
+            lastScopeRemovalCalls++;
+            return false;
         }
     }
 }

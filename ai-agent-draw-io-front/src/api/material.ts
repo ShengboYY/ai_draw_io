@@ -113,7 +113,7 @@ export const createMaterialClient = (options: MaterialClientOptions) => {
       return request<MaterialCatalogPage>(`/materials${suffix}`);
     },
 
-    listScope: (scopeType: 'DIAGRAM' | 'CHARTBOOK', scopeId: string,
+    listScope: (scopeType: 'CONVERSATION' | 'DIAGRAM' | 'CHARTBOOK', scopeId: string,
       query?: { lifecycleState?: string; limit?: number; offset?: number }) => {
       const parameters = new URLSearchParams();
       if (query?.lifecycleState) parameters.set('lifecycleState', query.lifecycleState);
@@ -122,6 +122,14 @@ export const createMaterialClient = (options: MaterialClientOptions) => {
       const suffix = parameters.size ? `?${parameters}` : '';
       return request<MaterialCatalogPage>(`/materials/scopes/${encodeURIComponent(scopeType)}/${encodeURIComponent(scopeId)}${suffix}`);
     },
+
+    // The server streams the exact immutable version after enforcing owner and scope access.
+    downloadUrl: (materialId: string, versionId: string) =>
+      `${baseUrl}/materials/${encodeURIComponent(materialId)}/versions/${encodeURIComponent(versionId)}/download`,
+
+    previewUrl: (materialId: string, versionId: string, pageNo = 1) =>
+      `${baseUrl}/materials/${encodeURIComponent(materialId)}/versions/${encodeURIComponent(versionId)}` +
+      `/pages/${pageNo}/preview`,
 
     details: (materialId: string) => request<MaterialCatalogDetails>(
       `/materials/${encodeURIComponent(materialId)}`),

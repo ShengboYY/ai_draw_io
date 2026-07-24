@@ -2,6 +2,8 @@ export type ConversationAttachment = {
   uploadId: string;
   fileName: string;
   state: string;
+  materialId?: string;
+  versionId?: string;
   errorCode?: string;
 };
 

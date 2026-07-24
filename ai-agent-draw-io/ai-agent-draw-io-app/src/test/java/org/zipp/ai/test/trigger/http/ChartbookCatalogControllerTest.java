@@ -23,6 +23,7 @@ import java.util.Optional;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
 class ChartbookCatalogControllerTest {
     @Test
@@ -75,8 +76,56 @@ class ChartbookCatalogControllerTest {
         assertEquals("CHARTBOOK", response.getData().scopes().get(0).scopeType());
     }
 
+    @Test
+    void diagramChartbookReturnsEmptyDataWhenNoChartbookIsAssigned() {
+        CurrentOwnerHttpResolver resolver = new CurrentOwnerHttpResolver() {
+            @Override
+            public Optional<ResolvedOwner> resolve(String ignoredLegacyOwnerId) {
+                return Optional.of(ResolvedOwner.authenticated("user_server"));
+            }
+        };
+        ChartbookFileModule files = command -> {
+            throw new AssertionError("unexpected add file");
+        };
+        MaterialCatalogService materials = new MaterialCatalogService(new EmptyMaterialCatalogPort(),
+                prefix -> prefix + "_1", new MaterialScopePolicy());
+        ChartbookCatalogService service = new ChartbookCatalogService(
+                new CapturingChartbookCatalogPort(), materials, files,
+                prefix -> "book_1", Clock.fixed(Instant.EPOCH, ZoneOffset.UTC));
+        ChartbookCatalogController controller = new ChartbookCatalogController(resolver, service, files);
+
+        var response = controller.diagramChartbook("diagram_without_book");
+
+        assertEquals("0000", response.getCode());
+        assertNull(response.getData());
+    }
+
+    @Test
+    void removeFileUsesTheIdempotentUnifiedModuleOperation() {
+        CurrentOwnerHttpResolver resolver = new CurrentOwnerHttpResolver() {
+            @Override
+            public Optional<ResolvedOwner> resolve(String ignoredLegacyOwnerId) {
+                return Optional.of(ResolvedOwner.authenticated("user_server"));
+            }
+        };
+        CapturingChartbookFileModule files = new CapturingChartbookFileModule();
+        MaterialCatalogService materials = new MaterialCatalogService(new EmptyMaterialCatalogPort(),
+                prefix -> prefix + "_1", new MaterialScopePolicy());
+        ChartbookCatalogService service = new ChartbookCatalogService(
+                new CapturingChartbookCatalogPort(), materials, files,
+                prefix -> "book_1", Clock.fixed(Instant.EPOCH, ZoneOffset.UTC));
+        ChartbookCatalogController controller = new ChartbookCatalogController(resolver, service, files);
+
+        var response = controller.removeFile("chartbook_1", "material_1", "remove-file-1");
+
+        assertEquals("user_server", files.removeCommand.owner().ownerKey());
+        assertEquals("remove-file-1", files.removeCommand.idempotencyKey());
+        assertEquals("CONVERSATION", response.getData().scopes().get(0).scopeType());
+    }
+
     private static final class CapturingChartbookFileModule implements ChartbookFileModule {
         private AddChartbookFileCommand command;
+        private RemoveChartbookFileCommand removeCommand;
 
         @Override
         public ChartbookFileResult add(AddChartbookFileCommand command) {
@@ -86,10 +135,27 @@ class ChartbookCatalogControllerTest {
                     Set.of(), Set.of(command.materialId()), Instant.EPOCH, Instant.EPOCH);
             MaterialCatalogItem item = new MaterialCatalogItem(command.materialId(), MaterialKind.PDF,
                     "Requirements", RetentionClass.RETAINED, MaterialLifecycleState.ACTIVE,
-                    "version_1", 1, CatalogProcessingStatus.READY, 100, 1, Instant.EPOCH);
+                    "version_1", 1, CatalogProcessingStatus.READY, 100,
+                    CatalogSearchStatus.SEARCHABLE, 1, Instant.EPOCH);
             MaterialCatalogDetails file = new MaterialCatalogDetails(item, List.of(),
                     List.of(new MaterialScopeReference("scope_1", MaterialScopeType.CHARTBOOK,
                             command.chartbookId())));
+            return new ChartbookFileResult(chartbook, file);
+        }
+
+        @Override
+        public ChartbookFileResult remove(RemoveChartbookFileCommand command) {
+            this.removeCommand = command;
+            ChartbookView chartbook = new ChartbookView(command.chartbookId(),
+                    command.owner().ownerKey(), "Architecture", ChartbookStatus.ACTIVE,
+                    Set.of(), Set.of(), Instant.EPOCH, Instant.EPOCH);
+            MaterialCatalogItem item = new MaterialCatalogItem(command.materialId(), MaterialKind.PDF,
+                    "Requirements", RetentionClass.TEMPORARY, MaterialLifecycleState.ACTIVE,
+                    "version_1", 1, CatalogProcessingStatus.READY, 100,
+                    CatalogSearchStatus.NOT_APPLICABLE, 1, Instant.EPOCH);
+            MaterialCatalogDetails file = new MaterialCatalogDetails(item, List.of(),
+                    List.of(new MaterialScopeReference("scope_conversation",
+                            MaterialScopeType.CONVERSATION, "conversation_1")));
             return new ChartbookFileResult(chartbook, file);
         }
     }

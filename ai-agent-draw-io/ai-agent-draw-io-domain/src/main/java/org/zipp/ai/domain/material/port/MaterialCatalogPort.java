@@ -14,4 +14,7 @@ public interface MaterialCatalogPort {
     boolean scopeTargetOwned(CatalogOwner owner, MaterialScopeType scopeType, String scopeKey);
     boolean addScope(CatalogOwner owner, String materialId, MaterialScopeReference scope);
     boolean removeScope(CatalogOwner owner, String materialId, String linkId);
+    default boolean removeLastScopeAndTrash(CatalogOwner owner, String materialId, String linkId) {
+        return false;
+    }
 }
