@@ -10,6 +10,10 @@ const traySource = fs.readFileSync(
   new URL('../src/features/sources/ConversationAttachmentTray.tsx', import.meta.url),
   'utf8',
 );
+const composerSourceMenuSource = fs.readFileSync(
+  new URL('../src/features/sources/ComposerSourceMenu.tsx', import.meta.url),
+  'utf8',
+);
 const pageSource = fs.readFileSync(
   new URL('../src/app/drawio/page.tsx', import.meta.url),
   'utf8',
@@ -42,7 +46,18 @@ test('composer presents conversation files as compact attachments', () => {
   assert.match(traySource, /retryable\.has\(attachment\.uploadId\)/);
   assert.match(uploaderSource, /item\.uploadId && item\.retryable/);
   assert.match(traySource, /normalizedState === 'PARTIAL_READY'/);
-  assert.match(pageSource, /资料与引用/);
+});
+
+test('composer plus menu owns local uploads, library selection, and source mode', () => {
+  assert.match(pageSource, /<ComposerSourceMenu/);
+  assert.match(pageSource, /onUploadLocal=\{\(\) => attachmentUploaderRef\.current\?\.openPicker\(\)\}/);
+  assert.doesNotMatch(pageSource, />\s*资料与引用\s*</);
+  assert.match(composerSourceMenuSource, /从本机上传/);
+  assert.match(composerSourceMenuSource, /从资料库选择/);
+  assert.match(composerSourceMenuSource, /sourceModeAfterVersionSelection\(sourceMode, versionIds\.length\)/);
+  assert.match(composerSourceMenuSource, /onUploadLocal\(\);[\s\S]*setOpen\(false\)/);
+  assert.match(composerSourceMenuSource, /firstActionRef\.current\?\.focus\(\)/);
+  assert.match(composerSourceMenuSource, /if \(!disabled\) return;[\s\S]*setOpen\(false\)/);
 });
 
 test('composer uses a Codex-style vertical layout', () => {

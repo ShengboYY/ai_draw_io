@@ -26,10 +26,10 @@ import { createChartbookClient } from '@/api/chartbook';
 import { ConversationAttachmentTray } from '@/features/sources/ConversationAttachmentTray';
 import type { MaterialUploaderHandle } from '@/features/materials/MaterialUploader';
 import { isTerminalUploadStatus } from '@/features/materials/upload-machine';
-import { SourceModeControl } from '@/features/sources/SourceModeControl';
+import { ComposerSourceMenu } from '@/features/sources/ComposerSourceMenu';
 import { SourceUseControl } from '@/features/sources/SourceUseControl';
 import { DirectConfirmationPanel } from '@/features/sources/DirectConfirmationPanel';
-import { SourcePicker, type SourceOption } from '@/features/sources/SourcePicker';
+import { type SourceOption } from '@/features/sources/SourcePicker';
 import { type SourceMode } from '@/features/sources/source-selection';
 import {
   buildSourceUseOverride,
@@ -4403,40 +4403,6 @@ function DrawioPageContent() {
               />
             )}
 
-            <details className="group mb-2 rounded-xl border border-stone-200 bg-stone-50 text-xs">
-              <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2 text-zinc-600 marker:content-none">
-                <span className="flex items-center gap-2 font-medium text-zinc-700">
-                  <svg aria-hidden="true" viewBox="0 0 20 20" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.6">
-                    <circle cx="10" cy="10" r="7" />
-                    <path d="M3 10h14M10 3a11 11 0 0 1 0 14M10 3a11 11 0 0 0 0 14" />
-                  </svg>
-                  资料与引用
-                </span>
-                <span className="flex items-center gap-2 text-[11px] text-zinc-500">
-                  {selectedVersionIds.length > 0 ? `已指定 ${selectedVersionIds.length} 项` : '自动选择'}
-                  <svg aria-hidden="true" viewBox="0 0 20 20" className="h-3.5 w-3.5 transition-transform group-open:rotate-180" fill="none" stroke="currentColor" strokeWidth="1.8">
-                    <path d="m5 7 5 5 5-5" />
-                  </svg>
-                </span>
-              </summary>
-              <div className="space-y-3 border-t border-stone-200 px-3 py-3">
-                <div className="flex flex-wrap items-center gap-2">
-                  <SourceModeControl value={sourceMode} onChange={setSourceMode} disabled={isSending} />
-                  <span className="text-[11px] text-zinc-500">权限仍由服务端校验。</span>
-                </div>
-                <SourcePicker
-                  options={sourceOptions}
-                  selectedVersionIds={selectedVersionIds}
-                  onChange={setSelectedVersionIds}
-                  activeScopeLabels={[
-                    ...(selectedAttachmentUploadIds.length > 0 ? ['本次会话附件'] : []),
-                    ...activeSourceScopes,
-                  ]}
-                  disabled={isSending}
-                />
-              </div>
-            </details>
-
             {selectedSkills.length > 0 && (
               <div className="flex flex-wrap gap-1.5 mb-2">
                 {selectedSkills.map(name => (
@@ -4519,16 +4485,19 @@ function DrawioPageContent() {
               />
 
               <div className="mt-auto flex items-center justify-between gap-3 pt-1">
-                <button
-                  type="button"
-                  onClick={() => attachmentUploaderRef.current?.openPicker()}
+                <ComposerSourceMenu
                   disabled={isSending || !selectedAgentId}
-                  className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-zinc-600 transition-colors hover:bg-stone-100 hover:text-zinc-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stone-300 disabled:cursor-not-allowed disabled:opacity-40"
-                  title="添加 PDF 或图片"
-                  aria-label="添加附件"
-                >
-                  <Icons.Plus className="h-5 w-5" />
-                </button>
+                  sourceMode={sourceMode}
+                  onSourceModeChange={setSourceMode}
+                  options={sourceOptions}
+                  selectedVersionIds={selectedVersionIds}
+                  onSelectedVersionIdsChange={setSelectedVersionIds}
+                  activeScopeLabels={[
+                    ...(selectedAttachmentUploadIds.length > 0 ? ['本次会话附件'] : []),
+                    ...activeSourceScopes,
+                  ]}
+                  onUploadLocal={() => attachmentUploaderRef.current?.openPicker()}
+                />
 
                 {/* Keep model and repair controls in the same footer as the primary actions. */}
                 <div className="flex min-w-0 shrink items-center justify-end gap-1">
