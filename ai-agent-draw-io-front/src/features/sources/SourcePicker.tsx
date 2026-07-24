@@ -7,9 +7,9 @@ export type SourceOption = {
 };
 
 const groupLabels: Record<SourceOption['group'], string> = {
-  CURRENT_DIAGRAM: '本图资料',
-  CHARTBOOK: '图表册共享资料',
-  PERSONAL_LIBRARY: '个人资料库',
+  CURRENT_DIAGRAM: 'Current diagram',
+  CHARTBOOK: 'Shared chartbook',
+  PERSONAL_LIBRARY: 'Personal library',
 };
 
 /** Allows version selection only; the backend re-validates every selected version. */
@@ -32,10 +32,10 @@ export const SourcePicker = ({ options, selectedVersionIds, onChange, activeScop
 
   if (groups.length === 0 && activeScopeLabels.length === 0) return null;
   return (
-    <section className="text-xs" aria-label="选择资料版本">
-      <p className="font-medium text-zinc-700">指定资料版本{selected.size ? `（${selected.size}）` : ''}</p>
-      <div className="mt-2 space-y-3 rounded-lg border border-stone-200 bg-white p-3">
-        {activeScopeLabels.length > 0 && <p className="text-zinc-500">自动范围：{activeScopeLabels.join('、')}</p>}
+    <section className="text-[11px]" aria-label="Choose source versions">
+      <p className="font-medium text-zinc-700">Choose sources{selected.size ? ` (${selected.size})` : ''}</p>
+      <div className="mt-1.5 space-y-2.5 rounded-lg border border-stone-200 bg-white p-2.5">
+        {activeScopeLabels.length > 0 && <p className="text-zinc-500">Automatic: {activeScopeLabels.join(', ')}</p>}
         {groups.map(([group, items]) => <fieldset key={group}>
           <legend className="mb-1 text-zinc-500">{groupLabels[group]}</legend>
           <div className="flex flex-wrap gap-x-3 gap-y-1.5">

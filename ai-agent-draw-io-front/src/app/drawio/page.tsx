@@ -1577,8 +1577,8 @@ function DrawioPageContent() {
         setAcceptedMaterialMimeTypes(capabilities.acceptedMimeTypes);
         setSourceOptions([...diagramOptions, ...chartbookOptions, ...libraryOptions]);
         setActiveSourceScopes([
-          ...(currentDiagramId ? ['当前图表'] : []),
-          ...(currentChartbook ? [`图表册「${currentChartbook.name}」`] : []),
+          ...(currentDiagramId ? ['Current diagram'] : []),
+          ...(currentChartbook ? [`Chartbook "${currentChartbook.name}"`] : []),
         ]);
       } catch (error) {
         if (!cancelled) console.warn('Failed to load selectable material sources:', error);
@@ -4493,7 +4493,7 @@ function DrawioPageContent() {
                   selectedVersionIds={selectedVersionIds}
                   onSelectedVersionIdsChange={setSelectedVersionIds}
                   activeScopeLabels={[
-                    ...(selectedAttachmentUploadIds.length > 0 ? ['本次会话附件'] : []),
+                    ...(selectedAttachmentUploadIds.length > 0 ? ['Conversation attachments'] : []),
                     ...activeSourceScopes,
                   ]}
                   onUploadLocal={() => attachmentUploaderRef.current?.openPicker()}

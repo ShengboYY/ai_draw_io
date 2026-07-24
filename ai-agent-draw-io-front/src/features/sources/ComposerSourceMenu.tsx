@@ -85,8 +85,8 @@ export const ComposerSourceMenu = ({
         disabled={disabled}
         aria-haspopup="dialog"
         aria-expanded={menuOpen}
-        aria-label={selectedCount > 0 ? `添加资料，已选择 ${selectedCount} 项资料库资料` : '添加资料'}
-        title="添加资料"
+        aria-label={selectedCount > 0 ? `Add sources, ${selectedCount} library items selected` : 'Add sources'}
+        title="Add sources"
         onClick={() => {
           setOpen(previous => !previous);
           if (menuOpen) setShowLibrary(false);
@@ -104,10 +104,10 @@ export const ComposerSourceMenu = ({
       {menuOpen && (
         <div
           role="dialog"
-          aria-label="添加资料"
-          className="absolute bottom-full left-0 z-[70] mb-2 w-[min(22rem,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-stone-200 bg-white text-left shadow-2xl"
+          aria-label="Add sources"
+          className="absolute bottom-full left-0 z-[70] mb-2 w-72 max-w-[calc(100vw-2rem)] overflow-hidden rounded-xl border border-stone-200 bg-white text-left shadow-xl"
         >
-          <div className="p-1.5">
+          <div className="p-1">
             <button
               ref={firstActionRef}
               type="button"
@@ -119,16 +119,16 @@ export const ComposerSourceMenu = ({
                 setShowLibrary(false);
                 window.requestAnimationFrame(() => triggerRef.current?.focus());
               }}
-              className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left hover:bg-stone-100 disabled:cursor-not-allowed disabled:opacity-45"
+              className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left hover:bg-stone-100 disabled:cursor-not-allowed disabled:opacity-45"
             >
-              <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-stone-100 text-zinc-600">
-                <svg aria-hidden="true" viewBox="0 0 20 20" className="h-4.5 w-4.5" fill="none" stroke="currentColor" strokeWidth="1.6">
+              <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-stone-100 text-zinc-600">
+                <svg aria-hidden="true" viewBox="0 0 20 20" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.6">
                   <path d="M3.5 5.5h13v9h-13zM7 17h6M10 14.5V17" />
                 </svg>
               </span>
               <span>
-                <span className="block text-sm font-medium text-zinc-800">从本机上传</span>
-                <span className="block text-xs text-zinc-500">PDF、PNG 或 JPEG</span>
+                <span className="block text-[13px] font-medium text-zinc-800">Local upload</span>
+                <span className="block text-[11px] text-zinc-500">PDF, PNG, or JPEG</span>
               </span>
             </button>
 
@@ -136,17 +136,17 @@ export const ComposerSourceMenu = ({
               type="button"
               disabled={disabled || options.length === 0}
               onClick={() => setShowLibrary(previous => !previous)}
-              className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left hover:bg-stone-100 disabled:cursor-not-allowed disabled:opacity-45"
+              className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left hover:bg-stone-100 disabled:cursor-not-allowed disabled:opacity-45"
             >
-              <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-stone-100 text-zinc-600">
-                <svg aria-hidden="true" viewBox="0 0 20 20" className="h-4.5 w-4.5" fill="none" stroke="currentColor" strokeWidth="1.6">
+              <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-stone-100 text-zinc-600">
+                <svg aria-hidden="true" viewBox="0 0 20 20" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.6">
                   <path d="M4 4.5h3v11H4zM8.5 4.5h3v11h-3zM13 5.5l2.5-.7 2.7 9.8-2.5.7z" />
                 </svg>
               </span>
               <span className="min-w-0 flex-1">
-                <span className="block text-sm font-medium text-zinc-800">从资料库选择</span>
-                <span className="block text-xs text-zinc-500">
-                  {options.length > 0 ? `${options.length} 项可用资料` : '暂无可用资料'}
+                <span className="block text-[13px] font-medium text-zinc-800">Choose from library</span>
+                <span className="block text-[11px] text-zinc-500">
+                  {options.length > 0 ? `${options.length} sources available` : 'No sources available'}
                 </span>
               </span>
               {options.length > 0 && (
@@ -158,7 +158,7 @@ export const ComposerSourceMenu = ({
           </div>
 
           {showLibrary && options.length > 0 && (
-            <div className="max-h-64 overflow-y-auto border-t border-stone-200 bg-stone-50 p-3">
+            <div className="max-h-56 overflow-y-auto border-t border-stone-200 bg-stone-50 p-2.5">
               <SourcePicker
                 options={options}
                 selectedVersionIds={selectedVersionIds}
@@ -169,7 +169,7 @@ export const ComposerSourceMenu = ({
             </div>
           )}
 
-          <div className="border-t border-stone-200 px-3 py-3">
+          <div className="border-t border-stone-200 px-2.5 py-2">
             <SourceModeControl value={sourceMode} onChange={onSourceModeChange} disabled={disabled} />
           </div>
         </div>

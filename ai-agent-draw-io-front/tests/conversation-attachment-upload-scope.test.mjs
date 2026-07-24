@@ -14,6 +14,14 @@ const composerSourceMenuSource = fs.readFileSync(
   new URL('../src/features/sources/ComposerSourceMenu.tsx', import.meta.url),
   'utf8',
 );
+const sourceModeControlSource = fs.readFileSync(
+  new URL('../src/features/sources/SourceModeControl.tsx', import.meta.url),
+  'utf8',
+);
+const sourcePickerSource = fs.readFileSync(
+  new URL('../src/features/sources/SourcePicker.tsx', import.meta.url),
+  'utf8',
+);
 const pageSource = fs.readFileSync(
   new URL('../src/app/drawio/page.tsx', import.meta.url),
   'utf8',
@@ -52,8 +60,15 @@ test('composer plus menu owns local uploads, library selection, and source mode'
   assert.match(pageSource, /<ComposerSourceMenu/);
   assert.match(pageSource, /onUploadLocal=\{\(\) => attachmentUploaderRef\.current\?\.openPicker\(\)\}/);
   assert.doesNotMatch(pageSource, />\s*资料与引用\s*</);
-  assert.match(composerSourceMenuSource, /从本机上传/);
-  assert.match(composerSourceMenuSource, /从资料库选择/);
+  assert.match(composerSourceMenuSource, /Local upload/);
+  assert.match(composerSourceMenuSource, /Choose from library/);
+  assert.match(composerSourceMenuSource, /w-72/);
+  assert.match(sourceModeControlSource, /Auto \(Recommended\)/);
+  assert.match(sourcePickerSource, /Choose sources/);
+  assert.doesNotMatch(
+    `${composerSourceMenuSource}\n${sourceModeControlSource}\n${sourcePickerSource}`,
+    /[\u3400-\u9fff]/,
+  );
   assert.match(composerSourceMenuSource, /sourceModeAfterVersionSelection\(sourceMode, versionIds\.length\)/);
   assert.match(composerSourceMenuSource, /onUploadLocal\(\);[\s\S]*setOpen\(false\)/);
   assert.match(composerSourceMenuSource, /firstActionRef\.current\?\.focus\(\)/);
