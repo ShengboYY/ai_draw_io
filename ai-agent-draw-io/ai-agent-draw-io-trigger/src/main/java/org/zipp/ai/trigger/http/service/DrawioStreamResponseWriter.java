@@ -154,6 +154,10 @@ public class DrawioStreamResponseWriter {
             String observed = observedValues == null ? "" :
                     StringUtils.abbreviate(StringUtils.defaultString(observedValues.get(reason)), 200);
             issue.put("observedValue", observed);
+            String completeObserved = observedValues == null ? ""
+                    : StringUtils.defaultString(observedValues.get(reason));
+            issue.put("observedFingerprint",
+                    org.zipp.ai.domain.multimodal.DirectObservationFingerprint.of(completeObserved));
             issues.add(issue);
         }
         chunk.put("issues", issues);

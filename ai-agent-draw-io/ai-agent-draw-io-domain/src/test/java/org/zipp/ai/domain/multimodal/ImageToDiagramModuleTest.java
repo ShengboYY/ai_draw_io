@@ -120,11 +120,12 @@ class ImageToDiagramModuleTest {
                                 List.of(
                                         new DirectClarification("LOW_CONFIDENCE_NODE_TEXT:unclear",
                                                 DirectClarification.Resolution.ACCEPT_OBSERVED,
-                                                "Possible label"),
+                                                DirectObservationFingerprint.of("Possible label")),
                                         new DirectClarification(
                                                 "UNRESOLVED_EDGE_DIRECTION:unknown-direction",
                                                 DirectClarification.Resolution.REVERSE,
-                                                "unclear → right")))));
+                                                DirectObservationFingerprint.of(
+                                                        "unclear → right"))))));
 
         assertTrue(confirmed.mxGraphModelXml().contains(
                 "source=\"direct-node-right\" target=\"direct-node-unclear\""));
@@ -143,8 +144,35 @@ class ImageToDiagramModuleTest {
                         List.of(new DirectClarification(
                                 "LOW_CONFIDENCE_NODE_TEXT:unclear",
                                 DirectClarification.Resolution.ACCEPT_OBSERVED,
-                                "Possible label"))));
+                                DirectObservationFingerprint.of("Possible label")))));
         assertInstanceOf(ImageToDiagramOutcome.NeedsConfirmation.class, changedObservation);
+    }
+
+    @Test
+    void acceptsFreeTextUnresolvedIssueThroughABoundedReasonCode() {
+        ObservedDiagramGraph.UnresolvedItem unresolved =
+                new ObservedDiagramGraph.UnresolvedItem(
+                        new ObservationBounds(0.2, 0.2, 0.2, 0.2),
+                        "arrow direction unclear",
+                        "Treat the arrow as forward");
+        ObservedDiagramGraph graph = new ObservedDiagramGraph(
+                List.of(node("left", 0.10, "evidence-left")),
+                List.of(), List.of(), List.of(unresolved));
+
+        ImageToDiagramOutcome.NeedsConfirmation first =
+                assertInstanceOf(ImageToDiagramOutcome.NeedsConfirmation.class,
+                        new DefaultImageToDiagramModule().convert(new ImageToDiagramCommand(graph)));
+        String reasonCode = first.reasons().get(0);
+        assertTrue(reasonCode.matches("UNRESOLVED:[a-f0-9]{24}"));
+
+        ImageToDiagramOutcome confirmed =
+                new DefaultImageToDiagramModule().convert(new ImageToDiagramCommand(
+                        graph,
+                        List.of(new DirectClarification(
+                                reasonCode,
+                                DirectClarification.Resolution.ACCEPT_OBSERVED,
+                                DirectObservationFingerprint.of("Treat the arrow as forward")))));
+        assertInstanceOf(ImageToDiagramOutcome.Converted.class, confirmed);
     }
 
     private ObservedDiagramGraph.Node node(String id, double x, String evidenceId) {

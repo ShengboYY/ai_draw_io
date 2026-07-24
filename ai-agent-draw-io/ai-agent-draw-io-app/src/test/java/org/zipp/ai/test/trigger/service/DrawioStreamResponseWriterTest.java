@@ -21,6 +21,7 @@ import org.zipp.ai.domain.retrieval.EvidenceBundle;
 import org.zipp.ai.domain.retrieval.EvidenceBundleItem;
 import org.zipp.ai.domain.retrieval.RunResourceDomain;
 import org.zipp.ai.domain.retrieval.SourceMode;
+import org.zipp.ai.domain.multimodal.DirectObservationFingerprint;
 import org.zipp.ai.test.domain.agent.FakeAgentUsageTelemetryStore;
 import org.zipp.ai.trigger.http.service.DrawioStreamResponseWriter;
 import org.zipp.ai.trigger.http.service.DrawioToolCallRenderer;
@@ -119,6 +120,22 @@ public class DrawioStreamResponseWriterTest {
         assertTrue(output.contains("\"sourceVersionId\":\"version-1\""));
         assertTrue(output.contains("\"observedValue\":\"Approve order\""));
         assertTrue(output.contains("\"type\":\"done\""));
+    }
+
+    @Test
+    public void shouldFingerprintTheFullObservedValueWhileBoundingDisplayText() throws Exception {
+        DrawioStreamResponseWriter writer = new DrawioStreamResponseWriter(new DrawioToolCallRenderer());
+        CapturingEmitter emitter = new CapturingEmitter();
+        String observed = "x".repeat(240);
+
+        writer.sendDirectConfirmation(emitter, "请确认图片结构。", "version-1",
+                List.of("LOW_CONFIDENCE_NODE_TEXT:n2"),
+                java.util.Map.of("LOW_CONFIDENCE_NODE_TEXT:n2", observed));
+
+        String output = String.join("\n", emitter.sent);
+        assertTrue(output.contains("\"observedFingerprint\":\""
+                + DirectObservationFingerprint.of(observed) + "\""));
+        assertTrue(output.contains("\"observedValue\":\"" + "x".repeat(197) + "...\""));
     }
 
     @Test

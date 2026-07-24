@@ -1701,7 +1701,7 @@ public class AgentConversationService {
                         value.getReasonCode(),
                         org.zipp.ai.domain.multimodal.DirectClarification.Resolution.valueOf(
                                 value.getResolution().trim().toUpperCase(java.util.Locale.ROOT)),
-                        value.getObservedValue());
+                        value.getObservedFingerprint());
             } catch (IllegalArgumentException invalid) {
                 return null;
             }

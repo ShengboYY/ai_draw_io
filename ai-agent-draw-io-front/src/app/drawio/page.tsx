@@ -165,7 +165,11 @@ type TargetClarification = {
 };
 
 type DirectConfirmation = {
-  issues: Array<{ reasonCode: string; observedValue?: string }>;
+  issues: Array<{
+    reasonCode: string;
+    observedValue?: string;
+    observedFingerprint?: string;
+  }>;
   sourceVersionId: string;
   originalPrompt: string;
   selections: Record<string, DirectClarificationResolution>;

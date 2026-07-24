@@ -4,7 +4,7 @@ import java.util.Objects;
 
 /** Bounded user resolution for one reason returned by a prior direct-image attempt. */
 public record DirectClarification(String reasonCode, Resolution resolution,
-                                  String observedValue) {
+                                  String observedFingerprint) {
     public DirectClarification {
         reasonCode = reasonCode == null ? "" : reasonCode.trim();
         if (reasonCode.isBlank() || reasonCode.length() > 160
@@ -12,9 +12,10 @@ public record DirectClarification(String reasonCode, Resolution resolution,
             throw new IllegalArgumentException("valid direct clarification reasonCode is required");
         }
         resolution = Objects.requireNonNull(resolution, "resolution");
-        observedValue = observedValue == null ? "" : observedValue.trim();
-        if (observedValue.length() > 200) {
-            throw new IllegalArgumentException("direct clarification observedValue is too long");
+        observedFingerprint = observedFingerprint == null ? "" : observedFingerprint.trim();
+        if (!observedFingerprint.matches("[a-f0-9]{64}")) {
+            throw new IllegalArgumentException(
+                    "valid direct clarification observedFingerprint is required");
         }
     }
 

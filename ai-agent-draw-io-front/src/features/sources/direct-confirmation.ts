@@ -8,12 +8,13 @@ export type DirectClarificationResolution =
 export type DirectClarification = {
   reasonCode: string;
   resolution: DirectClarificationResolution;
-  observedValue: string;
+  observedFingerprint: string;
 };
 
 export type DirectConfirmationIssue = {
   reasonCode: string;
   observedValue?: string;
+  observedFingerprint?: string;
   targetLabel: string;
   prompt: string;
   options: Array<{ value: DirectClarificationResolution; label: string }>;
@@ -73,14 +74,16 @@ export const directConfirmationIssue = (
   return {
     reasonCode,
     targetLabel: `图片区域 ${target}`,
-    prompt: '是否按当前识别结果继续？',
+    prompt: observedValue
+      ? `是否按当前识别结果“${observedValue}”继续？`
+      : '是否按当前识别结果继续？',
     options: [{ value: 'ACCEPT_OBSERVED', label: '接受当前识别' }],
   };
 };
 
 /** Returns null until the user has explicitly resolved every reported issue. */
 export const buildDirectClarifications = (
-  issues: Array<{ reasonCode: string; observedValue?: string }>,
+  issues: Array<{ reasonCode: string; observedFingerprint?: string }>,
   selections: Record<string, DirectClarificationResolution>,
 ): DirectClarification[] | null => {
   const uniqueIssues = Array.from(new Map(
@@ -90,9 +93,9 @@ export const buildDirectClarifications = (
   const values = uniqueIssues.map(issue => ({
     reasonCode: issue.reasonCode,
     resolution: selections[issue.reasonCode],
-    observedValue: issue.observedValue || '',
+    observedFingerprint: issue.observedFingerprint || '',
   }));
-  return values.every(value => Boolean(value.resolution))
+  return values.every(value => Boolean(value.resolution) && Boolean(value.observedFingerprint))
     ? values as DirectClarification[]
     : null;
 };

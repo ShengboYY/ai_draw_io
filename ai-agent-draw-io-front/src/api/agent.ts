@@ -235,7 +235,11 @@ export interface DirectConfirmationChunk {
     content: string;
     reasons: string[];
     sourceVersionId: string;
-    issues?: Array<{ reasonCode: string; observedValue?: string }>;
+    issues?: Array<{
+        reasonCode: string;
+        observedValue?: string;
+        observedFingerprint?: string;
+    }>;
 }
 
 export interface TargetClarificationChunk {

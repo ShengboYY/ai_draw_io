@@ -114,13 +114,21 @@ test('buildDrawioChatRequestPayload carries bounded direct image clarifications'
     sessionId: 'session-1',
     userMessage: 'Restore this image',
     directClarifications: [
-      { reasonCode: 'UNRESOLVED_EDGE_DIRECTION:e1', resolution: 'FORWARD', observedValue: 'a → b' },
+      {
+        reasonCode: 'UNRESOLVED_EDGE_DIRECTION:e1',
+        resolution: 'FORWARD',
+        observedFingerprint: 'edge-fingerprint',
+      },
     ],
     directConfirmationSourceVersionId: 'version-1',
   });
 
   assert.deepEqual(payload.directClarifications, [
-    { reasonCode: 'UNRESOLVED_EDGE_DIRECTION:e1', resolution: 'FORWARD', observedValue: 'a → b' },
+    {
+      reasonCode: 'UNRESOLVED_EDGE_DIRECTION:e1',
+      resolution: 'FORWARD',
+      observedFingerprint: 'edge-fingerprint',
+    },
   ]);
   assert.equal(payload.directConfirmationSourceVersionId, 'version-1');
 });

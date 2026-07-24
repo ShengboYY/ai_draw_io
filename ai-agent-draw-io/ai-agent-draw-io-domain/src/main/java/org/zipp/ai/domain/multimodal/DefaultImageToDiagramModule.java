@@ -29,7 +29,7 @@ public final class DefaultImageToDiagramModule implements ImageToDiagramModule {
         ObservedDiagramGraph effectiveGraph = applyDirectionClarifications(graph, clarifications);
 
         List<String> confirmation = graph.unresolvedItems().stream()
-                .map(item -> "UNRESOLVED:" + item.reason())
+                .map(this::unresolvedReason)
                 .filter(reason -> !accepted(clarifications, reason, observedValue(graph, reason)))
                 .collect(
                         java.util.stream.Collectors.toCollection(ArrayList::new));
@@ -95,7 +95,8 @@ public final class DefaultImageToDiagramModule implements ImageToDiagramModule {
 
     private boolean matchesObservation(DirectClarification clarification, String observedValue) {
         // A changed recognition result must be shown and confirmed again.
-        return clarification != null && clarification.observedValue().equals(observedValue);
+        return clarification != null && clarification.observedFingerprint().equals(
+                DirectObservationFingerprint.of(observedValue));
     }
 
     private ObservedDiagramGraph applyDirectionClarifications(
@@ -142,8 +143,13 @@ public final class DefaultImageToDiagramModule implements ImageToDiagramModule {
                     edge.sourceId() + " → " + edge.targetId());
         });
         graph.unresolvedItems().forEach(item -> putObserved(values, requested,
-                "UNRESOLVED:" + item.reason(), item.suggestedConfirmation()));
+                unresolvedReason(item), item.suggestedConfirmation()));
         return Map.copyOf(values);
+    }
+
+    private String unresolvedReason(ObservedDiagramGraph.UnresolvedItem item) {
+        String identity = item.reason() + "|" + item.region();
+        return "UNRESOLVED:" + DirectObservationFingerprint.of(identity).substring(0, 24);
     }
 
     private String observedValue(ObservedDiagramGraph graph, String reason) {
