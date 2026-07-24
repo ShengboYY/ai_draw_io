@@ -24,6 +24,8 @@ import { createMaterialClient } from '@/api/material';
 import { createMaterialCapabilitiesClient } from '@/api/material-capabilities';
 import { createChartbookClient } from '@/api/chartbook';
 import { ConversationAttachmentTray } from '@/features/sources/ConversationAttachmentTray';
+import type { MaterialUploaderHandle } from '@/features/materials/MaterialUploader';
+import { isTerminalUploadStatus } from '@/features/materials/upload-machine';
 import { SourceModeControl } from '@/features/sources/SourceModeControl';
 import { SourceUseControl } from '@/features/sources/SourceUseControl';
 import { DirectConfirmationPanel } from '@/features/sources/DirectConfirmationPanel';
@@ -782,6 +784,7 @@ function DrawioPageContent() {
   const chartbookClient = useMemo(() => createChartbookClient({ baseUrl: API_CONFIG.BASE_URL }), []);
   const [conversationAttachments, setConversationAttachments] = useState<ConversationAttachment[]>([]);
   const [selectedAttachmentUploadIds, setSelectedAttachmentUploadIds] = useState<string[]>([]);
+  const attachmentUploaderRef = useRef<MaterialUploaderHandle>(null);
   const [attachmentSessionLoaded, setAttachmentSessionLoaded] = useState('');
   const [restoredAttachments, setRestoredAttachments] = useState<ConversationAttachment[]>([]);
   const [sourceMode, setSourceMode] = useState<SourceMode>('AUTO');
@@ -1158,7 +1161,7 @@ function DrawioPageContent() {
       canvasVersion,
       hasDrawableContent: hasDrawableCells(canvasXml),
       hasConversationMessages,
-    })) return;
+    })) return true;
 
     try {
       // Chat-only diagrams still need a canvas row so the history list can restore them later.
@@ -1168,6 +1171,7 @@ function DrawioPageContent() {
         rememberManualCanvasVersion(currentSessionRef.current, normalizedDiagramId || '', version as number, response.data?.contentHash);
       }
       await persistDiagramTitle(normalizedDiagramId, title);
+      return true;
     } catch (error) {
       if (error instanceof ApiResponseError && error.code === 'CANVAS_VERSION_CONFLICT') {
         const latestBaseline = await fetchLatestCanvasBaseline(ownerId, normalizedDiagramId || '');
@@ -1179,9 +1183,10 @@ function DrawioPageContent() {
             latestBaseline.contentHash,
           );
         }
-        return;
+        return true;
       }
       console.warn('Failed to create chat-only diagram shell:', error);
+      return false;
     }
   };
 
@@ -1503,7 +1508,7 @@ function DrawioPageContent() {
     if (!attachmentSessionLoaded || restoredAttachments.length === 0) return;
     let cancelled = false;
     restoredAttachments
-      .filter(attachment => !['READY', 'PARTIAL_READY', 'FAILED', 'REJECTED', 'CANCELLED'].includes(attachment.state))
+      .filter(attachment => !isTerminalUploadStatus(attachment.state))
       .forEach(attachment => {
         // Resume status polling after a reload without retaining file bytes in browser storage.
         void materialClient.pollStatus(attachment.uploadId, status => {
@@ -2088,45 +2093,6 @@ function DrawioPageContent() {
 
   const handleNewChat = async () => {
      finalizeNewChat();
-  };
-
-  const handleRestartSession = async () => {
-    if (!selectedAgentId || !currentUser) return;
-
-    if (!currentSessionId) {
-      finalizeNewChat();
-      return;
-    }
-    
-    try {
-        const res = await agentApi.createSession(selectedAgentId, currentUser);
-        const newBackendId = res.data.sessionId;
-        
-        const initialMsg: Message = {
-          id: Date.now().toString(),
-          role: 'agent',
-          content: 'Hi! Tell me what diagram you want — a flowchart, architecture, UML class, sequence, ER, or state diagram. I can also edit the one on your canvas.',
-          timestamp: Date.now()
-        };
-
-        setSessionId(newBackendId);
-        setMessages([initialMsg]);
-        setInputValue('');
-
-        setSessions(prev => prev.map(session => {
-          if (session.id === currentSessionId) {
-            return {
-              ...session,
-              backendSessionId: newBackendId,
-              messages: [initialMsg],
-              lastModified: Date.now()
-            };
-          }
-          return session;
-        }));
-    } catch (error) {
-        console.error('Failed to restart session:', error);
-    }
   };
 
   const handleStopStream = () => {
@@ -3715,10 +3681,12 @@ function DrawioPageContent() {
   };
 
   const initializeAttachmentSession = async () => {
-    if (sessionId || !selectedAgentId || !currentUser) return;
+    if (sessionId) return sessionId;
+    if (!selectedAgentId || !currentUser) return null;
     try {
       const created = await agentApi.createSession(selectedAgentId, currentUser);
       setSessionId(created.data.sessionId);
+      return created.data.sessionId;
     } catch (error) {
       setMessages(prev => [...prev, {
         id: `${Date.now()}-attachment-session`,
@@ -3726,6 +3694,7 @@ function DrawioPageContent() {
         content: error instanceof Error ? `无法创建附件会话：${error.message}` : '无法创建附件会话，请重试。',
         timestamp: Date.now(),
       }]);
+      return null;
     }
   };
 
@@ -4467,18 +4436,6 @@ function DrawioPageContent() {
               </div>
             )}
 
-            <ConversationAttachmentTray
-              client={materialClient}
-              sessionId={sessionId}
-              acceptedMimeTypes={acceptedMaterialMimeTypes}
-              attachments={conversationAttachments}
-              selectedUploadIds={selectedAttachmentUploadIds}
-              onChange={setConversationAttachments}
-              onSelectedUploadIdsChange={setSelectedAttachmentUploadIds}
-              onInitializeSession={() => void initializeAttachmentSession()}
-              disabled={isSending || !selectedAgentId}
-            />
-
             {hasSingleReadyImageSelection(conversationAttachments, selectedAttachmentUploadIds) && (
               <SourceUseControl
                 value={sourceUsePreference}
@@ -4487,22 +4444,39 @@ function DrawioPageContent() {
               />
             )}
 
-            <div className="mb-2 flex flex-wrap items-center gap-2">
-              <SourceModeControl value={sourceMode} onChange={setSourceMode} disabled={isSending} />
-              <span className="text-[11px] text-zinc-500">选择的资料仅以版本 ID 发送，权限由服务端校验。</span>
-            </div>
-            <div className="mb-2">
-              <SourcePicker
-                options={sourceOptions}
-                selectedVersionIds={selectedVersionIds}
-                onChange={setSelectedVersionIds}
-                activeScopeLabels={[
-                  ...(selectedAttachmentUploadIds.length > 0 ? ['本次选择的会话附件'] : []),
-                  ...activeSourceScopes,
-                ]}
-                disabled={isSending}
-              />
-            </div>
+            <details className="group mb-2 rounded-xl border border-stone-200 bg-stone-50 text-xs">
+              <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2 text-zinc-600 marker:content-none">
+                <span className="flex items-center gap-2 font-medium text-zinc-700">
+                  <svg aria-hidden="true" viewBox="0 0 20 20" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.6">
+                    <circle cx="10" cy="10" r="7" />
+                    <path d="M3 10h14M10 3a11 11 0 0 1 0 14M10 3a11 11 0 0 0 0 14" />
+                  </svg>
+                  资料与引用
+                </span>
+                <span className="flex items-center gap-2 text-[11px] text-zinc-500">
+                  {selectedVersionIds.length > 0 ? `已指定 ${selectedVersionIds.length} 项` : '自动选择'}
+                  <svg aria-hidden="true" viewBox="0 0 20 20" className="h-3.5 w-3.5 transition-transform group-open:rotate-180" fill="none" stroke="currentColor" strokeWidth="1.8">
+                    <path d="m5 7 5 5 5-5" />
+                  </svg>
+                </span>
+              </summary>
+              <div className="space-y-3 border-t border-stone-200 px-3 py-3">
+                <div className="flex flex-wrap items-center gap-2">
+                  <SourceModeControl value={sourceMode} onChange={setSourceMode} disabled={isSending} />
+                  <span className="text-[11px] text-zinc-500">权限仍由服务端校验。</span>
+                </div>
+                <SourcePicker
+                  options={sourceOptions}
+                  selectedVersionIds={selectedVersionIds}
+                  onChange={setSelectedVersionIds}
+                  activeScopeLabels={[
+                    ...(selectedAttachmentUploadIds.length > 0 ? ['本次会话附件'] : []),
+                    ...activeSourceScopes,
+                  ]}
+                  disabled={isSending}
+                />
+              </div>
+            </details>
 
             {selectedSkills.length > 0 && (
               <div className="flex flex-wrap gap-1.5 mb-2">
@@ -4515,7 +4489,7 @@ function DrawioPageContent() {
               </div>
             )}
 
-            <div className="relative flex items-end gap-2 rounded-2xl border border-stone-300 bg-stone-50 p-2 shadow-sm transition-all focus-within:border-zinc-600 focus-within:bg-white focus-within:ring-4 focus-within:ring-zinc-700/5">
+            <div className="relative flex flex-col rounded-2xl border border-stone-300 bg-stone-50 p-2 shadow-sm transition-all focus-within:border-zinc-600 focus-within:bg-white focus-within:ring-4 focus-within:ring-zinc-700/5">
               {slashOpen && filteredSkills.length > 0 && (
                 <div className="absolute bottom-full left-0 z-50 mb-2 max-h-72 w-80 overflow-auto rounded-lg border border-stone-200 bg-white py-1 shadow-lg">
                   {filteredSkills.map((s, i) => (
@@ -4532,6 +4506,49 @@ function DrawioPageContent() {
                   ))}
                 </div>
               )}
+              <ConversationAttachmentTray
+                ref={attachmentUploaderRef}
+                client={materialClient}
+                sessionId={sessionId}
+                diagramId={currentDiagramId}
+                acceptedMimeTypes={acceptedMaterialMimeTypes}
+                attachments={conversationAttachments}
+                selectedUploadIds={selectedAttachmentUploadIds}
+                onChange={setConversationAttachments}
+                onSelectedUploadIdsChange={setSelectedAttachmentUploadIds}
+                onPrepareUpload={async () => {
+                  const attachmentSessionId = await initializeAttachmentSession();
+                  if (!attachmentSessionId) throw new Error('无法创建附件会话，请重试。');
+                  if (!currentDiagramId) throw new Error('请先创建图表，再上传资料。');
+                  // Selecting an attachment establishes conversation intent even before the first message is sent.
+                  const prepared = await ensureConversationDiagramShell({
+                    diagramId: currentDiagramId,
+                    title: activeCanvasSession?.title,
+                    canvasXml: activeCanvasSession?.drawIoXml || undefined,
+                    canvasVersion: activeCanvasSession?.canvasVersion,
+                    hasConversationMessages: true,
+                  });
+                  if (!prepared) throw new Error('无法建立资料所属图表，请重试。');
+                  return {
+                    scopeType: 'CONVERSATION',
+                    scopeId: attachmentSessionId,
+                    retentionClass: 'TEMPORARY',
+                    diagramId: currentDiagramId,
+                  };
+                }}
+                disabled={isSending || !selectedAgentId}
+              />
+              <div className="flex w-full items-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => attachmentUploaderRef.current?.openPicker()}
+                  disabled={isSending || !selectedAgentId}
+                  className="mb-0.5 shrink-0 rounded-full border border-stone-200 bg-white p-2.5 text-zinc-500 shadow-sm transition-colors hover:bg-stone-100 hover:text-zinc-800 disabled:cursor-not-allowed disabled:opacity-40"
+                  title="添加 PDF 或图片"
+                  aria-label="添加附件"
+                >
+                  <Icons.Plus className="h-4 w-4" />
+                </button>
               <textarea
                 ref={promptInputRef}
                 value={inputValue}
@@ -4547,7 +4564,7 @@ function DrawioPageContent() {
                 rows={1}
                 style={{ height: 'auto', minHeight: '80px' }}
               />
-              <div className="flex gap-1 mb-0.5 shrink-0">
+              <div className="mb-0.5 flex shrink-0 gap-1">
                   {isSending ? (
                     <button
                       onClick={handleStopStream}
@@ -4572,14 +4589,7 @@ function DrawioPageContent() {
                       <Icons.ArrowRight className="w-4 h-4" />
                     </button>
                   )}
-                  <button
-                    onClick={handleRestartSession}
-                    disabled={isSending}
-                    className="rounded-full border border-stone-200 bg-white p-2.5 text-zinc-400 shadow-sm transition-all duration-200 hover:bg-stone-50 hover:text-zinc-700 disabled:cursor-not-allowed disabled:opacity-50"
-                    title="Restart conversation"
-                  >
-                    <Icons.Plus className="w-4 h-4" />
-                  </button>
+              </div>
               </div>
             </div>
 

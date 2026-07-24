@@ -32,9 +32,9 @@ export const SourcePicker = ({ options, selectedVersionIds, onChange, activeScop
 
   if (groups.length === 0 && activeScopeLabels.length === 0) return null;
   return (
-    <details className="rounded-lg border border-stone-200 bg-white px-3 py-2 text-xs">
-      <summary className="cursor-pointer font-medium text-zinc-700">选择资料版本{selected.size ? `（${selected.size}）` : ''}</summary>
-      <div className="mt-2 space-y-3">
+    <section className="text-xs" aria-label="选择资料版本">
+      <p className="font-medium text-zinc-700">指定资料版本{selected.size ? `（${selected.size}）` : ''}</p>
+      <div className="mt-2 space-y-3 rounded-lg border border-stone-200 bg-white p-3">
         {activeScopeLabels.length > 0 && <p className="text-zinc-500">自动范围：{activeScopeLabels.join('、')}</p>}
         {groups.map(([group, items]) => <fieldset key={group}>
           <legend className="mb-1 text-zinc-500">{groupLabels[group]}</legend>
@@ -46,6 +46,6 @@ export const SourcePicker = ({ options, selectedVersionIds, onChange, activeScop
           </div>
         </fieldset>)}
       </div>
-    </details>
+    </section>
   );
 };

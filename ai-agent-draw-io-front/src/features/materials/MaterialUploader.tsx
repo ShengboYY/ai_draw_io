@@ -1,14 +1,34 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react';
 import { type BrowserPostPolicy, type MaterialUploadTarget } from './material-types';
 import { MaterialGapDialog } from './MaterialGapDialog';
 import { MaterialProcessingBadge } from './MaterialProcessingBadge';
-import { createUploadState, transitionUpload, type UploadState } from './upload-machine';
+import { createUploadState, isReadyUploadStatus, transitionUpload, type UploadState } from './upload-machine';
 import type { createMaterialClient } from '@/api/material';
 
 type MaterialClient = ReturnType<typeof createMaterialClient>;
 type UploadItem = UploadState & { file: File; postPolicy?: BrowserPostPolicy };
+export type MaterialUploaderHandle = {
+  openPicker: () => void;
+  retryUpload: (uploadId: string) => boolean;
+};
+
+type MaterialUploaderProps = {
+  client: MaterialClient;
+  target: MaterialUploadTarget;
+  acceptedMimeTypes: string[];
+  disabled?: boolean;
+  newVersionOfMaterialId?: string;
+  beforeUpload?: () => Promise<MaterialUploadTarget | void>;
+  onReady?: () => void;
+  onUploadInitiated?: (upload: { uploadId: string; fileName: string }) => void;
+  onUploadStatus?: (upload: { uploadId: string; fileName: string; state: string; errorCode?: string }) => void;
+  onRetryableUploadIdsChange?: (uploadIds: string[]) => void;
+  suppressedUploadIds?: string[];
+  variant?: 'panel' | 'compact';
+  showTrigger?: boolean;
+};
 
 const idempotencyKey = () => globalThis.crypto.randomUUID();
 
@@ -17,27 +37,21 @@ const sha256 = async (file: File) => {
   return Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('');
 };
 
-export const MaterialUploader = ({
+export const MaterialUploader = forwardRef<MaterialUploaderHandle, MaterialUploaderProps>(function MaterialUploader({
   client,
   target,
   acceptedMimeTypes,
   disabled,
   newVersionOfMaterialId,
+  beforeUpload,
   onReady,
   onUploadInitiated,
   onUploadStatus,
+  onRetryableUploadIdsChange,
   suppressedUploadIds = [],
-}: {
-  client: MaterialClient;
-  target: MaterialUploadTarget;
-  acceptedMimeTypes: string[];
-  disabled?: boolean;
-  newVersionOfMaterialId?: string;
-  onReady?: () => void;
-  onUploadInitiated?: (upload: { uploadId: string; fileName: string }) => void;
-  onUploadStatus?: (upload: { uploadId: string; fileName: string; state: string; errorCode?: string }) => void;
-  suppressedUploadIds?: string[];
-}) => {
+  variant = 'panel',
+  showTrigger = true,
+}, ref) {
   const [items, setItems] = useState<UploadItem[]>([]);
   const [dismissedGaps, setDismissedGaps] = useState<Set<File>>(() => new Set());
   const inputRef = useRef<HTMLInputElement>(null);
@@ -46,6 +60,12 @@ export const MaterialUploader = ({
   useEffect(() => {
     suppressedIdsRef.current = new Set(suppressedUploadIds);
   }, [suppressedUploadIds]);
+  useEffect(() => {
+    // Only expose retries backed by this browser's in-memory file and upload state.
+    onRetryableUploadIdsChange?.(items.flatMap(item => (
+      item.uploadId && item.retryable ? [item.uploadId] : []
+    )));
+  }, [items, onRetryableUploadIdsChange]);
 
   const reportUploadStatus = (upload: { uploadId: string; fileName: string; state: string; errorCode?: string }) => {
     if (!suppressedIdsRef.current.has(upload.uploadId)) onUploadStatus?.(upload);
@@ -65,7 +85,7 @@ export const MaterialUploader = ({
       update(file, { type: 'COMPLETED', status: status.state, errorCode: status.errorCode });
       reportUploadStatus({ uploadId, fileName: file.name, state: status.state, errorCode: status.errorCode });
     });
-    if (terminal.state === 'READY') onReady?.();
+    if (isReadyUploadStatus(terminal.state)) onReady?.();
   };
 
   const uploadBytesAndComplete = async (file: File, uploadId: string, postPolicy?: BrowserPostPolicy) => {
@@ -77,13 +97,15 @@ export const MaterialUploader = ({
   const initiateAndUpload = async (file: File, knownHash?: string) => {
     let uploadId = '';
     try {
+      // Establish the server-side ownership scope before asking it to accept file metadata.
+      const preparedTarget = await beforeUpload?.();
       const hash = knownHash || await sha256(file);
       const initiated = await client.initiate({
         displayName: file.name,
         mediaType: file.type as 'application/pdf' | 'image/png' | 'image/jpeg',
         byteSize: file.size,
         sha256: hash,
-        target,
+        target: preparedTarget || target,
         newVersionOfMaterialId,
       }, idempotencyKey());
       uploadId = initiated.uploadId;
@@ -122,6 +144,9 @@ export const MaterialUploader = ({
   const retry = (item: UploadItem) => {
     const retryState = transitionUpload(item, { type: 'RETRY' });
     setItems(previous => previous.map(current => current.file === item.file ? { ...current, ...retryState } : current));
+    if (retryState.uploadId) {
+      reportUploadStatus({ uploadId: retryState.uploadId, fileName: item.file.name, state: 'PROCESSING' });
+    }
     if (retryState.stage === 'COMPLETING' && retryState.uploadId) {
       void completeAndPoll(item.file, retryState.uploadId)
         .catch(error => {
@@ -140,6 +165,59 @@ export const MaterialUploader = ({
     }
   };
 
+  const retryRef = useRef<(item: UploadItem) => void>(() => undefined);
+  useEffect(() => {
+    retryRef.current = retry;
+  });
+  useImperativeHandle(ref, () => ({
+    openPicker: () => inputRef.current?.click(),
+    retryUpload: uploadId => {
+      const item = items.find(candidate => candidate.uploadId === uploadId && candidate.retryable);
+      if (!item) return false;
+      retryRef.current(item);
+      return true;
+    },
+  }), [items]);
+
+  const visibleItems = items
+    .filter(item => !item.uploadId || !suppressedIds.has(item.uploadId))
+    // Once initiated, the conversation tray owns the compact attachment card and status.
+    .filter(item => variant === 'panel' || !item.uploadId);
+
+  if (variant === 'compact') return (
+    <section aria-label="上传资料">
+      {showTrigger && (
+        <button
+          type="button"
+          disabled={disabled}
+          onClick={() => inputRef.current?.click()}
+          className="inline-flex items-center gap-1.5 rounded-full border border-stone-200 bg-white px-3 py-1.5 text-xs font-medium text-zinc-700 shadow-sm transition-colors hover:bg-stone-50 disabled:opacity-40"
+        >
+          <span aria-hidden="true">＋</span>
+          添加文件
+        </button>
+      )}
+      <input ref={inputRef} type="file" multiple hidden accept={acceptedMimeTypes.join(',')} onChange={event => chooseFiles(event.target.files)} />
+      {visibleItems.length > 0 && (
+        <ul className="flex flex-wrap gap-2">
+          {visibleItems.map(item => (
+            <li key={`${item.file.name}-${item.file.lastModified}`} className="max-w-full rounded-xl border border-stone-200 bg-white px-3 py-2 text-xs shadow-sm">
+              <div className="flex min-w-0 items-center gap-2">
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-stone-100 text-[10px] font-semibold uppercase text-zinc-500">
+                  {item.file.name.split('.').pop()?.slice(0, 4) || 'FILE'}
+                </span>
+                <span className="max-w-48 truncate font-medium text-zinc-700">{item.fileName}</span>
+                <MaterialProcessingBadge stage={item.stage} />
+              </div>
+              {item.errorMessage && <p className="mt-1.5 max-w-72 text-rose-700">{item.errorMessage}</p>}
+              {item.retryable && <button type="button" onClick={() => retry(item)} className="mt-1.5 font-medium text-zinc-700 underline">重试</button>}
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+
   return (
     <section aria-label="上传资料" className="rounded-xl border border-dashed border-stone-300 bg-stone-50 p-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -151,7 +229,7 @@ export const MaterialUploader = ({
         <input ref={inputRef} type="file" multiple hidden accept={acceptedMimeTypes.join(',')} onChange={event => chooseFiles(event.target.files)} />
       </div>
       {items.length > 0 && <ul className="mt-4 space-y-2">
-        {items.filter(item => !item.uploadId || !suppressedIds.has(item.uploadId)).map(item => <li key={`${item.file.name}-${item.file.lastModified}`} className="rounded-lg bg-white p-3 text-sm shadow-sm">
+        {visibleItems.map(item => <li key={`${item.file.name}-${item.file.lastModified}`} className="rounded-lg bg-white p-3 text-sm shadow-sm">
           <div className="flex items-center justify-between gap-3"><span className="truncate">{item.fileName}</span><MaterialProcessingBadge stage={item.stage} /></div>
           {item.errorMessage && <p className="mt-2 text-rose-700">{item.errorMessage}</p>}
           {item.stage === 'PARTIAL_READY' && !dismissedGaps.has(item.file) && <div className="mt-2"><MaterialGapDialog gapCode={item.gapCode} onClose={() => setDismissedGaps(previous => new Set(previous).add(item.file))} /></div>}
@@ -160,4 +238,4 @@ export const MaterialUploader = ({
       </ul>}
     </section>
   );
-};
+});

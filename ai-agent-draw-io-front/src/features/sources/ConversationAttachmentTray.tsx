@@ -1,7 +1,9 @@
 'use client';
 
-import { MaterialUploader } from '../materials/MaterialUploader';
-import { useState, type Dispatch, type SetStateAction } from 'react';
+import { MaterialUploader, type MaterialUploaderHandle } from '../materials/MaterialUploader';
+import { type MaterialUploadTarget } from '../materials/material-types';
+import { isReadyUploadStatus, isTerminalUploadStatus } from '../materials/upload-machine';
+import { forwardRef, useImperativeHandle, useRef, useState, type Dispatch, type SetStateAction } from 'react';
 import type { createMaterialClient } from '@/api/material';
 import {
   addAttachmentToCurrentSelection,
@@ -11,32 +13,40 @@ import {
 type MaterialClient = ReturnType<typeof createMaterialClient>;
 
 const statusLabel = (state: string) => ({
-  READY: '已就绪', PARTIAL_READY: '部分就绪', FAILED: '处理失败', REJECTED: '已拒绝', CANCELLED: '已取消',
+  SUCCEEDED: '已就绪', READY: '已就绪', PARTIAL_READY: '部分就绪', FAILED: '处理失败', REJECTED: '已拒绝', CANCELLED: '已取消',
 }[state] || '处理中');
 
 /** Uploads temporary conversation material and stores only its server-issued upload ID. */
-export const ConversationAttachmentTray = ({
-  client,
-  sessionId,
-  acceptedMimeTypes,
-  attachments,
-  selectedUploadIds,
-  onChange,
-  onSelectedUploadIdsChange,
-  onInitializeSession,
-  disabled,
-}: {
+export const ConversationAttachmentTray = forwardRef<MaterialUploaderHandle, {
   client: MaterialClient;
   sessionId: string;
+  diagramId?: string;
   acceptedMimeTypes: string[];
   attachments: ConversationAttachment[];
   selectedUploadIds: string[];
   onChange: Dispatch<SetStateAction<ConversationAttachment[]>>;
   onSelectedUploadIdsChange: Dispatch<SetStateAction<string[]>>;
-  onInitializeSession?: () => void;
+  onPrepareUpload?: () => Promise<MaterialUploadTarget>;
   disabled?: boolean;
-}) => {
+}>(function ConversationAttachmentTray({
+  client,
+  sessionId,
+  diagramId,
+  acceptedMimeTypes,
+  attachments,
+  selectedUploadIds,
+  onChange,
+  onSelectedUploadIdsChange,
+  onPrepareUpload,
+  disabled,
+}, ref) {
   const [suppressedUploadIds, setSuppressedUploadIds] = useState<string[]>([]);
+  const [retryableUploadIds, setRetryableUploadIds] = useState<string[]>([]);
+  const uploaderRef = useRef<MaterialUploaderHandle>(null);
+  useImperativeHandle(ref, () => ({
+    openPicker: () => uploaderRef.current?.openPicker(),
+    retryUpload: uploadId => uploaderRef.current?.retryUpload(uploadId) || false,
+  }), []);
   const upsert = (next: ConversationAttachment) => {
     if (suppressedUploadIds.includes(next.uploadId)) return;
     onChange(previous => {
@@ -44,45 +54,28 @@ export const ConversationAttachmentTray = ({
       return index < 0 ? [...previous, next] : previous.map(item => item.uploadId === next.uploadId ? { ...item, ...next } : item);
     });
   };
-  const processingAttachments = attachments.filter(item => !['READY', 'PARTIAL_READY', 'FAILED', 'REJECTED', 'CANCELLED'].includes(item.state));
+  const processingAttachments = attachments.filter(item => !isTerminalUploadStatus(item.state));
   const selected = new Set(selectedUploadIds);
-  const selectOnly = (uploadId: string) => onSelectedUploadIdsChange([uploadId]);
+  const retryable = new Set(retryableUploadIds);
   const toggleSelection = (uploadId: string) => onSelectedUploadIdsChange(previous => (
     previous.includes(uploadId)
       ? previous.filter(value => value !== uploadId)
       : addAttachmentToCurrentSelection(previous, uploadId)
   ));
 
-  if (!sessionId) return (
-    <section className="mb-2 flex items-center justify-between gap-2 rounded-xl border border-stone-200 bg-stone-50 p-2.5 text-xs">
-      <span className="text-zinc-600">先创建会话，再添加临时附件。</span>
-      <button type="button" disabled={disabled || !onInitializeSession} onClick={onInitializeSession} className="rounded-md border border-stone-300 bg-white px-2 py-1 font-medium text-zinc-700 disabled:opacity-50">创建附件会话</button>
-    </section>
-  );
   return (
-    <section className="mb-2 rounded-xl border border-stone-200 bg-stone-50 p-2.5" aria-label="会话附件">
-      <div className="mb-2 flex items-center justify-between gap-2">
-        <span className="text-xs font-medium text-zinc-700">本次会话附件</span>
-        <div className="flex items-center gap-2">
-          <span className="text-[11px] text-zinc-500">临时资料，不会自动存入资料库</span>
-          {selected.size > 0 && (
-            <button
-              type="button"
-              disabled={disabled}
-              onClick={() => onSelectedUploadIdsChange([])}
-              className="text-[11px] text-zinc-500 underline disabled:opacity-50"
-            >
-              清空本次选择
-            </button>
-          )}
-        </div>
-      </div>
+    <section className={attachments.length > 0 ? 'mb-2 border-b border-stone-200 px-1 pb-2' : ''} aria-label="会话附件">
       <MaterialUploader
+        ref={uploaderRef}
         client={client}
-        target={{ scopeType: 'CONVERSATION', scopeId: sessionId, retentionClass: 'TEMPORARY' }}
+        target={{ scopeType: 'CONVERSATION', scopeId: sessionId, retentionClass: 'TEMPORARY', diagramId }}
+        beforeUpload={onPrepareUpload}
         acceptedMimeTypes={acceptedMimeTypes}
         disabled={disabled}
         suppressedUploadIds={suppressedUploadIds}
+        variant="compact"
+        showTrigger={false}
+        onRetryableUploadIdsChange={setRetryableUploadIds}
         onUploadInitiated={upload => {
           upsert({ ...upload, state: 'UPLOADING' });
           // A newly attached file belongs to the current turn until the user explicitly opts it out.
@@ -90,37 +83,95 @@ export const ConversationAttachmentTray = ({
         }}
         onUploadStatus={upload => upsert(upload)}
       />
-      {attachments.length > 0 && <ul className="mt-2 space-y-1">
-        {attachments.map(attachment => <li key={attachment.uploadId} className="flex items-center justify-between gap-2 rounded-md bg-white px-2 py-1.5 text-xs">
-          <label className="flex shrink-0 items-center gap-1 text-zinc-600">
-            <input
-              type="checkbox"
-              checked={selected.has(attachment.uploadId)}
-              disabled={disabled}
-              onChange={() => toggleSelection(attachment.uploadId)}
-            />
-            本次
-          </label>
-          <span className="min-w-0 truncate text-zinc-700">{attachment.fileName}</span>
-          <span className="shrink-0 text-zinc-500">{statusLabel(attachment.state)}</span>
-          <button
-            type="button"
-            disabled={disabled}
-            onClick={() => selectOnly(attachment.uploadId)}
-            className="shrink-0 text-zinc-500 underline disabled:opacity-50"
-          >
-            仅用此项
-          </button>
-          <button type="button" disabled={disabled} onClick={() => {
-            setSuppressedUploadIds(previous => [...new Set([...previous, attachment.uploadId])]);
-            onChange(previous => previous.filter(item => item.uploadId !== attachment.uploadId));
-            onSelectedUploadIdsChange(previous => previous.filter(value => value !== attachment.uploadId));
-          }} className="shrink-0 text-zinc-500 underline disabled:opacity-50">从会话移除</button>
-        </li>)}
-      </ul>}
+      {attachments.length > 0 && (
+        <>
+          <div className="mb-1.5 flex items-center justify-between gap-2 px-0.5 text-[11px] text-zinc-500">
+            <span>附件 · 仅用于本次会话</span>
+            {selected.size > 0 && (
+              <button
+                type="button"
+                disabled={disabled}
+                onClick={() => onSelectedUploadIdsChange([])}
+                className="hover:text-zinc-800 disabled:opacity-50"
+              >
+                取消使用
+              </button>
+            )}
+          </div>
+          <ul className="flex flex-wrap gap-2">
+            {attachments.map(attachment => {
+              const normalizedState = attachment.state.trim().toUpperCase();
+              // A partially processed file is usable, so it must not look like a hard failure.
+              const partial = normalizedState === 'PARTIAL_READY';
+              const ready = isReadyUploadStatus(normalizedState) || partial;
+              const failed = isTerminalUploadStatus(normalizedState) && !ready;
+              return (
+                <li
+                  key={attachment.uploadId}
+                  className={`flex max-w-full items-center gap-2 rounded-xl border bg-white px-2.5 py-2 text-xs shadow-sm transition-opacity ${
+                    selected.has(attachment.uploadId) ? 'border-stone-200' : 'border-stone-100 opacity-55'
+                  }`}
+                >
+                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-stone-100 text-[10px] font-semibold uppercase text-zinc-500">
+                    {attachment.fileName.split('.').pop()?.slice(0, 4) || 'FILE'}
+                  </span>
+                  <span className="min-w-0">
+                    <span className="block max-w-48 truncate font-medium text-zinc-700">{attachment.fileName}</span>
+                    <span className="mt-0.5 flex items-center gap-1.5 text-[11px] text-zinc-500">
+                      <span
+                        className={`h-1.5 w-1.5 rounded-full ${
+                          partial ? 'bg-amber-500' : ready ? 'bg-emerald-500' : failed ? 'bg-rose-500' : 'animate-pulse bg-amber-500'
+                        }`}
+                        aria-hidden="true"
+                      />
+                      {statusLabel(normalizedState)}
+                    </span>
+                  </span>
+                  <label className="ml-1 flex shrink-0 items-center" title="在本次消息中使用">
+                    <span className="sr-only">在本次消息中使用 {attachment.fileName}</span>
+                    <input
+                      type="checkbox"
+                      checked={selected.has(attachment.uploadId)}
+                      disabled={disabled}
+                      onChange={() => toggleSelection(attachment.uploadId)}
+                      className="h-3.5 w-3.5 accent-zinc-700"
+                    />
+                  </label>
+                  {retryable.has(attachment.uploadId) && (
+                    <button
+                      type="button"
+                      disabled={disabled}
+                      onClick={() => uploaderRef.current?.retryUpload(attachment.uploadId)}
+                      className="shrink-0 font-medium text-zinc-600 hover:text-zinc-900 disabled:opacity-50"
+                    >
+                      重试
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    disabled={disabled}
+                    title="移除附件"
+                    aria-label={`移除 ${attachment.fileName}`}
+                    onClick={() => {
+                      setSuppressedUploadIds(previous => [...new Set([...previous, attachment.uploadId])]);
+                      onChange(previous => previous.filter(item => item.uploadId !== attachment.uploadId));
+                      onSelectedUploadIdsChange(previous => previous.filter(value => value !== attachment.uploadId));
+                    }}
+                    className="ml-0.5 shrink-0 rounded-full p-1 text-zinc-400 hover:bg-stone-100 hover:text-zinc-700 disabled:opacity-50"
+                  >
+                    <svg aria-hidden="true" viewBox="0 0 20 20" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="1.8">
+                      <path d="m5 5 10 10M15 5 5 15" />
+                    </svg>
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        </>
+      )}
       {processingAttachments.some(attachment => selected.has(attachment.uploadId)) && (
-        <p className="mt-2 text-[11px] text-amber-700">本次选择中有附件正在处理；发送后会等待所选资料就绪。</p>
+        <p className="mt-1.5 px-0.5 text-[11px] text-zinc-500">附件仍在处理；发送后会自动等待就绪。</p>
       )}
     </section>
   );
-};
+});
