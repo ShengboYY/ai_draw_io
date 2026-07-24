@@ -77,8 +77,14 @@ public final class DefaultVisualObservationModule implements VisualObservationMo
                 if (stopped(resources, signal)) return new VisualObservationOutcome.Cancelled();
             }
             if (stopped(resources, signal)) return new VisualObservationOutcome.Cancelled();
-            VisionModelPort.Response response = model.observe(new VisionModelPort.Request(
-                    command.purpose(), command.question(), images, command.maximumObservations()));
+            VisionModelPort.Response response;
+            try {
+                response = model.observe(new VisionModelPort.Request(
+                        command.purpose(), command.question(), images, command.maximumObservations()));
+            } catch (IllegalArgumentException exception) {
+                // A provider schema failure is a system fault, not evidence that the user's image is invalid.
+                return new VisualObservationOutcome.Unavailable("VISUAL_PROVIDER_OUTPUT_INVALID");
+            }
             if (stopped(resources, signal)) return new VisualObservationOutcome.Cancelled();
             Set<String> allowedEvidence = new HashSet<>(
                     command.targets().stream().map(VisualObservationTarget::evidenceId).toList());

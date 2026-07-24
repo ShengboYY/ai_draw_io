@@ -87,6 +87,43 @@ class ChatVisionModelPortAdapterTest {
         assertTrue(chat.lastCommand.getTexts().get(0).getMessage().contains("Never return XML"));
     }
 
+    @Test
+    void repairsRecoverableDiagramBoundsThatExtendPastTheImageEdge() {
+        FakeChat chat = new FakeChat("""
+                {"diagramGraph":{"nodes":[
+                  {"id":"resolution","label":"Record Resolution","shape":"ROUNDED_RECTANGLE",
+                   "bounds":{"x":0.884,"y":0.039,"width":0.198,"height":0.163},
+                   "groupId":null,"evidenceId":"E1","confidence":0.98}],
+                  "edges":[],"groups":[],"unresolvedItems":[]},"gaps":[]}
+                """);
+        VisionModelPort adapter = new ChatVisionModelPortAdapter(chat, new ObjectMapper(), "agent-visual");
+
+        VisionModelPort.Response response = adapter.observe(new VisionModelPort.Request(
+                VisualObservationPurpose.DIAGRAM_RECONSTRUCTION, "Reconstruct this diagram",
+                List.of(new VisionModelPort.ImageInput("E1", "image/png", new byte[]{1})), 32));
+
+        ObservationBounds bounds = response.diagramGraph().nodes().get(0).bounds();
+        assertEquals(0.884, bounds.x(), 0.000001);
+        assertEquals(0.116, bounds.width(), 0.000001);
+    }
+
+    @Test
+    void rejectsGrosslyMalformedDiagramBoundsInsteadOfClippingThemIntoTheImage() {
+        FakeChat chat = new FakeChat("""
+                {"diagramGraph":{"nodes":[
+                  {"id":"resolution","label":"Record Resolution","shape":"ROUNDED_RECTANGLE",
+                   "bounds":{"x":-100,"y":0.039,"width":100.5,"height":0.163},
+                   "groupId":null,"evidenceId":"E1","confidence":0.98}],
+                  "edges":[],"groups":[],"unresolvedItems":[]},"gaps":[]}
+                """);
+        VisionModelPort adapter = new ChatVisionModelPortAdapter(chat, new ObjectMapper(), "agent-visual");
+
+        assertThrows(IllegalArgumentException.class, () -> adapter.observe(
+                new VisionModelPort.Request(
+                        VisualObservationPurpose.DIAGRAM_RECONSTRUCTION, "Reconstruct this diagram",
+                        List.of(new VisionModelPort.ImageInput("E1", "image/png", new byte[]{1})), 32)));
+    }
+
     private VisionModelPort.Request request() {
         return new VisionModelPort.Request(VisualObservationPurpose.FACT_VERIFICATION,
                 "Where does the arrow point?",

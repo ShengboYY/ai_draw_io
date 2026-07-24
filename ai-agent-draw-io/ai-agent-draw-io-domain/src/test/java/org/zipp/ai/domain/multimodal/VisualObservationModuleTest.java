@@ -85,6 +85,22 @@ class VisualObservationModuleTest {
     }
 
     @Test
+    void malformedProviderOutputIsReportedAsASystemFailureInsteadOfInvalidUserInput() {
+        VisualObservationModule module = new DefaultVisualObservationModule(
+                (artifact, maximumBytes) -> new byte[]{1, 2, 3, 4},
+                request -> {
+                    throw new IllegalArgumentException("invalid visual observation output");
+                });
+
+        VisualObservationOutcome outcome = module.observe(command(), new RunResourceDomain(),
+                CancellationSignal.NEVER).toCompletableFuture().join();
+
+        VisualObservationOutcome.Unavailable unavailable =
+                assertInstanceOf(VisualObservationOutcome.Unavailable.class, outcome);
+        assertEquals("VISUAL_PROVIDER_OUTPUT_INVALID", unavailable.reason());
+    }
+
+    @Test
     void cancellationStopsBeforeReadingPixelsOrCallingTheModel() {
         AtomicInteger reads = new AtomicInteger();
         AtomicInteger calls = new AtomicInteger();

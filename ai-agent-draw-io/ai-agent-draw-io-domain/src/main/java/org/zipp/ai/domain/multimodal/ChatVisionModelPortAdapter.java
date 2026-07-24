@@ -13,6 +13,7 @@ import java.util.Set;
 
 /** Configured multimodal chat adapter with an exact observation-only JSON schema. */
 public final class ChatVisionModelPortAdapter implements VisionModelPort {
+    private static final double MAX_REPAIRABLE_BOUNDARY_DRIFT = 0.10D;
     private static final Set<String> ROOT_FIELDS = Set.of("observations", "gaps");
     private static final Set<String> OBSERVATION_FIELDS =
             Set.of("evidenceId", "kind", "text", "bounds", "direction", "confidence");
@@ -100,8 +101,7 @@ public final class ChatVisionModelPortAdapter implements VisionModelPort {
                         text(node, "evidenceId", 128, false),
                         ObservationKind.valueOf(text(node, "kind", 32, false)),
                         text(node, "text", 2_000, false),
-                        new ObservationBounds(number(bounds, "x"), number(bounds, "y"),
-                                number(bounds, "width"), number(bounds, "height")),
+                        bounds(bounds),
                         text(node, "direction", 64, true),
                         number(node, "confidence")));
             });
@@ -206,8 +206,42 @@ public final class ChatVisionModelPortAdapter implements VisionModelPort {
 
     private ObservationBounds bounds(JsonNode node) {
         requireFields(node, BOUNDS_FIELDS);
-        return new ObservationBounds(number(node, "x"), number(node, "y"),
-                number(node, "width"), number(node, "height"));
+        double x = number(node, "x");
+        double y = number(node, "y");
+        double width = number(node, "width");
+        double height = number(node, "height");
+        requireRecoverableBounds(x, y, width, height);
+        double left = normalized(x);
+        double top = normalized(y);
+        double right = normalized(x + width);
+        double bottom = normalized(y + height);
+        if (right <= left || bottom <= top) {
+            throw new IllegalArgumentException("visual bounds must intersect normalized image coordinates");
+        }
+        // Clip only small model rounding/layout drift before enforcing the strict domain invariant.
+        return new ObservationBounds(left, top, right - left, bottom - top);
+    }
+
+    private void requireRecoverableBounds(double x, double y, double width, double height) {
+        double right = x + width;
+        double bottom = y + height;
+        if (!Double.isFinite(x) || !Double.isFinite(y)
+                || !Double.isFinite(width) || !Double.isFinite(height)
+                || !Double.isFinite(right) || !Double.isFinite(bottom)) {
+            throw new IllegalArgumentException("visual coordinate must be finite");
+        }
+        if (width <= 0 || height <= 0) {
+            throw new IllegalArgumentException("visual bounds must have positive area");
+        }
+        if (x < -MAX_REPAIRABLE_BOUNDARY_DRIFT || y < -MAX_REPAIRABLE_BOUNDARY_DRIFT
+                || right > 1 + MAX_REPAIRABLE_BOUNDARY_DRIFT
+                || bottom > 1 + MAX_REPAIRABLE_BOUNDARY_DRIFT) {
+            throw new IllegalArgumentException("visual bounds exceed repairable boundary drift");
+        }
+    }
+
+    private double normalized(double value) {
+        return Math.max(0, Math.min(1, value));
     }
 
     private JsonNode array(JsonNode node, String field, int maximumSize) {
