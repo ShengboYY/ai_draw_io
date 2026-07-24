@@ -34,6 +34,7 @@ import org.zipp.ai.domain.retrieval.internal.DefaultRequestSourceResolutionServi
 import org.zipp.ai.domain.retrieval.internal.DeadlineRequestProbeService;
 import org.zipp.ai.domain.retrieval.port.*;
 import org.zipp.ai.infrastructure.adapter.repository.*;
+import org.zipp.ai.infrastructure.adapter.filesystem.FileSystemMaterialObjectAdapter;
 import org.zipp.ai.infrastructure.adapter.s3.S3EvidenceBlobStoreAdapter;
 import org.zipp.ai.infrastructure.adapter.s3.S3RevisionArtifactAdapter;
 import org.zipp.ai.infrastructure.adapter.vector.*;
@@ -43,6 +44,7 @@ import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3Client;
 
 import java.net.URI;
+import java.nio.file.Path;
 import java.util.Optional;
 import java.time.Duration;
 import java.util.concurrent.ExecutorService;
@@ -147,6 +149,7 @@ public class MaterialRagConfig {
     }
 
     @Bean
+    @ConditionalOnProperty(name = "app.material-storage.storage", havingValue = "s3")
     public S3Client materialRagS3Client(
             @Value("${app.material-rag.aws-region}") String region,
             @Value("${MATERIAL_S3_ENDPOINT:}") String endpoint) {
@@ -160,10 +163,19 @@ public class MaterialRagConfig {
     }
 
     @Bean
+    @ConditionalOnProperty(name = "app.material-storage.storage", havingValue = "s3")
     public RevisionArtifactPort materialRagRevisionArtifactPort(
             @Qualifier("materialRagS3Client") S3Client s3,
             @Value("${app.material-rag.materials-bucket}") String bucket) {
         return new S3RevisionArtifactAdapter(s3, bucket);
+    }
+
+    @Bean("materialRagRevisionArtifactPort")
+    @ConditionalOnProperty(name = "app.material-storage.storage", havingValue = "local", matchIfMissing = true)
+    public RevisionArtifactPort materialRagLocalRevisionArtifactPort(
+            @Value("${app.material-upload.local-root:./data/material-uploads}") String quarantineRoot,
+            @Value("${app.material-storage.local-root:./data/material-objects}") String materialsRoot) {
+        return new FileSystemMaterialObjectAdapter(Path.of(quarantineRoot), Path.of(materialsRoot));
     }
 
     @Bean

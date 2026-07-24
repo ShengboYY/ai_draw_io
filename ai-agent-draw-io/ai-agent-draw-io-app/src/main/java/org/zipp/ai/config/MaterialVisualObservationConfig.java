@@ -4,11 +4,13 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.zipp.ai.domain.agent.service.IChatService;
 import org.zipp.ai.domain.ingestion.port.RevisionArtifactPort;
 import org.zipp.ai.domain.multimodal.*;
+import org.zipp.ai.infrastructure.adapter.filesystem.FileSystemMaterialObjectAdapter;
 import org.zipp.ai.infrastructure.adapter.s3.RevisionVisualArtifactReaderAdapter;
 import org.zipp.ai.infrastructure.adapter.s3.S3RevisionArtifactAdapter;
 import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
@@ -16,6 +18,7 @@ import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3Client;
 
 import java.net.URI;
+import java.nio.file.Path;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -32,6 +35,7 @@ public class MaterialVisualObservationConfig {
     }
 
     @Bean
+    @ConditionalOnProperty(name = "app.material-storage.storage", havingValue = "s3")
     public S3Client materialVisualS3Client(
             @Value("${app.material-visual-observation.aws-region}") String region,
             @Value("${MATERIAL_S3_ENDPOINT:}") String endpoint) {
@@ -45,10 +49,19 @@ public class MaterialVisualObservationConfig {
     }
 
     @Bean
+    @ConditionalOnProperty(name = "app.material-storage.storage", havingValue = "s3")
     public RevisionArtifactPort materialVisualRevisionArtifactPort(
             @Qualifier("materialVisualS3Client") S3Client s3,
             @Value("${app.material-visual-observation.materials-bucket}") String bucket) {
         return new S3RevisionArtifactAdapter(s3, bucket);
+    }
+
+    @Bean("materialVisualRevisionArtifactPort")
+    @ConditionalOnProperty(name = "app.material-storage.storage", havingValue = "local", matchIfMissing = true)
+    public RevisionArtifactPort materialVisualLocalRevisionArtifactPort(
+            @Value("${app.material-upload.local-root:./data/material-uploads}") String quarantineRoot,
+            @Value("${app.material-storage.local-root:./data/material-objects}") String materialsRoot) {
+        return new FileSystemMaterialObjectAdapter(Path.of(quarantineRoot), Path.of(materialsRoot));
     }
 
     @Bean

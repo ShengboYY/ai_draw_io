@@ -6,6 +6,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -40,6 +41,7 @@ import org.zipp.ai.domain.retrieval.projection.VectorProjectionPlanner;
 import org.zipp.ai.domain.material.port.MaterialDeletionObjectPort;
 import org.zipp.ai.domain.material.port.MaterialDeletionVectorPort;
 import org.zipp.ai.domain.material.port.MaterialDeletionWorkPort;
+import org.zipp.ai.infrastructure.adapter.filesystem.FileSystemMaterialObjectAdapter;
 import org.zipp.ai.infrastructure.adapter.filesystem.FileSystemQuarantineObjectAdapter;
 import org.zipp.ai.infrastructure.adapter.s3.S3OriginalPromotionAdapter;
 import org.zipp.ai.infrastructure.adapter.s3.S3PinnedQuarantineContentAdapter;
@@ -99,7 +101,16 @@ public class WorkerConfig {
     }
 
     @Bean
+    @ConditionalOnProperty(name = "worker.storage", havingValue = "local", matchIfMissing = true)
+    public FileSystemMaterialObjectAdapter localMaterialObjectAdapter(
+            @Value("${worker.local-upload-root:./data/material-uploads}") String quarantineRoot,
+            @Value("${worker.local-materials-root:./data/material-objects}") String materialsRoot) {
+        return new FileSystemMaterialObjectAdapter(Path.of(quarantineRoot), Path.of(materialsRoot));
+    }
+
+    @Bean
     @ConditionalOnProperty(name = "worker.materialization-enabled", havingValue = "true")
+    @ConditionalOnExpression("'${worker.storage:local}' == 's3'")
     public OriginalPromotionPort originalPromotionPort(
             S3Client s3Client, @Value("${worker.materials-bucket}") String materialsBucket) {
         return new S3OriginalPromotionAdapter(s3Client, materialsBucket);
@@ -195,6 +206,7 @@ public class WorkerConfig {
 
     @Bean
     @ConditionalOnProperty(name = "worker.document-processing-enabled", havingValue = "true")
+    @ConditionalOnExpression("'${worker.storage:local}' == 's3'")
     public RevisionArtifactPort revisionArtifactPort(
             S3Client s3Client, @Value("${worker.materials-bucket}") String materialsBucket) {
         return new S3RevisionArtifactAdapter(s3Client, materialsBucket);
@@ -308,6 +320,7 @@ public class WorkerConfig {
 
     @Bean
     @ConditionalOnProperty(name = "worker.material-deletion-enabled", havingValue = "true")
+    @ConditionalOnExpression("'${worker.storage:local}' == 's3'")
     public MaterialDeletionObjectPort materialDeletionObjectPort(
             S3Client s3Client, @Value("${worker.materials-bucket}") String materialsBucket) {
         return new S3MaterialDeletionAdapter(s3Client, materialsBucket);

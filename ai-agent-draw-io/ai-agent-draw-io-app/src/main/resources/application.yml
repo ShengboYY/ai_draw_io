@@ -53,6 +53,9 @@ app:
     deletion-confirmation-secret: ${MATERIAL_DELETION_CONFIRMATION_SECRET:}
     maintenance-delay-ms: ${MATERIAL_LIFECYCLE_MAINTENANCE_DELAY_MS:60000}
     batch-size: ${MATERIAL_LIFECYCLE_BATCH_SIZE:100}
+  material-storage:
+    storage: ${MATERIAL_UPLOAD_STORAGE:local}
+    local-root: ${MATERIAL_LOCAL_ROOT:./data/material-objects}
   material-preview:
     # Page rendering and reprocessing remain isolated from ordinary text drawing.
     enabled: ${MATERIAL_PREVIEW_ENABLED:false}
@@ -67,7 +70,7 @@ app:
       ocr-version: ${MATERIAL_PROCESSING_OCR_VERSION:}
       vlm-schema-version: ${MATERIAL_PROCESSING_VLM_SCHEMA_VERSION:}
   material-rag:
-    # WP5 remains fail-closed until migrations, lifecycle leases, S3 and optional Pinecone are configured.
+    # WP5 remains fail-closed until migrations, lifecycle leases, material storage and optional Pinecone are configured.
     enabled: ${MATERIAL_RAG_ENABLED:false}
     citation-commit-enabled: ${MATERIAL_CITATION_COMMIT_ENABLED:false}
     evidence-answer-enabled: ${MATERIAL_EVIDENCE_ANSWER_ENABLED:false}

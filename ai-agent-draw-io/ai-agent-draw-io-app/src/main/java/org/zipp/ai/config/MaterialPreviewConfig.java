@@ -13,6 +13,7 @@ import org.zipp.ai.domain.material.port.MaterialPageAccessPort;
 import org.zipp.ai.domain.material.port.MaterialPreviewContentPort;
 import org.zipp.ai.domain.material.service.MaterialPreviewService;
 import org.zipp.ai.domain.material.service.MaterialRevisionPolicy;
+import org.zipp.ai.infrastructure.adapter.filesystem.FileSystemMaterialObjectAdapter;
 import org.zipp.ai.infrastructure.adapter.s3.BoundedPngPreviewAdapter;
 import org.zipp.ai.infrastructure.adapter.s3.S3RevisionArtifactAdapter;
 import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
@@ -20,22 +21,33 @@ import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3Client;
 
 import java.time.Clock;
+import java.nio.file.Path;
 
 @Configuration
 @ConditionalOnProperty(name = {"app.material-catalog.enabled", "app.material-preview.enabled"},
         havingValue = "true")
 public class MaterialPreviewConfig {
     @Bean
+    @ConditionalOnProperty(name = "app.material-storage.storage", havingValue = "s3")
     public S3Client materialPreviewS3Client(@Value("${app.material-preview.aws-region}") String region) {
         return S3Client.builder().credentialsProvider(DefaultCredentialsProvider.create())
                 .region(Region.of(region)).build();
     }
 
     @Bean
+    @ConditionalOnProperty(name = "app.material-storage.storage", havingValue = "s3")
     public RevisionArtifactPort materialPreviewRevisionArtifactPort(
             @Qualifier("materialPreviewS3Client") S3Client s3Client,
             @Value("${app.material-preview.materials-bucket}") String materialsBucket) {
         return new S3RevisionArtifactAdapter(s3Client, materialsBucket);
+    }
+
+    @Bean("materialPreviewRevisionArtifactPort")
+    @ConditionalOnProperty(name = "app.material-storage.storage", havingValue = "local", matchIfMissing = true)
+    public RevisionArtifactPort materialPreviewLocalRevisionArtifactPort(
+            @Value("${app.material-upload.local-root:./data/material-uploads}") String quarantineRoot,
+            @Value("${app.material-storage.local-root:./data/material-objects}") String materialsRoot) {
+        return new FileSystemMaterialObjectAdapter(Path.of(quarantineRoot), Path.of(materialsRoot));
     }
 
     @Bean

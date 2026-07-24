@@ -1,4 +1,7 @@
 spring:
+  config:
+    # Keep Maven and IntelliJ Worker launches aligned with the local app configuration.
+    import: optional:file:.env[.properties]
   application:
     name: ai-agent-draw-io-ingestion-worker
   main:
@@ -20,6 +23,7 @@ worker:
   id: ${WORKER_ID:${HOSTNAME:worker-local}}
   storage: ${MATERIAL_UPLOAD_STORAGE:local}
   local-upload-root: ${MATERIAL_UPLOAD_LOCAL_ROOT:./data/material-uploads}
+  local-materials-root: ${MATERIAL_LOCAL_ROOT:./data/material-objects}
   aws-region: ${AWS_REGION:ap-southeast-2}
   materials-bucket: ${MATERIALS_BUCKET:}
   materialization-enabled: ${MATERIAL_MATERIALIZATION_ENABLED:false}
