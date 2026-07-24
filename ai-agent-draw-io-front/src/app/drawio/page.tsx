@@ -4195,8 +4195,9 @@ function DrawioPageContent() {
             <Icons.Close className="w-5 h-5" />
           </button>
 
+          {/* Keep history independently scrollable so it ends above the fixed-size composer. */}
           {/* Messages Area */}
-          <div className="flex-1 space-y-6 overflow-y-auto bg-[var(--app-bg)] p-5 pr-14 scrollbar-thin scrollbar-track-transparent scrollbar-thumb-stone-300">
+          <div className="min-h-0 flex-1 space-y-6 overflow-y-auto bg-[var(--app-bg)] p-5 pr-14 scrollbar-thin scrollbar-track-transparent scrollbar-thumb-stone-300">
             {messages.map((msg, index) => {
               const isLatestRunningAgent = index === messages.length - 1 && isSending;
               const visibleExecutionSteps = getVisibleExecutionSteps(msg.steps, isLatestRunningAgent);
@@ -4358,8 +4359,9 @@ function DrawioPageContent() {
             <div ref={messagesEndRef} />
           </div>
 
+          {/* The composer shares the chat surface without a visual divider. */}
           {/* Input Area */}
-          <div className="relative z-20 shrink-0 border-t border-stone-200 bg-white p-4 shadow-[0_-4px_12px_rgba(24,24,27,0.03)]">
+          <div className="relative z-20 shrink-0 bg-[var(--app-bg)] p-4">
             {demoQuotaState.visible && demoQuotaState.exhausted && (
               <div className="mb-2 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700">
                 <span className="font-medium">{demoQuotaState.label}</span>

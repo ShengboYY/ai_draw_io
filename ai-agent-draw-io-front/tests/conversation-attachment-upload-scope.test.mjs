@@ -84,6 +84,27 @@ test('remaining demo quota sits beside the composer add button', () => {
   assert.doesNotMatch(pageSource, /mb-2 flex justify-end px-1/);
 });
 
+test('chat history and composer share one surface without overlapping', () => {
+  const messageAreaClasses = pageSource.match(
+    /\{\/\* Messages Area \*\/\}\s*<div className="([^"]*)"/,
+  )?.[1] || '';
+  const inputAreaClasses = pageSource.match(
+    /\{\/\* Input Area \*\/\}\s*<div className="([^"]*)"/,
+  )?.[1] || '';
+
+  assert.match(
+    pageSource,
+    /drawio-chat-panel relative flex flex-col[\s\S]*\{\/\* Messages Area \*\/\}[\s\S]*\{\/\* Input Area \*\/\}/,
+  );
+  assert.match(messageAreaClasses, /min-h-0/);
+  assert.match(messageAreaClasses, /flex-1/);
+  assert.match(messageAreaClasses, /overflow-y-auto/);
+  assert.match(inputAreaClasses, /shrink-0/);
+  assert.match(inputAreaClasses, /bg-\[var\(--app-bg\)\]/);
+  assert.doesNotMatch(inputAreaClasses, /border-t/);
+  assert.doesNotMatch(inputAreaClasses, /shadow-\[0_-4px/);
+});
+
 test('composer uses a Codex-style vertical layout', () => {
   const composerTextareaClasses = pageSource.match(
     /<textarea\s+ref=\{promptInputRef\}[\s\S]*?className="([^"]*)"/,
