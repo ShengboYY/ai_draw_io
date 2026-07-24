@@ -1,6 +1,6 @@
 # Stage E output-review packet
 
-Status: **pending two named output reviewers; diagnostic only**.
+Status: **two named output reviewers complete; diagnostic only**.
 
 The preserved late-observed Stage E execution is bound to response SHA-256
 `647a00c532ce0af4765102d9057290addebd4dff039b558fd9a42dfdf18c987b` and manifest commit
@@ -24,3 +24,7 @@ The frozen Stage E acceptance policy did not predeclare those alternate placemen
 acceptance decision here can document practical usability only; it cannot retroactively replace a
 pre-run strict score or make either duplicate execution formal. Any revised evaluator/policy must be
 tested on a new unseen cohort.
+
+Both named reviewers (`product-owner` and `alice-qa`) reached the same conclusion: `stge-val-09`,
+`10` and `11` are practically acceptable; `stge-val-04` is not, because its long labels overflow
+instead of wrapping in the actual diagrams.net renderer.

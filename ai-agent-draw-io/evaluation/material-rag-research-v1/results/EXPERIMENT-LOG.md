@@ -1376,3 +1376,21 @@
   `76b2f74fb76eba4a8938ab30dae42135b5db7bf232271b3cf318f82e2a503c43`。
 - **边界**:本条只确认 `stge-val-04` 的实际可读性，不回写 rubric，不改变 strict `8/12` 或 duplicate-run 的
   diagnostic-only 结论。
+
+### Stage E preserved-output independent review · 2026-07-24 · ✅ reviewer 2/2 complete
+
+- **审核结论**:`alice-qa` 独立复核同一份 preserved late-observed XML，与 product-owner 结论一致：接受 `stge-val-09`、
+  `10`、`11`，拒绝 `stge-val-04`，原因是实际 diagrams.net 渲染中长标签不换行而越界、重叠。
+- **合并结论**:两位具名 reviewer 对 4 个 strict-failure 的实际可用性达成一致，其中 `3/4` 可接受；这可作为
+  duplicate-run 诊断的定性结果，但不替换 frozen strict `8/12`，也不能产生正式 Validation claim。
+- **工件**:[alice-qa output review](../review/stage-e-postcalibration-validation-late-observed-output-alice-qa-v1.json)。
+
+### Stage E case 04 Development remediation · 2026-07-24 · ✅ implemented and locally verified
+
+- **修复**:Draw.io XML 规范化器现在仅为长度至少 `48` 个字符、没有显式 `whiteSpace` 样式的普通 vertex 标签补上
+  `whiteSpace=wrap;html=1;`。因此与 04 相同的长标签会在 diagrams.net 节点内换行；已有短标签、文本专用节点、
+  edge，以及显式 `whiteSpace=nowrap` 的节点不被覆盖。
+- **安全边界**:初版“所有 vertex 都补样式”会使既有直接来源节点看起来发生 style 变更，触发来源冲突保护；已收窄
+  为 long-label rule，并通过现有 `CanvasCommitModuleTest` 验证该保护仍生效。
+- **验证**:新增回归测试覆盖 04 的未样式长标签；`mvn -q -pl ai-agent-draw-io-domain clean test` 全部通过（`256` tests）。
+  未修改任何冻结 Stage E response、prompt、policy 或 rubric；此修复只能在新的 Development/Validation 运行中验证。
