@@ -109,6 +109,11 @@
         WHERE id = #{diagramId} AND user_id = #{ownerKey} AND deleted = 0
     </select>
 
+    <select id="countOwnedLifecycleChartbook" resultType="int">
+        SELECT COUNT(*) FROM chartbook
+        WHERE id = #{chartbookId} AND owner_key = #{ownerKey} AND status = 'ACTIVE'
+    </select>
+
     <select id="countOriginConversation" resultType="int">
         SELECT COUNT(*) FROM (
             SELECT conversation_id FROM conversation_source_context

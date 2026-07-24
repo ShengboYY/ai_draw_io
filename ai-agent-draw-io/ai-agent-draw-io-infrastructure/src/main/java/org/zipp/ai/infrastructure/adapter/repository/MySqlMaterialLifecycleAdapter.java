@@ -48,6 +48,7 @@ public class MySqlMaterialLifecycleAdapter implements MaterialLifecyclePort {
         return switch (scopeType) {
             case LIBRARY -> MaterialScopeType.isPersonalLibraryKey(scopeKey, owner.ownerKey());
             case DIAGRAM -> mapper.countOwnedLifecycleDiagram(owner.ownerKey(), scopeKey) == 1;
+            case CHARTBOOK -> mapper.countOwnedLifecycleChartbook(owner.ownerKey(), scopeKey) == 1;
             default -> false;
         };
     }

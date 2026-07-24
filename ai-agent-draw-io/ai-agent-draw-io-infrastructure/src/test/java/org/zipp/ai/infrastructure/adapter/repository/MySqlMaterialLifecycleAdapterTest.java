@@ -51,6 +51,23 @@ class MySqlMaterialLifecycleAdapterTest {
     }
 
     @Test
+    void chartbookPromotionRequiresAnOwnedActiveChartbook() {
+        IMaterialLifecycleMapper mapper = mapper((method, args) -> {
+            if ("countOwnedLifecycleChartbook".equals(method)) {
+                assertEquals("user_1", args[0]);
+                assertEquals("chartbook_1", args[1]);
+                return 1;
+            }
+            return unsupported(method);
+        });
+
+        boolean owned = new MySqlMaterialLifecycleAdapter(mapper).scopeTargetOwned(
+                USER, MaterialScopeType.CHARTBOOK, "chartbook_1");
+
+        assertTrue(owned);
+    }
+
+    @Test
     void anonymousRemovalFencesJobsAndCreatesOneDurableDeletionTask() {
         CatalogOwner owner = new CatalogOwner(OwnerType.ANONYMOUS, "anon_1");
         Material material = Material.createTemporary("material_1", OwnerType.ANONYMOUS,

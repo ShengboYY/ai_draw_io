@@ -15,13 +15,15 @@ import java.util.Objects;
 public final class ChartbookCatalogService {
     private final ChartbookCatalogPort chartbooks;
     private final MaterialCatalogService materials;
+    private final ChartbookFileModule files;
     private final CatalogIdFactory ids;
     private final Clock clock;
 
     public ChartbookCatalogService(ChartbookCatalogPort chartbooks, MaterialCatalogService materials,
-                                   CatalogIdFactory ids, Clock clock) {
+                                   ChartbookFileModule files, CatalogIdFactory ids, Clock clock) {
         this.chartbooks = Objects.requireNonNull(chartbooks, "chartbooks");
         this.materials = Objects.requireNonNull(materials, "materials");
+        this.files = Objects.requireNonNull(files, "files");
         this.ids = Objects.requireNonNull(ids, "ids");
         this.clock = Objects.requireNonNull(clock, "clock");
     }
@@ -58,12 +60,11 @@ public final class ChartbookCatalogService {
     }
 
     public ChartbookView addMaterial(CatalogOwner owner, String chartbookId, String materialId) {
-        Chartbook aggregate = aggregate(find(owner, chartbookId));
-        materials.findMaterial(owner, materialId);
-        aggregate.shareMaterial(materialId, owner.ownerKey());
-        materials.addScope(new MaterialScopeCommand(owner, materialId,
-                MaterialScopeType.CHARTBOOK, chartbookId));
-        return find(owner, chartbookId);
+        String bookId = required(chartbookId, "chartbookId");
+        String fileId = required(materialId, "materialId");
+        // Old clients lack an idempotency header, so their resource identity becomes the stable key.
+        return files.add(new AddChartbookFileCommand(owner, bookId, fileId,
+                "legacy-add:" + bookId + ":" + fileId)).chartbook();
     }
 
     public ChartbookView removeMaterial(CatalogOwner owner, String chartbookId, String materialId) {

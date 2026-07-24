@@ -22,16 +22,17 @@ class MaterialLifecycleServiceTest {
     private static final CatalogOwner USER = new CatalogOwner(OwnerType.USER, "user_1");
 
     @Test
-    void temporaryMaterialCanBePromotedWithoutCopyingItsContent() {
+    void temporaryMaterialCanBePromotedToChartbookWithoutCopyingItsContent() {
         FakeLifecyclePort port = new FakeLifecyclePort(temporary(USER));
         MaterialLifecycleService service = service(port);
 
         MaterialLifecycleResult result = service.promote(USER, "material_1",
-                MaterialScopeType.LIBRARY, "personal", "promote-1");
+                MaterialScopeType.CHARTBOOK, "chartbook_1", "promote-1");
 
         assertEquals(RetentionClass.RETAINED, result.retentionClass());
         assertNull(result.expiresAt());
-        assertEquals(MaterialScopeType.LIBRARY, port.mutation.scopeLink().scopeType());
+        assertEquals(MaterialScopeType.CHARTBOOK, port.mutation.scopeLink().scopeType());
+        assertEquals("chartbook_1", port.mutation.scopeLink().scopeKey());
         assertEquals(1, port.mutation.material().lifecycleGeneration());
     }
 

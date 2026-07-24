@@ -7,7 +7,6 @@ import org.zipp.ai.api.response.Response;
 import org.zipp.ai.domain.material.model.valobj.*;
 import org.zipp.ai.domain.material.service.MaterialCatalogService;
 
-import java.util.List;
 import java.util.Locale;
 
 @RestController
@@ -34,7 +33,8 @@ public class MaterialCatalogController {
                     CatalogControllerSupport.requiredOwner(ownerResolver), query,
                     enumValue(MaterialLifecycleState.class, lifecycleState, MaterialLifecycleState.ACTIVE),
                     limit, offset));
-            return new MaterialCatalogPageDTO(page.items().stream().map(this::card).toList(),
+            return new MaterialCatalogPageDTO(page.items().stream()
+                    .map(MaterialCatalogDtoMapper::card).toList(),
                     page.total(), page.limit(), page.offset());
         });
     }
@@ -48,49 +48,32 @@ public class MaterialCatalogController {
                     CatalogControllerSupport.requiredOwner(ownerResolver),
                     enumValue(MaterialScopeType.class, scopeType, null), scopeId,
                     enumValue(MaterialLifecycleState.class, lifecycleState, MaterialLifecycleState.ACTIVE), limit, offset));
-            return new MaterialCatalogPageDTO(page.items().stream().map(this::card).toList(),
+            return new MaterialCatalogPageDTO(page.items().stream()
+                    .map(MaterialCatalogDtoMapper::card).toList(),
                     page.total(), page.limit(), page.offset());
         });
     }
 
     @GetMapping("/{materialId}")
     public Response<MaterialCatalogDetailsDTO> details(@PathVariable String materialId) {
-        return CatalogControllerSupport.execute(() -> details(materials.findMaterial(
+        return CatalogControllerSupport.execute(() -> MaterialCatalogDtoMapper.details(materials.findMaterial(
                 CatalogControllerSupport.requiredOwner(ownerResolver), materialId)));
     }
 
     @PostMapping("/{materialId}/scope-links")
     public Response<MaterialCatalogDetailsDTO> addScope(@PathVariable String materialId,
                                                         @RequestBody MaterialScopeRequestDTO body) {
-        return CatalogControllerSupport.execute(() -> details(materials.addScope(new MaterialScopeCommand(
-                CatalogControllerSupport.requiredOwner(ownerResolver), materialId,
-                enumValue(MaterialScopeType.class, body.scopeType(), null), body.scopeId()))));
+        return CatalogControllerSupport.execute(() -> MaterialCatalogDtoMapper.details(
+                materials.addScope(new MaterialScopeCommand(
+                        CatalogControllerSupport.requiredOwner(ownerResolver), materialId,
+                        enumValue(MaterialScopeType.class, body.scopeType(), null), body.scopeId()))));
     }
 
     @DeleteMapping("/{materialId}/scope-links/{linkId}")
     public Response<MaterialCatalogDetailsDTO> removeScope(@PathVariable String materialId,
                                                            @PathVariable String linkId) {
-        return CatalogControllerSupport.execute(() -> details(materials.removeScope(
+        return CatalogControllerSupport.execute(() -> MaterialCatalogDtoMapper.details(materials.removeScope(
                 CatalogControllerSupport.requiredOwner(ownerResolver), materialId, linkId)));
-    }
-
-    private MaterialCatalogDetailsDTO details(MaterialCatalogDetails source) {
-        List<MaterialCatalogDetailsDTO.VersionDTO> versions = source.versions().stream().map(version ->
-                new MaterialCatalogDetailsDTO.VersionDTO(version.versionId(), version.versionNo(),
-                        version.detectedMime(), version.byteSize(), version.pageCount(),
-                        version.processingStatus().name(), version.progress(),
-                        version.createdAt())).toList();
-        List<MaterialCatalogDetailsDTO.ScopeDTO> scopes = source.scopes().stream().map(scope ->
-                new MaterialCatalogDetailsDTO.ScopeDTO(scope.linkId(), scope.scopeType().name(),
-                        scope.scopeKey())).toList();
-        return new MaterialCatalogDetailsDTO(card(source.material()), versions, scopes);
-    }
-
-    private MaterialCatalogCardDTO card(MaterialCatalogItem source) {
-        return new MaterialCatalogCardDTO(source.materialId(), source.kind().name(), source.displayName(),
-                source.retentionClass().name(), source.lifecycleState().name(), source.latestVersionId(),
-                source.latestVersionNo(), source.processingStatus().name(), source.progress(),
-                source.pageCount(), source.updatedAt());
     }
 
     private <E extends Enum<E>> E enumValue(Class<E> type, String value, E fallback) {

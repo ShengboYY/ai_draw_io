@@ -47,6 +47,12 @@ public final class MaterialCatalogService {
         MaterialScopeReference scope = new MaterialScopeReference(ids.nextMaterialScopeLinkId(),
                 normalized.scopeType(), normalized.scopeKey());
         if (!catalog.addScope(normalized.owner(), normalized.materialId(), scope)) {
+            // A concurrent idempotent request may have won the unique scope insert.
+            MaterialCatalogDetails concurrent = findMaterial(
+                    normalized.owner(), normalized.materialId());
+            if (concurrent.findScope(normalized.scopeType(), normalized.scopeKey()).isPresent()) {
+                return concurrent;
+            }
             throw new CatalogOperationException(CatalogErrorCode.CATALOG_CONFLICT);
         }
         return findMaterial(normalized.owner(), normalized.materialId());

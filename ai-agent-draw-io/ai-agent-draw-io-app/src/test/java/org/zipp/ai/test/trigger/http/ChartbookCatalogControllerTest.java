@@ -7,6 +7,7 @@ import org.zipp.ai.domain.chartbook.model.aggregate.Chartbook;
 import org.zipp.ai.domain.chartbook.model.valobj.*;
 import org.zipp.ai.domain.chartbook.port.ChartbookCatalogPort;
 import org.zipp.ai.domain.chartbook.service.ChartbookCatalogService;
+import org.zipp.ai.domain.chartbook.service.ChartbookFileModule;
 import org.zipp.ai.domain.material.model.valobj.*;
 import org.zipp.ai.domain.material.port.MaterialCatalogPort;
 import org.zipp.ai.domain.material.service.MaterialCatalogService;
@@ -35,9 +36,10 @@ class ChartbookCatalogControllerTest {
         CapturingChartbookCatalogPort chartbooks = new CapturingChartbookCatalogPort();
         MaterialCatalogService materials = new MaterialCatalogService(new EmptyMaterialCatalogPort(),
                 prefix -> prefix + "_1", new MaterialScopePolicy());
-        ChartbookCatalogService service = new ChartbookCatalogService(chartbooks, materials,
+        ChartbookFileModule files = command -> { throw new AssertionError("unexpected add file"); };
+        ChartbookCatalogService service = new ChartbookCatalogService(chartbooks, materials, files,
                 prefix -> "book_1", Clock.fixed(Instant.EPOCH, ZoneOffset.UTC));
-        ChartbookCatalogController controller = new ChartbookCatalogController(resolver, service);
+        ChartbookCatalogController controller = new ChartbookCatalogController(resolver, service, files);
 
         var response = controller.create("request_1", new ChartbookRequestDTO("Agile"));
 
@@ -45,6 +47,51 @@ class ChartbookCatalogControllerTest {
         assertEquals("request_1", chartbooks.idempotencyKey);
         assertEquals("0000", response.getCode());
         assertEquals("book_1", response.getData().chartbookId());
+    }
+
+    @Test
+    void addFileUsesServerOwnerAndReturnsTheFinalMaterialView() {
+        CurrentOwnerHttpResolver resolver = new CurrentOwnerHttpResolver() {
+            @Override
+            public Optional<ResolvedOwner> resolve(String ignoredLegacyOwnerId) {
+                return Optional.of(ResolvedOwner.authenticated("user_server"));
+            }
+        };
+        CapturingChartbookFileModule files = new CapturingChartbookFileModule();
+        MaterialCatalogService materials = new MaterialCatalogService(new EmptyMaterialCatalogPort(),
+                prefix -> prefix + "_1", new MaterialScopePolicy());
+        ChartbookCatalogService service = new ChartbookCatalogService(
+                new CapturingChartbookCatalogPort(), materials, files,
+                prefix -> "book_1", Clock.fixed(Instant.EPOCH, ZoneOffset.UTC));
+        ChartbookCatalogController controller = new ChartbookCatalogController(resolver, service, files);
+
+        var response = controller.addFile("chartbook_1", "material_1", "add-file-1");
+
+        assertEquals("user_server", files.command.owner().ownerKey());
+        assertEquals("chartbook_1", files.command.chartbookId());
+        assertEquals("material_1", files.command.materialId());
+        assertEquals("add-file-1", files.command.idempotencyKey());
+        assertEquals("RETAINED", response.getData().material().retentionClass());
+        assertEquals("CHARTBOOK", response.getData().scopes().get(0).scopeType());
+    }
+
+    private static final class CapturingChartbookFileModule implements ChartbookFileModule {
+        private AddChartbookFileCommand command;
+
+        @Override
+        public ChartbookFileResult add(AddChartbookFileCommand command) {
+            this.command = command;
+            ChartbookView chartbook = new ChartbookView(command.chartbookId(),
+                    command.owner().ownerKey(), "Architecture", ChartbookStatus.ACTIVE,
+                    Set.of(), Set.of(command.materialId()), Instant.EPOCH, Instant.EPOCH);
+            MaterialCatalogItem item = new MaterialCatalogItem(command.materialId(), MaterialKind.PDF,
+                    "Requirements", RetentionClass.RETAINED, MaterialLifecycleState.ACTIVE,
+                    "version_1", 1, CatalogProcessingStatus.READY, 100, 1, Instant.EPOCH);
+            MaterialCatalogDetails file = new MaterialCatalogDetails(item, List.of(),
+                    List.of(new MaterialScopeReference("scope_1", MaterialScopeType.CHARTBOOK,
+                            command.chartbookId())));
+            return new ChartbookFileResult(chartbook, file);
+        }
     }
 
     private static final class CapturingChartbookCatalogPort implements ChartbookCatalogPort {

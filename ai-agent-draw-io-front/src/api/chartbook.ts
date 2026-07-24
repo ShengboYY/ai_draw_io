@@ -1,4 +1,4 @@
-import type { Chartbook } from '../features/materials/material-types';
+import type { Chartbook, MaterialCatalogDetails } from '../features/materials/material-types';
 import { createCsrfHeadersProvider, type CsrfHeadersProvider } from './csrf.ts';
 
 type ApiEnvelope<T> = { code: string; info?: string; data?: T };
@@ -68,6 +68,13 @@ export const createChartbookClient = (options: ChartbookClientOptions) => {
     },
     archive: (chartbookId: string) => request<void>(baseUrl, fetchImplementation, csrfHeaders,
       `/chartbooks/${encodeURIComponent(chartbookId)}`, { method: 'DELETE' }, true, true),
+    addFile: (chartbookId: string, materialId: string, idempotencyKey: string) =>
+      request<MaterialCatalogDetails>(baseUrl, fetchImplementation, csrfHeaders,
+        `/chartbooks/${encodeURIComponent(chartbookId)}/files/${encodeURIComponent(materialId)}`, {
+          method: 'POST',
+          headers: { 'Idempotency-Key': idempotencyKey },
+        }, true),
+    // Retained for one compatibility window while existing Library pages use the legacy contract.
     addMaterial: (chartbookId: string, materialId: string) => {
       const [headers, payload] = body({ materialId });
       return request<Chartbook>(baseUrl, fetchImplementation, csrfHeaders,

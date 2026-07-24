@@ -6,6 +6,7 @@ import org.zipp.ai.domain.chartbook.model.aggregate.Chartbook;
 import org.zipp.ai.domain.chartbook.model.valobj.*;
 import org.zipp.ai.domain.chartbook.port.ChartbookCatalogPort;
 import org.zipp.ai.domain.chartbook.service.ChartbookCatalogService;
+import org.zipp.ai.domain.chartbook.service.ChartbookFileModule;
 import org.zipp.ai.domain.material.model.valobj.*;
 import org.zipp.ai.domain.material.port.MaterialCatalogPort;
 import org.zipp.ai.domain.material.service.MaterialCatalogService;
@@ -36,20 +37,22 @@ class ChartbookCatalogServiceTest {
     }
 
     @Test
-    void materialAssociationAndDiagramMoveStayInsideOneOwner() {
+    void legacyMaterialAssociationDelegatesToTheUnifiedFileModule() {
         FakeChartbooks repository = new FakeChartbooks();
         FakeMaterials materials = new FakeMaterials();
-        ChartbookCatalogService service = service(repository, materials);
+        CapturingFiles files = new CapturingFiles();
+        ChartbookCatalogService service = service(repository, materials, files);
         ChartbookView book = service.create(new CreateChartbookCommand(USER, "request_1", "Agile"));
+        files.result = new ChartbookFileResult(book, materials.details);
 
         service.addMaterial(USER, book.chartbookId(), "material_1");
         ChartbookView withDiagram = service.assignDiagram(USER, "diagram_1", book.chartbookId());
 
         assertTrue(withDiagram.diagramIds().contains("diagram_1"));
-        assertEquals(2, materials.details.scopes().size());
-        assertTrue(materials.details.scopes().stream().anyMatch(scope ->
-                scope.scopeType() == MaterialScopeType.CHARTBOOK
-                        && scope.scopeKey().equals(book.chartbookId())));
+        assertEquals(USER, files.command.owner());
+        assertEquals(book.chartbookId(), files.command.chartbookId());
+        assertEquals("material_1", files.command.materialId());
+        assertEquals("legacy-add:cb_generated:material_1", files.command.idempotencyKey());
     }
 
     @Test
@@ -66,10 +69,27 @@ class ChartbookCatalogServiceTest {
     }
 
     private ChartbookCatalogService service(FakeChartbooks chartbooks, FakeMaterials materials) {
+        return service(chartbooks, materials,
+                command -> { throw new AssertionError("unexpected add file"); });
+    }
+
+    private ChartbookCatalogService service(FakeChartbooks chartbooks, FakeMaterials materials,
+                                            ChartbookFileModule files) {
         var materialService = new MaterialCatalogService(
                 materials, prefix -> prefix + "_generated", new MaterialScopePolicy());
-        return new ChartbookCatalogService(chartbooks, materialService,
+        return new ChartbookCatalogService(chartbooks, materialService, files,
                 prefix -> prefix + "_generated", Clock.fixed(NOW, ZoneOffset.UTC));
+    }
+
+    private static final class CapturingFiles implements ChartbookFileModule {
+        private AddChartbookFileCommand command;
+        private ChartbookFileResult result;
+
+        @Override
+        public ChartbookFileResult add(AddChartbookFileCommand command) {
+            this.command = command;
+            return result;
+        }
     }
 
     private static final class FakeChartbooks implements ChartbookCatalogPort {

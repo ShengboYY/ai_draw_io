@@ -28,8 +28,11 @@ public final class MaterialLifecycleService implements MaterialDeletionModule {
                                            MaterialScopeType scopeType, String scopeKey,
                                            String idempotencyKey) {
         owner.requireRegisteredUser();
-        if (scopeType != MaterialScopeType.LIBRARY && scopeType != MaterialScopeType.DIAGRAM) {
-            throw new IllegalArgumentException("temporary material can be retained only in a library or diagram");
+        // Promotion owns the durable scope insert so retention and Chartbook visibility change atomically.
+        if (scopeType != MaterialScopeType.LIBRARY && scopeType != MaterialScopeType.DIAGRAM
+                && scopeType != MaterialScopeType.CHARTBOOK) {
+            throw new IllegalArgumentException(
+                    "temporary material can be retained only in a library, diagram, or chartbook");
         }
         String normalizedScope = scopeType == MaterialScopeType.LIBRARY
                 ? MaterialScopeType.PERSONAL_LIBRARY_KEY : required(scopeKey, "scopeKey");
