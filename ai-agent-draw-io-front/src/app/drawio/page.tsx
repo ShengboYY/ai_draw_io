@@ -199,6 +199,7 @@ const EMPTY_DRAWIO_XML = '<mxGraphModel><root><mxCell id="0"/><mxCell id="1" par
 const DRAWIO_BASE_URL = process.env.NEXT_PUBLIC_DRAWIO_BASE_URL || 'https://embed.diagrams.net';
 const DRAWIO_SELECTION_PLUGIN_ID = process.env.NEXT_PUBLIC_DRAWIO_BASE_URL ? 'zippSelection' : undefined;
 const STREAMING_PREVIEW_FRAME_MS = 280;
+const COMPOSER_TEXTAREA_MIN_HEIGHT_PX = 104;
 
 type StructuredCanvasContext = {
   canvasXml?: string;
@@ -230,6 +231,12 @@ const Icons = {
     <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
       <line x1="5" y1="12" x2="19" y2="12"></line>
       <polyline points="12 5 19 12 12 19"></polyline>
+    </svg>
+  ),
+  ArrowUp: ({ className }: { className?: string }) => (
+    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <line x1="12" y1="19" x2="12" y2="5"></line>
+      <polyline points="5 12 12 5 19 12"></polyline>
     </svg>
   ),
   User: ({ className }: { className?: string }) => (
@@ -3708,7 +3715,7 @@ function DrawioPageContent() {
     setDirectConfirmation(null);
     // Reset textarea height
     const textarea = promptInputRef.current;
-    if (textarea) textarea.style.height = '80px';
+    if (textarea) textarea.style.height = `${COMPOSER_TEXTAREA_MIN_HEIGHT_PX}px`;
     sendContent(content);
   };
 
@@ -4353,62 +4360,14 @@ function DrawioPageContent() {
 
           {/* Input Area */}
           <div className="relative z-20 shrink-0 border-t border-stone-200 bg-white p-4 shadow-[0_-4px_12px_rgba(24,24,27,0.03)]">
-            {/* Model and loop controls */}
-            <div className="flex flex-wrap items-center gap-2 mb-2 px-1">
-                <div className="relative flex items-center rounded-full border border-stone-200 bg-white shadow-sm transition-colors hover:border-stone-300">
-                    <Icons.Sparkles className={`ml-2 h-3 w-3 ${selectedCustomModelId !== 'default' ? 'text-zinc-700' : 'text-zinc-400'}`} />
-                    <select
-                        value={selectedCustomModelId}
-                        onChange={(e) => {
-                            if (e.target.value === 'add_new') {
-                                setShowApiConfig(true);
-                                e.target.value = selectedCustomModelId;
-                            } else {
-                                setSelectedCustomModelId(e.target.value);
-                                localStorage.setItem('ai_agent_selected_model', e.target.value);
-                            }
-                        }}
-                        className="cursor-pointer appearance-none border-none bg-transparent py-1 pl-1 pr-5 text-[11px] font-medium text-zinc-600 outline-none focus:ring-0"
-                    >
-                        <option value="default">Default Model</option>
-                        {customModels.filter(m => m.enabled).map(m => (
-                            <option key={m.id} value={m.id}>{m.name || m.model}</option>
-                        ))}
-                        <option disabled>──────────</option>
-                        <option value="add_new">+ Manage Models</option>
-                    </select>
-                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-1.5 text-zinc-400">
-                        <svg className="fill-current h-3 w-3" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/></svg>
-                    </div>
-                </div>
-                <div className="relative flex items-center rounded-full border border-stone-200 bg-white shadow-sm transition-colors hover:border-stone-300">
-                    <span className="pl-3 text-[11px] font-medium text-zinc-500">Deterministic repair rounds</span>
-                    <select
-                        value={maxDeterministicRepairRounds}
-                        onChange={(e) => {
-                            const nextValue = Number(e.target.value);
-                            setMaxDeterministicRepairRounds(nextValue);
-                            localStorage.setItem(DETERMINISTIC_REPAIR_ROUNDS_STORAGE_KEY, String(nextValue));
-                        }}
-                        className="cursor-pointer appearance-none border-none bg-transparent py-1 pl-1 pr-5 text-[11px] font-medium text-zinc-600 outline-none focus:ring-0"
-                    >
-                        {DETERMINISTIC_REPAIR_ROUND_OPTIONS.map(count => (
-                            <option key={count} value={count}>{count}x</option>
-                        ))}
-                    </select>
-                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-1.5 text-zinc-400">
-                        <svg className="fill-current h-3 w-3" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/></svg>
-                    </div>
-                </div>
-
-                {/* Compact remaining-quota indicator, mirroring the mockup's "N left". */}
-                {demoQuotaState.visible && !demoQuotaState.exhausted && (
-                    <span className="ml-auto flex items-center gap-1.5 pr-1 font-mono text-[11px] font-medium text-zinc-500" title={demoQuotaState.label}>
-                        <span className={`h-1.5 w-1.5 rounded-full ${demoQuotaState.remaining <= 1 ? 'bg-amber-500' : 'bg-emerald-500'}`} aria-hidden="true" />
-                        {demoQuotaState.remaining} left
-                    </span>
-                )}
-            </div>
+            {demoQuotaState.visible && !demoQuotaState.exhausted && (
+              <div className="mb-2 flex justify-end px-1">
+                <span className="flex items-center gap-1.5 font-mono text-[11px] font-medium text-zinc-500" title={demoQuotaState.label}>
+                  <span className={`h-1.5 w-1.5 rounded-full ${demoQuotaState.remaining <= 1 ? 'bg-amber-500' : 'bg-emerald-500'}`} aria-hidden="true" />
+                  {demoQuotaState.remaining} left
+                </span>
+              </div>
+            )}
 
             {demoQuotaState.visible && demoQuotaState.exhausted && (
               <div className="mb-2 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700">
@@ -4489,9 +4448,12 @@ function DrawioPageContent() {
               </div>
             )}
 
-            <div className="relative flex flex-col rounded-2xl border border-stone-300 bg-stone-50 p-2 shadow-sm transition-all focus-within:border-zinc-600 focus-within:bg-white focus-within:ring-4 focus-within:ring-zinc-700/5">
+            {/* Codex-style composer: attachments, writing surface, and actions each get their own row. */}
+            <div
+              className="relative flex min-h-[196px] flex-col rounded-[26px] border border-stone-200 bg-white px-3 pb-3 pt-3 shadow-[0_8px_28px_rgba(24,24,27,0.07)] transition-[border-color,box-shadow] focus-within:border-stone-300 focus-within:shadow-[0_10px_32px_rgba(24,24,27,0.1)]"
+            >
               {slashOpen && filteredSkills.length > 0 && (
-                <div className="absolute bottom-full left-0 z-50 mb-2 max-h-72 w-80 overflow-auto rounded-lg border border-stone-200 bg-white py-1 shadow-lg">
+                <div className="absolute bottom-full left-0 z-50 mb-2 max-h-72 w-80 overflow-auto rounded-2xl border border-stone-200 bg-white py-1 shadow-xl">
                   {filteredSkills.map((s, i) => (
                     <button
                       key={s.name}
@@ -4538,17 +4500,7 @@ function DrawioPageContent() {
                 }}
                 disabled={isSending || !selectedAgentId}
               />
-              <div className="flex w-full items-end gap-2">
-                <button
-                  type="button"
-                  onClick={() => attachmentUploaderRef.current?.openPicker()}
-                  disabled={isSending || !selectedAgentId}
-                  className="mb-0.5 shrink-0 rounded-full border border-stone-200 bg-white p-2.5 text-zinc-500 shadow-sm transition-colors hover:bg-stone-100 hover:text-zinc-800 disabled:cursor-not-allowed disabled:opacity-40"
-                  title="添加 PDF 或图片"
-                  aria-label="添加附件"
-                >
-                  <Icons.Plus className="h-4 w-4" />
-                </button>
+
               <textarea
                 ref={promptInputRef}
                 value={inputValue}
@@ -4560,36 +4512,102 @@ function DrawioPageContent() {
                 onKeyDown={handleKeyDown}
                 placeholder={isSending ? "AI is generating..." : demoQuotaState.exhausted ? demoQuotaState.exhaustedMessage : "Describe a diagram, or ask to edit this one…"}
                 disabled={isSending || demoQuotaState.exhausted}
-                className="max-h-[300px] min-h-[80px] flex-1 resize-none border-none bg-transparent px-4 py-3 text-[15px] leading-relaxed text-zinc-800 placeholder:text-zinc-400 focus:ring-0 disabled:cursor-not-allowed disabled:opacity-50 scrollbar-thin scrollbar-track-transparent scrollbar-thumb-stone-300"
+                className="max-h-[300px] w-full resize-none border-none bg-transparent px-2 py-2 text-[15px] leading-6 text-zinc-800 outline-none placeholder:text-zinc-400 focus:ring-0 disabled:cursor-not-allowed disabled:opacity-50 scrollbar-thin scrollbar-track-transparent scrollbar-thumb-stone-300"
                 rows={1}
-                style={{ height: 'auto', minHeight: '80px' }}
+                style={{ height: 'auto', minHeight: COMPOSER_TEXTAREA_MIN_HEIGHT_PX }}
               />
-              <div className="mb-0.5 flex shrink-0 gap-1">
+
+              <div className="mt-auto flex items-center justify-between gap-3 pt-1">
+                <button
+                  type="button"
+                  onClick={() => attachmentUploaderRef.current?.openPicker()}
+                  disabled={isSending || !selectedAgentId}
+                  className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-zinc-600 transition-colors hover:bg-stone-100 hover:text-zinc-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stone-300 disabled:cursor-not-allowed disabled:opacity-40"
+                  title="添加 PDF 或图片"
+                  aria-label="添加附件"
+                >
+                  <Icons.Plus className="h-5 w-5" />
+                </button>
+
+                {/* Keep model and repair controls in the same footer as the primary actions. */}
+                <div className="flex min-w-0 shrink items-center justify-end gap-1">
+                  <div className="relative flex h-9 shrink-0 items-center rounded-full transition-colors hover:bg-stone-100">
+                    <span className="hidden pl-2.5 text-[11px] font-medium text-zinc-500 min-[360px]:inline">Repair</span>
+                    <select
+                      value={maxDeterministicRepairRounds}
+                      onChange={(e) => {
+                        const nextValue = Number(e.target.value);
+                        setMaxDeterministicRepairRounds(nextValue);
+                        localStorage.setItem(DETERMINISTIC_REPAIR_ROUNDS_STORAGE_KEY, String(nextValue));
+                      }}
+                      className="cursor-pointer appearance-none border-none bg-transparent py-1 pl-1 pr-5 text-[11px] font-medium text-zinc-700 outline-none focus:ring-0"
+                      title="Deterministic repair rounds"
+                      aria-label="Deterministic repair rounds"
+                    >
+                      {DETERMINISTIC_REPAIR_ROUND_OPTIONS.map(count => (
+                        <option key={count} value={count}>{count}x</option>
+                      ))}
+                    </select>
+                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-1.5 text-zinc-400">
+                      <svg className="h-3 w-3 fill-current" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/></svg>
+                    </div>
+                  </div>
+
+                  <div className="relative flex h-9 min-w-0 items-center rounded-full transition-colors hover:bg-stone-100">
+                    <Icons.Sparkles className={`ml-2 h-3.5 w-3.5 shrink-0 ${selectedCustomModelId !== 'default' ? 'text-zinc-700' : 'text-zinc-400'}`} />
+                    <select
+                      value={selectedCustomModelId}
+                      onChange={(e) => {
+                        if (e.target.value === 'add_new') {
+                          setShowApiConfig(true);
+                          e.target.value = selectedCustomModelId;
+                        } else {
+                          setSelectedCustomModelId(e.target.value);
+                          localStorage.setItem('ai_agent_selected_model', e.target.value);
+                        }
+                      }}
+                      className="min-w-0 max-w-[112px] cursor-pointer appearance-none truncate border-none bg-transparent py-1 pl-1 pr-5 text-xs font-medium text-zinc-600 outline-none focus:ring-0"
+                      aria-label="Model"
+                    >
+                      <option value="default">Default Model</option>
+                      {customModels.filter(m => m.enabled).map(m => (
+                        <option key={m.id} value={m.id}>{m.name || m.model}</option>
+                      ))}
+                      <option disabled>──────────</option>
+                      <option value="add_new">+ Manage Models</option>
+                    </select>
+                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-1.5 text-zinc-400">
+                      <svg className="h-3 w-3 fill-current" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/></svg>
+                    </div>
+                  </div>
+
                   {isSending ? (
                     <button
                       onClick={handleStopStream}
-                      className="p-2.5 rounded-full transition-all duration-200 flex items-center justify-center bg-red-100 text-red-600 hover:bg-red-200 shadow-sm"
+                      className="grid h-10 w-10 place-items-center rounded-full bg-zinc-900 text-white shadow-sm transition-colors hover:bg-zinc-700"
                       title="Stop generation"
+                      aria-label="Stop generation"
                     >
-                      <Icons.Square className="w-4 h-4" />
+                      <Icons.Square className="h-4 w-4" />
                     </button>
                   ) : (
                     <button
                       onClick={handleSendMessage}
                       disabled={!inputValue.trim() || demoQuotaState.exhausted}
                       className={`
-                        p-2.5 rounded-full transition-all duration-200 flex items-center justify-center
+                        grid h-10 w-10 place-items-center rounded-full transition-[background-color,color,transform] duration-150
                         ${inputValue.trim() && !demoQuotaState.exhausted
-                          ? 'bg-zinc-800 text-white shadow-md shadow-zinc-700/10 hover:bg-zinc-700 hover:scale-105 active:scale-95'
-                          : 'cursor-not-allowed bg-stone-200 text-zinc-400'
+                          ? 'bg-zinc-900 text-white shadow-sm hover:bg-zinc-700 active:scale-95'
+                          : 'cursor-not-allowed bg-stone-100 text-zinc-400'
                         }
                       `}
                       title="Send message"
+                      aria-label="Send message"
                     >
-                      <Icons.ArrowRight className="w-4 h-4" />
+                      <Icons.ArrowUp className="h-[18px] w-[18px]" />
                     </button>
                   )}
-              </div>
+                </div>
               </div>
             </div>
 

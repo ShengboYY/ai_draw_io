@@ -40,3 +40,13 @@ test('composer presents conversation files as compact attachments', () => {
   assert.match(traySource, /normalizedState === 'PARTIAL_READY'/);
   assert.match(pageSource, /资料与引用/);
 });
+
+test('composer uses a Codex-style vertical layout', () => {
+  assert.match(
+    pageSource,
+    /min-h-\[196px\] flex-col rounded-\[26px\][\s\S]*<ConversationAttachmentTray[\s\S]*<textarea[\s\S]*mt-auto flex items-center justify-between[\s\S]*aria-label="Deterministic repair rounds"[\s\S]*aria-label="Model"[\s\S]*<Icons\.ArrowUp/,
+  );
+  assert.match(pageSource, /COMPOSER_TEXTAREA_MIN_HEIGHT_PX = 104/);
+  assert.match(traySource, /flex gap-2 overflow-x-auto/);
+  assert.match(traySource, /h-\[68px\] min-w-\[190px\] max-w-\[240px\][\s\S]*rounded-2xl/);
+});

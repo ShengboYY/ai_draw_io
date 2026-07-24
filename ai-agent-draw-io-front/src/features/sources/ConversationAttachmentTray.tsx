@@ -64,7 +64,7 @@ export const ConversationAttachmentTray = forwardRef<MaterialUploaderHandle, {
   ));
 
   return (
-    <section className={attachments.length > 0 ? 'mb-2 border-b border-stone-200 px-1 pb-2' : ''} aria-label="会话附件">
+    <section className={attachments.length > 0 ? 'mb-1 px-1 pb-1' : ''} aria-label="会话附件">
       <MaterialUploader
         ref={uploaderRef}
         client={client}
@@ -85,20 +85,21 @@ export const ConversationAttachmentTray = forwardRef<MaterialUploaderHandle, {
       />
       {attachments.length > 0 && (
         <>
-          <div className="mb-1.5 flex items-center justify-between gap-2 px-0.5 text-[11px] text-zinc-500">
+          <div className="mb-2 flex items-center justify-between gap-2 px-0.5 text-[11px] text-zinc-500">
             <span>附件 · 仅用于本次会话</span>
             {selected.size > 0 && (
               <button
                 type="button"
                 disabled={disabled}
                 onClick={() => onSelectedUploadIdsChange([])}
-                className="hover:text-zinc-800 disabled:opacity-50"
+                className="rounded-md px-1.5 py-0.5 transition-colors hover:bg-stone-100 hover:text-zinc-800 disabled:opacity-50"
               >
                 取消使用
               </button>
             )}
           </div>
-          <ul className="flex flex-wrap gap-2">
+          {/* Compact horizontal cards keep attachments visible without compressing the writing area. */}
+          <ul className="flex gap-2 overflow-x-auto pb-1">
             {attachments.map(attachment => {
               const normalizedState = attachment.state.trim().toUpperCase();
               // A partially processed file is usable, so it must not look like a hard failure.
@@ -108,15 +109,15 @@ export const ConversationAttachmentTray = forwardRef<MaterialUploaderHandle, {
               return (
                 <li
                   key={attachment.uploadId}
-                  className={`flex max-w-full items-center gap-2 rounded-xl border bg-white px-2.5 py-2 text-xs shadow-sm transition-opacity ${
-                    selected.has(attachment.uploadId) ? 'border-stone-200' : 'border-stone-100 opacity-55'
+                  className={`relative flex h-[68px] min-w-[190px] max-w-[240px] items-center gap-2.5 rounded-2xl border px-2.5 py-2 pr-8 text-xs transition-[border-color,background-color,opacity] ${
+                    selected.has(attachment.uploadId) ? 'border-stone-200 bg-stone-50' : 'border-stone-100 bg-stone-50/60 opacity-55'
                   }`}
                 >
-                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-stone-100 text-[10px] font-semibold uppercase text-zinc-500">
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-stone-200 bg-white text-[10px] font-semibold uppercase tracking-wide text-zinc-500">
                     {attachment.fileName.split('.').pop()?.slice(0, 4) || 'FILE'}
                   </span>
                   <span className="min-w-0">
-                    <span className="block max-w-48 truncate font-medium text-zinc-700">{attachment.fileName}</span>
+                    <span className="block truncate font-medium text-zinc-700">{attachment.fileName}</span>
                     <span className="mt-0.5 flex items-center gap-1.5 text-[11px] text-zinc-500">
                       <span
                         className={`h-1.5 w-1.5 rounded-full ${
@@ -127,7 +128,7 @@ export const ConversationAttachmentTray = forwardRef<MaterialUploaderHandle, {
                       {statusLabel(normalizedState)}
                     </span>
                   </span>
-                  <label className="ml-1 flex shrink-0 items-center" title="在本次消息中使用">
+                  <label className="absolute bottom-2 right-2 flex shrink-0 items-center" title="在本次消息中使用">
                     <span className="sr-only">在本次消息中使用 {attachment.fileName}</span>
                     <input
                       type="checkbox"
@@ -157,9 +158,9 @@ export const ConversationAttachmentTray = forwardRef<MaterialUploaderHandle, {
                       onChange(previous => previous.filter(item => item.uploadId !== attachment.uploadId));
                       onSelectedUploadIdsChange(previous => previous.filter(value => value !== attachment.uploadId));
                     }}
-                    className="ml-0.5 shrink-0 rounded-full p-1 text-zinc-400 hover:bg-stone-100 hover:text-zinc-700 disabled:opacity-50"
+                    className="absolute right-1 top-1 grid h-6 w-6 shrink-0 place-items-center rounded-full bg-zinc-800 text-white shadow-sm transition-colors hover:bg-zinc-600 disabled:opacity-50"
                   >
-                    <svg aria-hidden="true" viewBox="0 0 20 20" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="1.8">
+                    <svg aria-hidden="true" viewBox="0 0 20 20" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="2">
                       <path d="m5 5 10 10M15 5 5 15" />
                     </svg>
                   </button>
