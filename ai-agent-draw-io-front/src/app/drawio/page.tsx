@@ -4501,6 +4501,7 @@ function DrawioPageContent() {
                 disabled={isSending || !selectedAgentId}
               />
 
+              {/* The composer shell owns focus treatment; the textarea itself stays visually borderless. */}
               <textarea
                 ref={promptInputRef}
                 value={inputValue}
@@ -4512,7 +4513,7 @@ function DrawioPageContent() {
                 onKeyDown={handleKeyDown}
                 placeholder={isSending ? "AI is generating..." : demoQuotaState.exhausted ? demoQuotaState.exhaustedMessage : "Describe a diagram, or ask to edit this one…"}
                 disabled={isSending || demoQuotaState.exhausted}
-                className="max-h-[300px] w-full resize-none border-none bg-transparent px-2 py-2 text-[15px] leading-6 text-zinc-800 outline-none placeholder:text-zinc-400 focus:ring-0 disabled:cursor-not-allowed disabled:opacity-50 scrollbar-thin scrollbar-track-transparent scrollbar-thumb-stone-300"
+                className="composer-textarea max-h-[300px] w-full resize-none border-none bg-transparent px-2 py-2 text-[15px] leading-6 text-zinc-800 placeholder:text-zinc-400 focus:ring-0 disabled:cursor-not-allowed disabled:opacity-50 scrollbar-thin scrollbar-track-transparent scrollbar-thumb-stone-300"
                 rows={1}
                 style={{ height: 'auto', minHeight: COMPOSER_TEXTAREA_MIN_HEIGHT_PX }}
               />

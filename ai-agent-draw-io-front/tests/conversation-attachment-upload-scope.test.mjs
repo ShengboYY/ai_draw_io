@@ -14,6 +14,10 @@ const pageSource = fs.readFileSync(
   new URL('../src/app/drawio/page.tsx', import.meta.url),
   'utf8',
 );
+const globalStyles = fs.readFileSync(
+  new URL('../src/app/globals.css', import.meta.url),
+  'utf8',
+);
 
 test('conversation attachments establish diagram ownership before upload initiation', () => {
   assert.match(uploaderSource, /await beforeUpload\?\.\(\);[\s\S]*client\.initiate/);
@@ -42,11 +46,16 @@ test('composer presents conversation files as compact attachments', () => {
 });
 
 test('composer uses a Codex-style vertical layout', () => {
+  const composerTextareaClasses = pageSource.match(
+    /<textarea\s+ref=\{promptInputRef\}[\s\S]*?className="([^"]*)"/,
+  )?.[1] || '';
   assert.match(
     pageSource,
     /min-h-\[196px\] flex-col rounded-\[26px\][\s\S]*<ConversationAttachmentTray[\s\S]*<textarea[\s\S]*mt-auto flex items-center justify-between[\s\S]*aria-label="Deterministic repair rounds"[\s\S]*aria-label="Model"[\s\S]*<Icons\.ArrowUp/,
   );
   assert.match(pageSource, /COMPOSER_TEXTAREA_MIN_HEIGHT_PX = 104/);
+  assert.match(composerTextareaClasses, /composer-textarea/);
+  assert.match(globalStyles, /textarea\.composer-textarea:focus-visible\s*\{\s*outline:\s*none;/);
   assert.match(traySource, /flex gap-2 overflow-x-auto/);
   assert.match(traySource, /h-\[68px\] min-w-\[190px\] max-w-\[240px\][\s\S]*rounded-2xl/);
 });
