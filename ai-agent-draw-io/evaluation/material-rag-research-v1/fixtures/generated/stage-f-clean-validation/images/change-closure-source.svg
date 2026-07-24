@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="430" viewBox="0 0 1080 430">
+  <defs><marker id="arrow" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto"><path d="M0,0 L10,4 L0,8 Z" fill="#334155"/></marker></defs>
+  <rect width="1080" height="430" fill="#f8fafc"/>
+  <text x="40" y="42" font-family="Arial" font-size="24" font-weight="700" fill="#0f172a">Change closure workflow</text>
+  <g font-family="Arial" font-size="16" text-anchor="middle" fill="#0f172a" stroke="#334155" stroke-width="2">
+    <rect x="45" y="165" width="150" height="56" rx="7" fill="#e0f2fe"/><text x="120" y="198" stroke="none">Change Implemented</text>
+    <rect x="260" y="165" width="145" height="56" rx="7" fill="#e0f2fe"/><text x="332" y="198" stroke="none">Verify Outcome</text>
+    <polygon points="505,125 595,193 505,261 415,193" fill="#fef3c7"/><text x="505" y="198" stroke="none">Outcome accepted?</text>
+    <rect x="680" y="80" width="145" height="56" rx="7" fill="#dcfce7"/><text x="752" y="114" stroke="none">Record Closure</text>
+    <rect x="885" y="80" width="155" height="56" rx="7" fill="#dcfce7"/><text x="962" y="114" stroke="none">Publish Change Note</text>
+    <rect x="680" y="275" width="155" height="56" rx="7" fill="#fee2e2"/><text x="757" y="309" stroke="none">Plan Remediation</text>
+    <rect x="885" y="275" width="145" height="56" rx="7" fill="#fee2e2"/><text x="957" y="309" stroke="none">Recheck Outcome</text>
+  </g>
+  <g stroke="#334155" stroke-width="2" fill="none" marker-end="url(#arrow)">
+    <path d="M195 193 H260"/><path d="M405 193 H415"/><path d="M570 160 L680 108"/><path d="M825 108 H885"/><path d="M570 225 L680 303"/><path d="M835 303 H885"/>
+  </g>
+  <g font-family="Arial" font-size="16" fill="#0f172a"><text x="612" y="145">Yes</text><text x="612" y="260">No</text></g>
+</svg>

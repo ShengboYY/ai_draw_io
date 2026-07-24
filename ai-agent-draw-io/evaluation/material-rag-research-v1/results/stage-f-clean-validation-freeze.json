@@ -1,0 +1,39 @@
+{
+  "schemaVersion": "material-rag-stage-f-clean-validation-freeze-v1",
+  "status": "frozen_pending_two_reviewer_case_review_and_model_authorization",
+  "qualification": "clean_internal_validation_not_independent_final_holdout",
+  "reason": "This clean cohort replaces the Stage E duplicate-run diagnostic for a future single Validation run. It is new and unseen by the generation model, but locally authored and therefore not an externally independent final holdout.",
+  "taskCount": 12,
+  "taskFamilies": {
+    "material_grounded_creation": 3,
+    "structural_edit": 2,
+    "layout_only_edit": 2,
+    "version_and_authorization_safe_edit": 1,
+    "failure_and_recovery": 2,
+    "visual_or_ocr_to_editable_xml": 2
+  },
+  "isolation": {
+    "sourceVersionOverlapWithStageBValidation": 0,
+    "sourceVersionOverlapWithStageEValidation": 0,
+    "modelGenerationCallsBeforeFreeze": 0,
+    "realUserData": false
+  },
+  "artifacts": {
+    "builder": {"path": "fixtures/build_stage_f_clean_validation_inputs.py", "sha256": "d992c716e9598aae90a239d50c38f476ad966953baf22a5ccbec641baf432393"},
+    "tasks": {"path": "fixtures/generated/stage-f-clean-validation/tasks.json", "sha256": "d6f836a70b451cc747b252561264060d898a9ca1eb46bdad1b46b871b821447d"},
+    "contexts": {"path": "fixtures/generated/stage-f-clean-validation/contexts.json", "sha256": "25cc9dce7d02c272b6e3e9c6c64389196082424bc015324f7ac7c8c37049d1c6"},
+    "groundTruth": {"path": "fixtures/generated/stage-f-clean-validation/ground-truth.json", "sha256": "a768244599888e59fcdcd90460a8ebb02483bac8e045a20140f5220a1db50002"},
+    "promptBundles": {"path": "fixtures/generated/stage-f-clean-validation/prompt-bundles.json", "sha256": "a25ee1b30ba713c1e925ecf748e9d20681c2d5302817a3eaa433d4849ec4c263"},
+    "acceptancePolicy": {"path": "fixtures/generated/stage-f-clean-validation/acceptance-policy-v2.json", "sha256": "c73dc831e6251ccc6c74f0034e3ab2a7c103ce0a7e74ae312892feae710dcd45"},
+    "rubric": {"path": "fixtures/generated/stage-f-clean-validation/rubric-v1.json", "sha256": "a1423f6606c3878e924dcfccad9be4f08b9c6cfd53067839690893d506550cb5"},
+    "runManifestTemplate": {"path": "fixtures/generated/stage-f-clean-validation/run-manifest-template.json", "sha256": "8414f3ea195ba024c1247142a8dcc6464aa324d8e3354768f5559ae542fb897e"},
+    "changeClosureImage": {"path": "fixtures/generated/stage-f-clean-validation/images/change-closure-source.png", "sha256": "a10a56bfebc14b17126268ac6847d5d9376d330d582babfcb74f726ed5fa2fd6"},
+    "privacyEscalationImage": {"path": "fixtures/generated/stage-f-clean-validation/images/privacy-escalation-source.png", "sha256": "e6b9a40c876f97b8c4c04530550a92aeff9edc92b3a3e3c9f9eff2891e2b0e33"}
+  },
+  "preflight": {
+    "sourceIsolationAudit": "passed",
+    "promptBundleReadiness": "12/12 passed",
+    "visualAssetReview": "2/2 passed",
+    "stoppingRule": "Do not send these inputs to a model until two named reviewers approve every source/evidence/claim package and the user explicitly authorizes one run. After output, do not alter prompts, task data, source material, assertions, evaluator or policy."
+  }
+}

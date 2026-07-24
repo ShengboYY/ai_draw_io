@@ -1,0 +1,19 @@
+{
+  "schemaVersion": "material-rag-stage-f-clean-validation-rubric-v1",
+  "status": "frozen_pending_case_review_and_model_authorization",
+  "qualification": "clean_internal_validation_not_independent_final_holdout",
+  "scope": "12 locally authored synthetic Draw.io tasks created after Stage E duplicate-run diagnostics and the long-label Development remediation. The cohort is unseen by the generation model but remains an internal validation cohort, not an externally held final holdout.",
+  "taskFixtureSha256": "d6f836a70b451cc747b252561264060d898a9ca1eb46bdad1b46b871b821447d",
+  "contextFixtureSha256": "25cc9dce7d02c272b6e3e9c6c64389196082424bc015324f7ac7c8c37049d1c6",
+  "groundTruthSha256": "a768244599888e59fcdcd90460a8ebb02483bac8e045a20140f5220a1db50002",
+  "promptBundlesSha256": "a25ee1b30ba713c1e925ecf748e9d20681c2d5302817a3eaa433d4849ec4c263",
+  "hardGates": {
+    "xmlParseRate": 1.0,
+    "requiredCitationContractRate": 1.0,
+    "unsupportedMaterialClaims": 0,
+    "unauthorizedCanvasMutations": 0
+  },
+  "acceptancePolicy": "Use only the sibling pre-run acceptance-policy-v2.json; neither Stage D nor Stage E post-output review may change this rubric.",
+  "reviewRequirement": "Two named reviewers must approve every source/evidence/claim package before a model call.",
+  "stoppingRule": "After reviewer approval and explicit user authorization, run this frozen cohort once. Do not tune prompts, model parameters, task data, sources, assertions, evaluator or policy after observing output."
+}

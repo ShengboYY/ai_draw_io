@@ -1,0 +1,18 @@
+{
+  "schemaVersion": "material-rag-generation-run-manifest-v1",
+  "qualification": "formal",
+  "split": "validation",
+  "status": "template_not_runnable_until_case_review_and_explicit_model_authorization",
+  "taskFixture": "tasks.json",
+  "contextFixture": "contexts.json",
+  "groundTruthFixture": "ground-truth.json",
+  "promptBundles": "prompt-bundles.json",
+  "rubric": "rubric-v1.json",
+  "acceptancePolicy": "acceptance-policy-v2.json",
+  "forbidden": [
+    "Stage B, Stage D or Stage E response reuse",
+    "prompt or model-parameter tuning after output",
+    "task/source/evidence/policy/rubric edits after output",
+    "second validation run after observed output"
+  ]
+}

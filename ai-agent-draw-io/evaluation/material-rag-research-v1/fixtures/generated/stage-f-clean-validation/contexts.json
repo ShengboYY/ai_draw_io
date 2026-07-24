@@ -1,0 +1,240 @@
+{
+  "schemaVersion": "material-rag-stage-f-clean-validation-contexts-v1",
+  "modelVisibleRequiredEvidence": {
+    "ready": true
+  },
+  "contexts": [
+    {
+      "taskId": "stgf-val-01",
+      "arm": "fixed",
+      "allowedSourceVersions": [
+        "sf-incident-briefing:v1"
+      ],
+      "evidence": [
+        {
+          "anchorId": "ib-route",
+          "sourceVersion": "sf-incident-briefing:v1",
+          "page": 1,
+          "text": "Incident Commander sends a customer-impact summary to Executive Review before the recovery decision is published."
+        },
+        {
+          "anchorId": "ib-owner",
+          "sourceVersion": "sf-incident-briefing:v1",
+          "page": 1,
+          "text": "The recovery decision names the accountable Operations Lead."
+        }
+      ]
+    },
+    {
+      "taskId": "stgf-val-02",
+      "arm": "fixed",
+      "allowedSourceVersions": [
+        "sf-release-exception:v1"
+      ],
+      "evidence": [
+        {
+          "anchorId": "re-assess",
+          "sourceVersion": "sf-release-exception:v1",
+          "page": 1,
+          "text": "Release Exception goes to Risk Assessment before Change Owner approval."
+        },
+        {
+          "anchorId": "re-record",
+          "sourceVersion": "sf-release-exception:v1",
+          "page": 1,
+          "text": "Approved Release Exception is recorded in the Deployment Register."
+        }
+      ]
+    },
+    {
+      "taskId": "stgf-val-03",
+      "arm": "fixed",
+      "allowedSourceVersions": [
+        "sf-vendor-onboarding-edit:v1"
+      ],
+      "evidence": [
+        {
+          "anchorId": "vo-screen",
+          "sourceVersion": "sf-vendor-onboarding-edit:v1",
+          "page": 1,
+          "text": "Vendor Intake goes to Security Screening before Contract Setup."
+        },
+        {
+          "anchorId": "vo-owner",
+          "sourceVersion": "sf-vendor-onboarding-edit:v1",
+          "page": 1,
+          "text": "Contract Setup is owned by Procurement Operations."
+        }
+      ]
+    },
+    {
+      "taskId": "stgf-val-04",
+      "arm": "fixed",
+      "allowedSourceVersions": [
+        "sf-access-review-edit:v1"
+      ],
+      "evidence": [
+        {
+          "anchorId": "ar-review",
+          "sourceVersion": "sf-access-review-edit:v1",
+          "page": 1,
+          "text": "Access Request goes to Entitlement Review before Manager Approval."
+        },
+        {
+          "anchorId": "ar-close",
+          "sourceVersion": "sf-access-review-edit:v1",
+          "page": 1,
+          "text": "Manager Approval creates an Access Record for the requester."
+        }
+      ]
+    },
+    {
+      "taskId": "stgf-val-05",
+      "arm": "fixed",
+      "allowedSourceVersions": [
+        "sf-layout-escalation:v1"
+      ],
+      "evidence": [
+        {
+          "anchorId": "le-roles",
+          "sourceVersion": "sf-layout-escalation:v1",
+          "page": 1,
+          "text": "Duty Manager, Incident Lead and Communications Owner are the existing escalation roles."
+        }
+      ]
+    },
+    {
+      "taskId": "stgf-val-06",
+      "arm": "fixed",
+      "allowedSourceVersions": [
+        "sf-layout-evidence:v1"
+      ],
+      "evidence": [
+        {
+          "anchorId": "lv-states",
+          "sourceVersion": "sf-layout-evidence:v1",
+          "page": 1,
+          "text": "Captured, Verified and Retained are the existing evidence states."
+        }
+      ]
+    },
+    {
+      "taskId": "stgf-val-07",
+      "arm": "fixed",
+      "allowedSourceVersions": [
+        "sf-catalog-approval:v7"
+      ],
+      "evidence": [
+        {
+          "anchorId": "ca-route",
+          "sourceVersion": "sf-catalog-approval:v7",
+          "page": 1,
+          "text": "Catalog Analyst submits Version 7 to Product Steward before Catalog Publish."
+        },
+        {
+          "anchorId": "ca-scope",
+          "sourceVersion": "sf-catalog-approval:v7",
+          "page": 1,
+          "text": "Only Version 7 is authorized for this edit."
+        }
+      ]
+    },
+    {
+      "taskId": "stgf-val-08",
+      "arm": "fixed",
+      "allowedSourceVersions": [
+        "sf-evidence-sync-recovery:v1"
+      ],
+      "evidence": [
+        {
+          "anchorId": "es-block",
+          "sourceVersion": "sf-evidence-sync-recovery:v1",
+          "page": 1,
+          "text": "When Evidence Sync is Unavailable, grounded publishing is blocked while Manual Notes remain available."
+        },
+        {
+          "anchorId": "es-resume",
+          "sourceVersion": "sf-evidence-sync-recovery:v1",
+          "page": 1,
+          "text": "Retry Sync may continue only after Evidence Sync is restored."
+        }
+      ]
+    },
+    {
+      "taskId": "stgf-val-09",
+      "arm": "fixed",
+      "allowedSourceVersions": [
+        "sf-canvas-save-recovery:v1"
+      ],
+      "evidence": [
+        {
+          "anchorId": "cs-preserve",
+          "sourceVersion": "sf-canvas-save-recovery:v1",
+          "page": 1,
+          "text": "Canvas Save Failed preserves the editable diagram and offers Retry Save."
+        },
+        {
+          "anchorId": "cs-escalate",
+          "sourceVersion": "sf-canvas-save-recovery:v1",
+          "page": 1,
+          "text": "After repeated save failure, the case is routed to Workspace Support."
+        }
+      ]
+    },
+    {
+      "taskId": "stgf-val-10",
+      "arm": "fixed",
+      "allowedSourceVersions": [
+        "sf-change-closure-visual:v1"
+      ],
+      "evidence": [
+        {
+          "anchorId": "cc-flow",
+          "sourceVersion": "sf-change-closure-visual:v1",
+          "page": 1,
+          "text": "Change Implemented goes to Verify Outcome. If Outcome accepted? is Yes, Record Closure then Publish Change Note. If No, Plan Remediation then Recheck Outcome.",
+          "imagePath": "fixtures/generated/stage-f-clean-validation/images/change-closure-source.png",
+          "imageSha256": "a10a56bfebc14b17126268ac6847d5d9376d330d582babfcb74f726ed5fa2fd6"
+        }
+      ]
+    },
+    {
+      "taskId": "stgf-val-11",
+      "arm": "fixed",
+      "allowedSourceVersions": [
+        "sf-privacy-escalation-visual:v1"
+      ],
+      "evidence": [
+        {
+          "anchorId": "pe-flow",
+          "sourceVersion": "sf-privacy-escalation-visual:v1",
+          "page": 1,
+          "text": "Privacy Alert goes to Assess Exposure. If External notice required? is Yes, Notify Privacy Lead then Send Notice. If No, Document Assessment then Monitor Follow-up.",
+          "imagePath": "fixtures/generated/stage-f-clean-validation/images/privacy-escalation-source.png",
+          "imageSha256": "e6b9a40c876f97b8c4c04530550a92aeff9edc92b3a3e3c9f9eff2891e2b0e33"
+        }
+      ]
+    },
+    {
+      "taskId": "stgf-val-12",
+      "arm": "fixed",
+      "allowedSourceVersions": [
+        "sf-service-restoration:v1"
+      ],
+      "evidence": [
+        {
+          "anchorId": "sr-diagnose",
+          "sourceVersion": "sf-service-restoration:v1",
+          "page": 1,
+          "text": "Service Triage sends an affected component to Restoration Work before Service Verification."
+        },
+        {
+          "anchorId": "sr-close",
+          "sourceVersion": "sf-service-restoration:v1",
+          "page": 1,
+          "text": "Service Verification records the restoration result in the Incident Timeline."
+        }
+      ]
+    }
+  ]
+}

@@ -1402,3 +1402,16 @@
 - **结果**:规范化单元测试通过；同一 XML 加载进实际 diagrams.net 后，标签在节点内分为三行，没有溢出。
 - **工件**:[Development wrap probe](stage-e-case04-development-wrap-probe-v1.json)。该 probe 仅验证修复的
   Development 行为；正式 Validation 仍必须使用新的冻结 cohort 和一次性模型运行。
+
+### Stage F clean internal Validation freeze · 2026-07-24 · ✅ frozen; model run not authorized
+
+- **新 cohort**:已冻结 12 个此前未发送给生成模型的合成 Draw.io Validation task，覆盖创建 3、结构编辑 2、
+  严格 layout-only 2、版本/授权安全 1、故障恢复 2、视觉→可编辑 XML 2。两张新视觉流程图分别覆盖 change closure
+  与 privacy escalation 的 Yes/No 分支。
+- **隔离与边界**:与 Stage B 和 Stage E source version overlap 均为 `0`；没有真实用户资料、冻结前模型调用为 `0`。
+  这是 clean internal Validation，可支持一次正式内部运行，但不是外部保管的一次性 final holdout。
+- **预运行规则**:tasks、contexts、ground truth、12 个 prompt bundle、图像、policy、rubric 与 run-manifest template
+  均已冻结；长标签用例用于验证已提交的 wrap remediation，不能据运行结果再修改任何规则。
+- **下一步**:两位具名 reviewer 必须先逐项批准 source/evidence/claim package；之后仍需用户明确授权，才可向固定模型
+  发送这 12 个合成输入和两张合成视觉图运行一次。详见 [freeze record](stage-f-clean-validation-freeze.json) 与
+  [case-review packet](../review/stage-f-clean-validation-case-review-packet-v1.md)。

@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="430" viewBox="0 0 1080 430">
+  <defs><marker id="arrow" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto"><path d="M0,0 L10,4 L0,8 Z" fill="#334155"/></marker></defs>
+  <rect width="1080" height="430" fill="#f8fafc"/>
+  <text x="40" y="42" font-family="Arial" font-size="24" font-weight="700" fill="#0f172a">Privacy escalation workflow</text>
+  <g font-family="Arial" font-size="16" text-anchor="middle" fill="#0f172a" stroke="#334155" stroke-width="2">
+    <rect x="45" y="165" width="135" height="56" rx="7" fill="#ede9fe"/><text x="112" y="198" stroke="none">Privacy Alert</text>
+    <rect x="245" y="165" width="145" height="56" rx="7" fill="#ede9fe"/><text x="317" y="198" stroke="none">Assess Exposure</text>
+    <polygon points="500,125 600,193 500,261 400,193" fill="#fef3c7"/><text x="500" y="190" stroke="none">External notice</text><text x="500" y="210" stroke="none">required?</text>
+    <rect x="680" y="80" width="145" height="56" rx="7" fill="#fee2e2"/><text x="752" y="114" stroke="none">Notify Privacy Lead</text>
+    <rect x="885" y="80" width="130" height="56" rx="7" fill="#fee2e2"/><text x="950" y="114" stroke="none">Send Notice</text>
+    <rect x="680" y="275" width="165" height="56" rx="7" fill="#dcfce7"/><text x="762" y="309" stroke="none">Document Assessment</text>
+    <rect x="890" y="275" width="145" height="56" rx="7" fill="#dcfce7"/><text x="962" y="309" stroke="none">Monitor Follow-up</text>
+  </g>
+  <g stroke="#334155" stroke-width="2" fill="none" marker-end="url(#arrow)">
+    <path d="M180 193 H245"/><path d="M390 193 H400"/><path d="M570 160 L680 108"/><path d="M825 108 H885"/><path d="M570 225 L680 303"/><path d="M845 303 H890"/>
+  </g>
+  <g font-family="Arial" font-size="16" fill="#0f172a"><text x="612" y="145">Yes</text><text x="612" y="260">No</text></g>
+</svg>
