@@ -312,6 +312,8 @@ M1 控制面已按以下合同分批落地；生产 HTTP 仍未切入 V2，Plain
 
 本切片补齐 accepted attempt 的 application lifecycle runner：新增进程内 `TurnHandle` 与 `TurnAttemptExecutionRunner`，由调用方注入 execution executor/scheduler；runner 从 accepted lease anchor 安排 heartbeat，续租后更新同一 attempt 的当前 lease，ownership loss/terminal/unavailable 先复用 supervisor 的 write-gate drain，再完成 typed attempt completion。detach 或 writer/serialization failure 只把 subscriber 替换为 no-op，不调用 cancellation port；scheduler/执行线程故障只产生 self-abort，不伪造 product terminal。新增正常 completion、detach、writer failure 与 heartbeat ownership-loss contract tests；application 全量与 app composition 定向回归通过，本切片没有新增或执行 migration，production HTTP 仍未接线。
 
+本切片补齐 attempt-scoped deadline 的本地安全边界：新增 `TurnAttemptDeadlineSupervisor`，deadline callback 必须先取得同一 `TurnWriteGate` permit，并持有到 `AttemptDeadlineCancellationPort` 返回；gate 已因 lease-safety drain 关闭时返回 `WriteGateDisabled` 且 zero port call，stale epoch 仍由 durable CAS 返回 `FenceLost`。新增 gate-closed、permit 生命周期与 stale-epoch contract tests；application 全量回归通过，本切片没有新增或执行 migration。
+
 ## single-instance-migration-control: Build The Single-Instance Migration Boundary
 
 Blocked by: turn-execution-control
