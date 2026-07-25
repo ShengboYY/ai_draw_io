@@ -438,6 +438,8 @@ M2 已开始，先交付不改变 production assignment 的 application/transpor
 
 本切片新增 `DefaultTurnRouteComputer`，将 Context projection、双模型 classification、Resolver、Pre-Planner 与纯 route dispatcher 收口为无 source I/O 的 pre-probe 计算边界；新增 `TurnDecisionCoordinator` 执行 load-first、Missing 才计算、fenced first-writer pin、CAS loser reload winner，并在 context/input digest 不匹配或 decoder 失败时 fail closed。`FastjsonTurnRouteDecisionCodec` 固定当前 plain/source-planning/clarification/unsupported/unavailable route 的 bounded versioned payload；新增 application、infrastructure 与 app contract tests。具体 domain-version adapters、真实 context query/materializer backend、Source Probe/source-aware Planner wiring 与 production V2 assignment 仍待后续切片。
 
+本切片进一步交付 `MySqlTurnContextAdapter`，同时实现 candidate query 与 exact materializer：candidate 复用现有 `diagram`/`diagram_canvas_state`/`chartbook` latest row，只 pin canvas version、projection digest 与 chartbook membership revision；materializer 再次校验同一 version/digest，发生并发修改时返回 Retry，绝不以新 row 冒充历史版本。它按 canonical conversation high-water 读取已提交消息，并从 durable attachment binding 恢复 opaque ref 的 display name/declared MIME；Profile、Memory、Clarification、Selection 仍返回显式 Absent/diagnostic，不从旧 source 配置或 `preferences_json` 推断。当前 schema 已足够承载这一 transitional backend，因此本切片没有新增 migration；真正 immutable domain-version stores、Profile/Memory backend、Source Probe/source-aware Planner wiring 与 production V2 assignment 仍待后续切片。
+
 本票同时 owns DTO 的 `currentTurnAttachments`、hidden clarification id、opaque refs 与唯一 compatibility translator。
 
 composer 上传成功只创建 Conversation File。发送消息时，`TurnStartCommitPort` 才把 opaque refs 与该条 user message 原子绑定。
