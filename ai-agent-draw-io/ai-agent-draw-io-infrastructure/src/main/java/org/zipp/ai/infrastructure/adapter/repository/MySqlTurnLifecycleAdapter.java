@@ -46,6 +46,7 @@ public class MySqlTurnLifecycleAdapter implements
 
     private static final String SELECT = """
             SELECT current_attempt_id, attempt_epoch, lease_ttl_ms, lease_expires_at,
+                   CURRENT_TIMESTAMP(3) AS database_now,
                    status, terminal_code, terminal_payload_type, terminal_payload_ref,
                    terminal_payload_json, updated_at
             FROM turn_execution
@@ -75,6 +76,7 @@ public class MySqlTurnLifecycleAdapter implements
             """;
     private static final String SELECT_TAKEOVER = """
             SELECT current_attempt_id, attempt_epoch, lease_ttl_ms, lease_expires_at,
+                   CURRENT_TIMESTAMP(3) AS database_now,
                    execution_policy_schema_version, migration_mode,
                    execution_policy_snapshot_json, execution_policy_hash,
                    turn_input_binding_digest, context_message_high_water,
@@ -152,8 +154,7 @@ public class MySqlTurnLifecycleAdapter implements
                                 attempt.attemptId(), attempt.attemptEpoch(), null, null, Instant.now()),
                         TurnFailureCode.TERMINAL_UNAVAILABLE, Duration.ofSeconds(1));
             }
-            return new TurnAttemptLeasePort.LeaseRenewed(new AttemptLease(
-                    renewed.attemptId, renewed.attemptEpoch, renewed.leaseExpiresAt, renewed.leaseTtlMillis));
+            return new TurnAttemptLeasePort.LeaseRenewed(renewed.lease());
         }
         ExecutionRow current = find(attempt.key());
         if (current == null) {
@@ -294,6 +295,7 @@ public class MySqlTurnLifecycleAdapter implements
                 rs.getLong("attempt_epoch"),
                 rs.getLong("lease_ttl_ms"),
                 leaseExpiresAt == null ? null : leaseExpiresAt.toInstant(),
+                rs.getTimestamp("database_now").toInstant(),
                 rs.getInt("execution_policy_schema_version"),
                 TurnEngineMode.valueOf(rs.getString("migration_mode")),
                 rs.getString("execution_policy_snapshot_json"),
@@ -317,6 +319,7 @@ public class MySqlTurnLifecycleAdapter implements
                 rs.getLong("attempt_epoch"),
                 rs.getLong("lease_ttl_ms"),
                 leaseExpiresAt == null ? null : leaseExpiresAt.toInstant(),
+                rs.getTimestamp("database_now").toInstant(),
                 TurnStatus.valueOf(rs.getString("status")),
                 rs.getString("terminal_code"),
                 rs.getString("terminal_payload_type"),
@@ -334,13 +337,19 @@ public class MySqlTurnLifecycleAdapter implements
             long attemptEpoch,
             long leaseTtlMillis,
             Instant leaseExpiresAt,
+            Instant databaseNow,
             TurnStatus status,
             String terminalCode,
             String terminalPayloadType,
             String terminalPayloadRef,
             String terminalPayloadJson,
             Instant updatedAt
-    ) {
+        ) {
+        AttemptLease lease() {
+            return AttemptLease.fromDatabaseClock(
+                    attemptId, attemptEpoch, databaseNow, leaseExpiresAt, leaseTtlMillis);
+        }
+
         TurnStatusView statusView(TurnKey key) {
             return new TurnStatusView(
                     key, status, attemptId, attemptEpoch, terminalCode, terminalPayloadRef, updatedAt);
@@ -360,6 +369,7 @@ public class MySqlTurnLifecycleAdapter implements
             long attemptEpoch,
             long leaseTtlMillis,
             Instant leaseExpiresAt,
+            Instant databaseNow,
             int policySchemaVersion,
             TurnEngineMode migrationMode,
             String policyJson,
@@ -377,7 +387,8 @@ public class MySqlTurnLifecycleAdapter implements
         FencedAttempt fencedAttempt(TurnKey key) {
             return new FencedAttempt(
                     key,
-                    new AttemptLease(attemptId, attemptEpoch, leaseExpiresAt, leaseTtlMillis),
+                    AttemptLease.fromDatabaseClock(
+                            attemptId, attemptEpoch, databaseNow, leaseExpiresAt, leaseTtlMillis),
                     contextMessageHighWater,
                     inputBindingDigest,
                     new ExecutionPolicySnapshot(policySchemaVersion, migrationMode, policyJson, policyHash));

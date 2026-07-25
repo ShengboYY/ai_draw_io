@@ -2,6 +2,7 @@ package org.zipp.ai.application.turn;
 
 import org.junit.jupiter.api.Test;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 
@@ -131,5 +132,16 @@ class TurnContractTest {
                 TurnStatus.ORPHANED_RETRYABLE, "ORPHAN", "status", null, "{}"));
         assertThrows(IllegalArgumentException.class, () -> new TerminalOnlyTurnCommit(
                 attempt, TurnStatus.ORPHANED_RETRYABLE, "ORPHAN", "status", null, "{}"));
+    }
+
+    @Test
+    void leaseCarriesDatabaseClockAndRelativeSafetyBudget() {
+        Instant databaseNow = Instant.parse("2026-07-26T00:00:00Z");
+        AttemptLease lease = AttemptLease.fromDatabaseClock(
+                "attempt-1", 1, databaseNow, databaseNow.plusSeconds(30), 30_000);
+
+        assertEquals(databaseNow, lease.databaseNow());
+        assertEquals(Duration.ofSeconds(30), lease.expiresWithin());
+        assertEquals(Duration.ofSeconds(30), lease.renewWithin());
     }
 }

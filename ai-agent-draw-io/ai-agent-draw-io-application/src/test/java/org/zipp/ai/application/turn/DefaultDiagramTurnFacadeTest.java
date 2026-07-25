@@ -78,6 +78,7 @@ class DefaultDiagramTurnFacadeTest {
         assertEquals(assignment.key(), started.get().key());
         assertEquals(command.content(), started.get().userMessage());
         assertEquals(TurnInputBindingDigestCalculator.current(command), started.get().inputBindingDigest());
+        assertEquals(accepted.attempt().lease(), accepted.leaseTiming().lease());
     }
 
     @Test

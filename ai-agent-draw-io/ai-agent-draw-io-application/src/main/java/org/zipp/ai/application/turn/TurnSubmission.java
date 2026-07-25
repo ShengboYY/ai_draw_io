@@ -9,7 +9,15 @@ public sealed interface TurnSubmission
         TurnSubmission.AdmissionRejected,
         TurnSubmission.NotReady {
 
-    record ExecutionAccepted(TurnKey key, FencedAttempt attempt) implements TurnSubmission {
+    record ExecutionAccepted(TurnKey key, FencedAttempt attempt, LeaseTimingAnchor leaseTiming)
+            implements TurnSubmission {
+
+        public ExecutionAccepted {
+            if (key == null || attempt == null || leaseTiming == null
+                    || !attempt.lease().equals(leaseTiming.lease())) {
+                throw new IllegalArgumentException("execution acceptance values must not be null");
+            }
+        }
     }
 
     record TerminalReplay(TurnKey key, PersistedTurnOutcome outcome) implements TurnSubmission {

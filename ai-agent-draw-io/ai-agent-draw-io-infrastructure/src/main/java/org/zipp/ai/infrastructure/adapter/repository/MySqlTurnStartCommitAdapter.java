@@ -48,6 +48,7 @@ public class MySqlTurnStartCommitAdapter implements TurnStartCommitPort {
             """;
     private static final String SELECT_EXECUTION = """
             SELECT current_attempt_id, attempt_epoch, lease_ttl_ms, lease_expires_at,
+                   CURRENT_TIMESTAMP(3) AS database_now,
                    request_message_id, request_fingerprint_schema_version, request_fingerprint,
                    execution_policy_schema_version, execution_policy_snapshot_json,
                    execution_policy_hash, context_message_high_water, status,
@@ -285,6 +286,7 @@ public class MySqlTurnStartCommitAdapter implements TurnStartCommitPort {
                 rs.getLong("attempt_epoch"),
                 rs.getLong("lease_ttl_ms"),
                 instant(rs.getTimestamp("lease_expires_at")),
+                instant(rs.getTimestamp("database_now")),
                 rs.getLong("request_message_id"),
                 rs.getInt("request_fingerprint_schema_version"),
                 rs.getString("request_fingerprint"),
@@ -309,6 +311,7 @@ public class MySqlTurnStartCommitAdapter implements TurnStartCommitPort {
             long attemptEpoch,
             long leaseTtlMillis,
             Instant leaseExpiresAt,
+            Instant databaseNow,
             long requestMessageId,
             int fingerprintSchemaVersion,
             String fingerprint,
@@ -340,7 +343,8 @@ public class MySqlTurnStartCommitAdapter implements TurnStartCommitPort {
         ) {
             return new FencedAttempt(
                     key,
-                    new AttemptLease(attemptId, attemptEpoch, leaseExpiresAt, leaseTtlMillis),
+                    AttemptLease.fromDatabaseClock(
+                            attemptId, attemptEpoch, databaseNow, leaseExpiresAt, leaseTtlMillis),
                     contextMessageHighWater,
                     inputBindingDigest,
                     policy);

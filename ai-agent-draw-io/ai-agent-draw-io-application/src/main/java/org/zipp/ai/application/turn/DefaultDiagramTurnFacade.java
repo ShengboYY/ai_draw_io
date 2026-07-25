@@ -77,6 +77,7 @@ public final class DefaultDiagramTurnFacade implements DiagramTurnFacade {
         TurnEngineAssignment assignment = admissionOutcome instanceof AdmissionWriteOutcome.Assigned assigned
                 ? assigned.assignment()
                 : ((AdmissionWriteOutcome.Reused) admissionOutcome).assignment();
+        long callStartedNanos = System.nanoTime();
         TurnStartOutcome startOutcome = turnStart.start(new TurnStartCommand(
                 key,
                 command.diagramId(),
@@ -86,7 +87,10 @@ public final class DefaultDiagramTurnFacade implements DiagramTurnFacade {
                 command.declarations().currentTurnAttachments(),
                 TurnInputBindingDigestCalculator.current(command)));
         if (startOutcome instanceof TurnStartOutcome.Claimed claimed) {
-            return new TurnSubmission.ExecutionAccepted(key, claimed.attempt());
+            return new TurnSubmission.ExecutionAccepted(
+                    key,
+                    claimed.attempt(),
+                    new LeaseTimingAnchor(callStartedNanos, claimed.attempt().lease()));
         }
         if (startOutcome instanceof TurnStartOutcome.AlreadyRunning running) {
             return new TurnSubmission.AlreadyRunning(key, running.status());
