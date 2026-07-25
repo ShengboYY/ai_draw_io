@@ -141,6 +141,19 @@ class MySqlTurnLifecycleAdapterTest {
         assertInstanceOf(TurnAttemptExecutionStatePort.StateOutcome.FenceLost.class, outcome);
     }
 
+    @Test
+    void expiredAttemptCannotWinDeadlineCancellation() {
+        Map<String, Object> row = runningExecutionRow();
+        row.put("lease_expires_at", Timestamp.from(Instant.parse("2026-07-26T00:00:00Z")));
+        JdbcStub jdbc = new JdbcStub(row);
+
+        DeadlineCancelOutcome outcome = new MySqlTurnLifecycleAdapter(jdbc.proxy()).cancel(
+                attempt(), AttemptDeadlineReason.EXECUTION_DEADLINE);
+
+        assertInstanceOf(DeadlineCancelOutcome.FenceLost.class, outcome);
+        assertTrue(jdbc.lastUpdate.contains("lease_expires_at > CURRENT_TIMESTAMP(3)"));
+    }
+
     private static TurnKey key() {
         return new TurnKey("owner-1", "conversation-1", "turn-1");
     }
@@ -221,6 +234,7 @@ class MySqlTurnLifecycleAdapterTest {
         private final Map<String, Object> row;
         private final int updateResult;
         private String lastQuery = "";
+        private String lastUpdate = "";
 
         private JdbcStub(Map<String, Object> row) {
             this(row, 0);
@@ -235,6 +249,7 @@ class MySqlTurnLifecycleAdapterTest {
             InvocationHandler handler = (proxy, method, args) -> {
                 if ("update".equals(method.getName())) {
                     // The fixture selects either the CAS loser or winner path.
+                    lastUpdate = (String) args[0];
                     return updateResult;
                 }
                 if ("query".equals(method.getName())) {

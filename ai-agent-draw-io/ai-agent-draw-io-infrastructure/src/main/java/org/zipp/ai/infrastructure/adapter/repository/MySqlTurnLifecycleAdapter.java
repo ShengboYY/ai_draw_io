@@ -246,6 +246,7 @@ public class MySqlTurnLifecycleAdapter implements
                     completed_at = CURRENT_TIMESTAMP(3)
                 WHERE owner_key = ? AND conversation_id = ? AND turn_id = ?
                   AND status = 'RUNNING' AND current_attempt_id = ? AND attempt_epoch = ?
+                  AND lease_expires_at > CURRENT_TIMESTAMP(3)
                 """,
                 reason.name(),
                 reason.name(),

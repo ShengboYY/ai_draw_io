@@ -30,6 +30,7 @@ public class MySqlTerminalOnlyTurnCommitAdapter implements TerminalOnlyTurnCommi
                 terminal_payload_json = ?, completed_at = CURRENT_TIMESTAMP(3)
             WHERE owner_key = ? AND conversation_id = ? AND turn_id = ?
               AND status = 'RUNNING' AND current_attempt_id = ? AND attempt_epoch = ?
+              AND lease_expires_at > CURRENT_TIMESTAMP(3)
             """;
     private static final String SELECT = """
             SELECT current_attempt_id, attempt_epoch, status, terminal_code,

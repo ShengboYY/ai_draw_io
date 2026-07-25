@@ -340,6 +340,8 @@ M1 控制面已按以下合同分批落地；生产 HTTP 仍未切入 V2，Plain
 
 本切片补齐 Context 与 decision checkpoint 的 active-lease fencing：`MySqlTurnContextAdapter` 读取 execution 时同时比较 `lease_expires_at` 与同一查询得到的 `CURRENT_TIMESTAMP(3)`，过期 attempt 在 candidate/materialization 前返回 fence lost；`MySqlTurnDecisionCheckpointAdapter` 的 current-row 与首次 pin CAS 也要求 lease 仍有效，过期 attempt 不得继续写入 plan checkpoint。新增 adapter contract tests；现有 `turn_execution.lease_expires_at` 已足够，本切片没有新增或执行 migration。
 
+本切片将 active-lease fence 收口到其余 M1/M2 durable write seams：Context read-set pin、attempt deadline CAS、terminal-only commit 与 Plain strong commit 都要求数据库时钟下 lease 仍有效；Plain commit 在锁定 execution 时先拒绝过期 attempt，避免触碰 Canvas/assistant message，Context read-set CAS loser 同时改用 `SELECT ... FOR UPDATE` current read。新增过期 lease 与 current-read contract tests；现有 `turn_execution.lease_expires_at` 已足够，本切片没有新增或执行 migration。
+
 ## single-instance-migration-control: Build The Single-Instance Migration Boundary
 
 Blocked by: turn-execution-control

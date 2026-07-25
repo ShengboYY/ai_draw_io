@@ -61,6 +61,20 @@ class MySqlPlainTurnCommitAdapterTest {
     }
 
     @Test
+    void expiredAttemptCannotReachCanvasOrMessage() {
+        FencedAttempt attempt = attempt();
+        Map<String, Object> execution = executionRow(attempt, "RUNNING", null, null);
+        execution.put("lease_expires_at", Timestamp.from(Instant.parse("2026-07-26T00:00:00Z")));
+        execution.put("database_now", Timestamp.from(Instant.parse("2026-07-26T00:00:01Z")));
+        StubJdbc jdbc = new StubJdbc(execution, null, null);
+
+        FencedCommitOutcome outcome = new MySqlPlainTurnCommitAdapter(jdbc.proxy()).commit(command(attempt));
+
+        assertInstanceOf(FencedCommitOutcome.FenceLost.class, outcome);
+        assertEquals(List.of(), jdbc.updates);
+    }
+
+    @Test
     void createCommitsCanvasMessageAndTerminalInOneWriteSequence() {
         FencedAttempt attempt = attempt();
         StubJdbc jdbc = new StubJdbc(
@@ -154,6 +168,8 @@ class MySqlPlainTurnCommitAdapterTest {
         return values(
                 "current_attempt_id", attemptId,
                 "attempt_epoch", attemptEpoch,
+                "lease_expires_at", Timestamp.from(Instant.parse("2026-07-26T00:00:30Z")),
+                "database_now", Timestamp.from(Instant.parse("2026-07-26T00:00:01Z")),
                 "status", status,
                 "terminal_code", terminalCode,
                 "terminal_payload_type", terminalPayloadType,

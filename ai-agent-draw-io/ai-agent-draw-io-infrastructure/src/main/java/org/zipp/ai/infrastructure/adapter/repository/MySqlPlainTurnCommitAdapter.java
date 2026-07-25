@@ -31,7 +31,8 @@ import java.util.Objects;
 public class MySqlPlainTurnCommitAdapter implements PlainTurnCommitPort {
 
     private static final String LOCK_EXECUTION = """
-            SELECT current_attempt_id, attempt_epoch, status, terminal_code,
+            SELECT current_attempt_id, attempt_epoch, lease_expires_at,
+                   CURRENT_TIMESTAMP(3) AS database_now, status, terminal_code,
                    terminal_payload_type, terminal_payload_ref,
                    terminal_payload_schema_version, terminal_payload_json,
                    response_message_id, updated_at
@@ -83,6 +84,7 @@ public class MySqlPlainTurnCommitAdapter implements PlainTurnCommitPort {
                 completed_at = UTC_TIMESTAMP(3)
             WHERE owner_key = ? AND conversation_id = ? AND turn_id = ?
               AND status = 'RUNNING' AND current_attempt_id = ? AND attempt_epoch = ?
+              AND lease_expires_at > CURRENT_TIMESTAMP(3)
             """;
 
     private final JdbcOperations jdbc;
@@ -113,7 +115,10 @@ public class MySqlPlainTurnCommitAdapter implements PlainTurnCommitPort {
         }
         if (execution.status() != TurnStatus.RUNNING
                 || !Objects.equals(execution.attemptId(), attempt.attemptId())
-                || execution.attemptEpoch() != attempt.attemptEpoch()) {
+                || execution.attemptEpoch() != attempt.attemptEpoch()
+                || execution.leaseExpiresAt() == null
+                || execution.databaseNow() == null
+                || !execution.leaseExpiresAt().isAfter(execution.databaseNow())) {
             return new FencedCommitOutcome.FenceLost(execution.statusView(attempt.key()));
         }
 
@@ -243,6 +248,8 @@ public class MySqlPlainTurnCommitAdapter implements PlainTurnCommitPort {
                 (resultSet, rowNum) -> new ExecutionRow(
                         resultSet.getString("current_attempt_id"),
                         resultSet.getLong("attempt_epoch"),
+                        instant(resultSet.getTimestamp("lease_expires_at")),
+                        instant(resultSet.getTimestamp("database_now")),
                         TurnStatus.valueOf(resultSet.getString("status")),
                         resultSet.getString("terminal_code"),
                         resultSet.getString("terminal_payload_type"),
@@ -304,6 +311,8 @@ public class MySqlPlainTurnCommitAdapter implements PlainTurnCommitPort {
     private record ExecutionRow(
             String attemptId,
             long attemptEpoch,
+            Instant leaseExpiresAt,
+            Instant databaseNow,
             TurnStatus status,
             String terminalCode,
             String terminalPayloadType,
@@ -326,6 +335,10 @@ public class MySqlPlainTurnCommitAdapter implements PlainTurnCommitPort {
                     terminalPayloadRef,
                     terminalPayloadJson);
         }
+    }
+
+    private static Instant instant(java.sql.Timestamp timestamp) {
+        return timestamp == null ? null : timestamp.toInstant();
     }
 
 }

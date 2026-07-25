@@ -2,7 +2,7 @@ package org.zipp.ai.infrastructure.adapter.repository;
 
 import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONObject;
-import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.JdbcOperations;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 import org.zipp.ai.application.turn.FencedAttempt;
@@ -38,10 +38,13 @@ public class MySqlTurnContextCheckpointAdapter implements
             SELECT current_attempt_id, attempt_epoch, context_message_high_water,
                    turn_input_binding_digest,
                    context_read_set_schema_version, context_read_set_json, context_read_set_digest,
+                   lease_expires_at, CURRENT_TIMESTAMP(3) AS database_now,
                    status, terminal_code, terminal_payload_ref, updated_at
             FROM turn_execution
             WHERE owner_key = ? AND conversation_id = ? AND turn_id = ?
             """;
+    /** Current read after a failed pin CAS prevents REPEATABLE READ from hiding the winner. */
+    private static final String SELECT_FOR_UPDATE = SELECT + "FOR UPDATE\n";
 
     private static final String PIN_CONTEXT = """
             UPDATE turn_execution
@@ -50,19 +53,24 @@ public class MySqlTurnContextCheckpointAdapter implements
                 updated_at = CURRENT_TIMESTAMP(3)
             WHERE owner_key = ? AND conversation_id = ? AND turn_id = ?
               AND status = 'RUNNING' AND current_attempt_id = ? AND attempt_epoch = ?
+              AND lease_expires_at > CURRENT_TIMESTAMP(3)
               AND context_read_set_json IS NULL AND context_read_set_digest IS NULL
             """;
 
-    private final JdbcTemplate jdbc;
+    private final JdbcOperations jdbc;
 
-    public MySqlTurnContextCheckpointAdapter(JdbcTemplate jdbc) {
+    public MySqlTurnContextCheckpointAdapter(JdbcOperations jdbc) {
         this.jdbc = Objects.requireNonNull(jdbc, "jdbc");
     }
 
     @Override
     public ContextReadSetLoadOutcome loadPinned(FencedAttempt attempt) {
         Objects.requireNonNull(attempt, "attempt");
-        ExecutionRow row = find(attempt.key());
+        return loadPinned(attempt, SELECT);
+    }
+
+    private ContextReadSetLoadOutcome loadPinned(FencedAttempt attempt, String sql) {
+        ExecutionRow row = find(attempt.key(), sql);
         if (row == null) {
             return new ContextReadSetLoadOutcome.Unavailable(
                     notFound(attempt.key()), TurnFailureCode.TERMINAL_UNAVAILABLE, RETRY_AFTER);
@@ -119,7 +127,7 @@ public class MySqlTurnContextCheckpointAdapter implements
     }
 
     private ContextReadSetOutcome afterContextCas(FencedAttempt attempt) {
-        ContextReadSetLoadOutcome loaded = loadPinned(attempt);
+        ContextReadSetLoadOutcome loaded = loadPinned(attempt, SELECT_FOR_UPDATE);
         if (loaded instanceof ContextReadSetLoadOutcome.Found found) {
             return new ContextReadSetOutcome.Pinned(found.value());
         }
@@ -139,8 +147,12 @@ public class MySqlTurnContextCheckpointAdapter implements
     }
 
     private ExecutionRow find(TurnKey key) {
+        return find(key, SELECT);
+    }
+
+    private ExecutionRow find(TurnKey key, String sql) {
         List<ExecutionRow> rows = jdbc.query(
-                SELECT,
+                sql,
                 (resultSet, rowNum) -> row(resultSet),
                 key.ownerKey(), key.canonicalConversationId(), key.turnId());
         return rows.isEmpty() ? null : rows.get(0);
@@ -155,6 +167,8 @@ public class MySqlTurnContextCheckpointAdapter implements
                 resultSet.getInt("context_read_set_schema_version"),
                 resultSet.getString("context_read_set_json"),
                 resultSet.getString("context_read_set_digest"),
+                instant(resultSet.getTimestamp("lease_expires_at")),
+                instant(resultSet.getTimestamp("database_now")),
                 TurnStatus.valueOf(resultSet.getString("status")));
     }
 
@@ -208,13 +222,22 @@ public class MySqlTurnContextCheckpointAdapter implements
             int contextSchemaVersion,
             String contextJson,
             String contextDigest,
+            java.time.Instant leaseExpiresAt,
+            java.time.Instant databaseNow,
             TurnStatus turnStatus
     ) {
         boolean currentFor(FencedAttempt attempt) {
             return turnStatus == TurnStatus.RUNNING
                     && Objects.equals(attemptId, attempt.attemptId())
-                    && attemptEpoch == attempt.attemptEpoch();
+                    && attemptEpoch == attempt.attemptEpoch()
+                    && leaseExpiresAt != null
+                    && databaseNow != null
+                    && leaseExpiresAt.isAfter(databaseNow);
         }
 
+    }
+
+    private static java.time.Instant instant(java.sql.Timestamp timestamp) {
+        return timestamp == null ? null : timestamp.toInstant();
     }
 }
