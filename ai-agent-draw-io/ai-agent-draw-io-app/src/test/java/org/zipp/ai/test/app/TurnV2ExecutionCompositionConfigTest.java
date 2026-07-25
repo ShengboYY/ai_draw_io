@@ -5,6 +5,7 @@ import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.zipp.ai.application.turn.PlainDrawingHandler;
 import org.zipp.ai.application.turn.PlainGenerationPort;
 import org.zipp.ai.application.turn.PlainTurnCommitPort;
+import org.zipp.ai.application.turn.TerminalOnlyTurnCommitPort;
 import org.zipp.ai.application.turn.checkpoint.TurnDecisionCoordinator;
 import org.zipp.ai.application.turn.context.ContextAssemblyCoordinator;
 import org.zipp.ai.application.turn.execution.TurnV2ExecutionCoordinator;
@@ -32,6 +33,7 @@ class TurnV2ExecutionCompositionConfigTest {
         contextRunner
                 .withBean(PlainGenerationPort.class, () -> mock(PlainGenerationPort.class))
                 .withBean(PlainTurnCommitPort.class, () -> mock(PlainTurnCommitPort.class))
+                .withBean(TerminalOnlyTurnCommitPort.class, () -> mock(TerminalOnlyTurnCommitPort.class))
                 .run(context -> assertThat(context)
                         .hasSingleBean(PlainDrawingHandler.class)
                         .hasSingleBean(TurnV2ExecutionCoordinator.class)

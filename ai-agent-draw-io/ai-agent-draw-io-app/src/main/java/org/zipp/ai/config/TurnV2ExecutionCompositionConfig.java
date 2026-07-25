@@ -8,6 +8,7 @@ import org.zipp.ai.application.turn.PlainExecutionProfile;
 import org.zipp.ai.application.turn.PlainGenerationPort;
 import org.zipp.ai.application.turn.PlainRuntimeRegistry;
 import org.zipp.ai.application.turn.PlainTurnCommitPort;
+import org.zipp.ai.application.turn.TerminalOnlyTurnCommitPort;
 import org.zipp.ai.application.turn.checkpoint.TurnDecisionCoordinator;
 import org.zipp.ai.application.turn.context.ContextAssemblyCoordinator;
 import org.zipp.ai.application.turn.execution.DefaultTurnV2ExecutionCoordinator;
@@ -54,7 +55,11 @@ public class TurnV2ExecutionCompositionConfig {
     }
 
     @Bean
-    @ConditionalOnBean({TurnV2PreHandlerCoordinator.class, PlainDrawingHandler.class})
+    @ConditionalOnBean({
+            TurnV2PreHandlerCoordinator.class,
+            PlainDrawingHandler.class,
+            TerminalOnlyTurnCommitPort.class
+    })
     public TurnV2ExecutionCoordinator turnV2ExecutionCoordinator(
             TurnV2PreHandlerCoordinator preHandler,
             PlainDrawingHandler plain
@@ -63,8 +68,11 @@ public class TurnV2ExecutionCompositionConfig {
     }
 
     @Bean
-    @ConditionalOnBean(TurnV2ExecutionCoordinator.class)
-    public TurnV2TurnExecutor turnV2TurnExecutor(TurnV2ExecutionCoordinator coordinator) {
-        return new DefaultTurnV2TurnExecutor(coordinator);
+    @ConditionalOnBean({TurnV2ExecutionCoordinator.class, TerminalOnlyTurnCommitPort.class})
+    public TurnV2TurnExecutor turnV2TurnExecutor(
+            TurnV2ExecutionCoordinator coordinator,
+            TerminalOnlyTurnCommitPort terminalCommit
+    ) {
+        return new DefaultTurnV2TurnExecutor(coordinator, terminalCommit);
     }
 }

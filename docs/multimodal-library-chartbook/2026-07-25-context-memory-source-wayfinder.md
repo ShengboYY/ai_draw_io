@@ -452,6 +452,8 @@ M2 已开始，先交付不改变 production assignment 的 application/transpor
 
 本切片补上 claim handoff contract：`TurnV2TurnExecutor` 只接收 `TurnSubmission.ExecutionAccepted`，再把该 accepted attempt 交给 isolated route coordinator；`ExecutionAccepted` 同时校验 `TurnKey`、`FencedAttempt.key` 与 lease anchor 一致。app composition 只注册该 executor，不接入当前 Legacy HTTP/transport，因此没有扩大 production assignment。本切片没有新增 migration。
 
+本切片进一步把明确 terminal 接入 handoff：pre-handler 的 `Terminal` 使用 accepted attempt 通过 `TerminalOnlyTurnCommitPort` fenced 写入 `FAILED`，deterministic `Unsupported` route 写入 `REJECTED`；fence-lost、unavailable、source-planning 与 clarification 仍返回 typed non-terminal outcome，不伪造产品终态。executor 只有在 terminal commit port 存在时才由 app composition 注册；Legacy HTTP/production assignment 仍不变。本切片没有新增 migration。
+
 本票同时 owns DTO 的 `currentTurnAttachments`、hidden clarification id、opaque refs 与唯一 compatibility translator。
 
 composer 上传成功只创建 Conversation File。发送消息时，`TurnStartCommitPort` 才把 opaque refs 与该条 user message 原子绑定。
