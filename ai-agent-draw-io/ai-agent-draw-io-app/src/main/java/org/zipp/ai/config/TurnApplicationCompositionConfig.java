@@ -37,6 +37,7 @@ import org.zipp.ai.application.turn.TurnAttemptCancellationRegistry;
 import org.zipp.ai.application.turn.TurnAttemptCancellationSignalPort;
 import org.zipp.ai.application.turn.NoopTurnLifecycleTracePort;
 import org.zipp.ai.application.turn.TurnLifecycleTracePort;
+import org.zipp.ai.application.turn.execution.TurnAttemptExecutionRunner;
 
 import java.util.UUID;
 
@@ -102,8 +103,12 @@ public class TurnApplicationCompositionConfig {
     }
 
     @Bean
-    public TurnDeliveryExecutor turnDeliveryExecutor(DiagramTurnFacade facade) {
-        return new DefaultTurnDeliveryExecutor(facade);
+    public TurnDeliveryExecutor turnDeliveryExecutor(
+            DiagramTurnFacade facade,
+            ObjectProvider<TurnAttemptExecutionRunner> runner
+    ) {
+        // Keep one delivery boundary while allowing isolated V2 execution to be composed optionally.
+        return new DefaultTurnDeliveryExecutor(facade, runner.getIfAvailable());
     }
 
     @Bean

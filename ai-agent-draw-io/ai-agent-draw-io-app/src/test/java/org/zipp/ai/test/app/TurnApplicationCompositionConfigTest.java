@@ -24,7 +24,6 @@ import org.zipp.ai.application.turn.TurnEngineAssignmentPort;
 import org.zipp.ai.application.turn.TurnEngineMigrationControlPort;
 import org.zipp.ai.application.turn.TurnEngineMigrationStatePort;
 import org.zipp.ai.application.turn.TurnEngineMode;
-import org.zipp.ai.application.turn.TurnAttemptLeasePort;
 import org.zipp.ai.application.turn.TurnAttemptTakeoverPort;
 import org.zipp.ai.application.turn.TurnKey;
 import org.zipp.ai.application.turn.TurnStatus;
@@ -34,8 +33,18 @@ import org.zipp.ai.application.turn.TurnStatusView;
 import org.zipp.ai.application.turn.TurnStartCommand;
 import org.zipp.ai.application.turn.TurnStartCommitPort;
 import org.zipp.ai.application.turn.TurnStartOutcome;
+import org.zipp.ai.application.turn.TurnAttemptLeasePort;
+import org.zipp.ai.application.turn.TurnEventSink;
+import org.zipp.ai.application.turn.UserTurnCommand;
+import org.zipp.ai.application.turn.execution.TurnAttemptCompletion;
+import org.zipp.ai.application.turn.execution.TurnAttemptExecutionRunner;
+import org.zipp.ai.application.turn.execution.TurnAttemptLeaseSupervisor;
+import org.zipp.ai.application.turn.execution.TurnV2TurnExecutor;
 
+import java.time.Duration;
 import java.time.Instant;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -74,6 +83,44 @@ class TurnApplicationCompositionConfigTest {
             assertThat(reconciler.calls).isEqualTo(1);
             assertThat(context.getBean(org.zipp.ai.application.turn.TurnAdmissionGate.class).isOpen()).isTrue();
         });
+    }
+
+    @Test
+    void composesV2DeliveryHandoffWhenAnAttemptRunnerIsAvailable() {
+        ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
+        try {
+            contextRunner.withBean(
+                            TurnAttemptExecutionRunner.class,
+                            () -> v2Runner(scheduler))
+                    .run(context -> {
+                        assertThat(context).hasSingleBean(org.zipp.ai.application.turn.TurnDeliveryExecutor.class);
+                    });
+        } finally {
+            scheduler.shutdownNow();
+        }
+    }
+
+    private static TurnAttemptExecutionRunner v2Runner(ScheduledExecutorService scheduler) {
+        TurnV2TurnExecutor executor = new TurnV2TurnExecutor() {
+            @Override
+            public TurnAttemptCompletion execute(
+                    org.zipp.ai.application.turn.TurnSubmission.ExecutionAccepted accepted,
+                    UserTurnCommand command,
+                    TurnEventSink events
+            ) {
+                return new TurnAttemptCompletion.AttemptSelfAborted(
+                        new org.zipp.ai.application.turn.TurnStatusRef(accepted.key()), "TEST_ONLY");
+            }
+
+            @Override
+            public void disableWritesAndDrain(org.zipp.ai.application.turn.FencedAttempt attempt) {
+                // The composition contract does not execute the supplied runner.
+            }
+        };
+        TurnAttemptLeaseSupervisor heartbeat = new TurnAttemptLeaseSupervisor(
+                ignored -> new TurnAttemptLeasePort.LeaseTransientFailure(Duration.ofSeconds(30)),
+                executor);
+        return new TurnAttemptExecutionRunner(executor, heartbeat, Runnable::run, scheduler);
     }
 
     private static final class FakeInstanceLock implements SingleActiveInstanceLock {
