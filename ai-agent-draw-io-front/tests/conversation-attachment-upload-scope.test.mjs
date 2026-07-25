@@ -108,9 +108,9 @@ test('composer uses a Codex-style vertical layout', () => {
   )?.[1] || '';
   assert.match(
     pageSource,
-    /min-h-\[196px\] flex-col rounded-\[26px\][\s\S]*<ConversationAttachmentTray[\s\S]*<textarea[\s\S]*mt-auto flex items-center justify-between[\s\S]*aria-label="Deterministic repair rounds"[\s\S]*aria-label="Model"[\s\S]*<Icons\.ArrowUp/,
+    /min-h-\[176px\] flex-col rounded-\[26px\][\s\S]*<ConversationAttachmentTray[\s\S]*<textarea[\s\S]*mt-auto flex items-center justify-between[\s\S]*aria-label="Deterministic repair rounds"[\s\S]*aria-label="Model"[\s\S]*<Icons\.ArrowUp/,
   );
-  assert.match(pageSource, /COMPOSER_TEXTAREA_MIN_HEIGHT_PX = 104/);
+  assert.match(pageSource, /COMPOSER_TEXTAREA_MIN_HEIGHT_PX = 84/);
   assert.match(composerTextareaClasses, /composer-textarea/);
   assert.match(globalStyles, /textarea\.composer-textarea:focus-visible\s*\{\s*outline:\s*none;/);
   assert.match(traySource, /flex gap-2 overflow-x-auto/);

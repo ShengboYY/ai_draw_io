@@ -189,7 +189,8 @@ const EMPTY_DRAWIO_XML = '<mxGraphModel><root><mxCell id="0"/><mxCell id="1" par
 const DRAWIO_BASE_URL = process.env.NEXT_PUBLIC_DRAWIO_BASE_URL || 'https://embed.diagrams.net';
 const DRAWIO_SELECTION_PLUGIN_ID = process.env.NEXT_PUBLIC_DRAWIO_BASE_URL ? 'zippSelection' : undefined;
 const STREAMING_PREVIEW_FRAME_MS = 280;
-const COMPOSER_TEXTAREA_MIN_HEIGHT_PX = 104;
+// Keep the empty composer compact; attachments and multiline input can still expand it naturally.
+const COMPOSER_TEXTAREA_MIN_HEIGHT_PX = 84;
 
 type StructuredCanvasContext = {
   canvasXml?: string;
@@ -4474,7 +4475,7 @@ function DrawioPageContent() {
 
             {/* Codex-style composer: attachments, writing surface, and actions each get their own row. */}
             <div
-              className="relative flex min-h-[196px] flex-col rounded-[26px] border border-stone-200 bg-white px-3 pb-3 pt-3 shadow-[0_8px_28px_rgba(24,24,27,0.07)] transition-[border-color,box-shadow] focus-within:border-stone-300 focus-within:shadow-[0_10px_32px_rgba(24,24,27,0.1)]"
+              className="relative flex min-h-[176px] flex-col rounded-[26px] border border-stone-200 bg-white px-3 pb-3 pt-3 shadow-[0_8px_28px_rgba(24,24,27,0.07)] transition-[border-color,box-shadow] focus-within:border-stone-300 focus-within:shadow-[0_10px_32px_rgba(24,24,27,0.1)]"
             >
               {slashOpen && filteredSkills.length > 0 && (
                 <div className="absolute bottom-full left-0 z-50 mb-2 max-h-72 w-80 overflow-auto rounded-2xl border border-stone-200 bg-white py-1 shadow-xl">
