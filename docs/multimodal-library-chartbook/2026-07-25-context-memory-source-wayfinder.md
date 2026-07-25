@@ -320,6 +320,8 @@ M1 控制面已按以下合同分批落地；生产 HTTP 仍未切入 V2，Plain
 
 本切片补齐 explicit cancel 到本地执行资源的 signal seam：`TurnAttemptCancellationRegistry` 按稳定 `TurnKey` 注册当前 runner，`DefaultTurnControlFacade` 仅在 durable cancel CAS winner 后发送已持久化 outcome；`TurnAttemptExecutionRunner` 用可中断 execution task 关闭当前执行并在完成时注销注册。signal 只负责本地资源停止，断流仍只 detach，数据库 terminal CAS 仍是唯一真相。新增 facade signal 与 runner interrupt contract tests，application 与 bootstrap composition 回归通过，本切片没有新增或执行 migration。
 
+本切片补齐 restart/takeover 的 pinned input recovery：新增 `turn_input_binding_json` migration，首次 claim 持久化 clarification、legacy declaration、current attachment refs 与 deterministic memory declaration；`MySqlTurnAttemptInputRecoveryAdapter` 在当前 attempt/epoch 与 lease fence 下，从 durable user message、attachment binding 和声明快照重建 `UserTurnCommand`，并重新验证 input digest。`TurnAttemptRecoveryCoordinator` 只有在 durable takeover 成功且 recovery 完整时才启动 `TurnAttemptExecutionRunner`；payload、binding、digest 或 fence 不一致均 typed fail closed。迁移已在本地 MySQL 执行并重复运行验证幂等；新增 codec、adapter、coordinator 与 migration contract tests，现有 M1 schema 之外仅新增该 recovery payload 列。生产 HTTP/legacy assignment 仍未切入 V2。
+
 ## single-instance-migration-control: Build The Single-Instance Migration Boundary
 
 Blocked by: turn-execution-control

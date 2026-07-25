@@ -89,12 +89,12 @@ public class MySqlTurnStartCommitAdapter implements TurnStartCommitPort {
                 migration_generation, migration_mode,
                 execution_policy_schema_version, execution_policy_snapshot_json,
                 execution_policy_hash, turn_input_binding_schema_version,
-                turn_input_binding_digest, attachment_binding_digest,
+                turn_input_binding_digest, turn_input_binding_json, attachment_binding_digest,
                 memory_write_schema_version, memory_write_declaration_json, memory_write_digest,
                 context_message_high_water, status
             ) VALUES (?, ?, ?, ?, ?, 1, 'lease-v1', ?,
                       DATE_ADD(CURRENT_TIMESTAMP(3), INTERVAL 30000000 MICROSECOND),
-                      CURRENT_TIMESTAMP(3), ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?,
+                      CURRENT_TIMESTAMP(3), ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?,
                       ?, ?, ?, ?, 'RUNNING')
             """;
     private static final String ADVANCE_CONVERSATION = """
@@ -105,6 +105,7 @@ public class MySqlTurnStartCommitAdapter implements TurnStartCommitPort {
 
     private final JdbcOperations jdbc;
     private final TerminalOutcomeDecoder terminalDecoder = new TerminalOutcomeDecoder();
+    private final TurnInputBindingJsonCodec inputBindingCodec = new TurnInputBindingJsonCodec();
 
     public MySqlTurnStartCommitAdapter(JdbcOperations jdbc) {
         this.jdbc = Objects.requireNonNull(jdbc, "jdbc");
@@ -181,6 +182,7 @@ public class MySqlTurnStartCommitAdapter implements TurnStartCommitPort {
                 assignment.policy().snapshotJson(),
                 assignment.policy().policyHash(),
                 command.inputBindingDigest(),
+                inputBindingCodec.encode(command.declarations()),
                 attachmentValidation.bindingDigest(),
                 assignment.memoryWrite() instanceof org.zipp.ai.application.turn.NoMemoryWrite
                         ? 1 : ((org.zipp.ai.application.turn.RememberDecisionDeclaration) assignment.memoryWrite()).schemaVersion(),

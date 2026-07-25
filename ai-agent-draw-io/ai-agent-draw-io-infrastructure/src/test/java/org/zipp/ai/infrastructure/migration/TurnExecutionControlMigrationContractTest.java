@@ -27,4 +27,17 @@ class TurnExecutionControlMigrationContractTest {
         assertTrue(sql.contains("plan_payload_digest"));
         assertTrue(sql.contains("plan_pinned_at"));
     }
+
+    @Test
+    void recoveryMigrationAddsPinnedInputPayloadWithoutReplacingTheDigest() throws Exception {
+        Path migration = Path.of("docs/sql/migrations/2026-07-27-add-turn-input-binding-payload.sql");
+        if (!Files.exists(migration)) {
+            migration = Path.of("../docs/sql/migrations/2026-07-27-add-turn-input-binding-payload.sql");
+        }
+        String sql = Files.readString(migration);
+
+        assertTrue(sql.contains("turn_input_binding_json JSON NULL"));
+        assertTrue(sql.contains("AFTER turn_input_binding_digest"));
+        assertTrue(sql.contains("information_schema.COLUMNS"));
+    }
 }

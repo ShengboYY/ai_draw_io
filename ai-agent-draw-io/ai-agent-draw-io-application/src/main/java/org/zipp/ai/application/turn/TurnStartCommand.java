@@ -11,8 +11,25 @@ public record TurnStartCommand(
         String userMessage,
         String clientMessageId,
         List<OpaqueConversationFileRef> currentTurnAttachments,
+        TurnDeclarations declarations,
         String inputBindingDigest
 ) {
+
+    /** Compatibility constructor for callers that predate durable declaration recovery. */
+    public TurnStartCommand(
+            TurnKey key,
+            String diagramId,
+            TurnEngineAssignment assignment,
+            String userMessage,
+            String clientMessageId,
+            List<OpaqueConversationFileRef> currentTurnAttachments,
+            String inputBindingDigest
+    ) {
+        this(key, diagramId, assignment, userMessage, clientMessageId, currentTurnAttachments,
+                new TurnDeclarations(currentTurnAttachments, new NoClarificationReply(), List.of(),
+                        assignment == null ? new NoMemoryWrite() : assignment.memoryWrite()),
+                inputBindingDigest);
+    }
 
     public TurnStartCommand {
         if (key == null || assignment == null) {
@@ -24,6 +41,11 @@ public record TurnStartCommand(
         ContractValues.requiredText(inputBindingDigest, "inputBindingDigest");
         currentTurnAttachments = List.copyOf(
                 currentTurnAttachments == null ? List.of() : currentTurnAttachments);
+        if (declarations == null
+                || !currentTurnAttachments.equals(declarations.currentTurnAttachments())
+                || !assignment.memoryWrite().equals(declarations.memoryWrite())) {
+            throw new IllegalArgumentException("turn declarations must match the pinned assignment");
+        }
         Set<String> attachmentRefs = new HashSet<>();
         for (OpaqueConversationFileRef attachment : currentTurnAttachments) {
             if (attachment == null || !attachmentRefs.add(attachment.value())) {

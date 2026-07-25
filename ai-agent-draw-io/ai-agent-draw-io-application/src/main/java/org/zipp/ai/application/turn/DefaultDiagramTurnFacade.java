@@ -89,6 +89,7 @@ public final class DefaultDiagramTurnFacade implements DiagramTurnFacade {
                 command.content(),
                 command.clientMessageId(),
                 command.declarations().currentTurnAttachments(),
+                command.declarations(),
                 TurnInputBindingDigestCalculator.current(command)));
         if (startOutcome instanceof TurnStartOutcome.Claimed claimed) {
             return new TurnSubmission.ExecutionAccepted(
