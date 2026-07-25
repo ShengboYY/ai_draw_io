@@ -110,7 +110,8 @@ public final class DefaultBaseTurnContextAssembler implements ContextAssemblyCoo
     ) {
         ContextAssemblyOutcome outcome = assemble(attempt, command);
         if (outcome instanceof ContextAssemblyOutcome.Ready ready) {
-            return new ContextPreparationOutcome.Ready(ready.context());
+            // Preserve the exact pinned read set for the downstream decision checkpoint.
+            return new ContextPreparationOutcome.Ready(ready.context(), ready.readSet());
         }
         if (outcome instanceof ContextAssemblyOutcome.Terminal terminal) {
             return new ContextPreparationOutcome.Terminal(terminal.code(), terminal.reason());

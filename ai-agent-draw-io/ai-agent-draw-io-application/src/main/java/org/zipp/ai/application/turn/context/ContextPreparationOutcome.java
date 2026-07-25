@@ -12,10 +12,10 @@ public sealed interface ContextPreparationOutcome
         ContextPreparationOutcome.FenceLost,
         ContextPreparationOutcome.Unavailable {
 
-    record Ready(BaseTurnContext context) implements ContextPreparationOutcome {
+    record Ready(BaseTurnContext context, ContextReadSet readSet) implements ContextPreparationOutcome {
         public Ready {
-            if (context == null) {
-                throw new IllegalArgumentException("prepared context must not be null");
+            if (context == null || readSet == null) {
+                throw new IllegalArgumentException("prepared context and read set must not be null");
             }
         }
     }

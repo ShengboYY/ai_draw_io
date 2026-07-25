@@ -52,6 +52,28 @@ class ContextAssemblyCoordinatorTest {
     }
 
     @Test
+    void preparationExposesTheSamePinnedReadSetToTheDecisionStage() {
+        UserTurnCommand command = command("draw a flow");
+        FencedAttempt attempt = attempt(command, 17);
+        ContextReadSet winner = readSet(17, "profile-v1");
+
+        DefaultBaseTurnContextAssembler assembler = new DefaultBaseTurnContextAssembler(
+                ignored -> new ContextReadSetLoadOutcome.Found(winner),
+                (ignored, ignoredProposal) -> new ContextReadSetOutcome.Retry(),
+                (ignored, ignoredCommand) -> new ContextCandidateLoadOutcome.Retry(),
+                (ignored, ignoredCommand, ignoredReadSet) ->
+                        new ContextMaterializationOutcome.Ready(slices()));
+
+        ContextPreparationOutcome.Ready prepared = assertInstanceOf(
+                ContextPreparationOutcome.Ready.class, assembler.prepareBeforeRouter(attempt, command));
+
+        // The router must consume the winner selected by assembly, without a second live read.
+        assertEquals(winner, prepared.readSet());
+        assertEquals(winner.digest(), prepared.readSet().digest());
+        assertEquals(winner.messageHighWater(), prepared.readSet().messageHighWater());
+    }
+
+    @Test
     void missingReadSetPinsCandidateBeforeExactMaterialization() {
         UserTurnCommand command = command("draw a flow");
         FencedAttempt attempt = attempt(command, 17);
