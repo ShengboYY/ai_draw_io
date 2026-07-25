@@ -306,6 +306,8 @@ M1 控制面已按以下合同分批落地；生产 HTTP 仍未切入 V2，Plain
 
 本切片继续修复 checkpoint CAS loser 的 current-read 语义：`MySqlTurnDecisionCheckpointAdapter` 的 `pinFirst` 在写入失败后改用 `SELECT ... FOR UPDATE` reload，避免取消/终态已赢得同一 `turn_execution` 行时，在事务快照中误读旧的 `RUNNING/MISSING`。新增 terminal-winner checkpoint adapter contract test，并回归 application、app composition 与 infrastructure M1 lifecycle/commit/lock/migration-control；现有表字段已足够，本切片没有新增或执行 migration。
 
+本切片补齐 Context 非 Ready 分支的 cancellation precedence：`DefaultTurnV2PreHandlerCoordinator` 在 Context preparation 返回 `Ready`、`Terminal`、`FenceLost` 或 `Unavailable` 前统一重新读取 fenced execution state；若 explicit cancel/deadline 已先持久化 terminal，统一返回 `AlreadyTerminal`，不会把 Context terminal 再交给 terminal-only commit。新增 Context terminal 与 durable cancellation race contract test；application 全量回归通过，本切片没有新增或执行 migration。
+
 ## single-instance-migration-control: Build The Single-Instance Migration Boundary
 
 Blocked by: turn-execution-control

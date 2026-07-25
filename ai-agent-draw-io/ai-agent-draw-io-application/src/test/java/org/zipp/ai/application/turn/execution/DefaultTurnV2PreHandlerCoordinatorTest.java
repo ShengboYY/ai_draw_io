@@ -150,6 +150,34 @@ class DefaultTurnV2PreHandlerCoordinatorTest {
         assertEquals(TurnStatus.CANCELLED, terminal.outcome().status());
     }
 
+    @Test
+    void durableTerminalStateTakesPrecedenceOverAContextTerminalResult() {
+        UserTurnCommand command = command("draw a flow");
+        FencedAttempt attempt = attempt(command);
+        AtomicInteger checks = new AtomicInteger();
+        TurnAttemptExecutionStatePort state = ignored -> {
+            if (checks.incrementAndGet() < 2) {
+                return new TurnAttemptExecutionStatePort.StateOutcome.Active();
+            }
+            return new TurnAttemptExecutionStatePort.StateOutcome.AlreadyTerminal(
+                    new PersistedTurnOutcome(TurnStatus.CANCELLED, "CANCELLED_BY_USER",
+                            "cancel", null, "{}"));
+        };
+        ContextAssemblyCoordinator assembly = assemblyReturning(
+                new ContextPreparationOutcome.Terminal("CONTEXT_READ_SET_REVOKED", "revoked"));
+        TurnDecisionCoordinator decisions = (ignoredAttempt, ignoredCommand, ignoredContext, ignoredReadSet) -> {
+            throw new AssertionError("decision must not run after a context terminal");
+        };
+
+        TurnV2PreHandlerOutcome.AlreadyTerminal terminal = assertInstanceOf(
+                TurnV2PreHandlerOutcome.AlreadyTerminal.class,
+                new DefaultTurnV2PreHandlerCoordinator(assembly, decisions, state)
+                        .prepare(attempt, command));
+
+        assertEquals(TurnStatus.CANCELLED, terminal.outcome().status());
+        assertEquals(2, checks.get());
+    }
+
     private static TurnRouteDecision plainDecision(ContextReadSet readSet, FencedAttempt attempt) {
         return new TurnRouteDecision.Plain(new PrePlanOutcome.SourceFreeReady(
                 new PlainDrawPlan(PlainDrawAction.CREATE, "draw a flow"),

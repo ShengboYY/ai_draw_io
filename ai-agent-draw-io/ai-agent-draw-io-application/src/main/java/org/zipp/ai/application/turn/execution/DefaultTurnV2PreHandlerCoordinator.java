@@ -48,11 +48,11 @@ public final class DefaultTurnV2PreHandlerCoordinator implements TurnV2PreHandle
             return state;
         }
         ContextPreparationOutcome context = contextAssembly.prepareBeforeRouter(attempt, command);
+        state = stateOutcome(attempt);
+        if (state != null) {
+            return state;
+        }
         if (context instanceof ContextPreparationOutcome.Ready ready) {
-            state = stateOutcome(attempt);
-            if (state != null) {
-                return state;
-            }
             // The decision coordinator receives the exact winner selected by Context assembly.
             return mapDecision(attempt, command, ready);
         }
