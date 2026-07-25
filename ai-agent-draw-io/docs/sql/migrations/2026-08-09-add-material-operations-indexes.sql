@@ -31,7 +31,7 @@ CREATE TABLE IF NOT EXISTS material_provider_capacity_snapshot (
     updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
     PRIMARY KEY (singleton_key),
     CHECK (singleton_key = 1),
-    CHECK (sequence_no &gt;= 0),
+    CHECK (sequence_no >= 0),
     CHECK (embedding_percent BETWEEN 0 AND 100),
     CHECK (vector_read_percent BETWEEN 0 AND 100),
     CHECK (vector_write_percent BETWEEN 0 AND 100)

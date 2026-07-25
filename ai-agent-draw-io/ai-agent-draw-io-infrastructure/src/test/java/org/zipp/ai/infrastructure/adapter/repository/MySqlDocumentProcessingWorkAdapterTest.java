@@ -1,8 +1,13 @@
 package org.zipp.ai.infrastructure.adapter.repository;
 
 import org.junit.jupiter.api.Test;
+import org.zipp.ai.domain.account.model.valobj.OwnerType;
 import org.zipp.ai.domain.ingestion.model.aggregate.ProcessingJob;
 import org.zipp.ai.domain.ingestion.model.valobj.*;
+import org.zipp.ai.domain.retrieval.model.valobj.RetrievalChunkType;
+import org.zipp.ai.domain.retrieval.model.valobj.RetrievalIndexMode;
+import org.zipp.ai.domain.retrieval.projection.RetrievalChunkProjection;
+import org.zipp.ai.domain.retrieval.projection.RetrievalProjectionManifest;
 import org.zipp.ai.infrastructure.dao.material.IDocumentProcessingMapper;
 import org.zipp.ai.infrastructure.dao.material.IProcessingJobMapper;
 import org.zipp.ai.infrastructure.dao.material.po.DocumentExtractionWorkPO;
@@ -15,6 +20,7 @@ import org.zipp.ai.infrastructure.dao.material.po.VisualCropArtifactPO;
 import org.zipp.ai.infrastructure.dao.material.po.EvidenceUnitPO;
 import org.zipp.ai.infrastructure.dao.material.po.EvidenceRegionPO;
 import org.zipp.ai.infrastructure.dao.material.po.EvidenceRelationPO;
+import org.zipp.ai.infrastructure.dao.material.po.RetrievalChunkPO;
 
 import java.lang.reflect.Proxy;
 import java.time.Instant;
@@ -368,6 +374,61 @@ class MySqlDocumentProcessingWorkAdapterTest {
         assertEquals("CAPTION_OF", persistedRelation.get().getRelationType());
         assertEquals("evi_heading", persistedSection.get().getHeadingEvidenceId());
         assertEquals(ProcessingJobStage.BUILD_RETRIEVAL_CHUNKS.name(), queued.get().getStage());
+    }
+
+    @Test
+    void retrievalCommitPinsTheCompressedArtifactDigestForOnlineHydration() {
+        AtomicReference<DocumentStructureArtifactPO> persistedManifest = new AtomicReference<>();
+        AtomicReference<RetrievalChunkPO> persistedChunk = new AtomicReference<>();
+        IDocumentProcessingMapper mapper = proxy(IDocumentProcessingMapper.class, (method, args) -> switch (method) {
+            case "countCurrentFence", "advanceRevision" -> 1;
+            case "insertRevisionArtifact" -> {
+                persistedManifest.set((DocumentStructureArtifactPO) args[0]);
+                yield 1;
+            }
+            case "selectRevisionArtifact" -> persistedManifest.get();
+            case "insertRetrievalChunk" -> {
+                persistedChunk.set((RetrievalChunkPO) args[0]);
+                yield 1;
+            }
+            case "selectRetrievalChunk" -> persistedChunk.get();
+            default -> unsupported(method);
+        });
+        IProcessingJobMapper jobs = proxy(IProcessingJobMapper.class,
+                (method, args) -> "insert".equals(method) ? 1 : unsupported(method));
+        var adapter = new MySqlDocumentProcessingWorkAdapter(mapper, jobs);
+        RevisionRetrievalWork source = new RevisionRetrievalWork(
+                "rev_1", "ver_1", "mat_1", OwnerType.USER, "user_1", 7, 9,
+                "d".repeat(64), artifact("evidence.json.gz", "evidence-version"));
+        RetrievalChunkProjection chunk = new RetrievalChunkProjection(
+                "chunk_1", null, null, RetrievalChunkType.DOCUMENT_PROFILE,
+                EvidenceModality.TEXT, "zh", false, RetrievalIndexMode.UNSEARCHABLE,
+                "标准编号是 GCB-2026-06。", "b".repeat(64), null, List.of(),
+                8, 1.0, 1, List.of());
+        RetrievalProjectionManifest manifest = new RetrievalProjectionManifest(
+                "retrieval-projection-v1", "rev_1", "ver_1", "e".repeat(64),
+                "builder-v1", List.of(chunk), List.of(), "c".repeat(64));
+        StoredArtifact manifestArtifact = new StoredArtifact(
+                "retrieval-manifest.json.gz", "manifest-version", "f".repeat(64),
+                30, "application/json+gzip");
+        StoredArtifact chunkArtifact = new StoredArtifact(
+                "retrieval/chunk_1.json.gz", "chunk-version", "a".repeat(64),
+                40, "application/json+gzip");
+        RetrievalBuildResult result = new RetrievalBuildResult(
+                manifest, manifestArtifact,
+                List.of(new RetrievalChunkArtifact("chunk_1", chunkArtifact, null)));
+        ProcessingJob successor = ProcessingJob.enqueue(
+                "job_lexical", ProcessingJobTarget.forRevision("rev_1"),
+                ProcessingJobStage.BUILD_LEXICAL_PROJECTION, "root",
+                org.zipp.ai.domain.ingestion.service.ProcessingStageFingerprintPolicy.lexicalProjectionInput(
+                        manifestArtifact.contentSha256(), source.processingFingerprint()),
+                0, Instant.parse("2026-07-27T00:00:00Z"));
+
+        assertTrue(adapter.commitRetrieval(source, result, successor,
+                new WorkerFence("job_1", "worker-1", 2)));
+
+        // Online hydration verifies the stored gzip bytes, not the semantic text embedded inside them.
+        assertEquals(chunkArtifact.contentSha256(), persistedChunk.get().getRetrievalTextSha256());
     }
 
     private static StoredArtifact artifact(String key, String version) {

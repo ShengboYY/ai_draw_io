@@ -32,6 +32,7 @@ import org.zipp.ai.domain.agent.model.valobj.visualreview.DrawerContinuationCont
 import org.zipp.ai.domain.agent.service.ICanvasStateStore;
 import org.zipp.ai.domain.agent.service.IChatService;
 import org.zipp.ai.domain.agent.service.IIntentRoutingService;
+import org.zipp.ai.domain.agent.service.armory.matter.tool.DrawioToolAccessContext;
 import org.zipp.ai.domain.agent.service.visualreview.ICanvasVisualReviewer;
 import org.zipp.ai.domain.agent.service.canvas.DefaultDrawioCanvasSnapshotService;
 import org.zipp.ai.domain.agent.service.debugtrace.AgentDebugTraceService;
@@ -912,6 +913,10 @@ public class AgentConversationServiceTest {
         assertTrue(insufficientOutput.contains("\"type\":\"degraded\""));
         assertTrue(insufficientOutput.contains("\"outcomeType\":\"insufficient_evidence\""));
         assertEquals(0, insufficientChat.handleMessageStreamCalls);
+        assertTrue(insufficientEmitter.completed);
+        // A terminal evidence response must release the session for the user's next request.
+        DrawioToolAccessContext.openSession("session-insufficient", "next-run");
+        assertTrue(DrawioToolAccessContext.closeSession("session-insufficient", "next-run"));
 
         AgentConversationService degradedService = quotaAwareService();
         CountingChatService degradedChat = new CountingChatService();

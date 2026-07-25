@@ -77,7 +77,8 @@ public class CanvasMutationGate {
         CanvasAnalysis before = canvasAnalyzer.analyze(new CanvasAnalysisRequest(beforeXml, diagramType, null, null));
         CanvasAnalysis after = canvasAnalyzer.analyze(new CanvasAnalysisRequest(candidateXml, diagramType, null, null));
         Map<String, Set<CanvasField>> changedFields = changedFields(before.getCells(), after.getCells());
-        if (!after.isValid() && "critical".equalsIgnoreCase(after.getSeverity())) {
+        boolean canonicalEmptyCreate = isCanonicalEmptyCreate(command, stored, candidateXml);
+        if (!canonicalEmptyCreate && !after.isValid() && "critical".equalsIgnoreCase(after.getSeverity())) {
             return new CanvasMutationDecision(
                     CanvasMutationStatus.REJECTED_INVALID_CANDIDATE,
                     beforeXml,
@@ -143,7 +144,7 @@ public class CanvasMutationGate {
         }
         if (!persist) {
             return new CanvasMutationDecision(
-                    hasIssues(after) ? CanvasMutationStatus.ACCEPTED_WITH_NOTES : CanvasMutationStatus.ACCEPTED,
+                    acceptedStatus(after, canonicalEmptyCreate),
                     candidateXml, before, after, changedFields.keySet(), changedFields,
                     null, null, stored.orElse(null));
         }
@@ -164,7 +165,7 @@ public class CanvasMutationGate {
             return rejectedStale(latestXml, CanvasMutationRejectionReason.VERSION_MISMATCH, latest);
         }
         return new CanvasMutationDecision(
-                hasIssues(after) ? CanvasMutationStatus.ACCEPTED_WITH_NOTES : CanvasMutationStatus.ACCEPTED,
+                acceptedStatus(after, canonicalEmptyCreate),
                 candidateXml,
                 before,
                 after,
@@ -173,6 +174,43 @@ public class CanvasMutationGate {
                 null,
                 saveResult,
                 saveResult == null ? null : saveResult.getState());
+    }
+
+    private CanvasMutationStatus acceptedStatus(CanvasAnalysis analysis, boolean canonicalEmptyCreate) {
+        return !canonicalEmptyCreate && hasIssues(analysis)
+                ? CanvasMutationStatus.ACCEPTED_WITH_NOTES
+                : CanvasMutationStatus.ACCEPTED;
+    }
+
+    private boolean isCanonicalEmptyCreate(CanvasMutationCommand command,
+                                           Optional<CanvasState> stored,
+                                           String candidateXml) {
+        if (command.purpose() != CanvasMutationPurpose.USER_CREATE || stored.isPresent()) {
+            return false;
+        }
+        try {
+            Element graph = DocumentHelper.parseText(candidateXml).getRootElement();
+            Element root = graph == null ? null : graph.element("root");
+            if (graph == null || !"mxGraphModel".equals(graph.getName())
+                    || root == null || root.elements().size() != 2) {
+                return false;
+            }
+            List<Element> cells = root.elements("mxCell");
+            if (cells.size() != 2) {
+                return false;
+            }
+            Element zero = cells.stream().filter(cell -> "0".equals(cell.attributeValue("id")))
+                    .findFirst().orElse(null);
+            Element one = cells.stream().filter(cell -> "1".equals(cell.attributeValue("id")))
+                    .findFirst().orElse(null);
+            // Only the two draw.io root cells are allowed through this narrow creation exception.
+            return zero != null && one != null
+                    && zero.attributeCount() == 1 && zero.elements().isEmpty()
+                    && one.attributeCount() == 2 && "0".equals(one.attributeValue("parent"))
+                    && one.elements().isEmpty();
+        } catch (Exception ignored) {
+            return false;
+        }
     }
 
     private boolean isRepair(CanvasMutationPurpose purpose) {

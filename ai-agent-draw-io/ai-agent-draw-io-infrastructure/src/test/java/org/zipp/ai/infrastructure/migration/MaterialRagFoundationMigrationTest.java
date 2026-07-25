@@ -7,6 +7,7 @@ import java.nio.file.Path;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class MaterialRagFoundationMigrationTest {
@@ -43,6 +44,9 @@ class MaterialRagFoundationMigrationTest {
         assertTrue(sql.contains("idx_projection_repair_global_state"));
         assertTrue(sql.contains("idx_orphan_deletion_completion"));
         assertTrue(sql.contains("CREATE TABLE IF NOT EXISTS material_provider_capacity_snapshot"));
+        // SQL files are executed directly by MySQL and must never contain escaped HTML operators.
+        assertFalse(sql.contains("&gt;"));
+        assertTrue(sql.contains("CHECK (sequence_no >= 0)"));
     }
 
     @Test

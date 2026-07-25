@@ -534,18 +534,23 @@ public class AgentConversationService {
                                 }
                             }, evidenceCancelled::get);
                     if (!(directPreparation instanceof DirectSourceOutcome.Prepared prepared)) {
-                        ChatResponseDTO response = directSourceResponse(directPreparation);
-                        captureRunOutput(runScope, response, currentRequest.getDiagramId());
-                        if (directPreparation instanceof DirectSourceOutcome.NeedsConfirmation confirmation) {
-                            streamResponseWriter.sendDirectConfirmation(
-                                    emitter, response.getContent(),
-                                    confirmation.reasons(), confirmation.observedValues());
-                        } else {
-                            streamResponseWriter.sendEvidenceOutcome(emitter,
-                                    "grounding_rejected", response.getType(), response.getContent());
+                        try {
+                            ChatResponseDTO response = directSourceResponse(directPreparation);
+                            captureRunOutput(runScope, response, currentRequest.getDiagramId());
+                            if (directPreparation instanceof DirectSourceOutcome.NeedsConfirmation confirmation) {
+                                streamResponseWriter.sendDirectConfirmation(
+                                        emitter, response.getContent(),
                                         sourcePlan.primaryDirectVersionId(),
+                                        confirmation.reasons(), confirmation.observedValues());
+                            } else {
+                                streamResponseWriter.sendEvidenceOutcome(emitter,
+                                        "grounding_rejected", response.getType(), response.getContent());
+                            }
+                            completeStreamTelemetry(streamTelemetryCompleted, null, runScope, null);
+                        } finally {
+                            // Terminal synchronous branches never install the asynchronous cleanup callbacks.
+                            clearSessionConfig(finalSessionId, runScope.getContext().runId());
                         }
-                        completeStreamTelemetry(streamTelemetryCompleted, null, runScope, null);
                         return;
                     }
                     directPrepared = prepared;
@@ -572,15 +577,19 @@ public class AgentConversationService {
                             }
                         }, evidenceCancelled::get, preparedEvidenceRef);
                 if (evidenceResponse != null) {
-                    captureRunOutput(runScope, evidenceResponse, currentRequest.getDiagramId());
-                    if ("target_clarification".equals(evidenceResponse.getType())) {
-                        streamResponseWriter.sendTargetClarification(emitter, evidenceResponse);
-                    } else {
-                        streamResponseWriter.sendEvidenceOutcome(emitter,
-                                evidenceStreamEvent(evidenceResponse.getType()),
-                                evidenceResponse.getType(), evidenceResponse.getContent());
+                    try {
+                        captureRunOutput(runScope, evidenceResponse, currentRequest.getDiagramId());
+                        if ("target_clarification".equals(evidenceResponse.getType())) {
+                            streamResponseWriter.sendTargetClarification(emitter, evidenceResponse);
+                        } else {
+                            streamResponseWriter.sendEvidenceOutcome(emitter,
+                                    evidenceStreamEvent(evidenceResponse.getType()),
+                                    evidenceResponse.getType(), evidenceResponse.getContent());
+                        }
+                        completeStreamTelemetry(streamTelemetryCompleted, null, runScope, null);
+                    } finally {
+                        clearSessionConfig(finalSessionId, runScope.getContext().runId());
                     }
-                    completeStreamTelemetry(streamTelemetryCompleted, null, runScope, null);
                     return;
                 }
                 if (directPrepared != null) {
@@ -591,14 +600,18 @@ public class AgentConversationService {
                                             List.of("RETRIEVAL_NOT_PREPARED"))
                                     : directAndRetrievalEvidenceComposer.compose(directPrepared, retrieved);
                     if (!(composition instanceof DirectAndRetrievalEvidenceComposer.Outcome.Ready ready)) {
-                        evidenceResources.closeExactlyOnce(CloseReason.FAILED);
-                        ChatResponseDTO response = evidenceResponse("source_composition_conflict",
-                                "直传图片与检索资料无法安全合并，画布未被修改。 / "
-                                        + "The direct image and retrieved evidence could not be safely composed.");
-                        captureRunOutput(runScope, response, currentRequest.getDiagramId());
-                        streamResponseWriter.sendEvidenceOutcome(emitter,
-                                "grounding_rejected", response.getType(), response.getContent());
-                        completeStreamTelemetry(streamTelemetryCompleted, null, runScope, null);
+                        try {
+                            evidenceResources.closeExactlyOnce(CloseReason.FAILED);
+                            ChatResponseDTO response = evidenceResponse("source_composition_conflict",
+                                    "直传图片与检索资料无法安全合并，画布未被修改。 / "
+                                            + "The direct image and retrieved evidence could not be safely composed.");
+                            captureRunOutput(runScope, response, currentRequest.getDiagramId());
+                            streamResponseWriter.sendEvidenceOutcome(emitter,
+                                    "grounding_rejected", response.getType(), response.getContent());
+                            completeStreamTelemetry(streamTelemetryCompleted, null, runScope, null);
+                        } finally {
+                            clearSessionConfig(finalSessionId, runScope.getContext().runId());
+                        }
                         return;
                     }
                     preparedEvidenceRef.set(new PreparedEvidence(
@@ -652,23 +665,27 @@ public class AgentConversationService {
                 return;
             }
             if (routingResult.isEvidenceAnswer()) {
-                PreparedEvidence prepared = preparedEvidenceRef.get();
-                if (prepared == null || evidenceAnswerService == null) {
-                    streamResponseWriter.sendEvidenceOutcome(emitter, "degraded",
-                            "证据回答当前不可用。 / Grounded answers are currently unavailable.");
+                try {
+                    PreparedEvidence prepared = preparedEvidenceRef.get();
+                    if (prepared == null || evidenceAnswerService == null) {
+                        streamResponseWriter.sendEvidenceOutcome(emitter, "degraded",
+                                "证据回答当前不可用。 / Grounded answers are currently unavailable.");
+                        completeStreamTelemetry(streamTelemetryCompleted, null, runScope, null);
+                        return;
+                    }
+                    EvidenceAnswerResult answer = evidenceAnswerService.answer(
+                            evidenceAnswerCommand(currentRequest, requestProbe, runScope.getContext().requestId()), prepared);
+                    if (!answer.committed()) {
+                        streamResponseWriter.sendEvidenceOutcome(emitter, "grounding_rejected",
+                                "可用资料不足以生成经过验证的回答。 / The prepared sources did not support a verified answer.");
+                    } else {
+                        captureRunOutput(runScope, "evidence_answer", answer.content(), currentRequest.getDiagramId());
+                        streamResponseWriter.sendEvidenceAnswer(emitter, answer);
+                    }
                     completeStreamTelemetry(streamTelemetryCompleted, null, runScope, null);
-                    return;
+                } finally {
+                    clearSessionConfig(finalSessionId, runScope.getContext().runId());
                 }
-                EvidenceAnswerResult answer = evidenceAnswerService.answer(
-                        evidenceAnswerCommand(currentRequest, requestProbe, runScope.getContext().requestId()), prepared);
-                if (!answer.committed()) {
-                    streamResponseWriter.sendEvidenceOutcome(emitter, "grounding_rejected",
-                            "可用资料不足以生成经过验证的回答。 / The prepared sources did not support a verified answer.");
-                } else {
-                    captureRunOutput(runScope, "evidence_answer", answer.content(), currentRequest.getDiagramId());
-                    streamResponseWriter.sendEvidenceAnswer(emitter, answer);
-                }
-                completeStreamTelemetry(streamTelemetryCompleted, null, runScope, null);
                 return;
             }
             // Canvas mutations need a persistent identity; otherwise the final candidate would have
