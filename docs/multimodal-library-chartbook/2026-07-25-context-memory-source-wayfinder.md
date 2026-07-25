@@ -288,6 +288,8 @@ M1 控制面已按以下合同分批落地；生产 HTTP 仍未切入 V2，Plain
 
 本切片把 takeover 纳入 readiness fence：`DefaultTurnControlFacade` 只有在 authenticated owner 通过且本地 admission barrier 可进入时，才调用 durable takeover port；startup repair、migration pause 或 singleton lock 丢失期间返回 `TURN_INSTANCE_NOT_READY`，并保证 zero port call。heartbeat、deadline cancel 与 explicit cancel 仍不重新申请 admission scope，以便已进入执行的 turn 安全 drain。新增 closed-gate contract test，application、infrastructure 与 bootstrap composition 串行回归通过。本切片没有新增或执行 migration。
 
+本切片收口 startup lock fencing：`TurnAdmissionGate` 在 orphan reconciliation 返回后再次确认当前 boot 仍持有 singleton lock；reconciliation 期间丢锁时返回 `InstanceLockOutcome.LOST` 并保持 admission closed，不会短暂开放 HTTP。新增 startup lock-loss contract test，application、infrastructure 与 bootstrap composition 串行回归通过。本切片没有新增或执行 migration。
+
 ## single-instance-migration-control: Build The Single-Instance Migration Boundary
 
 Blocked by: turn-execution-control

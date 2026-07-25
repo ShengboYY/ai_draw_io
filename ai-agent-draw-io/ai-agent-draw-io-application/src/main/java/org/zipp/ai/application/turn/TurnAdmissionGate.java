@@ -32,6 +32,12 @@ public final class TurnAdmissionGate implements AdmissionBarrier {
         try {
             // Admission opens only after the previous boot's durable RUNNING rows are reconciled.
             orphanReconciler.reconcile(requestedBootId);
+            if (!instanceLock.isHeld(requestedBootId)) {
+                // Reconciliation can outlive the dedicated DB connection; never open on a lost lock.
+                bootId = null;
+                open = false;
+                return InstanceLockOutcome.LOST;
+            }
             bootId = requestedBootId;
             open = true;
             return InstanceLockOutcome.ACQUIRED;

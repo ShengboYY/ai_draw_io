@@ -59,6 +59,20 @@ class TurnAdmissionGateTest {
         }
     }
 
+    @Test
+    void startupLockLossDuringReconciliationNeverOpensAdmission() {
+        FakeLock lock = new FakeLock();
+        TurnAdmissionGate gate = new TurnAdmissionGate(
+                lock,
+                ignored -> {
+                    lock.held = false;
+                    return 0;
+                });
+
+        assertEquals(InstanceLockOutcome.LOST, gate.start(new InstanceBootId("boot-1")));
+        assertFalse(gate.isOpen());
+    }
+
     private static final class FakeLock implements SingleActiveInstanceLock {
         private boolean held;
 
