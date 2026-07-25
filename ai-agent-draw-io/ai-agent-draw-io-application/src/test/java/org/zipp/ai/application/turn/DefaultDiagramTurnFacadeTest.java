@@ -133,6 +133,37 @@ class DefaultDiagramTurnFacadeTest {
     }
 
     @Test
+    void terminalStartUnavailableIsForwardedAsTypedSubmission() {
+        AuthenticatedActor actor = new AuthenticatedActor("owner-1", "cohort-1");
+        ConversationRef conversation = activeConversation();
+        TurnEngineAssignment assignment = assignment();
+        TurnStatusView terminalStatus = new TurnStatusView(
+                assignment.key(), TurnStatus.CANCELLED, null, 1, "CANCELLED", null,
+                Instant.parse("2026-07-26T00:01:00Z"));
+        DefaultDiagramTurnFacade facade = new DefaultDiagramTurnFacade(
+                fixedCatalog(conversation),
+                new ConversationReferenceResolver(),
+                new FixedProfile(),
+                new TurnEngineAdmissionService(
+                        () -> migration(),
+                        ignored -> new AdmissionWriteOutcome.Assigned(assignment),
+                        new OpenAdmissionBarrier()),
+                ignored -> new TurnStartOutcome.TerminalUnavailable(
+                        terminalStatus, TerminalOutcomeDecoder.UNAVAILABLE_CODE),
+                new OpenAdmissionBarrier());
+
+        // An undecodable durable terminal must remain typed at the submission boundary.
+        TurnSubmission.TerminalUnavailable unavailable = assertInstanceOf(
+                TurnSubmission.TerminalUnavailable.class,
+                facade.execute(actor, command("conversation:conversation-1"), ignored -> {
+                }));
+
+        assertEquals(assignment.key(), unavailable.key());
+        assertEquals(terminalStatus, unavailable.status());
+        assertEquals(TerminalOutcomeDecoder.UNAVAILABLE_CODE, unavailable.code());
+    }
+
+    @Test
     void resolverRejectsBareReferenceAndRoutesLegacyPrefixToAliasPort() {
         ConversationRef conversation = activeConversation();
         AtomicReference<String> resolvedAlias = new AtomicReference<>();
