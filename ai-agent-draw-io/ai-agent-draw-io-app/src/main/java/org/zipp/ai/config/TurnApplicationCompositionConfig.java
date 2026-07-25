@@ -19,6 +19,8 @@ import org.zipp.ai.application.turn.TurnAdmissionProfilePort;
 import org.zipp.ai.application.turn.TurnEngineAdmissionService;
 import org.zipp.ai.application.turn.TurnEngineAssignmentPort;
 import org.zipp.ai.application.turn.TurnEngineMigrationStatePort;
+import org.zipp.ai.application.turn.TurnEngineMigrationControlPort;
+import org.zipp.ai.application.turn.TurnEngineMigrationCoordinator;
 import org.zipp.ai.application.turn.TurnStartCommitPort;
 
 import java.util.UUID;
@@ -58,6 +60,14 @@ public class TurnApplicationCompositionConfig {
             AdmissionBarrier admissionBarrier
     ) {
         return new TurnEngineAdmissionService(migrationState, assignments, admissionBarrier);
+    }
+
+    @Bean
+    public TurnEngineMigrationCoordinator turnEngineMigrationCoordinator(
+            AdmissionBarrier admissionBarrier,
+            TurnEngineMigrationControlPort migrationControl
+    ) {
+        return new TurnEngineMigrationCoordinator(admissionBarrier, migrationControl);
     }
 
     @Bean

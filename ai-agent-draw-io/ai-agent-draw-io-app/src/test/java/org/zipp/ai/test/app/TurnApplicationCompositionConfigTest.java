@@ -9,11 +9,13 @@ import org.zipp.ai.application.turn.ConversationRef;
 import org.zipp.ai.application.turn.ConversationStatus;
 import org.zipp.ai.application.turn.InstanceBootId;
 import org.zipp.ai.application.turn.InstanceLockOutcome;
+import org.zipp.ai.application.turn.MigrationModeSwitchOutcome;
 import org.zipp.ai.application.turn.MigrationStateSnapshot;
 import org.zipp.ai.application.turn.SingleActiveInstanceLock;
 import org.zipp.ai.application.turn.StartupOrphanReconciler;
 import org.zipp.ai.application.turn.TurnEngineAssignmentCommand;
 import org.zipp.ai.application.turn.TurnEngineAssignmentPort;
+import org.zipp.ai.application.turn.TurnEngineMigrationControlPort;
 import org.zipp.ai.application.turn.TurnEngineMigrationStatePort;
 import org.zipp.ai.application.turn.TurnEngineMode;
 import org.zipp.ai.application.turn.TurnStartCommand;
@@ -31,6 +33,7 @@ class TurnApplicationCompositionConfigTest {
             .withBean(SingleActiveInstanceLock.class, FakeInstanceLock::new)
             .withBean(StartupOrphanReconciler.class, FakeOrphanReconciler::new)
             .withBean(TurnEngineMigrationStatePort.class, FakeMigrationState::new)
+            .withBean(TurnEngineMigrationControlPort.class, FakeMigrationControl::new)
             .withBean(TurnEngineAssignmentPort.class, FakeAssignments::new)
             .withBean(ConversationCatalogPort.class, FakeConversationCatalog::new)
             .withBean(TurnStartCommitPort.class, FakeTurnStart::new);
@@ -89,6 +92,16 @@ class TurnApplicationCompositionConfigTest {
         @Override
         public AdmissionWriteOutcome assignOrReuse(TurnEngineAssignmentCommand command) {
             return new AdmissionWriteOutcome.Rejected(command.key(), "TEST_ONLY");
+        }
+    }
+
+    private static final class FakeMigrationControl implements TurnEngineMigrationControlPort {
+        @Override
+        public MigrationModeSwitchOutcome switchMode(
+                TurnEngineMode expectedMode,
+                TurnEngineMode targetMode
+        ) {
+            return new MigrationModeSwitchOutcome.Rejected("TEST_ONLY");
         }
     }
 
