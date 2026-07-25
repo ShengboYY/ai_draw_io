@@ -56,10 +56,25 @@ class EvidencePreparationModuleTest {
     }
 
     @Test
-    void optionalFactualRequestWithoutReadySourcesIsNotExemptFromEvidence() {
+    void optionalRequestWithoutReadySourcesFallsBackToDrawing() {
+        EvidencePreparationCommand evidenceCommand = new EvidencePreparationCommand(owner, "diagram-1", "conversation-1",
+                "request-1", "run-1", "创建一个简单架构图", CanvasProbe.unavailableProbe(),
+                ValidatedSelection.empty(), SourceMode.EXPLICIT_ONLY, List.of(), "OPTIONAL", "NONE");
+
+        PreparationOutcome outcome = module(catalog(command -> new SourceResolution(
+                SourceMode.EXPLICIT_ONLY, List.of(), List.of())), List.of())
+                .prepare(evidenceCommand,
+                        new RunResourceDomain(), EvidenceProgressListener.NOOP, CancellationSignal.NEVER)
+                .toCompletableFuture().join();
+
+        assertInstanceOf(PreparationOutcome.NotRequired.class, outcome);
+    }
+
+    @Test
+    void requiredRequestWithoutReadySourcesStillFailsClosed() {
         EvidencePreparationCommand evidenceCommand = new EvidencePreparationCommand(owner, "diagram-1", "conversation-1",
                 "request-1", "run-1", "根据资料创建架构图", CanvasProbe.unavailableProbe(),
-                ValidatedSelection.empty(), SourceMode.AUTO, List.of(), "OPTIONAL", "NONE");
+                ValidatedSelection.empty(), SourceMode.AUTO, List.of(), "REQUIRED", "NONE");
 
         PreparationOutcome outcome = module(catalog(command -> new SourceResolution(
                 SourceMode.AUTO, List.of(), List.of())), List.of())
@@ -104,7 +119,7 @@ class EvidencePreparationModuleTest {
     }
 
     @Test
-    void requestSnapshotControlsReadinessWithoutResolvingRawIdsAgain() {
+    void optionalPendingConversationSnapshotDoesNotBlockDrawing() {
         AtomicInteger catalogCalls = new AtomicInteger();
         EvidenceCatalog catalog = catalog(command -> {
             catalogCalls.incrementAndGet();
@@ -113,13 +128,13 @@ class EvidencePreparationModuleTest {
         EvidencePreparationCommand command = new EvidencePreparationCommand(owner, "diagram-1", "conversation-1",
                 "request-1", "run-1", "根据所选附件回答", CanvasProbe.unavailableProbe(),
                 ValidatedSelection.empty(), SourceMode.NONE,
-                new ResolvedSourceSet(SourceMode.EXPLICIT, List.of(), 1, 0),
+                new ResolvedSourceSet(SourceMode.EXPLICIT_ONLY, List.of(), 1, 0),
                 List.of(), "OPTIONAL", "NONE");
 
         PreparationOutcome outcome = module(catalog, List.of()).prepare(command, new RunResourceDomain(),
                 EvidenceProgressListener.NOOP, CancellationSignal.NEVER).toCompletableFuture().join();
 
-        assertInstanceOf(PreparationOutcome.Waiting.class, outcome);
+        assertInstanceOf(PreparationOutcome.NotRequired.class, outcome);
         assertEquals(0, catalogCalls.get());
     }
 

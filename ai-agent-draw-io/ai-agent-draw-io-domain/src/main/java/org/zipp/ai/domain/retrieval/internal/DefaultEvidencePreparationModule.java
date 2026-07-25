@@ -211,7 +211,7 @@ public final class DefaultEvidencePreparationModule implements EvidencePreparati
             if (readinessStop != null) return readinessStop;
             AuthorizedSourceSet readySources = readySources(command, resolution);
             if (readySources.sources().isEmpty()) {
-                return command.needsEvidence() || resolution.mode() == SourceMode.EXPLICIT_ONLY
+                return command.requiresEvidence()
                         ? new PreparationOutcome.InsufficientEvidence(
                                 List.of("NO_AUTHORIZED_READY_SOURCE"), "selected or mounted source")
                         : new PreparationOutcome.NotRequired();
@@ -487,18 +487,21 @@ public final class DefaultEvidencePreparationModule implements EvidencePreparati
     }
 
     private PreparationOutcome readiness(EvidencePreparationCommand command, SourceResolution resolution) {
-        if (resolution.pendingConversationUploadCount() > 0) {
+        // SourceMode constrains candidate scope; only Router-owned evidenceNeed controls necessity.
+        boolean strict = command.requiresEvidence();
+        if (strict && resolution.pendingConversationUploadCount() > 0) {
             return new PreparationOutcome.Waiting(List.of(new MaterialReadiness(
                     "pending-conversation-upload", "PROCESSING", true)));
         }
         if (resolution.unavailableExplicitSourceCount() > 0
-                && (command.requiresEvidence() || resolution.mode() == SourceMode.EXPLICIT_ONLY)) {
+                && strict) {
             return new PreparationOutcome.InsufficientEvidence(
                     List.of("EXPLICIT_SOURCE_UNAVAILABLE"), "selected source");
         }
         List<AuthorizedSource> notReady = resolution.sources().stream()
                 .filter(source -> !"READY".equals(source.state())).filter(AuthorizedSource::required).toList();
-        if (notReady.isEmpty()) return null;
+        // OPTIONAL enrichment ignores unavailable context; only strict evidence waits or fails closed.
+        if (notReady.isEmpty() || !strict) return null;
         List<MaterialReadiness> states = notReady.stream()
                 .map(source -> new MaterialReadiness(source.versionId(), source.state(), source.conversationScoped()))
                 .toList();

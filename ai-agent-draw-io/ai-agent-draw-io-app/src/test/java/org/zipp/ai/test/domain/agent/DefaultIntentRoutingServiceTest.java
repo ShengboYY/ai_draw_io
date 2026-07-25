@@ -222,13 +222,49 @@ public class DefaultIntentRoutingServiceTest {
     }
 
     @Test
-    public void selectedSourcesForceEvidenceEvenWhenRouterSaysNone() throws Exception {
+    public void selectedConversationSourceDoesNotOverrideSelfContainedDrawingIntent() throws Exception {
         IntentRoutingResult result = routeWithStubbedLlm("请画一个迭代流程图",
                 "{\"routeType\":\"create_new\",\"diagramType\":\"flowchart\",\"skillName\":\"none\","
-                        + "\"evidenceNeed\":\"NONE\",\"targetNeed\":\"NONE\",\"answer\":\"\",\"reason\":\"draw\"}",
+                        + "\"evidenceNeed\":\"OPTIONAL\",\"targetNeed\":\"NONE\",\"sourceUse\":\"NONE\","
+                        + "\"answer\":\"\",\"reason\":\"self-contained draw\"}",
+                new IntentRoutingProbe(false, 0, 0, 1, 0, true, false, false, SourceMode.EXPLICIT));
+
+        assertEquals("NONE", result.getEvidenceNeed());
+        assertEquals("NONE", result.getSourceUse());
+    }
+
+    @Test
+    public void optionalRetrievalRemainsOptionalWithSelectedSources() throws Exception {
+        IntentRoutingResult result = routeWithStubbedLlm("有资料就参考，否则直接画一个迭代流程图",
+                "{\"routeType\":\"create_new\",\"diagramType\":\"flowchart\",\"skillName\":\"none\","
+                        + "\"evidenceNeed\":\"OPTIONAL\",\"targetNeed\":\"NONE\",\"sourceUse\":\"RETRIEVAL\","
+                        + "\"answer\":\"\",\"reason\":\"optional source enrichment\"}",
+                new IntentRoutingProbe(false, 0, 0, 1, 0, true, false, false, SourceMode.EXPLICIT));
+
+        assertEquals("OPTIONAL", result.getEvidenceNeed());
+        assertEquals("RETRIEVAL", result.getSourceUse());
+    }
+
+    @Test
+    public void requiredRetrievalRemainsStrictWithSelectedSources() throws Exception {
+        IntentRoutingResult result = routeWithStubbedLlm("请严格根据当前资料画一个迭代流程图",
+                "{\"routeType\":\"create_new\",\"diagramType\":\"flowchart\",\"skillName\":\"none\","
+                        + "\"evidenceNeed\":\"REQUIRED\",\"targetNeed\":\"NONE\",\"sourceUse\":\"RETRIEVAL\","
+                        + "\"answer\":\"\",\"reason\":\"required source-backed draw\"}",
                 new IntentRoutingProbe(false, 0, 0, 1, 0, true, false, false, SourceMode.EXPLICIT));
 
         assertEquals("REQUIRED", result.getEvidenceNeed());
+        assertEquals("RETRIEVAL", result.getSourceUse());
+    }
+
+    @Test
+    public void malformedRouterDoesNotTurnConversationFileIntoEvidenceIntent() throws Exception {
+        IntentRoutingResult result = routeWithStubbedLlm("请画一个只有开始节点的流程图", "not-json",
+                new IntentRoutingProbe(false, 0, 0, 1, 0, true, false, false, SourceMode.EXPLICIT));
+
+        assertEquals("clarify", result.getRouteType());
+        assertEquals("NONE", result.getEvidenceNeed());
+        assertEquals("NONE", result.getSourceUse());
     }
 
     @Test

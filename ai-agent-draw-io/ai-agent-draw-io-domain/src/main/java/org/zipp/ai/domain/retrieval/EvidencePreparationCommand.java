@@ -32,12 +32,13 @@ public record EvidencePreparationCommand(CatalogOwner owner, String diagramId, S
                 && (!resolvedSources.declaredVersionIds().isEmpty()
                 || resolvedSources.processingSourceCount() > 0
                 || resolvedSources.unavailableSourceCount() > 0);
-        // The trusted snapshot is authoritative. A contradictory legacy client mode cannot
-        // suppress a declared attachment/version or send it to the evidence-free Drawer.
+        // The trusted snapshot remains authoritative about which declared versions are authorized.
         if (snapshotHasDeclaration) sourceMode = resolvedSources.mode();
         if ((!selectedVersionIds.isEmpty() || snapshotHasDeclaration)
                 && sourceMode == SourceMode.NONE) sourceMode = SourceMode.EXPLICIT;
-        if (!selectedVersionIds.isEmpty() || snapshotHasDeclaration) evidenceNeed = "REQUIRED";
+        // Legacy callers that explicitly pass ids are strict; a mounted snapshot alone is optional
+        // context and must not manufacture evidence intent for a self-contained drawing.
+        if (!selectedVersionIds.isEmpty()) evidenceNeed = "REQUIRED";
     }
 
     /** Compatibility constructor for callers that already supply a trusted source snapshot. */

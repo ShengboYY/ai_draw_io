@@ -352,12 +352,15 @@ public class DefaultIntentRoutingService implements IIntentRoutingService {
         result.setClarificationNeed(normalizeNeed(
                 result.getClarificationNeed(), "NONE", ALLOWED_CLARIFICATION_NEEDS));
         result.setSourceUse(normalizeSourceUse(result.getSourceUse(), probe));
+        boolean retrievalRequested = "RETRIEVAL".equals(result.getSourceUse())
+                || "DIRECT_AND_RETRIEVAL".equals(result.getSourceUse());
         if (!"NONE".equals(result.getClarificationNeed())) {
             // Structured ambiguity must reach the evidence seam before any drawing agent is invoked.
             result.setEvidenceNeed("REQUIRED");
         }
-        if (hasExplicitSources(probe)) {
-            result.setEvidenceNeed("REQUIRED");
+        if (result.isDrawAction() && "OPTIONAL".equals(result.getEvidenceNeed()) && !retrievalRequested) {
+            // Self-contained drawing remains evidence-free even if optional context happens to exist.
+            result.setEvidenceNeed("NONE");
         }
         if (result.isEvidenceAnswer()) {
             result.setDiagramType("none");
@@ -403,14 +406,9 @@ public class DefaultIntentRoutingService implements IIntentRoutingService {
         return result;
     }
 
-    private boolean hasExplicitSources(IntentRoutingProbe probe) {
-        return probe != null && (probe.selectedSourceCount() > 0
-                || probe.sourceMode() == org.zipp.ai.domain.retrieval.SourceMode.EXPLICIT_ONLY);
-    }
-
     private IntentRoutingResult deterministicFallback(String instruction, IntentRoutingProbe probe, String reason) {
         String value = instruction == null ? "" : instruction.toLowerCase(Locale.ROOT);
-        if (hasExplicitSources(probe) || containsAny(value, EVIDENCE_TERMS)) {
+        if (containsAny(value, EVIDENCE_TERMS)) {
             IntentRoutingResult result = new IntentRoutingResult();
             result.setRouteType("answer_with_evidence");
             result.setDiagramType("none");
