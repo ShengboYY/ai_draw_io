@@ -298,6 +298,8 @@ M1 控制面已按以下合同分批落地；生产 HTTP 仍未切入 V2，Plain
 
 本切片继续补齐 lease-safety 的 application 写入边界：新增按 `attemptId + epoch` 隔离的 `AttemptWriteGate`，租约安全中断通过 `disableAndDrain` 关闭当前 attempt 的本地写入窗口并等待在途 permit 退出；replacement epoch 仍可独立进入。Plain strong commit 与 terminal-only fallback 在调用 commit port 前都必须持有该 permit，闸门关闭时返回 typed `TURN_WRITE_GATE_DISABLED`，不会生成业务终态或 `plain_committed` 事件。新增 drain、epoch 隔离、Plain 拒写和 terminal fallback 拒写 contract tests；application 全量、app composition 与 infrastructure lifecycle/commit/lock/migration-control 定向回归通过。本切片没有新增或执行 migration。
 
+本切片继续收口 attempt-level completion：`TurnV2TurnExecutor` 现在只向 delivery 暴露 `TurnAttemptCompletion`，仅 `PersistedTerminal` 允许代表产品终态；fence lost 映射为 `AttemptOwnershipLost`，write gate/未实现路由/运行时异常映射为 `AttemptSelfAborted`，terminal decoder 或 preparation unavailable 映射为 `StatusOnly`。terminal commit port 在这些非终态路径上不会被调用，generic execution error 也不会补写业务终态。新增 execution contract tests 覆盖 accepted attempt 传递、terminal replay、fence loss、write-gate 拒绝、runtime failure 与 unavailable；application、app composition 与 infrastructure lifecycle/commit/lock/migration-control 定向回归通过。本切片没有新增或执行 migration。
+
 ## single-instance-migration-control: Build The Single-Instance Migration Boundary
 
 Blocked by: turn-execution-control

@@ -15,6 +15,7 @@ import org.zipp.ai.application.turn.TurnInputBindingDigestCalculator;
 import org.zipp.ai.application.turn.TurnKey;
 import org.zipp.ai.application.turn.TurnStatus;
 import org.zipp.ai.application.turn.TurnStatusRef;
+import org.zipp.ai.application.turn.TurnStatusView;
 import org.zipp.ai.application.turn.TurnSubmission;
 import org.zipp.ai.application.turn.UserTurnCommand;
 import org.zipp.ai.application.turn.context.ContextReadSet;
@@ -39,19 +40,19 @@ class DefaultTurnV2TurnExecutorTest {
         TurnSubmission.ExecutionAccepted accepted = new TurnSubmission.ExecutionAccepted(
                 attempt.key(), attempt, new LeaseTimingAnchor(123L, attempt.lease()));
         TurnEventSink events = event -> { };
-        TurnV2ExecutionOutcome expected = new TurnV2ExecutionOutcome.PreparationBlocked(
-                new TurnV2PreHandlerOutcome.FenceLost(new TurnStatusRef(attempt.key())));
-
-        TurnV2ExecutionOutcome actual = new DefaultTurnV2TurnExecutor(
+        TurnAttemptCompletion actual = new DefaultTurnV2TurnExecutor(
                 (receivedAttempt, receivedCommand, receivedEvents) -> {
                     assertSame(attempt, receivedAttempt);
                     assertSame(command, receivedCommand);
                     assertSame(events, receivedEvents);
-                    return expected;
+                    return new TurnV2ExecutionOutcome.PreparationBlocked(
+                            new TurnV2PreHandlerOutcome.FenceLost(new TurnStatusRef(attempt.key())));
                 }, ignored -> new FencedCommitOutcome.Rejected("unexpected"))
                 .execute(accepted, command, events);
 
-        assertSame(expected, actual);
+        TurnAttemptCompletion.AttemptOwnershipLost lost = assertInstanceOf(
+                TurnAttemptCompletion.AttemptOwnershipLost.class, actual);
+        assertEquals(attempt.key(), lost.status().key());
     }
 
     @Test
@@ -60,8 +61,8 @@ class DefaultTurnV2TurnExecutorTest {
         FencedAttempt attempt = attempt(command);
         TurnSubmission.ExecutionAccepted accepted = accepted(attempt);
 
-        TurnV2ExecutionOutcome.Committed outcome = assertInstanceOf(
-                TurnV2ExecutionOutcome.Committed.class,
+        TurnAttemptCompletion.PersistedTerminal outcome = assertInstanceOf(
+                TurnAttemptCompletion.PersistedTerminal.class,
                 new DefaultTurnV2TurnExecutor(
                         (ignoredAttempt, ignoredCommand, ignoredEvents) ->
                                 new TurnV2ExecutionOutcome.PreparationBlocked(
@@ -77,7 +78,7 @@ class DefaultTurnV2TurnExecutorTest {
                         })
                         .execute(accepted, command, event -> { }));
 
-        assertInstanceOf(FencedCommitOutcome.Committed.class, outcome.outcome());
+        assertEquals(TurnStatus.FAILED, outcome.outcome().status());
     }
 
     @Test
@@ -87,8 +88,8 @@ class DefaultTurnV2TurnExecutorTest {
         TurnSubmission.ExecutionAccepted accepted = accepted(attempt);
         ContextReadSet readSet = readSet(attempt.contextMessageHighWater());
 
-        TurnV2ExecutionOutcome.Committed outcome = assertInstanceOf(
-                TurnV2ExecutionOutcome.Committed.class,
+        TurnAttemptCompletion.PersistedTerminal outcome = assertInstanceOf(
+                TurnAttemptCompletion.PersistedTerminal.class,
                 new DefaultTurnV2TurnExecutor(
                         (ignoredAttempt, ignoredCommand, ignoredEvents) ->
                                 new TurnV2ExecutionOutcome.NotDispatched(
@@ -106,7 +107,7 @@ class DefaultTurnV2TurnExecutorTest {
                         })
                         .execute(accepted, command, event -> { }));
 
-        assertInstanceOf(FencedCommitOutcome.Committed.class, outcome.outcome());
+        assertEquals(TurnStatus.REJECTED, outcome.outcome().status());
     }
 
     @Test
@@ -118,8 +119,8 @@ class DefaultTurnV2TurnExecutorTest {
         gate.disableAndDrain(attempt);
         int[] commits = {0};
 
-        TurnV2ExecutionOutcome.Committed outcome = assertInstanceOf(
-                TurnV2ExecutionOutcome.Committed.class,
+        TurnAttemptCompletion.AttemptSelfAborted outcome = assertInstanceOf(
+                TurnAttemptCompletion.AttemptSelfAborted.class,
                 new DefaultTurnV2TurnExecutor(
                         (ignoredAttempt, ignoredCommand, ignoredEvents) ->
                                 new TurnV2ExecutionOutcome.PreparationBlocked(
@@ -132,10 +133,54 @@ class DefaultTurnV2TurnExecutorTest {
                         gate)
                         .execute(accepted, command, event -> { }));
 
-        FencedCommitOutcome.Rejected rejected = assertInstanceOf(
-                FencedCommitOutcome.Rejected.class, outcome.outcome());
-        assertEquals("TURN_WRITE_GATE_DISABLED", rejected.code());
+        assertEquals("TURN_WRITE_GATE_DISABLED", outcome.code());
         assertEquals(0, commits[0]);
+    }
+
+    @Test
+    void coordinatorFailureSelfAbortsWithoutSubmittingAProductTerminal() {
+        UserTurnCommand command = command();
+        FencedAttempt attempt = attempt(command);
+        TurnSubmission.ExecutionAccepted accepted = accepted(attempt);
+        int[] commits = {0};
+
+        TurnAttemptCompletion.AttemptSelfAborted outcome = assertInstanceOf(
+                TurnAttemptCompletion.AttemptSelfAborted.class,
+                new DefaultTurnV2TurnExecutor(
+                        (ignoredAttempt, ignoredCommand, ignoredEvents) -> {
+                            throw new IllegalStateException("model unavailable");
+                        },
+                        commandToCommit -> {
+                            commits[0]++;
+                            return new FencedCommitOutcome.Rejected("unexpected");
+                        })
+                        .execute(accepted, command, event -> { }));
+
+        assertEquals("TURN_EXECUTION_FAILED", outcome.code());
+        assertEquals(0, commits[0]);
+    }
+
+    @Test
+    void terminalDecoderUnavailableBecomesStatusOnlyCompletion() {
+        UserTurnCommand command = command();
+        FencedAttempt attempt = attempt(command);
+        TurnSubmission.ExecutionAccepted accepted = accepted(attempt);
+        TurnStatusView status = new TurnStatusView(
+                attempt.key(), TurnStatus.RUNNING, attempt.attemptId(), attempt.attemptEpoch(),
+                null, null, Instant.parse("2026-07-26T00:01:00Z"));
+
+        TurnAttemptCompletion.StatusOnly outcome = assertInstanceOf(
+                TurnAttemptCompletion.StatusOnly.class,
+                new DefaultTurnV2TurnExecutor(
+                        (ignoredAttempt, ignoredCommand, ignoredEvents) ->
+                                new TurnV2ExecutionOutcome.Committed(
+                                        new FencedCommitOutcome.TerminalUnavailable(
+                                                status, "TERMINAL_PAYLOAD_SCHEMA_UNSUPPORTED")),
+                        ignored -> new FencedCommitOutcome.Rejected("unexpected"))
+                        .execute(accepted, command, event -> { }));
+
+        assertEquals(attempt.key(), outcome.status().key());
+        assertEquals("TERMINAL_PAYLOAD_SCHEMA_UNSUPPORTED", outcome.code());
     }
 
     private static UserTurnCommand command() {
