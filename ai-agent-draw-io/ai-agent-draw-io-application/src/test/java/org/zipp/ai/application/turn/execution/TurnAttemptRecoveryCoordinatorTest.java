@@ -14,6 +14,8 @@ import org.zipp.ai.application.turn.TurnDeclarations;
 import org.zipp.ai.application.turn.TurnEngineMode;
 import org.zipp.ai.application.turn.TurnEventSink;
 import org.zipp.ai.application.turn.TurnKey;
+import org.zipp.ai.application.turn.TurnLifecycleTraceEvent;
+import org.zipp.ai.application.turn.TurnLifecycleTraceType;
 import org.zipp.ai.application.turn.TurnStatus;
 import org.zipp.ai.application.turn.TurnStatusQuery;
 import org.zipp.ai.application.turn.TurnStatusQueryOutcome;
@@ -27,12 +29,16 @@ import org.zipp.ai.application.turn.DeadlineCancelOutcome;
 import org.zipp.ai.application.turn.TurnStatusView;
 
 import java.time.Instant;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class TurnAttemptRecoveryCoordinatorTest {
 
@@ -83,6 +89,58 @@ class TurnAttemptRecoveryCoordinatorTest {
             assertEquals(expected, executed.get());
             assertInstanceOf(TurnAttemptCompletion.PersistedTerminal.class,
                     started.handle().completion().toCompletableFuture().join());
+        } finally {
+            scheduler.shutdownNow();
+        }
+    }
+
+    @Test
+    void inputRecoveryFailureIsTracedAndNeverStartsTheRunner() {
+        ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
+        try {
+            TurnKey key = new TurnKey("owner-1", "conversation-1", "turn-1");
+            FencedAttempt attempt = attempt(key);
+            AtomicBoolean executed = new AtomicBoolean();
+            TurnV2TurnExecutor executor = new TurnV2TurnExecutor() {
+                @Override
+                public TurnAttemptCompletion execute(
+                        TurnSubmission.ExecutionAccepted accepted,
+                        UserTurnCommand command,
+                        TurnEventSink events
+                ) {
+                    executed.set(true);
+                    return new TurnAttemptCompletion.AttemptSelfAborted(
+                            new org.zipp.ai.application.turn.TurnStatusRef(accepted.key()), "UNEXPECTED");
+                }
+
+                @Override
+                public void disableWritesAndDrain(FencedAttempt ignored) {
+                }
+            };
+            TurnAttemptExecutionRunner runner = new TurnAttemptExecutionRunner(
+                    executor,
+                    new TurnAttemptLeaseSupervisor(
+                            ignored -> new TurnAttemptLeasePort.LeaseTransientFailure(
+                                    java.time.Duration.ofSeconds(30)), executor),
+                    Runnable::run,
+                    scheduler);
+            CopyOnWriteArrayList<TurnLifecycleTraceEvent> traces = new CopyOnWriteArrayList<>();
+            TurnAttemptRecoveryCoordinator coordinator = new TurnAttemptRecoveryCoordinator(
+                    control(new TurnAttemptTakeoverPort.Claimed(attempt)),
+                    ignored -> new TurnAttemptInputRecoveryPort.Unavailable("INPUT_BINDING_UNAVAILABLE"),
+                    runner,
+                    traces::add);
+
+            TurnAttemptRecoveryOutcome.Unavailable outcome = assertInstanceOf(
+                    TurnAttemptRecoveryOutcome.Unavailable.class,
+                    coordinator.start(
+                            new AuthenticatedActor("owner-1", "cohort-1"), key, ignored -> { }));
+
+            assertEquals("INPUT_BINDING_UNAVAILABLE", outcome.code());
+            assertFalse(executed.get());
+            assertTrue(traces.stream().anyMatch(event ->
+                    event.type() == TurnLifecycleTraceType.TAKEOVER
+                            && "INPUT_BINDING_UNAVAILABLE".equals(event.outcomeCode())));
         } finally {
             scheduler.shutdownNow();
         }

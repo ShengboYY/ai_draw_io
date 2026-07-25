@@ -330,6 +330,8 @@ M1 控制面已按以下合同分批落地；生产 HTTP 仍未切入 V2，Plain
 
 本切片补齐 checkpoint 并发证据：两个 coordinator 在同一 fenced attempt 上同时经历 `Missing → compute → pin`，只有一个 first-writer winner，另一个 CAS loser 必须 reload winner，最终两个调用返回完全相同的 checkpoint/digest；trace 同时出现 `PINNED` 与 `CAS_RETRY`。application contract test 已通过；另以本地 MySQL 完全回滚的真实 fixture 验证 checkpoint JSON 写入与 `SELECT ... FOR UPDATE` current read，rollback 后 fixture 行数为 0。本切片没有新增 migration。
 
+本切片补齐 takeover 后 recovery failure 的 lifecycle evidence：`TurnAttemptRecoveryCoordinator` 在 durable takeover 成功但 pinned input recovery 返回 `Unavailable` 或 `FenceLost` 时，记录同一 attempt/epoch、policy/input digest 与 safe code 的 `TAKEOVER` trace，并在启动 runner 前 fail closed；composition 通过 `ObjectProvider` 接入生产 trace adapter。新增 contract test 验证 recovery failure 不会启动 execution 且 trace 不丢失；本切片没有新增 migration。
+
 ## single-instance-migration-control: Build The Single-Instance Migration Boundary
 
 Blocked by: turn-execution-control

@@ -3,10 +3,14 @@ package org.zipp.ai.application.turn.execution;
 import org.zipp.ai.application.turn.AuthenticatedActor;
 import org.zipp.ai.application.turn.FencedAttempt;
 import org.zipp.ai.application.turn.LeaseTimingAnchor;
+import org.zipp.ai.application.turn.NoopTurnLifecycleTracePort;
 import org.zipp.ai.application.turn.TurnAttemptInputRecoveryPort;
 import org.zipp.ai.application.turn.TurnAttemptTakeoverPort;
 import org.zipp.ai.application.turn.TurnControlFacade;
 import org.zipp.ai.application.turn.TurnEventSink;
+import org.zipp.ai.application.turn.TurnLifecycleTraceEvent;
+import org.zipp.ai.application.turn.TurnLifecycleTracePort;
+import org.zipp.ai.application.turn.TurnLifecycleTraceType;
 import org.zipp.ai.application.turn.TurnKey;
 import org.zipp.ai.application.turn.TurnSubmission;
 import java.util.Objects;
@@ -19,13 +23,23 @@ public final class TurnAttemptRecoveryCoordinator {
     private final TurnAttemptInputRecoveryPort inputs;
     private final TurnAttemptExecutionRunner runner;
     private final LongSupplier monotonicNanos;
+    private final TurnLifecycleTracePort trace;
 
     public TurnAttemptRecoveryCoordinator(
             TurnControlFacade control,
             TurnAttemptInputRecoveryPort inputs,
             TurnAttemptExecutionRunner runner
     ) {
-        this(control, inputs, runner, System::nanoTime);
+        this(control, inputs, runner, System::nanoTime, NoopTurnLifecycleTracePort.INSTANCE);
+    }
+
+    public TurnAttemptRecoveryCoordinator(
+            TurnControlFacade control,
+            TurnAttemptInputRecoveryPort inputs,
+            TurnAttemptExecutionRunner runner,
+            TurnLifecycleTracePort trace
+    ) {
+        this(control, inputs, runner, System::nanoTime, trace);
     }
 
     TurnAttemptRecoveryCoordinator(
@@ -34,10 +48,21 @@ public final class TurnAttemptRecoveryCoordinator {
             TurnAttemptExecutionRunner runner,
             LongSupplier monotonicNanos
     ) {
+        this(control, inputs, runner, monotonicNanos, NoopTurnLifecycleTracePort.INSTANCE);
+    }
+
+    TurnAttemptRecoveryCoordinator(
+            TurnControlFacade control,
+            TurnAttemptInputRecoveryPort inputs,
+            TurnAttemptExecutionRunner runner,
+            LongSupplier monotonicNanos,
+            TurnLifecycleTracePort trace
+    ) {
         this.control = Objects.requireNonNull(control, "control");
         this.inputs = Objects.requireNonNull(inputs, "inputs");
         this.runner = Objects.requireNonNull(runner, "runner");
         this.monotonicNanos = Objects.requireNonNull(monotonicNanos, "monotonicNanos");
+        this.trace = Objects.requireNonNull(trace, "trace");
     }
 
     /** Takes over only after the durable control facade grants a fresh fenced epoch. */
@@ -67,9 +92,19 @@ public final class TurnAttemptRecoveryCoordinator {
         FencedAttempt attempt = ((TurnAttemptTakeoverPort.Claimed) takeover).attempt();
         TurnAttemptInputRecoveryPort.RecoveryOutcome recovered = inputs.recover(attempt);
         if (recovered instanceof TurnAttemptInputRecoveryPort.Unavailable unavailable) {
+            trace.recordSafely(TurnLifecycleTraceEvent.fromAttempt(
+                    TurnLifecycleTraceType.TAKEOVER,
+                    attempt,
+                    unavailable.code(),
+                    null));
             return new TurnAttemptRecoveryOutcome.Unavailable(unavailable.code());
         }
         if (recovered instanceof TurnAttemptInputRecoveryPort.FenceLost) {
+            trace.recordSafely(TurnLifecycleTraceEvent.fromAttempt(
+                    TurnLifecycleTraceType.TAKEOVER,
+                    attempt,
+                    "INPUT_RECOVERY_FENCE_LOST",
+                    null));
             return new TurnAttemptRecoveryOutcome.OwnershipLost();
         }
 

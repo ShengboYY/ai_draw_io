@@ -158,8 +158,13 @@ public class TurnV2ExecutionCompositionConfig {
     public TurnAttemptRecoveryCoordinator turnAttemptRecoveryCoordinator(
             TurnControlFacade control,
             TurnAttemptInputRecoveryPort inputs,
-            TurnAttemptExecutionRunner runner
+            TurnAttemptExecutionRunner runner,
+            ObjectProvider<TurnLifecycleTracePort> trace
     ) {
-        return new TurnAttemptRecoveryCoordinator(control, inputs, runner);
+        return new TurnAttemptRecoveryCoordinator(
+                control,
+                inputs,
+                runner,
+                trace.getIfAvailable(() -> org.zipp.ai.application.turn.NoopTurnLifecycleTracePort.INSTANCE));
     }
 }
