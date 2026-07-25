@@ -60,6 +60,8 @@ class TurnV2ExecutionCompositionConfigTest {
                         .hasSingleBean(TurnAttemptLeaseSupervisor.class)
                         .hasSingleBean(ScheduledExecutorService.class)
                         .hasSingleBean(TurnAttemptExecutionRunner.class)
-                        .hasSingleBean(TurnAttemptRecoveryCoordinator.class));
+                        .hasSingleBean(TurnAttemptRecoveryCoordinator.class)
+                        .satisfies(appContext -> assertThat(appContext.getBean(ScheduledExecutorService.class))
+                                .isNotInstanceOf(ThreadPoolExecutor.class)));
     }
 }

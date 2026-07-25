@@ -121,7 +121,9 @@ public class TurnV2ExecutionCompositionConfig {
     @ConditionalOnBean(TurnV2TurnExecutor.class)
     public ScheduledExecutorService turnAttemptScheduler() {
         // The scheduler is created only with the isolated V2 executor graph and is closed by Spring.
-        return Executors.newScheduledThreadPool(1);
+        // The delegated implementation is not a ThreadPoolExecutor, so it cannot suppress the
+        // shared execution-pool bean through ThreadPoolConfig's missing-bean condition.
+        return Executors.newSingleThreadScheduledExecutor();
     }
 
     @Bean
