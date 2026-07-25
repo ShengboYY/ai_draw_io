@@ -2,13 +2,13 @@ type LibraryCapabilities = { catalog: string; preview: string; upload?: string }
 
 export const materialCapabilityMessage = (capabilities: LibraryCapabilities) => {
   if (capabilities.catalog !== 'AVAILABLE') {
-    return '资料库当前不可用。请联系管理员开启资料库功能。';
+    return 'The library is currently unavailable. Contact an administrator to enable it.';
   }
   if (capabilities.preview !== 'AVAILABLE') {
-    return '资料库可用，但页面预览当前不可用。';
+    return 'The library is available, but page previews are currently unavailable.';
   }
   if (capabilities.upload && capabilities.upload !== 'AVAILABLE') {
-    return '资料库可用，但资料上传当前不可用。';
+    return 'The library is available, but uploads are currently unavailable.';
   }
   return null;
 };
@@ -17,7 +17,7 @@ export const materialCapabilityMessage = (capabilities: LibraryCapabilities) => 
 export const materialAccessMessage = (code: string) => {
   // Intentionally consume the backend code without revealing ownership information.
   void code;
-  return '资料不存在或你无权访问。';
+  return 'This item does not exist or you do not have access.';
 };
 
 export const materialPreviewUrl = (baseUrl: string, materialId: string, versionId: string, pageNo: number) =>

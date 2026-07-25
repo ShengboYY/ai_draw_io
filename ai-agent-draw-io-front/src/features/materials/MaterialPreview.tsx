@@ -22,20 +22,20 @@ export const MaterialPreview = ({
   const pages = pageSet?.pages || [];
   const selectedPage = pages.find(page => page.pageNo === pageNo) || pages[0];
 
-  if (!enabled) return <p className="text-sm text-zinc-500">页面预览当前不可用。</p>;
-  if (!pageSet) return <p className="text-sm text-zinc-500">选择版本以加载页面预览。</p>;
-  if (!selectedPage) return <p className="text-sm text-zinc-500">此版本尚无可预览页面。</p>;
+  if (!enabled) return <p className="text-sm text-zinc-500">Page previews are currently unavailable.</p>;
+  if (!pageSet) return <p className="text-sm text-zinc-500">Select a version to load page previews.</p>;
+  if (!selectedPage) return <p className="text-sm text-zinc-500">This version has no pages available to preview.</p>;
 
   const index = pages.findIndex(page => page.pageNo === selectedPage.pageNo);
   const select = (nextIndex: number) => setPageNo(pages[nextIndex]?.pageNo || selectedPage.pageNo);
 
   return (
-    <section aria-label="资料页面预览" className="rounded-xl border border-stone-200 bg-stone-50 p-4">
+    <section aria-label="Item page preview" className="rounded-xl border border-stone-200 bg-stone-50 p-4">
       <div className="mb-3 flex items-center justify-between gap-3 text-sm">
-        <span>第 {selectedPage.pageNo} 页 / 共 {pages.length} 页</span>
+        <span>Page {selectedPage.pageNo} of {pages.length}</span>
         <div className="flex gap-2">
-          <button type="button" disabled={index === 0} onClick={() => select(index - 1)} className="theme-btn-secondary rounded-lg px-3 py-1.5 disabled:opacity-40">上一页</button>
-          <button type="button" disabled={index === pages.length - 1} onClick={() => select(index + 1)} className="theme-btn-secondary rounded-lg px-3 py-1.5 disabled:opacity-40">下一页</button>
+          <button type="button" disabled={index === 0} onClick={() => select(index - 1)} className="theme-btn-secondary rounded-lg px-3 py-1.5 disabled:opacity-40">Previous</button>
+          <button type="button" disabled={index === pages.length - 1} onClick={() => select(index + 1)} className="theme-btn-secondary rounded-lg px-3 py-1.5 disabled:opacity-40">Next</button>
         </div>
       </div>
       {selectedPage.previewAvailable ? (
@@ -43,12 +43,12 @@ export const MaterialPreview = ({
           {/* One selected page keeps preview byte requests scoped to explicit user navigation. */}
           <img
           src={materialPreviewUrl(baseUrl, materialId, pageSet.versionId, selectedPage.pageNo)}
-          alt={`资料第 ${selectedPage.pageNo} 页预览`}
+          alt={`Preview of item page ${selectedPage.pageNo}`}
           className="max-h-[65vh] w-full rounded-lg border border-stone-200 bg-white object-contain"
           />
         </>
       ) : (
-        <p className="rounded-lg bg-white p-6 text-sm text-zinc-500">此页预览尚未生成。</p>
+        <p className="rounded-lg bg-white p-6 text-sm text-zinc-500">A preview has not been generated for this page yet.</p>
       )}
     </section>
   );

@@ -10,6 +10,9 @@ const chartbooks = read('../src/app/chartbooks/page.tsx');
 const chartbookDetails = read('../src/app/chartbooks/[chartbookId]/page.tsx');
 const preview = read('../src/features/materials/MaterialPreview.tsx');
 const uploader = read('../src/features/materials/MaterialUploader.tsx');
+const processingBadge = read('../src/features/materials/MaterialProcessingBadge.tsx');
+const gapDialog = read('../src/features/materials/MaterialGapDialog.tsx');
+const libraryView = read('../src/features/materials/library-view.ts');
 const diagrams = read('../src/app/diagrams/page.tsx');
 
 test('library pages use capability gating, uploader, recycle bin and generic owner errors', () => {
@@ -42,9 +45,26 @@ test('chartbook pages manage shared material and diagram associations through th
   assert.match(chartbookDetails, /MaterialUploader/);
 });
 
-test('diagram workspace exposes the material routes that explain disabled capabilities', () => {
-  assert.match(diagrams, /href="\/library"/);
-  assert.match(diagrams, /href="\/chartbooks"/);
+test('diagram workspace exposes resource routes from the signed-in account menu', () => {
+  assert.match(diagrams, /data-account-menu[\s\S]*href="\/library"[\s\S]*href="\/chartbooks"[\s\S]*Admin dashboard/);
+  assert.doesNotMatch(diagrams, /aria-label="Workspace resources"/);
+});
+
+test('library and chartbook surfaces use English interface copy', () => {
+  // Keep the two resource areas consistent with the English diagram workspace.
+  for (const source of [
+    library,
+    materialDetails,
+    chartbooks,
+    chartbookDetails,
+    preview,
+    uploader,
+    processingBadge,
+    gapDialog,
+    libraryView,
+  ]) {
+    assert.doesNotMatch(source, /[\u3400-\u9fff]/u);
+  }
 });
 
 test('uploader keeps the current browser-post policy and resumes polling after a retry', () => {
