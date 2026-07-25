@@ -268,6 +268,8 @@ M1 控制面已按以下合同分批落地；生产 HTTP 仍未切入 V2，Plain
 
 本切片继续收口 terminal envelope：新增 application-owned `TerminalOutcomeDecoder`，统一按 `terminal_payload_schema_version=1` 解码；status、start、heartbeat、explicit/deadline cancel、takeover，以及 Plain/terminal-only commit 的 terminal replay，在未知或缺失 schema 时返回 typed `TerminalUnavailable`，不再因 terminal payload 不完整抛异常或误报 fence。现有 `turn_execution.terminal_payload_schema_version` 已足够承载该合同，本切片没有新增或执行 migration。Legacy HTTP/production assignment 仍未切入 V2。
 
+随后补齐 application handoff contract：`DefaultDiagramTurnFacade` 将 `TurnStartOutcome.TerminalUnavailable` 原样映射为 `TurnSubmission.TerminalUnavailable`，并以 contract test 固定 TurnKey、status 与 unavailable code 不丢失；本补充仍没有新增 migration。
+
 ## single-instance-migration-control: Build The Single-Instance Migration Boundary
 
 Blocked by: turn-execution-control
