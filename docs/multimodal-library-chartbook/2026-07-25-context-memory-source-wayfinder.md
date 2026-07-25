@@ -290,6 +290,8 @@ M1 控制面已按以下合同分批落地；生产 HTTP 仍未切入 V2，Plain
 
 本切片收口 startup lock fencing：`TurnAdmissionGate` 在 orphan reconciliation 返回后再次确认当前 boot 仍持有 singleton lock；reconciliation 期间丢锁时返回 `InstanceLockOutcome.LOST` 并保持 admission closed，不会短暂开放 HTTP。新增 startup lock-loss contract test，application、infrastructure 与 bootstrap composition 串行回归通过。本切片没有新增或执行 migration。
 
+本切片继续收口 startup failure fencing：`TurnAdmissionGate` 在锁获取失败或 orphan reconciliation 抛错时清除旧 `bootId`，因此失败重启后的 `resume()` 不会复用旧 boot 重新开放 admission。新增 failed-restart 与 reconciliation-failure contract tests；application 全量、infrastructure lifecycle/commit/lock 与 bootstrap composition 串行回归通过。本切片没有新增或执行 migration。
+
 ## single-instance-migration-control: Build The Single-Instance Migration Boundary
 
 Blocked by: turn-execution-control

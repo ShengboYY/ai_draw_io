@@ -26,6 +26,8 @@ public final class TurnAdmissionGate implements AdmissionBarrier {
         }
         InstanceLockOutcome lockOutcome = instanceLock.acquire(requestedBootId);
         if (lockOutcome != InstanceLockOutcome.ACQUIRED) {
+            // A failed restart must not leave a previous boot identity usable by resume().
+            bootId = null;
             open = false;
             return lockOutcome;
         }
@@ -42,6 +44,7 @@ public final class TurnAdmissionGate implements AdmissionBarrier {
             open = true;
             return InstanceLockOutcome.ACQUIRED;
         } catch (RuntimeException exception) {
+            bootId = null;
             open = false;
             throw exception;
         }

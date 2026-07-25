@@ -9,6 +9,7 @@ import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class TurnAdmissionGateTest {
@@ -73,11 +74,43 @@ class TurnAdmissionGateTest {
         assertFalse(gate.isOpen());
     }
 
+    @Test
+    void failedRestartCannotReusePreviousBootIdentityDuringResume() {
+        FakeLock lock = new FakeLock();
+        TurnAdmissionGate gate = new TurnAdmissionGate(lock, ignored -> 0);
+        InstanceBootId bootId = new InstanceBootId("boot-1");
+
+        assertEquals(InstanceLockOutcome.ACQUIRED, gate.start(bootId));
+        gate.pauseAndDrain();
+        lock.nextAcquireOutcome = InstanceLockOutcome.ALREADY_HELD;
+
+        assertEquals(InstanceLockOutcome.ALREADY_HELD, gate.start(bootId));
+        assertFalse(gate.isOpen());
+        assertThrows(IllegalStateException.class, gate::resume);
+    }
+
+    @Test
+    void reconciliationFailureClearsBootIdentityBeforeRethrowing() {
+        FakeLock lock = new FakeLock();
+        TurnAdmissionGate gate = new TurnAdmissionGate(lock, ignored -> {
+            throw new IllegalStateException("reconcile failed");
+        });
+
+        assertThrows(IllegalStateException.class,
+                () -> gate.start(new InstanceBootId("boot-1")));
+        assertFalse(gate.isOpen());
+        assertThrows(IllegalStateException.class, gate::resume);
+    }
+
     private static final class FakeLock implements SingleActiveInstanceLock {
         private boolean held;
+        private InstanceLockOutcome nextAcquireOutcome = InstanceLockOutcome.ACQUIRED;
 
         @Override
         public InstanceLockOutcome acquire(InstanceBootId bootId) {
+            if (nextAcquireOutcome != InstanceLockOutcome.ACQUIRED) {
+                return nextAcquireOutcome;
+            }
             held = true;
             return InstanceLockOutcome.ACQUIRED;
         }
