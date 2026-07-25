@@ -24,6 +24,12 @@ public class MySqlConversationCatalogAdapter implements ConversationCatalogPort 
             ORDER BY c.updated_at ASC, c.id ASC
             LIMIT 1
             """;
+    private static final String LOCK_DIAGRAM = """
+            SELECT id
+            FROM diagram
+            WHERE id = ? AND user_id = ? AND deleted = 0
+            FOR UPDATE
+            """;
     private static final String SELECT_ACTIVE_BINDING = """
             SELECT c.id, c.owner_key, c.diagram_id, c.status
             FROM conversation c
@@ -55,6 +61,9 @@ public class MySqlConversationCatalogAdapter implements ConversationCatalogPort 
     public ConversationRef findOrCreateDefault(AuthenticatedActor actor, String diagramId) {
         Objects.requireNonNull(actor, "actor");
         requireText(diagramId, "diagramId");
+        if (jdbc.query(LOCK_DIAGRAM, (rs, rowNum) -> rs.getString("id"), diagramId, actor.ownerKey()).isEmpty()) {
+            throw new IllegalStateException("DIAGRAM_NOT_ACTIVE");
+        }
         ConversationRef existing = findOne(SELECT_ACTIVE_DEFAULT, actor.ownerKey(), diagramId);
         if (existing != null) {
             return existing;
