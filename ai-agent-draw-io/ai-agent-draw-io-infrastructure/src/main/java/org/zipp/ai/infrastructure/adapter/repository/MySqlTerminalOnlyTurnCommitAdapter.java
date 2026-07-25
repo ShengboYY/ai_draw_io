@@ -1,6 +1,6 @@
 package org.zipp.ai.infrastructure.adapter.repository;
 
-import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.JdbcOperations;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 import org.zipp.ai.application.turn.FencedCommitOutcome;
@@ -36,10 +36,12 @@ public class MySqlTerminalOnlyTurnCommitAdapter implements TerminalOnlyTurnCommi
             FROM turn_execution
             WHERE owner_key = ? AND conversation_id = ? AND turn_id = ?
             """;
+    /** Current read used after a failed CAS so a concurrent terminal winner is observable. */
+    private static final String SELECT_FOR_UPDATE = SELECT + "FOR UPDATE\n";
 
-    private final JdbcTemplate jdbc;
+    private final JdbcOperations jdbc;
 
-    public MySqlTerminalOnlyTurnCommitAdapter(JdbcTemplate jdbc) {
+    public MySqlTerminalOnlyTurnCommitAdapter(JdbcOperations jdbc) {
         this.jdbc = Objects.requireNonNull(jdbc, "jdbc");
     }
 
@@ -69,7 +71,7 @@ public class MySqlTerminalOnlyTurnCommitAdapter implements TerminalOnlyTurnCommi
                     command.terminalPayloadJson()));
         }
 
-        ExecutionRow current = find(attempt.key());
+        ExecutionRow current = findForUpdate(attempt.key());
         if (current == null) {
             return new FencedCommitOutcome.Rejected("TURN_EXECUTION_NOT_FOUND");
         }
@@ -80,8 +82,16 @@ public class MySqlTerminalOnlyTurnCommitAdapter implements TerminalOnlyTurnCommi
     }
 
     private ExecutionRow find(TurnKey key) {
+        return find(key, SELECT);
+    }
+
+    private ExecutionRow findForUpdate(TurnKey key) {
+        return find(key, SELECT_FOR_UPDATE);
+    }
+
+    private ExecutionRow find(TurnKey key, String sql) {
         List<ExecutionRow> rows = jdbc.query(
-                SELECT,
+                sql,
                 (rs, rowNum) -> row(rs),
                 key.ownerKey(), key.canonicalConversationId(), key.turnId());
         return rows.isEmpty() ? null : rows.get(0);

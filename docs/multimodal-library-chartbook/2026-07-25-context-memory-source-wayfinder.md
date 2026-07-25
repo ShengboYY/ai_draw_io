@@ -264,6 +264,8 @@ M1 控制面已按以下合同分批落地；生产 HTTP 仍未切入 V2，Plain
 - 同 TurnKey 的 memory declaration mismatch 必须 conflict；retry/takeover 始终使用首次固定的 declaration。
 - fingerprint 纯函数已覆盖 opaque ref 顺序、alias/runtime session 排除和 memory declaration；文件存在性与 owner fence 在 claim 事务验证，只有 `SourcePlanningRequired` 才允许后续 Source Probe。
 
+本切片修复 M1 CAS loser 的数据库读取语义：`MySqlTurnLifecycleAdapter` 的 explicit cancel、deadline cancel、heartbeat，以及 `MySqlTerminalOnlyTurnCommitAdapter` 在写入 CAS 失败后，均在事务内使用 `SELECT ... FOR UPDATE` current read 再判断 terminal/fence outcome，避免 MySQL `REPEATABLE READ` 的旧快照把并发 terminal winner 误报为 `FenceLost`。新增 adapter contract tests 覆盖 terminal replay reload；本切片没有新增 migration。
+
 ## single-instance-migration-control: Build The Single-Instance Migration Boundary
 
 Blocked by: turn-execution-control

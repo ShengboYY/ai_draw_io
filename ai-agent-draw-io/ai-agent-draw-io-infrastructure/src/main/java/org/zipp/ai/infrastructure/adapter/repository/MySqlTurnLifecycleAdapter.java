@@ -1,6 +1,6 @@
 package org.zipp.ai.infrastructure.adapter.repository;
 
-import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.JdbcOperations;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 import org.zipp.ai.application.turn.AttemptDeadlineReason;
@@ -52,6 +52,8 @@ public class MySqlTurnLifecycleAdapter implements
             FROM turn_execution
             WHERE owner_key = ? AND conversation_id = ? AND turn_id = ?
             """;
+    /** Current read used after a failed CAS so REPEATABLE READ cannot hide the winner. */
+    private static final String SELECT_FOR_UPDATE = SELECT + "FOR UPDATE\n";
     private static final String HEARTBEAT = """
             UPDATE turn_execution
             SET lease_expires_at = DATE_ADD(CURRENT_TIMESTAMP(3), INTERVAL (lease_ttl_ms * 1000) MICROSECOND),
@@ -88,9 +90,9 @@ public class MySqlTurnLifecycleAdapter implements
             FOR UPDATE
             """;
 
-    private final JdbcTemplate jdbc;
+    private final JdbcOperations jdbc;
 
-    public MySqlTurnLifecycleAdapter(JdbcTemplate jdbc) {
+    public MySqlTurnLifecycleAdapter(JdbcOperations jdbc) {
         this.jdbc = Objects.requireNonNull(jdbc, "jdbc");
     }
 
@@ -125,7 +127,7 @@ public class MySqlTurnLifecycleAdapter implements
         if (updated == 1) {
             return new CancelTurnOutcome.Cancelled(status(command.key()));
         }
-        ExecutionRow current = find(command.key());
+        ExecutionRow current = findForUpdate(command.key());
         if (current == null) {
             return new CancelTurnOutcome.Rejected("TURN_NOT_FOUND");
         }
@@ -156,7 +158,7 @@ public class MySqlTurnLifecycleAdapter implements
             }
             return new TurnAttemptLeasePort.LeaseRenewed(renewed.lease());
         }
-        ExecutionRow current = find(attempt.key());
+        ExecutionRow current = findForUpdate(attempt.key());
         if (current == null) {
             return new TurnAttemptLeasePort.LeaseTerminalUnavailable(
                     new TurnStatusView(attempt.key(), TurnStatus.FAILED, null, 0,
@@ -178,6 +180,7 @@ public class MySqlTurnLifecycleAdapter implements
     }
 
     @Override
+    @Transactional
     public DeadlineCancelOutcome cancel(FencedAttempt attempt, AttemptDeadlineReason reason) {
         Objects.requireNonNull(attempt, "attempt");
         Objects.requireNonNull(reason, "reason");
@@ -201,7 +204,7 @@ public class MySqlTurnLifecycleAdapter implements
         if (updated == 1) {
             return new DeadlineCancelOutcome.Cancelled(status(attempt.key()));
         }
-        ExecutionRow current = find(attempt.key());
+        ExecutionRow current = findForUpdate(attempt.key());
         if (current == null) {
             return new DeadlineCancelOutcome.TransientFailure("TURN_NOT_FOUND");
         }
@@ -272,8 +275,16 @@ public class MySqlTurnLifecycleAdapter implements
     }
 
     private ExecutionRow find(TurnKey key) {
+        return find(key, SELECT);
+    }
+
+    private ExecutionRow findForUpdate(TurnKey key) {
+        return find(key, SELECT_FOR_UPDATE);
+    }
+
+    private ExecutionRow find(TurnKey key, String sql) {
         List<ExecutionRow> rows = jdbc.query(
-                SELECT,
+                sql,
                 (rs, rowNum) -> row(rs),
                 key.ownerKey(), key.canonicalConversationId(), key.turnId());
         return rows.isEmpty() ? null : rows.get(0);
