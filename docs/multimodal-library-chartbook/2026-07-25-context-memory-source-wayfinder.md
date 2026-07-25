@@ -448,6 +448,8 @@ M2 已开始，先交付不改变 production assignment 的 application/transpor
 
 本切片进一步交付 isolated `TurnV2ExecutionCoordinator`：它只在 `TurnV2PreHandlerCoordinator` 返回 `Ready + Plain` 时调用 `PlainDrawingHandler`；SourcePlanning、Clarification、Unsupported 与 Unavailable route 返回 `NotDispatched`，Context terminal/fence-lost/unavailable 返回 `PreparationBlocked`，不会把未实现路径伪装成 product terminal。`TurnV2ExecutionCompositionConfig` 仅在 Plain generation/commit ports 同时存在时注册 Plain runtime、profile、handler 与 executor；无这些 ports 时仍只保留 preparation seam，production assignment 与 legacy transport 不变。本切片没有新增 migration。
 
+本切片补上 claim handoff contract：`TurnV2TurnExecutor` 只接收 `TurnSubmission.ExecutionAccepted`，再把该 accepted attempt 交给 isolated route coordinator；`ExecutionAccepted` 同时校验 `TurnKey`、`FencedAttempt.key` 与 lease anchor 一致。app composition 只注册该 executor，不接入当前 Legacy HTTP/transport，因此没有扩大 production assignment。本切片没有新增 migration。
+
 本票同时 owns DTO 的 `currentTurnAttachments`、hidden clarification id、opaque refs 与唯一 compatibility translator。
 
 composer 上传成功只创建 Conversation File。发送消息时，`TurnStartCommitPort` 才把 opaque refs 与该条 user message 原子绑定。

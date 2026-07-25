@@ -9,6 +9,7 @@ import org.zipp.ai.application.turn.checkpoint.TurnDecisionCoordinator;
 import org.zipp.ai.application.turn.context.ContextAssemblyCoordinator;
 import org.zipp.ai.application.turn.execution.TurnV2ExecutionCoordinator;
 import org.zipp.ai.application.turn.execution.TurnV2PreHandlerCoordinator;
+import org.zipp.ai.application.turn.execution.TurnV2TurnExecutor;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
@@ -33,6 +34,7 @@ class TurnV2ExecutionCompositionConfigTest {
                 .withBean(PlainTurnCommitPort.class, () -> mock(PlainTurnCommitPort.class))
                 .run(context -> assertThat(context)
                         .hasSingleBean(PlainDrawingHandler.class)
-                        .hasSingleBean(TurnV2ExecutionCoordinator.class));
+                        .hasSingleBean(TurnV2ExecutionCoordinator.class)
+                        .hasSingleBean(TurnV2TurnExecutor.class));
     }
 }

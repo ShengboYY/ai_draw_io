@@ -12,8 +12,10 @@ import org.zipp.ai.application.turn.checkpoint.TurnDecisionCoordinator;
 import org.zipp.ai.application.turn.context.ContextAssemblyCoordinator;
 import org.zipp.ai.application.turn.execution.DefaultTurnV2ExecutionCoordinator;
 import org.zipp.ai.application.turn.execution.DefaultTurnV2PreHandlerCoordinator;
+import org.zipp.ai.application.turn.execution.DefaultTurnV2TurnExecutor;
 import org.zipp.ai.application.turn.execution.TurnV2ExecutionCoordinator;
 import org.zipp.ai.application.turn.execution.TurnV2PreHandlerCoordinator;
+import org.zipp.ai.application.turn.execution.TurnV2TurnExecutor;
 
 /** Composes the isolated claim-to-route seam without changing production engine assignment. */
 @Configuration(proxyBeanMethods = false)
@@ -58,5 +60,11 @@ public class TurnV2ExecutionCompositionConfig {
             PlainDrawingHandler plain
     ) {
         return new DefaultTurnV2ExecutionCoordinator(preHandler, plain);
+    }
+
+    @Bean
+    @ConditionalOnBean(TurnV2ExecutionCoordinator.class)
+    public TurnV2TurnExecutor turnV2TurnExecutor(TurnV2ExecutionCoordinator coordinator) {
+        return new DefaultTurnV2TurnExecutor(coordinator);
     }
 }

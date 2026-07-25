@@ -14,6 +14,7 @@ public sealed interface TurnSubmission
 
         public ExecutionAccepted {
             if (key == null || attempt == null || leaseTiming == null
+                    || !attempt.key().equals(key)
                     || !attempt.lease().equals(leaseTiming.lease())) {
                 throw new IllegalArgumentException("execution acceptance values must not be null");
             }
