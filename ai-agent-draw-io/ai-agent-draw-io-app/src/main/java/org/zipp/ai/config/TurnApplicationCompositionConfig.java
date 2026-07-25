@@ -17,12 +17,19 @@ import org.zipp.ai.application.turn.SingleActiveInstanceLock;
 import org.zipp.ai.application.turn.StartupOrphanReconciler;
 import org.zipp.ai.application.turn.TurnAdmissionGate;
 import org.zipp.ai.application.turn.TurnAdmissionProfilePort;
+import org.zipp.ai.application.turn.DefaultTurnControlFacade;
+import org.zipp.ai.application.turn.TurnControlFacade;
 import org.zipp.ai.application.turn.TurnEngineAdmissionService;
 import org.zipp.ai.application.turn.TurnEngineAssignmentPort;
 import org.zipp.ai.application.turn.TurnEngineMigrationStatePort;
 import org.zipp.ai.application.turn.TurnEngineMigrationControlPort;
 import org.zipp.ai.application.turn.TurnEngineMigrationCoordinator;
 import org.zipp.ai.application.turn.TurnStartCommitPort;
+import org.zipp.ai.application.turn.TurnStatusQueryPort;
+import org.zipp.ai.application.turn.ExplicitTurnCancellationPort;
+import org.zipp.ai.application.turn.TurnAttemptLeasePort;
+import org.zipp.ai.application.turn.AttemptDeadlineCancellationPort;
+import org.zipp.ai.application.turn.TurnAttemptTakeoverPort;
 
 import java.util.UUID;
 
@@ -83,6 +90,17 @@ public class TurnApplicationCompositionConfig {
     ) {
         return new DefaultDiagramTurnFacade(
                 conversations, conversationResolver, profile, admission, turnStart, admissionGate);
+    }
+
+    @Bean
+    public TurnControlFacade turnControlFacade(
+            TurnStatusQueryPort status,
+            ExplicitTurnCancellationPort cancellation,
+            TurnAttemptLeasePort leases,
+            AttemptDeadlineCancellationPort deadlines,
+            TurnAttemptTakeoverPort takeovers
+    ) {
+        return new DefaultTurnControlFacade(status, cancellation, leases, deadlines, takeovers);
     }
 
     @Bean

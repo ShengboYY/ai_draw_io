@@ -3,10 +3,14 @@ package org.zipp.ai.test.app;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.zipp.ai.application.turn.AdmissionWriteOutcome;
+import org.zipp.ai.application.turn.AttemptDeadlineCancellationPort;
 import org.zipp.ai.application.turn.AuthenticatedActor;
+import org.zipp.ai.application.turn.CancelTurnOutcome;
 import org.zipp.ai.application.turn.ConversationCatalogPort;
 import org.zipp.ai.application.turn.ConversationRef;
 import org.zipp.ai.application.turn.ConversationStatus;
+import org.zipp.ai.application.turn.DeadlineCancelOutcome;
+import org.zipp.ai.application.turn.ExplicitTurnCancellationPort;
 import org.zipp.ai.application.turn.InstanceBootId;
 import org.zipp.ai.application.turn.InstanceLockOutcome;
 import org.zipp.ai.application.turn.LegacyRetryExpiryPort;
@@ -19,6 +23,12 @@ import org.zipp.ai.application.turn.TurnEngineAssignmentPort;
 import org.zipp.ai.application.turn.TurnEngineMigrationControlPort;
 import org.zipp.ai.application.turn.TurnEngineMigrationStatePort;
 import org.zipp.ai.application.turn.TurnEngineMode;
+import org.zipp.ai.application.turn.TurnAttemptLeasePort;
+import org.zipp.ai.application.turn.TurnAttemptTakeoverPort;
+import org.zipp.ai.application.turn.TurnKey;
+import org.zipp.ai.application.turn.TurnStatus;
+import org.zipp.ai.application.turn.TurnStatusQueryPort;
+import org.zipp.ai.application.turn.TurnStatusView;
 import org.zipp.ai.application.turn.TurnStartCommand;
 import org.zipp.ai.application.turn.TurnStartCommitPort;
 import org.zipp.ai.application.turn.TurnStartOutcome;
@@ -36,6 +46,11 @@ class TurnApplicationCompositionConfigTest {
             .withBean(TurnEngineMigrationStatePort.class, FakeMigrationState::new)
             .withBean(TurnEngineMigrationControlPort.class, FakeMigrationControl::new)
             .withBean(LegacyRetryExpiryPort.class, FakeExpiry::new)
+            .withBean(TurnStatusQueryPort.class, TurnApplicationCompositionConfigTest::fakeStatus)
+            .withBean(ExplicitTurnCancellationPort.class, TurnApplicationCompositionConfigTest::fakeCancellation)
+            .withBean(TurnAttemptLeasePort.class, TurnApplicationCompositionConfigTest::fakeLease)
+            .withBean(AttemptDeadlineCancellationPort.class, TurnApplicationCompositionConfigTest::fakeDeadline)
+            .withBean(TurnAttemptTakeoverPort.class, TurnApplicationCompositionConfigTest::fakeTakeover)
             .withBean(TurnEngineAssignmentPort.class, FakeAssignments::new)
             .withBean(ConversationCatalogPort.class, FakeConversationCatalog::new)
             .withBean(TurnStartCommitPort.class, FakeTurnStart::new);
@@ -112,6 +127,27 @@ class TurnApplicationCompositionConfigTest {
         public int expireDue(int batchSize) {
             return 0;
         }
+    }
+
+    private static TurnStatusQueryPort fakeStatus() {
+        return (actor, query) -> new TurnStatusView(query.key(), TurnStatus.RUNNING, "attempt-1", 1,
+                null, null, java.time.Instant.parse("2026-07-26T00:00:00Z"));
+    }
+
+    private static ExplicitTurnCancellationPort fakeCancellation() {
+        return (actor, command) -> new CancelTurnOutcome.Rejected("TEST_ONLY");
+    }
+
+    private static TurnAttemptLeasePort fakeLease() {
+        return attempt -> new TurnAttemptLeasePort.LeaseTransientFailure(java.time.Duration.ofSeconds(1));
+    }
+
+    private static AttemptDeadlineCancellationPort fakeDeadline() {
+        return (attempt, reason) -> new DeadlineCancelOutcome.TransientFailure("TEST_ONLY");
+    }
+
+    private static TurnAttemptTakeoverPort fakeTakeover() {
+        return key -> new TurnAttemptTakeoverPort.Rejected("TEST_ONLY");
     }
 
     private static final class FakeConversationCatalog implements ConversationCatalogPort {

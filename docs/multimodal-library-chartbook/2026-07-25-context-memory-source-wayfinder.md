@@ -284,6 +284,7 @@ DB singleton lock、启动 orphan reconciler、application admission gate 以及
 - `AdmissionBarrier.pauseAndDrain()` 通过 Facade 的 `tryEnter/leave` 登记本地 in-flight admission，停止新 turn 并等待已进入调用归零；
 - `TurnEngineMigrationCoordinator` 已把 pause/drain、migration singleton row 的 compare-and-switch 与 resume 串成一个 seam；`MySqlTurnEngineMigrationControlAdapter` 在同一事务锁 row、递增 generation 并以 DB clock 写 `switched_at`，CAS 失败保持旧 mode；
 - 同一 coordinator 已提供 DB-clock expiry scanner seam：暂停本地 admission 后批量把到期 `LEGACY/EXECUTABLE` assignment 写入 `legacy_turn_tombstone` 并标记 `EXPIRED_GONE`；scanner 异常通过 `finally` 恢复 admission。
+- `TurnControlFacade` 已统一 application 内的 status、explicit cancel、heartbeat、attempt-deadline cancel 与 takeover；takeover 在调用 durable port 前验证 authenticated owner，旧 HTTP 仍未切入该 facade。
 - pause window 内 backfill retryable legacy assignment、写 Gone tombstone并运行 expiry scanner；
 - mode switch 在 migration row transaction 中递增 generation；existing assignment 继续 sticky；
 - restart 先 reconcile 前一 boot 的 orphaned executions，再开放 admission；
