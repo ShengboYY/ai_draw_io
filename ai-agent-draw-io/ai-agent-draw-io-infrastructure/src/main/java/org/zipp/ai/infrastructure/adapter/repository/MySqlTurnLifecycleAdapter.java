@@ -11,7 +11,10 @@ import org.zipp.ai.application.turn.CancelTurnCommand;
 import org.zipp.ai.application.turn.CancelTurnOutcome;
 import org.zipp.ai.application.turn.DeadlineCancelOutcome;
 import org.zipp.ai.application.turn.ExplicitTurnCancellationPort;
+import org.zipp.ai.application.turn.ExecutionPolicySnapshot;
 import org.zipp.ai.application.turn.FencedAttempt;
+import org.zipp.ai.application.turn.TurnAttemptTakeoverPort;
+import org.zipp.ai.application.turn.TurnEngineMode;
 import org.zipp.ai.application.turn.PersistedTurnOutcome;
 import org.zipp.ai.application.turn.StartupOrphanReconciler;
 import org.zipp.ai.application.turn.TurnAttemptLeasePort;
@@ -38,7 +41,8 @@ public class MySqlTurnLifecycleAdapter implements
         ExplicitTurnCancellationPort,
         TurnAttemptLeasePort,
         AttemptDeadlineCancellationPort,
-        StartupOrphanReconciler {
+        StartupOrphanReconciler,
+        TurnAttemptTakeoverPort {
 
     private static final String SELECT = """
             SELECT current_attempt_id, attempt_epoch, lease_ttl_ms, lease_expires_at,
@@ -68,6 +72,18 @@ public class MySqlTurnLifecycleAdapter implements
             UPDATE turn_execution
             SET status = 'ORPHANED_RETRYABLE', updated_at = CURRENT_TIMESTAMP(3)
             WHERE status = 'RUNNING'
+            """;
+    private static final String SELECT_TAKEOVER = """
+            SELECT current_attempt_id, attempt_epoch, lease_ttl_ms, lease_expires_at,
+                   execution_policy_schema_version, migration_mode,
+                   execution_policy_snapshot_json, execution_policy_hash,
+                   turn_input_binding_digest, context_message_high_water,
+                   (status = 'RUNNING' AND lease_expires_at > CURRENT_TIMESTAMP(3)) AS lease_active,
+                   status, terminal_code, terminal_payload_type, terminal_payload_ref,
+                   terminal_payload_json, updated_at
+            FROM turn_execution
+            WHERE owner_key = ? AND conversation_id = ? AND turn_id = ?
+            FOR UPDATE
             """;
 
     private final JdbcTemplate jdbc;
@@ -196,6 +212,51 @@ public class MySqlTurnLifecycleAdapter implements
 
     @Override
     @Transactional
+    public TurnAttemptTakeoverPort.TakeoverOutcome takeover(TurnKey key) {
+        Objects.requireNonNull(key, "key");
+        TakeoverRow current = findTakeover(key);
+        if (current == null) {
+            return new TurnAttemptTakeoverPort.Rejected("TURN_NOT_FOUND");
+        }
+        if (isTerminal(current.status)) {
+            return new TurnAttemptTakeoverPort.AlreadyTerminal(current.outcome());
+        }
+        if (current.inputBindingDigest == null || current.policyJson == null || current.policyHash == null) {
+            return new TurnAttemptTakeoverPort.Rejected("TAKEOVER_SNAPSHOT_UNAVAILABLE");
+        }
+        String nextAttemptId = "attempt_" + java.util.UUID.randomUUID();
+        int updated = jdbc.update(
+                """
+                UPDATE turn_execution
+                SET current_attempt_id = ?, attempt_epoch = attempt_epoch + 1,
+                    lease_expires_at = DATE_ADD(CURRENT_TIMESTAMP(3), INTERVAL (lease_ttl_ms * 1000) MICROSECOND),
+                    last_heartbeat_at = CURRENT_TIMESTAMP(3), status = 'RUNNING',
+                    updated_at = CURRENT_TIMESTAMP(3)
+                WHERE owner_key = ? AND conversation_id = ? AND turn_id = ?
+                  AND (status = 'ORPHANED_RETRYABLE'
+                    OR (status = 'RUNNING' AND (lease_expires_at IS NULL OR lease_expires_at <= CURRENT_TIMESTAMP(3))))
+                """,
+                nextAttemptId,
+                key.ownerKey(), key.canonicalConversationId(), key.turnId());
+        if (updated != 1) {
+            TakeoverRow raced = findTakeover(key);
+            if (raced != null && isTerminal(raced.status)) {
+                return new TurnAttemptTakeoverPort.AlreadyTerminal(raced.outcome());
+            }
+            if (raced != null && raced.leaseActive) {
+                return new TurnAttemptTakeoverPort.LeaseActive(raced.statusView(key));
+            }
+            return new TurnAttemptTakeoverPort.Rejected("TAKEOVER_RACE_LOST");
+        }
+        TakeoverRow claimed = findTakeover(key);
+        if (claimed == null || claimed.leaseExpiresAt == null || claimed.attemptId == null) {
+            throw new IllegalStateException("TURN_TAKEOVER_NOT_CLAIMED");
+        }
+        return new TurnAttemptTakeoverPort.Claimed(claimed.fencedAttempt(key));
+    }
+
+    @Override
+    @Transactional
     public int reconcile(org.zipp.ai.application.turn.InstanceBootId currentBootId) {
         Objects.requireNonNull(currentBootId, "currentBootId");
         return jdbc.update(ORPHAN);
@@ -215,6 +276,37 @@ public class MySqlTurnLifecycleAdapter implements
                 (rs, rowNum) -> row(rs),
                 key.ownerKey(), key.canonicalConversationId(), key.turnId());
         return rows.isEmpty() ? null : rows.get(0);
+    }
+
+    private TakeoverRow findTakeover(TurnKey key) {
+        List<TakeoverRow> rows = jdbc.query(
+                SELECT_TAKEOVER,
+                (rs, rowNum) -> takeoverRow(rs),
+                key.ownerKey(), key.canonicalConversationId(), key.turnId());
+        return rows.isEmpty() ? null : rows.get(0);
+    }
+
+    private TakeoverRow takeoverRow(ResultSet rs) throws SQLException {
+        Timestamp updatedAt = rs.getTimestamp("updated_at");
+        Timestamp leaseExpiresAt = rs.getTimestamp("lease_expires_at");
+        return new TakeoverRow(
+                rs.getString("current_attempt_id"),
+                rs.getLong("attempt_epoch"),
+                rs.getLong("lease_ttl_ms"),
+                leaseExpiresAt == null ? null : leaseExpiresAt.toInstant(),
+                rs.getInt("execution_policy_schema_version"),
+                TurnEngineMode.valueOf(rs.getString("migration_mode")),
+                rs.getString("execution_policy_snapshot_json"),
+                rs.getString("execution_policy_hash"),
+                rs.getString("turn_input_binding_digest"),
+                rs.getLong("context_message_high_water"),
+                rs.getBoolean("lease_active"),
+                TurnStatus.valueOf(rs.getString("status")),
+                rs.getString("terminal_code"),
+                rs.getString("terminal_payload_type"),
+                rs.getString("terminal_payload_ref"),
+                rs.getString("terminal_payload_json"),
+                updatedAt == null ? Instant.now() : updatedAt.toInstant());
     }
 
     private ExecutionRow row(ResultSet rs) throws SQLException {
@@ -249,6 +341,48 @@ public class MySqlTurnLifecycleAdapter implements
             String terminalPayloadJson,
             Instant updatedAt
     ) {
+        TurnStatusView statusView(TurnKey key) {
+            return new TurnStatusView(
+                    key, status, attemptId, attemptEpoch, terminalCode, terminalPayloadRef, updatedAt);
+        }
+
+        PersistedTurnOutcome outcome() {
+            if (terminalCode == null || terminalPayloadType == null) {
+                throw new IllegalStateException("TURN_TERMINAL_PAYLOAD_UNAVAILABLE");
+            }
+            return new PersistedTurnOutcome(
+                    status, terminalCode, terminalPayloadType, terminalPayloadRef, terminalPayloadJson);
+        }
+    }
+
+    private record TakeoverRow(
+            String attemptId,
+            long attemptEpoch,
+            long leaseTtlMillis,
+            Instant leaseExpiresAt,
+            int policySchemaVersion,
+            TurnEngineMode migrationMode,
+            String policyJson,
+            String policyHash,
+            String inputBindingDigest,
+            long contextMessageHighWater,
+            boolean leaseActive,
+            TurnStatus status,
+            String terminalCode,
+            String terminalPayloadType,
+            String terminalPayloadRef,
+            String terminalPayloadJson,
+            Instant updatedAt
+    ) {
+        FencedAttempt fencedAttempt(TurnKey key) {
+            return new FencedAttempt(
+                    key,
+                    new AttemptLease(attemptId, attemptEpoch, leaseExpiresAt, leaseTtlMillis),
+                    contextMessageHighWater,
+                    inputBindingDigest,
+                    new ExecutionPolicySnapshot(policySchemaVersion, migrationMode, policyJson, policyHash));
+        }
+
         TurnStatusView statusView(TurnKey key) {
             return new TurnStatusView(
                     key, status, attemptId, attemptEpoch, terminalCode, terminalPayloadRef, updatedAt);
