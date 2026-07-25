@@ -39,22 +39,29 @@ public class MySqlSingleActiveInstanceLock implements SingleActiveInstanceLock {
                 }
                 closeHeldConnection();
             }
+            Connection connection = null;
+            boolean retained = false;
             try {
-                Connection connection = dataSource.getConnection();
+                connection = dataSource.getConnection();
                 try (PreparedStatement statement = connection.prepareStatement("SELECT GET_LOCK(?, 0)")) {
                     statement.setString(1, LOCK_NAME);
                     try (ResultSet result = statement.executeQuery()) {
                         if (!result.next() || result.getInt(1) != 1) {
-                            connection.close();
                             return InstanceLockOutcome.ALREADY_HELD;
                         }
                     }
                 }
                 heldConnection = connection;
                 holder = bootId;
+                retained = true;
                 return InstanceLockOutcome.ACQUIRED;
             } catch (SQLException e) {
                 throw new IllegalStateException("TURN_INSTANCE_LOCK_UNAVAILABLE", e);
+            } finally {
+                // A failed GET_LOCK attempt must not leak the connection that owns the advisory lock.
+                if (!retained) {
+                    closeQuietly(connection);
+                }
             }
         }
     }
@@ -99,6 +106,17 @@ public class MySqlSingleActiveInstanceLock implements SingleActiveInstanceLock {
         } finally {
             heldConnection = null;
             holder = null;
+        }
+    }
+
+    private void closeQuietly(Connection connection) {
+        if (connection == null) {
+            return;
+        }
+        try {
+            connection.close();
+        } catch (SQLException ignored) {
+            // The connection is not retained after an unsuccessful acquisition.
         }
     }
 }

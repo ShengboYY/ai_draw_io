@@ -276,6 +276,8 @@ M1 控制面已按以下合同分批落地；生产 HTTP 仍未切入 V2，Plain
 
 本切片补齐 migration singleton 的 durable evidence：`MySqlTurnEngineMigrationControlAdapter` 收窄为 `JdbcOperations` port seam，并覆盖成功 compare-and-switch 返回新 generation、durable mode 已变化和 update CAS 丢失三种结果；assignment/start/lifecycle/migration/Plain/terminal-only 定向 infrastructure tests 共 16 项通过。本切片没有新增或执行 migration。
 
+本切片收口 single-active-instance lock 的连接生命周期：`MySqlSingleActiveInstanceLock` 在 `GET_LOCK` 返回失败或抛出 SQL 异常时统一关闭未保留连接，并保持同一 boot 重入、竞争 boot 拒绝与 `RELEASE_LOCK` 释放语义；新增 3 项 infrastructure lock contract tests，连同 21 项 application M1 admission/control tests、19 项 infrastructure lifecycle/commit/lock tests 与 bootstrap composition test 均通过。本切片没有新增或执行 migration。
+
 ## single-instance-migration-control: Build The Single-Instance Migration Boundary
 
 Blocked by: turn-execution-control
