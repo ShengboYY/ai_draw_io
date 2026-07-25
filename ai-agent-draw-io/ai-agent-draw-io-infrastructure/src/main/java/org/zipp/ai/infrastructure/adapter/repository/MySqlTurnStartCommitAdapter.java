@@ -5,6 +5,7 @@ import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 import org.zipp.ai.application.turn.AttemptLease;
 import org.zipp.ai.application.turn.FencedAttempt;
+import org.zipp.ai.application.turn.OpaqueConversationFileRef;
 import org.zipp.ai.application.turn.PersistedTurnOutcome;
 import org.zipp.ai.application.turn.SelectedTurnEngine;
 import org.zipp.ai.application.turn.TurnEngineAssignment;
@@ -18,6 +19,9 @@ import org.zipp.ai.application.turn.TurnStatusView;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
 import java.util.List;
 import java.util.Objects;
@@ -52,6 +56,22 @@ public class MySqlTurnStartCommitAdapter implements TurnStartCommitPort {
             FROM turn_execution
             WHERE owner_key = ? AND conversation_id = ? AND turn_id = ?
             """;
+    private static final String SELECT_CONVERSATION_FILE = """
+            SELECT state
+            FROM material_upload_session
+            WHERE id = ? AND owner_key = ?
+              AND target_scope_type = 'CONVERSATION'
+              AND target_scope_key = ?
+              AND (state <> 'CREATED' OR policy_expires_at > UTC_TIMESTAMP(3))
+              AND state IN ('CREATED', 'OBJECT_VERSION_PINNED', 'PROCESSING', 'SUCCEEDED')
+            FOR UPDATE
+            """;
+    private static final String INSERT_ATTACHMENT = """
+            INSERT INTO conversation_message_attachment (
+                owner_key, conversation_id, message_id, turn_id, attachment_order,
+                conversation_file_ref, attachment_status_at_bind
+            ) VALUES (?, ?, ?, ?, ?, ?, ?)
+            """;
     private static final String INSERT_MESSAGE = """
             INSERT INTO diagram_conversation_message (
                 diagram_id, user_id, conversation_id, session_id, turn_id,
@@ -72,7 +92,7 @@ public class MySqlTurnStartCommitAdapter implements TurnStartCommitPort {
                 context_message_high_water, status
             ) VALUES (?, ?, ?, ?, ?, 1, 'lease-v1', ?,
                       DATE_ADD(CURRENT_TIMESTAMP(3), INTERVAL 30000000 MICROSECOND),
-                      CURRENT_TIMESTAMP(3), ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, 'NONE',
+                      CURRENT_TIMESTAMP(3), ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?,
                       ?, ?, ?, ?, 'RUNNING')
             """;
     private static final String ADVANCE_CONVERSATION = """
@@ -96,10 +116,6 @@ public class MySqlTurnStartCommitAdapter implements TurnStartCommitPort {
         }
         if (command.assignment().selectedEngine() != SelectedTurnEngine.V2) {
             return new TurnStartOutcome.Rejected("LEGACY_ASSIGNMENT");
-        }
-        if (!command.currentTurnAttachments().isEmpty()) {
-            // No Conversation File authority exists before the attachment-binding slice; fail closed.
-            return new TurnStartOutcome.Rejected("ATTACHMENT_BINDING_UNAVAILABLE");
         }
         TurnEngineAssignment assignment = command.assignment();
         if (jdbc.queryForObject(
@@ -133,10 +149,15 @@ public class MySqlTurnStartCommitAdapter implements TurnStartCommitPort {
         if (afterLock != null) {
             return afterLock.startOutcome(command.key());
         }
+        AttachmentValidation attachmentValidation = validateAttachments(command);
+        if (attachmentValidation.rejectionCode() != null) {
+            return new TurnStartOutcome.Rejected(attachmentValidation.rejectionCode());
+        }
         long messageSequence = conversationVersion + 1;
         jdbc.update(ADVANCE_CONVERSATION,
                 command.key().canonicalConversationId(), command.key().ownerKey());
         long messageId = insertUserMessage(command, messageSequence);
+        insertAttachments(command, messageId, attachmentValidation.bindings());
         String attemptId = "attempt_" + UUID.randomUUID();
         jdbc.update(
                 INSERT_EXECUTION,
@@ -155,6 +176,7 @@ public class MySqlTurnStartCommitAdapter implements TurnStartCommitPort {
                 assignment.policy().snapshotJson(),
                 assignment.policy().policyHash(),
                 command.inputBindingDigest(),
+                attachmentValidation.bindingDigest(),
                 assignment.memoryWrite() instanceof org.zipp.ai.application.turn.NoMemoryWrite
                         ? 1 : ((org.zipp.ai.application.turn.RememberDecisionDeclaration) assignment.memoryWrite()).schemaVersion(),
                 new MemoryWriteDeclarationJsonCodec().encode(assignment.memoryWrite()),
@@ -169,6 +191,67 @@ public class MySqlTurnStartCommitAdapter implements TurnStartCommitPort {
         return new TurnStartOutcome.Claimed(
                 claimed.fencedAttempt(command.key(), assignment.policy(), command.inputBindingDigest()),
                 messageId);
+    }
+
+    private record AttachmentBinding(String ref, String status) {
+    }
+
+    private record AttachmentValidation(List<AttachmentBinding> bindings, String bindingDigest,
+                                        String rejectionCode) {
+    }
+
+    private AttachmentValidation validateAttachments(TurnStartCommand command) {
+        StringBuilder canonical = new StringBuilder();
+        List<AttachmentBinding> bindings = new java.util.ArrayList<>();
+        for (OpaqueConversationFileRef attachment : command.currentTurnAttachments()) {
+            List<String> states = jdbc.query(
+                    SELECT_CONVERSATION_FILE,
+                    (rs, rowNum) -> rs.getString("state"),
+                    attachment.value(),
+                    command.key().ownerKey(),
+                    command.key().canonicalConversationId());
+            if (states.isEmpty()) {
+                return new AttachmentValidation(List.of(), null, "ATTACHMENT_NOT_FOUND_OR_NOT_OWNED");
+            }
+            bindings.add(new AttachmentBinding(attachment.value(), states.get(0)));
+            appendCanonicalRef(canonical, attachment.value());
+        }
+        return new AttachmentValidation(bindings, sha256(canonical.toString()), null);
+    }
+
+    private void insertAttachments(TurnStartCommand command, long messageId,
+                                   List<AttachmentBinding> bindings) {
+        for (int index = 0; index < bindings.size(); index++) {
+            AttachmentBinding binding = bindings.get(index);
+            jdbc.update(
+                    INSERT_ATTACHMENT,
+                    command.key().ownerKey(),
+                    command.key().canonicalConversationId(),
+                    messageId,
+                    command.key().turnId(),
+                    index,
+                    binding.ref(),
+                    binding.status());
+        }
+    }
+
+    private static void appendCanonicalRef(StringBuilder canonical, String value) {
+        // Length framing prevents two ordered ref lists from sharing a digest by concatenation.
+        canonical.append(value.length()).append(':').append(value).append('|');
+    }
+
+    private static String sha256(String value) {
+        try {
+            byte[] digest = MessageDigest.getInstance("SHA-256")
+                    .digest(value.getBytes(StandardCharsets.UTF_8));
+            StringBuilder hex = new StringBuilder(digest.length * 2);
+            for (byte item : digest) {
+                hex.append(String.format("%02x", item));
+            }
+            return hex.toString();
+        } catch (NoSuchAlgorithmException exception) {
+            throw new IllegalStateException("SHA-256 is unavailable", exception);
+        }
     }
 
     private long insertUserMessage(TurnStartCommand command, long messageSequence) {
