@@ -35,6 +35,7 @@ public class MySqlTurnDecisionCheckpointAdapter implements
             SELECT current_attempt_id, attempt_epoch, context_read_set_digest,
                    turn_input_binding_digest, plan_payload_schema_version,
                    plan_payload_json, plan_payload_digest,
+                   lease_expires_at, CURRENT_TIMESTAMP(3) AS database_now,
                    status, terminal_code, terminal_payload_ref, updated_at
             FROM turn_execution
             WHERE owner_key = ? AND conversation_id = ? AND turn_id = ?
@@ -48,6 +49,7 @@ public class MySqlTurnDecisionCheckpointAdapter implements
                 updated_at = CURRENT_TIMESTAMP(3)
             WHERE owner_key = ? AND conversation_id = ? AND turn_id = ?
               AND status = 'RUNNING' AND current_attempt_id = ? AND attempt_epoch = ?
+              AND lease_expires_at > CURRENT_TIMESTAMP(3)
               AND context_read_set_digest = ? AND turn_input_binding_digest = ?
               AND plan_payload_json IS NULL AND plan_payload_digest IS NULL
             """;
@@ -170,6 +172,8 @@ public class MySqlTurnDecisionCheckpointAdapter implements
                 resultSet.getInt("plan_payload_schema_version"),
                 resultSet.getString("plan_payload_json"),
                 resultSet.getString("plan_payload_digest"),
+                instant(resultSet.getTimestamp("lease_expires_at")),
+                instant(resultSet.getTimestamp("database_now")),
                 TurnStatus.valueOf(resultSet.getString("status")));
     }
 
@@ -205,13 +209,22 @@ public class MySqlTurnDecisionCheckpointAdapter implements
             int planSchemaVersion,
             String planJson,
             String planDigest,
+            java.time.Instant leaseExpiresAt,
+            java.time.Instant databaseNow,
             TurnStatus turnStatus
     ) {
         boolean currentFor(FencedAttempt attempt) {
             return turnStatus == TurnStatus.RUNNING
                     && Objects.equals(attemptId, attempt.attemptId())
-                    && attemptEpoch == attempt.attemptEpoch();
+                    && attemptEpoch == attempt.attemptEpoch()
+                    && leaseExpiresAt != null
+                    && databaseNow != null
+                    && leaseExpiresAt.isAfter(databaseNow);
         }
 
+    }
+
+    private static java.time.Instant instant(java.sql.Timestamp timestamp) {
+        return timestamp == null ? null : timestamp.toInstant();
     }
 }

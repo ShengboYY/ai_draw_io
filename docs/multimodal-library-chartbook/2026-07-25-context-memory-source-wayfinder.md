@@ -338,6 +338,8 @@ M1 控制面已按以下合同分批落地；生产 HTTP 仍未切入 V2，Plain
 
 本补充把同一 binding invariant 前移到 application command：`TurnStartCommand` 现在拒绝与 pinned assignment 不同的 TurnKey 或 `diagramId`，避免错误 scope 在进入 atomic claim adapter 前继续传播；新增 immutable command contract test。本补充没有新增或执行 migration。
 
+本切片补齐 Context 与 decision checkpoint 的 active-lease fencing：`MySqlTurnContextAdapter` 读取 execution 时同时比较 `lease_expires_at` 与同一查询得到的 `CURRENT_TIMESTAMP(3)`，过期 attempt 在 candidate/materialization 前返回 fence lost；`MySqlTurnDecisionCheckpointAdapter` 的 current-row 与首次 pin CAS 也要求 lease 仍有效，过期 attempt 不得继续写入 plan checkpoint。新增 adapter contract tests；现有 `turn_execution.lease_expires_at` 已足够，本切片没有新增或执行 migration。
+
 ## single-instance-migration-control: Build The Single-Instance Migration Boundary
 
 Blocked by: turn-execution-control

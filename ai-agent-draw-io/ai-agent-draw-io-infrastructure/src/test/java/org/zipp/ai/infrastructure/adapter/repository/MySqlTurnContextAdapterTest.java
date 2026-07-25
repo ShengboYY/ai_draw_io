@@ -78,6 +78,23 @@ class MySqlTurnContextAdapterTest {
                 changedAdapter.materialize(attempt, command, readSet));
     }
 
+    @Test
+    void expiredAttemptCannotReadAContextCandidate() {
+        UserTurnCommand command = command();
+        FencedAttempt attempt = attempt(command);
+        Map<String, Object> expiredExecution = executionRow(attempt);
+        expiredExecution.put("lease_expires_at", Timestamp.from(Instant.parse("2026-07-26T00:00:30Z")));
+        expiredExecution.put("database_now", Timestamp.from(Instant.parse("2026-07-26T00:00:31Z")));
+
+        ContextCandidateLoadOutcome.FenceLost lost = assertInstanceOf(
+                ContextCandidateLoadOutcome.FenceLost.class,
+                new MySqlTurnContextAdapter(
+                        jdbc(expiredExecution, domainRow(2L, "canvas-hash", "<xml>"), List.of()))
+                        .loadCandidate(attempt, command));
+
+        assertEquals(attempt.key(), lost.status().key());
+    }
+
     private static UserTurnCommand command() {
         return new UserTurnCommand(
                 "turn-1", "conversation-1", "diagram-1", "message-1", "draw a flow", "session-1",
@@ -102,6 +119,8 @@ class MySqlTurnContextAdapterTest {
                 "turn_input_binding_digest", attempt.inputBindingDigest(),
                 "attachment_binding_digest", "attachment-digest",
                 "context_message_high_water", attempt.contextMessageHighWater(),
+                "lease_expires_at", Timestamp.from(Instant.parse("2026-07-26T00:00:30Z")),
+                "database_now", Timestamp.from(Instant.parse("2026-07-26T00:00:01Z")),
                 "status", "RUNNING");
     }
 

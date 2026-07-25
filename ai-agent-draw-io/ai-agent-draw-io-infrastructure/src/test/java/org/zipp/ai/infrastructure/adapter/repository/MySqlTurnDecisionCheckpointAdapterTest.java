@@ -36,6 +36,7 @@ class MySqlTurnDecisionCheckpointAdapterTest {
 
         assertInstanceOf(TurnDecisionCheckpointOutcome.FenceLost.class, outcome);
         assertTrue(jdbc.lastQuery.contains("FOR UPDATE"));
+        assertTrue(jdbc.lastUpdate.contains("lease_expires_at > CURRENT_TIMESTAMP(3)"));
     }
 
     private static FencedAttempt attempt() {
@@ -57,6 +58,8 @@ class MySqlTurnDecisionCheckpointAdapterTest {
                 "plan_payload_schema_version", 0,
                 "plan_payload_json", null,
                 "plan_payload_digest", null,
+                "lease_expires_at", null,
+                "database_now", null,
                 "status", "CANCELLED",
                 "terminal_code", "CANCELLED_BY_USER",
                 "terminal_payload_ref", null,
@@ -74,6 +77,7 @@ class MySqlTurnDecisionCheckpointAdapterTest {
     private static final class JdbcStub {
         private final Map<String, Object> row;
         private String lastQuery = "";
+        private String lastUpdate = "";
 
         private JdbcStub(Map<String, Object> row) {
             this.row = row;
@@ -83,6 +87,7 @@ class MySqlTurnDecisionCheckpointAdapterTest {
             InvocationHandler handler = (proxy, method, args) -> {
                 if ("update".equals(method.getName())) {
                     // Force the CAS loser path so the adapter must read the winner.
+                    lastUpdate = (String) args[0];
                     return 0;
                 }
                 if ("query".equals(method.getName())) {

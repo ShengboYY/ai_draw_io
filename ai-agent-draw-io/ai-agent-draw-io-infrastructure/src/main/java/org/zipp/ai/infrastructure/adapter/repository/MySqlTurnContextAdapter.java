@@ -65,7 +65,8 @@ public class MySqlTurnContextAdapter implements ContextCandidateQueryPort, Conte
     private static final String SELECT_EXECUTION = """
             SELECT current_attempt_id, attempt_epoch, diagram_id, request_message_id,
                    turn_input_binding_digest, attachment_binding_digest,
-                   context_message_high_water, status
+                   context_message_high_water, lease_expires_at,
+                   CURRENT_TIMESTAMP(3) AS database_now, status
             FROM turn_execution
             WHERE owner_key = ? AND conversation_id = ? AND turn_id = ?
             """;
@@ -429,6 +430,8 @@ public class MySqlTurnContextAdapter implements ContextCandidateQueryPort, Conte
                 resultSet.getString("turn_input_binding_digest"),
                 resultSet.getString("attachment_binding_digest"),
                 resultSet.getLong("context_message_high_water"),
+                instant(resultSet.getTimestamp("lease_expires_at")),
+                instant(resultSet.getTimestamp("database_now")),
                 TurnStatus.valueOf(resultSet.getString("status")));
     }
 
@@ -515,12 +518,17 @@ public class MySqlTurnContextAdapter implements ContextCandidateQueryPort, Conte
             String turnInputBindingDigest,
             String attachmentBindingDigest,
             long contextMessageHighWater,
+            Instant leaseExpiresAt,
+            Instant databaseNow,
             TurnStatus status
     ) {
         boolean currentFor(FencedAttempt attempt) {
             return status == TurnStatus.RUNNING
                     && Objects.equals(attemptId, attempt.attemptId())
-                    && attemptEpoch == attempt.attemptEpoch();
+                    && attemptEpoch == attempt.attemptEpoch()
+                    && leaseExpiresAt != null
+                    && databaseNow != null
+                    && leaseExpiresAt.isAfter(databaseNow);
         }
     }
 
