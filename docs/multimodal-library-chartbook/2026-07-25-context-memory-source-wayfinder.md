@@ -410,7 +410,7 @@ Pending. 处理根目录 `CONTEXT.md`、2026-07-18 PRD、2026-07-19 Technical De
 ## source-free-v2-path: Isolate The M2 Source-Free Path
 
 Blocked by: formal-contract-adr, turn-execution-control
-Status: open
+Status: in progress
 Type: Prototype
 
 ### Question
@@ -419,7 +419,14 @@ Type: Prototype
 
 ### Answer
 
-Pending. M2 实现 Semantic Router、restricted-input Demand Interpreter、Resolver、`PlainDrawingHandler` 与 Plain/Response strong commits。production assignment 仍全部 legacy。
+M2 已开始，先交付不改变 production assignment 的 application/transport 切片：
+
+- 新增固定 source-free `PlainRuntimeRegistry`、`PlainExecutionProfile`、`PlainGenerationPort` 与 `PlainDrawingHandler`；Plain CREATE/EDIT/LAYOUT 只能通过 tool-free generation port，并以既有 `PlainTurnCommitPort` 做一次 fenced strong commit。
+- 新增 `TurnDeliveryExecutor`，同步与 NDJSON 只替换 `TurnEventSink`，共享同一个 `DiagramTurnFacade`；writer failure 只 detach，不构造取消或产品终态。
+- 新增 `trigger.http.turn` compatibility translator。旧 `ChatRequestDTO` 的 owner、canvas、history 不进入 canonical command；`selectedLibraryVersionIds` 只映射为 untrusted legacy declaration，opaque current-message attachment 仍由 canonical DTO 显式携带。
+- 新增 buffering/NDJSON sink 与 detach 测试，覆盖 Plain generation failure 不得到达 commit，以及 writer failure 不得回写业务终态。
+
+Semantic Router、restricted-input Demand Interpreter、无 I/O Resolver 与生产 route dispatcher 仍待后续 M2 切片；production assignment 继续全部 legacy。
 
 本票同时 owns DTO 的 `currentTurnAttachments`、hidden clarification id、opaque refs 与唯一 compatibility translator。
 

@@ -19,6 +19,8 @@ import org.zipp.ai.application.turn.TurnAdmissionGate;
 import org.zipp.ai.application.turn.TurnAdmissionProfilePort;
 import org.zipp.ai.application.turn.DefaultTurnControlFacade;
 import org.zipp.ai.application.turn.TurnControlFacade;
+import org.zipp.ai.application.turn.DefaultTurnDeliveryExecutor;
+import org.zipp.ai.application.turn.TurnDeliveryExecutor;
 import org.zipp.ai.application.turn.TurnEngineAdmissionService;
 import org.zipp.ai.application.turn.TurnEngineAssignmentPort;
 import org.zipp.ai.application.turn.TurnEngineMigrationStatePort;
@@ -90,6 +92,11 @@ public class TurnApplicationCompositionConfig {
     ) {
         return new DefaultDiagramTurnFacade(
                 conversations, conversationResolver, profile, admission, turnStart, admissionGate);
+    }
+
+    @Bean
+    public TurnDeliveryExecutor turnDeliveryExecutor(DiagramTurnFacade facade) {
+        return new DefaultTurnDeliveryExecutor(facade);
     }
 
     @Bean
