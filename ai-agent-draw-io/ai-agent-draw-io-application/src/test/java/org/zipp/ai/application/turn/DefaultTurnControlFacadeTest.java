@@ -6,8 +6,53 @@ import java.time.Instant;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class DefaultTurnControlFacadeTest {
+
+    @Test
+    void rejectsCrossOwnerStatusBeforeCallingPort() {
+        boolean[] called = {false};
+        TurnControlFacade facade = new DefaultTurnControlFacade(
+                (actor, query) -> {
+                    called[0] = true;
+                    return new TurnStatusQueryOutcome.Available(status(query.key()));
+                },
+                (actor, command) -> new CancelTurnOutcome.Rejected("TEST_ONLY"),
+                attempt -> new TurnAttemptLeasePort.LeaseTransientFailure(java.time.Duration.ofSeconds(1)),
+                (attempt, reason) -> new DeadlineCancelOutcome.TransientFailure("TEST_ONLY"),
+                key -> new TurnAttemptTakeoverPort.Rejected("TEST_ONLY"));
+
+        assertThrows(IllegalStateException.class,
+                () -> facade.status(
+                        new AuthenticatedActor("owner-a", "cohort-a"),
+                        new TurnStatusQuery(new TurnKey("owner-b", "conversation-1", "turn-1"))));
+        assertEquals(false, called[0]);
+    }
+
+    @Test
+    void rejectsCrossOwnerCancellationBeforeCallingPort() {
+        boolean[] called = {false};
+        TurnControlFacade facade = new DefaultTurnControlFacade(
+                (actor, query) -> new TurnStatusQueryOutcome.Available(status(query.key())),
+                (actor, command) -> {
+                    called[0] = true;
+                    return new CancelTurnOutcome.Cancelled(status(command.key()));
+                },
+                attempt -> new TurnAttemptLeasePort.LeaseTransientFailure(java.time.Duration.ofSeconds(1)),
+                (attempt, reason) -> new DeadlineCancelOutcome.TransientFailure("TEST_ONLY"),
+                key -> new TurnAttemptTakeoverPort.Rejected("TEST_ONLY"));
+
+        CancelTurnOutcome.Rejected rejected = assertInstanceOf(
+                CancelTurnOutcome.Rejected.class,
+                facade.cancel(
+                        new AuthenticatedActor("owner-a", "cohort-a"),
+                        new CancelTurnCommand(
+                                new TurnKey("owner-b", "conversation-1", "turn-1"), "user-requested")));
+
+        assertEquals("OWNER_MISMATCH", rejected.code());
+        assertEquals(false, called[0]);
+    }
 
     @Test
     void rejectsTakeoverForAnotherAuthenticatedOwnerBeforeCallingPort() {

@@ -282,6 +282,8 @@ M1 控制面已按以下合同分批落地；生产 HTTP 仍未切入 V2，Plain
 
 本切片将 mode switch 收窄为 `MigrationModeSwitchCommand(expectedGeneration, expectedMode, targetMode)`：durable adapter 在锁定 singleton row 后校验 generation、mode 与合法迁移图，只允许 `LEGACY → V2_CANARY → ALL_V2 → RETIRED`，并允许 `V2_CANARY → LEGACY` 回退；新增 stale-generation、非法跳转及有效 canary/all-v2/retired transition contract tests。现有 `generation`/`mode` 列已足够，本切片没有新增或执行 migration。
 
+本切片把 owner fencing 前移到 `DefaultTurnControlFacade`：跨 owner 的 status 在调用 durable port 前返回 `TURN_NOT_FOUND`，跨 owner 的 cancel 在调用前返回 `OWNER_MISMATCH`；新增 2 项 application contract tests，application、infrastructure 与 bootstrap composition 定向回归均通过。本切片没有新增或执行 migration。
+
 ## single-instance-migration-control: Build The Single-Instance Migration Boundary
 
 Blocked by: turn-execution-control

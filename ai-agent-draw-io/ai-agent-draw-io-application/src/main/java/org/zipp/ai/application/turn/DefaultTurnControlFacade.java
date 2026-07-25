@@ -27,11 +27,23 @@ public final class DefaultTurnControlFacade implements TurnControlFacade {
 
     @Override
     public TurnStatusQueryOutcome status(AuthenticatedActor actor, TurnStatusQuery query) {
+        Objects.requireNonNull(actor, "actor");
+        Objects.requireNonNull(query, "query");
+        if (!actor.ownerKey().equals(query.key().ownerKey())) {
+            // Keep cross-owner status probes out of the durable control port.
+            throw new IllegalStateException("TURN_NOT_FOUND");
+        }
         return status.get(actor, query);
     }
 
     @Override
     public CancelTurnOutcome cancel(AuthenticatedActor actor, CancelTurnCommand command) {
+        Objects.requireNonNull(actor, "actor");
+        Objects.requireNonNull(command, "command");
+        if (!actor.ownerKey().equals(command.key().ownerKey())) {
+            // Cancellation is owner-fenced before it can reach a repository adapter.
+            return new CancelTurnOutcome.Rejected("OWNER_MISMATCH");
+        }
         return cancellation.cancel(actor, command);
     }
 
