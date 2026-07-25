@@ -1,7 +1,9 @@
 package org.zipp.ai.application.turn.execution;
 
 import org.junit.jupiter.api.Test;
+import org.zipp.ai.application.turn.AdmissionBarrier;
 import org.zipp.ai.application.turn.AttemptLease;
+import org.zipp.ai.application.turn.DefaultTurnControlFacade;
 import org.zipp.ai.application.turn.ExecutionPolicySnapshot;
 import org.zipp.ai.application.turn.FencedAttempt;
 import org.zipp.ai.application.turn.LeaseTimingAnchor;
@@ -29,6 +31,7 @@ import org.zipp.ai.application.turn.DeadlineCancelOutcome;
 import org.zipp.ai.application.turn.TurnStatusView;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -89,6 +92,86 @@ class TurnAttemptRecoveryCoordinatorTest {
             assertEquals(expected, executed.get());
             assertInstanceOf(TurnAttemptCompletion.PersistedTerminal.class,
                     started.handle().completion().toCompletableFuture().join());
+        } finally {
+            scheduler.shutdownNow();
+        }
+    }
+
+    @Test
+    void realControlFacadeTracesTakeoverThroughRunnerCompletion() {
+        ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
+        try {
+            TurnKey key = new TurnKey("owner-1", "conversation-1", "turn-1");
+            FencedAttempt attempt = attempt(key);
+            UserTurnCommand expected = new UserTurnCommand(
+                    "turn-1", "conversation-1", "diagram-1", "client-1", "draw", null,
+                    TurnDeclarations.empty());
+            AtomicReference<UserTurnCommand> executed = new AtomicReference<>();
+            CopyOnWriteArrayList<TurnLifecycleTraceEvent> traces = new CopyOnWriteArrayList<>();
+            TurnV2TurnExecutor executor = new TurnV2TurnExecutor() {
+                @Override
+                public TurnAttemptCompletion execute(
+                        TurnSubmission.ExecutionAccepted accepted,
+                        UserTurnCommand command,
+                        TurnEventSink events
+                ) {
+                    executed.set(command);
+                    return new TurnAttemptCompletion.PersistedTerminal(
+                            new PersistedTurnOutcome(TurnStatus.COMPLETED, "DONE", "plain", null, "{}"));
+                }
+
+                @Override
+                public void disableWritesAndDrain(FencedAttempt ignored) {
+                }
+            };
+            TurnControlFacade facade = new DefaultTurnControlFacade(
+                    (actor, query) -> new TurnStatusQueryOutcome.Available(status(query.key())),
+                    (actor, command) -> new CancelTurnOutcome.Rejected("UNUSED"),
+                    ignored -> new TurnAttemptLeasePort.LeaseTransientFailure(
+                            java.time.Duration.ofSeconds(30)),
+                    (ignored, reason) -> new DeadlineCancelOutcome.TransientFailure("UNUSED"),
+                    ignored -> new TurnAttemptTakeoverPort.Claimed(attempt),
+                    new OpenAdmissionBarrier(),
+                    (ignoredKey, ignoredOutcome) -> { },
+                    traces::add);
+            TurnAttemptExecutionRunner runner = new TurnAttemptExecutionRunner(
+                    executor,
+                    new TurnAttemptLeaseSupervisor(facade::heartbeat, executor),
+                    Runnable::run,
+                    scheduler,
+                    traces::add);
+            TurnAttemptRecoveryCoordinator coordinator = new TurnAttemptRecoveryCoordinator(
+                    facade,
+                    ignored -> new TurnAttemptInputRecoveryPort.Recovered(expected),
+                    runner,
+                    traces::add);
+
+            TurnAttemptRecoveryOutcome.Started started = assertInstanceOf(
+                    TurnAttemptRecoveryOutcome.Started.class,
+                    coordinator.start(
+                            new AuthenticatedActor("owner-1", "cohort-1"), key, ignored -> { }));
+
+            TurnAttemptCompletion.PersistedTerminal completion = assertInstanceOf(
+                    TurnAttemptCompletion.PersistedTerminal.class,
+                    started.handle().completion().toCompletableFuture().join());
+            assertEquals(expected, executed.get());
+            assertEquals(TurnStatus.COMPLETED, completion.outcome().status());
+            assertEquals(List.of(
+                            TurnLifecycleTraceType.TAKEOVER,
+                            TurnLifecycleTraceType.ATTEMPT_STARTED,
+                            TurnLifecycleTraceType.ATTEMPT_COMPLETED),
+                    traces.stream().map(TurnLifecycleTraceEvent::type).toList());
+
+            // Every lifecycle event must remain tied to the recovered fenced attempt.
+            TurnLifecycleTraceEvent takeover = traces.get(0);
+            TurnLifecycleTraceEvent completed = traces.get(2);
+            assertEquals(attempt.attemptId(), takeover.attemptId());
+            assertEquals(attempt.attemptEpoch(), takeover.attemptEpoch());
+            assertEquals(attempt.policy().policyHash(), takeover.policyHash());
+            assertEquals(attempt.inputBindingDigest(), takeover.inputBindingDigest());
+            assertEquals("CLAIMED", takeover.outcomeCode());
+            assertEquals(TurnStatus.COMPLETED, completed.outcomeStatus());
+            assertEquals("DONE", completed.outcomeCode());
         } finally {
             scheduler.shutdownNow();
         }
@@ -185,5 +268,25 @@ class TurnAttemptRecoveryCoordinatorTest {
                 1,
                 "input-digest",
                 new ExecutionPolicySnapshot(1, TurnEngineMode.ALL_V2, "{}", "policy-hash"));
+    }
+
+    private static TurnStatusView status(TurnKey key) {
+        return new TurnStatusView(key, TurnStatus.RUNNING, "attempt-2", 2,
+                null, null, Instant.parse("2026-07-26T00:00:00Z"));
+    }
+
+    private static final class OpenAdmissionBarrier implements AdmissionBarrier {
+        @Override
+        public void pauseAndDrain() {
+        }
+
+        @Override
+        public void resume() {
+        }
+
+        @Override
+        public boolean isOpen() {
+            return true;
+        }
     }
 }
