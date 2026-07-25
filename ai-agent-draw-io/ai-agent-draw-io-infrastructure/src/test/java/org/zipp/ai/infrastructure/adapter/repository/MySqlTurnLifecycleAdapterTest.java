@@ -58,6 +58,21 @@ class MySqlTurnLifecycleAdapterTest {
     }
 
     @Test
+    void successfulExplicitCancelReturnsTheDecodedPersistedOutcome() {
+        JdbcStub jdbc = new JdbcStub(userCancelledExecutionRow(), 1);
+
+        CancelTurnOutcome.Cancelled outcome = assertInstanceOf(
+                CancelTurnOutcome.Cancelled.class,
+                new MySqlTurnLifecycleAdapter(jdbc.proxy()).cancel(
+                        new AuthenticatedActor("owner-1", "cohort-1"),
+                        new CancelTurnCommand(key(), "user requested")));
+
+        assertEquals(TurnStatus.CANCELLED, outcome.outcome().status());
+        assertEquals("CANCELLED_BY_USER", outcome.outcome().terminalCode());
+        assertTrue(jdbc.lastQuery.contains("FOR UPDATE"));
+    }
+
+    @Test
     void successfulDeadlineCancelReturnsTheDecodedPersistedOutcome() {
         JdbcStub jdbc = new JdbcStub(cancelledExecutionRow(), 1);
 
@@ -184,6 +199,13 @@ class MySqlTurnLifecycleAdapterTest {
         row.put("terminal_code", "EXECUTION_DEADLINE");
         row.put("terminal_payload_type", "deadline");
         row.put("terminal_payload_ref", null);
+        return row;
+    }
+
+    private static Map<String, Object> userCancelledExecutionRow() {
+        Map<String, Object> row = cancelledExecutionRow();
+        row.put("terminal_code", "CANCELLED_BY_USER");
+        row.put("terminal_payload_type", "cancel");
         return row;
     }
 

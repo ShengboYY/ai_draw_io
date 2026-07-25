@@ -161,7 +161,17 @@ public class MySqlTurnLifecycleAdapter implements
                 command.key().canonicalConversationId(),
                 command.key().turnId());
         if (updated == 1) {
-            return new CancelTurnOutcome.Cancelled(status(command.key()));
+            ExecutionRow cancelled = findForUpdate(command.key());
+            if (cancelled == null) {
+                throw new IllegalStateException("TURN_NOT_FOUND_AFTER_UPDATE");
+            }
+            TerminalOutcomeDecoder.DecodeResult decoded = cancelled.decode(terminalDecoder);
+            if (decoded instanceof TerminalOutcomeDecoder.DecodeResult.Decoded ready) {
+                return new CancelTurnOutcome.Cancelled(ready.outcome());
+            }
+            return new CancelTurnOutcome.TerminalUnavailable(
+                    cancelled.statusView(command.key()),
+                    ((TerminalOutcomeDecoder.DecodeResult.Unavailable) decoded).code());
         }
         ExecutionRow current = findForUpdate(command.key());
         if (current == null) {

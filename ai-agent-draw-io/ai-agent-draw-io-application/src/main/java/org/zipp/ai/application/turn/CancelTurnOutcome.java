@@ -7,7 +7,12 @@ public sealed interface CancelTurnOutcome
         CancelTurnOutcome.FenceLost,
         CancelTurnOutcome.Rejected {
 
-    record Cancelled(TurnStatusView status) implements CancelTurnOutcome {
+    record Cancelled(PersistedTurnOutcome outcome) implements CancelTurnOutcome {
+        public Cancelled {
+            if (outcome == null) {
+                throw new IllegalArgumentException("cancelled outcome must not be null");
+            }
+        }
     }
 
     record AlreadyTerminal(PersistedTurnOutcome outcome) implements CancelTurnOutcome {

@@ -38,7 +38,9 @@ class DefaultTurnControlFacadeTest {
                 (actor, query) -> new TurnStatusQueryOutcome.Available(status(query.key())),
                 (actor, command) -> {
                     called[0] = true;
-                    return new CancelTurnOutcome.Cancelled(status(command.key()));
+                    return new CancelTurnOutcome.Cancelled(
+                            new PersistedTurnOutcome(TurnStatus.CANCELLED,
+                                    "CANCELLED_BY_USER", "cancel", null, "{}"));
                 },
                 attempt -> new TurnAttemptLeasePort.LeaseTransientFailure(java.time.Duration.ofSeconds(1)),
                 (attempt, reason) -> new DeadlineCancelOutcome.TransientFailure("TEST_ONLY"),
