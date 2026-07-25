@@ -105,9 +105,11 @@ public class TurnApplicationCompositionConfig {
             ExplicitTurnCancellationPort cancellation,
             TurnAttemptLeasePort leases,
             AttemptDeadlineCancellationPort deadlines,
-            TurnAttemptTakeoverPort takeovers
+            TurnAttemptTakeoverPort takeovers,
+            AdmissionBarrier admissionBarrier
     ) {
-        return new DefaultTurnControlFacade(status, cancellation, leases, deadlines, takeovers);
+        return new DefaultTurnControlFacade(
+                status, cancellation, leases, deadlines, takeovers, admissionBarrier);
     }
 
     @Bean

@@ -286,6 +286,8 @@ M1 控制面已按以下合同分批落地；生产 HTTP 仍未切入 V2，Plain
 
 本切片修复 admission drain race：`TurnEngineAdmissionService.admit` 现在用 `tryEnter/leave` 包住独立调用，Facade 在更早解析 canonical conversation 前取得 scope，并通过 `admitAfterEntry` 继续已进入 drain 的 durable admission；migration pause 关闭新请求时，不会误拒绝已经跨过 barrier 的 turn。新增端到端 application contract test，application 全量、infrastructure M1 与 bootstrap composition 串行回归均通过。本切片没有新增或执行 migration。
 
+本切片把 takeover 纳入 readiness fence：`DefaultTurnControlFacade` 只有在 authenticated owner 通过且本地 admission barrier 可进入时，才调用 durable takeover port；startup repair、migration pause 或 singleton lock 丢失期间返回 `TURN_INSTANCE_NOT_READY`，并保证 zero port call。heartbeat、deadline cancel 与 explicit cancel 仍不重新申请 admission scope，以便已进入执行的 turn 安全 drain。新增 closed-gate contract test，application、infrastructure 与 bootstrap composition 串行回归通过。本切片没有新增或执行 migration。
+
 ## single-instance-migration-control: Build The Single-Instance Migration Boundary
 
 Blocked by: turn-execution-control

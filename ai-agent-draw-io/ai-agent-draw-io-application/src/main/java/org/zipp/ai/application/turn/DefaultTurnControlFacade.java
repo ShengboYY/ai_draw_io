@@ -10,19 +10,22 @@ public final class DefaultTurnControlFacade implements TurnControlFacade {
     private final TurnAttemptLeasePort leases;
     private final AttemptDeadlineCancellationPort deadlines;
     private final TurnAttemptTakeoverPort takeovers;
+    private final AdmissionBarrier admissionBarrier;
 
     public DefaultTurnControlFacade(
             TurnStatusQueryPort status,
             ExplicitTurnCancellationPort cancellation,
             TurnAttemptLeasePort leases,
             AttemptDeadlineCancellationPort deadlines,
-            TurnAttemptTakeoverPort takeovers
+            TurnAttemptTakeoverPort takeovers,
+            AdmissionBarrier admissionBarrier
     ) {
         this.status = Objects.requireNonNull(status, "status");
         this.cancellation = Objects.requireNonNull(cancellation, "cancellation");
         this.leases = Objects.requireNonNull(leases, "leases");
         this.deadlines = Objects.requireNonNull(deadlines, "deadlines");
         this.takeovers = Objects.requireNonNull(takeovers, "takeovers");
+        this.admissionBarrier = Objects.requireNonNull(admissionBarrier, "admissionBarrier");
     }
 
     @Override
@@ -64,6 +67,14 @@ public final class DefaultTurnControlFacade implements TurnControlFacade {
         if (!actor.ownerKey().equals(key.ownerKey())) {
             return new TurnAttemptTakeoverPort.Rejected("OWNER_MISMATCH");
         }
-        return takeovers.takeover(key);
+        if (!admissionBarrier.tryEnter()) {
+            return new TurnAttemptTakeoverPort.Rejected("TURN_INSTANCE_NOT_READY");
+        }
+        try {
+            // Takeover creates a new attempt and must wait for startup/migration admission.
+            return takeovers.takeover(key);
+        } finally {
+            admissionBarrier.leave();
+        }
     }
 }
