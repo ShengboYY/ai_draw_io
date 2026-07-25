@@ -1,5 +1,6 @@
 package org.zipp.ai.config;
 
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.context.annotation.Bean;
@@ -13,6 +14,9 @@ import org.zipp.ai.application.turn.PlainTurnCommitPort;
 import org.zipp.ai.application.turn.TerminalOnlyTurnCommitPort;
 import org.zipp.ai.application.turn.TurnAttemptLeasePort;
 import org.zipp.ai.application.turn.TurnAttemptExecutionStatePort;
+import org.zipp.ai.application.turn.TurnAttemptCancellationRegistry;
+import org.zipp.ai.application.turn.TurnAttemptInputRecoveryPort;
+import org.zipp.ai.application.turn.TurnControlFacade;
 import org.zipp.ai.application.turn.TurnWriteGate;
 import org.zipp.ai.application.turn.checkpoint.TurnDecisionCoordinator;
 import org.zipp.ai.application.turn.context.ContextAssemblyCoordinator;
@@ -23,6 +27,12 @@ import org.zipp.ai.application.turn.execution.TurnV2ExecutionCoordinator;
 import org.zipp.ai.application.turn.execution.TurnV2PreHandlerCoordinator;
 import org.zipp.ai.application.turn.execution.TurnV2TurnExecutor;
 import org.zipp.ai.application.turn.execution.TurnAttemptLeaseSupervisor;
+import org.zipp.ai.application.turn.execution.TurnAttemptExecutionRunner;
+import org.zipp.ai.application.turn.execution.TurnAttemptRecoveryCoordinator;
+
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ThreadPoolExecutor;
 
 /** Composes the isolated claim-to-route seam without changing production engine assignment. */
 @Configuration(proxyBeanMethods = false)
@@ -105,5 +115,45 @@ public class TurnV2ExecutionCompositionConfig {
             TurnAttemptLeasePort leases
     ) {
         return new TurnAttemptLeaseSupervisor(leases, executor);
+    }
+
+    @Bean(name = "turnAttemptScheduler", destroyMethod = "shutdownNow")
+    @ConditionalOnBean(TurnV2TurnExecutor.class)
+    public ScheduledExecutorService turnAttemptScheduler() {
+        // The scheduler is created only with the isolated V2 executor graph and is closed by Spring.
+        return Executors.newScheduledThreadPool(1);
+    }
+
+    @Bean
+    @ConditionalOnBean(value = {
+            TurnV2TurnExecutor.class,
+            TurnAttemptLeaseSupervisor.class,
+            TurnAttemptCancellationRegistry.class,
+            ThreadPoolExecutor.class,
+            ScheduledExecutorService.class
+    }, name = "threadPoolExecutor")
+    public TurnAttemptExecutionRunner turnAttemptExecutionRunner(
+            TurnV2TurnExecutor executor,
+            TurnAttemptLeaseSupervisor heartbeat,
+            @Qualifier("threadPoolExecutor") ThreadPoolExecutor executionExecutor,
+            ScheduledExecutorService scheduler,
+            TurnAttemptCancellationRegistry cancellationRegistry
+    ) {
+        return new TurnAttemptExecutionRunner(
+                executor, heartbeat, executionExecutor, scheduler, cancellationRegistry);
+    }
+
+    @Bean
+    @ConditionalOnBean({
+            TurnAttemptExecutionRunner.class,
+            TurnAttemptInputRecoveryPort.class,
+            TurnControlFacade.class
+    })
+    public TurnAttemptRecoveryCoordinator turnAttemptRecoveryCoordinator(
+            TurnControlFacade control,
+            TurnAttemptInputRecoveryPort inputs,
+            TurnAttemptExecutionRunner runner
+    ) {
+        return new TurnAttemptRecoveryCoordinator(control, inputs, runner);
     }
 }

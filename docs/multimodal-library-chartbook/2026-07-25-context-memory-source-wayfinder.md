@@ -322,6 +322,8 @@ M1 控制面已按以下合同分批落地；生产 HTTP 仍未切入 V2，Plain
 
 本切片补齐 restart/takeover 的 pinned input recovery：新增 `turn_input_binding_json` migration，首次 claim 持久化 clarification、legacy declaration、current attachment refs 与 deterministic memory declaration；`MySqlTurnAttemptInputRecoveryAdapter` 在当前 attempt/epoch 与 lease fence 下，从 durable user message、attachment binding 和声明快照重建 `UserTurnCommand`，并重新验证 input digest。`TurnAttemptRecoveryCoordinator` 只有在 durable takeover 成功且 recovery 完整时才启动 `TurnAttemptExecutionRunner`；payload、binding、digest 或 fence 不一致均 typed fail closed。迁移已在本地 MySQL 执行并重复运行验证幂等；新增 codec、adapter、coordinator 与 migration contract tests，现有 M1 schema 之外仅新增该 recovery payload 列。生产 HTTP/legacy assignment 仍未切入 V2。
 
+本切片把 pinned-input recovery 接入条件化 bootstrap composition：只有完整的 isolated V2 executor graph 才创建专用 scheduler、attempt runner 与 `TurnAttemptRecoveryCoordinator`；runner 明确绑定共享 `threadPoolExecutor`，scheduler 由 Spring 生命周期关闭，避免 `ScheduledThreadPoolExecutor` 的类型继承造成错误注入。legacy HTTP、legacy assignment 与无 V2 graph 的启动路径不创建这些资源；bootstrap contract test 覆盖 runner/coordinator 出现条件与资源组合。本切片没有新增 migration。
+
 ## single-instance-migration-control: Build The Single-Instance Migration Boundary
 
 Blocked by: turn-execution-control
