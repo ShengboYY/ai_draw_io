@@ -9,6 +9,7 @@ import org.zipp.ai.application.turn.ConversationRef;
 import org.zipp.ai.application.turn.ConversationStatus;
 import org.zipp.ai.application.turn.InstanceBootId;
 import org.zipp.ai.application.turn.InstanceLockOutcome;
+import org.zipp.ai.application.turn.LegacyRetryExpiryPort;
 import org.zipp.ai.application.turn.MigrationModeSwitchOutcome;
 import org.zipp.ai.application.turn.MigrationStateSnapshot;
 import org.zipp.ai.application.turn.SingleActiveInstanceLock;
@@ -34,6 +35,7 @@ class TurnApplicationCompositionConfigTest {
             .withBean(StartupOrphanReconciler.class, FakeOrphanReconciler::new)
             .withBean(TurnEngineMigrationStatePort.class, FakeMigrationState::new)
             .withBean(TurnEngineMigrationControlPort.class, FakeMigrationControl::new)
+            .withBean(LegacyRetryExpiryPort.class, FakeExpiry::new)
             .withBean(TurnEngineAssignmentPort.class, FakeAssignments::new)
             .withBean(ConversationCatalogPort.class, FakeConversationCatalog::new)
             .withBean(TurnStartCommitPort.class, FakeTurnStart::new);
@@ -102,6 +104,13 @@ class TurnApplicationCompositionConfigTest {
                 TurnEngineMode targetMode
         ) {
             return new MigrationModeSwitchOutcome.Rejected("TEST_ONLY");
+        }
+    }
+
+    private static final class FakeExpiry implements LegacyRetryExpiryPort {
+        @Override
+        public int expireDue(int batchSize) {
+            return 0;
         }
     }
 

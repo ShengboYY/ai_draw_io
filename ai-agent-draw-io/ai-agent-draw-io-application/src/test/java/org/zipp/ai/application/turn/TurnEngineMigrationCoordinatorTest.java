@@ -21,6 +21,9 @@ class TurnEngineMigrationCoordinatorTest {
                     calls.add("switch:" + expected + "->" + target);
                     return new MigrationModeSwitchOutcome.Changed(
                             new MigrationStateSnapshot(1, target, Instant.parse("2026-07-26T00:00:00Z")));
+                }, batchSize -> {
+                    calls.add("expire:" + batchSize);
+                    return 2;
                 });
 
         MigrationModeSwitchOutcome outcome = coordinator.switchMode(TurnEngineMode.LEGACY, TurnEngineMode.V2_CANARY);
@@ -36,11 +39,27 @@ class TurnEngineMigrationCoordinatorTest {
                 barrier,
                 (expected, target) -> {
                     throw new IllegalStateException("db unavailable");
-                });
+                }, batchSize -> 0);
 
         assertThrows(IllegalStateException.class,
                 () -> coordinator.switchMode(TurnEngineMode.LEGACY, TurnEngineMode.V2_CANARY));
         assertEquals(List.of("pause", "resume"), barrier.calls);
+    }
+
+    @Test
+    void pausesAroundExpiryScannerAndResumesAfterCompletion() {
+        List<String> calls = new ArrayList<>();
+        TurnEngineMigrationCoordinator coordinator = new TurnEngineMigrationCoordinator(
+                new RecordingBarrier(calls),
+                (expected, target) -> new MigrationModeSwitchOutcome.AlreadyAtTarget(
+                        new MigrationStateSnapshot(1, expected, Instant.parse("2026-07-26T00:00:00Z"))),
+                batchSize -> {
+                    calls.add("expire:" + batchSize);
+                    return 3;
+                });
+
+        assertEquals(3, coordinator.expireLegacyRetries(25));
+        assertEquals(List.of("pause", "expire:25", "resume"), calls);
     }
 
     private static final class RecordingBarrier implements AdmissionBarrier {
