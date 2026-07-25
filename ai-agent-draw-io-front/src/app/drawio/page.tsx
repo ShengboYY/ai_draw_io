@@ -4541,8 +4541,18 @@ function DrawioPageContent() {
               />
 
               <div className="mt-auto flex items-center justify-between gap-3 pt-1">
-                {/* File management lives in Files; the composer keeps only lightweight quota status. */}
+                {/* Files owns management; the composer keeps a lightweight upload shortcut. */}
                 <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    aria-label="Add conversation file"
+                    onClick={() => attachmentUploaderRef.current?.openPicker()}
+                    disabled={isSending || !selectedAgentId}
+                    className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-zinc-500 transition-colors hover:bg-stone-100 hover:text-zinc-800 disabled:cursor-not-allowed disabled:opacity-40"
+                    title="Add conversation file"
+                  >
+                    <Icons.Plus className="h-4 w-4" />
+                  </button>
                   {demoQuotaState.visible && !demoQuotaState.exhausted && (
                     <span className="flex items-center gap-1.5 whitespace-nowrap font-mono text-[11px] font-medium text-zinc-500" title={demoQuotaState.label}>
                       <span className={`h-1.5 w-1.5 rounded-full ${demoQuotaState.remaining <= 1 ? 'bg-amber-500' : 'bg-emerald-500'}`} aria-hidden="true" />
