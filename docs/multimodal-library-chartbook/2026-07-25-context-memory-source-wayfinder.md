@@ -318,6 +318,8 @@ M1 控制面已按以下合同分批落地；生产 HTTP 仍未切入 V2，Plain
 
 本切片对齐 explicit cancel 的 durable outcome：`CancelTurnOutcome.Cancelled` 现在携带 MySQL CAS 成功后解码出的 `PersistedTurnOutcome`；adapter 在成功更新后使用 `SELECT ... FOR UPDATE` current read，terminal envelope 缺失或 schema 未知时返回 typed `TerminalUnavailable`，并保留并发 terminal winner 的 replay。新增 explicit-cancel winner adapter contract test；application、infrastructure 与 bootstrap composition 回归通过，本切片没有新增或执行 migration。
 
+本切片补齐 explicit cancel 到本地执行资源的 signal seam：`TurnAttemptCancellationRegistry` 按稳定 `TurnKey` 注册当前 runner，`DefaultTurnControlFacade` 仅在 durable cancel CAS winner 后发送已持久化 outcome；`TurnAttemptExecutionRunner` 用可中断 execution task 关闭当前执行并在完成时注销注册。signal 只负责本地资源停止，断流仍只 detach，数据库 terminal CAS 仍是唯一真相。新增 facade signal 与 runner interrupt contract tests，application 与 bootstrap composition 回归通过，本切片没有新增或执行 migration。
+
 ## single-instance-migration-control: Build The Single-Instance Migration Boundary
 
 Blocked by: turn-execution-control

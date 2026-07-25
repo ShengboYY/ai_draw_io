@@ -9,6 +9,7 @@ import org.zipp.ai.application.turn.FencedAttempt;
 import org.zipp.ai.application.turn.LeaseTimingAnchor;
 import org.zipp.ai.application.turn.PersistedTurnOutcome;
 import org.zipp.ai.application.turn.TurnAttemptLeasePort;
+import org.zipp.ai.application.turn.TurnAttemptCancellationRegistry;
 import org.zipp.ai.application.turn.TurnDeclarations;
 import org.zipp.ai.application.turn.TurnEngineMode;
 import org.zipp.ai.application.turn.TurnEvent;
@@ -198,6 +199,46 @@ class TurnAttemptExecutionRunnerTest {
             assertEquals(TurnStatus.CANCELLED, completion.outcome().status());
             assertEquals(1, deadlineCalls.get());
             release.countDown();
+        } finally {
+            execution.shutdownNow();
+            scheduler.shutdownNow();
+        }
+    }
+
+    @Test
+    void explicitCancelSignalInterruptsExecutionAndCompletesTheHandle() throws Exception {
+        ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
+        ExecutorService execution = Executors.newSingleThreadExecutor();
+        TurnAttemptCancellationRegistry cancellations = new TurnAttemptCancellationRegistry();
+        try {
+            CountDownLatch entered = new CountDownLatch(1);
+            CountDownLatch interrupted = new CountDownLatch(1);
+            TurnV2TurnExecutor executor = executor((accepted, command, events) -> {
+                entered.countDown();
+                try {
+                    Thread.sleep(TimeUnit.SECONDS.toMillis(30));
+                } catch (InterruptedException exception) {
+                    interrupted.countDown();
+                    throw exception;
+                }
+                return new TurnAttemptCompletion.AttemptSelfAborted(
+                        new TurnStatusRef(accepted.key()), "UNEXPECTED_COMPLETION");
+            }, ignored -> { });
+            TurnAttemptExecutionRunner runner = new TurnAttemptExecutionRunner(
+                    executor, supervisor(executor, ignored -> new TurnAttemptLeasePort.LeaseTransientFailure(
+                            Duration.ofSeconds(30))), execution, scheduler, cancellations);
+            PersistedTurnOutcome cancelled = new PersistedTurnOutcome(
+                    TurnStatus.CANCELLED, "CANCELLED_BY_USER", "cancel", null, "{}");
+
+            TurnHandle handle = runner.start(accepted(false), command(), ignored -> { });
+            assertTrue(entered.await(1, TimeUnit.SECONDS));
+            cancellations.signal(accepted(false).key(), cancelled);
+
+            TurnAttemptCompletion.PersistedTerminal completion = assertInstanceOf(
+                    TurnAttemptCompletion.PersistedTerminal.class,
+                    handle.completion().toCompletableFuture().get(1, TimeUnit.SECONDS));
+            assertEquals(cancelled, completion.outcome());
+            assertTrue(interrupted.await(1, TimeUnit.SECONDS));
         } finally {
             execution.shutdownNow();
             scheduler.shutdownNow();

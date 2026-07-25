@@ -4,6 +4,8 @@ import org.zipp.ai.application.turn.FencedAttempt;
 import org.zipp.ai.application.turn.AttemptDeadlineReason;
 import org.zipp.ai.application.turn.DeadlineCancelOutcome;
 import org.zipp.ai.application.turn.LeaseTimingAnchor;
+import org.zipp.ai.application.turn.PersistedTurnOutcome;
+import org.zipp.ai.application.turn.TurnAttemptCancellationRegistry;
 import org.zipp.ai.application.turn.TurnEventSink;
 import org.zipp.ai.application.turn.TurnStatusRef;
 import org.zipp.ai.application.turn.TurnSubmission;
@@ -14,6 +16,7 @@ import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.Executor;
+import java.util.concurrent.FutureTask;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
@@ -36,6 +39,7 @@ public final class TurnAttemptExecutionRunner {
     private final Executor executionExecutor;
     private final ScheduledExecutorService scheduler;
     private final LongSupplier monotonicNanos;
+    private final TurnAttemptCancellationRegistry cancellationRegistry;
 
     public TurnAttemptExecutionRunner(
             TurnV2TurnExecutor executor,
@@ -43,7 +47,18 @@ public final class TurnAttemptExecutionRunner {
             Executor executionExecutor,
             ScheduledExecutorService scheduler
     ) {
-        this(executor, heartbeat, executionExecutor, scheduler, System::nanoTime);
+        this(executor, heartbeat, executionExecutor, scheduler, System::nanoTime, null);
+    }
+
+    public TurnAttemptExecutionRunner(
+            TurnV2TurnExecutor executor,
+            TurnAttemptLeaseSupervisor heartbeat,
+            Executor executionExecutor,
+            ScheduledExecutorService scheduler,
+            TurnAttemptCancellationRegistry cancellationRegistry
+    ) {
+        this(executor, heartbeat, executionExecutor, scheduler,
+                System::nanoTime, cancellationRegistry);
     }
 
     TurnAttemptExecutionRunner(
@@ -53,11 +68,23 @@ public final class TurnAttemptExecutionRunner {
             ScheduledExecutorService scheduler,
             LongSupplier monotonicNanos
     ) {
+        this(executor, heartbeat, executionExecutor, scheduler, monotonicNanos, null);
+    }
+
+    TurnAttemptExecutionRunner(
+            TurnV2TurnExecutor executor,
+            TurnAttemptLeaseSupervisor heartbeat,
+            Executor executionExecutor,
+            ScheduledExecutorService scheduler,
+            LongSupplier monotonicNanos,
+            TurnAttemptCancellationRegistry cancellationRegistry
+    ) {
         this.executor = Objects.requireNonNull(executor, "executor");
         this.heartbeat = Objects.requireNonNull(heartbeat, "heartbeat");
         this.executionExecutor = Objects.requireNonNull(executionExecutor, "executionExecutor");
         this.scheduler = Objects.requireNonNull(scheduler, "scheduler");
         this.monotonicNanos = Objects.requireNonNull(monotonicNanos, "monotonicNanos");
+        this.cancellationRegistry = cancellationRegistry;
     }
 
     public TurnHandle start(
@@ -86,6 +113,7 @@ public final class TurnAttemptExecutionRunner {
 
         AttemptState state = new AttemptState(
                 accepted, command, new DetachableEventSink(events), deadlines);
+        state.registerCancellation();
         if (!state.scheduleHeartbeat(initialDelay(accepted.leaseTiming()))) {
             state.complete(new TurnAttemptCompletion.AttemptSelfAborted(
                     new TurnStatusRef(accepted.key()), "TURN_HEARTBEAT_SCHEDULER_FAILED"));
@@ -97,9 +125,7 @@ public final class TurnAttemptExecutionRunner {
                     new TurnStatusRef(accepted.key()), "TURN_DEADLINE_SCHEDULER_FAILED"));
             return state;
         }
-        try {
-            executionExecutor.execute(state::execute);
-        } catch (RuntimeException exception) {
+        if (!state.dispatch()) {
             state.complete(new TurnAttemptCompletion.AttemptSelfAborted(
                     new TurnStatusRef(accepted.key()), "TURN_EXECUTION_DISPATCH_FAILED"));
         }
@@ -133,6 +159,8 @@ public final class TurnAttemptExecutionRunner {
         private LeaseTimingAnchor timing;
         private ScheduledFuture<?> heartbeatFuture;
         private ScheduledFuture<?> deadlineFuture;
+        private FutureTask<Void> executionTask;
+        private TurnAttemptCancellationRegistry.Registration cancellationRegistration;
         private boolean completed;
 
         private AttemptState(
@@ -164,6 +192,46 @@ public final class TurnAttemptExecutionRunner {
         @Override
         public void detach() {
             events.detach();
+        }
+
+        private void registerCancellation() {
+            if (cancellationRegistry == null) {
+                return;
+            }
+            synchronized (lock) {
+                if (!completed) {
+                    cancellationRegistration = cancellationRegistry.register(
+                            accepted.key(), this::cancel);
+                }
+            }
+        }
+
+        private boolean dispatch() {
+            FutureTask<Void> task = new FutureTask<>(() -> {
+                execute();
+                return null;
+            });
+            synchronized (lock) {
+                if (completed) {
+                    return true;
+                }
+                executionTask = task;
+            }
+            try {
+                executionExecutor.execute(task);
+                return true;
+            } catch (RuntimeException exception) {
+                synchronized (lock) {
+                    if (executionTask == task) {
+                        executionTask = null;
+                    }
+                }
+                return false;
+            }
+        }
+
+        private void cancel(PersistedTurnOutcome outcome) {
+            complete(new TurnAttemptCompletion.PersistedTerminal(outcome), true);
         }
 
         private boolean scheduleHeartbeat(Duration delay) {
@@ -209,38 +277,38 @@ public final class TurnAttemptExecutionRunner {
                 outcome = deadlines.cancel(attempt, AttemptDeadlineReason.EXECUTION_DEADLINE);
             } catch (RuntimeException exception) {
                 complete(new TurnAttemptCompletion.AttemptSelfAborted(
-                        new TurnStatusRef(accepted.key()), "TURN_DEADLINE_FAILED"));
+                        new TurnStatusRef(accepted.key()), "TURN_DEADLINE_FAILED"), true);
                 return;
             }
             if (outcome instanceof TurnAttemptDeadlineOutcome.WriteGateDisabled) {
                 complete(new TurnAttemptCompletion.AttemptSelfAborted(
-                        new TurnStatusRef(accepted.key()), "TURN_WRITE_GATE_DISABLED"));
+                        new TurnStatusRef(accepted.key()), "TURN_WRITE_GATE_DISABLED"), true);
                 return;
             }
             DeadlineCancelOutcome delegated =
                     ((TurnAttemptDeadlineOutcome.Delegated) outcome).outcome();
             if (delegated instanceof DeadlineCancelOutcome.Cancelled cancelled) {
-                complete(new TurnAttemptCompletion.PersistedTerminal(cancelled.outcome()));
+                complete(new TurnAttemptCompletion.PersistedTerminal(cancelled.outcome()), true);
                 return;
             }
             if (delegated instanceof DeadlineCancelOutcome.AlreadyTerminal terminal) {
-                complete(new TurnAttemptCompletion.PersistedTerminal(terminal.outcome()));
+                complete(new TurnAttemptCompletion.PersistedTerminal(terminal.outcome()), true);
                 return;
             }
             if (delegated instanceof DeadlineCancelOutcome.FenceLost lost) {
                 complete(new TurnAttemptCompletion.AttemptOwnershipLost(
-                        new TurnStatusRef(lost.status().key())));
+                        new TurnStatusRef(lost.status().key())), true);
                 return;
             }
             if (delegated instanceof DeadlineCancelOutcome.TerminalUnavailable unavailable) {
                 complete(new TurnAttemptCompletion.StatusOnly(
-                        new TurnStatusRef(unavailable.status().key()), unavailable.code()));
+                        new TurnStatusRef(unavailable.status().key()), unavailable.code()), true);
                 return;
             }
             DeadlineCancelOutcome.TransientFailure transientFailure =
                     (DeadlineCancelOutcome.TransientFailure) delegated;
             complete(new TurnAttemptCompletion.AttemptSelfAborted(
-                    new TurnStatusRef(accepted.key()), transientFailure.code()));
+                    new TurnStatusRef(accepted.key()), transientFailure.code()), true);
         }
 
         private void heartbeatTick() {
@@ -281,23 +349,23 @@ public final class TurnAttemptExecutionRunner {
                 return;
             }
             if (outcome instanceof TurnAttemptHeartbeatOutcome.OwnershipLost lost) {
-                complete(new TurnAttemptCompletion.AttemptOwnershipLost(lost.status()));
+                complete(new TurnAttemptCompletion.AttemptOwnershipLost(lost.status()), true);
                 return;
             }
             if (outcome instanceof TurnAttemptHeartbeatOutcome.PersistedTerminal terminal) {
-                complete(new TurnAttemptCompletion.PersistedTerminal(terminal.outcome()));
+                complete(new TurnAttemptCompletion.PersistedTerminal(terminal.outcome()), true);
                 return;
             }
             TurnAttemptHeartbeatOutcome.Unavailable unavailable =
                     (TurnAttemptHeartbeatOutcome.Unavailable) outcome;
             complete(new TurnAttemptCompletion.StatusOnly(
-                    unavailable.status(), unavailable.code()));
+                    unavailable.status(), unavailable.code()), true);
         }
 
         private void rescheduleHeartbeat(Duration delay) {
             if (!scheduleHeartbeat(delay)) {
                 complete(new TurnAttemptCompletion.AttemptSelfAborted(
-                        new TurnStatusRef(accepted.key()), "TURN_HEARTBEAT_SCHEDULER_FAILED"));
+                        new TurnStatusRef(accepted.key()), "TURN_HEARTBEAT_SCHEDULER_FAILED"), true);
             }
         }
 
@@ -313,8 +381,14 @@ public final class TurnAttemptExecutionRunner {
         }
 
         private void complete(TurnAttemptCompletion result) {
+            complete(result, false);
+        }
+
+        private void complete(TurnAttemptCompletion result, boolean interruptExecution) {
             Objects.requireNonNull(result, "result");
             ScheduledFuture<?> scheduled;
+            FutureTask<Void> task;
+            TurnAttemptCancellationRegistry.Registration registration;
             synchronized (lock) {
                 if (completed) {
                     return;
@@ -325,9 +399,19 @@ public final class TurnAttemptExecutionRunner {
                 if (deadline != null) {
                     deadline.cancel(false);
                 }
+                task = executionTask;
+                executionTask = null;
+                registration = cancellationRegistration;
+                cancellationRegistration = null;
+            }
+            if (registration != null) {
+                registration.close();
             }
             if (scheduled != null) {
                 scheduled.cancel(false);
+            }
+            if (task != null && !task.isDone()) {
+                task.cancel(interruptExecution);
             }
             completion.complete(result);
         }

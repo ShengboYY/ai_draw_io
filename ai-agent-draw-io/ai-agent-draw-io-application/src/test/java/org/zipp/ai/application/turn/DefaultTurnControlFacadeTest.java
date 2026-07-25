@@ -3,6 +3,7 @@ package org.zipp.ai.application.turn;
 import org.junit.jupiter.api.Test;
 
 import java.time.Instant;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
@@ -56,6 +57,35 @@ class DefaultTurnControlFacadeTest {
 
         assertEquals("OWNER_MISMATCH", rejected.code());
         assertEquals(false, called[0]);
+    }
+
+    @Test
+    void signalsTheCurrentAttemptOnlyAfterExplicitCancelWinsDurableCas() {
+        TurnKey key = new TurnKey("owner-a", "conversation-1", "turn-1");
+        PersistedTurnOutcome expected = new PersistedTurnOutcome(
+                TurnStatus.CANCELLED, "CANCELLED_BY_USER", "cancel", null, "{}");
+        AtomicReference<TurnKey> signaledKey = new AtomicReference<>();
+        AtomicReference<PersistedTurnOutcome> signaledOutcome = new AtomicReference<>();
+        TurnControlFacade facade = new DefaultTurnControlFacade(
+                (actor, query) -> new TurnStatusQueryOutcome.Available(status(query.key())),
+                (actor, command) -> new CancelTurnOutcome.Cancelled(expected),
+                attempt -> new TurnAttemptLeasePort.LeaseTransientFailure(java.time.Duration.ofSeconds(1)),
+                (attempt, reason) -> new DeadlineCancelOutcome.TransientFailure("TEST_ONLY"),
+                ignored -> new TurnAttemptTakeoverPort.Rejected("TEST_ONLY"),
+                new OpenAdmissionBarrier(),
+                (signaledKeyValue, signaledOutcomeValue) -> {
+                    signaledKey.set(signaledKeyValue);
+                    signaledOutcome.set(signaledOutcomeValue);
+                });
+
+        CancelTurnOutcome.Cancelled outcome = assertInstanceOf(
+                CancelTurnOutcome.Cancelled.class,
+                facade.cancel(new AuthenticatedActor("owner-a", "cohort-a"),
+                        new CancelTurnCommand(key, "user requested")));
+
+        assertEquals(expected, outcome.outcome());
+        assertEquals(key, signaledKey.get());
+        assertEquals(expected, signaledOutcome.get());
     }
 
     @Test

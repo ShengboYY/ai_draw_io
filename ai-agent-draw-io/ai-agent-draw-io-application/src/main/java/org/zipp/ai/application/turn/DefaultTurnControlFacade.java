@@ -11,6 +11,7 @@ public final class DefaultTurnControlFacade implements TurnControlFacade {
     private final AttemptDeadlineCancellationPort deadlines;
     private final TurnAttemptTakeoverPort takeovers;
     private final AdmissionBarrier admissionBarrier;
+    private final TurnAttemptCancellationSignalPort cancellationSignals;
 
     public DefaultTurnControlFacade(
             TurnStatusQueryPort status,
@@ -20,12 +21,26 @@ public final class DefaultTurnControlFacade implements TurnControlFacade {
             TurnAttemptTakeoverPort takeovers,
             AdmissionBarrier admissionBarrier
     ) {
+        this(status, cancellation, leases, deadlines, takeovers, admissionBarrier,
+                (key, outcome) -> { });
+    }
+
+    public DefaultTurnControlFacade(
+            TurnStatusQueryPort status,
+            ExplicitTurnCancellationPort cancellation,
+            TurnAttemptLeasePort leases,
+            AttemptDeadlineCancellationPort deadlines,
+            TurnAttemptTakeoverPort takeovers,
+            AdmissionBarrier admissionBarrier,
+            TurnAttemptCancellationSignalPort cancellationSignals
+    ) {
         this.status = Objects.requireNonNull(status, "status");
         this.cancellation = Objects.requireNonNull(cancellation, "cancellation");
         this.leases = Objects.requireNonNull(leases, "leases");
         this.deadlines = Objects.requireNonNull(deadlines, "deadlines");
         this.takeovers = Objects.requireNonNull(takeovers, "takeovers");
         this.admissionBarrier = Objects.requireNonNull(admissionBarrier, "admissionBarrier");
+        this.cancellationSignals = Objects.requireNonNull(cancellationSignals, "cancellationSignals");
     }
 
     @Override
@@ -47,7 +62,16 @@ public final class DefaultTurnControlFacade implements TurnControlFacade {
             // Cancellation is owner-fenced before it can reach a repository adapter.
             return new CancelTurnOutcome.Rejected("OWNER_MISMATCH");
         }
-        return cancellation.cancel(actor, command);
+        CancelTurnOutcome outcome = cancellation.cancel(actor, command);
+        if (outcome instanceof CancelTurnOutcome.Cancelled cancelled) {
+            try {
+                // The database winner is already durable; local delivery is best effort.
+                cancellationSignals.signal(command.key(), cancelled.outcome());
+            } catch (RuntimeException ignored) {
+                // A local runner failure must not turn a persisted cancel into an API failure.
+            }
+        }
+        return outcome;
     }
 
     @Override

@@ -62,6 +62,7 @@ class TurnApplicationCompositionConfigTest {
         contextRunner.run(context -> {
             assertThat(context).hasSingleBean(org.zipp.ai.application.turn.DiagramTurnFacade.class);
             assertThat(context).hasSingleBean(org.zipp.ai.application.turn.TurnAdmissionGate.class);
+            assertThat(context).hasSingleBean(org.zipp.ai.application.turn.TurnAttemptCancellationRegistry.class);
             assertThat(context.getBean(org.zipp.ai.application.turn.TurnAdmissionGate.class).isOpen()).isFalse();
 
             org.springframework.boot.ApplicationRunner runner = context.getBean(org.springframework.boot.ApplicationRunner.class);

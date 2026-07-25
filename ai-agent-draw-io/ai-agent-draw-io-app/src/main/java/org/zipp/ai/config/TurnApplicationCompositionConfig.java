@@ -32,6 +32,8 @@ import org.zipp.ai.application.turn.ExplicitTurnCancellationPort;
 import org.zipp.ai.application.turn.TurnAttemptLeasePort;
 import org.zipp.ai.application.turn.AttemptDeadlineCancellationPort;
 import org.zipp.ai.application.turn.TurnAttemptTakeoverPort;
+import org.zipp.ai.application.turn.TurnAttemptCancellationRegistry;
+import org.zipp.ai.application.turn.TurnAttemptCancellationSignalPort;
 
 import java.util.UUID;
 
@@ -100,16 +102,23 @@ public class TurnApplicationCompositionConfig {
     }
 
     @Bean
+    public TurnAttemptCancellationRegistry turnAttemptCancellationRegistry() {
+        return new TurnAttemptCancellationRegistry();
+    }
+
+    @Bean
     public TurnControlFacade turnControlFacade(
             TurnStatusQueryPort status,
             ExplicitTurnCancellationPort cancellation,
             TurnAttemptLeasePort leases,
             AttemptDeadlineCancellationPort deadlines,
             TurnAttemptTakeoverPort takeovers,
-            AdmissionBarrier admissionBarrier
+            AdmissionBarrier admissionBarrier,
+            TurnAttemptCancellationSignalPort cancellationSignals
     ) {
         return new DefaultTurnControlFacade(
-                status, cancellation, leases, deadlines, takeovers, admissionBarrier);
+                status, cancellation, leases, deadlines, takeovers, admissionBarrier,
+                cancellationSignals);
     }
 
     @Bean
