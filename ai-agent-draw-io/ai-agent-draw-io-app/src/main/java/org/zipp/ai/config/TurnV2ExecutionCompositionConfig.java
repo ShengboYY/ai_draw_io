@@ -1,5 +1,6 @@
 package org.zipp.ai.config;
 
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
@@ -18,6 +19,7 @@ import org.zipp.ai.application.turn.TurnAttemptCancellationRegistry;
 import org.zipp.ai.application.turn.TurnAttemptInputRecoveryPort;
 import org.zipp.ai.application.turn.TurnControlFacade;
 import org.zipp.ai.application.turn.TurnWriteGate;
+import org.zipp.ai.application.turn.TurnLifecycleTracePort;
 import org.zipp.ai.application.turn.checkpoint.TurnDecisionCoordinator;
 import org.zipp.ai.application.turn.context.ContextAssemblyCoordinator;
 import org.zipp.ai.application.turn.execution.DefaultTurnV2ExecutionCoordinator;
@@ -139,10 +141,12 @@ public class TurnV2ExecutionCompositionConfig {
             TurnAttemptLeaseSupervisor heartbeat,
             @Qualifier("threadPoolExecutor") ThreadPoolExecutor executionExecutor,
             ScheduledExecutorService scheduler,
-            TurnAttemptCancellationRegistry cancellationRegistry
+            TurnAttemptCancellationRegistry cancellationRegistry,
+            ObjectProvider<TurnLifecycleTracePort> trace
     ) {
         return new TurnAttemptExecutionRunner(
-                executor, heartbeat, executionExecutor, scheduler, cancellationRegistry);
+                executor, heartbeat, executionExecutor, scheduler, cancellationRegistry,
+                trace.getIfAvailable(() -> org.zipp.ai.application.turn.NoopTurnLifecycleTracePort.INSTANCE));
     }
 
     @Bean

@@ -7,6 +7,10 @@ import org.zipp.ai.application.turn.LeaseTimingAnchor;
 import org.zipp.ai.application.turn.PersistedTurnOutcome;
 import org.zipp.ai.application.turn.TurnAttemptCancellationRegistry;
 import org.zipp.ai.application.turn.TurnEventSink;
+import org.zipp.ai.application.turn.TurnLifecycleTraceEvent;
+import org.zipp.ai.application.turn.TurnLifecycleTracePort;
+import org.zipp.ai.application.turn.TurnLifecycleTraceType;
+import org.zipp.ai.application.turn.NoopTurnLifecycleTracePort;
 import org.zipp.ai.application.turn.TurnStatusRef;
 import org.zipp.ai.application.turn.TurnSubmission;
 import org.zipp.ai.application.turn.UserTurnCommand;
@@ -40,6 +44,7 @@ public final class TurnAttemptExecutionRunner {
     private final ScheduledExecutorService scheduler;
     private final LongSupplier monotonicNanos;
     private final TurnAttemptCancellationRegistry cancellationRegistry;
+    private final TurnLifecycleTracePort trace;
 
     public TurnAttemptExecutionRunner(
             TurnV2TurnExecutor executor,
@@ -47,7 +52,19 @@ public final class TurnAttemptExecutionRunner {
             Executor executionExecutor,
             ScheduledExecutorService scheduler
     ) {
-        this(executor, heartbeat, executionExecutor, scheduler, System::nanoTime, null);
+        this(executor, heartbeat, executionExecutor, scheduler, System::nanoTime, null,
+                NoopTurnLifecycleTracePort.INSTANCE);
+    }
+
+    public TurnAttemptExecutionRunner(
+            TurnV2TurnExecutor executor,
+            TurnAttemptLeaseSupervisor heartbeat,
+            Executor executionExecutor,
+            ScheduledExecutorService scheduler,
+            TurnLifecycleTracePort trace
+    ) {
+        this(executor, heartbeat, executionExecutor, scheduler,
+                System::nanoTime, null, trace);
     }
 
     public TurnAttemptExecutionRunner(
@@ -58,7 +75,19 @@ public final class TurnAttemptExecutionRunner {
             TurnAttemptCancellationRegistry cancellationRegistry
     ) {
         this(executor, heartbeat, executionExecutor, scheduler,
-                System::nanoTime, cancellationRegistry);
+                System::nanoTime, cancellationRegistry, NoopTurnLifecycleTracePort.INSTANCE);
+    }
+
+    public TurnAttemptExecutionRunner(
+            TurnV2TurnExecutor executor,
+            TurnAttemptLeaseSupervisor heartbeat,
+            Executor executionExecutor,
+            ScheduledExecutorService scheduler,
+            TurnAttemptCancellationRegistry cancellationRegistry,
+            TurnLifecycleTracePort trace
+    ) {
+        this(executor, heartbeat, executionExecutor, scheduler,
+                System::nanoTime, cancellationRegistry, trace);
     }
 
     TurnAttemptExecutionRunner(
@@ -68,7 +97,8 @@ public final class TurnAttemptExecutionRunner {
             ScheduledExecutorService scheduler,
             LongSupplier monotonicNanos
     ) {
-        this(executor, heartbeat, executionExecutor, scheduler, monotonicNanos, null);
+        this(executor, heartbeat, executionExecutor, scheduler, monotonicNanos, null,
+                NoopTurnLifecycleTracePort.INSTANCE);
     }
 
     TurnAttemptExecutionRunner(
@@ -77,7 +107,8 @@ public final class TurnAttemptExecutionRunner {
             Executor executionExecutor,
             ScheduledExecutorService scheduler,
             LongSupplier monotonicNanos,
-            TurnAttemptCancellationRegistry cancellationRegistry
+            TurnAttemptCancellationRegistry cancellationRegistry,
+            TurnLifecycleTracePort trace
     ) {
         this.executor = Objects.requireNonNull(executor, "executor");
         this.heartbeat = Objects.requireNonNull(heartbeat, "heartbeat");
@@ -85,6 +116,7 @@ public final class TurnAttemptExecutionRunner {
         this.scheduler = Objects.requireNonNull(scheduler, "scheduler");
         this.monotonicNanos = Objects.requireNonNull(monotonicNanos, "monotonicNanos");
         this.cancellationRegistry = cancellationRegistry;
+        this.trace = Objects.requireNonNull(trace, "trace");
     }
 
     public TurnHandle start(
@@ -113,6 +145,8 @@ public final class TurnAttemptExecutionRunner {
 
         AttemptState state = new AttemptState(
                 accepted, command, new DetachableEventSink(events), deadlines);
+        state.trace(TurnLifecycleTraceEvent.fromAttempt(
+                TurnLifecycleTraceType.ATTEMPT_STARTED, accepted.attempt(), "STARTED", null));
         state.registerCancellation();
         if (!state.scheduleHeartbeat(initialDelay(accepted.leaseTiming()))) {
             state.complete(new TurnAttemptCompletion.AttemptSelfAborted(
@@ -192,6 +226,18 @@ public final class TurnAttemptExecutionRunner {
         @Override
         public void detach() {
             events.detach();
+            FencedAttempt detachedAttempt;
+            synchronized (lock) {
+                detachedAttempt = completed ? null : currentAttempt;
+            }
+            if (detachedAttempt != null) {
+                trace(TurnLifecycleTraceEvent.fromAttempt(
+                        TurnLifecycleTraceType.DETACH, detachedAttempt, "DETACHED", null));
+            }
+        }
+
+        private void trace(TurnLifecycleTraceEvent event) {
+            TurnAttemptExecutionRunner.this.trace.recordSafely(event);
         }
 
         private void registerCancellation() {
@@ -341,6 +387,8 @@ public final class TurnAttemptExecutionRunner {
                     currentAttempt = renewed.attempt();
                     timing = renewed.timing();
                 }
+                trace(TurnLifecycleTraceEvent.fromAttempt(
+                        TurnLifecycleTraceType.LEASE_RENEWED, renewed.attempt(), "RENEWED", null));
                 rescheduleHeartbeat(delayUntilDue(renewed.timing()));
                 return;
             }
@@ -389,6 +437,7 @@ public final class TurnAttemptExecutionRunner {
             ScheduledFuture<?> scheduled;
             FutureTask<Void> task;
             TurnAttemptCancellationRegistry.Registration registration;
+            FencedAttempt tracedAttempt;
             synchronized (lock) {
                 if (completed) {
                     return;
@@ -403,6 +452,7 @@ public final class TurnAttemptExecutionRunner {
                 executionTask = null;
                 registration = cancellationRegistration;
                 cancellationRegistration = null;
+                tracedAttempt = currentAttempt;
             }
             if (registration != null) {
                 registration.close();
@@ -413,7 +463,27 @@ public final class TurnAttemptExecutionRunner {
             if (task != null && !task.isDone()) {
                 task.cancel(interruptExecution);
             }
+            traceCompletion(tracedAttempt, result);
             completion.complete(result);
+        }
+
+        private void traceCompletion(FencedAttempt attempt, TurnAttemptCompletion result) {
+            if (result instanceof TurnAttemptCompletion.PersistedTerminal terminal) {
+                trace(TurnLifecycleTraceEvent.fromAttempt(
+                        TurnLifecycleTraceType.ATTEMPT_COMPLETED,
+                        attempt,
+                        terminal.outcome().terminalCode(),
+                        terminal.outcome().status()));
+            } else if (result instanceof TurnAttemptCompletion.AttemptSelfAborted aborted) {
+                trace(TurnLifecycleTraceEvent.fromAttempt(
+                        TurnLifecycleTraceType.ATTEMPT_COMPLETED, attempt, aborted.code(), null));
+            } else if (result instanceof TurnAttemptCompletion.StatusOnly statusOnly) {
+                trace(TurnLifecycleTraceEvent.fromAttempt(
+                        TurnLifecycleTraceType.ATTEMPT_COMPLETED, attempt, statusOnly.code(), null));
+            } else {
+                trace(TurnLifecycleTraceEvent.fromAttempt(
+                        TurnLifecycleTraceType.ATTEMPT_COMPLETED, attempt, "OWNERSHIP_LOST", null));
+            }
         }
     }
 

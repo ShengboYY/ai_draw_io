@@ -1,5 +1,6 @@
 package org.zipp.ai.config;
 
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.context.annotation.Bean;
@@ -34,6 +35,8 @@ import org.zipp.ai.application.turn.AttemptDeadlineCancellationPort;
 import org.zipp.ai.application.turn.TurnAttemptTakeoverPort;
 import org.zipp.ai.application.turn.TurnAttemptCancellationRegistry;
 import org.zipp.ai.application.turn.TurnAttemptCancellationSignalPort;
+import org.zipp.ai.application.turn.NoopTurnLifecycleTracePort;
+import org.zipp.ai.application.turn.TurnLifecycleTracePort;
 
 import java.util.UUID;
 
@@ -90,10 +93,12 @@ public class TurnApplicationCompositionConfig {
             TurnAdmissionProfilePort profile,
             TurnEngineAdmissionService admission,
             TurnStartCommitPort turnStart,
-            TurnAdmissionGate admissionGate
+            TurnAdmissionGate admissionGate,
+            ObjectProvider<TurnLifecycleTracePort> trace
     ) {
         return new DefaultDiagramTurnFacade(
-                conversations, conversationResolver, profile, admission, turnStart, admissionGate);
+                conversations, conversationResolver, profile, admission, turnStart, admissionGate,
+                trace.getIfAvailable(() -> NoopTurnLifecycleTracePort.INSTANCE));
     }
 
     @Bean
@@ -114,11 +119,12 @@ public class TurnApplicationCompositionConfig {
             AttemptDeadlineCancellationPort deadlines,
             TurnAttemptTakeoverPort takeovers,
             AdmissionBarrier admissionBarrier,
-            TurnAttemptCancellationSignalPort cancellationSignals
+            TurnAttemptCancellationSignalPort cancellationSignals,
+            ObjectProvider<TurnLifecycleTracePort> trace
     ) {
         return new DefaultTurnControlFacade(
                 status, cancellation, leases, deadlines, takeovers, admissionBarrier,
-                cancellationSignals);
+                cancellationSignals, trace.getIfAvailable(() -> NoopTurnLifecycleTracePort.INSTANCE));
     }
 
     @Bean

@@ -3,6 +3,7 @@ package org.zipp.ai.application.turn;
 import org.junit.jupiter.api.Test;
 
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.CountDownLatch;
@@ -57,6 +58,7 @@ class DefaultDiagramTurnFacadeTest {
                 () -> migration(),
                 ignored -> new AdmissionWriteOutcome.Assigned(assignment),
                 new OpenAdmissionBarrier());
+        List<TurnLifecycleTraceEvent> traces = new ArrayList<>();
         DefaultDiagramTurnFacade facade = new DefaultDiagramTurnFacade(
                 catalog,
                 new ConversationReferenceResolver(),
@@ -66,7 +68,8 @@ class DefaultDiagramTurnFacadeTest {
                     started.set(commandToStart);
                     return new TurnStartOutcome.Claimed(attempt, 42);
                 },
-                new OpenAdmissionBarrier());
+                new OpenAdmissionBarrier(),
+                traces::add);
 
         TurnSubmission submission = facade.execute(actor, command, ignored -> {
             throw new AssertionError("claim does not publish delivery events");
@@ -80,6 +83,10 @@ class DefaultDiagramTurnFacadeTest {
         assertEquals(command.content(), started.get().userMessage());
         assertEquals(TurnInputBindingDigestCalculator.current(command), started.get().inputBindingDigest());
         assertEquals(accepted.attempt().lease(), accepted.leaseTiming().lease());
+        assertEquals(List.of(TurnLifecycleTraceType.ASSIGNMENT, TurnLifecycleTraceType.CLAIM),
+                traces.stream().map(TurnLifecycleTraceEvent::type).toList());
+        assertEquals(assignment.policy().policyHash(), traces.get(0).policyHash());
+        assertEquals(accepted.attempt().inputBindingDigest(), traces.get(1).inputBindingDigest());
     }
 
     @Test

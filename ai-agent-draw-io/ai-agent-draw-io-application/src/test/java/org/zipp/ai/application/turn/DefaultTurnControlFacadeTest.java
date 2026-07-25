@@ -3,6 +3,8 @@ package org.zipp.ai.application.turn;
 import org.junit.jupiter.api.Test;
 
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -66,6 +68,7 @@ class DefaultTurnControlFacadeTest {
                 TurnStatus.CANCELLED, "CANCELLED_BY_USER", "cancel", null, "{}");
         AtomicReference<TurnKey> signaledKey = new AtomicReference<>();
         AtomicReference<PersistedTurnOutcome> signaledOutcome = new AtomicReference<>();
+        List<TurnLifecycleTraceEvent> traces = new ArrayList<>();
         TurnControlFacade facade = new DefaultTurnControlFacade(
                 (actor, query) -> new TurnStatusQueryOutcome.Available(status(query.key())),
                 (actor, command) -> new CancelTurnOutcome.Cancelled(expected),
@@ -76,7 +79,8 @@ class DefaultTurnControlFacadeTest {
                 (signaledKeyValue, signaledOutcomeValue) -> {
                     signaledKey.set(signaledKeyValue);
                     signaledOutcome.set(signaledOutcomeValue);
-                });
+                },
+                traces::add);
 
         CancelTurnOutcome.Cancelled outcome = assertInstanceOf(
                 CancelTurnOutcome.Cancelled.class,
@@ -86,6 +90,10 @@ class DefaultTurnControlFacadeTest {
         assertEquals(expected, outcome.outcome());
         assertEquals(key, signaledKey.get());
         assertEquals(expected, signaledOutcome.get());
+        assertEquals(List.of(TurnLifecycleTraceType.CANCEL),
+                traces.stream().map(TurnLifecycleTraceEvent::type).toList());
+        assertEquals("CANCELLED_BY_USER", traces.get(0).outcomeCode());
+        assertEquals(TurnStatus.CANCELLED, traces.get(0).outcomeStatus());
     }
 
     @Test

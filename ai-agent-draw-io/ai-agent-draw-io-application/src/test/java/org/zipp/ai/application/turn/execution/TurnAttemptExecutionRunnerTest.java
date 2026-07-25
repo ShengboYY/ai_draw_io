@@ -15,6 +15,8 @@ import org.zipp.ai.application.turn.TurnEngineMode;
 import org.zipp.ai.application.turn.TurnEvent;
 import org.zipp.ai.application.turn.TurnEventSink;
 import org.zipp.ai.application.turn.TurnKey;
+import org.zipp.ai.application.turn.TurnLifecycleTraceEvent;
+import org.zipp.ai.application.turn.TurnLifecycleTraceType;
 import org.zipp.ai.application.turn.TurnStatus;
 import org.zipp.ai.application.turn.TurnStatusRef;
 import org.zipp.ai.application.turn.TurnSubmission;
@@ -22,6 +24,8 @@ import org.zipp.ai.application.turn.UserTurnCommand;
 
 import java.time.Instant;
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -69,6 +73,7 @@ class TurnAttemptExecutionRunnerTest {
             CountDownLatch firstEvent = new CountDownLatch(1);
             CountDownLatch release = new CountDownLatch(1);
             AtomicInteger delivered = new AtomicInteger();
+            List<TurnLifecycleTraceEvent> traces = new ArrayList<>();
             TurnV2TurnExecutor executor = executor((accepted, command, events) -> {
                 events.publish(new TurnEvent("progress", "before-detach", Instant.now()));
                 firstEvent.countDown();
@@ -79,7 +84,7 @@ class TurnAttemptExecutionRunnerTest {
             }, ignored -> { });
             TurnAttemptExecutionRunner runner = new TurnAttemptExecutionRunner(
                     executor, supervisor(executor, ignored -> new TurnAttemptLeasePort.LeaseTransientFailure(
-                            java.time.Duration.ofSeconds(30))), execution, scheduler);
+                            java.time.Duration.ofSeconds(30))), execution, scheduler, traces::add);
 
             TurnHandle handle = runner.start(accepted(false), command(), event -> delivered.incrementAndGet());
             assertTrue(firstEvent.await(1, TimeUnit.SECONDS));
@@ -91,6 +96,12 @@ class TurnAttemptExecutionRunnerTest {
                     handle.completion().toCompletableFuture().get(1, TimeUnit.SECONDS));
             assertEquals("TEST_COMPLETION", completion.code());
             assertEquals(1, delivered.get());
+            assertTrue(traces.stream().anyMatch(event ->
+                    event.type() == TurnLifecycleTraceType.ATTEMPT_STARTED));
+            assertTrue(traces.stream().anyMatch(event ->
+                    event.type() == TurnLifecycleTraceType.DETACH));
+            assertTrue(traces.stream().anyMatch(event ->
+                    event.type() == TurnLifecycleTraceType.ATTEMPT_COMPLETED));
         } finally {
             execution.shutdownNow();
             scheduler.shutdownNow();

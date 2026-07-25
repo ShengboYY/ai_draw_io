@@ -14,6 +14,7 @@ public final class DefaultDiagramTurnFacade implements DiagramTurnFacade {
     private final TurnEngineAdmissionService admission;
     private final TurnStartCommitPort turnStart;
     private final AdmissionBarrier admissionGate;
+    private final TurnLifecycleTracePort trace;
 
     public DefaultDiagramTurnFacade(
             ConversationCatalogPort conversations,
@@ -23,12 +24,26 @@ public final class DefaultDiagramTurnFacade implements DiagramTurnFacade {
             TurnStartCommitPort turnStart,
             AdmissionBarrier admissionGate
     ) {
+        this(conversations, conversationResolver, profile, admission, turnStart, admissionGate,
+                NoopTurnLifecycleTracePort.INSTANCE);
+    }
+
+    public DefaultDiagramTurnFacade(
+            ConversationCatalogPort conversations,
+            ConversationReferenceResolver conversationResolver,
+            TurnAdmissionProfilePort profile,
+            TurnEngineAdmissionService admission,
+            TurnStartCommitPort turnStart,
+            AdmissionBarrier admissionGate,
+            TurnLifecycleTracePort trace
+    ) {
         this.conversations = Objects.requireNonNull(conversations, "conversations");
         this.conversationResolver = Objects.requireNonNull(conversationResolver, "conversationResolver");
         this.profile = Objects.requireNonNull(profile, "profile");
         this.admission = Objects.requireNonNull(admission, "admission");
         this.turnStart = Objects.requireNonNull(turnStart, "turnStart");
         this.admissionGate = Objects.requireNonNull(admissionGate, "admissionGate");
+        this.trace = Objects.requireNonNull(trace, "trace");
     }
 
     @Override
@@ -81,6 +96,16 @@ public final class DefaultDiagramTurnFacade implements DiagramTurnFacade {
         TurnEngineAssignment assignment = admissionOutcome instanceof AdmissionWriteOutcome.Assigned assigned
                 ? assigned.assignment()
                 : ((AdmissionWriteOutcome.Reused) admissionOutcome).assignment();
+        String inputBindingDigest = TurnInputBindingDigestCalculator.current(command);
+        trace.recordSafely(TurnLifecycleTraceEvent.of(
+                TurnLifecycleTraceType.ASSIGNMENT,
+                key,
+                null,
+                0,
+                assignment.policy().policyHash(),
+                inputBindingDigest,
+                admissionOutcome instanceof AdmissionWriteOutcome.Assigned ? "ASSIGNED" : "REUSED",
+                null));
         long callStartedNanos = System.nanoTime();
         TurnStartOutcome startOutcome = turnStart.start(new TurnStartCommand(
                 key,
@@ -90,23 +115,55 @@ public final class DefaultDiagramTurnFacade implements DiagramTurnFacade {
                 command.clientMessageId(),
                 command.declarations().currentTurnAttachments(),
                 command.declarations(),
-                TurnInputBindingDigestCalculator.current(command)));
+                inputBindingDigest));
         if (startOutcome instanceof TurnStartOutcome.Claimed claimed) {
+            trace.recordSafely(TurnLifecycleTraceEvent.fromAttempt(
+                    TurnLifecycleTraceType.CLAIM, claimed.attempt(), "CLAIMED", TurnStatus.RUNNING));
             return new TurnSubmission.ExecutionAccepted(
                     key,
                     claimed.attempt(),
                     new LeaseTimingAnchor(callStartedNanos, claimed.attempt().lease()));
         }
         if (startOutcome instanceof TurnStartOutcome.AlreadyRunning running) {
+            trace.recordSafely(statusTrace(
+                    key, assignment, inputBindingDigest, running.status(), "ALREADY_RUNNING"));
             return new TurnSubmission.AlreadyRunning(key, running.status());
         }
         if (startOutcome instanceof TurnStartOutcome.TerminalReplay replay) {
+            trace.recordSafely(TurnLifecycleTraceEvent.of(
+                    TurnLifecycleTraceType.CLAIM, key, null, 0,
+                    assignment.policy().policyHash(), inputBindingDigest, "TERMINAL_REPLAY",
+                    replay.outcome().status()));
             return new TurnSubmission.TerminalReplay(key, replay.outcome());
         }
         if (startOutcome instanceof TurnStartOutcome.TerminalUnavailable unavailable) {
+            trace.recordSafely(statusTrace(
+                    key, assignment, inputBindingDigest, unavailable.status(), unavailable.code()));
             return new TurnSubmission.TerminalUnavailable(key, unavailable.status(), unavailable.code());
         }
-        return admissionRejection(key, ((TurnStartOutcome.Rejected) startOutcome).code());
+        String code = ((TurnStartOutcome.Rejected) startOutcome).code();
+        trace.recordSafely(TurnLifecycleTraceEvent.of(
+                TurnLifecycleTraceType.CLAIM, key, null, 0,
+                assignment.policy().policyHash(), inputBindingDigest, code, null));
+        return admissionRejection(key, code);
+    }
+
+    private TurnLifecycleTraceEvent statusTrace(
+            TurnKey key,
+            TurnEngineAssignment assignment,
+            String inputBindingDigest,
+            TurnStatusView status,
+            String outcomeCode
+    ) {
+        return TurnLifecycleTraceEvent.of(
+                TurnLifecycleTraceType.CLAIM,
+                key,
+                status.attemptId(),
+                status.attemptEpoch(),
+                assignment.policy().policyHash(),
+                inputBindingDigest,
+                outcomeCode,
+                status.status());
     }
 
     private TurnSubmission admissionRejection(TurnKey key, String code) {

@@ -40,4 +40,21 @@ class TurnExecutionControlMigrationContractTest {
         assertTrue(sql.contains("AFTER turn_input_binding_digest"));
         assertTrue(sql.contains("information_schema.COLUMNS"));
     }
+
+    @Test
+    void lifecycleTraceMigrationStoresOnlyRedactedEvidenceColumns() throws Exception {
+        Path migration = Path.of("docs/sql/migrations/2026-07-28-create-turn-lifecycle-trace.sql");
+        if (!Files.exists(migration)) {
+            migration = Path.of("../docs/sql/migrations/2026-07-28-create-turn-lifecycle-trace.sql");
+        }
+        String sql = Files.readString(migration);
+
+        assertTrue(sql.contains("CREATE TABLE IF NOT EXISTS turn_lifecycle_trace"));
+        assertTrue(sql.contains("policy_hash"));
+        assertTrue(sql.contains("input_binding_digest"));
+        assertTrue(sql.contains("decision_digest"));
+        assertTrue(sql.contains("outcome_status"));
+        assertTrue(!sql.contains("user_message"));
+        assertTrue(!sql.contains("terminal_payload_json"));
+    }
 }

@@ -324,6 +324,8 @@ M1 控制面已按以下合同分批落地；生产 HTTP 仍未切入 V2，Plain
 
 本切片把 pinned-input recovery 接入条件化 bootstrap composition：只有完整的 isolated V2 executor graph 才创建专用 scheduler、attempt runner 与 `TurnAttemptRecoveryCoordinator`；runner 明确绑定共享 `threadPoolExecutor`，scheduler 由 Spring 生命周期关闭，并使用 delegated scheduled executor，避免 `ScheduledThreadPoolExecutor` 的类型继承干扰共享执行池的 missing-bean 条件。legacy HTTP、legacy assignment 与无 V2 graph 的启动路径不创建这些资源；bootstrap contract test 覆盖 runner/coordinator 出现条件与资源组合。本切片没有新增 migration。
 
+本切片补齐 M1 生命周期 trace 边界：新增 application-owned `TurnLifecycleTracePort` 与严格脱敏的 event model，submission facade 记录 assignment/claim，control facade 记录 cancel、heartbeat、takeover，attempt runner 记录 start、lease renewal、detach 与 completion。MySQL adapter 与 `2026-07-28-create-turn-lifecycle-trace.sql` 将这些记录持久化到独立表；trace 只暴露 canonical `TurnKey`、attempt epoch、policy/input binding digest、safe code/status 与时间，不接收用户正文、source body 或 terminal payload。trace adapter 故障也不会改变 durable lifecycle 结果；无 adapter 的 isolated graph 使用 no-op sink。迁移已在本地 MySQL 执行并重复运行验证幂等。
+
 ## single-instance-migration-control: Build The Single-Instance Migration Boundary
 
 Blocked by: turn-execution-control
