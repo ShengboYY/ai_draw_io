@@ -328,6 +328,8 @@ M1 控制面已按以下合同分批落地；生产 HTTP 仍未切入 V2，Plain
 
 本切片补齐 checkpoint decision evidence：`DefaultTurnDecisionCoordinator` 在 load-first 命中、first-writer pin 和 CAS retry 时记录同一 `TurnDecisionCheckpoint.digest`，并沿用 attempt epoch、policy hash 与 input binding digest；`TurnPlannerCompositionConfig` 通过 `ObjectProvider` 将生产 trace adapter 接入，旧/isolated graph 仍可使用 no-op。新增 checkpoint contract test 验证 PINNED trace 的 decision digest 等于 durable winner；现有 `decision_digest` 列已足够承载，本切片没有新增或执行 migration。
 
+本切片补齐 checkpoint 并发证据：两个 coordinator 在同一 fenced attempt 上同时经历 `Missing → compute → pin`，只有一个 first-writer winner，另一个 CAS loser 必须 reload winner，最终两个调用返回完全相同的 checkpoint/digest；trace 同时出现 `PINNED` 与 `CAS_RETRY`。application contract test 已通过；另以本地 MySQL 完全回滚的真实 fixture 验证 checkpoint JSON 写入与 `SELECT ... FOR UPDATE` current read，rollback 后 fixture 行数为 0。本切片没有新增 migration。
+
 ## single-instance-migration-control: Build The Single-Instance Migration Boundary
 
 Blocked by: turn-execution-control

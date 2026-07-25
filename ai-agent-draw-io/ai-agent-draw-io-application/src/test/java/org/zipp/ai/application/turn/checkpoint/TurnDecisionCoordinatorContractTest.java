@@ -29,10 +29,17 @@ import org.zipp.ai.application.turn.planning.TurnRouteDecision;
 
 import java.time.Instant;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
@@ -136,6 +143,69 @@ class TurnDecisionCoordinatorContractTest {
     }
 
     @Test
+    void concurrentFirstWritersBothReloadTheSameCheckpointWinner() throws Exception {
+        UserTurnCommand command = command();
+        FencedAttempt attempt = attempt(command);
+        ContextReadSet readSet = readSet(17);
+        FakeCodec codec = new FakeCodec();
+        AtomicReference<TurnDecisionCheckpoint> persisted = new AtomicReference<>();
+        AtomicInteger loads = new AtomicInteger();
+        AtomicInteger computations = new AtomicInteger();
+        AtomicInteger commits = new AtomicInteger();
+        CountDownLatch bothInitialLoads = new CountDownLatch(2);
+        CopyOnWriteArrayList<TurnLifecycleTraceEvent> traces = new CopyOnWriteArrayList<>();
+        TurnDecisionCheckpointQueryPort query = ignored -> {
+            if (loads.incrementAndGet() <= 2) {
+                bothInitialLoads.countDown();
+                await(bothInitialLoads);
+                return new TurnDecisionCheckpointLoadOutcome.Missing();
+            }
+            TurnDecisionCheckpoint winner = persisted.get();
+            return winner == null
+                    ? new TurnDecisionCheckpointLoadOutcome.Missing()
+                    : new TurnDecisionCheckpointLoadOutcome.Found(winner);
+        };
+        TurnDecisionCheckpointCommitPort commit = (ignored, proposal) -> {
+            commits.incrementAndGet();
+            return persisted.compareAndSet(null, proposal.value())
+                    ? new TurnDecisionCheckpointOutcome.Pinned(proposal.value())
+                    : new TurnDecisionCheckpointOutcome.Retry();
+        };
+        TurnRouteComputer routeComputer = (ignoredAttempt, ignoredCommand, ignoredContext, ignoredReadSet) -> {
+            computations.incrementAndGet();
+            return new TurnRouteComputationOutcome.Ready(
+                    decision(readSet.digest(), attempt.inputBindingDigest()));
+        };
+        TurnDecisionCoordinator coordinator = new DefaultTurnDecisionCoordinator(
+                query, commit, routeComputer, codec, traces::add);
+
+        ExecutorService executor = Executors.newFixedThreadPool(2);
+        try {
+            Future<TurnDecisionPreparationOutcome> first = executor.submit(() -> coordinator.preparePinned(
+                    attempt, command, context(command), readSet));
+            Future<TurnDecisionPreparationOutcome> second = executor.submit(() -> coordinator.preparePinned(
+                    attempt, command, context(command), readSet));
+            TurnDecisionPreparationOutcome.Ready firstReady = assertInstanceOf(
+                    TurnDecisionPreparationOutcome.Ready.class,
+                    first.get(2, TimeUnit.SECONDS));
+            TurnDecisionPreparationOutcome.Ready secondReady = assertInstanceOf(
+                    TurnDecisionPreparationOutcome.Ready.class,
+                    second.get(2, TimeUnit.SECONDS));
+
+            assertEquals(firstReady.checkpoint(), secondReady.checkpoint());
+            assertEquals(persisted.get(), firstReady.checkpoint());
+            assertEquals(2, computations.get());
+            assertEquals(2, commits.get());
+            assertTrue(traces.stream().anyMatch(event ->
+                    "PINNED".equals(event.outcomeCode())));
+            assertTrue(traces.stream().anyMatch(event ->
+                    "CAS_RETRY".equals(event.outcomeCode())));
+        } finally {
+            executor.shutdownNow();
+        }
+    }
+
+    @Test
     void mismatchedContextDigestFailsClosedBeforeComputation() {
         UserTurnCommand command = command();
         FencedAttempt attempt = attempt(command);
@@ -231,7 +301,7 @@ class TurnDecisionCoordinatorContractTest {
     }
 
     private static final class FakeCodec implements TurnRouteDecisionCodec {
-        private final Map<String, TurnRouteDecision> values = new HashMap<>();
+        private final Map<String, TurnRouteDecision> values = new ConcurrentHashMap<>();
         private final AtomicInteger encodes = new AtomicInteger();
         private final AtomicInteger decodes = new AtomicInteger();
 
@@ -250,6 +320,17 @@ class TurnDecisionCoordinatorContractTest {
                 throw new IllegalArgumentException("unknown fake checkpoint payload");
             }
             return value;
+        }
+    }
+
+    private static void await(CountDownLatch latch) {
+        try {
+            if (!latch.await(2, TimeUnit.SECONDS)) {
+                throw new AssertionError("concurrent checkpoint loads did not rendezvous");
+            }
+        } catch (InterruptedException exception) {
+            Thread.currentThread().interrupt();
+            throw new AssertionError("interrupted while coordinating checkpoint race", exception);
         }
     }
 }
