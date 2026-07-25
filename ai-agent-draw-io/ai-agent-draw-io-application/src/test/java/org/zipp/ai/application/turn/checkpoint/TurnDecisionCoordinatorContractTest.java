@@ -10,6 +10,8 @@ import org.zipp.ai.application.turn.TurnEngineMode;
 import org.zipp.ai.application.turn.TurnInputBindingDigestCalculator;
 import org.zipp.ai.application.turn.TurnKey;
 import org.zipp.ai.application.turn.TurnDeclarations;
+import org.zipp.ai.application.turn.TurnLifecycleTraceEvent;
+import org.zipp.ai.application.turn.TurnLifecycleTraceType;
 import org.zipp.ai.application.turn.UserTurnCommand;
 import org.zipp.ai.application.turn.context.AbsentContext;
 import org.zipp.ai.application.turn.context.BaseTurnContext;
@@ -26,7 +28,9 @@ import org.zipp.ai.application.turn.planning.TurnRouteComputer;
 import org.zipp.ai.application.turn.planning.TurnRouteDecision;
 
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -73,14 +77,16 @@ class TurnDecisionCoordinatorContractTest {
         TurnRouteDecision computed = decision(readSet.digest(), attempt.inputBindingDigest());
         AtomicInteger computations = new AtomicInteger();
         FakeCodec codec = new FakeCodec();
-        TurnDecisionCoordinator coordinator = coordinator(
+        List<TurnLifecycleTraceEvent> traces = new ArrayList<>();
+        TurnDecisionCoordinator coordinator = new DefaultTurnDecisionCoordinator(
                 ignored -> new TurnDecisionCheckpointLoadOutcome.Missing(),
                 (ignored, proposal) -> new TurnDecisionCheckpointOutcome.Pinned(proposal.value()),
                 (ignoredAttempt, ignoredCommand, ignoredContext, ignoredReadSet) -> {
                     computations.incrementAndGet();
                     return new TurnRouteComputationOutcome.Ready(computed);
                 },
-                codec);
+                codec,
+                traces::add);
 
         TurnDecisionPreparationOutcome outcome = coordinator.preparePinned(
                 attempt, command, context(command), readSet);
@@ -90,6 +96,13 @@ class TurnDecisionCoordinatorContractTest {
         assertEquals(computed, ready.decision());
         assertEquals(readSet.digest(), ready.checkpoint().contextReadSetDigest());
         assertEquals(1, computations.get());
+        TurnLifecycleTraceEvent trace = traces.stream()
+                .filter(event -> event.type() == TurnLifecycleTraceType.DECISION_CHECKPOINT)
+                .findFirst()
+                .orElseThrow();
+        assertEquals("PINNED", trace.outcomeCode());
+        assertEquals(ready.checkpoint().digest(), trace.decisionDigest());
+        assertEquals(attempt.inputBindingDigest(), trace.inputBindingDigest());
     }
 
     @Test

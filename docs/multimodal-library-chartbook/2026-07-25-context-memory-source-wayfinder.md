@@ -326,6 +326,8 @@ M1 控制面已按以下合同分批落地；生产 HTTP 仍未切入 V2，Plain
 
 本切片补齐 M1 生命周期 trace 边界：新增 application-owned `TurnLifecycleTracePort` 与严格脱敏的 event model，submission facade 记录 assignment/claim，control facade 记录 cancel、heartbeat、takeover，attempt runner 记录 start、lease renewal、detach 与 completion。MySQL adapter 与 `2026-07-28-create-turn-lifecycle-trace.sql` 将这些记录持久化到独立表；trace 只暴露 canonical `TurnKey`、attempt epoch、policy/input binding digest、safe code/status 与时间，不接收用户正文、source body 或 terminal payload。trace adapter 故障也不会改变 durable lifecycle 结果；无 adapter 的 isolated graph 使用 no-op sink。迁移已在本地 MySQL 执行并重复运行验证幂等。
 
+本切片补齐 checkpoint decision evidence：`DefaultTurnDecisionCoordinator` 在 load-first 命中、first-writer pin 和 CAS retry 时记录同一 `TurnDecisionCheckpoint.digest`，并沿用 attempt epoch、policy hash 与 input binding digest；`TurnPlannerCompositionConfig` 通过 `ObjectProvider` 将生产 trace adapter 接入，旧/isolated graph 仍可使用 no-op。新增 checkpoint contract test 验证 PINNED trace 的 decision digest 等于 durable winner；现有 `decision_digest` 列已足够承载，本切片没有新增或执行 migration。
+
 ## single-instance-migration-control: Build The Single-Instance Migration Boundary
 
 Blocked by: turn-execution-control

@@ -1,7 +1,10 @@
 package org.zipp.ai.application.turn.checkpoint;
 
 import org.zipp.ai.application.turn.FencedAttempt;
+import org.zipp.ai.application.turn.NoopTurnLifecycleTracePort;
 import org.zipp.ai.application.turn.TurnFailureCode;
+import org.zipp.ai.application.turn.TurnLifecycleTraceEvent;
+import org.zipp.ai.application.turn.TurnLifecycleTracePort;
 import org.zipp.ai.application.turn.TurnStatusRef;
 import org.zipp.ai.application.turn.UserTurnCommand;
 import org.zipp.ai.application.turn.context.BaseTurnContext;
@@ -27,6 +30,7 @@ public final class DefaultTurnDecisionCoordinator implements TurnDecisionCoordin
     private final TurnRouteComputer routeComputer;
     private final TurnRouteDecisionCodec codec;
     private final int maxAttempts;
+    private final TurnLifecycleTracePort trace;
 
     public DefaultTurnDecisionCoordinator(
             TurnDecisionCheckpointQueryPort query,
@@ -34,7 +38,18 @@ public final class DefaultTurnDecisionCoordinator implements TurnDecisionCoordin
             TurnRouteComputer routeComputer,
             TurnRouteDecisionCodec codec
     ) {
-        this(query, commit, routeComputer, codec, DEFAULT_MAX_ATTEMPTS);
+        this(query, commit, routeComputer, codec, DEFAULT_MAX_ATTEMPTS,
+                NoopTurnLifecycleTracePort.INSTANCE);
+    }
+
+    public DefaultTurnDecisionCoordinator(
+            TurnDecisionCheckpointQueryPort query,
+            TurnDecisionCheckpointCommitPort commit,
+            TurnRouteComputer routeComputer,
+            TurnRouteDecisionCodec codec,
+            TurnLifecycleTracePort trace
+    ) {
+        this(query, commit, routeComputer, codec, DEFAULT_MAX_ATTEMPTS, trace);
     }
 
     public DefaultTurnDecisionCoordinator(
@@ -44,6 +59,18 @@ public final class DefaultTurnDecisionCoordinator implements TurnDecisionCoordin
             TurnRouteDecisionCodec codec,
             int maxAttempts
     ) {
+        this(query, commit, routeComputer, codec, maxAttempts,
+                NoopTurnLifecycleTracePort.INSTANCE);
+    }
+
+    public DefaultTurnDecisionCoordinator(
+            TurnDecisionCheckpointQueryPort query,
+            TurnDecisionCheckpointCommitPort commit,
+            TurnRouteComputer routeComputer,
+            TurnRouteDecisionCodec codec,
+            int maxAttempts,
+            TurnLifecycleTracePort trace
+    ) {
         this.query = Objects.requireNonNull(query, "query");
         this.commit = Objects.requireNonNull(commit, "commit");
         this.routeComputer = Objects.requireNonNull(routeComputer, "routeComputer");
@@ -52,6 +79,7 @@ public final class DefaultTurnDecisionCoordinator implements TurnDecisionCoordin
             throw new IllegalArgumentException("maxAttempts must be between 1 and 8");
         }
         this.maxAttempts = maxAttempts;
+        this.trace = Objects.requireNonNull(trace, "trace");
     }
 
     @Override
@@ -72,6 +100,8 @@ public final class DefaultTurnDecisionCoordinator implements TurnDecisionCoordin
         for (int attemptNumber = 0; attemptNumber < maxAttempts; attemptNumber++) {
             TurnDecisionCheckpointLoadOutcome loaded = query.loadPinned(attempt);
             if (loaded instanceof TurnDecisionCheckpointLoadOutcome.Found found) {
+                trace.recordSafely(TurnLifecycleTraceEvent.decisionCheckpoint(
+                        attempt, found.value().digest(), "LOADED"));
                 return decodeFound(found.value(), attempt, readSet);
             }
             if (loaded instanceof TurnDecisionCheckpointLoadOutcome.Missing) {
@@ -97,9 +127,13 @@ public final class DefaultTurnDecisionCoordinator implements TurnDecisionCoordin
                 TurnDecisionCheckpointOutcome pinned = commit.pinFirst(
                         attempt, new ProposedTurnDecisionCheckpoint(proposal));
                 if (pinned instanceof TurnDecisionCheckpointOutcome.Pinned winner) {
+                    trace.recordSafely(TurnLifecycleTraceEvent.decisionCheckpoint(
+                            attempt, winner.value().digest(), "PINNED"));
                     return decodeFound(winner.value(), attempt, readSet);
                 }
                 if (pinned instanceof TurnDecisionCheckpointOutcome.Retry) {
+                    trace.recordSafely(TurnLifecycleTraceEvent.decisionCheckpoint(
+                            attempt, proposal.digest(), "CAS_RETRY"));
                     continue;
                 }
                 return mapCommitOutcome(pinned, attempt);

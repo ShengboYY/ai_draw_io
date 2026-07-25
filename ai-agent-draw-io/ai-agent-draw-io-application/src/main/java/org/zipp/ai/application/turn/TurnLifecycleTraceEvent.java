@@ -52,9 +52,44 @@ public record TurnLifecycleTraceEvent(
             String outcomeCode,
             TurnStatus outcomeStatus
     ) {
-        return of(type, attempt.key(), attempt.attemptId(), attempt.attemptEpoch(),
-                attempt.policy().policyHash(), attempt.inputBindingDigest(), outcomeCode,
-                outcomeStatus);
+        return fromAttempt(type, attempt, null, outcomeCode, outcomeStatus);
+    }
+
+    public static TurnLifecycleTraceEvent fromAttempt(
+            TurnLifecycleTraceType type,
+            FencedAttempt attempt,
+            String decisionDigest,
+            String outcomeCode,
+            TurnStatus outcomeStatus
+    ) {
+        if (decisionDigest != null && decisionDigest.isBlank()) {
+            throw new IllegalArgumentException("decisionDigest must be null or non-blank");
+        }
+        return new TurnLifecycleTraceEvent(
+                type,
+                attempt.key(),
+                attempt.attemptId(),
+                attempt.attemptEpoch(),
+                attempt.policy().policyHash(),
+                attempt.inputBindingDigest(),
+                decisionDigest,
+                outcomeCode,
+                outcomeStatus,
+                Instant.now());
+    }
+
+    /** Builds a redacted checkpoint event tied to the fenced attempt. */
+    public static TurnLifecycleTraceEvent decisionCheckpoint(
+            FencedAttempt attempt,
+            String decisionDigest,
+            String outcomeCode
+    ) {
+        return fromAttempt(
+                TurnLifecycleTraceType.DECISION_CHECKPOINT,
+                attempt,
+                decisionDigest,
+                outcomeCode,
+                null);
     }
 
     private static void optionalText(String value, String field) {

@@ -4,6 +4,7 @@ package org.zipp.ai.application.turn;
 public enum TurnLifecycleTraceType {
     ASSIGNMENT,
     CLAIM,
+    DECISION_CHECKPOINT,
     ATTEMPT_STARTED,
     LEASE_RENEWED,
     TAKEOVER,

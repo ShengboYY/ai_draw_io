@@ -1,5 +1,6 @@
 package org.zipp.ai.config;
 
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -12,6 +13,8 @@ import org.zipp.ai.application.turn.classification.PlainDrawPlanFactory;
 import org.zipp.ai.application.turn.classification.TurnClassificationService;
 import org.zipp.ai.application.turn.context.RestrictedSourceDemandInputFactory;
 import org.zipp.ai.application.turn.context.SemanticRouterContextProjector;
+import org.zipp.ai.application.turn.NoopTurnLifecycleTracePort;
+import org.zipp.ai.application.turn.TurnLifecycleTracePort;
 import org.zipp.ai.application.turn.planning.DefaultPrePlanner;
 import org.zipp.ai.application.turn.planning.DefaultTurnRouteComputer;
 import org.zipp.ai.application.turn.planning.DefaultTurnRouteDispatcher;
@@ -62,8 +65,14 @@ public class TurnPlannerCompositionConfig {
             TurnDecisionCheckpointQueryPort query,
             TurnDecisionCheckpointCommitPort commit,
             TurnRouteComputer routeComputer,
-            TurnRouteDecisionCodec codec
+            TurnRouteDecisionCodec codec,
+            ObjectProvider<TurnLifecycleTracePort> trace
     ) {
-        return new DefaultTurnDecisionCoordinator(query, commit, routeComputer, codec);
+        return new DefaultTurnDecisionCoordinator(
+                query,
+                commit,
+                routeComputer,
+                codec,
+                trace.getIfAvailable(() -> NoopTurnLifecycleTracePort.INSTANCE));
     }
 }
