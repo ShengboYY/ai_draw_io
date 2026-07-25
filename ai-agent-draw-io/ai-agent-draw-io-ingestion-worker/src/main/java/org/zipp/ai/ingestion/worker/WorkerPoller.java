@@ -19,6 +19,8 @@ public final class WorkerPoller {
     private static final Duration FIRST_RETRY_DELAY = Duration.ofSeconds(10);
     private static final Duration SECOND_RETRY_DELAY = Duration.ofSeconds(60);
     private static final Duration THIRD_RETRY_DELAY = Duration.ofMinutes(5);
+    private static final Duration STALLED_UNCLAIMED_THRESHOLD = Duration.ofMinutes(15);
+    private static final int STALLED_RECOVERY_BATCH_SIZE = 100;
 
     private final ProcessingQueuePort queue;
     private final SecureUploadJobHandler secureUploadHandler;
@@ -28,7 +30,7 @@ public final class WorkerPoller {
     private final Clock clock;
     private final String workerId;
     private final Set<ProcessingJobStage> claimableStages;
-    private final String processingFingerprint;
+    private final Set<String> compatibleProcessingFingerprints;
     private final String projectionGenerationId;
     private final AtomicBoolean polling = new AtomicBoolean();
     private final MaterialIngestionTelemetry telemetry;
@@ -56,6 +58,22 @@ public final class WorkerPoller {
                         boolean documentProcessingEnabled, boolean vectorProjectionEnabled,
                         String processingFingerprint, String projectionGenerationId,
                         MaterialIngestionTelemetry telemetry) {
+        this(queue, secureUploadHandler, materializationHandler, documentProcessingHandler,
+                vectorProjectionHandler, clock, workerId, materializationEnabled,
+                documentProcessingEnabled, vectorProjectionEnabled,
+                processingFingerprint == null ? Set.of() : Set.of(processingFingerprint),
+                projectionGenerationId, telemetry);
+    }
+
+    public WorkerPoller(ProcessingQueuePort queue,
+                        SecureUploadJobHandler secureUploadHandler,
+                        MaterializationJobHandler materializationHandler,
+                        DocumentProcessingJobHandler documentProcessingHandler,
+                        VectorProjectionJobHandler vectorProjectionHandler,
+                        Clock clock, String workerId, boolean materializationEnabled,
+                        boolean documentProcessingEnabled, boolean vectorProjectionEnabled,
+                        Set<String> compatibleProcessingFingerprints, String projectionGenerationId,
+                        MaterialIngestionTelemetry telemetry) {
         this.queue = Objects.requireNonNull(queue, "queue");
         this.secureUploadHandler = Objects.requireNonNull(secureUploadHandler, "secureUploadHandler");
         this.materializationHandler = materializationEnabled
@@ -79,10 +97,13 @@ public final class WorkerPoller {
         }
         this.claimableStages = claimableStages(
                 materializationEnabled, documentProcessingEnabled, vectorProjectionEnabled);
-        if (processingFingerprint == null || !processingFingerprint.matches("[0-9a-f]{64}")) {
-            throw new IllegalArgumentException("processingFingerprint must be lowercase SHA-256");
+        if (compatibleProcessingFingerprints == null || compatibleProcessingFingerprints.isEmpty()
+                || compatibleProcessingFingerprints.stream()
+                .anyMatch(fingerprint -> fingerprint == null || !fingerprint.matches("[0-9a-f]{64}"))) {
+            throw new IllegalArgumentException(
+                    "compatibleProcessingFingerprints must contain lowercase SHA-256 values");
         }
-        this.processingFingerprint = processingFingerprint;
+        this.compatibleProcessingFingerprints = Set.copyOf(compatibleProcessingFingerprints);
         this.projectionGenerationId = vectorProjectionEnabled
                 ? requireText(projectionGenerationId, "projectionGenerationId") : null;
         this.telemetry = Objects.requireNonNull(telemetry, "telemetry");
@@ -95,7 +116,7 @@ public final class WorkerPoller {
         }
         try {
             queue.claim(workerId, clock.instant(), LEASE_DURATION, claimableStages,
-                            processingFingerprint, projectionGenerationId)
+                            compatibleProcessingFingerprints, projectionGenerationId)
                     .ifPresent(this::execute);
         } finally {
             polling.set(false);
@@ -105,6 +126,15 @@ public final class WorkerPoller {
     @Scheduled(fixedDelayString = "${worker.reaper-delay-ms:60000}")
     public void requeueExpiredLeases() {
         queue.requeueExpiredLeases(clock.instant(), 100);
+    }
+
+    @Scheduled(fixedDelayString = "${worker.stalled-recovery-delay-ms:60000}")
+    public void prioritizeStalledUnclaimed() {
+        Instant now = clock.instant();
+        // Only untouched compatible jobs are reprioritized; running and completed jobs remain immutable.
+        queue.prioritizeStalledUnclaimed(now, now.minus(STALLED_UNCLAIMED_THRESHOLD),
+                claimableStages, compatibleProcessingFingerprints, projectionGenerationId,
+                STALLED_RECOVERY_BATCH_SIZE);
     }
 
     private void execute(ProcessingJobLease lease) {

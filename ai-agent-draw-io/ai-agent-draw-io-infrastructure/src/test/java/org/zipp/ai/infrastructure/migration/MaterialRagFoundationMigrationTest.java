@@ -362,7 +362,8 @@ class MaterialRagFoundationMigrationTest {
         Path mapper = Path.of("src/main/resources/mybatis/mapper/material_processing_job_mapper.xml");
         String xml = Files.readString(mapper);
 
-        assertTrue(xml.contains("r.worker_profile_fingerprint = #{processingFingerprint}"));
+        assertTrue(xml.contains("r.worker_profile_fingerprint IN"));
+        assertTrue(xml.contains("collection=\"processingFingerprints\""));
         assertTrue(xml.contains("stage != 'PROMOTE_ORIGINAL'"));
         assertTrue(xml.contains("u.processing_revision_id"));
         assertTrue(xml.contains("projectionGenerationId"));
@@ -372,6 +373,15 @@ class MaterialRagFoundationMigrationTest {
         assertTrue(xml.contains("REPAIR_VECTOR_BATCH"));
         assertTrue(xml.contains("rv.projection_role = 'COMPATIBILITY'"));
         assertTrue(xml.contains("material_processing_job.stage IN ('EMBED_CHUNK_BATCHES', 'UPSERT_VECTOR_BATCHES',"));
+        assertTrue(xml.contains("<update id=\"prioritizeStalledUnclaimed\">"));
+        assertTrue(xml.contains("job.status = 'QUEUED'"));
+        assertTrue(xml.contains("job.attempt = 0"));
+        assertTrue(xml.contains("job.lease_owner IS NULL"));
+        assertTrue(xml.contains("job.lease_until IS NULL"));
+        assertTrue(xml.contains("AND status = 'QUEUED'\n"
+                + "          AND attempt = 0\n"
+                + "          AND lease_owner IS NULL\n"
+                + "          AND lease_until IS NULL"));
 
         Path maintenanceMapper = Path.of(
                 "src/main/resources/mybatis/mapper/index_projection_maintenance_mapper.xml");

@@ -38,6 +38,7 @@ import org.zipp.ai.domain.retrieval.projection.RetrievalChunkBuilder;
 import org.zipp.ai.domain.retrieval.projection.RetrievalParentContext;
 import org.zipp.ai.ingestion.worker.document.RevisionPageCodec;
 import org.zipp.ai.ingestion.worker.document.DocumentProcessingProfile;
+import org.zipp.ai.ingestion.worker.document.DocumentProcessingProfiles;
 import org.zipp.ai.ingestion.worker.document.EvidenceBuildLimits;
 import org.zipp.ai.ingestion.worker.document.ProcessingLimitExceededException;
 import org.zipp.ai.ingestion.worker.document.VisualCropDeriver;
@@ -77,7 +78,7 @@ public final class DocumentProcessingJobHandler {
     private final RetrievalChunkBuilder retrievalBuilder;
     private final VisualCropDeriver visualCropper;
     private final RevisionPageCodec codec;
-    private final DocumentProcessingProfile profile;
+    private final DocumentProcessingProfiles profiles;
     private final ProcessingQueuePort queue;
     private final Clock clock;
 
@@ -93,6 +94,23 @@ public final class DocumentProcessingJobHandler {
                                         VisualCropDeriver visualCropper, RevisionPageCodec codec,
                                         DocumentProcessingProfile profile,
                                         ProcessingQueuePort queue, Clock clock) {
+        this(work, artifacts, parser, ocr, ocrSelection, canonicalAssembler, structureBuilder,
+                visualSelection, evidenceBuilder, evidenceLimits, retrievalBuilder, visualCropper,
+                codec, DocumentProcessingProfiles.of(profile), queue, clock);
+    }
+
+    public DocumentProcessingJobHandler(DocumentProcessingWorkPort work, RevisionArtifactPort artifacts,
+                                        DocumentParserPort parser, OcrEnginePort ocr,
+                                        OcrSelectionPolicy ocrSelection,
+                                        CanonicalPageAssembler canonicalAssembler,
+                                        DocumentStructureBuilder structureBuilder,
+                                        VisualCandidateSelectionPolicy visualSelection,
+                                        EvidenceUnitBuilder evidenceBuilder,
+                                        EvidenceBuildLimits evidenceLimits,
+                                        RetrievalChunkBuilder retrievalBuilder,
+                                        VisualCropDeriver visualCropper, RevisionPageCodec codec,
+                                        DocumentProcessingProfiles profiles,
+                                        ProcessingQueuePort queue, Clock clock) {
         this.work = Objects.requireNonNull(work, "work");
         this.artifacts = Objects.requireNonNull(artifacts, "artifacts");
         this.parser = Objects.requireNonNull(parser, "parser");
@@ -106,7 +124,7 @@ public final class DocumentProcessingJobHandler {
         this.retrievalBuilder = Objects.requireNonNull(retrievalBuilder, "retrievalBuilder");
         this.visualCropper = Objects.requireNonNull(visualCropper, "visualCropper");
         this.codec = Objects.requireNonNull(codec, "codec");
-        this.profile = Objects.requireNonNull(profile, "profile");
+        this.profiles = Objects.requireNonNull(profiles, "profiles");
         this.queue = Objects.requireNonNull(queue, "queue");
         this.clock = Objects.requireNonNull(clock, "clock");
     }
@@ -144,7 +162,8 @@ public final class DocumentProcessingJobHandler {
         if (source == null) {
             return JobOutcome.succeeded();
         }
-        if (!profile.overallFingerprint().equals(source.processingFingerprint())) {
+        DocumentProcessingProfile profile = compatibleProfile(source.processingFingerprint());
+        if (profile == null) {
             return JobOutcome.transientFailure("PROCESSING_PROFILE_UNAVAILABLE");
         }
         if (!profile.extractionInput(source.original().contentSha256()).equals(lease.job().inputFingerprint())) {
@@ -205,7 +224,8 @@ public final class DocumentProcessingJobHandler {
         if (batch == null) {
             return JobOutcome.succeeded();
         }
-        if (!profile.overallFingerprint().equals(batch.processingFingerprint())) {
+        DocumentProcessingProfile profile = compatibleProfile(batch.processingFingerprint());
+        if (profile == null) {
             return JobOutcome.transientFailure("PROCESSING_PROFILE_UNAVAILABLE");
         }
         if (batch.pages().size() != 1 || !batch.pages().get(0).requiresOcr()) {
@@ -254,7 +274,8 @@ public final class DocumentProcessingJobHandler {
         if (batch == null) {
             return JobOutcome.succeeded();
         }
-        if (!profile.overallFingerprint().equals(batch.processingFingerprint())) {
+        DocumentProcessingProfile profile = compatibleProfile(batch.processingFingerprint());
+        if (profile == null) {
             return JobOutcome.transientFailure("PROCESSING_PROFILE_UNAVAILABLE");
         }
         if (batch.pages().size() != 1) {
@@ -291,7 +312,8 @@ public final class DocumentProcessingJobHandler {
         if (source == null) {
             return JobOutcome.succeeded();
         }
-        if (!profile.overallFingerprint().equals(source.processingFingerprint())) {
+        DocumentProcessingProfile profile = compatibleProfile(source.processingFingerprint());
+        if (profile == null) {
             return JobOutcome.transientFailure("PROCESSING_PROFILE_UNAVAILABLE");
         }
         List<String> canonicalHashes = source.pages().stream()
@@ -329,7 +351,8 @@ public final class DocumentProcessingJobHandler {
         if (source == null) {
             return JobOutcome.succeeded();
         }
-        if (!profile.overallFingerprint().equals(source.processingFingerprint())) {
+        DocumentProcessingProfile profile = compatibleProfile(source.processingFingerprint());
+        if (profile == null) {
             return JobOutcome.transientFailure("PROCESSING_PROFILE_UNAVAILABLE");
         }
         if (!heartbeat(lease)) {
@@ -384,7 +407,8 @@ public final class DocumentProcessingJobHandler {
         if (source == null) {
             return JobOutcome.succeeded();
         }
-        if (!profile.overallFingerprint().equals(source.processingFingerprint())) {
+        DocumentProcessingProfile profile = compatibleProfile(source.processingFingerprint());
+        if (profile == null) {
             return JobOutcome.transientFailure("PROCESSING_PROFILE_UNAVAILABLE");
         }
         if (!profile.evidenceInput(source.visualManifestArtifact().contentSha256())
@@ -453,7 +477,8 @@ public final class DocumentProcessingJobHandler {
         if (source == null) {
             return JobOutcome.succeeded();
         }
-        if (!profile.overallFingerprint().equals(source.processingFingerprint())) {
+        DocumentProcessingProfile profile = compatibleProfile(source.processingFingerprint());
+        if (profile == null) {
             return JobOutcome.transientFailure("PROCESSING_PROFILE_UNAVAILABLE");
         }
         if (!profile.retrievalInput(source.evidenceManifestArtifact().contentSha256())
@@ -503,6 +528,10 @@ public final class DocumentProcessingJobHandler {
         var job = lease.job();
         return queue.heartbeat(job.id(), job.leaseOwner(), lease.fenceToken(),
                 clock.instant(), HEARTBEAT_EXTENSION);
+    }
+
+    private DocumentProcessingProfile compatibleProfile(String fingerprint) {
+        return profiles.find(fingerprint).orElse(null);
     }
 
     private ProcessingJob nextJob(String revisionId, ProcessingJobStage stage,

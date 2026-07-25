@@ -52,15 +52,29 @@ public class MySqlProcessingQueueAdapter implements ProcessingQueuePort {
                                               Set<ProcessingJobStage> acceptedStages,
                                               String processingFingerprint,
                                               String projectionGenerationId) {
+        Set<String> profiles = processingFingerprint == null
+                ? Set.of() : Set.of(processingFingerprint);
+        return claim(workerId, now, leaseDuration, acceptedStages, profiles, projectionGenerationId);
+    }
+
+    @Override
+    @Transactional
+    public Optional<ProcessingJobLease> claim(String workerId, Instant now, Duration leaseDuration,
+                                              Set<ProcessingJobStage> acceptedStages,
+                                              Set<String> compatibleProcessingFingerprints,
+                                              String projectionGenerationId) {
         String owner = requireText(workerId, "workerId");
         Instant claimedAt = Objects.requireNonNull(now, "now");
         Duration duration = positive(leaseDuration);
-        String profile = processingFingerprint == null ? null : requireFingerprint(processingFingerprint);
+        var profiles = compatibleProcessingFingerprints == null
+                ? java.util.List.<String>of()
+                : compatibleProcessingFingerprints.stream()
+                .map(MySqlProcessingQueueAdapter::requireFingerprint).sorted().toList();
         String generation = projectionGenerationId == null ? null
                 : requireText(projectionGenerationId, "projectionGenerationId");
         var stages = acceptedStages == null ? java.util.List.<String>of()
                 : acceptedStages.stream().map(Enum::name).sorted().toList();
-        ProcessingJobPO candidate = mapper.selectClaimableForUpdate(claimedAt, stages, profile, generation);
+        ProcessingJobPO candidate = mapper.selectClaimableForUpdate(claimedAt, stages, profiles, generation);
         if (candidate == null || mapper.claim(candidate.getId(), owner, claimedAt, claimedAt.plus(duration)) != 1) {
             return Optional.empty();
         }
@@ -99,6 +113,30 @@ public class MySqlProcessingQueueAdapter implements ProcessingQueuePort {
             throw new IllegalArgumentException("limit must be positive");
         }
         return mapper.requeueExpiredLeases(Objects.requireNonNull(now, "now"), limit);
+    }
+
+    @Override
+    public int prioritizeStalledUnclaimed(Instant now, Instant stuckBefore,
+                                          Set<ProcessingJobStage> acceptedStages,
+                                          Set<String> compatibleProcessingFingerprints,
+                                          String projectionGenerationId, int limit) {
+        if (limit < 1) {
+            throw new IllegalArgumentException("limit must be positive");
+        }
+        var stages = Objects.requireNonNull(acceptedStages, "acceptedStages")
+                .stream().map(Enum::name).sorted().toList();
+        var profiles = Objects.requireNonNull(
+                        compatibleProcessingFingerprints, "compatibleProcessingFingerprints")
+                .stream().map(MySqlProcessingQueueAdapter::requireFingerprint).sorted().toList();
+        if (stages.isEmpty() || profiles.isEmpty()) {
+            return 0;
+        }
+        String generation = projectionGenerationId == null ? null
+                : requireText(projectionGenerationId, "projectionGenerationId");
+        return mapper.prioritizeStalledUnclaimed(
+                Objects.requireNonNull(now, "now"),
+                Objects.requireNonNull(stuckBefore, "stuckBefore"),
+                stages, profiles, generation, limit);
     }
 
     private static ProcessingJobPO toPo(ProcessingJob job) {

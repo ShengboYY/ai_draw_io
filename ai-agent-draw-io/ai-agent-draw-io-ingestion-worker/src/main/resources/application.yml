@@ -34,6 +34,7 @@ worker:
   deletion-reaper-delay-ms: ${MATERIAL_DELETION_REAPER_DELAY_MS:60000}
   poll-delay-ms: ${WORKER_POLL_DELAY_MS:1000}
   reaper-delay-ms: ${WORKER_REAPER_DELAY_MS:60000}
+  stalled-recovery-delay-ms: ${WORKER_STALLED_RECOVERY_DELAY_MS:60000}
   generation-sync-delay-ms: ${GENERATION_SYNC_DELAY_MS:5000}
   generation-sync-batch-size: ${GENERATION_SYNC_BATCH_SIZE:100}
   projection-maintenance-delay-ms: ${PROJECTION_MAINTENANCE_DELAY_MS:86400000}
@@ -57,6 +58,8 @@ worker:
     tenant-hmac-secret: ${PINECONE_TENANT_HMAC_SECRET:}
   tesseract:
     executable: ${TESSERACT_EXECUTABLE:tesseract}
+    # Comma-separated paths from older deployments that use the same verified Tesseract runtime.
+    legacy-equivalent-executables: ${TESSERACT_LEGACY_EQUIVALENT_EXECUTABLES:}
     languages: ${TESSERACT_LANGUAGES:eng+chi_sim}
     timeout-seconds: ${TESSERACT_TIMEOUT_SECONDS:120}
     runtime-version: ${TESSERACT_RUNTIME_VERSION:}

@@ -80,6 +80,23 @@ class DocumentProcessingProfileTest {
         assertTrue(audit.ocrVersion().length() <= 64);
     }
 
+    @Test
+    void equivalentExecutableLocationsShareTheSameProcessingFingerprint() {
+        var commandProfile = profileWithExecutable("tesseract");
+        var absolutePathProfile = profileWithExecutable("/opt/homebrew/bin/tesseract");
+
+        assertEquals(commandProfile.overallFingerprint(), absolutePathProfile.overallFingerprint());
+        assertEquals(commandProfile.revisionProfile().ocrVersion(),
+                absolutePathProfile.revisionProfile().ocrVersion());
+    }
+
+    private static DocumentProcessingProfile profileWithExecutable(String executable) {
+        return DocumentProcessingProfile.of(200, executable, "eng+chi_sim", 120,
+                "5.5.0", new OcrSelectionPolicy(40, 0.10, 0.20, 0.01, 0.03),
+                new CanonicalPageAssembler(0.70), new DocumentStructureBuilder(), visual(), cropper(), evidence(),
+                limits(), retrieval());
+    }
+
     private static VisualCandidateSelectionPolicy visual() {
         return new VisualCandidateSelectionPolicy(12, 0.15, 3);
     }

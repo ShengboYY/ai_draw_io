@@ -50,7 +50,7 @@ public record DocumentProcessingProfile(String parser, String ocr, String select
                         + new NativeBlockConfidencePolicy().fingerprint() + ":"
                         + new TextBlockKindPolicy().fingerprint(),
                 "tesseract:" + requireText(tesseractRuntimeVersion, "tesseractRuntimeVersion")
-                        + ":executable=" + requireText(executable, "executable")
+                        + ":executable=" + executableIdentity(executable)
                         + ":languages=" + normalizedLanguages
                         + ":timeout=" + timeoutSeconds,
                 selection.fingerprint(), canonical.fingerprint(), structure.fingerprint(),
@@ -145,6 +145,13 @@ public record DocumentProcessingProfile(String parser, String ocr, String select
             normalizedPrefix = normalizedPrefix.substring(0, maxPrefixLength);
         }
         return normalizedPrefix + "-" + suffix;
+    }
+
+    private static String executableIdentity(String executable) {
+        // Installation location does not affect OCR output; the verified runtime version does.
+        String normalized = requireText(executable, "executable").replace('\\', '/');
+        int separator = normalized.lastIndexOf('/');
+        return separator < 0 ? normalized : normalized.substring(separator + 1);
     }
 
     private static String requireText(String value, String field) {

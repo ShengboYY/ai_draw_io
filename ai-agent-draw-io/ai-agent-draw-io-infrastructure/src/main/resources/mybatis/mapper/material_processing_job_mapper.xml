@@ -39,11 +39,13 @@
           AND stage IN
           <foreach collection="stages" item="stage" open="(" separator="," close=")">#{stage}</foreach>
         </if>
-        <if test="processingFingerprint != null and processingFingerprint != ''">
+        <if test="processingFingerprints != null and !processingFingerprints.isEmpty()">
           AND (revision_id IS NULL OR stage IN ('BUILD_COMPATIBILITY_PROJECTION', 'REPAIR_VECTOR_BATCH') OR EXISTS (
               SELECT 1 FROM material_processing_revision r
               WHERE r.id = material_processing_job.revision_id
-                AND r.worker_profile_fingerprint = #{processingFingerprint}
+                AND r.worker_profile_fingerprint IN
+                <foreach collection="processingFingerprints" item="fingerprint"
+                         open="(" separator="," close=")">#{fingerprint}</foreach>
           ) OR EXISTS (
               SELECT 1 FROM retrieval_revision_vector_projection rv
               WHERE material_processing_job.stage IN ('EMBED_CHUNK_BATCHES', 'UPSERT_VECTOR_BATCHES',
@@ -56,7 +58,9 @@
               SELECT 1 FROM material_upload_session u
               JOIN material_processing_revision r ON r.id = u.processing_revision_id
               WHERE u.id = material_processing_job.upload_session_id
-                AND r.worker_profile_fingerprint = #{processingFingerprint}
+                AND r.worker_profile_fingerprint IN
+                <foreach collection="processingFingerprints" item="fingerprint"
+                         open="(" separator="," close=")">#{fingerprint}</foreach>
           ))
         </if>
         <if test="projectionGenerationId != null and projectionGenerationId != ''">
@@ -136,6 +140,60 @@
         WHERE status = 'RUNNING' AND lease_until &lt;= #{now}
         ORDER BY lease_until ASC
         LIMIT #{limit}
+    </update>
+
+    <update id="prioritizeStalledUnclaimed">
+        UPDATE material_processing_job
+        SET priority = 1
+        WHERE id IN (
+            SELECT id FROM (
+                SELECT job.id
+                FROM material_processing_job job
+                JOIN material_processing_revision revision ON revision.id = job.revision_id
+                WHERE job.status = 'QUEUED'
+                  AND job.attempt = 0
+                  AND job.lease_owner IS NULL
+                  AND job.lease_until IS NULL
+                  AND job.priority &lt; 1
+                  AND job.not_before &lt;= #{now}
+                  AND job.created_at &lt;= #{stuckBefore}
+                  AND job.stage IN
+                  <foreach collection="stages" item="stage"
+                           open="(" separator="," close=")">#{stage}</foreach>
+                  AND revision.worker_profile_fingerprint IN
+                  <foreach collection="processingFingerprints" item="fingerprint"
+                           open="(" separator="," close=")">#{fingerprint}</foreach>
+                <if test="projectionGenerationId != null and projectionGenerationId != ''">
+                  AND (
+                      job.stage NOT IN ('BUILD_LEXICAL_PROJECTION', 'EMBED_CHUNK_BATCHES',
+                                        'UPSERT_VECTOR_BATCHES', 'VERIFY_PROJECTION_MANIFEST',
+                                        'PUBLISH_REVISION', 'BUILD_COMPATIBILITY_PROJECTION',
+                                        'REPAIR_VECTOR_BATCH')
+                      OR (job.stage = 'BUILD_LEXICAL_PROJECTION' AND (
+                            NOT EXISTS (SELECT 1 FROM rag_index_generation active
+                                        WHERE active.state = 'ACTIVE')
+                            OR EXISTS (SELECT 1 FROM rag_index_generation active
+                                       WHERE active.state = 'ACTIVE'
+                                         AND active.id = #{projectionGenerationId})
+                         ))
+                      OR (job.stage != 'BUILD_LEXICAL_PROJECTION'
+                          AND (job.work_key = CONCAT('ig:', #{projectionGenerationId})
+                               OR job.work_key LIKE CONCAT('ig:', #{projectionGenerationId}, ':%'))
+                          AND EXISTS (SELECT 1 FROM rag_index_generation routed
+                                      WHERE routed.id = #{projectionGenerationId}
+                                        AND routed.state IN ('BUILDING', 'SHADOW', 'ACTIVE')))
+                  )
+                </if>
+                ORDER BY job.created_at ASC
+                LIMIT #{limit}
+            ) stalled
+        )
+          AND status = 'QUEUED'
+          AND attempt = 0
+          AND lease_owner IS NULL
+          AND lease_until IS NULL
+          AND priority &lt; 1
+          AND not_before &lt;= #{now}
     </update>
 
     <update id="requeueFailedByRevision">

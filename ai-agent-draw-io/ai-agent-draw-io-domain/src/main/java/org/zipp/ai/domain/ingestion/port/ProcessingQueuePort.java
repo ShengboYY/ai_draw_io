@@ -24,6 +24,18 @@ public interface ProcessingQueuePort {
                                                String projectionGenerationId) {
         return claim(workerId, now, leaseDuration, acceptedStages, processingFingerprint);
     }
+    default Optional<ProcessingJobLease> claim(String workerId, Instant now, Duration leaseDuration,
+                                               Set<ProcessingJobStage> acceptedStages,
+                                               Set<String> compatibleProcessingFingerprints,
+                                               String projectionGenerationId) {
+        // Simple adapters remain compatible while durable adapters can claim all profiles atomically.
+        for (String fingerprint : compatibleProcessingFingerprints.stream().sorted().toList()) {
+            Optional<ProcessingJobLease> claimed = claim(workerId, now, leaseDuration,
+                    acceptedStages, fingerprint, projectionGenerationId);
+            if (claimed.isPresent()) return claimed;
+        }
+        return Optional.empty();
+    }
     default Optional<ProcessingJobLease> claim(String workerId, Instant now, Duration leaseDuration) {
         return claim(workerId, now, leaseDuration, Set.of());
     }
@@ -32,4 +44,10 @@ public interface ProcessingQueuePort {
     boolean retry(String jobId, String workerId, long fenceToken, String errorCode, Instant retryAt);
     boolean fail(String jobId, String workerId, long fenceToken, String errorCode);
     int requeueExpiredLeases(Instant now, int limit);
+    default int prioritizeStalledUnclaimed(Instant now, Instant stuckBefore,
+                                           Set<ProcessingJobStage> acceptedStages,
+                                           Set<String> compatibleProcessingFingerprints,
+                                           String projectionGenerationId, int limit) {
+        return 0;
+    }
 }

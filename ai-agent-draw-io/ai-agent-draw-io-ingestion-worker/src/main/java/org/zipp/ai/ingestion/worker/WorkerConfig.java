@@ -58,6 +58,7 @@ import org.zipp.ai.ingestion.worker.document.TesseractOcrEngine;
 import org.zipp.ai.ingestion.worker.document.VisualCropDeriver;
 import org.zipp.ai.ingestion.worker.document.TesseractInstallationVerifier;
 import org.zipp.ai.ingestion.worker.document.DocumentProcessingProfile;
+import org.zipp.ai.ingestion.worker.document.DocumentProcessingProfiles;
 import org.zipp.ai.ingestion.worker.document.EvidenceBuildLimits;
 import org.zipp.ai.ingestion.worker.document.MultilingualE5TokenCounter;
 import org.zipp.ai.ingestion.worker.document.RevisionEmbeddingCacheAdapter;
@@ -70,6 +71,7 @@ import software.amazon.awssdk.services.s3.S3Client;
 import java.time.Clock;
 import java.time.Duration;
 import java.nio.file.Path;
+import java.util.ArrayList;
 
 @Configuration
 public class WorkerConfig {
@@ -139,8 +141,8 @@ public class WorkerConfig {
                                                                PinnedQuarantineContentPort content,
                                                                ProcessingQueuePort queue,
                                                                Clock clock,
-                                                               DocumentProcessingProfile processingProfile) {
-        return new MaterializationJobHandler(work, promotion, content, queue, clock, processingProfile);
+                                                               DocumentProcessingProfiles processingProfiles) {
+        return new MaterializationJobHandler(work, promotion, content, queue, clock, processingProfiles);
     }
 
     @Bean
@@ -205,6 +207,21 @@ public class WorkerConfig {
     }
 
     @Bean
+    public DocumentProcessingProfiles documentProcessingProfiles(
+            DocumentProcessingProfile active,
+            @Value("${worker.tesseract.executable:tesseract}") String executable,
+            @Value("${worker.tesseract.legacy-equivalent-executables:}") String legacyExecutables) {
+        var acceptedExecutables = new ArrayList<String>();
+        acceptedExecutables.add(executable);
+        for (String legacyExecutable : legacyExecutables.split(",")) {
+            if (!legacyExecutable.isBlank()) {
+                acceptedExecutables.add(legacyExecutable.trim());
+            }
+        }
+        return DocumentProcessingProfiles.withLegacyExecutablePaths(active, acceptedExecutables);
+    }
+
+    @Bean
     @ConditionalOnProperty(name = "worker.document-processing-enabled", havingValue = "true")
     @ConditionalOnExpression("'${worker.storage:local}' == 's3'")
     public RevisionArtifactPort revisionArtifactPort(
@@ -233,7 +250,7 @@ public class WorkerConfig {
     public DocumentProcessingJobHandler documentProcessingJobHandler(
             DocumentProcessingWorkPort work, RevisionArtifactPort artifacts,
             DocumentParserPort parser, OcrEnginePort ocr, ProcessingQueuePort queue, Clock clock,
-            ObjectMapper objectMapper, DocumentProcessingProfile processingProfile,
+            ObjectMapper objectMapper, DocumentProcessingProfiles processingProfiles,
             DocumentStructureBuilder structureBuilder,
             VisualCandidateSelectionPolicy visualPolicy,
             VisualCropDeriver visualCropper,
@@ -246,7 +263,7 @@ public class WorkerConfig {
         return new DocumentProcessingJobHandler(work, artifacts, parser, ocr, selection,
                 assembler, structureBuilder, visualPolicy, evidenceBuilder, evidenceLimits,
                 new RetrievalChunkBuilder(tokenCounter), visualCropper,
-                codec, processingProfile, queue, clock);
+                codec, processingProfiles, queue, clock);
     }
 
     @Bean
@@ -410,7 +427,7 @@ public class WorkerConfig {
                                      ObjectProvider<VectorProjectionJobHandler> vectorProjectionHandler,
                                      ObjectProvider<VectorGenerationProfile> vectorGenerationProfile,
                                      MaterialIngestionTelemetry telemetry,
-                                     Clock clock, DocumentProcessingProfile processingProfile,
+                                     Clock clock, DocumentProcessingProfiles processingProfiles,
                                      @Value("${worker.id}") String workerId,
                                      @Value("${worker.materialization-enabled:false}") boolean materializationEnabled,
                                      @Value("${worker.document-processing-enabled:false}")
@@ -420,7 +437,7 @@ public class WorkerConfig {
         return new WorkerPoller(queue, secureUploadHandler, materializationHandler.getIfAvailable(),
                 documentProcessingHandler.getIfAvailable(), vectorProjectionHandler.getIfAvailable(),
                 clock, workerId, materializationEnabled, documentProcessingEnabled,
-                vectorProjectionEnabled, processingProfile.overallFingerprint(),
+                vectorProjectionEnabled, processingProfiles.acceptedFingerprints(),
                 vectorProjectionEnabled ? vectorGenerationProfile.getObject().generationId() : null,
                 telemetry);
     }

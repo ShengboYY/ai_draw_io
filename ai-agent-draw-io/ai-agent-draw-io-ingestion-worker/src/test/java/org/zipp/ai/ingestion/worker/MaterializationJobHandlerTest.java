@@ -14,6 +14,7 @@ import org.zipp.ai.domain.ingestion.model.valobj.WorkerFence;
 import org.zipp.ai.domain.ingestion.port.MaterializationWorkPort;
 import org.zipp.ai.domain.ingestion.port.OriginalPromotionPort;
 import org.zipp.ai.ingestion.worker.fake.FakeProcessingQueue;
+import org.zipp.ai.ingestion.worker.document.DocumentProcessingProfiles;
 
 import java.time.Clock;
 import java.time.Duration;
@@ -158,6 +159,33 @@ class MaterializationJobHandlerTest {
 
         assertEquals(JobOutcome.Kind.TRANSIENT_FAILURE, outcome.kind());
         assertEquals("PROCESSING_PROFILE_UNAVAILABLE", outcome.errorCode());
+    }
+
+    @Test
+    void promotionAcceptsTheEquivalentLegacyExecutablePathProfile() {
+        DocumentProcessingProfiles profiles = DocumentProcessingProfiles.withLegacyExecutablePath(
+                PROCESSING_PROFILE, "/opt/homebrew/bin/tesseract");
+        String legacyFingerprint = profiles.acceptedFingerprints().stream()
+                .filter(fingerprint -> !fingerprint.equals(PROCESSING_FINGERPRINT))
+                .findFirst().orElseThrow();
+        OriginalPromotionWork promotionWork = new OriginalPromotionWork(
+                "upl_1", 3, "quarantine", "incoming/opaque", "s3-source-version",
+                "original/owner/blob", "blob_1", "mat_1", "ver_1", "rev_1",
+                "application/pdf", 42, "a".repeat(64), legacyFingerprint, null);
+        FakeMaterializationWork work = new FakeMaterializationWork();
+        work.promotionWork = promotionWork;
+        FakeProcessingQueue queue = new FakeProcessingQueue();
+        ProcessingJobLease lease = lease(queue, "job_legacy_profile", ProcessingJobStage.PROMOTE_ORIGINAL);
+        MaterializationJobHandler handler = new MaterializationJobHandler(
+                work, ignored -> new PromotedOriginal(
+                "original/owner/blob", "s3-destination-version", "etag", "checksum", 42),
+                (bucket, key, version, maximum, destination) -> null,
+                queue, Clock.fixed(NOW, ZoneOffset.UTC), profiles);
+
+        JobOutcome outcome = handler.handle(lease);
+
+        assertEquals(JobOutcome.Kind.SUCCEEDED, outcome.kind());
+        assertTrue(work.promotionCommitted);
     }
 
     private static ProcessingJobLease lease(FakeProcessingQueue queue, String jobId, ProcessingJobStage stage) {

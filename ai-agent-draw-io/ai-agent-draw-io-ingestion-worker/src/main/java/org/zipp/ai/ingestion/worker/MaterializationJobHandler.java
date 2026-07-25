@@ -13,6 +13,7 @@ import org.zipp.ai.domain.ingestion.port.OriginalPromotionPort;
 import org.zipp.ai.domain.ingestion.port.PinnedQuarantineContentPort;
 import org.zipp.ai.domain.ingestion.port.ProcessingQueuePort;
 import org.zipp.ai.ingestion.worker.document.DocumentProcessingProfile;
+import org.zipp.ai.ingestion.worker.document.DocumentProcessingProfiles;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -31,7 +32,7 @@ public final class MaterializationJobHandler {
     private final PinnedQuarantineContentPort quarantine;
     private final ProcessingQueuePort queue;
     private final Clock clock;
-    private final DocumentProcessingProfile processingProfile;
+    private final DocumentProcessingProfiles processingProfiles;
 
     public MaterializationJobHandler(MaterializationWorkPort work,
                                      OriginalPromotionPort promotion,
@@ -39,12 +40,22 @@ public final class MaterializationJobHandler {
                                      ProcessingQueuePort queue,
                                      Clock clock,
                                      DocumentProcessingProfile processingProfile) {
+        this(work, promotion, quarantine, queue, clock,
+                DocumentProcessingProfiles.of(processingProfile));
+    }
+
+    public MaterializationJobHandler(MaterializationWorkPort work,
+                                     OriginalPromotionPort promotion,
+                                     PinnedQuarantineContentPort quarantine,
+                                     ProcessingQueuePort queue,
+                                     Clock clock,
+                                     DocumentProcessingProfiles processingProfiles) {
         this.work = Objects.requireNonNull(work, "work");
         this.promotion = Objects.requireNonNull(promotion, "promotion");
         this.quarantine = Objects.requireNonNull(quarantine, "quarantine");
         this.queue = Objects.requireNonNull(queue, "queue");
         this.clock = Objects.requireNonNull(clock, "clock");
-        this.processingProfile = Objects.requireNonNull(processingProfile, "processingProfile");
+        this.processingProfiles = Objects.requireNonNull(processingProfiles, "processingProfiles");
     }
 
     public JobOutcome handle(ProcessingJobLease lease) {
@@ -64,6 +75,7 @@ public final class MaterializationJobHandler {
     }
 
     private JobOutcome resolve(String uploadId, ProcessingJobLease lease) {
+        DocumentProcessingProfile processingProfile = processingProfiles.active();
         MaterializationIds ids = new MaterializationIds(
                 id("mat_"), id("ver_"), id("blob_"), id("rev_"), id("scope_"));
         ProcessingJob promotionJob = ProcessingJob.enqueue(id("job_"),
@@ -83,7 +95,7 @@ public final class MaterializationJobHandler {
             // A replay after the fenced commit has no remaining promotion work.
             return JobOutcome.succeeded();
         }
-        if (!processingProfile.overallFingerprint().equals(promotionWork.processingFingerprint())) {
+        if (processingProfiles.find(promotionWork.processingFingerprint()).isEmpty()) {
             // Profile-routed workers normally prevent this; retry preserves the pinned revision on deployment races.
             return JobOutcome.transientFailure("PROCESSING_PROFILE_UNAVAILABLE");
         }
