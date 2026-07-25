@@ -7,5 +7,9 @@ public enum TurnStatus {
     CANCELLED,
     REJECTED,
     EXPIRED_GONE,
-    ORPHANED_RETRYABLE
+    ORPHANED_RETRYABLE;
+
+    public boolean isTerminal() {
+        return this != RUNNING && this != ORPHANED_RETRYABLE;
+    }
 }

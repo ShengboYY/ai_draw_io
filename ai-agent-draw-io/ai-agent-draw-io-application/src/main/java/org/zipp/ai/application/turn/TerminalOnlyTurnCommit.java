@@ -10,7 +10,7 @@ public record TerminalOnlyTurnCommit(
 ) {
 
     public TerminalOnlyTurnCommit {
-        if (attempt == null || terminalStatus == null || terminalStatus == TurnStatus.RUNNING) {
+        if (attempt == null || terminalStatus == null || !terminalStatus.isTerminal()) {
             throw new IllegalArgumentException("invalid terminal commit");
         }
         ContractValues.requiredText(terminalCode, "terminalCode");

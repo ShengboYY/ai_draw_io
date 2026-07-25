@@ -117,4 +117,19 @@ class TurnContractTest {
         assertEquals(2, attempt.attemptEpoch());
         assertEquals(18, attempt.contextMessageHighWater());
     }
+
+    @Test
+    void retryableOrphanIsNotAProductTerminalOutcome() {
+        FencedAttempt attempt = new FencedAttempt(
+                new TurnKey("owner-1", "conversation-1", "turn-1"),
+                new AttemptLease("attempt-1", 1, Instant.parse("2026-07-26T00:01:00Z"), 30_000),
+                0,
+                "input",
+                new ExecutionPolicySnapshot(1, TurnEngineMode.V2_CANARY, "{}", "policy"));
+
+        assertThrows(IllegalArgumentException.class, () -> new PersistedTurnOutcome(
+                TurnStatus.ORPHANED_RETRYABLE, "ORPHAN", "status", null, "{}"));
+        assertThrows(IllegalArgumentException.class, () -> new TerminalOnlyTurnCommit(
+                attempt, TurnStatus.ORPHANED_RETRYABLE, "ORPHAN", "status", null, "{}"));
+    }
 }

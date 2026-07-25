@@ -326,7 +326,7 @@ public class MySqlTurnLifecycleAdapter implements
     }
 
     private boolean isTerminal(TurnStatus status) {
-        return status != TurnStatus.RUNNING && status != TurnStatus.ORPHANED_RETRYABLE;
+        return status.isTerminal();
     }
 
     private record ExecutionRow(

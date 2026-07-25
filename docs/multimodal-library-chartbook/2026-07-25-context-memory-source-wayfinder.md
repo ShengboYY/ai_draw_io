@@ -711,7 +711,7 @@ Type: Research
 
 ### Answer
 
-已覆盖 application contract、canonical conversation reference resolver、admission gate、attachment binding、memory declaration conflict、orphan takeover/epoch fencing、本地 MySQL 回滚 smoke，以及 facade 层同 TurnKey 并发提交的单 claim/replay 测试。M1 application facade 现在已把 typed conversation resolution、fingerprint/policy snapshot、assignment 与 claim outcome 串成单一入口；旧 HTTP/transport 仍保持 legacy，待 M2 translator 接线后补齐并发 transport 矩阵。最低矩阵：
+已覆盖 application contract、canonical conversation reference resolver、admission gate、attachment binding、memory declaration conflict、orphan takeover/epoch fencing、本地 MySQL 回滚 smoke，以及 facade 层同 TurnKey 并发提交的单 claim/replay 测试。另已固定 `ORPHANED_RETRYABLE` 不能伪装成 product terminal，并用本地 MySQL 事务验证 `claim → orphan → takeover → stale deadline fence loss → current deadline cancel`。M1 application facade 现在已把 typed conversation resolution、fingerprint/policy snapshot、assignment 与 claim outcome 串成单一入口；旧 HTTP/transport 仍保持 legacy，待 M2 translator 接线后补齐并发 transport 矩阵。最低矩阵：
 
 - 同 turn 并发请求只能产生一个 claim、一个 user message 和一个可接受 terminal commit；
 - lease 过期接管后旧 epoch 的 heartbeat、attempt-scoped cancel、fallback 和 commit 全部失败；

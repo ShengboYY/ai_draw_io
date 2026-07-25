@@ -9,7 +9,7 @@ public record PersistedTurnOutcome(
 ) {
 
     public PersistedTurnOutcome {
-        if (status == null || status == TurnStatus.RUNNING) {
+        if (status == null || !status.isTerminal()) {
             throw new IllegalArgumentException("terminal outcome must have a terminal status");
         }
         ContractValues.requiredText(terminalCode, "terminalCode");
