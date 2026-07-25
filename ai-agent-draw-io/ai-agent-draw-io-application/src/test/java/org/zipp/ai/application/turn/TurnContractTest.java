@@ -1,0 +1,55 @@
+package org.zipp.ai.application.turn;
+
+import org.junit.jupiter.api.Test;
+
+import java.time.Instant;
+import java.util.List;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+
+class TurnContractTest {
+
+    @Test
+    void turnKeyUsesCanonicalConversationAndRejectsCrossOwnerBinding() {
+        AuthenticatedActor actor = new AuthenticatedActor("owner-1", "cohort-1");
+        ConversationRef conversation = new ConversationRef(
+                "conversation-1", "owner-1", "diagram-1", ConversationStatus.ACTIVE);
+
+        assertEquals(
+                new TurnKey("owner-1", "conversation-1", "turn-1"),
+                TurnKey.of(actor, conversation, "turn-1"));
+        assertThrows(IllegalArgumentException.class, () -> TurnKey.of(
+                actor,
+                new ConversationRef("conversation-2", "owner-2", "diagram-1", ConversationStatus.ACTIVE),
+                "turn-1"));
+    }
+
+    @Test
+    void declarationCollectionsAreImmutable() {
+        TurnDeclarations declarations = new TurnDeclarations(
+                List.of(new OpaqueConversationFileRef("file-1")),
+                new NoClarificationReply(),
+                List.of(new UntrustedLegacyVersionDeclaration("legacy-1")),
+                new NoMemoryWrite());
+
+        assertThrows(UnsupportedOperationException.class, () ->
+                declarations.currentTurnAttachments().add(new OpaqueConversationFileRef("file-2")));
+        assertThrows(UnsupportedOperationException.class, () ->
+                declarations.legacySelectedSources().add(new UntrustedLegacyVersionDeclaration("legacy-2")));
+    }
+
+    @Test
+    void fencedAttemptExposesOnlyImmutableFenceValues() {
+        FencedAttempt attempt = new FencedAttempt(
+                new TurnKey("owner-1", "conversation-1", "turn-1"),
+                new AttemptLease("attempt-1", 2, Instant.parse("2026-07-26T00:01:00Z"), 30_000),
+                18,
+                "input-digest",
+                new ExecutionPolicySnapshot(1, TurnEngineMode.LEGACY, "{}", "policy-hash"));
+
+        assertEquals("attempt-1", attempt.attemptId());
+        assertEquals(2, attempt.attemptEpoch());
+        assertEquals(18, attempt.contextMessageHighWater());
+    }
+}

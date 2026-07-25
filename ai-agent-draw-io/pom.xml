@@ -177,6 +177,11 @@
       </dependency>
       <dependency>
         <groupId>org.zipp.ai</groupId>
+        <artifactId>ai-agent-draw-io-application</artifactId>
+        <version>1.0</version>
+      </dependency>
+      <dependency>
+        <groupId>org.zipp.ai</groupId>
         <artifactId>ai-agent-draw-io-infrastructure</artifactId>
         <version>1.0</version>
       </dependency>
@@ -265,6 +270,7 @@
     <module>ai-agent-draw-io-api</module>
     <module>ai-agent-draw-io-app</module>
     <module>ai-agent-draw-io-domain</module>
+    <module>ai-agent-draw-io-application</module>
     <module>ai-agent-draw-io-trigger</module>
     <module>ai-agent-draw-io-infrastructure</module>
     <module>ai-agent-draw-io-ingestion-worker</module>
