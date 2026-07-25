@@ -1,4 +1,5 @@
 import type { DirectClarification } from '../../features/sources/direct-confirmation.ts';
+import { MAX_CONVERSATION_LIBRARY_SELECTIONS } from '../../features/sources/conversation-library-selections.ts';
 
 type ConversationMessageInput = {
   id?: string;
@@ -21,6 +22,7 @@ type BuildDrawioChatRequestPayloadInput = {
   canvasSummary?: string;
   directClarifications?: DirectClarification[];
   directConfirmationSourceVersionId?: string;
+  selectedLibraryVersionIds?: string[];
   selectedCellIds?: string[];
   selectionCanvasVersion?: number;
   selectionContentHash?: string;
@@ -87,6 +89,7 @@ export const buildDrawioChatRequestPayload = ({
   canvasSummary,
   directClarifications,
   directConfirmationSourceVersionId,
+  selectedLibraryVersionIds,
   selectedCellIds,
   selectionCanvasVersion,
   selectionContentHash,
@@ -104,6 +107,9 @@ export const buildDrawioChatRequestPayload = ({
       }
       : undefined;
   const compactConversationMessages = toConversationContextMessages(conversationMessages);
+  const libraryVersionIds = [...new Set(
+    (selectedLibraryVersionIds || []).map(versionId => versionId.trim()).filter(Boolean),
+  )].slice(0, MAX_CONVERSATION_LIBRARY_SELECTIONS);
   return {
     agentId,
     userId,
@@ -120,6 +126,8 @@ export const buildDrawioChatRequestPayload = ({
     ...(canvasSummary && { canvasSummary }),
     ...(directClarifications?.length && { directClarifications }),
     ...(directConfirmationSourceVersionId && { directConfirmationSourceVersionId }),
+    // Library choices are source declarations; the Router still decides whether this turn uses them.
+    ...(libraryVersionIds.length > 0 && { selectedLibraryVersionIds: libraryVersionIds }),
     ...(selectedCellIds?.length && { selectedCellIds }),
     ...(selectionCanvasVersion !== undefined && { selectionCanvasVersion }),
     ...(selectionContentHash?.trim() && { selectionContentHash: selectionContentHash.trim() }),

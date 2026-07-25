@@ -1271,6 +1271,38 @@ public class AgentConversationServiceTest {
     }
 
     @Test
+    public void explicitlySelectedLibraryImageWinsOverAutomaticDirectCandidates() throws Exception {
+        AgentConversationService service = quotaAwareService();
+        AtomicReference<org.zipp.ai.domain.multimodal.DirectImageConversionCommand> executed =
+                new AtomicReference<>();
+        injectField(service, "chatService", new CountingChatService());
+        injectField(service, "intentRoutingService", new DirectImageRoutingService());
+        injectField(service, "canvasStateStore", new FixedCanvasStateStore(""));
+        injectField(service, "requestSourceResolutionService",
+                (org.zipp.ai.domain.retrieval.RequestSourceResolutionService) command ->
+                        explicitLibraryAndAutomaticImageSourceSnapshot());
+        injectField(service, "taskSourcePlanner",
+                new org.zipp.ai.domain.multimodal.DefaultTaskSourcePlanner());
+        injectField(service, "directImageConversionExecutionModule",
+                (org.zipp.ai.domain.multimodal.DirectImageConversionExecutionModule)
+                        (command, progress, cancellation) -> {
+                            executed.set(command);
+                            return java.util.concurrent.CompletableFuture.completedFuture(
+                                    new org.zipp.ai.domain.multimodal.DirectImageConversionOutcome.Unavailable(
+                                            "test-stop"));
+                        });
+        ChatRequestDTO request = verifiedPlatformRequest();
+        request.setRequestId("request-explicit-library-direct");
+
+        service.chat(request);
+
+        assertEquals("version-library", executed.get().source().primaryDirectVersionId());
+        assertEquals(List.of("version-library"),
+                executed.get().source().resolvedSources().sources().stream()
+                        .map(org.zipp.ai.domain.retrieval.ResolvedSource::versionId).toList());
+    }
+
+    @Test
     public void singleReadyImageDirectStreamEmitsPersistedCanvasWithoutCallingDrawer() throws Exception {
         AgentConversationService service = quotaAwareService();
         CountingChatService chatService = new CountingChatService();
@@ -1594,6 +1626,8 @@ public class AgentConversationServiceTest {
     public void probeAndEvidencePreparationShareOneResolvedSourceSnapshot() throws Exception {
         AgentConversationService service = quotaAwareService();
         AtomicInteger resolutions = new AtomicInteger();
+        AtomicReference<org.zipp.ai.domain.retrieval.RequestSourceResolutionCommand> resolutionCommand =
+                new AtomicReference<>();
         AtomicReference<org.zipp.ai.domain.retrieval.ResolvedSourceSet> probed = new AtomicReference<>();
         AtomicReference<org.zipp.ai.domain.retrieval.ResolvedSourceSet> prepared = new AtomicReference<>();
         org.zipp.ai.domain.retrieval.ResolvedSourceSet snapshot =
@@ -1605,6 +1639,7 @@ public class AgentConversationServiceTest {
         injectField(service, "requestSourceResolutionService",
                 (org.zipp.ai.domain.retrieval.RequestSourceResolutionService) command -> {
                     resolutions.incrementAndGet();
+                    resolutionCommand.set(command);
                     return snapshot;
                 });
         injectField(service, "requestProbeService",
@@ -1626,11 +1661,13 @@ public class AgentConversationServiceTest {
         ChatRequestDTO request = platformRequest();
         request.setRequestId("request-source-snapshot-1");
         request.setMessage("answer from the current conversation");
+        request.setSelectedLibraryVersionIds(List.of(" library-version-1 ", "library-version-1"));
 
         org.zipp.ai.api.dto.ChatResponseDTO response = service.chat(request);
 
         assertEquals("material_waiting", response.getType());
         assertEquals(1, resolutions.get());
+        assertEquals(List.of("library-version-1"), resolutionCommand.get().selectedVersionIds());
         assertSame(snapshot, probed.get());
         assertSame(snapshot, prepared.get());
     }
@@ -2009,6 +2046,23 @@ public class AgentConversationServiceTest {
                         displayName, scopeType, scopeKey, "READY",
                         org.zipp.ai.domain.retrieval.RequestSourceOrigin.AUTOMATIC,
                         false, true, false)), 0, 0);
+    }
+
+    private org.zipp.ai.domain.retrieval.ResolvedSourceSet explicitLibraryAndAutomaticImageSourceSnapshot() {
+        return new org.zipp.ai.domain.retrieval.ResolvedSourceSet(
+                org.zipp.ai.domain.retrieval.SourceMode.AUTO,
+                List.of(
+                        new org.zipp.ai.domain.retrieval.ResolvedSource(
+                                "material-library", "version-library", "revision-library",
+                                "IMAGE", "library.png",
+                                org.zipp.ai.domain.material.model.valobj.MaterialScopeType.LIBRARY,
+                                "usr_alice", "READY",
+                                org.zipp.ai.domain.retrieval.RequestSourceOrigin.EXPLICIT,
+                                false, true, false),
+                        automaticImageSourceSnapshot(
+                                org.zipp.ai.domain.material.model.valobj.MaterialScopeType.CHARTBOOK,
+                                "chartbook-1", "shared.png", "version-shared").sources().get(0)),
+                0, 0);
     }
 
     private org.zipp.ai.domain.retrieval.ResolvedSourceSet namedDirectSourceSnapshot() {

@@ -10,6 +10,10 @@ const traySource = fs.readFileSync(
   new URL('../src/features/sources/ConversationAttachmentTray.tsx', import.meta.url),
   'utf8',
 );
+const addMenuSource = fs.readFileSync(
+  new URL('../src/features/sources/ComposerAddMenu.tsx', import.meta.url),
+  'utf8',
+);
 const pageSource = fs.readFileSync(
   new URL('../src/app/drawio/page.tsx', import.meta.url),
   'utf8',
@@ -59,14 +63,17 @@ test('composer presents conversation files as compact attachments', () => {
   assert.match(traySource, /normalizedState === 'PARTIAL_READY'/);
 });
 
-test('composer retains a plus shortcut while Files owns conversation file management', () => {
+test('composer plus offers ChatGPT-style Library and local file choices', () => {
   assert.match(pageSource, /title="Files"/);
   assert.match(pageSource, /<FilesPanel[\s\S]*onUpload=\{\(\) => attachmentUploaderRef\.current\?\.openPicker\(\)\}/);
-  assert.match(
-    pageSource,
-    /aria-label="Add conversation file"[\s\S]*attachmentUploaderRef\.current\?\.openPicker\(\)[\s\S]*disabled=\{isSending \|\| !selectedAgentId\}[\s\S]*<Icons\.Plus/,
-  );
-  assert.doesNotMatch(pageSource, /<ComposerSourceMenu/);
+  assert.match(pageSource, /<ComposerAddMenu/);
+  assert.match(pageSource, /onUploadFromComputer=\{\(\) => attachmentUploaderRef\.current\?\.openPicker\(\)\}/);
+  assert.match(addMenuSource, /Choose from Library/);
+  assert.match(addMenuSource, /Upload from computer/);
+  assert.match(addMenuSource, /aria-haspopup="menu"/);
+  assert.match(addMenuSource, /query: searchQuery\.trim\(\) \|\| undefined/);
+  assert.match(addMenuSource, /client\.list\(\{/);
+  assert.match(pageSource, /<ComposerLibrarySelectionTray/);
   assert.doesNotMatch(pageSource, /<SourceModeControl/);
   assert.doesNotMatch(pageSource, /<SourcePicker/);
   assert.doesNotMatch(pageSource, /selectedAttachmentUploadIds/);

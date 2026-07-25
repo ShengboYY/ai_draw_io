@@ -27,6 +27,8 @@ public class ChatRequestDTO {
     private java.util.List<DirectClarificationDTO> directClarifications;
     // Exact version from the confirmation event; the server rejects stale-image confirmation reuse.
     private String directConfirmationSourceVersionId;
+    // Library choices declare available immutable versions; routing still decides whether to use them.
+    private java.util.List<String> selectedLibraryVersionIds;
     private java.util.List<String> selectedCellIds;
     private Long selectionCanvasVersion;
     private String selectionContentHash;

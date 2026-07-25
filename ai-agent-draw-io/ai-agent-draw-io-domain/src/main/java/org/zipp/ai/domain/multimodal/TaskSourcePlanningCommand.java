@@ -9,6 +9,7 @@ import java.util.Objects;
 public record TaskSourcePlanningCommand(CanvasAction action, SourceUse requestedSourceUse,
                                         SourceMode retrievalMode, List<String> directCandidateVersionIds,
                                         List<String> newlyUploadedDirectCandidateVersionIds,
+                                        List<String> explicitlySelectedDirectCandidateVersionIds,
                                         List<String> conversationDirectCandidateVersionIds,
                                         String namedDirectCandidateVersionId,
                                         List<String> selectedReferenceVersionIds,
@@ -20,6 +21,8 @@ public record TaskSourcePlanningCommand(CanvasAction action, SourceUse requested
         directCandidateVersionIds = ids(directCandidateVersionIds);
         newlyUploadedDirectCandidateVersionIds = ids(newlyUploadedDirectCandidateVersionIds).stream()
                 .filter(directCandidateVersionIds::contains).toList();
+        explicitlySelectedDirectCandidateVersionIds = ids(explicitlySelectedDirectCandidateVersionIds).stream()
+                .filter(directCandidateVersionIds::contains).toList();
         conversationDirectCandidateVersionIds = ids(conversationDirectCandidateVersionIds).stream()
                 .filter(directCandidateVersionIds::contains).toList();
         namedDirectCandidateVersionId = id(namedDirectCandidateVersionId);
@@ -28,6 +31,20 @@ public record TaskSourcePlanningCommand(CanvasAction action, SourceUse requested
         }
         selectedReferenceVersionIds = ids(selectedReferenceVersionIds);
         pendingSourceCount = Math.max(0, pendingSourceCount);
+    }
+
+    /** Compatibility constructor for callers that do not distinguish explicit direct candidates. */
+    public TaskSourcePlanningCommand(CanvasAction action, SourceUse requestedSourceUse,
+                                     SourceMode retrievalMode, List<String> directCandidateVersionIds,
+                                     List<String> newlyUploadedDirectCandidateVersionIds,
+                                     List<String> conversationDirectCandidateVersionIds,
+                                     String namedDirectCandidateVersionId,
+                                     List<String> selectedReferenceVersionIds,
+                                     int pendingSourceCount) {
+        this(action, requestedSourceUse, retrievalMode, directCandidateVersionIds,
+                newlyUploadedDirectCandidateVersionIds, List.of(),
+                conversationDirectCandidateVersionIds, namedDirectCandidateVersionId,
+                selectedReferenceVersionIds, pendingSourceCount);
     }
 
     private static List<String> ids(List<String> values) {

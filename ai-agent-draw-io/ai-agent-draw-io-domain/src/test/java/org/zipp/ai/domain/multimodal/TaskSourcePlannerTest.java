@@ -36,6 +36,19 @@ class TaskSourcePlannerTest {
     }
 
     @Test
+    void oneExplicitlySelectedLibraryImageWinsAmongAutomaticCandidates() {
+        TaskSourcePlan plan = planner.plan(new TaskSourcePlanningCommand(CanvasAction.CREATE,
+                SourceUse.DIRECT, SourceMode.AUTO,
+                List.of("ver-library", "ver-conversation"),
+                List.of(), List.of("ver-library"), List.of("ver-conversation"),
+                "", List.of(), 0));
+
+        assertEquals(SourceUse.DIRECT, plan.sourceUse());
+        assertEquals("ver-library", plan.primaryDirectVersionId());
+        assertFalse(plan.needsClarification());
+    }
+
+    @Test
     void uniquelyNamedChartbookImageBecomesThePrimaryDirectSource() {
         TaskSourcePlan plan = planner.plan(command(
                 SourceUse.DIRECT, List.of("ver-conversation", "ver-chartbook"),

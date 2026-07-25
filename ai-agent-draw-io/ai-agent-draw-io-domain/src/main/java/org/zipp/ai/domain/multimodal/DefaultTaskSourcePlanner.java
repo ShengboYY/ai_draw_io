@@ -50,6 +50,13 @@ public final class DefaultTaskSourcePlanner implements TaskSourcePlanner {
         if (newlyUploaded.size() == 1) {
             return DirectSelection.selected(newlyUploaded.get(0));
         }
+        List<String> explicitlySelected = command.explicitlySelectedDirectCandidateVersionIds();
+        if (explicitlySelected.size() == 1) {
+            return DirectSelection.selected(explicitlySelected.get(0));
+        }
+        if (explicitlySelected.size() > 1) {
+            return DirectSelection.clarification("AMBIGUOUS_DIRECT_IMAGE");
+        }
         if (!command.namedDirectCandidateVersionId().isEmpty()) {
             return DirectSelection.selected(command.namedDirectCandidateVersionId());
         }

@@ -76,6 +76,27 @@ test('buildDrawioChatRequestPayload never serializes legacy per-message source c
   assert.equal('sourceUseOverride' in request, false);
 });
 
+test('buildDrawioChatRequestPayload carries bounded Library version declarations', () => {
+  const request = buildDrawioChatRequestPayload({
+    agentId: '300000',
+    userId: 'usr_alice',
+    sessionId: 'session-1',
+    userMessage: 'Draw the process described in the selected file',
+    selectedLibraryVersionIds: [
+      ' version-1 ',
+      'version-1',
+      '',
+      ...Array.from({ length: 25 }, (_, index) => `version-${index + 2}`),
+    ],
+  });
+
+  assert.deepEqual(request.selectedLibraryVersionIds, [
+    'version-1',
+    ...Array.from({ length: 19 }, (_, index) => `version-${index + 2}`),
+  ]);
+  assert.equal('selectedVersionIds' in request, false);
+});
+
 test('buildDrawioChatRequestPayload carries bounded direct image clarifications', () => {
   const payload = buildDrawioChatRequestPayload({
     agentId: '300000',

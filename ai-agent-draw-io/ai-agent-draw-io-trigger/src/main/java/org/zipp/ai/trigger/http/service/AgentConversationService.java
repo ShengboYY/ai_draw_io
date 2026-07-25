@@ -1652,7 +1652,8 @@ public class AgentConversationService {
         try {
             return requestSourceResolutionService.resolve(new RequestSourceResolutionCommand(
                     owner(requestDTO), requestDTO.getDiagramId(), requestDTO.getSessionId(),
-                    requestDTO.getRunId(), mode, List.of(), List.of()));
+                    requestDTO.getRunId(), mode, List.of(),
+                    safeList(requestDTO.getSelectedLibraryVersionIds())));
         } catch (RuntimeException exception) {
             // Infrastructure/conflict failures must remain distinguishable from an unavailable opaque ID.
             log.warn("Request source resolution failed closed. diagramId={}",
@@ -1785,6 +1786,9 @@ public class AgentConversationService {
         List<String> newlyUploaded = directReadableImages.stream()
                 .filter(source -> source.origin() == RequestSourceOrigin.ATTACHMENT)
                 .map(ResolvedSource::versionId).distinct().toList();
+        List<String> explicitlySelected = directReadableImages.stream()
+                .filter(source -> source.origin() == RequestSourceOrigin.EXPLICIT)
+                .map(ResolvedSource::versionId).distinct().toList();
         List<String> conversationCandidates = directReadableImages.stream()
                 .filter(source -> source.scopeType()
                         == org.zipp.ai.domain.material.model.valobj.MaterialScopeType.CONVERSATION)
@@ -1794,6 +1798,7 @@ public class AgentConversationService {
                 SourceMode.AUTO,
                 directReadableImages.stream().map(ResolvedSource::versionId).toList(),
                 newlyUploaded,
+                explicitlySelected,
                 conversationCandidates,
                 namedDirectCandidateVersionId(request.getMessage(), directReadableImages),
                 List.of(),

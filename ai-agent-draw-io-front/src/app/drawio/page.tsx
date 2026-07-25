@@ -24,6 +24,10 @@ import { createMaterialClient } from '@/api/material';
 import { createMaterialCapabilitiesClient } from '@/api/material-capabilities';
 import { createChartbookClient } from '@/api/chartbook';
 import { ConversationAttachmentTray } from '@/features/sources/ConversationAttachmentTray';
+import {
+  ComposerAddMenu,
+  ComposerLibrarySelectionTray,
+} from '@/features/sources/ComposerAddMenu';
 import type { MaterialUploaderHandle } from '@/features/materials/MaterialUploader';
 import type { Chartbook, MaterialCatalogCard } from '@/features/materials/material-types';
 import { isTerminalUploadStatus } from '@/features/materials/upload-machine';
@@ -40,6 +44,12 @@ import {
   writeConversationAttachments,
   type ConversationAttachment,
 } from '@/features/sources/conversation-attachments';
+import {
+  MAX_CONVERSATION_LIBRARY_SELECTIONS,
+  readConversationLibrarySelections,
+  writeConversationLibrarySelections,
+  type ConversationLibrarySelection,
+} from '@/features/sources/conversation-library-selections';
 import {
   CanvasStateMetadata,
   makeLocalDiagramId,
@@ -785,6 +795,8 @@ function DrawioPageContent() {
   const attachmentUploaderRef = useRef<MaterialUploaderHandle>(null);
   const [attachmentSessionLoaded, setAttachmentSessionLoaded] = useState('');
   const [restoredAttachments, setRestoredAttachments] = useState<ConversationAttachment[]>([]);
+  const [librarySelections, setLibrarySelections] = useState<ConversationLibrarySelection[]>([]);
+  const [librarySelectionSessionLoaded, setLibrarySelectionSessionLoaded] = useState('');
   const [acceptedMaterialMimeTypes, setAcceptedMaterialMimeTypes] = useState<string[]>([
     'application/pdf', 'image/png', 'image/jpeg',
   ]);
@@ -1482,6 +1494,23 @@ function DrawioPageContent() {
     if (!attachmentSessionId || attachmentSessionLoaded !== attachmentSessionId) return;
     writeConversationAttachments(window.sessionStorage, attachmentSessionId, conversationAttachments);
   }, [attachmentSessionLoaded, conversationAttachments, sessionId]);
+
+  useEffect(() => {
+    const librarySessionId = sessionId.trim();
+    if (!librarySessionId) {
+      setLibrarySelections([]);
+      setLibrarySelectionSessionLoaded('');
+      return;
+    }
+    setLibrarySelections(readConversationLibrarySelections(window.localStorage, librarySessionId));
+    setLibrarySelectionSessionLoaded(librarySessionId);
+  }, [sessionId]);
+
+  useEffect(() => {
+    const librarySessionId = sessionId.trim();
+    if (!librarySessionId || librarySelectionSessionLoaded !== librarySessionId) return;
+    writeConversationLibrarySelections(window.localStorage, librarySessionId, librarySelections);
+  }, [librarySelectionSessionLoaded, librarySelections, sessionId]);
 
   useEffect(() => {
     if (!attachmentSessionLoaded || restoredAttachments.length === 0) return;
@@ -2420,6 +2449,7 @@ function DrawioPageContent() {
           modelCredentialId: activeModelConfig?.modelCredentialId || undefined,
           directClarifications: options.directClarifications,
           directConfirmationSourceVersionId: options.directConfirmationSourceVersionId,
+          selectedLibraryVersionIds: librarySelections.map(selection => selection.versionId),
           selectedCellIds: selectedCellsRef.current?.cellIds,
           selectionCanvasVersion: selectedCellsRef.current?.canvasVersion,
           selectionContentHash: selectedCellsRef.current?.contentHash,
@@ -3668,6 +3698,27 @@ function DrawioPageContent() {
     }
   };
 
+  const attachLibrarySelection = async (selection: ConversationLibrarySelection) => {
+    const librarySessionId = await initializeAttachmentSession();
+    if (!librarySessionId) throw new Error('无法创建附件会话，请重试。');
+    const currentSelections = librarySelectionSessionLoaded === librarySessionId
+      ? librarySelections
+      : readConversationLibrarySelections(window.localStorage, librarySessionId);
+    if (currentSelections.some(item => item.versionId === selection.versionId)) return;
+    if (currentSelections.length >= MAX_CONVERSATION_LIBRARY_SELECTIONS) {
+      throw new Error(`每个对话最多可选择 ${MAX_CONVERSATION_LIBRARY_SELECTIONS} 个资料库文件。`);
+    }
+    const nextSelections = [...currentSelections, selection];
+    // Persist immediately so a newly created session cannot race with its session-load effect.
+    writeConversationLibrarySelections(window.localStorage, librarySessionId, nextSelections);
+    setLibrarySelections(nextSelections);
+    setLibrarySelectionSessionLoaded(librarySessionId);
+  };
+
+  const removeLibrarySelection = (versionId: string) => {
+    setLibrarySelections(current => current.filter(selection => selection.versionId !== versionId));
+  };
+
   const handleSendMessage = async () => {
     const content = inputValue;
     // Capture user-picked skills for this message, then clear the chips.
@@ -4523,6 +4574,10 @@ function DrawioPageContent() {
                 }}
                 disabled={isSending || !selectedAgentId}
               />
+              <ComposerLibrarySelectionTray
+                selections={librarySelections}
+                onRemove={removeLibrarySelection}
+              />
 
               {/* The composer shell owns focus treatment; the textarea itself stays visually borderless. */}
               <textarea
@@ -4544,16 +4599,14 @@ function DrawioPageContent() {
               <div className="mt-auto flex items-center justify-between gap-3 pt-1">
                 {/* Files owns management; the composer keeps a lightweight upload shortcut. */}
                 <div className="flex items-center gap-1.5">
-                  <button
-                    type="button"
-                    aria-label="Add conversation file"
-                    onClick={() => attachmentUploaderRef.current?.openPicker()}
+                  <ComposerAddMenu
+                    client={materialClient}
                     disabled={isSending || !selectedAgentId}
-                    className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-zinc-500 transition-colors hover:bg-stone-100 hover:text-zinc-800 disabled:cursor-not-allowed disabled:opacity-40"
-                    title="Add conversation file"
-                  >
-                    <Icons.Plus className="h-4 w-4" />
-                  </button>
+                    selections={librarySelections}
+                    onSelect={attachLibrarySelection}
+                    onRemove={removeLibrarySelection}
+                    onUploadFromComputer={() => attachmentUploaderRef.current?.openPicker()}
+                  />
                   {demoQuotaState.visible && !demoQuotaState.exhausted && (
                     <span className="flex items-center gap-1.5 whitespace-nowrap font-mono text-[11px] font-medium text-zinc-500" title={demoQuotaState.label}>
                       <span className={`h-1.5 w-1.5 rounded-full ${demoQuotaState.remaining <= 1 ? 'bg-amber-500' : 'bg-emerald-500'}`} aria-hidden="true" />
