@@ -60,6 +60,10 @@ public final class TurnAdmissionGate implements AdmissionBarrier {
 
     @Override
     public synchronized void pauseAndDrain() {
+        if (!isReady()) {
+            // A migration window must never run from a boot that does not own the singleton lock.
+            throw new IllegalStateException("TURN_INSTANCE_NOT_READY");
+        }
         // Close first, then wait for every admission that crossed the gate before the pause.
         open = false;
         while (inFlight > 0) {

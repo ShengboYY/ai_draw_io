@@ -61,6 +61,17 @@ class TurnAdmissionGateTest {
     }
 
     @Test
+    void pauseRefusesToOpenMigrationWindowAfterSingletonLockLoss() {
+        FakeLock lock = new FakeLock();
+        TurnAdmissionGate gate = new TurnAdmissionGate(lock, ignored -> 0);
+        assertEquals(InstanceLockOutcome.ACQUIRED, gate.start(new InstanceBootId("boot-1")));
+        lock.held = false;
+
+        assertThrows(IllegalStateException.class, gate::pauseAndDrain);
+        assertFalse(gate.isOpen());
+    }
+
+    @Test
     void startupLockLossDuringReconciliationNeverOpensAdmission() {
         FakeLock lock = new FakeLock();
         TurnAdmissionGate gate = new TurnAdmissionGate(

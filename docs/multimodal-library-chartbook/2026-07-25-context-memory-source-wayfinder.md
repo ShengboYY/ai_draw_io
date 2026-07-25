@@ -294,6 +294,8 @@ M1 控制面已按以下合同分批落地；生产 HTTP 仍未切入 V2，Plain
 
 本切片收口 migration pause 的本地并发边界：`TurnEngineMigrationCoordinator` 的 mode switch 与 expiry scanner 共享 coordinator monitor 串行执行，后一个操作必须等待前一个完成 `resume()`，避免两个 operator 调用交错导致 admission 在仍有 migration 工作时提前开放。新增双线程 coordinator contract test；application 全量、infrastructure lifecycle/commit/lock 与 bootstrap composition 串行回归通过。本切片没有新增或执行 migration。
 
+本切片补齐 migration pause 的持锁前置条件：`TurnAdmissionGate.pauseAndDrain()` 在关闭 admission 前验证当前 boot 仍 ready 且持有 singleton lock；锁丢失或 startup 尚未完成时返回 `TURN_INSTANCE_NOT_READY`，不会让 coordinator 继续执行 backfill/mode switch。新增 lock-loss pause contract test；application 全量、infrastructure lifecycle/commit/lock 与 bootstrap composition 串行回归通过。本切片没有新增或执行 migration。
+
 ## single-instance-migration-control: Build The Single-Instance Migration Boundary
 
 Blocked by: turn-execution-control
