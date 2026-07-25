@@ -128,7 +128,7 @@ Plain、Direct、Grounded Drawer 和 Evidence Answer 各自使用窄的 applicat
 | --- | --- | --- |
 | H0 | Legacy 普通画图止血 | 已完成：Router 先于 source resolve/freeze，普通路径零资料调用 |
 | M0 | 合同与 ADR | 本 ADR；不改变生产行为 |
-| M1 | Application module、canonical conversation、claim/fence、terminal seams | 待实现 |
+| M1 | Application module、canonical conversation、claim/fence、terminal seams | 进行中：控制面与数据库适配器已分批提交，HTTP/V2 executor 接线留待 M2 |
 | M2 | Isolated V2 Plain path、双模型路由和零 source 测试 | 待实现；生产继续 Legacy |
 | M3 | Server-owned Context、as-of history 和 scope migration | 待实现 |
 | M4–M5 | Typed planning、conditional Probe、Direct/Retrieval strong commits | 待实现；只允许 isolated test executor |

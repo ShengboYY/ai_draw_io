@@ -212,7 +212,7 @@ M1/M2 实现票据必须依赖该 ADR；旧文档清理可以随后并行进行�
 ## conversation-identity-foundation: Canonicalize Turn Scope Before M1
 
 Blocked by: formal-contract-adr
-Status: open
+Status: in progress
 Type: Task
 
 ### Question
@@ -221,7 +221,7 @@ Type: Task
 
 ### Answer
 
-Pending. M1 建立 durable canonical conversation id、active actor/conversation/diagram binding 与 immutable legacy alias mapping。
+已开始实现 durable canonical conversation id、active actor/conversation/diagram binding 与 immutable legacy alias mapping。当前 canonical catalog、owner-fenced lookup/default creation 和 application TurnKey 已落地；Facade/HTTP translator 与历史 scope 双读仍留给后续接线。
 
 Facade 在 fingerprint、assignment 和 claim 前解析 canonical `ConversationRef`。TurnKey、assignment、execution、clarification 与 tombstone 只保存 canonical id。
 
@@ -232,7 +232,7 @@ Facade 在 fingerprint、assignment 和 claim 前解析 canonical `ConversationR
 ## turn-execution-control: Implement Claim, Fence, Status And Cancellation
 
 Blocked by: conversation-identity-foundation
-Status: open
+Status: in progress
 Type: Prototype
 
 ### Question
@@ -241,7 +241,7 @@ Type: Prototype
 
 ### Answer
 
-Pending. M1 必须包含：
+M1 控制面已按以下合同分批落地；生产 HTTP 仍未切入 V2，Plain/Response strong commit 留给 M2：
 
 - `turn_engine_assignment`：sticky engine、fingerprint、canonical policy 与 hash；
 - assignment/execution 还要固定 deterministic `MemoryWriteDeclaration` 的 schema、rule 与 semantic digest；模型输出不能在执行中补出 remember 意图；
@@ -262,12 +262,12 @@ Pending. M1 必须包含：
 - disconnect detach、explicit cancel、deadline 和 commit race 的并发测试；
 - 同 turn 并发提交、崩溃接管、stale attempt、flag flip、terminal replay 与 fingerprint conflict 测试。
 - 同 TurnKey 的 memory declaration mismatch 必须 conflict；retry/takeover 始终使用首次固定的 declaration。
-- fingerprint 纯函数测试：opaque ref 的格式只参与 canonicalization；文件存在性与 owner fence 在 claim 事务验证，只有 `SourcePlanningRequired` 才允许后续 Source Probe。
+- fingerprint 纯函数已覆盖 opaque ref 顺序、alias/runtime session 排除和 memory declaration；文件存在性与 owner fence 在 claim 事务验证，只有 `SourcePlanningRequired` 才允许后续 Source Probe。
 
 ## single-instance-migration-control: Build The Single-Instance Migration Boundary
 
 Blocked by: turn-execution-control
-Status: open
+Status: in progress
 Type: Task
 
 ### Question
@@ -276,7 +276,7 @@ Type: Task
 
 ### Answer
 
-Pending. 前提是部署或 DB singleton lock 保证任意时刻只有一个 serving instance：
+DB singleton lock、启动 orphan reconciler 和 application admission gate 已落地；迁移 pause/drain 的生产 composition 仍待接入。前提是部署或 DB singleton lock 保证任意时刻只有一个 serving instance：
 
 - 建立 `turn_engine_migration_state(mode,generation)` singleton row；
 - 启动先取得 `SingleActiveInstanceLock`，失败则不开放 HTTP admission；
@@ -702,7 +702,7 @@ Pending. 需要定义：
 ## turn-lifecycle-evals: Gate M1 Turn Control
 
 Blocked by: turn-execution-control
-Status: open
+Status: in progress
 Type: Research
 
 ### Question
@@ -711,7 +711,7 @@ Type: Research
 
 ### Answer
 
-Pending. 最低矩阵：
+已覆盖 application contract、attachment binding、memory declaration conflict、orphan takeover/epoch fencing 和本地 MySQL 回滚 smoke；并发 HTTP/transport 矩阵待 M2 facade 接线后补齐。最低矩阵：
 
 - 同 turn 并发请求只能产生一个 claim、一个 user message 和一个可接受 terminal commit；
 - lease 过期接管后旧 epoch 的 heartbeat、attempt-scoped cancel、fallback 和 commit 全部失败；
