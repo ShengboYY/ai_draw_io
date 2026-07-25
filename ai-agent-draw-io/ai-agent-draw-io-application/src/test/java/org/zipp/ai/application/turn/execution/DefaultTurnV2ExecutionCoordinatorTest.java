@@ -19,6 +19,7 @@ import org.zipp.ai.application.turn.TurnStatus;
 import org.zipp.ai.application.turn.TurnStatusRef;
 import org.zipp.ai.application.turn.UserTurnCommand;
 import org.zipp.ai.application.turn.PlainGenerationResult;
+import org.zipp.ai.application.turn.TurnAttemptExecutionStatePort;
 import org.zipp.ai.application.turn.context.AbsentContext;
 import org.zipp.ai.application.turn.context.BaseTurnContext;
 import org.zipp.ai.application.turn.context.ContextDiagnostics;
@@ -124,6 +125,40 @@ class DefaultTurnV2ExecutionCoordinatorTest {
                         plain).execute(attempt, command, ignoredEvents()));
 
         assertInstanceOf(TurnV2PreHandlerOutcome.FenceLost.class, blocked.outcome());
+        assertEquals(0, generations.get());
+    }
+
+    @Test
+    void rechecksDurableStateBeforeDispatchingAReadyPlainRoute() {
+        UserTurnCommand command = command("draw a flow");
+        FencedAttempt attempt = attempt(command);
+        BaseTurnContext context = context(command);
+        ContextReadSet readSet = readSet(attempt.contextMessageHighWater());
+        AtomicInteger generations = new AtomicInteger();
+        PlainDrawingHandler plain = new PlainDrawingHandler(
+                (request, events) -> {
+                    generations.incrementAndGet();
+                    return new PlainGenerationResult("unexpected", "<mxGraphModel/>", "unexpected");
+                },
+                commit -> new FencedCommitOutcome.Rejected("unexpected"),
+                new org.zipp.ai.application.turn.PlainRuntimeRegistry(),
+                PlainExecutionProfile.m2SourceFree());
+
+        TurnV2ExecutionOutcome.PreparationBlocked blocked = assertInstanceOf(
+                TurnV2ExecutionOutcome.PreparationBlocked.class,
+                new DefaultTurnV2ExecutionCoordinator(
+                        (ignoredAttempt, ignoredCommand) -> ready(
+                                attempt, context, readSet, plainDecision(readSet, attempt),
+                                checkpoint(readSet, attempt)),
+                        plain,
+                        ignored -> new TurnAttemptExecutionStatePort.StateOutcome.AlreadyTerminal(
+                                new PersistedTurnOutcome(
+                                        TurnStatus.CANCELLED, "CANCELLED_BY_USER", "cancel", null, "{}")))
+                        .execute(attempt, command, ignoredEvents()));
+
+        TurnV2PreHandlerOutcome.AlreadyTerminal terminal = assertInstanceOf(
+                TurnV2PreHandlerOutcome.AlreadyTerminal.class, blocked.outcome());
+        assertEquals(TurnStatus.CANCELLED, terminal.outcome().status());
         assertEquals(0, generations.get());
     }
 

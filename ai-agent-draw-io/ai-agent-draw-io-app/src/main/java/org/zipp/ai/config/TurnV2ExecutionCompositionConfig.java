@@ -82,9 +82,10 @@ public class TurnV2ExecutionCompositionConfig {
     })
     public TurnV2ExecutionCoordinator turnV2ExecutionCoordinator(
             TurnV2PreHandlerCoordinator preHandler,
-            PlainDrawingHandler plain
+            PlainDrawingHandler plain,
+            TurnAttemptExecutionStatePort executionState
     ) {
-        return new DefaultTurnV2ExecutionCoordinator(preHandler, plain);
+        return new DefaultTurnV2ExecutionCoordinator(preHandler, plain, executionState);
     }
 
     @Bean

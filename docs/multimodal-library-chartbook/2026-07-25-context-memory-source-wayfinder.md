@@ -308,6 +308,8 @@ M1 控制面已按以下合同分批落地；生产 HTTP 仍未切入 V2，Plain
 
 本切片补齐 Context 非 Ready 分支的 cancellation precedence：`DefaultTurnV2PreHandlerCoordinator` 在 Context preparation 返回 `Ready`、`Terminal`、`FenceLost` 或 `Unavailable` 前统一重新读取 fenced execution state；若 explicit cancel/deadline 已先持久化 terminal，统一返回 `AlreadyTerminal`，不会把 Context terminal 再交给 terminal-only commit。新增 Context terminal 与 durable cancellation race contract test；application 全量回归通过，本切片没有新增或执行 migration。
 
+本切片把 durable state fence 前移到 Plain dispatch 边界：`DefaultTurnV2ExecutionCoordinator` 在 pre-handler 返回 `Ready` 后、调用 Plain handler 前再次校验当前 attempt、epoch 与 lease；cancel/terminal/fence loss 会转为 preparation-blocked outcome，模型 generation 与 strong commit 均不会启动。isolated V2 composition 将同一 `TurnAttemptExecutionStatePort` 注入该边界，并新增 dispatch-race contract test；application 与 app composition 定向回归通过，本切片没有新增或执行 migration。
+
 ## single-instance-migration-control: Build The Single-Instance Migration Boundary
 
 Blocked by: turn-execution-control
