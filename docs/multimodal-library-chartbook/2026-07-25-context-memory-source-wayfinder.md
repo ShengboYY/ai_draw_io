@@ -304,6 +304,8 @@ M1 控制面已按以下合同分批落地；生产 HTTP 仍未切入 V2，Plain
 
 本切片补齐 explicit cancel 与 V2 preparation 的 durable state fence：新增 `TurnAttemptExecutionStatePort`，在 Context 前、Context ready 后和 Decision 完成后以当前 attempt/epoch 重新读取状态；MySQL adapter 使用 `SELECT ... FOR UPDATE`，同时校验 terminal payload、attempt fence 与 lease 是否仍有效。取消或其他并发 terminal 已先落库时返回 `AlreadyTerminal`，executor 直接 replay 已持久化 outcome，不调用 terminal commit adapter；旧 attempt 与过期 lease 返回 ownership lost。新增 application、infrastructure 与 app composition contract tests；现有 `turn_execution` 字段足够承载该检查，本切片没有新增或执行 migration。
 
+本切片继续修复 checkpoint CAS loser 的 current-read 语义：`MySqlTurnDecisionCheckpointAdapter` 的 `pinFirst` 在写入失败后改用 `SELECT ... FOR UPDATE` reload，避免取消/终态已赢得同一 `turn_execution` 行时，在事务快照中误读旧的 `RUNNING/MISSING`。新增 terminal-winner checkpoint adapter contract test，并回归 application、app composition 与 infrastructure M1 lifecycle/commit/lock/migration-control；现有表字段已足够，本切片没有新增或执行 migration。
+
 ## single-instance-migration-control: Build The Single-Instance Migration Boundary
 
 Blocked by: turn-execution-control

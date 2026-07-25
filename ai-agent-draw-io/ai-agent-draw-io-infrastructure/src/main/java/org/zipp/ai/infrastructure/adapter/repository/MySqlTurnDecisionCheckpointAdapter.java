@@ -2,7 +2,7 @@ package org.zipp.ai.infrastructure.adapter.repository;
 
 import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONObject;
-import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.JdbcOperations;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 import org.zipp.ai.application.turn.FencedAttempt;
@@ -39,6 +39,7 @@ public class MySqlTurnDecisionCheckpointAdapter implements
             FROM turn_execution
             WHERE owner_key = ? AND conversation_id = ? AND turn_id = ?
             """;
+    private static final String SELECT_FOR_UPDATE = SELECT + "FOR UPDATE\n";
 
     private static final String PIN = """
             UPDATE turn_execution
@@ -51,16 +52,20 @@ public class MySqlTurnDecisionCheckpointAdapter implements
               AND plan_payload_json IS NULL AND plan_payload_digest IS NULL
             """;
 
-    private final JdbcTemplate jdbc;
+    private final JdbcOperations jdbc;
 
-    public MySqlTurnDecisionCheckpointAdapter(JdbcTemplate jdbc) {
+    public MySqlTurnDecisionCheckpointAdapter(JdbcOperations jdbc) {
         this.jdbc = Objects.requireNonNull(jdbc, "jdbc");
     }
 
     @Override
     public TurnDecisionCheckpointLoadOutcome loadPinned(FencedAttempt attempt) {
         Objects.requireNonNull(attempt, "attempt");
-        ExecutionRow row = find(attempt.key());
+        return loadPinned(attempt, SELECT);
+    }
+
+    private TurnDecisionCheckpointLoadOutcome loadPinned(FencedAttempt attempt, String sql) {
+        ExecutionRow row = find(attempt.key(), sql);
         if (row == null) {
             return new TurnDecisionCheckpointLoadOutcome.Unavailable(
                     notFound(attempt.key()), TurnFailureCode.TERMINAL_UNAVAILABLE, RETRY_AFTER);
@@ -128,7 +133,7 @@ public class MySqlTurnDecisionCheckpointAdapter implements
     }
 
     private TurnDecisionCheckpointOutcome afterCas(FencedAttempt attempt) {
-        TurnDecisionCheckpointLoadOutcome loaded = loadPinned(attempt);
+        TurnDecisionCheckpointLoadOutcome loaded = loadPinned(attempt, SELECT_FOR_UPDATE);
         if (loaded instanceof TurnDecisionCheckpointLoadOutcome.Found found) {
             return new TurnDecisionCheckpointOutcome.Pinned(found.value());
         }
@@ -145,8 +150,12 @@ public class MySqlTurnDecisionCheckpointAdapter implements
     }
 
     private ExecutionRow find(TurnKey key) {
+        return find(key, SELECT);
+    }
+
+    private ExecutionRow find(TurnKey key, String sql) {
         List<ExecutionRow> rows = jdbc.query(
-                SELECT,
+                sql,
                 (resultSet, rowNum) -> row(resultSet),
                 key.ownerKey(), key.canonicalConversationId(), key.turnId());
         return rows.isEmpty() ? null : rows.get(0);
