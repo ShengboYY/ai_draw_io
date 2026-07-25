@@ -10,6 +10,11 @@
     <artifactId>ai-agent-draw-io-infrastructure</artifactId>
 
     <dependencies>
+        <!-- Strict decoding for isolated V2 model adapters; legacy JSON contracts stay elsewhere. -->
+        <dependency>
+            <groupId>com.alibaba</groupId>
+            <artifactId>fastjson</artifactId>
+        </dependency>
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
