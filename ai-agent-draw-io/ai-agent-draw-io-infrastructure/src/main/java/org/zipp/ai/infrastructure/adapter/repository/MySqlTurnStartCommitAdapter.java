@@ -57,6 +57,7 @@ public class MySqlTurnStartCommitAdapter implements TurnStartCommitPort {
             FROM turn_execution
             WHERE owner_key = ? AND conversation_id = ? AND turn_id = ?
             """;
+    private static final String SELECT_EXECUTION_FOR_UPDATE = SELECT_EXECUTION + "FOR UPDATE\n";
     private static final String SELECT_CONVERSATION_FILE = """
             SELECT state
             FROM material_upload_session
@@ -146,7 +147,9 @@ public class MySqlTurnStartCommitAdapter implements TurnStartCommitPort {
         }
 
         // The conversation row lock makes sequence allocation monotonic under concurrent starts.
-        ExecutionRow afterLock = findExecution(command.key());
+        // MySQL's REPEATABLE READ can retain the pre-lock snapshot; use a locking current read
+        // after the conversation lock so a concurrent committed claim is visible here.
+        ExecutionRow afterLock = findExecutionForUpdate(command.key());
         if (afterLock != null) {
             return afterLock.startOutcome(command.key());
         }
@@ -273,8 +276,16 @@ public class MySqlTurnStartCommitAdapter implements TurnStartCommitPort {
     }
 
     private ExecutionRow findExecution(TurnKey key) {
+        return findExecution(key, SELECT_EXECUTION);
+    }
+
+    private ExecutionRow findExecutionForUpdate(TurnKey key) {
+        return findExecution(key, SELECT_EXECUTION_FOR_UPDATE);
+    }
+
+    private ExecutionRow findExecution(TurnKey key, String sql) {
         List<ExecutionRow> rows = jdbc.query(
-                SELECT_EXECUTION,
+                sql,
                 (rs, rowNum) -> execution(rs),
                 key.ownerKey(), key.canonicalConversationId(), key.turnId());
         return rows.isEmpty() ? null : rows.get(0);

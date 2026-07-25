@@ -711,7 +711,9 @@ Type: Research
 
 ### Answer
 
-已覆盖 application contract、canonical conversation reference resolver、admission gate、attachment binding、memory declaration conflict、orphan takeover/epoch fencing、本地 MySQL 回滚 smoke，以及 facade 层同 TurnKey 并发提交的单 claim/replay 测试。另已固定 `ORPHANED_RETRYABLE` 不能伪装成 product terminal；`AttemptLease` 现在携带同一 DB transaction 的 `databaseNow`、`expiresWithin`、`renewWithin`，claim/heartbeat/takeover 返回 monotonic `LeaseTimingAnchor` 所需的相对 lease 信息。已用本地 MySQL 事务验证 `claim → orphan → takeover → stale deadline fence loss → current deadline cancel`。M1 application facade 现在已把 typed conversation resolution、fingerprint/policy snapshot、assignment 与 claim outcome 串成单一入口；旧 HTTP/transport 仍保持 legacy，待 M2 translator 接线后补齐并发 transport 矩阵。最低矩阵：
+已覆盖 application contract、canonical conversation reference resolver、admission gate、attachment binding、memory declaration conflict、orphan takeover/epoch fencing、本地 MySQL 回滚 smoke，以及 facade 层同 TurnKey 并发提交的单 claim/replay 测试。另已固定 `ORPHANED_RETRYABLE` 不能伪装成 product terminal；`AttemptLease` 现在携带同一 DB transaction 的 `databaseNow`、`expiresWithin`、`renewWithin`，claim/heartbeat/takeover 返回 monotonic `LeaseTimingAnchor` 所需的相对 lease 信息。已用本地 MySQL 事务验证 `claim → orphan → takeover → stale deadline fence loss → current deadline cancel`。M1 application facade 现在已把 typed conversation resolution、fingerprint/policy snapshot、assignment 与 claim outcome 串成单一入口；旧 HTTP/transport 仍保持 legacy，待 M2 translator 接线后补齐并发 transport 矩阵。
+
+新增真实双连接 InnoDB smoke：并发 claim 得到 `Claimed + AlreadyRunning`，并发 terminal CAS 得到 `Committed + AlreadyTerminal`，最终各只保留一条 execution/message，且由首个提交者获胜。验证暴露并修复了 MySQL `REPEATABLE READ` 下普通 consistent read 继续使用旧 snapshot 的问题：取得 conversation 锁后必须改用 `SELECT ... FOR UPDATE` current read，才能观察并发提交的 execution 并避免重复 user message。最低矩阵：
 
 - 同 turn 并发请求只能产生一个 claim、一个 user message 和一个可接受 terminal commit；
 - lease 过期接管后旧 epoch 的 heartbeat、attempt-scoped cancel、fallback 和 commit 全部失败；
