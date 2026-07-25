@@ -101,6 +101,10 @@ public class MySqlTurnEngineAssignmentAdapter
 
         AssignmentRow existing = find(command.key());
         if (existing != null) {
+            if (!existing.diagramId.equals(command.diagramId())) {
+                // A canonical TurnKey cannot be rebound to another diagram on retry.
+                return new AdmissionWriteOutcome.Rejected(command.key(), "DIAGRAM_BINDING_MISMATCH");
+            }
             if ("EXPIRED_GONE".equals(existing.legacyRetirementState)) {
                 return new AdmissionWriteOutcome.LegacyRetryGone(command.key(), "LEGACY_RETRY_EXPIRED");
             }

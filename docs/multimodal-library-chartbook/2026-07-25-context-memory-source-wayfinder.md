@@ -334,6 +334,8 @@ M1 控制面已按以下合同分批落地；生产 HTTP 仍未切入 V2，Plain
 
 本切片补齐 takeover 成功路径的端到端 lifecycle evidence：真实 `DefaultTurnControlFacade` 产出 `CLAIMED` `TAKEOVER` trace，`TurnAttemptRecoveryCoordinator` 从 pinned input 恢复 command，`TurnAttemptExecutionRunner` 随后产出 `ATTEMPT_STARTED` 与 `ATTEMPT_COMPLETED`；contract test 验证三类事件按顺序共享同一 attempt/epoch、policy hash 与 input binding digest，并得到 `PersistedTerminal(COMPLETED)`。本切片没有新增或执行 migration。
 
+本切片收口 sticky assignment 的 diagram binding 与 live-flag retry 语义：`MySqlTurnEngineAssignmentAdapter` 复用已有 assignment 前再次比较持久化 `diagram_id`，不一致时返回 `DIAGRAM_BINDING_MISMATCH`；同一 TurnKey 的重试即使传入新的 policy snapshot/hash，也必须返回首次持久化的 policy。新增 adapter contract tests；现有 assignment 表已包含 `diagram_id` 与 policy 字段，本切片没有新增或执行 migration。
+
 ## single-instance-migration-control: Build The Single-Instance Migration Boundary
 
 Blocked by: turn-execution-control

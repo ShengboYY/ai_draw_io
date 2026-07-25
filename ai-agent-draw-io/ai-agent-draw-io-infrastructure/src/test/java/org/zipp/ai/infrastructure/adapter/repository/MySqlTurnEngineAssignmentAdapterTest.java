@@ -63,16 +63,55 @@ class MySqlTurnEngineAssignmentAdapterTest {
         assertEquals(List.of(), jdbc.updates);
     }
 
+    @Test
+    void existingAssignmentCannotBeReboundToAnotherDiagram() {
+        JdbcStub jdbc = new JdbcStub();
+
+        AdmissionWriteOutcome.Rejected rejected = assertInstanceOf(
+                AdmissionWriteOutcome.Rejected.class,
+                new MySqlTurnEngineAssignmentAdapter(jdbc.proxy()).assignOrReuse(
+                        command(new NoMemoryWrite(), "diagram-2", new ExecutionPolicySnapshot(
+                                1, TurnEngineMode.ALL_V2, "{}", "live-policy-hash"))));
+
+        assertEquals("DIAGRAM_BINDING_MISMATCH", rejected.code());
+        assertEquals(List.of(), jdbc.updates);
+    }
+
+    @Test
+    void retryKeepsThePersistedPolicyWhenTheLiveFlagChanges() {
+        JdbcStub jdbc = new JdbcStub();
+
+        AdmissionWriteOutcome.Reused reused = assertInstanceOf(
+                AdmissionWriteOutcome.Reused.class,
+                new MySqlTurnEngineAssignmentAdapter(jdbc.proxy()).assignOrReuse(
+                        command(new NoMemoryWrite(), "diagram-1", new ExecutionPolicySnapshot(
+                                1, TurnEngineMode.ALL_V2, "{\"flag\":\"new\"}", "live-policy-hash"))));
+
+        // A retry must execute the first assignment's policy, not the current live flag.
+        assertEquals("policy-hash", reused.assignment().policy().policyHash());
+        assertEquals("{}", reused.assignment().policy().snapshotJson());
+        assertEquals(List.of(), jdbc.updates);
+    }
+
     private static TurnEngineAssignmentCommand command(
             org.zipp.ai.application.turn.MemoryWriteDeclaration memoryWrite
+    ) {
+        return command(memoryWrite, "diagram-1", new ExecutionPolicySnapshot(
+                1, TurnEngineMode.ALL_V2, "{}", "policy-hash"));
+    }
+
+    private static TurnEngineAssignmentCommand command(
+            org.zipp.ai.application.turn.MemoryWriteDeclaration memoryWrite,
+            String diagramId,
+            ExecutionPolicySnapshot policy
     ) {
         TurnKey key = new TurnKey("owner-1", "conversation-1", "turn-1");
         return new TurnEngineAssignmentCommand(
                 key,
-                "diagram-1",
+                diagramId,
                 new VersionedRequestFingerprintSet(
                         List.of(new VersionedRequestFingerprint(1, "fingerprint"))),
-                new ExecutionPolicySnapshot(1, TurnEngineMode.ALL_V2, "{}", "policy-hash"),
+                policy,
                 new MigrationStateSnapshot(
                         3, TurnEngineMode.ALL_V2, Instant.parse("2026-07-26T00:00:00Z")),
                 memoryWrite);
