@@ -22,16 +22,17 @@ public final class TurnEngineMigrationCoordinator {
     }
 
     public MigrationModeSwitchOutcome switchMode(
-            TurnEngineMode expectedMode,
+            MigrationStateSnapshot expectedState,
             TurnEngineMode targetMode
     ) {
-        Objects.requireNonNull(expectedMode, "expectedMode");
+        Objects.requireNonNull(expectedState, "expectedState");
         Objects.requireNonNull(targetMode, "targetMode");
         admissionBarrier.pauseAndDrain();
         try {
             // Complete durable legacy-horizon preparation before changing the singleton mode row.
             drainRetryPreparation();
-            return migrationControl.switchMode(expectedMode, targetMode);
+            return migrationControl.switchMode(new MigrationModeSwitchCommand(
+                    expectedState.generation(), expectedState.mode(), targetMode));
         } finally {
             // A failed compare-and-switch must leave the serving instance available in the old mode.
             admissionBarrier.resume();

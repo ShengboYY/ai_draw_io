@@ -3,6 +3,7 @@ package org.zipp.ai.infrastructure.adapter.repository;
 import org.junit.jupiter.api.Test;
 import org.springframework.jdbc.core.JdbcOperations;
 import org.springframework.jdbc.core.RowMapper;
+import org.zipp.ai.application.turn.MigrationModeSwitchCommand;
 import org.zipp.ai.application.turn.MigrationModeSwitchOutcome;
 import org.zipp.ai.application.turn.TurnEngineMode;
 
@@ -31,11 +32,12 @@ class MySqlTurnEngineMigrationControlAdapterTest {
         MigrationModeSwitchOutcome.Changed changed = assertInstanceOf(
                 MigrationModeSwitchOutcome.Changed.class,
                 new MySqlTurnEngineMigrationControlAdapter(jdbc.proxy()).switchMode(
-                        TurnEngineMode.LEGACY, TurnEngineMode.V2_CANARY));
+                        new MigrationModeSwitchCommand(4, TurnEngineMode.LEGACY, TurnEngineMode.V2_CANARY)));
 
         assertEquals(5, changed.state().generation());
         assertEquals(TurnEngineMode.V2_CANARY, changed.state().mode());
         assertEquals(1, jdbc.updates.size());
+        assertTrue(jdbc.updates.get(0).contains("generation = ? AND mode = ?"));
     }
 
     @Test
@@ -47,7 +49,7 @@ class MySqlTurnEngineMigrationControlAdapterTest {
         MigrationModeSwitchOutcome.Rejected rejected = assertInstanceOf(
                 MigrationModeSwitchOutcome.Rejected.class,
                 new MySqlTurnEngineMigrationControlAdapter(jdbc.proxy()).switchMode(
-                        TurnEngineMode.LEGACY, TurnEngineMode.ALL_V2));
+                        new MigrationModeSwitchCommand(4, TurnEngineMode.LEGACY, TurnEngineMode.ALL_V2)));
 
         assertEquals("MIGRATION_MODE_CHANGED", rejected.code());
         assertEquals(List.of(), jdbc.updates);
@@ -55,16 +57,70 @@ class MySqlTurnEngineMigrationControlAdapterTest {
 
     @Test
     void compareAndSwitchReportsLostCasWithoutReloadingAState() {
-        JdbcStub jdbc = new JdbcStub(List.of(migrationRow(4, TurnEngineMode.LEGACY)), 0);
+        JdbcStub jdbc = new JdbcStub(List.of(migrationRow(4, TurnEngineMode.V2_CANARY)), 0);
 
         MigrationModeSwitchOutcome.Rejected rejected = assertInstanceOf(
                 MigrationModeSwitchOutcome.Rejected.class,
                 new MySqlTurnEngineMigrationControlAdapter(jdbc.proxy()).switchMode(
-                        TurnEngineMode.LEGACY, TurnEngineMode.ALL_V2));
+                        new MigrationModeSwitchCommand(4, TurnEngineMode.V2_CANARY, TurnEngineMode.ALL_V2)));
 
         assertEquals("MIGRATION_MODE_SWITCH_LOST", rejected.code());
         assertEquals(1, jdbc.updates.size());
         assertEquals(1, jdbc.stateReads);
+    }
+
+    @Test
+    void compareAndSwitchRejectsStaleExpectedGeneration() {
+        JdbcStub jdbc = new JdbcStub(List.of(migrationRow(5, TurnEngineMode.LEGACY)), 1);
+
+        MigrationModeSwitchOutcome.Rejected rejected = assertInstanceOf(
+                MigrationModeSwitchOutcome.Rejected.class,
+                new MySqlTurnEngineMigrationControlAdapter(jdbc.proxy()).switchMode(
+                        new MigrationModeSwitchCommand(4, TurnEngineMode.LEGACY, TurnEngineMode.V2_CANARY)));
+
+        assertEquals("MIGRATION_GENERATION_CHANGED", rejected.code());
+        assertEquals(List.of(), jdbc.updates);
+    }
+
+    @Test
+    void compareAndSwitchRejectsIllegalModeJump() {
+        JdbcStub jdbc = new JdbcStub(List.of(migrationRow(4, TurnEngineMode.LEGACY)), 1);
+
+        MigrationModeSwitchOutcome.Rejected rejected = assertInstanceOf(
+                MigrationModeSwitchOutcome.Rejected.class,
+                new MySqlTurnEngineMigrationControlAdapter(jdbc.proxy()).switchMode(
+                        new MigrationModeSwitchCommand(4, TurnEngineMode.LEGACY, TurnEngineMode.ALL_V2)));
+
+        assertEquals("MIGRATION_MODE_TRANSITION_INVALID", rejected.code());
+        assertEquals(List.of(), jdbc.updates);
+    }
+
+    @Test
+    void allowsCanaryToAdvanceToAllV2() {
+        JdbcStub jdbc = new JdbcStub(
+                List.of(migrationRow(4, TurnEngineMode.V2_CANARY), migrationRow(5, TurnEngineMode.ALL_V2)),
+                1);
+
+        MigrationModeSwitchOutcome.Changed changed = assertInstanceOf(
+                MigrationModeSwitchOutcome.Changed.class,
+                new MySqlTurnEngineMigrationControlAdapter(jdbc.proxy()).switchMode(
+                        new MigrationModeSwitchCommand(4, TurnEngineMode.V2_CANARY, TurnEngineMode.ALL_V2)));
+
+        assertEquals(TurnEngineMode.ALL_V2, changed.state().mode());
+    }
+
+    @Test
+    void allowsAllV2ToRetire() {
+        JdbcStub jdbc = new JdbcStub(
+                List.of(migrationRow(4, TurnEngineMode.ALL_V2), migrationRow(5, TurnEngineMode.RETIRED)),
+                1);
+
+        MigrationModeSwitchOutcome.Changed changed = assertInstanceOf(
+                MigrationModeSwitchOutcome.Changed.class,
+                new MySqlTurnEngineMigrationControlAdapter(jdbc.proxy()).switchMode(
+                        new MigrationModeSwitchCommand(4, TurnEngineMode.ALL_V2, TurnEngineMode.RETIRED)));
+
+        assertEquals(TurnEngineMode.RETIRED, changed.state().mode());
     }
 
     @Test

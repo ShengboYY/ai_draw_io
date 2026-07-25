@@ -4,6 +4,7 @@ import org.springframework.jdbc.core.JdbcOperations;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 import org.zipp.ai.application.turn.LegacyRetryExpiryPort;
+import org.zipp.ai.application.turn.MigrationModeSwitchCommand;
 import org.zipp.ai.application.turn.MigrationModeSwitchOutcome;
 import org.zipp.ai.application.turn.MigrationStateSnapshot;
 import org.zipp.ai.application.turn.TurnEngineMigrationControlPort;
@@ -28,7 +29,7 @@ public class MySqlTurnEngineMigrationControlAdapter
     private static final String UPDATE_MODE = """
             UPDATE turn_engine_migration_state
             SET generation = generation + 1, mode = ?, switched_at = CURRENT_TIMESTAMP(3)
-            WHERE state_name = 'DEFAULT' AND mode = ?
+            WHERE state_name = 'DEFAULT' AND generation = ? AND mode = ?
             """;
     private static final String SELECT_DUE_ASSIGNMENTS = """
             SELECT owner_key, conversation_id, diagram_id, turn_id
@@ -94,20 +95,29 @@ public class MySqlTurnEngineMigrationControlAdapter
 
     @Override
     @Transactional
-    public MigrationModeSwitchOutcome switchMode(TurnEngineMode expectedMode, TurnEngineMode targetMode) {
-        Objects.requireNonNull(expectedMode, "expectedMode");
-        Objects.requireNonNull(targetMode, "targetMode");
+    public MigrationModeSwitchOutcome switchMode(MigrationModeSwitchCommand command) {
+        Objects.requireNonNull(command, "command");
         MigrationRow current = currentForUpdate();
         if (current == null) {
             return new MigrationModeSwitchOutcome.Rejected("TURN_MIGRATION_STATE_MISSING");
         }
-        if (current.mode == targetMode) {
+        if (current.mode == command.targetMode()) {
             return new MigrationModeSwitchOutcome.AlreadyAtTarget(current.snapshot());
         }
-        if (current.mode != expectedMode) {
+        if (current.generation != command.expectedGeneration()) {
+            return new MigrationModeSwitchOutcome.Rejected("MIGRATION_GENERATION_CHANGED");
+        }
+        if (current.mode != command.expectedMode()) {
             return new MigrationModeSwitchOutcome.Rejected("MIGRATION_MODE_CHANGED");
         }
-        if (jdbc.update(UPDATE_MODE, targetMode.name(), expectedMode.name()) != 1) {
+        if (!isAllowedTransition(current.mode, command.targetMode())) {
+            return new MigrationModeSwitchOutcome.Rejected("MIGRATION_MODE_TRANSITION_INVALID");
+        }
+        if (jdbc.update(
+                UPDATE_MODE,
+                command.targetMode().name(),
+                command.expectedGeneration(),
+                current.mode.name()) != 1) {
             return new MigrationModeSwitchOutcome.Rejected("MIGRATION_MODE_SWITCH_LOST");
         }
         MigrationRow switched = currentForUpdate();
@@ -115,6 +125,13 @@ public class MySqlTurnEngineMigrationControlAdapter
             throw new IllegalStateException("TURN_MIGRATION_STATE_MISSING_AFTER_SWITCH");
         }
         return new MigrationModeSwitchOutcome.Changed(switched.snapshot());
+    }
+
+    private boolean isAllowedTransition(TurnEngineMode current, TurnEngineMode target) {
+        return (current == TurnEngineMode.LEGACY && target == TurnEngineMode.V2_CANARY)
+                || (current == TurnEngineMode.V2_CANARY
+                && (target == TurnEngineMode.LEGACY || target == TurnEngineMode.ALL_V2))
+                || (current == TurnEngineMode.ALL_V2 && target == TurnEngineMode.RETIRED);
     }
 
     @Override

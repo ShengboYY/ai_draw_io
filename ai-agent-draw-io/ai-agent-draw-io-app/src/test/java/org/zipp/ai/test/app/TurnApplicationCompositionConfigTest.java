@@ -14,6 +14,7 @@ import org.zipp.ai.application.turn.ExplicitTurnCancellationPort;
 import org.zipp.ai.application.turn.InstanceBootId;
 import org.zipp.ai.application.turn.InstanceLockOutcome;
 import org.zipp.ai.application.turn.LegacyRetryExpiryPort;
+import org.zipp.ai.application.turn.MigrationModeSwitchCommand;
 import org.zipp.ai.application.turn.MigrationModeSwitchOutcome;
 import org.zipp.ai.application.turn.MigrationStateSnapshot;
 import org.zipp.ai.application.turn.SingleActiveInstanceLock;
@@ -115,10 +116,7 @@ class TurnApplicationCompositionConfigTest {
 
     private static final class FakeMigrationControl implements TurnEngineMigrationControlPort {
         @Override
-        public MigrationModeSwitchOutcome switchMode(
-                TurnEngineMode expectedMode,
-                TurnEngineMode targetMode
-        ) {
+        public MigrationModeSwitchOutcome switchMode(MigrationModeSwitchCommand command) {
             return new MigrationModeSwitchOutcome.Rejected("TEST_ONLY");
         }
     }

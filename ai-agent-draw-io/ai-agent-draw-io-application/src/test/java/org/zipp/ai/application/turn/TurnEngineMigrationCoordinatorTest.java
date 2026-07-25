@@ -19,13 +19,17 @@ class TurnEngineMigrationCoordinatorTest {
         RecordingExpiry expiry = new RecordingExpiry(calls, 0);
         TurnEngineMigrationCoordinator coordinator = new TurnEngineMigrationCoordinator(
                 barrier,
-                (expected, target) -> {
-                    calls.add("switch:" + expected + "->" + target);
+                command -> {
+                    assertEquals(0, command.expectedGeneration());
+                    calls.add("switch:" + command.expectedMode() + "->" + command.targetMode());
                     return new MigrationModeSwitchOutcome.Changed(
-                        new MigrationStateSnapshot(1, target, Instant.parse("2026-07-26T00:00:00Z")));
+                        new MigrationStateSnapshot(1, command.targetMode(), Instant.parse("2026-07-26T00:00:00Z")));
                 }, expiry);
 
-        MigrationModeSwitchOutcome outcome = coordinator.switchMode(TurnEngineMode.LEGACY, TurnEngineMode.V2_CANARY);
+        MigrationModeSwitchOutcome outcome = coordinator.switchMode(
+                new MigrationStateSnapshot(0, TurnEngineMode.LEGACY,
+                        Instant.parse("2026-07-26T00:00:00Z")),
+                TurnEngineMode.V2_CANARY);
 
         assertEquals(MigrationModeSwitchOutcome.Changed.class, outcome.getClass());
         assertEquals(List.of(
@@ -38,14 +42,18 @@ class TurnEngineMigrationCoordinatorTest {
         SequencedExpiry expiry = new SequencedExpiry(calls, new int[]{2, 0}, new int[]{1, 0});
         TurnEngineMigrationCoordinator coordinator = new TurnEngineMigrationCoordinator(
                 new RecordingBarrier(calls),
-                (expected, target) -> {
-                    calls.add("switch:" + expected + "->" + target);
+                command -> {
+                    calls.add("switch:" + command.expectedMode() + "->" + command.targetMode());
                     return new MigrationModeSwitchOutcome.Changed(
-                            new MigrationStateSnapshot(1, target, Instant.parse("2026-07-26T00:00:00Z")));
+                            new MigrationStateSnapshot(1, command.targetMode(),
+                                    Instant.parse("2026-07-26T00:00:00Z")));
                 },
                 expiry);
 
-        coordinator.switchMode(TurnEngineMode.LEGACY, TurnEngineMode.V2_CANARY);
+        coordinator.switchMode(
+                new MigrationStateSnapshot(0, TurnEngineMode.LEGACY,
+                        Instant.parse("2026-07-26T00:00:00Z")),
+                TurnEngineMode.V2_CANARY);
 
         assertEquals(List.of(
                 "pause", "backfill:100", "backfill:100",
@@ -59,12 +67,15 @@ class TurnEngineMigrationCoordinatorTest {
         RecordingExpiry expiry = new RecordingExpiry(calls, 0);
         TurnEngineMigrationCoordinator coordinator = new TurnEngineMigrationCoordinator(
                 barrier,
-                (expected, target) -> {
+                command -> {
                     throw new IllegalStateException("db unavailable");
                 }, expiry);
 
         assertThrows(IllegalStateException.class,
-                () -> coordinator.switchMode(TurnEngineMode.LEGACY, TurnEngineMode.V2_CANARY));
+                () -> coordinator.switchMode(
+                        new MigrationStateSnapshot(0, TurnEngineMode.LEGACY,
+                                Instant.parse("2026-07-26T00:00:00Z")),
+                        TurnEngineMode.V2_CANARY));
         assertEquals(List.of("pause", "backfill:100", "expire:100", "resume"), barrier.calls);
     }
 
@@ -88,14 +99,17 @@ class TurnEngineMigrationCoordinatorTest {
         };
         TurnEngineMigrationCoordinator coordinator = new TurnEngineMigrationCoordinator(
                 barrier,
-                (expected, target) -> {
+                command -> {
                     switched[0] = true;
                     return new MigrationModeSwitchOutcome.Rejected("UNEXPECTED");
                 },
                 expiry);
 
         assertThrows(IllegalStateException.class,
-                () -> coordinator.switchMode(TurnEngineMode.LEGACY, TurnEngineMode.V2_CANARY));
+                () -> coordinator.switchMode(
+                        new MigrationStateSnapshot(0, TurnEngineMode.LEGACY,
+                                Instant.parse("2026-07-26T00:00:00Z")),
+                        TurnEngineMode.V2_CANARY));
         assertFalse(switched[0]);
         assertEquals(List.of("pause", "backfill:100", "resume"), calls);
     }
@@ -106,8 +120,9 @@ class TurnEngineMigrationCoordinatorTest {
         RecordingExpiry expiry = new RecordingExpiry(calls, 3);
         TurnEngineMigrationCoordinator coordinator = new TurnEngineMigrationCoordinator(
                 new RecordingBarrier(calls),
-                (expected, target) -> new MigrationModeSwitchOutcome.AlreadyAtTarget(
-                        new MigrationStateSnapshot(1, expected, Instant.parse("2026-07-26T00:00:00Z"))),
+                command -> new MigrationModeSwitchOutcome.AlreadyAtTarget(
+                        new MigrationStateSnapshot(1, command.expectedMode(),
+                                Instant.parse("2026-07-26T00:00:00Z"))),
                 expiry);
 
         assertEquals(3, coordinator.expireLegacyRetries(25));
