@@ -426,8 +426,9 @@ M2 已开始，先交付不改变 production assignment 的 application/transpor
 - 新增 `trigger.http.turn` compatibility translator。旧 `ChatRequestDTO` 的 owner、canvas、history 不进入 canonical command；`selectedLibraryVersionIds` 只映射为 untrusted legacy declaration，opaque current-message attachment 仍由 canonical DTO 显式携带。
 - 新增 restricted-input demand contract 与无 I/O `SourceDemandResolver`：只验证 current-instruction evidence、message attachment binding、固定 confidence policy、Chartbook membership 与 signed Plain fallback；不读取 source availability、body、retrieval 或 citation。
 - 新增 buffering/NDJSON sink 与 detach 测试，覆盖 Plain generation failure 不得到达 commit，以及 writer failure 不得回写业务终态。
+- 新增 application-owned `SemanticIntentRouterPort`、`TurnClassificationService` 与 `PlainDrawPlanFactory`：router 与 demand interpreter 必须共享 current-instruction digest；任一 port unavailable 都 typed fail；只有 resolver 确认的 `NoSourceDemand` 才能进入 Plain plan，accepted source demand 与 unsupported action fail closed。
 
-Semantic Router、restricted-input interpreter 的具体模型 adapter 与生产 route dispatcher 仍待后续 M2 切片；production assignment 继续全部 legacy。
+Semantic Router 的具体模型 adapter、真实 Base Context assembler 与生产 route dispatcher 仍待后续 M2 切片；production assignment 继续全部 legacy。
 
 本票同时 owns DTO 的 `currentTurnAttachments`、hidden clarification id、opaque refs 与唯一 compatibility translator。
 
