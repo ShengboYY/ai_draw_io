@@ -4,11 +4,18 @@ import org.junit.jupiter.api.Test;
 
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class TurnEngineMigrationCoordinatorTest {
 
@@ -127,6 +134,72 @@ class TurnEngineMigrationCoordinatorTest {
 
         assertEquals(3, coordinator.expireLegacyRetries(25));
         assertEquals(List.of("pause", "expire:25", "resume"), calls);
+    }
+
+    @Test
+    void serializesMigrationOperationsBeforeEitherCanResumeAdmission() throws Exception {
+        List<String> calls = Collections.synchronizedList(new ArrayList<>());
+        CountDownLatch firstBackfillEntered = new CountDownLatch(1);
+        CountDownLatch releaseFirstBackfill = new CountDownLatch(1);
+        LegacyRetryExpiryPort expiry = new LegacyRetryExpiryPort() {
+            @Override
+            public int backfillRetryable(int batchSize) {
+                calls.add("backfill:" + batchSize);
+                firstBackfillEntered.countDown();
+                await(releaseFirstBackfill);
+                return 0;
+            }
+
+            @Override
+            public int expireDue(int batchSize) {
+                calls.add("expire:" + batchSize);
+                return 0;
+            }
+        };
+        TurnEngineMigrationCoordinator coordinator = new TurnEngineMigrationCoordinator(
+                new RecordingBarrier(calls),
+                command -> {
+                    calls.add("switch:" + command.expectedMode() + "->" + command.targetMode());
+                    return new MigrationModeSwitchOutcome.Changed(
+                            new MigrationStateSnapshot(1, command.targetMode(),
+                                    Instant.parse("2026-07-26T00:00:00Z")));
+                },
+                expiry);
+
+        ExecutorService executor = Executors.newFixedThreadPool(2);
+        try {
+            Future<MigrationModeSwitchOutcome> switchFuture = executor.submit(() -> coordinator.switchMode(
+                    new MigrationStateSnapshot(0, TurnEngineMode.LEGACY,
+                            Instant.parse("2026-07-26T00:00:00Z")),
+                    TurnEngineMode.V2_CANARY));
+            assertTrue(firstBackfillEntered.await(5, TimeUnit.SECONDS));
+            Future<Integer> expiryFuture = executor.submit(() -> coordinator.expireLegacyRetries(25));
+
+            // The second operation cannot resume the gate while the first drain is active.
+            assertFalse(expiryFuture.isDone());
+            releaseFirstBackfill.countDown();
+
+            switchFuture.get(5, TimeUnit.SECONDS);
+            expiryFuture.get(5, TimeUnit.SECONDS);
+        } finally {
+            releaseFirstBackfill.countDown();
+            executor.shutdownNow();
+        }
+
+        assertEquals(List.of(
+                "pause", "backfill:100", "expire:100", "switch:LEGACY->V2_CANARY", "resume",
+                "pause", "expire:25", "resume"), calls);
+    }
+
+    private static void await(CountDownLatch latch) {
+        try {
+            if (!latch.await(5, TimeUnit.SECONDS)) {
+                throw new AssertionError("timed out waiting for migration test latch");
+            }
+        } catch (InterruptedException exception) {
+            Thread.currentThread().interrupt();
+            throw new AssertionError("migration test interrupted", exception);
+        }
     }
 
     private static final class RecordingBarrier implements AdmissionBarrier {

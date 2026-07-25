@@ -21,7 +21,8 @@ public final class TurnEngineMigrationCoordinator {
         this.expiry = Objects.requireNonNull(expiry, "expiry");
     }
 
-    public MigrationModeSwitchOutcome switchMode(
+    // Serialize migration windows so one operation cannot resume admission for another.
+    public synchronized MigrationModeSwitchOutcome switchMode(
             MigrationStateSnapshot expectedState,
             TurnEngineMode targetMode
     ) {
@@ -39,7 +40,7 @@ public final class TurnEngineMigrationCoordinator {
         }
     }
 
-    public int expireLegacyRetries(int batchSize) {
+    public synchronized int expireLegacyRetries(int batchSize) {
         if (batchSize <= 0) {
             throw new IllegalArgumentException("batchSize must be positive");
         }
