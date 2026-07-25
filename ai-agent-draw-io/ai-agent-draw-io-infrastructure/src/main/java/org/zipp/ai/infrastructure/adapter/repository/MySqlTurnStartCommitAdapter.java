@@ -1,6 +1,6 @@
 package org.zipp.ai.infrastructure.adapter.repository;
 
-import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.JdbcOperations;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 import org.zipp.ai.application.turn.AttemptLease;
@@ -103,10 +103,10 @@ public class MySqlTurnStartCommitAdapter implements TurnStartCommitPort {
             WHERE id = ? AND owner_key = ?
             """;
 
-    private final JdbcTemplate jdbc;
+    private final JdbcOperations jdbc;
     private final TerminalOutcomeDecoder terminalDecoder = new TerminalOutcomeDecoder();
 
-    public MySqlTurnStartCommitAdapter(JdbcTemplate jdbc) {
+    public MySqlTurnStartCommitAdapter(JdbcOperations jdbc) {
         this.jdbc = Objects.requireNonNull(jdbc, "jdbc");
     }
 

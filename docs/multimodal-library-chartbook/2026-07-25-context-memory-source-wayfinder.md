@@ -270,6 +270,8 @@ M1 控制面已按以下合同分批落地；生产 HTTP 仍未切入 V2，Plain
 
 随后补齐 application handoff contract：`DefaultDiagramTurnFacade` 将 `TurnStartOutcome.TerminalUnavailable` 原样映射为 `TurnSubmission.TerminalUnavailable`，并以 contract test 固定 TurnKey、status 与 unavailable code 不丢失；本补充仍没有新增 migration。
 
+本切片补齐 atomic claim 的 infrastructure evidence：`MySqlTurnStartCommitAdapter` 收窄为 `JdbcOperations` port seam，并新增 supported-schema terminal replay 与 unknown-schema typed unavailable contract tests；与既有 lifecycle/Plain/terminal-only adapter tests 合计 11 项定向测试通过。本切片没有新增或执行 migration。
+
 ## single-instance-migration-control: Build The Single-Instance Migration Boundary
 
 Blocked by: turn-execution-control
