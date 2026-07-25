@@ -5,6 +5,8 @@ import java.util.Objects;
 /** Pauses local admission around the durable migration singleton mode switch. */
 public final class TurnEngineMigrationCoordinator {
 
+    private static final int MIGRATION_BATCH_SIZE = 100;
+
     private final AdmissionBarrier admissionBarrier;
     private final TurnEngineMigrationControlPort migrationControl;
     private final LegacyRetryExpiryPort expiry;
@@ -27,6 +29,8 @@ public final class TurnEngineMigrationCoordinator {
         Objects.requireNonNull(targetMode, "targetMode");
         admissionBarrier.pauseAndDrain();
         try {
+            // Complete durable legacy-horizon preparation before changing the singleton mode row.
+            drainRetryPreparation();
             return migrationControl.switchMode(expectedMode, targetMode);
         } finally {
             // A failed compare-and-switch must leave the serving instance available in the old mode.
@@ -44,6 +48,15 @@ public final class TurnEngineMigrationCoordinator {
         } finally {
             // Scanner failures must not leave a healthy serving instance permanently paused.
             admissionBarrier.resume();
+        }
+    }
+
+    private void drainRetryPreparation() {
+        while (expiry.backfillRetryable(MIGRATION_BATCH_SIZE) > 0) {
+            // Each batch is committed independently so a large legacy inventory stays bounded.
+        }
+        while (expiry.expireDue(MIGRATION_BATCH_SIZE) > 0) {
+            // Expired rows are durably tombstoned before the mode switch is attempted.
         }
     }
 }

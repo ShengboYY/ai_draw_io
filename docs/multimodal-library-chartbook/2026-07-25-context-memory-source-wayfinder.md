@@ -278,6 +278,8 @@ M1 控制面已按以下合同分批落地；生产 HTTP 仍未切入 V2，Plain
 
 本切片收口 single-active-instance lock 的连接生命周期：`MySqlSingleActiveInstanceLock` 在 `GET_LOCK` 返回失败或抛出 SQL 异常时统一关闭未保留连接，并保持同一 boot 重入、竞争 boot 拒绝与 `RELEASE_LOCK` 释放语义；新增 3 项 infrastructure lock contract tests，连同 21 项 application M1 admission/control tests、19 项 infrastructure lifecycle/commit/lock tests 与 bootstrap composition test 均通过。本切片没有新增或执行 migration。
 
+本切片把 migration pause window 接到可执行的 legacy preparation：`LegacyRetryExpiryPort` 先按 `created_at + 7 天` 的数据库时间补齐历史 LEGACY retry policy/horizon/state，再循环运行 due assignment → tombstone → `EXPIRED_GONE` scanner，所有批次完成后才调用 singleton mode switch；backfill/scan 异常不会切 mode 且 admission 由 `finally` 恢复。新增 coordinator 5 项、migration adapter 5 项、bootstrap composition 1 项与 migration contract 1 项验证；现有 M1 schema 已包含所需字段，本切片没有新增或执行 migration。
+
 ## single-instance-migration-control: Build The Single-Instance Migration Boundary
 
 Blocked by: turn-execution-control

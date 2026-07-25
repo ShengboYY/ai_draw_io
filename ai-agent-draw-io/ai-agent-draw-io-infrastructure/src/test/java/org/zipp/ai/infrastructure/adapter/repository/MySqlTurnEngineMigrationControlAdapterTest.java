@@ -18,6 +18,7 @@ import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class MySqlTurnEngineMigrationControlAdapterTest {
 
@@ -64,6 +65,36 @@ class MySqlTurnEngineMigrationControlAdapterTest {
         assertEquals("MIGRATION_MODE_SWITCH_LOST", rejected.code());
         assertEquals(1, jdbc.updates.size());
         assertEquals(1, jdbc.stateReads);
+    }
+
+    @Test
+    void backfillUsesDatabaseCreatedAtAndLeavesExpiredGoneRowsUntouched() {
+        JdbcStub jdbc = new JdbcStub(List.of(migrationRow(4, TurnEngineMode.LEGACY)), 3);
+
+        assertEquals(3, new MySqlTurnEngineMigrationControlAdapter(jdbc.proxy()).backfillRetryable(25));
+
+        assertEquals(1, jdbc.updates.size());
+        assertTrue(jdbc.updates.get(0).contains("DATE_ADD(created_at, INTERVAL 7 DAY)"));
+        assertTrue(jdbc.updates.get(0).contains("legacy_retirement_state IS NULL"));
+    }
+
+    @Test
+    void expiryScannerWritesTombstoneBeforeMarkingDueAssignmentGone() {
+        JdbcStub jdbc = new JdbcStub(
+                List.of(
+                        migrationRow(4, TurnEngineMode.LEGACY),
+                        values(
+                                "owner_key", "owner-1",
+                                "conversation_id", "conversation-1",
+                                "diagram_id", "diagram-1",
+                                "turn_id", "turn-1")),
+                1);
+
+        assertEquals(1, new MySqlTurnEngineMigrationControlAdapter(jdbc.proxy()).expireDue(25));
+
+        assertEquals(2, jdbc.updates.size());
+        assertTrue(jdbc.updates.get(0).contains("INSERT INTO legacy_turn_tombstone"));
+        assertTrue(jdbc.updates.get(1).contains("legacy_retirement_state = 'EXPIRED_GONE'"));
     }
 
     private static Map<String, Object> migrationRow(long generation, TurnEngineMode mode) {

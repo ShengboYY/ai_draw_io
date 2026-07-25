@@ -41,6 +41,23 @@ public class MySqlTurnEngineMigrationControlAdapter
             LIMIT ?
             FOR UPDATE
             """;
+    private static final String BACKFILL_LEGACY_RETRY = """
+            UPDATE turn_engine_assignment
+            SET legacy_routing_kind = COALESCE(legacy_routing_kind, 'UNEVALUATED'),
+                legacy_retry_policy_version = COALESCE(legacy_retry_policy_version, 'legacy-retry-v1'),
+                legacy_retry_eligible_until = COALESCE(
+                    legacy_retry_eligible_until,
+                    DATE_ADD(created_at, INTERVAL 7 DAY)),
+                legacy_retirement_state = COALESCE(legacy_retirement_state, 'EXECUTABLE')
+            WHERE selected_engine = 'LEGACY'
+              AND (legacy_retirement_state IS NULL OR legacy_retirement_state <> 'EXPIRED_GONE')
+              AND (legacy_routing_kind IS NULL
+                   OR legacy_retry_policy_version IS NULL
+                   OR legacy_retry_eligible_until IS NULL
+                   OR legacy_retirement_state IS NULL)
+            ORDER BY created_at, owner_key, conversation_id, turn_id
+            LIMIT ?
+            """;
     private static final String INSERT_TOMBSTONE = """
             INSERT INTO legacy_turn_tombstone (
                 owner_key, conversation_id, diagram_id, turn_id,
@@ -64,6 +81,15 @@ public class MySqlTurnEngineMigrationControlAdapter
 
     public MySqlTurnEngineMigrationControlAdapter(JdbcOperations jdbc) {
         this.jdbc = Objects.requireNonNull(jdbc, "jdbc");
+    }
+
+    @Override
+    @Transactional
+    public int backfillRetryable(int batchSize) {
+        if (batchSize <= 0) {
+            throw new IllegalArgumentException("batchSize must be positive");
+        }
+        return jdbc.update(BACKFILL_LEGACY_RETRY, batchSize);
     }
 
     @Override

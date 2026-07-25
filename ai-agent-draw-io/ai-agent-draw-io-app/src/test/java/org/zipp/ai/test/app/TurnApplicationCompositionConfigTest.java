@@ -125,6 +125,11 @@ class TurnApplicationCompositionConfigTest {
 
     private static final class FakeExpiry implements LegacyRetryExpiryPort {
         @Override
+        public int backfillRetryable(int batchSize) {
+            return 0;
+        }
+
+        @Override
         public int expireDue(int batchSize) {
             return 0;
         }
