@@ -15,6 +15,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class DefaultDiagramTurnFacadeTest {
 
@@ -130,6 +131,73 @@ class DefaultDiagramTurnFacadeTest {
 
         assertEquals("TURN_INSTANCE_NOT_READY", notReady.code());
         assertFalse(catalogCalled[0]);
+    }
+
+    @Test
+    void admittedSubmissionFinishesWhileMigrationDrainClosesNewAdmission() throws Exception {
+        AuthenticatedActor actor = new AuthenticatedActor("owner-1", "cohort-1");
+        ConversationRef conversation = activeConversation();
+        UserTurnCommand command = command("conversation:conversation-1");
+        TurnEngineAssignment assignment = assignment();
+        FencedAttempt attempt = new FencedAttempt(
+                assignment.key(),
+                new AttemptLease("attempt-1", 1, Instant.parse("2026-07-26T00:01:00Z"), 30_000),
+                4,
+                "input",
+                assignment.policy());
+        DrainAwareBarrier barrier = new DrainAwareBarrier();
+        CountDownLatch releaseResolution = new CountDownLatch(1);
+        ConversationCatalogPort catalog = new ConversationCatalogPort() {
+            @Override
+            public ConversationRef findOrCreateDefault(AuthenticatedActor ignored, String ignoredDiagram) {
+                throw new AssertionError("default lookup must not be used");
+            }
+
+            @Override
+            public ConversationRef requireActiveBinding(
+                    AuthenticatedActor ignored, String ignoredConversation, String ignoredDiagram) {
+                try {
+                    releaseResolution.await(5, TimeUnit.SECONDS);
+                } catch (InterruptedException exception) {
+                    Thread.currentThread().interrupt();
+                    throw new AssertionError(exception);
+                }
+                return conversation;
+            }
+
+            @Override
+            public ConversationRef resolveLegacyAlias(
+                    AuthenticatedActor ignored, String ignoredSession, String ignoredDiagram) {
+                throw new AssertionError("legacy lookup must not be used");
+            }
+        };
+        DefaultDiagramTurnFacade facade = new DefaultDiagramTurnFacade(
+                catalog,
+                new ConversationReferenceResolver(),
+                new FixedProfile(),
+                new TurnEngineAdmissionService(
+                        () -> migration(),
+                        ignored -> new AdmissionWriteOutcome.Assigned(assignment),
+                        barrier),
+                ignored -> new TurnStartOutcome.Claimed(attempt, 42),
+                barrier);
+
+        ExecutorService executor = Executors.newFixedThreadPool(2);
+        try {
+            Future<TurnSubmission> submission = executor.submit(
+                    () -> facade.execute(actor, command, ignored -> { }));
+            assertTrue(barrier.entered.await(5, TimeUnit.SECONDS));
+            Future<?> drain = executor.submit(barrier::pauseAndDrain);
+            assertTrue(barrier.pauseStarted.await(5, TimeUnit.SECONDS));
+            assertFalse(drain.isDone());
+
+            releaseResolution.countDown();
+            assertInstanceOf(TurnSubmission.ExecutionAccepted.class, submission.get(5, TimeUnit.SECONDS));
+            drain.get(5, TimeUnit.SECONDS);
+        } finally {
+            releaseResolution.countDown();
+            executor.shutdownNow();
+        }
     }
 
     @Test
@@ -370,6 +438,55 @@ class DefaultDiagramTurnFacadeTest {
         @Override
         public boolean isOpen() {
             return false;
+        }
+    }
+
+    private static final class DrainAwareBarrier implements AdmissionBarrier {
+        private final CountDownLatch entered = new CountDownLatch(1);
+        private final CountDownLatch pauseStarted = new CountDownLatch(1);
+        private boolean accepting = true;
+        private int inFlight;
+
+        @Override
+        public synchronized void pauseAndDrain() {
+            accepting = false;
+            pauseStarted.countDown();
+            while (inFlight > 0) {
+                try {
+                    wait();
+                } catch (InterruptedException exception) {
+                    Thread.currentThread().interrupt();
+                    throw new IllegalStateException(exception);
+                }
+            }
+        }
+
+        @Override
+        public synchronized void resume() {
+            accepting = true;
+        }
+
+        @Override
+        public synchronized boolean isOpen() {
+            return accepting;
+        }
+
+        @Override
+        public synchronized boolean tryEnter() {
+            if (!accepting) {
+                return false;
+            }
+            inFlight++;
+            entered.countDown();
+            return true;
+        }
+
+        @Override
+        public synchronized void leave() {
+            inFlight--;
+            if (inFlight == 0) {
+                notifyAll();
+            }
         }
     }
 }

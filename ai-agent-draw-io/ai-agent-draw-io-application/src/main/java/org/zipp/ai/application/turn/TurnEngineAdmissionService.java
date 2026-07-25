@@ -30,9 +30,32 @@ public final class TurnEngineAdmissionService {
             throw new IllegalArgumentException("admission values must not be null");
         }
         TurnKey key = TurnKey.of(actor, conversation, command.turnId());
-        if (!admissionBarrier.isOpen()) {
+        if (!admissionBarrier.tryEnter()) {
             return new AdmissionWriteOutcome.Rejected(key, "TURN_INSTANCE_NOT_READY");
         }
+        try {
+            return admitAfterEntry(actor, conversation, command, fingerprints, policy);
+        } finally {
+            admissionBarrier.leave();
+        }
+    }
+
+    /**
+     * Runs the durable admission steps for a caller that already owns the local drain scope.
+     * The facade enters before conversation resolution, so a concurrent pause must not reject
+     * an admission that has already crossed the barrier.
+     */
+    AdmissionWriteOutcome admitAfterEntry(
+            AuthenticatedActor actor,
+            ConversationRef conversation,
+            UserTurnCommand command,
+            VersionedRequestFingerprintSet fingerprints,
+            ExecutionPolicySnapshot policy
+    ) {
+        if (actor == null || conversation == null || command == null || fingerprints == null || policy == null) {
+            throw new IllegalArgumentException("admission values must not be null");
+        }
+        TurnKey key = TurnKey.of(actor, conversation, command.turnId());
         if (!conversation.isActive()) {
             return new AdmissionWriteOutcome.Rejected(key, "CONVERSATION_NOT_ACTIVE");
         }

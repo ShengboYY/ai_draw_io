@@ -58,7 +58,7 @@ public final class DefaultDiagramTurnFacade implements DiagramTurnFacade {
                     profile.fingerprints(command), "profile fingerprints");
             ExecutionPolicySnapshot policy = Objects.requireNonNull(
                     profile.policy(actor, conversation, command), "profile policy");
-            AdmissionWriteOutcome admissionOutcome = admission.admit(
+            AdmissionWriteOutcome admissionOutcome = admission.admitAfterEntry(
                     actor, conversation, command, fingerprints, policy);
             return submitClaim(key, command, admissionOutcome);
         } finally {

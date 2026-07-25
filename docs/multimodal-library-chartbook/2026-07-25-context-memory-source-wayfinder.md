@@ -284,6 +284,8 @@ M1 控制面已按以下合同分批落地；生产 HTTP 仍未切入 V2，Plain
 
 本切片把 owner fencing 前移到 `DefaultTurnControlFacade`：跨 owner 的 status 在调用 durable port 前返回 `TURN_NOT_FOUND`，跨 owner 的 cancel 在调用前返回 `OWNER_MISMATCH`；新增 2 项 application contract tests，application、infrastructure 与 bootstrap composition 定向回归均通过。本切片没有新增或执行 migration。
 
+本切片修复 admission drain race：`TurnEngineAdmissionService.admit` 现在用 `tryEnter/leave` 包住独立调用，Facade 在更早解析 canonical conversation 前取得 scope，并通过 `admitAfterEntry` 继续已进入 drain 的 durable admission；migration pause 关闭新请求时，不会误拒绝已经跨过 barrier 的 turn。新增端到端 application contract test，application 全量、infrastructure M1 与 bootstrap composition 串行回归均通过。本切片没有新增或执行 migration。
+
 ## single-instance-migration-control: Build The Single-Instance Migration Boundary
 
 Blocked by: turn-execution-control
