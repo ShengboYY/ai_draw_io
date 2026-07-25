@@ -276,10 +276,11 @@ Type: Task
 
 ### Answer
 
-DB singleton lock、启动 orphan reconciler 和 application admission gate 已落地；迁移 pause/drain 的生产 composition 仍待接入。前提是部署或 DB singleton lock 保证任意时刻只有一个 serving instance：
+DB singleton lock、启动 orphan reconciler、application admission gate 以及 M1 bootstrap composition 已落地；迁移 pause/drain、backfill 与 mode switch 的生产 composition 仍待接入。前提是部署或 DB singleton lock 保证任意时刻只有一个 serving instance：
 
 - 建立 `turn_engine_migration_state(mode,generation)` singleton row；
 - 启动先取得 `SingleActiveInstanceLock`，失败则不开放 HTTP admission；
+- `TurnApplicationCompositionConfig` 已把 conversation resolver、deterministic admission profile、assignment service、turn facade 与 gate 组成同一 application graph；`ApplicationRunner` 按 lock → orphan reconcile → open admission 顺序启动；
 - `AdmissionBarrier.pauseAndDrain()` 停止新 turn，并等待本地 legacy in-flight registry 归零；
 - pause window 内 backfill retryable legacy assignment、写 Gone tombstone并运行 expiry scanner；
 - mode switch 在 migration row transaction 中递增 generation；existing assignment 继续 sticky；
