@@ -274,6 +274,8 @@ M1 控制面已按以下合同分批落地；生产 HTTP 仍未切入 V2，Plain
 
 本切片继续补齐 sticky assignment evidence：`MySqlTurnEngineAssignmentAdapter` 收窄为 `JdbcOperations` port seam，并新增 persisted assignment reuse 与同 fingerprint 下 `MEMORY_DECLARATION_CONFLICT` 的 infrastructure contract tests；定向 assignment/start/lifecycle/Plain/terminal-only 测试共 13 项通过。本切片没有新增或执行 migration。
 
+本切片补齐 migration singleton 的 durable evidence：`MySqlTurnEngineMigrationControlAdapter` 收窄为 `JdbcOperations` port seam，并覆盖成功 compare-and-switch 返回新 generation、durable mode 已变化和 update CAS 丢失三种结果；assignment/start/lifecycle/migration/Plain/terminal-only 定向 infrastructure tests 共 16 项通过。本切片没有新增或执行 migration。
+
 ## single-instance-migration-control: Build The Single-Instance Migration Boundary
 
 Blocked by: turn-execution-control

@@ -1,6 +1,6 @@
 package org.zipp.ai.infrastructure.adapter.repository;
 
-import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.JdbcOperations;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 import org.zipp.ai.application.turn.LegacyRetryExpiryPort;
@@ -60,9 +60,9 @@ public class MySqlTurnEngineMigrationControlAdapter
               AND selected_engine = 'LEGACY' AND legacy_retirement_state = 'EXECUTABLE'
             """;
 
-    private final JdbcTemplate jdbc;
+    private final JdbcOperations jdbc;
 
-    public MySqlTurnEngineMigrationControlAdapter(JdbcTemplate jdbc) {
+    public MySqlTurnEngineMigrationControlAdapter(JdbcOperations jdbc) {
         this.jdbc = Objects.requireNonNull(jdbc, "jdbc");
     }
 

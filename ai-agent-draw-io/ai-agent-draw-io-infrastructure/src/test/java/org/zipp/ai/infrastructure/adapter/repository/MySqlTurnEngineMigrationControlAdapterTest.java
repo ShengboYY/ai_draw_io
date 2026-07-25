@@ -1,0 +1,153 @@
+package org.zipp.ai.infrastructure.adapter.repository;
+
+import org.junit.jupiter.api.Test;
+import org.springframework.jdbc.core.JdbcOperations;
+import org.springframework.jdbc.core.RowMapper;
+import org.zipp.ai.application.turn.MigrationModeSwitchOutcome;
+import org.zipp.ai.application.turn.TurnEngineMode;
+
+import java.lang.reflect.InvocationHandler;
+import java.lang.reflect.Proxy;
+import java.sql.ResultSet;
+import java.sql.Timestamp;
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+
+class MySqlTurnEngineMigrationControlAdapterTest {
+
+    @Test
+    void successfulModeSwitchReturnsThePostCasGeneration() {
+        JdbcStub jdbc = new JdbcStub(
+                List.of(migrationRow(4, TurnEngineMode.LEGACY), migrationRow(5, TurnEngineMode.V2_CANARY)),
+                1);
+
+        MigrationModeSwitchOutcome.Changed changed = assertInstanceOf(
+                MigrationModeSwitchOutcome.Changed.class,
+                new MySqlTurnEngineMigrationControlAdapter(jdbc.proxy()).switchMode(
+                        TurnEngineMode.LEGACY, TurnEngineMode.V2_CANARY));
+
+        assertEquals(5, changed.state().generation());
+        assertEquals(TurnEngineMode.V2_CANARY, changed.state().mode());
+        assertEquals(1, jdbc.updates.size());
+    }
+
+    @Test
+    void compareAndSwitchRejectsWhenTheDurableModeAlreadyChanged() {
+        JdbcStub jdbc = new JdbcStub(
+                List.of(migrationRow(4, TurnEngineMode.V2_CANARY)),
+                1);
+
+        MigrationModeSwitchOutcome.Rejected rejected = assertInstanceOf(
+                MigrationModeSwitchOutcome.Rejected.class,
+                new MySqlTurnEngineMigrationControlAdapter(jdbc.proxy()).switchMode(
+                        TurnEngineMode.LEGACY, TurnEngineMode.ALL_V2));
+
+        assertEquals("MIGRATION_MODE_CHANGED", rejected.code());
+        assertEquals(List.of(), jdbc.updates);
+    }
+
+    @Test
+    void compareAndSwitchReportsLostCasWithoutReloadingAState() {
+        JdbcStub jdbc = new JdbcStub(List.of(migrationRow(4, TurnEngineMode.LEGACY)), 0);
+
+        MigrationModeSwitchOutcome.Rejected rejected = assertInstanceOf(
+                MigrationModeSwitchOutcome.Rejected.class,
+                new MySqlTurnEngineMigrationControlAdapter(jdbc.proxy()).switchMode(
+                        TurnEngineMode.LEGACY, TurnEngineMode.ALL_V2));
+
+        assertEquals("MIGRATION_MODE_SWITCH_LOST", rejected.code());
+        assertEquals(1, jdbc.updates.size());
+        assertEquals(1, jdbc.stateReads);
+    }
+
+    private static Map<String, Object> migrationRow(long generation, TurnEngineMode mode) {
+        return values(
+                "generation", generation,
+                "mode", mode.name(),
+                "switched_at", Timestamp.from(Instant.parse("2026-07-26T00:00:00Z")),
+                "tombstone_retain_until", Timestamp.from(Instant.parse("2026-08-26T00:00:00Z")));
+    }
+
+    private static Map<String, Object> values(Object... pairs) {
+        Map<String, Object> values = new HashMap<>();
+        for (int index = 0; index < pairs.length; index += 2) {
+            values.put((String) pairs[index], pairs[index + 1]);
+        }
+        return values;
+    }
+
+    private static final class JdbcStub {
+        private final List<Map<String, Object>> stateRows;
+        private final int updateResult;
+        private final List<String> updates = new ArrayList<>();
+        private int stateReads;
+
+        private JdbcStub(List<Map<String, Object>> stateRows, int updateResult) {
+            this.stateRows = stateRows;
+            this.updateResult = updateResult;
+        }
+
+        private JdbcOperations proxy() {
+            InvocationHandler handler = (proxy, method, args) -> {
+                if ("query".equals(method.getName())) {
+                    @SuppressWarnings("unchecked")
+                    RowMapper<Object> mapper = (RowMapper<Object>) args[1];
+                    Map<String, Object> row = stateRows.get(Math.min(stateReads++, stateRows.size() - 1));
+                    return List.of(map(mapper, row));
+                }
+                if ("update".equals(method.getName())) {
+                    updates.add((String) args[0]);
+                    return updateResult;
+                }
+                return defaultValue(method.getReturnType());
+            };
+            return (JdbcOperations) Proxy.newProxyInstance(
+                    JdbcOperations.class.getClassLoader(), new Class<?>[]{JdbcOperations.class}, handler);
+        }
+
+        private static <T> T map(RowMapper<T> mapper, Map<String, Object> values) {
+            try {
+                return mapper.mapRow(resultSet(values), 0);
+            } catch (Exception exception) {
+                throw new AssertionError(exception);
+            }
+        }
+
+        private static ResultSet resultSet(Map<String, Object> values) {
+            InvocationHandler handler = (proxy, method, args) -> {
+                if ("getString".equals(method.getName())) {
+                    Object value = values.get(args[0]);
+                    return value == null ? null : value.toString();
+                }
+                if ("getLong".equals(method.getName())) {
+                    Object value = values.get(args[0]);
+                    return value == null ? 0L : ((Number) value).longValue();
+                }
+                if ("getTimestamp".equals(method.getName())) {
+                    return values.get(args[0]);
+                }
+                return defaultValue(method.getReturnType());
+            };
+            return (ResultSet) Proxy.newProxyInstance(
+                    ResultSet.class.getClassLoader(), new Class<?>[]{ResultSet.class}, handler);
+        }
+
+        private static Object defaultValue(Class<?> type) {
+            if (!type.isPrimitive()) return null;
+            if (type == boolean.class) return false;
+            if (type == char.class) return '\0';
+            if (type == byte.class) return (byte) 0;
+            if (type == short.class) return (short) 0;
+            if (type == int.class) return 0;
+            if (type == long.class) return 0L;
+            if (type == float.class) return 0F;
+            return 0D;
+        }
+    }
+}
