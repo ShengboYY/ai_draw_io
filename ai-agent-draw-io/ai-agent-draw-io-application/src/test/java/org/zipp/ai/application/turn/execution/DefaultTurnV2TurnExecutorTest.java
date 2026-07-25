@@ -2,6 +2,7 @@ package org.zipp.ai.application.turn.execution;
 
 import org.junit.jupiter.api.Test;
 import org.zipp.ai.application.turn.AttemptLease;
+import org.zipp.ai.application.turn.AttemptWriteGate;
 import org.zipp.ai.application.turn.ExecutionPolicySnapshot;
 import org.zipp.ai.application.turn.FencedAttempt;
 import org.zipp.ai.application.turn.FencedCommitOutcome;
@@ -106,6 +107,35 @@ class DefaultTurnV2TurnExecutorTest {
                         .execute(accepted, command, event -> { }));
 
         assertInstanceOf(FencedCommitOutcome.Committed.class, outcome.outcome());
+    }
+
+    @Test
+    void disabledAttemptCannotCommitPreHandlerTerminal() {
+        UserTurnCommand command = command();
+        FencedAttempt attempt = attempt(command);
+        TurnSubmission.ExecutionAccepted accepted = accepted(attempt);
+        AttemptWriteGate gate = new AttemptWriteGate();
+        gate.disableAndDrain(attempt);
+        int[] commits = {0};
+
+        TurnV2ExecutionOutcome.Committed outcome = assertInstanceOf(
+                TurnV2ExecutionOutcome.Committed.class,
+                new DefaultTurnV2TurnExecutor(
+                        (ignoredAttempt, ignoredCommand, ignoredEvents) ->
+                                new TurnV2ExecutionOutcome.PreparationBlocked(
+                                        new TurnV2PreHandlerOutcome.Terminal(
+                                                "CONTEXT_READ_SET_REVOKED", "revoked")),
+                        commandToCommit -> {
+                            commits[0]++;
+                            return new FencedCommitOutcome.Rejected("unexpected");
+                        },
+                        gate)
+                        .execute(accepted, command, event -> { }));
+
+        FencedCommitOutcome.Rejected rejected = assertInstanceOf(
+                FencedCommitOutcome.Rejected.class, outcome.outcome());
+        assertEquals("TURN_WRITE_GATE_DISABLED", rejected.code());
+        assertEquals(0, commits[0]);
     }
 
     private static UserTurnCommand command() {

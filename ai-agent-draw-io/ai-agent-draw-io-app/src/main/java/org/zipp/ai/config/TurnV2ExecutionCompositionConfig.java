@@ -4,11 +4,13 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.zipp.ai.application.turn.PlainDrawingHandler;
+import org.zipp.ai.application.turn.AttemptWriteGate;
 import org.zipp.ai.application.turn.PlainExecutionProfile;
 import org.zipp.ai.application.turn.PlainGenerationPort;
 import org.zipp.ai.application.turn.PlainRuntimeRegistry;
 import org.zipp.ai.application.turn.PlainTurnCommitPort;
 import org.zipp.ai.application.turn.TerminalOnlyTurnCommitPort;
+import org.zipp.ai.application.turn.TurnWriteGate;
 import org.zipp.ai.application.turn.checkpoint.TurnDecisionCoordinator;
 import org.zipp.ai.application.turn.context.ContextAssemblyCoordinator;
 import org.zipp.ai.application.turn.execution.DefaultTurnV2ExecutionCoordinator;
@@ -22,6 +24,11 @@ import org.zipp.ai.application.turn.execution.TurnV2TurnExecutor;
 @Configuration(proxyBeanMethods = false)
 @ConditionalOnBean({ContextAssemblyCoordinator.class, TurnDecisionCoordinator.class})
 public class TurnV2ExecutionCompositionConfig {
+
+    @Bean
+    public TurnWriteGate turnWriteGate() {
+        return new AttemptWriteGate();
+    }
 
     @Bean
     public TurnV2PreHandlerCoordinator turnV2PreHandlerCoordinator(
@@ -49,9 +56,10 @@ public class TurnV2ExecutionCompositionConfig {
             PlainGenerationPort generation,
             PlainTurnCommitPort commit,
             PlainRuntimeRegistry runtime,
-            PlainExecutionProfile profile
+            PlainExecutionProfile profile,
+            TurnWriteGate writeGate
     ) {
-        return new PlainDrawingHandler(generation, commit, runtime, profile);
+        return new PlainDrawingHandler(generation, commit, runtime, profile, writeGate);
     }
 
     @Bean
@@ -71,8 +79,9 @@ public class TurnV2ExecutionCompositionConfig {
     @ConditionalOnBean({TurnV2ExecutionCoordinator.class, TerminalOnlyTurnCommitPort.class})
     public TurnV2TurnExecutor turnV2TurnExecutor(
             TurnV2ExecutionCoordinator coordinator,
-            TerminalOnlyTurnCommitPort terminalCommit
+            TerminalOnlyTurnCommitPort terminalCommit,
+            TurnWriteGate writeGate
     ) {
-        return new DefaultTurnV2TurnExecutor(coordinator, terminalCommit);
+        return new DefaultTurnV2TurnExecutor(coordinator, terminalCommit, writeGate);
     }
 }

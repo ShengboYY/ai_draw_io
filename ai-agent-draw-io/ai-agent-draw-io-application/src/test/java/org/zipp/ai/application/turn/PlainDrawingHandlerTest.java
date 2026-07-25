@@ -20,6 +20,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class PlainDrawingHandlerTest {
@@ -80,6 +81,35 @@ class PlainDrawingHandlerTest {
                 readSet(),
                 new PlainDrawPlan(PlainDrawAction.EDIT, "edit the flow"),
                 event -> { }));
+        assertEquals(0, commits[0]);
+    }
+
+    @Test
+    void disabledAttemptCannotReachStrongCommit() {
+        AttemptWriteGate gate = new AttemptWriteGate();
+        FencedAttempt attempt = attempt();
+        gate.disableAndDrain(attempt);
+        int[] commits = {0};
+
+        PlainDrawingHandler handler = new PlainDrawingHandler(
+                (request, events) -> new PlainGenerationResult("payload-1", "<mxGraphModel/>", "created"),
+                command -> {
+                    commits[0]++;
+                    return new FencedCommitOutcome.Rejected("unexpected");
+                },
+                new PlainRuntimeRegistry(),
+                PlainExecutionProfile.m2SourceFree(),
+                gate);
+
+        FencedCommitOutcome outcome = handler.execute(
+                attempt,
+                context(),
+                readSet(),
+                new PlainDrawPlan(PlainDrawAction.CREATE, "draw a login flow"),
+                event -> { });
+
+        assertInstanceOf(FencedCommitOutcome.Rejected.class, outcome);
+        assertEquals("TURN_WRITE_GATE_DISABLED", ((FencedCommitOutcome.Rejected) outcome).code());
         assertEquals(0, commits[0]);
     }
 

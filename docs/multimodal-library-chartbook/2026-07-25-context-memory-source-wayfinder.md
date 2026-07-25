@@ -296,6 +296,8 @@ M1 控制面已按以下合同分批落地；生产 HTTP 仍未切入 V2，Plain
 
 本切片补齐 migration pause 的持锁前置条件：`TurnAdmissionGate.pauseAndDrain()` 在关闭 admission 前验证当前 boot 仍 ready 且持有 singleton lock；锁丢失或 startup 尚未完成时返回 `TURN_INSTANCE_NOT_READY`，不会让 coordinator 继续执行 backfill/mode switch。新增 lock-loss pause contract test；application 全量、infrastructure lifecycle/commit/lock 与 bootstrap composition 串行回归通过。本切片没有新增或执行 migration。
 
+本切片继续补齐 lease-safety 的 application 写入边界：新增按 `attemptId + epoch` 隔离的 `AttemptWriteGate`，租约安全中断通过 `disableAndDrain` 关闭当前 attempt 的本地写入窗口并等待在途 permit 退出；replacement epoch 仍可独立进入。Plain strong commit 与 terminal-only fallback 在调用 commit port 前都必须持有该 permit，闸门关闭时返回 typed `TURN_WRITE_GATE_DISABLED`，不会生成业务终态或 `plain_committed` 事件。新增 drain、epoch 隔离、Plain 拒写和 terminal fallback 拒写 contract tests；application 全量、app composition 与 infrastructure lifecycle/commit/lock/migration-control 定向回归通过。本切片没有新增或执行 migration。
+
 ## single-instance-migration-control: Build The Single-Instance Migration Boundary
 
 Blocked by: turn-execution-control

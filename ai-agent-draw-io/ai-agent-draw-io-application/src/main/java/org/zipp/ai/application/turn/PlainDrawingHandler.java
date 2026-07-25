@@ -22,6 +22,7 @@ public final class PlainDrawingHandler {
     private final PlainTurnCommitPort commit;
     private final PlainRuntimeRegistry runtime;
     private final PlainExecutionProfile profile;
+    private final TurnWriteGate writeGate;
 
     public PlainDrawingHandler(
             PlainGenerationPort generation,
@@ -29,10 +30,21 @@ public final class PlainDrawingHandler {
             PlainRuntimeRegistry runtime,
             PlainExecutionProfile profile
     ) {
+        this(generation, commit, runtime, profile, new AttemptWriteGate());
+    }
+
+    public PlainDrawingHandler(
+            PlainGenerationPort generation,
+            PlainTurnCommitPort commit,
+            PlainRuntimeRegistry runtime,
+            PlainExecutionProfile profile,
+            TurnWriteGate writeGate
+    ) {
         this.generation = Objects.requireNonNull(generation, "generation");
         this.commit = Objects.requireNonNull(commit, "commit");
         this.runtime = Objects.requireNonNull(runtime, "runtime");
         this.profile = Objects.requireNonNull(profile, "profile");
+        this.writeGate = Objects.requireNonNull(writeGate, "writeGate");
     }
 
     /** Executes only a Plain route that has already passed Context and Decision checkpoints. */
@@ -83,17 +95,24 @@ public final class PlainDrawingHandler {
                 ? canvasPin.version() : 0;
         String expectedCanvasContextDigest = canvasPin.state() == ContextPinState.PINNED
                 ? canvasPin.contentDigest() : "";
-        FencedCommitOutcome outcome = Objects.requireNonNull(
-                commit.commit(new PlainTurnCommit(
-                        attempt,
-                        plan.action(),
-                        context.request().diagramId(),
-                        expectedCanvasVersion,
-                        expectedCanvasContextDigest,
-                        result.canvasXml(),
-                        result.assistantMessage(),
-                        result.payloadRef())),
-                "plain commit outcome");
+        var permit = writeGate.tryEnter(attempt);
+        if (permit.isEmpty()) {
+            return new FencedCommitOutcome.Rejected("TURN_WRITE_GATE_DISABLED");
+        }
+        FencedCommitOutcome outcome;
+        try (TurnWriteGate.Permit ignored = permit.get()) {
+            outcome = Objects.requireNonNull(
+                    commit.commit(new PlainTurnCommit(
+                            attempt,
+                            plan.action(),
+                            context.request().diagramId(),
+                            expectedCanvasVersion,
+                            expectedCanvasContextDigest,
+                            result.canvasXml(),
+                            result.assistantMessage(),
+                            result.payloadRef())),
+                    "plain commit outcome");
+        }
         if (outcome instanceof FencedCommitOutcome.Committed) {
             events.publish(new TurnEvent("plain_committed", "persisted", Instant.now()));
         }

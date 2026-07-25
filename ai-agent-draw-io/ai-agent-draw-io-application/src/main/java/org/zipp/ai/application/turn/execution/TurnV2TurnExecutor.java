@@ -1,5 +1,6 @@
 package org.zipp.ai.application.turn.execution;
 
+import org.zipp.ai.application.turn.FencedAttempt;
 import org.zipp.ai.application.turn.TurnEventSink;
 import org.zipp.ai.application.turn.TurnSubmission;
 import org.zipp.ai.application.turn.UserTurnCommand;
@@ -12,4 +13,7 @@ public interface TurnV2TurnExecutor {
             UserTurnCommand command,
             TurnEventSink events
     );
+
+    /** Closes the current attempt's local write window before lease-loss detach. */
+    void disableWritesAndDrain(FencedAttempt attempt);
 }
