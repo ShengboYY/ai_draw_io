@@ -281,7 +281,7 @@ DB singleton lock、启动 orphan reconciler、application admission gate 以及
 - 建立 `turn_engine_migration_state(mode,generation)` singleton row；
 - 启动先取得 `SingleActiveInstanceLock`，失败则不开放 HTTP admission；
 - `TurnApplicationCompositionConfig` 已把 conversation resolver、deterministic admission profile、assignment service、turn facade 与 gate 组成同一 application graph；`ApplicationRunner` 按 lock → orphan reconcile → open admission 顺序启动；
-- `AdmissionBarrier.pauseAndDrain()` 停止新 turn，并等待本地 legacy in-flight registry 归零；
+- `AdmissionBarrier.pauseAndDrain()` 通过 Facade 的 `tryEnter/leave` 登记本地 in-flight admission，停止新 turn 并等待已进入调用归零；
 - pause window 内 backfill retryable legacy assignment、写 Gone tombstone并运行 expiry scanner；
 - mode switch 在 migration row transaction 中递增 generation；existing assignment 继续 sticky；
 - restart 先 reconcile 前一 boot 的 orphaned executions，再开放 admission；

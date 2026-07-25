@@ -40,26 +40,30 @@ public final class DefaultDiagramTurnFacade implements DiagramTurnFacade {
         Objects.requireNonNull(actor, "actor");
         Objects.requireNonNull(command, "command");
         Objects.requireNonNull(events, "events");
-        if (!admissionGate.isOpen()) {
+        if (!admissionGate.tryEnter()) {
             return new TurnSubmission.NotReady("TURN_INSTANCE_NOT_READY");
         }
 
-        ConversationRef conversation = conversationResolver.resolve(conversations, actor, command);
-        TurnKey key = TurnKey.of(actor, conversation, command.turnId());
-        if (!conversation.diagramId().equals(command.diagramId())) {
-            return new TurnSubmission.AdmissionRejected(key, "DIAGRAM_BINDING_MISMATCH");
-        }
-        if (!conversation.isActive()) {
-            return new TurnSubmission.AdmissionRejected(key, "CONVERSATION_NOT_ACTIVE");
-        }
+        try {
+            ConversationRef conversation = conversationResolver.resolve(conversations, actor, command);
+            TurnKey key = TurnKey.of(actor, conversation, command.turnId());
+            if (!conversation.diagramId().equals(command.diagramId())) {
+                return new TurnSubmission.AdmissionRejected(key, "DIAGRAM_BINDING_MISMATCH");
+            }
+            if (!conversation.isActive()) {
+                return new TurnSubmission.AdmissionRejected(key, "CONVERSATION_NOT_ACTIVE");
+            }
 
-        VersionedRequestFingerprintSet fingerprints = Objects.requireNonNull(
-                profile.fingerprints(command), "profile fingerprints");
-        ExecutionPolicySnapshot policy = Objects.requireNonNull(
-                profile.policy(actor, conversation, command), "profile policy");
-        AdmissionWriteOutcome admissionOutcome = admission.admit(
-                actor, conversation, command, fingerprints, policy);
-        return submitClaim(key, command, admissionOutcome);
+            VersionedRequestFingerprintSet fingerprints = Objects.requireNonNull(
+                    profile.fingerprints(command), "profile fingerprints");
+            ExecutionPolicySnapshot policy = Objects.requireNonNull(
+                    profile.policy(actor, conversation, command), "profile policy");
+            AdmissionWriteOutcome admissionOutcome = admission.admit(
+                    actor, conversation, command, fingerprints, policy);
+            return submitClaim(key, command, admissionOutcome);
+        } finally {
+            admissionGate.leave();
+        }
     }
 
     private TurnSubmission submitClaim(

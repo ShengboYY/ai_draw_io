@@ -2,6 +2,11 @@ package org.zipp.ai.application.turn;
 
 import org.junit.jupiter.api.Test;
 
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -31,6 +36,27 @@ class TurnAdmissionGateTest {
         assertTrue(gate.isOpen());
         lock.held = false;
         assertFalse(gate.isReady());
+    }
+
+    @Test
+    void pauseWaitsForAdmissionsThatAlreadyEntered() throws Exception {
+        FakeLock lock = new FakeLock();
+        TurnAdmissionGate gate = new TurnAdmissionGate(lock, ignored -> 0);
+        InstanceBootId bootId = new InstanceBootId("boot-1");
+        assertEquals(InstanceLockOutcome.ACQUIRED, gate.start(bootId));
+        assertTrue(gate.tryEnter());
+
+        ExecutorService executor = Executors.newSingleThreadExecutor();
+        try {
+            Future<?> drain = executor.submit(gate::pauseAndDrain);
+            Thread.sleep(100);
+            assertFalse(drain.isDone());
+            gate.leave();
+            drain.get(5, TimeUnit.SECONDS);
+            assertFalse(gate.isOpen());
+        } finally {
+            executor.shutdownNow();
+        }
     }
 
     private static final class FakeLock implements SingleActiveInstanceLock {

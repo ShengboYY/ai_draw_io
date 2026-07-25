@@ -9,6 +9,7 @@ public final class TurnAdmissionGate implements AdmissionBarrier {
     private final StartupOrphanReconciler orphanReconciler;
     private InstanceBootId bootId;
     private boolean open;
+    private int inFlight;
 
     public TurnAdmissionGate(
             SingleActiveInstanceLock instanceLock,
@@ -50,8 +51,16 @@ public final class TurnAdmissionGate implements AdmissionBarrier {
 
     @Override
     public synchronized void pauseAndDrain() {
-        // M1 has no local dispatch queue; closing the gate prevents new admission while durable work drains.
+        // Close first, then wait for every admission that crossed the gate before the pause.
         open = false;
+        while (inFlight > 0) {
+            try {
+                wait();
+            } catch (InterruptedException exception) {
+                Thread.currentThread().interrupt();
+                throw new IllegalStateException("TURN_ADMISSION_DRAIN_INTERRUPTED", exception);
+            }
+        }
     }
 
     @Override
@@ -66,5 +75,25 @@ public final class TurnAdmissionGate implements AdmissionBarrier {
     @Override
     public synchronized boolean isOpen() {
         return isReady();
+    }
+
+    @Override
+    public synchronized boolean tryEnter() {
+        if (!isReady()) {
+            return false;
+        }
+        inFlight++;
+        return true;
+    }
+
+    @Override
+    public synchronized void leave() {
+        if (inFlight <= 0) {
+            throw new IllegalStateException("TURN_ADMISSION_NOT_ENTERED");
+        }
+        inFlight--;
+        if (inFlight == 0) {
+            notifyAll();
+        }
     }
 }
