@@ -13,6 +13,7 @@ import org.zipp.ai.application.turn.FencedAttempt;
 import org.zipp.ai.application.turn.TurnAttemptExecutionStatePort;
 import org.zipp.ai.application.turn.TurnEngineMode;
 import org.zipp.ai.application.turn.TurnKey;
+import org.zipp.ai.application.turn.TurnStatus;
 import org.zipp.ai.application.turn.CancelTurnOutcome;
 import org.zipp.ai.application.turn.TurnStatusQueryOutcome;
 
@@ -26,6 +27,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class MySqlTurnLifecycleAdapterTest {
@@ -52,6 +54,20 @@ class MySqlTurnLifecycleAdapterTest {
                 attempt, AttemptDeadlineReason.EXECUTION_DEADLINE);
 
         assertInstanceOf(DeadlineCancelOutcome.AlreadyTerminal.class, outcome);
+        assertTrue(jdbc.lastQuery.contains("FOR UPDATE"));
+    }
+
+    @Test
+    void successfulDeadlineCancelReturnsTheDecodedPersistedOutcome() {
+        JdbcStub jdbc = new JdbcStub(cancelledExecutionRow(), 1);
+
+        DeadlineCancelOutcome.Cancelled outcome = assertInstanceOf(
+                DeadlineCancelOutcome.Cancelled.class,
+                new MySqlTurnLifecycleAdapter(jdbc.proxy()).cancel(
+                        attempt(), AttemptDeadlineReason.EXECUTION_DEADLINE));
+
+        assertEquals(TurnStatus.CANCELLED, outcome.outcome().status());
+        assertEquals("EXECUTION_DEADLINE", outcome.outcome().terminalCode());
         assertTrue(jdbc.lastQuery.contains("FOR UPDATE"));
     }
 
@@ -160,6 +176,17 @@ class MySqlTurnLifecycleAdapterTest {
                 "updated_at", Timestamp.from(Instant.parse("2026-07-26T00:00:01Z")));
     }
 
+    private static Map<String, Object> cancelledExecutionRow() {
+        Map<String, Object> row = terminalExecutionRow();
+        row.put("current_attempt_id", "attempt-1");
+        row.put("attempt_epoch", 1L);
+        row.put("status", "CANCELLED");
+        row.put("terminal_code", "EXECUTION_DEADLINE");
+        row.put("terminal_payload_type", "deadline");
+        row.put("terminal_payload_ref", null);
+        return row;
+    }
+
     private static Map<String, Object> values(Object... pairs) {
         Map<String, Object> values = new HashMap<>();
         for (int index = 0; index < pairs.length; index += 2) {
@@ -170,17 +197,23 @@ class MySqlTurnLifecycleAdapterTest {
 
     private static final class JdbcStub {
         private final Map<String, Object> row;
+        private final int updateResult;
         private String lastQuery = "";
 
         private JdbcStub(Map<String, Object> row) {
+            this(row, 0);
+        }
+
+        private JdbcStub(Map<String, Object> row, int updateResult) {
             this.row = row;
+            this.updateResult = updateResult;
         }
 
         private JdbcOperations proxy() {
             InvocationHandler handler = (proxy, method, args) -> {
                 if ("update".equals(method.getName())) {
-                    // Force the CAS loser path so the adapter must read the winner.
-                    return 0;
+                    // The fixture selects either the CAS loser or winner path.
+                    return updateResult;
                 }
                 if ("query".equals(method.getName())) {
                     lastQuery = (String) args[0];

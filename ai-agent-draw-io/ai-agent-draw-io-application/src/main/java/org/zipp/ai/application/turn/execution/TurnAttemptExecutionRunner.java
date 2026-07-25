@@ -1,6 +1,8 @@
 package org.zipp.ai.application.turn.execution;
 
 import org.zipp.ai.application.turn.FencedAttempt;
+import org.zipp.ai.application.turn.AttemptDeadlineReason;
+import org.zipp.ai.application.turn.DeadlineCancelOutcome;
 import org.zipp.ai.application.turn.LeaseTimingAnchor;
 import org.zipp.ai.application.turn.TurnEventSink;
 import org.zipp.ai.application.turn.TurnStatusRef;
@@ -63,14 +65,36 @@ public final class TurnAttemptExecutionRunner {
             UserTurnCommand command,
             TurnEventSink events
     ) {
+        return start(accepted, command, events, null, null);
+    }
+
+    /** Starts execution with an optional attempt-scoped server deadline. */
+    public TurnHandle start(
+            TurnSubmission.ExecutionAccepted accepted,
+            UserTurnCommand command,
+            TurnEventSink events,
+            Duration executionDeadline,
+            TurnAttemptDeadlineSupervisor deadlines
+    ) {
         Objects.requireNonNull(accepted, "accepted");
         Objects.requireNonNull(command, "command");
         Objects.requireNonNull(events, "events");
+        if ((executionDeadline == null) != (deadlines == null)
+                || (executionDeadline != null && executionDeadline.isNegative())) {
+            throw new IllegalArgumentException("deadline and deadline supervisor must agree");
+        }
 
-        AttemptState state = new AttemptState(accepted, command, new DetachableEventSink(events));
+        AttemptState state = new AttemptState(
+                accepted, command, new DetachableEventSink(events), deadlines);
         if (!state.scheduleHeartbeat(initialDelay(accepted.leaseTiming()))) {
             state.complete(new TurnAttemptCompletion.AttemptSelfAborted(
                     new TurnStatusRef(accepted.key()), "TURN_HEARTBEAT_SCHEDULER_FAILED"));
+            return state;
+        }
+        if (executionDeadline != null
+                && !state.scheduleDeadline(initialDeadlineDelay(accepted.leaseTiming(), executionDeadline))) {
+            state.complete(new TurnAttemptCompletion.AttemptSelfAborted(
+                    new TurnStatusRef(accepted.key()), "TURN_DEADLINE_SCHEDULER_FAILED"));
             return state;
         }
         try {
@@ -92,26 +116,35 @@ public final class TurnAttemptExecutionRunner {
         return Duration.ofNanos(Math.max(0L, renewNanos - elapsed));
     }
 
+    private Duration initialDeadlineDelay(LeaseTimingAnchor timing, Duration deadline) {
+        long elapsed = Math.max(0L, monotonicNanos.getAsLong() - timing.callStartedNanos());
+        return Duration.ofNanos(Math.max(0L, deadline.toNanos() - elapsed));
+    }
+
     private final class AttemptState implements TurnHandle {
 
         private final TurnSubmission.ExecutionAccepted accepted;
         private final UserTurnCommand command;
         private final DetachableEventSink events;
+        private final TurnAttemptDeadlineSupervisor deadlines;
         private final CompletableFuture<TurnAttemptCompletion> completion = new CompletableFuture<>();
         private final Object lock = new Object();
         private FencedAttempt currentAttempt;
         private LeaseTimingAnchor timing;
         private ScheduledFuture<?> heartbeatFuture;
+        private ScheduledFuture<?> deadlineFuture;
         private boolean completed;
 
         private AttemptState(
                 TurnSubmission.ExecutionAccepted accepted,
                 UserTurnCommand command,
-                DetachableEventSink events
+                DetachableEventSink events,
+                TurnAttemptDeadlineSupervisor deadlines
         ) {
             this.accepted = accepted;
             this.command = command;
             this.events = events;
+            this.deadlines = deadlines;
             this.currentAttempt = accepted.attempt();
             this.timing = accepted.leaseTiming();
         }
@@ -146,6 +179,68 @@ public final class TurnAttemptExecutionRunner {
                     return false;
                 }
             }
+        }
+
+        private boolean scheduleDeadline(Duration delay) {
+            synchronized (lock) {
+                if (completed) {
+                    return true;
+                }
+                try {
+                    deadlineFuture = scheduler.schedule(
+                            this::deadlineTick, delay.toNanos(), TimeUnit.NANOSECONDS);
+                    return true;
+                } catch (RuntimeException exception) {
+                    return false;
+                }
+            }
+        }
+
+        private void deadlineTick() {
+            FencedAttempt attempt;
+            synchronized (lock) {
+                if (completed) {
+                    return;
+                }
+                attempt = currentAttempt;
+            }
+            TurnAttemptDeadlineOutcome outcome;
+            try {
+                outcome = deadlines.cancel(attempt, AttemptDeadlineReason.EXECUTION_DEADLINE);
+            } catch (RuntimeException exception) {
+                complete(new TurnAttemptCompletion.AttemptSelfAborted(
+                        new TurnStatusRef(accepted.key()), "TURN_DEADLINE_FAILED"));
+                return;
+            }
+            if (outcome instanceof TurnAttemptDeadlineOutcome.WriteGateDisabled) {
+                complete(new TurnAttemptCompletion.AttemptSelfAborted(
+                        new TurnStatusRef(accepted.key()), "TURN_WRITE_GATE_DISABLED"));
+                return;
+            }
+            DeadlineCancelOutcome delegated =
+                    ((TurnAttemptDeadlineOutcome.Delegated) outcome).outcome();
+            if (delegated instanceof DeadlineCancelOutcome.Cancelled cancelled) {
+                complete(new TurnAttemptCompletion.PersistedTerminal(cancelled.outcome()));
+                return;
+            }
+            if (delegated instanceof DeadlineCancelOutcome.AlreadyTerminal terminal) {
+                complete(new TurnAttemptCompletion.PersistedTerminal(terminal.outcome()));
+                return;
+            }
+            if (delegated instanceof DeadlineCancelOutcome.FenceLost lost) {
+                complete(new TurnAttemptCompletion.AttemptOwnershipLost(
+                        new TurnStatusRef(lost.status().key())));
+                return;
+            }
+            if (delegated instanceof DeadlineCancelOutcome.TerminalUnavailable unavailable) {
+                complete(new TurnAttemptCompletion.StatusOnly(
+                        new TurnStatusRef(unavailable.status().key()), unavailable.code()));
+                return;
+            }
+            DeadlineCancelOutcome.TransientFailure transientFailure =
+                    (DeadlineCancelOutcome.TransientFailure) delegated;
+            complete(new TurnAttemptCompletion.AttemptSelfAborted(
+                    new TurnStatusRef(accepted.key()), transientFailure.code()));
         }
 
         private void heartbeatTick() {
@@ -226,6 +321,10 @@ public final class TurnAttemptExecutionRunner {
                 }
                 completed = true;
                 scheduled = heartbeatFuture;
+                ScheduledFuture<?> deadline = deadlineFuture;
+                if (deadline != null) {
+                    deadline.cancel(false);
+                }
             }
             if (scheduled != null) {
                 scheduled.cancel(false);

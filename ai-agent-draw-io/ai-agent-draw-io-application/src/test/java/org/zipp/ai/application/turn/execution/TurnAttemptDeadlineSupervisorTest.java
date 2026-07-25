@@ -12,6 +12,7 @@ import org.zipp.ai.application.turn.TurnKey;
 import org.zipp.ai.application.turn.TurnStatus;
 import org.zipp.ai.application.turn.TurnStatusView;
 import org.zipp.ai.application.turn.TurnWriteGate;
+import org.zipp.ai.application.turn.PersistedTurnOutcome;
 
 import java.time.Instant;
 import java.util.Optional;
@@ -52,7 +53,9 @@ class TurnAttemptDeadlineSupervisorTest {
         TurnAttemptDeadlineSupervisor supervisor = new TurnAttemptDeadlineSupervisor(
                 (ignoredAttempt, ignoredReason) -> {
                     portObservedPermit.set(gate.active.get() == 1);
-                    return new DeadlineCancelOutcome.Cancelled(status(attempt));
+                    return new DeadlineCancelOutcome.Cancelled(
+                            new PersistedTurnOutcome(TurnStatus.CANCELLED,
+                                    "EXECUTION_DEADLINE", "deadline", null, "{}"));
                 }, gate);
 
         TurnAttemptDeadlineOutcome.Delegated outcome = assertInstanceOf(

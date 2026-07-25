@@ -314,6 +314,8 @@ M1 控制面已按以下合同分批落地；生产 HTTP 仍未切入 V2，Plain
 
 本切片补齐 attempt-scoped deadline 的本地安全边界：新增 `TurnAttemptDeadlineSupervisor`，deadline callback 必须先取得同一 `TurnWriteGate` permit，并持有到 `AttemptDeadlineCancellationPort` 返回；gate 已因 lease-safety drain 关闭时返回 `WriteGateDisabled` 且 zero port call，stale epoch 仍由 durable CAS 返回 `FenceLost`。新增 gate-closed、permit 生命周期与 stale-epoch contract tests；application 全量回归通过，本切片没有新增或执行 migration。
 
+本切片收口 deadline CAS 到 attempt completion 的 typed outcome：`DeadlineCancelOutcome.Cancelled` 现在携带 decoded `PersistedTurnOutcome`；MySQL deadline CAS 成功后使用 `SELECT ... FOR UPDATE` 解码刚写入的 terminal envelope，未知 schema 返回 typed unavailable。`TurnAttemptExecutionRunner` 的 optional execution deadline 将 `Cancelled/AlreadyTerminal` 映射为 `PersistedTerminal`，fence loss、schema unavailable、gate disabled 与 transient failure 保持 non-terminal typed completion。新增 deadline winner runner 与 adapter tests；application/infrastructure M1 回归通过，本切片没有新增或执行 migration。
+
 ## single-instance-migration-control: Build The Single-Instance Migration Boundary
 
 Blocked by: turn-execution-control

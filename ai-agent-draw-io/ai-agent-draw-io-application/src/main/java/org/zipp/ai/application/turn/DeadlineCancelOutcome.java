@@ -7,7 +7,12 @@ public sealed interface DeadlineCancelOutcome
         DeadlineCancelOutcome.FenceLost,
         DeadlineCancelOutcome.TransientFailure {
 
-    record Cancelled(TurnStatusView status) implements DeadlineCancelOutcome {
+    record Cancelled(PersistedTurnOutcome outcome) implements DeadlineCancelOutcome {
+        public Cancelled {
+            if (outcome == null) {
+                throw new IllegalArgumentException("cancelled outcome must not be null");
+            }
+        }
     }
 
     record AlreadyTerminal(PersistedTurnOutcome outcome) implements DeadlineCancelOutcome {

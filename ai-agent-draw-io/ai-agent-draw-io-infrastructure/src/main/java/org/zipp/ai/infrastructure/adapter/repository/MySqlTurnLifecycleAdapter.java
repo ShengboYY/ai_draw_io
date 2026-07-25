@@ -245,7 +245,17 @@ public class MySqlTurnLifecycleAdapter implements
                 attempt.attemptId(),
                 attempt.attemptEpoch());
         if (updated == 1) {
-            return new DeadlineCancelOutcome.Cancelled(status(attempt.key()));
+            ExecutionRow cancelled = findForUpdate(attempt.key());
+            if (cancelled == null) {
+                return new DeadlineCancelOutcome.TransientFailure("TURN_NOT_FOUND_AFTER_UPDATE");
+            }
+            TerminalOutcomeDecoder.DecodeResult decoded = cancelled.decode(terminalDecoder);
+            if (decoded instanceof TerminalOutcomeDecoder.DecodeResult.Decoded ready) {
+                return new DeadlineCancelOutcome.Cancelled(ready.outcome());
+            }
+            return new DeadlineCancelOutcome.TerminalUnavailable(
+                    cancelled.statusView(attempt.key()),
+                    ((TerminalOutcomeDecoder.DecodeResult.Unavailable) decoded).code());
         }
         ExecutionRow current = findForUpdate(attempt.key());
         if (current == null) {

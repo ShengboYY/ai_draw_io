@@ -2,6 +2,8 @@ package org.zipp.ai.application.turn.execution;
 
 import org.junit.jupiter.api.Test;
 import org.zipp.ai.application.turn.AttemptLease;
+import org.zipp.ai.application.turn.AttemptWriteGate;
+import org.zipp.ai.application.turn.DeadlineCancelOutcome;
 import org.zipp.ai.application.turn.ExecutionPolicySnapshot;
 import org.zipp.ai.application.turn.FencedAttempt;
 import org.zipp.ai.application.turn.LeaseTimingAnchor;
@@ -18,6 +20,7 @@ import org.zipp.ai.application.turn.TurnSubmission;
 import org.zipp.ai.application.turn.UserTurnCommand;
 
 import java.time.Instant;
+import java.time.Duration;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -153,6 +156,47 @@ class TurnAttemptExecutionRunnerTest {
 
             assertEquals(attempt().key(), completion.status().key());
             assertEquals(1, drains.get());
+            release.countDown();
+        } finally {
+            execution.shutdownNow();
+            scheduler.shutdownNow();
+        }
+    }
+
+    @Test
+    void deadlineWinnerCompletesTheHandleWithThePersistedCancellation() throws Exception {
+        ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
+        ExecutorService execution = Executors.newSingleThreadExecutor();
+        try {
+            CountDownLatch entered = new CountDownLatch(1);
+            CountDownLatch release = new CountDownLatch(1);
+            AtomicInteger deadlineCalls = new AtomicInteger();
+            TurnV2TurnExecutor executor = executor((accepted, command, events) -> {
+                entered.countDown();
+                release.await(1, TimeUnit.SECONDS);
+                return new TurnAttemptCompletion.AttemptSelfAborted(
+                        new TurnStatusRef(accepted.key()), "LATE_EXECUTOR_RESULT");
+            }, ignored -> { });
+            TurnAttemptDeadlineSupervisor deadlines = new TurnAttemptDeadlineSupervisor(
+                    (ignoredAttempt, ignoredReason) -> {
+                        deadlineCalls.incrementAndGet();
+                        return new DeadlineCancelOutcome.Cancelled(
+                                new PersistedTurnOutcome(TurnStatus.CANCELLED,
+                                        "EXECUTION_DEADLINE", "deadline", null, "{}"));
+                    }, new AttemptWriteGate());
+            TurnAttemptExecutionRunner runner = new TurnAttemptExecutionRunner(
+                    executor, supervisor(executor, ignored -> new TurnAttemptLeasePort.LeaseTransientFailure(
+                            Duration.ofSeconds(30))), execution, scheduler);
+
+            TurnHandle handle = runner.start(
+                    accepted(false), command(), ignored -> { }, Duration.ZERO, deadlines);
+            assertTrue(entered.await(1, TimeUnit.SECONDS));
+            TurnAttemptCompletion.PersistedTerminal completion = assertInstanceOf(
+                    TurnAttemptCompletion.PersistedTerminal.class,
+                    handle.completion().toCompletableFuture().get(1, TimeUnit.SECONDS));
+
+            assertEquals(TurnStatus.CANCELLED, completion.outcome().status());
+            assertEquals(1, deadlineCalls.get());
             release.countDown();
         } finally {
             execution.shutdownNow();
