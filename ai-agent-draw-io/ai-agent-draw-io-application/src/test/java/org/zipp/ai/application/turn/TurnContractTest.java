@@ -6,6 +6,7 @@ import java.time.Instant;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class TurnContractTest {
@@ -59,6 +60,48 @@ class TurnContractTest {
                 "client-1",
                 List.of(new OpaqueConversationFileRef("file-1"), new OpaqueConversationFileRef("file-1")),
                 "input"));
+    }
+
+    @Test
+    void fingerprintIgnoresAliasesAndRuntimeSessionsButBindsAttachmentOrderAndMemory() {
+        UserTurnCommand first = new UserTurnCommand(
+                "turn-1", "legacy-session", "diagram-1", "client-1", "draw it", "runtime-1",
+                new TurnDeclarations(
+                        List.of(new OpaqueConversationFileRef("file-a"), new OpaqueConversationFileRef("file-b")),
+                        new NoClarificationReply(),
+                        List.of(),
+                        new NoMemoryWrite()));
+        UserTurnCommand aliasRetry = new UserTurnCommand(
+                "turn-1", "canonical-conversation", "diagram-1", "client-1", "draw it", "runtime-2",
+                first.declarations());
+        UserTurnCommand reordered = new UserTurnCommand(
+                "turn-1", "legacy-session", "diagram-1", "client-1", "draw it", "runtime-1",
+                new TurnDeclarations(
+                        List.of(new OpaqueConversationFileRef("file-b"), new OpaqueConversationFileRef("file-a")),
+                        new NoClarificationReply(),
+                        List.of(),
+                        new NoMemoryWrite()));
+        UserTurnCommand memoryChanged = new UserTurnCommand(
+                "turn-1", "legacy-session", "diagram-1", "client-1", "draw it", "runtime-1",
+                new TurnDeclarations(
+                        first.declarations().currentTurnAttachments(),
+                        new NoClarificationReply(),
+                        List.of(),
+                        new RememberDecisionDeclaration(
+                                1,
+                                new MemoryWriteRuleVersion("rule-1"),
+                                new MatchedInstructionSpan("span-1"),
+                                new MemoryWriteSemanticDigest("digest-1"))));
+
+        assertEquals(
+                TurnRequestFingerprintCalculator.current(first),
+                TurnRequestFingerprintCalculator.current(aliasRetry));
+        assertNotEquals(
+                TurnRequestFingerprintCalculator.current(first).digest(),
+                TurnRequestFingerprintCalculator.current(reordered).digest());
+        assertNotEquals(
+                TurnRequestFingerprintCalculator.current(first).digest(),
+                TurnRequestFingerprintCalculator.current(memoryChanged).digest());
     }
 
     @Test
