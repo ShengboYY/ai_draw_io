@@ -1,17 +1,22 @@
 package org.zipp.ai.application.turn;
 
+import java.util.Objects;
+
 /** Builds the canonical assignment command before Router/LLM or source inspection. */
 public final class TurnEngineAdmissionService {
 
     private final TurnEngineMigrationStatePort migrationState;
     private final TurnEngineAssignmentPort assignments;
+    private final AdmissionBarrier admissionBarrier;
 
     public TurnEngineAdmissionService(
             TurnEngineMigrationStatePort migrationState,
-            TurnEngineAssignmentPort assignments
+            TurnEngineAssignmentPort assignments,
+            AdmissionBarrier admissionBarrier
     ) {
-        this.migrationState = migrationState;
-        this.assignments = assignments;
+        this.migrationState = Objects.requireNonNull(migrationState, "migrationState");
+        this.assignments = Objects.requireNonNull(assignments, "assignments");
+        this.admissionBarrier = Objects.requireNonNull(admissionBarrier, "admissionBarrier");
     }
 
     public AdmissionWriteOutcome admit(
@@ -24,11 +29,13 @@ public final class TurnEngineAdmissionService {
         if (actor == null || conversation == null || command == null || fingerprints == null || policy == null) {
             throw new IllegalArgumentException("admission values must not be null");
         }
-        if (!conversation.isActive()) {
-            return new AdmissionWriteOutcome.Rejected(
-                    TurnKey.of(actor, conversation, command.turnId()), "CONVERSATION_NOT_ACTIVE");
-        }
         TurnKey key = TurnKey.of(actor, conversation, command.turnId());
+        if (!admissionBarrier.isOpen()) {
+            return new AdmissionWriteOutcome.Rejected(key, "TURN_INSTANCE_NOT_READY");
+        }
+        if (!conversation.isActive()) {
+            return new AdmissionWriteOutcome.Rejected(key, "CONVERSATION_NOT_ACTIVE");
+        }
         MigrationStateSnapshot migration = migrationState.current();
         return assignments.assignOrReuse(new TurnEngineAssignmentCommand(
                 key,

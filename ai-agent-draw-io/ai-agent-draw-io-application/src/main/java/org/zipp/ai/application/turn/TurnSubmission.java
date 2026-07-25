@@ -6,7 +6,8 @@ public sealed interface TurnSubmission
         TurnSubmission.AlreadyRunning,
         TurnSubmission.IdempotencyConflict,
         TurnSubmission.LegacyRetryExpired,
-        TurnSubmission.AdmissionRejected {
+        TurnSubmission.AdmissionRejected,
+        TurnSubmission.NotReady {
 
     record ExecutionAccepted(TurnKey key, FencedAttempt attempt) implements TurnSubmission {
     }
@@ -24,5 +25,13 @@ public sealed interface TurnSubmission
     }
 
     record AdmissionRejected(TurnKey key, String code) implements TurnSubmission {
+    }
+
+    /** Returned before conversation lookup so a paused instance cannot create new scope rows. */
+    record NotReady(String code) implements TurnSubmission {
+
+        public NotReady {
+            ContractValues.requiredText(code, "code");
+        }
     }
 }
