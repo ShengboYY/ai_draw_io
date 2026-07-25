@@ -430,7 +430,9 @@ M2 已开始，先交付不改变 production assignment 的 application/transpor
 - 新增 server-owned `BaseTurnContext` 与 closed `ContextRead` states；`DefaultSemanticRouterContextProjector` 只投影 Canvas/Conversation/Chartbook Profile/confirmed Memory，`DefaultRestrictedSourceDemandInputFactory` 只投影 current instruction、opaque current-message attachment refs、membership identity 与 safe clarification labels。
 - 新增独立 tool-free V2 Semantic Router / Source Demand agent 配置与 infrastructure adapters：fresh session、empty tool allowlist、严格 JSON fields 和 typed unavailable；V2 composition 通过 conditional graph 注册，但不改变 legacy production assignment。
 
-durable Context assembler/read-set pin、decision checkpoint、Pre-Planner/route dispatcher 与 production V2 assignment 仍待后续 M2 切片；production assignment 继续全部 legacy。
+durable Context candidate assembler/read-set materialization、Pre-Planner/route dispatcher 与 production V2 assignment 仍待后续 M2 切片；production assignment 继续全部 legacy。
+
+本切片已补齐 durable seam：`ContextReadSet` 固定 conversation high-water 与 summary/membership/Profile/Memory exact pin，`ContextReadSetQueryPort`/`ContextReadSetCommitPort` 采用 load-first + fenced first-writer CAS；`TurnDecisionCheckpoint` 固定 read-set/input-binding digest 与 bounded canonical decision payload，并由独立 query/commit port 以同样规则持久化。MySQL adapter 使用既有 `turn_execution.context_read_set_*` 与 `plan_payload_*` 字段，CAS loser 只能 reload winner；缺失、损坏、stale、revoked 都返回 typed outcome。新增 migration contract test，但没有新增 migration。Context candidate assembler、真实 domain-version materialization、Pre-Planner/route dispatcher 与 production V2 assignment 仍待后续切片。
 
 本票同时 owns DTO 的 `currentTurnAttachments`、hidden clarification id、opaque refs 与唯一 compatibility translator。
 
