@@ -442,6 +442,8 @@ M2 已开始，先交付不改变 production assignment 的 application/transpor
 
 本切片修复 application seam：`ContextPreparationOutcome.Ready` 现在同时携带 `BaseTurnContext` 与 assembly 阶段最终 winner 的 `ContextReadSet`，因此后续 Router/Decision Coordinator 可以复用同一 read-set digest 与 message high-water，而不会重新读取或丢失 pin。新增 contract test 覆盖该 continuity；本切片仍不需要数据库 migration。
 
+本切片进一步接上隔离的 `TurnV2PreHandlerCoordinator`：已 claim 的 `FencedAttempt` 先经过 `ContextAssemblyCoordinator`，再把同一个 context/read-set 传给 `TurnDecisionCoordinator`，并将 ready、terminal、fence-lost、unavailable 统一为 typed outcome。`Ready` 额外校验 attempt high-water、checkpoint digest 与 route decision 自身的 context/input digest；app composition 仅在两个 preparation seam 都存在时注册，未改变 production assignment 或 HTTP legacy route。Plain/source-aware handler dispatch 与 strong commit 仍待后续切片，本切片没有新增 migration。
+
 本票同时 owns DTO 的 `currentTurnAttachments`、hidden clarification id、opaque refs 与唯一 compatibility translator。
 
 composer 上传成功只创建 Conversation File。发送消息时，`TurnStartCommitPort` 才把 opaque refs 与该条 user message 原子绑定。
