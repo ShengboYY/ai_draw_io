@@ -1,6 +1,6 @@
 package org.zipp.ai.infrastructure.adapter.repository;
 
-import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.JdbcOperations;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 import org.zipp.ai.application.turn.AdmissionWriteOutcome;
@@ -68,10 +68,10 @@ public class MySqlTurnEngineAssignmentAdapter
             ON DUPLICATE KEY UPDATE updated_at = updated_at
             """;
 
-    private final JdbcTemplate jdbc;
+    private final JdbcOperations jdbc;
     private final MemoryWriteDeclarationJsonCodec memoryCodec;
 
-    public MySqlTurnEngineAssignmentAdapter(JdbcTemplate jdbc) {
+    public MySqlTurnEngineAssignmentAdapter(JdbcOperations jdbc) {
         this.jdbc = Objects.requireNonNull(jdbc, "jdbc");
         this.memoryCodec = new MemoryWriteDeclarationJsonCodec();
     }
