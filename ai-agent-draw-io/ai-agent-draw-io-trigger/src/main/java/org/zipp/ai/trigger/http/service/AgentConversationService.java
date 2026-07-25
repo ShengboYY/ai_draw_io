@@ -225,13 +225,16 @@ public class AgentConversationService {
             CustomApiConfigManager.setConfig(sessionId, config);
             requestDTO = requestWithStoredCanvas(requestDTO);
             final ChatRequestDTO currentRequest = requestDTO;
-            ResolvedSourceSet sourceSnapshot = shouldResolveRequestSources(currentRequest)
-                    ? resolveRequestSources(currentRequest) : null;
-            RequestProbe requestProbe = probeRequest(currentRequest, sourceSnapshot);
+            // H0: route ordinary drawing from canvas-only facts before touching source infrastructure.
+            RequestProbe routingProbe = probeRequest(currentRequest, null);
             IntentRoutingResult routingResult = recordCapturedStep(
                     "routing", requestStepInput(currentRequest), AgentConversationService::routingStepOutput,
-                    () -> routeIntent(currentRequest, config, requestProbe, sourceSnapshot));
+                    () -> routeIntent(currentRequest, config, routingProbe, null));
             recordRoutingDecision(runScope, routingResult);
+            ResolvedSourceSet sourceSnapshot = shouldResolveRequestSources(currentRequest, routingResult)
+                    ? resolveRequestSources(currentRequest) : null;
+            RequestProbe requestProbe = sourceSnapshot == null
+                    ? routingProbe : probeRequest(currentRequest, sourceSnapshot);
             TaskSourcePlan sourcePlan = directSourcePlan(currentRequest, routingResult, sourceSnapshot);
             if (sourcePlan != null && sourcePlan.needsClarification()) {
                 ChatResponseDTO responseDTO = directSourceClarificationResponse();
@@ -457,15 +460,18 @@ public class AgentConversationService {
 
             requestDTO = requestWithStoredCanvas(requestDTO);
             final ChatRequestDTO currentRequest = requestDTO;
-            ResolvedSourceSet sourceSnapshot = shouldResolveRequestSources(currentRequest)
-                    ? resolveRequestSources(currentRequest) : null;
-            RequestProbe requestProbe = probeRequest(currentRequest, sourceSnapshot);
+            // H0: the first routing pass must not depend on source resolution or retrieval availability.
+            RequestProbe routingProbe = probeRequest(currentRequest, null);
             IntentRoutingResult routingResult = forcedRoutingResult == null
                     ? recordCapturedStep(
                     "routing", requestStepInput(currentRequest), AgentConversationService::routingStepOutput,
-                    () -> routeIntent(currentRequest, config, requestProbe, sourceSnapshot))
+                    () -> routeIntent(currentRequest, config, routingProbe, null))
                     : forcedRoutingResult;
             recordRoutingDecision(runScope, routingResult);
+            ResolvedSourceSet sourceSnapshot = shouldResolveRequestSources(currentRequest, routingResult)
+                    ? resolveRequestSources(currentRequest) : null;
+            RequestProbe requestProbe = sourceSnapshot == null
+                    ? routingProbe : probeRequest(currentRequest, sourceSnapshot);
             TaskSourcePlan sourcePlan = forcedRoutingResult == null
                     ? directSourcePlan(currentRequest, routingResult, sourceSnapshot)
                     : null;
@@ -1393,7 +1399,7 @@ public class AgentConversationService {
             return new RequestProbe(sourceProbe, new CanvasProbe(false, 0, 0,
                     null, "", 0, List.of(), false, false));
         }
-        if (materialRagEnabled && requestProbeService != null) {
+        if (sourceSnapshot != null && materialRagEnabled && requestProbeService != null) {
             try {
                 return requestProbeService.probe(new RequestProbeCommand(owner(requestDTO),
                         requestDTO.getDiagramId(), requestDTO.getSessionId(), mode,
@@ -1662,8 +1668,10 @@ public class AgentConversationService {
         }
     }
 
-    private boolean shouldResolveRequestSources(ChatRequestDTO requestDTO) {
-        return materialRagEnabled || requestDTO != null
+    private boolean shouldResolveRequestSources(ChatRequestDTO requestDTO, IntentRoutingResult routing) {
+        if (requestDTO == null || routing == null) return false;
+        if (shouldPrepareEvidence(requestDTO, routing)) return true;
+        return requestedSourceUse(routing) == SourceUse.DIRECT
                 && (directImageConversionExecutionModule != null || directSourcePreparationModule != null);
     }
 

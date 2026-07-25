@@ -1264,8 +1264,9 @@ public class AgentConversationServiceTest {
         assertEquals(org.zipp.ai.domain.multimodal.DirectObservationFingerprint.of("a → b"),
                 executed.get().source().clarifications().get(0).observedFingerprint());
         assertEquals("version-1", executed.get().source().confirmationSourceVersionId());
-        assertTrue(routingService.lastCommand.getRequestProbe().hasSingleReadyImageAttachment());
-        assertEquals(1, routingService.lastCommand.getRequestProbe().readyAttachmentCount());
+        // H0 routes before resolving sources; the later source-aware branch still commits the image conversion.
+        assertFalse(routingService.lastCommand.getRequestProbe().hasSingleReadyImageAttachment());
+        assertEquals(0, routingService.lastCommand.getRequestProbe().readyAttachmentCount());
         assertEquals(0, chatService.handleMessageCalls);
         assertEquals(0, chatService.handleMessageStreamCalls);
     }
@@ -1722,11 +1723,72 @@ public class AgentConversationServiceTest {
     }
 
     @Test
-    public void sourceSnapshotInfrastructureFailureStopsBeforeLegacyDrawing() throws Exception {
+    public void sourceSnapshotInfrastructureFailureDoesNotStopOrdinaryDrawing() throws Exception {
+        AgentConversationService service = quotaAwareService();
+        CountingChatService chatService = new CountingChatService();
+        AtomicInteger sourceResolutionCalls = new AtomicInteger();
+        AtomicInteger sourceProbeCalls = new AtomicInteger();
+        injectField(service, "chatService", chatService);
+        injectField(service, "intentRoutingService", new CountingIntentRoutingService());
+        injectField(service, "materialRagEnabled", true);
+        injectField(service, "requestSourceResolutionService",
+                (org.zipp.ai.domain.retrieval.RequestSourceResolutionService) command -> {
+                    sourceResolutionCalls.incrementAndGet();
+                    throw new IllegalStateException("snapshot store unavailable");
+                });
+        injectField(service, "requestProbeService",
+                (org.zipp.ai.domain.retrieval.RequestProbeService) command -> {
+                    sourceProbeCalls.incrementAndGet();
+                    throw new AssertionError("ordinary drawing must not probe source infrastructure");
+                });
+
+        org.zipp.ai.api.dto.ChatResponseDTO response = service.chat(platformRequest());
+
+        // A generic drawing has no evidence dependency, so the Drawer remains available.
+        assertEquals("user", response.getType());
+        assertEquals(1, chatService.handleMessageCalls);
+        assertEquals(0, chatService.handleMessageStreamCalls);
+        assertEquals(0, sourceResolutionCalls.get());
+        assertEquals(0, sourceProbeCalls.get());
+    }
+
+    @Test
+    public void sourceSnapshotInfrastructureFailureDoesNotStopOrdinaryDrawingStream() throws Exception {
+        AgentConversationService service = quotaAwareService();
+        CountingChatService chatService = new CountingChatService();
+        AtomicInteger sourceResolutionCalls = new AtomicInteger();
+        AtomicInteger sourceProbeCalls = new AtomicInteger();
+        injectField(service, "chatService", chatService);
+        injectField(service, "intentRoutingService", new CountingIntentRoutingService());
+        injectField(service, "materialRagEnabled", true);
+        injectField(service, "requestSourceResolutionService",
+                (org.zipp.ai.domain.retrieval.RequestSourceResolutionService) command -> {
+                    sourceResolutionCalls.incrementAndGet();
+                    throw new IllegalStateException("snapshot store unavailable");
+                });
+        injectField(service, "requestProbeService",
+                (org.zipp.ai.domain.retrieval.RequestProbeService) command -> {
+                    sourceProbeCalls.incrementAndGet();
+                    throw new AssertionError("ordinary drawing must not probe source infrastructure");
+                });
+        CapturingEmitter emitter = new CapturingEmitter();
+
+        service.stream(platformRequest(), emitter);
+
+        // The UI uses the stream endpoint, which must reach the Drawer for the same generic request.
+        assertEquals(0, chatService.handleMessageCalls);
+        assertEquals(1, chatService.handleMessageStreamCalls);
+        assertFalse(String.join("\n", emitter.sent).contains("source_resolution_failed"));
+        assertEquals(0, sourceResolutionCalls.get());
+        assertEquals(0, sourceProbeCalls.get());
+    }
+
+    @Test
+    public void sourceSnapshotInfrastructureFailureStillStopsEvidenceDrawing() throws Exception {
         AgentConversationService service = quotaAwareService();
         CountingChatService chatService = new CountingChatService();
         injectField(service, "chatService", chatService);
-        injectField(service, "intentRoutingService", new CountingIntentRoutingService());
+        injectField(service, "intentRoutingService", new OptionalEvidenceRoutingService());
         injectField(service, "materialRagEnabled", true);
         injectField(service, "requestSourceResolutionService",
                 (org.zipp.ai.domain.retrieval.RequestSourceResolutionService) command -> {
@@ -1740,6 +1802,7 @@ public class AgentConversationServiceTest {
 
         org.zipp.ai.api.dto.ChatResponseDTO response = service.chat(platformRequest());
 
+        // Evidence-backed drawing still fails closed because its source set must be reproducible.
         assertEquals("source_resolution_failed", response.getType());
         assertEquals(0, chatService.handleMessageCalls);
         assertEquals(0, chatService.handleMessageStreamCalls);

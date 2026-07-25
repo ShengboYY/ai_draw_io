@@ -447,11 +447,7 @@ public class DefaultIntentRoutingService implements IIntentRoutingService {
     private String normalizeSourceUse(String value, IntentRoutingProbe probe) {
         String normalized = value == null ? "" : value.trim().toUpperCase(Locale.ROOT);
         if (!ALLOWED_SOURCE_USES.contains(normalized)) return "NONE";
-        boolean directRequested = "DIRECT".equals(normalized) || "DIRECT_AND_RETRIEVAL".equals(normalized);
-        // Authorization and ambiguity stay with TaskSourcePlanner; the router only needs availability.
-        if (directRequested && (probe == null || probe.directReadableImageCandidateCount() == 0)) {
-            return "DIRECT_AND_RETRIEVAL".equals(normalized) ? "RETRIEVAL" : "NONE";
-        }
+        // H0 resolves sources only after routing, so candidate availability is validated by TaskSourcePlanner.
         return normalized;
     }
 
