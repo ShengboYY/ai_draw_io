@@ -6,12 +6,14 @@ import org.zipp.ai.application.turn.PlainDrawingHandler;
 import org.zipp.ai.application.turn.PlainGenerationPort;
 import org.zipp.ai.application.turn.PlainTurnCommitPort;
 import org.zipp.ai.application.turn.TerminalOnlyTurnCommitPort;
+import org.zipp.ai.application.turn.TurnAttemptLeasePort;
 import org.zipp.ai.application.turn.TurnWriteGate;
 import org.zipp.ai.application.turn.checkpoint.TurnDecisionCoordinator;
 import org.zipp.ai.application.turn.context.ContextAssemblyCoordinator;
 import org.zipp.ai.application.turn.execution.TurnV2ExecutionCoordinator;
 import org.zipp.ai.application.turn.execution.TurnV2PreHandlerCoordinator;
 import org.zipp.ai.application.turn.execution.TurnV2TurnExecutor;
+import org.zipp.ai.application.turn.execution.TurnAttemptLeaseSupervisor;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
@@ -35,10 +37,12 @@ class TurnV2ExecutionCompositionConfigTest {
                 .withBean(PlainGenerationPort.class, () -> mock(PlainGenerationPort.class))
                 .withBean(PlainTurnCommitPort.class, () -> mock(PlainTurnCommitPort.class))
                 .withBean(TerminalOnlyTurnCommitPort.class, () -> mock(TerminalOnlyTurnCommitPort.class))
+                .withBean(TurnAttemptLeasePort.class, () -> mock(TurnAttemptLeasePort.class))
                 .run(context -> assertThat(context)
                         .hasSingleBean(PlainDrawingHandler.class)
                         .hasSingleBean(TurnWriteGate.class)
                         .hasSingleBean(TurnV2ExecutionCoordinator.class)
-                        .hasSingleBean(TurnV2TurnExecutor.class));
+                        .hasSingleBean(TurnV2TurnExecutor.class)
+                        .hasSingleBean(TurnAttemptLeaseSupervisor.class));
     }
 }

@@ -10,6 +10,7 @@ import org.zipp.ai.application.turn.PlainGenerationPort;
 import org.zipp.ai.application.turn.PlainRuntimeRegistry;
 import org.zipp.ai.application.turn.PlainTurnCommitPort;
 import org.zipp.ai.application.turn.TerminalOnlyTurnCommitPort;
+import org.zipp.ai.application.turn.TurnAttemptLeasePort;
 import org.zipp.ai.application.turn.TurnWriteGate;
 import org.zipp.ai.application.turn.checkpoint.TurnDecisionCoordinator;
 import org.zipp.ai.application.turn.context.ContextAssemblyCoordinator;
@@ -19,6 +20,7 @@ import org.zipp.ai.application.turn.execution.DefaultTurnV2TurnExecutor;
 import org.zipp.ai.application.turn.execution.TurnV2ExecutionCoordinator;
 import org.zipp.ai.application.turn.execution.TurnV2PreHandlerCoordinator;
 import org.zipp.ai.application.turn.execution.TurnV2TurnExecutor;
+import org.zipp.ai.application.turn.execution.TurnAttemptLeaseSupervisor;
 
 /** Composes the isolated claim-to-route seam without changing production engine assignment. */
 @Configuration(proxyBeanMethods = false)
@@ -83,5 +85,14 @@ public class TurnV2ExecutionCompositionConfig {
             TurnWriteGate writeGate
     ) {
         return new DefaultTurnV2TurnExecutor(coordinator, terminalCommit, writeGate);
+    }
+
+    @Bean
+    @ConditionalOnBean({TurnV2TurnExecutor.class, TurnAttemptLeasePort.class})
+    public TurnAttemptLeaseSupervisor turnAttemptLeaseSupervisor(
+            TurnV2TurnExecutor executor,
+            TurnAttemptLeasePort leases
+    ) {
+        return new TurnAttemptLeaseSupervisor(leases, executor);
     }
 }

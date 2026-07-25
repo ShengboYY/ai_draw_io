@@ -300,6 +300,8 @@ M1 控制面已按以下合同分批落地；生产 HTTP 仍未切入 V2，Plain
 
 本切片继续收口 attempt-level completion：`TurnV2TurnExecutor` 现在只向 delivery 暴露 `TurnAttemptCompletion`，仅 `PersistedTerminal` 允许代表产品终态；fence lost 映射为 `AttemptOwnershipLost`，write gate/未实现路由/运行时异常映射为 `AttemptSelfAborted`，terminal decoder 或 preparation unavailable 映射为 `StatusOnly`。terminal commit port 在这些非终态路径上不会被调用，generic execution error 也不会补写业务终态。新增 execution contract tests 覆盖 accepted attempt 传递、terminal replay、fence loss、write-gate 拒绝、runtime failure 与 unavailable；application、app composition 与 infrastructure lifecycle/commit/lock/migration-control 定向回归通过。本切片没有新增或执行 migration。
 
+本切片把 heartbeat 接到 lease-safety application seam：新增 `TurnAttemptLeaseSupervisor`，按 accepted `LeaseTimingAnchor` 的 monotonic `renewWithin` 判断 due；renewal 重建同一 attempt 的新 lease/anchor，fence loss、已有 terminal 与 terminal schema unavailable 先调用 executor 的 `disableWritesAndDrain`，transient failure 只返回 retry-after。新增 renewal、monotonic due、fence-loss drain、terminal/unavailable drain 与 transient retry contract tests，并在 isolated V2 composition 条件注册 supervisor；application、app composition 与 infrastructure lifecycle/commit/lock/migration-control 定向回归通过。本切片没有新增或执行 migration。
+
 ## single-instance-migration-control: Build The Single-Instance Migration Boundary
 
 Blocked by: turn-execution-control
