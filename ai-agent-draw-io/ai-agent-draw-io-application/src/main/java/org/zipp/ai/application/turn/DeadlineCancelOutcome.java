@@ -3,6 +3,7 @@ package org.zipp.ai.application.turn;
 public sealed interface DeadlineCancelOutcome
         permits DeadlineCancelOutcome.Cancelled,
         DeadlineCancelOutcome.AlreadyTerminal,
+        DeadlineCancelOutcome.TerminalUnavailable,
         DeadlineCancelOutcome.FenceLost,
         DeadlineCancelOutcome.TransientFailure {
 
@@ -10,6 +11,13 @@ public sealed interface DeadlineCancelOutcome
     }
 
     record AlreadyTerminal(PersistedTurnOutcome outcome) implements DeadlineCancelOutcome {
+    }
+
+    record TerminalUnavailable(TurnStatusView status, String code) implements DeadlineCancelOutcome {
+
+        public TerminalUnavailable {
+            ContractValues.requiredText(code, "code");
+        }
     }
 
     record FenceLost(TurnStatusView status) implements DeadlineCancelOutcome {

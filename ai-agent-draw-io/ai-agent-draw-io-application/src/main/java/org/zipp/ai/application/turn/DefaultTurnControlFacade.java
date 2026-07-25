@@ -26,7 +26,7 @@ public final class DefaultTurnControlFacade implements TurnControlFacade {
     }
 
     @Override
-    public TurnStatusView status(AuthenticatedActor actor, TurnStatusQuery query) {
+    public TurnStatusQueryOutcome status(AuthenticatedActor actor, TurnStatusQuery query) {
         return status.get(actor, query);
     }
 

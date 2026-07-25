@@ -2,7 +2,7 @@ package org.zipp.ai.application.turn;
 
 public interface TurnControlFacade {
 
-    TurnStatusView status(AuthenticatedActor actor, TurnStatusQuery query);
+    TurnStatusQueryOutcome status(AuthenticatedActor actor, TurnStatusQuery query);
 
     CancelTurnOutcome cancel(AuthenticatedActor actor, CancelTurnCommand command);
 

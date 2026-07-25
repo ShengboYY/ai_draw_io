@@ -158,6 +158,7 @@ class MySqlPlainTurnCommitAdapterTest {
                 "terminal_code", terminalCode,
                 "terminal_payload_type", terminalPayloadType,
                 "terminal_payload_ref", "payload-1",
+                "terminal_payload_schema_version", 1,
                 "terminal_payload_json", "{}",
                 "response_message_id", null,
                 "updated_at", Timestamp.from(UPDATED_AT));
@@ -256,6 +257,11 @@ class MySqlPlainTurnCommitAdapterTest {
                         return value == null ? 0L : ((Number) value).longValue();
                     }
                     if ("getTimestamp".equals(name)) {
+                        Object value = values.get(args[0]);
+                        wasNull = value == null;
+                        return value;
+                    }
+                    if ("getObject".equals(name)) {
                         Object value = values.get(args[0]);
                         wasNull = value == null;
                         return value;

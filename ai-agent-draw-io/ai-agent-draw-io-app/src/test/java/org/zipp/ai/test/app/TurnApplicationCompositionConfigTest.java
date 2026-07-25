@@ -28,6 +28,7 @@ import org.zipp.ai.application.turn.TurnAttemptTakeoverPort;
 import org.zipp.ai.application.turn.TurnKey;
 import org.zipp.ai.application.turn.TurnStatus;
 import org.zipp.ai.application.turn.TurnStatusQueryPort;
+import org.zipp.ai.application.turn.TurnStatusQueryOutcome;
 import org.zipp.ai.application.turn.TurnStatusView;
 import org.zipp.ai.application.turn.TurnStartCommand;
 import org.zipp.ai.application.turn.TurnStartCommitPort;
@@ -130,8 +131,9 @@ class TurnApplicationCompositionConfigTest {
     }
 
     private static TurnStatusQueryPort fakeStatus() {
-        return (actor, query) -> new TurnStatusView(query.key(), TurnStatus.RUNNING, "attempt-1", 1,
-                null, null, java.time.Instant.parse("2026-07-26T00:00:00Z"));
+        return (actor, query) -> new TurnStatusQueryOutcome.Available(
+                new TurnStatusView(query.key(), TurnStatus.RUNNING, "attempt-1", 1,
+                        null, null, java.time.Instant.parse("2026-07-26T00:00:00Z")));
     }
 
     private static ExplicitTurnCancellationPort fakeCancellation() {

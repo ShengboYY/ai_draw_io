@@ -15,7 +15,6 @@ import org.zipp.ai.application.turn.ExecutionPolicySnapshot;
 import org.zipp.ai.application.turn.FencedAttempt;
 import org.zipp.ai.application.turn.TurnAttemptTakeoverPort;
 import org.zipp.ai.application.turn.TurnEngineMode;
-import org.zipp.ai.application.turn.PersistedTurnOutcome;
 import org.zipp.ai.application.turn.StartupOrphanReconciler;
 import org.zipp.ai.application.turn.TurnAttemptLeasePort;
 import org.zipp.ai.application.turn.TurnAttemptLeasePort.HeartbeatOutcome;
@@ -23,8 +22,10 @@ import org.zipp.ai.application.turn.TurnFailureCode;
 import org.zipp.ai.application.turn.TurnKey;
 import org.zipp.ai.application.turn.TurnStatus;
 import org.zipp.ai.application.turn.TurnStatusQuery;
+import org.zipp.ai.application.turn.TurnStatusQueryOutcome;
 import org.zipp.ai.application.turn.TurnStatusQueryPort;
 import org.zipp.ai.application.turn.TurnStatusView;
+import org.zipp.ai.application.turn.TerminalOutcomeDecoder;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -48,7 +49,7 @@ public class MySqlTurnLifecycleAdapter implements
             SELECT current_attempt_id, attempt_epoch, lease_ttl_ms, lease_expires_at,
                    CURRENT_TIMESTAMP(3) AS database_now,
                    status, terminal_code, terminal_payload_type, terminal_payload_ref,
-                   terminal_payload_json, updated_at
+                   terminal_payload_schema_version, terminal_payload_json, updated_at
             FROM turn_execution
             WHERE owner_key = ? AND conversation_id = ? AND turn_id = ?
             """;
@@ -84,20 +85,21 @@ public class MySqlTurnLifecycleAdapter implements
                    turn_input_binding_digest, context_message_high_water,
                    (status = 'RUNNING' AND lease_expires_at > CURRENT_TIMESTAMP(3)) AS lease_active,
                    status, terminal_code, terminal_payload_type, terminal_payload_ref,
-                   terminal_payload_json, updated_at
+                   terminal_payload_schema_version, terminal_payload_json, updated_at
             FROM turn_execution
             WHERE owner_key = ? AND conversation_id = ? AND turn_id = ?
             FOR UPDATE
             """;
 
     private final JdbcOperations jdbc;
+    private final TerminalOutcomeDecoder terminalDecoder = new TerminalOutcomeDecoder();
 
     public MySqlTurnLifecycleAdapter(JdbcOperations jdbc) {
         this.jdbc = Objects.requireNonNull(jdbc, "jdbc");
     }
 
     @Override
-    public TurnStatusView get(AuthenticatedActor actor, TurnStatusQuery query) {
+    public TurnStatusQueryOutcome get(AuthenticatedActor actor, TurnStatusQuery query) {
         Objects.requireNonNull(actor, "actor");
         Objects.requireNonNull(query, "query");
         if (!actor.ownerKey().equals(query.key().ownerKey())) {
@@ -107,7 +109,7 @@ public class MySqlTurnLifecycleAdapter implements
         if (row == null) {
             throw new IllegalStateException("TURN_NOT_FOUND");
         }
-        return row.statusView(query.key());
+        return row.statusOutcome(query.key(), terminalDecoder);
     }
 
     @Override
@@ -132,7 +134,7 @@ public class MySqlTurnLifecycleAdapter implements
             return new CancelTurnOutcome.Rejected("TURN_NOT_FOUND");
         }
         if (isTerminal(current.status)) {
-            return new CancelTurnOutcome.AlreadyTerminal(current.outcome());
+            return current.cancelOutcome(command.key(), terminalDecoder);
         }
         return new CancelTurnOutcome.FenceLost(current.statusView(command.key()));
     }
@@ -167,7 +169,14 @@ public class MySqlTurnLifecycleAdapter implements
                     Duration.ofSeconds(1));
         }
         if (isTerminal(current.status)) {
-            return new TurnAttemptLeasePort.LeaseAlreadyTerminal(current.outcome());
+            TerminalOutcomeDecoder.DecodeResult decoded = current.decode(terminalDecoder);
+            if (decoded instanceof TerminalOutcomeDecoder.DecodeResult.Decoded ready) {
+                return new TurnAttemptLeasePort.LeaseAlreadyTerminal(ready.outcome());
+            }
+            return new TurnAttemptLeasePort.LeaseTerminalUnavailable(
+                    current.statusView(attempt.key()),
+                    TurnFailureCode.TERMINAL_UNAVAILABLE,
+                    Duration.ofSeconds(1));
         }
         if (!attempt.attemptId().equals(current.attemptId)
                 || attempt.attemptEpoch() != current.attemptEpoch) {
@@ -209,7 +218,13 @@ public class MySqlTurnLifecycleAdapter implements
             return new DeadlineCancelOutcome.TransientFailure("TURN_NOT_FOUND");
         }
         if (isTerminal(current.status)) {
-            return new DeadlineCancelOutcome.AlreadyTerminal(current.outcome());
+            TerminalOutcomeDecoder.DecodeResult decoded = current.decode(terminalDecoder);
+            if (decoded instanceof TerminalOutcomeDecoder.DecodeResult.Decoded ready) {
+                return new DeadlineCancelOutcome.AlreadyTerminal(ready.outcome());
+            }
+            return new DeadlineCancelOutcome.TerminalUnavailable(
+                    current.statusView(attempt.key()),
+                    ((TerminalOutcomeDecoder.DecodeResult.Unavailable) decoded).code());
         }
         return new DeadlineCancelOutcome.FenceLost(current.statusView(attempt.key()));
     }
@@ -223,7 +238,13 @@ public class MySqlTurnLifecycleAdapter implements
             return new TurnAttemptTakeoverPort.Rejected("TURN_NOT_FOUND");
         }
         if (isTerminal(current.status)) {
-            return new TurnAttemptTakeoverPort.AlreadyTerminal(current.outcome());
+            TerminalOutcomeDecoder.DecodeResult decoded = current.decode(terminalDecoder);
+            if (decoded instanceof TerminalOutcomeDecoder.DecodeResult.Decoded ready) {
+                return new TurnAttemptTakeoverPort.AlreadyTerminal(ready.outcome());
+            }
+            return new TurnAttemptTakeoverPort.TerminalUnavailable(
+                    current.statusView(key),
+                    ((TerminalOutcomeDecoder.DecodeResult.Unavailable) decoded).code());
         }
         if (current.inputBindingDigest == null || current.policyJson == null || current.policyHash == null) {
             return new TurnAttemptTakeoverPort.Rejected("TAKEOVER_SNAPSHOT_UNAVAILABLE");
@@ -245,7 +266,13 @@ public class MySqlTurnLifecycleAdapter implements
         if (updated != 1) {
             TakeoverRow raced = findTakeover(key);
             if (raced != null && isTerminal(raced.status)) {
-                return new TurnAttemptTakeoverPort.AlreadyTerminal(raced.outcome());
+                TerminalOutcomeDecoder.DecodeResult decoded = raced.decode(terminalDecoder);
+                if (decoded instanceof TerminalOutcomeDecoder.DecodeResult.Decoded ready) {
+                    return new TurnAttemptTakeoverPort.AlreadyTerminal(ready.outcome());
+                }
+                return new TurnAttemptTakeoverPort.TerminalUnavailable(
+                        raced.statusView(key),
+                        ((TerminalOutcomeDecoder.DecodeResult.Unavailable) decoded).code());
             }
             if (raced != null && raced.leaseActive) {
                 return new TurnAttemptTakeoverPort.LeaseActive(raced.statusView(key));
@@ -318,6 +345,7 @@ public class MySqlTurnLifecycleAdapter implements
                 rs.getString("terminal_code"),
                 rs.getString("terminal_payload_type"),
                 rs.getString("terminal_payload_ref"),
+                rs.getObject("terminal_payload_schema_version", Integer.class),
                 rs.getString("terminal_payload_json"),
                 updatedAt == null ? Instant.now() : updatedAt.toInstant());
     }
@@ -335,6 +363,7 @@ public class MySqlTurnLifecycleAdapter implements
                 rs.getString("terminal_code"),
                 rs.getString("terminal_payload_type"),
                 rs.getString("terminal_payload_ref"),
+                rs.getObject("terminal_payload_schema_version", Integer.class),
                 rs.getString("terminal_payload_json"),
                 updatedAt == null ? Instant.now() : updatedAt.toInstant());
     }
@@ -353,6 +382,7 @@ public class MySqlTurnLifecycleAdapter implements
             String terminalCode,
             String terminalPayloadType,
             String terminalPayloadRef,
+            Integer terminalPayloadSchemaVersion,
             String terminalPayloadJson,
             Instant updatedAt
         ) {
@@ -366,12 +396,37 @@ public class MySqlTurnLifecycleAdapter implements
                     key, status, attemptId, attemptEpoch, terminalCode, terminalPayloadRef, updatedAt);
         }
 
-        PersistedTurnOutcome outcome() {
-            if (terminalCode == null || terminalPayloadType == null) {
-                throw new IllegalStateException("TURN_TERMINAL_PAYLOAD_UNAVAILABLE");
+        TurnStatusQueryOutcome statusOutcome(TurnKey key, TerminalOutcomeDecoder decoder) {
+            if (!status.isTerminal()) {
+                return new TurnStatusQueryOutcome.Available(statusView(key));
             }
-            return new PersistedTurnOutcome(
-                    status, terminalCode, terminalPayloadType, terminalPayloadRef, terminalPayloadJson);
+            TerminalOutcomeDecoder.DecodeResult decoded = decode(decoder);
+            if (decoded instanceof TerminalOutcomeDecoder.DecodeResult.Decoded) {
+                return new TurnStatusQueryOutcome.Available(statusView(key));
+            }
+            return new TurnStatusQueryOutcome.TerminalUnavailable(
+                    statusView(key),
+                    ((TerminalOutcomeDecoder.DecodeResult.Unavailable) decoded).code());
+        }
+
+        CancelTurnOutcome cancelOutcome(TurnKey key, TerminalOutcomeDecoder decoder) {
+            TerminalOutcomeDecoder.DecodeResult decoded = decode(decoder);
+            if (decoded instanceof TerminalOutcomeDecoder.DecodeResult.Decoded ready) {
+                return new CancelTurnOutcome.AlreadyTerminal(ready.outcome());
+            }
+            return new CancelTurnOutcome.TerminalUnavailable(
+                    statusView(key),
+                    ((TerminalOutcomeDecoder.DecodeResult.Unavailable) decoded).code());
+        }
+
+        TerminalOutcomeDecoder.DecodeResult decode(TerminalOutcomeDecoder decoder) {
+            return decoder.decode(
+                    status,
+                    terminalCode,
+                    terminalPayloadSchemaVersion,
+                    terminalPayloadType,
+                    terminalPayloadRef,
+                    terminalPayloadJson);
         }
     }
 
@@ -392,6 +447,7 @@ public class MySqlTurnLifecycleAdapter implements
             String terminalCode,
             String terminalPayloadType,
             String terminalPayloadRef,
+            Integer terminalPayloadSchemaVersion,
             String terminalPayloadJson,
             Instant updatedAt
     ) {
@@ -410,12 +466,14 @@ public class MySqlTurnLifecycleAdapter implements
                     key, status, attemptId, attemptEpoch, terminalCode, terminalPayloadRef, updatedAt);
         }
 
-        PersistedTurnOutcome outcome() {
-            if (terminalCode == null || terminalPayloadType == null) {
-                throw new IllegalStateException("TURN_TERMINAL_PAYLOAD_UNAVAILABLE");
-            }
-            return new PersistedTurnOutcome(
-                    status, terminalCode, terminalPayloadType, terminalPayloadRef, terminalPayloadJson);
+        TerminalOutcomeDecoder.DecodeResult decode(TerminalOutcomeDecoder decoder) {
+            return decoder.decode(
+                    status,
+                    terminalCode,
+                    terminalPayloadSchemaVersion,
+                    terminalPayloadType,
+                    terminalPayloadRef,
+                    terminalPayloadJson);
         }
     }
 

@@ -3,6 +3,7 @@ package org.zipp.ai.application.turn;
 public sealed interface TurnSubmission
         permits TurnSubmission.ExecutionAccepted,
         TurnSubmission.TerminalReplay,
+        TurnSubmission.TerminalUnavailable,
         TurnSubmission.AlreadyRunning,
         TurnSubmission.IdempotencyConflict,
         TurnSubmission.LegacyRetryExpired,
@@ -22,6 +23,13 @@ public sealed interface TurnSubmission
     }
 
     record TerminalReplay(TurnKey key, PersistedTurnOutcome outcome) implements TurnSubmission {
+    }
+
+    record TerminalUnavailable(TurnKey key, TurnStatusView status, String code) implements TurnSubmission {
+
+        public TerminalUnavailable {
+            ContractValues.requiredText(code, "code");
+        }
     }
 
     record AlreadyRunning(TurnKey key, TurnStatusView status) implements TurnSubmission {

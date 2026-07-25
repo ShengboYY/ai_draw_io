@@ -102,6 +102,9 @@ public final class DefaultDiagramTurnFacade implements DiagramTurnFacade {
         if (startOutcome instanceof TurnStartOutcome.TerminalReplay replay) {
             return new TurnSubmission.TerminalReplay(key, replay.outcome());
         }
+        if (startOutcome instanceof TurnStartOutcome.TerminalUnavailable unavailable) {
+            return new TurnSubmission.TerminalUnavailable(key, unavailable.status(), unavailable.code());
+        }
         return admissionRejection(key, ((TurnStartOutcome.Rejected) startOutcome).code());
     }
 

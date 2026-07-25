@@ -8,6 +8,7 @@ import org.zipp.ai.application.turn.FencedAttempt;
 import org.zipp.ai.application.turn.PersistedTurnOutcome;
 import org.zipp.ai.application.turn.TerminalOnlyTurnCommit;
 import org.zipp.ai.application.turn.TerminalOnlyTurnCommitPort;
+import org.zipp.ai.application.turn.TerminalOutcomeDecoder;
 import org.zipp.ai.application.turn.TurnKey;
 import org.zipp.ai.application.turn.TurnStatus;
 import org.zipp.ai.application.turn.TurnStatusView;
@@ -32,7 +33,8 @@ public class MySqlTerminalOnlyTurnCommitAdapter implements TerminalOnlyTurnCommi
             """;
     private static final String SELECT = """
             SELECT current_attempt_id, attempt_epoch, status, terminal_code,
-                   terminal_payload_type, terminal_payload_ref, terminal_payload_json, updated_at
+                   terminal_payload_type, terminal_payload_ref,
+                   terminal_payload_schema_version, terminal_payload_json, updated_at
             FROM turn_execution
             WHERE owner_key = ? AND conversation_id = ? AND turn_id = ?
             """;
@@ -40,6 +42,7 @@ public class MySqlTerminalOnlyTurnCommitAdapter implements TerminalOnlyTurnCommi
     private static final String SELECT_FOR_UPDATE = SELECT + "FOR UPDATE\n";
 
     private final JdbcOperations jdbc;
+    private final TerminalOutcomeDecoder terminalDecoder = new TerminalOutcomeDecoder();
 
     public MySqlTerminalOnlyTurnCommitAdapter(JdbcOperations jdbc) {
         this.jdbc = Objects.requireNonNull(jdbc, "jdbc");
@@ -76,7 +79,13 @@ public class MySqlTerminalOnlyTurnCommitAdapter implements TerminalOnlyTurnCommi
             return new FencedCommitOutcome.Rejected("TURN_EXECUTION_NOT_FOUND");
         }
         if (isTerminal(current.status)) {
-            return new FencedCommitOutcome.AlreadyTerminal(current.outcome());
+            TerminalOutcomeDecoder.DecodeResult decoded = current.decode(terminalDecoder);
+            if (decoded instanceof TerminalOutcomeDecoder.DecodeResult.Decoded ready) {
+                return new FencedCommitOutcome.AlreadyTerminal(ready.outcome());
+            }
+            return new FencedCommitOutcome.TerminalUnavailable(
+                    current.statusView(attempt.key()),
+                    ((TerminalOutcomeDecoder.DecodeResult.Unavailable) decoded).code());
         }
         return new FencedCommitOutcome.FenceLost(current.statusView(attempt.key()));
     }
@@ -105,6 +114,7 @@ public class MySqlTerminalOnlyTurnCommitAdapter implements TerminalOnlyTurnCommi
                 rs.getString("terminal_code"),
                 rs.getString("terminal_payload_type"),
                 rs.getString("terminal_payload_ref"),
+                rs.getObject("terminal_payload_schema_version", Integer.class),
                 rs.getString("terminal_payload_json"),
                 rs.getTimestamp("updated_at") == null ? null : rs.getTimestamp("updated_at").toInstant());
     }
@@ -120,6 +130,7 @@ public class MySqlTerminalOnlyTurnCommitAdapter implements TerminalOnlyTurnCommi
             String terminalCode,
             String terminalPayloadType,
             String terminalPayloadRef,
+            Integer terminalPayloadSchemaVersion,
             String terminalPayloadJson,
             Instant updatedAt
     ) {
@@ -128,12 +139,14 @@ public class MySqlTerminalOnlyTurnCommitAdapter implements TerminalOnlyTurnCommi
                     key, status, attemptId, attemptEpoch, terminalCode, terminalPayloadRef, updatedAt);
         }
 
-        PersistedTurnOutcome outcome() {
-            if (terminalCode == null || terminalPayloadType == null) {
-                throw new IllegalStateException("TURN_TERMINAL_PAYLOAD_UNAVAILABLE");
-            }
-            return new PersistedTurnOutcome(
-                    status, terminalCode, terminalPayloadType, terminalPayloadRef, terminalPayloadJson);
+        TerminalOutcomeDecoder.DecodeResult decode(TerminalOutcomeDecoder decoder) {
+            return decoder.decode(
+                    status,
+                    terminalCode,
+                    terminalPayloadSchemaVersion,
+                    terminalPayloadType,
+                    terminalPayloadRef,
+                    terminalPayloadJson);
         }
     }
 }

@@ -39,6 +39,19 @@ class MySqlTerminalOnlyTurnCommitAdapterTest {
         assertTrue(jdbc.lastQuery.contains("FOR UPDATE"));
     }
 
+    @Test
+    void failedTerminalCasReturnsTypedUnavailableForAnUnknownSchema() {
+        FencedAttempt attempt = attempt();
+        Map<String, Object> row = terminalExecutionRow();
+        row.put("terminal_payload_schema_version", 2);
+
+        FencedCommitOutcome outcome = new MySqlTerminalOnlyTurnCommitAdapter(
+                new JdbcStub(row).proxy()).commit(new TerminalOnlyTurnCommit(
+                attempt, TurnStatus.REJECTED, "UNSUPPORTED_ACTION", "error", null, "{}"));
+
+        assertInstanceOf(FencedCommitOutcome.TerminalUnavailable.class, outcome);
+    }
+
     private static FencedAttempt attempt() {
         return new FencedAttempt(
                 new TurnKey("owner-1", "conversation-1", "turn-1"),
@@ -56,6 +69,7 @@ class MySqlTerminalOnlyTurnCommitAdapterTest {
                 "terminal_code", "COMPLETED",
                 "terminal_payload_type", "plain",
                 "terminal_payload_ref", "payload-1",
+                "terminal_payload_schema_version", 1,
                 "terminal_payload_json", "{}",
                 "updated_at", Timestamp.from(Instant.parse("2026-07-26T00:00:01Z")));
     }
@@ -113,6 +127,9 @@ class MySqlTerminalOnlyTurnCommitAdapterTest {
                     return value == null ? 0L : ((Number) value).longValue();
                 }
                 if ("getTimestamp".equals(method.getName())) {
+                    return values.get(args[0]);
+                }
+                if ("getObject".equals(method.getName())) {
                     return values.get(args[0]);
                 }
                 return defaultValue(method.getReturnType());

@@ -13,7 +13,7 @@ class DefaultTurnControlFacadeTest {
     void rejectsTakeoverForAnotherAuthenticatedOwnerBeforeCallingPort() {
         boolean[] called = {false};
         TurnControlFacade facade = new DefaultTurnControlFacade(
-                (actor, query) -> status(query.key()),
+                (actor, query) -> new TurnStatusQueryOutcome.Available(status(query.key())),
                 (actor, command) -> new CancelTurnOutcome.Rejected("TEST_ONLY"),
                 attempt -> new TurnAttemptLeasePort.LeaseTransientFailure(java.time.Duration.ofSeconds(1)),
                 (attempt, reason) -> new DeadlineCancelOutcome.TransientFailure("TEST_ONLY"),
@@ -39,7 +39,7 @@ class DefaultTurnControlFacadeTest {
         TurnAttemptLeasePort.HeartbeatOutcome expectedHeartbeat =
                 new TurnAttemptLeasePort.LeaseTransientFailure(java.time.Duration.ofSeconds(2));
         TurnControlFacade facade = new DefaultTurnControlFacade(
-                (actor, query) -> expectedStatus,
+                (actor, query) -> new TurnStatusQueryOutcome.Available(expectedStatus),
                 (actor, command) -> new CancelTurnOutcome.Rejected("CANCELLED"),
                 attempt -> expectedHeartbeat,
                 (attempt, reason) -> new DeadlineCancelOutcome.TransientFailure("DEADLINE"),
@@ -51,7 +51,7 @@ class DefaultTurnControlFacadeTest {
                 "input",
                 new ExecutionPolicySnapshot(1, TurnEngineMode.V2_CANARY, "{}", "policy"));
 
-        assertEquals(expectedStatus, facade.status(
+        assertEquals(new TurnStatusQueryOutcome.Available(expectedStatus), facade.status(
                 new AuthenticatedActor("owner-a", "cohort-a"), new TurnStatusQuery(key)));
         assertEquals(expectedHeartbeat, facade.heartbeat(attempt));
         assertInstanceOf(DeadlineCancelOutcome.TransientFailure.class,

@@ -10,6 +10,7 @@ import org.zipp.ai.application.turn.PersistedTurnOutcome;
 import org.zipp.ai.application.turn.PlainDrawAction;
 import org.zipp.ai.application.turn.PlainTurnCommit;
 import org.zipp.ai.application.turn.PlainTurnCommitPort;
+import org.zipp.ai.application.turn.TerminalOutcomeDecoder;
 import org.zipp.ai.application.turn.TurnKey;
 import org.zipp.ai.application.turn.TurnStatus;
 import org.zipp.ai.application.turn.TurnStatusView;
@@ -31,7 +32,8 @@ public class MySqlPlainTurnCommitAdapter implements PlainTurnCommitPort {
 
     private static final String LOCK_EXECUTION = """
             SELECT current_attempt_id, attempt_epoch, status, terminal_code,
-                   terminal_payload_type, terminal_payload_ref, terminal_payload_json,
+                   terminal_payload_type, terminal_payload_ref,
+                   terminal_payload_schema_version, terminal_payload_json,
                    response_message_id, updated_at
             FROM turn_execution
             WHERE owner_key = ? AND conversation_id = ? AND turn_id = ?
@@ -85,6 +87,7 @@ public class MySqlPlainTurnCommitAdapter implements PlainTurnCommitPort {
 
     private final JdbcOperations jdbc;
     private final CanvasXmlContentHasher canvasHasher = new CanvasXmlContentHasher();
+    private final TerminalOutcomeDecoder terminalDecoder = new TerminalOutcomeDecoder();
 
     public MySqlPlainTurnCommitAdapter(JdbcOperations jdbc) {
         this.jdbc = Objects.requireNonNull(jdbc, "jdbc");
@@ -100,7 +103,13 @@ public class MySqlPlainTurnCommitAdapter implements PlainTurnCommitPort {
             return new FencedCommitOutcome.Rejected("TURN_EXECUTION_NOT_FOUND");
         }
         if (execution.status().isTerminal()) {
-            return new FencedCommitOutcome.AlreadyTerminal(execution.outcome());
+            TerminalOutcomeDecoder.DecodeResult decoded = execution.decode(terminalDecoder);
+            if (decoded instanceof TerminalOutcomeDecoder.DecodeResult.Decoded ready) {
+                return new FencedCommitOutcome.AlreadyTerminal(ready.outcome());
+            }
+            return new FencedCommitOutcome.TerminalUnavailable(
+                    execution.statusView(attempt.key()),
+                    ((TerminalOutcomeDecoder.DecodeResult.Unavailable) decoded).code());
         }
         if (execution.status() != TurnStatus.RUNNING
                 || !Objects.equals(execution.attemptId(), attempt.attemptId())
@@ -238,6 +247,7 @@ public class MySqlPlainTurnCommitAdapter implements PlainTurnCommitPort {
                         resultSet.getString("terminal_code"),
                         resultSet.getString("terminal_payload_type"),
                         resultSet.getString("terminal_payload_ref"),
+                        resultSet.getObject("terminal_payload_schema_version", Integer.class),
                         resultSet.getString("terminal_payload_json"),
                         resultSet.getTimestamp("updated_at").toInstant()),
                 key.ownerKey(), key.canonicalConversationId(), key.turnId());
@@ -298,6 +308,7 @@ public class MySqlPlainTurnCommitAdapter implements PlainTurnCommitPort {
             String terminalCode,
             String terminalPayloadType,
             String terminalPayloadRef,
+            Integer terminalPayloadSchemaVersion,
             String terminalPayloadJson,
             Instant updatedAt
     ) {
@@ -306,12 +317,14 @@ public class MySqlPlainTurnCommitAdapter implements PlainTurnCommitPort {
                     key, status, attemptId, attemptEpoch, terminalCode, terminalPayloadRef, updatedAt);
         }
 
-        PersistedTurnOutcome outcome() {
-            if (terminalCode == null || terminalPayloadType == null) {
-                throw new IllegalStateException("TURN_TERMINAL_PAYLOAD_UNAVAILABLE");
-            }
-            return new PersistedTurnOutcome(
-                    status, terminalCode, terminalPayloadType, terminalPayloadRef, terminalPayloadJson);
+        TerminalOutcomeDecoder.DecodeResult decode(TerminalOutcomeDecoder decoder) {
+            return decoder.decode(
+                    status,
+                    terminalCode,
+                    terminalPayloadSchemaVersion,
+                    terminalPayloadType,
+                    terminalPayloadRef,
+                    terminalPayloadJson);
         }
     }
 

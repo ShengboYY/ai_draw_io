@@ -6,13 +6,20 @@ public interface TurnAttemptTakeoverPort {
     TakeoverOutcome takeover(TurnKey key);
 
     sealed interface TakeoverOutcome
-            permits Claimed, AlreadyTerminal, LeaseActive, Rejected {
+            permits Claimed, AlreadyTerminal, TerminalUnavailable, LeaseActive, Rejected {
     }
 
     record Claimed(FencedAttempt attempt) implements TakeoverOutcome {
     }
 
     record AlreadyTerminal(PersistedTurnOutcome outcome) implements TakeoverOutcome {
+    }
+
+    record TerminalUnavailable(TurnStatusView status, String code) implements TakeoverOutcome {
+
+        public TerminalUnavailable {
+            ContractValues.requiredText(code, "code");
+        }
     }
 
     record LeaseActive(TurnStatusView status) implements TakeoverOutcome {

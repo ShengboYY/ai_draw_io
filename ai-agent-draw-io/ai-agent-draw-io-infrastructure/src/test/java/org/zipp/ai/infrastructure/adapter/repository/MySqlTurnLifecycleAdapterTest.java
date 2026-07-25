@@ -13,6 +13,7 @@ import org.zipp.ai.application.turn.FencedAttempt;
 import org.zipp.ai.application.turn.TurnEngineMode;
 import org.zipp.ai.application.turn.TurnKey;
 import org.zipp.ai.application.turn.CancelTurnOutcome;
+import org.zipp.ai.application.turn.TurnStatusQueryOutcome;
 
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Proxy;
@@ -53,6 +54,19 @@ class MySqlTurnLifecycleAdapterTest {
         assertTrue(jdbc.lastQuery.contains("FOR UPDATE"));
     }
 
+    @Test
+    void statusReturnsTypedUnavailableWhenTerminalSchemaCannotBeDecoded() {
+        TurnKey key = key();
+        Map<String, Object> row = terminalExecutionRow();
+        row.put("terminal_payload_schema_version", 2);
+
+        TurnStatusQueryOutcome outcome = new MySqlTurnLifecycleAdapter(new JdbcStub(row).proxy()).get(
+                new AuthenticatedActor("owner-1", "cohort-1"),
+                new org.zipp.ai.application.turn.TurnStatusQuery(key));
+
+        assertInstanceOf(TurnStatusQueryOutcome.TerminalUnavailable.class, outcome);
+    }
+
     private static TurnKey key() {
         return new TurnKey("owner-1", "conversation-1", "turn-1");
     }
@@ -77,6 +91,7 @@ class MySqlTurnLifecycleAdapterTest {
                 "terminal_code", "COMPLETED",
                 "terminal_payload_type", "plain",
                 "terminal_payload_ref", "payload-1",
+                "terminal_payload_schema_version", 1,
                 "terminal_payload_json", "{}",
                 "updated_at", Timestamp.from(Instant.parse("2026-07-26T00:00:01Z")));
     }
@@ -134,6 +149,9 @@ class MySqlTurnLifecycleAdapterTest {
                     return value == null ? 0L : ((Number) value).longValue();
                 }
                 if ("getTimestamp".equals(method.getName())) {
+                    return values.get(args[0]);
+                }
+                if ("getObject".equals(method.getName())) {
                     return values.get(args[0]);
                 }
                 return defaultValue(method.getReturnType());

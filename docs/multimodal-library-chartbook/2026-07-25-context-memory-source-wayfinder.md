@@ -266,6 +266,8 @@ M1 控制面已按以下合同分批落地；生产 HTTP 仍未切入 V2，Plain
 
 本切片修复 M1 CAS loser 的数据库读取语义：`MySqlTurnLifecycleAdapter` 的 explicit cancel、deadline cancel、heartbeat，以及 `MySqlTerminalOnlyTurnCommitAdapter` 在写入 CAS 失败后，均在事务内使用 `SELECT ... FOR UPDATE` current read 再判断 terminal/fence outcome，避免 MySQL `REPEATABLE READ` 的旧快照把并发 terminal winner 误报为 `FenceLost`。新增 adapter contract tests 覆盖 terminal replay reload；本切片没有新增 migration。
 
+本切片继续收口 terminal envelope：新增 application-owned `TerminalOutcomeDecoder`，统一按 `terminal_payload_schema_version=1` 解码；status、start、heartbeat、explicit/deadline cancel、takeover，以及 Plain/terminal-only commit 的 terminal replay，在未知或缺失 schema 时返回 typed `TerminalUnavailable`，不再因 terminal payload 不完整抛异常或误报 fence。现有 `turn_execution.terminal_payload_schema_version` 已足够承载该合同，本切片没有新增或执行 migration。Legacy HTTP/production assignment 仍未切入 V2。
+
 ## single-instance-migration-control: Build The Single-Instance Migration Boundary
 
 Blocked by: turn-execution-control

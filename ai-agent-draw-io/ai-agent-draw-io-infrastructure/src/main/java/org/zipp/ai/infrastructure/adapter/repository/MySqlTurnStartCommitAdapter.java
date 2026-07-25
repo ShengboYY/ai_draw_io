@@ -6,7 +6,6 @@ import org.springframework.transaction.annotation.Transactional;
 import org.zipp.ai.application.turn.AttemptLease;
 import org.zipp.ai.application.turn.FencedAttempt;
 import org.zipp.ai.application.turn.OpaqueConversationFileRef;
-import org.zipp.ai.application.turn.PersistedTurnOutcome;
 import org.zipp.ai.application.turn.SelectedTurnEngine;
 import org.zipp.ai.application.turn.TurnEngineAssignment;
 import org.zipp.ai.application.turn.TurnKey;
@@ -15,6 +14,7 @@ import org.zipp.ai.application.turn.TurnStartCommitPort;
 import org.zipp.ai.application.turn.TurnStartOutcome;
 import org.zipp.ai.application.turn.TurnStatus;
 import org.zipp.ai.application.turn.TurnStatusView;
+import org.zipp.ai.application.turn.TerminalOutcomeDecoder;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -53,7 +53,7 @@ public class MySqlTurnStartCommitAdapter implements TurnStartCommitPort {
                    execution_policy_schema_version, execution_policy_snapshot_json,
                    execution_policy_hash, context_message_high_water, status,
                    terminal_code, terminal_payload_type, terminal_payload_ref,
-                   terminal_payload_json, updated_at
+                   terminal_payload_schema_version, terminal_payload_json, updated_at
             FROM turn_execution
             WHERE owner_key = ? AND conversation_id = ? AND turn_id = ?
             """;
@@ -104,6 +104,7 @@ public class MySqlTurnStartCommitAdapter implements TurnStartCommitPort {
             """;
 
     private final JdbcTemplate jdbc;
+    private final TerminalOutcomeDecoder terminalDecoder = new TerminalOutcomeDecoder();
 
     public MySqlTurnStartCommitAdapter(JdbcTemplate jdbc) {
         this.jdbc = Objects.requireNonNull(jdbc, "jdbc");
@@ -133,7 +134,7 @@ public class MySqlTurnStartCommitAdapter implements TurnStartCommitPort {
 
         ExecutionRow existing = findExecution(command.key());
         if (existing != null) {
-            return existing.startOutcome(command.key());
+            return existing.startOutcome(command.key(), terminalDecoder);
         }
 
         Long conversationVersion = jdbc.queryForObject(
@@ -151,7 +152,7 @@ public class MySqlTurnStartCommitAdapter implements TurnStartCommitPort {
         // after the conversation lock so a concurrent committed claim is visible here.
         ExecutionRow afterLock = findExecutionForUpdate(command.key());
         if (afterLock != null) {
-            return afterLock.startOutcome(command.key());
+            return afterLock.startOutcome(command.key(), terminalDecoder);
         }
         AttachmentValidation attachmentValidation = validateAttachments(command);
         if (attachmentValidation.rejectionCode() != null) {
@@ -309,6 +310,7 @@ public class MySqlTurnStartCommitAdapter implements TurnStartCommitPort {
                 rs.getString("terminal_code"),
                 rs.getString("terminal_payload_type"),
                 rs.getString("terminal_payload_ref"),
+                rs.getObject("terminal_payload_schema_version", Integer.class),
                 rs.getString("terminal_payload_json"),
                 instant(rs.getTimestamp("updated_at")));
     }
@@ -334,17 +336,24 @@ public class MySqlTurnStartCommitAdapter implements TurnStartCommitPort {
             String terminalCode,
             String terminalPayloadType,
             String terminalPayloadRef,
+            Integer terminalPayloadSchemaVersion,
             String terminalPayloadJson,
             Instant updatedAt
     ) {
-        TurnStartOutcome startOutcome(TurnKey key) {
+        TurnStartOutcome startOutcome(TurnKey key, TerminalOutcomeDecoder decoder) {
             if (status == TurnStatus.RUNNING) {
                 return new TurnStartOutcome.AlreadyRunning(statusView(key));
             }
             if (status == TurnStatus.ORPHANED_RETRYABLE) {
                 return new TurnStartOutcome.Rejected("ORPHAN_RECONCILIATION_REQUIRED");
             }
-            return new TurnStartOutcome.TerminalReplay(outcome());
+            TerminalOutcomeDecoder.DecodeResult decoded = decode(decoder);
+            if (decoded instanceof TerminalOutcomeDecoder.DecodeResult.Decoded ready) {
+                return new TurnStartOutcome.TerminalReplay(ready.outcome());
+            }
+            return new TurnStartOutcome.TerminalUnavailable(
+                    statusView(key),
+                    ((TerminalOutcomeDecoder.DecodeResult.Unavailable) decoded).code());
         }
 
         FencedAttempt fencedAttempt(
@@ -366,12 +375,14 @@ public class MySqlTurnStartCommitAdapter implements TurnStartCommitPort {
                     key, status, attemptId, attemptEpoch, terminalCode, terminalPayloadRef, updatedAt);
         }
 
-        PersistedTurnOutcome outcome() {
-            if (terminalCode == null || terminalPayloadType == null) {
-                throw new IllegalStateException("TURN_TERMINAL_PAYLOAD_UNAVAILABLE");
-            }
-            return new PersistedTurnOutcome(
-                    status, terminalCode, terminalPayloadType, terminalPayloadRef, terminalPayloadJson);
+        TerminalOutcomeDecoder.DecodeResult decode(TerminalOutcomeDecoder decoder) {
+            return decoder.decode(
+                    status,
+                    terminalCode,
+                    terminalPayloadSchemaVersion,
+                    terminalPayloadType,
+                    terminalPayloadRef,
+                    terminalPayloadJson);
         }
     }
 }
