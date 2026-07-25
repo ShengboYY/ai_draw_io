@@ -7,6 +7,7 @@ import org.zipp.ai.application.turn.AdmissionWriteOutcome;
 import org.zipp.ai.application.turn.ExecutionPolicySnapshot;
 import org.zipp.ai.application.turn.MemoryWriteDeclaration;
 import org.zipp.ai.application.turn.MigrationStateSnapshot;
+import org.zipp.ai.application.turn.NoMemoryWrite;
 import org.zipp.ai.application.turn.SelectedTurnEngine;
 import org.zipp.ai.application.turn.TurnEngineAssignment;
 import org.zipp.ai.application.turn.TurnEngineAssignmentCommand;
@@ -111,6 +112,9 @@ public class MySqlTurnEngineAssignmentAdapter
             if (matched == null) {
                 return new AdmissionWriteOutcome.Rejected(command.key(), "REQUEST_FINGERPRINT_CONFLICT");
             }
+            if (!memoryCodec.decode(existing.memoryWriteJson).equals(command.memoryWrite())) {
+                return new AdmissionWriteOutcome.Rejected(command.key(), "MEMORY_DECLARATION_CONFLICT");
+            }
             return new AdmissionWriteOutcome.Reused(existing.toAssignment(memoryCodec));
         }
 
@@ -118,7 +122,7 @@ public class MySqlTurnEngineAssignmentAdapter
         if (selectedEngine == null) {
             return new AdmissionWriteOutcome.Rejected(command.key(), "TURN_ENGINE_RETIRED");
         }
-        MemoryWriteValues memory = memoryValues(selectedEngine, command.memoryWrite());
+        MemoryWriteValues memory = memoryValues(command.memoryWrite());
         jdbc.update(
                 INSERT_ASSIGNMENT,
                 command.key().ownerKey(),
@@ -164,12 +168,9 @@ public class MySqlTurnEngineAssignmentAdapter
         };
     }
 
-    private MemoryWriteValues memoryValues(SelectedTurnEngine engine, MemoryWriteDeclaration declaration) {
-        if (engine == SelectedTurnEngine.LEGACY) {
-            return new MemoryWriteValues(null, null, null);
-        }
+    private MemoryWriteValues memoryValues(MemoryWriteDeclaration declaration) {
         String json = memoryCodec.encode(declaration);
-        String digest = declaration instanceof org.zipp.ai.application.turn.NoMemoryWrite
+        String digest = declaration instanceof NoMemoryWrite
                 ? "NONE"
                 : ((org.zipp.ai.application.turn.RememberDecisionDeclaration) declaration).digest().value();
         return new MemoryWriteValues(1, json, digest);
