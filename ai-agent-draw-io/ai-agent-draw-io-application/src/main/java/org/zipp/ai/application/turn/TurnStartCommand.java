@@ -35,7 +35,14 @@ public record TurnStartCommand(
         if (key == null || assignment == null) {
             throw new IllegalArgumentException("key and assignment must not be null");
         }
+        if (!key.equals(assignment.key())) {
+            throw new IllegalArgumentException("turn key must match the pinned assignment");
+        }
         ContractValues.requiredText(diagramId, "diagramId");
+        if (!diagramId.equals(assignment.diagramId())) {
+            // The first claim and every retry must stay bound to the original diagram.
+            throw new IllegalArgumentException("diagram must match the pinned assignment");
+        }
         ContractValues.requiredText(userMessage, "userMessage");
         ContractValues.requiredText(clientMessageId, "clientMessageId");
         ContractValues.requiredText(inputBindingDigest, "inputBindingDigest");

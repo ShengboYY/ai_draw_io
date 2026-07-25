@@ -64,6 +64,36 @@ class TurnContractTest {
     }
 
     @Test
+    void turnStartBindsTheCommandToThePinnedAssignmentKeyAndDiagram() {
+        TurnEngineAssignment assignment = new TurnEngineAssignment(
+                new TurnKey("owner-1", "conversation-1", "turn-1"),
+                "diagram-1",
+                new VersionedRequestFingerprint(1, "fingerprint"),
+                SelectedTurnEngine.V2,
+                new MigrationStateSnapshot(1, TurnEngineMode.V2_CANARY,
+                        Instant.parse("2026-07-26T00:00:00Z")),
+                new ExecutionPolicySnapshot(1, TurnEngineMode.V2_CANARY, "{}", "policy"),
+                new NoMemoryWrite());
+
+        assertThrows(IllegalArgumentException.class, () -> new TurnStartCommand(
+                assignment.key(),
+                "diagram-2",
+                assignment,
+                "draw it",
+                "client-1",
+                List.of(),
+                "input"));
+        assertThrows(IllegalArgumentException.class, () -> new TurnStartCommand(
+                new TurnKey("owner-1", "conversation-1", "turn-2"),
+                "diagram-1",
+                assignment,
+                "draw it",
+                "client-1",
+                List.of(),
+                "input"));
+    }
+
+    @Test
     void fingerprintIgnoresAliasesAndRuntimeSessionsButBindsAttachmentOrderAndMemory() {
         UserTurnCommand first = new UserTurnCommand(
                 "turn-1", "legacy-session", "diagram-1", "client-1", "draw it", "runtime-1",

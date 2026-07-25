@@ -336,6 +336,8 @@ M1 控制面已按以下合同分批落地；生产 HTTP 仍未切入 V2，Plain
 
 本切片收口 sticky assignment 的 diagram binding 与 live-flag retry 语义：`MySqlTurnEngineAssignmentAdapter` 复用已有 assignment 前再次比较持久化 `diagram_id`，不一致时返回 `DIAGRAM_BINDING_MISMATCH`；同一 TurnKey 的重试即使传入新的 policy snapshot/hash，也必须返回首次持久化的 policy。新增 adapter contract tests；现有 assignment 表已包含 `diagram_id` 与 policy 字段，本切片没有新增或执行 migration。
 
+本补充把同一 binding invariant 前移到 application command：`TurnStartCommand` 现在拒绝与 pinned assignment 不同的 TurnKey 或 `diagramId`，避免错误 scope 在进入 atomic claim adapter 前继续传播；新增 immutable command contract test。本补充没有新增或执行 migration。
+
 ## single-instance-migration-control: Build The Single-Instance Migration Boundary
 
 Blocked by: turn-execution-control
