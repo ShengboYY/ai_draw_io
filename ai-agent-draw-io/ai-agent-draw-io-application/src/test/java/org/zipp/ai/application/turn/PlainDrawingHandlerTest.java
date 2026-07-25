@@ -1,6 +1,19 @@
 package org.zipp.ai.application.turn;
 
 import org.junit.jupiter.api.Test;
+import org.zipp.ai.application.turn.context.AbsentContext;
+import org.zipp.ai.application.turn.context.AvailableContext;
+import org.zipp.ai.application.turn.context.BaseTurnContext;
+import org.zipp.ai.application.turn.context.ContextDiagnostics;
+import org.zipp.ai.application.turn.context.ContextReadSet;
+import org.zipp.ai.application.turn.context.ContextSlice;
+import org.zipp.ai.application.turn.context.ContextSlicePin;
+import org.zipp.ai.application.turn.context.CurrentMessageAttachmentsContext;
+import org.zipp.ai.application.turn.context.CurrentRequestContext;
+import org.zipp.ai.application.turn.context.TrustedCanvasContext;
+import org.zipp.ai.application.turn.context.ValidatedSelectionContext;
+import org.zipp.ai.application.turn.context.ConversationContext;
+import org.zipp.ai.application.turn.demand.CurrentInstruction;
 
 import java.time.Instant;
 import java.util.ArrayList;
@@ -20,10 +33,15 @@ class PlainDrawingHandlerTest {
                 (request, sink) -> {
                     assertEquals(PlainDrawAction.CREATE, request.plan().action());
                     assertEquals("m2-plain-source-free", request.profile().id());
-                    return new PlainGenerationResult("payload-1");
+                    assertEquals("diagram-1", request.context().request().diagramId());
+                    assertEquals(readSet(), request.readSet());
+                    return new PlainGenerationResult("payload-1", "<mxGraphModel/>", "created");
                 },
                 command -> {
                     committedPayloads.add(command.payloadRef());
+                    assertEquals(PlainDrawAction.CREATE, command.action());
+                    assertEquals("diagram-1", command.diagramId());
+                    assertEquals(0, command.expectedCanvasVersion());
                     return new FencedCommitOutcome.Committed(
                             new PersistedTurnOutcome(TurnStatus.COMPLETED, "COMPLETED",
                                     "plain", command.payloadRef(), "{}"));
@@ -33,6 +51,8 @@ class PlainDrawingHandlerTest {
 
         FencedCommitOutcome outcome = handler.execute(
                 attempt,
+                context(),
+                readSet(),
                 new PlainDrawPlan(PlainDrawAction.CREATE, "draw a login flow"),
                 event -> events.add(event.type()));
 
@@ -56,6 +76,8 @@ class PlainDrawingHandlerTest {
 
         assertThrows(IllegalStateException.class, () -> handler.execute(
                 attempt(),
+                context(),
+                readSet(),
                 new PlainDrawPlan(PlainDrawAction.EDIT, "edit the flow"),
                 event -> { }));
         assertEquals(0, commits[0]);
@@ -79,5 +101,29 @@ class PlainDrawingHandlerTest {
                 2,
                 "input-digest",
                 new ExecutionPolicySnapshot(1, TurnEngineMode.V2_CANARY, "{}", "policy"));
+    }
+
+    private BaseTurnContext context() {
+        return new BaseTurnContext(
+                new CurrentRequestContext("turn-1", "diagram-1", new CurrentInstruction("draw")),
+                new AvailableContext<>(new CurrentMessageAttachmentsContext("binding-1", List.of()), "attachments"),
+                new AbsentContext<>("no clarification"),
+                new AvailableContext<>(new TrustedCanvasContext(false, 0, 0, ""), "canvas"),
+                new AvailableContext<>(new ValidatedSelectionContext(false, 0), "selection"),
+                new AvailableContext<>(new ConversationContext(List.of(), ""), "conversation"),
+                new AbsentContext<>("no membership"),
+                new AbsentContext<>("no profile"),
+                new AbsentContext<>("no memory"),
+                new ContextDiagnostics(List.of()));
+    }
+
+    private ContextReadSet readSet() {
+        return ContextReadSet.create(
+                1,
+                2,
+                ContextSlicePin.absent(ContextSlice.SUMMARY, "NO_CANVAS"),
+                ContextSlicePin.absent(ContextSlice.MEMBERSHIP, "NO_ACTIVE_CHARTBOOK"),
+                ContextSlicePin.absent(ContextSlice.PROFILE, "PROFILE_NOT_AVAILABLE"),
+                ContextSlicePin.absent(ContextSlice.MEMORY, "NO_CONFIRMED_MEMORY"));
     }
 }

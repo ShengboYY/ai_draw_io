@@ -444,6 +444,8 @@ M2 已开始，先交付不改变 production assignment 的 application/transpor
 
 本切片进一步接上隔离的 `TurnV2PreHandlerCoordinator`：已 claim 的 `FencedAttempt` 先经过 `ContextAssemblyCoordinator`，再把同一个 context/read-set 传给 `TurnDecisionCoordinator`，并将 ready、terminal、fence-lost、unavailable 统一为 typed outcome。`Ready` 额外校验 attempt high-water、checkpoint digest 与 route decision 自身的 context/input digest；app composition 仅在两个 preparation seam 都存在时注册，未改变 production assignment 或 HTTP legacy route。Plain/source-aware handler dispatch 与 strong commit 仍待后续切片，本切片没有新增 migration。
 
+本切片把 Plain 路径推进到可验证的 handler/commit boundary：`PlainGenerationRequest` 现在携带已 pin 的 `BaseTurnContext` 与 `ContextReadSet`，生成结果必须同时提供 canvas XML、assistant message 与 payload ref；`PlainDrawingHandler` 从 Plain route 读取 canvas pin 并创建带 expected version/context digest 的 `PlainTurnCommit`。新增 `MySqlPlainTurnCommitAdapter`，在一个事务内按 attempt fence 校验，执行 Canvas CAS、assistant message 写入和 `turn_execution` terminal update；terminal replay、stale fence、canvas version/digest conflict 都在写入前退出。现有 M1 schema 已包含所需字段，本切片未新增或执行 migration。Source-aware ports、真实 Plain model adapter、production V2 assignment 与全 transport executor 仍待后续切片。
+
 本票同时 owns DTO 的 `currentTurnAttachments`、hidden clarification id、opaque refs 与唯一 compatibility translator。
 
 composer 上传成功只创建 Conversation File。发送消息时，`TurnStartCommitPort` 才把 opaque refs 与该条 user message 原子绑定。

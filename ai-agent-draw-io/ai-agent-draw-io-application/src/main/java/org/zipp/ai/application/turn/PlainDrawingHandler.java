@@ -1,5 +1,12 @@
 package org.zipp.ai.application.turn;
 
+import org.zipp.ai.application.turn.context.BaseTurnContext;
+import org.zipp.ai.application.turn.context.ContextPinState;
+import org.zipp.ai.application.turn.context.ContextReadSet;
+import org.zipp.ai.application.turn.context.ContextSlicePin;
+import org.zipp.ai.application.turn.execution.TurnV2PreHandlerOutcome;
+import org.zipp.ai.application.turn.planning.TurnRouteDecision;
+
 import java.time.Instant;
 import java.util.Objects;
 
@@ -28,24 +35,64 @@ public final class PlainDrawingHandler {
         this.profile = Objects.requireNonNull(profile, "profile");
     }
 
+    /** Executes only a Plain route that has already passed Context and Decision checkpoints. */
+    public FencedCommitOutcome execute(
+            TurnV2PreHandlerOutcome.Ready prepared,
+            TurnEventSink events
+    ) {
+        Objects.requireNonNull(prepared, "prepared");
+        if (!(prepared.decision() instanceof TurnRouteDecision.Plain plain)) {
+            throw new IllegalArgumentException("PLAIN_ROUTE_REQUIRED");
+        }
+        return execute(
+                prepared.attempt(),
+                prepared.context(),
+                prepared.readSet(),
+                plain.value().plan(),
+                events);
+    }
+
     public FencedCommitOutcome execute(
             FencedAttempt attempt,
+            BaseTurnContext context,
+            ContextReadSet readSet,
             PlainDrawPlan plan,
             TurnEventSink events
     ) {
         Objects.requireNonNull(attempt, "attempt");
+        Objects.requireNonNull(context, "context");
+        Objects.requireNonNull(readSet, "readSet");
         Objects.requireNonNull(plan, "plan");
         Objects.requireNonNull(events, "events");
+        if (!attempt.key().turnId().equals(context.request().turnId())) {
+            throw new IllegalArgumentException("PLAIN_CONTEXT_TURN_MISMATCH");
+        }
+        if (readSet.messageHighWater() != attempt.contextMessageHighWater()) {
+            throw new IllegalArgumentException("PLAIN_CONTEXT_HIGH_WATER_MISMATCH");
+        }
         if (!runtime.isSourceFree()) {
             throw new IllegalStateException("PLAIN_RUNTIME_NOT_SOURCE_FREE");
         }
 
         events.publish(new TurnEvent("plain_started", plan.action().name(), Instant.now()));
         PlainGenerationResult result = Objects.requireNonNull(
-                generation.generate(new PlainGenerationRequest(attempt, plan, profile), events),
+                generation.generate(new PlainGenerationRequest(attempt, context, readSet, plan, profile), events),
                 "plain generation result");
+        ContextSlicePin canvasPin = readSet.summary();
+        long expectedCanvasVersion = canvasPin.state() == ContextPinState.PINNED
+                ? canvasPin.version() : 0;
+        String expectedCanvasContextDigest = canvasPin.state() == ContextPinState.PINNED
+                ? canvasPin.contentDigest() : "";
         FencedCommitOutcome outcome = Objects.requireNonNull(
-                commit.commit(new PlainTurnCommit(attempt, result.payloadRef())),
+                commit.commit(new PlainTurnCommit(
+                        attempt,
+                        plan.action(),
+                        context.request().diagramId(),
+                        expectedCanvasVersion,
+                        expectedCanvasContextDigest,
+                        result.canvasXml(),
+                        result.assistantMessage(),
+                        result.payloadRef())),
                 "plain commit outcome");
         if (outcome instanceof FencedCommitOutcome.Committed) {
             events.publish(new TurnEvent("plain_committed", "persisted", Instant.now()));
