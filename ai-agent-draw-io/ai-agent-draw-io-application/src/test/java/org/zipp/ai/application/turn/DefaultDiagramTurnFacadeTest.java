@@ -5,6 +5,11 @@ import org.junit.jupiter.api.Test;
 import java.time.Instant;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -161,6 +166,100 @@ class DefaultDiagramTurnFacadeTest {
                 catalog,
                 new AuthenticatedActor("owner-1", "cohort-1"),
                 command("session-1")));
+    }
+
+    @Test
+    void concurrentSameTurnSubmissionsProduceOneClaimAndOneRunningReplay() throws Exception {
+        AuthenticatedActor actor = new AuthenticatedActor("owner-1", "cohort-1");
+        ConversationRef conversation = activeConversation();
+        UserTurnCommand command = command("conversation:conversation-1");
+        TurnEngineAssignment assignment = assignment();
+        FencedAttempt attempt = new FencedAttempt(
+                assignment.key(),
+                new AttemptLease("attempt-1", 1, Instant.parse("2026-07-26T00:01:00Z"), 30_000),
+                4,
+                "input",
+                assignment.policy());
+        AtomicReference<Boolean> claimed = new AtomicReference<>(false);
+        int[] startCalls = {0};
+        TurnStatusView runningStatus = new TurnStatusView(
+                assignment.key(), TurnStatus.RUNNING, "attempt-1", 1, null, null,
+                Instant.parse("2026-07-26T00:01:00Z"));
+        TurnStartCommitPort starts = ignored -> {
+            synchronized (startCalls) {
+                startCalls[0]++;
+            }
+            if (claimed.compareAndSet(false, true)) {
+                return new TurnStartOutcome.Claimed(attempt, 42);
+            }
+            return new TurnStartOutcome.AlreadyRunning(runningStatus);
+        };
+        DefaultDiagramTurnFacade facade = new DefaultDiagramTurnFacade(
+                fixedCatalog(conversation),
+                new ConversationReferenceResolver(),
+                new FixedProfile(),
+                new TurnEngineAdmissionService(
+                        () -> migration(),
+                        ignored -> new AdmissionWriteOutcome.Assigned(assignment),
+                        new OpenAdmissionBarrier()),
+                starts,
+                new OpenAdmissionBarrier());
+        CountDownLatch ready = new CountDownLatch(2);
+        CountDownLatch release = new CountDownLatch(1);
+        ExecutorService executor = Executors.newFixedThreadPool(2);
+        try {
+            Future<TurnSubmission> first = executor.submit(() -> submitAfter(ready, release, facade, actor, command));
+            Future<TurnSubmission> second = executor.submit(() -> submitAfter(ready, release, facade, actor, command));
+            if (!ready.await(5, TimeUnit.SECONDS)) {
+                throw new AssertionError("concurrent submissions did not reach the barrier");
+            }
+            release.countDown();
+
+            List<TurnSubmission> submissions = List.of(
+                    first.get(5, TimeUnit.SECONDS), second.get(5, TimeUnit.SECONDS));
+            assertEquals(1, submissions.stream()
+                    .filter(TurnSubmission.ExecutionAccepted.class::isInstance).count());
+            assertEquals(1, submissions.stream()
+                    .filter(TurnSubmission.AlreadyRunning.class::isInstance).count());
+            assertEquals(true, claimed.get());
+            assertEquals(2, startCalls[0]);
+        } finally {
+            executor.shutdownNow();
+        }
+    }
+
+    private static TurnSubmission submitAfter(
+            CountDownLatch ready,
+            CountDownLatch release,
+            DefaultDiagramTurnFacade facade,
+            AuthenticatedActor actor,
+            UserTurnCommand command
+    ) throws InterruptedException {
+        ready.countDown();
+        release.await(5, TimeUnit.SECONDS);
+        return facade.execute(actor, command, ignored -> {
+        });
+    }
+
+    private static ConversationCatalogPort fixedCatalog(ConversationRef conversation) {
+        return new ConversationCatalogPort() {
+            @Override
+            public ConversationRef findOrCreateDefault(AuthenticatedActor actor, String diagramId) {
+                return conversation;
+            }
+
+            @Override
+            public ConversationRef requireActiveBinding(
+                    AuthenticatedActor actor, String conversationId, String diagramId) {
+                return conversation;
+            }
+
+            @Override
+            public ConversationRef resolveLegacyAlias(
+                    AuthenticatedActor actor, String legacySessionId, String diagramId) {
+                return conversation;
+            }
+        };
     }
 
     private static UserTurnCommand command(String conversationReference) {
