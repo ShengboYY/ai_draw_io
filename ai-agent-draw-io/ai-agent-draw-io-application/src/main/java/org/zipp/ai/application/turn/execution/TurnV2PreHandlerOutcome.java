@@ -1,6 +1,7 @@
 package org.zipp.ai.application.turn.execution;
 
 import org.zipp.ai.application.turn.FencedAttempt;
+import org.zipp.ai.application.turn.PersistedTurnOutcome;
 import org.zipp.ai.application.turn.TurnFailureCode;
 import org.zipp.ai.application.turn.TurnStatusRef;
 import org.zipp.ai.application.turn.checkpoint.TurnDecisionCheckpoint;
@@ -14,6 +15,7 @@ import java.time.Duration;
 public sealed interface TurnV2PreHandlerOutcome
         permits TurnV2PreHandlerOutcome.Ready,
         TurnV2PreHandlerOutcome.Terminal,
+        TurnV2PreHandlerOutcome.AlreadyTerminal,
         TurnV2PreHandlerOutcome.FenceLost,
         TurnV2PreHandlerOutcome.Unavailable {
 
@@ -88,6 +90,14 @@ public sealed interface TurnV2PreHandlerOutcome
         private static void requiredText(String value, String field) {
             if (value == null || value.isBlank()) {
                 throw new IllegalArgumentException(field + " must not be blank");
+            }
+        }
+    }
+
+    record AlreadyTerminal(PersistedTurnOutcome outcome) implements TurnV2PreHandlerOutcome {
+        public AlreadyTerminal {
+            if (outcome == null) {
+                throw new IllegalArgumentException("already-terminal outcome must not be null");
             }
         }
     }

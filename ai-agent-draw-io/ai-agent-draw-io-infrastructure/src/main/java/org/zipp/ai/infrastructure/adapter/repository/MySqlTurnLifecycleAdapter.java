@@ -14,6 +14,7 @@ import org.zipp.ai.application.turn.ExplicitTurnCancellationPort;
 import org.zipp.ai.application.turn.ExecutionPolicySnapshot;
 import org.zipp.ai.application.turn.FencedAttempt;
 import org.zipp.ai.application.turn.TurnAttemptTakeoverPort;
+import org.zipp.ai.application.turn.TurnAttemptExecutionStatePort;
 import org.zipp.ai.application.turn.TurnEngineMode;
 import org.zipp.ai.application.turn.StartupOrphanReconciler;
 import org.zipp.ai.application.turn.TurnAttemptLeasePort;
@@ -41,6 +42,7 @@ public class MySqlTurnLifecycleAdapter implements
         TurnStatusQueryPort,
         ExplicitTurnCancellationPort,
         TurnAttemptLeasePort,
+        TurnAttemptExecutionStatePort,
         AttemptDeadlineCancellationPort,
         StartupOrphanReconciler,
         TurnAttemptTakeoverPort {
@@ -110,6 +112,38 @@ public class MySqlTurnLifecycleAdapter implements
             throw new IllegalStateException("TURN_NOT_FOUND");
         }
         return row.statusOutcome(query.key(), terminalDecoder);
+    }
+
+    @Override
+    @Transactional
+    public TurnAttemptExecutionStatePort.StateOutcome check(FencedAttempt attempt) {
+        Objects.requireNonNull(attempt, "attempt");
+        ExecutionRow current = findForUpdate(attempt.key());
+        if (current == null) {
+            return new TurnAttemptExecutionStatePort.StateOutcome.Unavailable(
+                    new TurnStatusView(attempt.key(), TurnStatus.FAILED, null, 0,
+                            "TURN_NOT_FOUND", null, Instant.now()),
+                    "TURN_NOT_FOUND", Duration.ofSeconds(1));
+        }
+        if (isTerminal(current.status)) {
+            TerminalOutcomeDecoder.DecodeResult decoded = current.decode(terminalDecoder);
+            if (decoded instanceof TerminalOutcomeDecoder.DecodeResult.Decoded ready) {
+                return new TurnAttemptExecutionStatePort.StateOutcome.AlreadyTerminal(ready.outcome());
+            }
+            return new TurnAttemptExecutionStatePort.StateOutcome.Unavailable(
+                    current.statusView(attempt.key()),
+                    ((TerminalOutcomeDecoder.DecodeResult.Unavailable) decoded).code(),
+                    Duration.ofSeconds(1));
+        }
+        if (current.status != TurnStatus.RUNNING
+                || current.leaseExpiresAt == null
+                || !current.leaseExpiresAt.isAfter(current.databaseNow)
+                || !attempt.attemptId().equals(current.attemptId)
+                || attempt.attemptEpoch() != current.attemptEpoch) {
+            return new TurnAttemptExecutionStatePort.StateOutcome.FenceLost(
+                    current.statusView(attempt.key()));
+        }
+        return new TurnAttemptExecutionStatePort.StateOutcome.Active();
     }
 
     @Override

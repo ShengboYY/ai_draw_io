@@ -6,11 +6,14 @@ import org.zipp.ai.application.turn.ExecutionPolicySnapshot;
 import org.zipp.ai.application.turn.FencedAttempt;
 import org.zipp.ai.application.turn.PlainDrawAction;
 import org.zipp.ai.application.turn.PlainDrawPlan;
+import org.zipp.ai.application.turn.PersistedTurnOutcome;
+import org.zipp.ai.application.turn.TurnAttemptExecutionStatePort;
 import org.zipp.ai.application.turn.TurnEngineMode;
 import org.zipp.ai.application.turn.TurnFailureCode;
 import org.zipp.ai.application.turn.TurnInputBindingDigestCalculator;
 import org.zipp.ai.application.turn.TurnKey;
 import org.zipp.ai.application.turn.TurnStatusRef;
+import org.zipp.ai.application.turn.TurnStatus;
 import org.zipp.ai.application.turn.TurnDeclarations;
 import org.zipp.ai.application.turn.UserTurnCommand;
 import org.zipp.ai.application.turn.checkpoint.TurnDecisionCheckpoint;
@@ -34,6 +37,7 @@ import org.zipp.ai.application.turn.planning.TurnRouteDecision;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
@@ -112,6 +116,38 @@ class DefaultTurnV2PreHandlerCoordinatorTest {
                 new DefaultTurnV2PreHandlerCoordinator(assembly, decisions).prepare(attempt, command));
 
         assertSame(status, lost.status());
+    }
+
+    @Test
+    void durableTerminalStateStopsAfterTheDecisionPhaseWithoutReturningAReadyRoute() {
+        UserTurnCommand command = command("draw a flow");
+        FencedAttempt attempt = attempt(command);
+        BaseTurnContext context = context(command);
+        ContextReadSet readSet = readSet(attempt.contextMessageHighWater());
+        TurnRouteDecision decision = plainDecision(readSet, attempt);
+        TurnDecisionCheckpoint checkpoint = checkpoint(readSet, attempt);
+        AtomicInteger checks = new AtomicInteger();
+
+        TurnAttemptExecutionStatePort state = ignored -> {
+            if (checks.incrementAndGet() < 3) {
+                return new TurnAttemptExecutionStatePort.StateOutcome.Active();
+            }
+            return new TurnAttemptExecutionStatePort.StateOutcome.AlreadyTerminal(
+                    new PersistedTurnOutcome(TurnStatus.CANCELLED, "CANCELLED_BY_USER",
+                            "cancel", null, "{}"));
+        };
+        ContextAssemblyCoordinator assembly = assemblyReturning(
+                new ContextPreparationOutcome.Ready(context, readSet));
+        TurnDecisionCoordinator decisions = (ignoredAttempt, ignoredCommand, ignoredContext, ignoredReadSet) ->
+                new TurnDecisionPreparationOutcome.Ready(decision, checkpoint);
+
+        TurnV2PreHandlerOutcome.AlreadyTerminal terminal = assertInstanceOf(
+                TurnV2PreHandlerOutcome.AlreadyTerminal.class,
+                new DefaultTurnV2PreHandlerCoordinator(assembly, decisions, state)
+                        .prepare(attempt, command));
+
+        assertEquals(3, checks.get());
+        assertEquals(TurnStatus.CANCELLED, terminal.outcome().status());
     }
 
     private static TurnRouteDecision plainDecision(ContextReadSet readSet, FencedAttempt attempt) {

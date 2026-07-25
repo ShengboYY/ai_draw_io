@@ -7,6 +7,7 @@ import org.zipp.ai.application.turn.PlainGenerationPort;
 import org.zipp.ai.application.turn.PlainTurnCommitPort;
 import org.zipp.ai.application.turn.TerminalOnlyTurnCommitPort;
 import org.zipp.ai.application.turn.TurnAttemptLeasePort;
+import org.zipp.ai.application.turn.TurnAttemptExecutionStatePort;
 import org.zipp.ai.application.turn.TurnWriteGate;
 import org.zipp.ai.application.turn.checkpoint.TurnDecisionCoordinator;
 import org.zipp.ai.application.turn.context.ContextAssemblyCoordinator;
@@ -28,6 +29,7 @@ class TurnV2ExecutionCompositionConfigTest {
     @Test
     void composesThePreHandlerCoordinatorOnlyWhenBothPreparationSeamsExist() {
         contextRunner.run(context -> assertThat(context)
+                .hasSingleBean(TurnAttemptExecutionStatePort.class)
                 .hasSingleBean(TurnV2PreHandlerCoordinator.class));
     }
 

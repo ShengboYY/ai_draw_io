@@ -1,6 +1,7 @@
 package org.zipp.ai.config;
 
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.zipp.ai.application.turn.PlainDrawingHandler;
@@ -11,6 +12,7 @@ import org.zipp.ai.application.turn.PlainRuntimeRegistry;
 import org.zipp.ai.application.turn.PlainTurnCommitPort;
 import org.zipp.ai.application.turn.TerminalOnlyTurnCommitPort;
 import org.zipp.ai.application.turn.TurnAttemptLeasePort;
+import org.zipp.ai.application.turn.TurnAttemptExecutionStatePort;
 import org.zipp.ai.application.turn.TurnWriteGate;
 import org.zipp.ai.application.turn.checkpoint.TurnDecisionCoordinator;
 import org.zipp.ai.application.turn.context.ContextAssemblyCoordinator;
@@ -33,11 +35,19 @@ public class TurnV2ExecutionCompositionConfig {
     }
 
     @Bean
+    @ConditionalOnMissingBean(TurnAttemptExecutionStatePort.class)
+    public TurnAttemptExecutionStatePort turnAttemptExecutionStatePort() {
+        // Isolated fixtures without a durable adapter remain active by default.
+        return ignored -> new TurnAttemptExecutionStatePort.StateOutcome.Active();
+    }
+
+    @Bean
     public TurnV2PreHandlerCoordinator turnV2PreHandlerCoordinator(
             ContextAssemblyCoordinator contextAssembly,
-            TurnDecisionCoordinator decisions
+            TurnDecisionCoordinator decisions,
+            TurnAttemptExecutionStatePort executionState
     ) {
-        return new DefaultTurnV2PreHandlerCoordinator(contextAssembly, decisions);
+        return new DefaultTurnV2PreHandlerCoordinator(contextAssembly, decisions, executionState);
     }
 
     @Bean

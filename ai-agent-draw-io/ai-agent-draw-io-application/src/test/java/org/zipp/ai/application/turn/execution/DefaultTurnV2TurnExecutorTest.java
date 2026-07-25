@@ -82,6 +82,32 @@ class DefaultTurnV2TurnExecutorTest {
     }
 
     @Test
+    void durableAlreadyTerminalPreparationSkipsTheTerminalCommitPort() {
+        UserTurnCommand command = command();
+        FencedAttempt attempt = attempt(command);
+        TurnSubmission.ExecutionAccepted accepted = accepted(attempt);
+        int[] commits = {0};
+
+        TurnAttemptCompletion.PersistedTerminal outcome = assertInstanceOf(
+                TurnAttemptCompletion.PersistedTerminal.class,
+                new DefaultTurnV2TurnExecutor(
+                        (ignoredAttempt, ignoredCommand, ignoredEvents) ->
+                                new TurnV2ExecutionOutcome.PreparationBlocked(
+                                        new TurnV2PreHandlerOutcome.AlreadyTerminal(
+                                                new PersistedTurnOutcome(
+                                                        TurnStatus.CANCELLED, "CANCELLED_BY_USER",
+                                                        "cancel", null, "{}"))),
+                        ignored -> {
+                            commits[0]++;
+                            return new FencedCommitOutcome.Rejected("unexpected");
+                        })
+                        .execute(accepted, command, event -> { }));
+
+        assertEquals(TurnStatus.CANCELLED, outcome.outcome().status());
+        assertEquals(0, commits[0]);
+    }
+
+    @Test
     void commitsUnsupportedRouteAsRejectedWithoutInvokingPlain() {
         UserTurnCommand command = command();
         FencedAttempt attempt = attempt(command);

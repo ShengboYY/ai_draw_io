@@ -10,6 +10,7 @@ import org.zipp.ai.application.turn.CancelTurnCommand;
 import org.zipp.ai.application.turn.DeadlineCancelOutcome;
 import org.zipp.ai.application.turn.ExecutionPolicySnapshot;
 import org.zipp.ai.application.turn.FencedAttempt;
+import org.zipp.ai.application.turn.TurnAttemptExecutionStatePort;
 import org.zipp.ai.application.turn.TurnEngineMode;
 import org.zipp.ai.application.turn.TurnKey;
 import org.zipp.ai.application.turn.CancelTurnOutcome;
@@ -67,17 +68,80 @@ class MySqlTurnLifecycleAdapterTest {
         assertInstanceOf(TurnStatusQueryOutcome.TerminalUnavailable.class, outcome);
     }
 
+    @Test
+    void executionStateReturnsAlreadyTerminalUsingTheCurrentForUpdateRead() {
+        JdbcStub jdbc = new JdbcStub(terminalExecutionRow());
+
+        TurnAttemptExecutionStatePort.StateOutcome outcome =
+                new MySqlTurnLifecycleAdapter(jdbc.proxy()).check(attempt());
+
+        assertInstanceOf(TurnAttemptExecutionStatePort.StateOutcome.AlreadyTerminal.class, outcome);
+        assertTrue(jdbc.lastQuery.contains("FOR UPDATE"));
+    }
+
+    @Test
+    void executionStateReturnsActiveForTheCurrentRunningAttempt() {
+        JdbcStub jdbc = new JdbcStub(runningExecutionRow());
+
+        TurnAttemptExecutionStatePort.StateOutcome outcome =
+                new MySqlTurnLifecycleAdapter(jdbc.proxy()).check(attempt());
+
+        assertInstanceOf(TurnAttemptExecutionStatePort.StateOutcome.Active.class, outcome);
+    }
+
+    @Test
+    void executionStateReturnsFenceLostForAStaleAttempt() {
+        JdbcStub jdbc = new JdbcStub(runningExecutionRow());
+
+        TurnAttemptExecutionStatePort.StateOutcome outcome =
+                new MySqlTurnLifecycleAdapter(jdbc.proxy()).check(attempt("attempt-2", 2));
+
+        assertInstanceOf(TurnAttemptExecutionStatePort.StateOutcome.FenceLost.class, outcome);
+    }
+
+    @Test
+    void executionStateReturnsFenceLostWhenTheCurrentLeaseHasExpired() {
+        Map<String, Object> row = runningExecutionRow();
+        row.put("lease_expires_at", Timestamp.from(Instant.parse("2026-07-26T00:00:00Z")));
+
+        TurnAttemptExecutionStatePort.StateOutcome outcome =
+                new MySqlTurnLifecycleAdapter(new JdbcStub(row).proxy()).check(attempt());
+
+        assertInstanceOf(TurnAttemptExecutionStatePort.StateOutcome.FenceLost.class, outcome);
+    }
+
     private static TurnKey key() {
         return new TurnKey("owner-1", "conversation-1", "turn-1");
     }
 
     private static FencedAttempt attempt() {
+        return attempt("attempt-1", 1);
+    }
+
+    private static FencedAttempt attempt(String attemptId, long attemptEpoch) {
         return new FencedAttempt(
                 key(),
-                new AttemptLease("attempt-1", 1, Instant.parse("2026-07-26T00:00:00Z"), 30_000),
+                new AttemptLease(attemptId, attemptEpoch,
+                        Instant.parse("2026-07-26T00:00:00Z"), 30_000),
                 2,
                 "input-digest",
                 new ExecutionPolicySnapshot(1, TurnEngineMode.V2_CANARY, "{}", "policy-hash"));
+    }
+
+    private static Map<String, Object> runningExecutionRow() {
+        return values(
+                "current_attempt_id", "attempt-1",
+                "attempt_epoch", 1L,
+                "lease_ttl_ms", 30_000L,
+                "lease_expires_at", Timestamp.from(Instant.parse("2026-07-26T00:00:30Z")),
+                "database_now", Timestamp.from(Instant.parse("2026-07-26T00:00:01Z")),
+                "status", "RUNNING",
+                "terminal_code", null,
+                "terminal_payload_type", null,
+                "terminal_payload_ref", null,
+                "terminal_payload_schema_version", null,
+                "terminal_payload_json", null,
+                "updated_at", Timestamp.from(Instant.parse("2026-07-26T00:00:01Z")));
     }
 
     private static Map<String, Object> terminalExecutionRow() {

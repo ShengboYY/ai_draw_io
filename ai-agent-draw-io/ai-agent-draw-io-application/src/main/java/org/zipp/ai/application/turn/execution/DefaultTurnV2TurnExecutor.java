@@ -51,6 +51,10 @@ public final class DefaultTurnV2TurnExecutor implements TurnV2TurnExecutor {
         try {
             TurnV2ExecutionOutcome outcome = coordinator.execute(accepted.attempt(), command, events);
             if (outcome instanceof TurnV2ExecutionOutcome.PreparationBlocked blocked
+                    && blocked.outcome() instanceof TurnV2PreHandlerOutcome.AlreadyTerminal terminal) {
+                return new TurnAttemptCompletion.PersistedTerminal(terminal.outcome());
+            }
+            if (outcome instanceof TurnV2ExecutionOutcome.PreparationBlocked blocked
                     && blocked.outcome() instanceof TurnV2PreHandlerOutcome.Terminal terminal) {
                 return terminalCommit(
                         accepted,
@@ -104,6 +108,9 @@ public final class DefaultTurnV2TurnExecutor implements TurnV2TurnExecutor {
             return mapCommitOutcome(accepted, committed.outcome());
         }
         if (outcome instanceof TurnV2ExecutionOutcome.PreparationBlocked blocked) {
+            if (blocked.outcome() instanceof TurnV2PreHandlerOutcome.AlreadyTerminal terminal) {
+                return new TurnAttemptCompletion.PersistedTerminal(terminal.outcome());
+            }
             if (blocked.outcome() instanceof TurnV2PreHandlerOutcome.FenceLost lost) {
                 return new TurnAttemptCompletion.AttemptOwnershipLost(lost.status());
             }
