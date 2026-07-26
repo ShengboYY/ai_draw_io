@@ -5,6 +5,7 @@ import org.zipp.ai.domain.agent.model.valobj.conversation.DiagramConversationMes
 import org.zipp.ai.infrastructure.adapter.repository.DiagramConversationRepository;
 import org.zipp.ai.infrastructure.dao.IDiagramConversationMapper;
 import org.zipp.ai.infrastructure.dao.po.DiagramConversationMessagePO;
+import org.zipp.ai.infrastructure.dao.po.ConversationMessageAttachmentPO;
 
 import java.lang.reflect.Field;
 import java.util.List;
@@ -50,6 +51,7 @@ public class DiagramConversationRepositoryTest {
         assertEquals(2, messages.size());
         assertEquals("msg-1", messages.get(0).getClientMessageId());
         assertEquals("agent", messages.get(1).getRole());
+        assertEquals(List.of("architecture.pdf"), messages.get(1).getAttachmentRefs());
     }
 
     @Test
@@ -116,6 +118,7 @@ public class DiagramConversationRepositoryTest {
             second.setUserId(userId);
             second.setDiagramId(diagramId);
             second.setSessionId("session-1");
+            second.setTurnId("turn-1");
             second.setClientMessageId("msg-2");
             second.setRole("agent");
             second.setContent("Done");
@@ -131,6 +134,22 @@ public class DiagramConversationRepositoryTest {
         ) {
             // This fake does not model scope filtering; repository mapping is identical.
             return selectMessages(userId, diagramId);
+        }
+
+        @Override
+        public DiagramConversationMessagePO selectAssistantMessageByTurn(
+                String userId, String diagramId, String conversationId, String turnId) {
+            return null;
+        }
+
+        @Override
+        public List<ConversationMessageAttachmentPO> selectAttachmentsByTurns(
+                String userId, String diagramId, List<String> turnIds) {
+            ConversationMessageAttachmentPO attachment = new ConversationMessageAttachmentPO();
+            attachment.setTurnId("turn-1");
+            attachment.setFileRef("upload-1");
+            attachment.setDisplayName("architecture.pdf");
+            return List.of(attachment);
         }
 
         @Override

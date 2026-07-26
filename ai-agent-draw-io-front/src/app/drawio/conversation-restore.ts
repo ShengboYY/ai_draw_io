@@ -5,6 +5,7 @@ type RestorableConversationMessage = {
   createdAt?: string;
   evidenceClaims?: RestoredChatMessage['evidenceClaims'];
   evidenceSources?: RestoredChatMessage['evidenceSources'];
+  attachmentRefs?: string[];
 };
 
 type RestoredChatMessage = {
@@ -24,6 +25,7 @@ type RestoredChatMessage = {
     modality?: string;
     origin: 'EXISTING_REFERENCE' | 'EXPLICIT' | 'SEARCH' | 'SUPPLEMENTAL';
   }>;
+  attachments?: Array<{ uploadId: string; fileName: string; state: 'SUCCEEDED' }>;
 };
 
 const normalizeRole = (role?: string): 'user' | 'agent' => (
@@ -48,6 +50,11 @@ export const buildRestoredConversationMessages = (
       timestamp: parseTimestamp(message.createdAt),
       evidenceClaims: message.evidenceClaims,
       evidenceSources: message.evidenceSources,
+      attachments: message.attachmentRefs?.map(ref => ({
+        uploadId: ref,
+        fileName: ref,
+        state: 'SUCCEEDED' as const,
+      })),
     }));
 
   if (restored.length > 0) {

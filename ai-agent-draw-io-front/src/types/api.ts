@@ -314,6 +314,7 @@ export interface DiagramConversationMessageDTO {
   sessionId?: string;
   role: 'user' | 'agent';
   content: string;
+  attachmentRefs?: string[];
   createdAt?: string;
   evidenceClaims?: Array<{
     claimKey: string;

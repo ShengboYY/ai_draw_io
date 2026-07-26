@@ -711,6 +711,7 @@ public class AgentServiceController implements IAgentService {
         dto.setSessionId(message.getSessionId());
         dto.setRole(message.getRole());
         dto.setContent(message.getContent());
+        dto.setAttachmentRefs(message.getAttachmentRefs());
         dto.setCreatedAt(message.getCreatedAt());
         return dto;
     }

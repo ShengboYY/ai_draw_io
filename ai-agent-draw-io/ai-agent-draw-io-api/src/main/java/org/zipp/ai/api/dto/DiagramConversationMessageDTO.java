@@ -12,6 +12,7 @@ public class DiagramConversationMessageDTO {
     private String sessionId;
     private String role;
     private String content;
+    private List<String> attachmentRefs;
     private Date createdAt;
     private List<EvidenceClaimDTO> evidenceClaims;
     private List<EvidenceSourceDTO> evidenceSources;

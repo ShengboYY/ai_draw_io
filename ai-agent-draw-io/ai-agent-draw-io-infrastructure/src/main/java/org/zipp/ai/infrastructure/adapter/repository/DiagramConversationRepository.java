@@ -6,11 +6,13 @@ import org.zipp.ai.application.turn.AuthenticatedActor;
 import org.zipp.ai.domain.agent.model.valobj.conversation.DiagramConversationMessage;
 import org.zipp.ai.domain.agent.service.IDiagramConversationStore;
 import org.zipp.ai.infrastructure.dao.IDiagramConversationMapper;
+import org.zipp.ai.infrastructure.dao.po.ConversationMessageAttachmentPO;
 import org.zipp.ai.infrastructure.dao.po.DiagramConversationMessagePO;
 
 import javax.annotation.Resource;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
@@ -25,7 +27,13 @@ public class DiagramConversationRepository implements IDiagramConversationStore 
 
     @Override
     public List<DiagramConversationMessage> listMessages(String userId, String diagramId) {
-        return listMessages(userId, diagramId, "default");
+        if (isBlank(userId) || isBlank(diagramId)) {
+            return Collections.emptyList();
+        }
+        // The history endpoint has no session parameter, so it must include completed V2 turns
+        // written under a legacy session's canonical conversation as well as default-scope messages.
+        return toMessagesWithAttachments(
+                diagramConversationMapper.selectMessages(userId, diagramId), userId, diagramId);
     }
 
     @Override
@@ -42,9 +50,26 @@ public class DiagramConversationRepository implements IDiagramConversationStore 
                     new AuthenticatedActor(userId, userId), conversationReference, diagramId).allKeys();
             rows = diagramConversationMapper.selectMessagesByScope(userId, diagramId, keys);
         }
-        return rows.stream()
+        return toMessagesWithAttachments(rows, userId, diagramId);
+    }
+
+    private List<DiagramConversationMessage> toMessagesWithAttachments(
+            List<DiagramConversationMessagePO> rows, String userId, String diagramId) {
+        List<DiagramConversationMessage> messages = rows.stream()
                 .map(this::toDomain)
                 .collect(Collectors.toList());
+        List<String> turnIds = messages.stream().map(DiagramConversationMessage::getTurnId)
+                .filter(value -> !isBlank(value)).distinct().toList();
+        if (turnIds.isEmpty()) {
+            return messages;
+        }
+        Map<String, List<String>> attachmentsByTurn = diagramConversationMapper.selectAttachmentsByTurns(
+                userId, diagramId, turnIds).stream().collect(Collectors.groupingBy(
+                        ConversationMessageAttachmentPO::getTurnId,
+                        Collectors.mapping(ConversationMessageAttachmentPO::getDisplayName, Collectors.toList())));
+        messages.forEach(message -> message.setAttachmentRefs(
+                attachmentsByTurn.getOrDefault(message.getTurnId(), List.of())));
+        return messages;
     }
 
     @Override

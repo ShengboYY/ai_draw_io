@@ -4,6 +4,7 @@ import lombok.Builder;
 import lombok.Data;
 
 import java.util.Date;
+import java.util.List;
 
 @Data
 @Builder
@@ -17,6 +18,8 @@ public class DiagramConversationMessage {
     private String clientMessageId;
     private String role;
     private String content;
+    @Builder.Default
+    private List<String> attachmentRefs = List.of();
     private Date createdAt;
     private Date updatedAt;
 
