@@ -1,5 +1,6 @@
 package org.zipp.ai.application.turn;
 
+import org.zipp.ai.application.turn.context.BaseTurnContext;
 import org.zipp.ai.application.turn.planning.BoundSourcePlan;
 
 /** Tool-free visual observation seam; it cannot query Retrieval. */
@@ -10,6 +11,7 @@ public interface DirectVisionPort {
 
     record Request(
             FencedAttempt attempt,
+            BaseTurnContext context,
             BoundSourcePlan plan,
             String artifactLeaseRef
     ) {
@@ -18,6 +20,11 @@ public interface DirectVisionPort {
                     || artifactLeaseRef == null || artifactLeaseRef.isBlank()) {
                 throw new IllegalArgumentException("Direct vision request values must not be blank");
             }
+        }
+
+        /** Compatibility constructor for projection-only tests that do not need request context. */
+        public Request(FencedAttempt attempt, BoundSourcePlan plan, String artifactLeaseRef) {
+            this(attempt, null, plan, artifactLeaseRef);
         }
     }
 

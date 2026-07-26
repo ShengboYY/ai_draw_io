@@ -47,7 +47,7 @@ public final class DirectTurnHandler {
         events.publish(new TurnEvent("direct_started", "prepared", Instant.now()));
         DirectVisionPort.Observation observation = Objects.requireNonNull(
                 vision.observe(new DirectVisionPort.Request(
-                        attempt, plan, artifactLeaseRef)),
+                        attempt, context, plan, artifactLeaseRef)),
                 "direct observation");
         DirectGenerationPort.Result result = Objects.requireNonNull(
                 generation.generate(new DirectGenerationPort.Request(

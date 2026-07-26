@@ -20,6 +20,8 @@ import org.zipp.ai.domain.retrieval.port.EvidenceReadLeaseCoordinator;
 import org.zipp.ai.domain.retrieval.port.RequestSourceResolutionPort;
 import org.zipp.ai.domain.retrieval.port.RequestSourceSnapshotStore;
 import org.zipp.ai.infrastructure.adapter.repository.MaterialEvidenceReadLeaseCoordinator;
+import org.zipp.ai.infrastructure.adapter.repository.MySqlSourceProbeAdapter;
+import org.zipp.ai.application.turn.planning.SourceProbePort;
 
 /** Direct conversion wiring remains independent from lexical and vector retrieval flags. */
 @Configuration
@@ -52,6 +54,12 @@ public class DirectImageConversionConfig {
     public RequestSourceResolutionService directRequestSourceResolutionService(
             RequestSourceResolutionPort catalog, RequestSourceSnapshotStore snapshots) {
         return new DefaultRequestSourceResolutionService(catalog, snapshots);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean(SourceProbePort.class)
+    public SourceProbePort directSourceProbePort(RequestSourceResolutionService resolution) {
+        return new MySqlSourceProbeAdapter(resolution);
     }
 
     @Bean

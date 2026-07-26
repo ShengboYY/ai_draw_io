@@ -234,6 +234,7 @@ git log --oneline origin/main..main
 | ECS cluster | `ai-drawio-cluster` |
 | Backend ECR repository | `ai-drawio-backend` |
 | Frontend ECR repository | `ai-drawio-frontend` |
+| Migration ECR repository | `ai-drawio-db-migrate` |
 | Backend task family | `ai-drawio-backend-prod` |
 | Frontend task family | `ai-drawio-frontend-prod` |
 | Backend ECS service | `<BACKEND_SERVICE_NAME>` |
@@ -596,6 +597,11 @@ aws ecr put-image-tag-mutability \
   --region ap-southeast-2 \
   --repository-name ai-drawio-frontend \
   --image-tag-mutability IMMUTABLE
+
+aws ecr put-image-tag-mutability \
+  --region ap-southeast-2 \
+  --repository-name ai-drawio-db-migrate \
+  --image-tag-mutability IMMUTABLE
 ```
 
 ```bash
@@ -607,6 +613,11 @@ aws ecr put-image-scanning-configuration \
 aws ecr put-image-scanning-configuration \
   --region ap-southeast-2 \
   --repository-name ai-drawio-frontend \
+  --image-scanning-configuration scanOnPush=true
+
+aws ecr put-image-scanning-configuration \
+  --region ap-southeast-2 \
+  --repository-name ai-drawio-db-migrate \
   --image-scanning-configuration scanOnPush=true
 ```
 
@@ -791,7 +802,7 @@ jobs:
           docker build
           --provenance=false
           --platform linux/amd64
-          --file deploy/aws/database/Dockerfile.20260801
+          --file deploy/aws/database/Dockerfile.20260813
           --tag ai-drawio-db-migrate:ci
           .
 
@@ -865,7 +876,7 @@ jobs:
             docker build \
               --provenance=false \
               --platform linux/amd64 \
-              --file deploy/aws/database/Dockerfile.20260801 \
+              --file deploy/aws/database/Dockerfile.20260813 \
               --tag "$ECR_REGISTRY/$ECR_MIGRATION_REPOSITORY:$IMAGE_TAG" \
               .
 

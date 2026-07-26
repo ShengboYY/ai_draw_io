@@ -88,12 +88,14 @@ public final class DefaultSourceAwareTurnExecution implements SourceAwareTurnExe
             SourcePlanDecision plan = plan(probeCommand, probeOutcome);
             if (!(plan instanceof SourcePlanDecision.SourceReady sourceReady)
                     && !(plan instanceof SourcePlanDecision.DirectOnlyReady directOnlyReady)
-                    && !(plan instanceof SourcePlanDecision.RequiredSourceReady requiredReady)) {
+                    && !(plan instanceof SourcePlanDecision.RequiredSourceReady requiredReady
+                    && requiredReady.bound() != null)) {
                 return rejected(prepared.decision(), rejectionCode(plan));
             }
             SourceAwarePreparationPort.Outcome preparedSource = preparation.prepare(
                     new SourceAwarePreparationPort.Request(
-                            attempt, prepared.context(), prepared.readSet(), probeCommand, plan));
+                            attempt, prepared.context(), prepared.readSet(), probeCommand, plan,
+                            required.intent().outputIntent()));
             if (!(preparedSource instanceof SourceAwarePreparationPort.Outcome.Ready ready)) {
                 return rejected(prepared.decision(),
                         ((SourceAwarePreparationPort.Outcome.Rejected) preparedSource).code());

@@ -7,7 +7,8 @@ import java.util.Objects;
 public sealed interface SourceAwareDrawPlan
         permits SourceAwareDrawPlan.Direct,
         SourceAwareDrawPlan.OptionalComposite,
-        SourceAwareDrawPlan.RequiredComposite {
+        SourceAwareDrawPlan.RequiredComposite,
+        SourceAwareDrawPlan.Retrieval {
 
     final class Direct implements SourceAwareDrawPlan {
 
@@ -88,6 +89,23 @@ public sealed interface SourceAwareDrawPlan
 
         public DirectSourceReusePolicy reusePolicy() {
             return reusePolicy;
+        }
+    }
+
+    /** Planner-issued retrieval graph used by Grounded and Evidence-only handlers. */
+    final class Retrieval implements SourceAwareDrawPlan {
+
+        private final List<RetrievalCandidateFact> retrieval;
+
+        Retrieval(List<RetrievalCandidateFact> retrieval) {
+            if (retrieval == null || retrieval.isEmpty()) {
+                throw new IllegalArgumentException("Retrieval plan must not be empty");
+            }
+            this.retrieval = List.copyOf(retrieval);
+        }
+
+        public List<RetrievalCandidateFact> retrieval() {
+            return retrieval;
         }
     }
 }

@@ -99,6 +99,10 @@ jobs:
             ai-agent-draw-io/docs/sql/migrations/2026-07-30-create-source-aware-commit-boundaries.sql
             ai-agent-draw-io/docs/sql/migrations/2026-07-31-create-confirmed-memory.sql
             ai-agent-draw-io/docs/sql/migrations/2026-07-31-pin-revision-gap-manifest.sql
+            ai-agent-draw-io/docs/sql/migrations/2026-08-10-create-request-source-snapshots.sql
+            ai-agent-draw-io/docs/sql/migrations/2026-08-11-add-request-source-display-name.sql
+            ai-agent-draw-io/docs/sql/migrations/2026-08-12-add-request-source-processing-flag.sql
+            ai-agent-draw-io/docs/sql/migrations/2026-08-13-create-source-aware-direct-preparations.sql
           )
           for schema in "${schema_files[@]}"; do
             # The checked-in SQL targets production's name; CI rewrites only the disposable DB name.
@@ -223,7 +227,7 @@ jobs:
           docker build
           --provenance=false
           --platform linux/amd64
-          --file deploy/aws/database/Dockerfile.20260801
+          --file deploy/aws/database/Dockerfile.20260813
           --tag ai-drawio-db-migrate:ci
           .
 
@@ -319,7 +323,7 @@ jobs:
             docker build \
               --provenance=false \
               --platform linux/amd64 \
-              --file deploy/aws/database/Dockerfile.20260801 \
+              --file deploy/aws/database/Dockerfile.20260813 \
               --tag "$migration_uri" \
               .
           else

@@ -110,6 +110,17 @@ class TurnV2HttpControllerTest {
         assertEquals(TurnAttemptExecutionRunner.class, condition.value()[0]);
     }
 
+    @Test
+    void realV1IngressBridgeIsDisabledUnlessCanaryIsExplicitlyEnabled() {
+        ConditionalOnProperty condition = LegacyTurnV2IngressBridge.class
+                .getAnnotation(ConditionalOnProperty.class);
+
+        assertNotNull(condition);
+        assertEquals("turn-engine.http.v1-v2-bridge.enabled", condition.name()[0]);
+        assertEquals("true", condition.havingValue());
+        assertFalse(condition.matchIfMissing());
+    }
+
     static class FakeOwnerResolver extends CurrentOwnerHttpResolver {
         @Override
         public Optional<ResolvedOwner> resolve(String ignored) {

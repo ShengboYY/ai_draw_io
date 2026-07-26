@@ -40,13 +40,31 @@ public sealed interface SourcePlanDecision
 
     record RequiredSourceReady(
             List<String> candidateRefs,
-            PlanningLineageFingerprint lineage
+            PlanningLineageFingerprint lineage,
+            BoundSourcePlan bound
     ) implements SourcePlanDecision {
         public RequiredSourceReady {
             if (candidateRefs == null || candidateRefs.isEmpty() || lineage == null) {
                 throw new IllegalArgumentException("required source result must not be empty");
             }
             candidateRefs = List.copyOf(candidateRefs);
+            if (bound != null && !bound.identity().lineage().equals(lineage)) {
+                throw new IllegalArgumentException("required source lineage does not match bound plan");
+            }
+            if (bound != null && (!(bound.plan() instanceof SourceAwareDrawPlan.Retrieval retrieval)
+                    || !retrieval.retrieval().stream()
+                    .map(RetrievalCandidateFact::candidateRef)
+                    .toList().equals(candidateRefs))) {
+                throw new IllegalArgumentException("required source candidates do not match bound plan");
+            }
+        }
+
+        /** Compatibility constructor for pre-source-aware retrieval tests. */
+        public RequiredSourceReady(
+                List<String> candidateRefs,
+                PlanningLineageFingerprint lineage
+        ) {
+            this(candidateRefs, lineage, null);
         }
     }
 

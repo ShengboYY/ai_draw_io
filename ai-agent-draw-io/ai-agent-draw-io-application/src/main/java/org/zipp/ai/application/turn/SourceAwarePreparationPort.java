@@ -2,6 +2,7 @@ package org.zipp.ai.application.turn;
 
 import org.zipp.ai.application.turn.context.BaseTurnContext;
 import org.zipp.ai.application.turn.context.ContextReadSet;
+import org.zipp.ai.application.turn.classification.OutputIntent;
 import org.zipp.ai.application.turn.planning.SourcePlanDecision;
 import org.zipp.ai.application.turn.planning.SourceProbeCommand;
 
@@ -19,13 +20,21 @@ public interface SourceAwarePreparationPort {
             BaseTurnContext context,
             ContextReadSet readSet,
             SourceProbeCommand probeCommand,
-            SourcePlanDecision plan
+            SourcePlanDecision plan,
+            OutputIntent outputIntent
     ) {
         public Request {
             if (attempt == null || context == null || readSet == null
                     || probeCommand == null || plan == null) {
                 throw new IllegalArgumentException("source preparation values must not be null");
             }
+            outputIntent = outputIntent == null ? OutputIntent.DRAWING : outputIntent;
+        }
+
+        /** Compatibility constructor for adapters that only prepare source capabilities. */
+        public Request(FencedAttempt attempt, BaseTurnContext context, ContextReadSet readSet,
+                       SourceProbeCommand probeCommand, SourcePlanDecision plan) {
+            this(attempt, context, readSet, probeCommand, plan, OutputIntent.DRAWING);
         }
     }
 

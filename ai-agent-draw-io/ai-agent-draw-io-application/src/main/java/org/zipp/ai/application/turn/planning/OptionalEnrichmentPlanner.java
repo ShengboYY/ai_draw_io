@@ -1,5 +1,8 @@
 package org.zipp.ai.application.turn.planning;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.util.HexFormat;
 import java.util.Objects;
 
 /** Applies requiredness after Probe without allowing Probe adapters to choose fallback policy. */
@@ -39,10 +42,22 @@ public final class OptionalEnrichmentPlanner {
                     new OptionalRetrievalDrawPlan(
                             candidateRefs,
                             optional.validatedProbeFallback(),
-                            command.binding().lineage()));
+                        command.binding().lineage()));
         }
+        RoleAvailability.RetrievalAvailable retrieval =
+                (RoleAvailability.RetrievalAvailable) ((SourceAvailability.SingleRole)
+                        available.availability()).role();
+        SourceAwareDrawPlan.Retrieval drawPlan =
+                new SourceAwareDrawPlan.Retrieval(retrieval.candidates());
+        String fingerprint = digest(command.binding().lineage().value(),
+                command.binding().declarationDigest(), String.join("\u001f", candidateRefs),
+                "RETRIEVAL");
+        BoundSourcePlan bound = new BoundSourcePlan(
+                drawPlan,
+                new SourcePlanIdentity(command.binding().lineage(), fingerprint),
+                new SourceExecutionEntry.Primary());
         return new SourcePlanDecision.RequiredSourceReady(
-                candidateRefs, command.binding().lineage());
+                candidateRefs, command.binding().lineage(), bound);
     }
 
     private FallbackReason fallbackReason(SourceProbeOutcome.Unavailability reason) {
@@ -65,5 +80,22 @@ public final class OptionalEnrichmentPlanner {
         return retrieval.candidates().stream()
                 .map(RetrievalCandidateFact::candidateRef)
                 .toList();
+    }
+
+    private String digest(String... values) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            for (String value : values) {
+                byte[] bytes = value.getBytes(StandardCharsets.UTF_8);
+                digest.update((byte) (bytes.length >>> 24));
+                digest.update((byte) (bytes.length >>> 16));
+                digest.update((byte) (bytes.length >>> 8));
+                digest.update((byte) bytes.length);
+                digest.update(bytes);
+            }
+            return HexFormat.of().formatHex(digest.digest());
+        } catch (Exception failure) {
+            throw new IllegalStateException("SHA-256 is unavailable", failure);
+        }
     }
 }

@@ -30,6 +30,7 @@ import org.zipp.ai.domain.citation.service.CitationQueryService;
 import org.zipp.ai.trigger.http.service.AgentConversationService;
 import org.zipp.ai.trigger.http.service.AnonymousWorkspaceClaimService;
 import org.zipp.ai.trigger.http.service.ManualCanvasCommitCoordinator;
+import org.zipp.ai.trigger.http.turn.LegacyTurnV2IngressBridge;
 import org.zipp.ai.types.enums.ResponseCode;
 import org.zipp.ai.types.exception.AppException;
 import org.zipp.ai.types.util.SecretLogSanitizer;
@@ -82,6 +83,9 @@ public class AgentServiceController implements IAgentService {
 
     @Autowired(required = false)
     private ManualCanvasCommitCoordinator manualCanvasCommitCoordinator;
+
+    @Autowired(required = false)
+    private LegacyTurnV2IngressBridge legacyTurnV2IngressBridge;
 
     @Resource
     private IDiagramConversationStore diagramConversationStore;
@@ -498,6 +502,18 @@ public class AgentServiceController implements IAgentService {
         }
         requestDTO.setUserId(workspaceId);
         applyCorrelation(requestDTO, requestId, runId);
+        if (legacyTurnV2IngressBridge != null && legacyTurnV2IngressBridge.handles(workspaceId)) {
+            ChatResponseDTO responseDTO = legacyTurnV2IngressBridge.chat(
+                    workspaceId, requestDTO, requestId, runId);
+            responseDTO.setRequestId(requestId);
+            responseDTO.setRunId(runId);
+            writeCorrelationHeaders(httpResponse, requestId, runId);
+            return Response.<ChatResponseDTO>builder()
+                    .code(ResponseCode.SUCCESS.getCode())
+                    .info(ResponseCode.SUCCESS.getInfo())
+                    .data(responseDTO)
+                    .build();
+        }
         try (MDC.MDCCloseable ignoredRequestId = MDC.putCloseable("requestId", requestId);
              MDC.MDCCloseable ignoredRunId = MDC.putCloseable("runId", runId)) {
             log.info("智能体对话 agentId:{} userId:{} sessionId:{} requestId:{} runId:{} messageChars:{}",
@@ -559,6 +575,10 @@ public class AgentServiceController implements IAgentService {
         }
         requestDTO.setUserId(workspaceId);
         applyCorrelation(requestDTO, requestId, runId);
+        if (legacyTurnV2IngressBridge != null && legacyTurnV2IngressBridge.handles(workspaceId)) {
+            legacyTurnV2IngressBridge.stream(workspaceId, requestDTO, requestId, runId, emitter);
+            return emitter;
+        }
         try (MDC.MDCCloseable ignoredRequestId = MDC.putCloseable("requestId", requestId);
              MDC.MDCCloseable ignoredRunId = MDC.putCloseable("runId", runId)) {
             log.info("流式对话 agentId:{} userId:{} sessionId:{} requestId:{} runId:{} messageChars:{}",

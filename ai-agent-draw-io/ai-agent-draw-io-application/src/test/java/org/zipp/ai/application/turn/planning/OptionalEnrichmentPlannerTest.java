@@ -118,7 +118,7 @@ class OptionalEnrichmentPlannerTest {
     private PrePlanOutcome.SourcePlanningRequired requirement(SourceDemandKind kind) {
         AcceptedSourceDemand accepted = kind == SourceDemandKind.OPTIONAL_DISCOVERY
                 ? new AcceptedSourceDemand(kind, List.of(), "login architecture")
-                : new AcceptedSourceDemand(kind, List.of("file-1"), null);
+                : new AcceptedSourceDemand(kind, List.of("file-1"), "login architecture");
         return new PrePlanOutcome.SourcePlanningRequired(
                 new org.zipp.ai.application.turn.TurnKey(
                         "owner-1", "conversation-1", "turn-1"),
