@@ -46,6 +46,44 @@ class MySqlTurnEngineAssignmentAdapterTest {
     }
 
     @Test
+    void unseenAssignmentAfterAllV2CutoverIsPinnedToV2() {
+        JdbcStub jdbc = new JdbcStub("ALL_V2", false);
+
+        AdmissionWriteOutcome.Assigned assigned = assertInstanceOf(
+                AdmissionWriteOutcome.Assigned.class,
+                new MySqlTurnEngineAssignmentAdapter(jdbc.proxy()).assignOrReuse(command(new NoMemoryWrite())));
+
+        assertEquals(SelectedTurnEngine.V2, assigned.assignment().selectedEngine());
+        assertEquals(TurnEngineMode.ALL_V2, assigned.assignment().migration().mode());
+        assertEquals(1, jdbc.updates.size());
+    }
+
+    @Test
+    void existingCanaryAssignmentRemainsStickyAfterAllV2Cutover() {
+        JdbcStub jdbc = new JdbcStub("ALL_V2", true, "V2_CANARY", "V2", null);
+
+        AdmissionWriteOutcome.Reused reused = assertInstanceOf(
+                AdmissionWriteOutcome.Reused.class,
+                new MySqlTurnEngineAssignmentAdapter(jdbc.proxy()).assignOrReuse(command(new NoMemoryWrite())));
+
+        assertEquals(SelectedTurnEngine.V2, reused.assignment().selectedEngine());
+        assertEquals(TurnEngineMode.V2_CANARY, reused.assignment().migration().mode());
+        assertEquals(List.of(), jdbc.updates);
+    }
+
+    @Test
+    void expiredLegacyAssignmentReturnsGoneAfterAllV2Cutover() {
+        JdbcStub jdbc = new JdbcStub("ALL_V2", true, "LEGACY", "LEGACY", "EXPIRED_GONE");
+
+        AdmissionWriteOutcome.LegacyRetryGone gone = assertInstanceOf(
+                AdmissionWriteOutcome.LegacyRetryGone.class,
+                new MySqlTurnEngineAssignmentAdapter(jdbc.proxy()).assignOrReuse(command(new NoMemoryWrite())));
+
+        assertEquals("LEGACY_RETRY_EXPIRED", gone.reason());
+        assertEquals(List.of(), jdbc.updates);
+    }
+
+    @Test
     void matchingFingerprintAndDeclarationReuseThePersistedAssignment() {
         JdbcStub jdbc = new JdbcStub();
 
@@ -157,6 +195,9 @@ class MySqlTurnEngineAssignmentAdapterTest {
     private static final class JdbcStub {
         private final List<String> updates = new java.util.ArrayList<>();
         private final String migrationMode;
+        private final String assignmentMode;
+        private final String assignmentEngine;
+        private final String retirementState;
         private boolean existing;
 
         private JdbcStub() {
@@ -164,7 +205,20 @@ class MySqlTurnEngineAssignmentAdapterTest {
         }
 
         private JdbcStub(String migrationMode, boolean existing) {
+            this(migrationMode, existing, migrationMode, "V2", null);
+        }
+
+        private JdbcStub(
+                String migrationMode,
+                boolean existing,
+                String assignmentMode,
+                String assignmentEngine,
+                String retirementState
+        ) {
             this.migrationMode = migrationMode;
+            this.assignmentMode = assignmentMode;
+            this.assignmentEngine = assignmentEngine;
+            this.retirementState = retirementState;
             this.existing = existing;
         }
 
@@ -198,7 +252,7 @@ class MySqlTurnEngineAssignmentAdapterTest {
                     "switched_at", Timestamp.from(Instant.parse("2026-07-26T00:00:00Z")));
         }
 
-        private static Map<String, Object> assignmentRow() {
+        private Map<String, Object> assignmentRow() {
             return values(
                     "owner_key", "owner-1",
                     "conversation_id", "conversation-1",
@@ -206,16 +260,16 @@ class MySqlTurnEngineAssignmentAdapterTest {
                     "turn_id", "turn-1",
                     "request_fingerprint_schema_version", 1,
                     "request_fingerprint", "fingerprint",
-                    "selected_engine", "V2",
+                    "selected_engine", assignmentEngine,
                     "migration_generation", 3L,
-                    "migration_mode", "ALL_V2",
+                    "migration_mode", assignmentMode,
                     "execution_policy_schema_version", 1,
                     "execution_policy_snapshot_json", "{}",
                     "execution_policy_hash", "policy-hash",
                     "memory_write_schema_version", 1,
                     "memory_write_declaration_json", "{\"kind\":\"NONE\"}",
                     "memory_write_digest", "NONE",
-                    "legacy_retirement_state", null,
+                    "legacy_retirement_state", retirementState,
                     "created_at", Timestamp.from(Instant.parse("2026-07-26T00:00:00Z")));
         }
 

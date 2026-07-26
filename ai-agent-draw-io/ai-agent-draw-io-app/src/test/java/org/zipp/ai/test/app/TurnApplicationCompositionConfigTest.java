@@ -213,7 +213,8 @@ class TurnApplicationCompositionConfigTest {
     private static final class FakeMigrationState implements TurnEngineMigrationStatePort {
         @Override
         public MigrationStateSnapshot current() {
-            return new MigrationStateSnapshot(0, TurnEngineMode.LEGACY, Instant.parse("2026-07-25T00:00:00Z"));
+            // Composition tests start from the canary gate before exercising ALL_V2 cutover.
+            return new MigrationStateSnapshot(0, TurnEngineMode.V2_CANARY, Instant.parse("2026-07-25T00:00:00Z"));
         }
     }
 

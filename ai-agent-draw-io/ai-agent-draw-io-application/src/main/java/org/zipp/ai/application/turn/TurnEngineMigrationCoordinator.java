@@ -28,6 +28,10 @@ public final class TurnEngineMigrationCoordinator {
     ) {
         Objects.requireNonNull(expectedState, "expectedState");
         Objects.requireNonNull(targetMode, "targetMode");
+        if (!isAllowedTransition(expectedState.mode(), targetMode)) {
+            // Keep the cutover fail-closed even when a non-MySQL control port is composed.
+            return new MigrationModeSwitchOutcome.Rejected("MIGRATION_MODE_TRANSITION_INVALID");
+        }
         admissionBarrier.pauseAndDrain();
         try {
             // Complete durable legacy-horizon preparation before changing the singleton mode row.
@@ -60,5 +64,13 @@ public final class TurnEngineMigrationCoordinator {
         while (expiry.expireDue(MIGRATION_BATCH_SIZE) > 0) {
             // Expired rows are durably tombstoned before the mode switch is attempted.
         }
+    }
+
+    private boolean isAllowedTransition(TurnEngineMode current, TurnEngineMode target) {
+        return current == target
+                || (current == TurnEngineMode.LEGACY && target == TurnEngineMode.V2_CANARY)
+                || (current == TurnEngineMode.V2_CANARY
+                && (target == TurnEngineMode.LEGACY || target == TurnEngineMode.ALL_V2))
+                || (current == TurnEngineMode.ALL_V2 && target == TurnEngineMode.RETIRED);
     }
 }

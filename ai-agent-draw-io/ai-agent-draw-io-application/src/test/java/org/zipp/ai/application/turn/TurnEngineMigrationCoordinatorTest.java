@@ -87,13 +87,34 @@ class TurnEngineMigrationCoordinatorTest {
                 }, expiry);
 
         MigrationModeSwitchOutcome outcome = coordinator.switchMode(
-                new MigrationStateSnapshot(0, TurnEngineMode.LEGACY,
+                new MigrationStateSnapshot(0, TurnEngineMode.V2_CANARY,
                         Instant.parse("2026-07-26T00:00:00Z")),
                 TurnEngineMode.ALL_V2);
 
         assertEquals(MigrationModeSwitchOutcome.Changed.class, outcome.getClass());
         assertEquals(List.of(
-                "pause", "backfill:100", "expire:100", "switch:LEGACY->ALL_V2", "resume"), calls);
+                "pause", "backfill:100", "expire:100", "switch:V2_CANARY->ALL_V2", "resume"), calls);
+    }
+
+    @Test
+    void rejectsDirectLegacyToAllV2BeforePausingOrWriting() {
+        List<String> calls = new ArrayList<>();
+        TurnEngineMigrationCoordinator coordinator = new TurnEngineMigrationCoordinator(
+                new RecordingBarrier(calls),
+                command -> {
+                    throw new AssertionError("direct cutover must not reach durable control");
+                },
+                new RecordingExpiry(calls, 0));
+
+        MigrationModeSwitchOutcome.Rejected rejected = assertInstanceOf(
+                MigrationModeSwitchOutcome.Rejected.class,
+                coordinator.switchMode(
+                        new MigrationStateSnapshot(0, TurnEngineMode.LEGACY,
+                                Instant.parse("2026-07-26T00:00:00Z")),
+                        TurnEngineMode.ALL_V2));
+
+        assertEquals("MIGRATION_MODE_TRANSITION_INVALID", rejected.code());
+        assertEquals(List.of(), calls);
     }
 
     @Test
@@ -111,13 +132,13 @@ class TurnEngineMigrationCoordinatorTest {
                 expiry);
 
         coordinator.switchMode(
-                new MigrationStateSnapshot(0, TurnEngineMode.LEGACY,
+                new MigrationStateSnapshot(0, TurnEngineMode.V2_CANARY,
                         Instant.parse("2026-07-26T00:00:00Z")),
                 TurnEngineMode.ALL_V2);
 
         assertEquals(List.of(
                 "pause", "backfill:100", "backfill:100",
-                "expire:100", "expire:100", "switch:LEGACY->ALL_V2", "resume"), calls);
+                "expire:100", "expire:100", "switch:V2_CANARY->ALL_V2", "resume"), calls);
     }
 
     @Test
@@ -133,7 +154,7 @@ class TurnEngineMigrationCoordinatorTest {
 
         assertThrows(IllegalStateException.class,
                 () -> coordinator.switchMode(
-                        new MigrationStateSnapshot(0, TurnEngineMode.LEGACY,
+                        new MigrationStateSnapshot(0, TurnEngineMode.V2_CANARY,
                                 Instant.parse("2026-07-26T00:00:00Z")),
                         TurnEngineMode.ALL_V2));
         assertEquals(List.of("pause", "backfill:100", "expire:100", "resume"), barrier.calls);
@@ -167,7 +188,7 @@ class TurnEngineMigrationCoordinatorTest {
 
         assertThrows(IllegalStateException.class,
                 () -> coordinator.switchMode(
-                        new MigrationStateSnapshot(0, TurnEngineMode.LEGACY,
+                        new MigrationStateSnapshot(0, TurnEngineMode.V2_CANARY,
                                 Instant.parse("2026-07-26T00:00:00Z")),
                         TurnEngineMode.ALL_V2));
         assertFalse(switched[0]);
@@ -222,7 +243,7 @@ class TurnEngineMigrationCoordinatorTest {
         ExecutorService executor = Executors.newFixedThreadPool(2);
         try {
             Future<MigrationModeSwitchOutcome> switchFuture = executor.submit(() -> coordinator.switchMode(
-                    new MigrationStateSnapshot(0, TurnEngineMode.LEGACY,
+                    new MigrationStateSnapshot(0, TurnEngineMode.V2_CANARY,
                             Instant.parse("2026-07-26T00:00:00Z")),
                     TurnEngineMode.ALL_V2));
             assertTrue(firstBackfillEntered.await(5, TimeUnit.SECONDS));
@@ -240,7 +261,7 @@ class TurnEngineMigrationCoordinatorTest {
         }
 
         assertEquals(List.of(
-                "pause", "backfill:100", "expire:100", "switch:LEGACY->ALL_V2", "resume",
+                "pause", "backfill:100", "expire:100", "switch:V2_CANARY->ALL_V2", "resume",
                 "pause", "expire:25", "resume"), calls);
     }
 

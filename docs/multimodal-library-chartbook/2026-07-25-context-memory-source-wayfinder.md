@@ -430,7 +430,7 @@ canary 不区分 Plain 与 source-aware，也不读取 prompt、locale、附件�
 ## all-v2-cutover: Activate The M6 Boundary
 
 Blocked by: all-path-v2-canary, session-continuity, conversation-scope-migration
-Status: open
+Status: resolved
 Type: Task
 
 ### Question
@@ -439,15 +439,15 @@ Type: Task
 
 ### Answer
 
-Pending. 只有全部 V2 path gates 通过后，才能 pause admission、drain 本地 legacy in-flight，并在 migration row transaction 中切到 `ALL_V2`。
+已完成 all-V2 cutover 门禁。只有先处于已验证的 `V2_CANARY`，才允许 pause admission、drain 本地 legacy in-flight，并在同一 migration row transaction 中切到 `ALL_V2`；application 层直接拒绝 `LEGACY → ALL_V2`，不触发 pause、backfill、expiry 或数据库写入。
 
-mode switch 与 `assignOrReuse` 锁同一 migration row。generation changed 必须重建 command；恢复 admission 后 unseen routing 固定 `ALL_V2/ENFORCE`。
+mode switch 与 `assignOrReuse` 锁同一 migration row。generation changed 由 durable adapter 返回 typed rejection，调用方必须基于最新 snapshot 重建 command；恢复 admission 后 unseen routing 固定 `ALL_V2`，并由 assignment adapter 校验新选择只能是 `V2`。
 
-transaction 固定 retry horizon；旧 key/tombstone 继续返回 410，existing executable legacy 按保存 engine 服务到 expiry。
+transaction 固定 legacy retry horizon，并先完成 backfill 与 expiry tombstone。旧 key/tombstone 继续返回 `410 LEGACY_RETRY_EXPIRED`；existing executable legacy/canary assignment 按保存 engine 与 policy 继续服务到 expiry，不能因当前 mode 改写 assignment。
 
-`ALL_V2` 后，不支持的新 legacy-only request shape 返回 typed `UPGRADE_REQUIRED`，不得为了兼容再创建 legacy assignment。
+`ALL_V2` 后，当前 legacy DTO compatibility adapter 不接入 V2 composition，因此本票不会为 legacy-only shape 新建 assignment；未来若接入不支持的 legacy shape，必须在 transport boundary 返回 typed `UPGRADE_REQUIRED`。switch 后有 expired assignment 的旧请求返回 410；只有无旧证据的 key 才能作为 unseen V2。
 
-测试覆盖 pause/drain timeout、mode generation race、restart、旧 key、unseen key和 existing/canary assignment。
+测试覆盖 guarded pause/drain、mode generation race、startup/restart reconciliation、旧 key 410、unseen V2、existing legacy/canary sticky assignment、backfill/expiry batching 与 rollback。application `195/195`、domain `302/302`、trigger `40/40`、infrastructure `274`（5 个外部服务测试跳过）、app `900/900` 全部通过；本票没有新增或执行数据库 migration。
 
 ## unified-turn-delivery: Unify Sync And Stream Attempt Results
 
