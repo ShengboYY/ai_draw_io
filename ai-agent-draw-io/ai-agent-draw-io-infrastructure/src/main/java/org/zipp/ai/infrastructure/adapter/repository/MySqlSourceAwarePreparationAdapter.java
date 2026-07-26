@@ -39,7 +39,7 @@ import java.util.Objects;
  * a handler is allowed to call a model.
  */
 @Repository
-public final class MySqlSourceAwarePreparationAdapter implements SourceAwarePreparationPort {
+public class MySqlSourceAwarePreparationAdapter implements SourceAwarePreparationPort {
 
     private final RequestSourceSnapshotStore snapshots;
     private final ObjectProvider<EvidencePreparationModule> evidencePreparations;

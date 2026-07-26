@@ -23,7 +23,7 @@ import java.util.Objects;
 /** Executes the exact-artifact visual module and durably hands its projection to Direct generation. */
 @Repository
 @ConditionalOnBean(DirectSourcePreparationModule.class)
-public final class MySqlDirectVisionAdapter implements DirectVisionPort {
+public class MySqlDirectVisionAdapter implements DirectVisionPort {
 
     private final DirectSourcePreparationModule preparation;
     private final RequestSourceSnapshotStore snapshots;
