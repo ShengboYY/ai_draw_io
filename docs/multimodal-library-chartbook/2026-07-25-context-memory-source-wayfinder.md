@@ -556,6 +556,8 @@ M2 已开始，先交付不改变 production assignment 的 application/transpor
 
 本切片补齐 M2 的 response/review strong commit seam：`ResponseTurnCommit` 固定 diagram scope、assistant message 与 payload ref；`MySqlResponseTurnCommitAdapter` 在同一事务内锁定 active attempt/conversation、推进 conversation high-water、写 assistant message 并以 lease/epoch CAS 完成 `turn_execution`。terminal replay、stale/expired attempt 与 missing conversation 在触碰业务写入前返回；terminal CAS 在初始检查后失去 fence 时抛出并依靠事务回滚 message/conversation 写入。新增 4 项 adapter contract tests 与 Plain adapter 回归共 9 项通过。本切片复用现有 M1 message/turn_execution 字段，没有新增或执行 migration；response handler、source-aware Planner 与 production V2 assignment 仍待后续切片。
 
+本切片新增隔离的 `ChatPlainGenerationAdapter` 与 `PlainGenerationPromptRenderer`：只将 bounded Canvas summary、Conversation、Chartbook Profile、confirmed Memory 和 Plain plan 投影给 tool-free fresh session；current-message attachment 的 ref、MIME、display name 与任何 source body 均按 source-free contract omitted。适配器默认由 `zipp.turn.v2.plain-generation.enabled=true` 才注册，严格要求三字段 JSON、bounded assistant/payload、无 DOCTYPE/ENTITY 的 `mxGraphModel`，模型不可用或输出不合约时在 strong commit 前 fail closed。新增 3 项 adapter contract tests，完整 Maven reactor 通过；本切片没有新增或执行 migration，production V2 assignment 仍未改变。
+
 本票同时 owns DTO 的 `currentTurnAttachments`、hidden clarification id、opaque refs 与唯一 compatibility translator。
 
 composer 上传成功只创建 Conversation File。发送消息时，`TurnStartCommitPort` 才把 opaque refs 与该条 user message 原子绑定。
