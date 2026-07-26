@@ -35,7 +35,7 @@ public final class PlainResponseHandler {
     ) {
         this.generation = Objects.requireNonNull(generation, "generation");
         this.commit = Objects.requireNonNull(commit, "commit");
-        this.profile = Objects.requireNonNull(profile, "profile");
+        this.profile = PlainExecutionProfile.requireM2SourceFree(profile);
         this.writeGate = Objects.requireNonNull(writeGate, "writeGate");
     }
 

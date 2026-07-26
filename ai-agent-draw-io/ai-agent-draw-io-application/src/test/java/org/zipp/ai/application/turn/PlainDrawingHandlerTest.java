@@ -1,6 +1,8 @@
 package org.zipp.ai.application.turn;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 import org.zipp.ai.application.turn.context.AbsentContext;
 import org.zipp.ai.application.turn.context.AvailableContext;
 import org.zipp.ai.application.turn.context.BaseTurnContext;
@@ -120,6 +122,37 @@ class PlainDrawingHandlerTest {
         assertEquals(true, registry.isSourceFree());
         assertEquals(List.of(PlainRuntimeCapability.PLAIN_GENERATION),
                 List.copyOf(registry.capabilities()));
+    }
+
+    @Test
+    void legacyOrDynamicProfileCannotEnterTheSourceFreeDrawingHandler() {
+        assertThrows(IllegalArgumentException.class, () -> new PlainDrawingHandler(
+                (request, events) -> new PlainGenerationResult("payload-1", "<mxGraphModel/>", "created"),
+                command -> new FencedCommitOutcome.Rejected("unexpected"),
+                new PlainRuntimeRegistry(),
+                new PlainExecutionProfile("legacy-profile")));
+    }
+
+    @ParameterizedTest
+    @EnumSource(PlainDrawAction.class)
+    void everyPlainDrawingActionUsesTheSameSourceFreeCommitSeam(PlainDrawAction action) {
+        int[] commits = {0};
+        PlainDrawingHandler handler = new PlainDrawingHandler(
+                (request, events) -> new PlainGenerationResult("payload-1", "<mxGraphModel/>", "created"),
+                command -> {
+                    commits[0]++;
+                    assertEquals(action, command.action());
+                    return new FencedCommitOutcome.Committed(new PersistedTurnOutcome(
+                            TurnStatus.COMPLETED, "COMPLETED", "plain", command.payloadRef(), "{}"));
+                },
+                new PlainRuntimeRegistry(),
+                PlainExecutionProfile.m2SourceFree());
+
+        FencedCommitOutcome outcome = handler.execute(
+                attempt(), context(), readSet(), new PlainDrawPlan(action, "draw the flow"), event -> { });
+
+        assertInstanceOf(FencedCommitOutcome.Committed.class, outcome);
+        assertEquals(1, commits[0]);
     }
 
     private FencedAttempt attempt() {

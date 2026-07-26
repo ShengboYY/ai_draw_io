@@ -94,6 +94,14 @@ class PlainResponseHandlerTest {
         assertEquals(0, commits[0]);
     }
 
+    @Test
+    void legacyOrDynamicProfileCannotEnterTheSourceFreeResponseHandler() {
+        assertThrows(IllegalArgumentException.class, () -> new PlainResponseHandler(
+                (request, events) -> new PlainResponseGenerationResult("answer", "response-1"),
+                command -> new FencedCommitOutcome.Rejected("unexpected"),
+                new PlainExecutionProfile("legacy-profile")));
+    }
+
     private FencedAttempt attempt() {
         return new FencedAttempt(
                 new TurnKey("owner-1", "conversation-1", "turn-1"),

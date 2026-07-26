@@ -885,7 +885,7 @@ Type: Research
 ## plain-boundary-evals: Gate The Source-Free V2 Path
 
 Blocked by: source-free-v2-path, turn-lifecycle-evals
-Status: open
+Status: resolved
 Type: Research
 
 ### Question
@@ -894,23 +894,15 @@ Type: Research
 
 ### Answer
 
-Pending. 最低矩阵：
+M2 source-free boundary 已收口，生产 assignment 仍保持 legacy：
 
-- Plain CREATE/EDIT/LAYOUT 对 Probe、Snapshot、Material、RAG、Evidence 和 citation ports 的调用数全为零；这些依赖故障时仍成功；
-- Plain runtime registry 只含 `PlainGenerationPort` 的 tool-free profile；恶意 prompt/Profile/Memory 也不能触达 source 或 memory-management tools；
-- 纯 style/layout、技术词和 Profile/Memory 文本不得误触 Retrieval；
-- 只修改 Profile/Memory/history 时 restricted demand input digest 不变；renderer contract 禁止这些 slice 进入输入；
-- 多语言标注集覆盖明确文本、否定表达、弱指代和普通任务的 Optional Discovery；FP/FN、澄清率与 discovery 误触发率是质量 gate；
-- Resolver 穷举 evidence digest、message binding、referent、model/policy version 和 confidence threshold；
-- 任一模型 port 输出非法时 typed unavailable，零 source/业务 mutation；
-- Semantic Router 或 Demand Interpreter 任一超时/invalid 时，所有 path typed unavailable，且 source/业务 mutation 调用数为零；
-- 文件只上传未发送不能成为 Direct；随消息发送后 binding 在 retry/restart/takeover 中稳定；
-- “画用户登录流程”在有相关文档时提出 Optional Discovery；无 availability 时 SourceFree，Probe no-match/unavailable 时 signed fallback；
-- poisoned/stale/wrong-conversation runtime session 必须被丢弃；并发 turn、restart/takeover 只从 pinned input 重建并得到相同实际 input digest；
-- 旧 conversation alias 与 canonical id 命中同一 assignment/execution；并发 turn 的 context high-water 不读到未来消息；
-- Plain mutation、assistant message 与 terminal fault-injection 不产生半提交。
+- `PlainDrawingHandlerTest` 以参数化矩阵覆盖 CREATE/EDIT/LAYOUT；generation failure、write gate disabled 与每个动作都证明不会绕过一次 fenced commit；`PlainResponseHandlerTest` 覆盖 response failure 与 disabled gate；
+- `PlainRuntimeRegistry` 只能暴露 `PLAIN_GENERATION`，`PlainBoundaryContractTest` 反射锁定 Plain handler 的构造器/字段不含 Source、Snapshot、Material、RAG、Evidence、Citation 或 Retrieval seam；两个 handler 拒绝 legacy/dynamic execution profile；
+- `ChatPlainGenerationAdapterTest` 与 `ChatPlainResponseAdapterTest` 验证 fresh tool-free session、严格 JSON schema、非法模型输出 typed unavailable，以及当前消息附件永远不进入 Plain prompt；Profile/Memory 仅作为不可信 DATA 块投影，不能提供 source facts 或 retrieval tool；
+- `TurnV2ExecutionCompositionConfigTest` 验证 Plain drawing/response 只有在对应 generation + commit ports 同时存在时才装配，且运行图仍与 legacy assignment 隔离；
+- application reactor 全量测试 `121/121` 通过；M2 infrastructure adapter 及 composition 定向测试 `9/9` 通过，未新增或执行 migration。
 
-该票只证明 source-free boundary，不单独打开 production cohort。M6 的 all-path canary 仍依赖所有 source-aware gates。
+本票只证明 source-free boundary，不打开 production cohort。M6 的 all-path canary 仍依赖 source-aware planning、clarification、commit 与 session continuity gates。
 
 ## source-aware-boundary-evals: Gate The M6 Source Cutover
 

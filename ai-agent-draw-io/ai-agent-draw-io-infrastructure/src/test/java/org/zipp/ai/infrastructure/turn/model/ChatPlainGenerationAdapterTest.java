@@ -63,6 +63,12 @@ class ChatPlainGenerationAdapterTest {
         assertTrue(chat.lastText.contains("PLAIN_SOURCE_FREE_GENERATION_V1"));
         assertTrue(chat.lastText.contains("PLAIN_EXECUTION_PROFILE: m2-plain-source-free"));
         assertTrue(chat.lastText.contains("CURRENT_MESSAGE_ATTACHMENTS: OMITTED_BY_SOURCE_FREE_CONTRACT"));
+        assertTrue(chat.lastText.contains("CHARTBOOK_PROFILE_DATA"));
+        assertTrue(chat.lastText.contains("keep labels short"));
+        assertTrue(chat.lastText.contains("CONFIRMED_MEMORY_DATA"));
+        assertTrue(chat.lastText.contains("use short labels"));
+        assertFalse(chat.lastText.contains("SOURCE_AVAILABILITY"));
+        assertFalse(chat.lastText.contains("SOURCE_BODY"));
         assertFalse(chat.lastText.contains("private-spec.pdf"));
         assertFalse(chat.lastText.contains("attachment-secret"));
     }

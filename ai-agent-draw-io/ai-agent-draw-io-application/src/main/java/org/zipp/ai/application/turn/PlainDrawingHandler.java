@@ -43,7 +43,7 @@ public final class PlainDrawingHandler {
         this.generation = Objects.requireNonNull(generation, "generation");
         this.commit = Objects.requireNonNull(commit, "commit");
         this.runtime = Objects.requireNonNull(runtime, "runtime");
-        this.profile = Objects.requireNonNull(profile, "profile");
+        this.profile = PlainExecutionProfile.requireM2SourceFree(profile);
         this.writeGate = Objects.requireNonNull(writeGate, "writeGate");
     }
 
