@@ -929,7 +929,7 @@ M6 source-aware boundary gate 已落成，并继续只在 isolated executor 中�
 ## context-memory-evals: Lock Later Context And Memory Boundaries
 
 Blocked by: session-continuity, chartbook-profile, memory-v1, ux-receipts
-Status: open
+Status: resolved
 Type: Research
 
 ### Question
@@ -938,22 +938,13 @@ Type: Research
 
 ### Answer
 
-Pending. 最低矩阵：
+Context/Memory boundary gate 已完成，durable read-set 是 takeover/restart 的唯一上下文 authority：
 
-- 后端重启后对话连续；
-- session cache key 绑定 actor/conversation/high-water/read-set/input digest；poisoned、stale、wrong-conversation cache 均丢弃并返回新 session id；
-- concurrent turn、restart、takeover 与 runtime session replacement 都必须从 durable Conversation + pinned read set 产生相同实际 input digest；
-- 同 Chartbook 跨图 instructions/memory 生效，跨 Chartbook/Owner 不泄漏；
-- Memory unavailable 不阻断普通画图，stale/conflicting memory 可见；
-- initial read 后修改 summary/Profile/Memory，再 takeover 仍使用同一 read set；hard revoke 不泄漏旧内容；
-- Memory mid-recall failure 只能 diagnostic-only degraded，零条 Memory 进入 prompt；
-- Context projector 只返回 conflict diagnostic，不做 observer I/O；post-terminal observer 故障时 Plain terminal 仍成功且不重试业务 commit；
-- Profile/Memory 不能触发 Retrieval、扩大 scope 或支持 citation；
-- 普通 turn 没有 declaration 时 proposal 写入数为零；同 TurnKey declaration mismatch conflict，retry/takeover 使用首次 pin；
-- sanitizer 拒绝 secret/PII、external fact、Profile-owned field 与 oversized payload，且 DB/terminal/trace 都无原文或内容 digest；
-- proposal 覆盖 PENDING→MATERIALIZED/EXPIRED/REVOKED、短 TTL、payload scrub、typed Gone、Chartbook/account purge 与 delete/replay/materialize race；
-- Memory → Profile promotion 的成功、两个 version conflict、幂等重试与故障注入都不能产生双 truth；
-- trace 只补充 slice status、counts、budgets 与结果，不记录 Context/Profile/Memory 正文。
+- `ContextReadSet` digest 现在有明确回归，覆盖 message high-water、Profile pin 和 confirmed Memory pin；`DefaultBaseTurnContextAssembler` 在已有 winner、CAS retry 和 revoked materialization 时不会重新读取 live candidate 或把 loser candidate 送入 Router。
+- `MySqlTurnContextAdapter` 已补齐真实 adapter contract：Profile/Memory revision 或 digest 漂移统一 `Retry`；Malformed Profile、重复 decision key 或非法 Memory JSON 只把对应 optional slice 标为 `DegradedContext`，Canvas/Plain 不被阻断；跨 owner Chartbook 的 membership/Profile/Memory 均保持 absent。
+- `BaseTurnContextBoundaryTest` 与 restricted demand projector 锁定：Profile/Memory 可作为 Router context data，但不能进入 Source Demand；degraded/stale/conflicting slices 不会被伪装成 live facts。Plain path 没有 Source/Material/Retrieval/Citation seam，Memory 也不能触发资料调用。
+- Memory v1 的 sanitizer、owner/Chartbook scope、candidate lifecycle、payload scrub、version CAS、revoke/delete race 与 shadow-only extraction 已由既有 application/infrastructure tests 覆盖；自动 extraction 不写 candidate、不进入 Context、不自动 confirmed。
+- 本轮验证：domain `302/302`、application `190/190`、infrastructure `271` 通过、`5` 个需要外部服务的测试跳过。没有新增或执行数据库 migration；生产 assignment 仍保持 legacy。session cache、PROJECT_AUTO scope 和 unified sync/stream delivery 仍由 M6 canary/cutover tickets 负责。
 
 ## delivery-plan: Convert Resolved Decisions Into Small Commits
 

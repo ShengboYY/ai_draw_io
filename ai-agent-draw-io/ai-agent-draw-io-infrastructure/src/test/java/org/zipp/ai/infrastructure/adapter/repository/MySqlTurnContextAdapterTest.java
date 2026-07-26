@@ -20,6 +20,7 @@ import org.zipp.ai.application.turn.context.ContextReadSet;
 import org.zipp.ai.application.turn.context.TrustedCanvasContext;
 import org.zipp.ai.application.turn.context.ConversationContext;
 import org.zipp.ai.application.turn.context.ConfirmedMemoryContext;
+import org.zipp.ai.application.turn.context.DegradedContext;
 
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Proxy;
@@ -147,6 +148,100 @@ class MySqlTurnContextAdapterTest {
     }
 
     @Test
+    void profileOrMemoryRevisionChangeAfterPinningRequiresRetry() {
+        UserTurnCommand command = command();
+        FencedAttempt attempt = attempt(command);
+        Map<String, Object> initial = activeChartbookDomain();
+        initial.put("chartbook_profile_version", 3L);
+        initial.put("chartbook_profile_instructions", "Use swimlanes");
+        initial.put("chartbook_profile_glossary_json", "{\"SLO\":\"service objective\"}");
+        initial.put("chartbook_profile_default_style_json", "{}");
+        initial.put("chartbook_profile_stable_constraints_json", "[]");
+        initial.put("chartbook_profile_state", "CONFIGURED");
+        initial.put("chartbook_memory_version", 1L);
+        initial.put("chartbook_memory_json",
+                "[{\"decisionKey\":\"labels\",\"text\":\"Prefer short labels\"}]");
+
+        ContextReadSet readSet = assertInstanceOf(
+                ContextCandidateLoadOutcome.Ready.class,
+                new MySqlTurnContextAdapter(jdbc(
+                        executionRow(attempt), initial, List.of()))
+                        .loadCandidate(attempt, command)).value().readSet();
+
+        Map<String, Object> changedProfile = new HashMap<>(initial);
+        changedProfile.put("chartbook_profile_version", 4L);
+        assertInstanceOf(
+                ContextMaterializationOutcome.Retry.class,
+                new MySqlTurnContextAdapter(jdbc(
+                        executionRow(attempt), changedProfile, List.of()))
+                        .materialize(attempt, command, readSet));
+
+        Map<String, Object> changedMemory = new HashMap<>(initial);
+        changedMemory.put("chartbook_memory_version", 2L);
+        assertInstanceOf(
+                ContextMaterializationOutcome.Retry.class,
+                new MySqlTurnContextAdapter(jdbc(
+                        executionRow(attempt), changedMemory, List.of()))
+                        .materialize(attempt, command, readSet));
+    }
+
+    @Test
+    void malformedProfileAndConflictingMemoryDegradeOnlyOptionalSlices() {
+        UserTurnCommand command = command();
+        FencedAttempt attempt = attempt(command);
+        Map<String, Object> domain = activeChartbookDomain();
+        domain.put("chartbook_profile_version", 3L);
+        domain.put("chartbook_profile_glossary_json", "{malformed");
+        domain.put("chartbook_profile_default_style_json", "{}");
+        domain.put("chartbook_profile_stable_constraints_json", "[]");
+        domain.put("chartbook_profile_state", "CONFIGURED");
+        domain.put("chartbook_memory_version", 1L);
+        domain.put("chartbook_memory_json",
+                "[{\"decisionKey\":\"labels\",\"text\":\"short\"},"
+                        + "{\"decisionKey\":\"labels\",\"text\":\"long\"}]");
+
+        MySqlTurnContextAdapter adapter = new MySqlTurnContextAdapter(
+                jdbc(executionRow(attempt), domain, List.of()));
+        ContextReadSet readSet = assertInstanceOf(
+                ContextCandidateLoadOutcome.Ready.class,
+                adapter.loadCandidate(attempt, command)).value().readSet();
+        ContextMaterializationOutcome.Ready materialized = assertInstanceOf(
+                ContextMaterializationOutcome.Ready.class,
+                adapter.materialize(attempt, command, readSet));
+
+        assertInstanceOf(AvailableContext.class, materialized.value().canvas());
+        assertInstanceOf(DegradedContext.class, materialized.value().chartbook());
+        assertInstanceOf(DegradedContext.class, materialized.value().memory());
+    }
+
+    @Test
+    void chartbookOwnedByAnotherActorIsNotProjectedIntoContext() {
+        UserTurnCommand command = command();
+        FencedAttempt attempt = attempt(command);
+        Map<String, Object> domain = activeChartbookDomain();
+        domain.put("chartbook_owner_key", "owner-2");
+        domain.put("chartbook_profile_version", 3L);
+        domain.put("chartbook_memory_version", 1L);
+        domain.put("chartbook_memory_json",
+                "[{\"decisionKey\":\"labels\",\"text\":\"private\"}]");
+
+        MySqlTurnContextAdapter adapter = new MySqlTurnContextAdapter(
+                jdbc(executionRow(attempt), domain, List.of()));
+        ContextReadSet readSet = assertInstanceOf(
+                ContextCandidateLoadOutcome.Ready.class,
+                adapter.loadCandidate(attempt, command)).value().readSet();
+        ContextMaterializationOutcome.Ready materialized = assertInstanceOf(
+                ContextMaterializationOutcome.Ready.class,
+                adapter.materialize(attempt, command, readSet));
+
+        assertEquals("NO_ACTIVE_CHARTBOOK", readSet.membership().reference());
+        assertEquals("PROFILE_NOT_AVAILABLE", readSet.profile().reference());
+        assertEquals("NO_CONFIRMED_MEMORY", readSet.memory().reference());
+        assertInstanceOf(AbsentContext.class, materialized.value().chartbook());
+        assertInstanceOf(AbsentContext.class, materialized.value().memory());
+    }
+
+    @Test
     void conversationContextIsRebuiltFromThePinnedMessageHighWater() {
         UserTurnCommand command = command();
         FencedAttempt attempt = attempt(command);
@@ -233,6 +328,16 @@ class MySqlTurnContextAdapterTest {
                 "chartbook_owner_key", null,
                 "chartbook_status", null,
                 "chartbook_updated_at", null);
+    }
+
+    private static Map<String, Object> activeChartbookDomain() {
+        Map<String, Object> domain = domainRow(2L, "canvas-hash", "<xml>");
+        domain.put("diagram_chartbook_id", "book-1");
+        domain.put("active_chartbook_id", "book-1");
+        domain.put("chartbook_owner_key", "owner-1");
+        domain.put("chartbook_status", "ACTIVE");
+        domain.put("chartbook_updated_at", Timestamp.from(UPDATED_AT));
+        return domain;
     }
 
     private static JdbcOperations jdbc(

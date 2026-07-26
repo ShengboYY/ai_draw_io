@@ -20,6 +20,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ContextReadSetContractTest {
@@ -33,6 +34,22 @@ class ContextReadSetContractTest {
         assertTrue(!first.digest().equals(changed.digest()));
         assertEquals(17, first.messageHighWater());
         assertEquals("profile-v1", first.profile().reference());
+    }
+
+    @Test
+    void readSetDigestChangesWhenConfirmedMemoryPinChanges() {
+        ContextReadSet absent = readSet(17, "profile-v1", 1);
+        ContextReadSet pinned = ContextReadSet.create(
+                1,
+                17,
+                absent.summary(),
+                absent.membership(),
+                absent.profile(),
+                ContextSlicePin.pinned(ContextSlice.MEMORY, "memory-v2", 2, digest('d')));
+
+        assertNotEquals(absent.digest(), pinned.digest());
+        assertEquals("memory-v2", pinned.memory().reference());
+        assertEquals(2, pinned.memory().version());
     }
 
     @Test
