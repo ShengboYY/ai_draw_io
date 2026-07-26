@@ -59,6 +59,19 @@ public final class MemoryPolicySanitizer {
         return sanitizeText(value);
     }
 
+    /**
+     * Applies the v1 content boundary to an automatic shadow candidate. This method deliberately
+     * does not accept a MemoryWriteDeclaration, so shadow output cannot become a v1 proposal.
+     */
+    public TextSanitizationOutcome sanitizeShadowText(String value) {
+        return sanitizeText(value);
+    }
+
+    /** Profile owns these fields; automatic Memory must never claim them through a key. */
+    public boolean isProfileOwnedField(String value) {
+        return value != null && PROFILE_FIELD.matcher(value).find();
+    }
+
     private TextSanitizationOutcome sanitizeText(String rawText) {
         String text = normalizeText(rawText);
         if (text.isBlank()) {

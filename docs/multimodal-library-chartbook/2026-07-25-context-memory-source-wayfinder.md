@@ -816,7 +816,7 @@ v1 仍只承载 `CONFIRMED_DECISION`；术语、style、stable constraints 继�
 ## memory-automation: Add Extraction And Consolidation Carefully
 
 Blocked by: memory-v1
-Status: open
+Status: resolved
 Type: Prototype
 
 ### Question
@@ -825,7 +825,15 @@ Type: Prototype
 
 ### Answer
 
-Pending. 必须先在 shadow mode 评估误记、冲突、敏感信息和 stale memory；自动结果不能直接升级为 confirmed。跨 Chartbook 用户画像/偏好不属于 v1，并需未来独立产品合同。
+已完成一个不接生产路由的 shadow-only application prototype：
+
+- `MemoryShadowTurnCommitted` 只接收已完成 turn、同一 Chartbook 和 bounded extractor output；没有 source、Profile、Memory recall 或隐式 remember declaration 入口。
+- `MemoryExtractionShadowService` 先复用 Memory v1 的 secret/PII/external-fact/text policy，再检查 decision key 的 Profile ownership；拒绝只返回 safe reason code，不返回正文。
+- 同一 decision key + applicability stage 下，相同规范化文本标记 `DUPLICATE`，不同文本全部标记 `CONFLICT`，不静默合并；过期 post-turn event 统一标记 `MEMORY_SHADOW_STALE_EVENT`。
+- 输出只有 in-memory `MemoryShadowReport` 和 precision/conflict/rejection/stale 计数，没有 `MemoryCandidateStorePort` 依赖，不创建 candidate、不写 `chartbook_memory`、不进入 Context，也不自动 confirmed。
+- 新增 5 个 application tests，覆盖安全候选/重复、冲突、敏感与 Profile 字段、stale event；application 模块全测 174/174 通过。
+
+后续若要生产化，仍需独立的 `TurnCommitted` outbox、匿名化/权限化 shadow sink、confirm/reject/precision 指标和用户确认入口；这些不在本票内。
 
 ## ux-receipts: Make Context Use Visible Without Technical Modes
 
