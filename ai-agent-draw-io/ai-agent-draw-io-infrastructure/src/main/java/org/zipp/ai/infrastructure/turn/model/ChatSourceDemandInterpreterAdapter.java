@@ -3,6 +3,7 @@ package org.zipp.ai.infrastructure.turn.model;
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONObject;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.zipp.ai.application.turn.demand.AmbiguousSourceDemandProposal;
@@ -40,6 +41,8 @@ public final class ChatSourceDemandInterpreterAdapter implements SourceDemandInt
     private final String policyVersion;
     private final RestrictedSourceDemandPromptRenderer renderer = new RestrictedSourceDemandPromptRenderer();
 
+    // Select the production constructor; the package-private overloads are test-only.
+    @Autowired
     public ChatSourceDemandInterpreterAdapter(
             IChatService chat,
             @Value("${zipp.turn.v2.source-demand-agent-id:300024}") String agentId,

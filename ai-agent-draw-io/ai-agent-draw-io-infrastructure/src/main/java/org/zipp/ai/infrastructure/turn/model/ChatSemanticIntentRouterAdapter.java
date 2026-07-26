@@ -2,6 +2,7 @@ package org.zipp.ai.infrastructure.turn.model;
 
 import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONObject;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.zipp.ai.application.turn.classification.OutputIntent;
@@ -27,6 +28,8 @@ public final class ChatSemanticIntentRouterAdapter implements SemanticIntentRout
     private final ToolFreeChatModelInvoker model;
     private final SemanticRouterPromptRenderer renderer = new SemanticRouterPromptRenderer();
 
+    // Select the production constructor; the package-private overload is test-only.
+    @Autowired
     public ChatSemanticIntentRouterAdapter(
             IChatService chat,
             @Value("${zipp.turn.v2.semantic-router-agent-id:300023}") String agentId

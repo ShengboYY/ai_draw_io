@@ -2,6 +2,7 @@ package org.zipp.ai.infrastructure.turn.model;
 
 import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONObject;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
@@ -24,6 +25,8 @@ public final class ChatPlainGenerationAdapter implements PlainGenerationPort {
     private final ToolFreeChatModelInvoker model;
     private final PlainGenerationPromptRenderer renderer = new PlainGenerationPromptRenderer();
 
+    // Select the production constructor; the package-private overload is test-only.
+    @Autowired
     public ChatPlainGenerationAdapter(
             IChatService chat,
             @Value("${zipp.turn.v2.plain-agent-id:300025}") String agentId
