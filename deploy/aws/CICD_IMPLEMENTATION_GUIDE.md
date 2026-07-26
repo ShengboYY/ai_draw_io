@@ -457,7 +457,8 @@ IAM -> Identity providers -> Add provider
       ],
       "Resource": [
         "arn:aws:ecr:ap-southeast-2:<AWS_ACCOUNT_ID>:repository/ai-drawio-backend",
-        "arn:aws:ecr:ap-southeast-2:<AWS_ACCOUNT_ID>:repository/ai-drawio-frontend"
+        "arn:aws:ecr:ap-southeast-2:<AWS_ACCOUNT_ID>:repository/ai-drawio-frontend",
+        "arn:aws:ecr:ap-southeast-2:<AWS_ACCOUNT_ID>:repository/ai-drawio-db-migrate"
       ]
     }
   ]
@@ -785,6 +786,15 @@ jobs:
           --tag ai-drawio-frontend:ci
           ai-agent-draw-io-front
 
+      - name: Build database migration image
+        run: >-
+          docker build
+          --provenance=false
+          --platform linux/amd64
+          --file deploy/aws/database/Dockerfile.20260801
+          --tag ai-drawio-db-migrate:ci
+          .
+
   publish-images:
     name: publish-images
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
@@ -846,6 +856,22 @@ jobs:
             docker push "$ECR_REGISTRY/$ECR_FRONTEND_REPOSITORY:$IMAGE_TAG"
           fi
 
+          if aws ecr describe-images \
+            --repository-name "$ECR_MIGRATION_REPOSITORY" \
+            --image-ids imageTag="$IMAGE_TAG" \
+            > /dev/null 2>&1; then
+            echo "Migration image already exists; immutable tag will be reused."
+          else
+            docker build \
+              --provenance=false \
+              --platform linux/amd64 \
+              --file deploy/aws/database/Dockerfile.20260801 \
+              --tag "$ECR_REGISTRY/$ECR_MIGRATION_REPOSITORY:$IMAGE_TAG" \
+              .
+
+            docker push "$ECR_REGISTRY/$ECR_MIGRATION_REPOSITORY:$IMAGE_TAG"
+          fi
+
       - name: Write publication summary
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
@@ -857,6 +883,7 @@ jobs:
             echo "- Commit: \`${GITHUB_SHA}\`"
             echo "- Backend: \`${ECR_REGISTRY}/${ECR_BACKEND_REPOSITORY}:${IMAGE_TAG}\`"
             echo "- Frontend: \`${ECR_REGISTRY}/${ECR_FRONTEND_REPOSITORY}:${IMAGE_TAG}\`"
+            echo "- Migration: \`${ECR_REGISTRY}/${ECR_MIGRATION_REPOSITORY}:${IMAGE_TAG}\`"
           } >> "$GITHUB_STEP_SUMMARY"
 ```
 

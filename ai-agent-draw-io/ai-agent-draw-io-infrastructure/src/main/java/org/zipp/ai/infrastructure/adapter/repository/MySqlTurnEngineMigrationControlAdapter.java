@@ -125,6 +125,10 @@ public class MySqlTurnEngineMigrationControlAdapter
         if (current == null) {
             return new MigrationModeSwitchOutcome.Rejected("TURN_MIGRATION_STATE_MISSING");
         }
+        // The legacy HTTP ingress is still live; never persist RETIRED until that boundary is removed.
+        if (command.targetMode() == TurnEngineMode.RETIRED) {
+            return new MigrationModeSwitchOutcome.Rejected("LEGACY_INGRESS_NOT_REMOVED");
+        }
         if (current.mode == command.targetMode()) {
             return new MigrationModeSwitchOutcome.AlreadyAtTarget(current.snapshot());
         }
@@ -154,8 +158,7 @@ public class MySqlTurnEngineMigrationControlAdapter
     private boolean isAllowedTransition(TurnEngineMode current, TurnEngineMode target) {
         return (current == TurnEngineMode.LEGACY && target == TurnEngineMode.V2_CANARY)
                 || (current == TurnEngineMode.V2_CANARY
-                && (target == TurnEngineMode.LEGACY || target == TurnEngineMode.ALL_V2))
-                || (current == TurnEngineMode.ALL_V2 && target == TurnEngineMode.RETIRED);
+                && (target == TurnEngineMode.LEGACY || target == TurnEngineMode.ALL_V2));
     }
 
     @Override

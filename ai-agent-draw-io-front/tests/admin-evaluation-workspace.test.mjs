@@ -13,7 +13,7 @@ const evaluationOverview = read('../src/app/admin/evaluations/page.tsx');
 const legacyCandidates = read('../src/app/admin/eval-candidates/page.tsx');
 const canonicalFindings = read('../src/app/admin/trace-findings/page.tsx');
 const traceRuns = read('../src/app/admin/runs/page.tsx');
-const traceDetail = read('../src/app/admin/runs/[runId]/page.tsx');
+const traceDetail = read('../src/app/admin/runs/run-trace-detail.tsx');
 const evalRunDetail = read('../src/app/admin/eval-runs/[evalRunId]/page.tsx');
 const operations = read('../src/app/admin/eval-operations/page.tsx');
 const cases = read('../src/app/admin/eval-cases/page.tsx');
@@ -69,7 +69,8 @@ test('Trace Analysis owns runs, findings and miner entry points', () => {
   assert.doesNotMatch(traceWorkspace, /<nav/);
   assert.match(traceRuns, /TraceAnalysisWorkspace/);
   assert.match(traceRuns, /active="runs"/);
-  assert.match(traceDetail, /TraceAnalysisWorkspace active="runs"/);
+  assert.match(traceDetail, /export function RunTraceDetail/);
+  assert.match(traceDetail, /TracePayloadPanel/);
   assert.match(legacyCandidates, /TraceAnalysisWorkspace active="findings"/);
   assert.match(legacyCandidates, /Scan the latest completed Traces by default/);
   assert.match(legacyCandidates, /Visual anomaly discovery/);

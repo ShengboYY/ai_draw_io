@@ -92,7 +92,8 @@ public final class TurnEngineAdmissionService {
             case LEGACY -> SelectedTurnEngine.LEGACY;
             case V2_CANARY -> cohortSelector.select(actor.cohortKey());
             case ALL_V2 -> SelectedTurnEngine.V2;
-            case RETIRED -> null;
+            // RETIRED means the legacy executor is gone; V2 admission remains live.
+            case RETIRED -> SelectedTurnEngine.V2;
         };
     }
 }

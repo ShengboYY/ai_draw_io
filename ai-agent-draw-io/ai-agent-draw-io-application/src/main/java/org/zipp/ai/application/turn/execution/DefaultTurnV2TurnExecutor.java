@@ -62,23 +62,15 @@ public final class DefaultTurnV2TurnExecutor implements TurnV2TurnExecutor {
                         terminal.code(),
                         "preparation");
             }
-            if (outcome instanceof TurnV2ExecutionOutcome.NotDispatched notDispatched
-                    && notDispatched.decision() instanceof TurnRouteDecision.Unsupported unsupported) {
-                return terminalCommit(
-                        accepted,
-                        TurnStatus.REJECTED,
-                        unsupported.value().code(),
-                        "rejection");
-            }
-            if (outcome instanceof TurnV2ExecutionOutcome.NotDispatched notDispatched
-                    && notDispatched.decision() instanceof TurnRouteDecision.Clarification) {
-                // Clarification cannot be safely resumed after restart until its options and
-                // authority are durably persisted; make the deferred boundary terminal.
-                return terminalCommit(
-                        accepted,
-                        TurnStatus.REJECTED,
-                        "CLARIFICATION_DEFERRED",
-                        "rejection");
+            if (outcome instanceof TurnV2ExecutionOutcome.NotDispatched notDispatched) {
+                // A missing path is a durable rejection, not an attempt self-abort. This keeps
+                // source-aware gaps visible and prevents retries from silently changing routes.
+                String code = notDispatched.decision() instanceof TurnRouteDecision.Unsupported unsupported
+                        ? unsupported.value().code()
+                        : notDispatched.decision() instanceof TurnRouteDecision.Clarification
+                        ? "CLARIFICATION_DEFERRED"
+                        : notDispatched.code();
+                return terminalCommit(accepted, TurnStatus.REJECTED, code, "rejection");
             }
             return mapExecutionOutcome(accepted, outcome);
         } catch (RuntimeException ignored) {

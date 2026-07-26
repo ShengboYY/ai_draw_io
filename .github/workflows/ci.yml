@@ -23,6 +23,19 @@ jobs:
     name: backend-ci
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_DATABASE: ai_draw_io_test
+          MYSQL_ROOT_PASSWORD: ci-root-password
+        ports:
+          - 3307:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -pci-root-password"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=30
 
     steps:
       - name: Checkout repository
@@ -36,12 +49,90 @@ jobs:
           cache: maven
           cache-dependency-path: ai-agent-draw-io/**/pom.xml
 
+      - name: Prepare isolated MySQL schema-test database
+        env:
+          MYSQL_HOST: 127.0.0.1
+          MYSQL_PORT: "3307"
+          MYSQL_USER: root
+          MYSQL_PASSWORD: ci-root-password
+        run: |
+          set -euo pipefail
+
+          for attempt in $(seq 1 60); do
+            if mysqladmin --protocol=TCP -h "$MYSQL_HOST" -P "$MYSQL_PORT" \
+                -u "$MYSQL_USER" -p"$MYSQL_PASSWORD" ping >/dev/null 2>&1; then
+              break
+            fi
+            if [ "$attempt" = 60 ]; then
+              echo "MySQL service did not become ready." >&2
+              exit 1
+            fi
+            sleep 2
+          done
+
+          # Keep CI schema tests on a disposable local database; never point them at RDS.
+          schema_files=(
+            ai-agent-draw-io/docs/sql/skill.sql
+            ai-agent-draw-io/docs/sql/diagram.sql
+            ai-agent-draw-io/docs/sql/account.sql
+            ai-agent-draw-io/docs/sql/admin.sql
+            ai-agent-draw-io/docs/sql/debug-trace.sql
+            ai-agent-draw-io/docs/sql/usage-counter.sql
+            ai-agent-draw-io/docs/sql/usage-telemetry.sql
+            ai-agent-draw-io/docs/sql/migrations/2026-07-19-create-material-rag-foundation.sql
+            ai-agent-draw-io/docs/sql/migrations/2026-07-20-create-secure-upload-intake.sql
+            ai-agent-draw-io/docs/sql/migrations/2026-07-21-create-materialization-promotion.sql
+            ai-agent-draw-io/docs/sql/migrations/2026-07-22-create-document-processing-artifacts.sql
+            ai-agent-draw-io/docs/sql/migrations/2026-07-23-create-document-structure-artifacts.sql
+            ai-agent-draw-io/docs/sql/migrations/2026-07-24-scope-document-section-identity.sql
+            ai-agent-draw-io/docs/sql/migrations/2026-07-25-create-visual-crop-artifacts.sql
+            ai-agent-draw-io/docs/sql/migrations/2026-07-26-create-turn-execution-control.sql
+            ai-agent-draw-io/docs/sql/migrations/2026-07-26-pin-evidence-artifact-versions.sql
+            ai-agent-draw-io/docs/sql/migrations/2026-07-27-add-turn-input-binding-payload.sql
+            ai-agent-draw-io/docs/sql/migrations/2026-07-27-migrate-conversation-scopes.sql
+            ai-agent-draw-io/docs/sql/migrations/2026-07-27-pin-retrieval-artifact-versions.sql
+            ai-agent-draw-io/docs/sql/migrations/2026-07-28-create-chartbook-profile.sql
+            ai-agent-draw-io/docs/sql/migrations/2026-07-28-create-turn-lifecycle-trace.sql
+            ai-agent-draw-io/docs/sql/migrations/2026-07-28-create-vector-projection-artifacts.sql
+            ai-agent-draw-io/docs/sql/migrations/2026-07-29-enforce-index-generation-publication.sql
+            ai-agent-draw-io/docs/sql/migrations/2026-07-30-create-material-processing-usage.sql
+            ai-agent-draw-io/docs/sql/migrations/2026-07-30-create-source-aware-commit-boundaries.sql
+            ai-agent-draw-io/docs/sql/migrations/2026-07-31-create-confirmed-memory.sql
+            ai-agent-draw-io/docs/sql/migrations/2026-07-31-pin-revision-gap-manifest.sql
+          )
+          for schema in "${schema_files[@]}"; do
+            # The checked-in SQL targets production's name; CI rewrites only the disposable DB name.
+            sed 's/ai_draw_io/ai_draw_io_test/g' "$schema" \
+              | mysql --protocol=TCP -h "$MYSQL_HOST" -P "$MYSQL_PORT" \
+                  -u "$MYSQL_USER" -p"$MYSQL_PASSWORD"
+          done
+
       - name: Run backend tests
-        run: >-
-          mvn -B
-          -s ai-agent-draw-io/docker/maven-settings.xml
-          -f ai-agent-draw-io/pom.xml
-          test
+        env:
+          M1_MYSQL_TEST_ENABLED: "true"
+          M1_MYSQL_JDBC_URL: jdbc:mysql://127.0.0.1:3307/ai_draw_io_test?useSSL=false&allowPublicKeyRetrieval=true
+          M1_MYSQL_USER: root
+          M1_MYSQL_PASSWORD: ci-root-password
+          M2_MYSQL_TEST_ENABLED: "true"
+          M2_MYSQL_JDBC_URL: jdbc:mysql://127.0.0.1:3307/ai_draw_io_test?useSSL=false&allowPublicKeyRetrieval=true
+          M2_MYSQL_USER: root
+          M2_MYSQL_PASSWORD: ci-root-password
+          M5_MYSQL_TEST_ENABLED: "true"
+          M5_MYSQL_JDBC_URL: jdbc:mysql://127.0.0.1:3307/ai_draw_io_test?useSSL=false&allowPublicKeyRetrieval=true
+          M5_MYSQL_USER: root
+          M5_MYSQL_PASSWORD: ci-root-password
+        run: |
+          set -euo pipefail
+          for jdbc_url in "$M1_MYSQL_JDBC_URL" "$M2_MYSQL_JDBC_URL" "$M5_MYSQL_JDBC_URL"; do
+            case "$jdbc_url" in
+              jdbc:mysql://127.0.0.1:3307/ai_draw_io_test\?*) ;;
+              *)
+                echo "Schema tests must use the local CI MySQL service: $jdbc_url" >&2
+                exit 1
+                ;;
+            esac
+          done
+          mvn -B -s ai-agent-draw-io/docker/maven-settings.xml -f ai-agent-draw-io/pom.xml test
 
       - name: Verify module sentinel reports
         run: |
@@ -132,7 +223,7 @@ jobs:
           docker build
           --provenance=false
           --platform linux/amd64
-          --file deploy/aws/database/Dockerfile.20260731
+          --file deploy/aws/database/Dockerfile.20260801
           --tag ai-drawio-db-migrate:ci
           .
 
@@ -228,7 +319,7 @@ jobs:
             docker build \
               --provenance=false \
               --platform linux/amd64 \
-              --file deploy/aws/database/Dockerfile.20260731 \
+              --file deploy/aws/database/Dockerfile.20260801 \
               --tag "$migration_uri" \
               .
           else

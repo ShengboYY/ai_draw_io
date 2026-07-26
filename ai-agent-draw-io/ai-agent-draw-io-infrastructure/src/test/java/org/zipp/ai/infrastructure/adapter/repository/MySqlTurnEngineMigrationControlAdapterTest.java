@@ -111,17 +111,18 @@ class MySqlTurnEngineMigrationControlAdapterTest {
     }
 
     @Test
-    void allowsAllV2ToRetire() {
+    void refusesRetirementWhileLegacyIngressStillExists() {
         JdbcStub jdbc = new JdbcStub(
                 List.of(migrationRow(4, TurnEngineMode.ALL_V2), migrationRow(5, TurnEngineMode.RETIRED)),
                 1);
 
-        MigrationModeSwitchOutcome.Changed changed = assertInstanceOf(
-                MigrationModeSwitchOutcome.Changed.class,
+        MigrationModeSwitchOutcome.Rejected rejected = assertInstanceOf(
+                MigrationModeSwitchOutcome.Rejected.class,
                 new MySqlTurnEngineMigrationControlAdapter(jdbc.proxy()).switchMode(
                         new MigrationModeSwitchCommand(4, TurnEngineMode.ALL_V2, TurnEngineMode.RETIRED)));
 
-        assertEquals(TurnEngineMode.RETIRED, changed.state().mode());
+        assertEquals("LEGACY_INGRESS_NOT_REMOVED", rejected.code());
+        assertEquals(List.of(), jdbc.updates);
     }
 
     @Test

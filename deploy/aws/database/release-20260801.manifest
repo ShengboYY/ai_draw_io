@@ -1,0 +1,4 @@
+# Conversation scope and Chartbook Profile compatibility release after 20260731.
+# Keep both migrations in dependency order; predecessor manifests remain immutable.
+2026-07-27-migrate-conversation-scopes.sql
+2026-07-28-create-chartbook-profile.sql

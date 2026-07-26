@@ -39,6 +39,11 @@ public final class TurnEngineMigrationCoordinator {
     ) {
         Objects.requireNonNull(expectedState, "expectedState");
         Objects.requireNonNull(targetMode, "targetMode");
+        if (targetMode == TurnEngineMode.RETIRED) {
+            // The v1 HTTP ingress is still active; retirement must remain unavailable until it
+            // is removed or explicitly routed through the V2 admission boundary.
+            return new MigrationModeSwitchOutcome.Rejected("LEGACY_INGRESS_NOT_REMOVED");
+        }
         if (!isAllowedTransition(expectedState.mode(), targetMode)) {
             // Keep the cutover fail-closed even when a non-MySQL control port is composed.
             return new MigrationModeSwitchOutcome.Rejected("MIGRATION_MODE_TRANSITION_INVALID");
@@ -47,10 +52,6 @@ public final class TurnEngineMigrationCoordinator {
         try {
             // Complete durable legacy-horizon preparation before changing the singleton mode row.
             drainRetryPreparation();
-            if (targetMode == TurnEngineMode.RETIRED && !retirement.readiness().safeToRetire()) {
-                // Never remove the executor while a retry or Gone guarantee is still unsafe.
-                return new MigrationModeSwitchOutcome.Rejected("LEGACY_RETIREMENT_NOT_READY");
-            }
             return migrationControl.switchMode(new MigrationModeSwitchCommand(
                     expectedState.generation(), expectedState.mode(), targetMode));
         } finally {
@@ -85,7 +86,6 @@ public final class TurnEngineMigrationCoordinator {
         return current == target
                 || (current == TurnEngineMode.LEGACY && target == TurnEngineMode.V2_CANARY)
                 || (current == TurnEngineMode.V2_CANARY
-                && (target == TurnEngineMode.LEGACY || target == TurnEngineMode.ALL_V2))
-                || (current == TurnEngineMode.ALL_V2 && target == TurnEngineMode.RETIRED);
+                && (target == TurnEngineMode.LEGACY || target == TurnEngineMode.ALL_V2));
     }
 }

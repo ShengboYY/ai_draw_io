@@ -21,7 +21,15 @@ import org.zipp.ai.application.turn.UserTurnCommand;
 import org.zipp.ai.application.turn.context.ContextReadSet;
 import org.zipp.ai.application.turn.context.ContextSlice;
 import org.zipp.ai.application.turn.context.ContextSlicePin;
+import org.zipp.ai.application.turn.classification.OutputIntent;
+import org.zipp.ai.application.turn.classification.SemanticAction;
+import org.zipp.ai.application.turn.classification.SemanticIntent;
+import org.zipp.ai.application.turn.classification.TargetNeed;
+import org.zipp.ai.application.turn.demand.AcceptedSourceDemand;
+import org.zipp.ai.application.turn.demand.CurrentInstruction;
 import org.zipp.ai.application.turn.demand.NeedsSourceClarification;
+import org.zipp.ai.application.turn.demand.ResolvedSourceDemand;
+import org.zipp.ai.application.turn.demand.SourceDemandKind;
 import org.zipp.ai.application.turn.planning.PlanningLineageFingerprint;
 import org.zipp.ai.application.turn.planning.PrePlanOutcome;
 import org.zipp.ai.application.turn.planning.TurnRouteDecision;
@@ -169,6 +177,34 @@ class DefaultTurnV2TurnExecutorTest {
     }
 
     @Test
+    void commitsMissingSourceAwareHandlerAsRejectedInsteadOfSelfAborting() {
+        UserTurnCommand command = command();
+        FencedAttempt attempt = attempt(command);
+        TurnSubmission.ExecutionAccepted accepted = accepted(attempt);
+        ContextReadSet readSet = readSet(attempt.contextMessageHighWater());
+
+        TurnAttemptCompletion.PersistedTerminal outcome = assertInstanceOf(
+                TurnAttemptCompletion.PersistedTerminal.class,
+                new DefaultTurnV2TurnExecutor(
+                        (ignoredAttempt, ignoredCommand, ignoredEvents) ->
+                                new TurnV2ExecutionOutcome.NotDispatched(
+                                        new TurnRouteDecision.SourcePlanning(
+                                                sourcePlanning(attempt, readSet)),
+                                        "SOURCE_AWARE_HANDLER_NOT_AVAILABLE"),
+                        commandToCommit -> {
+                            assertEquals(TurnStatus.REJECTED, commandToCommit.terminalStatus());
+                            assertEquals("SOURCE_AWARE_HANDLER_NOT_AVAILABLE",
+                                    commandToCommit.terminalCode());
+                            return new FencedCommitOutcome.Committed(new PersistedTurnOutcome(
+                                    TurnStatus.REJECTED, commandToCommit.terminalCode(),
+                                    commandToCommit.terminalPayloadType(), null, "{}"));
+                        })
+                        .execute(accepted, command, event -> { }));
+
+        assertEquals(TurnStatus.REJECTED, outcome.outcome().status());
+    }
+
+    @Test
     void disabledAttemptCannotCommitPreHandlerTerminal() {
         UserTurnCommand command = command();
         FencedAttempt attempt = attempt(command);
@@ -269,5 +305,28 @@ class DefaultTurnV2TurnExecutorTest {
                 ContextSlicePin.pinned(ContextSlice.MEMBERSHIP, "membership-v1", 1, "b".repeat(64)),
                 ContextSlicePin.pinned(ContextSlice.PROFILE, "profile-v1", 1, "c".repeat(64)),
                 ContextSlicePin.absent(ContextSlice.MEMORY, "NO_CONFIRMED_MEMORY"));
+    }
+
+    private static PrePlanOutcome.SourcePlanningRequired sourcePlanning(
+            FencedAttempt attempt,
+            ContextReadSet readSet
+    ) {
+        AcceptedSourceDemand accepted = new AcceptedSourceDemand(
+                SourceDemandKind.CURRENT_MESSAGE_DIRECT_REQUIRED,
+                java.util.List.of("attachment-1"), null);
+        return new PrePlanOutcome.SourcePlanningRequired(
+                attempt.key(),
+                new CurrentInstruction("rebuild the attachment"),
+                new SemanticIntent(
+                        SemanticAction.CREATE,
+                        OutputIntent.DRAWING,
+                        TargetNeed.NOT_REQUIRED,
+                        "flowchart",
+                        "none"),
+                new ResolvedSourceDemand(accepted, java.util.List.of()),
+                accepted,
+                new PlanningLineageFingerprint("c".repeat(64)),
+                readSet.digest(),
+                attempt.inputBindingDigest());
     }
 }
