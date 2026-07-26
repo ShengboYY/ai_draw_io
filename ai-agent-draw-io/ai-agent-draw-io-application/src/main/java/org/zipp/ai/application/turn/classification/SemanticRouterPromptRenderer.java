@@ -24,7 +24,8 @@ public final class SemanticRouterPromptRenderer {
                 + ";goal=" + context.profileGoal()
                 + ";summary=" + context.profileSummary()
                 + ";glossary=" + join(context.profileGlossary())
-                + ";defaultStyle=" + context.profileDefaultStyle());
+                + ";defaultStyle=" + context.profileDefaultStyle()
+                + ";stableConstraints=" + join(context.profileStableConstraints()));
         append(prompt, "CONFIRMED_MEMORY_DATA", "available=" + context.memoryAvailable()
                 + ";decisions=" + join(context.confirmedMemoryDecisions()));
         prompt.append("\nReturn one JSON object only with action, outputIntent, targetNeed, diagramType, skillName.");

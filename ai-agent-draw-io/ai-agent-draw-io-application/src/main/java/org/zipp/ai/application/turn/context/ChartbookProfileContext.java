@@ -7,8 +7,15 @@ public record ChartbookProfileContext(
         String goal,
         String summary,
         List<String> glossary,
-        String defaultStyle
+        String defaultStyle,
+        List<String> stableConstraints
 ) {
+
+    /** Keeps existing Context callers source-compatible while the Profile contract grows. */
+    public ChartbookProfileContext(String instructions, String goal, String summary,
+                                   List<String> glossary, String defaultStyle) {
+        this(instructions, goal, summary, glossary, defaultStyle, List.of());
+    }
 
     public ChartbookProfileContext {
         instructions = bounded(instructions, "instructions", 8_000);
@@ -18,7 +25,12 @@ public record ChartbookProfileContext(
         if (glossary.size() > 64 || glossary.stream().anyMatch(value -> value == null || value.isBlank())) {
             throw new IllegalArgumentException("glossary exceeds the bounded limit");
         }
-        defaultStyle = bounded(defaultStyle, "defaultStyle", 2_000);
+        defaultStyle = bounded(defaultStyle, "defaultStyle", 12_000);
+        stableConstraints = List.copyOf(stableConstraints == null ? List.of() : stableConstraints);
+        if (stableConstraints.size() > 32 || stableConstraints.stream().anyMatch(value -> value == null
+                || value.isBlank() || value.length() > 512)) {
+            throw new IllegalArgumentException("stableConstraints exceeds the bounded limit");
+        }
     }
 
     private static String bounded(String value, String field, int limit) {

@@ -21,6 +21,7 @@ public record RouterContextView(
         String profileSummary,
         List<String> profileGlossary,
         String profileDefaultStyle,
+        List<String> profileStableConstraints,
         List<String> confirmedMemoryDecisions
 ) {
 
@@ -33,7 +34,31 @@ public record RouterContextView(
             boolean memoryAvailable
     ) {
         this(canvasAvailable, selectionAvailable, recentMessageCount, profileAvailable, memoryAvailable,
-                "", List.of(), "", "", "", "", "", List.of(), "", List.of());
+                "", List.of(), "", "", "", "", "", List.of(), "", List.of(), List.of());
+    }
+
+    /** Compatibility constructor for callers compiled against the pre-Profile projection. */
+    public RouterContextView(
+            boolean canvasAvailable,
+            boolean selectionAvailable,
+            int recentMessageCount,
+            boolean profileAvailable,
+            boolean memoryAvailable,
+            String canvasSummary,
+            List<String> recentTurns,
+            String conversationSummary,
+            String chartbookMembership,
+            String profileInstructions,
+            String profileGoal,
+            String profileSummary,
+            List<String> profileGlossary,
+            String profileDefaultStyle,
+            List<String> confirmedMemoryDecisions
+    ) {
+        this(canvasAvailable, selectionAvailable, recentMessageCount, profileAvailable, memoryAvailable,
+                canvasSummary, recentTurns, conversationSummary, chartbookMembership, profileInstructions,
+                profileGoal, profileSummary, profileGlossary, profileDefaultStyle, List.of(),
+                confirmedMemoryDecisions);
     }
 
     public RouterContextView {
@@ -48,7 +73,8 @@ public record RouterContextView(
         profileGoal = bounded(profileGoal, 2_000);
         profileSummary = bounded(profileSummary, 4_000);
         profileGlossary = boundedList(profileGlossary, 64, 1_000);
-        profileDefaultStyle = bounded(profileDefaultStyle, 2_000);
+        profileDefaultStyle = bounded(profileDefaultStyle, 12_000);
+        profileStableConstraints = boundedList(profileStableConstraints, 32, 512);
         confirmedMemoryDecisions = boundedList(confirmedMemoryDecisions, 8, 1_500);
         if (recentMessageCount < recentTurns.size()) {
             throw new IllegalArgumentException("recentMessageCount cannot be below visible recent turns");

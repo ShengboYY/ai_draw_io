@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.zipp.ai.infrastructure.dao.material.IChartbookProfileMapper">
+    <sql id="profileColumns">
+        c.id AS chartbookId, c.owner_key AS ownerKey, c.status AS chartbookStatus,
+        p.chartbook_id AS profileRowId,
+        COALESCE(p.version, 0) AS version,
+        COALESCE(p.instructions, '') AS instructions,
+        COALESCE(p.goal, '') AS goal,
+        COALESCE(p.summary, '') AS summary,
+        COALESCE(p.glossary_json, JSON_OBJECT()) AS glossaryJson,
+        COALESCE(p.default_style_json, JSON_OBJECT()) AS defaultStyleJson,
+        COALESCE(p.stable_constraints_json, JSON_ARRAY()) AS stableConstraintsJson,
+        COALESCE(p.profile_state, 'EMPTY') AS profileState,
+        COALESCE(p.updated_at, c.updated_at) AS updatedAt
+    </sql>
+
+    <select id="selectCurrent"
+            resultType="org.zipp.ai.infrastructure.dao.material.po.ChartbookProfilePO">
+        SELECT <include refid="profileColumns"/>
+        FROM chartbook c
+        LEFT JOIN chartbook_profile p
+          ON p.chartbook_id = c.id AND p.owner_key = c.owner_key
+        WHERE c.owner_key = #{ownerKey} AND c.id = #{chartbookId}
+    </select>
+
+    <select id="selectVersion"
+            resultType="org.zipp.ai.infrastructure.dao.material.po.ChartbookProfilePO">
+        SELECT chartbook_id AS chartbookId, owner_key AS ownerKey, version,
+               instructions, goal, summary, glossary_json AS glossaryJson,
+               default_style_json AS defaultStyleJson,
+               stable_constraints_json AS stableConstraintsJson,
+               profile_state AS profileState, updated_at AS updatedAt
+        FROM chartbook_profile_version
+        WHERE owner_key = #{ownerKey} AND chartbook_id = #{chartbookId} AND version = #{version}
+    </select>
+
+    <select id="selectAudit" resultType="org.zipp.ai.infrastructure.dao.material.po.ChartbookProfileAuditPO">
+        SELECT chartbook_id AS chartbookId, owner_key AS ownerKey, version
+        FROM chartbook_profile_audit
+        WHERE owner_key = #{ownerKey} AND chartbook_id = #{chartbookId}
+          AND idempotency_key = #{idempotencyKey}
+    </select>
+
+    <insert id="insertEmptyProfile">
+        INSERT IGNORE INTO chartbook_profile
+            (chartbook_id, owner_key, instructions, goal, summary, glossary_json,
+             default_style_json, stable_constraints_json, profile_state, version, created_at, updated_at)
+        VALUES (#{chartbookId}, #{ownerKey}, '', '', '', JSON_OBJECT(), JSON_OBJECT(), JSON_ARRAY(),
+                'EMPTY', 0, #{now}, #{now})
+    </insert>
+
+    <update id="updateCurrent">
+        UPDATE chartbook_profile p
+        INNER JOIN chartbook c ON c.id = p.chartbook_id AND c.owner_key = p.owner_key
+        SET p.version = #{version}, p.instructions = #{instructions}, p.goal = #{goal},
+            p.summary = #{summary}, p.glossary_json = #{glossaryJson},
+            p.default_style_json = #{defaultStyleJson},
+            p.stable_constraints_json = #{stableConstraintsJson},
+            p.profile_state = #{profileState}, p.updated_at = #{updatedAt}
+        WHERE p.owner_key = #{ownerKey} AND p.chartbook_id = #{chartbookId}
+          AND p.version = #{expectedVersion} AND c.status = 'ACTIVE'
+    </update>
+
+    <insert id="insertVersion">
+        INSERT INTO chartbook_profile_version
+            (chartbook_id, owner_key, version, instructions, goal, summary, glossary_json,
+             default_style_json, stable_constraints_json, profile_state, updated_at, created_at)
+        VALUES (#{chartbookId}, #{ownerKey}, #{version}, #{instructions}, #{goal}, #{summary},
+                #{glossaryJson}, #{defaultStyleJson}, #{stableConstraintsJson}, #{profileState},
+                #{updatedAt}, #{updatedAt})
+    </insert>
+
+    <insert id="insertAudit">
+        INSERT INTO chartbook_profile_audit
+            (id, owner_key, chartbook_id, idempotency_key, version, content_digest, created_at)
+        VALUES (#{auditId}, #{ownerKey}, #{chartbookId}, #{idempotencyKey}, #{version},
+                #{contentDigest}, #{createdAt})
+    </insert>
+</mapper>

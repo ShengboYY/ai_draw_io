@@ -10,6 +10,7 @@ import org.zipp.ai.domain.ingestion.port.RevisionArtifactPort;
 import org.zipp.ai.domain.chartbook.port.ChartbookCatalogPort;
 import org.zipp.ai.domain.chartbook.service.ChartbookCatalogService;
 import org.zipp.ai.domain.chartbook.service.ChartbookFileModule;
+import org.zipp.ai.domain.chartbook.service.ChartbookProfileService;
 import org.zipp.ai.domain.chartbook.service.DefaultChartbookFileModule;
 import org.zipp.ai.domain.material.port.CatalogIdFactory;
 import org.zipp.ai.domain.material.port.MaterialCatalogPort;
@@ -86,5 +87,12 @@ public class MaterialCatalogConfig {
                                                            ObjectProvider<Clock> clocks) {
         return new ChartbookCatalogService(chartbooks, materials, files, ids,
                 clocks.getIfAvailable(Clock::systemUTC));
+    }
+
+    @Bean
+    public ChartbookProfileService chartbookProfileService(
+            org.zipp.ai.domain.chartbook.port.ChartbookProfilePort profiles,
+            ObjectProvider<Clock> clocks) {
+        return new ChartbookProfileService(profiles, clocks.getIfAvailable(Clock::systemUTC));
     }
 }

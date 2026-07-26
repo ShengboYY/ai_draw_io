@@ -689,7 +689,7 @@ source/retrieval、upload、lifecycle、material files、conversation messages�
 ## chartbook-profile: Add Real Project Context To Chartbook
 
 Blocked by: context-envelope, session-continuity
-Status: open
+Status: resolved
 Type: Prototype
 
 ### Question
@@ -698,12 +698,13 @@ Chartbook 除 shared files 外还应拥有哪些可编辑、可版本化的 Proj
 
 ### Answer
 
-Pending. 首版候选：
+已完成首版 Profile vertical slice，Project Context 的边界固定为：
 
-- instructions、goal、summary、glossary、default diagram style、stable constraints；
-- working decisions 进入 Memory；diagram relationships 如需结构查询则使用后续独立模型；
-- 独立于 shared files 的 API、版本、审计和删除语义；
-- Router/Drawer 可见范围和 Evidence 不可见/可见边界。
+- `instructions`、`goal`、`summary`、`glossary`、`defaultStyle`、`stableConstraints`；working decisions 留给后续 Memory，diagram relationships 不混入 Profile；
+- `chartbook_profile` current row、`chartbook_profile_version` immutable history 和 `chartbook_profile_audit` idempotency ledger 独立于 shared files 与 legacy preferences；已有 Chartbook 以 version 0 EMPTY Profile 回填；
+- API 为 owner-fenced `GET/PATCH /api/v1/chartbooks/{chartbookId}/profile`，PATCH 使用 `If-Match` optimistic CAS 与 `Idempotency-Key`，stale write 返回 `CATALOG_CONFLICT`，archived Chartbook 只读；
+- Profile 版本 pin/digest 进入 ContextReadSet，materializer 只投影有界的 Profile 字段到 Router/Plain Drawer；Profile 行损坏只将该 slice 标记为 degraded，不把普通 source-free drawing 变成 source failure；Evidence/source body 不进入 Profile；
+- 验证：domain、owner/CAS/idempotency adapter、Context pin/materialize、migration contract 共 12 项测试通过；full application reactor compile 通过；本机 MySQL migration 已执行并核对 `profile=1`、`version=1`、`audit=0`、`missing=0`。
 
 ## optional-enrichment: Make OPTIONAL Actually Optional
 

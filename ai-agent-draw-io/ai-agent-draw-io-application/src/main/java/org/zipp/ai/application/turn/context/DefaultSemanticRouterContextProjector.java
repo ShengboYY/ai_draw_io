@@ -38,6 +38,7 @@ public final class DefaultSemanticRouterContextProjector implements SemanticRout
                         profile == null ? "" : profile.summary(),
                         profile == null ? List.of() : profile.glossary(),
                         profile == null ? "" : profile.defaultStyle(),
+                        profile == null ? List.of() : profile.stableConstraints(),
                         memory == null ? List.of() : memory.decisions()));
     }
 

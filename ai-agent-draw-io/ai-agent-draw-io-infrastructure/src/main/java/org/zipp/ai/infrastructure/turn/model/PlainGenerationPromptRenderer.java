@@ -96,6 +96,7 @@ final class PlainGenerationPromptRenderer {
                 .append("summary=").append(profile.summary()).append('\n')
                 .append("defaultStyle=").append(profile.defaultStyle()).append('\n');
         appendLines(prompt, "glossary", profile.glossary());
+        appendLines(prompt, "stableConstraint", profile.stableConstraints());
     }
 
     private void appendMemory(StringBuilder prompt, BaseTurnContext context) {

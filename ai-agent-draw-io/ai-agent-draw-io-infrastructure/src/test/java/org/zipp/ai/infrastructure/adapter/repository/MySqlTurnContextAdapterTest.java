@@ -13,6 +13,7 @@ import org.zipp.ai.application.turn.UserTurnCommand;
 import org.zipp.ai.application.turn.TurnDeclarations;
 import org.zipp.ai.application.turn.context.AbsentContext;
 import org.zipp.ai.application.turn.context.AvailableContext;
+import org.zipp.ai.application.turn.context.ChartbookProfileContext;
 import org.zipp.ai.application.turn.context.ContextCandidateLoadOutcome;
 import org.zipp.ai.application.turn.context.ContextMaterializationOutcome;
 import org.zipp.ai.application.turn.context.ContextReadSet;
@@ -77,6 +78,42 @@ class MySqlTurnContextAdapterTest {
         assertInstanceOf(
                 ContextMaterializationOutcome.Retry.class,
                 changedAdapter.materialize(attempt, command, readSet));
+    }
+
+    @Test
+    void activeChartbookProfileIsPinnedAndProjectedWithoutSourceContent() {
+        UserTurnCommand command = command();
+        FencedAttempt attempt = attempt(command);
+        Map<String, Object> domain = domainRow(2L, "canvas-hash", "<xml>");
+        domain.put("diagram_chartbook_id", "book-1");
+        domain.put("active_chartbook_id", "book-1");
+        domain.put("chartbook_owner_key", "owner-1");
+        domain.put("chartbook_status", "ACTIVE");
+        domain.put("chartbook_updated_at", Timestamp.from(UPDATED_AT));
+        domain.put("chartbook_profile_version", 3L);
+        domain.put("chartbook_profile_instructions", "Use swimlanes");
+        domain.put("chartbook_profile_goal", "Make review easy");
+        domain.put("chartbook_profile_summary", "Platform flow");
+        domain.put("chartbook_profile_glossary_json", "{\"SLO\":\"service objective\"}");
+        domain.put("chartbook_profile_default_style_json", "{\"layout\":\"elk\"}");
+        domain.put("chartbook_profile_stable_constraints_json", "[\"No hidden source calls\"]");
+        domain.put("chartbook_profile_state", "CONFIGURED");
+
+        MySqlTurnContextAdapter adapter = new MySqlTurnContextAdapter(
+                jdbc(executionRow(attempt), domain, List.of()));
+        ContextReadSet readSet = assertInstanceOf(
+                ContextCandidateLoadOutcome.Ready.class,
+                adapter.loadCandidate(attempt, command)).value().readSet();
+
+        assertEquals(3L, readSet.profile().version());
+        ContextMaterializationOutcome.Ready materialized = assertInstanceOf(
+                ContextMaterializationOutcome.Ready.class,
+                adapter.materialize(attempt, command, readSet));
+        AvailableContext<ChartbookProfileContext> profile = assertInstanceOf(
+                AvailableContext.class, materialized.value().chartbook());
+        assertEquals("Use swimlanes", profile.value().instructions());
+        assertEquals(List.of("SLO=service objective"), profile.value().glossary());
+        assertEquals(List.of("No hidden source calls"), profile.value().stableConstraints());
     }
 
     @Test
