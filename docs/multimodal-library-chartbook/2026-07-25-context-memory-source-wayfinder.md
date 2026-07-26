@@ -348,6 +348,8 @@ M1 控制面已按以下合同分批落地；生产 HTTP 仍未切入 V2，Plain
 
 本切片补齐 compatibility transport 的 bootstrap composition：`TurnHttpRequestTranslator`、`TurnHttpDeliveryAdapter` 与 `TurnHttpControlAdapter` 现在共享同一个 application `TurnDeliveryExecutor`/`TurnControlFacade` graph；composition contract 验证 adapters 可用，但没有挂接 legacy `AgentServiceController`、新增 serving route 或改变 production assignment。app 全量仍只保留既有 `DefaultIntentRoutingServiceTest` 的 unrelated failure（`NONE`/`DIRECT`），本切片没有新增或执行 migration。
 
+本切片固定 submission 到 HTTP disposition 的 transport contract：`ExecutionAccepted` 与 `AlreadyRunning` 映射 `202 Accepted + status endpoint required`，`TerminalReplay` 映射 `200 OK`，legacy retry expiry 为 `410 Gone`，fingerprint/admission conflict 为 `409 Conflict`，terminal schema unavailable/not-ready 为 `503 Service Unavailable`；`TurnHttpDeliveryResult` 暴露该映射但保留原始 sealed outcome 与 detach 标记。新增 mapper matrix tests，未改变 legacy controller、production assignment 或 V2 cohort，本切片没有新增或执行 migration。
+
 ## single-instance-migration-control: Build The Single-Instance Migration Boundary
 
 Blocked by: turn-execution-control
