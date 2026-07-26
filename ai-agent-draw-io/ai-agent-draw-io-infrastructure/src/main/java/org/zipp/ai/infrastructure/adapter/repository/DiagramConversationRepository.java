@@ -2,6 +2,7 @@ package org.zipp.ai.infrastructure.adapter.repository;
 
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
+import org.zipp.ai.application.turn.AuthenticatedActor;
 import org.zipp.ai.domain.agent.model.valobj.conversation.DiagramConversationMessage;
 import org.zipp.ai.domain.agent.service.IDiagramConversationStore;
 import org.zipp.ai.infrastructure.dao.IDiagramConversationMapper;
@@ -18,12 +19,29 @@ public class DiagramConversationRepository implements IDiagramConversationStore 
     @Resource
     private IDiagramConversationMapper diagramConversationMapper;
 
+    @Resource
+    private MySqlConversationScopeKeyResolver conversationScopes;
+
     @Override
     public List<DiagramConversationMessage> listMessages(String userId, String diagramId) {
+        return listMessages(userId, diagramId, "default");
+    }
+
+    @Override
+    public List<DiagramConversationMessage> listMessages(
+            String userId, String diagramId, String conversationReference) {
         if (isBlank(userId) || isBlank(diagramId)) {
             return Collections.emptyList();
         }
-        return diagramConversationMapper.selectMessages(userId, diagramId).stream()
+        List<DiagramConversationMessagePO> rows;
+        if (conversationScopes == null) {
+            rows = diagramConversationMapper.selectMessages(userId, diagramId);
+        } else {
+            List<String> keys = conversationScopes.readableScopeKeys(
+                    new AuthenticatedActor(userId, userId), conversationReference, diagramId).allKeys();
+            rows = diagramConversationMapper.selectMessagesByScope(userId, diagramId, keys);
+        }
+        return rows.stream()
                 .map(this::toDomain)
                 .collect(Collectors.toList());
     }
@@ -76,6 +94,13 @@ public class DiagramConversationRepository implements IDiagramConversationStore 
         po.setUserId(message.getUserId());
         po.setDiagramId(message.getDiagramId());
         po.setSessionId(message.getSessionId());
+        if (conversationScopes != null) {
+            // Messages without a legacy session still belong to the diagram's durable default conversation.
+            String conversationReference = isBlank(message.getSessionId()) ? "default" : message.getSessionId();
+            po.setConversationId(conversationScopes.newWriteScopeKey(
+                    new AuthenticatedActor(message.getUserId(), message.getUserId()),
+                    conversationReference, message.getDiagramId()));
+        }
         po.setClientMessageId(message.getClientMessageId());
         po.setRole(message.getRole());
         po.setContent(message.getContent());

@@ -104,8 +104,9 @@ public class MaterialRagConfig {
     }
 
     @Bean
-    public RequestProbeDataPort requestProbeDataPort(IOnlineRetrievalMapper retrieval, ICanvasStateStore canvases) {
-        return new OnlineRequestProbeAdapter(retrieval, canvases);
+    public RequestProbeDataPort requestProbeDataPort(IOnlineRetrievalMapper retrieval, ICanvasStateStore canvases,
+                                                     MySqlConversationScopeKeyResolver conversationScopes) {
+        return new OnlineRequestProbeAdapter(retrieval, canvases, conversationScopes);
     }
 
     @Bean

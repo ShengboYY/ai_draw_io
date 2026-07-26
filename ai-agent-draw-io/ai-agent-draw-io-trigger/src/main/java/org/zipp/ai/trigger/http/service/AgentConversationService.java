@@ -2252,7 +2252,8 @@ public class AgentConversationService {
                 || StringUtils.isBlank(request.getDiagramId())) return "";
         try {
             List<org.zipp.ai.domain.agent.model.valobj.conversation.DiagramConversationMessage> stored =
-                    diagramConversationStore.listMessages(request.getUserId(), request.getDiagramId());
+                    diagramConversationStore.listMessages(request.getUserId(), request.getDiagramId(),
+                            StringUtils.defaultIfBlank(request.getSessionId(), "default"));
             int start = Math.max(0, stored.size() - 6);
             String context = stored.subList(start, stored.size()).stream()
                     .map(message -> StringUtils.defaultString(message.getRole()) + ": "

@@ -669,7 +669,7 @@ Type: Prototype
 ## conversation-scope-migration: Move Consumers To Canonical Scope
 
 Blocked by: conversation-identity-foundation, context-envelope
-Status: open
+Status: resolved
 Type: Task
 
 ### Question
@@ -678,15 +678,13 @@ M3 如何迁移旧 source/upload/lifecycle/files/message scope，同时保持历
 
 ### Answer
 
-Pending. `ConversationScopeKeyResolver` 对旧数据双读 legacy alias 与 canonical id，对新数据只写 canonical key。
+已完成。`MySqlConversationScopeKeyResolver` 以 owner + diagram + ACTIVE canonical binding 为权威，返回 canonical id 加最多 8 个 immutable legacy alias；raw alias、跨 owner、归档/删除会话和超界 alias 都 fail closed。新写入统一使用 canonical key。
 
-source、upload、lifecycle、files、message 与 summary consumers 必须逐个迁移，不能各自把 runtime session 当长期 scope。
+source/retrieval、upload、lifecycle、material files、conversation messages、Context attachments 与 recent-message summary 已接入同一 resolver：历史数据 canonical/alias 双读，新数据 canonical 写入；`session_id` 保留为兼容审计字段，消息 `conversation_id` 在 active diagram 上回填。
 
-resolver 从 authenticated canonical binding 读取完整 bounded alias set，不接受 caller-supplied raw alias。
+`2026-07-27-migrate-conversation-scopes.sql` 已加入并在本地 MySQL 容器执行：55 个 active owner+diagram 默认 conversation、57 个无歧义 alias，active diagram 的消息无未回填 `conversation_id`；deleted diagram 历史消息继续受 deleted fence 保护。migration 不改写 `material_scope_link` 或 snapshot identity。
 
-测试覆盖旧 alias/新 id 的同 turn replay、两个以上历史 alias 文件读取、跨 owner 拒绝、collision/too-many fail-closed 与重启恢复。
-
-本票不批量重写 Material/snapshot identity；双读 horizon 结束前保留 resolver 与 audit。
+补充了 resolver 的 alias/owner/上限测试、migration contract test，并验证 repository 4/4、infrastructure scope regression 15/15、resolver 4/4、application reactor compile 通过。
 
 ## chartbook-profile: Add Real Project Context To Chartbook
 

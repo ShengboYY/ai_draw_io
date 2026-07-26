@@ -134,6 +134,30 @@
         ) owned_conversation
     </select>
 
+    <select id="countOriginConversationByKeys" resultType="int">
+        SELECT COUNT(*) FROM (
+            SELECT conversation_id FROM conversation_source_context
+            WHERE conversation_id IN
+              <foreach collection="conversationIds" item="conversationId" open="(" separator="," close=")">#{conversationId}</foreach>
+              AND owner_key = #{ownerKey}
+            UNION
+            SELECT conversation_id FROM diagram_conversation_message
+            WHERE conversation_id IN
+              <foreach collection="conversationIds" item="conversationId" open="(" separator="," close=")">#{conversationId}</foreach>
+              AND user_id = #{ownerKey}
+            UNION
+            SELECT session_id FROM diagram_conversation_message
+            WHERE session_id IN
+              <foreach collection="conversationIds" item="conversationId" open="(" separator="," close=")">#{conversationId}</foreach>
+              AND user_id = #{ownerKey}
+            UNION
+            SELECT a.conversation_id FROM conversation_legacy_alias a
+            WHERE a.owner_key = #{ownerKey}
+              AND a.legacy_session_id IN
+              <foreach collection="conversationIds" item="conversationId" open="(" separator="," close=")">#{conversationId}</foreach>
+        ) owned_conversation
+    </select>
+
     <select id="selectDeletionImpact"
             resultType="org.zipp.ai.infrastructure.dao.material.po.MaterialDeletionImpactPO">
         SELECT m.id AS materialId, m.lifecycle_generation AS lifecycleGeneration

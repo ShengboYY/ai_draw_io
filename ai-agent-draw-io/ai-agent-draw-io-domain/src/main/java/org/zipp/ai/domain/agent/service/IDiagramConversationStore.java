@@ -11,6 +11,12 @@ public interface IDiagramConversationStore {
         return Collections.emptyList();
     }
 
+    /** Scope-aware read; the two-argument method remains the legacy default conversation view. */
+    default List<DiagramConversationMessage> listMessages(
+            String userId, String diagramId, String conversationReference) {
+        return listMessages(userId, diagramId);
+    }
+
     default void saveMessages(List<DiagramConversationMessage> messages) {
     }
 

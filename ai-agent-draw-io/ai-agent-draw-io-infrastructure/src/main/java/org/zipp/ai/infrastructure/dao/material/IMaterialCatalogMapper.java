@@ -28,11 +28,23 @@ public interface IMaterialCatalogMapper {
                                                       @Param("lifecycleState") String lifecycleState,
                                                       @Param("limit") int limit,
                                                       @Param("offset") int offset);
+    List<MaterialCatalogItemPO> selectScopedMaterialsByKeys(@Param("ownerType") String ownerType,
+                                                             @Param("ownerKey") String ownerKey,
+                                                             @Param("scopeType") String scopeType,
+                                                             @Param("scopeKeys") List<String> scopeKeys,
+                                                             @Param("lifecycleState") String lifecycleState,
+                                                             @Param("limit") int limit,
+                                                             @Param("offset") int offset);
     long countScopedMaterials(@Param("ownerType") String ownerType,
                               @Param("ownerKey") String ownerKey,
                               @Param("scopeType") String scopeType,
                               @Param("scopeKey") String scopeKey,
                               @Param("lifecycleState") String lifecycleState);
+    long countScopedMaterialsByKeys(@Param("ownerType") String ownerType,
+                                    @Param("ownerKey") String ownerKey,
+                                    @Param("scopeType") String scopeType,
+                                    @Param("scopeKeys") List<String> scopeKeys,
+                                    @Param("lifecycleState") String lifecycleState);
     MaterialCatalogItemPO selectOwnedMaterial(@Param("ownerType") String ownerType,
                                               @Param("ownerKey") String ownerKey,
                                               @Param("materialId") String materialId);

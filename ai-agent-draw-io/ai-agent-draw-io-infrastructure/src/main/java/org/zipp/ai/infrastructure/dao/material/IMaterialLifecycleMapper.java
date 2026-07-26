@@ -50,6 +50,8 @@ public interface IMaterialLifecycleMapper {
                                      @Param("chartbookId") String chartbookId);
     int countOriginConversation(@Param("ownerKey") String ownerKey,
                                 @Param("conversationId") String conversationId);
+    int countOriginConversationByKeys(@Param("ownerKey") String ownerKey,
+                                      @Param("conversationIds") List<String> conversationIds);
     MaterialDeletionImpactPO selectDeletionImpact(@Param("ownerType") String ownerType,
                                                   @Param("ownerKey") String ownerKey,
                                                   @Param("materialId") String materialId);

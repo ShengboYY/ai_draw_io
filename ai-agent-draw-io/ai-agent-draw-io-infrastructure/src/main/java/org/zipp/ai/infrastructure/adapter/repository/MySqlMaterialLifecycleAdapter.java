@@ -1,10 +1,12 @@
 package org.zipp.ai.infrastructure.adapter.repository;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 import org.zipp.ai.domain.account.model.valobj.OwnerType;
 import org.zipp.ai.domain.material.model.aggregate.Material;
 import org.zipp.ai.domain.material.model.valobj.*;
+import org.zipp.ai.application.turn.AuthenticatedActor;
 import org.zipp.ai.domain.material.port.MaterialLifecyclePort;
 import org.zipp.ai.infrastructure.dao.material.IMaterialLifecycleMapper;
 import org.zipp.ai.infrastructure.dao.material.po.MaterialPO;
@@ -22,9 +24,17 @@ import java.util.Set;
 @Repository
 public class MySqlMaterialLifecycleAdapter implements MaterialLifecyclePort {
     private final IMaterialLifecycleMapper mapper;
+    private final MySqlConversationScopeKeyResolver conversationScopes;
 
     public MySqlMaterialLifecycleAdapter(IMaterialLifecycleMapper mapper) {
+        this(mapper, null);
+    }
+
+    @Autowired
+    public MySqlMaterialLifecycleAdapter(IMaterialLifecycleMapper mapper,
+                                         MySqlConversationScopeKeyResolver conversationScopes) {
         this.mapper = Objects.requireNonNull(mapper, "mapper");
+        this.conversationScopes = conversationScopes;
     }
 
     @Override
@@ -96,9 +106,12 @@ public class MySqlMaterialLifecycleAdapter implements MaterialLifecyclePort {
             }
         }
         MaterialPO target = toPo(mutation.material());
+        String scopeKey = mutation.scopeLink() == null ? null
+                : canonicalScopeKey(mutation.owner(), mutation.scopeLink().scopeType(),
+                mutation.scopeLink().scopeKey());
         if (mutation.scopeLink() != null && mapper.insertLifecycleScope(
                 mutation.scopeLink().linkId(), target.getId(), target.getOwnerType(), target.getOwnerKey(),
-                mutation.scopeLink().scopeType().name(), mutation.scopeLink().scopeKey()) != 1) {
+                mutation.scopeLink().scopeType().name(), scopeKey) != 1) {
             throw new CatalogOperationException(CatalogErrorCode.CATALOG_CONFLICT);
         }
         if (mapper.updateLifecycle(target, mutation.expectedGeneration()) != 1) {
@@ -122,7 +135,23 @@ public class MySqlMaterialLifecycleAdapter implements MaterialLifecyclePort {
 
     @Override
     public boolean originConversationAvailable(CatalogOwner owner, String conversationId) {
-        return mapper.countOriginConversation(owner.ownerKey(), conversationId) == 1;
+        if (conversationScopes == null) {
+            return mapper.countOriginConversation(owner.ownerKey(), conversationId) == 1;
+        }
+        return mapper.countOriginConversationByKeys(owner.ownerKey(), readableConversationKeys(owner, conversationId)) > 0;
+    }
+
+    private List<String> readableConversationKeys(CatalogOwner owner, String conversationId) {
+        return conversationScopes.readableScopeKeys(
+                new AuthenticatedActor(owner.ownerKey(), owner.ownerKey()), conversationId, null).allKeys();
+    }
+
+    private String canonicalScopeKey(CatalogOwner owner, MaterialScopeType scopeType, String scopeKey) {
+        if (scopeType != MaterialScopeType.CONVERSATION || conversationScopes == null) {
+            return scopeKey;
+        }
+        return conversationScopes.newWriteScopeKey(
+                new AuthenticatedActor(owner.ownerKey(), owner.ownerKey()), scopeKey, null);
     }
 
     @Override

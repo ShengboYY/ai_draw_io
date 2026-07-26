@@ -2,6 +2,7 @@ package org.zipp.ai.infrastructure.adapter.repository;
 
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
+import org.zipp.ai.application.turn.AuthenticatedActor;
 import org.zipp.ai.domain.account.model.valobj.OwnerType;
 import org.zipp.ai.domain.ingestion.model.valobj.UploadTarget;
 import org.zipp.ai.domain.ingestion.port.UploadScopeAuthorizer;
@@ -14,9 +15,28 @@ import java.util.Objects;
 public class MySqlUploadScopeAuthorizer implements UploadScopeAuthorizer {
 
     private final IUploadSessionMapper mapper;
+    private final MySqlConversationScopeKeyResolver conversationScopes;
 
     public MySqlUploadScopeAuthorizer(IUploadSessionMapper mapper) {
+        this(mapper, null);
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public MySqlUploadScopeAuthorizer(IUploadSessionMapper mapper,
+                                      MySqlConversationScopeKeyResolver conversationScopes) {
         this.mapper = Objects.requireNonNull(mapper, "mapper");
+        this.conversationScopes = conversationScopes;
+    }
+
+    @Override
+    public UploadTarget canonicalTarget(OwnerType ownerType, String ownerKey, UploadTarget target,
+                                        String contextDiagramId) {
+        if (target == null || target.scopeType() != MaterialScopeType.CONVERSATION || conversationScopes == null) {
+            return target;
+        }
+        String canonical = conversationScopes.newWriteScopeKey(
+                new AuthenticatedActor(ownerKey, ownerKey), target.scopeKey(), contextDiagramId);
+        return new UploadTarget(target.scopeType(), canonical, target.retentionClass());
     }
 
     @Override

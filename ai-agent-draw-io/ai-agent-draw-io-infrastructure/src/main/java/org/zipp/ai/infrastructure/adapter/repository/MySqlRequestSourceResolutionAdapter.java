@@ -1,6 +1,8 @@
 package org.zipp.ai.infrastructure.adapter.repository;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Repository;
+import org.zipp.ai.application.turn.AuthenticatedActor;
 import org.zipp.ai.domain.material.model.valobj.MaterialScopeType;
 import org.zipp.ai.domain.retrieval.RequestSourceResolutionCommand;
 import org.zipp.ai.domain.retrieval.port.RequestSourceResolutionPort;
@@ -8,6 +10,7 @@ import org.zipp.ai.domain.retrieval.port.SourceResolutionCandidate;
 import org.zipp.ai.infrastructure.dao.retrieval.IOnlineRetrievalMapper;
 import org.zipp.ai.infrastructure.dao.retrieval.po.OnlineSourcePO;
 
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Objects;
 
@@ -15,37 +18,80 @@ import java.util.Objects;
 @Repository
 public class MySqlRequestSourceResolutionAdapter implements RequestSourceResolutionPort {
     private final IOnlineRetrievalMapper mapper;
+    private final MySqlConversationScopeKeyResolver conversationScopes;
 
     public MySqlRequestSourceResolutionAdapter(IOnlineRetrievalMapper mapper) {
+        this(mapper, null);
+    }
+
+    @Autowired
+    public MySqlRequestSourceResolutionAdapter(IOnlineRetrievalMapper mapper,
+                                               MySqlConversationScopeKeyResolver conversationScopes) {
         this.mapper = Objects.requireNonNull(mapper, "mapper");
+        this.conversationScopes = conversationScopes;
     }
 
     @Override
     public List<SourceResolutionCandidate> resolveAttachments(RequestSourceResolutionCommand command) {
-        return mapper.selectConversationAttachmentSources(command.owner().ownerType().name(),
-                        command.owner().ownerKey(), command.conversationId(), command.attachmentUploadIds())
-                .stream().map(this::candidate).toList();
+        return selectAttachments(command).stream().map(this::candidate).toList();
     }
 
     @Override
     public List<SourceResolutionCandidate> resolveExplicitVersions(RequestSourceResolutionCommand command) {
-        return mapper.selectExplicitSources(command.owner().ownerType().name(), command.owner().ownerKey(),
-                        command.diagramId(), command.conversationId(), command.selectedVersionIds())
-                .stream().map(this::candidate).toList();
+        return selectExplicit(command).stream().map(this::candidate).toList();
     }
 
     @Override
     public List<SourceResolutionCandidate> resolveAutomatic(RequestSourceResolutionCommand command, int limit) {
-        return mapper.selectAutomaticSources(command.owner().ownerType().name(), command.owner().ownerKey(),
-                        command.diagramId(), command.conversationId(), limit)
-                .stream().map(this::candidate).toList();
+        return selectAutomatic(command, limit).stream().map(this::candidate).toList();
     }
 
     @Override
     public int countPendingConversationUploads(RequestSourceResolutionCommand command) {
-        Integer count = mapper.countPendingConversationUploads(
-                command.owner().ownerKey(), command.conversationId());
-        return count == null ? 0 : count;
+        return conversationKeys(command).stream()
+                .mapToInt(key -> value(mapper.countPendingConversationUploads(command.owner().ownerKey(), key)))
+                .sum();
+    }
+
+    private List<OnlineSourcePO> selectAttachments(RequestSourceResolutionCommand command) {
+        LinkedHashMap<String, OnlineSourcePO> merged = new LinkedHashMap<>();
+        for (String key : conversationKeys(command)) {
+            mapper.selectConversationAttachmentSources(command.owner().ownerType().name(),
+                            command.owner().ownerKey(), key, command.attachmentUploadIds())
+                    .forEach(row -> merged.putIfAbsent(row.getVersionId(), row));
+        }
+        return List.copyOf(merged.values());
+    }
+
+    private List<OnlineSourcePO> selectExplicit(RequestSourceResolutionCommand command) {
+        LinkedHashMap<String, OnlineSourcePO> merged = new LinkedHashMap<>();
+        for (String key : conversationKeys(command)) {
+            mapper.selectExplicitSources(command.owner().ownerType().name(), command.owner().ownerKey(),
+                            command.diagramId(), key, command.selectedVersionIds())
+                    .forEach(row -> merged.putIfAbsent(row.getVersionId(), row));
+        }
+        return List.copyOf(merged.values());
+    }
+
+    private List<OnlineSourcePO> selectAutomatic(RequestSourceResolutionCommand command, int limit) {
+        LinkedHashMap<String, OnlineSourcePO> merged = new LinkedHashMap<>();
+        for (String key : conversationKeys(command)) {
+            mapper.selectAutomaticSources(command.owner().ownerType().name(), command.owner().ownerKey(),
+                            command.diagramId(), key, limit)
+                    .forEach(row -> merged.putIfAbsent(row.getVersionId(), row));
+        }
+        return merged.values().stream().limit(limit).toList();
+    }
+
+    private List<String> conversationKeys(RequestSourceResolutionCommand command) {
+        if (conversationScopes == null) return List.of(command.conversationId());
+        return conversationScopes.readableScopeKeys(
+                new AuthenticatedActor(command.owner().ownerKey(), command.owner().ownerKey()),
+                command.conversationId(), command.diagramId()).allKeys();
+    }
+
+    private static int value(Integer value) {
+        return value == null ? 0 : value;
     }
 
     private SourceResolutionCandidate candidate(OnlineSourcePO row) {

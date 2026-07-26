@@ -1,7 +1,9 @@
 package org.zipp.ai.infrastructure.adapter.repository;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
+import org.zipp.ai.application.turn.AuthenticatedActor;
 import org.zipp.ai.domain.material.model.valobj.*;
 import org.zipp.ai.domain.material.port.MaterialCatalogPort;
 import org.zipp.ai.infrastructure.dao.material.IMaterialCatalogMapper;
@@ -15,9 +17,17 @@ import java.util.Optional;
 @Repository
 public class MySqlMaterialCatalogAdapter implements MaterialCatalogPort {
     private final IMaterialCatalogMapper mapper;
+    private final MySqlConversationScopeKeyResolver conversationScopes;
 
     public MySqlMaterialCatalogAdapter(IMaterialCatalogMapper mapper) {
+        this(mapper, null);
+    }
+
+    @Autowired
+    public MySqlMaterialCatalogAdapter(IMaterialCatalogMapper mapper,
+                                       MySqlConversationScopeKeyResolver conversationScopes) {
         this.mapper = Objects.requireNonNull(mapper, "mapper");
+        this.conversationScopes = conversationScopes;
     }
 
     @Override
@@ -34,11 +44,22 @@ public class MySqlMaterialCatalogAdapter implements MaterialCatalogPort {
     @Override
     public MaterialCatalogPage findMaterialsForScope(MaterialScopeCatalogQuery query) {
         CatalogOwner owner = query.owner();
-        List<MaterialCatalogItem> items = mapper.selectScopedMaterials(owner.ownerType().name(), owner.ownerKey(),
-                query.scopeType().name(), query.scopeKey(), query.lifecycleState().name(), query.limit(), query.offset())
+        List<MaterialCatalogItemPO> rows;
+        long total;
+        if (query.scopeType() == MaterialScopeType.CONVERSATION && conversationScopes != null) {
+            List<String> keys = readableConversationKeys(owner, query.scopeKey());
+            rows = mapper.selectScopedMaterialsByKeys(owner.ownerType().name(), owner.ownerKey(),
+                    query.scopeType().name(), keys, query.lifecycleState().name(), query.limit(), query.offset());
+            total = mapper.countScopedMaterialsByKeys(owner.ownerType().name(), owner.ownerKey(),
+                    query.scopeType().name(), keys, query.lifecycleState().name());
+        } else {
+            rows = mapper.selectScopedMaterials(owner.ownerType().name(), owner.ownerKey(),
+                    query.scopeType().name(), query.scopeKey(), query.lifecycleState().name(), query.limit(), query.offset());
+            total = mapper.countScopedMaterials(owner.ownerType().name(), owner.ownerKey(),
+                    query.scopeType().name(), query.scopeKey(), query.lifecycleState().name());
+        }
+        List<MaterialCatalogItem> items = rows
                 .stream().map(this::item).toList();
-        long total = mapper.countScopedMaterials(owner.ownerType().name(), owner.ownerKey(),
-                query.scopeType().name(), query.scopeKey(), query.lifecycleState().name());
         return new MaterialCatalogPage(items, total, query.limit(), query.offset());
     }
 
@@ -61,8 +82,7 @@ public class MySqlMaterialCatalogAdapter implements MaterialCatalogPort {
             case LIBRARY -> MaterialScopeType.isPersonalLibraryKey(scopeKey, owner.ownerKey());
             case DIAGRAM -> mapper.countOwnedDiagram(owner.ownerKey(), scopeKey) == 1;
             case CHARTBOOK -> mapper.countOwnedActiveChartbook(owner.ownerKey(), scopeKey) == 1;
-            // Conversation listings remain owner-fenced by the Material row and exact scope link.
-            case CONVERSATION -> true;
+            case CONVERSATION -> conversationScopes == null || readableConversationScopeExists(owner, scopeKey);
         };
     }
 
@@ -72,9 +92,32 @@ public class MySqlMaterialCatalogAdapter implements MaterialCatalogPort {
         if (mapper.lockOwnedActiveMaterial(owner.ownerType().name(), owner.ownerKey(), materialId) == null) {
             return false;
         }
+        String scopeKey = canonicalScopeKey(owner, scope.scopeType(), scope.scopeKey());
         mapper.insertOwnedScope(scope.linkId(), owner.ownerType().name(), owner.ownerKey(), materialId,
-                scope.scopeType().name(), scope.scopeKey());
-        return mapper.countScope(materialId, scope.scopeType().name(), scope.scopeKey()) == 1;
+                scope.scopeType().name(), scopeKey);
+        return mapper.countScope(materialId, scope.scopeType().name(), scopeKey) == 1;
+    }
+
+    private List<String> readableConversationKeys(CatalogOwner owner, String scopeKey) {
+        return conversationScopes.readableScopeKeys(
+                new AuthenticatedActor(owner.ownerKey(), owner.ownerKey()), scopeKey, null).allKeys();
+    }
+
+    private boolean readableConversationScopeExists(CatalogOwner owner, String scopeKey) {
+        try {
+            return !readableConversationKeys(owner, scopeKey).isEmpty();
+        } catch (RuntimeException exception) {
+            // Unknown, archived, ambiguous, or over-bounded aliases must not pass ownership checks.
+            return false;
+        }
+    }
+
+    private String canonicalScopeKey(CatalogOwner owner, MaterialScopeType scopeType, String scopeKey) {
+        if (scopeType != MaterialScopeType.CONVERSATION || conversationScopes == null) {
+            return scopeKey;
+        }
+        return conversationScopes.newWriteScopeKey(
+                new AuthenticatedActor(owner.ownerKey(), owner.ownerKey()), scopeKey, null);
     }
 
     @Override

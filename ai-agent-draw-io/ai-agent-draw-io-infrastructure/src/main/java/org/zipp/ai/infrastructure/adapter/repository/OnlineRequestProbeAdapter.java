@@ -3,6 +3,7 @@ package org.zipp.ai.infrastructure.adapter.repository;
 import org.w3c.dom.Element;
 import org.w3c.dom.NodeList;
 import org.xml.sax.InputSource;
+import org.zipp.ai.application.turn.AuthenticatedActor;
 import org.zipp.ai.domain.agent.service.ICanvasStateStore;
 import org.zipp.ai.domain.material.model.valobj.CatalogOwner;
 import org.zipp.ai.domain.retrieval.RequestProbeCommand;
@@ -20,27 +21,34 @@ import java.util.*;
 public final class OnlineRequestProbeAdapter implements RequestProbeDataPort {
     private final IOnlineRetrievalMapper retrieval;
     private final ICanvasStateStore canvases;
+    private final MySqlConversationScopeKeyResolver conversationScopes;
 
     public OnlineRequestProbeAdapter(IOnlineRetrievalMapper retrieval, ICanvasStateStore canvases) {
+        this(retrieval, canvases, null);
+    }
+
+    public OnlineRequestProbeAdapter(IOnlineRetrievalMapper retrieval, ICanvasStateStore canvases,
+                                     MySqlConversationScopeKeyResolver conversationScopes) {
         this.retrieval = Objects.requireNonNull(retrieval, "retrieval");
         this.canvases = Objects.requireNonNull(canvases, "canvases");
+        this.conversationScopes = conversationScopes;
     }
 
     @Override
     public SourceProbe probeSources(RequestProbeCommand command) {
+        List<String> conversationKeys = conversationKeys(command);
         List<OnlineSourcePO> selected = command.selectedVersionIds().isEmpty() ? List.of()
-                : retrieval.selectExplicitSources(command.owner().ownerType().name(), command.owner().ownerKey(),
-                command.diagramId(), command.conversationId(), command.selectedVersionIds());
+                : selectExplicit(command, conversationKeys);
         List<OnlineSourcePO> attachments = command.attachmentUploadIds().isEmpty() ? List.of()
-                : retrieval.selectConversationAttachmentSources(command.owner().ownerType().name(), command.owner().ownerKey(),
-                command.conversationId(), command.attachmentUploadIds());
-        List<OnlineSourcePO> automatic = retrieval.selectAutomaticSources(command.owner().ownerType().name(),
-                command.owner().ownerKey(), command.diagramId(), command.conversationId(), 20);
-        Integer pending = retrieval.countPendingConversationUploads(command.owner().ownerKey(), command.conversationId());
+                : selectAttachments(command, conversationKeys);
+        List<OnlineSourcePO> automatic = selectAutomatic(command, conversationKeys, 20);
+        int pending = conversationKeys.stream()
+                .mapToInt(key -> value(retrieval.countPendingConversationUploads(command.owner().ownerKey(), key)))
+                .sum();
         List<OnlineSourcePO> declared = java.util.stream.Stream.concat(selected.stream(), attachments.stream()).toList();
         return new SourceProbe(declared.size(), declared.stream().map(OnlineSourcePO::getKind).distinct().toList(),
                 declared.stream().map(OnlineSourcePO::getState).distinct().toList(),
-                pending == null ? 0 : pending,
+                pending,
                 automatic.stream().anyMatch(row -> "DIAGRAM".equals(row.getScopeType()) && ready(row)),
                 automatic.stream().anyMatch(row -> "CHARTBOOK".equals(row.getScopeType()) && ready(row)),
                 automatic.stream().anyMatch(row -> "LIBRARY".equals(row.getScopeType()) && ready(row)),
@@ -48,6 +56,47 @@ public final class OnlineRequestProbeAdapter implements RequestProbeDataPort {
                 java.util.stream.Stream.concat(declared.stream(), automatic.stream()).anyMatch(OnlineSourcePO::isHasVisual),
                 (int) declared.stream().filter(row -> "PARTIAL_READY".equals(row.getState())).count(),
                 command.sourceMode());
+    }
+
+    private List<OnlineSourcePO> selectExplicit(RequestProbeCommand command, List<String> keys) {
+        LinkedHashMap<String, OnlineSourcePO> merged = new LinkedHashMap<>();
+        for (String key : keys) {
+            retrieval.selectExplicitSources(command.owner().ownerType().name(), command.owner().ownerKey(),
+                            command.diagramId(), key, command.selectedVersionIds())
+                    .forEach(row -> merged.putIfAbsent(row.getVersionId(), row));
+        }
+        return List.copyOf(merged.values());
+    }
+
+    private List<OnlineSourcePO> selectAttachments(RequestProbeCommand command, List<String> keys) {
+        LinkedHashMap<String, OnlineSourcePO> merged = new LinkedHashMap<>();
+        for (String key : keys) {
+            retrieval.selectConversationAttachmentSources(command.owner().ownerType().name(),
+                            command.owner().ownerKey(), key, command.attachmentUploadIds())
+                    .forEach(row -> merged.putIfAbsent(row.getVersionId(), row));
+        }
+        return List.copyOf(merged.values());
+    }
+
+    private List<OnlineSourcePO> selectAutomatic(RequestProbeCommand command, List<String> keys, int limit) {
+        LinkedHashMap<String, OnlineSourcePO> merged = new LinkedHashMap<>();
+        for (String key : keys) {
+            retrieval.selectAutomaticSources(command.owner().ownerType().name(), command.owner().ownerKey(),
+                            command.diagramId(), key, limit)
+                    .forEach(row -> merged.putIfAbsent(row.getVersionId(), row));
+        }
+        return merged.values().stream().limit(limit).toList();
+    }
+
+    private List<String> conversationKeys(RequestProbeCommand command) {
+        if (conversationScopes == null) return List.of(command.conversationId());
+        return conversationScopes.readableScopeKeys(
+                new AuthenticatedActor(command.owner().ownerKey(), command.owner().ownerKey()),
+                command.conversationId(), command.diagramId()).allKeys();
+    }
+
+    private static int value(Integer value) {
+        return value == null ? 0 : value;
     }
 
     @Override

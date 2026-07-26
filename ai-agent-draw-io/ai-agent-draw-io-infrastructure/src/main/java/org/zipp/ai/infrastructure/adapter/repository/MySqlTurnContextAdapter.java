@@ -4,7 +4,9 @@ import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONObject;
 import org.springframework.dao.DataAccessException;
 import org.springframework.jdbc.core.JdbcOperations;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Repository;
+import org.zipp.ai.application.turn.AuthenticatedActor;
 import org.zipp.ai.application.turn.FencedAttempt;
 import org.zipp.ai.application.turn.OpaqueConversationFileRef;
 import org.zipp.ai.application.turn.TurnFailureCode;
@@ -112,15 +114,16 @@ public class MySqlTurnContextAdapter implements ContextCandidateQueryPort, Conte
             JOIN material_upload_session u
                 ON u.id = a.conversation_file_ref AND u.owner_key = a.owner_key
                AND u.target_scope_type = 'CONVERSATION'
-               AND u.target_scope_key = a.conversation_id
             WHERE a.owner_key = ? AND a.conversation_id = ? AND a.message_id = ?
+              AND u.target_scope_key = ?
             ORDER BY a.attachment_order ASC
             """;
 
-    private static final String SELECT_RECENT_MESSAGES = """
+    private static final String SELECT_RECENT_MESSAGES_TEMPLATE = """
             SELECT role, content
             FROM diagram_conversation_message
-            WHERE user_id = ? AND diagram_id = ? AND conversation_id = ?
+            WHERE user_id = ? AND diagram_id = ?
+              AND (conversation_id IN (%s) OR session_id IN (%s))
               AND message_status = 'COMMITTED'
               AND message_sequence IS NOT NULL AND message_sequence <= ?
             ORDER BY message_sequence DESC
@@ -128,9 +131,17 @@ public class MySqlTurnContextAdapter implements ContextCandidateQueryPort, Conte
             """;
 
     private final JdbcOperations jdbc;
+    private final MySqlConversationScopeKeyResolver conversationScopes;
 
     public MySqlTurnContextAdapter(JdbcOperations jdbc) {
+        this(jdbc, null);
+    }
+
+    @Autowired
+    public MySqlTurnContextAdapter(JdbcOperations jdbc,
+                                   MySqlConversationScopeKeyResolver conversationScopes) {
         this.jdbc = Objects.requireNonNull(jdbc, "jdbc");
+        this.conversationScopes = conversationScopes;
     }
 
     @Override
@@ -316,13 +327,23 @@ public class MySqlTurnContextAdapter implements ContextCandidateQueryPort, Conte
         if (execution.requestMessageId() == null) {
             throw new IllegalStateException("ATTACHMENT_BINDING_MESSAGE_MISSING");
         }
-        List<AttachmentRow> rows = jdbc.query(
-                SELECT_ATTACHMENTS,
-                (resultSet, rowNum) -> new AttachmentRow(
-                        resultSet.getString("conversation_file_ref"),
-                        resultSet.getString("display_name"),
-                        resultSet.getString("declared_mime")),
-                key.ownerKey(), key.canonicalConversationId(), execution.requestMessageId());
+        List<String> scopeKeys = conversationScopes == null
+                ? List.of(key.canonicalConversationId())
+                : conversationScopes.readableScopeKeys(
+                        new AuthenticatedActor(key.ownerKey(), key.ownerKey()),
+                        key.canonicalConversationId(), command.diagramId()).allKeys();
+        java.util.LinkedHashMap<String, AttachmentRow> byReference = new java.util.LinkedHashMap<>();
+        for (String scopeKey : scopeKeys) {
+            jdbc.query(
+                    SELECT_ATTACHMENTS,
+                    (resultSet, rowNum) -> new AttachmentRow(
+                            resultSet.getString("conversation_file_ref"),
+                            resultSet.getString("display_name"),
+                            resultSet.getString("declared_mime")),
+                    key.ownerKey(), key.canonicalConversationId(), execution.requestMessageId(), scopeKey)
+                    .forEach(row -> byReference.putIfAbsent(row.reference(), row));
+        }
+        List<AttachmentRow> rows = List.copyOf(byReference.values());
         if (rows.size() != expected.size()) {
             throw new IllegalStateException("ATTACHMENT_BINDING_CHANGED");
         }
@@ -344,12 +365,23 @@ public class MySqlTurnContextAdapter implements ContextCandidateQueryPort, Conte
             FencedAttempt attempt,
             UserTurnCommand command
     ) {
+        List<String> scopeKeys = conversationScopes == null
+                ? List.of(attempt.key().canonicalConversationId())
+                : conversationScopes.readableScopeKeys(
+                        new AuthenticatedActor(attempt.key().ownerKey(), attempt.key().ownerKey()),
+                        attempt.key().canonicalConversationId(), command.diagramId()).allKeys();
+        String placeholders = String.join(",", Collections.nCopies(scopeKeys.size(), "?"));
+        List<Object> queryArgs = new ArrayList<>(2 + scopeKeys.size() * 2 + 1);
+        queryArgs.add(attempt.key().ownerKey());
+        queryArgs.add(command.diagramId());
+        queryArgs.addAll(scopeKeys);
+        queryArgs.addAll(scopeKeys);
+        queryArgs.add(attempt.contextMessageHighWater());
         List<ConversationMessageRow> rows = new ArrayList<>(jdbc.query(
-                SELECT_RECENT_MESSAGES,
+                SELECT_RECENT_MESSAGES_TEMPLATE.formatted(placeholders, placeholders),
                 (resultSet, rowNum) -> new ConversationMessageRow(
                         resultSet.getString("role"), resultSet.getString("content")),
-                attempt.key().ownerKey(), command.diagramId(), attempt.key().canonicalConversationId(),
-                attempt.contextMessageHighWater()));
+                queryArgs.toArray()));
         if (rows.isEmpty()) {
             return new AbsentContext<>("NO_CANONICAL_MESSAGES_AT_HIGH_WATER");
         }

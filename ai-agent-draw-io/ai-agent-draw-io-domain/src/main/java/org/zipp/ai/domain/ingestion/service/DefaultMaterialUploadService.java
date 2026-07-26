@@ -141,7 +141,9 @@ public final class DefaultMaterialUploadService implements IMaterialUploadServic
         if (!capacityBreaker.decide(request.ownerType(), CapacityWorkload.NEW_UPLOAD).allowed()) {
             throw rejected(request, UploadErrorCode.CAPACITY_EXHAUSTED);
         }
-        if (!scopeAuthorizer.canUpload(request.ownerType(), ownerKey, request.target(), request.contextDiagramId(),
+        var target = scopeAuthorizer.canonicalTarget(request.ownerType(), ownerKey, request.target(),
+                request.contextDiagramId());
+        if (!scopeAuthorizer.canUpload(request.ownerType(), ownerKey, target, request.contextDiagramId(),
                 request.newVersionOfMaterialId())) {
             throw rejected(request, UploadErrorCode.UPLOAD_SCOPE_FORBIDDEN);
         }
@@ -151,7 +153,7 @@ public final class DefaultMaterialUploadService implements IMaterialUploadServic
                 request.ownerType(), ownerKey, requireText(request.ipRateKey(), "ipRateKey"), hourBucket);
         try {
             admissionPolicy.validate(new UploadAdmissionRequest(
-                    request.ownerType(), request.target(), request.declaredMediaType(), request.byteSize(),
+                    request.ownerType(), target, request.declaredMediaType(), request.byteSize(),
                     quota.accountOriginalBytes(), quota.activeFileCount(), quota.processingCount(),
                     quota.workspaceHourlyCount(), quota.ipHourlyCount(), request.batchFileCount()));
         } catch (UploadAdmissionException rejected) {
@@ -165,7 +167,7 @@ public final class DefaultMaterialUploadService implements IMaterialUploadServic
         UploadSession session = UploadSession.create(
                 uploadId, request.ownerType(), ownerKey, idempotencyKey,
                 request.displayName(), request.declaredMediaType(), request.byteSize(), request.sha256(),
-                request.target(), request.newVersionOfMaterialId(), quarantineBucket, objectKey,
+                target, request.newVersionOfMaterialId(), quarantineBucket, objectKey,
                 now.plus(POLICY_TTL), now);
         // The store serializes quota reservation and the idempotency insert. A concurrent replay
         // returns the winning aggregate and therefore cannot consume quota twice.
