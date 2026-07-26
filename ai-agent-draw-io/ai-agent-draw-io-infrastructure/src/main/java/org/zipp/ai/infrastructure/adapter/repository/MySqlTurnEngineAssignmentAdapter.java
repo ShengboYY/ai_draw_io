@@ -122,15 +122,10 @@ public class MySqlTurnEngineAssignmentAdapter
             return new AdmissionWriteOutcome.Reused(existing.toAssignment(memoryCodec));
         }
 
-        if (migration.mode == TurnEngineMode.V2_CANARY) {
-            // Stable cohort selection is intentionally deferred; never persist a canary label
-            // that still executes through the legacy engine.
-            return new AdmissionWriteOutcome.Rejected(command.key(), "V2_CANARY_UNSUPPORTED");
+        if (!selectionMatchesMode(command.selectedEngine(), migration.mode)) {
+            return new AdmissionWriteOutcome.Rejected(command.key(), "ENGINE_SELECTION_MISMATCH");
         }
-        SelectedTurnEngine selectedEngine = selectEngine(migration.mode);
-        if (selectedEngine == null) {
-            return new AdmissionWriteOutcome.Rejected(command.key(), "TURN_ENGINE_RETIRED");
-        }
+        SelectedTurnEngine selectedEngine = command.selectedEngine();
         MemoryWriteValues memory = memoryValues(command.memoryWrite());
         jdbc.update(
                 INSERT_ASSIGNMENT,
@@ -169,12 +164,13 @@ public class MySqlTurnEngineAssignmentAdapter
         return rows.isEmpty() ? null : rows.get(0);
     }
 
-    private SelectedTurnEngine selectEngine(TurnEngineMode mode) {
+    private boolean selectionMatchesMode(SelectedTurnEngine selectedEngine, TurnEngineMode mode) {
         return switch (mode) {
-            case LEGACY -> SelectedTurnEngine.LEGACY;
-            case V2_CANARY -> null;
-            case ALL_V2 -> SelectedTurnEngine.V2;
-            case RETIRED -> null;
+            case LEGACY -> selectedEngine == SelectedTurnEngine.LEGACY;
+            case V2_CANARY -> selectedEngine == SelectedTurnEngine.LEGACY
+                    || selectedEngine == SelectedTurnEngine.V2;
+            case ALL_V2 -> selectedEngine == SelectedTurnEngine.V2;
+            case RETIRED -> false;
         };
     }
 

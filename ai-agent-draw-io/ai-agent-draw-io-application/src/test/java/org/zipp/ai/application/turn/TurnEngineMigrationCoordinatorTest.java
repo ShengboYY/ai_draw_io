@@ -21,12 +21,15 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class TurnEngineMigrationCoordinatorTest {
 
     @Test
-    void rejectsCanaryUntilStableCohortSelectionExists() {
+    void switchesToCanaryOnlyAfterLegacyPreparation() {
         List<String> calls = new ArrayList<>();
         TurnEngineMigrationCoordinator coordinator = new TurnEngineMigrationCoordinator(
                 new RecordingBarrier(calls),
                 command -> {
-                    throw new AssertionError("canary must not reach durable switch");
+                    calls.add("switch:" + command.expectedMode() + "->" + command.targetMode());
+                    return new MigrationModeSwitchOutcome.Changed(
+                            new MigrationStateSnapshot(1, command.targetMode(),
+                                    Instant.parse("2026-07-26T00:00:00Z")));
                 },
                 new RecordingExpiry(calls, 0));
 
@@ -35,10 +38,38 @@ class TurnEngineMigrationCoordinatorTest {
                         Instant.parse("2026-07-26T00:00:00Z")),
                 TurnEngineMode.V2_CANARY);
 
-        MigrationModeSwitchOutcome.Rejected rejected =
-                assertInstanceOf(MigrationModeSwitchOutcome.Rejected.class, outcome);
-        assertEquals("V2_CANARY_UNSUPPORTED", rejected.code());
-        assertEquals(List.of(), calls);
+        MigrationModeSwitchOutcome.Changed changed =
+                assertInstanceOf(MigrationModeSwitchOutcome.Changed.class, outcome);
+        assertEquals(TurnEngineMode.V2_CANARY, changed.state().mode());
+        assertEquals(List.of(
+                "pause", "backfill:100", "expire:100",
+                "switch:LEGACY->V2_CANARY", "resume"), calls);
+    }
+
+    @Test
+    void canaryRollbackUsesTheSamePausedMigrationWindow() {
+        List<String> calls = new ArrayList<>();
+        TurnEngineMigrationCoordinator coordinator = new TurnEngineMigrationCoordinator(
+                new RecordingBarrier(calls),
+                command -> {
+                    calls.add("switch:" + command.expectedMode() + "->" + command.targetMode());
+                    return new MigrationModeSwitchOutcome.Changed(
+                            new MigrationStateSnapshot(2, command.targetMode(),
+                                    Instant.parse("2026-07-26T00:00:00Z")));
+                },
+                new RecordingExpiry(calls, 0));
+
+        MigrationModeSwitchOutcome.Changed changed = assertInstanceOf(
+                MigrationModeSwitchOutcome.Changed.class,
+                coordinator.switchMode(
+                        new MigrationStateSnapshot(1, TurnEngineMode.V2_CANARY,
+                                Instant.parse("2026-07-26T00:00:00Z")),
+                        TurnEngineMode.LEGACY));
+
+        assertEquals(TurnEngineMode.LEGACY, changed.state().mode());
+        assertEquals(List.of(
+                "pause", "backfill:100", "expire:100",
+                "switch:V2_CANARY->LEGACY", "resume"), calls);
     }
 
     @Test

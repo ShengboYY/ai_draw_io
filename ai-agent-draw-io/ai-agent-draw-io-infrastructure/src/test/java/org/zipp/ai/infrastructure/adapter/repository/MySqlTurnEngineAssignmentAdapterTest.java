@@ -33,16 +33,16 @@ import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 class MySqlTurnEngineAssignmentAdapterTest {
 
     @Test
-    void refusesNewAssignmentsWhileCanaryCohortSelectionIsDeferred() {
+    void canaryAssignmentPersistsTheSelectedV2Engine() {
         JdbcStub jdbc = new JdbcStub("V2_CANARY", false);
 
-        AdmissionWriteOutcome.Rejected rejected = assertInstanceOf(
-                AdmissionWriteOutcome.Rejected.class,
+        AdmissionWriteOutcome.Assigned assigned = assertInstanceOf(
+                AdmissionWriteOutcome.Assigned.class,
                 new MySqlTurnEngineAssignmentAdapter(jdbc.proxy()).assignOrReuse(
-                        command(new NoMemoryWrite(), TurnEngineMode.V2_CANARY)));
+                        command(new NoMemoryWrite(), TurnEngineMode.V2_CANARY, SelectedTurnEngine.V2)));
 
-        assertEquals("V2_CANARY_UNSUPPORTED", rejected.code());
-        assertEquals(List.of(), jdbc.updates);
+        assertEquals(SelectedTurnEngine.V2, assigned.assignment().selectedEngine());
+        assertEquals(1, jdbc.updates.size());
     }
 
     @Test
@@ -117,6 +117,14 @@ class MySqlTurnEngineAssignmentAdapterTest {
             org.zipp.ai.application.turn.MemoryWriteDeclaration memoryWrite,
             TurnEngineMode mode
     ) {
+        return command(memoryWrite, mode, SelectedTurnEngine.V2);
+    }
+
+    private static TurnEngineAssignmentCommand command(
+            org.zipp.ai.application.turn.MemoryWriteDeclaration memoryWrite,
+            TurnEngineMode mode,
+            SelectedTurnEngine selectedEngine
+    ) {
         return new TurnEngineAssignmentCommand(
                 new TurnKey("owner-1", "conversation-1", "turn-1"),
                 "diagram-1",
@@ -124,7 +132,8 @@ class MySqlTurnEngineAssignmentAdapterTest {
                         List.of(new VersionedRequestFingerprint(1, "fingerprint"))),
                 new ExecutionPolicySnapshot(1, mode, "{}", "policy-hash"),
                 new MigrationStateSnapshot(3, mode, Instant.parse("2026-07-26T00:00:00Z")),
-                memoryWrite);
+                memoryWrite,
+                selectedEngine);
     }
 
     private static TurnEngineAssignmentCommand command(
@@ -141,13 +150,14 @@ class MySqlTurnEngineAssignmentAdapterTest {
                 policy,
                 new MigrationStateSnapshot(
                         3, TurnEngineMode.ALL_V2, Instant.parse("2026-07-26T00:00:00Z")),
-                memoryWrite);
+                memoryWrite,
+                SelectedTurnEngine.V2);
     }
 
     private static final class JdbcStub {
         private final List<String> updates = new java.util.ArrayList<>();
         private final String migrationMode;
-        private final boolean existing;
+        private boolean existing;
 
         private JdbcStub() {
             this("ALL_V2", true);
@@ -172,7 +182,8 @@ class MySqlTurnEngineAssignmentAdapterTest {
                 }
                 if ("update".equals(method.getName())) {
                     updates.add((String) args[0]);
-                    throw new AssertionError("existing assignment must not be rewritten");
+                    existing = true;
+                    return 1;
                 }
                 return defaultValue(method.getReturnType());
             };

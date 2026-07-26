@@ -40,7 +40,7 @@ class TurnEngineAdmissionServiceTest {
                 input -> {
                     captured.set(input);
                     return new AdmissionWriteOutcome.Assigned(assignment);
-                }, new OpenAdmissionBarrier());
+                }, new OpenAdmissionBarrier(), cohort -> SelectedTurnEngine.V2);
 
         AdmissionWriteOutcome outcome = service.admit(actor, conversation, command, fingerprints, policy);
 
@@ -48,6 +48,7 @@ class TurnEngineAdmissionServiceTest {
         assertEquals(expectedKey, captured.get().key());
         assertEquals(7, captured.get().migration().generation());
         assertEquals(new NoMemoryWrite(), captured.get().memoryWrite());
+        assertEquals(SelectedTurnEngine.V2, captured.get().selectedEngine());
     }
 
     @Test

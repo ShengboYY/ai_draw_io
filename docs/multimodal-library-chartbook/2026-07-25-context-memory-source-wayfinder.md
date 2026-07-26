@@ -406,7 +406,7 @@ drain/backfill 失败时保持旧 mode 并恢复 admission；singleton lock 丢�
 ## all-path-v2-canary: Run A Sticky All-Path Canary
 
 Blocked by: single-instance-migration-control, unified-turn-delivery, plain-boundary-evals, source-aware-boundary-evals
-Status: open
+Status: resolved
 Type: Task
 
 ### Question
@@ -415,17 +415,17 @@ Type: Task
 
 ### Answer
 
-Pending. 只有 singleton lock、admission drain 和 source gates 已验证时才启用 stable cohort。
+已完成 stable all-path canary wiring，但 production 默认仍保持关闭：只有通过现有 singleton migration hook 显式切换到 `V2_CANARY`，并配置 allowlist、rollout percent 或 versioned salt 后才会产生 V2 assignment。
 
-eligibility 只使用 authenticated stable account/org key、allowlist 与 versioned rollout salt，不读取 prompt、source availability、Profile/Memory 或模型输出。
+`StableTurnEngineCohortSelector` 只使用 authenticated actor 的 stable cohort key、allowlist、百分比和 SHA-256 rollout salt；prompt、locale、附件、source availability、Profile/Memory、模型输出和 delivery channel 都不进入选择输入。同一 cohort 在同一 salt 下稳定落入 V2 或 legacy。
 
-`assignOrReuse` 先解析 existing/tombstone。真正 unseen key 只按 stable cohort 得到整轮 V2 或整轮 legacy assignment。
+`TurnEngineAdmissionService` 在 assignment 前完成选择，并把 `SelectedTurnEngine` 写入 durable assignment command；`MySqlTurnEngineAssignmentAdapter` 在 migration row 锁内校验 mode/selection 一致性。`assignOrReuse` 仍先解析 existing/tombstone，真正 unseen key 才按 stable cohort 得到整轮 V2 或整轮 legacy assignment；retry/restart 不重新抽 cohort。
 
-canary 不区分 Plain 与 source-aware，也不读取 prompt、locale、附件或模型输出。sticky assignment 已保证同一 TurnKey 的重试不改道，因此不需要 admission grant reservation。
+canary 不区分 Plain 与 source-aware，也不读取 prompt、locale、附件或模型输出。sticky assignment 已保证同一 TurnKey 的重试不改道，因此不需要 admission grant reservation。生产 assignment 仍受 `turn-engine.lifecycle.enabled` 保护，不因本票自动打开 serving。
 
-关闭 canary 只停止新 assignment。既有 V2 turn 继续由兼容 executor 完成。
+`LEGACY → V2_CANARY` 只能经暂停 admission、drain、retry backfill/expiry tombstone 与 durable generation/mode CAS；`V2_CANARY → LEGACY` 使用同一 migration fence 作为显式 rollback，既有 V2 turn 继续由兼容 executor 完成。现阶段 rollback 是 operator/migration hook 驱动，自动 error-budget 监控不在本票内。
 
-测试覆盖 mode generation race、restart reconciliation 与 error-budget rollback。
+测试覆盖稳定 cohort/allowlist/边界、assignment selected-engine 持久化、mode generation race、startup orphan reconciliation、canary migration 和同窗 rollback；application 194/194、domain 302/302、trigger 40/40，相关 infrastructure/app 定向测试 14/14 与 5/5 通过，完整相关 Maven reactor `BUILD SUCCESS`。本票没有新增或执行数据库 migration。
 
 ## all-v2-cutover: Activate The M6 Boundary
 

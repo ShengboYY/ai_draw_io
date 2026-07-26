@@ -129,6 +129,25 @@ class TurnApplicationCompositionConfigTest {
     }
 
     @Test
+    void canStartTheStableCanaryModeOnlyThroughTheExplicitMigrationHook() {
+        contextRunner.withPropertyValues(
+                        "turn-engine.migration.startup-target-mode=V2_CANARY",
+                        "turn-engine.canary.allowlist=owner-1")
+                .run(context -> {
+                    context.getBean(org.springframework.boot.ApplicationRunner.class)
+                            .run(new org.springframework.boot.DefaultApplicationArguments());
+
+                    FakeMigrationControl migration = context.getBean(FakeMigrationControl.class);
+                    assertThat(migration.commands).singleElement()
+                            .extracting(MigrationModeSwitchCommand::targetMode)
+                            .isEqualTo(TurnEngineMode.V2_CANARY);
+                    assertThat(context.getBean(
+                            org.zipp.ai.application.turn.TurnEngineCohortSelector.class)
+                    ).isInstanceOf(org.zipp.ai.application.turn.StableTurnEngineCohortSelector.class);
+                });
+    }
+
+    @Test
     void composesV2DeliveryHandoffWhenAnAttemptRunnerIsAvailable() {
         ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
         try {

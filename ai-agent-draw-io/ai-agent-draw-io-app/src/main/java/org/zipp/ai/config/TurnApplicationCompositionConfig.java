@@ -26,6 +26,7 @@ import org.zipp.ai.application.turn.DefaultTurnDeliveryExecutor;
 import org.zipp.ai.application.turn.TurnDeliveryExecutor;
 import org.zipp.ai.application.turn.TurnEngineAdmissionService;
 import org.zipp.ai.application.turn.TurnEngineAssignmentPort;
+import org.zipp.ai.application.turn.TurnEngineCohortSelector;
 import org.zipp.ai.application.turn.TurnEngineMigrationStatePort;
 import org.zipp.ai.application.turn.TurnEngineMigrationControlPort;
 import org.zipp.ai.application.turn.TurnEngineMigrationCoordinator;
@@ -46,6 +47,8 @@ import org.zipp.ai.trigger.http.turn.TurnHttpDeliveryAdapter;
 import org.zipp.ai.trigger.http.turn.TurnHttpRequestTranslator;
 
 import java.util.Locale;
+import java.util.Arrays;
+import java.util.Set;
 import java.util.UUID;
 
 /** Bootstrap-only M1 composition; lifecycle startup is opt-in after the matching release manifest. */
@@ -81,9 +84,25 @@ public class TurnApplicationCompositionConfig {
     public TurnEngineAdmissionService turnEngineAdmissionService(
             TurnEngineMigrationStatePort migrationState,
             TurnEngineAssignmentPort assignments,
-            AdmissionBarrier admissionBarrier
+            AdmissionBarrier admissionBarrier,
+            TurnEngineCohortSelector cohortSelector
     ) {
-        return new TurnEngineAdmissionService(migrationState, assignments, admissionBarrier);
+        return new TurnEngineAdmissionService(
+                migrationState, assignments, admissionBarrier, cohortSelector);
+    }
+
+    @Bean
+    public TurnEngineCohortSelector turnEngineCohortSelector(
+            @Value("${turn-engine.canary.rollout-salt:m6-default}") String rolloutSalt,
+            @Value("${turn-engine.canary.rollout-percent:0}") int rolloutPercent,
+            @Value("${turn-engine.canary.allowlist:}") String allowlist
+    ) {
+        Set<String> allowlistedCohorts = Arrays.stream(allowlist.split(","))
+                .map(String::trim)
+                .filter(value -> !value.isBlank())
+                .collect(java.util.stream.Collectors.toUnmodifiableSet());
+        return new org.zipp.ai.application.turn.StableTurnEngineCohortSelector(
+                rolloutSalt, rolloutPercent, allowlistedCohorts);
     }
 
     @Bean

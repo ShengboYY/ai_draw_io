@@ -6,11 +6,13 @@ public record TurnEngineAssignmentCommand(
         VersionedRequestFingerprintSet fingerprints,
         ExecutionPolicySnapshot policy,
         MigrationStateSnapshot migration,
-        MemoryWriteDeclaration memoryWrite
+        MemoryWriteDeclaration memoryWrite,
+        SelectedTurnEngine selectedEngine
 ) {
 
     public TurnEngineAssignmentCommand {
-        if (key == null || fingerprints == null || policy == null || migration == null || memoryWrite == null) {
+        if (key == null || fingerprints == null || policy == null || migration == null
+                || memoryWrite == null || selectedEngine == null) {
             throw new IllegalArgumentException("assignment command values must not be null");
         }
         ContractValues.requiredText(diagramId, "diagramId");
