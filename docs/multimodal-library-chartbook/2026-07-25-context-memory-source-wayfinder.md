@@ -910,7 +910,7 @@ M2 source-free boundary 已收口，生产 assignment 仍保持 legacy：
 ## source-aware-boundary-evals: Gate The M6 Source Cutover
 
 Blocked by: source-execution-plan, optional-enrichment, direct-composite-hardening, source-aware-commit-seams, conversation-scope-migration, session-continuity
-Status: open
+Status: resolved
 Type: Research
 
 ### Question
@@ -919,29 +919,12 @@ Type: Research
 
 ### Answer
 
-Pending. 最低矩阵：
+M6 source-aware boundary gate 已落成，并继续只在 isolated executor 中运行；production assignment 在 M6 canary 前保持全部 legacy。
 
-- selected exact、PROJECT_AUTO、Direct、optional/required failures、multi-image ambiguity；
-- Optional Discovery trigger/hit/no-match/unavailable 与 signed fallback；
-- Direct candidates 在 Probe 前保持 non-empty set；每个 Probe fact 绑定 turn/lineage/declaration digest；
-- Planner 只把 origin-specific candidate fact 映射成对应 sealed selector；freeze 只读 exact identity，不按 name/ref 重查；
-- freeze 的 success/dependency-unavailable/membership-changed/terminal/cancel exhaustive matrix 都逐值回显 TurnKey、plan identity、execution entry；交换任一 binding 必须 fail closed；
-- membership revision/status 漂移固定映射 `MEMBERSHIP_REVISION_CHANGED_RETRY`，Required/Optional 都不可 fallback或留下 partial snapshot；
-- Required freeze 永远不返回 partial；Optional Composite direct-only 只能走 `freezeDirectOnly(SignedDirectOnlyEntry)`；
-- multi-image clarification 由 `ClarificationReplyResolutionPort` 校验 hidden id、Router option、owner/candidate/expiry；覆盖 stale、cross-turn、cross-owner、expired 与 same-turn replay；
-- 重复 submit 解析到同一 sticky assignment；cross-owner、TurnKey/action digest mismatch 与 replay after consume 按 typed contract 拒绝或重放，不能创建第二条 assignment；
-- PROJECT_AUTO 覆盖 Conversation + Diagram + Chartbook，并验证 Personal Library 永远不可见；
-- DIRECT × RETRIEVAL 的 role availability/fallback 全矩阵；
-- 同一 planning lineage 穿过 Probe；Probe 后的 bound plan identity 原样穿过 Freeze、Prepare 与 Commit。
-- 两个模型 port、Probe 与 Planner 覆盖 crash-before/after checkpoint、concurrent CAS winner 和 takeover；已 pin 时调用数都为零；
-- Chartbook membership authority 故障按 scope 区分：独立 owner-fenced exact 可继续；Chartbook exact/AUTO 按 Optional fallback 或 Required terminal；
-- Direct/Grounded/Evidence Answer 三个 strong adapter 逐写点 fault-injection，terminal schema unavailable 必须 typed fail closed。
-- Evidence Answer 验证 `aiKnowledgeAllowed=false`、Required insufficiency fail closed，以及每条 claim 都有 snapshot 内 citation support；
-- Grounded/Evidence initial attempt 与 takeover 使用相同 conversation high-water；重启后不得读到后到 turn 或改变 source plan。
-- Direct/Grounded/Evidence runtime 只能使用各自 path-specific tool-free generation port；恶意文档/图片不得取得 Source、Material、Retrieval 或 Memory-management 工具。
-- Optional primary 在 citation rejection、timeout 与 insufficiency 后 fallback 时，使用 fresh invocation；不得泄漏 primary session、candidate、answer、citation 或 pre-commit provisional event。
-
-M5 只通过 isolated all-path test executor 收集这些结果；production assignment 在 M6 canary 前继续全部 legacy。
+- `SourceAwareBoundaryGateTest` 新增 15 个参数化/组合断言：三类 Direct origin 都保留完整 Probe binding；Direct 缺失时 Optional/Required Composite 都返回 typed Direct rejection，不退化为 Retrieval；Required Retrieval 缺失永远不产生 partial plan；Direct/Retrieval membership 都参与 plan fingerprint；Optional direct-only 只能使用 root plan 签发的 `SignedDirectOnly` branch 并保留同一 `SourcePlanIdentity`。
+- 既有 planning gate 覆盖 selected/current attachment、Optional Discovery hit/no-match/processing/dependency、multi-image clarification、binding/role swap、Required fail-closed 和 tool-free generation boundary；`SourceAwareGenerationBoundaryTest`、planner 与 strong-handler 定向集合为 `58/58`。
+- durable clarification authority 覆盖 hidden id、option/set digest、owner/conversation/turn binding、candidate binding、stale/expired 与 authority unavailable；source execution binding 和 Direct/Grounded/Evidence strong commit 的 infrastructure 回归为 `40` 通过、`1` 个真实 schema test 因未配置 MySQL 跳过。
+- application full test 为 `189/189`，composition isolation 为 `5/5`。freeze/prepare/commit 必须继续逐值回显 TurnKey、plan identity、snapshot binding 与 execution entry；membership revision、restart/takeover high-water、PROJECT_AUTO/Personal Library scope 和 unified sync/stream delivery 由其各自 M3/M6 gate 继续阻塞 canary，不能以本票提前放行。
 
 ## context-memory-evals: Lock Later Context And Memory Boundaries
 
