@@ -8,6 +8,16 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.zipp.ai.application.turn.PlainDrawingHandler;
 import org.zipp.ai.application.turn.AttemptWriteGate;
+import org.zipp.ai.application.turn.DirectGenerationPort;
+import org.zipp.ai.application.turn.DirectTurnCommitPort;
+import org.zipp.ai.application.turn.DirectTurnHandler;
+import org.zipp.ai.application.turn.DirectVisionPort;
+import org.zipp.ai.application.turn.EvidenceAnswerGenerationPort;
+import org.zipp.ai.application.turn.EvidenceAnswerTurnCommitPort;
+import org.zipp.ai.application.turn.EvidenceAnswerTurnHandler;
+import org.zipp.ai.application.turn.GroundedGenerationPort;
+import org.zipp.ai.application.turn.GroundedTurnCommitPort;
+import org.zipp.ai.application.turn.GroundedTurnHandler;
 import org.zipp.ai.application.turn.PlainExecutionProfile;
 import org.zipp.ai.application.turn.PlainGenerationPort;
 import org.zipp.ai.application.turn.PlainResponseGenerationPort;
@@ -23,9 +33,12 @@ import org.zipp.ai.application.turn.TurnAttemptInputRecoveryPort;
 import org.zipp.ai.application.turn.TurnControlFacade;
 import org.zipp.ai.application.turn.TurnWriteGate;
 import org.zipp.ai.application.turn.TurnLifecycleTracePort;
+import org.zipp.ai.application.turn.SourceAwarePreparationPort;
+import org.zipp.ai.application.turn.SourceExecutionBindingPort;
 import org.zipp.ai.application.turn.checkpoint.TurnDecisionCoordinator;
 import org.zipp.ai.application.turn.context.ContextAssemblyCoordinator;
 import org.zipp.ai.application.turn.execution.DefaultTurnV2ExecutionCoordinator;
+import org.zipp.ai.application.turn.execution.DefaultSourceAwareTurnExecution;
 import org.zipp.ai.application.turn.execution.DefaultTurnV2PreHandlerCoordinator;
 import org.zipp.ai.application.turn.execution.DefaultTurnV2TurnExecutor;
 import org.zipp.ai.application.turn.execution.TurnV2ExecutionCoordinator;
@@ -34,6 +47,10 @@ import org.zipp.ai.application.turn.execution.TurnV2TurnExecutor;
 import org.zipp.ai.application.turn.execution.TurnAttemptLeaseSupervisor;
 import org.zipp.ai.application.turn.execution.TurnAttemptExecutionRunner;
 import org.zipp.ai.application.turn.execution.TurnAttemptRecoveryCoordinator;
+import org.zipp.ai.application.turn.execution.SourceAwareTurnExecution;
+import org.zipp.ai.application.turn.planning.DirectCompositePlanner;
+import org.zipp.ai.application.turn.planning.OptionalEnrichmentPlanner;
+import org.zipp.ai.application.turn.planning.SourceProbePort;
 
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -109,6 +126,71 @@ public class TurnV2ExecutionCompositionConfig {
     }
 
     @Bean
+    public DirectCompositePlanner directCompositePlanner() {
+        return new DirectCompositePlanner();
+    }
+
+    @Bean
+    public OptionalEnrichmentPlanner optionalEnrichmentPlanner() {
+        return new OptionalEnrichmentPlanner();
+    }
+
+    @Bean
+    @ConditionalOnBean({SourceProbePort.class, SourceAwarePreparationPort.class,
+            SourceExecutionBindingPort.class})
+    public SourceAwareTurnExecution sourceAwareTurnExecution(
+            SourceProbePort probe,
+            DirectCompositePlanner directPlanner,
+            OptionalEnrichmentPlanner enrichmentPlanner,
+            SourceAwarePreparationPort preparation,
+            SourceExecutionBindingPort sourceBinding,
+            ObjectProvider<DirectTurnHandler> direct,
+            ObjectProvider<GroundedTurnHandler> grounded,
+            ObjectProvider<EvidenceAnswerTurnHandler> evidenceAnswer
+    ) {
+        return new DefaultSourceAwareTurnExecution(
+                probe,
+                directPlanner,
+                enrichmentPlanner,
+                preparation,
+                sourceBinding,
+                java.util.Optional.ofNullable(direct.getIfAvailable()),
+                java.util.Optional.ofNullable(grounded.getIfAvailable()),
+                java.util.Optional.ofNullable(evidenceAnswer.getIfAvailable()));
+    }
+
+    @Bean
+    @ConditionalOnBean({DirectVisionPort.class, DirectGenerationPort.class, DirectTurnCommitPort.class})
+    public DirectTurnHandler directTurnHandler(
+            DirectVisionPort vision,
+            DirectGenerationPort generation,
+            DirectTurnCommitPort commit,
+            TurnWriteGate writeGate
+    ) {
+        return new DirectTurnHandler(vision, generation, commit, writeGate);
+    }
+
+    @Bean
+    @ConditionalOnBean({GroundedGenerationPort.class, GroundedTurnCommitPort.class})
+    public GroundedTurnHandler groundedTurnHandler(
+            GroundedGenerationPort generation,
+            GroundedTurnCommitPort commit,
+            TurnWriteGate writeGate
+    ) {
+        return new GroundedTurnHandler(generation, commit, writeGate);
+    }
+
+    @Bean
+    @ConditionalOnBean({EvidenceAnswerGenerationPort.class, EvidenceAnswerTurnCommitPort.class})
+    public EvidenceAnswerTurnHandler evidenceAnswerTurnHandler(
+            EvidenceAnswerGenerationPort generation,
+            EvidenceAnswerTurnCommitPort commit,
+            TurnWriteGate writeGate
+    ) {
+        return new EvidenceAnswerTurnHandler(generation, commit, writeGate);
+    }
+
+    @Bean
     @ConditionalOnBean({
             TurnV2PreHandlerCoordinator.class,
             PlainDrawingHandler.class,
@@ -118,10 +200,11 @@ public class TurnV2ExecutionCompositionConfig {
             TurnV2PreHandlerCoordinator preHandler,
             PlainDrawingHandler plain,
             TurnAttemptExecutionStatePort executionState,
-            ObjectProvider<PlainResponseHandler> response
+            ObjectProvider<PlainResponseHandler> response,
+            ObjectProvider<SourceAwareTurnExecution> sourceAware
     ) {
         return new DefaultTurnV2ExecutionCoordinator(
-                preHandler, plain, response.getIfAvailable(), executionState);
+                preHandler, plain, response.getIfAvailable(), sourceAware.getIfAvailable(), executionState);
     }
 
     @Bean
@@ -134,10 +217,12 @@ public class TurnV2ExecutionCompositionConfig {
     public TurnV2ExecutionCoordinator turnV2ResponseOnlyExecutionCoordinator(
             TurnV2PreHandlerCoordinator preHandler,
             PlainResponseHandler response,
-            TurnAttemptExecutionStatePort executionState
+            TurnAttemptExecutionStatePort executionState,
+            ObjectProvider<SourceAwareTurnExecution> sourceAware
     ) {
         // Response/review must remain reachable when the Plain drawing model is disabled.
-        return new DefaultTurnV2ExecutionCoordinator(preHandler, response, executionState);
+        return new DefaultTurnV2ExecutionCoordinator(
+                preHandler, response, sourceAware.getIfAvailable(), executionState);
     }
 
     @Bean

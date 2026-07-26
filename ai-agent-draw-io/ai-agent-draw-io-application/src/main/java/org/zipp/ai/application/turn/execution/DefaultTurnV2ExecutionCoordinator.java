@@ -14,14 +14,15 @@ import java.util.Objects;
 import java.util.Optional;
 
 /**
- * Isolated V2 execution seam. It dispatches only source-free drawing and response plans until
- * source-aware handlers acquire their own typed plans, snapshots, and strong commit ports.
+ * Isolated V2 execution seam. Source-aware routes are dispatched only when their Probe,
+ * preparation, binding, and typed handler capabilities are composed.
  */
 public final class DefaultTurnV2ExecutionCoordinator implements TurnV2ExecutionCoordinator {
 
     private final TurnV2PreHandlerCoordinator preHandler;
     private final Optional<PlainDrawingHandler> plain;
     private final Optional<PlainResponseHandler> response;
+    private final Optional<SourceAwareTurnExecution> sourceAware;
     private final TurnAttemptExecutionStatePort executionState;
 
     public DefaultTurnV2ExecutionCoordinator(
@@ -62,7 +63,18 @@ public final class DefaultTurnV2ExecutionCoordinator implements TurnV2ExecutionC
             PlainResponseHandler response,
             TurnAttemptExecutionStatePort executionState
     ) {
-        this(preHandler, Optional.empty(), Optional.of(response), executionState);
+        this(preHandler, Optional.empty(), Optional.of(response),
+                Optional.empty(), executionState);
+    }
+
+    public DefaultTurnV2ExecutionCoordinator(
+            TurnV2PreHandlerCoordinator preHandler,
+            PlainResponseHandler response,
+            SourceAwareTurnExecution sourceAware,
+            TurnAttemptExecutionStatePort executionState
+    ) {
+        this(preHandler, Optional.empty(), Optional.of(response),
+                Optional.ofNullable(sourceAware), executionState);
     }
 
     public DefaultTurnV2ExecutionCoordinator(
@@ -71,18 +83,32 @@ public final class DefaultTurnV2ExecutionCoordinator implements TurnV2ExecutionC
             PlainResponseHandler response,
             TurnAttemptExecutionStatePort executionState
     ) {
-        this(preHandler, Optional.of(plain), Optional.ofNullable(response), executionState);
+        this(preHandler, Optional.of(plain), Optional.ofNullable(response),
+                Optional.empty(), executionState);
+    }
+
+    public DefaultTurnV2ExecutionCoordinator(
+            TurnV2PreHandlerCoordinator preHandler,
+            PlainDrawingHandler plain,
+            PlainResponseHandler response,
+            SourceAwareTurnExecution sourceAware,
+            TurnAttemptExecutionStatePort executionState
+    ) {
+        this(preHandler, Optional.of(plain), Optional.ofNullable(response),
+                Optional.ofNullable(sourceAware), executionState);
     }
 
     private DefaultTurnV2ExecutionCoordinator(
             TurnV2PreHandlerCoordinator preHandler,
             Optional<PlainDrawingHandler> plain,
             Optional<PlainResponseHandler> response,
+            Optional<SourceAwareTurnExecution> sourceAware,
             TurnAttemptExecutionStatePort executionState
     ) {
         this.preHandler = Objects.requireNonNull(preHandler, "preHandler");
         this.plain = Objects.requireNonNull(plain, "plain");
         this.response = Objects.requireNonNull(response, "response");
+        this.sourceAware = Objects.requireNonNull(sourceAware, "sourceAware");
         this.executionState = Objects.requireNonNull(executionState, "executionState");
     }
 
@@ -119,6 +145,10 @@ public final class DefaultTurnV2ExecutionCoordinator implements TurnV2ExecutionC
                     ready.readSet(),
                     responseDecision.value().plan(),
                     events));
+        }
+        if (ready.decision() instanceof TurnRouteDecision.SourcePlanning
+                && sourceAware.isPresent()) {
+            return sourceAware.get().execute(attempt, command, ready, events);
         }
         return new TurnV2ExecutionOutcome.NotDispatched(
                 ready.decision(), nonPlainCode(ready.decision()));

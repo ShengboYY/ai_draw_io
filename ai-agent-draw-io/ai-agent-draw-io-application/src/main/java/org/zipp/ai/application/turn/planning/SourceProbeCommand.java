@@ -89,7 +89,7 @@ public sealed interface SourceProbeCommand
             if (binding == null || demand == null
                     || demand.kind() != SourceDemandKind.CURRENT_MESSAGE_RETRIEVAL_REQUIRED
                     || !validRefs(demand.attachmentRefs())
-                    || demand.relevanceQuery() != null) {
+                    || demand.relevanceQuery() == null || demand.relevanceQuery().isBlank()) {
                 throw new IllegalArgumentException("invalid required Probe command");
             }
         }

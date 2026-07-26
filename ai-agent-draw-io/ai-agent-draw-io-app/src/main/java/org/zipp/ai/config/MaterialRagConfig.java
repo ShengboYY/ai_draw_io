@@ -6,9 +6,11 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.zipp.ai.application.turn.planning.SourceProbePort;
 import org.zipp.ai.domain.agent.service.ICanvasStateStore;
 import org.zipp.ai.domain.agent.service.canvas.CanvasMutationGate;
 import org.zipp.ai.domain.citation.port.ClaimSupportVerifierPort;
@@ -107,6 +109,12 @@ public class MaterialRagConfig {
     public RequestProbeDataPort requestProbeDataPort(IOnlineRetrievalMapper retrieval, ICanvasStateStore canvases,
                                                      MySqlConversationScopeKeyResolver conversationScopes) {
         return new OnlineRequestProbeAdapter(retrieval, canvases, conversationScopes);
+    }
+
+    @Bean
+    @ConditionalOnBean(RequestSourceResolutionService.class)
+    public SourceProbePort sourceProbePort(RequestSourceResolutionService resolution) {
+        return new MySqlSourceProbeAdapter(resolution);
     }
 
     @Bean
