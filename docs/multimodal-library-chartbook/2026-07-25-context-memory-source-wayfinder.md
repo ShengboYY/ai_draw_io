@@ -356,6 +356,8 @@ M1 控制面已按以下合同分批落地；生产 HTTP 仍未切入 V2，Plain
 
 本切片补齐 submission-only NDJSON delivery boundary：`POST /api/v2/turns/stream` 与 sync submit 共享同一 `TurnHttpDeliveryAdapter`/`TurnDeliveryExecutor`，只发送安全的 `turn_submission` envelope 后结束连接；RUNNING attempt 继续由服务端执行并通过 status 查询，不承诺可重放进度事件。`NdjsonTurnEventSink` writer failure 仍只 detach subscriber，不转成业务取消；本切片未改变 legacy route、production assignment 或数据库 schema，也没有新增 migration。
 
+本补充修正 submission-only stream 的真实实现边界：`TurnV2HttpController` 不再把执行进度事件接到已承诺只发送 submission 的 `ResponseBodyEmitter`，而是通过同一 `TurnDeliveryExecutor` 使用丢弃 progress 的 submission-only sink；因此快速执行不会把 progress 行混入 submission envelope，慢执行也不会在 emitter 完成后继续写入。执行、durable status/cancel 与断流不取消语义保持不变；`NdjsonTurnEventSink` 仍保留给需要真实 NDJSON 事件订阅的 adapter contract。本补充没有 schema 变化，也没有执行 migration。
+
 ## single-instance-migration-control: Build The Single-Instance Migration Boundary
 
 Blocked by: turn-execution-control

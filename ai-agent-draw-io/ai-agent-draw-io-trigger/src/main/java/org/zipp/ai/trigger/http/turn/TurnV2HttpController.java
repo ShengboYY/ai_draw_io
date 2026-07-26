@@ -65,8 +65,7 @@ public final class TurnV2HttpController {
             throws IOException {
         ResponseBodyEmitter emitter = new ResponseBodyEmitter(10 * 60 * 1000L);
         try {
-            TurnSubmission submission = delivery.executeNdjson(
-                    actor(), request, line -> emitter.send(line, NDJSON));
+            TurnSubmission submission = delivery.executeSubmission(actor(), request);
             TurnHttpSubmissionResult disposition = submissionMapper.map(submission);
             emitter.send(submissionLine(disposition), NDJSON);
             emitter.complete();

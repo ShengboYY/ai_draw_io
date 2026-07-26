@@ -31,6 +31,15 @@ public final class TurnHttpDeliveryAdapter {
         return new TurnHttpDeliveryResult(submission, sink.events(), sink.isDetached());
     }
 
+    /**
+     * Executes the same delivery boundary without subscribing the HTTP response to progress.
+     * The V2 stream endpoint only promises the durable submission disposition; accepted work
+     * continues through the server-owned runner and is observed through status.
+     */
+    public TurnSubmission executeSubmission(AuthenticatedActor actor, TurnHttpRequest request) {
+        return executor.execute(actor, translator.translate(request), ignored -> { });
+    }
+
     public TurnHttpDeliveryResult executeLegacySync(AuthenticatedActor actor, ChatRequestDTO request) {
         BufferingTurnEventSink sink = new BufferingTurnEventSink();
         TurnSubmission submission = executor.execute(actor, translator.translateLegacy(request), sink);
