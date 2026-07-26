@@ -560,6 +560,8 @@ M2 已开始，先交付不改变 production assignment 的 application/transpor
 
 本切片补齐 source-free response handler seam：新增 `PlainResponseKind`、`PlainResponsePlan`、bounded `PlainResponseGenerationPort`/request/result 与 `PlainResponseHandler`。ANSWER/REVIEW/DIRECT_REPLY 只生成 assistant message + payload ref，再调用已有 `ResponseTurnCommitPort`；没有 Canvas mutation，generation failure、context high-water mismatch 或 write-gate disabled 都不会写入 response/terminal。app composition 仅在 response generation 与 response commit 两个 port 同时存在时注册，默认不改变 production assignment。新增 3 项 handler contract tests 与 conditional wiring test；本切片没有新增或执行 migration。
 
+本切片新增隔离的 `ChatPlainResponseAdapter`：使用 fresh tool-free session，将 bounded Canvas/Conversation/Profile/Memory 与 `PlainResponsePlan` 投影为 `PLAIN_SOURCE_FREE_RESPONSE_V1`，明确省略 current-message attachment metadata，严格只接受 `assistantMessage` 与 `payloadRef` 两个 JSON 字段，并将模型不可用/输出非法映射为 typed unavailable/invalid。adapter 默认由 `zipp.turn.v2.plain-response.enabled=true` 才注册；app composition 另外支持 response-only profile，避免响应路径依赖绘图端口。新增 3 项 adapter contract tests 与 response-only wiring regression，完整 Maven reactor 通过（1655 项，0 failures，9 skipped）；本切片没有新增或执行 migration，production V2 assignment 仍未改变。
+
 本票同时 owns DTO 的 `currentTurnAttachments`、hidden clarification id、opaque refs 与唯一 compatibility translator。
 
 composer 上传成功只创建 Conversation File。发送消息时，`TurnStartCommitPort` 才把 opaque refs 与该条 user message 原子绑定。

@@ -71,10 +71,10 @@ class TurnV2ExecutionCompositionConfigTest {
     @Test
     void composesSourceFreeResponseHandlerOnlyWhenBothResponsePortsExist() {
         contextRunner
-                .withBean(PlainGenerationPort.class, () -> mock(PlainGenerationPort.class))
-                .withBean(PlainTurnCommitPort.class, () -> mock(PlainTurnCommitPort.class))
                 .withBean(PlainResponseGenerationPort.class, () -> mock(PlainResponseGenerationPort.class))
                 .withBean(ResponseTurnCommitPort.class, () -> mock(ResponseTurnCommitPort.class))
-                .run(context -> assertThat(context).hasSingleBean(PlainResponseHandler.class));
+                .run(context -> assertThat(context)
+                        .hasSingleBean(PlainResponseHandler.class)
+                        .hasSingleBean(org.zipp.ai.application.turn.PlainExecutionProfile.class));
     }
 }

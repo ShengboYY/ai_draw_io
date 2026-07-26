@@ -78,6 +78,14 @@ public class TurnV2ExecutionCompositionConfig {
     }
 
     @Bean
+    @ConditionalOnBean({PlainResponseGenerationPort.class, ResponseTurnCommitPort.class})
+    @ConditionalOnMissingBean(PlainExecutionProfile.class)
+    public PlainExecutionProfile plainResponseExecutionProfile() {
+        // Response-only deployments still use the same source-free execution contract.
+        return PlainExecutionProfile.m2SourceFree();
+    }
+
+    @Bean
     @ConditionalOnBean({PlainGenerationPort.class, PlainTurnCommitPort.class})
     public PlainDrawingHandler plainDrawingHandler(
             PlainGenerationPort generation,
