@@ -24,6 +24,8 @@ import { createMaterialClient } from '@/api/material';
 import { createMaterialCapabilitiesClient } from '@/api/material-capabilities';
 import { createChartbookClient } from '@/api/chartbook';
 import { ConversationAttachmentTray } from '@/features/sources/ConversationAttachmentTray';
+import { ContextReceiptBar } from '@/features/context/ContextReceiptBar';
+import { buildCitationReceipt, buildContextReceipts } from '@/features/context/context-receipts';
 import {
   ComposerAddMenu,
   ComposerLibrarySelectionTray,
@@ -157,6 +159,8 @@ type Message = {
     citationKeys: string[];
     supportType: 'DIRECT' | 'SYNTHESIZED' | 'VISUAL_VERIFIED' | 'AI_KNOWLEDGE';
   }>;
+  contextReceipts?: ReturnType<typeof buildContextReceipts>;
+  citationReceipt?: ReturnType<typeof buildCitationReceipt>;
   timestamp: number;
 };
 
@@ -2942,8 +2946,28 @@ function DrawioPageContent() {
               sourceUse: chunk.sourceUse,
               useChinese,
             });
+            const contextReceipts = buildContextReceipts({
+              location: filesChartbook
+                ? { kind: 'CHARTBOOK', label: filesChartbook.name }
+                : { kind: 'STANDALONE' },
+              attachments: [
+                ...conversationAttachments.map(attachment => ({
+                  label: attachment.fileName,
+                  state: attachment.state,
+                })),
+                ...librarySelections.map(selection => ({
+                  label: selection.displayName,
+                  state: 'READY',
+                })),
+              ],
+              sourceUse: chunk.sourceUse,
+              useChinese,
+            });
             updateStep('route', 'analyzing', routeStepLabel, routeDetail, true, true);
             publishSteps();
+            setMessages(prev => prev.map(m => m.id === agentMsgId
+              ? { ...m, contextReceipts }
+              : m));
             upsertRunEvent('route', {
               phase: 'analyzing',
               title: 'Intent Router',
@@ -3369,6 +3393,10 @@ function DrawioPageContent() {
                     content: accumulatedContent,
                     evidenceSources: chunk.sources || [],
                     evidenceClaims: chunk.claims || [],
+                    citationReceipt: buildCitationReceipt(
+                      new Set((chunk.claims || []).flatMap(claim => claim.citationKeys || [])).size,
+                      useChinese,
+                    ),
                     steps: markStepsDone(m.steps),
                   }
                 : m));
@@ -4432,6 +4460,13 @@ function DrawioPageContent() {
                               </div>
                             ))}
                           </div>
+                        )}
+
+                        {msg.role === 'agent' && (msg.contextReceipts?.length || msg.citationReceipt) && (
+                          <ContextReceiptBar
+                            receipts={[...(msg.contextReceipts || []), ...(msg.citationReceipt ? [msg.citationReceipt] : [])]}
+                            useChinese={useChineseMessage}
+                          />
                         )}
 
                         {/* Empty state while generating */}

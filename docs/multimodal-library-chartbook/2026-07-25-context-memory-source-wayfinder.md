@@ -838,7 +838,7 @@ Type: Prototype
 ## ux-receipts: Make Context Use Visible Without Technical Modes
 
 Blocked by: source-policy-adr, source-execution-plan, memory-policy
-Status: open
+Status: resolved
 Type: Prototype
 
 ### Question
@@ -847,13 +847,13 @@ Type: Prototype
 
 ### Answer
 
-Pending. 需要定义：
+已完成前端语义化 receipt prototype，并接入 agent 消息的 route snapshot：
 
-- standalone/Chartbook 位置和语义化 context indicator；
-- 当前消息 attachment chips，以及执行后只读 source receipt chips；两者都不是 source mode 选择器；
-- 执行后 source/memory receipt、可选增强跳过提示和引用入口；
-- Memory 管理入口；
-- 不恢复 per-message source checkbox 或技术 SourceMode 控件。
+- `context-receipts.ts` 定义 standalone/Chartbook、当前附件、Chartbook 资料、已确认决策、资料引用和可选增强跳过的统一 receipt contract；用户可见文案不暴露 `DIRECT`、`RETRIEVAL` 或 RAG 技术模式。
+- `ContextReceiptBar` 以只读 chips 展示本轮上下文，预留资料、Memory 管理和引用入口 action；当前消息的附件/Library selection 与 route 后的实际 source use 在 agent message 上绑定快照，历史消息不会随当前 Chartbook 切换而改写。
+- NONE、附件、资料、附件+资料、Memory unavailable/stale、zero citation 和 optional no-match 都有明确语义状态；Memory 不可用只显示提示，不阻断当前请求。
+- 当前后端尚未发布 durable Memory receipt 或 optional-skip event，因此 UI 只消费已有 route/evidence 数据；后续 transport 可直接填充同一 contract，不需要恢复 per-message source checkbox 或技术 SourceMode 控件。
+- 新增 receipt 定向测试 4/4；结合既有 agent presentation 测试共 25/25 通过；TypeScript 检查通过，ESLint 0 errors（页面仅有既存 3 条 warning）。
 
 ## turn-lifecycle-evals: Gate M1 Turn Control
 
